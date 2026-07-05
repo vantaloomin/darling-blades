@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, eslint.config.js · last-verified: 2026-07-04 · process doc — re-verify when the workflow itself changes -->
+<!-- source-of-truth: package.json, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-07-05 · process doc — re-verify when the workflow itself changes -->
 
 # Claude Orchestration Playbook
 
@@ -43,6 +43,10 @@ state; if the baseline is red, fixing or reporting that comes first.
   the sub-agents) owns commits. Decomposition therefore stays by *file set*,
   not by topic: every agent gets an explicit allowed-file list and an explicit
   do-not-touch list naming what the *other* concurrent agents own.
+- The full branch / commit / PR / merge flow — and the rule that **`main`
+  auto-deploys to GitHub Pages on every green push** — lives in
+  [git-workflow.md](git-workflow.md); the short version: the main session owns
+  git, branch non-trivial work, keep `main` green.
 - Workstreams that share a file go in different waves. Launch a blocked
   workstream *early* the moment its file conflicts finish — don't wait for
   the whole wave.
@@ -146,6 +150,11 @@ Run in this order; each rung is cheaper than debugging the next one:
 7. Runtime probes in the preview browser (below)
 8. Balance re-measure when AI/decks moved:
    `npx tsx scripts/balance-matrix.ts --avatars --seeds 40`
+
+Rungs 1–6 also run in CI on every push and PR to `main`
+(`.github/workflows/deploy.yml`), and a green push to `main` deploys the web
+build to GitHub Pages — so a red rung fails a public run and blocks the live
+deploy, not just your local loop. Branch/PR flow: [git-workflow.md](git-workflow.md).
 
 **Preview-probe recipe** (the tab is hidden: RAF stalls, canvas may be 0×0,
 WebGL never appears in screenshots):
