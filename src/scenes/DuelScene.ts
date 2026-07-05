@@ -179,6 +179,8 @@ export class DuelScene extends Phaser.Scene {
   private inspectMove: ((p: Phaser.Input.Pointer) => void) | null = null;
   private zoom!: CardZoomPreview;
   private concedeBtn!: Phaser.GameObjects.Text;
+  /** Two-tap concede guard (settings.confirmDestructive); armed by the first tap. */
+  private concedeArmed = false;
   private discardPicks = new Set<number>();
   private aiTimer: Phaser.Time.TimerEvent | null = null;
   private autoSkipTimer: Phaser.Time.TimerEvent | null = null;
@@ -580,7 +582,16 @@ export class DuelScene extends Phaser.Scene {
     bindTapButton(this, this.concedeBtn, (p) => {
       // Never concede off a right-click — it's the inspect/cancel gesture.
       if (p.rightButtonReleased()) return;
-      if (!this.ended && this.isHumanTurnDecision()) this.act({ type: 'concede' });
+      if (this.ended || !this.isHumanTurnDecision()) return;
+      // Destructive (a gauntlet loss ends the whole run): two-tap arm → confirm,
+      // unless the player opted out via settings.confirmDestructive.
+      if (Services.save.data.settings.confirmDestructive && !this.concedeArmed) {
+        this.concedeArmed = true;
+        this.concedeBtn.setText('Tap to confirm').setColor('#f08a8a');
+        inflateHitArea(this.concedeBtn, 90, 90); // relabeled — regrow the custom hit area
+        return;
+      }
+      this.act({ type: 'concede' });
     });
     inflateHitArea(this.concedeBtn, 90, 90);
 

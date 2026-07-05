@@ -536,7 +536,8 @@ export class CollectionScene extends Phaser.Scene {
       const label = (): string =>
         armed ? `Shard ×${excess} — confirm (+${gold}🪙)` : `⛏ Shard ×${excess} extra (+${gold}🪙)`;
       const shardBtn = this.overlayChip(c, panelX, 684, label(), '#d9a8ff', () => {
-        if (!armed) {
+        // Shared destructive-confirm policy: two-tap unless the player opted out.
+        if (save.settings.confirmDestructive && !armed) {
           armed = true;
           shardBtn.setText(label()).setColor('#ffd44a');
           inflateHitArea(shardBtn, 90, 52);

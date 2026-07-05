@@ -14,7 +14,7 @@ export interface GauntletState {
 }
 
 export interface SaveData {
-  version: 6;
+  version: 7;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -48,6 +48,12 @@ export interface SaveData {
     /** Hard-coded 16:9 render resolution (720p/1080p/1440p); no "auto" (v5). */
     renderScale: 1 | 1.5 | 2;
     autoSkip: boolean;
+    /**
+     * One shared policy for the two-tap "arm → confirm" guard on maximal-cost
+     * destructive actions (concede, gauntlet abandon, shard/sell). v7 addition;
+     * defaults on so an accidental tap can never fire the action outright.
+     */
+    confirmDestructive: boolean;
   };
 }
 
@@ -61,7 +67,7 @@ export function freshGauntlet(): GauntletState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 6,
+    version: 7,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -85,6 +91,7 @@ export function freshSave(now: number): SaveData {
       animations: 'full',
       renderScale: DEFAULT_RENDER_SCALE,
       autoSkip: true,
+      confirmDestructive: true,
     },
   };
 }
@@ -119,7 +126,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 6) return parsed as SaveData;
+      if (parsed.version === 7) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -137,8 +144,10 @@ export class SaveManager {
    * field dropped); v4 → v5 coerces the removed `renderScale: 'auto'` (and any
    * out-of-range value) to the hard-coded default; v5 → v6 adds `heroCardId`
    * (null = auto face) and, for a run already in progress, stamps it with a
-   * seed derived from its `startedAt` so it stays reproducible. An
-   * unknown/garbage version starts fresh rather than crash.
+   * seed derived from its `startedAt` so it stays reproducible; v6 → v7 adds
+   * `settings.confirmDestructive` (default on — the shared two-tap guard on
+   * concede / gauntlet-abandon / shard). An unknown/garbage version starts
+   * fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
@@ -212,7 +221,20 @@ export class SaveManager {
         gauntlet: { ...g, run },
       };
     }
-    if (cur.version === 6) return cur as unknown as SaveData;
+    if (cur.version === 6) {
+      // Add the shared confirm-destructive guard (default on) so an existing
+      // save keeps the safer behavior; a boolean already present is preserved.
+      const s = (cur.settings ?? {}) as { confirmDestructive?: unknown };
+      cur = {
+        ...cur,
+        version: 7,
+        settings: {
+          ...(cur.settings as object),
+          confirmDestructive: typeof s.confirmDestructive === 'boolean' ? s.confirmDestructive : true,
+        },
+      };
+    }
+    if (cur.version === 7) return cur as unknown as SaveData;
     return freshSave(now);
   }
 
