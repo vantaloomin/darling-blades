@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-04
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-05
      If you change those files, update this doc or re-verify the date. -->
 
 # AI

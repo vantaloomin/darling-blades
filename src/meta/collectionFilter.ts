@@ -60,12 +60,13 @@ export interface CollectionFilterState {
   color: Color | 'all';
   type: CardType | 'all';
   rarity: Rarity | 'all';
+  set: 'base' | 'ragnarok' | 'all';
   ownedOnly: boolean;
   sort: SortMode;
 }
 
 export function defaultFilterState(): CollectionFilterState {
-  return { color: 'all', type: 'all', rarity: 'all', ownedOnly: false, sort: 'rarity' };
+  return { color: 'all', type: 'all', rarity: 'all', set: 'all', ownedOnly: false, sort: 'rarity' };
 }
 
 /** The collectible pool: no tokens, no basic lands (matches the pack pools). */
@@ -85,6 +86,7 @@ export function applyFilters(
         (state.color === 'all' || d.colors.includes(state.color)) &&
         (state.type === 'all' || d.types.includes(state.type)) &&
         (state.rarity === 'all' || d.rarity === state.rarity) &&
+        (state.set === 'all' || (d.set ?? 'base') === state.set) &&
         (!state.ownedOnly || ownedCount(save, d.id) > 0),
     )
     .sort(SORTERS[state.sort]);

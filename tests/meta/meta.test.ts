@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
+import { CARD_DB } from '../../src/data/catalog';
+import { THEME_DECKS } from '../../src/data/starterDecks';
 import { createRngState } from '../../src/engine/rng';
 import {
   addCard,
@@ -12,7 +14,7 @@ import {
   shardGold,
 } from '../../src/meta/Collection';
 import { validateDeck } from '../../src/meta/DeckStorage';
-import { applyGauntletResult, applyMatchResult, spendGold } from '../../src/meta/Economy';
+import { applyGauntletResult, applyMatchResult, buyThemeDeck, spendGold } from '../../src/meta/Economy';
 import { openPack, packPool } from '../../src/meta/PackOpener';
 import { freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, shardValue, TIER_RANK, variantKey, variantRank } from '../../src/meta/variants';
@@ -258,6 +260,17 @@ describe('PackOpener', () => {
     expect(a).toEqual(b); // full PackResult: ids, tiers, frames, holos, flags
     const c = openPack(freshSave(0), TEST_DB, createRngState(8));
     expect(a).not.toEqual(c); // sanity: a different seed actually differs
+  });
+
+  it('a set-scoped Ragnarök booster pulls only ragnarok cards, self-sufficient at every tier', () => {
+    for (const tier of ['c', 'r', 'sr', 'ssr', 'ur'] as const) {
+      const rgPool = packPool(CARD_DB, tier, 'ragnarok');
+      expect(rgPool.length, `ragnarok ${tier} pool`).toBeGreaterThan(0);
+      for (const id of rgPool) expect(id.startsWith('rg-'), `${id} in ragnarok pool`).toBe(true);
+    }
+    const result = openPack(freshSave(0), CARD_DB, createRngState(99), 'ragnarok');
+    expect(result.cards).toHaveLength(ECONOMY.packSize);
+    for (const c of result.cards) expect(CARD_DB[c.cardId].set).toBe('ragnarok');
   });
 
   it('dupe-protects the sr/ssr/ur slots (prefers sub-playset cards)', () => {
@@ -555,32 +568,41 @@ describe('applyGauntletResult', () => {
     expect(save.stats.byDifficulty.easy.w).toBe(1);
   });
 
-  it('clearing rung 8 pays the completion bonus and ends the run', () => {
+  it('clearing rung 8 advances the run (does not complete a 10-rung ladder)', () => {
     const save = freshSave(0);
-    save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
     save.gauntlet.run = { rung: 8, startedAt: 1, seed: 42 };
     const r = applyGauntletResult(save, 8, 'hard', true, '2026-07-02');
-    expect(r.gold).toBe(ECONOMY.gauntletRungGold[7] + ECONOMY.gauntletCompletionBonus);
+    expect(r.completed).toBe(false);
+    expect(r.nextRung).toBe(9);
+    expect(save.gauntlet.run?.rung).toBe(9);
+  });
+
+  it('clearing rung 10 pays the completion bonus and ends the run', () => {
+    const save = freshSave(0);
+    save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
+    save.gauntlet.run = { rung: 10, startedAt: 1, seed: 42 };
+    const r = applyGauntletResult(save, 10, 'hard', true, '2026-07-02');
+    expect(r.gold).toBe(ECONOMY.gauntletRungGold[9] + ECONOMY.gauntletCompletionBonus);
     expect(r.completed).toBe(true);
     expect(r.runOver).toBe(true);
     expect(r.nextRung).toBeNull();
     expect(save.gauntlet.run).toBeNull();
     expect(save.gauntlet.completions).toBe(1);
-    expect(save.gauntlet.bestRung).toBe(8);
+    expect(save.gauntlet.bestRung).toBe(10);
   });
 
-  it('a full 8-rung run pays exactly 1210 gold plus the daily bonus once', () => {
+  it('a full 10-rung run pays exactly 1650 gold plus the daily bonus once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
-    for (let rung = 1; rung <= 8; rung++) {
+    for (let rung = 1; rung <= 10; rung++) {
       const diff = rung <= 3 ? 'easy' : rung <= 6 ? 'medium' : 'hard';
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(960);
+    expect(rungSum).toBe(1400);
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(1310); // 960 + 250 + 100 (daily bonus once)
+    expect(total).toBe(1750); // 1400 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 
@@ -595,5 +617,39 @@ describe('applyGauntletResult', () => {
     expect(save.gauntlet.run).toBeNull();
     expect(save.gauntlet.bestRung).toBe(3); // unchanged by a loss
     expect(save.stats.byDifficulty.medium.l).toBe(1);
+  });
+});
+
+describe('buyThemeDeck (Ragnarök precon)', () => {
+  const deck = THEME_DECKS[0];
+
+  it('spends preconPrice, grants the cards, and adds the deck without touching starterChosen', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.preconPrice + 50;
+    save.starterChosen = 'starter-crimson';
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
+    expect(save.gold).toBe(50);
+    expect(save.decks.some((d) => d.id === deck.id)).toBe(true);
+    expect(save.starterChosen).toBe('starter-crimson'); // the free-starter flow is untouched
+    const aNonBasic = deck.cards.find((id) => !CARD_DB[id].supertypes?.includes('basic'))!;
+    expect(save.collection[aNonBasic] ?? 0).toBeGreaterThan(0);
+  });
+
+  it('is idempotent — a second buy is a no-op that does not spend gold', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.preconPrice * 3;
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
+    const afterFirst = save.gold;
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
+    expect(save.gold).toBe(afterFirst);
+    expect(save.decks.filter((d) => d.id === deck.id)).toHaveLength(1);
+  });
+
+  it('fails and spends nothing when gold is short', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.preconPrice - 1;
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
+    expect(save.gold).toBe(ECONOMY.preconPrice - 1);
+    expect(save.decks.some((d) => d.id === deck.id)).toBe(false);
   });
 });

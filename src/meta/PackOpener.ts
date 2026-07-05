@@ -1,19 +1,20 @@
 import { ECONOMY } from '../config/rules';
 import { rngInt, type RngState } from '../engine/rng';
-import type { CardDb, Rarity } from '../engine/types';
+import type { CardDb, CardDef, Rarity } from '../engine/types';
 import { isType } from '../engine/types';
 import { addCard, ownedCount, PLAYSET, type AddResult } from './Collection';
 import type { SaveData } from './SaveManager';
 import { rollFrame, rollHolo, rollTier, TIER_RANK, variantRank } from './variants';
 
 /** Cards that can appear in boosters: no basics, no tokens. */
-export function packPool(db: CardDb, tier: Rarity): string[] {
+export function packPool(db: CardDb, tier: Rarity, set?: CardDef['set']): string[] {
   return Object.values(db)
     .filter(
       (d) =>
         d.rarity === tier &&
         !d.token &&
         !d.supertypes?.includes('basic') &&
+        (set === undefined || (d.set ?? 'base') === set) &&
         (d.cost !== undefined || isType(d, 'land')), // duals allowed, basics excluded above
     )
     .map((d) => d.id)
@@ -43,16 +44,16 @@ export interface PackResult {
  * and plain-dupe→gold conversion happen here, via `addCard`. The result is
  * plain JSON-serializable data, sorted worst→best for the reveal.
  */
-export function openPack(save: SaveData, db: CardDb, rng: RngState): PackResult {
+export function openPack(save: SaveData, db: CardDb, rng: RngState, set?: CardDef['set']): PackResult {
   const cards: AddResult[] = [];
   for (let i = 0; i < ECONOMY.packSize; i++) {
     let tier = rollTier(rng);
-    let pool = packPool(db, tier);
+    let pool = packPool(db, tier, set);
     while (pool.length === 0) {
       const down = TIER_FALLBACK[tier];
       if (down === null) throw new Error('booster pool is empty at every tier');
       tier = down;
-      pool = packPool(db, tier);
+      pool = packPool(db, tier, set);
     }
     if (tier === 'sr' || tier === 'ssr' || tier === 'ur') {
       const incomplete = pool.filter((id) => ownedCount(save, id) < PLAYSET);

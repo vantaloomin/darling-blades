@@ -124,3 +124,37 @@ export const STARTER_DECKS: DeckList[] = [
     ]),
   },
 ];
+
+/**
+ * Theme/precon decks — buyable expansion decks, deliberately kept OUT of
+ * STARTER_DECKS so the one-free-starter picker (MainMenuScene, 5-panel layout)
+ * and the balance harness (which measures the 5 starters) are untouched. Sold
+ * in the shop for ECONOMY.preconPrice via Economy.buyThemeDeck.
+ *
+ * Valhalla's Muster — B/G Ragnarök reanimator: mill your own creatures into the
+ * yard, then return the fattest Jotun with Call the Einherjar / Barrow-Jarl.
+ */
+export const THEME_DECKS: DeckList[] = [
+  {
+    id: 'theme-ragnarok',
+    name: "Valhalla's Muster",
+    cards: expand([
+      ['land-swamp', 10],
+      ['land-forest', 10],
+      ['ld-asphodel-meadow', 4],
+      ['rg-corpse-taker', 4],
+      ['rg-hels-handmaiden', 3],
+      ['rg-verdant-seidr', 3],
+      ['rg-worldroot-tender', 2],
+      ['rg-plaguebearer-draugr', 3],
+      ['rg-barrow-wight', 3],
+      ['rg-draugr-jarl', 3],
+      ['rg-deaths-herald', 3],
+      ['rg-jotun-earthshaker', 3],
+      ['rg-jotun-warleader', 2],
+      ['rg-dianwei', 2],
+      ['rg-thanatos', 2],
+      ['rg-call-the-einherjar', 3],
+    ]),
+  },
+];

@@ -1,5 +1,10 @@
 import { ECONOMY } from '../config/rules';
+import type { DeckList } from '../data/starterDecks';
+import type { CardDb } from '../engine/types';
+import { def } from '../engine/types';
+import { addCard } from './Collection';
 import type { SaveData } from './SaveManager';
+import { PLAIN_VARIANT } from './variants';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -39,7 +44,7 @@ export interface GauntletReward {
   gold: number;
   firstWinBonus: boolean;
   runOver: boolean; // the run ended (cleared, lost, or completed)
-  completed: boolean; // full 8-rung clear
+  completed: boolean; // full 10-rung clear
   nextRung: number | null; // rung to fight next, or null if the run is over
 }
 
@@ -48,7 +53,7 @@ export interface GauntletReward {
  *
  * The rung's `difficulty` is passed in (not derived from opponents.ts) so the
  * meta layer stays free of data-layer coupling. Win → pay the rung's gold and
- * climb (rung 8 pays the completion bonus and ends the run); loss → pay the
+ * climb (the final rung pays the completion bonus and ends the run); loss → pay the
  * standard loss gold and reset the run.
  */
 export function applyGauntletResult(
@@ -108,4 +113,33 @@ export function spendGold(save: SaveData, amount: number): boolean {
 
 export function todayString(now = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Grant PLAIN copies of a deck's non-basic cards, topping each up to the deck's
+ * count (never removing owned copies). Shared by the free-starter grant
+ * (MainMenuScene) and paid theme-deck purchases. Basics are free/unlimited.
+ */
+export function grantDeckCards(save: SaveData, db: CardDb, cards: readonly string[]): void {
+  const counts = new Map<string, number>();
+  for (const id of cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+  for (const [id, n] of counts) {
+    if (def(db, id).supertypes?.includes('basic')) continue;
+    const have = save.collection[id] ?? 0;
+    for (let i = have; i < n; i++) addCard(save, db, id, PLAIN_VARIANT);
+  }
+}
+
+/**
+ * Buy a theme/precon deck: spend preconPrice, grant its cards, add it to the
+ * player's decks. Idempotent — a deck already owned (by id) is a no-op that
+ * does NOT spend gold. Never touches starterChosen (the one free starter flow
+ * is independent). Returns true only if the purchase actually happened.
+ */
+export function buyThemeDeck(save: SaveData, db: CardDb, deck: DeckList): boolean {
+  if (save.decks.some((d) => d.id === deck.id)) return false;
+  if (!spendGold(save, ECONOMY.preconPrice)) return false;
+  grantDeckCards(save, db, deck.cards);
+  save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards] });
+  return true;
 }

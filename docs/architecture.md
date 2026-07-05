@@ -110,6 +110,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `lifeChanged`          | `player`, `delta`, `now`                        | A player's life total changed.                                                                                             |
 | `died`                 | `iid`, `cardId`, `owner`                        | A permanent left the battlefield to the graveyard (also used by `bounce`).                                                 |
 | `discarded`            | `player`, `cardId`                              | A card went from hand to graveyard.                                                                                        |
+| `milled`               | `player`, `cardId`                              | A card went from the top of a library to the graveyard (the `mill` op).                                                    |
 | `triggerFired`         | `iid`, `when`                                   | A permanent's triggered ability fired.                                                                                     |
 | `effectApplied`        | `op`, `detail?`                                 | One `EffectOp` executed (op name for logging).                                                                             |
 | `tokenCreated`         | `perm`                                          | A token permanent entered.                                                                                                 |

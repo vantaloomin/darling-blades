@@ -8,6 +8,7 @@ import { ENCHANTMENTS } from '../../src/data/cards/enchantments';
 import { GREEK } from '../../src/data/cards/greek';
 import { INSTANTS } from '../../src/data/cards/instants';
 import { LANDS } from '../../src/data/cards/lands';
+import { RAGNAROK } from '../../src/data/cards/ragnarok';
 import { SORCERIES } from '../../src/data/cards/sorceries';
 import { TK_JIN } from '../../src/data/cards/tk-jin';
 import { TK_OTHER } from '../../src/data/cards/tk-other';
@@ -34,6 +35,7 @@ describe('catalog integrity', () => {
       [TK_OTHER, 'tk-other-'],
       [GREEK, 'gk-'],
       [BEASTKIN, 'bk-'],
+      [RAGNAROK, 'rg-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -132,6 +134,25 @@ describe('catalog integrity', () => {
 
   it('the pool holds at least 180 cards', () => {
     expect(ALL_CARDS.length).toBeGreaterThanOrEqual(180);
+  });
+
+  it('stamps every ragnarok card set:ragnarok and every other collectible set:base', () => {
+    for (const card of ALL_CARDS) {
+      if (card.token) continue; // tokens are non-collectible; set is irrelevant
+      if (card.id.startsWith('rg-')) {
+        expect(card.set, `${card.id} should be set:ragnarok`).toBe('ragnarok');
+      } else {
+        expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
+      }
+    }
+  });
+
+  it('the ragnarok set is a self-sufficient booster pool (ur >= 4, sr/ssr present)', () => {
+    const rg = ALL_CARDS.filter((c) => c.set === 'ragnarok' && !c.token);
+    const count = (r: string) => rg.filter((c) => c.rarity === r).length;
+    expect(count('ur'), 'ragnarok ur pool must support dupe-protected picks').toBeGreaterThanOrEqual(4);
+    expect(count('ssr')).toBeGreaterThanOrEqual(1);
+    expect(count('sr')).toBeGreaterThanOrEqual(1);
   });
 
   it('every multicolor nonland card is legendary', () => {

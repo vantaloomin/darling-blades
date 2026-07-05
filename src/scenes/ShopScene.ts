@@ -3,8 +3,9 @@ import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
+import { THEME_DECKS } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
-import { spendGold } from '../meta/Economy';
+import { buyThemeDeck, spendGold } from '../meta/Economy';
 import { openPack } from '../meta/PackOpener';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
@@ -76,8 +77,12 @@ function bakeProceduralPackBase(ctx: CanvasRenderingContext2D): void {
  * into the 280×400 canvas inside the rounded clip (r 14). The art is text-free
  * (NO-TEXT rule); the crimps + wordmark are code-stamped over it afterward.
  */
-function bakeRealPackBase(scene: Phaser.Scene, ctx: CanvasRenderingContext2D): void {
-  const img = scene.textures.get('scene-pack-art').getSourceImage() as CanvasImageSource;
+function bakeRealPackBase(
+  scene: Phaser.Scene,
+  ctx: CanvasRenderingContext2D,
+  sceneArtKey: string,
+): void {
+  const img = scene.textures.get(sceneArtKey).getSourceImage() as CanvasImageSource;
   const sw = (img as { width: number }).width;
   const sh = (img as { height: number }).height;
   ctx.save();
@@ -95,21 +100,35 @@ function bakeRealPackBase(scene: Phaser.Scene, ctx: CanvasRenderingContext2D): v
   ctx.stroke();
 }
 
+export interface PackArtOpts {
+  key?: string; // texture key (default 'packart')
+  wordmark?: string; // hero line (default 'Darling Blades')
+  subtitle?: string; // sub line (default 'BOOSTER PACK')
+  sceneArtKey?: string; // real-art source key (default 'scene-pack-art')
+  footer?: string; // bottom crimp line
+}
+
 /**
- * Bake the booster-pack art once (shared with PackOpeningScene). Real front
- * art when the scene-art PNG is on disk, else the procedural pack. The crimp
- * bands and code-stamped wordmark are re-stamped over BOTH (the real art is
- * required to be text-free), so the pack always reads as a sealed product.
+ * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
+ * art when the `sceneArtKey` PNG is on disk, else the procedural pack. The
+ * crimp bands + code-stamped wordmark are re-stamped over BOTH (the real art is
+ * text-free), so the pack always reads as a sealed product. Parameterized so a
+ * second SKU (the Ragnarök expansion booster) bakes its own texture.
  */
-export function bakePackArt(scene: Phaser.Scene): void {
-  if (scene.textures.exists('packart')) return;
+export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
+  const key = opts.key ?? 'packart';
+  const wordmark = opts.wordmark ?? 'Darling Blades';
+  const subtitle = opts.subtitle ?? 'BOOSTER PACK';
+  const sceneArtKey = opts.sceneArtKey ?? 'scene-pack-art';
+  const footer = opts.footer ?? '15 cards — 5 tiers · 6 frames · 6 finishes';
+  if (scene.textures.exists(key)) return;
   const W = PACK_W;
   const H = PACK_H;
-  const tex = scene.textures.createCanvas('packart', W, H)!;
+  const tex = scene.textures.createCanvas(key, W, H)!;
   const ctx = tex.getContext();
 
-  if (scene.textures.exists('scene-pack-art')) {
-    bakeRealPackBase(scene, ctx);
+  if (scene.textures.exists(sceneArtKey)) {
+    bakeRealPackBase(scene, ctx, sceneArtKey);
   } else {
     bakeProceduralPackBase(ctx);
   }
@@ -122,13 +141,13 @@ export function bakePackArt(scene: Phaser.Scene): void {
   ctx.textAlign = 'center';
   ctx.font = '700 34px Cinzel, Georgia, serif';
   ctx.fillStyle = '#ffe9a0';
-  ctx.fillText('Darling Blades', W / 2, 130);
+  ctx.fillText(wordmark, W / 2, 130);
   ctx.font = '600 17px Inter, Arial, sans-serif';
   ctx.fillStyle = '#c9bde0';
-  ctx.fillText('BOOSTER PACK', W / 2, 158);
+  ctx.fillText(subtitle, W / 2, 158);
   ctx.font = '600 14px Inter, Arial, sans-serif';
   ctx.fillStyle = '#8f83a8';
-  ctx.fillText('15 cards — 5 tiers · 6 frames · 6 finishes', W / 2, H - 44);
+  ctx.fillText(footer, W / 2, H - 44);
   tex.refresh();
 }
 
@@ -155,14 +174,21 @@ export class ShopScene extends Phaser.Scene {
         bg.fillRect(0, 0, width, height);
       },
     });
-    bakePackArt(this);
+    bakePackArt(this); // base pack ('packart')
+    bakePackArt(this, {
+      key: 'packart-ragnarok',
+      wordmark: 'Ragnarök',
+      subtitle: 'EXPANSION BOOSTER',
+      sceneArtKey: 'scene-pack-art-ragnarok',
+      footer: '15 cards — Ragnarök set only',
+    });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
     this.add
-      .text(width / 2, 70, 'Booster Shop', {
+      .text(width / 2, 56, 'Booster Shop', {
         fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '40px',
+        fontSize: '38px',
         color: '#f0e6ff',
       })
       .setOrigin(0.5);
@@ -177,40 +203,19 @@ export class ShopScene extends Phaser.Scene {
       .setOrigin(1, 0.5);
     this.refreshGold();
 
-    const pack = this.add
-      .image(width / 2, 360, 'packart')
-      .setDisplaySize(238, 340)
-      .setInteractive({ useHandCursor: true });
-    this.tweens.add({
-      targets: pack,
-      y: 350,
-      duration: 1800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-    // Routed through the FX choke point (was a raw renderer-type check that
-    // bypassed the quality tier — mobile-lan-plan §1.6, perf audit §2).
-    if (fxPolicy(this).shine && pack.preFX) {
-      pack.preFX.addShine(0.5, 0.3, 4);
-    }
+    // Two booster SKUs side by side: the base set and the Ragnarök expansion.
+    this.buildPackSku(width / 2 - 210, 'Base Set', 'packart', ECONOMY.packPrice, () =>
+      this.buyPack(),
+    );
+    this.buildPackSku(
+      width / 2 + 210,
+      'Ragnarök Expansion',
+      'packart-ragnarok',
+      ECONOMY.ragnarokPackPrice,
+      () => this.buyRagnarokPack(),
+    );
 
-    const price = this.add
-      .text(width / 2, 570, `Buy — 🪙 ${ECONOMY.packPrice}`, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '26px',
-        color: '#ffd88a',
-        backgroundColor: '#2c2344',
-        padding: { x: 20, y: 10 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    const buy = (): void => this.buyPack();
-    bindTapButton(this, price, buy);
-    bindTapButton(this, pack, buy);
-    // The buy button's inflated rect grazes the pack image above it — both
-    // targets run the same buyPack, so the overlap cannot misroute.
-    inflateHitArea(price, 90, 90);
+    this.buildThemeRow();
 
     const back = this.add
       .text(28, 28, '← Menu', {
@@ -227,12 +232,89 @@ export class ShopScene extends Phaser.Scene {
     this.goldText.setText(`🪙 ${Services.save.data.gold}`);
   }
 
+  /** Shake + flash the gold readout red — a can't-afford / already-owned cue. */
+  private insufficientFunds(): void {
+    this.cameras.main.shake(120, 0.004);
+    this.goldText.setColor('#f08a8a');
+    this.time.delayedCall(400, () => this.goldText.setColor('#ffd88a'));
+  }
+
+  /** One booster column: label + floating pack + buy button, all wired to onBuy. */
+  private buildPackSku(
+    x: number,
+    label: string,
+    textureKey: string,
+    price: number,
+    onBuy: () => void,
+  ): void {
+    this.add
+      .text(x, 150, label, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '22px',
+        color: '#e8def7',
+      })
+      .setOrigin(0.5);
+    const pack = this.add
+      .image(x, 350, textureKey)
+      .setDisplaySize(200, 286)
+      .setInteractive({ useHandCursor: true });
+    this.tweens.add({
+      targets: pack,
+      y: 342,
+      duration: 1800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+    // Routed through the FX choke point (quality-tier aware).
+    if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.5, 0.3, 4);
+    const buyBtn = this.add
+      .text(x, 540, `Buy — 🪙 ${price}`, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '22px',
+        color: '#ffd88a',
+        backgroundColor: '#2c2344',
+        padding: { x: 16, y: 9 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, buyBtn, onBuy);
+    bindTapButton(this, pack, onBuy);
+    inflateHitArea(buyBtn, 90, 60);
+  }
+
+  /** The buyable theme/precon deck row. Rebuilds the scene on purchase. */
+  private buildThemeRow(): void {
+    const deck = THEME_DECKS[0];
+    const owned = Services.save.data.decks.some((d) => d.id === deck.id);
+    const y = 648;
+    this.add
+      .text(360, y, `Theme Deck — ${deck.name}  ·  B/G Reanimator`, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '16px',
+        color: '#c9bde0',
+      })
+      .setOrigin(0, 0.5);
+    const btn = this.add
+      .text(820, y, owned ? 'Owned ✓' : `Buy Deck — 🪙 ${ECONOMY.preconPrice}`, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '18px',
+        color: owned ? '#8ad0a0' : '#ffd88a',
+        backgroundColor: owned ? '#1b2a1b' : '#2c2344',
+        padding: { x: 14, y: 7 },
+      })
+      .setOrigin(0, 0.5);
+    if (!owned) {
+      btn.setInteractive({ useHandCursor: true });
+      bindTapButton(this, btn, () => this.onBuyThemeDeck());
+      inflateHitArea(btn, 90, 60);
+    }
+  }
+
   private buyPack(): void {
     const save = Services.save.data;
     if (!spendGold(save, ECONOMY.packPrice)) {
-      this.cameras.main.shake(120, 0.004);
-      this.goldText.setColor('#f08a8a');
-      this.time.delayedCall(400, () => this.goldText.setColor('#ffd88a'));
+      this.insufficientFunds();
       return;
     }
     Sfx.play('coin');
@@ -240,5 +322,29 @@ export class ShopScene extends Phaser.Scene {
     const result = openPack(save, CARD_DB, rng);
     Services.save.flush();
     this.scene.start('PackOpening', result);
+  }
+
+  private buyRagnarokPack(): void {
+    const save = Services.save.data;
+    if (!spendGold(save, ECONOMY.ragnarokPackPrice)) {
+      this.insufficientFunds();
+      return;
+    }
+    Sfx.play('coin');
+    const rng = createRngState(Date.now() & 0x7fffffff);
+    const result = openPack(save, CARD_DB, rng, 'ragnarok');
+    Services.save.flush();
+    this.scene.start('PackOpening', { ...result, sku: 'ragnarok' });
+  }
+
+  private onBuyThemeDeck(): void {
+    const save = Services.save.data;
+    if (!buyThemeDeck(save, CARD_DB, THEME_DECKS[0])) {
+      this.insufficientFunds();
+      return;
+    }
+    Sfx.play('coin');
+    Services.save.flush();
+    this.scene.restart(); // rebuild → the theme row now reads "Owned ✓"
   }
 }

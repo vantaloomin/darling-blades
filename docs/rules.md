@@ -147,10 +147,11 @@ now-null combat and cleanly falls through to main 2 (see the `combat` case in
 `resolveCombatDamage` computes damage against the pre-damage board and applies it
 all at once (modern simultaneous damage):
 
-- **First strike sub-step.** If *any* combatant has first strike, a first-strike
-  damage pass happens first, SBAs are checked, then the normal pass runs. (There
-  is no double strike in v1 — a first striker deals damage only in the
-  first-strike step.)
+- **First strike sub-step.** If *any* combatant has first strike **or double
+  strike**, a first-strike damage pass happens first, SBAs are checked, then the
+  normal pass runs. A first striker deals damage only in the first-strike step; a
+  **double striker deals in both** the first-strike and normal steps (first strike
+  + double strike is two hits, not three).
 - **Unblocked attackers** hit the defending player for their power.
 - **Blocked attackers** use **automatic damage assignment**: blockers are ordered
   **cheapest-to-kill first**, and lethal is assigned to each before any spills
@@ -168,7 +169,7 @@ all at once (modern simultaneous damage):
 
 ## Keywords
 
-All ten keywords and their exact implemented semantics (`Keyword` in
+All eleven keywords and their exact implemented semantics (`Keyword` in
 `src/engine/types.ts`; effects across `statics.ts`, `combat/legality.ts`,
 `combat/damage.ts`, `effects/targeting.ts`):
 
@@ -176,7 +177,8 @@ All ten keywords and their exact implemented semantics (`Keyword` in
 | -------------- | ----------------------------------------------------------------------------------------------- |
 | **flying**     | Can only be blocked by creatures with flying or reach (`canBlock`).                              |
 | **reach**      | Can block fliers (no other effect).                                                             |
-| **firstStrike**| Deals its combat damage in the first-strike sub-step; if it kills first, it takes no damage back. No double strike. |
+| **firstStrike**| Deals its combat damage in the first-strike sub-step; if it kills first, it takes no damage back. |
+| **doubleStrike**| Deals combat damage in **both** the first-strike sub-step and the normal sub-step. First strike + double strike is two hits (not three); double deathtouch is lethal in each hit; double trample re-tramples each step (a chump killed in the first-strike step lets the full power trample in the normal step); double lifelink gains on both. |
 | **haste**      | Ignores summoning sickness — can attack / tap for mana the turn it enters (`isSummoningSick`).   |
 | **trample**    | Assigns lethal to blockers, then spills the excess to the defending player.                      |
 | **vigilance**  | Attacking does not tap it.                                                                      |
@@ -255,7 +257,7 @@ Magic:
 | End-step window   | Exactly one window, for the non-active player only.                                            | Priority in the end step for both players.              |
 | Triggers          | **Never target** (v1 law); auto-resolve with no decision point.                                | Triggers may target and use the stack.                  |
 | Targeted effects  | **Single-target only** (`targets[0]`).                                                          | Arbitrary target counts.                                |
-| Double strike     | Not implemented (first strike only).                                                            | Exists.                                                 |
+| Double strike     | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.                | Exists.                                                 |
 | Colors of mana    | Generic paid by an auto-tap solver; no mana pool, no floating mana.                             | Mana pool with manual tapping.                          |
 | Summoning-sick mana creatures | Cannot tap for mana the turn they enter (ramp is delayed one turn).                   | Depends on the ability (many can if it's not `{T}`).    |
 | Board caps        | 8 creatures / 4 noncreature-nonland permanents per player, enforced at cast time.              | No such caps.                                           |

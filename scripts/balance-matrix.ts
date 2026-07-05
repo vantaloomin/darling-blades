@@ -117,9 +117,10 @@ export interface RungBand {
 
 /**
  * Plan guidance: rungs 1-3 <= ~45% AI-wins vs a Medium-proxied starter,
- * rung 8 >= ~55%, roughly monotonic in between, and no low rung may make any
- * single starter hopeless. Mid bands are wide on purpose — they catch
- * regressions, not tuning jitter.
+ * rungs 8-10 escalate (>= ~55/55/60%), roughly monotonic in between, and no
+ * low rung may make any single starter hopeless. Mid bands are wide on purpose
+ * — they catch regressions, not tuning jitter. Rungs 9-10 are the Ragnarök
+ * expansion bosses (Hel mill-reanimator, Brunhild double-strike aggro).
  */
 export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.45, cellMax: 0.65 },
@@ -130,6 +131,8 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   6: { minAvg: 0.4, maxAvg: 0.72 },
   7: { minAvg: 0.45 },
   8: { minAvg: 0.55 },
+  9: { minAvg: 0.55 },
+  10: { minAvg: 0.6 },
 });
 
 // ---------------------------------------------------------------------------

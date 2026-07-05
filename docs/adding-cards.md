@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, tests/data/catalog.test.ts · last-verified: 2026-07-04
+<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-05
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -104,8 +104,9 @@ part of the card's identity. The six finishes:
 Rendering lives in `applyHolo` (`src/ui/fx/HoloEffects.ts`, shader modes in
 `src/ui/fx/IridescencePostFX.ts`, canvas/lite fallbacks included) and is
 attached by `CardView.setCard(card, { fx: 'full', variant })`. A card rendered
-**without** a variant gets no holo — the rarity ring + gem alone mark its tier
-(duels and the deck builder render variant-less cards). Nothing to author per
+**without** a variant gets no holo — a solid per-tier metallic ring + the gem
+alone mark its tier (duels and the deck builder render variant-less cards). The
+animated iridescent ring is reserved for the `rainbow` frame. Nothing to author per
 card.
 
 ### Flavor suppression
@@ -115,6 +116,21 @@ generated rules text is under ~160 characters** — busy cards drop their flavor
 keep the text box legible. Verify in `setCard`:
 `card.flavor && rules.length < 160`. Nothing to author here; just know your
 flavor may not display on a wordy card.
+
+### Every card subject (and avatar boss) is a woman
+
+Card subjects and the gauntlet avatars are all women, so their own prose must
+never misgender them. A **masculine pronoun** (`he` / `him` / `his` / `himself`)
+referring to the subject is a bug — write `she` / `her`. Male **third parties**
+are fine (a heroine can have a father, a husband, a male foe, or duel a male
+god); this is a pronouns-only rule, not a purge of every masculine noun.
+
+`tests/data/gender.test.ts` enforces it: it scans every card `flavor` and every
+avatar `title`/`blurb` for those pronouns and fails the suite (a CI gate) on any
+hit. Names are not scanned (real surnames like *Zhang He* collide with the
+pronoun list). If a card ever needs a masculine pronoun for a genuine male third
+party ("She dared *him* to try."), register its id in that test's `ALLOW` map
+with the reason.
 
 ## Abilities and the trigger model
 
@@ -144,7 +160,7 @@ Cast-time target specs come from the first non-static ability with `targets`
 (`targetSpecsOf` in `EffectInterpreter.ts`), except **auras**, which implicitly
 target a creature to enchant (`castTargetSpecs` in `src/engine/resolve.ts`).
 
-## The 16 EffectOps
+## The 18 EffectOps
 
 Every `ops` entry is an `EffectOp` (`src/engine/types.ts`), executed by `runOp`
 in `src/engine/effects/EffectInterpreter.ts`. Each op emits
@@ -152,24 +168,26 @@ in `src/engine/effects/EffectInterpreter.ts`. Each op emits
 
 <!-- BEGIN GENERATED: EffectOp table (ops from src/engine/types.ts + EffectInterpreter.ts · run: npm run gen-docs-tables · semantics prose is hand-maintained) -->
 
-| Op              | Shape                                                                         | Semantics                                                                                                                                               | Notable events                 |
-| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| `damage`        | `{ n: number\|'X'; to: 'target'\|'opponent'\|'controller' }`                  | `n` (or `ctx.x` if `'X'`) damage. `target` → `targets[0]` (player = life loss, creature = marked damage); `opponent`/`controller` → that player's face. | `lifeChanged` / `damageMarked` |
-| `gainLife`      | `{ n: number }`                                                               | Controller gains `n` life.                                                                                                                              | `lifeChanged`                  |
-| `loseLife`      | `{ n: number; who: 'opponent' }`                                              | **Opponent-only.** Opponent loses `n` life.                                                                                                             | `lifeChanged`                  |
-| `draw`          | `{ n: number }`                                                               | Controller draws `n` (can deck them out → loss).                                                                                                        | `drew`                         |
-| `discardRandom` | `{ n: number; who: 'opponent' }`                                              | **Opponent-only.** Discards `n` random cards from the opponent's hand.                                                                                  | `discarded`                    |
-| `destroy`       | `{ to: 'target' }`                                                            | Destroys `targets[0]` (a creature); fires its `dies` triggers.                                                                                          | `died`                         |
-| `bounce`        | `{ to: 'target' }`                                                            | Returns `targets[0]` to its owner's hand (tokens evaporate). Emits `died` + a `cardsBottomed(0)` resync nudge.                                          | `died`                         |
-| `counter`       | `{ to: 'target' }`                                                            | **Targets a stack item** (`targets[0]` is a `stackItem`); removes it to its controller's graveyard.                                                     | `spellCountered`               |
-| `pump`          | `{ p: number; t: number; keywords?: Keyword[]; scope: 'target'\|'allYours' }` | Until-end-of-turn `+p/+t` (+ keywords). `target` → `targets[0]`; `allYours` → every creature you control.                                               | (via stat recompute)           |
-| `addCounters`   | `{ n: number; to: 'target'\|'self' }`                                         | Puts `n` `+1/+1` counters on `targets[0]` (`target`) or the source permanent (`self`, via `ctx.sourceIid`).                                             | (via stat recompute)           |
-| `tap`           | `{ to: 'target' }`                                                            | Taps `targets[0]`.                                                                                                                                      | —                              |
-| `rampBasic`     | `{}`                                                                          | Finds a basic land in the controller's library, puts it onto the battlefield **tapped**, then **shuffles** the library.                                 | `permanentEntered`             |
-| `createToken`   | `{ token: string; count: number }`                                            | Creates `count` copies of `token`; **stops at the 8-creature cap**; each fires `etb`.                                                                   | `tokenCreated`                 |
-| `massDestroy`   | `{ filter: 'allCreatures'\|'allFliers' }`                                     | Destroys all creatures (or all with flying); each fires `dies`.                                                                                         | `died`                         |
-| `fog`           | `{}`                                                                          | Sets `fogThisTurn` — all combat damage this turn is prevented.                                                                                          | —                              |
-| `regrowth`      | `{}`                                                                          | Returns a creature card from **your own graveyard** (`targets[0]` is a `grave` ref) to hand.                                                            | —                              |
+| Op              | Shape                                                                         | Semantics                                                                                                                                                                                                                                         | Notable events                 |
+| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `damage`        | `{ n: number\|'X'; to: 'target'\|'opponent'\|'controller' }`                  | `n` (or `ctx.x` if `'X'`) damage. `target` → `targets[0]` (player = life loss, creature = marked damage); `opponent`/`controller` → that player's face.                                                                                           | `lifeChanged` / `damageMarked` |
+| `gainLife`      | `{ n: number }`                                                               | Controller gains `n` life.                                                                                                                                                                                                                        | `lifeChanged`                  |
+| `loseLife`      | `{ n: number; who: 'opponent' }`                                              | **Opponent-only.** Opponent loses `n` life.                                                                                                                                                                                                       | `lifeChanged`                  |
+| `draw`          | `{ n: number }`                                                               | Controller draws `n` (can deck them out → loss).                                                                                                                                                                                                  | `drew`                         |
+| `discardRandom` | `{ n: number; who: 'opponent' }`                                              | **Opponent-only.** Discards `n` random cards from the opponent's hand.                                                                                                                                                                            | `discarded`                    |
+| `destroy`       | `{ to: 'target' }`                                                            | Destroys `targets[0]` (a creature); fires its `dies` triggers.                                                                                                                                                                                    | `died`                         |
+| `bounce`        | `{ to: 'target' }`                                                            | Returns `targets[0]` to its owner's hand (tokens evaporate). Emits `died` + a `cardsBottomed(0)` resync nudge.                                                                                                                                    | `died`                         |
+| `counter`       | `{ to: 'target' }`                                                            | **Targets a stack item** (`targets[0]` is a `stackItem`); removes it to its controller's graveyard.                                                                                                                                               | `spellCountered`               |
+| `pump`          | `{ p: number; t: number; keywords?: Keyword[]; scope: 'target'\|'allYours' }` | Until-end-of-turn `+p/+t` (+ keywords). `target` → `targets[0]`; `allYours` → every creature you control.                                                                                                                                         | (via stat recompute)           |
+| `addCounters`   | `{ n: number; to: 'target'\|'self' }`                                         | Puts `n` `+1/+1` counters on `targets[0]` (`target`) or the source permanent (`self`, via `ctx.sourceIid`).                                                                                                                                       | (via stat recompute)           |
+| `tap`           | `{ to: 'target' }`                                                            | Taps `targets[0]`.                                                                                                                                                                                                                                | —                              |
+| `rampBasic`     | `{}`                                                                          | Finds a basic land in the controller's library, puts it onto the battlefield **tapped**, then **shuffles** the library.                                                                                                                           | `permanentEntered`             |
+| `createToken`   | `{ token: string; count: number }`                                            | Creates `count` copies of `token`; **stops at the 8-creature cap**; each fires `etb`.                                                                                                                                                             | `tokenCreated`                 |
+| `massDestroy`   | `{ filter: 'allCreatures'\|'allFliers' }`                                     | Destroys all creatures (or all with flying); each fires `dies`.                                                                                                                                                                                   | `died`                         |
+| `fog`           | `{}`                                                                          | Sets `fogThisTurn` — all combat damage this turn is prevented.                                                                                                                                                                                    | —                              |
+| `regrowth`      | `{}`                                                                          | Returns a creature card from **your own graveyard** (`targets[0]` is a `grave` ref) to hand.                                                                                                                                                      | —                              |
+| `mill`          | `{ n: number; who: 'self'\|'opponent' }`                                      | Puts the top `n` cards of that player's library into their graveyard. Deck-out stays a draw-step check, so milling to empty is not itself a loss.                                                                                                 | `milled`                       |
+| `reanimate`     | `{ to?: 'target'\|'top' }`                                                    | Returns a creature card from **your** graveyard to the **battlefield** (summoning-sick, re-fires `etb`, respects the 8-creature cap). `target` uses a `yourGraveCreature` target; `top` (trigger-safe) returns the most-recently-buried creature. | `permanentEntered`             |
 
 <!-- END GENERATED -->
 

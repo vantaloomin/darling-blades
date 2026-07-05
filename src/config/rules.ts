@@ -15,6 +15,7 @@ export const RULES = {
 export const ECONOMY = {
   startingGold: 250, // granted with the starter deck — one booster to crack
   packPrice: 250,
+  ragnarokPackPrice: 300, // expansion booster — only pulls set:'ragnarok' cards (denser 69-card chase)
   packSize: 15, // every slot rolls tier + frame + holo independently (DROPS)
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
   lossGold: 20,
@@ -35,9 +36,10 @@ export const ECONOMY = {
   shardFrameMult: { white: 1, blue: 1.5, red: 2, gold: 4, rainbow: 8, black: 15 } as const,
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 8-rung clear. Full run = 50+70+…+190 (=960) + 250 = 1210g ≈ 4.8 packs,
+  // a full 10-rung clear. Full run = 50+70+…+230 (=1400) + 250 = 1650g ≈ 6.6 packs,
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190] as const,
+  // Rungs 9-10 (210/230) are the Ragnarök expansion bosses (Hel, Brunhild).
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230] as const,
   gauntletCompletionBonus: 250,
 } as const;
 

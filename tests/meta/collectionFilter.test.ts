@@ -119,6 +119,39 @@ describe('applyFilters facets', () => {
   });
 });
 
+describe('set facet', () => {
+  const save = freshSave(0);
+  const pool: CardDef[] = [
+    card('base_a'), // no set field → treated as base
+    card('base_b', { set: 'base' }),
+    card('rg_a', { set: 'ragnarok' }),
+    card('rg_b', { set: 'ragnarok' }),
+  ];
+  const st = (set: CollectionFilterState['set']): CollectionFilterState => ({
+    ...defaultFilterState(),
+    set,
+  });
+
+  it("default 'all' returns every set", () => {
+    expect(defaultFilterState().set).toBe('all');
+    expect(applyFilters(pool, st('all'), save)).toHaveLength(4);
+  });
+
+  it("'ragnarok' returns only expansion cards", () => {
+    expect(applyFilters(pool, st('ragnarok'), save).map((d) => d.id).sort()).toEqual([
+      'rg_a',
+      'rg_b',
+    ]);
+  });
+
+  it("'base' excludes ragnarok and treats an absent set as base", () => {
+    expect(applyFilters(pool, st('base'), save).map((d) => d.id).sort()).toEqual([
+      'base_a',
+      'base_b',
+    ]);
+  });
+});
+
 describe('sorting', () => {
   const save = freshSave(0);
 

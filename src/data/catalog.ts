@@ -6,6 +6,7 @@ import { ENCHANTMENTS } from './cards/enchantments';
 import { GREEK } from './cards/greek';
 import { INSTANTS } from './cards/instants';
 import { LANDS } from './cards/lands';
+import { RAGNAROK } from './cards/ragnarok';
 import { SORCERIES } from './cards/sorceries';
 import { TK_JIN } from './cards/tk-jin';
 import { TK_OTHER } from './cards/tk-other';
@@ -14,29 +15,37 @@ import { TK_WEI } from './cards/tk-wei';
 import { TK_WU } from './cards/tk-wu';
 import { TOKENS } from './cards/tokens';
 
-const SETS: readonly (readonly CardDef[])[] = [
-  TK_WEI,
-  TK_WU,
-  TK_SHU,
-  TK_JIN,
-  TK_OTHER,
-  GREEK,
-  BEASTKIN,
-  INSTANTS,
-  SORCERIES,
-  ENCHANTMENTS,
-  ARTIFACTS,
-  DUALS,
-  LANDS,
-  TOKENS,
+type SetKey = NonNullable<CardDef['set']>;
+
+/**
+ * Source arrays grouped by their expansion `set`. buildDb stamps every card
+ * with its group's set (unless the card overrides it), so `set` is a single
+ * source of truth here — no per-card boilerplate in the data files.
+ */
+const SET_GROUPS: readonly { set: SetKey; cards: readonly CardDef[] }[] = [
+  { set: 'base', cards: TK_WEI },
+  { set: 'base', cards: TK_WU },
+  { set: 'base', cards: TK_SHU },
+  { set: 'base', cards: TK_JIN },
+  { set: 'base', cards: TK_OTHER },
+  { set: 'base', cards: GREEK },
+  { set: 'base', cards: BEASTKIN },
+  { set: 'base', cards: INSTANTS },
+  { set: 'base', cards: SORCERIES },
+  { set: 'base', cards: ENCHANTMENTS },
+  { set: 'base', cards: ARTIFACTS },
+  { set: 'base', cards: DUALS },
+  { set: 'base', cards: LANDS },
+  { set: 'base', cards: TOKENS },
+  { set: 'ragnarok', cards: RAGNAROK },
 ];
 
 function buildDb(): CardDb {
   const db: Record<string, CardDef> = {};
-  for (const set of SETS) {
-    for (const card of set) {
+  for (const group of SET_GROUPS) {
+    for (const card of group.cards) {
       if (db[card.id]) throw new Error(`Duplicate card id: ${card.id}`);
-      db[card.id] = card;
+      db[card.id] = { ...card, set: card.set ?? group.set };
     }
   }
   return Object.freeze(db);

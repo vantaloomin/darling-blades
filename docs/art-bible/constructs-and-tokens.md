@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/artifacts.ts, src/data/cards/tokens.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/artifacts.ts, src/data/cards/tokens.ts · last-verified: 2026-07-05 -->
 
 # Darling Blades Art Bible — Constructs & Tokens
 
@@ -181,3 +181,48 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common token — single figure, one idea (the tireless lacquered hauler), matched to Yueying's device aesthetic.
 - **Prompt:** Lacquered-wood ox automaton with exposed pegged joinery and no raw metal, braced in a patient hauling stance under a loaded pannier-harness, amber wood-grain and rich lacquer with a faint jade caparison, warm workshop-lantern light and soft grey rim, placid carved ox-face — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Valkyrie — `tok-valkyrie`
+- **Card facts:** {0} · W · 2/2 · flying · c · holo: none
+- **Character & source:** White creature token (Valkyrie) created by `rg-freya` and `rg-chooser-of-the-slain` — a winged chooser of the slain, one of the host Freya raises. A 2/2 flier.
+- **Personality / mood:** "She decides who the day remembers." Calm and final, a soldier of the sky who has already made her choice.
+- **Pose & composition:** Descending mid-flight, wings flared, spear levelled; face ≈ y 320, the wing-tips free to break the top of the band. Reads as a Valkyrie in silhouette at token scale.
+- **Costume & attire:** Gold-chased scale mail over a short feathered cloak, a winged helm, greaves.
+- **Palette:** W palette (`#f2e8cf` → `#c9a84c`, accent `#fffef2`) — bleached bone and pale gold; a glacier-blue rim from the Ragnarök accents on the feathers.
+- **Lighting:** A cold aurora key with a warm rune-gold rim off the mail.
+- **Expression:** Serene and resolute.
+- **Props / weapon:** A short spear and a round shield, broad feathered wings.
+- **Background:** A storm-lit sky over a distant battlefield, an aurora banding the clouds; kept to two values.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear winged figure, one idea (the chooser mid-descent).
+- **Prompt:** A winged Valkyrie in gold-chased scale mail and a winged helm, descending mid-flight with wings flared and spear levelled, over a storm-lit battlefield under an aurora, serene and resolute, cold aurora light with a rune-gold rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Draugr — `tok-draugr`
+- **Card facts:** {0} · B · 2/2 · c · holo: none
+- **Character & source:** Black creature token (Draugr) created by `rg-angrboda` and `rg-deaths-herald` — a barrow-dead soldier dragged back to fight. A 2/2 body.
+- **Personality / mood:** "Dead, and disagreeable about it." Sullen, relentless, past the point of fear or reason.
+- **Pose & composition:** Hauling forward out of grave-earth, blade first, one arm still half-buried; face ≈ y 330, grave-fire in the eye-sockets. The hunched dead silhouette reads at token scale.
+- **Costume & attire:** Rusted grave-mail and torn burial finery, grave-soil packed into every seam.
+- **Palette:** B palette (`#5a3a70` → `#140d1c`, accent `#9b6fc4`) — grave-violet and ash-black; a cold blue grave-fire accent.
+- **Lighting:** A cold blue grave-fire key, near-black fill.
+- **Expression:** Hateful and empty.
+- **Props / weapon:** A corroded blade.
+- **Background:** A cracked-open barrow spilling blue grave-light over black earth; kept to two values.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear risen-dead figure, one idea (clawing up to fight).
+- **Prompt:** A barrow-dead Draugr in rusted grave-mail and torn burial finery, hauling forward out of grave-earth blade first with grave-fire in the eye-sockets, before a cracked-open barrow spilling blue grave-light, hateful and empty, cold blue grave-fire light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Wolf — `tok-wolf`
+- **Card facts:** {0} · G · 2/2 · c · holo: none
+- **Character & source:** Green creature token (Wolf) created by `rg-fenrir`, `rg-angrboda`, and `rg-alpha-of-the-hunt` — a dire wolf of Fenrir's brood. A 2/2 beast.
+- **Personality / mood:** "Fenrir's brood runs the long night." Fast, pack-minded, never the smaller number.
+- **Pose & composition:** Mid-lunge, low and fast, closing on the throat; head ≈ y 330, breath steaming. The lean wolf silhouette reads instantly at token scale.
+- **Costume & attire:** No costume — thick hackled winter fur, breath fogging the cold air.
+- **Palette:** G palette (`#4fa06a` → `#123a22`, accent `#a9dcae`) — pine-dark and moss; a glacier blue-white snow accent.
+- **Lighting:** A cold moonlight key with blue snow-bounce fill.
+- **Expression:** Feral, fixed on the kill.
+- **Props / weapon:** Bared fangs and claws.
+- **Background:** A moonlit frost-forest, snow churned by the pack; kept to two values.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear dire-wolf, one idea (the lunge).
+- **Prompt:** A great dire-wolf of Fenrir's brood with thick hackled winter fur, mid-lunge low and fast with breath steaming, in a moonlit frost-forest with snow churned by the pack, feral and fixed on the kill, cold moonlight with blue snow-bounce — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait

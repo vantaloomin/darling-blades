@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { ARTIFACTS } from '../src/data/cards/artifacts';
 import { BEASTKIN } from '../src/data/cards/beastkin';
 import { GREEK } from '../src/data/cards/greek';
+import { RAGNAROK } from '../src/data/cards/ragnarok';
 import { TK_JIN } from '../src/data/cards/tk-jin';
 import { TK_OTHER } from '../src/data/cards/tk-other';
 import { TK_SHU } from '../src/data/cards/tk-shu';
@@ -38,6 +39,7 @@ const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
   { file: 'tk-other.md', sets: [TK_OTHER] },
   { file: 'greek.md', sets: [GREEK] },
   { file: 'beastkin.md', sets: [BEASTKIN] },
+  { file: 'ragnarok.md', sets: [RAGNAROK] },
   { file: 'constructs-and-tokens.md', sets: [ARTIFACTS, TOKENS] },
 ];
 

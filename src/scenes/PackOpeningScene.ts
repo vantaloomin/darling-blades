@@ -62,6 +62,7 @@ interface SpecialEntry {
  */
 export class PackOpeningScene extends Phaser.Scene {
   private result!: PackResult;
+  private sku: 'base' | 'ragnarok' = 'base';
   private revealed = 0;
   private specials: SpecialEntry[] = [];
   private buttons: Phaser.GameObjects.Text[] = [];
@@ -71,12 +72,22 @@ export class PackOpeningScene extends Phaser.Scene {
     super('PackOpening');
   }
 
-  create(data: PackResult): void {
+  create(data: PackResult & { sku?: 'base' | 'ragnarok' }): void {
     this.result = data;
+    this.sku = data.sku ?? 'base';
     this.revealed = 0;
     this.specials = [];
     this.buttons = [];
     bakePackArt(this);
+    if (this.sku === 'ragnarok') {
+      bakePackArt(this, {
+        key: 'packart-ragnarok',
+        wordmark: 'Ragnarök',
+        subtitle: 'EXPANSION BOOSTER',
+        sceneArtKey: 'scene-pack-art-ragnarok',
+        footer: '15 cards — Ragnarök set only',
+      });
+    }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop'); // continuous with the shop — no-op when arriving from it
 
@@ -100,7 +111,7 @@ export class PackOpeningScene extends Phaser.Scene {
 
     // Beat 1: the pack floats, waiting for the tear.
     const pack = this.add
-      .image(width / 2, height / 2 - 20, 'packart')
+      .image(width / 2, height / 2 - 20, this.sku === 'ragnarok' ? 'packart-ragnarok' : 'packart')
       .setDisplaySize(238, 340)
       .setInteractive({ useHandCursor: true });
     this.tweens.add({
@@ -496,14 +507,15 @@ export class PackOpeningScene extends Phaser.Scene {
       inflateHitArea(btn, 90, 90);
       this.buttons.push(btn);
     };
-    mk(width / 2 - 200, `Open Another (🪙 ${ECONOMY.packPrice})`, () => {
+    const openPrice = this.sku === 'ragnarok' ? ECONOMY.ragnarokPackPrice : ECONOMY.packPrice;
+    mk(width / 2 - 200, `Open Another (🪙 ${openPrice})`, () => {
       const save = Services.save.data;
-      if (!spendGold(save, ECONOMY.packPrice)) return;
+      if (!spendGold(save, openPrice)) return;
       Sfx.play('coin');
-      const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff));
+      const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff), this.sku);
       Services.save.flush();
       this.tweens.timeScale = 1;
-      this.scene.restart(result);
+      this.scene.restart({ ...result, sku: this.sku });
     });
     mk(width / 2 + 60, 'Shop', () => this.scene.start('Shop'));
     mk(width / 2 + 200, 'Menu', () => this.scene.start('MainMenu'));

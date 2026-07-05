@@ -117,6 +117,26 @@ export class FilterBar {
       ),
     );
 
+    // Row A left gutter — set facet (Base / Ragnarök; re-tap the active one → 'all').
+    const setDefs: { key: 'base' | 'ragnarok'; label: string }[] = [
+      { key: 'base', label: 'Base' },
+      { key: 'ragnarok', label: 'Ragnarök' },
+    ];
+    setDefs.forEach((sdef, i) =>
+      mk(
+        // CHIP_PITCH spacing (matches the color row) keeps a ≥20px margin to the
+        // color facet's leftmost 'All' chip at x260, whatever the label width.
+        60 + i * CHIP_PITCH,
+        opts.rowAY,
+        sdef.label,
+        () => this.state.set === sdef.key,
+        () => {
+          this.state.set = this.state.set === sdef.key ? 'all' : sdef.key;
+          change();
+        },
+      ),
+    );
+
     mk(
       830,
       opts.rowAY,

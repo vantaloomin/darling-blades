@@ -10,7 +10,7 @@ import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 
 /**
- * The Avatar Gauntlet tower. A right-rail ladder of 8 rungs (cleared ✓ /
+ * The Avatar Gauntlet tower. A right-rail ladder of ten rungs (cleared ✓ /
  * current highlighted / future dimmed) and a left panel showing the selected
  * avatar — portrait, name/title/blurb, theme chip, difficulty pips, and the
  * rung's reward. Fight launches the duel; a loss resets the run, a full clear
@@ -80,7 +80,7 @@ export class GauntletScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(width / 2, 84, 'Climb eight rungs. A loss ends the run — the tower resets, your collection does not.', {
+      .text(width / 2, 84, 'Climb ten rungs. A loss ends the run — the tower resets, your collection does not.', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '15px',
         color: '#8f83a8',
@@ -119,7 +119,8 @@ export class GauntletScene extends Phaser.Scene {
     const g = Services.save.data.gauntlet;
     const railX = width - 250;
     const topY = 150;
-    const rowH = 62;
+    const rungs = ECONOMY.gauntletRungGold.length; // ladder length (10 with the Ragnarök bosses)
+    const rowH = 52; // tightened from 62 so all 10 rows fit the 720px design height
 
     this.add
       .text(railX, topY - 34, `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : '—'}   ·   Clears: ${g.completions}`, {
@@ -129,9 +130,9 @@ export class GauntletScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // Rungs render bottom-up: rung 1 at the bottom, rung 8 at the top.
-    for (let rung = 8; rung >= 1; rung--) {
-      const rowIndex = 8 - rung; // 0 at top
+    // Rungs render bottom-up: rung 1 at the bottom, the top rung at the top.
+    for (let rung = rungs; rung >= 1; rung--) {
+      const rowIndex = rungs - rung; // 0 at top
       const y = topY + rowIndex * rowH;
       const av = avatarForRung(rung);
       const cleared = rung < this.currentRung; // rungs below the current one are done this run
@@ -162,7 +163,7 @@ export class GauntletScene extends Phaser.Scene {
         this.refreshTower();
         this.buildPanel();
       });
-      // Rung rows are 420px wide; hit height fills the 62px row pitch.
+      // Rung rows are 420px wide; hit height fills the row pitch (rowH).
       inflateHitArea(box, 90, rowH);
       box.on('pointerover', (p: Phaser.Input.Pointer) => {
         if (!p.wasTouch && rung !== this.selectedRung) box.setStrokeStyle(2, 0x7a6da8);
@@ -291,7 +292,7 @@ export class GauntletScene extends Phaser.Scene {
     // reward line
     const reward = ECONOMY.gauntletRungGold[av.tier - 1];
     const rewardLine =
-      av.tier === 8
+      av.tier === ECONOMY.gauntletRungGold.length
         ? `Reward: 🪙 ${reward}  +  🪙 ${ECONOMY.gauntletCompletionBonus} completion bonus`
         : `Reward: 🪙 ${reward}`;
     c.add(
@@ -301,8 +302,8 @@ export class GauntletScene extends Phaser.Scene {
           fontSize: '16px',
           fontStyle: '600',
           color: '#ffd88a',
-          // Rung 8's line carries the completion bonus and is long — wrap it in
-          // the column rather than letting it run under the rung rail.
+          // The final rung's line carries the completion bonus and is long — wrap
+          // it in the column rather than letting it run under the rung rail.
           wordWrap: { width: COL_W },
         })
         .setOrigin(0, 0),

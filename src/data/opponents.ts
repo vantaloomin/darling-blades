@@ -9,8 +9,8 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..8, unique). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-8 Hard.
+ * Gauntlet ordering is by `tier` (1..10, unique). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-10 Hard (9-10 are the Ragnarök bosses).
  */
 export interface Avatar {
   id: string;
@@ -18,7 +18,7 @@ export interface Avatar {
   title: string;
   blurb: string;
   theme: string;
-  tier: number; // 1..8 (unique)
+  tier: number; // 1..10 (unique)
   difficulty: Difficulty;
   deck: string[]; // 60 real cardIds
   personality: Personality;
@@ -43,6 +43,15 @@ export interface Avatar {
  *   R6 Sima Yi    [medium]     67%      80%      63%     48%      27%   | 57%
  *   R7 Yohime     [hard]       60%      93%      78%     68%      63%   | 72%
  *   R8 Cao Cao    [hard]       73%      88%      73%     80%      50%   | 73%
+ *   R9 Hel        [hard]       55%      95%      83%     75%      45%   | 71%
+ *   R10 Brunhild  [hard]       93%      90%      73%     85%      98%   | 88%
+ *
+ * (Rungs 9-10 are the Ragnarök expansion bosses, measured 2026-07-05 at 40
+ * seeds/cell with `--only hel,brunhild`; rungs 1-8 carry forward unchanged — the
+ * expansion added no base cards and did not touch the starters, so their rows are
+ * still valid. Both new rungs clear their bands with no flags: Hel (U/B
+ * mill-reanimator) avg 71% ≥ 55%; Brunhild (R/W Valkyrie double-strike) avg 88% ≥
+ * 60% — the steepest wall in the game, by design, as the summit rung.)
  *
  * (R7/R8 rows re-measured once more after HardAI.openManaBuff gained the same
  * evidence gate — Hard's combat baselines no longer pay the phantom-trick tax
@@ -75,7 +84,7 @@ export interface Avatar {
  * Communion vs Harvest pools to ≈27%. All other cells 36-73%.
  *
  * Bands (RUNG_BANDS in scripts/balance-matrix.ts): rungs 1-3 avg ≤45% with no
- * single starter above 65%; rung 8 avg ≥55%; roughly monotonic in between.
+ * single starter above 65%; rungs 8-10 avg ≥55/55/60%; roughly monotonic between.
  * All green on this baseline. Known texture, accepted as matchup flavor:
  * Lupa's hyper-aggro is polarized (crushed by W-heavy blockers, strong vs
  * tempo/attrition); Hera go-wide preys on Shadow Mandate's spot removal (70%);
@@ -95,8 +104,8 @@ export const AVATARS: readonly Avatar[] = [
   {
     id: 'menghuo',
     name: 'Meng Huo',
-    title: 'King of the Southern Wilds',
-    blurb: 'Seven times captured, seven times freed — and every time he comes back bigger. Meng Huo simply plays the largest beasts he can find and runs them at your face.',
+    title: 'Queen of the Southern Wilds',
+    blurb: 'Seven times captured, seven times freed — and every time she comes back bigger. Meng Huo simply plays the largest beasts she can find and runs them at your face.',
     theme: 'Mono-Green Stompy',
     tier: 1,
     difficulty: 'easy',
@@ -248,7 +257,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'simayi',
     name: 'Sima Yi',
     title: 'The Patient Serpent',
-    blurb: 'Sima Yi never moves until the moment is his. He strips your hand, kills your threats, and walls up behind deathtouch until the game is already lost — you just do not know it yet.',
+    blurb: 'Sima Yi never moves until the moment is hers. She strips your hand, kills your threats, and walls up behind deathtouch until the game is already lost — you just do not know it yet.',
     theme: 'Blue-Black Attrition Control',
     tier: 6,
     difficulty: 'medium',
@@ -320,7 +329,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'caocao',
     name: 'Cao Cao',
     title: 'Hero of Chaos',
-    blurb: "The gauntlet's final wall. Cao Cao musters the whole of Wei — a tide of soldiers behind the Hegemon's banner, led by the man himself, who takes a card from your hand each time he connects.",
+    blurb: "The gauntlet's final wall. Cao Cao musters the whole of Wei — a tide of soldiers behind the Hegemon's banner, led by the woman herself, who takes a card from your hand each time she connects.",
     theme: 'White-Black Wei Tribal',
     tier: 8,
     difficulty: 'hard',
@@ -347,6 +356,74 @@ export const AVATARS: readonly Avatar[] = [
       ['in-doom-bolt', 1],
     ]),
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 9 — Hel: U/B mill-reanimator control. (Hard · Ragnarök)
+  {
+    id: 'hel',
+    name: 'Hel, Queen of Mist',
+    title: 'Warden of the Dishonored Dead',
+    blurb: 'The first Ragnarök boss buries her own library to raise an army from it. Hel mills, reanimates the fallen, and grinds you down behind a wall of deathtouch draugr — every creature you trade away only feeds her return.',
+    theme: 'Blue-Black Mill Reanimator',
+    tier: 9,
+    difficulty: 'hard',
+    portraitCardId: 'rg-hel',
+    personality: makePersonality({
+      aggression: 0.9,
+      holdback: 1.2,
+      removalBias: 0.5,
+      mulliganShift: 1,
+    }),
+    deck: expand([
+      ['land-island', 10],
+      ['land-swamp', 10],
+      ['ld-moonlit-marsh', 4],
+      ['rg-hel', 3],
+      ['rg-norns', 3],
+      ['rg-mist-seer', 4],
+      ['rg-hels-handmaiden', 4],
+      ['rg-corpse-taker', 4],
+      ['rg-barrow-wight', 3],
+      ['rg-draugr-jarl', 3],
+      ['rg-plaguebearer-draugr', 3],
+      ['rg-thanatos', 2],
+      ['rg-call-the-einherjar', 3],
+      ['in-doom-bolt', 4],
+    ]),
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 10 — Brunhild: R/W Valkyrie double-strike aggro. (Hard · Ragnarök capstone)
+  {
+    id: 'brunhild',
+    name: 'Brunhild, the Last Valkyrie',
+    title: 'Chooser of the Slain',
+    blurb: "The gauntlet's summit. Brunhild leads a wing of double-striking Valkyries and Einherjar that hit twice and hit first — a curve that opens fast and only accelerates. Race her and you lose the race; block her and you lose the blockers.",
+    theme: 'Red-White Valkyrie Double Strike',
+    tier: 10,
+    difficulty: 'hard',
+    portraitCardId: 'rg-brunhild',
+    personality: makePersonality({
+      aggression: 1.3,
+      attackThreshold: -0.75,
+      subtypeBias: 1,
+      preferredSubtypes: ['Valkyrie'],
+    }),
+    deck: expand([
+      ['land-mountain', 12],
+      ['land-plains', 12],
+      ['rg-brunhild', 3],
+      ['rg-valkyrie-captain', 4],
+      ['rg-berserker-chieftain', 3],
+      ['rg-einherjar-champion', 4],
+      ['rg-berserker-duelist', 4],
+      ['rg-valkyrie-vanguard', 3],
+      ['rg-dawn-valkyrie', 4],
+      ['rg-ember-valkyrie', 4],
+      ['rg-shieldwall-maiden', 4],
+      ['rg-xuchu', 3],
+    ]),
+  },
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -356,7 +433,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..8). */
+/** The avatar at a 1-based gauntlet rung (1..10). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);

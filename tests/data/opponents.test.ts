@@ -16,11 +16,11 @@ import { RULES } from '../../src/config/rules';
  */
 
 describe('avatar roster shape', () => {
-  it('has exactly 8 avatars with unique tiers 1..8', () => {
-    expect(AVATARS).toHaveLength(8);
+  it('has exactly 10 avatars with unique tiers 1..10', () => {
+    expect(AVATARS).toHaveLength(10);
     const tiers = AVATARS.map((a) => a.tier).sort((x, y) => x - y);
-    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(8);
+    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(10);
   });
 
   it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-8 hard)', () => {
@@ -31,12 +31,12 @@ describe('avatar roster shape', () => {
   });
 
   it('avatarForRung / avatarById resolve consistently', () => {
-    for (let rung = 1; rung <= 8; rung++) {
+    for (let rung = 1; rung <= 10; rung++) {
       const a = avatarForRung(rung);
       expect(a.tier).toBe(rung);
       expect(avatarById(a.id)).toBe(a);
     }
-    expect(() => avatarForRung(9)).toThrow();
+    expect(() => avatarForRung(11)).toThrow();
     expect(() => avatarById('nope')).toThrow();
   });
 });
