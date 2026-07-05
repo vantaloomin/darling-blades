@@ -33,6 +33,7 @@ export type GameEvent =
   | { e: 'lifeChanged'; player: PlayerId; delta: number; now: number }
   | { e: 'died'; iid: number; cardId: string; owner: PlayerId }
   | { e: 'discarded'; player: PlayerId; cardId: string }
+  | { e: 'milled'; player: PlayerId; cardId: string }
   | { e: 'triggerFired'; iid: number; when: string }
   | { e: 'effectApplied'; op: string; detail?: unknown }
   | { e: 'tokenCreated'; perm: Permanent }

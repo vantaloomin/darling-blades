@@ -28,9 +28,11 @@ export function resolveCombatDamage(state: GameState, db: CardDb, emit: Emit): v
   if (combat.damagePrevented || state.fogThisTurn) return; // fog
 
   const anyFirstStrike = [...combat.attackers, ...combat.blocks.map((b) => b.blocker)].some(
-    (iid) =>
-      state.battlefield.some((p) => p.iid === iid) &&
-      getEffectiveStats(state.battlefield, db, iid).keywords.has('firstStrike'),
+    (iid) => {
+      if (!state.battlefield.some((p) => p.iid === iid)) return false;
+      const kw = getEffectiveStats(state.battlefield, db, iid).keywords;
+      return kw.has('firstStrike') || kw.has('doubleStrike');
+    },
   );
 
   if (anyFirstStrike) {
@@ -55,8 +57,12 @@ function dealCombatDamage(
   const alive = (iid: number): boolean => state.battlefield.some((p) => p.iid === iid);
 
   const strikesNow = (iid: number): boolean => {
-    const fs = getEffectiveStats(state.battlefield, db, iid).keywords.has('firstStrike');
-    return firstStrikeStep ? fs : !fs; // no double strike in v1
+    const kw = getEffectiveStats(state.battlefield, db, iid).keywords;
+    const fs = kw.has('firstStrike');
+    const ds = kw.has('doubleStrike');
+    // FS step: first-strikers and double-strikers. Normal step: double-strikers
+    // (again) and everyone without first strike. fs+ds ⇒ 2 hits, not 3.
+    return firstStrikeStep ? fs || ds : ds || !fs;
   };
 
   const hits: Hit[] = [];

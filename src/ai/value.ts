@@ -7,6 +7,7 @@ const KEYWORD_BONUS: Record<Keyword, number> = {
   deathtouch: 1,
   lifelink: 0.5,
   firstStrike: 0.5,
+  doubleStrike: 1.5,
   trample: 0.5,
   vigilance: 0.25,
   haste: 0.25,

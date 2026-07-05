@@ -4,6 +4,7 @@ const KEYWORD_NAMES: Record<Keyword, string> = {
   flying: 'Flying',
   reach: 'Reach',
   firstStrike: 'First strike',
+  doubleStrike: 'Double strike',
   haste: 'Haste',
   trample: 'Trample',
   vigilance: 'Vigilance',
@@ -60,6 +61,14 @@ function opText(op: EffectOp): string {
       return 'prevent all combat damage that would be dealt this turn';
     case 'regrowth':
       return 'return target creature card from your graveyard to your hand';
+    case 'mill': {
+      const cards = op.n === 1 ? 'a card' : `${op.n} cards`;
+      return op.who === 'self' ? `mill ${cards}` : `your opponent mills ${cards}`;
+    }
+    case 'reanimate':
+      return op.to === 'top'
+        ? 'return the top creature card of your graveyard to the battlefield'
+        : 'return target creature card from your graveyard to the battlefield';
   }
 }
 

@@ -204,6 +204,48 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
+    case 'mill': {
+      const victim = op.who === 'self' ? ctx.controller : opponentOf(ctx.controller);
+      const lib = state.players[victim].library;
+      for (let i = 0; i < op.n; i++) {
+        const cardId = lib.pop(); // top of library is the last element
+        if (cardId === undefined) break; // empty library: deck-out is a DRAW check, not here
+        state.players[victim].graveyard.push(cardId);
+        emit({ e: 'milled', player: victim, cardId });
+      }
+      return;
+    }
+    case 'reanimate': {
+      const grave = state.players[ctx.controller].graveyard;
+      let index: number;
+      if (op.to === 'top') {
+        // most-recently-buried creature (trigger-safe: no target decision)
+        index = -1;
+        for (let i = grave.length - 1; i >= 0; i--) {
+          if (isType(def(db, grave[i]), 'creature')) {
+            index = i;
+            break;
+          }
+        }
+        if (index < 0) return;
+      } else {
+        const ref = ctx.targets[0];
+        if (ref?.kind !== 'grave' || ref.player !== ctx.controller) return;
+        if (ref.index < 0 || ref.index >= grave.length) return;
+        if (!isType(def(db, grave[ref.index]), 'creature')) return;
+        index = ref.index;
+      }
+      // Respect the creature cap like createToken — check BEFORE removing the
+      // card, so a full board is a harmless no-op that leaves it in the yard.
+      const count = state.battlefield.filter(
+        (p) => p.controller === ctx.controller && isType(def(db, p.cardId), 'creature'),
+      ).length;
+      if (count >= RULES.maxCreatures) return;
+      const [cardId] = grave.splice(index, 1);
+      const perm = enterBattlefield(state, db, cardId, ctx.controller, emit);
+      fireTriggers(state, db, emit, 'etb', perm);
+      return;
+    }
   }
 }
 

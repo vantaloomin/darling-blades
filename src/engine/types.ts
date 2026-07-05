@@ -7,6 +7,7 @@ export type Keyword =
   | 'flying'
   | 'reach'
   | 'firstStrike'
+  | 'doubleStrike'
   | 'haste'
   | 'trample'
   | 'vigilance'
@@ -58,7 +59,9 @@ export type EffectOp =
   | { op: 'createToken'; token: string; count: number }
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' }
   | { op: 'fog' } // prevent all combat damage this turn
-  | { op: 'regrowth' }; // return target creature card from your graveyard to hand
+  | { op: 'regrowth' } // return target creature card from your graveyard to hand
+  | { op: 'mill'; n: number; who: 'self' | 'opponent' } // top n of library → graveyard
+  | { op: 'reanimate'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
 
 export interface StaticDef {
   scope: 'attached' | 'filter';
@@ -100,6 +103,7 @@ export interface CardDef {
   flavor?: string;
   artRef?: string;
   token?: boolean; // non-collectible
+  set?: 'base' | 'ragnarok'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
 }
 
 export type CardDb = Readonly<Record<string, CardDef>>;

@@ -3,7 +3,7 @@
 
 # Darling Blades
 
-*A genderbent trading card game where the officers of the Three Kingdoms, the gods of Olympus, and a forest full of Beastkin all end up in the same 60-card deck.*
+*A trading card game where the officers of the Three Kingdoms, the gods of Olympus, and a forest full of Beastkin all end up in the same 60-card deck.*
 
 <p align="center">
   <img src="public/assets/art/cards/tk-shu-zhugeliang.png" width="160" alt="Zhuge Liang">
@@ -19,7 +19,7 @@
 
 Darling Blades is a single-player, Magic: the Gathering-style trading card game — five colors of mana, creatures and combat, instants and sorceries resolving off a stack, the whole 8th/9th/10th-edition rhythm of curving out and racing or grinding to a win. If you've played that era of Magic, you already know most of the rules.
 
-What's different is the cast. Every card in the 210-card pool is an original, genderbent character drawn from three worlds sharing one card pool: the officers of **Wei**, **Wu**, **Shu**, and **Jin** from a genderbent Romance of the Three Kingdoms (plus an "Other" bench of warlords and wildcards — Dong Zhuo, Lü Bu, and company); the **Greek pantheon** of Olympus (Ares, Athena, Artemis, Hades, Persephone, Demeter, Hestia, and more); and tribal **Beastkin** — Wolfkin, Kitsune, Harpy, Bearkin, Rhinokin, Nekomata, Lamia, Spiderkin, Crowkin, Batkin, and others. Every one of those 210 cards has finished, illustrated cel-shaded gacha-anime art — nothing in the shipped game is programmer-art or a placeholder.
+What's different is the cast. Every card in the 210-card pool is a character drawn from three worlds sharing one card pool: the officers of **Wei**, **Wu**, **Shu**, and **Jin** from a (genderbent) Romance of the Three Kingdoms (plus an "Other" bench of warlords and wildcards — Dong Zhuo, Lü Bu, and company); the **Greek pantheon** of Olympus (Ares, Athena, Artemis, Hades, Persephone, Demeter, Hestia, and more); and tribal **Beastkin** — Wolfkin, Kitsune, Harpy, Bearkin, Rhinokin, Nekomata, Lamia, Spiderkin, Crowkin, Batkin, and others. Every one of those 210 cards has finished, illustrated cel-shaded gacha-anime art — nothing in the shipped game is programmer-art or a placeholder.
 
 You pick a starter deck, crack booster packs to build out your collection, assemble a 60-card deck in the deck builder, and duel an AI — either quick Practice matches at three difficulties, or the 8-rung **Avatar Gauntlet**, a ladder of named boss opponents each running their own themed deck.
 
