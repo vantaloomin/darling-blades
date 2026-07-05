@@ -509,11 +509,15 @@ export class CollectionScene extends Phaser.Scene {
    */
   private addInspectActions(c: Phaser.GameObjects.Container, d: CardDef): void {
     const panelX = 740;
+    // The two chips inflate to a 52px-tall tap area, so their row centres must be
+    // ≥ 52px apart or the rects overlap and the later-added (Shard) chip steals
+    // the seam — 620 / 684 (64px pitch) keeps a clean gap, clear of the variant
+    // rows above (≤ 582) and the non-interactive close hint below.
     const save = Services.save.data;
     const heroLabel = (): string =>
       save.heroCardId === d.id ? '★ Hero — tap to clear' : '☆ Set as hero';
     const heroColor = (): string => (save.heroCardId === d.id ? '#ffd44a' : '#c9bde0');
-    const heroBtn = this.overlayChip(c, panelX, 628, heroLabel(), heroColor(), () => {
+    const heroBtn = this.overlayChip(c, panelX, 620, heroLabel(), heroColor(), () => {
       save.heroCardId = save.heroCardId === d.id ? null : d.id;
       Services.save.flush();
       Sfx.play('shimmer');
@@ -531,7 +535,7 @@ export class CollectionScene extends Phaser.Scene {
       let armed = false;
       const label = (): string =>
         armed ? `Shard ×${excess} — confirm (+${gold}🪙)` : `⛏ Shard ×${excess} extra (+${gold}🪙)`;
-      const shardBtn = this.overlayChip(c, panelX, 676, label(), '#d9a8ff', () => {
+      const shardBtn = this.overlayChip(c, panelX, 684, label(), '#d9a8ff', () => {
         if (!armed) {
           armed = true;
           shardBtn.setText(label()).setColor('#ffd44a');
