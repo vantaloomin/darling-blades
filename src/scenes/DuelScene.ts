@@ -105,6 +105,10 @@ const LAYOUT = {
 } as const;
 
 const BOARD_CENTER_X = 640;
+/** Cast-targeting arrow: source anchor (hand-rest, bottom-center), snap radius, color. */
+const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
+const TARGET_SNAP_R = 60;
+const TARGET_ARROW_COLOR = 0xffd166;
 /** Width available to a creature row (rows are centered on BOARD_CENTER_X, inside the zone plates). */
 const ROW_USABLE = 1000;
 /**
@@ -1649,6 +1653,22 @@ export class DuelScene extends Phaser.Scene {
         }
       }
     }
+    // Cast-targeting arrow (desktop hover): from the hand-rest anchor to the
+    // pointer, snapping to the closest legal target so burn-face vs burn-creature
+    // intent is unmistakable. Touch resolves targets by direct tap — no hover.
+    if (this.pendingCasts && !this.touch) {
+      const p = this.input.activePointer;
+      const tip = this.snapTargetTip(p.worldX, p.worldY);
+      const { x: sx, y: sy } = TARGET_ARROW_SRC;
+      this.arrows.lineStyle(4, TARGET_ARROW_COLOR, 0.95);
+      this.arrows.lineBetween(sx, sy, tip.x, tip.y);
+      // Arrowhead — two short strokes back from the tip along the shaft angle.
+      const ang = Math.atan2(tip.y - sy, tip.x - sx);
+      const HEAD = 16;
+      const SPREAD = 0.5;
+      this.arrows.lineBetween(tip.x, tip.y, tip.x - HEAD * Math.cos(ang - SPREAD), tip.y - HEAD * Math.sin(ang - SPREAD));
+      this.arrows.lineBetween(tip.x, tip.y, tip.x - HEAD * Math.cos(ang + SPREAD), tip.y - HEAD * Math.sin(ang + SPREAD));
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -1689,23 +1709,52 @@ export class DuelScene extends Phaser.Scene {
   }
 
   /**
-   * Desktop keyboard hotkeys: Space/Enter drive the smart button (pass /
+   * Desktop input bindings: Space/Enter drive the smart button (pass /
    * to-combat / confirm-attackers / confirm-blocks), Esc cancels a pending
-   * targeted cast or closes the inspect overlay. Registered once per create()
-   * and torn down on SHUTDOWN so a gauntlet rematch never stacks duplicates
-   * (playbook §11: keyboard listeners outlive the scene otherwise).
+   * targeted cast or closes the inspect overlay, and a pointer-move redraws the
+   * cast-targeting arrow while a targeted spell is pending. Registered once per
+   * create() and torn down on SHUTDOWN so a gauntlet rematch never stacks
+   * duplicates (playbook §11: listeners outlive the scene otherwise).
    */
   private bindHotkeys(): void {
     const kb = this.input.keyboard;
-    if (!kb) return; // keyboard plugin disabled (e.g. pure-touch build)
-    kb.on('keydown-SPACE', this.onConfirmKey, this);
-    kb.on('keydown-ENTER', this.onConfirmKey, this);
-    kb.on('keydown-ESC', this.onCancelKey, this);
+    kb?.on('keydown-SPACE', this.onConfirmKey, this);
+    kb?.on('keydown-ENTER', this.onConfirmKey, this);
+    kb?.on('keydown-ESC', this.onCancelKey, this);
+    this.input.on('pointermove', this.onTargetPointerMove, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      kb.off('keydown-SPACE', this.onConfirmKey, this);
-      kb.off('keydown-ENTER', this.onConfirmKey, this);
-      kb.off('keydown-ESC', this.onCancelKey, this);
+      kb?.off('keydown-SPACE', this.onConfirmKey, this);
+      kb?.off('keydown-ENTER', this.onConfirmKey, this);
+      kb?.off('keydown-ESC', this.onCancelKey, this);
+      this.input.off('pointermove', this.onTargetPointerMove, this);
     });
+  }
+
+  /** Redraw the targeting arrow as the mouse moves (desktop only — no touch hover). */
+  private onTargetPointerMove(): void {
+    if (this.pendingCasts && !this.touch) this.drawArrows();
+  }
+
+  /**
+   * Snap a pointer position to the closest legal target of the pending cast
+   * (within TARGET_SNAP_R), reusing hitTargetPos so it handles creatures,
+   * players (face), and untargeted-detonation spots alike. Falls back to the
+   * raw pointer when nothing legal is near, so the arrow always tracks the mouse.
+   */
+  private snapTargetTip(px: number, py: number): { x: number; y: number } {
+    let best: { x: number; y: number } | null = null;
+    let bestDist = TARGET_SNAP_R;
+    for (const c of this.pendingCasts ?? []) {
+      for (const t of c.targets ?? []) {
+        const pos = this.hitTargetPos(t);
+        const dist = Phaser.Math.Distance.Between(px, py, pos.x, pos.y);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = pos;
+        }
+      }
+    }
+    return best ?? { x: px, y: py };
   }
 
   private onConfirmKey(e: KeyboardEvent): void {
