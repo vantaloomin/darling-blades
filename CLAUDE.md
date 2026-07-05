@@ -17,6 +17,14 @@ registry. Sessions on this repo follow that loop.
 section — the docs are the spec. Locked design decisions (documented in the
 session memory and docs) are never relitigated.
 
+## Git & deploys
+
+Public repo (`vantaloomin/darling-blades`); **`main` auto-deploys** to GitHub
+Pages on every green push, so treat `main` as production. The main session owns
+all git; sub-agents never run it. Branch non-trivial work, run the ladder
+locally before pushing, and land risky changes via a PR (CI gates it). Full
+branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
+
 ## Commands
 
 | Command | Purpose |
@@ -42,7 +50,7 @@ session memory and docs) are never relitigated.
 ## Where things live
 
 `docs/` is the doc set (architecture, rules, adding-cards, ai, art-pipeline,
-roadmap, art-bible/, claude-playbook). Balance baseline lives date-stamped in
+roadmap, art-bible/, claude-playbook, git-workflow). Balance baseline lives date-stamped in
 `src/data/opponents.ts`. Negative AI-experiment results live in
 `src/ai/determinize.ts`. Session memory (cross-session state) is in the
 Claude memory directory, indexed by `MEMORY.md`.
