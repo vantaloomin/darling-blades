@@ -53,6 +53,7 @@ const FACTIONS = [
   'greek',
   'beastkin',
   'constructs-and-tokens',
+  'ragnarok',
 ] as const;
 
 const OUT_W = 640;

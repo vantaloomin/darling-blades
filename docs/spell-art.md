@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/ui/CardView.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/ui/CardView.ts · last-verified: 2026-07-05 -->
 
 # Darling Blades Art Bible — Spells (Instants · Sorceries · Enchantments · the Jade Seal)
 
