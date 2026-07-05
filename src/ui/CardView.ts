@@ -1,0 +1,479 @@
+import Phaser from 'phaser';
+import { Art } from '../art/ArtResolver';
+import type { CardDef } from '../engine/types';
+import { isType } from '../engine/types';
+import type { CardVariant, FrameStyle } from '../meta/variants';
+import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
+import { applyHolo, type HoloHandle } from './fx/HoloEffects';
+import { fxPolicy } from './fx/FXSupport';
+import { IridescencePostFX } from './fx/IridescencePostFX';
+import { pipsFor } from './ManaSymbols';
+import { rulesText, typeLine } from './rulesText';
+
+export const CARD_W = 300;
+export const CARD_H = 420;
+
+// Art window in card-local (center-origin) coordinates.
+const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
+
+export type CardFxLevel = 'full' | 'static' | 'none';
+
+/**
+ * The reusable card component: frame + art + texts + rarity/variant
+ * treatments. Canonical size 300×420 with a CENTER origin (rotation-friendly
+ * for taps). Consumers scale the container: inspect 1.5, pack reveal 1.1,
+ * hand 0.55, battlefield 0.45. Keep ≤ ~15 fx:'full' instances alive at once.
+ *
+ * Variants (per-copy pull cosmetics, src/meta/variants.ts): pass
+ * `setCard(card, { fx, variant })` to render both cosmetic axes —
+ * Axis B frame (ring + wash over the frame, never the art) and Axis C holo
+ * (finish over the art; fx:'full' only). Without a variant the card renders
+ * the plain look: the tier ring/gem treatment and NO holo. A non-white frame
+ * claims the ring for the frame color; the rarity gem stays the tier
+ * indicator either way. Per-finish/frame FX costs: see fx/HoloEffects.ts.
+ */
+export class CardView extends Phaser.GameObjects.Container {
+  private frame: Phaser.GameObjects.Image;
+  private frameTint: Phaser.GameObjects.Image;
+  private ring: Phaser.GameObjects.Image;
+  private art: Phaser.GameObjects.Image;
+  private nameText: Phaser.GameObjects.Text;
+  private typeText: Phaser.GameObjects.Text;
+  private rulesTextObj: Phaser.GameObjects.Text;
+  private flavorTextObj: Phaser.GameObjects.Text;
+  private flavorRule: Phaser.GameObjects.Rectangle;
+  private ptPlate: Phaser.GameObjects.Image;
+  private ptText: Phaser.GameObjects.Text;
+  private gem: Phaser.GameObjects.Image;
+  private crown: Phaser.GameObjects.Image;
+  private back: Phaser.GameObjects.Image;
+  private pips: Phaser.GameObjects.GameObject[] = [];
+  private holo: HoloHandle | null = null;
+  private shineFx: Phaser.FX.Shine | null = null;
+  private ringTween: Phaser.Tweens.Tween | null = null;
+  private zone: Phaser.GameObjects.Zone | null = null;
+
+  card: CardDef | null = null;
+
+  constructor(scene: Phaser.Scene, x: number, y: number) {
+    super(scene, x, y);
+
+    this.frame = scene.add.image(0, 0, 'frame-C').setDisplaySize(CARD_W, CARD_H);
+    this.frameTint = scene.add
+      .image(0, 0, 'frame-tint')
+      .setDisplaySize(CARD_W, CARD_H)
+      .setVisible(false);
+    this.art = scene.add.image(0, ART_RECT.y + ART_RECT.h / 2, '__WHITE');
+    this.ring = scene.add.image(0, 0, 'frame-ring').setDisplaySize(CARD_W, CARD_H).setVisible(false);
+
+    this.nameText = scene.add
+      .text(-126, -182, '', {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '16px',
+        fontStyle: 'bold',
+        color: '#241d10',
+        resolution: 2,
+      })
+      .setOrigin(0, 0.5);
+
+    this.typeText = scene.add
+      .text(-126, 45, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '12px',
+        fontStyle: '600',
+        color: '#2a2418',
+        resolution: 2,
+      })
+      .setOrigin(0, 0.5);
+
+    this.rulesTextObj = scene.add
+      .text(-126, 66, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#20180e',
+        resolution: 2,
+        wordWrap: { width: 252 },
+        lineSpacing: 2,
+      })
+      .setOrigin(0, 0);
+
+    // Flavor renders as its own italic block at the bottom of the text area,
+    // in a warm muted sepia to separate it from the rules text above. A faint
+    // hairline divider sits above it. Both positioned/sized in setCard.
+    this.flavorRule = scene.add
+      .rectangle(-126, 66, 252, 1, 0x6b5a3e, 0.35)
+      .setOrigin(0, 0.5)
+      .setVisible(false);
+    this.flavorTextObj = scene.add
+      .text(-126, 66, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '12px',
+        fontStyle: 'italic',
+        color: '#6b5a3e',
+        resolution: 2,
+        wordWrap: { width: 252 },
+        lineSpacing: 2,
+      })
+      .setOrigin(0, 0)
+      .setVisible(false);
+
+    this.ptPlate = scene.add.image(96, 182, 'pt-plate').setDisplaySize(75, 31);
+    this.ptText = scene.add
+      .text(96, 181, '', {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '17px',
+        fontStyle: 'bold',
+        color: '#241d10',
+        resolution: 2,
+      })
+      .setOrigin(0.5);
+
+    this.gem = scene.add.image(118, 45, 'gem-c').setDisplaySize(16, 16);
+    this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
+    this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
+
+    this.add([
+      this.frame,
+      this.frameTint,
+      this.art,
+      this.ring,
+      this.nameText,
+      this.typeText,
+      this.rulesTextObj,
+      this.flavorRule,
+      this.flavorTextObj,
+      this.ptPlate,
+      this.ptText,
+      this.gem,
+      this.crown,
+      this.back,
+    ]);
+    this.setSize(CARD_W, CARD_H);
+    scene.add.existing(this);
+  }
+
+  setCard(
+    card: CardDef | null,
+    opts: { fx?: CardFxLevel; variant?: CardVariant } = {},
+  ): this {
+    this.clearFx();
+    this.card = card;
+
+    const faceDown = card === null;
+    this.back.setVisible(faceDown);
+    for (const obj of [
+      this.frame,
+      this.art,
+      this.nameText,
+      this.typeText,
+      this.rulesTextObj,
+      this.gem,
+    ]) {
+      (obj as Phaser.GameObjects.Image).setVisible(!faceDown);
+    }
+    this.ring.setVisible(false);
+    this.ptPlate.setVisible(false);
+    this.ptText.setVisible(false);
+    this.crown.setVisible(false);
+    // Flavor is opt-in per card; hidden by default and shown below only when
+    // the card actually has flavor text (and is face-up).
+    this.flavorTextObj.setVisible(false);
+    this.flavorRule.setVisible(false);
+    if (!card) return this;
+
+    const fx: CardFxLevel = opts.fx ?? 'static';
+
+    // Frame + art
+    this.frame.setTexture(frameKeyFor(card.colors, card.types)).setDisplaySize(CARD_W, CARD_H);
+    const artRef = Art.resolver!.getArt(card.id);
+    if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
+    else this.art.setTexture(artRef.textureKey);
+    // Cover the window: scale to fill, crop the vertical overflow (art sources
+    // are 4:5 — placeholders 320×400, real art 640×800; the math is ratio-based).
+    const srcW = this.art.frame.width;
+    const srcH = this.art.frame.height;
+    const scale = Math.max(ART_RECT.w / srcW, ART_RECT.h / srcH);
+    const cropH = ART_RECT.h / scale;
+    this.art.setCrop(0, (srcH - cropH) / 2, srcW, cropH);
+    this.art.setScale(scale);
+
+    // Texts. Name auto-fits its 215px band but never below 0.7× — past that it
+    // becomes unreadable, and the card set has no name long enough to overrun
+    // the pip area at that floor. Measure width AFTER setText (Windows
+    // font-fallback trap — glyph metrics aren't known before the glyph run).
+    this.nameText.setText(card.name);
+    this.nameText.setScale(Math.max(0.7, Math.min(1, 215 / Math.max(1, this.nameText.width))));
+    this.typeText.setText(typeLine(card));
+    const rules = rulesText(card);
+    this.rulesTextObj.setText(rules);
+    // Land faces get a composed mana-iconography row ([T] → [pip]) centered
+    // in the otherwise-empty textbox; flavor (if any) drops below the row.
+    const manaRow = isType(card, 'land') ? (card.manaAbility ?? []) : [];
+    const textTop = manaRow.length > 0 ? 132 : 66;
+    this.rulesTextObj.setPosition(-126, textTop);
+    // The textbox spans from textTop down to y=194 (just above the P/T plate).
+    // Rules text sits at the top; flavor (if any) is a separate italic block at
+    // the bottom. Both must fit inside the box — a wordy card would otherwise
+    // spill over the P/T plate / off the card, so we shrink-to-fit accounting
+    // for the flavor block's own measured height.
+    const BOX_BOTTOM = 194;
+    const BOX_H = BOX_BOTTOM - textTop;
+    const DIVIDER_GAP = 8; // space between rules block and the hairline
+    const AFTER_DIVIDER = 6; // hairline to flavor text
+    const hasFlavor = !!card.flavor;
+
+    // Measure the flavor block first (height is needed to size the rules box).
+    // Windows font-fallback trap: measure height only AFTER setText.
+    let flavorH = 0;
+    if (hasFlavor) {
+      this.flavorTextObj.setScale(1).setText(card.flavor!);
+      flavorH = this.flavorTextObj.height;
+    }
+    // Budget for the flavor block within the box (divider + gaps + text). If
+    // flavor alone would blow the box, cap it — but flavor is always short.
+    const flavorBlock = hasFlavor
+      ? Math.min(BOX_H * 0.6, DIVIDER_GAP + 1 + AFTER_DIVIDER + flavorH)
+      : 0;
+    // Space the rules text may occupy after reserving the flavor block.
+    const RULES_BOX_H = Math.max(1, BOX_H - flavorBlock);
+    this.rulesTextObj.setScale(1);
+    if (this.rulesTextObj.height > RULES_BOX_H) {
+      this.rulesTextObj.setScale(RULES_BOX_H / this.rulesTextObj.height);
+    }
+
+    // Position the flavor block below the (possibly shrunk) rules text. For a
+    // bare land the rules text is empty, so flavor sits below the icon row.
+    if (hasFlavor) {
+      const rulesBottom =
+        textTop + this.rulesTextObj.height * this.rulesTextObj.scaleY;
+      // For lands the rules box is the icon row's territory; drop flavor below
+      // the row (~148) rather than hugging the empty top.
+      const flavorTop =
+        manaRow.length > 0 ? Math.max(rulesBottom, 148) : rulesBottom + DIVIDER_GAP;
+      const dividerY = flavorTop;
+      this.flavorRule.setPosition(-126, dividerY).setVisible(true);
+      this.flavorTextObj.setPosition(-126, dividerY + AFTER_DIVIDER).setVisible(true);
+      // Final guard: if the flavor text's own measured height would push it
+      // past the box bottom, shrink it to fit the remaining slice.
+      const avail = BOX_BOTTOM - (dividerY + AFTER_DIVIDER);
+      if (flavorH > avail && avail > 0) {
+        this.flavorTextObj.setScale(avail / flavorH);
+      }
+    }
+    if (manaRow.length > 0) {
+      // [T] → [G] (duals show both color pips). Sized generously — this row
+      // is the land's whole rules box, so it should read from the hand.
+      const PIP = 48;
+      const GAP = 10;
+      const ARROW_W = 24;
+      const STEP = 8; // between adjacent color pips
+      const rowY = hasFlavor ? 100 : 128; // centered in the free box when bare
+      const rowW = PIP + GAP + ARROW_W + GAP + manaRow.length * PIP + (manaRow.length - 1) * STEP;
+      let ix = -rowW / 2 + PIP / 2;
+      const tap = this.scene.add.image(ix, rowY, 'pip-T').setDisplaySize(PIP, PIP);
+      this.add(tap);
+      this.pips.push(tap);
+      ix += PIP / 2 + GAP + ARROW_W / 2;
+      const arrow = this.scene.add
+        .text(ix, rowY, '→', {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '24px',
+          fontStyle: '700',
+          color: '#4a3b28',
+          resolution: 2,
+        })
+        .setOrigin(0.5);
+      this.add(arrow);
+      this.pips.push(arrow);
+      ix += ARROW_W / 2 + GAP + PIP / 2;
+      for (const col of manaRow) {
+        const img = this.scene.add.image(ix, rowY, `pip-${col}`).setDisplaySize(PIP, PIP);
+        this.add(img);
+        this.pips.push(img);
+        ix += PIP + STEP;
+      }
+    }
+
+    // P/T
+    if (isType(card, 'creature')) {
+      this.ptPlate.setVisible(true);
+      this.ptText.setVisible(true).setText(`${card.power}/${card.toughness}`);
+    }
+
+    // Cost pips
+    const pipSpecs = pipsFor(card.cost ?? { generic: 0, pips: {} });
+    let px = 126;
+    for (let i = pipSpecs.length - 1; i >= 0; i--) {
+      const spec = pipSpecs[i];
+      const img = this.scene.add.image(px, -182, spec.texture).setDisplaySize(21, 21);
+      this.add(img);
+      this.pips.push(img);
+      if (spec.number !== undefined) {
+        const t = this.scene.add
+          .text(px, -183, String(spec.number), {
+            fontFamily: 'Cinzel, Georgia, serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#2b2f36',
+            resolution: 2,
+          })
+          .setOrigin(0.5);
+        this.add(t);
+        this.pips.push(t);
+      }
+      px -= 23;
+    }
+
+    // Rarity + variant treatments. The gem is always the tier indicator; the
+    // ring shows the tier treatment (plain look) unless a non-white variant
+    // frame claims it for Axis B.
+    this.gem.setTexture(`gem-${card.rarity}`);
+    this.crown.setVisible(!!card.supertypes?.includes('legendary'));
+
+    const variant = opts.variant;
+    if (variant && variant.frame !== 'white') {
+      this.applyFrameStyle(variant.frame, fx);
+    } else if (card.rarity === 'r') {
+      this.ring.setVisible(true).setTint(0xcdd7e8).setAlpha(0.9);
+      if (fx === 'full' && fxPolicy(this.scene).shine && this.ring.preFX) {
+        this.shineFx = this.ring.preFX.addShine(0.35, 0.2, 5);
+      }
+      this.ring.resetPostPipeline();
+    } else if (card.rarity === 'sr' || card.rarity === 'ssr' || card.rarity === 'ur') {
+      this.ring.setVisible(true).setTint(0xffffff).setAlpha(1);
+      if (fx !== 'none' && fxPolicy(this.scene).iridescence) {
+        this.ring.setPostPipeline(IridescencePostFX);
+        const p = this.ring.getPostPipeline(IridescencePostFX);
+        if (p instanceof IridescencePostFX) p.mode = 0;
+      } else {
+        this.ring.setTint(0xffd700);
+      }
+    }
+
+    // Holo — a finish is per-copy (variant Axis C): no variant, no holo.
+    if (fx === 'full' && variant && variant.holo !== 'none') {
+      this.holo = applyHolo(this.scene, this, this.art, variant.holo, ART_RECT);
+    }
+    return this;
+  }
+
+  /**
+   * Axis B (non-white frames): ring + wash from the FRAME_TREATMENTS table.
+   * Reads at pack-reveal scale (~0.5) via the 13px ring and the face wash;
+   * the wash texture has the art window cut out and sits below all texts.
+   */
+  private applyFrameStyle(frame: Exclude<FrameStyle, 'white'>, fx: CardFxLevel): void {
+    const t = FRAME_TREATMENTS[frame];
+    if (t.wash !== null) {
+      this.frameTint.setVisible(true).setTint(t.wash).setAlpha(t.washAlpha);
+    }
+    this.ring.setVisible(true).setAlpha(1);
+    if (t.rainbow) {
+      if (fx !== 'none' && fxPolicy(this.scene).iridescence) {
+        // animated RGB cycle — the existing mode-0 border ring shader
+        this.ring.setTint(0xffffff);
+        this.ring.setPostPipeline(IridescencePostFX);
+        const p = this.ring.getPostPipeline(IridescencePostFX);
+        if (p instanceof IridescencePostFX) p.mode = 0;
+      } else if (fx !== 'none') {
+        // canvas/lite: cheap hue-cycle re-tint — still an animated RGB border
+        this.ring.setTint(0xff5f5f);
+        this.ringTween = this.scene.tweens.addCounter({
+          from: 0,
+          to: 360,
+          duration: 3000,
+          repeat: -1,
+          onUpdate: (tw) => {
+            if (!this.ring.active) return;
+            this.ring.setTint(Phaser.Display.Color.HSLToColor((tw.getValue() ?? 0) / 360, 0.85, 0.62).color);
+          },
+        });
+      } else {
+        // fx:'none' (thumb bakes): a static 4-corner rainbow gradient tint
+        this.ring.setTint(0xff5f5f, 0xffd24a, 0x4a90ff, 0x59ff8e);
+      }
+    } else if (t.ring !== null) {
+      this.ring.setTint(t.ring);
+      // gold's metallic luster: a shine sweep along the ring
+      if (t.luster && fx === 'full' && fxPolicy(this.scene).shine && this.ring.preFX) {
+        this.shineFx = this.ring.preFX.addShine(0.5, 0.25, 4);
+      }
+    }
+  }
+
+  /**
+   * Make the card clickable via an invisible Zone child. Unlike a hit area set
+   * on the container itself, a child gets the full world transform (including
+   * the container's scale), so the hit rect matches the card's visual size.
+   * Pointer events are re-emitted on the CardView, so consumers listen on it.
+   */
+  enableInput(): this {
+    if (!this.zone) {
+      this.zone = this.scene.add.zone(0, 0, CARD_W, CARD_H);
+      this.add(this.zone); // Container.add pulls it off the scene display list
+      this.zone.setInteractive({ useHandCursor: true });
+      for (const ev of ['pointerup', 'pointerdown', 'pointerover', 'pointerout']) {
+        this.zone.on(
+          ev,
+          (
+            p: Phaser.Input.Pointer,
+            lx: number,
+            ly: number,
+            e: Phaser.Types.Input.EventData,
+          ) => this.emit(ev, p, lx, ly, e),
+        );
+      }
+    } else {
+      this.zone.setInteractive({ useHandCursor: true });
+    }
+    return this;
+  }
+
+  disableInput(): this {
+    this.zone?.disableInteractive();
+    return this;
+  }
+
+  /** Feed a pointer position for foil reactivity; card-relative -1..1. */
+  setHoloPointer(worldX: number, worldY: number): void {
+    if (!this.holo) return;
+    const local = this.getLocalPoint(worldX, worldY);
+    this.holo.setPointer(
+      Phaser.Math.Clamp(local.x / (CARD_W / 2), -1.5, 1.5),
+      Phaser.Math.Clamp(local.y / (CARD_H / 2), -1.5, 1.5),
+    );
+  }
+
+  setTapped(tapped: boolean, animate = true): void {
+    const target = tapped ? 90 : 0;
+    if (animate) {
+      this.scene.tweens.add({ targets: this, angle: target, duration: 180, ease: 'Cubic.easeOut' });
+    } else {
+      this.setAngle(target);
+    }
+  }
+
+  private clearFx(): void {
+    this.holo?.destroy();
+    this.holo = null;
+    if (this.shineFx) {
+      this.ring.preFX?.remove(this.shineFx);
+      this.shineFx = null;
+    }
+    this.ringTween?.remove();
+    this.ringTween = null;
+    this.ring.resetPostPipeline();
+    this.ring.clearTint();
+    this.frameTint.setVisible(false).clearTint();
+    this.flavorTextObj.setScale(1).setVisible(false);
+    this.flavorRule.setVisible(false);
+    for (const p of this.pips) p.destroy();
+    this.pips = [];
+  }
+
+  destroy(fromScene?: boolean): void {
+    this.clearFx();
+    this.zone = null; // Container.destroy destroys the child zone itself
+    super.destroy(fromScene);
+  }
+}

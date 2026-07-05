@@ -1,0 +1,67 @@
+name: CI & Deploy to Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least privilege by default; the deploy job elevates to what Pages needs.
+permissions:
+  contents: read
+
+# Serialize Pages deploys and never cancel one mid-publish (GitHub's recommended
+# pattern for Pages). Verify-only PR runs share the group but never deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # ── Full verification ladder — gates the deploy below ──────────────────────
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Tests (incl. win-rate gates)
+        run: npx vitest run
+      - name: Production build
+        run: npm run build
+      - name: Doc anti-rot checks
+        run: |
+          npm run check-docs
+          npm run check-art-bible
+          npx tsx scripts/gen-docs-tables.ts --check
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  # ── Publish dist/ to GitHub Pages (main branch only, after verify passes) ──
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

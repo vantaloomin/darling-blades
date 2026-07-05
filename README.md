@@ -1,0 +1,90 @@
+<!-- source-of-truth: package.json, src/config/rules.ts, src/data/cards/*.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/scenes/, docs/rules.md, docs/ai.md, docs/art-pipeline.md, docs/roadmap.md, docs/mobile-lan-plan.md, tests/ · last-verified: 2026-07-05
+     If you change those files, update this doc or re-verify the date. -->
+
+# Darling Blades
+
+*A genderbent trading card game where the officers of the Three Kingdoms, the gods of Olympus, and a forest full of Beastkin all end up in the same 60-card deck.*
+
+<p align="center">
+  <img src="public/assets/art/cards/tk-shu-zhugeliang.png" width="160" alt="Zhuge Liang">
+  <img src="public/assets/art/cards/gk-zeus.png" width="160" alt="Zeus">
+  <img src="public/assets/art/cards/bk-kitsune-matriarch.png" width="160" alt="Kitsune Matriarch">
+</p>
+
+<p align="center">
+  <a href="https://vantaloomin.github.io/darling-blades/"><b>▶&nbsp; Play Darling Blades in your browser</b></a>
+</p>
+
+## What is Darling Blades?
+
+Darling Blades is a single-player, Magic: the Gathering-style trading card game — five colors of mana, creatures and combat, instants and sorceries resolving off a stack, the whole 8th/9th/10th-edition rhythm of curving out and racing or grinding to a win. If you've played that era of Magic, you already know most of the rules.
+
+What's different is the cast. Every card in the 210-card pool is an original, genderbent character drawn from three worlds sharing one card pool: the officers of **Wei**, **Wu**, **Shu**, and **Jin** from a genderbent Romance of the Three Kingdoms (plus an "Other" bench of warlords and wildcards — Dong Zhuo, Lü Bu, and company); the **Greek pantheon** of Olympus (Ares, Athena, Artemis, Hades, Persephone, Demeter, Hestia, and more); and tribal **Beastkin** — Wolfkin, Kitsune, Harpy, Bearkin, Rhinokin, Nekomata, Lamia, Spiderkin, Crowkin, Batkin, and others. Every one of those 210 cards has finished, illustrated cel-shaded gacha-anime art — nothing in the shipped game is programmer-art or a placeholder.
+
+You pick a starter deck, crack booster packs to build out your collection, assemble a 60-card deck in the deck builder, and duel an AI — either quick Practice matches at three difficulties, or the 8-rung **Avatar Gauntlet**, a ladder of named boss opponents each running their own themed deck.
+
+## Features
+
+- **A 210-card, fully illustrated pool.** 200 of those cards are booster-eligible across five rarity tiers (103 Common / 65 Rare / 13 Super Rare / 11 Super-Super Rare / 8 Ultra Rare); the other 10 are five free, unlimited basic lands and five non-collectible tokens created by card effects. All five WUBRG colors are represented across the three casts.
+- **Five 60-card starter decks**, one two-color archetype per color pair — **Crimson Muster** (Red/White aggro), **Wild Communion** (Green/White creature tribal), **Burning Tides** (Blue/Red tempo-burn), **Shadow Mandate** (Blue/Black control), and **Grave Harvest** (Black/Green deathtouch attrition) — every color shows up in exactly two of the five.
+- **Real MTG-style deckbuilding rules**: 60-card minimum decks built from your own collection, up to 4 copies of any non-basic card (basics unlimited), 20 starting life, 7-card hands, a London-style mulligan with your first mulligan free, and an auto-tap mana solver so you're never manually tapping individual lands to pay generic costs.
+- **Gacha-style booster packs** — 250 gold for 15 cards, with every slot independently rolling a rarity tier, a cosmetic frame (white/blue/red/gold/rainbow/black), and a holo finish (none/shiny/rainbow/pearlescent/fractal/void). The rarest possible pull — Ultra Rare, black frame, void holo — lands at roughly 1 in 4.94 million.
+- **The Avatar Gauntlet** — an 8-rung ladder of named boss opponents (Meng Huo, Hestia, Lupa the Wolfqueen, Hera, Zhurong, Sima Yi, Yohime the Kitsune Matriarch, and Cao Cao), each piloting a themed deck and personality at rising difficulty, with gold paid out per rung cleared plus a bonus for a full run. Just want one game? Practice mode runs the same three difficulties with no ladder attached.
+- **AI that never cheats.** Every difficulty — Easy, Medium, Hard — plays through the exact same redacted view of the game state a human opponent would see; none of them can look at your hand or either deck's remaining contents. Measured, not assumed: Medium beats Easy at least 80% of the time (measured ≈82.5%) and Hard beats Medium at least 70% of the time (measured ≈78%) across large seeded AI-vs-AI test batches.
+- **Fully illustrated, nothing placeholder.** All 210 cards carry finished cel-shaded gacha-anime art plus half-a-dozen painted scene backdrops, paired with an entirely procedural audio layer — every sound effect and the four-mood generative ambient music score are synthesized live in the browser over WebAudio, with no audio asset files at all.
+- **Built-in accessibility settings** — independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p / auto), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
+- **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built — see Project status below.
+
+## How to play
+
+The main menu routes to:
+
+| Mode | What it does |
+| --- | --- |
+| **Avatar Gauntlet** | Climb the 8-rung ladder of named boss opponents; clear a rung and roll straight into the next, with per-rung gold and a completion bonus. |
+| **Practice — Easy / Medium / Hard** | A one-off duel against the AI at your chosen difficulty, no ladder attached. |
+| **Open Packs** | Spend gold on a 15-card booster and watch the rarity/frame/holo reveal animate slot by slot. |
+| **Collection** | A binder-style spread of every card you own, filterable by color / type / rarity / owned, showing your best-owned print of each. |
+| **Deck Builder** | Build and edit your active 60-card deck from your owned collection. |
+| **Card Showcase** | A gallery of every frame style × holo finish available on a given card. |
+
+On first launch you pick one of the five starter decks and get a starting gold grant — enough for your first booster pack. The ⚙ Settings button opens the accessibility/audio options described above.
+
+## Getting started
+
+```bash
+npm install
+npm run dev      # Vite dev server at :5173
+npm run build    # typecheck + production build
+npx vitest run    # full test suite (~25-30s)
+```
+
+On Windows you can also double-click **`run-dev.bat`** or **`run-production.bat`** — both install dependencies if missing.
+
+## Under the hood
+
+Darling Blades is TypeScript on Vite, rendered with Phaser 3.90 (pinned — never v4), tested with Vitest, and linted with ESLint/typescript-eslint. There's no UI framework underneath the game view; it's Phaser end to end.
+
+The codebase is split into two halves that never touch each other's concerns. `src/engine/` is a pure, Phaser-free, deterministic rules engine: given a set of decklists, a seed, and a sequence of player actions, it produces the exact same game state and event stream on every machine, every time — state is plain JSON, so a `structuredClone` is the entire "save/replay" story, and even the RNG lives inside that state as data. A single facade validates and applies every action and emits events; the Phaser scenes (`src/scenes/`) only ever consume that event stream to animate — they hold no rules logic of their own. The AI (`src/ai/`) plays through that same engine via the identical redacted view a human sees, which is what makes the "no AI reads hidden information" guarantee structural rather than a promise.
+
+That separation is what makes a real test suite possible: **390 tests (3 skipped) across 33 files**, covering engine flow/combat/keywords/mana/RNG/determinism, the stack and effects, catalog integrity, meta systems (collection, economy, save migrations, gauntlet), the variant/drop-distribution math behind the booster system, audio recipes and music patterns, platform/gesture/render-scale behavior, and AI smoke tests plus the win-rate gates above (hundreds of full AI-vs-AI games) — the whole suite finishes in about 25–30 seconds.
+
+For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the event/decision model, determinism), [docs/rules.md](docs/rules.md) (the full ruleset as implemented), [docs/adding-cards.md](docs/adding-cards.md) (the card schema and how new cards get built), [docs/ai.md](docs/ai.md) (how each difficulty thinks), [docs/art-pipeline.md](docs/art-pipeline.md) (the art resolution and generation pipeline), and [docs/roadmap.md](docs/roadmap.md) (current status in detail).
+
+## Project status
+
+Darling Blades is in late-stage, actively-developed shape — not a "1.0" release, but playable start to finish today. The full solo loop (menu → starter pick → Avatar Gauntlet or Practice → rewards → shop → pack opening → collection → deck builder) is wired end to end, every card in the pool has finished illustrated art, and the test suite is green.
+
+**Shipped today:** the complete solo game loop; all 210 cards illustrated (147 creatures, 15 lands, 43 spells, plus 5 effect tokens); the five-tier rarity/frame/holo booster system; the full 5-color engine (mana, keywords, the stack, combat); three AI difficulties and 8 gauntlet personalities; procedural SFX and generative ambient music; the settings/accessibility menu; and phone-over-LAN play for the entire single-player loop.
+
+**Planned next:** real head-to-head LAN multiplayer (the design doc exists; a host-authoritative Tier 2 is scoped but not built), a hands-on real-device pass for touch/audio feel, and a by-ear/by-eye polish pass — tuning the ambient music, SFX loudness balance, and the holo/frame visuals now that every piece of art is in.
+
+## About this project
+
+This is a personal, single-player project built and tuned by one developer — there's no multiplayer server and no public contribution pipeline at the moment. The codebase does hold itself to a few unusual disciplines for a solo project, though: the rules engine is fully headless and seeded-deterministic, every difficulty of AI is held to a measured (not assumed) win-rate floor, and the documentation in `docs/` carries anti-rot tooling (`npm run check-docs`) that flags a doc as stale the moment the code it describes changes without it.
+
+## License
+
+The source code in this repository is released under the [MIT License](LICENSE).
+
+The illustrated card and scene art (everything under `public/assets/art/`) and the desktop app icons (`src-tauri/icons/`) are **not** covered by that license — all rights to those images are reserved.

@@ -1,0 +1,22 @@
+# ── Dependencies ──────────────────────────────────────────────────────────
+node_modules/
+
+# ── Build output ──────────────────────────────────────────────────────────
+dist/
+
+# ── Vite ──────────────────────────────────────────────────────────────────
+*.local
+
+# ── Generated art manifest (rebuilt by `npm run gen-art-manifest`) ────────
+src/data/art-manifest.json
+
+# ── Derived half-res mobile art (rebuilt by `npm run gen-art-halfres`) ────
+public/assets/art/cards-half/
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+*.log
+
+# ── Local Claude Code settings (launch.json is tracked; local overrides not)
+.claude/settings.local.json
+
+# (src-tauri/target and src-tauri/gen/schemas are ignored by src-tauri/.gitignore)

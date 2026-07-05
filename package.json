@@ -1,0 +1,44 @@
+{
+  "name": "darling-blades",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run gen-art-manifest && vite",
+    "build": "npm run gen-art-manifest && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "app:dev": "tauri dev",
+    "app:build": "tauri build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src tests scripts",
+    "gen-art-manifest": "tsx scripts/gen-art-manifest.ts",
+    "gen-art-halfres": "tsx scripts/gen-art-halfres.ts",
+    "gen-card-art": "tsx scripts/gen-card-art.ts",
+    "gen-scene-art": "tsx scripts/gen-scene-art.ts",
+    "gen-land-art": "tsx scripts/gen-land-art.ts",
+    "gen-spell-art": "tsx scripts/gen-spell-art.ts",
+    "play:lan": "tsx scripts/serve-lan.ts",
+    "check-docs": "tsx scripts/check-docs.ts",
+    "check-art-bible": "tsx scripts/check-art-bible.ts",
+    "gen-docs-tables": "tsx scripts/gen-docs-tables.ts",
+    "balance-matrix": "tsx scripts/balance-matrix.ts"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tauri-apps/cli": "^2.11.4",
+    "@types/node": "^26.1.0",
+    "eslint": "^10.6.0",
+    "qrcode-terminal": "^0.12.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.1",
+    "vite": "^8.1.2",
+    "vitest": "^4.1.9"
+  }
+}

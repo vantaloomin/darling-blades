@@ -1,0 +1,480 @@
+<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts · last-verified: 2026-07-04 -->
+
+# Darling Blades Art Bible — Index (The Contract)
+
+This file is the **binding contract** for the eight parallel authoring agents writing
+full art direction for all **152 creature cards**. Each agent writes exactly one file
+in this directory (`tk-wei.md`, `tk-wu.md`, `tk-shu.md`, `tk-jin.md`, `tk-other.md`,
+`greek.md`, `beastkin.md`, `constructs-and-tokens.md`). Every rule below is grounded in
+the source files named in the header comment. When this document and your intuition
+disagree, this document wins. When this document and the card data disagree, the card
+data wins — and flag the discrepancy.
+
+---
+
+## 1. Purpose & workflow
+
+Each art-bible entry is the specification an artist (or image model) works from to
+produce one finished card illustration. The pipeline:
+
+1. **Entry** — an author/artist picks a card's entry from the faction file.
+2. **Deliverable** — a **640×800 PNG** (portrait, 4:5 — exactly 2× the 320×400
+   procedural placeholder canvas, so the same cover-crop math applies).
+3. **Drop** — save as `public/assets/art/cards/<cardId>.png` (filename = the card's
+   `id`, e.g. `tk-other-lubu.png`).
+4. **Manifest** — run `npm run gen-art-manifest` (it also runs automatically on
+   `npm run dev` and `npm run build`). The script scans the drop folder and writes
+   `src/data/art-manifest.json`. For mobile, `npm run gen-art-halfres` derives a
+   320×400 half-res sibling in `public/assets/art/cards-half/` for every dropped
+   PNG (the `lite` quality tier loads these); it re-runs the manifest itself.
+5. **In-game** — cards listed in the manifest load the real PNG; absent cards keep
+   their deterministic procedural placeholder. No code changes are ever needed to
+   ship art.
+
+---
+
+## 2. Global style (binding)
+
+These rules apply to **every** entry in every file. Do not restate them per entry;
+do not contradict them.
+
+- **Crisp cel-shaded gacha anime splash art** (style pivot 2026-07-02,
+  Ascendant-derived). Dynasty Warriors key-art energy held inside MTG framing
+  discipline: heroic, kinetic, but composed for a card window. The figure is
+  crisp cel: clean, confident inked linework with deliberate line-weight
+  variation; hard-edged cel shading in two to three tone steps per surface;
+  bright anime specular highlights; saturated, readable local color; **hard
+  silhouette edges**. NOT painterly figure rendering, not 3D, not photoreal,
+  not sketch.
+- **House anime face.** A consistent house face language with large expressive
+  eyes; conventionally beautiful, with distinct facial structure per character
+  (no same-face). Skin is cel-rendered — never airbrushed or plastic.
+- **Fanservice-forward but heroic.** Attractive and revealing in the genre
+  tradition, but the governing read is power, confidence, and battle-readiness
+  — never coy or submissive.
+- **Fully rendered scenic background.** One character owns the frame, and she
+  stands inside a real anime key-visual environment per the entry's Background
+  field — scenery with depth and story, in the painted-anime-background idiom,
+  rendered slightly softer and more atmospheric than the figure so the crisp
+  rim-lit character pops. Never a flat color wash, never an empty gradient,
+  never a cutout/sticker look. Scene complexity follows the rarity ladder
+  (section 5): commons keep readability over richness; golds get the full
+  environmental splash.
+- **Every character is an adult woman.** No exceptions anywhere in the catalog.
+- **Genderbent characters keep the source character's signature kit** — weapon,
+  insignia, color motif. Lu Bu still carries the Sky Piercer; Zeus still throws
+  the thunderbolt; Cao Cao still wears the hegemon's regalia.
+- **Tasteful pin-up energy is allowed; nothing explicit.** Confidence and glamour,
+  not exposure. Costume integrity holds under battle motion.
+- **No real-person likeness.** Characters are original designs of historical or
+  mythological figures, never portraits of actors, models, or voice talent.
+- **Lighting:** a crisp rim light separating the figure from the background is
+  universal; **one key light + one rim light** per illustration, both named in
+  every entry's Lighting field. The default key is warm upper-left with cool
+  ambient fill, but the entry's own Lighting field **overrides** the default —
+  the holo shaders depend on per-card lighting (section 6).
+- **NO-TEXT hard rule.** No text of any kind anywhere in the image — no words,
+  letters, numbers, nameplates, captions, titles, logos, watermarks,
+  signatures, calligraphy panels, or CJK glyphs. Banners, seals, and sashes
+  render blank or patterned, never lettered. (Generation backends habitually
+  stamp gacha nameplates and garbled CJK title-text onto Three Kingdoms art;
+  `scripts/gen-card-art.ts` rides this rule on every prompt as both a positive
+  cue and a negative block.)
+- **Anatomy & consistency negatives** (carried on every generation prompt):
+  no extra or melted fingers, no broken weapon geometry, no same-face, no
+  real-person likeness, no muddy or desaturated palette, no plastic skin.
+
+---
+
+## 3. Canvas & safe zone (load-bearing — read twice)
+
+Verified against `src/ui/CardView.ts`:
+`ART_RECT = { x: -132, y: -164, w: 264, h: 192 }` with cover-crop
+`scale = max(264/srcW, 192/srcH)`; for a 4:5 source the scale is width-driven
+(264/320 = 0.825), the full width shows, and the vertical overflow is cropped
+symmetrically: `cropH = 192/0.825 = 232.7` of 400 source px = **58.2 % of the
+image height**, centered.
+
+**On the 640×800 deliverable:**
+
+- The card frame displays only the **middle 58.2 % vertical band: y ≈ 167 → 633**.
+  Everything above/below is bleed — paint it (it must extend coherently; the full
+  image may appear in future full-art contexts), but tell **no story** there.
+- **Face fully inside y 200–560.** Ideal **eye line ≈ y 300–380**.
+- **Horizontal: the full 640 px width is visible.** Keep any critical silhouette
+  (face, weapon hand, identifying prop) at least **32 px off the left/right edges**.
+- **Weapons and effects may deliberately break the band** — a halberd slashing into
+  the top bleed reads as energy, not error. Just never put the *readable* part of
+  the story outside the band.
+
+```
+        640 × 800 deliverable                    y (px)
+   ┌───────────────────────────────────┐           0
+   │ / / / / /  TOP BLEED  / / / / / / │               cropped by card frame
+   ├───────────────────────────────────┤  ◄──  167     VISIBLE BAND TOP
+   │                                   │
+   │     ┌─ ─ ─ face zone ─ ─ ─┐       │  ◄──  200
+   │     │   eye line ideal    │       │  ◄──  300–380
+   │     │                     │       │
+   │     └─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘       │  ◄──  560
+   │                                   │
+   ├───────────────────────────────────┤  ◄──  633     VISIBLE BAND BOTTOM
+   │ / / / /  BOTTOM BLEED  / / / / /  │               cropped by card frame
+   └───────────────────────────────────┘         800
+   →│32│←   critical silhouette     →│32│←
+            stays inside margins
+```
+
+**Scale check:** the art window renders at 264×192 on a 300×420 card; battlefield
+cards are scaled 0.45, so the art shows at roughly **119×86 px**. Commons must read
+at that size. (Hand ≈ 145×106, inspect ≈ 396×288.)
+
+---
+
+## 4. Palette bible
+
+Base palettes come from `PALETTES` in `src/art/PlaceholderArtGenerator.ts`, keyed by
+the card's **color identity** (see `paletteFor`): two or more colors → **gold**;
+zero colors → **C**; otherwise the single color. Each triple is
+`[gradient top, gradient bottom, accent]`. Real art is not a gradient — treat the
+triple as the illustration's tonal anchor: dominant mid, deep shadow, highlight/accent.
+
+| Key | Top | Bottom | Accent | Used for |
+|---|---|---|---|---|
+| **W** | `#f2e8cf` | `#c9a84c` | `#fffef2` | mono-white cards |
+| **U** | `#4a90d9` | `#16294f` | `#a8d4f7` | mono-blue cards |
+| **B** | `#5a3a70` | `#140d1c` | `#9b6fc4` | mono-black cards |
+| **R** | `#d95436` | `#5e0f0f` | `#f7b267` | mono-red cards |
+| **G** | `#4fa06a` | `#123a22` | `#a9dcae` | mono-green cards |
+| **gold** | `#e8c95a` | `#7a5a18` | `#fff2b8` | multicolor (2+ colors) |
+| **C** | `#a9adb5` | `#4e535c` | `#dfe3ea` | colorless (Constructs) |
+| **land** | `#b09468` | `#4a3a26` | `#e0cfa8` | lands (out of scope here) |
+
+**Faction accents** — layered on top of the base palette via costume, trim, and
+props (never replacing the color-identity anchor):
+
+| Faction | Accents |
+|---|---|
+| Wei (`tk-wei`) | lapis + bronze |
+| Wu (`tk-wu`) | crimson + river-gold |
+| Shu (`tk-shu`) | jade + ivory |
+| Jin (`tk-jin`) | slate-teal + tarnished silver |
+| Other (`tk-other`) | black-iron + ember |
+| Greek (`gk`) | marble + Aegean blue + gilt |
+| Beastkin (`bk`) | warm earth + moss + fur naturals |
+
+The Palette field of every entry names the actual hexes it leans on plus the
+faction accents.
+
+---
+
+## 5. Rarity ambition ladder
+
+Match the illustration's ambition to the card's rarity. Under-deliver on a legendary
+and it looks cheap; over-deliver on a common and it stops reading at 119×86.
+
+- **Common** — single figure, **one idea**, readable at ~119×86 px battlefield
+  scale. Simple rendered scene held to two dominant values — still a real
+  environment, never a flat wash — with no environmental storytelling. If the
+  thumbnail doesn't communicate the idea, the illustration fails.
+- **Uncommon** — common, plus **motion or one environmental story element**
+  (a banner, a burning gate, a second light source). Still one figure.
+- **Rare** — dramatic lighting and **a "moment"**: the split second before or after
+  the card's mechanic happens. Background participates in the story.
+- **Legendary / gold** — full hero splash with a **secondary canon element**:
+  mount, familiar, relic, or summoned token. This is box-art tier; the canon
+  registry (section 7) usually names the required secondary element.
+
+---
+
+## 6. Holo interaction guide
+
+> **Note (wave 2):** holo finishes are now **per-copy pull cosmetics** —
+> `HoloFinish` in `src/meta/variants.ts`, rolled per booster slot and rendered
+> only when a variant is passed to `CardView` — not per-card signatures. The
+> per-card style names and the signature table below are retained as
+> art-direction guidance for how illustrations receive overlays; the entries'
+> `holo:` facts are no longer wired to rendering.
+
+Derived from `src/ui/fx/HoloEffects.ts` and `src/ui/fx/IridescencePostFX.ts`.
+Holo effects are applied **over the art**, so the illustration must be designed to
+receive them. Every rare additionally gets an iridescent border ring and sparse
+star-glint particles (ADD blend, ~1 glint per 0.4 s) regardless of style — that
+part needs no art accommodation. (Note: on the mobile `lite` quality tier the
+shader-driven effects — sheen sweep, foil/radial iridescence, the rare ring's
+rainbow — are gated off by the quality-tier table in `src/ui/fx/FXSupport.ts`,
+while the galaxy nebula tile and sparkle glints remain; everything below
+describes full quality, whose behavior is unchanged.)
+
+- **none** — commons. No overlay. Paint for pure readability.
+- **sheen** — the uncommon default (and a valid explicit rare style): a moving
+  Shine pass sweeps the art. **Avoid huge flat white areas** — the sweep whites
+  them out completely. Keep large light fields textured or slightly toned.
+- **foil** — pointer-reactive rainbow bands, masked by procedural noise patches
+  covering roughly the brighter 40 % of a noise field (`smoothstep(0.35, 0.75, n)`),
+  added on top of the art at 0.42 strength. The mask is *noise*, not luminance —
+  the rainbow lands in random patches, so **put texture variance where the foil
+  should live**: armor plate, silk, feathers, embroidery. Over textured mid/high-
+  luminance detail the bands read as material shimmer; over flat darks and faces
+  they read as glowing errors. **Keep faces and flat dark fields quiet.**
+- **radial** — concentric rainbow rings breathing outward from the **center of the
+  art window** (≈ x 320, y 400 on the deliverable), added at 0.22 strength.
+  **Reward it with a centered glow source**: halo, moon, aegis, sun disc, mirror.
+- **galaxy** — a drifting nebula tile (deep indigo `#05030f` base with purple/blue/
+  magenta/teal blooms and ~220 white stars) SCREEN-blended over the whole art
+  window at **0.55 alpha**. SCREEN lightens darks and barely touches brights:
+  **design a dark, high-contrast background and keep the face bright** — the
+  nebula will colonize the darks and leave the face clean. Crisp specular edges
+  (blade highlights, wet armor) catch the drifting star glints.
+- **sparkle** — star-glint particles only, no shader overlay. The art carries the
+  card; design as if `none`, with bright speculars for the glints to echo.
+
+### Signature-holo assignment (historical — see the wave-2 note above)
+
+An explicit `holo` field on the card always wins. Otherwise: common → `none`,
+uncommon → `sheen`, and **rare → a deterministic hash pick** from
+`['foil', 'galaxy', 'radial']` (FNV-1a over the card id: seed `0x811c9dc5`, per
+char `h ^= code; h = imul(h, 0x01000193)`, pick `(h>>>0) % 3` — recipe kept here
+for future cards only; **do not recompute for this catalog**).
+
+**Pre-computed reference — every rare creature in the catalog.** Entries must
+state holo exactly as this table does (`explicit` styles as-is, hash-assigned as
+`auto:<style>`):
+
+| Card id | Holo | Source |
+|---|---|---|
+| `tk-wei-caocao` | galaxy | explicit |
+| `tk-wu-sunquan` | foil | explicit |
+| `tk-wu-zhouyu` | radial | explicit |
+| `tk-shu-liubei` | foil | explicit |
+| `tk-shu-guanyu` | galaxy | explicit |
+| `tk-shu-zhangfei` | sparkle | explicit |
+| `tk-shu-zhaoyun` | sheen | explicit |
+| `tk-shu-zhugeliang` | radial | explicit |
+| `tk-jin-simayi` | galaxy | explicit |
+| `tk-jin-wangyuanji` | sheen | explicit |
+| `tk-jin-zhangchunhua` | foil | explicit |
+| `tk-other-lubu` | galaxy | explicit |
+| `tk-other-diaochan` | **auto:foil** | hash-assigned |
+| `gk-athena` | foil | explicit |
+| `gk-ares` | **auto:radial** | hash-assigned |
+| `gk-zeus` | galaxy | explicit |
+| `gk-hera` | foil | explicit |
+| `gk-aphrodite` | sparkle | explicit |
+| `gk-persephone` | radial | explicit |
+| `gk-hades` | sheen | explicit |
+| `gk-poseidon` | foil | explicit |
+| `gk-gaia` | galaxy | explicit |
+| `bk-dragonmaid` | **auto:galaxy** | hash-assigned |
+| `bk-kitsune-matriarch` | galaxy | explicit |
+| `bk-wolfqueen` | sparkle | explicit |
+| `ar-siege-juggernaut` | sheen | explicit |
+
+All other creatures: uncommons are `auto:sheen`, commons are `none`.
+
+---
+
+## 7. Shared canon registry (prevents contradictions between parallel authors)
+
+Parallel agents never see each other's files. Anything two files could both touch
+is defined **here**, once. Honor these bindings verbatim.
+
+- **Cao family (Wei)** — `tk-wei-caocao`, `tk-wei-caoren`, `tk-wei-caopi` share a
+  family resemblance: ink-black hair, sharp amber eyes, imperious brow. Wei
+  lapis-and-bronze regalia at rank-appropriate richness.
+- **Sima family (Jin)** — `tk-jin-simayi`, `tk-jin-simashi`, `tk-jin-simazhao`
+  share cool grey eyes, ash-dark hair, and unreadable composure; Yi carries a
+  single silver streak the sons' entries may echo. Slate-teal and tarnished silver.
+- **Sun family (Wu)** — `tk-wu-sunjian`, `tk-wu-sunce`, `tk-wu-sunquan`,
+  `tk-wu-sunshangxiang`: **emerald eyes run in the family** (Quan is literally
+  "Emerald-Eyed Sovereign"); tiger motifs (Jian is the "Tiger of Jiangdong")
+  recur in trim and ornament.
+- **The Qiao sisters (Wu)** — `tk-wu-daqiao` (elder, composed) and
+  `tk-wu-xiaoqiao` (younger, spark): mirrored twin designs — same silhouette
+  language, inverted color emphasis, paired fans.
+- **Guan family (Shu)** — `tk-shu-guanyu`, `tk-shu-guanping`,
+  `tk-shu-guanyinping`, `tk-shu-guansuo`: the **green-and-guandao motif**. Green
+  robes/accents and guandao polearms whose blade silhouette visibly descends from
+  Guan Yu's Green Dragon Crescent Blade.
+- **Lu Bu's kit (Other)** — `tk-other-lubu` wields the **Sky Piercer** crescent
+  halberd and is paired with **Red Hare**, the crimson warhorse.
+  `tk-other-lulingqi` inherits the halberd design: same crescent-blade silhouette,
+  lighter build. Match the weapon, not the parentage backstory.
+- **Hera's peacocks (Greek ↔ tokens)** — the birds in `gk-hera`'s art **define**
+  `tok-peacock`: white-and-gold peacock, tail eye-spots in iridescent
+  teal-sapphire (the only place that hue appears in her palette).
+- **Kitsune Matriarch's foxes (Beastkin ↔ tokens)** — `bk-kitsune-matriarch`'s
+  companions **define** `tok-fox-spirit`: pale blue-white spectral fox, single
+  tail, trailing cold foxfire wisps (U identity).
+- **Persephone's blooms (Greek ↔ tokens)** — `gk-persephone`'s flowers **define**
+  `tok-bloom`: a small ambulatory sprout crowned with a pomegranate-red blossom
+  on green (her B/G split in miniature).
+- **Zhuge Liang / Yueying devices (Shu ↔ tokens)** — `tk-shu-yueying`'s ETB
+  creates `tok-wooden-ox`; her devices and `tk-shu-zhugeliang`'s share one
+  aesthetic: lacquered wood, exposed precision joinery, no raw metal. The Wooden
+  Ox token is a lacquered ox automaton in exactly that style.
+
+Token design authority: the descriptions above are canon. The summoner's entry
+and the token's entry in `constructs-and-tokens.md` must both match them.
+
+---
+
+## 8. The per-card template
+
+Every entry uses **exactly** this shape — 13 labeled fields, these labels, this
+order:
+
+```markdown
+### <Card Name> — `<card-id>`
+- **Card facts:** {cost} · {colors} · {P/T} · {keywords} · {rarity}{, legendary?} · holo: {explicit | auto:<computed>}
+- **Character & source:** …
+- **Personality / mood:** … (seed from the card's flavor text — it is the character voice)
+- **Pose & composition:** … (state where the face sits in the safe band)
+- **Costume & attire:** …
+- **Palette:** … (name the hexes + accents)
+- **Lighting:** …
+- **Expression:** …
+- **Props / weapon:** …
+- **Background:** … (commons: readability over richness)
+- **Holo interaction:** … (or "none — common")
+- **Rarity ambition:** …
+- **Prompt:** <one generation-ready line> — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+```
+
+Notes:
+- **Card facts** is transcribed from the data file, not invented. Cost in pip
+  notation (`{2}{R}{R}`), colors as letters (multicolor: note the gold frame),
+  keywords camelCase as in source, `legendary` only if the card has the supertype,
+  holo per the section-6 table.
+- **Prompt** is one self-contained, generation-ready line that a text-to-image
+  model could execute without reading the rest of the entry, always ending with
+  the standard suffix `— crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait`.
+
+---
+
+## 9. Exemplar entries (the quality bar)
+
+These three are part of the contract. Match their density and specificity.
+
+### Lu Bu, Peerless Flying General — `tk-other-lubu`
+- **Card facts:** {2}{R}{R} · R · 5/3 · haste · ur, legendary · holo: galaxy (explicit)
+- **Character & source:** Genderbent Lu Bu, the Three Kingdoms coalition era's apex warrior — the card burns its own controller every upkeep, so the art must feel barely contained.
+- **Personality / mood:** "Among warriors, Lu Bu. Among steeds, Red Hare. Among tempers… run." Overwhelming, gleeful violence; a weapon that has opinions about being pointed.
+- **Pose & composition:** Low-angle three-quarter, chest-up, eyes locked on the viewer, face ≈ y 330; the Sky Piercer slashes lower-left → upper-right, deliberately breaking the top of the band; Red Hare rears ember-lit behind her shoulder in bokeh.
+- **Costume & attire:** Black lacquered armor with gold filigree, crimson underlayers, pheasant-feather headdress sweeping into the top bleed, war-braid, torn crimson sash.
+- **Palette:** R palette (`#d95436` → `#5e0f0f`, accent `#f7b267`) pushed dark: near-black armor, ember oranges, one cold steel note on the blade. Other-faction black-iron + ember accents.
+- **Lighting:** Ground-fire uplight as key; cool moonlit rim.
+- **Expression:** Half-smile, full menace, fire-lit eyes.
+- **Props / weapon:** Sky Piercer crescent halberd (canon silhouette — see registry); Red Hare rearing behind.
+- **Background:** Burning night war camp, smoke swallowing a dark, star-broken sky — the darkest background in the file.
+- **Holo interaction:** Galaxy — the nebula SCREEN-blends into the dark smoke and night sky, making a churning cosmos. Keep the upper third dark-valued so the nebula owns it, keep face luminance high, and give the blade a clean specular edge for star glints.
+- **Rarity ambition:** Set-defining box-art splash.
+- **Prompt:** Genderbent Lu Bu, black-and-gold lacquered armor with pheasant-feather headdress, wielding a crescent halberd diagonally across frame, rearing red warhorse silhouette behind, burning night camp with dark smoky star-torn sky, fierce half-smiling warrior woman lit by fire from below with cool rim light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Wolfkin Raider — `bk-wolfkin-raider`
+- **Card facts:** {1}{R} · R · 2/1 · haste · c · holo: none
+- **Character & source:** Original Beastkin wolf-girl skirmisher — the tribe's cheap, fast hit.
+- **Personality / mood:** "The howl is a courtesy. A short one." All forward momentum, zero ceremony.
+- **Pose & composition:** Mid-sprint lunge toward lower-left camera, face ≈ y 330, one clawed hand forward, motion blur on the trailing arm and tail. The silhouette must read as "wolf girl mid-charge" at ~119×86 px.
+- **Costume & attire:** Rough fur-trimmed leathers, bone toggles, sheathed iron seax, ash-grey wind-torn topknot, ears flattened by speed.
+- **Palette:** R palette (`#d95436` → `#5e0f0f`, accent `#f7b267`) + Beastkin warm-earth accents; two-value background.
+- **Lighting:** Flat warm daylight, single source (key doubles as rim on the leading edge).
+- **Expression:** Grin mid-howl, fangs showing; amber eyes are the face's saturation peak.
+- **Props / weapon:** Claws leading; the seax stays sheathed — she won't need it.
+- **Background:** Blurred dust and dry-grass speed streaks, no landmarks.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common: single figure, one idea (speed).
+- **Prompt:** Wolf-eared beast-girl raider sprinting at the viewer, ash-grey hair and tail streaming, fur-trimmed red-brown leathers, clawed hand forward, fanged grin, blurred dust-and-grass background, flat warm daylight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Hera, Queen of Olympus — `gk-hera`
+- **Card facts:** {2}{W}{B} · W/B (gold frame) · 3/4 · vigilance · ssr, legendary · holo: foil (explicit)
+- **Character & source:** Hera as-is, Queen of Olympus; her ETB creates two Peacock tokens whose design **this art canonizes** (`tok-peacock` — see registry).
+- **Personality / mood:** "Her peacocks have a hundred eyes each, and every eye is on Zeus." Absolute sovereignty with a surveillance budget.
+- **Pose & composition:** Enthroned three-quarter seated, slightly above camera, chin high, face ≈ y 300; two peacocks flank her — one perched on the throne back, its tail cascading down the right edge of the band; feather eye-spots scattered through the midground; the crown may rise into the top bleed.
+- **Costume & attire:** White-and-gold pleated chiton with a **black** silk himation (her B identity), golden peacock-feather brooch, polos crown, heavy cuffs.
+- **Palette:** Gold palette (`#e8c95a` → `#7a5a18`, accent `#fff2b8`) carrying the white/black split; iridescent teal-sapphire reserved exclusively for the feather eye-spots. Greek marble + gilt accents.
+- **Lighting:** Cool marble ambient fill + warm gilt key from an off-frame brazier; subtle underglow keeps the black silk reading as depth, not a hole.
+- **Expression:** Serene, knowing, faintly pitying; direct eye contact.
+- **Props / weapon:** The throne, the polos crown, and the two canon peacocks.
+- **Background:** Olympian colonnade in haze, storm light far beyond — Zeus is out there, and she knows exactly where.
+- **Holo interaction:** Foil — rainbow bands bloom on textured patches, so build texture into the peacock tail eye-spots, gold embroidery, and crown; keep her face and the black silk smooth so the **birds** do the shimmering under the pointer.
+- **Rarity ambition:** Gold-legendary throne-scene hero shot.
+- **Prompt:** Hera enthroned in white-and-gold chiton with black silk mantle and polos crown, two peacocks with luminous eye-spotted tails flanking a marble throne, Olympian colonnade with distant storm light, regal serene goddess gazing down at viewer, warm gilt key light on cool marble — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+## 10. Authoring rules for the faction agents
+
+1. **One entry per creature card, in SOURCE-FILE ORDER** (top to bottom of the
+   `.ts` file). No skips, no additions, no reordering.
+2. **All 13 fields, exact labels, exact order** (section 8). **180–250 words per
+   entry** plus the prompt line.
+3. **The card data drives the art.** Use flavor text (it *is* the character
+   voice), cost, stats, keywords, and abilities to pick the pose and moment:
+   a 0/4 `defender` does not lunge; `haste` lunges; `deathtouch` gets one quiet
+   lethal implement; an ETB token-maker shows or foreshadows its tokens; a
+   `lifelink` healer glows warm. High cost = high spectacle.
+4. **Holo:** copy the card's style from the section-6 reference table. Explicit
+   styles are stated bare (`holo: galaxy (explicit)` in Card facts); the three
+   hash-assigned rares are stated as `auto:foil` / `auto:radial` / `auto:galaxy`
+   per the table. Uncommons are `auto:sheen`; commons `none`. Never recompute.
+5. **Faction preamble:** every file opens with a **5–10 line faction art
+   identity** — recurring materials, architecture, costume language, and how the
+   faction accents (section 4) manifest — before the first entry.
+6. **`beastkin.md` additionally includes a species sheet** before the entries:
+   for each species/subtype appearing in the file (Nekomata, Wolfkin, Kitsune,
+   Avian/harpy, Avian/crowkin, Serpent/lamia, Draconic, Holstaur, Sheepkin,
+   Mousekin, Spiderkin, Batkin, Mermaid, Deerkin, Turtlekin, Squirrelkin,
+   Boarkin, plus untyped bear/rhino/bunny kin), define ears, tail, and 1–2
+   non-negotiable animal traits so every future card of that species matches.
+7. **Genderbent = kit-faithful** (section 2). State the signature kit in
+   Props / weapon.
+8. **Canon registry (section 7) is binding.** If your card appears there, the
+   entry must satisfy the binding.
+9. **Expected entry counts** (validation will hard-check these):
+
+| File | Source of truth | Entries |
+|---|---|---|
+| `tk-wei.md` | `src/data/cards/tk-wei.ts` | 24 |
+| `tk-wu.md` | `src/data/cards/tk-wu.ts` | 23 |
+| `tk-shu.md` | `src/data/cards/tk-shu.ts` | 22 |
+| `tk-jin.md` | `src/data/cards/tk-jin.ts` | 13 |
+| `tk-other.md` | `src/data/cards/tk-other.ts` | 12 |
+| `greek.md` | `src/data/cards/greek.ts` | 23 |
+| `beastkin.md` | `src/data/cards/beastkin.ts` | 25 |
+| `constructs-and-tokens.md` | `src/data/cards/artifacts.ts` + `tokens.ts` | 10 (5 + 5) |
+
+10. **`constructs-and-tokens.md` roster is exactly this**, in this order —
+    Constructs (the five artifact-file **creature** Constructs; skip
+    `ar-imperial-jade-seal`, a non-creature artifact): `ar-training-dummy`,
+    `ar-terracotta-soldier`, `ar-terracotta-guardian`, `ar-bronze-colossus`,
+    `ar-siege-juggernaut`. Tokens: `tok-militia`, `tok-fox-spirit`,
+    `tok-peacock`, `tok-bloom`, `tok-wooden-ox`.
+    **The Wooden Ox is both a token and an artifact Construct — it is listed
+    ONCE, as a token entry only.** Do not add it to the Constructs half.
+
+---
+
+## 11. Validation checklist
+
+Run against the finished set of eight files before acceptance:
+
+- [ ] Every creature id in the catalog appears **exactly once** across the eight
+      files, in source-file order; per-file counts match the table in section 10
+      (152 entries total).
+- [ ] `tok-wooden-ox` appears once, under tokens, in `constructs-and-tokens.md`.
+- [ ] Every entry has **all 13 fields**, exact labels, exact order.
+- [ ] Every **Card facts** line matches the data file: cost, colors, P/T,
+      keywords, rarity, legendary supertype, holo.
+- [ ] Holo values match the section-6 reference table (`explicit` vs
+      `auto:<style>`); uncommons `auto:sheen`, commons `none`.
+- [ ] Every entry ends with a **Prompt** line ending in
+      `— crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait`.
+- [ ] Entries are 180–250 words plus the prompt line.
+- [ ] Faction preamble present in every file (5–10 lines); species sheet present
+      in `beastkin.md`.
+- [ ] Canon registry (section 7) honored: family resemblances, Guan
+      green-and-guandao, Lu Bu/Lu Lingqi halberd silhouette, Qiao mirroring, and
+      all four token designs consistent between summoner and token entries.
+- [ ] Global style (section 2) never contradicted: adult women only, kit-faithful
+      genderbends, one key + one rim, no real-person likeness.

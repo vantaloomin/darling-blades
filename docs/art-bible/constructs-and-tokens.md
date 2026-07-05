@@ -1,0 +1,183 @@
+<!-- source-of-truth: src/data/cards/artifacts.ts, src/data/cards/tokens.ts · last-verified: 2026-07-04 -->
+
+# Darling Blades Art Bible — Constructs & Tokens
+
+**Faction art identity.** Constructs are colorless (C palette): cool pewter greys anchored by
+`#a9adb5` mid, `#4e535c` deep shadow, and `#dfe3ea` highlight — the neutral, made-not-born
+faction. Their women are *fabricated*: terracotta, cast bronze, lacquered wood, kiln-fired
+clay — figures given martial purpose by an artisan, not born to it. Read the material honestly:
+craquelure in fired earth, verdigris on old bronze, joinery seams on wood, straw-and-pitch on
+training gear. Movement is deliberate and weighty; these are siege-slow guardians, not lunging
+duelists. Tokens carry their **summoner's** color and canon (see registry): the fox spirit is
+Kitsune-pale U foxfire, the peacock Hera's white-gold W bird, the bloom Persephone's B/G sprout,
+the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered automata.
+
+---
+
+### Training Dummy — `ar-training-dummy`
+- **Card facts:** {1} · C · 0/3 · defender · c · holo: none
+- **Character & source:** Original colorless Construct — a straw-and-lacquer training figure shaped as an armored woman, the cheapest wall in the game. A 0/3 defender: she never strikes, only endures.
+- **Personality / mood:** "Undefeated in defense. Technically." Deadpan, patient, absorbing every blow with wooden good humor; a soldier who wins by never losing.
+- **Pose & composition:** Planted square and frontal, arms braced across the body in a blocking guard, weight low and rooted — a defender does not lunge. Face ≈ y 330, chin level, dead-center in the band so the pose reads as an immovable post at 119×86 px.
+- **Costume & attire:** Roped straw torso over a lacquered wooden armature, padded practice-armor plates, hemp bindings at the joints, a battered post-collar; dents and slash-scars from a thousand training strikes.
+- **Palette:** C palette (`#a9adb5` → `#4e535c`, accent `#dfe3ea`) warmed by straw-tan hemp and dark lacquer; no faction accent — pure neutral.
+- **Lighting:** Flat dojo-shed key from a high window; soft grey rim separating her from a dim wall.
+- **Expression:** Painted-on stoic face, a single practice-cut across one cheek; unbothered.
+- **Props / weapon:** No weapon — bracer-guards and a scarred blocking stance are her only kit.
+- **Background:** Two-value practice-yard wall, faint straw dust; readability over richness.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common — single figure, one idea (an unmovable wall).
+- **Prompt:** Armored woman built of roped straw and lacquered wood as a martial training dummy, braced in a square blocking guard, padded practice armor scarred with old cuts, dim dojo shed with flat window light and soft grey rim, stoic painted face — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+### Terracotta Soldier — `ar-terracotta-soldier`
+- **Card facts:** {2} · C · 2/2 · c · holo: none
+- **Character & source:** Original colorless Construct — one rank-and-file figure from the buried terracotta army, kiln-fired clay woken to soldier again. A plain 2/2 line-holder.
+- **Personality / mood:** "Fired once in a kiln, ready to be fired upon forever." Patient, expendable, eternally on duty; grim clay-soldier stoicism with a hairline of dry wit.
+- **Pose & composition:** Three-quarter combat-ready stance, short spear grounded at the vertical, shield half-raised — steady, not charging. Face ≈ y 320, level gaze; the clean upright silhouette must read as "clay soldier at attention" at thumbnail scale.
+- **Costume & attire:** Segmented terracotta lamellar over a fired-clay body, topknot sculpted in relief, worn earth-red pigment surviving in seams and knot-cords; craquelure spidering across every plate.
+- **Palette:** C palette (`#a9adb5` → `#4e535c`, accent `#dfe3ea`) leaning terracotta warm — clay ochre and dust — with grey shadow pooling in the cracks; no faction accent.
+- **Lighting:** Warm low tomb-lantern key catching the clay's grain; cool grey rim down one shoulder.
+- **Expression:** Solemn, hollow-eyed, faintly wry; a soldier who has waited two millennia and can wait more.
+- **Props / weapon:** Short bronze-tipped spear grounded and a round terracotta shield.
+- **Background:** Two-value packed-earth trench wall, a hint of rank-mate silhouettes fading off; clean.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common — single figure, one idea (the disciplined clay line-holder).
+- **Prompt:** Woman of kiln-fired terracotta in segmented clay lamellar armor, cracked earth-red pigment in the seams, holding a grounded short spear and round shield at attention, warm tomb-lantern light and cool grey rim, packed-earth trench wall behind — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+### Terracotta Guardian — `ar-terracotta-guardian`
+- **Card facts:** {4} · C · 3/4 · c · holo: none
+- **Character & source:** Original colorless Construct — the veteran officer of the terracotta ranks, larger and better-armored than the common soldier. A durable 3/4 that holds ground for four mana.
+- **Personality / mood:** "Two thousand years on duty and not one complaint filed." Immovable devotion; the sergeant who outlasts every dynasty and simply keeps standing post.
+- **Pose & composition:** Frontal, feet planted wide, a tall halberd braced upright at her side and a large body-shield forward — a guardian rooted at her post, not advancing. Face ≈ y 310, commanding downward tilt; broad silhouette reads as "immovable officer" at 119×86 px.
+- **Costume & attire:** Heavy sculpted terracotta plate with an officer's crest, layered pauldrons, a relief-carved sash of rank, deeper craquelure than the common soldier and more surviving crimson pigment at the trim.
+- **Palette:** C palette (`#a9adb5` → `#4e535c`, accent `#dfe3ea`) with richer clay ochre and one preserved earth-crimson accent at the crest; grey in the cracks; no external faction accent.
+- **Lighting:** Warm brazier key from below-frame; steel-grey rim tracing the halberd and pauldron.
+- **Expression:** Stern, watchful, unblinking; the settled calm of two millennia on guard.
+- **Props / weapon:** Tall terracotta-and-bronze halberd grounded upright and a large rectangular body-shield.
+- **Background:** Two-value corridor of the buried vault, faint columns of rank-mates receding; kept quiet.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common — single figure, one idea (the veteran who never leaves her post).
+- **Prompt:** Veteran terracotta guardian woman in heavy sculpted clay plate with an officer's crest, grounding a tall halberd upright behind a large body-shield, cracked earth-red pigment at the trim, warm brazier uplight and steel-grey rim, buried vault corridor behind — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+### Bronze Colossus — `ar-bronze-colossus`
+- **Card facts:** {6} · C · 6/6 · r · holo: auto:sheen
+- **Character & source:** Original colorless Construct — a titanic bronze war-idol cast from melted weapons, a 6/6 for six mana, forged from the spoils of crushed rebellions.
+- **Personality / mood:** "Melted down twelve rebellions to cast her. Poetic, really." Serene, monumental menace; a statue that could end a battle by turning to face it.
+- **Pose & composition:** Low-angle three-quarter, towering, one great bronze fist beginning to lift — the single environmental beat of her uncommon rank is that dawning motion, a colossus waking. Face ≈ y 300, gazing down past the viewer.
+- **Costume & attire:** Fluted bronze plate cast as flowing robes, a fused-weapon motif in the reliefs (blades and spearheads melted into her ornament), a heavy diadem, verdigris blooming in every recess.
+- **Palette:** C palette (`#a9adb5` → `#4e535c`, accent `#dfe3ea`) pushed to bronze — warm metal highlights, teal-green verdigris in the shadow, cool grey sky behind; no external faction accent.
+- **Lighting:** Warm gold key raking the polished bronze; cold sky rim down her far side, verdigris reading as depth.
+- **Expression:** Impassive idol-serenity, eyes lit faintly from within — awareness without emotion.
+- **Props / weapon:** Her fused-weapon body is the weapon; one rising fist, reliefs of melted blades.
+- **Background:** One environmental element — a temple plaza far below her feet, hazed and small, selling her height.
+- **Holo interaction:** Sheen — a moving shine sweep glides across the bronze; keep the metal textured (fluting, verdigris, relief) so the sweep reads as burnished light, never a flat white blowout.
+- **Rarity ambition:** Uncommon — single figure plus one story beat: the colossus waking.
+- **Prompt:** Colossal bronze war-idol woman cast from melted weapons in fluted metal robes and a heavy diadem, verdigris in the recesses, one great fist beginning to rise, seen from a low angle over a tiny hazed temple plaza, warm gold key and cold sky rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+### Siege Juggernaut — `ar-siege-juggernaut`
+- **Card facts:** {6} · C · 7/7 · trample · sr · holo: sheen (explicit)
+- **Character & source:** Original colorless Construct — a self-propelled siege engine in a warrior-woman's form, a 7/7 trampler. Its doctrine: aim, release, flatten.
+- **Personality / mood:** "The manual is one page: point it at the wall you like least." Blunt, unstoppable, gleefully simple; a battering ram that grins.
+- **Pose & composition:** The rare "moment" — mid-charge at the split second of impact: shoulder and ram-prow driving lower-left → upper-right, debris exploding past the frame edge (trample made literal). Face ≈ y 340, teeth set; the ram-head deliberately breaks the band's edge as it hits.
+- **Costume & attire:** Riveted iron-and-timber siege plating fused to her frame, a great capped ram-prow shoulder, chained counterweights, wheel-and-piston greaves, scorch and mortar-dust caked over everything.
+- **Palette:** C palette (`#a9adb5` → `#4e535c`, accent `#dfe3ea`) at cold iron: gunmetal plate, dark timber, one spark-orange note at impact; grey dust; no faction accent.
+- **Lighting:** Hot impact-flash key at the ram-prow; cool grey ambient rim from the smoke behind.
+- **Expression:** Wide unstoppable grin, eyes fixed on the wall she's about to remove.
+- **Props / weapon:** The capped ram-prow shoulder and chained counterweights — she *is* the siege engine.
+- **Background:** A fortress wall cratering at the point of impact, dust and stone shards blasting outward — the background fully participates in the moment.
+- **Holo interaction:** Sheen — the shine sweep rides the polished ram-cap and riveted plate; keep the iron and dust textured so the pass reads as raking metal glint, not a flat white flare over the impact flash.
+- **Rarity ambition:** Rare — the dramatic "moment": the instant of impact, background participating.
+- **Prompt:** Warrior-woman siege juggernaut of riveted iron and timber with a great ram-prow shoulder, charging diagonally into a fortress wall that craters on impact, stone shards and dust blasting outward, hot impact-flash light and cool smoke rim, unstoppable grin — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+### Volunteer Militia — `tok-militia`
+- **Card facts:** {0} · W · 1/1 · c · holo: none
+- **Character & source:** W creature token (Soldier) minted by rally effects — a raw civilian recruit, one of many identical 1/1 volunteers thrown into the line yesterday.
+- **Personality / mood:** "Signed up yesterday. Marching today." Green, earnest, terrified-but-trying; the courage of an ordinary woman with a borrowed spear.
+- **Pose & composition:** Three-quarter, mid-stride forward, gripping a plain spear a little too tightly — eager but untrained. Face ≈ y 330, chin up in nervous resolve; a simple, clear "recruit marching" silhouette for a token that must read tiny.
+- **Costume & attire:** Homespun tunic, a single strapped-on breastplate that doesn't quite fit, cloth arm-wraps, a conscript's headband, mud on the boots.
+- **Palette:** W palette (`#f2e8cf` → `#c9a84c`, accent `#fffef2`): warm ivory cloth, muted gold buckle, soft white highlight; humble and clean.
+- **Lighting:** Flat warm morning key; soft ivory rim on the leading shoulder.
+- **Expression:** Wide-eyed nerve, jaw set; brave despite herself.
+- **Props / weapon:** A plain wooden spear and an ill-fitting spare breastplate — issued, not earned.
+- **Background:** Two-value muster-field dawn, faint ranks blurred behind; readability first.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common token — single figure, one idea (the fresh volunteer).
+- **Prompt:** Young volunteer militiawoman in homespun tunic and an ill-fitting borrowed breastplate, gripping a plain wooden spear mid-march, conscript's headband, warm dawn muster field behind, flat morning light with soft ivory rim, nervous brave expression — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+### Fox Spirit — `tok-fox-spirit`
+- **Card facts:** {0} · U · 1/1 · c · holo: none
+- **Character & source:** U creature token (Beastkin/Kitsune) — a companion conjured by `bk-kitsune-matriarch`, whose art **defines** this design (canon registry): pale blue-white spectral fox, single tail, trailing cold foxfire wisps.
+- **Personality / mood:** "Possibly real. Aggressively cute either way." Playful, mischievous, half-illusion; a small trickster spirit delighting in its own uncertainty.
+- **Pose & composition:** A fox-eared spirit-girl mid-pounce, low and light, single tail curling up behind, one hand cupping a foxfire wisp. Face ≈ y 320, bright and centered; the airy pose must read as "playful fox spirit" at token size.
+- **Costume & attire:** Gauzy spectral kimono fading translucent at the hem, single fox tail and ears, foxfire wisps trailing from her fingertips and tail-tip.
+- **Palette:** U palette (`#4a90d9` → `#16294f`, accent `#a8d4f7`): pale blue-white spectral body, deep indigo edges, cold cyan foxfire highlights — matched to the Matriarch's companions.
+- **Lighting:** Cold self-lit foxfire key glowing from the wisps; faint indigo rim dissolving into night.
+- **Expression:** Impish grin, luminous cyan eyes, tongue-tip of mischief.
+- **Props / weapon:** Trailing foxfire wisps — cold blue flame is her only "weapon."
+- **Background:** Two-value dark-blue night mist, a scatter of drifting foxfire motes; kept quiet.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common token — single figure, one idea (spectral trickster fox), consistent with its summoner.
+- **Prompt:** Pale blue-white spectral kitsune spirit-girl with single fox tail and ears mid-pounce, gauzy translucent kimono, cold cyan foxfire wisps trailing from fingertips and tail, dark blue night mist background, self-lit foxfire glow and indigo rim, impish luminous-eyed grin — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+### Peacock — `tok-peacock`
+- **Card facts:** {0} · W · 1/1 · flying · c · holo: none
+- **Character & source:** W flying token (Bird) — the birds minted by `gk-hera`'s ETB, whose art **defines** this design (canon registry, updated 2026-07-03 to match the shipped `gk-hera.png`): a classic royal-blue-and-green peacock — sapphire-blue neck and breast, green-gold eye-spotted train — as painted flanking Hera's throne.
+- **Personality / mood:** "A hundred eyes, all judging." Regal, watchful, faintly contemptuous; Hera's surveillance made feathered flesh.
+- **Pose & composition:** A peacock-girl in flight or alighting, wings and tail fanning wide, eye-spotted plumage spread toward the viewer — flying, so airborne and lifted. Face ≈ y 310, chin high and haughty; the fanned tail's eye-spots frame her at token scale.
+- **Costume & attire:** Royal-blue plumed regalia with gold trim, a crest of tail-feathers, feathered mantle, taloned sandals; the great green-gold fan-tail arcs behind her studded with iridescent eye-spots.
+- **Palette:** W-token frame, but the bird's true colors per Hera's shipped art: sapphire/royal-blue body plumage, green-gold train, gold trim accents, iridescent teal-sapphire eye-spots; brilliant white reserved for highlights and the pale sky.
+- **Lighting:** Warm gilt key gleaming off the gold; cool marble rim, a hint of Olympian ambient.
+- **Expression:** Cool, appraising, a hundred painted eyes echoing her single judging gaze.
+- **Props / weapon:** The hundred-eyed fan-tail itself — ornament as surveillance.
+- **Background:** Two-value pale Olympian sky, soft columns hazed behind; clean.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common token — single figure, one idea (Hera's judging peacock), matched to `gk-hera`.
+- **Prompt:** Royal-blue-and-green peacock-girl in flight, sapphire neck and gold-trimmed plumage, great green-gold fan-tail spread with iridescent eye-spots, feathered mantle and crest, pale hazed Olympian sky, warm gilt key light and cool marble rim, cool appraising expression — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+### Bloomling — `tok-bloom`
+- **Card facts:** {0} · G · 1/1 · c · holo: none
+- **Character & source:** G creature token (Plant) — the ambulatory flowers of `gk-persephone`, whose art **defines** this design (canon registry): a small ambulatory sprout crowned with a pomegranate-red blossom on green, her B/G split in miniature.
+- **Personality / mood:** "Spring, in miniature and on the march." Bright, tender, unstoppably alive; a cheerful little sprout marching where the goddess wills.
+- **Pose & composition:** A tiny sprout-girl striding forward on leaf-legs, petal-arms lifted, blossom-crown bobbing — small, eager, animate. Face ≈ y 330, upturned and sunny; the round blossom crown makes the token instantly readable.
+- **Costume & attire:** A living bodice of layered green leaves, petal-skirt, vine limbs, and a great pomegranate-red blossom opening as a crown; a single ripe pomegranate seed-jewel at the throat (her B note).
+- **Palette:** G palette (`#4fa06a` → `#123a22`, accent `#a9dcae`): vivid leaf-green body and deep-green shadow, with one pomegranate-red blossom-and-jewel accent carrying Persephone's B — exactly her B/G split.
+- **Lighting:** Warm spring-sun key from above; soft green rim glowing through translucent leaves.
+- **Expression:** Wide innocent delight, dew-bright eyes.
+- **Props / weapon:** None — the pomegranate blossom is her whole identity.
+- **Background:** Two-value fresh meadow green, a scatter of new shoots; readability over richness.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common token — single figure, one idea (walking spring), matched to `gk-persephone`.
+- **Prompt:** Tiny ambulatory sprout-girl of layered green leaves and vines striding forward, crowned with a large pomegranate-red blossom and a single red seed-jewel at the throat, fresh spring meadow, warm sun key with soft green rim glowing through the leaves, wide delighted expression — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+---
+
+### Wooden Ox — `tok-wooden-ox`
+- **Card facts:** {0} · C · 0/3 · defender · c · holo: none
+- **Character & source:** Colorless artifact-creature token (Construct) created by `tk-shu-yueying`'s ETB — a lacquered ox automaton. Canon registry binds its style to Yueying/Zhuge Liang's devices: lacquered wood, exposed precision joinery, no raw metal. A 0/3 defender: a hauler, not a fighter.
+- **Personality / mood:** "Needs no fodder, files no complaints, carries everything." Tireless, uncomplaining, faithful; a beast of burden that never tires.
+- **Pose & composition:** An ox-formed automaton (or an ox-masked porter-girl over the wooden frame) standing planted, harness-yoke braced, hauling stance — a defender, rooted and patient, never lunging. Face/head ≈ y 330, level and calm; the blocky ox silhouette reads immediately at token scale.
+- **Costume & attire:** Lacquered-wood ox body with visibly pegged joints and exposed geared joinery, a woven pannier-harness, cloth caparison in muted Shu tones; every joint is honest wood — no raw metal anywhere.
+- **Palette:** C palette (`#a9adb5` → `#4e535c`, accent `#dfe3ea`) warmed by rich lacquer browns and amber wood-grain; a faint jade-and-ivory Shu whisper in the caparison cloth (per Yueying's kit); grey in the shadowed joints.
+- **Lighting:** Warm workshop-lantern key catching the lacquer sheen; soft grey rim along the wooden flank.
+- **Expression:** Placid carved ox-face, patient and content; a machine at peace with its task.
+- **Props / weapon:** No weapon — a loaded pannier-harness and yoke; the exposed joinery is the point.
+- **Background:** Two-value supply-road or workshop yard, faint crates behind; kept quiet.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common token — single figure, one idea (the tireless lacquered hauler), matched to Yueying's device aesthetic.
+- **Prompt:** Lacquered-wood ox automaton with exposed pegged joinery and no raw metal, braced in a patient hauling stance under a loaded pannier-harness, amber wood-grain and rich lacquer with a faint jade caparison, warm workshop-lantern light and soft grey rim, placid carved ox-face — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
