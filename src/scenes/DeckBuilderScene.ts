@@ -10,6 +10,7 @@ import { saveDeck, validateDeck } from '../meta/DeckStorage';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
+import { clampDeckPage, deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 
 const GRID_COLS = 4;
@@ -19,6 +20,10 @@ const BASICS = ['land-plains', 'land-island', 'land-swamp', 'land-mountain', 'la
 /** Touch profile: deck-list rows per page and their pitch (plan §1.4). */
 const TOUCH_DECK_ROWS = 6;
 const TOUCH_DECK_PITCH = 44;
+/** Desktop profile: denser tap-to-remove rows, same paging model (no hard clip). */
+const DESKTOP_DECK_ROWS = 14;
+const DESKTOP_DECK_PITCH = 22;
+const DESKTOP_DECK_Y0 = 240;
 
 /**
  * Edit the active deck: paged owned-card pool left, deck list + basics right.
@@ -193,6 +198,32 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.renderDeck();
   }
 
+  /** ‹ N/M › deck-list pager, shared by both profiles; sits below the list. */
+  private renderDeckPagers(x0: number, pages: number): void {
+    const mkPager = (px: number, glyph: string, dir: number): void => {
+      const b = this.add
+        .text(px, 560, glyph, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '26px', color: '#c9bde0' })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, b, () => {
+        this.deckPage = Phaser.Math.Clamp(this.deckPage + dir, 0, pages - 1);
+        this.renderDeck();
+      });
+      inflateHitArea(b, 90, 56);
+      this.rightPane.push(b);
+    };
+    mkPager(x0 + 250, '‹', -1);
+    mkPager(x0 + 340, '›', 1);
+    const pageLabel = this.add
+      .text(x0 + 295, 560, `${this.deckPage + 1}/${pages}`, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#8f83a8',
+      })
+      .setOrigin(0.5);
+    this.rightPane.push(pageLabel);
+  }
+
   private renderDeck(): void {
     for (const c of this.rightPane) c.destroy();
     this.rightPane = [];
@@ -247,11 +278,13 @@ export class DeckBuilderScene extends Phaser.Scene {
       return landDiff || manaValue(da.cost) - manaValue(dbb.cost) || da.name.localeCompare(dbb.name);
     });
     if (!this.touch) {
-      // Desktop: the dense tap-to-remove list, exactly as before.
-      entries.forEach(([id, n], i) => {
+      // Desktop: dense tap-to-remove list — now PAGED so a long, singleton-heavy
+      // deck never silently drops rows past the old y>560 hard clip.
+      const pages = deckPageCount(entries.length, DESKTOP_DECK_ROWS);
+      this.deckPage = clampDeckPage(this.deckPage, entries.length, DESKTOP_DECK_ROWS);
+      deckPageSlice(entries, this.deckPage, DESKTOP_DECK_ROWS).forEach(([id, n], i) => {
         const d = def(CARD_DB, id);
-        const y = 240 + i * 22;
-        if (y > 560) return; // overflow guard; list scroll is a polish item
+        const y = DESKTOP_DECK_Y0 + i * DESKTOP_DECK_PITCH;
         const row = this.add
           .text(x0, y, `${n}× ${d.name}  (${manaValue(d.cost)})`, {
             fontFamily: 'Inter, Arial, sans-serif',
@@ -264,16 +297,15 @@ export class DeckBuilderScene extends Phaser.Scene {
         row.on('pointerup', () => this.removeCard(id));
         this.rightPane.push(row);
       });
+      if (pages > 1) this.renderDeckPagers(x0, pages);
     } else {
       // Touch: rows are read-only; removal happens on an explicit, inflated
       // − button per row (the audited destructive-row hazard), with paging
       // instead of the hard clip.
-      const pages = Math.max(1, Math.ceil(entries.length / TOUCH_DECK_ROWS));
-      this.deckPage = Phaser.Math.Clamp(this.deckPage, 0, pages - 1);
+      const pages = deckPageCount(entries.length, TOUCH_DECK_ROWS);
+      this.deckPage = clampDeckPage(this.deckPage, entries.length, TOUCH_DECK_ROWS);
       const listY0 = 270;
-      entries
-        .slice(this.deckPage * TOUCH_DECK_ROWS, (this.deckPage + 1) * TOUCH_DECK_ROWS)
-        .forEach(([id, n], i) => {
+      deckPageSlice(entries, this.deckPage, TOUCH_DECK_ROWS).forEach(([id, n], i) => {
           const d = def(CARD_DB, id);
           const y = listY0 + i * TOUCH_DECK_PITCH;
           const row = this.add.text(x0, y, `${n}× ${d.name}  (${manaValue(d.cost)})`, {
@@ -295,30 +327,7 @@ export class DeckBuilderScene extends Phaser.Scene {
           inflateHitArea(minus, 90, TOUCH_DECK_PITCH);
           this.rightPane.push(row, minus);
         });
-      if (pages > 1) {
-        const mkPager = (px: number, glyph: string, dir: number): void => {
-          const b = this.add
-            .text(px, 560, glyph, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '26px', color: '#c9bde0' })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-          bindTapButton(this, b, () => {
-            this.deckPage += dir;
-            this.renderDeck();
-          });
-          inflateHitArea(b, 90, 56);
-          this.rightPane.push(b);
-        };
-        mkPager(x0 + 250, '‹', -1);
-        mkPager(x0 + 340, '›', 1);
-        const pageLabel = this.add
-          .text(x0 + 295, 560, `${this.deckPage + 1}/${pages}`, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '13px',
-            color: '#8f83a8',
-          })
-          .setOrigin(0.5);
-        this.rightPane.push(pageLabel);
-      }
+      if (pages > 1) this.renderDeckPagers(x0, pages);
     }
 
     // validation + save
