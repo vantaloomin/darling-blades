@@ -27,6 +27,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # art-manifest.json is generated and gitignored, but tsc/lint/build all
+      # import it — so it must exist before Typecheck (a clean CI checkout won't
+      # have it). gen-art-manifest scans the committed card/scene PNGs; a missing
+      # cards-half/ just yields half:[] (runtime falls back to full-res).
+      - name: Generate art manifest
+        run: npm run gen-art-manifest
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Lint
