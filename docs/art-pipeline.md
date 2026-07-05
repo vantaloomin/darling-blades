@@ -255,7 +255,9 @@ tile shows the **y ≈ 137 → 577** band, keeping the composition-locked faces
 Holo is **per-copy, not per-card** (2026-07-04): a finish is Axis C of the
 `CardVariant` a booster slot rolls (`src/meta/variants.ts`), stored on the
 owned copy in `SaveData.collectionVariants`. A card rendered without a
-variant gets **no holo** — the tier ring + gem still mark rarity. What each
+variant gets **no holo** — a **solid per-tier metallic ring** (r silver, sr
+champagne-gold, ssr violet, ur crimson; c ringless) + the gem still mark
+rarity (`RARITY_RING` in `src/ui/CardView.ts`). What each
 finish *renders* lives in `src/ui/fx/HoloEffects.ts` (`applyHolo`) and the
 shader in `src/ui/fx/IridescencePostFX.ts` (one pipeline, four `mode`s):
 
@@ -270,8 +272,10 @@ shader in `src/ui/fx/IridescencePostFX.ts` (one pipeline, four `mode`s):
 
 `rainbow`/`pearlescent`/`fractal` also get a sparse **sparkle particle**
 layer (`fx-star`) over the art window. The border-ring shader is **mode 0**
-(rainbow flowing along the baked white ring) — it belongs to the **frame
-axis** (`rainbow` frame), applied to the ring in `CardView`, not to the art.
+(rainbow flowing along the baked white ring) — it belongs **exclusively** to
+the **frame axis** (`rainbow` frame), applied to the ring in `CardView`, not to
+the art. Rarity rings are always a plain solid tint (never this shader), so an
+iridescent ring unambiguously means a rainbow-frame copy.
 
 Pointer reactivity is fed by `CardView.setHoloPointer(worldX, worldY)`, which
 maps a world position into `-1..1` card-relative coordinates and pushes it into

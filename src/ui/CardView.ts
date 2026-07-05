@@ -19,6 +19,20 @@ const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
 export type CardFxLevel = 'full' | 'static' | 'none';
 
 /**
+ * Solid metallic rarity-ring tints for the mid/high tiers, echoing each tier's
+ * gem (sr champagne-gold, ssr violet, ur crimson). `c` gets no ring; `r` keeps
+ * its silver ring inline. Deliberately NOT the animated iridescent (mode-0)
+ * ring — that shader belongs exclusively to the `rainbow` VARIANT frame
+ * (CardFrameFactory FRAME_TREATMENTS), so a plain high-rarity copy is never
+ * mistaken for a rainbow pull.
+ */
+const RARITY_RING: Record<'sr' | 'ssr' | 'ur', number> = {
+  sr: 0xf1c96a,
+  ssr: 0xc98bff,
+  ur: 0xff7a6b,
+};
+
+/**
  * The reusable card component: frame + art + texts + rarity/variant
  * treatments. Canonical size 300×420 with a CENTER origin (rotation-friendly
  * for taps). Consumers scale the container: inspect 1.5, pack reveal 1.1,
@@ -340,13 +354,14 @@ export class CardView extends Phaser.GameObjects.Container {
       }
       this.ring.resetPostPipeline();
     } else if (card.rarity === 'sr' || card.rarity === 'ssr' || card.rarity === 'ur') {
-      this.ring.setVisible(true).setTint(0xffffff).setAlpha(1);
-      if (fx !== 'none' && fxPolicy(this.scene).iridescence) {
-        this.ring.setPostPipeline(IridescencePostFX);
-        const p = this.ring.getPostPipeline(IridescencePostFX);
-        if (p instanceof IridescencePostFX) p.mode = 0;
-      } else {
-        this.ring.setTint(0xffd700);
+      // Solid metallic ring per tier (echoing the gem) with a shine sweep for
+      // the metallic gleam — NOT the animated iridescent ring, which is
+      // reserved for the `rainbow` VARIANT frame so a plain high-rarity copy
+      // never reads as a rainbow pull.
+      this.ring.setVisible(true).setTint(RARITY_RING[card.rarity]).setAlpha(1);
+      this.ring.resetPostPipeline();
+      if (fx === 'full' && fxPolicy(this.scene).shine && this.ring.preFX) {
+        this.shineFx = this.ring.preFX.addShine(0.5, 0.25, 4);
       }
     }
 
