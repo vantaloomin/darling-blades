@@ -1,0 +1,120 @@
+<!-- Source of truth placeholder: future src/data/cards/cyberpunk-yokai-nights.ts - design draft, not implemented - last-verified: 2026-07-05 -->
+
+# Expansion 6 - Cyberpunk Yokai Nights: Neon Shrine
+
+## Theme And Visual Identity
+
+Cyberpunk Yokai Nights blends neon city noir with yokai folklore: kitsune hackers, oni street samurai, tengu couriers, yurei idols, jorogumo netrunners, shrine AIs, spirit vending machines, rain-slick alleys, rooftop torii, and chrome talismans.
+
+Visual anchors: magenta/cyan neon, black rain, holographic shrine paper with no readable text, chrome masks, foxfire circuitry, oni horns, urban fog, ramen steam, rooftop wires, and luminous ward seals. All characters are adult-coded.
+
+## Mechanic Summary
+
+- **Equipment**: gear that attaches to creatures and upgrades combat roles.
+- **Modal spells**: tactical "choose one" effects that fit a high-tech toolset.
+- Primary colors: U/R/B, with W shrine protection and G spirit-beast tech.
+- Mechanical identity: equipment-tempo, flexible spells, evasive attackers, artifact synergies, and modular combat plans.
+
+## Rarity Target
+
+`40 C / 24 R / 7 SR / 5 SSR / 4 UR = 80 booster cards`
+
+## Full Card List
+
+| ID | Name | Rarity | Color | Type | Subject | Keywords / Ops | Role |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| yn-kagura-neon-kitsune | Kagura, Neon Kitsune | UR | U/R | Legendary Creature | Kitsune hacker | haste, equipment payoff, modal cast bonus | Set face, tempo boss |
+| yn-chrome-oni-shogun | Chrome Oni Shogun | UR | B/R | Legendary Creature | Oni street boss | menace, equipment boost | Aggro boss |
+| yn-yurei-idol-zero | Yurei Idol Zero | UR | U/B | Legendary Creature | Ghost idol AI | flying, modal drain/draw | Control marquee |
+| yn-amaterasu-mainframe | Amaterasu Mainframe | UR | W/U | Legendary Artifact Creature | Shrine sun AI | vigilance, equipment protection | Artifact marquee |
+| yn-eightfold-neon-blade | Eightfold Neon Blade | SSR | C | Legendary Artifact Equipment | Mythic cyber-katana | equip, doubleStrike grant | Equipment chase |
+| yn-jade-firewall-miko | Jade Firewall Miko | SSR | W/U | Legendary Creature | Shrine hacker priestess | hexproof, modal protection | Control legend |
+| yn-jorogumo-netqueen | Jorogumo Netqueen | SSR | U/B | Legendary Creature | Spider yokai netrunner | tap, draw, equipment trap | Tempo-control |
+| yn-tengu-rooftop-ace | Tengu Rooftop Ace | SSR | U/R | Legendary Creature | Tengu courier | flying, haste | Evasive finisher |
+| yn-neon-hyakki-yagyo | Neon Hyakki Yagyo | SSR | B/R | Sorcery | Night parade | modal sweep/token/drain | Big modal spell |
+| yn-foxfire-rig | Foxfire Rig | SR | U/R | Artifact Equipment | Kitsune gear | equip, scry on hit | Tempo equipment |
+| yn-oni-impact-frame | Oni Impact Frame | SR | R | Artifact Equipment | Power armor | equip, trample/menace | Aggro equipment |
+| yn-shrine-drone-swarm | Shrine Drone Swarm | SR | W/U | Artifact Creature | Shrine drones | flying, vigilance | Artifact payoff |
+| yn-yokai-black-market | Yokai Black Market | SR | B | Enchantment | Spirit market | modal bargain, draw/lose | Value engine |
+| yn-rain-slick-assassin | Rain-Slick Assassin | SR | U/B | Creature | Nekomata killer | deathtouch, unblockable note | Removal threat |
+| yn-neon-torii-gate | Neon Torii Gate | SR | C | Artifact | Cyber shrine gate | modal mana/scry/token | Utility relic |
+| yn-katana-overclock | Katana Overclock | SR | R | Instant | Weapon hack | modal pump/damage/equip | Combat trick |
+| yn-kitsune-packet-runner | Kitsune Packet Runner | R | U/R | Creature | Kitsune courier | haste, scry | Tempo rare |
+| yn-oni-bouncer | Oni Bouncer | R | B/R | Creature | Club enforcer | menace | Aggro rare |
+| yn-yurei-backup-singer | Yurei Backup Singer | R | U/B | Creature | Ghost idol | flying, drain | Evasive value |
+| yn-shrineware-sentinel | Shrineware Sentinel | R | W | Artifact Creature | Shrine robot | vigilance | Artifact body |
+| yn-hannya-mask-rig | Hannya Mask Rig | R | C | Artifact Equipment | Demon mask | equip, menace grant | Aggro gear |
+| yn-tengu-wingboard | Tengu Wingboard | R | U | Artifact Equipment | Hoverboard | equip, flying grant | Evasion gear |
+| yn-foxfire-pulse | Foxfire Pulse | R | U/R | Instant | Kitsune code spell | modal damage/scry/bounce | Flexible interaction |
+| yn-black-rain-contract | Black Rain Contract | R | B | Sorcery | Underworld deal | modal draw/discard/drain | Black modal |
+| yn-miko-hard-reset | Miko Hard Reset | R | W/U | Instant | Shrine countermeasure | modal protect/tap/exile artifact | Control spell |
+| yn-spiderweb-protocol | Spiderweb Protocol | R | U/B | Enchantment | Jorogumo trap | tap equipped creature, scry | Control engine |
+| yn-ronin-of-red-lanterns | Ronin of Red Lanterns | R | R | Creature | Street samurai | firstStrike, equipment bonus | Equipment attacker |
+| yn-cat-ear-debugger | Cat-Ear Debugger | R | U | Creature | Nekomata tech | draw on modal cast | Spells payoff |
+| yn-cyber-kappa-bouncer | Cyber-Kappa Bouncer | R | G/U | Creature | Kappa guard | defender, bounce | Tempo blocker |
+| yn-dragonline-implant | Dragonline Implant | R | G/R | Artifact Equipment | Spirit implant | equip, trample | Green/red gear |
+| yn-lantern-daemon | Lantern Daemon | R | B | Artifact Creature | Possessed lantern | flying, drain | Artifact threat |
+| yn-ward-paper-printer | Ward-Paper Printer | R | W | Artifact | Shrine printer | createToken, protect | Token relic |
+| yn-neon-suture-kit | Neon Suture Kit | R | W/B | Artifact Equipment | Street medic gear | equip, lifelink | Lifegain equipment |
+| yn-rain-alley-ambush | Rain-Alley Ambush | R | B/R | Instant | Alley attack | modal damage/menace | Combat removal |
+| yn-cloud-server-tengu | Cloud-Server Tengu | R | U | Creature | Tengu sysadmin | flying, modal discount | Blue rare |
+| yn-oni-club-speaker | Oni Club Speaker | R | R | Artifact | Sonic weapon | damage, equip bonus | Burn relic |
+| yn-spirit-vending-machine | Spirit Vending Machine | R | C | Artifact | Haunted vending machine | modal gain/draw/scry | Utility |
+| yn-silver-circuit-katana | Silver-Circuit Katana | R | C | Artifact Equipment | Katana | equip, firstStrike | Core gear |
+| yn-neon-shrine-district | Neon Shrine District | R | Land | Shrine city | entersTapped, manaAbility W/U | Dual land |
+| yn-rainmarket-alley | Rainmarket Alley | R | Land | Black market | entersTapped, manaAbility U/B | Dual land |
+| yn-red-lantern-overpass | Red-Lantern Overpass | C | Land | Night road | entersTapped, manaAbility B/R | Dual land |
+| yn-kitsune-scriptling | Kitsune Scriptling | C | U | Creature | Kitsune novice | scry | Blue common |
+| yn-oni-bike-thug | Oni Bike Thug | C | R | Creature | Oni biker | haste | Red common |
+| yn-yurei-pop-echo | Yurei Pop Echo | C | U/B | Creature | Ghost singer | flying | Evasive common |
+| yn-shrine-roomba | Shrine Roomba | C | C | Artifact Creature | Shrine bot | defender | Artifact common |
+| yn-tengu-courier | Tengu Courier | C | U | Creature | Tengu messenger | flying | Blue flyer |
+| yn-kappa-firewall | Kappa Firewall | C | G/U | Creature | Kappa defender | defender, reach | Defensive common |
+| yn-neko-street-doc | Neko Street Doc | C | W/B | Creature | Nekomata medic | lifelink | Lifegain common |
+| yn-holo-talisman | Holo Talisman | C | C | Artifact Equipment | Digital charm | equip, +1/+1 | Basic gear |
+| yn-rain-slick-blade | Rain-Slick Blade | C | C | Artifact Equipment | Street blade | equip, deathtouch small | Removal gear |
+| yn-foxfire-cantrip | Foxfire Cantrip | C | U/R | Instant | Code spark | modal scry/damage 1 | Common modal |
+| yn-neon-uppercut | Neon Uppercut | C | R | Instant | Oni punch | pump/damage | Combat trick |
+| yn-ward-flash | Ward Flash | C | W | Instant | Shrine ward | protect/equip response | White trick |
+| yn-black-ice | Black Ice | C | U/B | Sorcery | Hack attack | tap, discard | Control common |
+| yn-vending-blessing | Vending Blessing | C | W | Artifact | Shrine vending charm | gainLife | Utility |
+| yn-circuit-rat | Circuit Rat | C | B | Artifact Creature | Tech vermin | menace | Black artifact aggro |
+| yn-tattooed-ronin | Tattooed Ronin | C | R | Creature | Street ronin | firstStrike | Combat common |
+| yn-data-ghost | Data Ghost | C | U | Creature | Digital yurei | unblockable note | Tempo common |
+| yn-spirit-lantern | Spirit Lantern | C | C | Artifact | Lantern | scry | Utility |
+| yn-chrome-claws | Chrome Claws | C | C | Artifact Equipment | Claws | equip, +2/+0 | Aggro gear |
+| yn-rooftop-prayer | Rooftop Prayer | C | W/U | Instant | Neon shrine prayer | modal gain/tap | Control trick |
+| yn-bad-sector-curse | Bad-Sector Curse | C | B | Enchantment Aura | Data curse | debuff | Black removal |
+| yn-hannya-pop-star | Hannya Pop Star | C | B/R | Creature | Demon idol | menace | Aggro common |
+| yn-signal-flare | Signal Flare | C | R | Instant | Flare | damage 2 | Red removal |
+| yn-subway-torii | Subway Torii | C | Land | Transit shrine | entersTapped, manaAbility U | Common land |
+| yn-night-market-stall | Night-Market Stall | C | Land | Market | entersTapped, manaAbility B | Common land |
+| yn-rooftop-shrine | Rooftop Shrine | C | Land | Rooftop altar | entersTapped, manaAbility W | Common land |
+| yn-oni-garage | Oni Garage | C | Land | Street garage | entersTapped, manaAbility R | Common land |
+| yn-kappa-canal | Kappa Canal | C | Land | Canal district | entersTapped, manaAbility G | Common land |
+| yn-equipment-cache | Equipment Cache | C | C | Artifact | Gear stash | search/topdeck equipment note | Gear support |
+| yn-modal-debug | Modal Debug | C | U | Sorcery | Hack choice | modal draw/scry | Blue common |
+| yn-curseware-patch | Curseware Patch | C | B | Instant | Malware curse | modal drain/debuff | Black modal |
+| yn-overclocked-moped | Overclocked Moped | C | C | Artifact Equipment | Bike gear | equip, haste grant | Red gear |
+| yn-shrine-token-printer | Shrine Token Printer | C | W | Artifact | Token machine | createToken | White artifact |
+| yn-graffiti-sigil | Graffiti Sigil | C | R | Enchantment | Street ward | attacker pump | Red support |
+| yn-moss-circuit-tanuki | Moss-Circuit Tanuki | C | G | Creature | Tanuki tech | manaAbility | Ramp common |
+| yn-umbra-headphones | Umbra Headphones | C | C | Artifact Equipment | Idol gear | equip, lifelink if black | Utility gear |
+| yn-drone-scout | Drone Scout | C | C | Artifact Creature | Surveillance drone | flying | Artifact flyer |
+| yn-elevator-to-nowhere | Elevator to Nowhere | C | U | Instant | Weird tech | bounce | Blue interaction |
+| yn-redline-download | Redline Download | C | R/U | Sorcery | Fast hack | draw discard, damage self | Spells common |
+
+## Precon Identity
+
+**Neon Arsenal** - U/R equipment-tempo. The deck uses cheap equipment, evasive carriers, modal interaction, and haste pressure.
+
+## Gauntlet Boss Concepts
+
+- **Kagura, Neon Kitsune** - U/R equipment-spells boss with evasive carriers and flexible modal answers.
+- **Chrome Oni Shogun** - B/R menace-equipment boss that overloads blockers with upgraded attackers.
+
+## Art-Bible Follow-Up Notes
+
+- No readable Japanese, English, QR codes, UI glyphs, street signs, labels, or holographic text.
+- Yokai identity must stay readable through cyberpunk translation: horns, fox tails, tengu wings, kappa shells, yurei glow, jorogumo spider motifs.
+- Equipment art should prioritize silhouette clarity at card scale.
