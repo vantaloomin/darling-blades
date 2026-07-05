@@ -45,6 +45,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private rightPane: Phaser.GameObjects.GameObject[] = [];
   private pageText!: Phaser.GameObjects.Text;
   private status!: Phaser.GameObjects.Text;
+  private goldText!: Phaser.GameObjects.Text;
 
   constructor() {
     super('DeckBuilder');
@@ -91,6 +92,18 @@ export class DeckBuilderScene extends Phaser.Scene {
         color: '#f0e6ff',
       })
       .setOrigin(0.5);
+
+    // Gold badge (top-right, over the deck panel) — see your balance while you
+    // weigh what to build. Static here (deckbuilding never spends gold).
+    this.goldText = this.add
+      .text(width - 30, 30, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '18px',
+        fontStyle: '600',
+        color: '#ffd88a',
+      })
+      .setOrigin(1, 0.5);
+    this.refreshGold();
 
     const back = this.add
       .text(28, 28, '← Menu', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '18px', color: '#c9bde0' })
@@ -196,6 +209,10 @@ export class DeckBuilderScene extends Phaser.Scene {
     if (idx >= 0) this.deck.splice(idx, 1);
     this.renderPool();
     this.renderDeck();
+  }
+
+  private refreshGold(): void {
+    this.goldText.setText(`🪙 ${Services.save.data.gold}`);
   }
 
   /** ‹ N/M › deck-list pager, shared by both profiles; sits below the list. */

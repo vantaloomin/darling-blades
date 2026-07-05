@@ -95,6 +95,7 @@ export class CollectionScene extends Phaser.Scene {
   private turning = false;
   private pageText!: Phaser.GameObjects.Text;
   private counterText!: Phaser.GameObjects.Text;
+  private goldText!: Phaser.GameObjects.Text;
   private emptyText!: Phaser.GameObjects.Text;
   private inspect: Phaser.GameObjects.Container | null = null;
   /** Live holo pointer feed — MUST be unhooked on inspect close. */
@@ -139,8 +140,19 @@ export class CollectionScene extends Phaser.Scene {
         color: '#f0e6ff',
       })
       .setOrigin(0.5);
+    // Gold badge (top-right, stacked above the collection counter) — this is a
+    // shard-for-gold screen, so the balance must be on-screen and update live.
+    this.goldText = this.add
+      .text(DESIGN_W - 28, 20, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '18px',
+        fontStyle: '600',
+        color: '#ffd88a',
+      })
+      .setOrigin(1, 0.5);
+    this.refreshGold();
     this.counterText = this.add
-      .text(DESIGN_W - 28, 30, '', {
+      .text(DESIGN_W - 28, 44, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '15px',
         color: '#8f83a8',
@@ -507,6 +519,10 @@ export class CollectionScene extends Phaser.Scene {
    * list): pick this card as your hero portrait (any collected card fronts the
    * in-duel commander — src/ui/CommanderPortrait.ts). `heroCardId === id` toggles.
    */
+  private refreshGold(): void {
+    this.goldText.setText(`🪙 ${Services.save.data.gold}`);
+  }
+
   private addInspectActions(c: Phaser.GameObjects.Container, d: CardDef): void {
     const panelX = 740;
     // The two chips inflate to a 52px-tall tap area, so their row centres must be
@@ -546,6 +562,7 @@ export class CollectionScene extends Phaser.Scene {
         shardExcess(save, CARD_DB, d.id);
         Services.save.flush();
         Sfx.play('coin');
+        this.refreshGold(); // reflect the shard payout in the on-screen balance
         this.renderPage(); // refresh the ×N / ✦N badges beneath the overlay
         this.showInspect(d); // rebuild the overlay with the new counts
       });

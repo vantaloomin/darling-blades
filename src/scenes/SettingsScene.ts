@@ -96,6 +96,17 @@ export class SettingsScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    // Gold badge (top-right) — keep the balance visible across meta screens.
+    // Static here: nothing on this screen spends or earns gold.
+    this.add
+      .text(1250, 30, `🪙 ${Services.save.data.gold}`, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '18px',
+        fontStyle: '600',
+        color: '#ffd88a',
+      })
+      .setOrigin(1, 0.5);
+
     const rowY = (i: number): number => ROW0_Y + i * ROW_PITCH;
 
     // -- Row 0: SFX toggle + master volume ---------------------------------
