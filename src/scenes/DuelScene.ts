@@ -9,7 +9,7 @@ import { STARTER_DECKS } from '../data/starterDecks';
 import { applyGauntletResult, applyMatchResult, todayString, type Difficulty } from '../meta/Economy';
 import { rungSeed } from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
-import { forcedAction, type Action } from '../engine/actions';
+import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
 import { eligibleAttackers, blockOptions } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
@@ -1688,17 +1688,19 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private onHandClick(handIndex: number): void {
-    const a = this.duel.awaiting;
-    if (!('player' in a) || a.player !== HUMAN) return;
-    const inMain = a.kind === 'main';
-    const inWindow = a.kind === 'respond' || a.kind === 'endStepWindow';
-    if (!inMain && !inWindow) return;
+    // Dimmed-card feedback: a card that can't be played explains itself on the
+    // skip-toast instead of being a silent no-op. reasonUncastable === null iff
+    // the card is genuinely playable now, so the branches below only decide HOW.
+    const reason = reasonUncastable(this.duel.state, CARD_DB, HUMAN, handIndex);
+    if (reason) {
+      this.showSkipNotice(reason);
+      return;
+    }
 
     const cardId = this.duel.state.players[HUMAN].hand[handIndex];
     const d = def(CARD_DB, cardId);
     if (isType(d, 'land')) {
-      if (inMain && !this.duel.state.players[HUMAN].landPlayedThisTurn)
-        this.act({ type: 'playLand', handIndex });
+      this.act({ type: 'playLand', handIndex });
       return;
     }
 
@@ -1710,7 +1712,12 @@ export class DuelScene extends Phaser.Scene {
           this.duel.state.players[HUMAN].hand[l.handIndex] === cardId,
       )
       .map((c) => ({ ...c, handIndex }));
-    if (casts.length === 0) return;
+    if (casts.length === 0) {
+      // reasonUncastable only checks the first target spec; a rare multi-target
+      // spell with a partially-satisfiable target set can still land here.
+      this.showSkipNotice("You can't cast this right now.");
+      return;
+    }
 
     const targeted = casts[0].targets !== undefined && casts[0].targets.length > 0;
     if (!targeted) {

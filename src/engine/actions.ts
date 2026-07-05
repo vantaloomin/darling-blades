@@ -363,6 +363,62 @@ function validateManaPlan(
   return null;
 }
 
+/**
+ * Player-facing copy for the internal castBlockers() reason strings. Those are
+ * written for the enumerator/validator (terse, dev-ish); anything not mapped
+ * here falls back to a generic line.
+ */
+const UNCASTABLE_COPY: Record<string, string> = {
+  'cannot pay cost': 'Not enough mana to cast this.',
+  'creature battlefield cap reached': 'Your side of the battlefield is full of creatures.',
+  'noncreature permanent cap reached': 'You have too many noncreature permanents in play.',
+  'card has no mana cost': "This card can't be cast.",
+};
+
+/**
+ * Why the card at `handIndex` cannot be played right now, as one player-facing
+ * sentence — or null when it actually IS playable. View-safe and Phaser-free:
+ * mirrors the per-card branch of legalActions() (land timing, cast speed,
+ * payment / board caps, target availability) so the UI can explain a dimmed
+ * hand card instead of a silent no-op. The land case is handled here because it
+ * lives outside castableNow() (lands are played, not cast).
+ */
+export function reasonUncastable(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  handIndex: number,
+): string | null {
+  const a = state.awaiting;
+  const me = state.players[player];
+  const cardId = me.hand[handIndex];
+  if (cardId === undefined) return null; // empty slot — nothing to explain
+  if (!('player' in a) || a.player !== player) return "It isn't your turn to act.";
+  const d = def(db, cardId);
+
+  if (isType(d, 'land')) {
+    if (a.kind !== 'main') return 'Lands can only be played during your main phase.';
+    if (me.landPlayedThisTurn) return 'You have already played a land this turn.';
+    return null;
+  }
+
+  if (!castableNow(state, player, d)) {
+    if (a.kind === 'respond' || a.kind === 'endStepWindow') return 'Only instants can be cast in response.';
+    if (a.kind === 'main' && player !== state.activePlayer) return 'You can only cast this on your own turn.';
+    return "You can't cast this right now.";
+  }
+
+  const blocked = castBlockers(state, db, player, d);
+  if (blocked) return UNCASTABLE_COPY[blocked] ?? "You can't cast this right now.";
+
+  const specs = castTargetSpecs(d);
+  if (specs.length > 0 && enumerateTargets(state, db, player, specs[0]).length === 0) {
+    return 'There are no legal targets for this spell.';
+  }
+
+  return null; // castable
+}
+
 /** Any instant in hand that `player` could pay AND target right now? (window auto-pass check) */
 export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerId): boolean {
   const me = state.players[player];
