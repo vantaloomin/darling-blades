@@ -10,6 +10,17 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0d0a14" />
+    <!-- Favicon set derived from the in-game card-back art (public/assets/art/
+         scenes/card-back.png), centre-cropped to its gold diamond emblem. All
+         hrefs are relative (no leading slash) so they resolve under the GitHub
+         Pages project subpath, Tauri's custom protocol, and local dev alike —
+         a leading-slash "/favicon.ico" would 404 at the Pages domain root. The
+         .ico (16/32/48) is the universal fallback; the PNGs give crisp modern
+         tabs; apple-touch-icon covers iOS home-screen. -->
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <title>Darling Blades</title>
     <style>
       /* Self-hosted webfonts: a phone joining over LAN has no route to Google's
