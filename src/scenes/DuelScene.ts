@@ -303,6 +303,7 @@ export class DuelScene extends Phaser.Scene {
     this.ai = buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality);
 
     this.buildHud();
+    this.bindHotkeys();
     // Right-edge history slide-out + attack-FX renderer. Both are fresh per
     // create(); the old history auto-destroys on the scene SHUTDOWN it hooks,
     // and the old combatFx's objects/timers died with the previous scene. Built
@@ -1684,6 +1685,44 @@ export class DuelScene extends Phaser.Scene {
         break;
       default:
         break;
+    }
+  }
+
+  /**
+   * Desktop keyboard hotkeys: Space/Enter drive the smart button (pass /
+   * to-combat / confirm-attackers / confirm-blocks), Esc cancels a pending
+   * targeted cast or closes the inspect overlay. Registered once per create()
+   * and torn down on SHUTDOWN so a gauntlet rematch never stacks duplicates
+   * (playbook §11: keyboard listeners outlive the scene otherwise).
+   */
+  private bindHotkeys(): void {
+    const kb = this.input.keyboard;
+    if (!kb) return; // keyboard plugin disabled (e.g. pure-touch build)
+    kb.on('keydown-SPACE', this.onConfirmKey, this);
+    kb.on('keydown-ENTER', this.onConfirmKey, this);
+    kb.on('keydown-ESC', this.onCancelKey, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      kb.off('keydown-SPACE', this.onConfirmKey, this);
+      kb.off('keydown-ENTER', this.onConfirmKey, this);
+      kb.off('keydown-ESC', this.onCancelKey, this);
+    });
+  }
+
+  private onConfirmKey(e: KeyboardEvent): void {
+    e.preventDefault(); // Space would otherwise scroll the page in the browser
+    if (this.ended || this.inspect) return; // inspect is modal — don't pass under it
+    this.onButton(); // self-guards: auto-skip input lock + not-your-decision
+  }
+
+  private onCancelKey(e: KeyboardEvent): void {
+    e.preventDefault();
+    if (this.inspect) {
+      this.closeInspect();
+      return;
+    }
+    if (this.pendingCasts) {
+      this.pendingCasts = null;
+      this.sync(); // mirrors the right-click cancel path
     }
   }
 
