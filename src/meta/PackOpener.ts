@@ -74,3 +74,21 @@ export function openPack(save: SaveData, db: CardDb, rng: RngState, set?: CardDe
   );
   return { cards };
 }
+
+/**
+ * Open `count` boosters in sequence off one RNG stream (F10). Deterministic —
+ * the same seed + count reproduces the whole batch. Each pack mutates the save
+ * (collection + dupe→gold + stats.packsOpened) via openPack; the caller sums the
+ * price. Returns each pack's result for a batch-summary reveal.
+ */
+export function openPacks(
+  save: SaveData,
+  db: CardDb,
+  rng: RngState,
+  count: number,
+  set?: CardDef['set'],
+): PackResult[] {
+  const packs: PackResult[] = [];
+  for (let i = 0; i < count; i++) packs.push(openPack(save, db, rng, set));
+  return packs;
+}
