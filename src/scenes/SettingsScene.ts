@@ -7,6 +7,7 @@ import { qualityTier } from '../platform/quality';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import type { RenderScaleSetting } from '../platform/renderScale';
 import type { AnimationLevel } from '../platform/animPolicy';
+import { VERSION_LABEL, checkForUpdate } from '../version';
 
 const SEGMENTS = 10;
 const STEP = 0.1;
@@ -217,9 +218,55 @@ export class SettingsScene extends Phaser.Scene {
     bindTapButton(this, back, () => this.scene.start('MainMenu'));
     inflateHitArea(back, HIT_MIN, HIT_MIN);
 
+    this.buildVersionFooter();
+
     this.refreshToggles();
     this.refreshChipGroups();
     this.refreshVolume();
+  }
+
+  /**
+   * Bottom-of-screen build identity + an on-demand update check. The check only
+   * fires on tap (no boot-time network) and degrades gracefully offline; the
+   * status text guards against an in-flight resolve after the scene is gone.
+   */
+  private buildVersionFooter(): void {
+    this.add
+      .text(14, 702, VERSION_LABEL, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#6a6482',
+      })
+      .setOrigin(0, 0.5);
+
+    const status = this.add
+      .text(640, 702, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#8f83a8',
+      })
+      .setOrigin(0.5);
+
+    const btn = this.add
+      .text(1266, 702, 'Check for updates', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '14px',
+        color: '#c9bde0',
+        backgroundColor: '#241d3a',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(1, 0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, btn, () => {
+      status.setText('Checking…').setColor('#8f83a8');
+      void checkForUpdate().then((r) => {
+        if (!status.active) return; // scene left mid-fetch
+        const color =
+          r.state === 'available' ? '#ffd88a' : r.state === 'error' ? '#e0a0a0' : '#8ad0a0';
+        status.setText(r.message).setColor(color);
+      });
+    });
+    inflateHitArea(btn, HIT_MIN, HIT_MIN);
   }
 
   // -------------------------------------------------------------------------

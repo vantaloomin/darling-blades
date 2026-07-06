@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-05
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-06
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -25,6 +25,7 @@ explicitly in the appendix. All the numbers below come from `RULES` in
 | Noncreature-nonland cap   | 4         | `RULES.maxNoncreaturePermanents` |
 | Max blockers per attacker | 3         | `RULES.maxBlockersPerAttacker`   |
 | Turn limit (draw)         | 100       | `RULES.turnLimit`                |
+| Max mulligans per player  | 3         | `RULES.maxMulligans`             |
 
 <!-- END GENERATED -->
 
@@ -45,10 +46,14 @@ The mulligan is **London-style with the first mulligan free**, sequenced by
   decides.
 - A `mulligan` action shuffles the hand back, redraws a full 7, and increments
   that player's mulligan count. You may keep on any decision.
-- On `keepHand`, you bottom **`mulligans − 1`** cards (clamped at 0). So the
-  first mulligan costs nothing; the second bottoms one card; the third bottoms
-  two; and so on. The engine then awaits a `bottomCards` decision if that count
-  is > 0.
+- You may mulligan at most **`RULES.maxMulligans` (3)** times; at the cap the
+  `mulligan` action is no longer legal, so you must **keep or concede**. This
+  bounds the bottom count below and is what prevents the old unsatisfiable-pick
+  soft-lock (`legalActions`, `src/engine/actions.ts`).
+- On `keepHand`, you bottom **`mulligans − 1`** cards (clamped to 0 and to the
+  hand size). So the first mulligan costs nothing; the second bottoms one card;
+  the third bottoms two. The engine then awaits a `bottomCards` decision if that
+  count is > 0.
 
 Once both players have kept (and finished bottoming), turn 1 begins with the
 starting player active.

@@ -3,6 +3,7 @@ import type { AIPlayer } from '../ai/AIPlayer';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { buildAI } from '../ai/personality';
+import { RULES } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { avatarById, avatarForRung, type Avatar } from '../data/opponents';
 import { STARTER_DECKS } from '../data/starterDecks';
@@ -2093,9 +2094,24 @@ export class DuelScene extends Phaser.Scene {
     }
     const a = this.duel.awaiting;
     if (!('player' in a) || a.player !== HUMAN) return;
-    if (a.kind === 'mulligan') this.buildPickOverlay('Keep this hand?', 0, ['Keep', 'Mulligan']);
-    else if (a.kind === 'bottomCards') this.buildPickOverlay(`Put ${a.count} card(s) on the bottom`, a.count, ['Confirm']);
-    else if (a.kind === 'discardToHandSize') this.buildPickOverlay(`Discard ${a.count} card(s)`, a.count, ['Confirm']);
+    if (a.kind === 'mulligan') {
+      // Cap-aware mulligan overlay: show how many mulligans remain, drop the
+      // Mulligan button at the cap, and always offer Concede — the corner
+      // Concede button is deadened under the overlay guard, so this is the
+      // player's only escape while an opening-hand decision is up.
+      const mulls = this.duel.state.players[HUMAN].mulligans;
+      const left = RULES.maxMulligans - mulls;
+      const title =
+        left > 0
+          ? `Keep this hand?  ·  ${left} mulligan${left === 1 ? '' : 's'} left`
+          : 'Keep this hand?  ·  no mulligans left';
+      const buttons = left > 0 ? ['Keep', 'Mulligan', 'Concede'] : ['Keep', 'Concede'];
+      this.buildPickOverlay(title, 0, buttons);
+    } else if (a.kind === 'bottomCards') {
+      this.buildPickOverlay(`Put ${a.count} card(s) on the bottom`, a.count, ['Confirm', 'Concede']);
+    } else if (a.kind === 'discardToHandSize') {
+      this.buildPickOverlay(`Discard ${a.count} card(s)`, a.count, ['Confirm']);
+    }
   }
 
   private buildPickOverlay(title: string, picks: number, buttons: string[]): void {
@@ -2158,16 +2174,34 @@ export class DuelScene extends Phaser.Scene {
     // rebuilds the fan visible on the next render once this decision resolves.
     for (const v of this.handViews) v.setVisible(false);
     for (const o of this.handDecor) (o as Phaser.GameObjects.Arc).setVisible(false);
+    // Local two-tap arm for the overlay's own Concede button (isolated from the
+    // corner concedeBtn's state — the overlay is rebuilt each syncOverlay, so a
+    // fresh flag per overlay is exactly the right lifetime).
+    let overlayConcedeArmed = false;
     buttons.forEach((label, bi) => {
       const bx = width / 2 - ((buttons.length - 1) * 180) / 2 + bi * 180;
+      const concede = label === 'Concede';
       const btn = this.add
         .text(bx, 580, label, {
-          fontFamily: 'Cinzel, Georgia, serif', fontSize: '22px', color: '#ffd88a',
-          backgroundColor: '#2c2344', padding: { x: 18, y: 10 },
+          fontFamily: 'Cinzel, Georgia, serif', fontSize: '22px',
+          color: concede ? '#e0a0a0' : '#ffd88a',
+          backgroundColor: concede ? '#3a2030' : '#2c2344', padding: { x: 18, y: 10 },
         })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, btn, () => {
+        if (concede) {
+          // Escape hatch (e.g. an unkeepable hand at the mulligan cap). Shares
+          // the confirmDestructive two-tap policy with the corner Concede.
+          if (Services.save.data.settings.confirmDestructive && !overlayConcedeArmed) {
+            overlayConcedeArmed = true;
+            btn.setText('Tap to confirm').setColor('#f08a8a');
+            inflateHitArea(btn, 90, 90); // relabeled — regrow the custom hit area
+            return;
+          }
+          this.act({ type: 'concede' });
+          return;
+        }
         const a = this.duel.awaiting;
         if (!('player' in a) || a.player !== HUMAN) return;
         if (a.kind === 'mulligan') {

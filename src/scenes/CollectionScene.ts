@@ -83,7 +83,10 @@ const LABEL_DY = FACE_H / 2 + 14;
 /** Collection binder: paginated two-page spread with facet filters, sorting,
  * variant badges and a variant-showcase inspect overlay. */
 export class CollectionScene extends Phaser.Scene {
-  private state: CollectionFilterState = defaultFilterState();
+  // Open on the player's OWNED cards by default (the binder is about what you
+  // have); the Owned toggle flips back to the full pool. defaultFilterState()
+  // stays neutral so the pure filter + its tests are unaffected.
+  private state: CollectionFilterState = { ...defaultFilterState(), ownedOnly: true };
   private page = 0;
   /** Interactive thumbs of the current page (ModalGuard targets). */
   private cells: Phaser.GameObjects.GameObject[] = [];
@@ -107,7 +110,7 @@ export class CollectionScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.state = defaultFilterState();
+    this.state = { ...defaultFilterState(), ownedOnly: true };
     this.page = 0;
     this.cells = [];
     this.guardTargets = [];

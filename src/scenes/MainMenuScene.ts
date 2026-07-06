@@ -8,9 +8,11 @@ import { def } from '../engine/types';
 import { addCard } from '../meta/Collection';
 import { Services } from '../meta/services';
 import { PLAIN_VARIANT } from '../meta/variants';
+import { IS_DEV } from '../platform/env';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { VERSION_LABEL } from '../version';
 
 const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
   { label: 'Avatar Gauntlet', scene: 'Gauntlet' },
@@ -131,7 +133,10 @@ export class MainMenuScene extends Phaser.Scene {
     inflateHitArea(profile, 90, 90);
     this.menuItems.push(profile);
 
-    MENU_ITEMS.forEach((entry, i) => {
+    // Card Showcase is a variant-QA surface — dev/local builds only (IS_DEV);
+    // filtering (not hiding) keeps the row layout gap-free on the public build.
+    const items = MENU_ITEMS.filter((entry) => entry.scene !== 'Showcase' || IS_DEV);
+    items.forEach((entry, i) => {
       const item = this.add
         .text(width / 2, 300 + i * 56, entry.label, {
           fontFamily: 'Cinzel, Georgia, serif',
@@ -154,6 +159,14 @@ export class MainMenuScene extends Phaser.Scene {
       // between rows are the fix column's target — plan §1.4).
       inflateHitArea(item, 90, 56);
       this.menuItems.push(item);
+    });
+
+    // Build identity, bottom-left corner (non-interactive, low-contrast). The
+    // Settings screen hosts the on-demand "Check for updates" action.
+    this.add.text(14, 702, VERSION_LABEL, {
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontSize: '13px',
+      color: '#6a6482',
     });
 
     if (Services.save.data.starterChosen === null) this.showStarterPicker();
