@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
-import { ECONOMY } from '../config/rules';
+import { DROPS, ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { THEME_DECKS } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
@@ -216,6 +216,7 @@ export class ShopScene extends Phaser.Scene {
     );
 
     this.buildThemeRow();
+    this.buildOddsPanel();
 
     const back = this.add
       .text(28, 28, '← Menu', {
@@ -281,6 +282,39 @@ export class ShopScene extends Phaser.Scene {
     bindTapButton(this, buyBtn, onBuy);
     bindTapButton(this, pack, onBuy);
     inflateHitArea(buyBtn, 90, 60);
+  }
+
+  /**
+   * Read-only booster drop-rate disclosure (a baseline expectation, and a legal
+   * norm in several markets). Rendered straight from the DROPS config const so
+   * the shown odds can never drift from the real roll; both SKUs share the same
+   * tier/frame/holo tables (the packs differ only in card pool). Sits in the free
+   * left column. The pity line surfaces the sr/ssr/ur dupe-protection that already
+   * runs in openPack — otherwise invisible to the player.
+   */
+  private buildOddsPanel(): void {
+    const fmt = (axis: ReadonlyArray<readonly [string, number]>, name: (v: string) => string): string =>
+      axis.map(([v, w]) => `${name(v)} ${w}`).join('  ·  ');
+    const TIER: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };
+    const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+    const body = [
+      'DROP RATES · per card (15 / pack)',
+      '',
+      `Rarity:  ${fmt(DROPS.tier, (v) => TIER[v] ?? v)}`,
+      `Frame:  ${fmt(DROPS.frame, cap)}`,
+      `Holo:  ${fmt(DROPS.holo, cap)}`,
+      '',
+      "Missing SR/SSR/UR cards are prioritized — no wasted dupes until a playset is complete.",
+    ].join('\n');
+    this.add
+      .text(30, 132, body, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '12px',
+        color: '#8f83a8',
+        lineSpacing: 5,
+        wordWrap: { width: 290 },
+      })
+      .setOrigin(0, 0);
   }
 
   /** The buyable theme/precon deck row. Rebuilds the scene on purchase. */
