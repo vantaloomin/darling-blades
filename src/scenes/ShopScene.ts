@@ -1,15 +1,17 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
-import { DROPS, ECONOMY } from '../config/rules';
+import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
-import { THEME_DECKS } from '../data/starterDecks';
+import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
+import { def, isType, manaValue } from '../engine/types';
 import { buyThemeDeck, spendGold } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { fxPolicy } from '../ui/fx/FXSupport';
+import { OddsDrawer } from '../ui/OddsDrawer';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 
 const PACK_W = 280;
@@ -151,8 +153,32 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
   tex.refresh();
 }
 
+type ShopTab = 'boosters' | 'decks';
+
+/** Two-colour identity blurb per buyable deck (id-keyed). */
+const DECK_BLURB: Record<string, string> = {
+  'starter-crimson': 'R/W · Warband aggro',
+  'starter-wild': 'G/W · Beastkin tribal',
+  'starter-tides': 'U/R · Wu tempo-burn',
+  'starter-mandate': 'U/B · Jin control',
+  'starter-harvest': 'B/G · Underworld attrition',
+  'theme-ragnarok': 'B/G · Ragnarök reanimator',
+};
+
+/** A buyable deck SKU: the list, its price, and whether it's a theme/precon. */
+interface DeckSku {
+  deck: DeckList;
+  price: number;
+  theme: boolean;
+}
+
 export class ShopScene extends Phaser.Scene {
   private goldText!: Phaser.GameObjects.Text;
+  private tab: ShopTab = 'boosters';
+  private boostersGroup!: Phaser.GameObjects.Container;
+  private decksGroup!: Phaser.GameObjects.Container;
+  private tabButtons = new Map<ShopTab, Phaser.GameObjects.Text>();
+  private overlay: Phaser.GameObjects.Container | null = null;
   /** F10 bulk-buy: quantity + the SKU buy buttons / quantity chips it drives. */
   private qty = 1;
   private skuButtons: { btn: Phaser.GameObjects.Text; price: number }[] = [];
@@ -162,16 +188,26 @@ export class ShopScene extends Phaser.Scene {
     super('Shop');
   }
 
+  /** All buyable decks: the theme/precon(s) first, then the starter precons. */
+  private deckSkus(): DeckSku[] {
+    return [
+      ...THEME_DECKS.map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
+      ...STARTER_DECKS.map((deck) => ({ deck, price: ECONOMY.starterDeckPrice, theme: false })),
+    ];
+  }
+
   create(): void {
+    this.tab = 'boosters';
     this.qty = 1;
     this.skuButtons = [];
     this.qtyChips = new Map();
+    this.tabButtons = new Map();
+    this.overlay = null;
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
     const width = 1280;
     const height = 720;
-    // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'shop', {
       dim: 0x0b0812,
       dimAlpha: 0.45,
@@ -193,9 +229,9 @@ export class ShopScene extends Phaser.Scene {
     Music.setMood('shop');
 
     this.add
-      .text(width / 2, 56, 'Booster Shop', {
+      .text(width / 2, 44, 'Shop', {
         fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '38px',
+        fontSize: '36px',
         color: '#f0e6ff',
       })
       .setOrigin(0.5);
@@ -210,22 +246,15 @@ export class ShopScene extends Phaser.Scene {
       .setOrigin(1, 0.5);
     this.refreshGold();
 
-    // Two booster SKUs side by side: the base set and the Ragnarök expansion.
-    this.buildPackSku(width / 2 - 210, 'Base Set', 'packart', ECONOMY.packPrice, () =>
-      this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
-    );
-    this.buildPackSku(
-      width / 2 + 210,
-      'Ragnarök Expansion',
-      'packart-ragnarok',
-      ECONOMY.ragnarokPackPrice,
-      () => this.buyPacks(ECONOMY.ragnarokPackPrice, 'ragnarok', 'ragnarok'),
-    );
-    this.buildQtySelector();
-    this.refreshQtyLabels();
+    // Drop-rate disclosure: a left slide-out drawer (percentages, from DROPS).
+    new OddsDrawer(this);
 
-    this.buildThemeRow();
-    this.buildOddsPanel();
+    this.buildTabBar();
+    this.boostersGroup = this.add.container(0, 0);
+    this.decksGroup = this.add.container(0, 0);
+    this.buildBoostersGroup(this.boostersGroup);
+    this.buildDecksGroup(this.decksGroup);
+    this.setTab('boosters');
 
     const back = this.add
       .text(28, 28, '← Menu', {
@@ -249,37 +278,90 @@ export class ShopScene extends Phaser.Scene {
     this.time.delayedCall(400, () => this.goldText.setColor('#ffd88a'));
   }
 
-  /** One booster column: label + floating pack + buy button, all wired to onBuy. */
+  // --- Tabs -----------------------------------------------------------------
+
+  private buildTabBar(): void {
+    const defs: { key: ShopTab; label: string }[] = [
+      { key: 'boosters', label: 'Boosters' },
+      { key: 'decks', label: 'Decks' },
+    ];
+    defs.forEach((d, i) => {
+      const t = this.add
+        .text(640 - 100 + i * 200, 96, d.label, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '20px',
+          color: '#c9bde0',
+          backgroundColor: '#241d3a',
+          padding: { x: 22, y: 8 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, t, () => this.setTab(d.key));
+      inflateHitArea(t, 120, 48);
+      this.tabButtons.set(d.key, t);
+    });
+  }
+
+  private setTab(tab: ShopTab): void {
+    this.tab = tab;
+    this.boostersGroup.setVisible(tab === 'boosters');
+    this.decksGroup.setVisible(tab === 'decks');
+    for (const [key, btn] of this.tabButtons) {
+      const active = key === tab;
+      btn.setStyle(
+        active
+          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
+          : { color: '#c9bde0', backgroundColor: '#241d3a' },
+      );
+      inflateHitArea(btn, 120, 48);
+    }
+  }
+
+  // --- Boosters tab ---------------------------------------------------------
+
+  private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
+    this.buildPackSku(group, 640 - 210, 'Base Set', 'packart', ECONOMY.packPrice, () =>
+      this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
+    );
+    this.buildPackSku(
+      group,
+      640 + 210,
+      'Ragnarök Expansion',
+      'packart-ragnarok',
+      ECONOMY.ragnarokPackPrice,
+      () => this.buyPacks(ECONOMY.ragnarokPackPrice, 'ragnarok', 'ragnarok'),
+    );
+    this.buildQtySelector(group);
+    this.refreshQtyLabels();
+  }
+
+  /** One booster column: label + floating pack + buy button, added to `group`. */
   private buildPackSku(
+    group: Phaser.GameObjects.Container,
     x: number,
     label: string,
     textureKey: string,
     price: number,
     onBuy: () => void,
   ): void {
-    this.add
-      .text(x, 150, label, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '22px',
-        color: '#e8def7',
-      })
+    const title = this.add
+      .text(x, 178, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '22px', color: '#e8def7' })
       .setOrigin(0.5);
     const pack = this.add
-      .image(x, 350, textureKey)
+      .image(x, 368, textureKey)
       .setDisplaySize(200, 286)
       .setInteractive({ useHandCursor: true });
     this.tweens.add({
       targets: pack,
-      y: 342,
+      y: 360,
       duration: 1800,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
-    // Routed through the FX choke point (quality-tier aware).
     if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.5, 0.3, 4);
     const buyBtn = this.add
-      .text(x, 540, `Buy — 🪙 ${price}`, {
+      .text(x, 552, `Buy — 🪙 ${price}`, {
         fontFamily: 'Cinzel, Georgia, serif',
         fontSize: '22px',
         color: '#ffd88a',
@@ -292,65 +374,55 @@ export class ShopScene extends Phaser.Scene {
     bindTapButton(this, pack, onBuy);
     inflateHitArea(buyBtn, 90, 60);
     this.skuButtons.push({ btn: buyBtn, price });
+    group.add([title, pack, buyBtn]);
   }
 
-  /**
-   * Read-only booster drop-rate disclosure (a baseline expectation, and a legal
-   * norm in several markets). Rendered straight from the DROPS config const so
-   * the shown odds can never drift from the real roll; both SKUs share the same
-   * tier/frame/holo tables (the packs differ only in card pool). Sits in the free
-   * left column. The pity line surfaces the sr/ssr/ur dupe-protection that already
-   * runs in openPack — otherwise invisible to the player.
-   */
-  private buildOddsPanel(): void {
-    const fmt = (axis: ReadonlyArray<readonly [string, number]>, name: (v: string) => string): string =>
-      axis.map(([v, w]) => `${name(v)} ${w}`).join('  ·  ');
-    const TIER: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };
-    const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
-    const body = [
-      'DROP RATES · per card (15 / pack)',
-      '',
-      `Rarity:  ${fmt(DROPS.tier, (v) => TIER[v] ?? v)}`,
-      `Frame:  ${fmt(DROPS.frame, cap)}`,
-      `Holo:  ${fmt(DROPS.holo, cap)}`,
-      '',
-      "Missing SR/SSR/UR cards are prioritized — no wasted dupes until a playset is complete.",
-    ].join('\n');
-    this.add
-      .text(30, 132, body, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '12px',
-        color: '#8f83a8',
-        lineSpacing: 5,
-        wordWrap: { width: 290 },
-      })
-      .setOrigin(0, 0);
+  /** F10 bulk-buy quantity selector (×1 / ×5 / ×10), added to `group`. */
+  private buildQtySelector(group: Phaser.GameObjects.Container): void {
+    const lbl = this.add
+      .text(640, 616, 'Buy quantity', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '13px', color: '#8f83a8' })
+      .setOrigin(0.5);
+    group.add(lbl);
+    let x = 560;
+    for (const n of [1, 5, 10]) {
+      const chip = this.add
+        .text(x, 642, `×${n}`, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '16px',
+          fontStyle: '600',
+          color: '#c9bde0',
+          backgroundColor: '#241d3a',
+          padding: { x: 12, y: 5 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, chip, () => {
+        this.qty = n;
+        this.refreshQtyLabels();
+        this.refreshQtyChips();
+      });
+      inflateHitArea(chip, 70, 44);
+      this.qtyChips.set(n, chip);
+      group.add(chip);
+      x += 80;
+    }
+    this.refreshQtyChips();
   }
 
-  /** The buyable theme/precon deck row. Rebuilds the scene on purchase. */
-  private buildThemeRow(): void {
-    const deck = THEME_DECKS[0];
-    const owned = Services.save.data.decks.some((d) => d.id === deck.id);
-    const y = 648;
-    this.add
-      .text(360, y, `Theme Deck — ${deck.name}  ·  B/G Reanimator`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '16px',
-        color: '#c9bde0',
-      })
-      .setOrigin(0, 0.5);
-    const btn = this.add
-      .text(820, y, owned ? 'Owned ✓' : `Buy Deck — 🪙 ${ECONOMY.preconPrice}`, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '18px',
-        color: owned ? '#8ad0a0' : '#ffd88a',
-        backgroundColor: owned ? '#1b2a1b' : '#2c2344',
-        padding: { x: 14, y: 7 },
-      })
-      .setOrigin(0, 0.5);
-    if (!owned) {
-      btn.setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, () => this.onBuyThemeDeck());
+  private refreshQtyChips(): void {
+    for (const [n, chip] of this.qtyChips) {
+      chip.setStyle(
+        n === this.qty
+          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
+          : { color: '#c9bde0', backgroundColor: '#241d3a' },
+      );
+      inflateHitArea(chip, 70, 44);
+    }
+  }
+
+  private refreshQtyLabels(): void {
+    for (const { btn, price } of this.skuButtons) {
+      btn.setText(this.qty > 1 ? `Buy ×${this.qty} — 🪙 ${price * this.qty}` : `Buy — 🪙 ${price}`);
       inflateHitArea(btn, 90, 60);
     }
   }
@@ -377,62 +449,211 @@ export class ShopScene extends Phaser.Scene {
     }
   }
 
-  /** F10 bulk-buy quantity selector (×1 / ×5 / ×10) driving both SKU buttons. */
-  private buildQtySelector(): void {
-    this.add
-      .text(640, 100, 'Buy quantity', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '13px', color: '#8f83a8' })
+  // --- Decks tab ------------------------------------------------------------
+
+  private buildDecksGroup(group: Phaser.GameObjects.Container): void {
+    group.removeAll(true); // rebuildable after a purchase
+    const intro = this.add
+      .text(640, 152, 'Preconstructed decks — inspect the list, then buy the ones you didn’t start with.', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '14px',
+        color: '#8f83a8',
+      })
       .setOrigin(0.5);
-    let x = 560;
-    for (const n of [1, 5, 10]) {
-      const chip = this.add
-        .text(x, 126, `×${n}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '16px',
-          fontStyle: '600',
-          color: '#c9bde0',
-          backgroundColor: '#241d3a',
-          padding: { x: 12, y: 5 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, chip, () => {
-        this.qty = n;
-        this.refreshQtyLabels();
-        this.refreshQtyChips();
-      });
-      inflateHitArea(chip, 70, 44);
-      this.qtyChips.set(n, chip);
-      x += 80;
-    }
-    this.refreshQtyChips();
-  }
+    group.add(intro);
 
-  private refreshQtyChips(): void {
-    for (const [n, chip] of this.qtyChips) {
-      chip.setStyle(
-        n === this.qty
-          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
-          : { color: '#c9bde0', backgroundColor: '#241d3a' },
-      );
-      inflateHitArea(chip, 70, 44);
+    const skus = this.deckSkus();
+    let y = 210;
+    for (const sku of skus) {
+      this.buildDeckRow(group, sku, y);
+      y += 74;
     }
   }
 
-  private refreshQtyLabels(): void {
-    for (const { btn, price } of this.skuButtons) {
-      btn.setText(this.qty > 1 ? `Buy ×${this.qty} — 🪙 ${price * this.qty}` : `Buy — 🪙 ${price}`);
-      inflateHitArea(btn, 90, 60);
+  private buildDeckRow(group: Phaser.GameObjects.Container, sku: DeckSku, y: number): void {
+    const { deck, price, theme } = sku;
+    const owned = Services.save.data.decks.some((d) => d.id === deck.id);
+
+    const plate = this.add
+      .rectangle(640, y, 900, 62, theme ? 0x241c3e : 0x1c1830, 0.7)
+      .setStrokeStyle(1, theme ? 0x6d5a2f : 0x352b52, 0.9);
+    const name = this.add
+      .text(220, y - 10, deck.name, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '20px',
+        color: theme ? '#ffd88a' : '#e8def7',
+      })
+      .setOrigin(0, 0.5);
+    const blurb = this.add
+      .text(220, y + 13, DECK_BLURB[deck.id] ?? '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#8f83a8',
+      })
+      .setOrigin(0, 0.5);
+    group.add([plate, name, blurb]);
+
+    const preview = this.add
+      .text(760, y, 'Preview', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '15px',
+        fontStyle: '600',
+        color: '#c9bde0',
+        backgroundColor: '#2c2344',
+        padding: { x: 12, y: 7 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, preview, () => this.showDeckPreview(deck, price, owned));
+    inflateHitArea(preview, 90, 52);
+    group.add(preview);
+
+    const buy = this.add
+      .text(950, y, owned ? 'Owned ✓' : `Buy — 🪙 ${price}`, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '17px',
+        color: owned ? '#8ad0a0' : '#ffd88a',
+        backgroundColor: owned ? '#1b2a1b' : '#2c2344',
+        padding: { x: 14, y: 7 },
+      })
+      .setOrigin(0.5);
+    if (!owned) {
+      buy.setInteractive({ useHandCursor: true });
+      bindTapButton(this, buy, () => this.onBuyDeck(sku));
+      inflateHitArea(buy, 90, 52);
     }
+    group.add(buy);
   }
 
-  private onBuyThemeDeck(): void {
+  private onBuyDeck(sku: DeckSku): void {
     const save = Services.save.data;
-    if (!buyThemeDeck(save, CARD_DB, THEME_DECKS[0])) {
+    if (!buyThemeDeck(save, CARD_DB, sku.deck, sku.price)) {
       this.insufficientFunds();
       return;
     }
     Sfx.play('coin');
     Services.save.flush();
-    this.scene.restart(); // rebuild → the theme row now reads "Owned ✓"
+    this.refreshGold();
+    this.buildDecksGroup(this.decksGroup); // the bought row now reads "Owned ✓"
+  }
+
+  // --- Deck preview overlay -------------------------------------------------
+
+  /** Inspect a deck's full list before buying (grouped by category, with counts). */
+  private showDeckPreview(deck: DeckList, price: number, owned: boolean): void {
+    this.closeOverlay();
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(100);
+    const dim = this.add
+      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .setInteractive();
+    bindTapButton(this, dim, () => this.closeOverlay());
+    const panel = this.add
+      .rectangle(width / 2, height / 2, 760, 560, 0x161226, 0.98)
+      .setStrokeStyle(2, 0x4a3f6e, 1);
+    c.add([dim, panel]);
+
+    c.add(
+      this.add
+        .text(width / 2, 130, deck.name, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '28px',
+          color: '#ffd88a',
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(width / 2, 162, `${DECK_BLURB[deck.id] ?? ''}  ·  ${deck.cards.length} cards`, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '14px',
+          color: '#8f83a8',
+        })
+        .setOrigin(0.5),
+    );
+
+    // Aggregate + group by category, sorted by mana value then name.
+    const counts = new Map<string, number>();
+    for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+    const entries = [...counts.entries()].map(([id, n]) => ({ d: def(CARD_DB, id), n }));
+    const sortFn = (a: { d: (typeof entries)[0]['d'] }, b: { d: (typeof entries)[0]['d'] }): number =>
+      manaValue(a.d.cost) - manaValue(b.d.cost) || a.d.name.localeCompare(b.d.name);
+    const creatures = entries.filter((e) => isType(e.d, 'creature')).sort(sortFn);
+    const spells = entries
+      .filter((e) => !isType(e.d, 'creature') && !isType(e.d, 'land'))
+      .sort(sortFn);
+    const lands = entries.filter((e) => isType(e.d, 'land')).sort(sortFn);
+
+    const colText = (
+      x: number,
+      sections: { title: string; items: typeof entries }[],
+    ): void => {
+      const lines: string[] = [];
+      for (const s of sections) {
+        if (s.items.length === 0) continue;
+        const total = s.items.reduce((sum, e) => sum + e.n, 0);
+        lines.push(`${s.title.toUpperCase()} · ${total}`);
+        for (const e of s.items) lines.push(`  ${e.n}×  ${e.d.name.split(',')[0]}`);
+        lines.push('');
+      }
+      c.add(
+        this.add
+          .text(x, 196, lines.join('\n'), {
+            fontFamily: 'Inter, Arial, sans-serif',
+            fontSize: '13px',
+            color: '#cbc2e0',
+            lineSpacing: 4,
+          })
+          .setOrigin(0, 0),
+      );
+    };
+    colText(width / 2 - 350, [{ title: 'Creatures', items: creatures }]);
+    colText(width / 2 - 20, [
+      { title: 'Spells', items: spells },
+      { title: 'Lands', items: lands },
+    ]);
+
+    // Buy-from-preview (unless owned) + Close.
+    if (!owned) {
+      const buy = this.add
+        .text(width / 2 - 90, 620, `Buy — 🪙 ${price}`, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '18px',
+          color: '#ffd88a',
+          backgroundColor: '#2c2344',
+          padding: { x: 16, y: 8 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, buy, () => {
+        this.closeOverlay();
+        const skus = this.deckSkus();
+        const sku = skus.find((s) => s.deck.id === deck.id);
+        if (sku) this.onBuyDeck(sku);
+      });
+      inflateHitArea(buy, 90, 52);
+      c.add(buy);
+    }
+    const close = this.add
+      .text(width / 2 + (owned ? 0 : 90), 620, 'Close', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '16px',
+        color: '#c9bde0',
+        backgroundColor: '#241d3a',
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, close, () => this.closeOverlay());
+    inflateHitArea(close, 90, 52);
+    c.add(close);
+
+    this.overlay = c;
+  }
+
+  private closeOverlay(): void {
+    this.overlay?.destroy();
+    this.overlay = null;
   }
 }
