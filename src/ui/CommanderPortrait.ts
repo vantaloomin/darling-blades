@@ -26,6 +26,12 @@ export interface CommanderPortraitOpts {
   height: number;
   /** Card whose art fills the frame; null renders frame + label only. */
   cardId: string | null;
+  /**
+   * Direct texture key for a non-card (premium) hero portrait — preferred over
+   * cardId when set and loaded, so a bespoke hero PNG can front the portrait
+   * without going through the card art resolver.
+   */
+  textureKey?: string;
   /** Deck/opponent name shown on the bottom plate. */
   label: string;
 }
@@ -79,7 +85,11 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     });
     this.geoMask = this.maskGfx.createGeometryMask();
 
-    if (opts.cardId) this.buildArt(opts.cardId, artCX, artCY, artW, artH);
+    if (opts.textureKey && scene.textures.exists(opts.textureKey)) {
+      this.buildArtFromTexture(opts.textureKey, artCX, artCY, artW, artH);
+    } else if (opts.cardId) {
+      this.buildArt(opts.cardId, artCX, artCY, artW, artH);
+    }
 
     // Reaction overlays exist even without art so damage/cast still read on a
     // frame-only fallback. They share the art mask so the rounded top holds.
@@ -145,6 +155,34 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       this.artBaseX = cx;
     } catch {
       this.art = null; // frame + label alone is an acceptable fallback
+    }
+  }
+
+  /**
+   * Cover-crop a bespoke hero PNG (a plain texture, no card atlas frame) into
+   * the window with the same overscan/upward-bias recipe as buildArt. Missing
+   * art must degrade to frame + label, never crash the duel.
+   */
+  private buildArtFromTexture(
+    textureKey: string,
+    cx: number,
+    cy: number,
+    artW: number,
+    artH: number,
+  ): void {
+    try {
+      const img = this.scene.add.image(cx, cy, textureKey);
+      const srcW = img.frame.width;
+      const srcH = img.frame.height;
+      const scale = Math.max(artW / srcW, artH / srcH) * 1.12;
+      img.setScale(scale);
+      const overflow = Math.max(0, (srcH * scale - artH) / 2);
+      img.y = cy - Math.min(artH * 0.08, overflow);
+      if (this.geoMask) img.setMask(this.geoMask);
+      this.art = img;
+      this.artBaseX = cx;
+    } catch {
+      this.art = null;
     }
   }
 

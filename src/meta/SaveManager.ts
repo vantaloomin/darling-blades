@@ -14,7 +14,7 @@ export interface GauntletState {
 }
 
 export interface SaveData {
-  version: 8;
+  version: 9;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -32,6 +32,13 @@ export interface SaveData {
    * (src/meta/deckFace.ts `faceCardFor`), the pre-v6 behavior.
    */
   heroCardId: string | null;
+  /**
+   * Player-chosen PREMIUM hero portrait (src/data/heroes.ts) — a bespoke,
+   * non-card illustration unlocked only by owning its theme deck. Takes
+   * precedence over `heroCardId` in the duel. `null` = none selected. v9
+   * addition.
+   */
+  heroPortraitId: string | null;
   stats: {
     wins: number;
     losses: number;
@@ -73,7 +80,7 @@ export function freshGauntlet(): GauntletState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 8,
+    version: 9,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -82,6 +89,7 @@ export function freshSave(now: number): SaveData {
     activeDeckId: null,
     starterChosen: null,
     heroCardId: null,
+    heroPortraitId: null,
     stats: {
       wins: 0,
       losses: 0,
@@ -133,7 +141,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 8) return parsed as SaveData;
+      if (parsed.version === 9) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -153,8 +161,9 @@ export class SaveManager {
    * (null = auto face) and, for a run already in progress, stamps it with a
    * seed derived from its `startedAt` so it stays reproducible; v6 → v7 adds
    * `settings.confirmDestructive` (default on — the shared two-tap guard on
-   * concede / gauntlet-abandon / shard). An unknown/garbage version starts
-   * fresh rather than crash.
+   * concede / gauntlet-abandon / shard); v7 → v8 adds `settings.keywordReminders`
+   * (default on); v8 → v9 adds `heroPortraitId` (null = no premium hero). An
+   * unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
@@ -254,7 +263,16 @@ export class SaveManager {
         },
       };
     }
-    if (cur.version === 8) return cur as unknown as SaveData;
+    if (cur.version === 8) {
+      // Add the premium hero-portrait selection (null = none); a value already
+      // present is preserved.
+      cur = {
+        ...cur,
+        version: 9,
+        heroPortraitId: (cur.heroPortraitId as string | null | undefined) ?? null,
+      };
+    }
+    if (cur.version === 9) return cur as unknown as SaveData;
     return freshSave(now);
   }
 

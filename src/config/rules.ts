@@ -25,6 +25,10 @@ export const ECONOMY = {
   lossGold: 20,
   firstWinOfDayBonus: 100,
   preconPrice: 500,
+  // The four starter precons you did NOT pick for free are buyable in the shop's
+  // Decks tab (the free-chosen one reads "Owned"). Cheaper than a theme deck —
+  // they're the intro lists, a soft catch-up sink rather than a chase product.
+  starterDeckPrice: 350,
   // Auto-melt value of a PLAIN duplicate past the per-variant playset (a 5th
   // `white|none` copy). At full completion the expected plain-dupe refund is
   // ≈214g per 250g pack (15 · P(plain)=0.30 · E[dupeGold|tier]=47.5) — bounded

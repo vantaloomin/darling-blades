@@ -131,14 +131,21 @@ export function grantDeckCards(save: SaveData, db: CardDb, cards: readonly strin
 }
 
 /**
- * Buy a theme/precon deck: spend preconPrice, grant its cards, add it to the
- * player's decks. Idempotent — a deck already owned (by id) is a no-op that
- * does NOT spend gold. Never touches starterChosen (the one free starter flow
- * is independent). Returns true only if the purchase actually happened.
+ * Buy a precon/starter deck: spend `price` (defaults to preconPrice for theme
+ * decks; the shop passes starterDeckPrice for the buyable starters), grant its
+ * cards, add it to the player's decks. Idempotent — a deck already owned (by id)
+ * is a no-op that does NOT spend gold, so the one free-chosen starter reads as
+ * owned. Never touches starterChosen (the free-starter flow is independent).
+ * Returns true only if the purchase actually happened.
  */
-export function buyThemeDeck(save: SaveData, db: CardDb, deck: DeckList): boolean {
+export function buyThemeDeck(
+  save: SaveData,
+  db: CardDb,
+  deck: DeckList,
+  price: number = ECONOMY.preconPrice,
+): boolean {
   if (save.decks.some((d) => d.id === deck.id)) return false;
-  if (!spendGold(save, ECONOMY.preconPrice)) return false;
+  if (!spendGold(save, price)) return false;
   grantDeckCards(save, db, deck.cards);
   save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards] });
   return true;

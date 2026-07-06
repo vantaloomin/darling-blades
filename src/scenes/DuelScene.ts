@@ -6,6 +6,8 @@ import { buildAI } from '../ai/personality';
 import { RULES } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { avatarById, avatarForRung, type Avatar } from '../data/opponents';
+import { heroById } from '../data/heroes';
+import type { SaveData } from '../meta/SaveManager';
 import { STARTER_DECKS } from '../data/starterDecks';
 import { applyGauntletResult, applyMatchResult, todayString, type Difficulty } from '../meta/Economy';
 import { ownedVariantEntries } from '../meta/collectionFilter';
@@ -178,6 +180,8 @@ export class DuelScene extends Phaser.Scene {
   /** Derived identity (create()): portraits cost zero new art (opponents.ts idiom). */
   private myDeckName = '';
   private myFaceCardId: string | null = null;
+  /** Premium hero portrait texture (a bought theme deck's exclusive art), or null. */
+  private myHeroTextureKey: string | null = null;
   private oppFaceCardId: string | null = null;
   private selectedAttackers = new Set<number>();
   private blockAssignments: { blocker: number; attacker: number }[] = [];
@@ -307,8 +311,10 @@ export class DuelScene extends Phaser.Scene {
     // your commander portrait is your deck's face card; the opponent's strip
     // avatar is their curated portraitCardId (gauntlet) or their deck's face.
     this.myDeckName = myDeckEntry?.name ?? STARTER_DECKS[0].name;
-    // Your chosen hero card fronts the commander portrait (any collected card);
-    // fall back to the active deck's derived face when unset or unknown.
+    // A bought theme deck's PREMIUM hero portrait takes precedence; otherwise
+    // your chosen hero card (any collected card) fronts the commander portrait;
+    // otherwise the active deck's derived face.
+    this.myHeroTextureKey = this.resolveHeroPortrait(save);
     const hero = save.heroCardId && CARD_DB[save.heroCardId] ? save.heroCardId : null;
     this.myFaceCardId = hero ?? faceCardFor(myDeck, CARD_DB);
     this.oppFaceCardId = this.opponent?.portraitCardId ?? faceCardFor(aiDeck, CARD_DB);
@@ -387,6 +393,20 @@ export class DuelScene extends Phaser.Scene {
     label(118, LAYOUT.myZone.y0 + 6, 'YOU');
   }
 
+  /**
+   * The premium hero portrait texture to use, or null. Only when a hero is
+   * selected AND its unlock deck is owned AND the bespoke art actually loaded —
+   * any miss falls through to the card-based hero/face (never crashes the duel).
+   */
+  private resolveHeroPortrait(save: SaveData): string | null {
+    const id = save.heroPortraitId;
+    if (!id) return null;
+    const h = heroById(id);
+    if (!h) return null;
+    if (!save.decks.some((d) => d.id === h.unlockDeckId)) return null;
+    return this.textures.exists(h.textureKey) ? h.textureKey : null;
+  }
+
   private buildHud(): void {
     // --- Opponent strip (1a): name · avatar · life · hand backs · piles · mana ---
     const stripCy = LAYOUT.strip.cy;
@@ -413,6 +433,7 @@ export class DuelScene extends Phaser.Scene {
       width: LAYOUT.portrait.w,
       height: LAYOUT.portrait.h,
       cardId: this.myFaceCardId,
+      ...(this.myHeroTextureKey ? { textureKey: this.myHeroTextureKey } : {}),
       label: this.myDeckName,
     });
     // Your life rides the portrait's top-left corner on a legibility disc.
