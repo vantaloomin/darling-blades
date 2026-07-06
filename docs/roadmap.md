@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md · last-verified: 2026-07-05 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-06 · review monthly -->
 
 # Roadmap
 
@@ -22,14 +22,17 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **390 tests green** (+3 skipped balance-tool assertions) across 34 files
+- **491 tests green** (+3 skipped balance-tool assertions) across 48 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + deck-face picker + gauntlet-run-seed + shard/per-variant
   playset, audio recipes + music patterns, platform gestures + render-scale +
   anim policy, engine auto-pass, icon paths, hand-fan + combat-sequence layout/
   timing math, AI smoke + win-rate + personality lockstep/divergence +
-  avatar/starter legality). The whole suite runs in ~25–30 s.
+  avatar/starter legality; and the QOL pass — unplayable-reason, card-search
+  filter, keyword-reminder coverage, undo snapshot/restore round-trip, combat
+  forecast (`previewCombat`), deck-stats aggregation, profile win-rate,
+  deck-storage ops). The whole suite runs in ~25–30 s.
 - **210 cards** in the pool (`CARD_DB`), across the five colors and three
   factions, bucketed into **five rarity tiers** (C 103 / R 65 / SR 13 /
   SSR 11 / UR 8 booster-eligible).
@@ -39,8 +42,62 @@ _Dated 2026-07-04. Review monthly._
   (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v6**. By-ear tuning remains open (see
-  Planned).
+  the `SettingsScene`. `SaveData` is **v9** (v6→v7 confirm-destructive, v7→v8
+  keyword-reminders, v8→v9 shop restructure — see Recently shipped). By-ear
+  tuning remains open (see Planned).
+
+## Recently shipped (2026-07-06)
+
+- **Quality-of-life pass — all 15 features shipped ([docs/plan-qol.md](plan-qol.md)).**
+  The day-to-day friction-reducers a modern-TCG player expects, landed across
+  three PR waves off the Ragnarök-integrated `main`. Two `SaveData` bumps, each
+  with a real `migrate()` + migration test: **v6 → v7** (`settings.confirmDestructive`,
+  Feature 1) and **v7 → v8** (`settings.keywordReminders`, Feature 9).
+  - **Wave 1 — quick wins (F1–F4, F6, F7).** F1 concede/shard confirm behind a
+    unified two-tap `confirmDestructive` policy; F2 `reasonUncastable`
+    (`src/engine/actions.ts`, view-safe) → the dimmed-card skip toast tells you
+    *why*; F3 a targeting arrow from a pending cast to the hovered legal target;
+    F4 always-visible gold badge on Collection/Deckbuilder/Settings; F6
+    Space/Enter = pass/confirm, Esc = cancel hotkeys; F7 desktop deck-list paging
+    (fixes the latent `y > 560` row-clipping bug). _(F5 pack-odds display shipped
+    with the Ragnarök expansion, not this pass.)_
+  - **Wave 2 — flagship medium features (PR #5).** F14 read-only `ProfileScene`
+    over `stats`/`gauntlet` (pure `src/meta/profileStats.ts` win-rate math);
+    F13 deck statistics (curve/color-pie/type-counts, pure `src/ui/deckStats.ts`)
+    + one-click add-a-playset; F11 undo-before-commit (a one-deep `Game.clone()`
+    snapshot in `DuelScene.act()`, invalidated the instant priority passes to the
+    AI or combat animates — the strongest advertisement for the determinism
+    guarantee); F12 combat/lethal forecast via a **pure `previewCombat`** factored
+    out of `combat/damage.ts` (golden-tested against `resolveCombatDamage`); F9
+    keyword reminder text on card faces + a `keywordReminders` toggle; F10 buy/open
+    **N packs at once** (pure `openPacks` + a batch-summary reveal path).
+  - **Final wave (PR #6) — F8 + F15.** F8 card-text search
+    (name/type/subtype/keyword) — a pure, tested `matchesSearch` clause wired into
+    both the collection filter and the deck-builder pool, driven by the codebase's
+    **first Phaser `this.add.dom` `<input>` overlay** (`dom: { createContainer: true }`
+    in `main.ts` + reusable `src/ui/SearchInput.ts`; positions correctly under the
+    render-scale setting and tears down on scene shutdown — sidesteps the
+    "never `setInteractive` a scaled Container" trap). F15 multiple saved decks —
+    pure `DeckStorage` ops (`deleteDeck`/`copyDeck`/`renameDeck`/`generateDeckId`,
+    preserving the `activeDeckId`-always-valid invariant) behind a "☰ Decks" picker
+    modal (select / new / copy / rename / two-tap delete); no migration (the
+    `decks[]` + `activeDeckId` model already existed). Plus a **`fix(build)`**:
+    the dev-module loader switched from an eager to a non-eager (tree-shaken) glob
+    so a local `src/dev/*.local.ts` cheat can never bundle into the prod build.
+  - Verified: tsc / lint / **491 tests** / build / all doc-checkers green, plus
+    live preview probes (search filters both scenes; DOM input positioned under
+    render-scale k=1.5 and cleaned up on shutdown; deck picker new/copy/select).
+    **Deferred follow-ups (tracked):** the in-Settings toggles for
+    `confirmDestructive` + `keywordReminders` (the full 5-row panel needs a
+    2-column relayout to fit them), F13 per-row remove-all, and F9's separate
+    inspect-overlay glossary legend.
+- **UX-polish pass — three waves (PRs #7 / #8 / #9).** Follow-on presentation +
+  shop work on top of the QOL pass. **Wave A (#7):** mulligan cap hard-lock fix,
+  owned-cards default filter, dev-gated card showcase, on-screen version label.
+  **Wave C (#8):** card-face mirror layout, playmat battlefield-tile redesign,
+  dropdown filters. **Wave B — shop restructure (#9):** Boosters / Decks tabs,
+  a drop-rate % drawer, a buyable deck store with preview, and a unique generated
+  Valkyrie hero portrait — the **v8 → v9** `SaveData` bump.
 
 ## Recently shipped (2026-07-05)
 
@@ -478,16 +535,10 @@ _Dated 2026-07-04. Review monthly._
   - [Road to 1.0 — five features](plan-road-to-1.0.md) — tutorial, daily quests,
     sealed/draft, deterministic replays + share codes, achievements — sequenced,
     with a definition of 1.0.
-- **Quality-of-life pass (15 features, 3 waves).** The day-to-day
-  friction-reducers a modern-TCG player expects but the build still lacks —
-  card text search, keyword reminder-text/glossary, undo-before-commit,
-  combat-forecast preview, bulk pack buy/open, deck stats + add-a-playset,
-  multiple saved decks, a profile/stats screen, concede confirmation,
-  "why can't I play this?", targeting arrows, keyboard hotkeys, always-visible
-  gold, pack-odds display, plus a latent deck-list clipping bug. All verified
-  against code (2026-07-05); needs a single `SaveData` v6 → v7 bump for two new
-  settings flags. Full spec, code seams, and sequencing:
-  [docs/plan-qol.md](plan-qol.md).
+- **Quality-of-life pass (15 features).** ✅ **Shipped 2026-07-06** — see Recently
+  shipped and [docs/plan-qol.md](plan-qol.md). Only the deferred follow-ups remain:
+  in-Settings toggles for `confirmDestructive` + `keywordReminders` (needs a 2-column
+  Settings relayout), F13 per-row remove-all, and F9's separate inspect glossary.
 - **Mobile Tier 2 — LAN PvP (back-burnered).** Tier 1 phone-over-LAN play
   SHIPPED 2026-07-03 (see Recently shipped); the tiered design doc is
   [docs/mobile-lan-plan.md](mobile-lan-plan.md). What remains of the plan:
