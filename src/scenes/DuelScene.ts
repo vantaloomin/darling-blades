@@ -135,6 +135,9 @@ const HAND_SPAN_TOUCH = 900;
  */
 export class DuelScene extends Phaser.Scene {
   private duel!: Game;
+  /** One-deep pre-action snapshot for local Undo; null when undo is unavailable. */
+  private undoSnapshot: Game | null = null;
+  private undoBtn!: Phaser.GameObjects.Text;
   private ai!: AIPlayer;
   private difficulty: Difficulty = 'easy';
   private opponent: Avatar | null = null; // set in gauntlet mode
@@ -238,6 +241,7 @@ export class DuelScene extends Phaser.Scene {
     this.selectedAttackers = new Set();
     this.blockAssignments = [];
     this.pendingBlocker = null;
+    this.undoSnapshot = null;
     this.overlay = null;
     this.guard = new ModalGuard();
     this.inspect = null;
@@ -642,6 +646,27 @@ export class DuelScene extends Phaser.Scene {
     });
     inflateHitArea(this.endTurnBtn, 90, 90);
 
+    // Undo (F11): take back your last committed action while it's still your
+    // decision — before priority passes to the AI or combat animates. Left rail,
+    // between the hint and the log; syncUndoButton toggles its visibility.
+    this.undoBtn = this.add
+      .text(52, 410, '↶ Undo', {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '14px',
+        color: '#e8def7',
+        backgroundColor: '#3a2f5c',
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(0.5)
+      .setDepth(56)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, this.undoBtn, (p) => {
+      if (p.rightButtonReleased()) return;
+      this.undoLastAction();
+    });
+    inflateHitArea(this.undoBtn, 90, 90);
+
     // Feature 2 — live auto-skip toggle (mirrors settings.autoSkip; persists).
     // Lives at the opponent strip's right end in the 1a layout — the bottom
     // band now belongs to the fan/cluster, and the strip keeps the chip clear
@@ -726,7 +751,9 @@ export class DuelScene extends Phaser.Scene {
     if (this.ended) return;
     if (this.animatingCombat) return; // swallow input while a combat sequence plays
     try {
+      const snapshot = this.duel.clone(); // pre-action state; kept for Undo iff still local
       const events = this.duel.submit(HUMAN, action);
+      this.undoSnapshot = snapshot;
       this.selectedAttackers.clear();
       this.blockAssignments = [];
       this.pendingBlocker = null;
@@ -736,6 +763,26 @@ export class DuelScene extends Phaser.Scene {
     } catch (err) {
       this.hud.log.setText(String((err as Error).message));
     }
+  }
+
+  /** Restore the pre-action snapshot and reset scene-side selection state. */
+  private undoLastAction(): void {
+    if (!this.undoSnapshot || this.ended || this.animatingCombat) return;
+    this.duel = this.undoSnapshot;
+    this.undoSnapshot = null;
+    // Mirror the scene-side state act() clears, so no stale selection survives.
+    this.selectedAttackers.clear();
+    this.blockAssignments = [];
+    this.pendingBlocker = null;
+    this.pendingCasts = null;
+    this.sync();
+  }
+
+  /** Undo is offered only while the snapshot is valid and it is your decision. */
+  private syncUndoButton(): void {
+    this.undoBtn.setVisible(
+      !this.ended && !this.animatingCombat && this.undoSnapshot !== null && this.isHumanTurnDecision(),
+    );
   }
 
   /**
@@ -783,6 +830,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.animatingCombat) return; // wait out a combat sequence; finishStep resumes us
     const a = this.duel.awaiting;
     if (!('player' in a) || a.player !== AI) return;
+    this.undoSnapshot = null; // priority has left you — the local Undo is no longer valid
     if (this.aiTimer) return;
     this.aiTimer = this.time.delayedCall(400, () => {
       this.aiTimer = null;
@@ -1085,6 +1133,7 @@ export class DuelScene extends Phaser.Scene {
     }
 
     this.animatingCombat = true;
+    this.undoSnapshot = null; // combat is resolving — no take-backs mid-sequence
     const dir: -1 | 1 = this.duel.state.activePlayer === HUMAN ? -1 : 1;
     for (const step of plan.steps) {
       this.combatTimers.push(
@@ -1212,6 +1261,7 @@ export class DuelScene extends Phaser.Scene {
     this.hud.ownerTag
       .setText(st.turn === 0 ? 'MULLIGANS' : yours ? 'YOUR TURN' : 'OPP TURN')
       .setColor(yours ? '#c9a44f' : '#6f6690');
+    this.syncUndoButton();
 
     // Battlefield tiles: every non-land permanent that isn't an attached aura
     // (attached auras show as a ✦ badge on their host — they had no board
