@@ -5,6 +5,7 @@ import {
   clampPage,
   collectiblePool,
   defaultFilterState,
+  matchesSearch,
   nextSortMode,
   ownedVariantEntries,
   pageCount,
@@ -116,6 +117,42 @@ describe('applyFilters facets', () => {
     const before = POOL.map((d) => d.id);
     applyFilters(POOL, state({ sort: 'name' }), save);
     expect(POOL.map((d) => d.id)).toEqual(before);
+  });
+});
+
+describe('search facet (F8)', () => {
+  const save = freshSave(0);
+  const pool: CardDef[] = [
+    card('bear', { name: 'Wildwood Bear', subtypes: ['Beastkin'] }),
+    card('drake', { name: 'Storm Drake', subtypes: ['Dragon'], keywords: ['flying'] }),
+    card('bolt', { name: 'Lightning Bolt', types: ['instant'], subtypes: [] }),
+  ];
+  const st = (search: string): CollectionFilterState => ({ ...defaultFilterState(), search });
+
+  it("an empty (or whitespace) query matches everything", () => {
+    expect(applyFilters(pool, st(''), save)).toHaveLength(3);
+    expect(matchesSearch(pool[0], '   ')).toBe(true);
+  });
+
+  it('matches the card name, case-insensitively', () => {
+    expect(applyFilters(pool, st('storm'), save).map((d) => d.id)).toEqual(['drake']);
+    expect(applyFilters(pool, st('BOLT'), save).map((d) => d.id)).toEqual(['bolt']);
+  });
+
+  it('matches card type and subtype', () => {
+    expect(applyFilters(pool, st('instant'), save).map((d) => d.id)).toEqual(['bolt']);
+    expect(applyFilters(pool, st('beast'), save).map((d) => d.id)).toEqual(['bear']);
+  });
+
+  it('matches keyword enum values (fly → flying)', () => {
+    expect(applyFilters(pool, st('fly'), save).map((d) => d.id)).toEqual(['drake']);
+  });
+
+  it('combines with other facets (AND) and can be empty', () => {
+    expect(applyFilters(pool, { ...defaultFilterState(), search: 'dragon', color: 'G' }, save).map((d) => d.id)).toEqual([
+      'drake',
+    ]);
+    expect(applyFilters(pool, st('nonexistentquery'), save)).toEqual([]);
   });
 });
 
