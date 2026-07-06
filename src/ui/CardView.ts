@@ -3,6 +3,7 @@ import { Art } from '../art/ArtResolver';
 import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
 import type { CardVariant, FrameStyle } from '../meta/variants';
+import { Services } from '../meta/services';
 import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 import { fxPolicy } from './fx/FXSupport';
@@ -218,7 +219,7 @@ export class CardView extends Phaser.GameObjects.Container {
     this.nameText.setText(card.name);
     this.nameText.setScale(Math.max(0.7, Math.min(1, 215 / Math.max(1, this.nameText.width))));
     this.typeText.setText(typeLine(card));
-    const rules = rulesText(card);
+    const rules = rulesText(card, { reminders: Services.save.data.settings.keywordReminders });
     this.rulesTextObj.setText(rules);
     // Land faces get a composed mana-iconography row ([T] → [pip]) centered
     // in the otherwise-empty textbox; flavor (if any) drops below the row.

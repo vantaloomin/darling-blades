@@ -14,7 +14,7 @@ export interface GauntletState {
 }
 
 export interface SaveData {
-  version: 7;
+  version: 8;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -54,6 +54,12 @@ export interface SaveData {
      * defaults on so an accidental tap can never fire the action outright.
      */
     confirmDestructive: boolean;
+    /**
+     * Append per-keyword reminder text on the card face (teaches new players
+     * what deathtouch / trample / etc. do). v8 addition; defaults on. Off for
+     * veterans who prefer denser cards.
+     */
+    keywordReminders: boolean;
   };
 }
 
@@ -67,7 +73,7 @@ export function freshGauntlet(): GauntletState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 7,
+    version: 8,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -92,6 +98,7 @@ export function freshSave(now: number): SaveData {
       renderScale: DEFAULT_RENDER_SCALE,
       autoSkip: true,
       confirmDestructive: true,
+      keywordReminders: true,
     },
   };
 }
@@ -126,7 +133,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 7) return parsed as SaveData;
+      if (parsed.version === 8) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -234,7 +241,20 @@ export class SaveManager {
         },
       };
     }
-    if (cur.version === 7) return cur as unknown as SaveData;
+    if (cur.version === 7) {
+      // Add the keyword-reminder toggle (default on) so an existing save keeps
+      // the teaching behavior; a boolean already present is preserved.
+      const s = (cur.settings ?? {}) as { keywordReminders?: unknown };
+      cur = {
+        ...cur,
+        version: 8,
+        settings: {
+          ...(cur.settings as object),
+          keywordReminders: typeof s.keywordReminders === 'boolean' ? s.keywordReminders : true,
+        },
+      };
+    }
+    if (cur.version === 8) return cur as unknown as SaveData;
     return freshSave(now);
   }
 
