@@ -55,3 +55,36 @@ export function saveDeck(
   if (existing >= 0) save.decks[existing] = deck;
   else save.decks.push(deck);
 }
+
+/** A deck id not already used in save.decks (deck-1, deck-2, … skipping collisions). */
+export function generateDeckId(save: SaveData): string {
+  const taken = new Set(save.decks.map((d) => d.id));
+  let n = save.decks.length + 1;
+  while (taken.has(`deck-${n}`)) n++;
+  return `deck-${n}`;
+}
+
+/**
+ * Delete a deck by id. If it was the active deck, reassign activeDeckId to a
+ * remaining deck (or null when none remain) — the invariant DuelScene/Gauntlet
+ * rely on: activeDeckId always points to an existing deck, or is null.
+ */
+export function deleteDeck(save: SaveData, deckId: string): void {
+  save.decks = save.decks.filter((d) => d.id !== deckId);
+  if (save.activeDeckId === deckId) save.activeDeckId = save.decks[0]?.id ?? null;
+}
+
+/** Copy a deck: a fresh id + deep-cloned card list + "… copy" name. Returns the new id (null if the source is gone). */
+export function copyDeck(save: SaveData, deckId: string): string | null {
+  const src = save.decks.find((d) => d.id === deckId);
+  if (!src) return null;
+  const id = generateDeckId(save);
+  save.decks.push({ id, name: `${src.name} copy`, cards: [...src.cards] });
+  return id;
+}
+
+/** Rename a deck in place (no-op when the id is unknown). */
+export function renameDeck(save: SaveData, deckId: string, name: string): void {
+  const deck = save.decks.find((d) => d.id === deckId);
+  if (deck) deck.name = name;
+}

@@ -7,7 +7,7 @@ import type { CardDef } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
 import { isBasic, ownedCount } from '../meta/Collection';
 import { matchesSearch } from '../meta/collectionFilter';
-import { saveDeck, validateDeck } from '../meta/DeckStorage';
+import { copyDeck, deleteDeck, generateDeckId, renameDeck, saveDeck, validateDeck } from '../meta/DeckStorage';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
@@ -292,6 +292,143 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.rightPane.push(pageLabel);
   }
 
+  /** F15: modal deck picker — select / new / copy / rename / delete. */
+  private showDeckPicker(): void {
+    const save = Services.save.data;
+    // Preserve in-progress edits: sync this.deck into the active deck before any
+    // switch/new/copy so unsaved changes aren't lost on the scene restart.
+    const activeNow = save.decks.find((d) => d.id === save.activeDeckId);
+    if (activeNow) activeNow.cards = [...this.deck];
+    const overlay = this.add.container(0, 0).setDepth(100);
+    const reloadWith = (id: string | null): void => {
+      save.activeDeckId = id;
+      Services.save.flush();
+      this.scene.restart();
+    };
+    overlay.add(this.add.rectangle(640, 360, 1280, 720, 0x0a0812, 0.92).setInteractive());
+    overlay.add(
+      this.add
+        .text(640, 80, 'Your Decks', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '34px', color: '#f0e6ff' })
+        .setOrigin(0.5),
+    );
+
+    const chip = (
+      x: number,
+      y: number,
+      label: string,
+      color: string,
+      onTap: () => void,
+    ): Phaser.GameObjects.Text => {
+      const c = this.add
+        .text(x, y, label, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '14px',
+          color,
+          backgroundColor: '#241d3a',
+          padding: { x: 8, y: 4 },
+        })
+        .setOrigin(0, 0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, c, onTap);
+      inflateHitArea(c, 60, 44);
+      overlay.add(c);
+      return c;
+    };
+
+    save.decks.forEach((deck, i) => {
+      const y = 150 + i * 52;
+      const isActive = deck.id === save.activeDeckId;
+      const row = this.add
+        .text(340, y, `${isActive ? '▶ ' : '    '}${deck.name}  ·  ${deck.cards.length}/${RULES.deckSize}`, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '18px',
+          color: isActive ? '#ffd88a' : '#c9bde0',
+        })
+        .setOrigin(0, 0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, row, () => reloadWith(deck.id));
+      inflateHitArea(row, 90, 46);
+      overlay.add(row);
+
+      chip(710, y, 'Copy', '#9be6a8', () => reloadWith(copyDeck(save, deck.id) ?? save.activeDeckId));
+      chip(790, y, 'Rename', '#c7a8f0', () => this.promptRename(deck.id));
+      let delArmed = false;
+      const delChip = chip(900, y, 'Delete', '#f0b0a0', () => {
+        if (save.settings.confirmDestructive && !delArmed) {
+          delArmed = true;
+          delChip.setText('Delete?').setColor('#ffd44a');
+          inflateHitArea(delChip, 60, 44);
+          return;
+        }
+        deleteDeck(save, deck.id);
+        reloadWith(save.activeDeckId);
+      });
+    });
+
+    const newBtn = this.add
+      .text(340, 150 + save.decks.length * 52 + 12, '+ New Deck', {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '18px',
+        color: '#9be6a8',
+        backgroundColor: '#241d3a',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, newBtn, () => {
+      const id = generateDeckId(save);
+      saveDeck(save, { id, name: `Deck ${save.decks.length + 1}`, cards: [] });
+      reloadWith(id);
+    });
+    overlay.add(newBtn);
+
+    const closeBtn = this.add
+      .text(640, 664, 'Close', {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '20px',
+        color: '#c9bde0',
+        backgroundColor: '#2c2344',
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, closeBtn, () => overlay.destroy());
+    inflateHitArea(closeBtn, 90, 60);
+    overlay.add(closeBtn);
+  }
+
+  /** F15: rename a deck via a DOM <input> (Enter or blur commits, Esc cancels). */
+  private promptRename(deckId: string): void {
+    const save = Services.save.data;
+    const deck = save.decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = deck.name;
+    input.maxLength = 24;
+    input.setAttribute(
+      'style',
+      'width:300px;box-sizing:border-box;padding:8px 12px;font:16px Inter, Arial, sans-serif;color:#e8def7;background:#241d3a;border:1px solid #7a6da8;border-radius:6px;outline:none;text-align:center;',
+    );
+    let done = false;
+    const commit = (cancel = false): void => {
+      if (done) return;
+      done = true;
+      const name = input.value.trim();
+      if (!cancel && name) renameDeck(save, deckId, name);
+      Services.save.flush();
+      this.scene.restart();
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') commit();
+      else if (e.key === 'Escape') commit(true);
+    });
+    input.addEventListener('blur', () => commit());
+    this.add.dom(640, 360, input).setDepth(120);
+    input.focus();
+    input.select();
+  }
+
   /** Compact deck-stats block (mana curve + type/color counts) below the list. */
   private renderDeckStats(x0: number): void {
     const s = computeDeckStats(this.deck, CARD_DB);
@@ -365,12 +502,27 @@ export class DeckBuilderScene extends Phaser.Scene {
     const width = 1280; // design-space width (see create())
     const x0 = width - 380;
 
-    const title = this.add.text(x0, 24, `Deck — ${this.deck.length}/${RULES.deckSize}`, {
+    const active = Services.save.data.decks.find((d) => d.id === Services.save.data.activeDeckId);
+    const title = this.add.text(x0, 24, `${active?.name ?? 'Custom Deck'} — ${this.deck.length}/${RULES.deckSize}`, {
       fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '22px',
+      fontSize: '20px',
       color: this.deck.length === RULES.deckSize ? '#9be6a8' : '#ffd88a',
     });
     this.rightPane.push(title);
+    // F15: deck picker (switch / new / copy / rename / delete).
+    const decksBtn = this.add
+      .text(x0 + 372, 22, '☰ Decks', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#c9bde0',
+        backgroundColor: '#2c2344',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, decksBtn, () => this.showDeckPicker());
+    inflateHitArea(decksBtn, 90, 44);
+    this.rightPane.push(decksBtn);
 
     // basics steppers. The ± pair was an audited adjacent-target mis-tap
     // (centers 40px apart) — respaced to ≥90px centers with hit boxes that
