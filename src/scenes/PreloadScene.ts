@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Art, ArtResolver } from '../art/ArtResolver';
 import manifest from '../data/art-manifest.json';
 import { CARD_DB } from '../data/catalog';
+import { PREMIUM_HEROES } from '../data/heroes';
 import { bakeCardFrames } from '../ui/CardFrameFactory';
 import { bakeFxTextures } from '../ui/fx/HoloEffects';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
@@ -62,6 +63,13 @@ export class PreloadScene extends Phaser.Scene {
     for (const key of SCENE_KEYS) {
       if (key === 'scene-preload') continue;
       this.load.image(sceneTextureKey(key), `assets/art/scenes/${key}.png`);
+    }
+
+    // Premium hero portraits (bespoke PNGs). A missing file logs a load error
+    // and is skipped — resolveHeroPortrait checks textures.exists and falls back
+    // to the card-based hero/face, so the duel never breaks.
+    for (const h of PREMIUM_HEROES) {
+      this.load.image(h.textureKey, `assets/art/heroes/${h.textureKey}.png`);
     }
   }
 

@@ -3,6 +3,7 @@ import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
+import { PREMIUM_HEROES } from '../data/heroes';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue } from '../engine/types';
@@ -484,8 +485,13 @@ export class ShopScene extends Phaser.Scene {
         color: theme ? '#ffd88a' : '#e8def7',
       })
       .setOrigin(0, 0.5);
+    const hero = PREMIUM_HEROES.find((h) => h.unlockDeckId === deck.id);
+    const blurbText =
+      (DECK_BLURB[deck.id] ?? '') +
+      (owned ? '  ·  Owned' : '') +
+      (hero ? '  ·  ✦ exclusive hero' : '');
     const blurb = this.add
-      .text(220, y + 13, DECK_BLURB[deck.id] ?? '', {
+      .text(220, y + 13, blurbText, {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '13px',
         color: '#8f83a8',
@@ -494,7 +500,7 @@ export class ShopScene extends Phaser.Scene {
     group.add([plate, name, blurb]);
 
     const preview = this.add
-      .text(760, y, 'Preview', {
+      .text(720, y, 'Preview', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '15px',
         fontStyle: '600',
@@ -508,21 +514,67 @@ export class ShopScene extends Phaser.Scene {
     inflateHitArea(preview, 90, 52);
     group.add(preview);
 
-    const buy = this.add
-      .text(950, y, owned ? 'Owned ✓' : `Buy — 🪙 ${price}`, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '17px',
-        color: owned ? '#8ad0a0' : '#ffd88a',
-        backgroundColor: owned ? '#1b2a1b' : '#2c2344',
-        padding: { x: 14, y: 7 },
-      })
-      .setOrigin(0.5);
     if (!owned) {
-      buy.setInteractive({ useHandCursor: true });
+      const buy = this.add
+        .text(920, y, `Buy — 🪙 ${price}`, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '17px',
+          color: '#ffd88a',
+          backgroundColor: '#2c2344',
+          padding: { x: 14, y: 7 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
       bindTapButton(this, buy, () => this.onBuyDeck(sku));
       inflateHitArea(buy, 90, 52);
+      group.add(buy);
+    } else if (hero) {
+      // Owned + unlocks a premium hero → a "set as your commander" toggle (the
+      // ONLY way to equip this exclusive portrait).
+      group.add(this.buildHeroToggle(920, y, hero.id));
+    } else {
+      group.add(
+        this.add
+          .text(920, y, 'Owned ✓', {
+            fontFamily: 'Cinzel, Georgia, serif',
+            fontSize: '17px',
+            color: '#8ad0a0',
+            backgroundColor: '#1b2a1b',
+            padding: { x: 14, y: 7 },
+          })
+          .setOrigin(0.5),
+      );
     }
-    group.add(buy);
+  }
+
+  /** Set/clear this premium hero as the in-duel commander portrait. */
+  private buildHeroToggle(x: number, y: number, heroId: string): Phaser.GameObjects.Text {
+    const isHero = (): boolean => Services.save.data.heroPortraitId === heroId;
+    const label = (): string => (isHero() ? '★ Your Hero' : '☆ Set as Hero');
+    const btn = this.add
+      .text(x, y, label(), {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '16px',
+        color: isHero() ? '#1a1426' : '#ffd88a',
+        backgroundColor: isHero() ? '#ffd88a' : '#2c2344',
+        padding: { x: 14, y: 7 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, btn, () => {
+      const save = Services.save.data;
+      save.heroPortraitId = isHero() ? null : heroId;
+      Services.save.flush();
+      Sfx.play('click');
+      btn.setText(label()).setStyle(
+        isHero()
+          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
+          : { color: '#ffd88a', backgroundColor: '#2c2344' },
+      );
+      inflateHitArea(btn, 90, 52);
+    });
+    inflateHitArea(btn, 90, 52);
+    return btn;
   }
 
   private onBuyDeck(sku: DeckSku): void {
