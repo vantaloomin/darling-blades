@@ -1,52 +1,59 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
-import type { CardDef } from '../engine/types';
+import type { CardDef, Rarity } from '../engine/types';
 import { isType } from '../engine/types';
+import type { CardVariant } from '../meta/variants';
+import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 
 /**
- * Compact battlefield tile for the duel board: framed art + name strip + P/T
- * plate + state overlays. Deliberately NOT a CardView — battlefield cards don't
- * need (unreadably tiny) rules text; a click/hover away, the inspect overlay
- * and zoom preview show the full card. Center origin, rotation-friendly for
- * taps, same Zone-child input pattern as CardView (never setInteractive a
- * scaled Container — playbook §11).
+ * Compact battlefield tile for the duel board: a large portrait art window that
+ * fills the tile, with the name + P/T + state badges OVERLAID on it (minion
+ * style). Deliberately NOT a CardView — battlefield cards don't need
+ * (unreadably tiny) rules text; a click/hover away, the inspect overlay and
+ * zoom preview show the full card. Center origin, rotation-friendly for taps,
+ * same Zone-child input pattern as CardView (never setInteractive a scaled
+ * Container — playbook §11).
  *
- * Vertical stack (center origin, y in [-73, +73]), NO overlap:
- *   framed ART window at top → NAME strip below it → P/T stats row below name.
+ * The art window is portrait-tall (fills the tile inside a thin frame margin)
+ * so a 4:5 source shows ~89% of the character rather than a cropped landscape
+ * band, the tile border is the card's RARITY colour, and the player's own
+ * special-variant cards carry their holo finish over the art (setVariant,
+ * fxPolicy-gated). P/T lives in a bottom-right badge, the name in a legibility
+ * scrim along the bottom.
  */
 
 export const TILE_W = 132;
 export const TILE_H = 146;
 
-// Framed art window: a visible frame margin on all four sides so the
-// illustration sits INSIDE the tile border rather than spilling over it.
-// The vertical budget below the 6px top margin is art(92)+gap(2)+name(22)+
-// gap(2)+plate(21) = 139, which with FRAME_M leaves the plate 1px inside the
-// bottom bound — art was trimmed 96→92 so nothing overflows ±73.
-const FRAME_M = 6; // frame margin left/right/top around the art window
-const ART_W = TILE_W - FRAME_M * 2; // 120
-const ART_H = 92;
-const ART_TOP = -TILE_H / 2 + FRAME_M; // -67
-const ART_CY = ART_TOP + ART_H / 2; // -21 — art window center; art spans [-67, +25]
+const FRAME_M = 4; // frame margin around the art window
+const ART_W = TILE_W - FRAME_M * 2; // 124
+const ART_H = TILE_H - FRAME_M * 2; // 138 — near-square window; a 4:5 source shows ~89% of its height
+const ART_CY = 0; // the window is the whole tile, so it is centred
 
-// Name strip directly below the art.
+/** Art bounds in container-local space — fed to applyHolo for the finish overlay. */
+const ART_RECT = { x: -ART_W / 2, y: -ART_H / 2, w: ART_W, h: ART_H };
+
+// Name legibility scrim + text along the bottom of the art.
+const NAME_CY = 50;
 const NAME_H = 22;
-const NAME_CY = ART_CY + ART_H / 2 + 2 + NAME_H / 2; // +38 — name spans [+27, +49]
+// P/T badge, bottom-right corner, overlaid on the art.
+const PT_W = 40;
+const PT_H = 20;
+const PT_CX = TILE_W / 2 - FRAME_M - PT_W / 2; // +42
+const PT_CY = TILE_H / 2 - FRAME_M - PT_H / 2; // +59
 
-// P/T stats row directly below the name, fully clear of it and fully inside
-// the tile: 21px plate centered at +61.5 → spans [+51, +72], within ±73.
-const PT_H = 21;
-const PT_CY = NAME_CY + NAME_H / 2 + 2 + PT_H / 2; // +61.5
-
-/** Border accent per color identity (mirrors the CardFrameFactory palette family). */
-const EDGE_COLORS: Record<string, number> = {
-  W: 0xbfae7a,
-  U: 0x4f7db3,
-  B: 0x7c6899,
-  R: 0xb3624a,
-  G: 0x5d9367,
-  gold: 0xc9a227,
-  C: 0x8a8f98,
+/**
+ * Tile border per RARITY tier (echoes the CardView RARITY_RING / gem palette):
+ * grey c, silver r, gold sr, violet ssr, crimson ur. Colour identity still
+ * reads from the art's own frame; targeting/combat states override this via the
+ * highlight rect below.
+ */
+const RARITY_BORDER: Record<Rarity, number> = {
+  c: 0x8a8f98,
+  r: 0xcdd7e8,
+  sr: 0xf1c96a,
+  ssr: 0xc98bff,
+  ur: 0xff7a6b,
 };
 
 export type BoardHighlight =
@@ -142,6 +149,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private ptText: Phaser.GameObjects.Text;
   private auraBadge: Phaser.GameObjects.Text;
   private sickIcon: Phaser.GameObjects.Image;
+  private holo: HoloHandle | null = null;
+  private holoFinish: CardVariant['holo'] | null = null;
   private sick = false;
   private zone: Phaser.GameObjects.Zone | null = null;
   private tappedState = false;
@@ -150,18 +159,14 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     super(scene, x, y);
     this.card = card;
 
-    const edge =
-      card.colors.length >= 2
-        ? EDGE_COLORS.gold
-        : EDGE_COLORS[card.colors[0] ?? 'C'];
-
-    // Base tile: dark plate with the color-identity edge border.
+    // Base tile: dark plate with the RARITY-tier border.
     const bg = scene.add
       .rectangle(0, 0, TILE_W, TILE_H, 0x0d0b16, 1)
-      .setStrokeStyle(2, edge, 0.95);
+      .setStrokeStyle(2, RARITY_BORDER[card.rarity], 0.95);
 
-    // Art: cover-crop the 4:5 source into the framed window, biased slightly
+    // Art: cover-crop the 4:5 source into the tall window, biased slightly
     // upward so faces (composition-locked near vertical center) stay in frame.
+    // The window is near-square, so the crop keeps ~89% of the source height.
     const artRef = Art.resolver!.getArt(card.id);
     this.art = artRef.frameName
       ? scene.add.image(0, ART_CY, artRef.textureKey, artRef.frameName)
@@ -171,7 +176,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     const scale = Math.max(ART_W / srcW, ART_H / srcH);
     const cropW = ART_W / scale;
     const cropH = ART_H / scale;
-    this.art.setCrop((srcW - cropW) / 2, (srcH - cropH) * 0.38, cropW, cropH);
+    this.art.setCrop((srcW - cropW) / 2, (srcH - cropH) * 0.3, cropW, cropH);
     this.art.setScale(scale);
 
     // Thin inner border drawn ON TOP of the art, so the frame reads even where
@@ -180,9 +185,11 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .rectangle(0, ART_CY, ART_W, ART_H, 0x000000, 0)
       .setStrokeStyle(2, 0x1a1526, 0.95);
 
-    const nameBg = scene.add.rectangle(0, NAME_CY, TILE_W - 4, NAME_H, 0x161226, 0.94);
+    // Name legibility scrim along the bottom, then the name (kept clear of the
+    // bottom-right P/T badge by capping its width and biasing it left).
+    const nameScrim = scene.add.rectangle(0, NAME_CY, ART_W, NAME_H, 0x0d0b16, 0.62);
     const nameText = scene.add
-      .text(0, NAME_CY, card.name, {
+      .text(-16, NAME_CY, card.name, {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '12px',
         fontStyle: '600',
@@ -190,11 +197,11 @@ export class BoardCardView extends Phaser.GameObjects.Container {
         resolution: 2,
       })
       .setOrigin(0.5);
-    nameText.setScale(Math.min(1, (TILE_W - 8) / Math.max(1, nameText.width)));
+    nameText.setScale(Math.min(1, (ART_W - 46) / Math.max(1, nameText.width)));
 
-    this.ptPlate = scene.add.image(0, PT_CY, 'pt-plate').setDisplaySize(52, PT_H);
+    this.ptPlate = scene.add.image(PT_CX, PT_CY, 'pt-plate').setDisplaySize(PT_W, PT_H);
     this.ptText = scene.add
-      .text(0, PT_CY - 1, '', {
+      .text(PT_CX, PT_CY - 1, '', {
         fontFamily: 'Cinzel, Georgia, serif',
         fontSize: '13px',
         fontStyle: 'bold',
@@ -223,7 +230,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     // the aura badge (top-left) so they never collide. Hidden until set.
     ensureSickTexture(scene);
     this.sickIcon = scene.add
-      .image(TILE_W / 2 - 14, ART_TOP + 14, SICK_TEX)
+      .image(TILE_W / 2 - 14, -TILE_H / 2 + 14, SICK_TEX)
       .setDisplaySize(22, 22)
       .setVisible(false);
 
@@ -236,7 +243,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       bg,
       this.art,
       artBorder,
-      nameBg,
+      nameScrim,
       nameText,
       this.ptPlate,
       this.ptText,
@@ -259,6 +266,24 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   setAuraCount(n: number): this {
     this.auraBadge.setVisible(n > 0);
     if (n > 0) this.auraBadge.setText(`✦${n}`);
+    return this;
+  }
+
+  /**
+   * Render the played card's holo finish over the art (the player's OWN
+   * special-variant permanents — the board doesn't know cosmetics, so DuelScene
+   * passes the best owned variant for HUMAN tiles and null otherwise). A no-op
+   * for plain finishes; idempotent per finish so the every-sync call is cheap;
+   * fxPolicy-gated inside applyHolo (lite tiers degrade). Reuses the CardView
+   * holo machinery over this tile's art rect.
+   */
+  setVariant(variant: CardVariant | null): this {
+    const finish = variant && variant.holo !== 'none' ? variant.holo : null;
+    if (finish === this.holoFinish) return this;
+    this.holoFinish = finish;
+    this.holo?.destroy();
+    this.holo = null;
+    if (finish) this.holo = applyHolo(this.scene, this, this.art, finish, ART_RECT);
     return this;
   }
 
@@ -337,6 +362,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   }
 
   destroy(fromScene?: boolean): void {
+    this.holo?.destroy();
+    this.holo = null;
     this.zone = null; // Container.destroy destroys the child zone itself
     super.destroy(fromScene);
   }

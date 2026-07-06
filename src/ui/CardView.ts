@@ -59,6 +59,7 @@ export class CardView extends Phaser.GameObjects.Container {
   private flavorRule: Phaser.GameObjects.Rectangle;
   private ptPlate: Phaser.GameObjects.Image;
   private ptText: Phaser.GameObjects.Text;
+  private costPlate: Phaser.GameObjects.Image;
   private gem: Phaser.GameObjects.Image;
   private crown: Phaser.GameObjects.Image;
   private back: Phaser.GameObjects.Image;
@@ -142,6 +143,11 @@ export class CardView extends Phaser.GameObjects.Container {
         resolution: 2,
       })
       .setOrigin(0.5);
+    // Mana cost sits BOTTOM-LEFT, mirroring the P/T plate at bottom-right — a
+    // deliberate departure from MTG's top-right cost. Reuses the neutral
+    // pt-plate texture; width is fitted to the pip row in setCard, hidden for
+    // costless cards (lands).
+    this.costPlate = scene.add.image(-96, 182, 'pt-plate').setDisplaySize(50, 31).setVisible(false);
 
     this.gem = scene.add.image(118, 45, 'gem-c').setDisplaySize(16, 16);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
@@ -159,6 +165,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.flavorTextObj,
       this.ptPlate,
       this.ptText,
+      this.costPlate,
       this.gem,
       this.crown,
       this.back,
@@ -189,6 +196,7 @@ export class CardView extends Phaser.GameObjects.Container {
     this.ring.setVisible(false);
     this.ptPlate.setVisible(false);
     this.ptText.setVisible(false);
+    this.costPlate.setVisible(false);
     this.crown.setVisible(false);
     // Flavor is opt-in per card; hidden by default and shown below only when
     // the card actually has flavor text (and is face-up).
@@ -212,12 +220,18 @@ export class CardView extends Phaser.GameObjects.Container {
     this.art.setCrop(0, (srcH - cropH) / 2, srcW, cropH);
     this.art.setScale(scale);
 
-    // Texts. Name auto-fits its 215px band but never below 0.7× — past that it
-    // becomes unreadable, and the card set has no name long enough to overrun
-    // the pip area at that floor. Measure width AFTER setText (Windows
-    // font-fallback trap — glyph metrics aren't known before the glyph run).
+    // Texts. With the cost moved to the bottom-left, the name owns the FULL top
+    // band — auto-fit to 244px (was 215, when it had to dodge the top-right
+    // pips), floor 0.7×. Measure width AFTER setText (Windows font-fallback
+    // trap — glyph metrics aren't known before the glyph run).
     this.nameText.setText(card.name);
-    this.nameText.setScale(Math.max(0.7, Math.min(1, 215 / Math.max(1, this.nameText.width))));
+    const nameW = Math.max(1, this.nameText.width);
+    // Prefer a 244px fit with a 0.7 readability floor, but never render wider
+    // than the card contains (the name starts at x=-126; keep its right edge
+    // ≤ +144). For an extreme name the containment clamp wins over the floor so
+    // it can never spill past the card border.
+    const nameFit = Math.max(0.7, Math.min(1, 244 / nameW));
+    this.nameText.setScale(Math.min(nameFit, 270 / nameW));
     this.typeText.setText(typeLine(card));
     const rules = rulesText(card, { reminders: Services.save.data.settings.keywordReminders });
     this.rulesTextObj.setText(rules);
@@ -231,7 +245,11 @@ export class CardView extends Phaser.GameObjects.Container {
     // the bottom. Both must fit inside the box — a wordy card would otherwise
     // spill over the P/T plate / off the card, so we shrink-to-fit accounting
     // for the flavor block's own measured height.
-    const BOX_BOTTOM = 194;
+    // Reserve a bottom badge strip for costed cards: the cost plate (bottom-
+    // left) and the P/T plate (bottom-right) both sit below y≈166, so rules /
+    // flavor text stops above them. Costless cards (lands) keep the full box.
+    const pipSpecs = pipsFor(card.cost ?? { generic: 0, pips: {} });
+    const BOX_BOTTOM = pipSpecs.length > 0 ? 166 : 194;
     const BOX_H = BOX_BOTTOM - textTop;
     const DIVIDER_GAP = 8; // space between rules block and the hairline
     const AFTER_DIVIDER = 6; // hairline to flavor text
@@ -315,28 +333,35 @@ export class CardView extends Phaser.GameObjects.Container {
       this.ptText.setVisible(true).setText(`${card.power}/${card.toughness}`);
     }
 
-    // Cost pips
-    const pipSpecs = pipsFor(card.cost ?? { generic: 0, pips: {} });
-    let px = 126;
-    for (let i = pipSpecs.length - 1; i >= 0; i--) {
-      const spec = pipSpecs[i];
-      const img = this.scene.add.image(px, -182, spec.texture).setDisplaySize(21, 21);
-      this.add(img);
-      this.pips.push(img);
-      if (spec.number !== undefined) {
-        const t = this.scene.add
-          .text(px, -183, String(spec.number), {
-            fontFamily: 'Cinzel, Georgia, serif',
-            fontSize: '13px',
-            fontStyle: 'bold',
-            color: '#2b2f36',
-            resolution: 2,
-          })
-          .setOrigin(0.5);
-        this.add(t);
-        this.pips.push(t);
+    // Cost pips — BOTTOM-LEFT, mirroring the P/T plate at bottom-right. Read
+    // left-to-right (generic first, then colored pips), centred on x=-96 (the
+    // mirror of the P/T plate centre +96), on the neutral cost plate.
+    if (pipSpecs.length > 0) {
+      const PIP = 21;
+      const STEP = 23;
+      const rowW = PIP + (pipSpecs.length - 1) * STEP;
+      const cx = -96;
+      this.costPlate.setVisible(true).setDisplaySize(Math.max(46, rowW + 18), 31);
+      let px = cx - rowW / 2 + PIP / 2;
+      for (const spec of pipSpecs) {
+        const img = this.scene.add.image(px, 182, spec.texture).setDisplaySize(PIP, PIP);
+        this.add(img);
+        this.pips.push(img);
+        if (spec.number !== undefined) {
+          const t = this.scene.add
+            .text(px, 181, String(spec.number), {
+              fontFamily: 'Cinzel, Georgia, serif',
+              fontSize: '13px',
+              fontStyle: 'bold',
+              color: '#2b2f36',
+              resolution: 2,
+            })
+            .setOrigin(0.5);
+          this.add(t);
+          this.pips.push(t);
+        }
+        px += STEP;
       }
-      px -= 23;
     }
 
     // Rarity + variant treatments. The gem is always the tier indicator; the

@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
 import type { CardType, Color, Rarity } from '../../engine/types';
 import {
-  nextSortMode,
   SORT_LABEL,
   type CollectionFilterState,
+  type SortMode,
 } from '../../meta/collectionFilter';
 import { TIER_LABEL } from '../../meta/variants';
 import { bindTapButton, inflateHitArea } from '../../platform/gestures';
+import { Dropdown, type DropdownOption } from '../Dropdown';
 
 /**
  * Tier text colours for chips and binder badges — the light stops of
@@ -21,202 +22,144 @@ export const TIER_TEXT_COLOR: Record<Rarity, string> = {
   ur: '#ff9a8a', // crimson (gem-ur)
 };
 
-/**
- * Horizontal chip pitch is the full 90px minimum; chip hit HEIGHT is the row
- * pitch (50px) so the two stacked rows never overlap each other — and the
- * caller places the rows so row B's hit rects end above the top card pockets
- * (CollectionScene documents that budget).
- */
-const CHIP_PITCH = 90;
-const CHIP_HIT_H = 50;
-
-const CHIP_BG = '#241d3a';
-const CHIP_BG_ACTIVE = '#5a4390';
-const CHIP_FG = '#c9bde0';
-const CHIP_FG_ACTIVE = '#ffffff';
-
-interface Chip {
-  text: Phaser.GameObjects.Text;
-  isActive: () => boolean;
-  idleColor: string;
-  minW: number;
-}
+const PILL_BG = '#241d3a';
+const PILL_BG_ACTIVE = '#5a4390';
+const PILL_FG = '#c9bde0';
+const PILL_FG_ACTIVE = '#ffffff';
 
 /**
- * The Collection binder's control bar: two chip rows (row A: color facet +
- * Owned toggle + sort cycler; row B: type facet + rarity facet) mutating a
- * shared CollectionFilterState. Facets toggle off when their active chip is
- * tapped again. Every restyle goes through refresh(), which re-inflates every
- * chip hit area (Phaser's Text.updateText resets hit bounds on ANY
- * setText/setColor — playbook §11).
+ * The Collection binder's control bar. Modern dropdowns (one per facet — set /
+ * colour / type / rarity / sort) plus an Owned toggle pill, all mutating a
+ * shared CollectionFilterState and calling `onChange`. Replaces the old
+ * two-row chip grid. Opening one dropdown closes the others.
  */
 export class FilterBar {
-  /** All interactive chips — the scene hands these to ModalGuard. */
+  /** Interactive controls handed to the scene's ModalGuard. */
   readonly targets: Phaser.GameObjects.GameObject[] = [];
-  private chips: Chip[] = [];
-  private sortChip: Chip;
+  private readonly dropdowns: Dropdown<string>[] = [];
+  private readonly ownedPill: Phaser.GameObjects.Text;
   private readonly state: CollectionFilterState;
 
   constructor(
     scene: Phaser.Scene,
     state: CollectionFilterState,
-    opts: { rowAY: number; rowBY: number; onChange: () => void },
+    opts: { y: number; onChange: () => void },
   ) {
     this.state = state;
-    const change = (): void => {
-      this.refresh();
-      opts.onChange();
-    };
+    const y = opts.y;
+    const change = opts.onChange;
 
-    const mk = (
+    const mk = <T extends string>(
       x: number,
-      y: number,
       label: string,
-      isActive: () => boolean,
-      onTap: () => void,
-      minW = CHIP_PITCH,
-      idleColor = CHIP_FG,
-    ): Chip => {
-      const text = scene.add
-        .text(x, y, label, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '13px',
-          fontStyle: '600',
-          color: idleColor,
-          backgroundColor: CHIP_BG,
-          padding: { x: 10, y: 5 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(scene, text, onTap);
-      const chip: Chip = { text, isActive, idleColor, minW };
-      this.chips.push(chip);
-      this.targets.push(text);
-      return chip;
+      options: DropdownOption<T>[],
+      get: () => T,
+      set: (v: T) => void,
+      minW = 96,
+    ): void => {
+      const dd = new Dropdown<T>(scene, x, y, {
+        label,
+        options,
+        value: get(),
+        minW,
+        onSelect: (v) => {
+          set(v);
+          change();
+        },
+        onOpen: () => this.closeAllExcept(dd as unknown as Dropdown<string>),
+      });
+      this.dropdowns.push(dd as unknown as Dropdown<string>);
+      this.targets.push(dd.button);
     };
 
-    // Row A — color facet ('All' explicit; a color chip re-tapped toggles off).
-    const colorDefs: { key: Color | 'all'; label: string }[] = [
-      { key: 'all', label: 'All' },
-      { key: 'W', label: 'W' },
-      { key: 'U', label: 'U' },
-      { key: 'B', label: 'B' },
-      { key: 'R', label: 'R' },
-      { key: 'G', label: 'G' },
+    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok'>[] = [
+      { value: 'all', label: 'All Sets' },
+      { value: 'base', label: 'Base' },
+      { value: 'ragnarok', label: 'Ragnarök' },
     ];
-    colorDefs.forEach((def, i) =>
-      mk(
-        260 + i * CHIP_PITCH,
-        opts.rowAY,
-        def.label,
-        () => state.color === def.key,
-        () => {
-          state.color = state.color === def.key ? 'all' : def.key;
-          change();
-        },
-      ),
-    );
+    mk(55, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
 
-    // Row A left gutter — set facet (Base / Ragnarök; re-tap the active one → 'all').
-    const setDefs: { key: 'base' | 'ragnarok'; label: string }[] = [
-      { key: 'base', label: 'Base' },
-      { key: 'ragnarok', label: 'Ragnarök' },
+    const colorOpts: DropdownOption<Color | 'all'>[] = [
+      { value: 'all', label: 'All' },
+      { value: 'W', label: 'White' },
+      { value: 'U', label: 'Blue' },
+      { value: 'B', label: 'Black' },
+      { value: 'R', label: 'Red' },
+      { value: 'G', label: 'Green' },
     ];
-    setDefs.forEach((sdef, i) =>
-      mk(
-        // CHIP_PITCH spacing (matches the color row) keeps a ≥20px margin to the
-        // color facet's leftmost 'All' chip at x260, whatever the label width.
-        60 + i * CHIP_PITCH,
-        opts.rowAY,
-        sdef.label,
-        () => this.state.set === sdef.key,
-        () => {
-          this.state.set = this.state.set === sdef.key ? 'all' : sdef.key;
-          change();
-        },
-      ),
-    );
+    mk(235, 'Color', colorOpts, () => state.color, (v) => (state.color = v), 92);
 
-    mk(
-      830,
-      opts.rowAY,
-      'Owned',
-      () => state.ownedOnly,
-      () => {
-        state.ownedOnly = !state.ownedOnly;
-        change();
-      },
-    );
-
-    // Sort cycler — label rewritten on every refresh (hence re-inflate there).
-    this.sortChip = mk(
-      1010,
-      opts.rowAY,
-      '',
-      () => false,
-      () => {
-        state.sort = nextSortMode(state.sort);
-        change();
-      },
-      170,
-      '#e8e2f4',
-    );
-
-    // Row B — type facet, then rarity facet (20px group gap at x≈690).
-    const typeDefs: { key: CardType; label: string }[] = [
-      { key: 'creature', label: 'Creature' },
-      { key: 'instant', label: 'Instant' },
-      { key: 'sorcery', label: 'Sorcery' },
-      { key: 'enchantment', label: 'Enchant' },
-      { key: 'artifact', label: 'Artifact' },
-      { key: 'land', label: 'Land' },
+    const typeOpts: DropdownOption<CardType | 'all'>[] = [
+      { value: 'all', label: 'All' },
+      { value: 'creature', label: 'Creature' },
+      { value: 'instant', label: 'Instant' },
+      { value: 'sorcery', label: 'Sorcery' },
+      { value: 'enchantment', label: 'Enchantment' },
+      { value: 'artifact', label: 'Artifact' },
+      { value: 'land', label: 'Land' },
     ];
-    typeDefs.forEach((def, i) =>
-      mk(
-        180 + i * CHIP_PITCH,
-        opts.rowBY,
-        def.label,
-        () => state.type === def.key,
-        () => {
-          state.type = state.type === def.key ? 'all' : def.key;
-          change();
-        },
-      ),
-    );
+    mk(410, 'Type', typeOpts, () => state.type, (v) => (state.type = v), 96);
 
-    const rarities: Rarity[] = ['c', 'r', 'sr', 'ssr', 'ur'];
-    rarities.forEach((r, i) =>
-      mk(
-        745 + i * CHIP_PITCH,
-        opts.rowBY,
-        TIER_LABEL[r],
-        () => state.rarity === r,
-        () => {
-          state.rarity = state.rarity === r ? 'all' : r;
-          change();
-        },
-        CHIP_PITCH,
-        TIER_TEXT_COLOR[r],
-      ),
-    );
+    const rarityOpts: DropdownOption<Rarity | 'all'>[] = [
+      { value: 'all', label: 'All' },
+      { value: 'c', label: TIER_LABEL.c },
+      { value: 'r', label: TIER_LABEL.r },
+      { value: 'sr', label: TIER_LABEL.sr },
+      { value: 'ssr', label: TIER_LABEL.ssr },
+      { value: 'ur', label: TIER_LABEL.ur },
+    ];
+    mk(600, 'Rarity', rarityOpts, () => state.rarity, (v) => (state.rarity = v), 90);
 
-    this.refresh();
+    const sortOpts: DropdownOption<SortMode>[] = [
+      { value: 'rarity', label: SORT_LABEL.rarity },
+      { value: 'mana', label: SORT_LABEL.mana },
+      { value: 'name', label: SORT_LABEL.name },
+    ];
+    mk(775, 'Sort', sortOpts, () => state.sort, (v) => (state.sort = v), 92);
+
+    // Owned toggle — a pill, since it is boolean, not a select.
+    this.ownedPill = scene.add
+      .text(955, y, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        fontStyle: '600',
+        color: PILL_FG,
+        backgroundColor: PILL_BG,
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(scene, this.ownedPill, () => {
+      state.ownedOnly = !state.ownedOnly;
+      this.refreshOwned();
+      change();
+    });
+    this.targets.push(this.ownedPill);
+    this.refreshOwned();
+
+    // On scene shutdown, drop each dropdown's outside-click pointer listener so
+    // it can't fire on a torn-down scene. Uses teardown() (listener + panel ref
+    // only) rather than close(), because restyling the being-destroyed button
+    // Texts during shutdown throws in Text.updateText. `once` auto-removes.
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      for (const dd of this.dropdowns) dd.teardown();
+    });
   }
 
-  /** Restyle every chip from the current state and RE-INFLATE its hit area. */
-  refresh(): void {
-    for (const chip of this.chips) {
-      if (chip === this.sortChip) {
-        chip.text.setText(`Sort: ${SORT_LABEL[this.state.sort]}`);
-        chip.text.setColor(chip.idleColor);
-        chip.text.setBackgroundColor('#2d2547');
-      } else {
-        const active = chip.isActive();
-        chip.text.setColor(active ? CHIP_FG_ACTIVE : chip.idleColor);
-        chip.text.setBackgroundColor(active ? CHIP_BG_ACTIVE : CHIP_BG);
-      }
-      // Text.updateText just reset the hit bounds to the glyph rect — restore.
-      inflateHitArea(chip.text, chip.minW, CHIP_HIT_H);
-    }
+  private closeAllExcept(keep: Dropdown<string>): void {
+    for (const dd of this.dropdowns) if (dd !== keep) dd.close();
+  }
+
+  /** Close any open dropdown — the scene calls this before opening an overlay. */
+  closeAll(): void {
+    for (const dd of this.dropdowns) dd.close();
+  }
+
+  private refreshOwned(): void {
+    const on = this.state.ownedOnly;
+    this.ownedPill.setText(on ? '● Owned only' : '○ Owned only');
+    this.ownedPill.setColor(on ? PILL_FG_ACTIVE : PILL_FG);
+    this.ownedPill.setBackgroundColor(on ? PILL_BG_ACTIVE : PILL_BG);
+    inflateHitArea(this.ownedPill, 96, 40);
   }
 }

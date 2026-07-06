@@ -7,6 +7,7 @@ import { CARD_DB } from '../data/catalog';
 import { avatarById, avatarForRung, type Avatar } from '../data/opponents';
 import { STARTER_DECKS } from '../data/starterDecks';
 import { applyGauntletResult, applyMatchResult, todayString, type Difficulty } from '../meta/Economy';
+import { ownedVariantEntries } from '../meta/collectionFilter';
 import { rungSeed } from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
@@ -1335,6 +1336,14 @@ export class DuelScene extends Phaser.Scene {
           view.setDepth(5);
           view.setScale(tileScale);
           view.setTapped(perm.tapped, false);
+          // Show YOUR own special-variant cards with their holo finish in play
+          // (the board doesn't track per-copy cosmetics, so use your best owned
+          // variant of the card; opponents stay plain). Applied once at create;
+          // a no-op for plain finishes, fxPolicy-gated inside setVariant.
+          if (perm.controller === HUMAN) {
+            const best = ownedVariantEntries(Services.save.data, perm.cardId)[0];
+            view.setVariant(best ? best.variant : null);
+          }
           view.enableInput();
           const iid = perm.iid;
           view.on('pointerup', (p: Phaser.Input.Pointer) => {
