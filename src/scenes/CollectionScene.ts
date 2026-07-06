@@ -175,8 +175,7 @@ export class CollectionScene extends Phaser.Scene {
     this.drawBinderChrome();
 
     this.filterBar = new FilterBar(this, this.state, {
-      rowAY: 84,
-      rowBY: 136,
+      y: 104,
       onChange: () => {
         this.page = 0;
         this.renderPage();
@@ -400,6 +399,7 @@ export class CollectionScene extends Phaser.Scene {
    */
   private showInspect(d: CardDef): void {
     this.closeInspect();
+    this.filterBar.closeAll(); // a floating dropdown must not sit over the overlay
     const save = Services.save.data;
     const owned = ownedCount(save, d.id);
     const c = this.add.container(0, 0).setDepth(100);
