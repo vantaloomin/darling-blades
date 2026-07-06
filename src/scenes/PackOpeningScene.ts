@@ -72,8 +72,9 @@ export class PackOpeningScene extends Phaser.Scene {
     super('PackOpening');
   }
 
-  create(data: PackResult & { sku?: 'base' | 'ragnarok' }): void {
-    this.result = data;
+  create(
+    data: (PackResult & { sku?: 'base' | 'ragnarok' }) | { batch: PackResult[]; sku?: 'base' | 'ragnarok' },
+  ): void {
     this.sku = data.sku ?? 'base';
     this.revealed = 0;
     this.specials = [];
@@ -109,6 +110,14 @@ export class PackOpeningScene extends Phaser.Scene {
       },
     });
 
+    // F10: a multi-pack buy skips the choreographed single-pack reveal and shows
+    // a summary of the whole batch instead.
+    if ('batch' in data) {
+      this.showBatchSummary(data.batch);
+      return;
+    }
+    this.result = data;
+
     // Beat 1: the pack floats, waiting for the tear.
     const pack = this.add
       .image(width / 2, height / 2 - 20, this.sku === 'ragnarok' ? 'packart-ragnarok' : 'packart')
@@ -136,6 +145,68 @@ export class PackOpeningScene extends Phaser.Scene {
       prompt.destroy();
       this.tear(pack);
     });
+  }
+
+  /** F10 batch reveal: an at-a-glance summary of a multi-pack open. */
+  private showBatchSummary(batch: PackResult[]): void {
+    const width = 1280;
+    const all = batch.flatMap((p) => p.cards);
+    const specials = all.filter((c) => c.tier !== 'c' && c.tier !== 'r');
+    const newCards = all.filter((c) => c.isNew).length;
+    const dupeGold = all.reduce((sum, c) => sum + c.dupeGold, 0);
+
+    this.add
+      .text(width / 2, 70, `Opened ${batch.length} packs`, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '34px',
+        color: '#f0e6ff',
+      })
+      .setOrigin(0.5);
+    this.add
+      .text(
+        width / 2,
+        116,
+        `${all.length} cards · ${newCards} new · ${specials.length} rare+` +
+          (dupeGold > 0 ? ` · +🪙 ${dupeGold} from duplicates` : ''),
+        { fontFamily: 'Inter, Arial, sans-serif', fontSize: '16px', color: '#cbc2e0' },
+      )
+      .setOrigin(0.5);
+
+    // Best pulls: the specials, best-first, up to two rows of eight.
+    const notable = [...specials].sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier]).slice(0, 16);
+    if (notable.length === 0) {
+      this.add
+        .text(width / 2, 360, 'No rare pulls this time — all commons and uncommons.', {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '15px',
+          color: '#8f83a8',
+        })
+        .setOrigin(0.5);
+    } else {
+      const cols = Math.min(8, notable.length);
+      const dx = 150;
+      notable.forEach((c, i) => {
+        const row = Math.floor(i / cols);
+        const col = i - row * cols;
+        const rowLen = Math.min(cols, notable.length - row * cols);
+        const x = width / 2 - ((rowLen - 1) * dx) / 2 + col * dx;
+        const y = 300 + row * 210;
+        new CardView(this, x, y).setScale(0.42).setCard(def(CARD_DB, c.cardId), { fx: 'none' });
+      });
+    }
+
+    const back = this.add
+      .text(width / 2, 662, 'Back to Shop', {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '22px',
+        color: '#ffd88a',
+        backgroundColor: '#2c2344',
+        padding: { x: 18, y: 9 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, back, () => this.scene.start('Shop'));
+    inflateHitArea(back, 90, 60);
   }
 
   // Beat 2: the tear.

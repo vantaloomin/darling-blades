@@ -6,7 +6,7 @@ import { CARD_DB } from '../data/catalog';
 import { THEME_DECKS } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { buyThemeDeck, spendGold } from '../meta/Economy';
-import { openPack } from '../meta/PackOpener';
+import { openPack, openPacks } from '../meta/PackOpener';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { fxPolicy } from '../ui/fx/FXSupport';
@@ -153,12 +153,19 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
 
 export class ShopScene extends Phaser.Scene {
   private goldText!: Phaser.GameObjects.Text;
+  /** F10 bulk-buy: quantity + the SKU buy buttons / quantity chips it drives. */
+  private qty = 1;
+  private skuButtons: { btn: Phaser.GameObjects.Text; price: number }[] = [];
+  private qtyChips = new Map<number, Phaser.GameObjects.Text>();
 
   constructor() {
     super('Shop');
   }
 
   create(): void {
+    this.qty = 1;
+    this.skuButtons = [];
+    this.qtyChips = new Map();
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
@@ -205,15 +212,17 @@ export class ShopScene extends Phaser.Scene {
 
     // Two booster SKUs side by side: the base set and the Ragnarök expansion.
     this.buildPackSku(width / 2 - 210, 'Base Set', 'packart', ECONOMY.packPrice, () =>
-      this.buyPack(),
+      this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
     );
     this.buildPackSku(
       width / 2 + 210,
       'Ragnarök Expansion',
       'packart-ragnarok',
       ECONOMY.ragnarokPackPrice,
-      () => this.buyRagnarokPack(),
+      () => this.buyPacks(ECONOMY.ragnarokPackPrice, 'ragnarok', 'ragnarok'),
     );
+    this.buildQtySelector();
+    this.refreshQtyLabels();
 
     this.buildThemeRow();
     this.buildOddsPanel();
@@ -282,6 +291,7 @@ export class ShopScene extends Phaser.Scene {
     bindTapButton(this, buyBtn, onBuy);
     bindTapButton(this, pack, onBuy);
     inflateHitArea(buyBtn, 90, 60);
+    this.skuButtons.push({ btn: buyBtn, price });
   }
 
   /**
@@ -345,30 +355,74 @@ export class ShopScene extends Phaser.Scene {
     }
   }
 
-  private buyPack(): void {
+  /** Buy + open the selected quantity of one SKU (clamped to what you can afford). */
+  private buyPacks(unitPrice: number, set: 'ragnarok' | undefined, sku: 'base' | 'ragnarok'): void {
     const save = Services.save.data;
-    if (!spendGold(save, ECONOMY.packPrice)) {
+    const n = Math.min(this.qty, Math.floor(save.gold / unitPrice));
+    if (n < 1) {
       this.insufficientFunds();
       return;
     }
+    spendGold(save, unitPrice * n);
     Sfx.play('coin');
     const rng = createRngState(Date.now() & 0x7fffffff);
-    const result = openPack(save, CARD_DB, rng);
-    Services.save.flush();
-    this.scene.start('PackOpening', result);
+    if (n === 1) {
+      const result = openPack(save, CARD_DB, rng, set);
+      Services.save.flush();
+      this.scene.start('PackOpening', sku === 'ragnarok' ? { ...result, sku } : result);
+    } else {
+      const packs = openPacks(save, CARD_DB, rng, n, set);
+      Services.save.flush();
+      this.scene.start('PackOpening', { batch: packs, sku });
+    }
   }
 
-  private buyRagnarokPack(): void {
-    const save = Services.save.data;
-    if (!spendGold(save, ECONOMY.ragnarokPackPrice)) {
-      this.insufficientFunds();
-      return;
+  /** F10 bulk-buy quantity selector (×1 / ×5 / ×10) driving both SKU buttons. */
+  private buildQtySelector(): void {
+    this.add
+      .text(640, 100, 'Buy quantity', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '13px', color: '#8f83a8' })
+      .setOrigin(0.5);
+    let x = 560;
+    for (const n of [1, 5, 10]) {
+      const chip = this.add
+        .text(x, 126, `×${n}`, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '16px',
+          fontStyle: '600',
+          color: '#c9bde0',
+          backgroundColor: '#241d3a',
+          padding: { x: 12, y: 5 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, chip, () => {
+        this.qty = n;
+        this.refreshQtyLabels();
+        this.refreshQtyChips();
+      });
+      inflateHitArea(chip, 70, 44);
+      this.qtyChips.set(n, chip);
+      x += 80;
     }
-    Sfx.play('coin');
-    const rng = createRngState(Date.now() & 0x7fffffff);
-    const result = openPack(save, CARD_DB, rng, 'ragnarok');
-    Services.save.flush();
-    this.scene.start('PackOpening', { ...result, sku: 'ragnarok' });
+    this.refreshQtyChips();
+  }
+
+  private refreshQtyChips(): void {
+    for (const [n, chip] of this.qtyChips) {
+      chip.setStyle(
+        n === this.qty
+          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
+          : { color: '#c9bde0', backgroundColor: '#241d3a' },
+      );
+      inflateHitArea(chip, 70, 44);
+    }
+  }
+
+  private refreshQtyLabels(): void {
+    for (const { btn, price } of this.skuButtons) {
+      btn.setText(this.qty > 1 ? `Buy ×${this.qty} — 🪙 ${price * this.qty}` : `Buy — 🪙 ${price}`);
+      inflateHitArea(btn, 90, 60);
+    }
   }
 
   private onBuyThemeDeck(): void {
