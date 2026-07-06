@@ -7,6 +7,12 @@ dist/
 # ── Vite ──────────────────────────────────────────────────────────────────
 *.local
 
+# ── Local-only dev modules (personal cheats / scratch tools; never committed) ─
+# Loaded in dev by the import.meta.glob('./dev/*.local.ts') hook in src/main.ts.
+# NOTE: the `*.local` rule above does NOT cover these (it only matches names
+# ending in `.local`), so this explicit `*.local.ts` rule is required.
+*.local.ts
+
 # ── Generated art manifest (rebuilt by `npm run gen-art-manifest`) ────────
 src/data/art-manifest.json
 
