@@ -1,6 +1,6 @@
 import type { AbilityDef, CardDef, EffectOp, Keyword } from '../engine/types';
 
-const KEYWORD_NAMES: Record<Keyword, string> = {
+export const KEYWORD_NAMES: Record<Keyword, string> = {
   flying: 'Flying',
   reach: 'Reach',
   firstStrike: 'First strike',
@@ -12,6 +12,21 @@ const KEYWORD_NAMES: Record<Keyword, string> = {
   deathtouch: 'Deathtouch',
   lifelink: 'Lifelink',
   hexproof: 'Hexproof',
+};
+
+/** One-line, player-facing reminder for each evergreen keyword (F9 glossary). */
+export const KEYWORD_REMINDER: Record<Keyword, string> = {
+  flying: 'can only be blocked by creatures with flying or reach',
+  reach: 'can block creatures with flying',
+  firstStrike: 'deals combat damage before creatures without first strike',
+  doubleStrike: 'deals both first-strike and regular combat damage',
+  haste: 'can attack and tap the turn it arrives',
+  trample: 'excess combat damage is dealt to the player',
+  vigilance: 'attacking does not cause it to tap',
+  defender: 'cannot attack',
+  deathtouch: 'any amount of damage it deals to a creature is lethal',
+  lifelink: 'damage it deals also gains you that much life',
+  hexproof: 'cannot be targeted by spells or abilities your opponents control',
 };
 
 function opText(op: EffectOp): string {
@@ -111,10 +126,21 @@ function abilityText(ab: AbilityDef): string {
   }
 }
 
-/** Generated oracle text: keywords line + one line per ability. */
-export function rulesText(d: CardDef): string {
+/**
+ * Generated oracle text: keywords line + one line per ability. With
+ * `opts.reminders` (the settings.keywordReminders toggle), each keyword expands
+ * to its own "Name — reminder" line so new players learn what it does; the card
+ * face's shrink-to-fit degrades the denser text gracefully.
+ */
+export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   const lines: string[] = [];
-  if (d.keywords?.length) lines.push(d.keywords.map((k) => KEYWORD_NAMES[k]).join(', '));
+  if (d.keywords?.length) {
+    if (opts?.reminders) {
+      for (const k of d.keywords) lines.push(`${KEYWORD_NAMES[k]} — ${KEYWORD_REMINDER[k]}`);
+    } else {
+      lines.push(d.keywords.map((k) => KEYWORD_NAMES[k]).join(', '));
+    }
+  }
   if (d.manaAbility?.length && !d.types.includes('land')) {
     lines.push(`Tap: add ${d.manaAbility.join(' or ')}.`);
   }
