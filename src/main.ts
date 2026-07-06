@@ -120,10 +120,15 @@ declare global {
 }
 window.__game = game;
 
-// Dev-only: eagerly run any local, git-ignored dev modules
-// (src/dev/*.local.ts — personal cheats / scratch tools). No-op when none
-// exist. import.meta.env.DEV is false in the production Pages build, so this
-// whole block (and the glob) is dead-code-eliminated — nothing local ships.
+// Dev-only: load any local, git-ignored dev modules (src/dev/*.local.ts —
+// personal cheats / scratch tools). NON-eager glob on purpose: eager glob
+// hoists static imports that bundle regardless of this guard, leaking the
+// module into prod. Non-eager yields dynamic-import thunks that live inside
+// this `if (import.meta.env.DEV)` branch — false in the Pages build, so the
+// whole block (and the thunks) is tree-shaken out even when a *.local.ts
+// exists at build time. On a clean checkout the glob matches nothing → no-op.
 if (import.meta.env.DEV) {
-  import.meta.glob('./dev/*.local.ts', { eager: true });
+  for (const loadDevModule of Object.values(import.meta.glob('./dev/*.local.ts'))) {
+    void loadDevModule();
+  }
 }
