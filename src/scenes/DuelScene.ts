@@ -9,7 +9,7 @@ import { STARTER_DECKS } from '../data/starterDecks';
 import { applyGauntletResult, applyMatchResult, todayString, type Difficulty } from '../meta/Economy';
 import { rungSeed } from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
-import { forcedAction, type Action } from '../engine/actions';
+import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
 import { eligibleAttackers, blockOptions } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
@@ -105,6 +105,10 @@ const LAYOUT = {
 } as const;
 
 const BOARD_CENTER_X = 640;
+/** Cast-targeting arrow: source anchor (hand-rest, bottom-center), snap radius, color. */
+const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
+const TARGET_SNAP_R = 60;
+const TARGET_ARROW_COLOR = 0xffd166;
 /** Width available to a creature row (rows are centered on BOARD_CENTER_X, inside the zone plates). */
 const ROW_USABLE = 1000;
 /**
@@ -179,6 +183,8 @@ export class DuelScene extends Phaser.Scene {
   private inspectMove: ((p: Phaser.Input.Pointer) => void) | null = null;
   private zoom!: CardZoomPreview;
   private concedeBtn!: Phaser.GameObjects.Text;
+  /** Two-tap concede guard (settings.confirmDestructive); armed by the first tap. */
+  private concedeArmed = false;
   private discardPicks = new Set<number>();
   private aiTimer: Phaser.Time.TimerEvent | null = null;
   private autoSkipTimer: Phaser.Time.TimerEvent | null = null;
@@ -301,6 +307,7 @@ export class DuelScene extends Phaser.Scene {
     this.ai = buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality);
 
     this.buildHud();
+    this.bindHotkeys();
     // Right-edge history slide-out + attack-FX renderer. Both are fresh per
     // create(); the old history auto-destroys on the scene SHUTDOWN it hooks,
     // and the old combatFx's objects/timers died with the previous scene. Built
@@ -580,7 +587,16 @@ export class DuelScene extends Phaser.Scene {
     bindTapButton(this, this.concedeBtn, (p) => {
       // Never concede off a right-click — it's the inspect/cancel gesture.
       if (p.rightButtonReleased()) return;
-      if (!this.ended && this.isHumanTurnDecision()) this.act({ type: 'concede' });
+      if (this.ended || !this.isHumanTurnDecision()) return;
+      // Destructive (a gauntlet loss ends the whole run): two-tap arm → confirm,
+      // unless the player opted out via settings.confirmDestructive.
+      if (Services.save.data.settings.confirmDestructive && !this.concedeArmed) {
+        this.concedeArmed = true;
+        this.concedeBtn.setText('Tap to confirm').setColor('#f08a8a');
+        inflateHitArea(this.concedeBtn, 90, 90); // relabeled — regrow the custom hit area
+        return;
+      }
+      this.act({ type: 'concede' });
     });
     inflateHitArea(this.concedeBtn, 90, 90);
 
@@ -1637,6 +1653,22 @@ export class DuelScene extends Phaser.Scene {
         }
       }
     }
+    // Cast-targeting arrow (desktop hover): from the hand-rest anchor to the
+    // pointer, snapping to the closest legal target so burn-face vs burn-creature
+    // intent is unmistakable. Touch resolves targets by direct tap — no hover.
+    if (this.pendingCasts && !this.touch) {
+      const p = this.input.activePointer;
+      const tip = this.snapTargetTip(p.worldX, p.worldY);
+      const { x: sx, y: sy } = TARGET_ARROW_SRC;
+      this.arrows.lineStyle(4, TARGET_ARROW_COLOR, 0.95);
+      this.arrows.lineBetween(sx, sy, tip.x, tip.y);
+      // Arrowhead — two short strokes back from the tip along the shaft angle.
+      const ang = Math.atan2(tip.y - sy, tip.x - sx);
+      const HEAD = 16;
+      const SPREAD = 0.5;
+      this.arrows.lineBetween(tip.x, tip.y, tip.x - HEAD * Math.cos(ang - SPREAD), tip.y - HEAD * Math.sin(ang - SPREAD));
+      this.arrows.lineBetween(tip.x, tip.y, tip.x - HEAD * Math.cos(ang + SPREAD), tip.y - HEAD * Math.sin(ang + SPREAD));
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -1676,18 +1708,87 @@ export class DuelScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Desktop input bindings: Space/Enter drive the smart button (pass /
+   * to-combat / confirm-attackers / confirm-blocks), Esc cancels a pending
+   * targeted cast or closes the inspect overlay, and a pointer-move redraws the
+   * cast-targeting arrow while a targeted spell is pending. Registered once per
+   * create() and torn down on SHUTDOWN so a gauntlet rematch never stacks
+   * duplicates (playbook §11: listeners outlive the scene otherwise).
+   */
+  private bindHotkeys(): void {
+    const kb = this.input.keyboard;
+    kb?.on('keydown-SPACE', this.onConfirmKey, this);
+    kb?.on('keydown-ENTER', this.onConfirmKey, this);
+    kb?.on('keydown-ESC', this.onCancelKey, this);
+    this.input.on('pointermove', this.onTargetPointerMove, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      kb?.off('keydown-SPACE', this.onConfirmKey, this);
+      kb?.off('keydown-ENTER', this.onConfirmKey, this);
+      kb?.off('keydown-ESC', this.onCancelKey, this);
+      this.input.off('pointermove', this.onTargetPointerMove, this);
+    });
+  }
+
+  /** Redraw the targeting arrow as the mouse moves (desktop only — no touch hover). */
+  private onTargetPointerMove(): void {
+    if (this.pendingCasts && !this.touch) this.drawArrows();
+  }
+
+  /**
+   * Snap a pointer position to the closest legal target of the pending cast
+   * (within TARGET_SNAP_R), reusing hitTargetPos so it handles creatures,
+   * players (face), and untargeted-detonation spots alike. Falls back to the
+   * raw pointer when nothing legal is near, so the arrow always tracks the mouse.
+   */
+  private snapTargetTip(px: number, py: number): { x: number; y: number } {
+    let best: { x: number; y: number } | null = null;
+    let bestDist = TARGET_SNAP_R;
+    for (const c of this.pendingCasts ?? []) {
+      for (const t of c.targets ?? []) {
+        const pos = this.hitTargetPos(t);
+        const dist = Phaser.Math.Distance.Between(px, py, pos.x, pos.y);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = pos;
+        }
+      }
+    }
+    return best ?? { x: px, y: py };
+  }
+
+  private onConfirmKey(e: KeyboardEvent): void {
+    e.preventDefault(); // Space would otherwise scroll the page in the browser
+    if (this.ended || this.inspect) return; // inspect is modal — don't pass under it
+    this.onButton(); // self-guards: auto-skip input lock + not-your-decision
+  }
+
+  private onCancelKey(e: KeyboardEvent): void {
+    e.preventDefault();
+    if (this.inspect) {
+      this.closeInspect();
+      return;
+    }
+    if (this.pendingCasts) {
+      this.pendingCasts = null;
+      this.sync(); // mirrors the right-click cancel path
+    }
+  }
+
   private onHandClick(handIndex: number): void {
-    const a = this.duel.awaiting;
-    if (!('player' in a) || a.player !== HUMAN) return;
-    const inMain = a.kind === 'main';
-    const inWindow = a.kind === 'respond' || a.kind === 'endStepWindow';
-    if (!inMain && !inWindow) return;
+    // Dimmed-card feedback: a card that can't be played explains itself on the
+    // skip-toast instead of being a silent no-op. reasonUncastable === null iff
+    // the card is genuinely playable now, so the branches below only decide HOW.
+    const reason = reasonUncastable(this.duel.state, CARD_DB, HUMAN, handIndex);
+    if (reason) {
+      this.showSkipNotice(reason);
+      return;
+    }
 
     const cardId = this.duel.state.players[HUMAN].hand[handIndex];
     const d = def(CARD_DB, cardId);
     if (isType(d, 'land')) {
-      if (inMain && !this.duel.state.players[HUMAN].landPlayedThisTurn)
-        this.act({ type: 'playLand', handIndex });
+      this.act({ type: 'playLand', handIndex });
       return;
     }
 
@@ -1699,7 +1800,12 @@ export class DuelScene extends Phaser.Scene {
           this.duel.state.players[HUMAN].hand[l.handIndex] === cardId,
       )
       .map((c) => ({ ...c, handIndex }));
-    if (casts.length === 0) return;
+    if (casts.length === 0) {
+      // reasonUncastable only checks the first target spec; a rare multi-target
+      // spell with a partially-satisfiable target set can still land here.
+      this.showSkipNotice("You can't cast this right now.");
+      return;
+    }
 
     const targeted = casts[0].targets !== undefined && casts[0].targets.length > 0;
     if (!targeted) {

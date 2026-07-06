@@ -59,8 +59,9 @@ Pages deploy (the live site simply keeps its last good build).
 ## Pull requests
 
 - For non-trivial or risky work, open a PR into `main` so CI vets it *before* it
-  can deploy: `gh pr create --fill` (install once with
-  `winget install --id GitHub.CLI`, then `gh auth login`), or via the GitHub web UI.
+  can deploy: `gh pr create --fill` — the GitHub CLI is the standard tool here
+  (install once with `winget install --id GitHub.cli`, then `gh auth login`). The
+  GitHub web UI is the fallback.
 - `.github/workflows/deploy.yml` runs the `verify` job on every PR to `main`; the
   `deploy` job is `main`-push-only. **Merge only when `verify` is green.**
 - Solo-project bar: green CI plus a real self-review of the diff. PRs earn their

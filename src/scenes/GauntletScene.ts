@@ -370,7 +370,8 @@ export class GauntletScene extends Phaser.Scene {
 
   private onAbandon(): void {
     if (!this.abandonBtn) return;
-    if (!this.abandonArmed) {
+    // Shared destructive-confirm policy: two-tap unless the player opted out.
+    if (Services.save.data.settings.confirmDestructive && !this.abandonArmed) {
       this.abandonArmed = true;
       this.abandonBtn.setText('Click again to confirm').setColor('#f08a8a');
       // The confirm label is wider than the armed one — regrow the (custom,
