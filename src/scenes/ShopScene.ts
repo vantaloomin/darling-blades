@@ -436,6 +436,7 @@ export class ShopScene extends Phaser.Scene {
       this.insufficientFunds();
       return;
     }
+    this.closeOverlay(); // close any open deck preview before leaving the scene
     spendGold(save, unitPrice * n);
     Sfx.play('coin');
     const rng = createRngState(Date.now() & 0x7fffffff);

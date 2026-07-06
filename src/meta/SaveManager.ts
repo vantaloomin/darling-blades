@@ -161,8 +161,9 @@ export class SaveManager {
    * (null = auto face) and, for a run already in progress, stamps it with a
    * seed derived from its `startedAt` so it stays reproducible; v6 → v7 adds
    * `settings.confirmDestructive` (default on — the shared two-tap guard on
-   * concede / gauntlet-abandon / shard). An unknown/garbage version starts
-   * fresh rather than crash.
+   * concede / gauntlet-abandon / shard); v7 → v8 adds `settings.keywordReminders`
+   * (default on); v8 → v9 adds `heroPortraitId` (null = no premium hero). An
+   * unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
