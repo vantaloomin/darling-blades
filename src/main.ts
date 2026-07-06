@@ -83,6 +83,10 @@ const game = new Phaser.Game({
   // Phaser's sound manager stops it creating a second, pre-gesture
   // AudioContext that Chrome flags with an autoplay warning at boot.
   audio: { noAudio: true },
+  // DOM support (Feature 8 card search): overlays an HTML container above the
+  // canvas so scenes can mount a real <input>. src/ui/SearchInput.ts is the only
+  // consumer; nothing else uses this.add.dom.
+  dom: { createContainer: true },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
