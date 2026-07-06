@@ -62,11 +62,31 @@ export interface CollectionFilterState {
   rarity: Rarity | 'all';
   set: 'base' | 'ragnarok' | 'all';
   ownedOnly: boolean;
+  /** Free-text search over name / type / subtype / keyword (F8); '' = no filter. */
+  search: string;
   sort: SortMode;
 }
 
 export function defaultFilterState(): CollectionFilterState {
-  return { color: 'all', type: 'all', rarity: 'all', set: 'all', ownedOnly: false, sort: 'rarity' };
+  return { color: 'all', type: 'all', rarity: 'all', set: 'all', ownedOnly: false, search: '', sort: 'rarity' };
+}
+
+/**
+ * Case-insensitive substring match over a card's structured text: name, card
+ * types, subtypes, and keyword enum values (e.g. "fly" hits flying, "beast" hits
+ * a Beastkin). CardDef has no stored oracle text — rules text is generated in
+ * the Phaser UI layer — so full rules-text search is out of scope for this pure
+ * layer; structured-field search covers the common lookups.
+ */
+export function matchesSearch(d: CardDef, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (q === '') return true;
+  return (
+    d.name.toLowerCase().includes(q) ||
+    d.types.some((t) => t.includes(q)) ||
+    d.subtypes.some((s) => s.toLowerCase().includes(q)) ||
+    (d.keywords?.some((k) => k.toLowerCase().includes(q)) ?? false)
+  );
 }
 
 /** The collectible pool: no tokens, no basic lands (matches the pack pools). */
@@ -87,7 +107,8 @@ export function applyFilters(
         (state.type === 'all' || d.types.includes(state.type)) &&
         (state.rarity === 'all' || d.rarity === state.rarity) &&
         (state.set === 'all' || (d.set ?? 'base') === state.set) &&
-        (!state.ownedOnly || ownedCount(save, d.id) > 0),
+        (!state.ownedOnly || ownedCount(save, d.id) > 0) &&
+        matchesSearch(d, state.search),
     )
     .sort(SORTERS[state.sort]);
 }
