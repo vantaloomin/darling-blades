@@ -110,6 +110,27 @@ export class MainMenuScene extends Phaser.Scene {
     inflateHitArea(gear, 90, 90);
     this.menuItems.push(gear);
 
+    // Profile entry: top-left corner, balancing the top-right gold+gear cluster.
+    // Like the gear, it lives in the corner because the 8-row menu list is full;
+    // joins menuItems so the starter-picker ModalGuard disables it too.
+    const profile = this.add
+      .text(30, 30, '👤 Profile', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '20px',
+        color: '#c9bde0',
+      })
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+    profile.on('pointerover', (p: Phaser.Input.Pointer) => {
+      if (!p.wasTouch) profile.setColor('#ffd700');
+    });
+    profile.on('pointerout', (p: Phaser.Input.Pointer) => {
+      if (!p.wasTouch) profile.setColor('#c9bde0');
+    });
+    bindTapButton(this, profile, () => this.scene.start('Profile'));
+    inflateHitArea(profile, 90, 90);
+    this.menuItems.push(profile);
+
     MENU_ITEMS.forEach((entry, i) => {
       const item = this.add
         .text(width / 2, 300 + i * 56, entry.label, {
