@@ -1,6 +1,33 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/binder/FilterBar.ts · last-verified: 2026-07-05 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/binder/FilterBar.ts, src/ui/SearchInput.ts, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/engine/combat/damage.ts · last-verified: 2026-07-06 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
 
 # Quality-of-life plan — closing the daily-friction gap
+
+> **STATUS — SHIPPED ✅ (2026-07-06).** All 15 features below are live on `main`
+> (auto-deployed to GitHub Pages), landed across three waves of PRs off the
+> Ragnarök-integrated `main`. This doc is retained as the design record; what
+> shipped, by feature:
+>
+> - **Wave 1 (F1–F4, F6, F7):** F1 concede-confirm (adds
+>   `settings.confirmDestructive`, **v6 → v7**) · F2 `reasonUncastable` feedback ·
+>   F3 cast-targeting arrow · F4 always-visible gold · F6 pass/confirm/cancel
+>   hotkeys · F7 desktop deck-list paging (the latent clip bug). _(F5 pack-odds
+>   display shipped separately, with the Ragnarök expansion.)_
+> - **Wave 2 (F9–F14, PR #5):** F14 Profile scene · F13 deck-stats + add-a-playset ·
+>   F11 undo-before-commit · F12 combat/lethal forecast (pure `previewCombat`) ·
+>   F9 keyword reminder text (adds `settings.keywordReminders`, **v7 → v8**) ·
+>   F10 bulk buy/open N packs.
+> - **Final wave (F8, F15, PR #6):** F8 card-text search (name/type/subtype/keyword)
+>   via the codebase's **first Phaser `this.add.dom` `<input>` overlay**
+>   (reusable `src/ui/SearchInput.ts`) · F15 multiple saved decks (`DeckStorage`
+>   `deleteDeck` / `copyDeck` / `renameDeck` / `generateDeckId`, activeDeckId
+>   invariant preserved, + a "☰ Decks" picker modal).
+>
+> The plan's projected single **v6 → v7** bump became **two** in execution (v7 for
+> F1, v8 for F9); the schema is now at **v9** after the later UX-polish shop
+> restructure. **Deferred follow-ups still open** (from the Deferred list below):
+> the in-Settings toggles for `confirmDestructive` + `keywordReminders` (the 5-row
+> panel needs a 2-column relayout), F13 per-row remove-all, and F9's separate
+> inspect-overlay glossary legend.
 
 Darling Blades is playable end-to-end, art-complete, and stable. It already
 ships a lot of quality-of-life polish — phase auto-skip + End-Turn
