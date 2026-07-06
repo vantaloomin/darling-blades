@@ -6,6 +6,10 @@ export const RULES = {
   maxCopies: 4, // basics unlimited
   startingHandSize: 7,
   maxHandSize: 7,
+  // London-mulligan cap: a player may mulligan at most this many times before
+  // they must keep (or concede). Bounds the "bottom N cards" pick to N-1 ≤ this,
+  // so it can never exceed the 7-card hand — the source of the old soft-lock.
+  maxMulligans: 3,
   maxCreatures: 8, // battlefield cap per player
   maxNoncreaturePermanents: 4, // noncreature-nonland cap per player
   maxBlockersPerAttacker: 3,

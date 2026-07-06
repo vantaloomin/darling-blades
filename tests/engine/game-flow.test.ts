@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RULES } from '../../src/config/rules';
 import { Game } from '../../src/engine/Game';
 import { runBotGame, smallGreenDeck, TEST_DB } from '../helpers';
 
@@ -40,6 +41,34 @@ describe('setup and mulligans', () => {
     expect(g.state.players[p].hand).toHaveLength(6);
     // now the other player decides
     expect(g.awaiting).toMatchObject({ kind: 'mulligan', player: p === 0 ? 1 : 0 });
+  });
+
+  it('caps mulligans at RULES.maxMulligans — keep/concede only at the cap', () => {
+    const g = newGame();
+    const p = g.state.startingPlayer;
+    for (let i = 0; i < RULES.maxMulligans; i++) g.submit(p, { type: 'mulligan' });
+    expect(g.state.players[p].mulligans).toBe(RULES.maxMulligans);
+    const kinds = g.legalActions(p).map((a) => a.type);
+    expect(kinds).toContain('keepHand');
+    expect(kinds).toContain('concede'); // the escape hatch surfaced in the UI
+    expect(kinds).not.toContain('mulligan'); // no further mulligan at the cap
+  });
+
+  it('bottom-count after the max mulligans stays within the hand (no soft-lock)', () => {
+    const g = newGame();
+    const p = g.state.startingPlayer;
+    for (let i = 0; i < RULES.maxMulligans; i++) g.submit(p, { type: 'mulligan' });
+    g.submit(p, { type: 'keepHand' });
+    const a = g.awaiting;
+    if (a.kind !== 'bottomCards') throw new Error('expected bottomCards');
+    expect(a.count).toBe(RULES.maxMulligans - 1);
+    // the pick must be satisfiable — count never exceeds the cards on hand
+    expect(a.count).toBeLessThanOrEqual(g.state.players[p].hand.length);
+    g.submit(p, {
+      type: 'bottomCards',
+      handIndices: Array.from({ length: a.count }, (_, i) => i),
+    });
+    expect(g.state.players[p].hand).toHaveLength(RULES.startingHandSize - (RULES.maxMulligans - 1));
   });
 
   it('starting player skips the turn-1 draw', () => {

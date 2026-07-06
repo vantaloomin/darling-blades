@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Services } from './meta/services';
 import { applyDesktopWindowSize } from './platform/desktopWindow';
+import { IS_DEV } from './platform/env';
 import { qualityTier } from './platform/quality';
 import {
   RENDER_SCALE_UNLOCKED,
@@ -96,7 +97,9 @@ const game = new Phaser.Game({
     PreloadScene,
     MainMenuScene,
     SettingsScene,
-    CardShowcaseScene,
+    // Card Showcase (variant QA) registers only on dev/local builds — see
+    // src/platform/env.ts. On the public build it is never reachable.
+    ...(IS_DEV ? [CardShowcaseScene] : []),
     GauntletScene,
     ProfileScene,
     DuelScene,

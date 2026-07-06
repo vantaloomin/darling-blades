@@ -158,7 +158,11 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
 
   switch (a.kind) {
     case 'mulligan':
-      out.push({ type: 'keepHand' }, { type: 'mulligan' });
+      // Keep is always legal; offer another mulligan only under the cap. At the
+      // cap the player must keep or concede (concede is pushed unconditionally
+      // below), which is what stops the unbounded bottom-count soft-lock.
+      out.push({ type: 'keepHand' });
+      if (me.mulligans < RULES.maxMulligans) out.push({ type: 'mulligan' });
       break;
 
     case 'bottomCards':

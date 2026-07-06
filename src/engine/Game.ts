@@ -163,7 +163,10 @@ export class Game {
       case 'keepHand': {
         me.keptHand = true;
         emit({ e: 'handKept', player });
-        const bottomCount = Math.max(0, me.mulligans - 1); // first mulligan is free
+        // London: bottom one card per mulligan after the free first. Clamp to
+        // the hand size so an (already capped) count can never exceed the cards
+        // on hand — a defensive floor against the old unbounded soft-lock.
+        const bottomCount = Math.min(me.hand.length, Math.max(0, me.mulligans - 1));
         if (bottomCount > 0) {
           st.awaiting = { player, kind: 'bottomCards', count: bottomCount };
         } else {
