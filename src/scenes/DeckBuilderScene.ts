@@ -11,6 +11,7 @@ import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { clampDeckPage, deckPageCount, deckPageSlice } from '../ui/deckListPaging';
+import { computeDeckStats, PIE_COLORS } from '../ui/deckStats';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 
 const GRID_COLS = 4;
@@ -18,12 +19,15 @@ const GRID_ROWS = 3;
 const GRID_SIZE = GRID_COLS * GRID_ROWS;
 const BASICS = ['land-plains', 'land-island', 'land-swamp', 'land-mountain', 'land-forest'];
 /** Touch profile: deck-list rows per page and their pitch (plan §1.4). */
-const TOUCH_DECK_ROWS = 6;
+const TOUCH_DECK_ROWS = 5;
 const TOUCH_DECK_PITCH = 44;
 /** Desktop profile: denser tap-to-remove rows, same paging model (no hard clip). */
-const DESKTOP_DECK_ROWS = 14;
+const DESKTOP_DECK_ROWS = 11;
 const DESKTOP_DECK_PITCH = 22;
 const DESKTOP_DECK_Y0 = 240;
+/** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
+const DECK_PAGER_Y = 480;
+const DECK_STATS_Y = 510;
 
 /**
  * Edit the active deck: paged owned-card pool left, deck list + basics right.
@@ -192,6 +196,25 @@ export class DeckBuilderScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
       this.cells.push(badge);
+      // Add-a-playset chip (top-left corner) — one tap fills this card to the
+      // cap. Shown only when ≥2 are addable (a single card tap already adds one).
+      const addable = Math.min(RULES.maxCopies, ownedCount(save, d.id)) - inDeck;
+      if (addable > 1) {
+        const addAll = this.add
+          .text(x - 58, y - 92, `+${addable}`, {
+            fontFamily: 'Inter, Arial, sans-serif',
+            fontSize: '13px',
+            fontStyle: '700',
+            color: '#9be6a8',
+            backgroundColor: '#1c1730',
+            padding: { x: 6, y: 2 },
+          })
+          .setOrigin(0.5)
+          .setInteractive({ useHandCursor: true });
+        bindTapButton(this, addAll, () => this.addPlayset(d.id));
+        inflateHitArea(addAll, 52, 44);
+        this.cells.push(addAll);
+      }
     });
   }
 
@@ -200,6 +223,14 @@ export class DeckBuilderScene extends Phaser.Scene {
     const inDeck = this.countIn(this.deck, id);
     if (inDeck >= Math.min(RULES.maxCopies, ownedCount(save, id))) return;
     this.deck.push(id);
+    this.renderPool();
+    this.renderDeck();
+  }
+
+  /** Add-a-playset: fill this card up to the per-card cap in one tap. */
+  private addPlayset(id: string): void {
+    const cap = Math.min(RULES.maxCopies, ownedCount(Services.save.data, id));
+    while (this.countIn(this.deck, id) < cap) this.deck.push(id);
     this.renderPool();
     this.renderDeck();
   }
@@ -219,7 +250,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private renderDeckPagers(x0: number, pages: number): void {
     const mkPager = (px: number, glyph: string, dir: number): void => {
       const b = this.add
-        .text(px, 560, glyph, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '26px', color: '#c9bde0' })
+        .text(px, DECK_PAGER_Y, glyph, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '26px', color: '#c9bde0' })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, b, () => {
@@ -232,13 +263,80 @@ export class DeckBuilderScene extends Phaser.Scene {
     mkPager(x0 + 250, '‹', -1);
     mkPager(x0 + 340, '›', 1);
     const pageLabel = this.add
-      .text(x0 + 295, 560, `${this.deckPage + 1}/${pages}`, {
+      .text(x0 + 295, DECK_PAGER_Y, `${this.deckPage + 1}/${pages}`, {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '13px',
         color: '#8f83a8',
       })
       .setOrigin(0.5);
     this.rightPane.push(pageLabel);
+  }
+
+  /** Compact deck-stats block (mana curve + type/color counts) below the list. */
+  private renderDeckStats(x0: number): void {
+    const s = computeDeckStats(this.deck, CARD_DB);
+    const push = (o: Phaser.GameObjects.GameObject): void => void this.rightPane.push(o);
+
+    push(
+      this.add
+        .text(x0, DECK_STATS_Y, 'Mana curve', {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '15px',
+          color: '#c7a8f0',
+        })
+        .setOrigin(0, 0.5),
+    );
+
+    const baseY = DECK_STATS_Y + 50; // bar baseline (bars grow upward)
+    const maxCount = Math.max(1, ...s.curve);
+    s.curve.forEach((count, mv) => {
+      const bx = x0 + 16 + mv * 22;
+      const h = count > 0 ? Math.max(3, Math.round((count / maxCount) * 30)) : 2;
+      push(this.add.rectangle(bx, baseY, 15, h, count > 0 ? 0xffd88a : 0x3a3355).setOrigin(0.5, 1));
+      if (count > 0) {
+        push(
+          this.add
+            .text(bx, baseY - h - 8, `${count}`, {
+              fontFamily: 'Inter, Arial, sans-serif',
+              fontSize: '11px',
+              color: '#e0d8f0',
+            })
+            .setOrigin(0.5),
+        );
+      }
+      push(
+        this.add
+          .text(bx, baseY + 9, mv === 7 ? '7+' : `${mv}`, {
+            fontFamily: 'Inter, Arial, sans-serif',
+            fontSize: '11px',
+            color: '#8f83a8',
+          })
+          .setOrigin(0.5),
+      );
+    });
+
+    const other = s.nonlands - s.typeCounts.creature;
+    push(
+      this.add
+        .text(x0, baseY + 34, `${s.typeCounts.creature} creatures · ${s.lands} lands · ${other} other`, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '13px',
+          color: '#c9bde0',
+        })
+        .setOrigin(0, 0.5),
+    );
+    const pips = PIE_COLORS.filter((c) => s.colorPips[c] > 0)
+      .map((c) => `${c}·${s.colorPips[c]}`)
+      .join('   ');
+    push(
+      this.add
+        .text(x0, baseY + 56, pips || 'colorless', {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '13px',
+          color: '#8f83a8',
+        })
+        .setOrigin(0, 0.5),
+    );
   }
 
   private renderDeck(): void {
@@ -346,6 +444,8 @@ export class DeckBuilderScene extends Phaser.Scene {
         });
       if (pages > 1) this.renderDeckPagers(x0, pages);
     }
+
+    this.renderDeckStats(x0);
 
     // validation + save
     const issues = validateDeck(CARD_DB, Services.save.data, this.deck);
