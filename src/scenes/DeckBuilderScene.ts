@@ -6,6 +6,7 @@ import { ALL_CARDS, CARD_DB, byId } from '../data/catalog';
 import type { CardDef } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
 import { isBasic, ownedCount } from '../meta/Collection';
+import { matchesSearch } from '../meta/collectionFilter';
 import { saveDeck, validateDeck } from '../meta/DeckStorage';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
@@ -13,6 +14,7 @@ import { makeCardThumb } from '../ui/CardThumbCache';
 import { clampDeckPage, deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, PIE_COLORS } from '../ui/deckStats';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { createSearchInput } from '../ui/SearchInput';
 
 const GRID_COLS = 4;
 const GRID_ROWS = 3;
@@ -50,6 +52,8 @@ export class DeckBuilderScene extends Phaser.Scene {
   private pageText!: Phaser.GameObjects.Text;
   private status!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text;
+  /** F8: free-text filter over the owned-card pool. */
+  private searchQuery = '';
 
   constructor() {
     super('DeckBuilder');
@@ -58,6 +62,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   create(): void {
     this.page = 0;
     this.deckPage = 0;
+    this.searchQuery = '';
     this.touch = isTouchDevice();
     this.cells = [];
     this.rightPane = [];
@@ -96,6 +101,17 @@ export class DeckBuilderScene extends Phaser.Scene {
         color: '#f0e6ff',
       })
       .setOrigin(0.5);
+
+    // Card search (F8): filter the owned-card pool via the shared matchesSearch.
+    createSearchInput(this, 620, 40, {
+      width: 240,
+      placeholder: 'Search your pool…',
+      onChange: (value) => {
+        this.searchQuery = value;
+        this.page = 0;
+        this.renderPool();
+      },
+    });
 
     // Gold badge (top-right, over the deck panel) — see your balance while you
     // weigh what to build. Static here (deckbuilding never spends gold).
@@ -149,7 +165,11 @@ export class DeckBuilderScene extends Phaser.Scene {
   private pool(): CardDef[] {
     const save = Services.save.data;
     return ALL_CARDS.filter(
-      (d) => !d.token && !d.supertypes?.includes('basic') && ownedCount(save, d.id) > 0,
+      (d) =>
+        !d.token &&
+        !d.supertypes?.includes('basic') &&
+        ownedCount(save, d.id) > 0 &&
+        matchesSearch(d, this.searchQuery),
     ).sort(
       (a, b) => manaValue(a.cost) - manaValue(b.cost) || a.name.localeCompare(b.name),
     );

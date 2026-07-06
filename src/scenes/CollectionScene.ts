@@ -31,6 +31,7 @@ import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardView } from '../ui/CardView';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { createSearchInput } from '../ui/SearchInput';
 
 // Design canvas (Scale.FIT). All layout is in 1280×720 DESIGN px — never
 // this.scale.*: at renderScale k the canvas is 1280k×720k but the camera
@@ -174,6 +175,18 @@ export class CollectionScene extends Phaser.Scene {
       rowAY: 84,
       rowBY: 136,
       onChange: () => {
+        this.page = 0;
+        this.renderPage();
+      },
+    });
+
+    // Card search (F8): the DOM <input> feeds state.search through the same
+    // reset-page + re-render path the filter chips use.
+    createSearchInput(this, 355, 30, {
+      width: 250,
+      placeholder: 'Search name / type / keyword…',
+      onChange: (value) => {
+        this.state.search = value;
         this.page = 0;
         this.renderPage();
       },
