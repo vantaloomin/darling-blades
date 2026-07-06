@@ -1,8 +1,8 @@
-<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/ui/CardView.ts · last-verified: 2026-07-05 -->
+<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/ui/CardView.ts · last-verified: 2026-07-05 -->
 
 # Darling Blades Art Bible — Spells (Instants · Sorceries · Enchantments · the Jade Seal)
 
-This file is the **binding contract** for the art of the **43 non-creature spell
+This file is the **binding contract** for the art of the **52 non-creature spell
 cards** — the 18 instants, 14 sorceries, 10 enchantments, and the single
 non-creature artifact (`ar-imperial-jade-seal`). The 152-entry creature art-bible
 (`docs/art-bible/`) covers creatures, tokens, and the Construct creatures; it does
