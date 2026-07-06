@@ -256,3 +256,38 @@ The script appends the shared preamble and negatives; do not restate them per en
 
 ### Imperial Jade Seal — `ar-imperial-jade-seal`
 - **Prompt:** The Heirloom Seal of the Realm — a carved translucent green jade imperial seal resting on an ornate pedestal at frame center, its top a coiled dragon-relief (abstract carving only, no glyphs on the face), lit by a numinous inner glow with drifting motes of imperial light, C jade palette `#a9adb5` and `#4e535c` with `#dfe3ea` highlight over deep jade green, an OBJECT hero-shot, no figure — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+---
+
+## Ragnarök expansion (9)
+
+The 1st expansion's non-creature cards — 4 spells (`rg-`) and the 5-rune Aura cycle.
+Effect-first like the rest of this file; the runes are carved standing-stones (their
+glyphs abstract, never lettered — the NO-TEXT rule is doubly load-bearing here).
+
+### Ragnarök — `rg-ragnarok`
+- **Prompt:** Ragnarök, the doom of the powers — a world-ending cataclysm at frame center: the great wolf's jaws swallowing a blackening sun while fire and glacier-ice tear a battlefield apart, tiny silhouetted warriors falling into a splitting chasm, the sky torn between ember-red and cold aurora, R fire palette `#d95436` and `#5e0f0f` with `#f7b267` ember highlight shot through with glacier blue, the cataclysm the hero of the frame with no single figure — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Read the Runes — `rg-read-the-runes`
+- **Prompt:** Read the Runes — a slowly spinning ring of glowing carved bone-and-stone rune-tiles hovering at frame center above a scrying-bowl of dark still water, threads of pale blue fate-light drawn up from the water into the tiles, cold mist curling below, U arcane-blue palette `#4a90d9` and `#16294f` with `#a8d4f7` highlight, the divination effect the hero with only an unseen seer's fingertips at the lower edge — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Berserker's Fury — `rg-berserkers-fury`
+- **Prompt:** Berserker's Fury — an explosion of red battle-rage at frame center: a warrior mid-roar wreathed in a blazing crimson aura with twin motion-blur afterimages of a doubled axe-strike streaking outward, sparks and blood-red energy erupting off her, R fire palette `#d95436` and `#5e0f0f` with `#f7b267` ember highlight, the fury-burst the hero of the frame and the figure secondary, half-consumed by the glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Call the Einherjar — `rg-call-the-einherjar`
+- **Prompt:** Call the Einherjar — the honored dead rising at frame center: spectral armored warriors reforming out of cold blue-violet grave-light that streams up from a cracked-open barrow mound, tattered ghost-banners and ghost-mail coalescing, ash and grave-motes swirling, B death palette `#5a3a70` and `#140d1c` with `#9b6fc4` violet highlight over cold grave-blue, the resurrection effect the hero with the risen faces kept in shadow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Rune of Fury — `rg-rune-of-fury`
+- **Prompt:** Rune of Fury — a single carved standing runestone at frame center blazing with molten red rune-light, an angular abstract fury-glyph glowing white-hot in its face (abstract carving only, no letters), fire-sparks and heat-shimmer pouring off it, a weapon leaning against its base catching the ember glow, R fire palette `#d95436` and `#5e0f0f` with `#f7b267` highlight, the burning rune the hero with no figure — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Rune of the Hunt — `rg-rune-of-the-hunt`
+- **Prompt:** Rune of the Hunt — a moss-grown carved standing runestone at frame center glowing deep green, an abstract antlered beast-glyph alight in its face (abstract carving only, no letters), living vines and wild growth erupting around its base and a faint stag-antler motif in the aura, G green palette `#4fa06a` and `#123a22` with `#a9dcae` highlight, the wild rune the hero with no figure — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Rune of Hunger — `rg-rune-of-hunger`
+- **Prompt:** Rune of Hunger — a black weathered carved standing runestone at frame center dripping with venom-dark violet light, an abstract fanged devouring-glyph burning cold in its face (abstract carving only, no letters), tendrils of grave-shadow and dripping poison curling off it, B death palette `#5a3a70` and `#140d1c` with `#9b6fc4` violet highlight, the hungry rune the hero with no figure — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Rune of Insight — `rg-rune-of-insight`
+- **Prompt:** Rune of Insight — a pale carved standing runestone at frame center floating just off the ground in a swirl of cold blue wind, an abstract open-eye-and-wind glyph glowing in its face (abstract carving only, no letters), feathers and streaming air-currents lifting around it, U arcane-blue palette `#4a90d9` and `#16294f` with `#a8d4f7` highlight, the levitating rune the hero with no figure — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Rune of Warding — `rg-rune-of-warding`
+- **Prompt:** Rune of Warding — a white-and-gold carved standing runestone at frame center haloed by a radiant protective ward-dome of golden light, an abstract shield-glyph shining in its face (abstract carving only, no letters), motes of holy light and a faint runic circle glowing on the ground, W holy palette `#f2e8cf` and `#c9a84c` with `#fffef2` highlight, the warding light the hero with no figure — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait

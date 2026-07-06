@@ -1,6 +1,6 @@
 /**
- * Generates real card art for the 43 non-creature SPELL cards (18 instants, 14
- * sorceries, 10 enchantments, 1 non-creature artifact) from the prompts in
+ * Generates real card art for the 52 non-creature SPELL cards (18 instants, 14
+ * sorceries, 10 enchantments, 1 artifact, + 9 Ragnarök spells/runes) from the prompts in
  * docs/spell-art.md, via the chatgpt-imagegen CLI (backed by the user's ChatGPT
  * subscription — see the `anthropic-skills:chatgpt-imagegen` skill), then
  * post-processes each image to the exact 640×800 PNG deliverable
@@ -57,7 +57,7 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 43 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * The 52 spell ids docs/spell-art.md must cover, in the authored order (instants
  * → sorceries → enchantments → the Jade Seal). Parsing cross-checks against this
  * so a dropped or renamed entry fails loudly instead of silently generating a
  * short batch. Transcribed from src/data/cards/{instants,sorceries,enchantments,
@@ -80,6 +80,10 @@ const EXPECTED_IDS = [
   'en-olympus-ascendant',
   // artifact (1)
   'ar-imperial-jade-seal',
+  // Ragnarök expansion (9): 4 spells + the 5-rune Aura cycle (src/data/cards/ragnarok.ts)
+  'rg-ragnarok', 'rg-read-the-runes', 'rg-berserkers-fury', 'rg-call-the-einherjar',
+  'rg-rune-of-fury', 'rg-rune-of-the-hunt', 'rg-rune-of-hunger', 'rg-rune-of-insight',
+  'rg-rune-of-warding',
 ] as const;
 
 /**
@@ -218,7 +222,7 @@ function parseSpec(): Entry[] {
       unexpected.length ? `unexpected: ${unexpected.join(', ')}` : '',
       dupes.length ? `duplicated: ${[...new Set(dupes)].join(', ')}` : '',
     ].filter(Boolean);
-    fail(`spell-art.md roster does not match the 43 expected spell ids — ${parts.join('; ')}`);
+    fail(`spell-art.md roster does not match the 52 expected spell ids — ${parts.join('; ')}`);
   }
   return entries;
 }
