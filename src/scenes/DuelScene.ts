@@ -10,6 +10,7 @@ import { applyGauntletResult, applyMatchResult, todayString, type Difficulty } f
 import { rungSeed } from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
+import { previewCombat } from '../engine/combat/damage';
 import { eligibleAttackers, blockOptions } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
@@ -138,6 +139,8 @@ export class DuelScene extends Phaser.Scene {
   /** One-deep pre-action snapshot for local Undo; null when undo is unavailable. */
   private undoSnapshot: Game | null = null;
   private undoBtn!: Phaser.GameObjects.Text;
+  /** Live combat-damage forecast shown while you assign blocks (F12). */
+  private combatPreviewText!: Phaser.GameObjects.Text;
   private ai!: AIPlayer;
   private difficulty: Difficulty = 'easy';
   private opponent: Avatar | null = null; // set in gauntlet mode
@@ -667,6 +670,22 @@ export class DuelScene extends Phaser.Scene {
     });
     inflateHitArea(this.undoBtn, 90, 90);
 
+    // Combat forecast (F12): a live damage/deaths preview shown center-top while
+    // you assign blocks; syncCombatPreview updates it and toggles its visibility.
+    this.combatPreviewText = this.add
+      .text(640, 100, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        fontStyle: '600',
+        color: '#cbc2e0',
+        backgroundColor: '#1a1430',
+        padding: { x: 10, y: 4 },
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(56)
+      .setVisible(false);
+
     // Feature 2 — live auto-skip toggle (mirrors settings.autoSkip; persists).
     // Lives at the opponent strip's right end in the 1a layout — the bottom
     // band now belongs to the fan/cluster, and the strip keeps the chip clear
@@ -783,6 +802,28 @@ export class DuelScene extends Phaser.Scene {
     this.undoBtn.setVisible(
       !this.ended && !this.animatingCombat && this.undoSnapshot !== null && this.isHumanTurnDecision(),
     );
+  }
+
+  /** F12: live combat-damage forecast while you assign blocks (you are defending). */
+  private syncCombatPreview(): void {
+    const st = this.duel.state;
+    const a = this.duel.awaiting;
+    if (a.kind !== 'declareBlockers' || !('player' in a) || a.player !== HUMAN || !st.combat) {
+      this.combatPreviewText.setVisible(false);
+      return;
+    }
+    const preview = previewCombat(st, CARD_DB, this.blockAssignments);
+    const dmg = -preview.lifeDelta[HUMAN];
+    const yoursDie = preview.deaths.filter(
+      (iid) => st.battlefield.find((p) => p.iid === iid)?.controller === HUMAN,
+    ).length;
+    const theirsDie = preview.deaths.length - yoursDie;
+    const parts = [dmg > 0 ? `you take ${dmg}` : 'no damage to you'];
+    if (theirsDie || yoursDie) parts.push(`${theirsDie} enemy · ${yoursDie} yours die`);
+    this.combatPreviewText
+      .setText(preview.defenderLethal ? `⚠ LETHAL — ${parts.join(' · ')}` : `⚔ Forecast: ${parts.join(' · ')}`)
+      .setColor(preview.defenderLethal ? '#ff8a8a' : '#cbc2e0')
+      .setVisible(true);
   }
 
   /**
@@ -1262,6 +1303,7 @@ export class DuelScene extends Phaser.Scene {
       .setText(st.turn === 0 ? 'MULLIGANS' : yours ? 'YOUR TURN' : 'OPP TURN')
       .setColor(yours ? '#c9a44f' : '#6f6690');
     this.syncUndoButton();
+    this.syncCombatPreview();
 
     // Battlefield tiles: every non-land permanent that isn't an attached aura
     // (attached auras show as a ✦ badge on their host — they had no board

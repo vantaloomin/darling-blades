@@ -46,6 +46,51 @@ export function resolveCombatDamage(state: GameState, db: CardDb, emit: Emit): v
   checkStateBased(state, db, emit);
 }
 
+export interface CombatPreview {
+  /** iids of creatures that leave the battlefield as a result of this combat. */
+  deaths: number[];
+  /** Net life change per player (index = PlayerId); negative = life lost. */
+  lifeDelta: [number, number];
+  /** Would the defending player be reduced to 0 or less life? */
+  defenderLethal: boolean;
+}
+
+/**
+ * Pure, read-only forecast of a combat resolution: given the current attackers
+ * (state.combat) and a hypothetical block assignment, predict which creatures
+ * die and the life swing — WITHOUT mutating state or emitting. Runs the real
+ * resolveCombatDamage on a structuredClone, so first-strike ordering,
+ * deathtouch, trample, and lethal auto-assignment stay exactly consistent with
+ * the live outcome (no re-implementation to drift). Combat triggers are only
+ * enqueued on the clone's stack, never resolved, so the preview reads the direct
+ * board/life result and needs no target choices. View-safe: no Phaser, no writes
+ * to the input state.
+ */
+export function previewCombat(
+  state: GameState,
+  db: CardDb,
+  blocks: { blocker: number; attacker: number }[],
+): CombatPreview {
+  if (!state.combat) return { deaths: [], lifeDelta: [0, 0], defenderLethal: false };
+
+  const sim = structuredClone(state);
+  sim.combat!.blocks = blocks.map((b) => ({ blocker: b.blocker, attacker: b.attacker }));
+  sim.combat!.damagePrevented = false;
+
+  const beforeLife: [number, number] = [state.players[0].life, state.players[1].life];
+  const aliveBefore = new Set(state.battlefield.map((p) => p.iid));
+
+  resolveCombatDamage(sim, db, () => {}); // no-op emit: mutate the clone, drop events
+
+  const deaths = [...aliveBefore].filter((iid) => !sim.battlefield.some((p) => p.iid === iid));
+  const defender = opponentOf(state.activePlayer);
+  return {
+    deaths,
+    lifeDelta: [sim.players[0].life - beforeLife[0], sim.players[1].life - beforeLife[1]],
+    defenderLethal: sim.players[defender].life <= 0,
+  };
+}
+
 function dealCombatDamage(
   state: GameState,
   db: CardDb,
