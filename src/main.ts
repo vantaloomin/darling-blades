@@ -15,6 +15,7 @@ import { DuelScene } from './scenes/DuelScene';
 import { GauntletScene } from './scenes/GauntletScene';
 import { PackOpeningScene } from './scenes/PackOpeningScene';
 import { PreloadScene } from './scenes/PreloadScene';
+import { ProfileScene } from './scenes/ProfileScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
@@ -93,6 +94,7 @@ const game = new Phaser.Game({
     SettingsScene,
     CardShowcaseScene,
     GauntletScene,
+    ProfileScene,
     DuelScene,
     ShopScene,
     PackOpeningScene,
@@ -117,3 +119,11 @@ declare global {
   }
 }
 window.__game = game;
+
+// Dev-only: eagerly run any local, git-ignored dev modules
+// (src/dev/*.local.ts — personal cheats / scratch tools). No-op when none
+// exist. import.meta.env.DEV is false in the production Pages build, so this
+// whole block (and the glob) is dead-code-eliminated — nothing local ships.
+if (import.meta.env.DEV) {
+  import.meta.glob('./dev/*.local.ts', { eager: true });
+}
