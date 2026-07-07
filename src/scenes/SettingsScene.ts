@@ -200,6 +200,52 @@ export class SettingsScene extends Phaser.Scene {
     });
     this.note(rowY(4) + 34, 'Skips duel phases where you have no possible action.');
 
+    // -- Reset save (destructive) -------------------------------------------
+    // ALWAYS two-tap, regardless of settings.confirmDestructive — wiping the
+    // whole account is far more severe than a concede. A 4s auto-disarm keeps
+    // a stray armed state from erasing on an unrelated later tap.
+    const resetBtn = this.add
+      .text(LABEL_X, 600, '🗑 Reset save', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '18px',
+        color: '#f0b0b0',
+        backgroundColor: '#3a1f28',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+    let resetArmed = false;
+    const disarmReset = (): void => {
+      resetArmed = false;
+      resetBtn.setText('🗑 Reset save').setStyle({ color: '#f0b0b0', backgroundColor: '#3a1f28' });
+      inflateHitArea(resetBtn, HIT_MIN, HIT_MIN);
+    };
+    bindTapButton(this, resetBtn, () => {
+      if (!resetArmed) {
+        resetArmed = true;
+        resetBtn
+          .setText('⚠ Tap again to erase everything')
+          .setStyle({ color: '#ffffff', backgroundColor: '#8a2030' });
+        inflateHitArea(resetBtn, HIT_MIN, HIT_MIN);
+        this.time.delayedCall(4000, () => {
+          if (resetArmed && resetBtn.active) disarmReset();
+        });
+        return;
+      }
+      // Wipe storage + the shared in-memory blob, then reload so every scene
+      // rebuilds from the fresh save (starter picker, zero gold).
+      Services.save.reset();
+      window.location.reload();
+    });
+    inflateHitArea(resetBtn, HIT_MIN, HIT_MIN);
+    this.add
+      .text(LABEL_X, 632, 'Erases your collection, decks, gold, and progress. Cannot be undone.', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#8f83a8',
+      })
+      .setOrigin(0, 0.5);
+
     // -- Back ----------------------------------------------------------------
     const back = this.add
       .text(640, 648, '← Back', {

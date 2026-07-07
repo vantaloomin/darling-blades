@@ -20,12 +20,15 @@ import { freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManage
 import { PLAIN_VARIANT, shardValue, TIER_RANK, variantKey, variantRank } from '../../src/meta/variants';
 import { deckOf, TEST_DB } from '../helpers';
 
-function fakeStorage(): Pick<Storage, 'getItem' | 'setItem'> & { raw: Map<string, string> } {
+function fakeStorage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> & {
+  raw: Map<string, string>;
+} {
   const raw = new Map<string, string>();
   return {
     raw,
     getItem: (k) => raw.get(k) ?? null,
     setItem: (k, v) => void raw.set(k, v),
+    removeItem: (k) => void raw.delete(k),
   };
 }
 
@@ -83,6 +86,35 @@ describe('SaveManager', () => {
     storage.raw.set('darlingblades.save.v1', blob.replace('"gold":512', '"gold":999'));
     const c = new SaveManager(storage);
     expect(c.data.gold).toBe(999);
+  });
+
+  it('reset() wipes storage and the in-memory blob back to a fresh save', () => {
+    const storage = fakeStorage();
+    const m = new SaveManager(storage);
+    m.data.gold = 4200;
+    m.data.collection['bear'] = 3;
+    m.data.decks.push({ id: 'd1', name: 'Mine', cards: ['bear'] });
+    m.data.starterChosen = 'so-crimson';
+    m.data.stats.wins = 9;
+    m.flush();
+    // A leftover legacy blob must be cleared too, or a reload would resurrect it.
+    storage.raw.set('waifutcg.save.v1', storage.raw.get('darlingblades.save.v1')!);
+
+    m.reset(1234);
+
+    // Storage: both slots gone, so a fresh SaveManager boots clean.
+    expect(storage.raw.has('darlingblades.save.v1')).toBe(false);
+    expect(storage.raw.has('waifutcg.save.v1')).toBe(false);
+    // In-memory (shared reference) is a fresh save.
+    expect(m.data.gold).toBe(0);
+    expect(m.data.collection).toEqual({});
+    expect(m.data.decks).toEqual([]);
+    expect(m.data.starterChosen).toBeNull();
+    expect(m.data.stats.wins).toBe(0);
+    expect(m.data.version).toBe(9);
+    expect(m.data.createdAt).toBe(1234);
+    // A subsequent boot from the same storage is also fresh.
+    expect(new SaveManager(storage).data.gold).toBe(0);
   });
 });
 

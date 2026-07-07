@@ -6,11 +6,12 @@ import { SaveManager } from './SaveManager';
  * their own SaveManager with a fake storage instead.
  */
 
-const memoryStorage = (): Pick<Storage, 'getItem' | 'setItem'> => {
+const memoryStorage = (): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> => {
   const m = new Map<string, string>();
   return {
     getItem: (k) => m.get(k) ?? null,
     setItem: (k, v) => void m.set(k, v),
+    removeItem: (k) => void m.delete(k),
   };
 };
 
