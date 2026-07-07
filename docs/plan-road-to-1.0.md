@@ -9,7 +9,7 @@
 > features would land at v10 → v14 (or fewer bumps if folded). The four
 > "shipping this session" candidates all shipped (hero-image, shard/sell,
 > gauntlet run-seed, sequenced combat). The **Ragnarök expansion shipped
-> 2026-07-06** (69 cards, `twinBlades` + `mill`/`reanimate`), enlarging the
+> 2026-07-06** (69 cards, `twinBlades` + `grind`/`raise`), enlarging the
 > pool to 279. The **quality-of-life pass shipped 2026-07-06** ([plan-qol.md](plan-qol.md));
 > it deliberately did **not** take Features 4 (deck share codes / replays) or 5
 > (achievements) — QOL defers both to this doc, so all five features below remain
