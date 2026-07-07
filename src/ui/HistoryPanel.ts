@@ -11,6 +11,8 @@ const PANEL_W = 300;
 const TAB_W = 30;
 const TAB_H = 120;
 const MAX_LINES = 14;
+/** Top of the log rows, below the title + hairline rule. */
+const LOG_TOP = 106;
 /** Depth: above the board (arrows 50 / cards 10–55) but below modal overlays (>=100). */
 const DEPTH = 70;
 
@@ -45,16 +47,20 @@ export class HistoryPanel {
   private readonly scene: Phaser.Scene;
   /** Whole widget; its X is tweened between OPEN_X and CLOSED_X. */
   private readonly container: Phaser.GameObjects.Container;
-  /** The wrapped log text (parented in the container, local origin top-left). */
-  private readonly logText: Phaser.GameObjects.Text;
   /** The interactive tab (exposed via `tab` so a scene's ModalGuard can deaden it). */
   private readonly tabLabel: Phaser.GameObjects.Text;
-  private readonly entries: string[] = [];
+  /** One record per logged line; a cardId makes that row tappable to inspect it. */
+  private readonly entries: { text: string; cardId?: string }[] = [];
+  /** Live per-row Text objects, rebuilt each render (per-row input needs them). */
+  private readonly rows: Phaser.GameObjects.Text[] = [];
+  /** Invoked with a row's cardId on tap — the scene shows the card. */
+  private readonly onCardTap?: (cardId: string) => void;
   private slideTween: Phaser.Tweens.Tween | null = null;
   private open = false;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, onCardTap?: (cardId: string) => void) {
     this.scene = scene;
+    this.onCardTap = onCardTap;
 
     // Panel body: a semi-transparent dark plate docked to the panel's right
     // portion (drawn in container-local space, left edge at local x=0).
@@ -90,17 +96,6 @@ export class HistoryPanel {
     rule.fillStyle(0x8a6d1f, 0.55);
     rule.fillRect(20, 92, PANEL_W - 40, 1);
 
-    this.logText = scene.add
-      .text(20, 106, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#cbc2e0',
-        lineSpacing: 6,
-        wordWrap: { width: PANEL_W - 40 },
-        resolution: 2,
-      })
-      .setOrigin(0, 0);
-
     // The tab: a vertical "History" strip pinned to the LEFT of the panel body
     // (negative local x) so it stays on-screen when the body is docked off the
     // right edge. Rotated -90° reads bottom-to-top. Made interactive directly
@@ -128,7 +123,7 @@ export class HistoryPanel {
     bindTapButton(scene, this.tabLabel, () => this.toggle());
 
     this.container = scene.add
-      .container(CLOSED_X, 0, [bg, blocker, title, rule, this.logText, tabBg, this.tabLabel])
+      .container(CLOSED_X, 0, [bg, blocker, title, rule, tabBg, this.tabLabel])
       .setDepth(DEPTH);
 
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
@@ -140,9 +135,10 @@ export class HistoryPanel {
     return this.tabLabel;
   }
 
-  /** Add a move (newest); keeps the last ~14 lines. */
-  push(entry: string): void {
-    this.entries.unshift(entry);
+  /** Add a move (newest); keeps the last ~14 lines. A cardId makes the row
+   *  tappable (routes to onCardTap so the scene can show the card). */
+  push(entry: string, cardId?: string): void {
+    this.entries.unshift({ text: entry, cardId });
     if (this.entries.length > MAX_LINES) this.entries.length = MAX_LINES;
     this.render();
   }
@@ -153,9 +149,45 @@ export class HistoryPanel {
     this.render();
   }
 
+  /**
+   * Rebuild the log as one Text per entry (needed so a card row can be its own
+   * hit target). Rows with a cardId read slightly brighter, recolor on hover,
+   * and tap through onCardTap; plain rows are inert. Rebuilt each push — a few
+   * rows per turn, not a hot path. Row hit areas are the glyph bounds (a dense
+   * secondary log, so the 90px control floor doesn't apply — that's for primary
+   * buttons; inflating here would overlap adjacent rows).
+   */
   private render(): void {
-    if (!this.logText.active) return;
-    this.logText.setText(this.entries.join('\n'));
+    if (!this.container.active) return;
+    for (const r of this.rows) r.destroy();
+    this.rows.length = 0;
+    let y = LOG_TOP;
+    for (const e of this.entries) {
+      const tappable = !!e.cardId && !!this.onCardTap;
+      const row = this.scene.add
+        .text(20, y, e.text, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '13px',
+          color: tappable ? '#d8cff0' : '#cbc2e0',
+          lineSpacing: 2,
+          wordWrap: { width: PANEL_W - 40 },
+          resolution: 2,
+        })
+        .setOrigin(0, 0);
+      if (tappable) {
+        row.setInteractive({ useHandCursor: true });
+        row.on('pointerover', (p: Phaser.Input.Pointer) => {
+          if (!p.wasTouch) row.setColor('#ffe6a0');
+        });
+        row.on('pointerout', (p: Phaser.Input.Pointer) => {
+          if (!p.wasTouch) row.setColor('#d8cff0');
+        });
+        bindTapButton(this.scene, row, () => this.onCardTap!(e.cardId!));
+      }
+      this.container.add(row);
+      this.rows.push(row);
+      y += row.height + 6;
+    }
   }
 
   private toggle(): void {
@@ -181,6 +213,6 @@ export class HistoryPanel {
     this.slideTween?.stop();
     this.slideTween = null;
     this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
-    this.container.destroy(); // destroys all children (bg, title, rule, log, tab)
+    this.container.destroy(); // destroys all children (bg, title, rule, rows, tab)
   }
 }
