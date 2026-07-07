@@ -103,8 +103,8 @@ const LAYOUT = {
   portrait: { x: 14, y: 540, w: 200, h: 180 },
   /** Your life rides the portrait's top-left corner (burn target). */
   myLife: { x: 44, y: 566 },
-  /** Right-side control cluster: ⏭ End Turn chip above the smart button. */
-  cluster: { x: 1108, endTurnY: 548, passY: 642, passR: 46 },
+  /** Right-side control cluster: auto-skip chip · ⏭ End Turn chip · smart button (top→bottom). */
+  cluster: { x: 1108, autoSkipY: 452, endTurnY: 548, passY: 642, passR: 46 },
   /** Your deck/grave piles, right column above Concede. */
   piles: { x: 1242, deckY: 552, graveY: 622 },
 } as const;
@@ -229,6 +229,8 @@ export class DuelScene extends Phaser.Scene {
   private endTurnTimer: Phaser.Time.TimerEvent | null = null;
   private endTurnBtn!: Phaser.GameObjects.Text;
   private autoToggle!: Phaser.GameObjects.Text;
+  /** transient center banner shown on each turn change (self-destroys). */
+  private turnBanner?: Phaser.GameObjects.Container;
 
   constructor() {
     super('Duel');
@@ -710,12 +712,12 @@ export class DuelScene extends Phaser.Scene {
       .setVisible(false);
 
     // Feature 2 — live auto-skip toggle (mirrors settings.autoSkip; persists).
-    // Lives at the opponent strip's right end in the 1a layout — the bottom
-    // band now belongs to the fan/cluster, and the strip keeps the chip clear
-    // of every card. Its inflated rect (1075–1165) stays right of the
-    // opponent mana pips (non-interactive, ending x≈1010).
+    // Sits at the TOP of the right-side turn cluster (auto-skip → End Turn →
+    // smart button), so all turn controls read as one group. Its 90px hit rect
+    // (centred at autoSkipY 452 → 407–497) stays disjoint from the End Turn
+    // chip's (centred 548 → 503–593).
     this.autoToggle = this.add
-      .text(1120, LAYOUT.strip.cy, '', {
+      .text(LAYOUT.cluster.x, LAYOUT.cluster.autoSkipY, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '12px',
         fontStyle: '600',
@@ -736,9 +738,7 @@ export class DuelScene extends Phaser.Scene {
       this.syncAutoToggle();
       if (s.autoSkip) this.maybeAutoSkip(); // catch up if a skippable decision is live
     });
-    // biasY: at strip cy 28 an unbiased rect pokes 17px above the canvas;
-    // bias down so the full 90px is tappable (nothing interactive below).
-    inflateHitArea(this.autoToggle, 90, 90, { biasY: 20 });
+    inflateHitArea(this.autoToggle, 90, 90);
     this.syncAutoToggle();
   }
 
@@ -775,9 +775,8 @@ export class DuelScene extends Phaser.Scene {
     this.autoToggle
       .setText(on ? '⏩ Auto-skip: On' : '⏩ Auto-skip: Off')
       .setColor(on ? '#9be6a8' : '#a89cc6');
-    // setText resizes the Text but Phaser never refreshes its hit area.
-    // Same downward bias as buildHud (strip-edge clipping).
-    inflateHitArea(this.autoToggle, 90, 90, { biasY: 20 });
+    // setText resizes the Text but Phaser never refreshes its hit area — regrow it.
+    inflateHitArea(this.autoToggle, 90, 90);
   }
 
   // ---------------------------------------------------------------------
@@ -1137,6 +1136,7 @@ export class DuelScene extends Phaser.Scene {
       }
       case 'turnBegan':
         this.log(`Turn ${e.turn} — ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
+        this.showTurnBanner(e.turn, e.player === HUMAN);
         break;
       case 'mulliganTaken':
         if (e.player === AI) this.log('Opponent takes a mulligan');
@@ -1273,6 +1273,55 @@ export class DuelScene extends Phaser.Scene {
       duration: 1100,
       ease: 'Cubic.easeOut',
       onComplete: () => t.destroy(),
+    });
+  }
+
+  /**
+   * Transient center banner announcing a turn change ("Your Turn" / "<Name>'s
+   * Turn" + the turn number). Fades in, holds, fades out and self-destroys;
+   * a new one supersedes any still on screen so they can't stack. Non-
+   * interactive, so taps pass straight through to the board below.
+   */
+  private showTurnBanner(turn: number, isYou: boolean): void {
+    if (this.turnBanner?.active) {
+      this.tweens.killTweensOf(this.turnBanner);
+      this.turnBanner.destroy();
+    }
+    const who = isYou ? 'Your Turn' : `${this.opponent?.name ?? 'Opponent'}'s Turn`;
+    const accent = isYou ? '#9be6a8' : '#f0a0c0';
+    const banner = this.add.container(BOARD_CENTER_X, 340).setDepth(85).setAlpha(0);
+    const bg = this.add.rectangle(0, 0, 340, 66, 0x140f24, 0.82).setStrokeStyle(1.5, 0x3a2f5c);
+    const sub = this.add
+      .text(0, -16, `TURN ${turn}`, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '12px',
+        fontStyle: '700',
+        color: '#a89cc6',
+      })
+      .setOrigin(0.5);
+    const title = this.add
+      .text(0, 10, who, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '26px', color: accent })
+      .setOrigin(0.5);
+    banner.add([bg, sub, title]);
+    this.turnBanner = banner;
+    this.tweens.add({
+      targets: banner,
+      alpha: 1,
+      duration: 220,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: banner,
+          alpha: 0,
+          delay: 720,
+          duration: 340,
+          ease: 'Cubic.easeIn',
+          onComplete: () => {
+            if (banner.active) banner.destroy();
+            if (this.turnBanner === banner) this.turnBanner = undefined;
+          },
+        });
+      },
     });
   }
 
