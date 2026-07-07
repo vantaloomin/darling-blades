@@ -28,6 +28,7 @@ export type Action =
   | { type: 'passResponse' }
   | { type: 'passStep' }
   | { type: 'discard'; handIndices: number[] }
+  | { type: 'chooseBasicLand'; cardId: string } // which basic a deferred fetchLand grabs
   | { type: 'concede' };
 
 /** All k-subsets of [0, n). Bounded small everywhere it's used. */
@@ -240,6 +241,20 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         out.push({ type: 'discard', handIndices: combo });
       }
       break;
+
+    case 'chooseBasicLand': {
+      // One choice per distinct basic land type left in the deck, in a stable
+      // (sorted-id) order so `legal[0]` is deterministic across shuffles.
+      const seen = new Set<string>();
+      for (const cardId of me.deck) {
+        if (seen.has(cardId)) continue;
+        if (def(db, cardId).supertypes?.includes('basic')) seen.add(cardId);
+      }
+      for (const cardId of [...seen].sort()) {
+        out.push({ type: 'chooseBasicLand', cardId });
+      }
+      break;
+    }
   }
 
   out.push({ type: 'concede' });
@@ -325,6 +340,14 @@ export function validateAction(
       if (a.kind !== 'discardToHandSize') return 'not discarding';
       if (action.handIndices.length !== a.count) return `must discard exactly ${a.count}`;
       return validIndexSet(action.handIndices, me.hand.length);
+    }
+
+    case 'chooseBasicLand': {
+      if (a.kind !== 'chooseBasicLand') return 'not choosing a basic land';
+      const inDeck = me.deck.includes(action.cardId);
+      if (!inDeck) return 'basic not in deck';
+      if (!def(db, action.cardId).supertypes?.includes('basic')) return 'not a basic land';
+      return null;
     }
   }
 }

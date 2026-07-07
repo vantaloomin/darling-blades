@@ -97,6 +97,12 @@ export interface Avatar {
  * the welcome mat). Re-measure and refresh this table after ANY change to
  * decks, personalities, starters, or AI brains — the skipped suite
  * tests/ai/balance.test.ts runs the same harness with the same seeds.
+ *
+ * 2026-07-07 — fetchLand (Demeter etc.) now offers a basic-land CHOICE when the
+ * deck holds >1 basic type (was: topmost basic); MediumAI picks the type it
+ * controls fewest of. Among the matrix starters only Grave Harvest (swamp+forest,
+ * Demeter×3) is affected. Re-measured --starters + --avatars at 40 seeds: no new
+ * flags, ladder still monotonic, Grave Harvest mirror avg 55%; bands unchanged.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------

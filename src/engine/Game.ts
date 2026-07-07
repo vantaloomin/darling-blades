@@ -71,6 +71,7 @@ export class Game {
       combat: null,
       fogThisTurn: false,
       awaiting: { player: startingPlayer, kind: 'mulligan' },
+      pendingFetch: [],
       nextIid: 1,
       nextSid: 1,
       winner: null,
@@ -134,7 +135,46 @@ export class Game {
     this.buf = [];
     const emit: Emit = (e) => this.buf.push(e);
     this.apply(player, action, emit);
+    this.maybeRaiseFetchChoice(emit);
     return this.buf;
+  }
+
+  /**
+   * After an action fully resolves, drive any fetchLand basic-land choices that
+   * were deferred (>1 distinct type — see EffectInterpreter `fetchLand`):
+   * override the just-computed awaiting with the choice, or, once the queue
+   * drains, resume normal play.
+   *
+   * PRECONDITION (currently guaranteed): every fetchLand source is cast at
+   * sorcery speed, so the chooser is always the active player mid-main and
+   * `resumeAfterFlush` lands back on `main`. An instant-speed / flash / attacks-
+   * or dies-triggered fetch would break that and MUST NOT be added without
+   * revisiting the resume path. No-op in determinized sims (stand-in lands
+   * aren't `basic`, so nothing ever queues).
+   */
+  private maybeRaiseFetchChoice(emit: Emit): void {
+    const st = this.st;
+    if (st.winner !== null) return;
+    // Skip any queued fetch whose deck no longer holds a basic (a whiff — same
+    // as the interpreter's no-basic no-op). Guarantees a raised choice always
+    // has ≥1 legal option, so the AI is never handed only `concede` and the
+    // human never gets a zero-option overlay.
+    while (st.pendingFetch.length > 0 && !this.hasFetchableBasic(st.pendingFetch[0])) {
+      st.pendingFetch.shift();
+    }
+    if (st.pendingFetch.length > 0) {
+      st.awaiting = { player: st.pendingFetch[0], kind: 'chooseBasicLand' };
+    } else if (st.awaiting.kind === 'chooseBasicLand') {
+      // The last queued choice just resolved (the apply leaves the awaiting
+      // stale); the queue is empty, so rejoin normal play from the flush point.
+      this.resumeAfterFlush(emit);
+    }
+  }
+
+  private hasFetchableBasic(player: PlayerId): boolean {
+    return this.st.players[player].deck.some((cardId) =>
+      def(this.db, cardId).supertypes?.includes('basic'),
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -183,6 +223,27 @@ export class Game {
         me.deck.unshift(...bottomed);
         emit({ e: 'cardsBottomed', player, count: bottomed.length });
         this.nextMulliganOrStart(emit);
+        return;
+      }
+
+      case 'chooseBasicLand': {
+        // Perform the fetch the interpreter deferred: pull the chosen basic from
+        // the controller's deck, put it onto the battlefield tapped, reshuffle —
+        // same net effect + RNG use as the inline single-type path, just after a
+        // player decision. See EffectInterpreter `fetchLand` + pendingFetch.
+        const controller = st.pendingFetch.shift();
+        if (controller !== undefined) {
+          const lib = st.players[controller].deck;
+          const idx = lib.lastIndexOf(action.cardId);
+          if (idx >= 0) {
+            const [cardId] = lib.splice(idx, 1);
+            const perm = enterBattlefield(st, this.db, cardId, controller, emit);
+            perm.tapped = true;
+            rngShuffle(st.rng, lib);
+          }
+        }
+        // maybeRaiseFetchChoice (post-apply) raises the next queued choice, or
+        // resumes normal play once the queue drains — including whiffs.
         return;
       }
 

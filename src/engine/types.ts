@@ -196,6 +196,10 @@ export type Awaiting =
     }
   | { player: PlayerId; kind: 'endStepWindow' }
   | { player: PlayerId; kind: 'discardToHandSize'; count: number }
+  // Resolution-time choice: which basic land a `fetchLand` effect grabs when the
+  // deck holds >1 distinct basic type. Deferred (see pendingFetch) so the
+  // synchronous interpreter never has to suspend mid-flush.
+  | { player: PlayerId; kind: 'chooseBasicLand' }
   | { kind: 'gameOver' };
 
 export interface PlayerState {
@@ -221,6 +225,10 @@ export interface GameState {
   combat: CombatState | null;
   fogThisTurn: boolean; // a fog effect prevents all combat damage this turn
   awaiting: Awaiting;
+  // Controllers with a pending fetchLand basic-land choice (FIFO), queued when a
+  // fetchLand op sees >1 distinct basic type. Surfaced as a `chooseBasicLand`
+  // awaiting after the current stack flush finishes. Plain JSON — clones/serializes.
+  pendingFetch: PlayerId[];
   nextIid: number;
   nextSid: number;
   winner: PlayerId | 'draw' | null;
