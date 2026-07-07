@@ -92,6 +92,16 @@ the PR is both the CI gate and the reviewable record.
 - `--delete-branch` removes the merged branch (remote, and the local copy when
   you're not sitting on it). Clean up a leftover local branch with
   `git branch -d <name>`.
+- **`--delete-branch` only deletes the local copy if you're currently on some
+  *other* branch than the merged one — if you'd switched away mid-session and
+  come back, it can silently leave an orphaned local branch.** Right after any
+  squash-merge, run `git branch -d <name>` yourself rather than trusting the
+  flag; don't wait for a cleanup pass to accumulate. Periodically (or any time
+  branches feel stale), run `git fetch --prune && git branch --merged main` to
+  spot local branches already merged upstream, and check `git log <branch>
+  --oneline` against `main` for branches that look ahead but were actually
+  squash-merged (their content will already be on `main` even though they show
+  as unmerged) before force-deleting with `-D`.
 - The squash lands on `main`, so it deploys — the pre-merge green `verify` is the
   deploy gate.
 
