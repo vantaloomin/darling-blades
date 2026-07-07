@@ -1,11 +1,13 @@
-<!-- source-of-truth: .github/workflows/deploy.yml, package.json · last-verified: 2026-07-05 · process doc — re-verify when the CI workflow or branch model changes -->
+<!-- source-of-truth: .github/workflows/deploy.yml, package.json · last-verified: 2026-07-07 · process doc — re-verify when the CI workflow or branch model changes -->
 
 # Git workflow
 
 The repo is public on GitHub — `vantaloomin/darling-blades` — and **`main`
 auto-deploys**: every push to `main` runs CI (the full verification ladder) and,
 if it passes, publishes the web build to GitHub Pages
-(https://vantaloomin.github.io/darling-blades/). Treat `main` as production.
+(https://vantaloomin.github.io/darling-blades/). Treat `main` as production — and
+it is **branch-protected**, so nothing reaches it by direct push; every change
+lands through a PR whose `verify` check has passed.
 
 ## Who runs git
 
@@ -17,7 +19,13 @@ working trees and history get corrupted — the file-set split plus a single git
 owner is what prevents it. Git now exists to *recover* from mistakes; it is not
 licence to parallelise commits.
 
-## Branch for anything non-trivial
+## Branch for everything
+
+`main` is branch-protected with a required `verify` status check, so a direct
+push is rejected outright (`git push origin main` →
+`GH013: Required status check "verify" is expected`). **Every change — even a
+one-line typo fix — starts on a branch and lands via PR.** There is no
+straight-to-`main` path.
 
 - Cut a short-lived, single-purpose branch off `main`:
   `git switch -c <type>/<slug>` — e.g. `feat/commander-mode`,
@@ -26,8 +34,6 @@ licence to parallelise commits.
   `perf` / `ci` / `docs` / `test` / `chore`).
 - If `main` moves under you, rebase rather than merge it back in:
   `git fetch origin && git rebase origin/main`.
-- A genuinely trivial one-liner MAY go straight to `main` — but only after the
-  local ladder is green. When in doubt, branch.
 
 ## Commits
 
@@ -52,34 +58,46 @@ minutes later on a public red run:
 4. `npm run build` (also regenerates `art-manifest.json`, which `tsc` and CI need)
 5. `npm run check-docs` · `npm run check-art-bible` · `npx tsx scripts/gen-docs-tables.ts --check`
 
-Full ladder + preview probes: [claude-playbook.md](claude-playbook.md) §8.
-**Never push a red tree to `main`** — it fails the public CI run and blocks the
-Pages deploy (the live site simply keeps its last good build).
+Full ladder + preview probes: [claude-playbook.md](claude-playbook.md) §8. A red
+tree can't reach `main` anyway — `verify` fails on the PR and blocks the merge —
+but catching it locally saves the slow public round-trip (the live site simply
+keeps its last good build until a green squash lands).
 
 ## Pull requests
 
-- For non-trivial or risky work, open a PR into `main` so CI vets it *before* it
-  can deploy: `gh pr create --fill` — the GitHub CLI is the standard tool here
-  (install once with `winget install --id GitHub.cli`, then `gh auth login`). The
-  GitHub web UI is the fallback.
-- `.github/workflows/deploy.yml` runs the `verify` job on every PR to `main`; the
-  `deploy` job is `main`-push-only. **Merge only when `verify` is green.**
-- Solo-project bar: green CI plus a real self-review of the diff. PRs earn their
-  keep when you want CI to gate a change before it reaches the deploy branch, or a
-  reviewable record — not ceremony for its own sake.
+Branch protection makes the PR the *only* way in, so every change flows through
+these three steps. The GitHub CLI is the standard tool (install once with
+`winget install --id GitHub.cli`, then `gh auth login`; the web UI is the
+fallback):
+
+1. **`gh pr create --fill`** — open the PR into `main`.
+2. **`gh pr checks <n> --watch`** — block until the required `verify` check goes
+   green. `.github/workflows/deploy.yml` runs `verify` on every PR to `main`; the
+   `deploy` job is `main`-push-only, so nothing ships until the squash lands.
+3. **`gh pr merge <n> --squash --delete-branch`** — merge once `verify` is green.
+
+**Auto-merge is not enabled on this repo** — `gh pr merge --auto` fails with
+`Auto merge is not allowed for this repository`, so you can't queue the merge
+ahead of CI. Step 3 is a manual action you take *after* watching `verify` pass.
+
+Solo-project bar: green CI plus a real self-review of the diff before you merge —
+the PR is both the CI gate and the reviewable record.
 
 ## Merging
 
-- Keep history mostly linear. **Squash-merge** a feature branch into one tidy
-  `main` commit, or fast-forward a small, already-clean branch. Avoid noisy merge
-  commits.
-- Delete the branch after merge (`git branch -d <name>`; let the PR delete the
-  remote copy).
-- The merge lands on `main`, so it deploys — the pre-merge green `verify` is the
+- **Squash-merge every PR** with `gh pr merge <n> --squash --delete-branch` —
+  one tidy `main` commit per landed change, keeping history linear and free of
+  noisy merge commits. Branch protection blocks fast-forward/direct pushes, so
+  the squash is the only path in.
+- `--delete-branch` removes the merged branch (remote, and the local copy when
+  you're not sitting on it). Clean up a leftover local branch with
+  `git branch -d <name>`.
+- The squash lands on `main`, so it deploys — the pre-merge green `verify` is the
   deploy gate.
 
-## What a push to `main` does
+## What landing on `main` does
 
+A squash-merge pushes to `main`, which fires the pipeline:
 `push → verify (tsc · lint · vitest · build · doc checks) → if green, deploy →
 GitHub Pages`. A failed `verify` skips `deploy` (live site unchanged) but leaves a
 red run — fix forward promptly. Pages was enabled once by hand
