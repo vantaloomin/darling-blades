@@ -14,7 +14,7 @@ export interface GauntletState {
 }
 
 export interface SaveData {
-  version: 9;
+  version: 10;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -39,6 +39,13 @@ export interface SaveData {
    * addition.
    */
   heroPortraitId: string | null;
+  /**
+   * Whether the optional first-launch tutorial has been completed OR skipped
+   * (both set it true — see docs/plan-road-to-1.0.md Feature 1). v10 addition;
+   * a fresh save is `false`, and any player with a win/loss record is coerced
+   * `true` on migration so genre veterans never see it.
+   */
+  tutorialDone: boolean;
   stats: {
     wins: number;
     losses: number;
@@ -80,7 +87,7 @@ export function freshGauntlet(): GauntletState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 9,
+    version: 10,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -90,6 +97,7 @@ export function freshSave(now: number): SaveData {
     starterChosen: null,
     heroCardId: null,
     heroPortraitId: null,
+    tutorialDone: false,
     stats: {
       wins: 0,
       losses: 0,
@@ -141,7 +149,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 9) return parsed as SaveData;
+      if (parsed.version === 10) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -162,8 +170,10 @@ export class SaveManager {
    * seed derived from its `startedAt` so it stays reproducible; v6 → v7 adds
    * `settings.confirmDestructive` (default on — the shared two-tap guard on
    * concede / gauntlet-abandon / shard); v7 → v8 adds `settings.keywordReminders`
-   * (default on); v8 → v9 adds `heroPortraitId` (null = no premium hero). An
-   * unknown/garbage version starts fresh rather than crash.
+   * (default on); v8 → v9 adds `heroPortraitId` (null = no premium hero);
+   * v9 → v10 adds `tutorialDone` (false for a fresh/zero-record save, true for
+   * any player with a win/loss record). An unknown/garbage version starts fresh
+   * rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
@@ -272,7 +282,21 @@ export class SaveManager {
         heroPortraitId: (cur.heroPortraitId as string | null | undefined) ?? null,
       };
     }
-    if (cur.version === 9) return cur as unknown as SaveData;
+    if (cur.version === 9) {
+      // Add the first-launch-tutorial flag, always derived from the win/loss
+      // record: a player with ANY game played is a veteran (true → never shown
+      // the tutorial, and no replay reward), a zero-record save gets false so a
+      // returning brand-new player still sees it. A genuine v9 blob never
+      // carries `tutorialDone`, so there is nothing to preserve — and deriving
+      // it here is robust to the fresh-save default that the v1→v2 step spreads.
+      const s = (cur.stats ?? {}) as { wins?: number; losses?: number };
+      cur = {
+        ...cur,
+        version: 10,
+        tutorialDone: (s.wins ?? 0) + (s.losses ?? 0) > 0,
+      };
+    }
+    if (cur.version === 10) return cur as unknown as SaveData;
     return freshSave(now);
   }
 

@@ -3,8 +3,9 @@ import type { AIPlayer } from '../ai/AIPlayer';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { buildAI } from '../ai/personality';
-import { RULES } from '../config/rules';
+import { ECONOMY, RULES } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
+import { tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
 import { avatarById, avatarForRung, type Avatar } from '../data/opponents';
 import { heroById } from '../data/heroes';
 import type { SaveData } from '../meta/SaveManager';
@@ -34,6 +35,7 @@ import { Art } from '../art/ArtResolver';
 import { BoardCardView, TILE_W, TILE_H, type BoardHighlight } from '../ui/BoardCardView';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
+import { CoachMark } from '../ui/CoachMark';
 import { CombatFx } from '../ui/CombatFx';
 import { planCombat, type CombatHit, type CombatStep } from '../ui/combatSequence';
 import { CommanderPortrait } from '../ui/CommanderPortrait';
@@ -204,6 +206,21 @@ export class DuelScene extends Phaser.Scene {
   /** Two-tap concede guard (settings.confirmDestructive); armed by the first tap. */
   private concedeArmed = false;
   private discardPicks = new Set<number>();
+  /**
+   * Optional first-launch tutorial mode (src/data/tutorial.ts). When set, this
+   * duel runs a scripted line (fixed decks + seed + `ScriptAI`) under a
+   * coach-mark guide; auto-skip is off and results route to `tutorialComplete`
+   * instead of the ranked win/loss path.
+   */
+  private tutorial = false;
+  private coach: CoachMark | null = null;
+  private tutGoalShown = false;
+  private tutSicknessShown = false;
+  /** Set once the human confirms a real block — the last taught beat. */
+  private tutBlocked = false;
+  private tutCompleted = false;
+  /** A tap-to-continue info card is up; the guide waits for its dismissal. */
+  private coachInfoActive = false;
   private aiTimer: Phaser.Time.TimerEvent | null = null;
   private autoSkipTimer: Phaser.Time.TimerEvent | null = null;
   /** Scene-clock time of the last auto-skip transition; guards the smart-button race. */
@@ -245,13 +262,31 @@ export class DuelScene extends Phaser.Scene {
   }
 
   create(
-    data: { difficulty?: Difficulty; opponentId?: string; gauntletRung?: number } = {},
+    data: {
+      difficulty?: Difficulty;
+      opponentId?: string;
+      gauntletRung?: number;
+      // Tutorial overrides (src/data/tutorial.ts): a fixed scripted duel. Absent
+      // fields fall back to the normal save-/gauntlet-derived resolution.
+      deckOverride?: string[];
+      oppDeckOverride?: string[];
+      seedOverride?: number;
+      aiOverride?: AIPlayer;
+      tutorial?: boolean;
+    } = {},
   ): void {
     // Gauntlet mode: an avatar opponent drives the deck, difficulty, and brain
     // personality. Practice mode leaves opponent null and uses the plain AI.
     this.opponent = data.opponentId ? avatarById(data.opponentId) : null;
     this.gauntletRung = data.gauntletRung ?? null;
     this.difficulty = this.opponent?.difficulty ?? data.difficulty ?? 'easy';
+    this.tutorial = data.tutorial ?? false;
+    this.tutGoalShown = false;
+    this.tutSicknessShown = false;
+    this.tutBlocked = false;
+    this.tutCompleted = false;
+    this.coachInfoActive = false;
+    this.coach = null;
     this.views = new Map();
     this.handViews = [];
     this.handDecor = [];
@@ -307,16 +342,19 @@ export class DuelScene extends Phaser.Scene {
     // whole run is one reproducible playthrough (src/meta/gauntletSeed.ts);
     // practice duels stay freshly random each time.
     const seed =
-      this.gauntletRung != null && save.gauntlet.run
+      data.seedOverride ??
+      (this.gauntletRung != null && save.gauntlet.run
         ? rungSeed(save.gauntlet.run.seed, this.gauntletRung)
-        : Math.floor(Math.random() * 2 ** 31);
+        : Math.floor(Math.random() * 2 ** 31));
     const myDeckEntry = save.decks.find((d) => d.id === save.activeDeckId);
-    const myDeck = myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
+    const myDeck = data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
     // Gauntlet: the avatar pilots its themed deck. Practice: the AI pilots a
-    // starter the player is NOT using (or the second one).
-    const aiDeck = this.opponent
-      ? this.opponent.deck
-      : (STARTER_DECKS.find((d) => d.id !== save.activeDeckId)?.cards ?? STARTER_DECKS[1].cards);
+    // starter the player is NOT using (or the second one). Tutorial: a fixed deck.
+    const aiDeck =
+      data.oppDeckOverride ??
+      (this.opponent
+        ? this.opponent.deck
+        : (STARTER_DECKS.find((d) => d.id !== save.activeDeckId)?.cards ?? STARTER_DECKS[1].cards));
     // Duel identities, the opponents.ts "portraits cost zero new art" idiom:
     // your commander portrait is your deck's face card; the opponent's strip
     // avatar is their curated portraitCardId (gauntlet) or their deck's face.
@@ -329,7 +367,7 @@ export class DuelScene extends Phaser.Scene {
     this.myFaceCardId = hero ?? faceCardFor(myDeck, CARD_DB);
     this.oppFaceCardId = this.opponent?.portraitCardId ?? faceCardFor(aiDeck, CARD_DB);
     this.duel = new Game({ decks: [myDeck, aiDeck], seed, db: CARD_DB });
-    this.ai = buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality);
+    this.ai = data.aiOverride ?? buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality);
 
     this.buildHud();
     this.bindHotkeys();
@@ -344,10 +382,222 @@ export class DuelScene extends Phaser.Scene {
     Music.setMood('duel');
     // Soft click on any interactive object — cards, buttons, targets alike.
     this.input.on('gameobjectup', () => Sfx.play('click'));
+    if (this.tutorial) {
+      // The coach-mark guide layer; the ⏩ auto-skip chip is meaningless here
+      // (auto-skip is disabled in tutorial), so hide it to keep the stage clean.
+      this.coach = new CoachMark(this);
+      this.autoToggle.setVisible(false);
+    }
     this.processEvents(this.duel.initialEvents);
+    if (this.tutorial) this.autoKeepTutorialMulligans();
     this.sync();
     this.maybeRunAI();
     this.maybeAutoSkip();
+  }
+
+  /**
+   * Skip the opening-hand mulligan overlay in tutorial mode: keep both hands so
+   * the duel starts at the first main phase (the mulligan is not one of the six
+   * taught beats). Deterministic — the fixed seed already gave a keepable hand.
+   */
+  private autoKeepTutorialMulligans(): void {
+    let guard = 0;
+    while (this.duel.awaiting.kind === 'mulligan' && guard++ < 4) {
+      const p = this.duel.awaiting.player;
+      this.processEvents(this.duel.submit(p, { type: 'keepHand' }));
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Tutorial coach-mark guide (src/data/tutorial.ts `tutorialCue`)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Advance the coach-mark guide off engine + selection state (never timers).
+   * Called at the end of every `sync()`, so selection toggles, phase changes,
+   * and AI moves all re-evaluate it. Info beats (goal / sickness) pause the
+   * guide on a tap-to-continue card; action beats spotlight a live control.
+   */
+  private tutorialTick(): void {
+    if (!this.tutorial || this.ended || this.tutCompleted || !this.coach) return;
+    if (this.coachInfoActive) return; // waiting on a tap-to-continue info card
+    const cue = tutorialCue(this.buildTutorialInput());
+    switch (cue.kind) {
+      case 'done':
+        this.tutorialComplete(true);
+        return;
+      case 'wait':
+        this.coach.hide();
+        return;
+      case 'goal':
+      case 'sickness': {
+        const isGoal = cue.kind === 'goal';
+        this.coachInfoActive = true;
+        this.coach.hide();
+        this.coach.showInfoCard(cue.text, () => {
+          this.coachInfoActive = false;
+          if (isGoal) this.tutGoalShown = true;
+          else this.tutSicknessShown = true;
+          this.tutorialTick();
+        });
+        return;
+      }
+      default: {
+        const target = this.tutorialTarget(cue.kind);
+        if (target) this.coach.showCue(target, cue.text);
+        else this.coach.hide();
+      }
+    }
+  }
+
+  private buildTutorialInput(): TutorialCueInput {
+    const st = this.duel.state;
+    const a = this.duel.awaiting;
+    const isHumanTurn = 'player' in a && a.player === HUMAN;
+    const you = st.players[HUMAN];
+    const legal = isHumanTurn ? this.duel.legalActions(HUMAN) : [];
+    const handHasLand = you.hand.some((id) => isType(def(CARD_DB, id), 'land'));
+    const hasCastableCreature = legal.some(
+      (l) => l.type === 'castSpell' && isType(def(CARD_DB, you.hand[l.handIndex]), 'creature'),
+    );
+    const myCreatureCount = st.battlefield.filter(
+      (p) => p.controller === HUMAN && isType(def(CARD_DB, p.cardId), 'creature'),
+    ).length;
+    const eligibleAttackerCount =
+      isHumanTurn && a.kind === 'declareAttackers'
+        ? eligibleAttackers(st.battlefield, CARD_DB, HUMAN).length
+        : 0;
+    const hasLegalBlocker =
+      isHumanTurn && a.kind === 'declareBlockers' && st.combat
+        ? blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat).length > 0
+        : false;
+    return {
+      isHumanTurn,
+      awaitingKind: a.kind,
+      step: st.step,
+      landPlayedThisTurn: you.landPlayedThisTurn,
+      handHasLand,
+      hasCastableCreature,
+      myCreatureCount,
+      eligibleAttackerCount,
+      attackerSelected: this.selectedAttackers.size > 0,
+      pendingBlocker: this.pendingBlocker !== null,
+      hasLegalBlocker,
+      blockAssigned: this.blockAssignments.length > 0,
+      goalShown: this.tutGoalShown,
+      sicknessShown: this.tutSicknessShown,
+      blocked: this.tutBlocked,
+    };
+  }
+
+  /** Resolve a cue to the live UI object it should spotlight (null = not ready). */
+  private tutorialTarget(
+    kind: TutorialCueKind,
+  ): (Phaser.GameObjects.GameObject & { getBounds(): Phaser.Geom.Rectangle }) | null {
+    const st = this.duel.state;
+    switch (kind) {
+      case 'playLand':
+        return this.handTarget((d) => isType(d, 'land'));
+      case 'playCreature': {
+        const castable = new Set(
+          this.duel
+            .legalActions(HUMAN)
+            .filter((l): l is Extract<Action, { type: 'castSpell' }> => l.type === 'castSpell')
+            .map((l) => l.handIndex),
+        );
+        return this.handTarget((d, handIdx) => castable.has(handIdx) && isType(d, 'creature'));
+      }
+      case 'advance':
+      case 'confirmAttack':
+      case 'confirmBlock':
+        return this.passArc;
+      case 'selectAttacker': {
+        const iid = eligibleAttackers(st.battlefield, CARD_DB, HUMAN)[0];
+        return iid != null ? (this.views.get(iid) ?? null) : null;
+      }
+      case 'selectBlocker': {
+        if (!st.combat) return null;
+        const iid = blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat)[0]?.blocker;
+        return iid != null ? (this.views.get(iid) ?? null) : null;
+      }
+      case 'selectAttackerToBlock': {
+        const iid = st.combat?.attackers[0];
+        return iid != null ? (this.views.get(iid) ?? null) : null;
+      }
+      default:
+        return null;
+    }
+  }
+
+  /** First hand card (in display order) matching a predicate → its CardView. */
+  private handTarget(pred: (d: CardDef, handIdx: number) => boolean): CardView | null {
+    const hand = this.duel.state.players[HUMAN].hand;
+    const order = handDisplayOrder(hand, CARD_DB); // display pos → true hand index
+    for (let pos = 0; pos < order.length; pos++) {
+      const handIdx = order[pos];
+      if (pred(def(CARD_DB, hand[handIdx]), handIdx)) return this.handViews[pos] ?? null;
+    }
+    return null;
+  }
+
+  /** Grant the reward (once), then route into the core loop. */
+  private tutorialComplete(success: boolean): void {
+    if (this.tutCompleted) return;
+    this.tutCompleted = true;
+    this.ended = true;
+    this.coach?.destroy();
+    this.coach = null;
+    this.closeInspect();
+    const save = Services.save.data;
+    const firstTime = !save.tutorialDone;
+    save.tutorialDone = true;
+    if (firstTime) save.gold += ECONOMY.starterDeckPrice; // enough to buy one starter deck
+    Services.save.flush();
+    Music.duck(1.8);
+    Sfx.play(success ? 'win' : 'click');
+
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(120);
+    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8).setInteractive());
+    c.add(
+      this.add
+        .text(width / 2, 244, success ? 'Tutorial Complete!' : 'Tutorial Ended', {
+          fontFamily: 'Cinzel, Georgia, serif', fontSize: '52px', fontStyle: 'bold', color: '#ffd700',
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(width / 2, 312, "You've got the basics — now build your collection.", {
+          fontFamily: 'Inter, Arial, sans-serif', fontSize: '18px', color: '#c9bde0',
+        })
+        .setOrigin(0.5),
+    );
+    if (firstTime) {
+      c.add(
+        this.add
+          .text(width / 2, 356, `+${ECONOMY.starterDeckPrice} gold`, {
+            fontFamily: 'Inter, Arial, sans-serif', fontSize: '20px', fontStyle: '600', color: '#ffd88a',
+          })
+          .setOrigin(0.5),
+      );
+    }
+    const mk = (x: number, label: string, cb: () => void): void => {
+      const btn = this.add
+        .text(x, 440, label, {
+          fontFamily: 'Cinzel, Georgia, serif', fontSize: '24px', color: '#ffd88a',
+          backgroundColor: '#2c2344', padding: { x: 18, y: 10 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, btn, cb);
+      inflateHitArea(btn, 90, 90);
+      c.add(btn);
+    };
+    mk(width / 2 - 120, 'To the Shop', () => this.scene.start('Shop'));
+    mk(width / 2 + 120, 'Main Menu', () => this.scene.start('MainMenu'));
+    this.guard.open(this.overlayGuardTargets());
   }
 
   /** Stage dressing: opponent strip plate + the two inset battlefield plates. */
@@ -792,6 +1042,11 @@ export class DuelScene extends Phaser.Scene {
     try {
       const snapshot = this.duel.clone(); // pre-action state; kept for Undo iff still local
       const events = this.duel.submit(HUMAN, action);
+      // Tutorial: a real block is the final taught beat — mark it so the guide
+      // advances to completion on the next tick.
+      if (this.tutorial && action.type === 'declareBlockers' && action.blocks.length > 0) {
+        this.tutBlocked = true;
+      }
       this.undoSnapshot = snapshot;
       this.selectedAttackers.clear();
       this.blockAssignments = [];
@@ -917,6 +1172,7 @@ export class DuelScene extends Phaser.Scene {
    * at the next real decision naturally.
    */
   private maybeAutoSkip(): void {
+    if (this.tutorial) return; // the coach-mark guide drives pacing explicitly
     if (this.endingTurn) return; // end-turn mode drives its own hops (endTurnTick)
     if (!Services.save.data.settings.autoSkip) return; // settings toggle (SettingsScene)
     if (this.ended) return;
@@ -1533,6 +1789,7 @@ export class DuelScene extends Phaser.Scene {
     this.syncButton();
     this.drawArrows();
     this.syncOverlay();
+    if (this.tutorial) this.tutorialTick();
   }
 
   private creatureY(iid: number, base: number): number {
@@ -1828,10 +2085,13 @@ export class DuelScene extends Phaser.Scene {
       case 'main':
         showButton(this.duel.state.step === 'main1' ? 'To Combat' : 'Pass ▶');
         hint.setText('Play a card, or advance ▶');
-        // The ⏭ End Turn quick button rides above the smart button on your
-        // own main phases (hidden everywhere else — set false at the top).
-        this.endTurnBtn.setVisible(true);
-        inflateHitArea(this.endTurnBtn, 90, 90);
+        // The ⏭ End Turn quick button rides above the smart button on your own
+        // main phases (hidden everywhere else — set false at the top). It is
+        // suppressed in the tutorial so a fast-forward can't skip a taught beat.
+        if (!this.tutorial) {
+          this.endTurnBtn.setVisible(true);
+          inflateHitArea(this.endTurnBtn, 90, 90);
+        }
         break;
       case 'declareAttackers':
         showButton(this.selectedAttackers.size > 0 ? `Attack (${this.selectedAttackers.size})` : 'Skip Combat');
@@ -2625,6 +2885,12 @@ export class DuelScene extends Phaser.Scene {
   private showResults(won: boolean, reason: string): void {
     this.closeInspect();
     this.zoom.setSuppressed(true);
+    if (this.tutorial) {
+      // The tutorial normally ends at the block beat (tutorialComplete), but a
+      // mid-tutorial concede lands here — treat it as finishing (reward on skip).
+      this.tutorialComplete(false);
+      return;
+    }
     if (this.opponent && this.gauntletRung !== null) {
       this.showGauntletResults(won, reason);
       return;

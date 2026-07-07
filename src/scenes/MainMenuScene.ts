@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
+import { ScriptAI } from '../ai/ScriptAI';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { STARTER_DECKS } from '../data/starterDecks';
+import { tutorialLaunchData } from '../data/tutorial';
 import { def } from '../engine/types';
 import { addCard } from '../meta/Collection';
 import { Services } from '../meta/services';
@@ -133,6 +135,28 @@ export class MainMenuScene extends Phaser.Scene {
     inflateHitArea(profile, 90, 90);
     this.menuItems.push(profile);
 
+    // "How to Play" — replay the optional tutorial anytime (top-left, under
+    // Profile, mirroring ⚙ Settings on the right). Makes skipping reversible
+    // (docs/plan-road-to-1.0.md Feature 1). Joins menuItems so the starter
+    // picker's ModalGuard deadens it too.
+    const howto = this.add
+      .text(30, 82, '❔ How to Play', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '20px',
+        color: '#c9bde0',
+      })
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+    howto.on('pointerover', (p: Phaser.Input.Pointer) => {
+      if (!p.wasTouch) howto.setColor('#ffd700');
+    });
+    howto.on('pointerout', (p: Phaser.Input.Pointer) => {
+      if (!p.wasTouch) howto.setColor('#c9bde0');
+    });
+    bindTapButton(this, howto, () => this.startTutorial());
+    inflateHitArea(howto, 90, 90);
+    this.menuItems.push(howto);
+
     // Card Showcase is a variant-QA surface — dev/local builds only (IS_DEV);
     // filtering (not hiding) keeps the row layout gap-free on the public build.
     const items = MENU_ITEMS.filter((entry) => entry.scene !== 'Showcase' || IS_DEV);
@@ -242,11 +266,78 @@ export class MainMenuScene extends Phaser.Scene {
       // stray drag can't pick a starter (it's a one-shot decision).
       bindTapButton(this, panel, () => {
         this.grantStarter(deck.id);
-        this.scene.restart();
+        // First-run: offer the optional tutorial before dropping into the menu.
+        this.promptTutorial(c);
       });
     });
-    // picker only closes via scene.restart(), which rebuilds the menu fresh
+    // picker only closes via the tutorial prompt → scene.start/restart
     this.guard.open(this.menuItems);
+  }
+
+  /**
+   * First-run opt-in tutorial prompt, shown right after the starter pick. Both
+   * choices grant the same reward (enough to buy one starter deck) and mark the
+   * tutorial seen, so a skipper is never punished. Reversible via "How to Play".
+   */
+  private promptTutorial(picker: Phaser.GameObjects.Container): void {
+    picker.destroy();
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(100);
+    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x0a0812, 0.92).setInteractive());
+    c.add(
+      this.add
+        .text(width / 2, 250, 'New to card games?', {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '40px',
+          color: '#f0e6ff',
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(width / 2, 312, 'A quick tutorial covers the basics — mana, creatures, and combat.\nYou can replay it anytime from "How to Play".', {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '17px',
+          color: '#a89cc6',
+          align: 'center',
+          lineSpacing: 6,
+        })
+        .setOrigin(0.5),
+    );
+    const mk = (x: number, label: string, primary: boolean, cb: () => void): void => {
+      const btn = this.add
+        .text(x, 420, label, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '24px',
+          color: primary ? '#ffd88a' : '#c9bde0',
+          backgroundColor: primary ? '#2c2344' : '#241d3a',
+          padding: { x: 20, y: 12 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, btn, cb);
+      inflateHitArea(btn, 90, 90);
+      c.add(btn);
+    };
+    mk(width / 2 - 130, 'Start Tutorial', true, () => this.startTutorial());
+    mk(width / 2 + 130, 'Skip', false, () => this.skipTutorial());
+  }
+
+  /** Launch the scripted tutorial duel. */
+  private startTutorial(): void {
+    this.scene.start('Duel', tutorialLaunchData(new ScriptAI(CARD_DB)));
+  }
+
+  /** Skip the tutorial: still grant the reward + mark it seen, then rebuild the menu. */
+  private skipTutorial(): void {
+    const save = Services.save.data;
+    if (!save.tutorialDone) {
+      save.tutorialDone = true;
+      save.gold += ECONOMY.starterDeckPrice; // parity with completing it
+    }
+    Services.save.flush();
+    this.scene.restart();
   }
 
   private grantStarter(deckId: string): void {

@@ -63,7 +63,7 @@ describe('SaveManager', () => {
     storage.raw.set('darlingblades.save.v1', '{not json');
     const m = new SaveManager(storage);
     expect(m.data.gold).toBe(0);
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
   });
 
   it('reads a save left under the legacy waifutcg key (rename survival)', () => {
@@ -79,7 +79,7 @@ describe('SaveManager', () => {
     storage.raw.set('waifutcg.save.v1', blob);
 
     const b = new SaveManager(storage);
-    expect(b.data.version).toBe(9);
+    expect(b.data.version).toBe(10);
     expect(b.data.gold).toBe(512);
     expect(b.data.collection['bear']).toBe(2);
     // The new key takes precedence when both exist.
@@ -111,7 +111,7 @@ describe('SaveManager', () => {
     expect(m.data.decks).toEqual([]);
     expect(m.data.starterChosen).toBeNull();
     expect(m.data.stats.wins).toBe(0);
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.createdAt).toBe(1234);
     // A subsequent boot from the same storage is also fresh.
     expect(new SaveManager(storage).data.gold).toBe(0);
@@ -375,8 +375,8 @@ describe('deck validation', () => {
   });
 });
 
-/** Save migration: every old version walks the whole chain to v8. */
-describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
+/** Save migration: every old version walks the whole chain to the current schema. */
+describe('save migration v1…v9 → v10', () => {
   it('walks a v1 blob up the whole chain, preserving everything it had', () => {
     const v1blob = {
       version: 1,
@@ -399,7 +399,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v1blob));
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.gold).toBe(640);
     expect(m.data.collection['bk-wolfqueen']).toBe(2);
     expect(m.data.decks).toEqual(v1blob.decks);
@@ -411,6 +411,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     expect(m.data.gauntlet).toEqual({ run: null, bestRung: 0, completions: 0 });
     expect(m.data.heroCardId).toBe(null); // v6 addition: auto face until chosen
     expect(m.data.heroPortraitId).toBe(null); // v9 addition: no premium hero until chosen
+    expect(m.data.tutorialDone).toBe(true); // v10: a veteran (5 wins) skips the tutorial
     // v4: pre-variant copies become PLAIN; zero-count entries are not seeded
     expect(m.data.collectionVariants['bk-wolfqueen']).toEqual({ 'white|none': 2 });
     expect(m.data.collectionVariants['land-forest']).toBeUndefined();
@@ -452,7 +453,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v2blob));
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.gold).toBe(320);
     // v2 data survives, and v6 stamps the in-progress run with a reproducible
     // seed derived from its startedAt (400 & 0x7fffffff = 400).
@@ -491,7 +492,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v3blob));
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.collection).toEqual({ 'bk-wolfqueen': 4, 'oly-hera': 1 });
     expect(m.data.collectionVariants).toEqual({
       'bk-wolfqueen': { 'white|none': 4 },
@@ -518,7 +519,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     const v4blob = { ...base, version: 4, settings: { ...base.settings, renderScale: 2 } };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v4blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.settings.renderScale).toBe(2); // 1440p choice survives
   });
 
@@ -533,7 +534,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v4blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.settings.renderScale).toBe(1.5);
   });
 
@@ -549,7 +550,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     delete (v5blob as { heroCardId?: unknown }).heroCardId;
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v5blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.heroCardId).toBe(null);
     // The seedless run is stamped deterministically from startedAt (900).
     expect(m.data.gauntlet.run).toEqual({ rung: 3, startedAt: 900, seed: 900 });
@@ -562,7 +563,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     const v5blob = { ...base, version: 5, heroCardId: 'oly-zeus', gauntlet: { run: null, bestRung: 5, completions: 2 } };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v5blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.heroCardId).toBe('oly-zeus'); // a pre-set hero survives
     expect(m.data.gauntlet).toEqual({ run: null, bestRung: 5, completions: 2 });
   });
@@ -576,7 +577,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...base, version: 6, settings: v6settings }));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.settings.confirmDestructive).toBe(true); // default on
     expect(m.data.settings.renderScale).toBe(base.settings.renderScale); // rest of settings intact
 
@@ -587,7 +588,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
       JSON.stringify({ ...base, version: 6, settings: { ...v6settings, confirmDestructive: false } }),
     );
     const m2 = new SaveManager(s2);
-    expect(m2.data.version).toBe(9);
+    expect(m2.data.version).toBe(10);
     expect(m2.data.settings.confirmDestructive).toBe(false);
   });
 
@@ -600,7 +601,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...base, version: 7, settings: v7settings }));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.settings.keywordReminders).toBe(true); // default on
     expect(m.data.settings.confirmDestructive).toBe(base.settings.confirmDestructive); // v7 field intact
 
@@ -611,7 +612,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
       JSON.stringify({ ...base, version: 7, settings: { ...v7settings, keywordReminders: false } }),
     );
     const m2 = new SaveManager(s2);
-    expect(m2.data.version).toBe(9);
+    expect(m2.data.version).toBe(10);
     expect(m2.data.settings.keywordReminders).toBe(false);
   });
 
@@ -624,7 +625,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v8blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(9);
+    expect(m.data.version).toBe(10);
     expect(m.data.heroPortraitId).toBe(null); // default
     expect(m.data.heroCardId).toBe(base.heroCardId); // the rest is intact
 
@@ -635,11 +636,45 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
       JSON.stringify({ ...base, version: 8, heroPortraitId: 'hero-valhalla' }),
     );
     const m2 = new SaveManager(s2);
-    expect(m2.data.version).toBe(9);
+    expect(m2.data.version).toBe(10);
     expect(m2.data.heroPortraitId).toBe('hero-valhalla');
   });
 
-  it('leaves an existing v9 save untouched and round-trips the new settings', () => {
+  it('migrates a v9 blob to v10: tutorialDone is coerced from the win/loss record', () => {
+    const base = freshSave(1);
+    const v9 = (extra: Record<string, unknown>): Record<string, unknown> => {
+      const blob = { ...base, version: 9, ...extra } as Record<string, unknown>;
+      delete blob.tutorialDone; // a genuine v9 shape has no such field
+      return blob;
+    };
+
+    // A zero-record player is still a newcomer → sees the tutorial.
+    const fresh = fakeStorage();
+    fresh.raw.set('darlingblades.save.v1', JSON.stringify(v9({})));
+    const mFresh = new SaveManager(fresh);
+    expect(mFresh.data.version).toBe(10);
+    expect(mFresh.data.tutorialDone).toBe(false);
+
+    // A player with any win/loss record is a veteran → tutorial already done.
+    const vet = fakeStorage();
+    vet.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify(v9({ stats: { ...base.stats, wins: 2, losses: 1 } })),
+    );
+    const mVet = new SaveManager(vet);
+    expect(mVet.data.tutorialDone).toBe(true);
+
+    // The flag is always derived from the record, so a stray/leaked value can't
+    // override it (the v1→v2 step spreads the fresh-save default into the blob).
+    const spurious = fakeStorage();
+    spurious.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify({ ...base, version: 9, tutorialDone: false, stats: { ...base.stats, wins: 9 } }),
+    );
+    expect(new SaveManager(spurious).data.tutorialDone).toBe(true);
+  });
+
+  it('leaves an existing current-version save untouched and round-trips the new settings', () => {
     const storage = fakeStorage();
     const a = new SaveManager(storage);
     a.data.gold = 99;
@@ -650,7 +685,7 @@ describe('save migration v1/v2/v3/v4/v5/v6/v7/v8 → v9', () => {
     a.data.settings.renderScale = 1.5;
     a.flush();
     const b = new SaveManager(storage);
-    expect(b.data.version).toBe(9);
+    expect(b.data.version).toBe(10);
     expect(b.data.gold).toBe(99);
     expect(b.data.gauntlet.bestRung).toBe(4);
     expect(b.data.settings.musicOn).toBe(false);
