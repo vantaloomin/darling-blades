@@ -60,9 +60,35 @@ export class MediumAI implements AIPlayer {
         return this.respond(view, legal);
       case 'endStepWindow':
         return this.endStep(view, legal);
+      case 'chooseBasicLand':
+        return this.chooseFetchBasic(view, legal);
       default:
         return legal[0];
     }
+  }
+
+  /**
+   * Pick which basic a deferred fetchLand grabs: the type we control the FEWEST
+   * of in play, to fix mana (ties broken by the stable `legal` order). Falls
+   * back to `legal[0]` if the option list is somehow empty.
+   */
+  private chooseFetchBasic(view: PlayerView, legal: Action[]): Action {
+    const opts = legal.filter(
+      (a): a is Extract<Action, { type: 'chooseBasicLand' }> => a.type === 'chooseBasicLand',
+    );
+    if (opts.length === 0) return legal[0];
+    const inPlay = (cardId: string): number =>
+      view.battlefield.filter((p) => p.controller === view.myId && p.cardId === cardId).length;
+    let best = opts[0];
+    let bestCount = inPlay(best.cardId);
+    for (const o of opts) {
+      const c = inPlay(o.cardId);
+      if (c < bestCount) {
+        best = o;
+        bestCount = c;
+      }
+    }
+    return best;
   }
 
   // -------------------------------------------------------------------

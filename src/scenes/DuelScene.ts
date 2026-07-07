@@ -2465,7 +2465,54 @@ export class DuelScene extends Phaser.Scene {
       this.buildPickOverlay(`Put ${a.count} card(s) on the bottom`, a.count, ['Confirm', 'Concede']);
     } else if (a.kind === 'discardToHandSize') {
       this.buildPickOverlay(`Discard ${a.count} card(s)`, a.count, ['Confirm']);
+    } else if (a.kind === 'chooseBasicLand') {
+      this.showBasicLandOverlay();
     }
+  }
+
+  /**
+   * Mandatory chooser for a deferred fetchLand (Demeter etc.): tap the basic
+   * land type to fetch. One CardView per legal option (deduped basic types);
+   * no Cancel — the fetch is resolving. Stored in `this.overlay`, so the next
+   * syncOverlay tears it down once the choice resolves back to `main`.
+   */
+  private showBasicLandOverlay(): void {
+    const width = 1280;
+    const height = 720;
+    const options = this.duel
+      .legalActions(HUMAN)
+      .filter((l): l is Extract<Action, { type: 'chooseBasicLand' }> => l.type === 'chooseBasicLand');
+    const c = this.add.container(0, 0).setDepth(100);
+    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive());
+    c.add(
+      this.add
+        .text(width / 2, 150, 'Search your deck for a basic land', {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '28px',
+          color: '#f0e6ff',
+        })
+        .setOrigin(0.5),
+    );
+    const n = options.length;
+    const spacing = Math.min(160, (width - 240) / Math.max(1, n));
+    options.forEach((opt, i) => {
+      const x = width / 2 - ((n - 1) * spacing) / 2 + i * spacing;
+      const v = new CardView(this, x, 370).setScale(0.62);
+      const d = def(CARD_DB, opt.cardId);
+      v.setCard(d, { fx: 'none' });
+      c.add(v);
+      v.enableInput();
+      this.zoom.attach(v, d);
+      const pick = (): void => this.act(opt);
+      v.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.wasTouch) return;
+        if (p.rightButtonReleased()) return;
+        pick();
+      });
+      attachTouchGestures(this, v, { card: d, onTap: pick });
+    });
+    this.overlay = c;
+    this.guard.open(this.overlayGuardTargets());
   }
 
   private buildPickOverlay(title: string, picks: number, buttons: string[]): void {

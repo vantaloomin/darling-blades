@@ -534,6 +534,7 @@ export function makeTestState(opts: {
     combat: null,
     fogThisTurn: false,
     awaiting: { player: opts.active ?? 0, kind: 'main' },
+    pendingFetch: [],
     nextIid: nextIid + 1,
     nextSid: 1,
     winner: null,

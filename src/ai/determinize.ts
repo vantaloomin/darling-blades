@@ -284,6 +284,10 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     combat: structuredClone(view.combat),
     fogThisTurn: view.fogThisTurn,
     awaiting: structuredClone(view.awaiting),
+    // No fetch can be mid-flight at a Hard entry point, and stand-in lands
+    // aren't `basic`, so this stays empty in sims — but it must exist so the
+    // engine's pendingFetch reads never hit undefined.
+    pendingFetch: [],
     nextIid: maxIid + 1,
     nextSid: maxSid + 1,
     winner: null,

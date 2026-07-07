@@ -71,6 +71,7 @@ export class Game {
       combat: null,
       fogThisTurn: false,
       awaiting: { player: startingPlayer, kind: 'mulligan' },
+      pendingFetch: [],
       nextIid: 1,
       nextSid: 1,
       winner: null,
@@ -134,7 +135,23 @@ export class Game {
     this.buf = [];
     const emit: Emit = (e) => this.buf.push(e);
     this.apply(player, action, emit);
+    this.maybeRaiseFetchChoice();
     return this.buf;
+  }
+
+  /**
+   * After an action fully resolves, if a fetchLand op deferred a basic-land
+   * choice (>1 distinct type — see EffectInterpreter `fetchLand`), override the
+   * just-computed awaiting with that choice. The chooser is always the fetch
+   * controller, who is the active player (every fetchLand card is cast at
+   * sorcery speed), so this never jumps priority. Idempotent + a no-op in
+   * determinized sims (stand-in lands aren't `basic`, so nothing ever queues).
+   */
+  private maybeRaiseFetchChoice(): void {
+    const st = this.st;
+    if (st.winner !== null) return;
+    if ((st.pendingFetch?.length ?? 0) === 0) return;
+    st.awaiting = { player: st.pendingFetch[0], kind: 'chooseBasicLand' };
   }
 
   // -------------------------------------------------------------------------
@@ -183,6 +200,28 @@ export class Game {
         me.deck.unshift(...bottomed);
         emit({ e: 'cardsBottomed', player, count: bottomed.length });
         this.nextMulliganOrStart(emit);
+        return;
+      }
+
+      case 'chooseBasicLand': {
+        // Perform the fetch the interpreter deferred: pull the chosen basic from
+        // the controller's deck, put it onto the battlefield tapped, reshuffle —
+        // same net effect + RNG use as the inline single-type path, just after a
+        // player decision. See EffectInterpreter `fetchLand` + pendingFetch.
+        const controller = st.pendingFetch.shift();
+        if (controller !== undefined) {
+          const lib = st.players[controller].deck;
+          const idx = lib.lastIndexOf(action.cardId);
+          if (idx >= 0) {
+            const [cardId] = lib.splice(idx, 1);
+            const perm = enterBattlefield(st, this.db, cardId, controller, emit);
+            perm.tapped = true;
+            rngShuffle(st.rng, lib);
+          }
+        }
+        // A further queued fetch is raised by maybeRaiseFetchChoice; otherwise
+        // resume normal play from where the stack flush left off.
+        if (st.pendingFetch.length === 0) this.resumeAfterFlush(emit);
         return;
       }
 

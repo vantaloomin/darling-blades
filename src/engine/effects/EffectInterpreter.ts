@@ -150,9 +150,23 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'fetchLand': {
       const lib = state.players[ctx.controller].deck;
+      // Distinct basic land types available to fetch.
+      const distinct = new Set<string>();
+      for (const cardId of lib) {
+        if (def(db, cardId).supertypes?.includes('basic')) distinct.add(cardId);
+      }
+      if (distinct.size >= 2) {
+        // >1 type: defer to a player/AI choice, surfaced after the flush (see
+        // Game.maybeRaiseFetchChoice / apply 'chooseBasicLand'). Do NOT fetch or
+        // shuffle here — both happen when the choice resolves — so the ≤1-type
+        // path below stays byte-identical (determinism.test relies on it).
+        state.pendingFetch.push(ctx.controller);
+        return;
+      }
+      // 0 or 1 distinct type: unchanged — grab the topmost basic, enter tapped,
+      // reshuffle. (No choice to make, so no reason to interrupt.)
       for (let i = lib.length - 1; i >= 0; i--) {
-        const d = def(db, lib[i]);
-        if (d.supertypes?.includes('basic')) {
+        if (def(db, lib[i]).supertypes?.includes('basic')) {
           const [cardId] = lib.splice(i, 1);
           const perm = enterBattlefield(state, db, cardId, ctx.controller, emit);
           perm.tapped = true;
