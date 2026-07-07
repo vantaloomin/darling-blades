@@ -92,7 +92,7 @@ export class MediumAI implements AIPlayer {
     ).length;
     if (open < 2 || view.opp.handCount < 1) return 0;
     const shownInstant = view.opp.graveyard.some((c) =>
-      isType(def(this.db, c), 'instant'),
+      isType(def(this.db, c), 'charm'),
     );
     return shownInstant ? 2 * this.pers.trickRespect : 0;
   }
@@ -160,7 +160,7 @@ export class MediumAI implements AIPlayer {
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
   private gainsLife(cardId: string): boolean {
     const d = def(this.db, cardId);
-    if ((d.keywords ?? []).includes('lifelink')) return true;
+    if ((d.keywords ?? []).includes('bloodoath')) return true;
     return (d.abilities ?? []).some((ab) =>
       (ab.ops ?? []).some((o) => o.op === 'gainLife'),
     );
@@ -196,7 +196,7 @@ export class MediumAI implements AIPlayer {
       (o) => o.op === 'damage' && o.to === 'target',
     );
     const n = dmg && dmg.op === 'damage' ? (dmg.n === 'X' ? (cast.x ?? 0) : dmg.n) : 0;
-    return n >= stats.toughness - perm.damage;
+    return n >= stats.defense - perm.damage;
   }
 
   private main(view: PlayerView, legal: Action[]): Action {
@@ -265,7 +265,7 @@ export class MediumAI implements AIPlayer {
       //    keeping it simple: cast in whichever main we're in.
       const developable = casts.filter((c) => {
         const d = def(this.db, view.you.hand[c.handIndex]);
-        if (isType(d, 'instant')) return false; // hold tricks for windows
+        if (isType(d, 'charm')) return false; // hold tricks for windows
         if (this.isRemoval(view.you.hand[c.handIndex])) return false; // handled above
         if (d.subtypes.includes('Aura')) {
           const perm = this.targetPerm(view, c.targets?.[0]);
@@ -344,8 +344,8 @@ export class MediumAI implements AIPlayer {
       for (const c of casts) {
         const perm = this.targetPerm(view, c.targets?.[0]);
         if (!perm || perm.controller !== view.myId) continue;
-        const pump = this.opBodies(view.you.hand[c.handIndex]).find((o) => o.op === 'pump');
-        if (!pump || pump.op !== 'pump') continue;
+        const pump = this.opBodies(view.you.hand[c.handIndex]).find((o) => o.op === 'boost');
+        if (!pump || pump.op !== 'boost') continue;
         const isAttacker = view.combat.attackers.includes(perm.iid);
         const inBlocks = view.combat.blocks.some(
           (b) => b.blocker === perm.iid || b.attacker === perm.iid,
@@ -367,10 +367,10 @@ export class MediumAI implements AIPlayer {
         for (const foe of foes) {
           const mine = getEffectiveStats(view.battlefield, this.db, perm.iid);
           const theirs = getEffectiveStats(view.battlefield, this.db, foe);
-          const dieNow = theirs.power >= mine.toughness - perm.damage;
-          const surviveAfter = theirs.power < mine.toughness - perm.damage + pump.t;
-          const killNow = mine.power >= theirs.toughness;
-          const killAfter = mine.power + pump.p >= theirs.toughness;
+          const dieNow = theirs.attack >= mine.defense - perm.damage;
+          const surviveAfter = theirs.attack < mine.defense - perm.damage + pump.t;
+          const killNow = mine.attack >= theirs.defense;
+          const killAfter = mine.attack + pump.p >= theirs.defense;
           if ((dieNow && surviveAfter) || (!killNow && killAfter && !dieNow)) return c;
           if (dieNow && surviveAfter && killAfter) return c;
         }
@@ -407,7 +407,7 @@ export class MediumAI implements AIPlayer {
       return (
         (!c.targets || c.targets.length === 0) &&
         this.opBodies(view.you.hand[c.handIndex]).some((o) => o.op === 'draw') &&
-        isType(d, 'instant')
+        isType(d, 'charm')
       );
     });
     return freebie ?? pass;

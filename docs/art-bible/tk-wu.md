@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/tk-wu.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/tk-wu.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Wu (The River Dynasty)
 
@@ -44,7 +44,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Zhou Yu on a war-junk prow gesturing toward a wall of burning ships across black night water, teal-and-crimson robe and gauze cloak streaming downwind, command fan raised, centered fleet-fire glow, cold moon rim light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sun Jian, Tiger of Jiangdong — `tk-wu-sunjian`
-- **Card facts:** {1}{R}{R} · R · 3/3 · haste · r · holo: auto:sheen
+- **Card facts:** {1}{R}{R} · R · 3/3 · warcry · r · holo: auto:sheen
 - **Character & source:** Genderbent Sun Jian, founder of the Sun line and the original Tiger of Jiangdong; haste — she is already moving. Sun family: emerald eyes, tiger motif front and center (registry).
 - **Personality / mood:** "She found the Imperial Seal in a well. Finders keepers." Bold, grinning, opportunistic; a conqueror who trusts her luck and her arm equally.
 - **Pose & composition:** Forward stride mid-frame, blade drawn low and back for a rising cut, tiger-pelt half-cloak flaring, face ≈ y 330 with eyes forward. One environmental story element: a war-banner snapping behind her (uncommon).
@@ -59,7 +59,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Sun Jian striding forward with drawn river-saber, tiger-striped pelt cloak and crimson lamellar, gilt tiger clasp, emerald eyes, fierce grin, a Wu war-banner snapping behind at dawn riverbank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sun Ce, Little Conqueror — `tk-wu-sunce`
-- **Card facts:** {1}{R} · R · 3/2 · haste · r · holo: auto:sheen
+- **Card facts:** {1}{R} · R · 3/2 · warcry · r · holo: auto:sheen
 - **Character & source:** Genderbent Sun Ce, the young conqueror who took the southeast in a whirlwind; haste, aggressive 3/2. Sun family: emerald eyes, tiger ornament (registry).
 - **Personality / mood:** "Six counties in six years, grinning the whole way." Cocky, joyous, unstoppable youth — momentum as a personality.
 - **Pose & composition:** Full lunge toward lower-left camera, spear thrust forward past the frame edge, coat and hair blown back, face ≈ y 330, grin wide. Motion story element: dust and a following banner (uncommon).
@@ -89,7 +89,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Gan Ning leaping mid-boarding with crossed twin sabers, feathered pirate coat over crimson lamellar, a belt of brass bells swinging, wolfish grin, a junk's rigging and dark water behind, warm lantern light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Taishi Ci, Duel-Promise Keeper — `tk-wu-taishici`
-- **Card facts:** {2}{R}{R} · R · 4/3 · vigilance · r · holo: auto:sheen
+- **Card facts:** {2}{R}{R} · R · 4/3 · sentinel · r · holo: auto:sheen
 - **Character & source:** Genderbent Taishi Ci, the duelist who fought Sun Ce to a draw and came back for the rematch; vigilance — she attacks without dropping her guard.
 - **Personality / mood:** "She fought Sun Ce to a draw, then booked a rematch. She keeps appointments." Honorable, patient, relentlessly reliable — a warrior of her word.
 - **Pose & composition:** Braced two-handed guard, twin halberds crossed before her, weight settled, chin up, face ≈ y 320 looking off-frame at an unseen opponent. Story element: a dueling ground marked in the dust (uncommon).
@@ -134,7 +134,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Lu Meng rising from a scroll-covered lacquered table, one hand on the text and one on a sheathed sword, teal-and-slate robe over light lamellar with river-gold sash, sharp confident gaze, scroll-lined study with a river window — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Lianshi, Steadfast Bodyguard — `tk-wu-lianshi`
-- **Card facts:** {2}{U}{U} · U · 3/4 · reach · c · holo: none
+- **Card facts:** {2}{U}{U} · U · 3/4 · wardingGaze · c · holo: none
 - **Character & source:** Original Wu bodyguard, the sovereign's ever-present crossbow; reach and a sturdy 3/4 — she guards, she does not charge.
 - **Personality / mood:** "The crossbow is for threats. The glare is for everyone else." Vigilant, unimpressed, protective — the one who watches the door.
 - **Pose & composition:** Planted guard stance, repeating crossbow raised and half-aimed upward (reach), body squared to the viewer, face ≈ y 320 with a flat warning stare. Must read as "on-watch guard" at 119×86.
@@ -164,7 +164,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Huang Gai on a fireship deck raising a pitch torch, scorched crimson armor with old bandages and river-gold medals, iron-grey short hair, grim satisfied smirk lit by torch-fire, dark rigging and water — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhou Tai, Scarred Sentinel — `tk-wu-zhoutai`
-- **Card facts:** {2}{B} · B · 2/3 · vigilance · c · holo: none
+- **Card facts:** {2}{B} · B · 2/3 · sentinel · c · holo: none
 - **Character & source:** Genderbent Zhou Tai, the bodyguard who took twelve wounds shielding her lord; vigilance and a mono-black identity — she stands in the way on purpose.
 - **Personality / mood:** "Twelve scars, one job: be in the way, on purpose." Silent, immovable, devoted; a body offered as a wall.
 - **Pose & composition:** Frontal blocking stance, longsword held low across the body, shoulders squared, face ≈ y 320 impassive to the viewer. Reads as "sentinel" at 119×86.
@@ -209,7 +209,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Xu Sheng planted before a rising rampart, hand on an upright broad glaive, teal-and-slate campaign armor with river-gold rivets and a builder's apron, stoic leveled gaze, half-built bamboo-and-earth wall, cool morning light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sun Shangxiang, Bride of Chakrams — `tk-wu-sunshangxiang`
-- **Card facts:** {1}{R}{R} · R · 3/2 · reach · c · holo: none
+- **Card facts:** {1}{R}{R} · R · 3/2 · wardingGaze · c · holo: none
 - **Character & source:** Genderbent Sun Shangxiang, warrior-princess of the Sun line married off to Liu Bei; reach and an aggressive 3/2 — chakrams answer things at range. Sun family: emerald eyes, tiger motif (registry).
 - **Personality / mood:** "Her dowry was a hundred armed handmaidens. The marriage was brief." Fierce, independent, unwilling to be a bargaining chip — a bride who armed the wedding.
 - **Pose & composition:** Mid-throw follow-through, one chakram loosed and spinning off-frame (reach), the other cocked back, face ≈ y 330 sharp at the viewer. One idea: the throw. Reads at 119×86.
@@ -224,7 +224,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Sun Shangxiang in a chakram throw follow-through, one ring loosed and spinning off-frame, crimson battle-dress with tiger-clasp belt and river-gold anklets, emerald eyes and defiant grin, plain sunlit courtyard — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Daqiao, Elder Blossom — `tk-wu-daqiao`
-- **Card facts:** {1}{U} · U · 1/3 · flying · c · holo: none
+- **Card facts:** {1}{U} · U · 1/3 · skyborne · c · holo: none
 - **Character & source:** Genderbent Daqiao, the elder Qiao sister and Sun Ce's consort; flying, gentle 1/3. Qiao sisters: mirrored twin designs, same silhouette, inverted color emphasis, paired fans (registry) — Daqiao is the composed elder.
 - **Personality / mood:** "The elder Qiao. The quiet one — relatively." Serene, graceful, quietly witty; the steadier of the mirrored pair.
 - **Pose & composition:** Airborne dance pose, one fan sweeping overhead, silk sleeves trailing like wings (flying), face ≈ y 320 calm toward the viewer. Mirrored silhouette to Xiaoqiao's, color-inverted. Reads at 119×86.
@@ -239,7 +239,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Daqiao in an airborne dance pose, one fan sweeping overhead, pale-blue robe with deep-crimson underlayer and river-gold hairpin, serene amused face, pale sky with drifting blossom petals — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Xiaoqiao, Younger Blossom — `tk-wu-xiaoqiao`
-- **Card facts:** {U} · U · 1/1 · flying · c · holo: none
+- **Card facts:** {U} · U · 1/1 · skyborne · c · holo: none
 - **Character & source:** Genderbent Xiaoqiao, the younger Qiao sister and Zhou Yu's beloved; flying, fragile 1/1. Qiao sisters: mirrored twin design, same silhouette, inverted color emphasis, paired fans (registry) — Xiaoqiao is the lively spark.
 - **Personality / mood:** "The younger Qiao. Zhou Yu's temper has exactly one weakness." Playful, bright, mischievous; the spark to Daqiao's calm.
 - **Pose & composition:** Airborne dance pose mirroring Daqiao's, fan sweeping the opposite way, sleeves trailing like wings (flying), face ≈ y 320 with a bright smile at the viewer. Mirrored silhouette, color-inverted. Reads at 119×86.
@@ -314,7 +314,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Ding Feng advancing through deep snow with a leveled short spear, dark crimson-lined armor under a fur-lined black cloak with river-gold clasps, frost on the pauldrons, grim breath-fogged face, blizzard field with a faint fortress — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhu Ran, Arrow-Rain Admiral — `tk-wu-zhuran`
-- **Card facts:** {3}{R} · R · 4/2 · haste · c · holo: none
+- **Card facts:** {3}{R} · R · 4/2 · warcry · c · holo: none
 - **Character & source:** Genderbent Zhu Ran, the admiral who held a fifty-day siege unimpressed; haste and a glass-cannon 4/2 — arrows arrive before she does.
 - **Personality / mood:** "Fifty days besieged, zero days impressed." Cool, defiant, unflappable under pressure; boredom as armor.
 - **Pose & composition:** Loosing a bow at the crest of a rampart, arrow just released, a volley streaking overhead (haste = immediate action), face ≈ y 330 calm toward the enemy. One idea: the volley. Reads at 119×86.

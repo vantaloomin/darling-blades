@@ -1103,7 +1103,7 @@ export class DuelScene extends Phaser.Scene {
         if (e.controller === HUMAN) this.portrait.reactCast();
         break;
       case 'spellCountered':
-        this.log('Spell countered!');
+        this.log('Spell cancelled!');
         break;
       case 'targetsFizzled':
         this.log('Spell fizzled — no legal targets');
@@ -1302,9 +1302,9 @@ export class DuelScene extends Phaser.Scene {
     this.hud.myLife.setText(`♥ ${st.players[HUMAN].life}`);
     this.hud.oppLife.setText(`♥ ${st.players[AI].life}`);
     this.oppHandBacks.setCount(st.players[AI].hand.length);
-    this.oppDeckPile.setCount(st.players[AI].library.length);
+    this.oppDeckPile.setCount(st.players[AI].deck.length);
     this.oppGravePile.setCount(st.players[AI].graveyard.length);
-    this.myDeckPile.setCount(st.players[HUMAN].library.length);
+    this.myDeckPile.setCount(st.players[HUMAN].deck.length);
     this.myGravePile.setCount(st.players[HUMAN].graveyard.length);
     // setText resizes a Text but Phaser never refreshes its hit area — keep
     // the inflated burn-target rects (plan §1.4) tracking the new glyphs
@@ -1314,7 +1314,7 @@ export class DuelScene extends Phaser.Scene {
 
     // Phase rail (1a left-edge pills): turn number, current step, whose turn.
     const stepNames: Record<string, string> = {
-      untap: 'Untap', upkeep: 'Upkeep', draw: 'Draw', main1: 'Main 1',
+      untap: 'Untap', dawn: 'Dawn', draw: 'Draw', main1: 'Main 1',
       combat: 'Combat', main2: 'Main 2', end: 'End Step', cleanup: 'Cleanup',
     };
     const yours = st.turn !== 0 && st.activePlayer === HUMAN;
@@ -1399,11 +1399,11 @@ export class DuelScene extends Phaser.Scene {
         }
         if (isType(d, 'creature')) {
           const stats = getEffectiveStats(st.battlefield, CARD_DB, perm.iid);
-          const buffed = stats.power > (d.power ?? 0) || stats.toughness > (d.toughness ?? 0);
-          const weakened = stats.power < (d.power ?? 0) || stats.toughness < (d.toughness ?? 0);
+          const buffed = stats.attack > (d.attack ?? 0) || stats.defense > (d.defense ?? 0);
+          const weakened = stats.attack < (d.attack ?? 0) || stats.defense < (d.defense ?? 0);
           view.setStats(
-            stats.power,
-            stats.toughness - perm.damage,
+            stats.attack,
+            stats.defense - perm.damage,
             perm.damage > 0 ? 'damaged' : buffed ? 'buffed' : weakened ? 'weakened' : 'normal',
           );
         }
@@ -1712,7 +1712,7 @@ export class DuelScene extends Phaser.Scene {
       .setText(
         items.length === 0
           ? ''
-          : 'Stack (top last):\n' + items.map((s) => def(CARD_DB, s.cardId).name).join('\n'),
+          : 'Pending (top last):\n' + items.map((s) => def(CARD_DB, s.cardId).name).join('\n'),
       )
       .setVisible(items.length > 0);
 
@@ -1747,7 +1747,7 @@ export class DuelScene extends Phaser.Scene {
       case 'respond':
       case 'endStepWindow':
         showButton('Pass');
-        hint.setText('You may cast an instant');
+        hint.setText('You may cast a Charm');
         break;
       default:
         break;

@@ -40,7 +40,7 @@ describe('first strike', () => {
   });
 });
 
-describe('trample', () => {
+describe('overrun', () => {
   it('overflow damage past a chump blocker hits the player', () => {
     const { game, iid } = combatSetup(
       [{ key: 'rhino', cardId: 'rhino' }],
@@ -51,7 +51,7 @@ describe('trample', () => {
       type: 'declareBlockers',
       blocks: [{ blocker: iid.elf, attacker: iid.rhino }],
     });
-    // 4 power − 1 lethal to the 1/1 elf = 3 through
+    // 4 attack − 1 lethal to the 1/1 elf = 3 through
     expect(game.state.players[1].life).toBe(17);
   });
 
@@ -84,7 +84,7 @@ describe('trample', () => {
   });
 });
 
-describe('deathtouch', () => {
+describe('deathblade', () => {
   it('any nonzero deathtouch damage destroys the creature', () => {
     const { game, iid } = combatSetup(
       [{ key: 'assassin', cardId: 'assassin' }],
@@ -100,7 +100,7 @@ describe('deathtouch', () => {
   });
 });
 
-describe('lifelink', () => {
+describe('bloodoath', () => {
   it('heals its controller for combat damage dealt to players and creatures', () => {
     const state = makeTestState({
       battlefield: [
@@ -133,14 +133,14 @@ describe('haste and vigilance and defender and reach and flying', () => {
           iid: 1,
           cardId: 'bear',
           controller: 0,
-          untilEotMods: [{ p: 1, t: 1, keywords: ['flying'] }],
+          untilEotMods: [{ p: 1, t: 1, keywords: ['skyborne'] }],
         },
       ],
     });
     const stats = getEffectiveStats(state.battlefield, TEST_DB, 1);
-    expect(stats.power).toBe(3);
-    expect(stats.toughness).toBe(3);
-    expect(stats.keywords.has('flying')).toBe(true);
+    expect(stats.attack).toBe(3);
+    expect(stats.defense).toBe(3);
+    expect(stats.keywords.has('skyborne')).toBe(true);
   });
 
   it('hexproof is carried in effective stats (targeting rules land in M5)', () => {
@@ -150,10 +150,10 @@ describe('haste and vigilance and defender and reach and flying', () => {
           iid: 1,
           cardId: 'bear',
           controller: 0,
-          untilEotMods: [{ p: 0, t: 0, keywords: ['hexproof'] }],
+          untilEotMods: [{ p: 0, t: 0, keywords: ['untouchable'] }],
         },
       ],
     });
-    expect(getEffectiveStats(state.battlefield, TEST_DB, 1).keywords.has('hexproof')).toBe(true);
+    expect(getEffectiveStats(state.battlefield, TEST_DB, 1).keywords.has('untouchable')).toBe(true);
   });
 });

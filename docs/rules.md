@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-06
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-07
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -60,23 +60,23 @@ starting player active.
 
 ## Turn structure
 
-`startTurn` runs untap → upkeep → draw, then hands control to main 1. The player
+`startTurn` runs untap → dawn → draw, then hands control to main 1. The player
 drives the rest via `passStep` and combat actions.
 
 | Step        | What happens                                                                                       |
 | ----------- | -------------------------------------------------------------------------------------------------- |
 | **Untap**   | The active player's permanents untap; summoning sickness wears off; the land-drop flag resets.     |
-| **Upkeep**  | The active player's `upkeep` triggers fire and resolve immediately. **No response window.**        |
+| **Dawn**    | The active player's `dawn` triggers fire and resolve immediately. **No response window.**           |
 | **Draw**    | The active player draws one — **except the starting player on turn 1**, who skips it.               |
 | **Main 1**  | Active player's main phase: play a land, cast anything, or `passStep` to combat.                    |
 | **Combat**  | Declare attackers → (window) → declare blockers → (window) → damage. See below.                     |
 | **Main 2**  | A second main phase.                                                                                |
-| **End**     | The **non-active** player gets **one** instant window (`endStepWindow`). Passing it → cleanup.      |
+| **End**     | The **non-active** player gets **one** response window (`endStepWindow`). Passing it → cleanup.     |
 | **Cleanup** | Discard to max hand size (7); marked damage and until-end-of-turn effects clear; the turn flips.    |
 
 Notes grounded in `phases.ts`:
 
-- Upkeep triggers resolve with **no priority window** — they just happen (v1
+- Dawn triggers resolve with **no priority window** — they just happen (v1
   triggers never target, so there is no decision to make).
 - The **draw skip** is exactly `state.turn === 1 && active === startingPlayer`.
 - At **cleanup**, if the active player is over 7 cards, the engine awaits
@@ -95,7 +95,7 @@ Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
 
 1. **Cast.** The spell is put on the stack (`spellCast`) and `openResponseWindow`
    offers the **opponent** a window over it.
-2. **Auto-pass.** If the opponent has no castable instant *right now*
+2. **Auto-pass.** If the opponent has no castable Charm *right now*
    (`hasCastableInstant` in `src/engine/actions.ts` — payable **and**
    targetable), the window is skipped and the stack flushes immediately. This
    saves clicks and AI calls.
@@ -125,8 +125,8 @@ Combat is declared and resolved through `Game.apply` (declaration),
 - **`declareAttackers` with `[]` skips combat entirely** — no windows, straight
   to main 2.
 - A creature can attack if it's an untapped, non-summoning-sick creature you
-  control without `defender` (`canAttack`).
-- Attacking **taps** the creature — unless it has **vigilance**, which lets it
+  control without `bulwark` (`canAttack`).
+- Attacking **taps** the creature — unless it has **sentinel**, which lets it
   attack untapped.
 - Each declared attacker fires its `attacks` triggers immediately.
 - Then the **defender gets a response window** over the attackers.
@@ -135,8 +135,8 @@ Combat is declared and resolved through `Game.apply` (declaration),
 
 - After the attacker window resolves, the defender assigns blocks
   (`declareBlockers`).
-- **Flying** attackers can only be blocked by creatures with **flying or reach**
-  (`canBlock`). Summoning sickness does **not** restrict blocking.
+- **Skyborne** attackers can only be blocked by creatures with **skyborne or
+  wardingGaze** (`canBlock`). Summoning sickness does **not** restrict blocking.
 - **At most 3 blockers per attacker** (`RULES.maxBlockersPerAttacker`).
 - Then the **attacker gets a response window** over the blocks.
 
@@ -152,20 +152,20 @@ now-null combat and cleanly falls through to main 2 (see the `combat` case in
 `resolveCombatDamage` computes damage against the pre-damage board and applies it
 all at once (modern simultaneous damage):
 
-- **First strike sub-step.** If *any* combatant has first strike **or double
-  strike**, a first-strike damage pass happens first, SBAs are checked, then the
-  normal pass runs. A first striker deals damage only in the first-strike step; a
-  **double striker deals in both** the first-strike and normal steps (first strike
-  + double strike is two hits, not three).
-- **Unblocked attackers** hit the defending player for their power.
+- **First strike sub-step.** If *any* combatant has firstBlade **or twinBlades**,
+  a first-strike damage pass happens first, SBAs are checked, then the normal pass
+  runs. A firstBlade creature deals damage only in the first-strike step; a
+  **twinBlades creature deals in both** the first-strike and normal steps
+  (firstBlade + twinBlades is two hits, not three).
+- **Unblocked attackers** hit the defending player for their attack.
 - **Blocked attackers** use **automatic damage assignment**: blockers are ordered
   **cheapest-to-kill first**, and lethal is assigned to each before any spills
   over.
-  - **Deathtouch** makes **1 damage lethal** (`killCost` returns 1).
-  - **Trample** lets excess over each blocker's lethal spill to the player.
-    Without trample, the leftover is simply wasted on the last blocker.
+  - **Deathblade** makes **1 damage lethal** (`killCost` returns 1).
+  - **Overrun** lets excess over each blocker's lethal spill to the player.
+    Without overrun, the leftover is simply wasted on the last blocker.
 - **Blockers strike back** at the attacker they blocked.
-- **Lifelink** heals the source's controller for the damage dealt.
+- **Bloodoath** heals the source's controller for the damage dealt.
 - **Fog:** if a fog effect is active (`combat.damagePrevented` or
   `state.fogThisTurn`), `resolveCombatDamage` returns immediately — **all combat
   damage is prevented** this turn.
@@ -178,19 +178,19 @@ All eleven keywords and their exact implemented semantics (`Keyword` in
 `src/engine/types.ts`; effects across `statics.ts`, `combat/legality.ts`,
 `combat/damage.ts`, `effects/targeting.ts`):
 
-| Keyword        | Implemented behavior                                                                            |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| **flying**     | Can only be blocked by creatures with flying or reach (`canBlock`).                              |
-| **reach**      | Can block fliers (no other effect).                                                             |
-| **firstStrike**| Deals its combat damage in the first-strike sub-step; if it kills first, it takes no damage back. |
-| **doubleStrike**| Deals combat damage in **both** the first-strike sub-step and the normal sub-step. First strike + double strike is two hits (not three); double deathtouch is lethal in each hit; double trample re-tramples each step (a chump killed in the first-strike step lets the full power trample in the normal step); double lifelink gains on both. |
-| **haste**      | Ignores summoning sickness — can attack / tap for mana the turn it enters (`isSummoningSick`).   |
-| **trample**    | Assigns lethal to blockers, then spills the excess to the defending player.                      |
-| **vigilance**  | Attacking does not tap it.                                                                      |
-| **defender**   | Cannot attack (`canAttack` returns false).                                                      |
-| **deathtouch** | Any amount of its combat damage is lethal (1 counts). Sets `deathtouched`, which SBAs check.     |
-| **lifelink**   | Its controller gains life equal to damage it deals (combat and, where relevant, spell damage paths that flag it). |
-| **hexproof**   | **Blocks only the OPPONENT'S targeting.** Your own hexproof creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
+| Keyword (engine id · shown as) | Implemented behavior                                                    |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| **skyborne** · Skyborne | Can only be blocked by creatures with skyborne or wardingGaze (`canBlock`). |
+| **wardingGaze** · Warding Gaze | Can block skyborne creatures (no other effect).                        |
+| **firstBlade** · First Blade | Deals its combat damage in the first-strike sub-step; if it kills first, it takes no damage back. |
+| **twinBlades** · Twin Blades | Deals combat damage in **both** the first-strike sub-step and the normal sub-step. firstBlade + twinBlades is two hits (not three); doubled deathblade is lethal in each hit; doubled overrun re-spills each step (a chump killed in the first-strike step lets the full attack spill in the normal step); doubled bloodoath gains on both. |
+| **warcry** · Warcry | Ignores summoning sickness — can attack / tap for mana the turn it enters (`isSummoningSick`). |
+| **overrun** · Overrun | Assigns lethal to blockers, then spills the excess to the defending player. |
+| **sentinel** · Sentinel | Attacking does not tap it.                                                     |
+| **bulwark** · Bulwark | Cannot attack (`canAttack` returns false).                                       |
+| **deathblade** · Deathblade | Any amount of its combat damage is lethal (1 counts). Sets `deathtouched`, which SBAs check. |
+| **bloodoath** · Bloodoath | Its controller gains life equal to damage it deals (combat and, where relevant, spell damage paths that flag it). |
+| **untouchable** · Untouchable | **Blocks only the OPPONENT'S targeting.** Your own untouchable creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
 
 Keyword rules text is generated (`KEYWORD_NAMES` in `src/ui/rulesText.ts`) — see
 [docs/adding-cards.md](adding-cards.md).
@@ -221,8 +221,8 @@ order:
 
 1. **Life ≤ 0 loses.** If both players are ≤ 0, the game is a **draw** (reason
    `life`); if one is, the other wins.
-2. **Creatures die** if `toughness ≤ 0`, or marked `damage ≥ toughness`, or they
-   took **deathtouch** damage with any damage marked (`deathtouched && damage > 0`).
+2. **Creatures die** if `defense ≤ 0`, or marked `damage ≥ defense`, or they
+   took **deathblade** damage with any damage marked (`deathtouched && damage > 0`).
    Dying fires `dies` triggers.
 3. **Orphaned auras die.** An aura whose `attachedTo` permanent is gone is put
    into the graveyard.
@@ -231,7 +231,7 @@ order:
    legend rule **is implemented** — it is a simple per-controller, per-name form,
    keyed on `${controller}:${name}`.
 
-(Effective toughness/power for these checks is always computed on read by
+(Effective defense/attack for these checks is always computed on read by
 `getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` counters +
 until-EOT mods + static layers; nothing is cached.)
 
@@ -243,7 +243,7 @@ of four reasons:
 | `winReason`  | Trigger                                                                    |
 | ------------ | ------------------------------------------------------------------------- |
 | `life`       | A player hits 0 or less life (both at once → draw).                       |
-| `deck`       | A player must draw from an empty library (`drawCards` — the opponent wins).|
+| `deck`       | A player must draw from an empty deck (`drawCards` — the opponent wins).   |
 | `concede`    | A player submits `concede` (the opponent wins).                           |
 | `turnLimit`  | Turn 100 is reached at cleanup → **draw** (anti-stall, `RULES.turnLimit`). |
 
@@ -258,11 +258,11 @@ Magic:
 | Area              | Darling Blades                                                                                 | Magic (for reference)                                   |
 | ----------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | Priority / stack  | One response window per cast; the first pass flushes the whole stack with no more windows.     | Full priority passing after every object resolves.      |
-| Upkeep triggers   | Resolve immediately, no window.                                                                | Go on the stack, players get priority.                  |
+| Dawn triggers     | Resolve immediately, no window.                                                                | Go on the stack, players get priority.                  |
 | End-step window   | Exactly one window, for the non-active player only.                                            | Priority in the end step for both players.              |
 | Triggers          | **Never target** (v1 law); auto-resolve with no decision point.                                | Triggers may target and use the stack.                  |
 | Targeted effects  | **Single-target only** (`targets[0]`).                                                          | Arbitrary target counts.                                |
-| Double strike     | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.                | Exists.                                                 |
+| Twin Blades (double strike) | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.        | Exists.                                                 |
 | Colors of mana    | Generic paid by an auto-tap solver; no mana pool, no floating mana.                             | Mana pool with manual tapping.                          |
 | Summoning-sick mana creatures | Cannot tap for mana the turn they enter (ramp is delayed one turn).                   | Depends on the ability (many can if it's not `{T}`).    |
 | Board caps        | 8 creatures / 4 noncreature-nonland permanents per player, enforced at cast time.              | No such caps.                                           |

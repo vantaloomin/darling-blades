@@ -44,7 +44,7 @@ function colorStr(card: CardDef): string {
 
 function factsLine(card: CardDef): string {
   const legendary = card.supertypes?.includes('legendary') ?? false;
-  const parts = [costStr(card.cost), colorStr(card), `${card.power}/${card.toughness}`];
+  const parts = [costStr(card.cost), colorStr(card), `${card.attack}/${card.defense}`];
   if (card.keywords?.length) parts.push(card.keywords.join(', '));
   parts.push(`${card.rarity}${legendary ? ', legendary' : ''}`);
   parts.push(`holo: ${HOLO[card.rarity]}`);
@@ -232,12 +232,12 @@ function mechanicalNote(card: CardDef): string {
   const kw = card.keywords ?? [];
   const ops = (card.abilities ?? []).flatMap((a) => (a.ops ?? []).map((o) => o.op));
   const notes: string[] = [];
-  if (kw.includes('doubleStrike')) notes.push('an elite duelist who strikes twice');
-  if (kw.includes('flying')) notes.push('an airborne threat');
-  if (kw.includes('deathtouch')) notes.push('lethal at a touch');
-  if (kw.includes('trample')) notes.push('an unstoppable bruiser');
-  if (ops.includes('mill')) notes.push('she feeds the graveyard');
-  if (ops.includes('reanimate')) notes.push('she calls the fallen back to the field');
+  if (kw.includes('twinBlades')) notes.push('an elite duelist who strikes twice');
+  if (kw.includes('skyborne')) notes.push('an airborne threat');
+  if (kw.includes('deathblade')) notes.push('lethal at a touch');
+  if (kw.includes('overrun')) notes.push('an unstoppable bruiser');
+  if (ops.includes('grind')) notes.push('she feeds the graveyard');
+  if (ops.includes('raise')) notes.push('she calls the fallen back to the field');
   if (ops.includes('createToken')) notes.push('she brings a host with her');
   return notes.length ? notes.join(', ') : 'a straightforward body on the battlefield';
 }

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-06 · concept doc — future expansion, not implemented (planned src/data/cards/celtic-fae.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
+<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-07 · concept doc — future expansion, not implemented (planned src/data/cards/celtic-fae.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
 
 # Expansion 2 - Celtic Fae: The Silver Veil
 
@@ -26,8 +26,8 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | ID | Name | Rarity | Color | Type | Subject | Keywords / Ops | Role |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | cf-morrigan-black-wing | Morrigan, Black-Wing Omen | UR | B/G | Legendary Creature | Morrigan / war goddess | flying, exile, scry | Boss legend, exile-control finisher |
-| cf-titania-silver-court | Titania of the Silver Court | UR | U/G | Legendary Creature | Fae queen | hexproof, scry, createToken | Fae swarm/control marquee |
-| cf-aine-sunlit-bargain | Aine, Sunlit Bargain | UR | W/G | Legendary Creature | Summer fae sovereign | lifelink, exile return, gainLife | Life/value mythic anchor |
+| cf-titania-silver-court | Titania of the Silver Court | UR | U/G | Legendary Creature | Fae queen | untouchable, scry, createToken | Fae swarm/control marquee |
+| cf-aine-sunlit-bargain | Aine, Sunlit Bargain | UR | W/G | Legendary Creature | Summer fae sovereign | bloodoath, exile return, gainLife | Life/value mythic anchor |
 | cf-nimue-before-the-lake | Nimue Before the Lake | UR | U/W | Legendary Creature | Proto-Arthurian fae mage | scry, tap, exile | Block bridge legend to Arthurian |
 | cf-badb-cathas-warning | Badb Catha's Warning | SSR | B | Sorcery | War crow omen | scry, discardRandom, exile grave | Hand/grave disruption |
 | cf-selkie-tide-queen | Selkie Tide-Queen | SSR | U/G | Legendary Creature | Selkie queen | islandwalk-style evasion via unblockable text, scry | Tempo finisher |
@@ -42,13 +42,13 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-queen-mab-midnight | Queen Mab at Midnight | SR | U/B | Legendary Creature | Dream queen | scry, tap, exile tapped creature | Control legend |
 | cf-ogham-fate-stones | Ogham Fate-Stones | SR | C | Artifact | Ogham divination stones | tap: scry | Colorless smoothing |
 | cf-hollow-hill-gatekeeper | Hollow-Hill Gatekeeper | R | U | Creature | Fae sentinel | defender, scry | Control blocker |
-| cf-blackthorn-duelist | Blackthorn Duelist | R | G | Creature | Sidhe blade dancer | firstStrike, scry on combat damage | Combat value |
+| cf-blackthorn-duelist | Blackthorn Duelist | R | G | Creature | Sidhe blade dancer | firstBlade, scry on combat damage | Combat value |
 | cf-raven-torc-envoy | Raven-Torc Envoy | R | B | Creature | Morrigan envoy | flying, exile grave card | Grave hate evasive |
 | cf-moon-pool-selkie | Moon-Pool Selkie | R | U | Creature | Selkie scout | scry, bounce self | Tempo engine |
 | cf-gold-ring-bargain | Gold-Ring Bargain | R | B | Sorcery | Fae bargain | draw, loseLife, exile top card | Risky card advantage |
 | cf-hounds-of-annwn | Hounds of Annwn | R | G | Creature | Underworld hounds | trample, exile creature on death | Midrange pressure |
-| cf-brigid-ember-blessing | Brigid's Ember Blessing | R | W/R | Instant | Brigid-inspired blessing | pump, firstStrike, scry | Combat trick |
-| cf-sidhe-silver-lancer | Sidhe Silver-Lancer | R | W | Creature | Fae knight | vigilance, firstStrike | White combat support |
+| cf-brigid-ember-blessing | Brigid's Ember Blessing | R | W/R | Instant | Brigid-inspired blessing | pump, firstBlade, scry | Combat trick |
+| cf-sidhe-silver-lancer | Sidhe Silver-Lancer | R | W | Creature | Fae knight | vigilance, firstBlade | White combat support |
 | cf-mist-over-tara | Mist Over Tara | R | U | Instant | Sacred-site fog | fog, scry | Defensive control |
 | cf-fomorian-raider | Fomorian Raider | R | B/R | Creature | Fomorian brute | trample, damage self | Rakdos pressure |
 | cf-apple-of-emain | Apple of Emain | R | G | Artifact | Otherworld fruit | gainLife, scry | Green value relic |
@@ -60,7 +60,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-lake-mirror-vow | Lake-Mirror Vow | R | U/W | Enchantment | Fae oath | scry upkeep, tap attacker | Block bridge control |
 | cf-cold-iron-taboo | Cold-Iron Taboo | R | C | Artifact | Anti-fae iron | exile enchantment/artifact | Sideboard-style answer |
 | cf-thornmaze-patrol | Thornmaze Patrol | R | G | Creature | Fae ranger | reach, scry | Anti-flying support |
-| cf-bog-lantern-witch | Bog-Lantern Witch | R | B/G | Creature | Marsh witch | deathtouch, exile grave | Attrition piece |
+| cf-bog-lantern-witch | Bog-Lantern Witch | R | B/G | Creature | Marsh witch | deathblade, exile grave | Attrition piece |
 | cf-green-knoll-champion | Green Knoll Champion | R | G/W | Creature | Hill knight | vigilance, trample | Midrange body |
 | cf-moonlit-barrow | Moonlit Barrow | R | Land | Hollow hill land | entersTapped, manaAbility U/B | Dual land |
 | cf-sunwell-grove | Sunwell Grove | R | Land | Sacred grove land | entersTapped, manaAbility G/W | Dual land |
@@ -77,7 +77,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-willow-wisp-guide | Willow-Wisp Guide | C | U/G | Creature | Wisp guide | scry, manaAbility | Fixing creature |
 | cf-fae-court-tokenmaker | Fae Court Reveler | C | G | Creature | Court reveler | createToken small | Token common |
 | cf-cold-moon-archer | Cold-Moon Archer | C | W | Creature | Fae archer | reach | White anti-air |
-| cf-black-dog-of-lane | Black Dog of the Lane | C | B | Creature | Omen hound | deathtouch | Defensive black |
+| cf-black-dog-of-lane | Black Dog of the Lane | C | B | Creature | Omen hound | deathblade | Defensive black |
 | cf-heatherblade-scout | Heatherblade Scout | C | G | Creature | Highland fae scout | trample | Green body |
 | cf-torclight-envoy | Torclight Envoy | C | W | Creature | Fae diplomat | gainLife | Lifegain common |
 | cf-glimmerdust-trick | Glimmerdust Trick | C | U | Instant | Fae trick | scry, tap | Tempo trick |
@@ -113,7 +113,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 ## Gauntlet Boss Concepts
 
 - **The Morrigan, Black-Wing Omen** - B/G exile-control boss. Plays removal, graveyard hate, evasive threats, and late-game inevitability.
-- **Titania of the Silver Court** - U/G fae-token boss. Plays scry engines, hexproof threats, and wide fae pressure.
+- **Titania of the Silver Court** - U/G fae-token boss. Plays scry engines, untouchable threats, and wide fae pressure.
 
 ## Art-Bible Follow-Up Notes
 

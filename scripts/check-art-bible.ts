@@ -149,7 +149,7 @@ function checkFacts(card: CardDef, facts: Facts, err: (msg: string) => void): vo
     }
   }
 
-  const pt = `${card.power}/${card.toughness}`;
+  const pt = `${card.attack}/${card.defense}`;
   if (facts.pt !== pt) err(`Card facts: P/T "${facts.pt ?? 'missing'}" ≠ data "${pt}"`);
 
   if (facts.rarity !== card.rarity) {

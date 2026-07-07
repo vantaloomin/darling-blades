@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/LandStackView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts · last-verified: 2026-07-06
+<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/LandStackView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts · last-verified: 2026-07-07
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -95,7 +95,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `drew`                 | `player`, `cardId`                              | `player` drew a card (full info — presenter hides opponent's).                                                             |
 | `mulliganTaken`        | `player`, `count`                               | `player` mulliganed; `count` is their running mulligan total.                                                              |
 | `handKept`             | `player`                                        | `player` kept their opening hand.                                                                                          |
-| `cardsBottomed`        | `player`, `count`                               | `player` put `count` cards on the bottom (London mulligan). Also emitted with `count: 0` by `bounce` as a UI resync nudge. |
+| `cardsBottomed`        | `player`, `count`                               | `player` put `count` cards on the bottom (London mulligan). Also emitted with `count: 0` by `recall` as a UI resync nudge. |
 | `landPlayed`           | `player`, `iid`, `cardId`                       | A land entered under `player`.                                                                                             |
 | `manaTapped`           | `player`, `iids`                                | These sources tapped to pay for a spell.                                                                                   |
 | `spellCast`            | `sid`, `cardId`, `controller`, `targets`        | A spell went on the stack.                                                                                                 |
@@ -109,9 +109,9 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `combatDamage`         | `hits[{source, target, amount}]`, `firstStrike` | A batch of simultaneous combat damage was computed.                                                                        |
 | `damageMarked`         | `iid`, `amount`                                 | Damage was marked on a permanent.                                                                                          |
 | `lifeChanged`          | `player`, `delta`, `now`                        | A player's life total changed.                                                                                             |
-| `died`                 | `iid`, `cardId`, `owner`                        | A permanent left the battlefield to the graveyard (also used by `bounce`).                                                 |
+| `died`                 | `iid`, `cardId`, `owner`                        | A permanent left the battlefield to the graveyard (also used by `recall`).                                                 |
 | `discarded`            | `player`, `cardId`                              | A card went from hand to graveyard.                                                                                        |
-| `milled`               | `player`, `cardId`                              | A card went from the top of a library to the graveyard (the `mill` op).                                                    |
+| `milled`               | `player`, `cardId`                              | A card went from the top of a deck to the graveyard (the `grind` op).                                                      |
 | `triggerFired`         | `iid`, `when`                                   | A permanent's triggered ability fired.                                                                                     |
 | `effectApplied`        | `op`, `detail?`                                 | One `EffectOp` executed (op name for logging).                                                                             |
 | `tokenCreated`         | `perm`                                          | A token permanent entered.                                                                                                 |
@@ -126,10 +126,10 @@ AIs — at *every* difficulty — receive only a `PlayerView` from
 `viewFor(state, player)` (`src/engine/view.ts`), never the raw `GameState`.
 Redaction:
 
-- **Your own hand** is exact (`SelfView.hand`), but **your library becomes a
-  count** (`libraryCount`) — you know your decklist, not its draw order.
-- **The opponent's hand and library become counts** (`OpponentView.handCount`,
-  `libraryCount`).
+- **Your own hand** is exact (`SelfView.hand`), but **your deck becomes a
+  count** (`deckCount`) — you know your decklist, not its draw order.
+- **The opponent's hand and deck become counts** (`OpponentView.handCount`,
+  `deckCount`).
 - **Battlefield, stack, combat, and both graveyards are public** and cloned into
   the view (`structuredClone`), so an AI can mutate its view freely.
 

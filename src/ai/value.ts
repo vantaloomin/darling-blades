@@ -3,17 +3,17 @@ import type { CardDb, Keyword, Permanent } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
 
 const KEYWORD_BONUS: Record<Keyword, number> = {
-  flying: 1,
-  deathtouch: 1,
-  lifelink: 0.5,
-  firstStrike: 0.5,
-  doubleStrike: 1.5,
-  trample: 0.5,
-  vigilance: 0.25,
-  haste: 0.25,
-  reach: 0.25,
-  hexproof: 0.5,
-  defender: -0.5,
+  skyborne: 1,
+  deathblade: 1,
+  bloodoath: 0.5,
+  firstBlade: 0.5,
+  twinBlades: 1.5,
+  overrun: 0.5,
+  sentinel: 0.25,
+  warcry: 0.25,
+  wardingGaze: 0.25,
+  untouchable: 0.5,
+  bulwark: -0.5,
 };
 
 function keywordScore(keywords: Iterable<Keyword>): number {
@@ -39,7 +39,7 @@ export function cardValue(db: CardDb, cardId: string): number {
   const d = def(db, cardId);
   let v = manaValue(d.cost);
   if (isType(d, 'creature')) {
-    v += ((d.power ?? 0) + (d.toughness ?? 0)) / 2;
+    v += ((d.attack ?? 0) + (d.defense ?? 0)) / 2;
     v += keywordScore(d.keywords ?? []);
   }
   if (isLordOrLegendary(db, cardId)) v += 1;
@@ -59,7 +59,7 @@ export function permValue(
   let v = manaValue(d.cost);
   if (isType(d, 'creature')) {
     const stats = getEffectiveStats(battlefield, db, iid);
-    v += (stats.power + Math.max(0, stats.toughness - perm.damage)) / 2;
+    v += (stats.attack + Math.max(0, stats.defense - perm.damage)) / 2;
     v += keywordScore(stats.keywords);
   }
   if (isLordOrLegendary(db, perm.cardId)) v += 1;

@@ -4,19 +4,19 @@ export type PlayerId = 0 | 1;
 export type Color = 'W' | 'U' | 'B' | 'R' | 'G';
 
 export type Keyword =
-  | 'flying'
-  | 'reach'
-  | 'firstStrike'
-  | 'doubleStrike'
-  | 'haste'
-  | 'trample'
-  | 'vigilance'
-  | 'defender'
-  | 'deathtouch'
-  | 'lifelink'
-  | 'hexproof';
+  | 'skyborne'
+  | 'wardingGaze'
+  | 'firstBlade'
+  | 'twinBlades'
+  | 'warcry'
+  | 'overrun'
+  | 'sentinel'
+  | 'bulwark'
+  | 'deathblade'
+  | 'bloodoath'
+  | 'untouchable';
 
-export type CardType = 'creature' | 'instant' | 'sorcery' | 'enchantment' | 'artifact' | 'land';
+export type CardType = 'creature' | 'charm' | 'ritual' | 'enchantment' | 'artifact' | 'land';
 export type Rarity = 'c' | 'r' | 'sr' | 'ssr' | 'ur';
 
 export interface ManaCost {
@@ -31,10 +31,10 @@ export interface ManaCost {
 // ---------------------------------------------------------------------------
 
 export type TriggerWhen =
-  | 'spell' // instant/sorcery body, runs on resolution
-  | 'etb'
+  | 'spell' // charm/ritual body, runs on resolution
+  | 'arrives'
   | 'dies'
-  | 'upkeep'
+  | 'dawn'
   | 'combatDamageToPlayer'
   | 'attacks'
   | 'static';
@@ -50,18 +50,18 @@ export type EffectOp =
   | { op: 'draw'; n: number }
   | { op: 'discardRandom'; n: number; who: 'opponent' }
   | { op: 'destroy'; to: 'target' }
-  | { op: 'bounce'; to: 'target' }
-  | { op: 'counter'; to: 'target' } // target is a stack item
-  | { op: 'pump'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
+  | { op: 'recall'; to: 'target' }
+  | { op: 'cancel'; to: 'target' } // target is a stack item
+  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
-  | { op: 'rampBasic' } // a basic land from library → battlefield tapped
+  | { op: 'fetchLand' } // a basic land from deck → battlefield tapped
   | { op: 'createToken'; token: string; count: number }
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' }
-  | { op: 'fog' } // prevent all combat damage this turn
-  | { op: 'regrowth' } // return target creature card from your graveyard to hand
-  | { op: 'mill'; n: number; who: 'self' | 'opponent' } // top n of library → graveyard
-  | { op: 'reanimate'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
+  | { op: 'preventCombat' } // prevent all combat damage this turn
+  | { op: 'reclaim' } // return target creature card from your graveyard to hand
+  | { op: 'grind'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
+  | { op: 'raise'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
 
 export interface StaticDef {
   scope: 'attached' | 'filter';
@@ -92,8 +92,8 @@ export interface CardDef {
   supertypes?: ('legendary' | 'basic')[];
   cost?: ManaCost; // absent on lands
   colors: Color[];
-  power?: number;
-  toughness?: number;
+  attack?: number;
+  defense?: number;
   keywords?: Keyword[];
   x?: { min: number }; // X spells
   abilities?: AbilityDef[];
@@ -175,7 +175,7 @@ export interface CombatState {
 
 export type Step =
   | 'untap'
-  | 'upkeep'
+  | 'dawn'
   | 'draw'
   | 'main1'
   | 'combat'
@@ -200,7 +200,7 @@ export type Awaiting =
 
 export interface PlayerState {
   life: number;
-  library: string[]; // cardIds; LAST element is the top of the library
+  deck: string[]; // the draw pile (cardIds; LAST element is the top). Distinct from the meta-layer SaveData.decks (built decklists).
   hand: string[];
   graveyard: string[];
   landPlayedThisTurn: boolean;

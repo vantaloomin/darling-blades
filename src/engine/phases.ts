@@ -27,7 +27,7 @@ export function drawCards(
 ): void {
   const p = state.players[player];
   for (let i = 0; i < n; i++) {
-    const cardId = p.library.pop(); // last element = top
+    const cardId = p.deck.pop(); // last element = top
     if (cardId === undefined) {
       endGame(state, emit, opponentOf(player), 'deck');
       return;
@@ -37,7 +37,7 @@ export function drawCards(
   }
 }
 
-/** Untap → upkeep → draw, then hand control to Main 1. */
+/** Untap → dawn → draw, then hand control to Main 1. */
 export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   const active = state.activePlayer;
   emit({ e: 'turnBegan', player: active, turn: state.turn });
@@ -57,13 +57,13 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   state.players[active].landPlayedThisTurn = false;
   if (untapped.length > 0) emit({ e: 'untapped', iids: untapped });
 
-  // Upkeep — the active player's upkeep triggers resolve, no response window.
-  state.step = 'upkeep';
-  emit({ e: 'stepChanged', step: 'upkeep' });
+  // Dawn — the active player's start-of-turn triggers resolve, no response window.
+  state.step = 'dawn';
+  emit({ e: 'stepChanged', step: 'dawn' });
   for (const perm of [...state.battlefield]) {
     if (perm.controller !== active) continue;
     if (!state.battlefield.some((p) => p.iid === perm.iid)) continue;
-    fireTriggers(state, db, emit, 'upkeep', perm);
+    fireTriggers(state, db, emit, 'dawn', perm);
   }
   checkStateBased(state, db, emit);
   if (state.winner !== null) return;

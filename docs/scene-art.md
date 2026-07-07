@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-06 -->
+<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-07 -->
 
 # Scene & Menu Art — Direction + Integration Contract
 

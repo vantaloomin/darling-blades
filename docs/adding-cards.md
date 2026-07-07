@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-06
+<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-07
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -21,8 +21,8 @@ Card definitions live in per-set files under `src/data/cards/`:
 | `tk-other.ts`     | Three Kingdoms — "Other" officers       | `tk-other-` |
 | `greek.ts`        | Greek pantheon / Olympus                | `gk-`       |
 | `beastkin.ts`     | Beastkin                                | `bk-`       |
-| `instants.ts`     | Instants                               | `in-`       |
-| `sorceries.ts`    | Sorceries                              | `so-`       |
+| `instants.ts`     | Charms (`charm` type; `in-` legacy id) | `in-`       |
+| `sorceries.ts`    | Rituals (`ritual` type; `so-` legacy) | `so-`       |
 | `enchantments.ts` | Auras + banners                         | `en-`       |
 | `artifacts.ts`    | Artifacts / constructs                  | `ar-`       |
 | `duals.ts`        | Dual taplands                           | `ld-`       |
@@ -56,13 +56,13 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | ------------- | -------------------------------------- | --------------------------------------------------------------------- |
 | `id`          | `string`                               | Unique; must carry its set prefix.                                    |
 | `name`        | `string`                               | Display name.                                                         |
-| `types`       | `CardType[]`                           | `creature`/`instant`/`sorcery`/`enchantment`/`artifact`/`land`. Multi-type allowed (e.g. artifact + creature). |
+| `types`       | `CardType[]`                           | `creature`/`charm`/`ritual`/`enchantment`/`artifact`/`land`. Multi-type allowed (e.g. artifact + creature). |
 | `subtypes`    | `string[]`                             | Free strings — tribe/role (e.g. `['Beastkin', 'Kitsune']`, `['Aura']`). Lords filter on these. |
 | `supertypes`  | `('legendary' \| 'basic')[]?`          | `legendary` enables the crown + legend rule; `basic` marks basic lands. |
 | `cost`        | `ManaCost?`                            | Absent on lands. Use the `cost()` shorthand (below).                  |
 | `colors`      | `Color[]`                              | `W`/`U`/`B`/`R`/`G`. Drives the frame. **Multicolor nonland cards must be legendary** (enforced by a catalog test). |
-| `power`       | `number?`                              | Creatures only.                                                       |
-| `toughness`   | `number?`                              | Creatures only.                                                       |
+| `attack`       | `number?`                              | Creatures only.                                                       |
+| `defense`   | `number?`                              | Creatures only.                                                       |
 | `keywords`    | `Keyword[]?`                           | The eleven keywords (see [rules.md](rules.md)).                       |
 | `x`           | `{ min: number }?`                     | Marks an X spell; `min` is the smallest legal X.                       |
 | `abilities`   | `AbilityDef[]?`                        | Triggered/static/spell abilities (below).                            |
@@ -142,10 +142,10 @@ An `AbilityDef` (`src/engine/types.ts`) is one of: a **triggered/spell** ability
 
 | `when`                   | Fires…                                                     |
 | ------------------------ | --------------------------------------------------------- |
-| `spell`                  | as the body of an instant/sorcery, on resolution.         |
-| `etb`                    | when the permanent enters the battlefield.                |
+| `spell`                  | as the body of a charm/ritual, on resolution.             |
+| `arrives`                | when the permanent arrives (enters play).                 |
 | `dies`                   | when the permanent dies.                                  |
-| `upkeep`                 | at the start of the controller's upkeep.                  |
+| `dawn`                   | at the start of the controller's turn.                    |
 | `combatDamageToPlayer`   | when it deals combat damage to a player.                  |
 | `attacks`                | when it is declared as an attacker.                       |
 | `static`                 | continuous — handled by `statics.ts`, not the interpreter.|
@@ -169,26 +169,26 @@ in `src/engine/effects/EffectInterpreter.ts`. Each op emits
 
 <!-- BEGIN GENERATED: EffectOp table (ops from src/engine/types.ts + EffectInterpreter.ts · run: npm run gen-docs-tables · semantics prose is hand-maintained) -->
 
-| Op              | Shape                                                                         | Semantics                                                                                                                                                                                                                                         | Notable events                 |
-| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| `damage`        | `{ n: number\|'X'; to: 'target'\|'opponent'\|'controller' }`                  | `n` (or `ctx.x` if `'X'`) damage. `target` → `targets[0]` (player = life loss, creature = marked damage); `opponent`/`controller` → that player's face.                                                                                           | `lifeChanged` / `damageMarked` |
-| `gainLife`      | `{ n: number }`                                                               | Controller gains `n` life.                                                                                                                                                                                                                        | `lifeChanged`                  |
-| `loseLife`      | `{ n: number; who: 'opponent' }`                                              | **Opponent-only.** Opponent loses `n` life.                                                                                                                                                                                                       | `lifeChanged`                  |
-| `draw`          | `{ n: number }`                                                               | Controller draws `n` (can deck them out → loss).                                                                                                                                                                                                  | `drew`                         |
-| `discardRandom` | `{ n: number; who: 'opponent' }`                                              | **Opponent-only.** Discards `n` random cards from the opponent's hand.                                                                                                                                                                            | `discarded`                    |
-| `destroy`       | `{ to: 'target' }`                                                            | Destroys `targets[0]` (a creature); fires its `dies` triggers.                                                                                                                                                                                    | `died`                         |
-| `bounce`        | `{ to: 'target' }`                                                            | Returns `targets[0]` to its owner's hand (tokens evaporate). Emits `died` + a `cardsBottomed(0)` resync nudge.                                                                                                                                    | `died`                         |
-| `counter`       | `{ to: 'target' }`                                                            | **Targets a stack item** (`targets[0]` is a `stackItem`); removes it to its controller's graveyard.                                                                                                                                               | `spellCountered`               |
-| `pump`          | `{ p: number; t: number; keywords?: Keyword[]; scope: 'target'\|'allYours' }` | Until-end-of-turn `+p/+t` (+ keywords). `target` → `targets[0]`; `allYours` → every creature you control.                                                                                                                                         | (via stat recompute)           |
-| `addCounters`   | `{ n: number; to: 'target'\|'self' }`                                         | Puts `n` `+1/+1` counters on `targets[0]` (`target`) or the source permanent (`self`, via `ctx.sourceIid`).                                                                                                                                       | (via stat recompute)           |
-| `tap`           | `{ to: 'target' }`                                                            | Taps `targets[0]`.                                                                                                                                                                                                                                | —                              |
-| `rampBasic`     | `{}`                                                                          | Finds a basic land in the controller's library, puts it onto the battlefield **tapped**, then **shuffles** the library.                                                                                                                           | `permanentEntered`             |
-| `createToken`   | `{ token: string; count: number }`                                            | Creates `count` copies of `token`; **stops at the 8-creature cap**; each fires `etb`.                                                                                                                                                             | `tokenCreated`                 |
-| `massDestroy`   | `{ filter: 'allCreatures'\|'allFliers' }`                                     | Destroys all creatures (or all with flying); each fires `dies`.                                                                                                                                                                                   | `died`                         |
-| `fog`           | `{}`                                                                          | Sets `fogThisTurn` — all combat damage this turn is prevented.                                                                                                                                                                                    | —                              |
-| `regrowth`      | `{}`                                                                          | Returns a creature card from **your own graveyard** (`targets[0]` is a `grave` ref) to hand.                                                                                                                                                      | —                              |
-| `mill`          | `{ n: number; who: 'self'\|'opponent' }`                                      | Puts the top `n` cards of that player's library into their graveyard. Deck-out stays a draw-step check, so milling to empty is not itself a loss.                                                                                                 | `milled`                       |
-| `reanimate`     | `{ to?: 'target'\|'top' }`                                                    | Returns a creature card from **your** graveyard to the **battlefield** (summoning-sick, re-fires `etb`, respects the 8-creature cap). `target` uses a `yourGraveCreature` target; `top` (trigger-safe) returns the most-recently-buried creature. | `permanentEntered`             |
+| Op              | Shape                                                                         | Semantics                                                                                                                                                                                                                                             | Notable events                 |
+| --------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `damage`        | `{ n: number\|'X'; to: 'target'\|'opponent'\|'controller' }`                  | `n` (or `ctx.x` if `'X'`) damage. `target` → `targets[0]` (player = life loss, creature = marked damage); `opponent`/`controller` → that player's face.                                                                                               | `lifeChanged` / `damageMarked` |
+| `gainLife`      | `{ n: number }`                                                               | Controller gains `n` life.                                                                                                                                                                                                                            | `lifeChanged`                  |
+| `loseLife`      | `{ n: number; who: 'opponent' }`                                              | **Opponent-only.** Opponent loses `n` life.                                                                                                                                                                                                           | `lifeChanged`                  |
+| `draw`          | `{ n: number }`                                                               | Controller draws `n` (can deck them out → loss).                                                                                                                                                                                                      | `drew`                         |
+| `discardRandom` | `{ n: number; who: 'opponent' }`                                              | **Opponent-only.** Discards `n` random cards from the opponent's hand.                                                                                                                                                                                | `discarded`                    |
+| `destroy`       | `{ to: 'target' }`                                                            | Destroys `targets[0]` (a creature); fires its `dies` triggers.                                                                                                                                                                                        | `died`                         |
+| `recall`        | `{ to: 'target' }`                                                            | Returns `targets[0]` to its owner's hand (tokens evaporate). Emits `died` + a `cardsBottomed(0)` resync nudge.                                                                                                                                        | `died`                         |
+| `cancel`        | `{ to: 'target' }`                                                            | **Targets a stack item** (`targets[0]` is a `stackItem`); removes it to its controller's graveyard.                                                                                                                                                   | `spellCountered`               |
+| `boost`         | `{ p: number; t: number; keywords?: Keyword[]; scope: 'target'\|'allYours' }` | Until-end-of-turn `+p/+t` (+ keywords). `target` → `targets[0]`; `allYours` → every creature you control.                                                                                                                                             | (via stat recompute)           |
+| `addCounters`   | `{ n: number; to: 'target'\|'self' }`                                         | Puts `n` `+1/+1` counters on `targets[0]` (`target`) or the source permanent (`self`, via `ctx.sourceIid`).                                                                                                                                           | (via stat recompute)           |
+| `tap`           | `{ to: 'target' }`                                                            | Taps `targets[0]`.                                                                                                                                                                                                                                    | —                              |
+| `fetchLand`     | `{}`                                                                          | Finds a basic land in the controller's deck, puts it onto the battlefield **tapped**, then **shuffles** the deck.                                                                                                                                     | `permanentEntered`             |
+| `createToken`   | `{ token: string; count: number }`                                            | Creates `count` copies of `token`; **stops at the 8-creature cap**; each fires `arrives`.                                                                                                                                                             | `tokenCreated`                 |
+| `massDestroy`   | `{ filter: 'allCreatures'\|'allFliers' }`                                     | Destroys all creatures (or all with Skyborne); each fires `dies`.                                                                                                                                                                                     | `died`                         |
+| `preventCombat` | `{}`                                                                          | Sets `fogThisTurn` — all combat damage this turn is prevented.                                                                                                                                                                                        | —                              |
+| `reclaim`       | `{}`                                                                          | Returns a creature card from **your own graveyard** (`targets[0]` is a `grave` ref) to hand.                                                                                                                                                          | —                              |
+| `grind`         | `{ n: number; who: 'self'\|'opponent' }`                                      | Puts the top `n` cards of that player's deck into their graveyard. Deck-out stays a draw-step check, so milling to empty is not itself a loss.                                                                                                        | `milled`                       |
+| `raise`         | `{ to?: 'target'\|'top' }`                                                    | Returns a creature card from **your** graveyard to the **battlefield** (summoning-sick, re-fires `arrives`, respects the 8-creature cap). `target` uses a `yourGraveCreature` target; `top` (trigger-safe) returns the most-recently-buried creature. | `permanentEntered`             |
 
 <!-- END GENERATED -->
 
@@ -199,23 +199,23 @@ If a spell has target specs and **every** target is illegal at resolution
 to the graveyard doing nothing and emits `targetsFizzled`. Partial legality
 (at least one legal target) resolves normally.
 
-## Targeting kinds and hexproof
+## Targeting kinds and untouchable
 
 `TargetSpec.what` (`src/engine/types.ts`) with legality in
 `src/engine/effects/targeting.ts`:
 
 | `what`               | Legal target                                                        |
 | -------------------- | ------------------------------------------------------------------- |
-| `creature`           | any creature (hexproof-restricted — see below).                     |
+| `creature`           | any creature (untouchable-restricted — see below).                  |
 | `yourCreature`       | a creature **you** control.                                         |
 | `player`             | either player.                                                      |
-| `any`                | either player **or** any creature (hexproof-restricted).            |
-| `spell`              | a stack item (for `counter`).                                       |
-| `yourGraveCreature`  | a creature card in **your** graveyard (for `regrowth`; deduped).    |
+| `any`                | either player **or** any creature (untouchable-restricted).         |
+| `spell`              | a stack item (for `cancel`).                                        |
+| `yourGraveCreature`  | a creature card in **your** graveyard (for `reclaim`; deduped).     |
 
-**Hexproof** rejects a creature target only when
-`perm.controller !== caster` (`creatureTargetable`) — your own hexproof creature
-is still a legal target for your own spells.
+**Untouchable** rejects a creature target only when
+`perm.controller !== caster` (`creatureTargetable`) — your own untouchable
+creature is still a legal target for your own spells.
 
 ## Statics
 
@@ -251,8 +251,8 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   subtypes: ['Beastkin'],
   cost: cost(1, 'G'),
   colors: ['G'],
-  power: 2,
-  toughness: 2,
+  attack: 2,
+  defense: 2,
   rarity: 'c',
   flavor: 'Hibernates professionally. Fights recreationally.',
 },
@@ -269,15 +269,15 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   subtypes: ['Beastkin', 'Avian'],
   cost: cost(1, 'R'),
   colors: ['R'],
-  power: 2,
-  toughness: 2,
+  attack: 2,
+  defense: 2,
   keywords: ['flying'],
   rarity: 'r',
   flavor: 'Her opinions arrive at terminal velocity.',
 },
 ```
 
-**ETB creature** — a trigger on entry (`bk-deerkin-grovekeeper`, `beastkin.ts`):
+**Arrival creature** — a trigger on entry (`bk-deerkin-grovekeeper`, `beastkin.ts`):
 
 ```ts
 {
@@ -287,9 +287,9 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   subtypes: ['Beastkin', 'Deerkin'],
   cost: cost(2, 'G'),
   colors: ['G'],
-  power: 2,
-  toughness: 2,
-  abilities: [{ when: 'etb', ops: [{ op: 'rampBasic' }] }],
+  attack: 2,
+  defense: 2,
+  abilities: [{ when: 'arrives', ops: [{ op: 'fetchLand' }] }],
   rarity: 'r',
   flavor: 'The forest follows her home and stays.',
 },
@@ -306,8 +306,8 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   subtypes: ['Beastkin', 'Wolfkin'],
   cost: cost(1, 'GG'),
   colors: ['G'],
-  power: 2,
-  toughness: 2,
+  attack: 2,
+  defense: 2,
   abilities: [
     {
       when: 'static',
@@ -331,21 +331,21 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   supertypes: ['legendary'],
   cost: cost(2, 'B'),
   colors: ['B'],
-  power: 3,
-  toughness: 2,
+  attack: 3,
+  defense: 2,
   abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
   rarity: 'r',
   flavor: 'Even her downfall was expensive.',
 },
 ```
 
-**Removal instant** — destroys target creature (`in-doom-bolt`, `instants.ts`):
+**Removal Charm** — destroys target creature (`in-doom-bolt`, `instants.ts`):
 
 ```ts
 {
   id: 'in-doom-bolt',
   name: 'Doom Bolt',
-  types: ['instant'],
+  types: ['charm'],
   subtypes: [],
   cost: cost(1, 'BB'),
   colors: ['B'],
@@ -363,7 +363,7 @@ statics) and check the generated wording by opening the **Card Showcase** scene
 {
   id: 'in-comet-blast',
   name: 'Comet Blast',
-  types: ['instant'],
+  types: ['charm'],
   subtypes: [],
   cost: cost(0, 'R'),
   colors: ['R'],
@@ -388,21 +388,21 @@ target (`en-wings-of-dawn`, `enchantments.ts`):
   cost: cost(1, 'W'),
   colors: ['W'],
   abilities: [
-    { when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['flying'] } },
+    { when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['skyborne'] } },
   ],
   rarity: 'r',
   flavor: 'Standard-issue miracle, size medium.',
 },
 ```
 
-**Token maker** — a sorcery that makes tokens (`so-muster-militia`,
+**Token maker** — a ritual that makes tokens (`so-muster-militia`,
 `sorceries.ts`); the token itself is defined in `tokens.ts`:
 
 ```ts
 {
   id: 'so-muster-militia',
   name: 'Muster the Militia',
-  types: ['sorcery'],
+  types: ['ritual'],
   subtypes: [],
   cost: cost(1, 'W'),
   colors: ['W'],

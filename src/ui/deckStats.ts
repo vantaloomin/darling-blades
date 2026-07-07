@@ -13,7 +13,7 @@ export const CURVE_MAX = 7;
 /** WUBRG order for the color pie. */
 export const PIE_COLORS: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
 /** Primary-type resolution order (creature-first, so an artifact creature counts as a creature). */
-const TYPE_ORDER: readonly CardType[] = ['creature', 'instant', 'sorcery', 'enchantment', 'artifact', 'land'];
+const TYPE_ORDER: readonly CardType[] = ['creature', 'charm', 'ritual', 'enchantment', 'artifact', 'land'];
 
 export interface DeckStats {
   /** Length CURVE_MAX+1; NONLAND cards bucketed by mana value (index 7 = MV ≥ 7). */
@@ -29,8 +29,8 @@ export function computeDeckStats(deck: string[], db: CardDb): DeckStats {
   const colorPips: Record<Color, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
   const typeCounts: Record<CardType, number> = {
     creature: 0,
-    instant: 0,
-    sorcery: 0,
+    charm: 0,
+    ritual: 0,
     enchantment: 0,
     artifact: 0,
     land: 0,

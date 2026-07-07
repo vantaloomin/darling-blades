@@ -256,10 +256,10 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
-  /** Effective P/T (toughness already minus marked damage). No-op for non-creatures. */
-  setStats(power: number, toughnessLeft: number, mood: StatsMood): this {
+  /** Effective P/T (defense already minus marked damage). No-op for non-creatures. */
+  setStats(attack: number, defenseLeft: number, mood: StatsMood): this {
     if (!this.ptText.visible) return this;
-    this.ptText.setText(`${power}/${toughnessLeft}`).setColor(STATS_COLORS[mood]);
+    this.ptText.setText(`${attack}/${defenseLeft}`).setColor(STATS_COLORS[mood]);
     return this;
   }
 

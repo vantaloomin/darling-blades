@@ -45,7 +45,7 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
     if (perm.enteredThisTurn) v *= 0.92;
     score += mineSide ? v : -v;
     if (isType(d, 'creature')) {
-      const p = getEffectiveStats(stripped, db, perm.iid).power;
+      const p = getEffectiveStats(stripped, db, perm.iid).attack;
       if (mineSide) myPower += p;
       else theirPower += p;
     }

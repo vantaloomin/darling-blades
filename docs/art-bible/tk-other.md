@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/tk-other.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/tk-other.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Other Officers (`tk-other`)
 
@@ -14,7 +14,7 @@ are the era's opportunists and monsters, painted with the same reverence given t
 kings, because for one violent season each of them held the world by the throat.
 
 ### Lu Bu, Peerless Flying General — `tk-other-lubu`
-- **Card facts:** {2}{R}{R} · R · 5/3 · haste · ur, legendary · holo: galaxy (explicit)
+- **Card facts:** {2}{R}{R} · R · 5/3 · warcry · ur, legendary · holo: galaxy (explicit)
 - **Character & source:** Genderbent Lu Bu, the Three Kingdoms coalition era's apex warrior — the card burns its own controller every upkeep, so the art must feel barely contained.
 - **Personality / mood:** "Among warriors, Lu Bu. Among steeds, Red Hare. Among tempers… run." Overwhelming, gleeful violence; a weapon that has opinions about being pointed.
 - **Pose & composition:** Low-angle three-quarter, chest-up, eyes locked on the viewer, face ≈ y 330; the Sky Piercer slashes lower-left → upper-right, deliberately breaking the top of the band; Red Hare rears ember-lit behind her shoulder in bokeh.
@@ -89,7 +89,7 @@ kings, because for one violent season each of them held the world by the throat.
 - **Prompt:** Genderbent Hua Xiong, red-and-iron lamellar armor and torn officer's cloak streaming, crested helm, charging the viewer with a broad dao cocked overhead, open-mouthed war-shout, blurred gate timbers and torch-streak background, flat warm torchlight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Lu Lingqi, Halberd Heiress — `tk-other-lulingqi`
-- **Card facts:** {R}{R} · R · 2/2 · firstStrike · c · holo: none
+- **Card facts:** {R}{R} · R · 2/2 · firstBlade · c · holo: none
 - **Character & source:** Genderbent Lu Lingqi, Lu Bu's daughter and heir to his weapon — she inherits the halberd design (canon registry): same crescent-blade silhouette, lighter build.
 - **Personality / mood:** "Her father's halberd, her own legend." Proud, disciplined, out of the shadow — first-strike precision where her father brought overwhelming force.
 - **Pose & composition:** Balanced guard stance, three-quarter, halberd held ready across the body on a clean diagonal, face ≈ y 330, level gaze at the viewer. Poised and controlled — first-strike is a duelist's readiness, not a wild lunge.
@@ -119,7 +119,7 @@ kings, because for one violent season each of them held the world by the throat.
 - **Prompt:** Genderbent Yuan Shao, immaculate ivory-and-gold ceremonial court robes with heavy Excellency insignia and tall formal cap, jade girdle, standing tall with a hand half-raised over a war-map in eternal deliberation, furrowed thoughtful expression, plain command-tent interior, even cool daylight with warm gold rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Meng Huo, Sevenfold Sovereign — `tk-other-menghuo`
-- **Card facts:** {3}{G}{G} · G · 5/4 · trample · r · holo: auto:sheen
+- **Card facts:** {3}{G}{G} · G · 5/4 · overrun · r · holo: auto:sheen
 - **Character & source:** Genderbent Meng Huo, the Nanman queen captured and freed seven times by Zhuge Liang — unbroken and unbowed, she just keeps coming back.
 - **Personality / mood:** "Captured seven times, released seven times, undefeated in her own retelling." Defiant, prideful, indomitable; trample is the refusal to be stopped.
 - **Pose & composition:** Advancing three-quarter mid-stride, weight forward, breaking through as if nothing could hold her, face ≈ y 330. A 5/5-feeling charge — trample momentum, chin high with pride.
@@ -134,7 +134,7 @@ kings, because for one violent season each of them held the world by the throat.
 - **Prompt:** Genderbent Meng Huo, defiant Nanman queen in tiger-pelt mantle over bronze-scaled leather with feathered beaded headdress and jade arm rings, striding forward with a broad tribal war-blade, fierce grin, southern jungle war-trail with her host's banners behind, warm canopy-dapple key with cool green rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhurong, Flame Descendant — `tk-other-zhurong`
-- **Card facts:** {2}{R}{R} · R · 4/3 · firstStrike · r · holo: auto:sheen
+- **Card facts:** {2}{R}{R} · R · 4/3 · firstBlade · r · holo: auto:sheen
 - **Character & source:** Genderbent Zhurong, Meng Huo's wife and claimed descendant of the fire god — a peerless javelin-fighter who never lost on her own ground.
 - **Personality / mood:** "Descended from the fire god, married to a seven-time loser, unbeaten at home." Proud, blazing, a little exasperated by her spouse; first-strike is her flawless opening throw.
 - **Pose & composition:** Dynamic three-quarter, arm cocked back mid-throw with a flying javelin already leaving her hand toward the top-right bleed, face ≈ y 330. First-strike energy — the strike that lands first, captured a heartbeat before release.
@@ -149,10 +149,10 @@ kings, because for one violent season each of them held the world by the throat.
 - **Prompt:** Genderbent Zhurong, fire-god descendant in crimson-and-bronze scaled Nanman war-dress with flame-embroidered sash and ember-streaked wild hair, cocked arm loosing a flying javelin, exhilarated bared-teeth grin, jungle-night home ground with tribal fires, hot firelight key from below with cool night rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zuo Ci, Mist-Walking Sage — `tk-other-zuoci`
-- **Card facts:** {2}{U} · U · 2/3 · hexproof · r · holo: auto:sheen
-- **Character & source:** Genderbent Zuo Ci, the Daoist immortal and trickster-conjurer who mocked Cao Cao with illusions and could never be caught — hexproof made flesh.
+- **Card facts:** {2}{U} · U · 2/3 · untouchable · r · holo: auto:sheen
+- **Character & source:** Genderbent Zuo Ci, the Daoist immortal and trickster-conjurer who mocked Cao Cao with illusions and could never be caught — untouchable made flesh.
 - **Personality / mood:** "Arrest her twice and you will be holding three of her." Serene, mischievous, untouchable; a sage who is never quite where you struck.
-- **Pose & composition:** Standing three-quarter, half-dissolving into mist at the edges, one hand raised in a conjuror's gesture; a faint duplicate of herself echoes just behind. Face ≈ y 330, calm and centered. Elusive stillness — hexproof is presence you cannot pin.
+- **Pose & composition:** Standing three-quarter, half-dissolving into mist at the edges, one hand raised in a conjuror's gesture; a faint duplicate of herself echoes just behind. Face ≈ y 330, calm and centered. Elusive stillness — untouchable is presence you cannot pin.
 - **Costume & attire:** Flowing slate-blue Daoist robes with cloud-pattern trim, a horsehair fly-whisk, a gourd at the hip, long silver-streaked hair drifting as if underwater.
 - **Palette:** U palette (`#4a90d9` → `#16294f`, accent `#a8d4f7`) — misty blues and deep indigo — with a single Other-faction ember note in a hovering lantern-spark.
 - **Lighting:** Cool diffuse moonlit mist as key; pale cyan rim where her form fades into fog.
@@ -179,9 +179,9 @@ kings, because for one violent season each of them held the world by the throat.
 - **Prompt:** Genderbent Chen Gong, plain dark scholar-official robes and black cap with ink-stained sleeves, holding a closed bamboo strategy-scroll to her chest, level resigned gaze, sparse war-tent interior, low warm lamplight key with cool blue rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dong Bai, Tyrant's Grandchild — `tk-other-dongbai`
-- **Card facts:** {B} · B · 1/1 · deathtouch · c · holo: none
+- **Card facts:** {B} · B · 1/1 · deathblade · c · holo: none
 - **Character & source:** Genderbent Dong Bai, Dong Zhuo's granddaughter, granted a marquisate as a child — small, spoiled, and lethally spiteful. As an adult woman here, per catalog rule.
-- **Personality / mood:** "Granted a fief before losing her baby teeth. Kept the teeth." Petty, entitled, quietly venomous; deathtouch is one small, patient, lethal instrument.
+- **Personality / mood:** "Granted a fief before losing her baby teeth. Kept the teeth." Petty, entitled, quietly venomous; deathblade is one small, patient, lethal instrument.
 - **Pose & composition:** Poised three-quarter, near-still, examining a single slender needle-blade held delicately between two fingers, face ≈ y 330, a cool sidelong glance at the viewer. Deathtouch gets one quiet lethal implement — no lunge, just menace.
 - **Costume & attire:** Overfine miniature-court black silk with excessive gold trim she plainly did not earn, a fief-seal pendant, elaborate pinned hair with a jeweled hairpin (that doubles as the blade's twin).
 - **Palette:** B palette (`#5a3a70` → `#140d1c`, accent `#9b6fc4`) — deep violet-black — with cold gold trim as the Other-faction ember note; two-value background.

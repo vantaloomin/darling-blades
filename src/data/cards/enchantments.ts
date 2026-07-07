@@ -55,7 +55,7 @@ export const ENCHANTMENTS = [
     cost: cost(1, 'W'),
     colors: ['W'],
     abilities: [
-      { when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['flying'] } },
+      { when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['skyborne'] } },
     ],
     rarity: 'r',
     flavor: 'Standard-issue miracle, size medium.',
@@ -68,7 +68,7 @@ export const ENCHANTMENTS = [
     cost: cost(1, 'R'),
     colors: ['R'],
     abilities: [
-      { when: 'static', static: { scope: 'attached', p: 2, t: 0, grantKeywords: ['haste'] } },
+      { when: 'static', static: { scope: 'attached', p: 2, t: 0, grantKeywords: ['warcry'] } },
     ],
     rarity: 'r',
     flavor: 'Patience sold separately. Never restocked.',

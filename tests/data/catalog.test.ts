@@ -64,13 +64,13 @@ describe('catalog integrity', () => {
     }
   });
 
-  it('creature power/toughness stay within 0-10', () => {
+  it('creature attack/defense stay within 0-10', () => {
     for (const card of ALL_CARDS) {
       if (!card.types.includes('creature')) continue;
-      expect(card.power, `${card.id} power`).toBeGreaterThanOrEqual(0);
-      expect(card.power, `${card.id} power`).toBeLessThanOrEqual(10);
-      expect(card.toughness, `${card.id} toughness`).toBeGreaterThanOrEqual(0);
-      expect(card.toughness, `${card.id} toughness`).toBeLessThanOrEqual(10);
+      expect(card.attack, `${card.id} attack`).toBeGreaterThanOrEqual(0);
+      expect(card.attack, `${card.id} attack`).toBeLessThanOrEqual(10);
+      expect(card.defense, `${card.id} defense`).toBeGreaterThanOrEqual(0);
+      expect(card.defense, `${card.id} defense`).toBeLessThanOrEqual(10);
     }
   });
 

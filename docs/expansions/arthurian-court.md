@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-06 · concept doc — future expansion, not implemented (planned src/data/cards/arthurian-court.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
+<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-07 · concept doc — future expansion, not implemented (planned src/data/cards/arthurian-court.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
 
 # Expansion 3 - Arthurian Court: The Grail Oath
 
@@ -29,24 +29,24 @@ Visual anchors: polished steel, white-gold sunlight, crimson pennants, moonlit l
 | ac-morgan-thorn-crown | Morgan of the Thorn Crown | UR | U/B | Legendary Creature | Morgan le Fay | Quest payoff, exile, scry | Control boss legend |
 | ac-nimue-lake-sovereign | Nimue, Lake Sovereign | UR | U/W | Legendary Creature | Lady of the Lake | tap, draw, Quest support | Control/value legend |
 | ac-grail-radiant-secret | The Grail, Radiant Secret | UR | W/G | Legendary Artifact | Holy Grail analogue | gainLife, awaken champion | Mythic relic build-around |
-| ac-lancelot-moonlit-shame | Lancelot, Moonlit Shame | SSR | W/R | Legendary Creature | Lancelot analogue | doubleStrike, Awakening drawback | Elite duelist |
+| ac-lancelot-moonlit-shame | Lancelot, Moonlit Shame | SSR | W/R | Legendary Creature | Lancelot analogue | twinBlades, Awakening drawback | Elite duelist |
 | ac-guinevere-court-sun | Guinevere, Court Sun | SSR | W/U | Legendary Creature | Court queen | scry, draw, token support | Court engine |
-| ac-gawain-noonblade | Gawain of the Noonblade | SSR | R/W | Legendary Creature | Solar knight | firstStrike, Quest bonus | Aggro legend |
+| ac-gawain-noonblade | Gawain of the Noonblade | SSR | R/W | Legendary Creature | Solar knight | firstBlade, Quest bonus | Aggro legend |
 | ac-quest-for-the-grail | Quest for the Grail | SSR | W | Enchantment - Quest | Grail quest | chapters: scry/gain/awaken | Signature Quest |
 | ac-fall-of-camelot | The Fall of Camelot | SSR | B/R | Enchantment - Quest | Tragic collapse | chapters: damage/discard/sweep | Big saga payoff |
-| ac-percival-clear-heart | Percival, Clear-Heart Knight | SR | W/G | Legendary Creature | Grail knight | vigilance, lifelink | Midrange lifegain |
-| ac-galahad-silver-oath | Galahad, Silver Oath | SR | W | Legendary Creature | Pure knight | hexproof while Quest active | Quest payoff threat |
+| ac-percival-clear-heart | Percival, Clear-Heart Knight | SR | W/G | Legendary Creature | Grail knight | vigilance, bloodoath | Midrange lifegain |
+| ac-galahad-silver-oath | Galahad, Silver Oath | SR | W | Legendary Creature | Pure knight | untouchable while Quest active | Quest payoff threat |
 | ac-merlin-crow-clock | Merlin, Crow-Clock Sage | SR | U | Legendary Creature | Merlin analogue | scry, draw | Blue setup |
 | ac-excalibur-from-lake | Excalibur From the Lake | SR | C | Legendary Artifact | Sacred sword | Equipment-like static pump | Relic build-around |
 | ac-round-table-vow | Vow of the Round Table | SR | W | Enchantment - Quest | Knightly vow | chapters: token/pump/awaken | Tribal Quest |
 | ac-green-knight-challenge | The Green Knight's Challenge | SR | G | Enchantment - Quest | Beheading-game analogue | fight, counters, awaken | Green Quest |
 | ac-mordred-bastard-star | Mordred, Bastard Star | SR | B/R | Legendary Creature | Mordred analogue | menace-like pressure, damage | Villain midrange |
 | ac-camelot-banneret | Camelot Banneret | R | W | Creature | Court soldier | vigilance, Quest discount | Knight support |
-| ac-lakeblade-initiate | Lakeblade Initiate | R | U/W | Creature | Lake knight | firstStrike, scry | Tempo knight |
-| ac-chapel-questant | Chapel Questant | R | W | Creature | Grail seeker | lifelink, Quest trigger | Lifegain quest body |
+| ac-lakeblade-initiate | Lakeblade Initiate | R | U/W | Creature | Lake knight | firstBlade, scry | Tempo knight |
+| ac-chapel-questant | Chapel Questant | R | W | Creature | Grail seeker | bloodoath, Quest trigger | Lifegain quest body |
 | ac-ashwood-ranger | Ashwood Ranger | R | G | Creature | Forest knight | reach, counters | Green support |
 | ac-velvet-court-spy | Velvet Court Spy | R | U/B | Creature | Court infiltrator | scry, discardRandom | Intrigue piece |
-| ac-tournament-favorite | Tournament Favorite | R | R/W | Creature | Arena knight | firstStrike, haste | Aggro rare |
+| ac-tournament-favorite | Tournament Favorite | R | R/W | Creature | Arena knight | firstBlade, haste | Aggro rare |
 | ac-questing-beast-maiden | Questing Beast-Maiden | R | G | Creature | Mythic huntress | trample, vigilance | Green pressure |
 | ac-mirror-of-avalon | Mirror of Avalon | R | U | Artifact | Avalon mirror | tap: scry 2 | Control relic |
 | ac-black-chapel-curse | Black Chapel Curse | R | B | Enchantment - Quest | Morgan curse | chapters: lose/destroy/exile | Black Quest |
@@ -57,11 +57,11 @@ Visual anchors: polished steel, white-gold sunlight, crimson pennants, moonlit l
 | ac-lady-of-lilies | Lady of Lilies | R | U/W | Creature | Lake priestess | tap, draw if Quest | Control support |
 | ac-red-dragon-banner | Red Dragon Banner | R | R | Enchantment | War banner | pump attackers | Red aggro |
 | ac-grail-hermit | Grail Hermit | R | G/W | Creature | Hermit guide | scry, gainLife | Value support |
-| ac-moonlit-joust | Moonlit Joust | R | R | Instant | Tournament duel | damage, firstStrike grant | Combat trick |
+| ac-moonlit-joust | Moonlit Joust | R | R | Instant | Tournament duel | damage, firstBlade grant | Combat trick |
 | ac-secret-of-avalon | Secret of Avalon | R | U | Sorcery | Avalon revelation | draw, scry | Blue card draw |
 | ac-castle-under-siege | Castle Under Siege | R | W/R | Enchantment - Quest | Siege Quest | chapters: token/damage/pump | Midrange Quest |
 | ac-raven-of-camlann | Raven of Camlann | R | B | Creature | War omen | flying, exile grave | Grave hate |
-| ac-oathbroken-knight | Oathbroken Knight | R | B/R | Creature | Fallen knight | deathtouch, haste | Aggro removal body |
+| ac-oathbroken-knight | Oathbroken Knight | R | B/R | Creature | Fallen knight | deathblade, haste | Aggro removal body |
 | ac-lance-of-dawn | Lance of Dawn | R | W | Artifact | Knight weapon | attached-style pump | Equipment precursor |
 | ac-queen-regents-command | Queen-Regent's Command | R | W/U | Instant | Court command | modal-like draw/tap | Flexible control |
 | ac-holy-well | Holy Well | C | Land | Grail spring | entersTapped, manaAbility W/G | Dual land |
@@ -73,7 +73,7 @@ Visual anchors: polished steel, white-gold sunlight, crimson pennants, moonlit l
 | ac-torchbearer-knight | Torchbearer Knight | C | R | Creature | Knight | haste | Red common |
 | ac-borderland-huntress | Borderland Huntress | C | G | Creature | Huntress | reach | Green common |
 | ac-chapel-mender | Chapel Mender | C | W | Creature | Healer | gainLife | Lifegain common |
-| ac-castle-blackguard | Castle Blackguard | C | B | Creature | Guard | deathtouch | Black common |
+| ac-castle-blackguard | Castle Blackguard | C | B | Creature | Guard | deathblade | Black common |
 | ac-quest-marker | Quest Marker | C | C | Artifact | Quest token marker | scry | Utility artifact |
 | ac-knights-breakfast | Knight's Breakfast | C | G | Sorcery | Court feast | gainLife, draw if Quest | Green value |
 | ac-steel-prayer | Steel Prayer | C | W | Instant | Knight prayer | pump toughness | White trick |
@@ -82,14 +82,14 @@ Visual anchors: polished steel, white-gold sunlight, crimson pennants, moonlit l
 | ac-lantern-in-fog | Lantern in Fog | C | U | Instant | Mist guide | scry, tap | Tempo trick |
 | ac-bitter-court-rumor | Bitter Court Rumor | C | B | Sorcery | Court gossip | discardRandom | Black common |
 | ac-hunt-the-boar | Hunt the Boar | C | G | Sorcery | Knight hunt | fight-lite damage | Green removal |
-| ac-tilting-lance | Tilting Lance | C | R/W | Instant | Joust weapon | firstStrike grant | Combat trick |
+| ac-tilting-lance | Tilting Lance | C | R/W | Instant | Joust weapon | firstBlade grant | Combat trick |
 | ac-white-horse | White Horse | C | W | Creature | Knight mount | vigilance | Mount-flavored body |
 | ac-riverford-guard | Riverford Guard | C | U/W | Creature | Border guard | defender, scry | Control common |
 | ac-wounded-oath | Wounded Oath | C | B | Enchantment Aura | Cursed vow | attached debuff | Black aura |
 | ac-candlelit-vigil | Candlelit Vigil | C | W | Enchantment | Chapel vigil | gainLife upkeep | Slow value |
-| ac-errant-duelist | Errant Duelist | C | R | Creature | Wandering knight | firstStrike | Red/white common |
+| ac-errant-duelist | Errant Duelist | C | R | Creature | Wandering knight | firstBlade | Red/white common |
 | ac-grail-glimpse | Grail Glimpse | C | U | Sorcery | Vision | scry 3 | Setup spell |
-| ac-root-chapel-warden | Root-Chapel Warden | C | G/W | Creature | Sacred grove knight | reach, lifelink | Defensive body |
+| ac-root-chapel-warden | Root-Chapel Warden | C | G/W | Creature | Sacred grove knight | reach, bloodoath | Defensive body |
 | ac-fallen-banner | Fallen Banner | C | B/R | Sorcery | Battlefield loss | damage, mill self | Tragedy support |
 | ac-pennant-carrier | Pennant Carrier | C | W | Creature | Banner carrier | anthem if Quest | Token support |
 | ac-court-archer | Court Archer | C | G | Creature | Archer | reach | Green common |

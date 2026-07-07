@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-06 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes -->
 
 # Mod / UGC pack system
 
@@ -23,7 +23,7 @@ Every effect a card can have is a member of the closed `EffectOp` union
 `src/engine/effects/EffectInterpreter.ts`; every keyword is a member of the
 closed `Keyword` union (`types.ts:6-17`). The AI's card heuristic
 (`src/ai/value.ts` `cardValue`/`permValue`) reads only `CardDef` fields —
-`cost`, `power`, `toughness`, `keywords`, `abilities` — with **no hardcoded id
+`cost`, `attack`, `defense`, `keywords`, `abilities` — with **no hardcoded id
 list anywhere**. Therefore any card whose `CardDef` is built from the existing
 vocabulary is automatically executable by the engine and evaluable by the AI,
 with zero engine or AI changes. The entire risk surface collapses to one
@@ -91,8 +91,8 @@ export interface ModCardDef {
   supertypes?: ('legendary' | 'basic')[];
   cost?: ManaCost;           // { generic, pips } — required unless type==='land'
   colors: Color[];           // subset of WUBRG
-  power?: number;            // integer 0..20, required iff creature
-  toughness?: number;        // integer 1..20, required iff creature
+  attack?: number;            // integer 0..20, required iff creature
+  defense?: number;        // integer 1..20, required iff creature
   keywords?: Keyword[];      // WHITELIST: existing Keyword union only
   x?: { min: number };
   abilities?: AbilityDef[];  // WHITELIST-validated recursively (see below)
@@ -113,7 +113,7 @@ second, defense-in-depth collision check when the merged db is assembled.
 
 ### A valid modded card (worked example)
 
-This reuses only existing vocabulary — a `flying` keyword and an `etb` trigger
+This reuses only existing vocabulary — a `skyborne` keyword and an `arrives` trigger
 running the existing `damage`/`opponent` op (exactly the shape of `gk-zeus` in
 `src/data/cards/greek.ts:93-106`):
 
@@ -126,11 +126,11 @@ running the existing `damage`/`opponent` op (exactly the shape of `gk-zeus` in
   "supertypes": ["legendary"],
   "cost": { "generic": 4, "pips": { "R": 1, "U": 1 } },
   "colors": ["R", "U"],
-  "power": 5,
-  "toughness": 5,
-  "keywords": ["flying"],
+  "attack": 5,
+  "defense": 5,
+  "keywords": ["skyborne"],
   "abilities": [
-    { "when": "etb", "ops": [{ "op": "damage", "n": 2, "to": "opponent" }] }
+    { "when": "arrives", "ops": [{ "op": "damage", "n": 2, "to": "opponent" }] }
   ],
   "rarity": "ur",
   "flavor": "The storm does not ask permission to land."
@@ -152,11 +152,11 @@ has a text renderer.
   "subtypes": ["Dragon"],
   "cost": { "generic": 0, "pips": {} },
   "colors": ["B"],
-  "power": 99,
-  "toughness": 99,
-  "keywords": ["flying", "cannotBeBlocked"],
+  "attack": 99,
+  "defense": 99,
+  "keywords": ["skyborne", "cannotBeBlocked"],
   "abilities": [
-    { "when": "etb", "ops": [{ "op": "winGame" }] },
+    { "when": "arrives", "ops": [{ "op": "winGame" }] },
     { "when": "static", "ops": [{ "op": "damage", "n": 1, "to": "opponent" }] }
   ],
   "rarity": "ur"
@@ -166,7 +166,7 @@ has a text renderer.
 Rejected on **five** independent grounds — the validator reports all of them:
 1. `keywords` contains `"cannotBeBlocked"`, not in the `Keyword` union → reject.
 2. `ops` contains `{ "op": "winGame" }`, not in the `EffectOp` union → reject.
-3. `power`/`toughness` `99` exceed the stat cap (`20`) → reject.
+3. `attack`/`defense` `99` exceed the stat cap (`20`) → reject.
 4. A `static` ability carries `ops` instead of a `static` block — malformed
    `AbilityDef` for that `when` → reject.
 5. (Advisory, not a hard reject) 0-cost 99/99 trips the balance heuristic flag
@@ -195,21 +195,21 @@ assertion that they cover the union exhaustively (a `satisfies` check plus a
 conscious decision about whether mods may use it:
 
 - **Keywords** — every entry of `keywords` and every `pump.keywords` /
-  `static.grantKeywords` entry ∈ `{flying, reach, firstStrike, doubleStrike,
-  haste, trample, vigilance, defender, deathtouch, lifelink, hexproof}`
-  (`types.ts:6-17`; Ragnarök added `doubleStrike` 2026-07-06, so the whitelist
+  `static.grantKeywords` entry ∈ `{skyborne, wardingGaze, firstBlade, twinBlades,
+  warcry, overrun, sentinel, bulwark, deathblade, bloodoath, untouchable}`
+  (`types.ts:6-17`; Ragnarök added `twinBlades` 2026-07-06, so the whitelist
   is now eleven keywords).
 - **Effect ops** — every op's `op` field ∈ the 18-member set
-  `{damage, gainLife, loseLife, draw, discardRandom, destroy, bounce, counter,
-  pump, addCounters, tap, rampBasic, createToken, massDestroy, fog, regrowth,
-  mill, reanimate}` (`types.ts:46-64`; Ragnarök added `mill`/`reanimate`
+  `{damage, gainLife, loseLife, draw, discardRandom, destroy, recall, cancel,
+  boost, addCounters, tap, fetchLand, createToken, massDestroy, preventCombat,
+  reclaim, grind, raise}` (`types.ts:46-64`; Ragnarök added `grind`/`raise`
   2026-07-06). Beyond the tag, each op's **payload** is validated
   field-by-field against its variant: e.g. `damage.to ∈ {target, opponent,
   controller}`, `damage.n` is a non-negative integer or the literal `"X"`,
-  `massDestroy.filter ∈ {allCreatures, allFliers}`, `pump.scope ∈ {target,
-  allYours}`, `mill.who ∈ {self, opponent}`, `reanimate.to ∈ {target, top}`.
+  `massDestroy.filter ∈ {allCreatures, allFliers}`, `boost.scope ∈ {target,
+  allYours}`, `grind.who ∈ {self, opponent}`, `raise.to ∈ {target, top}`.
   An unknown field on an op is rejected (no smuggling extra data). **Note:**
-  `mill`/`reanimate` are graveyard-reanimator ops — a mod that whitelists them
+  `grind`/`raise` are graveyard-reanimator ops — a mod that whitelists them
   gains the Ragnarök archetype for free; decide per the exhaustiveness gate
   whether packs may use them.
 - **Triggers** — every ability `when` ∈ `TriggerWhen`
@@ -218,11 +218,11 @@ conscious decision about whether mods may use it:
 - **Types / colors / rarity / supertypes** — subsets of their respective unions.
 
 ### 3. Structural coherence (matching how base cards are authored)
-- Creatures require integer `power`/`toughness`; non-creatures must omit them.
+- Creatures require integer `attack`/`defense`; non-creatures must omit them.
 - `cost` required unless `types` includes `land` (mirrors the "absent on lands"
   comment at `types.ts:97`); `cost.generic >= 0`, each pip count `>= 0`.
-- A `spell` ability is only legal on `instant`/`sorcery` types; `etb`/`dies`/
-  `upkeep`/`attacks`/`combatDamageToPlayer` only on permanents.
+- A `spell` ability is only legal on `charm`/`ritual` types; `arrives`/`dies`/
+  `dawn`/`attacks`/`combatDamageToPlayer` only on permanents.
 - `static` abilities carry a `static` block and no `ops`; non-static abilities
   carry `ops` and no `static` (the `abilityText` renderer in `rulesText.ts:66`
   assumes this split).
@@ -234,11 +234,11 @@ conscious decision about whether mods may use it:
   cards a mod defines are marked `token: true` by the registry (never
   collectible) and are the one place `token` is set, always by us, never by the
   uploader.
-- `regrowth`/graveyard ops and X-spell shapes are checked for the same
+- `reclaim`/graveyard ops and X-spell shapes are checked for the same
   invariants base cards satisfy.
 
 ### 4. Numeric / resource sanity caps
-Hard caps (reject if exceeded): `power`/`toughness` `0..20`, `cost.generic
+Hard caps (reject if exceeded): `attack`/`defense` `0..20`, `cost.generic
 <= 20`, total mana value `<= 25`, `draw.n <= 10`, `damage.n <= 20`,
 `createToken.count <= 8`, `gainLife.n <= 40`, `abilities.length <= 4`,
 `ops.length <= 4` per ability. These bound the blast radius of a hostile or

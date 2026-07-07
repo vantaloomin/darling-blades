@@ -48,11 +48,11 @@ export function resolveStackItem(
     const attachedTo =
       isAura(d) && item.targets[0]?.kind === 'permanent' ? item.targets[0].iid : undefined;
     const perm = enterBattlefield(state, db, item.cardId, item.controller, emit, { attachedTo });
-    fireTriggers(state, db, emit, 'etb', perm);
+    fireTriggers(state, db, emit, 'arrives', perm);
     return;
   }
 
-  if (isType(d, 'instant') || isType(d, 'sorcery')) {
+  if (isType(d, 'charm') || isType(d, 'ritual')) {
     for (const ab of d.abilities ?? []) {
       if (ab.when === 'spell' && ab.ops) {
         runOps(

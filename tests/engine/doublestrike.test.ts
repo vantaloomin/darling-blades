@@ -63,7 +63,7 @@ describe('double strike', () => {
     expect(a.damage).toBe(0);
   });
 
-  it('trample: a chump that dies in the FS step lets the full power trample in the normal step', () => {
+  it('trample: a chump that dies in the FS step lets the full attack trample in the normal step', () => {
     // ds_trample (3/3) blocked by a 1/1 elf: FS assigns 1 lethal + tramples 2;
     // elf dies in the between-steps SBA → the normal step tramples the full 3.
     const { game, iid } = combatSetup(

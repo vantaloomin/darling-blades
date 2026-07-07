@@ -1,17 +1,17 @@
-<!-- source-of-truth: src/data/cards/tk-shu.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/tk-shu.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Shu (`tk-shu`)
 
 Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, and grieving idealists who fight because they promised to. The visual identity is **jade and ivory** — pale green silks, jade beadwork, white lacquer, and warm bone-ivory armor plate — carried over each card's color-identity anchor rather than replacing it. Textiles read handmade and lived-in: patched banners, hand-stitched hems, campaign dust on ivory. Architecture is straw-and-timber camp, mountain switchbacks, and the borrowed-arrow fog of Sichuan gorges, never imperial marble. Warriors favor the **guandao and long spear**; the Guan family shares a green-and-guandao motif whose crescent blades descend from Guan Yu's Green Dragon Crescent Blade (see registry). Strategists carry lacquered-wood devices — exposed joinery, no raw metal — the same craft language as Yueying's wooden ox. Faces are earnest, weather-worn, and warm; Shu never looks imperial, it looks loyal. Every character is an adult woman.
 
 ### Liu Bei, Benevolent Oathkeeper — `tk-shu-liubei`
-- **Card facts:** {2}{W}{G} · W/G (gold frame) · 3/4 · lifelink · ur, legendary · holo: foil (explicit)
+- **Card facts:** {2}{W}{G} · W/G (gold frame) · 3/4 · bloodoath · ur, legendary · holo: foil (explicit)
 - **Character & source:** Genderbent Liu Bei, founder-mother of Shu; her ETB musters two Militia tokens (`tok-militia`), so the art must show volunteers rallying to her.
 - **Personality / mood:** "She wept, and ten thousand volunteers signed up to carry her tears." Grief as gravity — a leader people die for gladly.
 - **Pose & composition:** Standing three-quarter, chest-up, one open hand extended toward the viewer as if offering an oath; face ≈ y 320, eye line y 340, chin level and gaze soft-direct. Two ragtag militia silhouettes kneel/rise in the lower midground, hands raised to hers.
 - **Costume & attire:** Ivory-and-jade court robe over practical travel armor, hand-embroidered sleeves, a patched green cloak, simple twin-sword harness (her dual blades).
 - **Palette:** Gold palette (`#e8c95a` → `#7a5a18`, accent `#fff2b8`) carrying the white/green split; Shu jade + ivory in the robe and cloak. Warm skin, no cold notes.
-- **Lighting:** Warm dawn key from frame-left; soft ivory rim along the extended arm — the lifelink glow reads on her hand.
+- **Lighting:** Warm dawn key from frame-left; soft ivory rim along the extended arm — the bloodoath glow reads on her hand.
 - **Expression:** Tear-bright eyes, composed sorrow, the faint smile of resolve.
 - **Props / weapon:** Twin swords sheathed at hip; the two canon Militia volunteers rallying.
 - **Background:** Straw-roof camp at dawn, banners half-raised, distant volunteers streaming in from mist.
@@ -20,10 +20,10 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Liu Bei in ivory-and-jade embroidered robe over travel armor with patched green cloak, one hand extended in oath, two ragtag volunteers rallying below, straw-roofed dawn camp with half-raised banners, tearful resolute leader, warm dawn key light and soft ivory rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Guan Yu, Saint of War — `tk-shu-guanyu`
-- **Card facts:** {2}{W}{R}{R} · W/R (gold frame) · 5/4 · firstStrike, vigilance · ur, legendary · holo: galaxy (explicit)
+- **Card facts:** {2}{W}{R}{R} · W/R (gold frame) · 5/4 · firstBlade, sentinel · ur, legendary · holo: galaxy (explicit)
 - **Character & source:** Genderbent Guan Yu, deified Saint of War and matriarch of the Guan green-and-guandao line (registry); wields the Green Dragon Crescent Blade.
 - **Personality / mood:** "The magnificent beard is now magnificent hair. The moon blade did not change." Serene, absolute, temple-calm martial authority.
-- **Pose & composition:** Frontal, slightly low-angle, chest-up, guandao held vertical at her side with the crescent blade rising into the top bleed; face ≈ y 300, eyes half-lowered in composure. The vigilance/firstStrike read: ready, unhurried, first to strike.
+- **Pose & composition:** Frontal, slightly low-angle, chest-up, guandao held vertical at her side with the crescent blade rising into the top bleed; face ≈ y 300, eyes half-lowered in composure. The vigilance/firstBlade read: ready, unhurried, first to strike.
 - **Costume & attire:** Deep green war-robe with ivory undercoat and lacquered green pauldrons, dragon-scale trim, a long dark mane flowing where the legendary beard once was.
 - **Palette:** Gold palette (`#e8c95a` → `#7a5a18`, accent `#fff2b8`) split white/red; dominant Shu jade green with ember-red sash and one cold steel note on the moon blade. Dark, high-contrast field for galaxy.
 - **Lighting:** Cool moonlit key from above; warm ember rim from a low brazier — one key, one rim.
@@ -35,7 +35,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Guan Yu in deep green war-robe and ivory undercoat, holding a green-crescent guandao vertical with the blade rising into frame top, calm downcast eyes, dark night ridgeline under a broken moon, cool moonlight key with warm ember rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhang Fei, Bridge-Splitting Bellow — `tk-shu-zhangfei`
-- **Card facts:** {2}{R}{G} · R/G (gold frame) · 5/3 · trample · ssr, legendary · holo: sparkle (explicit)
+- **Card facts:** {2}{R}{G} · R/G (gold frame) · 5/3 · overrun · ssr, legendary · holo: sparkle (explicit)
 - **Character & source:** Genderbent Zhang Fei, sworn sister of the oath; her ETB deals 2 to the opponent — a shockwave shout, so the art is caught mid-bellow.
 - **Personality / mood:** "She yelled at a bridge. The bridge lost." Enormous, gleeful, seismic force.
 - **Pose & composition:** Low-angle three-quarter, mouth wide mid-roar, serpent spear planted and cracking the ground; the shout's shockwave ripples the air toward the viewer. Face ≈ y 330, chin up, veins-of-effort energy. Trample reads as unstoppable forward lean.
@@ -50,10 +50,10 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Zhang Fei mid-bellow, serpent spear planted cracking the earth, dark jade-and-iron lamellar over red gambeson with ivory fur mantle, a timber bridge shattering behind her, open-mouthed roar with blazing eyes, hard warm underlight and cool spear rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhao Yun, Dragon of Changshan — `tk-shu-zhaoyun`
-- **Card facts:** {2}{W}{W} · W · 4/4 · vigilance, hexproof · ssr, legendary · holo: sheen (explicit)
+- **Card facts:** {2}{W}{W} · W · 4/4 · sentinel, untouchable · ssr, legendary · holo: sheen (explicit)
 - **Character & source:** Genderbent Zhao Yun, the peerless bodyguard who carried the infant heir through an army untouched.
-- **Personality / mood:** "Through a million spears with a baby on her back — not one hair out of place." Impossibly poised; danger cannot land on her (hexproof).
-- **Pose & composition:** Dynamic three-quarter, spear held in a clean guard, mid-turn as spears whistle past; face ≈ y 310, calm and centered. A swaddled bundle rides secure at her back. Vigilance/hexproof read: guarding, serene, immaculate.
+- **Personality / mood:** "Through a million spears with a baby on her back — not one hair out of place." Impossibly poised; danger cannot land on her (untouchable).
+- **Pose & composition:** Dynamic three-quarter, spear held in a clean guard, mid-turn as spears whistle past; face ≈ y 310, calm and centered. A swaddled bundle rides secure at her back. Vigilance/untouchable read: guarding, serene, immaculate.
 - **Costume & attire:** White-and-silver lamellar with jade cord-lacing, a flowing pale cape, ivory scale skirt, dragon-crest helm cradled or worn back.
 - **Palette:** W palette (`#f2e8cf` → `#c9a84c`, accent `#fffef2`) — luminous ivory and silver; Shu jade in the cord-lacing. Keep large whites textured (sheen will white flat areas out).
 - **Lighting:** Bright silver key from frame-front; warm gold rim edging the cape — one key, one rim.
@@ -95,8 +95,8 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Guan Ping in green war-tunic and ivory undercoat with lacquered green vambraces, shouldering a green-crescent guandao and gesturing allies to form up, a Shu drill banner behind, earnest instructive face, clear daylight key with soft ivory rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Xingcai, Quiet Aegis — `tk-shu-xingcai`
-- **Card facts:** {1}{W}{W} · W · 2/3 · firstStrike · r · holo: auto:sheen
-- **Character & source:** Genderbent Xingcai, Zhang Fei's daughter — the calm one; a firstStrike guardian who strikes before the blow lands.
+- **Card facts:** {1}{W}{W} · W · 2/3 · firstBlade · r · holo: auto:sheen
+- **Character & source:** Genderbent Xingcai, Zhang Fei's daughter — the calm one; a firstBlade guardian who strikes before the blow lands.
 - **Personality / mood:** "Zhang Fei's daughter, somehow the calm one." Still, watchful, unshakably steady.
 - **Pose & composition:** Braced guard stance, halberd angled forward to intercept, weight settled; face ≈ y 315, eyes level and quiet. FirstStrike reads as pre-emptive readiness, not lunge. One environmental element (uncommon): a defended gateway shadow.
 - **Costume & attire:** Ivory-and-jade half-plate over a green robe, a broad guard-collar, a single loose braid, her father's fur mantle worn small and neat.
@@ -155,7 +155,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Guan Yinping in green battle-dress with ivory scale trim and jade arm-guards, swinging an oversized green-crescent guandao in a rising arc, ponytail streaming, sunlit grassy slope with a motion-blurred banner, effortful grin, bright day key with cool jade blade rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wei Yan, Restless Vanguard — `tk-shu-weiyan`
-- **Card facts:** {2}{G}{G} · G · 5/3 · trample · r · holo: auto:sheen
+- **Card facts:** {2}{G}{G} · G · 5/3 · overrun · r · holo: auto:sheen
 - **Character & source:** Genderbent Wei Yan, aggressive vanguard whose only plan is attack; a trampling 5/3 that runs over defenders.
 - **Personality / mood:** "Her plans are always 'attack.' Her backup plans are louder." Reckless forward hunger, barely leashed.
 - **Pose & composition:** Hard forward lunge, glaive lowered to gore through the front line (trample), one boot mid-stride crushing turf; face ≈ y 330, teeth bared. One environmental element (uncommon): a trampled palisade splintering.
@@ -185,7 +185,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Ma Chao in gleaming silver-white armor with jade cord and a white feathered war-cape, spear couched forward at a gallop, proud face, blurred plains speed streaks, flat bright daylight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Huang Zhong, Silver Deadeye — `tk-shu-huangzhong`
-- **Card facts:** {2}{G} · G · 3/2 · reach · c · holo: none
+- **Card facts:** {2}{G} · G · 3/2 · wardingGaze · c · holo: none
 - **Character & source:** Genderbent Huang Zhong, the aged master archer; reach means she plucks fliers from the sky. Silver-haired, dead-accurate.
 - **Personality / mood:** "Age is a number. Hers is a bullseye count." Serene, unerring, quietly proud.
 - **Pose & composition:** Chest-up, longbow drawn to full, arrow aimed slightly up (reach — hitting high); face ≈ y 330, one eye sighting down the shaft. One idea: the perfect drawn shot, readable small. Two-value background.
@@ -275,7 +275,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Guan Suo in a white-and-jade fighting dress with floral embroidery and a flower hairpin, holding a slender green-crescent guandao in an elegant guard, a blossom petal drifting, poised dangerous half-smile, soft courtyard blur, soft daylight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Liu Shan, Contented Heir — `tk-shu-liushan`
-- **Card facts:** {3}{W} · W · 0/7 · defender · c · holo: none
+- **Card facts:** {3}{W} · W · 0/7 · bulwark · c · holo: none
 - **Character & source:** Genderbent Liu Shan, Liu Bei's placid heir; a 0/7 defender who never attacks and never worries. Comfort as a wall.
 - **Personality / mood:** "'I quite enjoy it here.' — Liu Shan, on every here." Serene, soft, immovably content.
 - **Pose & composition:** A 0/7 defender does not lunge — she sits. Relaxed seated three-quarter behind a great shield or cushioned throne, teacup in hand; face ≈ y 315, blissfully calm. One idea: the content wall. Two-value background.

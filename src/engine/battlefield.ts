@@ -6,7 +6,7 @@ export type Emit = (e: GameEvent) => void;
 
 /**
  * Zone-change primitives, deliberately trigger-free: callers (resolve, sba,
- * the effect interpreter) fire etb/dies triggers themselves so this module
+ * the effect interpreter) fire arrives/dies triggers themselves so this module
  * sits at the bottom of the import graph.
  */
 

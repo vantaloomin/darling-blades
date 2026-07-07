@@ -31,7 +31,7 @@ export function resolveCombatDamage(state: GameState, db: CardDb, emit: Emit): v
     (iid) => {
       if (!state.battlefield.some((p) => p.iid === iid)) return false;
       const kw = getEffectiveStats(state.battlefield, db, iid).keywords;
-      return kw.has('firstStrike') || kw.has('doubleStrike');
+      return kw.has('firstBlade') || kw.has('twinBlades');
     },
   );
 
@@ -103,8 +103,8 @@ function dealCombatDamage(
 
   const strikesNow = (iid: number): boolean => {
     const kw = getEffectiveStats(state.battlefield, db, iid).keywords;
-    const fs = kw.has('firstStrike');
-    const ds = kw.has('doubleStrike');
+    const fs = kw.has('firstBlade');
+    const ds = kw.has('twinBlades');
     // FS step: first-strikers and double-strikers. Normal step: double-strikers
     // (again) and everyone without first strike. fs+ds ⇒ 2 hits, not 3.
     return firstStrikeStep ? fs || ds : ds || !fs;
@@ -116,7 +116,7 @@ function dealCombatDamage(
   for (const attackerIid of combat.attackers) {
     if (!alive(attackerIid) || !strikesNow(attackerIid)) continue;
     const stats = getEffectiveStats(state.battlefield, db, attackerIid);
-    if (stats.power <= 0) continue;
+    if (stats.attack <= 0) continue;
     const kw = stats.keywords;
     const wasBlocked = combat.blocks.some((b) => b.attacker === attackerIid);
     const livingBlockers = combat.blocks
@@ -128,9 +128,9 @@ function dealCombatDamage(
         source: attackerIid,
         sourceController: state.activePlayer,
         target: { kind: 'player', player: defender },
-        amount: stats.power,
-        deathtouch: kw.has('deathtouch'),
-        lifelink: kw.has('lifelink'),
+        amount: stats.attack,
+        deathtouch: kw.has('deathblade'),
+        lifelink: kw.has('bloodoath'),
       });
       continue;
     }
@@ -138,14 +138,14 @@ function dealCombatDamage(
     if (livingBlockers.length === 0) {
       // Blocked, but all blockers are gone (first strike casualties): only
       // trample lets the damage through.
-      if (kw.has('trample')) {
+      if (kw.has('overrun')) {
         hits.push({
           source: attackerIid,
           sourceController: state.activePlayer,
           target: { kind: 'player', player: defender },
-          amount: stats.power,
-          deathtouch: kw.has('deathtouch'),
-          lifelink: kw.has('lifelink'),
+          amount: stats.attack,
+          deathtouch: kw.has('deathblade'),
+          lifelink: kw.has('bloodoath'),
         });
       }
       continue;
@@ -154,14 +154,14 @@ function dealCombatDamage(
     // Auto-assignment: cheapest-to-kill blockers first (deathtouch → 1 is
     // lethal); lethal must be assigned to each blocker before trample
     // overflow; without trample, the excess is wasted on the last blocker.
-    const ordered = [...livingBlockers].sort((a, b) => killCost(state, db, a, kw.has('deathtouch')) - killCost(state, db, b, kw.has('deathtouch')));
-    let remaining = stats.power;
+    const ordered = [...livingBlockers].sort((a, b) => killCost(state, db, a, kw.has('deathblade')) - killCost(state, db, b, kw.has('deathblade')));
+    let remaining = stats.attack;
     ordered.forEach((blockerIid, i) => {
       if (remaining <= 0) return;
-      const need = killCost(state, db, blockerIid, kw.has('deathtouch'));
+      const need = killCost(state, db, blockerIid, kw.has('deathblade'));
       const isLast = i === ordered.length - 1;
       let assign: number;
-      if (kw.has('trample')) {
+      if (kw.has('overrun')) {
         assign = Math.min(remaining, need);
       } else {
         assign = isLast ? remaining : Math.min(remaining, need);
@@ -172,20 +172,20 @@ function dealCombatDamage(
           sourceController: state.activePlayer,
           target: { kind: 'permanent', iid: blockerIid },
           amount: assign,
-          deathtouch: kw.has('deathtouch'),
-          lifelink: kw.has('lifelink'),
+          deathtouch: kw.has('deathblade'),
+          lifelink: kw.has('bloodoath'),
         });
         remaining -= assign;
       }
     });
-    if (kw.has('trample') && remaining > 0) {
+    if (kw.has('overrun') && remaining > 0) {
       hits.push({
         source: attackerIid,
         sourceController: state.activePlayer,
         target: { kind: 'player', player: defender },
         amount: remaining,
-        deathtouch: kw.has('deathtouch'),
-        lifelink: kw.has('lifelink'),
+        deathtouch: kw.has('deathblade'),
+        lifelink: kw.has('bloodoath'),
       });
     }
   }
@@ -195,14 +195,14 @@ function dealCombatDamage(
     if (!alive(block.blocker) || !alive(block.attacker)) continue;
     if (!strikesNow(block.blocker)) continue;
     const stats = getEffectiveStats(state.battlefield, db, block.blocker);
-    if (stats.power <= 0) continue;
+    if (stats.attack <= 0) continue;
     hits.push({
       source: block.blocker,
       sourceController: defender,
       target: { kind: 'permanent', iid: block.attacker },
-      amount: stats.power,
-      deathtouch: stats.keywords.has('deathtouch'),
-      lifelink: stats.keywords.has('lifelink'),
+      amount: stats.attack,
+      deathtouch: stats.keywords.has('deathblade'),
+      lifelink: stats.keywords.has('bloodoath'),
     });
   }
 
@@ -262,7 +262,7 @@ function killCost(
   if (sourceHasDeathtouch) return 1;
   const stats = getEffectiveStats(state.battlefield, db, iid);
   const perm = state.battlefield.find((p) => p.iid === iid)!;
-  return Math.max(1, stats.toughness - perm.damage);
+  return Math.max(1, stats.defense - perm.damage);
 }
 
 // endGame is re-exported for Game.ts convenience when combat ends the game.

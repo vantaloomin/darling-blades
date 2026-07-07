@@ -1,12 +1,16 @@
 import type { CardDef } from '../cardTypes';
 import { cost } from '../cardTypes';
 
-/** Instants — tricks, burn, and answers across all five colors. */
+/**
+ * Charms (the `charm` card type) — instant-speed tricks, burn, and answers
+ * across all five colors. The `in-` id prefix and the `INSTANTS` export keep
+ * the legacy namespace: card ids are opaque save keys, so they are not renamed.
+ */
 export const INSTANTS = [
   {
     id: 'in-fire-attack',
     name: 'Fire Attack',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'R'),
     colors: ['R'],
@@ -19,7 +23,7 @@ export const INSTANTS = [
   {
     id: 'in-wild-surge',
     name: 'Wild Surge',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'G'),
     colors: ['G'],
@@ -27,7 +31,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: 3, t: 3, scope: 'target' }],
+        ops: [{ op: 'boost', p: 3, t: 3, scope: 'target' }],
       },
     ],
     rarity: 'c',
@@ -36,12 +40,12 @@ export const INSTANTS = [
   {
     id: 'in-read-the-ruse',
     name: 'Read the Ruse',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'U'),
     colors: ['U'],
     abilities: [
-      { when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'counter', to: 'target' }] },
+      { when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }] },
     ],
     rarity: 'c',
     flavor: '“I read it in your posture,” she says, insufferably.',
@@ -49,7 +53,7 @@ export const INSTANTS = [
   {
     id: 'in-shieldwall',
     name: 'Shieldwall Discipline',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'W'),
     colors: ['W'],
@@ -57,7 +61,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: 1, t: 3, keywords: ['firstStrike'], scope: 'target' }],
+        ops: [{ op: 'boost', p: 1, t: 3, keywords: ['firstBlade'], scope: 'target' }],
       },
     ],
     rarity: 'c',
@@ -66,23 +70,23 @@ export const INSTANTS = [
   {
     id: 'in-valley-mist',
     name: 'Valley Mist',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'G'),
     colors: ['G'],
-    abilities: [{ when: 'spell', ops: [{ op: 'fog' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }] }],
     rarity: 'c',
     flavor: 'The armies met. The valley disagreed.',
   },
   {
     id: 'in-undertow',
     name: 'Undertow',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'U'),
     colors: ['U'],
     abilities: [
-      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'bounce', to: 'target' }] },
+      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'recall', to: 'target' }] },
     ],
     rarity: 'c',
     flavor: 'The tide files no charges. It just takes you home.',
@@ -90,7 +94,7 @@ export const INSTANTS = [
   {
     id: 'in-blessed-respite',
     name: 'Blessed Respite',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'W'),
     colors: ['W'],
@@ -101,7 +105,7 @@ export const INSTANTS = [
   {
     id: 'in-grave-chill',
     name: 'Grave Chill',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'B'),
     colors: ['B'],
@@ -109,7 +113,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: -2, t: -2, scope: 'target' }],
+        ops: [{ op: 'boost', p: -2, t: -2, scope: 'target' }],
       },
     ],
     rarity: 'c',
@@ -118,7 +122,7 @@ export const INSTANTS = [
   {
     id: 'in-boar-rush',
     name: 'Boar Rush',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'R'),
     colors: ['R'],
@@ -126,7 +130,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: 2, t: 0, keywords: ['trample'], scope: 'target' }],
+        ops: [{ op: 'boost', p: 2, t: 0, keywords: ['overrun'], scope: 'target' }],
       },
     ],
     rarity: 'c',
@@ -135,7 +139,7 @@ export const INSTANTS = [
   {
     id: 'in-tidal-slip',
     name: 'Tidal Slip',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'U'),
     colors: ['U'],
@@ -155,7 +159,7 @@ export const INSTANTS = [
   {
     id: 'in-doom-bolt',
     name: 'Doom Bolt',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'BB'),
     colors: ['B'],
@@ -168,7 +172,7 @@ export const INSTANTS = [
   {
     id: 'in-char',
     name: 'Char',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'R'),
     colors: ['R'],
@@ -181,18 +185,18 @@ export const INSTANTS = [
   {
     id: 'in-stand-as-one',
     name: 'Stand as One',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'W'),
     colors: ['W'],
-    abilities: [{ when: 'spell', ops: [{ op: 'pump', p: 1, t: 1, scope: 'allYours' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }] }],
     rarity: 'r',
     flavor: 'One banner, many hands, zero hesitation.',
   },
   {
     id: 'in-sudden-insight',
     name: 'Sudden Insight',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(2, 'U'),
     colors: ['U'],
@@ -203,7 +207,7 @@ export const INSTANTS = [
   {
     id: 'in-skysweeper-gale',
     name: 'Skysweeper Gale',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(2, 'G'),
     colors: ['G'],
@@ -214,7 +218,7 @@ export const INSTANTS = [
   {
     id: 'in-comet-blast',
     name: 'Comet Blast',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'R'),
     colors: ['R'],
@@ -228,7 +232,7 @@ export const INSTANTS = [
   {
     id: 'in-reapers-due',
     name: 'Reaper’s Due',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(2, 'B'),
     colors: ['B'],
@@ -248,7 +252,7 @@ export const INSTANTS = [
   {
     id: 'in-dream-fracture',
     name: 'Dream Fracture',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'UU'),
     colors: ['U'],
@@ -257,7 +261,7 @@ export const INSTANTS = [
         when: 'spell',
         targets: [{ what: 'spell' }],
         ops: [
-          { op: 'counter', to: 'target' },
+          { op: 'cancel', to: 'target' },
           { op: 'draw', n: 1 },
         ],
       },

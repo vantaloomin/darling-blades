@@ -24,7 +24,7 @@ function creatureTargetable(
   if (!isType(def(db, perm.cardId), 'creature')) return false;
   if (
     perm.controller !== caster &&
-    getEffectiveStats(state.battlefield, db, iid).keywords.has('hexproof')
+    getEffectiveStats(state.battlefield, db, iid).keywords.has('untouchable')
   ) {
     return false;
   }

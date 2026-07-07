@@ -29,15 +29,15 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
       return;
     }
 
-    // Creatures with lethal damage, deathtouch damage, or toughness <= 0 die.
+    // Creatures with lethal damage, deathtouch damage, or defense <= 0 die.
     for (const perm of [...state.battlefield]) {
       const d = def(db, perm.cardId);
       if (!isType(d, 'creature')) continue;
       if (!state.battlefield.some((p) => p.iid === perm.iid)) continue; // already gone this pass
       const stats = getEffectiveStats(state.battlefield, db, perm.iid);
       if (
-        stats.toughness <= 0 ||
-        perm.damage >= stats.toughness ||
+        stats.defense <= 0 ||
+        perm.damage >= stats.defense ||
         (perm.deathtouched && perm.damage > 0)
       ) {
         if (destroyPermanent(state, db, perm, emit)) {

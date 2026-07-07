@@ -31,7 +31,7 @@ export function emblemFor(subtypes: readonly string[], types: readonly string[])
   for (const t of ['Wei', 'Wu', 'Shu', 'Jin', 'Olympian', 'Beastkin']) {
     if (subtypes.includes(t)) return t;
   }
-  if (types.includes('instant') || types.includes('sorcery') || types.includes('enchantment'))
+  if (types.includes('charm') || types.includes('ritual') || types.includes('enchantment'))
     return 'Spell';
   return 'Neutral';
 }

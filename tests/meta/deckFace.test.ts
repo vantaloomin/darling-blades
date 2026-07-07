@@ -17,8 +17,8 @@ function card(id: string, over: Partial<CardDef> = {}): CardDef {
     colors: ['G'],
     rarity: 'c',
     cost: { generic: 1, pips: { G: 1 } },
-    power: 2,
-    toughness: 2,
+    attack: 2,
+    defense: 2,
     ...over,
   };
 }
@@ -129,7 +129,7 @@ describe('faceCardFor ordering and fallback', () => {
   it('returns null for an empty deck or a deck with no creatures', () => {
     const db = dbOf(
       card('hero', { supertypes: ['legendary'] }),
-      card('bolt', { types: ['instant'], cost: { generic: 0, pips: { R: 1 } }, colors: ['R'] }),
+      card('bolt', { types: ['charm'], cost: { generic: 0, pips: { R: 1 } }, colors: ['R'] }),
       card('field', { types: ['land'], cost: undefined, colors: [] }),
     );
     expect(faceCardFor([], db)).toBeNull();

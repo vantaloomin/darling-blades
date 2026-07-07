@@ -1,6 +1,14 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/engine/statics.ts, docs/rules.md, src/data/cards/beastkin.ts, src/data/cards/greek.ts, tests/engine/keywords.test.ts · last-verified: 2026-07-06 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/engine/statics.ts, docs/rules.md, src/data/cards/beastkin.ts, src/data/cards/greek.ts, tests/engine/keywords.test.ts · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes · SUPERSEDED -->
 
 # Keyword rethemes — a Darling Blades voice for the evergreen abilities
+
+> **⚠ SUPERSEDED by [plan-de-mtg-rethemes.md](plan-de-mtg-rethemes.md).** This doc proposed a
+> *display-only* rename of the 11 keyword abilities and explicitly kept the engine ids frozen.
+> The follow-on plan broadens the scope to **all** Magic-flavored terminology and, per user
+> direction, performs a **Tier-3 full engine-id rename** (not display-only). The keyword
+> name-table below is still authoritative and is reused verbatim by the successor plan; the
+> "Implementation seam — display-only" and "Phased rollout" sections here are the *rejected*
+> approach, retained for the rationale of why display-only was reconsidered.
 
 The engine speaks Magic: eleven evergreen keywords named exactly as WotC named them
 (ten at first draft; the Ragnarök expansion added `doubleStrike` 2026-07-06).

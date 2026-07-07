@@ -30,8 +30,8 @@ function card(id: string, over: Partial<CardDef> = {}): CardDef {
     colors: ['G'],
     rarity: 'c',
     cost: { generic: 1, pips: { G: 1 } },
-    power: 1,
-    toughness: 1,
+    attack: 1,
+    defense: 1,
     ...over,
   };
 }
@@ -40,10 +40,10 @@ const POOL: CardDef[] = [
   card('g_bear', { name: 'Bear' }), // G creature, c, mv2
   card('g_giant', { name: 'Giant', cost: { generic: 3, pips: { G: 1 } }, rarity: 'r' }), // mv4
   card('w_knight', { name: 'Knight', colors: ['W'], cost: { generic: 1, pips: { W: 1 } } }),
-  card('u_bolt', { name: 'Bolt', types: ['instant'], colors: ['U'], cost: { generic: 0, pips: { U: 1 } }, power: undefined, toughness: undefined, rarity: 'sr' }), // mv1
-  card('b_rite', { name: 'Rite', types: ['sorcery'], colors: ['B'], cost: { generic: 2, pips: { B: 1 } }, power: undefined, toughness: undefined, rarity: 'ur' }), // mv3
-  card('gw_aura', { name: 'Aura', types: ['enchantment'], colors: ['G', 'W'], cost: { generic: 0, pips: { G: 1, W: 1 } }, power: undefined, toughness: undefined, rarity: 'ssr' }), // mv2
-  card('dual_land', { name: 'Grove', types: ['land'], colors: [], cost: undefined, power: undefined, toughness: undefined, rarity: 'r' }), // mv0
+  card('u_bolt', { name: 'Bolt', types: ['charm'], colors: ['U'], cost: { generic: 0, pips: { U: 1 } }, attack: undefined, defense: undefined, rarity: 'sr' }), // mv1
+  card('b_rite', { name: 'Rite', types: ['ritual'], colors: ['B'], cost: { generic: 2, pips: { B: 1 } }, attack: undefined, defense: undefined, rarity: 'ur' }), // mv3
+  card('gw_aura', { name: 'Aura', types: ['enchantment'], colors: ['G', 'W'], cost: { generic: 0, pips: { G: 1, W: 1 } }, attack: undefined, defense: undefined, rarity: 'ssr' }), // mv2
+  card('dual_land', { name: 'Grove', types: ['land'], colors: [], cost: undefined, attack: undefined, defense: undefined, rarity: 'r' }), // mv0
 ];
 
 function saveWith(collection: Record<string, number>): SaveData {
@@ -82,7 +82,7 @@ describe('applyFilters facets', () => {
   });
 
   it('type facet', () => {
-    expect(applyFilters(POOL, state({ type: 'instant' }), save).map((d) => d.id)).toEqual([
+    expect(applyFilters(POOL, state({ type: 'charm' }), save).map((d) => d.id)).toEqual([
       'u_bolt',
     ]);
     expect(applyFilters(POOL, state({ type: 'land' }), save).map((d) => d.id)).toEqual([
@@ -124,8 +124,8 @@ describe('search facet (F8)', () => {
   const save = freshSave(0);
   const pool: CardDef[] = [
     card('bear', { name: 'Wildwood Bear', subtypes: ['Beastkin'] }),
-    card('drake', { name: 'Storm Drake', subtypes: ['Dragon'], keywords: ['flying'] }),
-    card('bolt', { name: 'Lightning Bolt', types: ['instant'], subtypes: [] }),
+    card('drake', { name: 'Storm Drake', subtypes: ['Dragon'], keywords: ['skyborne'] }),
+    card('bolt', { name: 'Lightning Bolt', types: ['charm'], subtypes: [] }),
   ];
   const st = (search: string): CollectionFilterState => ({ ...defaultFilterState(), search });
 
@@ -140,12 +140,12 @@ describe('search facet (F8)', () => {
   });
 
   it('matches card type and subtype', () => {
-    expect(applyFilters(pool, st('instant'), save).map((d) => d.id)).toEqual(['bolt']);
+    expect(applyFilters(pool, st('charm'), save).map((d) => d.id)).toEqual(['bolt']);
     expect(applyFilters(pool, st('beast'), save).map((d) => d.id)).toEqual(['bear']);
   });
 
-  it('matches keyword enum values (fly → flying)', () => {
-    expect(applyFilters(pool, st('fly'), save).map((d) => d.id)).toEqual(['drake']);
+  it('matches keyword enum values (sky → skyborne)', () => {
+    expect(applyFilters(pool, st('sky'), save).map((d) => d.id)).toEqual(['drake']);
   });
 
   it('combines with other facets (AND) and can be empty', () => {

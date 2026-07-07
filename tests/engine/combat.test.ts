@@ -258,7 +258,7 @@ describe('lord statics in combat', () => {
       type: 'declareBlockers',
       blocks: [{ blocker: iid.bear, attacker: iid.giant }],
     });
-    // 4 damage vs effective toughness 3 → bear still dies, but giant took 3.
+    // 4 damage vs effective defense 3 → bear still dies, but giant took 3.
     expect(game.state.battlefield.some((p) => p.iid === iid.bear)).toBe(false);
     expect(game.state.battlefield.find((p) => p.iid === iid.giant)!.damage).toBe(3);
 

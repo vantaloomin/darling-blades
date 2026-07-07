@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-06 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes -->
 
 # Road to 1.0 — five new features
 
@@ -9,7 +9,7 @@
 > features would land at v10 → v14 (or fewer bumps if folded). The four
 > "shipping this session" candidates all shipped (hero-image, shard/sell,
 > gauntlet run-seed, sequenced combat). The **Ragnarök expansion shipped
-> 2026-07-06** (69 cards, `doubleStrike` + `mill`/`reanimate`), enlarging the
+> 2026-07-06** (69 cards, `twinBlades` + `mill`/`reanimate`), enlarging the
 > pool to 279. The **quality-of-life pass shipped 2026-07-06** ([plan-qol.md](plan-qol.md));
 > it deliberately did **not** take Features 4 (deck share codes / replays) or 5
 > (achievements) — QOL defers both to this doc, so all five features below remain

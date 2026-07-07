@@ -92,8 +92,8 @@ export class FilterBar {
     const typeOpts: DropdownOption<CardType | 'all'>[] = [
       { value: 'all', label: 'All' },
       { value: 'creature', label: 'Creature' },
-      { value: 'instant', label: 'Instant' },
-      { value: 'sorcery', label: 'Sorcery' },
+      { value: 'charm', label: 'Charm' },
+      { value: 'ritual', label: 'Ritual' },
       { value: 'enchantment', label: 'Enchantment' },
       { value: 'artifact', label: 'Artifact' },
       { value: 'land', label: 'Land' },

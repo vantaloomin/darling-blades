@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/binder/FilterBar.ts, src/ui/SearchInput.ts, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/engine/combat/damage.ts · last-verified: 2026-07-06 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/binder/FilterBar.ts, src/ui/SearchInput.ts, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/engine/combat/damage.ts · last-verified: 2026-07-07 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
 
 # Quality-of-life plan — closing the daily-friction gap
 
@@ -258,8 +258,8 @@ grounded in an existing seam; the recurring cost is new UI, not new engine.
 ### 9. Keyword reminder text + hover/tap glossary
 
 - **Problem.** The single biggest **comprehension** gap. A new player facing the
-  ten evergreen keywords has no in-app way to learn what deathtouch / trample /
-  first strike / vigilance / hexproof do — board tiles deliberately omit rules
+  ten evergreen keywords has no in-app way to learn what deathblade / trample /
+  first strike / vigilance / untouchable do — board tiles deliberately omit rules
   text and `rulesText()` prints only the bare keyword line (`rulesText.ts:108`).
   Felt on essentially every creature and constantly in combat.
 - **Design & code fit.** `rulesText.ts:3` already defines
@@ -333,7 +333,7 @@ grounded in an existing seam; the recurring cost is new UI, not new engine.
 ### 12. Combat / lethal-damage forecast preview
 
 - **Problem.** Combat is where games are won and misjudged trades hurt most, yet
-  players must mentally simulate first strike / deathtouch / trample against
+  players must mentally simulate first strike / deathblade / trample against
   *effective* (buffed) P/T. The confirm flow (`DuelScene.ts:1600-1668`) shows
   only a bare count. Every modern TCG previews combat math on hover.
 - **Design & code fit.** `getEffectiveStats` (`statics.ts:17`) already returns
@@ -351,7 +351,7 @@ grounded in an existing seam; the recurring cost is new UI, not new engine.
   *approximate* combat math and does **not** call `resolveCombatDamage`, so
   "reusable by the AI" is a real future benefit but a refactor, not a drop-in.
 - **Tests.** Golden `previewCombat` outcomes vs `resolveCombatDamage` on crafted
-  boards (deathtouch, trample, first strike, gang blocks) — high-value headless
+  boards (deathblade, trample, first strike, gang blocks) — high-value headless
   coverage.
 
 ### 13. Deck statistics + add-a-playset in the builder

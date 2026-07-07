@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/ragnarok.ts · last-verified: 2026-07-06 -->
+<!-- source-of-truth: src/data/cards/ragnarok.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Ragnarök (`rg`)
 
@@ -31,7 +31,7 @@ patterned, never lettered.
 - **Prompt:** Hel, an Aesir deity of the high seats, in the regalia of Asgard — dark iron and cold gold, a god-mark at the brow; enthroned or standing sovereign, weight utterly settled, against a hall of the gods opening onto a frozen underworld, an aurora far off; cold, sovereign, already several moves ahead; a low regal key with a hard cold rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Freya, Sovereign of the Slain — `rg-freya`
-- **Card facts:** {4}{W}{B} · W/B (gold frame) · 4/4 · flying · ur, legendary · holo: void
+- **Card facts:** {4}{W}{B} · W/B (gold frame) · 4/4 · skyborne · ur, legendary · holo: void
 - **Character & source:** a Vanir deity of seiðr and green growth; mechanically an airborne threat, she brings a host with her.
 - **Personality / mood:** "She takes half the slain. Odin may argue with the other half." — warm and knowing, unbothered by the twilight of the gods.
 - **Pose & composition:** one hand raised in a working, growth answering the gesture; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -46,7 +46,7 @@ patterned, never lettered.
 - **Prompt:** Freya, a Vanir deity of seiðr and green growth, in flowing seiðr robes in amber and gold, living vines worked through the cloth; one hand raised in a working, growth answering the gesture, against a sunlit sacred grove around a great root of the world-tree; warm and knowing, unbothered by the twilight of the gods; a warm dappled sun-through-leaves key, soft green fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Fenrir, the Unchained — `rg-fenrir`
-- **Card facts:** {4}{R}{G} · R/G (gold frame) · 6/6 · trample, haste · ur, legendary · holo: void
+- **Card facts:** {4}{R}{G} · R/G (gold frame) · 6/6 · overrun, warcry · ur, legendary · holo: void
 - **Character & source:** a towering Jotun giant-woman of the elemental wilds; mechanically an unstoppable bruiser, she brings a host with her.
 - **Personality / mood:** "Gleipnir held her once. It will not hold twice." — slow, immovable, and entirely certain.
 - **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -61,7 +61,7 @@ patterned, never lettered.
 - **Prompt:** Fenrir, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhao Yun, the Deathless Dragon — `rg-zhaoyun`
-- **Card facts:** {3}{W}{W} · W · 4/4 · doubleStrike · ur, legendary · holo: void
+- **Card facts:** {3}{W}{W} · W · 4/4 · twinBlades · ur, legendary · holo: void
 - **Character & source:** a genderbent Three Kingdoms Shu officer, returned deathless; mechanically an elite duelist who strikes twice, she calls the fallen back to the field.
 - **Personality / mood:** "Through a hundred thousand troops, and back — with the fallen carried out alive." — righteous and unfaltering — the oath outlived everyone who swore it.
 - **Pose & composition:** a single-combat lunge, spear driving through the guard; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -76,7 +76,7 @@ patterned, never lettered.
 - **Prompt:** Zhao Yun, a genderbent Three Kingdoms Shu officer, returned deathless, in jade-and-ivory lamellar and officer robes, a faint grave-pallor over the skin; a single-combat lunge, spear driving through the guard, against a rammed-earth rampart under a bannered dusk, cranes over the walls; righteous and unfaltering — the oath outlived everyone who swore it; a warm banner-torch key with a cool steel rim on the blade — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Brunhild, the Last Valkyrie — `rg-brunhild`
-- **Card facts:** {2}{W}{R} · R/W (gold frame) · 4/3 · doubleStrike · ssr, legendary · holo: prismatic aurora
+- **Card facts:** {2}{W}{R} · R/W (gold frame) · 4/3 · twinBlades · ssr, legendary · holo: prismatic aurora
 - **Character & source:** a winged Valkyrie, a chooser of the slain; mechanically an elite duelist who strikes twice.
 - **Personality / mood:** "Ringed in fire, waiting for the only hero brave enough to be worth it." — serene and judging, already deciding who the day remembers.
 - **Pose & composition:** descending mid-flight with wings flared, one boot about to touch the field; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -121,7 +121,7 @@ patterned, never lettered.
 - **Prompt:** Angrboda, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Skadi, the Winter Blade — `rg-skadi`
-- **Card facts:** {3}{U}{G} · U/G (gold frame) · 4/4 · reach, doubleStrike · ssr, legendary · holo: prismatic aurora
+- **Card facts:** {3}{U}{G} · U/G (gold frame) · 4/4 · wardingGaze, twinBlades · ssr, legendary · holo: prismatic aurora
 - **Character & source:** a towering Jotun giant-woman of the elemental wilds; mechanically an elite duelist who strikes twice.
 - **Personality / mood:** "Wed to the sea, in love with the mountains, lethal on both." — slow, immovable, and entirely certain.
 - **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -136,7 +136,7 @@ patterned, never lettered.
 - **Prompt:** Skadi, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sigrún, Valkyrie Captain — `rg-valkyrie-captain`
-- **Card facts:** {2}{W} · W · 3/3 · flying · sr, legendary · holo: radiant foil
+- **Card facts:** {2}{W} · W · 3/3 · skyborne · sr, legendary · holo: radiant foil
 - **Character & source:** a winged Valkyrie, a chooser of the slain; mechanically an airborne threat.
 - **Personality / mood:** "Form up. The dead do not get to be late." — serene and judging, already deciding who the day remembers.
 - **Pose & composition:** descending mid-flight with wings flared, one boot about to touch the field; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -166,7 +166,7 @@ patterned, never lettered.
 - **Prompt:** Barrow-Jarl of the Deep Howe, a Draugr, a barrow-dead warrior risen from the howe, in rusted grave-mail and torn burial finery, cold grave-fire burning in the eye-sockets; hauling upright out of the grave-earth, blade first, against a cracked-open barrow mound spilling blue grave-light over black earth; hateful and patient, robbed of everything but the grudge; a cold blue grave-fire key, near-black fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hilda, Berserker Chieftain — `rg-berserker-chieftain`
-- **Card facts:** {2}{R} · R · 4/3 · doubleStrike · sr, legendary · holo: radiant foil
+- **Card facts:** {2}{R} · R · 4/3 · twinBlades · sr, legendary · holo: radiant foil
 - **Character & source:** an Einherjar, an honored dead warrior of the feast-hall; mechanically an elite duelist who strikes twice.
 - **Personality / mood:** "The bite on the shield is hers. So is the one on the enemy." — grim and elated at once — dies every night, wins every morning.
 - **Pose & composition:** mid-stride into the charge, weapon already committed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -181,7 +181,7 @@ patterned, never lettered.
 - **Prompt:** Hilda, an Einherjar, an honored dead warrior of the feast-hall, in scarred lamellar and furs, a warm Valhalla feast-glow caught in the mail; mid-stride into the charge, weapon already committed, against the mead-hall of the slain — long-fires, shield-hung walls, raftered dark; grim and elated at once — dies every night, wins every morning; a warm hearth-fire key with a steel rim on the blade — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Bergelmir, Earthshaker — `rg-jotun-earthshaker`
-- **Card facts:** {4}{G} · G · 5/5 · trample · sr · holo: radiant foil
+- **Card facts:** {4}{G} · G · 5/5 · overrun · sr · holo: radiant foil
 - **Character & source:** a towering Jotun giant-woman of the elemental wilds; mechanically an unstoppable bruiser.
 - **Personality / mood:** "When she walks, the map needs redrawing." — slow, immovable, and entirely certain.
 - **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -226,7 +226,7 @@ patterned, never lettered.
 - **Prompt:** Iðunn, a Vanir deity of seiðr and green growth, in flowing seiðr robes in amber and gold, living vines worked through the cloth; one hand raised in a working, growth answering the gesture, against a sunlit sacred grove around a great root of the world-tree; warm and knowing, unbothered by the twilight of the gods; a warm dappled sun-through-leaves key, soft green fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Valkyrie Vanguard — `rg-valkyrie-vanguard`
-- **Card facts:** {3}{W} · W · 3/3 · flying, vigilance · r · holo: shiny
+- **Card facts:** {3}{W} · W · 3/3 · skyborne, sentinel · r · holo: shiny
 - **Character & source:** a winged Valkyrie, a chooser of the slain; mechanically an airborne threat.
 - **Personality / mood:** "She watches the whole field because she has seen how it ends." — serene and judging, already deciding who the day remembers.
 - **Pose & composition:** descending mid-flight with wings flared, one boot about to touch the field; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -241,7 +241,7 @@ patterned, never lettered.
 - **Prompt:** Valkyrie Vanguard, a winged Valkyrie, a chooser of the slain, in gold-chased scale mail over a great feathered cloak, a winged helm; descending mid-flight with wings flared, one boot about to touch the field, against a storm-lit battlefield seen from above the clouds, an aurora banding the sky; serene and judging, already deciding who the day remembers; a cold aurora key with a warm rune-gold rim off the mail — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Chooser of the Slain — `rg-chooser-of-the-slain`
-- **Card facts:** {3}{W} · W · 2/3 · flying · r · holo: shiny
+- **Card facts:** {3}{W} · W · 2/3 · skyborne · r · holo: shiny
 - **Character & source:** a winged Valkyrie, a chooser of the slain; mechanically an airborne threat, she brings a host with her.
 - **Personality / mood:** "Every fallen hero is a recruitment opportunity." — serene and judging, already deciding who the day remembers.
 - **Pose & composition:** descending mid-flight with wings flared, one boot about to touch the field; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -256,7 +256,7 @@ patterned, never lettered.
 - **Prompt:** Chooser of the Slain, a winged Valkyrie, a chooser of the slain, in gold-chased scale mail over a great feathered cloak, a winged helm; descending mid-flight with wings flared, one boot about to touch the field, against a storm-lit battlefield seen from above the clouds, an aurora banding the sky; serene and judging, already deciding who the day remembers; a cold aurora key with a warm rune-gold rim off the mail — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Einherjar Champion — `rg-einherjar-champion`
-- **Card facts:** {2}{W} · W · 2/2 · doubleStrike · r · holo: shiny
+- **Card facts:** {2}{W} · W · 2/2 · twinBlades · r · holo: shiny
 - **Character & source:** an Einherjar, an honored dead warrior of the feast-hall; mechanically an elite duelist who strikes twice.
 - **Personality / mood:** "Dies every night in Valhalla, wins every morning. Good practice." — grim and elated at once — dies every night, wins every morning.
 - **Pose & composition:** mid-stride into the charge, weapon already committed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -286,7 +286,7 @@ patterned, never lettered.
 - **Prompt:** Verðandi, a Norn, a weaver of fate at the world-well, in layered rune-embroidered robes and a veil of drifting mist; seated at the loom of fate, reading a thread drawn taut between her hands, against the Well of Urd beneath a root of Yggdrasil, threads of fate glinting in the air; unreadable and ancient, seeing the ending already written; a pale well-glow from below with a violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Tidecaller of Vanaheim — `rg-tidecaller-vanir`
-- **Card facts:** {3}{U} · U · 3/3 · flying · r · holo: shiny
+- **Card facts:** {3}{U} · U · 3/3 · skyborne · r · holo: shiny
 - **Character & source:** a Vanir deity of seiðr and green growth; mechanically an airborne threat.
 - **Personality / mood:** "She calls; the tide answers before she finishes the word." — warm and knowing, unbothered by the twilight of the gods.
 - **Pose & composition:** one hand raised in a working, growth answering the gesture; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -301,7 +301,7 @@ patterned, never lettered.
 - **Prompt:** Tidecaller of Vanaheim, a Vanir deity of seiðr and green growth, in flowing seiðr robes in amber and gold, living vines worked through the cloth; one hand raised in a working, growth answering the gesture, against a sunlit sacred grove around a great root of the world-tree; warm and knowing, unbothered by the twilight of the gods; a warm dappled sun-through-leaves key, soft green fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Mist-Wreathed Thief — `rg-memory-thief`
-- **Card facts:** {2}{U} · U · 2/2 · flying · r · holo: shiny
+- **Card facts:** {2}{U} · U · 2/2 · skyborne · r · holo: shiny
 - **Character & source:** a mist-wraith shade of the fens; mechanically an airborne threat, she feeds the graveyard.
 - **Personality / mood:** "She takes the last thing you remember, and the next." — hollow and hungry.
 - **Pose & composition:** half-dissolved, drifting forward faster than mist should move; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -331,7 +331,7 @@ patterned, never lettered.
 - **Prompt:** Hel's Handmaiden, a Draugr, a barrow-dead warrior risen from the howe, in rusted grave-mail and torn burial finery, cold grave-fire burning in the eye-sockets; hauling upright out of the grave-earth, blade first, against a cracked-open barrow mound spilling blue grave-light over black earth; hateful and patient, robbed of everything but the grudge; a cold blue grave-fire key, near-black fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Barrow-Wight — `rg-barrow-wight`
-- **Card facts:** {3}{B} · B · 4/3 · deathtouch · r · holo: shiny
+- **Card facts:** {3}{B} · B · 4/3 · deathblade · r · holo: shiny
 - **Character & source:** a Draugr, a barrow-dead warrior risen from the howe; mechanically lethal at a touch.
 - **Personality / mood:** "A touch of the grave-cold, and you are hers to keep." — hateful and patient, robbed of everything but the grudge.
 - **Pose & composition:** hauling upright out of the grave-earth, blade first; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -361,7 +361,7 @@ patterned, never lettered.
 - **Prompt:** Death's Herald, a Draugr, a barrow-dead warrior risen from the howe, in rusted grave-mail and torn burial finery, cold grave-fire burning in the eye-sockets; hauling upright out of the grave-earth, blade first, against a cracked-open barrow mound spilling blue grave-light over black earth; hateful and patient, robbed of everything but the grudge; a cold blue grave-fire key, near-black fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Thanatos, Hand of the Quiet End — `rg-thanatos`
-- **Card facts:** {3}{B} · B · 3/4 · deathtouch · r, legendary · holo: shiny
+- **Card facts:** {3}{B} · B · 3/4 · deathblade · r, legendary · holo: shiny
 - **Character & source:** a Greek underworld power, drawn up by the twilight; mechanically lethal at a touch, she calls the fallen back to the field.
 - **Personality / mood:** "Gentle, patient, and absolutely certain of the appointment." — gentle and absolutely certain of the appointment.
 - **Pose & composition:** a slow, patient advance across the dark water; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -376,7 +376,7 @@ patterned, never lettered.
 - **Prompt:** Thanatos, a Greek underworld power, drawn up by the twilight, in sun-bleached marble whites and gilt over a draped chiton, an ashen underworld tint; a slow, patient advance across the dark water, against the far bank of the Styx under a starless sky, asphodel underfoot; gentle and absolutely certain of the appointment; a low cold underworld key, single gilt rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Berserker Duelist — `rg-berserker-duelist`
-- **Card facts:** {3}{R} · R · 3/2 · doubleStrike · r · holo: shiny
+- **Card facts:** {3}{R} · R · 3/2 · twinBlades · r · holo: shiny
 - **Character & source:** an Einherjar, an honored dead warrior of the feast-hall; mechanically an elite duelist who strikes twice.
 - **Personality / mood:** "One axe in each hand and no interest in defense." — grim and elated at once — dies every night, wins every morning.
 - **Pose & composition:** mid-stride into the charge, weapon already committed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -391,7 +391,7 @@ patterned, never lettered.
 - **Prompt:** Berserker Duelist, an Einherjar, an honored dead warrior of the feast-hall, in scarred lamellar and furs, a warm Valhalla feast-glow caught in the mail; mid-stride into the charge, weapon already committed, against the mead-hall of the slain — long-fires, shield-hung walls, raftered dark; grim and elated at once — dies every night, wins every morning; a warm hearth-fire key with a steel rim on the blade — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Muspel Flamecaller — `rg-flamecaller-jotun`
-- **Card facts:** {4}{R} · R · 5/3 · trample · r · holo: shiny
+- **Card facts:** {4}{R} · R · 5/3 · overrun · r · holo: shiny
 - **Character & source:** a towering Jotun giant-woman of the elemental wilds; mechanically an unstoppable bruiser.
 - **Personality / mood:** "Surtr lent her a spark. She grew it into a season." — slow, immovable, and entirely certain.
 - **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -406,7 +406,7 @@ patterned, never lettered.
 - **Prompt:** Muspel Flamecaller, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Shieldmaiden Warband-Leader — `rg-warband-leader`
-- **Card facts:** {3}{R} · R · 3/3 · haste · r · holo: shiny
+- **Card facts:** {3}{R} · R · 3/3 · warcry · r · holo: shiny
 - **Character & source:** a viking Shieldmaiden of the raiding-line; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "She leads from the front because the back is boring." — fierce and laughing, in her element.
 - **Pose & composition:** shield up, axe cocked back over the shoulder for the swing; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -421,7 +421,7 @@ patterned, never lettered.
 - **Prompt:** Shieldmaiden Warband-Leader, a viking Shieldmaiden of the raiding-line, in braided hair, ring-mail over leather, a painted round shield; shield up, axe cocked back over the shoulder for the swing, against a burning coastal longhouse and a beached longship at low tide; fierce and laughing, in her element; a hot firelight key from the burning hall, cool sea rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Jotun Warleader — `rg-jotun-warleader`
-- **Card facts:** {4}{G} · G · 4/5 · trample · r · holo: shiny
+- **Card facts:** {4}{G} · G · 4/5 · overrun · r · holo: shiny
 - **Character & source:** a towering Jotun giant-woman of the elemental wilds; mechanically an unstoppable bruiser.
 - **Personality / mood:** "The mountains send their eldest daughter to the war." — slow, immovable, and entirely certain.
 - **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -451,7 +451,7 @@ patterned, never lettered.
 - **Prompt:** Alpha of the Wild Hunt, a great dire-wolf of Fenrir's brood, in thick hackled winter fur, breath steaming; mid-lunge, low and fast, closing the distance, against a moonlit frost-forest, snow churned by the pack; feral, fixed on the throat; a cold moonlight key, blue snow-bounce fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Great Stag of Yggdrasil — `rg-great-stag`
-- **Card facts:** {4}{G} · G · 4/4 · vigilance, reach · r · holo: shiny
+- **Card facts:** {4}{G} · G · 4/4 · sentinel, wardingGaze · r · holo: shiny
 - **Character & source:** an ancestral beast-girl spirit of the old wilds; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "She grazes on the world-tree and answers to no season." — wild and watchful.
 - **Pose & composition:** a low predatory ready-stance, weight forward; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -481,7 +481,7 @@ patterned, never lettered.
 - **Prompt:** Worldroot Tender, a Vanir deity of seiðr and green growth, in flowing seiðr robes in amber and gold, living vines worked through the cloth; one hand raised in a working, growth answering the gesture, against a sunlit sacred grove around a great root of the world-tree; warm and knowing, unbothered by the twilight of the gods; a warm dappled sun-through-leaves key, soft green fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Xu Chu, Tiger of Qiao — `rg-xuchu`
-- **Card facts:** {3}{R} · R · 4/4 · doubleStrike · r, legendary · holo: shiny
+- **Card facts:** {3}{R} · R · 4/4 · twinBlades · r, legendary · holo: shiny
 - **Character & source:** a genderbent Three Kingdoms Wei officer, returned deathless; mechanically an elite duelist who strikes twice.
 - **Personality / mood:** "She fought a duel with her armor off. She won it with her armor off." — ferocious, past caring for her own defense.
 - **Pose & composition:** a full-body cleaving strike, armor half-shed for speed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -496,7 +496,7 @@ patterned, never lettered.
 - **Prompt:** Xu Chu, a genderbent Three Kingdoms Wei officer, returned deathless, in lapis-and-bronze plate over a scholar-officer’s robe, high collar, cool grave-pallor; a full-body cleaving strike, armor half-shed for speed, against a watchtower and command tents on the disciplined northern plain; ferocious, past caring for her own defense; a hard overcast key with a bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dian Wei, the Ever-Faithful — `rg-dianwei`
-- **Card facts:** {3}{B} · B · 3/3 · doubleStrike · r, legendary · holo: shiny
+- **Card facts:** {3}{B} · B · 3/3 · twinBlades · r, legendary · holo: shiny
 - **Character & source:** a genderbent Three Kingdoms Wei officer, returned deathless; mechanically an elite duelist who strikes twice.
 - **Personality / mood:** "She held the gate until the gate no longer mattered — and past that." — ferocious, past caring for her own defense.
 - **Pose & composition:** a full-body cleaving strike, armor half-shed for speed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -511,7 +511,7 @@ patterned, never lettered.
 - **Prompt:** Dian Wei, a genderbent Three Kingdoms Wei officer, returned deathless, in lapis-and-bronze plate over a scholar-officer’s robe, high collar, cool grave-pallor; a full-body cleaving strike, armor half-shed for speed, against a watchtower and command tents on the disciplined northern plain; ferocious, past caring for her own defense; a hard overcast key with a bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Valkyrie Scout — `rg-valkyrie-scout`
-- **Card facts:** {1}{W} · W · 2/1 · flying · c · holo: none
+- **Card facts:** {1}{W} · W · 2/1 · skyborne · c · holo: none
 - **Character & source:** a winged Valkyrie, a chooser of the slain; mechanically an airborne threat.
 - **Personality / mood:** "First to the field, first to choose." — serene and judging, already deciding who the day remembers.
 - **Pose & composition:** descending mid-flight with wings flared, one boot about to touch the field; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -526,7 +526,7 @@ patterned, never lettered.
 - **Prompt:** Valkyrie Scout, a winged Valkyrie, a chooser of the slain, in gold-chased scale mail over a great feathered cloak, a winged helm; descending mid-flight with wings flared, one boot about to touch the field, against a storm-lit battlefield seen from above the clouds, an aurora banding the sky; serene and judging, already deciding who the day remembers; a cold aurora key with a warm rune-gold rim off the mail — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Einherjar Shieldbearer — `rg-einherjar-shieldbearer`
-- **Card facts:** {1}{W} · W · 1/3 · vigilance · c · holo: none
+- **Card facts:** {1}{W} · W · 1/3 · sentinel · c · holo: none
 - **Character & source:** an Einherjar, an honored dead warrior of the feast-hall; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "The wall of Valhalla, one woman wide." — grim and elated at once — dies every night, wins every morning.
 - **Pose & composition:** mid-stride into the charge, weapon already committed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -541,7 +541,7 @@ patterned, never lettered.
 - **Prompt:** Einherjar Shieldbearer, an Einherjar, an honored dead warrior of the feast-hall, in scarred lamellar and furs, a warm Valhalla feast-glow caught in the mail; mid-stride into the charge, weapon already committed, against the mead-hall of the slain — long-fires, shield-hung walls, raftered dark; grim and elated at once — dies every night, wins every morning; a warm hearth-fire key with a steel rim on the blade — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dawnfeather Valkyrie — `rg-dawn-valkyrie`
-- **Card facts:** {2}{W} · W · 2/2 · flying, lifelink · c · holo: none
+- **Card facts:** {2}{W} · W · 2/2 · skyborne, bloodoath · c · holo: none
 - **Character & source:** a winged Valkyrie, a chooser of the slain; mechanically an airborne threat.
 - **Personality / mood:** "Her wings carry the wounded up and the doomed on." — serene and judging, already deciding who the day remembers.
 - **Pose & composition:** descending mid-flight with wings flared, one boot about to touch the field; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -586,7 +586,7 @@ patterned, never lettered.
 - **Prompt:** Oathbound Cleric, an oathbound priestess of the old rites, in pale vestments and a rune-graven torc, a warm blessing-light at her hands; hands raised mid-blessing, light pooling around them, against a rune-carved stave-shrine at first light; calm and certain of the oath; a warm dawn key with a soft gold bloom — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Shieldwall Maiden — `rg-shieldwall-maiden`
-- **Card facts:** {2}{W} · W · 2/3 · firstStrike · c · holo: none
+- **Card facts:** {2}{W} · W · 2/3 · firstBlade · c · holo: none
 - **Character & source:** a viking Shieldmaiden of the raiding-line; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "Hold the line, hold the line, hold — good. Now push." — fierce and laughing, in her element.
 - **Pose & composition:** shield up, axe cocked back over the shoulder for the swing; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -601,7 +601,7 @@ patterned, never lettered.
 - **Prompt:** Shieldwall Maiden, a viking Shieldmaiden of the raiding-line, in braided hair, ring-mail over leather, a painted round shield; shield up, axe cocked back over the shoulder for the swing, against a burning coastal longhouse and a beached longship at low tide; fierce and laughing, in her element; a hot firelight key from the burning hall, cool sea rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Mist Wraith — `rg-mist-wraith`
-- **Card facts:** {1}{U} · U · 1/2 · flying · c · holo: none
+- **Card facts:** {1}{U} · U · 1/2 · skyborne · c · holo: none
 - **Character & source:** a mist-wraith shade of the fens; mechanically an airborne threat.
 - **Personality / mood:** "You cannot fight the fog. You can only lose in it." — hollow and hungry.
 - **Pose & composition:** half-dissolved, drifting forward faster than mist should move; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -721,7 +721,7 @@ patterned, never lettered.
 - **Prompt:** Hungry Shade, a mist-wraith shade of the fens, in tattered translucent shrouds trailing away into vapor; half-dissolved, drifting forward faster than mist should move, against a fog-drowned fen at dusk, shapes half-guessed in the murk; hollow and hungry; a low grey diffuse key, no hard shadows — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Plaguebearer Draugr — `rg-plaguebearer-draugr`
-- **Card facts:** {3}{B} · B · 2/3 · deathtouch · c · holo: none
+- **Card facts:** {3}{B} · B · 2/3 · deathblade · c · holo: none
 - **Character & source:** a Draugr, a barrow-dead warrior risen from the howe; mechanically lethal at a touch.
 - **Personality / mood:** "Do not block her. Do not touch her. Do not, honestly, look at her." — hateful and patient, robbed of everything but the grudge.
 - **Pose & composition:** hauling upright out of the grave-earth, blade first; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -736,7 +736,7 @@ patterned, never lettered.
 - **Prompt:** Plaguebearer Draugr, a Draugr, a barrow-dead warrior risen from the howe, in rusted grave-mail and torn burial finery, cold grave-fire burning in the eye-sockets; hauling upright out of the grave-earth, blade first, against a cracked-open barrow mound spilling blue grave-light over black earth; hateful and patient, robbed of everything but the grudge; a cold blue grave-fire key, near-black fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Muspel Emberkin — `rg-muspel-emberkin`
-- **Card facts:** {1}{R} · R · 2/1 · haste · c · holo: none
+- **Card facts:** {1}{R} · R · 2/1 · warcry · c · holo: none
 - **Character & source:** a towering Jotun giant-woman of the elemental wilds; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "A spark of the fire-realm, in a hurry to spread." — slow, immovable, and entirely certain.
 - **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -751,7 +751,7 @@ patterned, never lettered.
 - **Prompt:** Muspel Emberkin, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Berserker Initiate — `rg-berserker-initiate`
-- **Card facts:** {2}{R} · R · 3/1 · haste · c · holo: none
+- **Card facts:** {2}{R} · R · 3/1 · warcry · c · holo: none
 - **Character & source:** an Einherjar, an honored dead warrior of the feast-hall; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "The rage comes first. The technique is optional." — grim and elated at once — dies every night, wins every morning.
 - **Pose & composition:** mid-stride into the charge, weapon already committed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -781,7 +781,7 @@ patterned, never lettered.
 - **Prompt:** Flame Jotun, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Raiding Shieldmaiden — `rg-raiding-shieldmaiden`
-- **Card facts:** {2}{R} · R · 2/2 · haste · c · holo: none
+- **Card facts:** {2}{R} · R · 2/2 · warcry · c · holo: none
 - **Character & source:** a viking Shieldmaiden of the raiding-line; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "She rows in, burns the dock, rows out. Efficient." — fierce and laughing, in her element.
 - **Pose & composition:** shield up, axe cocked back over the shoulder for the swing; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -796,7 +796,7 @@ patterned, never lettered.
 - **Prompt:** Raiding Shieldmaiden, a viking Shieldmaiden of the raiding-line, in braided hair, ring-mail over leather, a painted round shield; shield up, axe cocked back over the shoulder for the swing, against a burning coastal longhouse and a beached longship at low tide; fierce and laughing, in her element; a hot firelight key from the burning hall, cool sea rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Ember Valkyrie — `rg-ember-valkyrie`
-- **Card facts:** {2}{R} · R · 2/1 · flying, haste · c · holo: none
+- **Card facts:** {2}{R} · R · 2/1 · skyborne, warcry · c · holo: none
 - **Character & source:** a winged Valkyrie, a chooser of the slain; mechanically an airborne threat.
 - **Personality / mood:** "She takes the boldest of the fallen — the ones who ran forward." — serene and judging, already deciding who the day remembers.
 - **Pose & composition:** descending mid-flight with wings flared, one boot about to touch the field; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -871,7 +871,7 @@ patterned, never lettered.
 - **Prompt:** Verdant Seiðr-Weaver, a Vanir deity of seiðr and green growth, in flowing seiðr robes in amber and gold, living vines worked through the cloth; one hand raised in a working, growth answering the gesture, against a sunlit sacred grove around a great root of the world-tree; warm and knowing, unbothered by the twilight of the gods; a warm dappled sun-through-leaves key, soft green fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wolf-Pack Runner — `rg-wolf-pack-runner`
-- **Card facts:** {2}{G} · G · 3/2 · trample · c · holo: none
+- **Card facts:** {2}{G} · G · 3/2 · overrun · c · holo: none
 - **Character & source:** a great dire-wolf of Fenrir's brood; mechanically an unstoppable bruiser.
 - **Personality / mood:** "The first of the pack over the hill is never the last." — feral, fixed on the throat.
 - **Pose & composition:** mid-lunge, low and fast, closing the distance; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -886,7 +886,7 @@ patterned, never lettered.
 - **Prompt:** Wolf-Pack Runner, a great dire-wolf of Fenrir's brood, in thick hackled winter fur, breath steaming; mid-lunge, low and fast, closing the distance, against a moonlit frost-forest, snow churned by the pack; feral, fixed on the throat; a cold moonlight key, blue snow-bounce fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Shu Deathless Guard — `rg-shu-deathless-guard`
-- **Card facts:** {2}{W} · W · 2/2 · firstStrike · c · holo: none
+- **Card facts:** {2}{W} · W · 2/2 · firstBlade · c · holo: none
 - **Character & source:** a genderbent Three Kingdoms Shu officer, returned deathless; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "The oath at the peach garden outlived everyone who swore it." — righteous and unfaltering — the oath outlived everyone who swore it.
 - **Pose & composition:** a single-combat lunge, spear driving through the guard; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
