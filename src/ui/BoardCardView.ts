@@ -19,7 +19,7 @@ import { applyHolo, type HoloHandle } from './fx/HoloEffects';
  * band, the tile border is the card's RARITY colour, and the player's own
  * special-variant cards carry their holo finish over the art (setVariant,
  * fxPolicy-gated). P/T lives in a bottom-right badge, the name in a legibility
- * scrim along the bottom.
+ * scrim along the top.
  */
 
 export const TILE_W = 132;
@@ -33,8 +33,8 @@ const ART_CY = 0; // the window is the whole tile, so it is centred
 /** Art bounds in container-local space — fed to applyHolo for the finish overlay. */
 const ART_RECT = { x: -ART_W / 2, y: -ART_H / 2, w: ART_W, h: ART_H };
 
-// Name legibility scrim + text along the bottom of the art.
-const NAME_CY = 50;
+// Name legibility scrim + text along the top of the art.
+const NAME_CY = -50;
 const NAME_H = 22;
 // P/T badge, bottom-right corner, overlaid on the art.
 const PT_W = 40;
@@ -185,11 +185,12 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .rectangle(0, ART_CY, ART_W, ART_H, 0x000000, 0)
       .setStrokeStyle(2, 0x1a1526, 0.95);
 
-    // Name legibility scrim along the bottom, then the name (kept clear of the
-    // bottom-right P/T badge by capping its width and biasing it left).
+    // Name legibility scrim along the top, then the name centered within it —
+    // capped in width so it clears the top-corner badges (aura at top-left, the
+    // summoning-sick swirl at top-right), which draw over the scrim.
     const nameScrim = scene.add.rectangle(0, NAME_CY, ART_W, NAME_H, 0x0d0b16, 0.62);
     const nameText = scene.add
-      .text(-16, NAME_CY, card.name, {
+      .text(0, NAME_CY, card.name, {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '12px',
         fontStyle: '600',
