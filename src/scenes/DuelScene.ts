@@ -231,6 +231,8 @@ export class DuelScene extends Phaser.Scene {
   private autoToggle!: Phaser.GameObjects.Text;
   /** transient center banner shown on each turn change (self-destroys). */
   private turnBanner?: Phaser.GameObjects.Container;
+  /** transient reveal of the card the OPPONENT just cast (self-destroys). */
+  private oppCastReveal?: Phaser.GameObjects.Container;
 
   constructor() {
     super('Duel');
@@ -1098,8 +1100,11 @@ export class DuelScene extends Phaser.Scene {
       case 'spellCast':
         Sfx.play('cast');
         this.log(`${e.controller === HUMAN ? 'You cast' : 'Opponent casts'} ${def(CARD_DB, e.cardId).name}`);
-        // The commander cheers your plays (1a "waifu reacts to plays").
+        // The commander cheers your plays (1a "waifu reacts to plays"); the
+        // opponent's cast is hidden from hand, so flash the card so the player
+        // can actually see what was played.
         if (e.controller === HUMAN) this.portrait.reactCast();
+        else this.showOpponentCast(e.cardId);
         break;
       case 'spellCountered':
         this.log('Spell cancelled!');
@@ -1319,6 +1324,53 @@ export class DuelScene extends Phaser.Scene {
           onComplete: () => {
             if (banner.active) banner.destroy();
             if (this.turnBanner === banner) this.turnBanner = undefined;
+          },
+        });
+      },
+    });
+  }
+
+  /**
+   * Flash the card the OPPONENT just cast — it comes from their hidden hand, so
+   * without this the player only gets a log line and never sees it. A transient,
+   * non-interactive CardView (taps pass through to the board) that fades in,
+   * holds, and self-destroys; a newer cast supersedes any still on screen.
+   */
+  private showOpponentCast(cardId: string): void {
+    if (this.oppCastReveal?.active) {
+      this.tweens.killTweensOf(this.oppCastReveal);
+      this.oppCastReveal.destroy();
+    }
+    const reveal = this.add.container(BOARD_CENTER_X, 310).setDepth(86).setAlpha(0);
+    const label = this.add
+      .text(0, -150, 'Opponent casts', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '14px',
+        fontStyle: '700',
+        color: '#f0a0c0',
+        stroke: '#0a0812',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    const view = new CardView(this, 0, 0).setScale(0.8);
+    view.setCard(def(CARD_DB, cardId), { fx: 'static' });
+    reveal.add([label, view]);
+    this.oppCastReveal = reveal;
+    this.tweens.add({
+      targets: reveal,
+      alpha: 1,
+      duration: 200,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: reveal,
+          alpha: 0,
+          delay: 1200,
+          duration: 360,
+          ease: 'Cubic.easeIn',
+          onComplete: () => {
+            if (reveal.active) reveal.destroy();
+            if (this.oppCastReveal === reveal) this.oppCastReveal = undefined;
           },
         });
       },
