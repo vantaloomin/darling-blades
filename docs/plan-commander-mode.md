@@ -26,7 +26,7 @@ and color-identity deckbuilding**. Three of those collide with this codebase:
    distinct on-color nonland cards for, say, mono-U. A 60-card frame keeps the
    existing `RULES.deckSize` and leaves real deckbuilding choices.
 2. **The command zone + commander tax** assume a zone the engine does not model.
-   `src/engine/` has hand / library / battlefield / graveyard / stack; there is
+   `src/engine/` has hand / deck / battlefield / graveyard / stack; there is
    **no command zone**, no "cast from outside the game," and no per-cast cost
    escalation. Adding one touches the pure engine (an iron invariant surface),
    its determinism, save/serialization, and the AI's `PlayerView`. That is a
@@ -119,49 +119,49 @@ the card files. Each is distinct in color identity and playstyle.
 ### 1. Cao Cao — Wei Aggro-Command (W/B)
 - **Commander:** `tk-wei-caocao` (Cao Cao, Ambitious Hegemon; 4/4, +1/+0 Wei lord, discards on combat damage).
 - **Colors:** W/B. **Theme:** Wei tribal swarm with a hand-attack engine.
-- **Signature cards:** `tk-wei-zhangliao`, `tk-wei-dianwei`, `tk-wei-xuhuang`, `tk-wei-caoren`, `tk-wei-xunyu` (second Wei lord, +1/+1), `tk-wei-jiaxu` (ETB discard), `en-banner-of-the-hegemon` (Wei anthem), `ld-shadowed-court` (W/B dual).
+- **Signature cards:** `tk-wei-zhangliao`, `tk-wei-dianwei`, `tk-wei-xuhuang`, `tk-wei-caoren`, `tk-wei-xunyu` (second Wei lord, +1/+1), `tk-wei-jiaxu` (arrives discard), `en-banner-of-the-hegemon` (Wei anthem), `ld-shadowed-court` (W/B dual).
 - **How it wins:** curve out disciplined Wei bodies, stack two lords + the banner so the team outsizes blockers, and grind the opponent's hand to zero via Cao Cao + `tk-wei-jiaxu` while beating down.
 
 ### 2. Sun Quan — Wu Tempo-Burn (U/R)
-- **Commander:** `tk-wu-sunquan` (Sun Quan, Emerald-Eyed Sovereign; ETB draw, +0/+1 Wu lord).
+- **Commander:** `tk-wu-sunquan` (Sun Quan, Emerald-Eyed Sovereign; arrives draw, +0/+1 Wu lord).
 - **Colors:** U/R. **Theme:** Wu tribal tempo with reach burn.
-- **Signature cards:** `tk-wu-zhouyu` (ETB 2 to face), `tk-wu-sunce`, `tk-wu-ganning` (attack pings), `tk-wu-luxun` (attack-anthem), `tk-wu-lumeng` (Wu lord), `in-fire-attack`, `in-char`, `ld-red-cliffs-anchorage` (U/R dual).
-- **How it wins:** apply early pressure with haste admirals, protect the tempo lead with cheap burn/bounce, and close with direct damage (`tk-wu-zhouyu`, `so-lava-axe`) when the board stalls.
+- **Signature cards:** `tk-wu-zhouyu` (arrives 2 to face), `tk-wu-sunce`, `tk-wu-ganning` (attack pings), `tk-wu-luxun` (attack-anthem), `tk-wu-lumeng` (Wu lord), `in-fire-attack`, `in-char`, `ld-red-cliffs-anchorage` (U/R dual).
+- **How it wins:** apply early pressure with Warcry admirals, protect the tempo lead with cheap burn/recall, and close with direct damage (`tk-wu-zhouyu`, `so-lava-axe`) when the board stalls.
 
 ### 3. Zhuge Liang — Mono-U Sleeping Dragon Control (U)
-- **Commander:** `tk-shu-zhugeliang` (Sleeping Dragon; 2/4, ETB draw 2).
+- **Commander:** `tk-shu-zhugeliang` (Sleeping Dragon; 2/4, arrives draw 2).
 - **Colors:** mono-U. **Theme:** card-advantage control that never trades on tempo.
-- **Signature cards:** `gk-poseidon` (5/5 ETB draw), `tk-shu-zhugeliang`'s support `tk-shu-pangtong`/`tk-wei-guojia` (ETB draw), `in-read-the-ruse` + `in-dream-fracture` (counters), `in-undertow` (bounce), `so-strategic-planning` (draw 3), `ar-imperial-jade-seal` (fixing/ramp).
-- **How it wins:** counter the opponent's threats, out-draw them with a stack of ETB-draw bodies, and win late with `gk-poseidon`, `tk-jin-zhonghui`, or `ar-bronze-colossus`.
+- **Signature cards:** `gk-poseidon` (5/5 arrives draw), `tk-shu-zhugeliang`'s support `tk-shu-pangtong`/`tk-wei-guojia` (arrives draw), `in-read-the-ruse` + `in-dream-fracture` (cancels), `in-undertow` (recall), `so-strategic-planning` (draw 3), `ar-imperial-jade-seal` (fixing/ramp).
+- **How it wins:** cancel the opponent's threats, out-draw them with a stack of arrives-draw bodies, and win late with `gk-poseidon`, `tk-jin-zhonghui`, or `ar-bronze-colossus`.
 
 ### 4. Zeus — Mono-R Thunder Storm/Burn (R)
-- **Commander:** `gk-zeus` (Thunder Empress; 5/5 flyer, ETB 3 to face).
+- **Commander:** `gk-zeus` (Thunder Empress; 5/5 Skyborne, arrives 3 to face).
 - **Colors:** mono-R. **Theme:** the fastest face-damage deck; every card points at life total.
 - **Signature cards:** `tk-other-zhurong`, `tk-wu-huanggai` (dies: 2 to face), `in-char`, `in-fire-attack`, `in-comet-blast` (X burn), `so-lava-axe`, `so-flame-lash`, `so-warcry`.
-- **How it wins:** race with hasty red creatures, then convert every remaining card into reach — Zeus's ETB 3 + `in-comet-blast` for X are the finishers. Pure aggro-burn, the polar opposite of deck 3.
+- **How it wins:** race with hasty red creatures, then convert every remaining card into reach — Zeus's arrives 3 + `in-comet-blast` for X are the finishers. Pure aggro-burn, the polar opposite of deck 3.
 
 ### 5. Gaia — G/W Go-Wide Stompz (G/W)
-- **Commander:** `gk-gaia` (World-Mother; 6/6 trample, grows each upkeep).
+- **Commander:** `gk-gaia` (World-Mother; 6/6 Overrun, grows each dawn).
 - **Colors:** G/W. **Theme:** ramp into a wide, anthem-buffed green-white board.
-- **Signature cards:** `gk-demeter` + `bk-deerkin-grovekeeper` (`fetchLand`), `so-rampant-growth`, `so-muster-militia` / `so-parade-of-heroes` (tokens), `gk-apollo` / `en-olympus-ascendant` (Olympian anthems), `so-stampede-season` / `in-stand-as-one` (team pumps), `ld-peach-garden-orchard` (G/W dual).
-- **How it wins:** ramp a turn ahead, flood the board with tokens and beasts, then alpha-strike with a team pump — or just cast Gaia and let a growing 6/6 trampler close.
+- **Signature cards:** `gk-demeter` + `bk-deerkin-grovekeeper` (`fetchLand`), `so-rampant-growth`, `so-muster-militia` / `so-parade-of-heroes` (tokens), `gk-apollo` / `en-olympus-ascendant` (Olympian anthems), `so-stampede-season` / `in-stand-as-one` (team boosts), `ld-peach-garden-orchard` (G/W dual).
+- **How it wins:** ramp a turn ahead, flood the board with tokens and beasts, then alpha-strike with a team boost — or just cast Gaia and let a growing 6/6 Overrun close.
 
 ### 6. Sima Yi — U/B Attrition Control (U/B)
 - **Commander:** `tk-jin-simayi` (Patient Shadow; on combat damage: draw + opponent discards).
 - **Colors:** U/B. **Theme:** Jin removal-and-hand-disruption grind.
-- **Signature cards:** `tk-jin-wangyuanji` (deathblade, ETB draw), `tk-jin-zhangchunhua` (deathblade drain), `bk-spiderkin-weaver` (deathblade wall), `in-doom-bolt`, `in-reapers-due`, `so-night-extortion`, `so-dirge-of-loss`, `ld-moonlit-marsh` (U/B dual).
+- **Signature cards:** `tk-jin-wangyuanji` (deathblade, arrives draw), `tk-jin-zhangchunhua` (deathblade drain), `bk-spiderkin-weaver` (deathblade wall), `in-doom-bolt`, `in-reapers-due`, `so-night-extortion`, `so-dirge-of-loss`, `ld-moonlit-marsh` (U/B dual).
 - **How it wins:** wall the ground behind deathblade, strip the hand, one-for-one every threat, and inevitably win on cards once the opponent is empty. Sima Yi + `tk-jin-wangyuanji` are the engines.
 
 ### 7. Guan Yu — R/W Saint of War Aggro (R/W)
-- **Commander:** `tk-shu-guanyu` (Saint of War; 5/4 first strike + vigilance).
+- **Commander:** `tk-shu-guanyu` (Saint of War; 5/4 First Blade + Sentinel).
 - **Colors:** R/W. **Theme:** aggressive R/W "boros" beatdown with combat tricks.
-- **Signature cards:** `gk-ares` (4/3 haste), `gk-zeus` (identity-legal R/W bomb), `gk-nike` / `gk-hoplite` (cheap W beaters), `tk-wei-xiahoudun` (first strike), `in-shieldwall` / `in-stand-as-one` (combat tricks), `so-warcry`, `ld-beacon-ridge` (R/W dual).
-- **How it wins:** curve of efficient attackers under Guan Yu (a near-unkillable attacker with first strike + vigilance), pushed through with tricks and `so-warcry` haste. Distinct from Zeus's burn — this wins in combat, not off the top.
+- **Signature cards:** `gk-ares` (4/3 Warcry), `gk-zeus` (identity-legal R/W bomb), `gk-nike` / `gk-hoplite` (cheap W beaters), `tk-wei-xiahoudun` (First Blade), `in-shieldwall` / `in-stand-as-one` (combat tricks), `so-warcry`, `ld-beacon-ridge` (R/W dual).
+- **How it wins:** curve of efficient attackers under Guan Yu (a near-unkillable attacker with First Blade + Sentinel), pushed through with tricks and `so-warcry` Warcry. Distinct from Zeus's burn — this wins in combat, not off the top.
 
-### 8. Persephone — B/G Underworld Deathtouch Midrange (B/G)
+### 8. Persephone — B/G Underworld Deathblade Midrange (B/G)
 - **Commander:** `gk-persephone` (Queen of Two Courts; 3/3 deathblade, dies → 2 blooms).
 - **Colors:** B/G. **Theme:** Golgari-style deathblade attrition + recursion, but midrange rather than pure control (contrast deck 6's U/B).
-- **Signature cards:** `gk-hades` (5/4 deathblade, ETB drain), `gk-thanatos`, `bk-lamia-nightblade`, `bk-spiderkin-weaver` (deathblade package), `so-raise-dead` (recursion), `in-grave-chill` / `in-doom-bolt` (removal), `gk-demeter`/`so-rampant-growth` (ramp), `ld-asphodel-meadow` (B/G dual).
+- **Signature cards:** `gk-hades` (5/4 deathblade, arrives drain), `gk-thanatos`, `bk-lamia-nightblade`, `bk-spiderkin-weaver` (deathblade package), `so-raise-dead` (recursion), `in-grave-chill` / `in-doom-bolt` (removal), `gk-demeter`/`so-rampant-growth` (ramp), `ld-asphodel-meadow` (B/G dual).
 - **How it wins:** trade deathblade bodies up the curve, recur the best ones, and grind out with Hades/Persephone value. Beats decks 1/5/7 in the mud that decks 2/4 try to race.
 
 **Distinctness matrix:** W/B aggro (1), U/R tempo (2), mono-U control (3),
@@ -292,7 +292,7 @@ Each milestone ends runnable/testable.
 ## Risks / trade-offs
 
 - **"Commander-lite" is not real EDH.** No command zone means the commander can
-  be countered, removed, and left dead in the graveyard (no re-cast from
+  be cancelled, removed, and left dead in the graveyard (no re-cast from
   command). Mitigation: it's single-player and the decks are built with
   protection/recursion; framing in-game copy sets expectations. A full command
   zone remains a possible v2, but it is an *engine* change (breaks the purity/
@@ -332,8 +332,8 @@ Each milestone ends runnable/testable.
 ### Dependencies on the parallel plans
 
 - **Keyword-rethemes plan:** if that plan renames/adds keywords or changes
-  `Keyword` semantics, the "how it wins" combat notes above (first strike,
-  deathblade, trample, vigilance, bloodoath) may need re-verifying — the deck
+  `Keyword` semantics, the "how it wins" combat notes above (First Blade,
+  deathblade, Overrun, Sentinel, bloodoath) may need re-verifying — the deck
   strategies lean on current keyword behavior in `docs/rules.md`. No structural
   dependency, only flavor/tuning.
 - **Road-to-1.0 plan:** Commander Mode is a natural **1.0 content pillar**

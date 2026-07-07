@@ -134,7 +134,7 @@ flag). None touch the engine, AI, decks, or balance.
   `src/engine/actions.ts`, no Phaser. No determinism impact.
 - **Effort / risk.** Small. Caveat: `castBlockers` returns dev-ish strings
   ("cannot pay cost", "…cap reached") — add a small player-facing copy map, and
-  reconstruct the "sorcery-speed only" vs "already played a land" distinction
+  reconstruct the "ritual-speed only" vs "already played a land" distinction
   (the land case is handled outside `castableNow`, in `legalActions:177-179`).
 - **Tests.** Pure `reasonUncastable` against crafted states (no mana / no target
   / wrong phase / land-already-played) — fully vitest-gate-able.
@@ -258,8 +258,8 @@ grounded in an existing seam; the recurring cost is new UI, not new engine.
 ### 9. Keyword reminder text + hover/tap glossary
 
 - **Problem.** The single biggest **comprehension** gap. A new player facing the
-  ten evergreen keywords has no in-app way to learn what deathblade / trample /
-  first strike / vigilance / untouchable do — board tiles deliberately omit rules
+  ten evergreen keywords has no in-app way to learn what deathblade / overrun /
+  first blade / sentinel / untouchable do — board tiles deliberately omit rules
   text and `rulesText()` prints only the bare keyword line (`rulesText.ts:108`).
   Felt on essentially every creature and constantly in combat.
 - **Design & code fit.** `rulesText.ts:3` already defines
@@ -333,7 +333,7 @@ grounded in an existing seam; the recurring cost is new UI, not new engine.
 ### 12. Combat / lethal-damage forecast preview
 
 - **Problem.** Combat is where games are won and misjudged trades hurt most, yet
-  players must mentally simulate first strike / deathblade / trample against
+  players must mentally simulate first blade / deathblade / overrun against
   *effective* (buffed) P/T. The confirm flow (`DuelScene.ts:1600-1668`) shows
   only a bare count. Every modern TCG previews combat math on hover.
 - **Design & code fit.** `getEffectiveStats` (`statics.ts:17`) already returns
@@ -351,7 +351,7 @@ grounded in an existing seam; the recurring cost is new UI, not new engine.
   *approximate* combat math and does **not** call `resolveCombatDamage`, so
   "reusable by the AI" is a real future benefit but a refactor, not a drop-in.
 - **Tests.** Golden `previewCombat` outcomes vs `resolveCombatDamage` on crafted
-  boards (deathblade, trample, first strike, gang blocks) — high-value headless
+  boards (deathblade, overrun, first blade, gang blocks) — high-value headless
   coverage.
 
 ### 13. Deck statistics + add-a-playset in the builder

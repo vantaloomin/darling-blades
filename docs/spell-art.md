@@ -1,9 +1,9 @@
 <!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/ui/CardView.ts · last-verified: 2026-07-07 -->
 
-# Darling Blades Art Bible — Spells (Instants · Sorceries · Enchantments · the Jade Seal)
+# Darling Blades Art Bible — Spells (Charms · Rituals · Enchantments · the Jade Seal)
 
 This file is the **binding contract** for the art of the base set's **43 non-creature
-spell cards** — the 18 instants, 14 sorceries, 10 enchantments, and the single
+spell cards** — the 18 charms, 14 rituals, 10 enchantments, and the single
 non-creature artifact (`ar-imperial-jade-seal`) — plus the 9-card Ragnarök addendum
 below, for 52 entries in all. The 215-entry creature art-bible
 (`docs/art-bible/`) covers creatures, tokens, and the Construct creatures; it does
@@ -27,7 +27,7 @@ depicts the spell's **dramatic MOMENT or magical EFFECT** — the instant the ma
 fires or the ongoing enchanted state it imposes — rendered as a cinematic
 cel-gacha anime splash.
 
-- **Instants & sorceries — the effect firing.** The subject is the *effect*: a burst
+- **Charms & rituals — the effect firing.** The subject is the *effect*: a burst
   of flame, a bolt of death-energy, a resurrection clawing out of a grave, a scrying
   vision blooming over a teacup, a battle-charge, a sweeping gale. A figure
   (caster, victim, or soldier) may appear where the effect implies one, but the
@@ -121,7 +121,7 @@ The script appends the shared preamble and negatives; do not restate them per en
 
 ---
 
-## Instants
+## Charms
 
 ### Fire Attack — `in-fire-attack`
 - **Prompt:** A fireship assault at night — a blazing war-vessel and a gout of orange flame surging across dark water toward the viewer, sparks and ember-smoke filling the frame, the wall of fire centered in the band, R fire palette of `#d95436` and `#5e0f0f` with `#f7b267` ember highlights — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
@@ -130,7 +130,7 @@ The script appends the shared preamble and negatives; do not restate them per en
 - **Prompt:** A sudden explosion of green growth-magic engulfing a warrior — a burst of glowing vines, leaves, and living light swelling a figure larger and stronger at frame center, verdant energy radiating outward, G growth palette `#4fa06a` and `#123a22` with `#a9dcae` glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Read the Ruse — `in-read-the-ruse`
-- **Prompt:** A counterspell shattering an enemy's magic — a smug blue-robed sorceress at frame center flicks her fingers as a rival's spell fractures into cracking arcane glass and dissolving sigils, cold blue counter-energy centered, U mind palette `#4a90d9` and `#16294f` with `#a8d4f7` sparks — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+- **Prompt:** A cancel spell shattering an enemy's magic — a smug blue-robed sorceress at frame center flicks her fingers as a rival's spell fractures into cracking arcane glass and dissolving sigils, cold blue cancel-energy centered, U mind palette `#4a90d9` and `#16294f` with `#a8d4f7` sparks — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Shieldwall Discipline — `in-shieldwall`
 - **Prompt:** A locked shieldwall snapping into formation — interlocking shields and leveled spears wreathed in a golden ward of protective light at frame center, disciplined soldiers braced behind, holy W palette `#f2e8cf` and `#c9a84c` with `#fffef2` radiant glint — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
@@ -177,7 +177,7 @@ The script appends the shared preamble and negatives; do not restate them per en
 ### Dream Fracture — `in-dream-fracture`
 - **Prompt:** A dream shattering into stolen fragments — an opponent's glowing blue thought-form cracking apart into drifting shards of arcane glass at frame center while a thread of stolen idea coils toward the caster, cold oneiric light, U mind palette `#4a90d9` and `#16294f` with `#a8d4f7` prismatic shards for the foil holo — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
-## Sorceries
+## Rituals
 
 ### Divination — `so-divination`
 - **Prompt:** A scrying vision blooming over still water — a blue seer's reflecting pool at frame center flaring with luminous arcane visions and drifting omen-sigils, two ghostly future-images rising from the surface, U insight palette `#4a90d9` and `#16294f` with `#a8d4f7` vision-glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
@@ -186,7 +186,7 @@ The script appends the shared preamble and negatives; do not restate them per en
 - **Prompt:** A landscape erupting into sudden verdant life — new forest, vines, and glowing green land-energy bursting up out of bare earth at frame center, a fresh spring of living mana welling forth, G growth palette `#4fa06a` and `#123a22` with `#a9dcae` sprout-glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Raise Dead — `so-raise-dead`
-- **Prompt:** A resurrection clawing up from a grave — a violet-black necromantic glow pouring into an open tomb at frame center as a skeletal armored hand thrusts up through the soil, grave-mist and spectral light swirling, B death palette `#5a3a70` and `#140d1c` with `#9b6fc4` reanimation glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+- **Prompt:** A resurrection clawing up from a grave — a violet-black necromantic glow pouring into an open tomb at frame center as a skeletal armored hand thrusts up through the soil, grave-mist and spectral light swirling, B death palette `#5a3a70` and `#140d1c` with `#9b6fc4` raising glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Lava Axe — `so-lava-axe`
 - **Prompt:** A hurled axe of molten lava — a great glowing fire-axe of liquid magma spinning through the air toward a distant fortress at frame center, trailing droplets of flame and smoke, R fire palette `#d95436` and `#5e0f0f` with `#f7b267` molten edge — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait

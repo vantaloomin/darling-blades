@@ -200,7 +200,7 @@ card-shaped already passes, essentially all text-button chrome fails):
 | Collection/DeckBuilder pagers ‹ › | `CollectionScene.ts:95-103`, `DeckBuilderScene.ts:63-70` | 2.1–2.5 mm wide, and Collection's are the only touch paging path | Inflate width; Collection swipe as stretch |
 | Main menu items | `src/scenes/MainMenuScene.ts:68-75` | 15 px dead gap between rows | Hit boxes fill the full 56 px pitch |
 | Back buttons (5 scenes) | `GauntletScene.ts:77-79`, `CollectionScene.ts:116-118`, `DeckBuilderScene.ts:57-59`, `ShopScene.ts:144-150`, `CardShowcaseScene.ts:67-73` | ~2.3 mm tall, every scene exit | One helper call each |
-| Life totals + stack readout | `DuelScene.ts:246-266,281-300,303-309` | Burn/counter **targets** during targeting mode | Inflate |
+| Life totals + stack readout | `DuelScene.ts:246-266,281-300,303-309` | Burn/cancel **targets** during targeting mode | Inflate |
 | Filter chips | `CollectionScene.ts:74-91` | ~2.8 mm tall | Inflate to the 90 px pitch |
 | Overlay/results/pack/save/gauntlet buttons | `DuelScene.ts:1064-1141`, `PackOpeningScene.ts:174-180,309-323` (respace the adjacent Shop/Menu pair), `DeckBuilderScene.ts:232-241`, `GauntletScene.ts:269-306` | 3.8–5.2 mm heights | Sweep with the helper |
 
@@ -332,7 +332,7 @@ design forces it:
 
 - **Lockstep cannot work under hidden information.** For two clients to
   simulate the same game both need the seed, and the seed deterministically
-  produces both libraries' full order at construction
+  produces both decks' full order at construction
   (`src/engine/Game.ts:53-59`) with the PRNG living inside `GameState`
   (`src/engine/types.ts:210`, `src/engine/rng.ts:7-22`). Sharing the seed
   = either client can enumerate the opponent's deck order and hand.
@@ -341,8 +341,8 @@ design forces it:
   boundary today ("AI reads only the redacted `PlayerView`" — CLAUDE.md
   iron invariants; "if it's not in the view, no AI can see it" —
   `docs/architecture.md`). `viewFor(state, seat)`
-  (`src/engine/view.ts:52-84`) hides your own library order, the
-  opponent's hand and library, and **omits `state.rng` entirely** — a
+  (`src/engine/view.ts:52-84`) hides your own deck order, the
+  opponent's hand and deck, and **omits `state.rng` entirely** — a
   remote client that only ever receives `viewFor(theirSeat)` cannot cheat
   even with a hacked client, because the wire never carried hidden zones or
   the seed.
@@ -398,7 +398,7 @@ plain data; optional fields (`targets?`, `x?`, `manaPlan?`,
 `attachedTo?`) follow the absent-key pattern and all consumers distinguish
 `undefined` the same way after a JSON round-trip (`actions.ts:286-287`,
 `Game.ts:197,211`). **`GameState` itself is never serialized to a client**
-— it contains both hands, both library orders, and the RNG.
+— it contains both hands, both deck orders, and the RNG.
 
 Sketch (`src/net/protocol.ts`, design latitude on names):
 
@@ -432,9 +432,9 @@ anyway). Test-gated (§2.10) — this function is the second half of the
 anti-peek boundary and gets the same respect as `viewFor`.
 
 **Known accepted tell:** response/end-step windows only open when the
-responder actually holds a castable instant (`Game.ts:308-319`,
+responder actually holds a castable Charm (`Game.ts:308-319`,
 `src/engine/phases.ts:86-96`), and `responseWindowOpened` is emitted to
-everyone — the pause itself says "they have an instant." Exists today vs
+everyone — the pause itself says "they have a Charm." Exists today vs
 the AI (harmless); in PvP it's a real but *couch-acceptable* tell.
 Documented, deferred (a fix — always-open windows with fixed delay — costs
 pacing; Tier 3 decision).
@@ -458,7 +458,7 @@ The net-seam audit located the seam precisely:
 - **The renderer:** `sync()` renders from raw `GameState` and hardcodes
   `HUMAN = 0` / `AI = 1` (`DuelScene.ts:25-26,484-491`). Refactor it to
   consume `PlayerView` with a seat parameter — the view already carries
-  everything `sync()` displays (`libraryCount`/`handCount` replace the raw
+  everything `sync()` displays (`deckCount`/`handCount` replace the raw
   reads, `view.ts:64,71-72`; `awaiting` drives `syncButton`/`syncOverlay`,
   `view.ts:48`). Client-side affordability checks (the playable dot,
   castable menus) come **from the host-shipped `legal` menu**, not from
@@ -527,7 +527,7 @@ The net-seam audit located the seam precisely:
   continues from a full resync.
 - Wrong-seat, malformed, and stale actions are rejected with a resync and
   never desync or crash either client.
-- No payload sent to a client ever contains the seed, either library, or
+- No payload sent to a client ever contains the seed, either deck, or
   the opponent's hand/draw identities (schema-walk + leak tests green).
 - Single-player is behaviorally unchanged through `LocalSession` (full
   existing suite green).
@@ -541,7 +541,7 @@ The net-seam audit located the seam precisely:
 - **Leak tests (the anti-peek gate):** play N seeded games; assert
   `redactEventsFor` never emits an opponent `drew.cardId` (including
   `initialEvents`), and a schema walk over every `update` payload finds no
-  `rng`, no library arrays, no opponent hand contents.
+  `rng`, no deck arrays, no opponent hand contents.
 - Engine: concede-from-non-acting-player tests; determinism suite stays
   green (no engine behavior may drift).
 - **Full-stack headless integration:** start the server on an ephemeral
@@ -574,7 +574,7 @@ the resync-every-action model; simultaneous-tap feel at response windows.
 - **Spectator:** needs a third redaction variant (both hands hidden — a
   `viewFor` for "no seat"); the symmetric-server topology makes the
   transport free.
-- **Response clocks / always-open windows** to kill the instant-in-hand
+- **Response clocks / always-open windows** to kill the Charm-in-hand
   tell (§2.4) — pacing cost, measure with real players first.
 - **Save portability:** export/import the save blob (string or QR) between
   devices, or server-stored saves; interacts with the per-origin fact
