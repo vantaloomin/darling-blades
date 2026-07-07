@@ -1103,7 +1103,7 @@ export class DuelScene extends Phaser.Scene {
         if (e.controller === HUMAN) this.portrait.reactCast();
         break;
       case 'spellCountered':
-        this.log('Spell countered!');
+        this.log('Spell cancelled!');
         break;
       case 'targetsFizzled':
         this.log('Spell fizzled — no legal targets');
@@ -1712,7 +1712,7 @@ export class DuelScene extends Phaser.Scene {
       .setText(
         items.length === 0
           ? ''
-          : 'Stack (top last):\n' + items.map((s) => def(CARD_DB, s.cardId).name).join('\n'),
+          : 'Pending (top last):\n' + items.map((s) => def(CARD_DB, s.cardId).name).join('\n'),
       )
       .setVisible(items.length > 0);
 

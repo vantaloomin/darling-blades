@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/tk-jin.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/tk-jin.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Jin (三晉)
 
@@ -32,7 +32,7 @@ sons echo. Faces stay bright and quiet; the shimmer lives in the silver, never t
 
 ### Wang Yuanji, Silent Blade — `tk-jin-wangyuanji`
 - **Card facts:** {1}{U}{B} · U/B (gold frame) · 2/3 · deathblade · sr, legendary · holo: sheen (explicit)
-- **Character & source:** Genderbent Wang Yuanji, Sima Zhao's razor-minded consort; her ETB draws a card and her deathtouch means one cut is enough.
+- **Character & source:** Genderbent Wang Yuanji, Sima Zhao's razor-minded consort; her ETB draws a card and her deathblade means one cut is enough.
 - **Personality / mood:** "She says little. She has already said everything that mattered." Economy in everything — words, motion, mercy.
 - **Pose & composition:** Three-quarter, chest-up, near-motionless — one hand lowering a slim veil or letter, the other resting on a sheathed short blade she has not drawn. Deathtouch reads as *one quiet lethal implement*, held, not swung. Face ≈ y 310, eye line ≈ y 340, gaze slightly off-viewer as if a conversation just ended.
 - **Costume & attire:** Layered dark-teal and charcoal silks, high closed collar, tarnished-silver belt fittings, hair pinned low and severe with a single silver comb.
@@ -54,7 +54,7 @@ sons echo. Faces stay bright and quiet; the shimmer lives in the silver, never t
 - **Palette:** B palette (`#5a3a70`→`#140d1c`, accent `#9b6fc4`) pushed to near-black with one violet drain glow; Jin slate-teal underlayer + tarnished silver. Keep her face bright against the black.
 - **Lighting:** Cold under-lit key from the drain wisp; dim silver rim off the headpiece.
 - **Expression:** Imperious, faintly amused, absolutely certain.
-- **Props / weapon:** The silver headpiece; a curl of dark life-drain (deathtouch implied, not brandished).
+- **Props / weapon:** The silver headpiece; a curl of dark life-drain (deathblade implied, not brandished).
 - **Background:** A dim inner hall, black lacquer screens, a single carried light.
 - **Holo interaction:** Foil — noise-masked rainbow bands want texture, so build the shimmer into the silver embroidery, cuffs, and headpiece; keep her face and the flat black robe smooth so the *silverwork* does the shimmering.
 - **Rarity ambition:** Rare — the instant the drain lands; she barely notices.
@@ -62,7 +62,7 @@ sons echo. Faces stay bright and quiet; the shimmer lives in the silver, never t
 
 ### Sima Shi, Cold Executor — `tk-jin-simashi`
 - **Card facts:** {2}{B}{B} · B · 4/3 · firstBlade · r · holo: auto:sheen
-- **Character & source:** Genderbent Sima Shi, Yi's elder heir and Jin's blade-hand; firstStrike says she cuts before you can answer.
+- **Character & source:** Genderbent Sima Shi, Yi's elder heir and Jin's blade-hand; firstBlade says she cuts before you can answer.
 - **Personality / mood:** "Her plans survive contact with everything except her sister's jokes." Ruthlessly competent, humorless under pressure, precise.
 - **Pose & composition:** Three-quarter, chest-up, one environmental story element per uncommon — a drawn straight sword already extended in a clean forward guard, blade catching the light first. Face ≈ y 320, eye line ≈ y 345, weight forward but controlled, not lunging.
 - **Costume & attire:** Dark lacquered half-armor over slate-teal campaign robe, tarnished-silver pauldron trim, ash-dark hair bound tight, single silver streak echoing her mother.

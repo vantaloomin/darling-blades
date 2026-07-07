@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-06 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes -->
 
 # Mod / UGC pack system
 
@@ -113,7 +113,7 @@ second, defense-in-depth collision check when the merged db is assembled.
 
 ### A valid modded card (worked example)
 
-This reuses only existing vocabulary — a `flying` keyword and an `etb` trigger
+This reuses only existing vocabulary — a `skyborne` keyword and an `arrives` trigger
 running the existing `damage`/`opponent` op (exactly the shape of `gk-zeus` in
 `src/data/cards/greek.ts:93-106`):
 
@@ -128,9 +128,9 @@ running the existing `damage`/`opponent` op (exactly the shape of `gk-zeus` in
   "colors": ["R", "U"],
   "attack": 5,
   "defense": 5,
-  "keywords": ["flying"],
+  "keywords": ["skyborne"],
   "abilities": [
-    { "when": "etb", "ops": [{ "op": "damage", "n": 2, "to": "opponent" }] }
+    { "when": "arrives", "ops": [{ "op": "damage", "n": 2, "to": "opponent" }] }
   ],
   "rarity": "ur",
   "flavor": "The storm does not ask permission to land."
@@ -154,9 +154,9 @@ has a text renderer.
   "colors": ["B"],
   "attack": 99,
   "defense": 99,
-  "keywords": ["flying", "cannotBeBlocked"],
+  "keywords": ["skyborne", "cannotBeBlocked"],
   "abilities": [
-    { "when": "etb", "ops": [{ "op": "winGame" }] },
+    { "when": "arrives", "ops": [{ "op": "winGame" }] },
     { "when": "static", "ops": [{ "op": "damage", "n": 1, "to": "opponent" }] }
   ],
   "rarity": "ur"

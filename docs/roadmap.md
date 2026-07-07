@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-06 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-07 · review monthly -->
 
 # Roadmap
 
@@ -105,7 +105,7 @@ _Dated 2026-07-04. Review monthly._
   `rg-` — plus 3 tokens, which stay in the `base` set).** A Norse headline faction (Valkyries, Norns, Jotun, Draugr, the
   death-goddess Hel) with a graveyard soul, plus "deepening" cards that give the
   existing worlds their own returning dead (Shu/Wei double-strike duelists, a Greek
-  underworld shade). Three new mechanics: the **`doubleStrike`** keyword (two edits
+  underworld shade). Three new mechanics: the **`twinBlades`** keyword (two edits
   in `combat/damage.ts` — every interaction falls out of the existing two-step
   damage), and the **`mill`** + **`reanimate`** EffectOps birthing a true
   graveyard/reanimator archetype the base set lacked. All pure data in
@@ -491,7 +491,7 @@ _Dated 2026-07-04. Review monthly._
 - **Starter-deck expansion: 2 → 5 precons** (`src/data/starterDecks.ts`),
   drawing on the full 210-card pool: Crimson Muster (R/W aggro), Wild
   Communion (G/W creatures), **Burning Tides** (U/R Wu tempo-burn), **Shadow
-  Mandate** (U/B Jin control), **Grave Harvest** (B/G deathtouch attrition).
+  Mandate** (U/B Jin control), **Grave Harvest** (B/G deathblade attrition).
   Legality + termination tests in `tests/data/starterDecks.test.ts`; the
   MainMenu starter picker was relaid out for five.
 - **Audio layer.** Procedural WebAudio SFX — pure-data recipes

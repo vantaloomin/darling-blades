@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/tk-wei.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/tk-wei.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Wei (`tk-wei`)
 
@@ -332,9 +332,9 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 
 ### Cai Wenji, Homeward Harpist — `tk-wei-caiwenji`
 - **Card facts:** {1}{W} · W · 1/3 · bloodoath · c · holo: none
-- **Character & source:** Genderbent Cai Wenji, the poet-musician ransomed home from captivity; lifelink — her music restores as it plays.
+- **Character & source:** Genderbent Cai Wenji, the poet-musician ransomed home from captivity; bloodoath — her music restores as it plays.
 - **Personality / mood:** "Eighteen songs for a homeland, each one worth a ransom." Tender, resilient, sorrow refined into grace.
-- **Pose & composition:** Seated three-quarter playing a guqin or harp, face ≈ y 300 tilted down to the strings, a warm restorative glow rising from the instrument (the lifelink made visible). Calm and inward; music, not combat.
+- **Pose & composition:** Seated three-quarter playing a guqin or harp, face ≈ y 300 tilted down to the strings, a warm restorative glow rising from the instrument (the bloodoath made visible). Calm and inward; music, not combat.
 - **Costume & attire:** Soft ivory-white travelling robes with a lapis shawl and bronze fastenings, a homeland-embroidered sash, simple loose hairpin, road-worn but dignified.
 - **Palette:** W palette (`#f2e8cf`→`#c9a84c`, accent `#fffef2`) — warm healing whites, textured not blown out; Wei lapis + bronze accents.
 - **Lighting:** Warm glow from the instrument as key + soft cool rim from behind — the healing light is the key light.
@@ -347,9 +347,9 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 
 ### Wang Yi, Unforgiving Edge — `tk-wei-wangyi`
 - **Card facts:** {1}{B} · B · 2/1 · deathblade · c · holo: none
-- **Character & source:** Genderbent Wang Yi, the vengeance-driven avenger of Jicheng; deathtouch — one cut is enough.
+- **Character & source:** Genderbent Wang Yi, the vengeance-driven avenger of Jicheng; deathblade — one cut is enough.
 - **Personality / mood:** "Forgiveness died at Jicheng. She did not." Cold, singular, grief hardened into a killing purpose.
-- **Pose & composition:** Poised low guard, one slender blade held level and still, face ≈ y 320 fixed unblinking on the viewer. Not a wild lunge — a deathtouch striker needs only one quiet, certain implement; controlled menace.
+- **Pose & composition:** Poised low guard, one slender blade held level and still, face ≈ y 320 fixed unblinking on the viewer. Not a wild lunge — a deathblade striker needs only one quiet, certain implement; controlled menace.
 - **Costume & attire:** Dark mourning-black robes with a single lapis mourning-cord, spare bronze vambraces, a widow's hairpin, hair half-veiled in black.
 - **Palette:** B palette (`#5a3a70`→`#140d1c`, accent `#9b6fc4`) — deep blacks with one violet highlight; Wei lapis + bronze accents minimal.
 - **Lighting:** Single cold key from screen-right catching the blade edge + faint warm rim — most of her in shadow.

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/beastkin.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/beastkin.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Beastkin (`bk`)
 
@@ -132,7 +132,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 
 ### Lamia Nightblade — `bk-lamia-nightblade`
 - **Card facts:** {1}{B} · B · 1/1 · deathblade · c · holo: none
-- **Character & source:** Original Beastkin lamia assassin (Serpent) — a fragile one-drop whose one touch is lethal (`deathtouch`).
+- **Character & source:** Original Beastkin lamia assassin (Serpent) — a fragile one-drop whose one touch is lethal (`deathblade`).
 - **Personality / mood:** "One scratch settles most arguments." Coiled patience, quiet menace, economy of motion.
 - **Pose & composition:** Coiled upright, upper body turned in three-quarter, one hand extended with a single glinting claw-blade toward the viewer — a slow, deliberate reach, not a lunge. Face ≈ y 320; the serpent coil spirals down out of frame through the lower band.
 - **Costume & attire:** Dark scaled bodice with a shadow-silk half-cloak, obsidian arm-ring, swept-back frills; the lower body is a single long serpent coil in matte dark scales.
@@ -207,9 +207,9 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 
 ### Kitsune Illusionist — `bk-kitsune-illusionist`
 - **Card facts:** {1}{U} · U · 2/1 · untouchable · c · holo: none
-- **Character & source:** Original Beastkin kitsune trickster — a slippery two-drop who can't be targeted (`hexproof`).
+- **Character & source:** Original Beastkin kitsune trickster — a slippery two-drop who can't be targeted (`untouchable`).
 - **Personality / mood:** "Which of the five foxes is real? Wrong." Playful, deceptive, always laughing at a joke you're not in on.
-- **Pose & composition:** Standing three-quarter with a sly finger raised, surrounded by faint blue after-image duplicates of herself offset in space — you can't pin which is real (hexproof). Face ≈ y 320 on the crispest copy; ears and single tail echoed in the ghost-images fading into both bleeds.
+- **Pose & composition:** Standing three-quarter with a sly finger raised, surrounded by faint blue after-image duplicates of herself offset in space — you can't pin which is real (untouchable). Face ≈ y 320 on the crispest copy; ears and single tail echoed in the ghost-images fading into both bleeds.
 - **Costume & attire:** Blue-and-silver short kimono with trailing sleeves, single tall fox tail, triangular ears, talisman-slips tucked in her obi, narrow gold eyes.
 - **Palette:** U palette (`#4a90d9` → `#16294f`, accent `#a8d4f7`) with pale illusion-blue echoes; Beastkin naturals on the solid figure.
 - **Lighting:** Cool moonlight key from front-left; the illusions carry a faint self-lit blue rim.
@@ -237,9 +237,9 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 
 ### Holstaur Milkmaid — `bk-holstaur-milkmaid`
 - **Card facts:** {2}{W} · W · 2/3 · bloodoath · c · holo: none
-- **Character & source:** Original Beastkin holstaur farmhand — a `lifelink` three-drop who mends the team by feeding it.
+- **Character & source:** Original Beastkin holstaur farmhand — a `bloodoath` three-drop who mends the team by feeding it.
 - **Personality / mood:** "Breakfast is a love language." Warm, generous, sturdy nurturer.
-- **Pose & composition:** Standing three-quarter, offering a brimming milk-pail forward toward the viewer with both hands — a giving, healing gesture (lifelink), not combat. Face ≈ y 300; cow ears to the sides, tufted tail low. A warm glow spills off the pail (lifelink healers glow warm).
+- **Pose & composition:** Standing three-quarter, offering a brimming milk-pail forward toward the viewer with both hands — a giving, healing gesture (bloodoath), not combat. Face ≈ y 300; cow ears to the sides, tufted tail low. A warm glow spills off the pail (bloodoath healers glow warm).
 - **Costume & attire:** Cream-and-brown farm dress with a laced bodice and apron, black-and-white hide markings on her arms, short curved cattle horns, cow ears, tufted tail, kerchief.
 - **Palette:** W palette (`#f2e8cf` → `#c9a84c`, accent `#fffef2`) kept textured; Beastkin warm-earth + moss; black-and-white hide accents.
 - **Lighting:** Warm golden barn-morning key from the right; soft cream rim from a window left.
@@ -282,9 +282,9 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 
 ### Spiderkin Weaver — `bk-spiderkin-weaver`
 - **Card facts:** {2}{B} · B · 1/3 · deathblade, wardingGaze · c · holo: none
-- **Character & source:** Original Beastkin spiderkin web-artisan — a defensive `deathtouch`/`reach` three-drop who kills anything that touches her silk.
+- **Character & source:** Original Beastkin spiderkin web-artisan — a defensive `deathblade`/`reach` three-drop who kills anything that touches her silk.
 - **Personality / mood:** "Her silk is lovely. Do admire it from outside." Genteel, dangerous, proud of her craft.
-- **Pose & composition:** Poised within a great web, three-quarter, one hand drawing a shimmering silk thread taut — watchful stillness (deathtouch waits; reach lets her strike high), not a lunge. Face ≈ y 310; her extra chitin-jointed limb-pair arcs up into the top band, threads crossing both edges.
+- **Pose & composition:** Poised within a great web, three-quarter, one hand drawing a shimmering silk thread taut — watchful stillness (deathblade waits; reach lets her strike high), not a lunge. Face ≈ y 310; her extra chitin-jointed limb-pair arcs up into the top band, threads crossing both edges.
 - **Costume & attire:** Black-and-violet silk-panel gown, an eight-eye motif brooch, spinner-craft at the hip, plain human ears, a pair of glossy jointed spider-limbs from the back.
 - **Palette:** B palette (`#5a3a70` → `#140d1c`, accent `#9b6fc4`) kept quiet near the face; one venom-green thread glint. Beastkin dark naturals.
 - **Lighting:** Cool low key from below-left catching the web; thin violet rim on the silk.
@@ -342,9 +342,9 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 
 ### Foxfire Priestess — `bk-foxfire-priestess`
 - **Card facts:** {1}{W}{W} · W · 2/2 · bloodoath · r · holo: auto:sheen
-- **Character & source:** Original Beastkin kitsune priestess — a `lifelink` three-drop whose ETB gains 3 life; a warm healer of chosen foxfire.
+- **Character & source:** Original Beastkin kitsune priestess — a `bloodoath` three-drop whose ETB gains 3 life; a warm healer of chosen foxfire.
 - **Personality / mood:** "Foxfire never burns. It only warms whom she chooses." Serene, devotional, radiant kindness.
-- **Pose & composition:** Standing in blessing, three-quarter, both hands cupped around a floating orb of pale-gold foxfire she lifts toward the viewer — the ETB healing moment (lifelink healers glow warm). Face ≈ y 300; fox ears and single tail framed by the warm light; the flame is centered as a glow source.
+- **Pose & composition:** Standing in blessing, three-quarter, both hands cupped around a floating orb of pale-gold foxfire she lifts toward the viewer — the ETB healing moment (bloodoath healers glow warm). Face ≈ y 300; fox ears and single tail framed by the warm light; the flame is centered as a glow source.
 - **Costume & attire:** White-and-gold miko-style robe with red-cord accents, prayer-beads, tall fox ears, single tail, narrow gold eyes, a shrine-charm sash.
 - **Palette:** W palette (`#f2e8cf` → `#c9a84c`, accent `#fffef2`) kept textured; Beastkin warm naturals; the foxfire a pale healing gold.
 - **Lighting:** Warm foxfire key from the cupped orb (centered glow); soft cool rim from a shrine window.

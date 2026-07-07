@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/tk-wu.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/tk-wu.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Wu (The River Dynasty)
 

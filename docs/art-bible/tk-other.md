@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/tk-other.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/tk-other.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Other Officers (`tk-other`)
 
@@ -150,9 +150,9 @@ kings, because for one violent season each of them held the world by the throat.
 
 ### Zuo Ci, Mist-Walking Sage — `tk-other-zuoci`
 - **Card facts:** {2}{U} · U · 2/3 · untouchable · r · holo: auto:sheen
-- **Character & source:** Genderbent Zuo Ci, the Daoist immortal and trickster-conjurer who mocked Cao Cao with illusions and could never be caught — hexproof made flesh.
+- **Character & source:** Genderbent Zuo Ci, the Daoist immortal and trickster-conjurer who mocked Cao Cao with illusions and could never be caught — untouchable made flesh.
 - **Personality / mood:** "Arrest her twice and you will be holding three of her." Serene, mischievous, untouchable; a sage who is never quite where you struck.
-- **Pose & composition:** Standing three-quarter, half-dissolving into mist at the edges, one hand raised in a conjuror's gesture; a faint duplicate of herself echoes just behind. Face ≈ y 330, calm and centered. Elusive stillness — hexproof is presence you cannot pin.
+- **Pose & composition:** Standing three-quarter, half-dissolving into mist at the edges, one hand raised in a conjuror's gesture; a faint duplicate of herself echoes just behind. Face ≈ y 330, calm and centered. Elusive stillness — untouchable is presence you cannot pin.
 - **Costume & attire:** Flowing slate-blue Daoist robes with cloud-pattern trim, a horsehair fly-whisk, a gourd at the hip, long silver-streaked hair drifting as if underwater.
 - **Palette:** U palette (`#4a90d9` → `#16294f`, accent `#a8d4f7`) — misty blues and deep indigo — with a single Other-faction ember note in a hovering lantern-spark.
 - **Lighting:** Cool diffuse moonlit mist as key; pale cyan rim where her form fades into fog.
@@ -181,7 +181,7 @@ kings, because for one violent season each of them held the world by the throat.
 ### Dong Bai, Tyrant's Grandchild — `tk-other-dongbai`
 - **Card facts:** {B} · B · 1/1 · deathblade · c · holo: none
 - **Character & source:** Genderbent Dong Bai, Dong Zhuo's granddaughter, granted a marquisate as a child — small, spoiled, and lethally spiteful. As an adult woman here, per catalog rule.
-- **Personality / mood:** "Granted a fief before losing her baby teeth. Kept the teeth." Petty, entitled, quietly venomous; deathtouch is one small, patient, lethal instrument.
+- **Personality / mood:** "Granted a fief before losing her baby teeth. Kept the teeth." Petty, entitled, quietly venomous; deathblade is one small, patient, lethal instrument.
 - **Pose & composition:** Poised three-quarter, near-still, examining a single slender needle-blade held delicately between two fingers, face ≈ y 330, a cool sidelong glance at the viewer. Deathtouch gets one quiet lethal implement — no lunge, just menace.
 - **Costume & attire:** Overfine miniature-court black silk with excessive gold trim she plainly did not earn, a fief-seal pendant, elaborate pinned hair with a jeweled hairpin (that doubles as the blade's twin).
 - **Palette:** B palette (`#5a3a70` → `#140d1c`, accent `#9b6fc4`) — deep violet-black — with cold gold trim as the Other-faction ember note; two-value background.

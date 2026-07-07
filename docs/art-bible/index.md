@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts · last-verified: 2026-07-06 -->
+<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Index (The Contract)
 
@@ -415,9 +415,9 @@ These three are part of the contract. Match their density and specificity.
    entry** plus the prompt line.
 3. **The card data drives the art.** Use flavor text (it *is* the character
    voice), cost, stats, keywords, and abilities to pick the pose and moment:
-   a 0/4 `defender` does not lunge; `haste` lunges; `deathtouch` gets one quiet
+   a 0/4 `defender` does not lunge; `haste` lunges; `deathblade` gets one quiet
    lethal implement; an ETB token-maker shows or foreshadows its tokens; a
-   `lifelink` healer glows warm. High cost = high spectacle.
+   `bloodoath` healer glows warm. High cost = high spectacle.
 4. **Holo:** copy the card's style from the section-6 reference table. Explicit
    styles are stated bare (`holo: galaxy (explicit)` in Card facts); the three
    hash-assigned rares are stated as `auto:foil` / `auto:radial` / `auto:galaxy`

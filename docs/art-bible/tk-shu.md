@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/tk-shu.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/tk-shu.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Shu (`tk-shu`)
 
@@ -11,7 +11,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Pose & composition:** Standing three-quarter, chest-up, one open hand extended toward the viewer as if offering an oath; face ≈ y 320, eye line y 340, chin level and gaze soft-direct. Two ragtag militia silhouettes kneel/rise in the lower midground, hands raised to hers.
 - **Costume & attire:** Ivory-and-jade court robe over practical travel armor, hand-embroidered sleeves, a patched green cloak, simple twin-sword harness (her dual blades).
 - **Palette:** Gold palette (`#e8c95a` → `#7a5a18`, accent `#fff2b8`) carrying the white/green split; Shu jade + ivory in the robe and cloak. Warm skin, no cold notes.
-- **Lighting:** Warm dawn key from frame-left; soft ivory rim along the extended arm — the lifelink glow reads on her hand.
+- **Lighting:** Warm dawn key from frame-left; soft ivory rim along the extended arm — the bloodoath glow reads on her hand.
 - **Expression:** Tear-bright eyes, composed sorrow, the faint smile of resolve.
 - **Props / weapon:** Twin swords sheathed at hip; the two canon Militia volunteers rallying.
 - **Background:** Straw-roof camp at dawn, banners half-raised, distant volunteers streaming in from mist.
@@ -23,7 +23,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Card facts:** {2}{W}{R}{R} · W/R (gold frame) · 5/4 · firstBlade, sentinel · ur, legendary · holo: galaxy (explicit)
 - **Character & source:** Genderbent Guan Yu, deified Saint of War and matriarch of the Guan green-and-guandao line (registry); wields the Green Dragon Crescent Blade.
 - **Personality / mood:** "The magnificent beard is now magnificent hair. The moon blade did not change." Serene, absolute, temple-calm martial authority.
-- **Pose & composition:** Frontal, slightly low-angle, chest-up, guandao held vertical at her side with the crescent blade rising into the top bleed; face ≈ y 300, eyes half-lowered in composure. The vigilance/firstStrike read: ready, unhurried, first to strike.
+- **Pose & composition:** Frontal, slightly low-angle, chest-up, guandao held vertical at her side with the crescent blade rising into the top bleed; face ≈ y 300, eyes half-lowered in composure. The vigilance/firstBlade read: ready, unhurried, first to strike.
 - **Costume & attire:** Deep green war-robe with ivory undercoat and lacquered green pauldrons, dragon-scale trim, a long dark mane flowing where the legendary beard once was.
 - **Palette:** Gold palette (`#e8c95a` → `#7a5a18`, accent `#fff2b8`) split white/red; dominant Shu jade green with ember-red sash and one cold steel note on the moon blade. Dark, high-contrast field for galaxy.
 - **Lighting:** Cool moonlit key from above; warm ember rim from a low brazier — one key, one rim.
@@ -52,8 +52,8 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 ### Zhao Yun, Dragon of Changshan — `tk-shu-zhaoyun`
 - **Card facts:** {2}{W}{W} · W · 4/4 · sentinel, untouchable · ssr, legendary · holo: sheen (explicit)
 - **Character & source:** Genderbent Zhao Yun, the peerless bodyguard who carried the infant heir through an army untouched.
-- **Personality / mood:** "Through a million spears with a baby on her back — not one hair out of place." Impossibly poised; danger cannot land on her (hexproof).
-- **Pose & composition:** Dynamic three-quarter, spear held in a clean guard, mid-turn as spears whistle past; face ≈ y 310, calm and centered. A swaddled bundle rides secure at her back. Vigilance/hexproof read: guarding, serene, immaculate.
+- **Personality / mood:** "Through a million spears with a baby on her back — not one hair out of place." Impossibly poised; danger cannot land on her (untouchable).
+- **Pose & composition:** Dynamic three-quarter, spear held in a clean guard, mid-turn as spears whistle past; face ≈ y 310, calm and centered. A swaddled bundle rides secure at her back. Vigilance/untouchable read: guarding, serene, immaculate.
 - **Costume & attire:** White-and-silver lamellar with jade cord-lacing, a flowing pale cape, ivory scale skirt, dragon-crest helm cradled or worn back.
 - **Palette:** W palette (`#f2e8cf` → `#c9a84c`, accent `#fffef2`) — luminous ivory and silver; Shu jade in the cord-lacing. Keep large whites textured (sheen will white flat areas out).
 - **Lighting:** Bright silver key from frame-front; warm gold rim edging the cape — one key, one rim.
@@ -96,7 +96,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 
 ### Xingcai, Quiet Aegis — `tk-shu-xingcai`
 - **Card facts:** {1}{W}{W} · W · 2/3 · firstBlade · r · holo: auto:sheen
-- **Character & source:** Genderbent Xingcai, Zhang Fei's daughter — the calm one; a firstStrike guardian who strikes before the blow lands.
+- **Character & source:** Genderbent Xingcai, Zhang Fei's daughter — the calm one; a firstBlade guardian who strikes before the blow lands.
 - **Personality / mood:** "Zhang Fei's daughter, somehow the calm one." Still, watchful, unshakably steady.
 - **Pose & composition:** Braced guard stance, halberd angled forward to intercept, weight settled; face ≈ y 315, eyes level and quiet. FirstStrike reads as pre-emptive readiness, not lunge. One environmental element (uncommon): a defended gateway shadow.
 - **Costume & attire:** Ivory-and-jade half-plate over a green robe, a broad guard-collar, a single loose braid, her father's fur mantle worn small and neat.

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/greek.ts · last-verified: 2026-07-04 -->
+<!-- source-of-truth: src/data/cards/greek.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Greek Pantheon (`gk`)
 
@@ -60,7 +60,7 @@ over each card's color-identity anchor and never replace it.
 
 ### Hestia, Hearthkeeper — `gk-hestia`
 - **Card facts:** {1}{W} · W · 1/3 · bloodoath · c · holo: none
-- **Character & source:** Hestia as-is, goddess of the hearth; 1/3 lifelink is a warm, defensive presence — she tends, she does not strike.
+- **Character & source:** Hestia as-is, goddess of the hearth; 1/3 bloodoath is a warm, defensive presence — she tends, she does not strike.
 - **Personality / mood:** "Every fire in every camp is a little bit hers." Gentle, steadying, quietly everywhere at once.
 - **Pose & composition:** Kneeling-tending at a low brazier, cupping a small flame, chest-up composition, face ≈ y 340 tilted down toward the fire she keeps. One clear idea — warmth — readable at 119×86. No lunge.
 - **Costume & attire:** Simple cream-white belted chiton, veiled himation drawn softly over the hair, plain gilt hearth-key at the belt.
@@ -92,7 +92,7 @@ over each card's color-identity anchor and never replace it.
 - **Card facts:** {1}{W} · W · 2/2 · firstBlade · c · holo: none
 - **Character & source:** An original Spartan hoplite of the Olympian faction — disciplined line infantry, the pantheon's rank-and-file steel.
 - **Personality / mood:** "Come back with your shield — she always does." Grim, dutiful, unshakable in the phalanx.
-- **Pose & composition:** Braced set-stance behind a large round shield, spear leveled over the rim to strike first (firstStrike = spear already out and ready), face ≈ y 330 set hard over the shield's top edge. One idea — the wall that hits first — reads at thumbnail.
+- **Pose & composition:** Braced set-stance behind a large round shield, spear leveled over the rim to strike first (firstBlade = spear already out and ready), face ≈ y 330 set hard over the shield's top edge. One idea — the wall that hits first — reads at thumbnail.
 - **Costume & attire:** Crimson-cloaked over a bronze muscle cuirass, transverse-crested Corinthian helm, leather pteruges, greaves — classic Spartan silhouette.
 - **Palette:** W palette (`#f2e8cf` → `#c9a84c`, accent `#fffef2`) — bronze and marble tones with a crimson cloak accent. Greek marble + gilt on cuirass edging.
 - **Lighting:** Hard directional daylight key throwing a sharp shadow under the helm; cool sky rim on the bronze.
@@ -135,7 +135,7 @@ over each card's color-identity anchor and never replace it.
 
 ### Aphrodite, Heart's Tide — `gk-aphrodite`
 - **Card facts:** {1}{W}{U} · W/U (gold frame) · 2/3 · bloodoath · ssr, legendary · holo: sparkle (explicit)
-- **Character & source:** Aphrodite as-is, born of the sea-foam; lifelink and an upkeep gainLife make her a warm, replenishing presence — beauty that mends what it touches.
+- **Character & source:** Aphrodite as-is, born of the sea-foam; bloodoath and an upkeep gainLife make her a warm, replenishing presence — beauty that mends what it touches.
 - **Personality / mood:** "Wars have started over less. Specifically, over her." Effortless, magnetic, wholly aware of the effect she has.
 - **Pose & composition:** Rising three-quarter from cresting surf, chin lifted, one hand trailing water, face ≈ y 310 turned softly to the viewer; hair and foam sweep upward, a wave curl breaking into the upper band behind her. Serene, buoyant — no aggression.
 - **Costume & attire:** Diaphanous white-and-sea-blue chiton clinging with spray, a golden shell-clasp at the shoulder, pearl strands, gilt sea-foam circlet.
@@ -151,8 +151,8 @@ over each card's color-identity anchor and never replace it.
 ### Persephone, Queen of Two Courts — `gk-persephone`
 - **Card facts:** {2}{B}{G} · B/G (gold frame) · 3/3 · deathblade · ssr, legendary · holo: radial (explicit)
 - **Character & source:** Persephone as-is, sovereign of both the underworld and spring; her dies-trigger sows two Bloom tokens whose design **this art canonizes** (`tok-bloom` — see registry).
-- **Personality / mood:** "Six months of paperwork below, six months of gardening above." Dual-natured, unbothered, quietly lethal — deathtouch means one graze is enough.
-- **Pose & composition:** Standing three-quarter, one hand cradling a split pomegranate, the other resting on a single blooming vine (the deathtouch implement: a thorn she need not swing); face ≈ y 315, calm and centered. A halved dark/light composition — shadow-side and spring-side — meeting at her spine.
+- **Personality / mood:** "Six months of paperwork below, six months of gardening above." Dual-natured, unbothered, quietly lethal — deathblade means one graze is enough.
+- **Pose & composition:** Standing three-quarter, one hand cradling a split pomegranate, the other resting on a single blooming vine (the deathblade implement: a thorn she need not swing); face ≈ y 315, calm and centered. A halved dark/light composition — shadow-side and spring-side — meeting at her spine.
 - **Costume & attire:** A gown split down the seam: deep obsidian-black underworld silk on one half, living-green vine-embroidered spring cloth on the other; pomegranate-red circlet, gilt seam-clasps.
 - **Palette:** Gold palette (`#e8c95a` → `#7a5a18`, accent `#fff2b8`) carrying the black/green split — obsidian B (`#140d1c`) against moss G (`#4fa06a`), pomegranate-red blossom accent. Greek marble + gilt clasps.
 - **Lighting:** Cold underworld underglow keying the black half; warm spring sun keying the green half — a centered seam of balanced light.
@@ -315,9 +315,9 @@ over each card's color-identity anchor and never replace it.
 
 ### Thanatos, Gentle End — `gk-thanatos`
 - **Card facts:** {2}{B} · B · 2/2 · deathblade · c · holo: none
-- **Character & source:** Genderbent Thanatos, the gentle personification of death; deathtouch means her single quiet touch is always enough. One clear idea.
+- **Character & source:** Genderbent Thanatos, the gentle personification of death; deathblade means her single quiet touch is always enough. One clear idea.
 - **Personality / mood:** "Not cruel, never late, terribly good at goodbyes." Soft, sorrowful, kind — an end without malice.
-- **Pose & composition:** Standing three-quarter, one hand lowered to extinguish a small guttering candle-flame (the deathtouch made gentle), face ≈ y 335 downturned, eyes soft and lidded; a single black moth on her wrist. One idea — the gentle end — reads at 119×86. No lunge.
+- **Pose & composition:** Standing three-quarter, one hand lowered to extinguish a small guttering candle-flame (the deathblade made gentle), face ≈ y 335 downturned, eyes soft and lidded; a single black moth on her wrist. One idea — the gentle end — reads at 119×86. No lunge.
 - **Costume & attire:** Muted black-and-grey draped chiton, dark folded wings, an inverted-torch motif on the sash, a plain dull-silver circlet.
 - **Palette:** B palette (`#5a3a70` → `#140d1c`, accent `#9b6fc4`) — soft charcoal and cold amethyst, one dim candle-warm note. Greek marble + gilt, faint and tarnished.
 - **Lighting:** The dying candle-flame as low warm key; cool amethyst rim on the wings.

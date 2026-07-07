@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/cards/greek.ts, src/data/cards/tk-wei.ts, src/data/cards/tk-wu.ts, src/data/cards/tk-shu.ts, src/data/cards/tk-jin.ts, src/data/cards/tk-other.ts, src/data/cards/beastkin.ts, src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/duals.ts, src/meta/deckFace.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/ui/CommanderPortrait.ts, src/scenes/DuelScene.ts, src/ai/personality.ts · last-verified: 2026-07-06 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/config/rules.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/cards/greek.ts, src/data/cards/tk-wei.ts, src/data/cards/tk-wu.ts, src/data/cards/tk-shu.ts, src/data/cards/tk-jin.ts, src/data/cards/tk-other.ts, src/data/cards/beastkin.ts, src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/duals.ts, src/meta/deckFace.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/ui/CommanderPortrait.ts, src/scenes/DuelScene.ts, src/ai/personality.ts · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes -->
 
 # Commander Mode — a Darling-Blades EDH format
 
@@ -143,14 +143,14 @@ the card files. Each is distinct in color identity and playstyle.
 ### 5. Gaia — G/W Go-Wide Stompz (G/W)
 - **Commander:** `gk-gaia` (World-Mother; 6/6 trample, grows each upkeep).
 - **Colors:** G/W. **Theme:** ramp into a wide, anthem-buffed green-white board.
-- **Signature cards:** `gk-demeter` + `bk-deerkin-grovekeeper` (`rampBasic`), `so-rampant-growth`, `so-muster-militia` / `so-parade-of-heroes` (tokens), `gk-apollo` / `en-olympus-ascendant` (Olympian anthems), `so-stampede-season` / `in-stand-as-one` (team pumps), `ld-peach-garden-orchard` (G/W dual).
+- **Signature cards:** `gk-demeter` + `bk-deerkin-grovekeeper` (`fetchLand`), `so-rampant-growth`, `so-muster-militia` / `so-parade-of-heroes` (tokens), `gk-apollo` / `en-olympus-ascendant` (Olympian anthems), `so-stampede-season` / `in-stand-as-one` (team pumps), `ld-peach-garden-orchard` (G/W dual).
 - **How it wins:** ramp a turn ahead, flood the board with tokens and beasts, then alpha-strike with a team pump — or just cast Gaia and let a growing 6/6 trampler close.
 
 ### 6. Sima Yi — U/B Attrition Control (U/B)
 - **Commander:** `tk-jin-simayi` (Patient Shadow; on combat damage: draw + opponent discards).
 - **Colors:** U/B. **Theme:** Jin removal-and-hand-disruption grind.
-- **Signature cards:** `tk-jin-wangyuanji` (deathtouch, ETB draw), `tk-jin-zhangchunhua` (deathtouch drain), `bk-spiderkin-weaver` (deathtouch wall), `in-doom-bolt`, `in-reapers-due`, `so-night-extortion`, `so-dirge-of-loss`, `ld-moonlit-marsh` (U/B dual).
-- **How it wins:** wall the ground behind deathtouch, strip the hand, one-for-one every threat, and inevitably win on cards once the opponent is empty. Sima Yi + `tk-jin-wangyuanji` are the engines.
+- **Signature cards:** `tk-jin-wangyuanji` (deathblade, ETB draw), `tk-jin-zhangchunhua` (deathblade drain), `bk-spiderkin-weaver` (deathblade wall), `in-doom-bolt`, `in-reapers-due`, `so-night-extortion`, `so-dirge-of-loss`, `ld-moonlit-marsh` (U/B dual).
+- **How it wins:** wall the ground behind deathblade, strip the hand, one-for-one every threat, and inevitably win on cards once the opponent is empty. Sima Yi + `tk-jin-wangyuanji` are the engines.
 
 ### 7. Guan Yu — R/W Saint of War Aggro (R/W)
 - **Commander:** `tk-shu-guanyu` (Saint of War; 5/4 first strike + vigilance).
@@ -159,10 +159,10 @@ the card files. Each is distinct in color identity and playstyle.
 - **How it wins:** curve of efficient attackers under Guan Yu (a near-unkillable attacker with first strike + vigilance), pushed through with tricks and `so-warcry` haste. Distinct from Zeus's burn — this wins in combat, not off the top.
 
 ### 8. Persephone — B/G Underworld Deathtouch Midrange (B/G)
-- **Commander:** `gk-persephone` (Queen of Two Courts; 3/3 deathtouch, dies → 2 blooms).
-- **Colors:** B/G. **Theme:** Golgari-style deathtouch attrition + recursion, but midrange rather than pure control (contrast deck 6's U/B).
-- **Signature cards:** `gk-hades` (5/4 deathtouch, ETB drain), `gk-thanatos`, `bk-lamia-nightblade`, `bk-spiderkin-weaver` (deathtouch package), `so-raise-dead` (recursion), `in-grave-chill` / `in-doom-bolt` (removal), `gk-demeter`/`so-rampant-growth` (ramp), `ld-asphodel-meadow` (B/G dual).
-- **How it wins:** trade deathtouch bodies up the curve, recur the best ones, and grind out with Hades/Persephone value. Beats decks 1/5/7 in the mud that decks 2/4 try to race.
+- **Commander:** `gk-persephone` (Queen of Two Courts; 3/3 deathblade, dies → 2 blooms).
+- **Colors:** B/G. **Theme:** Golgari-style deathblade attrition + recursion, but midrange rather than pure control (contrast deck 6's U/B).
+- **Signature cards:** `gk-hades` (5/4 deathblade, ETB drain), `gk-thanatos`, `bk-lamia-nightblade`, `bk-spiderkin-weaver` (deathblade package), `so-raise-dead` (recursion), `in-grave-chill` / `in-doom-bolt` (removal), `gk-demeter`/`so-rampant-growth` (ramp), `ld-asphodel-meadow` (B/G dual).
+- **How it wins:** trade deathblade bodies up the curve, recur the best ones, and grind out with Hades/Persephone value. Beats decks 1/5/7 in the mud that decks 2/4 try to race.
 
 **Distinctness matrix:** W/B aggro (1), U/R tempo (2), mono-U control (3),
 mono-R burn (4), G/W go-wide (5), U/B control (6), R/W combat-aggro (7), B/G
@@ -333,7 +333,7 @@ Each milestone ends runnable/testable.
 
 - **Keyword-rethemes plan:** if that plan renames/adds keywords or changes
   `Keyword` semantics, the "how it wins" combat notes above (first strike,
-  deathtouch, trample, vigilance, lifelink) may need re-verifying — the deck
+  deathblade, trample, vigilance, bloodoath) may need re-verifying — the deck
   strategies lean on current keyword behavior in `docs/rules.md`. No structural
   dependency, only flavor/tuning.
 - **Road-to-1.0 plan:** Commander Mode is a natural **1.0 content pillar**

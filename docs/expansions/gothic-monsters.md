@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-06 · concept doc — future expansion, not implemented (planned src/data/cards/gothic-monsters.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
+<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-07 · concept doc — future expansion, not implemented (planned src/data/cards/gothic-monsters.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
 
 # Expansion 4 - Gothic Monsters: Nocturne Manor
 
@@ -24,18 +24,18 @@ Visual anchors: crimson velvet, black lace, moonlit stone, stormglass, cathedral
 | ID | Name | Rarity | Color | Type | Subject | Keywords / Ops | Role |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | gm-carmilla-crimson-host | Carmilla, Crimson Host | UR | B/R | Legendary Creature | Vampire countess | flying, menace, kicker drain | Boss vampire finisher |
-| gm-bride-storm-crowned | The Bride, Storm-Crowned | UR | U/B | Legendary Creature | Stitched bride | kicker reanimate, deathtouch | Science/grave marquee |
+| gm-bride-storm-crowned | The Bride, Storm-Crowned | UR | U/B | Legendary Creature | Stitched bride | kicker reanimate, deathblade | Science/grave marquee |
 | gm-luna-wolf-matriarch | Luna, Wolf-Matriarch of the Moors | UR | R/G | Legendary Creature | Werewolf noble | menace, trample, haste | Aggro monster marquee |
-| gm-lenore-velvet-saint | Lenore, Velvet Saint | UR | W/B | Legendary Creature | Gothic saint/revenant | lifelink, menace, exile grave | Aristocrat control |
+| gm-lenore-velvet-saint | Lenore, Velvet Saint | UR | W/B | Legendary Creature | Gothic saint/revenant | bloodoath, menace, exile grave | Aristocrat control |
 | gm-nocturne-manor | Nocturne Manor | SSR | B | Legendary Enchantment | Haunted estate | upkeep drain, kicked token | Set build-around |
 | gm-victorine-lightning-heir | Victorine, Lightning Heir | SSR | U/R | Legendary Creature | Mad scientist heir | kicker damage/draw | Spells boss |
 | gm-elizabeth-blood-mirror | Elizabeth of the Blood Mirror | SSR | B/R | Legendary Creature | Blood noble | menace, damage on combat | Vampire aggro |
-| gm-white-chapel-witch | White-Chapel Witch | SSR | W/B | Legendary Creature | Cathedral witch | lifelink, kicker exile | Removal/control |
+| gm-white-chapel-witch | White-Chapel Witch | SSR | W/B | Legendary Creature | Cathedral witch | bloodoath, kicker exile | Removal/control |
 | gm-moon-doll-orchestra | Moon-Doll Orchestra | SSR | U | Artifact Creature | Haunted dolls | scry, kicked createToken | Artifact value |
 | gm-dracula-ball-invite | Invitation to the Crimson Ball | SR | B/R | Sorcery | Vampire ball | kicker: drain all | Big spell |
-| gm-grave-rose-garden | Grave-Rose Garden | SR | B/G | Enchantment | Haunted garden | deathtouch tokens, gainLife | Token attrition |
+| gm-grave-rose-garden | Grave-Rose Garden | SR | B/G | Enchantment | Haunted garden | deathblade tokens, gainLife | Token attrition |
 | gm-stormtower-resurrection | Stormtower Resurrection | SR | U/B | Sorcery | Lightning revival | reanimate, kicker draw | Grave payoff |
-| gm-silver-bullet-duelist | Silver-Bullet Duelist | SR | W/R | Creature | Monster hunter | firstStrike, kicker damage | Hunter archetype |
+| gm-silver-bullet-duelist | Silver-Bullet Duelist | SR | W/R | Creature | Monster hunter | firstBlade, kicker damage | Hunter archetype |
 | gm-porcelain-queen | Porcelain Queen | SR | U/W | Legendary Artifact Creature | Doll queen | vigilance, scry | Artifact legend |
 | gm-black-veil-matron | Black-Veil Matron | SR | B | Creature | Widow vampire | flying, menace | Premium evasive |
 | gm-cathedral-of-bats | Cathedral of Bats | SR | B | Enchantment | Bat cathedral | flying token engine | Vampire support |
@@ -44,23 +44,23 @@ Visual anchors: crimson velvet, black lace, moonlit stone, stormglass, cathedral
 | gm-stitchwork-guardian | Stitchwork Guardian | R | U/B | Artifact Creature | Construct | defender, kicker draw | Control body |
 | gm-candelabra-of-souls | Candelabra of Souls | R | C | Artifact | Haunted candelabra | tap: add C, scry | Utility relic |
 | gm-velvet-coffin | Velvet Coffin | R | B | Artifact | Vampire coffin | exile creature from grave, gainLife | Grave hate |
-| gm-blood-opera-soloist | Blood-Opera Soloist | R | B/R | Creature | Vampire performer | menace, lifelink | Aggro lifegain |
+| gm-blood-opera-soloist | Blood-Opera Soloist | R | B/R | Creature | Vampire performer | menace, bloodoath | Aggro lifegain |
 | gm-graveyard-waltz | Graveyard Waltz | R | B | Sorcery | Corpse dance | createToken, kicker reanimate | Token/grave spell |
 | gm-wolfsbane-ward | Wolfsbane Ward | R | W | Enchantment Aura | Monster ward | attached debuff, exile if dies | White removal |
 | gm-thunder-lab-assistant | Thunder-Lab Assistant | R | U | Creature | Lab assistant | scry, kicker draw | Blue support |
 | gm-iron-gate-sentinel | Iron-Gate Sentinel | R | W | Artifact Creature | Manor gate | defender, vigilance | Defensive rare |
-| gm-batcloak-cutthroat | Batcloak Cutthroat | R | B | Creature | Vampire assassin | flying, deathtouch | Removal body |
-| gm-madame-macabre | Madame Macabre | R | B/W | Creature | Funeral hostess | lifelink, drain | Aristocrat support |
+| gm-batcloak-cutthroat | Batcloak Cutthroat | R | B | Creature | Vampire assassin | flying, deathblade | Removal body |
+| gm-madame-macabre | Madame Macabre | R | B/W | Creature | Funeral hostess | bloodoath, drain | Aristocrat support |
 | gm-howling-gallery | Howling Gallery | R | R | Enchantment | Haunted portrait hall | menace anthem | Red/black support |
 | gm-glasshouse-monster | Glasshouse Monster | R | G | Creature | Plant horror | trample, kicker counters | Green threat |
 | gm-lightning-rod-spire | Lightning-Rod Spire | R | U/R | Artifact | Storm rod | damage, scry | Spells support |
 | gm-black-lace-pact | Black-Lace Pact | R | B | Sorcery | Vampire bargain | draw, loseLife, kicker drain | Card draw |
-| gm-chapel-exorcist | Chapel Exorcist | R | W | Creature | Monster hunter nun | exile grave, lifelink | White hatebear |
+| gm-chapel-exorcist | Chapel Exorcist | R | W | Creature | Monster hunter nun | exile grave, bloodoath | White hatebear |
 | gm-widow-of-the-west-wing | Widow of the West Wing | R | B | Creature | Ghost widow | flying, menace | Evasive threat |
 | gm-midnight-autopsy | Midnight Autopsy | R | U/B | Sorcery | Lab autopsy | draw, mill, kicker reanimate | Value spell |
-| gm-stormglass-golem | Stormglass Golem | R | C | Artifact Creature | Glass golem | firstStrike, kicker | Artifact beater |
+| gm-stormglass-golem | Stormglass Golem | R | C | Artifact Creature | Glass golem | firstBlade, kicker | Artifact beater |
 | gm-red-moon-rampage | Red-Moon Rampage | R | R/G | Instant | Werewolf outbreak | pump, trample | Combat trick |
-| gm-choir-of-the-dead | Choir of the Dead | R | W/B | Creature | Cathedral ghosts | lifelink, flying | Token payoff |
+| gm-choir-of-the-dead | Choir of the Dead | R | W/B | Creature | Cathedral ghosts | bloodoath, flying | Token payoff |
 | gm-silvered-rapier | Silvered Rapier | R | C | Artifact | Hunter weapon | equipment-like pump | Duelist support |
 | gm-stormtower-roof | Stormtower Roof | R | Land | Lab tower | entersTapped, manaAbility U/B | Dual land |
 | gm-moonmoor-estate | Moonmoor Estate | C | Land | Werewolf manor | entersTapped, manaAbility R/G | Dual land |
@@ -71,12 +71,12 @@ Visual anchors: crimson velvet, black lace, moonlit stone, stormglass, cathedral
 | gm-chapel-guard | Chapel Guard | C | W | Creature | Cathedral guard | vigilance | White common |
 | gm-grave-gardener | Grave Gardener | C | G | Creature | Cemetery keeper | reach | Green common |
 | gm-stitched-footman | Stitched Footman | C | U/B | Artifact Creature | Stitchwork guard | defender | Control common |
-| gm-blood-drop-initiate | Blood-Drop Initiate | C | B | Creature | Vampire novice | lifelink | Lifegain common |
+| gm-blood-drop-initiate | Blood-Drop Initiate | C | B | Creature | Vampire novice | bloodoath | Lifegain common |
 | gm-candlelit-seance | Candlelit Seance | C | B | Sorcery | Seance | mill self, draw | Grave setup |
 | gm-kicked-door | Kicked Door | C | R | Sorcery | Manor raid | damage, kicker more damage | Kicker common |
-| gm-silver-knife | Silver Knife | C | W | Instant | Hunter trick | pump, firstStrike | Combat trick |
+| gm-silver-knife | Silver Knife | C | W | Instant | Hunter trick | pump, firstBlade | Combat trick |
 | gm-fogged-window | Fogged Window | C | U | Instant | Gothic fog | tap, scry | Tempo trick |
-| gm-rose-thorn-snare | Rose-Thorn Snare | C | G | Instant | Grave rose trap | pump, deathtouch | Green trick |
+| gm-rose-thorn-snare | Rose-Thorn Snare | C | G | Instant | Grave rose trap | pump, deathblade | Green trick |
 | gm-haunted-doll | Haunted Doll | C | C | Artifact Creature | Doll | vigilance | Artifact common |
 | gm-crow-on-gate | Crow on the Gate | C | B | Creature | Omen crow | flying, scry | Setup flyer |
 | gm-catacomb-ratcatcher | Catacomb Ratcatcher | C | B | Creature | Catacomb worker | createToken | Token common |
@@ -85,7 +85,7 @@ Visual anchors: crimson velvet, black lace, moonlit stone, stormglass, cathedral
 | gm-holy-water-vial | Holy Water Vial | C | W | Artifact | Hunter vial | exile grave card, gainLife | Utility |
 | gm-moonlit-prowl | Moonlit Prowl | C | R/G | Instant | Werewolf hunt | pump, menace grant | Combat trick |
 | gm-cellar-door | Cellar Door | C | C | Artifact | Manor door | mill self | Grave utility |
-| gm-black-cat-familiar | Black Cat Familiar | C | B | Creature | Witch familiar | deathtouch | Defensive common |
+| gm-black-cat-familiar | Black Cat Familiar | C | B | Creature | Witch familiar | deathblade | Defensive common |
 | gm-thunderclap | Thunderclap | C | U/R | Instant | Storm spell | damage, scry | Spells common |
 | gm-funeral-bell | Funeral Bell | C | W/B | Artifact | Chapel bell | gainLife, drain if kicked | Utility |
 | gm-stitched-hound | Stitched Hound | C | B | Creature | Reanimated hound | menace | Aggro common |

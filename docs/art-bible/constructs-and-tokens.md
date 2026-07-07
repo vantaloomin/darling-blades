@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/artifacts.ts, src/data/cards/tokens.ts · last-verified: 2026-07-06 -->
+<!-- source-of-truth: src/data/cards/artifacts.ts, src/data/cards/tokens.ts · last-verified: 2026-07-07 -->
 
 # Darling Blades Art Bible — Constructs & Tokens
 

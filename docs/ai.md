@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-06
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-07
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -28,7 +28,7 @@ loses on tactics. Its deliberate-weakness list, quoted from the class header:
 
 > Easy: plays lands, curves out roughly, and swings — but loses by tactics.
 > Deliberate weaknesses (from the plan): all-in-or-nothing attacks, single
-> blocks only, no chump blocking until life ≤ 5, never holds up instant mana,
+> blocks only, no chump blocking until life ≤ 5, never holds up reactive mana,
 > passes 85% of response windows, keeps almost any opening hand, and picks a
 > random legal action 20% of the time in main phases.
 
@@ -43,7 +43,7 @@ Concretely in the code:
   Easy weakness.
 - **Block:** one blocker per attacker, prefers blocks that kill or survive,
   chump-blocks only when at life ≤ 5.
-- **Respond:** passes 85% of windows; otherwise a random instant.
+- **Respond:** passes 85% of windows; otherwise a random Charm.
 
 Easy has its own seeded RNG (`createRngState`) so its randomness is reproducible.
 
@@ -70,7 +70,7 @@ lookahead." Its rules:
   `chooseBlocks` in `combatPlans.ts`).
 - **Trick-risk** (`trickBuff`) is **evidence-gated**: defenders are inflated by
   +2 only when the opponent has **≥ 2 open mana sources AND ≥ 1 card in hand
-  AND has shown ≥ 1 instant this game** (checked against the public graveyard —
+  AND has shown ≥ 1 Charm this game** (checked against the public graveyard —
   honest information only). The gate was added after the 2026-07-02
   difficulty-gap investigation: paying a phantom +2/+2 tax on *every* combat
   against anyone with untapped lands measurably loses more than the occasional
@@ -88,7 +88,7 @@ lookahead." Its rules:
   the opponent's end step.
 
 Medium **deliberately does not model face-down information** beyond "open mana
-plus a demonstrated instant = maybe a trick," and it never knowingly holds back
+plus a demonstrated Charm = maybe a trick," and it never knowingly holds back
 a beneficial play.
 
 ## Hard
@@ -111,7 +111,7 @@ its own (see the history below).
 `src/ai/determinize.ts` builds a simulatable `Game` from a `PlayerView` — a
 **public-information opponent model**:
 
-- **Your own hand is exact**; your library, and the opponent's hand + library,
+- **Your own hand is exact**; your deck, and the opponent's hand + deck,
   are hidden and get filled with **stand-ins**.
 - The stand-in pool has six categories (land, removal, trick, 2/3/4-drop
   creatures — all colorless with generic costs, so the model never suffers
