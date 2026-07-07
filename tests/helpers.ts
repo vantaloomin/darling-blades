@@ -552,6 +552,7 @@ export function botAction(actions: Action[]): Action {
     'keepHand',
     'bottomCards',
     'playLand',
+    'chooseBasicLand', // a deferred fetch — take the first offered basic
     'castSpell',
     'declareAttackers',
     'declareBlockers',

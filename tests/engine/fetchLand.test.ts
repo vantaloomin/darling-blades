@@ -63,6 +63,22 @@ describe('fetchLand — basic-land choice', () => {
     expect(st.awaiting.kind).toBe('main'); // play resumes
   });
 
+  it('drains a multi-fetch queue and whiffs gracefully when the basics run out', () => {
+    const state = makeTestState({ active: 0 });
+    state.players[0].deck = ['forest', 'bear']; // one basic, one non-basic
+    state.pendingFetch = [0, 0]; // two deferred fetches, but only one basic to give
+    state.awaiting = { player: 0, kind: 'chooseBasicLand' };
+    const game = Game.restore(state, TEST_DB);
+
+    game.submit(0, { type: 'chooseBasicLand', cardId: 'forest' });
+    const st = game.state;
+    // The forest entered; the second queued fetch has no basic left → whiffed
+    // (not a 0-option soft-lock), and play resumes at main with an empty queue.
+    expect(st.battlefield.some((p) => p.cardId === 'forest' && p.tapped)).toBe(true);
+    expect(st.pendingFetch).toEqual([]);
+    expect(st.awaiting.kind).toBe('main');
+  });
+
   it('rejects an illegal basic choice (not in deck / not a basic)', () => {
     const state = makeTestState({ active: 0 });
     state.players[0].deck = ['forest', 'swamp', 'bear'];
