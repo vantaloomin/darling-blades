@@ -180,7 +180,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const d = def(db, p.cardId);
         if (!isType(d, 'creature')) return false;
         if (op.filter === 'allFliers') {
-          return getEffectiveStats(state.battlefield, db, p.iid).keywords.has('flying');
+          return getEffectiveStats(state.battlefield, db, p.iid).keywords.has('skyborne');
         }
         return true;
       });

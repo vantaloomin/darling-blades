@@ -1,32 +1,32 @@
 import type { AbilityDef, CardDef, EffectOp, Keyword } from '../engine/types';
 
 export const KEYWORD_NAMES: Record<Keyword, string> = {
-  flying: 'Flying',
-  reach: 'Reach',
-  firstStrike: 'First strike',
-  doubleStrike: 'Double strike',
-  haste: 'Haste',
-  trample: 'Trample',
-  vigilance: 'Vigilance',
-  defender: 'Defender',
-  deathtouch: 'Deathtouch',
-  lifelink: 'Lifelink',
-  hexproof: 'Hexproof',
+  skyborne: 'Skyborne',
+  wardingGaze: 'Warding Gaze',
+  firstBlade: 'First Blade',
+  twinBlades: 'Twin Blades',
+  warcry: 'Warcry',
+  overrun: 'Overrun',
+  sentinel: 'Sentinel',
+  bulwark: 'Bulwark',
+  deathblade: 'Deathblade',
+  bloodoath: 'Bloodoath',
+  untouchable: 'Untouchable',
 };
 
 /** One-line, player-facing reminder for each evergreen keyword (F9 glossary). */
 export const KEYWORD_REMINDER: Record<Keyword, string> = {
-  flying: 'can only be blocked by creatures with flying or reach',
-  reach: 'can block creatures with flying',
-  firstStrike: 'deals combat damage before creatures without first strike',
-  doubleStrike: 'deals both first-strike and regular combat damage',
-  haste: 'can attack and tap the turn it arrives',
-  trample: 'excess combat damage is dealt to the player',
-  vigilance: 'attacking does not cause it to tap',
-  defender: 'cannot attack',
-  deathtouch: 'any amount of damage it deals to a creature is lethal',
-  lifelink: 'damage it deals also gains you that much life',
-  hexproof: 'cannot be targeted by spells or abilities your opponents control',
+  skyborne: 'can only be blocked by creatures with Skyborne or Warding Gaze',
+  wardingGaze: 'can block creatures with Skyborne',
+  firstBlade: 'deals combat damage before creatures without First Blade',
+  twinBlades: 'deals combat damage both before and alongside other creatures',
+  warcry: 'can attack and tap the turn it arrives',
+  overrun: 'excess combat damage past its blockers is dealt to the player',
+  sentinel: 'attacking does not cause it to tap',
+  bulwark: 'cannot attack',
+  deathblade: 'any amount of damage it deals to a creature is lethal',
+  bloodoath: 'damage it deals also gains you that much life',
+  untouchable: 'cannot be targeted by spells or abilities your opponents control',
 };
 
 function opText(op: EffectOp): string {
@@ -71,7 +71,7 @@ function opText(op: EffectOp): string {
     case 'createToken':
       return `create ${op.count} ${op.count === 1 ? 'token' : 'tokens'}`;
     case 'massDestroy':
-      return op.filter === 'allCreatures' ? 'destroy all creatures' : 'destroy all creatures with flying';
+      return op.filter === 'allCreatures' ? 'destroy all creatures' : 'destroy all creatures with Skyborne';
     case 'fog':
       return 'prevent all combat damage that would be dealt this turn';
     case 'regrowth':

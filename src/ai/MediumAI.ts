@@ -160,7 +160,7 @@ export class MediumAI implements AIPlayer {
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
   private gainsLife(cardId: string): boolean {
     const d = def(this.db, cardId);
-    if ((d.keywords ?? []).includes('lifelink')) return true;
+    if ((d.keywords ?? []).includes('bloodoath')) return true;
     return (d.abilities ?? []).some((ab) =>
       (ab.ops ?? []).some((o) => o.op === 'gainLife'),
     );

@@ -57,7 +57,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: 1, t: 3, keywords: ['firstStrike'], scope: 'target' }],
+        ops: [{ op: 'pump', p: 1, t: 3, keywords: ['firstBlade'], scope: 'target' }],
       },
     ],
     rarity: 'c',
@@ -126,7 +126,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: 2, t: 0, keywords: ['trample'], scope: 'target' }],
+        ops: [{ op: 'pump', p: 2, t: 0, keywords: ['overrun'], scope: 'target' }],
       },
     ],
     rarity: 'c',

@@ -199,23 +199,23 @@ If a spell has target specs and **every** target is illegal at resolution
 to the graveyard doing nothing and emits `targetsFizzled`. Partial legality
 (at least one legal target) resolves normally.
 
-## Targeting kinds and hexproof
+## Targeting kinds and untouchable
 
 `TargetSpec.what` (`src/engine/types.ts`) with legality in
 `src/engine/effects/targeting.ts`:
 
 | `what`               | Legal target                                                        |
 | -------------------- | ------------------------------------------------------------------- |
-| `creature`           | any creature (hexproof-restricted — see below).                     |
+| `creature`           | any creature (untouchable-restricted — see below).                  |
 | `yourCreature`       | a creature **you** control.                                         |
 | `player`             | either player.                                                      |
-| `any`                | either player **or** any creature (hexproof-restricted).            |
+| `any`                | either player **or** any creature (untouchable-restricted).         |
 | `spell`              | a stack item (for `counter`).                                       |
 | `yourGraveCreature`  | a creature card in **your** graveyard (for `regrowth`; deduped).    |
 
-**Hexproof** rejects a creature target only when
-`perm.controller !== caster` (`creatureTargetable`) — your own hexproof creature
-is still a legal target for your own spells.
+**Untouchable** rejects a creature target only when
+`perm.controller !== caster` (`creatureTargetable`) — your own untouchable
+creature is still a legal target for your own spells.
 
 ## Statics
 

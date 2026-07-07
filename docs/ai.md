@@ -147,7 +147,7 @@ surface for future pools where real decks punish attacks more often.
 ### What Hard actually searches
 
 Hard defers to Medium where the sim adds nothing, and searches where the
-engine's exact first-strike/trample/deathtouch math beats any heuristic:
+engine's exact firstBlade/overrun/deathblade math beats any heuristic:
 
 - **Main phase:** trusts Medium's casting policy outright (`searchMain` just
   calls Medium).

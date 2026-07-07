@@ -125,8 +125,8 @@ Combat is declared and resolved through `Game.apply` (declaration),
 - **`declareAttackers` with `[]` skips combat entirely** — no windows, straight
   to main 2.
 - A creature can attack if it's an untapped, non-summoning-sick creature you
-  control without `defender` (`canAttack`).
-- Attacking **taps** the creature — unless it has **vigilance**, which lets it
+  control without `bulwark` (`canAttack`).
+- Attacking **taps** the creature — unless it has **sentinel**, which lets it
   attack untapped.
 - Each declared attacker fires its `attacks` triggers immediately.
 - Then the **defender gets a response window** over the attackers.
@@ -135,8 +135,8 @@ Combat is declared and resolved through `Game.apply` (declaration),
 
 - After the attacker window resolves, the defender assigns blocks
   (`declareBlockers`).
-- **Flying** attackers can only be blocked by creatures with **flying or reach**
-  (`canBlock`). Summoning sickness does **not** restrict blocking.
+- **Skyborne** attackers can only be blocked by creatures with **skyborne or
+  wardingGaze** (`canBlock`). Summoning sickness does **not** restrict blocking.
 - **At most 3 blockers per attacker** (`RULES.maxBlockersPerAttacker`).
 - Then the **attacker gets a response window** over the blocks.
 
@@ -152,20 +152,20 @@ now-null combat and cleanly falls through to main 2 (see the `combat` case in
 `resolveCombatDamage` computes damage against the pre-damage board and applies it
 all at once (modern simultaneous damage):
 
-- **First strike sub-step.** If *any* combatant has first strike **or double
-  strike**, a first-strike damage pass happens first, SBAs are checked, then the
-  normal pass runs. A first striker deals damage only in the first-strike step; a
-  **double striker deals in both** the first-strike and normal steps (first strike
-  + double strike is two hits, not three).
+- **First strike sub-step.** If *any* combatant has firstBlade **or twinBlades**,
+  a first-strike damage pass happens first, SBAs are checked, then the normal pass
+  runs. A firstBlade creature deals damage only in the first-strike step; a
+  **twinBlades creature deals in both** the first-strike and normal steps
+  (firstBlade + twinBlades is two hits, not three).
 - **Unblocked attackers** hit the defending player for their power.
 - **Blocked attackers** use **automatic damage assignment**: blockers are ordered
   **cheapest-to-kill first**, and lethal is assigned to each before any spills
   over.
-  - **Deathtouch** makes **1 damage lethal** (`killCost` returns 1).
-  - **Trample** lets excess over each blocker's lethal spill to the player.
-    Without trample, the leftover is simply wasted on the last blocker.
+  - **Deathblade** makes **1 damage lethal** (`killCost` returns 1).
+  - **Overrun** lets excess over each blocker's lethal spill to the player.
+    Without overrun, the leftover is simply wasted on the last blocker.
 - **Blockers strike back** at the attacker they blocked.
-- **Lifelink** heals the source's controller for the damage dealt.
+- **Bloodoath** heals the source's controller for the damage dealt.
 - **Fog:** if a fog effect is active (`combat.damagePrevented` or
   `state.fogThisTurn`), `resolveCombatDamage` returns immediately — **all combat
   damage is prevented** this turn.
@@ -178,19 +178,19 @@ All eleven keywords and their exact implemented semantics (`Keyword` in
 `src/engine/types.ts`; effects across `statics.ts`, `combat/legality.ts`,
 `combat/damage.ts`, `effects/targeting.ts`):
 
-| Keyword        | Implemented behavior                                                                            |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| **flying**     | Can only be blocked by creatures with flying or reach (`canBlock`).                              |
-| **reach**      | Can block fliers (no other effect).                                                             |
-| **firstStrike**| Deals its combat damage in the first-strike sub-step; if it kills first, it takes no damage back. |
-| **doubleStrike**| Deals combat damage in **both** the first-strike sub-step and the normal sub-step. First strike + double strike is two hits (not three); double deathtouch is lethal in each hit; double trample re-tramples each step (a chump killed in the first-strike step lets the full power trample in the normal step); double lifelink gains on both. |
-| **haste**      | Ignores summoning sickness — can attack / tap for mana the turn it enters (`isSummoningSick`).   |
-| **trample**    | Assigns lethal to blockers, then spills the excess to the defending player.                      |
-| **vigilance**  | Attacking does not tap it.                                                                      |
-| **defender**   | Cannot attack (`canAttack` returns false).                                                      |
-| **deathtouch** | Any amount of its combat damage is lethal (1 counts). Sets `deathtouched`, which SBAs check.     |
-| **lifelink**   | Its controller gains life equal to damage it deals (combat and, where relevant, spell damage paths that flag it). |
-| **hexproof**   | **Blocks only the OPPONENT'S targeting.** Your own hexproof creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
+| Keyword (engine id · shown as) | Implemented behavior                                                    |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| **skyborne** · Skyborne | Can only be blocked by creatures with skyborne or wardingGaze (`canBlock`). |
+| **wardingGaze** · Warding Gaze | Can block skyborne creatures (no other effect).                        |
+| **firstBlade** · First Blade | Deals its combat damage in the first-strike sub-step; if it kills first, it takes no damage back. |
+| **twinBlades** · Twin Blades | Deals combat damage in **both** the first-strike sub-step and the normal sub-step. firstBlade + twinBlades is two hits (not three); doubled deathblade is lethal in each hit; doubled overrun re-spills each step (a chump killed in the first-strike step lets the full power spill in the normal step); doubled bloodoath gains on both. |
+| **warcry** · Warcry | Ignores summoning sickness — can attack / tap for mana the turn it enters (`isSummoningSick`). |
+| **overrun** · Overrun | Assigns lethal to blockers, then spills the excess to the defending player. |
+| **sentinel** · Sentinel | Attacking does not tap it.                                                     |
+| **bulwark** · Bulwark | Cannot attack (`canAttack` returns false).                                       |
+| **deathblade** · Deathblade | Any amount of its combat damage is lethal (1 counts). Sets `deathtouched`, which SBAs check. |
+| **bloodoath** · Bloodoath | Its controller gains life equal to damage it deals (combat and, where relevant, spell damage paths that flag it). |
+| **untouchable** · Untouchable | **Blocks only the OPPONENT'S targeting.** Your own untouchable creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
 
 Keyword rules text is generated (`KEYWORD_NAMES` in `src/ui/rulesText.ts`) — see
 [docs/adding-cards.md](adding-cards.md).
@@ -222,7 +222,7 @@ order:
 1. **Life ≤ 0 loses.** If both players are ≤ 0, the game is a **draw** (reason
    `life`); if one is, the other wins.
 2. **Creatures die** if `toughness ≤ 0`, or marked `damage ≥ toughness`, or they
-   took **deathtouch** damage with any damage marked (`deathtouched && damage > 0`).
+   took **deathblade** damage with any damage marked (`deathtouched && damage > 0`).
    Dying fires `dies` triggers.
 3. **Orphaned auras die.** An aura whose `attachedTo` permanent is gone is put
    into the graveyard.
@@ -262,7 +262,7 @@ Magic:
 | End-step window   | Exactly one window, for the non-active player only.                                            | Priority in the end step for both players.              |
 | Triggers          | **Never target** (v1 law); auto-resolve with no decision point.                                | Triggers may target and use the stack.                  |
 | Targeted effects  | **Single-target only** (`targets[0]`).                                                          | Arbitrary target counts.                                |
-| Double strike     | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.                | Exists.                                                 |
+| Twin Blades (double strike) | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.        | Exists.                                                 |
 | Colors of mana    | Generic paid by an auto-tap solver; no mana pool, no floating mana.                             | Mana pool with manual tapping.                          |
 | Summoning-sick mana creatures | Cannot tap for mana the turn they enter (ramp is delayed one turn).                   | Depends on the ability (many can if it's not `{T}`).    |
 | Board caps        | 8 creatures / 4 noncreature-nonland permanents per player, enforced at cast time.              | No such caps.                                           |

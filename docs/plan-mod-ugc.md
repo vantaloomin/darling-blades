@@ -195,9 +195,9 @@ assertion that they cover the union exhaustively (a `satisfies` check plus a
 conscious decision about whether mods may use it:
 
 - **Keywords** — every entry of `keywords` and every `pump.keywords` /
-  `static.grantKeywords` entry ∈ `{flying, reach, firstStrike, doubleStrike,
-  haste, trample, vigilance, defender, deathtouch, lifelink, hexproof}`
-  (`types.ts:6-17`; Ragnarök added `doubleStrike` 2026-07-06, so the whitelist
+  `static.grantKeywords` entry ∈ `{skyborne, wardingGaze, firstBlade, twinBlades,
+  warcry, overrun, sentinel, bulwark, deathblade, bloodoath, untouchable}`
+  (`types.ts:6-17`; Ragnarök added `twinBlades` 2026-07-06, so the whitelist
   is now eleven keywords).
 - **Effect ops** — every op's `op` field ∈ the 18-member set
   `{damage, gainLife, loseLife, draw, discardRandom, destroy, bounce, counter,

@@ -31,7 +31,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Cao Cao as ambitious empress-hegemon, ink-black lacquered armor with lapis underrobe and bronze tiger-crest pauldrons, dragon-coil shoulder mantle and jade crown, hand on sheathed jian, dark command tent over star-broken night war camp, amber-eyed knowing half-smile, warm bronze key light against cool blue night, cool rim light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Xiahou Dun, One-Eyed Oath — `tk-wei-xiahoudun`
-- **Card facts:** {1}{R}{R} · R · 4/2 · firstStrike · r · holo: auto:sheen
+- **Card facts:** {1}{R}{R} · R · 4/2 · firstBlade · r · holo: auto:sheen
 - **Character & source:** Genderbent Xiahou Dun, Cao Cao's fierce cavalry kin — a glass-cannon striker who lands the blow first.
 - **Personality / mood:** "The arrow took her eye. She took everything else." Grim, unflinching devotion; pain converted to resolve.
 - **Pose & composition:** Aggressive three-quarter lunge, the intact eye locked on the viewer at ≈ y 320, blade already committed forward-left. The stroke breaks the left band edge to read as first-strike speed; motion streaks trail the cloak.
@@ -46,7 +46,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Xiahou Dun one-eyed cavalry warrior, black eye-patch cord, bronze-scaled armor over lapis campaign coat, broad war-dao thrust forward mid-lunge, burning gate tower behind, grim single-eyed stare, warm battlefield key with cold steel rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Xiahou Yuan, Lightning March — `tk-wei-xiahouyuan`
-- **Card facts:** {2}{R} · R · 3/2 · haste · c · holo: none
+- **Card facts:** {2}{R} · R · 3/2 · warcry · c · holo: none
 - **Character & source:** Genderbent Xiahou Yuan, Wei's fastest field commander — hits the turn she arrives.
 - **Personality / mood:** "Three days of road in one. Naps are for the besieged." Restless, road-hardened, allergic to standing still.
 - **Pose & composition:** Full haste lunge toward lower-left camera, face ≈ y 330, one hand snatching a spear from a saddle-sheath, hair and cloak whipped straight back. Silhouette must read as "cavalry officer mid-charge" at ~119×86 px.
@@ -76,7 +76,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Zhang Liao terror-general advancing through a broken line, iron-black lamellar with bronze rivets and deep-indigo war-cloak, long dao held low, spectral life-wisps drifting toward her from a torn enemy banner, cold moon key with ember rim, merciless calm — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dian Wei, Hegemon's Shield — `tk-wei-dianwei`
-- **Card facts:** {2}{B} · B · 3/3 · vigilance · c · holo: none
+- **Card facts:** {2}{B} · B · 3/3 · sentinel · c · holo: none
 - **Character & source:** Genderbent Dian Wei, Cao Cao's bodyguard; vigilance made literal — she never lowers her guard, defending even while attacking.
 - **Personality / mood:** "She guards the door. The door is wherever Cao Cao is." Immovable loyalty, quiet readiness.
 - **Pose & composition:** Planted braced stance, chest-up and squared to camera, face ≈ y 330, twin battle-axes crossed protectively before her. Not lunging — rooted; the silhouette reads as "wall in armor" at thumbnail scale.
@@ -106,7 +106,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Xu Chu gentle giantess bruiser, ivory padded gambeson with bronze buckles and lapis arm-wraps, tiger-pelt half-cloak, huge iron-bound club resting on one shoulder, mild half-smile, warm daylight key with cool shoulder rim, toned white palette — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhang He, Butterfly Blade — `tk-wei-zhanghe`
-- **Card facts:** {1}{U} · U · 2/1 · flying · c · holo: none
+- **Card facts:** {1}{U} · U · 2/1 · skyborne · c · holo: none
 - **Character & source:** Genderbent Zhang He, the flamboyant aesthete duelist; flying, delicate, and utterly theatrical.
 - **Personality / mood:** "Every battlefield is a stage, and every stage is hers." Vain, graceful, performing for an audience only she can see.
 - **Pose & composition:** Airborne dancer's leap, one leg extended, twin claw-blades flared like wings; face ≈ y 310 turned in profile-glance to camera. The pose reads as flight — she owns the vertical space, blades breaking the top band.
@@ -136,7 +136,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Xu Huang austere greataxe soldier standing at ready, plain ivory campaign robe under spare bronze plate, lapis sash tied precisely, long greataxe held vertical, composed forward stare, even cool key with thin warm rim on the haft, muted matte whites — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Cao Ren, Unbreakable Bastion — `tk-wei-caoren`
-- **Card facts:** {2}{W}{W} · W · 3/5 · vigilance · r · holo: auto:sheen
+- **Card facts:** {2}{W}{W} · W · 3/5 · sentinel · r · holo: auto:sheen
 - **Character & source:** Genderbent Cao Ren, Wei's master of defense and siege-holding; a 3/5 vigilance wall — she attacks and still holds the line. Cao family: ink-black hair, sharp amber eyes, imperious brow.
 - **Personality / mood:** "Besieging her is a hobby. Taking her wall is a fantasy." Stoic, tireless, unmovable resolve.
 - **Pose & composition:** Rooted defensive stance behind a raised tower shield, face ≈ y 300 above the shield rim, one hand steadying a spear. Not lunging — braced against an unseen assault; the silhouette reads as "shield wall" at thumbnail.
@@ -211,7 +211,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Xun Yu principled chancellor holding a bronze incense censer, ivory-white court robes with lapis sash and bronze phoenix-clasp, drifting incense smoke curling upward, curtained office, dignified faintly sorrowful gaze, warm brazier key with cool ambient rim, textured warm ivories — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Yue Jin, First Over the Wall — `tk-wei-yuejin`
-- **Card facts:** {1}{R} · R · 2/2 · firstStrike · c · holo: none
+- **Card facts:** {1}{R} · R · 2/2 · firstBlade · c · holo: none
 - **Character & source:** Genderbent Yue Jin, the small, fearless vanguard who was always first to breach; first-strike aggression in a compact frame.
 - **Personality / mood:** "Short, fearless, and already inside your gate." Ferocious, quick, gleeful about being in the thick of it.
 - **Pose & composition:** Scrambling over a broken wall-top toward camera, face ≈ y 330, short blade leading, one hand gripping the parapet. Explosive forward motion; reads as "first over the wall" at thumbnail scale.
@@ -286,7 +286,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Man Chong incorruptible magistrate reading a confession-scroll by firelight, deep-blue robes with lapis-and-bronze rank badge and scholar's cap, jade seal, firewatch brazier glowing below, dark chamber, warm brazier key with cool night rim, detached scholarly interest — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Chen Qun, Nine-Rank Arbiter — `tk-wei-chenqun`
-- **Card facts:** {U} · U · 0/3 · defender · c · holo: none
+- **Card facts:** {U} · U · 0/3 · bulwark · c · holo: none
 - **Character & source:** Genderbent Chen Qun, architect of the Nine-Rank bureaucracy; a 0/3 defender — she does not attack, she classifies.
 - **Personality / mood:** "She ranked every officer in the empire. You are a six." Bureaucratic, superior, immovably certain of her judgments.
 - **Pose & composition:** Seated or firmly planted behind a rank-registry lectern, face ≈ y 300 assessing the viewer coolly down a raised brush; a defender's stance — she does not lunge, she blocks with paperwork. Utterly still and composed.
@@ -316,7 +316,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Wang Lang venerable elder statesman mid-declamation, voluminous ivory-and-lapis scholar-official robes with heavy bronze embroidery, long formal cap, sweeping one sleeve out in argument, ceremonial tablet in hand, dim stately court hall, warm court key with cool rim, grandiose expression — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhenji, Luo River Muse — `tk-wei-zhenji`
-- **Card facts:** {2}{U} · U · 2/3 · flying · c · holo: none
+- **Card facts:** {2}{U} · U · 2/3 · skyborne · c · holo: none
 - **Character & source:** Genderbent Zhenji, the legendary beauty and poet of the Luo; flying, ethereal, and famously fated.
 - **Personality / mood:** "Her poems outlived three emperors and one very jealous husband." Wistful, luminous, quietly melancholic grace.
 - **Pose & composition:** Floating drift above water, gauzy sleeves and hair suspended, face ≈ y 310 gazing softly and slightly downward. Airborne but serene — she hovers, she doesn't fight; sleeves trail into the bleed.
@@ -331,7 +331,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Zhenji ethereal poet drifting above moonlit water, diaphanous pale-blue river-silk robes with silver-bronze thread and lapis cord, floating ribbons and unbound hair, holding a poem-scroll, faint water reflections, soft moon-on-water underlight with cool rim, wistful faraway gaze — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Cai Wenji, Homeward Harpist — `tk-wei-caiwenji`
-- **Card facts:** {1}{W} · W · 1/3 · lifelink · c · holo: none
+- **Card facts:** {1}{W} · W · 1/3 · bloodoath · c · holo: none
 - **Character & source:** Genderbent Cai Wenji, the poet-musician ransomed home from captivity; lifelink — her music restores as it plays.
 - **Personality / mood:** "Eighteen songs for a homeland, each one worth a ransom." Tender, resilient, sorrow refined into grace.
 - **Pose & composition:** Seated three-quarter playing a guqin or harp, face ≈ y 300 tilted down to the strings, a warm restorative glow rising from the instrument (the lifelink made visible). Calm and inward; music, not combat.
@@ -346,7 +346,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Cai Wenji homeward harpist seated at a glowing guqin, soft ivory travelling robes with lapis shawl and bronze fastenings, warm restorative light rising from the strings, distant homeland hills at dusk, gentle sorrowful gaze lowered to the music, warm instrument key with soft cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wang Yi, Unforgiving Edge — `tk-wei-wangyi`
-- **Card facts:** {1}{B} · B · 2/1 · deathtouch · c · holo: none
+- **Card facts:** {1}{B} · B · 2/1 · deathblade · c · holo: none
 - **Character & source:** Genderbent Wang Yi, the vengeance-driven avenger of Jicheng; deathtouch — one cut is enough.
 - **Personality / mood:** "Forgiveness died at Jicheng. She did not." Cold, singular, grief hardened into a killing purpose.
 - **Pose & composition:** Poised low guard, one slender blade held level and still, face ≈ y 320 fixed unblinking on the viewer. Not a wild lunge — a deathtouch striker needs only one quiet, certain implement; controlled menace.
@@ -361,7 +361,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Wang Yi vengeful avenger in a low guard, dark mourning-black robes with a single lapis cord and bronze vambraces, half-veiled hair, one immaculate thin blade held level, near-black field with a distant funeral fire, cold blade-edge key with faint warm rim, hollow resolved stare — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Pang De, Coffin-Bearer — `tk-wei-pangde`
-- **Card facts:** {3}{W}{W} · W · 4/4 · vigilance · c · holo: none
+- **Card facts:** {3}{W}{W} · W · 4/4 · sentinel · c · holo: none
 - **Character & source:** Genderbent Pang De, who marched to battle with her own coffin as a vow to win or die; a stout 4/4 vigilance stalwart.
 - **Personality / mood:** "She brings her own coffin to every battle. Hasn't needed it yet." Grimly resolute, fatalistic courage worn as armor.
 - **Pose & composition:** Squared standing stance, greatblade planted before her, a lacquered coffin visible behind her shoulder; face ≈ y 310 set and unafraid. Vigilant and rooted — she holds, she doesn't charge; coffin lid catches the bleed edge.

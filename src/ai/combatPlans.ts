@@ -27,10 +27,10 @@ function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff 
     iid,
     power: stats.power + trickBuff,
     toughness: stats.toughness - perm.damage + trickBuff,
-    deathtouch: stats.keywords.has('deathtouch'),
-    firstStrike: stats.keywords.has('firstStrike'),
-    trample: stats.keywords.has('trample'),
-    lifelink: stats.keywords.has('lifelink'),
+    deathtouch: stats.keywords.has('deathblade'),
+    firstStrike: stats.keywords.has('firstBlade'),
+    trample: stats.keywords.has('overrun'),
+    lifelink: stats.keywords.has('bloodoath'),
   };
 }
 

@@ -11,15 +11,15 @@ describe('keyword reminders', () => {
   });
 
   it('rulesText expands keywords to reminder lines only when reminders are on', () => {
-    const card = TEST_DB.dt_rhino; // deathtouch + trample, no abilities
+    const card = TEST_DB.dt_rhino; // deathblade + overrun, no abilities
 
     const terse = rulesText(card);
-    expect(terse).toContain('Deathtouch, Trample'); // one compact line
+    expect(terse).toContain('Deathblade, Overrun'); // one compact line
     expect(terse).not.toContain('—');
 
     const verbose = rulesText(card, { reminders: true });
-    expect(verbose).toContain(`Deathtouch — ${KEYWORD_REMINDER.deathtouch}`);
-    expect(verbose).toContain(`Trample — ${KEYWORD_REMINDER.trample}`);
+    expect(verbose).toContain(`Deathblade — ${KEYWORD_REMINDER.deathblade}`);
+    expect(verbose).toContain(`Overrun — ${KEYWORD_REMINDER.overrun}`);
   });
 
   it('a card with no keywords is unaffected by the reminders flag', () => {

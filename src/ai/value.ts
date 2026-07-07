@@ -3,17 +3,17 @@ import type { CardDb, Keyword, Permanent } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
 
 const KEYWORD_BONUS: Record<Keyword, number> = {
-  flying: 1,
-  deathtouch: 1,
-  lifelink: 0.5,
-  firstStrike: 0.5,
-  doubleStrike: 1.5,
-  trample: 0.5,
-  vigilance: 0.25,
-  haste: 0.25,
-  reach: 0.25,
-  hexproof: 0.5,
-  defender: -0.5,
+  skyborne: 1,
+  deathblade: 1,
+  bloodoath: 0.5,
+  firstBlade: 0.5,
+  twinBlades: 1.5,
+  overrun: 0.5,
+  sentinel: 0.25,
+  warcry: 0.25,
+  wardingGaze: 0.25,
+  untouchable: 0.5,
+  bulwark: -0.5,
 };
 
 function keywordScore(keywords: Iterable<Keyword>): number {

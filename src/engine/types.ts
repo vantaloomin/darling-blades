@@ -4,17 +4,17 @@ export type PlayerId = 0 | 1;
 export type Color = 'W' | 'U' | 'B' | 'R' | 'G';
 
 export type Keyword =
-  | 'flying'
-  | 'reach'
-  | 'firstStrike'
-  | 'doubleStrike'
-  | 'haste'
-  | 'trample'
-  | 'vigilance'
-  | 'defender'
-  | 'deathtouch'
-  | 'lifelink'
-  | 'hexproof';
+  | 'skyborne'
+  | 'wardingGaze'
+  | 'firstBlade'
+  | 'twinBlades'
+  | 'warcry'
+  | 'overrun'
+  | 'sentinel'
+  | 'bulwark'
+  | 'deathblade'
+  | 'bloodoath'
+  | 'untouchable';
 
 export type CardType = 'creature' | 'instant' | 'sorcery' | 'enchantment' | 'artifact' | 'land';
 export type Rarity = 'c' | 'r' | 'sr' | 'ssr' | 'ur';

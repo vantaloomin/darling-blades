@@ -237,7 +237,7 @@ export class Game {
         }
         for (const iid of action.attackers) {
           const perm = findPermanent(st, iid)!;
-          if (!getEffectiveStats(st.battlefield, this.db, iid).keywords.has('vigilance')) {
+          if (!getEffectiveStats(st.battlefield, this.db, iid).keywords.has('sentinel')) {
             perm.tapped = true;
           }
         }

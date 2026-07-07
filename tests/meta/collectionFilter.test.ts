@@ -124,7 +124,7 @@ describe('search facet (F8)', () => {
   const save = freshSave(0);
   const pool: CardDef[] = [
     card('bear', { name: 'Wildwood Bear', subtypes: ['Beastkin'] }),
-    card('drake', { name: 'Storm Drake', subtypes: ['Dragon'], keywords: ['flying'] }),
+    card('drake', { name: 'Storm Drake', subtypes: ['Dragon'], keywords: ['skyborne'] }),
     card('bolt', { name: 'Lightning Bolt', types: ['instant'], subtypes: [] }),
   ];
   const st = (search: string): CollectionFilterState => ({ ...defaultFilterState(), search });
@@ -144,8 +144,8 @@ describe('search facet (F8)', () => {
     expect(applyFilters(pool, st('beast'), save).map((d) => d.id)).toEqual(['bear']);
   });
 
-  it('matches keyword enum values (fly → flying)', () => {
-    expect(applyFilters(pool, st('fly'), save).map((d) => d.id)).toEqual(['drake']);
+  it('matches keyword enum values (sky → skyborne)', () => {
+    expect(applyFilters(pool, st('sky'), save).map((d) => d.id)).toEqual(['drake']);
   });
 
   it('combines with other facets (AND) and can be empty', () => {

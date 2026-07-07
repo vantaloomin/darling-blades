@@ -150,8 +150,8 @@ export class EasyAI implements AIPlayer {
       let choice: number | undefined;
       for (const c of candidates) {
         const blk = getEffectiveStats(view.battlefield, this.db, c.blocker);
-        const kills = blk.power >= atk.toughness || blk.keywords.has('deathtouch');
-        const survives = blk.toughness > atk.power && !atk.keywords.has('deathtouch');
+        const kills = blk.power >= atk.toughness || blk.keywords.has('deathblade');
+        const survives = blk.toughness > atk.power && !atk.keywords.has('deathblade');
         if (kills || survives) {
           choice = c.blocker;
           break;

@@ -56,7 +56,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Nekomata cat-girl scout crouched low with forked tail raised, moss-green foraging wrap and grass satchel of mushrooms, slit-pupil eyes glancing back at viewer, dappled forest-floor background, soft green canopy light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wolfkin Raider — `bk-wolfkin-raider`
-- **Card facts:** {1}{R} · R · 2/1 · haste · c · holo: none
+- **Card facts:** {1}{R} · R · 2/1 · warcry · c · holo: none
 - **Character & source:** Original Beastkin wolf-girl skirmisher — the tribe's cheap, fast hit.
 - **Personality / mood:** "The howl is a courtesy. A short one." All forward momentum, zero ceremony.
 - **Pose & composition:** Mid-sprint lunge toward lower-left camera, face ≈ y 330, one clawed hand forward, motion blur on the trailing arm and tail. The silhouette must read as "wolf girl mid-charge" at ~119×86 px.
@@ -71,7 +71,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Wolf-eared beast-girl raider sprinting at the viewer, ash-grey hair and tail streaming, fur-trimmed red-brown leathers, clawed hand forward, fanged grin, blurred dust-and-grass background, flat warm daylight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Lop-Ear Vanguard — `bk-bunny-vanguard`
-- **Card facts:** {W} · W · 1/1 · vigilance · c · holo: none
+- **Card facts:** {W} · W · 1/1 · sentinel · c · holo: none
 - **Character & source:** Original Beastkin bunnykin recruit (untyped) — a one-drop watch-stander who never lets her guard drop (`vigilance`).
 - **Personality / mood:** "Small, fluffy, and legally a soldier." Earnest, over-serious, adorable in full drill posture.
 - **Pose & composition:** Standing at attention, front-facing three-quarter, chin up, spear planted upright at her side — an on-guard stance, not a lunge (she keeps watch). Face ≈ y 300; the long floppy lop ears droop down past her shoulders inside the band, one tall spear-tip rising into the top bleed.
@@ -86,7 +86,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Lop-eared bunny beast-girl standing at attention with an upright spear, oversized cream gambeson and pauldrons, floppy ears drooping to her shoulders, cotton-puff tail, determined face, soft dawn palisade background — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Harpy Skirmisher — `bk-harpy-skirmisher`
-- **Card facts:** {1}{R} · R · 2/2 · flying · r · holo: auto:sheen
+- **Card facts:** {1}{R} · R · 2/2 · skyborne · r · holo: auto:sheen
 - **Character & source:** Original Beastkin harpy raider (Avian) — a two-drop `flying` skirmisher who strikes from above.
 - **Personality / mood:** "Her opinions arrive at terminal velocity." Loud, sharp-tongued, gleeful in the dive.
 - **Pose & composition:** Mid-dive banking down toward the viewer, wing-arms swept back, taloned feet leading, hair whipping up. Face ≈ y 320; the near wing arcs into the upper-left bleed as a motion element. The one environmental element: a scattering of dislodged feathers streaking past.
@@ -116,7 +116,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Sturdy bear beast-girl braced in fur-lined hide vest, round bear ears and heavy claws, honey-jar amulet, calm half-smile, old-growth forest background, warm shaft of light with cool green rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Rhinokin Charger — `bk-rhinokin-charger`
-- **Card facts:** {2}{G}{G} · G · 4/4 · trample · r · holo: auto:sheen
+- **Card facts:** {2}{G}{G} · G · 4/4 · overrun · r · holo: auto:sheen
 - **Character & source:** Original Beastkin rhinokin (untyped) — a beefy four-drop `trample` charger that runs through whatever's in front of it.
 - **Personality / mood:** "Doors are a suggestion." Unstoppable, single-minded, cheerfully destructive.
 - **Pose & composition:** Full-body charge angled toward lower-right, head lowered so the nose-horn leads, dust exploding behind. Face ≈ y 330 above the lowered horn; the near shoulder breaks the band edge. Environmental element: a shattered gate or fence-rail flung apart in her wake.
@@ -131,7 +131,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Rhino beast-girl charging with lowered nose-horn through a splintering fence, grey hide-plate armor over green wraps, tufted tail streaming, dust exploding behind, jaw set, bright field light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Lamia Nightblade — `bk-lamia-nightblade`
-- **Card facts:** {1}{B} · B · 1/1 · deathtouch · c · holo: none
+- **Card facts:** {1}{B} · B · 1/1 · deathblade · c · holo: none
 - **Character & source:** Original Beastkin lamia assassin (Serpent) — a fragile one-drop whose one touch is lethal (`deathtouch`).
 - **Personality / mood:** "One scratch settles most arguments." Coiled patience, quiet menace, economy of motion.
 - **Pose & composition:** Coiled upright, upper body turned in three-quarter, one hand extended with a single glinting claw-blade toward the viewer — a slow, deliberate reach, not a lunge. Face ≈ y 320; the serpent coil spirals down out of frame through the lower band.
@@ -146,7 +146,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Lamia serpent beast-girl coiled upright, dark scaled bodice and shadow-silk cloak, long serpent lower body, extending a single needle claw-blade toward viewer, slit-pupil calm smile, dim ruined background, cold underlight with violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dragonmaid Ember — `bk-dragonmaid`
-- **Card facts:** {3}{R}{R} · R · 4/4 · flying · sr · holo: auto:galaxy
+- **Card facts:** {3}{R}{R} · R · 4/4 · skyborne · sr · holo: auto:galaxy
 - **Character & source:** Original Beastkin draconic housemaid — a five-drop `flying` 4/4 whose domestic composure hides a furnace.
 - **Personality / mood:** "She dusts, she polishes, she incinerates." Prim, immaculate, one raised eyebrow from arson.
 - **Pose & composition:** The rare "moment": hovering mid-air on spread wings, one hand tipping a feather-duster while the other cups a curl of ignition flame — the split-second before the room becomes a problem. Face ≈ y 320; wings sweep into the top bleed, scaled tail curls down the right band edge.
@@ -191,7 +191,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Nine-tailed kitsune matriarch composed and smiling in a teal-and-jade embroidered kimono, tall fox ears and nine sweeping tails, two pale blue-white foxfire spirit foxes at her feet, dark night reed-shrine with lanterns, cool foxfire key and warm lantern rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wolfqueen Lupa — `bk-wolfqueen`
-- **Card facts:** {2}{R}{G} · R/G (gold frame) · 4/4 · haste · ssr, legendary · holo: sparkle (explicit)
+- **Card facts:** {2}{R}{G} · R/G (gold frame) · 4/4 · warcry · ssr, legendary · holo: sparkle (explicit)
 - **Character & source:** Original Beastkin wolfkin queen — a `haste` 4/4 anthem for Wolfkin who rules by consensus of the howl.
 - **Personality / mood:** "The pack votes on everything. She counts the howls." Fierce democrat, warlord-charismatic, first into the charge.
 - **Pose & composition:** Mid-lunge forward-and-up (haste), head thrown back mid-howl, spear-arm cocked, one clawed foot leaving the ground. Face ≈ y 320, muzzle-lift to the sky; brush tail streaming into the lower band, spear breaking the top bleed. Distant pack-silhouettes howl in answer.
@@ -206,7 +206,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Wolfqueen beast-girl mid-howl with head thrown back and a crescent war-spear raised, crimson-and-green war-mantle and antler-fang crown, grey brush tail streaming, distant howling pack on a sunset ridge, warm low key with cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Kitsune Illusionist — `bk-kitsune-illusionist`
-- **Card facts:** {1}{U} · U · 2/1 · hexproof · c · holo: none
+- **Card facts:** {1}{U} · U · 2/1 · untouchable · c · holo: none
 - **Character & source:** Original Beastkin kitsune trickster — a slippery two-drop who can't be targeted (`hexproof`).
 - **Personality / mood:** "Which of the five foxes is real? Wrong." Playful, deceptive, always laughing at a joke you're not in on.
 - **Pose & composition:** Standing three-quarter with a sly finger raised, surrounded by faint blue after-image duplicates of herself offset in space — you can't pin which is real (hexproof). Face ≈ y 320 on the crispest copy; ears and single tail echoed in the ghost-images fading into both bleeds.
@@ -236,7 +236,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Dreamweaver kitsune beast-girl drawing a shimmering pale-blue dream-veil of mist across the frame, indigo gauze dream-robe, fox ears and tail, eyes closed in serene calm, drifting slumber-motes, hazed twilight field, soft self-lit mist — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Holstaur Milkmaid — `bk-holstaur-milkmaid`
-- **Card facts:** {2}{W} · W · 2/3 · lifelink · c · holo: none
+- **Card facts:** {2}{W} · W · 2/3 · bloodoath · c · holo: none
 - **Character & source:** Original Beastkin holstaur farmhand — a `lifelink` three-drop who mends the team by feeding it.
 - **Personality / mood:** "Breakfast is a love language." Warm, generous, sturdy nurturer.
 - **Pose & composition:** Standing three-quarter, offering a brimming milk-pail forward toward the viewer with both hands — a giving, healing gesture (lifelink), not combat. Face ≈ y 300; cow ears to the sides, tufted tail low. A warm glow spills off the pail (lifelink healers glow warm).
@@ -251,7 +251,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Holstaur cow beast-girl offering a warmly glowing milk-pail toward the viewer, cream-and-brown farm dress and apron, cow ears and short horns, black-and-white hide markings, kind smile, sunlit barn, golden morning light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sheepkin Dreamherd — `bk-sheepkin-dreamherd`
-- **Card facts:** {1}{G} · G · 0/4 · defender · c · holo: none
+- **Card facts:** {1}{G} · G · 0/4 · bulwark · c · holo: none
 - **Character & source:** Original Beastkin sheepkin wall — a 0/4 `defender` who blocks but never attacks; her whole idea is drowsy immovability.
 - **Personality / mood:** "Counts herself to sleep. Loses count at one." Placid, immovable, perpetually half-asleep.
 - **Pose & composition:** Seated and settled, cross-legged and rooted, arms loosely folded — a defender at rest, absolutely not lunging. Face ≈ y 320, head tilting toward a doze; the huge fleece ruff fills the lower band as a soft wall. Little dream-sheep motes drift up past her curled ram-horns.
@@ -281,7 +281,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Mousekin beast-girl guarding a pantry doorway, brandishing a wooden ladle like a halberd, cream apron-tabard uniform and acorn-cap pauldron, big round ears and whiskers, fierce puffed-cheek scowl, shelf-lined pantry, warm lantern light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Spiderkin Weaver — `bk-spiderkin-weaver`
-- **Card facts:** {2}{B} · B · 1/3 · deathtouch, reach · c · holo: none
+- **Card facts:** {2}{B} · B · 1/3 · deathblade, wardingGaze · c · holo: none
 - **Character & source:** Original Beastkin spiderkin web-artisan — a defensive `deathtouch`/`reach` three-drop who kills anything that touches her silk.
 - **Personality / mood:** "Her silk is lovely. Do admire it from outside." Genteel, dangerous, proud of her craft.
 - **Pose & composition:** Poised within a great web, three-quarter, one hand drawing a shimmering silk thread taut — watchful stillness (deathtouch waits; reach lets her strike high), not a lunge. Face ≈ y 310; her extra chitin-jointed limb-pair arcs up into the top band, threads crossing both edges.
@@ -296,7 +296,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Spiderkin beast-girl poised in a great silvery web drawing a silk thread taut, black-and-violet silk gown, an eight-eye brooch, a pair of glossy jointed spider-limbs arcing from her back, gracious fanged smile, shadowed webbed rafters, cool underlight with violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Batkin Duskwing — `bk-batkin-duskwing`
-- **Card facts:** {1}{B} · B · 2/1 · flying · c · holo: none
+- **Card facts:** {1}{B} · B · 2/1 · skyborne · c · holo: none
 - **Character & source:** Original Beastkin batkin scout — an aggressive two-drop `flying` gossip on the wing.
 - **Personality / mood:** "Echolocation counts as gossip if you do it loudly enough." Chatty, nocturnal, mischievously nosy.
 - **Pose & composition:** Crouched atop a beam gripping it with clawed toes, knees high, wing-cloak half-furled, leaning toward the viewer with a finger to her lips — a conspiratorial pause, perched not hanging. (Reworded 2026-07-03: the inverted-hang pose reliably composed the face into the bottom bleed below the card window — both generation attempts failed the safe zone. Prompt hardened same day after a third inverted result under the perched wording: the model's bat-prior needs the upright/head-at-top cue stated explicitly.) Face ≈ y 330; membrane wings spread into both side bleeds.
@@ -341,7 +341,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Deerkin druid beast-girl coaxing a sapling and vines up from greening ground, leaf-and-bark dress with moss mantle and flower circlet, branching antlers and mule-deer ears, dappled freckling, sunlit grove, warm gold shaft with cool green rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Foxfire Priestess — `bk-foxfire-priestess`
-- **Card facts:** {1}{W}{W} · W · 2/2 · lifelink · r · holo: auto:sheen
+- **Card facts:** {1}{W}{W} · W · 2/2 · bloodoath · r · holo: auto:sheen
 - **Character & source:** Original Beastkin kitsune priestess — a `lifelink` three-drop whose ETB gains 3 life; a warm healer of chosen foxfire.
 - **Personality / mood:** "Foxfire never burns. It only warms whom she chooses." Serene, devotional, radiant kindness.
 - **Pose & composition:** Standing in blessing, three-quarter, both hands cupped around a floating orb of pale-gold foxfire she lifts toward the viewer — the ETB healing moment (lifelink healers glow warm). Face ≈ y 300; fox ears and single tail framed by the warm light; the flame is centered as a glow source.
@@ -356,7 +356,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Kitsune priestess beast-girl lifting a floating orb of pale-gold foxfire in cupped hands, white-and-gold miko robe with red cords, fox ears and single tail, serene benediction, soft-lit reed shrine with paper charms, warm foxfire key with cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Crowkin Shrike — `bk-crowkin-shrike`
-- **Card facts:** {2}{B} · B · 2/2 · flying · c · holo: none
+- **Card facts:** {2}{B} · B · 2/2 · skyborne · c · holo: none
 - **Character & source:** Original Beastkin crowkin thief (Avian) — a three-drop `flying` collector of shiny (and grim) trophies.
 - **Personality / mood:** "Collects shiny things: rings, buttons, last words." Sardonic, opportunistic, morbidly cheerful.
 - **Pose & composition:** Alighting on a bare branch, three-quarter, one taloned foot clutching a glinting ring while she cocks her head at the viewer — perched and appraising, not diving. Face ≈ y 320; black tail-feather fan and feather-tuft crest catch the band; a folded black wing arcs into one side bleed.
@@ -371,7 +371,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Crowkin beast-girl alighting on a bare branch, one taloned foot clutching a glinting stolen ring, glossy black feather coat sewn with trinkets, feather-tuft crest and tail-fan, head cocked with a sly smirk, grey gallows-tree sky, cool overcast light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Turtlekin Bulwark — `bk-turtlekin-bulwark`
-- **Card facts:** {2}{G} · G · 0/6 · defender · c · holo: none
+- **Card facts:** {2}{G} · G · 0/6 · bulwark · c · holo: none
 - **Character & source:** Original Beastkin turtlekin wall — a 0/6 `defender` who cannot attack; a fortress that walks slowly, if at all.
 - **Personality / mood:** "Home is where the shell is. The shell is a fortress." Immovable, patient, serenely unbothered.
 - **Pose & composition:** Planted and hunkered, front-facing, arms braced wide in a total block-stance — dug in, never lunging. Face ≈ y 320; the massive shell carapace rises behind her shoulders filling the upper band like a rampart. She must read as "unbreakable wall" at thumbnail.
@@ -401,7 +401,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Squirrelkin beast-girl crouched protectively over a heap of acorns, russet gatherer's tunic covered in pouches, huge bushy tail curling up, cheek-pouches bulging, possessive suspicious glare, autumn-leaf litter background, warm afternoon light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Boarkin Rioter — `bk-boarkin-rioter`
-- **Card facts:** {2}{R} · R · 3/2 · haste · c · holo: none
+- **Card facts:** {2}{R} · R · 3/2 · warcry · c · holo: none
 - **Character & source:** Original Beastkin boarkin brawler — a `haste` three-drop who hits the front line the instant she arrives.
 - **Personality / mood:** "First through the fence. Any fence. All fences." Reckless, boisterous, a one-woman stampede.
 - **Pose & composition:** Mid-crash forward-lunge (haste), shoulder-first through a splintering fence, tusked jaw set, mace swinging up. Face ≈ y 330 behind the leading shoulder; bristle-mane and tail streaming, the mace breaking the top bleed, fence-planks flying. Reads as "charging boar-girl" at thumbnail.

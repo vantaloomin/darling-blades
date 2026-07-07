@@ -31,7 +31,7 @@ sons echo. Faces stay bright and quiet; the shimmer lives in the silver, never t
 - **Prompt:** Genderbent Sima Yi in high-collared slate-teal court robe, ash-dark hair with a silver streak, one hand flat on an unrolled campaign map, faint knowing half-smile, cold grey eyes, dark lamp-lit map room with distant storm light through a lattice window, cool key light and silver rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wang Yuanji, Silent Blade — `tk-jin-wangyuanji`
-- **Card facts:** {1}{U}{B} · U/B (gold frame) · 2/3 · deathtouch · sr, legendary · holo: sheen (explicit)
+- **Card facts:** {1}{U}{B} · U/B (gold frame) · 2/3 · deathblade · sr, legendary · holo: sheen (explicit)
 - **Character & source:** Genderbent Wang Yuanji, Sima Zhao's razor-minded consort; her ETB draws a card and her deathtouch means one cut is enough.
 - **Personality / mood:** "She says little. She has already said everything that mattered." Economy in everything — words, motion, mercy.
 - **Pose & composition:** Three-quarter, chest-up, near-motionless — one hand lowering a slim veil or letter, the other resting on a sheathed short blade she has not drawn. Deathtouch reads as *one quiet lethal implement*, held, not swung. Face ≈ y 310, eye line ≈ y 340, gaze slightly off-viewer as if a conversation just ended.
@@ -46,7 +46,7 @@ sons echo. Faces stay bright and quiet; the shimmer lives in the silver, never t
 - **Prompt:** Genderbent Wang Yuanji in layered dark-teal and charcoal silk with a high closed collar, hand resting on a sheathed slim short-blade, composed closed-lipped expression, cold calm eyes, quiet screened chamber with one paper lantern, single soft cool key light and low silver rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhang Chunhua, Dread Matriarch — `tk-jin-zhangchunhua`
-- **Card facts:** {2}{B}{B} · B · 3/3 · deathtouch · sr, legendary · holo: foil (explicit)
+- **Card facts:** {2}{B}{B} · B · 3/3 · deathblade · sr, legendary · holo: foil (explicit)
 - **Character & source:** Genderbent Zhang Chunhua, Sima Yi's formidable wife; her ETB drains the opponent two life and heals her two — she takes and keeps. Deathtouch says the drain is not the dangerous part.
 - **Personality / mood:** "Sima Yi outwaited emperors. She cannot outwait her wife." Total authority in the household of usurpers; the one person the patient shadow fears.
 - **Pose & composition:** Three-quarter, seated matriarch's pose, slightly above camera looking down her nose, one hand curled with a faint dark drain-wisp lifting from an off-frame victim toward her. Face ≈ y 300, chin high, eye line ≈ y 320. Commanding, vertical, still.
@@ -61,7 +61,7 @@ sons echo. Faces stay bright and quiet; the shimmer lives in the silver, never t
 - **Prompt:** Genderbent Zhang Chunhua enthroned in heavy black court robe with tarnished-silver embroidery and an elaborate silver headpiece, dark-teal underlayer, curl of violet life-drain rising to her hand, imperious downward gaze, dim black-lacquer hall with one carried light, cold underlight and silver rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sima Shi, Cold Executor — `tk-jin-simashi`
-- **Card facts:** {2}{B}{B} · B · 4/3 · firstStrike · r · holo: auto:sheen
+- **Card facts:** {2}{B}{B} · B · 4/3 · firstBlade · r · holo: auto:sheen
 - **Character & source:** Genderbent Sima Shi, Yi's elder heir and Jin's blade-hand; firstStrike says she cuts before you can answer.
 - **Personality / mood:** "Her plans survive contact with everything except her sister's jokes." Ruthlessly competent, humorless under pressure, precise.
 - **Pose & composition:** Three-quarter, chest-up, one environmental story element per uncommon — a drawn straight sword already extended in a clean forward guard, blade catching the light first. Face ≈ y 320, eye line ≈ y 345, weight forward but controlled, not lunging.
@@ -91,7 +91,7 @@ sons echo. Faces stay bright and quiet; the shimmer lives in the silver, never t
 - **Prompt:** Genderbent Sima Zhao in slate-teal court robe with tarnished-silver clasp, ash-dark hair, one hand reaching toward an unseen crown above frame, smug sidelong look, cool grey eyes, flat two-value grey hall with a bare dais, single cool daylight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhong Hui, Gilded Prodigy — `tk-jin-zhonghui`
-- **Card facts:** {2}{U}{U} · U · 3/3 · flying · r · holo: auto:sheen
+- **Card facts:** {2}{U}{U} · U · 3/3 · skyborne · r · holo: auto:sheen
 - **Character & source:** Genderbent Zhong Hui, Jin's brilliant, vain prodigy; flying reads as elevation and detachment — she looks down on everyone.
 - **Personality / mood:** "Collects victories, calligraphy, and grudges. Alphabetized." Peacock intellect; precise, precious, dangerous when slighted.
 - **Pose & composition:** Uncommon: one figure plus one story element — she stands on a high railed terrace with scrolls drifting on a lifting wind (the flying cue), one arm out as a brush trails ink into the air. Face ≈ y 315, eye line ≈ y 340, gaze slightly downward at the viewer.

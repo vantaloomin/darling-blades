@@ -15,7 +15,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 ---
 
 ### Training Dummy — `ar-training-dummy`
-- **Card facts:** {1} · C · 0/3 · defender · c · holo: none
+- **Card facts:** {1} · C · 0/3 · bulwark · c · holo: none
 - **Character & source:** Original colorless Construct — a straw-and-lacquer training figure shaped as an armored woman, the cheapest wall in the game. A 0/3 defender: she never strikes, only endures.
 - **Personality / mood:** "Undefeated in defense. Technically." Deadpan, patient, absorbing every blow with wooden good humor; a soldier who wins by never losing.
 - **Pose & composition:** Planted square and frontal, arms braced across the body in a blocking guard, weight low and rooted — a defender does not lunge. Face ≈ y 330, chin level, dead-center in the band so the pose reads as an immovable post at 119×86 px.
@@ -83,7 +83,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 ---
 
 ### Siege Juggernaut — `ar-siege-juggernaut`
-- **Card facts:** {6} · C · 7/7 · trample · sr · holo: sheen (explicit)
+- **Card facts:** {6} · C · 7/7 · overrun · sr · holo: sheen (explicit)
 - **Character & source:** Original colorless Construct — a self-propelled siege engine in a warrior-woman's form, a 7/7 trampler. Its doctrine: aim, release, flatten.
 - **Personality / mood:** "The manual is one page: point it at the wall you like least." Blunt, unstoppable, gleefully simple; a battering ram that grins.
 - **Pose & composition:** The rare "moment" — mid-charge at the split second of impact: shoulder and ram-prow driving lower-left → upper-right, debris exploding past the frame edge (trample made literal). Face ≈ y 340, teeth set; the ram-head deliberately breaks the band's edge as it hits.
@@ -134,7 +134,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 ---
 
 ### Peacock — `tok-peacock`
-- **Card facts:** {0} · W · 1/1 · flying · c · holo: none
+- **Card facts:** {0} · W · 1/1 · skyborne · c · holo: none
 - **Character & source:** W flying token (Bird) — the birds minted by `gk-hera`'s ETB, whose art **defines** this design (canon registry, updated 2026-07-03 to match the shipped `gk-hera.png`): a classic royal-blue-and-green peacock — sapphire-blue neck and breast, green-gold eye-spotted train — as painted flanking Hera's throne.
 - **Personality / mood:** "A hundred eyes, all judging." Regal, watchful, faintly contemptuous; Hera's surveillance made feathered flesh.
 - **Pose & composition:** A peacock-girl in flight or alighting, wings and tail fanning wide, eye-spotted plumage spread toward the viewer — flying, so airborne and lifted. Face ≈ y 310, chin high and haughty; the fanned tail's eye-spots frame her at token scale.
@@ -168,7 +168,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 ---
 
 ### Wooden Ox — `tok-wooden-ox`
-- **Card facts:** {0} · C · 0/3 · defender · c · holo: none
+- **Card facts:** {0} · C · 0/3 · bulwark · c · holo: none
 - **Character & source:** Colorless artifact-creature token (Construct) created by `tk-shu-yueying`'s ETB — a lacquered ox automaton. Canon registry binds its style to Yueying/Zhuge Liang's devices: lacquered wood, exposed precision joinery, no raw metal. A 0/3 defender: a hauler, not a fighter.
 - **Personality / mood:** "Needs no fodder, files no complaints, carries everything." Tireless, uncomplaining, faithful; a beast of burden that never tires.
 - **Pose & composition:** An ox-formed automaton (or an ox-masked porter-girl over the wooden frame) standing planted, harness-yoke braced, hauling stance — a defender, rooted and patient, never lunging. Face/head ≈ y 330, level and calm; the blocky ox silhouette reads immediately at token scale.
@@ -183,7 +183,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Prompt:** Lacquered-wood ox automaton with exposed pegged joinery and no raw metal, braced in a patient hauling stance under a loaded pannier-harness, amber wood-grain and rich lacquer with a faint jade caparison, warm workshop-lantern light and soft grey rim, placid carved ox-face — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Valkyrie — `tok-valkyrie`
-- **Card facts:** {0} · W · 2/2 · flying · c · holo: none
+- **Card facts:** {0} · W · 2/2 · skyborne · c · holo: none
 - **Character & source:** White creature token (Valkyrie) created by `rg-freya` and `rg-chooser-of-the-slain` — a winged chooser of the slain, one of the host Freya raises. A 2/2 flier.
 - **Personality / mood:** "She decides who the day remembers." Calm and final, a soldier of the sky who has already made her choice.
 - **Pose & composition:** Descending mid-flight, wings flared, spear levelled; face ≈ y 320, the wing-tips free to break the top of the band. Reads as a Valkyrie in silhouette at token scale.

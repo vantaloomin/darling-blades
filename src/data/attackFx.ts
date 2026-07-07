@@ -254,8 +254,8 @@ export const ATTACK_FX_MAP: Record<string, AttackFxSpec> = {
 /** Fallback archetype for a creature not in ATTACK_FX_MAP. First match wins. */
 function fallbackArchetype(card: CardDef): AttackArchetype {
   const keywords = card.keywords ?? [];
-  if (keywords.includes('deathtouch')) return 'venom';
-  if (keywords.includes('flying')) return 'aerial';
+  if (keywords.includes('deathblade')) return 'venom';
+  if (keywords.includes('skyborne')) return 'aerial';
 
   const subtypes = card.subtypes;
   if (
@@ -281,7 +281,7 @@ function fallbackArchetype(card: CardDef): AttackArchetype {
 
 /** Fallback heavy flag for a creature not in ATTACK_FX_MAP. */
 function fallbackHeavy(card: CardDef): boolean {
-  return (card.power ?? 0) >= 5 || card.keywords?.includes('trample') === true;
+  return (card.power ?? 0) >= 5 || card.keywords?.includes('overrun') === true;
 }
 
 /**

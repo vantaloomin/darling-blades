@@ -75,11 +75,11 @@ export function hasKeyword(
   return getEffectiveStats(battlefield, db, iid).keywords.has(k);
 }
 
-/** A creature is summoning-sick if it entered this turn and lacks haste (checked on read). */
+/** A creature is summoning-sick if it entered this turn and lacks Warcry (checked on read). */
 export function isSummoningSick(
   battlefield: readonly Permanent[],
   db: CardDb,
   perm: Permanent,
 ): boolean {
-  return perm.enteredThisTurn && !hasKeyword(battlefield, db, perm.iid, 'haste');
+  return perm.enteredThisTurn && !hasKeyword(battlefield, db, perm.iid, 'warcry');
 }

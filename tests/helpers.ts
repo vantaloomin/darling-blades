@@ -98,7 +98,7 @@ export const TEST_DB: CardDb = {
     colors: ['W'],
     power: 2,
     toughness: 2,
-    keywords: ['firstStrike'],
+    keywords: ['firstBlade'],
     rarity: 'c',
   },
   giant: {
@@ -121,7 +121,7 @@ export const TEST_DB: CardDb = {
     colors: ['U'],
     power: 2,
     toughness: 2,
-    keywords: ['flying'],
+    keywords: ['skyborne'],
     rarity: 'c',
   },
   archer: {
@@ -133,7 +133,7 @@ export const TEST_DB: CardDb = {
     colors: ['G'],
     power: 1,
     toughness: 3,
-    keywords: ['reach'],
+    keywords: ['wardingGaze'],
     rarity: 'c',
   },
   hasty: {
@@ -145,7 +145,7 @@ export const TEST_DB: CardDb = {
     colors: ['R'],
     power: 2,
     toughness: 1,
-    keywords: ['haste'],
+    keywords: ['warcry'],
     rarity: 'c',
   },
   sentinel: {
@@ -157,7 +157,7 @@ export const TEST_DB: CardDb = {
     colors: ['W'],
     power: 2,
     toughness: 4,
-    keywords: ['vigilance'],
+    keywords: ['sentinel'],
     rarity: 'c',
   },
   wall: {
@@ -169,7 +169,7 @@ export const TEST_DB: CardDb = {
     colors: ['W'],
     power: 0,
     toughness: 4,
-    keywords: ['defender'],
+    keywords: ['bulwark'],
     rarity: 'c',
   },
   rhino: {
@@ -181,7 +181,7 @@ export const TEST_DB: CardDb = {
     colors: ['G'],
     power: 4,
     toughness: 4,
-    keywords: ['trample'],
+    keywords: ['overrun'],
     rarity: 'r',
   },
   assassin: {
@@ -193,7 +193,7 @@ export const TEST_DB: CardDb = {
     colors: ['B'],
     power: 1,
     toughness: 1,
-    keywords: ['deathtouch'],
+    keywords: ['deathblade'],
     rarity: 'c',
   },
   dt_rhino: {
@@ -205,7 +205,7 @@ export const TEST_DB: CardDb = {
     colors: ['B', 'G'],
     power: 4,
     toughness: 4,
-    keywords: ['deathtouch', 'trample'],
+    keywords: ['deathblade', 'overrun'],
     rarity: 'sr',
   },
   cleric: {
@@ -217,7 +217,7 @@ export const TEST_DB: CardDb = {
     colors: ['W'],
     power: 2,
     toughness: 2,
-    keywords: ['lifelink'],
+    keywords: ['bloodoath'],
     rarity: 'c',
   },
   lubu: {
@@ -230,7 +230,7 @@ export const TEST_DB: CardDb = {
     colors: ['R'],
     power: 5,
     toughness: 3,
-    keywords: ['haste'],
+    keywords: ['warcry'],
     rarity: 'sr',
   },
   lord: {
@@ -365,7 +365,7 @@ export const TEST_DB: CardDb = {
     colors: ['G'],
     power: 2,
     toughness: 2,
-    keywords: ['hexproof'],
+    keywords: ['untouchable'],
     rarity: 'c',
   },
   // --- Ragnarök expansion fixtures: doubleStrike / mill / reanimate ---
@@ -378,7 +378,7 @@ export const TEST_DB: CardDb = {
     colors: ['R'],
     power: 2,
     toughness: 2,
-    keywords: ['doubleStrike'],
+    keywords: ['twinBlades'],
     rarity: 'c',
   },
   ds_elf: {
@@ -390,7 +390,7 @@ export const TEST_DB: CardDb = {
     colors: ['W'],
     power: 1,
     toughness: 1,
-    keywords: ['doubleStrike'],
+    keywords: ['twinBlades'],
     rarity: 'c',
   },
   ds_deathtouch: {
@@ -402,7 +402,7 @@ export const TEST_DB: CardDb = {
     colors: ['B'],
     power: 2,
     toughness: 2,
-    keywords: ['doubleStrike', 'deathtouch'],
+    keywords: ['twinBlades', 'deathblade'],
     rarity: 'r',
   },
   ds_trample: {
@@ -414,7 +414,7 @@ export const TEST_DB: CardDb = {
     colors: ['R'],
     power: 3,
     toughness: 3,
-    keywords: ['doubleStrike', 'trample'],
+    keywords: ['twinBlades', 'overrun'],
     rarity: 'r',
   },
   ds_lifelink: {
@@ -426,7 +426,7 @@ export const TEST_DB: CardDb = {
     colors: ['W'],
     power: 2,
     toughness: 2,
-    keywords: ['doubleStrike', 'lifelink'],
+    keywords: ['twinBlades', 'bloodoath'],
     rarity: 'r',
   },
   ds_fs: {
@@ -438,7 +438,7 @@ export const TEST_DB: CardDb = {
     colors: ['R'],
     power: 2,
     toughness: 2,
-    keywords: ['firstStrike', 'doubleStrike'],
+    keywords: ['firstBlade', 'twinBlades'],
     rarity: 'r',
   },
   mill_spell: {

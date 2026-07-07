@@ -21,7 +21,7 @@ export function canAttack(
   const d = def(db, perm.cardId);
   if (!isType(d, 'creature')) return false;
   const stats = getEffectiveStats(battlefield, db, iid);
-  if (stats.keywords.has('defender')) return false;
+  if (stats.keywords.has('bulwark')) return false;
   if (isSummoningSick(battlefield, db, perm)) return false;
   return true;
 }
@@ -40,9 +40,9 @@ export function canBlock(
   if (!isType(def(db, blocker.cardId), 'creature')) return false;
   // Summoning sickness does not restrict blocking.
   const atkStats = getEffectiveStats(battlefield, db, attackerIid);
-  if (atkStats.keywords.has('flying')) {
+  if (atkStats.keywords.has('skyborne')) {
     const blkStats = getEffectiveStats(battlefield, db, blockerIid);
-    if (!blkStats.keywords.has('flying') && !blkStats.keywords.has('reach')) return false;
+    if (!blkStats.keywords.has('skyborne') && !blkStats.keywords.has('wardingGaze')) return false;
   }
   return true;
 }

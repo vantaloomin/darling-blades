@@ -154,7 +154,7 @@ export const SORCERIES = [
     cost: cost(1, 'R'),
     colors: ['R'],
     abilities: [
-      { when: 'spell', ops: [{ op: 'pump', p: 1, t: 0, keywords: ['haste'], scope: 'allYours' }] },
+      { when: 'spell', ops: [{ op: 'pump', p: 1, t: 0, keywords: ['warcry'], scope: 'allYours' }] },
     ],
     rarity: 'r',
     flavor: 'One word, everyone sprinting.',
@@ -169,7 +169,7 @@ export const SORCERIES = [
     abilities: [
       {
         when: 'spell',
-        ops: [{ op: 'pump', p: 2, t: 2, keywords: ['trample'], scope: 'allYours' }],
+        ops: [{ op: 'pump', p: 2, t: 2, keywords: ['overrun'], scope: 'allYours' }],
       },
     ],
     rarity: 'sr',

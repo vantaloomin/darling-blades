@@ -232,10 +232,10 @@ function mechanicalNote(card: CardDef): string {
   const kw = card.keywords ?? [];
   const ops = (card.abilities ?? []).flatMap((a) => (a.ops ?? []).map((o) => o.op));
   const notes: string[] = [];
-  if (kw.includes('doubleStrike')) notes.push('an elite duelist who strikes twice');
-  if (kw.includes('flying')) notes.push('an airborne threat');
-  if (kw.includes('deathtouch')) notes.push('lethal at a touch');
-  if (kw.includes('trample')) notes.push('an unstoppable bruiser');
+  if (kw.includes('twinBlades')) notes.push('an elite duelist who strikes twice');
+  if (kw.includes('skyborne')) notes.push('an airborne threat');
+  if (kw.includes('deathblade')) notes.push('lethal at a touch');
+  if (kw.includes('overrun')) notes.push('an unstoppable bruiser');
   if (ops.includes('mill')) notes.push('she feeds the graveyard');
   if (ops.includes('reanimate')) notes.push('she calls the fallen back to the field');
   if (ops.includes('createToken')) notes.push('she brings a host with her');
