@@ -198,6 +198,9 @@ export class DuelScene extends Phaser.Scene {
   /** In-game pause/menu overlay (Resume · quick toggles · Concede) + its guard. */
   private pauseOverlay: Phaser.GameObjects.Container | null = null;
   private pauseGuard = new ModalGuard();
+  /** Graveyard-target chooser (Raise Dead etc.): pick which creature to return. */
+  private gravePicker: Phaser.GameObjects.Container | null = null;
+  private gravePickerGuard = new ModalGuard();
   /** Two-tap concede guard (settings.confirmDestructive); armed by the first tap. */
   private concedeArmed = false;
   private discardPicks = new Set<number>();
@@ -2032,8 +2035,9 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     if (casts[0].targets![0].kind === 'grave') {
-      // graveyard picker is post-MVP: take the first legal choice
-      this.act(casts[0]);
+      // Each enumerated cast is a distinct grave creature — let the player pick
+      // which one to return rather than silently taking the first.
+      this.showGravePicker(casts);
       return;
     }
     this.pendingCasts = this.pendingCasts ? null : casts; // click again cancels
@@ -2320,6 +2324,92 @@ export class DuelScene extends Phaser.Scene {
     this.tearDownPauseMenu();
     this.maybeAutoSkip(); // a pause paused a pending skip chain — resume it
     this.endTurnTick(); // …and a paused end-turn fast-forward
+  }
+
+  // ---------------------------------------------------------------------
+  // Graveyard-target chooser (Raise Dead, Call the Einherjar, …)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Choose which graveyard creature a grave-targeting spell returns, instead of
+   * silently taking the first. Each `cast` the engine enumerated maps to one
+   * distinct grave creature (targeting dedupes by card id), so we render one
+   * option per cast and submit the chosen one. Its own guard deadens the board.
+   */
+  private showGravePicker(casts: Extract<Action, { type: 'castSpell' }>[]): void {
+    const width = 1280;
+    const height = 720;
+    const grave = this.duel.state.players[HUMAN].graveyard;
+    const c = this.add.container(0, 0).setDepth(105);
+    const dim = this.add
+      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .setInteractive();
+    dim.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonReleased()) return;
+      this.closeGravePicker(); // tap outside a card cancels the cast
+    });
+    c.add(dim);
+    c.add(
+      this.add
+        .text(width / 2, 150, 'Return which creature to hand?', {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '28px',
+          color: '#f0e6ff',
+        })
+        .setOrigin(0.5),
+    );
+    const n = casts.length;
+    const spacing = Math.min(160, (width - 240) / Math.max(1, n));
+    casts.forEach((cast, i) => {
+      const ref = cast.targets![0];
+      const cardId = ref.kind === 'grave' ? grave[ref.index] : undefined;
+      if (!cardId) return;
+      const x = width / 2 - ((n - 1) * spacing) / 2 + i * spacing;
+      const v = new CardView(this, x, 370).setScale(0.62);
+      const d = def(CARD_DB, cardId);
+      v.setCard(d, { fx: 'none' });
+      c.add(v);
+      // Same read affordances as the mulligan cards: hover/long-press zoom.
+      v.enableInput();
+      this.zoom.attach(v, d);
+      const pick = (): void => {
+        this.closeGravePicker();
+        this.act(cast);
+      };
+      v.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.wasTouch) return; // touch picks via the tap classifier below
+        if (p.rightButtonReleased()) return;
+        pick();
+      });
+      attachTouchGestures(this, v, { card: d, onTap: pick });
+    });
+    const cancel = this.add
+      .text(width / 2, 600, 'Cancel', {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '22px',
+        color: '#e0a0a0',
+        backgroundColor: '#3a2030',
+        padding: { x: 18, y: 10 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, cancel, (p) => {
+      if (p.rightButtonReleased()) return;
+      this.closeGravePicker();
+    });
+    inflateHitArea(cancel, 90, 60);
+    c.add(cancel);
+    this.gravePicker = c;
+    this.gravePickerGuard.open(this.overlayGuardTargets());
+  }
+
+  private closeGravePicker(): void {
+    if (!this.gravePicker) return;
+    this.gravePicker.destroy();
+    this.gravePicker = null;
+    this.gravePickerGuard.close();
+    this.maybeAutoSkip();
+    this.endTurnTick();
   }
 
   // ---------------------------------------------------------------------
