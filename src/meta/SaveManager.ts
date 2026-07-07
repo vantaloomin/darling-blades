@@ -111,7 +111,7 @@ export function freshSave(now: number): SaveData {
   };
 }
 
-type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
+type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 const KEY = 'darlingblades.save.v1';
 // The game was renamed WaifuTCG → Darling Blades. Read the legacy key once so
@@ -292,5 +292,22 @@ export class SaveManager {
     } catch {
       // storage full/unavailable — nothing sensible to do in-game
     }
+  }
+
+  /**
+   * Wipe the account to a fresh slate: cancel any pending write, clear both
+   * storage slots (current + legacy), and reset the in-memory blob in place —
+   * the `data` reference is shared with every scene, so it is mutated, not
+   * replaced. UI callers reload the page afterwards so scenes rebuild from the
+   * fresh save (starter picker, zero gold, empty collection).
+   */
+  reset(now = Date.now()): void {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    this.storage.removeItem(KEY);
+    this.storage.removeItem(LEGACY_KEY);
+    Object.assign(this.data, freshSave(now));
   }
 }
