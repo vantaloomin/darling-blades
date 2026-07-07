@@ -1,12 +1,16 @@
 import type { CardDef } from '../cardTypes';
 import { cost } from '../cardTypes';
 
-/** Sorceries — main-phase haymakers, ramp, and recursion. */
+/**
+ * Rituals (the `ritual` card type) — main-phase haymakers, ramp, and recursion.
+ * The `so-` id prefix and the `SORCERIES` export keep the legacy namespace:
+ * card ids are opaque save keys, so they are not renamed.
+ */
 export const SORCERIES = [
   {
     id: 'so-divination',
     name: 'Divination',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(2, 'U'),
     colors: ['U'],
@@ -17,7 +21,7 @@ export const SORCERIES = [
   {
     id: 'so-rampant-growth',
     name: 'Rampant Growth',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(1, 'G'),
     colors: ['G'],
@@ -28,7 +32,7 @@ export const SORCERIES = [
   {
     id: 'so-raise-dead',
     name: 'Raise Dead',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(0, 'B'),
     colors: ['B'],
@@ -41,7 +45,7 @@ export const SORCERIES = [
   {
     id: 'so-lava-axe',
     name: 'Lava Axe',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(4, 'R'),
     colors: ['R'],
@@ -52,7 +56,7 @@ export const SORCERIES = [
   {
     id: 'so-muster-militia',
     name: 'Muster the Militia',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(1, 'W'),
     colors: ['W'],
@@ -63,7 +67,7 @@ export const SORCERIES = [
   {
     id: 'so-nurture',
     name: 'Nurture',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(1, 'G'),
     colors: ['G'],
@@ -80,7 +84,7 @@ export const SORCERIES = [
   {
     id: 'so-night-extortion',
     name: 'Night Extortion',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(1, 'B'),
     colors: ['B'],
@@ -99,7 +103,7 @@ export const SORCERIES = [
   {
     id: 'so-flame-lash',
     name: 'Flame Lash',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(1, 'R'),
     colors: ['R'],
@@ -116,7 +120,7 @@ export const SORCERIES = [
   {
     id: 'so-dirge-of-loss',
     name: 'Dirge of Loss',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(0, 'BB'),
     colors: ['B'],
@@ -127,7 +131,7 @@ export const SORCERIES = [
   {
     id: 'so-parade-of-heroes',
     name: 'Parade of Heroes',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(2, 'W'),
     colors: ['W'],
@@ -138,7 +142,7 @@ export const SORCERIES = [
   {
     id: 'so-strategic-planning',
     name: 'Strategic Planning',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(2, 'UU'),
     colors: ['U'],
@@ -149,7 +153,7 @@ export const SORCERIES = [
   {
     id: 'so-warcry',
     name: 'Warcry',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(1, 'R'),
     colors: ['R'],
@@ -162,7 +166,7 @@ export const SORCERIES = [
   {
     id: 'so-stampede-season',
     name: 'Stampede Season',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(2, 'GG'),
     colors: ['G'],
@@ -178,7 +182,7 @@ export const SORCERIES = [
   {
     id: 'so-judgment-of-heaven',
     name: 'Judgment of Heaven',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(2, 'WW'),
     colors: ['W'],

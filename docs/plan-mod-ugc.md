@@ -221,7 +221,7 @@ conscious decision about whether mods may use it:
 - Creatures require integer `power`/`toughness`; non-creatures must omit them.
 - `cost` required unless `types` includes `land` (mirrors the "absent on lands"
   comment at `types.ts:97`); `cost.generic >= 0`, each pip count `>= 0`.
-- A `spell` ability is only legal on `instant`/`sorcery` types; `etb`/`dies`/
+- A `spell` ability is only legal on `charm`/`ritual` types; `etb`/`dies`/
   `upkeep`/`attacks`/`combatDamageToPlayer` only on permanents.
 - `static` abilities carry a `static` block and no `ops`; non-static abilities
   carry `ops` and no `static` (the `abilityText` renderer in `rulesText.ts:66`

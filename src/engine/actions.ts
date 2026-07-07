@@ -109,7 +109,7 @@ function noncreaturePermCount(state: GameState, db: CardDb, player: PlayerId): n
 function castableNow(state: GameState, player: PlayerId, d: CardDef): boolean {
   const a = state.awaiting;
   if (isType(d, 'land')) return false; // lands are played, not cast
-  const instant = isType(d, 'instant');
+  const instant = isType(d, 'charm');
   if ('player' in a && a.player !== player) return false;
   switch (a.kind) {
     case 'main':
@@ -227,7 +227,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         if (seen.has(cardId)) return;
         seen.add(cardId);
         const d = def(db, cardId);
-        if (!isType(d, 'instant')) return;
+        if (!isType(d, 'charm')) return;
         if (!castableNow(state, player, d)) return;
         if (castBlockers(state, db, player, d) !== null) return;
         pushCastActions(out, state, db, player, handIndex, d);
@@ -407,7 +407,7 @@ export function reasonUncastable(
   }
 
   if (!castableNow(state, player, d)) {
-    if (a.kind === 'respond' || a.kind === 'endStepWindow') return 'Only instants can be cast in response.';
+    if (a.kind === 'respond' || a.kind === 'endStepWindow') return 'Only Charms can be cast in response.';
     if (a.kind === 'main' && player !== state.activePlayer) return 'You can only cast this on your own turn.';
     return "You can't cast this right now.";
   }
@@ -428,7 +428,7 @@ export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerI
   const me = state.players[player];
   return me.hand.some((cardId) => {
     const d = def(db, cardId);
-    if (!isType(d, 'instant')) return false;
+    if (!isType(d, 'charm')) return false;
     if (castBlockers(state, db, player, d) !== null) return false;
     const specs = castTargetSpecs(d);
     return specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0;

@@ -23,8 +23,8 @@ describe('computeDeckStats', () => {
     expect(s.colorPips).toEqual({ W: 1, U: 0, B: 0, R: 1, G: 5 });
     expect(s.typeCounts).toEqual({
       creature: 4,
-      instant: 1,
-      sorcery: 0,
+      charm: 1,
+      ritual: 0,
       enchantment: 1,
       artifact: 0,
       land: 3,

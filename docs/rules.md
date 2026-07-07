@@ -71,7 +71,7 @@ drives the rest via `passStep` and combat actions.
 | **Main 1**  | Active player's main phase: play a land, cast anything, or `passStep` to combat.                    |
 | **Combat**  | Declare attackers → (window) → declare blockers → (window) → damage. See below.                     |
 | **Main 2**  | A second main phase.                                                                                |
-| **End**     | The **non-active** player gets **one** instant window (`endStepWindow`). Passing it → cleanup.      |
+| **End**     | The **non-active** player gets **one** response window (`endStepWindow`). Passing it → cleanup.     |
 | **Cleanup** | Discard to max hand size (7); marked damage and until-end-of-turn effects clear; the turn flips.    |
 
 Notes grounded in `phases.ts`:
@@ -95,7 +95,7 @@ Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
 
 1. **Cast.** The spell is put on the stack (`spellCast`) and `openResponseWindow`
    offers the **opponent** a window over it.
-2. **Auto-pass.** If the opponent has no castable instant *right now*
+2. **Auto-pass.** If the opponent has no castable Charm *right now*
    (`hasCastableInstant` in `src/engine/actions.ts` — payable **and**
    targetable), the window is skipped and the stack flushes immediately. This
    saves clicks and AI calls.

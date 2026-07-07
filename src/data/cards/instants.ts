@@ -1,12 +1,16 @@
 import type { CardDef } from '../cardTypes';
 import { cost } from '../cardTypes';
 
-/** Instants — tricks, burn, and answers across all five colors. */
+/**
+ * Charms (the `charm` card type) — instant-speed tricks, burn, and answers
+ * across all five colors. The `in-` id prefix and the `INSTANTS` export keep
+ * the legacy namespace: card ids are opaque save keys, so they are not renamed.
+ */
 export const INSTANTS = [
   {
     id: 'in-fire-attack',
     name: 'Fire Attack',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'R'),
     colors: ['R'],
@@ -19,7 +23,7 @@ export const INSTANTS = [
   {
     id: 'in-wild-surge',
     name: 'Wild Surge',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'G'),
     colors: ['G'],
@@ -36,7 +40,7 @@ export const INSTANTS = [
   {
     id: 'in-read-the-ruse',
     name: 'Read the Ruse',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'U'),
     colors: ['U'],
@@ -49,7 +53,7 @@ export const INSTANTS = [
   {
     id: 'in-shieldwall',
     name: 'Shieldwall Discipline',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'W'),
     colors: ['W'],
@@ -66,7 +70,7 @@ export const INSTANTS = [
   {
     id: 'in-valley-mist',
     name: 'Valley Mist',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'G'),
     colors: ['G'],
@@ -77,7 +81,7 @@ export const INSTANTS = [
   {
     id: 'in-undertow',
     name: 'Undertow',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'U'),
     colors: ['U'],
@@ -90,7 +94,7 @@ export const INSTANTS = [
   {
     id: 'in-blessed-respite',
     name: 'Blessed Respite',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'W'),
     colors: ['W'],
@@ -101,7 +105,7 @@ export const INSTANTS = [
   {
     id: 'in-grave-chill',
     name: 'Grave Chill',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'B'),
     colors: ['B'],
@@ -118,7 +122,7 @@ export const INSTANTS = [
   {
     id: 'in-boar-rush',
     name: 'Boar Rush',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'R'),
     colors: ['R'],
@@ -135,7 +139,7 @@ export const INSTANTS = [
   {
     id: 'in-tidal-slip',
     name: 'Tidal Slip',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'U'),
     colors: ['U'],
@@ -155,7 +159,7 @@ export const INSTANTS = [
   {
     id: 'in-doom-bolt',
     name: 'Doom Bolt',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'BB'),
     colors: ['B'],
@@ -168,7 +172,7 @@ export const INSTANTS = [
   {
     id: 'in-char',
     name: 'Char',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'R'),
     colors: ['R'],
@@ -181,7 +185,7 @@ export const INSTANTS = [
   {
     id: 'in-stand-as-one',
     name: 'Stand as One',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'W'),
     colors: ['W'],
@@ -192,7 +196,7 @@ export const INSTANTS = [
   {
     id: 'in-sudden-insight',
     name: 'Sudden Insight',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(2, 'U'),
     colors: ['U'],
@@ -203,7 +207,7 @@ export const INSTANTS = [
   {
     id: 'in-skysweeper-gale',
     name: 'Skysweeper Gale',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(2, 'G'),
     colors: ['G'],
@@ -214,7 +218,7 @@ export const INSTANTS = [
   {
     id: 'in-comet-blast',
     name: 'Comet Blast',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'R'),
     colors: ['R'],
@@ -228,7 +232,7 @@ export const INSTANTS = [
   {
     id: 'in-reapers-due',
     name: 'Reaper’s Due',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(2, 'B'),
     colors: ['B'],
@@ -248,7 +252,7 @@ export const INSTANTS = [
   {
     id: 'in-dream-fracture',
     name: 'Dream Fracture',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1, 'UU'),
     colors: ['U'],

@@ -148,7 +148,7 @@ export const RAGNAROK = [
   {
     id: 'rg-ragnarok',
     name: 'Ragnarök',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(4, 'RR'),
     colors: ['R'],
@@ -517,7 +517,7 @@ export const RAGNAROK = [
   {
     id: 'rg-call-the-einherjar',
     name: 'Call the Einherjar',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(2, 'B'),
     colors: ['B'],
@@ -940,7 +940,7 @@ export const RAGNAROK = [
   {
     id: 'rg-read-the-runes',
     name: 'Read the Runes',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(1, 'U'),
     colors: ['U'],
@@ -951,7 +951,7 @@ export const RAGNAROK = [
   {
     id: 'rg-berserkers-fury',
     name: "Berserker's Fury",
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'R'),
     colors: ['R'],

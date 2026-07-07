@@ -385,7 +385,7 @@ export class HardAI implements AIPlayer {
     // instant this game. Kept personality-neutral — combat baselines stay a
     // fair referee.
     const shownInstant = view.opp.graveyard.some((c) =>
-      this.db[c]?.types.includes('instant'),
+      this.db[c]?.types.includes('charm'),
     );
     return shownInstant ? 2 : 0;
   }

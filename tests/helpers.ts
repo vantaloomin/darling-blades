@@ -250,7 +250,7 @@ export const TEST_DB: CardDb = {
   shock: {
     id: 'shock',
     name: 'Shock',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: { generic: 0, pips: { R: 1 } },
     colors: ['R'],
@@ -260,7 +260,7 @@ export const TEST_DB: CardDb = {
   growth: {
     id: 'growth',
     name: 'Giant Growth',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: { generic: 0, pips: { G: 1 } },
     colors: ['G'],
@@ -272,7 +272,7 @@ export const TEST_DB: CardDb = {
   cancel: {
     id: 'cancel',
     name: 'Seen Through',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: { generic: 1, pips: { U: 1 } },
     colors: ['U'],
@@ -282,7 +282,7 @@ export const TEST_DB: CardDb = {
   murder: {
     id: 'murder',
     name: 'Doom Bolt',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: { generic: 1, pips: { B: 1 } },
     colors: ['B'],
@@ -292,7 +292,7 @@ export const TEST_DB: CardDb = {
   blaze: {
     id: 'blaze',
     name: 'Blaze',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: { generic: 0, pips: { R: 1 } },
     colors: ['R'],
@@ -349,7 +349,7 @@ export const TEST_DB: CardDb = {
   fog_spell: {
     id: 'fog_spell',
     name: 'Mist of the Valley',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: { generic: 0, pips: { G: 1 } },
     colors: ['G'],
@@ -444,7 +444,7 @@ export const TEST_DB: CardDb = {
   mill_spell: {
     id: 'mill_spell',
     name: 'Grave Tide',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: { generic: 1, pips: { U: 1 } },
     colors: ['U'],
@@ -454,7 +454,7 @@ export const TEST_DB: CardDb = {
   mill_self_spell: {
     id: 'mill_self_spell',
     name: 'Read the Runes',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: { generic: 0, pips: { U: 1 } },
     colors: ['U'],
@@ -464,7 +464,7 @@ export const TEST_DB: CardDb = {
   reanimate_spell: {
     id: 'reanimate_spell',
     name: 'Call the Einherjar',
-    types: ['sorcery'],
+    types: ['ritual'],
     subtypes: [],
     cost: { generic: 2, pips: { B: 1 } },
     colors: ['B'],

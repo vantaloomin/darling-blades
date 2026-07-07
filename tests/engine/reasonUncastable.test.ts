@@ -35,10 +35,10 @@ describe('reasonUncastable', () => {
     expect(reasonUncastable(s, TEST_DB, 0, 0)).toBe('You have already played a land this turn.');
   });
 
-  it('explains sorcery-speed: a non-instant in a response window', () => {
+  it('explains ritual-speed: a non-Charm in a response window', () => {
     const s = makeTestState({ hands: [['bear'], []], active: 0 });
     s.awaiting = { player: 0, kind: 'respond', over: { type: 'attackers' } };
-    expect(reasonUncastable(s, TEST_DB, 0, 0)).toBe('Only instants can be cast in response.');
+    expect(reasonUncastable(s, TEST_DB, 0, 0)).toBe('Only Charms can be cast in response.');
   });
 
   it('reports when a targeted spell has no legal target', () => {

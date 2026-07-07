@@ -90,7 +90,7 @@ const STAND_IN_DEFS: readonly CardDef[] = [
   {
     id: UNKNOWN_REMOVAL_ID,
     name: 'Unknown Removal',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: { generic: 2, pips: {} },
     colors: [],
@@ -102,7 +102,7 @@ const STAND_IN_DEFS: readonly CardDef[] = [
   {
     id: UNKNOWN_TRICK_ID,
     name: 'Unknown Trick',
-    types: ['instant'],
+    types: ['charm'],
     subtypes: [],
     cost: { generic: 1, pips: {} },
     colors: [],
@@ -180,7 +180,7 @@ function countSeen(db: CardDb, cards: readonly string[]): SeenCounts {
     if (d.token) continue;
     seen.total++;
     if (isType(d, 'land')) seen.lands++;
-    else if (isType(d, 'instant') || isType(d, 'sorcery')) seen.interaction++;
+    else if (isType(d, 'charm') || isType(d, 'ritual')) seen.interaction++;
   }
   return seen;
 }

@@ -16,7 +16,7 @@ export type Keyword =
   | 'bloodoath'
   | 'untouchable';
 
-export type CardType = 'creature' | 'instant' | 'sorcery' | 'enchantment' | 'artifact' | 'land';
+export type CardType = 'creature' | 'charm' | 'ritual' | 'enchantment' | 'artifact' | 'land';
 export type Rarity = 'c' | 'r' | 'sr' | 'ssr' | 'ur';
 
 export interface ManaCost {
@@ -31,7 +31,7 @@ export interface ManaCost {
 // ---------------------------------------------------------------------------
 
 export type TriggerWhen =
-  | 'spell' // instant/sorcery body, runs on resolution
+  | 'spell' // charm/ritual body, runs on resolution
   | 'etb'
   | 'dies'
   | 'upkeep'

@@ -1747,7 +1747,7 @@ export class DuelScene extends Phaser.Scene {
       case 'respond':
       case 'endStepWindow':
         showButton('Pass');
-        hint.setText('You may cast an instant');
+        hint.setText('You may cast a Charm');
         break;
       default:
         break;

@@ -92,7 +92,7 @@ export class MediumAI implements AIPlayer {
     ).length;
     if (open < 2 || view.opp.handCount < 1) return 0;
     const shownInstant = view.opp.graveyard.some((c) =>
-      isType(def(this.db, c), 'instant'),
+      isType(def(this.db, c), 'charm'),
     );
     return shownInstant ? 2 * this.pers.trickRespect : 0;
   }
@@ -265,7 +265,7 @@ export class MediumAI implements AIPlayer {
       //    keeping it simple: cast in whichever main we're in.
       const developable = casts.filter((c) => {
         const d = def(this.db, view.you.hand[c.handIndex]);
-        if (isType(d, 'instant')) return false; // hold tricks for windows
+        if (isType(d, 'charm')) return false; // hold tricks for windows
         if (this.isRemoval(view.you.hand[c.handIndex])) return false; // handled above
         if (d.subtypes.includes('Aura')) {
           const perm = this.targetPerm(view, c.targets?.[0]);
@@ -407,7 +407,7 @@ export class MediumAI implements AIPlayer {
       return (
         (!c.targets || c.targets.length === 0) &&
         this.opBodies(view.you.hand[c.handIndex]).some((o) => o.op === 'draw') &&
-        isType(d, 'instant')
+        isType(d, 'charm')
       );
     });
     return freebie ?? pass;

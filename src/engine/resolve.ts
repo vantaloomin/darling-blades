@@ -52,7 +52,7 @@ export function resolveStackItem(
     return;
   }
 
-  if (isType(d, 'instant') || isType(d, 'sorcery')) {
+  if (isType(d, 'charm') || isType(d, 'ritual')) {
     for (const ab of d.abilities ?? []) {
       if (ab.when === 'spell' && ab.ops) {
         runOps(

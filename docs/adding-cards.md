@@ -21,8 +21,8 @@ Card definitions live in per-set files under `src/data/cards/`:
 | `tk-other.ts`     | Three Kingdoms — "Other" officers       | `tk-other-` |
 | `greek.ts`        | Greek pantheon / Olympus                | `gk-`       |
 | `beastkin.ts`     | Beastkin                                | `bk-`       |
-| `instants.ts`     | Instants                               | `in-`       |
-| `sorceries.ts`    | Sorceries                              | `so-`       |
+| `instants.ts`     | Charms (`charm` type; `in-` legacy id) | `in-`       |
+| `sorceries.ts`    | Rituals (`ritual` type; `so-` legacy) | `so-`       |
 | `enchantments.ts` | Auras + banners                         | `en-`       |
 | `artifacts.ts`    | Artifacts / constructs                  | `ar-`       |
 | `duals.ts`        | Dual taplands                           | `ld-`       |
@@ -56,7 +56,7 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | ------------- | -------------------------------------- | --------------------------------------------------------------------- |
 | `id`          | `string`                               | Unique; must carry its set prefix.                                    |
 | `name`        | `string`                               | Display name.                                                         |
-| `types`       | `CardType[]`                           | `creature`/`instant`/`sorcery`/`enchantment`/`artifact`/`land`. Multi-type allowed (e.g. artifact + creature). |
+| `types`       | `CardType[]`                           | `creature`/`charm`/`ritual`/`enchantment`/`artifact`/`land`. Multi-type allowed (e.g. artifact + creature). |
 | `subtypes`    | `string[]`                             | Free strings — tribe/role (e.g. `['Beastkin', 'Kitsune']`, `['Aura']`). Lords filter on these. |
 | `supertypes`  | `('legendary' \| 'basic')[]?`          | `legendary` enables the crown + legend rule; `basic` marks basic lands. |
 | `cost`        | `ManaCost?`                            | Absent on lands. Use the `cost()` shorthand (below).                  |
@@ -142,7 +142,7 @@ An `AbilityDef` (`src/engine/types.ts`) is one of: a **triggered/spell** ability
 
 | `when`                   | Fires…                                                     |
 | ------------------------ | --------------------------------------------------------- |
-| `spell`                  | as the body of an instant/sorcery, on resolution.         |
+| `spell`                  | as the body of a charm/ritual, on resolution.             |
 | `etb`                    | when the permanent enters the battlefield.                |
 | `dies`                   | when the permanent dies.                                  |
 | `upkeep`                 | at the start of the controller's upkeep.                  |
@@ -339,13 +339,13 @@ statics) and check the generated wording by opening the **Card Showcase** scene
 },
 ```
 
-**Removal instant** — destroys target creature (`in-doom-bolt`, `instants.ts`):
+**Removal Charm** — destroys target creature (`in-doom-bolt`, `instants.ts`):
 
 ```ts
 {
   id: 'in-doom-bolt',
   name: 'Doom Bolt',
-  types: ['instant'],
+  types: ['charm'],
   subtypes: [],
   cost: cost(1, 'BB'),
   colors: ['B'],
@@ -363,7 +363,7 @@ statics) and check the generated wording by opening the **Card Showcase** scene
 {
   id: 'in-comet-blast',
   name: 'Comet Blast',
-  types: ['instant'],
+  types: ['charm'],
   subtypes: [],
   cost: cost(0, 'R'),
   colors: ['R'],
@@ -388,21 +388,21 @@ target (`en-wings-of-dawn`, `enchantments.ts`):
   cost: cost(1, 'W'),
   colors: ['W'],
   abilities: [
-    { when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['flying'] } },
+    { when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['skyborne'] } },
   ],
   rarity: 'r',
   flavor: 'Standard-issue miracle, size medium.',
 },
 ```
 
-**Token maker** — a sorcery that makes tokens (`so-muster-militia`,
+**Token maker** — a ritual that makes tokens (`so-muster-militia`,
 `sorceries.ts`); the token itself is defined in `tokens.ts`:
 
 ```ts
 {
   id: 'so-muster-militia',
   name: 'Muster the Militia',
-  types: ['sorcery'],
+  types: ['ritual'],
   subtypes: [],
   cost: cost(1, 'W'),
   colors: ['W'],
