@@ -345,19 +345,29 @@ export class GauntletScene extends Phaser.Scene {
       );
     }
 
-    // Abandon Run (two-click confirm) — only while a run is in progress. On its
-    // own line below the fight/locked line (not to the right of it): the armed
-    // "Click again to confirm" label is wide and, placed rightward, would run
+    // Abandon Run (two-click confirm) — only while a run is in progress. Now a
+    // distinct destructive button (was a bare text link) set well below Fight
+    // (y 556 vs 456): their inflated 90px hit rects were near-adjacent, so a
+    // slip could abandon instead of fight. Kept below the fight line, not to its
+    // right — the armed "Click again to confirm" label is wide and would run
     // under the tower rail.
     if (Services.save.data.gauntlet.run) {
       const abandon = this.add
-        .text(textX, 510, 'Abandon Run', {
+        .text(textX, 556, 'Abandon Run', {
           fontFamily: 'Inter, Arial, sans-serif',
           fontSize: '15px',
-          color: '#a06a6a',
+          color: '#f0b0b0',
+          backgroundColor: '#3a1f28',
+          padding: { x: 16, y: 8 },
         })
         .setOrigin(0, 0)
         .setInteractive({ useHandCursor: true });
+      abandon.on('pointerover', (p: Phaser.Input.Pointer) => {
+        if (!p.wasTouch) abandon.setColor('#ffd0d0');
+      });
+      abandon.on('pointerout', (p: Phaser.Input.Pointer) => {
+        if (!p.wasTouch && !this.abandonArmed) abandon.setColor('#f0b0b0');
+      });
       this.abandonBtn = abandon;
       // Destructive: keeps its two-tap arm/confirm on top of tap classification.
       bindTapButton(this, abandon, () => this.onAbandon());
