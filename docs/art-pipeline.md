@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, src/data/art-manifest.json · last-verified: 2026-07-05
+<!-- source-of-truth: src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, src/data/art-manifest.json · last-verified: 2026-07-06
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -89,12 +89,14 @@ To replace a card's placeholder with a real illustration:
    changes; no 404s (the file is in the manifest, so it's requested; unlisted
    files are never requested).
 
-Current status: **ALL 152 art-bible entries have real art on disk**
-(`public/assets/art/cards/`, every one listed in `src/data/art-manifest.json`
-with a matching half-res variant in `cards-half/`), so no card renders a
-procedural placeholder anymore — the placeholder path remains as the fallback
-for future cards. The run completed 2026-07-03; see the run status at the end
-of the next section.
+Current status: **every card in the pool has real art on disk** — all **282**
+entries (`public/assets/art/cards/`, every one listed in
+`src/data/art-manifest.json` with a matching half-res variant in `cards-half/`),
+so no card renders a procedural placeholder anymore — the placeholder path
+remains as the fallback for future cards. The original 152-entry base-set run
+completed 2026-07-03 (see the run status at the end of the next section); the
+Ragnarök expansion (69 collectibles + 3 tokens) was generated afterward via the
+`ragnarok` art-bible faction plus `gen-spell-art` coverage.
 
 ### Generating real art: `scripts/gen-card-art.ts`
 
@@ -171,13 +173,16 @@ ART_RECT band, with any figure secondary — and its negatives harden the NO-TEX
 rule specifically against stamped banner-text/seal-glyphs/nameplates (the
 banner, seal, and oath cards invite them). Output goes to the same
 `public/assets/art/cards/` at 640×800, so the manifest and resolver pick spell
-PNGs up automatically. Together with the land program this closes the pool:
-**every one of the 210 cards** (147 creatures + 15 lands + 43 spells) now has a
-real illustration; only pre-generation the card falls back to its
-type-palette procedural placeholder.
+PNGs up automatically. Together with the land program this closed the base set:
+**all 210 base-set cards** (147 creatures + 15 lands + 43 spells) got real
+illustrations, and the later Ragnarök run extended the same drivers over the
+expansion — so **every one of the 282 cards** now has real art; only
+pre-generation does a card fall back to its type-palette procedural placeholder.
 
-**Run status (2026-07-03): COMPLETE — 152/152 on disk** (plus 152 half-res
-variants and the 11 scene assets). The run paused twice on the same root
+**Base-set run status (2026-07-03): COMPLETE — 152/152 on disk** (plus 152
+half-res variants and the 11 scene assets); the Ragnarök expansion art was
+generated in a later run, bringing the on-disk total to **282** (+282 half-res).
+The base run paused twice on the same root
 cause: four concurrent lanes raced the CLI's OAuth token refresh at expiry
 and invalidated the credential. **Concurrency across a token refresh is a
 documented no-go** — after the user re-authenticated (`codex login`), the
@@ -243,12 +248,13 @@ The window is 264×192 at full card scale; multiply by the consumer's scale:
 | Duel hand (fan)     | 0.4–0.46    | ~106 × 77 – ~121 × 88   |
 
 **Battlefield permanents don't use `CardView`** (2026-07-03 board redesign) —
-they render as compact `BoardCardView` tiles (`src/ui/BoardCardView.ts`) with
-their own landscape **128×88** art window. The tile cover-crops the source
-with the crop band biased *upward* — the top offset is
-`(srcH − cropH) · 0.38` instead of centered — so for a 640×800 source the
-tile shows the **y ≈ 137 → 577** band, keeping the composition-locked faces
-(eye line y 340–400) in frame at tile size.
+they render as compact `BoardCardView` tiles (`src/ui/BoardCardView.ts`, a
+132×146 tile) whose art window is the whole tile inset by a 4px frame margin:
+a **near-square 124×138** window (`ART_W`×`ART_H`). The tile cover-crops the
+source with the crop band biased slightly *upward* — the top offset is
+`(srcH − cropH) · 0.3` instead of centered — so for a 640×800 source the tile
+shows roughly the **y ≈ 26 → 738** band (~89% of the source height), keeping
+the composition-locked faces (eye line y 340–400) in frame at tile size.
 
 ## Holo finishes & per-finish shaders
 

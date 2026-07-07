@@ -1,11 +1,12 @@
-<!-- source-of-truth: src/config/rules.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/cards/greek.ts, src/data/cards/tk-wei.ts, src/data/cards/tk-wu.ts, src/data/cards/tk-shu.ts, src/data/cards/tk-jin.ts, src/data/cards/tk-other.ts, src/data/cards/beastkin.ts, src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/duals.ts, src/meta/deckFace.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/ui/CommanderPortrait.ts, src/scenes/DuelScene.ts, src/ai/personality.ts · last-verified: 2026-07-05 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/config/rules.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/cards/greek.ts, src/data/cards/tk-wei.ts, src/data/cards/tk-wu.ts, src/data/cards/tk-shu.ts, src/data/cards/tk-jin.ts, src/data/cards/tk-other.ts, src/data/cards/beastkin.ts, src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/duals.ts, src/meta/deckFace.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/ui/CommanderPortrait.ts, src/scenes/DuelScene.ts, src/ai/personality.ts · last-verified: 2026-07-06 · design/plan doc — re-verify when the referenced code changes -->
 
 # Commander Mode — a Darling-Blades EDH format
 
 A single-player "Commander" mode: the player picks a **legendary creature as their
 commander**, plays a purpose-built themed deck led by that legend, and duels a
 roster of 8 rival commander decks. This adapts MTG Commander/EDH to Darling
-Blades' 210-card pool, its LIFO stack, and its headless deterministic engine —
+Blades' card pool (210 base + the 69-card Ragnarök set that shipped 2026-07-06 =
+**279 collectible cards**), its LIFO stack, and its headless deterministic engine —
 choosing format numbers that fit *this* pool rather than importing paper Magic's
 100-singleton/40-life shape wholesale. This plan defines the format, ships 8
 distinct themed decks as pure data, wires a mode entry through the existing
@@ -16,8 +17,10 @@ duel/gauntlet plumbing, and handles the `SaveData` schema bump.
 Paper Commander is **100-card singleton, 40 life, a command zone, commander tax,
 and color-identity deckbuilding**. Three of those collide with this codebase:
 
-1. **Pool size.** The collectible pool is 210 cards across 5 colors + 3 faction
-   groups (roadmap.md: "C 103 / R 65 / SR 13 / SSR 11 / UR 8 booster-eligible").
+1. **Pool size.** The collectible pool is 279 cards (210 base + 69 Ragnarök)
+   across 5 colors + 4 faction groups (roadmap.md rarity split "C 103 / R 65 /
+   SR 13 / SSR 11 / UR 8" describes the 210-card base set; Ragnarök adds a Norse
+   faction and graveyard/reanimator cards on top).
    A 100-card *singleton* deck in a single color identity would drain most of a
    color's playable creatures and every relevant spell — there simply are not 99
    distinct on-color nonland cards for, say, mono-U. A 60-card frame keeps the
@@ -180,8 +183,10 @@ each names. Two options:
   `save.decks` array (they are already `{id,name,cards}`), and add **one new
   optional field** `commanderId?: string` to that deck record plus an
   `activeCommanderDeckId: string | null` alongside `activeDeckId`. This is an
-  additive schema change → **bump `SaveData.version` 5 → 6** with a real
-  `migrate()` step (v5 → v6 spreads `activeCommanderDeckId: null`; existing deck
+  additive schema change → **bump `SaveData.version`** with a real
+  `migrate()` step (the `5 → 6` here is illustrative — the live schema is already
+  at **v9** as of 2026-07-06, so this lands as `9 → 10`; the new step spreads
+  `activeCommanderDeckId: null`; existing deck
   records without `commanderId` are left as-is — Constructed decks) and a
   migration test in `tests/meta/`. Per the iron invariant, the version bump ships
   with the migration + test.
@@ -292,9 +297,11 @@ Each milestone ends runnable/testable.
   protection/recursion; framing in-game copy sets expectations. A full command
   zone remains a possible v2, but it is an *engine* change (breaks the purity/
   determinism/save surface) and is out of scope here.
-- **Singleton + a 210 pool strains thin colors.** Mono-color commanders (Zhuge
+- **Singleton + a ~280 pool strains thin colors.** Mono-color commanders (Zhuge
   Liang U, Zeus R) have the fewest distinct on-color playables; they lean on
-  colorless artifacts and basics to hit 60. If a deck can't be made compelling
+  colorless artifacts and basics to hit 60 (the Ragnarök set eases this a little
+  by adding on-color creatures, especially U/B graveyard cards). If a deck can't
+  be made compelling
   at singleton, relax that *one* deck to "≤2 copies of non-commander non-basics"
   — a per-format knob, not a rule change.
 - **Balance variance.** Singleton decks are swingier; the AI may pilot them a

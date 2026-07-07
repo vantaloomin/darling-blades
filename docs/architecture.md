@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/LandStackView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts · last-verified: 2026-07-05
+<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/LandStackView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts · last-verified: 2026-07-06
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -73,7 +73,8 @@ Other facade methods:
 `{ decks, seed, db }`. The engine never imports `src/data/catalog.ts`; it only
 ever reads the `db` it was handed. This is what lets tests inject a tiny pool —
 `TEST_DB` in `tests/helpers.ts` is ~40 cards, and every engine test runs against
-it. Production passes `CARD_DB` (210 cards).
+it. Production passes `CARD_DB` (282 cards — the 210-card `base` set plus the
+69-card + 3-token Ragnarök expansion).
 
 ## The event stream
 
@@ -171,7 +172,7 @@ Boot → Preload → MainMenu → { Gauntlet→Duel, Duel, Shop→PackOpening, C
   then starts MainMenu.
 - **MainMenu** (`MainMenuScene.ts`) — the menu + starter picker.
 - **Gauntlet** (`GauntletScene.ts`) — the Avatar Gauntlet ladder, reached from
-  the MainMenu "Avatar Gauntlet" item; shows the eight rungs and launches
+  the MainMenu "Avatar Gauntlet" item; shows the ten rungs and launches
   gauntlet duels.
 - **Duel / Shop / PackOpening / Collection / DeckBuilder / Showcase** — the
   feature scenes.
@@ -263,17 +264,17 @@ stage backdrop shows through around two inset zone plates). Layout regions (the
 Seven dedicated ui components carry the board:
 
 - **`BoardCardView`** (`src/ui/BoardCardView.ts`) — a compact 132×146
-  battlefield tile with a vertically-stacked layout: a **framed art window**
-  (6px inset border so the cover-cropped, upward-biased art sits inside the
-  frame, not spilling over it) → a **name strip** below the art → an
-  **effective-P/T plate below the name** (no overlap; the whole stack fits
-  within the tile's bounds). The P/T badge is color-coded by state (damaged /
+  battlefield tile whose **art fills the whole tile** (a near-square 124×138
+  window inset by a 4px frame margin, cover-cropped with a slight upward bias)
+  with the readouts **overlaid** on it: a translucent **name-scrim band + name
+  text**, and an **effective-P/T badge in the bottom-right corner**
+  (creatures only). The P/T badge is color-coded by state (damaged /
   buffed / weakened / normal, fed from `getEffectiveStats`); a `✦N` badge marks
-  attached auras; 90° tap rotation and highlight states mirror the old
-  full-card tint predicates (legal target, selected/declared attacker, blocker,
-  eligible). A **summoning-sick** creature (entered this turn, no haste — the
-  engine's `isSummoningSick` is the source of truth) gets a moonlight-swirl
-  badge baked into the art's top-right corner and a slight art fade
+  attached auras (top-left corner); 90° tap rotation and highlight states mirror
+  the old full-card tint predicates (legal target, selected/declared attacker,
+  blocker, eligible). A **summoning-sick** creature (entered this turn, no
+  haste — the engine's `isSummoningSick` is the source of truth) gets a
+  moonlight-swirl badge in the art's top-right corner and a slight art fade
   (`setSummoningSick`), so a glance shows which creatures can't attack yet; the
   fade rides the art's own alpha, independent of the container-alpha enter/exit
   tweens and the highlight tint. Every non-land permanent that isn't an attached aura gets a tile —
@@ -367,13 +368,13 @@ anywhere:
   Phaser registry or event bus. It holds a single `SaveManager`. Tests construct
   their own `SaveManager` with a fake storage instead.
 - **`SaveManager`** (`SaveManager.ts`) — one versioned JSON blob
-  (`SaveData`, `version: 5`) in `localStorage` under the key `darlingblades.save.v1`.
+  (`SaveData`, `version: 9`) in `localStorage` under the key `darlingblades.save.v1`.
   The key is a storage slot name, not the schema version — the version lives
   inside the blob, and the key deliberately never changes so older builds and
   newer builds read the same slot (the legacy `waifutcg.save.v1` key is still
   read once for save migration — see `src/meta/SaveManager.ts`). Writes are debounced (`touch()` → 250 ms →
   `flush()`); corrupt or missing data falls back to a fresh save. Any blob that
-  isn't `version: 5` routes through `migrate()`, which forward-migrates
+  isn't `version: 9` routes through `migrate()`, which forward-migrates
   **stepwise** so a v1 save walks the whole chain: v1 → v2 (gold / collection /
   decks / stats / settings preserved, `gauntlet` defaults spread in), then
   v2 → v3 (grows `settings.musicOn`, defaulting on), then v3 → v4 (seeds
@@ -382,9 +383,13 @@ anywhere:
   `{ volume, sfxOn, musicOn, animations, renderScale, autoSkip }`, dropping the
   dead `animSpeed` field), then v4 → v5 (coerces the removed
   `renderScale: 'auto'` — and any out-of-range value — to the hard-coded
-  1080p default; explicit 720p/1080p/1440p choices pass through); an unknown or
-  garbage version starts fresh rather than crash. Storage is injected, so tests
-  pass a plain object.
+  1080p default; explicit 720p/1080p/1440p choices pass through), then
+  v5 → v6 (adds `heroCardId`, and seeds any in-progress gauntlet run a
+  deterministic `seed`), then v6 → v7 (adds `settings.confirmDestructive`,
+  default on), then v7 → v8 (adds `settings.keywordReminders`, default on),
+  then v8 → v9 (adds the premium `heroPortraitId`, default `null`); an unknown
+  or garbage version starts fresh rather than crash. Storage is injected, so
+  tests pass a plain object.
 - **Economy functions** (`Economy.ts`) — `applyMatchResult`, `spendGold`,
   `todayString`; all constants come from `ECONOMY` in `src/config/rules.ts`.
 - **`variants`** (`variants.ts`) — the multi-axis drop system: `FrameStyle` /
@@ -402,7 +407,9 @@ anywhere:
   aggregate). Plain dupes past the `PLAYSET` melt to gold; special variants
   are always kept.
 - **`DeckStorage`** (`DeckStorage.ts`) — `validateDeck` (60 cards, ≤4 copies,
-  owned, no tokens) and `saveDeck`.
+  owned, no tokens) and `saveDeck`, plus the multi-deck ops
+  (`generateDeckId`, `copyDeck`, `renameDeck`, `deleteDeck`) behind the
+  saved-deck picker.
 
 ## Determinism & RNG — two separate streams
 
@@ -445,7 +452,7 @@ card once (throwaway `CardView` → `DynamicTexture` → destroy) and hands the
 grids single lightweight `Image`s (`makeCardThumb`); the duel's land stacks
 (`LandStackView`) reuse the same baked thumbs. Textures live in the
 game-global `TextureManager`, so they survive scene restarts; baking is lazy
-per cell and the ~210-card pool bounds the cache. Thumbs are always `fx:'none'`
+per cell and the ~280-card pool bounds the cache. Thumbs are always `fx:'none'`
 static snapshots — the inspect overlays keep constructing live `CardView`s with
 full FX. Being plain Images (not Containers), thumbs can be `setInteractive()`'d
 directly without the `CardView` Zone-child hit-area workaround.

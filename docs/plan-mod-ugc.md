@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-05 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-06 · design/plan doc — re-verify when the referenced code changes -->
 
 # Mod / UGC pack system
 
@@ -19,9 +19,9 @@ game via `new Game({ decks, seed, db: CARD_DB })` and into the AI via
 `buildAI(difficulty, CARD_DB, …)` (both wired in `src/scenes/DuelScene.ts:277-278`).
 The engine never imports the catalog — it only knows the `CardDb` handed to it.
 Every effect a card can have is a member of the closed `EffectOp` union
-(`src/engine/types.ts:45-61`) interpreted by `runOp` in
+(`src/engine/types.ts:46-64`) interpreted by `runOp` in
 `src/engine/effects/EffectInterpreter.ts`; every keyword is a member of the
-closed `Keyword` union (`types.ts:6-16`). The AI's card heuristic
+closed `Keyword` union (`types.ts:6-17`). The AI's card heuristic
 (`src/ai/value.ts` `cardValue`/`permValue`) reads only `CardDef` fields —
 `cost`, `power`, `toughness`, `keywords`, `abilities` — with **no hardcoded id
 list anywhere**. Therefore any card whose `CardDef` is built from the existing
@@ -195,16 +195,23 @@ assertion that they cover the union exhaustively (a `satisfies` check plus a
 conscious decision about whether mods may use it:
 
 - **Keywords** — every entry of `keywords` and every `pump.keywords` /
-  `static.grantKeywords` entry ∈ `{flying, reach, firstStrike, haste, trample,
-  vigilance, defender, deathtouch, lifelink, hexproof}` (`types.ts:6-16`).
-- **Effect ops** — every op's `op` field ∈ the 15-member set
+  `static.grantKeywords` entry ∈ `{flying, reach, firstStrike, doubleStrike,
+  haste, trample, vigilance, defender, deathtouch, lifelink, hexproof}`
+  (`types.ts:6-17`; Ragnarök added `doubleStrike` 2026-07-06, so the whitelist
+  is now eleven keywords).
+- **Effect ops** — every op's `op` field ∈ the 18-member set
   `{damage, gainLife, loseLife, draw, discardRandom, destroy, bounce, counter,
-  pump, addCounters, tap, rampBasic, createToken, massDestroy, fog, regrowth}`
-  (`types.ts:45-61`). Beyond the tag, each op's **payload** is validated
+  pump, addCounters, tap, rampBasic, createToken, massDestroy, fog, regrowth,
+  mill, reanimate}` (`types.ts:46-64`; Ragnarök added `mill`/`reanimate`
+  2026-07-06). Beyond the tag, each op's **payload** is validated
   field-by-field against its variant: e.g. `damage.to ∈ {target, opponent,
   controller}`, `damage.n` is a non-negative integer or the literal `"X"`,
   `massDestroy.filter ∈ {allCreatures, allFliers}`, `pump.scope ∈ {target,
-  allYours}`. An unknown field on an op is rejected (no smuggling extra data).
+  allYours}`, `mill.who ∈ {self, opponent}`, `reanimate.to ∈ {target, top}`.
+  An unknown field on an op is rejected (no smuggling extra data). **Note:**
+  `mill`/`reanimate` are graveyard-reanimator ops — a mod that whitelists them
+  gains the Ragnarök archetype for free; decide per the exhaustiveness gate
+  whether packs may use them.
 - **Triggers** — every ability `when` ∈ `TriggerWhen`
   (`types.ts:32-39`); `targets[].what` ∈ the `TargetSpec` set
   (`types.ts:41-43`); `static.scope ∈ {attached, filter}`.
@@ -292,8 +299,10 @@ holds its own db reference).
 
 ## SaveData / schema impact
 
-Bump `SaveData.version` `5 → 6` with a real `migrate()` v5→v6 step + test
-(`src/meta/SaveManager.ts`). New fields:
+Bump `SaveData.version` with a real `migrate()` step + test
+(`src/meta/SaveManager.ts`). The `5 → 6` below is illustrative — the live schema
+is already at **v9** (as of 2026-07-06), so this lands as `9 → 10` whenever it
+ships; read every "v5→v6" here as "the next version bump." New fields:
 
 ```ts
 mods: {

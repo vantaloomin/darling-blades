@@ -1,4 +1,4 @@
-<!-- source-of-truth: index.html, vite.config.ts, package.json, src/main.ts, src/scenes/, src/ui/CardZoomPreview.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/scenes/SettingsScene.ts, src/ui/fx/FXSupport.ts, src/audio/AudioManager.ts, src/meta/SaveManager.ts, src/meta/services.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/engine/types.ts, src/ai/AIPlayer.ts, src/ai/determinize.ts, src/art/ArtResolver.ts, src/config/rules.ts · last-verified: 2026-07-05 · plan doc — grounded in the 2026-07-02/03 mobile audits; re-verify when each tier ships -->
+<!-- source-of-truth: index.html, vite.config.ts, package.json, src/main.ts, src/scenes/, src/ui/CardZoomPreview.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/scenes/SettingsScene.ts, src/ui/fx/FXSupport.ts, src/audio/AudioManager.ts, src/meta/SaveManager.ts, src/meta/services.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/engine/types.ts, src/ai/AIPlayer.ts, src/ai/determinize.ts, src/art/ArtResolver.ts, src/config/rules.ts · last-verified: 2026-07-06 · plan doc — grounded in the 2026-07-02/03 mobile audits; Tier 1 shipped (2026-07-06 status note below), Tier 2 still a plan; re-verify when each tier ships -->
 
 # Mobile / LAN plan
 
@@ -11,7 +11,15 @@ coordinates cited below predate the 1a "Immersive Fan" relayout — the touch
 SEMANTICS they document (gesture rules, 90px floors, guard behavior) shipped
 and still hold, but positions moved; see architecture.md "The duel board" for
 current geometry.** Each tier ends runnable and testable on its own, per the
-playbook (§3). This is a plan — nothing here is implemented yet.
+playbook (§3). **Status (2026-07-06): Tier 1 has since shipped** — LAN serving
+(`npm run play:lan` → `scripts/serve-lan.ts`, statically serving the build with
+a terminal QR via the `qrcode-terminal` dep), the self-hosted webfonts
+(`public/assets/fonts/*.woff2`, the CDN links are gone), and the touch-gesture
+layer (`src/platform/gestureCore.ts` + `src/platform/gestures.ts`, note the
+`src/platform/` seat rather than the `src/ui/` one this plan proposed) are all
+live. **Tier 2 (LAN PvP) is not built** — there is still no `src/net/`,
+`server/`, or `pvp` script — so §2 below remains the live design spec, and the
+Tier 1 sections read as historical design record for what shipped.
 
 ## Goals
 

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-05
+<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-06
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -28,6 +28,7 @@ Card definitions live in per-set files under `src/data/cards/`:
 | `duals.ts`        | Dual taplands                           | `ld-`       |
 | `lands.ts`        | Basic lands                             | `land-`     |
 | `tokens.ts`       | Tokens (non-collectible)                | `tok-`      |
+| `ragnarok.ts`     | Ragnarök expansion                      | `rg-`       |
 
 Each file exports a `const` array typed
 `... as const satisfies readonly CardDef[]` and imports the `cost()` shorthand
@@ -62,7 +63,7 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `colors`      | `Color[]`                              | `W`/`U`/`B`/`R`/`G`. Drives the frame. **Multicolor nonland cards must be legendary** (enforced by a catalog test). |
 | `power`       | `number?`                              | Creatures only.                                                       |
 | `toughness`   | `number?`                              | Creatures only.                                                       |
-| `keywords`    | `Keyword[]?`                           | The ten keywords (see [rules.md](rules.md)).                          |
+| `keywords`    | `Keyword[]?`                           | The eleven keywords (see [rules.md](rules.md)).                       |
 | `x`           | `{ min: number }?`                     | Marks an X spell; `min` is the smallest legal X.                       |
 | `abilities`   | `AbilityDef[]?`                        | Triggered/static/spell abilities (below).                            |
 | `manaAbility` | `Color[]?`                             | Lands and mana creatures — the colors this source can tap for.        |

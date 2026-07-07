@@ -1,8 +1,9 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/engine/statics.ts, docs/rules.md, src/data/cards/beastkin.ts, src/data/cards/greek.ts, tests/engine/keywords.test.ts · last-verified: 2026-07-05 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/engine/statics.ts, docs/rules.md, src/data/cards/beastkin.ts, src/data/cards/greek.ts, tests/engine/keywords.test.ts · last-verified: 2026-07-06 · design/plan doc — re-verify when the referenced code changes -->
 
 # Keyword rethemes — a Darling Blades voice for the evergreen abilities
 
-The engine speaks Magic: ten evergreen keywords named exactly as WotC named them.
+The engine speaks Magic: eleven evergreen keywords named exactly as WotC named them
+(ten at first draft; the Ragnarök expansion added `doubleStrike` 2026-07-06).
 This plan renames them into the Darling Blades register (Three Kingdoms honor,
 Greek myth, Beastkin instinct — blades, oaths, and legend) the way Hearthstone
 turned *defender* into **Taunt** and *haste* into **Charge**. **The rules do not
@@ -13,10 +14,12 @@ data, AI, and determinism completely untouched.
 
 ## The real keyword set (inventoried from code)
 
-The authoritative list is the `Keyword` union in `src/engine/types.ts:6-16`.
-There are exactly **ten** keywords, and every one is actually used on a card
+The authoritative list is the `Keyword` union in `src/engine/types.ts:6-17`.
+There are now exactly **eleven** keywords (Ragnarök added `doubleStrike`
+2026-07-06), and every one is actually used on a card
 (confirmed by grepping `keywords: [` across `src/data/cards/*.ts` — beastkin,
-greek, and tk-other carry all ten; instants/sorceries also grant `haste`,
+greek, and tk-other carry the base ten; `doubleStrike` lives on the Ragnarök /
+"deepening" duelists; instants/sorceries also grant `haste`,
 `trample`, `firstStrike` via the `pump` op). None are dead.
 
 | Engine id (`types.ts`) | Rule (from `docs/rules.md:177-186` + implementation) | Where the rule lives |
@@ -24,6 +27,7 @@ greek, and tk-other carry all ten; instants/sorceries also grant `haste`,
 | `flying` | Blockable only by flying/reach | `combat/legality.ts` (`canBlock`) |
 | `reach` | May block fliers; no other effect | `combat/legality.ts` |
 | `firstStrike` | Strikes in the first-strike sub-step; no double strike | `combat/damage.ts`, `CombatState.phase` |
+| `doubleStrike` | Strikes in both the first-strike and normal sub-steps | `combat/damage.ts` |
 | `haste` | Ignores summoning sickness | `statics.ts` (`isSummoningSick`) |
 | `trample` | Assigns lethal to blockers, spills excess to player | `combat/damage.ts` |
 | `vigilance` | Attacking does not tap | `phases.ts`/`actions.ts` |
@@ -34,8 +38,10 @@ greek, and tk-other carry all ten; instants/sorceries also grant `haste`,
 
 **Evergreen keywords the game deliberately omits** (not in the union — do not
 add them under a themed name, that would be a new engine feature, not a rename):
-double strike, indestructible, menace, ward, protection, flash, defender's
-cousin *reach* is present but menace is not. `hexproof` here is the
+indestructible, menace, ward, protection, flash; defender's
+cousin *reach* is present but menace is not. (`doubleStrike` used to be on this
+list; Ragnarök promoted it to a real engine keyword 2026-07-06, so it now needs
+a themed name too — see the rename table.) `hexproof` here is the
 *one-sided* variant (see `rules.md:186`), which the reminder text must respect.
 
 ## Proposed rename table
@@ -50,6 +56,7 @@ rules-facing surface, so it must match `docs/rules.md` exactly).
 | `flying` | **Skyborne** | *(Can only be blocked by creatures with Skyborne or Warding Gaze.)* | Airborne without saying "flying"; myth-friendly (harpies, Pegasus, cranes). |
 | `reach` | **Warding Gaze** | *(Can block creatures with Skyborne.)* | An archer/sentinel watching the sky — pairs with Skyborne by name. |
 | `firstStrike` | **First Blade** | *(Deals combat damage before creatures without First Blade.)* | Literal blade-drawing image; "first" preserved for teachability. |
+| `doubleStrike` | **Twin Blades** | *(Deals combat damage both before and alongside creatures without First Blade.)* | Ragnarök keyword; pairs with First Blade by name — the two-edit two-step. Alt: **Twinstrike**. |
 | `haste` | **Warcry** | *(Can attack and tap the turn it arrives.)* | A rallying charge; fits generals and beastkin. Alt: **Onslaught**. |
 | `trample` | **Overrun** | *(Excess combat damage past blockers hits the defending player.)* | Cavalry/chariot breaking a line. Alt: **Breakthrough**. |
 | `vigilance` | **Sentinel** | *(Attacking does not tap this creature.)* | The guard who never lowers their guard; honor register. |

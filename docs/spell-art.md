@@ -1,10 +1,11 @@
-<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/ui/CardView.ts · last-verified: 2026-07-05 -->
+<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/ui/CardView.ts · last-verified: 2026-07-06 -->
 
 # Darling Blades Art Bible — Spells (Instants · Sorceries · Enchantments · the Jade Seal)
 
-This file is the **binding contract** for the art of the **52 non-creature spell
-cards** — the 18 instants, 14 sorceries, 10 enchantments, and the single
-non-creature artifact (`ar-imperial-jade-seal`). The 152-entry creature art-bible
+This file is the **binding contract** for the art of the base set's **43 non-creature
+spell cards** — the 18 instants, 14 sorceries, 10 enchantments, and the single
+non-creature artifact (`ar-imperial-jade-seal`) — plus the 9-card Ragnarök addendum
+below, for 52 entries in all. The 215-entry creature art-bible
 (`docs/art-bible/`) covers creatures, tokens, and the Construct creatures; it does
 **not** cover these cards, which otherwise render procedural placeholders. Every rule
 below is grounded in the source files named in the header comment. When this document
