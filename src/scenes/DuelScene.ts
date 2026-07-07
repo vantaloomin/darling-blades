@@ -194,7 +194,10 @@ export class DuelScene extends Phaser.Scene {
   private inspectGuard = new ModalGuard();
   private inspectMove: ((p: Phaser.Input.Pointer) => void) | null = null;
   private zoom!: CardZoomPreview;
-  private concedeBtn!: Phaser.GameObjects.Text;
+  private menuBtn!: Phaser.GameObjects.Text;
+  /** In-game pause/menu overlay (Resume · quick toggles · Concede) + its guard. */
+  private pauseOverlay: Phaser.GameObjects.Container | null = null;
+  private pauseGuard = new ModalGuard();
   /** Two-tap concede guard (settings.confirmDestructive); armed by the first tap. */
   private concedeArmed = false;
   private discardPicks = new Set<number>();
@@ -610,30 +613,19 @@ export class DuelScene extends Phaser.Scene {
       }
     });
 
-    // Moved inboard from (1236, 704): the audited spot sat 16px from the
-    // canvas corner, inside phone browsers' edge-gesture zone (plan §1.4).
-    // Touch protection: taps route through the gesture classifier, so a drag
-    // or long-press ending here can never concede — only a deliberate tap
-    // (still gated on it being your decision) does.
-    this.concedeBtn = this.add
-      .text(1206, 688, 'Concede', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12px', color: '#a06a6a' })
+    // ⚙ Menu: opens the in-game pause overlay (Resume · quick toggles ·
+    // Concede). Replaces the always-on corner Concede text — concede now lives
+    // one tap deeper in the menu, decluttering the board HUD (playtest
+    // feedback). Same inboard corner spot (audited off the edge-gesture zone).
+    this.menuBtn = this.add
+      .text(1206, 688, '⚙ Menu', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12px', color: '#c9bde0' })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
-    bindTapButton(this, this.concedeBtn, (p) => {
-      // Never concede off a right-click — it's the inspect/cancel gesture.
-      if (p.rightButtonReleased()) return;
-      if (this.ended || !this.isHumanTurnDecision()) return;
-      // Destructive (a gauntlet loss ends the whole run): two-tap arm → confirm,
-      // unless the player opted out via settings.confirmDestructive.
-      if (Services.save.data.settings.confirmDestructive && !this.concedeArmed) {
-        this.concedeArmed = true;
-        this.concedeBtn.setText('Tap to confirm').setColor('#f08a8a');
-        inflateHitArea(this.concedeBtn, 90, 90); // relabeled — regrow the custom hit area
-        return;
-      }
-      this.act({ type: 'concede' });
+    bindTapButton(this, this.menuBtn, (p) => {
+      if (p.rightButtonReleased()) return; // right-click is inspect/cancel
+      this.showPauseMenu();
     });
-    inflateHitArea(this.concedeBtn, 90, 90);
+    inflateHitArea(this.menuBtn, 90, 90);
 
     // Auto-skip notice: floats in the gap between the two zone plates.
     // Strictly NON-interactive — never setInteractive'd, so there is no Text
@@ -933,7 +925,7 @@ export class DuelScene extends Phaser.Scene {
     this.autoSkipTimer = this.time.delayedCall(300, () => {
       this.autoSkipTimer = null;
       if (this.ended) return;
-      if (this.overlay || this.inspect || this.pendingCasts) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay) return;
       if (!this.isHumanTurnDecision()) return;
       // Re-evaluate fresh — the state may have moved while we waited (e.g.
       // the player clicked the smart button during the delay).
@@ -978,7 +970,7 @@ export class DuelScene extends Phaser.Scene {
   /** Enter end-turn mode: fast-forward the rest of your turn (see endTurnTick). */
   private startEndTurn(): void {
     if (this.ended || !this.isHumanTurnDecision()) return;
-    if (this.pendingCasts || this.overlay || this.inspect) return;
+    if (this.pendingCasts || this.overlay || this.inspect || this.pauseOverlay) return;
     this.endingTurn = true;
     this.log('Ending turn…');
     this.endTurnTick();
@@ -1007,7 +999,7 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     // Overlays / targeting / an opponent sub-decision: wait, stay armed, resume.
-    if (this.overlay || this.inspect || this.pendingCasts) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay) return;
     if (!this.isHumanTurnDecision()) return;
     if (!this.endTurnPassAction()) return; // pause at a decision needing real input
     this.endTurnTimer = this.time.delayedCall(180, () => {
@@ -1017,7 +1009,7 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       // Re-check fresh — the player may have opened an overlay during the wait.
-      if (this.overlay || this.inspect || this.pendingCasts) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay) return;
       if (!this.isHumanTurnDecision()) return;
       const action = this.endTurnPassAction();
       if (!action) return;
@@ -2191,6 +2183,146 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------
+  // In-game pause / settings menu (⚙): Resume · quick toggles · Concede
+  // ---------------------------------------------------------------------
+
+  /**
+   * Modal pause overlay behind the ⚙ button. Houses the moved Concede (two-tap,
+   * still gated on it being your decision) plus quick Auto-skip / Sound / Music
+   * toggles so the player can adjust mid-duel without leaving to Settings (which
+   * would restart the duel). Never opens over a mulligan/pick or inspect overlay.
+   */
+  private showPauseMenu(): void {
+    if (this.ended || this.overlay || this.inspect || this.pauseOverlay) return;
+    // Only during your own decision window — never over a pick/inspect overlay,
+    // mid-combat animation, or the AI's turn. That keeps the game from ending
+    // behind the overlay (which would double-guard the board with the results
+    // overlay) and means Concede is always valid while the menu is open.
+    if (this.animatingCombat || !this.isHumanTurnDecision()) return;
+    this.concedeArmed = false;
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(105);
+    const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive();
+    dim.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonReleased()) return;
+      this.closePauseMenu(); // tap outside the plate resumes
+    });
+    c.add(dim);
+    c.add(this.add.rectangle(width / 2, height / 2, 420, 430, 0x140f24, 0.96).setStrokeStyle(1.5, 0x3a2f5c));
+    c.add(
+      this.add
+        .text(width / 2, 200, 'Menu', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '34px', color: '#f0e6ff' })
+        .setOrigin(0.5),
+    );
+
+    const chip = (
+      label: string,
+      y: number,
+      cb: (t: Phaser.GameObjects.Text) => void,
+      color = '#e8def7',
+      bg = '#3a2f5c',
+    ): Phaser.GameObjects.Text => {
+      const t = this.add
+        .text(width / 2, y, label, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '20px',
+          color,
+          backgroundColor: bg,
+          padding: { x: 18, y: 9 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, t, (p) => {
+        if (p.rightButtonReleased()) return;
+        cb(t);
+      });
+      inflateHitArea(t, 90, 60);
+      c.add(t);
+      return t;
+    };
+    const toggleStyle = (t: Phaser.GameObjects.Text, on: boolean): void => {
+      t.setStyle(
+        on
+          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
+          : { color: '#c9bde0', backgroundColor: '#241d3a' },
+      );
+      inflateHitArea(t, 90, 60); // setStyle changed the text box — re-inflate
+    };
+    const onOff = (v: boolean): string => (v ? 'On' : 'Off');
+
+    chip('Resume', 260, () => this.closePauseMenu(), '#ffd88a');
+
+    const s = Services.save.data.settings;
+    const autoChip = chip(`Auto-skip: ${onOff(s.autoSkip)}`, 318, (t) => {
+      s.autoSkip = !s.autoSkip;
+      Services.save.touch();
+      this.syncAutoToggle();
+      t.setText(`Auto-skip: ${onOff(s.autoSkip)}`);
+      toggleStyle(t, s.autoSkip);
+      if (s.autoSkip) this.maybeAutoSkip();
+    });
+    toggleStyle(autoChip, s.autoSkip);
+    const sfxChip = chip(`Sound: ${onOff(s.sfxOn)}`, 376, (t) => {
+      s.sfxOn = !s.sfxOn;
+      Services.save.touch();
+      t.setText(`Sound: ${onOff(s.sfxOn)}`);
+      toggleStyle(t, s.sfxOn);
+      if (s.sfxOn) Sfx.play('click');
+    });
+    toggleStyle(sfxChip, s.sfxOn);
+    const musicChip = chip(`Music: ${onOff(Music.enabled)}`, 434, (t) => {
+      Music.setEnabled(!Music.enabled);
+      t.setText(`Music: ${onOff(Music.enabled)}`);
+      toggleStyle(t, Music.enabled);
+    });
+    toggleStyle(musicChip, Music.enabled);
+
+    chip(
+      'Concede',
+      506,
+      (t) => {
+        if (this.ended || !this.isHumanTurnDecision()) {
+          t.setText('Not your turn to concede');
+          inflateHitArea(t, 90, 60);
+          return;
+        }
+        // Two-tap (a gauntlet loss ends the run) unless opted out.
+        if (Services.save.data.settings.confirmDestructive && !this.concedeArmed) {
+          this.concedeArmed = true;
+          t.setText('Tap to confirm').setColor('#f08a8a');
+          inflateHitArea(t, 90, 60);
+          return;
+        }
+        this.tearDownPauseMenu();
+        this.act({ type: 'concede' });
+      },
+      '#f0b0b0',
+      '#3a1f28',
+    );
+
+    this.pauseOverlay = c;
+    this.pauseGuard.open(this.overlayGuardTargets());
+  }
+
+  /** Destroy the pause overlay + restore board input (no play-resume side effects). */
+  private tearDownPauseMenu(): void {
+    if (!this.pauseOverlay) return;
+    this.pauseOverlay.destroy();
+    this.pauseOverlay = null;
+    this.pauseGuard.close();
+    this.concedeArmed = false;
+  }
+
+  /** Resume from the pause overlay: tear it down, then rejoin any paused flow. */
+  private closePauseMenu(): void {
+    if (!this.pauseOverlay) return;
+    this.tearDownPauseMenu();
+    this.maybeAutoSkip(); // a pause paused a pending skip chain — resume it
+    this.endTurnTick(); // …and a paused end-turn fast-forward
+  }
+
+  // ---------------------------------------------------------------------
   // Overlays: mulligan / bottoming / discard / results
   // ---------------------------------------------------------------------
 
@@ -2208,7 +2340,7 @@ export class DuelScene extends Phaser.Scene {
       this.hud.stack,
       this.hud.myLife,
       this.hud.oppLife,
-      this.concedeBtn,
+      this.menuBtn,
       this.endTurnBtn,
       this.autoToggle,
       this.history.tab, // deaden the history slide-out tab under modal overlays
@@ -2307,8 +2439,8 @@ export class DuelScene extends Phaser.Scene {
     for (const v of this.handViews) v.setVisible(false);
     for (const o of this.handDecor) (o as Phaser.GameObjects.Arc).setVisible(false);
     // Local two-tap arm for the overlay's own Concede button (isolated from the
-    // corner concedeBtn's state — the overlay is rebuilt each syncOverlay, so a
-    // fresh flag per overlay is exactly the right lifetime).
+    // pause-menu Concede's `concedeArmed` state — the overlay is rebuilt each
+    // syncOverlay, so a fresh flag per overlay is exactly the right lifetime).
     let overlayConcedeArmed = false;
     buttons.forEach((label, bi) => {
       const bx = width / 2 - ((buttons.length - 1) * 180) / 2 + bi * 180;
