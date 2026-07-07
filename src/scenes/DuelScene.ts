@@ -331,7 +331,8 @@ export class DuelScene extends Phaser.Scene {
     // create(); the old history auto-destroys on the scene SHUTDOWN it hooks,
     // and the old combatFx's objects/timers died with the previous scene. Built
     // BEFORE processEvents so the opening turnBegan lines land in the history.
-    this.history = new HistoryPanel(this);
+    // A cardId'd history row taps through to the full-card inspect overlay.
+    this.history = new HistoryPanel(this, (cardId) => this.showInspect(def(CARD_DB, cardId)));
     this.combatFx = new CombatFx(this);
     // No-op on gauntlet rung-to-rung restarts — the duel bed keeps flowing.
     Music.setMood('duel');
@@ -1093,13 +1094,13 @@ export class DuelScene extends Phaser.Scene {
         const v = this.views.get(e.iid);
         if (v) {
           const who = e.owner === HUMAN ? 'Your' : 'Enemy';
-          this.log(`${who} ${def(CARD_DB, e.cardId).name} died`);
+          this.log(`${who} ${def(CARD_DB, e.cardId).name} died`, e.cardId);
         }
         break;
       }
       case 'spellCast':
         Sfx.play('cast');
-        this.log(`${e.controller === HUMAN ? 'You cast' : 'Opponent casts'} ${def(CARD_DB, e.cardId).name}`);
+        this.log(`${e.controller === HUMAN ? 'You cast' : 'Opponent casts'} ${def(CARD_DB, e.cardId).name}`, e.cardId);
         // The commander cheers your plays (1a "waifu reacts to plays"); the
         // opponent's cast is hidden from hand, so flash the card so the player
         // can actually see what was played.
@@ -1114,7 +1115,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       case 'landPlayed':
         Sfx.play('land');
-        if (e.player === AI) this.log(`Opponent plays ${def(CARD_DB, e.cardId).name}`);
+        if (e.player === AI) this.log(`Opponent plays ${def(CARD_DB, e.cardId).name}`, e.cardId);
         break;
       case 'attackersDeclared': {
         if (e.iids.length > 0) Sfx.play('attack');
@@ -1247,16 +1248,16 @@ export class DuelScene extends Phaser.Scene {
     for (const iid of step.deaths) {
       Sfx.play('death');
       const info = diedInfo.get(iid);
-      if (info) this.log(`${info.owner === HUMAN ? 'Your' : 'Enemy'} ${def(CARD_DB, info.cardId).name} died`);
+      if (info) this.log(`${info.owner === HUMAN ? 'Your' : 'Enemy'} ${def(CARD_DB, info.cardId).name} died`, info.cardId);
     }
   }
 
-  private log(msg: string): void {
+  private log(msg: string, cardId?: string): void {
     // The rail's log slot is a narrow (96px) column — long card names would
     // wrap into a tall block. Truncate for the rail; the History panel keeps
-    // the full line.
+    // the full line (and, given a cardId, makes the row tappable to inspect it).
     this.hud.log.setText(msg.length > 40 ? msg.slice(0, 39) + '…' : msg);
-    this.history?.push(msg);
+    this.history?.push(msg, cardId);
   }
 
   private float(x: number, y: number, text: string, color: string): void {
