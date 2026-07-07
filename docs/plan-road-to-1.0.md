@@ -1,18 +1,23 @@
-<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-05 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-06 · design/plan doc — re-verify when the referenced code changes -->
 
 # Road to 1.0 — five new features
 
-> **Update (2026-07-05):** the baseline moved on. `SaveData` is now **v6**
-> (the v5 → v6 hero-image bump shipped), so this doc's v5 → v10 migration walk
-> is off by one — read every "vN → vN+1" below as one higher. Of the four
-> "shipping this session" candidates, **three shipped** (hero-image selection,
-> manual shard/sell, gauntlet run-seed); only sequenced combat animations was
-> already partly done earlier. Day-to-day quality-of-life gaps (search, keyword
-> glossary, undo, bulk packs, …) are tracked separately in
-> [plan-qol.md](plan-qol.md).
+> **Update (2026-07-06):** the baseline has moved on substantially. `SaveData`
+> is now **v9** (hero-image v6, then the QOL waves + the Wave-B shop restructure
+> carried it to v9), so this doc's illustrative v5 → v10 migration walk is off by
+> four — read every "vN" below as "the next free version after v9," i.e. the five
+> features would land at v10 → v14 (or fewer bumps if folded). The four
+> "shipping this session" candidates all shipped (hero-image, shard/sell,
+> gauntlet run-seed, sequenced combat). The **Ragnarök expansion shipped
+> 2026-07-06** (69 cards, `doubleStrike` + `mill`/`reanimate`), enlarging the
+> pool to 279. The **quality-of-life pass shipped 2026-07-06** ([plan-qol.md](plan-qol.md));
+> it deliberately did **not** take Features 4 (deck share codes / replays) or 5
+> (achievements) — QOL defers both to this doc, so all five features below remain
+> unbuilt and owned here. Day-to-day QOL gaps (search, keyword glossary, undo,
+> bulk packs, …) are the QOL plan's, not this one's.
 
-Darling Blades is playable end-to-end, art-complete, and stable (370 tests
-green, `SaveData` v6 — see the update note above). What separates the current build from a polished 1.0 is
+Darling Blades is playable end-to-end, art-complete, and stable (491 tests pass
++ 3 skip across 48 files, `SaveData` v9 — see the update note above). What separates the current build from a polished 1.0 is
 not more systems but the connective tissue that turns a working prototype into a
 game people keep coming back to: a **reason to log in tomorrow**, a **first
 session that teaches**, a **shareable moment**, a **content mode with high
@@ -436,7 +441,8 @@ Darling Blades is release-ready when:
   real-device mobile pass (both already tracked in roadmap.md's Planned section)
   are done.
 - **The invariants still hold** — engine purity, redacted views, seeded
-  determinism, and green migrations/tests through the whole v5→v10 walk.
+  determinism, and green migrations/tests through the whole version walk (the
+  illustrative v5→v10 below is now v10→v14 off the live v9 baseline).
 
 Deliberately **out of scope for 1.0** (post-launch): Tier-2 LAN PvP (already
 deferred in mobile-lan-plan.md), draft (the pick-loop; sealed ships first), and a

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/src/lib.rs, src-tauri/capabilities/default.json, src/platform/desktopWindow.ts, package.json, vite.config.ts · last-verified: 2026-07-04 · re-verify when the Tauri config or build scripts change -->
+<!-- source-of-truth: src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/src/lib.rs, src-tauri/capabilities/default.json, src/platform/desktopWindow.ts, package.json, vite.config.ts · last-verified: 2026-07-06 · re-verify when the Tauri config or build scripts change -->
 
 # Desktop build (Tauri)
 
@@ -85,8 +85,10 @@ Output of `app:build`:
 
 ## The asset weight
 
-`public/assets/art/` is ~260 MB (210 full-res + 210 half-res card arts + scene
-backdrops), all copied into `dist/` and bundled into the installer, so the setup
+`public/assets/art/` is ~350 MB (282 full-res + 282 half-res card arts — the
+210-card base pool plus the 69-card Ragnarök expansion and effect tokens — plus
+scene backdrops and the hero portrait), all copied into `dist/` and bundled into
+the installer, so the setup
 `.exe` is correspondingly large (hundreds of MB). That is expected for a
 fully-offline art-complete game; if a lean installer is ever wanted, the lever is
 shipping only the half-res set (the `lite` tier art) rather than trimming code.

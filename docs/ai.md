@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-05
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-06
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -239,7 +239,8 @@ be judged on the same 200-game gate.
 
 An **avatar/personality system** (shipped 2026-07-02) layers tunable knobs over these
 three brains — themed opponents with their own aggression/greed dials, without
-rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 8 avatars with decks and tunings live in `src/data/opponents.ts`.
+rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 10 avatars with decks and tunings live in `src/data/opponents.ts` (the base
+8 plus the two Ragnarök gauntlet bosses, Hel and Brünhild).
 
 Balance is measured, not guessed: `scripts/balance-matrix.ts`
 (`npm run balance-matrix`) runs deterministic avatar-vs-starter, starter-mirror,

@@ -1,9 +1,9 @@
-<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/ui/CardView.ts · last-verified: 2026-07-05 -->
+<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/ui/CardView.ts · last-verified: 2026-07-06 -->
 
 # Land Art — Direction + Generation Contract
 
 The 15 **land cards** — 5 basic lands and 10 dual taplands — get their own art
-program here. The 152-entry creature art bible (`docs/art-bible/index.md`)
+program here. The 215-entry creature art bible (`docs/art-bible/index.md`)
 covers creatures and tokens only; without the entries below, lands render the
 deterministic procedural placeholder. This document is the **binding contract**
 for authoring land art and the parse source for the generation driver

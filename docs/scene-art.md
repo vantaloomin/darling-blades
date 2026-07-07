@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-05 -->
+<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-06 -->
 
 # Scene & Menu Art — Direction + Integration Contract
 
@@ -151,7 +151,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 - **Prompt:** Abstract dark exhibition void, a polished black floor plane catching a faint cool reflection across the bottom of frame, a single soft god-ray falling from high center into empty space, drifting dust motes, deep indigo-black gradient walls with no architecture and no objects, pristine museum stillness — crisp cel-shaded gacha anime environment art, 1280×720 stage backdrop
 
 ### Boot Loading Backdrop — `scene-preload`
-- **Role:** *Optional — added by this program's judgment as missing for "final"; integration may ship without it.* Behind `PreloadScene`'s "Unsheathing Blades… N%" label at (640,360). Special load order: this file must be queued by `BootScene` (the manifest JSON is a build-time import, so Boot can check it) since Preload's own queue is what it decorates.
+- **Role:** Behind `PreloadScene`'s "Unsheathing Blades… N%" label at (640,360). Special load order: this file is queued by `BootScene` (the manifest JSON is a build-time import, so Boot can check it) since Preload's own queue is what it decorates.
 - **Deliverable:** 1280×720 PNG (landscape stage).
 - **Mood & palette:** The quietest asset: near-black void (`#0d0a14` family) with the faintest indigo nebula haze.
 - **Composition & safe zones:** A handful of dim stars toward the edges, an almost imperceptible horizon glow at the very bottom; the entire center is empty darkness (the label sits dead center).
@@ -184,22 +184,26 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ## 3. Integration contract
 
-Integration is a **later task**; this section defines the contract it
-implements. Nothing below exists in code yet except where noted.
+This section defines the integration contract — **now implemented** in
+`src/ui/SceneBackdrop.ts` (`applyBackdrop` / `sceneTextureKey`, called at the
+top of every scene's `create()`), with the loader in `PreloadScene`/`BootScene`
+and the two bake-function consumers in `CardFrameFactory`/`ShopScene`. All 11
+assets are generated (`scripts/gen-scene-art.ts`), on disk under
+`public/assets/art/scenes/`, and manifest-listed; the descriptions below match
+what shipped.
 
 ### Files & manifest
 
 - Assets land at **`public/assets/art/scenes/<asset-key>.png`** (the filename
   minus `.png` is the asset key from the section-2 heading). This is where
   `scripts/gen-scene-art.ts` writes.
-- **Mechanism (proposed): extend `scripts/gen-art-manifest.ts`** to also scan
-  the scenes folder and emit a `scenes` array alongside `cards` in
-  `src/data/art-manifest.json` (additive — `ArtResolver` reads only `.cards`,
-  so the change is backward-compatible). `PreloadScene` then queues
-  `load.image('scene-<key>', 'assets/art/scenes/<key>.png')` for each listed
-  key — the card-manifest discipline exactly: only manifest-listed files are
-  ever requested, zero runtime 404s. Until integration lands, PNGs on disk
-  are inert (nothing requests them).
+- **Mechanism (implemented): `scripts/gen-art-manifest.ts`** scans the scenes
+  folder and emits a `scenes` array alongside `cards`/`half` in
+  `src/data/art-manifest.json` (additive — `ArtResolver` reads only
+  `.cards`/`.half`, so the change is backward-compatible). `PreloadScene` then
+  queues `load.image('scene-<key>', 'assets/art/scenes/<key>.png')` for each
+  listed key — the card-manifest discipline exactly: only manifest-listed files
+  are ever requested, zero runtime 404s.
 - Texture-key convention: **`scene-<asset-key>`** for all entries, including
   `scene-card-back` and `scene-pack-art` (uniform loader; their consumers are
   the two bake functions, not scene backgrounds).

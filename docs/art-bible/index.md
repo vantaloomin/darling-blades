@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts · last-verified: 2026-07-05 -->
+<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts · last-verified: 2026-07-06 -->
 
 # Darling Blades Art Bible — Index (The Contract)
 

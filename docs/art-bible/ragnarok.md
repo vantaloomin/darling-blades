@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/ragnarok.ts · last-verified: 2026-07-05 -->
+<!-- source-of-truth: src/data/cards/ragnarok.ts · last-verified: 2026-07-06 -->
 
 # Darling Blades Art Bible — Ragnarök (`rg`)
 

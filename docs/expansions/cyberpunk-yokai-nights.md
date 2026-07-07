@@ -1,4 +1,4 @@
-<!-- Source of truth placeholder: future src/data/cards/cyberpunk-yokai-nights.ts - design draft, not implemented - last-verified: 2026-07-05 -->
+<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-06 · concept doc — future expansion, not implemented (planned src/data/cards/cyberpunk-yokai-nights.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
 
 # Expansion 6 - Cyberpunk Yokai Nights: Neon Shrine
 
