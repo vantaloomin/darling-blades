@@ -1314,7 +1314,7 @@ export class DuelScene extends Phaser.Scene {
 
     // Phase rail (1a left-edge pills): turn number, current step, whose turn.
     const stepNames: Record<string, string> = {
-      untap: 'Untap', upkeep: 'Upkeep', draw: 'Draw', main1: 'Main 1',
+      untap: 'Untap', dawn: 'Dawn', draw: 'Draw', main1: 'Main 1',
       combat: 'Combat', main2: 'Main 2', end: 'End Step', cleanup: 'Cleanup',
     };
     const yours = st.turn !== 0 && st.activePlayer === HUMAN;

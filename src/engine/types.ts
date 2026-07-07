@@ -32,9 +32,9 @@ export interface ManaCost {
 
 export type TriggerWhen =
   | 'spell' // charm/ritual body, runs on resolution
-  | 'etb'
+  | 'arrives'
   | 'dies'
-  | 'upkeep'
+  | 'dawn'
   | 'combatDamageToPlayer'
   | 'attacks'
   | 'static';
@@ -175,7 +175,7 @@ export interface CombatState {
 
 export type Step =
   | 'untap'
-  | 'upkeep'
+  | 'dawn'
   | 'draw'
   | 'main1'
   | 'combat'

@@ -14,7 +14,7 @@ export const TK_WU = [
     attack: 3,
     defense: 4,
     abilities: [
-      { when: 'etb', ops: [{ op: 'draw', n: 1 }] },
+      { when: 'arrives', ops: [{ op: 'draw', n: 1 }] },
       {
         when: 'static',
         static: { scope: 'filter', filter: { subtype: 'Wu', other: true }, p: 0, t: 1 },
@@ -33,7 +33,7 @@ export const TK_WU = [
     colors: ['U', 'R'],
     attack: 2,
     defense: 3,
-    abilities: [{ when: 'etb', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'sr',
     flavor: 'One southeast wind, one borrowed fleet, one very bright night.',
   },

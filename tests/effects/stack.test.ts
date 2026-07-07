@@ -233,7 +233,7 @@ describe('spell bodies, X, auras, triggers, fog', () => {
         attack: 5,
         defense: 3,
         abilities: [
-          { when: 'upkeep' as const, ops: [{ op: 'damage' as const, n: 1, to: 'controller' as const }] },
+          { when: 'dawn' as const, ops: [{ op: 'damage' as const, n: 1, to: 'controller' as const }] },
         ],
         rarity: 'sr' as const,
       },

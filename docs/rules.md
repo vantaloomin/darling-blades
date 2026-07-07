@@ -60,13 +60,13 @@ starting player active.
 
 ## Turn structure
 
-`startTurn` runs untap → upkeep → draw, then hands control to main 1. The player
+`startTurn` runs untap → dawn → draw, then hands control to main 1. The player
 drives the rest via `passStep` and combat actions.
 
 | Step        | What happens                                                                                       |
 | ----------- | -------------------------------------------------------------------------------------------------- |
 | **Untap**   | The active player's permanents untap; summoning sickness wears off; the land-drop flag resets.     |
-| **Upkeep**  | The active player's `upkeep` triggers fire and resolve immediately. **No response window.**        |
+| **Dawn**    | The active player's `dawn` triggers fire and resolve immediately. **No response window.**           |
 | **Draw**    | The active player draws one — **except the starting player on turn 1**, who skips it.               |
 | **Main 1**  | Active player's main phase: play a land, cast anything, or `passStep` to combat.                    |
 | **Combat**  | Declare attackers → (window) → declare blockers → (window) → damage. See below.                     |
@@ -76,7 +76,7 @@ drives the rest via `passStep` and combat actions.
 
 Notes grounded in `phases.ts`:
 
-- Upkeep triggers resolve with **no priority window** — they just happen (v1
+- Dawn triggers resolve with **no priority window** — they just happen (v1
   triggers never target, so there is no decision to make).
 - The **draw skip** is exactly `state.turn === 1 && active === startingPlayer`.
 - At **cleanup**, if the active player is over 7 cards, the engine awaits
@@ -258,7 +258,7 @@ Magic:
 | Area              | Darling Blades                                                                                 | Magic (for reference)                                   |
 | ----------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | Priority / stack  | One response window per cast; the first pass flushes the whole stack with no more windows.     | Full priority passing after every object resolves.      |
-| Upkeep triggers   | Resolve immediately, no window.                                                                | Go on the stack, players get priority.                  |
+| Dawn triggers     | Resolve immediately, no window.                                                                | Go on the stack, players get priority.                  |
 | End-step window   | Exactly one window, for the non-active player only.                                            | Priority in the end step for both players.              |
 | Triggers          | **Never target** (v1 law); auto-resolve with no decision point.                                | Triggers may target and use the stack.                  |
 | Targeted effects  | **Single-target only** (`targets[0]`).                                                          | Arbitrary target counts.                                |

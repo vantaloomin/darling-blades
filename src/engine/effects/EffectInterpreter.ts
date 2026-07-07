@@ -171,7 +171,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const perm = enterBattlefield(state, db, op.token, ctx.controller, emit, {
           asToken: true,
         });
-        fireTriggers(state, db, emit, 'etb', perm);
+        fireTriggers(state, db, emit, 'arrives', perm);
       }
       return;
     }
@@ -243,7 +243,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       if (count >= RULES.maxCreatures) return;
       const [cardId] = grave.splice(index, 1);
       const perm = enterBattlefield(state, db, cardId, ctx.controller, emit);
-      fireTriggers(state, db, emit, 'etb', perm);
+      fireTriggers(state, db, emit, 'arrives', perm);
       return;
     }
   }

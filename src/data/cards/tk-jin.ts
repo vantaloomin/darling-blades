@@ -36,7 +36,7 @@ export const TK_JIN = [
     attack: 2,
     defense: 3,
     keywords: ['deathblade'],
-    abilities: [{ when: 'etb', ops: [{ op: 'draw', n: 1 }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'sr',
     flavor: 'She says little. She has already said everything that mattered.',
   },
@@ -53,7 +53,7 @@ export const TK_JIN = [
     keywords: ['deathblade'],
     abilities: [
       {
-        when: 'etb',
+        when: 'arrives',
         ops: [
           { op: 'loseLife', n: 2, who: 'opponent' },
           { op: 'gainLife', n: 2 },
@@ -110,7 +110,7 @@ export const TK_JIN = [
     colors: ['G'],
     attack: 2,
     defense: 3,
-    abilities: [{ when: 'etb', ops: [{ op: 'rampBasic' }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'rampBasic' }] }],
     rarity: 'r',
     flavor: 'Farms in peacetime, farms in wartime. Mountains are just taller fields.',
   },

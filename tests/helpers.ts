@@ -319,7 +319,7 @@ export const TEST_DB: CardDb = {
     colors: ['B'],
     attack: 1,
     defense: 2,
-    abilities: [{ when: 'etb', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'c',
   },
   fox_mother: {

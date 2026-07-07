@@ -111,12 +111,12 @@ function abilityText(ab: AbilityDef): string {
   switch (ab.when) {
     case 'spell':
       return `${cap}.`;
-    case 'etb':
-      return `When this enters the battlefield, ${body}.`;
+    case 'arrives':
+      return `When this arrives, ${body}.`;
     case 'dies':
       return `When this dies, ${body}.`;
-    case 'upkeep':
-      return `At the beginning of your upkeep, ${body}.`;
+    case 'dawn':
+      return `At the start of your turn, ${body}.`;
     case 'combatDamageToPlayer':
       return `Whenever this deals combat damage to a player, ${body}.`;
     case 'attacks':
