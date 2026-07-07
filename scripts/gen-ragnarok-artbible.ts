@@ -44,7 +44,7 @@ function colorStr(card: CardDef): string {
 
 function factsLine(card: CardDef): string {
   const legendary = card.supertypes?.includes('legendary') ?? false;
-  const parts = [costStr(card.cost), colorStr(card), `${card.power}/${card.toughness}`];
+  const parts = [costStr(card.cost), colorStr(card), `${card.attack}/${card.defense}`];
   if (card.keywords?.length) parts.push(card.keywords.join(', '));
   parts.push(`${card.rarity}${legendary ? ', legendary' : ''}`);
   parts.push(`holo: ${HOLO[card.rarity]}`);

@@ -39,7 +39,7 @@ export function cardValue(db: CardDb, cardId: string): number {
   const d = def(db, cardId);
   let v = manaValue(d.cost);
   if (isType(d, 'creature')) {
-    v += ((d.power ?? 0) + (d.toughness ?? 0)) / 2;
+    v += ((d.attack ?? 0) + (d.defense ?? 0)) / 2;
     v += keywordScore(d.keywords ?? []);
   }
   if (isLordOrLegendary(db, cardId)) v += 1;
@@ -59,7 +59,7 @@ export function permValue(
   let v = manaValue(d.cost);
   if (isType(d, 'creature')) {
     const stats = getEffectiveStats(battlefield, db, iid);
-    v += (stats.power + Math.max(0, stats.toughness - perm.damage)) / 2;
+    v += (stats.attack + Math.max(0, stats.defense - perm.damage)) / 2;
     v += keywordScore(stats.keywords);
   }
   if (isLordOrLegendary(db, perm.cardId)) v += 1;

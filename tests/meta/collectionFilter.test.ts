@@ -30,8 +30,8 @@ function card(id: string, over: Partial<CardDef> = {}): CardDef {
     colors: ['G'],
     rarity: 'c',
     cost: { generic: 1, pips: { G: 1 } },
-    power: 1,
-    toughness: 1,
+    attack: 1,
+    defense: 1,
     ...over,
   };
 }
@@ -40,10 +40,10 @@ const POOL: CardDef[] = [
   card('g_bear', { name: 'Bear' }), // G creature, c, mv2
   card('g_giant', { name: 'Giant', cost: { generic: 3, pips: { G: 1 } }, rarity: 'r' }), // mv4
   card('w_knight', { name: 'Knight', colors: ['W'], cost: { generic: 1, pips: { W: 1 } } }),
-  card('u_bolt', { name: 'Bolt', types: ['charm'], colors: ['U'], cost: { generic: 0, pips: { U: 1 } }, power: undefined, toughness: undefined, rarity: 'sr' }), // mv1
-  card('b_rite', { name: 'Rite', types: ['ritual'], colors: ['B'], cost: { generic: 2, pips: { B: 1 } }, power: undefined, toughness: undefined, rarity: 'ur' }), // mv3
-  card('gw_aura', { name: 'Aura', types: ['enchantment'], colors: ['G', 'W'], cost: { generic: 0, pips: { G: 1, W: 1 } }, power: undefined, toughness: undefined, rarity: 'ssr' }), // mv2
-  card('dual_land', { name: 'Grove', types: ['land'], colors: [], cost: undefined, power: undefined, toughness: undefined, rarity: 'r' }), // mv0
+  card('u_bolt', { name: 'Bolt', types: ['charm'], colors: ['U'], cost: { generic: 0, pips: { U: 1 } }, attack: undefined, defense: undefined, rarity: 'sr' }), // mv1
+  card('b_rite', { name: 'Rite', types: ['ritual'], colors: ['B'], cost: { generic: 2, pips: { B: 1 } }, attack: undefined, defense: undefined, rarity: 'ur' }), // mv3
+  card('gw_aura', { name: 'Aura', types: ['enchantment'], colors: ['G', 'W'], cost: { generic: 0, pips: { G: 1, W: 1 } }, attack: undefined, defense: undefined, rarity: 'ssr' }), // mv2
+  card('dual_land', { name: 'Grove', types: ['land'], colors: [], cost: undefined, attack: undefined, defense: undefined, rarity: 'r' }), // mv0
 ];
 
 function saveWith(collection: Record<string, number>): SaveData {

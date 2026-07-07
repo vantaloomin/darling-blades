@@ -116,7 +116,7 @@ function dealCombatDamage(
   for (const attackerIid of combat.attackers) {
     if (!alive(attackerIid) || !strikesNow(attackerIid)) continue;
     const stats = getEffectiveStats(state.battlefield, db, attackerIid);
-    if (stats.power <= 0) continue;
+    if (stats.attack <= 0) continue;
     const kw = stats.keywords;
     const wasBlocked = combat.blocks.some((b) => b.attacker === attackerIid);
     const livingBlockers = combat.blocks
@@ -128,7 +128,7 @@ function dealCombatDamage(
         source: attackerIid,
         sourceController: state.activePlayer,
         target: { kind: 'player', player: defender },
-        amount: stats.power,
+        amount: stats.attack,
         deathtouch: kw.has('deathblade'),
         lifelink: kw.has('bloodoath'),
       });
@@ -143,7 +143,7 @@ function dealCombatDamage(
           source: attackerIid,
           sourceController: state.activePlayer,
           target: { kind: 'player', player: defender },
-          amount: stats.power,
+          amount: stats.attack,
           deathtouch: kw.has('deathblade'),
           lifelink: kw.has('bloodoath'),
         });
@@ -155,7 +155,7 @@ function dealCombatDamage(
     // lethal); lethal must be assigned to each blocker before trample
     // overflow; without trample, the excess is wasted on the last blocker.
     const ordered = [...livingBlockers].sort((a, b) => killCost(state, db, a, kw.has('deathblade')) - killCost(state, db, b, kw.has('deathblade')));
-    let remaining = stats.power;
+    let remaining = stats.attack;
     ordered.forEach((blockerIid, i) => {
       if (remaining <= 0) return;
       const need = killCost(state, db, blockerIid, kw.has('deathblade'));
@@ -195,12 +195,12 @@ function dealCombatDamage(
     if (!alive(block.blocker) || !alive(block.attacker)) continue;
     if (!strikesNow(block.blocker)) continue;
     const stats = getEffectiveStats(state.battlefield, db, block.blocker);
-    if (stats.power <= 0) continue;
+    if (stats.attack <= 0) continue;
     hits.push({
       source: block.blocker,
       sourceController: defender,
       target: { kind: 'permanent', iid: block.attacker },
-      amount: stats.power,
+      amount: stats.attack,
       deathtouch: stats.keywords.has('deathblade'),
       lifelink: stats.keywords.has('bloodoath'),
     });
@@ -262,7 +262,7 @@ function killCost(
   if (sourceHasDeathtouch) return 1;
   const stats = getEffectiveStats(state.battlefield, db, iid);
   const perm = state.battlefield.find((p) => p.iid === iid)!;
-  return Math.max(1, stats.toughness - perm.damage);
+  return Math.max(1, stats.defense - perm.damage);
 }
 
 // endGame is re-exported for Game.ts convenience when combat ends the game.

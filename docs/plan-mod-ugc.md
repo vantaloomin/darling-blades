@@ -23,7 +23,7 @@ Every effect a card can have is a member of the closed `EffectOp` union
 `src/engine/effects/EffectInterpreter.ts`; every keyword is a member of the
 closed `Keyword` union (`types.ts:6-17`). The AI's card heuristic
 (`src/ai/value.ts` `cardValue`/`permValue`) reads only `CardDef` fields —
-`cost`, `power`, `toughness`, `keywords`, `abilities` — with **no hardcoded id
+`cost`, `attack`, `defense`, `keywords`, `abilities` — with **no hardcoded id
 list anywhere**. Therefore any card whose `CardDef` is built from the existing
 vocabulary is automatically executable by the engine and evaluable by the AI,
 with zero engine or AI changes. The entire risk surface collapses to one
@@ -91,8 +91,8 @@ export interface ModCardDef {
   supertypes?: ('legendary' | 'basic')[];
   cost?: ManaCost;           // { generic, pips } — required unless type==='land'
   colors: Color[];           // subset of WUBRG
-  power?: number;            // integer 0..20, required iff creature
-  toughness?: number;        // integer 1..20, required iff creature
+  attack?: number;            // integer 0..20, required iff creature
+  defense?: number;        // integer 1..20, required iff creature
   keywords?: Keyword[];      // WHITELIST: existing Keyword union only
   x?: { min: number };
   abilities?: AbilityDef[];  // WHITELIST-validated recursively (see below)
@@ -126,8 +126,8 @@ running the existing `damage`/`opponent` op (exactly the shape of `gk-zeus` in
   "supertypes": ["legendary"],
   "cost": { "generic": 4, "pips": { "R": 1, "U": 1 } },
   "colors": ["R", "U"],
-  "power": 5,
-  "toughness": 5,
+  "attack": 5,
+  "defense": 5,
   "keywords": ["flying"],
   "abilities": [
     { "when": "etb", "ops": [{ "op": "damage", "n": 2, "to": "opponent" }] }
@@ -152,8 +152,8 @@ has a text renderer.
   "subtypes": ["Dragon"],
   "cost": { "generic": 0, "pips": {} },
   "colors": ["B"],
-  "power": 99,
-  "toughness": 99,
+  "attack": 99,
+  "defense": 99,
   "keywords": ["flying", "cannotBeBlocked"],
   "abilities": [
     { "when": "etb", "ops": [{ "op": "winGame" }] },
@@ -166,7 +166,7 @@ has a text renderer.
 Rejected on **five** independent grounds — the validator reports all of them:
 1. `keywords` contains `"cannotBeBlocked"`, not in the `Keyword` union → reject.
 2. `ops` contains `{ "op": "winGame" }`, not in the `EffectOp` union → reject.
-3. `power`/`toughness` `99` exceed the stat cap (`20`) → reject.
+3. `attack`/`defense` `99` exceed the stat cap (`20`) → reject.
 4. A `static` ability carries `ops` instead of a `static` block — malformed
    `AbilityDef` for that `when` → reject.
 5. (Advisory, not a hard reject) 0-cost 99/99 trips the balance heuristic flag
@@ -218,7 +218,7 @@ conscious decision about whether mods may use it:
 - **Types / colors / rarity / supertypes** — subsets of their respective unions.
 
 ### 3. Structural coherence (matching how base cards are authored)
-- Creatures require integer `power`/`toughness`; non-creatures must omit them.
+- Creatures require integer `attack`/`defense`; non-creatures must omit them.
 - `cost` required unless `types` includes `land` (mirrors the "absent on lands"
   comment at `types.ts:97`); `cost.generic >= 0`, each pip count `>= 0`.
 - A `spell` ability is only legal on `charm`/`ritual` types; `etb`/`dies`/
@@ -238,7 +238,7 @@ conscious decision about whether mods may use it:
   invariants base cards satisfy.
 
 ### 4. Numeric / resource sanity caps
-Hard caps (reject if exceeded): `power`/`toughness` `0..20`, `cost.generic
+Hard caps (reject if exceeded): `attack`/`defense` `0..20`, `cost.generic
 <= 20`, total mana value `<= 25`, `draw.n <= 10`, `damage.n <= 20`,
 `createToken.count <= 8`, `gainLife.n <= 40`, `abilities.length <= 4`,
 `ops.length <= 4` per ability. These bound the blast radius of a hostile or

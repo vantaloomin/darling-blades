@@ -87,7 +87,7 @@ describe('the LIFO stack', () => {
     // P1 responds; P0 has nothing left → auto-pass → flush LIFO (Growth, then Shock)
     g.submit(1, { type: 'castSpell', handIndex: 0, targets: [{ kind: 'permanent', iid: 20 }] });
     const bear = g.state.battlefield.find((p) => p.iid === 20)!;
-    expect(bear.damage).toBe(2); // vs toughness 5 → survives
+    expect(bear.damage).toBe(2); // vs defense 5 → survives
     expect(g.awaiting).toMatchObject({ player: 0, kind: 'main' });
   });
 
@@ -163,7 +163,7 @@ describe('spell bodies, X, auras, triggers, fog', () => {
     g.submit(0, { type: 'castSpell', handIndex: 0, targets: [{ kind: 'permanent', iid: 9 }] });
     const aura = g.state.battlefield.find((p) => p.cardId === 'pacifism_aura')!;
     expect(aura.attachedTo).toBe(9);
-    expect(getEffectiveStats(g.state.battlefield, TEST_DB, 9).power).toBe(1);
+    expect(getEffectiveStats(g.state.battlefield, TEST_DB, 9).attack).toBe(1);
 
     // Shock finishes the damaged 4/4 (2 marked + 2 = lethal) → aura orphaned → dies
     const events = g.submit(0, {
@@ -230,8 +230,8 @@ describe('spell bodies, X, auras, triggers, fog', () => {
         subtypes: [],
         cost: { generic: 1, pips: {} },
         colors: ['R' as const],
-        power: 5,
-        toughness: 3,
+        attack: 5,
+        defense: 3,
         abilities: [
           { when: 'upkeep' as const, ops: [{ op: 'damage' as const, n: 1, to: 'controller' as const }] },
         ],

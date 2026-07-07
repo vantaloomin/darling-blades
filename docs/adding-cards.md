@@ -61,8 +61,8 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `supertypes`  | `('legendary' \| 'basic')[]?`          | `legendary` enables the crown + legend rule; `basic` marks basic lands. |
 | `cost`        | `ManaCost?`                            | Absent on lands. Use the `cost()` shorthand (below).                  |
 | `colors`      | `Color[]`                              | `W`/`U`/`B`/`R`/`G`. Drives the frame. **Multicolor nonland cards must be legendary** (enforced by a catalog test). |
-| `power`       | `number?`                              | Creatures only.                                                       |
-| `toughness`   | `number?`                              | Creatures only.                                                       |
+| `attack`       | `number?`                              | Creatures only.                                                       |
+| `defense`   | `number?`                              | Creatures only.                                                       |
 | `keywords`    | `Keyword[]?`                           | The eleven keywords (see [rules.md](rules.md)).                       |
 | `x`           | `{ min: number }?`                     | Marks an X spell; `min` is the smallest legal X.                       |
 | `abilities`   | `AbilityDef[]?`                        | Triggered/static/spell abilities (below).                            |
@@ -251,8 +251,8 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   subtypes: ['Beastkin'],
   cost: cost(1, 'G'),
   colors: ['G'],
-  power: 2,
-  toughness: 2,
+  attack: 2,
+  defense: 2,
   rarity: 'c',
   flavor: 'Hibernates professionally. Fights recreationally.',
 },
@@ -269,8 +269,8 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   subtypes: ['Beastkin', 'Avian'],
   cost: cost(1, 'R'),
   colors: ['R'],
-  power: 2,
-  toughness: 2,
+  attack: 2,
+  defense: 2,
   keywords: ['flying'],
   rarity: 'r',
   flavor: 'Her opinions arrive at terminal velocity.',
@@ -287,8 +287,8 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   subtypes: ['Beastkin', 'Deerkin'],
   cost: cost(2, 'G'),
   colors: ['G'],
-  power: 2,
-  toughness: 2,
+  attack: 2,
+  defense: 2,
   abilities: [{ when: 'etb', ops: [{ op: 'rampBasic' }] }],
   rarity: 'r',
   flavor: 'The forest follows her home and stays.',
@@ -306,8 +306,8 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   subtypes: ['Beastkin', 'Wolfkin'],
   cost: cost(1, 'GG'),
   colors: ['G'],
-  power: 2,
-  toughness: 2,
+  attack: 2,
+  defense: 2,
   abilities: [
     {
       when: 'static',
@@ -331,8 +331,8 @@ statics) and check the generated wording by opening the **Card Showcase** scene
   supertypes: ['legendary'],
   cost: cost(2, 'B'),
   colors: ['B'],
-  power: 3,
-  toughness: 2,
+  attack: 3,
+  defense: 2,
   abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
   rarity: 'r',
   flavor: 'Even her downfall was expensive.',

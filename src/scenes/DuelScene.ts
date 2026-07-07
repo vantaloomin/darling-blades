@@ -1399,11 +1399,11 @@ export class DuelScene extends Phaser.Scene {
         }
         if (isType(d, 'creature')) {
           const stats = getEffectiveStats(st.battlefield, CARD_DB, perm.iid);
-          const buffed = stats.power > (d.power ?? 0) || stats.toughness > (d.toughness ?? 0);
-          const weakened = stats.power < (d.power ?? 0) || stats.toughness < (d.toughness ?? 0);
+          const buffed = stats.attack > (d.attack ?? 0) || stats.defense > (d.defense ?? 0);
+          const weakened = stats.attack < (d.attack ?? 0) || stats.defense < (d.defense ?? 0);
           view.setStats(
-            stats.power,
-            stats.toughness - perm.damage,
+            stats.attack,
+            stats.defense - perm.damage,
             perm.damage > 0 ? 'damaged' : buffed ? 'buffed' : weakened ? 'weakened' : 'normal',
           );
         }

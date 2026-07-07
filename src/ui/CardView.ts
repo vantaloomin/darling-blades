@@ -330,7 +330,7 @@ export class CardView extends Phaser.GameObjects.Container {
     // P/T
     if (isType(card, 'creature')) {
       this.ptPlate.setVisible(true);
-      this.ptText.setVisible(true).setText(`${card.power}/${card.toughness}`);
+      this.ptText.setVisible(true).setText(`${card.attack}/${card.defense}`);
     }
 
     // Cost pips — BOTTOM-LEFT, mirroring the P/T plate at bottom-right. Read

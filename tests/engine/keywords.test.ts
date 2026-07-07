@@ -51,7 +51,7 @@ describe('overrun', () => {
       type: 'declareBlockers',
       blocks: [{ blocker: iid.elf, attacker: iid.rhino }],
     });
-    // 4 power − 1 lethal to the 1/1 elf = 3 through
+    // 4 attack − 1 lethal to the 1/1 elf = 3 through
     expect(game.state.players[1].life).toBe(17);
   });
 
@@ -138,8 +138,8 @@ describe('haste and vigilance and defender and reach and flying', () => {
       ],
     });
     const stats = getEffectiveStats(state.battlefield, TEST_DB, 1);
-    expect(stats.power).toBe(3);
-    expect(stats.toughness).toBe(3);
+    expect(stats.attack).toBe(3);
+    expect(stats.defense).toBe(3);
     expect(stats.keywords.has('skyborne')).toBe(true);
   });
 

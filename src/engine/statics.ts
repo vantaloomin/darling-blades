@@ -2,8 +2,8 @@ import type { CardDb, Keyword, Permanent } from './types';
 import { def, isType } from './types';
 
 export interface EffectiveStats {
-  power: number;
-  toughness: number;
+  attack: number;
+  defense: number;
   keywords: ReadonlySet<Keyword>;
 }
 
@@ -23,16 +23,16 @@ export function getEffectiveStats(
   if (!perm) throw new Error(`getEffectiveStats: no permanent ${iid}`);
   const d = def(db, perm.cardId);
 
-  let power = d.power ?? 0;
-  let toughness = d.toughness ?? 0;
+  let attack = d.attack ?? 0;
+  let defense = d.defense ?? 0;
   const keywords = new Set<Keyword>(d.keywords ?? []);
 
-  power += perm.plusOneCounters;
-  toughness += perm.plusOneCounters;
+  attack += perm.plusOneCounters;
+  defense += perm.plusOneCounters;
 
   for (const mod of perm.untilEotMods) {
-    power += mod.p;
-    toughness += mod.t;
+    attack += mod.p;
+    defense += mod.t;
     for (const k of mod.keywords) keywords.add(k);
   }
 
@@ -56,14 +56,14 @@ export function getEffectiveStats(
       }
 
       if (applies) {
-        power += st.p ?? 0;
-        toughness += st.t ?? 0;
+        attack += st.p ?? 0;
+        defense += st.t ?? 0;
         for (const k of st.grantKeywords ?? []) keywords.add(k);
       }
     }
   }
 
-  return { power, toughness, keywords };
+  return { attack, defense, keywords };
 }
 
 export function hasKeyword(

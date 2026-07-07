@@ -17,8 +17,8 @@ function card(id: string, over: Partial<CardDef> = {}): CardDef {
     colors: ['G'],
     rarity: 'c',
     cost: { generic: 1, pips: { G: 1 } },
-    power: 2,
-    toughness: 2,
+    attack: 2,
+    defense: 2,
     ...over,
   };
 }

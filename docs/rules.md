@@ -157,7 +157,7 @@ all at once (modern simultaneous damage):
   runs. A firstBlade creature deals damage only in the first-strike step; a
   **twinBlades creature deals in both** the first-strike and normal steps
   (firstBlade + twinBlades is two hits, not three).
-- **Unblocked attackers** hit the defending player for their power.
+- **Unblocked attackers** hit the defending player for their attack.
 - **Blocked attackers** use **automatic damage assignment**: blockers are ordered
   **cheapest-to-kill first**, and lethal is assigned to each before any spills
   over.
@@ -183,7 +183,7 @@ All eleven keywords and their exact implemented semantics (`Keyword` in
 | **skyborne** · Skyborne | Can only be blocked by creatures with skyborne or wardingGaze (`canBlock`). |
 | **wardingGaze** · Warding Gaze | Can block skyborne creatures (no other effect).                        |
 | **firstBlade** · First Blade | Deals its combat damage in the first-strike sub-step; if it kills first, it takes no damage back. |
-| **twinBlades** · Twin Blades | Deals combat damage in **both** the first-strike sub-step and the normal sub-step. firstBlade + twinBlades is two hits (not three); doubled deathblade is lethal in each hit; doubled overrun re-spills each step (a chump killed in the first-strike step lets the full power spill in the normal step); doubled bloodoath gains on both. |
+| **twinBlades** · Twin Blades | Deals combat damage in **both** the first-strike sub-step and the normal sub-step. firstBlade + twinBlades is two hits (not three); doubled deathblade is lethal in each hit; doubled overrun re-spills each step (a chump killed in the first-strike step lets the full attack spill in the normal step); doubled bloodoath gains on both. |
 | **warcry** · Warcry | Ignores summoning sickness — can attack / tap for mana the turn it enters (`isSummoningSick`). |
 | **overrun** · Overrun | Assigns lethal to blockers, then spills the excess to the defending player. |
 | **sentinel** · Sentinel | Attacking does not tap it.                                                     |
@@ -221,7 +221,7 @@ order:
 
 1. **Life ≤ 0 loses.** If both players are ≤ 0, the game is a **draw** (reason
    `life`); if one is, the other wins.
-2. **Creatures die** if `toughness ≤ 0`, or marked `damage ≥ toughness`, or they
+2. **Creatures die** if `defense ≤ 0`, or marked `damage ≥ defense`, or they
    took **deathblade** damage with any damage marked (`deathtouched && damage > 0`).
    Dying fires `dies` triggers.
 3. **Orphaned auras die.** An aura whose `attachedTo` permanent is gone is put
@@ -231,7 +231,7 @@ order:
    legend rule **is implemented** — it is a simple per-controller, per-name form,
    keyed on `${controller}:${name}`.
 
-(Effective toughness/power for these checks is always computed on read by
+(Effective defense/attack for these checks is always computed on read by
 `getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` counters +
 until-EOT mods + static layers; nothing is cached.)
 

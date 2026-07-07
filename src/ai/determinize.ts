@@ -61,8 +61,8 @@ const STAND_IN_DEFS: readonly CardDef[] = [
     subtypes: [],
     cost: { generic: 2, pips: {} },
     colors: [],
-    power: 2,
-    toughness: 2,
+    attack: 2,
+    defense: 2,
     rarity: 'c',
   },
   {
@@ -72,8 +72,8 @@ const STAND_IN_DEFS: readonly CardDef[] = [
     subtypes: [],
     cost: { generic: 3, pips: {} },
     colors: [],
-    power: 2,
-    toughness: 2,
+    attack: 2,
+    defense: 2,
     rarity: 'c',
   },
   {
@@ -83,8 +83,8 @@ const STAND_IN_DEFS: readonly CardDef[] = [
     subtypes: [],
     cost: { generic: 4, pips: {} },
     colors: [],
-    power: 4,
-    toughness: 4,
+    attack: 4,
+    defense: 4,
     rarity: 'c',
   },
   {

@@ -196,7 +196,7 @@ export class MediumAI implements AIPlayer {
       (o) => o.op === 'damage' && o.to === 'target',
     );
     const n = dmg && dmg.op === 'damage' ? (dmg.n === 'X' ? (cast.x ?? 0) : dmg.n) : 0;
-    return n >= stats.toughness - perm.damage;
+    return n >= stats.defense - perm.damage;
   }
 
   private main(view: PlayerView, legal: Action[]): Action {
@@ -367,10 +367,10 @@ export class MediumAI implements AIPlayer {
         for (const foe of foes) {
           const mine = getEffectiveStats(view.battlefield, this.db, perm.iid);
           const theirs = getEffectiveStats(view.battlefield, this.db, foe);
-          const dieNow = theirs.power >= mine.toughness - perm.damage;
-          const surviveAfter = theirs.power < mine.toughness - perm.damage + pump.t;
-          const killNow = mine.power >= theirs.toughness;
-          const killAfter = mine.power + pump.p >= theirs.toughness;
+          const dieNow = theirs.attack >= mine.defense - perm.damage;
+          const surviveAfter = theirs.attack < mine.defense - perm.damage + pump.t;
+          const killNow = mine.attack >= theirs.defense;
+          const killAfter = mine.attack + pump.p >= theirs.defense;
           if ((dieNow && surviveAfter) || (!killNow && killAfter && !dieNow)) return c;
           if (dieNow && surviveAfter && killAfter) return c;
         }

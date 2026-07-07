@@ -92,8 +92,8 @@ export interface CardDef {
   supertypes?: ('legendary' | 'basic')[];
   cost?: ManaCost; // absent on lands
   colors: Color[];
-  power?: number;
-  toughness?: number;
+  attack?: number;
+  defense?: number;
   keywords?: Keyword[];
   x?: { min: number }; // X spells
   abilities?: AbilityDef[];

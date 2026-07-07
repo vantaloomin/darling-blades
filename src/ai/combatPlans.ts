@@ -12,8 +12,8 @@ import { permValue } from './value';
 
 interface Combatant {
   iid: number;
-  power: number;
-  toughness: number; // effective minus marked damage
+  attack: number;
+  defense: number; // effective minus marked damage
   deathtouch: boolean;
   firstStrike: boolean;
   trample: boolean;
@@ -25,8 +25,8 @@ function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff 
   const perm = bf.find((p) => p.iid === iid)!;
   return {
     iid,
-    power: stats.power + trickBuff,
-    toughness: stats.toughness - perm.damage + trickBuff,
+    attack: stats.attack + trickBuff,
+    defense: stats.defense - perm.damage + trickBuff,
     deathtouch: stats.keywords.has('deathblade'),
     firstStrike: stats.keywords.has('firstBlade'),
     trample: stats.keywords.has('overrun'),
@@ -36,10 +36,10 @@ function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff 
 
 /** Does the striker kill the victim in a straight exchange? */
 function kills(striker: Combatant, victim: Combatant): boolean {
-  if (striker.power <= 0) return false;
+  if (striker.attack <= 0) return false;
   if (striker.deathtouch) return true;
   // first-strike wins the race if it kills before the victim strikes
-  return striker.power >= victim.toughness;
+  return striker.attack >= victim.defense;
 }
 
 function untappedBlockers(
@@ -106,7 +106,7 @@ function scoreAttack(
   // blockers has a real cost.
   const oppPower = bf
     .filter((p) => p.controller === opp && isType(def(db, p.cardId), 'creature'))
-    .reduce((s, p) => s + combatant(bf, db, p.iid).power, 0);
+    .reduce((s, p) => s + combatant(bf, db, p.iid).attack, 0);
   const holdbackPenalty =
     (myLife <= 10 && oppPower >= myLife * 0.6 ? 0.4 : myLife <= 14 && oppPower >= myLife ? 0.25 : 0) *
     pers.holdback;
@@ -115,16 +115,16 @@ function scoreAttack(
     const A = combatant(bf, db, iid);
     const myBlockers = blocks.filter((b) => b.attacker === iid).map((b) => b.blocker);
     if (myBlockers.length === 0) {
-      total += A.power * dmgWeight;
-      if (A.power >= oppLife) total += 100; // lethal connection
+      total += A.attack * dmgWeight;
+      if (A.attack >= oppLife) total += 100; // lethal connection
       continue;
     }
     const combinedPower = myBlockers.reduce(
-      (s, b) => s + combatant(bf, db, b, trickBuff).power,
+      (s, b) => s + combatant(bf, db, b, trickBuff).attack,
       0,
     );
     const iDie =
-      (combinedPower >= A.toughness ||
+      (combinedPower >= A.defense ||
         myBlockers.some((b) => combatant(bf, db, b, trickBuff).deathtouch)) &&
       !(
         A.firstStrike &&
@@ -143,7 +143,7 @@ function scoreAttack(
         : 0;
     total += killValue - (iDie ? permValue(bf, db, iid) : 0);
     if (A.trample && myBlockers.length === 1) {
-      const overflow = A.power - combatant(bf, db, myBlockers[0], trickBuff).toughness;
+      const overflow = A.attack - combatant(bf, db, myBlockers[0], trickBuff).defense;
       if (overflow > 0) total += overflow * dmgWeight;
     }
   }
@@ -161,14 +161,14 @@ export function chooseAttackers(
 ): number[] {
   const opp = opponentOf(me);
   const eligible = eligibleAttackers(bf, db, me).filter(
-    (iid) => combatant(bf, db, iid).power > 0,
+    (iid) => combatant(bf, db, iid).attack > 0,
   );
   if (eligible.length === 0) return [];
   const defenders = untappedBlockers(bf, db, opp);
 
   // Lethal check: assume each defender absorbs the biggest remaining attacker.
   const powers = eligible
-    .map((iid) => combatant(bf, db, iid).power)
+    .map((iid) => combatant(bf, db, iid).attack)
     .sort((a, b) => b - a);
   const absorbed = powers.slice(0, defenders.length).reduce((s, p) => s + p, 0);
   const through = powers.reduce((s, p) => s + p, 0) - absorbed;
@@ -214,7 +214,7 @@ export function chooseBlocks(
   const myCreatures = untappedBlockers(bf, db, me);
   if (attackers.length === 0 || myCreatures.length === 0) return [];
 
-  const incoming = attackers.reduce((s, iid) => s + combatant(bf, db, iid).power, 0);
+  const incoming = attackers.reduce((s, iid) => s + combatant(bf, db, iid).attack, 0);
   const lethalMode = incoming >= myLife;
   const lifePressure =
     (myLife <= 8 || incoming >= myLife * 0.5 ? 1.0 : myLife <= 14 ? 0.55 : 0.3) *
@@ -236,7 +236,7 @@ export function chooseBlocks(
       const score =
         (iKill ? permValue(bf, db, aIid) : 0) -
         (iDie ? permValue(bf, db, B.iid) : 0) +
-        combatant(bf, db, aIid).power * lifePressure;
+        combatant(bf, db, aIid).attack * lifePressure;
       pairs.push({ blocker: B.iid, attacker: aIid, score });
     }
   }
@@ -267,7 +267,7 @@ export function chooseBlocks(
       for (let j = i + 1; j < free.length; j++) {
         const b1 = combatant(bf, db, free[i].iid);
         const b2 = combatant(bf, db, free[j].iid);
-        const killsIt = b1.power + b2.power >= A.toughness || b1.deathtouch || b2.deathtouch;
+        const killsIt = b1.attack + b2.attack >= A.defense || b1.deathtouch || b2.deathtouch;
         if (!killsIt) continue;
         // attacker kills at most one of them (cheapest-kill-first auto-assign)
         const cheaper = Math.min(permValue(bf, db, free[i].iid), permValue(bf, db, free[j].iid));

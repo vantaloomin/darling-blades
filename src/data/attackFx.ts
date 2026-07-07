@@ -178,7 +178,7 @@ export const ATTACK_FX_MAP: Record<string, AttackFxSpec> = {
   'tok-wooden-ox': { archetype: 'impact', heavy: false },
   // Artifact creatures (Constructs). Not in the reviewed archetype array, so
   // classified by the same rule the fallback would apply: Construct -> impact,
-  // heavy when power >= 5 or trample. Kept explicit so the map stays complete.
+  // heavy when attack >= 5 or trample. Kept explicit so the map stays complete.
   'ar-training-dummy': { archetype: 'impact', heavy: false },
   'ar-terracotta-soldier': { archetype: 'impact', heavy: false },
   'ar-terracotta-guardian': { archetype: 'impact', heavy: false },
@@ -188,7 +188,7 @@ export const ATTACK_FX_MAP: Record<string, AttackFxSpec> = {
   'tok-valkyrie': { archetype: 'aerial', heavy: false },
   'tok-draugr': { archetype: 'shadow', heavy: false },
   'tok-wolf': { archetype: 'claw', heavy: false },
-  // --- Ragnarök expansion creatures (heavy = power >= 5 or trample) ---
+  // --- Ragnarök expansion creatures (heavy = attack >= 5 or trample) ---
   'rg-hel': { archetype: 'shadow', heavy: false },
   'rg-freya': { archetype: 'aerial', heavy: false },
   'rg-fenrir': { archetype: 'claw', heavy: true },
@@ -281,7 +281,7 @@ function fallbackArchetype(card: CardDef): AttackArchetype {
 
 /** Fallback heavy flag for a creature not in ATTACK_FX_MAP. */
 function fallbackHeavy(card: CardDef): boolean {
-  return (card.power ?? 0) >= 5 || card.keywords?.includes('overrun') === true;
+  return (card.attack ?? 0) >= 5 || card.keywords?.includes('overrun') === true;
 }
 
 /**
