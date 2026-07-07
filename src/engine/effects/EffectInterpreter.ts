@@ -149,7 +149,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     }
     case 'rampBasic': {
-      const lib = state.players[ctx.controller].library;
+      const lib = state.players[ctx.controller].deck;
       for (let i = lib.length - 1; i >= 0; i--) {
         const d = def(db, lib[i]);
         if (d.supertypes?.includes('basic')) {
@@ -206,10 +206,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'mill': {
       const victim = op.who === 'self' ? ctx.controller : opponentOf(ctx.controller);
-      const lib = state.players[victim].library;
+      const lib = state.players[victim].deck;
       for (let i = 0; i < op.n; i++) {
-        const cardId = lib.pop(); // top of library is the last element
-        if (cardId === undefined) break; // empty library: deck-out is a DRAW check, not here
+        const cardId = lib.pop(); // top of deck is the last element
+        if (cardId === undefined) break; // empty deck: deck-out is a DRAW check, not here
         state.players[victim].graveyard.push(cardId);
         emit({ e: 'milled', player: victim, cardId });
       }

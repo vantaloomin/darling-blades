@@ -1302,9 +1302,9 @@ export class DuelScene extends Phaser.Scene {
     this.hud.myLife.setText(`♥ ${st.players[HUMAN].life}`);
     this.hud.oppLife.setText(`♥ ${st.players[AI].life}`);
     this.oppHandBacks.setCount(st.players[AI].hand.length);
-    this.oppDeckPile.setCount(st.players[AI].library.length);
+    this.oppDeckPile.setCount(st.players[AI].deck.length);
     this.oppGravePile.setCount(st.players[AI].graveyard.length);
-    this.myDeckPile.setCount(st.players[HUMAN].library.length);
+    this.myDeckPile.setCount(st.players[HUMAN].deck.length);
     this.myGravePile.setCount(st.players[HUMAN].graveyard.length);
     // setText resizes a Text but Phaser never refreshes its hit area — keep
     // the inflated burn-target rects (plan §1.4) tracking the new glyphs

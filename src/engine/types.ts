@@ -55,12 +55,12 @@ export type EffectOp =
   | { op: 'pump'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
-  | { op: 'rampBasic' } // a basic land from library → battlefield tapped
+  | { op: 'rampBasic' } // a basic land from deck → battlefield tapped
   | { op: 'createToken'; token: string; count: number }
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' }
   | { op: 'fog' } // prevent all combat damage this turn
   | { op: 'regrowth' } // return target creature card from your graveyard to hand
-  | { op: 'mill'; n: number; who: 'self' | 'opponent' } // top n of library → graveyard
+  | { op: 'mill'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
   | { op: 'reanimate'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
 
 export interface StaticDef {
@@ -200,7 +200,7 @@ export type Awaiting =
 
 export interface PlayerState {
   life: number;
-  library: string[]; // cardIds; LAST element is the top of the library
+  deck: string[]; // the draw pile (cardIds; LAST element is the top). Distinct from the meta-layer SaveData.decks (built decklists).
   hand: string[];
   graveyard: string[];
   landPlayedThisTurn: boolean;

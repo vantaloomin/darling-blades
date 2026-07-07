@@ -514,7 +514,7 @@ export function makeTestState(opts: {
   }));
   const player = (hand: string[]) => ({
     life: 20,
-    library: [] as string[],
+    deck: [] as string[],
     hand,
     graveyard: [] as string[],
     landPlayedThisTurn: false,

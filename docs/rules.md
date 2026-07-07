@@ -243,7 +243,7 @@ of four reasons:
 | `winReason`  | Trigger                                                                    |
 | ------------ | ------------------------------------------------------------------------- |
 | `life`       | A player hits 0 or less life (both at once → draw).                       |
-| `deck`       | A player must draw from an empty library (`drawCards` — the opponent wins).|
+| `deck`       | A player must draw from an empty deck (`drawCards` — the opponent wins).   |
 | `concede`    | A player submits `concede` (the opponent wins).                           |
 | `turnLimit`  | Turn 100 is reached at cleanup → **draw** (anti-stall, `RULES.turnLimit`). |
 

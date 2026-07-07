@@ -27,7 +27,7 @@ export function drawCards(
 ): void {
   const p = state.players[player];
   for (let i = 0; i < n; i++) {
-    const cardId = p.library.pop(); // last element = top
+    const cardId = p.deck.pop(); // last element = top
     if (cardId === undefined) {
       endGame(state, emit, opponentOf(player), 'deck');
       return;

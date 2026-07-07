@@ -242,8 +242,8 @@ describe('spell bodies, X, auras, triggers, fog', () => {
       battlefield: [{ iid: 1, cardId: 'taxed', controller: 0 }],
       active: 0,
     });
-    state.players[0].library = ['bear', 'bear', 'bear'];
-    state.players[1].library = ['bear', 'bear', 'bear'];
+    state.players[0].deck = ['bear', 'bear', 'bear'];
+    state.players[1].deck = ['bear', 'bear', 'bear'];
     const g = Game.restore(state, db);
     // pass through to P1's turn then back to P0's upkeep
     g.submit(0, { type: 'passStep' });

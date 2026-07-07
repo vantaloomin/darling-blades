@@ -67,7 +67,7 @@ function opText(op: EffectOp): string {
     case 'tap':
       return 'tap target creature';
     case 'rampBasic':
-      return 'search your library for a basic land and put it onto the battlefield tapped';
+      return 'search your deck for a basic land and put it onto the battlefield tapped';
     case 'createToken':
       return `create ${op.count} ${op.count === 1 ? 'token' : 'tokens'}`;
     case 'massDestroy':

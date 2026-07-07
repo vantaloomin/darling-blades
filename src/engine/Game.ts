@@ -84,10 +84,10 @@ export class Game {
     }
   }
 
-  private freshPlayer(library: string[]): GameState['players'][0] {
+  private freshPlayer(deck: string[]): GameState['players'][0] {
     return {
       life: RULES.startingLife,
-      library,
+      deck,
       hand: [],
       graveyard: [],
       landPlayedThisTurn: false,
@@ -152,8 +152,8 @@ export class Game {
 
       case 'mulligan': {
         me.mulligans++;
-        me.library.push(...me.hand.splice(0));
-        rngShuffle(st.rng, me.library);
+        me.deck.push(...me.hand.splice(0));
+        rngShuffle(st.rng, me.deck);
         drawCards(st, emit, player, RULES.startingHandSize);
         emit({ e: 'mulliganTaken', player, count: me.mulligans });
         // stay awaiting the same player's mulligan decision
@@ -179,8 +179,8 @@ export class Game {
         const sorted = [...action.handIndices].sort((a, b) => b - a);
         const bottomed: string[] = [];
         for (const i of sorted) bottomed.push(...me.hand.splice(i, 1));
-        // library index 0 is the bottom
-        me.library.unshift(...bottomed);
+        // deck index 0 is the bottom
+        me.deck.unshift(...bottomed);
         emit({ e: 'cardsBottomed', player, count: bottomed.length });
         this.nextMulliganOrStart(emit);
         return;

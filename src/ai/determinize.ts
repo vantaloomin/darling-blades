@@ -202,7 +202,7 @@ function hiddenCategoryCounts(seen: SeenCounts, hidden: number): number[] {
 }
 
 /**
- * Deal the hidden pool into hand + library: one seeded shuffle, hand off the
+ * Deal the hidden pool into hand + deck: one seeded shuffle, hand off the
  * top. Each seed is one PLAUSIBLE WORLD — this hand holds the trick, that
  * one does not — and Hard can average several seeds per decision so a risk
  * that only bites in some worlds is priced proportionally. (At the shipped
@@ -212,13 +212,13 @@ function fillZones(
   counts: readonly number[],
   handCount: number,
   rng: RngState,
-): { hand: string[]; library: string[] } {
+): { hand: string[]; deck: string[] } {
   const pool: string[] = [];
   counts.forEach((count, cat) => {
     for (let i = 0; i < count; i++) pool.push(CATEGORY_IDS[cat]);
   });
   rngShuffle(rng, pool);
-  return { hand: pool.slice(0, handCount), library: pool.slice(handCount) };
+  return { hand: pool.slice(0, handCount), deck: pool.slice(handCount) };
 }
 
 /**
@@ -235,13 +235,13 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
   const owned = (p: PlayerId): string[] =>
     view.battlefield.filter((perm) => perm.owner === p).map((perm) => perm.cardId);
 
-  // My side: I can see my hand, so only the library is hidden.
+  // My side: I can see my hand, so only the deck is hidden.
   const mySeen = countSeen(db, [...owned(me), ...view.you.graveyard, ...view.you.hand]);
-  const myFill = fillZones(hiddenCategoryCounts(mySeen, view.you.libraryCount), 0, fillRng);
+  const myFill = fillZones(hiddenCategoryCounts(mySeen, view.you.deckCount), 0, fillRng);
 
-  // Their side: hand + library are hidden; battlefield + graveyard are public.
+  // Their side: hand + deck are hidden; battlefield + graveyard are public.
   const theirSeen = countSeen(db, [...owned(opp), ...view.opp.graveyard]);
-  const theirHidden = view.opp.handCount + view.opp.libraryCount;
+  const theirHidden = view.opp.handCount + view.opp.deckCount;
   const theirFill = fillZones(
     hiddenCategoryCounts(theirSeen, theirHidden),
     view.opp.handCount,
@@ -250,7 +250,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
 
   const mine: PlayerState = {
     life: view.you.life,
-    library: myFill.library,
+    deck: myFill.deck,
     hand: [...view.you.hand],
     graveyard: [...view.you.graveyard],
     landPlayedThisTurn: view.you.landPlayedThisTurn,
@@ -259,7 +259,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
   };
   const theirs: PlayerState = {
     life: view.opp.life,
-    library: theirFill.library,
+    deck: theirFill.deck,
     hand: theirFill.hand,
     graveyard: [...view.opp.graveyard],
     landPlayedThisTurn: view.opp.landPlayedThisTurn,

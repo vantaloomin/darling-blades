@@ -363,7 +363,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'hel',
     name: 'Hel, Queen of Mist',
     title: 'Warden of the Dishonored Dead',
-    blurb: 'The first Ragnarök boss buries her own library to raise an army from it. Hel mills, reanimates the fallen, and grinds you down behind a wall of deathtouch draugr — every creature you trade away only feeds her return.',
+    blurb: 'The first Ragnarök boss buries her own deck to raise an army from it. Hel mills, reanimates the fallen, and grinds you down behind a wall of deathtouch draugr — every creature you trade away only feeds her return.',
     theme: 'Blue-Black Mill Reanimator',
     tier: 9,
     difficulty: 'hard',
