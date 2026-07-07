@@ -25,7 +25,7 @@ export const SORCERIES = [
     subtypes: [],
     cost: cost(1, 'G'),
     colors: ['G'],
-    abilities: [{ when: 'spell', ops: [{ op: 'rampBasic' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
     rarity: 'c',
     flavor: 'The land was always coming. She just sent an invitation.',
   },
@@ -37,7 +37,7 @@ export const SORCERIES = [
     cost: cost(0, 'B'),
     colors: ['B'],
     abilities: [
-      { when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'regrowth' }] },
+      { when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }] },
     ],
     rarity: 'c',
     flavor: 'Retirement is negotiable.',
@@ -158,7 +158,7 @@ export const SORCERIES = [
     cost: cost(1, 'R'),
     colors: ['R'],
     abilities: [
-      { when: 'spell', ops: [{ op: 'pump', p: 1, t: 0, keywords: ['warcry'], scope: 'allYours' }] },
+      { when: 'spell', ops: [{ op: 'boost', p: 1, t: 0, keywords: ['warcry'], scope: 'allYours' }] },
     ],
     rarity: 'r',
     flavor: 'One word, everyone sprinting.',
@@ -173,7 +173,7 @@ export const SORCERIES = [
     abilities: [
       {
         when: 'spell',
-        ops: [{ op: 'pump', p: 2, t: 2, keywords: ['overrun'], scope: 'allYours' }],
+        ops: [{ op: 'boost', p: 2, t: 2, keywords: ['overrun'], scope: 'allYours' }],
       },
     ],
     rarity: 'sr',

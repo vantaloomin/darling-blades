@@ -218,7 +218,7 @@ export const GREEK = [
     colors: ['G'],
     attack: 3,
     defense: 3,
-    abilities: [{ when: 'arrives', ops: [{ op: 'rampBasic' }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'fetchLand' }] }],
     rarity: 'r',
     flavor: 'Cross her and see what grows in your fields: nothing.',
   },

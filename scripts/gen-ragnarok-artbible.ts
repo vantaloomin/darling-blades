@@ -236,8 +236,8 @@ function mechanicalNote(card: CardDef): string {
   if (kw.includes('skyborne')) notes.push('an airborne threat');
   if (kw.includes('deathblade')) notes.push('lethal at a touch');
   if (kw.includes('overrun')) notes.push('an unstoppable bruiser');
-  if (ops.includes('mill')) notes.push('she feeds the graveyard');
-  if (ops.includes('reanimate')) notes.push('she calls the fallen back to the field');
+  if (ops.includes('grind')) notes.push('she feeds the graveyard');
+  if (ops.includes('raise')) notes.push('she calls the fallen back to the field');
   if (ops.includes('createToken')) notes.push('she brings a host with her');
   return notes.length ? notes.join(', ') : 'a straightforward body on the battlefield';
 }

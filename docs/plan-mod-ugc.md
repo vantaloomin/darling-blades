@@ -200,16 +200,16 @@ conscious decision about whether mods may use it:
   (`types.ts:6-17`; Ragnarök added `twinBlades` 2026-07-06, so the whitelist
   is now eleven keywords).
 - **Effect ops** — every op's `op` field ∈ the 18-member set
-  `{damage, gainLife, loseLife, draw, discardRandom, destroy, bounce, counter,
-  pump, addCounters, tap, rampBasic, createToken, massDestroy, fog, regrowth,
-  mill, reanimate}` (`types.ts:46-64`; Ragnarök added `mill`/`reanimate`
+  `{damage, gainLife, loseLife, draw, discardRandom, destroy, recall, cancel,
+  boost, addCounters, tap, fetchLand, createToken, massDestroy, preventCombat,
+  reclaim, grind, raise}` (`types.ts:46-64`; Ragnarök added `grind`/`raise`
   2026-07-06). Beyond the tag, each op's **payload** is validated
   field-by-field against its variant: e.g. `damage.to ∈ {target, opponent,
   controller}`, `damage.n` is a non-negative integer or the literal `"X"`,
-  `massDestroy.filter ∈ {allCreatures, allFliers}`, `pump.scope ∈ {target,
-  allYours}`, `mill.who ∈ {self, opponent}`, `reanimate.to ∈ {target, top}`.
+  `massDestroy.filter ∈ {allCreatures, allFliers}`, `boost.scope ∈ {target,
+  allYours}`, `grind.who ∈ {self, opponent}`, `raise.to ∈ {target, top}`.
   An unknown field on an op is rejected (no smuggling extra data). **Note:**
-  `mill`/`reanimate` are graveyard-reanimator ops — a mod that whitelists them
+  `grind`/`raise` are graveyard-reanimator ops — a mod that whitelists them
   gains the Ragnarök archetype for free; decide per the exhaustiveness gate
   whether packs may use them.
 - **Triggers** — every ability `when` ∈ `TriggerWhen`
@@ -234,7 +234,7 @@ conscious decision about whether mods may use it:
   cards a mod defines are marked `token: true` by the registry (never
   collectible) and are the one place `token` is set, always by us, never by the
   uploader.
-- `regrowth`/graveyard ops and X-spell shapes are checked for the same
+- `reclaim`/graveyard ops and X-spell shapes are checked for the same
   invariants base cards satisfy.
 
 ### 4. Numeric / resource sanity caps

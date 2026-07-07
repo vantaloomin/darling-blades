@@ -265,7 +265,7 @@ export const TEST_DB: CardDb = {
     cost: { generic: 0, pips: { G: 1 } },
     colors: ['G'],
     abilities: [
-      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'pump', p: 3, t: 3, scope: 'target' }] },
+      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 3, t: 3, scope: 'target' }] },
     ],
     rarity: 'c',
   },
@@ -276,7 +276,7 @@ export const TEST_DB: CardDb = {
     subtypes: [],
     cost: { generic: 1, pips: { U: 1 } },
     colors: ['U'],
-    abilities: [{ when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'counter', to: 'target' }] }],
+    abilities: [{ when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }] }],
     rarity: 'c',
   },
   murder: {
@@ -353,7 +353,7 @@ export const TEST_DB: CardDb = {
     subtypes: [],
     cost: { generic: 0, pips: { G: 1 } },
     colors: ['G'],
-    abilities: [{ when: 'spell', ops: [{ op: 'fog' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }] }],
     rarity: 'c',
   },
   hexproof_bear: {
@@ -448,7 +448,7 @@ export const TEST_DB: CardDb = {
     subtypes: [],
     cost: { generic: 1, pips: { U: 1 } },
     colors: ['U'],
-    abilities: [{ when: 'spell', ops: [{ op: 'mill', n: 2, who: 'opponent' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 2, who: 'opponent' }] }],
     rarity: 'c',
   },
   mill_self_spell: {
@@ -458,7 +458,7 @@ export const TEST_DB: CardDb = {
     subtypes: [],
     cost: { generic: 0, pips: { U: 1 } },
     colors: ['U'],
-    abilities: [{ when: 'spell', ops: [{ op: 'mill', n: 2, who: 'self' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 2, who: 'self' }] }],
     rarity: 'c',
   },
   reanimate_spell: {
@@ -469,7 +469,7 @@ export const TEST_DB: CardDb = {
     cost: { generic: 2, pips: { B: 1 } },
     colors: ['B'],
     abilities: [
-      { when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reanimate' }] },
+      { when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'raise' }] },
     ],
     rarity: 'r',
   },

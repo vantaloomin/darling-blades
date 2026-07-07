@@ -50,18 +50,18 @@ export type EffectOp =
   | { op: 'draw'; n: number }
   | { op: 'discardRandom'; n: number; who: 'opponent' }
   | { op: 'destroy'; to: 'target' }
-  | { op: 'bounce'; to: 'target' }
-  | { op: 'counter'; to: 'target' } // target is a stack item
-  | { op: 'pump'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
+  | { op: 'recall'; to: 'target' }
+  | { op: 'cancel'; to: 'target' } // target is a stack item
+  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
-  | { op: 'rampBasic' } // a basic land from deck → battlefield tapped
+  | { op: 'fetchLand' } // a basic land from deck → battlefield tapped
   | { op: 'createToken'; token: string; count: number }
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' }
-  | { op: 'fog' } // prevent all combat damage this turn
-  | { op: 'regrowth' } // return target creature card from your graveyard to hand
-  | { op: 'mill'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
-  | { op: 'reanimate'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
+  | { op: 'preventCombat' } // prevent all combat damage this turn
+  | { op: 'reclaim' } // return target creature card from your graveyard to hand
+  | { op: 'grind'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
+  | { op: 'raise'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
 
 export interface StaticDef {
   scope: 'attached' | 'filter';

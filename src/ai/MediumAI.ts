@@ -344,8 +344,8 @@ export class MediumAI implements AIPlayer {
       for (const c of casts) {
         const perm = this.targetPerm(view, c.targets?.[0]);
         if (!perm || perm.controller !== view.myId) continue;
-        const pump = this.opBodies(view.you.hand[c.handIndex]).find((o) => o.op === 'pump');
-        if (!pump || pump.op !== 'pump') continue;
+        const pump = this.opBodies(view.you.hand[c.handIndex]).find((o) => o.op === 'boost');
+        if (!pump || pump.op !== 'boost') continue;
         const isAttacker = view.combat.attackers.includes(perm.iid);
         const inBlocks = view.combat.blocks.some(
           (b) => b.blocker === perm.iid || b.attacker === perm.iid,

@@ -12,7 +12,7 @@ describe('mill op', () => {
     const state = makeTestState({ active: 0 });
     state.players[1].deck = ['bear', 'elf', 'giant', 'knight']; // top = last (knight)
     const ev: GameEvent[] = [];
-    runOps(state, TEST_DB, (e) => ev.push(e), ctx, [{ op: 'mill', n: 2, who: 'opponent' }]);
+    runOps(state, TEST_DB, (e) => ev.push(e), ctx, [{ op: 'grind', n: 2, who: 'opponent' }]);
     expect(state.players[1].deck).toEqual(['bear', 'elf']);
     expect(state.players[1].graveyard).toEqual(['knight', 'giant']);
     expect(ev.filter((e) => e.e === 'milled')).toHaveLength(2);
@@ -21,7 +21,7 @@ describe('mill op', () => {
   it('mills your own deck when who is self', () => {
     const state = makeTestState({ active: 0 });
     state.players[0].deck = ['bear', 'elf'];
-    runOps(state, TEST_DB, noEmit, ctx, [{ op: 'mill', n: 1, who: 'self' }]);
+    runOps(state, TEST_DB, noEmit, ctx, [{ op: 'grind', n: 1, who: 'self' }]);
     expect(state.players[0].deck).toEqual(['bear']);
     expect(state.players[0].graveyard).toEqual(['elf']);
   });
@@ -29,7 +29,7 @@ describe('mill op', () => {
   it('milling past an empty deck is a safe no-op, not a loss', () => {
     const state = makeTestState({ active: 0 });
     state.players[1].deck = ['bear'];
-    runOps(state, TEST_DB, noEmit, ctx, [{ op: 'mill', n: 3, who: 'opponent' }]);
+    runOps(state, TEST_DB, noEmit, ctx, [{ op: 'grind', n: 3, who: 'opponent' }]);
     expect(state.players[1].deck).toEqual([]);
     expect(state.players[1].graveyard).toEqual(['bear']);
     expect(state.winner).toBeNull();

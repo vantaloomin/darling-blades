@@ -93,7 +93,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
-    case 'bounce': {
+    case 'recall': {
       const perm = targetPermanent(state, ctx.targets[0]);
       if (perm) {
         const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
@@ -107,7 +107,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
-    case 'counter': {
+    case 'cancel': {
       const ref = ctx.targets[0];
       if (ref?.kind !== 'stackItem') return;
       const idx = state.stack.findIndex((s) => s.sid === ref.sid);
@@ -118,7 +118,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
-    case 'pump': {
+    case 'boost': {
       const mod = { p: op.p, t: op.t, keywords: op.keywords ?? [] };
       if (op.scope === 'target') {
         const perm = targetPermanent(state, ctx.targets[0]);
@@ -148,7 +148,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       if (perm) perm.tapped = true;
       return;
     }
-    case 'rampBasic': {
+    case 'fetchLand': {
       const lib = state.players[ctx.controller].deck;
       for (let i = lib.length - 1; i >= 0; i--) {
         const d = def(db, lib[i]);
@@ -191,10 +191,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
-    case 'fog':
+    case 'preventCombat':
       state.fogThisTurn = true;
       return;
-    case 'regrowth': {
+    case 'reclaim': {
       const ref = ctx.targets[0];
       if (ref?.kind !== 'grave') return;
       const grave = state.players[ctx.controller].graveyard;
@@ -204,7 +204,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
-    case 'mill': {
+    case 'grind': {
       const victim = op.who === 'self' ? ctx.controller : opponentOf(ctx.controller);
       const lib = state.players[victim].deck;
       for (let i = 0; i < op.n; i++) {
@@ -215,7 +215,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
-    case 'reanimate': {
+    case 'raise': {
       const grave = state.players[ctx.controller].graveyard;
       let index: number;
       if (op.to === 'top') {

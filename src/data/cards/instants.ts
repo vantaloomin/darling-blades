@@ -31,7 +31,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: 3, t: 3, scope: 'target' }],
+        ops: [{ op: 'boost', p: 3, t: 3, scope: 'target' }],
       },
     ],
     rarity: 'c',
@@ -45,7 +45,7 @@ export const INSTANTS = [
     cost: cost(1, 'U'),
     colors: ['U'],
     abilities: [
-      { when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'counter', to: 'target' }] },
+      { when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }] },
     ],
     rarity: 'c',
     flavor: '“I read it in your posture,” she says, insufferably.',
@@ -61,7 +61,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: 1, t: 3, keywords: ['firstBlade'], scope: 'target' }],
+        ops: [{ op: 'boost', p: 1, t: 3, keywords: ['firstBlade'], scope: 'target' }],
       },
     ],
     rarity: 'c',
@@ -74,7 +74,7 @@ export const INSTANTS = [
     subtypes: [],
     cost: cost(0, 'G'),
     colors: ['G'],
-    abilities: [{ when: 'spell', ops: [{ op: 'fog' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }] }],
     rarity: 'c',
     flavor: 'The armies met. The valley disagreed.',
   },
@@ -86,7 +86,7 @@ export const INSTANTS = [
     cost: cost(0, 'U'),
     colors: ['U'],
     abilities: [
-      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'bounce', to: 'target' }] },
+      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'recall', to: 'target' }] },
     ],
     rarity: 'c',
     flavor: 'The tide files no charges. It just takes you home.',
@@ -113,7 +113,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: -2, t: -2, scope: 'target' }],
+        ops: [{ op: 'boost', p: -2, t: -2, scope: 'target' }],
       },
     ],
     rarity: 'c',
@@ -130,7 +130,7 @@ export const INSTANTS = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: 2, t: 0, keywords: ['overrun'], scope: 'target' }],
+        ops: [{ op: 'boost', p: 2, t: 0, keywords: ['overrun'], scope: 'target' }],
       },
     ],
     rarity: 'c',
@@ -189,7 +189,7 @@ export const INSTANTS = [
     subtypes: [],
     cost: cost(1, 'W'),
     colors: ['W'],
-    abilities: [{ when: 'spell', ops: [{ op: 'pump', p: 1, t: 1, scope: 'allYours' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }] }],
     rarity: 'r',
     flavor: 'One banner, many hands, zero hesitation.',
   },
@@ -261,7 +261,7 @@ export const INSTANTS = [
         when: 'spell',
         targets: [{ what: 'spell' }],
         ops: [
-          { op: 'counter', to: 'target' },
+          { op: 'cancel', to: 'target' },
           { op: 'draw', n: 1 },
         ],
       },

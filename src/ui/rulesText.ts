@@ -47,11 +47,11 @@ function opText(op: EffectOp): string {
       return `your opponent discards ${op.n === 1 ? 'a card' : `${op.n} cards`} at random`;
     case 'destroy':
       return 'destroy target creature';
-    case 'bounce':
+    case 'recall':
       return "return target creature to its owner's hand";
-    case 'counter':
-      return 'counter target spell';
-    case 'pump': {
+    case 'cancel':
+      return 'cancel target spell';
+    case 'boost': {
       const sign = (v: number): string => (v >= 0 ? `+${v}` : `${v}`);
       const kw = op.keywords?.length
         ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k].toLowerCase()).join(', ')}`
@@ -66,24 +66,26 @@ function opText(op: EffectOp): string {
         : `put ${op.n} +1/+1 counter${op.n === 1 ? '' : 's'} on target creature`;
     case 'tap':
       return 'tap target creature';
-    case 'rampBasic':
-      return 'search your deck for a basic land and put it onto the battlefield tapped';
+    case 'fetchLand':
+      return 'search your deck for a basic land and put it into play tapped';
     case 'createToken':
       return `create ${op.count} ${op.count === 1 ? 'token' : 'tokens'}`;
     case 'massDestroy':
       return op.filter === 'allCreatures' ? 'destroy all creatures' : 'destroy all creatures with Skyborne';
-    case 'fog':
+    case 'preventCombat':
       return 'prevent all combat damage that would be dealt this turn';
-    case 'regrowth':
+    case 'reclaim':
       return 'return target creature card from your graveyard to your hand';
-    case 'mill': {
-      const cards = op.n === 1 ? 'a card' : `${op.n} cards`;
-      return op.who === 'self' ? `mill ${cards}` : `your opponent mills ${cards}`;
+    case 'grind': {
+      const cards = op.n === 1 ? 'the top card' : `the top ${op.n} cards`;
+      return op.who === 'self'
+        ? `put ${cards} of your deck into your graveyard`
+        : `your opponent puts ${cards} of their deck into their graveyard`;
     }
-    case 'reanimate':
+    case 'raise':
       return op.to === 'top'
-        ? 'return the top creature card of your graveyard to the battlefield'
-        : 'return target creature card from your graveyard to the battlefield';
+        ? 'return the top creature card of your graveyard to play'
+        : 'return target creature card from your graveyard to play';
   }
 }
 

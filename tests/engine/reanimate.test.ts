@@ -18,7 +18,7 @@ describe('reanimate op', () => {
       TEST_DB,
       (e) => ev.push(e),
       { controller: 0, sourceCardId: 'x', targets: [graveTarget(0)] },
-      [{ op: 'reanimate' }],
+      [{ op: 'raise' }],
     );
     const perm = state.battlefield.find((p) => p.cardId === 'bear');
     expect(perm).toBeDefined();
@@ -37,7 +37,7 @@ describe('reanimate op', () => {
       TEST_DB,
       () => {},
       { controller: 0, sourceCardId: 'x', targets: [graveTarget(0)] },
-      [{ op: 'reanimate' }],
+      [{ op: 'raise' }],
     );
     expect(state.players[0].life).toBe(22);
     expect(state.players[1].life).toBe(18);
@@ -47,7 +47,7 @@ describe('reanimate op', () => {
     const state = makeTestState({ active: 0 });
     state.players[0].graveyard = ['bear', 'giant']; // giant buried last (on top)
     runOps(state, TEST_DB, () => {}, { controller: 0, sourceCardId: 'x', targets: [] }, [
-      { op: 'reanimate', to: 'top' },
+      { op: 'raise', to: 'top' },
     ]);
     expect(state.battlefield.some((p) => p.cardId === 'giant')).toBe(true);
     expect(state.players[0].graveyard).toEqual(['bear']);
@@ -57,7 +57,7 @@ describe('reanimate op', () => {
     const state = makeTestState({ active: 0 });
     state.players[0].graveyard = ['bear', 'shock']; // shock (instant) on top → skip to bear
     runOps(state, TEST_DB, () => {}, { controller: 0, sourceCardId: 'x', targets: [] }, [
-      { op: 'reanimate', to: 'top' },
+      { op: 'raise', to: 'top' },
     ]);
     expect(state.battlefield.some((p) => p.cardId === 'bear')).toBe(true);
     expect(state.players[0].graveyard).toEqual(['shock']);
@@ -77,7 +77,7 @@ describe('reanimate op', () => {
       TEST_DB,
       (e) => ev.push(e),
       { controller: 0, sourceCardId: 'x', targets: [graveTarget(0)] },
-      [{ op: 'reanimate' }],
+      [{ op: 'raise' }],
     );
     const creatures = state.battlefield.filter(
       (p) => p.controller === 0 && isType(def(TEST_DB, p.cardId), 'creature'),

@@ -110,7 +110,7 @@ const STAND_IN_DEFS: readonly CardDef[] = [
       {
         when: 'spell',
         targets: [{ what: 'creature' }],
-        ops: [{ op: 'pump', p: 2, t: 2, scope: 'target' }],
+        ops: [{ op: 'boost', p: 2, t: 2, scope: 'target' }],
       },
     ],
     rarity: 'c',

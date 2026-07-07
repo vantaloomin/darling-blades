@@ -98,7 +98,7 @@ export const TK_WU = [
     colors: ['U'],
     attack: 2,
     defense: 3,
-    abilities: [{ when: 'attacks', ops: [{ op: 'pump', p: 1, t: 0, scope: 'allYours' }] }],
+    abilities: [{ when: 'attacks', ops: [{ op: 'boost', p: 1, t: 0, scope: 'allYours' }] }],
     rarity: 'r',
     flavor: 'Quiet scholar. Loud results.',
   },

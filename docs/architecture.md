@@ -95,7 +95,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `drew`                 | `player`, `cardId`                              | `player` drew a card (full info — presenter hides opponent's).                                                             |
 | `mulliganTaken`        | `player`, `count`                               | `player` mulliganed; `count` is their running mulligan total.                                                              |
 | `handKept`             | `player`                                        | `player` kept their opening hand.                                                                                          |
-| `cardsBottomed`        | `player`, `count`                               | `player` put `count` cards on the bottom (London mulligan). Also emitted with `count: 0` by `bounce` as a UI resync nudge. |
+| `cardsBottomed`        | `player`, `count`                               | `player` put `count` cards on the bottom (London mulligan). Also emitted with `count: 0` by `recall` as a UI resync nudge. |
 | `landPlayed`           | `player`, `iid`, `cardId`                       | A land entered under `player`.                                                                                             |
 | `manaTapped`           | `player`, `iids`                                | These sources tapped to pay for a spell.                                                                                   |
 | `spellCast`            | `sid`, `cardId`, `controller`, `targets`        | A spell went on the stack.                                                                                                 |
@@ -109,9 +109,9 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `combatDamage`         | `hits[{source, target, amount}]`, `firstStrike` | A batch of simultaneous combat damage was computed.                                                                        |
 | `damageMarked`         | `iid`, `amount`                                 | Damage was marked on a permanent.                                                                                          |
 | `lifeChanged`          | `player`, `delta`, `now`                        | A player's life total changed.                                                                                             |
-| `died`                 | `iid`, `cardId`, `owner`                        | A permanent left the battlefield to the graveyard (also used by `bounce`).                                                 |
+| `died`                 | `iid`, `cardId`, `owner`                        | A permanent left the battlefield to the graveyard (also used by `recall`).                                                 |
 | `discarded`            | `player`, `cardId`                              | A card went from hand to graveyard.                                                                                        |
-| `milled`               | `player`, `cardId`                              | A card went from the top of a deck to the graveyard (the `mill` op).                                                       |
+| `milled`               | `player`, `cardId`                              | A card went from the top of a deck to the graveyard (the `grind` op).                                                      |
 | `triggerFired`         | `iid`, `when`                                   | A permanent's triggered ability fired.                                                                                     |
 | `effectApplied`        | `op`, `detail?`                                 | One `EffectOp` executed (op name for logging).                                                                             |
 | `tokenCreated`         | `perm`                                          | A token permanent entered.                                                                                                 |
