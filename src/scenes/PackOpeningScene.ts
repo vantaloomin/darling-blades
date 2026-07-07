@@ -48,6 +48,9 @@ interface SpecialEntry {
   view: CardView;
   card: AddResult;
   done: boolean;
+  /** the card's dealt-in slot x — restored after the best-card spotlight so it
+   * returns to its row position instead of staying centered (would overlap). */
+  homeX: number;
   /** lite-tier rarity hint (ring-sprite pulse) — destroyed on reveal */
   hint?: Phaser.GameObjects.Image;
 }
@@ -67,6 +70,9 @@ export class PackOpeningScene extends Phaser.Scene {
   private specials: SpecialEntry[] = [];
   private buttons: Phaser.GameObjects.Text[] = [];
   private skipBtn: Phaser.GameObjects.Text | null = null;
+  /** guards the best-card spotlight settle so tap-to-skip and the wobble's own
+   * onComplete can't both run the restore (one-shot per pack). */
+  private bestSettled = false;
 
   constructor() {
     super('PackOpening');
@@ -79,6 +85,7 @@ export class PackOpeningScene extends Phaser.Scene {
     this.revealed = 0;
     this.specials = [];
     this.buttons = [];
+    this.bestSettled = false;
     bakePackArt(this);
     if (this.sku === 'ragnarok') {
       bakePackArt(this, {
@@ -291,7 +298,7 @@ export class PackOpeningScene extends Phaser.Scene {
       const x = width / 2 - ((s - 1) * spacing) / 2 + i * spacing;
       const view = new CardView(this, width / 2, 340);
       view.setScale(0.1).setCard(null);
-      const entry: SpecialEntry = { view, card, done: false };
+      const entry: SpecialEntry = { view, card, done: false, homeX: x };
       this.specials.push(entry);
       this.tweens.add({
         targets: view,
@@ -377,6 +384,10 @@ export class PackOpeningScene extends Phaser.Scene {
         if (!view.active) return;
         Sfx.play('flip');
         view.setCard(d, { fx, variant: plain ? undefined : variant });
+        // Auto-sold plain duplicate (dupeGold > 0 ⇒ over-playset, melted for gold,
+        // never recorded): ghost it so it reads "sold, not added" — the gold chip
+        // in badge() stays full-opacity to show the payout.
+        if (card.dupeGold > 0) view.setAlpha(0.5);
         // r-tier grid cards keep a steady silver glow (the old uncommon read)
         if (card.tier === 'r' && fxPolicy(this).packGlow && view.postFX) {
           view.postFX.addGlow(0xcfd8ea, 2.5, 0, false, 0.12, 14);
@@ -402,13 +413,13 @@ export class PackOpeningScene extends Phaser.Scene {
     const topY = view.y - 220 * view.scaleY;
     if (TIER_RANK[card.tier] >= TIER_RANK.sr) {
       const tag = this.add
-        .text(view.x, topY - (special ? 32 : 10), TIER_LABEL[card.tier], {
+        .text(view.x, topY - (special ? 40 : 16), TIER_LABEL[card.tier], {
           fontFamily: 'Inter, Arial, sans-serif',
           fontSize: '12px',
           fontStyle: '700',
           color: (HINT[card.tier as keyof typeof HINT] ?? HINT.sr).label,
           backgroundColor: '#1c1730',
-          padding: { x: 7, y: 2 },
+          padding: { x: 9, y: 3 },
         })
         .setOrigin(0.5)
         .setAlpha(0);
@@ -419,28 +430,28 @@ export class PackOpeningScene extends Phaser.Scene {
       if (card.frame !== 'white') parts.push(`${card.frame.toUpperCase()} FRAME`);
       if (card.holo !== 'none') parts.push(card.holo.toUpperCase());
       const callout = this.add
-        .text(view.x, topY - 10, parts.join(' · '), {
+        .text(view.x, topY - 14, parts.join(' · '), {
           fontFamily: 'Inter, Arial, sans-serif',
           fontSize: '11px',
           fontStyle: '700',
           color: '#e8ddff',
           backgroundColor: '#1c1730',
-          padding: { x: 7, y: 2 },
+          padding: { x: 9, y: 3 },
         })
         .setOrigin(0.5)
         .setAlpha(0);
       this.tweens.add({ targets: callout, alpha: 1, duration: 250 });
     }
-    const label = card.isNew ? 'NEW' : card.dupeGold > 0 ? `+${card.dupeGold}g` : null;
+    const label = card.isNew ? 'NEW' : card.dupeGold > 0 ? `🪙 +${card.dupeGold}` : null;
     if (!label) return;
     const t = this.add
-      .text(view.x, view.y + 220 * view.scaleY + 4, label, {
+      .text(view.x, view.y + 220 * view.scaleY + 12, label, {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '13px',
         fontStyle: '700',
         color: card.isNew ? '#9be6a8' : '#ffd88a',
         backgroundColor: '#1c1730',
-        padding: { x: 8, y: 3 },
+        padding: { x: 9, y: 4 },
       })
       .setOrigin(0.5)
       .setAlpha(0);
@@ -476,7 +487,8 @@ export class PackOpeningScene extends Phaser.Scene {
     const height = 720;
     const dim = this.add
       .rectangle(width / 2, height / 2, width, height, 0x000000, 0)
-      .setDepth(40);
+      .setDepth(40)
+      .setInteractive(); // tap anywhere to dismiss the showcase (armed below)
     view.setDepth(50);
     this.tweens.add({ targets: dim, fillAlpha: esc.dimAlpha, duration: 300 });
     this.tweens.timeScale = 0.35;
@@ -512,7 +524,21 @@ export class PackOpeningScene extends Phaser.Scene {
             view.x,
             view.y,
           );
-          // showcase wobble, then settle back
+          // Tap-to-skip: a hint + the interactive dim let the player dismiss the
+          // showcase early. Both the tap and the wobble's natural end route
+          // through settleBest, which is one-shot guarded so they can't double.
+          const skipHint = this.add
+            .text(width / 2, height - 38, 'tap to skip', {
+              fontFamily: 'Inter, Arial, sans-serif',
+              fontSize: '15px',
+              color: '#9d92b8',
+            })
+            .setOrigin(0.5)
+            .setDepth(41)
+            .setAlpha(0);
+          this.tweens.add({ targets: skipHint, alpha: 1, duration: 400 });
+          dim.once('pointerup', () => this.settleBest(entry, dim, skipHint));
+          // showcase wobble, then settle back to its dealt slot
           this.tweens.add({
             targets: view,
             angle: { from: -2.5, to: 2.5 },
@@ -520,31 +546,55 @@ export class PackOpeningScene extends Phaser.Scene {
             yoyo: true,
             repeat: 1,
             ease: 'Sine.easeInOut',
-            onComplete: () => {
-              // Restore the animation-policy baseline, NOT a hardcoded 1 —
-              // otherwise the 'reduced'/'off' timeScale that applySceneSettings
-              // set at create() is silently lost for the rest of the pack once
-              // any SR+ card escalates.
-              this.tweens.timeScale = animTimeScale(Services.save.data.settings.animations);
-              // restore to the render-scale base zoom, not 1 (see above)
-              this.cameras.main.zoomTo(activeRenderScale(), 300);
-              this.tweens.add({
-                targets: dim,
-                fillAlpha: 0,
-                duration: 300,
-                onComplete: () => {
-                  if (dim.active) dim.destroy();
-                },
-              });
-              if (view.active) {
-                this.tweens.add({ targets: view, scale: 0.62, y: SPECIAL_Y, duration: 300 });
-              }
-              this.checkAllRevealed();
-            },
+            onComplete: () => this.settleBest(entry, dim, skipHint),
           });
         });
       },
     });
+  }
+
+  /**
+   * End the best-card spotlight: restore the animation-policy timeScale and the
+   * render-scale base zoom, fade the dim, and slide the card back to its dealt
+   * slot (`homeX`, upright) — NOT screen-center, which left it overlapping its
+   * neighbours. Runs at most once per pack (guarded by `bestSettled`) whether
+   * fired by tap-to-skip or the wobble finishing on its own.
+   */
+  private settleBest(
+    entry: SpecialEntry,
+    dim: Phaser.GameObjects.Rectangle,
+    skipHint: Phaser.GameObjects.Text,
+  ): void {
+    if (this.bestSettled) return;
+    this.bestSettled = true;
+    const { view } = entry;
+    this.tweens.killTweensOf(view); // stop an in-flight wobble on tap-to-skip
+    // Restore the animation-policy baseline, NOT a hardcoded 1 — otherwise the
+    // 'reduced'/'off' timeScale that applySceneSettings set at create() is
+    // silently lost for the rest of the pack once any SR+ card escalates.
+    this.tweens.timeScale = animTimeScale(Services.save.data.settings.animations);
+    // restore to the render-scale base zoom, not 1 (zoomTo is absolute)
+    this.cameras.main.zoomTo(activeRenderScale(), 300);
+    if (skipHint.active) skipHint.destroy();
+    this.tweens.add({
+      targets: dim,
+      fillAlpha: 0,
+      duration: 300,
+      onComplete: () => {
+        if (dim.active) dim.destroy();
+      },
+    });
+    if (view.active) {
+      this.tweens.add({
+        targets: view,
+        x: entry.homeX,
+        y: SPECIAL_Y,
+        scale: 0.62,
+        angle: 0,
+        duration: 300,
+      });
+    }
+    this.checkAllRevealed();
   }
 
   private skipAll(): void {
