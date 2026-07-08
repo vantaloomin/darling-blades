@@ -216,8 +216,12 @@ export class DuelScene extends Phaser.Scene {
   private coach: CoachMark | null = null;
   private tutGoalShown = false;
   private tutSicknessShown = false;
-  /** Set once the human confirms a real block — the last taught beat. */
   private tutBlocked = false;
+  /** Ritual (sorcery-timing) + Charm (instant-timing) lesson progress. */
+  private tutRitualCast = false;
+  private tutRitualInfoShown = false;
+  private tutCharmCast = false;
+  private tutCharmInfoShown = false;
   private tutCompleted = false;
   /** A tap-to-continue info card is up; the guide waits for its dismissal. */
   private coachInfoActive = false;
@@ -284,6 +288,10 @@ export class DuelScene extends Phaser.Scene {
     this.tutGoalShown = false;
     this.tutSicknessShown = false;
     this.tutBlocked = false;
+    this.tutRitualCast = false;
+    this.tutRitualInfoShown = false;
+    this.tutCharmCast = false;
+    this.tutCharmInfoShown = false;
     this.tutCompleted = false;
     this.coachInfoActive = false;
     this.coach = null;
@@ -415,8 +423,9 @@ export class DuelScene extends Phaser.Scene {
   /**
    * Advance the coach-mark guide off engine + selection state (never timers).
    * Called at the end of every `sync()`, so selection toggles, phase changes,
-   * and AI moves all re-evaluate it. Info beats (goal / sickness) pause the
-   * guide on a tap-to-continue card; action beats spotlight a live control.
+   * and AI moves all re-evaluate it. Info beats (goal / sickness / Ritual timing /
+   * Charm timing) pause the guide on a tap-to-continue card; action beats
+   * spotlight a live control.
    */
   private tutorialTick(): void {
     if (!this.tutorial || this.ended || this.tutCompleted || !this.coach) return;
@@ -430,14 +439,18 @@ export class DuelScene extends Phaser.Scene {
         this.coach.hide();
         return;
       case 'goal':
-      case 'sickness': {
-        const isGoal = cue.kind === 'goal';
+      case 'sickness':
+      case 'ritualInfo':
+      case 'charmInfo': {
+        const kind = cue.kind;
         this.coachInfoActive = true;
         this.coach.hide();
         this.coach.showInfoCard(cue.text, () => {
           this.coachInfoActive = false;
-          if (isGoal) this.tutGoalShown = true;
-          else this.tutSicknessShown = true;
+          if (kind === 'goal') this.tutGoalShown = true;
+          else if (kind === 'sickness') this.tutSicknessShown = true;
+          else if (kind === 'ritualInfo') this.tutRitualInfoShown = true;
+          else this.tutCharmInfoShown = true;
           this.tutorialTick();
         });
         return;
@@ -457,9 +470,12 @@ export class DuelScene extends Phaser.Scene {
     const you = st.players[HUMAN];
     const legal = isHumanTurn ? this.duel.legalActions(HUMAN) : [];
     const handHasLand = you.hand.some((id) => isType(def(CARD_DB, id), 'land'));
-    const hasCastableCreature = legal.some(
-      (l) => l.type === 'castSpell' && isType(def(CARD_DB, you.hand[l.handIndex]), 'creature'),
-    );
+    const castableOfType = (t: import('../engine/types').CardType): boolean =>
+      legal.some((l) => l.type === 'castSpell' && isType(def(CARD_DB, you.hand[l.handIndex]), t));
+    const hasCastableCreature = castableOfType('creature');
+    const hasCastableRitual = castableOfType('ritual');
+    const hasCastableCharm = castableOfType('charm');
+    const handHasCharm = you.hand.some((id) => isType(def(CARD_DB, id), 'charm'));
     const myCreatureCount = st.battlefield.filter(
       (p) => p.controller === HUMAN && isType(def(CARD_DB, p.cardId), 'creature'),
     ).length;
@@ -484,9 +500,18 @@ export class DuelScene extends Phaser.Scene {
       pendingBlocker: this.pendingBlocker !== null,
       hasLegalBlocker,
       blockAssigned: this.blockAssignments.length > 0,
+      activePlayerIsOpponent: st.activePlayer !== HUMAN,
+      hasCastableRitual,
+      hasCastableCharm,
+      handHasCharm,
       goalShown: this.tutGoalShown,
       sicknessShown: this.tutSicknessShown,
       blocked: this.tutBlocked,
+      ritualCast: this.tutRitualCast,
+      ritualInfoShown: this.tutRitualInfoShown,
+      charmCast: this.tutCharmCast,
+      charmInfoShown: this.tutCharmInfoShown,
+      safetyDone: st.turn >= 12,
     };
   }
 
@@ -498,15 +523,12 @@ export class DuelScene extends Phaser.Scene {
     switch (kind) {
       case 'playLand':
         return this.handTarget((d) => isType(d, 'land'));
-      case 'playCreature': {
-        const castable = new Set(
-          this.duel
-            .legalActions(HUMAN)
-            .filter((l): l is Extract<Action, { type: 'castSpell' }> => l.type === 'castSpell')
-            .map((l) => l.handIndex),
-        );
-        return this.handTarget((d, handIdx) => castable.has(handIdx) && isType(d, 'creature'));
-      }
+      case 'playCreature':
+        return this.castableHandTarget('creature');
+      case 'castRitual':
+        return this.castableHandTarget('ritual');
+      case 'castCharm':
+        return this.castableHandTarget('charm');
       case 'advance':
       case 'confirmAttack':
       case 'confirmBlock':
@@ -527,6 +549,17 @@ export class DuelScene extends Phaser.Scene {
       default:
         return null;
     }
+  }
+
+  /** First castable card of a given type in hand → its CardView. */
+  private castableHandTarget(t: import('../engine/types').CardType): CardView | null {
+    const castable = new Set(
+      this.duel
+        .legalActions(HUMAN)
+        .filter((l): l is Extract<Action, { type: 'castSpell' }> => l.type === 'castSpell')
+        .map((l) => l.handIndex),
+    );
+    return this.handTarget((d, handIdx) => castable.has(handIdx) && isType(d, t));
   }
 
   /** First hand card (in display order) matching a predicate → its CardView. */
@@ -551,7 +584,7 @@ export class DuelScene extends Phaser.Scene {
     const save = Services.save.data;
     const firstTime = !save.tutorialDone;
     save.tutorialDone = true;
-    if (firstTime) save.gold += ECONOMY.starterDeckPrice; // enough to buy one starter deck
+    if (firstTime) save.gold += ECONOMY.startingGold; // onboarding bonus (same on skip)
     Services.save.flush();
     Music.duck(1.8);
     Sfx.play(success ? 'win' : 'click');
@@ -569,7 +602,7 @@ export class DuelScene extends Phaser.Scene {
     );
     c.add(
       this.add
-        .text(width / 2, 312, "You've got the basics — now build your collection.", {
+        .text(width / 2, 312, "You've got the basics — now claim your free deck in the Shop.", {
           fontFamily: 'Inter, Arial, sans-serif', fontSize: '18px', color: '#c9bde0',
         })
         .setOrigin(0.5),
@@ -577,7 +610,7 @@ export class DuelScene extends Phaser.Scene {
     if (firstTime) {
       c.add(
         this.add
-          .text(width / 2, 356, `+${ECONOMY.starterDeckPrice} gold`, {
+          .text(width / 2, 356, `+${ECONOMY.startingGold} gold`, {
             fontFamily: 'Inter, Arial, sans-serif', fontSize: '20px', fontStyle: '600', color: '#ffd88a',
           })
           .setOrigin(0.5),
@@ -595,7 +628,7 @@ export class DuelScene extends Phaser.Scene {
       inflateHitArea(btn, 90, 90);
       c.add(btn);
     };
-    mk(width / 2 - 120, 'To the Shop', () => this.scene.start('Shop'));
+    mk(width / 2 - 120, 'To the Shop', () => this.scene.start('Shop', { tab: 'decks' }));
     mk(width / 2 + 120, 'Main Menu', () => this.scene.start('MainMenu'));
     this.guard.open(this.overlayGuardTargets());
   }
@@ -1041,9 +1074,14 @@ export class DuelScene extends Phaser.Scene {
     if (this.animatingCombat) return; // swallow input while a combat sequence plays
     try {
       const snapshot = this.duel.clone(); // pre-action state; kept for Undo iff still local
+      // Tutorial: note which taught spell/beat this action is BEFORE it resolves
+      // (a cast card leaves the hand on submit), so the guide can advance.
+      if (this.tutorial && action.type === 'castSpell') {
+        const types = def(CARD_DB, this.duel.state.players[HUMAN].hand[action.handIndex]).types;
+        if (types.includes('ritual')) this.tutRitualCast = true;
+        if (types.includes('charm')) this.tutCharmCast = true;
+      }
       const events = this.duel.submit(HUMAN, action);
-      // Tutorial: a real block is the final taught beat — mark it so the guide
-      // advances to completion on the next tick.
       if (this.tutorial && action.type === 'declareBlockers' && action.blocks.length > 0) {
         this.tutBlocked = true;
       }

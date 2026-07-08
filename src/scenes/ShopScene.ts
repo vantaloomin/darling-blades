@@ -7,7 +7,7 @@ import { PREMIUM_HEROES } from '../data/heroes';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue } from '../engine/types';
-import { buyThemeDeck, spendGold } from '../meta/Economy';
+import { buyThemeDeck, claimFreeStarter, spendGold } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
@@ -197,8 +197,10 @@ export class ShopScene extends Phaser.Scene {
     ];
   }
 
-  create(): void {
-    this.tab = 'boosters';
+  create(data: { tab?: ShopTab } = {}): void {
+    // Onboarding routes here with { tab: 'decks' } so a new player lands on their
+    // free-starter claim; everything else defaults to the boosters tab.
+    this.tab = data.tab ?? 'boosters';
     this.qty = 1;
     this.skuButtons = [];
     this.qtyChips = new Map();
@@ -255,7 +257,7 @@ export class ShopScene extends Phaser.Scene {
     this.decksGroup = this.add.container(0, 0);
     this.buildBoostersGroup(this.boostersGroup);
     this.buildDecksGroup(this.decksGroup);
-    this.setTab('boosters');
+    this.setTab(this.tab); // honors the initial tab (onboarding routes to 'decks')
 
     const back = this.add
       .text(28, 28, '← Menu', {
@@ -472,9 +474,20 @@ export class ShopScene extends Phaser.Scene {
     }
   }
 
+  /** A starter is a one-time FREE claim while the player hasn't taken their free deck yet. */
+  private isFreeClaim(deck: DeckList): boolean {
+    const save = Services.save.data;
+    return (
+      save.starterChosen === null &&
+      STARTER_DECKS.some((s) => s.id === deck.id) &&
+      !save.decks.some((d) => d.id === deck.id)
+    );
+  }
+
   private buildDeckRow(group: Phaser.GameObjects.Container, sku: DeckSku, y: number): void {
     const { deck, price, theme } = sku;
     const owned = Services.save.data.decks.some((d) => d.id === deck.id);
+    const freeClaim = this.isFreeClaim(deck);
 
     const plate = this.add
       .rectangle(640, y, 900, 62, theme ? 0x241c3e : 0x1c1830, 0.7)
@@ -489,7 +502,7 @@ export class ShopScene extends Phaser.Scene {
     const hero = PREMIUM_HEROES.find((h) => h.unlockDeckId === deck.id);
     const blurbText =
       (DECK_BLURB[deck.id] ?? '') +
-      (owned ? '  ·  Owned' : '') +
+      (owned ? '  ·  Owned' : freeClaim ? '  ·  ✦ your free starter' : '') +
       (hero ? '  ·  ✦ exclusive hero' : '');
     const blurb = this.add
       .text(220, y + 13, blurbText, {
@@ -517,11 +530,11 @@ export class ShopScene extends Phaser.Scene {
 
     if (!owned) {
       const buy = this.add
-        .text(920, y, `Buy — 🪙 ${price}`, {
+        .text(920, y, freeClaim ? 'Claim Free ✦' : `Buy — 🪙 ${price}`, {
           fontFamily: 'Cinzel, Georgia, serif',
           fontSize: '17px',
-          color: '#ffd88a',
-          backgroundColor: '#2c2344',
+          color: freeClaim ? '#8ad0a0' : '#ffd88a',
+          backgroundColor: freeClaim ? '#1b2a1b' : '#2c2344',
           padding: { x: 14, y: 7 },
         })
         .setOrigin(0.5)
@@ -580,14 +593,16 @@ export class ShopScene extends Phaser.Scene {
 
   private onBuyDeck(sku: DeckSku): void {
     const save = Services.save.data;
-    if (!buyThemeDeck(save, CARD_DB, sku.deck, sku.price)) {
+    if (this.isFreeClaim(sku.deck)) {
+      claimFreeStarter(save, CARD_DB, sku.deck); // free — sets starterChosen + activeDeckId
+    } else if (!buyThemeDeck(save, CARD_DB, sku.deck, sku.price)) {
       this.insufficientFunds();
       return;
     }
     Sfx.play('coin');
     Services.save.flush();
     this.refreshGold();
-    this.buildDecksGroup(this.decksGroup); // the bought row now reads "Owned ✓"
+    this.buildDecksGroup(this.decksGroup); // the claimed/bought row now reads "Owned ✓"
   }
 
   // --- Deck preview overlay -------------------------------------------------
@@ -668,13 +683,14 @@ export class ShopScene extends Phaser.Scene {
     ]);
 
     // Buy-from-preview (unless owned) + Close.
+    const freeClaim = this.isFreeClaim(deck);
     if (!owned) {
       const buy = this.add
-        .text(width / 2 - 90, 620, `Buy — 🪙 ${price}`, {
+        .text(width / 2 - 90, 620, freeClaim ? 'Claim Free ✦' : `Buy — 🪙 ${price}`, {
           fontFamily: 'Cinzel, Georgia, serif',
           fontSize: '18px',
-          color: '#ffd88a',
-          backgroundColor: '#2c2344',
+          color: freeClaim ? '#8ad0a0' : '#ffd88a',
+          backgroundColor: freeClaim ? '#1b2a1b' : '#2c2344',
           padding: { x: 16, y: 8 },
         })
         .setOrigin(0.5)

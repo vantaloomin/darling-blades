@@ -7,35 +7,36 @@ import type { AIPlayer } from '../ai/AIPlayer';
  * guide. Everything here is pure/Phaser-free so the line is deterministic and
  * the guide logic is unit-testable.
  *
- * The decks are mono-White so mana is trivial: 1-drop `bk-mousekin-pantry-guard`
- * (1/1) is the turn-one creature (teaches casting + summoning sickness) and the
- * human's attacker; 2-drop `tk-shu-guansuo` (2/2) is the blocker. All are
- * vanilla (no keywords/abilities), so combat reads exactly as taught. No new
- * cards or art are authored — every id is an existing pool card.
+ * The decks are mono-White so mana is trivial. `bk-mousekin-pantry-guard` (1/1)
+ * is the turn-one creature (teaches casting + summoning sickness) and the human's
+ * attacker; `so-muster-militia` (a Ritual = sorcery-speed) makes two Militia
+ * token blockers AND teaches Ritual timing; `in-blessed-respite` (a Charm =
+ * instant-speed) is cast IN RESPONSE to the opponent's attack to teach Charm
+ * timing. All are existing pool cards — no new cards or art are authored.
  */
 const PLAINS = 'land-plains';
 const MOUSE = 'bk-mousekin-pantry-guard'; // 1/1 W — turn-1 creature + attacker
-const GUARD = 'tk-shu-guansuo'; // 2/2 W — the blocker
+const RITUAL = 'so-muster-militia'; // ritual (sorcery): create 2 Militia tokens (blockers)
+const CHARM = 'in-blessed-respite'; // charm (instant): gain 4 life — the in-response lesson
 
-/** Human's fixed teaching deck (12 cards). */
+/** Human's fixed teaching deck (16 cards). */
 export const TUTORIAL_PLAYER_DECK: readonly string[] = [
-  PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS,
+  PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS,
   MOUSE, MOUSE, MOUSE,
-  GUARD, GUARD, GUARD,
+  RITUAL, RITUAL, RITUAL,
+  CHARM, CHARM, CHARM,
 ];
 
-/** The teaching opponent's fixed deck (12 cards, same shape). */
+/** The teaching opponent's fixed deck (12 cards) — just lands + small attackers. */
 export const TUTORIAL_AI_DECK: readonly string[] = [
-  PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS,
-  MOUSE, MOUSE, MOUSE,
-  GUARD, GUARD, GUARD,
+  PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS,
+  MOUSE, MOUSE, MOUSE, MOUSE, MOUSE,
 ];
 
 /**
- * Fixed seed for the tutorial `Game`. Chosen so the human is on the play and
- * opens with a Plains + the 1-drop attacker + a 2-drop blocker (and the AI
- * opens with a Plains + a 1-drop), making the scripted line reproducible.
- * Pinned by tests/data/tutorial.test.ts.
+ * Fixed seed for the tutorial `Game`. Chosen (pinned by tests/data/tutorial.test.ts)
+ * so the human is on the play and the scripted line is reproducible: opens with a
+ * Plains + the 1-drop, and draws the Ritual and Charm in time for their lessons.
  */
 export const TUTORIAL_SEED = 2;
 
@@ -68,14 +69,18 @@ export type TutorialCueKind =
   | 'playLand' // spotlight a land in hand
   | 'playCreature' // spotlight a castable creature in hand
   | 'sickness' // info card: summoning sickness
-  | 'advance' // spotlight the smart button (pass / to-combat / next)
+  | 'castRitual' // spotlight a Ritual (sorcery) in hand
+  | 'ritualInfo' // info card: Ritual timing (your turn only)
+  | 'castCharm' // spotlight a Charm (instant) in a response window
+  | 'charmInfo' // info card: Charm timing (any time)
+  | 'advance' // spotlight the smart button (pass / to-combat / next / hold)
   | 'selectAttacker' // spotlight an eligible attacker tile
   | 'confirmAttack' // spotlight the smart button to confirm the swing
   | 'selectBlocker' // spotlight an eligible blocker tile
   | 'selectAttackerToBlock' // spotlight the incoming attacker tile
   | 'confirmBlock' // spotlight the smart button to confirm the block
   | 'wait' // opponent is acting — hide the coach mark
-  | 'done'; // block landed — end the tutorial
+  | 'done'; // all beats taught — end the tutorial
 
 export interface TutorialCueInput {
   isHumanTurn: boolean;
@@ -84,15 +89,26 @@ export interface TutorialCueInput {
   landPlayedThisTurn: boolean;
   handHasLand: boolean;
   hasCastableCreature: boolean;
+  hasCastableRitual: boolean;
+  hasCastableCharm: boolean;
+  handHasCharm: boolean;
   myCreatureCount: number;
   eligibleAttackerCount: number;
   attackerSelected: boolean;
   pendingBlocker: boolean;
   hasLegalBlocker: boolean;
   blockAssigned: boolean;
+  /** The opponent is the active/turn player — so a response window here is on THEIR turn. */
+  activePlayerIsOpponent: boolean;
   goalShown: boolean;
   sicknessShown: boolean;
   blocked: boolean;
+  ritualCast: boolean;
+  ritualInfoShown: boolean;
+  charmCast: boolean;
+  charmInfoShown: boolean;
+  /** Anti-stall backstop: end the tutorial gracefully if the line runs long. */
+  safetyDone: boolean;
 }
 
 export interface TutorialCue {
@@ -102,18 +118,28 @@ export interface TutorialCue {
 }
 
 export function tutorialCue(i: TutorialCueInput): TutorialCue {
-  if (i.blocked) return { kind: 'done', text: '' };
+  if ((i.charmCast && i.charmInfoShown) || i.safetyDone) return { kind: 'done', text: '' };
   if (!i.isHumanTurn) return { kind: 'wait', text: '' };
   if (!i.goalShown) return { kind: 'goal', text: 'Win by taking your foe to 0 life.' };
+  // Info cards fire the moment their spell resolves, whatever the phase.
+  if (i.ritualCast && !i.ritualInfoShown)
+    return { kind: 'ritualInfo', text: 'Rituals cast only on your own turn.' };
+  if (i.charmCast && !i.charmInfoShown)
+    return { kind: 'charmInfo', text: 'Charms cast any time — even your foe’s turn.' };
 
   switch (i.awaitingKind) {
     case 'main':
       if (!i.landPlayedThisTurn && i.handHasLand)
         return { kind: 'playLand', text: 'Play a land — it makes your mana.' };
+      if (i.myCreatureCount === 0 && i.hasCastableCreature)
+        return { kind: 'playCreature', text: 'Spend mana — play a creature.' };
       if (i.myCreatureCount >= 1 && !i.sicknessShown)
         return { kind: 'sickness', text: "A new creature can't attack this turn." };
-      if (i.myCreatureCount < 2 && i.hasCastableCreature)
-        return { kind: 'playCreature', text: 'Spend mana — play a creature.' };
+      if (!i.ritualCast && i.hasCastableRitual)
+        return { kind: 'castRitual', text: 'Cast this Ritual — a sorcery-speed spell.' };
+      // After the block lesson, keep mana open for the Charm-in-response lesson.
+      if (i.blocked && !i.charmCast && i.handHasCharm)
+        return { kind: 'advance', text: 'Hold your mana — save the Charm ▶' };
       return { kind: 'advance', text: i.step === 'main1' ? 'Advance to combat ▶' : 'Advance ▶' };
 
     case 'declareAttackers':
@@ -128,6 +154,14 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
       return { kind: 'selectBlocker', text: 'Tap your creature to block.' };
 
     case 'respond':
+      // The Charm lesson: cast it in response, but ONLY during the opponent's
+      // turn (their attack) so the "even on their turn" point actually lands. A
+      // response window on your own turn (e.g. after they declare blocks) is
+      // just passed.
+      if (!i.charmCast && i.hasCastableCharm && i.activePlayerIsOpponent)
+        return { kind: 'castCharm', text: 'Cast a Charm now — on their turn!' };
+      return { kind: 'advance', text: 'Pass ▶' };
+
     case 'endStepWindow':
       return { kind: 'advance', text: 'Pass ▶' };
 

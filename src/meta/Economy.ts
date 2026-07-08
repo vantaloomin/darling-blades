@@ -150,3 +150,20 @@ export function buyThemeDeck(
   save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards] });
   return true;
 }
+
+/**
+ * Claim the ONE free starter deck (the Shop's onboarding grant that replaced the
+ * old first-launch deck picker). Free (no gold), grants the cards, adds the deck,
+ * makes it active if the player has none, and stamps `starterChosen` so only one
+ * is ever free — every other starter then costs `starterDeckPrice`. No-op (false)
+ * once a starter has been claimed or the deck is already owned.
+ */
+export function claimFreeStarter(save: SaveData, db: CardDb, deck: DeckList): boolean {
+  if (save.starterChosen !== null) return false;
+  if (save.decks.some((d) => d.id === deck.id)) return false;
+  grantDeckCards(save, db, deck.cards);
+  save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards] });
+  if (save.activeDeckId === null) save.activeDeckId = deck.id;
+  save.starterChosen = deck.id;
+  return true;
+}

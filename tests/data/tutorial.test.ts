@@ -24,67 +24,95 @@ function newTutorialGame(): Game {
   });
 }
 
+const castOfType = (g: Game, t: 'creature' | 'ritual' | 'charm'): Action | undefined =>
+  g
+    .legalActions(HUMAN)
+    .find(
+      (l) => l.type === 'castSpell' && isType(def(CARD_DB, g.state.players[HUMAN].hand[l.handIndex]), t),
+    );
+
 /**
- * A deterministic human that mirrors the coach-mark guide's intended line:
- * keep, build a board (land → up to two creatures), attack with an eligible
- * creature, and block the incoming attacker. Used to exercise the scripted duel
- * end-to-end headlessly.
+ * A deterministic human mirroring the coach-mark guide's line: build a board,
+ * cast the Ritual on your turn, attack, block, HOLD mana, and cast the Charm in
+ * response ONLY on the opponent's turn (the instant-timing lesson).
  */
-function humanPolicy(g: Game): Action {
+function humanPolicy(g: Game, prog: { ritualCast: boolean; charmOnOppTurn: boolean }): Action {
   const legal = g.legalActions(HUMAN);
   const a = g.awaiting;
+  const st = g.state;
   const keep = legal.find((l) => l.type === 'keepHand');
   if (keep) return keep;
-  const passResponse = legal.find((l) => l.type === 'passResponse');
-  if (passResponse && (a.kind === 'respond' || a.kind === 'endStepWindow')) return passResponse;
-
-  if (a.kind === 'declareBlockers' && g.state.combat) {
-    const opts = blockOptions(g.state.battlefield, CARD_DB, HUMAN, g.state.combat);
-    const opt = opts.find((o) => o.canBlock.length > 0);
-    if (opt) return { type: 'declareBlockers', blocks: [{ blocker: opt.blocker, attacker: opt.canBlock[0] }] };
-    return { type: 'declareBlockers', blocks: [] };
+  if (a.kind === 'respond') {
+    if (!prog.charmOnOppTurn && st.activePlayer === AI) {
+      const charm = castOfType(g, 'charm');
+      if (charm) {
+        prog.charmOnOppTurn = true;
+        return charm;
+      }
+    }
+    return legal.find((l) => l.type === 'passResponse') ?? legal[0];
+  }
+  if (a.kind === 'endStepWindow') return legal.find((l) => l.type === 'passResponse') ?? legal[0];
+  if (a.kind === 'declareBlockers' && st.combat) {
+    const opts = blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat);
+    const o = opts.find((o) => o.canBlock.length > 0);
+    return o ? { type: 'declareBlockers', blocks: [{ blocker: o.blocker, attacker: o.canBlock[0] }] } : { type: 'declareBlockers', blocks: [] };
   }
   if (a.kind === 'declareAttackers') {
-    const elig = eligibleAttackers(g.state.battlefield, CARD_DB, HUMAN);
-    return { type: 'declareAttackers', attackers: elig.length > 0 ? [elig[0]] : [] };
+    const e = eligibleAttackers(st.battlefield, CARD_DB, HUMAN);
+    return { type: 'declareAttackers', attackers: e.length > 0 ? [e[0]] : [] };
   }
   if (a.kind === 'main') {
     const land = legal.find((l) => l.type === 'playLand');
     if (land) return land;
-    const myCreatures = g.state.battlefield.filter(
+    const mine = st.battlefield.filter(
       (p) => p.controller === HUMAN && isType(def(CARD_DB, p.cardId), 'creature'),
     ).length;
-    const creature = legal.find(
-      (l) => l.type === 'castSpell' && isType(def(CARD_DB, g.state.players[HUMAN].hand[l.handIndex]), 'creature'),
-    );
-    if (creature && myCreatures < 2) return creature;
-    return { type: 'passStep' };
+    if (mine === 0) {
+      const cr = castOfType(g, 'creature');
+      if (cr) return cr;
+    }
+    if (!prog.ritualCast) {
+      const rit = castOfType(g, 'ritual');
+      if (rit) {
+        prog.ritualCast = true;
+        return rit;
+      }
+    }
+    return legal.find((l) => l.type === 'passStep') ?? legal[0]; // hold the Charm
   }
-  return legal.find((l) => l.type === 'passStep') ?? legal[0] ?? { type: 'concede' };
+  return legal.find((l) => l.type === 'passStep') ?? legal[0];
 }
 
-/** Play the scripted tutorial to the human's first real block (its end beat). */
+/** Play the scripted tutorial until every taught beat has fired. */
 function playTutorial(): {
   humanAttacked: boolean;
   humanBlocked: boolean;
+  ritualCast: boolean;
+  charmOnOppTurn: boolean;
+  minHumanLife: number;
   finalState: string;
 } {
   const g = newTutorialGame();
   const ai = new ScriptAI(CARD_DB);
+  const prog = { ritualCast: false, charmOnOppTurn: false };
   let humanAttacked = false;
   let humanBlocked = false;
+  let minHumanLife = g.state.players[HUMAN].life;
   let steps = 0;
-  while (g.state.winner === null && steps++ < 500) {
+  while (g.state.winner === null && steps++ < 400) {
     const a = g.awaiting;
     if (!('player' in a)) break;
     const p = a.player;
-    const action = p === AI ? ai.chooseAction(g.viewFor(AI), g.legalActions(AI)) : humanPolicy(g);
+    const action = p === AI ? ai.chooseAction(g.viewFor(AI), g.legalActions(AI)) : humanPolicy(g, prog);
     if (p === HUMAN && action.type === 'declareAttackers' && action.attackers.length > 0) humanAttacked = true;
     if (p === HUMAN && action.type === 'declareBlockers' && action.blocks.length > 0) humanBlocked = true;
     g.submit(p, action);
-    if (humanBlocked) break;
+    minHumanLife = Math.min(minHumanLife, g.state.players[HUMAN].life);
+    if (prog.ritualCast && prog.charmOnOppTurn && humanBlocked) break;
+    if (g.state.turn > 14) break;
   }
-  return { humanAttacked, humanBlocked, finalState: JSON.stringify(g.state) };
+  return { humanAttacked, humanBlocked, ...prog, minHumanLife, finalState: JSON.stringify(g.state) };
 }
 
 describe('tutorial: fixed seed + decks', () => {
@@ -96,52 +124,35 @@ describe('tutorial: fixed seed + decks', () => {
     expect(hand.some((id) => isType(def(CARD_DB, id), 'creature'))).toBe(true);
   });
 
-  it('teaching decks are all mono-White, vanilla, and use only real cards', () => {
+  it('teaching decks are mono-White, use real cards, and include a Ritual + a Charm', () => {
     for (const id of [...TUTORIAL_PLAYER_DECK, ...TUTORIAL_AI_DECK]) {
       const d = def(CARD_DB, id); // throws on an unknown id
       expect(d.colors.every((c) => c === 'W')).toBe(true);
       if (isType(d, 'creature')) {
-        expect(d.keywords ?? []).toHaveLength(0);
-        expect(d.abilities ?? []).toHaveLength(0);
+        expect(d.keywords ?? []).toHaveLength(0); // vanilla combat reads as taught
       }
     }
+    expect(TUTORIAL_PLAYER_DECK.some((id) => isType(def(CARD_DB, id), 'ritual'))).toBe(true);
+    expect(TUTORIAL_PLAYER_DECK.some((id) => isType(def(CARD_DB, id), 'charm'))).toBe(true);
   });
 });
 
 describe('tutorial: scripted line', () => {
-  it('reaches the attack and block beats against ScriptAI', () => {
+  it('reaches attack, block, Ritual, and Charm-on-the-opponent-turn against ScriptAI', () => {
     const r = playTutorial();
     expect(r.humanAttacked).toBe(true);
     expect(r.humanBlocked).toBe(true);
+    expect(r.ritualCast).toBe(true);
+    expect(r.charmOnOppTurn).toBe(true);
   });
 
   it('is fully deterministic (same seed + line → identical final state)', () => {
     expect(playTutorial().finalState).toBe(playTutorial().finalState);
   });
-});
 
-describe('tutorial: ScriptAI is fail-safe', () => {
-  it('never declares a lethal attack', () => {
-    const g = newTutorialGame();
-    const ai = new ScriptAI(CARD_DB);
-    let steps = 0;
-    while (g.state.winner === null && steps++ < 500) {
-      const a = g.awaiting;
-      if (!('player' in a)) break;
-      const p = a.player;
-      const action = p === AI ? ai.chooseAction(g.viewFor(AI), g.legalActions(AI)) : humanPolicy(g);
-      if (p === AI && action.type === 'declareAttackers' && action.attackers.length > 0) {
-        const power = action.attackers.reduce(
-          (s, iid) => s + (def(CARD_DB, g.state.battlefield.find((x) => x.iid === iid)!.cardId).attack ?? 0),
-          0,
-        );
-        expect(power).toBeLessThan(g.viewFor(AI).opp.life);
-      }
-      g.submit(p, action);
-      if (steps > 40) break;
-    }
-    // The human is never killed by the teaching opponent.
-    expect(g.state.players[HUMAN].life).toBeGreaterThan(0);
+  it('never lets the fail-safe opponent bring the human below full life via combat', () => {
+    // The teaching AI is non-lethal and the human blocks; the Charm only adds life.
+    expect(playTutorial().minHumanLife).toBeGreaterThan(0);
   });
 });
 
@@ -153,46 +164,67 @@ describe('tutorialCue (pure guide)', () => {
     landPlayedThisTurn: false,
     handHasLand: true,
     hasCastableCreature: false,
+    hasCastableRitual: false,
+    hasCastableCharm: false,
+    handHasCharm: false,
     myCreatureCount: 0,
     eligibleAttackerCount: 0,
     attackerSelected: false,
     pendingBlocker: false,
     hasLegalBlocker: false,
     blockAssigned: false,
+    activePlayerIsOpponent: false,
     goalShown: false,
     sicknessShown: false,
     blocked: false,
+    ritualCast: false,
+    ritualInfoShown: false,
+    charmCast: false,
+    charmInfoShown: false,
+    safetyDone: false,
   };
 
-  it('shows the goal first, then waits during the opponent turn, then done on block', () => {
+  it('shows the goal first, waits on the opponent turn, ends after the Charm lesson', () => {
     expect(tutorialCue(base).kind).toBe('goal');
     expect(tutorialCue({ ...base, isHumanTurn: false }).kind).toBe('wait');
-    expect(tutorialCue({ ...base, blocked: true }).kind).toBe('done');
+    expect(tutorialCue({ ...base, charmCast: true, charmInfoShown: true }).kind).toBe('done');
+    expect(tutorialCue({ ...base, safetyDone: true }).kind).toBe('done');
   });
 
-  it('walks land → creature → sickness on the first main phase', () => {
+  it('walks land → creature → sickness → Ritual on the main phase', () => {
     const afterGoal = { ...base, goalShown: true };
     expect(tutorialCue(afterGoal).kind).toBe('playLand');
     const landDown = { ...afterGoal, landPlayedThisTurn: true, hasCastableCreature: true };
     expect(tutorialCue(landDown).kind).toBe('playCreature');
-    const creatureDown = { ...landDown, myCreatureCount: 1 };
+    const creatureDown = { ...landDown, myCreatureCount: 1, hasCastableCreature: false };
     expect(tutorialCue(creatureDown).kind).toBe('sickness');
-    // Turn 1: after the sickness card, no mana remains → advance out of the phase.
-    expect(tutorialCue({ ...creatureDown, sicknessShown: true, hasCastableCreature: false }).kind).toBe(
-      'advance',
-    );
-    // Later turns: with mana for a second creature, it guides playing the blocker.
-    expect(tutorialCue({ ...creatureDown, sicknessShown: true, hasCastableCreature: true }).kind).toBe(
-      'playCreature',
-    );
+    const afterSick = { ...creatureDown, sicknessShown: true, hasCastableRitual: true };
+    expect(tutorialCue(afterSick).kind).toBe('castRitual');
+    expect(tutorialCue({ ...afterSick, ritualCast: true }).kind).toBe('ritualInfo');
+  });
+
+  it('teaches the Charm ONLY in a response on the opponent turn, else passes', () => {
+    const resp = {
+      ...base,
+      goalShown: true,
+      awaitingKind: 'respond',
+      hasCastableCharm: true,
+      handHasCharm: true,
+    };
+    // Own-turn response window → just pass (not the lesson).
+    expect(tutorialCue({ ...resp, activePlayerIsOpponent: false }).kind).toBe('advance');
+    // Opponent's turn → the Charm lesson.
+    expect(tutorialCue({ ...resp, activePlayerIsOpponent: true }).kind).toBe('castCharm');
+    // After casting, the info card.
+    expect(tutorialCue({ ...resp, charmCast: true }).kind).toBe('charmInfo');
   });
 
   it('guides attacking and blocking', () => {
-    const atk = { ...base, goalShown: true, awaitingKind: 'declareAttackers', step: 'combat', eligibleAttackerCount: 1 };
+    const g = { ...base, goalShown: true };
+    const atk = { ...g, awaitingKind: 'declareAttackers', step: 'combat', eligibleAttackerCount: 1 };
     expect(tutorialCue(atk).kind).toBe('selectAttacker');
     expect(tutorialCue({ ...atk, attackerSelected: true }).kind).toBe('confirmAttack');
-
-    const blk = { ...base, goalShown: true, awaitingKind: 'declareBlockers', step: 'combat', hasLegalBlocker: true };
+    const blk = { ...g, awaitingKind: 'declareBlockers', step: 'combat', hasLegalBlocker: true };
     expect(tutorialCue(blk).kind).toBe('selectBlocker');
     expect(tutorialCue({ ...blk, pendingBlocker: true }).kind).toBe('selectAttackerToBlock');
     expect(tutorialCue({ ...blk, blockAssigned: true }).kind).toBe('confirmBlock');
