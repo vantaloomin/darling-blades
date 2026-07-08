@@ -1,8 +1,8 @@
-import type { CardDb } from '../engine/types';
-import { collectionCompletion, type CollectionCompletionSummary } from './collectionFilter';
+import type { CardDb, CardDef } from '../engine/types';
+import { collectionCompletion, collectiblePool, type CollectionCompletionSummary } from './collectionFilter';
 import { ownedCount, ownedVariants } from './Collection';
 import type { SaveData } from './SaveManager';
-import { parseVariantKey } from './variants';
+import { isPlainVariant, parseVariantKey } from './variants';
 
 export type AchievementBucket = 'collection' | 'variants' | 'theme' | 'mastery' | 'economy';
 
@@ -57,24 +57,85 @@ const colorComplete = (color: 'W' | 'U' | 'B' | 'R' | 'G'): AchievementDef['prog
 };
 
 const ROTK_LEADERS = ['tk-wei-caocao', 'tk-shu-liubei', 'tk-wu-sunquan'] as const;
+const GREEK_OLYMPIAN_COURT = [
+  'gk-athena',
+  'gk-ares',
+  'gk-zeus',
+  'gk-hera',
+  'gk-aphrodite',
+  'gk-persephone',
+  'gk-hades',
+  'gk-poseidon',
+  'gk-gaia',
+] as const;
+const BEASTKIN_PACK_COUNCIL = ['bk-packmother', 'bk-kitsune-matriarch', 'bk-wolfqueen'] as const;
+const RAGNAROK_TWILIGHT_COURT = [
+  'rg-hel',
+  'rg-freya',
+  'rg-fenrir',
+  'rg-brunhild',
+  'rg-norns',
+  'rg-angrboda',
+  'rg-skadi',
+  'rg-idun',
+] as const;
 
-function ownedLeaderCount(save: SaveData, db: CardDb): number {
-  return ROTK_LEADERS.filter((id) => db[id] && ownedCount(save, id) > 0).length;
+function themeIds(ids: readonly string[], db: CardDb): string[] {
+  return ids.filter((id) => Boolean(db[id]));
 }
 
-function leaderVariantCount(
+function themeCards(db: CardDb, predicate: (card: CardDef) => boolean): CardDef[] {
+  return collectiblePool(Object.values(db)).filter(predicate);
+}
+
+function ownedThemeCount(save: SaveData, ids: readonly string[]): number {
+  return ids.filter((id) => ownedCount(save, id) > 0).length;
+}
+
+function themeProgress(save: SaveData, ids: readonly string[], db: CardDb): AchievementProgress {
+  const scoped = themeIds(ids, db);
+  return { current: ownedThemeCount(save, scoped), target: Math.max(1, scoped.length) };
+}
+
+function themeVariantCount(
   save: SaveData,
-  db: CardDb,
+  ids: readonly string[],
   predicate: (variant: ReturnType<typeof parseVariantKey>) => boolean,
 ): number {
   let count = 0;
-  for (const id of ROTK_LEADERS) {
-    if (!db[id]) continue;
+  for (const id of ids) {
     const hasVariant = Object.entries(ownedVariants(save, id)).some(([key, copies]) => copies > 0 && predicate(parseVariantKey(key)));
     if (hasVariant) count++;
   }
   return count;
 }
+
+function themeVariantProgress(
+  save: SaveData,
+  ids: readonly string[],
+  db: CardDb,
+  predicate: (variant: ReturnType<typeof parseVariantKey>) => boolean,
+): AchievementProgress {
+  const scoped = themeIds(ids, db);
+  return { current: themeVariantCount(save, scoped, predicate), target: Math.max(1, scoped.length) };
+}
+
+function themedCollectionProgress(
+  save: SaveData,
+  db: CardDb,
+  predicate: (card: CardDef) => boolean,
+  fraction = 1,
+): AchievementProgress {
+  const ids = themeCards(db, predicate).map((card) => card.id);
+  return {
+    current: ownedThemeCount(save, ids),
+    target: Math.max(1, Math.ceil(ids.length * fraction)),
+  };
+}
+
+const isSpecialVariant = (variant: ReturnType<typeof parseVariantKey>): boolean => !isPlainVariant(variant);
+const isRainbowBorder = (variant: ReturnType<typeof parseVariantKey>): boolean => variant.frame === 'rainbow';
+const isRagnarok = (card: CardDef): boolean => card.set === 'ragnarok';
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
@@ -187,7 +248,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Three Lords Convened',
     description: 'Own Cao Cao, Liu Bei, and Sun Quan.',
     reward: { gold: 250 },
-    progress: (save, db) => ({ current: ownedLeaderCount(save, db), target: ROTK_LEADERS.length }),
+    progress: (save, db) => themeProgress(save, ROTK_LEADERS, db),
   },
   {
     id: 'theme-rotk-three-lords-special',
@@ -195,10 +256,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Mandate In Foil',
     description: 'Own all three RoTK leaders as special variants.',
     reward: { gold: 350 },
-    progress: (save, db) => ({
-      current: leaderVariantCount(save, db, (variant) => variant.frame !== 'white' || variant.holo !== 'none'),
-      target: ROTK_LEADERS.length,
-    }),
+    progress: (save, db) => themeVariantProgress(save, ROTK_LEADERS, db, isSpecialVariant),
   },
   {
     id: 'theme-rotk-three-lords-rainbow',
@@ -206,10 +264,132 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     title: 'Rainbow Mandate',
     description: 'Own all three RoTK leaders with rainbow borders.',
     reward: { gold: 600 },
-    progress: (save, db) => ({
-      current: leaderVariantCount(save, db, (variant) => variant.frame === 'rainbow'),
-      target: ROTK_LEADERS.length,
-    }),
+    progress: (save, db) => themeVariantProgress(save, ROTK_LEADERS, db, isRainbowBorder),
+  },
+  {
+    id: 'theme-greek-olympian-court',
+    bucket: 'theme',
+    title: 'Olympian Court',
+    description: 'Own the legendary Greek god headliners.',
+    reward: { gold: 500 },
+    progress: (save, db) => themeProgress(save, GREEK_OLYMPIAN_COURT, db),
+  },
+  {
+    id: 'theme-greek-olympian-court-special',
+    bucket: 'theme',
+    title: 'Olympian Regalia',
+    description: 'Own those Greek headliners as special variants.',
+    reward: { gold: 750 },
+    progress: (save, db) => themeVariantProgress(save, GREEK_OLYMPIAN_COURT, db, isSpecialVariant),
+  },
+  {
+    id: 'theme-greek-olympian-court-rainbow',
+    bucket: 'theme',
+    title: 'Rainbow Olympus',
+    description: 'Own those Greek headliners with rainbow borders.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themeVariantProgress(save, GREEK_OLYMPIAN_COURT, db, isRainbowBorder),
+  },
+  {
+    id: 'theme-beastkin-pack-council',
+    bucket: 'theme',
+    title: 'Pack Council',
+    description: 'Own Packmother, Yohime, and Lupa.',
+    reward: { gold: 250 },
+    progress: (save, db) => themeProgress(save, BEASTKIN_PACK_COUNCIL, db),
+  },
+  {
+    id: 'theme-beastkin-pack-council-special',
+    bucket: 'theme',
+    title: 'Council In Foil',
+    description: 'Own the Beastkin council as special variants.',
+    reward: { gold: 350 },
+    progress: (save, db) => themeVariantProgress(save, BEASTKIN_PACK_COUNCIL, db, isSpecialVariant),
+  },
+  {
+    id: 'theme-beastkin-pack-council-rainbow',
+    bucket: 'theme',
+    title: 'Rainbow Pack',
+    description: 'Own the Beastkin council with rainbow borders.',
+    reward: { gold: 600 },
+    progress: (save, db) => themeVariantProgress(save, BEASTKIN_PACK_COUNCIL, db, isRainbowBorder),
+  },
+  {
+    id: 'theme-ragnarok-25',
+    bucket: 'theme',
+    title: 'Twilight Beachhead',
+    description: 'Own 25% of Ragnarök cards.',
+    reward: { gold: 200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isRagnarok, 0.25),
+  },
+  {
+    id: 'theme-ragnarok-50',
+    bucket: 'theme',
+    title: 'Saga Binder',
+    description: 'Own 50% of Ragnarök cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, isRagnarok, 0.5),
+  },
+  {
+    id: 'theme-ragnarok-complete',
+    bucket: 'theme',
+    title: 'Twilight Complete',
+    description: 'Own every Ragnarök card.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isRagnarok),
+  },
+  {
+    id: 'theme-ragnarok-twilight-court',
+    bucket: 'theme',
+    title: 'Twilight Court',
+    description: 'Own the Ragnarök headline cast.',
+    reward: { gold: 600 },
+    progress: (save, db) => themeProgress(save, RAGNAROK_TWILIGHT_COURT, db),
+  },
+  {
+    id: 'theme-ragnarok-twilight-court-special',
+    bucket: 'theme',
+    title: 'Twilight In Foil',
+    description: 'Own the Ragnarök headliners as special variants.',
+    reward: { gold: 900 },
+    progress: (save, db) => themeVariantProgress(save, RAGNAROK_TWILIGHT_COURT, db, isSpecialVariant),
+  },
+  {
+    id: 'theme-ragnarok-twilight-court-rainbow',
+    bucket: 'theme',
+    title: 'Rainbow Twilight',
+    description: 'Own the Ragnarök headliners with rainbow borders.',
+    reward: { gold: 1500 },
+    progress: (save, db) => themeVariantProgress(save, RAGNAROK_TWILIGHT_COURT, db, isRainbowBorder),
+  },
+  {
+    id: 'theme-ragnarok-valkyries',
+    bucket: 'theme',
+    title: 'Valkyrie Flight',
+    description: 'Own every Ragnarök Valkyrie.',
+    reward: { gold: 350 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isRagnarok(card) && card.subtypes.includes('Valkyrie')),
+  },
+  {
+    id: 'theme-ragnarok-draugr',
+    bucket: 'theme',
+    title: 'Deathless Legion',
+    description: 'Own every Ragnarök Draugr.',
+    reward: { gold: 350 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isRagnarok(card) && card.subtypes.includes('Draugr')),
+  },
+  {
+    id: 'theme-ragnarok-jotun-wolves',
+    bucket: 'theme',
+    title: 'Nine-World Hunt',
+    description: 'Own every Ragnarök Jotun or Wolf.',
+    reward: { gold: 450 },
+    progress: (save, db) =>
+      themedCollectionProgress(
+        save,
+        db,
+        (card) => isRagnarok(card) && (card.subtypes.includes('Jotun') || card.subtypes.includes('Wolf')),
+      ),
   },
   {
     id: 'first-win',

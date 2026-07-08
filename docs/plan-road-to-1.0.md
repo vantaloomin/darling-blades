@@ -5,13 +5,14 @@
 > **Update (2026-07-08):** `SaveData` is now **v12**. Feature 1 (optional
 > tutorial/onboarding) shipped as v9 → v10, Feature 5 (Achievements +
 > collection goals) shipped as v10 → v11, and the themed achievement follow-up
-> shipped as v11 → v12 (`gauntlet.clearStyles`). The remaining 1.0 feature gaps in this
-> doc are Feature 2 (daily quests + login streak), Feature 3 (sealed first, draft
-> stretch), and Feature 4 (deck share codes + deterministic replays). Future
-> migration numbers below should be read as "next free version after v12" unless
-> the feature section has already been marked shipped.
+> shipped as v11 → v12 (`gauntlet.clearStyles`). A later schema-free catalog pass
+> expanded Greek, Beastkin, and Ragnarök achievement coverage. The remaining 1.0
+> feature gaps in this doc are Feature 2 (daily quests + login streak), Feature 3
+> (sealed first, draft stretch), and Feature 4 (deck share codes + deterministic
+> replays). Future migration numbers below should be read as "next free version
+> after v12" unless the feature section has already been marked shipped.
 
-Darling Blades is playable end-to-end, art-complete, and stable (524 tests pass
+Darling Blades is playable end-to-end, art-complete, and stable (527 tests pass
 + 3 skip across 51 files, `SaveData` v12 — see the update note above). What separates the current build from a polished 1.0 is
 not more systems but the connective tissue that turns a working prototype into a
 game people keep coming back to: a **reason to log in tomorrow**, a **first
@@ -350,12 +351,14 @@ session's shard/sell) into durable goals — cheap to build, high perceived valu
 
 A tiered **achievement set** across five buckets: collection, variants, theme,
 mastery, and economy. The shipped catalog covers pool-percentage goals, five
-color-completion goals, themed RoTK leader tiers (own Cao Cao/Liu Bei/Sun Quan,
-all three special, all three rainbow-border), mono-/dual-color Avatar Gauntlet
-clear goals, variant chase goals (first special, 10 special cards, black-frame
-card, void-holo card), win/gauntlet mastery, and pack-opening economy milestones.
-Each achievement awards gold through an explicit claim action. Collection
-completion is computed from `collection` +
+color-completion goals, themed RoTK leader tiers, the legendary Greek god court,
+the Beastkin leadership council, a larger Ragnarök pass scaled to its 69-card
+expansion size (percentage completion, headline cast, Valkyries, Draugr, and
+Jotun/Wolf goals), mono-/dual-color Avatar Gauntlet clear goals, variant chase
+goals (first special, 10 special cards, black-frame card, void-holo card),
+win/gauntlet mastery, and pack-opening economy milestones. Each achievement
+awards gold through an explicit claim action. Collection completion is computed
+from `collection` +
 `collectionVariants` and `CARD_DB` totals, then shown in both the Achievements
 scene and the Collection header.
 
@@ -403,15 +406,18 @@ win-rate impact.
 3. **Milestone C:** shipped — explicit gold claim flow + v11 migration.
 4. **Milestone D:** shipped — themed RoTK leader tiers, mono-/dual-color tower
    clear achievements, paged Achievements scene, and v12 migration.
-5. **Future extension:** cosmetic rewards/card backs once a general cosmetic
+5. **Milestone E:** shipped — Greek, Beastkin, and scaled Ragnarök achievement
+   passes derived from existing collection/variant data, with no schema bump.
+6. **Future extension:** cosmetic rewards/card backs once a general cosmetic
    save/UI surface exists.
 
 ### Test strategy
 
 Headless: `evaluateAchievements` against crafted saves (collection percentage,
 color completion, variant chase, mastery/economy), claim idempotency,
-completion-tally correctness against a known `CARD_DB` subset, and the v10→v11
-migration plus v11→v12 clear-style migration. The current suite covers these in
+completion-tally correctness against a known `CARD_DB` subset, themed
+archetype/expansion targets, and the v10→v11 migration plus v11→v12 clear-style
+migration. The current suite covers these in
 `tests/meta/achievements.test.ts`, `tests/meta/deckColorIdentity.test.ts`,
 `tests/meta/collectionFilter.test.ts`, and `tests/meta/meta.test.ts`.
 
