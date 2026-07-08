@@ -5,6 +5,7 @@ import { ScriptAI } from '../ai/ScriptAI';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { tutorialLaunchData } from '../data/tutorial';
+import { evaluateAchievements, syncAchievements } from '../meta/Achievements';
 import { Services } from '../meta/services';
 import { IS_DEV } from '../platform/env';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
@@ -19,6 +20,7 @@ const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
   { label: 'Practice — Hard', scene: 'Duel', data: { difficulty: 'hard' } },
   { label: 'Open Packs', scene: 'Shop' },
   { label: 'Collection', scene: 'Collection' },
+  { label: 'Achievements', scene: 'Achievements' },
   { label: 'Deck Builder', scene: 'DeckBuilder' },
   { label: 'Card Showcase', scene: 'Showcase' },
 ];
@@ -61,6 +63,12 @@ export class MainMenuScene extends Phaser.Scene {
     });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
+
+    const save = Services.save.data;
+    if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
+    const claimableAchievements = evaluateAchievements(save, CARD_DB).filter(
+      (status) => status.unlocked && !status.claimed,
+    ).length;
 
     this.add
       .text(width / 2, 140, 'Darling Blades', {
@@ -156,11 +164,18 @@ export class MainMenuScene extends Phaser.Scene {
     // Card Showcase is a variant-QA surface — dev/local builds only (IS_DEV);
     // filtering (not hiding) keeps the row layout gap-free on the public build.
     const items = MENU_ITEMS.filter((entry) => entry.scene !== 'Showcase' || IS_DEV);
+    const firstY = items.length > 8 ? 282 : 300;
+    const pitchY = items.length > 8 ? 44 : 56;
+    const itemFont = items.length > 8 ? '27px' : '29px';
     items.forEach((entry, i) => {
+      const label =
+        entry.scene === 'Achievements' && claimableAchievements > 0
+          ? `${entry.label} (${claimableAchievements})`
+          : entry.label;
       const item = this.add
-        .text(width / 2, 300 + i * 56, entry.label, {
+        .text(width / 2, firstY + i * pitchY, label, {
           fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '29px',
+          fontSize: itemFont,
           color: '#c9bde0',
         })
         .setOrigin(0.5)
@@ -177,7 +192,7 @@ export class MainMenuScene extends Phaser.Scene {
       }
       // Hit boxes fill the full 56px row pitch (the audited 15px dead gaps
       // between rows are the fix column's target — plan §1.4).
-      inflateHitArea(item, 90, 56);
+      inflateHitArea(item, 90, pitchY);
       this.menuItems.push(item);
     });
 

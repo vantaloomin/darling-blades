@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/cards/greek.ts, src/data/cards/tk-wei.ts, src/data/cards/tk-wu.ts, src/data/cards/tk-shu.ts, src/data/cards/tk-jin.ts, src/data/cards/tk-other.ts, src/data/cards/beastkin.ts, src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/duals.ts, src/meta/deckFace.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/ui/CommanderPortrait.ts, src/scenes/DuelScene.ts, src/ai/personality.ts · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/config/rules.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/cards/greek.ts, src/data/cards/tk-wei.ts, src/data/cards/tk-wu.ts, src/data/cards/tk-shu.ts, src/data/cards/tk-jin.ts, src/data/cards/tk-other.ts, src/data/cards/beastkin.ts, src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/duals.ts, src/meta/deckFace.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/ui/CommanderPortrait.ts, src/scenes/DuelScene.ts, src/ai/personality.ts · last-verified: 2026-07-08 · design/plan doc — re-verify when the referenced code changes -->
 
 # Commander Mode — a Darling-Blades EDH format
 
@@ -185,8 +185,8 @@ each names. Two options:
   `activeCommanderDeckId: string | null` alongside `activeDeckId`. This is an
   additive schema change → **bump `SaveData.version`** with a real
   `migrate()` step (the `5 → 6` here is illustrative — the live schema is already
-  at **v9** as of 2026-07-06, so this lands as `9 → 10`; the new step spreads
-  `activeCommanderDeckId: null`; existing deck
+  at **v11** as of 2026-07-08, so this lands as the next free version bump; the
+  new step spreads `activeCommanderDeckId: null`; existing deck
   records without `commanderId` are left as-is — Constructed decks) and a
   migration test in `tests/meta/`. Per the iron invariant, the version bump ships
   with the migration + test.

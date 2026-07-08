@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/binder/FilterBar.ts, src/ui/SearchInput.ts, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/engine/combat/damage.ts · last-verified: 2026-07-07 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/binder/FilterBar.ts, src/ui/SearchInput.ts, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/engine/combat/damage.ts · last-verified: 2026-07-08 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
 
 # Quality-of-life plan — closing the daily-friction gap
 
@@ -23,8 +23,9 @@
 >   invariant preserved, + a "☰ Decks" picker modal).
 >
 > The plan's projected single **v6 → v7** bump became **two** in execution (v7 for
-> F1, v8 for F9); the schema is now at **v9** after the later UX-polish shop
-> restructure. **Deferred follow-ups still open** (from the Deferred list below):
+> F1, v8 for F9); later roadmap work carried the live schema to **v11** (v9 → v10
+> tutorial, v10 → v11 achievements). **Deferred follow-ups still open** (from the
+> Deferred list below):
 > the in-Settings toggles for `confirmDestructive` + `keywordReminders` (the 5-row
 > panel needs a 2-column relayout), F13 per-row remove-all, and F9's separate
 > inspect-overlay glossary legend.
@@ -35,8 +36,8 @@ fast-forward, hand auto-organize, summoning-sick badges, castable-now gold dots,
 hover-dwell card zoom + right-click inspect, a History move-log slide-out, a
 settings menu, vector mana icons, a filter/sort collection binder, and a full
 touch-gesture layer. What it is **missing** is a different category from the
-content backlog the other plan docs cover ([tutorial + daily + sealed + replays
-+ achievements](plan-road-to-1.0.md), [commander](plan-commander-mode.md),
+content backlog the other plan docs cover ([daily + sealed + replays, with
+tutorial and achievements now shipped](plan-road-to-1.0.md), [commander](plan-commander-mode.md),
 [keyword rethemes](plan-keyword-rethemes.md), [mod/UGC](plan-mod-ugc.md)):
 the small, high-frequency **conveniences a player of a modern digital TCG**
 (MTG Arena, Hearthstone, Legends of Runeterra, Marvel Snap, YuGiOh Master Duel)
@@ -51,10 +52,11 @@ share codes and match history live in road-to-1.0 Feature 4; a keyword *rename*
 lives in plan-keyword-rethemes). Where a smaller QOL slice is distinct from a big
 planned feature, that is called out inline.
 
-## Baseline corrections (verified 2026-07-05)
+## Baseline corrections (verified 2026-07-05; superseded by live v11)
 
-Two sibling docs and the session memory carry stale facts that affect the
-SaveData math below; corrected here from the code:
+Two sibling docs and the session memory carried stale facts that affected the
+QOL SaveData math below; these notes are retained as the QOL execution history.
+The current live schema is v11 (see roadmap.md and SaveManager.ts).
 
 - **`SaveData` is at v6, not v5.** `src/meta/SaveManager.ts:17,64` declares
   `version: 6`; the migrate chain ends at the `version === 6` step. The

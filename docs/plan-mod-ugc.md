@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-08 · design/plan doc — re-verify when the referenced code changes -->
 
 # Mod / UGC pack system
 
@@ -301,8 +301,8 @@ holds its own db reference).
 
 Bump `SaveData.version` with a real `migrate()` step + test
 (`src/meta/SaveManager.ts`). The `5 → 6` below is illustrative — the live schema
-is already at **v9** (as of 2026-07-06), so this lands as `9 → 10` whenever it
-ships; read every "v5→v6" here as "the next version bump." New fields:
+is already at **v11** (as of 2026-07-08), so read every "v5→v6" here as "the next
+free version bump." New fields:
 
 ```ts
 mods: {

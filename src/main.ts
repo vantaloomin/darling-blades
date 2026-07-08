@@ -9,6 +9,7 @@ import {
   setActiveRenderScale,
 } from './platform/renderScale';
 import { BootScene } from './scenes/BootScene';
+import { AchievementsScene } from './scenes/AchievementsScene';
 import { CardShowcaseScene } from './scenes/CardShowcaseScene';
 import { CollectionScene } from './scenes/CollectionScene';
 import { DeckBuilderScene } from './scenes/DeckBuilderScene';
@@ -102,6 +103,7 @@ const game = new Phaser.Game({
     ...(IS_DEV ? [CardShowcaseScene] : []),
     GauntletScene,
     ProfileScene,
+    AchievementsScene,
     DuelScene,
     ShopScene,
     PackOpeningScene,

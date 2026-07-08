@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/engine/effects/EffectInterpreter.ts, src/engine/statics.ts, src/config/rules.ts, src/meta/SaveManager.ts, src/ai/determinize.ts, docs/rules.md, tests/ai/winrate.test.ts · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/engine/effects/EffectInterpreter.ts, src/engine/statics.ts, src/config/rules.ts, src/meta/SaveManager.ts, src/ai/determinize.ts, docs/rules.md, tests/ai/winrate.test.ts · last-verified: 2026-07-08 · design/plan doc — re-verify when the referenced code changes -->
 
 # De-MTG term re-theme (Tier-3 full engine rename)
 
@@ -28,8 +28,9 @@ to touch code" stance per explicit user direction, and broadens the sweep to all
 saves (`collection`, `decks`, `starterChosen`, `heroCardId`). Nothing derives a card's type
 from its prefix (verified — ids are opaque handles). So we **keep the existing card-ID
 strings unchanged** — `so-doom-bolt` stays `so-doom-bolt` even though it becomes a Ritual.
-This keeps the entire change **migration-free**: `SaveData.version` stays **9**, no `migrate()`
-step. (A one-line "legacy opaque id namespace" comment atop `sorceries.ts`/`instants.ts`
+This keeps the entire change **migration-free**: `SaveData.version` does not
+change from the live schema version, and no `migrate()` step is needed. (A
+one-line "legacy opaque id namespace" comment atop `sorceries.ts`/`instants.ts`
 notes the intentional prefix/type divergence.)
 
 ## Scope decisions (locked)

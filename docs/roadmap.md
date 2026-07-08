@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-08 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/scenes/AchievementsScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/achievements.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-08 · review monthly -->
 
 # Roadmap
 
@@ -13,7 +13,7 @@ _Dated 2026-07-04. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch offers an optional **tutorial**; a new
   player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (8 themed opponents on a ladder) or Practice duels → rewards → shop →
+  Gauntlet** (10 themed opponents on a ladder) or Practice duels → rewards → shop →
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** **Every
@@ -24,18 +24,21 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **510 tests green** (+3 skipped balance-tool assertions) across 49 files
+- **517 tests green** (+3 skipped balance-tool assertions) across 50 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
-  collection filters + deck-face picker + gauntlet-run-seed + shard/per-variant
-  playset, audio recipes + music patterns, platform gestures + render-scale +
-  anim policy, engine auto-pass, icon paths, hand-fan + combat-sequence layout/
-  timing math, AI smoke + win-rate + personality lockstep/divergence +
-  avatar/starter legality; and the QOL pass — unplayable-reason, card-search
-  filter, keyword-reminder coverage, undo snapshot/restore round-trip, combat
-  forecast (`previewCombat`), deck-stats aggregation, profile win-rate,
-  deck-storage ops); plus the onboarding tutorial (scripted-line determinism,
-  the pure coach-mark guide, v9→v10 migration). The whole suite runs in ~25–30 s.
+  collection filters + achievements + deck-face picker + gauntlet-run-seed +
+  shard/per-variant playset, audio recipes + music patterns, platform gestures +
+  render-scale + anim policy, engine auto-pass, icon paths, hand-fan +
+  combat-sequence layout/timing math, AI smoke + win-rate + personality
+  lockstep/divergence + avatar/starter legality; and the QOL pass —
+  unplayable-reason, card-search filter, keyword-reminder coverage, undo
+  snapshot/restore round-trip, combat forecast (`previewCombat`),
+  deck-stats aggregation, profile win-rate, deck-storage ops); plus the
+  onboarding tutorial (scripted-line determinism, the pure coach-mark guide,
+  v9→v10 migration) and achievement/collection-goal coverage
+  (v10→v11 migration, unlock/claim idempotency, completion tallies). The whole
+  suite runs in ~25–30 s.
 - **210 cards** in the pool (`CARD_DB`), across the five colors and three
   factions, bucketed into **five rarity tiers** (C 103 / R 65 / SR 13 /
   SSR 11 / UR 8 booster-eligible).
@@ -45,11 +48,21 @@ _Dated 2026-07-04. Review monthly._
   (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v10** (v7→v8 keyword-reminders, v8→v9 shop
-  restructure, v9→v10 tutorial-done — see Recently shipped). By-ear
+  the `SettingsScene`. `SaveData` is **v11** (v7→v8 keyword-reminders, v8→v9 shop
+  restructure, v9→v10 tutorial-done, v10→v11 achievements — see Recently shipped). By-ear
   tuning remains open (see Planned).
 
 ## Recently shipped (2026-07-08)
+
+- **Achievements + collection goals (Road-to-1.0 Feature 5).** The game now has
+  a pure `src/meta/Achievements.ts` catalog/evaluator with four buckets:
+  collection, variants, mastery, and economy. The `AchievementsScene` is
+  reachable from MainMenu, shows locked/unlocked/claimed status, and supports
+  explicit per-achievement or claim-all gold rewards; MainMenu shows a claimable
+  count. `collectionFilter.ts` now exposes reusable completion summaries, and
+  Collection displays overall pool completion plus special-variant coverage.
+  **`SaveData` bumped v10 → v11** (`achievements: { unlocked, claimed }`, with a
+  real migration + tests). Verified locally: tsc/lint/**517 tests**/build.
 
 - **Optional first-launch tutorial + onboarding rework (PR #28).** The
   Road-to-1.0 **tutorial (Feature 1)** landed: an optional, skippable, on-rails
@@ -539,7 +552,7 @@ _Dated 2026-07-04. Review monthly._
   `gen-docs-tables`.
 - **Earlier the same day:** `CardView` input-bug fixes (invisible child `Zone`
   hit areas, `ModalGuard` overlays) and the **AI Avatar Gauntlet** itself —
-  8 themed opponents with personality knobs (`src/ai/personality.ts`,
+  10 themed opponents with personality knobs (`src/ai/personality.ts`,
   `src/data/opponents.ts`), ladder rewards, `GauntletScene`, and **`SaveData`
   v2** with a real v1→v2 migration (since bumped to v3 by the music toggle —
   see above).
@@ -558,9 +571,9 @@ _Dated 2026-07-04. Review monthly._
     the 10 evergreen keywords to a Darling-Blades voice, confined to
     `rulesText.ts` (engine ids, saves, AI, determinism all untouched).
   - [Road to 1.0 — five features](plan-road-to-1.0.md) — tutorial (✅ **shipped
-    2026-07-08**, PR #28 — see Recently shipped), daily quests, sealed/draft,
-    deterministic replays + share codes, achievements — sequenced, with a
-    definition of 1.0.
+    2026-07-08**, PR #28 — see Recently shipped), achievements + collection
+    goals (✅ **shipped 2026-07-08**), daily quests, sealed/draft, deterministic
+    replays + share codes — sequenced, with a definition of 1.0.
 - **Quality-of-life pass (15 features).** ✅ **Shipped 2026-07-06** — see Recently
   shipped and [docs/plan-qol.md](plan-qol.md). Only the deferred follow-ups remain:
   in-Settings toggles for `confirmDestructive` + `keywordReminders` (needs a 2-column

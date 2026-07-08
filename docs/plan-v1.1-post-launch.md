@@ -1,11 +1,11 @@
-<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-08 · design/plan doc — re-verify when the referenced code changes -->
 
 # Post-launch (v1.1) — deferred backlog
 
-The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md): the
-five connective-tissue features (tutorial, dailies, sealed, replays/deck-codes,
-achievements) plus the polish backlog that turn the working prototype into a
-release. This doc is the **other list** — four smaller items that came up during
+The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md): tutorial
+and achievements are shipped, while dailies, sealed, replays/deck-codes, and the
+polish backlog remain the connective tissue that turns the working prototype
+into a release. This doc is the **other list** — four smaller items that came up during
 the road-to-1.0 planning review, were looked at seriously, and were
 **deliberately pushed past 1.0** rather than dropped. Each was deferred for a
 concrete reason: one is a nice-to-have UI polish that competes for the same
@@ -336,9 +336,8 @@ complete" means.
 ### Cross-cutting consequences to weigh
 
 - **Collection %.** Whatever "Base" means sets the denominator for pool-
-  completion, which the road-to-1.0 **achievements** feature keys off
-  ("own 50% of the pool", "complete a set"). Folding expansion into base moves
-  every one of those thresholds.
+  completion, which the shipped **achievements** catalog already keys off for
+  pool-percentage goals. Folding expansion into base moves those thresholds.
 - **Achievements.** Set-completion achievements ("complete Base", "complete
   Ragnarök") only make sense if the sets stay distinct; a union view needs its
   achievement definitions rethought.
@@ -349,9 +348,8 @@ complete" means.
 
 None forced. The collection is stored per card-id; set membership is derived from
 `CARD_DB`, not persisted, so re-defining what "Base" *shows* or what a base
-booster *contains* doesn't migrate the save. (Achievements built on set-
-completion, if any ship, would carry their own schema per the road-to-1.0 plan —
-but that's their bump, not this feature's.)
+booster *contains* doesn't migrate the save. Future set-completion achievements
+can reuse the v11 `achievements` save shape unless they add new reward state.
 
 ### Effort & risk
 
