@@ -14,6 +14,7 @@ import { applyGauntletResult, applyMatchResult, todayString, type Difficulty } f
 import { ownedVariantEntries } from '../meta/collectionFilter';
 import { rungSeed } from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
+import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
 import { previewCombat } from '../engine/combat/damage';
 import { eligibleAttackers, blockOptions } from '../engine/combat/legality';
@@ -181,6 +182,7 @@ export class DuelScene extends Phaser.Scene {
   private portrait!: CommanderPortrait;
   /** Derived identity (create()): portraits cost zero new art (opponents.ts idiom). */
   private myDeckName = '';
+  private myDeckColorStyle: DeckColorStyle = 'other';
   private myFaceCardId: string | null = null;
   /** Premium hero portrait texture (a bought theme deck's exclusive art), or null. */
   private myHeroTextureKey: string | null = null;
@@ -364,6 +366,7 @@ export class DuelScene extends Phaser.Scene {
         : Math.floor(Math.random() * 2 ** 31));
     const myDeckEntry = save.decks.find((d) => d.id === save.activeDeckId);
     const myDeck = data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
+    this.myDeckColorStyle = deckColorStyle(myDeck, CARD_DB);
     // Gauntlet: the avatar pilots its themed deck. Practice: the AI pilots a
     // starter the player is NOT using (or the second one). Tutorial: a fixed deck.
     const aiDeck =
@@ -3020,6 +3023,7 @@ export class DuelScene extends Phaser.Scene {
       this.difficulty,
       won,
       todayString(),
+      this.myDeckColorStyle === 'mono' ? 'monoColor' : this.myDeckColorStyle === 'dual' ? 'dualColor' : undefined,
     );
     Services.save.flush();
     // Full clear earns the fanfare; an ordinary rung gets its own short motif.

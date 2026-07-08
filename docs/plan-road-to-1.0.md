@@ -1,17 +1,18 @@
-<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/scenes/AchievementsScene.ts, tests/meta/achievements.test.ts, tests/meta/collectionFilter.test.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-08 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/scenes/AchievementsScene.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/collectionFilter.test.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-08 · design/plan doc — re-verify when the referenced code changes -->
 
 # Road to 1.0 — feature plan
 
-> **Update (2026-07-08):** `SaveData` is now **v11**. Feature 1 (optional
-> tutorial/onboarding) shipped as v9 → v10, and Feature 5 (Achievements +
-> collection goals) shipped as v10 → v11. The remaining 1.0 feature gaps in this
+> **Update (2026-07-08):** `SaveData` is now **v12**. Feature 1 (optional
+> tutorial/onboarding) shipped as v9 → v10, Feature 5 (Achievements +
+> collection goals) shipped as v10 → v11, and the themed achievement follow-up
+> shipped as v11 → v12 (`gauntlet.clearStyles`). The remaining 1.0 feature gaps in this
 > doc are Feature 2 (daily quests + login streak), Feature 3 (sealed first, draft
 > stretch), and Feature 4 (deck share codes + deterministic replays). Future
-> migration numbers below should be read as "next free version after v11" unless
+> migration numbers below should be read as "next free version after v12" unless
 > the feature section has already been marked shipped.
 
-Darling Blades is playable end-to-end, art-complete, and stable (517 tests pass
-+ 3 skip across 50 files, `SaveData` v11 — see the update note above). What separates the current build from a polished 1.0 is
+Darling Blades is playable end-to-end, art-complete, and stable (524 tests pass
++ 3 skip across 51 files, `SaveData` v12 — see the update note above). What separates the current build from a polished 1.0 is
 not more systems but the connective tissue that turns a working prototype into a
 game people keep coming back to: a **reason to log in tomorrow**, a **first
 session that teaches**, a **shareable moment**, a **content mode with high
@@ -135,7 +136,7 @@ is tracked by subscribing to the engine's existing event stream.
 
 ### SaveData impact
 
-**Future v12 if sequenced next** (or the next free version if another feature
+**Future v13 if sequenced next** (or the next free version if another feature
 ships first). New:
 `save.daily = { day: string, quests: { id, progress, target, claimed }[],
 streak: { count: number, lastDay: string } }`. Migration seeds an empty
@@ -151,7 +152,7 @@ no client-side reroll cheat. Progress counters are pure folds over event batches
 ### Phased build plan
 
 1. **Milestone A:** `Quests.ts` pure core + tests (roll, fold, complete).
-2. **Milestone B:** save block + v12 migration + Economy grant hook.
+2. **Milestone B:** save block + v13 migration + Economy grant hook.
 3. **Milestone C:** MainMenu Daily panel + streak UI + claim flow.
 
 ### Test strategy
@@ -208,7 +209,7 @@ first slice because it skips the pick-loop UI.
 ### SaveData impact
 
 An active sealed run is transient run state, but persisting it across app close is
-nice: **future v14 in the current sequence** (or the next free version when
+nice: **future v15 in the current sequence** (or the next free version when
 implemented) adds `save.limited = { run: { seed, pool, deck, wins, losses } |
 null, bestWins: number }`. Migration defaults `null`. A completed run's rewards
 fold into `gold`/`collection` through the normal Economy path.
@@ -226,7 +227,7 @@ run is fully reproducible (and testable).
    pure cores with tests. No UI.
 2. **Milestone B:** `LimitedScene` pool-open + build, `adhocDeck` Duel plumbing,
    playable sealed run against auto-built AI.
-3. **Milestone C:** run persistence (v14 in the current sequence), reward curve,
+3. **Milestone C:** run persistence (v15 in the current sequence), reward curve,
    MainMenu entry.
 4. **Milestone D (stretch):** pick-one-pass draft UI.
 
@@ -290,7 +291,7 @@ Two related capabilities:
 
 ### SaveData impact
 
-**Future v13 in the current sequence** (or the next free version when
+**Future v14 in the current sequence** (or the next free version when
 implemented): `save.replays: ReplayLog[]` (cap to the last ~10, FIFO, since each
 is tiny) and nothing for deck codes (they're transient strings). Migration
 defaults `[]`. A guard caps stored replays so the blob can't grow unbounded.
@@ -309,7 +310,7 @@ mismatched logs with a friendly message rather than desyncing.
    independently shippable, immediately useful).
 2. **Milestone B:** `Replay.ts` recorder wired into `DuelScene.submit`; save the
    last game as a log; golden-replay test.
-3. **Milestone C:** read-only replay viewer scene + MainMenu Replays list + v13
+3. **Milestone C:** read-only replay viewer scene + MainMenu Replays list + v14
    persistence + `dbVersion` guard.
 
 ### Test strategy
@@ -330,9 +331,11 @@ by the `dbVersion` stamp and a graceful refusal.
 **Status:** shipped in the current Achievements + Collection Goals pass.
 `src/meta/Achievements.ts` owns the pure catalog/evaluator/claim logic,
 `src/meta/collectionFilter.ts` owns reusable completion summaries, and
-`src/scenes/AchievementsScene.ts` is registered from MainMenu. Rewards are modest
-gold in the 1.0 slice; cosmetic rewards remain a future extension because the
-game does not yet have a general cosmetic-unlock save surface.
+`src/meta/deckColorIdentity.ts` owns the nonland deck-color classifier for tower
+clear styles. `src/scenes/AchievementsScene.ts` is registered from MainMenu and
+paged so the catalog can grow. Rewards are modest gold in the 1.0 slice;
+cosmetic rewards remain a future extension because the game does not yet have a
+general cosmetic-unlock save surface.
 
 ### Problem
 
@@ -345,12 +348,14 @@ session's shard/sell) into durable goals — cheap to build, high perceived valu
 
 ### Design
 
-A tiered **achievement set** across four buckets: collection, variants, mastery,
-and economy. The shipped catalog covers pool-percentage goals, five
-color-completion goals, variant chase goals (first special, 10 special cards,
-black-frame card, void-holo card), win/gauntlet mastery, and pack-opening
-economy milestones. Each achievement awards gold through an explicit claim
-action. Collection completion is computed from `collection` +
+A tiered **achievement set** across five buckets: collection, variants, theme,
+mastery, and economy. The shipped catalog covers pool-percentage goals, five
+color-completion goals, themed RoTK leader tiers (own Cao Cao/Liu Bei/Sun Quan,
+all three special, all three rainbow-border), mono-/dual-color Avatar Gauntlet
+clear goals, variant chase goals (first special, 10 special cards, black-frame
+card, void-holo card), win/gauntlet mastery, and pack-opening economy milestones.
+Each achievement awards gold through an explicit claim action. Collection
+completion is computed from `collection` +
 `collectionVariants` and `CARD_DB` totals, then shown in both the Achievements
 scene and the Collection header.
 
@@ -380,6 +385,10 @@ with an imported save doesn't silently swallow rewards). Migration defaults both
 to `[]`. Because evaluation is recomputed from durable state, even a hand-edited
 or migrated save re-derives correctly.
 
+**v11 → v12**: `save.gauntlet.clearStyles: { monoColor, dualColor }`. The final
+gauntlet rung records the active deck's nonland color style at completion time,
+so mono-/dual-color tower-clear achievements remain durable history.
+
 ### Determinism considerations
 
 None on the engine — this is pure meta/UI, evaluated from the save blob. No
@@ -392,7 +401,9 @@ win-rate impact.
 2. **Milestone B:** shipped — `AchievementsScene` + Collection completion
    readout.
 3. **Milestone C:** shipped — explicit gold claim flow + v11 migration.
-4. **Future extension:** cosmetic rewards/card backs once a general cosmetic
+4. **Milestone D:** shipped — themed RoTK leader tiers, mono-/dual-color tower
+   clear achievements, paged Achievements scene, and v12 migration.
+5. **Future extension:** cosmetic rewards/card backs once a general cosmetic
    save/UI surface exists.
 
 ### Test strategy
@@ -400,7 +411,8 @@ win-rate impact.
 Headless: `evaluateAchievements` against crafted saves (collection percentage,
 color completion, variant chase, mastery/economy), claim idempotency,
 completion-tally correctness against a known `CARD_DB` subset, and the v10→v11
-migration. The current suite covers these in `tests/meta/achievements.test.ts`,
+migration plus v11→v12 clear-style migration. The current suite covers these in
+`tests/meta/achievements.test.ts`, `tests/meta/deckColorIdentity.test.ts`,
 `tests/meta/collectionFilter.test.ts`, and `tests/meta/meta.test.ts`.
 
 ### Effort / risk
@@ -415,7 +427,7 @@ Order by dependency and leverage, not size:
 
 1. **Tutorial (Feature 1)** — shipped 2026-07-08 as `SaveData` v10.
 2. **Achievements + collection goals (Feature 5)** — shipped 2026-07-08 as
-   `SaveData` v11.
+   `SaveData` v11, with themed achievement history shipped as v12.
 3. **Daily quests + streak (Feature 2)** next — the retention loop now has both
    onboarding and long-horizon goals to point players toward.
 4. **Replays + deck codes (Feature 4)** after Daily — ship the deck-code half
@@ -424,8 +436,8 @@ Order by dependency and leverage, not size:
 5. **Sealed / Draft (Feature 3)** last — the largest remaining feature, with
    draft explicitly stretch after sealed.
 
-The remaining `SaveData` version walk starts at **v11**. A clean order would be
-daily v12, replays/deck codes v13, and sealed v14. If two features ship together,
+The remaining `SaveData` version walk starts at **v12**. A clean order would be
+daily v13, replays/deck codes v14, and sealed v15. If two features ship together,
 fold their fields into one bump rather than skipping versions. Every migration
 ships with a test, per the iron invariant.
 
@@ -446,7 +458,7 @@ Darling Blades is release-ready when:
   are done.
 - **The invariants still hold** — engine purity, redacted views, seeded
   determinism, and green migrations/tests through the whole version walk (the
-  remaining walk starts from live `SaveData` v11).
+  remaining walk starts from live `SaveData` v12).
 
 Deliberately **out of scope for 1.0** (post-launch): Tier-2 LAN PvP (already
 deferred in mobile-lan-plan.md), draft (the pick-loop; sealed ships first), and a
@@ -466,7 +478,7 @@ adequately for launch).
 3. **Replay storage cap** — is last-10 acceptable, or do you want an explicit
    "pin favorite" so a great game survives the FIFO? Affects the future replay
    blob size.
-4. **Migration cadence** — the remaining features likely mean v12–v14 if shipped
+4. **Migration cadence** — the remaining features likely mean v13–v15 if shipped
    separately; if features ship in one session, do you want them folded into
    fewer bumps?
    (Noted as a dependency, not edited here — `src/meta/SaveManager.ts` owns the

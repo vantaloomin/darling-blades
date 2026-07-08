@@ -20,6 +20,7 @@ const DESIGN_H = 720;
 const BUCKET_LABEL: Record<AchievementStatus['def']['bucket'], string> = {
   collection: 'Collection',
   variants: 'Variants',
+  theme: 'Theme',
   mastery: 'Mastery',
   economy: 'Economy',
 };
@@ -36,13 +37,15 @@ function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
 
+const PER_PAGE = 20;
+
 /** Goal grid and collection completion summary for Road-to-1.0 Feature 5. */
 export class AchievementsScene extends Phaser.Scene {
   constructor() {
     super('Achievements');
   }
 
-  create(): void {
+  create(data: { page?: number } = {}): void {
     applyBackdrop(this, 'collection', {
       dim: 0x0b0812,
       dimAlpha: 0.74,
@@ -61,6 +64,9 @@ export class AchievementsScene extends Phaser.Scene {
     const save = Services.save.data;
     if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const statuses = evaluateAchievements(save, CARD_DB);
+    const pageCount = Math.max(1, Math.ceil(statuses.length / PER_PAGE));
+    const page = Math.min(Math.max(0, data.page ?? 0), pageCount - 1);
+    const visibleStatuses = statuses.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
     const unlocked = statuses.filter((s) => s.unlocked).length;
     const claimed = statuses.filter((s) => s.claimed).length;
     const claimable = statuses.filter((s) => s.unlocked && !s.claimed);
@@ -74,11 +80,16 @@ export class AchievementsScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(DESIGN_W / 2, 86, `${unlocked}/${statuses.length} unlocked   ${claimed}/${statuses.length} claimed`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '16px',
-        color: '#a89cc6',
-      })
+      .text(
+        DESIGN_W / 2,
+        86,
+        `${unlocked}/${statuses.length} unlocked   ${claimed}/${statuses.length} claimed   Page ${page + 1}/${pageCount}`,
+        {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '16px',
+          color: '#a89cc6',
+        },
+      )
       .setOrigin(0.5);
 
     const back = this.add
@@ -109,7 +120,7 @@ export class AchievementsScene extends Phaser.Scene {
           Services.save.flush();
           Sfx.play('coin');
         }
-        this.scene.restart();
+        this.scene.restart({ page });
       });
       inflateHitArea(claimAll, 140, 52);
     } else {
@@ -124,11 +135,12 @@ export class AchievementsScene extends Phaser.Scene {
     }
 
     this.drawCompletionPanel();
-    statuses.forEach((status, index) => {
+    visibleStatuses.forEach((status, index) => {
       const col = index < 10 ? 0 : 1;
       const row = index % 10;
-      this.drawAchievementRow(status, col === 0 ? 86 : 666, 158 + row * 52, 528);
+      this.drawAchievementRow(status, col === 0 ? 86 : 666, 158 + row * 52, 528, page);
     });
+    this.drawPagingControls(page, pageCount);
   }
 
   private drawCompletionPanel(): void {
@@ -156,7 +168,7 @@ export class AchievementsScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
   }
 
-  private drawAchievementRow(status: AchievementStatus, x: number, y: number, w: number): void {
+  private drawAchievementRow(status: AchievementStatus, x: number, y: number, w: number, page: number): void {
     const h = 44;
     const claimable = status.unlocked && !status.claimed;
     const g = this.add.graphics();
@@ -209,7 +221,7 @@ export class AchievementsScene extends Phaser.Scene {
           Services.save.flush();
           Sfx.play('coin');
         }
-        this.scene.restart();
+        this.scene.restart({ page });
       });
       inflateHitArea(btn, 90, 44);
     } else {
@@ -222,5 +234,27 @@ export class AchievementsScene extends Phaser.Scene {
         })
         .setOrigin(1, 0.5);
     }
+  }
+
+  private drawPagingControls(page: number, pageCount: number): void {
+    if (pageCount <= 1) return;
+    const mk = (x: number, label: string, enabled: boolean, nextPage: number): void => {
+      const btn = this.add
+        .text(x, 690, label, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '16px',
+          fontStyle: '700',
+          color: enabled ? '#ffd88a' : '#6a6482',
+          backgroundColor: enabled ? '#2c2344' : '#151022',
+          padding: { x: 12, y: 6 },
+        })
+        .setOrigin(0.5);
+      if (!enabled) return;
+      btn.setInteractive({ useHandCursor: true });
+      bindTapButton(this, btn, () => this.scene.restart({ page: nextPage }));
+      inflateHitArea(btn, 90, 44);
+    };
+    mk(DESIGN_W / 2 - 86, '< Prev', page > 0, page - 1);
+    mk(DESIGN_W / 2 + 86, 'Next >', page < pageCount - 1, page + 1);
   }
 }

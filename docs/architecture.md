@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/LandStackView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts · last-verified: 2026-07-08
+<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/LandStackView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts · last-verified: 2026-07-08
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -368,13 +368,13 @@ anywhere:
   Phaser registry or event bus. It holds a single `SaveManager`. Tests construct
   their own `SaveManager` with a fake storage instead.
 - **`SaveManager`** (`SaveManager.ts`) — one versioned JSON blob
-  (`SaveData`, `version: 11`) in `localStorage` under the key `darlingblades.save.v1`.
+  (`SaveData`, `version: 12`) in `localStorage` under the key `darlingblades.save.v1`.
   The key is a storage slot name, not the schema version — the version lives
   inside the blob, and the key deliberately never changes so older builds and
   newer builds read the same slot (the legacy `waifutcg.save.v1` key is still
   read once for save migration — see `src/meta/SaveManager.ts`). Writes are debounced (`touch()` → 250 ms →
   `flush()`); corrupt or missing data falls back to a fresh save. Any blob that
-  isn't `version: 11` routes through `migrate()`, which forward-migrates
+  isn't `version: 12` routes through `migrate()`, which forward-migrates
   **stepwise** so a v1 save walks the whole chain: v1 → v2 (gold / collection /
   decks / stats / settings preserved, `gauntlet` defaults spread in), then
   v2 → v3 (grows `settings.musicOn`, defaulting on), then v3 → v4 (seeds
@@ -389,11 +389,14 @@ anywhere:
   default on), then v7 → v8 (adds `settings.keywordReminders`, default on),
   then v8 → v9 (adds the premium `heroPortraitId`, default `null`), then
   v9 → v10 (adds `tutorialDone`, deriving veteran saves from win/loss history),
-  then v10 → v11 (adds `achievements: { unlocked, claimed }`); an unknown
+  then v10 → v11 (adds `achievements: { unlocked, claimed }`), then v11 → v12
+  (adds `gauntlet.clearStyles` counters for mono-/dual-color tower clears); an unknown
   or garbage version starts fresh rather than crash. Storage is injected, so
   tests pass a plain object.
 - **Economy functions** (`Economy.ts`) — `applyMatchResult`, `spendGold`,
   `todayString`; all constants come from `ECONOMY` in `src/config/rules.ts`.
+  Gauntlet completions can optionally record the completed deck's color style
+  for themed achievements.
 - **`variants`** (`variants.ts`) — the multi-axis drop system: `FrameStyle` /
   `HoloFinish` / `CardVariant` (`variantKey` = `frame|holo`), the specialness
   ranking (frame primary, holo tiebreak), and the seeded cumulative-weight
@@ -410,10 +413,14 @@ anywhere:
   are always kept.
 - **`Achievements`** (`Achievements.ts`) — pure achievement catalog/evaluator
   over durable save data plus `CARD_DB`: collection percentage, color
-  completion, variant chase goals, mastery, and pack-opening economy goals.
+  completion, themed RoTK leader/tower-clear goals, variant chase goals,
+  mastery, and pack-opening economy goals.
   Unlocks are recomputed from the save, while claiming is explicit and
   idempotent. `collectionFilter.ts` owns the shared completion math used by
   both achievements and the Collection header.
+- **`deckColorIdentity`** (`deckColorIdentity.ts`) — pure nonland deck-color
+  classifier used by tower-clear achievements. Mana-fixing lands are ignored so
+  a mono-color spell suite remains mono-color even with dual lands.
 - **`DeckStorage`** (`DeckStorage.ts`) — `validateDeck` (60 cards, ≤4 copies,
   owned, no tokens) and `saveDeck`, plus the multi-deck ops
   (`generateDeckId`, `copyDeck`, `renameDeck`, `deleteDeck`) behind the
