@@ -482,6 +482,11 @@ export class DuelScene extends Phaser.Scene {
    */
   private lockTutorialInput(target: Phaser.GameObjects.GameObject | null): void {
     const exempt = target instanceof BoardCardView ? (target.inputZone ?? null) : target;
+    // Disabling a hovered object's input zone makes Phaser drop it from the
+    // over-list WITHOUT firing pointerout, so any live hover-zoom preview would
+    // stay stuck on screen. Clear it as we re-lock (the player can re-hover the
+    // one live target); this runs on every beat change, never mid-read.
+    this.zoom.cancel();
     this.tutorialGuard.close();
     this.tutorialGuard.open(this.overlayGuardTargets().filter((o) => o !== exempt));
   }
