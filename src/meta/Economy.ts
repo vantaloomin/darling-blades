@@ -48,6 +48,8 @@ export interface GauntletReward {
   nextRung: number | null; // rung to fight next, or null if the run is over
 }
 
+export type GauntletClearStyle = 'monoColor' | 'dualColor';
+
 /**
  * Record a gauntlet match and advance/reset the run.
  *
@@ -62,6 +64,7 @@ export function applyGauntletResult(
   difficulty: Difficulty,
   won: boolean,
   today: string, // YYYY-MM-DD
+  clearStyle?: GauntletClearStyle,
 ): GauntletReward {
   const g = save.gauntlet;
   let gold: number;
@@ -82,6 +85,7 @@ export function applyGauntletResult(
     if (rung >= ECONOMY.gauntletRungGold.length) {
       gold += ECONOMY.gauntletCompletionBonus;
       g.completions++;
+      if (clearStyle) g.clearStyles[clearStyle]++;
       g.run = null;
       completed = true;
     } else {

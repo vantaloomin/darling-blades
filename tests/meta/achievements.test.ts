@@ -50,6 +50,13 @@ const DB: CardDb = Object.freeze({
   token: card('token', { token: true }),
 });
 
+const LEADER_DB: CardDb = Object.freeze({
+  ...DB,
+  'tk-wei-caocao': card('tk-wei-caocao', { colors: ['B', 'R'], rarity: 'ur' }),
+  'tk-shu-liubei': card('tk-shu-liubei', { colors: ['G', 'W'], rarity: 'ur' }),
+  'tk-wu-sunquan': card('tk-wu-sunquan', { colors: ['U', 'R'], rarity: 'ur' }),
+});
+
 function status(id: string, save = freshSave(0)) {
   return evaluateAchievements(save, DB).find((entry) => entry.def.id === id)!;
 }
@@ -83,6 +90,55 @@ describe('achievements', () => {
     expect(newly).toEqual(expect.arrayContaining(['complete-green', 'variant-black-frame', 'variant-void-holo']));
     expect(status('complete-green', save)).toMatchObject({ current: 2, target: 2, unlocked: true });
     expect(status('variant-first-special', save)).toMatchObject({ current: 1, target: 1, unlocked: true });
+  });
+
+  it('tracks RoTK leader themed tiers including rainbow borders', () => {
+    const save = freshSave(0);
+    save.collection = {
+      'tk-wei-caocao': 1,
+      'tk-shu-liubei': 1,
+      'tk-wu-sunquan': 1,
+    };
+    save.collectionVariants = {
+      'tk-wei-caocao': { [variantKey({ frame: 'white', holo: 'none' })]: 1 },
+      'tk-shu-liubei': { [variantKey({ frame: 'white', holo: 'none' })]: 1 },
+      'tk-wu-sunquan': { [variantKey({ frame: 'white', holo: 'none' })]: 1 },
+    };
+
+    expect(evaluateAchievements(save, LEADER_DB).find((entry) => entry.def.id === 'theme-rotk-three-lords')).toMatchObject({
+      current: 3,
+      target: 3,
+      unlocked: true,
+    });
+    expect(evaluateAchievements(save, LEADER_DB).find((entry) => entry.def.id === 'theme-rotk-three-lords-rainbow')).toMatchObject({
+      current: 0,
+      target: 3,
+      unlocked: false,
+    });
+
+    save.collectionVariants = {
+      'tk-wei-caocao': { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 },
+      'tk-shu-liubei': { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 },
+      'tk-wu-sunquan': { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 },
+    };
+
+    const newly = syncAchievements(save, LEADER_DB);
+    expect(newly).toEqual(
+      expect.arrayContaining([
+        'theme-rotk-three-lords',
+        'theme-rotk-three-lords-special',
+        'theme-rotk-three-lords-rainbow',
+      ]),
+    );
+  });
+
+  it('tracks mono-color and dual-color tower clear achievements from gauntlet history', () => {
+    const save = freshSave(0);
+    save.gauntlet.clearStyles.monoColor = 1;
+
+    expect(syncAchievements(save, DB)).toContain('gauntlet-clear-mono');
+    expect(status('gauntlet-clear-mono', save)).toMatchObject({ current: 1, target: 1, unlocked: true });
+    expect(status('gauntlet-clear-dual', save)).toMatchObject({ current: 0, target: 1, unlocked: false });
   });
 
   it('claims rewards once and refuses locked or unknown achievements', () => {

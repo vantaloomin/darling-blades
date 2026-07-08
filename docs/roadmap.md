@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/scenes/AchievementsScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/achievements.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-08 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-08 · review monthly -->
 
 # Roadmap
 
@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **517 tests green** (+3 skipped balance-tool assertions) across 50 files
+- **524 tests green** (+3 skipped balance-tool assertions) across 51 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -37,8 +37,9 @@ _Dated 2026-07-04. Review monthly._
   deck-stats aggregation, profile win-rate, deck-storage ops); plus the
   onboarding tutorial (scripted-line determinism, the pure coach-mark guide,
   v9→v10 migration) and achievement/collection-goal coverage
-  (v10→v11 migration, unlock/claim idempotency, completion tallies). The whole
-  suite runs in ~25–30 s.
+  (v10→v11 achievement migration, v11→v12 tower clear-style migration,
+  unlock/claim idempotency, completion tallies, themed leader goals, deck-color
+  identity). The whole suite runs in ~25–30 s.
 - **210 cards** in the pool (`CARD_DB`), across the five colors and three
   factions, bucketed into **five rarity tiers** (C 103 / R 65 / SR 13 /
   SSR 11 / UR 8 booster-eligible).
@@ -48,21 +49,27 @@ _Dated 2026-07-04. Review monthly._
   (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v11** (v7→v8 keyword-reminders, v8→v9 shop
-  restructure, v9→v10 tutorial-done, v10→v11 achievements — see Recently shipped). By-ear
+  the `SettingsScene`. `SaveData` is **v12** (v7→v8 keyword-reminders, v8→v9 shop
+  restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
+  clear-style counters — see Recently shipped). By-ear
   tuning remains open (see Planned).
 
 ## Recently shipped (2026-07-08)
 
 - **Achievements + collection goals (Road-to-1.0 Feature 5).** The game now has
-  a pure `src/meta/Achievements.ts` catalog/evaluator with four buckets:
-  collection, variants, mastery, and economy. The `AchievementsScene` is
-  reachable from MainMenu, shows locked/unlocked/claimed status, and supports
-  explicit per-achievement or claim-all gold rewards; MainMenu shows a claimable
-  count. `collectionFilter.ts` now exposes reusable completion summaries, and
-  Collection displays overall pool completion plus special-variant coverage.
-  **`SaveData` bumped v10 → v11** (`achievements: { unlocked, claimed }`, with a
-  real migration + tests). Verified locally: tsc/lint/**517 tests**/build.
+  a pure `src/meta/Achievements.ts` catalog/evaluator with five buckets:
+  collection, variants, theme, mastery, and economy. The themed set includes
+  RoTK leader tiers (own Cao Cao/Liu Bei/Sun Quan; all three special; all three
+  rainbow-border) and mono-/dual-color Avatar Gauntlet clear goals, recorded via
+  the pure `deckColorIdentity` helper at final-rung completion. The
+  `AchievementsScene` is reachable from MainMenu, paged, shows
+  locked/unlocked/claimed status, and supports explicit per-achievement or
+  claim-all gold rewards; MainMenu shows a claimable count. `collectionFilter.ts`
+  now exposes reusable completion summaries, and Collection displays overall
+  pool completion plus special-variant coverage. **`SaveData` bumped v10 → v11**
+  (`achievements: { unlocked, claimed }`) and **v11 → v12**
+  (`gauntlet.clearStyles`), each with real migrations + tests. Verified locally:
+  tsc/lint/**524 tests**/build.
 
 - **Optional first-launch tutorial + onboarding rework (PR #28).** The
   Road-to-1.0 **tutorial (Feature 1)** landed: an optional, skippable, on-rails

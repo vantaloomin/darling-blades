@@ -26,7 +26,7 @@ describe('profileStats', () => {
         packsOpened: 12,
         lastWinDay: null,
       },
-      gauntlet: { run: null, bestRung: 4, completions: 1 },
+      gauntlet: { run: null, bestRung: 4, completions: 1, clearStyles: { monoColor: 0, dualColor: 0 } },
     });
 
     expect(summary.games).toBe(15);
@@ -48,7 +48,7 @@ describe('profileStats', () => {
         packsOpened: 0,
         lastWinDay: null,
       },
-      gauntlet: { run: null, bestRung: 0, completions: 0 },
+      gauntlet: { run: null, bestRung: 0, completions: 0, clearStyles: { monoColor: 0, dualColor: 0 } },
     });
     expect(summary.winRate).toBeNull();
     expect(summary.byDifficulty.every((d) => d.rate === null)).toBe(true);

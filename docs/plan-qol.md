@@ -23,8 +23,9 @@
 >   invariant preserved, + a "☰ Decks" picker modal).
 >
 > The plan's projected single **v6 → v7** bump became **two** in execution (v7 for
-> F1, v8 for F9); later roadmap work carried the live schema to **v11** (v9 → v10
-> tutorial, v10 → v11 achievements). **Deferred follow-ups still open** (from the
+> F1, v8 for F9); later roadmap work carried the live schema to **v12** (v9 → v10
+> tutorial, v10 → v11 achievements, v11 → v12 themed achievement counters).
+> **Deferred follow-ups still open** (from the
 > Deferred list below):
 > the in-Settings toggles for `confirmDestructive` + `keywordReminders` (the 5-row
 > panel needs a 2-column relayout), F13 per-row remove-all, and F9's separate
@@ -52,11 +53,11 @@ share codes and match history live in road-to-1.0 Feature 4; a keyword *rename*
 lives in plan-keyword-rethemes). Where a smaller QOL slice is distinct from a big
 planned feature, that is called out inline.
 
-## Baseline corrections (verified 2026-07-05; superseded by live v11)
+## Baseline corrections (verified 2026-07-05; superseded by live v12)
 
 Two sibling docs and the session memory carried stale facts that affected the
 QOL SaveData math below; these notes are retained as the QOL execution history.
-The current live schema is v11 (see roadmap.md and SaveManager.ts).
+The current live schema is v12 (see roadmap.md and SaveManager.ts).
 
 - **`SaveData` is at v6, not v5.** `src/meta/SaveManager.ts:17,64` declares
   `version: 6`; the migrate chain ends at the `version === 6` step. The

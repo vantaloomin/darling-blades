@@ -1,8 +1,10 @@
 import type { CardDb } from '../engine/types';
 import { collectionCompletion, type CollectionCompletionSummary } from './collectionFilter';
+import { ownedCount, ownedVariants } from './Collection';
 import type { SaveData } from './SaveManager';
+import { parseVariantKey } from './variants';
 
-export type AchievementBucket = 'collection' | 'variants' | 'mastery' | 'economy';
+export type AchievementBucket = 'collection' | 'variants' | 'theme' | 'mastery' | 'economy';
 
 export interface AchievementReward {
   gold: number;
@@ -53,6 +55,26 @@ const colorComplete = (color: 'W' | 'U' | 'B' | 'R' | 'G'): AchievementDef['prog
   const row = completion.byColor.find((entry) => entry.key === color);
   return { current: row?.owned ?? 0, target: Math.max(1, row?.total ?? 0) };
 };
+
+const ROTK_LEADERS = ['tk-wei-caocao', 'tk-shu-liubei', 'tk-wu-sunquan'] as const;
+
+function ownedLeaderCount(save: SaveData, db: CardDb): number {
+  return ROTK_LEADERS.filter((id) => db[id] && ownedCount(save, id) > 0).length;
+}
+
+function leaderVariantCount(
+  save: SaveData,
+  db: CardDb,
+  predicate: (variant: ReturnType<typeof parseVariantKey>) => boolean,
+): number {
+  let count = 0;
+  for (const id of ROTK_LEADERS) {
+    if (!db[id]) continue;
+    const hasVariant = Object.entries(ownedVariants(save, id)).some(([key, copies]) => copies > 0 && predicate(parseVariantKey(key)));
+    if (hasVariant) count++;
+  }
+  return count;
+}
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
@@ -160,6 +182,36 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     progress: (_save, _db, completion) => ({ current: completion.variants.voidHoloCards, target: 1 }),
   },
   {
+    id: 'theme-rotk-three-lords',
+    bucket: 'theme',
+    title: 'Three Lords Convened',
+    description: 'Own Cao Cao, Liu Bei, and Sun Quan.',
+    reward: { gold: 250 },
+    progress: (save, db) => ({ current: ownedLeaderCount(save, db), target: ROTK_LEADERS.length }),
+  },
+  {
+    id: 'theme-rotk-three-lords-special',
+    bucket: 'theme',
+    title: 'Mandate In Foil',
+    description: 'Own all three RoTK leaders as special variants.',
+    reward: { gold: 350 },
+    progress: (save, db) => ({
+      current: leaderVariantCount(save, db, (variant) => variant.frame !== 'white' || variant.holo !== 'none'),
+      target: ROTK_LEADERS.length,
+    }),
+  },
+  {
+    id: 'theme-rotk-three-lords-rainbow',
+    bucket: 'theme',
+    title: 'Rainbow Mandate',
+    description: 'Own all three RoTK leaders with rainbow borders.',
+    reward: { gold: 600 },
+    progress: (save, db) => ({
+      current: leaderVariantCount(save, db, (variant) => variant.frame === 'rainbow'),
+      target: ROTK_LEADERS.length,
+    }),
+  },
+  {
     id: 'first-win',
     bucket: 'mastery',
     title: 'First Duel Won',
@@ -190,6 +242,22 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     description: 'Clear the full Avatar Gauntlet.',
     reward: { gold: 400 },
     progress: (save) => ({ current: save.gauntlet.completions, target: 1 }),
+  },
+  {
+    id: 'gauntlet-clear-mono',
+    bucket: 'theme',
+    title: 'One Banner Tower',
+    description: 'Clear the Avatar Gauntlet with a mono-color deck.',
+    reward: { gold: 500 },
+    progress: (save) => ({ current: save.gauntlet.clearStyles.monoColor, target: 1 }),
+  },
+  {
+    id: 'gauntlet-clear-dual',
+    bucket: 'theme',
+    title: 'Two Banner Tower',
+    description: 'Clear the Avatar Gauntlet with a two-color deck.',
+    reward: { gold: 500 },
+    progress: (save) => ({ current: save.gauntlet.clearStyles.dualColor, target: 1 }),
   },
   {
     id: 'packs-10',

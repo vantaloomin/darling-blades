@@ -11,6 +11,12 @@ export interface GauntletState {
   run: { rung: number; startedAt: number; seed: number } | null;
   bestRung: number; // highest rung ever cleared
   completions: number; // full 10-rung clears
+  clearStyles: GauntletClearStyles;
+}
+
+export interface GauntletClearStyles {
+  monoColor: number;
+  dualColor: number;
 }
 
 export interface AchievementState {
@@ -19,7 +25,7 @@ export interface AchievementState {
 }
 
 export interface SaveData {
-  version: 11;
+  version: 12;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -93,7 +99,11 @@ const DEFAULT_RENDER_SCALE = 1.5; // 1080p — a crisp modern default; lite caps
 
 /** The gauntlet defaults spread into any save that lacks them. */
 export function freshGauntlet(): GauntletState {
-  return { run: null, bestRung: 0, completions: 0 };
+  return { run: null, bestRung: 0, completions: 0, clearStyles: freshGauntletClearStyles() };
+}
+
+export function freshGauntletClearStyles(): GauntletClearStyles {
+  return { monoColor: 0, dualColor: 0 };
 }
 
 export function freshAchievements(): AchievementState {
@@ -102,7 +112,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 11,
+    version: 12,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -165,7 +175,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 11) return parsed as SaveData;
+      if (parsed.version === 12) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -188,7 +198,8 @@ export class SaveManager {
    * concede / gauntlet-abandon / shard); v7 → v8 adds `settings.keywordReminders`
    * (default on); v8 → v9 adds `heroPortraitId` (null = no premium hero);
    * v9 → v10 adds `tutorialDone` (false for a fresh/zero-record save, true for
-   * any player with a win/loss record). An unknown/garbage version starts fresh
+   * any player with a win/loss record); v10 → v11 adds achievements; v11 → v12
+   * adds gauntlet clear-style counters. An unknown/garbage version starts fresh
    * rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
@@ -319,7 +330,23 @@ export class SaveManager {
         achievements: freshAchievements(),
       };
     }
-    if (cur.version === 11) return cur as unknown as SaveData;
+    if (cur.version === 11) {
+      const g = (cur.gauntlet ?? freshGauntlet()) as Partial<GauntletState> & {
+        clearStyles?: Partial<GauntletClearStyles>;
+      };
+      cur = {
+        ...cur,
+        version: 12,
+        gauntlet: {
+          ...g,
+          run: g.run ?? null,
+          bestRung: g.bestRung ?? 0,
+          completions: g.completions ?? 0,
+          clearStyles: { ...freshGauntletClearStyles(), ...(g.clearStyles ?? {}) },
+        },
+      };
+    }
+    if (cur.version === 12) return cur as unknown as SaveData;
     return freshSave(now);
   }
 
