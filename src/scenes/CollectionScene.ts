@@ -14,6 +14,7 @@ import {
 import {
   applyFilters,
   clampPage,
+  collectionCompletion,
   collectiblePool,
   defaultFilterState,
   ownedVariantEntries,
@@ -99,6 +100,7 @@ export class CollectionScene extends Phaser.Scene {
   private turning = false;
   private pageText!: Phaser.GameObjects.Text;
   private counterText!: Phaser.GameObjects.Text;
+  private completionText!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text;
   private emptyText!: Phaser.GameObjects.Text;
   private inspect: Phaser.GameObjects.Container | null = null;
@@ -160,6 +162,13 @@ export class CollectionScene extends Phaser.Scene {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '15px',
         color: '#8f83a8',
+      })
+      .setOrigin(1, 0.5);
+    this.completionText = this.add
+      .text(DESIGN_W - 28, 66, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '12px',
+        color: '#6f6688',
       })
       .setOrigin(1, 0.5);
     const back = this.add
@@ -291,7 +300,11 @@ export class CollectionScene extends Phaser.Scene {
     this.page = clampPage(this.page, pool.length, SPREAD_SIZE);
 
     const ownedKinds = collectible.filter((d) => ownedCount(save, d.id) > 0).length;
+    const completion = collectionCompletion(ALL_CARDS, save);
     this.counterText.setText(`${ownedKinds}/${collectible.length} collected`);
+    this.completionText.setText(
+      `${Math.round(completion.percent * 100)}% pool  |  ${completion.variants.specialCards} special cards`,
+    );
     this.pageText.setText(`Page ${this.page + 1}/${pageCount(pool.length, SPREAD_SIZE)}`);
     this.emptyText.setVisible(pool.length === 0);
 

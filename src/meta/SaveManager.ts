@@ -10,11 +10,16 @@ export interface GauntletState {
    */
   run: { rung: number; startedAt: number; seed: number } | null;
   bestRung: number; // highest rung ever cleared
-  completions: number; // full 8-rung clears
+  completions: number; // full 10-rung clears
+}
+
+export interface AchievementState {
+  unlocked: string[];
+  claimed: string[];
 }
 
 export interface SaveData {
-  version: 10;
+  version: 11;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -44,8 +49,14 @@ export interface SaveData {
    * (both set it true — see docs/plan-road-to-1.0.md Feature 1). v10 addition;
    * a fresh save is `false`, and any player with a win/loss record is coerced
    * `true` on migration so genre veterans never see it.
-   */
+  */
   tutorialDone: boolean;
+  /**
+   * Road-to-1.0 achievements. Unlocks are recomputed from durable save/card-db
+   * state by src/meta/Achievements.ts; claimed is separate so migrated/imported
+   * saves do not silently consume rewards. v11 addition.
+   */
+  achievements: AchievementState;
   stats: {
     wins: number;
     losses: number;
@@ -85,9 +96,13 @@ export function freshGauntlet(): GauntletState {
   return { run: null, bestRung: 0, completions: 0 };
 }
 
+export function freshAchievements(): AchievementState {
+  return { unlocked: [], claimed: [] };
+}
+
 export function freshSave(now: number): SaveData {
   return {
-    version: 10,
+    version: 11,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -98,6 +113,7 @@ export function freshSave(now: number): SaveData {
     heroCardId: null,
     heroPortraitId: null,
     tutorialDone: false,
+    achievements: freshAchievements(),
     stats: {
       wins: 0,
       losses: 0,
@@ -149,7 +165,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 10) return parsed as SaveData;
+      if (parsed.version === 11) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -296,7 +312,14 @@ export class SaveManager {
         tutorialDone: (s.wins ?? 0) + (s.losses ?? 0) > 0,
       };
     }
-    if (cur.version === 10) return cur as unknown as SaveData;
+    if (cur.version === 10) {
+      cur = {
+        ...cur,
+        version: 11,
+        achievements: freshAchievements(),
+      };
+    }
+    if (cur.version === 11) return cur as unknown as SaveData;
     return freshSave(now);
   }
 

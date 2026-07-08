@@ -94,6 +94,97 @@ export function collectiblePool(cards: readonly CardDef[]): CardDef[] {
   return cards.filter((d) => !d.token && !d.supertypes?.includes('basic'));
 }
 
+export const COLOR_ORDER: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
+export const RARITY_ORDER: readonly Rarity[] = ['c', 'r', 'sr', 'ssr', 'ur'];
+
+export interface CompletionEntry<T extends string> {
+  key: T;
+  owned: number;
+  total: number;
+  percent: number;
+}
+
+export interface VariantCompletionSummary {
+  specialCards: number;
+  specialCopies: number;
+  specialVariants: number;
+  blackFrameCards: number;
+  voidHoloCards: number;
+}
+
+export interface CollectionCompletionSummary {
+  owned: number;
+  total: number;
+  percent: number;
+  byColor: CompletionEntry<Color>[];
+  byRarity: CompletionEntry<Rarity>[];
+  variants: VariantCompletionSummary;
+}
+
+function percent(owned: number, total: number): number {
+  return total === 0 ? 0 : owned / total;
+}
+
+/**
+ * Completion math for profile/achievements/collection UI. A card counts owned
+ * once the player owns any variant. Color rows count multicolor cards in each
+ * of their colors; colorless cards are excluded from color rows but still count
+ * toward total and rarity completion.
+ */
+export function collectionCompletion(
+  cards: readonly CardDef[],
+  save: SaveData,
+): CollectionCompletionSummary {
+  const pool = collectiblePool(cards);
+  const ownedCard = (id: string): boolean => ownedCount(save, id) > 0;
+
+  const owned = pool.filter((d) => ownedCard(d.id)).length;
+  const byColor = COLOR_ORDER.map((key) => {
+    const colorPool = pool.filter((d) => d.colors.includes(key));
+    const colorOwned = colorPool.filter((d) => ownedCard(d.id)).length;
+    return { key, owned: colorOwned, total: colorPool.length, percent: percent(colorOwned, colorPool.length) };
+  });
+  const byRarity = RARITY_ORDER.map((key) => {
+    const rarityPool = pool.filter((d) => d.rarity === key);
+    const rarityOwned = rarityPool.filter((d) => ownedCard(d.id)).length;
+    return { key, owned: rarityOwned, total: rarityPool.length, percent: percent(rarityOwned, rarityPool.length) };
+  });
+
+  let specialCards = 0;
+  let specialCopies = 0;
+  let specialVariants = 0;
+  let blackFrameCards = 0;
+  let voidHoloCards = 0;
+  for (const d of pool) {
+    let hasSpecial = false;
+    let hasBlack = false;
+    let hasVoid = false;
+    for (const [key, count] of Object.entries(ownedVariants(save, d.id))) {
+      if (count <= 0) continue;
+      const variant = parseVariantKey(key);
+      if (!isPlainVariant(variant)) {
+        hasSpecial = true;
+        specialCopies += count;
+        specialVariants++;
+      }
+      if (variant.frame === 'black') hasBlack = true;
+      if (variant.holo === 'void') hasVoid = true;
+    }
+    if (hasSpecial) specialCards++;
+    if (hasBlack) blackFrameCards++;
+    if (hasVoid) voidHoloCards++;
+  }
+
+  return {
+    owned,
+    total: pool.length,
+    percent: percent(owned, pool.length),
+    byColor,
+    byRarity,
+    variants: { specialCards, specialCopies, specialVariants, blackFrameCards, voidHoloCards },
+  };
+}
+
 /** Apply all facets (AND) and the active sort. Never mutates `cards`. */
 export function applyFilters(
   cards: readonly CardDef[],

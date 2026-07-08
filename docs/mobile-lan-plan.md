@@ -1,4 +1,4 @@
-<!-- source-of-truth: index.html, vite.config.ts, package.json, src/main.ts, src/scenes/, src/ui/CardZoomPreview.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/scenes/SettingsScene.ts, src/ui/fx/FXSupport.ts, src/audio/AudioManager.ts, src/meta/SaveManager.ts, src/meta/services.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/engine/types.ts, src/ai/AIPlayer.ts, src/ai/determinize.ts, src/art/ArtResolver.ts, src/config/rules.ts · last-verified: 2026-07-07 · plan doc — grounded in the 2026-07-02/03 mobile audits; Tier 1 shipped (2026-07-06 status note below), Tier 2 still a plan; re-verify when each tier ships -->
+<!-- source-of-truth: index.html, vite.config.ts, package.json, src/main.ts, src/scenes/, src/ui/CardZoomPreview.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/scenes/SettingsScene.ts, src/ui/fx/FXSupport.ts, src/audio/AudioManager.ts, src/meta/SaveManager.ts, src/meta/services.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/engine/types.ts, src/ai/AIPlayer.ts, src/ai/determinize.ts, src/art/ArtResolver.ts, src/config/rules.ts · last-verified: 2026-07-08 · plan doc — grounded in the 2026-07-02/03 mobile audits; Tier 1 shipped (2026-07-06 status note below), Tier 2 still a plan; re-verify when each tier ships -->
 
 # Mobile / LAN plan
 
@@ -92,7 +92,7 @@ changes (except one save-schema bump for the quality setting).
 - **Save-origin gotcha:** the desktop should keep playing on
   `localhost:5173` (its existing save origin) while the phone uses the LAN
   IP — `--host` serves both simultaneously. The phone's save is its own;
-  the starter picker reruns there (layout audit §6). Accepted for Tier 1;
+  the onboarding/free-starter flow reruns there (layout audit §6). Accepted for Tier 1;
   export/import is a Tier 3 topic.
 - **Fonts must be self-hosted:** the two Google-CDN webfonts
   (`index.html:7-11`) fail on a phone without internet and fall back to
@@ -281,9 +281,10 @@ real phone first (playbook §6).
 
 ### 1.7 Tier 1 exit criteria (runnable/testable)
 
-- `npm run play:lan` serves the build on the LAN and prints a QR; a phone
-  scans it and completes the full loop (menu → starter pick → gauntlet duel
-  → rewards → shop → pack → collection → deck edit) by touch alone.
+- `npm run play:lan` serves the build on the LAN and prints a QR; a phone scans
+  it and completes the full loop (menu → optional tutorial → free starter claim
+  → gauntlet duel → rewards → shop → pack → collection → deck edit) by touch
+  alone.
 - Long-press never activates a card; every duel card is readable via the
   gesture table above.
 - Every interactive object ≥ 90 design px minimum hit dimension (probe).

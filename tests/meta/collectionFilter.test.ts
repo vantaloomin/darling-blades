@@ -3,6 +3,7 @@ import type { CardDef } from '../../src/engine/types';
 import {
   applyFilters,
   clampPage,
+  collectionCompletion,
   collectiblePool,
   defaultFilterState,
   matchesSearch,
@@ -303,5 +304,53 @@ describe('variant summaries', () => {
     expect(variantLabel({ frame: 'gold', holo: 'void' })).toBe('Gold Frame · Void');
     expect(variantLabel({ frame: 'black', holo: 'none' })).toBe('Black Frame');
     expect(variantLabel({ frame: 'white', holo: 'pearlescent' })).toBe('Pearlescent');
+  });
+});
+
+describe('collectionCompletion', () => {
+  it('summarizes owned cards by total, color, rarity, and variant chase counts', () => {
+    const save = saveWith({ g_bear: 1, w_knight: 1, gw_aura: 2, dual_land: 1 });
+    save.collectionVariants.g_bear = {
+      [variantKey(PLAIN_VARIANT)]: 1,
+      [variantKey({ frame: 'black', holo: 'none' })]: 1,
+    };
+    save.collectionVariants.gw_aura = {
+      [variantKey({ frame: 'gold', holo: 'void' })]: 2,
+    };
+
+    const summary = collectionCompletion(POOL, save);
+
+    expect(summary.total).toBe(POOL.length);
+    expect(summary.owned).toBe(4);
+    expect(summary.percent).toBeCloseTo(4 / POOL.length, 10);
+    expect(summary.byColor.find((row) => row.key === 'G')).toMatchObject({
+      owned: 2, // g_bear + gw_aura
+      total: 3,
+    });
+    expect(summary.byColor.find((row) => row.key === 'W')).toMatchObject({
+      owned: 2, // w_knight + gw_aura
+      total: 2,
+    });
+    expect(summary.byRarity.find((row) => row.key === 'ssr')).toMatchObject({
+      owned: 1,
+      total: 1,
+    });
+    expect(summary.variants).toEqual({
+      specialCards: 2,
+      specialCopies: 3,
+      specialVariants: 2,
+      blackFrameCards: 1,
+      voidHoloCards: 1,
+    });
+  });
+
+  it('ignores tokens and basics in the denominator', () => {
+    const all = [
+      ...POOL,
+      card('tok', { token: true }),
+      card('forest', { types: ['land'], supertypes: ['basic'], cost: undefined }),
+    ];
+    const summary = collectionCompletion(all, freshSave(0));
+    expect(summary.total).toBe(POOL.length);
   });
 });
