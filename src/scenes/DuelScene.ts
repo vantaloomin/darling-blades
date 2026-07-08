@@ -500,7 +500,7 @@ export class DuelScene extends Phaser.Scene {
       pendingBlocker: this.pendingBlocker !== null,
       hasLegalBlocker,
       blockAssigned: this.blockAssignments.length > 0,
-      activePlayerIsOpponent: st.activePlayer !== HUMAN,
+      isTouch: this.touch,
       hasCastableRitual,
       hasCastableCharm,
       handHasCharm,

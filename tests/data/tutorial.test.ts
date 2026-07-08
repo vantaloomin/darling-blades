@@ -33,26 +33,26 @@ const castOfType = (g: Game, t: 'creature' | 'ritual' | 'charm'): Action | undef
 
 /**
  * A deterministic human mirroring the coach-mark guide's line: build a board,
- * cast the Ritual on your turn, attack, block, HOLD mana, and cast the Charm in
- * response ONLY on the opponent's turn (the instant-timing lesson).
+ * cast the Ritual on your turn, attack, block, HOLD mana, and cast the Charm at
+ * the END of your own turn (the instant-timing lesson).
  */
-function humanPolicy(g: Game, prog: { ritualCast: boolean; charmOnOppTurn: boolean }): Action {
+function humanPolicy(g: Game, prog: { ritualCast: boolean; charmAtEnd: boolean }): Action {
   const legal = g.legalActions(HUMAN);
   const a = g.awaiting;
   const st = g.state;
   const keep = legal.find((l) => l.type === 'keepHand');
   if (keep) return keep;
-  if (a.kind === 'respond') {
-    if (!prog.charmOnOppTurn && st.activePlayer === AI) {
+  if (a.kind === 'endStepWindow') {
+    if (!prog.charmAtEnd) {
       const charm = castOfType(g, 'charm');
       if (charm) {
-        prog.charmOnOppTurn = true;
+        prog.charmAtEnd = true;
         return charm;
       }
     }
     return legal.find((l) => l.type === 'passResponse') ?? legal[0];
   }
-  if (a.kind === 'endStepWindow') return legal.find((l) => l.type === 'passResponse') ?? legal[0];
+  if (a.kind === 'respond') return legal.find((l) => l.type === 'passResponse') ?? legal[0];
   if (a.kind === 'declareBlockers' && st.combat) {
     const opts = blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat);
     const o = opts.find((o) => o.canBlock.length > 0);
@@ -89,13 +89,13 @@ function playTutorial(): {
   humanAttacked: boolean;
   humanBlocked: boolean;
   ritualCast: boolean;
-  charmOnOppTurn: boolean;
+  charmAtEnd: boolean;
   minHumanLife: number;
   finalState: string;
 } {
   const g = newTutorialGame();
   const ai = new ScriptAI(CARD_DB);
-  const prog = { ritualCast: false, charmOnOppTurn: false };
+  const prog = { ritualCast: false, charmAtEnd: false };
   let humanAttacked = false;
   let humanBlocked = false;
   let minHumanLife = g.state.players[HUMAN].life;
@@ -109,7 +109,7 @@ function playTutorial(): {
     if (p === HUMAN && action.type === 'declareBlockers' && action.blocks.length > 0) humanBlocked = true;
     g.submit(p, action);
     minHumanLife = Math.min(minHumanLife, g.state.players[HUMAN].life);
-    if (prog.ritualCast && prog.charmOnOppTurn && humanBlocked) break;
+    if (prog.ritualCast && prog.charmAtEnd && humanBlocked) break;
     if (g.state.turn > 14) break;
   }
   return { humanAttacked, humanBlocked, ...prog, minHumanLife, finalState: JSON.stringify(g.state) };
@@ -138,12 +138,12 @@ describe('tutorial: fixed seed + decks', () => {
 });
 
 describe('tutorial: scripted line', () => {
-  it('reaches attack, block, Ritual, and Charm-on-the-opponent-turn against ScriptAI', () => {
+  it('reaches attack, block, Ritual, and Charm-at-end-of-turn against ScriptAI', () => {
     const r = playTutorial();
     expect(r.humanAttacked).toBe(true);
     expect(r.humanBlocked).toBe(true);
     expect(r.ritualCast).toBe(true);
-    expect(r.charmOnOppTurn).toBe(true);
+    expect(r.charmAtEnd).toBe(true);
   });
 
   it('is fully deterministic (same seed + line → identical final state)', () => {
@@ -173,7 +173,7 @@ describe('tutorialCue (pure guide)', () => {
     pendingBlocker: false,
     hasLegalBlocker: false,
     blockAssigned: false,
-    activePlayerIsOpponent: false,
+    isTouch: false,
     goalShown: false,
     sicknessShown: false,
     blocked: false,
@@ -199,24 +199,28 @@ describe('tutorialCue (pure guide)', () => {
     const creatureDown = { ...landDown, myCreatureCount: 1, hasCastableCreature: false };
     expect(tutorialCue(creatureDown).kind).toBe('sickness');
     const afterSick = { ...creatureDown, sicknessShown: true, hasCastableRitual: true };
-    expect(tutorialCue(afterSick).kind).toBe('castRitual');
+    const ritual = tutorialCue(afterSick);
+    expect(ritual.kind).toBe('castRitual');
+    expect(ritual.text).toBe('Cast this Ritual spell.'); // no "sorcery-speed" descriptor
     expect(tutorialCue({ ...afterSick, ritualCast: true }).kind).toBe('ritualInfo');
   });
 
-  it('teaches the Charm ONLY in a response on the opponent turn, else passes', () => {
-    const resp = {
-      ...base,
-      goalShown: true,
-      awaitingKind: 'respond',
-      hasCastableCharm: true,
-      handHasCharm: true,
-    };
-    // Own-turn response window → just pass (not the lesson).
-    expect(tutorialCue({ ...resp, activePlayerIsOpponent: false }).kind).toBe('advance');
-    // Opponent's turn → the Charm lesson.
-    expect(tutorialCue({ ...resp, activePlayerIsOpponent: true }).kind).toBe('castCharm');
-    // After casting, the info card.
-    expect(tutorialCue({ ...resp, charmCast: true }).kind).toBe('charmInfo');
+  it('teaches the Charm at the END of your own turn (endStepWindow), passing responses', () => {
+    const g = { ...base, goalShown: true, hasCastableCharm: true, handHasCharm: true };
+    // A response window (even on the opponent turn) is just passed now.
+    expect(tutorialCue({ ...g, awaitingKind: 'respond' }).kind).toBe('advance');
+    // The end-of-turn window is the Charm lesson.
+    expect(tutorialCue({ ...g, awaitingKind: 'endStepWindow' }).kind).toBe('castCharm');
+    // After casting, the info card teaches the timing.
+    const info = tutorialCue({ ...g, awaitingKind: 'endStepWindow', charmCast: true });
+    expect(info.kind).toBe('charmInfo');
+    expect(info.text).toContain('foe');
+  });
+
+  it('uses "Click" copy on desktop and "Tap" on touch', () => {
+    const g = { ...base, goalShown: true, awaitingKind: 'declareAttackers', step: 'combat', eligibleAttackerCount: 1 };
+    expect(tutorialCue({ ...g, isTouch: false }).text).toBe('Click a creature to attack.');
+    expect(tutorialCue({ ...g, isTouch: true }).text).toBe('Tap a creature to attack.');
   });
 
   it('guides attacking and blocking', () => {

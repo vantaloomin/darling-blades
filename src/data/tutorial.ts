@@ -98,8 +98,8 @@ export interface TutorialCueInput {
   pendingBlocker: boolean;
   hasLegalBlocker: boolean;
   blockAssigned: boolean;
-  /** The opponent is the active/turn player — so a response window here is on THEIR turn. */
-  activePlayerIsOpponent: boolean;
+  /** Instruction copy uses "Click" on desktop, "Tap" on touch. */
+  isTouch: boolean;
   goalShown: boolean;
   sicknessShown: boolean;
   blocked: boolean;
@@ -125,7 +125,8 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
   if (i.ritualCast && !i.ritualInfoShown)
     return { kind: 'ritualInfo', text: 'Rituals cast only on your own turn.' };
   if (i.charmCast && !i.charmInfoShown)
-    return { kind: 'charmInfo', text: 'Charms cast any time — even your foe’s turn.' };
+    return { kind: 'charmInfo', text: 'Charm spells can be cast at any time. Even during your foe’s turn!' };
+  const use = i.isTouch ? 'Tap' : 'Click';
 
   switch (i.awaitingKind) {
     case 'main':
@@ -136,33 +137,32 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
       if (i.myCreatureCount >= 1 && !i.sicknessShown)
         return { kind: 'sickness', text: "A new creature can't attack this turn." };
       if (!i.ritualCast && i.hasCastableRitual)
-        return { kind: 'castRitual', text: 'Cast this Ritual — a sorcery-speed spell.' };
-      // After the block lesson, keep mana open for the Charm-in-response lesson.
+        return { kind: 'castRitual', text: 'Cast this Ritual spell.' };
+      // After the block lesson, keep mana open so the Charm can be cast at the
+      // end of this turn (its instant-timing lesson).
       if (i.blocked && !i.charmCast && i.handHasCharm)
-        return { kind: 'advance', text: 'Hold your mana — save the Charm ▶' };
+        return { kind: 'advance', text: `Let's save our mana for now. ${use} to Combat.` };
       return { kind: 'advance', text: i.step === 'main1' ? 'Advance to combat ▶' : 'Advance ▶' };
 
     case 'declareAttackers':
       if (i.eligibleAttackerCount === 0) return { kind: 'advance', text: 'Nothing can attack — advance ▶' };
-      if (!i.attackerSelected) return { kind: 'selectAttacker', text: 'Tap a creature to attack.' };
+      if (!i.attackerSelected) return { kind: 'selectAttacker', text: `${use} a creature to attack.` };
       return { kind: 'confirmAttack', text: 'Confirm your attack ▶' };
 
     case 'declareBlockers':
       if (i.blockAssigned) return { kind: 'confirmBlock', text: 'Confirm your block ▶' };
       if (!i.hasLegalBlocker) return { kind: 'advance', text: 'Advance ▶' };
-      if (i.pendingBlocker) return { kind: 'selectAttackerToBlock', text: 'Now tap the attacker.' };
-      return { kind: 'selectBlocker', text: 'Tap your creature to block.' };
-
-    case 'respond':
-      // The Charm lesson: cast it in response, but ONLY during the opponent's
-      // turn (their attack) so the "even on their turn" point actually lands. A
-      // response window on your own turn (e.g. after they declare blocks) is
-      // just passed.
-      if (!i.charmCast && i.hasCastableCharm && i.activePlayerIsOpponent)
-        return { kind: 'castCharm', text: 'Cast a Charm now — on their turn!' };
-      return { kind: 'advance', text: 'Pass ▶' };
+      if (i.pendingBlocker) return { kind: 'selectAttackerToBlock', text: `Now ${use.toLowerCase()} the attacker.` };
+      return { kind: 'selectBlocker', text: `${use} your creature to block.` };
 
     case 'endStepWindow':
+      // The Charm lesson: cast it at the END of your own turn (after attacking).
+      // The info card then teaches it could also be cast on the foe's turn.
+      if (!i.charmCast && i.hasCastableCharm)
+        return { kind: 'castCharm', text: 'Cast this Charm spell.' };
+      return { kind: 'advance', text: 'Pass ▶' };
+
+    case 'respond':
       return { kind: 'advance', text: 'Pass ▶' };
 
     default:
