@@ -10,7 +10,7 @@ _Dated 2026-07-04. Review monthly._
   The rename swept all display text/docs/package name (`darling-blades`)/launch
   configs; the save key moved to `darlingblades.save.v1` with a one-time read
   of the legacy `waifutcg.save.v1` key so existing saves survive. The on-disk
-  repo folder is still `WaifuTCG` (deliberately not renamed — path stability).
+  repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** Menu → starter pick → **Avatar Gauntlet** (8 themed
   opponents on a ladder) or Practice duels → rewards → shop → pack opening →
   collection → deck builder, all wired, with procedural SFX + ambient music.
