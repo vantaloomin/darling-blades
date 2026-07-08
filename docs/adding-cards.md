@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-07
+<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-08
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -435,6 +435,17 @@ the same card id inside a pack while the tier's pool allows it. This is why the
 catalog test requires every tier's booster-eligible pool to be non-empty and
 the `ur` pool to hold at least 4 cards.
 
+## Expansion achievement pass
+
+When a new expansion launches, it should also ship with achievements sized to
+the expansion's collectible-card count. A small mini-set can get a few headline
+or completion goals; a large set should get percentage-completion tiers plus
+headliner and sub-archetype goals, with special/rainbow variant chase tiers where
+the cast is important enough. Prefer deriving progress from existing
+`collection` / `collectionVariants` data in `src/meta/Achievements.ts`; only bump
+`SaveData.version` if the achievement needs new durable counters that cannot be
+recomputed from the save.
+
 ## New-card checklist
 
 1. **Pick the set file** and give the card an id with that set's prefix.
@@ -445,7 +456,9 @@ the `ur` pool to hold at least 4 cards.
    `token: true` (a catalog test enforces this).
 5. **Holo/frame** — nothing to author: variants are rolled per pulled copy,
    never defined on the card.
-6. **Run `npm test`** — the catalog integrity tests check duplicate ids, prefix
+6. **Expansion achievements** — if this is a new set/expansion, add a scaled
+   achievement pass for its card count, headline cast, and major sub-archetypes.
+7. **Run `npm test`** — the catalog integrity tests check duplicate ids, prefix
    conventions, mana-value bounds (1–8), P/T bounds (0–10), token references,
    the rarity mix, and the multicolor-legendary rule.
-7. **Eyeball the wording** in the Card Showcase scene.
+8. **Eyeball the wording** in the Card Showcase scene.

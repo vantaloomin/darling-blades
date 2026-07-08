@@ -413,8 +413,8 @@ anywhere:
   are always kept.
 - **`Achievements`** (`Achievements.ts`) — pure achievement catalog/evaluator
   over durable save data plus `CARD_DB`: collection percentage, color
-  completion, themed RoTK leader/tower-clear goals, variant chase goals,
-  mastery, and pack-opening economy goals.
+  completion, themed RoTK / Greek / Beastkin / Ragnarök goals, tower-clear
+  goals, variant chase goals, mastery, and pack-opening economy goals.
   Unlocks are recomputed from the save, while claiming is explicit and
   idempotent. `collectionFilter.ts` owns the shared completion math used by
   both achievements and the Collection header.

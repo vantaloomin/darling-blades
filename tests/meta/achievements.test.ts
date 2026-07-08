@@ -57,8 +57,51 @@ const LEADER_DB: CardDb = Object.freeze({
   'tk-wu-sunquan': card('tk-wu-sunquan', { colors: ['U', 'R'], rarity: 'ur' }),
 });
 
-function status(id: string, save = freshSave(0)) {
-  return evaluateAchievements(save, DB).find((entry) => entry.def.id === id)!;
+const GREEK_COURT = [
+  'gk-athena',
+  'gk-ares',
+  'gk-zeus',
+  'gk-hera',
+  'gk-aphrodite',
+  'gk-persephone',
+  'gk-hades',
+  'gk-poseidon',
+  'gk-gaia',
+] as const;
+
+const BEAST_COUNCIL = ['bk-packmother', 'bk-kitsune-matriarch', 'bk-wolfqueen'] as const;
+
+const RAGNAROK_COURT = [
+  'rg-hel',
+  'rg-freya',
+  'rg-fenrir',
+  'rg-brunhild',
+  'rg-norns',
+  'rg-angrboda',
+  'rg-skadi',
+  'rg-idun',
+] as const;
+
+const THEME_DB: CardDb = Object.freeze({
+  ...DB,
+  ...Object.fromEntries(GREEK_COURT.map((id) => [id, card(id, { subtypes: ['Olympian', 'God'], rarity: 'ur' })])),
+  ...Object.fromEntries(BEAST_COUNCIL.map((id) => [id, card(id, { subtypes: ['Beastkin'], rarity: 'ssr' })])),
+  'rg-hel': card('rg-hel', { set: 'ragnarok', subtypes: ['Aesir', 'God'], rarity: 'ur' }),
+  'rg-freya': card('rg-freya', { set: 'ragnarok', subtypes: ['Vanir', 'God'], rarity: 'ur' }),
+  'rg-fenrir': card('rg-fenrir', { set: 'ragnarok', subtypes: ['Wolf', 'Jotun'], rarity: 'ur' }),
+  'rg-brunhild': card('rg-brunhild', { set: 'ragnarok', subtypes: ['Valkyrie', 'Shieldmaiden'], rarity: 'ssr' }),
+  'rg-norns': card('rg-norns', { set: 'ragnarok', subtypes: ['Norn'], rarity: 'ssr' }),
+  'rg-angrboda': card('rg-angrboda', { set: 'ragnarok', subtypes: ['Jotun'], rarity: 'ssr' }),
+  'rg-skadi': card('rg-skadi', { set: 'ragnarok', subtypes: ['Jotun', 'Warrior'], rarity: 'ssr' }),
+  'rg-idun': card('rg-idun', { set: 'ragnarok', subtypes: ['Vanir'], rarity: 'sr' }),
+  'rg-valkyrie-captain': card('rg-valkyrie-captain', { set: 'ragnarok', subtypes: ['Valkyrie'], rarity: 'sr' }),
+  'rg-draugr-jarl': card('rg-draugr-jarl', { set: 'ragnarok', subtypes: ['Draugr'], rarity: 'sr' }),
+  'rg-hels-handmaiden': card('rg-hels-handmaiden', { set: 'ragnarok', subtypes: ['Draugr'], rarity: 'r' }),
+  'rg-jotun-earthshaker': card('rg-jotun-earthshaker', { set: 'ragnarok', subtypes: ['Jotun'], rarity: 'sr' }),
+});
+
+function status(id: string, save = freshSave(0), db = DB) {
+  return evaluateAchievements(save, db).find((entry) => entry.def.id === id)!;
 }
 
 describe('achievements', () => {
@@ -130,6 +173,95 @@ describe('achievements', () => {
         'theme-rotk-three-lords-rainbow',
       ]),
     );
+  });
+
+  it('tracks Greek and Beastkin archetype tiers including rainbow borders', () => {
+    const save = freshSave(0);
+    save.collection = Object.fromEntries([...GREEK_COURT, ...BEAST_COUNCIL].map((id) => [id, 1]));
+    save.collectionVariants = Object.fromEntries(
+      [...GREEK_COURT, ...BEAST_COUNCIL].map((id) => [id, { [variantKey({ frame: 'white', holo: 'none' })]: 1 }]),
+    );
+
+    expect(status('theme-greek-olympian-court', save, THEME_DB)).toMatchObject({
+      current: GREEK_COURT.length,
+      target: GREEK_COURT.length,
+      unlocked: true,
+    });
+    expect(status('theme-beastkin-pack-council', save, THEME_DB)).toMatchObject({
+      current: BEAST_COUNCIL.length,
+      target: BEAST_COUNCIL.length,
+      unlocked: true,
+    });
+    expect(status('theme-greek-olympian-court-rainbow', save, THEME_DB)).toMatchObject({
+      current: 0,
+      target: GREEK_COURT.length,
+      unlocked: false,
+    });
+
+    save.collectionVariants = Object.fromEntries(
+      [...GREEK_COURT, ...BEAST_COUNCIL].map((id) => [id, { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 }]),
+    );
+
+    const newly = syncAchievements(save, THEME_DB);
+    expect(newly).toEqual(
+      expect.arrayContaining([
+        'theme-greek-olympian-court-special',
+        'theme-greek-olympian-court-rainbow',
+        'theme-beastkin-pack-council-special',
+        'theme-beastkin-pack-council-rainbow',
+      ]),
+    );
+  });
+
+  it('scales Ragnarök achievements by set size and tracks its sub-archetypes', () => {
+    const save = freshSave(0);
+    const ragnarokIds = Object.values(THEME_DB)
+      .filter((entry) => entry.set === 'ragnarok')
+      .map((entry) => entry.id);
+    save.collection = Object.fromEntries(ragnarokIds.slice(0, Math.ceil(ragnarokIds.length * 0.5)).map((id) => [id, 1]));
+
+    expect(status('theme-ragnarok-25', save, THEME_DB)).toMatchObject({ target: 3, unlocked: true });
+    expect(status('theme-ragnarok-50', save, THEME_DB)).toMatchObject({ target: 6, unlocked: true });
+    expect(status('theme-ragnarok-complete', save, THEME_DB)).toMatchObject({ target: 12, unlocked: false });
+
+    save.collection = Object.fromEntries(ragnarokIds.map((id) => [id, 1]));
+    const statuses = evaluateAchievements(save, THEME_DB);
+    const unlocked = statuses.filter((entry) => entry.unlocked).map((entry) => entry.def.id);
+
+    expect(unlocked).toEqual(
+      expect.arrayContaining([
+        'theme-ragnarok-complete',
+        'theme-ragnarok-twilight-court',
+        'theme-ragnarok-valkyries',
+        'theme-ragnarok-draugr',
+        'theme-ragnarok-jotun-wolves',
+      ]),
+    );
+  });
+
+  it('tracks Ragnarök headline special and rainbow tiers', () => {
+    const save = freshSave(0);
+    save.collection = Object.fromEntries(RAGNAROK_COURT.map((id) => [id, 1]));
+    save.collectionVariants = Object.fromEntries(
+      RAGNAROK_COURT.map((id) => [id, { [variantKey({ frame: 'gold', holo: 'none' })]: 1 }]),
+    );
+
+    expect(status('theme-ragnarok-twilight-court-special', save, THEME_DB)).toMatchObject({
+      current: RAGNAROK_COURT.length,
+      target: RAGNAROK_COURT.length,
+      unlocked: true,
+    });
+    expect(status('theme-ragnarok-twilight-court-rainbow', save, THEME_DB)).toMatchObject({
+      current: 0,
+      target: RAGNAROK_COURT.length,
+      unlocked: false,
+    });
+
+    save.collectionVariants = Object.fromEntries(
+      RAGNAROK_COURT.map((id) => [id, { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 }]),
+    );
+
+    expect(syncAchievements(save, THEME_DB)).toContain('theme-ragnarok-twilight-court-rainbow');
   });
 
   it('tracks mono-color and dual-color tower clear achievements from gauntlet history', () => {
