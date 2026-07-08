@@ -214,6 +214,13 @@ export class DuelScene extends Phaser.Scene {
    */
   private tutorial = false;
   private coach: CoachMark | null = null;
+  /**
+   * Hard-constrains input to the one control the current coach mark points at:
+   * every sync it deadens `overlayGuardTargets()` minus the spotlighted target,
+   * so the player can only take the taught action (and can't, e.g., cast the
+   * Charm early and end the tutorial before its beat).
+   */
+  private tutorialGuard = new ModalGuard();
   private tutGoalShown = false;
   private tutSicknessShown = false;
   private tutBlocked = false;
@@ -295,6 +302,7 @@ export class DuelScene extends Phaser.Scene {
     this.tutCompleted = false;
     this.coachInfoActive = false;
     this.coach = null;
+    this.tutorialGuard = new ModalGuard();
     this.views = new Map();
     this.handViews = [];
     this.handDecor = [];
@@ -437,6 +445,7 @@ export class DuelScene extends Phaser.Scene {
         return;
       case 'wait':
         this.coach.hide();
+        this.lockTutorialInput(null); // opponent acting — nothing is tappable
         return;
       case 'goal':
       case 'sickness':
@@ -445,6 +454,7 @@ export class DuelScene extends Phaser.Scene {
         const kind = cue.kind;
         this.coachInfoActive = true;
         this.coach.hide();
+        this.lockTutorialInput(null); // the info card owns the screen
         this.coach.showInfoCard(cue.text, () => {
           this.coachInfoActive = false;
           if (kind === 'goal') this.tutGoalShown = true;
@@ -459,8 +469,21 @@ export class DuelScene extends Phaser.Scene {
         const target = this.tutorialTarget(cue.kind);
         if (target) this.coach.showCue(target, cue.text);
         else this.coach.hide();
+        this.lockTutorialInput(target); // only the spotlighted control stays live
       }
     }
+  }
+
+  /**
+   * Deaden every duel control except `target` (the coach mark's spotlight), so
+   * the player can only take the taught action. A board tile carries its input
+   * on the tile's `inputZone`, not the tile object itself; a hand card / the
+   * smart button ARE their own interactive object. `null` deadens everything.
+   */
+  private lockTutorialInput(target: Phaser.GameObjects.GameObject | null): void {
+    const exempt = target instanceof BoardCardView ? (target.inputZone ?? null) : target;
+    this.tutorialGuard.close();
+    this.tutorialGuard.open(this.overlayGuardTargets().filter((o) => o !== exempt));
   }
 
   private buildTutorialInput(): TutorialCueInput {
@@ -578,6 +601,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.tutCompleted) return;
     this.tutCompleted = true;
     this.ended = true;
+    this.tutorialGuard.close(); // hand the board back before the results overlay guards it
     this.coach?.destroy();
     this.coach = null;
     this.closeInspect();
