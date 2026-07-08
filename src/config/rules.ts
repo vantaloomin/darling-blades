@@ -24,6 +24,13 @@ export const ECONOMY = {
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
   lossGold: 20,
   firstWinOfDayBonus: 100,
+  dailyQuestCount: 3,
+  dailyRerollsPerDay: 3,
+  dailyQuestGold: 75,
+  // Win-streak bonus paid automatically on the first win of each calendar day.
+  // Day 7+ uses the pack-price-sized cap rather than resetting the visible
+  // consecutive-day count.
+  dailyStreakGold: [25, 50, 75, 100, 125, 150, 250] as const,
   preconPrice: 500,
   // The four starter precons you did NOT pick for free are buyable in the shop's
   // Decks tab (the free-chosen one reads "Owned"). Cheaper than a theme deck —

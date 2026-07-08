@@ -1,3 +1,4 @@
+import { dayStringFromTimestamp, freshDailyState } from './Quests';
 import { PLAIN_VARIANT, variantKey } from './variants';
 
 /** Active gauntlet run state; null when no run is in progress. */
@@ -24,8 +25,26 @@ export interface AchievementState {
   claimed: string[];
 }
 
+export interface DailyQuestSave {
+  id: string;
+  progress: number;
+  target: number;
+  rewardGold: number;
+  claimed: boolean;
+}
+
+export interface DailyState {
+  day: string; // YYYY-MM-DD local calendar day for the active quest set
+  quests: DailyQuestSave[];
+  rerollsUsed: number;
+  streak: {
+    count: number;
+    lastWinDay: string | null; // streak advances only from the first win on a day
+  };
+}
+
 export interface SaveData {
-  version: 12;
+  version: 13;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -63,6 +82,12 @@ export interface SaveData {
    * saves do not silently consume rewards. v11 addition.
    */
   achievements: AchievementState;
+  /**
+   * Road-to-1.0 daily quests and win streaks. Three quests are rolled per local
+   * calendar day with three total rerolls; the streak advances only when the
+   * player wins at least one duel that day. v13 addition.
+   */
+  daily: DailyState;
   stats: {
     wins: number;
     losses: number;
@@ -112,7 +137,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 12,
+    version: 13,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -124,6 +149,7 @@ export function freshSave(now: number): SaveData {
     heroPortraitId: null,
     tutorialDone: false,
     achievements: freshAchievements(),
+    daily: freshDailyState(dayStringFromTimestamp(now)),
     stats: {
       wins: 0,
       losses: 0,
@@ -175,7 +201,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 12) return parsed as SaveData;
+      if (parsed.version === 13) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -199,8 +225,8 @@ export class SaveManager {
    * (default on); v8 → v9 adds `heroPortraitId` (null = no premium hero);
    * v9 → v10 adds `tutorialDone` (false for a fresh/zero-record save, true for
    * any player with a win/loss record); v10 → v11 adds achievements; v11 → v12
-   * adds gauntlet clear-style counters. An unknown/garbage version starts fresh
-   * rather than crash.
+   * adds gauntlet clear-style counters; v12 -> v13 adds daily quests/streaks. An
+   * unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
@@ -346,7 +372,14 @@ export class SaveManager {
         },
       };
     }
-    if (cur.version === 12) return cur as unknown as SaveData;
+    if (cur.version === 12) {
+      cur = {
+        ...cur,
+        version: 13,
+        daily: freshDailyState(dayStringFromTimestamp(now)),
+      };
+    }
+    if (cur.version === 13) return cur as unknown as SaveData;
     return freshSave(now);
   }
 

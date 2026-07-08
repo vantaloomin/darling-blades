@@ -13,6 +13,7 @@ import { STARTER_DECKS } from '../data/starterDecks';
 import { applyGauntletResult, applyMatchResult, todayString, type Difficulty } from '../meta/Economy';
 import { ownedVariantEntries } from '../meta/collectionFilter';
 import { rungSeed } from '../meta/gauntletSeed';
+import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
 import { Services } from '../meta/services';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
@@ -1380,6 +1381,10 @@ export class DuelScene extends Phaser.Scene {
    * time (the pre-sequencing behavior).
    */
   private processEvents(events: GameEvent[]): void {
+    if (!this.tutorial && events.length > 0) {
+      const progress = applyDailyQuestProgress(Services.save.data, CARD_DB, events, todayString());
+      if (progress.changed) Services.save.touch();
+    }
     const sequence =
       Services.save.data.settings.animations === 'full' &&
       !this.animatingCombat &&
@@ -2952,6 +2957,14 @@ export class DuelScene extends Phaser.Scene {
     this.overlay = c;
   }
 
+  private rewardLine(totalGold: number, firstWinBonus: boolean, streakCount: number, completion = false): string {
+    const parts: string[] = [];
+    if (completion) parts.push('completion bonus');
+    if (firstWinBonus) parts.push('first win');
+    if (streakCount > 0) parts.push(`streak ${streakCount}`);
+    return `+${totalGold} gold${parts.length > 0 ? `  (${parts.join(' + ')})` : ''}`;
+  }
+
   private showResults(won: boolean, reason: string): void {
     this.closeInspect();
     this.zoom.setSuppressed(true);
@@ -2965,7 +2978,10 @@ export class DuelScene extends Phaser.Scene {
       this.showGauntletResults(won, reason);
       return;
     }
-    const reward = applyMatchResult(Services.save.data, this.difficulty, won, todayString());
+    const save = Services.save.data;
+    const today = todayString();
+    const reward = applyMatchResult(save, this.difficulty, won, today);
+    const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
     Services.save.flush();
     Music.duck(1.8); // let the sting read clearly over the bed
     Sfx.play(won ? 'win' : 'loss');
@@ -2992,7 +3008,7 @@ export class DuelScene extends Phaser.Scene {
         .text(
           width / 2,
           350,
-          `+${reward.gold} gold${reward.firstWinBonus ? '  (first win of the day!)' : ''}`,
+          this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
           { fontFamily: 'Inter, Arial, sans-serif', fontSize: '20px', fontStyle: '600', color: '#ffd88a' },
         )
         .setOrigin(0.5),
@@ -3017,14 +3033,17 @@ export class DuelScene extends Phaser.Scene {
   /** Gauntlet results: pay via applyGauntletResult and route through the tower. */
   private showGauntletResults(won: boolean, reason: string): void {
     const rung = this.gauntletRung!;
+    const save = Services.save.data;
+    const today = todayString();
     const reward = applyGauntletResult(
-      Services.save.data,
+      save,
       rung,
       this.difficulty,
       won,
-      todayString(),
+      today,
       this.myDeckColorStyle === 'mono' ? 'monoColor' : this.myDeckColorStyle === 'dual' ? 'dualColor' : undefined,
     );
+    const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
     Services.save.flush();
     // Full clear earns the fanfare; an ordinary rung gets its own short motif.
     Music.duck(1.8);
@@ -3052,9 +3071,12 @@ export class DuelScene extends Phaser.Scene {
         })
         .setOrigin(0.5),
     );
-    const bonusLine = reward.completed
-      ? `+${reward.gold} gold — includes the completion bonus!`
-      : `+${reward.gold} gold${reward.firstWinBonus ? '  (first win of the day!)' : ''}`;
+    const bonusLine = this.rewardLine(
+      reward.gold + streak.gold,
+      reward.firstWinBonus,
+      streak.advanced ? streak.count : 0,
+      reward.completed,
+    );
     c.add(
       this.add
         .text(width / 2, 320, bonusLine, {

@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-08 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-08 · review monthly -->
 
 # Roadmap
 
@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **527 tests green** (+3 skipped balance-tool assertions) across 51 files
+- **534 tests green** (+3 skipped balance-tool assertions) across 52 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -38,6 +38,7 @@ _Dated 2026-07-04. Review monthly._
   onboarding tutorial (scripted-line determinism, the pure coach-mark guide,
   v9→v10 migration) and achievement/collection-goal coverage
   (v10→v11 achievement migration, v11→v12 tower clear-style migration,
+  v12→v13 daily quest/streak migration,
   unlock/claim idempotency, completion tallies, themed archetype and expansion
   goals, deck-color identity). The whole suite runs in ~25–30 s.
 - **210 cards** in the pool (`CARD_DB`), across the five colors and three
@@ -49,12 +50,24 @@ _Dated 2026-07-04. Review monthly._
   (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v12** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v13** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
-  clear-style counters — see Recently shipped). By-ear
+  clear-style counters, v12→v13 daily quests/streaks — see Recently shipped). By-ear
   tuning remains open (see Planned).
 
 ## Recently shipped (2026-07-08)
+
+- **Daily quests + win streaks (Road-to-1.0 Feature 2).** MainMenu now includes a
+  **Daily Blades** panel with three deterministic daily quests, progress bars,
+  explicit claim buttons, and per-quest rerolls capped at three total rerolls
+  per day. `src/meta/Quests.ts` is the Phaser-free core: a 25-objective bank,
+  deterministic `rollDailyQuestIds(day)`, event-batch progress folds, claim and
+  reroll helpers, and `recordDailyWin()` for the streak reward. Duel progress is
+  driven from public `GameEvent[]` batches; the streak advances only from the
+  result path when the human wins, so losses/games played never count by
+  themselves. **`SaveData` bumped v12 → v13** (`daily: { day, quests,
+  rerollsUsed, streak }`) with migration + tests. Verified locally:
+  tsc/lint/**534 tests**/build/doc-checkers.
 
 - **Achievements + collection goals (Road-to-1.0 Feature 5).** The game now has
   a pure `src/meta/Achievements.ts` catalog/evaluator with five buckets:

@@ -2,18 +2,18 @@
 
 # Road to 1.0 — feature plan
 
-> **Update (2026-07-08):** `SaveData` is now **v12**. Feature 1 (optional
+> **Update (2026-07-08):** `SaveData` is now **v13**. Feature 1 (optional
 > tutorial/onboarding) shipped as v9 → v10, Feature 5 (Achievements +
 > collection goals) shipped as v10 → v11, and the themed achievement follow-up
 > shipped as v11 → v12 (`gauntlet.clearStyles`). A later schema-free catalog pass
-> expanded Greek, Beastkin, and Ragnarök achievement coverage. The remaining 1.0
-> feature gaps in this doc are Feature 2 (daily quests + login streak), Feature 3
-> (sealed first, draft stretch), and Feature 4 (deck share codes + deterministic
+> expanded Greek, Beastkin, and Ragnarök achievement coverage. Feature 2 (daily
+> quests + win streaks) shipped as v12 -> v13. The remaining 1.0 feature gaps in
+> this doc are Feature 3 (sealed first, draft stretch) and Feature 4 (deck share codes + deterministic
 > replays). Future migration numbers below should be read as "next free version
-> after v12" unless the feature section has already been marked shipped.
+> after v13" unless the feature section has already been marked shipped.
 
-Darling Blades is playable end-to-end, art-complete, and stable (527 tests pass
-+ 3 skip across 51 files, `SaveData` v12 — see the update note above). What separates the current build from a polished 1.0 is
+Darling Blades is playable end-to-end, art-complete, and stable (534 tests pass
++ 3 skip across 52 files, `SaveData` v13 - see the update note above). What separates the current build from a polished 1.0 is
 not more systems but the connective tissue that turns a working prototype into a
 game people keep coming back to: a **reason to log in tomorrow**, a **first
 session that teaches**, a **shareable moment**, a **content mode with high
@@ -99,7 +99,14 @@ unit test. Coach-mark visuals fall under the existing by-eye polish caveat.
 cost is authoring good copy and a clean scripted line; risk is scope creep on the
 number of taught beats — cap at eight.
 
-## Feature 2 — Daily quests + login streak (retention loop)
+## Feature 2 — Daily quests + win streak (shipped 2026-07-08)
+
+**Status:** shipped as `SaveData` **v12 -> v13**. The implementation adds a
+pure `src/meta/Quests.ts` bank of **25 daily objectives**, rolls **3 active
+quests** per local calendar day, allows **3 total daily rerolls**, and grants
+explicit claim rewards from the MainMenu daily panel. Streak rewards are paid
+automatically only on the first **win** of a calendar day; merely playing a
+game never advances the streak.
 
 ### Problem
 
@@ -112,37 +119,39 @@ adapted for a single-player offline game.
 
 ### Design
 
-Three rotating **daily quests** ("win 2 duels", "cast 10 creatures", "deal 15
-combat damage", "win with a green deck") that grant gold on completion, plus a
-**login streak** that escalates a daily bonus and awards a free pack at day 7.
-Quests are drawn deterministically from `todayString()` so the same calendar day
-always yields the same three quests (no reroll exploit, and testable). Progress
-is tracked by subscribing to the engine's existing event stream.
+Three rotating **daily quests** grant gold on explicit claim, backed by a
+25-objective bank that covers wins, games finished, land plays, spell casts by
+type/color/rarity, damage, life gain, deaths, tokens, mill, discard, and
+multicolor play. Quests are drawn deterministically from `todayString()` so the
+same calendar day yields the same three quests unless the player spends one of
+the day's three rerolls. Progress is tracked by subscribing to the engine's
+existing event stream. The **win streak** escalates gold on the first win of
+each calendar day; a day with only losses or unfinished games does not count.
 
 ### Architecture fit
 
 - **New meta module** `src/meta/Quests.ts` (Phaser-free, unit-testable): a pure
-  `QuestDef` catalog, `rollDailies(dateStr, seed)` using the same
+  `DailyQuestDef` catalog, `rollDailyQuestIds(dateStr, seed)` using the same
   `createRngState`/`rngInt` primitives from `src/engine/rng.ts` seeded off a hash
-  of `todayString()`, and `applyProgress(quest, events)` that folds a
-  `GameEvent[]` batch into counters. Quest predicates read only public event
-  fields (`combatDamage.hits`, `spellCast.cardId`, `gameEnded.winner`), so no new
-  engine surface is needed.
+  of `todayString()`, and `applyDailyQuestProgress(save, db, events, today)` that
+  folds a `GameEvent[]` batch into counters. Quest predicates read only public
+  event fields (`lifeChanged`, `spellCast.cardId`, `gameEnded.winner`, etc.), so
+  no new engine surface is needed.
 - **Wiring**: `DuelScene` already receives event batches in `processEvents`; it
   forwards them to a `Services`-held quest tracker. Gauntlet/practice/tutorial all
   flow through the same batch, so quest progress is uniform.
-- **UI surface**: a **Daily panel** on the MainMenu (a new `src/ui/DailyPanel.ts`
-  card list with progress bars + a claim button) and a streak pip row. No new
-  top-level scene needed.
+- **UI surface**: a **Daily Blades** panel on the MainMenu with progress bars,
+  per-quest claim/reroll actions, rerolls remaining, and the current/next streak
+  reward. No new top-level scene needed.
 
 ### SaveData impact
 
-**Future v13 if sequenced next** (or the next free version if another feature
-ships first). New:
-`save.daily = { day: string, quests: { id, progress, target, claimed }[],
-streak: { count: number, lastDay: string } }`. Migration seeds an empty
-`daily` with today's rolled quests; a broken/absent block re-rolls on load. Add a
-migration test and a **streak-break test** (a gap day resets `count` to 1).
+Shipped as **v12 -> v13**:
+`save.daily = { day: string, quests: { id, progress, target, rewardGold,
+claimed }[], rerollsUsed: number, streak: { count, lastWinDay } }`. Migration
+seeds today's rolled quests; a broken/absent block re-rolls on load. Tests cover
+the migration, deterministic rolls, reroll cap, claim idempotency, event folds,
+and the win-only streak rule.
 
 ### Determinism considerations
 
@@ -434,16 +443,15 @@ Order by dependency and leverage, not size:
 1. **Tutorial (Feature 1)** — shipped 2026-07-08 as `SaveData` v10.
 2. **Achievements + collection goals (Feature 5)** — shipped 2026-07-08 as
    `SaveData` v11, with themed achievement history shipped as v12.
-3. **Daily quests + streak (Feature 2)** next — the retention loop now has both
-   onboarding and long-horizon goals to point players toward.
-4. **Replays + deck codes (Feature 4)** after Daily — ship the deck-code half
+3. **Daily quests + streak (Feature 2)** — shipped 2026-07-08 as `SaveData` v13.
+4. **Replays + deck codes (Feature 4)** next — ship the deck-code half
    early because it is small and independently useful; the replay viewer can
    trail.
 5. **Sealed / Draft (Feature 3)** last — the largest remaining feature, with
    draft explicitly stretch after sealed.
 
-The remaining `SaveData` version walk starts at **v12**. A clean order would be
-daily v13, replays/deck codes v14, and sealed v15. If two features ship together,
+The remaining `SaveData` version walk starts at **v13**. A clean order would be
+replays/deck codes v14 and sealed v15. If two features ship together,
 fold their fields into one bump rather than skipping versions. Every migration
 ships with a test, per the iron invariant.
 
@@ -454,7 +462,7 @@ Darling Blades is release-ready when:
 - **A cold-start player is taught** — first run routes through the tutorial, and
   the first ten minutes never leave them confused.
 - **There is a daily reason to return** — daily quests + streak give a fresh,
-  seeded goal every calendar day.
+  seeded goal every calendar day. Shipped in v13.
 - **The card pool has a purpose beyond the gauntlet** — achievements/collection
   goals are shipped; Limited mode remains the larger replayable content gap.
 - **Great games and great decks are shareable** — replays and deck codes turn
@@ -464,7 +472,7 @@ Darling Blades is release-ready when:
   are done.
 - **The invariants still hold** — engine purity, redacted views, seeded
   determinism, and green migrations/tests through the whole version walk (the
-  remaining walk starts from live `SaveData` v12).
+  remaining walk starts from live `SaveData` v13).
 
 Deliberately **out of scope for 1.0** (post-launch): Tier-2 LAN PvP (already
 deferred in mobile-lan-plan.md), draft (the pick-loop; sealed ships first), and a
