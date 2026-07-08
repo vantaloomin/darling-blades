@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-07 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-08 · review monthly -->
 
 # Roadmap
 
@@ -11,9 +11,11 @@ _Dated 2026-07-04. Review monthly._
   configs; the save key moved to `darlingblades.save.v1` with a one-time read
   of the legacy `waifutcg.save.v1` key so existing saves survive. The on-disk
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
-- **Playable end-to-end.** Menu → starter pick → **Avatar Gauntlet** (8 themed
-  opponents on a ladder) or Practice duels → rewards → shop → pack opening →
-  collection → deck builder, all wired, with procedural SFX + ambient music.
+- **Playable end-to-end.** First launch offers an optional **tutorial**; a new
+  player then claims a free starter deck in the shop and plays the **Avatar
+  Gauntlet** (8 themed opponents on a ladder) or Practice duels → rewards → shop →
+  pack opening → collection → deck builder, all wired, with procedural SFX +
+  ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** **Every
   one of the 210 pool cards now has a real illustration** — 147 creatures +
   15 lands + 43 spells — plus 5 tokens, 210 half-res variants, and 11
@@ -22,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **491 tests green** (+3 skipped balance-tool assertions) across 48 files
+- **510 tests green** (+3 skipped balance-tool assertions) across 49 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + deck-face picker + gauntlet-run-seed + shard/per-variant
@@ -32,7 +34,8 @@ _Dated 2026-07-04. Review monthly._
   avatar/starter legality; and the QOL pass — unplayable-reason, card-search
   filter, keyword-reminder coverage, undo snapshot/restore round-trip, combat
   forecast (`previewCombat`), deck-stats aggregation, profile win-rate,
-  deck-storage ops). The whole suite runs in ~25–30 s.
+  deck-storage ops); plus the onboarding tutorial (scripted-line determinism,
+  the pure coach-mark guide, v9→v10 migration). The whole suite runs in ~25–30 s.
 - **210 cards** in the pool (`CARD_DB`), across the five colors and three
   factions, bucketed into **five rarity tiers** (C 103 / R 65 / SR 13 /
   SSR 11 / UR 8 booster-eligible).
@@ -42,9 +45,29 @@ _Dated 2026-07-04. Review monthly._
   (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v9** (v6→v7 confirm-destructive, v7→v8
-  keyword-reminders, v8→v9 shop restructure — see Recently shipped). By-ear
+  the `SettingsScene`. `SaveData` is **v10** (v7→v8 keyword-reminders, v8→v9 shop
+  restructure, v9→v10 tutorial-done — see Recently shipped). By-ear
   tuning remains open (see Planned).
+
+## Recently shipped (2026-07-08)
+
+- **Optional first-launch tutorial + onboarding rework (PR #28).** The
+  Road-to-1.0 **tutorial (Feature 1)** landed: an optional, skippable, on-rails
+  scripted duel against a fail-safe teaching AI (`src/ai/ScriptAI.ts`), driven by
+  a hard-constrained coach-mark guide (`src/ui/CoachMark.ts` +
+  `src/data/tutorial.ts`'s pure, tested `tutorialCue`) that teaches goal → play a
+  land → play a creature → summoning sickness → attack → block → **Ritual**
+  (sorcery-speed) → **Charm** (instant-speed, cast at end of turn), locking input
+  to the one taught control each step. It reuses the real engine + `DuelScene`
+  through new optional `create(data)` overrides (fixed deck/seed/`ScriptAI`) — no
+  engine fork. Offered once on first launch ("New to card games?"), replayable
+  from a "How to Play" menu entry. The old **first-launch deck picker was removed**
+  — new players claim ONE free starter deck in the shop's Decks tab
+  (`Economy.claimFreeStarter`), and both playing and skipping grant the same
+  `startingGold` onboarding bonus. **`SaveData` bumped v9 → v10** (`tutorialDone`,
+  with a real `migrate()` that derives it from the win/loss record so veterans
+  skip it, + a migration test). Verified: tsc/lint/**510 tests**/build/doc-checkers,
+  plus live preview runs of the whole flow (zero console errors).
 
 ## Recently shipped (2026-07-06)
 
@@ -534,9 +557,10 @@ _Dated 2026-07-04. Review monthly._
   - [MTG-keyword rethemes](plan-keyword-rethemes.md) — a display-only rename of
     the 10 evergreen keywords to a Darling-Blades voice, confined to
     `rulesText.ts` (engine ids, saves, AI, determinism all untouched).
-  - [Road to 1.0 — five features](plan-road-to-1.0.md) — tutorial, daily quests,
-    sealed/draft, deterministic replays + share codes, achievements — sequenced,
-    with a definition of 1.0.
+  - [Road to 1.0 — five features](plan-road-to-1.0.md) — tutorial (✅ **shipped
+    2026-07-08**, PR #28 — see Recently shipped), daily quests, sealed/draft,
+    deterministic replays + share codes, achievements — sequenced, with a
+    definition of 1.0.
 - **Quality-of-life pass (15 features).** ✅ **Shipped 2026-07-06** — see Recently
   shipped and [docs/plan-qol.md](plan-qol.md). Only the deferred follow-ups remain:
   in-Settings toggles for `confirmDestructive` + `keywordReminders` (needs a 2-column
