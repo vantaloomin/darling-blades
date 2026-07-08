@@ -61,9 +61,9 @@ Visual anchors: magenta/cyan neon, black rain, holographic shrine paper with no 
 | yn-oni-club-speaker | Oni Club Speaker | R | R | Artifact | Sonic weapon | damage, equip bonus | Burn relic |
 | yn-spirit-vending-machine | Spirit Vending Machine | R | C | Artifact | Haunted vending machine | modal gain/draw/scry | Utility |
 | yn-silver-circuit-katana | Silver-Circuit Katana | R | C | Artifact Equipment | Katana | equip, firstBlade | Core gear |
-| yn-neon-shrine-district | Neon Shrine District | R | Land | Shrine city | entersTapped, manaAbility W/U | Dual land |
-| yn-rainmarket-alley | Rainmarket Alley | R | Land | Black market | entersTapped, manaAbility U/B | Dual land |
-| yn-red-lantern-overpass | Red-Lantern Overpass | C | Land | Night road | entersTapped, manaAbility B/R | Dual land |
+| yn-neon-shrine-district | Neon Shrine District | R | Land | Land | Shrine city | entersTapped, manaAbility W/U | Dual land |
+| yn-rainmarket-alley | Rainmarket Alley | R | Land | Land | Black market | entersTapped, manaAbility U/B | Dual land |
+| yn-red-lantern-overpass | Red-Lantern Overpass | C | Land | Land | Night road | entersTapped, manaAbility B/R | Dual land |
 | yn-kitsune-scriptling | Kitsune Scriptling | C | U | Creature | Kitsune novice | scry | Blue common |
 | yn-oni-bike-thug | Oni Bike Thug | C | R | Creature | Oni biker | warcry | Red common |
 | yn-yurei-pop-echo | Yurei Pop Echo | C | U/B | Creature | Ghost singer | skyborne | Evasive common |
@@ -87,11 +87,11 @@ Visual anchors: magenta/cyan neon, black rain, holographic shrine paper with no 
 | yn-bad-sector-curse | Bad-Sector Curse | C | B | Enchantment Aura | Data curse | debuff | Black removal |
 | yn-hannya-pop-star | Hannya Pop Star | C | B/R | Creature | Demon idol | menace | Aggro common |
 | yn-signal-flare | Signal Flare | C | R | Charm | Flare | damage 2 | Red removal |
-| yn-subway-torii | Subway Torii | C | Land | Transit shrine | entersTapped, manaAbility U | Common land |
-| yn-night-market-stall | Night-Market Stall | C | Land | Market | entersTapped, manaAbility B | Common land |
-| yn-rooftop-shrine | Rooftop Shrine | C | Land | Rooftop altar | entersTapped, manaAbility W | Common land |
-| yn-oni-garage | Oni Garage | C | Land | Street garage | entersTapped, manaAbility R | Common land |
-| yn-kappa-canal | Kappa Canal | C | Land | Canal district | entersTapped, manaAbility G | Common land |
+| yn-subway-torii | Subway Torii | C | Land | Land | Transit shrine | entersTapped, manaAbility U | Common land |
+| yn-night-market-stall | Night-Market Stall | C | Land | Land | Market | entersTapped, manaAbility B | Common land |
+| yn-rooftop-shrine | Rooftop Shrine | C | Land | Land | Rooftop altar | entersTapped, manaAbility W | Common land |
+| yn-oni-garage | Oni Garage | C | Land | Land | Street garage | entersTapped, manaAbility R | Common land |
+| yn-kappa-canal | Kappa Canal | C | Land | Land | Canal district | entersTapped, manaAbility G | Common land |
 | yn-equipment-cache | Equipment Cache | C | C | Artifact | Gear stash | search/topdeck equipment note | Gear support |
 | yn-modal-debug | Modal Debug | C | U | Ritual | Hack choice | modal draw/scry | Blue common |
 | yn-curseware-patch | Curseware Patch | C | B | Charm | Malware curse | modal drain/debuff | Black modal |
