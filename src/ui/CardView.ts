@@ -3,7 +3,6 @@ import { Art } from '../art/ArtResolver';
 import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
 import type { CardVariant, FrameStyle } from '../meta/variants';
-import { Services } from '../meta/services';
 import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 import { fxPolicy } from './fx/FXSupport';
@@ -16,6 +15,10 @@ export const CARD_H = 420;
 
 // Art window in card-local (center-origin) coordinates.
 const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
+const TEXT_LEFT = -126;
+const TEXT_WIDTH = 252;
+const BOTTOM_BADGE_Y = 182;
+const BOTTOM_PIP_SIZE = 21;
 
 export type CardFxLevel = 'full' | 'static' | 'none';
 
@@ -83,7 +86,7 @@ export class CardView extends Phaser.GameObjects.Container {
     this.ring = scene.add.image(0, 0, 'frame-ring').setDisplaySize(CARD_W, CARD_H).setVisible(false);
 
     this.nameText = scene.add
-      .text(-126, -182, '', {
+      .text(TEXT_LEFT, -182, '', {
         fontFamily: 'Cinzel, Georgia, serif',
         fontSize: '16px',
         fontStyle: 'bold',
@@ -93,7 +96,7 @@ export class CardView extends Phaser.GameObjects.Container {
       .setOrigin(0, 0.5);
 
     this.typeText = scene.add
-      .text(-126, 45, '', {
+      .text(TEXT_LEFT, 45, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '12px',
         fontStyle: '600',
@@ -103,12 +106,12 @@ export class CardView extends Phaser.GameObjects.Container {
       .setOrigin(0, 0.5);
 
     this.rulesTextObj = scene.add
-      .text(-126, 66, '', {
+      .text(TEXT_LEFT, 66, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '13px',
         color: '#20180e',
         resolution: 2,
-        wordWrap: { width: 252 },
+        wordWrap: { width: TEXT_WIDTH },
         lineSpacing: 2,
       })
       .setOrigin(0, 0);
@@ -117,25 +120,25 @@ export class CardView extends Phaser.GameObjects.Container {
     // in a warm muted sepia to separate it from the rules text above. A faint
     // hairline divider sits above it. Both positioned/sized in setCard.
     this.flavorRule = scene.add
-      .rectangle(-126, 66, 252, 1, 0x6b5a3e, 0.35)
+      .rectangle(TEXT_LEFT, 66, TEXT_WIDTH, 1, 0x6b5a3e, 0.35)
       .setOrigin(0, 0.5)
       .setVisible(false);
     this.flavorTextObj = scene.add
-      .text(-126, 66, '', {
+      .text(TEXT_LEFT, 66, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '12px',
         fontStyle: 'italic',
         color: '#6b5a3e',
         resolution: 2,
-        wordWrap: { width: 252 },
+        wordWrap: { width: TEXT_WIDTH },
         lineSpacing: 2,
       })
       .setOrigin(0, 0)
       .setVisible(false);
 
-    this.ptPlate = scene.add.image(96, 182, 'pt-plate').setDisplaySize(75, 31);
+    this.ptPlate = scene.add.image(96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(75, 31);
     this.ptText = scene.add
-      .text(96, 181, '', {
+      .text(96, BOTTOM_BADGE_Y - 1, '', {
         fontFamily: 'Cinzel, Georgia, serif',
         fontSize: '17px',
         fontStyle: 'bold',
@@ -147,9 +150,9 @@ export class CardView extends Phaser.GameObjects.Container {
     // deliberate departure from MTG's top-right cost. Reuses the neutral
     // pt-plate texture; width is fitted to the pip row in setCard, hidden for
     // costless cards (lands).
-    this.costPlate = scene.add.image(-96, 182, 'pt-plate').setDisplaySize(50, 31).setVisible(false);
+    this.costPlate = scene.add.image(-96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(50, 31).setVisible(false);
 
-    this.gem = scene.add.image(118, 45, 'gem-c').setDisplaySize(16, 16);
+    this.gem = scene.add.image(0, BOTTOM_BADGE_Y, 'gem-c').setDisplaySize(BOTTOM_PIP_SIZE, BOTTOM_PIP_SIZE);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
     this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
 
@@ -224,7 +227,7 @@ export class CardView extends Phaser.GameObjects.Container {
     // band — auto-fit to 244px (was 215, when it had to dodge the top-right
     // pips), floor 0.7×. Measure width AFTER setText (Windows font-fallback
     // trap — glyph metrics aren't known before the glyph run).
-    this.nameText.setText(card.name);
+    this.nameText.setScale(1).setText(card.name);
     const nameW = Math.max(1, this.nameText.width);
     // Prefer a 244px fit with a 0.7 readability floor, but never render wider
     // than the card contains (the name starts at x=-126; keep its right edge
@@ -232,24 +235,21 @@ export class CardView extends Phaser.GameObjects.Container {
     // it can never spill past the card border.
     const nameFit = Math.max(0.7, Math.min(1, 244 / nameW));
     this.nameText.setScale(Math.min(nameFit, 270 / nameW));
-    this.typeText.setText(typeLine(card));
-    const rules = rulesText(card, { reminders: Services.save.data.settings.keywordReminders });
+    this.typeText.setScale(1).setText(typeLine(card));
+    const typeW = Math.max(1, this.typeText.width);
+    this.typeText.setScale(Math.min(1, TEXT_WIDTH / typeW));
+    const rules = rulesText(card);
     this.rulesTextObj.setText(rules);
     // Land faces get a composed mana-iconography row ([T] → [pip]) centered
     // in the otherwise-empty textbox; flavor (if any) drops below the row.
     const manaRow = isType(card, 'land') ? (card.manaAbility ?? []) : [];
     const textTop = manaRow.length > 0 ? 132 : 66;
-    this.rulesTextObj.setPosition(-126, textTop);
-    // The textbox spans from textTop down to y=194 (just above the P/T plate).
-    // Rules text sits at the top; flavor (if any) is a separate italic block at
-    // the bottom. Both must fit inside the box — a wordy card would otherwise
-    // spill over the P/T plate / off the card, so we shrink-to-fit accounting
-    // for the flavor block's own measured height.
-    // Reserve a bottom badge strip for costed cards: the cost plate (bottom-
-    // left) and the P/T plate (bottom-right) both sit below y≈166, so rules /
-    // flavor text stops above them. Costless cards (lands) keep the full box.
+    this.rulesTextObj.setPosition(TEXT_LEFT, textTop);
+    // The textbox spans from textTop down to the safe bottom edge. Flavor text
+    // is anchored to that bottom edge, directly above cost/stat badges; rules
+    // text keeps the top of the box and shrinks if the two blocks would collide.
     const pipSpecs = pipsFor(card.cost ?? { generic: 0, pips: {} });
-    const BOX_BOTTOM = pipSpecs.length > 0 ? 166 : 194;
+    const BOX_BOTTOM = 166;
     const BOX_H = BOX_BOTTOM - textTop;
     const DIVIDER_GAP = 8; // space between rules block and the hairline
     const AFTER_DIVIDER = 6; // hairline to flavor text
@@ -262,36 +262,27 @@ export class CardView extends Phaser.GameObjects.Container {
       this.flavorTextObj.setScale(1).setText(card.flavor!);
       flavorH = this.flavorTextObj.height;
     }
-    // Budget for the flavor block within the box (divider + gaps + text). If
-    // flavor alone would blow the box, cap it — but flavor is always short.
-    const flavorBlock = hasFlavor
-      ? Math.min(BOX_H * 0.6, DIVIDER_GAP + 1 + AFTER_DIVIDER + flavorH)
-      : 0;
-    // Space the rules text may occupy after reserving the flavor block.
+    // Cap flavor to the lower slice of the box, then place it bottom-up.
+    const maxFlavorH = Math.max(1, Math.min(BOX_H * 0.6, BOX_H - DIVIDER_GAP - 1 - AFTER_DIVIDER));
+    if (hasFlavor && flavorH > maxFlavorH) {
+      this.flavorTextObj.setScale(maxFlavorH / flavorH);
+    }
+    const scaledFlavorH = hasFlavor ? flavorH * this.flavorTextObj.scaleY : 0;
+    const flavorBlock = hasFlavor ? DIVIDER_GAP + 1 + AFTER_DIVIDER + scaledFlavorH : 0;
     const RULES_BOX_H = Math.max(1, BOX_H - flavorBlock);
     this.rulesTextObj.setScale(1);
     if (this.rulesTextObj.height > RULES_BOX_H) {
       this.rulesTextObj.setScale(RULES_BOX_H / this.rulesTextObj.height);
     }
 
-    // Position the flavor block below the (possibly shrunk) rules text. For a
-    // bare land the rules text is empty, so flavor sits below the icon row.
+    // Position the flavor block from the bottom upward, independent of how
+    // sparse the rules text is. Bare cards therefore read like printed cards:
+    // empty rules area above, flavor resting near the lower edge.
     if (hasFlavor) {
-      const rulesBottom =
-        textTop + this.rulesTextObj.height * this.rulesTextObj.scaleY;
-      // For lands the rules box is the icon row's territory; drop flavor below
-      // the row (~148) rather than hugging the empty top.
-      const flavorTop =
-        manaRow.length > 0 ? Math.max(rulesBottom, 148) : rulesBottom + DIVIDER_GAP;
-      const dividerY = flavorTop;
-      this.flavorRule.setPosition(-126, dividerY).setVisible(true);
-      this.flavorTextObj.setPosition(-126, dividerY + AFTER_DIVIDER).setVisible(true);
-      // Final guard: if the flavor text's own measured height would push it
-      // past the box bottom, shrink it to fit the remaining slice.
-      const avail = BOX_BOTTOM - (dividerY + AFTER_DIVIDER);
-      if (flavorH > avail && avail > 0) {
-        this.flavorTextObj.setScale(avail / flavorH);
-      }
+      const flavorTop = BOX_BOTTOM - scaledFlavorH;
+      const dividerY = flavorTop - AFTER_DIVIDER;
+      this.flavorRule.setPosition(TEXT_LEFT, dividerY).setVisible(true);
+      this.flavorTextObj.setPosition(TEXT_LEFT, flavorTop).setVisible(true);
     }
     if (manaRow.length > 0) {
       // [T] → [G] (duals show both color pips). Sized generously — this row
@@ -337,19 +328,19 @@ export class CardView extends Phaser.GameObjects.Container {
     // left-to-right (generic first, then colored pips), centred on x=-96 (the
     // mirror of the P/T plate centre +96), on the neutral cost plate.
     if (pipSpecs.length > 0) {
-      const PIP = 21;
+      const PIP = BOTTOM_PIP_SIZE;
       const STEP = 23;
       const rowW = PIP + (pipSpecs.length - 1) * STEP;
       const cx = -96;
       this.costPlate.setVisible(true).setDisplaySize(Math.max(46, rowW + 18), 31);
       let px = cx - rowW / 2 + PIP / 2;
       for (const spec of pipSpecs) {
-        const img = this.scene.add.image(px, 182, spec.texture).setDisplaySize(PIP, PIP);
+        const img = this.scene.add.image(px, BOTTOM_BADGE_Y, spec.texture).setDisplaySize(PIP, PIP);
         this.add(img);
         this.pips.push(img);
         if (spec.number !== undefined) {
           const t = this.scene.add
-            .text(px, 181, String(spec.number), {
+            .text(px, BOTTOM_BADGE_Y - 1, String(spec.number), {
               fontFamily: 'Cinzel, Georgia, serif',
               fontSize: '13px',
               fontStyle: 'bold',

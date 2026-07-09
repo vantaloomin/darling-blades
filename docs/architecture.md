@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/LandStackView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts · last-verified: 2026-07-08
+<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/LandStackView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-09
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -162,7 +162,7 @@ decision; `validateAction` cross-checks any submitted action against it.
 Scenes are registered in `src/main.ts` and flow:
 
 ```
-Boot → Preload → MainMenu → { Gauntlet→Duel, Duel, Shop→PackOpening, Collection, DeckBuilder, Achievements, Showcase }
+Boot → Preload → MainMenu → { Gauntlet→Duel, Duel, Shop→PackOpening, Collection, DeckBuilder, Limited→Duel, Achievements, Showcase }
 ```
 
 - **Boot** (`BootScene.ts`) — registers the WebGL post-FX pipeline, then jumps
@@ -174,20 +174,27 @@ Boot → Preload → MainMenu → { Gauntlet→Duel, Duel, Shop→PackOpening, C
 - **Gauntlet** (`GauntletScene.ts`) — the Avatar Gauntlet ladder, reached from
   the MainMenu "Avatar Gauntlet" item; shows the ten rungs and launches
   gauntlet duels.
+- **Limited** (`LimitedScene.ts`, `LimitedRevealScene.ts`, `LimitedDraftScene.ts`,
+  `LimitedDeckBuilderScene.ts`) — Sealed and Bot Draft run setup, temporary pool
+  reveal/picking, 40-card limited deck building, then launch into Duel with deck
+  overrides.
 - **Duel / Shop / PackOpening / Collection / DeckBuilder / Achievements / Showcase** — the
-  feature scenes.
+  remaining feature scenes.
 
 **Scene-data passing** uses Phaser's `scene.start(name, data)`:
 
 - **Duel's full init contract** is
-  `{ difficulty?, opponentId?, gauntletRung? }` (`DuelScene.create`).
+  `{ difficulty?, opponentId?, gauntletRung?, deckOverride?, opponentDeckOverride?, limitedMatch? }`
+  (`DuelScene.create`).
   MainMenu's Practice items pass just `{ difficulty }`; the Gauntlet passes
   `{ opponentId, gauntletRung }`, and an `opponentId` puts the duel in gauntlet
   mode — the avatar's themed deck, brain difficulty, and personality override
   any `difficulty` passed. After a gauntlet win, "next rung" restarts the Duel
   scene in place with the next avatar
   (`scene.restart({ opponentId, gauntletRung })`) instead of routing back
-  through the menu.
+  through the menu. Limited uses the override fields plus `limitedMatch` so
+  match results route back to the active Limited run instead of normal constructed
+  rewards.
 - Shop → PackOpening passes the `PackResult` (the rolled cards) directly, so
   the opening scene animates a reveal without re-rolling.
 
@@ -368,13 +375,13 @@ anywhere:
   Phaser registry or event bus. It holds a single `SaveManager`. Tests construct
   their own `SaveManager` with a fake storage instead.
 - **`SaveManager`** (`SaveManager.ts`) — one versioned JSON blob
-  (`SaveData`, `version: 12`) in `localStorage` under the key `darlingblades.save.v1`.
+  (`SaveData`, `version: 15`) in `localStorage` under the key `darlingblades.save.v1`.
   The key is a storage slot name, not the schema version — the version lives
   inside the blob, and the key deliberately never changes so older builds and
   newer builds read the same slot (the legacy `waifutcg.save.v1` key is still
   read once for save migration — see `src/meta/SaveManager.ts`). Writes are debounced (`touch()` → 250 ms →
   `flush()`); corrupt or missing data falls back to a fresh save. Any blob that
-  isn't `version: 12` routes through `migrate()`, which forward-migrates
+  isn't `version: 15` routes through `migrate()`, which forward-migrates
   **stepwise** so a v1 save walks the whole chain: v1 → v2 (gold / collection /
   decks / stats / settings preserved, `gauntlet` defaults spread in), then
   v2 → v3 (grows `settings.musicOn`, defaulting on), then v3 → v4 (seeds
@@ -390,19 +397,34 @@ anywhere:
   then v8 → v9 (adds the premium `heroPortraitId`, default `null`), then
   v9 → v10 (adds `tutorialDone`, deriving veteran saves from win/loss history),
   then v10 → v11 (adds `achievements: { unlocked, claimed }`), then v11 → v12
-  (adds `gauntlet.clearStyles` counters for mono-/dual-color tower clears); an unknown
+  (adds `gauntlet.clearStyles` counters for mono-/dual-color tower clears), then
+  v12 -> v13 (adds `daily` quests, rerolls, and win streaks), then v13 -> v14
+  (adds Limited active run/history/best records), then v14 -> v15 (normalizes
+  saved decks with a nullable per-deck `heroCardId` for deck-specific hero art);
+  an unknown
   or garbage version starts fresh rather than crash. Storage is injected, so
   tests pass a plain object.
 - **Economy functions** (`Economy.ts`) — `applyMatchResult`, `spendGold`,
   `todayString`; all constants come from `ECONOMY` in `src/config/rules.ts`.
   Gauntlet completions can optionally record the completed deck's color style
   for themed achievements.
+- **Daily quests** (`Quests.ts`) — a pure 25-objective bank, deterministic
+  `rollDailyQuestIds(day)` selection, `applyDailyQuestProgress(save, db, events,
+  today)` event folds, per-quest claim/reroll helpers, and `recordDailyWin()` for
+  the first-win-only streak bonus. `DuelScene.processEvents()` forwards public
+  `GameEvent[]` batches for progress; the result path records streaks only when
+  the human wins. `MainMenuScene` renders the Daily Blades panel.
+- **Deck codes** (`DeckCode.ts`) — a pure versioned `DBD2-...` decklist codec
+  for exact-order export/import, with backward-compatible `DBD1-...` import.
+  `DeckBuilderScene` owns the styled copy/paste UI and validates decoded imports
+  through `DeckStorage.validateDeck`.
 - **`variants`** (`variants.ts`) — the multi-axis drop system: `FrameStyle` /
   `HoloFinish` / `CardVariant` (`variantKey` = `frame|holo`), the specialness
   ranking (frame primary, holo tiebreak), and the seeded cumulative-weight
   rolls (`rollTier` / `rollFrame` / `rollHolo`) over the `DROPS` tables in
   `src/config/rules.ts`.
-- **`PackOpener`** (`PackOpener.ts`) — rolls a booster of `ECONOMY.packSize`
+- **`PackOpener`** (`PackOpener.ts`) — rolls a collection booster of
+  `ECONOMY.boosterPackSize`
   independent slots (tier → card → frame → holo), dupe-protects the sr/ssr/ur
   slots, falls back a tier when a pool is empty, and folds the results into
   the collection, sorted worst→best for the reveal.
@@ -424,7 +446,9 @@ anywhere:
 - **`DeckStorage`** (`DeckStorage.ts`) — `validateDeck` (60 cards, ≤4 copies,
   owned, no tokens) and `saveDeck`, plus the multi-deck ops
   (`generateDeckId`, `copyDeck`, `renameDeck`, `deleteDeck`) behind the
-  saved-deck picker.
+  saved-deck picker. Saved constructed decks also carry a nullable
+  `heroCardId`; DeckBuilder's sidebar star sets it, and DuelScene uses it as
+  that deck's commander image before falling back to the account default.
 
 ## Determinism & RNG — two separate streams
 
@@ -446,13 +470,16 @@ There are two independent seeded PRNGs, deliberately kept apart:
   tapped card can rotate 90° cleanly around its middle.
 - **Consumers scale the container.** The view is built once at full size;
   callers `setScale(...)` per context (inspect overlays 1.35, the duel's
-  hover-zoom preview 1.3, pick overlays / pack-reveal rest ≈0.62, duel hand
+  hover-zoom preview 1.3, pick overlays / pack-reveal rest ≈0.54, duel hand
   fan 0.52–0.6). Battlefield permanents no longer use `CardView` at all — they
   render as compact `BoardCardView` tiles (see the duel-board subsection
   above).
 - **Composition** = baked frame image + art image (windowed and cropped) + name
-  / type / rules texts + P/T plate + cost pips + rarity gem + optional legendary
-  crown + optional per-copy variant treatments (frame ring/wash + holo FX).
+  / type / rules texts + P/T plate + bottom-left cost pips + a bottom-centered
+  rarity gem + optional legendary crown + optional per-copy variant treatments
+  (frame ring/wash + holo FX). Long names and type lines are measured after
+  `setText()` and scale-to-fit inside their bars; the rarity gem no longer sits
+  in the type bar, so long creature subtype lines cannot bleed into it.
 - **FX budget:** `setCard(card, { fx, variant? })` takes
   `'full' | 'static' | 'none'` plus an optional `CardVariant`. Holo renders
   ONLY from a passed variant (per-copy pull cosmetics — no variant, no holo),

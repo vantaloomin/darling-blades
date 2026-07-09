@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/engine/statics.ts, docs/rules.md, src/data/cards/beastkin.ts, src/data/cards/greek.ts, tests/engine/keywords.test.ts · last-verified: 2026-07-07 · design/plan doc — re-verify when the referenced code changes · SUPERSEDED -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/engine/statics.ts, docs/rules.md, src/data/cards/beastkin.ts, src/data/cards/greek.ts, tests/engine/keywords.test.ts · last-verified: 2026-07-08 · design/plan doc — re-verify when the referenced code changes · SUPERSEDED -->
 
 # Keyword rethemes — a Darling Blades voice for the evergreen abilities
 

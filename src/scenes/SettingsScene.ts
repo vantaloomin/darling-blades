@@ -204,8 +204,9 @@ export class SettingsScene extends Phaser.Scene {
     // ALWAYS two-tap, regardless of settings.confirmDestructive — wiping the
     // whole account is far more severe than a concede. A 4s auto-disarm keeps
     // a stray armed state from erasing on an unrelated later tap.
+    const resetY = 594;
     const resetBtn = this.add
-      .text(LABEL_X, 600, '🗑 Reset save', {
+      .text(LABEL_X, resetY, '🗑 Reset save', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '18px',
         color: '#f0b0b0',
@@ -239,16 +240,18 @@ export class SettingsScene extends Phaser.Scene {
     });
     inflateHitArea(resetBtn, HIT_MIN, HIT_MIN);
     this.add
-      .text(LABEL_X, 632, 'Erases your collection, decks, gold, and progress. Cannot be undone.', {
+      .text(LABEL_X, resetY + 32, 'Erases your collection, decks, gold, and progress. Cannot be undone.', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '13px',
         color: '#8f83a8',
+        wordWrap: { width: 380, useAdvancedWrap: true },
+        lineSpacing: 2,
       })
-      .setOrigin(0, 0.5);
+      .setOrigin(0, 0);
 
     // -- Back ----------------------------------------------------------------
     const back = this.add
-      .text(640, 648, '← Back', {
+      .text(640, 676, '← Back', {
         fontFamily: 'Cinzel, Georgia, serif',
         fontSize: '28px',
         color: '#c9bde0',

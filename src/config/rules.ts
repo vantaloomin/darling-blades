@@ -18,12 +18,20 @@ export const RULES = {
 
 export const ECONOMY = {
   startingGold: 250, // granted with the starter deck — one booster to crack
-  packPrice: 250,
-  ragnarokPackPrice: 300, // expansion booster — only pulls set:'ragnarok' cards (denser 69-card chase)
-  packSize: 15, // every slot rolls tier + frame + holo independently (DROPS)
+  packPrice: 450,
+  ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 69-card chase)
+  boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo independently (DROPS)
+  limitedPackSize: 15, // Limited packs stay MTG-sized for Sealed/Draft pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
   lossGold: 20,
   firstWinOfDayBonus: 100,
+  dailyQuestCount: 3,
+  dailyRerollsPerDay: 3,
+  dailyQuestGold: 50,
+  // Win-streak bonus paid automatically on the first win of each calendar day.
+  // Day 7+ uses the pack-price-sized cap rather than resetting the visible
+  // consecutive-day count.
+  dailyStreakGold: [25, 40, 55, 70, 85, 100, 125] as const,
   preconPrice: 500,
   // The four starter precons you did NOT pick for free are buyable in the shop's
   // Decks tab (the free-chosen one reads "Owned"). Cheaper than a theme deck —
@@ -31,7 +39,7 @@ export const ECONOMY = {
   starterDeckPrice: 350,
   // Auto-melt value of a PLAIN duplicate past the per-variant playset (a 5th
   // `white|none` copy). At full completion the expected plain-dupe refund is
-  // ≈214g per 250g pack (15 · P(plain)=0.30 · E[dupeGold|tier]=47.5) — bounded
+  // ≈128g per 450g pack (9 · P(plain)=0.30 · E[dupeGold|tier]=47.5) — bounded
   // below the pack price, so no infinite-gold loop; endgame packs get cheap
   // deliberately. Special variants never auto-melt; the player sells their
   // beyond-4-per-variant excess by hand (Collection `shardExcess`).
@@ -49,10 +57,14 @@ export const ECONOMY = {
   // Rungs 9-10 (210/230) are the Ragnarök expansion bosses (Hel, Brunhild).
   gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230] as const,
   gauntletCompletionBonus: 250,
+  // Limited runs are free-entry and cards are ephemeral, so the run-end payout
+  // is intentionally modest: enough to make 3 matches feel worthwhile without
+  // outpacing constructed practice or tower risk/reward.
+  limitedRunGold: [40, 100, 180, 300] as const,
 } as const;
 
 /**
- * Multi-axis booster drop tables. Each of a pack's `ECONOMY.packSize` slots
+ * Multi-axis booster drop tables. Each of a pack's `ECONOMY.boosterPackSize` slots
  * rolls all three axes independently: rarity tier, frame style, holo finish.
  * Weights are percentages — every table sums to exactly 100 — consumed by the
  * cumulative-weight walks in `src/meta/variants.ts` (`rngFloat(rng) * 100`).

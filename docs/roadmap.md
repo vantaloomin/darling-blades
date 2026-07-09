@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-08 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-08 · review monthly -->
 
 # Roadmap
 
@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **527 tests green** (+3 skipped balance-tool assertions) across 51 files
+- **534 tests green** (+3 skipped balance-tool assertions) across 52 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -38,6 +38,7 @@ _Dated 2026-07-04. Review monthly._
   onboarding tutorial (scripted-line determinism, the pure coach-mark guide,
   v9→v10 migration) and achievement/collection-goal coverage
   (v10→v11 achievement migration, v11→v12 tower clear-style migration,
+  v12→v13 daily quest/streak migration,
   unlock/claim idempotency, completion tallies, themed archetype and expansion
   goals, deck-color identity). The whole suite runs in ~25–30 s.
 - **210 cards** in the pool (`CARD_DB`), across the five colors and three
@@ -49,12 +50,66 @@ _Dated 2026-07-04. Review monthly._
   (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v12** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v15** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
-  clear-style counters — see Recently shipped). By-ear
-  tuning remains open (see Planned).
+  clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
+  v14→v15 per-deck hero images — see Recently shipped). By-ear tuning remains
+  open (see Planned).
 
 ## Recently shipped (2026-07-08)
+
+- **QOL follow-up polish.** The remaining high-friction items from
+  `docs/plan-qol.md` are mostly closed: DeckBuilder now supports Shift+Click to
+  fill a pool card to its constructed cap / owned count and Shift+Click a deck
+  row to remove all copies; the deck-builder pool now has Collection-style
+  search, facets, sorting, and a pull-out filter panel; Duel and Collection
+  inspect overlays include a separate keyword glossary panel; and Gauntlet runs
+  end on a success/failure recap with Main Menu and Start Over actions. The
+  pack-opening flow also now uses click/right-click inspect, star markers for
+  new cards/variants, centered pull-details text, suppressed text badges, a
+  text-free booster wrapper, and a guard that prevents the best-card spotlight
+  zoom from stacking with inspect.
+
+- **Per-deck hero images.** DeckBuilder now adds an empty/filled star control
+  beside each non-basic deck-list row. Exactly one card can be starred per
+  saved constructed deck, and `DuelScene` uses that card as the player commander
+  image for that deck before falling back to the old account default/premium
+  behavior. **`SaveData` bumped v14 -> v15** (`SavedDeck.heroCardId`) with
+  migration + tests.
+
+- **Deck share codes (Road-to-1.0 Feature 4).** `src/meta/DeckCode.ts` adds a
+  pure versioned `DBD2-...` codec for exact decklist export/import, with
+  backward-compatible `DBD1-...` import and malformed-code errors surfaced as
+  friendly strings. DeckBuilder now exposes styled **Export Code** and
+  **Import Code** controls; export requires a legal constructed deck, and import
+  decodes then validates through
+  `DeckStorage.validateDeck` so unowned cards, illegal counts, tokens, unknown
+  ids, and wrong deck sizes are rejected. No schema bump: codes are transient,
+  and accepted imports use the existing **Save Deck** action.
+
+- **Sealed / Draft Limited mode (Road-to-1.0 Feature 3).** MainMenu now exposes
+  **Limited**, with Sealed and Bot Draft runs. Sealed opens six seeded temporary
+  boosters; Draft runs three pick-one-pass packs with seven deterministic bot
+  seats. `src/meta/Limited.ts` owns side-effect-free pack rolling, draft state,
+  bot pick heuristics, limited auto-builds, and duel payloads. `DeckStorage`
+  adds `validateLimitedDeck` for exactly 40 cards from the run pool plus
+  unlimited basics, no tokens. `DuelScene` routes Limited result markers through
+  `applyLimitedMatchResult`, paying gold only after the third match and never
+  adding Limited cards to the collection. **`SaveData` bumped v13 -> v14**
+  (`limited: { activeRun, history, bestSealedWins, bestDraftWins }`) with
+  migration + tests.
+
+- **Daily quests + win streaks (Road-to-1.0 Feature 2).** MainMenu now includes a
+  **Daily Blades** panel with three deterministic daily quests, progress bars,
+  explicit claim buttons, and per-quest rerolls capped at three total rerolls
+  per day. `src/meta/Quests.ts` is the Phaser-free core: a 25-objective bank,
+  deterministic `rollDailyQuestIds(day)`, event-batch progress folds, claim and
+  reroll helpers, and `recordDailyWin()` for the streak reward. Duel progress is
+  driven from public `GameEvent[]` batches; the streak advances only from the
+  result path when the human wins, so losses/games played never count by
+  themselves. **`SaveData` bumped v12 → v13** (`daily: { day, quests,
+  rerollsUsed, streak }`) with migration + tests. Verified locally:
+  tsc/lint/**534 tests**/build/doc-checkers.
 
 - **Achievements + collection goals (Road-to-1.0 Feature 5).** The game now has
   a pure `src/meta/Achievements.ts` catalog/evaluator with five buckets:
@@ -134,9 +189,10 @@ _Dated 2026-07-04. Review monthly._
     live preview probes (search filters both scenes; DOM input positioned under
     render-scale k=1.5 and cleaned up on shutdown; deck picker new/copy/select).
     **Deferred follow-ups (tracked):** the in-Settings toggles for
-    `confirmDestructive` + `keywordReminders` (the full 5-row panel needs a
-    2-column relayout to fit them), F13 per-row remove-all, and F9's separate
-    inspect-overlay glossary legend.
+    `confirmDestructive` + `keywordReminders` remain open because the full
+    settings panel needs a wider / 2-column relayout. F13 remove-all and F9's
+    separate inspect-overlay glossary legend shipped in the 2026-07-08 QOL
+    follow-up.
 - **UX-polish pass — three waves (PRs #7 / #8 / #9).** Follow-on presentation +
   shop work on top of the QOL pass. **Wave A (#7):** mulligan cap hard-lock fix,
   owned-cards default filter, dev-gated card showcase, on-screen version label.
@@ -423,13 +479,13 @@ _Dated 2026-07-04. Review monthly._
   `scene-<key>.png` under a per-scene dim, else its exact current gradient.
   All **11 assets are on disk** (`public/assets/art/scenes/`, in the
   manifest) and verified rendering in every scene, including the card-back
-  and pack-art bakes (crimps + wordmark re-stamped over the real art).
+  and pack-art bakes (crimps re-stamped over the real art).
   QA'd against the §2 luminance caps; `scene-collection` and
   `scene-showcase` were rerolled once for safe-zone hotspots, and two dims
   were raised from their starting points (mainmenu 0.35→0.50, collection
   0.60→0.70 — rationale inline in the §3 table and scene comments). Still
   wants a human by-eye pass in the running game (duel 10px labels, card-back
-  gold brightness next to face-up cards, pack wordmark over the nebula).
+  gold brightness next to face-up cards, pack wrapper readability).
 - **Duel board legibility redesign + card zoom** — shipped through an
   adversarial review that surfaced and fixed **9 findings** (right-button
   input gating, guard/listener lifetimes, occlusion and mid-dwell teardown
@@ -584,12 +640,15 @@ _Dated 2026-07-04. Review monthly._
     `rulesText.ts` (engine ids, saves, AI, determinism all untouched).
   - [Road to 1.0 — five features](plan-road-to-1.0.md) — tutorial (✅ **shipped
     2026-07-08**, PR #28 — see Recently shipped), achievements + collection
-    goals (✅ **shipped 2026-07-08**), daily quests, sealed/draft, deterministic
-    replays + share codes — sequenced, with a definition of 1.0.
+    goals, daily quests, Sealed / Bot Draft Limited, and deck share codes
+    (✅ **all shipped 2026-07-08**). Deterministic replays are no longer a 1.0
+    gate and are deferred to 1.1/1.2.
 - **Quality-of-life pass (15 features).** ✅ **Shipped 2026-07-06** — see Recently
-  shipped and [docs/plan-qol.md](plan-qol.md). Only the deferred follow-ups remain:
-  in-Settings toggles for `confirmDestructive` + `keywordReminders` (needs a 2-column
-  Settings relayout), F13 per-row remove-all, and F9's separate inspect glossary.
+  shipped and [docs/plan-qol.md](plan-qol.md). Follow-up status: F13 remove-all,
+  F9 inspect glossary, deck-builder filtering/sorting, pack-opening inspect/new
+  markers, and Gauntlet recap are now shipped. The remaining QOL follow-up is
+  exposing in-Settings toggles for `confirmDestructive` + `keywordReminders`
+  (needs a wider Settings relayout).
 - **Mobile Tier 2 — LAN PvP (back-burnered).** Tier 1 phone-over-LAN play
   SHIPPED 2026-07-03 (see Recently shipped); the tiered design doc is
   [docs/mobile-lan-plan.md](mobile-lan-plan.md). What remains of the plan:

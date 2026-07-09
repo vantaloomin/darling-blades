@@ -9,7 +9,7 @@ import type { AddResult } from '../meta/Collection';
 import { spendGold } from '../meta/Economy';
 import { openPack, type PackResult } from '../meta/PackOpener';
 import { Services } from '../meta/services';
-import { isPlainVariant, TIER_LABEL, TIER_RANK } from '../meta/variants';
+import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
 import { animTimeScale } from '../platform/animPolicy';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { activeRenderScale } from '../platform/renderScale';
@@ -18,9 +18,11 @@ import { fxPolicy } from '../ui/fx/FXSupport';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bakePackArt } from './ShopScene';
 
-const GRID_Y0 = 190;
+const GRID_Y0 = 184;
 const GRID_DY = 216;
-const SPECIAL_Y = 560;
+const SPECIAL_Y = 526;
+const SPECIAL_SCALE = 0.54;
+const BUTTON_Y = 674;
 
 /** Face-down hint pulse + tier-tag colors for the specials row (sr/ssr/ur). */
 const HINT = {
@@ -43,6 +45,8 @@ const ESCALATION: Record<
   ssr: { flash: [225, 175, 255], particles: 85, zoom: 1.16, dimAlpha: 0.75, tint: 0xd9a0ff },
   ur: { flash: [255, 145, 145], particles: 115, zoom: 1.2, dimAlpha: 0.8, tint: 0xff7a6a },
 };
+
+let contextMenuDisabled = false;
 
 interface SpecialEntry {
   view: CardView;
@@ -90,13 +94,14 @@ export class PackOpeningScene extends Phaser.Scene {
     if (this.sku === 'ragnarok') {
       bakePackArt(this, {
         key: 'packart-ragnarok',
-        wordmark: 'Ragnarök',
-        subtitle: 'EXPANSION BOOSTER',
         sceneArtKey: 'scene-pack-art-ragnarok',
-        footer: '15 cards — Ragnarök set only',
       });
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
+    if (!contextMenuDisabled) {
+      this.input.mouse?.disableContextMenu();
+      contextMenuDisabled = true;
+    }
     Music.setMood('shop'); // continuous with the shop — no-op when arriving from it
 
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
@@ -198,7 +203,8 @@ export class PackOpeningScene extends Phaser.Scene {
         const rowLen = Math.min(cols, notable.length - row * cols);
         const x = width / 2 - ((rowLen - 1) * dx) / 2 + col * dx;
         const y = 300 + row * 210;
-        new CardView(this, x, y).setScale(0.42).setCard(def(CARD_DB, c.cardId), { fx: 'none' });
+        const view = new CardView(this, x, y).setScale(0.42).setCard(def(CARD_DB, c.cardId), { fx: 'none' });
+        this.enablePackInspect(view, c);
       });
     }
 
@@ -254,7 +260,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const gridCards = this.result.cards.filter((c) => c.tier === 'c' || c.tier === 'r');
     const specialCards = this.result.cards.filter((c) => c.tier !== 'c' && c.tier !== 'r');
 
-    // Grid math generalized to variable counts (0..packSize): 6 columns up to
+    // Grid math generalized to variable counts (0..boosterPackSize): 6 columns up to
     // 12 cards (2 rows), 8 tighter columns beyond; short last row centered.
     const cols = gridCards.length <= 12 ? 6 : 8;
     const dx = cols === 6 ? 152 : 126;
@@ -304,7 +310,7 @@ export class PackOpeningScene extends Phaser.Scene {
         targets: view,
         x,
         y: SPECIAL_Y,
-        scale: 0.62,
+        scale: SPECIAL_SCALE,
         delay: 700 + i * 110,
         duration: 380,
         ease: 'Back.easeOut',
@@ -328,7 +334,7 @@ export class PackOpeningScene extends Phaser.Scene {
             // lite/canvas: a tinted ring-sprite pulse — same read, no postFX cost
             const ring = this.add
               .image(view.x, view.y, 'frame-ring')
-              .setDisplaySize((CARD_W + 26) * 0.62, (CARD_H + 26) * 0.62)
+              .setDisplaySize((CARD_W + 26) * SPECIAL_SCALE, (CARD_H + 26) * SPECIAL_SCALE)
               .setTint(hint.glow)
               .setAlpha(0.25);
             this.children.moveBelow(ring, view);
@@ -343,7 +349,12 @@ export class PackOpeningScene extends Phaser.Scene {
           }
           view.enableInput();
           // Only the best card in the pack gets the full spotlight escalation.
-          view.once('pointerup', () => this.revealSpecial(entry, isBest));
+          const reveal = (p: Phaser.Input.Pointer): void => {
+            if (p.button === 2) return;
+            view.off('pointerup', reveal);
+            this.revealSpecial(entry, isBest);
+          };
+          view.on('pointerup', reveal);
         },
       });
     });
@@ -386,7 +397,7 @@ export class PackOpeningScene extends Phaser.Scene {
         view.setCard(d, { fx, variant: plain ? undefined : variant });
         // Auto-sold plain duplicate (dupeGold > 0 ⇒ over-playset, melted for gold,
         // never recorded): ghost it so it reads "sold, not added" — the gold chip
-        // in badge() stays full-opacity to show the payout.
+        // in the inspect modal shows the payout.
         if (card.dupeGold > 0) view.setAlpha(0.5);
         // r-tier grid cards keep a steady silver glow (the old uncommon read)
         if (card.tier === 'r' && fxPolicy(this).packGlow && view.postFX) {
@@ -398,9 +409,166 @@ export class PackOpeningScene extends Phaser.Scene {
           duration: fast ? 80 : 170,
           ease: 'Back.easeOut',
         });
-        this.badge(view, card);
+        this.enablePackInspect(view, card);
       },
     });
+  }
+
+  private enablePackInspect(view: CardView, card: AddResult): void {
+    view.enableInput();
+    this.addNewMarker(view, card);
+    if (view.getData('packInspectBound')) return;
+    view.setData('packInspectBound', true);
+    view.on('pointerup', () => {
+      if (view.getData('packInspectBlocked')) return;
+      this.showPackInspect(card);
+    });
+  }
+
+  private addNewMarker(view: CardView, card: AddResult): void {
+    if (!card.isNew && !card.isNewVariant) return;
+    if (view.getData('packNewMarker')) return;
+    view.setData('packNewMarker', true);
+
+    const color = card.isNew ? '#9be6a8' : '#d9a8ff';
+    const stroke = card.isNew ? 0x9be6a8 : 0xd9a8ff;
+    const bg = this.add
+      .circle(124, -176, 13, 0x151122, 0.9)
+      .setStrokeStyle(1.5, stroke, 0.95);
+    const star = this.add
+      .text(124, -177, '★', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '17px',
+        fontStyle: '800',
+        color,
+      })
+      .setOrigin(0.5);
+    view.add([bg, star]);
+  }
+
+  private showPackInspect(card: AddResult): void {
+    const width = 1280;
+    const height = 720;
+    const variant = { frame: card.frame, holo: card.holo };
+    const c = this.add.container(0, 0).setDepth(100);
+    const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.84).setInteractive();
+    c.add(dim);
+
+    const view = new CardView(this, width / 2, 326).setScale(1.22);
+    view.setCard(def(CARD_DB, card.cardId), {
+      fx: card.holo !== 'none' ? 'full' : 'static',
+      variant: isPlainVariant(variant) ? undefined : variant,
+    });
+    c.add(view);
+
+    const detailLines = this.packPullDetails(card, variant);
+    c.add(
+      this.add
+        .rectangle(width / 2, 622, 520, 86, 0x151122, 0.94)
+        .setStrokeStyle(1, 0x6f5aa8, 0.78),
+    );
+    c.add(
+      this.add
+        .text(width / 2, 600, detailLines[0], {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '20px',
+          color: '#ffd88a',
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(width / 2, 632, detailLines.slice(1).join('  ·  '), {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '14px',
+          color: '#c9bde0',
+        })
+        .setOrigin(0.5),
+    );
+
+    const detailPanelY = 638;
+    const lineH = 22;
+    c.add(
+      this.add
+        .rectangle(width / 2, detailPanelY, 520, 108, 0x151122, 0.98)
+        .setStrokeStyle(1, 0x6f5aa8, 0.78),
+    );
+    const firstY = detailPanelY - ((detailLines.length - 1) * lineH) / 2;
+    detailLines.forEach((line, i) => {
+      c.add(
+        this.add
+          .text(width / 2, firstY + i * lineH, line, {
+            fontFamily: 'Inter, Arial, sans-serif',
+            fontSize: '15px',
+            fontStyle: i === 0 && line.includes('★') ? '800' : '600',
+            color: this.packPullDetailColor(line),
+          })
+          .setOrigin(0.5),
+      );
+    });
+
+    const close = this.add
+      .text(918, 112, 'X', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '15px',
+        fontStyle: '800',
+        color: '#f0e6ff',
+        backgroundColor: '#2c2344',
+        padding: { x: 10, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, close, () => c.destroy());
+    inflateHitArea(close, 48, 48);
+    c.add(close);
+
+    dim.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonReleased()) return;
+      c.destroy();
+    });
+  }
+
+  private packPullDetails(card: AddResult, variant: CardVariant): string[] {
+    const lines: string[] = [];
+    if (card.isNew) lines.push('★ New Card');
+    else if (card.isNewVariant) lines.push('★ New Variant');
+    lines.push(`Rarity: ${this.rarityLabel(card.tier)}`);
+    if (variant.frame !== 'white') lines.push(`Frame: ${this.titleCase(variant.frame)}`);
+    if (variant.holo !== 'none') lines.push(`Shiny: ${this.titleCase(variant.holo)}`);
+    return lines;
+
+  }
+
+  private packPullDetailColor(line: string): string {
+    if (line === '★ New Card') return '#9be6a8';
+    if (line === '★ New Variant') return '#d9a8ff';
+    return '#c9bde0';
+  }
+
+  private rarityLabel(tier: AddResult['tier']): string {
+    switch (tier) {
+      case 'c':
+        return 'Common';
+      case 'r':
+        return 'Rare';
+      case 'sr':
+        return 'Super Rare';
+      case 'ssr':
+        return 'Secret Super Rare';
+      case 'ur':
+        return 'Ultra Rare';
+    }
+  }
+
+  private variantLabel(variant: CardVariant): string {
+    const parts: string[] = [];
+    if (variant.frame !== 'white') parts.push(`${this.titleCase(variant.frame)} Frame`);
+    if (variant.holo !== 'none') parts.push(this.titleCase(variant.holo));
+    return parts.length > 0 ? parts.join(' · ') : 'Plain';
+  }
+
+  private titleCase(value: string): string {
+    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
   /**
@@ -464,6 +632,7 @@ export class PackOpeningScene extends Phaser.Scene {
     if (entry.done) return;
     entry.done = true;
     const { view, card } = entry;
+    view.setData('packInspectBlocked', escalate && !fast);
     view.postFX?.clear();
     if (entry.hint) {
       this.tweens.killTweensOf(entry.hint);
@@ -538,6 +707,7 @@ export class PackOpeningScene extends Phaser.Scene {
             .setAlpha(0);
           this.tweens.add({ targets: skipHint, alpha: 1, duration: 400 });
           dim.once('pointerup', () => this.settleBest(entry, dim, skipHint));
+          view.once('pointerup', () => this.settleBest(entry, dim, skipHint));
           // showcase wobble, then settle back to its dealt slot
           this.tweens.add({
             targets: view,
@@ -589,9 +759,12 @@ export class PackOpeningScene extends Phaser.Scene {
         targets: view,
         x: entry.homeX,
         y: SPECIAL_Y,
-        scale: 0.62,
+        scale: SPECIAL_SCALE,
         angle: 0,
         duration: 300,
+        onComplete: () => {
+          if (view.active) view.setData('packInspectBlocked', false);
+        },
       });
     }
     this.checkAllRevealed();
@@ -610,11 +783,15 @@ export class PackOpeningScene extends Phaser.Scene {
     if (this.buttons.length > 0) return;
 
     const width = 1280; // design-space width (see create())
+    this.add
+      .rectangle(width / 2, BUTTON_Y + 4, 720, 72, 0x0b0812, 0.76)
+      .setStrokeStyle(1, 0x2c2344, 0.9)
+      .setDepth(66);
     const mk = (x: number, label: string, cb: () => void): void => {
       const btn = this.add
-        .text(x, 686, label, {
+        .text(x, BUTTON_Y, label, {
           fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '20px',
+          fontSize: '19px',
           color: '#ffd88a',
           backgroundColor: '#2c2344',
           padding: { x: 14, y: 7 },

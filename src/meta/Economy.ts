@@ -4,6 +4,7 @@ import type { CardDb } from '../engine/types';
 import { def } from '../engine/types';
 import { addCard } from './Collection';
 import type { SaveData } from './SaveManager';
+import type { LimitedDeckStyle } from './Limited';
 import { PLAIN_VARIANT } from './variants';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
@@ -46,6 +47,15 @@ export interface GauntletReward {
   runOver: boolean; // the run ended (cleared, lost, or completed)
   completed: boolean; // full 10-rung clear
   nextRung: number | null; // rung to fight next, or null if the run is over
+}
+
+export interface LimitedMatchReward {
+  gold: number;
+  firstWinBonus: boolean;
+  runOver: boolean;
+  wins: number;
+  losses: number;
+  nextMatch: number | null;
 }
 
 export type GauntletClearStyle = 'monoColor' | 'dualColor';
@@ -108,6 +118,62 @@ export function applyGauntletResult(
   return { gold, firstWinBonus, runOver: nextRung === null, completed, nextRung };
 }
 
+/** Record one Limited match; pays first-win immediately and run gold after match 3. */
+export function applyLimitedMatchResult(
+  save: SaveData,
+  difficulty: Difficulty,
+  won: boolean,
+  today: string,
+  deckStyle: LimitedDeckStyle,
+  now = Date.now(),
+): LimitedMatchReward {
+  const run = save.limited.activeRun;
+  if (!run || run.status !== 'matches') throw new Error('No active Limited match to resolve');
+
+  let gold = 0;
+  let firstWinBonus = false;
+  if (won) {
+    run.wins++;
+    save.stats.wins++;
+    save.stats.byDifficulty[difficulty].w++;
+    if (save.stats.lastWinDay !== today) {
+      save.stats.lastWinDay = today;
+      gold += ECONOMY.firstWinOfDayBonus;
+      firstWinBonus = true;
+    }
+  } else {
+    run.losses++;
+    save.stats.losses++;
+    save.stats.byDifficulty[difficulty].l++;
+  }
+
+  run.matchIndex++;
+  const runOver = run.matchIndex >= 3;
+  let nextMatch: number | null = run.matchIndex;
+  if (runOver) {
+    const rewardGold = ECONOMY.limitedRunGold[run.wins] ?? 0;
+    gold += rewardGold;
+    if (run.mode === 'sealed') save.limited.bestSealedWins = Math.max(save.limited.bestSealedWins, run.wins);
+    else save.limited.bestDraftWins = Math.max(save.limited.bestDraftWins, run.wins);
+    save.limited.history.unshift({
+      id: run.id,
+      mode: run.mode,
+      seed: run.seed,
+      wins: run.wins,
+      losses: run.losses,
+      deckStyle,
+      completedAt: now,
+      rewardGold,
+    });
+    save.limited.history = save.limited.history.slice(0, 20);
+    save.limited.activeRun = null;
+    nextMatch = null;
+  }
+
+  save.gold += gold;
+  return { gold, firstWinBonus, runOver, wins: run.wins, losses: run.losses, nextMatch };
+}
+
 /** Spend gold if affordable. */
 export function spendGold(save: SaveData, amount: number): boolean {
   if (save.gold < amount) return false;
@@ -151,7 +217,7 @@ export function buyThemeDeck(
   if (save.decks.some((d) => d.id === deck.id)) return false;
   if (!spendGold(save, price)) return false;
   grantDeckCards(save, db, deck.cards);
-  save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards] });
+  save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards], heroCardId: null });
   return true;
 }
 
@@ -166,7 +232,7 @@ export function claimFreeStarter(save: SaveData, db: CardDb, deck: DeckList): bo
   if (save.starterChosen !== null) return false;
   if (save.decks.some((d) => d.id === deck.id)) return false;
   grantDeckCards(save, db, deck.cards);
-  save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards] });
+  save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards], heroCardId: null });
   if (save.activeDeckId === null) save.activeDeckId = deck.id;
   save.starterChosen = deck.id;
   return true;

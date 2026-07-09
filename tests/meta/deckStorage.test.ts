@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { copyDeck, deleteDeck, generateDeckId, renameDeck } from '../../src/meta/DeckStorage';
+import { copyDeck, deleteDeck, generateDeckId, renameDeck, saveDeck } from '../../src/meta/DeckStorage';
 import { freshSave, type SaveData } from '../../src/meta/SaveManager';
 
 function saveWithDecks(): SaveData {
   const save = freshSave(0);
   save.decks = [
-    { id: 'deck-1', name: 'Aggro', cards: ['a', 'b'] },
-    { id: 'deck-2', name: 'Control', cards: ['c'] },
+    { id: 'deck-1', name: 'Aggro', cards: ['a', 'b'], heroCardId: 'b' },
+    { id: 'deck-2', name: 'Control', cards: ['c'], heroCardId: null },
   ];
   save.activeDeckId = 'deck-1';
   return save;
@@ -17,7 +17,7 @@ describe('deck storage', () => {
   it('generateDeckId skips existing ids', () => {
     const save = saveWithDecks();
     expect(generateDeckId(save)).toBe('deck-3');
-    save.decks.push({ id: 'deck-3', name: 'x', cards: [] });
+    save.decks.push({ id: 'deck-3', name: 'x', cards: [], heroCardId: null });
     expect(generateDeckId(save)).toBe('deck-4');
   });
 
@@ -57,9 +57,27 @@ describe('deck storage', () => {
     const copy = save.decks.find((d) => d.id === id)!;
     expect(copy.name).toBe('Aggro copy');
     expect(copy.cards).toEqual(['a', 'b']);
+    expect(copy.heroCardId).toBe('b');
     save.decks[0].cards.push('z'); // mutate the original…
     expect(copy.cards).toEqual(['a', 'b']); // …the copy is unaffected
     expect(copyDeck(save, 'nope')).toBeNull();
+  });
+
+  it('saveDeck preserves a valid hero and clears one no longer in the deck', () => {
+    const save = saveWithDecks();
+
+    saveDeck(save, { id: 'deck-1', name: 'Aggro+', cards: ['a', 'b', 'd'] });
+    expect(save.decks.find((d) => d.id === 'deck-1')).toMatchObject({
+      name: 'Aggro+',
+      cards: ['a', 'b', 'd'],
+      heroCardId: 'b',
+    });
+
+    saveDeck(save, { id: 'deck-1', name: 'Aggro-', cards: ['a'] });
+    expect(save.decks.find((d) => d.id === 'deck-1')!.heroCardId).toBeNull();
+
+    saveDeck(save, { id: 'deck-3', name: 'New', cards: ['x'], heroCardId: 'x' });
+    expect(save.decks.find((d) => d.id === 'deck-3')!.heroCardId).toBe('x');
   });
 
   it('renameDeck mutates the name in place', () => {

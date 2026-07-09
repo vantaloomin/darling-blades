@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/binder/FilterBar.ts, src/ui/SearchInput.ts, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/engine/combat/damage.ts · last-verified: 2026-07-08 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/binder/FilterBar.ts, src/ui/SearchInput.ts, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/engine/combat/damage.ts · last-verified: 2026-07-08 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
 
 # Quality-of-life plan — closing the daily-friction gap
 
@@ -23,13 +23,21 @@
 >   invariant preserved, + a "☰ Decks" picker modal).
 >
 > The plan's projected single **v6 → v7** bump became **two** in execution (v7 for
-> F1, v8 for F9); later roadmap work carried the live schema to **v12** (v9 → v10
-> tutorial, v10 → v11 achievements, v11 → v12 themed achievement counters).
-> **Deferred follow-ups still open** (from the
-> Deferred list below):
-> the in-Settings toggles for `confirmDestructive` + `keywordReminders` (the 5-row
-> panel needs a 2-column relayout), F13 per-row remove-all, and F9's separate
-> inspect-overlay glossary legend.
+> F1, v8 for F9); later roadmap work carried the live schema to **v15** (v9 → v10
+> tutorial, v10 → v11 achievements, v11 → v12 themed achievement counters,
+> v12 → v13 daily quests/streaks, v13 → v14 Limited, v14 → v15 per-deck hero
+> images).
+>
+> **Post-ship follow-up status (2026-07-08):** F13's remove-all gap is closed:
+> Shift+Click on a pool card fills to the constructed cap / owned count, and
+> Shift+Click on a deck row removes all copies. F9's separate inspect-overlay
+> glossary is closed via `KeywordGlossaryPanel` in Duel and Collection inspect
+> overlays; card faces now keep compact keyword names while inspect surfaces the
+> reminder text. The Gauntlet post-run recap is also shipped as a success/failure
+> screen with Main Menu and Start Over actions. The remaining QOL follow-up is
+> exposing in-Settings toggles for `confirmDestructive` + `keywordReminders`;
+> the settings values exist, but the Settings UI still needs a wider relayout
+> before those controls are added.
 
 Darling Blades is playable end-to-end, art-complete, and stable. It already
 ships a lot of quality-of-life polish — phase auto-skip + End-Turn
@@ -45,19 +53,17 @@ the small, high-frequency **conveniences a player of a modern digital TCG**
 reaches for every single session — finding a card, understanding a card, and
 moving through packs / decks / turns without friction.
 
-This doc proposes **15 QOL features**, each grounded in a code seam that already
-exists, organized into three shippable waves by effort and leverage. Every item
-here was checked against the current source and confirmed genuinely missing — it
-deliberately does **not** re-propose anything the sibling plan docs own (deck
-share codes and match history live in road-to-1.0 Feature 4; a keyword *rename*
-lives in plan-keyword-rethemes). Where a smaller QOL slice is distinct from a big
-planned feature, that is called out inline.
+This doc originally proposed **15 QOL features**, each grounded in a code seam
+that already existed, organized into three shippable waves by effort and
+leverage. The feature list below is now a shipped design record rather than the
+live backlog. Remaining QOL work is called out in the status banner and
+Deferred/Open sections.
 
-## Baseline corrections (verified 2026-07-05; superseded by live v12)
+## Baseline corrections (verified 2026-07-05; historical; superseded by live v15)
 
 Two sibling docs and the session memory carried stale facts that affected the
 QOL SaveData math below; these notes are retained as the QOL execution history.
-The current live schema is v12 (see roadmap.md and SaveManager.ts).
+The current live schema is v15 (see roadmap.md and SaveManager.ts).
 
 - **`SaveData` is at v6, not v5.** `src/meta/SaveManager.ts:17,64` declares
   `version: 6`; the migrate chain ends at the `version === 6` step. The
@@ -71,23 +77,20 @@ The current live schema is v12 (see roadmap.md and SaveManager.ts).
   gauntlet run-seed readout (`GauntletScene.ts`). road-to-1.0 lists these as
   "shipping this session" candidates; they are done. Only the **bulk shard-all**
   variant remains open (deferred below).
-- **No DOM text input exists anywhere in `src/`** (a repo grep for
-  `add.dom`/`createFromHTML`/`<input` returns only `quality.ts`'s offscreen
-  canvas probe), and **`DeckCode.ts` does not exist yet.** This is the shared
-  cost that gates card search (Feature 8), deck rename (Feature 15), and the
-  planned deck-code import — build one reusable Phaser `<input>` overlay once and
-  all three amortize it.
+- **At planning time, no DOM text input existed anywhere in `src/`, and
+  `DeckCode.ts` did not exist yet.** That shared cost is now paid: the reusable
+  Phaser `<input>` overlay ships as `SearchInput`, and deck export/import ships
+  through `DeckCode.ts`.
 
 ## The one-migration story
 
-Almost every feature here is pure UI or rides an engine seam that already exists,
-so the whole plan needs **exactly one `SaveData` bump (v6 → v7)** — for the new
-settings booleans (`confirmDestructive` in Wave 1, an optional
-`keywordReminders` toggle in Wave 2). If Wave 1 and Wave 2 ship separately,
-fold both flags into the single v6 → v7 step rather than bumping twice. Notably,
-**multiple saved decks (Feature 15) needs no migration at all** — the `decks[]`
-+ `activeDeckId` model already exists in the schema; only the UI and a
-`deleteDeck()` are missing.
+The original target was one QOL schema bump, but the actual execution split the
+settings additions across two migrations: **v6 → v7** for
+`settings.confirmDestructive` and **v7 → v8** for
+`settings.keywordReminders`. Later roadmap work moved the live schema to **v15**.
+Multiple saved decks still needed no migration because the `decks[]` +
+`activeDeckId` model already existed; later per-deck hero images added a
+separate v14 → v15 field.
 
 ---
 
@@ -459,41 +462,42 @@ friction-reduction:
 - **Card-back selection & UI text scaling** — both blocked by a missing central
   seam (no font-size factory; card-backs need art variants), larger than they
   look.
-- **Precon/starter store** — `ECONOMY.preconPrice = 500` is defined but unread; a
-  ready second gold sink, but adjacent to content/economy design.
-- **"New" badges, sticky filter persistence, gauntlet post-run recap,
-  continue-run shortcut** — each small on the render side but needs the v6 → v7
-  migration to persist state; batch them into whichever bump ships first.
+- **Precon/starter store** — shipped with the Ragnarök shop restructure:
+  Boosters / Decks tabs, free starter claim, and a buyable theme deck now read
+  the precon economy seam.
+- **"New" markers and pack inspect details** — shipped in the pack-opening polish
+  pass: pack cards use star markers for new cards / new variants, suppress the
+  old text badges, and surface rarity/frame/holo details from the inspect modal.
+- **Sticky filter persistence and continue-run shortcut** — still deferred.
+  They are small on the render side but need an explicit persistence choice.
 - **Attack-with-all / clear-all-attackers shortcut** — small and clean
   (`eligibleAttackers` returns the full set; `declareAttackers` takes any
   subset); a fast-follow to the combat-preview work.
 
-Deck share codes and match history are **not listed here** — they are owned by
-road-to-1.0 Feature 4; the deck-code half is independently shippable and reuses
-Feature 8's DOM input.
+Deck share codes are shipped under road-to-1.0 Feature 4 and reuse Feature 8's
+DOM input seam. Match history / deterministic replays are deferred to 1.1/1.2.
 
 ## Suggested sequencing
 
-1. **Wave 1 (Features 1–6) + the deck-list bug (7)** — one sprint, one v6 → v7
-   migration (confirm-destructive), no engine/AI/balance touch. Clears the
-   most-hit daily frictions and de-risks the rest.
-2. **Feature 8 (search)** — highest daily leverage; its DOM `<input>` unlocks
-   Feature 15 and deck-code import.
-3. **Feature 9 (keyword glossary)** — biggest comprehension win; fold
-   `keywordReminders` into the same v6 → v7 bump as Feature 1 if not yet shipped.
-4. **Features 10–14** in any order — independent; 11 (undo) and 12 (combat
-   preview) are the two that most reward the determinism guarantee.
-5. **Feature 15 (multi-deck)** last of the scheduled set — no migration, but the
-   largest UI, and it benefits from Feature 8 already existing.
+Historical execution matched the intended dependency shape:
+
+1. **Wave 1 (Features 1–6) + the deck-list bug (7)** shipped first.
+2. **Feature 8 (search)** shipped before multi-deck and deck-code import, giving
+   those flows the reusable DOM input seam.
+3. **Feature 9** shipped in two steps: compact keyword names on card faces, then
+   a separate inspect-overlay glossary legend.
+4. **Features 10–14** shipped independently; undo and combat preview were the
+   determinism-heavy pieces.
+5. **Feature 15 (multi-deck)** shipped after search, then later picked up
+   per-deck hero images and the redesigned deck selector.
 
 ## SaveData version walk
 
-The entire plan is **one bump: v6 → v7**, adding
-`settings.confirmDestructive` (Feature 1) and `settings.keywordReminders`
-(Feature 9). Fold both into a single migrate step if the two waves ship together.
-Every other feature is pure UI or rides an existing engine/schema seam. Per the
-iron invariant, the v6 → v7 step ships with a real `migrate()` + a migration
-test (fresh sets defaults; a veteran save coerces sane values).
+Historical actual: the QOL plan used **v6 → v7** for
+`settings.confirmDestructive` and **v7 → v8** for `settings.keywordReminders`,
+each with a real migration + test. Later 1.0 work moved the live schema to
+**v15**. The remaining settings-toggle UI follow-up needs no new schema field
+unless the settings model changes.
 
 ## Test strategy (cross-cutting)
 
@@ -502,22 +506,27 @@ search filter clause (8), `KEYWORD_REMINDER` coverage (9), the undo
 snapshot/restore round-trip (11, doubles as a determinism guard), `previewCombat`
 golden outcomes vs `resolveCombatDamage` (12), deck-stats aggregation (13),
 `ProfileScene` win-rate math (14), `deleteDeck`/copy/rename (15), and the
-v6 → v7 migration. The genuinely visual/interaction pieces (arrows, hotkeys,
+v6 → v8 QOL migrations. The genuinely visual/interaction pieces (arrows, hotkeys,
 gold badge, odds panel, batch reveal, glossary legend) fall under the existing
 by-eye / preview-probe caveat and get flagged for the human, not fake-verified.
 No feature moves the AI or balance baselines.
 
 ## Open questions / decisions for the user
 
-1. **Confirm-destructive default** — on (safer, one extra tap on concede/shard)
-   or off (veteran-friendly)? Recommend **on**.
-2. **Keyword reminder text default** — on (teaches new players, denser cards) or
-   off? Recommend **on**, with the toggle for veterans.
-3. **Search depth** — structured fields (name/keyword/type, ships now) only, or
-   invest in the headless refactor for full rules-text search too?
-4. **Undo scope** — one-deep local take-back only, or also a "rewind to the start
-   of my turn"? The former is the low-risk slice; the latter is a bigger buffer.
-5. **Combat preview** — build the pure `previewCombat` factor now (unlocks the AI
-   unification later) or ship the cheap `clone()` stopgap first?
-6. **Batch pack reveal** — a single summary grid (fastest), or fast sequential
-   flips with a running tally? Affects the new render mode's shape.
+Resolved by implementation:
+
+1. **Confirm-destructive default** shipped on.
+2. **Keyword presentation** moved to compact keyword names on card faces plus
+   inspect-overlay glossary panels.
+3. **Search depth** shipped as structured-field search (name/type/subtype/keyword),
+   intentionally leaving full rules-text search out of the pure filter layer.
+4. **Undo scope** shipped as one-deep local take-back.
+5. **Combat preview** shipped as pure `previewCombat`.
+6. **Batch pack reveal** shipped as a summary path.
+
+Still open:
+
+1. **Settings controls** — expose `confirmDestructive` and `keywordReminders` in
+   Settings once the panel has a wider / two-column relayout.
+2. **Sticky filter persistence** — decide whether collection/deck-builder filter
+   state should persist across scene exits or stay session-local.

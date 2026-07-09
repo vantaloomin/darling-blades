@@ -6,6 +6,15 @@ import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { tutorialLaunchData } from '../data/tutorial';
 import { evaluateAchievements, syncAchievements } from '../meta/Achievements';
+import { todayString } from '../meta/Economy';
+import {
+  claimDailyQuest,
+  dailyQuestStatuses,
+  dailyRerollsRemaining,
+  dailyStreakStatus,
+  ensureDailyState,
+  rerollDailyQuest,
+} from '../meta/Quests';
 import { Services } from '../meta/services';
 import { IS_DEV } from '../platform/env';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
@@ -15,6 +24,7 @@ import { VERSION_LABEL } from '../version';
 
 const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
   { label: 'Avatar Gauntlet', scene: 'Gauntlet' },
+  { label: 'Limited', scene: 'Limited' },
   { label: 'Practice — Easy', scene: 'Duel', data: { difficulty: 'easy' } },
   { label: 'Practice — Medium', scene: 'Duel', data: { difficulty: 'medium' } },
   { label: 'Practice — Hard', scene: 'Duel', data: { difficulty: 'hard' } },
@@ -66,6 +76,8 @@ export class MainMenuScene extends Phaser.Scene {
 
     const save = Services.save.data;
     if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
+    const today = todayString();
+    if (ensureDailyState(save, today)) Services.save.flush();
     const claimableAchievements = evaluateAchievements(save, CARD_DB).filter(
       (status) => status.unlocked && !status.claimed,
     ).length;
@@ -161,19 +173,22 @@ export class MainMenuScene extends Phaser.Scene {
     inflateHitArea(howto, 90, 90);
     this.menuItems.push(howto);
 
+    this.drawDailyPanel(today);
+
     // Card Showcase is a variant-QA surface — dev/local builds only (IS_DEV);
     // filtering (not hiding) keeps the row layout gap-free on the public build.
     const items = MENU_ITEMS.filter((entry) => entry.scene !== 'Showcase' || IS_DEV);
-    const firstY = items.length > 8 ? 282 : 300;
-    const pitchY = items.length > 8 ? 44 : 56;
-    const itemFont = items.length > 8 ? '27px' : '29px';
+    const menuX = 360;
+    const firstY = items.length > 8 ? 268 : 286;
+    const pitchY = items.length > 8 ? 42 : 50;
+    const itemFont = items.length > 8 ? '26px' : '28px';
     items.forEach((entry, i) => {
       const label =
         entry.scene === 'Achievements' && claimableAchievements > 0
           ? `${entry.label} (${claimableAchievements})`
           : entry.label;
       const item = this.add
-        .text(width / 2, firstY + i * pitchY, label, {
+        .text(menuX, firstY + i * pitchY, label, {
           fontFamily: 'Cinzel, Georgia, serif',
           fontSize: itemFont,
           color: '#c9bde0',
@@ -205,6 +220,143 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     if (!Services.save.data.tutorialDone) this.promptTutorial();
+  }
+
+  private drawDailyPanel(today: string): void {
+    const save = Services.save.data;
+    const quests = dailyQuestStatuses(save, today);
+    const rerollsLeft = dailyRerollsRemaining(save, today);
+    const streak = dailyStreakStatus(save, today);
+    const x = 670;
+    const y = 250;
+    const w = 540;
+    const h = 380;
+    const g = this.add.graphics();
+    g.fillStyle(0x130f22, 0.86);
+    g.lineStyle(1, 0x4e4266, 0.85);
+    g.fillRoundedRect(x, y, w, h, 8);
+    g.strokeRoundedRect(x, y, w, h, 8);
+
+    this.add.text(x + 24, y + 22, 'Daily Blades', {
+      fontFamily: 'Cinzel, Georgia, serif',
+      fontSize: '26px',
+      color: '#f0e6ff',
+    });
+    this.add
+      .text(x + w - 24, y + 25, `Rerolls ${rerollsLeft}/${ECONOMY.dailyRerollsPerDay}`, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '15px',
+        color: '#a89cc6',
+      })
+      .setOrigin(1, 0);
+
+    const streakText = streak.wonToday
+      ? `Streak ${streak.count} - win locked in`
+      : `Streak ${streak.count} - next win +${streak.nextGold}`;
+    this.add.text(x + 24, y + 55, streakText, {
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontSize: '15px',
+      color: streak.wonToday ? '#9be6a8' : '#ffd88a',
+    });
+
+    quests.forEach((quest, i) => {
+      const rowY = y + 86 + i * 92;
+      const rowH = 78;
+      g.fillStyle(0x211a34, 0.78);
+      g.lineStyle(1, 0x3a3151, 0.85);
+      g.fillRoundedRect(x + 18, rowY, w - 36, rowH, 6);
+      g.strokeRoundedRect(x + 18, rowY, w - 36, rowH, 6);
+
+      this.add.text(x + 34, rowY + 10, quest.title, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '18px',
+        color: quest.claimed ? '#8f83a8' : '#f0e6ff',
+      });
+      this.add.text(x + 34, rowY + 35, quest.description, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#a89cc6',
+      });
+
+      const barX = x + 34;
+      const barY = rowY + 61;
+      const barW = 278;
+      const fillW = Math.round((barW * Math.min(quest.progress, quest.target)) / quest.target);
+      g.fillStyle(0x3a3151, 1);
+      g.fillRoundedRect(barX, barY, barW, 8, 4);
+      if (fillW > 0) {
+        g.fillStyle(quest.complete ? 0x9be6a8 : 0xffd88a, 1);
+        g.fillRoundedRect(barX, barY, fillW, 8, 4);
+      }
+      this.add
+        .text(barX + barW + 12, barY - 5, `${Math.min(quest.progress, quest.target)}/${quest.target}`, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '13px',
+          color: '#cbc2e0',
+        })
+        .setOrigin(0, 0);
+
+      const buttonX = x + w - 84;
+      const buttonY = rowY + 40;
+      if (quest.claimed) {
+        this.add
+          .text(buttonX, buttonY, 'Claimed', {
+            fontFamily: 'Inter, Arial, sans-serif',
+            fontSize: '14px',
+            color: '#7dd3a8',
+          })
+          .setOrigin(0.5);
+      } else if (quest.complete) {
+        this.dailyButton(buttonX, buttonY, `Claim +${quest.rewardGold}`, true, () => {
+          const result = claimDailyQuest(save, i, todayString());
+          if (!result.ok) return;
+          Services.save.flush();
+          Sfx.play('coin');
+          this.scene.restart();
+        });
+      } else if (rerollsLeft > 0) {
+        this.dailyButton(buttonX, buttonY, 'Reroll', false, () => {
+          const result = rerollDailyQuest(save, i, todayString());
+          if (!result.ok) return;
+          Services.save.flush();
+          this.scene.restart();
+        });
+      } else {
+        this.add
+          .text(buttonX, buttonY, 'No rerolls', {
+            fontFamily: 'Inter, Arial, sans-serif',
+            fontSize: '13px',
+            color: '#7b708f',
+          })
+          .setOrigin(0.5);
+      }
+    });
+  }
+
+  private dailyButton(x: number, y: number, label: string, primary: boolean, cb: () => void): Phaser.GameObjects.Text {
+    const btn = this.add
+      .text(x, y, label, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '14px',
+        fontStyle: '700',
+        color: primary ? '#241500' : '#f0e6ff',
+        backgroundColor: primary ? '#ffd88a' : '#2c2344',
+        padding: { x: 12, y: 8 },
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setFixedSize(112, 34)
+      .setInteractive({ useHandCursor: true });
+    btn.on('pointerover', (p: Phaser.Input.Pointer) => {
+      if (!p.wasTouch) btn.setColor(primary ? '#000000' : '#ffd700');
+    });
+    btn.on('pointerout', (p: Phaser.Input.Pointer) => {
+      if (!p.wasTouch) btn.setColor(primary ? '#241500' : '#f0e6ff');
+    });
+    bindTapButton(this, btn, cb);
+    inflateHitArea(btn, 90, 60);
+    this.menuItems.push(btn);
+    return btn;
   }
 
   /**

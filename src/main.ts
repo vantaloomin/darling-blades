@@ -15,6 +15,10 @@ import { CollectionScene } from './scenes/CollectionScene';
 import { DeckBuilderScene } from './scenes/DeckBuilderScene';
 import { DuelScene } from './scenes/DuelScene';
 import { GauntletScene } from './scenes/GauntletScene';
+import { LimitedDeckBuilderScene } from './scenes/LimitedDeckBuilderScene';
+import { LimitedDraftScene } from './scenes/LimitedDraftScene';
+import { LimitedRevealScene } from './scenes/LimitedRevealScene';
+import { LimitedScene } from './scenes/LimitedScene';
 import { PackOpeningScene } from './scenes/PackOpeningScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { ProfileScene } from './scenes/ProfileScene';
@@ -102,6 +106,10 @@ const game = new Phaser.Game({
     // src/platform/env.ts. On the public build it is never reachable.
     ...(IS_DEV ? [CardShowcaseScene] : []),
     GauntletScene,
+    LimitedScene,
+    LimitedRevealScene,
+    LimitedDraftScene,
+    LimitedDeckBuilderScene,
     ProfileScene,
     AchievementsScene,
     DuelScene,

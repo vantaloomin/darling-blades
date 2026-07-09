@@ -10,9 +10,17 @@ import { avatarById, avatarForRung, type Avatar } from '../data/opponents';
 import { heroById } from '../data/heroes';
 import type { SaveData } from '../meta/SaveManager';
 import { STARTER_DECKS } from '../data/starterDecks';
-import { applyGauntletResult, applyMatchResult, todayString, type Difficulty } from '../meta/Economy';
+import {
+  applyGauntletResult,
+  applyLimitedMatchResult,
+  applyMatchResult,
+  todayString,
+  type Difficulty,
+} from '../meta/Economy';
 import { ownedVariantEntries } from '../meta/collectionFilter';
 import { rungSeed } from '../meta/gauntletSeed';
+import { LIMITED_MATCHES, limitedDuelData, type LimitedDuelData } from '../meta/Limited';
+import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
 import { Services } from '../meta/services';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
@@ -43,6 +51,7 @@ import { CommanderPortrait } from '../ui/CommanderPortrait';
 import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
 import { HistoryPanel } from '../ui/HistoryPanel';
+import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { LandStackView, LAND_STACK_STEP } from '../ui/LandStackView';
 import { ModalGuard } from '../ui/Modal';
 import { PileView } from '../ui/PileView';
@@ -215,6 +224,7 @@ export class DuelScene extends Phaser.Scene {
    * instead of the ranked win/loss path.
    */
   private tutorial = false;
+  private limited: LimitedDuelData['limited'] | null = null;
   private coach: CoachMark | null = null;
   /**
    * Hard-constrains input to the one control the current coach mark points at:
@@ -286,6 +296,7 @@ export class DuelScene extends Phaser.Scene {
       seedOverride?: number;
       aiOverride?: AIPlayer;
       tutorial?: boolean;
+      limited?: LimitedDuelData['limited'];
     } = {},
   ): void {
     // Gauntlet mode: an avatar opponent drives the deck, difficulty, and brain
@@ -294,6 +305,7 @@ export class DuelScene extends Phaser.Scene {
     this.gauntletRung = data.gauntletRung ?? null;
     this.difficulty = this.opponent?.difficulty ?? data.difficulty ?? 'easy';
     this.tutorial = data.tutorial ?? false;
+    this.limited = data.limited ?? null;
     this.tutGoalShown = false;
     this.tutSicknessShown = false;
     this.tutBlocked = false;
@@ -377,13 +389,17 @@ export class DuelScene extends Phaser.Scene {
     // Duel identities, the opponents.ts "portraits cost zero new art" idiom:
     // your commander portrait is your deck's face card; the opponent's strip
     // avatar is their curated portraitCardId (gauntlet) or their deck's face.
-    this.myDeckName = myDeckEntry?.name ?? STARTER_DECKS[0].name;
-    // A bought theme deck's PREMIUM hero portrait takes precedence; otherwise
-    // your chosen hero card (any collected card) fronts the commander portrait;
-    // otherwise the active deck's derived face.
-    this.myHeroTextureKey = this.resolveHeroPortrait(save);
-    const hero = save.heroCardId && CARD_DB[save.heroCardId] ? save.heroCardId : null;
-    this.myFaceCardId = hero ?? faceCardFor(myDeck, CARD_DB);
+    this.myDeckName = this.limited ? `${this.limited.mode === 'sealed' ? 'Sealed' : 'Draft'} Deck` : myDeckEntry?.name ?? STARTER_DECKS[0].name;
+    // A deck-builder star is this specific deck's hero image. Limited/tutorial
+    // deck overrides ignore saved-deck art; otherwise fall back to the old
+    // premium/default hero behavior, then the active deck's derived face.
+    const deckHero =
+      !data.deckOverride && myDeckEntry?.heroCardId && CARD_DB[myDeckEntry.heroCardId] && myDeck.includes(myDeckEntry.heroCardId)
+        ? myDeckEntry.heroCardId
+        : null;
+    const defaultHero = !deckHero && save.heroCardId && CARD_DB[save.heroCardId] ? save.heroCardId : null;
+    this.myHeroTextureKey = deckHero ? null : this.resolveHeroPortrait(save);
+    this.myFaceCardId = deckHero ?? defaultHero ?? faceCardFor(myDeck, CARD_DB);
     this.oppFaceCardId = this.opponent?.portraitCardId ?? faceCardFor(aiDeck, CARD_DB);
     this.duel = new Game({ decks: [myDeck, aiDeck], seed, db: CARD_DB });
     this.ai = data.aiOverride ?? buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality);
@@ -1380,6 +1396,10 @@ export class DuelScene extends Phaser.Scene {
    * time (the pre-sequencing behavior).
    */
   private processEvents(events: GameEvent[]): void {
+    if (!this.tutorial && events.length > 0) {
+      const progress = applyDailyQuestProgress(Services.save.data, CARD_DB, events, todayString());
+      if (progress.changed) Services.save.touch();
+    }
     const sequence =
       Services.save.data.settings.animations === 'full' &&
       !this.animatingCombat &&
@@ -2473,6 +2493,7 @@ export class DuelScene extends Phaser.Scene {
     const view = new CardView(this, width / 2, height / 2);
     view.setScale(1.35).setCard(card, { fx: 'full' });
     c.add(view);
+    addKeywordGlossaryPanel(this, c, card, { x: 875, y: 150, width: 300 });
     c.add(
       this.add
         .text(width / 2, height - 26, this.touch ? 'Tap anywhere to close' : 'Click anywhere to close', {
@@ -2952,6 +2973,14 @@ export class DuelScene extends Phaser.Scene {
     this.overlay = c;
   }
 
+  private rewardLine(totalGold: number, firstWinBonus: boolean, streakCount: number, completion = false): string {
+    const parts: string[] = [];
+    if (completion) parts.push('completion bonus');
+    if (firstWinBonus) parts.push('first win');
+    if (streakCount > 0) parts.push(`streak ${streakCount}`);
+    return `+${totalGold} gold${parts.length > 0 ? `  (${parts.join(' + ')})` : ''}`;
+  }
+
   private showResults(won: boolean, reason: string): void {
     this.closeInspect();
     this.zoom.setSuppressed(true);
@@ -2965,7 +2994,14 @@ export class DuelScene extends Phaser.Scene {
       this.showGauntletResults(won, reason);
       return;
     }
-    const reward = applyMatchResult(Services.save.data, this.difficulty, won, todayString());
+    if (this.limited) {
+      this.showLimitedResults(won, reason);
+      return;
+    }
+    const save = Services.save.data;
+    const today = todayString();
+    const reward = applyMatchResult(save, this.difficulty, won, today);
+    const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
     Services.save.flush();
     Music.duck(1.8); // let the sting read clearly over the bed
     Sfx.play(won ? 'win' : 'loss');
@@ -2992,7 +3028,7 @@ export class DuelScene extends Phaser.Scene {
         .text(
           width / 2,
           350,
-          `+${reward.gold} gold${reward.firstWinBonus ? '  (first win of the day!)' : ''}`,
+          this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
           { fontFamily: 'Inter, Arial, sans-serif', fontSize: '20px', fontStyle: '600', color: '#ffd88a' },
         )
         .setOrigin(0.5),
@@ -3014,34 +3050,131 @@ export class DuelScene extends Phaser.Scene {
     this.guard.open(this.overlayGuardTargets());
   }
 
+  /** Limited results: update the active run, then continue or close the run. */
+  private showLimitedResults(won: boolean, reason: string): void {
+    const save = Services.save.data;
+    const today = todayString();
+    const reward = applyLimitedMatchResult(save, this.difficulty, won, today, this.myDeckColorStyle);
+    const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
+    Services.save.flush();
+    Music.duck(1.8);
+    Sfx.play(won ? (reward.runOver && reward.wins === 3 ? 'win' : 'rungClear') : 'loss');
+
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(120);
+    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive());
+
+    const headline = reward.runOver ? 'LIMITED COMPLETE' : won ? 'MATCH WON' : 'MATCH LOST';
+    c.add(
+      this.add
+        .text(width / 2, 210, headline, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '56px',
+          fontStyle: 'bold',
+          color: won ? '#ffd700' : '#b06a7a',
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(width / 2, 272, `Record ${reward.wins}-${reward.losses}  (${reason})`, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '16px',
+          color: '#8f83a8',
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(
+          width / 2,
+          320,
+          this.rewardLine(
+            reward.gold + streak.gold,
+            reward.firstWinBonus,
+            streak.advanced ? streak.count : 0,
+            reward.runOver && reward.wins === LIMITED_MATCHES,
+          ),
+          {
+            fontFamily: 'Inter, Arial, sans-serif',
+            fontSize: '20px',
+            fontStyle: '600',
+            color: '#ffd88a',
+          },
+        )
+        .setOrigin(0.5),
+    );
+
+    const mk = (x: number, label: string, cb: () => void): void => {
+      const btn = this.add
+        .text(x, 420, label, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '24px',
+          color: '#ffd88a',
+          backgroundColor: '#2c2344',
+          padding: { x: 18, y: 10 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, btn, cb);
+      inflateHitArea(btn, 90, 90);
+      c.add(btn);
+    };
+
+    if (!reward.runOver && save.limited.activeRun) {
+      mk(width / 2 - 130, 'Next Match', () => this.scene.restart(limitedDuelData(save.limited.activeRun!)));
+      mk(width / 2 + 130, 'Limited Hub', () => this.scene.start('Limited'));
+    } else {
+      mk(width / 2 - 120, 'Limited Hub', () => this.scene.start('Limited'));
+      mk(width / 2 + 120, 'Menu', () => this.scene.start('MainMenu'));
+    }
+    this.guard.open(this.overlayGuardTargets());
+  }
+
   /** Gauntlet results: pay via applyGauntletResult and route through the tower. */
   private showGauntletResults(won: boolean, reason: string): void {
     const rung = this.gauntletRung!;
+    const save = Services.save.data;
+    const today = todayString();
     const reward = applyGauntletResult(
-      Services.save.data,
+      save,
       rung,
       this.difficulty,
       won,
-      todayString(),
+      today,
       this.myDeckColorStyle === 'mono' ? 'monoColor' : this.myDeckColorStyle === 'dual' ? 'dualColor' : undefined,
     );
+    const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
     Services.save.flush();
     // Full clear earns the fanfare; an ordinary rung gets its own short motif.
     Music.duck(1.8);
     Sfx.play(reward.completed ? 'win' : won ? 'rungClear' : 'loss');
+
+    const bonusLine = this.rewardLine(
+      reward.gold + streak.gold,
+      reward.firstWinBonus,
+      streak.advanced ? streak.count : 0,
+      reward.completed,
+    );
+    if (reward.runOver) {
+      this.showGauntletRunRecap(reward.completed, won ? null : rung, reason, bonusLine);
+      return;
+    }
 
     const width = 1280; // design-space constants (see buildZones)
     const height = 720;
     const c = this.add.container(0, 0).setDepth(120);
     c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive());
 
-    const headline = reward.completed ? 'TOWER CLEARED' : won ? 'RUNG CLEARED' : 'RUN ENDS';
-    const color = reward.completed ? '#ffe08a' : won ? '#ffd700' : '#b06a7a';
+    const headline = 'RUNG CLEARED';
     c.add(
       this.add
         .text(width / 2, 210, headline, {
-          fontFamily: 'Cinzel, Georgia, serif', fontSize: reward.completed ? '58px' : '56px',
-          fontStyle: 'bold', color,
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '56px',
+          fontStyle: 'bold',
+          color: '#ffd700',
         })
         .setOrigin(0.5),
     );
@@ -3052,9 +3185,6 @@ export class DuelScene extends Phaser.Scene {
         })
         .setOrigin(0.5),
     );
-    const bonusLine = reward.completed
-      ? `+${reward.gold} gold — includes the completion bonus!`
-      : `+${reward.gold} gold${reward.firstWinBonus ? '  (first win of the day!)' : ''}`;
     c.add(
       this.add
         .text(width / 2, 320, bonusLine, {
@@ -3076,17 +3206,164 @@ export class DuelScene extends Phaser.Scene {
       c.add(btn);
     };
 
-    if (won && !reward.completed && reward.nextRung !== null) {
+    if (reward.nextRung !== null) {
       const next = reward.nextRung;
       mk(width / 2 - 120, 'Next Foe', () =>
         this.scene.restart({ opponentId: avatarForRung(next).id, gauntletRung: next }),
       );
       mk(width / 2 + 120, 'Tower', () => this.scene.start('Gauntlet'));
-    } else {
-      // completion or a loss: the run is over, back to the tower / menu
-      mk(width / 2 - 120, 'Tower', () => this.scene.start('Gauntlet'));
-      mk(width / 2 + 120, 'Menu', () => this.scene.start('MainMenu'));
     }
     this.guard.open(this.overlayGuardTargets());
+  }
+
+  private showGauntletRunRecap(
+    completed: boolean,
+    failedRung: number | null,
+    reason: string,
+    rewardLine: string,
+  ): void {
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(120);
+    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.86).setInteractive());
+
+    c.add(
+      this.add
+        .text(width / 2, 78, completed ? 'SUCCESS' : 'FAILURE', {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '54px',
+          fontStyle: 'bold',
+          color: completed ? '#ffe08a' : '#e07078',
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(
+          width / 2,
+          130,
+          completed ? 'Tower cleared' : `Run ended at Rung ${failedRung ?? 1}: ${reason}`,
+          {
+            fontFamily: 'Inter, Arial, sans-serif',
+            fontSize: '16px',
+            color: '#c9bde0',
+          },
+        )
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(width / 2, 166, rewardLine, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '20px',
+          fontStyle: '600',
+          color: '#ffd88a',
+        })
+        .setOrigin(0.5),
+    );
+
+    const cols = 5;
+    const x0 = width / 2 - ((cols - 1) * 132) / 2;
+    const y0 = 290;
+    for (let rung = 1; rung <= ECONOMY.gauntletRungGold.length; rung++) {
+      const col = (rung - 1) % cols;
+      const row = Math.floor((rung - 1) / cols);
+      const state =
+        completed || rung < (failedRung ?? Number.POSITIVE_INFINITY)
+          ? 'cleared'
+          : rung === failedRung
+            ? 'failed'
+            : 'unreached';
+      this.addGauntletRecapPortrait(c, avatarForRung(rung), rung, x0 + col * 132, y0 + row * 156, state);
+    }
+
+    const mk = (x: number, label: string, cb: () => void): void => {
+      const btn = this.add
+        .text(x, 650, label, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '24px',
+          color: '#ffd88a',
+          backgroundColor: '#2c2344',
+          padding: { x: 18, y: 10 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, btn, cb);
+      inflateHitArea(btn, 140, 78);
+      c.add(btn);
+    };
+    mk(width / 2 - 130, 'Main Menu', () => this.scene.start('MainMenu'));
+    mk(width / 2 + 130, 'Start Over', () => this.scene.start('Gauntlet'));
+    this.guard.open(this.overlayGuardTargets());
+  }
+
+  private addGauntletRecapPortrait(
+    parent: Phaser.GameObjects.Container,
+    avatar: Avatar,
+    rung: number,
+    x: number,
+    y: number,
+    state: 'cleared' | 'failed' | 'unreached',
+  ): void {
+    const w = 92;
+    const h = 112;
+    const border = state === 'failed' ? 0xd84854 : state === 'cleared' ? 0x6f6688 : 0x3d3060;
+    parent.add(
+      this.add
+        .rectangle(x, y, w, h, 0x171222, state === 'unreached' ? 0.45 : 0.82)
+        .setStrokeStyle(state === 'failed' ? 3 : 1, border, state === 'unreached' ? 0.7 : 1),
+    );
+
+    const art = Art.resolver?.getArt(avatar.portraitCardId);
+    if (art) {
+      const img = this.add.image(x, y - 6, art.textureKey, art.frameName).setOrigin(0.5);
+      const scale = Math.max((w - 12) / Math.max(1, img.width), (h - 26) / Math.max(1, img.height));
+      img.setScale(scale).setAlpha(state === 'unreached' ? 0.22 : state === 'cleared' ? 0.56 : 0.95);
+      const maskShape = this.add.rectangle(x, y - 6, w - 12, h - 26, 0xffffff).setVisible(false);
+      img.setMask(maskShape.createGeometryMask());
+      parent.add(maskShape);
+      parent.add(img);
+    }
+
+    if (state === 'cleared') {
+      parent.add(this.add.rectangle(x, y, w - 10, h - 12, 0x09070f, 0.34));
+      parent.add(
+        this.add
+          .text(x, y - 4, '☠', {
+            fontFamily: 'Georgia, serif',
+            fontSize: '34px',
+            color: '#efe9ff',
+          })
+          .setOrigin(0.5)
+          .setAlpha(0.86),
+      );
+    } else if (state === 'failed') {
+      parent.add(this.add.rectangle(x, y, w - 10, h - 12, 0x7a1119, 0.48));
+      parent.add(
+        this.add
+          .text(x, y - 4, 'FAILED', {
+            fontFamily: 'Inter, Arial, sans-serif',
+            fontSize: '13px',
+            fontStyle: '800',
+            color: '#ffe3e3',
+          })
+          .setOrigin(0.5),
+      );
+    } else {
+      parent.add(this.add.rectangle(x, y, w - 10, h - 12, 0x05040a, 0.5));
+    }
+
+    parent.add(
+      this.add
+        .text(x, y + h / 2 + 8, `R${rung} ${avatar.name}`, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '11px',
+          fontStyle: '700',
+          color: state === 'failed' ? '#f0b0a0' : state === 'cleared' ? '#c9bde0' : '#5d536e',
+          align: 'center',
+          wordWrap: { width: 116 },
+        })
+        .setOrigin(0.5, 0),
+    );
   }
 }

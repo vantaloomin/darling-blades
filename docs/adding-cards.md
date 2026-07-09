@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-08
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-09
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -419,8 +419,9 @@ target (`en-wings-of-dawn`, `enchantments.ts`):
 (dual taplands are allowed, basics are not). So a new collectible card is
 automatically pack-eligible; **tokens and basics are excluded** by construction.
 
-A booster pack is **15 card rolls at 250g**. Every card in the pack is produced
-by **three independent seeded rolls**:
+A base booster pack is **9 card rolls at 450g**; the Ragnarök booster is **9 card
+rolls at 525g**. Every card in the pack is produced by **three independent seeded
+rolls**:
 
 - **Axis A — rarity tier**: `c` 50% / `r` 30% / `sr` 14% / `ssr` 5% / `ur` 1%.
 - **Axis B — frame**: `white` 50 / `blue` 30 / `red` 15 / `gold` 3.55 /

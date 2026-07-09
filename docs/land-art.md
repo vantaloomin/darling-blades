@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/ui/CardView.ts · last-verified: 2026-07-07 -->
+<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/ui/CardView.ts · last-verified: 2026-07-08 -->
 
 # Land Art — Direction + Generation Contract
 
