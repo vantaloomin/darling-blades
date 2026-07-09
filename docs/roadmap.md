@@ -665,6 +665,14 @@ _Dated 2026-07-04. Review monthly._
   see above).
 
 ## Planned
+- **UI/UX refresh (greenlit 2026-07-09, in progress).** User-directed: the UI
+  "feels dated and clunky, especially the play field."
+  [plan-ui-ux-refresh.md](plan-ui-ux-refresh.md) is the spec, grounded in
+  2026-07-09 audits of DuelScene and the cross-scene design system. Locked
+  picks: modernize the Immersive Fan in place, refined-current art direction,
+  larger battlefield tiles. Four waves: theme token module + factories →
+  play-field motion/depth → play-field hierarchy + tile growth → all-scene
+  theme migration (which closes the QOL Settings-toggles follow-up below).
 - **Design plans authored 2026-07-05 (awaiting build go/no-go).** Four
   senior-level design docs are ready to implement, each grounded in the current
   code and respecting the iron invariants:
