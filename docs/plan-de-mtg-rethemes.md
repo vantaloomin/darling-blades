@@ -1,6 +1,19 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/engine/effects/EffectInterpreter.ts, src/engine/statics.ts, src/config/rules.ts, src/meta/SaveManager.ts, src/ai/determinize.ts, docs/rules.md, tests/ai/winrate.test.ts · last-verified: 2026-07-09 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/engine/effects/EffectInterpreter.ts, src/engine/statics.ts, src/config/rules.ts, src/meta/SaveManager.ts, src/ai/determinize.ts, docs/rules.md, tests/ai/winrate.test.ts · last-verified: 2026-07-09 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
 
 # De-MTG term re-theme (Tier-3 full engine rename)
+
+> **STATUS — SHIPPED ✅ (2026-07-07).** Landed as PR #14 (engine rename) plus
+> PR #16 (design/concept-doc flavor sweep). The live engine ids match this
+> plan: the 11 keyword ids are renamed (`skyborne`, `wardingGaze`,
+> `firstBlade`, `twinBlades`, `warcry`, `overrun`, `sentinel`, `bulwark`,
+> `deathblade`, `bloodoath`, `untouchable` in `src/engine/types.ts`), and
+> `CardType` uses `charm`/`ritual` in place of instant/sorcery. No save
+> migration was needed, exactly as the audit below predicted. Known residue,
+> deliberately left: MTG vocabulary in internal comments and helper-local field
+> names (e.g. the `Hit` struct in `src/engine/combat/damage.ts`), and the
+> `src/data/cards/instants.ts` / `sorceries.ts` file names — none of it
+> player-facing or engine-id surface. This doc is retained as the design
+> record.
 
 ## Context
 

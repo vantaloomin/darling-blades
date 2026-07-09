@@ -170,6 +170,22 @@ _Dated 2026-07-04. Review monthly._
   skip it, + a migration test). Verified: tsc/lint/**510 tests**/build/doc-checkers,
   plus live preview runs of the whole flow (zero console errors).
 
+## Recently shipped (2026-07-07)
+
+- **De-MTG term re-theme — Tier-3 full engine rename (PR #14, doc sweep PR #16).**
+  The game now speaks its own voice in the code, not just the UI: the 11
+  evergreen keyword ids renamed (`flying` → `skyborne`, `firstStrike` →
+  `firstBlade`, `deathtouch` → `deathblade`, `lifelink` → `bloodoath`, …) and
+  the Magic-distinctive card types renamed (`instant` → `charm`, `sorcery` →
+  `ritual`), per [plan-de-mtg-rethemes.md](plan-de-mtg-rethemes.md) — which
+  supersedes the display-only
+  [plan-keyword-rethemes.md](plan-keyword-rethemes.md). Safe by audit: the save
+  blob stores only card ids/counts/seeds/settings, so no migration was needed.
+  Generic gaming vocabulary (creature, enchantment, artifact, land) was
+  deliberately kept. Residual MTG terms survive only in internal comments,
+  helper-local field names (e.g. the combat `Hit` struct), and `src/data/cards/`
+  file names — no player-facing or engine-id surface.
+
 ## Recently shipped (2026-07-06)
 
 - **Quality-of-life pass — all 15 features shipped ([docs/plan-qol.md](plan-qol.md)).**
@@ -658,9 +674,12 @@ _Dated 2026-07-04. Review monthly._
   - [MOD / UGC packs](plan-mod-ugc.md) — data-only custom cards (art/name/stats)
     with a validator that enforces **no new mechanics** (whitelist against the
     engine's `Keyword`/effect-op unions), namespaced ids, browser + Tauri loaders.
-  - [MTG-keyword rethemes](plan-keyword-rethemes.md) — a display-only rename of
-    the 10 evergreen keywords to a Darling-Blades voice, confined to
-    `rulesText.ts` (engine ids, saves, AI, determinism all untouched).
+  - [MTG-keyword rethemes](plan-keyword-rethemes.md) — ✅ **superseded and
+    shipped 2026-07-07**: the display-only proposal was upgraded per user
+    direction to the Tier-3 full engine rename in
+    [plan-de-mtg-rethemes.md](plan-de-mtg-rethemes.md), which landed as PR #14
+    (see Recently shipped 2026-07-07). Its keyword name-table was reused
+    verbatim.
   - [Road to 1.0 — five features](plan-road-to-1.0.md) — tutorial (✅ **shipped
     2026-07-08**, PR #28 — see Recently shipped), achievements + collection
     goals, daily quests, Sealed / Bot Draft Limited, and deck share codes

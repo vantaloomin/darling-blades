@@ -2,10 +2,12 @@
 
 # Post-launch (v1.1) — deferred backlog
 
-The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md): tutorial
-and achievements are shipped, while dailies, sealed, replays/deck-codes, and the
-polish backlog remain the connective tissue that turns the working prototype
-into a release. This doc is the **other list** — four smaller items that came up during
+The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md), and as
+of 2026-07-08 all five of its features are shipped (tutorial, achievements,
+daily quests + streaks, Sealed/Draft Limited, and deck share codes); what
+remains of 1.0 is the human polish/validation backlog, while **deterministic
+replays are deferred into this doc's horizon (1.1/1.2)**. This doc is the
+**other list** — four smaller items that came up during
 the road-to-1.0 planning review, were looked at seriously, and were
 **deliberately pushed past 1.0** rather than dropped. Each was deferred for a
 concrete reason: one is a nice-to-have UI polish that competes for the same
