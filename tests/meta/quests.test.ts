@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
+import { CARD_DB } from '../../src/data/catalog';
 import type { GameEvent } from '../../src/engine/events';
+import type { CardDef, EffectOp } from '../../src/engine/types';
 import {
   applyDailyQuestProgress,
   claimDailyQuest,
@@ -16,6 +18,10 @@ import {
 } from '../../src/meta/Quests';
 import { freshSave, type DailyQuestSave } from '../../src/meta/SaveManager';
 import { TEST_DB } from '../helpers';
+
+function hasOp(card: CardDef, predicate: (op: EffectOp) => boolean): boolean {
+  return card.abilities?.some((ability) => ability.ops?.some(predicate)) ?? false;
+}
 
 function questState(id: string, progress = 0): DailyQuestSave {
   const def = dailyQuestDef(id);
@@ -46,6 +52,18 @@ describe('daily quests', () => {
     expect(new Set(a).size).toBe(ECONOMY.dailyQuestCount);
   });
 
+  it('does not include enemy-mill dailies while enemy mill lacks broad released support', () => {
+    const broadEnemyMillCards = Object.values(CARD_DB).filter(
+      (card) =>
+        !card.token &&
+        card.set === 'base' &&
+        hasOp(card, (op) => op.op === 'grind' && op.who === 'opponent'),
+    );
+
+    expect(broadEnemyMillCards).toHaveLength(0);
+    expect(DAILY_QUESTS.some((q) => /mill/i.test(`${q.id} ${q.title} ${q.description}`))).toBe(false);
+  });
+
   it('folds public duel events into active quest progress and caps completion', () => {
     const save = setDailyQuests(['cast-creatures-5', 'deal-damage-20', 'win-one']);
     const events: GameEvent[] = [
@@ -63,6 +81,20 @@ describe('daily quests', () => {
 
     applyDailyQuestProgress(save, TEST_DB, [{ e: 'lifeChanged', player: 1, delta: -50, now: 13 }], '2026-07-08');
     expect(save.daily.quests[1].progress).toBe(20);
+  });
+
+  it('counts normal player draws for the draw daily', () => {
+    const save = setDailyQuests(['draw-12', 'win-one', 'play-lands-5']);
+    const events: GameEvent[] = [
+      { e: 'drew', player: 0, cardId: 'bear' },
+      { e: 'drew', player: 0, cardId: 'shock' },
+      { e: 'drew', player: 1, cardId: 'bear' },
+    ];
+
+    const result = applyDailyQuestProgress(save, TEST_DB, events, '2026-07-08');
+
+    expect(result.changed).toBe(true);
+    expect(save.daily.quests[0].progress).toBe(2);
   });
 
   it('claims completed quests once and pays gold through the save', () => {

@@ -111,13 +111,13 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 - **Prompt:** Dim fantasy merchant bazaar interior, lantern-lit wooden stalls stacked with scroll cases, card chests and silk bundles receding into shadow along both side edges, warm banked ember lantern glow kept desaturated, a dark open aisle filling the center of frame, moody low-contrast interior depth — crisp cel-shaded gacha anime environment art, 1280×720 stage backdrop
 
 ### Pack Ritual Treasury — `scene-packopening`
-- **Role:** Backdrop under `PackOpeningScene` — pack at (640,340), commons grid x 250–1010 / y 190–406, specials row y 560, buttons y 686. The rare-reveal spotlight dims it to 0.7 black at the ritual's peak.
+- **Role:** Backdrop under `PackOpeningScene` — pack at (640,340), grid rows start at y 184 with 216px spacing, specials row y 526 at 0.54 card scale, and the post-reveal button tray y 674. The rare-reveal spotlight dims it to 0.7 black at the ritual's peak.
 - **Deliverable:** 1280×720 PNG (landscape stage).
 - **Mood & palette:** Dim treasury/altar chamber (`#120e20` → `#080610`), near-black violet with sunken gold glints.
 - **Composition & safe zones:** A low stone altar dais at bottom-center under a faint shaft of dusty light from above; heaps of coins and relics sunk in deep shadow along the walls; ember-dark braziers. The dais light shaft is vertical and soft, centered near x 640 — it flatters the floating pack without outshining it. Everything above y ≈ 150 fades to black (commons grid + reveal beats live there).
 - **Max luminance:** average ≤ 10 %; peak ≤ 30 % (the light shaft core); above y 150 ≤ 12 %.
 - **Integration:** Replaces the `create()` gradient; dim rect `0x080610` at 0.5. The existing flash/starburst/slow-mo choreography needs no change.
-- **QA:** NEW/dupe badges (13px on `#1c1730`) must read against the backdrop at every grid position; the shaft must not tint revealed card frames.
+- **QA:** New-card / new-variant star markers must read against the backdrop at every grid position; inspect-detail panels carry rarity/frame/holo copy, so the backdrop must not compete with those bottom overlays. The shaft must not tint revealed card frames.
 - **Prompt:** Dim underground treasury altar chamber, a low stone dais at bottom center under a faint vertical shaft of dusty light, heaps of coins and relics sunk in deep shadow along the walls, ember-dark braziers, near-black violet darkness swallowing the upper half of frame, hushed ceremonial gloom — crisp cel-shaded gacha anime environment art, 1280×720 stage backdrop
 
 ### Collection Archive — `scene-collection`
@@ -171,13 +171,13 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 - **Prompt:** Ornate symmetrical trading-card back design, deep violet field with a soft radial glow behind a central golden diamond sigil, concentric gold filigree frames and mirrored corner flourishes, subtle arcane line engraving, rich dark royal palette, perfect two-axis symmetry, blank of any lettering — crisp cel-shaded gacha anime ornamental card-back art, 640×800 portrait
 
 ### Booster Pack Front — `pack-art`
-- **Role:** The booster pack shown floating in `ShopScene` and torn open in `PackOpeningScene`. Today `bakePackArt` (`src/scenes/ShopScene.ts`, shared) paints a procedural 280×400 canvas displayed at 238×340: violet gradient (`#3a2a63` → `#1c1433` → `#4a1c4a`), gold border `#c9a84c`, dark crimp bands top/bottom (26px each at texture scale), a foil shimmer band, a triple gold diamond sigil — **and baked wordmark text ("Darling Blades" / "BOOSTER PACK" / pack contents), which the real art must NOT reproduce** (NO-TEXT rule; code re-stamps any wordmark over the PNG at integration time).
+- **Role:** The booster pack shown floating in `ShopScene` and torn open in `PackOpeningScene`. Today `bakePackArt` (`src/scenes/ShopScene.ts`, shared) paints a procedural 280×400 canvas displayed at 238×340: violet gradient (`#3a2a63` → `#1c1433` → `#4a1c4a`), gold border `#c9a84c`, dark crimp bands top/bottom (26px each at texture scale), a foil shimmer band, and a triple gold diamond sigil. **The pack face is intentionally text-free.**
 - **Deliverable:** 640×800 PNG (portrait).
 - **Mood & palette:** Product-hero continuity with the procedural pack: dark royal violet deepening toward top and bottom, gold trim, central radiant diamond sigil over a restrained violet-magenta nebula. This is the ONE asset allowed near card-art saturation — it's merchandise, not a stage.
-- **Composition & safe zones:** Integration cover-crops 640×800 → 560×800 (7:10), cutting **≈ 40 px off each side** — keep all trim and the sigil inside **x 40–600**. Keep the top and bottom **~52 px bands plain** (crimp zones; code overlays the crimps) and leave the upper-middle region (y ≈ 120–200 at deliverable scale) calm enough for a code-stamped wordmark.
+- **Composition & safe zones:** Integration cover-crops 640×800 → 560×800 (7:10), cutting **≈ 40 px off each side** — keep all trim and the sigil inside **x 40–600**. Keep the top and bottom **~52 px bands plain** because code overlays the crimp zones.
 - **Max luminance:** average ≤ 25 %; peak ≤ 70 % (sigil core / foil glints).
-- **Integration:** In `bakePackArt`, when the real texture is loaded, draw it cover-cropped into the 280×400 canvas inside the rounded clip (r 14), then re-stamp crimp bands and wordmark text over it; both consuming scenes pick it up automatically via the shared `packart` texture key.
-- **QA:** Verify the pack still reads as a sealed product (not a card) at 238×340 with the shine FX; crimp/wordmark zones plain; zero baked letterforms.
+- **Integration:** In `bakePackArt`, when the real texture is loaded, draw it cover-cropped into the 280×400 canvas inside the rounded clip (r 14), then re-stamp only the crimp bands over it; both consuming scenes pick it up automatically via the shared `packart` texture key.
+- **QA:** Verify the pack still reads as a sealed product (not a card) at 238×340 with the shine FX; crimp zones plain; zero baked letterforms.
 - **Prompt:** Booster pack front key art, a radiant golden diamond sigil floating over a restrained swirling violet and magenta nebula, ornate gold trim frame, faint sparkling foil glints, dark royal-violet field deepening toward the plain top and bottom edges, dramatic sealed-product presentation with no lettering — crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait
 
 ---
@@ -230,7 +230,7 @@ explicit depths start at 40 for arrows/overlays, all above).
 | `scene-showcase` | `CardShowcaseScene.create()` | gradient | `0x0b0812` @ 0.40 |
 | `scene-preload` | `BootScene` queues; `PreloadScene.preload()` displays | nothing | none |
 | `card-back` | `CardFrameFactory.bakeCardFrames()` — `cardback` canvas | procedural back painting | n/a (cover-crop 640×800 → 600×840, rounded clip r 34) |
-| `pack-art` | `ShopScene.bakePackArt()` — `packart` canvas | procedural pack painting | n/a (cover-crop 640×800 → 280×400, rounded clip r 14; crimps + wordmark re-stamped by code) |
+| `pack-art` | `ShopScene.bakePackArt()` — `packart` canvas | procedural pack painting | n/a (cover-crop 640×800 → 280×400, rounded clip r 14; crimps re-stamped by code) |
 
 Dim values are calibrated starting points, tuned per scene against the
 section-2 Max-luminance lines during integration — raise the dim before ever

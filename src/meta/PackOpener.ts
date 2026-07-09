@@ -36,7 +36,7 @@ export interface PackResult {
 }
 
 /**
- * Roll one booster: `ECONOMY.packSize` independent slots, each rolling tier →
+ * Roll one booster: `ECONOMY.boosterPackSize` independent slots, each rolling tier →
  * card → frame → holo (in that rng order — determinism depends on it). The
  * sr/ssr/ur slots are dupe-protected: while any card of that tier is owned
  * below a playset, only those cards are rolled. An empty tier pool falls back
@@ -46,7 +46,7 @@ export interface PackResult {
  */
 export function openPack(save: SaveData, db: CardDb, rng: RngState, set?: CardDef['set']): PackResult {
   const cards: AddResult[] = [];
-  for (let i = 0; i < ECONOMY.packSize; i++) {
+  for (let i = 0; i < ECONOMY.boosterPackSize; i++) {
     let tier = rollTier(rng);
     let pool = packPool(db, tier, set);
     while (pool.length === 0) {

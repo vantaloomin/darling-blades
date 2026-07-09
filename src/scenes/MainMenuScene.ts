@@ -24,6 +24,7 @@ import { VERSION_LABEL } from '../version';
 
 const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
   { label: 'Avatar Gauntlet', scene: 'Gauntlet' },
+  { label: 'Limited', scene: 'Limited' },
   { label: 'Practice — Easy', scene: 'Duel', data: { difficulty: 'easy' } },
   { label: 'Practice — Medium', scene: 'Duel', data: { difficulty: 'medium' } },
   { label: 'Practice — Hard', scene: 'Duel', data: { difficulty: 'hard' } },

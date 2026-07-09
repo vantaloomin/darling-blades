@@ -95,7 +95,7 @@ describe('seeded drop distribution', () => {
         holo[c.holo] = (holo[c.holo] ?? 0) + 1;
       }
     }
-    const n = packs * ECONOMY.packSize;
+    const n = packs * ECONOMY.boosterPackSize;
     const pct = (m: Record<string, number>, k: string): number => ((m[k] ?? 0) / n) * 100;
 
     const expectBand = (

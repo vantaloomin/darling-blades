@@ -1,25 +1,38 @@
-<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/scenes/AchievementsScene.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/collectionFilter.test.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-08 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/scenes/AchievementsScene.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/collectionFilter.test.ts, tests/meta/limited.test.ts, tests/meta/deckCode.test.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-08 · design/plan doc — re-verify when the referenced code changes -->
 
 # Road to 1.0 — feature plan
 
-> **Update (2026-07-08):** `SaveData` is now **v13**. Feature 1 (optional
+> **Update (2026-07-08):** `SaveData` is now **v15**. Feature 1 (optional
 > tutorial/onboarding) shipped as v9 → v10, Feature 5 (Achievements +
 > collection goals) shipped as v10 → v11, and the themed achievement follow-up
 > shipped as v11 → v12 (`gauntlet.clearStyles`). A later schema-free catalog pass
 > expanded Greek, Beastkin, and Ragnarök achievement coverage. Feature 2 (daily
-> quests + win streaks) shipped as v12 -> v13. The remaining 1.0 feature gaps in
-> this doc are Feature 3 (sealed first, draft stretch) and Feature 4 (deck share codes + deterministic
-> replays). Future migration numbers below should be read as "next free version
-> after v13" unless the feature section has already been marked shipped.
+> quests + win streaks) shipped as v12 -> v13, and Feature 3 (Sealed / Draft
+> Limited) shipped as v13 -> v14, and Feature 4 deck share codes shipped
+> schema-free. Per-deck hero images shipped as v14 -> v15. Deterministic replay
+> logs/viewer are deferred to 1.1/1.2. Future migration numbers below should be
+> read as "next free version after v15" unless
+> the feature section has already been marked shipped.
 
-Darling Blades is playable end-to-end, art-complete, and stable (534 tests pass
-+ 3 skip across 52 files, `SaveData` v13 - see the update note above). What separates the current build from a polished 1.0 is
+Darling Blades is playable end-to-end, art-complete, and stable (`SaveData` v15 -
+see the update note above). What separates the current build from a polished 1.0 is
 not more systems but the connective tissue that turns a working prototype into a
 game people keep coming back to: a **reason to log in tomorrow**, a **first
 session that teaches**, a **shareable moment**, a **content mode with high
 replay-to-effort ratio**, and the **goal scaffolding** that gives the 210-card
-pool meaning. The tutorial and goal scaffolding are now shipped; this doc keeps
-the shipped record plus the implementation plan for the remaining 1.0 gaps.
+pool meaning. The tutorial, goal scaffolding, Limited, and deck-share slice are
+now shipped; this doc keeps the shipped record plus the remaining polish gates.
+
+## Current 1.0 status (2026-07-08)
+
+The five 1.0 gameplay/product features are now implemented: tutorial/onboarding,
+daily quests + win streaks, Achievements + collection goals, Sealed / Bot Draft
+Limited, and deck share codes. The user-directed replay slice from Feature 4 is
+explicitly deferred to 1.1/1.2 and is not a launch blocker. What remains for a
+credible 1.0 is mostly polish and validation: economy tuning across quests /
+achievements / Limited, a by-ear/by-eye pass for audio and pack/foil/readability
+effects, the real-device mobile pass, and any final bug fixes found while
+playing through the now-complete loop.
 
 ## Feature 1 — Interactive tutorial + onboarding flow (shipped 2026-07-08)
 
@@ -177,164 +190,147 @@ This feature is almost entirely gate-able by vitest, which the repo rewards.
 gate quest gold against `ECONOMY` constants in `src/config/rules.ts` and keep
 daily inflow modest relative to pack cost.
 
-## Feature 3 — Sealed / Draft limited mode
+## Feature 3 - Sealed / Draft limited mode (shipped 2026-07-08)
 
 ### Problem
 
-The only deckbuilding today is 60-card Constructed from the owned collection
-(`src/meta/DeckStorage.ts` `validateDeck`). Limited (sealed/draft) is the
-highest replay-to-effort content type in the genre: it generates a fresh puzzle
-every run from the **existing 210-card pool and existing pack roller**, with no
-new content authoring. It also gives lapsed players a reason to duel that doesn't
-depend on their collection, and it exercises the whole card pool.
+The only deckbuilding outside Limited is 60-card Constructed from the owned
+collection (`src/meta/DeckStorage.ts` `validateDeck`). Limited gives players a
+fresh deckbuilding puzzle that does not depend on collection depth and reuses the
+existing card pool, rarity table, AI, and duel engine.
 
 ### Design
 
-**Sealed** (v1 of the mode): open six seeded boosters, build a **40-card minimum**
-deck from that pool plus unlimited basics, then run a short 3-duel gauntlet
-against difficulty-scaled AI drafting from comparable pools. **Draft** (v2 stretch)
-adds pick-one-pass over 3 packs. Rewards scale with wins. Sealed is the smaller
-first slice because it skips the pick-loop UI.
+Shipped as `SaveData` **v13 -> v14**. The implemented 1.0 Limited mode includes
+both **Sealed** and **Bot Draft**. Sealed opens six seeded temporary boosters.
+Draft seats the player with seven deterministic bots for three pick-one-pass
+packs, passing left/right/left. Both modes build from an ephemeral run pool plus
+unlimited basics, require an **exactly 40-card** deck, then play a three-match,
+no-elimination run against easy/medium/hard AI. Limited cards never enter the
+permanent collection; rewards are gold, stats, best records, and history entries.
 
 ### Architecture fit
 
-- **Reuse `PackOpener`** (`src/meta/PackOpener.ts`) with a run seed to roll the
-  sealed pool — but into a **temporary run pool, not the collection** (do not fold
-  into `collection`/`collectionVariants`). This means a new `rollSealedPool(seed,
-  count)` sibling that returns cards without the collection side-effect.
-- **New deck validator** `validateLimitedDeck` in `DeckStorage.ts`: 40-card
-  minimum, cards restricted to the run pool + basics, ≤4 non-basic copies
-  (naturally satisfied by pool scarcity), no tokens — mirrors `validateDeck`'s
-  shape so the DeckBuilder can be reused with a mode flag.
-- **AI opponents**: reuse `src/ai/` brains; give the AI a **seeded auto-built**
-  limited deck from a sibling pool via a simple curve heuristic (a new
-  `buildLimitedDeck(pool, colors)` in `src/data/` — pure, testable), so no hand-
-  authored decklists are needed.
-- **New scenes/flow**: `src/scenes/LimitedScene.ts` for pool-open + build (reusing
-  DeckBuilder grid components and `CardThumbCache`), then routes into `DuelScene`
-  with the temporary deck passed in `scene.start` data — the Duel init contract
-  (`{ difficulty?, opponentId?, gauntletRung? }`) extends with an optional
-  `adhocDeck` field.
+- `src/meta/Limited.ts` owns side-effect-free pack rolling, sealed pools, bot
+  draft state transitions, AI pick scoring, limited auto-builds, and duel launch
+  payloads.
+- `validateLimitedDeck` in `DeckStorage.ts` enforces exactly 40 cards, run-pool
+  counts, unlimited basics, and no tokens.
+- `applyLimitedMatchResult` in `Economy.ts` records stats/first-win state and pays
+  `ECONOMY.limitedRunGold` after match 3.
+- `LimitedScene`, `LimitedRevealScene`, `LimitedDraftScene`, and
+  `LimitedDeckBuilderScene` cover the player flow, then `DuelScene` uses existing
+  deck overrides plus a Limited result marker.
 
 ### SaveData impact
 
-An active sealed run is transient run state, but persisting it across app close is
-nice: **future v15 in the current sequence** (or the next free version when
-implemented) adds `save.limited = { run: { seed, pool, deck, wins, losses } |
-null, bestWins: number }`. Migration defaults `null`. A completed run's rewards
-fold into `gold`/`collection` through the normal Economy path.
+`SaveData` v14 adds `limited: { activeRun, history, bestSealedWins,
+bestDraftWins }`. Active runs persist mode, seed, temporary pool/draft state,
+deck, match index, record, opponent seeds, and opponent decks. Migration defaults
+to no active run and empty history.
 
 ### Determinism considerations
 
-Because the pool is rolled from a stored `seed` via the deterministic roller, a
-run **survives reload byte-identically** — reopen the app mid-build and the same
-pool is regenerated. AI limited decks are seeded off the run seed too, so a given
-run is fully reproducible (and testable).
+Pools, draft packs, bot picks, AI pools, and duel seeds all derive from the stored
+run seed plus compact active-run state, so a run survives reload byte-identically.
+Limited uses the existing deterministic duel engine through deck overrides; no
+engine fork was added.
 
 ### Phased build plan
 
-1. **Milestone A:** `rollSealedPool` + `validateLimitedDeck` + `buildLimitedDeck`
-   pure cores with tests. No UI.
-2. **Milestone B:** `LimitedScene` pool-open + build, `adhocDeck` Duel plumbing,
-   playable sealed run against auto-built AI.
-3. **Milestone C:** run persistence (v15 in the current sequence), reward curve,
-   MainMenu entry.
-4. **Milestone D (stretch):** pick-one-pass draft UI.
+1. **Shipped:** pure Limited core, validation, auto-build, rewards, and save v14.
+2. **Shipped:** Sealed reveal, Bot Draft picker, Limited deck builder, MainMenu
+   entry, and DuelScene result routing.
+3. **Future polish:** richer card-grid reuse, draft pick animation, and Limited
+   achievement hooks once more run-history goals are desired.
 
 ### Test strategy
 
-Deterministic pool roll (seed → fixed pool), limited-deck validation edges
-(39-card reject, off-pool reject, basics allowed), auto-build legality +
-termination (mirrors `starterDecks.test.ts`), and an AI-can-complete smoke on a
-seeded pool. A **win-rate sanity check** on auto-built decks keeps the mode from
-being unwinnable or trivial — reuse the balance-matrix harness.
+Covered by `tests/meta/limited.test.ts` and migration coverage in
+`tests/meta/meta.test.ts`: deterministic pack/sealed rolls, validation edges,
+bot draft pass/pick determinism, completed draft pools, 40-seed auto-build
+legality, Limited reward/history behavior, and v13 -> v14 migration.
 
 ### Effort / risk
 
-**Large effort, medium risk.** The biggest of the five, but almost all leverage
-comes from existing systems (roller, validator, DeckBuilder, AI). Risk: auto-
-built AI limited decks being weak; mitigate with the balance harness and a curve
-heuristic tuned like the gauntlet baselines in `src/data/opponents.ts`.
+**Shipped, medium residual risk.** Determinism and legality are covered; the
+remaining risk is balance texture for auto-built limited decks, which can be
+tuned with the balance harness after more play data.
 
-## Feature 4 — Deterministic replays + deck share codes
+## Feature 4 - Deck share codes (shipped 2026-07-08; replays deferred)
 
 ### Problem
 
-The engine is **seeded and fully deterministic** — `(decklists, seed, action
-sequence) → identical GameState + event stream` (architecture.md, the iron rule;
-`src/engine/rng.ts` lives in state and clones with it). This is a gift the game
-currently doesn't cash in. There is no way to **re-watch a great game**, **share a
-deck**, or **report a bug reproducibly**. All three are near-free given the
-determinism guarantee, and all three matter for a shareable, community-friendly
-1.0.
+The game had multiple saved decks but no low-friction way to share one. For 1.0,
+the required shareability slice is deck export/import: a player can copy a code
+from Deck Builder and another player can paste it into their Deck Builder, with
+normal ownership and legality rules enforced on import.
+
+Deterministic replay logs/viewer remain valuable, but they are now explicitly
+deferred to 1.1/1.2 instead of gating 1.0.
 
 ### Design
 
-Two related capabilities:
+Shipped as a schema-free pure meta feature:
 
-1. **Replays** — record `{ seed, deckA, deckB, actions[] }` for a completed duel,
-   then play it back move-by-move in a viewer. Because replay = re-simulation, the
-   stored artifact is tiny (a seed + an action list), not a video or a state dump.
-2. **Deck share codes** — encode a decklist as a compact copy-paste string
-   (base64 over a card-id + count list) so players can trade decks out-of-band.
-   Import validates through the existing `validateDeck`.
+- `src/meta/DeckCode.ts` encodes a decklist into a shorter versioned
+  `DBD2-...` code, while still importing legacy `DBD1-...` codes. It decodes
+  pasted codes into either `{ ok: true, cards }` or a friendly error.
+- Codes preserve exact deck order and compress consecutive duplicate ids.
+- Deck Builder has styled **Export Code** and **Import Code** buttons. Export
+  requires a legal constructed deck; import decodes, then validates through
+  `DeckStorage.validateDeck` so unowned cards, too many copies, wrong deck size,
+  tokens, and unknown ids are rejected.
+- Import updates the editor and leaves the existing **Save Deck** button as the
+  explicit persistence step.
 
 ### Architecture fit
 
-- **Replay recorder** `src/meta/Replay.ts` (Phaser-free): a `ReplayLog` type
-  `{ seed, decks: [string[], string[]], actions: {player, action}[] }` and a
-  recorder that `DuelScene` appends to on every `submit`. Playback constructs a
-  fresh `Game` from the same seed + decks (the constructor already takes
-  `{ decks, seed, db }`) and replays the action list, emitting the same event
-  batches into a read-only `DuelScene` variant (input disabled, auto-advance).
-- **Determinism is the whole trick**: no state snapshots needed — cite
-  `src/engine/rng.ts` (RNG in state) and `Game.clone()`/`restore`. If the engine
-  is ever changed in a way that breaks replay of an old log, that's caught by a
-  golden-replay test (see below), which doubles as a determinism regression guard.
-- **Deck codes** `src/meta/DeckCode.ts` (pure): `encodeDeck(cards[]) → string`
-  and `decodeDeck(string) → cards[] | error`. Import routes through
-  `DeckStorage.validateDeck`. UI surface: a copy/paste pair of buttons in the
-  DeckBuilder scene.
-- **UI surfaces**: a "Save replay" prompt on the game-over overlay in
-  `DuelScene`, a **Replays list** on the MainMenu (or a tab in Collection) that
-  launches the read-only viewer; DeckBuilder gets Export/Import code buttons.
+- **Deck codes** are pure and browser-free below the scene layer. They do not
+  import Phaser, `CARD_DB`, save state, or browser clipboard APIs.
+- **DeckBuilderScene** owns the styled copy/paste UI and routes import through
+  the existing constructed validator.
+- **Future replay work** should use a separate `src/meta/Replay.ts` module and a
+  replay-specific save migration when it returns in 1.1/1.2.
 
 ### SaveData impact
 
-**Future v14 in the current sequence** (or the next free version when
-implemented): `save.replays: ReplayLog[]` (cap to the last ~10, FIFO, since each
-is tiny) and nothing for deck codes (they're transient strings). Migration
-defaults `[]`. A guard caps stored replays so the blob can't grow unbounded.
+No schema bump. Deck codes are transient strings and import into the existing
+deck editor/save flow.
+
+Future replay persistence should use the next free version after v15, likely
+`save.replays: ReplayLog[]` capped to a small FIFO list, plus a migration test.
 
 ### Determinism considerations
 
-This feature is *only possible* because of the iron determinism rule and is its
-strongest advertisement. It also hardens it: the golden-replay test pins engine
-behavior. One caveat — a replay recorded on one `CARD_DB` version may diverge if a
-card's rules text changes; store a small `dbVersion` stamp and refuse to play back
-mismatched logs with a friendly message rather than desyncing.
+Deck codes do not depend on engine determinism; they only serialize card ids.
+Future deterministic replays remain the stronger determinism showcase and should
+store a `dbVersion` stamp so card-rule drift can fail gracefully.
 
 ### Phased build plan
 
-1. **Milestone A:** `DeckCode.ts` encode/decode + DeckBuilder buttons (smallest,
-   independently shippable, immediately useful).
-2. **Milestone B:** `Replay.ts` recorder wired into `DuelScene.submit`; save the
-   last game as a log; golden-replay test.
-3. **Milestone C:** read-only replay viewer scene + MainMenu Replays list + v14
-   persistence + `dbVersion` guard.
+1. **Shipped:** `DeckCode.ts` encode/decode + DeckBuilder export/import buttons.
+2. **Deferred to 1.1/1.2:** `Replay.ts` recorder wired into `DuelScene.submit`;
+   save the last game as a log; golden-replay test.
+3. **Deferred to 1.1/1.2:** read-only replay viewer scene + MainMenu Replays list
+   + replay persistence + `dbVersion` guard.
 
 ### Test strategy
 
-Headless: deck-code round-trip (`decode(encode(x)) === x`), malformed-code
-rejection, and the **golden replay** — a recorded log replays to a byte-identical
-final `GameState` (this is the marquee determinism test). Migration test for the
-replay save-version bump.
+Covered in `tests/meta/deckCode.test.ts`: exact round-trip, non-consecutive
+duplicate preservation, whitespace-tolerant paste, malformed-code rejection,
+friendly error strings, and validation of decoded imports through constructed
+deck ownership rules.
+
+Future replay work still needs the **golden replay** test: a recorded log replays
+to a byte-identical final `GameState`, plus migration coverage for replay
+persistence.
 
 ### Effort / risk
 
-**Deck codes: small. Replays: medium.** Low risk because it rides the existing
-determinism guarantee. Risk: engine/db-version drift breaking old logs — handled
-by the `dbVersion` stamp and a graceful refusal.
+**Deck codes shipped, low risk.** The remaining replay slice is medium risk and
+post-1.0; its main risk is engine/db-version drift breaking old logs, handled by
+the future `dbVersion` stamp and graceful refusal.
 
 ## Feature 5 — Achievements + collection goals (shipped 2026-07-08)
 
@@ -440,20 +436,18 @@ cosmetics.
 
 Order by dependency and leverage, not size:
 
-1. **Tutorial (Feature 1)** — shipped 2026-07-08 as `SaveData` v10.
-2. **Achievements + collection goals (Feature 5)** — shipped 2026-07-08 as
+1. **Tutorial (Feature 1)** - shipped 2026-07-08 as `SaveData` v10.
+2. **Achievements + collection goals (Feature 5)** - shipped 2026-07-08 as
    `SaveData` v11, with themed achievement history shipped as v12.
-3. **Daily quests + streak (Feature 2)** — shipped 2026-07-08 as `SaveData` v13.
-4. **Replays + deck codes (Feature 4)** next — ship the deck-code half
-   early because it is small and independently useful; the replay viewer can
-   trail.
-5. **Sealed / Draft (Feature 3)** last — the largest remaining feature, with
-   draft explicitly stretch after sealed.
+3. **Daily quests + streak (Feature 2)** - shipped 2026-07-08 as `SaveData` v13.
+4. **Sealed / Draft Limited (Feature 3)** - shipped 2026-07-08 as `SaveData` v14.
+5. **Deck share codes (Feature 4)** - shipped 2026-07-08 schema-free; the
+   deterministic replay viewer is deferred to 1.1/1.2.
+6. **Per-deck hero images** - shipped 2026-07-08 as `SaveData` v15.
 
-The remaining `SaveData` version walk starts at **v13**. A clean order would be
-replays/deck codes v14 and sealed v15. If two features ship together,
-fold their fields into one bump rather than skipping versions. Every migration
-ships with a test, per the iron invariant.
+The remaining `SaveData` version walk starts at **v15**. Post-1.0 replays use
+the next free version if they persist replay history. Every migration ships with
+a test, per the iron invariant.
 
 ## Definition of 1.0
 
@@ -464,43 +458,31 @@ Darling Blades is release-ready when:
 - **There is a daily reason to return** — daily quests + streak give a fresh,
   seeded goal every calendar day. Shipped in v13.
 - **The card pool has a purpose beyond the gauntlet** — achievements/collection
-  goals are shipped; Limited mode remains the larger replayable content gap.
-- **Great games and great decks are shareable** — replays and deck codes turn
-  the determinism guarantee into social currency.
+  goals and Limited mode are shipped.
+- **Great decks are shareable** — deck codes provide copy/paste deck export and
+  import through the normal constructed validator. Deterministic game replays are
+  deferred to 1.1/1.2.
 - **The polish backlog is closed** — the by-ear/by-eye music/FX pass and the
   real-device mobile pass (both already tracked in roadmap.md's Planned section)
   are done.
 - **The invariants still hold** — engine purity, redacted views, seeded
-  determinism, and green migrations/tests through the whole version walk (the
-  remaining walk starts from live `SaveData` v13).
+  determinism, and green migrations/tests through the whole version walk.
 
-Deliberately **out of scope for 1.0** (post-launch): Tier-2 LAN PvP (already
-deferred in mobile-lan-plan.md), draft (the pick-loop; sealed ships first), and a
-full story campaign (the tutorial + gauntlet + sealed cover single-player content
+Deliberately **out of scope for 1.0** (post-launch): deterministic replay
+logs/viewer, Tier-2 LAN PvP (already deferred in mobile-lan-plan.md), human
+multiplayer draft, and a
+full story campaign (the tutorial + gauntlet + Limited cover single-player content
 adequately for launch).
 
 ## Open questions / decisions for the user
 
-1. **Economy tuning** — daily-quest and achievement gold inflow must be set
-   against `ECONOMY` in `src/config/rules.ts`. Do you want cosmetic-only rewards
-   for most achievements (economy-safe) or meaningful gold grants (faster
-   progression, inflation risk)?
-2. **Sealed rewards folding into the collection** — should sealed pulls be
-   *kept* (fold the run pool into `collection` as a reward, powerful economy
-   boost) or *ephemeral* (pool discarded at run end, pure gameplay)? This changes
-   the SaveData shape and the economy math.
-3. **Replay storage cap** — is last-10 acceptable, or do you want an explicit
+1. **Economy tuning** - daily-quest, achievement, and Limited gold inflow should
+   stay modest relative to `ECONOMY` pack costs.
+2. **Replay storage cap (post-1.0)** - is last-10 acceptable, or do you want an explicit
    "pin favorite" so a great game survives the FIFO? Affects the future replay
    blob size.
-4. **Migration cadence** — the remaining features likely mean v13–v15 if shipped
-   separately; if features ship in one session, do you want them folded into
-   fewer bumps?
-   (Noted as a dependency, not edited here — `src/meta/SaveManager.ts` owns the
-   chain.)
-5. **Tutorial hard-gating** — force the tutorial on first run, or make it a
-   skippable prompt? Hard-gating helps retention data but annoys returning-genre
-   veterans; the first-run predicate supports either.
-6. **`dbVersion` stamp for replays** — this requires a version constant somewhere
-   in `src/data/` that bumps when card rules text changes. That's a new
-   discipline; confirm you want replays to hard-refuse cross-version playback
-   rather than best-effort.
+3. **Migration cadence** - post-1.0 replay persistence likely means v15+.
+4. **Tutorial hard-gating** - force the tutorial on first run, or keep the
+   shipped skippable prompt?
+5. **`dbVersion` stamp for replays** - confirm whether replays should
+   hard-refuse cross-version playback rather than best-effort playback.

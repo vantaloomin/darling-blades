@@ -78,7 +78,7 @@ function bakeProceduralPackBase(ctx: CanvasRenderingContext2D): void {
 /**
  * Real pack-art (docs/scene-art.md `pack-art`): cover-crop the 640×800 source
  * into the 280×400 canvas inside the rounded clip (r 14). The art is text-free
- * (NO-TEXT rule); the crimps + wordmark are code-stamped over it afterward.
+ * (NO-TEXT rule); only the crimp bands are code-stamped over it afterward.
  */
 function bakeRealPackBase(
   scene: Phaser.Scene,
@@ -105,25 +105,19 @@ function bakeRealPackBase(
 
 export interface PackArtOpts {
   key?: string; // texture key (default 'packart')
-  wordmark?: string; // hero line (default 'Darling Blades')
-  subtitle?: string; // sub line (default 'BOOSTER PACK')
   sceneArtKey?: string; // real-art source key (default 'scene-pack-art')
-  footer?: string; // bottom crimp line
 }
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
  * art when the `sceneArtKey` PNG is on disk, else the procedural pack. The
- * crimp bands + code-stamped wordmark are re-stamped over BOTH (the real art is
- * text-free), so the pack always reads as a sealed product. Parameterized so a
- * second SKU (the Ragnarök expansion booster) bakes its own texture.
+ * crimp bands are re-stamped over BOTH so the pack reads as sealed product,
+ * but the face stays text-free. Parameterized so a second SKU (the Ragnarök
+ * expansion booster) bakes its own texture.
  */
 export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
   const key = opts.key ?? 'packart';
-  const wordmark = opts.wordmark ?? 'Darling Blades';
-  const subtitle = opts.subtitle ?? 'BOOSTER PACK';
   const sceneArtKey = opts.sceneArtKey ?? 'scene-pack-art';
-  const footer = opts.footer ?? '15 cards — 5 tiers · 6 frames · 6 finishes';
   if (scene.textures.exists(key)) return;
   const W = PACK_W;
   const H = PACK_H;
@@ -136,21 +130,11 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
     bakeProceduralPackBase(ctx);
   }
 
-  // Crimp bands + wordmark, always code-stamped over the base (the plain
-  // top/bottom bands the art leaves for exactly this).
+  // Crimp bands, always code-stamped over the base so real and procedural pack
+  // art share the same sealed-wrapper silhouette without adding text.
   ctx.fillStyle = '#241c3d';
   ctx.fillRect(2, 2, W - 4, 26);
   ctx.fillRect(2, H - 28, W - 4, 26);
-  ctx.textAlign = 'center';
-  ctx.font = '700 34px Cinzel, Georgia, serif';
-  ctx.fillStyle = '#ffe9a0';
-  ctx.fillText(wordmark, W / 2, 130);
-  ctx.font = '600 17px Inter, Arial, sans-serif';
-  ctx.fillStyle = '#c9bde0';
-  ctx.fillText(subtitle, W / 2, 158);
-  ctx.font = '600 14px Inter, Arial, sans-serif';
-  ctx.fillStyle = '#8f83a8';
-  ctx.fillText(footer, W / 2, H - 44);
   tex.refresh();
 }
 
@@ -223,10 +207,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this); // base pack ('packart')
     bakePackArt(this, {
       key: 'packart-ragnarok',
-      wordmark: 'Ragnarök',
-      subtitle: 'EXPANSION BOOSTER',
       sceneArtKey: 'scene-pack-art-ragnarok',
-      footer: '15 cards — Ragnarök set only',
     });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');

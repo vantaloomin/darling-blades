@@ -1,4 +1,5 @@
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
+import { freshLimitedState, type LimitedState } from './Limited';
 import { PLAIN_VARIANT, variantKey } from './variants';
 
 /** Active gauntlet run state; null when no run is in progress. */
@@ -43,8 +44,16 @@ export interface DailyState {
   };
 }
 
+export interface SavedDeck {
+  id: string;
+  name: string;
+  cards: string[];
+  /** Per-deck hero card art for the commander portrait. `null` = auto/default. v15 addition. */
+  heroCardId: string | null;
+}
+
 export interface SaveData {
-  version: 13;
+  version: 15;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -53,20 +62,21 @@ export interface SaveData {
    * Invariant: per-card variant counts sum to `collection[cardId]`.
    */
   collectionVariants: Record<string, Record<string, number>>;
-  decks: { id: string; name: string; cards: string[] }[];
+  decks: SavedDeck[];
   activeDeckId: string | null;
   starterChosen: string | null;
   /**
-   * Player-chosen "hero" card whose art fronts the in-duel commander portrait
-   * (any collected card). `null` = auto-derive from the active deck's face
-   * (src/meta/deckFace.ts `faceCardFor`), the pre-v6 behavior.
+   * Legacy/default player-chosen hero card. Deck-specific `SavedDeck.heroCardId`
+   * takes precedence; this remains as a fallback for older choices and the
+   * Collection-scene default hero action.
    */
   heroCardId: string | null;
   /**
    * Player-chosen PREMIUM hero portrait (src/data/heroes.ts) — a bespoke,
    * non-card illustration unlocked only by owning its theme deck. Takes
-   * precedence over `heroCardId` in the duel. `null` = none selected. v9
-   * addition.
+   * precedence over the fallback `heroCardId` in the duel unless the active
+   * saved deck has its own `SavedDeck.heroCardId`. `null` = none selected.
+   * v9 addition.
    */
   heroPortraitId: string | null;
   /**
@@ -88,6 +98,12 @@ export interface SaveData {
    * player wins at least one duel that day. v13 addition.
    */
   daily: DailyState;
+  /**
+   * Road-to-1.0 Limited mode. Cards opened/drafted here are ephemeral and never
+   * enter collection; only active run state, compact history, and best records
+   * persist. v14 addition.
+   */
+  limited: LimitedState;
   stats: {
     wins: number;
     losses: number;
@@ -137,7 +153,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 13,
+    version: 15,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -150,6 +166,7 @@ export function freshSave(now: number): SaveData {
     tutorialDone: false,
     achievements: freshAchievements(),
     daily: freshDailyState(dayStringFromTimestamp(now)),
+    limited: freshLimitedState(),
     stats: {
       wins: 0,
       losses: 0,
@@ -201,7 +218,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 13) return parsed as SaveData;
+      if (parsed.version === 15) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -225,8 +242,9 @@ export class SaveManager {
    * (default on); v8 → v9 adds `heroPortraitId` (null = no premium hero);
    * v9 → v10 adds `tutorialDone` (false for a fresh/zero-record save, true for
    * any player with a win/loss record); v10 → v11 adds achievements; v11 → v12
-   * adds gauntlet clear-style counters; v12 -> v13 adds daily quests/streaks. An
-   * unknown/garbage version starts fresh rather than crash.
+   * adds gauntlet clear-style counters; v12 -> v13 adds daily quests/streaks;
+   * v13 -> v14 adds Limited runs/history; v14 -> v15 adds per-deck hero card
+   * selections. An unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
@@ -379,7 +397,22 @@ export class SaveManager {
         daily: freshDailyState(dayStringFromTimestamp(now)),
       };
     }
-    if (cur.version === 13) return cur as unknown as SaveData;
+    if (cur.version === 13) {
+      cur = {
+        ...cur,
+        version: 14,
+        limited: freshLimitedState(),
+      };
+    }
+    if (cur.version === 14) {
+      const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
+      cur = {
+        ...cur,
+        version: 15,
+        decks: normalizeSavedDecks(cur.decks, legacyHero),
+      };
+    }
+    if (cur.version === 15) return cur as unknown as SaveData;
     return freshSave(now);
   }
 
@@ -417,4 +450,24 @@ export class SaveManager {
     this.storage.removeItem(LEGACY_KEY);
     Object.assign(this.data, freshSave(now));
   }
+}
+
+function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): SavedDeck[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((raw): SavedDeck | null => {
+      if (!raw || typeof raw !== 'object') return null;
+      const deck = raw as { id?: unknown; name?: unknown; cards?: unknown; heroCardId?: unknown };
+      if (typeof deck.id !== 'string' || typeof deck.name !== 'string' || !Array.isArray(deck.cards)) return null;
+      const cards = deck.cards.filter((id): id is string => typeof id === 'string');
+      const explicitHero = typeof deck.heroCardId === 'string' ? deck.heroCardId : null;
+      const migratedHero = explicitHero ?? (defaultHeroCardId && cards.includes(defaultHeroCardId) ? defaultHeroCardId : null);
+      return {
+        id: deck.id,
+        name: deck.name,
+        cards,
+        heroCardId: migratedHero && cards.includes(migratedHero) ? migratedHero : null,
+      };
+    })
+    .filter((deck): deck is SavedDeck => deck !== null);
 }

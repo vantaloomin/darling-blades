@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { DROPS } from '../config/rules';
+import { DROPS, ECONOMY } from '../config/rules';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 
 // Design-space constants, NOT scene.scale (render scale shows the 1280×720
@@ -65,7 +65,7 @@ export class OddsDrawer {
       })
       .setOrigin(0, 0);
     const sub = scene.add
-      .text(24, 92, 'per card · 15 cards per pack', {
+      .text(24, 92, `per card · ${ECONOMY.boosterPackSize} cards per pack`, {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '12px',
         color: '#8f83a8',

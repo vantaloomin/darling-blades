@@ -30,6 +30,7 @@ import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestur
 import { FilterBar, TIER_TEXT_COLOR } from '../ui/binder/FilterBar';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardView } from '../ui/CardView';
+import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
@@ -431,6 +432,7 @@ export class CollectionScene extends Phaser.Scene {
     const view = new CardView(this, 450, 360);
     view.setScale(1.35).setCard(d, shown ? { fx: 'full', variant: shown } : { fx: 'full' });
     c.add(view);
+    addKeywordGlossaryPanel(this, c, d, { x: 58, y: 156, width: 170 });
 
     // Holo pointer feed — stored so closeInspect can unhook it (the
     // pre-rewrite scene leaked one of these per inspect).
@@ -499,7 +501,7 @@ export class CollectionScene extends Phaser.Scene {
       restyle();
     }
 
-    // Card actions (owned cards only): choose this card as your hero portrait.
+    // Card actions (owned cards only): choose this card as the fallback hero portrait.
     if (owned > 0) this.addInspectActions(c, d);
 
     c.add(
@@ -545,8 +547,8 @@ export class CollectionScene extends Phaser.Scene {
 
   /**
    * Owned-card actions in the inspect overlay (right column, below the variant
-   * list): pick this card as your hero portrait (any collected card fronts the
-   * in-duel commander — src/ui/CommanderPortrait.ts). `heroCardId === id` toggles.
+   * list): pick this card as the fallback hero portrait for decks without their
+   * own starred hero. `heroCardId === id` toggles.
    */
   private refreshGold(): void {
     this.goldText.setText(`🪙 ${Services.save.data.gold}`);
@@ -560,7 +562,7 @@ export class CollectionScene extends Phaser.Scene {
     // rows above (≤ 582) and the non-interactive close hint below.
     const save = Services.save.data;
     const heroLabel = (): string =>
-      save.heroCardId === d.id ? '★ Hero — tap to clear' : '☆ Set as hero';
+      save.heroCardId === d.id ? '★ Default hero — tap to clear' : '☆ Set default hero';
     const heroColor = (): string => (save.heroCardId === d.id ? '#ffd44a' : '#c9bde0');
     const heroBtn = this.overlayChip(c, panelX, 620, heroLabel(), heroColor(), () => {
       save.heroCardId = save.heroCardId === d.id ? null : d.id;

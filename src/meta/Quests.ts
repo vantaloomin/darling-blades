@@ -103,12 +103,12 @@ function countTokens(events: readonly GameEvent[]): number {
   return events.filter((e) => e.e === 'tokenCreated' && e.perm.controller === HUMAN).length;
 }
 
-function countMilled(events: readonly GameEvent[], player: 0 | 1): number {
-  return events.filter((e) => e.e === 'milled' && e.player === player).length;
-}
-
 function countDiscarded(events: readonly GameEvent[], player: 0 | 1): number {
   return events.filter((e) => e.e === 'discarded' && e.player === player).length;
+}
+
+function countDraws(events: readonly GameEvent[], player: 0 | 1): number {
+  return events.filter((e) => e.e === 'drew' && e.player === player).length;
 }
 
 function hasColor(color: Color): (d: CardDef) => boolean {
@@ -290,12 +290,12 @@ export const DAILY_QUESTS: readonly DailyQuestDef[] = [
     count: countTokens,
   },
   {
-    id: 'mill-8',
-    title: 'Grind the Future',
-    description: 'Mill 8 enemy cards.',
-    target: 8,
+    id: 'draw-12',
+    title: 'Keep the Edge',
+    description: 'Draw 12 cards.',
+    target: 12,
     rewardGold: ECONOMY.dailyQuestGold,
-    count: (events) => countMilled(events, AI),
+    count: (events) => countDraws(events, HUMAN),
   },
   {
     id: 'discard-2',
