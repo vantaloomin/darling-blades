@@ -10,6 +10,18 @@ describe('progression simulation harness', () => {
     expect(PLAYER_PERSONAS).toHaveLength(10);
     expect(new Set(PLAYER_PERSONAS.map((p) => p.id)).size).toBe(10);
     expect(new Set(PLAYER_PERSONAS.map((p) => p.name)).size).toBe(10);
+    expect(PLAYER_PERSONAS.map((p) => p.name)).toEqual([
+      'New Casual',
+      'Daily Grinder',
+      'Gauntlet Climber',
+      'Limited Fan',
+      'Collector',
+      'Theme Deck Buyer',
+      'Hardcore Optimizer',
+      'Low Skill Casual',
+      'High Skill Veteran',
+      'Completionist',
+    ]);
   });
 
   it('runs deterministically across fixed seeds', () => {
@@ -22,5 +34,18 @@ describe('progression simulation harness', () => {
     expect(a.aggregates).toEqual(b.aggregates);
     expect(a.snapshots).toHaveLength(personas.length);
     expect(renderProgressionReport(a)).toContain('VERDICT:');
+    expect(a.snapshots[0]).toMatchObject({
+      goldNet: expect.any(Number),
+      collectionSize: expect.any(Number),
+      uniqueCards: expect.any(Number),
+      duplicateRefundGold: expect.any(Number),
+      dailyQuestCompletions: expect.any(Number),
+      dailyQuestClaims: expect.any(Number),
+      streakLength: expect.any(Number),
+      achievementsUnlocked: expect.any(Number),
+      achievementsClaimed: expect.any(Number),
+      limitedRuns: expect.any(Number),
+      sessionMinutes: expect.any(Number),
+    });
   });
 });
