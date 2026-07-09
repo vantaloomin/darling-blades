@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { CardDef, Keyword } from '../engine/types';
 import { KEYWORD_NAMES, KEYWORD_REMINDER } from './rulesText';
+import { theme } from './theme';
 
 interface KeywordGlossaryOpts {
   x: number;
@@ -27,16 +28,16 @@ export function addKeywordGlossaryPanel(
 
   parent.add(
     scene.add
-      .rectangle(opts.x, opts.y, opts.width, height, 0x151122, 0.94)
+      .rectangle(opts.x, opts.y, opts.width, height, theme.graphics.panelFill, theme.alpha.panel)
       .setOrigin(0, 0)
-      .setStrokeStyle(1, 0x6f5aa8, 0.72),
+      .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.chrome),
   );
   parent.add(
     scene.add
       .text(opts.x + pad, opts.y + 18, opts.title ?? 'Keyword Guide', {
-        fontFamily: 'Cinzel, Georgia, serif',
+        fontFamily: theme.fonts.display,
         fontSize: compact ? '14px' : '17px',
-        color: '#f0e6ff',
+        color: theme.colors.heading,
       })
       .setOrigin(0, 0.5),
   );
@@ -46,19 +47,19 @@ export function addKeywordGlossaryPanel(
     parent.add(
       scene.add
         .text(opts.x + pad, rowY + 10, KEYWORD_NAMES[keyword], {
-          fontFamily: 'Inter, Arial, sans-serif',
+          fontFamily: theme.fonts.ui,
           fontSize: compact ? '12px' : '13px',
-          fontStyle: '700',
-          color: '#ffd88a',
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
         })
         .setOrigin(0, 0),
     );
     parent.add(
       scene.add
         .text(opts.x + pad, rowY + 30, KEYWORD_REMINDER[keyword], {
-          fontFamily: 'Inter, Arial, sans-serif',
+          fontFamily: theme.fonts.ui,
           fontSize: compact ? '11px' : '12px',
-          color: '#c9bde0',
+          color: theme.colors.body,
           lineSpacing: 2,
           wordWrap: { width: opts.width - pad * 2 },
         })

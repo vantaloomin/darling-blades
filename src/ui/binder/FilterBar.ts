@@ -8,24 +8,14 @@ import {
 import { TIER_LABEL } from '../../meta/variants';
 import { bindTapButton, inflateHitArea } from '../../platform/gestures';
 import { Dropdown, type DropdownOption } from '../Dropdown';
+import { TIER_TEXT_COLOR, theme } from '../theme';
 
 /**
  * Tier text colours for chips and binder badges — the light stops of
  * CardFrameFactory's gem palette (c lightened from the near-black gem grey so
  * it reads on the dimmed backdrop).
  */
-export const TIER_TEXT_COLOR: Record<Rarity, string> = {
-  c: '#9aa0ab', // grey (gem-c is #2b2b30)
-  r: '#dfe6f2', // silver-blue (gem-r)
-  sr: '#ffe08a', // gold (gem-sr)
-  ssr: '#d9a8ff', // violet (gem-ssr)
-  ur: '#ff9a8a', // crimson (gem-ur)
-};
-
-const PILL_BG = '#241d3a';
-const PILL_BG_ACTIVE = '#5a4390';
-const PILL_FG = '#c9bde0';
-const PILL_FG_ACTIVE = '#ffffff';
+export { TIER_TEXT_COLOR };
 
 /**
  * The Collection binder's control bar. Modern dropdowns (one per facet — set /
@@ -120,11 +110,11 @@ export class FilterBar {
     // Owned toggle — a pill, since it is boolean, not a select.
     this.ownedPill = scene.add
       .text(955, y, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
+        fontFamily: theme.fonts.ui,
         fontSize: '13px',
-        fontStyle: '600',
-        color: PILL_FG,
-        backgroundColor: PILL_BG,
+        fontStyle: theme.weight.w600,
+        color: theme.colors.body,
+        backgroundColor: theme.colors.btnGhostBg,
         padding: { x: 12, y: 6 },
       })
       .setOrigin(0, 0.5)
@@ -158,8 +148,8 @@ export class FilterBar {
   private refreshOwned(): void {
     const on = this.state.ownedOnly;
     this.ownedPill.setText(on ? '● Owned only' : '○ Owned only');
-    this.ownedPill.setColor(on ? PILL_FG_ACTIVE : PILL_FG);
-    this.ownedPill.setBackgroundColor(on ? PILL_BG_ACTIVE : PILL_BG);
+    this.ownedPill.setColor(on ? theme.colors.heading : theme.colors.body);
+    this.ownedPill.setBackgroundColor(on ? theme.colors.btnEmphasisBg : theme.colors.btnGhostBg);
     inflateHitArea(this.ownedPill, 96, 40);
   }
 }
