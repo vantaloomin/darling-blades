@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, src/data/art-manifest.json · last-verified: 2026-07-09
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-09
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -98,6 +98,34 @@ completed 2026-07-03 (see the run status at the end of the next section); the
 Ragnarök expansion (69 collectibles + 3 tokens) was generated afterward via the
 `ragnarok` art-bible faction plus `gen-spell-art` coverage.
 
+### Subject-aware generation crop: `scripts/smartcrop.py`
+
+All generated card, land, and spell raws are post-processed through
+`scripts/smartcrop.py` before they become the shipped 640x800 PNG. Install the
+dev-only Python dependencies with `python -m pip install -r scripts/requirements.txt`
+(`pillow` plus `dghs-imgutils`; detector models cache outside the repo via the
+normal HuggingFace cache).
+
+The cropper has two modes:
+
+- `character` (used by `scripts/gen-card-art.ts`) runs dghs-imgutils detector
+  APIs when available, preferring head detections, then face detections, then a
+  person box, then the old center crop. Its focal line is
+  `FOCAL_FRAC = 0.40`, so the selected head/face point lands around y=320 in the
+  800px output.
+- `environment` (used by `scripts/gen-land-art.ts` and
+  `scripts/gen-spell-art.ts`) never runs detection and preserves the old Pillow
+  center cover-crop byte-for-byte, so land and spell output stays unchanged.
+
+The batch review tool is `npm run recrop-art` (`scripts/recrop-art.ts`). It
+reads retained raws from `%TEMP%/gen-card-art`, `%TEMP%/gen-land-art`, and
+`%TEMP%/gen-spell-art`, writes staged output under `.artcrop-staging/cards/`,
+and emits `.artcrop-staging/review.html` with shipped-vs-staged comparisons and
+a face/head/person/center detection breakdown. By default it processes
+character-mode raws only; use `--all` to include lands and spells. The `--apply`
+flag copies staged crops to `public/assets/art/cards/` and rebuilds half-res
+art plus the manifest, but human review should happen first.
+
 ### Generating real art: `scripts/gen-card-art.ts`
 
 The generation driver (`npm run gen-card-art`) automates the steps above for
@@ -120,12 +148,12 @@ explicit seated-pose clause fixed the seated cases without disturbing the
 standing ones. The preamble also carries the cel-shading DNA, heroic register,
 and scenic-background lines mirroring the index contract; the appended
 negatives block carries the NO-TEXT hard rule and the anatomy/style negatives.
-It then generates at **1024×1536** via the chatgpt-imagegen CLI and center
-cover-crops to the exact **640×800** deliverable with Pillow (the same crop
-math as the card frame). Runs are **idempotent and resumable**: existing PNGs
+It then generates at **1024×1536** via the chatgpt-imagegen CLI and runs
+`scripts/smartcrop.py` in **character** mode to produce the exact **640×800**
+deliverable. Runs are **idempotent and resumable**: existing PNGs
 are skipped (`--force` regenerates), files are written temp-then-rename (an
 interrupted write can never leave a truncated PNG that skip-existing would
-treat as done), a Pillow preflight fails fast *before* any quota is spent, and
+treat as done), a Pillow + dghs-imgutils preflight fails fast *before* any quota is spent, and
 3 consecutive generation failures abort the batch. Raw uncropped originals are
 kept in the temp dir and **reused on rerun** — a leftover raw is re-cropped
 instead of paying for a new generation (`--force` always regenerates; its
@@ -146,8 +174,9 @@ separate from the creature art bible — they are **landscape, not character**.
 Direction lives in `docs/land-art.md` (the binding contract + one Prompt line
 per land) and the driver is `npm run gen-land-art` (`scripts/gen-land-art.ts`),
 a sibling of `gen-card-art.ts` with the same hardened machinery
-(1024×1536 → Pillow center cover-crop to **640×800**, temp-then-rename writes,
-Pillow preflight, 3-consecutive-failure abort, idempotent skip-existing, and
+(1024×1536 → `scripts/smartcrop.py` **environment** mode to **640×800**,
+temp-then-rename writes, Pillow + dghs-imgutils preflight,
+3-consecutive-failure abort, idempotent skip-existing, and
 the `--only` / `--limit` / `--dry-run` / `--show-prompt` / `--force` / `--cli`
 flags). The one deliberate difference is the prompt preamble: it is
 **environment-first** (wide scenery with the iconic terrain in the central
@@ -166,7 +195,9 @@ The 43 **non-creature spell cards** (18 instants, 14 sorceries, 10
 enchantments, 1 artifact) likewise sit outside the creature art bible and get
 their own program. Direction lives in `docs/spell-art.md` and the driver is
 `npm run gen-spell-art` (`scripts/gen-spell-art.ts`), a sibling of the card and
-land drivers with the identical hardened machinery and flags. Its preamble is
+land drivers with the identical hardened machinery and flags; it uses
+`scripts/smartcrop.py` in **environment** mode, so the post-process stays the
+old center crop for effect-first compositions. Its preamble is
 **effect-first** — the spell's dramatic magical *moment* (a bolt, a
 resurrection, a curse-aura, a gale) is the hero of the frame, centered in the
 ART_RECT band, with any figure secondary — and its negatives harden the NO-TEXT
@@ -200,6 +231,40 @@ the perched wording, its Prompt now states the upright cue explicitly
 on the next roll.
 
 ## The art window & safe-zone math (this doc owns it)
+
+Generation post-process happens before runtime rendering: `scripts/smartcrop.py`
+cover-crops each retained raw to the 640x800 deliverable. The crop box is:
+
+```
+s   = max(W / W_s, H / H_s)
+cw  = min(W_s, round(W / s))
+ch  = min(H_s, round(H / s))
+left= clamp(round(focalX - cw / 2), 0, W_s - cw)
+top = clamp(min(round(focalY - FOCAL_FRAC * ch),
+                round(subjectTop - HEADROOM_FRAC * ch)), 0, H_s - ch)
+```
+
+`FOCAL_FRAC = 0.40`. In character mode, `focalX` is the selected detection's
+horizontal center. `focalY` is the face center for face boxes, `top + 0.55*h`
+for head boxes, and `top + 0.18*h` for person boxes. `subjectTop` is the
+detection's top edge, and `HEADROOM_FRAC = 0.25` keeps it at least 25% into
+the crop when the raw has the sky for it — CardView's visible band starts at
+20.9%, so the head-top clears the window edge by ~4% of the deliverable.
+Raws whose subject sits higher than the ceiling crop can absorb keep max
+headroom and accept a crown-clip at the window edge (user-directed
+2026-07-09; measured over the 215-raw pool: 103 such raws, avg 6.7% of sky
+short). Multiple detections are
+ranked by `score * area * horizontal_centrality`, with tiny detections filtered
+out at `MIN_DET_FRAC = 0.06` of the image min dimension. If no usable detection
+exists, the cropper falls back to the old center crop.
+
+Environment mode and the center fallback do not use `FOCAL_FRAC`; they use the
+previous Pillow center cover-crop exactly:
+
+```
+left = (W_s - cw) // 2
+top  = (H_s - ch) // 2
+```
 
 `CardView` (`src/ui/CardView.ts`) draws art into a fixed window
 `ART_RECT = { x: -132, y: -164, w: 264, h: 192 }` — a **264×192** rectangle in
@@ -254,7 +319,7 @@ a **near-square 124×138** window (`ART_W`×`ART_H`). The tile cover-crops the
 source with the crop band biased slightly *upward* — the top offset is
 `(srcH − cropH) · 0.3` instead of centered — so for a 640×800 source the tile
 shows roughly the **y ≈ 26 → 738** band (~89% of the source height), keeping
-the composition-locked faces (eye line y 340–400) in frame at tile size.
+the smart-cropped focal line (around y=320) in frame at tile size.
 
 ## Holo finishes & per-finish shaders
 

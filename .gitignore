@@ -20,6 +20,8 @@ src/data/art-manifest.json
 public/assets/art/cards-half/
 
 # ── Logs ──────────────────────────────────────────────────────────────────
+.artcrop-staging/
+
 *.log
 
 # ── Local Claude Code settings (launch.json is tracked; local overrides not)

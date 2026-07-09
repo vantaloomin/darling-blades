@@ -34,11 +34,11 @@
  *                     skills-plugin install, then `chatgpt-imagegen` on PATH)
  *
  * The backend only supports a few sizes; we generate at 1024×1536 (nearest
- * larger portrait) and center cover-crop to 4:5 / 640×800 with Pillow, exactly
- * the crop math the card frame itself uses (docs/art-pipeline.md), so the land's
- * iconic terrain composed in the central vertical band survives the crop into
- * CardView's ART_RECT window. Raw uncropped originals are kept in
- * <tmp>/gen-land-art/ for inspection and reused on rerun.
+ * larger portrait) and run scripts/smartcrop.py in environment mode to produce
+ * the 4:5 / 640×800 deliverable. Environment mode is byte-identical to the old
+ * Pillow center cover-crop, so terrain composed in the central vertical band
+ * still survives CardView's ART_RECT window. Raw uncropped originals are kept
+ * in <tmp>/gen-land-art/ for inspection and reused on rerun.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
@@ -50,6 +50,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const docPath = join(root, 'docs', 'land-art.md');
 const outDir = join(root, 'public', 'assets', 'art', 'cards');
 const rawDir = join(tmpdir(), 'gen-land-art');
+const smartcropPath = join(root, 'scripts', 'smartcrop.py');
 
 const OUT_W = 640;
 const OUT_H = 800;
@@ -237,18 +238,6 @@ function resolveCli(explicit?: string): string[] {
 
 // --- generation ----------------------------------------------------------------
 
-/** Cover-crop to 4:5 (center vertical band — same math as the card frame) and resize. */
-const POSTPROCESS_PY = `
-import sys
-from PIL import Image
-src, dst, w, h = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
-im = Image.open(src).convert('RGB')
-scale = max(w / im.width, h / im.height)
-cw, ch = min(im.width, round(w / scale)), min(im.height, round(h / scale))
-left, top = (im.width - cw) // 2, (im.height - ch) // 2
-im.crop((left, top, left + cw, top + ch)).resize((w, h), Image.LANCZOS).save(dst, 'PNG')
-`;
-
 function generateOne(
   cliArgv: string[],
   entry: Entry,
@@ -294,7 +283,7 @@ function generateOne(
   // resolver trust file presence).
   const post = spawnSync(
     PYTHON,
-    ['-c', POSTPROCESS_PY, rawPath, tmpPath, String(OUT_W), String(OUT_H)],
+    [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'environment'],
     { encoding: 'utf8' },
   );
   if (post.status !== 0) {
@@ -358,10 +347,14 @@ function main(): void {
   mkdirSync(rawDir, { recursive: true });
   const cliArgv = resolveCli(args.cli);
 
-  // Preflight the post-processor BEFORE burning any generation quota — a
-  // missing Pillow would otherwise fail every entry after its paid call.
+  // Preflight the post-processor BEFORE burning any generation quota — missing
+  // Python image/detection deps would otherwise fail every entry after its paid call.
   const pil = spawnSync(PYTHON, ['-c', 'import PIL'], { encoding: 'utf8' });
   if (pil.status !== 0) fail('Pillow is required for post-processing — `pip install pillow` and rerun');
+  const imgutils = spawnSync(PYTHON, ['-c', 'import imgutils; from imgutils.detect import detect_faces'], { encoding: 'utf8' });
+  if (imgutils.status !== 0) {
+    fail('dghs-imgutils is required for smart crop post-processing — `pip install -r scripts/requirements.txt` and rerun');
+  }
 
   const failures: { id: string; error: string }[] = [];
   let generated = 0;

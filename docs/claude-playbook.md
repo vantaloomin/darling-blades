@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-07-07 · process doc — re-verify when the workflow itself changes -->
+<!-- source-of-truth: package.json, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-07-09 · process doc — re-verify when the workflow itself changes -->
 
 # Claude Orchestration Playbook
 

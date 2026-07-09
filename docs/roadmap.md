@@ -56,6 +56,29 @@ _Dated 2026-07-04. Review monthly._
   v14→v15 per-deck hero images — see Recently shipped). By-ear tuning remains
   open (see Planned).
 
+## Recently shipped (2026-07-09)
+
+- **Subject-aware "smart crop" for card art.** The generation post-process is no
+  longer a blind center crop: `scripts/smartcrop.py` detects the character with
+  the MIT-licensed `dghs-imgutils` anime detectors (ONNX/CPU, models cached
+  outside the repo) and positions the crop so the face lands at
+  `FOCAL_FRAC = 0.40` of the deliverable with the head-top held
+  `HEADROOM_FRAC = 0.25` clear of the card window's edge, falling back
+  head → face → person → center; environment mode (lands/spells) reproduces the
+  old center crop **byte-identically** (proven 15/15 against shipped land PNGs).
+  All three `gen-*art.ts` drivers now call it, and a new
+  `scripts/recrop-art.ts` batch tool re-cropped the whole pool from the 282
+  retained 1024×1536 raws at zero generation quota — staged behind a
+  before/after `review.html` (in-game CardView + BoardCardView mocks per row,
+  card names from `CARD_DB`, `results.json` + `--sheet-only` for cheap sheet
+  iteration) and human-approved before `--apply` touched shipped art.
+  Measured over the pool: 212/215 head-detected (98.6%), 1 person, 2 center
+  (headless constructs); 77 cards gained explicit headroom, 111 sit at the
+  raw's ceiling and keep the accepted crown-clip (the raws lack sky — avg 6.7%
+  short; user-directed 2026-07-09: no synthesized padding, no regeneration).
+  Fixes the reported Frost Jotun decapitation class of bug (face above the
+  window's visible band). Details: [art-pipeline.md](art-pipeline.md).
+
 ## Recently shipped (2026-07-08)
 
 - **QOL follow-up polish.** The remaining high-friction items from
