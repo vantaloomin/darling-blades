@@ -56,6 +56,7 @@ import { LandStackView, LAND_STACK_STEP } from '../ui/LandStackView';
 import { ModalGuard } from '../ui/Modal';
 import { PileView } from '../ui/PileView';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { colorInt, theme } from '../ui/theme';
 
 const HUMAN: PlayerId = 0;
 const AI: PlayerId = 1;
@@ -163,9 +164,18 @@ export class DuelScene extends Phaser.Scene {
   private gauntletRung: number | null = null;
   private views = new Map<number, BoardCardView>(); // battlefield iid → tile
   private handViews: CardView[] = [];
+  /** Last rendered hand, retained briefly only so rebuild exits can read as motion. */
+  private renderedHand: { cardId: string; view: CardView }[] = [];
+  /** Previous canonical hand snapshot; reset on every DuelScene create/restart. */
+  private previousHand: string[] | null = null;
+  /** Last fan poses indexed by canonical hand slot, used by cast travel ghosts. */
+  private handPoses = new Map<number, { x: number; y: number; scale: number; angle: number }>();
   private handDecor: Phaser.GameObjects.GameObject[] = [];
   private landStacks: LandStackView[] = [];
-  private manaPips: Phaser.GameObjects.GameObject[] = [];
+  private humanLandPositions = new Map<string, { x: number; y: number }>();
+  private manaPips: (Phaser.GameObjects.Image | Phaser.GameObjects.Text)[] = [];
+  private previousLandSignature: string | null = null;
+  private previousManaSignature: string | null = null;
   private hud!: {
     myLife: Phaser.GameObjects.Text;
     oppLife: Phaser.GameObjects.Text;
@@ -277,6 +287,9 @@ export class DuelScene extends Phaser.Scene {
   private autoToggle!: Phaser.GameObjects.Text;
   /** transient center banner shown on each turn change (self-destroys). */
   private turnBanner?: Phaser.GameObjects.Container;
+  private previousLife: [number, number] | null = null;
+  private previousPhaseText: string | null = null;
+  private forecastWasLethal = false;
   /** transient reveal of the card the OPPONENT just cast (self-destroys). */
   private oppCastReveal?: Phaser.GameObjects.Container;
 
@@ -319,9 +332,18 @@ export class DuelScene extends Phaser.Scene {
     this.tutorialGuard = new ModalGuard();
     this.views = new Map();
     this.handViews = [];
+    this.renderedHand = [];
+    this.previousHand = null;
+    this.handPoses = new Map();
     this.handDecor = [];
     this.landStacks = [];
+    this.humanLandPositions = new Map();
     this.manaPips = [];
+    this.previousLandSignature = null;
+    this.previousManaSignature = null;
+    this.previousLife = null;
+    this.previousPhaseText = null;
+    this.forecastWasLethal = false;
     this.selectedAttackers = new Set();
     this.blockAssignments = [];
     this.pendingBlocker = null;
@@ -694,14 +716,21 @@ export class DuelScene extends Phaser.Scene {
     // backdrop unchanged. Added before the plate graphics, so display-list
     // order keeps the art under all of them — no setDepth needed.
     applyBackdrop(this, 'duel', {
-      dim: 0x0a0812,
-      dimAlpha: 0.55,
+      dim: theme.graphics.dim,
+      dimAlpha: 0.45,
       fallback: () => {
         const base = this.add.graphics();
         base.fillGradientStyle(0x131022, 0x131022, 0x0a0812, 0x0a0812, 1);
         base.fillRect(0, 0, width, height);
       },
     });
+
+    // A restrained stage light keeps the midfield from reading as a flat dim.
+    // It is inserted after the backdrop but before the zone plates, so no
+    // geometry or display-depth contract changes.
+    this.add
+      .ellipse(BOARD_CENTER_X, 300, 760, 430, colorInt(theme.colors.gold), 0.05)
+      .setBlendMode(Phaser.BlendModes.SCREEN);
 
     const g = this.add.graphics();
 
@@ -714,9 +743,9 @@ export class DuelScene extends Phaser.Scene {
     // Two inset battlefield zone plates (1a: the stage shows around them).
     // Yours a touch brighter — "this side is you".
     const plate = (y0: number, y1: number, fill: number, alpha: number): void => {
-      g.fillStyle(fill, alpha);
+      g.fillGradientStyle(colorInt(theme.colors.panelStroke), colorInt(theme.colors.panelStroke), fill, fill, alpha);
       g.fillRoundedRect(108, y0, 1064, y1 - y0, 10);
-      g.lineStyle(1, 0x2e2749, 0.7);
+      g.lineStyle(1, colorInt(theme.colors.panelStroke), 0.7);
       g.strokeRoundedRect(108, y0, 1064, y1 - y0, 10);
     };
     plate(LAYOUT.oppZone.y0, LAYOUT.oppZone.y1, 0x1a1530, 0.45);
@@ -970,13 +999,13 @@ export class DuelScene extends Phaser.Scene {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '13px',
         fontStyle: '600',
-        color: '#ffd88a',
-        stroke: '#0a0812',
-        strokeThickness: 3,
+        color: theme.colors.gold,
+        backgroundColor: theme.colors.panelFill,
+        padding: { x: 10, y: 5 },
         resolution: 2,
       })
       .setOrigin(0.5)
-      .setDepth(80)
+      .setDepth(theme.depth.toast)
       .setAlpha(0);
 
     // Feature 2 — "⏭ End Turn" quick button: fast-forwards the rest of your turn
@@ -1029,15 +1058,15 @@ export class DuelScene extends Phaser.Scene {
     this.combatPreviewText = this.add
       .text(640, 100, '', {
         fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
+        fontSize: `${theme.type.h2}px`,
         fontStyle: '600',
-        color: '#cbc2e0',
-        backgroundColor: '#1a1430',
-        padding: { x: 10, y: 4 },
+        color: theme.colors.body,
+        backgroundColor: theme.colors.panelFill,
+        padding: { x: 12, y: 6 },
         align: 'center',
       })
       .setOrigin(0.5)
-      .setDepth(56)
+      .setDepth(theme.depth.hud)
       .setVisible(false);
 
     // Feature 2 — live auto-skip toggle (mirrors settings.autoSkip; persists).
@@ -1121,6 +1150,14 @@ export class DuelScene extends Phaser.Scene {
     if (this.ended) return;
     if (this.animatingCombat) return; // swallow input while a combat sequence plays
     try {
+      const playedCard =
+        action.type === 'playLand' || action.type === 'castSpell'
+          ? def(CARD_DB, this.duel.state.players[HUMAN].hand[action.handIndex])
+          : null;
+      const playedPose =
+        action.type === 'playLand' || action.type === 'castSpell'
+          ? this.handPoses.get(action.handIndex)
+          : undefined;
       const snapshot = this.duel.clone(); // pre-action state; kept for Undo iff still local
       // Tutorial: note which taught spell/beat this action is BEFORE it resolves
       // (a cast card leaves the hand on submit), so the guide can advance.
@@ -1140,9 +1177,46 @@ export class DuelScene extends Phaser.Scene {
       this.pendingCasts = null;
       this.processEvents(events);
       this.afterEvents();
+      if (playedCard && playedPose) this.playCastTravel(playedCard, playedPose);
     } catch (err) {
       this.hud.log.setText(String((err as Error).message));
     }
+  }
+
+  /** New Wave-1 motion obeys the same save setting as combat sequencing. */
+  private motionLevel(): 'full' | 'reduced' | 'off' {
+    return Services.save.data.settings.animations;
+  }
+
+  private playCastTravel(card: CardDef, source: { x: number; y: number; scale: number; angle: number }): void {
+    if (this.motionLevel() !== 'full') return;
+    let destination: { x: number; y: number } = { x: BOARD_CENTER_X, y: LAYOUT.gap.cy };
+    if (isType(card, 'land')) {
+      destination = this.humanLandPositions.get(card.id) ?? { x: LAYOUT.myLands.x0, y: LAYOUT.myLands.cy };
+    } else {
+      const boardView = [...this.views.values()].find((view) => view.card?.id === card.id);
+      if (boardView) destination = { x: boardView.x, y: boardView.y };
+    }
+    const ghost = new CardView(this, source.x, source.y)
+      .setScale(source.scale)
+      .setAngle(source.angle)
+      .setDepth(theme.depth.floats)
+      .setAlpha(0.96);
+    ghost.setCard(card, { fx: 'none' }); // intentionally non-interactive
+    this.tweens.add({
+      targets: ghost,
+      x: destination.x,
+      y: destination.y,
+      alpha: 0,
+      duration: 230,
+      ease: 'Quad.easeInOut',
+      onComplete: () => {
+        if (ghost.active) ghost.destroy();
+      },
+      onStop: () => {
+        if (ghost.active) ghost.destroy();
+      },
+    });
   }
 
   /** Restore the pre-action snapshot and reset scene-side selection state. */
@@ -1171,6 +1245,7 @@ export class DuelScene extends Phaser.Scene {
     const a = this.duel.awaiting;
     if (a.kind !== 'declareBlockers' || !('player' in a) || a.player !== HUMAN || !st.combat) {
       this.combatPreviewText.setVisible(false);
+      this.forecastWasLethal = false;
       return;
     }
     const preview = previewCombat(st, CARD_DB, this.blockAssignments);
@@ -1181,10 +1256,63 @@ export class DuelScene extends Phaser.Scene {
     const theirsDie = preview.deaths.length - yoursDie;
     const parts = [dmg > 0 ? `you take ${dmg}` : 'no damage to you'];
     if (theirsDie || yoursDie) parts.push(`${theirsDie} enemy · ${yoursDie} yours die`);
+    const lethal = preview.defenderLethal;
     this.combatPreviewText
-      .setText(preview.defenderLethal ? `⚠ LETHAL — ${parts.join(' · ')}` : `⚔ Forecast: ${parts.join(' · ')}`)
-      .setColor(preview.defenderLethal ? '#ff8a8a' : '#cbc2e0')
+      .setText(lethal ? `⚠ LETHAL — ${parts.join(' · ')}` : `⚔ Forecast: ${parts.join(' · ')}`)
+      .setColor(lethal ? theme.colors.dangerArmed : theme.colors.body)
       .setVisible(true);
+    if (lethal && !this.forecastWasLethal && this.motionLevel() !== 'off') {
+      this.tweens.killTweensOf(this.combatPreviewText);
+      this.combatPreviewText.setScale(1);
+      this.tweens.add({
+        targets: this.combatPreviewText,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 150,
+        yoyo: true,
+        ease: 'Quad.easeOut',
+        onComplete: () => {
+          if (this.combatPreviewText.active) this.combatPreviewText.setScale(1);
+        },
+      });
+    }
+    this.forecastWasLethal = lethal;
+  }
+
+  private pulseLife(text: Phaser.GameObjects.Text, delta: number, baseColor: string): void {
+    if (delta === 0 || this.motionLevel() === 'off') return;
+    this.tweens.killTweensOf(text);
+    text.setScale(1).setColor(delta > 0 ? theme.colors.success : theme.colors.danger);
+    this.tweens.add({
+      targets: text,
+      scaleX: 1.25,
+      scaleY: 1.25,
+      duration: 110,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        if (text.active) text.setScale(1).setColor(baseColor);
+      },
+    });
+  }
+
+  private transitionPhasePill(nextText: string): void {
+    const pill = this.hud.phase;
+    const changed = this.previousPhaseText !== null && this.previousPhaseText !== nextText;
+    this.previousPhaseText = nextText;
+    if (!changed || this.motionLevel() === 'off') return;
+    this.tweens.killTweensOf(pill);
+    pill.setX(60).setAlpha(0);
+    this.tweens.add({
+      targets: pill,
+      x: 52,
+      alpha: 1,
+      duration: 120,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        if (pill.active) pill.setX(52).setAlpha(1);
+      },
+    });
   }
 
   /**
@@ -1635,9 +1763,11 @@ export class DuelScene extends Phaser.Scene {
       this.turnBanner.destroy();
     }
     const who = isYou ? 'Your Turn' : `${this.opponent?.name ?? 'Opponent'}'s Turn`;
-    const accent = isYou ? '#9be6a8' : '#f0a0c0';
-    const banner = this.add.container(BOARD_CENTER_X, 340).setDepth(85).setAlpha(0);
-    const bg = this.add.rectangle(0, 0, 340, 66, 0x140f24, 0.82).setStrokeStyle(1.5, 0x3a2f5c);
+    const accent = isYou ? theme.colors.gold : theme.colors.body;
+    const banner = this.add.container(BOARD_CENTER_X, 340).setDepth(theme.depth.banner).setAlpha(0);
+    const bg = this.add
+      .rectangle(0, 0, 340, 66, colorInt(theme.colors.panelFill), 0.82)
+      .setStrokeStyle(1.5, colorInt(accent));
     const sub = this.add
       .text(0, -16, `TURN ${turn}`, {
         fontFamily: 'Inter, Arial, sans-serif',
@@ -1651,12 +1781,15 @@ export class DuelScene extends Phaser.Scene {
       .setOrigin(0.5);
     banner.add([bg, sub, title]);
     this.turnBanner = banner;
+    if (this.motionLevel() === 'full') banner.setX(BOARD_CENTER_X + 14).setScale(0.96);
     this.tweens.add({
       targets: banner,
       alpha: 1,
+      ...(this.motionLevel() === 'full' ? { x: BOARD_CENTER_X, scaleX: 1, scaleY: 1 } : {}),
       duration: 220,
       ease: 'Cubic.easeOut',
       onComplete: () => {
+        if (!banner.active) return;
         this.tweens.add({
           targets: banner,
           alpha: 0,
@@ -1744,6 +1877,11 @@ export class DuelScene extends Phaser.Scene {
     // HUD numbers
     this.hud.myLife.setText(`♥ ${st.players[HUMAN].life}`);
     this.hud.oppLife.setText(`♥ ${st.players[AI].life}`);
+    if (this.previousLife) {
+      this.pulseLife(this.hud.myLife, st.players[HUMAN].life - this.previousLife[HUMAN], theme.colors.success);
+      this.pulseLife(this.hud.oppLife, st.players[AI].life - this.previousLife[AI], theme.colors.dangerArmed);
+    }
+    this.previousLife = [st.players[HUMAN].life, st.players[AI].life];
     this.oppHandBacks.setCount(st.players[AI].hand.length);
     this.oppDeckPile.setCount(st.players[AI].deck.length);
     this.oppGravePile.setCount(st.players[AI].graveyard.length);
@@ -1762,9 +1900,11 @@ export class DuelScene extends Phaser.Scene {
     };
     const yours = st.turn !== 0 && st.activePlayer === HUMAN;
     this.hud.turnPill.setText(st.turn === 0 ? '—' : `T${st.turn}`);
+    const phaseText = st.turn === 0 ? 'Opening' : stepNames[st.step];
     this.hud.phase
-      .setText(st.turn === 0 ? 'Opening' : stepNames[st.step])
+      .setText(phaseText)
       .setColor(yours ? '#ffd88a' : '#b3a6d4');
+    this.transitionPhasePill(phaseText);
     this.hud.ownerTag
       .setText(st.turn === 0 ? 'MULLIGANS' : yours ? 'YOUR TURN' : 'OPP TURN')
       .setColor(yours ? '#c9a44f' : '#6f6690');
@@ -1914,8 +2054,16 @@ export class DuelScene extends Phaser.Scene {
 
   /** Lands render as per-type thumb stacks in each player's land row. */
   private syncLands(battlefield: readonly Permanent[]): void {
+    const signature = battlefield
+      .filter((p) => isType(def(CARD_DB, p.cardId), 'land'))
+      .map((p) => `${p.controller}:${p.cardId}:${p.tapped ? 1 : 0}`)
+      .sort()
+      .join('|');
+    const changed = this.previousLandSignature !== null && this.previousLandSignature !== signature;
+    this.previousLandSignature = signature;
     for (const s of this.landStacks) s.destroy();
     this.landStacks = [];
+    this.humanLandPositions = new Map();
     for (const player of [AI, HUMAN] as const) {
       const lands = battlefield.filter(
         (p) => p.controller === player && isType(def(CARD_DB, p.cardId), 'land'),
@@ -1952,8 +2100,13 @@ export class DuelScene extends Phaser.Scene {
         inflateHitArea(stack.top, 90, 90);
         this.zoom.attach(stack.top, d);
         this.landStacks.push(stack);
+        if (player === HUMAN) this.humanLandPositions.set(cardId, { x, y });
         x += LAND_STACK_STEP;
       }
+    }
+    if (changed && this.motionLevel() === 'full') {
+      for (const stack of this.landStacks) stack.setAlpha(0.4);
+      this.tweens.add({ targets: this.landStacks, alpha: 1, duration: 120, ease: 'Quad.easeOut' });
     }
   }
 
@@ -1966,6 +2119,16 @@ export class DuelScene extends Phaser.Scene {
    * button; the opponent's live in the strip (1a "opp mana").
    */
   private syncManaPips(): void {
+    const signature = ([HUMAN, AI] as const)
+      .map((player) =>
+        manaSources(this.duel.state, CARD_DB, player)
+          .map((source) => source.colors.join(''))
+          .sort()
+          .join(','),
+      )
+      .join('|');
+    const changed = this.previousManaSignature !== null && this.previousManaSignature !== signature;
+    this.previousManaSignature = signature;
     for (const o of this.manaPips) o.destroy();
     this.manaPips = [];
     // Your row ends at 1148 (was 1180): the old end poked past the zone
@@ -1973,6 +2136,10 @@ export class DuelScene extends Phaser.Scene {
     // History tab; 1148 keeps the whole readout inside the plate.
     this.buildManaRow(HUMAN, 1148, LAYOUT.myLands.cy, 54, 22, true);
     this.buildManaRow(AI, 1010, LAYOUT.strip.cy, 44, 18, false);
+    if (changed && this.motionLevel() === 'full') {
+      for (const pip of this.manaPips) pip.setAlpha(0.4);
+      this.tweens.add({ targets: this.manaPips, alpha: 1, duration: 120, ease: 'Quad.easeOut' });
+    }
   }
 
   /** One right-aligned pip row ending at xEnd; label only on your own row. */
@@ -2022,11 +2189,31 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private syncHand(): void {
-    for (const v of this.handViews) v.destroy();
+    const hand = this.duel.state.players[HUMAN].hand;
+    const retained = new Map<string, number>();
+    for (const cardId of hand) retained.set(cardId, (retained.get(cardId) ?? 0) + 1);
+    for (const { cardId, view } of this.renderedHand) {
+      const count = retained.get(cardId) ?? 0;
+      if (count > 0) {
+        retained.set(cardId, count - 1);
+        view.destroy();
+      } else {
+        view.disableInput();
+        if (this.motionLevel() === 'full' && view.active) {
+          this.tweens.killTweensOf(view);
+          this.tweens.add({
+            targets: view, y: view.y - 18, alpha: 0, duration: 150, ease: 'Quad.easeIn',
+            onComplete: () => { if (view.active) view.destroy(); },
+            onStop: () => { if (view.active) view.destroy(); },
+          });
+        } else view.destroy();
+      }
+    }
     this.handViews = [];
+    this.renderedHand = [];
+    this.handPoses = new Map();
     for (const o of this.handDecor) o.destroy();
     this.handDecor = [];
-    const hand = this.duel.state.players[HUMAN].hand;
     const legal = this.isHumanTurnDecision() ? this.duel.legalActions(HUMAN) : [];
     const playableIdx = new Set<number>();
     for (const l of legal) {
@@ -2062,6 +2249,10 @@ export class DuelScene extends Phaser.Scene {
     // is the fan slot / depth (visual), `handIdx` is the true engine index used
     // for legality + clicks — the two are no longer the same. (handSort.ts)
     const order = handDisplayOrder(hand, CARD_DB);
+    const previousRemaining = new Map<string, number>();
+    if (this.previousHand) {
+      for (const cardId of this.previousHand) previousRemaining.set(cardId, (previousRemaining.get(cardId) ?? 0) + 1);
+    }
     order.forEach((handIdx, pos) => {
       const cardId = hand[handIdx];
       const slot = fan.slots[pos];
@@ -2072,8 +2263,11 @@ export class DuelScene extends Phaser.Scene {
       view.setScale(scale);
       view.setAngle(slot.angleDeg);
       view.setCard(d, { fx: 'none' });
-      view.setDepth(10 + pos);
+      view.setDepth(theme.depth.hand + pos);
       const playable = playableIdx.has(handIdx);
+      const priorCount = previousRemaining.get(cardId) ?? 0;
+      const entered = this.previousHand !== null && priorCount === 0;
+      if (priorCount > 0) previousRemaining.set(cardId, priorCount - 1);
       let dot: Phaser.GameObjects.Arc | null = null;
       if (playable) {
         // castable-now affordance, driven by engine legalActions (same source
@@ -2101,16 +2295,32 @@ export class DuelScene extends Phaser.Scene {
         if (p.wasTouch) return;
         // Straighten + gentle lift — the resting card is already readable,
         // and the full-detail read is the CardZoomPreview.
-        view.setDepth(40).setScale(scale * 1.15);
-        view.setAngle(0);
-        view.y = hoverY;
+        this.tweens.killTweensOf(view);
+        view.setDepth(theme.depth.handHover);
+        if (this.motionLevel() !== 'full') {
+          view.setScale(scale * 1.15).setAngle(0).setY(hoverY);
+          dot?.setVisible(false);
+          return;
+        }
+        this.tweens.add({
+          targets: view, scaleX: scale * 1.15, scaleY: scale * 1.15, angle: 0, y: hoverY,
+          duration: 100, ease: 'Quad.easeOut',
+        });
         dot?.setVisible(false);
       });
       view.on('pointerout', (p: Phaser.Input.Pointer) => {
         if (p.wasTouch) return;
-        view.setDepth(10 + pos).setScale(scale);
-        view.setAngle(slot.angleDeg);
-        view.y = y;
+        this.tweens.killTweensOf(view);
+        view.setDepth(theme.depth.hand + pos);
+        if (this.motionLevel() !== 'full') {
+          view.setScale(scale).setAngle(slot.angleDeg).setY(y);
+          dot?.setVisible(true);
+          return;
+        }
+        this.tweens.add({
+          targets: view, scaleX: scale, scaleY: scale, angle: slot.angleDeg, y,
+          duration: 100, ease: 'Quad.easeOut',
+        });
         dot?.setVisible(true);
       });
       view.on('pointerup', (p: Phaser.Input.Pointer) => {
@@ -2132,7 +2342,19 @@ export class DuelScene extends Phaser.Scene {
       });
       this.zoom.attach(view, d);
       this.handViews.push(view);
+      this.renderedHand.push({ cardId, view });
+      this.handPoses.set(handIdx, { x, y, scale, angle: slot.angleDeg });
+      if (entered && this.motionLevel() === 'full') {
+        view.setPosition(LAYOUT.piles.x, LAYOUT.piles.deckY).setAlpha(0);
+        if (dot) dot.setAlpha(0);
+        this.tweens.add({
+          targets: view, x, y, scaleX: scale, scaleY: scale, angle: slot.angleDeg, alpha: 1,
+          duration: 160, ease: 'Quad.easeOut',
+        });
+        if (dot) this.tweens.add({ targets: dot, alpha: 1, duration: 160, ease: 'Quad.easeOut' });
+      }
     });
+    this.previousHand = [...hand];
   }
 
   private syncButton(): void {
@@ -2146,6 +2368,7 @@ export class DuelScene extends Phaser.Scene {
       this.hud.button.setVisible(true).setText(label);
     };
     this.passArc.setVisible(false);
+    this.setSmartAffordance('pass', false);
     this.hud.button.setVisible(false);
     this.endTurnBtn.setVisible(false);
     hint.setText('');
@@ -2167,6 +2390,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.ended || !('player' in a) || a.player !== HUMAN) return;
     if (this.pendingCasts) {
       showButton('Cancel');
+      this.setSmartAffordance('pass', true);
       // Terse: the rail hint column is only ~96px wide (see buildHud).
       hint.setText(this.touch ? 'Pick a target\n(Cancel aborts)' : 'Pick a target\n(right-click cancels)');
       return;
@@ -2199,6 +2423,28 @@ export class DuelScene extends Phaser.Scene {
       default:
         break;
     }
+    this.setSmartAffordance(
+      a.kind === 'declareAttackers' || a.kind === 'declareBlockers' ? 'confirm' : 'pass',
+      true,
+    );
+  }
+
+  private setSmartAffordance(kind: 'confirm' | 'pass', actionable: boolean): void {
+    this.tweens.killTweensOf(this.passArc);
+    const locked = this.time.now - this.lastAutoSkipAt < AUTOSKIP_INPUT_LOCK_MS;
+    const breathing = actionable && !locked && kind === 'confirm' && this.motionLevel() === 'full';
+    const color = breathing ? colorInt(theme.colors.gold) : colorInt(theme.colors.muted);
+    this.passArc.setStrokeStyle(2.5, color, breathing ? 0.92 : 0.55);
+    if (breathing) {
+      this.tweens.add({
+        targets: this.passArc,
+        strokeAlpha: 0.28,
+        duration: 800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
   }
 
   private drawArrows(): void {
@@ -2209,8 +2455,7 @@ export class DuelScene extends Phaser.Scene {
       const from = this.views.get(b.blocker);
       const to = this.views.get(b.attacker);
       if (from && to) {
-        this.arrows.lineStyle(4, 0x6aa0ff, 0.9);
-        this.arrows.lineBetween(from.x, from.y, to.x, to.y);
+        this.drawCurvedArrow(from.x, from.y, to.x, to.y, 0x6aa0ff, 0.9);
       }
     }
     if (combat && combat.blocks.length > 0) {
@@ -2218,8 +2463,7 @@ export class DuelScene extends Phaser.Scene {
         const from = this.views.get(b.blocker);
         const to = this.views.get(b.attacker);
         if (from && to) {
-          this.arrows.lineStyle(4, 0x88b8ff, 0.7);
-          this.arrows.lineBetween(from.x, from.y, to.x, to.y);
+          this.drawCurvedArrow(from.x, from.y, to.x, to.y, 0x88b8ff, 0.7);
         }
       }
     }
@@ -2230,15 +2474,34 @@ export class DuelScene extends Phaser.Scene {
       const p = this.input.activePointer;
       const tip = this.snapTargetTip(p.worldX, p.worldY);
       const { x: sx, y: sy } = TARGET_ARROW_SRC;
-      this.arrows.lineStyle(4, TARGET_ARROW_COLOR, 0.95);
-      this.arrows.lineBetween(sx, sy, tip.x, tip.y);
+      this.drawCurvedArrow(sx, sy, tip.x, tip.y, TARGET_ARROW_COLOR, 0.95);
       // Arrowhead — two short strokes back from the tip along the shaft angle.
-      const ang = Math.atan2(tip.y - sy, tip.x - sx);
-      const HEAD = 16;
-      const SPREAD = 0.5;
-      this.arrows.lineBetween(tip.x, tip.y, tip.x - HEAD * Math.cos(ang - SPREAD), tip.y - HEAD * Math.sin(ang - SPREAD));
-      this.arrows.lineBetween(tip.x, tip.y, tip.x - HEAD * Math.cos(ang + SPREAD), tip.y - HEAD * Math.sin(ang + SPREAD));
     }
+  }
+
+  /** Quadratic shafts reuse CombatFx's aerial-bezier idiom; filled heads read at a glance. */
+  private drawCurvedArrow(sx: number, sy: number, tx: number, ty: number, color: number, alpha: number): void {
+    const angle = Phaser.Math.Angle.Between(sx, sy, tx, ty);
+    const distance = Phaser.Math.Distance.Between(sx, sy, tx, ty);
+    const offset = Phaser.Math.Clamp(distance * 0.15, 12, 54);
+    const control = new Phaser.Math.Vector2(
+      (sx + tx) / 2 - Math.sin(angle) * offset,
+      (sy + ty) / 2 + Math.cos(angle) * offset,
+    );
+    const curve = new Phaser.Curves.QuadraticBezier(
+      new Phaser.Math.Vector2(sx, sy), control, new Phaser.Math.Vector2(tx, ty),
+    );
+    this.arrows.lineStyle(4, color, alpha);
+    curve.draw(this.arrows, 20);
+    const headAngle = Math.atan2(ty - control.y, tx - control.x);
+    const head = 16;
+    const spread = 0.56;
+    this.arrows.fillStyle(color, alpha);
+    this.arrows.fillTriangle(
+      tx, ty,
+      tx - head * Math.cos(headAngle - spread), ty - head * Math.sin(headAngle - spread),
+      tx - head * Math.cos(headAngle + spread), ty - head * Math.sin(headAngle + spread),
+    );
   }
 
   // ---------------------------------------------------------------------
