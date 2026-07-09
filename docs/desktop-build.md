@@ -1,4 +1,4 @@
-<!-- source-of-truth: src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/src/lib.rs, src-tauri/capabilities/default.json, src/platform/desktopWindow.ts, package.json, vite.config.ts · last-verified: 2026-07-07 · re-verify when the Tauri config or build scripts change -->
+<!-- source-of-truth: src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/src/lib.rs, src-tauri/capabilities/default.json, src/platform/desktopWindow.ts, package.json, vite.config.ts · last-verified: 2026-07-09 · re-verify when the Tauri config or build scripts change -->
 
 # Desktop build (Tauri)
 

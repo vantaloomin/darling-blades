@@ -19,6 +19,8 @@
     "gen-scene-art": "tsx scripts/gen-scene-art.ts",
     "gen-land-art": "tsx scripts/gen-land-art.ts",
     "gen-spell-art": "tsx scripts/gen-spell-art.ts",
+    "test:smartcrop": "python scripts/smartcrop.py --self-test",
+    "recrop-art": "tsx scripts/recrop-art.ts",
     "play:lan": "tsx scripts/serve-lan.ts",
     "check-docs": "tsx scripts/check-docs.ts",
     "check-art-bible": "tsx scripts/check-art-bible.ts",

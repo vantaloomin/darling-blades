@@ -1,4 +1,4 @@
-<!-- source-of-truth: .github/workflows/deploy.yml, package.json · last-verified: 2026-07-07 · process doc — re-verify when the CI workflow or branch model changes -->
+<!-- source-of-truth: .github/workflows/deploy.yml, package.json · last-verified: 2026-07-09 · process doc — re-verify when the CI workflow or branch model changes -->
 
 # Git workflow
 
