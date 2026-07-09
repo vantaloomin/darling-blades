@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { theme } from './theme';
 
 /**
  * A compact select dropdown — the first reusable one in the codebase. Flat
@@ -15,12 +16,6 @@ export interface DropdownOption<T extends string> {
   label: string;
 }
 
-const BTN_BG = '#241d3a';
-const BTN_BG_OPEN = '#3a2f5c';
-const BTN_FG = '#e8e2f4';
-const PANEL_BG = 0x1b1530;
-const OPT_FG = '#c9bde0';
-const OPT_FG_ACTIVE = '#ffd88a';
 const ROW_H = 30;
 const PANEL_DEPTH = 200;
 
@@ -49,11 +44,11 @@ export class Dropdown<T extends string> {
     this.value = opts.value;
     this.button = scene.add
       .text(x, y, this.caption(), {
-        fontFamily: 'Inter, Arial, sans-serif',
+        fontFamily: theme.fonts.ui,
         fontSize: '13px',
-        fontStyle: '600',
-        color: BTN_FG,
-        backgroundColor: BTN_BG,
+        fontStyle: theme.weight.w600,
+        color: theme.colors.body,
+        backgroundColor: theme.colors.btnGhostBg,
         padding: { x: 10, y: 6 },
       })
       .setOrigin(0, 0.5)
@@ -88,7 +83,7 @@ export class Dropdown<T extends string> {
   open(): void {
     if (this.panel) return;
     this.opts.onOpen?.();
-    this.button.setBackgroundColor(BTN_BG_OPEN);
+    this.button.setBackgroundColor(theme.colors.btnEmphasisBg);
     this.reinflate();
 
     const n = this.opts.options.length;
@@ -96,27 +91,27 @@ export class Dropdown<T extends string> {
     const w = Math.max(this.button.width, this.minW);
     const panel = this.scene.add.container(0, 0).setDepth(PANEL_DEPTH);
     const bg = this.scene.add
-      .rectangle(this.x, top, w + 8, n * ROW_H + 8, PANEL_BG, 0.98)
+      .rectangle(this.x, top, w + 8, n * ROW_H + 8, theme.graphics.panelFill, theme.alpha.panel)
       .setOrigin(0, 0)
-      .setStrokeStyle(1, 0x4a3f6e, 1);
+      .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
     panel.add(bg);
     this.opts.options.forEach((o, i) => {
       const oy = top + 4 + i * ROW_H + ROW_H / 2;
       const active = o.value === this.value;
       const t = this.scene.add
         .text(this.x + 10, oy, o.label, {
-          fontFamily: 'Inter, Arial, sans-serif',
+          fontFamily: theme.fonts.ui,
           fontSize: '13px',
-          fontStyle: active ? '700' : '600',
-          color: active ? OPT_FG_ACTIVE : OPT_FG,
+          fontStyle: active ? theme.weight.w700 : theme.weight.w600,
+          color: active ? theme.colors.gold : theme.colors.body,
         })
         .setOrigin(0, 0.5)
         .setInteractive({ useHandCursor: true });
       t.on('pointerover', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) t.setColor('#ffffff');
+        if (!p.wasTouch) t.setColor(theme.colors.heading);
       });
       t.on('pointerout', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) t.setColor(active ? OPT_FG_ACTIVE : OPT_FG);
+        if (!p.wasTouch) t.setColor(active ? theme.colors.gold : theme.colors.body);
       });
       bindTapButton(this.scene, t, () => this.select(o.value));
       inflateHitArea(t, w, ROW_H);
@@ -151,7 +146,7 @@ export class Dropdown<T extends string> {
     if (!this.panel) return;
     this.panel.destroy();
     this.panel = null;
-    this.button.setBackgroundColor(BTN_BG);
+    this.button.setBackgroundColor(theme.colors.btnGhostBg);
     this.reinflate();
     if (this.closeListener) {
       this.scene.input.off('pointerdown', this.closeListener);

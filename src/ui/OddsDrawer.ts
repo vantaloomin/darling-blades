@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DROPS, ECONOMY } from '../config/rules';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { theme } from './theme';
 
 // Design-space constants, NOT scene.scale (render scale shows the 1280×720
 // design window — see src/platform/renderScale.ts). Identical at k=1.
@@ -9,7 +10,7 @@ const DESIGN_H = 720;
 const PANEL_W = 320;
 const TAB_W = 30;
 const TAB_H = 150;
-const DEPTH = 70; // above scene content, below modal overlays (>=100)
+const DEPTH = theme.depth.history; // above scene content, below modal overlays (>=100)
 
 // Slide geometry. Closed: the panel body sits fully off-screen to the LEFT, only
 // the tab (which pokes out to the RIGHT of the panel's right edge) shows. Open:
@@ -46,10 +47,10 @@ export class OddsDrawer {
     this.scene = scene;
 
     const bg = scene.add.graphics();
-    bg.fillStyle(0x120e20, 0.9);
-    bg.fillRoundedRect(0, 40, PANEL_W, DESIGN_H - 80, { tl: 0, bl: 0, tr: 12, br: 12 });
-    bg.lineStyle(1, 0x3a2f5c, 1);
-    bg.strokeRoundedRect(0, 40, PANEL_W, DESIGN_H - 80, { tl: 0, bl: 0, tr: 12, br: 12 });
+    bg.fillStyle(theme.graphics.panelFill, theme.alpha.panel);
+    bg.fillRoundedRect(0, 40, PANEL_W, DESIGN_H - 80, { tl: 0, bl: 0, tr: theme.radius.panel, br: theme.radius.panel });
+    bg.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
+    bg.strokeRoundedRect(0, 40, PANEL_W, DESIGN_H - 80, { tl: 0, bl: 0, tr: theme.radius.panel, br: theme.radius.panel });
 
     // Swallow taps on the open panel so they don't fall through to shop controls.
     const blocker = scene.add
@@ -58,22 +59,22 @@ export class OddsDrawer {
 
     const title = scene.add
       .text(24, 62, 'Drop Rates', {
-        fontFamily: 'Cinzel, Georgia, serif',
+        fontFamily: theme.fonts.display,
         fontSize: '22px',
-        color: '#ffd88a',
+        color: theme.colors.gold,
         resolution: 2,
       })
       .setOrigin(0, 0);
     const sub = scene.add
       .text(24, 92, `per card · ${ECONOMY.boosterPackSize} cards per pack`, {
-        fontFamily: 'Inter, Arial, sans-serif',
+        fontFamily: theme.fonts.ui,
         fontSize: '12px',
-        color: '#8f83a8',
+        color: theme.colors.muted,
         resolution: 2,
       })
       .setOrigin(0, 0);
     const rule = scene.add.graphics();
-    rule.fillStyle(0x8a6d1f, 0.5);
+    rule.fillStyle(theme.graphics.panelStroke, theme.alpha.subtle);
     rule.fillRect(24, 116, PANEL_W - 48, 1);
 
     const section = (label: string, body: string): string => `${label}\n${body}`;
@@ -86,9 +87,9 @@ export class OddsDrawer {
     ].join('\n');
     const body = scene.add
       .text(24, 132, bodyText, {
-        fontFamily: 'Inter, Arial, sans-serif',
+        fontFamily: theme.fonts.ui,
         fontSize: '13px',
-        color: '#cbc2e0',
+        color: theme.colors.body,
         lineSpacing: 6,
         wordWrap: { width: PANEL_W - 48 },
         resolution: 2,
@@ -96,10 +97,10 @@ export class OddsDrawer {
       .setOrigin(0, 0);
     const pity = scene.add
       .text(24, DESIGN_H - 150, 'Missing SR / SSR / UR cards are prioritized — no wasted duplicates until a playset is complete.', {
-        fontFamily: 'Inter, Arial, sans-serif',
+        fontFamily: theme.fonts.ui,
         fontSize: '12px',
         fontStyle: 'italic',
-        color: '#8f83a8',
+        color: theme.colors.muted,
         lineSpacing: 4,
         wordWrap: { width: PANEL_W - 48 },
         resolution: 2,
@@ -110,16 +111,16 @@ export class OddsDrawer {
     // PANEL_W) so it stays on-screen while the body is docked off the left edge.
     const tabBg = scene.add.graphics();
     const tabY = (DESIGN_H - TAB_H) / 2;
-    tabBg.fillStyle(0x2c2344, 0.95);
-    tabBg.fillRoundedRect(PANEL_W, tabY, TAB_W, TAB_H, { tl: 0, bl: 0, tr: 8, br: 8 });
-    tabBg.lineStyle(1, 0x3a2f5c, 1);
-    tabBg.strokeRoundedRect(PANEL_W, tabY, TAB_W, TAB_H, { tl: 0, bl: 0, tr: 8, br: 8 });
+    tabBg.fillStyle(theme.graphics.rowFillActive, theme.alpha.panel);
+    tabBg.fillRoundedRect(PANEL_W, tabY, TAB_W, TAB_H, { tl: 0, bl: 0, tr: theme.radius.panel, br: theme.radius.panel });
+    tabBg.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
+    tabBg.strokeRoundedRect(PANEL_W, tabY, TAB_W, TAB_H, { tl: 0, bl: 0, tr: theme.radius.panel, br: theme.radius.panel });
 
     this.tabLabel = scene.add
       .text(PANEL_W + TAB_W / 2, DESIGN_H / 2, 'Drop Rates', {
-        fontFamily: 'Cinzel, Georgia, serif',
+        fontFamily: theme.fonts.display,
         fontSize: '14px',
-        color: '#ffd88a',
+        color: theme.colors.gold,
         resolution: 2,
       })
       .setOrigin(0.5)

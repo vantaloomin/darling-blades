@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { theme } from './theme';
 
 /**
  * The one reusable text-search `<input>` overlay — the codebase's only
@@ -24,14 +25,16 @@ export function createSearchInput(
       `width:${width}px`,
       'box-sizing:border-box',
       'padding:6px 10px',
-      'font:14px Inter, Arial, sans-serif',
-      'color:#e8def7',
-      'background:#241d3a',
-      'border:1px solid #3a3355',
-      'border-radius:6px',
+      `font:${theme.type.label}px ${theme.fonts.ui}`,
+      `color:${theme.colors.body}`,
+      `background:${theme.colors.btnGhostBg}`,
+      `border:1px solid ${theme.colors.panelStroke}`,
+      `border-radius:${theme.radius.control}px`,
       'outline:none',
     ].join(';'),
   );
   input.addEventListener('input', () => opts.onChange(input.value));
+  input.addEventListener('focus', () => { input.style.borderColor = theme.colors.gold; });
+  input.addEventListener('blur', () => { input.style.borderColor = theme.colors.panelStroke; });
   return scene.add.dom(x, y, input).setOrigin(0.5).setDepth(50);
 }
