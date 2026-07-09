@@ -39,11 +39,11 @@ export const ECONOMY = {
   starterDeckPrice: 350,
   // Auto-melt value of a PLAIN duplicate past the per-variant playset (a 5th
   // `white|none` copy). At full completion the expected plain-dupe refund is
-  // ≈128g per 450g pack (9 · P(plain)=0.30 · E[dupeGold|tier]=47.5) — bounded
+  // ≈68g per 450g pack (9 · P(plain)=0.30 · E[dupeGold|tier]=25) — bounded
   // below the pack price, so no infinite-gold loop; endgame packs get cheap
   // deliberately. Special variants never auto-melt; the player sells their
   // beyond-4-per-variant excess by hand (Collection `shardExcess`).
-  dupeGold: { c: 5, r: 20, sr: 100, ssr: 300, ur: 1000 } as const,
+  dupeGold: { c: 5, r: 10, sr: 50, ssr: 150, ur: 500 } as const,
   // Manual shard/sell (CollectionScene): a copy past the per-variant playset
   // shards for dupeGold[tier] × shardFrameMult[frame] × shardHoloMult[holo].
   // Plain (white|none) = ×1 (matches the auto-melt refund); specials pay more,

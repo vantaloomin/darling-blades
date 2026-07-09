@@ -3,7 +3,7 @@
  *
  * Usage:
  *   npx tsx scripts/progression-sim.ts --seeds 8
- *   npx tsx scripts/progression-sim.ts --seeds 12 --days 7,14,30,60 --personas rook,hard-grinder
+ *   npx tsx scripts/progression-sim.ts --seeds 12 --days 7,14,30,60 --personas new-casual,hardcore-optimizer
  *
  * The harness runs the real engine + AI + meta reward systems. It does not
  * auto-build upgraded constructed decks from opened packs; combat power stays
@@ -61,13 +61,22 @@ import { TIER_RANK } from '../src/meta/variants';
 const START_DAY_MS = Date.UTC(2026, 6, 9);
 const MAX_STEPS = 40_000;
 const HUMAN = 0;
+const PRACTICE_MATCH_MINUTES = 10;
+const GAUNTLET_MATCH_MINUTES = 12;
+const LIMITED_MATCH_MINUTES = 14;
+const SEALED_SETUP_MINUTES = 8;
+const DRAFT_SETUP_MINUTES = 14;
+const PACK_OPEN_MINUTES = 1.25;
+const DECK_BUY_MINUTES = 1.5;
+const QUEST_REROLL_MINUTES = 0.5;
 
 type PackPreference = 'base' | 'ragnarok' | 'mixed' | 'none';
 type AchievementPolicy = 'claim' | 'ignore';
+type DailyCount = number | { min: number; max: number };
 
 interface PracticePlan {
   difficulty: Difficulty;
-  games: number;
+  games: DailyCount;
 }
 
 interface QuestChasePlan {
@@ -89,8 +98,9 @@ export interface PlayerPersona {
   starterId: string;
   pilotSkill: Difficulty;
   practice?: PracticePlan;
-  gauntletMatches?: number;
-  limited?: { mode: LimitedMode; matches: number };
+  gauntletMatches?: DailyCount;
+  stopGauntletAfterLoss?: boolean;
+  limited?: { mode: LimitedMode | 'mixed'; matches: DailyCount };
   questChase?: QuestChasePlan;
   rerollOffColorQuests?: boolean;
   spending: SpendingPlan;
@@ -127,18 +137,32 @@ export interface ProgressSnapshot {
   winRate: number;
   goldEarned: number;
   goldSpent: number;
+  goldNet: number;
   finalGold: number;
   packsOpened: number;
   decksOwned: number;
+  collectionSize: number;
+  uniqueCards: number;
   cardsOwned: number;
   collectionPct: number;
   specialVariants: number;
+  duplicateRefundGold: number;
+  achievementsUnlocked: number;
   achievementsClaimed: number;
+  dailyQuestCompletions: number;
   dailyQuestClaims: number;
+  dailyQuestCompletionRate: number;
   dailyQuestClaimRate: number;
+  streakLength: number;
   gauntletBestRung: number;
   gauntletCompletions: number;
   limitedRuns: number;
+  limitedWins: number;
+  limitedLosses: number;
+  limitedAvgWins: number;
+  limitedAvgLosses: number;
+  sessionMinutes: number;
+  minutesPerDay: number;
   rewards: RewardLedger;
   spent: SpendLedger;
 }
@@ -153,17 +177,32 @@ export interface ProgressAggregate {
   winRate: number;
   goldEarned: number;
   goldSpent: number;
+  goldNet: number;
   finalGold: number;
   packsOpened: number;
   packsPerDay: number;
+  collectionSize: number;
+  uniqueCards: number;
   cardsOwned: number;
   collectionPct: number;
   specialVariants: number;
+  duplicateRefundGold: number;
+  achievementsUnlocked: number;
   achievementsClaimed: number;
+  dailyQuestCompletions: number;
+  dailyQuestClaims: number;
+  dailyQuestCompletionRate: number;
   dailyQuestClaimRate: number;
+  streakLength: number;
   gauntletBestRung: number;
   gauntletCompletions: number;
   limitedRuns: number;
+  limitedWins: number;
+  limitedLosses: number;
+  limitedAvgWins: number;
+  limitedAvgLosses: number;
+  sessionMinutes: number;
+  minutesPerDay: number;
   rewards: RewardLedger;
   spent: SpendLedger;
 }
@@ -187,10 +226,14 @@ interface SimStats {
   wins: number;
   losses: number;
   draws: number;
+  sessionMinutes: number;
+  dailyQuestCompletions: number;
   dailyQuestClaims: number;
   dailyQuestSlots: number;
   gauntletCompletions: number;
   limitedRuns: number;
+  limitedWins: number;
+  limitedLosses: number;
   rewards: RewardLedger;
   spent: SpendLedger;
 }
@@ -220,83 +263,64 @@ interface RunOptions {
 
 export const PLAYER_PERSONAS: readonly PlayerPersona[] = Object.freeze([
   {
-    id: 'rook',
-    name: 'Rook',
-    style: 'new easy dailies',
+    id: 'new-casual',
+    name: 'New Casual',
+    style: '1-2 matches/day, buys packs when affordable, rarely rerolls',
     starterId: 'starter-crimson',
     pilotSkill: 'easy',
-    practice: { difficulty: 'easy', games: 2 },
+    practice: { difficulty: 'easy', games: { min: 1, max: 2 } },
     spending: { packPreference: 'base' },
     achievements: 'claim',
   },
   {
-    id: 'mina',
-    name: 'Mina',
-    style: 'casual medium',
+    id: 'daily-grinder',
+    name: 'Daily Grinder',
+    style: 'clears dailies, first win, and streak',
     starterId: 'starter-wild',
     pilotSkill: 'medium',
-    practice: { difficulty: 'medium', games: 2 },
-    spending: { packPreference: 'mixed' },
-    achievements: 'claim',
-  },
-  {
-    id: 'selene',
-    name: 'Selene',
-    style: 'quest optimizer',
-    starterId: 'starter-tides',
-    pilotSkill: 'medium',
-    practice: { difficulty: 'medium', games: 2 },
+    practice: { difficulty: 'medium', games: 3 },
     questChase: { difficulty: 'medium', maxExtraGames: 3 },
-    rerollOffColorQuests: true,
     spending: { packPreference: 'mixed' },
     achievements: 'claim',
   },
   {
-    id: 'hard-grinder',
-    name: 'Juno',
-    style: 'hard grinder',
-    starterId: 'starter-mandate',
+    id: 'gauntlet-climber',
+    name: 'Gauntlet Climber',
+    style: 'mostly Tower/Gauntlet, stops after a loss',
+    starterId: 'starter-tides',
     pilotSkill: 'hard',
-    practice: { difficulty: 'hard', games: 5 },
-    spending: { packPreference: 'base' },
-    achievements: 'claim',
-  },
-  {
-    id: 'tower-climber',
-    name: 'Kaia',
-    style: 'tower climber',
-    starterId: 'starter-harvest',
-    pilotSkill: 'hard',
-    gauntletMatches: 4,
+    practice: { difficulty: 'medium', games: 1 },
+    gauntletMatches: 5,
+    stopGauntletAfterLoss: true,
     spending: { packPreference: 'mixed', reserveGold: 250 },
     achievements: 'claim',
   },
   {
-    id: 'tower-dabbler',
-    name: 'Nadia',
-    style: 'tower dabbler',
-    starterId: 'starter-crimson',
+    id: 'limited-fan',
+    name: 'Limited Fan',
+    style: 'spends most sessions in Sealed/Draft',
+    starterId: 'starter-mandate',
     pilotSkill: 'medium',
     practice: { difficulty: 'medium', games: 1 },
-    gauntletMatches: 2,
-    spending: { packPreference: 'base' },
+    limited: { mode: 'mixed', matches: 3 },
+    spending: { packPreference: 'mixed', reserveGold: 250 },
     achievements: 'claim',
   },
   {
     id: 'collector',
-    name: 'Iris',
-    style: 'pack collector',
-    starterId: 'starter-wild',
+    name: 'Collector',
+    style: 'opens packs aggressively, chases unique cards and variants',
+    starterId: 'starter-harvest',
     pilotSkill: 'medium',
     practice: { difficulty: 'easy', games: 3 },
     spending: { packPreference: 'mixed' },
     achievements: 'claim',
   },
   {
-    id: 'deck-buyer',
-    name: 'Vera',
-    style: 'deck buyer',
-    starterId: 'starter-tides',
+    id: 'theme-deck-buyer',
+    name: 'Theme Deck Buyer',
+    style: 'saves for starter/theme decks before packs',
+    starterId: 'starter-crimson',
     pilotSkill: 'medium',
     practice: { difficulty: 'medium', games: 3 },
     spending: {
@@ -308,23 +332,56 @@ export const PLAYER_PERSONAS: readonly PlayerPersona[] = Object.freeze([
     achievements: 'claim',
   },
   {
-    id: 'sealed',
-    name: 'Lena',
-    style: 'sealed regular',
+    id: 'hardcore-optimizer',
+    name: 'Hardcore Optimizer',
+    style: 'rerolls bad quests, plays best reward/hour line',
+    starterId: 'starter-wild',
+    pilotSkill: 'hard',
+    practice: { difficulty: 'hard', games: 4 },
+    gauntletMatches: 2,
+    questChase: { difficulty: 'hard', maxExtraGames: 3 },
+    rerollOffColorQuests: true,
+    spending: { packPreference: 'mixed' },
+    achievements: 'claim',
+  },
+  {
+    id: 'low-skill-casual',
+    name: 'Low Skill Casual',
+    style: 'lower win rate, fewer quests completed',
+    starterId: 'starter-tides',
+    pilotSkill: 'easy',
+    practice: { difficulty: 'medium', games: { min: 1, max: 2 } },
+    spending: { packPreference: 'base', reserveGold: 150 },
+    achievements: 'claim',
+  },
+  {
+    id: 'high-skill-veteran',
+    name: 'High Skill Veteran',
+    style: 'better win rate, clears harder content',
     starterId: 'starter-mandate',
-    pilotSkill: 'medium',
-    limited: { mode: 'sealed', matches: 3 },
+    pilotSkill: 'hard',
+    practice: { difficulty: 'hard', games: 3 },
+    gauntletMatches: 3,
     spending: { packPreference: 'mixed', reserveGold: 250 },
     achievements: 'claim',
   },
   {
-    id: 'draft',
-    name: 'Satsuki',
-    style: 'draft regular',
+    id: 'completionist',
+    name: 'Completionist',
+    style: 'chases achievements even when reward-inefficient',
     starterId: 'starter-harvest',
     pilotSkill: 'hard',
-    limited: { mode: 'draft', matches: 3 },
-    spending: { packPreference: 'ragnarok', reserveGold: 300 },
+    practice: { difficulty: 'hard', games: 3 },
+    gauntletMatches: 2,
+    limited: { mode: 'mixed', matches: 1 },
+    questChase: { difficulty: 'hard', maxExtraGames: 2 },
+    rerollOffColorQuests: true,
+    spending: {
+      packPreference: 'mixed',
+      reserveGold: 0,
+      buyOtherStartersFirst: true,
+      buyThemeDeckFirst: true,
+    },
     achievements: 'claim',
   },
 ]);
@@ -349,10 +406,14 @@ function freshStats(): SimStats {
     wins: 0,
     losses: 0,
     draws: 0,
+    sessionMinutes: 0,
+    dailyQuestCompletions: 0,
     dailyQuestClaims: 0,
     dailyQuestSlots: 0,
     gauntletCompletions: 0,
     limitedRuns: 0,
+    limitedWins: 0,
+    limitedLosses: 0,
     rewards: emptyRewards(),
     spent: emptySpent(),
   };
@@ -463,8 +524,27 @@ function rerollOffColorQuests(ctx: SimContext, today: string): void {
   for (let i = 0; i < ctx.save.daily.quests.length; i++) {
     const q = ctx.save.daily.quests[i];
     if (!q || q.claimed) continue;
-    if (offColorQuestId(q.id, colors)) rerollDailyQuest(ctx.save, i, today);
+    if (!offColorQuestId(q.id, colors)) continue;
+    const result = rerollDailyQuest(ctx.save, i, today);
+    if (result.ok) ctx.stats.sessionMinutes += QUEST_REROLL_MINUTES;
   }
+}
+
+function dailyCount(count: DailyCount | undefined, ctx: SimContext, dayIndex: number, label: string): number {
+  if (count === undefined) return 0;
+  if (typeof count === 'number') return Math.max(0, Math.trunc(count));
+  const min = Math.max(0, Math.trunc(Math.min(count.min, count.max)));
+  const max = Math.max(min, Math.trunc(Math.max(count.min, count.max)));
+  if (max === min) return min;
+  const roll = hashString(`${ctx.baseSeed}|${ctx.persona.id}|${ctx.sample}|${dayIndex}|${label}`);
+  return min + (roll % (max - min + 1));
+}
+
+function chooseLimitedMode(ctx: SimContext, dayIndex: number): LimitedMode {
+  const mode = ctx.persona.limited?.mode ?? 'sealed';
+  if (mode !== 'mixed') return mode;
+  const roll = hashString(`${ctx.baseSeed}|${ctx.persona.id}|${ctx.sample}|${dayIndex}|limited-mode`);
+  return roll % 2 === 0 ? 'sealed' : 'draft';
 }
 
 function playHeadlessMatch(
@@ -535,6 +615,7 @@ function runPractice(ctx: SimContext, difficulty: Difficulty, today: string): vo
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
   const opp = buildAI(difficulty, CARD_DB, seed ^ 0x5eed);
   const match = playHeadlessMatch(seed, player, opp, [activeDeck(ctx.save), practiceOpponentDeck(ctx.save)]);
+  ctx.stats.sessionMinutes += PRACTICE_MATCH_MINUTES;
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);
   const reward = applyMatchResult(ctx.save, difficulty, won, today);
@@ -545,7 +626,7 @@ function runPractice(ctx: SimContext, difficulty: Difficulty, today: string): vo
   claimDailyRewards(ctx, today);
 }
 
-function runGauntlet(ctx: SimContext, today: string, now: number): void {
+function runGauntlet(ctx: SimContext, today: string, now: number): boolean {
   if (!ctx.save.gauntlet.run) {
     ctx.save.gauntlet.run = {
       rung: 1,
@@ -560,6 +641,7 @@ function runGauntlet(ctx: SimContext, today: string, now: number): void {
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
   const opp = buildAI(avatar.difficulty, CARD_DB, seed ^ 0x5eed, avatar.personality);
   const match = playHeadlessMatch(seed, player, opp, [activeDeck(ctx.save), avatar.deck]);
+  ctx.stats.sessionMinutes += GAUNTLET_MATCH_MINUTES;
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);
   const clearStyle = deckColorStyle(activeDeck(ctx.save), CARD_DB);
@@ -578,16 +660,19 @@ function runGauntlet(ctx: SimContext, today: string, now: number): void {
   if (ctx.save.gauntlet.completions > beforeCompletions) ctx.stats.gauntletCompletions++;
   applyWinStreak(ctx, won, today);
   claimDailyRewards(ctx, today);
+  return won;
 }
 
 function applyDailyQuestProgressToSave(ctx: SimContext, events: readonly GameEvent[], today: string): void {
-  applyDailyQuestProgress(ctx.save, CARD_DB, events, today);
+  const result = applyDailyQuestProgress(ctx.save, CARD_DB, events, today);
+  ctx.stats.dailyQuestCompletions += result.completedQuestIds.length;
 }
 
 function runLimitedMatch(ctx: SimContext, mode: LimitedMode, today: string, now: number): void {
   if (!ctx.save.limited.activeRun) {
     ctx.save.limited.activeRun = startPreparedLimitedRun(ctx, mode, now);
     ctx.stats.limitedRuns++;
+    ctx.stats.sessionMinutes += mode === 'draft' ? DRAFT_SETUP_MINUTES : SEALED_SETUP_MINUTES;
   }
   const run = ctx.save.limited.activeRun;
   if (!run || run.status !== 'matches') throw new Error('Limited run did not reach matches');
@@ -596,8 +681,11 @@ function runLimitedMatch(ctx: SimContext, mode: LimitedMode, today: string, now:
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
   const opp = buildAI(duel.difficulty, CARD_DB, seed ^ 0x5eed);
   const match = playHeadlessMatch(seed, player, opp, [duel.deckOverride, duel.oppDeckOverride]);
+  ctx.stats.sessionMinutes += LIMITED_MATCH_MINUTES;
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);
+  if (won) ctx.stats.limitedWins++;
+  else ctx.stats.limitedLosses++;
   const reward = applyLimitedMatchResult(
     ctx.save,
     duel.difficulty,
@@ -671,14 +759,18 @@ function runDay(ctx: SimContext, dayIndex: number): void {
   ctx.stats.dailyQuestSlots += ECONOMY.dailyQuestCount;
   rerollOffColorQuests(ctx, today);
 
-  for (let i = 0; i < (ctx.persona.practice?.games ?? 0); i++) {
+  const practiceGames = dailyCount(ctx.persona.practice?.games, ctx, dayIndex, 'practice');
+  for (let i = 0; i < practiceGames; i++) {
     runPractice(ctx, ctx.persona.practice!.difficulty, today);
   }
-  for (let i = 0; i < (ctx.persona.gauntletMatches ?? 0); i++) {
-    runGauntlet(ctx, today, now);
+  const gauntletMatches = dailyCount(ctx.persona.gauntletMatches, ctx, dayIndex, 'gauntlet');
+  for (let i = 0; i < gauntletMatches; i++) {
+    const won = runGauntlet(ctx, today, now);
+    if (!won && ctx.persona.stopGauntletAfterLoss) break;
   }
-  for (let i = 0; i < (ctx.persona.limited?.matches ?? 0); i++) {
-    runLimitedMatch(ctx, ctx.persona.limited!.mode, today, now + i);
+  const limitedMatches = dailyCount(ctx.persona.limited?.matches, ctx, dayIndex, 'limited');
+  for (let i = 0; i < limitedMatches; i++) {
+    runLimitedMatch(ctx, chooseLimitedMode(ctx, dayIndex), today, now + i);
   }
 
   if (ctx.persona.questChase) {
@@ -713,6 +805,7 @@ function buyDecks(ctx: SimContext): void {
       if (ctx.save.decks.some((d) => d.id === deck.id)) continue;
       if (buyThemeDeck(ctx.save, CARD_DB, deck, ECONOMY.starterDeckPrice)) {
         ctx.stats.spent.decks += ECONOMY.starterDeckPrice;
+        ctx.stats.sessionMinutes += DECK_BUY_MINUTES;
       }
     }
   }
@@ -721,6 +814,7 @@ function buyDecks(ctx: SimContext): void {
       if (ctx.save.decks.some((d) => d.id === deck.id)) continue;
       if (buyThemeDeck(ctx.save, CARD_DB, deck, ECONOMY.preconPrice)) {
         ctx.stats.spent.decks += ECONOMY.preconPrice;
+        ctx.stats.sessionMinutes += DECK_BUY_MINUTES;
       }
     }
   }
@@ -737,6 +831,7 @@ function buyPacks(ctx: SimContext, dayIndex: number): void {
     if (ctx.save.gold - reserve < pack.price) return;
     if (!spendGold(ctx.save, pack.price)) return;
     ctx.stats.spent.packs += pack.price;
+    ctx.stats.sessionMinutes += PACK_OPEN_MINUTES;
     const beforeGold = ctx.save.gold;
     const result = openPack(ctx.save, CARD_DB, ctx.rng, pack.set);
     const dupeGold = result.cards.reduce((sum, card) => sum + card.dupeGold, 0);
@@ -788,10 +883,17 @@ function setupContext(persona: PlayerPersona, sample: number, baseSeed: number):
   return ctx;
 }
 
+function collectionSize(save: SaveData): number {
+  return Object.values(save.collection).reduce((sum, count) => sum + count, 0);
+}
+
 function snapshot(ctx: SimContext, day: number): ProgressSnapshot {
   const completion = collectionCompletion(Object.values(CARD_DB), ctx.save);
   const goldEarned = rewardTotal(ctx.stats.rewards);
   const goldSpent = spentTotal(ctx.stats.spent);
+  const uniqueCards = completion.owned;
+  const limitedAvgWins = ctx.stats.limitedRuns === 0 ? 0 : ctx.stats.limitedWins / ctx.stats.limitedRuns;
+  const limitedAvgLosses = ctx.stats.limitedRuns === 0 ? 0 : ctx.stats.limitedLosses / ctx.stats.limitedRuns;
   return {
     personaId: ctx.persona.id,
     personaName: ctx.persona.name,
@@ -805,18 +907,33 @@ function snapshot(ctx: SimContext, day: number): ProgressSnapshot {
     winRate: ctx.stats.games === 0 ? 0 : ctx.stats.wins / ctx.stats.games,
     goldEarned,
     goldSpent,
+    goldNet: goldEarned - goldSpent,
     finalGold: ctx.save.gold,
     packsOpened: ctx.save.stats.packsOpened,
     decksOwned: ctx.save.decks.length,
-    cardsOwned: completion.owned,
+    collectionSize: collectionSize(ctx.save),
+    uniqueCards,
+    cardsOwned: uniqueCards,
     collectionPct: completion.percent,
     specialVariants: completion.variants.specialVariants,
+    duplicateRefundGold: ctx.stats.rewards.dupes,
+    achievementsUnlocked: ctx.save.achievements.unlocked.length,
     achievementsClaimed: ctx.save.achievements.claimed.length,
+    dailyQuestCompletions: ctx.stats.dailyQuestCompletions,
     dailyQuestClaims: ctx.stats.dailyQuestClaims,
+    dailyQuestCompletionRate:
+      ctx.stats.dailyQuestSlots === 0 ? 0 : ctx.stats.dailyQuestCompletions / ctx.stats.dailyQuestSlots,
     dailyQuestClaimRate: ctx.stats.dailyQuestSlots === 0 ? 0 : ctx.stats.dailyQuestClaims / ctx.stats.dailyQuestSlots,
+    streakLength: ctx.save.daily.streak.count,
     gauntletBestRung: ctx.save.gauntlet.bestRung,
     gauntletCompletions: ctx.save.gauntlet.completions,
     limitedRuns: ctx.stats.limitedRuns,
+    limitedWins: ctx.stats.limitedWins,
+    limitedLosses: ctx.stats.limitedLosses,
+    limitedAvgWins,
+    limitedAvgLosses,
+    sessionMinutes: ctx.stats.sessionMinutes,
+    minutesPerDay: ctx.stats.sessionMinutes / day,
     rewards: { ...ctx.stats.rewards },
     spent: { ...ctx.stats.spent },
   };
@@ -876,17 +993,32 @@ function aggregateSnapshots(
         winRate: avg(rows.map((r) => r.winRate)),
         goldEarned: avg(rows.map((r) => r.goldEarned)),
         goldSpent: avg(rows.map((r) => r.goldSpent)),
+        goldNet: avg(rows.map((r) => r.goldNet)),
         finalGold: avg(rows.map((r) => r.finalGold)),
         packsOpened: avg(rows.map((r) => r.packsOpened)),
         packsPerDay: avg(rows.map((r) => r.packsOpened / r.day)),
+        collectionSize: avg(rows.map((r) => r.collectionSize)),
+        uniqueCards: avg(rows.map((r) => r.uniqueCards)),
         cardsOwned: avg(rows.map((r) => r.cardsOwned)),
         collectionPct: avg(rows.map((r) => r.collectionPct)),
         specialVariants: avg(rows.map((r) => r.specialVariants)),
+        duplicateRefundGold: avg(rows.map((r) => r.duplicateRefundGold)),
+        achievementsUnlocked: avg(rows.map((r) => r.achievementsUnlocked)),
         achievementsClaimed: avg(rows.map((r) => r.achievementsClaimed)),
+        dailyQuestCompletions: avg(rows.map((r) => r.dailyQuestCompletions)),
+        dailyQuestClaims: avg(rows.map((r) => r.dailyQuestClaims)),
+        dailyQuestCompletionRate: avg(rows.map((r) => r.dailyQuestCompletionRate)),
         dailyQuestClaimRate: avg(rows.map((r) => r.dailyQuestClaimRate)),
+        streakLength: avg(rows.map((r) => r.streakLength)),
         gauntletBestRung: avg(rows.map((r) => r.gauntletBestRung)),
         gauntletCompletions: avg(rows.map((r) => r.gauntletCompletions)),
         limitedRuns: avg(rows.map((r) => r.limitedRuns)),
+        limitedWins: avg(rows.map((r) => r.limitedWins)),
+        limitedLosses: avg(rows.map((r) => r.limitedLosses)),
+        limitedAvgWins: avg(rows.map((r) => r.limitedAvgWins)),
+        limitedAvgLosses: avg(rows.map((r) => r.limitedAvgLosses)),
+        sessionMinutes: avg(rows.map((r) => r.sessionMinutes)),
+        minutesPerDay: avg(rows.map((r) => r.minutesPerDay)),
         rewards: rows.map((r) => r.rewards).reduce(addRewards, emptyRewards()),
         spent: rows.map((r) => r.spent).reduce(addSpent, emptySpent()),
       });
@@ -997,22 +1129,63 @@ function pad(value: string, width: number): string {
   return value.length >= width ? value : value + ' '.repeat(width - value.length);
 }
 
+function recordText(row: ProgressAggregate): string {
+  return row.limitedRuns <= 0 ? '-' : `${fixed(row.limitedAvgWins, 1)}-${fixed(row.limitedAvgLosses, 1)}`;
+}
+
+function dailyText(row: ProgressAggregate): string {
+  return `${fixed(row.dailyQuestCompletions, 1)}/${fixed(row.dailyQuestClaims, 1)}`;
+}
+
+function achievementText(row: ProgressAggregate): string {
+  return `${fixed(row.achievementsUnlocked, 1)}/${fixed(row.achievementsClaimed, 1)}`;
+}
+
+function gauntletText(row: ProgressAggregate): string {
+  return `${fixed(row.gauntletBestRung, 1)}/${fixed(row.gauntletCompletions, 1)}`;
+}
+
+function loadText(row: ProgressAggregate): string {
+  return `${fixed(row.sessionMinutes / 60, 1)}h/${fixed(row.minutesPerDay)}m`;
+}
+
 export function renderProgressionReport(report: ProgressionReport): string {
   const lines: string[] = [];
   lines.push(
     `=== PROGRESSION SIM - ${report.personas.length} personas * ${report.seeds} deterministic seeds * ${report.days.join('/')}-day checkpoints ===`,
   );
   lines.push('Assumption: opened cards grow collection only; constructed decks are not auto-rebuilt from pulls.');
+  lines.push('Time model: practice 10m, Gauntlet 12m, Limited 14m plus setup, packs/decks/rerolls included.');
   for (const day of report.days) {
     const rows = report.aggregates.filter((r) => r.day === day);
     lines.push('');
-    lines.push(`--- Day ${day} averages ---`);
+    lines.push(`--- Day ${day} economy averages ---`);
     lines.push(
-      `${pad('Persona', 18)} ${pad('Style', 17)} ${pad('Games', 7)} ${pad('Win', 6)} ${pad('Earn', 7)} ${pad('Spend', 7)} ${pad('Gold', 6)} ${pad('Packs', 7)} ${pad('Coll', 6)} ${pad('Dailies', 8)} ${pad('Tower', 7)}`,
+      `${pad('Persona', 20)} ${pad('Earn', 7)} ${pad('Spend', 7)} ${pad('Net', 7)} ${pad('Packs', 7)} ${pad('DupeGold', 9)}`,
     );
     for (const r of rows) {
       lines.push(
-        `${pad(r.personaName, 18)} ${pad(r.style, 17)} ${pad(fixed(r.games, 1), 7)} ${pad(pct(r.winRate), 6)} ${pad(fixed(r.goldEarned), 7)} ${pad(fixed(r.goldSpent), 7)} ${pad(fixed(r.finalGold), 6)} ${pad(fixed(r.packsOpened, 1), 7)} ${pad(pct(r.collectionPct), 6)} ${pad(pct(r.dailyQuestClaimRate), 8)} ${pad(`${fixed(r.gauntletBestRung, 1)}/${fixed(r.gauntletCompletions, 1)}`, 7)}`,
+        `${pad(r.personaName, 20)} ${pad(fixed(r.goldEarned), 7)} ${pad(fixed(r.goldSpent), 7)} ${pad(fixed(r.goldNet), 7)} ${pad(fixed(r.packsOpened, 1), 7)} ${pad(fixed(r.duplicateRefundGold), 9)}`,
+      );
+    }
+    lines.push('');
+    lines.push(`--- Day ${day} collection and claims ---`);
+    lines.push(
+      `${pad('Persona', 20)} ${pad('Copies', 7)} ${pad('Unique', 7)} ${pad('Coll', 6)} ${pad('Variants', 9)} ${pad('Daily C/K', 10)} ${pad('Streak', 7)} ${pad('Ach U/C', 8)}`,
+    );
+    for (const r of rows) {
+      lines.push(
+        `${pad(r.personaName, 20)} ${pad(fixed(r.collectionSize, 1), 7)} ${pad(fixed(r.uniqueCards, 1), 7)} ${pad(pct(r.collectionPct), 6)} ${pad(fixed(r.specialVariants, 1), 9)} ${pad(dailyText(r), 10)} ${pad(fixed(r.streakLength, 1), 7)} ${pad(achievementText(r), 8)}`,
+      );
+    }
+    lines.push('');
+    lines.push(`--- Day ${day} mode and load ---`);
+    lines.push(
+      `${pad('Persona', 20)} ${pad('Matches', 8)} ${pad('Win', 6)} ${pad('Load', 12)} ${pad('Limited', 8)} ${pad('AvgRec', 7)} ${pad('Gauntlet', 9)}`,
+    );
+    for (const r of rows) {
+      lines.push(
+        `${pad(r.personaName, 20)} ${pad(fixed(r.games, 1), 8)} ${pad(pct(r.winRate), 6)} ${pad(loadText(r), 12)} ${pad(fixed(r.limitedRuns, 1), 8)} ${pad(recordText(r), 7)} ${pad(gauntletText(r), 9)}`,
       );
     }
   }
