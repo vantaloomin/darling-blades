@@ -265,6 +265,8 @@ export class DuelScene extends Phaser.Scene {
   /** Public zone browser: graveyards now, player deck now, exile/lands later. */
   private zoneModal: ZoneContentsModal | null = null;
   private zoneGuard = new ModalGuard();
+  /** Set when inspect was opened FROM a zone modal: closing inspect returns there. */
+  private zoneModalReturn: (() => void) | null = null;
   /** Graveyard-target chooser (Raise Dead etc.): pick which creature to return. */
   private gravePicker: Phaser.GameObjects.Container | null = null;
   private gravePickerGuard = new ModalGuard();
@@ -405,6 +407,7 @@ export class DuelScene extends Phaser.Scene {
     this.pauseGuard = new ModalGuard();
     this.zoneModal = null;
     this.zoneGuard = new ModalGuard();
+    this.zoneModalReturn = null;
     this.discardPicks = new Set();
     // Stale on gauntlet/rematch restarts: the scene clock died with the old
     // run, so a still-set handle would block auto-skip forever. The clock also
@@ -2306,8 +2309,12 @@ export class DuelScene extends Phaser.Scene {
       'right',
     );
     if (changed && this.motionLevel() === 'full') {
-      for (const pip of this.manaPips) pip.setAlpha(0.4);
-      this.tweens.add({ targets: this.manaPips, alpha: 1, duration: 120, ease: 'Quad.easeOut' });
+      // Fade back to each pip's own base alpha — ×0 pips stay dimmed.
+      for (const pip of this.manaPips) {
+        const base = (pip.getData('baseAlpha') as number | undefined) ?? 1;
+        pip.setAlpha(0.4 * base);
+        this.tweens.add({ targets: pip, alpha: base, duration: 120, ease: 'Quad.easeOut' });
+      }
     }
   }
 
@@ -2324,33 +2331,51 @@ export class DuelScene extends Phaser.Scene {
     for (const src of manaSources(this.duel.state, CARD_DB, player)) {
       for (const c of src.colors) counts.set(c, (counts.get(c) ?? 0) + 1);
     }
-    const colors = (['W', 'U', 'B', 'R', 'G'] as const).filter((c) => (counts.get(c) ?? 0) > 0);
     const lands = this.battlefieldLands(player);
-    if (colors.length === 0 && lands.length === 0) return;
+    // Colors PRESENT on this side (any battlefield land, tapped included, plus
+    // any live source): a tapped-out color reads ×0 dimmed instead of
+    // vanishing — playing your first land and tapping it must not leave the
+    // counter blank (user-reported 2026-07-10).
+    const present = new Set<Color>(counts.keys());
+    for (const land of lands) {
+      for (const c of def(CARD_DB, land.cardId).manaAbility ?? []) present.add(c);
+    }
+    const colors = (['W', 'U', 'B', 'R', 'G'] as const).filter((c) => present.has(c));
 
     let minX = xAnchor - 22;
     let maxX = xAnchor + 22;
-    colors.forEach((c, i) => {
+    // No lands at all yet: a faint colorless ×0 placeholder keeps the counter
+    // region visible (and clickable) from turn 0, so its first real update
+    // happens in place instead of materializing mid-reveal.
+    const slots: { texture: string; count: number }[] = colors.length
+      ? colors.map((c) => ({ texture: `pip-${c}`, count: counts.get(c) ?? 0 }))
+      : [{ texture: 'pip-C', count: 0 }];
+    slots.forEach((slot, i) => {
       const x = align === 'right'
-        ? xAnchor - (colors.length - 1 - i) * step
+        ? xAnchor - (slots.length - 1 - i) * step
         : xAnchor + i * step;
-      const pip = this.add.image(x, cy, `pip-${c}`).setDisplaySize(pipSize, pipSize).setDepth(4);
+      const baseAlpha = slot.count > 0 ? 1 : 0.45;
+      const pip = this.add
+        .image(x, cy, slot.texture)
+        .setDisplaySize(pipSize, pipSize)
+        .setDepth(4)
+        .setAlpha(baseAlpha)
+        .setData('baseAlpha', baseAlpha);
       const countText = this.add
-        .text(x + pipSize * 0.64, cy, `×${counts.get(c)}`, {
+        .text(x + pipSize * 0.64, cy, `×${slot.count}`, {
           fontFamily: 'Inter, Arial, sans-serif',
           fontSize: '13px',
           fontStyle: '600',
-          color: '#cbc2e0',
+          color: slot.count > 0 ? '#cbc2e0' : '#7d7492',
           resolution: 2,
         })
         .setOrigin(0, 0.5)
-        .setDepth(4);
+        .setDepth(4)
+        .setData('baseAlpha', 1);
       minX = Math.min(minX, x - pipSize / 2);
       maxX = Math.max(maxX, x + pipSize / 2, countText.x + countText.width);
       this.manaPips.push(pip);
-      this.manaPips.push(
-        countText,
-      );
+      this.manaPips.push(countText);
     });
     const width = Math.max(44, maxX - minX);
     const zone = this.add
@@ -2525,7 +2550,10 @@ export class DuelScene extends Phaser.Scene {
         view.setPosition(LAYOUT.piles.x, LAYOUT.piles.deckY).setAlpha(0);
         if (dot) dot.setAlpha(0);
         this.tweens.add({
-          targets: view, x, y, scaleX: scale, scaleY: scale, angle: slot.angleDeg, alpha: 1,
+          // End at the playability alpha — a hardcoded 1 here lit unaffordable
+          // draws as castable until the next sync (user-reported 2026-07-10).
+          targets: view, x, y, scaleX: scale, scaleY: scale, angle: slot.angleDeg,
+          alpha: playable ? 1 : 0.75,
           duration: 160, ease: 'Quad.easeOut',
         });
         if (dot) this.tweens.add({ targets: dot, alpha: 1, duration: 160, ease: 'Quad.easeOut' });
@@ -2938,7 +2966,10 @@ export class DuelScene extends Phaser.Scene {
       showClose: false,
       depth: theme.depth.inspect,
       onClose: () => this.closeZoneModal(),
-      onInspect: (card) => this.showInspect(card),
+      onInspect: (card) => {
+        this.zoneModalReturn = () => this.showZoneModal(player, zone);
+        this.showInspect(card);
+      },
     });
     this.zoneModal = modal;
     this.zoneGuard.open(this.overlayGuardTargets());
@@ -2951,7 +2982,7 @@ export class DuelScene extends Phaser.Scene {
     const untapped = lands.filter((land) => !land.tapped).length;
     const owner = player === HUMAN ? 'Your' : "Foe's";
     const modal = showZoneContents(this, {
-      title: `${owner} Lands -- ${lands.length} (${untapped} untapped)`,
+      title: `${owner} Lands — ${lands.length} (${untapped} untapped)`,
       entries: this.landZoneEntries(lands),
       emptyText: 'No lands on the battlefield.',
       dimAlpha: 0.62,
@@ -2960,7 +2991,10 @@ export class DuelScene extends Phaser.Scene {
       showClose: false,
       depth: theme.depth.inspect,
       onClose: () => this.closeZoneModal(),
-      onInspect: (card) => this.showInspect(card),
+      onInspect: (card) => {
+        this.zoneModalReturn = () => this.showLandsModal(player);
+        this.showInspect(card);
+      },
     });
     this.zoneModal = modal;
     this.zoneGuard.open(this.overlayGuardTargets());
@@ -3088,6 +3122,17 @@ export class DuelScene extends Phaser.Scene {
       this.inspect.destroy();
       this.inspect = null;
       this.inspectGuard.close();
+    }
+    // Inspect launched from a zone modal returns there on close. Deferred a
+    // tick: showInspect's own close-then-replace path must NOT bounce back
+    // (the replacement inspect exists by the time this fires — memo kept).
+    const reopen = this.zoneModalReturn;
+    if (reopen) {
+      this.time.delayedCall(0, () => {
+        if (this.zoneModalReturn !== reopen || this.inspect) return;
+        this.zoneModalReturn = null;
+        if (!this.ended && !this.zoneModal) reopen();
+      });
     }
     this.zoom.setSuppressed(this.ended);
     // An open inspect pauses a pending auto-skip chain (the hop callback
