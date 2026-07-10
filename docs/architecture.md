@@ -239,7 +239,7 @@ instant all-at-once path.
 The split — *events animate the deltas, state renders the board* — keeps the UI
 from ever desyncing from the engine.
 
-### The duel board: the mirrored "Immersive Fan" stage (2026-07-04 wireframe 1a; top half mirrored 2026-07-09, Wave 1.5a)
+### The duel board: the mirrored "Immersive Fan" stage (2026-07-04 wireframe 1a; top half mirrored 2026-07-09, Wave 1.5a; polished Wave 1.5c)
 
 The board follows the user-picked **wireframe 1a "Immersive Fan"** (Arena-pole,
 casual density — the stage backdrop shows through around two inset zone
@@ -250,25 +250,26 @@ in the UI-refresh Wave 1.5a (plan-ui-ux-refresh.md). Layout regions (the
 - **Top stage (mirrored)**: the old thin opponent strip is gone. The
   opponent's **`CommanderPortrait`** (same 200×180 as yours, the
   `edge: 'top'` variant descending from the screen's top edge) sits
-  top-right with their **targetable life** riding its corner; their
-  deck/grave **`PileView`** piles sit top-left; their hidden-hand
-  **card-back ×N** row is top-center with the matchup label at the top-left
-  corner; their per-color mana pips run **left-aligned** (the point mirror
-  of yours). The **turn banner** now drops in top-center (y ≈ 96), above
-  their cards instead of over the middle of the board.
-- **Two zone plates** (inset rounded rects): each holds that player's land
-  stacks at its outer edge and creature-tile row at its inner edge,
-  Arena-style — the opponent's lands are **right-aligned** (mirror of your
-  left-aligned stacks) and their plate's right edge pulls in (~x 1046) to
-  clear their portrait. The **skip toast and the stack readout** float in
-  the gap between the plates.
-- **Hint rail** (left edge): the wrapped hint + log lines and the Undo
-  button. (The old step pill and whose-turn tag moved into the phase track.)
-- **Phase track** (right column, above the End Turn chip): a vertical
-  UPKEEP · MAIN 1 · COMBAT · MAIN 2 · END list — the current step rides a
-  highlighted pill (gold-stroked on your turn, muted on the opponent's)
-  that cycles as steps advance; the step→row mapping is the pure, tested
-  `src/ui/phaseTrack.ts`. Display-only, no input.
+  top-right at (1056,8) with their **targetable life** riding its corner;
+  their deck/grave **`PileView`** piles sit top-left; their hidden-hand
+  **card-back ×N** row is top-center at (640,24). Their land row and
+  left-aligned mana pips sit on y 78, inside the raised opponent plate. The
+  **turn banner** drops in top-center at y 74 instead of over midfield.
+- **Two zone plates** (inset rounded rects): both stop at x 1046 to leave a
+  right sidebar. The opponent plate is (108,40)-(1046,306); the player plate is
+  (108,312)-(1046,532). Both creature rows center on x 577 with 860 px usable
+  width, so tiles span 147..1007 at full load-bearing width. Your lands remain
+  left-aligned from x 210 on y 484; your available-mana pips right-align to
+  end at x 1014. The **skip toast and the stack readout** float in the gap
+  between the plates.
+- **Left rail** (outside the mat): only the non-interactive turn pill at
+  (52,250) and the Undo chip at (52,410). Decision hints come from the smart
+  button and tutorial CoachMark; log lines live only in the History slide-out.
+- **Phase track** (right sidebar): a display-only vertical UPKEEP · MAIN 1 ·
+  COMBAT · MAIN 2 · END list at x 1113, with rows starting y 356 on a 34 px
+  rhythm (ending y 492). The current step rides a highlighted pill
+  (gold-stroked on your turn, muted on the opponent's) that cycles as steps
+  advance; the step→row mapping is the pure, tested `src/ui/phaseTrack.ts`.
 - **Bottom stage**: the **`CommanderPortrait`** (bottom-left, rising from the
   screen edge) shows your deck's **face card** — derived by the pure
   `faceCardFor` (`src/meta/deckFace.ts`: legendary creatures first, then copy
@@ -278,7 +279,9 @@ in the UI-refresh Wave 1.5a (plan-ui-ux-refresh.md). Layout regions (the
   Center: the **arced hand fan** (pure math in `src/ui/handFan.ts`). Right:
   the **⏭ End Turn** chip above the **circular smart button** (the 1a "PASS"
   circle — an `Arc` carries the input so relabeling the separate label Text
-  can never hit the Text hit-area trap), your deck/grave piles, and Concede.
+  can never hit the Text hit-area trap), your deck/grave piles, and the Menu
+  button whose pause panel houses Resume, quick toggles, the matchup subtitle,
+  and Concede.
   There is **no HUD auto-skip control** — auto-skip is a settings/pause-menu
   toggle (fresh saves default it **off**; pre-existing saves keep their
   stored value).
