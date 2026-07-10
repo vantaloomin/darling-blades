@@ -7,13 +7,17 @@ execute the remaining refresh waves without re-deriving context. The design
 plan is [plan-ui-ux-refresh.md](plan-ui-ux-refresh.md); this doc is the
 execution layer. Read docs/claude-playbook.md first, as always.
 
-## State of the world (2026-07-09, main @ PR #45)
+## State of the world (2026-07-09, Wave 2 shipped)
 
 Shipped, in order: Wave 0 theme foundation (PR #40) · Wave 1 play-field
 motion/depth (PR #41) · Wave 1.5a mirrored play-mat + phase track +
 auto-skip cleanup (PR #42) · Wave 1.5b play-reveal transition + keyword
 trait icons (PR #43) · Wave 1.5c layout polish: label purge, symmetric
-plates, right sidebar (PR #44) · turn-pill/life-corner refinements (PR #45).
+plates, right sidebar (PR #44) · turn-pill/life-corner refinements (PR #45)
+· **Wave 2** larger tiles (156×170 @ cy 389, pure unit-tested
+`src/ui/rowPacking.ts`) + in-duel pause/end screens on `modalShell`
+(which gained `dimAlpha`/`escToClose`/`depth` and an always-swallowing
+dim; `themedButton` gained `setVariant`).
 
 Shared modules that now exist and MUST be consumed (no new hex literals):
 `src/ui/theme.ts` (tokens; Phaser-free import), `src/ui/themeWidgets.ts`
@@ -30,8 +34,8 @@ budget disappoints the user — their call, with evidence).
 | Element | Anchor |
 |---|---|
 | Opp plate / your plate | (108,40)–(1046,306) / (108,312)–(1046,532) |
-| Creature rows (both) | center x 577, usable 860, opp cy 214 / yours cy 386 |
-| Tiles (BoardCardView) | 132×146, art window 124×138 |
+| Creature rows (both) | center x 577, usable 860, opp cy 214 / yours cy 389 |
+| Tiles (BoardCardView) | 156×170, art window 148×162 |
 | Opp lands / your lands | right-aligned from x1006 leftward, cy 78 / left-aligned x0 210, cy 484 |
 | Mana pips | opp left-aligned from x120 cy78 · yours right-aligned ending x1014 cy484 |
 | Portraits (200×180) | yours (14,540) · opp (1056,8) |
@@ -44,10 +48,15 @@ budget disappoints the user — their call, with evidence).
 
 ---
 
-## Wave 2 — larger tiles + modal shell adoption
+## Wave 2 — larger tiles + modal shell adoption — ✅ SHIPPED 2026-07-09
 
-What remains of the plan's original Wave 2 after Wave 1.5 absorbed the
-opponent identity block, the phase ribbon, and the control-cluster grouping:
+What remained of the plan's original Wave 2 after Wave 1.5 absorbed the
+opponent identity block, the phase ribbon, and the control-cluster grouping.
+**Landed at 156×170 @ cy 389, not the sketched 156×172 @ 390**: at tile
+height 172 the plate-poke + land-overlap sum is a fixed 40px, so the two
+budget caps below (≤8px poke, ≤30px overlap) cannot both hold — 170 is the
+max height satisfying both (measured live: spans 304–474, poke 8px,
+overlap 30px, five tiles full-scale at the 174 spacing cap).
 
 ### 2A. Larger battlefield tiles (the user's locked pick)
 
