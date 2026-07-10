@@ -127,6 +127,14 @@ export class MainMenuScene extends Phaser.Scene {
     });
     this.menuItems.push(howto.inputZone);
 
+    // Reference glossary, kept beside the tutorial so players can learn away
+    // from a live duel. It joins the guard-managed menu targets like every
+    // other learning-corner control.
+    const glossary = themedButton(this, 100, 124, '📖 Glossary', {
+      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.scene.start('Glossary'),
+    });
+    this.menuItems.push(glossary.inputZone);
+
     this.drawDailyPanel(today);
 
     // Card Showcase is a variant-QA surface — dev/local builds only (IS_DEV);
