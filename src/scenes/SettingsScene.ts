@@ -2,65 +2,44 @@ import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { Services } from '../meta/services';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { qualityTier } from '../platform/quality';
-import { applyBackdrop } from '../ui/SceneBackdrop';
-import type { RenderScaleSetting } from '../platform/renderScale';
 import type { AnimationLevel } from '../platform/animPolicy';
+import type { RenderScaleSetting } from '../platform/renderScale';
+import { applyBackdrop } from '../ui/SceneBackdrop';
+import { theme } from '../ui/theme';
+import { backButton, goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL, checkForUpdate } from '../version';
 
 const SEGMENTS = 10;
 const STEP = 0.1;
-/** Minimum hit-box side / control pitch (mobile audit: ≥90 design px). */
-const HIT_MIN = 90;
-
-/** Column geometry on the 1280×720 design canvas. */
-const LABEL_X = 220;
-const CONTROL_X = 520;
-/** Row pitch — 90 px so inflated 90-px hit rects on adjacent rows never overlap. */
-const ROW0_Y = 170;
-const ROW_PITCH = 90;
+const LEFT_LABEL_X = 110;
+const LEFT_CONTROL_X = 420;
+const RIGHT_LABEL_X = 670;
+const RIGHT_CONTROL_X = 1010;
+const ROW0_Y = 190;
+const ROW_PITCH = 82;
 
 const ANIM_CHIPS: { value: AnimationLevel; label: string }[] = [
   { value: 'full', label: 'Full' },
   { value: 'reduced', label: 'Reduced' },
   { value: 'off', label: 'Off' },
 ];
-
-/** Hard-coded 16:9 resolutions in ascending cost (no "Automatic" — v5). */
 const RENDER_CHIPS: { value: RenderScaleSetting; label: string; heavy: boolean }[] = [
   { value: 1, label: '1280×720', heavy: false },
   { value: 1.5, label: '1920×1080', heavy: true },
   { value: 2, label: '2560×1440', heavy: true },
 ];
 
-/**
- * Full settings menu (gear button on MainMenu). Every control writes through
- * the SaveManager and drives a real consumer:
- *
- * - SFX on/off      → settings.sfxOn, gates AudioManager.play().
- * - Volume −/+ bar  → Sfx.setVolume (master gain: SFX and music).
- * - Music on/off    → Music.setEnabled (persists settings.musicOn).
- * - Animations      → settings.animations; FXSupport.fxPolicy intersects it
- *                     and SceneBackdrop.applySceneSettings sets the tween
- *                     time-scale — both read at scene create(), hence the
- *                     visible "applies on scene change" note.
- * - Render size     → settings.renderScale; the canvas is sized at boot and,
- *                     in the desktop app, the OS window is resized to the
- *                     chosen 16:9 resolution — so picking a chip persists,
- *                     flushes, and reloads the page.
- * - Auto-skip       → settings.autoSkip, gates DuelScene.maybeAutoSkip.
- *
- * Mobile-audit rules: every control is bindTapButton'd, hit boxes inflated to
- * ≥90 design px, re-inflated after any setText, control pitch ≥90 px.
- */
+/** Settings are split into audio and gameplay columns to retain touch-safe row pitch. */
 export class SettingsScene extends Phaser.Scene {
-  private sfxChip!: Phaser.GameObjects.Text;
-  private musicChip!: Phaser.GameObjects.Text;
-  private skipChip!: Phaser.GameObjects.Text;
+  private sfxToggle!: ThemedButton;
+  private musicToggle!: ThemedButton;
+  private skipToggle!: ThemedButton;
+  private confirmToggle!: ThemedButton;
+  private keywordToggle!: ThemedButton;
   private volumeBar!: Phaser.GameObjects.Text;
-  private animChips = new Map<AnimationLevel, Phaser.GameObjects.Text>();
-  private renderChips = new Map<RenderScaleSetting, Phaser.GameObjects.Text>();
+  private animChips = new Map<AnimationLevel, ThemedButton>();
+  private renderChips = new Map<RenderScaleSetting, ThemedButton>();
 
   constructor() {
     super('Settings');
@@ -69,20 +48,11 @@ export class SettingsScene extends Phaser.Scene {
   create(): void {
     this.animChips.clear();
     this.renderChips.clear();
-
-    // Backdrop first (display-list order keeps it under everything). Reuses
-    // the main-menu vista with a slightly heavier dim than MainMenu's 0.50 —
-    // this screen is denser text, so readability wins over the art.
     applyBackdrop(this, 'mainmenu', {
-      dim: 0x0d0a14,
+      dim: theme.graphics.dim,
       dimAlpha: 0.62,
-      fallback: () => {
-        /* no art on disk — the #0d0a14 canvas clear colour shows */
-      },
+      fallback: () => undefined,
     });
-
-    // Same audio conventions as MainMenu: hover is mouse-only, one click per
-    // activation (Sfx dedupes rapid duplicates; play() gates on sfxOn).
     this.input.on('gameobjectover', (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) Sfx.play('hover');
     });
@@ -90,335 +60,267 @@ export class SettingsScene extends Phaser.Scene {
     Music.setMood('menu');
 
     this.add
-      .text(640, 84, 'Settings', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '44px',
-        color: '#f0e6ff',
+      .text(640, 72, 'Settings', {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.display}px`,
+        color: theme.colors.heading,
       })
       .setOrigin(0.5);
+    goldBadge(this, 1250, 30, { getValue: () => Services.save.data.gold });
+    backButton(this, () => this.scene.start('MainMenu'));
 
-    // Gold badge (top-right) — keep the balance visible across meta screens.
-    // Static here: nothing on this screen spends or earns gold.
-    this.add
-      .text(1250, 30, `🪙 ${Services.save.data.gold}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '18px',
-        fontStyle: '600',
-        color: '#ffd88a',
-      })
-      .setOrigin(1, 0.5);
+    panel(this, 70, 124, 540, 402);
+    panel(this, 670, 124, 540, 402);
+    this.sectionTitle(110, 150, 'Audio');
+    this.sectionTitle(710, 150, 'Gameplay');
+    const leftY = (row: number): number => ROW0_Y + row * ROW_PITCH;
+    const rightY = (row: number): number => ROW0_Y + row * ROW_PITCH;
 
-    const rowY = (i: number): number => ROW0_Y + i * ROW_PITCH;
-
-    // -- Row 0: SFX toggle + master volume ---------------------------------
-    this.rowLabel(rowY(0), 'Sound effects');
-    this.sfxChip = this.chip(CONTROL_X, rowY(0), 'Off');
-    bindTapButton(this, this.sfxChip, () => {
-      const s = Services.save.data.settings;
-      s.sfxOn = !s.sfxOn;
+    this.rowLabel(LEFT_LABEL_X, leftY(0), 'Sound effects');
+    this.sfxToggle = this.toggle(LEFT_CONTROL_X, leftY(0), () => {
+      const settings = Services.save.data.settings;
+      settings.sfxOn = !settings.sfxOn;
       Services.save.touch();
       this.refreshToggles();
-      if (s.sfxOn) Sfx.play('click'); // audible confirmation the gate opened
+      if (settings.sfxOn) Sfx.play('click');
     });
 
-    const minus = this.chip(660, rowY(0), '−');
-    // ▰/▱ render via OS font fallback with unpredictable advance widths —
-    // measure the full bar before placing the + button (playbook §11: glyph
-    // advance widths are font-fallback-dependent on Windows — never hardcode).
+    this.rowLabel(LEFT_LABEL_X, leftY(1), 'Master volume');
+    const minus = themedButton(this, LEFT_CONTROL_X - 108, leftY(1), '−', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 44,
+      onTap: () => this.stepVolume(-STEP),
+    });
     this.volumeBar = this.add
-      .text(minus.x + minus.width + 24, rowY(0), '▰'.repeat(SEGMENTS), {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        color: '#c9bde0',
+      .text(LEFT_CONTROL_X - 70, leftY(1), '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.body,
       })
       .setOrigin(0, 0.5);
-    const plus = this.chip(this.volumeBar.x + this.volumeBar.width + 24, rowY(0), '+');
-    bindTapButton(this, minus, () => this.stepVolume(-STEP));
-    bindTapButton(this, plus, () => this.stepVolume(+STEP));
-    inflateHitArea(minus, HIT_MIN, HIT_MIN);
-    inflateHitArea(plus, HIT_MIN, HIT_MIN);
-    this.note(rowY(0) + 34, 'Volume is the master level — music follows it too.');
+    const plus = themedButton(this, LEFT_CONTROL_X + 108, leftY(1), '+', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 44,
+      onTap: () => this.stepVolume(STEP),
+    });
+    void minus;
+    void plus;
+    this.note(LEFT_LABEL_X, leftY(1) + 28, 'Volume is the master level — music follows it too.');
 
-    // -- Row 1: music toggle ------------------------------------------------
-    this.rowLabel(rowY(1), 'Music');
-    this.musicChip = this.chip(CONTROL_X, rowY(1), 'Off');
-    bindTapButton(this, this.musicChip, () => {
+    this.rowLabel(LEFT_LABEL_X, leftY(2), 'Music');
+    this.musicToggle = this.toggle(LEFT_CONTROL_X, leftY(2), () => {
       Music.setEnabled(!Music.enabled);
       this.refreshToggles();
     });
 
-    // -- Row 2: animation level --------------------------------------------
-    this.rowLabel(rowY(2), 'Animations');
-    let ax = CONTROL_X;
+    this.rowLabel(RIGHT_LABEL_X, rightY(0), 'Animations');
+    let ax = RIGHT_CONTROL_X - 130;
     for (const { value, label } of ANIM_CHIPS) {
-      const c = this.chip(ax, rowY(2), label);
-      this.animChips.set(value, c);
-      bindTapButton(this, c, () => {
-        Services.save.data.settings.animations = value;
-        Services.save.touch();
-        this.refreshChipGroups();
+      const button = themedButton(this, ax, rightY(0), label, {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: 82,
+        onTap: () => {
+          Services.save.data.settings.animations = value;
+          Services.save.touch();
+          this.refreshChipGroups();
+        },
       });
-      ax += Math.max(HIT_MIN, c.width + 18); // ≥90 px control pitch
+      this.animChips.set(value, button);
+      ax += 90;
     }
-    this.note(rowY(2) + 34, 'Effect changes apply when you next change screens.');
+    this.note(RIGHT_LABEL_X, rightY(0) + 28, 'Effect changes apply when you next change screens.');
 
-    // -- Row 3: render size --------------------------------------------------
-    // Live: persist → flush → reload; main.ts resolves the factor pre-boot and
-    // (in the desktop app) resizes the OS window to match (see
-    // src/platform/renderScale.ts + desktopWindow.ts). On lite tier the
-    // high-res chips stay disabled — resolveRenderScale caps k at 1 there
-    // (VRAM/fill-rate budget), so an enabled chip would be a lie.
     const lite = qualityTier() === 'lite';
-    this.rowLabel(rowY(3), 'Render size');
-    let rx = CONTROL_X;
+    this.rowLabel(RIGHT_LABEL_X, rightY(1), 'Render size');
+    let rx = RIGHT_CONTROL_X - 126;
     for (const { value, label, heavy } of RENDER_CHIPS) {
-      const c = this.chip(rx, rowY(3), label);
-      this.renderChips.set(value, c);
-      if (lite && heavy) {
-        c.disableInteractive();
-        c.setStyle({ color: '#57506b', backgroundColor: '#1a1426' });
-      } else {
-        bindTapButton(this, c, () => this.pickRenderScale(value));
-      }
-      rx += Math.max(HIT_MIN, c.width + 18);
+      const button = themedButton(this, rx, rightY(1), label, {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: 84,
+        enabled: !(lite && heavy),
+        onTap: () => this.pickRenderScale(value),
+      });
+      this.renderChips.set(value, button);
+      rx += 92;
     }
     this.note(
-      rowY(3) + 34,
+      RIGHT_LABEL_X,
+      rightY(1) + 28,
       lite
-        ? 'Resizes the window (desktop) and reloads. High resolutions are disabled on this device.'
+        ? 'High resolutions are disabled on this device.'
         : 'Resizes the desktop window and reloads to apply.',
     );
 
-    // -- Row 4: auto-skip ----------------------------------------------------
-    this.rowLabel(rowY(4), 'Auto-skip forced turns');
-    this.skipChip = this.chip(CONTROL_X, rowY(4), 'Off');
-    bindTapButton(this, this.skipChip, () => {
-      const s = Services.save.data.settings;
-      s.autoSkip = !s.autoSkip;
+    this.rowLabel(RIGHT_LABEL_X, rightY(2), 'Auto-skip forced turns');
+    this.skipToggle = this.toggle(RIGHT_CONTROL_X, rightY(2), () => {
+      const settings = Services.save.data.settings;
+      settings.autoSkip = !settings.autoSkip;
       Services.save.touch();
       this.refreshToggles();
     });
-    this.note(rowY(4) + 34, 'Skips duel phases where you have no possible action.');
-
-    // -- Reset save (destructive) -------------------------------------------
-    // ALWAYS two-tap, regardless of settings.confirmDestructive — wiping the
-    // whole account is far more severe than a concede. A 4s auto-disarm keeps
-    // a stray armed state from erasing on an unrelated later tap.
-    const resetY = 594;
-    const resetBtn = this.add
-      .text(LABEL_X, resetY, '🗑 Reset save', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '18px',
-        color: '#f0b0b0',
-        backgroundColor: '#3a1f28',
-        padding: { x: 14, y: 8 },
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive({ useHandCursor: true });
-    let resetArmed = false;
-    const disarmReset = (): void => {
-      resetArmed = false;
-      resetBtn.setText('🗑 Reset save').setStyle({ color: '#f0b0b0', backgroundColor: '#3a1f28' });
-      inflateHitArea(resetBtn, HIT_MIN, HIT_MIN);
-    };
-    bindTapButton(this, resetBtn, () => {
-      if (!resetArmed) {
-        resetArmed = true;
-        resetBtn
-          .setText('⚠ Tap again to erase everything')
-          .setStyle({ color: '#ffffff', backgroundColor: '#8a2030' });
-        inflateHitArea(resetBtn, HIT_MIN, HIT_MIN);
-        this.time.delayedCall(4000, () => {
-          if (resetArmed && resetBtn.active) disarmReset();
-        });
-        return;
-      }
-      // Wipe storage + the shared in-memory blob, then reload so every scene
-      // rebuilds from the fresh save (starter picker, zero gold).
-      Services.save.reset();
-      window.location.reload();
+    this.rowLabel(RIGHT_LABEL_X, rightY(3), 'Confirm destructive actions');
+    this.confirmToggle = this.toggle(RIGHT_CONTROL_X, rightY(3), () => {
+      const settings = Services.save.data.settings;
+      settings.confirmDestructive = !settings.confirmDestructive;
+      Services.save.touch();
+      this.refreshToggles();
     });
-    inflateHitArea(resetBtn, HIT_MIN, HIT_MIN);
-    this.add
-      .text(LABEL_X, resetY + 32, 'Erases your collection, decks, gold, and progress. Cannot be undone.', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#8f83a8',
-        wordWrap: { width: 380, useAdvancedWrap: true },
-        lineSpacing: 2,
-      })
-      .setOrigin(0, 0);
-
-    // -- Back ----------------------------------------------------------------
-    const back = this.add
-      .text(640, 676, '← Back', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '28px',
-        color: '#c9bde0',
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    back.on('pointerover', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) back.setColor('#ffd700');
+    this.rowLabel(RIGHT_LABEL_X, rightY(4), 'Keyword reminders');
+    this.keywordToggle = this.toggle(RIGHT_CONTROL_X, rightY(4), () => {
+      const settings = Services.save.data.settings;
+      settings.keywordReminders = !settings.keywordReminders;
+      Services.save.touch();
+      this.refreshToggles();
     });
-    back.on('pointerout', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) back.setColor('#c9bde0');
-    });
-    bindTapButton(this, back, () => this.scene.start('MainMenu'));
-    inflateHitArea(back, HIT_MIN, HIT_MIN);
 
+    this.buildReset();
     this.buildVersionFooter();
-
     this.refreshToggles();
     this.refreshChipGroups();
     this.refreshVolume();
   }
 
-  /**
-   * Bottom-of-screen build identity + an on-demand update check. The check only
-   * fires on tap (no boot-time network) and degrades gracefully offline; the
-   * status text guards against an in-flight resolve after the scene is gone.
-   */
+  private sectionTitle(x: number, y: number, text: string): void {
+    this.add
+      .text(x, y, text, {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h2}px`,
+        color: theme.colors.gold,
+      })
+      .setOrigin(0, 0.5);
+  }
+  private rowLabel(x: number, y: number, text: string): void {
+    this.add
+      .text(x, y, text, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        color: theme.colors.body,
+      })
+      .setOrigin(0, 0.5);
+  }
+  private note(x: number, y: number, text: string): void {
+    this.add
+      .text(x, y, text, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0, 0.5);
+  }
+  private toggle(x: number, y: number, onTap: () => void): ThemedButton {
+    return themedButton(this, x, y, 'Off', { variant: 'ghost', size: 'sm', minWidth: 90, onTap });
+  }
+  private buildReset(): void {
+    this.add
+      .text(110, 570, 'Reset save', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        color: theme.colors.danger,
+      })
+      .setOrigin(0, 0.5);
+    const reset = themedButton(this, 360, 570, 'Reset save', {
+      variant: 'danger',
+      minWidth: 170,
+      onTap: () => {
+        if (reset.label.text !== 'Tap again to erase everything') {
+          reset.setLabel('Tap again to erase everything');
+          reset.setVariant('danger');
+          this.time.delayedCall(4000, () => {
+            if (reset.container.active && reset.label.text === 'Tap again to erase everything')
+              reset.setLabel('Reset save');
+          });
+          return;
+        }
+        Services.save.reset();
+        window.location.reload();
+      },
+    });
+    this.add.text(
+      110,
+      600,
+      'Erases your collection, decks, gold, and progress. Cannot be undone.',
+      {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
+      },
+    );
+  }
   private buildVersionFooter(): void {
     this.add
       .text(14, 702, VERSION_LABEL, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#6a6482',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0, 0.5);
-
     const status = this.add
       .text(640, 702, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#8f83a8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0.5);
-
-    const btn = this.add
-      .text(1266, 702, 'Check for updates', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '14px',
-        color: '#c9bde0',
-        backgroundColor: '#241d3a',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(1, 0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, btn, () => {
-      status.setText('Checking…').setColor('#8f83a8');
-      void checkForUpdate().then((r) => {
-        if (!status.active) return; // scene left mid-fetch
-        const color =
-          r.state === 'available' ? '#ffd88a' : r.state === 'error' ? '#e0a0a0' : '#8ad0a0';
-        status.setText(r.message).setColor(color);
-      });
+    themedButton(this, 1180, 690, 'Check for updates', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 150,
+      onTap: () => {
+        status.setText('Checking…').setColor(theme.colors.muted);
+        void checkForUpdate().then((result) => {
+          if (!status.active) return;
+          status
+            .setText(result.message)
+            .setColor(
+              result.state === 'available'
+                ? theme.colors.gold
+                : result.state === 'error'
+                  ? theme.colors.danger
+                  : theme.colors.success,
+            );
+        });
+      },
     });
-    inflateHitArea(btn, HIT_MIN, HIT_MIN);
   }
-
-  // -------------------------------------------------------------------------
-
-  private rowLabel(y: number, text: string): Phaser.GameObjects.Text {
-    return this.add
-      .text(LABEL_X, y, text, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '20px',
-        color: '#c9bde0',
-      })
-      .setOrigin(0, 0.5);
-  }
-
-  private note(y: number, text: string): Phaser.GameObjects.Text {
-    return this.add
-      .text(CONTROL_X, y, text, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#8f83a8',
-      })
-      .setOrigin(0, 0.5);
-  }
-
-  private chip(x: number, y: number, label: string): Phaser.GameObjects.Text {
-    return this.add
-      .text(x, y, label, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '18px',
-        color: '#c9bde0',
-        backgroundColor: '#241d3a',
-        padding: { x: 14, y: 8 },
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive({ useHandCursor: true });
-  }
-
   private stepVolume(delta: number): void {
     Sfx.setVolume(Sfx.volume + delta);
     this.refreshVolume();
-    Sfx.play('click'); // the tick sounds at the freshly applied level
+    Sfx.play('click');
   }
-
   private refreshVolume(): void {
     const filled = Math.round(Sfx.volume * SEGMENTS);
     this.volumeBar
       .setText('▰'.repeat(filled) + '▱'.repeat(SEGMENTS - filled))
-      .setColor(filled <= 0 ? '#57506b' : '#c9bde0');
+      .setColor(filled <= 0 ? theme.colors.muted : theme.colors.body);
   }
-
-  /** On/Off single chips. Re-inflates after setText (mobile-audit rule). */
   private refreshToggles(): void {
-    const s = Services.save.data.settings;
-    this.setToggle(this.sfxChip, s.sfxOn);
-    this.setToggle(this.musicChip, s.musicOn);
-    this.setToggle(this.skipChip, s.autoSkip);
+    const settings = Services.save.data.settings;
+    for (const [button, on] of [
+      [this.sfxToggle, settings.sfxOn],
+      [this.musicToggle, settings.musicOn],
+      [this.skipToggle, settings.autoSkip],
+      [this.confirmToggle, settings.confirmDestructive],
+      [this.keywordToggle, settings.keywordReminders],
+    ] as const) {
+      button.setLabel(on ? 'On' : 'Off');
+      button.setVariant(on ? 'primary' : 'ghost');
+    }
   }
-
-  private setToggle(chipObj: Phaser.GameObjects.Text, on: boolean): void {
-    chipObj.setText(on ? 'On' : 'Off');
-    chipObj.setStyle(
-      on
-        ? { color: '#1a1426', backgroundColor: '#ffd88a' }
-        : { color: '#c9bde0', backgroundColor: '#241d3a' },
-    );
-    inflateHitArea(chipObj, HIT_MIN, HIT_MIN); // text changed — re-inflate
-  }
-
-  /** Exclusive chip groups (animations, render size) highlight the selection. */
   private refreshChipGroups(): void {
-    const s = Services.save.data.settings;
-    const lite = qualityTier() === 'lite';
-    for (const [value, c] of this.animChips) {
-      c.setStyle(
-        value === s.animations
-          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
-          : { color: '#c9bde0', backgroundColor: '#241d3a' },
-      );
-      inflateHitArea(c, HIT_MIN, HIT_MIN);
-    }
-    // On lite the applied factor is always 1 (resolveRenderScale caps it), so
-    // highlight 720p as the effective selection even if the save holds a
-    // higher value — otherwise the disabled 1080p/1440p chips would leave the
-    // row with nothing highlighted.
-    const effectiveRender = lite ? 1 : s.renderScale;
-    for (const [value, c] of this.renderChips) {
-      const disabled = lite && (value === 1.5 || value === 2);
-      c.setStyle(
-        disabled
-          ? { color: '#57506b', backgroundColor: '#1a1426' }
-          : value === effectiveRender
-            ? { color: '#1a1426', backgroundColor: '#ffd88a' }
-            : { color: '#c9bde0', backgroundColor: '#241d3a' },
-      );
-      if (!disabled) inflateHitArea(c, HIT_MIN, HIT_MIN);
-    }
+    const settings = Services.save.data.settings;
+    for (const [value, button] of this.animChips)
+      button.setVariant(value === settings.animations ? 'primary' : 'ghost');
+    const effectiveRender = qualityTier() === 'lite' ? 1 : settings.renderScale;
+    for (const [value, button] of this.renderChips)
+      button.setVariant(value === effectiveRender ? 'primary' : 'ghost');
   }
-
-  /** Persist → flush → reload: the canvas is sized at boot, so a reload applies it. */
   private pickRenderScale(value: RenderScaleSetting): void {
-    const s = Services.save.data.settings;
-    if (s.renderScale === value) return;
-    s.renderScale = value;
+    if (Services.save.data.settings.renderScale === value) return;
+    Services.save.data.settings.renderScale = value;
     Services.save.flush();
     window.location.reload();
   }
