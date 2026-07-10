@@ -10,10 +10,12 @@ import { def, isType, manaValue } from '../engine/types';
 import { buyThemeDeck, claimFreeStarter, spendGold } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
 import { Services } from '../meta/services';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { bindTapButton } from '../platform/gestures';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { OddsDrawer } from '../ui/OddsDrawer';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { theme } from '../ui/theme';
+import { backButton, goldBadge, modalShell, panel, themedButton, type GoldBadge, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
 
 const PACK_W = 280;
 const PACK_H = 400;
@@ -38,14 +40,14 @@ const packRR = (
 /** Procedural pack base (the fallback when no real pack-art is on disk). */
 function bakeProceduralPackBase(ctx: CanvasRenderingContext2D): void {
   const g = ctx.createLinearGradient(0, 0, PACK_W, PACK_H);
-  g.addColorStop(0, '#3a2a63');
-  g.addColorStop(0.5, '#1c1433');
-  g.addColorStop(1, '#4a1c4a');
+  g.addColorStop(0, theme.colors.btnEmphasisBg);
+  g.addColorStop(0.5, theme.colors.panelFill);
+  g.addColorStop(1, theme.colors.dangerBg);
   packRR(ctx, 2, 2, PACK_W - 4, PACK_H - 4, 14);
   ctx.fillStyle = g;
   ctx.fill();
   ctx.lineWidth = 4;
-  ctx.strokeStyle = '#c9a84c';
+  ctx.strokeStyle = theme.colors.gold;
   ctx.stroke();
   // foil band
   const band = ctx.createLinearGradient(0, 0, PACK_W, 0);
@@ -99,7 +101,7 @@ function bakeRealPackBase(
   // gold trim over the cropped edge (the procedural path strokes it inline)
   packRR(ctx, 2, 2, PACK_W - 4, PACK_H - 4, 14);
   ctx.lineWidth = 4;
-  ctx.strokeStyle = '#c9a84c';
+  ctx.strokeStyle = theme.colors.gold;
   ctx.stroke();
 }
 
@@ -132,7 +134,7 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
 
   // Crimp bands, always code-stamped over the base so real and procedural pack
   // art share the same sealed-wrapper silhouette without adding text.
-  ctx.fillStyle = '#241c3d';
+  ctx.fillStyle = theme.colors.btnGhostBg;
   ctx.fillRect(2, 2, W - 4, 26);
   ctx.fillRect(2, H - 28, W - 4, 26);
   tex.refresh();
@@ -158,16 +160,16 @@ interface DeckSku {
 }
 
 export class ShopScene extends Phaser.Scene {
-  private goldText!: Phaser.GameObjects.Text;
+  private goldBadge!: GoldBadge;
   private tab: ShopTab = 'boosters';
   private boostersGroup!: Phaser.GameObjects.Container;
   private decksGroup!: Phaser.GameObjects.Container;
-  private tabButtons = new Map<ShopTab, Phaser.GameObjects.Text>();
-  private overlay: Phaser.GameObjects.Container | null = null;
+  private tabButtons = new Map<ShopTab, ThemedButton>();
+  private overlay: ModalShell | null = null;
   /** F10 bulk-buy: quantity + the SKU buy buttons / quantity chips it drives. */
   private qty = 1;
-  private skuButtons: { btn: Phaser.GameObjects.Text; price: number }[] = [];
-  private qtyChips = new Map<number, Phaser.GameObjects.Text>();
+  private skuButtons: { btn: ThemedButton; price: number }[] = [];
+  private qtyChips = new Map<number, ThemedButton>();
 
   constructor() {
     super('Shop');
@@ -196,11 +198,11 @@ export class ShopScene extends Phaser.Scene {
     const width = 1280;
     const height = 720;
     applyBackdrop(this, 'shop', {
-      dim: 0x0b0812,
+      dim: theme.graphics.dim,
       dimAlpha: 0.45,
       fallback: () => {
         const bg = this.add.graphics();
-        bg.fillGradientStyle(0x171222, 0x171222, 0x0b0812, 0x0b0812, 1);
+        bg.fillGradientStyle(theme.graphics.panelFill, theme.graphics.panelFill, theme.graphics.dim, theme.graphics.dim, 1);
         bg.fillRect(0, 0, width, height);
       },
     });
@@ -214,20 +216,13 @@ export class ShopScene extends Phaser.Scene {
 
     this.add
       .text(width / 2, 44, 'Shop', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '36px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.display}px`,
+        color: theme.colors.heading,
       })
       .setOrigin(0.5);
 
-    this.goldText = this.add
-      .text(width - 30, 30, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '20px',
-        fontStyle: '600',
-        color: '#ffd88a',
-      })
-      .setOrigin(1, 0.5);
+    this.goldBadge = goldBadge(this, width - 30, 30, { flashOnChange: true });
     this.refreshGold();
 
     // Drop-rate disclosure: a left slide-out drawer (percentages, from DROPS).
@@ -240,26 +235,18 @@ export class ShopScene extends Phaser.Scene {
     this.buildDecksGroup(this.decksGroup);
     this.setTab(this.tab); // honors the initial tab (onboarding routes to 'decks')
 
-    const back = this.add
-      .text(28, 28, '← Menu', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '18px',
-        color: '#c9bde0',
-      })
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, back, () => this.scene.start('MainMenu'));
-    inflateHitArea(back, 90, 90);
+    backButton(this, () => this.scene.start('MainMenu'));
   }
 
   private refreshGold(): void {
-    this.goldText.setText(`🪙 ${Services.save.data.gold}`);
+    this.goldBadge.refresh(Services.save.data.gold);
   }
 
   /** Shake + flash the gold readout red — a can't-afford / already-owned cue. */
   private insufficientFunds(): void {
     this.cameras.main.shake(120, 0.004);
-    this.goldText.setColor('#f08a8a');
-    this.time.delayedCall(400, () => this.goldText.setColor('#ffd88a'));
+    this.goldBadge.text.setColor(theme.colors.danger);
+    this.time.delayedCall(400, () => this.goldBadge.text.setColor(theme.colors.gold));
   }
 
   // --- Tabs -----------------------------------------------------------------
@@ -270,19 +257,12 @@ export class ShopScene extends Phaser.Scene {
       { key: 'decks', label: 'Decks' },
     ];
     defs.forEach((d, i) => {
-      const t = this.add
-        .text(640 - 100 + i * 200, 96, d.label, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '20px',
-          color: '#c9bde0',
-          backgroundColor: '#241d3a',
-          padding: { x: 22, y: 8 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, t, () => this.setTab(d.key));
-      inflateHitArea(t, 120, 48);
-      this.tabButtons.set(d.key, t);
+      const button = themedButton(this, 640 - 100 + i * 200, 96, d.label, {
+        variant: 'ghost',
+        minWidth: 120,
+        onTap: () => this.setTab(d.key),
+      });
+      this.tabButtons.set(d.key, button);
     });
   }
 
@@ -291,13 +271,7 @@ export class ShopScene extends Phaser.Scene {
     this.boostersGroup.setVisible(tab === 'boosters');
     this.decksGroup.setVisible(tab === 'decks');
     for (const [key, btn] of this.tabButtons) {
-      const active = key === tab;
-      btn.setStyle(
-        active
-          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
-          : { color: '#c9bde0', backgroundColor: '#241d3a' },
-      );
-      inflateHitArea(btn, 120, 48);
+      btn.setVariant(key === tab ? 'primary' : 'ghost');
     }
   }
 
@@ -329,7 +303,7 @@ export class ShopScene extends Phaser.Scene {
     onBuy: () => void,
   ): void {
     const title = this.add
-      .text(x, 178, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '22px', color: '#e8def7' })
+      .text(x, 178, label, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
       .setOrigin(0.5);
     const pack = this.add
       .image(x, 368, textureKey)
@@ -344,50 +318,36 @@ export class ShopScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
     if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.5, 0.3, 4);
-    const buyBtn = this.add
-      .text(x, 552, `Buy — 🪙 ${price}`, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '22px',
-        color: '#ffd88a',
-        backgroundColor: '#2c2344',
-        padding: { x: 16, y: 9 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, buyBtn, onBuy);
+    const buyBtn = themedButton(this, x, 552, `Buy — 🪙 ${price}`, {
+      variant: 'primary',
+      minWidth: 180,
+      onTap: onBuy,
+    });
     bindTapButton(this, pack, onBuy);
-    inflateHitArea(buyBtn, 90, 60);
     this.skuButtons.push({ btn: buyBtn, price });
-    group.add([title, pack, buyBtn]);
+    group.add([title, pack, buyBtn.container]);
   }
 
   /** F10 bulk-buy quantity selector (×1 / ×5 / ×10), added to `group`. */
   private buildQtySelector(group: Phaser.GameObjects.Container): void {
     const lbl = this.add
-      .text(640, 616, 'Buy quantity', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '13px', color: '#8f83a8' })
+      .text(640, 616, 'Buy quantity', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted })
       .setOrigin(0.5);
     group.add(lbl);
     let x = 560;
     for (const n of [1, 5, 10]) {
-      const chip = this.add
-        .text(x, 642, `×${n}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '16px',
-          fontStyle: '600',
-          color: '#c9bde0',
-          backgroundColor: '#241d3a',
-          padding: { x: 12, y: 5 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, chip, () => {
-        this.qty = n;
-        this.refreshQtyLabels();
-        this.refreshQtyChips();
+      const chip = themedButton(this, x, 642, `×${n}`, {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: 70,
+        onTap: () => {
+          this.qty = n;
+          this.refreshQtyLabels();
+          this.refreshQtyChips();
+        },
       });
-      inflateHitArea(chip, 70, 44);
       this.qtyChips.set(n, chip);
-      group.add(chip);
+      group.add(chip.container);
       x += 80;
     }
     this.refreshQtyChips();
@@ -395,19 +355,13 @@ export class ShopScene extends Phaser.Scene {
 
   private refreshQtyChips(): void {
     for (const [n, chip] of this.qtyChips) {
-      chip.setStyle(
-        n === this.qty
-          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
-          : { color: '#c9bde0', backgroundColor: '#241d3a' },
-      );
-      inflateHitArea(chip, 70, 44);
+      chip.setVariant(n === this.qty ? 'primary' : 'ghost');
     }
   }
 
   private refreshQtyLabels(): void {
     for (const { btn, price } of this.skuButtons) {
-      btn.setText(this.qty > 1 ? `Buy ×${this.qty} — 🪙 ${price * this.qty}` : `Buy — 🪙 ${price}`);
-      inflateHitArea(btn, 90, 60);
+      btn.setLabel(this.qty > 1 ? `Buy ×${this.qty} — 🪙 ${price * this.qty}` : `Buy — 🪙 ${price}`);
     }
   }
 
@@ -440,9 +394,9 @@ export class ShopScene extends Phaser.Scene {
     group.removeAll(true); // rebuildable after a purchase
     const intro = this.add
       .text(640, 152, 'Preconstructed decks — inspect the list, then buy the ones you didn’t start with.', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '14px',
-        color: '#8f83a8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0.5);
     group.add(intro);
@@ -466,18 +420,16 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private buildDeckRow(group: Phaser.GameObjects.Container, sku: DeckSku, y: number): void {
-    const { deck, price, theme } = sku;
+    const { deck, price, theme: isTheme } = sku;
     const owned = Services.save.data.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
 
-    const plate = this.add
-      .rectangle(640, y, 900, 62, theme ? 0x241c3e : 0x1c1830, 0.7)
-      .setStrokeStyle(1, theme ? 0x6d5a2f : 0x352b52, 0.9);
+    const plate = panel(this, 190, y - 31, 900, 62, { alpha: 0.7 });
     const name = this.add
       .text(220, y - 10, deck.name, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '20px',
-        color: theme ? '#ffd88a' : '#e8def7',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h2}px`,
+        color: isTheme ? theme.colors.gold : theme.colors.heading,
       })
       .setOrigin(0, 0.5);
     const hero = PREMIUM_HEROES.find((h) => h.unlockDeckId === deck.id);
@@ -487,42 +439,29 @@ export class ShopScene extends Phaser.Scene {
       (hero ? '  ·  ✦ exclusive hero' : '');
     const blurb = this.add
       .text(220, y + 13, blurbText, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#8f83a8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0, 0.5);
     group.add([plate, name, blurb]);
 
-    const preview = this.add
-      .text(720, y, 'Preview', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        fontStyle: '600',
-        color: '#c9bde0',
-        backgroundColor: '#2c2344',
-        padding: { x: 12, y: 7 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, preview, () => this.showDeckPreview(deck, price, owned));
-    inflateHitArea(preview, 90, 52);
-    group.add(preview);
+    const preview = themedButton(this, 720, y, 'Preview', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 90,
+      onTap: () => this.showDeckPreview(deck, price, owned),
+    });
+    group.add(preview.container);
 
     if (!owned) {
-      const buy = this.add
-        .text(920, y, freeClaim ? 'Claim Free ✦' : `Buy — 🪙 ${price}`, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '17px',
-          color: freeClaim ? '#8ad0a0' : '#ffd88a',
-          backgroundColor: freeClaim ? '#1b2a1b' : '#2c2344',
-          padding: { x: 14, y: 7 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, buy, () => this.onBuyDeck(sku));
-      inflateHitArea(buy, 90, 52);
-      group.add(buy);
+      const buy = themedButton(this, 920, y, freeClaim ? 'Claim Free ✦' : `Buy — 🪙 ${price}`, {
+        variant: 'primary',
+        size: 'sm',
+        minWidth: 130,
+        onTap: () => this.onBuyDeck(sku),
+      });
+      group.add(buy.container);
     } else if (hero) {
       // Owned + unlocks a premium hero → a "set as your commander" toggle (the
       // ONLY way to equip this exclusive portrait).
@@ -531,11 +470,9 @@ export class ShopScene extends Phaser.Scene {
       group.add(
         this.add
           .text(920, y, 'Owned ✓', {
-            fontFamily: 'Cinzel, Georgia, serif',
-            fontSize: '17px',
-            color: '#8ad0a0',
-            backgroundColor: '#1b2a1b',
-            padding: { x: 14, y: 7 },
+            fontFamily: theme.fonts.display,
+            fontSize: `${theme.type.label}px`,
+            color: theme.colors.success,
           })
           .setOrigin(0.5),
       );
@@ -543,33 +480,23 @@ export class ShopScene extends Phaser.Scene {
   }
 
   /** Set/clear this premium hero as the in-duel commander portrait. */
-  private buildHeroToggle(x: number, y: number, heroId: string): Phaser.GameObjects.Text {
+  private buildHeroToggle(x: number, y: number, heroId: string): Phaser.GameObjects.Container {
     const isHero = (): boolean => Services.save.data.heroPortraitId === heroId;
     const label = (): string => (isHero() ? '★ Your Hero' : '☆ Set as Hero');
-    const btn = this.add
-      .text(x, y, label(), {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '16px',
-        color: isHero() ? '#1a1426' : '#ffd88a',
-        backgroundColor: isHero() ? '#ffd88a' : '#2c2344',
-        padding: { x: 14, y: 7 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, btn, () => {
+    const btn = themedButton(this, x, y, label(), {
+      variant: isHero() ? 'primary' : 'emphasis',
+      size: 'sm',
+      minWidth: 130,
+      onTap: () => {
       const save = Services.save.data;
       save.heroPortraitId = isHero() ? null : heroId;
       Services.save.flush();
       Sfx.play('click');
-      btn.setText(label()).setStyle(
-        isHero()
-          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
-          : { color: '#ffd88a', backgroundColor: '#2c2344' },
-      );
-      inflateHitArea(btn, 90, 52);
+      btn.setLabel(label());
+      btn.setVariant(isHero() ? 'primary' : 'emphasis');
+      },
     });
-    inflateHitArea(btn, 90, 52);
-    return btn;
+    return btn.container;
   }
 
   private onBuyDeck(sku: DeckSku): void {
@@ -592,32 +519,35 @@ export class ShopScene extends Phaser.Scene {
   private showDeckPreview(deck: DeckList, price: number, owned: boolean): void {
     this.closeOverlay();
     const width = 1280;
-    const height = 720;
-    const c = this.add.container(0, 0).setDepth(100);
-    const dim = this.add
-      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
-      .setInteractive();
-    bindTapButton(this, dim, () => this.closeOverlay());
-    const panel = this.add
-      .rectangle(width / 2, height / 2, 760, 560, 0x161226, 0.98)
-      .setStrokeStyle(2, 0x4a3f6e, 1);
-    c.add([dim, panel]);
+    const shell = modalShell(this, {
+      width: 760,
+      height: 560,
+      dimAlpha: 0.52,
+      depth: theme.depth.modal,
+      showClose: false,
+      tapDimToClose: true,
+      escToClose: false,
+    });
+    shell.container.once(Phaser.GameObjects.Events.DESTROY, () => {
+      if (this.overlay === shell) this.overlay = null;
+    });
+    const c = shell.container;
 
     c.add(
       this.add
         .text(width / 2, 130, deck.name, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '28px',
-          color: '#ffd88a',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.gold,
         })
         .setOrigin(0.5),
     );
     c.add(
       this.add
         .text(width / 2, 162, `${DECK_BLURB[deck.id] ?? ''}  ·  ${deck.cards.length} cards`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '14px',
-          color: '#8f83a8',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.muted,
         })
         .setOrigin(0.5),
     );
@@ -649,9 +579,9 @@ export class ShopScene extends Phaser.Scene {
       c.add(
         this.add
           .text(x, 196, lines.join('\n'), {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '13px',
-            color: '#cbc2e0',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.body,
             lineSpacing: 4,
           })
           .setOrigin(0, 0),
@@ -666,44 +596,30 @@ export class ShopScene extends Phaser.Scene {
     // Buy-from-preview (unless owned) + Close.
     const freeClaim = this.isFreeClaim(deck);
     if (!owned) {
-      const buy = this.add
-        .text(width / 2 - 90, 620, freeClaim ? 'Claim Free ✦' : `Buy — 🪙 ${price}`, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '18px',
-          color: freeClaim ? '#8ad0a0' : '#ffd88a',
-          backgroundColor: freeClaim ? '#1b2a1b' : '#2c2344',
-          padding: { x: 16, y: 8 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, buy, () => {
+      const buy = themedButton(this, width / 2 - 90, 620, freeClaim ? 'Claim Free ✦' : `Buy — 🪙 ${price}`, {
+        variant: 'primary',
+        minWidth: 150,
+        onTap: () => {
         this.closeOverlay();
         const skus = this.deckSkus();
         const sku = skus.find((s) => s.deck.id === deck.id);
         if (sku) this.onBuyDeck(sku);
+        },
       });
-      inflateHitArea(buy, 90, 52);
-      c.add(buy);
+      c.add(buy.container);
     }
-    const close = this.add
-      .text(width / 2 + (owned ? 0 : 90), 620, 'Close', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '16px',
-        color: '#c9bde0',
-        backgroundColor: '#241d3a',
-        padding: { x: 16, y: 8 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, close, () => this.closeOverlay());
-    inflateHitArea(close, 90, 52);
-    c.add(close);
+    const close = themedButton(this, width / 2 + (owned ? 0 : 90), 620, 'Close', {
+      variant: 'ghost',
+      minWidth: 100,
+      onTap: () => this.closeOverlay(),
+    });
+    c.add(close.container);
 
-    this.overlay = c;
+    this.overlay = shell;
   }
 
   private closeOverlay(): void {
-    this.overlay?.destroy();
+    this.overlay?.close();
     this.overlay = null;
   }
 }

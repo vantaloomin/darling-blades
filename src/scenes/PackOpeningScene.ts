@@ -11,11 +11,12 @@ import { openPack, type PackResult } from '../meta/PackOpener';
 import { Services } from '../meta/services';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
 import { animTimeScale } from '../platform/animPolicy';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { activeRenderScale } from '../platform/renderScale';
 import { CARD_H, CARD_W, CardView, type CardFxLevel } from '../ui/CardView';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { colorInt, theme } from '../ui/theme';
+import { backButton, goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { bakePackArt } from './ShopScene';
 
 const GRID_Y0 = 184;
@@ -26,9 +27,9 @@ const BUTTON_Y = 674;
 
 /** Face-down hint pulse + tier-tag colors for the specials row (sr/ssr/ur). */
 const HINT = {
-  sr: { glow: 0xffcc33, pulse: 520, label: '#ffcc33' },
-  ssr: { glow: 0xb266ff, pulse: 420, label: '#d9a0ff' },
-  ur: { glow: 0xff5566, pulse: 320, label: '#ff8a7a' },
+  sr: { glow: 16763955, pulse: 520, label: theme.rarity.sr },
+  ssr: { glow: 11691775, pulse: 420, label: theme.rarity.ssr },
+  ur: { glow: 16733542, pulse: 320, label: theme.rarity.ur },
 } as const;
 
 /**
@@ -41,9 +42,9 @@ const ESCALATION: Record<
   'sr' | 'ssr' | 'ur',
   { flash: [number, number, number]; particles: number; zoom: number; dimAlpha: number; tint: number }
 > = {
-  sr: { flash: [255, 240, 200], particles: 60, zoom: 1.13, dimAlpha: 0.7, tint: 0xffffff },
-  ssr: { flash: [225, 175, 255], particles: 85, zoom: 1.16, dimAlpha: 0.75, tint: 0xd9a0ff },
-  ur: { flash: [255, 145, 145], particles: 115, zoom: 1.2, dimAlpha: 0.8, tint: 0xff7a6a },
+  sr: { flash: [255, 240, 200], particles: 60, zoom: 1.13, dimAlpha: 0.7, tint: 16777215 },
+  ssr: { flash: [225, 175, 255], particles: 85, zoom: 1.16, dimAlpha: 0.75, tint: 14262527 },
+  ur: { flash: [255, 145, 145], particles: 115, zoom: 1.2, dimAlpha: 0.8, tint: 16743018 },
 };
 
 let contextMenuDisabled = false;
@@ -72,8 +73,8 @@ export class PackOpeningScene extends Phaser.Scene {
   private sku: 'base' | 'ragnarok' = 'base';
   private revealed = 0;
   private specials: SpecialEntry[] = [];
-  private buttons: Phaser.GameObjects.Text[] = [];
-  private skipBtn: Phaser.GameObjects.Text | null = null;
+  private buttons: ThemedButton[] = [];
+  private skipBtn: ThemedButton | null = null;
   /** guards the best-card spotlight settle so tap-to-skip and the wobble's own
    * onComplete can't both run the restore (one-shot per pack). */
   private bestSettled = false;
@@ -113,11 +114,11 @@ export class PackOpeningScene extends Phaser.Scene {
     // rare-reveal spotlight (a full-frame 0.7-black rect at depth 40) still
     // dims this whole layer unchanged.
     applyBackdrop(this, 'packopening', {
-      dim: 0x080610,
+      dim: theme.graphics.dim,
       dimAlpha: 0.5,
       fallback: () => {
         const bg = this.add.graphics();
-        bg.fillGradientStyle(0x120e20, 0x120e20, 0x080610, 0x080610, 1);
+        bg.fillGradientStyle(theme.graphics.panelFill, theme.graphics.panelFill, theme.graphics.dim, theme.graphics.dim, 1);
         bg.fillRect(0, 0, width, height);
       },
     });
@@ -146,9 +147,9 @@ export class PackOpeningScene extends Phaser.Scene {
     if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.6, 0.4, 4);
     const prompt = this.add
       .text(width / 2, height / 2 + 210, 'Tap to tear it open', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '24px',
-        color: '#c9bde0',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h2}px`,
+        color: theme.colors.body,
       })
       .setOrigin(0.5);
     this.tweens.add({ targets: prompt, alpha: 0.4, duration: 800, yoyo: true, repeat: -1 });
@@ -169,9 +170,9 @@ export class PackOpeningScene extends Phaser.Scene {
 
     this.add
       .text(width / 2, 70, `Opened ${batch.length} packs`, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '34px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.display}px`,
+        color: theme.colors.heading,
       })
       .setOrigin(0.5);
     this.add
@@ -180,7 +181,7 @@ export class PackOpeningScene extends Phaser.Scene {
         116,
         `${all.length} cards · ${newCards} new · ${specials.length} rare+` +
           (dupeGold > 0 ? ` · +🪙 ${dupeGold} from duplicates` : ''),
-        { fontFamily: 'Inter, Arial, sans-serif', fontSize: '16px', color: '#cbc2e0' },
+        { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body },
       )
       .setOrigin(0.5);
 
@@ -189,9 +190,9 @@ export class PackOpeningScene extends Phaser.Scene {
     if (notable.length === 0) {
       this.add
         .text(width / 2, 360, 'No rare pulls this time — all commons and uncommons.', {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '15px',
-          color: '#8f83a8',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.muted,
         })
         .setOrigin(0.5);
     } else {
@@ -208,18 +209,8 @@ export class PackOpeningScene extends Phaser.Scene {
       });
     }
 
-    const back = this.add
-      .text(width / 2, 662, 'Back to Shop', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '22px',
-        color: '#ffd88a',
-        backgroundColor: '#2c2344',
-        padding: { x: 18, y: 9 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, back, () => this.scene.start('Shop'));
-    inflateHitArea(back, 90, 60);
+    goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
+    backButton(this, () => this.scene.start('Shop'));
   }
 
   // Beat 2: the tear.
@@ -360,17 +351,12 @@ export class PackOpeningScene extends Phaser.Scene {
     });
 
     // Skip button (respect the repeat opener's time)
-    this.skipBtn = this.add
-      .text(width - 30, 30, 'Skip ≫', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '18px',
-        color: '#8f83a8',
-      })
-      .setOrigin(1, 0.5)
-      .setInteractive({ useHandCursor: true });
-    // skipAll is idempotent (done flags), so .on replaces the old .once safely.
-    bindTapButton(this, this.skipBtn, () => this.skipAll());
-    inflateHitArea(this.skipBtn, 90, 90);
+    this.skipBtn = themedButton(this, width - 80, 30, 'Skip ≫', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 100,
+      onTap: () => this.skipAll(),
+    });
   }
 
   /**
@@ -401,7 +387,7 @@ export class PackOpeningScene extends Phaser.Scene {
         if (card.dupeGold > 0) view.setAlpha(0.5);
         // r-tier grid cards keep a steady silver glow (the old uncommon read)
         if (card.tier === 'r' && fxPolicy(this).packGlow && view.postFX) {
-          view.postFX.addGlow(0xcfd8ea, 2.5, 0, false, 0.12, 14);
+          view.postFX.addGlow(13621482, 2.5, 0, false, 0.12, 14);
         }
         this.tweens.add({
           targets: view,
@@ -430,15 +416,15 @@ export class PackOpeningScene extends Phaser.Scene {
     if (view.getData('packNewMarker')) return;
     view.setData('packNewMarker', true);
 
-    const color = card.isNew ? '#9be6a8' : '#d9a8ff';
-    const stroke = card.isNew ? 0x9be6a8 : 0xd9a8ff;
+    const color = card.isNew ? theme.colors.success : theme.rarity.ssr;
+    const stroke = colorInt(color);
     const bg = this.add
-      .circle(124, -176, 13, 0x151122, 0.9)
+      .circle(124, -176, 13, theme.graphics.panelFill, 0.9)
       .setStrokeStyle(1.5, stroke, 0.95);
     const star = this.add
       .text(124, -177, '★', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '17px',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
         fontStyle: '800',
         color,
       })
@@ -448,11 +434,17 @@ export class PackOpeningScene extends Phaser.Scene {
 
   private showPackInspect(card: AddResult): void {
     const width = 1280;
-    const height = 720;
     const variant = { frame: card.frame, holo: card.holo };
-    const c = this.add.container(0, 0).setDepth(100);
-    const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.84).setInteractive();
-    c.add(dim);
+    const shell = modalShell(this, {
+      width: 600,
+      height: 680,
+      dimAlpha: 0.52,
+      depth: theme.depth.inspect,
+      showClose: false,
+      tapDimToClose: true,
+      escToClose: false,
+    });
+    const c = shell.container;
 
     const view = new CardView(this, width / 2, 326).setScale(1.22);
     view.setCard(def(CARD_DB, card.cardId), {
@@ -463,25 +455,23 @@ export class PackOpeningScene extends Phaser.Scene {
 
     const detailLines = this.packPullDetails(card, variant);
     c.add(
-      this.add
-        .rectangle(width / 2, 622, 520, 86, 0x151122, 0.94)
-        .setStrokeStyle(1, 0x6f5aa8, 0.78),
+      panel(this, width / 2 - 260, 579, 520, 86, { alpha: 0.94 }),
     );
     c.add(
       this.add
         .text(width / 2, 600, detailLines[0], {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '20px',
-          color: '#ffd88a',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: theme.colors.gold,
         })
         .setOrigin(0.5),
     );
     c.add(
       this.add
         .text(width / 2, 632, detailLines.slice(1).join('  ·  '), {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '14px',
-          color: '#c9bde0',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
         })
         .setOrigin(0.5),
     );
@@ -489,17 +479,15 @@ export class PackOpeningScene extends Phaser.Scene {
     const detailPanelY = 638;
     const lineH = 22;
     c.add(
-      this.add
-        .rectangle(width / 2, detailPanelY, 520, 108, 0x151122, 0.98)
-        .setStrokeStyle(1, 0x6f5aa8, 0.78),
+      panel(this, width / 2 - 260, detailPanelY - 54, 520, 108, { alpha: 0.98 }),
     );
     const firstY = detailPanelY - ((detailLines.length - 1) * lineH) / 2;
     detailLines.forEach((line, i) => {
       c.add(
         this.add
           .text(width / 2, firstY + i * lineH, line, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '15px',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
             fontStyle: i === 0 && line.includes('★') ? '800' : '600',
             color: this.packPullDetailColor(line),
           })
@@ -507,25 +495,10 @@ export class PackOpeningScene extends Phaser.Scene {
       );
     });
 
-    const close = this.add
-      .text(918, 112, 'X', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        fontStyle: '800',
-        color: '#f0e6ff',
-        backgroundColor: '#2c2344',
-        padding: { x: 10, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, close, () => c.destroy());
-    inflateHitArea(close, 48, 48);
-    c.add(close);
-
-    dim.on('pointerup', (p: Phaser.Input.Pointer) => {
-      if (p.rightButtonReleased()) return;
-      c.destroy();
+    const close = themedButton(this, 918, 112, '×', {
+      variant: 'ghost', size: 'sm', minWidth: 48, onTap: () => shell.close(),
     });
+    c.add(close.container);
   }
 
   private packPullDetails(card: AddResult, variant: CardVariant): string[] {
@@ -540,9 +513,9 @@ export class PackOpeningScene extends Phaser.Scene {
   }
 
   private packPullDetailColor(line: string): string {
-    if (line === '★ New Card') return '#9be6a8';
-    if (line === '★ New Variant') return '#d9a8ff';
-    return '#c9bde0';
+    if (line === '★ New Card') return theme.colors.success;
+    if (line === '★ New Variant') return theme.rarity.ssr;
+    return theme.colors.body;
   }
 
   private rarityLabel(tier: AddResult['tier']): string {
@@ -582,11 +555,11 @@ export class PackOpeningScene extends Phaser.Scene {
     if (TIER_RANK[card.tier] >= TIER_RANK.sr) {
       const tag = this.add
         .text(view.x, topY - (special ? 40 : 16), TIER_LABEL[card.tier], {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '12px',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
           fontStyle: '700',
           color: (HINT[card.tier as keyof typeof HINT] ?? HINT.sr).label,
-          backgroundColor: '#1c1730',
+          backgroundColor: theme.colors.panelFill,
           padding: { x: 9, y: 3 },
         })
         .setOrigin(0.5)
@@ -599,11 +572,11 @@ export class PackOpeningScene extends Phaser.Scene {
       if (card.holo !== 'none') parts.push(card.holo.toUpperCase());
       const callout = this.add
         .text(view.x, topY - 14, parts.join(' · '), {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '11px',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
           fontStyle: '700',
-          color: '#e8ddff',
-          backgroundColor: '#1c1730',
+          color: theme.colors.heading,
+          backgroundColor: theme.colors.panelFill,
           padding: { x: 9, y: 3 },
         })
         .setOrigin(0.5)
@@ -614,11 +587,11 @@ export class PackOpeningScene extends Phaser.Scene {
     if (!label) return;
     const t = this.add
       .text(view.x, view.y + 220 * view.scaleY + 12, label, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
         fontStyle: '700',
-        color: card.isNew ? '#9be6a8' : '#ffd88a',
-        backgroundColor: '#1c1730',
+        color: card.isNew ? theme.colors.success : theme.colors.gold,
+        backgroundColor: theme.colors.panelFill,
         padding: { x: 9, y: 4 },
       })
       .setOrigin(0.5)
@@ -655,7 +628,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const width = 1280; // design-space constants (see create())
     const height = 720;
     const dim = this.add
-      .rectangle(width / 2, height / 2, width, height, 0x000000, 0)
+      .rectangle(width / 2, height / 2, width, height, theme.graphics.dim, 0)
       .setDepth(40)
       .setInteractive(); // tap anywhere to dismiss the showcase (armed below)
     view.setDepth(50);
@@ -698,9 +671,9 @@ export class PackOpeningScene extends Phaser.Scene {
           // through settleBest, which is one-shot guarded so they can't double.
           const skipHint = this.add
             .text(width / 2, height - 38, 'tap to skip', {
-              fontFamily: 'Inter, Arial, sans-serif',
-              fontSize: '15px',
-              color: '#9d92b8',
+              fontFamily: theme.fonts.ui,
+              fontSize: `${theme.type.label}px`,
+              color: theme.colors.muted,
             })
             .setOrigin(0.5)
             .setDepth(41)
@@ -778,31 +751,19 @@ export class PackOpeningScene extends Phaser.Scene {
 
   private checkAllRevealed(): void {
     if (!this.specials.every((s) => s.done)) return;
-    this.skipBtn?.destroy();
+    this.skipBtn?.container.destroy();
     this.skipBtn = null;
     if (this.buttons.length > 0) return;
 
     const width = 1280; // design-space width (see create())
-    this.add
-      .rectangle(width / 2, BUTTON_Y + 4, 720, 72, 0x0b0812, 0.76)
-      .setStrokeStyle(1, 0x2c2344, 0.9)
-      .setDepth(66);
+    panel(this, width / 2 - 360, BUTTON_Y - 32, 720, 72, { alpha: 0.76 }).setDepth(66);
     const mk = (x: number, label: string, cb: () => void): void => {
-      const btn = this.add
-        .text(x, BUTTON_Y, label, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '19px',
-          color: '#ffd88a',
-          backgroundColor: '#2c2344',
-          padding: { x: 14, y: 7 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(70);
-      bindTapButton(this, btn, cb);
-      // Depth 70 keeps the inflated rects above the revealed specials' card
-      // zones, so end-of-pack taps route to the buttons, never the cards.
-      inflateHitArea(btn, 90, 90);
+      const btn = themedButton(this, x, BUTTON_Y, label, {
+        variant: 'primary',
+        minWidth: 130,
+        onTap: cb,
+      });
+      btn.container.setDepth(70);
       this.buttons.push(btn);
     };
     const openPrice = this.sku === 'ragnarok' ? ECONOMY.ragnarokPackPrice : ECONOMY.packPrice;
