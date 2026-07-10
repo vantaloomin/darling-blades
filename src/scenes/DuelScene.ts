@@ -31,7 +31,7 @@ import { Game } from '../engine/Game';
 import { manaSources } from '../engine/mana';
 import { getEffectiveStats, isSummoningSick } from '../engine/statics';
 import type { CardDef, Color, PlayerId, Permanent, TargetRef } from '../engine/types';
-import { def, isType } from '../engine/types';
+import { def, isType, manaValue } from '../engine/types';
 import {
   attachTouchGestures,
   bindTapButton,
@@ -61,6 +61,7 @@ import { packRow } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { modalShell, themedButton } from '../ui/themeWidgets';
+import { showZoneContents, type ZoneContentsEntry, type ZoneContentsModal } from '../ui/ZoneContentsModal';
 
 const HUMAN: PlayerId = 0;
 const AI: PlayerId = 1;
@@ -108,9 +109,7 @@ const LAYOUT = {
   myCreatures: { cy: 389, x: 577, usable: 860 },
   // cy 484 is load-bearing: the LandStackView badge sits at pile-local y+24
   // (≈508) tuned to clear the resting hand fan (see LandStackView.ts). x0 210
-  // keeps the first stack's inflated 90px hit rect clear of the left rail;
-  // the life disc on the portrait's upper-right corner (214,540) shares a
-  // band with stack 1 — depth 56 gives the life disc input priority there.
+  // keeps the first stack's inflated 90px hit rect clear of the left rail.
   myLands: { cy: 484, x0: 210 },
   // restY is computed in syncHand to anchor the fan's bottom near y=714 for
   // the active scale; the hover lift is computed per card so the raised
@@ -118,18 +117,12 @@ const LAYOUT = {
   // flicker band — adversarial review 2026-07-04).
   /** Commander portrait frame (top-left anchored, rises from screen bottom). */
   portrait: { x: 14, y: 540, w: 200, h: 180 },
-  /**
-   * Your life disc snaps to the portrait's BOARD-FACING corner (upper-right,
-   * = portrait.x + portrait.w, portrait.y), badge-style (burn target). Its
-   * circle can graze the first land stack's badge by a few px at the corner —
-   * cosmetic only; depth 56 gives the life disc input priority in the shared
-   * band (see the hud comment below).
-   */
-  myLife: { x: 214, y: 540 },
-  /** Mirrored commander frame and its targetable life disc. */
+  /** Your targetable life badge: inside the portrait's upper-left corner. */
+  myLife: { x: 40, y: 566 },
+  /** Mirrored commander frame and its targetable life badge. */
   oppPortrait: { x: 1056, y: 8, w: 200, h: 180 },
-  /** Mirror of myLife: the opp portrait's board-facing corner (bottom-left). */
-  oppLife: { x: 1056, y: 188 },
+  /** Foe targetable life badge: inside the portrait's bottom-right corner. */
+  oppLife: { x: 1230, y: 162 },
   /** Turn chip atop the phase track — all turn info lives in one column. */
   turnPill: { x: 1113, y: 322 },
   /** Display-only phase track in the right sidebar above End Turn. */
@@ -148,6 +141,9 @@ const BOARD_CENTER_X = 640;
 const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
 const TARGET_SNAP_R = 60;
 const TARGET_ARROW_COLOR = 0xffd166;
+const LIFE_BADGE_SIZE = 40;
+const COLOR_SORT: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
+type ViewableZone = 'deck' | 'graveyard';
 /**
  * Max total width of the hand fan. Narrower than the old flat row: fanned
  * cards overlap more, and the span must clear the commander portrait (left,
@@ -248,6 +244,9 @@ export class DuelScene extends Phaser.Scene {
   /** In-game pause/menu overlay (Resume · quick toggles · Concede) + its guard. */
   private pauseOverlay: Phaser.GameObjects.Container | null = null;
   private pauseGuard = new ModalGuard();
+  /** Public zone browser: graveyards now, player deck now, exile/lands later. */
+  private zoneModal: ZoneContentsModal | null = null;
+  private zoneGuard = new ModalGuard();
   /** Graveyard-target chooser (Raise Dead etc.): pick which creature to return. */
   private gravePicker: Phaser.GameObjects.Container | null = null;
   private gravePickerGuard = new ModalGuard();
@@ -385,6 +384,10 @@ export class DuelScene extends Phaser.Scene {
     this.inspect = null;
     this.inspectGuard = new ModalGuard();
     this.inspectMove = null;
+    this.pauseOverlay = null;
+    this.pauseGuard = new ModalGuard();
+    this.zoneModal = null;
+    this.zoneGuard = new ModalGuard();
     this.discardPicks = new Set();
     // Stale on gauntlet/rematch restarts: the scene clock died with the old
     // run, so a still-set handle would block auto-skip forever. The clock also
@@ -805,18 +808,41 @@ export class DuelScene extends Phaser.Scene {
       : `Practice — vs ${this.difficulty} AI`;
   }
 
+  private addLifeBadgePlate(x: number, y: number): void {
+    const half = LIFE_BADGE_SIZE / 2;
+    this.add
+      .graphics()
+      .fillStyle(theme.graphics.panelFill, 0.92)
+      .fillRoundedRect(x - half, y - half, LIFE_BADGE_SIZE, LIFE_BADGE_SIZE, theme.radius.control)
+      .lineStyle(1.5, colorInt(theme.colors.gold), theme.alpha.chrome)
+      .strokeRoundedRect(x - half, y - half, LIFE_BADGE_SIZE, LIFE_BADGE_SIZE, theme.radius.control)
+      .setDepth(theme.depth.hud);
+  }
+
   private buildHud(): void {
     // --- Opponent mirror: pile-column hand/grave/deck, portrait, life, mana ---
     this.oppHandPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.handY, 'hand');
-    this.oppGravePile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.graveY, 'grave');
+    this.oppGravePile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.graveY, 'grave', {
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.showZoneModal(AI, 'graveyard');
+      },
+    });
     this.oppDeckPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.deckY, 'deck');
     this.oppExilePile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.exileY, 'exile').setVisible(
       EXILE_ENABLED,
     );
     // --- Your piles: right column above Concede ---
     this.myExilePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.exileY, 'exile').setVisible(EXILE_ENABLED);
-    this.myDeckPile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.deckY, 'deck');
-    this.myGravePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.graveY, 'grave');
+    this.myDeckPile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.deckY, 'deck', {
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'deck');
+      },
+    });
+    this.myGravePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.graveY, 'grave', {
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'graveyard');
+      },
+    });
     // --- Commander portrait (1a): your deck's face card, reacts to the game ---
     this.portrait = new CommanderPortrait(this, LAYOUT.portrait.x, LAYOUT.portrait.y, {
       width: LAYOUT.portrait.w,
@@ -832,15 +858,8 @@ export class DuelScene extends Phaser.Scene {
       cardId: this.oppFaceCardId,
       label: this.opponent?.name ?? `${this.difficulty} AI`,
     });
-    // Your life rides the portrait's top-left corner on a legibility disc.
-    this.add
-      .circle(LAYOUT.myLife.x, LAYOUT.myLife.y, 27, 0x1d1636, 0.92)
-      .setStrokeStyle(1.5, 0x3a2f5c, 1);
-    // Mirrored burn target: its inflated target area biases down-left so it
-    // stays entirely on-canvas and clear of the top-edge portrait frame.
-    this.add
-      .circle(LAYOUT.oppLife.x, LAYOUT.oppLife.y, 27, 0x1d1636, 0.92)
-      .setStrokeStyle(1.5, 0x3a2f5c, 1);
+    this.addLifeBadgePlate(LAYOUT.myLife.x, LAYOUT.myLife.y);
+    this.addLifeBadgePlate(LAYOUT.oppLife.x, LAYOUT.oppLife.y);
 
     const phaseRows = PHASE_TRACK_ROWS.map((row, i) => {
       const y = LAYOUT.phaseTrack.firstRowY + i * LAYOUT.phaseTrack.rowStep;
@@ -873,30 +892,27 @@ export class DuelScene extends Phaser.Scene {
 
     this.hud = {
       // Life totals are BURN TARGETS: depth 56 makes them win Phaser's
-      // depth-first input sort over the land stacks (depth 0, re-appended
-      // every sync) whose inflated rects can share a band with them — e.g.
-      // an opponent stack near x330 would otherwise swallow face-burn taps
-      // (adversarial-review major, 2026-07-04). No visual overlap exists.
+      // depth-first input sort over the portrait chrome below them.
       oppLife: this.add
         .text(LAYOUT.oppLife.x, LAYOUT.oppLife.y, '', {
-          fontFamily: 'Cinzel, Georgia, serif',
+          fontFamily: theme.fonts.display,
           fontSize: '22px',
           fontStyle: 'bold',
-          color: '#f08a8a',
+          color: theme.colors.dangerArmed,
           resolution: 2,
         })
         .setOrigin(0.5)
-        .setDepth(56),
+        .setDepth(theme.depth.hud),
       myLife: this.add
         .text(LAYOUT.myLife.x, LAYOUT.myLife.y, '', {
-          fontFamily: 'Cinzel, Georgia, serif',
+          fontFamily: theme.fonts.display,
           fontSize: '22px',
           fontStyle: 'bold',
-          color: '#9be6a8',
+          color: theme.colors.success,
           resolution: 2,
         })
         .setOrigin(0.5)
-        .setDepth(56),
+        .setDepth(theme.depth.hud),
       // --- Turn pill + phase track share the right sidebar column (all turn
       // info in one spot); the left rail retains only Undo. Decision guidance
       // lives in the smart button and CoachMark.
@@ -967,18 +983,15 @@ export class DuelScene extends Phaser.Scene {
       text.setInteractive({ useHandCursor: true });
       bindTapButton(this, text, () => this.tryTarget({ kind: 'player', player }));
     }
-    // Hit inflation (mobile-lan-plan §1.4). Life totals get the full 90; the
+    // Hit inflation (mobile-lan-plan §1.4). Life totals meet the 44px floor; the
     // stack readout keeps a 44px height so its inflated rect (it renders at
     // depth 55, ABOVE the tiles) overlaps the creature rows (opp bottom 287,
     // yours top 313) by only ~11px at the zone-gap seam. Texts that change
     // per sync are re-inflated there — Phaser never refreshes hit areas
     // itself. The smart button needs none: the Arc's hit rect is static.
-    // oppLife rides its portrait's bottom-left corner (1056,188): the rect
-    // stays fully on-canvas even unbiased; the down-left bias is kept so the
-    // tappable area leans toward the board, where burn taps come from.
     inflateHitArea(this.hud.stack, 90, 44);
-    inflateHitArea(this.hud.myLife, 90, 90);
-    inflateHitArea(this.hud.oppLife, 90, 90, { biasY: 20 });
+    inflateHitArea(this.hud.myLife, 44, 44);
+    inflateHitArea(this.hud.oppLife, 44, 44);
     // Right-click cancels targeting. Test the INITIATING button (p.button),
     // not rightButtonDown() — that's a live bitmask, true for a chorded LEFT
     // press while the right button happens to be held.
@@ -1342,13 +1355,13 @@ export class DuelScene extends Phaser.Scene {
     if (this.ended) return;
     if (this.animatingCombat) return; // hold until the combat sequence finishes
     if (this.autoSkipTimer) return; // a hop is already scheduled
-    if (this.overlay || this.inspect || this.pendingCasts) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
     if (!this.isHumanTurnDecision()) return;
     if (!forcedAction(this.duel.state, CARD_DB, HUMAN)) return;
     this.autoSkipTimer = this.time.delayedCall(300, () => {
       this.autoSkipTimer = null;
       if (this.ended) return;
-      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
       if (!this.isHumanTurnDecision()) return;
       // Re-evaluate fresh — the state may have moved while we waited (e.g.
       // the player clicked the smart button during the delay).
@@ -1393,7 +1406,7 @@ export class DuelScene extends Phaser.Scene {
   /** Enter end-turn mode: fast-forward the rest of your turn (see endTurnTick). */
   private startEndTurn(): void {
     if (this.ended || !this.isHumanTurnDecision()) return;
-    if (this.pendingCasts || this.overlay || this.inspect || this.pauseOverlay) return;
+    if (this.pendingCasts || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
     this.endingTurn = true;
     this.log('Ending turn…');
     this.endTurnTick();
@@ -1422,7 +1435,7 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     // Overlays / targeting / an opponent sub-decision: wait, stay armed, resume.
-    if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
     if (!this.isHumanTurnDecision()) return;
     if (!this.endTurnPassAction()) return; // pause at a decision needing real input
     this.endTurnTimer = this.time.delayedCall(180, () => {
@@ -1432,7 +1445,7 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       // Re-check fresh — the player may have opened an overlay during the wait.
-      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
       if (!this.isHumanTurnDecision()) return;
       const action = this.endTurnPassAction();
       if (!action) return;
@@ -1499,9 +1512,14 @@ export class DuelScene extends Phaser.Scene {
         // Spawn near the owner's life total (floats draw at depth 90, so
         // they read over the strip/portrait as they drift up and fade).
         const pos = e.player === HUMAN
-          ? { x: 44, y: 534 }
+          ? { x: LAYOUT.myLife.x, y: LAYOUT.myLife.y - 32 }
           : { x: LAYOUT.oppLife.x, y: LAYOUT.oppLife.y - 32 };
-        this.float(pos.x, pos.y, `${e.delta > 0 ? '+' : ''}${e.delta}`, e.delta > 0 ? '#9be6a8' : '#f08a8a');
+        this.float(
+          pos.x,
+          pos.y,
+          `${e.delta > 0 ? '+' : ''}${e.delta}`,
+          e.delta > 0 ? theme.colors.success : theme.colors.dangerArmed,
+        );
         // Both mirrored commander frames react to their controller's pain.
         if (e.player === HUMAN && e.delta < 0) this.portrait.reactDamage();
         if (e.player === AI && e.delta < 0) this.oppPortrait.reactDamage();
@@ -1668,7 +1686,7 @@ export class DuelScene extends Phaser.Scene {
       }
       if (hit.target.kind === 'player') {
         Sfx.play('lifeLoss');
-        this.float(targetPos.x, targetPos.y, `-${hit.amount}`, '#f08a8a');
+        this.float(targetPos.x, targetPos.y, `-${hit.amount}`, theme.colors.dangerArmed);
         if (hit.target.player === HUMAN) this.portrait.reactDamage();
         else this.oppPortrait.reactDamage();
       } else {
@@ -1981,8 +1999,8 @@ export class DuelScene extends Phaser.Scene {
     const st = this.duel.state;
 
     // HUD numbers
-    this.hud.myLife.setText(`♥ ${st.players[HUMAN].life}`);
-    this.hud.oppLife.setText(`♥ ${st.players[AI].life}`);
+    this.hud.myLife.setText(`${st.players[HUMAN].life}`);
+    this.hud.oppLife.setText(`${st.players[AI].life}`);
     if (this.previousLife) {
       this.pulseLife(this.hud.myLife, st.players[HUMAN].life - this.previousLife[HUMAN], theme.colors.success);
       this.pulseLife(this.hud.oppLife, st.players[AI].life - this.previousLife[AI], theme.colors.dangerArmed);
@@ -1998,10 +2016,9 @@ export class DuelScene extends Phaser.Scene {
       this.myExilePile.setCount(0);
     }
     // setText resizes a Text but Phaser never refreshes its hit area — keep
-    // the inflated burn-target rects (plan §1.4) tracking the new glyphs
-    // (same biasY as buildHud: keep the opp rect fully on-canvas).
-    inflateHitArea(this.hud.myLife, 90, 90);
-    inflateHitArea(this.hud.oppLife, 90, 90, { biasX: -20, biasY: 20 });
+    // the inflated burn-target rects (plan §1.4) tracking the new glyphs.
+    inflateHitArea(this.hud.myLife, 44, 44);
+    inflateHitArea(this.hud.oppLife, 44, 44);
 
     const yours = st.turn !== 0 && st.activePlayer === HUMAN;
     this.syncTurnPill(st.turn, yours);
@@ -2670,7 +2687,7 @@ export class DuelScene extends Phaser.Scene {
 
   private onConfirmKey(e: KeyboardEvent): void {
     e.preventDefault(); // Space would otherwise scroll the page in the browser
-    if (this.ended || this.inspect) return; // inspect is modal — don't pass under it
+    if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
     this.onButton(); // self-guards: auto-skip input lock + not-your-decision
   }
 
@@ -2808,6 +2825,96 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------
+  // Public zone browser: graveyards and your deck
+  // ---------------------------------------------------------------------
+
+  private canOpenZoneModal(): boolean {
+    if (
+      this.ended ||
+      this.overlay ||
+      this.inspect ||
+      this.pendingCasts ||
+      this.pauseOverlay ||
+      this.gravePicker ||
+      this.animatingCombat ||
+      this.zoneModal
+    )
+      return false;
+    return this.isHumanTurnDecision();
+  }
+
+  private showZoneModal(player: PlayerId, zone: ViewableZone): void {
+    if (!this.canOpenZoneModal()) return;
+    if (zone === 'deck' && player !== HUMAN) return;
+
+    const cardIds = zone === 'deck'
+      ? this.duel.state.players[player].deck
+      : this.duel.state.players[player].graveyard;
+    const owner = player === HUMAN ? 'Your' : "Foe's";
+    const title = zone === 'deck'
+      ? `Your Deck — ${cardIds.length} cards left`
+      : `${owner} Graveyard — ${cardIds.length}`;
+    const modal = showZoneContents(this, {
+      title,
+      entries: this.zoneEntries(cardIds),
+      emptyText: zone === 'deck' ? 'No cards left.' : 'No cards here.',
+      dimAlpha: 0.62,
+      escToClose: true,
+      tapDimToClose: true,
+      showClose: false,
+      depth: theme.depth.inspect,
+      onClose: () => this.closeZoneModal(),
+      onInspect: (card) => this.showInspect(card),
+    });
+    this.zoneModal = modal;
+    this.zoneGuard.open(this.overlayGuardTargets());
+  }
+
+  private closeZoneModal(): void {
+    if (!this.zoneModal) return;
+    this.zoneModal = null;
+    this.zoneGuard.close();
+    this.maybeAutoSkip();
+    this.endTurnTick();
+  }
+
+  private zoneEntries(cardIds: readonly string[]): ZoneContentsEntry[] {
+    const counts = new Map<string, number>();
+    for (const cardId of cardIds) counts.set(cardId, (counts.get(cardId) ?? 0) + 1);
+    return [...counts]
+      .map(([cardId, count]) => ({ card: def(CARD_DB, cardId), count }))
+      .sort((a, b) => this.compareZoneCards(a.card, b.card));
+  }
+
+  private compareZoneCards(a: CardDef, b: CardDef): number {
+    const aLand = isType(a, 'land');
+    const bLand = isType(b, 'land');
+    if (aLand !== bLand) return aLand ? -1 : 1;
+
+    const mv = manaValue(a.cost) - manaValue(b.cost);
+    if (mv !== 0) return mv;
+
+    const color = this.zoneColorKey(a).localeCompare(this.zoneColorKey(b));
+    if (color !== 0) return color;
+
+    const name = a.name.localeCompare(b.name);
+    if (name !== 0) return name;
+
+    return a.id.localeCompare(b.id);
+  }
+
+  private zoneColorKey(card: CardDef): string {
+    const colors = isType(card, 'land') && card.manaAbility?.length
+      ? card.manaAbility
+      : card.colors;
+    const ranks = colors
+      .map((color) => COLOR_SORT.indexOf(color))
+      .filter((rank) => rank >= 0)
+      .sort((a, b) => a - b);
+    return ranks.length > 0 ? ranks.join('.') : 'z';
+  }
+
+  // ---------------------------------------------------------------------
   // Inspect overlay: right-click any card for the full CardView
   // ---------------------------------------------------------------------
 
@@ -2889,7 +2996,7 @@ export class DuelScene extends Phaser.Scene {
    * would restart the duel). Never opens over a mulligan/pick or inspect overlay.
    */
   private showPauseMenu(): void {
-    if (this.ended || this.overlay || this.inspect || this.pauseOverlay) return;
+    if (this.ended || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
     // Only during your own decision window — never over a pick/inspect overlay,
     // mid-combat animation, or the AI's turn. That keeps the game from ending
     // behind the overlay (which would double-guard the board with the results
@@ -3129,6 +3236,11 @@ export class DuelScene extends Phaser.Scene {
       ...tileZones,
       ...this.landStacks.map((s) => s.top),
       ...this.handViews,
+      ...[
+        this.oppGravePile.inputZone,
+        this.myDeckPile.inputZone,
+        this.myGravePile.inputZone,
+      ].filter((zone): zone is Phaser.GameObjects.Zone => !!zone),
       this.passArc, // the smart button's input carrier (its label Text never is)
       this.hud.stack,
       this.hud.myLife,
