@@ -3,6 +3,7 @@ import { manaValue } from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
 import { BEASTKIN } from '../../src/data/cards/beastkin';
+import { CELTIC_FAE } from '../../src/data/cards/celtic-fae';
 import { DUALS } from '../../src/data/cards/duals';
 import { ENCHANTMENTS } from '../../src/data/cards/enchantments';
 import { GREEK } from '../../src/data/cards/greek';
@@ -36,6 +37,7 @@ describe('catalog integrity', () => {
       [GREEK, 'gk-'],
       [BEASTKIN, 'bk-'],
       [RAGNAROK, 'rg-'],
+      [CELTIC_FAE, 'cf-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -141,6 +143,8 @@ describe('catalog integrity', () => {
       if (card.token) continue; // tokens are non-collectible; set is irrelevant
       if (card.id.startsWith('rg-')) {
         expect(card.set, `${card.id} should be set:ragnarok`).toBe('ragnarok');
+      } else if (card.id.startsWith('cf-')) {
+        expect(card.set, card.id + ' should be set:celtic-fae').toBe('celtic-fae');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }

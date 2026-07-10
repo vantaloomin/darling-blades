@@ -62,10 +62,11 @@ export class FilterBar {
       this.targets.push(dd.button);
     };
 
-    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok'>[] = [
+    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae'>[] = [
       { value: 'all', label: 'All Sets' },
       { value: 'base', label: 'Base' },
       { value: 'ragnarok', label: 'Ragnarök' },
+      { value: 'celtic-fae', label: 'Celtic Fae' },
     ];
     mk(55, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
 

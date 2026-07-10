@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/engine/effects/EffectInterpreter.ts, src/engine/statics.ts, src/config/rules.ts, src/meta/SaveManager.ts, src/ai/determinize.ts, docs/rules.md, tests/ai/winrate.test.ts · last-verified: 2026-07-09 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/engine/effects/EffectInterpreter.ts, src/engine/statics.ts, src/config/rules.ts, src/meta/SaveManager.ts, src/ai/determinize.ts, docs/rules.md, tests/ai/winrate.test.ts · last-verified: 2026-07-10 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
 
 # De-MTG term re-theme (Tier-3 full engine rename)
 

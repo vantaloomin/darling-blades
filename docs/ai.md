@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-07
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-10
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -227,6 +227,7 @@ If you want to move the numbers, these are the levers:
 | `src/ai/value.ts`      | Per-card and per-permanent worth (keyword bonuses, lord/trigger premiums).    |
 | `src/ai/evaluate.ts`   | Position scoring — life curve, material discounts, card/mana/clock weights.   |
 | `src/ai/combatPlans.ts`| Shared attack/block heuristics (damage weights, trick-risk, double-blocks, holdback). |
+| `src/ai/scry.ts`       | Shared deterministic scry policy (all brains + ScriptAI): keep lands while developing, then bottom excess lands and uncastably expensive cards. |
 
 `determinize.ts` is the opponent-modeling knob: the deck-shape priors
 (`LAND_FRACTION`, `INTERACTION_FRACTION`, `CURVE_WEIGHTS`) and the

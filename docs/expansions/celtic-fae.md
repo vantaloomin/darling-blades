@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-07 · concept doc — future expansion, not implemented (planned src/data/cards/celtic-fae.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
+<!-- source-of-truth: src/data/cards/celtic-fae.ts, src/engine/types.ts · last-verified: 2026-07-10 · concept spec implemented in src/data/cards/celtic-fae.ts; the card data is authoritative where a concept mechanic needs a v1 engine adaptation -->
 
 # Expansion 2 - Celtic Fae: The Silver Veil
 
@@ -38,7 +38,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-silver-branch-oracle | Silver Branch Oracle | SR | U | Creature | Fae seer | scry 2, draw | Blue value creature |
 | cf-thorn-crown-geas | Thorn-Crown Geas | SR | G | Enchantment | Fae bargain | static boost, exile clause | Build-around aura |
 | cf-glamour-of-the-hill | Glamour of the Hollow Hill | SR | U | Charm | Illusion glamour | scry, recall, exile token | Defensive trick |
-| cf-redcap-blood-host | Redcap Blood-Host | SR | R/B | Creature | Redcap warband | warcry, menace-like pressure | Aggro bridge |
+| cf-redcap-blood-host | Redcap Blood-Host | SR | R | Creature | Redcap warband | warcry, menace-like pressure | Aggro bridge |
 | cf-queen-mab-midnight | Queen Mab at Midnight | SR | U/B | Legendary Creature | Dream queen | scry, tap, exile tapped creature | Control legend |
 | cf-ogham-fate-stones | Ogham Fate-Stones | SR | C | Artifact | Ogham divination stones | tap: scry | Colorless smoothing |
 | cf-hollow-hill-gatekeeper | Hollow-Hill Gatekeeper | R | U | Creature | Fae sentinel | bulwark, scry | Control blocker |
@@ -47,21 +47,21 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-moon-pool-selkie | Moon-Pool Selkie | R | U | Creature | Selkie scout | scry, recall self | Tempo engine |
 | cf-gold-ring-bargain | Gold-Ring Bargain | R | B | Ritual | Fae bargain | draw, loseLife, exile top card | Risky card advantage |
 | cf-hounds-of-annwn | Hounds of Annwn | R | G | Creature | Underworld hounds | overrun, exile creature on death | Midrange pressure |
-| cf-brigid-ember-blessing | Brigid's Ember Blessing | R | W/R | Charm | Brigid-inspired blessing | boost, firstBlade, scry | Combat trick |
+| cf-brigid-ember-blessing | Brigid's Ember Blessing | R | R | Charm | Brigid-inspired blessing | boost, firstBlade, scry | Combat trick |
 | cf-sidhe-silver-lancer | Sidhe Silver-Lancer | R | W | Creature | Fae knight | sentinel, firstBlade | White combat support |
 | cf-mist-over-tara | Mist Over Tara | R | U | Charm | Sacred-site fog | preventCombat, scry | Defensive control |
-| cf-fomorian-raider | Fomorian Raider | R | B/R | Creature | Fomorian brute | overrun, damage self | Rakdos pressure |
+| cf-fomorian-raider | Fomorian Raider | R | R | Creature | Fomorian brute | overrun, damage self | Rakdos pressure |
 | cf-apple-of-emain | Apple of Emain | R | G | Artifact | Otherworld fruit | gainLife, scry | Green value relic |
 | cf-briar-veil-banishing | Briar-Veil Banishing | R | W | Enchantment | Thorn prison | exile tapped creature until leaves | White removal |
-| cf-otter-familiar | Otter Familiar | R | U/G | Creature | Fae familiar | scry, manaAbility | Ramp/smoothing |
+| cf-otter-familiar | Otter Familiar | R | G | Creature | Fae familiar | scry, manaAbility | Ramp/smoothing |
 | cf-crowbone-prophet | Crowbone Prophet | R | B | Creature | Death oracle | scry, loseLife | Black selection |
-| cf-dance-under-mound | Dance Under the Mound | R | U/G | Ritual | Fae revel | createToken, scry | Token setup |
+| cf-dance-under-mound | Dance Under the Mound | R | G | Ritual | Fae revel | createToken, scry | Token setup |
 | cf-ash-and-mistletoe | Ash and Mistletoe | R | G | Enchantment | Sacred grove charm | static +1/+1 to Fae | Tribal anthem |
-| cf-lake-mirror-vow | Lake-Mirror Vow | R | U/W | Enchantment | Fae oath | scry dawn, tap attacker | Block bridge control |
+| cf-lake-mirror-vow | Lake-Mirror Vow | R | U | Enchantment | Fae oath | scry dawn, tap attacker | Block bridge control |
 | cf-cold-iron-taboo | Cold-Iron Taboo | R | C | Artifact | Anti-fae iron | exile enchantment/artifact | Sideboard-style answer |
 | cf-thornmaze-patrol | Thornmaze Patrol | R | G | Creature | Fae ranger | wardingGaze, scry | Anti-flying support |
-| cf-bog-lantern-witch | Bog-Lantern Witch | R | B/G | Creature | Marsh witch | deathblade, exile grave | Attrition piece |
-| cf-green-knoll-champion | Green Knoll Champion | R | G/W | Creature | Hill knight | sentinel, overrun | Midrange body |
+| cf-bog-lantern-witch | Bog-Lantern Witch | R | B | Creature | Marsh witch | deathblade, exile grave | Attrition piece |
+| cf-green-knoll-champion | Green Knoll Champion | R | G | Creature | Hill knight | sentinel, overrun | Midrange body |
 | cf-moonlit-barrow | Moonlit Barrow | R | Land | Hollow hill land | entersTapped, manaAbility U/B | Dual land |
 | cf-sunwell-grove | Sunwell Grove | R | Land | Sacred grove land | entersTapped, manaAbility G/W | Dual land |
 | cf-blackthorn-crossing | Blackthorn Crossing | R | Land | Thorn road land | entersTapped, manaAbility B/G | Dual land |
@@ -74,7 +74,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-omen-raven | Omen Raven | C | B | Creature | Raven familiar | skyborne, scry on arrives | Black flyer |
 | cf-selkie-runner | Selkie Runner | C | U | Creature | Selkie messenger | scry on combat damage | Tempo common |
 | cf-mushroom-ring-guard | Mushroom-Ring Guard | C | G | Creature | Fae guard | bulwark | Defensive common |
-| cf-willow-wisp-guide | Willow-Wisp Guide | C | U/G | Creature | Wisp guide | scry, manaAbility | Fixing creature |
+| cf-willow-wisp-guide | Willow-Wisp Guide | C | G | Creature | Wisp guide | scry, manaAbility | Fixing creature |
 | cf-fae-court-tokenmaker | Fae Court Reveler | C | G | Creature | Court reveler | createToken small | Token common |
 | cf-cold-moon-archer | Cold-Moon Archer | C | W | Creature | Fae archer | wardingGaze | White anti-air |
 | cf-black-dog-of-lane | Black Dog of the Lane | C | B | Creature | Omen hound | deathblade | Defensive black |
@@ -93,7 +93,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-dawn-torc | Dawn Torc | C | Artifact | Court trinket | tap: gainLife | White support |
 | cf-silver-thread | Silver Thread | C | Enchantment Aura | Fate thread | attached +0/+2, scry | Aura common |
 | cf-night-market-bargain | Night-Market Bargain | C | B | Ritual | Fae market | draw, loseLife | Black draw |
-| cf-laughing-pooka | Laughing Pooka | C | R/G | Creature | Pooka trickster | warcry | Hybrid pressure |
+| cf-laughing-pooka | Laughing Pooka | C | R | Creature | Pooka trickster | warcry | Hybrid pressure |
 | cf-hazelwand-mystic | Hazelwand Mystic | C | G | Creature | Druidic fae | manaAbility G | Ramp common |
 | cf-clouded-memory | Clouded Memory | C | U | Charm | Memory glamour | recall, scry | Tempo spell |
 | cf-bitter-geas | Bitter Geas | C | B | Enchantment Aura | Compulsion curse | attached -1/-1 | Black debuff |
@@ -101,7 +101,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-silver-apple-shot | Silver Apple Shot | C | R | Ritual | Magic projectile | damage 3 to creature | Red common removal |
 | cf-oak-shield-vow | Oak-Shield Vow | C | W | Charm | Defensive oath | boost Defense, scry | White trick |
 | cf-fogbell-chime | Fogbell Chime | C | U | Artifact | Mist charm | tap creature | Blue utility |
-| cf-moorland-guide | Moorland Guide | C | W/G | Creature | Border guide | sentinel | Block bridge common |
+| cf-moorland-guide | Moorland Guide | C | W | Creature | Border guide | sentinel | Block bridge common |
 | cf-veil-touched-hart | Veil-Touched Hart | C | G | Creature | Otherworld deer | scry arrives | Green setup |
 | cf-cairnlight-adept | Cairnlight Adept | C | B | Creature | Cairn witch | grind self | Grave setup |
 | cf-fae-spark | Fae Spark | C | R | Charm | Wild glamour | boost + damage to controller | Red trick |

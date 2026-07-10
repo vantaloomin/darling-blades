@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-07 · concept doc — future expansion, not implemented (planned src/data/cards/gothic-monsters.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
+<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-10 · concept doc — future expansion, not implemented (planned src/data/cards/gothic-monsters.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
 
 # Expansion 4 - Gothic Monsters: Nocturne Manor
 

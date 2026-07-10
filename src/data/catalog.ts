@@ -1,6 +1,7 @@
 import type { CardDb, CardDef } from './cardTypes';
 import { ARTIFACTS } from './cards/artifacts';
 import { BEASTKIN } from './cards/beastkin';
+import { CELTIC_FAE } from './cards/celtic-fae';
 import { DUALS } from './cards/duals';
 import { ENCHANTMENTS } from './cards/enchantments';
 import { GREEK } from './cards/greek';
@@ -38,6 +39,7 @@ const SET_GROUPS: readonly { set: SetKey; cards: readonly CardDef[] }[] = [
   { set: 'base', cards: LANDS },
   { set: 'base', cards: TOKENS },
   { set: 'ragnarok', cards: RAGNAROK },
+  { set: 'celtic-fae', cards: CELTIC_FAE },
 ];
 
 function buildDb(): CardDb {
