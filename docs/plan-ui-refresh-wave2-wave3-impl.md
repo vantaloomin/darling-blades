@@ -18,16 +18,21 @@ plates, right sidebar (PR #44) · turn-pill/life-corner refinements (PR #45)
 `src/ui/rowPacking.ts`) + in-duel pause/end screens on `modalShell`
 (which gained `dimAlpha`/`escToClose`/`depth` and an always-swallowing
 dim; `themedButton` gained `setVariant`) — PR #47.
-Wave 3 execution status (2026-07-10): ALL FOUR batches implemented on
-branches stacked serially on the Wave 2 branch, every ladder green,
-zero hex literals in every migrated scene, awaiting the PR-#47 merge
-to open the PRs one by one: PR A DeckBuilder (−125 lines) · PR B
-Shop/MainMenu/PackOpening (−209) · PR C Collection/Gauntlet/
+**Wave 3 — SHIPPED 2026-07-10** (four batches, every ladder green, zero
+hex literals in every migrated scene): PR A DeckBuilder (−125 lines) ·
+PR B Shop/MainMenu/PackOpening (−209) · PR C Collection/Gauntlet/
 Achievements/Profile (−113, one row recipe, 0.70/0.32 calibrations
 kept) · PR D Settings two-column + both QOL toggles round-trip-probed
-(single-tap concede honored live) + Limited×4 + CardShowcase.
-LimitedReveal/Draft verified by review only (probing needs an active
-run, which would mutate the save); flagged for eyes on deploy.
+(single-tap concede honored live) + Limited×4 + CardShowcase — closes
+the plan-qol.md Settings-toggles debt. LimitedReveal/Draft verified by
+review only; flagged for eyes on deploy. Post-wave duel follow-up
+rounds (user playtest feedback 2026-07-10, all live-probed): End Turn
+declines combat · crop re-centering · fixed-size name truncation ·
+opp block up + icon pile columns · zone-contents modal (graves/deck/
+lands, exile-ready) · life squares in portraits · 6px packing gutter ·
+lands → clickable untapped/total mana strips · artifact/enchantment
+band rows · draw fly-in input+alpha fixes · inspect returns to its
+zone modal.
 
 Shared modules that now exist and MUST be consumed (no new hex literals):
 `src/ui/theme.ts` (tokens; Phaser-free import), `src/ui/themeWidgets.ts`
