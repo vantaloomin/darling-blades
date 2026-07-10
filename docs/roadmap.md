@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **555 tests green** (+3 skipped balance-tool assertions) across 55 files
+- **573 tests green** (+3 skipped balance-tool assertions) across 59 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -55,6 +55,34 @@ _Dated 2026-07-04. Review monthly._
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images — see Recently shipped). By-ear tuning remains
   open (see Planned).
+
+## Recently shipped (2026-07-10)
+
+- **UI/UX refresh — all waves landed** (PRs #41–#53; plan in
+  [plan-ui-ux-refresh.md](plan-ui-ux-refresh.md), execution record in
+  [plan-ui-refresh-wave2-wave3-impl.md](plan-ui-refresh-wave2-wave3-impl.md)).
+  Wave 1/1.5 play-field motion + mirrored play-mat + phase track, Wave 2 larger
+  battlefield tiles + shared modal shell, Wave 3A–3D all-scene theme migration
+  (DeckBuilder, Shop/MainMenu/PackOpening, Collection/Gauntlet/Achievements/
+  Profile, Settings two-column — which closed the last QOL follow-up:
+  in-Settings `confirmDestructive` + `keywordReminders` toggles), plus two
+  post-wave duel-feedback rounds (#52/#53: End Turn declines combat, icon pile
+  columns, zone-contents modals, clickable mana strips, artifact/enchantment
+  bands, in-portrait life squares). The by-eye pass over the new theme system
+  is still open (flagged "eyes on deploy" in the impl doc).
+- **Launch economy retune + progression simulation (PRs #35/#36).** Collection
+  boosters are now **9 rolls at 450g** (Ragnarök 525g) — Limited packs stay
+  15 cards; daily quests pay 50g; streak payouts reduced; duplicate refunds
+  tuned so the expected plain-dupe refund (~68g/pack at full completion) stays
+  bounded below pack price. Grounded in a new deterministic
+  **progression-sim harness** (`scripts/progression-sim.ts`, 10 personas,
+  7/14/30/60-day checkpoints).
+- **Limited descoped from the 1.0 launch (user decision 2026-07-10).** PR #54
+  removed the Limited entry from MainMenu — the Sealed/Draft scenes, meta core,
+  and tests all remain in the codebase, just unreachable. Limited ships in a
+  post-1.0 release alongside a future expansion after more testing; the
+  blocker list (auto-build balance texture, run-economy tuning, flow polish)
+  is recorded in [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
 
 ## Recently shipped (2026-07-09)
 
@@ -110,7 +138,9 @@ _Dated 2026-07-04. Review monthly._
   ids, and wrong deck sizes are rejected. No schema bump: codes are transient,
   and accepted imports use the existing **Save Deck** action.
 
-- **Sealed / Draft Limited mode (Road-to-1.0 Feature 3).** MainMenu now exposes
+- **Sealed / Draft Limited mode (Road-to-1.0 Feature 3).** _(Hidden from
+  MainMenu 2026-07-10, PR #54 — descoped to a post-1.0 release; see Recently
+  shipped 2026-07-10.)_ MainMenu exposed
   **Limited**, with Sealed and Bot Draft runs. Sealed opens six seeded temporary
   boosters; Draft runs three pick-one-pass packs with seven deterministic bot
   seats. `src/meta/Limited.ts` owns side-effect-free pack rolling, draft state,
@@ -680,9 +710,27 @@ _Dated 2026-07-04. Review monthly._
   life squares; execution record in
   [plan-ui-refresh-wave2-wave3-impl.md](plan-ui-refresh-wave2-wave3-impl.md)).
   The Settings toggles closed the last QOL follow-up below.
-- **Design plans authored 2026-07-05 (awaiting build go/no-go).** Four
-  senior-level design docs are ready to implement, each grounded in the current
-  code and respecting the iron invariants:
+- **The 1.1 program (scoped 2026-07-10, post-1.0-cut).**
+  [plan-1.1.md](plan-1.1.md) is the spec. Locked picks: **Celtic Fae** is the
+  next expansion (80 cards; needs new engine surface — an exile zone + scry —
+  before card data), **Limited releases with it**, **Commander mode** and
+  **MOD/UGC packs** are the 1.1 systems, the tower gets a **seeded daily
+  rotation**, and the base facet gets a clarity **relabel** (data stays
+  disjoint). Deterministic replays and Tier-2 LAN PvP shelve to 1.2+.
+- **Limited public release (post-1.0, with a future expansion; now part of
+  the 1.1 program above).** The full
+  Sealed/Bot-Draft implementation (v14 save block, `src/meta/Limited.ts`, four
+  scenes, tests) stays in the codebase but is unreachable from MainMenu
+  (PR #54). User decision 2026-07-10: it ships in its own release after more
+  testing — blockers are Limited balance/economy (auto-build texture via the
+  balance harness, run-reward tuning) and general flow polish. Re-enabling is
+  one MainMenu entry plus a browser-preview probe of both run types
+  end-to-end. Blocker detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
+- **Design plans authored 2026-07-05.** Four senior-level design docs, each
+  grounded in the current code and respecting the iron invariants —
+  **Commander mode and MOD/UGC were greenlit into the 1.1 program
+  2026-07-10** (see above); the keyword-retheme and road-to-1.0 plans have
+  shipped:
   - [Commander mode + 8 themed decks](plan-commander-mode.md) — a
     Darling-Blades EDH-lite format (singleton, one legendary commander) layered
     into `src/data`/`src/meta`/`src/scenes` with no engine change.

@@ -13,6 +13,14 @@
 > logs/viewer are deferred to 1.1/1.2. Future migration numbers below should be
 > read as "next free version after v15" unless
 > the feature section has already been marked shipped.
+>
+> **Update (2026-07-10):** **Limited is descoped from the 1.0 launch** (user
+> decision). The implementation stays complete and tested in the codebase, but
+> PR #54 removed its MainMenu entry — it ships in a post-1.0 release alongside
+> a future expansion after more testing (balance/economy + polish blockers
+> recorded in [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md)). The 1.0
+> definition below is amended accordingly: criterion 3 is satisfied by
+> achievements/collection goals + the gauntlet.
 
 Darling Blades is playable end-to-end, art-complete, and stable (`SaveData` v15 -
 see the update note above). What separates the current build from a polished 1.0 is
@@ -28,11 +36,17 @@ now shipped; this doc keeps the shipped record plus the remaining polish gates.
 The five 1.0 gameplay/product features are now implemented: tutorial/onboarding,
 daily quests + win streaks, Achievements + collection goals, Sealed / Bot Draft
 Limited, and deck share codes. The user-directed replay slice from Feature 4 is
-explicitly deferred to 1.1/1.2 and is not a launch blocker. What remains for a
-credible 1.0 is mostly polish and validation: economy tuning across quests /
-achievements / Limited, a by-ear/by-eye pass for audio and pack/foil/readability
-effects, the real-device mobile pass, and any final bug fixes found while
-playing through the now-complete loop.
+explicitly deferred to 1.1/1.2 and is not a launch blocker. **As of 2026-07-10,
+Limited is implemented but descoped from the launch** (hidden from MainMenu,
+PR #54 — it ships post-1.0 with a future expansion). Constructed economy tuning
+landed 2026-07-09/10 (PRs #35/#36: 9-card 450g/525g boosters, 50g dailies,
+reduced streak payouts, dupe-refund tuning, backed by the
+`scripts/progression-sim.ts` harness). What remains for a credible 1.0 is
+polish and validation: a by-ear/by-eye pass for audio and
+pack/foil/readability effects (now also covering the 2026-07-10 UI-refresh
+theme system and rebuilt duel board), the real-device mobile pass, any final
+bug fixes found while playing through the complete loop, and the release cut
+itself (version stamps are still 0.1.0; tag + rebuilt desktop installer).
 
 ## Feature 1 — Interactive tutorial + onboarding flow (shipped 2026-07-08)
 
@@ -458,7 +472,9 @@ Darling Blades is release-ready when:
 - **There is a daily reason to return** — daily quests + streak give a fresh,
   seeded goal every calendar day. Shipped in v13.
 - **The card pool has a purpose beyond the gauntlet** — achievements/collection
-  goals and Limited mode are shipped.
+  goals are shipped. _(Amended 2026-07-10: Limited is implemented but descoped
+  from the launch — it releases post-1.0 with a future expansion, so it no
+  longer gates this criterion.)_
 - **Great decks are shareable** — deck codes provide copy/paste deck export and
   import through the normal constructed validator. Deterministic game replays are
   deferred to 1.1/1.2.
@@ -468,10 +484,13 @@ Darling Blades is release-ready when:
 - **The invariants still hold** — engine purity, redacted views, seeded
   determinism, and green migrations/tests through the whole version walk.
 
-Deliberately **out of scope for 1.0** (post-launch): deterministic replay
+Deliberately **out of scope for 1.0** (post-launch): the **public Limited
+release** (implemented, hidden from MainMenu since PR #54; ships with a future
+expansion after balance/economy + polish work — see
+[plan-v1.1-post-launch.md](plan-v1.1-post-launch.md)), deterministic replay
 logs/viewer, Tier-2 LAN PvP (already deferred in mobile-lan-plan.md), human
 multiplayer draft, and a
-full story campaign (the tutorial + gauntlet + Limited cover single-player content
+full story campaign (the tutorial + gauntlet cover single-player content
 adequately for launch).
 
 ## Open questions / decisions for the user
