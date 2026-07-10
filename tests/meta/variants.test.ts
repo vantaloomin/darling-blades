@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DROPS, ECONOMY } from '../../src/config/rules';
 import { createRngState } from '../../src/engine/rng';
 import { openPack } from '../../src/meta/PackOpener';
+import { formatOdds, variantOdds } from '../../src/meta/pullOdds';
 import { freshSave } from '../../src/meta/SaveManager';
 import {
   isPlainVariant,
@@ -68,6 +69,47 @@ describe('DROPS tables', () => {
       expect(rollFrame(a)).toBe(rollFrame(b));
       expect(rollHolo(a)).toBe(rollHolo(b));
     }
+  });
+});
+
+describe('pull odds', () => {
+  it('formats the UR black void god roll as 1:4.94M', () => {
+    const odds = variantOdds('ur', 'black', 'void');
+    expect(odds).toBeCloseTo(0.01 * 0.0045 * 0.0045, 12);
+    expect(formatOdds(odds)).toBe('1:4.94M');
+  });
+
+  it('formats the common white none pull as 1:6.7', () => {
+    const odds = variantOdds('c', 'white', 'none');
+    expect(odds).toBeCloseTo(0.5 * 0.5 * 0.6, 12);
+    expect(formatOdds(odds)).toBe('1:6.7');
+  });
+
+  it('derives a mid-table pull from all three independent axes', () => {
+    const odds = variantOdds('r', 'gold', 'pearlescent');
+    expect(odds).toBeCloseTo(0.3 * 0.0355 * 0.08, 12);
+    expect(formatOdds(odds)).toBe('1:1,170');
+  });
+
+  it('rounds and groups format boundaries predictably', () => {
+    expect(formatOdds(1 / 15_000)).toBe('1:15,000');
+    expect(formatOdds(1 / 10)).toBe('1:10');
+    expect(formatOdds(1 / 999_999)).toBe('1:1,000,000');
+    expect(formatOdds(1 / 1_000_000)).toBe('1:1.00M');
+  });
+
+  it('covers one total outcome across every tier, frame, and holo combination', () => {
+    const total = DROPS.tier.reduce(
+      (sum, [tier]) => sum + DROPS.frame.reduce(
+        (frameSum, [frame]) => frameSum + DROPS.holo.reduce(
+          (holoSum, [holo]) => holoSum + variantOdds(tier, frame, holo),
+          0,
+        ),
+        0,
+      ),
+      0,
+    );
+    expect(total).toBeCloseTo(1, 12);
   });
 });
 

@@ -8,6 +8,7 @@ import { def } from '../engine/types';
 import type { AddResult } from '../meta/Collection';
 import { spendGold } from '../meta/Economy';
 import { openPack, type PackResult } from '../meta/PackOpener';
+import { formatOdds, variantOdds } from '../meta/pullOdds';
 import { Services } from '../meta/services';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
 import { animTimeScale } from '../platform/animPolicy';
@@ -508,6 +509,7 @@ export class PackOpeningScene extends Phaser.Scene {
     if (card.isNew) lines.push('★ New Card');
     else if (card.isNewVariant) lines.push('★ New Variant');
     lines.push(`Rarity: ${this.rarityLabel(card.tier)}`);
+    lines.push(`Pull odds ${formatOdds(variantOdds(card.tier, variant.frame, variant.holo))}`);
     if (variant.frame !== 'white') lines.push(`Frame: ${this.titleCase(variant.frame)}`);
     if (variant.holo !== 'none') lines.push(`Shiny: ${this.titleCase(variant.holo)}`);
     return lines;
