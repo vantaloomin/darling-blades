@@ -183,8 +183,14 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     const scale = Math.max(ART_W / srcW, ART_H / srcH);
     const cropW = ART_W / scale;
     const cropH = ART_H / scale;
-    this.art.setCrop((srcW - cropW) / 2, (srcH - cropH) * 0.3, cropW, cropH);
+    const cropY = (srcH - cropH) * 0.3;
+    this.art.setCrop((srcW - cropW) / 2, cropY, cropW, cropH);
     this.art.setScale(scale);
+    // setCrop shows the crop where it falls within the full-texture footprint —
+    // it does NOT re-center. Shift the image so the cropped band lands centered
+    // in the art window (without this the art rides high: it bleeds over the
+    // top frame and leaves a dark band inside the bottom one).
+    this.art.setY(ART_CY + scale * (srcH / 2 - cropY - cropH / 2));
 
     // Thin inner border drawn ON TOP of the art, so the frame reads even where
     // the illustration is bright and the art window never bleeds over the tile.
@@ -205,7 +211,18 @@ export class BoardCardView extends Phaser.GameObjects.Container {
         resolution: 2,
       })
       .setOrigin(0.5);
-    nameText.setScale(Math.min(1, (ART_W - 46) / Math.max(1, nameText.width)));
+    // Names render at one fixed size everywhere; overlong ones truncate with an
+    // ellipsis instead of shrinking (user-directed 2026-07-10 — mixed sizes
+    // read worse than clipped names).
+    const nameMaxW = ART_W - 46;
+    if (nameText.width > nameMaxW) {
+      let keep = Math.max(1, Math.floor((card.name.length * nameMaxW) / nameText.width) - 1);
+      nameText.setText(`${card.name.slice(0, keep).trimEnd()}…`);
+      while (keep > 1 && nameText.width > nameMaxW) {
+        keep -= 1;
+        nameText.setText(`${card.name.slice(0, keep).trimEnd()}…`);
+      }
+    }
 
     this.ptPlate = scene.add.image(PT_CX, PT_CY, 'pt-plate').setDisplaySize(PT_W, PT_H);
     this.ptText = scene.add

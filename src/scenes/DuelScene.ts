@@ -1443,8 +1443,10 @@ export class DuelScene extends Phaser.Scene {
       case 'main':
         return { type: 'passStep' };
       case 'declareAttackers':
-        // "Stop if I can attack": pause when you have any eligible attacker.
-        if (eligibleAttackers(this.duel.state.battlefield, CARD_DB, HUMAN).length > 0) return null;
+        // End Turn is an explicit "skip the rest of my turn" — decline combat
+        // outright (user-directed 2026-07-10; the old stop-if-I-can-attack
+        // pause made End Turn strand at the combat decision).
+        this.selectedAttackers.clear();
         return { type: 'declareAttackers', attackers: [] };
       case 'respond':
       case 'endStepWindow':
