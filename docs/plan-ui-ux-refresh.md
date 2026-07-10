@@ -119,7 +119,7 @@ direction and directed six changes before Wave 2. Two sub-waves, two PRs:
   vertical UPKEEP / MAIN 1 / COMBAT / MAIN 2 / END list with the current
   step highlighted, cycling as steps advance (pure step→row mapping helper,
   unit-tested). Replaces the left rail's step pill + owner tag; the rail
-  keeps hint/log/Undo.
+  initially kept hint/log/Undo before the Wave 1.5c polish trimmed it further.
 - **Auto-skip HUD chip removed** (the pause-menu and settings toggles remain
   the control surface); fresh-save default flips to **Off**. Existing saves
   keep their stored value; no schema bump.
@@ -146,6 +146,14 @@ edge), overlayGuardTargets updated for the removed chip, CoachMark contract
 untouched. architecture.md's duel-board section is updated as part of the
 wave's definition of done.
 
+**1.5c — play-layout polish** (user-directed priority pass): the matchup title
+moves into the pause menu subtitle; the rail hint/log echoes, side plate labels,
+and mana text labels are removed. The turn pill returns to the left rail at
+(52,250), the phase track moves outside the mat to x1113 with rows y356..492,
+both plates stop at x1046 with creature rows centered at x577/860, your mana
+pips right-align to x1014, the opponent plate rises to y40 with lands/pips at
+y78, the banner moves to y74, and the combat forecast moves to y130.
+
 ## Wave 2 — play-field hierarchy + larger tiles (geometry, duel only)
 
 The one wave that moves audited coordinates; each move re-derives its
@@ -154,14 +162,14 @@ documented dependents.
 - **Larger battlefield tiles** (user pick): `BoardCardView` grows from
   132×146 toward ~160×180 with shrink-to-fit row packing (extracted as a
   pure, unit-tested function) so 7+ creature rows scale down gracefully.
-  Constraints to re-derive: row fit inside `ROW_USABLE` (1000px), vertical
+  Constraints to re-derive: row fit inside the current 860px usable row width, vertical
   clearance inside both zone plates, the your-tiles vs land-row band, hand-fan
   rest-top clearance (`myLands.cy`/badge/fan-top math), CoachMark
   `getBounds()` targets, and the ≥90px touch floors.
 - **Opponent identity block**: the thin strip's avatar/life/hand/piles/pips
   become a coherent left-anchored block with a visible name and larger life.
-- **Phase rail → phase ribbon**: turn/step/owner pills and the hint line
-  restyled and repositioned for hierarchy (hint promoted near the action).
+- **Phase/sidebar hierarchy**: turn/step affordances and the right-side command
+  column restyled and repositioned for clearer action hierarchy.
 - **Control cluster**: End Turn, smart button, auto-skip, concede, and piles
   visually grouped; auto-skip input-lock race respected.
 - **In-duel menu, victory/defeat screens**: rebuilt on `modalShell()` — fixes

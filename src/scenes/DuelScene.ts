@@ -88,25 +88,26 @@ const AUTOSKIP_INPUT_LOCK_MS = 280;
  * a mirrored opponent play mat on top (portrait, life, hand backs, piles,
  * mana and a full zone plate), two inset battlefield zone plates (each
  * holding its land row at the outer edge and its creature row at the inner
- * edge, Arena-style), a left hint/log rail, and a bottom stage: commander
+ * edge, Arena-style), a sparse left control rail, and a bottom stage: commander
  * portrait (bottom-left), arced hand fan (center), smart-button cluster +
  * piles (right). The backdrop art shows through around the plates.
  */
 const LAYOUT = {
   /** Opponent's mirrored zone, narrowed for the top-right commander frame. */
-  oppZone: { x0: 108, x1: 1046, y0: 60, y1: 306 },
+  oppZone: { x0: 108, x1: 1046, y0: 40, y1: 306 },
   /** Right-aligned stacks step leftward from the portrait-clear edge. */
-  oppLands: { cy: 96, x0: 1006 },
+  oppLands: { cy: 78, x0: 1006 },
   /** The opponent row stays at its audited y but centers in its narrower plate. */
   oppCreatures: { cy: 214, x: 577, usable: 860 },
   /** Between the zone plates: skip toast + stack readout float here. */
   gap: { cy: 298 },
-  myZone: { y0: 312, y1: 532 },
-  myCreatures: { cy: 386 },
+  /** Player zone now matches the opponent plate's right edge for the sidebar. */
+  myZone: { x0: 108, x1: 1046, y0: 312, y1: 532 },
+  myCreatures: { cy: 386, x: 577, usable: 860 },
   // cy 484 is load-bearing: the LandStackView badge sits at pile-local y+24
   // (≈508) tuned to clear the resting hand fan (see LandStackView.ts). x0 210
-  // keeps the first stack's inflated 90px hit rect clear of the phase rail's
-  // hint/log column and the life total on the portrait corner.
+  // keeps the first stack's inflated 90px hit rect clear of the left rail and
+  // the life total on the portrait corner.
   myLands: { cy: 484, x0: 210 },
   // restY is computed in syncHand to anchor the fan's bottom near y=714 for
   // the active scale; the hover lift is computed per card so the raised
@@ -119,8 +120,10 @@ const LAYOUT = {
   /** Mirrored commander frame and its targetable life disc. */
   oppPortrait: { x: 1056, y: 8, w: 200, h: 180 },
   oppLife: { x: 1086, y: 162 },
-  /** Display-only phase track above the unchanged End Turn / smart controls. */
-  phaseTrack: { x: 1108, turnY: 366, firstRowY: 396, rowStep: 30 },
+  /** Left-rail turn chip; Undo is the only other left-rail control. */
+  turnPill: { x: 52, y: 250 },
+  /** Display-only phase track in the right sidebar above End Turn. */
+  phaseTrack: { x: 1113, firstRowY: 356, rowStep: 34 },
   /** Right-side control cluster: ⏭ End Turn chip · smart button (top→bottom). */
   cluster: { x: 1108, endTurnY: 548, passY: 642, passR: 46 },
   /** Your deck/grave piles, right column above Concede. */
@@ -132,8 +135,6 @@ const BOARD_CENTER_X = 640;
 const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
 const TARGET_SNAP_R = 60;
 const TARGET_ARROW_COLOR = 0xffd166;
-/** Width available to the player's creature row (inside the unchanged zone plate). */
-const ROW_USABLE = 1000;
 /**
  * Max total width of the hand fan. Narrower than the old flat row: fanned
  * cards overlap more, and the span must clear the commander portrait (left,
@@ -191,13 +192,11 @@ export class DuelScene extends Phaser.Scene {
   private hud!: {
     myLife: Phaser.GameObjects.Text;
     oppLife: Phaser.GameObjects.Text;
-    /** Right-side phase track: turn pill plus five display-only rows. */
-    turnPill: Phaser.GameObjects.Text;
+    /** Left-rail turn pill plus right-side display-only phase rows. */
+    turnPill: { fill: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text };
     phaseRows: { fill: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text }[];
-    log: Phaser.GameObjects.Text;
     /** Smart-button label; input lives on `passArc` (the circle is the button). */
     button: Phaser.GameObjects.Text;
-    hint: Phaser.GameObjects.Text;
     stack: Phaser.GameObjects.Text;
   };
   /** The circular smart button (wireframe 1a "PASS"); relabeled per decision. */
@@ -759,9 +758,8 @@ export class DuelScene extends Phaser.Scene {
 
     const g = this.add.graphics();
 
-    // Two inset battlefield zone plates: the mirrored opponent plate narrows
-    // for the portrait column; the player plate remains byte-for-byte placed.
-    // Yours a touch brighter — "this side is you".
+    // Two inset battlefield zone plates: both stop at x1046 to leave a clean
+    // right sidebar for phase and command controls. Yours a touch brighter.
     const plate = (x0: number, x1: number, y0: number, y1: number, fill: number, alpha: number): void => {
       g.fillGradientStyle(colorInt(theme.colors.panelStroke), colorInt(theme.colors.panelStroke), fill, fill, alpha);
       g.fillRoundedRect(x0, y0, x1 - x0, y1 - y0, 10);
@@ -769,19 +767,7 @@ export class DuelScene extends Phaser.Scene {
       g.strokeRoundedRect(x0, y0, x1 - x0, y1 - y0, 10);
     };
     plate(LAYOUT.oppZone.x0, LAYOUT.oppZone.x1, LAYOUT.oppZone.y0, LAYOUT.oppZone.y1, 0x1a1530, 0.45);
-    plate(108, 1172, LAYOUT.myZone.y0, LAYOUT.myZone.y1, 0x1c1734, 0.5);
-
-    const label = (x: number, y: number, text: string): void => {
-      this.add.text(x, y, text, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '10px',
-        fontStyle: '700',
-        color: '#6f6690',
-        resolution: 2,
-      });
-    };
-    label(118, LAYOUT.oppZone.y0 + 6, 'OPPONENT');
-    label(118, LAYOUT.myZone.y0 + 6, 'YOU');
+    plate(LAYOUT.myZone.x0, LAYOUT.myZone.x1, LAYOUT.myZone.y0, LAYOUT.myZone.y1, 0x1c1734, 0.5);
   }
 
   /**
@@ -798,19 +784,14 @@ export class DuelScene extends Phaser.Scene {
     return this.textures.exists(h.textureKey) ? h.textureKey : null;
   }
 
-  private buildHud(): void {
-    // --- Opponent mirror: name · hand backs · piles · portrait · life · mana ---
-    const oppLabel = this.opponent
+  private matchupLabel(): string {
+    return this.opponent
       ? `${this.gauntletRung ? `Rung ${this.gauntletRung} — ` : ''}vs ${this.opponent.name}`
       : `Practice — vs ${this.difficulty} AI`;
-    this.add
-      .text(14, 24, oppLabel, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '15px',
-        color: '#c7a8f0',
-        resolution: 2,
-      })
-      .setOrigin(0, 0.5);
+  }
+
+  private buildHud(): void {
+    // --- Opponent mirror: hand backs · piles · portrait · life · mana ---
     this.oppHandBacks = new PileView(this, BOARD_CENTER_X, 24, 'handbacks', { miniW: 20, miniH: 28 });
     this.oppGravePile = new PileView(this, 38, 98, 'grave');
     this.oppDeckPile = new PileView(this, 38, 168, 'deck');
@@ -848,7 +829,7 @@ export class DuelScene extends Phaser.Scene {
       const label = this.add
         .text(LAYOUT.phaseTrack.x, y, row, {
           fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
+          fontSize: `${theme.type.label}px`,
           fontStyle: theme.weight.w700,
           color: theme.colors.muted,
           resolution: 2,
@@ -857,6 +838,19 @@ export class DuelScene extends Phaser.Scene {
         .setDepth(theme.depth.hudLabel);
       return { fill, label };
     });
+    const turnPill = {
+      fill: this.add.graphics().setDepth(theme.depth.hud),
+      label: this.add
+        .text(LAYOUT.turnPill.x, LAYOUT.turnPill.y, '', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+          resolution: 2,
+        })
+        .setOrigin(0.5)
+        .setDepth(theme.depth.hudLabel),
+    };
 
     this.hud = {
       // Life totals are BURN TARGETS: depth 56 makes them win Phaser's
@@ -884,37 +878,10 @@ export class DuelScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setDepth(56),
-      // --- Phase track + left rail. The track owns turn/step/turn-owner
-      // state; the rail retains only its terse hint, Undo, and truncated log.
-      turnPill: this.add
-        .text(LAYOUT.phaseTrack.x, LAYOUT.phaseTrack.turnY, '', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '14px',
-          color: '#e8def7',
-          backgroundColor: '#241c3e',
-          padding: { x: 10, y: 4 },
-          resolution: 2,
-        })
-        .setOrigin(0.5),
+      // --- Left rail + phase track. The rail retains only the turn pill and
+      // Undo; decision guidance lives in the smart button and CoachMark.
+      turnPill,
       phaseRows,
-      hint: this.add.text(8, 344, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '11px',
-        color: '#a89cc6',
-        resolution: 2,
-        align: 'center',
-        fixedWidth: 96,
-        wordWrap: { width: 92 },
-      }).setOrigin(0, 0),
-      log: this.add.text(8, 452, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '10px',
-        color: '#948aba',
-        resolution: 2,
-        align: 'center',
-        fixedWidth: 96,
-        wordWrap: { width: 92 },
-      }).setOrigin(0, 0),
       // --- Smart-button label (input is on passArc below). Depth 57: the
       // arc is created AFTER this Text at depth 56, and Phaser breaks depth
       // ties by insertion order — at equal depth the near-opaque disc would
@@ -1059,8 +1026,8 @@ export class DuelScene extends Phaser.Scene {
     inflateHitArea(this.endTurnBtn, 90, 90);
 
     // Undo (F11): take back your last committed action while it's still your
-    // decision — before priority passes to the AI or combat animates. Left rail,
-    // between the hint and the log; syncUndoButton toggles its visibility.
+    // decision — before priority passes to the AI or combat animates. It is
+    // the left rail's only control besides the turn pill.
     this.undoBtn = this.add
       .text(52, 410, '↶ Undo', {
         fontFamily: 'Cinzel, Georgia, serif',
@@ -1082,7 +1049,7 @@ export class DuelScene extends Phaser.Scene {
     // Combat forecast (F12): a live damage/deaths preview shown center-top while
     // you assign blocks; syncCombatPreview updates it and toggles its visibility.
     this.combatPreviewText = this.add
-      .text(640, 100, '', {
+      .text(640, 130, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: `${theme.type.h2}px`,
         fontStyle: '600',
@@ -1139,7 +1106,7 @@ export class DuelScene extends Phaser.Scene {
       this.processEvents(events);
       this.afterEvents();
     } catch (err) {
-      this.hud.log.setText(String((err as Error).message));
+      this.log(String((err as Error).message));
     }
   }
 
@@ -1231,6 +1198,19 @@ export class DuelScene extends Phaser.Scene {
         if (text.active) text.setScale(1).setColor(baseColor);
       },
     });
+  }
+
+  private syncTurnPill(turn: number, yours: boolean): void {
+    const label = this.hud.turnPill.label;
+    const fill = this.hud.turnPill.fill;
+    label.setText(turn === 0 ? '—' : `T${turn}`);
+    label.setColor(yours ? theme.colors.gold : theme.colors.body);
+    const w = Math.max(52, label.width + 22);
+    fill.clear();
+    fill.fillStyle(theme.graphics.rowFillActive, 1);
+    fill.fillRoundedRect(LAYOUT.turnPill.x - w / 2, LAYOUT.turnPill.y - 14, w, 28, theme.radius.control);
+    fill.lineStyle(1, colorInt(yours ? theme.colors.gold : theme.colors.muted), 0.9);
+    fill.strokeRoundedRect(LAYOUT.turnPill.x - w / 2, LAYOUT.turnPill.y - 14, w, 28, theme.radius.control);
   }
 
   private syncPhaseTrack(row: PhaseTrackRow | null, yours: boolean): void {
@@ -1682,10 +1662,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private log(msg: string, cardId?: string): void {
-    // The rail's log slot is a narrow (96px) column — long card names would
-    // wrap into a tall block. Truncate for the rail; the History panel keeps
-    // the full line (and, given a cardId, makes the row tappable to inspect it).
-    this.hud.log.setText(msg.length > 40 ? msg.slice(0, 39) + '…' : msg);
+    // HistoryPanel is the sole log surface; card-linked rows remain tappable.
     this.history?.push(msg, cardId);
   }
 
@@ -1865,7 +1842,8 @@ export class DuelScene extends Phaser.Scene {
     }
     const who = isYou ? 'Your Turn' : `${this.opponent?.name ?? 'Opponent'}'s Turn`;
     const accent = isYou ? theme.colors.gold : theme.colors.body;
-    const banner = this.add.container(BOARD_CENTER_X, 96).setDepth(theme.depth.banner).setAlpha(0);
+    const bannerY = 74;
+    const banner = this.add.container(BOARD_CENTER_X, bannerY).setDepth(theme.depth.banner).setAlpha(0);
     const bg = this.add
       .rectangle(0, 0, 340, 66, colorInt(theme.colors.panelFill), 0.82)
       .setStrokeStyle(1.5, colorInt(accent));
@@ -1995,9 +1973,8 @@ export class DuelScene extends Phaser.Scene {
     inflateHitArea(this.hud.myLife, 90, 90);
     inflateHitArea(this.hud.oppLife, 90, 90, { biasX: -20, biasY: 20 });
 
-    // The right phase track absorbs both the old step pill and owner tag.
     const yours = st.turn !== 0 && st.activePlayer === HUMAN;
-    this.hud.turnPill.setText(st.turn === 0 ? '—' : `T${st.turn}`);
+    this.syncTurnPill(st.turn, yours);
     this.syncPhaseTrack(st.turn === 0 ? null : phaseTrackRowForStep(st.step), yours);
     this.syncUndoButton();
     this.syncCombatPreview();
@@ -2012,8 +1989,8 @@ export class DuelScene extends Phaser.Scene {
     for (const player of [AI, HUMAN] as const) {
       const row = tiles.filter((p) => p.controller === player);
       const y = player === AI ? LAYOUT.oppCreatures.cy : LAYOUT.myCreatures.cy;
-      const rowCenter = player === AI ? LAYOUT.oppCreatures.x : BOARD_CENTER_X;
-      const rowUsable = player === AI ? LAYOUT.oppCreatures.usable : ROW_USABLE;
+      const rowCenter = player === AI ? LAYOUT.oppCreatures.x : LAYOUT.myCreatures.x;
+      const rowUsable = player === AI ? LAYOUT.oppCreatures.usable : LAYOUT.myCreatures.usable;
       const n = row.length;
       // Cap spacing at the tapped-tile footprint (a 90° tap makes the tile
       // TILE_H wide) plus a small gutter, so tapped attackers don't collide.
@@ -2225,11 +2202,10 @@ export class DuelScene extends Phaser.Scene {
     this.previousManaSignature = signature;
     for (const o of this.manaPips) o.destroy();
     this.manaPips = [];
-    // Your row ends at 1148 (was 1180): the old end poked past the zone
-    // plate's right edge (1172) and its "AVAILABLE MANA" label ran toward the
-    // History tab; 1148 keeps the whole readout inside the plate.
-    this.buildManaRow(HUMAN, 1148, LAYOUT.myLands.cy, 54, 22, 'right', 'AVAILABLE MANA');
-    this.buildManaRow(AI, 120, LAYOUT.oppLands.cy, 44, 18, 'left', 'MANA');
+    // Your row ends at x1014 inside the narrowed plate, clear of the phase
+    // track. The opponent's row follows the raised land line.
+    this.buildManaRow(HUMAN, 1014, LAYOUT.myLands.cy, 54, 22, 'right');
+    this.buildManaRow(AI, 120, LAYOUT.oppLands.cy, 44, 18, 'left');
     if (changed && this.motionLevel() === 'full') {
       for (const pip of this.manaPips) pip.setAlpha(0.4);
       this.tweens.add({ targets: this.manaPips, alpha: 1, duration: 120, ease: 'Quad.easeOut' });
@@ -2244,7 +2220,6 @@ export class DuelScene extends Phaser.Scene {
     step: number,
     pipSize: number,
     align: 'left' | 'right',
-    label: string | false,
   ): void {
     const counts = new Map<Color, number>();
     for (const src of manaSources(this.duel.state, CARD_DB, player)) {
@@ -2253,19 +2228,6 @@ export class DuelScene extends Phaser.Scene {
     const colors = (['W', 'U', 'B', 'R', 'G'] as const).filter((c) => (counts.get(c) ?? 0) > 0);
     if (colors.length === 0) return;
     const x0 = align === 'right' ? xAnchor - colors.length * step : xAnchor;
-    if (label) {
-      this.manaPips.push(
-        this.add
-          .text(x0 - 11, cy - 26, label, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '9px',
-            fontStyle: '700',
-            color: '#57506e',
-            resolution: 2,
-          })
-          .setOrigin(0, 0.5),
-      );
-    }
     colors.forEach((c, i) => {
       const x = x0 + i * step;
       this.manaPips.push(this.add.image(x, cy, `pip-${c}`).setDisplaySize(pipSize, pipSize));
@@ -2273,7 +2235,7 @@ export class DuelScene extends Phaser.Scene {
         this.add
           .text(x + pipSize * 0.64, cy, `×${counts.get(c)}`, {
             fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: label ? '13px' : '11px',
+            fontSize: '13px',
             fontStyle: '600',
             color: '#cbc2e0',
             resolution: 2,
@@ -2454,7 +2416,6 @@ export class DuelScene extends Phaser.Scene {
 
   private syncButton(): void {
     const a = this.duel.awaiting;
-    const hint = this.hud.hint;
     // The smart button is the Arc + its label Text, shown/relabeled together.
     // No hit-area bookkeeping: input lives on the Arc, whose circle never
     // changes size (the Text label is never interactive).
@@ -2466,7 +2427,6 @@ export class DuelScene extends Phaser.Scene {
     this.setSmartAffordance('pass', false);
     this.hud.button.setVisible(false);
     this.endTurnBtn.setVisible(false);
-    hint.setText('');
 
     // stack readout
     const items = this.duel.state.stack;
@@ -2486,14 +2446,11 @@ export class DuelScene extends Phaser.Scene {
     if (this.pendingCasts) {
       showButton('Cancel');
       this.setSmartAffordance('pass', true);
-      // Terse: the rail hint column is only ~96px wide (see buildHud).
-      hint.setText(this.touch ? 'Pick a target\n(Cancel aborts)' : 'Pick a target\n(right-click cancels)');
       return;
     }
     switch (a.kind) {
       case 'main':
         showButton(this.duel.state.step === 'main1' ? 'To Combat' : 'Pass ▶');
-        hint.setText('Play a card, or advance ▶');
         // The ⏭ End Turn quick button rides above the smart button on your own
         // main phases (hidden everywhere else — set false at the top). It is
         // suppressed in the tutorial so a fast-forward can't skip a taught beat.
@@ -2504,16 +2461,13 @@ export class DuelScene extends Phaser.Scene {
         break;
       case 'declareAttackers':
         showButton(this.selectedAttackers.size > 0 ? `Attack (${this.selectedAttackers.size})` : 'Skip Combat');
-        hint.setText('Pick your attackers');
         break;
       case 'declareBlockers':
         showButton(`Confirm Blocks (${this.blockAssignments.length})`);
-        hint.setText('Pick a blocker, then its attacker');
         break;
       case 'respond':
       case 'endStepWindow':
         showButton('Pass');
-        hint.setText('You may cast a Charm');
         break;
       default:
         break;
@@ -2926,6 +2880,18 @@ export class DuelScene extends Phaser.Scene {
     c.add(
       this.add
         .text(width / 2, 200, 'Menu', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '34px', color: '#f0e6ff' })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(width / 2, 232, this.matchupLabel(), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.muted,
+          align: 'center',
+          wordWrap: { width: 340 },
+          resolution: 2,
+        })
         .setOrigin(0.5),
     );
 
