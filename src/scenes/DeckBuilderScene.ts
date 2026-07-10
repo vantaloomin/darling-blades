@@ -30,6 +30,8 @@ import { computeDeckStats, PIE_COLORS } from '../ui/deckStats';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
+import { colorInt, theme } from '../ui/theme';
+import { backButton, modalShell, pager, panel as themedPanel, themedButton, type Pager, type ThemedButton } from '../ui/themeWidgets';
 
 const GRID_COLS = 4;
 const GRID_ROWS = 3;
@@ -78,14 +80,12 @@ export class DeckBuilderScene extends Phaser.Scene {
   private touch = false;
   private cells: Phaser.GameObjects.GameObject[] = [];
   private rightPane: Phaser.GameObjects.GameObject[] = [];
-  private poolPrev!: Phaser.GameObjects.Text;
-  private poolNext!: Phaser.GameObjects.Text;
-  private pageText!: Phaser.GameObjects.Text;
+  private poolPager!: Pager;
   private status!: Phaser.GameObjects.Text;
   private zoom!: CardZoomPreview;
   private deckCodeOverlay: Phaser.GameObjects.Container | null = null;
   private searchInput: Phaser.GameObjects.DOMElement | null = null;
-  private filterButton!: Phaser.GameObjects.Text;
+  private filterButton!: ThemedButton;
   private filterPanel: Phaser.GameObjects.Container | null = null;
   private filterDropdowns: Dropdown<string>[] = [];
   private filterDropdownRefreshers: Array<() => void> = [];
@@ -124,25 +124,23 @@ export class DeckBuilderScene extends Phaser.Scene {
     // The right-panel fill stays ON TOP of the backdrop (the deck panel covers
     // the right 400px), so it's drawn after applyBackdrop, not inside it.
     applyBackdrop(this, 'deckbuilder', {
-      dim: 0x0b0812,
+      dim: theme.graphics.dim,
       dimAlpha: 0.55,
       fallback: () => {
         const grad = this.add.graphics();
-        grad.fillGradientStyle(0x171222, 0x171222, 0x0b0812, 0x0b0812, 1);
+        grad.fillGradientStyle(theme.graphics.panelFill, theme.graphics.panelFill, theme.graphics.dim, theme.graphics.dim, 1);
         grad.fillRect(0, 0, width, height);
       },
     });
-    const panel = this.add.graphics();
-    panel.fillStyle(0x1c1730, 0.85);
-    panel.fillRect(width - 400, 0, 400, height);
+    themedPanel(this, width - 400, 0, 400, height, { alpha: theme.alpha.chrome, radius: 0 });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop'); // the light browsing bed
 
     this.add
       .text(340, 40, 'Deck Builder', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '30px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h1}px`,
+        color: theme.colors.heading,
       })
       .setOrigin(0.5);
 
@@ -156,49 +154,29 @@ export class DeckBuilderScene extends Phaser.Scene {
       },
     });
 
-    this.filterButton = this.add
-      .text(758, 40, 'Filters', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        fontStyle: '600',
-        color: '#c9bde0',
-        backgroundColor: '#241d3a',
-        padding: { x: 12, y: 7 },
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, this.filterButton, () => this.toggleFilterPanel());
-    inflateHitArea(this.filterButton, 96, 44);
+    const filter = themedButton(this, 800, 40, 'Filters', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 96,
+      onTap: () => this.toggleFilterPanel(),
+    });
+    this.filterButton = filter;
 
-    const back = this.add
-      .text(28, 28, '← Menu', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '18px', color: '#c9bde0' })
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, back, () => this.scene.start('MainMenu'));
-    inflateHitArea(back, 90, 90);
+    backButton(this, () => this.scene.start('MainMenu'));
 
     // pool pager (‹ › audited at ~2.1mm wide — inflate to the 90px minimum;
     // their columns are clear of the pool grid at x 118+/628–)
-    this.poolPrev = this.add
-      .text(50, 380, '‹', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '54px', color: '#c9bde0' })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    this.poolNext = this.add
-      .text(830, 380, '›', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '54px', color: '#c9bde0' })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, this.poolPrev, () => this.turnPage(-1));
-    bindTapButton(this, this.poolNext, () => this.turnPage(1));
-    inflateHitArea(this.poolPrev, 90, 90);
-    inflateHitArea(this.poolNext, 90, 90);
-    this.pageText = this.add
-      .text(440, height - 32, '', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '13px', color: '#8f83a8' })
-      .setOrigin(0.5);
+    this.poolPager = pager(this, 350, height - 32, this.page, 1, (page) => {
+      this.page = page;
+      this.renderPool();
+    });
+    this.poolPager.container.setVisible(false);
 
     this.status = this.add
       .text(width - 380, height - 60, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '12px',
-        color: '#f0b0a0',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.danger,
         wordWrap: { width: 360 },
       })
       .setOrigin(0, 1)
@@ -239,20 +217,8 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private syncPoolPager(pages: number): void {
-    this.setPoolPagerArrow(this.poolPrev, pages > 1 && this.page > 0, pages > 1);
-    this.setPoolPagerArrow(this.poolNext, pages > 1 && this.page < pages - 1, pages > 1);
-  }
-
-  private setPoolPagerArrow(arrow: Phaser.GameObjects.Text, enabled: boolean, visible: boolean): void {
-    arrow.setVisible(visible);
-    arrow.setAlpha(enabled ? 1 : 0.35);
-    arrow.setColor(enabled ? '#c9bde0' : '#5d536e');
-    if (enabled) {
-      arrow.setInteractive({ useHandCursor: true });
-      inflateHitArea(arrow, 90, 90);
-    } else {
-      arrow.disableInteractive();
-    }
+    this.poolPager.container.setVisible(pages > 1);
+    this.poolPager.refresh(this.page, pages);
   }
 
   private applyPoolFilterChange(): void {
@@ -273,36 +239,26 @@ export class DeckBuilderScene extends Phaser.Scene {
     const panel = this.add.container(0, 0).setDepth(80);
     this.filterPanel = panel;
 
-    const bg = this.add
-      .rectangle(18, 82, 300, 554, 0x151122, 0.98)
-      .setOrigin(0, 0)
-      .setStrokeStyle(1, 0x6f5aa8, 0.82)
-      .setInteractive();
+    const bg = themedPanel(this, 18, 82, 300, 554, { alpha: 0.98, strokeAlpha: theme.alpha.chrome });
+    bg.setInteractive();
     panel.add(bg);
     panel.add(
       this.add
         .text(42, 112, 'Pool Filters', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '22px',
-          color: '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: theme.colors.heading,
         })
         .setOrigin(0, 0.5),
     );
 
-    const close = this.add
-      .text(286, 112, 'X', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        fontStyle: '700',
-        color: '#c9bde0',
-        backgroundColor: '#241d3a',
-        padding: { x: 10, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, close, () => this.closeFilterPanel());
-    inflateHitArea(close, 44, 44);
-    panel.add(close);
+    const close = themedButton(this, 286, 112, '×', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 44,
+      onTap: () => this.closeFilterPanel(),
+    });
+    panel.add(close.container);
 
     const mk = <T extends string>(
       y: number,
@@ -373,20 +329,13 @@ export class DeckBuilderScene extends Phaser.Scene {
     ];
     mk(366, 'Sort', sortOpts, () => this.filterState.sort, (v) => (this.filterState.sort = v));
 
-    const reset = this.add
-      .text(42, 588, 'Reset Filters', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        fontStyle: '700',
-        color: '#9be6a8',
-        backgroundColor: '#241d3a',
-        padding: { x: 12, y: 7 },
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, reset, () => this.resetPoolFilters());
-    inflateHitArea(reset, 132, 44);
-    panel.add(reset);
+    const reset = themedButton(this, 108, 588, 'Reset Filters', {
+      variant: 'emphasis',
+      size: 'sm',
+      minWidth: 132,
+      onTap: () => this.resetPoolFilters(),
+    });
+    panel.add(reset.container);
 
     this.syncFilterButton();
   }
@@ -430,12 +379,10 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private syncFilterButton(): void {
-    if (!this.filterButton?.active) return;
+    if (!this.filterButton?.container.active) return;
     const activeCount = this.activePoolFilterCount();
-    this.filterButton.setText(activeCount > 0 ? `Filters (${activeCount})` : 'Filters');
-    this.filterButton.setColor(this.filterPanel ? '#ffd88a' : activeCount > 0 ? '#9be6a8' : '#c9bde0');
-    this.filterButton.setBackgroundColor(this.filterPanel ? '#3a2f5c' : '#241d3a');
-    inflateHitArea(this.filterButton, 96, 44);
+    this.filterButton.setLabel(activeCount > 0 ? `Filters (${activeCount})` : 'Filters');
+    this.filterButton.setVariant(this.filterPanel ? 'emphasis' : activeCount > 0 ? 'primary' : 'ghost');
   }
 
   private renderPool(): void {
@@ -445,7 +392,6 @@ export class DeckBuilderScene extends Phaser.Scene {
     const pool = this.pool();
     const pages = Math.max(1, Math.ceil(pool.length / GRID_SIZE));
     this.page = Phaser.Math.Clamp(this.page, 0, pages - 1);
-    this.pageText.setText(`Page ${this.page + 1}/${pages} — click a card to add it`);
     this.syncPoolPager(pages);
 
     pool.slice(this.page * GRID_SIZE, (this.page + 1) * GRID_SIZE).forEach((d, i) => {
@@ -463,11 +409,11 @@ export class DeckBuilderScene extends Phaser.Scene {
       const inDeck = this.countIn(this.deck, d.id);
       const badge = this.add
         .text(x + 60, y + POOL_BADGE_OFFSET_Y, `${inDeck}/${Math.min(RULES.maxCopies, ownedCount(save, d.id))}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '13px',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
           fontStyle: '700',
-          color: inDeck > 0 ? '#9be6a8' : '#8f83a8',
-          backgroundColor: '#1c1730',
+          color: inDeck > 0 ? theme.colors.success : theme.colors.muted,
+          backgroundColor: theme.colors.panelFill,
           padding: { x: 6, y: 2 },
         })
         .setOrigin(0.5);
@@ -478,11 +424,11 @@ export class DeckBuilderScene extends Phaser.Scene {
       if (addable > 1) {
         const addAll = this.add
           .text(x - 58, y + POOL_BADGE_OFFSET_Y, `+${addable}`, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '13px',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
             fontStyle: '700',
-            color: '#9be6a8',
-            backgroundColor: '#1c1730',
+            color: theme.colors.success,
+            backgroundColor: theme.colors.panelFill,
             padding: { x: 6, y: 2 },
           })
           .setOrigin(0.5)
@@ -565,28 +511,11 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   /** ‹ N/M › deck-list pager, shared by both profiles; sits below the list. */
   private renderDeckPagers(x0: number, pages: number): void {
-    const mkPager = (px: number, glyph: string, dir: number): void => {
-      const b = this.add
-        .text(px, DECK_PAGER_Y, glyph, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '26px', color: '#c9bde0' })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, b, () => {
-        this.deckPage = Phaser.Math.Clamp(this.deckPage + dir, 0, pages - 1);
-        this.renderDeck();
-      });
-      inflateHitArea(b, 90, 56);
-      this.rightPane.push(b);
-    };
-    mkPager(x0 + 250, '‹', -1);
-    mkPager(x0 + 340, '›', 1);
-    const pageLabel = this.add
-      .text(x0 + 295, DECK_PAGER_Y, `${this.deckPage + 1}/${pages}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#8f83a8',
-      })
-      .setOrigin(0.5);
-    this.rightPane.push(pageLabel);
+    const deckPager = pager(this, x0 + 250, DECK_PAGER_Y, this.deckPage, pages, (page) => {
+      this.deckPage = page;
+      this.renderDeck();
+    });
+    this.rightPane.push(deckPager.container);
   }
 
   /** F15: modal deck picker — select / new / copy / rename / delete. */
@@ -601,13 +530,18 @@ export class DeckBuilderScene extends Phaser.Scene {
       activeNow.cards = [...this.deck];
       if (activeNow.heroCardId && !activeNow.cards.includes(activeNow.heroCardId)) activeNow.heroCardId = null;
     }
-    const overlay = this.add.container(0, 0).setDepth(100);
-    const closeOverlay = (): void => {
-      overlay.destroy();
-    };
-    this.input.keyboard?.on('keydown-ESC', closeOverlay);
+    const deckPickerShell = modalShell(this, {
+      width: 1200,
+      height: 640,
+      dimAlpha: 0.52,
+      depth: theme.depth.modal,
+      showClose: false,
+      tapDimToClose: false,
+      escToClose: true,
+    });
+    const overlay = deckPickerShell.container;
+    const closeOverlay = (): void => deckPickerShell.close();
     overlay.once(Phaser.GameObjects.Events.DESTROY, () => {
-      this.input.keyboard?.off('keydown-ESC', closeOverlay);
       this.setSearchInputVisible(true);
     });
     let renderGrid = (): void => {};
@@ -621,10 +555,9 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.renderDeck();
       renderGrid();
     };
-    overlay.add(this.add.rectangle(640, 360, 1280, 720, 0x0a0812, 0.92).setInteractive());
     overlay.add(
       this.add
-        .text(640, 72, 'Your Decks', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '34px', color: '#f0e6ff' })
+        .text(640, 72, 'Your Decks', { fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading })
         .setOrigin(0.5),
     );
 
@@ -640,38 +573,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     const gridLeft = 640 - (cols * tileW + (cols - 1) * gapX) / 2;
     const gridTop = 106;
     const actionW = 66;
-    const actionH = 32;
     const actionGap = 16;
     let pickerPage = 0;
-
-    const action = (
-      parent: Phaser.GameObjects.Container,
-      x: number,
-      y: number,
-      label: string,
-      color: string,
-      onTap: () => void,
-      align: 'center' | 'left' | 'right' = 'center',
-    ): Phaser.GameObjects.Text => {
-      const btn = this.add
-        .text(x, y, label, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '12px',
-          fontStyle: '600',
-          color,
-          backgroundColor: '#2a2242',
-          align: 'center',
-          fixedWidth: actionW,
-          fixedHeight: actionH,
-          padding: { x: 0, y: 7 },
-        })
-        .setOrigin(align === 'right' ? 1 : align === 'left' ? 0 : 0.5, 0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, onTap);
-      inflateHitArea(btn, 86, 40);
-      parent.add(btn);
-      return btn;
-    };
 
     const renderDeckTile = (parent: Phaser.GameObjects.Container, deck: SavedDeck, x: number, y: number): void => {
       const isActive = deck.id === save.activeDeckId;
@@ -679,17 +582,17 @@ export class DeckBuilderScene extends Phaser.Scene {
       const top = y - tileH / 2;
       const rightGuideX = left + tileW - 13;
       const bg = this.add
-        .rectangle(x, y, tileW, tileH, isActive ? 0x211a35 : 0x171225, 0.96)
-        .setStrokeStyle(1, isActive ? 0xd8b24a : 0x51466f, isActive ? 1 : 0.82)
+        .rectangle(x, y, tileW, tileH, isActive ? theme.graphics.rowFillActive : theme.graphics.panelFill, 0.96)
+        .setStrokeStyle(1, colorInt(isActive ? theme.colors.gold : theme.colors.panelStroke), isActive ? 1 : theme.alpha.chrome)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, bg, () => setActiveDeck(deck.id));
       parent.add(bg);
 
       const title = this.add
         .text(left + 18, top + 22, deck.name, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '18px',
-          color: isActive ? '#ffd88a' : '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.label}px`,
+          color: isActive ? theme.colors.gold : theme.colors.heading,
         })
         .setOrigin(0, 0.5);
       this.fitTextToWidth(title, 200);
@@ -701,10 +604,10 @@ export class DeckBuilderScene extends Phaser.Scene {
       parent.add(
         this.add
           .text(rightGuideX, top + 62, `${deck.cards.length}/${RULES.deckSize}`, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '17px',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.body}px`,
             fontStyle: '700',
-            color: deck.cards.length === RULES.deckSize ? '#9be6a8' : '#f0b0a0',
+            color: deck.cards.length === RULES.deckSize ? theme.colors.success : theme.colors.danger,
           })
           .setOrigin(1, 0.5),
       );
@@ -713,27 +616,49 @@ export class DeckBuilderScene extends Phaser.Scene {
       const actionX1 = rightGuideX;
       const actionY0 = top + 116;
       const actionY1 = top + 166;
-      action(parent, actionX0, actionY0, isActive ? 'Using' : 'Use', isActive ? '#ffd88a' : '#c9bde0', () => setActiveDeck(deck.id), 'left');
-      action(parent, actionX1, actionY0, 'Copy', '#9be6a8', () => {
+      const useBtn = themedButton(this, actionX0 + actionW / 2, actionY0, isActive ? 'Using' : 'Use', {
+        variant: isActive ? 'primary' : 'ghost',
+        size: 'sm',
+        minWidth: actionW,
+        onTap: () => setActiveDeck(deck.id),
+      });
+      parent.add(useBtn.container);
+      const copyBtn = themedButton(this, actionX1 - actionW / 2, actionY0, 'Copy', {
+        variant: 'emphasis',
+        size: 'sm',
+        minWidth: actionW,
+        onTap: () => {
         const id = copyDeck(save, deck.id);
         if (!id) return;
         const index = save.decks.findIndex((d) => d.id === id);
         if (index >= 0) pickerPage = Math.floor(index / pageSize);
         Services.save.flush();
         renderGrid();
-      }, 'right');
-      action(parent, actionX0, actionY1, 'Rename', '#c7a8f0', () => {
+        },
+      });
+      parent.add(copyBtn.container);
+      const renameBtn = themedButton(this, actionX0 + actionW / 2, actionY1, 'Rename', {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: actionW,
+        onTap: () => {
         this.promptRename(deck.id, () => {
           if (deck.id === save.activeDeckId) this.renderDeck();
           renderGrid();
         });
-      }, 'left');
+        },
+      });
+      parent.add(renameBtn.container);
       let delArmed = false;
-      const delBtn = action(parent, actionX1, actionY1, 'Delete', '#f0b0a0', () => {
+      const delBtn = themedButton(this, actionX1 - actionW / 2, actionY1, 'Delete', {
+        variant: 'danger',
+        size: 'sm',
+        minWidth: actionW,
+        onTap: () => {
         if (save.settings.confirmDestructive && !delArmed) {
           delArmed = true;
-          delBtn.setText('Delete?').setColor('#ffd44a');
-          inflateHitArea(delBtn, 86, 40);
+          delBtn.setLabel('Delete?');
+          delBtn.setVariant('primary');
           return;
         }
         deleteDeck(save, deck.id);
@@ -746,7 +671,9 @@ export class DeckBuilderScene extends Phaser.Scene {
         }
         Services.save.flush();
         renderGrid();
-      }, 'right');
+        },
+      });
+      parent.add(delBtn.container);
     };
 
     const renderNewTile = (parent: Phaser.GameObjects.Container, x: number, y: number): void => {
@@ -760,45 +687,38 @@ export class DeckBuilderScene extends Phaser.Scene {
         setActiveDeck(id);
       };
       const bg = this.add
-        .rectangle(x, y, tileW, tileH, 0x151122, 0.9)
-        .setStrokeStyle(1, 0x6f5aa8, 0.72)
+        .rectangle(x, y, tileW, tileH, theme.graphics.panelFill, theme.alpha.panel)
+        .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, bg, create);
       parent.add(bg);
       parent.add(
         this.add
-          .rectangle(left + 18, top + 18, tileW - 36, tileH - 36, 0x000000, 0)
+          .rectangle(left + 18, top + 18, tileW - 36, tileH - 36, theme.graphics.dim, 0)
           .setOrigin(0, 0)
-          .setStrokeStyle(1, 0x3f365a, 0.55),
+          .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.subtle),
       );
       parent.add(
         this.add
-          .text(x, top + 70, '+', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '46px', color: '#9be6a8' })
+          .text(x, top + 70, '+', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.display}px`, color: theme.colors.success })
           .setOrigin(0.5),
       );
       parent.add(
         this.add
           .text(x, top + 118, 'New Deck', {
-            fontFamily: 'Cinzel, Georgia, serif',
-            fontSize: '21px',
-            color: '#d8f2cf',
+            fontFamily: theme.fonts.display,
+            fontSize: `${theme.type.h2}px`,
+            color: theme.colors.success,
           })
           .setOrigin(0.5),
       );
-      const btn = this.add
-        .text(x, top + 158, 'Create Empty Deck', {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '12px',
-          fontStyle: '700',
-          color: '#9be6a8',
-          backgroundColor: '#241d3a',
-          padding: { x: 12, y: 6 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, create);
-      inflateHitArea(btn, 120, 44);
-      parent.add(btn);
+      const btn = themedButton(this, x, top + 158, 'Create Empty Deck', {
+        variant: 'emphasis',
+        size: 'sm',
+        minWidth: 160,
+        onTap: create,
+      });
+      parent.add(btn.container);
     };
 
     renderGrid = (): void => {
@@ -818,50 +738,21 @@ export class DeckBuilderScene extends Phaser.Scene {
         else renderNewTile(gridLayer, x, y);
       });
       if (pages > 1) {
-        gridLayer.add(
-          this.add
-            .text(640, 638, `${pickerPage + 1}/${pages}`, {
-              fontFamily: 'Inter, Arial, sans-serif',
-              fontSize: '13px',
-              color: '#8f83a8',
-            })
-            .setOrigin(0.5),
-        );
-        const pageBtn = (x: number, label: string, dir: number): void => {
-          const btn = this.add
-            .text(x, 638, label, {
-              fontFamily: 'Cinzel, Georgia, serif',
-              fontSize: '26px',
-              color: '#c9bde0',
-            })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-          bindTapButton(this, btn, () => {
-            pickerPage = Phaser.Math.Clamp(pickerPage + dir, 0, pages - 1);
-            renderGrid();
-          });
-          inflateHitArea(btn, 70, 50);
-          gridLayer.add(btn);
-        };
-        pageBtn(590, '<', -1);
-        pageBtn(690, '>', 1);
+        const pickerPager = pager(this, 590, 638, pickerPage, pages, (page) => {
+          pickerPage = page;
+          renderGrid();
+        });
+        gridLayer.add(pickerPager.container);
       }
     };
     renderGrid();
 
-    const closeBtn = this.add
-      .text(640, 678, 'Close', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '20px',
-        color: '#c9bde0',
-        backgroundColor: '#2c2344',
-        padding: { x: 16, y: 8 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, closeBtn, closeOverlay);
-    inflateHitArea(closeBtn, 90, 60);
-    overlay.add(closeBtn);
+    const closeBtn = themedButton(this, 640, 678, 'Close', {
+      variant: 'ghost',
+      minWidth: 100,
+      onTap: closeOverlay,
+    });
+    overlay.add(closeBtn.container);
   }
 
   private fitTextToWidth(text: Phaser.GameObjects.Text, maxWidth: number): void {
@@ -923,8 +814,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     height: number,
   ): void {
     const frame = this.add
-      .rectangle(x, y, width, height, 0x100d1d, 1)
-      .setStrokeStyle(1, 0x6f5aa8, 0.9);
+      .rectangle(x, y, width, height, theme.graphics.panelFill, 1)
+      .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
     parent.add(frame);
 
     const artW = width - 6;
@@ -956,17 +847,17 @@ export class DeckBuilderScene extends Phaser.Scene {
       }
       img.setDisplaySize(artW, artH);
       parent.add(img);
-      parent.add(this.add.rectangle(x, y, width, height, 0x000000, 0).setStrokeStyle(1, 0xd8b24a, 0.36));
+      parent.add(this.add.rectangle(x, y, width, height, theme.graphics.dim, 0).setStrokeStyle(1, colorInt(theme.colors.gold), theme.alpha.ghost));
       return;
     }
 
-    parent.add(this.add.rectangle(x, y, artW, artH, 0x1b1530, 1));
+    parent.add(this.add.rectangle(x, y, artW, artH, theme.graphics.rowFill, 1));
     parent.add(
       this.add
         .text(x, y, 'No Image', {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '12px',
-          color: '#8f83a8',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.muted,
         })
         .setOrigin(0.5),
     );
@@ -977,24 +868,31 @@ export class DeckBuilderScene extends Phaser.Scene {
     const save = Services.save.data;
     const deck = save.decks.find((d) => d.id === deckId);
     if (!deck) return;
-    const modal = this.add.container(0, 0).setDepth(150);
-    modal.add(this.add.rectangle(640, 360, 1280, 720, 0x06040d, 0.52).setInteractive());
-    modal.add(this.add.rectangle(640, 360, 460, 230, 0x1c1730, 0.98).setStrokeStyle(1, 0x6f5aa8, 0.9));
+    const renameShell = modalShell(this, {
+      width: 460,
+      height: 230,
+      dimAlpha: 0.52,
+      depth: theme.depth.results,
+      showClose: false,
+      tapDimToClose: false,
+      escToClose: false,
+    });
+    const modal = renameShell.container;
     modal.add(
       this.add
         .text(640, 298, 'Rename Deck', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '24px',
-          color: '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: theme.colors.heading,
         })
         .setOrigin(0.5),
     );
     modal.add(
       this.add
         .text(640, 330, `${DECK_NAME_MAX_LENGTH} characters max`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '12px',
-          color: '#8f83a8',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.muted,
         })
         .setOrigin(0.5),
     );
@@ -1006,13 +904,13 @@ export class DeckBuilderScene extends Phaser.Scene {
     input.placeholder = `Deck name (${DECK_NAME_MAX_LENGTH} max)`;
     input.setAttribute(
       'style',
-      'width:340px;box-sizing:border-box;padding:10px 12px;font:16px Inter, Arial, sans-serif;color:#e8def7;background:#120f20;border:1px solid #18c7d7;border-radius:8px;outline:none;text-align:center;box-shadow:0 0 18px rgba(24,199,215,0.18);',
+      `width:340px;box-sizing:border-box;padding:10px 12px;font:${theme.type.body}px ${theme.fonts.ui};color:${theme.colors.body};background:${theme.colors.panelFill};border:1px solid ${theme.colors.gold};border-radius:${theme.radius.control}px;outline:none;text-align:center;box-shadow:0 0 18px ${theme.colors.btnEmphasisBg};`,
     );
     const inputDom = this.add.dom(640, 372, input).setDepth(151);
 
     const close = (): void => {
       inputDom.destroy();
-      modal.destroy();
+      renameShell.close();
     };
     let done = false;
     const commit = (cancel = false): void => {
@@ -1028,23 +926,17 @@ export class DeckBuilderScene extends Phaser.Scene {
       if (e.key === 'Enter') commit();
       else if (e.key === 'Escape') commit(true);
     });
-    const modalButton = (x: number, label: string, color: string, onTap: () => void): void => {
-      const btn = this.add
-        .text(x, 438, label, {
-          fontFamily: label === 'Save' ? 'Cinzel, Georgia, serif' : 'Inter, Arial, sans-serif',
-          fontSize: label === 'Save' ? '18px' : '14px',
-          color,
-          backgroundColor: '#2a2242',
-          padding: { x: 18, y: 8 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, onTap);
-      inflateHitArea(btn, 90, 50);
-      modal.add(btn);
-    };
-    modalButton(585, 'Save', '#ffd88a', () => commit());
-    modalButton(704, 'Cancel', '#c9bde0', () => commit(true));
+    const saveBtn = themedButton(this, 585, 438, 'Save', {
+      variant: 'primary',
+      minWidth: 90,
+      onTap: () => commit(),
+    });
+    const cancelBtn = themedButton(this, 704, 438, 'Cancel', {
+      variant: 'ghost',
+      minWidth: 90,
+      onTap: () => commit(true),
+    });
+    modal.add([saveBtn.container, cancelBtn.container]);
     input.focus();
     input.select();
   }
@@ -1057,9 +949,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     push(
       this.add
         .text(x0, DECK_STATS_Y, 'Mana curve', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '15px',
-          color: '#c7a8f0',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.gold,
         })
         .setOrigin(0, 0.5),
     );
@@ -1069,14 +961,14 @@ export class DeckBuilderScene extends Phaser.Scene {
     s.curve.forEach((count, mv) => {
       const bx = x0 + 16 + mv * 22;
       const h = count > 0 ? Math.max(3, Math.round((count / maxCount) * 30)) : 2;
-      push(this.add.rectangle(bx, baseY, 15, h, count > 0 ? 0xffd88a : 0x3a3355).setOrigin(0.5, 1));
+      push(this.add.rectangle(bx, baseY, 15, h, count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
       if (count > 0) {
         push(
           this.add
             .text(bx, baseY - h - 8, `${count}`, {
-              fontFamily: 'Inter, Arial, sans-serif',
-              fontSize: '11px',
-              color: '#e0d8f0',
+              fontFamily: theme.fonts.ui,
+              fontSize: `${theme.type.micro}px`,
+              color: theme.colors.body,
             })
             .setOrigin(0.5),
         );
@@ -1084,9 +976,9 @@ export class DeckBuilderScene extends Phaser.Scene {
       push(
         this.add
           .text(bx, baseY + 9, mv === 7 ? '7+' : `${mv}`, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '11px',
-            color: '#8f83a8',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.micro}px`,
+            color: theme.colors.muted,
           })
           .setOrigin(0.5),
       );
@@ -1096,9 +988,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     push(
       this.add
         .text(x0, baseY + 34, `${s.typeCounts.creature} creatures · ${s.lands} lands · ${other} other`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '13px',
-          color: '#c9bde0',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.body,
         })
         .setOrigin(0, 0.5),
     );
@@ -1108,9 +1000,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     push(
       this.add
         .text(x0, baseY + 56, pips || 'colorless', {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '13px',
-          color: '#8f83a8',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.muted,
         })
         .setOrigin(0, 0.5),
     );
@@ -1124,25 +1016,19 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const active = Services.save.data.decks.find((d) => d.id === Services.save.data.activeDeckId);
     const title = this.add.text(x0, 24, `${active?.name ?? 'Custom Deck'} — ${this.deck.length}/${RULES.deckSize}`, {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '20px',
-      color: this.deck.length === RULES.deckSize ? '#9be6a8' : '#ffd88a',
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h2}px`,
+      color: this.deck.length === RULES.deckSize ? theme.colors.success : theme.colors.gold,
     });
     this.rightPane.push(title);
     // F15: deck picker (switch / new / copy / rename / delete).
-    const decksBtn = this.add
-      .text(x0 + 372, 22, '☰ Decks', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#c9bde0',
-        backgroundColor: '#2c2344',
-        padding: { x: 8, y: 4 },
-      })
-      .setOrigin(1, 0)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, decksBtn, () => this.showDeckPicker());
-    inflateHitArea(decksBtn, 90, 44);
-    this.rightPane.push(decksBtn);
+    const decksBtn = themedButton(this, x0 + 326, 32, '☰ Decks', {
+      variant: 'emphasis',
+      size: 'sm',
+      minWidth: 90,
+      onTap: () => this.showDeckPicker(),
+    });
+    this.rightPane.push(decksBtn.container);
 
     // basics steppers. The ± pair was an audited adjacent-target mis-tap
     // (centers 40px apart) — respaced to ≥90px centers with hit boxes that
@@ -1153,25 +1039,27 @@ export class DeckBuilderScene extends Phaser.Scene {
       const y = 70 + i * basicsPitch;
       const n = this.countIn(this.deck, id);
       const row = this.add.text(x0, y, `${d.name}: ${n}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        color: '#c9bde0',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.body,
       });
-      const minus = this.add
-        .text(x0 + 190, y, ' − ', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '15px', color: '#f0b0a0', backgroundColor: '#241d3a' })
-        .setInteractive({ useHandCursor: true });
-      const plus = this.add
-        .text(x0 + 290, y, ' + ', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '15px', color: '#9be6a8', backgroundColor: '#241d3a' })
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, minus, () => this.removeCard(id));
-      bindTapButton(this, plus, () => {
-        this.deckCodeMessage = '';
-        this.deck.push(id);
-        this.renderDeck();
+      const minus = themedButton(this, x0 + 190, y + 8, '−', {
+        variant: 'danger',
+        size: 'sm',
+        minWidth: 90,
+        onTap: () => this.removeCard(id),
       });
-      inflateHitArea(minus, 90, basicsPitch);
-      inflateHitArea(plus, 90, basicsPitch);
-      this.rightPane.push(row, minus, plus);
+      const plus = themedButton(this, x0 + 290, y + 8, '+', {
+        variant: 'emphasis',
+        size: 'sm',
+        minWidth: 90,
+        onTap: () => {
+          this.deckCodeMessage = '';
+          this.deck.push(id);
+          this.renderDeck();
+        },
+      });
+      this.rightPane.push(row, minus.container, plus.container);
     });
 
     // nonbasic list grouped with counts
@@ -1196,10 +1084,10 @@ export class DeckBuilderScene extends Phaser.Scene {
         const y = DESKTOP_DECK_Y0 + i * DESKTOP_DECK_PITCH;
         const star = this.add
           .text(x0, y, heroId === id ? '★' : '☆', {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '14px',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
             fontStyle: '700',
-            color: heroId === id ? '#ffd44a' : '#8f83a8',
+            color: heroId === id ? theme.colors.goldHover : theme.colors.muted,
           })
           .setOrigin(0, 0)
           .setInteractive({ useHandCursor: true });
@@ -1207,14 +1095,20 @@ export class DeckBuilderScene extends Phaser.Scene {
         inflateHitArea(star, 34, 36);
         const row = this.add
           .text(x0 + 24, y, `${n}× ${d.name}  (${manaValue(d.cost)})`, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '13px',
-            color: '#e0d8f0',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.body,
           })
           .setInteractive({ useHandCursor: true });
         this.zoom.attach(row, d);
-        row.on('pointerover', () => row.setColor('#f0b0a0'));
-        row.on('pointerout', () => row.setColor('#e0d8f0'));
+        row.on('pointerover', () => {
+          row.setColor(theme.colors.danger);
+          inflateHitArea(row, 90, DESKTOP_DECK_PITCH);
+        });
+        row.on('pointerout', () => {
+          row.setColor(theme.colors.body);
+          inflateHitArea(row, 90, DESKTOP_DECK_PITCH);
+        });
         bindTapButton(this, row, (p) => this.removeCardOrAll(id, p));
         this.rightPane.push(star, row);
       });
@@ -1231,33 +1125,27 @@ export class DeckBuilderScene extends Phaser.Scene {
           const y = listY0 + i * TOUCH_DECK_PITCH;
           const star = this.add
             .text(x0, y, heroId === id ? '★' : '☆', {
-              fontFamily: 'Inter, Arial, sans-serif',
-              fontSize: '15px',
+              fontFamily: theme.fonts.ui,
+              fontSize: `${theme.type.label}px`,
               fontStyle: '700',
-              color: heroId === id ? '#ffd44a' : '#8f83a8',
+              color: heroId === id ? theme.colors.goldHover : theme.colors.muted,
             })
             .setOrigin(0, 0)
             .setInteractive({ useHandCursor: true });
           bindTapButton(this, star, () => this.toggleDeckHero(id));
           inflateHitArea(star, 44, TOUCH_DECK_PITCH);
           const row = this.add.text(x0 + 26, y, `${n}× ${d.name}  (${manaValue(d.cost)})`, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '13px',
-            color: '#e0d8f0',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.body,
           });
-          const minus = this.add
-            .text(x0 + 335, y + 8, ' − ', {
-              fontFamily: 'Inter, Arial, sans-serif',
-              fontSize: '16px',
-              color: '#f0b0a0',
-              backgroundColor: '#241d3a',
-              padding: { x: 8, y: 3 },
-            })
-            .setOrigin(0, 0.5)
-            .setInteractive({ useHandCursor: true });
-          bindTapButton(this, minus, (p) => this.removeCardOrAll(id, p));
-          inflateHitArea(minus, 90, TOUCH_DECK_PITCH);
-          this.rightPane.push(star, row, minus);
+          const minus = themedButton(this, x0 + 335, y + 8, '−', {
+            variant: 'danger',
+            size: 'sm',
+            minWidth: 90,
+            onTap: (p) => this.removeCardOrAll(id, p),
+          });
+          this.rightPane.push(star, row, minus.container);
         });
       if (pages > 1) this.renderDeckPagers(x0, pages);
     }
@@ -1270,56 +1158,42 @@ export class DeckBuilderScene extends Phaser.Scene {
       .slice(0, this.deckCodeMessage ? 1 : 2)
       .map((i) => `${i.kind === 'error' ? '✕' : '⚠'} ${i.message}`);
     const statusLines = this.deckCodeMessage ? [this.deckCodeMessage, ...issueLines] : issueLines;
-    this.status.setColor(issues.some((i) => i.kind === 'error') ? '#f0b0a0' : this.deckCodeMessage ? '#9be6a8' : '#f0b0a0');
+    this.status.setColor(issues.some((i) => i.kind === 'error') ? theme.colors.danger : this.deckCodeMessage ? theme.colors.success : theme.colors.danger);
     this.status.setText(statusLines.join('\n'));
     const canSave = issues.every((i) => i.kind !== 'error');
-    this.deckCodeButton(x0, 666, 'Export Code', () => this.exportDeckCode());
-    this.deckCodeButton(x0 + 278, 666, 'Import Code', () => this.importDeckCode());
-    const saveBtn = this.add
-      .text(x0 + 180, 720 - 40, 'Save Deck', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '20px',
-        color: canSave ? '#ffd88a' : '#57506b',
-        backgroundColor: '#2c2344',
-        padding: { x: 14, y: 7 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    inflateHitArea(saveBtn, 90, 90);
-    bindTapButton(this, saveBtn, () => {
-      if (!canSave) return;
-      const save = Services.save.data;
-      const id = save.activeDeckId ?? 'custom-1';
-      const existing = save.decks.find((d) => d.id === id);
-      const name = existing?.name ?? 'Custom Deck';
-      const heroCardId = existing?.heroCardId && this.deck.includes(existing.heroCardId) ? existing.heroCardId : null;
-      saveDeck(save, { id, name, cards: [...this.deck], heroCardId });
-      save.activeDeckId = id;
-      Services.save.flush();
-      this.deckCodeMessage = '';
-      saveBtn.setText('Saved ✓');
-      // renderDeck() may destroy this button before the revert fires; calling
-      // setText on a destroyed Text kills the game loop, so guard on .active.
-      this.time.delayedCall(900, () => {
-        if (saveBtn.active) saveBtn.setText('Save Deck');
-      });
+    const exportBtn = themedButton(this, x0 + 56, 666, 'Export Code', {
+      variant: 'emphasis',
+      size: 'sm',
+      minWidth: 112,
+      onTap: () => this.exportDeckCode(),
     });
-    this.rightPane.push(saveBtn);
-  }
-
-  private deckCodeButton(x: number, y: number, label: string, cb: () => void): void {
-    const btn = this.add
-      .text(x, y, label, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#c9bde0',
-        backgroundColor: '#2c2344',
-        padding: { x: 9, y: 5 },
-      })
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, btn, cb);
-    inflateHitArea(btn, 112, 44);
-    this.rightPane.push(btn);
+    const importBtn = themedButton(this, x0 + 334, 666, 'Import Code', {
+      variant: 'emphasis',
+      size: 'sm',
+      minWidth: 112,
+      onTap: () => this.importDeckCode(),
+    });
+    const saveBtn = themedButton(this, x0 + 180, 720 - 40, 'Save Deck', {
+      variant: 'primary',
+      minWidth: 140,
+      enabled: canSave,
+      onTap: () => {
+        const save = Services.save.data;
+        const id = save.activeDeckId ?? 'custom-1';
+        const existing = save.decks.find((d) => d.id === id);
+        const name = existing?.name ?? 'Custom Deck';
+        const heroCardId = existing?.heroCardId && this.deck.includes(existing.heroCardId) ? existing.heroCardId : null;
+        saveDeck(save, { id, name, cards: [...this.deck], heroCardId });
+        save.activeDeckId = id;
+        Services.save.flush();
+        this.deckCodeMessage = '';
+        saveBtn.setLabel('Saved ✓');
+        this.time.delayedCall(900, () => {
+          if (saveBtn.container.active) saveBtn.setLabel('Save Deck');
+        });
+      },
+    });
+    this.rightPane.push(exportBtn.container, importBtn.container, saveBtn.container);
   }
 
   private exportDeckCode(): void {
@@ -1373,18 +1247,24 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.closeFilterPanel();
     this.closeDeckCodeOverlay();
     this.zoom.setSuppressed(true);
-    const overlay = this.add.container(0, 0).setDepth(130);
+    const deckCodeShell = modalShell(this, {
+      width: 720,
+      height: 330,
+      dimAlpha: 0.52,
+      depth: theme.depth.inspect,
+      showClose: false,
+      tapDimToClose: false,
+      escToClose: false,
+    });
+    const overlay = deckCodeShell.container;
     this.deckCodeOverlay = overlay;
 
-    overlay.add(this.add.rectangle(640, 360, 1280, 720, 0x080612, 0.82).setInteractive());
-    overlay.add(this.add.rectangle(640, 360, 720, 330, 0x1c1730, 0.98));
-    overlay.add(this.add.rectangle(640, 360, 720, 330).setStrokeStyle(1, 0x6f5aa8, 0.9));
     overlay.add(
       this.add
         .text(640, 228, mode === 'export' ? 'Export Deck Code' : 'Import Deck Code', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '26px',
-          color: '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: theme.colors.heading,
         })
         .setOrigin(0.5),
     );
@@ -1395,9 +1275,9 @@ export class DeckBuilderScene extends Phaser.Scene {
           266,
           mode === 'export' ? 'Copy this code to share the current deck.' : 'Paste a deck code, then import it into the editor.',
           {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '14px',
-            color: '#c9bde0',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            color: theme.colors.body,
           },
         )
         .setOrigin(0.5),
@@ -1416,14 +1296,14 @@ export class DeckBuilderScene extends Phaser.Scene {
         'box-sizing:border-box',
         'resize:none',
         'padding:12px 14px',
-        'font:14px Consolas, monospace',
+        `font:${theme.type.label}px ${theme.fonts.ui}`,
         'line-height:1.35',
-        'color:#e8def7',
-        'background:#120f20',
-        'border:1px solid #18c7d7',
-        'border-radius:8px',
+        `color:${theme.colors.body}`,
+        `background:${theme.colors.panelFill}`,
+        `border:1px solid ${theme.colors.gold}`,
+        `border-radius:${theme.radius.control}px`,
         'outline:none',
-        'box-shadow:0 0 18px rgba(24,199,215,0.18)',
+        `box-shadow:0 0 18px ${theme.colors.btnEmphasisBg}`,
       ].join(';'),
     );
     const dom = this.add.dom(640, 342, textarea).setOrigin(0.5);
@@ -1431,47 +1311,42 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const note = this.add
       .text(640, 418, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#8f83a8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0.5);
     overlay.add(note);
 
-    const chip = (
-      x: number,
-      y: number,
-      label: string,
-      primary: boolean,
-      onTap: () => void,
-    ): Phaser.GameObjects.Text => {
-      const btn = this.add
-        .text(x, y, label, {
-          fontFamily: primary ? 'Cinzel, Georgia, serif' : 'Inter, Arial, sans-serif',
-          fontSize: primary ? '18px' : '14px',
-          color: primary ? '#ffd88a' : '#c9bde0',
-          backgroundColor: primary ? '#2c2344' : '#241d3a',
-          padding: { x: primary ? 18 : 14, y: 8 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, onTap);
-      inflateHitArea(btn, 100, 56);
-      overlay.add(btn);
-      return btn;
-    };
-
     if (mode === 'export') {
-      chip(578, 472, 'Copy Code', true, () => {
-        void this.copyDeckCode(code, textarea, note);
+      const copyBtn = themedButton(this, 578, 472, 'Copy Code', {
+        variant: 'primary',
+        minWidth: 120,
+        onTap: () => {
+          void this.copyDeckCode(code, textarea, note);
+        },
       });
-      chip(716, 472, 'Close', false, () => this.closeDeckCodeOverlay());
+      const closeBtn = themedButton(this, 716, 472, 'Close', {
+        variant: 'ghost',
+        minWidth: 100,
+        onTap: () => this.closeDeckCodeOverlay(),
+      });
+      overlay.add([copyBtn.container, closeBtn.container]);
     } else {
-      chip(570, 472, 'Import', true, () => {
-        if (this.applyDeckCodeImport(textarea.value, false)) this.closeDeckCodeOverlay();
-        else note.setText(this.deckCodeMessage).setColor('#f0b0a0');
+      const importBtn = themedButton(this, 570, 472, 'Import', {
+        variant: 'primary',
+        minWidth: 100,
+        onTap: () => {
+          if (this.applyDeckCodeImport(textarea.value, false)) this.closeDeckCodeOverlay();
+          else note.setText(this.deckCodeMessage).setColor(theme.colors.danger);
+        },
       });
-      chip(710, 472, 'Cancel', false, () => this.closeDeckCodeOverlay());
+      const cancelBtn = themedButton(this, 710, 472, 'Cancel', {
+        variant: 'ghost',
+        minWidth: 100,
+        onTap: () => this.closeDeckCodeOverlay(),
+      });
+      overlay.add([importBtn.container, cancelBtn.container]);
     }
 
     this.time.delayedCall(0, () => {
@@ -1500,11 +1375,11 @@ export class DeckBuilderScene extends Phaser.Scene {
         textarea.select();
         if (!document.execCommand('copy')) throw new Error('copy failed');
       }
-      if (note.active) note.setText('Copied.').setColor('#9be6a8');
+      if (note.active) note.setText('Copied.').setColor(theme.colors.success);
       this.deckCodeMessage = 'Deck code copied.';
       this.renderDeck();
     } catch {
-      if (note.active) note.setText('Copy failed. Select the code and copy it manually.').setColor('#f0b0a0');
+      if (note.active) note.setText('Copy failed. Select the code and copy it manually.').setColor(theme.colors.danger);
     }
   }
 }
