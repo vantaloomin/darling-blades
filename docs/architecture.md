@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/LandStackView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-10
+<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-10
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -307,24 +307,31 @@ Seven dedicated ui components carry the board:
   (`setSummoningSick`), so a glance shows which creatures can't attack yet; the
   fade rides the art's own alpha, independent of the container-alpha enter/exit
   tweens and the highlight tint. Every non-land permanent that isn't an attached aura gets a tile —
-  so global enchantments and artifacts have board presence. Deliberately NOT a
-  `CardView`: rules text is unreadable at tile size; the full card is one hover
-  or right-click away.
-- **`LandStackView`** (`src/ui/LandStackView.ts`) — lands render as per-type
-  piles of cached thumbnails (`makeCardThumb`) with mana-color pips and an
-  `untapped/total` badge that reads gold while mana is available; a fully
-  tapped pile dims and turns its top card sideways. Your stacks tuck under the
-  hand fan's left cards on wide hands — the authoritative "what can I cast"
-  readout is the mana pip row, not the badges.
+  creatures in the main rows (depth 5), non-creature artifacts/enchantments in
+  a 0.55-scale band row per player (depth 4) sharing the outer plate band with
+  that side's mana strip. Deliberately NOT a `CardView`: rules text is
+  unreadable at tile size; the full card is one hover or right-click away.
+- **Lands have no board tiles** (2026-07-10 board feedback; the old
+  `LandStackView` per-type stacks are deleted): each side's clickable mana-pip
+  strip at the old land anchor is the lands readout — tapping it opens a
+  `ZoneContentsModal` breakdown of that player's battlefield lands by type
+  with an untapped count in the title (public info, both sides clickable).
+- **`ZoneContentsModal`** (`src/ui/ZoneContentsModal.ts`) — reusable
+  zone-contents grid on `modalShell` (cached thumbs, ×N badges, shared pager);
+  serves both graveyards, YOUR deck (aggregated + sorted lands → mana value →
+  color, never draw order — the foe's deck is never clickable), the lands
+  breakdown, and the future exile zone.
 - **`CommanderPortrait`** (`src/ui/CommanderPortrait.ts`) — the 1a "waifu on
   stage": a rounded-top frame with cover-cropped, face-biased card art behind a
   world-space geometry mask (the panel is pinned; the in-code comment documents
   the move-invalidates-mask limitation), a name plate, and two idempotent
   fire-and-forget reactions (`reactDamage` shake+flash, `reactCast` glow) that
   tolerate `tweens.timeScale = 20` and rapid re-triggering.
-- **`PileView`** (`src/ui/PileView.ts`) — display-only deck piles (stacked
-  card-backs + count badge), grave slots (outline + count), and the opponent's
-  overlapped hand-backs `×N` row; `setCount` is cheap to call every sync.
+- **`PileView`** (`src/ui/PileView.ts`) — icon pile indicators (baked
+  canvas icons from `src/ui/pileIcons.ts`: hand / tombstone / card-back /
+  exile + count badge); `setCount` is cheap to call every sync, and an
+  opt-in `onTap` (Zone-child input) powers the clickable graveyards/deck.
+  Hidden exile slots on both columns sit behind `EXILE_ENABLED`.
 - **`CardZoomPreview`** (`src/ui/CardZoomPreview.ts`) — reusable hover-zoom:
   dwelling on any card for 400 ms (or instantly while **Z** is held) shows an
   enlarged `CardView` docked to the screen side away from the pointer, at
@@ -513,8 +520,8 @@ There are two independent seeded PRNGs, deliberately kept apart:
 **Grid thumbnails are baked, not live.** The Collection and DeckBuilder grids
 do **not** build a `CardView` per cell — `src/ui/CardThumbCache.ts` bakes each
 card once (throwaway `CardView` → `DynamicTexture` → destroy) and hands the
-grids single lightweight `Image`s (`makeCardThumb`); the duel's land stacks
-(`LandStackView`) reuse the same baked thumbs. Textures live in the
+grids single lightweight `Image`s (`makeCardThumb`); the duel's zone-contents
+modal reuses the same baked thumbs. Textures live in the
 game-global `TextureManager`, so they survive scene restarts; baking is lazy
 per cell and the ~280-card pool bounds the cache. Thumbs are always `fx:'none'`
 static snapshots — the inspect overlays keep constructing live `CardView`s with
