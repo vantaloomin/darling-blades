@@ -56,6 +56,7 @@ import { LandStackView, LAND_STACK_STEP } from '../ui/LandStackView';
 import { ModalGuard } from '../ui/Modal';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
 import { PileView } from '../ui/PileView';
+import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 
@@ -148,6 +149,13 @@ const ROW_USABLE = 1000;
 const HAND_SPAN_MOUSE = 760;
 const HAND_SPAN_TOUCH = 900;
 
+interface PlayReveal {
+  cardId: string;
+  controller: PlayerId;
+  permanentIid?: number;
+  source?: { x: number; y: number; scale: number; angle: number };
+}
+
 /**
  * The duel scene: full match vs the AI, mouse only. Declarative re-render
  * after every action batch, with floating damage/life numbers driven by
@@ -172,11 +180,11 @@ export class DuelScene extends Phaser.Scene {
   private renderedHand: { cardId: string; view: CardView }[] = [];
   /** Previous canonical hand snapshot; reset on every DuelScene create/restart. */
   private previousHand: string[] | null = null;
-  /** Last fan poses indexed by canonical hand slot, used by cast travel ghosts. */
+  /** Last fan poses indexed by canonical hand slot, used if a live origin is unavailable. */
   private handPoses = new Map<number, { x: number; y: number; scale: number; angle: number }>();
   private handDecor: Phaser.GameObjects.GameObject[] = [];
   private landStacks: LandStackView[] = [];
-  private humanLandPositions = new Map<string, { x: number; y: number }>();
+  private landPositions = new Map<string, { x: number; y: number }>();
   private manaPips: (Phaser.GameObjects.Image | Phaser.GameObjects.Text)[] = [];
   private previousLandSignature: string | null = null;
   private previousManaSignature: string | null = null;
@@ -294,8 +302,11 @@ export class DuelScene extends Phaser.Scene {
   private previousLife: [number, number] | null = null;
   private previousPhaseRow: PhaseTrackRow | null = null;
   private forecastWasLethal = false;
-  /** transient reveal of the card the OPPONENT just cast (self-destroys). */
+  /** The off-motion fallback still briefly reveals opponent casts. */
   private oppCastReveal?: Phaser.GameObjects.Container;
+  private pendingPlayReveals: PlayReveal[] = [];
+  private humanPlayOrigin: { cardId: string; source: { x: number; y: number; scale: number; angle: number } } | null = null;
+  private playRevealGhosts = new Set<CardView>();
 
   constructor() {
     super('Duel');
@@ -341,7 +352,10 @@ export class DuelScene extends Phaser.Scene {
     this.handPoses = new Map();
     this.handDecor = [];
     this.landStacks = [];
-    this.humanLandPositions = new Map();
+    this.landPositions = new Map();
+    this.pendingPlayReveals = [];
+    this.humanPlayOrigin = null;
+    this.playRevealGhosts = new Set();
     this.manaPips = [];
     this.previousLandSignature = null;
     this.previousManaSignature = null;
@@ -391,6 +405,7 @@ export class DuelScene extends Phaser.Scene {
     setStickyHost(this, this.zoom);
 
     this.buildZones();
+    bakeKeywordIcons(this);
     this.arrows = this.add.graphics().setDepth(50);
 
     const save = Services.save.data;
@@ -443,6 +458,13 @@ export class DuelScene extends Phaser.Scene {
     Music.setMood('duel');
     // Soft click on any interactive object — cards, buttons, targets alike.
     this.input.on('gameobjectup', () => Sfx.play('click'));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      for (const ghost of this.playRevealGhosts) {
+        this.tweens.killTweensOf(ghost);
+        if (ghost.active) ghost.destroy();
+      }
+      this.playRevealGhosts.clear();
+    });
     if (this.tutorial) {
       // The coach-mark guide layer is display-only until its scripted beat
       // opens each target; the HUD no longer exposes an auto-skip control.
@@ -1092,10 +1114,11 @@ export class DuelScene extends Phaser.Scene {
         action.type === 'playLand' || action.type === 'castSpell'
           ? def(CARD_DB, this.duel.state.players[HUMAN].hand[action.handIndex])
           : null;
-      const playedPose =
+      const playedSource =
         action.type === 'playLand' || action.type === 'castSpell'
-          ? this.handPoses.get(action.handIndex)
+          ? this.handOrigin(action.handIndex)
           : undefined;
+      this.humanPlayOrigin = playedCard && playedSource ? { cardId: playedCard.id, source: playedSource } : null;
       const snapshot = this.duel.clone(); // pre-action state; kept for Undo iff still local
       // Tutorial: note which taught spell/beat this action is BEFORE it resolves
       // (a cast card leaves the hand on submit), so the guide can advance.
@@ -1115,7 +1138,6 @@ export class DuelScene extends Phaser.Scene {
       this.pendingCasts = null;
       this.processEvents(events);
       this.afterEvents();
-      if (playedCard && playedPose) this.playCastTravel(playedCard, playedPose);
     } catch (err) {
       this.hud.log.setText(String((err as Error).message));
     }
@@ -1126,35 +1148,12 @@ export class DuelScene extends Phaser.Scene {
     return Services.save.data.settings.animations;
   }
 
-  private playCastTravel(card: CardDef, source: { x: number; y: number; scale: number; angle: number }): void {
-    if (this.motionLevel() !== 'full') return;
-    let destination: { x: number; y: number } = { x: BOARD_CENTER_X, y: LAYOUT.gap.cy };
-    if (isType(card, 'land')) {
-      destination = this.humanLandPositions.get(card.id) ?? { x: LAYOUT.myLands.x0, y: LAYOUT.myLands.cy };
-    } else {
-      const boardView = [...this.views.values()].find((view) => view.card?.id === card.id);
-      if (boardView) destination = { x: boardView.x, y: boardView.y };
-    }
-    const ghost = new CardView(this, source.x, source.y)
-      .setScale(source.scale)
-      .setAngle(source.angle)
-      .setDepth(theme.depth.floats)
-      .setAlpha(0.96);
-    ghost.setCard(card, { fx: 'none' }); // intentionally non-interactive
-    this.tweens.add({
-      targets: ghost,
-      x: destination.x,
-      y: destination.y,
-      alpha: 0,
-      duration: 230,
-      ease: 'Quad.easeInOut',
-      onComplete: () => {
-        if (ghost.active) ghost.destroy();
-      },
-      onStop: () => {
-        if (ghost.active) ghost.destroy();
-      },
-    });
+  /** Capture the displayed fan card before syncHand destroys it; hover transforms count. */
+  private handOrigin(handIndex: number): { x: number; y: number; scale: number; angle: number } | undefined {
+    const displayIndex = handDisplayOrder(this.duel.state.players[HUMAN].hand, CARD_DB).indexOf(handIndex);
+    const view = displayIndex < 0 ? undefined : this.handViews[displayIndex];
+    if (view?.active) return { x: view.x, y: view.y, scale: view.scaleX, angle: view.angle };
+    return this.handPoses.get(handIndex);
   }
 
   /** Restore the pre-action snapshot and reset scene-side selection state. */
@@ -1279,6 +1278,7 @@ export class DuelScene extends Phaser.Scene {
   /** Board sync + AI/auto-skip/end-turn; `ended` narrates a combat-deferred game end. */
   private finishStep(ended?: GameEvent): void {
     this.sync();
+    this.flushPlayReveals();
     if (ended) this.narrateEvent(ended);
     this.maybeRunAI();
     this.maybeAutoSkip();
@@ -1486,11 +1486,11 @@ export class DuelScene extends Phaser.Scene {
       this.playCombatSequence(events);
       return;
     }
-    for (const e of events) this.narrateEvent(e);
+    for (const e of events) this.narrateEvent(e, events);
   }
 
   /** Narrate a single event: SFX, floats, log, portrait reactions, attack FX. */
-  private narrateEvent(e: GameEvent): void {
+  private narrateEvent(e: GameEvent, batch: readonly GameEvent[] = []): void {
     switch (e.e) {
       case 'lifeChanged': {
         if (e.delta < 0) Sfx.play('lifeLoss');
@@ -1520,18 +1520,20 @@ export class DuelScene extends Phaser.Scene {
         }
         break;
       }
-      case 'spellCast':
+      case 'spellCast': {
         Sfx.play('cast');
         this.log(`${e.controller === HUMAN ? 'You cast' : 'Opponent casts'} ${def(CARD_DB, e.cardId).name}`, e.cardId);
-        // The commander cheers your plays (1a "waifu reacts to plays"); the
-        // opponent's cast is hidden from hand, so flash the card so the player
-        // can actually see what was played.
+        const entered = batch.find(
+          (candidate): candidate is Extract<GameEvent, { e: 'permanentEntered' }> =>
+            candidate.e === 'permanentEntered' &&
+            candidate.perm.cardId === e.cardId &&
+            candidate.perm.controller === e.controller,
+        );
+        this.queuePlayReveal(e.cardId, e.controller, entered?.perm.iid);
         if (e.controller === HUMAN) this.portrait.reactCast();
-        else {
-          this.oppPortrait.reactCast();
-          this.showOpponentCast(e.cardId);
-        }
+        else this.oppPortrait.reactCast();
         break;
+      }
       case 'spellCountered':
         this.log('Spell cancelled!');
         break;
@@ -1540,6 +1542,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       case 'landPlayed':
         Sfx.play('land');
+        this.queuePlayReveal(e.cardId, e.player, e.iid);
         if (e.player === AI) this.log(`Opponent plays ${def(CARD_DB, e.cardId).name}`, e.cardId);
         break;
       case 'attackersDeclared': {
@@ -1708,6 +1711,147 @@ export class DuelScene extends Phaser.Scene {
     });
   }
 
+  /** Queue a state-driven reveal; its destination is read only after the immediate sync. */
+  private queuePlayReveal(cardId: string, controller: PlayerId, permanentIid?: number): void {
+    const humanSource =
+      controller === HUMAN && this.humanPlayOrigin?.cardId === cardId
+        ? this.humanPlayOrigin.source
+        : undefined;
+    this.pendingPlayReveals.push({ cardId, controller, permanentIid, source: humanSource });
+    if (humanSource) this.humanPlayOrigin = null;
+  }
+
+  /** Start every reveal after the state has rendered its real tile/land stack underneath it. */
+  private flushPlayReveals(): void {
+    const reveals = this.pendingPlayReveals.splice(0);
+    for (const reveal of reveals) {
+      if (this.motionLevel() === 'off') {
+        if (reveal.controller === AI) this.showOpponentCast(reveal.cardId);
+        continue;
+      }
+      if (this.motionLevel() === 'reduced') {
+        if (reveal.controller === AI) this.showReducedOpponentReveal(reveal.cardId);
+        continue;
+      }
+      this.showPlayReveal(reveal);
+    }
+  }
+
+  private revealDestination(reveal: PlayReveal): { x: number; y: number; scale: number } {
+    const tile = reveal.permanentIid == null ? undefined : this.views.get(reveal.permanentIid);
+    if (tile) return { x: tile.x, y: tile.y, scale: tile.scaleX * (TILE_H / CARD_H) };
+    const card = def(CARD_DB, reveal.cardId);
+    if (isType(card, 'land')) {
+      const land = this.landPositions.get(`${reveal.controller}:${card.id}`);
+      if (land) return { ...land, scale: 0.32 };
+    }
+    return reveal.controller === HUMAN
+      ? { x: LAYOUT.piles.x, y: LAYOUT.piles.graveY, scale: 0.25 }
+      : { x: 38, y: 98, scale: 0.25 };
+  }
+
+  /** Full motion: hand origin → readable station → the already-rendered destination footprint. */
+  private showPlayReveal(reveal: PlayReveal): void {
+    const opponent = reveal.controller === AI;
+    const source = reveal.source ?? { x: BOARD_CENTER_X, y: 24, scale: 0.35, angle: 0 };
+    const station = opponent
+      ? { x: BOARD_CENTER_X, y: 250, scale: 0.72, pause: 500 }
+      : { x: BOARD_CENTER_X, y: 430, scale: 0.6, pause: 200 };
+    const destination = this.revealDestination(reveal);
+    const ghost = new CardView(this, source.x, source.y)
+      .setScale(source.scale)
+      .setAngle(source.angle)
+      .setDepth(theme.depth.floats)
+      .setAlpha(0.96);
+    ghost.setCard(def(CARD_DB, reveal.cardId), { fx: 'none' });
+    this.playRevealGhosts.add(ghost);
+    const cleanUp = (): void => {
+      this.playRevealGhosts.delete(ghost);
+      if (ghost.active) ghost.destroy();
+    };
+    const fadeOut = (): void => {
+      if (!ghost.active) return;
+      this.tweens.add({
+        targets: ghost,
+        alpha: 0,
+        duration: 80,
+        ease: 'Quad.easeIn',
+        onComplete: () => { if (ghost.active) cleanUp(); },
+        onStop: () => { if (ghost.active) cleanUp(); },
+      });
+    };
+    const morph = (): void => {
+      if (!ghost.active) return;
+      this.tweens.add({
+        targets: ghost,
+        x: destination.x,
+        y: destination.y,
+        scaleX: destination.scale,
+        scaleY: destination.scale,
+        angle: 0,
+        duration: 240,
+        ease: 'Cubic.easeInOut',
+        onComplete: () => { if (ghost.active) fadeOut(); },
+        onStop: () => { if (ghost.active) cleanUp(); },
+      });
+    };
+    const hold = (): void => {
+      if (!ghost.active) return;
+      this.tweens.add({
+        targets: ghost,
+        alpha: 0.96,
+        duration: station.pause,
+        onComplete: () => { if (ghost.active) morph(); },
+        onStop: () => { if (ghost.active) cleanUp(); },
+      });
+    };
+    this.tweens.add({
+      targets: ghost,
+      x: station.x,
+      y: station.y,
+      scaleX: station.scale,
+      scaleY: station.scale,
+      angle: 0,
+      duration: 240,
+      ease: 'Cubic.easeOut',
+      onComplete: () => { if (ghost.active) hold(); },
+      onStop: () => { if (ghost.active) cleanUp(); },
+    });
+  }
+
+  /** Reduced motion preserves hidden-opponent card readability without travel or morphing. */
+  private showReducedOpponentReveal(cardId: string): void {
+    const ghost = new CardView(this, BOARD_CENTER_X, 250)
+      .setScale(0.72)
+      .setDepth(theme.depth.floats)
+      .setAlpha(0);
+    ghost.setCard(def(CARD_DB, cardId), { fx: 'none' });
+    this.playRevealGhosts.add(ghost);
+    const cleanUp = (): void => {
+      this.playRevealGhosts.delete(ghost);
+      if (ghost.active) ghost.destroy();
+    };
+    this.tweens.add({
+      targets: ghost,
+      alpha: 0.96,
+      duration: 120,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        if (!ghost.active) return;
+        this.tweens.add({
+          targets: ghost,
+          alpha: 0,
+          delay: 500,
+          duration: 160,
+          ease: 'Quad.easeIn',
+          onComplete: () => { if (ghost.active) cleanUp(); },
+          onStop: () => { if (ghost.active) cleanUp(); },
+        });
+      },
+      onStop: () => { if (ghost.active) cleanUp(); },
+    });
+  }
+
   /**
    * Transient center banner announcing a turn change ("Your Turn" / "<Name>'s
    * Turn" + the turn number). Fades in, holds, fades out and self-destroys;
@@ -1794,6 +1938,7 @@ export class DuelScene extends Phaser.Scene {
       duration: 200,
       ease: 'Cubic.easeOut',
       onComplete: () => {
+        if (!reveal.active) return;
         this.tweens.add({
           targets: reveal,
           alpha: 0,
@@ -1928,8 +2073,8 @@ export class DuelScene extends Phaser.Scene {
           });
           view.setTapped(perm.tapped);
         }
+        const stats = getEffectiveStats(st.battlefield, CARD_DB, perm.iid);
         if (isType(d, 'creature')) {
-          const stats = getEffectiveStats(st.battlefield, CARD_DB, perm.iid);
           const buffed = stats.attack > (d.attack ?? 0) || stats.defense > (d.defense ?? 0);
           const weakened = stats.attack < (d.attack ?? 0) || stats.defense < (d.defense ?? 0);
           view.setStats(
@@ -1938,6 +2083,7 @@ export class DuelScene extends Phaser.Scene {
             perm.damage > 0 ? 'damaged' : buffed ? 'buffed' : weakened ? 'weakened' : 'normal',
           );
         }
+        view.setKeywords(stats.keywords);
         view.setAuraCount(perm.attachments.length);
         view.setHighlight(this.highlightFor(perm));
         // Summoning-sickness affordance (engine is source of truth: entered
@@ -2011,7 +2157,7 @@ export class DuelScene extends Phaser.Scene {
     this.previousLandSignature = signature;
     for (const s of this.landStacks) s.destroy();
     this.landStacks = [];
-    this.humanLandPositions = new Map();
+    this.landPositions = new Map();
     for (const player of [AI, HUMAN] as const) {
       const lands = battlefield.filter(
         (p) => p.controller === player && isType(def(CARD_DB, p.cardId), 'land'),
@@ -2048,7 +2194,7 @@ export class DuelScene extends Phaser.Scene {
         inflateHitArea(stack.top, 90, 90);
         this.zoom.attach(stack.top, d);
         this.landStacks.push(stack);
-        if (player === HUMAN) this.humanLandPositions.set(cardId, { x, y });
+        this.landPositions.set(`${player}:${cardId}`, { x, y });
         x += player === AI ? -LAND_STACK_STEP : LAND_STACK_STEP;
       }
     }

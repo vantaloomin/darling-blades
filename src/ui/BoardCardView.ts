@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
-import type { CardDef, Rarity } from '../engine/types';
+import type { CardDef, Keyword, Rarity } from '../engine/types';
 import { isType } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
+import { KEYWORD_ICON_KEY } from './KeywordIcons';
+import { theme } from './theme';
 
 /**
  * Compact battlefield tile for the duel board: a large portrait art window that
@@ -41,6 +43,9 @@ const PT_W = 40;
 const PT_H = 20;
 const PT_CX = TILE_W / 2 - FRAME_M - PT_W / 2; // +42
 const PT_CY = TILE_H / 2 - FRAME_M - PT_H / 2; // +59
+const TRAIT_SIZE = 16;
+const TRAIT_GAP = 2;
+const TRAIT_INSET = 4;
 
 /**
  * Tile border per RARITY tier (echoes the CardView RARITY_RING / gem palette):
@@ -148,6 +153,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private ptPlate: Phaser.GameObjects.Image;
   private ptText: Phaser.GameObjects.Text;
   private auraBadge: Phaser.GameObjects.Text;
+  private keywordIcons: Phaser.GameObjects.Image[] = [];
+  private keywordOverflow: Phaser.GameObjects.Text | null = null;
   private sickIcon: Phaser.GameObjects.Image;
   private holo: HoloHandle | null = null;
   private holoFinish: CardVariant['holo'] | null = null;
@@ -186,8 +193,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .setStrokeStyle(2, 0x1a1526, 0.95);
 
     // Name legibility scrim along the top, then the name centered within it —
-    // capped in width so it clears the top-corner badges (aura at top-left, the
-    // summoning-sick swirl at top-right), which draw over the scrim.
+    // capped in width so it clears the trait column at top-left and the
+    // summoning-sick swirl at top-right, which draw over the scrim.
     const nameScrim = scene.add.rectangle(0, NAME_CY, ART_W, NAME_H, 0x0d0b16, 0.62);
     const nameText = scene.add
       .text(0, NAME_CY, card.name, {
@@ -215,20 +222,20 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.ptText.setVisible(isCreature);
 
     this.auraBadge = scene.add
-      .text(-TILE_W / 2 + 3, -TILE_H / 2 + 3, '', {
+      .text(-TILE_W / 2 + 3, TILE_H / 2 - 3, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '11px',
         fontStyle: '700',
-        color: '#ffd88a',
-        backgroundColor: '#241c3e',
+        color: theme.colors.gold,
+        backgroundColor: theme.colors.rowFill,
         padding: { x: 4, y: 1 },
         resolution: 2,
       })
-      .setOrigin(0, 0)
+      .setOrigin(0, 1)
       .setVisible(false);
 
     // Summoning-sickness badge: top-right corner of the art window, opposite
-    // the aura badge (top-left) so they never collide. Hidden until set.
+    // the trait column. Hidden until set.
     ensureSickTexture(scene);
     this.sickIcon = scene.add
       .image(TILE_W / 2 - 14, -TILE_H / 2 + 14, SICK_TEX)
@@ -267,6 +274,40 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   setAuraCount(n: number): this {
     this.auraBadge.setVisible(n > 0);
     if (n > 0) this.auraBadge.setText(`✦${n}`);
+    return this;
+  }
+
+  /** Render effective keywords as a top-left column; granted aura traits included. */
+  setKeywords(keywords: ReadonlySet<Keyword>): this {
+    for (const icon of this.keywordIcons) icon.destroy();
+    this.keywordIcons = [];
+    this.keywordOverflow?.destroy();
+    this.keywordOverflow = null;
+    const traits = [...keywords];
+    const visible = traits.length > 4 ? traits.slice(0, 3) : traits;
+    const x = -TILE_W / 2 + TRAIT_INSET + TRAIT_SIZE / 2;
+    const y0 = -TILE_H / 2 + TRAIT_INSET + TRAIT_SIZE / 2;
+    visible.forEach((keyword, index) => {
+      const icon = this.scene.add
+        .image(x, y0 + index * (TRAIT_SIZE + TRAIT_GAP), KEYWORD_ICON_KEY[keyword])
+        .setDisplaySize(TRAIT_SIZE, TRAIT_SIZE);
+      this.keywordIcons.push(icon);
+      this.add(icon);
+    });
+    if (traits.length > 4) {
+      this.keywordOverflow = this.scene.add
+        .text(-TILE_W / 2 + TRAIT_INSET, y0 + 3 * (TRAIT_SIZE + TRAIT_GAP), `+${traits.length - 3}`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+          backgroundColor: theme.colors.rowFill,
+          padding: { x: 2, y: 1 },
+          resolution: 2,
+        })
+        .setOrigin(0, 0.5);
+      this.add(this.keywordOverflow);
+    }
     return this;
   }
 
