@@ -11,8 +11,9 @@ import {
 } from '../meta/Achievements';
 import { collectionCompletion } from '../meta/collectionFilter';
 import { Services } from '../meta/services';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { colorInt, theme } from '../ui/theme';
+import { backButton, goldBadge, pager, panel, themedButton } from '../ui/themeWidgets';
 
 const DESIGN_W = 1280;
 const DESIGN_H = 720;
@@ -47,11 +48,17 @@ export class AchievementsScene extends Phaser.Scene {
 
   create(data: { page?: number } = {}): void {
     applyBackdrop(this, 'collection', {
-      dim: 0x0b0812,
+      dim: colorInt(theme.colors.dim),
       dimAlpha: 0.74,
       fallback: () => {
         const bg = this.add.graphics();
-        bg.fillGradientStyle(0x171222, 0x171222, 0x0b0812, 0x0b0812, 1);
+        bg.fillGradientStyle(
+          colorInt(theme.colors.panelFill),
+          colorInt(theme.colors.panelFill),
+          colorInt(theme.colors.dim),
+          colorInt(theme.colors.dim),
+          1,
+        );
         bg.fillRect(0, 0, DESIGN_W, DESIGN_H);
       },
     });
@@ -74,9 +81,9 @@ export class AchievementsScene extends Phaser.Scene {
 
     this.add
       .text(DESIGN_W / 2, 44, 'Achievements', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '42px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.display}px`,
+        color: theme.colors.heading,
       })
       .setOrigin(0.5);
     this.add
@@ -85,53 +92,30 @@ export class AchievementsScene extends Phaser.Scene {
         86,
         `${unlocked}/${statuses.length} unlocked   ${claimed}/${statuses.length} claimed   Page ${page + 1}/${pageCount}`,
         {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '16px',
-          color: '#a89cc6',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.muted,
         },
       )
       .setOrigin(0.5);
 
-    const back = this.add
-      .text(30, 28, '<- Menu', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '20px',
-        color: '#c9bde0',
-      })
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, back, () => this.scene.start('MainMenu'));
-    inflateHitArea(back, 90, 70);
+    backButton(this, () => this.scene.start('MainMenu'));
 
     if (claimable.length > 0) {
-      const claimAll = this.add
-        .text(DESIGN_W - 30, 28, `Claim All +${claimableGold} Gold`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '18px',
-          fontStyle: '600',
-          color: '#ffd88a',
-          backgroundColor: '#2c2344',
-          padding: { x: 12, y: 7 },
-        })
-        .setOrigin(1, 0)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, claimAll, () => {
+      themedButton(this, DESIGN_W - 140, 30, `Claim All +${claimableGold} Gold`, {
+        variant: 'primary',
+        minWidth: 220,
+        onTap: () => {
         const result = claimAllAchievements(save);
         if (result.gold > 0) {
           Services.save.flush();
           Sfx.play('coin');
         }
         this.scene.restart({ page });
+        },
       });
-      inflateHitArea(claimAll, 140, 52);
     } else {
-      this.add
-        .text(DESIGN_W - 30, 28, `Gold ${save.gold}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '18px',
-          fontStyle: '600',
-          color: '#ffd88a',
-        })
-        .setOrigin(1, 0);
+      goldBadge(this, DESIGN_W - 30, 30, { getValue: () => save.gold });
     }
 
     this.drawCompletionPanel();
@@ -145,11 +129,7 @@ export class AchievementsScene extends Phaser.Scene {
 
   private drawCompletionPanel(): void {
     const completion = collectionCompletion(ALL_CARDS, Services.save.data);
-    const g = this.add.graphics();
-    g.fillStyle(0x151022, 0.86);
-    g.fillRoundedRect(86, 108, 1108, 34, 6);
-    g.lineStyle(1, 0x3d3060, 0.9);
-    g.strokeRoundedRect(86, 108, 1108, 34, 6);
+    panel(this, 86, 108, 1108, 34, { alpha: theme.alpha.panel });
 
     const colorText = completion.byColor
       .map((row) => `${COLOR_LABEL[row.key]} ${row.owned}/${row.total}`)
@@ -160,9 +140,9 @@ export class AchievementsScene extends Phaser.Scene {
         125,
         `Pool ${completion.owned}/${completion.total} (${pct(completion.percent)})   Special cards ${completion.variants.specialCards}   ${colorText}`,
         {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '13px',
-          color: '#c9bde0',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.body,
         },
       )
       .setOrigin(0, 0.5);
@@ -172,65 +152,60 @@ export class AchievementsScene extends Phaser.Scene {
     const h = 44;
     const claimable = status.unlocked && !status.claimed;
     const g = this.add.graphics();
-    g.fillStyle(status.claimed ? 0x151b24 : status.unlocked ? 0x201832 : 0x11101a, 0.9);
+    g.fillStyle(status.unlocked ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel);
     g.fillRoundedRect(x, y, w, h, 6);
-    g.lineStyle(1, claimable ? 0xffd88a : status.unlocked ? 0x6a4fa3 : 0x2f2942, 0.95);
+    g.lineStyle(1, colorInt(claimable ? theme.colors.gold : theme.colors.panelStroke), theme.alpha.chrome);
     g.strokeRoundedRect(x, y, w, h, 6);
 
     this.add
       .text(x + 14, y + 11, status.def.title, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        fontStyle: '700',
-        color: status.unlocked ? '#f0e6ff' : '#8f83a8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        fontStyle: theme.weight.w700,
+        color: status.unlocked ? theme.colors.heading : theme.colors.muted,
       })
       .setOrigin(0, 0.5);
     this.add
       .text(x + 14, y + 30, `${BUCKET_LABEL[status.def.bucket]} - ${status.def.description}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '11px',
-        color: '#8f83a8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0, 0.5);
 
     const progress = `${Math.min(status.current, status.target)}/${status.target}`;
     this.add
       .text(x + w - 118, y + 14, progress, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        fontStyle: '600',
-        color: status.unlocked ? '#ffd88a' : '#c9bde0',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: theme.weight.w600,
+        color: status.unlocked ? theme.colors.gold : theme.colors.body,
       })
       .setOrigin(1, 0.5);
 
     if (claimable) {
-      const btn = this.add
-        .text(x + w - 92, y + 22, `Claim +${status.def.reward.gold}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '12px',
-          fontStyle: '700',
-          color: '#ffd88a',
-          backgroundColor: '#2c2344',
-          padding: { x: 9, y: 6 },
-        })
-        .setOrigin(0, 0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, () => {
+      const btn = themedButton(this, x + w - 72, y + 22, `Claim +${status.def.reward.gold}`, {
+        variant: 'primary',
+        size: 'sm',
+        minWidth: 112,
+        onTap: () => {
         const result = claimAchievement(Services.save.data, status.def.id);
         if (result.ok) {
           Services.save.flush();
           Sfx.play('coin');
+          btn.setVariant('ghost');
+          btn.setLabel('Claimed');
         }
         this.scene.restart({ page });
+        },
       });
-      inflateHitArea(btn, 90, 44);
     } else {
       this.add
         .text(x + w - 14, y + 30, status.claimed ? 'Claimed' : status.unlocked ? 'Unlocked' : `${pct(status.percent)}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '12px',
-          fontStyle: '600',
-          color: status.claimed ? '#9be6a8' : status.unlocked ? '#ffd88a' : '#6a6482',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          fontStyle: theme.weight.w600,
+          color: status.claimed ? theme.colors.success : status.unlocked ? theme.colors.gold : theme.colors.muted,
         })
         .setOrigin(1, 0.5);
     }
@@ -238,23 +213,6 @@ export class AchievementsScene extends Phaser.Scene {
 
   private drawPagingControls(page: number, pageCount: number): void {
     if (pageCount <= 1) return;
-    const mk = (x: number, label: string, enabled: boolean, nextPage: number): void => {
-      const btn = this.add
-        .text(x, 690, label, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '16px',
-          fontStyle: '700',
-          color: enabled ? '#ffd88a' : '#6a6482',
-          backgroundColor: enabled ? '#2c2344' : '#151022',
-          padding: { x: 12, y: 6 },
-        })
-        .setOrigin(0.5);
-      if (!enabled) return;
-      btn.setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, () => this.scene.restart({ page: nextPage }));
-      inflateHitArea(btn, 90, 44);
-    };
-    mk(DESIGN_W / 2 - 86, '< Prev', page > 0, page - 1);
-    mk(DESIGN_W / 2 + 86, 'Next >', page < pageCount - 1, page + 1);
+    pager(this, DESIGN_W / 2 - 56, 690, page, pageCount, (nextPage) => this.scene.restart({ page: nextPage }));
   }
 }

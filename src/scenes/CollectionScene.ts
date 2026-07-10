@@ -34,6 +34,8 @@ import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
+import { colorInt, theme } from '../ui/theme';
+import { backButton, goldBadge, modalShell, pager, themedButton, type GoldBadge, type Pager, type ThemedButton } from '../ui/themeWidgets';
 
 // Design canvas (Scale.FIT). All layout is in 1280×720 DESIGN px — never
 // this.scale.*: at renderScale k the canvas is 1280k×720k but the camera
@@ -99,10 +101,10 @@ export class CollectionScene extends Phaser.Scene {
   /** Containers still tweening out of view — reaped on filter changes. */
   private outgoing: Phaser.GameObjects.Container[] = [];
   private turning = false;
-  private pageText!: Phaser.GameObjects.Text;
+  private pageControl!: Pager;
   private counterText!: Phaser.GameObjects.Text;
   private completionText!: Phaser.GameObjects.Text;
-  private goldText!: Phaser.GameObjects.Text;
+  private goldText!: GoldBadge;
   private emptyText!: Phaser.GameObjects.Text;
   private inspect: Phaser.GameObjects.Container | null = null;
   /** Live holo pointer feed — MUST be unhooked on inspect close. */
@@ -126,13 +128,19 @@ export class CollectionScene extends Phaser.Scene {
 
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'collection', {
-      dim: 0x0b0812,
+      dim: colorInt(theme.colors.dim),
       // 0.70 (2026-07-03 calibration): keeps the grid region under the ≤12%
       // effective-luminance cap so 0.32-alpha unowned thumbs keep separating.
       dimAlpha: 0.7,
       fallback: () => {
         const bg = this.add.graphics();
-        bg.fillGradientStyle(0x171222, 0x171222, 0x0b0812, 0x0b0812, 1);
+        bg.fillGradientStyle(
+          colorInt(theme.colors.panelFill),
+          colorInt(theme.colors.panelFill),
+          colorInt(theme.colors.dim),
+          colorInt(theme.colors.dim),
+          1,
+        );
         bg.fillRect(0, 0, DESIGN_W, DESIGN_H);
       },
     });
@@ -142,45 +150,30 @@ export class CollectionScene extends Phaser.Scene {
     // Header band (y 0..56, above chip row A's hit top at 59).
     this.add
       .text(DESIGN_W / 2, 30, 'Collection', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '26px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h1}px`,
+        color: theme.colors.heading,
       })
       .setOrigin(0.5);
     // Gold badge (top-right, stacked above the collection counter) — this is a
     // shard-for-gold screen, so the balance must be on-screen and update live.
-    this.goldText = this.add
-      .text(DESIGN_W - 28, 20, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '18px',
-        fontStyle: '600',
-        color: '#ffd88a',
-      })
-      .setOrigin(1, 0.5);
+    this.goldText = goldBadge(this, DESIGN_W - 28, 20, { getValue: () => Services.save.data.gold, flashOnChange: true });
     this.refreshGold();
     this.counterText = this.add
       .text(DESIGN_W - 28, 44, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        color: '#8f83a8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(1, 0.5);
     this.completionText = this.add
       .text(DESIGN_W - 28, 66, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '12px',
-        color: '#6f6688',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(1, 0.5);
-    const back = this.add
-      .text(28, 18, '← Menu', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '18px',
-        color: '#c9bde0',
-      })
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, back, () => this.scene.start('MainMenu'));
-    inflateHitArea(back, 90, 78, { biasY: -8 }); // stop above chip row A (hit top 59)
+    const back = backButton(this, () => this.scene.start('MainMenu'));
 
     this.drawBinderChrome();
 
@@ -204,19 +197,11 @@ export class CollectionScene extends Phaser.Scene {
       },
     });
 
-    // Pager buttons — the only touch paging path (no swipe primitive exists).
-    const prev = this.add
-      .text(75, 384, '‹', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '56px', color: '#c9bde0' })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    const next = this.add
-      .text(DESIGN_W - 75, 384, '›', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '56px', color: '#c9bde0' })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, prev, () => this.turnPage(-1));
-    bindTapButton(this, next, () => this.turnPage(1));
-    inflateHitArea(prev, 90, 90);
-    inflateHitArea(next, 90, 90);
+    this.pageControl = pager(this, DESIGN_W / 2 - 56, 655, this.page, 1, (page) => {
+      const direction = page > this.page ? 1 : -1;
+      this.page = page;
+      this.renderPage(direction);
+    });
     // Only vertical wheel motion turns pages. Horizontal trackpad pans and
     // tilt-wheels emit dy === 0 with dx !== 0; without this guard the `dy > 0`
     // test would read every such event as a page-back.
@@ -225,23 +210,16 @@ export class CollectionScene extends Phaser.Scene {
       this.turnPage(dy > 0 ? 1 : -1);
     });
 
-    this.pageText = this.add
-      .text(DESIGN_W / 2, 655, '', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '14px',
-        color: '#8f83a8',
-      })
-      .setOrigin(0.5);
     this.emptyText = this.add
       .text(DESIGN_W / 2, 390, 'No cards match these filters.', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '18px',
-        color: '#8f83a8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0.5)
       .setVisible(false);
 
-    this.guardTargets = [...this.filterBar.targets, prev, next, back];
+    this.guardTargets = [...this.filterBar.targets, this.pageControl.previous, this.pageControl.next, back];
 
     this.renderPage();
   }
@@ -250,18 +228,18 @@ export class CollectionScene extends Phaser.Scene {
   private drawBinderChrome(): void {
     const g = this.add.graphics();
     // page slabs
-    g.fillStyle(0x151022, 0.85);
+    g.fillStyle(theme.graphics.panelFill, theme.alpha.chrome);
     g.fillRoundedRect(140, 150, 490, 484, 12);
     g.fillRoundedRect(650, 150, 490, 484, 12);
-    g.lineStyle(2, 0x352a52, 1);
+    g.lineStyle(2, theme.graphics.panelStroke, 1);
     g.strokeRoundedRect(140, 150, 490, 484, 12);
     g.strokeRoundedRect(650, 150, 490, 484, 12);
     // spine / gutter
-    g.fillStyle(0x0d0a16, 0.95);
+    g.fillStyle(theme.graphics.dim, theme.alpha.panel);
     g.fillRect(630, 154, 20, 476);
     // pockets — fixed; cards drop into them, badges sit on the lip below
-    g.lineStyle(1, 0x3d3060, 0.9);
-    g.fillStyle(0x0f0b1a, 0.55);
+    g.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
+    g.fillStyle(theme.graphics.rowFill, theme.alpha.subtle);
     for (const cx of [...LEFT_COLS, ...RIGHT_COLS]) {
       for (let row = 0; row < ROWS_PER_PAGE; row++) {
         const cy = ROW0_Y + row * PITCH_Y;
@@ -306,7 +284,7 @@ export class CollectionScene extends Phaser.Scene {
     this.completionText.setText(
       `${Math.round(completion.percent * 100)}% pool  |  ${completion.variants.specialCards} special cards`,
     );
-    this.pageText.setText(`Page ${this.page + 1}/${pageCount(pool.length, SPREAD_SIZE)}`);
+    this.pageControl.refresh(this.page, pageCount(pool.length, SPREAD_SIZE));
     this.emptyText.setVisible(pool.length === 0);
 
     const old = this.pageContainer;
@@ -388,19 +366,19 @@ export class CollectionScene extends Phaser.Scene {
       ): Phaser.GameObjects.Text =>
         this.add
           .text(bx, ly, str, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '12px',
-            fontStyle: '700',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            fontStyle: theme.weight.w700,
             color,
           })
           .setOrigin(originX, 0.5);
       c.add(badge(x - FACE_W / 2 + 2, 0, TIER_LABEL[d.rarity], TIER_TEXT_COLOR[d.rarity]));
       if (owned > 0) {
-        c.add(badge(x, 0.5, `×${owned}`, owned >= PLAYSET ? '#ffd44a' : '#e8e2f4'));
+        c.add(badge(x, 0.5, `×${owned}`, owned >= PLAYSET ? theme.colors.gold : theme.colors.heading));
       }
       const specials = specialVariantCount(save, d.id);
       if (specials > 0) {
-        c.add(badge(x + FACE_W / 2 - 2, 1, `✦${specials}`, '#d9a8ff'));
+        c.add(badge(x + FACE_W / 2 - 2, 1, `✦${specials}`, theme.rarity.ssr));
       }
     });
     return c;
@@ -416,18 +394,22 @@ export class CollectionScene extends Phaser.Scene {
     this.filterBar.closeAll(); // a floating dropdown must not sit over the overlay
     const save = Services.save.data;
     const owned = ownedCount(save, d.id);
-    const c = this.add.container(0, 0).setDepth(100);
-
-    const dim = this.add
-      .rectangle(DESIGN_W / 2, DESIGN_H / 2, DESIGN_W, DESIGN_H, 0x000000, 0.82)
-      .setInteractive();
+    const shell = modalShell(this, {
+      width: 1080,
+      height: 660,
+      dimAlpha: 0.82,
+      escToClose: false,
+      depth: theme.depth.overlay,
+      showClose: false,
+      tapDimToClose: false,
+    });
+    const c = shell.container;
+    const dim = shell.dim;
     const openedAt = this.time.now;
     dim.on('pointerup', () => {
       if (this.time.now - openedAt < INSPECT_CLOSE_LOCK_MS) return; // swallow double-click flash
       this.closeInspect();
     });
-    c.add(dim);
-
     const shown = owned > 0 ? bestOwnedVariant(save, d.id) : null;
     const view = new CardView(this, 450, 360);
     view.setScale(1.35).setCard(d, shown ? { fx: 'full', variant: shown } : { fx: 'full' });
@@ -446,9 +428,9 @@ export class CollectionScene extends Phaser.Scene {
     c.add(
       this.add
         .text(panelX, 130, owned > 0 ? 'Owned variants' : 'Not yet collected', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '20px',
-          color: owned > 0 ? '#f0e6ff' : '#8f83a8',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: owned > 0 ? theme.colors.heading : theme.colors.muted,
         })
         .setOrigin(0, 0.5),
     );
@@ -456,12 +438,18 @@ export class CollectionScene extends Phaser.Scene {
       const entries = ownedVariantEntries(save, d.id);
       const MAX_ROWS = 9;
       let selectedKey = variantKey(shown!);
-      const rows: { text: Phaser.GameObjects.Text; variant: CardVariant; count: number }[] = [];
+      const rows: { background: Phaser.GameObjects.Graphics; text: Phaser.GameObjects.Text; variant: CardVariant; count: number }[] = [];
       const restyle = (): void => {
         for (const r of rows) {
           const sel = variantKey(r.variant) === selectedKey;
+          r.background
+            .clear()
+            .fillStyle(sel ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel)
+            .fillRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control)
+            .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
+            .strokeRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control);
           r.text.setText(`${sel ? '▸ ' : '   '}${variantLabel(r.variant)}  ×${r.count}`);
-          r.text.setColor(sel ? '#ffd44a' : '#c9bde0');
+          r.text.setColor(sel ? theme.colors.gold : theme.colors.body);
           // setText/setColor reset the hit bounds — re-inflate, biased right
           // so the rect never reaches back over the card.
           inflateHitArea(r.text, 380, 44, {
@@ -470,12 +458,13 @@ export class CollectionScene extends Phaser.Scene {
         }
       };
       entries.slice(0, MAX_ROWS).forEach((e, i) => {
+        const background = this.add.graphics();
         const t = this.add
           .text(panelX, 176 + i * 48, '', {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '15px',
-            fontStyle: '600',
-            color: '#c9bde0',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            fontStyle: theme.weight.w600,
+            color: theme.colors.body,
           })
           .setOrigin(0, 0.5)
           .setInteractive({ useHandCursor: true });
@@ -484,16 +473,16 @@ export class CollectionScene extends Phaser.Scene {
           view.setCard(d, { fx: 'full', variant: e.variant });
           restyle();
         });
-        rows.push({ text: t, variant: e.variant, count: e.count });
-        c.add(t);
+        rows.push({ background, text: t, variant: e.variant, count: e.count });
+        c.add([background, t]);
       });
       if (entries.length > MAX_ROWS) {
         c.add(
           this.add
             .text(panelX, 176 + MAX_ROWS * 48, `+${entries.length - MAX_ROWS} more…`, {
-              fontFamily: 'Inter, Arial, sans-serif',
-              fontSize: '13px',
-              color: '#8f83a8',
+              fontFamily: theme.fonts.ui,
+              fontSize: `${theme.type.caption}px`,
+              color: theme.colors.muted,
             })
             .setOrigin(0, 0.5),
         );
@@ -510,7 +499,7 @@ export class CollectionScene extends Phaser.Scene {
           DESIGN_W / 2,
           DESIGN_H - 32,
           isTouchDevice() ? 'Tap anywhere to close' : 'Click anywhere to close',
-          { fontFamily: 'Inter, Arial, sans-serif', fontSize: '14px', color: '#8f83a8' },
+          { fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.muted },
         )
         .setOrigin(0.5),
     );
@@ -519,29 +508,17 @@ export class CollectionScene extends Phaser.Scene {
     this.inspect = c;
   }
 
-  /** Chip-style overlay button whose label can be re-set (relabel-safe hit area). */
+  /** Themed overlay button whose Zone input remains safe across relabels. */
   private overlayChip(
     c: Phaser.GameObjects.Container,
     x: number,
     y: number,
     label: string,
-    color: string,
+    variant: 'primary' | 'emphasis' = 'emphasis',
     onTap: () => void,
-  ): Phaser.GameObjects.Text {
-    const t = this.add
-      .text(x, y, label, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        fontStyle: '600',
-        color,
-        backgroundColor: '#2c2344',
-        padding: { x: 12, y: 7 },
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, t, onTap);
-    inflateHitArea(t, 90, 52);
-    c.add(t);
+  ): ThemedButton {
+    const t = themedButton(this, x + 150, y, label, { variant, minWidth: 300, onTap });
+    c.add(t.container);
     return t;
   }
 
@@ -551,7 +528,7 @@ export class CollectionScene extends Phaser.Scene {
    * own starred hero. `heroCardId === id` toggles.
    */
   private refreshGold(): void {
-    this.goldText.setText(`🪙 ${Services.save.data.gold}`);
+    this.goldText.refresh();
   }
 
   private addInspectActions(c: Phaser.GameObjects.Container, d: CardDef): void {
@@ -563,14 +540,12 @@ export class CollectionScene extends Phaser.Scene {
     const save = Services.save.data;
     const heroLabel = (): string =>
       save.heroCardId === d.id ? '★ Default hero — tap to clear' : '☆ Set default hero';
-    const heroColor = (): string => (save.heroCardId === d.id ? '#ffd44a' : '#c9bde0');
-    const heroBtn = this.overlayChip(c, panelX, 620, heroLabel(), heroColor(), () => {
+    const heroBtn = this.overlayChip(c, panelX, 620, heroLabel(), save.heroCardId === d.id ? 'primary' : 'emphasis', () => {
       save.heroCardId = save.heroCardId === d.id ? null : d.id;
       Services.save.flush();
       Sfx.play('shimmer');
-      // setText/setColor reset the Text hit bounds — re-inflate after relabel.
-      heroBtn.setText(heroLabel()).setColor(heroColor());
-      inflateHitArea(heroBtn, 90, 52);
+      heroBtn.setLabel(heroLabel());
+      heroBtn.setVariant(save.heroCardId === d.id ? 'primary' : 'emphasis');
     });
 
     // Shard/sell: convert copies past the per-variant playset (4 of each
@@ -582,12 +557,12 @@ export class CollectionScene extends Phaser.Scene {
       let armed = false;
       const label = (): string =>
         armed ? `Shard ×${excess} — confirm (+${gold}🪙)` : `⛏ Shard ×${excess} extra (+${gold}🪙)`;
-      const shardBtn = this.overlayChip(c, panelX, 684, label(), '#d9a8ff', () => {
+      const shardBtn = this.overlayChip(c, panelX, 684, label(), 'emphasis', () => {
         // Shared destructive-confirm policy: two-tap unless the player opted out.
         if (save.settings.confirmDestructive && !armed) {
           armed = true;
-          shardBtn.setText(label()).setColor('#ffd44a');
-          inflateHitArea(shardBtn, 90, 52);
+          shardBtn.setLabel(label());
+          shardBtn.setVariant('primary');
           return;
         }
         shardExcess(save, CARD_DB, d.id);

@@ -3,8 +3,9 @@ import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { computeProfile, formatRate, type Difficulty } from '../meta/profileStats';
 import { Services } from '../meta/services';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { colorInt, theme } from '../ui/theme';
+import { backButton } from '../ui/themeWidgets';
 
 const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
@@ -21,10 +22,10 @@ export class ProfileScene extends Phaser.Scene {
 
   create(): void {
     applyBackdrop(this, 'mainmenu', {
-      dim: 0x0d0a14,
+      dim: colorInt(theme.colors.dim),
       dimAlpha: 0.62,
       fallback: () => {
-        /* no art on disk — the #0d0a14 canvas clear shows */
+        /* no art on disk — the themed canvas clear shows */
       },
     });
     this.input.on('gameobjectover', (p: Phaser.Input.Pointer) => {
@@ -36,15 +37,19 @@ export class ProfileScene extends Phaser.Scene {
     const p = computeProfile(Services.save.data);
 
     this.add
-      .text(640, 84, 'Profile', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '44px', color: '#f0e6ff' })
+      .text(640, 84, 'Profile', {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.display}px`,
+        color: theme.colors.heading,
+      })
       .setOrigin(0.5);
 
     // Headline: overall record + win rate.
     this.add
       .text(640, 176, `${p.wins} W  –  ${p.losses} L`, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '40px',
-        color: '#ffd88a',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h1}px`,
+        color: theme.colors.gold,
       })
       .setOrigin(0.5);
     this.add
@@ -52,7 +57,7 @@ export class ProfileScene extends Phaser.Scene {
         640,
         220,
         p.games > 0 ? `${formatRate(p.winRate)} win rate over ${p.games} duels` : 'No duels played yet',
-        { fontFamily: 'Inter, Arial, sans-serif', fontSize: '17px', color: '#8f83a8' },
+        { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted },
       )
       .setOrigin(0.5);
 
@@ -60,18 +65,19 @@ export class ProfileScene extends Phaser.Scene {
     this.sectionLabel(300, 'Practice by difficulty');
     p.byDifficulty.forEach((d, i) => {
       const y = 340 + i * 40;
+      this.rowPanel(y);
       this.add
         .text(440, y, DIFFICULTY_LABEL[d.key], {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '20px',
-          color: '#c9bde0',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.h2}px`,
+          color: theme.colors.body,
         })
         .setOrigin(0, 0.5);
       this.add
         .text(840, y, `${d.w} – ${d.l}      ${formatRate(d.rate)}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '20px',
-          color: d.rate === null ? '#57506b' : '#e0d8f0',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.h2}px`,
+          color: d.rate === null ? theme.colors.muted : theme.colors.heading,
         })
         .setOrigin(1, 0.5);
     });
@@ -82,32 +88,36 @@ export class ProfileScene extends Phaser.Scene {
     this.statRow(576, 'Full gauntlet clears', `${p.completions}`);
     this.statRow(616, 'Packs opened', `${p.packsOpened}`);
 
-    const back = this.add
-      .text(640, 672, '← Back', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '28px', color: '#c9bde0' })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    back.on('pointerover', (pt: Phaser.Input.Pointer) => {
-      if (!pt.wasTouch) back.setColor('#ffd700');
-    });
-    back.on('pointerout', (pt: Phaser.Input.Pointer) => {
-      if (!pt.wasTouch) back.setColor('#c9bde0');
-    });
-    bindTapButton(this, back, () => this.scene.start('MainMenu'));
-    inflateHitArea(back, 90, 90);
+    backButton(this, () => this.scene.start('MainMenu'));
   }
 
   private sectionLabel(y: number, text: string): void {
     this.add
-      .text(440, y, text, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '18px', color: '#c7a8f0' })
+      .text(440, y, text, {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h2}px`,
+        color: theme.colors.gold,
+      })
       .setOrigin(0, 0.5);
   }
 
   private statRow(y: number, label: string, value: string): void {
+    this.rowPanel(y);
     this.add
-      .text(440, y, label, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '20px', color: '#c9bde0' })
+      .text(440, y, label, { fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, color: theme.colors.body })
       .setOrigin(0, 0.5);
     this.add
-      .text(840, y, value, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '20px', color: '#e0d8f0' })
+      .text(840, y, value, { fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
       .setOrigin(1, 0.5);
+  }
+
+  /** Shared list-row treatment: row fill with the standard panel outline. */
+  private rowPanel(y: number): void {
+    this.add
+      .graphics()
+      .fillStyle(theme.graphics.rowFill, theme.alpha.subtle)
+      .fillRoundedRect(420, y - 17, 440, 34, theme.radius.control)
+      .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
+      .strokeRoundedRect(420, y - 17, 440, 34, theme.radius.control);
   }
 }
