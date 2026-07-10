@@ -57,8 +57,10 @@ import { ModalGuard } from '../ui/Modal';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
+import { packRow } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
+import { modalShell, themedButton } from '../ui/themeWidgets';
 
 const HUMAN: PlayerId = 0;
 const AI: PlayerId = 1;
@@ -103,7 +105,7 @@ const LAYOUT = {
   gap: { cy: 298 },
   /** Player zone now matches the opponent plate's right edge for the sidebar. */
   myZone: { x0: 108, x1: 1046, y0: 312, y1: 532 },
-  myCreatures: { cy: 386, x: 577, usable: 860 },
+  myCreatures: { cy: 389, x: 577, usable: 860 },
   // cy 484 is load-bearing: the LandStackView badge sits at pile-local y+24
   // (≈508) tuned to clear the resting hand fan (see LandStackView.ts). x0 210
   // keeps the first stack's inflated 90px hit rect clear of the left rail;
@@ -2004,11 +2006,10 @@ export class DuelScene extends Phaser.Scene {
       // Cap spacing at the tapped-tile footprint (a 90° tap makes the tile
       // TILE_H wide) plus a small gutter, so tapped attackers don't collide.
       const MAX_SPACING = TILE_H + 4;
-      const spacing = n > 1 ? Math.min(MAX_SPACING, (rowUsable - TILE_W) / (n - 1)) : 0;
-      const tileScale = n > 1 ? Math.min(1, (spacing + 14) / MAX_SPACING) : 1;
+      const packed = packRow(n, rowUsable, TILE_W, MAX_SPACING);
       row.forEach((perm, i) => {
         seen.add(perm.iid);
-        const x = rowCenter - ((n - 1) * spacing) / 2 + i * spacing;
+        const x = rowCenter + packed.offsets[i];
         const d = def(CARD_DB, perm.cardId);
         let view = this.views.get(perm.iid);
         if (!view) {
@@ -2018,7 +2019,7 @@ export class DuelScene extends Phaser.Scene {
           // (depth 0, re-appended every sync), whose inflated rects overlap
           // the tiles' bottom band (adversarial review 2026-07-04).
           view.setDepth(5);
-          view.setScale(tileScale);
+          view.setScale(packed.scale);
           view.setTapped(perm.tapped, false);
           // Show YOUR own special-variant cards with their holo finish in play
           // (the board doesn't track per-copy cosmetics, so use your best owned
@@ -2053,7 +2054,7 @@ export class DuelScene extends Phaser.Scene {
             targets: view,
             x,
             y: this.creatureY(perm.iid, y),
-            scale: tileScale,
+            scale: packed.scale,
             duration: 200,
             ease: 'Cubic.easeOut',
           });
@@ -2103,7 +2104,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private creatureY(iid: number, base: number): number {
-    // Lift kept modest: the 146px tile (TILE_H) nearly fills its zone plate,
+    // Lift kept modest: the 170px tile (TILE_H) nearly fills its zone plate,
     // so a big lift would poke a selected attacker out of the plate into the
     // gap where the skip toast / stack readout float.
     return this.selectedAttackers.has(iid) ? base - 12 : base;
@@ -2876,24 +2877,34 @@ export class DuelScene extends Phaser.Scene {
     // overlay) and means Concede is always valid while the menu is open.
     if (this.animatingCombat || !this.isHumanTurnDecision()) return;
     this.concedeArmed = false;
-    const width = 1280;
-    const height = 720;
-    const c = this.add.container(0, 0).setDepth(105);
-    const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive();
-    dim.on('pointerup', (p: Phaser.Input.Pointer) => {
-      if (p.rightButtonReleased()) return;
-      this.closePauseMenu(); // tap outside the plate resumes
+    const onOff = (v: boolean): string => (v ? 'On' : 'Off');
+    const s = Services.save.data.settings;
+
+    const shell = modalShell(this, {
+      width: 420,
+      height: 430,
+      dimAlpha: 0.82,
+      tapDimToClose: true,
+      escToClose: true,
+      showClose: false,
+      depth: theme.depth.modal,
+      onClose: () => this.closePauseMenu(),
     });
-    c.add(dim);
-    c.add(this.add.rectangle(width / 2, height / 2, 420, 430, 0x140f24, 0.96).setStrokeStyle(1.5, 0x3a2f5c));
+    const c = shell.container;
+
     c.add(
       this.add
-        .text(width / 2, 200, 'Menu', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '34px', color: '#f0e6ff' })
+        .text(640, 190, 'Menu', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.heading,
+        })
         .setOrigin(0.5),
     );
     c.add(
       this.add
-        .text(width / 2, 232, this.matchupLabel(), {
+        .text(640, 226, this.matchupLabel(), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
@@ -2904,89 +2915,76 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
-    const chip = (
-      label: string,
-      y: number,
-      cb: (t: Phaser.GameObjects.Text) => void,
-      color = '#e8def7',
-      bg = '#3a2f5c',
-    ): Phaser.GameObjects.Text => {
-      const t = this.add
-        .text(width / 2, y, label, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '20px',
-          color,
-          backgroundColor: bg,
-          padding: { x: 18, y: 9 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, t, (p) => {
+    const resume = themedButton(this, 640, 276, 'Resume', {
+      variant: 'primary',
+      minWidth: 220,
+      onTap: (p) => {
         if (p.rightButtonReleased()) return;
-        cb(t);
-      });
-      inflateHitArea(t, 90, 60);
-      c.add(t);
-      return t;
-    };
-    const toggleStyle = (t: Phaser.GameObjects.Text, on: boolean): void => {
-      t.setStyle(
-        on
-          ? { color: '#1a1426', backgroundColor: '#ffd88a' }
-          : { color: '#c9bde0', backgroundColor: '#241d3a' },
-      );
-      inflateHitArea(t, 90, 60); // setStyle changed the text box — re-inflate
-    };
-    const onOff = (v: boolean): string => (v ? 'On' : 'Off');
-
-    chip('Resume', 260, () => this.closePauseMenu(), '#ffd88a');
-
-    const s = Services.save.data.settings;
-    const autoChip = chip(`Auto-skip: ${onOff(s.autoSkip)}`, 318, (t) => {
-      s.autoSkip = !s.autoSkip;
-      Services.save.touch();
-      t.setText(`Auto-skip: ${onOff(s.autoSkip)}`);
-      toggleStyle(t, s.autoSkip);
-      if (s.autoSkip) this.maybeAutoSkip();
+        shell.close();
+      },
     });
-    toggleStyle(autoChip, s.autoSkip);
-    const sfxChip = chip(`Sound: ${onOff(s.sfxOn)}`, 376, (t) => {
-      s.sfxOn = !s.sfxOn;
-      Services.save.touch();
-      t.setText(`Sound: ${onOff(s.sfxOn)}`);
-      toggleStyle(t, s.sfxOn);
-      if (s.sfxOn) Sfx.play('click');
-    });
-    toggleStyle(sfxChip, s.sfxOn);
-    const musicChip = chip(`Music: ${onOff(Music.enabled)}`, 434, (t) => {
-      Music.setEnabled(!Music.enabled);
-      t.setText(`Music: ${onOff(Music.enabled)}`);
-      toggleStyle(t, Music.enabled);
-    });
-    toggleStyle(musicChip, Music.enabled);
+    c.add(resume.container);
 
-    chip(
-      'Concede',
-      506,
-      (t) => {
+    const autoSkip = themedButton(this, 640, 326, `Auto-skip: ${onOff(s.autoSkip)}`, {
+      variant: s.autoSkip ? 'primary' : 'ghost',
+      minWidth: 220,
+      onTap: (p) => {
+        if (p.rightButtonReleased()) return;
+        s.autoSkip = !s.autoSkip;
+        Services.save.touch();
+        autoSkip.setLabel(`Auto-skip: ${onOff(s.autoSkip)}`);
+        autoSkip.setVariant(s.autoSkip ? 'primary' : 'ghost');
+        if (s.autoSkip) this.maybeAutoSkip();
+      },
+    });
+    c.add(autoSkip.container);
+
+    const sfx = themedButton(this, 640, 376, `Sound: ${onOff(s.sfxOn)}`, {
+      variant: s.sfxOn ? 'primary' : 'ghost',
+      minWidth: 220,
+      onTap: (p) => {
+        if (p.rightButtonReleased()) return;
+        s.sfxOn = !s.sfxOn;
+        Services.save.touch();
+        sfx.setLabel(`Sound: ${onOff(s.sfxOn)}`);
+        sfx.setVariant(s.sfxOn ? 'primary' : 'ghost');
+        if (s.sfxOn) Sfx.play('click');
+      },
+    });
+    c.add(sfx.container);
+
+    const music = themedButton(this, 640, 426, `Music: ${onOff(Music.enabled)}`, {
+      variant: Music.enabled ? 'primary' : 'ghost',
+      minWidth: 220,
+      onTap: (p) => {
+        if (p.rightButtonReleased()) return;
+        Music.setEnabled(!Music.enabled);
+        music.setLabel(`Music: ${onOff(Music.enabled)}`);
+        music.setVariant(Music.enabled ? 'primary' : 'ghost');
+      },
+    });
+    c.add(music.container);
+
+    const concede = themedButton(this, 640, 500, 'Concede', {
+      variant: 'danger',
+      minWidth: 220,
+      onTap: (p) => {
+        if (p.rightButtonReleased()) return;
         if (this.ended || !this.isHumanTurnDecision()) {
-          t.setText('Not your turn to concede');
-          inflateHitArea(t, 90, 60);
+          concede.setLabel('Not your turn to concede');
           return;
         }
         // Two-tap (a gauntlet loss ends the run) unless opted out.
         if (Services.save.data.settings.confirmDestructive && !this.concedeArmed) {
           this.concedeArmed = true;
-          t.setText('Tap to confirm').setColor('#f08a8a');
-          inflateHitArea(t, 90, 60);
+          concede.setLabel('Tap to confirm');
           return;
         }
         this.tearDownPauseMenu();
         this.act({ type: 'concede' });
       },
-      '#f0b0b0',
-      '#3a1f28',
-    );
+    });
+    c.add(concede.container);
 
     this.pauseOverlay = c;
     this.pauseGuard.open(this.overlayGuardTargets());
@@ -2995,16 +2993,19 @@ export class DuelScene extends Phaser.Scene {
   /** Destroy the pause overlay + restore board input (no play-resume side effects). */
   private tearDownPauseMenu(): void {
     if (!this.pauseOverlay) return;
-    this.pauseOverlay.destroy();
+    const overlay = this.pauseOverlay;
     this.pauseOverlay = null;
     this.pauseGuard.close();
     this.concedeArmed = false;
+    overlay.destroy();
   }
 
-  /** Resume from the pause overlay: tear it down, then rejoin any paused flow. */
+  /** Resume from the pause overlay: clear state, then rejoin any paused flow. */
   private closePauseMenu(): void {
     if (!this.pauseOverlay) return;
-    this.tearDownPauseMenu();
+    this.pauseOverlay = null;
+    this.pauseGuard.close();
+    this.concedeArmed = false;
     this.maybeAutoSkip(); // a pause paused a pending skip chain — resume it
     this.endTurnTick(); // …and a paused end-turn fast-forward
   }
@@ -3337,47 +3338,68 @@ export class DuelScene extends Phaser.Scene {
     Music.duck(1.8); // let the sting read clearly over the bed
     Sfx.play(won ? 'win' : 'loss');
 
-    const width = 1280; // design-space constants (see buildZones)
-    const height = 720;
-    const c = this.add.container(0, 0).setDepth(120);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.78).setInteractive());
+    const shell = modalShell(this, {
+      width: 560,
+      height: 330,
+      dimAlpha: 0.78,
+      tapDimToClose: false,
+      escToClose: false,
+      showClose: false,
+      depth: theme.depth.results,
+    });
+    const c = shell.container;
     c.add(
       this.add
-        .text(width / 2, 240, won ? 'VICTORY' : 'DEFEAT', {
-          fontFamily: 'Cinzel, Georgia, serif', fontSize: '64px', fontStyle: 'bold',
-          color: won ? '#ffd700' : '#b06a7a',
+        .text(640, 278, won ? 'VICTORY' : 'DEFEAT', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.displayXL}px`,
+          fontStyle: theme.weight.w700,
+          color: won ? theme.colors.goldHover : theme.colors.danger,
         })
         .setOrigin(0.5),
     );
     c.add(
       this.add
-        .text(width / 2, 305, `(${reason})`, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '16px', color: '#8f83a8' })
+        .text(640, 342, `(${reason})`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.muted,
+          align: 'center',
+          wordWrap: { width: 480 },
+          resolution: 2,
+        })
         .setOrigin(0.5),
     );
     c.add(
       this.add
         .text(
-          width / 2,
-          350,
+          640,
+          388,
           this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
-          { fontFamily: 'Inter, Arial, sans-serif', fontSize: '20px', fontStyle: '600', color: '#ffd88a' },
+          {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.h2}px`,
+            fontStyle: theme.weight.w600,
+            color: theme.colors.gold,
+            align: 'center',
+            wordWrap: { width: 500 },
+            resolution: 2,
+          },
         )
         .setOrigin(0.5),
     );
-    const mk = (x: number, label: string, cb: () => void): void => {
-      const btn = this.add
-        .text(x, 430, label, {
-          fontFamily: 'Cinzel, Georgia, serif', fontSize: '24px', color: '#ffd88a',
-          backgroundColor: '#2c2344', padding: { x: 18, y: 10 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, cb);
-      inflateHitArea(btn, 90, 90);
-      c.add(btn);
+    const mk = (x: number, label: string, variant: 'primary' | 'ghost', cb: () => void): void => {
+      const btn = themedButton(this, x, 456, label, {
+        variant,
+        minWidth: 150,
+        onTap: (p) => {
+          if (!p.rightButtonReleased()) cb();
+        },
+      });
+      c.add(btn.container);
     };
-    mk(width / 2 - 120, 'Rematch', () => this.scene.restart());
-    mk(width / 2 + 120, 'Menu', () => this.scene.start('MainMenu'));
+    mk(520, 'Rematch', 'primary', () => this.scene.restart());
+    mk(760, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
     this.guard.open(this.overlayGuardTargets());
   }
 
@@ -3391,36 +3413,45 @@ export class DuelScene extends Phaser.Scene {
     Music.duck(1.8);
     Sfx.play(won ? (reward.runOver && reward.wins === 3 ? 'win' : 'rungClear') : 'loss');
 
-    const width = 1280;
-    const height = 720;
-    const c = this.add.container(0, 0).setDepth(120);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive());
+    const shell = modalShell(this, {
+      width: 620,
+      height: 340,
+      dimAlpha: 0.82,
+      tapDimToClose: false,
+      escToClose: false,
+      showClose: false,
+      depth: theme.depth.results,
+    });
+    const c = shell.container;
 
     const headline = reward.runOver ? 'LIMITED COMPLETE' : won ? 'MATCH WON' : 'MATCH LOST';
     c.add(
       this.add
-        .text(width / 2, 210, headline, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '56px',
-          fontStyle: 'bold',
-          color: won ? '#ffd700' : '#b06a7a',
+        .text(640, 268, headline, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.display}px`,
+          fontStyle: theme.weight.w700,
+          color: won ? theme.colors.goldHover : theme.colors.danger,
         })
         .setOrigin(0.5),
     );
     c.add(
       this.add
-        .text(width / 2, 272, `Record ${reward.wins}-${reward.losses}  (${reason})`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '16px',
-          color: '#8f83a8',
+        .text(640, 328, `Record ${reward.wins}-${reward.losses}  (${reason})`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.muted,
+          align: 'center',
+          wordWrap: { width: 540 },
+          resolution: 2,
         })
         .setOrigin(0.5),
     );
     c.add(
       this.add
         .text(
-          width / 2,
-          320,
+          640,
+          378,
           this.rewardLine(
             reward.gold + streak.gold,
             reward.firstWinBonus,
@@ -3428,37 +3459,35 @@ export class DuelScene extends Phaser.Scene {
             reward.runOver && reward.wins === LIMITED_MATCHES,
           ),
           {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '20px',
-            fontStyle: '600',
-            color: '#ffd88a',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.h2}px`,
+            fontStyle: theme.weight.w600,
+            color: theme.colors.gold,
+            align: 'center',
+            wordWrap: { width: 560 },
+            resolution: 2,
           },
         )
         .setOrigin(0.5),
     );
 
-    const mk = (x: number, label: string, cb: () => void): void => {
-      const btn = this.add
-        .text(x, 420, label, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '24px',
-          color: '#ffd88a',
-          backgroundColor: '#2c2344',
-          padding: { x: 18, y: 10 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, cb);
-      inflateHitArea(btn, 90, 90);
-      c.add(btn);
+    const mk = (x: number, label: string, variant: 'primary' | 'ghost', cb: () => void): void => {
+      const btn = themedButton(this, x, 456, label, {
+        variant,
+        minWidth: 170,
+        onTap: (p) => {
+          if (!p.rightButtonReleased()) cb();
+        },
+      });
+      c.add(btn.container);
     };
 
     if (!reward.runOver && save.limited.activeRun) {
-      mk(width / 2 - 130, 'Next Match', () => this.scene.restart(limitedDuelData(save.limited.activeRun!)));
-      mk(width / 2 + 130, 'Limited Hub', () => this.scene.start('Limited'));
+      mk(510, 'Next Match', 'primary', () => this.scene.restart(limitedDuelData(save.limited.activeRun!)));
+      mk(770, 'Limited Hub', 'ghost', () => this.scene.start('Limited'));
     } else {
-      mk(width / 2 - 120, 'Limited Hub', () => this.scene.start('Limited'));
-      mk(width / 2 + 120, 'Menu', () => this.scene.start('MainMenu'));
+      mk(510, 'Limited Hub', 'primary', () => this.scene.start('Limited'));
+      mk(770, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
     }
     this.guard.open(this.overlayGuardTargets());
   }
@@ -3493,56 +3522,71 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
 
-    const width = 1280; // design-space constants (see buildZones)
-    const height = 720;
-    const c = this.add.container(0, 0).setDepth(120);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive());
+    const shell = modalShell(this, {
+      width: 620,
+      height: 330,
+      dimAlpha: 0.82,
+      tapDimToClose: false,
+      escToClose: false,
+      showClose: false,
+      depth: theme.depth.results,
+    });
+    const c = shell.container;
 
     const headline = 'RUNG CLEARED';
     c.add(
       this.add
-        .text(width / 2, 210, headline, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '56px',
-          fontStyle: 'bold',
-          color: '#ffd700',
+        .text(640, 270, headline, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.display}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.goldHover,
         })
         .setOrigin(0.5),
     );
     c.add(
       this.add
-        .text(width / 2, 272, won ? `Defeated ${this.opponent!.name}  (${reason})` : `(${reason})`, {
-          fontFamily: 'Inter, Arial, sans-serif', fontSize: '16px', color: '#8f83a8',
+        .text(640, 330, won ? `Defeated ${this.opponent!.name}  (${reason})` : `(${reason})`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.muted,
+          align: 'center',
+          wordWrap: { width: 540 },
+          resolution: 2,
         })
         .setOrigin(0.5),
     );
     c.add(
       this.add
-        .text(width / 2, 320, bonusLine, {
-          fontFamily: 'Inter, Arial, sans-serif', fontSize: '20px', fontStyle: '600', color: '#ffd88a',
+        .text(640, 378, bonusLine, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.h2}px`,
+          fontStyle: theme.weight.w600,
+          color: theme.colors.gold,
+          align: 'center',
+          wordWrap: { width: 560 },
+          resolution: 2,
         })
         .setOrigin(0.5),
     );
 
-    const mk = (x: number, label: string, cb: () => void): void => {
-      const btn = this.add
-        .text(x, 420, label, {
-          fontFamily: 'Cinzel, Georgia, serif', fontSize: '24px', color: '#ffd88a',
-          backgroundColor: '#2c2344', padding: { x: 18, y: 10 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, cb);
-      inflateHitArea(btn, 90, 90);
-      c.add(btn);
+    const mk = (x: number, label: string, variant: 'primary' | 'ghost', cb: () => void): void => {
+      const btn = themedButton(this, x, 456, label, {
+        variant,
+        minWidth: 160,
+        onTap: (p) => {
+          if (!p.rightButtonReleased()) cb();
+        },
+      });
+      c.add(btn.container);
     };
 
     if (reward.nextRung !== null) {
       const next = reward.nextRung;
-      mk(width / 2 - 120, 'Next Foe', () =>
+      mk(520, 'Next Foe', 'primary', () =>
         this.scene.restart({ opponentId: avatarForRung(next).id, gauntletRung: next }),
       );
-      mk(width / 2 + 120, 'Tower', () => this.scene.start('Gauntlet'));
+      mk(760, 'Tower', 'ghost', () => this.scene.start('Gauntlet'));
     }
     this.guard.open(this.overlayGuardTargets());
   }
@@ -3553,49 +3597,61 @@ export class DuelScene extends Phaser.Scene {
     reason: string,
     rewardLine: string,
   ): void {
-    const width = 1280;
-    const height = 720;
-    const c = this.add.container(0, 0).setDepth(120);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.86).setInteractive());
+    const shell = modalShell(this, {
+      width: 820,
+      height: 640,
+      dimAlpha: 0.86,
+      tapDimToClose: false,
+      escToClose: false,
+      showClose: false,
+      depth: theme.depth.results,
+    });
+    const c = shell.container;
 
     c.add(
       this.add
-        .text(width / 2, 78, completed ? 'SUCCESS' : 'FAILURE', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '54px',
-          fontStyle: 'bold',
-          color: completed ? '#ffe08a' : '#e07078',
+        .text(640, 86, completed ? 'SUCCESS' : 'FAILURE', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.display}px`,
+          fontStyle: theme.weight.w700,
+          color: completed ? theme.colors.gold : theme.colors.dangerArmed,
         })
         .setOrigin(0.5),
     );
     c.add(
       this.add
         .text(
-          width / 2,
-          130,
+          640,
+          136,
           completed ? 'Tower cleared' : `Run ended at Rung ${failedRung ?? 1}: ${reason}`,
           {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '16px',
-            color: '#c9bde0',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.body}px`,
+            color: theme.colors.body,
+            align: 'center',
+            wordWrap: { width: 720 },
+            resolution: 2,
           },
         )
         .setOrigin(0.5),
     );
     c.add(
       this.add
-        .text(width / 2, 166, rewardLine, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '20px',
-          fontStyle: '600',
-          color: '#ffd88a',
+        .text(640, 178, rewardLine, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.h2}px`,
+          fontStyle: theme.weight.w600,
+          color: theme.colors.gold,
+          align: 'center',
+          wordWrap: { width: 740 },
+          resolution: 2,
         })
         .setOrigin(0.5),
     );
 
     const cols = 5;
-    const x0 = width / 2 - ((cols - 1) * 132) / 2;
-    const y0 = 290;
+    const x0 = 640 - ((cols - 1) * 132) / 2;
+    const y0 = 304;
     for (let rung = 1; rung <= ECONOMY.gauntletRungGold.length; rung++) {
       const col = (rung - 1) % cols;
       const row = Math.floor((rung - 1) / cols);
@@ -3608,23 +3664,18 @@ export class DuelScene extends Phaser.Scene {
       this.addGauntletRecapPortrait(c, avatarForRung(rung), rung, x0 + col * 132, y0 + row * 156, state);
     }
 
-    const mk = (x: number, label: string, cb: () => void): void => {
-      const btn = this.add
-        .text(x, 650, label, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '24px',
-          color: '#ffd88a',
-          backgroundColor: '#2c2344',
-          padding: { x: 18, y: 10 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, cb);
-      inflateHitArea(btn, 140, 78);
-      c.add(btn);
+    const mk = (x: number, label: string, variant: 'primary' | 'ghost', cb: () => void): void => {
+      const btn = themedButton(this, x, 636, label, {
+        variant,
+        minWidth: 170,
+        onTap: (p) => {
+          if (!p.rightButtonReleased()) cb();
+        },
+      });
+      c.add(btn.container);
     };
-    mk(width / 2 - 130, 'Main Menu', () => this.scene.start('MainMenu'));
-    mk(width / 2 + 130, 'Start Over', () => this.scene.start('Gauntlet'));
+    mk(510, 'Main Menu', 'ghost', () => this.scene.start('MainMenu'));
+    mk(770, 'Start Over', 'primary', () => this.scene.start('Gauntlet'));
     this.guard.open(this.overlayGuardTargets());
   }
 

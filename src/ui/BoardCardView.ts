@@ -17,32 +17,32 @@ import { theme } from './theme';
  * Container — playbook §11).
  *
  * The art window is portrait-tall (fills the tile inside a thin frame margin)
- * so a 4:5 source shows ~89% of the character rather than a cropped landscape
+ * so a 4:5 source shows ~88% of the character rather than a cropped landscape
  * band, the tile border is the card's RARITY colour, and the player's own
  * special-variant cards carry their holo finish over the art (setVariant,
  * fxPolicy-gated). P/T lives in a bottom-right badge, the name in a legibility
  * scrim along the top.
  */
 
-export const TILE_W = 132;
-export const TILE_H = 146;
+export const TILE_W = 156;
+export const TILE_H = 170;
 
 const FRAME_M = 4; // frame margin around the art window
-const ART_W = TILE_W - FRAME_M * 2; // 124
-const ART_H = TILE_H - FRAME_M * 2; // 138 — near-square window; a 4:5 source shows ~89% of its height
+const ART_W = TILE_W - FRAME_M * 2; // 148
+const ART_H = TILE_H - FRAME_M * 2; // 162 — a 4:5 source shows ~88% of its height
 const ART_CY = 0; // the window is the whole tile, so it is centred
 
 /** Art bounds in container-local space — fed to applyHolo for the finish overlay. */
 const ART_RECT = { x: -ART_W / 2, y: -ART_H / 2, w: ART_W, h: ART_H };
 
 // Name legibility scrim + text along the top of the art.
-const NAME_CY = -50;
 const NAME_H = 22;
+const NAME_CY = -TILE_H / 2 + FRAME_M + 8 + NAME_H / 2;
 // P/T badge, bottom-right corner, overlaid on the art.
 const PT_W = 40;
 const PT_H = 20;
-const PT_CX = TILE_W / 2 - FRAME_M - PT_W / 2; // +42
-const PT_CY = TILE_H / 2 - FRAME_M - PT_H / 2; // +59
+const PT_CX = TILE_W / 2 - FRAME_M - PT_W / 2;
+const PT_CY = TILE_H / 2 - FRAME_M - PT_H / 2;
 const TRAIT_SIZE = 16;
 const TRAIT_GAP = 2;
 const TRAIT_INSET = 4;
@@ -173,7 +173,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
 
     // Art: cover-crop the 4:5 source into the tall window, biased slightly
     // upward so faces (composition-locked near vertical center) stay in frame.
-    // The window is near-square, so the crop keeps ~89% of the source height.
+    // The window is portrait-tall, so the crop keeps ~88% of the source height.
     const artRef = Art.resolver!.getArt(card.id);
     this.art = artRef.frameName
       ? scene.add.image(0, ART_CY, artRef.textureKey, artRef.frameName)

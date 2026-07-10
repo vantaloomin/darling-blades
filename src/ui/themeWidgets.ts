@@ -19,6 +19,7 @@ export interface ThemedButton {
   label: Phaser.GameObjects.Text;
   inputZone: Phaser.GameObjects.Zone;
   setLabel(label: string): void;
+  setVariant(variant: ButtonVariant): void;
   setEnabled(enabled: boolean): void;
 }
 
@@ -39,7 +40,7 @@ export function themedButton(
 ): ThemedButton {
   const variant = opts.variant ?? 'ghost';
   const size = opts.size ?? 'md';
-  const style = BUTTON_STYLE[variant];
+  let style = BUTTON_STYLE[variant];
   const height = size === 'sm' ? 30 : 40;
   const padding = size === 'sm' ? theme.space(2) : theme.space(3);
   const fontSize = size === 'sm' ? theme.type.caption : theme.type.label;
@@ -79,6 +80,11 @@ export function themedButton(
     label.setText(next);
     redraw();
   };
+  const setVariant = (next: ButtonVariant): void => {
+    style = BUTTON_STYLE[next];
+    label.setColor(style.fg);
+    redraw();
+  };
 
   bindTapButton(scene, inputZone, (pointer) => {
     if (enabled) opts.onTap?.(pointer);
@@ -90,7 +96,7 @@ export function themedButton(
   redraw();
   setEnabled(enabled);
 
-  return { container, background, label, inputZone, setLabel, setEnabled };
+  return { container, background, label, inputZone, setLabel, setVariant, setEnabled };
 }
 
 export interface PanelOptions {
@@ -120,6 +126,9 @@ export interface ModalShellOptions {
   height: number;
   x?: number;
   y?: number;
+  dimAlpha?: number;
+  escToClose?: boolean;
+  depth?: number;
   showClose?: boolean;
   tapDimToClose?: boolean;
   onClose?: () => void;
@@ -138,13 +147,14 @@ export interface ModalShell {
 export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalShell {
   const x = opts.x ?? 640;
   const y = opts.y ?? 360;
-  const dim = scene.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, theme.alpha.overlayDim);
+  const dim = scene.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, opts.dimAlpha ?? theme.alpha.overlayDim);
   const chrome = panel(scene, x - opts.width / 2, y - opts.height / 2, opts.width, opts.height);
-  const container = scene.add.container(0, 0, [dim, chrome]).setDepth(theme.depth.modal);
+  const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
   const interactiveChildren: Phaser.GameObjects.GameObject[] = [];
+  const escToClose = opts.escToClose ?? true;
   let closed = false;
   const cleanup = (): void => {
-    scene.input.keyboard?.off('keydown-ESC', close);
+    if (escToClose) scene.input.keyboard?.off('keydown-ESC', close);
   };
   const close = (): void => {
     if (closed) return;
@@ -156,9 +166,13 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
 
   if (opts.tapDimToClose) {
     dim.setInteractive({ useHandCursor: true });
-    bindTapButton(scene, dim, close);
-    interactiveChildren.push(dim);
+    bindTapButton(scene, dim, (pointer) => {
+      if (!pointer.rightButtonReleased()) close();
+    });
+  } else {
+    dim.setInteractive();
   }
+  interactiveChildren.push(dim);
   let closeButton: ThemedButton | undefined;
   if (opts.showClose ?? true) {
     closeButton = themedButton(scene, x + opts.width / 2 - theme.space(4), y - opts.height / 2 + theme.space(4), '×', {
@@ -170,7 +184,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     container.add(closeButton.container);
     interactiveChildren.push(closeButton.inputZone);
   }
-  scene.input.keyboard?.on('keydown-ESC', close);
+  if (escToClose) scene.input.keyboard?.on('keydown-ESC', close);
   container.once('destroy', cleanup);
   return { container, dim, panel: chrome, closeButton, interactiveChildren, close };
 }
