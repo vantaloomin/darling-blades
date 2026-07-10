@@ -154,6 +154,13 @@ both plates stop at x1046 with creature rows centered at x577/860, your mana
 pips right-align to x1014, the opponent plate rises to y40 with lands/pips at
 y78, the banner moves to y74, and the combat forecast moves to y130.
 
+> **Execution contracts for Waves 2–3** (current geometry table, honest
+> tile-size budget, PR batching, Codex ops recipe) live in
+> [plan-ui-refresh-wave2-wave3-impl.md](plan-ui-refresh-wave2-wave3-impl.md)
+> — the session-handoff doc. Note Wave 1.5 already absorbed Wave 2's
+> opponent identity block, phase ribbon, and control-cluster grouping; what
+> remains is tiles + in-duel modals.
+
 ## Wave 2 — play-field hierarchy + larger tiles (geometry, duel only)
 
 The one wave that moves audited coordinates; each move re-derives its
