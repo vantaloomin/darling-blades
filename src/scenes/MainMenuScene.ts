@@ -17,9 +17,10 @@ import {
 } from '../meta/Quests';
 import { Services } from '../meta/services';
 import { IS_DEV } from '../platform/env';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { colorInt, theme } from '../ui/theme';
+import { goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL } from '../version';
 
 const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
@@ -36,7 +37,7 @@ const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
 ];
 
 export class MainMenuScene extends Phaser.Scene {
-  private menuItems: Phaser.GameObjects.Text[] = [];
+  private menuItems: Phaser.GameObjects.GameObject[] = [];
   private guard = new ModalGuard();
 
   constructor() {
@@ -52,16 +53,16 @@ export class MainMenuScene extends Phaser.Scene {
     const width = 1280;
 
     // Backdrop first so all UI renders above it (docs/scene-art.md §3). No
-    // real art → the scene keeps its bare #0d0a14 clear colour (the canvas
+    // real art → the scene keeps its bare clear colour (the canvas
     // backgroundColor); today's look is unchanged.
     applyBackdrop(this, 'mainmenu', {
-      dim: 0x0d0a14,
+      dim: theme.graphics.dim,
       // 0.50, raised from the 0.35 starting point (2026-07-03): the generated
       // vista's horizon glow reaches the bottom menu items; 0.35 left the
       // central column at ~35% luminance vs the ≤28% cap (scene-art.md §2).
       dimAlpha: 0.5,
       fallback: () => {
-        /* scene had no background of its own — the #0d0a14 clear shows */
+        /* scene had no background of its own — the clear colour shows */
       },
     });
 
@@ -84,94 +85,48 @@ export class MainMenuScene extends Phaser.Scene {
 
     this.add
       .text(width / 2, 140, 'Darling Blades', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '72px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.displayXL}px`,
+        color: theme.colors.heading,
       })
       .setOrigin(0.5);
 
     this.add
       .text(width / 2, 205, 'Three Kingdoms · Olympus · The Wilds', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '20px',
-        color: '#8f83a8',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h2}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0.5);
 
-    this.add
-      .text(width - 30, 30, `🪙 ${Services.save.data.gold}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '20px',
-        fontStyle: '600',
-        color: '#ffd88a',
-      })
-      .setOrigin(1, 0.5);
+    goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
 
     // Settings entry: a gear under the gold counter (the 8-row menu list is
     // full). The gold text above is non-interactive, so the 90px inflated hit
     // rect has no interactive neighbor to collide with. It joins menuItems so
     // the starter-picker ModalGuard disables it too. (The old VolumeControl
     // widget is gone — SettingsScene owns all audio controls now.)
-    const gear = this.add
-      .text(width - 30, 82, '⚙ Settings', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '20px',
-        color: '#c9bde0',
-      })
-      .setOrigin(1, 0.5)
-      .setInteractive({ useHandCursor: true });
-    gear.on('pointerover', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) gear.setColor('#ffd700');
+    const gear = themedButton(this, width - 90, 82, '⚙ Settings', {
+      variant: 'ghost', size: 'sm', minWidth: 130, onTap: () => this.scene.start('Settings'),
     });
-    gear.on('pointerout', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) gear.setColor('#c9bde0');
-    });
-    bindTapButton(this, gear, () => this.scene.start('Settings'));
-    inflateHitArea(gear, 90, 90);
-    this.menuItems.push(gear);
+    this.menuItems.push(gear.inputZone);
 
     // Profile entry: top-left corner, balancing the top-right gold+gear cluster.
     // Like the gear, it lives in the corner because the 8-row menu list is full;
     // joins menuItems so the starter-picker ModalGuard disables it too.
-    const profile = this.add
-      .text(30, 30, '👤 Profile', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '20px',
-        color: '#c9bde0',
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive({ useHandCursor: true });
-    profile.on('pointerover', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) profile.setColor('#ffd700');
+    const profile = themedButton(this, 90, 30, '👤 Profile', {
+      variant: 'ghost', size: 'sm', minWidth: 120, onTap: () => this.scene.start('Profile'),
     });
-    profile.on('pointerout', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) profile.setColor('#c9bde0');
-    });
-    bindTapButton(this, profile, () => this.scene.start('Profile'));
-    inflateHitArea(profile, 90, 90);
-    this.menuItems.push(profile);
+    this.menuItems.push(profile.inputZone);
 
     // "How to Play" — replay the optional tutorial anytime (top-left, under
     // Profile, mirroring ⚙ Settings on the right). Makes skipping reversible
     // (docs/plan-road-to-1.0.md Feature 1). Joins menuItems so the starter
     // picker's ModalGuard deadens it too.
-    const howto = this.add
-      .text(30, 82, '❔ How to Play', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '20px',
-        color: '#c9bde0',
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive({ useHandCursor: true });
-    howto.on('pointerover', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) howto.setColor('#ffd700');
+    const howto = themedButton(this, 100, 82, '❔ How to Play', {
+      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.startTutorial(),
     });
-    howto.on('pointerout', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) howto.setColor('#c9bde0');
-    });
-    bindTapButton(this, howto, () => this.startTutorial());
-    inflateHitArea(howto, 90, 90);
-    this.menuItems.push(howto);
+    this.menuItems.push(howto.inputZone);
 
     this.drawDailyPanel(today);
 
@@ -181,42 +136,30 @@ export class MainMenuScene extends Phaser.Scene {
     const menuX = 360;
     const firstY = items.length > 8 ? 268 : 286;
     const pitchY = items.length > 8 ? 42 : 50;
-    const itemFont = items.length > 8 ? '26px' : '28px';
     items.forEach((entry, i) => {
       const label =
         entry.scene === 'Achievements' && claimableAchievements > 0
           ? `${entry.label} (${claimableAchievements})`
           : entry.label;
-      const item = this.add
-        .text(menuX, firstY + i * pitchY, label, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: itemFont,
-          color: '#c9bde0',
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
+      const item = themedButton(this, menuX, firstY + i * pitchY, label, {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: 300,
+        onTap: () => entry.scene && this.scene.start(entry.scene, entry.data),
+      });
 
-      item.on('pointerover', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) item.setColor('#ffd700');
-      });
-      item.on('pointerout', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) item.setColor('#c9bde0');
-      });
-      if (entry.scene) {
-        bindTapButton(this, item, () => this.scene.start(entry.scene!, entry.data));
-      }
+      
       // Hit boxes fill the full 56px row pitch (the audited 15px dead gaps
       // between rows are the fix column's target — plan §1.4).
-      inflateHitArea(item, 90, pitchY);
-      this.menuItems.push(item);
+      this.menuItems.push(item.inputZone);
     });
 
     // Build identity, bottom-left corner (non-interactive, low-contrast). The
     // Settings screen hosts the on-demand "Check for updates" action.
     this.add.text(14, 702, VERSION_LABEL, {
-      fontFamily: 'Inter, Arial, sans-serif',
-      fontSize: '13px',
-      color: '#6a6482',
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.caption}px`,
+      color: theme.colors.muted,
     });
 
     if (!Services.save.data.tutorialDone) this.promptTutorial();
@@ -231,22 +174,18 @@ export class MainMenuScene extends Phaser.Scene {
     const y = 250;
     const w = 540;
     const h = 380;
-    const g = this.add.graphics();
-    g.fillStyle(0x130f22, 0.86);
-    g.lineStyle(1, 0x4e4266, 0.85);
-    g.fillRoundedRect(x, y, w, h, 8);
-    g.strokeRoundedRect(x, y, w, h, 8);
+    panel(this, x, y, w, h, { alpha: 0.86 });
 
     this.add.text(x + 24, y + 22, 'Daily Blades', {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '26px',
-      color: '#f0e6ff',
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h1}px`,
+      color: theme.colors.heading,
     });
     this.add
       .text(x + w - 24, y + 25, `Rerolls ${rerollsLeft}/${ECONOMY.dailyRerollsPerDay}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        color: '#a89cc6',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(1, 0);
 
@@ -254,45 +193,42 @@ export class MainMenuScene extends Phaser.Scene {
       ? `Streak ${streak.count} - win locked in`
       : `Streak ${streak.count} - next win +${streak.nextGold}`;
     this.add.text(x + 24, y + 55, streakText, {
-      fontFamily: 'Inter, Arial, sans-serif',
-      fontSize: '15px',
-      color: streak.wonToday ? '#9be6a8' : '#ffd88a',
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.label}px`,
+      color: streak.wonToday ? theme.colors.success : theme.colors.gold,
     });
 
     quests.forEach((quest, i) => {
       const rowY = y + 86 + i * 92;
       const rowH = 78;
-      g.fillStyle(0x211a34, 0.78);
-      g.lineStyle(1, 0x3a3151, 0.85);
-      g.fillRoundedRect(x + 18, rowY, w - 36, rowH, 6);
-      g.strokeRoundedRect(x + 18, rowY, w - 36, rowH, 6);
+      panel(this, x + 18, rowY, w - 36, rowH, { alpha: 0.78, radius: theme.radius.control });
 
       this.add.text(x + 34, rowY + 10, quest.title, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '18px',
-        color: quest.claimed ? '#8f83a8' : '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.label}px`,
+        color: quest.claimed ? theme.colors.muted : theme.colors.heading,
       });
       this.add.text(x + 34, rowY + 35, quest.description, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#a89cc6',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
       });
 
       const barX = x + 34;
       const barY = rowY + 61;
       const barW = 278;
       const fillW = Math.round((barW * Math.min(quest.progress, quest.target)) / quest.target);
-      g.fillStyle(0x3a3151, 1);
-      g.fillRoundedRect(barX, barY, barW, 8, 4);
+      const progress = this.add.graphics().fillStyle(colorInt(theme.colors.panelStroke), 1);
+      progress.fillRoundedRect(barX, barY, barW, 8, 4);
       if (fillW > 0) {
-        g.fillStyle(quest.complete ? 0x9be6a8 : 0xffd88a, 1);
-        g.fillRoundedRect(barX, barY, fillW, 8, 4);
+        progress.fillStyle(colorInt(quest.complete ? theme.colors.success : theme.colors.gold), 1);
+        progress.fillRoundedRect(barX, barY, fillW, 8, 4);
       }
       this.add
         .text(barX + barW + 12, barY - 5, `${Math.min(quest.progress, quest.target)}/${quest.target}`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '13px',
-          color: '#cbc2e0',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.body,
         })
         .setOrigin(0, 0);
 
@@ -301,9 +237,9 @@ export class MainMenuScene extends Phaser.Scene {
       if (quest.claimed) {
         this.add
           .text(buttonX, buttonY, 'Claimed', {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '14px',
-            color: '#7dd3a8',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            color: theme.colors.success,
           })
           .setOrigin(0.5);
       } else if (quest.complete) {
@@ -324,38 +260,23 @@ export class MainMenuScene extends Phaser.Scene {
       } else {
         this.add
           .text(buttonX, buttonY, 'No rerolls', {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '13px',
-            color: '#7b708f',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.muted,
           })
           .setOrigin(0.5);
       }
     });
   }
 
-  private dailyButton(x: number, y: number, label: string, primary: boolean, cb: () => void): Phaser.GameObjects.Text {
-    const btn = this.add
-      .text(x, y, label, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '14px',
-        fontStyle: '700',
-        color: primary ? '#241500' : '#f0e6ff',
-        backgroundColor: primary ? '#ffd88a' : '#2c2344',
-        padding: { x: 12, y: 8 },
-        align: 'center',
-      })
-      .setOrigin(0.5)
-      .setFixedSize(112, 34)
-      .setInteractive({ useHandCursor: true });
-    btn.on('pointerover', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) btn.setColor(primary ? '#000000' : '#ffd700');
+  private dailyButton(x: number, y: number, label: string, primary: boolean, cb: () => void): ThemedButton {
+    const btn = themedButton(this, x, y, label, {
+      variant: primary ? 'primary' : 'ghost',
+      size: 'sm',
+      minWidth: 112,
+      onTap: cb,
     });
-    btn.on('pointerout', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) btn.setColor(primary ? '#241500' : '#f0e6ff');
-    });
-    bindTapButton(this, btn, cb);
-    inflateHitArea(btn, 90, 60);
-    this.menuItems.push(btn);
+    this.menuItems.push(btn.inputZone);
     return btn;
   }
 
@@ -370,13 +291,13 @@ export class MainMenuScene extends Phaser.Scene {
     const width = 1280;
     const height = 720;
     const c = this.add.container(0, 0).setDepth(100);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x0a0812, 0.92).setInteractive());
+    c.add(this.add.rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.overlayDim).setInteractive());
     c.add(
       this.add
         .text(width / 2, 250, 'New to card games?', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '40px',
-          color: '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.display}px`,
+          color: theme.colors.heading,
         })
         .setOrigin(0.5),
     );
@@ -389,9 +310,9 @@ export class MainMenuScene extends Phaser.Scene {
             'You get the same starting bonus either way, so skipping costs you nothing.\n' +
             'You can replay it anytime from "How to Play".',
           {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '17px',
-            color: '#a89cc6',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.body}px`,
+            color: theme.colors.muted,
             align: 'center',
             lineSpacing: 6,
           },
@@ -399,19 +320,12 @@ export class MainMenuScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
     const mk = (x: number, label: string, primary: boolean, cb: () => void): void => {
-      const btn = this.add
-        .text(x, 420, label, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '24px',
-          color: primary ? '#ffd88a' : '#c9bde0',
-          backgroundColor: primary ? '#2c2344' : '#241d3a',
-          padding: { x: 20, y: 12 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, btn, cb);
-      inflateHitArea(btn, 90, 90);
-      c.add(btn);
+      const btn = themedButton(this, x, 420, label, {
+        variant: primary ? 'primary' : 'ghost',
+        minWidth: 180,
+        onTap: cb,
+      });
+      c.add(btn.container);
     };
     mk(width / 2 - 130, 'Start Tutorial', true, () => this.startTutorial());
     mk(width / 2 + 130, 'Skip', false, () => this.skipTutorial());

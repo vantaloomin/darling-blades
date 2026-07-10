@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-ui-ux-refresh.md, docs/architecture.md, src/scenes/DuelScene.ts, src/ui/BoardCardView.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/phaseTrack.ts, src/ui/KeywordIcons.ts, src/ui/LandStackView.ts, src/ui/handFan.ts, src/meta/SaveManager.ts, src/scenes/SettingsScene.ts, src/scenes/DeckBuilderScene.ts, docs/claude-playbook.md · last-verified: 2026-07-09 · implementation contract — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-ui-ux-refresh.md, docs/architecture.md, src/scenes/DuelScene.ts, src/ui/BoardCardView.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/phaseTrack.ts, src/ui/KeywordIcons.ts, src/ui/LandStackView.ts, src/ui/handFan.ts, src/meta/SaveManager.ts, src/scenes/SettingsScene.ts, src/scenes/DeckBuilderScene.ts, docs/claude-playbook.md · last-verified: 2026-07-10 · implementation contract — re-verify when the referenced code changes -->
 
 # UI refresh — Wave 2 & Wave 3 implementation contracts
 
@@ -17,7 +17,11 @@ plates, right sidebar (PR #44) · turn-pill/life-corner refinements (PR #45)
 · **Wave 2** larger tiles (156×170 @ cy 389, pure unit-tested
 `src/ui/rowPacking.ts`) + in-duel pause/end screens on `modalShell`
 (which gained `dimAlpha`/`escToClose`/`depth` and an always-swallowing
-dim; `themedButton` gained `setVariant`).
+dim; `themedButton` gained `setVariant`) — PR #47.
+Wave 3 execution status (2026-07-10): PR A (DeckBuilder, zero hex
+literals, −125 lines) and PR B (Shop/MainMenu/PackOpening, zero hex
+literals, −209 lines) implemented on branches stacked on the Wave 2
+branch, ladders green, awaiting the PR-#47 merge to open serially.
 
 Shared modules that now exist and MUST be consumed (no new hex literals):
 `src/ui/theme.ts` (tokens; Phaser-free import), `src/ui/themeWidgets.ts`
