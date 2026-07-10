@@ -710,7 +710,15 @@ _Dated 2026-07-04. Review monthly._
   life squares; execution record in
   [plan-ui-refresh-wave2-wave3-impl.md](plan-ui-refresh-wave2-wave3-impl.md)).
   The Settings toggles closed the last QOL follow-up below.
-- **Limited public release (post-1.0, with a future expansion).** The full
+- **The 1.1 program (scoped 2026-07-10, post-1.0-cut).**
+  [plan-1.1.md](plan-1.1.md) is the spec. Locked picks: **Celtic Fae** is the
+  next expansion (80 cards; needs new engine surface — an exile zone + scry —
+  before card data), **Limited releases with it**, **Commander mode** and
+  **MOD/UGC packs** are the 1.1 systems, the tower gets a **seeded daily
+  rotation**, and the base facet gets a clarity **relabel** (data stays
+  disjoint). Deterministic replays and Tier-2 LAN PvP shelve to 1.2+.
+- **Limited public release (post-1.0, with a future expansion; now part of
+  the 1.1 program above).** The full
   Sealed/Bot-Draft implementation (v14 save block, `src/meta/Limited.ts`, four
   scenes, tests) stays in the codebase but is unreachable from MainMenu
   (PR #54). User decision 2026-07-10: it ships in its own release after more
@@ -718,9 +726,11 @@ _Dated 2026-07-04. Review monthly._
   balance harness, run-reward tuning) and general flow polish. Re-enabling is
   one MainMenu entry plus a browser-preview probe of both run types
   end-to-end. Blocker detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
-- **Design plans authored 2026-07-05 (awaiting build go/no-go).** Four
-  senior-level design docs are ready to implement, each grounded in the current
-  code and respecting the iron invariants:
+- **Design plans authored 2026-07-05.** Four senior-level design docs, each
+  grounded in the current code and respecting the iron invariants —
+  **Commander mode and MOD/UGC were greenlit into the 1.1 program
+  2026-07-10** (see above); the keyword-retheme and road-to-1.0 plans have
+  shipped:
   - [Commander mode + 8 themed decks](plan-commander-mode.md) — a
     Darling-Blades EDH-lite format (singleton, one legendary commander) layered
     into `src/data`/`src/meta`/`src/scenes` with no engine change.

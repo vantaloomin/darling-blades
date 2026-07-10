@@ -2,6 +2,15 @@
 
 # Post-launch (v1.1) — deferred backlog
 
+> **Update (2026-07-10, post-1.0-cut):** the 1.1 program is now scoped in
+> [plan-1.1.md](plan-1.1.md), and the user made the calls this doc was
+> waiting on: **Feature 1 (opponent picker) is scheduled into 1.1**;
+> **Feature 3 is decided — seeded daily rotation — and scheduled** (with its
+> balance re-baseline); **Feature 4 is decided — relabel only, data stays
+> disjoint — and scheduled**; **Feature 5 (Limited) releases with the Celtic
+> Fae expansion in 1.1**. Feature 2 (drag-reorder) remains unscheduled. The
+> detailed analyses below stay authoritative for implementation.
+
 The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md), and as
 of 2026-07-08 all five of its features are shipped (tutorial, achievements,
 daily quests + streaks, Sealed/Draft Limited, and deck share codes); what
