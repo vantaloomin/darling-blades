@@ -24,6 +24,8 @@ const LABEL_H = 22;
 export interface CommanderPortraitOpts {
   width: number;
   height: number;
+  /** Which screen edge the pinned portrait descends from. */
+  edge?: 'bottom' | 'top';
   /** Card whose art fills the frame; null renders frame + label only. */
   cardId: string | null;
   /**
@@ -50,12 +52,16 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     super(scene, x, y);
     const w = opts.width;
     const h = opts.height;
+    const edge = opts.edge ?? 'bottom';
     this.frameW = w;
 
     // Plate + border in the duel HUD family (DuelScene's bottom-left HUD
-    // plate: 0x1d1636 @ 0.92 with a 1px 0x3a2f5c stroke). Rounded at the TOP
-    // only — the square bottom is what sells "rising from the screen edge".
-    const corners = { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 };
+    // plate: 0x1d1636 @ 0.92 with a 1px 0x3a2f5c stroke). The bottom-edge
+    // variant rises from the screen floor; the top-edge variant descends from
+    // the ceiling, so its rounded corners flip to the bottom.
+    const corners = edge === 'bottom'
+      ? { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 }
+      : { tl: 0, tr: 0, bl: CORNER_R, br: CORNER_R };
     const plate = scene.add.graphics();
     plate.fillStyle(0x1d1636, 0.92);
     plate.fillRoundedRect(0, 0, w, h, corners);
@@ -73,16 +79,14 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     // constructor x/y — this panel is pinned, DuelScene never moves it).
     // LIMITATION: if the container were ever moved/tweened, the mask would
     // stay behind and the shape would need redrawing at the new position.
-    // Rounded top corners on the mask keep the art from poking square corners
-    // past the plate's rounded outline.
+    // The bottom-edge variant needs rounded top art corners. For the top-edge
+    // variant, the bottom label plate owns the rounded outer corners instead.
+    const maskCorners = edge === 'bottom'
+      ? { tl: CORNER_R - INSET, tr: CORNER_R - INSET, bl: 0, br: 0 }
+      : { tl: 0, tr: 0, bl: 0, br: 0 };
     this.maskGfx = scene.add.graphics().setVisible(false);
     this.maskGfx.fillStyle(0xffffff, 1);
-    this.maskGfx.fillRoundedRect(x + INSET, y + INSET, artW, artH, {
-      tl: CORNER_R - INSET,
-      tr: CORNER_R - INSET,
-      bl: 0,
-      br: 0,
-    });
+    this.maskGfx.fillRoundedRect(x + INSET, y + INSET, artW, artH, maskCorners);
     this.geoMask = this.maskGfx.createGeometryMask();
 
     if (opts.textureKey && scene.textures.exists(opts.textureKey)) {
@@ -102,10 +106,20 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       .setAlpha(0)
       .setMask(this.geoMask);
 
-    // Bottom label plate with a gold hairline on top, HUD seam-style.
+    // Bottom label plate with a gold hairline on top, HUD seam-style. Its
+    // lower corners continue the top-edge frame's downward-facing rounding.
     const labelPlate = scene.add.graphics();
     labelPlate.fillStyle(0x161226, 0.94);
-    labelPlate.fillRect(1, h - LABEL_H, w - 2, LABEL_H - 1);
+    if (edge === 'top') {
+      labelPlate.fillRoundedRect(1, h - LABEL_H, w - 2, LABEL_H - 1, {
+        tl: 0,
+        tr: 0,
+        bl: CORNER_R - 1,
+        br: CORNER_R - 1,
+      });
+    } else {
+      labelPlate.fillRect(1, h - LABEL_H, w - 2, LABEL_H - 1);
+    }
     labelPlate.fillStyle(0x8a6d1f, 0.55);
     labelPlate.fillRect(1, h - LABEL_H, w - 2, 1);
 
