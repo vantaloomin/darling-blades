@@ -18,10 +18,16 @@ plates, right sidebar (PR #44) · turn-pill/life-corner refinements (PR #45)
 `src/ui/rowPacking.ts`) + in-duel pause/end screens on `modalShell`
 (which gained `dimAlpha`/`escToClose`/`depth` and an always-swallowing
 dim; `themedButton` gained `setVariant`) — PR #47.
-Wave 3 execution status (2026-07-10): PR A (DeckBuilder, zero hex
-literals, −125 lines) and PR B (Shop/MainMenu/PackOpening, zero hex
-literals, −209 lines) implemented on branches stacked on the Wave 2
-branch, ladders green, awaiting the PR-#47 merge to open serially.
+Wave 3 execution status (2026-07-10): ALL FOUR batches implemented on
+branches stacked serially on the Wave 2 branch, every ladder green,
+zero hex literals in every migrated scene, awaiting the PR-#47 merge
+to open the PRs one by one: PR A DeckBuilder (−125 lines) · PR B
+Shop/MainMenu/PackOpening (−209) · PR C Collection/Gauntlet/
+Achievements/Profile (−113, one row recipe, 0.70/0.32 calibrations
+kept) · PR D Settings two-column + both QOL toggles round-trip-probed
+(single-tap concede honored live) + Limited×4 + CardShowcase.
+LimitedReveal/Draft verified by review only (probing needs an active
+run, which would mutate the save); flagged for eyes on deploy.
 
 Shared modules that now exist and MUST be consumed (no new hex literals):
 `src/ui/theme.ts` (tokens; Phaser-free import), `src/ui/themeWidgets.ts`

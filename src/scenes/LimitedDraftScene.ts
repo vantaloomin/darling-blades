@@ -13,6 +13,8 @@ import {
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { theme } from '../ui/theme';
+import { panel, themedButton } from '../ui/themeWidgets';
 
 export class LimitedDraftScene extends Phaser.Scene {
   private selectedId: string | null = null;
@@ -28,11 +30,17 @@ export class LimitedDraftScene extends Phaser.Scene {
     const width = 1280;
     const height = 720;
     applyBackdrop(this, 'packopening', {
-      dim: 0x0b0812,
+      dim: theme.graphics.dim,
       dimAlpha: 0.62,
       fallback: (scene) => {
         const g = scene.add.graphics();
-        g.fillGradientStyle(0x1c1230, 0x1c1230, 0x0b0812, 0x0b0812, 1);
+        g.fillGradientStyle(
+          theme.graphics.panelFill,
+          theme.graphics.panelFill,
+          theme.graphics.dim,
+          theme.graphics.dim,
+          1,
+        );
         g.fillRect(0, 0, width, height);
       },
     });
@@ -57,9 +65,9 @@ export class LimitedDraftScene extends Phaser.Scene {
     const pack = currentDraftPack(run.draft);
     this.add
       .text(width / 2, 46, 'Bot Draft', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '44px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.display}px`,
+        color: theme.colors.heading,
       })
       .setOrigin(0.5);
     this.add
@@ -68,25 +76,33 @@ export class LimitedDraftScene extends Phaser.Scene {
         82,
         `Pack ${run.draft.packIndex + 1}/3 - Pick ${run.draft.pickIndex + 1}/${pack.length + run.draft.pickIndex} - passing ${draftDirection(run.draft.packIndex)}`,
         {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '16px',
-          color: '#a89cc6',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.muted,
         },
       )
       .setOrigin(0.5);
 
     this.add.text(70, 116, 'Current Pack', {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '24px',
-      color: '#ffd88a',
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h2}px`,
+      color: theme.colors.gold,
     });
     pack.forEach((id, i) => this.cardButton(70 + (i % 3) * 250, 154 + Math.floor(i / 3) * 44, id));
 
     this.drawPicked(run);
     this.drawDetail(run);
 
-    this.button(1015, 626, 'Pick Selected', true, () => this.confirmPick(run));
-    this.button(1160, 626, 'Hub', false, () => this.scene.start('Limited'));
+    themedButton(this, 1015, 626, 'Pick Selected', {
+      variant: 'primary',
+      minWidth: 180,
+      onTap: () => this.confirmPick(run),
+    });
+    themedButton(this, 1160, 626, 'Hub', {
+      variant: 'ghost',
+      minWidth: 100,
+      onTap: () => this.scene.start('Limited'),
+    });
   }
 
   private cardButton(x: number, y: number, id: string): void {
@@ -94,11 +110,11 @@ export class LimitedDraftScene extends Phaser.Scene {
     const label = `${card.rarity.toUpperCase()} ${short(card.name, 22)}`;
     const btn = this.add
       .text(x, y, label, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '14px',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
         fontStyle: '700',
-        color: '#f0e6ff',
-        backgroundColor: '#241d3a',
+        color: theme.colors.heading,
+        backgroundColor: theme.colors.btnGhostBg,
         padding: { x: 10, y: 7 },
       })
       .setFixedSize(225, 34)
@@ -113,24 +129,25 @@ export class LimitedDraftScene extends Phaser.Scene {
   private drawPicked(run: LimitedRun): void {
     const x = 70;
     const y = 410;
-    const g = this.add.graphics();
-    g.fillStyle(0x130f22, 0.88);
-    g.lineStyle(1, 0x4e4266, 0.9);
-    g.fillRoundedRect(x, y, 730, 210, 8);
-    g.strokeRoundedRect(x, y, 730, 210, 8);
+    panel(this, x, y, 730, 210);
     this.add.text(x + 18, y + 16, `Your Picks (${run.draft?.picks[0].length ?? 0})`, {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '22px',
-      color: '#f0e6ff',
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h2}px`,
+      color: theme.colors.heading,
     });
     const picks = [...(run.draft?.picks[0] ?? [])].reverse().slice(0, 18);
     picks.forEach((id, i) => {
       const card = def(CARD_DB, id);
-      this.add.text(x + 18 + (i % 3) * 230, y + 54 + Math.floor(i / 3) * 24, `${card.rarity.toUpperCase()} ${short(card.name, 20)}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#a89cc6',
-      });
+      this.add.text(
+        x + 18 + (i % 3) * 230,
+        y + 54 + Math.floor(i / 3) * 24,
+        `${card.rarity.toUpperCase()} ${short(card.name, 20)}`,
+        {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.muted,
+        },
+      );
     });
   }
 
@@ -139,19 +156,14 @@ export class LimitedDraftScene extends Phaser.Scene {
     const x = 840;
     const y = 140;
     const c = this.add.container(0, 0);
-    const g = this.add.graphics();
-    g.fillStyle(0x130f22, 0.9);
-    g.lineStyle(1, 0x4e4266, 0.9);
-    g.fillRoundedRect(x, y, 370, 450, 8);
-    g.strokeRoundedRect(x, y, 370, 450, 8);
-    c.add(g);
+    c.add(panel(this, x, y, 370, 450));
 
     if (!this.selectedId) {
       c.add(
         this.add.text(x + 22, y + 24, 'Select a card from the pack.', {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '17px',
-          color: '#a89cc6',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.muted,
         }),
       );
       this.detail = c;
@@ -159,61 +171,60 @@ export class LimitedDraftScene extends Phaser.Scene {
     }
 
     const card = def(CARD_DB, this.selectedId);
-    c.add(this.add.text(x + 22, y + 22, card.name, {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '24px',
-      color: '#ffd88a',
-      wordWrap: { width: 326 },
-    }));
-    c.add(this.add.text(x + 22, y + 82, detailLine(this.selectedId), {
-      fontFamily: 'Inter, Arial, sans-serif',
-      fontSize: '15px',
-      color: '#f0e6ff',
-      wordWrap: { width: 326 },
-    }));
-    c.add(this.add.text(x + 22, y + 122, card.keywords?.join(', ') || 'No keyword abilities', {
-      fontFamily: 'Inter, Arial, sans-serif',
-      fontSize: '14px',
-      color: '#a89cc6',
-      wordWrap: { width: 326 },
-    }));
-    c.add(this.add.text(x + 22, y + 168, card.flavor ?? '', {
-      fontFamily: 'Inter, Arial, sans-serif',
-      fontSize: '14px',
-      fontStyle: 'italic',
-      color: '#8f83a8',
-      wordWrap: { width: 326 },
-    }));
-    c.add(this.add.text(x + 22, y + 360, `Seat 1 pool: ${run.draft?.picks[0].length ?? 0} cards`, {
-      fontFamily: 'Inter, Arial, sans-serif',
-      fontSize: '14px',
-      color: '#c9bde0',
-    }));
+    c.add(
+      this.add.text(x + 22, y + 22, card.name, {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h2}px`,
+        color: theme.colors.gold,
+        wordWrap: { width: 326 },
+      }),
+    );
+    c.add(
+      this.add.text(x + 22, y + 82, detailLine(this.selectedId), {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.heading,
+        wordWrap: { width: 326 },
+      }),
+    );
+    c.add(
+      this.add.text(x + 22, y + 122, card.keywords?.join(', ') || 'No keyword abilities', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
+        wordWrap: { width: 326 },
+      }),
+    );
+    c.add(
+      this.add.text(x + 22, y + 168, card.flavor ?? '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        fontStyle: 'italic',
+        color: theme.colors.muted,
+        wordWrap: { width: 326 },
+      }),
+    );
+    c.add(
+      this.add.text(x + 22, y + 360, `Seat 1 pool: ${run.draft?.picks[0].length ?? 0} cards`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.body,
+      }),
+    );
     this.detail = c;
   }
 
   private confirmPick(run: LimitedRun): void {
     if (!this.selectedId || !run.draft) return;
-    const updated: LimitedRun = { ...run, draft: pickDraftCard(CARD_DB, run.draft, this.selectedId) };
-    Services.save.data.limited.activeRun = updated.draft?.completed ? completeDraftRun(CARD_DB, updated) : updated;
+    const updated: LimitedRun = {
+      ...run,
+      draft: pickDraftCard(CARD_DB, run.draft, this.selectedId),
+    };
+    Services.save.data.limited.activeRun = updated.draft?.completed
+      ? completeDraftRun(CARD_DB, updated)
+      : updated;
     Services.save.flush();
     this.scene.start(updated.draft?.completed ? 'LimitedDeckBuilder' : 'LimitedDraft');
-  }
-
-  private button(x: number, y: number, label: string, primary: boolean, cb: () => void): Phaser.GameObjects.Text {
-    const btn = this.add
-      .text(x, y, label, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '22px',
-        color: primary ? '#ffd88a' : '#c9bde0',
-        backgroundColor: primary ? '#2c2344' : '#241d3a',
-        padding: { x: 18, y: 10 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(this, btn, cb);
-    inflateHitArea(btn, 90, 80);
-    return btn;
   }
 }
 
