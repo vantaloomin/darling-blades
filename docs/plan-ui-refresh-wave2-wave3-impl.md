@@ -43,18 +43,18 @@ budget disappoints the user — their call, with evidence).
 
 | Element | Anchor |
 |---|---|
-| Opp plate / your plate | (108,40)–(1046,306) / (108,312)–(1046,532) |
-| Creature rows (both) | center x 577, usable 860, opp cy 214 / yours cy 389 |
+| Opp plate / your plate | (108,16)–(1046,292) / (108,312)–(1046,532) — 20px inter-plate gap |
+| Creature rows (both) | center x 577, usable 860, opp cy 200 / yours cy 389 |
 | Tiles (BoardCardView) | 156×170, art window 148×162 |
-| Opp lands / your lands | right-aligned from x1006 leftward, cy 78 / left-aligned x0 210, cy 484 |
-| Mana pips | opp left-aligned from x120 cy78 · yours right-aligned ending x1014 cy484 |
+| Opp lands / your lands | right-aligned from x1006 leftward, cy 56 / left-aligned x0 210, cy 484 |
+| Mana pips | opp left-aligned from x120 cy56 · yours right-aligned ending x1014 cy484 |
 | Portraits (200×180) | yours (14,540) · opp (1056,8) |
 | Life discs (burn targets, depth 56) | yours (214,540) · opp (1056,188) — portrait board-facing corners |
 | Turn pill / phase track | (1113,322) / (1113, 356..492 step 34) |
-| Cluster / your piles / opp piles | End Turn (1108,548), smart circle (1108,642,r46) / x1242 (552/622) / x38 (168/98) |
+| Cluster / your piles / opp piles | End Turn (1108,548), smart circle (1108,642,r46) / icon stacks: yours x1242 (exile 482 hidden / deck 552 / grave 622) / opp x38 (hand 40 / grave 110 / deck 180 / exile 250 hidden) — `EXILE_ENABLED` gates both exile slots |
 | Turn banner / forecast | (640,74) / (640,130) |
 | Hand fan | rest bottom ≈714, base scale 0.46, fan top ≈521; land badge ≈508 (5px margin to fan) |
-| Opp hand-backs | (640,24) |
+| Opp hand indicator | hand icon + count in the left pile column (the old (640,24) hand-backs strip is gone — 2026-07-10 follow-up) |
 
 ---
 

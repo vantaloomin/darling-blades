@@ -87,7 +87,7 @@ const AUTOSKIP_INPUT_LOCK_MS = 280;
 
 /**
  * "Immersive fan" layout (wireframe 1a, 2026-07-04), 1280×720 design res:
- * a mirrored opponent play mat on top (portrait, life, hand backs, piles,
+ * a mirrored opponent play mat on top (portrait, life, icon piles,
  * mana and a full zone plate), two inset battlefield zone plates (each
  * holding its land row at the outer edge and its creature row at the inner
  * edge, Arena-style), a sparse left control rail, and a bottom stage: commander
@@ -96,11 +96,11 @@ const AUTOSKIP_INPUT_LOCK_MS = 280;
  */
 const LAYOUT = {
   /** Opponent's mirrored zone, narrowed for the top-right commander frame. */
-  oppZone: { x0: 108, x1: 1046, y0: 40, y1: 306 },
+  oppZone: { x0: 108, x1: 1046, y0: 16, y1: 292 },
   /** Right-aligned stacks step leftward from the portrait-clear edge. */
-  oppLands: { cy: 78, x0: 1006 },
+  oppLands: { cy: 56, x0: 1006 },
   /** The opponent row stays at its audited y but centers in its narrower plate. */
-  oppCreatures: { cy: 214, x: 577, usable: 860 },
+  oppCreatures: { cy: 200, x: 577, usable: 860 },
   /** Between the zone plates: skip toast + stack readout float here. */
   gap: { cy: 298 },
   /** Player zone now matches the opponent plate's right edge for the sidebar. */
@@ -136,10 +136,13 @@ const LAYOUT = {
   phaseTrack: { x: 1113, firstRowY: 356, rowStep: 34 },
   /** Right-side control cluster: ⏭ End Turn chip · smart button (top→bottom). */
   cluster: { x: 1108, endTurnY: 548, passY: 642, passR: 46 },
-  /** Your deck/grave piles, right column above Concede. */
-  piles: { x: 1242, deckY: 552, graveY: 622 },
+  /** Opponent hand/grave/deck icon stack in the left pile column. */
+  oppPiles: { x: 38, handY: 40, graveY: 110, deckY: 180, exileY: 250 },
+  /** Your deck/grave icon stack, with a hidden exile slot reserved above deck. */
+  piles: { x: 1242, exileY: 482, deckY: 552, graveY: 622 },
 } as const;
 
+const EXILE_ENABLED = false;
 const BOARD_CENTER_X = 640;
 /** Cast-targeting arrow: source anchor (hand-rest, bottom-center), snap radius, color. */
 const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
@@ -211,12 +214,14 @@ export class DuelScene extends Phaser.Scene {
   };
   /** The circular smart button (wireframe 1a "PASS"); relabeled per decision. */
   private passArc!: Phaser.GameObjects.Arc;
-  /** Deck/grave pile indicators + opponent hand card-backs (wireframe 1a). */
+  /** Deck/grave/hand pile indicators. Exile slots are reserved behind EXILE_ENABLED. */
   private oppDeckPile!: PileView;
   private oppGravePile!: PileView;
-  private oppHandBacks!: PileView;
+  private oppHandPile!: PileView;
+  private oppExilePile!: PileView;
   private myDeckPile!: PileView;
   private myGravePile!: PileView;
+  private myExilePile!: PileView;
   /** Bottom-left commander portrait — the player's deck face card, reactive. */
   private portrait!: CommanderPortrait;
   /** Top-right mirror of the player portrait — the opponent's deck face, reactive. */
@@ -801,11 +806,15 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
-    // --- Opponent mirror: hand backs · piles · portrait · life · mana ---
-    this.oppHandBacks = new PileView(this, BOARD_CENTER_X, 24, 'handbacks', { miniW: 20, miniH: 28 });
-    this.oppGravePile = new PileView(this, 38, 98, 'grave');
-    this.oppDeckPile = new PileView(this, 38, 168, 'deck');
+    // --- Opponent mirror: pile-column hand/grave/deck, portrait, life, mana ---
+    this.oppHandPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.handY, 'hand');
+    this.oppGravePile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.graveY, 'grave');
+    this.oppDeckPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.deckY, 'deck');
+    this.oppExilePile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.exileY, 'exile').setVisible(
+      EXILE_ENABLED,
+    );
     // --- Your piles: right column above Concede ---
+    this.myExilePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.exileY, 'exile').setVisible(EXILE_ENABLED);
     this.myDeckPile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.deckY, 'deck');
     this.myGravePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.graveY, 'grave');
     // --- Commander portrait (1a): your deck's face card, reacts to the game ---
@@ -1737,13 +1746,17 @@ export class DuelScene extends Phaser.Scene {
     }
     return reveal.controller === HUMAN
       ? { x: LAYOUT.piles.x, y: LAYOUT.piles.graveY, scale: 0.25 }
-      : { x: 38, y: 98, scale: 0.25 };
+      : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.graveY, scale: 0.25 };
   }
 
   /** Full motion: hand origin → readable station → the already-rendered destination footprint. */
   private showPlayReveal(reveal: PlayReveal): void {
     const opponent = reveal.controller === AI;
-    const source = reveal.source ?? { x: BOARD_CENTER_X, y: 24, scale: 0.35, angle: 0 };
+    const source =
+      reveal.source ??
+      (opponent
+        ? { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.handY, scale: 0.25, angle: 0 }
+        : { x: BOARD_CENTER_X, y: 24, scale: 0.35, angle: 0 });
     const station = opponent
       ? { x: BOARD_CENTER_X, y: 250, scale: 0.72, pause: 500 }
       : { x: BOARD_CENTER_X, y: 430, scale: 0.6, pause: 200 };
@@ -1975,11 +1988,15 @@ export class DuelScene extends Phaser.Scene {
       this.pulseLife(this.hud.oppLife, st.players[AI].life - this.previousLife[AI], theme.colors.dangerArmed);
     }
     this.previousLife = [st.players[HUMAN].life, st.players[AI].life];
-    this.oppHandBacks.setCount(st.players[AI].hand.length);
+    this.oppHandPile.setCount(st.players[AI].hand.length);
     this.oppDeckPile.setCount(st.players[AI].deck.length);
     this.oppGravePile.setCount(st.players[AI].graveyard.length);
     this.myDeckPile.setCount(st.players[HUMAN].deck.length);
     this.myGravePile.setCount(st.players[HUMAN].graveyard.length);
+    if (EXILE_ENABLED) {
+      this.oppExilePile.setCount(0);
+      this.myExilePile.setCount(0);
+    }
     // setText resizes a Text but Phaser never refreshes its hit area — keep
     // the inflated burn-target rects (plan §1.4) tracking the new glyphs
     // (same biasY as buildHud: keep the opp rect fully on-canvas).
