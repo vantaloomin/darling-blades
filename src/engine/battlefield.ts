@@ -61,3 +61,25 @@ export function destroyPermanent(
   emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
   return true;
 }
+
+/** Battlefield → owner's exile (tokens evaporate). This is not a death. */
+export function exilePermanent(
+  state: GameState,
+  db: CardDb,
+  perm: Permanent,
+  emit: Emit,
+): boolean {
+  const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
+  if (idx < 0) return false;
+  state.battlefield.splice(idx, 1);
+  const d = def(db, perm.cardId);
+  if (!d.token) state.players[perm.owner].exile.push(perm.cardId);
+  emit({
+    e: 'exiled',
+    player: perm.owner,
+    cardId: perm.cardId,
+    from: 'battlefield',
+    iid: perm.iid,
+  });
+  return true;
+}

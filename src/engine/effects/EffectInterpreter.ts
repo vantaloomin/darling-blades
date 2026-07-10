@@ -1,6 +1,6 @@
 import { RULES } from '../../config/rules';
 import type { Emit } from '../battlefield';
-import { destroyPermanent, enterBattlefield } from '../battlefield';
+import { destroyPermanent, enterBattlefield, exilePermanent } from '../battlefield';
 import { drawCards } from '../phases';
 import { rngInt, rngShuffle } from '../rng';
 import { getEffectiveStats } from '../statics';
@@ -93,6 +93,34 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
+    case 'exile': {
+      const perm = targetPermanent(state, ctx.targets[0]);
+      // Exile removes the permanent and lets SBAs clean up orphaned auras, but
+      // deliberately does not fire `dies` triggers.
+      if (perm) exilePermanent(state, db, perm, emit);
+      return;
+    }
+    case 'exileGrave': {
+      const victim = op.who === 'self' ? ctx.controller : opponentOf(ctx.controller);
+      const grave = state.players[victim].graveyard;
+      for (let i = 0; i < op.n; i++) {
+        const cardId = grave.pop(); // most recent card is the graveyard top
+        if (cardId === undefined) break;
+        state.players[victim].exile.push(cardId);
+        emit({ e: 'exiled', player: victim, cardId, from: 'graveyard' });
+      }
+      return;
+    }
+    case 'exileTop': {
+      const lib = state.players[ctx.controller].deck;
+      for (let i = 0; i < op.n; i++) {
+        const cardId = lib.pop(); // top of deck is the last element
+        if (cardId === undefined) break;
+        state.players[ctx.controller].exile.push(cardId);
+        emit({ e: 'exiled', player: ctx.controller, cardId, from: 'deck' });
+      }
+      return;
+    }
     case 'recall': {
       const perm = targetPermanent(state, ctx.targets[0]);
       if (perm) {
@@ -157,10 +185,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       if (distinct.size >= 2) {
         // >1 type: defer to a player/AI choice, surfaced after the flush (see
-        // Game.maybeRaiseFetchChoice / apply 'chooseBasicLand'). Do NOT fetch or
+        // Game.maybeRaiseDeferredDecision / apply 'chooseBasicLand'). Do NOT fetch or
         // shuffle here — both happen when the choice resolves — so the ≤1-type
         // path below stays byte-identical (determinism.test relies on it).
-        state.pendingFetch.push(ctx.controller);
+        state.pendingDecisions.push({ kind: 'chooseBasicLand', player: ctx.controller });
         return;
       }
       // 0 or 1 distinct type: unchanged — grab the topmost basic, enter tapped,
@@ -226,6 +254,15 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         if (cardId === undefined) break; // empty deck: deck-out is a DRAW check, not here
         state.players[victim].graveyard.push(cardId);
         emit({ e: 'milled', player: victim, cardId });
+      }
+      return;
+    }
+    case 'scry': {
+      // The interpreter stays synchronous; Game surfaces this FIFO decision
+      // after the current resolution batch. The action itself performs the
+      // deterministic deck rewrite.
+      if (op.n > 0 && state.players[ctx.controller].deck.length > 0) {
+        state.pendingDecisions.push({ kind: 'scry', player: ctx.controller, n: op.n });
       }
       return;
     }

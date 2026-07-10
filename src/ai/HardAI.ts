@@ -158,6 +158,8 @@ export class HardAI implements AIPlayer {
           type: 'discard',
           handIndices: Array.from({ length: a.count }, (_, i) => i),
         });
+      } else if (a.kind === 'scry') {
+        game.submit(opp, this.neutralMedium.chooseAction(game.viewFor(opp), game.legalActions(opp)));
       } else {
         return; // their main/attack decisions end our simulation horizon
       }

@@ -6,6 +6,7 @@ import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
+import { chooseScry } from './scry';
 import { cardValue, permValue } from './value';
 
 type Cast = Extract<Action, { type: 'castSpell' }>;
@@ -29,6 +30,8 @@ export class MediumAI implements AIPlayer {
       case 'bottomCards':
       case 'discardToHandSize':
         return this.worstCards(view, legal);
+      case 'scry':
+        return chooseScry(view, this.db);
       case 'main':
         return this.main(view, legal);
       case 'declareAttackers': {

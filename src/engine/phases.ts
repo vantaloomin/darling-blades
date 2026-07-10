@@ -68,6 +68,16 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   checkStateBased(state, db, emit);
   if (state.winner !== null) return;
 
+  // A dawn scry must resolve before the turn draw. Game will surface the
+  // queued choice after the current action, then resume through finishDawn.
+  if (state.pendingDecisions.length > 0) return;
+
+  finishDawn(state, emit);
+}
+
+/** Complete the draw/main portion of a turn after dawn triggers have settled. */
+export function finishDawn(state: GameState, emit: Emit): void {
+  const active = state.activePlayer;
   // Draw
   state.step = 'draw';
   emit({ e: 'stepChanged', step: 'draw' });

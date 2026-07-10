@@ -47,6 +47,16 @@ function opText(op: EffectOp): string {
       return `your opponent discards ${op.n === 1 ? 'a card' : `${op.n} cards`} at random`;
     case 'destroy':
       return 'destroy target creature';
+    case 'exile':
+      return 'exile target creature';
+    case 'exileGrave': {
+      const cards = op.n === 1 ? 'the top card' : `the top ${op.n} cards`;
+      return op.who === 'self'
+        ? `exile ${cards} of your graveyard`
+        : `exile ${cards} of your opponent's graveyard`;
+    }
+    case 'exileTop':
+      return `exile ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
     case 'recall':
       return "return target creature to its owner's hand";
     case 'cancel':
@@ -82,6 +92,8 @@ function opText(op: EffectOp): string {
         ? `put ${cards} of your deck into your graveyard`
         : `your opponent puts ${cards} of their deck into their graveyard`;
     }
+    case 'scry':
+      return `scry ${op.n}`;
     case 'raise':
       return op.to === 'top'
         ? 'return the top creature card of your graveyard to play'

@@ -7,6 +7,7 @@ import { def, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
+import { chooseScry } from './scry';
 
 /**
  * Easy: plays lands, curves out roughly, and swings — but loses by tactics.
@@ -33,6 +34,8 @@ export class EasyAI implements AIPlayer {
         return this.mulligan(view);
       case 'bottomCards':
         return this.bottom(view, legal);
+      case 'scry':
+        return chooseScry(view, this.db);
       case 'main':
         return this.main(view, legal);
       case 'declareAttackers':
