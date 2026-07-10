@@ -6,8 +6,10 @@ The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md), and as
 of 2026-07-08 all five of its features are shipped (tutorial, achievements,
 daily quests + streaks, Sealed/Draft Limited, and deck share codes); what
 remains of 1.0 is the human polish/validation backlog, while **deterministic
-replays are deferred into this doc's horizon (1.1/1.2)**. This doc is the
-**other list** — four smaller items that came up during
+replays are deferred into this doc's horizon (1.1/1.2)** and — as of
+2026-07-10 — **the public Limited release is descoped to a post-1.0
+expansion release** (Feature 5 below). This doc is the
+**other list** — four smaller deferred items that came up during
 the road-to-1.0 planning review, were looked at seriously, and were
 **deliberately pushed past 1.0** rather than dropped. Each was deferred for a
 concrete reason: one is a nice-to-have UI polish that competes for the same
@@ -363,6 +365,32 @@ relative to the expansion, and should Ragnarök stay a separately-priced /
 separately-completed product? Resolve that first; the implementation follows in
 an afternoon.
 
+## Feature 5 — Limited public release (with a future expansion)
+
+**Why deferred.** User decision 2026-07-10: Limited is code-complete and tested
+(Sealed + Bot Draft, `SaveData` v14, `src/meta/Limited.ts`, four scenes,
+`tests/meta/limited.test.ts`), but it isn't ready for players — PR #54 removed
+its MainMenu entry, leaving everything else in place. It ships in its own
+post-1.0 release alongside a future expansion, after more testing.
+
+### Blockers to re-enable
+
+- **Balance/economy.** Auto-built limited decks' balance texture has never been
+  tuned with play data — run the balance harness against limited pools and
+  revisit `ECONOMY.limitedRunGold` ([40, 100, 180, 300]) against the retuned
+  9-card/450g constructed economy (the progression-sim harness from PR #35 can
+  model the inflow).
+- **General polish.** The Limited flow (reveal, draft picker, 40-card builder,
+  three-match run) predates the 2026-07-10 UI-refresh theme system's duel-board
+  rebuild; it needs a flow-polish pass to match the refreshed game.
+
+### Re-enable mechanics
+
+One line: restore the Limited entry in `MainMenuScene.ts`'s menu list (removed
+in PR #54). Verify with a browser-preview probe of a full Sealed run and a full
+Bot Draft run end-to-end. No save migration — the v14 `limited` block never
+left the schema.
+
 ## Summary
 
 | # | Feature | Deferral reason | Effort / risk | Touches an invariant? |
@@ -371,9 +399,11 @@ an afternoon.
 | 2 | Battlefield drag-reorder | Determinism hazard; no display-order layer exists | Large / high | **Yes — seeded determinism** (must stay view-only) |
 | 3 | Randomized tower tiers | Decouples rung from curated banding → balance re-validation; design undecided | Medium / balance-touching | **Yes — test-floor / balance gates** |
 | 4 | "Base includes expansion" semantics | Product/data decision with pack-economy implications | Small code / real design call | No (but affects achievement completion math) |
+| 5 | Limited public release | User-descoped from 1.0 (2026-07-10); balance/economy + polish before player exposure | Small re-enable / balance-touching | **Yes — balance gates** (limited-pool measurement before exposure) |
 
-All four are off the 1.0 critical path by choice, per
+All five are off the 1.0 critical path by choice, per
 [plan-road-to-1.0.md](plan-road-to-1.0.md). Features 3 and 4 are **blocked on a
 product decision** and should not be built until it's made; Feature 2 is blocked
 on nothing but should ride behind a view-only determinism test given the hazard;
-Feature 1 is buildable whenever the menu has room for it.
+Feature 1 is buildable whenever the menu has room for it; Feature 5 waits on
+its balance/polish blockers and rides with a future expansion release.
