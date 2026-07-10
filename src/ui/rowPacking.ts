@@ -12,10 +12,13 @@ export function packRow(
   usableWidth: number,
   tileWidth: number,
   maxSpacing: number,
+  gutter = 6,
 ): RowPacking {
   const spacing = count > 1 ? Math.min(maxSpacing, (usableWidth - tileWidth) / (count - 1)) : 0;
   // The +14 preserves the existing small overlap allowance before tiles shrink.
-  const scale = count > 1 ? Math.min(1, (spacing + 14) / maxSpacing) : 1;
+  const scale = count > 1
+    ? Math.min(1, (spacing + 14) / maxSpacing, (spacing - gutter) / tileWidth)
+    : 1;
   const offsets = Array.from(
     { length: Math.max(0, count) },
     (_, i) => i * spacing - ((count - 1) * spacing) / 2,

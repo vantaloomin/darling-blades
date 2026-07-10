@@ -673,10 +673,13 @@ _Dated 2026-07-04. Review monthly._
   larger battlefield tiles. Four waves: theme token module + factories →
   play-field motion/depth → play-field hierarchy + tile growth → all-scene
   theme migration (which closes the QOL Settings-toggles follow-up below).
-  Status: Waves 0–2 shipped (PRs #40–#45 + Wave 2 tiles/modal-shell,
-  2026-07-09; execution contracts in
-  [plan-ui-refresh-wave2-wave3-impl.md](plan-ui-refresh-wave2-wave3-impl.md));
-  Wave 3's four scene-migration PRs remain.
+  Status: ✅ **ALL WAVES SHIPPED 2026-07-10** (PRs #40–#45, Wave 2
+  tiles/modal-shell, Wave 3's four scene-migration batches, plus two
+  post-wave duel-feedback rounds — pile icon columns, zone-contents
+  modals, clickable mana strips, artifact/enchantment bands, in-portrait
+  life squares; execution record in
+  [plan-ui-refresh-wave2-wave3-impl.md](plan-ui-refresh-wave2-wave3-impl.md)).
+  The Settings toggles closed the last QOL follow-up below.
 - **Design plans authored 2026-07-05 (awaiting build go/no-go).** Four
   senior-level design docs are ready to implement, each grounded in the current
   code and respecting the iron invariants:

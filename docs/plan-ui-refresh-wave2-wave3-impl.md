@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-ui-ux-refresh.md, docs/architecture.md, src/scenes/DuelScene.ts, src/ui/BoardCardView.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/phaseTrack.ts, src/ui/KeywordIcons.ts, src/ui/LandStackView.ts, src/ui/handFan.ts, src/meta/SaveManager.ts, src/scenes/SettingsScene.ts, src/scenes/DeckBuilderScene.ts, docs/claude-playbook.md · last-verified: 2026-07-10 · implementation contract — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-ui-ux-refresh.md, docs/architecture.md, src/scenes/DuelScene.ts, src/ui/BoardCardView.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/phaseTrack.ts, src/ui/KeywordIcons.ts, src/ui/handFan.ts, src/meta/SaveManager.ts, src/scenes/SettingsScene.ts, src/scenes/DeckBuilderScene.ts, docs/claude-playbook.md · last-verified: 2026-07-10 · implementation contract — re-verify when the referenced code changes -->
 
 # UI refresh — Wave 2 & Wave 3 implementation contracts
 
@@ -18,16 +18,21 @@ plates, right sidebar (PR #44) · turn-pill/life-corner refinements (PR #45)
 `src/ui/rowPacking.ts`) + in-duel pause/end screens on `modalShell`
 (which gained `dimAlpha`/`escToClose`/`depth` and an always-swallowing
 dim; `themedButton` gained `setVariant`) — PR #47.
-Wave 3 execution status (2026-07-10): ALL FOUR batches implemented on
-branches stacked serially on the Wave 2 branch, every ladder green,
-zero hex literals in every migrated scene, awaiting the PR-#47 merge
-to open the PRs one by one: PR A DeckBuilder (−125 lines) · PR B
-Shop/MainMenu/PackOpening (−209) · PR C Collection/Gauntlet/
+**Wave 3 — SHIPPED 2026-07-10** (four batches, every ladder green, zero
+hex literals in every migrated scene): PR A DeckBuilder (−125 lines) ·
+PR B Shop/MainMenu/PackOpening (−209) · PR C Collection/Gauntlet/
 Achievements/Profile (−113, one row recipe, 0.70/0.32 calibrations
 kept) · PR D Settings two-column + both QOL toggles round-trip-probed
-(single-tap concede honored live) + Limited×4 + CardShowcase.
-LimitedReveal/Draft verified by review only (probing needs an active
-run, which would mutate the save); flagged for eyes on deploy.
+(single-tap concede honored live) + Limited×4 + CardShowcase — closes
+the plan-qol.md Settings-toggles debt. LimitedReveal/Draft verified by
+review only; flagged for eyes on deploy. Post-wave duel follow-up
+rounds (user playtest feedback 2026-07-10, all live-probed): End Turn
+declines combat · crop re-centering · fixed-size name truncation ·
+opp block up + icon pile columns · zone-contents modal (graves/deck/
+lands, exile-ready) · life squares in portraits · 6px packing gutter ·
+lands → clickable untapped/total mana strips · artifact/enchantment
+band rows · draw fly-in input+alpha fixes · inspect returns to its
+zone modal.
 
 Shared modules that now exist and MUST be consumed (no new hex literals):
 `src/ui/theme.ts` (tokens; Phaser-free import), `src/ui/themeWidgets.ts`
@@ -44,16 +49,16 @@ budget disappoints the user — their call, with evidence).
 | Element | Anchor |
 |---|---|
 | Opp plate / your plate | (108,16)–(1046,292) / (108,312)–(1046,532) — 20px inter-plate gap |
-| Creature rows (both) | center x 577, usable 860, opp cy 200 / yours cy 389 |
-| Tiles (BoardCardView) | 156×170, art window 148×162 |
-| Opp lands / your lands | right-aligned from x1006 leftward, cy 56 / left-aligned x0 210, cy 484 |
-| Mana pips | opp left-aligned from x120 cy56 · yours right-aligned ending x1014 cy484 |
+| Creature rows (both) | center x 577, usable 860, opp cy 200 (7px bottom inset) / yours cy 404 (7px top inset) |
+| Tiles (BoardCardView) | 156×170, art window 148×162; packRow gutter 6px (tiles never touch) |
+| Mana strips (clickable → lands modal) | yours left-aligned x0 210 cy 500 · opp right-aligned from x1006 cy 56 — land stacks are GONE (LandStackView deleted 2026-07-10) |
+| Artifact/enchantment bands (non-creature permanents, 0.55-scale tiles, depth 4) | yours right-aligned ending x1006 cy 500, usable 380 · opp left-aligned from x120 cy 63, usable 380 |
 | Portraits (200×180) | yours (14,540) · opp (1056,8) |
-| Life discs (burn targets, depth 56) | yours (214,540) · opp (1056,188) — portrait board-facing corners |
+| Life squares (burn targets, depth 56, 40×40) | yours (40,566) upper-left inside portrait · opp (1230,162) bottom-right inside portrait |
 | Turn pill / phase track | (1113,322) / (1113, 356..492 step 34) |
 | Cluster / your piles / opp piles | End Turn (1108,548), smart circle (1108,642,r46) / icon stacks: yours x1242 (exile 482 hidden / deck 552 / grave 622) / opp x38 (hand 40 / grave 110 / deck 180 / exile 250 hidden) — `EXILE_ENABLED` gates both exile slots |
 | Turn banner / forecast | (640,74) / (640,130) |
-| Hand fan | rest bottom ≈714, base scale 0.46, fan top ≈521; land badge ≈508 (5px margin to fan) |
+| Hand fan | rest bottom ≈714, base scale 0.46, fan top ≈521; no land badges since 2026-07-10 |
 | Opp hand indicator | hand icon + count in the left pile column (the old (640,24) hand-backs strip is gone — 2026-07-10 follow-up) |
 
 ---
