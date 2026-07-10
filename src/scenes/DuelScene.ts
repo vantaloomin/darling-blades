@@ -2331,30 +2331,33 @@ export class DuelScene extends Phaser.Scene {
     for (const src of manaSources(this.duel.state, CARD_DB, player)) {
       for (const c of src.colors) counts.set(c, (counts.get(c) ?? 0) + 1);
     }
-    const lands = this.battlefieldLands(player);
-    // Colors PRESENT on this side (any battlefield land, tapped included, plus
-    // any live source): a tapped-out color reads ×0 dimmed instead of
-    // vanishing — playing your first land and tapping it must not leave the
-    // counter blank (user-reported 2026-07-10).
-    const present = new Set<Color>(counts.keys());
-    for (const land of lands) {
-      for (const c of def(CARD_DB, land.cardId).manaAbility ?? []) present.add(c);
+    // Per-color TOTALS over every battlefield mana source, tapped included
+    // (lands + mana creatures): the readout is `untapped/total`, so the foe's
+    // growing capacity stays visible even while they're tapped out — a plain
+    // untapped count read as "the CPU's mana never goes up", and a tapped-out
+    // color must dim to 0/N rather than vanish (user-reported 2026-07-10).
+    const totals = new Map<Color, number>();
+    for (const perm of this.duel.state.battlefield) {
+      if (perm.controller !== player) continue;
+      for (const c of def(CARD_DB, perm.cardId).manaAbility ?? []) {
+        totals.set(c, (totals.get(c) ?? 0) + 1);
+      }
     }
-    const colors = (['W', 'U', 'B', 'R', 'G'] as const).filter((c) => present.has(c));
+    const colors = (['W', 'U', 'B', 'R', 'G'] as const).filter((c) => (totals.get(c) ?? 0) > 0);
 
     let minX = xAnchor - 22;
     let maxX = xAnchor + 22;
-    // No lands at all yet: a faint colorless ×0 placeholder keeps the counter
-    // region visible (and clickable) from turn 0, so its first real update
-    // happens in place instead of materializing mid-reveal.
-    const slots: { texture: string; count: number }[] = colors.length
-      ? colors.map((c) => ({ texture: `pip-${c}`, count: counts.get(c) ?? 0 }))
-      : [{ texture: 'pip-C', count: 0 }];
+    // No sources at all yet: a faint colorless 0/0 placeholder keeps the
+    // counter region visible (and clickable) from turn 0, so its first real
+    // update happens in place instead of materializing mid-reveal.
+    const slots: { texture: string; untapped: number; total: number }[] = colors.length
+      ? colors.map((c) => ({ texture: `pip-${c}`, untapped: counts.get(c) ?? 0, total: totals.get(c) ?? 0 }))
+      : [{ texture: 'pip-C', untapped: 0, total: 0 }];
     slots.forEach((slot, i) => {
       const x = align === 'right'
         ? xAnchor - (slots.length - 1 - i) * step
         : xAnchor + i * step;
-      const baseAlpha = slot.count > 0 ? 1 : 0.45;
+      const baseAlpha = slot.untapped > 0 ? 1 : 0.45;
       const pip = this.add
         .image(x, cy, slot.texture)
         .setDisplaySize(pipSize, pipSize)
@@ -2362,11 +2365,11 @@ export class DuelScene extends Phaser.Scene {
         .setAlpha(baseAlpha)
         .setData('baseAlpha', baseAlpha);
       const countText = this.add
-        .text(x + pipSize * 0.64, cy, `×${slot.count}`, {
+        .text(x + pipSize * 0.64, cy, `${slot.untapped}/${slot.total}`, {
           fontFamily: 'Inter, Arial, sans-serif',
           fontSize: '13px',
           fontStyle: '600',
-          color: slot.count > 0 ? '#cbc2e0' : '#7d7492',
+          color: slot.untapped > 0 ? '#cbc2e0' : '#7d7492',
           resolution: 2,
         })
         .setOrigin(0, 0.5)
@@ -2549,12 +2552,26 @@ export class DuelScene extends Phaser.Scene {
       if (entered && this.motionLevel() === 'full') {
         view.setPosition(LAYOUT.piles.x, LAYOUT.piles.deckY).setAlpha(0);
         if (dot) dot.setAlpha(0);
+        // Input OFF until the card arrives: it spawns under the End Turn
+        // corner, and a pointerover there killed this tween mid-flight while
+        // the hover handlers only re-tween y/scale/angle — the card stranded
+        // under the right CTAs (user-reported 2026-07-10).
+        view.disableInput();
+        const arrive = (): void => {
+          if (view.active) {
+            view.setPosition(x, y).setScale(scale).setAngle(slot.angleDeg);
+            view.setAlpha(playable ? 1 : 0.75);
+            view.enableInput();
+          }
+        };
         this.tweens.add({
           // End at the playability alpha — a hardcoded 1 here lit unaffordable
           // draws as castable until the next sync (user-reported 2026-07-10).
           targets: view, x, y, scaleX: scale, scaleY: scale, angle: slot.angleDeg,
           alpha: playable ? 1 : 0.75,
           duration: 160, ease: 'Quad.easeOut',
+          onComplete: arrive,
+          onStop: arrive,
         });
         if (dot) this.tweens.add({ targets: dot, alpha: 1, duration: 160, ease: 'Quad.easeOut' });
       }
