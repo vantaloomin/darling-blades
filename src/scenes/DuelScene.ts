@@ -57,6 +57,7 @@ import { ModalGuard } from '../ui/Modal';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
+import { packRow } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 
@@ -103,7 +104,7 @@ const LAYOUT = {
   gap: { cy: 298 },
   /** Player zone now matches the opponent plate's right edge for the sidebar. */
   myZone: { x0: 108, x1: 1046, y0: 312, y1: 532 },
-  myCreatures: { cy: 386, x: 577, usable: 860 },
+  myCreatures: { cy: 389, x: 577, usable: 860 },
   // cy 484 is load-bearing: the LandStackView badge sits at pile-local y+24
   // (≈508) tuned to clear the resting hand fan (see LandStackView.ts). x0 210
   // keeps the first stack's inflated 90px hit rect clear of the left rail;
@@ -2004,11 +2005,10 @@ export class DuelScene extends Phaser.Scene {
       // Cap spacing at the tapped-tile footprint (a 90° tap makes the tile
       // TILE_H wide) plus a small gutter, so tapped attackers don't collide.
       const MAX_SPACING = TILE_H + 4;
-      const spacing = n > 1 ? Math.min(MAX_SPACING, (rowUsable - TILE_W) / (n - 1)) : 0;
-      const tileScale = n > 1 ? Math.min(1, (spacing + 14) / MAX_SPACING) : 1;
+      const packed = packRow(n, rowUsable, TILE_W, MAX_SPACING);
       row.forEach((perm, i) => {
         seen.add(perm.iid);
-        const x = rowCenter - ((n - 1) * spacing) / 2 + i * spacing;
+        const x = rowCenter + packed.offsets[i];
         const d = def(CARD_DB, perm.cardId);
         let view = this.views.get(perm.iid);
         if (!view) {
@@ -2018,7 +2018,7 @@ export class DuelScene extends Phaser.Scene {
           // (depth 0, re-appended every sync), whose inflated rects overlap
           // the tiles' bottom band (adversarial review 2026-07-04).
           view.setDepth(5);
-          view.setScale(tileScale);
+          view.setScale(packed.scale);
           view.setTapped(perm.tapped, false);
           // Show YOUR own special-variant cards with their holo finish in play
           // (the board doesn't track per-copy cosmetics, so use your best owned
@@ -2053,7 +2053,7 @@ export class DuelScene extends Phaser.Scene {
             targets: view,
             x,
             y: this.creatureY(perm.iid, y),
-            scale: tileScale,
+            scale: packed.scale,
             duration: 200,
             ease: 'Cubic.easeOut',
           });
@@ -2103,7 +2103,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private creatureY(iid: number, base: number): number {
-    // Lift kept modest: the 146px tile (TILE_H) nearly fills its zone plate,
+    // Lift kept modest: the 170px tile (TILE_H) nearly fills its zone plate,
     // so a big lift would poke a selected attacker out of the plate into the
     // gap where the skip toast / stack readout float.
     return this.selectedAttackers.has(iid) ? base - 12 : base;
