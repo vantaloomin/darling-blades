@@ -106,8 +106,9 @@ const LAYOUT = {
   myCreatures: { cy: 386, x: 577, usable: 860 },
   // cy 484 is load-bearing: the LandStackView badge sits at pile-local y+24
   // (≈508) tuned to clear the resting hand fan (see LandStackView.ts). x0 210
-  // keeps the first stack's inflated 90px hit rect clear of the left rail and
-  // the life total on the portrait corner.
+  // keeps the first stack's inflated 90px hit rect clear of the left rail;
+  // the life disc on the portrait's upper-right corner (214,540) shares a
+  // band with stack 1 — depth 56 gives the life disc input priority there.
   myLands: { cy: 484, x0: 210 },
   // restY is computed in syncHand to anchor the fan's bottom near y=714 for
   // the active scale; the hover lift is computed per card so the raised
@@ -115,13 +116,20 @@ const LAYOUT = {
   // flicker band — adversarial review 2026-07-04).
   /** Commander portrait frame (top-left anchored, rises from screen bottom). */
   portrait: { x: 14, y: 540, w: 200, h: 180 },
-  /** Your life rides the portrait's top-left corner (burn target). */
-  myLife: { x: 44, y: 566 },
+  /**
+   * Your life disc snaps to the portrait's BOARD-FACING corner (upper-right,
+   * = portrait.x + portrait.w, portrait.y), badge-style (burn target). Its
+   * circle can graze the first land stack's badge by a few px at the corner —
+   * cosmetic only; depth 56 gives the life disc input priority in the shared
+   * band (see the hud comment below).
+   */
+  myLife: { x: 214, y: 540 },
   /** Mirrored commander frame and its targetable life disc. */
   oppPortrait: { x: 1056, y: 8, w: 200, h: 180 },
-  oppLife: { x: 1086, y: 162 },
-  /** Left-rail turn chip; Undo is the only other left-rail control. */
-  turnPill: { x: 52, y: 250 },
+  /** Mirror of myLife: the opp portrait's board-facing corner (bottom-left). */
+  oppLife: { x: 1056, y: 188 },
+  /** Turn chip atop the phase track — all turn info lives in one column. */
+  turnPill: { x: 1113, y: 322 },
   /** Display-only phase track in the right sidebar above End Turn. */
   phaseTrack: { x: 1113, firstRowY: 356, rowStep: 34 },
   /** Right-side control cluster: ⏭ End Turn chip · smart button (top→bottom). */
@@ -878,8 +886,9 @@ export class DuelScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setDepth(56),
-      // --- Left rail + phase track. The rail retains only the turn pill and
-      // Undo; decision guidance lives in the smart button and CoachMark.
+      // --- Turn pill + phase track share the right sidebar column (all turn
+      // info in one spot); the left rail retains only Undo. Decision guidance
+      // lives in the smart button and CoachMark.
       turnPill,
       phaseRows,
       // --- Smart-button label (input is on passArc below). Depth 57: the
@@ -953,9 +962,9 @@ export class DuelScene extends Phaser.Scene {
     // yours top 313) by only ~11px at the zone-gap seam. Texts that change
     // per sync are re-inflated there — Phaser never refreshes hit areas
     // itself. The smart button needs none: the Arc's hit rect is static.
-    // oppLife sits at strip cy 28: an unbiased 90px rect would poke 17px
-    // above the canvas (unreachable + Android notification-pull zone), so
-    // bias it down to span y 3–93 — all 90px tappable.
+    // oppLife rides its portrait's bottom-left corner (1056,188): the rect
+    // stays fully on-canvas even unbiased; the down-left bias is kept so the
+    // tappable area leans toward the board, where burn taps come from.
     inflateHitArea(this.hud.stack, 90, 44);
     inflateHitArea(this.hud.myLife, 90, 90);
     inflateHitArea(this.hud.oppLife, 90, 90, { biasY: 20 });

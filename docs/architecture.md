@@ -250,7 +250,8 @@ in the UI-refresh Wave 1.5a (plan-ui-ux-refresh.md). Layout regions (the
 - **Top stage (mirrored)**: the old thin opponent strip is gone. The
   opponent's **`CommanderPortrait`** (same 200×180 as yours, the
   `edge: 'top'` variant descending from the screen's top edge) sits
-  top-right at (1056,8) with their **targetable life** riding its corner;
+  top-right at (1056,8) with their **targetable life disc** snapped
+  badge-style onto the portrait's board-facing bottom-left corner (1056,188);
   their deck/grave **`PileView`** piles sit top-left; their hidden-hand
   **card-back ×N** row is top-center at (640,24). Their land row and
   left-aligned mana pips sit on y 78, inside the raised opponent plate. The
@@ -262,11 +263,13 @@ in the UI-refresh Wave 1.5a (plan-ui-ux-refresh.md). Layout regions (the
   left-aligned from x 210 on y 484; your available-mana pips right-align to
   end at x 1014. The **skip toast and the stack readout** float in the gap
   between the plates.
-- **Left rail** (outside the mat): only the non-interactive turn pill at
-  (52,250) and the Undo chip at (52,410). Decision hints come from the smart
-  button and tutorial CoachMark; log lines live only in the History slide-out.
-- **Phase track** (right sidebar): a display-only vertical UPKEEP · MAIN 1 ·
-  COMBAT · MAIN 2 · END list at x 1113, with rows starting y 356 on a 34 px
+- **Left rail** (outside the mat): only the Undo chip at (52,410). Decision
+  hints come from the smart button and tutorial CoachMark; log lines live
+  only in the History slide-out.
+- **Phase track** (right sidebar): the non-interactive turn pill (`T6`) sits
+  atop the column at (1113,322) — all turn info in one spot — above a
+  display-only vertical UPKEEP · MAIN 1 · COMBAT · MAIN 2 · END list at
+  x 1113, with rows starting y 356 on a 34 px
   rhythm (ending y 492). The current step rides a highlighted pill
   (gold-stroked on your turn, muted on the opponent's) that cycles as steps
   advance; the step→row mapping is the pure, tested `src/ui/phaseTrack.ts`.
@@ -274,7 +277,8 @@ in the UI-refresh Wave 1.5a (plan-ui-ux-refresh.md). Layout regions (the
   screen edge) shows your deck's **face card** — derived by the pure
   `faceCardFor` (`src/meta/deckFace.ts`: legendary creatures first, then copy
   count / rarity / mana value / name) — with your deck's name on its plate and
-  your targetable life total riding its corner; both portraits **react** to
+  your **targetable life disc** snapped badge-style onto the portrait's
+  board-facing upper-right corner (214,540); both portraits **react** to
   their owner's plays (cast glow) and pain (damage flinch), pure decoration.
   Center: the **arced hand fan** (pure math in `src/ui/handFan.ts`). Right:
   the **⏭ End Turn** chip above the **circular smart button** (the 1a "PASS"
