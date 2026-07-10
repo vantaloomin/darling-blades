@@ -96,6 +96,56 @@ All items from the duel audit's quick-win list, on unchanged coordinates:
 Tween lifecycle discipline per trap #4. **Effort: medium. Risk: low-medium
 (tween/destroy races — every callback checks `.active`).**
 
+## Wave 1.5 — play-mat mirror + board affordances (user-directed 2026-07-09)
+
+Inserted at the Wave-1 eyeball checkpoint: the user approved the motion
+direction and directed six changes before Wave 2. Two sub-waves, two PRs:
+
+**1.5a — play-mat restructure** (the geometry foundation):
+
+- **Mirrored battlefield**: the opponent's thin top strip dissolves into a
+  true mirror of the player's half — their CommanderPortrait (same 200×180,
+  a rounded-bottom variant descending from the top edge) at top-right with
+  their targetable life on its corner; their deck/grave piles top-left;
+  their hand-backs row top-center; their mana pips left-aligned (point
+  mirror of ours); their lands right-aligned inside their plate. The
+  opponent plate's right edge pulls in (~1046) to clear the portrait. **The
+  player's half stays byte-identical** — no re-derivation of the tuned
+  fan/land collision math.
+- **Turn banner relocation**: from center-screen to top-center (~y 96),
+  above the opponent's cards near their hand, where it stops covering the
+  board.
+- **Phase track column** (right side, above the End Turn cluster): a
+  vertical UPKEEP / MAIN 1 / COMBAT / MAIN 2 / END list with the current
+  step highlighted, cycling as steps advance (pure step→row mapping helper,
+  unit-tested). Replaces the left rail's step pill + owner tag; the rail
+  keeps hint/log/Undo.
+- **Auto-skip HUD chip removed** (the pause-menu and settings toggles remain
+  the control surface); fresh-save default flips to **Off**. Existing saves
+  keep their stored value; no schema bump.
+
+**1.5b — play affordances** (on the new geometry):
+
+- **Play-reveal transition**: replaces both the center-screen opponent-cast
+  pop-up and Wave 1's straight travel ghost. A played card (either side)
+  animates from its hand of origin, pauses at a readable station (longer for
+  the opponent's, brief for yours), then tweens position+scale into its
+  battlefield tile / land stack and crossfades into the tile. Honors the
+  animations setting (off = instant, reduced = brief reveal without the
+  morph).
+- **Trait icons on tiles**: a baked Path2D icon set for all 11 keywords
+  (`src/ui/KeywordIcons.ts`, ManaSymbols-style), rendered as a single column
+  in each tile's upper-left, growing DOWN, driven by *effective* keywords
+  (`getEffectiveStats`); 4+ traits render 3 + a "+N" chip. The aura ✦ badge
+  moves to the tile's bottom-left. Coverage test: every `Keyword` union
+  member has an icon.
+
+Hazards as Wave 2's: load-bearing coordinates on the opponent half,
+touch-floor hit rects staying on-canvas (bias flips downward at the top
+edge), overlayGuardTargets updated for the removed chip, CoachMark contract
+untouched. architecture.md's duel-board section is updated as part of the
+wave's definition of done.
+
 ## Wave 2 — play-field hierarchy + larger tiles (geometry, duel only)
 
 The one wave that moves audited coordinates; each move re-derives its

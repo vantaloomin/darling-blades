@@ -181,7 +181,7 @@ export function freshSave(now: number): SaveData {
       musicOn: true,
       animations: 'full',
       renderScale: DEFAULT_RENDER_SCALE,
-      autoSkip: true,
+      autoSkip: false,
       confirmDestructive: true,
       keywordReminders: true,
     },

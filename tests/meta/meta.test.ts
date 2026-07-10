@@ -66,6 +66,10 @@ describe('SaveManager', () => {
     expect(m.data.version).toBe(15);
   });
 
+  it('starts fresh saves with auto-skip off', () => {
+    expect(freshSave(0).settings.autoSkip).toBe(false);
+  });
+
   it('reads a save left under the legacy waifutcg key (rename survival)', () => {
     // A save written before the WaifuTCG → Darling Blades rename must still load.
     const storage = fakeStorage();
