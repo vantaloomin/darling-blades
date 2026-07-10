@@ -8,6 +8,8 @@ import { clampSeed } from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { colorInt, theme } from '../ui/theme';
+import { backButton, goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
  * The Avatar Gauntlet tower. A right-rail ladder of ten rungs (cleared ✓ /
@@ -25,7 +27,7 @@ export class GauntletScene extends Phaser.Scene {
   private panel: Phaser.GameObjects.Container | null = null;
   private rowNodes: { rung: number; box: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }[] = [];
   private abandonArmed = false;
-  private abandonBtn: Phaser.GameObjects.Text | null = null;
+  private abandonBtn: ThemedButton | null = null;
   /** Seed the NEXT run will use (rerollable / player-settable until it begins). */
   private pendingSeed = 1;
   private seedBar: Phaser.GameObjects.Container | null = null;
@@ -48,11 +50,17 @@ export class GauntletScene extends Phaser.Scene {
     const height = 720;
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'gauntlet', {
-      dim: 0x0b0812,
+      dim: colorInt(theme.colors.dim),
       dimAlpha: 0.5,
       fallback: () => {
         const bg = this.add.graphics();
-        bg.fillGradientStyle(0x171222, 0x171222, 0x0b0812, 0x0b0812, 1);
+        bg.fillGradientStyle(
+          colorInt(theme.colors.panelFill),
+          colorInt(theme.colors.panelFill),
+          colorInt(theme.colors.dim),
+          colorInt(theme.colors.dim),
+          1,
+        );
         bg.fillRect(0, 0, width, height);
       },
     });
@@ -74,43 +82,26 @@ export class GauntletScene extends Phaser.Scene {
 
     this.add
       .text(width / 2, 46, 'Avatar Gauntlet', {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '44px',
-        color: '#f0e6ff',
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.display}px`,
+        color: theme.colors.heading,
       })
       .setOrigin(0.5);
     this.add
       .text(width / 2, 84, 'Climb ten rungs. A loss ends the run — the tower resets, your collection does not.', {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        color: '#8f83a8',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0.5);
 
-    this.add
-      .text(width - 30, 30, `🪙 ${Services.save.data.gold}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '20px',
-        fontStyle: '600',
-        color: '#ffd88a',
-      })
-      .setOrigin(1, 0.5);
+    goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
 
     this.buildTower();
     this.buildPanel();
     this.buildSeedBar();
 
-    const back = this.add
-      .text(28, 28, '← Menu', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '18px', color: '#c9bde0' })
-      .setInteractive({ useHandCursor: true });
-    back.on('pointerover', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) back.setColor('#ffd700');
-    });
-    back.on('pointerout', (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) back.setColor('#c9bde0');
-    });
-    bindTapButton(this, back, () => this.scene.start('MainMenu'));
-    inflateHitArea(back, 90, 90);
+    backButton(this, () => this.scene.start('MainMenu'));
   }
 
   // ---------------------------------------------------------------------
@@ -123,10 +114,10 @@ export class GauntletScene extends Phaser.Scene {
     const rowH = 52; // tightened from 62 so all 10 rows fit the 720px design height
 
     this.add
-      .text(railX, topY - 34, `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : '—'}   ·   Clears: ${g.completions}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        color: '#8f83a8',
+        .text(railX, topY - 34, `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : '—'}   ·   Clears: ${g.completions}`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
       })
       .setOrigin(0.5);
 
@@ -139,22 +130,22 @@ export class GauntletScene extends Phaser.Scene {
       const isCurrent = rung === this.currentRung;
 
       const box = this.add
-        .rectangle(railX, y, 420, rowH - 12, this.rowColor(rung), 1)
-        .setStrokeStyle(2, isCurrent ? 0xffd700 : 0x3a3355)
+        .rectangle(railX, y, 420, rowH - 12, this.rowColor(rung), theme.alpha.panel)
+        .setStrokeStyle(2, colorInt(isCurrent ? theme.colors.gold : theme.colors.panelStroke))
         .setInteractive({ useHandCursor: true });
       const status = cleared ? '✓' : isCurrent ? '▶' : '·';
       const label = this.add
         .text(railX - 195, y, `${status}  Rung ${rung} — ${av.name}`, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '17px',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.body}px`,
           color: this.rowTextColor(rung),
         })
         .setOrigin(0, 0.5);
       const stars = this.add
         .text(railX + 195, y, '★'.repeat(this.difficultyPips(av)), {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '14px',
-          color: '#c7a8f0',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.gold,
         })
         .setOrigin(1, 0.5);
 
@@ -166,7 +157,7 @@ export class GauntletScene extends Phaser.Scene {
       // Rung rows are 420px wide; hit height fills the row pitch (rowH).
       inflateHitArea(box, 90, rowH);
       box.on('pointerover', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch && rung !== this.selectedRung) box.setStrokeStyle(2, 0x7a6da8);
+        if (!p.wasTouch && rung !== this.selectedRung) box.setStrokeStyle(2, theme.graphics.rowFillActive);
       });
       box.on('pointerout', (p: Phaser.Input.Pointer) => {
         if (!p.wasTouch) this.refreshTower();
@@ -184,21 +175,20 @@ export class GauntletScene extends Phaser.Scene {
       node.box.setFillStyle(this.rowColor(node.rung), 1);
       node.box.setStrokeStyle(
         isSelected ? 3 : 2,
-        isSelected ? 0xffd700 : isCurrent ? 0xc9a84c : 0x3a3355,
+        colorInt(isSelected ? theme.colors.goldHover : isCurrent ? theme.colors.gold : theme.colors.panelStroke),
       );
     }
   }
 
   private rowColor(rung: number): number {
-    if (rung < this.currentRung) return 0x223322; // cleared
-    if (rung === this.currentRung) return 0x2c2344; // current
-    return 0x18142a; // future
+    if (rung === this.currentRung) return theme.graphics.rowFillActive;
+    return theme.graphics.rowFill;
   }
 
   private rowTextColor(rung: number): string {
-    if (rung < this.currentRung) return '#8ad0a0';
-    if (rung === this.currentRung) return '#ffd88a';
-    return '#6d6288';
+    if (rung < this.currentRung) return theme.colors.success;
+    if (rung === this.currentRung) return theme.colors.gold;
+    return theme.colors.muted;
   }
 
   private difficultyPips(av: Avatar): number {
@@ -217,21 +207,17 @@ export class GauntletScene extends Phaser.Scene {
     const portraitY = 300;
 
     // portrait bust (framed)
-    const frame = this.add
-      .rectangle(px, portraitY, 268, 336, 0x241d3a, 1)
-      .setStrokeStyle(3, 0x8a6d1f);
+    const frame = panel(this, px - 134, portraitY - 168, 268, 336, { alpha: 1 });
     c.add(frame);
     this.addPortrait(c, av.portraitCardId, px, portraitY);
 
     // theme chip
     const chip = this.add
       .text(px, portraitY + 190, av.theme, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '13px',
-        fontStyle: '600',
-        color: '#e8def7',
-        backgroundColor: '#3a2f5a',
-        padding: { x: 10, y: 4 },
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: theme.weight.w600,
+        color: theme.colors.body,
       })
       .setOrigin(0.5);
     c.add(chip);
@@ -244,9 +230,9 @@ export class GauntletScene extends Phaser.Scene {
     const COL_W = 300;
     const nameText = this.add
       .text(textX, 150, av.name, {
-        fontFamily: 'Cinzel, Georgia, serif',
-        fontSize: '30px',
-        color: '#f0e6ff',
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.heading,
       })
       .setOrigin(0, 0);
     // A long name (e.g. "Yohime, Kitsune Matriarch") shrinks to fit one line
@@ -256,10 +242,10 @@ export class GauntletScene extends Phaser.Scene {
     c.add(
       this.add
         .text(textX, 196, av.title, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '17px',
-          fontStyle: 'italic',
-          color: '#c7a8f0',
+            fontFamily: theme.fonts.display,
+            fontSize: `${theme.type.body}px`,
+            fontStyle: 'italic',
+            color: theme.colors.gold,
           wordWrap: { width: COL_W },
         })
         .setOrigin(0, 0),
@@ -269,9 +255,9 @@ export class GauntletScene extends Phaser.Scene {
     c.add(
       this.add
         .text(textX, 232, `Rung ${av.tier}   ${'★'.repeat(this.difficultyPips(av))}   (${av.difficulty})`, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '15px',
-          color: '#ffd88a',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.gold,
         })
         .setOrigin(0, 0),
     );
@@ -280,9 +266,9 @@ export class GauntletScene extends Phaser.Scene {
     c.add(
       this.add
         .text(textX, 274, av.blurb, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '15px',
-          color: '#c9bde0',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
           lineSpacing: 4,
           wordWrap: { width: COL_W },
         })
@@ -298,10 +284,10 @@ export class GauntletScene extends Phaser.Scene {
     c.add(
       this.add
         .text(textX, 400, rewardLine, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '16px',
-          fontStyle: '600',
-          color: '#ffd88a',
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          fontStyle: theme.weight.w600,
+          color: theme.colors.gold,
           // The final rung's line carries the completion bonus and is long — wrap
           // it in the column rather than letting it run under the rung rail.
           wordWrap: { width: COL_W },
@@ -312,34 +298,21 @@ export class GauntletScene extends Phaser.Scene {
     // Fight / locked
     const fightable = av.tier === this.currentRung;
     if (fightable) {
-      const fight = this.add
-        .text(textX, 456, Services.save.data.gauntlet.run ? 'Fight' : 'Begin Run', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '26px',
-          color: '#ffd88a',
-          backgroundColor: '#2c2344',
-          padding: { x: 22, y: 11 },
-        })
-        .setOrigin(0, 0)
-        .setInteractive({ useHandCursor: true });
-      fight.on('pointerover', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) fight.setColor('#ffffff');
+      const fight = themedButton(this, textX + 104, 478, Services.save.data.gauntlet.run ? 'Fight' : 'Begin Run', {
+        variant: 'primary',
+        minWidth: 208,
+        onTap: () => this.startFight(av),
       });
-      fight.on('pointerout', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) fight.setColor('#ffd88a');
-      });
-      bindTapButton(this, fight, () => this.startFight(av));
-      inflateHitArea(fight, 90, 90);
-      c.add(fight);
+      c.add(fight.container);
     } else {
       const locked =
         av.tier < this.currentRung ? 'Already cleared this run' : 'Clear the rungs below first';
       c.add(
         this.add
           .text(textX, 462, `🔒 ${locked}`, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '15px',
-            color: '#6d6288',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            color: theme.colors.muted,
           })
           .setOrigin(0, 0),
       );
@@ -352,27 +325,14 @@ export class GauntletScene extends Phaser.Scene {
     // right — the armed "Click again to confirm" label is wide and would run
     // under the tower rail.
     if (Services.save.data.gauntlet.run) {
-      const abandon = this.add
-        .text(textX, 556, 'Abandon Run', {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '15px',
-          color: '#f0b0b0',
-          backgroundColor: '#3a1f28',
-          padding: { x: 16, y: 8 },
-        })
-        .setOrigin(0, 0)
-        .setInteractive({ useHandCursor: true });
-      abandon.on('pointerover', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) abandon.setColor('#ffd0d0');
-      });
-      abandon.on('pointerout', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch && !this.abandonArmed) abandon.setColor('#f0b0b0');
+      const abandon = themedButton(this, textX + 104, 576, 'Abandon Run', {
+        variant: 'danger',
+        minWidth: 208,
+        onTap: () => this.onAbandon(),
       });
       this.abandonBtn = abandon;
       // Destructive: keeps its two-tap arm/confirm on top of tap classification.
-      bindTapButton(this, abandon, () => this.onAbandon());
-      inflateHitArea(abandon, 90, 90);
-      c.add(abandon);
+      c.add(abandon.container);
     }
 
     this.panel = c;
@@ -383,10 +343,7 @@ export class GauntletScene extends Phaser.Scene {
     // Shared destructive-confirm policy: two-tap unless the player opted out.
     if (Services.save.data.settings.confirmDestructive && !this.abandonArmed) {
       this.abandonArmed = true;
-      this.abandonBtn.setText('Click again to confirm').setColor('#f08a8a');
-      // The confirm label is wider than the armed one — regrow the (custom,
-      // hence no longer auto-tracking) hit area to cover the new glyphs.
-      inflateHitArea(this.abandonBtn, 90, 90);
+      this.abandonBtn.setLabel('Click again to confirm');
       return;
     }
     Services.save.data.gauntlet.run = null;
@@ -419,10 +376,10 @@ export class GauntletScene extends Phaser.Scene {
 
     const label = this.add
       .text(30, y, `🎲 ${active ? 'Run seed' : 'Next run seed'} ${seed}`, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: '15px',
-        fontStyle: '600',
-        color: active ? '#c7a8f0' : '#e8def7',
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        fontStyle: theme.weight.w600,
+        color: active ? theme.colors.gold : theme.colors.body,
       })
       .setOrigin(0, 0.5);
     c.add(label);
@@ -431,32 +388,19 @@ export class GauntletScene extends Phaser.Scene {
       c.add(
         this.add
           .text(label.x + label.width + 14, y, '· locked for this run', {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '13px',
-            color: '#6d6288',
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.muted,
           })
           .setOrigin(0, 0.5),
       );
     } else {
-      // Chip buttons — no hover recolor (would reset the custom hit area via the
-      // Text.updateText trap); the backgroundColor makes them read as buttons.
       let x = label.x + label.width + 16;
-      const chip = (text: string, onTap: () => void): Phaser.GameObjects.Text => {
-        const t = this.add
-          .text(x, y, text, {
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: '14px',
-            color: '#ffd88a',
-            backgroundColor: '#2c2344',
-            padding: { x: 10, y: 5 },
-          })
-          .setOrigin(0, 0.5)
-          .setInteractive({ useHandCursor: true });
-        bindTapButton(this, t, onTap);
-        inflateHitArea(t, 90, 48);
-        c.add(t);
-        x += t.width + 10;
-        return t;
+      const chip = (text: string, onTap: () => void): void => {
+        const minWidth = 90;
+        const t = themedButton(this, x + minWidth / 2, y, text, { variant: 'emphasis', size: 'sm', minWidth, onTap });
+        c.add(t.container);
+        x += Math.max(minWidth, t.label.width + theme.space(4)) + 10;
       };
       chip('↻ Reroll', () => {
         this.pendingSeed = clampSeed(Math.floor(Math.random() * 2 ** 31));
@@ -503,7 +447,7 @@ export class GauntletScene extends Phaser.Scene {
       img.setScale(scale);
       img.y = y - 26; // bias upward toward the face
       const maskShape = this.add
-        .rectangle(x, y, targetW, targetH, 0xffffff)
+        .rectangle(x, y, targetW, targetH, colorInt(theme.colors.heading))
         .setVisible(false);
       const mask = maskShape.createGeometryMask();
       img.setMask(mask);
