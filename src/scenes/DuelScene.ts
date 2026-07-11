@@ -136,7 +136,7 @@ const LAYOUT = {
   piles: { x: 1242, exileY: 482, deckY: 552, graveY: 622 },
 } as const;
 
-const EXILE_ENABLED = false;
+const EXILE_ENABLED = true;
 const BOARD_CENTER_X = 640;
 /** Cast-targeting arrow: source anchor (hand-rest, bottom-center), snap radius, color. */
 const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
@@ -148,7 +148,7 @@ const ROW_GUTTER = 6;
 const PERMANENT_BAND_SCALE = 0.55;
 const PERMANENT_BAND_TILE_W = TILE_W * PERMANENT_BAND_SCALE;
 const PERMANENT_BAND_MAX_SPACING = 98;
-type ViewableZone = 'deck' | 'graveyard';
+type ViewableZone = 'deck' | 'graveyard' | 'exile';
 type PermanentRowLayoutBase = {
   cy: number;
   usable: number;
@@ -262,7 +262,7 @@ export class DuelScene extends Phaser.Scene {
   /** In-game pause/menu overlay (Resume · quick toggles · Concede) + its guard. */
   private pauseOverlay: Phaser.GameObjects.Container | null = null;
   private pauseGuard = new ModalGuard();
-  /** Public zone browser: graveyards now, player deck now, exile/lands later. */
+  /** Public zone browser: graveyards, public exile, player deck, and land stacks. */
   private zoneModal: ZoneContentsModal | null = null;
   private zoneGuard = new ModalGuard();
   /** Set when inspect was opened FROM a zone modal: closing inspect returns there. */
@@ -273,6 +273,7 @@ export class DuelScene extends Phaser.Scene {
   /** Two-tap concede guard (settings.confirmDestructive); armed by the first tap. */
   private concedeArmed = false;
   private discardPicks = new Set<number>();
+  private scryBottomPicks = new Set<number>();
   /**
    * Optional first-launch tutorial mode (src/data/tutorial.ts). When set, this
    * duel runs a scripted line (fixed decks + seed + `ScriptAI`) under a
@@ -409,6 +410,7 @@ export class DuelScene extends Phaser.Scene {
     this.zoneGuard = new ModalGuard();
     this.zoneModalReturn = null;
     this.discardPicks = new Set();
+    this.scryBottomPicks = new Set();
     // Stale on gauntlet/rematch restarts: the scene clock died with the old
     // run, so a still-set handle would block auto-skip forever. The clock also
     // resets to 0 on restart, so clear the guard timestamp with it.
@@ -848,11 +850,19 @@ export class DuelScene extends Phaser.Scene {
       },
     });
     this.oppDeckPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.deckY, 'deck');
-    this.oppExilePile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.exileY, 'exile').setVisible(
-      EXILE_ENABLED,
-    );
+    this.oppExilePile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.exileY, 'exile', {
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.showZoneModal(AI, 'exile');
+      },
+    }).setVisible(EXILE_ENABLED);
+    if (this.oppExilePile.inputZone) inflateHitArea(this.oppExilePile.inputZone, 90, 90);
     // --- Your piles: right column above Concede ---
-    this.myExilePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.exileY, 'exile').setVisible(EXILE_ENABLED);
+    this.myExilePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.exileY, 'exile', {
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'exile');
+      },
+    }).setVisible(EXILE_ENABLED);
+    if (this.myExilePile.inputZone) inflateHitArea(this.myExilePile.inputZone, 90, 90);
     this.myDeckPile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.deckY, 'deck', {
       onTap: (p) => {
         if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'deck');
@@ -1376,13 +1386,17 @@ export class DuelScene extends Phaser.Scene {
     if (this.animatingCombat) return; // hold until the combat sequence finishes
     if (this.autoSkipTimer) return; // a hop is already scheduled
     if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
-    if (!this.isHumanTurnDecision()) return;
+    const a = this.duel.awaiting;
+    if (!('player' in a) || a.player !== HUMAN) return;
+    if (a.kind === 'scry') return; // mandatory revealed-card pick; never auto-skip
     if (!forcedAction(this.duel.state, CARD_DB, HUMAN)) return;
     this.autoSkipTimer = this.time.delayedCall(300, () => {
       this.autoSkipTimer = null;
       if (this.ended) return;
       if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
-      if (!this.isHumanTurnDecision()) return;
+      const awaiting = this.duel.awaiting;
+      if (!('player' in awaiting) || awaiting.player !== HUMAN) return;
+      if (awaiting.kind === 'scry') return; // re-check after the delay
       // Re-evaluate fresh — the state may have moved while we waited (e.g.
       // the player clicked the smart button during the delay).
       const forced = forcedAction(this.duel.state, CARD_DB, HUMAN);
@@ -1476,7 +1490,7 @@ export class DuelScene extends Phaser.Scene {
   /**
    * The pass action for the current human decision while ending the turn, or
    * null to STOP-AND-WAIT (a declare-attackers you could act on, or a mandatory
-   * pick like discard/bottom/mulligan). Blockers never arise on your own turn.
+   * pick like scry/discard/bottom/mulligan). Blockers never arise on your own turn.
    */
   private endTurnPassAction(): Action | null {
     const a = this.duel.awaiting;
@@ -1494,7 +1508,7 @@ export class DuelScene extends Phaser.Scene {
       case 'endStepWindow':
         return { type: 'passResponse' };
       default:
-        return null; // mulligan / bottomCards / discardToHandSize → stop for input
+        return null; // mulligan / bottomCards / scry / discardToHandSize → stop for input
     }
   }
 
@@ -1608,6 +1622,10 @@ export class DuelScene extends Phaser.Scene {
         }
         break;
       }
+      case 'exiled':
+        this.log(`${def(CARD_DB, e.cardId).name} was exiled`, e.cardId);
+        this.showExileTravel(e);
+        break;
       case 'turnBegan':
         this.log(`Turn ${e.turn} — ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
@@ -1893,6 +1911,56 @@ export class DuelScene extends Phaser.Scene {
     });
   }
 
+  private exilePilePos(player: PlayerId): { x: number; y: number } {
+    return player === HUMAN
+      ? { x: LAYOUT.piles.x, y: LAYOUT.piles.exileY }
+      : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.exileY };
+  }
+
+  private exileSource(e: Extract<GameEvent, { e: 'exiled' }>): { x: number; y: number; scale: number } {
+    if (e.from === 'battlefield' && e.iid !== undefined) {
+      const tile = this.views.get(e.iid);
+      if (tile) return { x: tile.x, y: tile.y, scale: tile.scaleX * (TILE_H / CARD_H) };
+    }
+    if (e.from === 'deck') {
+      return e.player === HUMAN
+        ? { x: LAYOUT.piles.x, y: LAYOUT.piles.deckY, scale: 0.25 }
+        : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.deckY, scale: 0.25 };
+    }
+    return e.player === HUMAN
+      ? { x: LAYOUT.piles.x, y: LAYOUT.piles.graveY, scale: 0.25 }
+      : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.graveY, scale: 0.25 };
+  }
+
+  /** Full-motion exile read: source pile/tile to the public exile pile; reduced/off stay instant. */
+  private showExileTravel(e: Extract<GameEvent, { e: 'exiled' }>): void {
+    if (this.motionLevel() !== 'full') return;
+    const source = this.exileSource(e);
+    const destination = this.exilePilePos(e.player);
+    const ghost = new CardView(this, source.x, source.y)
+      .setScale(source.scale)
+      .setDepth(theme.depth.floats)
+      .setAlpha(0.9);
+    ghost.setCard(def(CARD_DB, e.cardId), { fx: 'none' });
+    this.playRevealGhosts.add(ghost);
+    const cleanUp = (): void => {
+      this.playRevealGhosts.delete(ghost);
+      if (ghost.active) ghost.destroy();
+    };
+    this.tweens.add({
+      targets: ghost,
+      x: destination.x,
+      y: destination.y - 10,
+      scaleX: 0.18,
+      scaleY: 0.18,
+      alpha: 0,
+      duration: 360,
+      ease: 'Cubic.easeInOut',
+      onComplete: cleanUp,
+      onStop: cleanUp,
+    });
+  }
+
   /**
    * Transient center banner announcing a turn change ("Your Turn" / "<Name>'s
    * Turn" + the turn number). Fades in, holds, fades out and self-destroys;
@@ -2017,6 +2085,7 @@ export class DuelScene extends Phaser.Scene {
 
   private sync(): void {
     const st = this.duel.state;
+    const view = this.duel.viewFor(HUMAN);
 
     // HUD numbers
     this.hud.myLife.setText(`${st.players[HUMAN].life}`);
@@ -2032,8 +2101,8 @@ export class DuelScene extends Phaser.Scene {
     this.myDeckPile.setCount(st.players[HUMAN].deck.length);
     this.myGravePile.setCount(st.players[HUMAN].graveyard.length);
     if (EXILE_ENABLED) {
-      this.oppExilePile.setCount(0);
-      this.myExilePile.setCount(0);
+      this.oppExilePile.setCount(view.opp.exile.length);
+      this.myExilePile.setCount(view.you.exile.length);
     }
     // setText resizes a Text but Phaser never refreshes its hit area — keep
     // the inflated burn-target rects (plan §1.4) tracking the new glyphs.
@@ -2807,6 +2876,7 @@ export class DuelScene extends Phaser.Scene {
   private onConfirmKey(e: KeyboardEvent): void {
     e.preventDefault(); // Space would otherwise scroll the page in the browser
     if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
+    if (this.overlay && this.confirmScryOverlay()) return;
     this.onButton(); // self-guards: auto-skip input lock + not-your-decision
   }
 
@@ -2944,7 +3014,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------
-  // Public zone browser: graveyards and your deck
+  // Public zone browser: graveyards, exile, and your deck
   // ---------------------------------------------------------------------
 
   private canOpenZoneModal(): boolean {
@@ -2966,17 +3036,23 @@ export class DuelScene extends Phaser.Scene {
     if (!this.canOpenZoneModal()) return;
     if (zone === 'deck' && player !== HUMAN) return;
 
+    const view = this.duel.viewFor(HUMAN);
     const cardIds = zone === 'deck'
       ? this.duel.state.players[player].deck
-      : this.duel.state.players[player].graveyard;
+      : zone === 'graveyard'
+        ? this.duel.state.players[player].graveyard
+        : player === HUMAN
+          ? view.you.exile
+          : view.opp.exile;
     const owner = player === HUMAN ? 'Your' : "Foe's";
+    const zoneLabel = zone === 'graveyard' ? 'Graveyard' : 'Exile';
     const title = zone === 'deck'
       ? `Your Deck — ${cardIds.length} cards left`
-      : `${owner} Graveyard — ${cardIds.length}`;
+      : `${owner} ${zoneLabel} — ${cardIds.length}`;
     const modal = showZoneContents(this, {
       title,
       entries: this.zoneEntries(cardIds),
-      emptyText: zone === 'deck' ? 'No cards left.' : 'No cards here.',
+      emptyText: zone === 'deck' ? 'No cards left.' : zone === 'exile' ? 'No cards exiled.' : 'No cards here.',
       dimAlpha: 0.62,
       escToClose: true,
       tapDimToClose: true,
@@ -3399,7 +3475,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------
-  // Overlays: mulligan / bottoming / discard / results
+  // Overlays: mulligan / bottoming / scry / discard / results
   // ---------------------------------------------------------------------
 
   /** Everything an overlay must deaden while it floats above the board. */
@@ -3414,6 +3490,8 @@ export class DuelScene extends Phaser.Scene {
       ...this.handViews,
       ...[
         this.oppGravePile.inputZone,
+        this.oppExilePile.inputZone,
+        this.myExilePile.inputZone,
         this.myDeckPile.inputZone,
         this.myGravePile.inputZone,
       ].filter((zone): zone is Phaser.GameObjects.Zone => !!zone),
@@ -3453,11 +3531,123 @@ export class DuelScene extends Phaser.Scene {
       this.buildPickOverlay(title, 0, buttons);
     } else if (a.kind === 'bottomCards') {
       this.buildPickOverlay(`Put ${a.count} card(s) on the bottom`, a.count, ['Confirm', 'Concede']);
+    } else if (a.kind === 'scry') {
+      this.buildScryOverlay(a.cards);
     } else if (a.kind === 'discardToHandSize') {
       this.buildPickOverlay(`Discard ${a.count} card(s)`, a.count, ['Confirm']);
     } else if (a.kind === 'chooseBasicLand') {
       this.showBasicLandOverlay();
     }
+  }
+
+  private confirmScryOverlay(): boolean {
+    const a = this.duel.awaiting;
+    if (!('player' in a) || a.player !== HUMAN || a.kind !== 'scry') return false;
+    this.act({ type: 'scry', bottomIndices: [...this.scryBottomPicks].sort((x, y) => x - y) });
+    return true;
+  }
+
+  private buildScryOverlay(cards: readonly string[]): void {
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(theme.depth.overlay);
+    const dim = this.add
+      .rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.chrome)
+      .setInteractive();
+    c.add(dim);
+    c.add(
+      this.add
+        .text(width / 2, 118, `Scry ${cards.length}`, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.heading,
+          resolution: 2,
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(width / 2, 158, 'Leftmost is top of deck. Select any cards to bottom.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.body,
+          resolution: 2,
+        })
+        .setOrigin(0.5),
+    );
+
+    this.scryBottomPicks.clear();
+    const scale = cards.length <= 5 ? 0.62 : cards.length <= 7 ? 0.54 : 0.46;
+    const spacing = Math.min(CARD_W * scale + 24, (width - 220) / Math.max(1, cards.length));
+    const cardY = 366;
+    cards.forEach((cardId, index) => {
+      const x = width / 2 - ((cards.length - 1) * spacing) / 2 + index * spacing;
+      const rank = index === 0 ? 'Top' : index === 1 ? '2nd' : index === 2 ? '3rd' : `${index + 1}th`;
+      const posLabel = this.add
+        .text(x, cardY - (CARD_H * scale) / 2 - 18, rank, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          fontStyle: theme.weight.w700,
+          color: index === 0 ? theme.colors.gold : theme.colors.muted,
+          resolution: 2,
+        })
+        .setOrigin(0.5);
+      const v = new CardView(this, x, cardY).setScale(scale);
+      const d = def(CARD_DB, cardId);
+      v.setCard(d, { fx: 'none' });
+      const badge = this.add
+        .text(x, cardY + (CARD_H * scale) / 2 + 18, 'Bottom', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.danger,
+          backgroundColor: theme.colors.dangerBg,
+          padding: { x: 8, y: 4 },
+          resolution: 2,
+        })
+        .setOrigin(0.5)
+        .setVisible(false);
+      c.add([posLabel, v, badge]);
+      v.enableInput();
+      this.zoom.attach(v, d);
+      const toggle = (): void => {
+        const picked = !this.scryBottomPicks.has(index);
+        if (picked) this.scryBottomPicks.add(index);
+        else this.scryBottomPicks.delete(index);
+        v.setY(picked ? cardY - 20 : cardY);
+        v.setAlpha(picked ? theme.alpha.subtle : 1);
+        badge.setVisible(picked);
+      };
+      v.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.wasTouch) return;
+        if (p.rightButtonReleased()) return;
+        toggle();
+      });
+      attachTouchGestures(this, v, { card: d, onTap: toggle });
+    });
+
+    for (const v of this.handViews) v.setVisible(false);
+    for (const o of this.handDecor) (o as Phaser.GameObjects.Arc).setVisible(false);
+
+    const confirm = this.add
+      .text(width / 2, 600, 'Confirm', {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h2}px`,
+        color: theme.colors.gold,
+        backgroundColor: theme.colors.btnEmphasisBg,
+        padding: { x: 18, y: 10 },
+        resolution: 2,
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, confirm, (p) => {
+      if (p.rightButtonReleased()) return;
+      this.confirmScryOverlay();
+    });
+    inflateHitArea(confirm, 90, 90);
+    c.add(confirm);
+    this.guard.open(this.overlayGuardTargets());
+    this.overlay = c;
   }
 
   /**
