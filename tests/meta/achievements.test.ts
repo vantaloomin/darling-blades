@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CARD_DB } from '../../src/data/catalog';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import {
   claimAchievement,
@@ -80,6 +81,37 @@ const RAGNAROK_COURT = [
   'rg-angrboda',
   'rg-skadi',
   'rg-idun',
+] as const;
+
+const CELTIC_FAE_IDS = Object.values(CARD_DB)
+  .filter((entry) => entry.set === 'celtic-fae')
+  .map((entry) => entry.id);
+const CELTIC_FAE_SOVEREIGNS = [
+  'cf-morrigan-black-wing',
+  'cf-titania-silver-court',
+  'cf-aine-sunlit-bargain',
+  'cf-nimue-before-the-lake',
+] as const;
+const CELTIC_FAE_SSR_COURT = [
+  'cf-badb-cathas-warning',
+  'cf-selkie-tide-queen',
+  'cf-balor-evil-eye',
+  'cf-wild-hunt-matriarch',
+  'cf-cauldron-of-dagda',
+] as const;
+const CELTIC_FAE_SELKIES = ['cf-selkie-tide-queen', 'cf-moon-pool-selkie', 'cf-selkie-runner'] as const;
+const CELTIC_FAE_RAVENS = ['cf-raven-torc-envoy', 'cf-omen-raven'] as const;
+const CELTIC_FAE_REDCAPS = ['cf-redcap-blood-host', 'cf-redcap-skirmisher'] as const;
+
+const CELTIC_FAE_GOALS = [
+  { id: 'theme-celtic-fae-25', ids: CELTIC_FAE_IDS.slice(0, Math.ceil(CELTIC_FAE_IDS.length * 0.25)) },
+  { id: 'theme-celtic-fae-50', ids: CELTIC_FAE_IDS.slice(0, Math.ceil(CELTIC_FAE_IDS.length * 0.5)) },
+  { id: 'theme-celtic-fae-complete', ids: CELTIC_FAE_IDS },
+  { id: 'theme-celtic-fae-court-sovereigns', ids: CELTIC_FAE_SOVEREIGNS },
+  { id: 'theme-celtic-fae-ssr-court', ids: CELTIC_FAE_SSR_COURT },
+  { id: 'theme-celtic-fae-selkies', ids: CELTIC_FAE_SELKIES },
+  { id: 'theme-celtic-fae-ravens', ids: CELTIC_FAE_RAVENS },
+  { id: 'theme-celtic-fae-redcaps', ids: CELTIC_FAE_REDCAPS },
 ] as const;
 
 const THEME_DB: CardDb = Object.freeze({
@@ -262,6 +294,50 @@ describe('achievements', () => {
     );
 
     expect(syncAchievements(save, THEME_DB)).toContain('theme-ragnarok-twilight-court-rainbow');
+  });
+
+  it('uses the 80-card Celtic Fae pool and its intended court sub-archetype ids', () => {
+    expect(CELTIC_FAE_IDS).toHaveLength(80);
+    expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].rarity === 'ssr')).toEqual(CELTIC_FAE_SSR_COURT);
+    expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Selkie'))).toEqual(CELTIC_FAE_SELKIES);
+    expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Raven'))).toEqual(CELTIC_FAE_RAVENS);
+    expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Redcap'))).toEqual(CELTIC_FAE_REDCAPS);
+  });
+
+  for (const { id, ids } of CELTIC_FAE_GOALS) {
+    it(`unlocks ${id} with exactly its qualifying Celtic Fae collection and locks one card short`, () => {
+      const complete = freshSave(0);
+      complete.collection = Object.fromEntries(ids.map((cardId) => [cardId, 1]));
+
+      expect(status(id, complete, CARD_DB)).toMatchObject({
+        current: ids.length,
+        target: ids.length,
+        unlocked: true,
+      });
+      expect(syncAchievements(complete, CARD_DB)).toContain(id);
+
+      const oneShort = freshSave(0);
+      oneShort.collection = Object.fromEntries(ids.slice(0, -1).map((cardId) => [cardId, 1]));
+
+      expect(status(id, oneShort, CARD_DB)).toMatchObject({
+        current: ids.length - 1,
+        target: ids.length,
+        unlocked: false,
+      });
+    });
+  }
+
+  it('keeps Celtic Fae achievement claims idempotent', () => {
+    const save = freshSave(0);
+    save.collection = Object.fromEntries(CELTIC_FAE_SOVEREIGNS.map((id) => [id, 1]));
+    syncAchievements(save, CARD_DB);
+
+    expect(claimAchievement(save, 'theme-celtic-fae-court-sovereigns')).toEqual({ ok: true, gold: 600 });
+    expect(claimAchievement(save, 'theme-celtic-fae-court-sovereigns')).toEqual({
+      ok: false,
+      gold: 0,
+      reason: 'claimed',
+    });
   });
 
   it('tracks mono-color and dual-color tower clear achievements from gauntlet history', () => {
