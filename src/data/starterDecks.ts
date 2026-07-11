@@ -133,6 +133,8 @@ export const STARTER_DECKS: DeckList[] = [
  *
  * Valhalla's Muster — B/G Ragnarök reanimator: mill your own creatures into the
  * yard, then return the fattest Jotun with Call the Einherjar / Barrow-Jarl.
+ * Glimmer Bargain — U/B/G Celtic Fae tempo-control: evasive fae pressure while
+ * scry and recall effects keep the next draw and opposing board constrained.
  */
 export const THEME_DECKS: DeckList[] = [
   {
@@ -155,6 +157,30 @@ export const THEME_DECKS: DeckList[] = [
       ['rg-dianwei', 2],
       ['rg-thanatos', 2],
       ['rg-call-the-einherjar', 3],
+    ]),
+  },
+  {
+    id: 'theme-celtic-fae',
+    name: 'Glimmer Bargain',
+    cards: expand([
+      ['land-island', 9],
+      ['land-swamp', 8],
+      ['land-forest', 7],
+      ['cf-morrigan-black-wing', 2],
+      ['cf-mistwing-pixie', 3],
+      ['cf-selkie-runner', 4],
+      ['cf-omen-raven', 2],
+      ['cf-silver-branch-oracle', 3],
+      ['cf-moon-pool-selkie', 3],
+      ['cf-raven-torc-envoy', 3],
+      ['cf-crowbone-prophet', 2],
+      ['cf-otter-familiar', 2],
+      ['cf-blackthorn-duelist', 2],
+      ['cf-selkie-tide-queen', 2],
+      ['cf-glimmerdust-trick', 3],
+      ['cf-bargain-for-time', 3],
+      ['cf-clouded-memory', 1],
+      ['cf-cold-iron-nail', 1],
     ]),
   },
 ];

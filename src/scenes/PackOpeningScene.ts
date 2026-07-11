@@ -17,7 +17,7 @@ import { fxPolicy } from '../ui/fx/FXSupport';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { bakePackArt } from './ShopScene';
+import { bakePackArt, CELTIC_FAE_PACK_ART, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
 const GRID_DY = 216;
@@ -70,7 +70,7 @@ interface SpecialEntry {
  */
 export class PackOpeningScene extends Phaser.Scene {
   private result!: PackResult;
-  private sku: 'base' | 'ragnarok' = 'base';
+  private sku: BoosterSku = 'base';
   private revealed = 0;
   private specials: SpecialEntry[] = [];
   private buttons: ThemedButton[] = [];
@@ -84,7 +84,7 @@ export class PackOpeningScene extends Phaser.Scene {
   }
 
   create(
-    data: (PackResult & { sku?: 'base' | 'ragnarok' }) | { batch: PackResult[]; sku?: 'base' | 'ragnarok' },
+    data: (PackResult & { sku?: BoosterSku }) | { batch: PackResult[]; sku?: BoosterSku },
   ): void {
     this.sku = data.sku ?? 'base';
     this.revealed = 0;
@@ -97,6 +97,8 @@ export class PackOpeningScene extends Phaser.Scene {
         key: 'packart-ragnarok',
         sceneArtKey: 'scene-pack-art-ragnarok',
       });
+    } else if (this.sku === 'celtic-fae') {
+      bakePackArt(this, CELTIC_FAE_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {
@@ -133,7 +135,7 @@ export class PackOpeningScene extends Phaser.Scene {
 
     // Beat 1: the pack floats, waiting for the tear.
     const pack = this.add
-      .image(width / 2, height / 2 - 20, this.sku === 'ragnarok' ? 'packart-ragnarok' : 'packart')
+      .image(width / 2, height / 2 - 20, packTextureForSku(this.sku))
       .setDisplaySize(238, 340)
       .setInteractive({ useHandCursor: true });
     this.tweens.add({
@@ -766,7 +768,12 @@ export class PackOpeningScene extends Phaser.Scene {
       btn.container.setDepth(70);
       this.buttons.push(btn);
     };
-    const openPrice = this.sku === 'ragnarok' ? ECONOMY.ragnarokPackPrice : ECONOMY.packPrice;
+    const openPrice =
+      this.sku === 'ragnarok'
+        ? ECONOMY.ragnarokPackPrice
+        : this.sku === 'celtic-fae'
+          ? ECONOMY.celticFaePackPrice
+          : ECONOMY.packPrice;
     mk(width / 2 - 200, `Open Another (🪙 ${openPrice})`, () => {
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;

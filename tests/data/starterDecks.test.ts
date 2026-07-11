@@ -5,6 +5,9 @@ import { MediumAI } from '../../src/ai/MediumAI';
 import { Game } from '../../src/engine/Game';
 import type { Color } from '../../src/engine/types';
 import { RULES } from '../../src/config/rules';
+import { validateDeck } from '../../src/meta/DeckStorage';
+import { grantDeckCards } from '../../src/meta/Economy';
+import { freshSave } from '../../src/meta/SaveManager';
 
 /**
  * SUITE — Starter precon legality + termination smoke (mirrors the avatar
@@ -150,6 +153,32 @@ describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality
         expect(n, `${id} x${n}`).toBeLessThanOrEqual(3);
       }
     }
+  });
+});
+
+describe('Glimmer Bargain composition', () => {
+  const deck = THEME_DECKS.find((d) => d.id === 'theme-celtic-fae')!;
+  const allowedColors = new Set<Color>(['U', 'B', 'G']);
+
+  it('is a legal 60-card U/B/G Celtic Fae list plus matching basics', () => {
+    expect(deck).toMatchObject({ id: 'theme-celtic-fae', name: 'Glimmer Bargain' });
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+
+    for (const id of deck.cards) {
+      const card = CARD_DB[id];
+      expect(card, `${id} must exist`).toBeDefined();
+      if (card.supertypes?.includes('basic')) {
+        expect(['land-island', 'land-swamp', 'land-forest']).toContain(id);
+      } else {
+        expect(id.startsWith('cf-'), `${id} must be a Celtic Fae card`).toBe(true);
+        expect(card.set, `${id} must be Celtic Fae`).toBe('celtic-fae');
+        expect(card.colors.every((color) => allowedColors.has(color)), `${id} color identity`).toBe(true);
+      }
+    }
+
+    const save = freshSave(0);
+    grantDeckCards(save, CARD_DB, deck.cards);
+    expect(validateDeck(CARD_DB, save, deck.cards).filter((issue) => issue.kind === 'error')).toHaveLength(0);
   });
 });
 

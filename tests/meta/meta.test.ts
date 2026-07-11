@@ -307,6 +307,21 @@ describe('PackOpener', () => {
     for (const c of result.cards) expect(CARD_DB[c.cardId].set).toBe('ragnarok');
   });
 
+  it('a Celtic Fae booster charges its SKU price and pulls only cf- cards', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.celticFaePackPrice;
+
+    expect(spendGold(save, ECONOMY.celticFaePackPrice)).toBe(true);
+    const result = openPack(save, CARD_DB, createRngState(20260710), 'celtic-fae');
+
+    expect(save.gold).toBe(0);
+    expect(result.cards).toHaveLength(ECONOMY.boosterPackSize);
+    for (const card of result.cards) {
+      expect(card.cardId.startsWith('cf-'), `${card.cardId} must be Celtic Fae`).toBe(true);
+      expect(CARD_DB[card.cardId].set).toBe('celtic-fae');
+    }
+  });
+
   it('dupe-protects the sr/ssr/ur slots (prefers sub-playset cards)', () => {
     // own a playset of every sr except dt_rhino → every sr slot must roll it
     const srs = packPool(TEST_DB, 'sr');
@@ -923,5 +938,27 @@ describe('buyThemeDeck (Ragnarök precon)', () => {
     expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
     expect(save.gold).toBe(ECONOMY.preconPrice - 1);
     expect(save.decks.some((d) => d.id === deck.id)).toBe(false);
+  });
+});
+
+describe('buyThemeDeck (Glimmer Bargain precon)', () => {
+  const deck = THEME_DECKS.find((d) => d.id === 'theme-celtic-fae')!;
+
+  it('spends preconPrice, grants every non-basic card, and adds the full deck', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.preconPrice + 50;
+
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
+    expect(save.gold).toBe(50);
+    expect(save.decks.find((saved) => saved.id === deck.id)).toMatchObject({
+      name: 'Glimmer Bargain',
+      cards: deck.cards,
+    });
+
+    const counts = new Map<string, number>();
+    for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+    for (const [id, count] of counts) {
+      if (!CARD_DB[id].supertypes?.includes('basic')) expect(save.collection[id]).toBe(count);
+    }
   });
 });
