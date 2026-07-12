@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-11 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-12 · review monthly -->
 
 # Roadmap
 
@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **573 tests green** (+3 skipped balance-tool assertions) across 59 files
+- **620 tests green** (+3 skipped balance-tool assertions) across 62 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -41,9 +41,11 @@ _Dated 2026-07-04. Review monthly._
   v12→v13 daily quest/streak migration,
   unlock/claim idempotency, completion tallies, themed archetype and expansion
   goals, deck-color identity). The whole suite runs in ~25–30 s.
-- **210 cards** in the pool (`CARD_DB`), across the five colors and three
+- **210 cards** in the base pool (`CARD_DB`), across the five colors and three
   factions, bucketed into **five rarity tiers** (C 103 / R 65 / SR 13 /
-  SSR 11 / UR 8 booster-eligible).
+  SSR 11 / UR 8 booster-eligible) — plus the **69-card Ragnarök** and
+  **80-card Celtic Fae** expansions in their own set-scoped boosters
+  (349 collectible cards total).
 - **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
   each color in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
@@ -55,6 +57,40 @@ _Dated 2026-07-04. Review monthly._
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images — see Recently shipped). By-ear tuning remains
   open (see Planned).
+
+## Recently shipped (2026-07-12)
+
+- **2nd expansion: "Celtic Fae — The Silver Veil" (80 collectible cards —
+  set `celtic-fae`, prefix `cf-`) + the exile/scry engine mechanics** (PR #64,
+  bundling the stacked train #56/#59–#63; spec: [plan-1.1.md](plan-1.1.md)
+  Pillar 1). New engine surface: a **one-way public exile zone** (exile /
+  exileGrave / exileTop ops, no dies-triggers, unreachable by raise/reclaim)
+  and **scry n** as a deferred decision (the `pendingFetch` seam generalized
+  to a `pendingDecisions` FIFO; the awaiting's revealed cards are redacted to
+  `[]` in the opponent's view; a shared deterministic AI scry policy in
+  `src/ai/scry.ts` serves all brains). U/B/G tempo-control set with W fae
+  knights and R wild-hunt pressure; 8 multicolor cards, all named legends
+  (11 generic concept-multicolors were mono-colored in review to keep the
+  multicolor⇒legendary idiom meaningful). Ships with: DuelScene exile piles +
+  zone modals + a mandatory scry picker, 80 smart-cropped finals from
+  retained raws (zero generation quota; 41/42 head-detected), a 42-entry
+  art bible with the headroom demand in every prompt, a 525g set-scoped
+  booster with generated pack art (both expansions got real pack fronts;
+  crimp bands now translucent for full-bleed faces), the **Glimmer Bargain**
+  U/B/G precon, 8 schema-free achievements, and pull-odds "1:N" leading the
+  pack-inspect details (runtime-derived from DROPS; god roll ≈ 1:4.94M,
+  Monte-Carlo verified over 18M slot rolls). The premium-hero shop toggle
+  was retired (superseded by per-deck hero cards). Balance note: no new
+  gauntlet rungs yet — the CF-bosses-vs-daily-rotation decision is open
+  (plan-1.1 Pillar 5).
+- **Glossary of Terms** (PR #57): a MainMenu learning-corner scene with all
+  11 keyword trait icons + reminder text, card-type definitions, mana
+  symbols, and rarity gems — data-driven so Exile/Scry rows are one-line
+  additions.
+- **Dev-only gold cheat** (`__cheat.setGold()`, uncommitted
+  `src/dev/cheats.local.ts`): dev-server-only by three layers (gitignored,
+  DEV-gated loader, non-eager glob); production absence grep-verified
+  against a built dist.
 
 ## Recently shipped (2026-07-10)
 
