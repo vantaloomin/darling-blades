@@ -181,7 +181,7 @@ export class PackOpeningScene extends Phaser.Scene {
       .text(
         width / 2,
         116,
-        `${all.length} cards · ${newCards} new · ${specials.length} rare+` +
+        `${all.length} cards · ${newCards} new · ${specials.length} Super Rare+` +
           (dupeGold > 0 ? ` · +🪙 ${dupeGold} from duplicates` : ''),
         { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body },
       )

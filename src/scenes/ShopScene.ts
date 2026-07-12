@@ -192,9 +192,14 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
 
   // Crimp bands, always code-stamped over the base so real and procedural pack
   // art share the same sealed-wrapper silhouette without adding text.
+  // Translucent so the art fills the whole face and still reads as sealed foil
+  // (user-directed 2026-07-11: full-bleed pack art on all SKUs).
+  ctx.save();
+  ctx.globalAlpha = 0.45;
   ctx.fillStyle = theme.colors.btnGhostBg;
   ctx.fillRect(2, 2, W - 4, 26);
   ctx.fillRect(2, H - 28, W - 4, 26);
+  ctx.restore();
   tex.refresh();
 }
 
@@ -344,7 +349,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       640,
-      'Ragnarök Expansion',
+      'Ragnarök',
       'packart-ragnarok',
       ECONOMY.ragnarokPackPrice,
       () => this.buyPacks(ECONOMY.ragnarokPackPrice, 'ragnarok', 'ragnarok'),
@@ -352,7 +357,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       940,
-      'Celtic Fae Expansion',
+      'Celtic Fae',
       'packart-celtic-fae',
       ECONOMY.celticFaePackPrice,
       () => this.buyPacks(ECONOMY.celticFaePackPrice, 'celtic-fae', 'celtic-fae'),
