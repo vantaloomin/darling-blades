@@ -618,7 +618,7 @@ function runPractice(ctx: SimContext, difficulty: Difficulty, today: string): vo
   ctx.stats.sessionMinutes += PRACTICE_MATCH_MINUTES;
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);
-  const reward = applyMatchResult(ctx.save, difficulty, won, today);
+  const reward = applyMatchResult(ctx.save, difficulty, won, today, match.turns);
   const fw = firstWinGold(reward.firstWinBonus);
   ctx.stats.rewards.practice += reward.gold - fw;
   ctx.stats.rewards.firstWin += fw;

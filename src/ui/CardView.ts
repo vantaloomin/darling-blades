@@ -285,14 +285,16 @@ export class CardView extends Phaser.GameObjects.Container {
       this.flavorTextObj.setPosition(TEXT_LEFT, flavorTop).setVisible(true);
     }
     if (manaRow.length > 0) {
-      // [T] → [G] (duals show both color pips). Sized generously — this row
-      // is the land's whole rules box, so it should read from the hand.
+      // [T] → [G]; duals read [T] → [W] or [G] — bare side-by-side pips read
+      // as "provides both" (user-reported 2026-07-12). Sized generously — this
+      // row is the land's whole rules box, so it should read from the hand.
       const PIP = 48;
       const GAP = 10;
       const ARROW_W = 24;
-      const STEP = 8; // between adjacent color pips
+      const OR_W = 26; // the "or" separator between adjacent color pips
+      const SEP = GAP + OR_W + GAP; // one constant shared by width, label x, and advance
       const rowY = hasFlavor ? 100 : 128; // centered in the free box when bare
-      const rowW = PIP + GAP + ARROW_W + GAP + manaRow.length * PIP + (manaRow.length - 1) * STEP;
+      const rowW = PIP + GAP + ARROW_W + GAP + manaRow.length * PIP + (manaRow.length - 1) * SEP;
       let ix = -rowW / 2 + PIP / 2;
       const tap = this.scene.add.image(ix, rowY, 'pip-T').setDisplaySize(PIP, PIP);
       this.add(tap);
@@ -310,12 +312,25 @@ export class CardView extends Phaser.GameObjects.Container {
       this.add(arrow);
       this.pips.push(arrow);
       ix += ARROW_W / 2 + GAP + PIP / 2;
-      for (const col of manaRow) {
+      manaRow.forEach((col, i) => {
+        if (i > 0) {
+          const or = this.scene.add
+            .text(ix - PIP / 2 - SEP / 2, rowY, 'or', {
+              fontFamily: 'Inter, Arial, sans-serif',
+              fontSize: '20px',
+              fontStyle: '600',
+              color: '#4a3b28',
+              resolution: 2,
+            })
+            .setOrigin(0.5);
+          this.add(or);
+          this.pips.push(or);
+        }
         const img = this.scene.add.image(ix, rowY, `pip-${col}`).setDisplaySize(PIP, PIP);
         this.add(img);
         this.pips.push(img);
-        ix += PIP + STEP;
-      }
+        ix += PIP + SEP;
+      });
     }
 
     // P/T

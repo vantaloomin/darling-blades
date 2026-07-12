@@ -38,10 +38,10 @@ export interface Avatar {
  *   R1 Meng Huo   [easy]       38%      35%      38%     25%      20%   | 31%
  *   R2 Hestia     [easy]       28%      33%      13%     13%      18%   | 21%
  *   R3 Lupa       [easy]       20%      18%      45%     35%      40%   | 31%
- *   R4 Hera       [medium]     36%      42%      38%     70%      45%   | 46%
+ *   R4 Hera       [medium]     33%      42%      38%     70%      50%   | 47%
  *   R5 Zhurong    [medium]     43%      78%      60%     57%      57%   | 59%
- *   R6 Sima Yi    [medium]     67%      80%      63%     48%      27%   | 57%
- *   R7 Yohime     [hard]       60%      93%      78%     68%      63%   | 72%
+ *   R6 Sima Yi    [medium]     64%      80%      63%     48%      30%   | 57%
+ *   R7 Yohime     [hard]       63%      93%      78%     68%      63%   | 73%
  *   R8 Cao Cao    [hard]       73%      88%      73%     80%      50%   | 73%
  *   R9 Hel        [hard]       55%      95%      83%     75%      45%   | 71%
  *   R10 Brunhild  [hard]       93%      90%      73%     85%      98%   | 88%
@@ -103,6 +103,15 @@ export interface Avatar {
  * controls fewest of. Among the matrix starters only Grave Harvest (swamp+forest,
  * Demeter×3) is affected. Re-measured --starters + --avatars at 40 seeds: no new
  * flags, ladder still monotonic, Grave Harvest mirror avg 55%; bands unchanged.
+ *
+ * 2026-07-12 — SBA deaths now batch (unified across categories) before dies
+ * triggers fire (engine/sba.ts, the token-cap fix) and the AI prices its own
+ * NET dawn self-bleed clock + scored desperation attacks (ai/evaluate.ts,
+ * ai/value.ts, ai/combatPlans.ts). Re-measured --avatars at 40 seeds: R4
+ * Hera 46→47% (Muster 36→33, Harvest 45→50), R6 Sima Yi Muster 67→64 and
+ * Harvest 27→30, R7 Yohime 72→73% (Muster 60→63); every other row
+ * byte-identical. No flags, bands green, ladder monotonic. Table above
+ * updated in place.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------

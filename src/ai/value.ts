@@ -1,5 +1,5 @@
 import { getEffectiveStats } from '../engine/statics';
-import type { CardDb, Keyword, Permanent } from '../engine/types';
+import type { CardDb, Keyword, Permanent, PlayerId } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
 
 const KEYWORD_BONUS: Record<Keyword, number> = {
@@ -45,6 +45,35 @@ export function cardValue(db: CardDb, cardId: string): number {
   if (isLordOrLegendary(db, cardId)) v += 1;
   if (hasTriggeredAbility(db, cardId)) v += 0.75;
   return v;
+}
+
+/**
+ * NET life lost per turn to `who`'s own dawn triggers: self-damage (e.g.
+ * tk-other's "At the start of your turn, this deals 1 damage to you") minus
+ * dawn lifegain (gk/cf attendants), floored at 0. This is a forced clock the
+ * 1-turn lookahead cannot see: evaluate() prices it convexly against
+ * remaining life, and chooseAttackers uses it to force desperation attacks
+ * (playtest report 2026-07-12: Hard sat behind a full player bench and bled
+ * out to its own trigger). Only 'dawn' triggers count — 'attacks'
+ * self-damage is an optional cost the AI controls.
+ */
+export function dawnSelfBleed(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  who: PlayerId,
+): number {
+  let n = 0;
+  for (const perm of battlefield) {
+    if (perm.controller !== who) continue;
+    for (const ab of def(db, perm.cardId).abilities ?? []) {
+      if (ab.when !== 'dawn') continue;
+      for (const op of ab.ops ?? []) {
+        if (op.op === 'damage' && op.to === 'controller' && op.n !== 'X') n += op.n;
+        else if (op.op === 'gainLife') n -= op.n;
+      }
+    }
+  }
+  return Math.max(0, n);
 }
 
 /** Value of a permanent on the battlefield — EFFECTIVE stats. */

@@ -29,6 +29,7 @@ import { eligibleAttackers, blockOptions } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
 import { manaSources } from '../engine/mana';
+import { ensureSplitPip } from '../ui/ManaSymbols';
 import { getEffectiveStats, isSummoningSick } from '../engine/statics';
 import type { CardDef, Color, PlayerId, Permanent, TargetRef } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
@@ -2396,31 +2397,58 @@ export class DuelScene extends Phaser.Scene {
     pipSize: number,
     align: 'left' | 'right',
   ): void {
-    const counts = new Map<Color, number>();
+    // Group sources by their exact producible-color set: mono sources
+    // aggregate per color, while a flexible source (dual land, the rainbow
+    // artifact) is ONE bead with a split pip and its own untapped/total count.
+    // Crediting a dual to every color it can make read as extra mana — one
+    // W/G land showed "W 1/1 G 1/1" (user-reported 2026-07-12). Signatures
+    // are normalized to WUBRG order: card data declares duals in mixed order
+    // (duals.ts ['W','G'] vs celtic-fae ['G','W']), and the same color PAIR
+    // must group into one bead, not two mirror-image ones.
+    const sigOf = (colors: readonly Color[]): string =>
+      [...colors].sort((a, b) => COLOR_SORT.indexOf(a) - COLOR_SORT.indexOf(b)).join('');
+    const counts = new Map<string, number>();
     for (const src of manaSources(this.duel.state, CARD_DB, player)) {
-      for (const c of src.colors) counts.set(c, (counts.get(c) ?? 0) + 1);
+      const sig = sigOf(src.colors);
+      counts.set(sig, (counts.get(sig) ?? 0) + 1);
     }
-    // Per-color TOTALS over every battlefield mana source, tapped included
+    // Per-set TOTALS over every battlefield mana source, tapped included
     // (lands + mana creatures): the readout is `untapped/total`, so the foe's
     // growing capacity stays visible even while they're tapped out — a plain
     // untapped count read as "the CPU's mana never goes up", and a tapped-out
     // color must dim to 0/N rather than vanish (user-reported 2026-07-10).
-    const totals = new Map<Color, number>();
+    const totals = new Map<string, number>();
     for (const perm of this.duel.state.battlefield) {
       if (perm.controller !== player) continue;
-      for (const c of def(CARD_DB, perm.cardId).manaAbility ?? []) {
-        totals.set(c, (totals.get(c) ?? 0) + 1);
-      }
+      const colors = def(CARD_DB, perm.cardId).manaAbility ?? [];
+      if (colors.length === 0) continue;
+      const sig = sigOf(colors);
+      totals.set(sig, (totals.get(sig) ?? 0) + 1);
     }
-    const colors = (['W', 'U', 'B', 'R', 'G'] as const).filter((c) => (totals.get(c) ?? 0) > 0);
+    // Worst case a deck can reach ~8 signatures (5 basic colors + duals + the
+    // rainbow artifact) and the row grows past its tuned 5-slot width —
+    // accepted edge: real decks run 2-3 colors and the strip stays a strip.
+    const sigs = [...totals.keys()].sort(
+      (a, b) =>
+        a.length - b.length ||
+        COLOR_SORT.indexOf(a[0] as Color) - COLOR_SORT.indexOf(b[0] as Color) ||
+        a.localeCompare(b),
+    );
 
     let minX = xAnchor - 22;
     let maxX = xAnchor + 22;
     // No sources at all yet: a faint colorless 0/0 placeholder keeps the
     // counter region visible (and clickable) from turn 0, so its first real
     // update happens in place instead of materializing mid-reveal.
-    const slots: { texture: string; untapped: number; total: number }[] = colors.length
-      ? colors.map((c) => ({ texture: `pip-${c}`, untapped: counts.get(c) ?? 0, total: totals.get(c) ?? 0 }))
+    const slots: { texture: string; untapped: number; total: number }[] = sigs.length
+      ? sigs.map((sig) => ({
+          texture:
+            sig.length === 1
+              ? `pip-${sig}`
+              : ensureSplitPip(this, sig.split('') as Color[]),
+          untapped: counts.get(sig) ?? 0,
+          total: totals.get(sig) ?? 0,
+        }))
       : [{ texture: 'pip-C', untapped: 0, total: 0 }];
     slots.forEach((slot, i) => {
       const x = align === 'right'
@@ -3829,7 +3857,7 @@ export class DuelScene extends Phaser.Scene {
     }
     const save = Services.save.data;
     const today = todayString();
-    const reward = applyMatchResult(save, this.difficulty, won, today);
+    const reward = applyMatchResult(save, this.difficulty, won, today, this.duel.state.turn);
     const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
     Services.save.flush();
     Music.duck(1.8); // let the sting read clearly over the bed
@@ -3872,7 +3900,9 @@ export class DuelScene extends Phaser.Scene {
         .text(
           640,
           388,
-          this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
+          reward.tooEarly
+            ? 'No reward — the match ended too early'
+            : this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
           {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.h2}px`,
