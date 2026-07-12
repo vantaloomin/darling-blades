@@ -327,7 +327,7 @@ Holo is **per-copy, not per-card** (2026-07-04): a finish is Axis C of the
 `CardVariant` a booster slot rolls (`src/meta/variants.ts`), stored on the
 owned copy in `SaveData.collectionVariants`. A card rendered without a
 variant gets **no holo** — a **solid per-tier metallic ring** (r silver, sr
-champagne-gold, ssr violet, ur crimson; c ringless) + the gem still mark
+champagne-gold, ssr violet, ur crimson; c ringless) + the tier-tinted set symbol still mark
 rarity (`RARITY_RING` in `src/ui/CardView.ts`). What each
 finish *renders* lives in `src/ui/fx/HoloEffects.ts` (`applyHolo`) and the
 shader in `src/ui/fx/IridescencePostFX.ts` (one pipeline, four `mode`s):

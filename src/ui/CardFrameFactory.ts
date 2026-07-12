@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import type { FrameStyle } from '../meta/variants';
+import { SET_ICON_PATHS, type CardSetId } from '../art/setIcons';
 
 /**
  * Bakes card frame textures once at boot, drawn at 2× (600×840) so frames
@@ -218,33 +219,40 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     tex.refresh();
   }
 
-  // Rarity gems — one per tier (proper redesign is wave 2; same diamond bake)
-  const gems: [string, string, string][] = [
-    ['gem-c', '#2b2b30', '#101013'], // grey
-    ['gem-r', '#dfe6f2', '#7d8aa3'], // silver-blue
-    ['gem-sr', '#ffe08a', '#b8860b'], // gold
-    ['gem-ssr', '#d9a8ff', '#5c1d8a'], // violet
-    ['gem-ur', '#ff9a8a', '#7a0e2e'], // crimson
+  // Set symbols, MTG-style: the SHAPE names the set (src/art/setIcons.ts —
+  // heart-and-blade for base, Mjölnir for Ragnarök, crescent-veil for Celtic
+  // Fae), the FILL tint names the rarity tier. Replaced the old uniform
+  // diamond gems (user-directed 2026-07-12); the tier gradients carry over.
+  const tierTints: [string, string, string][] = [
+    ['c', '#3a3a41', '#141417'], // grey (a touch lighter than the old gem — silhouettes need it)
+    ['r', '#dfe6f2', '#7d8aa3'], // silver-blue
+    ['sr', '#ffe08a', '#b8860b'], // gold
+    ['ssr', '#d9a8ff', '#5c1d8a'], // violet
+    ['ur', '#ff9a8a', '#7a0e2e'], // crimson
   ];
-  for (const [key, light, dark] of gems) {
-    if (scene.textures.exists(key)) continue;
-    const tex = scene.textures.createCanvas(key, 40, 40)!;
-    const ctx = tex.getContext();
-    const g = ctx.createLinearGradient(0, 0, 0, 40);
-    g.addColorStop(0, light);
-    g.addColorStop(1, dark);
-    ctx.beginPath();
-    ctx.moveTo(20, 2);
-    ctx.lineTo(38, 20);
-    ctx.lineTo(20, 38);
-    ctx.lineTo(2, 20);
-    ctx.closePath();
-    ctx.fillStyle = g;
-    ctx.fill();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-    ctx.stroke();
-    tex.refresh();
+  for (const set of Object.keys(SET_ICON_PATHS) as CardSetId[]) {
+    const path = new Path2D(SET_ICON_PATHS[set]);
+    for (const [tier, light, dark] of tierTints) {
+      const key = `seticon-${set}-${tier}`;
+      if (scene.textures.exists(key)) continue;
+      const tex = scene.textures.createCanvas(key, 40, 40)!;
+      const ctx = tex.getContext();
+      // gradient in ICON space (0..100): it is painted under the transform
+      const g = ctx.createLinearGradient(0, 0, 0, 100);
+      g.addColorStop(0, light);
+      g.addColorStop(1, dark);
+      ctx.save();
+      ctx.translate(2, 2);
+      ctx.scale(0.36, 0.36); // 100-box icon into a 36px area with 2px margin
+      ctx.fillStyle = g;
+      ctx.fill(path, 'evenodd');
+      // dark contour so light tiers hold up on the parchment textbox
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.stroke(path);
+      ctx.restore();
+      tex.refresh();
+    }
   }
 
   // Card back — real art when the scene-art PNG is on disk (docs/scene-art.md

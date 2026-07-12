@@ -506,9 +506,10 @@ There are two independent seeded PRNGs, deliberately kept apart:
   above).
 - **Composition** = baked frame image + art image (windowed and cropped) + name
   / type / rules texts + P/T plate + bottom-left cost pips + a bottom-centered
-  rarity gem + optional legendary crown + optional per-copy variant treatments
+  set symbol (MTG-style: shape = set, tint = rarity tier — `src/art/setIcons.ts`)
+  + optional legendary crown + optional per-copy variant treatments
   (frame ring/wash + holo FX). Long names and type lines are measured after
-  `setText()` and scale-to-fit inside their bars; the rarity gem no longer sits
+  `setText()` and scale-to-fit inside their bars; the set symbol no longer sits
   in the type bar, so long creature subtype lines cannot bleed into it.
 - **FX budget:** `setCard(card, { fx, variant? })` takes
   `'full' | 'static' | 'none'` plus an optional `CardVariant`. Holo renders

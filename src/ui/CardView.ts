@@ -19,6 +19,7 @@ const TEXT_LEFT = -126;
 const TEXT_WIDTH = 252;
 const BOTTOM_BADGE_Y = 182;
 const BOTTOM_PIP_SIZE = 21;
+const SET_ICON_SIZE = 24; // set symbols are leaner silhouettes than the old diamond gem
 
 /**
  * Shrink-to-fit with RE-WRAP: when a text block must scale down by s to fit
@@ -191,7 +192,7 @@ export class CardView extends Phaser.GameObjects.Container {
     // costless cards (lands).
     this.costPlate = scene.add.image(-96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(50, 31).setVisible(false);
 
-    this.gem = scene.add.image(0, BOTTOM_BADGE_Y, 'gem-c').setDisplaySize(BOTTOM_PIP_SIZE, BOTTOM_PIP_SIZE);
+    this.gem = scene.add.image(0, BOTTOM_BADGE_Y, 'seticon-base-c').setDisplaySize(SET_ICON_SIZE, SET_ICON_SIZE);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
     this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
 
@@ -402,10 +403,11 @@ export class CardView extends Phaser.GameObjects.Container {
       }
     }
 
-    // Rarity + variant treatments. The gem is always the tier indicator; the
-    // ring shows the tier treatment (plain look) unless a non-white variant
-    // frame claims it for Axis B.
-    this.gem.setTexture(`gem-${card.rarity}`);
+    // Rarity + variant treatments. The set symbol carries BOTH signals
+    // (MTG-style: shape = set, tint = tier); the ring shows the tier
+    // treatment (plain look) unless a non-white variant frame claims it
+    // for Axis B.
+    this.gem.setTexture(`seticon-${card.set ?? 'base'}-${card.rarity}`);
     this.crown.setVisible(!!card.supertypes?.includes('legendary'));
 
     const variant = opts.variant;
