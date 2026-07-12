@@ -15,6 +15,7 @@ import { CollectionScene } from './scenes/CollectionScene';
 import { DeckBuilderScene } from './scenes/DeckBuilderScene';
 import { DuelScene } from './scenes/DuelScene';
 import { GauntletScene } from './scenes/GauntletScene';
+import { GlossaryScene } from './scenes/GlossaryScene';
 import { LimitedDeckBuilderScene } from './scenes/LimitedDeckBuilderScene';
 import { LimitedDraftScene } from './scenes/LimitedDraftScene';
 import { LimitedRevealScene } from './scenes/LimitedRevealScene';
@@ -102,6 +103,7 @@ const game = new Phaser.Game({
     PreloadScene,
     MainMenuScene,
     SettingsScene,
+    GlossaryScene,
     // Card Showcase (variant QA) registers only on dev/local builds — see
     // src/platform/env.ts. On the public build it is never reachable.
     ...(IS_DEV ? [CardShowcaseScene] : []),

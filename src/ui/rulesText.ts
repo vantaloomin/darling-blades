@@ -1,4 +1,4 @@
-import type { AbilityDef, CardDef, EffectOp, Keyword } from '../engine/types';
+import type { AbilityDef, CardDef, CardType, EffectOp, Keyword } from '../engine/types';
 
 export const KEYWORD_NAMES: Record<Keyword, string> = {
   skyborne: 'Skyborne',
@@ -27,6 +27,16 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
   deathblade: 'any amount of damage it deals to a creature is lethal',
   bloodoath: 'damage it deals also gains you that much life',
   untouchable: 'cannot be targeted by spells or abilities your opponents control',
+};
+
+/** One-line player-facing definitions for the card types used in the glossary. */
+export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
+  creature: 'A permanent fighter that can attack and block.',
+  charm: 'Cast anytime you have priority, even on the foe\'s turn.',
+  ritual: 'Cast only during one of your own main phases.',
+  enchantment: 'A lasting spell that changes a creature or the battlefield.',
+  artifact: 'A lasting relic with abilities or ongoing effects.',
+  land: 'Play one each turn to tap for mana.',
 };
 
 function opText(op: EffectOp): string {
