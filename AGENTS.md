@@ -6,7 +6,7 @@ the main session owns commits — parallel sub-agents don't run git.
 
 ## Before doing anything
 
-Read [docs/Codex-playbook.md](docs/Codex-playbook.md) — the orchestration
+Read [docs/claude-playbook.md](docs/claude-playbook.md) — the orchestration
 playbook: how to think through steps (orient → baseline → decompose →
 delegate → review → adversarially verify → measure honestly → sync docs),
 how to write agent prompts as contracts, the verification ladder, the
@@ -50,7 +50,7 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 ## Where things live
 
 `docs/` is the doc set (architecture, rules, adding-cards, ai, art-pipeline,
-roadmap, art-bible/, Codex-playbook, git-workflow). Balance baseline lives date-stamped in
+roadmap, art-bible/, claude-playbook, git-workflow). Balance baseline lives date-stamped in
 `src/data/opponents.ts`. Negative AI-experiment results live in
 `src/ai/determinize.ts`. Session memory (cross-session state) is in the
-Codex memory directory, indexed by `MEMORY.md`.
+Claude memory directory, indexed by `MEMORY.md`.
