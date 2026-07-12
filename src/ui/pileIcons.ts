@@ -7,7 +7,7 @@ export const PILE_ICON_KEYS = {
   hand: 'pile-icon-hand',
   grave: 'pile-icon-tombstone',
   deck: 'pile-icon-card-back-mini',
-  exile: 'pile-icon-exile',
+  severed: 'pile-icon-severed',
 } as const;
 
 export type PileIconKind = keyof typeof PILE_ICON_KEYS;
@@ -116,7 +116,7 @@ function drawCardBack(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.stroke();
 }
 
-function drawExile(ctx: CanvasRenderingContext2D, s: number): void {
+function drawSevered(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.strokeStyle = theme.colors.body;
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -145,7 +145,7 @@ const DRAW_ICON: Record<PileIconKind, IconDraw> = {
   hand: drawHand,
   grave: drawTombstone,
   deck: drawCardBack,
-  exile: drawExile,
+  severed: drawSevered,
 };
 
 export function bakePileIcons(scene: Phaser.Scene): void {

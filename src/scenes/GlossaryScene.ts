@@ -55,8 +55,8 @@ const GLOSSARY_SECTIONS: GlossarySection[] = [
     id: 'mechanics',
     title: 'Mechanics',
     entries: [
-      { name: 'Exile', description: MECHANIC_DEFINITIONS.exile, icon: { kind: 'none' } },
-      { name: 'Scry', description: MECHANIC_DEFINITIONS.scry, icon: { kind: 'none' } },
+      { name: 'Sever', description: MECHANIC_DEFINITIONS.sever, icon: { kind: 'none' } },
+      { name: 'Foresee', description: MECHANIC_DEFINITIONS.foresee, icon: { kind: 'none' } },
     ],
   },
   {

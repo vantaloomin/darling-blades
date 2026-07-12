@@ -15,7 +15,7 @@ export type Action =
   | { type: 'keepHand' }
   | { type: 'mulligan' }
   | { type: 'bottomCards'; handIndices: number[] }
-  | { type: 'scry'; bottomIndices: number[] }
+  | { type: 'foresee'; bottomIndices: number[] }
   | { type: 'playLand'; handIndex: number }
   | {
       type: 'castSpell';
@@ -173,12 +173,12 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
       }
       break;
 
-    case 'scry':
-      // Unlike London bottoming, scry permits any subset. Its picker reads
+    case 'foresee':
+      // Unlike London bottoming, foresee permits any subset. Its picker reads
       // awaiting.cards directly; exposing every subset here would allocate
-      // 2^n actions for a large scry. The empty pick is a canonical legal
+      // 2^n actions for a large foresee. The empty pick is a canonical legal
       // fallback, while validateAction accepts every valid index set.
-      out.push({ type: 'scry', bottomIndices: [] });
+      out.push({ type: 'foresee', bottomIndices: [] });
       break;
 
     case 'main': {
@@ -295,9 +295,9 @@ export function validateAction(
       return validIndexSet(action.handIndices, me.hand.length);
     }
 
-    case 'scry': {
-      if (a.kind !== 'scry') return 'not scrying';
-      return validIndexSet(action.bottomIndices, a.cards.length, 'scry');
+    case 'foresee': {
+      if (a.kind !== 'foresee') return 'not foreseeing';
+      return validIndexSet(action.bottomIndices, a.cards.length, 'foresee');
     }
 
     case 'playLand': {

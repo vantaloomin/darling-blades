@@ -29,35 +29,35 @@ const DB: CardDb = {
     rarity: 'c',
     abilities: [{ when: 'static', static: { scope: 'attached', p: 1, t: 1 } }],
   },
-  scry3: {
-    id: 'scry3',
-    name: 'Scry Three',
+  foresee3: {
+    id: 'foresee3',
+    name: 'Foresee Three',
     types: ['ritual'],
     subtypes: [],
     cost: { generic: 0, pips: {} },
     colors: [],
     rarity: 'c',
-    abilities: [{ when: 'spell', ops: [{ op: 'scry', n: 3 }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }] }],
   },
-  scry10: {
-    id: 'scry10',
-    name: 'Scry Ten',
+  foresee10: {
+    id: 'foresee10',
+    name: 'Foresee Ten',
     types: ['ritual'],
     subtypes: [],
     cost: { generic: 0, pips: {} },
     colors: [],
     rarity: 'c',
-    abilities: [{ when: 'spell', ops: [{ op: 'scry', n: 10 }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 10 }] }],
   },
-  scry0: {
-    id: 'scry0',
-    name: 'Scry Zero',
+  foresee0: {
+    id: 'foresee0',
+    name: 'Foresee Zero',
     types: ['ritual'],
     subtypes: [],
     cost: { generic: 0, pips: {} },
     colors: [],
     rarity: 'c',
-    abilities: [{ when: 'spell', ops: [{ op: 'scry', n: 0 }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 0 }] }],
   },
   banish: {
     id: 'banish',
@@ -68,43 +68,43 @@ const DB: CardDb = {
     colors: [],
     rarity: 'c',
     abilities: [
-      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'exile', to: 'target' }] },
+      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'sever', to: 'target' }] },
     ],
   },
-  arrives_scry: {
+  arrives_foresee: {
     ...TEST_DB.bear,
-    id: 'arrives_scry',
-    name: 'Arrives Scry',
+    id: 'arrives_foresee',
+    name: 'Arrives Foresee',
     cost: { generic: 0, pips: {} },
-    abilities: [{ when: 'arrives', ops: [{ op: 'scry', n: 1 }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
   },
-  attacks_scry: {
+  attacks_foresee: {
     ...TEST_DB.bear,
-    id: 'attacks_scry',
-    name: 'Attacks Scry',
+    id: 'attacks_foresee',
+    name: 'Attacks Foresee',
     cost: { generic: 0, pips: {} },
-    abilities: [{ when: 'attacks', ops: [{ op: 'scry', n: 1 }] }],
+    abilities: [{ when: 'attacks', ops: [{ op: 'foresee', n: 1 }] }],
   },
-  combat_scry: {
+  combat_foresee: {
     ...TEST_DB.bear,
-    id: 'combat_scry',
-    name: 'Combat Scry',
+    id: 'combat_foresee',
+    name: 'Combat Foresee',
     cost: { generic: 0, pips: {} },
-    abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'scry', n: 1 }] }],
+    abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'foresee', n: 1 }] }],
   },
-  dawn_scry: {
+  dawn_foresee: {
     ...TEST_DB.bear,
-    id: 'dawn_scry',
-    name: 'Dawn Scry',
+    id: 'dawn_foresee',
+    name: 'Dawn Foresee',
     cost: { generic: 0, pips: {} },
-    abilities: [{ when: 'dawn', ops: [{ op: 'scry', n: 1 }] }],
+    abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
   },
-  dies_scry: {
+  dies_foresee: {
     ...TEST_DB.bear,
-    id: 'dies_scry',
-    name: 'Dies Scry',
+    id: 'dies_foresee',
+    name: 'Dies Foresee',
     cost: { generic: 0, pips: {} },
-    abilities: [{ when: 'dies', ops: [{ op: 'scry', n: 1 }] }],
+    abilities: [{ when: 'dies', ops: [{ op: 'foresee', n: 1 }] }],
   },
   destroyer: {
     id: 'destroyer',
@@ -122,20 +122,20 @@ const DB: CardDb = {
 
 const ctx = { controller: 0 as const, sourceCardId: 'test', targets: [] };
 
-function scryGame(cardId: 'scry0' | 'scry3' | 'scry10', deck: string[]): Game {
+function foreseeGame(cardId: 'foresee0' | 'foresee3' | 'foresee10', deck: string[]): Game {
   const state = makeTestState({ hands: [[cardId], []], active: 0 });
   state.players[0].deck = [...deck];
   return Game.restore(state, DB);
 }
 
-function beginScry(cardId: 'scry0' | 'scry3' | 'scry10', deck: string[]): Game {
-  const game = scryGame(cardId, deck);
+function beginForesee(cardId: 'foresee0' | 'foresee3' | 'foresee10', deck: string[]): Game {
+  const game = foreseeGame(cardId, deck);
   game.submit(0, { type: 'castSpell', handIndex: 0 });
   return game;
 }
 
-describe('exile zone', () => {
-  it('exiles a creature without dies triggers and lets SBAs clean up its attachments', () => {
+describe('sever zone', () => {
+  it('severs a creature without dies triggers and lets SBAs clean up its attachments', () => {
     const state = makeTestState({
       active: 0,
       battlefield: [
@@ -150,17 +150,17 @@ describe('exile zone', () => {
       DB,
       (event) => events.push(event),
       { ...ctx, targets: [{ kind: 'permanent', iid: 1 }] },
-      [{ op: 'exile', to: 'target' }],
+      [{ op: 'sever', to: 'target' }],
     );
     checkStateBased(state, DB, (event) => events.push(event));
 
     expect(state.battlefield).toHaveLength(0);
-    expect(state.players[0].exile).toEqual(['dies_bear']);
+    expect(state.players[0].severed).toEqual(['dies_bear']);
     expect(state.players[0].graveyard).toEqual(['test_aura']);
     expect(state.players[0].life).toBe(20); // the target's dies ability never fired
     expect(events.some((event) => event.e === 'triggerFired' && event.iid === 1)).toBe(false);
     expect(events).toContainEqual({
-      e: 'exiled',
+      e: 'severed',
       player: 0,
       cardId: 'dies_bear',
       from: 'battlefield',
@@ -168,9 +168,9 @@ describe('exile zone', () => {
     });
   });
 
-  it('leaves exiled cards unreachable by raise and reclaim', () => {
+  it('leaves severed cards unreachable by raise and reclaim', () => {
     const state = makeTestState({ active: 0 });
-    state.players[0].exile = ['bear'];
+    state.players[0].severed = ['bear'];
 
     runOps(state, DB, () => {}, ctx, [{ op: 'raise', to: 'top' }]);
     runOps(
@@ -183,10 +183,10 @@ describe('exile zone', () => {
 
     expect(state.battlefield).toEqual([]);
     expect(state.players[0].hand).toEqual([]);
-    expect(state.players[0].exile).toEqual(['bear']);
+    expect(state.players[0].severed).toEqual(['bear']);
   });
 
-  it('exiles graveyard and deck cards top-first, clamps, and emits zone moves', () => {
+  it('severs graveyard and deck cards top-first, clamps, and emits zone moves', () => {
     const state = makeTestState({ active: 0 });
     state.players[1].graveyard = ['bear', 'elf', 'giant']; // giant is most recent
     state.players[0].deck = ['bear', 'elf', 'giant']; // giant is the deck top
@@ -198,128 +198,128 @@ describe('exile zone', () => {
       (event) => events.push(event),
       ctx,
       [
-        { op: 'exileGrave', n: 10, who: 'opponent' },
-        { op: 'exileTop', n: 10, who: 'self' },
+        { op: 'severGrave', n: 10, who: 'opponent' },
+        { op: 'severTop', n: 10, who: 'self' },
       ],
     );
 
     expect(state.players[1].graveyard).toEqual([]);
-    expect(state.players[1].exile).toEqual(['giant', 'elf', 'bear']);
+    expect(state.players[1].severed).toEqual(['giant', 'elf', 'bear']);
     expect(state.players[0].deck).toEqual([]);
-    expect(state.players[0].exile).toEqual(['giant', 'elf', 'bear']);
-    expect(events.filter((event) => event.e === 'exiled')).toEqual([
-      { e: 'exiled', player: 1, cardId: 'giant', from: 'graveyard' },
-      { e: 'exiled', player: 1, cardId: 'elf', from: 'graveyard' },
-      { e: 'exiled', player: 1, cardId: 'bear', from: 'graveyard' },
-      { e: 'exiled', player: 0, cardId: 'giant', from: 'deck' },
-      { e: 'exiled', player: 0, cardId: 'elf', from: 'deck' },
-      { e: 'exiled', player: 0, cardId: 'bear', from: 'deck' },
+    expect(state.players[0].severed).toEqual(['giant', 'elf', 'bear']);
+    expect(events.filter((event) => event.e === 'severed')).toEqual([
+      { e: 'severed', player: 1, cardId: 'giant', from: 'graveyard' },
+      { e: 'severed', player: 1, cardId: 'elf', from: 'graveyard' },
+      { e: 'severed', player: 1, cardId: 'bear', from: 'graveyard' },
+      { e: 'severed', player: 0, cardId: 'giant', from: 'deck' },
+      { e: 'severed', player: 0, cardId: 'elf', from: 'deck' },
+      { e: 'severed', player: 0, cardId: 'bear', from: 'deck' },
     ]);
   });
 
-  it('exposes both players’ exile zones in every PlayerView', () => {
+  it('exposes both players’ sever zones in every PlayerView', () => {
     const state = makeTestState({ active: 0 });
-    state.players[0].exile = ['bear'];
-    state.players[1].exile = ['giant'];
+    state.players[0].severed = ['bear'];
+    state.players[1].severed = ['giant'];
     const game = Game.restore(state, DB);
 
-    expect(game.viewFor(0).you.exile).toEqual(['bear']);
-    expect(game.viewFor(0).opp.exile).toEqual(['giant']);
-    expect(game.viewFor(1).you.exile).toEqual(['giant']);
-    expect(game.viewFor(1).opp.exile).toEqual(['bear']);
+    expect(game.viewFor(0).you.severed).toEqual(['bear']);
+    expect(game.viewFor(0).opp.severed).toEqual(['giant']);
+    expect(game.viewFor(1).you.severed).toEqual(['giant']);
+    expect(game.viewFor(1).opp.severed).toEqual(['bear']);
   });
 });
 
-describe('scry', () => {
+describe('foresee', () => {
   it.each([
     [[], ['a', 'b', 'c', 'd']],
     [[0], ['d', 'a', 'b', 'c']],
     [[1], ['c', 'a', 'b', 'd']],
     [[0, 2], ['b', 'd', 'a', 'c']],
   ])('keeps exact deck order when bottoming %j', (bottomIndices, expectedDeck) => {
-    const game = beginScry('scry3', ['a', 'b', 'c', 'd']);
-    expect(game.awaiting).toEqual({ player: 0, kind: 'scry', cards: ['d', 'c', 'b'] });
+    const game = beginForesee('foresee3', ['a', 'b', 'c', 'd']);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['d', 'c', 'b'] });
 
-    game.submit(0, { type: 'scry', bottomIndices });
+    game.submit(0, { type: 'foresee', bottomIndices });
 
     expect(game.state.players[0].deck).toEqual(expectedDeck);
     expect(game.awaiting.kind).toBe('main');
   });
 
-  it('clamps to deck size, and scry zero or an empty deck opens no decision', () => {
-    const largerThanDeck = beginScry('scry10', ['a', 'b']);
-    expect(largerThanDeck.awaiting).toEqual({ player: 0, kind: 'scry', cards: ['b', 'a'] });
-    largerThanDeck.submit(0, { type: 'scry', bottomIndices: [0] });
+  it('clamps to deck size, and foresee zero or an empty deck opens no decision', () => {
+    const largerThanDeck = beginForesee('foresee10', ['a', 'b']);
+    expect(largerThanDeck.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['b', 'a'] });
+    largerThanDeck.submit(0, { type: 'foresee', bottomIndices: [0] });
     expect(largerThanDeck.state.players[0].deck).toEqual(['b', 'a']);
 
-    expect(beginScry('scry0', ['a']).awaiting.kind).toBe('main');
-    expect(beginScry('scry3', []).awaiting.kind).toBe('main');
+    expect(beginForesee('foresee0', ['a']).awaiting.kind).toBe('main');
+    expect(beginForesee('foresee3', []).awaiting.kind).toBe('main');
   });
 
-  it('shows the scrying player card ids but redacts them from the opponent', () => {
-    const game = beginScry('scry3', ['secret_bottom', 'secret_middle', 'secret_top']);
+  it('shows the foreseeing player card ids but redacts them from the opponent', () => {
+    const game = beginForesee('foresee3', ['secret_bottom', 'secret_middle', 'secret_top']);
     expect(game.viewFor(0).awaiting).toEqual({
       player: 0,
-      kind: 'scry',
+      kind: 'foresee',
       cards: ['secret_top', 'secret_middle', 'secret_bottom'],
     });
-    expect(game.viewFor(1).awaiting).toEqual({ player: 0, kind: 'scry', cards: [] });
+    expect(game.viewFor(1).awaiting).toEqual({ player: 0, kind: 'foresee', cards: [] });
   });
 
-  it('rejects duplicate and out-of-range scry indices before mutating state', () => {
-    const game = beginScry('scry3', ['a', 'b', 'c']);
+  it('rejects duplicate and out-of-range foresee indices before mutating state', () => {
+    const game = beginForesee('foresee3', ['a', 'b', 'c']);
     const before = JSON.stringify(game.state);
 
-    expect(() => game.submit(0, { type: 'scry', bottomIndices: [0, 0] })).toThrow();
-    expect(() => game.submit(0, { type: 'scry', bottomIndices: [3] })).toThrow();
+    expect(() => game.submit(0, { type: 'foresee', bottomIndices: [0, 0] })).toThrow();
+    expect(() => game.submit(0, { type: 'foresee', bottomIndices: [3] })).toThrow();
     expect(JSON.stringify(game.state)).toBe(before);
   });
 
   it('is decision-safe from every non-static trigger context', () => {
-    const arrives = makeTestState({ hands: [['arrives_scry'], []], active: 0 });
+    const arrives = makeTestState({ hands: [['arrives_foresee'], []], active: 0 });
     arrives.players[0].deck = ['bear'];
     const arrivesGame = Game.restore(arrives, DB);
     arrivesGame.submit(0, { type: 'castSpell', handIndex: 0 });
-    expect(arrivesGame.awaiting).toMatchObject({ player: 0, kind: 'scry' });
+    expect(arrivesGame.awaiting).toMatchObject({ player: 0, kind: 'foresee' });
 
     const attacks = makeTestState({
       active: 0,
-      battlefield: [{ iid: 1, cardId: 'attacks_scry', controller: 0 }],
+      battlefield: [{ iid: 1, cardId: 'attacks_foresee', controller: 0 }],
     });
     attacks.players[0].deck = ['bear'];
     const attacksGame = Game.restore(attacks, DB);
     attacksGame.submit(0, { type: 'passStep' });
     attacksGame.submit(0, { type: 'declareAttackers', attackers: [1] });
-    expect(attacksGame.awaiting).toMatchObject({ player: 0, kind: 'scry' });
-    attacksGame.submit(0, { type: 'scry', bottomIndices: [] });
+    expect(attacksGame.awaiting).toMatchObject({ player: 0, kind: 'foresee' });
+    attacksGame.submit(0, { type: 'foresee', bottomIndices: [] });
     expect(attacksGame.awaiting.kind).toBe('declareBlockers');
 
     const combat = makeTestState({
       active: 0,
-      battlefield: [{ iid: 1, cardId: 'combat_scry', controller: 0 }],
+      battlefield: [{ iid: 1, cardId: 'combat_foresee', controller: 0 }],
     });
     combat.players[0].deck = ['bear'];
     const combatGame = Game.restore(combat, DB);
     combatGame.submit(0, { type: 'passStep' });
     combatGame.submit(0, { type: 'declareAttackers', attackers: [1] });
     combatGame.submit(1, { type: 'declareBlockers', blocks: [] });
-    expect(combatGame.awaiting).toMatchObject({ player: 0, kind: 'scry' });
+    expect(combatGame.awaiting).toMatchObject({ player: 0, kind: 'foresee' });
 
     const dawn = makeTestState({
       active: 1,
-      battlefield: [{ iid: 1, cardId: 'dawn_scry', controller: 0 }],
+      battlefield: [{ iid: 1, cardId: 'dawn_foresee', controller: 0 }],
     });
     dawn.step = 'main2';
     dawn.awaiting = { player: 1, kind: 'main' };
     dawn.players[0].deck = ['bear'];
     const dawnGame = Game.restore(dawn, DB);
     dawnGame.submit(1, { type: 'passStep' });
-    expect(dawnGame.awaiting).toMatchObject({ player: 0, kind: 'scry' });
+    expect(dawnGame.awaiting).toMatchObject({ player: 0, kind: 'foresee' });
 
     const dies = makeTestState({
       hands: [['destroyer'], []],
       active: 0,
-      battlefield: [{ iid: 1, cardId: 'dies_scry', controller: 1 }],
+      battlefield: [{ iid: 1, cardId: 'dies_foresee', controller: 1 }],
     });
     dies.players[1].deck = ['bear'];
     const diesGame = Game.restore(dies, DB);
@@ -328,15 +328,15 @@ describe('scry', () => {
       handIndex: 0,
       targets: [{ kind: 'permanent', iid: 1 }],
     });
-    expect(diesGame.awaiting).toMatchObject({ player: 1, kind: 'scry' });
+    expect(diesGame.awaiting).toMatchObject({ player: 1, kind: 'foresee' });
   });
 });
 
-function aiScryGame(): Game {
+function aiForeseeGame(): Game {
   const state = makeTestState({ active: 0 });
   state.players[0].deck = ['forest', 'giant', 'bear'];
-  state.pendingDecisions = [{ kind: 'scry', player: 0, n: 3 }];
-  state.awaiting = { player: 0, kind: 'scry', cards: ['bear', 'giant', 'forest'] };
+  state.pendingDecisions = [{ kind: 'foresee', player: 0, n: 3 }];
+  state.awaiting = { player: 0, kind: 'foresee', cards: ['bear', 'giant', 'forest'] };
   return Game.restore(state, DB);
 }
 
@@ -344,7 +344,7 @@ function aiDeck(): string[] {
   return [
     ...Array.from({ length: 8 }, () => 'forest'),
     ...Array.from({ length: 6 }, () => 'bear'),
-    ...Array.from({ length: 5 }, () => 'scry3'),
+    ...Array.from({ length: 5 }, () => 'foresee3'),
     ...Array.from({ length: 5 }, () => 'banish'),
   ];
 }
@@ -362,8 +362,8 @@ function runAiGame(seed: number): { events: GameEvent[]; state: string } {
   throw new Error('AI game did not terminate');
 }
 
-describe('AI scry decisions', () => {
-  it('gives every brain a deterministic, legal scry response', () => {
+describe('AI foresee decisions', () => {
+  it('gives every brain a deterministic, legal foresee response', () => {
     const brains: AIPlayer[] = [
       new EasyAI(DB, 71),
       new MediumAI(DB),
@@ -372,19 +372,19 @@ describe('AI scry decisions', () => {
     ];
 
     for (const brain of brains) {
-      const game = aiScryGame();
+      const game = aiForeseeGame();
       const action = brain.chooseAction(game.viewFor(0), game.legalActions(0));
-      expect(action.type).toBe('scry');
+      expect(action.type).toBe('foresee');
       expect(() => game.submit(0, action)).not.toThrow();
     }
   });
 
-  it('plays a scry-and-exile AI game to completion with byte-identical repeats', () => {
+  it('plays a foresee-and-sever AI game to completion with byte-identical repeats', () => {
     const a = runAiGame(8128);
     const b = runAiGame(8128);
 
-    expect(a.events.some((event) => event.e === 'effectApplied' && event.op === 'scry')).toBe(true);
-    expect(a.events.some((event) => event.e === 'exiled')).toBe(true);
+    expect(a.events.some((event) => event.e === 'effectApplied' && event.op === 'foresee')).toBe(true);
+    expect(a.events.some((event) => event.e === 'severed')).toBe(true);
     expect(JSON.stringify(a.events)).toBe(JSON.stringify(b.events));
     expect(a.state).toBe(b.state);
   });

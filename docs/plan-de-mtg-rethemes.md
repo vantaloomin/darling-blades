@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/engine/effects/EffectInterpreter.ts, src/engine/statics.ts, src/config/rules.ts, src/meta/SaveManager.ts, src/ai/determinize.ts, docs/rules.md, tests/ai/winrate.test.ts · last-verified: 2026-07-10 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, src/engine/effects/EffectInterpreter.ts, src/engine/statics.ts, src/config/rules.ts, src/meta/SaveManager.ts, src/ai/determinize.ts, docs/rules.md, tests/ai/winrate.test.ts · last-verified: 2026-07-12 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
 
 # De-MTG term re-theme (Tier-3 full engine rename)
 
@@ -116,6 +116,8 @@ and `pump.p/t` → `a/d`, and the `` `${power}/${toughness}` `` face render (`Ca
 | bounce | `recall` | "return target creature to its owner's hand" (unchanged) |
 | rampBasic | `fetchLand` | "search your **deck** for a basic land and put it into **play** tapped" |
 | pump | `boost` | "target creature gets +{a}/+{d} … until end of turn" (p/t→a/d) |
+| exile *(added by Celtic Fae, renamed 2026-07-12)* | `sever` (+ `severGrave`, `severTop`; zone `severed`) | "sever target creature"; display name **Sever** — severed cards never return |
+| scry *(added by Celtic Fae, renamed 2026-07-12)* | `foresee` | "foresee {N}"; display name **Foresee** — look at the top N, bottom any subset |
 
 Unchanged ops: damage, gainLife, loseLife, draw, discardRandom, destroy, addCounters, tap,
 createToken, massDestroy. Note: `massDestroy` filter id `'allFliers'` stays, but its rendered

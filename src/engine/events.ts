@@ -35,7 +35,7 @@ export type GameEvent =
   | { e: 'discarded'; player: PlayerId; cardId: string }
   | { e: 'milled'; player: PlayerId; cardId: string }
   | {
-      e: 'exiled';
+      e: 'severed';
       player: PlayerId;
       cardId: string;
       from: 'battlefield' | 'graveyard' | 'deck';

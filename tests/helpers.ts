@@ -517,7 +517,7 @@ export function makeTestState(opts: {
     deck: [] as string[],
     hand,
     graveyard: [] as string[],
-    exile: [] as string[],
+    severed: [] as string[],
     landPlayedThisTurn: false,
     mulligans: 0,
     keptHand: true,
@@ -552,7 +552,7 @@ export function botAction(actions: Action[]): Action {
   const prefer: Action['type'][] = [
     'keepHand',
     'bottomCards',
-    'scry',
+    'foresee',
     'playLand',
     'chooseBasicLand', // a deferred fetch — take the first offered basic
     'castSpell',

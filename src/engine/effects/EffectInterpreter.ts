@@ -1,6 +1,6 @@
 import { RULES } from '../../config/rules';
 import type { Emit } from '../battlefield';
-import { destroyPermanent, enterBattlefield, exilePermanent } from '../battlefield';
+import { destroyPermanent, enterBattlefield, severPermanent } from '../battlefield';
 import { drawCards } from '../phases';
 import { rngInt, rngShuffle } from '../rng';
 import { getEffectiveStats } from '../statics';
@@ -93,31 +93,31 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
-    case 'exile': {
+    case 'sever': {
       const perm = targetPermanent(state, ctx.targets[0]);
-      // Exile removes the permanent and lets SBAs clean up orphaned auras, but
+      // Sever removes the permanent and lets SBAs clean up orphaned auras, but
       // deliberately does not fire `dies` triggers.
-      if (perm) exilePermanent(state, db, perm, emit);
+      if (perm) severPermanent(state, db, perm, emit);
       return;
     }
-    case 'exileGrave': {
+    case 'severGrave': {
       const victim = op.who === 'self' ? ctx.controller : opponentOf(ctx.controller);
       const grave = state.players[victim].graveyard;
       for (let i = 0; i < op.n; i++) {
         const cardId = grave.pop(); // most recent card is the graveyard top
         if (cardId === undefined) break;
-        state.players[victim].exile.push(cardId);
-        emit({ e: 'exiled', player: victim, cardId, from: 'graveyard' });
+        state.players[victim].severed.push(cardId);
+        emit({ e: 'severed', player: victim, cardId, from: 'graveyard' });
       }
       return;
     }
-    case 'exileTop': {
+    case 'severTop': {
       const lib = state.players[ctx.controller].deck;
       for (let i = 0; i < op.n; i++) {
         const cardId = lib.pop(); // top of deck is the last element
         if (cardId === undefined) break;
-        state.players[ctx.controller].exile.push(cardId);
-        emit({ e: 'exiled', player: ctx.controller, cardId, from: 'deck' });
+        state.players[ctx.controller].severed.push(cardId);
+        emit({ e: 'severed', player: ctx.controller, cardId, from: 'deck' });
       }
       return;
     }
@@ -257,12 +257,12 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
-    case 'scry': {
+    case 'foresee': {
       // The interpreter stays synchronous; Game surfaces this FIFO decision
       // after the current resolution batch. The action itself performs the
       // deterministic deck rewrite.
       if (op.n > 0 && state.players[ctx.controller].deck.length > 0) {
-        state.pendingDecisions.push({ kind: 'scry', player: ctx.controller, n: op.n });
+        state.pendingDecisions.push({ kind: 'foresee', player: ctx.controller, n: op.n });
       }
       return;
     }

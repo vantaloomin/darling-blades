@@ -30,9 +30,9 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 };
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
-export const MECHANIC_DEFINITIONS: Record<'exile' | 'scry', string> = {
-  exile: 'removed from the game — exiled cards never return',
-  scry: 'look at the top cards of your deck; put any of them on the bottom',
+export const MECHANIC_DEFINITIONS: Record<'sever' | 'foresee', string> = {
+  sever: 'severed from the game — severed cards never return',
+  foresee: 'look at the top cards of your deck; put any of them on the bottom',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -63,16 +63,16 @@ function opText(op: EffectOp): string {
       return `your opponent discards ${op.n === 1 ? 'a card' : `${op.n} cards`} at random`;
     case 'destroy':
       return 'destroy target creature';
-    case 'exile':
-      return 'exile target creature';
-    case 'exileGrave': {
+    case 'sever':
+      return 'sever target creature';
+    case 'severGrave': {
       const cards = op.n === 1 ? 'the top card' : `the top ${op.n} cards`;
       return op.who === 'self'
-        ? `exile ${cards} of your graveyard`
-        : `exile ${cards} of your opponent's graveyard`;
+        ? `sever ${cards} of your graveyard`
+        : `sever ${cards} of your opponent's graveyard`;
     }
-    case 'exileTop':
-      return `exile ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
+    case 'severTop':
+      return `sever ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
     case 'recall':
       return "return target creature to its owner's hand";
     case 'cancel':
@@ -108,8 +108,8 @@ function opText(op: EffectOp): string {
         ? `put ${cards} of your deck into your graveyard`
         : `your opponent puts ${cards} of their deck into their graveyard`;
     }
-    case 'scry':
-      return `scry ${op.n}`;
+    case 'foresee':
+      return `foresee ${op.n}`;
     case 'raise':
       return op.to === 'top'
         ? 'return the top creature card of your graveyard to play'

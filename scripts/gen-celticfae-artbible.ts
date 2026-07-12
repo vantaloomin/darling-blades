@@ -393,8 +393,8 @@ function mechanicalNote(card: CardDef): string {
   if (keywords.includes('sentinel') || keywords.includes('bulwark')) notes.push('a steadfast boundary keeper');
   if (keywords.includes('deathblade')) notes.push('lethal at a single precise touch');
   if (keywords.includes('warcry') || keywords.includes('overrun')) notes.push('an aggressive hunt leader');
-  if (ops.includes('scry')) notes.push('a reader and arranger of fate');
-  if (ops.includes('exile') || ops.includes('exileGrave')) notes.push('a keeper of the veil between worlds');
+  if (ops.includes('foresee')) notes.push('a reader and arranger of fate');
+  if (ops.includes('sever') || ops.includes('severGrave')) notes.push('a keeper of the veil between worlds');
   if (ops.includes('grind')) notes.push('an intimate worker of grave memories');
   if (ops.includes('createToken')) notes.push('a caller of courtly bloom spirits');
   if (card.manaAbility?.length) notes.push('a conduit for the grove’s living mana');

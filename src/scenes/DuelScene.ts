@@ -131,12 +131,12 @@ const LAYOUT = {
   /** Right-side control cluster: ⏭ End Turn chip · smart button (top→bottom). */
   cluster: { x: 1108, endTurnY: 548, passY: 642, passR: 46 },
   /** Opponent hand/grave/deck icon stack in the left pile column. */
-  oppPiles: { x: 38, handY: 40, graveY: 110, deckY: 180, exileY: 250 },
-  /** Your deck/grave icon stack, with a hidden exile slot reserved above deck. */
-  piles: { x: 1242, exileY: 482, deckY: 552, graveY: 622 },
+  oppPiles: { x: 38, handY: 40, graveY: 110, deckY: 180, severedY: 250 },
+  /** Your deck/grave icon stack, with a hidden severed slot reserved above deck. */
+  piles: { x: 1242, severedY: 482, deckY: 552, graveY: 622 },
 } as const;
 
-const EXILE_ENABLED = true;
+const SEVER_ENABLED = true;
 const BOARD_CENTER_X = 640;
 /** Cast-targeting arrow: source anchor (hand-rest, bottom-center), snap radius, color. */
 const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
@@ -148,7 +148,7 @@ const ROW_GUTTER = 6;
 const PERMANENT_BAND_SCALE = 0.55;
 const PERMANENT_BAND_TILE_W = TILE_W * PERMANENT_BAND_SCALE;
 const PERMANENT_BAND_MAX_SPACING = 98;
-type ViewableZone = 'deck' | 'graveyard' | 'exile';
+type ViewableZone = 'deck' | 'graveyard' | 'severed';
 type PermanentRowLayoutBase = {
   cy: number;
   usable: number;
@@ -228,14 +228,14 @@ export class DuelScene extends Phaser.Scene {
   };
   /** The circular smart button (wireframe 1a "PASS"); relabeled per decision. */
   private passArc!: Phaser.GameObjects.Arc;
-  /** Deck/grave/hand pile indicators. Exile slots are reserved behind EXILE_ENABLED. */
+  /** Deck/grave/hand pile indicators. Severed slots are reserved behind SEVER_ENABLED. */
   private oppDeckPile!: PileView;
   private oppGravePile!: PileView;
   private oppHandPile!: PileView;
-  private oppExilePile!: PileView;
+  private oppSeveredPile!: PileView;
   private myDeckPile!: PileView;
   private myGravePile!: PileView;
-  private myExilePile!: PileView;
+  private mySeveredPile!: PileView;
   /** Bottom-left commander portrait — the player's deck face card, reactive. */
   private portrait!: CommanderPortrait;
   /** Top-right mirror of the player portrait — the opponent's deck face, reactive. */
@@ -262,7 +262,7 @@ export class DuelScene extends Phaser.Scene {
   /** In-game pause/menu overlay (Resume · quick toggles · Concede) + its guard. */
   private pauseOverlay: Phaser.GameObjects.Container | null = null;
   private pauseGuard = new ModalGuard();
-  /** Public zone browser: graveyards, public exile, player deck, and land stacks. */
+  /** Public zone browser: graveyards, public severed piles, player deck, and land stacks. */
   private zoneModal: ZoneContentsModal | null = null;
   private zoneGuard = new ModalGuard();
   /** Set when inspect was opened FROM a zone modal: closing inspect returns there. */
@@ -273,7 +273,7 @@ export class DuelScene extends Phaser.Scene {
   /** Two-tap concede guard (settings.confirmDestructive); armed by the first tap. */
   private concedeArmed = false;
   private discardPicks = new Set<number>();
-  private scryBottomPicks = new Set<number>();
+  private foreseeBottomPicks = new Set<number>();
   /**
    * Optional first-launch tutorial mode (src/data/tutorial.ts). When set, this
    * duel runs a scripted line (fixed decks + seed + `ScriptAI`) under a
@@ -410,7 +410,7 @@ export class DuelScene extends Phaser.Scene {
     this.zoneGuard = new ModalGuard();
     this.zoneModalReturn = null;
     this.discardPicks = new Set();
-    this.scryBottomPicks = new Set();
+    this.foreseeBottomPicks = new Set();
     // Stale on gauntlet/rematch restarts: the scene clock died with the old
     // run, so a still-set handle would block auto-skip forever. The clock also
     // resets to 0 on restart, so clear the guard timestamp with it.
@@ -850,19 +850,19 @@ export class DuelScene extends Phaser.Scene {
       },
     });
     this.oppDeckPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.deckY, 'deck');
-    this.oppExilePile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.exileY, 'exile', {
+    this.oppSeveredPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.severedY, 'severed', {
       onTap: (p) => {
-        if (!p.rightButtonReleased()) this.showZoneModal(AI, 'exile');
+        if (!p.rightButtonReleased()) this.showZoneModal(AI, 'severed');
       },
-    }).setVisible(EXILE_ENABLED);
-    if (this.oppExilePile.inputZone) inflateHitArea(this.oppExilePile.inputZone, 90, 90);
+    }).setVisible(SEVER_ENABLED);
+    if (this.oppSeveredPile.inputZone) inflateHitArea(this.oppSeveredPile.inputZone, 90, 90);
     // --- Your piles: right column above Concede ---
-    this.myExilePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.exileY, 'exile', {
+    this.mySeveredPile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.severedY, 'severed', {
       onTap: (p) => {
-        if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'exile');
+        if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'severed');
       },
-    }).setVisible(EXILE_ENABLED);
-    if (this.myExilePile.inputZone) inflateHitArea(this.myExilePile.inputZone, 90, 90);
+    }).setVisible(SEVER_ENABLED);
+    if (this.mySeveredPile.inputZone) inflateHitArea(this.mySeveredPile.inputZone, 90, 90);
     this.myDeckPile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.deckY, 'deck', {
       onTap: (p) => {
         if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'deck');
@@ -1388,7 +1388,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
     const a = this.duel.awaiting;
     if (!('player' in a) || a.player !== HUMAN) return;
-    if (a.kind === 'scry') return; // mandatory revealed-card pick; never auto-skip
+    if (a.kind === 'foresee') return; // mandatory revealed-card pick; never auto-skip
     if (!forcedAction(this.duel.state, CARD_DB, HUMAN)) return;
     this.autoSkipTimer = this.time.delayedCall(300, () => {
       this.autoSkipTimer = null;
@@ -1396,7 +1396,7 @@ export class DuelScene extends Phaser.Scene {
       if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
       const awaiting = this.duel.awaiting;
       if (!('player' in awaiting) || awaiting.player !== HUMAN) return;
-      if (awaiting.kind === 'scry') return; // re-check after the delay
+      if (awaiting.kind === 'foresee') return; // re-check after the delay
       // Re-evaluate fresh — the state may have moved while we waited (e.g.
       // the player clicked the smart button during the delay).
       const forced = forcedAction(this.duel.state, CARD_DB, HUMAN);
@@ -1490,7 +1490,7 @@ export class DuelScene extends Phaser.Scene {
   /**
    * The pass action for the current human decision while ending the turn, or
    * null to STOP-AND-WAIT (a declare-attackers you could act on, or a mandatory
-   * pick like scry/discard/bottom/mulligan). Blockers never arise on your own turn.
+   * pick like foresee/discard/bottom/mulligan). Blockers never arise on your own turn.
    */
   private endTurnPassAction(): Action | null {
     const a = this.duel.awaiting;
@@ -1508,7 +1508,7 @@ export class DuelScene extends Phaser.Scene {
       case 'endStepWindow':
         return { type: 'passResponse' };
       default:
-        return null; // mulligan / bottomCards / scry / discardToHandSize → stop for input
+        return null; // mulligan / bottomCards / foresee / discardToHandSize → stop for input
     }
   }
 
@@ -1622,9 +1622,9 @@ export class DuelScene extends Phaser.Scene {
         }
         break;
       }
-      case 'exiled':
-        this.log(`${def(CARD_DB, e.cardId).name} was exiled`, e.cardId);
-        this.showExileTravel(e);
+      case 'severed':
+        this.log(`${def(CARD_DB, e.cardId).name} was severed`, e.cardId);
+        this.showSeverTravel(e);
         break;
       case 'turnBegan':
         this.log(`Turn ${e.turn} — ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
@@ -1911,13 +1911,13 @@ export class DuelScene extends Phaser.Scene {
     });
   }
 
-  private exilePilePos(player: PlayerId): { x: number; y: number } {
+  private severedPilePos(player: PlayerId): { x: number; y: number } {
     return player === HUMAN
-      ? { x: LAYOUT.piles.x, y: LAYOUT.piles.exileY }
-      : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.exileY };
+      ? { x: LAYOUT.piles.x, y: LAYOUT.piles.severedY }
+      : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.severedY };
   }
 
-  private exileSource(e: Extract<GameEvent, { e: 'exiled' }>): { x: number; y: number; scale: number } {
+  private severSource(e: Extract<GameEvent, { e: 'severed' }>): { x: number; y: number; scale: number } {
     if (e.from === 'battlefield' && e.iid !== undefined) {
       const tile = this.views.get(e.iid);
       if (tile) return { x: tile.x, y: tile.y, scale: tile.scaleX * (TILE_H / CARD_H) };
@@ -1932,11 +1932,11 @@ export class DuelScene extends Phaser.Scene {
       : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.graveY, scale: 0.25 };
   }
 
-  /** Full-motion exile read: source pile/tile to the public exile pile; reduced/off stay instant. */
-  private showExileTravel(e: Extract<GameEvent, { e: 'exiled' }>): void {
+  /** Full-motion sever read: source pile/tile to the public severed pile; reduced/off stay instant. */
+  private showSeverTravel(e: Extract<GameEvent, { e: 'severed' }>): void {
     if (this.motionLevel() !== 'full') return;
-    const source = this.exileSource(e);
-    const destination = this.exilePilePos(e.player);
+    const source = this.severSource(e);
+    const destination = this.severedPilePos(e.player);
     const ghost = new CardView(this, source.x, source.y)
       .setScale(source.scale)
       .setDepth(theme.depth.floats)
@@ -2100,9 +2100,9 @@ export class DuelScene extends Phaser.Scene {
     this.oppGravePile.setCount(st.players[AI].graveyard.length);
     this.myDeckPile.setCount(st.players[HUMAN].deck.length);
     this.myGravePile.setCount(st.players[HUMAN].graveyard.length);
-    if (EXILE_ENABLED) {
-      this.oppExilePile.setCount(view.opp.exile.length);
-      this.myExilePile.setCount(view.you.exile.length);
+    if (SEVER_ENABLED) {
+      this.oppSeveredPile.setCount(view.opp.severed.length);
+      this.mySeveredPile.setCount(view.you.severed.length);
     }
     // setText resizes a Text but Phaser never refreshes its hit area — keep
     // the inflated burn-target rects (plan §1.4) tracking the new glyphs.
@@ -2876,7 +2876,7 @@ export class DuelScene extends Phaser.Scene {
   private onConfirmKey(e: KeyboardEvent): void {
     e.preventDefault(); // Space would otherwise scroll the page in the browser
     if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
-    if (this.overlay && this.confirmScryOverlay()) return;
+    if (this.overlay && this.confirmForeseeOverlay()) return;
     this.onButton(); // self-guards: auto-skip input lock + not-your-decision
   }
 
@@ -3014,7 +3014,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------
-  // Public zone browser: graveyards, exile, and your deck
+  // Public zone browser: graveyards, severed cards, and your deck
   // ---------------------------------------------------------------------
 
   private canOpenZoneModal(): boolean {
@@ -3042,17 +3042,17 @@ export class DuelScene extends Phaser.Scene {
       : zone === 'graveyard'
         ? this.duel.state.players[player].graveyard
         : player === HUMAN
-          ? view.you.exile
-          : view.opp.exile;
+          ? view.you.severed
+          : view.opp.severed;
     const owner = player === HUMAN ? 'Your' : "Foe's";
-    const zoneLabel = zone === 'graveyard' ? 'Graveyard' : 'Exile';
+    const zoneLabel = zone === 'graveyard' ? 'Graveyard' : 'Severed';
     const title = zone === 'deck'
       ? `Your Deck — ${cardIds.length} cards left`
       : `${owner} ${zoneLabel} — ${cardIds.length}`;
     const modal = showZoneContents(this, {
       title,
       entries: this.zoneEntries(cardIds),
-      emptyText: zone === 'deck' ? 'No cards left.' : zone === 'exile' ? 'No cards exiled.' : 'No cards here.',
+      emptyText: zone === 'deck' ? 'No cards left.' : zone === 'severed' ? 'No cards severed.' : 'No cards here.',
       dimAlpha: 0.62,
       escToClose: true,
       tapDimToClose: true,
@@ -3475,7 +3475,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------
-  // Overlays: mulligan / bottoming / scry / discard / results
+  // Overlays: mulligan / bottoming / foresee / discard / results
   // ---------------------------------------------------------------------
 
   /** Everything an overlay must deaden while it floats above the board. */
@@ -3490,8 +3490,8 @@ export class DuelScene extends Phaser.Scene {
       ...this.handViews,
       ...[
         this.oppGravePile.inputZone,
-        this.oppExilePile.inputZone,
-        this.myExilePile.inputZone,
+        this.oppSeveredPile.inputZone,
+        this.mySeveredPile.inputZone,
         this.myDeckPile.inputZone,
         this.myGravePile.inputZone,
       ].filter((zone): zone is Phaser.GameObjects.Zone => !!zone),
@@ -3531,8 +3531,8 @@ export class DuelScene extends Phaser.Scene {
       this.buildPickOverlay(title, 0, buttons);
     } else if (a.kind === 'bottomCards') {
       this.buildPickOverlay(`Put ${a.count} card(s) on the bottom`, a.count, ['Confirm', 'Concede']);
-    } else if (a.kind === 'scry') {
-      this.buildScryOverlay(a.cards);
+    } else if (a.kind === 'foresee') {
+      this.buildForeseeOverlay(a.cards);
     } else if (a.kind === 'discardToHandSize') {
       this.buildPickOverlay(`Discard ${a.count} card(s)`, a.count, ['Confirm']);
     } else if (a.kind === 'chooseBasicLand') {
@@ -3540,14 +3540,14 @@ export class DuelScene extends Phaser.Scene {
     }
   }
 
-  private confirmScryOverlay(): boolean {
+  private confirmForeseeOverlay(): boolean {
     const a = this.duel.awaiting;
-    if (!('player' in a) || a.player !== HUMAN || a.kind !== 'scry') return false;
-    this.act({ type: 'scry', bottomIndices: [...this.scryBottomPicks].sort((x, y) => x - y) });
+    if (!('player' in a) || a.player !== HUMAN || a.kind !== 'foresee') return false;
+    this.act({ type: 'foresee', bottomIndices: [...this.foreseeBottomPicks].sort((x, y) => x - y) });
     return true;
   }
 
-  private buildScryOverlay(cards: readonly string[]): void {
+  private buildForeseeOverlay(cards: readonly string[]): void {
     const width = 1280;
     const height = 720;
     const c = this.add.container(0, 0).setDepth(theme.depth.overlay);
@@ -3557,7 +3557,7 @@ export class DuelScene extends Phaser.Scene {
     c.add(dim);
     c.add(
       this.add
-        .text(width / 2, 118, `Scry ${cards.length}`, {
+        .text(width / 2, 118, `Foresee ${cards.length}`, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h1}px`,
           color: theme.colors.heading,
@@ -3576,7 +3576,7 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
-    this.scryBottomPicks.clear();
+    this.foreseeBottomPicks.clear();
     const scale = cards.length <= 5 ? 0.62 : cards.length <= 7 ? 0.54 : 0.46;
     const spacing = Math.min(CARD_W * scale + 24, (width - 220) / Math.max(1, cards.length));
     const cardY = 366;
@@ -3611,9 +3611,9 @@ export class DuelScene extends Phaser.Scene {
       v.enableInput();
       this.zoom.attach(v, d);
       const toggle = (): void => {
-        const picked = !this.scryBottomPicks.has(index);
-        if (picked) this.scryBottomPicks.add(index);
-        else this.scryBottomPicks.delete(index);
+        const picked = !this.foreseeBottomPicks.has(index);
+        if (picked) this.foreseeBottomPicks.add(index);
+        else this.foreseeBottomPicks.delete(index);
         v.setY(picked ? cardY - 20 : cardY);
         v.setAlpha(picked ? theme.alpha.subtle : 1);
         badge.setVisible(picked);
@@ -3642,7 +3642,7 @@ export class DuelScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     bindTapButton(this, confirm, (p) => {
       if (p.rightButtonReleased()) return;
-      this.confirmScryOverlay();
+      this.confirmForeseeOverlay();
     });
     inflateHitArea(confirm, 90, 90);
     c.add(confirm);

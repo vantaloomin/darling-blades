@@ -4,12 +4,12 @@ import { def, isType, manaValue } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 
 /**
- * Shared deterministic scry policy. Keep lands while developing; once four
+ * Shared deterministic foresee policy. Keep lands while developing; once four
  * mana sources are established, bottom excess lands and cards far above the
  * current early-game curve. The player-facing awaiting cards are top-first.
  */
-export function chooseScry(view: PlayerView, db: CardDb): Action {
-  if (view.awaiting.kind !== 'scry') return { type: 'scry', bottomIndices: [] };
+export function chooseForesee(view: PlayerView, db: CardDb): Action {
+  if (view.awaiting.kind !== 'foresee') return { type: 'foresee', bottomIndices: [] };
 
   const landCards = view.you.hand.filter((cardId) => isType(def(db, cardId), 'land')).length;
   const manaSources = view.battlefield.filter(
@@ -32,5 +32,5 @@ export function chooseScry(view: PlayerView, db: CardDb): Action {
     }
   });
 
-  return { type: 'scry', bottomIndices };
+  return { type: 'foresee', bottomIndices };
 }
