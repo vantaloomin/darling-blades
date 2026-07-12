@@ -72,7 +72,10 @@ export interface Avatar {
  * wall-heavy variant (Mushroom-Ring Guards) measured WORSE (61%) — passivity
  * loses; the shipped list maxes untouchable beef (4x Selkie Tide-Queen) and
  * anthem density (4x Ash and Mistletoe). Grave Harvest stays her hardest
- * matchup by design — attrition is the court's intended counter-play.)
+ * matchup by design — attrition is the court's intended counter-play.
+ * Both matrices re-measured after merging the #68 playtest batch (SBA
+ * death batching + AI self-bleed clock/desperation attacks): every R11/R12
+ * cell reproduced identically — neither boss runs self-bleed effects.)
  *
  * (R7/R8 rows re-measured once more after HardAI.openManaBuff gained the same
  * evidence gate — Hard's combat baselines no longer pay the phantom-trick tax
