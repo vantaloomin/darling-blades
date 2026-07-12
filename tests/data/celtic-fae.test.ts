@@ -29,9 +29,9 @@ const OPS = new Set([
   'draw',
   'discardRandom',
   'destroy',
-  'exile',
-  'exileGrave',
-  'exileTop',
+  'sever',
+  'severGrave',
+  'severTop',
   'recall',
   'cancel',
   'boost',
@@ -44,7 +44,7 @@ const OPS = new Set([
   'reclaim',
   'grind',
   'raise',
-  'scry',
+  'foresee',
 ]);
 
 function cfDeck(ids: readonly string[]): string[] {

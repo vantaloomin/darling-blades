@@ -134,7 +134,7 @@ export const STARTER_DECKS: DeckList[] = [
  * Valhalla's Muster — B/G Ragnarök reanimator: mill your own creatures into the
  * yard, then return the fattest Jotun with Call the Einherjar / Barrow-Jarl.
  * Glimmer Bargain — U/B/G Celtic Fae tempo-control: evasive fae pressure while
- * scry and recall effects keep the next draw and opposing board constrained.
+ * foresee and recall effects keep the next draw and opposing board constrained.
  */
 export const THEME_DECKS: DeckList[] = [
   {

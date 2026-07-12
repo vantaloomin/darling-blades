@@ -92,7 +92,7 @@ export class Game {
       deck,
       hand: [],
       graveyard: [],
-      exile: [],
+      severed: [],
       landPlayedThisTurn: false,
       mulligans: 0,
       keptHand: false,
@@ -167,7 +167,7 @@ export class Game {
         st.pendingDecisions.shift();
         continue;
       }
-      if (next.kind === 'scry' && this.scryCards(next.player, next.n).length === 0) {
+      if (next.kind === 'foresee' && this.foreseeCards(next.player, next.n).length === 0) {
         st.pendingDecisions.shift();
         continue;
       }
@@ -176,9 +176,9 @@ export class Game {
     const next = st.pendingDecisions[0];
     if (next?.kind === 'chooseBasicLand') {
       st.awaiting = { player: next.player, kind: 'chooseBasicLand' };
-    } else if (next?.kind === 'scry') {
-      st.awaiting = { player: next.player, kind: 'scry', cards: this.scryCards(next.player, next.n) };
-    } else if (st.awaiting.kind === 'chooseBasicLand' || st.awaiting.kind === 'scry') {
+    } else if (next?.kind === 'foresee') {
+      st.awaiting = { player: next.player, kind: 'foresee', cards: this.foreseeCards(next.player, next.n) };
+    } else if (st.awaiting.kind === 'chooseBasicLand' || st.awaiting.kind === 'foresee') {
       // The last queued choice just resolved (the apply leaves the awaiting
       // stale); the queue is empty, so rejoin normal play from the flush point.
       this.resumeAfterFlush(emit);
@@ -191,8 +191,8 @@ export class Game {
     );
   }
 
-  /** Awaiting scry cards are top-first, matching the player-facing order. */
-  private scryCards(player: PlayerId, n: number): string[] {
+  /** Awaiting foresee cards are top-first, matching the player-facing order. */
+  private foreseeCards(player: PlayerId, n: number): string[] {
     if (n <= 0) return [];
     return this.st.players[player].deck.slice(-n).reverse();
   }
@@ -268,10 +268,10 @@ export class Game {
         return;
       }
 
-      case 'scry': {
+      case 'foresee': {
         const awaiting = st.awaiting;
         const pending = st.pendingDecisions.shift();
-        if (awaiting.kind !== 'scry' || pending?.kind !== 'scry') return;
+        if (awaiting.kind !== 'foresee' || pending?.kind !== 'foresee') return;
         const bottom = new Set(action.bottomIndices);
         const bottomed = awaiting.cards.filter((_, i) => bottom.has(i));
         const kept = awaiting.cards.filter((_, i) => !bottom.has(i));

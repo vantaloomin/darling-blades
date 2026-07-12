@@ -82,7 +82,11 @@ _Dated 2026-07-04. Review monthly._
   Monte-Carlo verified over 18M slot rolls). The premium-hero shop toggle
   was retired (superseded by per-deck hero cards). Balance note: no new
   gauntlet rungs yet — the CF-bosses-vs-daily-rotation decision is open
-  (plan-1.1 Pillar 5).
+  (plan-1.1 Pillar 5). *Retheme note (2026-07-12): the exile/scry mechanics
+  were renamed Tier-3 into the Darling Blades voice — **Sever** (`sever` /
+  `severGrave` / `severTop` ops, `severed` zone) and **Foresee** (`foresee`
+  op/action, `src/ai/foresee.ts`) — per the
+  [plan-de-mtg-rethemes.md](plan-de-mtg-rethemes.md) convention.*
 - **Glossary of Terms** (PR #57): a MainMenu learning-corner scene with all
   11 keyword trait icons + reminder text, card-type definitions, mana
   symbols, and rarity gems — data-driven so Exile/Scry rows are one-line

@@ -68,7 +68,7 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   checkStateBased(state, db, emit);
   if (state.winner !== null) return;
 
-  // A dawn scry must resolve before the turn draw. Game will surface the
+  // A dawn foresee must resolve before the turn draw. Game will surface the
   // queued choice after the current action, then resume through finishDawn.
   if (state.pendingDecisions.length > 0) return;
 

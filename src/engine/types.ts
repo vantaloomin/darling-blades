@@ -50,9 +50,9 @@ export type EffectOp =
   | { op: 'draw'; n: number }
   | { op: 'discardRandom'; n: number; who: 'opponent' }
   | { op: 'destroy'; to: 'target' }
-  | { op: 'exile'; to: 'target' } // target creature → its owner's exile
-  | { op: 'exileGrave'; n: number; who: 'self' | 'opponent' } // top n grave cards → exile
-  | { op: 'exileTop'; n: number; who: 'self' } // top n deck cards → exile
+  | { op: 'sever'; to: 'target' } // target creature → its owner's severed zone
+  | { op: 'severGrave'; n: number; who: 'self' | 'opponent' } // top n grave cards → severed zone
+  | { op: 'severTop'; n: number; who: 'self' } // top n deck cards → severed zone
   | { op: 'recall'; to: 'target' }
   | { op: 'cancel'; to: 'target' } // target is a stack item
   | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
@@ -64,7 +64,7 @@ export type EffectOp =
   | { op: 'preventCombat' } // prevent all combat damage this turn
   | { op: 'reclaim' } // return target creature card from your graveyard to hand
   | { op: 'grind'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
-  | { op: 'scry'; n: number } // look at top n, then choose any subset to bottom
+  | { op: 'foresee'; n: number } // look at top n, then choose any subset to bottom
   | { op: 'raise'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
 
 export interface StaticDef {
@@ -191,7 +191,7 @@ export type Awaiting =
   | { player: PlayerId; kind: 'mulligan' }
   | { player: PlayerId; kind: 'bottomCards'; count: number }
   // `cards` are top-first. They are redacted to [] in an opponent PlayerView.
-  | { player: PlayerId; kind: 'scry'; cards: string[] }
+  | { player: PlayerId; kind: 'foresee'; cards: string[] }
   | { player: PlayerId; kind: 'main' } // main1 or main2 (see state.step)
   | { player: PlayerId; kind: 'declareAttackers' }
   | { player: PlayerId; kind: 'declareBlockers' }
@@ -213,7 +213,7 @@ export interface PlayerState {
   deck: string[]; // the draw pile (cardIds; LAST element is the top). Distinct from the meta-layer SaveData.decks (built decklists).
   hand: string[];
   graveyard: string[];
-  exile: string[]; // public, one-way in v1
+  severed: string[]; // public, one-way in v1
   landPlayedThisTurn: boolean;
   mulligans: number;
   keptHand: boolean;
@@ -222,7 +222,7 @@ export interface PlayerState {
 /** Resolution-time choices deferred until the current synchronous batch ends. */
 export type PendingDecision =
   | { kind: 'chooseBasicLand'; player: PlayerId }
-  | { kind: 'scry'; player: PlayerId; n: number };
+  | { kind: 'foresee'; player: PlayerId; n: number };
 
 export interface GameState {
   rng: RngState;
