@@ -74,6 +74,12 @@ _Dated 2026-07-04. Review monthly._
   playmat strips give flexible sources one split-pip bead with its own
   untapped/total count (signatures WUBRG-normalized). Balance re-measured at
   40 seeds: no flags; baseline table refreshed in `src/data/opponents.ts`.
+  Follow-up rounds in the same PR: alignment fixes (Gameplay label inset,
+  armed-concede overlap, pager centerline), text-heavy card faces re-wrap to
+  fill the full text box, the Collection search input hides under the inspect
+  overlay, and **MTG-style set symbols** replace the rarity diamond — shape
+  names the set (base heart-and-blade, Ragnarök Mjölnir, Celtic Fae
+  crescent-veil; `src/art/setIcons.ts`), tint names the tier.
 
 - **2nd expansion: "Celtic Fae — The Silver Veil" (80 collectible cards —
   set `celtic-fae`, prefix `cf-`) + the exile/scry engine mechanics** (PR #64,
