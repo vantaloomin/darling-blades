@@ -9,8 +9,9 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..10, unique). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-10 Hard (9-10 are the Ragnarök bosses).
+ * Gauntlet ordering is by `tier` (1..12, unique). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-12 Hard (9-10 are the Ragnarök bosses and
+ * 11-12 are the Celtic Fae summit).
  */
 export interface Avatar {
   id: string;
@@ -52,6 +53,26 @@ export interface Avatar {
  * still valid. Both new rungs clear their bands with no flags: Hel (U/B
  * mill-reanimator) avg 71% ≥ 55%; Brunhild (R/W Valkyrie double-strike) avg 88% ≥
  * 60% — the steepest wall in the game, by design, as the summit rung.)
+ *
+ * Rungs 11-12 — the Celtic Fae bosses, measured 2026-07-12 at 40 seeds/cell
+ * (full `--avatars` matrix; rungs 1-10 re-measured in the same run and
+ * unchanged within noise):
+ *
+ *                              Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R11 The Morrigan [hard]      70%      80%      83%     75%      83%   | 78%
+ *   R12 Titania      [hard]      48%      80%      85%     78%      63%   | 71%
+ *
+ * Both clear their bands (R11 ≥ 65%, R12 ≥ 70%) with no flags. The
+ * user-directed tier matrix (`--cf-bosses`, 50 seeds/cell vs LOW Wild
+ * Communion / MID Grave Harvest / HIGH Glimmer Bargain): Morrigan
+ * 82/82/94 avg 86%; Titania 88/58/84 avg 77%. Tuning history (honest):
+ * Titania first measured 49% avg with a ladder inversion — root cause was
+ * Bloomling tokens lacking the Fae subtype, so Ash and Mistletoe's anthem
+ * never pumped her own court (tokens.ts fix), plus a cantrip-heavy list; a
+ * wall-heavy variant (Mushroom-Ring Guards) measured WORSE (61%) — passivity
+ * loses; the shipped list maxes untouchable beef (4x Selkie Tide-Queen) and
+ * anthem density (4x Ash and Mistletoe). Grave Harvest stays her hardest
+ * matchup by design — attrition is the court's intended counter-play.)
  *
  * (R7/R8 rows re-measured once more after HardAI.openManaBuff gained the same
  * evidence gate — Hard's combat baselines no longer pay the phantom-trick tax
@@ -399,7 +420,7 @@ export const AVATARS: readonly Avatar[] = [
   },
 
   // ---------------------------------------------------------------------
-  // Rung 10 — Brunhild: R/W Valkyrie double-strike aggro. (Hard · Ragnarök capstone)
+  // Rung 10 — Brunhild: R/W Valkyrie double-strike aggro. (Hard · Ragnarök)
   {
     id: 'brunhild',
     name: 'Brunhild, the Last Valkyrie',
@@ -430,6 +451,86 @@ export const AVATARS: readonly Avatar[] = [
       ['rg-xuchu', 3],
     ]),
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 11 — The Morrigan: B/G sever-control. (Hard · Celtic Fae)
+  {
+    id: 'the-morrigan',
+    name: 'The Morrigan',
+    title: 'Black-Wing Omen of the Veil',
+    blurb: 'The court does not need to kill what it can make impossible. The Morrigan severs your graveyard, starves the top of her own deck for better answers, and sends ravens through the gaps until inevitability has a name.',
+    theme: 'Black-Green Sever Control',
+    tier: 11,
+    difficulty: 'hard',
+    portraitCardId: 'cf-morrigan-black-wing',
+    personality: makePersonality({
+      aggression: 1.05,
+      holdback: 1.2,
+      attackThreshold: 0.25,
+      blockLifePressure: 1.15,
+      mulliganShift: 1,
+      removalBias: -0.5,
+      subtypeBias: 1.25,
+      preferredSubtypes: ['Fae'],
+    }),
+    deck: expand([
+      ['land-swamp', 10],
+      ['land-forest', 10],
+      ['cf-blackthorn-crossing', 4],
+      ['cf-morrigan-black-wing', 3],
+      ['cf-bean-sidhe-keening', 3],
+      ['cf-raven-torc-envoy', 4],
+      ['cf-crowbone-prophet', 3],
+      ['cf-bog-lantern-witch', 3],
+      ['cf-bog-banshee', 4],
+      ['cf-black-dog-of-lane', 3],
+      ['cf-hounds-of-annwn', 3],
+      ['cf-blackthorn-duelist', 2],
+      ['cf-bitter-geas', 4],
+      ['cf-gold-ring-bargain', 2],
+      ['cf-barrow-whisper', 2],
+    ]),
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 12 — Titania: U/G Fae token court. (Hard · Celtic Fae summit)
+  {
+    id: 'titania',
+    name: 'Titania',
+    title: 'Queen of the Silver Court',
+    blurb: 'Titania never raises her voice; she raises a court. Foresee finds the next answer, untouchable queens hold the line, and every dawn adds another witness until the silver-green tide covers the field.',
+    theme: 'Blue-Green Fae Token Court',
+    tier: 12,
+    difficulty: 'hard',
+    portraitCardId: 'cf-titania-silver-court',
+    personality: makePersonality({
+      aggression: 1.25,
+      holdback: 0.9,
+      attackThreshold: -0.25,
+      blockThreshold: -0.25,
+      trickRespect: 0.9,
+      subtypeBias: 2,
+      preferredSubtypes: ['Fae'],
+      mulliganShift: 1,
+    }),
+    deck: expand([
+      ['land-island', 12],
+      ['land-forest', 12],
+      ['cf-titania-silver-court', 3],
+      ['cf-selkie-tide-queen', 4],
+      ['cf-silver-branch-oracle', 3],
+      ['cf-hollow-hill-gatekeeper', 3],
+      ['cf-green-knoll-champion', 3],
+      ['cf-thornmaze-patrol', 2],
+      ['cf-fae-ring-initiate', 2],
+      ['cf-mistwing-pixie', 2],
+      ['cf-selkie-runner', 3],
+      ['cf-willow-wisp-guide', 1],
+      ['cf-fae-court-tokenmaker', 3],
+      ['cf-dance-under-mound', 3],
+      ['cf-ash-and-mistletoe', 4],
+    ]),
+  },
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -439,7 +540,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..10). */
+/** The avatar at a 1-based gauntlet rung (1..12). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);

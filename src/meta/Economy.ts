@@ -45,7 +45,7 @@ export interface GauntletReward {
   gold: number;
   firstWinBonus: boolean;
   runOver: boolean; // the run ended (cleared, lost, or completed)
-  completed: boolean; // full 10-rung clear
+  completed: boolean; // full gauntlet clear
   nextRung: number | null; // rung to fight next, or null if the run is over
 }
 

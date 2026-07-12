@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/config/rules.ts, src/data/cards/*.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/scenes/, docs/rules.md, docs/ai.md, docs/art-pipeline.md, docs/roadmap.md, docs/mobile-lan-plan.md, tests/ · last-verified: 2026-07-11
+<!-- source-of-truth: package.json, src/config/rules.ts, src/data/cards/*.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/scenes/, docs/rules.md, docs/ai.md, docs/art-pipeline.md, docs/roadmap.md, docs/mobile-lan-plan.md, tests/ · last-verified: 2026-07-12
      If you change those files, update this doc or re-verify the date. -->
 
 # Darling Blades
@@ -21,7 +21,7 @@ Darling Blades is a single-player, Magic: the Gathering-style trading card game 
 
 What's different is the cast. Every card in the 210-card pool is a character drawn from three worlds sharing one card pool: the officers of **Wei**, **Wu**, **Shu**, and **Jin** from a (genderbent) Romance of the Three Kingdoms (plus an "Other" bench of warlords and wildcards — Dong Zhuo, Lü Bu, and company); the **Greek pantheon** of Olympus (Ares, Athena, Artemis, Hades, Persephone, Demeter, Hestia, and more); and tribal **Beastkin** — Wolfkin, Kitsune, Harpy, Bearkin, Rhinokin, Nekomata, Lamia, Spiderkin, Crowkin, Batkin, and others. The **Ragnarök** expansion adds a fourth world — a Norse graveyard faction of Valkyries, Norns, Jotun, Draugr, and the death-goddess Hel — for 69 more collectible cards. Every one of those cards, base pool and expansion alike, has finished, illustrated cel-shaded gacha-anime art — nothing in the shipped game is programmer-art or a placeholder.
 
-You play or skip a short optional tutorial, claim a free starter deck, crack booster packs to build out your collection, assemble a 60-card deck in the deck builder, and duel an AI — either quick Practice matches at three difficulties, or the 10-rung **Avatar Gauntlet**, a ladder of named boss opponents each running their own themed deck.
+You play or skip a short optional tutorial, claim a free starter deck, crack booster packs to build out your collection, assemble a 60-card deck in the deck builder, and duel an AI — either quick Practice matches at three difficulties, or the 12-rung **Avatar Gauntlet**, a ladder of named boss opponents each running their own themed deck.
 
 ## Features
 
@@ -29,7 +29,7 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Five 60-card starter decks**, one two-color archetype per color pair — **Crimson Muster** (Red/White aggro), **Wild Communion** (Green/White creature tribal), **Burning Tides** (Blue/Red tempo-burn), **Shadow Mandate** (Blue/Black control), and **Grave Harvest** (Black/Green deathblade attrition) — every color shows up in exactly two of the five.
 - **Real MTG-style deckbuilding rules**: 60-card minimum decks built from your own collection, up to 4 copies of any non-basic card (basics unlimited), 20 starting life, 7-card hands, a London-style mulligan with your first mulligan free, and an auto-tap mana solver so you're never manually tapping individual lands to pay generic costs.
 - **Gacha-style booster packs** — 450 gold for 9 cards in the base booster, or 525 gold for 9 cards in the Ragnarök booster, with every slot independently rolling a rarity tier, a cosmetic frame (white/blue/red/gold/rainbow/black), and a holo finish (none/shiny/rainbow/pearlescent/fractal/void). The rarest possible pull — Ultra Rare, black frame, void holo — lands at roughly 1 in 4.94 million.
-- **The Avatar Gauntlet** — a 10-rung ladder of named boss opponents (Meng Huo, Hestia, Lupa the Wolfqueen, Hera, Zhurong, Sima Yi, Yohime the Kitsune Matriarch, Cao Cao, and the two Ragnarök summit bosses — Hel, Queen of Mist and Brunhild, the Last Valkyrie), each piloting a themed deck and personality at rising difficulty, with gold paid out per rung cleared plus a bonus for a full run. Just want one game? Practice mode runs the same three difficulties with no ladder attached.
+- **The Avatar Gauntlet** — a 12-rung ladder of named boss opponents (Meng Huo, Hestia, Lupa the Wolfqueen, Hera, Zhurong, Sima Yi, Yohime the Kitsune Matriarch, Cao Cao, the Ragnarök bosses Hel and Brunhild, and the Celtic Fae summit — The Morrigan and Titania, Queen of the Silver Court), each piloting a themed deck and personality at rising difficulty, with gold paid out per rung cleared plus a bonus for a full run. Just want one game? Practice mode runs the same three difficulties with no ladder attached.
 - **Optional onboarding + long-term goals** — first launch offers a guided tutorial duel, and the Achievements screen tracks collection percentage, color completion, themed RoTK / Greek / Beastkin / Ragnarök goals, mono/dual-color tower clears, variant chase goals, mastery goals, and pack-opening milestones with claimable gold rewards.
 - **Daily Blades** — three rotating daily quests with progress bars, claimable gold, and up to three rerolls a day, plus an escalating win-streak bonus paid on your first win of each calendar day. The same calendar day rolls the same quests for everyone (deterministically seeded, like everything else here).
 - **Deck sharing and multiple saved decks** — keep as many constructed decks as you like (copy / rename / delete, plus a starrable per-deck hero card that fronts your in-duel portrait), and export any legal deck as a compact `DBD2-…` share code that another player can paste straight into their own Deck Builder — imports validate against their collection and the normal deckbuilding rules.
@@ -44,7 +44,7 @@ The main menu routes to:
 
 | Mode | What it does |
 | --- | --- |
-| **Avatar Gauntlet** | Climb the 10-rung ladder of named boss opponents; clear a rung and roll straight into the next, with per-rung gold and a completion bonus. |
+| **Avatar Gauntlet** | Climb the 12-rung ladder of named boss opponents; clear a rung and roll straight into the next, with per-rung gold and a completion bonus. |
 | **Practice — Easy / Medium / Hard** | A one-off duel against the AI at your chosen difficulty, no ladder attached. |
 | **Open Packs** | The shop: buy a 9-card booster (base or Ragnarök) and watch the rarity/frame/holo reveal animate slot by slot, or buy whole decks (the unpicked starters and the Ragnarök precon) from the Decks tab. |
 | **Collection** | A binder-style spread of every card you own, filterable by color / type / rarity / owned, showing your best-owned print of each plus pool and special-variant completion progress. |

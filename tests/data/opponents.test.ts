@@ -5,7 +5,7 @@ import { buildAI } from '../../src/ai/personality';
 import { MediumAI } from '../../src/ai/MediumAI';
 import { Game } from '../../src/engine/Game';
 import type { Color } from '../../src/engine/types';
-import { RULES } from '../../src/config/rules';
+import { ECONOMY, RULES } from '../../src/config/rules';
 
 /**
  * SUITE C — Avatar legality + termination smoke.
@@ -16,14 +16,15 @@ import { RULES } from '../../src/config/rules';
  */
 
 describe('avatar roster shape', () => {
-  it('has exactly 10 avatars with unique tiers 1..10', () => {
-    expect(AVATARS).toHaveLength(10);
+  it('has exactly 12 avatars with unique tiers 1..12', () => {
+    expect(AVATARS).toHaveLength(12);
     const tiers = AVATARS.map((a) => a.tier).sort((x, y) => x - y);
-    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(10);
+    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(12);
+    expect(ECONOMY.gauntletRungGold).toHaveLength(12);
   });
 
-  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-8 hard)', () => {
+  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-12 hard)', () => {
     for (const a of AVATARS) {
       const expected = a.tier <= 3 ? 'easy' : a.tier <= 6 ? 'medium' : 'hard';
       expect(a.difficulty).toBe(expected);
@@ -31,12 +32,14 @@ describe('avatar roster shape', () => {
   });
 
   it('avatarForRung / avatarById resolve consistently', () => {
-    for (let rung = 1; rung <= 10; rung++) {
+    for (let rung = 1; rung <= 12; rung++) {
       const a = avatarForRung(rung);
       expect(a.tier).toBe(rung);
       expect(avatarById(a.id)).toBe(a);
     }
-    expect(() => avatarForRung(11)).toThrow();
+    expect(avatarForRung(11).id).toBe('the-morrigan');
+    expect(avatarForRung(12).id).toBe('titania');
+    expect(() => avatarForRung(13)).toThrow();
     expect(() => avatarById('nope')).toThrow();
   });
 });

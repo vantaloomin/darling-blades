@@ -4,7 +4,7 @@
  * pass"). Pure engine + ai + data; no Phaser.
  *
  * USAGE (via `npm run balance-matrix -- <flags>`):
- *   --avatars            8 gauntlet avatars (own brain + personality + deck)
+ *   --avatars            12 gauntlet avatars (own brain + personality + deck)
  *                        vs the 5 starter decks piloted by a neutral Medium
  *                        proxy standing in for a competent human. DEFAULT.
  *   --starters           5x5 starter-vs-starter mirror matrix, Medium both
@@ -12,6 +12,8 @@
  *   --difficulty         Easy/Medium/Hard round-robin on a fixed deck pair
  *                        (Crimson Muster vs Wild Communion, sides + decks
  *                        alternate so no brain owns the better deck).
+ *   --cf-bosses          The Morrigan and Titania vs Low/Mid/High CF references
+ *                        (Wild Communion / Grave Harvest / Glimmer Bargain).
  *   --seeds <n>          Games per cell (default 20).
  *   --only <id,id,...>   Avatar-matrix row filter for fast tuning iteration
  *                        (e.g. --only simayi,menghuo). Cell seeds are keyed by
@@ -31,7 +33,7 @@ import { MediumAI } from '../src/ai/MediumAI';
 import { buildAI } from '../src/ai/personality';
 import { CARD_DB } from '../src/data/catalog';
 import { AVATARS, type Avatar } from '../src/data/opponents';
-import { STARTER_DECKS } from '../src/data/starterDecks';
+import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
 import { Game } from '../src/engine/Game';
 import type { Difficulty } from '../src/meta/Economy';
 
@@ -117,10 +119,12 @@ export interface RungBand {
 
 /**
  * Plan guidance: rungs 1-3 <= ~45% AI-wins vs a Medium-proxied starter,
- * rungs 8-10 escalate (>= ~55/55/60%), roughly monotonic in between, and no
+ * rungs 8-12 escalate (>= ~55/55/60/65/70%), roughly monotonic in between, and no
  * low rung may make any single starter hopeless. Mid bands are wide on purpose
  * — they catch regressions, not tuning jitter. Rungs 9-10 are the Ragnarök
- * expansion bosses (Hel mill-reanimator, Brunhild double-strike aggro).
+ * expansion bosses (Hel mill-reanimator, Brunhild double-strike aggro) and
+ * rungs 11-12 are the Celtic Fae summit (Morrigan sever-control, Titania token
+ * court).
  */
 export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.45, cellMax: 0.65 },
@@ -133,6 +137,8 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   8: { minAvg: 0.55 },
   9: { minAvg: 0.55 },
   10: { minAvg: 0.6 },
+  11: { minAvg: 0.65 },
+  12: { minAvg: 0.7 },
 });
 
 // ---------------------------------------------------------------------------
@@ -251,6 +257,71 @@ export function runAvatarMatrix(seedsPerCell: number, onlyIds?: string[]): Avata
   return { rows, flags, table };
 }
 
+export interface CelticFaeBossRow {
+  avatar: Avatar;
+  cells: CellResult[]; // low, mid, high reference decks
+  avg: number;
+}
+
+export interface CelticFaeBossMatrixReport {
+  rows: CelticFaeBossRow[];
+  flags: string[];
+  table: string;
+}
+
+/**
+ * The directed Celtic Fae boss pass: each summit avatar faces three reference
+ * power bands, with the avatar's own Hard brain and a neutral Medium proxy on
+ * the reference deck. Cell seeds are stable at 30_000 + row*10 + column so a
+ * filtered or repeated run samples the same games.
+ */
+export function runCelticFaeBossMatrix(seedsPerCell: number): CelticFaeBossMatrixReport {
+  const wild = STARTER_DECKS.find((deck) => deck.id === 'starter-wild');
+  const harvest = STARTER_DECKS.find((deck) => deck.id === 'starter-harvest');
+  const glimmer = THEME_DECKS.find((deck) => deck.id === 'theme-celtic-fae');
+  if (!wild || !harvest || !glimmer) throw new Error('Celtic Fae balance references are missing');
+  const refs = [
+    { label: 'LOW Wild Communion', cards: wild.cards },
+    { label: 'MID Grave Harvest', cards: harvest.cards },
+    { label: 'HIGH Glimmer Bargain', cards: glimmer.cards },
+  ] as const;
+  const bosses = [...AVATARS].filter((avatar) => avatar.tier >= 11).sort((a, b) => a.tier - b.tier);
+  const rows = bosses.map((avatar, rowIndex) => {
+    const cells = refs.map((ref, refIndex) =>
+      runCell(
+        {
+          rowAI: (seed) => buildAI(avatar.difficulty, CARD_DB, seed, avatar.personality),
+          colAI: () => new MediumAI(CARD_DB),
+          decks: () => [avatar.deck, ref.cards],
+        },
+        seedsPerCell,
+        30_000 + rowIndex * 10 + refIndex,
+      ),
+    );
+    return { avatar, cells, avg: mean(cells.map((cell) => cell.rate)) };
+  });
+  const flags: string[] = [];
+  for (const row of rows) {
+    const band = RUNG_BANDS[row.avatar.tier] ?? {};
+    const tag = `Rung ${row.avatar.tier} ${row.avatar.name}`;
+    if (band.maxAvg !== undefined && row.avg > band.maxAvg) {
+      flags.push(`${tag}: avg ${(row.avg * 100).toFixed(0)}% ABOVE band max ${band.maxAvg * 100}%`);
+    }
+    if (band.minAvg !== undefined && row.avg < band.minAvg) {
+      flags.push(`${tag}: avg ${(row.avg * 100).toFixed(0)}% BELOW band min ${band.minAvg * 100}%`);
+    }
+  }
+  const table = renderTable(
+    `=== CELTIC FAE BOSSES — boss win % vs reference decks · ${seedsPerCell} seeds/cell ===\n` +
+      '    LOW = Wild Communion · MID = Grave Harvest · HIGH = Glimmer Bargain; decided games (+draws)',
+    rows.map((row) => `R${row.avatar.tier} ${row.avatar.name}`),
+    refs.map((ref) => ref.label),
+    rows.map((row) => row.cells),
+    (index) => `| avg ${(rows[index].avg * 100).toFixed(0).padStart(3)}%`,
+  );
+  return { rows, flags, table };
+}
+
 export interface StarterMatrixReport {
   cells: CellResult[][]; // [row starter][col starter]
   flags: string[];
@@ -360,13 +431,15 @@ function main(): void {
   const only = opt('only')?.split(',').map((s) => s.trim()).filter(Boolean);
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
-  const wantAvatars = flag('avatars') || (!wantStarters && !wantDifficulty);
+  const wantCelticFaeBosses = flag('cf-bosses');
+  const wantAvatars = flag('avatars') || (!wantStarters && !wantDifficulty && !wantCelticFaeBosses);
 
   const t0 = Date.now();
   const reports: { table: string; flags: string[] }[] = [];
   if (wantAvatars) reports.push(runAvatarMatrix(seeds, only));
   if (wantStarters) reports.push(runStarterMatrix(seeds));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds));
+  if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds));
 
   for (const r of reports) {
     console.log('\n' + r.table);
