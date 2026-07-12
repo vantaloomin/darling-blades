@@ -42,9 +42,9 @@ export function validateDeck(
     if (d.types.includes('creature')) creatures += n;
   }
   if (cards.length === RULES.deckSize) {
-    if (lands < 20) issues.push({ kind: 'warning', message: `Only ${lands} lands — 22–26 is typical` });
+    if (lands < 20) issues.push({ kind: 'warning', message: `Only ${lands} lands (22–26 is typical)` });
     if (creatures < 12)
-      issues.push({ kind: 'warning', message: `Only ${creatures} creatures — combat wins games` });
+      issues.push({ kind: 'warning', message: `Only ${creatures} creatures (combat wins games)` });
   }
   return issues;
 }

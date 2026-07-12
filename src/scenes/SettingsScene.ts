@@ -14,10 +14,24 @@ const SEGMENTS = 10;
 const STEP = 0.1;
 const LEFT_LABEL_X = 110;
 const LEFT_CONTROL_X = 420;
-const RIGHT_LABEL_X = 670;
+const RIGHT_LABEL_X = 710; // 40px inset from the panel edge at 670, mirroring Audio's 70→110
 const RIGHT_CONTROL_X = 1010;
 const ROW0_Y = 190;
-const ROW_PITCH = 82;
+// Per-row y accumulation: plain rows advance ROW_PITCH; rows that carry a
+// caption note() advance ROW_PITCH + NOTE_EXTRA so the caption never crowds
+// the next row and the last Gameplay row stays inside its panel
+// (user-reported overflow 2026-07-12). Keep every pitch ≥56px (touch-safe).
+const ROW_PITCH = 64;
+const NOTE_EXTRA = 28;
+const rowYs = (notes: readonly boolean[]): number[] => {
+  const ys: number[] = [];
+  let y = ROW0_Y;
+  for (const hasNote of notes) {
+    ys.push(y);
+    y += ROW_PITCH + (hasNote ? NOTE_EXTRA : 0);
+  }
+  return ys;
+};
 
 const ANIM_CHIPS: { value: AnimationLevel; label: string }[] = [
   { value: 'full', label: 'Full' },
@@ -69,12 +83,16 @@ export class SettingsScene extends Phaser.Scene {
     goldBadge(this, 1250, 30, { getValue: () => Services.save.data.gold });
     backButton(this, () => this.scene.start('MainMenu'));
 
-    panel(this, 70, 124, 540, 402);
-    panel(this, 670, 124, 540, 402);
+    panel(this, 70, 124, 540, 420);
+    panel(this, 670, 124, 540, 420);
     this.sectionTitle(110, 150, 'Audio');
     this.sectionTitle(710, 150, 'Gameplay');
-    const leftY = (row: number): number => ROW0_Y + row * ROW_PITCH;
-    const rightY = (row: number): number => ROW0_Y + row * ROW_PITCH;
+    // Audio: Sound effects · Master volume (note) · Music.
+    // Gameplay: Animations (note) · Render size (note) · Auto-skip · Confirm · Keyword reminders.
+    const leftRows = rowYs([false, true, false]);
+    const rightRows = rowYs([true, true, false, false, false]);
+    const leftY = (row: number): number => leftRows[row];
+    const rightY = (row: number): number => rightRows[row];
 
     this.rowLabel(LEFT_LABEL_X, leftY(0), 'Sound effects');
     this.sfxToggle = this.toggle(LEFT_CONTROL_X, leftY(0), () => {
@@ -86,7 +104,7 @@ export class SettingsScene extends Phaser.Scene {
     });
 
     this.rowLabel(LEFT_LABEL_X, leftY(1), 'Master volume');
-    const minus = themedButton(this, LEFT_CONTROL_X - 108, leftY(1), '−', {
+    themedButton(this, LEFT_CONTROL_X - 108, leftY(1), '−', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 44,
@@ -99,15 +117,13 @@ export class SettingsScene extends Phaser.Scene {
         color: theme.colors.body,
       })
       .setOrigin(0, 0.5);
-    const plus = themedButton(this, LEFT_CONTROL_X + 108, leftY(1), '+', {
+    themedButton(this, LEFT_CONTROL_X + 108, leftY(1), '+', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 44,
       onTap: () => this.stepVolume(STEP),
     });
-    void minus;
-    void plus;
-    this.note(LEFT_LABEL_X, leftY(1) + 28, 'Volume is the master level — music follows it too.');
+    this.note(LEFT_LABEL_X, leftY(1) + 28, 'Volume is the master level; music follows it too.');
 
     this.rowLabel(LEFT_LABEL_X, leftY(2), 'Music');
     this.musicToggle = this.toggle(LEFT_CONTROL_X, leftY(2), () => {

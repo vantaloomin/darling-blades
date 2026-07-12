@@ -165,7 +165,7 @@ all at once (modern simultaneous damage):
   - **Overrun** lets excess over each blocker's lethal spill to the player.
     Without overrun, the leftover is simply wasted on the last blocker.
 - **Blockers strike back** at the attacker they blocked.
-- **Bloodoath** heals the source's controller for the damage dealt.
+- **Blood Oath** heals the source's controller for the damage dealt.
 - **Fog:** if a fog effect is active (`combat.damagePrevented` or
   `state.fogThisTurn`), `resolveCombatDamage` returns immediately — **all combat
   damage is prevented** this turn.
@@ -189,7 +189,7 @@ All eleven keywords and their exact implemented semantics (`Keyword` in
 | **sentinel** · Sentinel | Attacking does not tap it.                                                     |
 | **bulwark** · Bulwark | Cannot attack (`canAttack` returns false).                                       |
 | **deathblade** · Deathblade | Any amount of its combat damage is lethal (1 counts). Sets `deathtouched`, which SBAs check. |
-| **bloodoath** · Bloodoath | Its controller gains life equal to damage it deals (combat and, where relevant, spell damage paths that flag it). |
+| **bloodoath** · Blood Oath | Its controller gains life equal to damage it deals (combat and, where relevant, spell damage paths that flag it). |
 | **untouchable** · Untouchable | **Blocks only the OPPONENT'S targeting.** Your own untouchable creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
 
 Keyword rules text is generated (`KEYWORD_NAMES` in `src/ui/rulesText.ts`) — see
@@ -226,7 +226,10 @@ order:
    `life`); if one is, the other wins.
 2. **Creatures die** if `defense ≤ 0`, or marked `damage ≥ defense`, or they
    took **deathblade** damage with any damage marked (`deathtouched && damage > 0`).
-   Dying fires `dies` triggers.
+   Deaths within a pass are **batched**: every condemned creature leaves the
+   battlefield first, *then* their `dies` triggers fire in battlefield order —
+   so simultaneous deaths free their board slots before any dies-trigger
+   `createToken` checks the creature cap.
 3. **Orphaned auras die.** An aura whose `attachedTo` permanent is gone is put
    into the graveyard.
 4. **The legend rule.** Among same-name legendaries **you** control, the **oldest

@@ -1,4 +1,5 @@
 import type { AbilityDef, CardDef, CardType, EffectOp, Keyword } from '../engine/types';
+import { CARD_DB } from '../data/catalog';
 
 export const KEYWORD_NAMES: Record<Keyword, string> = {
   skyborne: 'Skyborne',
@@ -10,7 +11,7 @@ export const KEYWORD_NAMES: Record<Keyword, string> = {
   sentinel: 'Sentinel',
   bulwark: 'Bulwark',
   deathblade: 'Deathblade',
-  bloodoath: 'Bloodoath',
+  bloodoath: 'Blood Oath',
   untouchable: 'Untouchable',
 };
 
@@ -31,7 +32,7 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
 export const MECHANIC_DEFINITIONS: Record<'sever' | 'foresee', string> = {
-  sever: 'severed from the game — severed cards never return',
+  sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
 };
 
@@ -94,8 +95,19 @@ function opText(op: EffectOp): string {
       return 'tap target creature';
     case 'fetchLand':
       return 'search your deck for a basic land and put it into play tapped';
-    case 'createToken':
-      return `create ${op.count} ${op.count === 1 ? 'token' : 'tokens'}`;
+    case 'createToken': {
+      // Say WHAT gets created — "create 2 tokens" left players guessing
+      // (user-reported 2026-07-12). The full catalog (expansion tokens
+      // included) is the lookup, with the old wording as the fallback.
+      const tok: CardDef | undefined = CARD_DB[op.token];
+      const plural = op.count === 1 ? 'token' : 'tokens';
+      if (!tok) return `create ${op.count} ${plural}`;
+      const stats = tok.attack !== undefined && tok.defense !== undefined ? `${tok.attack}/${tok.defense} ` : '';
+      const kw = tok.keywords?.length
+        ? ` with ${tok.keywords.map((k) => KEYWORD_NAMES[k].toLowerCase()).join(', ')}`
+        : '';
+      return `create ${op.count} ${stats}${tok.name} ${plural}${kw}`;
+    }
     case 'massDestroy':
       return op.filter === 'allCreatures' ? 'destroy all creatures' : 'destroy all creatures with Skyborne';
     case 'preventCombat':
@@ -159,14 +171,14 @@ function abilityText(ab: AbilityDef): string {
 /**
  * Generated oracle text: keywords line + one line per ability. With
  * `opts.reminders` (the settings.keywordReminders toggle), each keyword expands
- * to its own "Name — reminder" line so new players learn what it does; the card
+ * to its own "Name: reminder" line so new players learn what it does; the card
  * face's shrink-to-fit degrades the denser text gracefully.
  */
 export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   const lines: string[] = [];
   if (d.keywords?.length) {
     if (opts?.reminders) {
-      for (const k of d.keywords) lines.push(`${KEYWORD_NAMES[k]} — ${KEYWORD_REMINDER[k]}`);
+      for (const k of d.keywords) lines.push(`${KEYWORD_NAMES[k]}: ${KEYWORD_REMINDER[k]}`);
     } else {
       lines.push(d.keywords.map((k) => KEYWORD_NAMES[k]).join(', '));
     }

@@ -281,9 +281,13 @@ export function pager(
   pageCount: number,
   onChange: (page: number) => void,
 ): Pager {
-  const previous = scene.add.text(x, y, '‹', { fontFamily: theme.fonts.display, fontSize: '24px', color: theme.colors.gold });
-  const label = scene.add.text(x + 26, y, '', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body }).setOrigin(0, 0.5);
-  const next = scene.add.text(x + 88, y, '›', { fontFamily: theme.fonts.display, fontSize: '24px', color: theme.colors.gold });
+  // All three share the y centerline (the chevrons' old top-origin hung them
+  // below the middle-anchored label), and the label centers BETWEEN the
+  // chevrons so "1 / 1" and "10 / 12" both sit symmetric (user-reported
+  // 2026-07-12).
+  const previous = scene.add.text(x, y, '‹', { fontFamily: theme.fonts.display, fontSize: '24px', color: theme.colors.gold }).setOrigin(0, 0.5);
+  const label = scene.add.text(x + 51, y, '', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.body }).setOrigin(0.5);
+  const next = scene.add.text(x + 88, y, '›', { fontFamily: theme.fonts.display, fontSize: '24px', color: theme.colors.gold }).setOrigin(0, 0.5);
   const container = scene.add.container(0, 0, [previous, label, next]);
   let current = page;
   let total = pageCount;

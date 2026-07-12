@@ -29,6 +29,7 @@ import { eligibleAttackers, blockOptions } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
 import { manaSources } from '../engine/mana';
+import { ensureSplitPip } from '../ui/ManaSymbols';
 import { getEffectiveStats, isSummoningSick } from '../engine/statics';
 import type { CardDef, Color, PlayerId, Permanent, TargetRef } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
@@ -736,7 +737,7 @@ export class DuelScene extends Phaser.Scene {
     );
     c.add(
       this.add
-        .text(width / 2, 312, "You've got the basics — now claim your free deck in the Shop.", {
+        .text(width / 2, 312, "You've got the basics. Now claim your free deck in the Shop.", {
           fontFamily: 'Inter, Arial, sans-serif', fontSize: '18px', color: '#c9bde0',
         })
         .setOrigin(0.5),
@@ -826,8 +827,8 @@ export class DuelScene extends Phaser.Scene {
 
   private matchupLabel(): string {
     return this.opponent
-      ? `${this.gauntletRung ? `Rung ${this.gauntletRung} — ` : ''}vs ${this.opponent.name}`
-      : `Practice — vs ${this.difficulty} AI`;
+      ? `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`
+      : `Practice · vs ${this.difficulty} AI`;
   }
 
   private addLifeBadgePlate(x: number, y: number): void {
@@ -1225,7 +1226,7 @@ export class DuelScene extends Phaser.Scene {
     if (theirsDie || yoursDie) parts.push(`${theirsDie} enemy · ${yoursDie} yours die`);
     const lethal = preview.defenderLethal;
     this.combatPreviewText
-      .setText(lethal ? `⚠ LETHAL — ${parts.join(' · ')}` : `⚔ Forecast: ${parts.join(' · ')}`)
+      .setText(lethal ? `⚠ LETHAL: ${parts.join(' · ')}` : `⚔ Forecast: ${parts.join(' · ')}`)
       .setColor(lethal ? theme.colors.dangerArmed : theme.colors.body)
       .setVisible(true);
     if (lethal && !this.forecastWasLethal && this.motionLevel() !== 'off') {
@@ -1413,9 +1414,9 @@ export class DuelScene extends Phaser.Scene {
   private skipMessage(forced: Action): string {
     switch (forced.type) {
       case 'passStep':
-        return 'Main phase skipped — no playable cards';
+        return 'Main phase skipped (no playable cards)';
       case 'declareAttackers':
-        return 'Combat skipped — no able attackers';
+        return 'Combat skipped (no able attackers)';
       case 'declareBlockers':
         return 'No blockers available';
       default:
@@ -1592,7 +1593,7 @@ export class DuelScene extends Phaser.Scene {
         this.log('Spell cancelled!');
         break;
       case 'targetsFizzled':
-        this.log('Spell fizzled — no legal targets');
+        this.log('Spell fizzled (no legal targets)');
         break;
       case 'landPlayed':
         Sfx.play('land');
@@ -1627,7 +1628,7 @@ export class DuelScene extends Phaser.Scene {
         this.showSeverTravel(e);
         break;
       case 'turnBegan':
-        this.log(`Turn ${e.turn} — ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
+        this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
         break;
       case 'mulliganTaken':
@@ -2396,31 +2397,58 @@ export class DuelScene extends Phaser.Scene {
     pipSize: number,
     align: 'left' | 'right',
   ): void {
-    const counts = new Map<Color, number>();
+    // Group sources by their exact producible-color set: mono sources
+    // aggregate per color, while a flexible source (dual land, the rainbow
+    // artifact) is ONE bead with a split pip and its own untapped/total count.
+    // Crediting a dual to every color it can make read as extra mana — one
+    // W/G land showed "W 1/1 G 1/1" (user-reported 2026-07-12). Signatures
+    // are normalized to WUBRG order: card data declares duals in mixed order
+    // (duals.ts ['W','G'] vs celtic-fae ['G','W']), and the same color PAIR
+    // must group into one bead, not two mirror-image ones.
+    const sigOf = (colors: readonly Color[]): string =>
+      [...colors].sort((a, b) => COLOR_SORT.indexOf(a) - COLOR_SORT.indexOf(b)).join('');
+    const counts = new Map<string, number>();
     for (const src of manaSources(this.duel.state, CARD_DB, player)) {
-      for (const c of src.colors) counts.set(c, (counts.get(c) ?? 0) + 1);
+      const sig = sigOf(src.colors);
+      counts.set(sig, (counts.get(sig) ?? 0) + 1);
     }
-    // Per-color TOTALS over every battlefield mana source, tapped included
+    // Per-set TOTALS over every battlefield mana source, tapped included
     // (lands + mana creatures): the readout is `untapped/total`, so the foe's
     // growing capacity stays visible even while they're tapped out — a plain
     // untapped count read as "the CPU's mana never goes up", and a tapped-out
     // color must dim to 0/N rather than vanish (user-reported 2026-07-10).
-    const totals = new Map<Color, number>();
+    const totals = new Map<string, number>();
     for (const perm of this.duel.state.battlefield) {
       if (perm.controller !== player) continue;
-      for (const c of def(CARD_DB, perm.cardId).manaAbility ?? []) {
-        totals.set(c, (totals.get(c) ?? 0) + 1);
-      }
+      const colors = def(CARD_DB, perm.cardId).manaAbility ?? [];
+      if (colors.length === 0) continue;
+      const sig = sigOf(colors);
+      totals.set(sig, (totals.get(sig) ?? 0) + 1);
     }
-    const colors = (['W', 'U', 'B', 'R', 'G'] as const).filter((c) => (totals.get(c) ?? 0) > 0);
+    // Worst case a deck can reach ~8 signatures (5 basic colors + duals + the
+    // rainbow artifact) and the row grows past its tuned 5-slot width —
+    // accepted edge: real decks run 2-3 colors and the strip stays a strip.
+    const sigs = [...totals.keys()].sort(
+      (a, b) =>
+        a.length - b.length ||
+        COLOR_SORT.indexOf(a[0] as Color) - COLOR_SORT.indexOf(b[0] as Color) ||
+        a.localeCompare(b),
+    );
 
     let minX = xAnchor - 22;
     let maxX = xAnchor + 22;
     // No sources at all yet: a faint colorless 0/0 placeholder keeps the
     // counter region visible (and clickable) from turn 0, so its first real
     // update happens in place instead of materializing mid-reveal.
-    const slots: { texture: string; untapped: number; total: number }[] = colors.length
-      ? colors.map((c) => ({ texture: `pip-${c}`, untapped: counts.get(c) ?? 0, total: totals.get(c) ?? 0 }))
+    const slots: { texture: string; untapped: number; total: number }[] = sigs.length
+      ? sigs.map((sig) => ({
+          texture:
+            sig.length === 1
+              ? `pip-${sig}`
+              : ensureSplitPip(this, sig.split('') as Color[]),
+          untapped: counts.get(sig) ?? 0,
+          total: totals.get(sig) ?? 0,
+        }))
       : [{ texture: 'pip-C', untapped: 0, total: 0 }];
     slots.forEach((slot, i) => {
       const x = align === 'right'
@@ -3047,8 +3075,8 @@ export class DuelScene extends Phaser.Scene {
     const owner = player === HUMAN ? 'Your' : "Foe's";
     const zoneLabel = zone === 'graveyard' ? 'Graveyard' : 'Severed';
     const title = zone === 'deck'
-      ? `Your Deck — ${cardIds.length} cards left`
-      : `${owner} ${zoneLabel} — ${cardIds.length}`;
+      ? `Your Deck · ${cardIds.length} cards left`
+      : `${owner} ${zoneLabel} · ${cardIds.length}`;
     const modal = showZoneContents(this, {
       title,
       entries: this.zoneEntries(cardIds),
@@ -3075,7 +3103,7 @@ export class DuelScene extends Phaser.Scene {
     const untapped = lands.filter((land) => !land.tapped).length;
     const owner = player === HUMAN ? 'Your' : "Foe's";
     const modal = showZoneContents(this, {
-      title: `${owner} Lands — ${lands.length} (${untapped} untapped)`,
+      title: `${owner} Lands · ${lands.length} (${untapped} untapped)`,
       entries: this.landZoneEntries(lands),
       emptyText: 'No lands on the battlefield.',
       dimAlpha: 0.62,
@@ -3760,7 +3788,10 @@ export class DuelScene extends Phaser.Scene {
     // syncOverlay, so a fresh flag per overlay is exactly the right lifetime).
     let overlayConcedeArmed = false;
     buttons.forEach((label, bi) => {
-      const bx = width / 2 - ((buttons.length - 1) * 180) / 2 + bi * 180;
+      // 220px centers: the armed Concede label ("Tap to confirm") auto-grows
+      // its text plate to ~246px, which overlapped the neighbor at the old
+      // 180px pitch (user-reported 2026-07-12).
+      const bx = width / 2 - ((buttons.length - 1) * 220) / 2 + bi * 220;
       const concede = label === 'Concede';
       const btn = this.add
         .text(bx, 580, label, {
@@ -3829,7 +3860,7 @@ export class DuelScene extends Phaser.Scene {
     }
     const save = Services.save.data;
     const today = todayString();
-    const reward = applyMatchResult(save, this.difficulty, won, today);
+    const reward = applyMatchResult(save, this.difficulty, won, today, this.duel.state.turn);
     const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
     Services.save.flush();
     Music.duck(1.8); // let the sting read clearly over the bed
@@ -3872,7 +3903,9 @@ export class DuelScene extends Phaser.Scene {
         .text(
           640,
           388,
-          this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
+          reward.tooEarly
+            ? 'No reward: the match ended too early'
+            : this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
           {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.h2}px`,

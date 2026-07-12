@@ -3,7 +3,7 @@ import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, CombatState, Permanent, PlayerId } from '../engine/types';
 import { def, isType, opponentOf } from '../engine/types';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
-import { permValue } from './value';
+import { dawnSelfBleed, permValue } from './value';
 
 /**
  * Combat planning shared by Medium and Hard. Works on public information
@@ -193,7 +193,38 @@ export function chooseAttackers(
     if (!improved) break;
   }
   // `attackThreshold` replaces the `best > 0` return gate (default 0).
-  return best > pers.attackThreshold ? current : [];
+  const kept = best > pers.attackThreshold ? current : [];
+  if (kept.length === 0) {
+    // Desperation: our own NET dawn self-bleed kills us in myLife/bleed turns
+    // no matter what we hold back, so once that clock is short (≤4 turns) the
+    // normal stay-home verdict is a guaranteed loss. Re-run the same greedy
+    // descent under a desperation objective (holdback zeroed — blockers we
+    // keep home die to the bleed anyway — and no threshold gate) so the
+    // OUTPUT is still the best-scored attack set, not an unscored all-in.
+    // Personality-neutral: this is a dominated-strategy escape, not a style.
+    const bleed = dawnSelfBleed(bf, db, me);
+    if (bleed > 0 && myLife <= bleed * 4) {
+      const desperate: Personality = { ...pers, holdback: 0, aggression: Math.max(pers.aggression, 1.2) };
+      let set = [...eligible];
+      let setScore = scoreAttack(bf, db, me, oppLife, trickBuff, set, myLife, desperate);
+      for (let iter = 0; iter < eligible.length && set.length > 1; iter++) {
+        let improved = false;
+        for (const drop of [...set]) {
+          const candidate = set.filter((iid) => iid !== drop);
+          const score = scoreAttack(bf, db, me, oppLife, trickBuff, candidate, myLife, desperate);
+          if (score > setScore + 0.01) {
+            setScore = score;
+            set = candidate;
+            improved = true;
+            break;
+          }
+        }
+        if (!improved) break;
+      }
+      return set; // never empty: the descent stops at 1 attacker
+    }
+  }
+  return kept;
 }
 
 /**

@@ -244,14 +244,28 @@ describe('collection and economy', () => {
 
   it('match rewards include a first-win-of-day bonus exactly once', () => {
     const save = freshSave(0);
-    const first = applyMatchResult(save, 'medium', true, '2026-07-02');
-    expect(first).toEqual({ gold: 200, firstWinBonus: true }); // 100 + 100 bonus
-    const second = applyMatchResult(save, 'medium', true, '2026-07-02');
-    expect(second).toEqual({ gold: 100, firstWinBonus: false });
-    const loss = applyMatchResult(save, 'hard', false, '2026-07-02');
+    const first = applyMatchResult(save, 'medium', true, '2026-07-02', 1);
+    expect(first).toEqual({ gold: 200, firstWinBonus: true, tooEarly: false }); // 100 + 100 bonus
+    const second = applyMatchResult(save, 'medium', true, '2026-07-02', 1);
+    expect(second).toEqual({ gold: 100, firstWinBonus: false, tooEarly: false });
+    const loss = applyMatchResult(save, 'hard', false, '2026-07-02', ECONOMY.minTurnsForLossGold);
     expect(loss.gold).toBe(20);
     expect(save.stats.wins).toBe(2);
     expect(save.stats.byDifficulty.hard.l).toBe(1);
+  });
+
+  it('a loss before minTurnsForLossGold pays nothing (anti concede-farm), at the floor pays normally', () => {
+    const save = freshSave(0);
+    const startGold = save.gold;
+    const early = applyMatchResult(save, 'medium', false, '2026-07-02', ECONOMY.minTurnsForLossGold - 1);
+    expect(early).toEqual({ gold: 0, firstWinBonus: false, tooEarly: true });
+    expect(save.gold).toBe(startGold);
+    expect(save.stats.losses).toBe(1); // the loss still counts in stats
+    const atFloor = applyMatchResult(save, 'medium', false, '2026-07-02', ECONOMY.minTurnsForLossGold);
+    expect(atFloor).toEqual({ gold: ECONOMY.lossGold, firstWinBonus: false, tooEarly: false });
+    // wins pay regardless of turn count
+    const quickWin = applyMatchResult(save, 'easy', true, '2026-07-03', 1);
+    expect(quickWin.gold).toBeGreaterThan(0);
   });
 
   it('spendGold refuses overdrafts', () => {
@@ -448,7 +462,7 @@ describe('save migration old blobs → current schema', () => {
       sfxOn: true,
       musicOn: true,
       animations: 'full',
-      renderScale: 1.5,
+      renderScale: 2,
       autoSkip: true,
       confirmDestructive: true, // v7 default
       keywordReminders: true, // v8 default
@@ -492,7 +506,7 @@ describe('save migration old blobs → current schema', () => {
     expect(m.data.collectionVariants['oly-hera']).toEqual({ 'white|none': 1 });
     expect(m.data.settings.volume).toBe(0.3);
     expect(m.data.settings.musicOn).toBe(true); // the v3 addition, defaulting on
-    expect(m.data.settings.renderScale).toBe(1.5); // v5: coerced from v4's 'auto'
+    expect(m.data.settings.renderScale).toBe(2); // v5: coerced from v4's 'auto'
     expect('animSpeed' in m.data.settings).toBe(false);
   });
 
@@ -531,7 +545,7 @@ describe('save migration old blobs → current schema', () => {
       sfxOn: true,
       musicOn: false, // preserved, not defaulted
       animations: 'full',
-      renderScale: 1.5, // v5: coerced from the v4 'auto'
+      renderScale: 2, // v5: coerced from the v4 'auto'
       autoSkip: true,
       confirmDestructive: true, // v7 default
       keywordReminders: true, // v8 default
@@ -562,7 +576,7 @@ describe('save migration old blobs → current schema', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v4blob));
     const m = new SaveManager(storage);
     expect(m.data.version).toBe(15);
-    expect(m.data.settings.renderScale).toBe(1.5);
+    expect(m.data.settings.renderScale).toBe(2);
   });
 
   it('migrates a v5 blob to the current schema: heroCardId defaults null, an in-progress run gets a seed', () => {

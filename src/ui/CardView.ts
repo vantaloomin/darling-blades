@@ -19,6 +19,46 @@ const TEXT_LEFT = -126;
 const TEXT_WIDTH = 252;
 const BOTTOM_BADGE_Y = 182;
 const BOTTOM_PIP_SIZE = 21;
+const SET_ICON_SIZE = 24; // set symbols are leaner silhouettes than the old diamond gem
+
+/**
+ * Shrink-to-fit with RE-WRAP: when a text block must scale down by s to fit
+ * boxH, widen its word-wrap width to TEXT_WIDTH/s so the rendered block still
+ * spans the card's full text width — a plain setScale left a narrow column on
+ * text-heavy cards (user-reported 2026-07-12). Rewrapping changes the line
+ * count, so iterate to a fixed point (converges in 2-3 rounds), then hard-cap
+ * without rewrap as the fit guarantee. Resets scale/wrap first, so it is safe
+ * on recycled Text objects.
+ */
+function fitWrappedText(obj: Phaser.GameObjects.Text, boxH: number): void {
+  // Rendered height at scale s (wrap width widened so rendered width stays
+  // TEXT_WIDTH). Rewrap discretizes by line count, so height-at-s is a step
+  // function — binary-search the LARGEST fitting s instead of fixed-point
+  // iterating (which parks a step too small when a rewrap drops a line).
+  const fitsAt = (s: number): boolean => {
+    obj.setWordWrapWidth(TEXT_WIDTH / s);
+    return obj.height * s <= boxH + 0.5;
+  };
+  obj.setScale(1);
+  if (fitsAt(1)) {
+    obj.setScale(1);
+    return;
+  }
+  let lo = 0.3; // readability floor; below it, hard-clamp instead
+  let hi = 1;
+  if (fitsAt(lo)) {
+    for (let i = 0; i < 7; i++) {
+      const mid = (lo + hi) / 2;
+      if (fitsAt(mid)) lo = mid;
+      else hi = mid;
+    }
+    obj.setWordWrapWidth(TEXT_WIDTH / lo);
+    obj.setScale(lo);
+    return;
+  }
+  // Even the floor overflows: keep the widest wrap and hard-clamp the scale.
+  obj.setScale(Math.min(lo, boxH / obj.height));
+}
 
 export type CardFxLevel = 'full' | 'static' | 'none';
 
@@ -152,7 +192,7 @@ export class CardView extends Phaser.GameObjects.Container {
     // costless cards (lands).
     this.costPlate = scene.add.image(-96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(50, 31).setVisible(false);
 
-    this.gem = scene.add.image(0, BOTTOM_BADGE_Y, 'gem-c').setDisplaySize(BOTTOM_PIP_SIZE, BOTTOM_PIP_SIZE);
+    this.gem = scene.add.image(0, BOTTOM_BADGE_Y, 'seticon-base-c').setDisplaySize(SET_ICON_SIZE, SET_ICON_SIZE);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
     this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
 
@@ -257,23 +297,16 @@ export class CardView extends Phaser.GameObjects.Container {
 
     // Measure the flavor block first (height is needed to size the rules box).
     // Windows font-fallback trap: measure height only AFTER setText.
-    let flavorH = 0;
-    if (hasFlavor) {
-      this.flavorTextObj.setScale(1).setText(card.flavor!);
-      flavorH = this.flavorTextObj.height;
-    }
     // Cap flavor to the lower slice of the box, then place it bottom-up.
     const maxFlavorH = Math.max(1, Math.min(BOX_H * 0.6, BOX_H - DIVIDER_GAP - 1 - AFTER_DIVIDER));
-    if (hasFlavor && flavorH > maxFlavorH) {
-      this.flavorTextObj.setScale(maxFlavorH / flavorH);
+    if (hasFlavor) {
+      this.flavorTextObj.setText(card.flavor!);
+      fitWrappedText(this.flavorTextObj, maxFlavorH);
     }
-    const scaledFlavorH = hasFlavor ? flavorH * this.flavorTextObj.scaleY : 0;
+    const scaledFlavorH = hasFlavor ? this.flavorTextObj.height * this.flavorTextObj.scaleY : 0;
     const flavorBlock = hasFlavor ? DIVIDER_GAP + 1 + AFTER_DIVIDER + scaledFlavorH : 0;
     const RULES_BOX_H = Math.max(1, BOX_H - flavorBlock);
-    this.rulesTextObj.setScale(1);
-    if (this.rulesTextObj.height > RULES_BOX_H) {
-      this.rulesTextObj.setScale(RULES_BOX_H / this.rulesTextObj.height);
-    }
+    fitWrappedText(this.rulesTextObj, RULES_BOX_H);
 
     // Position the flavor block from the bottom upward, independent of how
     // sparse the rules text is. Bare cards therefore read like printed cards:
@@ -285,14 +318,16 @@ export class CardView extends Phaser.GameObjects.Container {
       this.flavorTextObj.setPosition(TEXT_LEFT, flavorTop).setVisible(true);
     }
     if (manaRow.length > 0) {
-      // [T] → [G] (duals show both color pips). Sized generously — this row
-      // is the land's whole rules box, so it should read from the hand.
+      // [T] → [G]; duals read [T] → [W] or [G] — bare side-by-side pips read
+      // as "provides both" (user-reported 2026-07-12). Sized generously — this
+      // row is the land's whole rules box, so it should read from the hand.
       const PIP = 48;
       const GAP = 10;
       const ARROW_W = 24;
-      const STEP = 8; // between adjacent color pips
+      const OR_W = 26; // the "or" separator between adjacent color pips
+      const SEP = GAP + OR_W + GAP; // one constant shared by width, label x, and advance
       const rowY = hasFlavor ? 100 : 128; // centered in the free box when bare
-      const rowW = PIP + GAP + ARROW_W + GAP + manaRow.length * PIP + (manaRow.length - 1) * STEP;
+      const rowW = PIP + GAP + ARROW_W + GAP + manaRow.length * PIP + (manaRow.length - 1) * SEP;
       let ix = -rowW / 2 + PIP / 2;
       const tap = this.scene.add.image(ix, rowY, 'pip-T').setDisplaySize(PIP, PIP);
       this.add(tap);
@@ -310,12 +345,25 @@ export class CardView extends Phaser.GameObjects.Container {
       this.add(arrow);
       this.pips.push(arrow);
       ix += ARROW_W / 2 + GAP + PIP / 2;
-      for (const col of manaRow) {
+      manaRow.forEach((col, i) => {
+        if (i > 0) {
+          const or = this.scene.add
+            .text(ix - PIP / 2 - SEP / 2, rowY, 'or', {
+              fontFamily: 'Inter, Arial, sans-serif',
+              fontSize: '20px',
+              fontStyle: '600',
+              color: '#4a3b28',
+              resolution: 2,
+            })
+            .setOrigin(0.5);
+          this.add(or);
+          this.pips.push(or);
+        }
         const img = this.scene.add.image(ix, rowY, `pip-${col}`).setDisplaySize(PIP, PIP);
         this.add(img);
         this.pips.push(img);
-        ix += PIP + STEP;
-      }
+        ix += PIP + SEP;
+      });
     }
 
     // P/T
@@ -355,10 +403,11 @@ export class CardView extends Phaser.GameObjects.Container {
       }
     }
 
-    // Rarity + variant treatments. The gem is always the tier indicator; the
-    // ring shows the tier treatment (plain look) unless a non-white variant
-    // frame claims it for Axis B.
-    this.gem.setTexture(`gem-${card.rarity}`);
+    // Rarity + variant treatments. The set symbol carries BOTH signals
+    // (MTG-style: shape = set, tint = tier); the ring shows the tier
+    // treatment (plain look) unless a non-white variant frame claims it
+    // for Axis B.
+    this.gem.setTexture(`seticon-${card.set ?? 'base'}-${card.rarity}`);
     this.crown.setVisible(!!card.supertypes?.includes('legendary'));
 
     const variant = opts.variant;

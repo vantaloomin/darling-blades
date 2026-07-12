@@ -105,7 +105,7 @@ part of the card's identity. The six finishes:
 Rendering lives in `applyHolo` (`src/ui/fx/HoloEffects.ts`, shader modes in
 `src/ui/fx/IridescencePostFX.ts`, canvas/lite fallbacks included) and is
 attached by `CardView.setCard(card, { fx: 'full', variant })`. A card rendered
-**without** a variant gets no holo — a solid per-tier metallic ring + the gem
+**without** a variant gets no holo — a solid per-tier metallic ring + the tinted set symbol
 alone mark its tier (duels and the deck builder render variant-less cards). The
 animated iridescent ring is reserved for the `rainbow` frame. Nothing to author per
 card.

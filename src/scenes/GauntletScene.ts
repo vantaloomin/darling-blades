@@ -88,7 +88,7 @@ export class GauntletScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(width / 2, 84, `Climb ${ECONOMY.gauntletRungGold.length} rungs. A loss ends the run — the tower resets, your collection does not.`, {
+      .text(width / 2, 84, `Climb ${ECONOMY.gauntletRungGold.length} rungs. A loss ends the run: the tower resets, your collection does not.`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -138,7 +138,7 @@ export class GauntletScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       const status = cleared ? '✓' : isCurrent ? '▶' : '·';
       const label = this.add
-        .text(railX - 195, y, `${status}  Rung ${rung} — ${av.name}`, {
+        .text(railX - 195, y, `${status}  Rung ${rung} · ${av.name}`, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.body}px`,
           color: this.rowTextColor(rung),
@@ -419,7 +419,7 @@ export class GauntletScene extends Phaser.Scene {
   private promptSeed(): void {
     try {
       const input = window.prompt(
-        'Enter a run seed (whole number). The same seed always plays out the same run — share it to replay.',
+        'Enter a run seed (whole number). The same seed always plays out the same run. Share it to replay.',
         String(this.pendingSeed),
       );
       if (input == null) return; // cancelled

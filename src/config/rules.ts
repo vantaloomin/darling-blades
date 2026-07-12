@@ -25,6 +25,11 @@ export const ECONOMY = {
   limitedPackSize: 15, // Limited packs stay MTG-sized for Sealed/Draft pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
   lossGold: 20,
+  // Practice loss gold requires a real game: engine turns are per-player
+  // (state.turn increments each player-turn), so 6 = each side took 3 turns.
+  // Kills the concede-replay 20g farm (user-reported 2026-07-12). Practice
+  // only — a gauntlet loss already costs the run.
+  minTurnsForLossGold: 6,
   firstWinOfDayBonus: 100,
   dailyQuestCount: 3,
   dailyRerollsPerDay: 3,

@@ -96,7 +96,7 @@ export class OddsDrawer {
       })
       .setOrigin(0, 0);
     const pity = scene.add
-      .text(24, DESIGN_H - 150, 'Missing SR / SSR / UR cards are prioritized — no wasted duplicates until a playset is complete.', {
+      .text(24, DESIGN_H - 150, 'Missing SR / SSR / UR cards are prioritized. No wasted duplicates until a playset is complete.', {
         fontFamily: theme.fonts.ui,
         fontSize: '12px',
         fontStyle: 'italic',

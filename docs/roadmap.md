@@ -60,6 +60,27 @@ _Dated 2026-07-04. Review monthly._
 
 ## Recently shipped (2026-07-12)
 
+- **Playtest feedback batch** (PR #68): Settings Gameplay column no longer
+  overflows its panel (content-driven row pitch) and fresh saves default to
+  1440p; "Bloodoath" displays as **Blood Oath**; the concede-replay 20g farm is
+  closed (practice losses before 3 full rounds pay 0, with an explainer on the
+  results screen); **engine SBA deaths now batch** — all simultaneous deaths
+  leave the battlefield before dies triggers fire, fixing the dies-token
+  spawner losing tokens at the creature cap; the AI prices its own **net dawn
+  self-bleed clock** (convex eval term + scored desperation attacks), closing
+  the "stall a full bench while the bot bleeds out" cheese win; createToken
+  rules text names the token ("create 2 1/1 Bloomling tokens"); and dual mana
+  reads as *either*, not *both* — card faces show `[T] → [W] or [G]` and the
+  playmat strips give flexible sources one split-pip bead with its own
+  untapped/total count (signatures WUBRG-normalized). Balance re-measured at
+  40 seeds: no flags; baseline table refreshed in `src/data/opponents.ts`.
+  Follow-up rounds in the same PR: alignment fixes (Gameplay label inset,
+  armed-concede overlap, pager centerline), text-heavy card faces re-wrap to
+  fill the full text box, the Collection search input hides under the inspect
+  overlay, and **MTG-style set symbols** replace the rarity diamond — shape
+  names the set (base heart-and-blade, Ragnarök Mjölnir, Celtic Fae
+  crescent-veil; `src/art/setIcons.ts`), tint names the tier.
+
 - **2nd expansion: "Celtic Fae — The Silver Veil" (80 collectible cards —
   set `celtic-fae`, prefix `cf-`) + the exile/scry engine mechanics** (PR #64,
   bundling the stacked train #56/#59–#63; spec: [plan-1.1.md](plan-1.1.md)

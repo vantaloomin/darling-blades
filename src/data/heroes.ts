@@ -24,7 +24,7 @@ export const PREMIUM_HEROES: readonly PremiumHero[] = [
     name: 'Sigrún, Chooser of the Slain',
     textureKey: 'hero-valhalla',
     unlockDeckId: 'theme-ragnarok',
-    blurb: "Exclusive hero — Valhalla's Muster",
+    blurb: "Exclusive hero: Valhalla's Muster",
   },
 ];
 

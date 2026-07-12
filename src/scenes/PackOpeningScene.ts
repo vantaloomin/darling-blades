@@ -192,7 +192,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const notable = [...specials].sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier]).slice(0, 16);
     if (notable.length === 0) {
       this.add
-        .text(width / 2, 360, 'No rare pulls this time — all commons and uncommons.', {
+        .text(width / 2, 360, 'No rare pulls this time: all commons and uncommons.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.muted,

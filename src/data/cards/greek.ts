@@ -87,7 +87,7 @@ export const GREEK = [
     defense: 2,
     keywords: ['firstBlade'],
     rarity: 'c',
-    flavor: 'Come back with your shield — she always does.',
+    flavor: 'Come back with your shield. She always does.',
   },
   {
     id: 'gk-zeus',

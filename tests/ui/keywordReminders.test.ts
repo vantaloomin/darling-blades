@@ -18,8 +18,8 @@ describe('keyword reminders', () => {
     expect(terse).not.toContain('—');
 
     const verbose = rulesText(card, { reminders: true });
-    expect(verbose).toContain(`Deathblade — ${KEYWORD_REMINDER.deathblade}`);
-    expect(verbose).toContain(`Overrun — ${KEYWORD_REMINDER.overrun}`);
+    expect(verbose).toContain(`Deathblade: ${KEYWORD_REMINDER.deathblade}`);
+    expect(verbose).toContain(`Overrun: ${KEYWORD_REMINDER.overrun}`);
   });
 
   it('a card with no keywords is unaffected by the reminders flag', () => {

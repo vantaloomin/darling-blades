@@ -1,7 +1,7 @@
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, GameState, PlayerId } from '../engine/types';
 import { def, isType, opponentOf } from '../engine/types';
-import { permValue } from './value';
+import { dawnSelfBleed, permValue } from './value';
 
 /**
  * Hard's evaluation function: life differential (nonlinear), board material
@@ -61,6 +61,17 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
   // Clock: who is winning the race?
   score += 0.6 * Math.max(0, myPower - their.life * 0.5);
   score -= 1.5 * Math.max(0, theirPower - my.life);
+
+  // Recurring self-damage ("At the start of your turn, this deals N damage
+  // to you") is a forced clock the shallow lookahead can't see. Price ~3
+  // turns of bleed through the same convex lifeWorth curve — negligible at
+  // 20 life, dominating near death — so a bleeding side prefers lines that
+  // race or trade over sitting on the material (playtest 2026-07-12: Hard
+  // stalled behind a full bench and bled out to its own dawn trigger).
+  const myBleed = dawnSelfBleed(state.battlefield, db, me);
+  if (myBleed > 0) score -= lifeWorth(my.life) - lifeWorth(my.life - 3 * myBleed);
+  const theirBleed = dawnSelfBleed(state.battlefield, db, opp);
+  if (theirBleed > 0) score += lifeWorth(their.life) - lifeWorth(their.life - 3 * theirBleed);
 
   return score;
 }

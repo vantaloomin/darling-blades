@@ -180,7 +180,7 @@ export const TK_WEI = [
       },
     ],
     rarity: 'r',
-    flavor: 'Wherever she has sat, the incense lingers — and morale climbs.',
+    flavor: 'Wherever she has sat, the incense lingers, and morale climbs.',
   },
   {
     id: 'tk-wei-yuejin',

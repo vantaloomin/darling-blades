@@ -88,7 +88,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       .text(
         640,
         76,
-        `Exactly ${LIMITED_DECK_SIZE} cards — pool ${run.pool.length} — record ${run.wins}-${run.losses}`,
+        `Exactly ${LIMITED_DECK_SIZE} cards · pool ${run.pool.length} · record ${run.wins}-${run.losses}`,
         {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
@@ -403,7 +403,7 @@ function cardLine(id: string): string {
   return `${isType(card, 'land') ? 'L' : `MV${manaValue(card.cost)}`} ${short(card.name, 25)}`;
 }
 function detailLine(card: CardDef): string {
-  return `${card.rarity.toUpperCase()} — ${card.types.join(' ')} — MV ${manaValue(card.cost)}${isType(card, 'creature') ? ` — ${card.attack}/${card.defense}` : ''}`;
+  return `${card.rarity.toUpperCase()} · ${card.types.join(' ')} · MV ${manaValue(card.cost)}${isType(card, 'creature') ? ` · ${card.attack}/${card.defense}` : ''}`;
 }
 function deckSummary(deck: readonly string[]): string {
   let lands = 0;

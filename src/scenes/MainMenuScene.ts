@@ -25,9 +25,9 @@ import { VERSION_LABEL } from '../version';
 
 const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
   { label: 'Avatar Gauntlet', scene: 'Gauntlet' },
-  { label: 'Practice — Easy', scene: 'Duel', data: { difficulty: 'easy' } },
-  { label: 'Practice — Medium', scene: 'Duel', data: { difficulty: 'medium' } },
-  { label: 'Practice — Hard', scene: 'Duel', data: { difficulty: 'hard' } },
+  { label: 'Practice · Easy', scene: 'Duel', data: { difficulty: 'easy' } },
+  { label: 'Practice · Medium', scene: 'Duel', data: { difficulty: 'medium' } },
+  { label: 'Practice · Hard', scene: 'Duel', data: { difficulty: 'hard' } },
   { label: 'Open Packs', scene: 'Shop' },
   { label: 'Collection', scene: 'Collection' },
   { label: 'Achievements', scene: 'Achievements' },
@@ -313,7 +313,7 @@ export class MainMenuScene extends Phaser.Scene {
         .text(
           width / 2,
           314,
-          'A quick match teaches the basics — mana, creatures, and combat.\n' +
+          'A quick match teaches the basics: mana, creatures, and combat.\n' +
             'You get the same starting bonus either way, so skipping costs you nothing.\n' +
             'You can replay it anytime from "How to Play".',
           {

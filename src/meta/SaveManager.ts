@@ -136,7 +136,7 @@ export interface SaveData {
 }
 
 /** Default render resolution for a fresh save / a coerced legacy 'auto'. */
-const DEFAULT_RENDER_SCALE = 1.5; // 1080p — a crisp modern default; lite caps to 1
+const DEFAULT_RENDER_SCALE = 2; // 1440p (user-directed 2026-07-12); lite caps to 1
 
 /** The gauntlet defaults spread into any save that lacks them. */
 export function freshGauntlet(): GauntletState {
