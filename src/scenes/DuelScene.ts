@@ -3788,7 +3788,10 @@ export class DuelScene extends Phaser.Scene {
     // syncOverlay, so a fresh flag per overlay is exactly the right lifetime).
     let overlayConcedeArmed = false;
     buttons.forEach((label, bi) => {
-      const bx = width / 2 - ((buttons.length - 1) * 180) / 2 + bi * 180;
+      // 220px centers: the armed Concede label ("Tap to confirm") auto-grows
+      // its text plate to ~246px, which overlapped the neighbor at the old
+      // 180px pitch (user-reported 2026-07-12).
+      const bx = width / 2 - ((buttons.length - 1) * 220) / 2 + bi * 220;
       const concede = label === 'Concede';
       const btn = this.add
         .text(bx, 580, label, {

@@ -14,7 +14,7 @@ const SEGMENTS = 10;
 const STEP = 0.1;
 const LEFT_LABEL_X = 110;
 const LEFT_CONTROL_X = 420;
-const RIGHT_LABEL_X = 670;
+const RIGHT_LABEL_X = 710; // 40px inset from the panel edge at 670, mirroring Audio's 70→110
 const RIGHT_CONTROL_X = 1010;
 const ROW0_Y = 190;
 // Per-row y accumulation: plain rows advance ROW_PITCH; rows that carry a
