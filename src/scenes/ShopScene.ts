@@ -3,7 +3,6 @@ import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
-import { PREMIUM_HEROES } from '../data/heroes';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue } from '../engine/types';
@@ -505,11 +504,9 @@ export class ShopScene extends Phaser.Scene {
         color: isTheme ? theme.colors.gold : theme.colors.heading,
       })
       .setOrigin(0, 0.5);
-    const hero = PREMIUM_HEROES.find((h) => h.unlockDeckId === deck.id);
     const blurbText =
       (DECK_BLURB[deck.id] ?? '') +
-      (owned ? '  ·  Owned' : freeClaim ? '  ·  ✦ your free starter' : '') +
-      (hero ? '  ·  ✦ exclusive hero' : '');
+      (owned ? '  ·  Owned' : freeClaim ? '  ·  ✦ your free starter' : '');
     const blurb = this.add
       .text(220, y + 13, blurbText, {
         fontFamily: theme.fonts.ui,
@@ -535,11 +532,11 @@ export class ShopScene extends Phaser.Scene {
         onTap: () => this.onBuyDeck(sku),
       });
       group.add(buy.container);
-    } else if (hero) {
-      // Owned + unlocks a premium hero → a "set as your commander" toggle (the
-      // ONLY way to equip this exclusive portrait).
-      group.add(this.buildHeroToggle(920, y, hero.id));
     } else {
+      // The old premium-hero "Set as Hero" toggle is gone (user-directed
+      // 2026-07-11): per-deck hero cards (SavedDeck.heroCardId, the DeckBuilder
+      // star) superseded the account-level premium portrait. Saves that already
+      // set heroPortraitId keep working via DuelScene's fallback chain.
       group.add(
         this.add
           .text(920, y, 'Owned ✓', {
@@ -550,26 +547,6 @@ export class ShopScene extends Phaser.Scene {
           .setOrigin(0.5),
       );
     }
-  }
-
-  /** Set/clear this premium hero as the in-duel commander portrait. */
-  private buildHeroToggle(x: number, y: number, heroId: string): Phaser.GameObjects.Container {
-    const isHero = (): boolean => Services.save.data.heroPortraitId === heroId;
-    const label = (): string => (isHero() ? '★ Your Hero' : '☆ Set as Hero');
-    const btn = themedButton(this, x, y, label(), {
-      variant: isHero() ? 'primary' : 'emphasis',
-      size: 'sm',
-      minWidth: 130,
-      onTap: () => {
-      const save = Services.save.data;
-      save.heroPortraitId = isHero() ? null : heroId;
-      Services.save.flush();
-      Sfx.play('click');
-      btn.setLabel(label());
-      btn.setVariant(isHero() ? 'primary' : 'emphasis');
-      },
-    });
-    return btn.container;
   }
 
   private onBuyDeck(sku: DeckSku): void {
