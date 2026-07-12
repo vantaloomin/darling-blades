@@ -29,6 +29,12 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
   untouchable: 'cannot be targeted by spells or abilities your opponents control',
 };
 
+/** One-line, player-facing definitions for non-keyword mechanics (glossary). */
+export const MECHANIC_DEFINITIONS: Record<'exile' | 'scry', string> = {
+  exile: 'removed from the game — exiled cards never return',
+  scry: 'look at the top cards of your deck; put any of them on the bottom',
+};
+
 /** One-line player-facing definitions for the card types used in the glossary. */
 export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
   creature: 'A permanent fighter that can attack and block.',

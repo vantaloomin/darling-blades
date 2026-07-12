@@ -5,7 +5,7 @@ import { Sfx } from '../audio/sfx';
 import { bakeCardFrames } from '../ui/CardFrameFactory';
 import { KEYWORD_ICON_KEY, bakeKeywordIcons } from '../ui/KeywordIcons';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
-import { CARD_TYPE_DEFINITIONS, KEYWORD_NAMES, KEYWORD_REMINDER } from '../ui/rulesText';
+import { CARD_TYPE_DEFINITIONS, KEYWORD_NAMES, KEYWORD_REMINDER, MECHANIC_DEFINITIONS } from '../ui/rulesText';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, panel } from '../ui/themeWidgets';
@@ -32,7 +32,7 @@ interface GlossaryEntry {
 }
 
 interface GlossarySection {
-  id: 'combat' | 'types' | 'mana' | 'rarity';
+  id: 'combat' | 'mechanics' | 'types' | 'mana' | 'rarity';
   title: string;
   entries: GlossaryEntry[];
 }
@@ -50,6 +50,14 @@ const GLOSSARY_SECTIONS: GlossarySection[] = [
       description: KEYWORD_REMINDER[keyword],
       icon: { kind: 'keyword', key: keyword },
     })),
+  },
+  {
+    id: 'mechanics',
+    title: 'Mechanics',
+    entries: [
+      { name: 'Exile', description: MECHANIC_DEFINITIONS.exile, icon: { kind: 'none' } },
+      { name: 'Scry', description: MECHANIC_DEFINITIONS.scry, icon: { kind: 'none' } },
+    ],
   },
   {
     id: 'types',
@@ -146,6 +154,7 @@ export class GlossaryScene extends Phaser.Scene {
     panel(this, LEFT_X, PANEL_Y, PANEL_W, PANEL_H);
     panel(this, RIGHT_X, PANEL_Y, PANEL_W, PANEL_H);
     this.drawCombatTraits(section('combat'));
+    this.drawMechanics(section('mechanics'));
     this.drawCardTypes(section('types'));
     this.drawCompactReference(section('mana'), RIGHT_X + 20, 464, 246);
     this.drawCompactReference(section('rarity'), RIGHT_X + 302, 464, 246);
@@ -168,13 +177,15 @@ export class GlossaryScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
   }
 
-  private drawCombatRow(entry: GlossaryEntry, x: number, y: number, width: number): void {
-    this.rowPlate(x, y, width, 66);
+  private drawCombatRow(entry: GlossaryEntry, x: number, y: number, width: number, height = 66): void {
+    this.rowPlate(x, y, width, height);
+    let textX = x + 14;
     if (entry.icon.kind === 'keyword') {
-      this.add.image(x + 22, y + 33, KEYWORD_ICON_KEY[entry.icon.key]).setDisplaySize(34, 34);
+      this.add.image(x + 22, y + height / 2, KEYWORD_ICON_KEY[entry.icon.key]).setDisplaySize(34, 34);
+      textX = x + 46;
     }
     this.add
-      .text(x + 46, y + 15, entry.name, {
+      .text(textX, y + 15, entry.name, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
@@ -182,14 +193,24 @@ export class GlossaryScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5);
     this.add
-      .text(x + 46, y + 27, entry.description ?? '', {
+      .text(textX, y + 27, entry.description ?? '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         color: theme.colors.body,
         lineSpacing: 1,
-        wordWrap: { width: width - 58 },
+        wordWrap: { width: width - (textX - x) - 12 },
       })
       .setOrigin(0, 0);
+  }
+
+  /**
+   * Non-keyword mechanics fill the leftover space under the shorter Combat
+   * Traits column; entries are icon-less, like Card Types.
+   */
+  private drawMechanics(mechanics: GlossarySection): void {
+    const x = LEFT_X + 298;
+    this.sectionTitle(x + 4, 540, mechanics.title);
+    mechanics.entries.forEach((entry, index) => this.drawCombatRow(entry, x, 556 + index * 62, 254, 56));
   }
 
   private drawCardTypes(types: GlossarySection): void {
