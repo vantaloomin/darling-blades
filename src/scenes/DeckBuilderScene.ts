@@ -1016,7 +1016,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const x0 = width - 380;
 
     const active = Services.save.data.decks.find((d) => d.id === Services.save.data.activeDeckId);
-    const title = this.add.text(x0, 24, `${active?.name ?? 'Custom Deck'} — ${this.deck.length}/${RULES.deckSize}`, {
+    const title = this.add.text(x0, 24, `${active?.name ?? 'Custom Deck'} · ${this.deck.length}/${RULES.deckSize}`, {
       fontFamily: theme.fonts.display,
       fontSize: `${theme.type.h2}px`,
       color: this.deck.length === RULES.deckSize ? theme.colors.success : theme.colors.gold,

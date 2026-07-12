@@ -123,7 +123,7 @@ export class SettingsScene extends Phaser.Scene {
       minWidth: 44,
       onTap: () => this.stepVolume(STEP),
     });
-    this.note(LEFT_LABEL_X, leftY(1) + 28, 'Volume is the master level — music follows it too.');
+    this.note(LEFT_LABEL_X, leftY(1) + 28, 'Volume is the master level; music follows it too.');
 
     this.rowLabel(LEFT_LABEL_X, leftY(2), 'Music');
     this.musicToggle = this.toggle(LEFT_CONTROL_X, leftY(2), () => {

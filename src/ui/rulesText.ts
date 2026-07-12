@@ -32,7 +32,7 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
 export const MECHANIC_DEFINITIONS: Record<'sever' | 'foresee', string> = {
-  sever: 'severed from the game — severed cards never return',
+  sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
 };
 
@@ -171,14 +171,14 @@ function abilityText(ab: AbilityDef): string {
 /**
  * Generated oracle text: keywords line + one line per ability. With
  * `opts.reminders` (the settings.keywordReminders toggle), each keyword expands
- * to its own "Name — reminder" line so new players learn what it does; the card
+ * to its own "Name: reminder" line so new players learn what it does; the card
  * face's shrink-to-fit degrades the denser text gracefully.
  */
 export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   const lines: string[] = [];
   if (d.keywords?.length) {
     if (opts?.reminders) {
-      for (const k of d.keywords) lines.push(`${KEYWORD_NAMES[k]} — ${KEYWORD_REMINDER[k]}`);
+      for (const k of d.keywords) lines.push(`${KEYWORD_NAMES[k]}: ${KEYWORD_REMINDER[k]}`);
     } else {
       lines.push(d.keywords.map((k) => KEYWORD_NAMES[k]).join(', '));
     }

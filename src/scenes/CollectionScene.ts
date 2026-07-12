@@ -543,7 +543,7 @@ export class CollectionScene extends Phaser.Scene {
     // rows above (≤ 582) and the non-interactive close hint below.
     const save = Services.save.data;
     const heroLabel = (): string =>
-      save.heroCardId === d.id ? '★ Default hero — tap to clear' : '☆ Set default hero';
+      save.heroCardId === d.id ? '★ Default hero (tap to clear)' : '☆ Set default hero';
     const heroBtn = this.overlayChip(c, panelX, 620, heroLabel(), save.heroCardId === d.id ? 'primary' : 'emphasis', () => {
       save.heroCardId = save.heroCardId === d.id ? null : d.id;
       Services.save.flush();
@@ -560,7 +560,7 @@ export class CollectionScene extends Phaser.Scene {
       const gold = shardGold(save, CARD_DB, d.id);
       let armed = false;
       const label = (): string =>
-        armed ? `Shard ×${excess} — confirm (+${gold}🪙)` : `⛏ Shard ×${excess} extra (+${gold}🪙)`;
+        armed ? `Shard ×${excess}: confirm (+${gold}🪙)` : `⛏ Shard ×${excess} extra (+${gold}🪙)`;
       const shardBtn = this.overlayChip(c, panelX, 684, label(), 'emphasis', () => {
         // Shared destructive-confirm policy: two-tap unless the player opted out.
         if (save.settings.confirmDestructive && !armed) {

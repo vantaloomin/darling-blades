@@ -131,9 +131,9 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
   switch (i.awaitingKind) {
     case 'main':
       if (!i.landPlayedThisTurn && i.handHasLand)
-        return { kind: 'playLand', text: 'Play a land — it makes your mana.' };
+        return { kind: 'playLand', text: 'Play a land. It makes your mana.' };
       if (i.myCreatureCount === 0 && i.hasCastableCreature)
-        return { kind: 'playCreature', text: 'Spend mana — play a creature.' };
+        return { kind: 'playCreature', text: 'Spend mana to play a creature.' };
       if (i.myCreatureCount >= 1 && !i.sicknessShown)
         return { kind: 'sickness', text: "A new creature can't attack this turn." };
       if (!i.ritualCast && i.hasCastableRitual)
@@ -145,7 +145,7 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
       return { kind: 'advance', text: i.step === 'main1' ? 'Advance to combat ▶' : 'Advance ▶' };
 
     case 'declareAttackers':
-      if (i.eligibleAttackerCount === 0) return { kind: 'advance', text: 'Nothing can attack — advance ▶' };
+      if (i.eligibleAttackerCount === 0) return { kind: 'advance', text: 'Nothing can attack. Advance ▶' };
       if (!i.attackerSelected) return { kind: 'selectAttacker', text: `${use} a creature to attack.` };
       return { kind: 'confirmAttack', text: 'Confirm your attack ▶' };
 

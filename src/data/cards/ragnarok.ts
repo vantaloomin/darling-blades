@@ -77,7 +77,7 @@ export const RAGNAROK = [
     keywords: ['twinBlades'],
     abilities: [{ when: 'arrives', ops: [{ op: 'raise', to: 'top' }] }],
     rarity: 'ur',
-    flavor: 'Through a hundred thousand troops, and back — with the fallen carried out alive.',
+    flavor: 'Through a hundred thousand troops, and back, with the fallen carried out alive.',
   },
 
   // =========================================================================
@@ -511,7 +511,7 @@ export const RAGNAROK = [
     keywords: ['twinBlades'],
     abilities: [{ when: 'dies', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'r',
-    flavor: 'She held the gate until the gate no longer mattered — and past that.',
+    flavor: 'She held the gate until the gate no longer mattered, and past that.',
   },
   // --- Spell (1) ---
   {
@@ -606,7 +606,7 @@ export const RAGNAROK = [
     defense: 3,
     keywords: ['firstBlade'],
     rarity: 'c',
-    flavor: 'Hold the line, hold the line, hold — good. Now push.',
+    flavor: 'Hold the line, hold the line, hold. Good. Now push.',
   },
   // --- Blue (4) ---
   {
@@ -762,7 +762,7 @@ export const RAGNAROK = [
     attack: 4,
     defense: 2,
     rarity: 'c',
-    flavor: 'Big, bright, and brief — like most of her enemies.',
+    flavor: 'Big, bright, and brief, like most of her enemies.',
   },
   {
     id: 'rg-raiding-shieldmaiden',
@@ -788,7 +788,7 @@ export const RAGNAROK = [
     defense: 1,
     keywords: ['skyborne', 'warcry'],
     rarity: 'c',
-    flavor: 'She takes the boldest of the fallen — the ones who ran forward.',
+    flavor: 'She takes the boldest of the fallen: the ones who ran forward.',
   },
   // --- Green (5) ---
   {

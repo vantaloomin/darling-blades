@@ -44,7 +44,7 @@ export const LANDS = [
     colors: [],
     manaAbility: ['R'],
     rarity: 'c',
-    flavor: 'Hulao Gate never fell — it was climbed.',
+    flavor: 'Hulao Gate never fell. It was climbed.',
   },
   {
     id: 'land-forest',

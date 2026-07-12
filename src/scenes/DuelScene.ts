@@ -737,7 +737,7 @@ export class DuelScene extends Phaser.Scene {
     );
     c.add(
       this.add
-        .text(width / 2, 312, "You've got the basics — now claim your free deck in the Shop.", {
+        .text(width / 2, 312, "You've got the basics. Now claim your free deck in the Shop.", {
           fontFamily: 'Inter, Arial, sans-serif', fontSize: '18px', color: '#c9bde0',
         })
         .setOrigin(0.5),
@@ -827,8 +827,8 @@ export class DuelScene extends Phaser.Scene {
 
   private matchupLabel(): string {
     return this.opponent
-      ? `${this.gauntletRung ? `Rung ${this.gauntletRung} — ` : ''}vs ${this.opponent.name}`
-      : `Practice — vs ${this.difficulty} AI`;
+      ? `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`
+      : `Practice · vs ${this.difficulty} AI`;
   }
 
   private addLifeBadgePlate(x: number, y: number): void {
@@ -1226,7 +1226,7 @@ export class DuelScene extends Phaser.Scene {
     if (theirsDie || yoursDie) parts.push(`${theirsDie} enemy · ${yoursDie} yours die`);
     const lethal = preview.defenderLethal;
     this.combatPreviewText
-      .setText(lethal ? `⚠ LETHAL — ${parts.join(' · ')}` : `⚔ Forecast: ${parts.join(' · ')}`)
+      .setText(lethal ? `⚠ LETHAL: ${parts.join(' · ')}` : `⚔ Forecast: ${parts.join(' · ')}`)
       .setColor(lethal ? theme.colors.dangerArmed : theme.colors.body)
       .setVisible(true);
     if (lethal && !this.forecastWasLethal && this.motionLevel() !== 'off') {
@@ -1414,9 +1414,9 @@ export class DuelScene extends Phaser.Scene {
   private skipMessage(forced: Action): string {
     switch (forced.type) {
       case 'passStep':
-        return 'Main phase skipped — no playable cards';
+        return 'Main phase skipped (no playable cards)';
       case 'declareAttackers':
-        return 'Combat skipped — no able attackers';
+        return 'Combat skipped (no able attackers)';
       case 'declareBlockers':
         return 'No blockers available';
       default:
@@ -1593,7 +1593,7 @@ export class DuelScene extends Phaser.Scene {
         this.log('Spell cancelled!');
         break;
       case 'targetsFizzled':
-        this.log('Spell fizzled — no legal targets');
+        this.log('Spell fizzled (no legal targets)');
         break;
       case 'landPlayed':
         Sfx.play('land');
@@ -1628,7 +1628,7 @@ export class DuelScene extends Phaser.Scene {
         this.showSeverTravel(e);
         break;
       case 'turnBegan':
-        this.log(`Turn ${e.turn} — ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
+        this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
         break;
       case 'mulliganTaken':
@@ -3075,8 +3075,8 @@ export class DuelScene extends Phaser.Scene {
     const owner = player === HUMAN ? 'Your' : "Foe's";
     const zoneLabel = zone === 'graveyard' ? 'Graveyard' : 'Severed';
     const title = zone === 'deck'
-      ? `Your Deck — ${cardIds.length} cards left`
-      : `${owner} ${zoneLabel} — ${cardIds.length}`;
+      ? `Your Deck · ${cardIds.length} cards left`
+      : `${owner} ${zoneLabel} · ${cardIds.length}`;
     const modal = showZoneContents(this, {
       title,
       entries: this.zoneEntries(cardIds),
@@ -3103,7 +3103,7 @@ export class DuelScene extends Phaser.Scene {
     const untapped = lands.filter((land) => !land.tapped).length;
     const owner = player === HUMAN ? 'Your' : "Foe's";
     const modal = showZoneContents(this, {
-      title: `${owner} Lands — ${lands.length} (${untapped} untapped)`,
+      title: `${owner} Lands · ${lands.length} (${untapped} untapped)`,
       entries: this.landZoneEntries(lands),
       emptyText: 'No lands on the battlefield.',
       dimAlpha: 0.62,
@@ -3904,7 +3904,7 @@ export class DuelScene extends Phaser.Scene {
           640,
           388,
           reward.tooEarly
-            ? 'No reward — the match ended too early'
+            ? 'No reward: the match ended too early'
             : this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
           {
             fontFamily: theme.fonts.ui,

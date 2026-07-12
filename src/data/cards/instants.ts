@@ -154,7 +154,7 @@ export const INSTANTS = [
       },
     ],
     rarity: 'c',
-    flavor: 'Oops — was that your footing?',
+    flavor: 'Oops. Was that your footing?',
   },
   {
     id: 'in-doom-bolt',

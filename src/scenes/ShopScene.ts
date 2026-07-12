@@ -390,7 +390,7 @@ export class ShopScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
     if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.5, 0.3, 4);
-    const buyBtn = themedButton(this, x, 552, `Buy — 🪙 ${price}`, {
+    const buyBtn = themedButton(this, x, 552, `Buy · 🪙 ${price}`, {
       variant: 'primary',
       minWidth: 180,
       onTap: onBuy,
@@ -433,7 +433,7 @@ export class ShopScene extends Phaser.Scene {
 
   private refreshQtyLabels(): void {
     for (const { btn, price } of this.skuButtons) {
-      btn.setLabel(this.qty > 1 ? `Buy ×${this.qty} — 🪙 ${price * this.qty}` : `Buy — 🪙 ${price}`);
+      btn.setLabel(this.qty > 1 ? `Buy ×${this.qty} · 🪙 ${price * this.qty}` : `Buy · 🪙 ${price}`);
     }
   }
 
@@ -465,7 +465,7 @@ export class ShopScene extends Phaser.Scene {
   private buildDecksGroup(group: Phaser.GameObjects.Container): void {
     group.removeAll(true); // rebuildable after a purchase
     const intro = this.add
-      .text(640, 152, 'Preconstructed decks — inspect the list, then buy the ones you didn’t start with.', {
+      .text(640, 152, 'Preconstructed decks: inspect the list, then buy the ones you didn’t start with.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -525,7 +525,7 @@ export class ShopScene extends Phaser.Scene {
     group.add(preview.container);
 
     if (!owned) {
-      const buy = themedButton(this, 920, y, freeClaim ? 'Claim Free ✦' : `Buy — 🪙 ${price}`, {
+      const buy = themedButton(this, 920, y, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
         variant: 'primary',
         size: 'sm',
         minWidth: 130,
@@ -646,7 +646,7 @@ export class ShopScene extends Phaser.Scene {
     // Buy-from-preview (unless owned) + Close.
     const freeClaim = this.isFreeClaim(deck);
     if (!owned) {
-      const buy = themedButton(this, width / 2 - 90, 620, freeClaim ? 'Claim Free ✦' : `Buy — 🪙 ${price}`, {
+      const buy = themedButton(this, width / 2 - 90, 620, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
         variant: 'primary',
         minWidth: 150,
         onTap: () => {
