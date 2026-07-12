@@ -38,10 +38,10 @@ export interface Avatar {
  *   R1 Meng Huo   [easy]       38%      35%      38%     25%      20%   | 31%
  *   R2 Hestia     [easy]       28%      33%      13%     13%      18%   | 21%
  *   R3 Lupa       [easy]       20%      18%      45%     35%      40%   | 31%
- *   R4 Hera       [medium]     36%      42%      38%     70%      45%   | 46%
+ *   R4 Hera       [medium]     33%      42%      38%     70%      50%   | 47%
  *   R5 Zhurong    [medium]     43%      78%      60%     57%      57%   | 59%
- *   R6 Sima Yi    [medium]     67%      80%      63%     48%      27%   | 57%
- *   R7 Yohime     [hard]       60%      93%      78%     68%      63%   | 72%
+ *   R6 Sima Yi    [medium]     64%      80%      63%     48%      30%   | 57%
+ *   R7 Yohime     [hard]       63%      93%      78%     68%      63%   | 73%
  *   R8 Cao Cao    [hard]       73%      88%      73%     80%      50%   | 73%
  *   R9 Hel        [hard]       55%      95%      83%     75%      45%   | 71%
  *   R10 Brunhild  [hard]       93%      90%      73%     85%      98%   | 88%
@@ -103,6 +103,15 @@ export interface Avatar {
  * controls fewest of. Among the matrix starters only Grave Harvest (swamp+forest,
  * Demeter×3) is affected. Re-measured --starters + --avatars at 40 seeds: no new
  * flags, ladder still monotonic, Grave Harvest mirror avg 55%; bands unchanged.
+ *
+ * 2026-07-12 — SBA deaths now batch (unified across categories) before dies
+ * triggers fire (engine/sba.ts, the token-cap fix) and the AI prices its own
+ * NET dawn self-bleed clock + scored desperation attacks (ai/evaluate.ts,
+ * ai/value.ts, ai/combatPlans.ts). Re-measured --avatars at 40 seeds: R4
+ * Hera 46→47% (Muster 36→33, Harvest 45→50), R6 Sima Yi Muster 67→64 and
+ * Harvest 27→30, R7 Yohime 72→73% (Muster 60→63); every other row
+ * byte-identical. No flags, bands green, ladder monotonic. Table above
+ * updated in place.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------
@@ -111,7 +120,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'menghuo',
     name: 'Meng Huo',
     title: 'Queen of the Southern Wilds',
-    blurb: 'Seven times captured, seven times freed — and every time she comes back bigger. Meng Huo simply plays the largest beasts she can find and runs them at your face.',
+    blurb: 'Seven times captured, seven times freed, and every time she comes back bigger. Meng Huo simply plays the largest beasts she can find and runs them at your face.',
     theme: 'Mono-Green Stompy',
     tier: 1,
     difficulty: 'easy',
@@ -139,7 +148,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'hestia',
     name: 'Hestia',
     title: 'Keeper of the Hearth',
-    blurb: 'The gentlest Olympian tends her flame and drains your patience. Every lifelinker she plays buys another turn — she is content to outlast you by a hundred small mercies.',
+    blurb: 'The gentlest Olympian tends her flame and drains your patience. Every lifelinker she plays buys another turn; she is content to outlast you by a hundred small mercies.',
     theme: 'Mono-White Lifegain',
     tier: 2,
     difficulty: 'easy',
@@ -200,7 +209,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'hera',
     name: 'Hera',
     title: 'Queen of Olympus',
-    blurb: 'Hera does not fight — her court fights for her. She floods the board with peacocks, blooms, and militia, then buffs the swarm until it crests over your defenses.',
+    blurb: 'Hera does not fight; her court fights for her. She floods the board with peacocks, blooms, and militia, then buffs the swarm until it crests over your defenses.',
     theme: 'White-Black Go-Wide Tokens',
     tier: 4,
     difficulty: 'medium',
@@ -263,7 +272,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'simayi',
     name: 'Sima Yi',
     title: 'The Patient Serpent',
-    blurb: 'Sima Yi never moves until the moment is hers. She strips your hand, kills your threats, and walls up behind deathtouch until the game is already lost — you just do not know it yet.',
+    blurb: 'Sima Yi never moves until the moment is hers. She strips your hand, kills your threats, and walls up behind deathtouch until the game is already lost. You just do not know it yet.',
     theme: 'Blue-Black Attrition Control',
     tier: 6,
     difficulty: 'medium',
@@ -335,7 +344,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'caocao',
     name: 'Cao Cao',
     title: 'Hero of Chaos',
-    blurb: "The gauntlet's final wall. Cao Cao musters the whole of Wei — a tide of soldiers behind the Hegemon's banner, led by the woman herself, who takes a card from your hand each time she connects.",
+    blurb: "The gauntlet's final wall. Cao Cao musters the whole of Wei: a tide of soldiers behind the Hegemon's banner, led by the woman herself, who takes a card from your hand each time she connects.",
     theme: 'White-Black Wei Tribal',
     tier: 8,
     difficulty: 'hard',
@@ -369,7 +378,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'hel',
     name: 'Hel, Queen of Mist',
     title: 'Warden of the Dishonored Dead',
-    blurb: 'The first Ragnarök boss buries her own deck to raise an army from it. Hel mills, reanimates the fallen, and grinds you down behind a wall of deathtouch draugr — every creature you trade away only feeds her return.',
+    blurb: 'The first Ragnarök boss buries her own deck to raise an army from it. Hel mills, reanimates the fallen, and grinds you down behind a wall of deathtouch draugr. Every creature you trade away only feeds her return.',
     theme: 'Blue-Black Mill Reanimator',
     tier: 9,
     difficulty: 'hard',
@@ -404,7 +413,7 @@ export const AVATARS: readonly Avatar[] = [
     id: 'brunhild',
     name: 'Brunhild, the Last Valkyrie',
     title: 'Chooser of the Slain',
-    blurb: "The gauntlet's summit. Brunhild leads a wing of double-striking Valkyries and Einherjar that hit twice and hit first — a curve that opens fast and only accelerates. Race her and you lose the race; block her and you lose the blockers.",
+    blurb: "The gauntlet's summit. Brunhild leads a wing of double-striking Valkyries and Einherjar that hit twice and hit first, a curve that opens fast and only accelerates. Race her and you lose the race; block her and you lose the blockers.",
     theme: 'Red-White Valkyrie Double Strike',
     tier: 10,
     difficulty: 'hard',

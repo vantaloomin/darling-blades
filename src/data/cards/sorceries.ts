@@ -177,7 +177,7 @@ export const SORCERIES = [
       },
     ],
     rarity: 'sr',
-    flavor: 'The wilds called a general assembly. Attendance mandatory — for you.',
+    flavor: 'The wilds called a general assembly. Attendance mandatory. For you.',
   },
   {
     id: 'so-judgment-of-heaven',

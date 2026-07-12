@@ -59,7 +59,7 @@ export const TK_SHU = [
     defense: 4,
     keywords: ['sentinel', 'untouchable'],
     rarity: 'ssr',
-    flavor: 'Through a million spears with a baby on her back — not one hair out of place.',
+    flavor: 'Through a million spears with a baby on her back. Not one hair out of place.',
   },
   {
     id: 'tk-shu-zhugeliang',
@@ -73,7 +73,7 @@ export const TK_SHU = [
     defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 2 }] }],
     rarity: 'ssr',
-    flavor: 'Borrowed arrows, borrowed wind, borrowed time — all returned with interest.',
+    flavor: 'Borrowed arrows, borrowed wind, borrowed time, all returned with interest.',
   },
   {
     id: 'tk-shu-guanping',
@@ -254,7 +254,7 @@ export const TK_SHU = [
     defense: 7,
     keywords: ['bulwark'],
     rarity: 'c',
-    flavor: '“I quite enjoy it here.” — Liu Shan, on every here.',
+    flavor: '“I quite enjoy it here,” says Liu Shan. Of every here.',
   },
   {
     id: 'tk-shu-wangping',

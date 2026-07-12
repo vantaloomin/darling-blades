@@ -268,7 +268,8 @@ export class GlossaryScene extends Phaser.Scene {
     if (entry.icon.kind === 'mana') {
       this.add.image(x, y, `pip-${entry.icon.key}`).setDisplaySize(size, size);
     } else if (entry.icon.kind === 'rarity') {
-      this.add.image(x, y, `gem-${entry.icon.key}`).setDisplaySize(size, size);
+      // base-set symbol in the tier tint — matches what card faces now show
+      this.add.image(x, y, `seticon-base-${entry.icon.key}`).setDisplaySize(size, size);
     }
   }
 

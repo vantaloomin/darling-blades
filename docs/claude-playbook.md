@@ -192,9 +192,11 @@ WebGL never appears in screenshots):
   don't Save flows that persist test state; reload when done. Keep the
   snapshot OUTSIDE the page (shell variable or scratchpad file) — `window`
   vars die on reload — and remember the pagehide save-flush rewrites
-  localStorage during navigation: to make an edited/restored blob survive a
-  reload, set it from your own `pagehide` listener (registered after the
-  game's, so it wins the write race).
+  localStorage during navigation. A later-registered `pagehide` listener does
+  NOT reliably win that write race (measured 2026-07-12: the game's flush won
+  in two consecutive trials). What works: write the restored blob, then stub
+  `Storage.prototype.setItem` on the OLD page to drop writes to the save key,
+  then reload — the new page gets a fresh prototype, so saving resumes.
 - What genuinely needs eyes/ears (holo FX, SFX taste, art quality) gets
   *flagged for the human*, explicitly, in the final report — not silently
   skipped, not fake-verified.

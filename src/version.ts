@@ -40,7 +40,7 @@ export async function checkForUpdate(): Promise<UpdateStatus> {
     if (!latest) return { state: 'error', message: "Couldn't read the latest version" };
     if (GIT_SHA === 'dev') return { state: 'current', message: `Dev build · latest main is ${latest}` };
     if (latest === GIT_SHA) return { state: 'current', message: 'Up to date' };
-    return { state: 'available', latestSha: latest, message: 'Update available — reload to get it' };
+    return { state: 'available', latestSha: latest, message: 'Update available: reload to get it' };
   } catch {
     return { state: 'error', message: "Couldn't check (offline?)" };
   }

@@ -207,7 +207,7 @@ export const TK_WU = [
     defense: 3,
     keywords: ['skyborne'],
     rarity: 'c',
-    flavor: 'The elder Qiao. The quiet one — relatively.',
+    flavor: 'The elder Qiao. The quiet one, relatively.',
   },
   {
     id: 'tk-wu-xiaoqiao',

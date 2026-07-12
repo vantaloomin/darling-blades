@@ -93,7 +93,7 @@ export class LimitedScene extends Phaser.Scene {
     this.text(
       x + 24,
       y + 72,
-      `${labelMode(run)} — ${status}`,
+      `${labelMode(run)} · ${status}`,
       theme.type.body,
       theme.colors.gold,
       theme.weight.w700,

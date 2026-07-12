@@ -131,7 +131,7 @@ export class CardShowcaseScene extends Phaser.Scene {
     const card = this.picks[this.pickIdx];
     if (!card) return;
     this.view.setCard(card, { fx: 'full', variant: { frame: this.frame, holo: this.holo } });
-    this.cardLabel.setText(`${card.name} — ${TIER_LABEL[card.rarity]}`);
+    this.cardLabel.setText(`${card.name} · ${TIER_LABEL[card.rarity]}`);
     this.readout.setText(
       `${TIER_LABEL[card.rarity]} · ${this.frame.toUpperCase()} FRAME · ${this.holo.toUpperCase()}`,
     );

@@ -12,17 +12,24 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 export interface MatchReward {
   gold: number;
   firstWinBonus: boolean;
+  /** Loss payout zeroed because the match ended before minTurnsForLossGold. */
+  tooEarly: boolean;
 }
 
-/** Record a match result and pay out gold (+first-win-of-day bonus). */
+/** Record a match result and pay out gold (+first-win-of-day bonus).
+ * `turns` is the engine's per-player turn counter at game end; a loss (concede
+ * included) before ECONOMY.minTurnsForLossGold pays nothing — the loss still
+ * counts in stats. */
 export function applyMatchResult(
   save: SaveData,
   difficulty: Difficulty,
   won: boolean,
   today: string, // YYYY-MM-DD
+  turns: number,
 ): MatchReward {
   let gold: number;
   let firstWinBonus = false;
+  let tooEarly = false;
   if (won) {
     gold = ECONOMY.winGold[difficulty];
     save.stats.wins++;
@@ -33,12 +40,13 @@ export function applyMatchResult(
       firstWinBonus = true;
     }
   } else {
-    gold = ECONOMY.lossGold;
+    tooEarly = turns < ECONOMY.minTurnsForLossGold;
+    gold = tooEarly ? 0 : ECONOMY.lossGold;
     save.stats.losses++;
     save.stats.byDifficulty[difficulty].l++;
   }
   save.gold += gold;
-  return { gold, firstWinBonus };
+  return { gold, firstWinBonus, tooEarly };
 }
 
 export interface GauntletReward {

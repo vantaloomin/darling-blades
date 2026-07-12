@@ -51,7 +51,7 @@ rather than mechanics.
 | Vigilance | **Sentinel** | `sentinel` | Shipped | Attacking does not cause it to tap. |
 | Defender | **Bulwark** | `bulwark` | Shipped | Cannot attack. |
 | Deathtouch | **Deathblade** | `deathblade` | Shipped | Any amount of damage it deals to a creature is lethal. |
-| Lifelink | **Bloodoath** | `bloodoath` | Shipped | Damage it deals also gains you that much life. |
+| Lifelink | **Blood Oath** | `bloodoath` | Shipped | Damage it deals also gains you that much life. |
 | Hexproof | **Untouchable** | `untouchable` | Shipped | Cannot be targeted by spells or abilities your opponents control. *(one-sided — your own spells still reach it)* |
 | Enchant | *(the aura system)* | — | Kept | Not a named keyword: represented by the `enchantment` card type + `scope:'attached'` statics ("Enchanted creature gets …"). "Enchantment" is kept generic vocab. |
 | Equip | **Equip** *(kept)* | — | Planned | "Equip" kept as-is (generic enough). Needs an equipment / artifact-attach subsystem first — none exists today. |
