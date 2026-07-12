@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-10 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/greek.ts, src/data/cards/instants.ts, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/ui/rulesText.ts, src/art/ArtResolver.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/services.ts, src/ai/value.ts, docs/art-pipeline.md, docs/architecture.md · last-verified: 2026-07-11 · design/plan doc — re-verify when the referenced code changes -->
 
 # Mod / UGC pack system
 

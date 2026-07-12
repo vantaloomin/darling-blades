@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-10 -->
+<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-11 -->
 
 # Scene & Menu Art — Direction + Integration Contract
 
@@ -207,10 +207,11 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 This section defines the integration contract — **now implemented** in
 `src/ui/SceneBackdrop.ts` (`applyBackdrop` / `sceneTextureKey`, called at the
 top of every scene's `create()`), with the loader in `PreloadScene`/`BootScene`
-and the two bake-function consumers in `CardFrameFactory`/`ShopScene`. All 11
+and the two bake-function consumers in `CardFrameFactory`/`ShopScene`. All 13
 assets are generated (`scripts/gen-scene-art.ts`), on disk under
-`public/assets/art/scenes/`, and manifest-listed; the descriptions below match
-what shipped.
+`public/assets/art/scenes/`, and manifest-listed (the original 11-asset
+program plus the two expansion pack fronts added 2026-07-11); the
+descriptions below match what shipped.
 
 ### Files & manifest
 
