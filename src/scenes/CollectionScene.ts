@@ -109,6 +109,9 @@ export class CollectionScene extends Phaser.Scene {
   private inspect: Phaser.GameObjects.Container | null = null;
   /** Live holo pointer feed — MUST be unhooked on inspect close. */
   private holoMove: ((p: Phaser.Input.Pointer) => void) | null = null;
+  /** The DOM search <input> — hidden while the inspect overlay is open (DOM
+   * elements always float above the canvas, so the dim can't cover it). */
+  private searchInput: Phaser.GameObjects.DOMElement | null = null;
 
   constructor() {
     super('Collection');
@@ -187,7 +190,7 @@ export class CollectionScene extends Phaser.Scene {
 
     // Card search (F8): the DOM <input> feeds state.search through the same
     // reset-page + re-render path the filter chips use.
-    createSearchInput(this, 355, 30, {
+    this.searchInput = createSearchInput(this, 355, 30, {
       width: 250,
       placeholder: 'Search name / type / keyword…',
       onChange: (value) => {
@@ -392,6 +395,7 @@ export class CollectionScene extends Phaser.Scene {
   private showInspect(d: CardDef): void {
     this.closeInspect();
     this.filterBar.closeAll(); // a floating dropdown must not sit over the overlay
+    this.searchInput?.setVisible(false); // DOM input always floats above the canvas dim
     const save = Services.save.data;
     const owned = ownedCount(save, d.id);
     const shell = modalShell(this, {
@@ -585,5 +589,6 @@ export class CollectionScene extends Phaser.Scene {
       this.inspect.destroy();
       this.inspect = null;
     }
+    this.searchInput?.setVisible(true);
   }
 }

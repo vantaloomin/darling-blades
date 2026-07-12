@@ -20,6 +20,45 @@ const TEXT_WIDTH = 252;
 const BOTTOM_BADGE_Y = 182;
 const BOTTOM_PIP_SIZE = 21;
 
+/**
+ * Shrink-to-fit with RE-WRAP: when a text block must scale down by s to fit
+ * boxH, widen its word-wrap width to TEXT_WIDTH/s so the rendered block still
+ * spans the card's full text width — a plain setScale left a narrow column on
+ * text-heavy cards (user-reported 2026-07-12). Rewrapping changes the line
+ * count, so iterate to a fixed point (converges in 2-3 rounds), then hard-cap
+ * without rewrap as the fit guarantee. Resets scale/wrap first, so it is safe
+ * on recycled Text objects.
+ */
+function fitWrappedText(obj: Phaser.GameObjects.Text, boxH: number): void {
+  // Rendered height at scale s (wrap width widened so rendered width stays
+  // TEXT_WIDTH). Rewrap discretizes by line count, so height-at-s is a step
+  // function — binary-search the LARGEST fitting s instead of fixed-point
+  // iterating (which parks a step too small when a rewrap drops a line).
+  const fitsAt = (s: number): boolean => {
+    obj.setWordWrapWidth(TEXT_WIDTH / s);
+    return obj.height * s <= boxH + 0.5;
+  };
+  obj.setScale(1);
+  if (fitsAt(1)) {
+    obj.setScale(1);
+    return;
+  }
+  let lo = 0.3; // readability floor; below it, hard-clamp instead
+  let hi = 1;
+  if (fitsAt(lo)) {
+    for (let i = 0; i < 7; i++) {
+      const mid = (lo + hi) / 2;
+      if (fitsAt(mid)) lo = mid;
+      else hi = mid;
+    }
+    obj.setWordWrapWidth(TEXT_WIDTH / lo);
+    obj.setScale(lo);
+    return;
+  }
+  // Even the floor overflows: keep the widest wrap and hard-clamp the scale.
+  obj.setScale(Math.min(lo, boxH / obj.height));
+}
+
 export type CardFxLevel = 'full' | 'static' | 'none';
 
 /**
@@ -257,23 +296,16 @@ export class CardView extends Phaser.GameObjects.Container {
 
     // Measure the flavor block first (height is needed to size the rules box).
     // Windows font-fallback trap: measure height only AFTER setText.
-    let flavorH = 0;
-    if (hasFlavor) {
-      this.flavorTextObj.setScale(1).setText(card.flavor!);
-      flavorH = this.flavorTextObj.height;
-    }
     // Cap flavor to the lower slice of the box, then place it bottom-up.
     const maxFlavorH = Math.max(1, Math.min(BOX_H * 0.6, BOX_H - DIVIDER_GAP - 1 - AFTER_DIVIDER));
-    if (hasFlavor && flavorH > maxFlavorH) {
-      this.flavorTextObj.setScale(maxFlavorH / flavorH);
+    if (hasFlavor) {
+      this.flavorTextObj.setText(card.flavor!);
+      fitWrappedText(this.flavorTextObj, maxFlavorH);
     }
-    const scaledFlavorH = hasFlavor ? flavorH * this.flavorTextObj.scaleY : 0;
+    const scaledFlavorH = hasFlavor ? this.flavorTextObj.height * this.flavorTextObj.scaleY : 0;
     const flavorBlock = hasFlavor ? DIVIDER_GAP + 1 + AFTER_DIVIDER + scaledFlavorH : 0;
     const RULES_BOX_H = Math.max(1, BOX_H - flavorBlock);
-    this.rulesTextObj.setScale(1);
-    if (this.rulesTextObj.height > RULES_BOX_H) {
-      this.rulesTextObj.setScale(RULES_BOX_H / this.rulesTextObj.height);
-    }
+    fitWrappedText(this.rulesTextObj, RULES_BOX_H);
 
     // Position the flavor block from the bottom upward, independent of how
     // sparse the rules text is. Bare cards therefore read like printed cards:
