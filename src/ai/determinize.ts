@@ -253,6 +253,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     deck: myFill.deck,
     hand: [...view.you.hand],
     graveyard: [...view.you.graveyard],
+    exile: [...view.you.exile],
     landPlayedThisTurn: view.you.landPlayedThisTurn,
     mulligans: view.you.mulligans,
     keptHand: true,
@@ -262,6 +263,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     deck: theirFill.deck,
     hand: theirFill.hand,
     graveyard: [...view.opp.graveyard],
+    exile: [...view.opp.exile],
     landPlayedThisTurn: view.opp.landPlayedThisTurn,
     mulligans: view.opp.mulligans,
     keptHand: true,
@@ -286,8 +288,8 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     awaiting: structuredClone(view.awaiting),
     // No fetch can be mid-flight at a Hard entry point, and stand-in lands
     // aren't `basic`, so this stays empty in sims — but it must exist so the
-    // engine's pendingFetch reads never hit undefined.
-    pendingFetch: [],
+    // engine's pendingDecisions reads never hit undefined.
+    pendingDecisions: [],
     nextIid: maxIid + 1,
     nextSid: maxSid + 1,
     winner: null,

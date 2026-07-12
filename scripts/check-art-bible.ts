@@ -12,6 +12,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ARTIFACTS } from '../src/data/cards/artifacts';
 import { BEASTKIN } from '../src/data/cards/beastkin';
+import { CELTIC_FAE } from '../src/data/cards/celtic-fae';
 import { GREEK } from '../src/data/cards/greek';
 import { RAGNAROK } from '../src/data/cards/ragnarok';
 import { TK_JIN } from '../src/data/cards/tk-jin';
@@ -40,6 +41,7 @@ const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
   { file: 'greek.md', sets: [GREEK] },
   { file: 'beastkin.md', sets: [BEASTKIN] },
   { file: 'ragnarok.md', sets: [RAGNAROK] },
+  { file: 'celtic-fae.md', sets: [CELTIC_FAE] },
   { file: 'constructs-and-tokens.md', sets: [ARTIFACTS, TOKENS] },
 ];
 

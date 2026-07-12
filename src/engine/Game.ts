@@ -13,6 +13,7 @@ import {
   endGame,
   enterCleanup,
   enterEndStep,
+  finishDawn,
   finishCleanup,
   startTurn,
 } from './phases';
@@ -71,7 +72,7 @@ export class Game {
       combat: null,
       fogThisTurn: false,
       awaiting: { player: startingPlayer, kind: 'mulligan' },
-      pendingFetch: [],
+      pendingDecisions: [],
       nextIid: 1,
       nextSid: 1,
       winner: null,
@@ -91,6 +92,7 @@ export class Game {
       deck,
       hand: [],
       graveyard: [],
+      exile: [],
       landPlayedThisTurn: false,
       mulligans: 0,
       keptHand: false,
@@ -135,7 +137,7 @@ export class Game {
     this.buf = [];
     const emit: Emit = (e) => this.buf.push(e);
     this.apply(player, action, emit);
-    this.maybeRaiseFetchChoice(emit);
+    this.maybeRaiseDeferredDecision(emit);
     return this.buf;
   }
 
@@ -152,19 +154,31 @@ export class Game {
    * revisiting the resume path. No-op in determinized sims (stand-in lands
    * aren't `basic`, so nothing ever queues).
    */
-  private maybeRaiseFetchChoice(emit: Emit): void {
+  private maybeRaiseDeferredDecision(emit: Emit): void {
     const st = this.st;
     if (st.winner !== null) return;
     // Skip any queued fetch whose deck no longer holds a basic (a whiff — same
     // as the interpreter's no-basic no-op). Guarantees a raised choice always
     // has ≥1 legal option, so the AI is never handed only `concede` and the
     // human never gets a zero-option overlay.
-    while (st.pendingFetch.length > 0 && !this.hasFetchableBasic(st.pendingFetch[0])) {
-      st.pendingFetch.shift();
+    while (st.pendingDecisions.length > 0) {
+      const next = st.pendingDecisions[0];
+      if (next.kind === 'chooseBasicLand' && !this.hasFetchableBasic(next.player)) {
+        st.pendingDecisions.shift();
+        continue;
+      }
+      if (next.kind === 'scry' && this.scryCards(next.player, next.n).length === 0) {
+        st.pendingDecisions.shift();
+        continue;
+      }
+      break;
     }
-    if (st.pendingFetch.length > 0) {
-      st.awaiting = { player: st.pendingFetch[0], kind: 'chooseBasicLand' };
-    } else if (st.awaiting.kind === 'chooseBasicLand') {
+    const next = st.pendingDecisions[0];
+    if (next?.kind === 'chooseBasicLand') {
+      st.awaiting = { player: next.player, kind: 'chooseBasicLand' };
+    } else if (next?.kind === 'scry') {
+      st.awaiting = { player: next.player, kind: 'scry', cards: this.scryCards(next.player, next.n) };
+    } else if (st.awaiting.kind === 'chooseBasicLand' || st.awaiting.kind === 'scry') {
       // The last queued choice just resolved (the apply leaves the awaiting
       // stale); the queue is empty, so rejoin normal play from the flush point.
       this.resumeAfterFlush(emit);
@@ -175,6 +189,12 @@ export class Game {
     return this.st.players[player].deck.some((cardId) =>
       def(this.db, cardId).supertypes?.includes('basic'),
     );
+  }
+
+  /** Awaiting scry cards are top-first, matching the player-facing order. */
+  private scryCards(player: PlayerId, n: number): string[] {
+    if (n <= 0) return [];
+    return this.st.players[player].deck.slice(-n).reverse();
   }
 
   // -------------------------------------------------------------------------
@@ -230,9 +250,10 @@ export class Game {
         // Perform the fetch the interpreter deferred: pull the chosen basic from
         // the controller's deck, put it onto the battlefield tapped, reshuffle —
         // same net effect + RNG use as the inline single-type path, just after a
-        // player decision. See EffectInterpreter `fetchLand` + pendingFetch.
-        const controller = st.pendingFetch.shift();
-        if (controller !== undefined) {
+        // player decision. See EffectInterpreter `fetchLand` + pendingDecisions.
+        const pending = st.pendingDecisions.shift();
+        if (pending?.kind === 'chooseBasicLand') {
+          const controller = pending.player;
           const lib = st.players[controller].deck;
           const idx = lib.lastIndexOf(action.cardId);
           if (idx >= 0) {
@@ -242,8 +263,24 @@ export class Game {
             rngShuffle(st.rng, lib);
           }
         }
-        // maybeRaiseFetchChoice (post-apply) raises the next queued choice, or
+        // maybeRaiseDeferredDecision (post-apply) raises the next queued choice, or
         // resumes normal play once the queue drains — including whiffs.
+        return;
+      }
+
+      case 'scry': {
+        const awaiting = st.awaiting;
+        const pending = st.pendingDecisions.shift();
+        if (awaiting.kind !== 'scry' || pending?.kind !== 'scry') return;
+        const bottom = new Set(action.bottomIndices);
+        const bottomed = awaiting.cards.filter((_, i) => bottom.has(i));
+        const kept = awaiting.cards.filter((_, i) => !bottom.has(i));
+        const lib = me.deck;
+        // Library is bottom-first while awaiting.cards is top-first. Rebuild
+        // the viewed segment so both groups retain original top-to-bottom order.
+        lib.splice(Math.max(0, lib.length - awaiting.cards.length), awaiting.cards.length);
+        lib.unshift(...[...bottomed].reverse());
+        lib.push(...[...kept].reverse());
         return;
       }
 
@@ -402,6 +439,9 @@ export class Game {
       case 'main1':
       case 'main2':
         st.awaiting = { player: st.activePlayer, kind: 'main' };
+        return;
+      case 'dawn':
+        finishDawn(st, emit);
         return;
       case 'end':
         // The single end-step window has been used.

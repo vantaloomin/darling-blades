@@ -50,6 +50,9 @@ export type EffectOp =
   | { op: 'draw'; n: number }
   | { op: 'discardRandom'; n: number; who: 'opponent' }
   | { op: 'destroy'; to: 'target' }
+  | { op: 'exile'; to: 'target' } // target creature → its owner's exile
+  | { op: 'exileGrave'; n: number; who: 'self' | 'opponent' } // top n grave cards → exile
+  | { op: 'exileTop'; n: number; who: 'self' } // top n deck cards → exile
   | { op: 'recall'; to: 'target' }
   | { op: 'cancel'; to: 'target' } // target is a stack item
   | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
@@ -61,6 +64,7 @@ export type EffectOp =
   | { op: 'preventCombat' } // prevent all combat damage this turn
   | { op: 'reclaim' } // return target creature card from your graveyard to hand
   | { op: 'grind'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
+  | { op: 'scry'; n: number } // look at top n, then choose any subset to bottom
   | { op: 'raise'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
 
 export interface StaticDef {
@@ -103,7 +107,7 @@ export interface CardDef {
   flavor?: string;
   artRef?: string;
   token?: boolean; // non-collectible
-  set?: 'base' | 'ragnarok'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
+  set?: 'base' | 'ragnarok' | 'celtic-fae'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
 }
 
 export type CardDb = Readonly<Record<string, CardDef>>;
@@ -186,6 +190,8 @@ export type Step =
 export type Awaiting =
   | { player: PlayerId; kind: 'mulligan' }
   | { player: PlayerId; kind: 'bottomCards'; count: number }
+  // `cards` are top-first. They are redacted to [] in an opponent PlayerView.
+  | { player: PlayerId; kind: 'scry'; cards: string[] }
   | { player: PlayerId; kind: 'main' } // main1 or main2 (see state.step)
   | { player: PlayerId; kind: 'declareAttackers' }
   | { player: PlayerId; kind: 'declareBlockers' }
@@ -197,7 +203,7 @@ export type Awaiting =
   | { player: PlayerId; kind: 'endStepWindow' }
   | { player: PlayerId; kind: 'discardToHandSize'; count: number }
   // Resolution-time choice: which basic land a `fetchLand` effect grabs when the
-  // deck holds >1 distinct basic type. Deferred (see pendingFetch) so the
+  // deck holds >1 distinct basic type. Deferred through pendingDecisions so the
   // synchronous interpreter never has to suspend mid-flush.
   | { player: PlayerId; kind: 'chooseBasicLand' }
   | { kind: 'gameOver' };
@@ -207,10 +213,16 @@ export interface PlayerState {
   deck: string[]; // the draw pile (cardIds; LAST element is the top). Distinct from the meta-layer SaveData.decks (built decklists).
   hand: string[];
   graveyard: string[];
+  exile: string[]; // public, one-way in v1
   landPlayedThisTurn: boolean;
   mulligans: number;
   keptHand: boolean;
 }
+
+/** Resolution-time choices deferred until the current synchronous batch ends. */
+export type PendingDecision =
+  | { kind: 'chooseBasicLand'; player: PlayerId }
+  | { kind: 'scry'; player: PlayerId; n: number };
 
 export interface GameState {
   rng: RngState;
@@ -225,10 +237,10 @@ export interface GameState {
   combat: CombatState | null;
   fogThisTurn: boolean; // a fog effect prevents all combat damage this turn
   awaiting: Awaiting;
-  // Controllers with a pending fetchLand basic-land choice (FIFO), queued when a
-  // fetchLand op sees >1 distinct basic type. Surfaced as a `chooseBasicLand`
-  // awaiting after the current stack flush finishes. Plain JSON — clones/serializes.
-  pendingFetch: PlayerId[];
+  // FIFO resolution-time choices. The synchronous interpreter queues these;
+  // Game raises each matching Awaiting after the current batch finishes.
+  // Plain JSON so clone/restore remains exact.
+  pendingDecisions: PendingDecision[];
   nextIid: number;
   nextSid: number;
   winner: PlayerId | 'draw' | null;

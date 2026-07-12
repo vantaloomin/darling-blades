@@ -8,6 +8,7 @@ import { def } from '../engine/types';
 import type { AddResult } from '../meta/Collection';
 import { spendGold } from '../meta/Economy';
 import { openPack, type PackResult } from '../meta/PackOpener';
+import { formatOdds, variantOdds } from '../meta/pullOdds';
 import { Services } from '../meta/services';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
 import { animTimeScale } from '../platform/animPolicy';
@@ -17,7 +18,7 @@ import { fxPolicy } from '../ui/fx/FXSupport';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { bakePackArt } from './ShopScene';
+import { bakePackArt, CELTIC_FAE_PACK_ART, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
 const GRID_DY = 216;
@@ -70,7 +71,7 @@ interface SpecialEntry {
  */
 export class PackOpeningScene extends Phaser.Scene {
   private result!: PackResult;
-  private sku: 'base' | 'ragnarok' = 'base';
+  private sku: BoosterSku = 'base';
   private revealed = 0;
   private specials: SpecialEntry[] = [];
   private buttons: ThemedButton[] = [];
@@ -84,7 +85,7 @@ export class PackOpeningScene extends Phaser.Scene {
   }
 
   create(
-    data: (PackResult & { sku?: 'base' | 'ragnarok' }) | { batch: PackResult[]; sku?: 'base' | 'ragnarok' },
+    data: (PackResult & { sku?: BoosterSku }) | { batch: PackResult[]; sku?: BoosterSku },
   ): void {
     this.sku = data.sku ?? 'base';
     this.revealed = 0;
@@ -97,6 +98,8 @@ export class PackOpeningScene extends Phaser.Scene {
         key: 'packart-ragnarok',
         sceneArtKey: 'scene-pack-art-ragnarok',
       });
+    } else if (this.sku === 'celtic-fae') {
+      bakePackArt(this, CELTIC_FAE_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {
@@ -133,7 +136,7 @@ export class PackOpeningScene extends Phaser.Scene {
 
     // Beat 1: the pack floats, waiting for the tear.
     const pack = this.add
-      .image(width / 2, height / 2 - 20, this.sku === 'ragnarok' ? 'packart-ragnarok' : 'packart')
+      .image(width / 2, height / 2 - 20, packTextureForSku(this.sku))
       .setDisplaySize(238, 340)
       .setInteractive({ useHandCursor: true });
     this.tweens.add({
@@ -179,7 +182,7 @@ export class PackOpeningScene extends Phaser.Scene {
       .text(
         width / 2,
         116,
-        `${all.length} cards · ${newCards} new · ${specials.length} rare+` +
+        `${all.length} cards · ${newCards} new · ${specials.length} Super Rare+` +
           (dupeGold > 0 ? ` · +🪙 ${dupeGold} from duplicates` : ''),
         { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body },
       )
@@ -440,7 +443,7 @@ export class PackOpeningScene extends Phaser.Scene {
       height: 680,
       dimAlpha: 0.52,
       depth: theme.depth.inspect,
-      showClose: false,
+      showClose: true, // the shell's standard top-right close (was a hand-placed × at (918,112))
       tapDimToClose: true,
       escToClose: false,
     });
@@ -454,28 +457,6 @@ export class PackOpeningScene extends Phaser.Scene {
     c.add(view);
 
     const detailLines = this.packPullDetails(card, variant);
-    c.add(
-      panel(this, width / 2 - 260, 579, 520, 86, { alpha: 0.94 }),
-    );
-    c.add(
-      this.add
-        .text(width / 2, 600, detailLines[0], {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.h2}px`,
-          color: theme.colors.gold,
-        })
-        .setOrigin(0.5),
-    );
-    c.add(
-      this.add
-        .text(width / 2, 632, detailLines.slice(1).join('  ·  '), {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.body,
-        })
-        .setOrigin(0.5),
-    );
-
     const detailPanelY = 638;
     const lineH = 22;
     c.add(
@@ -494,25 +475,24 @@ export class PackOpeningScene extends Phaser.Scene {
           .setOrigin(0.5),
       );
     });
-
-    const close = themedButton(this, 918, 112, '×', {
-      variant: 'ghost', size: 'sm', minWidth: 48, onTap: () => shell.close(),
-    });
-    c.add(close.container);
   }
 
   private packPullDetails(card: AddResult, variant: CardVariant): string[] {
-    const lines: string[] = [];
+    // Pull odds lead so the marquee stat never clips when all lines are
+    // present (user-directed 2026-07-11).
+    const lines: string[] = [
+      `Pull odds ${formatOdds(variantOdds(card.tier, variant.frame, variant.holo))}`,
+    ];
     if (card.isNew) lines.push('★ New Card');
     else if (card.isNewVariant) lines.push('★ New Variant');
     lines.push(`Rarity: ${this.rarityLabel(card.tier)}`);
     if (variant.frame !== 'white') lines.push(`Frame: ${this.titleCase(variant.frame)}`);
     if (variant.holo !== 'none') lines.push(`Shiny: ${this.titleCase(variant.holo)}`);
     return lines;
-
   }
 
   private packPullDetailColor(line: string): string {
+    if (line.startsWith('Pull odds')) return theme.colors.gold; // the marquee stat leads
     if (line === '★ New Card') return theme.colors.success;
     if (line === '★ New Variant') return theme.rarity.ssr;
     return theme.colors.body;
@@ -766,7 +746,12 @@ export class PackOpeningScene extends Phaser.Scene {
       btn.container.setDepth(70);
       this.buttons.push(btn);
     };
-    const openPrice = this.sku === 'ragnarok' ? ECONOMY.ragnarokPackPrice : ECONOMY.packPrice;
+    const openPrice =
+      this.sku === 'ragnarok'
+        ? ECONOMY.ragnarokPackPrice
+        : this.sku === 'celtic-fae'
+          ? ECONOMY.celticFaePackPrice
+          : ECONOMY.packPrice;
     mk(width / 2 - 200, `Open Another (🪙 ${openPrice})`, () => {
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;

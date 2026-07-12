@@ -3,6 +3,7 @@ import type { CardDb } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
+import { chooseScry } from './scry';
 
 /**
  * The teaching opponent for the first-launch tutorial (src/data/tutorial.ts).
@@ -26,6 +27,8 @@ export class ScriptAI implements AIPlayer {
   constructor(private readonly db: CardDb) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    if (view.awaiting.kind === 'scry') return chooseScry(view, this.db);
+
     // Opening hand: always keep (0 mulligans → the engine never asks to bottom).
     const keep = legal.find((l) => l.type === 'keepHand');
     if (keep) return keep;

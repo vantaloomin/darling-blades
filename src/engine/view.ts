@@ -20,6 +20,7 @@ export interface SelfView {
   hand: string[];
   deckCount: number;
   graveyard: string[];
+  exile: string[];
   landPlayedThisTurn: boolean;
   mulligans: number;
 }
@@ -29,6 +30,7 @@ export interface OpponentView {
   handCount: number;
   deckCount: number;
   graveyard: string[];
+  exile: string[];
   landPlayedThisTurn: boolean;
   mulligans: number;
 }
@@ -52,6 +54,10 @@ export interface PlayerView {
 export function viewFor(state: GameState, player: PlayerId): PlayerView {
   const me = state.players[player];
   const them = state.players[opponentOf(player)];
+  const awaiting =
+    state.awaiting.kind === 'scry' && state.awaiting.player !== player
+      ? { ...state.awaiting, cards: [] }
+      : structuredClone(state.awaiting);
   return {
     myId: player,
     turn: state.turn,
@@ -63,6 +69,7 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
       hand: [...me.hand],
       deckCount: me.deck.length,
       graveyard: [...me.graveyard],
+      exile: [...me.exile],
       landPlayedThisTurn: me.landPlayedThisTurn,
       mulligans: me.mulligans,
     },
@@ -71,6 +78,7 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
       handCount: them.hand.length,
       deckCount: them.deck.length,
       graveyard: [...them.graveyard],
+      exile: [...them.exile],
       landPlayedThisTurn: them.landPlayedThisTurn,
       mulligans: them.mulligans,
     },
@@ -78,7 +86,7 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
     stack: structuredClone(state.stack),
     combat: structuredClone(state.combat),
     fogThisTurn: state.fogThisTurn,
-    awaiting: structuredClone(state.awaiting),
+    awaiting,
     winner: state.winner,
   };
 }

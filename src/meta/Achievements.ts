@@ -79,6 +79,12 @@ const RAGNAROK_TWILIGHT_COURT = [
   'rg-skadi',
   'rg-idun',
 ] as const;
+const CELTIC_FAE_COURT_SOVEREIGNS = [
+  'cf-morrigan-black-wing',
+  'cf-titania-silver-court',
+  'cf-aine-sunlit-bargain',
+  'cf-nimue-before-the-lake',
+] as const;
 
 function themeIds(ids: readonly string[], db: CardDb): string[] {
   return ids.filter((id) => Boolean(db[id]));
@@ -136,6 +142,7 @@ function themedCollectionProgress(
 const isSpecialVariant = (variant: ReturnType<typeof parseVariantKey>): boolean => !isPlainVariant(variant);
 const isRainbowBorder = (variant: ReturnType<typeof parseVariantKey>): boolean => variant.frame === 'rainbow';
 const isRagnarok = (card: CardDef): boolean => card.set === 'ragnarok';
+const isCelticFae = (card: CardDef): boolean => card.set === 'celtic-fae';
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
@@ -390,6 +397,73 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
         db,
         (card) => isRagnarok(card) && (card.subtypes.includes('Jotun') || card.subtypes.includes('Wolf')),
       ),
+  },
+  {
+    id: 'theme-celtic-fae-25',
+    bucket: 'theme',
+    title: 'Veil Beachhead',
+    description: 'Own 25% of Celtic Fae cards.',
+    reward: { gold: 200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isCelticFae, 0.25),
+  },
+  {
+    id: 'theme-celtic-fae-50',
+    bucket: 'theme',
+    title: 'Silver Binder',
+    description: 'Own 50% of Celtic Fae cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, isCelticFae, 0.5),
+  },
+  {
+    id: 'theme-celtic-fae-complete',
+    bucket: 'theme',
+    title: 'Silver Veil Complete',
+    description: 'Own every Celtic Fae card.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isCelticFae),
+  },
+  {
+    id: 'theme-celtic-fae-court-sovereigns',
+    bucket: 'theme',
+    title: 'Court Sovereigns',
+    description: 'Own Morrigan, Titania, Aine, and Nimue.',
+    reward: { gold: 600 },
+    progress: (save, db) => themeProgress(save, CELTIC_FAE_COURT_SOVEREIGNS, db),
+  },
+  {
+    id: 'theme-celtic-fae-ssr-court',
+    bucket: 'theme',
+    title: 'Inner Court',
+    description: 'Own every Celtic Fae SSR court card.',
+    reward: { gold: 500 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.rarity === 'ssr'),
+  },
+  {
+    id: 'theme-celtic-fae-selkies',
+    bucket: 'theme',
+    title: 'Tidebound Court',
+    description: 'Own every Celtic Fae Selkie.',
+    reward: { gold: 350 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Selkie')),
+  },
+  {
+    id: 'theme-celtic-fae-ravens',
+    bucket: 'theme',
+    title: 'Omen Wing',
+    description: 'Own every Celtic Fae Raven.',
+    reward: { gold: 350 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Raven')),
+  },
+  {
+    id: 'theme-celtic-fae-redcaps',
+    bucket: 'theme',
+    title: 'Redcap Warband',
+    description: 'Own every Celtic Fae Redcap.',
+    reward: { gold: 350 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Redcap')),
   },
   {
     id: 'first-win',

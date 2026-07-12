@@ -112,6 +112,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `died`                 | `iid`, `cardId`, `owner`                        | A permanent left the battlefield to the graveyard (also used by `recall`).                                                 |
 | `discarded`            | `player`, `cardId`                              | A card went from hand to graveyard.                                                                                        |
 | `milled`               | `player`, `cardId`                              | A card went from the top of a deck to the graveyard (the `grind` op).                                                      |
+| `exiled`               | `player`, `cardId`, `from`, `iid?`              | (describe me)                                                                                                              |
 | `triggerFired`         | `iid`, `when`                                   | A permanent's triggered ability fired.                                                                                     |
 | `effectApplied`        | `op`, `detail?`                                 | One `EffectOp` executed (op name for logging).                                                                             |
 | `tokenCreated`         | `perm`                                          | A token permanent entered.                                                                                                 |

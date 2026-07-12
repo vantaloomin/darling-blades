@@ -15,6 +15,7 @@ export type Action =
   | { type: 'keepHand' }
   | { type: 'mulligan' }
   | { type: 'bottomCards'; handIndices: number[] }
+  | { type: 'scry'; bottomIndices: number[] }
   | { type: 'playLand'; handIndex: number }
   | {
       type: 'castSpell';
@@ -172,6 +173,14 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
       }
       break;
 
+    case 'scry':
+      // Unlike London bottoming, scry permits any subset. Its picker reads
+      // awaiting.cards directly; exposing every subset here would allocate
+      // 2^n actions for a large scry. The empty pick is a canonical legal
+      // fallback, while validateAction accepts every valid index set.
+      out.push({ type: 'scry', bottomIndices: [] });
+      break;
+
     case 'main': {
       out.push({ type: 'passStep' });
       const seen = new Set<string>();
@@ -286,6 +295,11 @@ export function validateAction(
       return validIndexSet(action.handIndices, me.hand.length);
     }
 
+    case 'scry': {
+      if (a.kind !== 'scry') return 'not scrying';
+      return validIndexSet(action.bottomIndices, a.cards.length, 'scry');
+    }
+
     case 'playLand': {
       if (a.kind !== 'main') return 'not in a main phase';
       if (me.landPlayedThisTurn) return 'already played a land this turn';
@@ -352,11 +366,11 @@ export function validateAction(
   }
 }
 
-function validIndexSet(indices: number[], handSize: number): string | null {
+function validIndexSet(indices: number[], size: number, zone = 'hand'): string | null {
   const seen = new Set<number>();
   for (const i of indices) {
-    if (!Number.isInteger(i) || i < 0 || i >= handSize) return 'bad hand index';
-    if (seen.has(i)) return 'duplicate hand index';
+    if (!Number.isInteger(i) || i < 0 || i >= size) return `bad ${zone} index`;
+    if (seen.has(i)) return `duplicate ${zone} index`;
     seen.add(i);
   }
   return null;

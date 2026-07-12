@@ -16,7 +16,7 @@ describe('fetchLand — basic-land choice', () => {
     const perm = state.battlefield.find((p) => p.cardId === 'forest');
     expect(perm).toBeDefined();
     expect(perm!.tapped).toBe(true); // enters tapped
-    expect(state.pendingFetch).toEqual([]); // no deferral
+    expect(state.pendingDecisions).toEqual([]); // no deferral
     expect(ev.some((e) => e.e === 'permanentEntered')).toBe(true);
     expect(state.players[0].deck.filter((c) => c === 'forest')).toHaveLength(1); // one fetched
   });
@@ -27,7 +27,7 @@ describe('fetchLand — basic-land choice', () => {
     const before = [...state.players[0].deck];
     runOps(state, TEST_DB, () => {}, ctx, [{ op: 'fetchLand' }]);
 
-    expect(state.pendingFetch).toEqual([0]); // controller queued
+    expect(state.pendingDecisions).toEqual([{ kind: 'chooseBasicLand', player: 0 }]); // controller queued
     expect(state.players[0].deck).toEqual(before); // no fetch, no shuffle
     expect(state.battlefield.some((p) => p.cardId === 'forest' || p.cardId === 'swamp')).toBe(false);
   });
@@ -36,14 +36,14 @@ describe('fetchLand — basic-land choice', () => {
     const state = makeTestState({ active: 0 });
     state.players[0].deck = ['bear', 'giant'];
     runOps(state, TEST_DB, () => {}, ctx, [{ op: 'fetchLand' }]);
-    expect(state.pendingFetch).toEqual([]);
+    expect(state.pendingDecisions).toEqual([]);
     expect(state.battlefield).toHaveLength(0);
   });
 
   it('surfaces one legal choice per distinct basic (stable sorted order) and fetches the chosen one', () => {
     const state = makeTestState({ active: 0 });
     state.players[0].deck = ['forest', 'swamp', 'bear', 'forest'];
-    state.pendingFetch = [0];
+    state.pendingDecisions = [{ kind: 'chooseBasicLand', player: 0 }];
     state.awaiting = { player: 0, kind: 'chooseBasicLand' };
     const game = Game.restore(state, TEST_DB);
 
@@ -59,14 +59,17 @@ describe('fetchLand — basic-land choice', () => {
     expect(swamp!.tapped).toBe(true);
     expect(st.players[0].deck).toContain('forest'); // the untaken basic stays in the deck
     expect(st.players[0].deck).not.toContain('swamp');
-    expect(st.pendingFetch).toEqual([]);
+    expect(st.pendingDecisions).toEqual([]);
     expect(st.awaiting.kind).toBe('main'); // play resumes
   });
 
   it('drains a multi-fetch queue and whiffs gracefully when the basics run out', () => {
     const state = makeTestState({ active: 0 });
     state.players[0].deck = ['forest', 'bear']; // one basic, one non-basic
-    state.pendingFetch = [0, 0]; // two deferred fetches, but only one basic to give
+    state.pendingDecisions = [
+      { kind: 'chooseBasicLand', player: 0 },
+      { kind: 'chooseBasicLand', player: 0 },
+    ]; // two deferred fetches, but only one basic to give
     state.awaiting = { player: 0, kind: 'chooseBasicLand' };
     const game = Game.restore(state, TEST_DB);
 
@@ -75,14 +78,14 @@ describe('fetchLand — basic-land choice', () => {
     // The forest entered; the second queued fetch has no basic left → whiffed
     // (not a 0-option soft-lock), and play resumes at main with an empty queue.
     expect(st.battlefield.some((p) => p.cardId === 'forest' && p.tapped)).toBe(true);
-    expect(st.pendingFetch).toEqual([]);
+    expect(st.pendingDecisions).toEqual([]);
     expect(st.awaiting.kind).toBe('main');
   });
 
   it('rejects an illegal basic choice (not in deck / not a basic)', () => {
     const state = makeTestState({ active: 0 });
     state.players[0].deck = ['forest', 'swamp', 'bear'];
-    state.pendingFetch = [0];
+    state.pendingDecisions = [{ kind: 'chooseBasicLand', player: 0 }];
     state.awaiting = { player: 0, kind: 'chooseBasicLand' };
     const game = Game.restore(state, TEST_DB);
     expect(() => game.submit(0, { type: 'chooseBasicLand', cardId: 'bear' })).toThrow(); // not a basic
@@ -93,7 +96,7 @@ describe('fetchLand — basic-land choice', () => {
     const mk = (): Game => {
       const state = makeTestState({ active: 0 });
       state.players[0].deck = ['forest', 'swamp', 'bear', 'forest', 'swamp'];
-      state.pendingFetch = [0];
+      state.pendingDecisions = [{ kind: 'chooseBasicLand', player: 0 }];
       state.awaiting = { player: 0, kind: 'chooseBasicLand' };
       return Game.restore(state, TEST_DB);
     };

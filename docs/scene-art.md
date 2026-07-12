@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-10 -->
+<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-11 -->
 
 # Scene & Menu Art — Direction + Integration Contract
 
@@ -180,6 +180,26 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 - **QA:** Verify the pack still reads as a sealed product (not a card) at 238×340 with the shine FX; crimp zones plain; zero baked letterforms.
 - **Prompt:** Booster pack front key art, a radiant golden diamond sigil floating over a restrained swirling violet and magenta nebula, ornate gold trim frame, faint sparkling foil glints, dark royal-violet field deepening toward the plain top and bottom edges, dramatic sealed-product presentation with no lettering — crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait
 
+### Ragnarök Booster Pack Front — `pack-art-ragnarok`
+- **Role:** The Ragnarök expansion booster in `ShopScene`'s three-pack row and its `PackOpeningScene` tear. Consumed by `bakePackArt` under the `packart-ragnarok` key; until this asset ships the SKU falls back to the procedural tinted pack.
+- **Deliverable:** 640×800 PNG (portrait).
+- **Mood & palette:** The set's twilight-of-the-gods identity as sealed product: ash-grey storm field, ember-orange rim light, raven-black wings, glacier teal accents, gold trim continuity with the base pack. Same product-hero saturation allowance as `pack-art`.
+- **Composition & safe zones:** Identical to `pack-art` — cover-crop cuts ≈40 px per side (keep trim + sigil inside x 40–600); top and bottom ~52 px bands plain for the code-stamped crimps.
+- **Max luminance:** average ≤ 25 %; peak ≤ 70 % (ember glints / sigil core).
+- **Integration:** `bakePackArt(scene, { key: 'packart-ragnarok', sceneArtKey: 'scene-pack-art-ragnarok' })` — already wired; the asset landing on disk + manifest is the whole switch.
+- **QA:** Reads as sealed product at 238×340; crimp zones plain; zero letterforms (Norse knotwork stays abstract — no runes).
+- **Prompt:** Booster pack front key art, a golden diamond sigil wreathed in raven wings floating over an ash-grey storm sky with ember-orange rim light and a faint glacier-teal aurora, abstract Norse knotwork gold trim frame with no runes, faint sparkling foil glints, dark field deepening toward the plain top and bottom edges, dramatic sealed-product presentation with no lettering — crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait
+
+### Celtic Fae Booster Pack Front — `pack-art-celtic-fae`
+- **Role:** The Celtic Fae expansion booster in `ShopScene`'s three-pack row and its `PackOpeningScene` tear. Consumed by `bakePackArt` via `CELTIC_FAE_PACK_ART`; until this asset ships the SKU falls back to the procedural silver-green tinted pack.
+- **Deliverable:** 640×800 PNG (portrait).
+- **Mood & palette:** The Silver Veil as sealed product: silver moonlight over moss green, blackthorn silhouettes, drifting mist, pale gold torc-like trim, a glassy-pool shimmer. Gold trim continuity with the other packs.
+- **Composition & safe zones:** Identical to `pack-art` — keep trim + sigil inside x 40–600; top and bottom ~52 px bands plain for the code-stamped crimps.
+- **Max luminance:** average ≤ 25 %; peak ≤ 70 % (moon glints / sigil core).
+- **Integration:** `bakePackArt(scene, CELTIC_FAE_PACK_ART)` — already wired; the asset landing on disk + manifest is the whole switch.
+- **QA:** Reads as sealed product at 238×340; crimp zones plain; zero letterforms (no ogham marks — keep stones/trim abstract).
+- **Prompt:** Booster pack front key art, a pale golden diamond sigil crowned with blackthorn floating over silver moonlit mist and deep moss-green twilight, thin silver-and-gold trim frame like a woven torc, faint glassy foil shimmer and drifting fae light motes, dark field deepening toward the plain top and bottom edges, dramatic sealed-product presentation with no lettering and no ogham marks — crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait
+
 ---
 
 ## 3. Integration contract
@@ -187,10 +207,11 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 This section defines the integration contract — **now implemented** in
 `src/ui/SceneBackdrop.ts` (`applyBackdrop` / `sceneTextureKey`, called at the
 top of every scene's `create()`), with the loader in `PreloadScene`/`BootScene`
-and the two bake-function consumers in `CardFrameFactory`/`ShopScene`. All 11
+and the two bake-function consumers in `CardFrameFactory`/`ShopScene`. All 13
 assets are generated (`scripts/gen-scene-art.ts`), on disk under
-`public/assets/art/scenes/`, and manifest-listed; the descriptions below match
-what shipped.
+`public/assets/art/scenes/`, and manifest-listed (the original 11-asset
+program plus the two expansion pack fronts added 2026-07-11); the
+descriptions below match what shipped.
 
 ### Files & manifest
 
