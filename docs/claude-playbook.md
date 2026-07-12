@@ -68,14 +68,37 @@ Every delegated prompt contains, in this order:
    Agents that skip orientation ship plausible-but-wrong code.
 4. **Iron invariants** (see §5) that apply to this task, stated in the
    prompt — never assumed.
-5. **Requirements** — concrete, with design latitude marked explicitly
-   ("design is yours, but…") and hard caps stated as hard caps.
+5. **Requirements** — lead with the *outcome*: name the behavior you want
+   changed, not a keystroke-by-keystroke recipe; the agent picks the *how*
+   within the constraints above. Mark design latitude explicitly ("design is
+   yours, but…") and state hard caps as hard caps.
 6. **Verification commands the agent must run itself**, including what NOT
    to run (e.g. heavy AI suites while another agent hogs CPU).
 7. **"Your final message is a report"**: files changed, decisions, measured
    results with the actual numbers, what remains unverified. Honesty rules:
    never claim an unmeasured number; a documented failure or a justified
    no-change conclusion is a valid outcome.
+
+**Codex handoffs (`/codex:rescue`) obey the same contract, sharpened by
+OpenAI's own prompting guidance for Codex**
+([learn.chatgpt.com/docs/prompting](https://learn.chatgpt.com/docs/prompting)) —
+the executor half of the [[orchestration-workflow]] split:
+
+- **Lead with the desired behavior, not the steps.** State the result you
+  want and let Codex choose the approach inside the constraints (§5) — don't
+  pre-write the diff in prose.
+- **Point at the code, not just the concept** — name the files/functions, and
+  for a bug give numbered repro steps with *expected vs. actual* behavior.
+- **Preserve the constraints that matter** — call out the 1–2 boundaries that
+  count (API shape, an invariant, "keep the fix minimal"), not every
+  micro-rule; over-fencing is as costly as under-fencing.
+- **Say how the change gets verified** and have Codex run those checks itself
+  (the ladder rungs in §8 that apply), then report the real numbers.
+- **Plan before editing on risky or large tasks** — ask for the approach
+  first (Codex `/plan`), review it, then let it patch.
+- **Refine by steering, not re-specifying** — the next message adjusts the
+  live result ("keep the tests, move the guard up") rather than restating the
+  whole contract.
 
 ## 5. Iron invariants (quote these into prompts)
 

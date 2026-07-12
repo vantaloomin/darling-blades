@@ -193,7 +193,10 @@ All eleven keywords and their exact implemented semantics (`Keyword` in
 | **untouchable** · Untouchable | **Blocks only the OPPONENT'S targeting.** Your own untouchable creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
 
 Keyword rules text is generated (`KEYWORD_NAMES` in `src/ui/rulesText.ts`) — see
-[docs/adding-cards.md](adding-cards.md).
+[docs/adding-cards.md](adding-cards.md). For the full Magic-evergreen → Darling
+Blades mapping (these 11 plus not-yet-implemented candidates like Menace,
+Indestructible, and the Fight/Sacrifice actions), see
+[docs/keyword-map.md](keyword-map.md).
 
 ## Board caps
 
