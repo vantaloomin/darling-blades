@@ -45,6 +45,30 @@ export interface ControlBounds {
   hit: Rect;
 }
 
+/** A small inert registration shape for the future shared focus manager. */
+export interface FocusMetadata {
+  group?: string;
+  order?: number;
+  id?: string;
+}
+
+export type ControlSize = 'md' | 'sm';
+
+export interface RectSize {
+  width: number;
+  height: number;
+}
+
+export interface ThemedButtonMeasurement extends ControlBounds {
+  size: ControlSize;
+  labelWidth: number;
+  padding: number;
+  width: number;
+  height: number;
+  hitWidth: number;
+  hitHeight: number;
+}
+
 export const GAP_FLOORS = {
   ordinary: 8,
   compactTouch: 12,
@@ -154,6 +178,281 @@ export function controlBounds(
   return {
     visual: { ...visual },
     hit: inflateHitRect(visual, floors.minHitWidth, floors.minHitHeight),
+  };
+}
+
+/** The visual text padding used by the shared button recipes. */
+export function controlPadding(size: ControlSize): number {
+  return size === 'sm' ? theme.space(2) : theme.space(3);
+}
+
+/**
+ * Predict the shared button's final visual and hit bounds before creating it.
+ * The visual rectangle is centered at the origin, matching a themedButton's
+ * unscaled child Zone and Container coordinate system.
+ */
+export function measureThemedButton(
+  labelWidth: number,
+  size: ControlSize = 'md',
+  minWidth = 0,
+  padding = controlPadding(size),
+): ThemedButtonMeasurement {
+  const safeLabelWidth = Math.max(0, labelWidth);
+  const safePadding = Math.max(0, padding);
+  const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
+  const width = Math.max(minWidth, Math.ceil(safeLabelWidth + safePadding * 2));
+  const visual = {
+    x: -width / 2,
+    y: -height / 2,
+    width,
+    height,
+  };
+  const bounds = controlBounds(visual);
+  return {
+    ...bounds,
+    size,
+    labelWidth: safeLabelWidth,
+    padding: safePadding,
+    width,
+    height,
+    hitWidth: bounds.hit.width,
+    hitHeight: bounds.hit.height,
+  };
+}
+
+/** Place a visual control so its centered hit rectangle is inside a frame. */
+export function anchoredControlBounds(
+  anchor: RectAnchor,
+  visualWidth: number,
+  visualHeight: number,
+  frame: RectEdges = theme.design.titleSafe,
+  floors: HitFloors = theme.control,
+  offset: Point = { x: 0, y: 0 },
+): ControlBounds {
+  const width = Math.max(0, visualWidth);
+  const height = Math.max(0, visualHeight);
+  const hitWidth = Math.max(width, floors.minHitWidth);
+  const hitHeight = Math.max(height, floors.minHitHeight);
+  const hit = anchoredRect(anchor, hitWidth, hitHeight, frame, offset);
+  return {
+    hit,
+    visual: {
+      x: hit.x + (hit.width - width) / 2,
+      y: hit.y + (hit.height - height) / 2,
+      width,
+      height,
+    },
+  };
+}
+
+function centeredRect(centerX: number, centerY: number, size: RectSize): Rect {
+  return {
+    x: centerX - size.width / 2,
+    y: centerY - size.height / 2,
+    width: size.width,
+    height: size.height,
+  };
+}
+
+export interface HeaderFooterLayoutOptions {
+  backVisual: RectSize;
+  titleVisual: RectSize;
+  currencyVisual: RectSize;
+  footerActionVisuals?: readonly RectSize[];
+  footerGap?: number;
+}
+
+export interface HeaderFooterLayout {
+  headerTrack: Rect;
+  footerTrack: Rect;
+  back: ControlBounds;
+  titleTrack: Rect;
+  title: Rect;
+  currency: Rect;
+  footerActionTrack: Rect;
+  footerActions: ControlBounds[];
+  tracksInsideTitleSafe: boolean;
+}
+
+/**
+ * Derive the shared page header/footer tracks from the title-safe frame. The
+ * returned footer action bounds are centered on the canonical footer line and
+ * use hit widths when calculating the cluster, so isolation is measurable
+ * before Phaser objects are created.
+ */
+export function sceneHeaderFooterLayout(opts: HeaderFooterLayoutOptions): HeaderFooterLayout {
+  const headerTrack = anchoredRect(
+    'top-left',
+    theme.design.safeWidth,
+    theme.control.minHitHeight,
+  );
+  const footerTrack = anchoredRect(
+    'bottom-left',
+    theme.design.safeWidth,
+    theme.control.minHitHeight,
+  );
+  const back = anchoredControlBounds(
+    'top-left',
+    opts.backVisual.width,
+    opts.backVisual.height,
+  );
+  const currency = centeredRect(
+    theme.design.safeRight - opts.currencyVisual.width / 2,
+    theme.design.headerCenterY,
+    opts.currencyVisual,
+  );
+  const trackGap = theme.space(6);
+  const titleTrack = {
+    x: back.hit.x + back.hit.width + trackGap,
+    y: headerTrack.y,
+    width: Math.max(0, currency.x - trackGap - (back.hit.x + back.hit.width + trackGap)),
+    height: headerTrack.height,
+  };
+  const title = centeredRect(
+    titleTrack.x + titleTrack.width / 2,
+    theme.design.headerCenterY,
+    opts.titleVisual,
+  );
+
+  const footerGap = opts.footerGap ?? theme.space(2);
+  const footerVisuals = opts.footerActionVisuals ?? [];
+  const footerMeasured = footerVisuals.map((visual) =>
+    controlBounds({ x: 0, y: 0, width: visual.width, height: visual.height }),
+  );
+  const footerHitWidth = footerMeasured.reduce((sum, bounds) => sum + bounds.hit.width, 0);
+  const totalFooterWidth = footerHitWidth + Math.max(0, footerMeasured.length - 1) * footerGap;
+  let cursor = theme.design.safeCenterX - totalFooterWidth / 2;
+  const footerActions = footerMeasured.map((bounds) => {
+    const hit = {
+      x: cursor,
+      y: theme.design.footerCenterY - bounds.hit.height / 2,
+      width: bounds.hit.width,
+      height: bounds.hit.height,
+    };
+    cursor += bounds.hit.width + footerGap;
+    return {
+      hit,
+      visual: {
+        x: hit.x + (hit.width - bounds.visual.width) / 2,
+        y: hit.y + (hit.height - bounds.visual.height) / 2,
+        width: bounds.visual.width,
+        height: bounds.visual.height,
+      },
+    };
+  });
+  const tracks = [
+    headerTrack,
+    footerTrack,
+    back.hit,
+    titleTrack,
+    currency,
+    ...footerActions.map((action) => action.hit),
+  ];
+  return {
+    headerTrack,
+    footerTrack,
+    back,
+    titleTrack,
+    title,
+    currency,
+    footerActionTrack: footerTrack,
+    footerActions,
+    tracksInsideTitleSafe: tracks.every((rect) => isInsideTitleSafe(rect)),
+  };
+}
+
+export interface ModalShellLayoutOptions {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  panelPadding?: number;
+  trackGap?: number;
+  titleTrackHeight?: number;
+  footerTrackHeight?: number;
+  closeHitWidth?: number;
+  closeHitHeight?: number;
+}
+
+export interface ModalShellLayout {
+  panel: Rect;
+  inner: Rect;
+  titleTrack: Rect;
+  contentBounds: Rect;
+  /** Alias for callers that think in terms of reserved tracks. */
+  contentTrack: Rect;
+  footerTrack: Rect;
+  closeTrack: Rect;
+  fits: boolean;
+  tracksInsidePanel: boolean;
+  tracksInsideTitleSafe: boolean;
+}
+
+/**
+ * Reserve non-intersecting modal tracks. The 24px inset is a hard minimum;
+ * title/content/footer rows use a 16px inter-track gap and 44px hit-height
+ * defaults, while the close track consumes the measured close target.
+ */
+export function modalShellLayout(opts: ModalShellLayoutOptions): ModalShellLayout {
+  const x = opts.x ?? theme.design.centerX;
+  const y = opts.y ?? theme.design.centerY;
+  const panel = {
+    x: x - opts.width / 2,
+    y: y - opts.height / 2,
+    width: opts.width,
+    height: opts.height,
+  };
+  const padding = Math.max(theme.space(6), opts.panelPadding ?? theme.space(6));
+  const trackGap = Math.max(theme.space(4), opts.trackGap ?? theme.space(4));
+  const inner = {
+    x: panel.x + padding,
+    y: panel.y + padding,
+    width: Math.max(0, panel.width - padding * 2),
+    height: Math.max(0, panel.height - padding * 2),
+  };
+  const titleHeight = Math.max(theme.control.minHitHeight, opts.titleTrackHeight ?? theme.control.minHitHeight);
+  const footerHeight = Math.max(theme.control.minHitHeight, opts.footerTrackHeight ?? theme.control.minHitHeight);
+  const closeWidth = Math.max(theme.control.minHitWidth, opts.closeHitWidth ?? theme.control.minHitWidth);
+  const closeHeight = Math.max(theme.control.minHitHeight, opts.closeHitHeight ?? theme.control.minHitHeight);
+  const closeTrack = {
+    x: inner.x + inner.width - closeWidth,
+    y: inner.y,
+    width: closeWidth,
+    height: closeHeight,
+  };
+  const titleTrack = {
+    x: inner.x,
+    y: inner.y,
+    width: Math.max(0, closeTrack.x - trackGap - inner.x),
+    height: titleHeight,
+  };
+  const footerTrack = {
+    x: inner.x,
+    y: inner.y + inner.height - footerHeight,
+    width: inner.width,
+    height: footerHeight,
+  };
+  const contentTop = titleTrack.y + titleTrack.height + trackGap;
+  const contentBottom = footerTrack.y - trackGap;
+  const contentY = Math.min(contentTop, contentBottom);
+  const contentBounds = {
+    x: inner.x,
+    y: contentY,
+    width: inner.width,
+    height: Math.max(0, contentBottom - contentY),
+  };
+  const tracks = [titleTrack, contentBounds, footerTrack, closeTrack];
+  return {
+    panel,
+    inner,
+    titleTrack,
+    contentBounds,
+    contentTrack: contentBounds,
+    footerTrack,
+    closeTrack,
+    fits: titleTrack.width > 0 && contentBottom >= contentTop,
+    tracksInsidePanel: tracks.every((rect) => isRectContained(rect, panel)),
+    tracksInsideTitleSafe: tracks.every((rect) => isInsideTitleSafe(rect)),
   };
 }
 
