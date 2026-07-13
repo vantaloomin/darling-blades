@@ -20,7 +20,15 @@ const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
 const FULL_ART_RECT = { x: -141, y: -201, w: 282, h: 402 };
 const TEXT_LEFT = -126;
 const TEXT_WIDTH = 252;
-const BOTTOM_BADGE_Y = 182;
+// Badge-row geometry (user spec 2026-07-13): the cost tray's bottom-left
+// corner and the P/T plate's bottom-right corner sit exactly on the frame's
+// INNER bottom corners (the 9px frame-face inset — same derivation as
+// FULL_ART_RECT), both growing TOWARD center; the set symbol rides its own
+// centered plate so the row reads symmetric regardless of cost/stat widths.
+const FRAME_INNER = { left: -141, right: 141, bottom: 201 } as const;
+const BADGE_H = 31;
+const BOTTOM_BADGE_Y = FRAME_INNER.bottom - BADGE_H / 2; // 185.5
+const GEM_PLATE_W = 44;
 const BOTTOM_PIP_SIZE = 21;
 const SET_ICON_SIZE = 24; // set symbols are leaner silhouettes than the old diamond gem
 
@@ -107,6 +115,7 @@ export class CardView extends Phaser.GameObjects.Container {
   private flavorTextObj: Phaser.GameObjects.Text;
   private flavorRule: Phaser.GameObjects.Rectangle;
   private ptPlate: Phaser.GameObjects.Image;
+  private gemPlate: Phaser.GameObjects.Image;
   private ptText: Phaser.GameObjects.Text;
   private costPlate: Phaser.GameObjects.Image;
   private gem: Phaser.GameObjects.Image;
@@ -196,9 +205,13 @@ export class CardView extends Phaser.GameObjects.Container {
       .setOrigin(0, 0)
       .setVisible(false);
 
-    this.ptPlate = scene.add.image(96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(75, 31);
+    // Right-anchored: the plate's bottom-right corner sits on the frame's
+    // inner bottom-right corner; wider P/T text grows the plate leftward.
+    this.ptPlate = scene.add
+      .image(FRAME_INNER.right - 75 / 2, BOTTOM_BADGE_Y, 'pt-plate')
+      .setDisplaySize(75, BADGE_H);
     this.ptText = scene.add
-      .text(96, BOTTOM_BADGE_Y - 1, '', {
+      .text(FRAME_INNER.right - 75 / 2, BOTTOM_BADGE_Y - 1, '', {
         fontFamily: 'Cinzel, Georgia, serif',
         fontSize: '17px',
         fontStyle: 'bold',
@@ -210,8 +223,13 @@ export class CardView extends Phaser.GameObjects.Container {
     // deliberate departure from MTG's top-right cost. Reuses the neutral
     // pt-plate texture; width is fitted to the pip row in setCard, hidden for
     // costless cards (lands).
-    this.costPlate = scene.add.image(-96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(50, 31).setVisible(false);
+    this.costPlate = scene.add.image(-96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(50, BADGE_H).setVisible(false);
 
+    // The set symbol's own centered plate — same material as cost/P/T, fixed
+    // at x=0 so the badge row reads symmetric whatever sits beside it.
+    this.gemPlate = scene.add
+      .image(0, BOTTOM_BADGE_Y, 'pt-plate')
+      .setDisplaySize(GEM_PLATE_W, BADGE_H);
     this.gem = scene.add.image(0, BOTTOM_BADGE_Y, 'seticon-base-c').setDisplaySize(SET_ICON_SIZE, SET_ICON_SIZE);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
     this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
@@ -232,6 +250,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.ptPlate,
       this.ptText,
       this.costPlate,
+      this.gemPlate,
       this.gem,
       this.crown,
       this.back,
@@ -255,6 +274,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.nameText,
       this.typeText,
       this.rulesTextObj,
+      this.gemPlate,
       this.gem,
     ]) {
       (obj as Phaser.GameObjects.Image).setVisible(!faceDown);
@@ -392,7 +412,8 @@ export class CardView extends Phaser.GameObjects.Container {
         this.typeText.setY(centerY);
       };
       const hasFieldContent = rules.length > 0 || MANA_LINE_H > 0;
-      const PLATE_BOTTOM = 170;
+      // 2px behind the badge row (badge tops sit at FRAME_INNER.bottom − 31 = 170).
+      const PLATE_BOTTOM = 172;
       if (manaRow.length > 0) {
         // Lands keep the fixed plate — their [T]→pip row is centered in the
         // field, so a content-hugging plate has nothing to hug.
@@ -499,29 +520,33 @@ export class CardView extends Phaser.GameObjects.Container {
       });
     }
 
-    // P/T
+    // P/T — right-anchored on the frame's inner corner, growing LEFT (toward
+    // center) if the stat text ever outgrows the standard 75px plate.
     if (isType(card, 'creature')) {
-      this.ptPlate.setVisible(true);
       this.ptText.setVisible(true).setText(`${card.attack}/${card.defense}`);
+      const ptW = Math.max(75, Math.ceil(this.ptText.width) + 20);
+      const ptCx = FRAME_INNER.right - ptW / 2;
+      this.ptPlate.setVisible(true).setDisplaySize(ptW, BADGE_H).setX(ptCx);
+      this.ptText.setX(ptCx);
     }
 
     // Cost pips — BOTTOM-LEFT, mirroring the P/T plate at bottom-right. Read
-    // left-to-right (generic first, then colored pips). The plate's LEFT edge
-    // is fixed where the minimal 46px plate has always sat (center -96) and
-    // wide trays grow RIGHTWARD only — centered growth pushed 3-4 pip costs
-    // through the card frame's left edge (user report 2026-07-12).
+    // left-to-right (generic first, then colored pips). The plate's bottom-left
+    // corner sits exactly on the frame's inner bottom-left corner and wide
+    // trays grow RIGHTWARD toward center (user spec 2026-07-13), stopping
+    // clear of the centered set-symbol plate.
     if (pipSpecs.length > 0) {
       const PIP = BOTTOM_PIP_SIZE;
       const STEP = 23;
-      const left = -96 - 46 / 2; // classic 1-pip plate left edge, inside the frame
-      const maxRight = -16; // 4px clear of the 24px set symbol centered at x=0
+      const left = FRAME_INNER.left;
+      const maxRight = -GEM_PLATE_W / 2 - 4; // 4px clear of the set-symbol plate
       const rowW = PIP + (pipSpecs.length - 1) * STEP;
       const plateW = Math.min(Math.max(46, rowW + 18), maxRight - left);
       // Widest catalog costs (5 pips: gk-zeus) exceed the clamped plate —
       // compress the pip step so the row fits rather than covering the symbol.
       const fitRowW = Math.min(rowW, plateW - 18);
       const step = pipSpecs.length > 1 ? STEP - (rowW - fitRowW) / (pipSpecs.length - 1) : 0;
-      this.costPlate.setVisible(true).setDisplaySize(plateW, 31).setX(left + plateW / 2);
+      this.costPlate.setVisible(true).setDisplaySize(plateW, BADGE_H).setX(left + plateW / 2);
       let px = left + (plateW - fitRowW) / 2 + PIP / 2;
       for (const spec of pipSpecs) {
         const img = this.scene.add.image(px, BOTTOM_BADGE_Y, spec.texture).setDisplaySize(PIP, PIP);
@@ -599,6 +624,7 @@ export class CardView extends Phaser.GameObjects.Container {
       ...this.pips,
       this.ptPlate,
       this.ptText,
+      this.gemPlate,
       this.gem,
       this.crown,
     ];
