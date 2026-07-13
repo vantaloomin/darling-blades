@@ -373,15 +373,23 @@ export class CardView extends Phaser.GameObjects.Container {
     }
 
     // Cost pips — BOTTOM-LEFT, mirroring the P/T plate at bottom-right. Read
-    // left-to-right (generic first, then colored pips), centred on x=-96 (the
-    // mirror of the P/T plate centre +96), on the neutral cost plate.
+    // left-to-right (generic first, then colored pips). The plate's LEFT edge
+    // is fixed where the minimal 46px plate has always sat (center -96) and
+    // wide trays grow RIGHTWARD only — centered growth pushed 3-4 pip costs
+    // through the card frame's left edge (user report 2026-07-12).
     if (pipSpecs.length > 0) {
       const PIP = BOTTOM_PIP_SIZE;
       const STEP = 23;
+      const left = -96 - 46 / 2; // classic 1-pip plate left edge, inside the frame
+      const maxRight = -16; // 4px clear of the 24px set symbol centered at x=0
       const rowW = PIP + (pipSpecs.length - 1) * STEP;
-      const cx = -96;
-      this.costPlate.setVisible(true).setDisplaySize(Math.max(46, rowW + 18), 31);
-      let px = cx - rowW / 2 + PIP / 2;
+      const plateW = Math.min(Math.max(46, rowW + 18), maxRight - left);
+      // Widest catalog costs (5 pips: gk-zeus) exceed the clamped plate —
+      // compress the pip step so the row fits rather than covering the symbol.
+      const fitRowW = Math.min(rowW, plateW - 18);
+      const step = pipSpecs.length > 1 ? STEP - (rowW - fitRowW) / (pipSpecs.length - 1) : 0;
+      this.costPlate.setVisible(true).setDisplaySize(plateW, 31).setX(left + plateW / 2);
+      let px = left + (plateW - fitRowW) / 2 + PIP / 2;
       for (const spec of pipSpecs) {
         const img = this.scene.add.image(px, BOTTOM_BADGE_Y, spec.texture).setDisplaySize(PIP, PIP);
         this.add(img);
@@ -399,7 +407,7 @@ export class CardView extends Phaser.GameObjects.Container {
           this.add(t);
           this.pips.push(t);
         }
-        px += STEP;
+        px += step;
       }
     }
 
