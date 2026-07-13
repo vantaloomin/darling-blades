@@ -13,6 +13,11 @@ import {
   type Rect,
   type ThemedButtonMeasurement,
 } from './layout';
+import {
+  OverlayCoordinator,
+  type OverlayLease,
+  type OverlayRegistration,
+} from './OverlayCoordinator';
 
 export type ButtonVariant = 'primary' | 'emphasis' | 'ghost' | 'danger';
 export type ButtonSize = ControlSize;
@@ -471,6 +476,9 @@ export interface ModalShellOptions {
   titleTrackHeight?: number;
   footerTrackHeight?: number;
   focus?: FocusMetadata;
+  /** Optional Wave 1 registration; omitted callers retain the old lifecycle. */
+  coordinator?: OverlayCoordinator;
+  registration?: OverlayRegistration;
 }
 
 export interface ModalShell {
@@ -483,6 +491,8 @@ export interface ModalShell {
   contentBounds: Rect;
   /** Inert metadata for the future shared focus manager. */
   focus?: FocusMetadata;
+  /** The coordinator lease when this shell was registered, if any. */
+  overlayLease?: OverlayLease;
   close(): void;
 }
 
@@ -502,19 +512,28 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
   const interactiveChildren: Phaser.GameObjects.GameObject[] = [];
   const escToClose = opts.escToClose ?? true;
+  const usesCoordinator = opts.coordinator !== undefined;
+  const registrationMandatory = opts.registration?.mandatory ?? false;
+  const registrationDismissible = opts.registration?.dismissible ?? escToClose;
+  const shellCanDismiss =
+    !usesCoordinator || (!registrationMandatory && registrationDismissible);
   let closed = false;
+  let overlayLease: OverlayLease | undefined;
   const cleanup = (): void => {
-    if (escToClose) scene.input.keyboard?.off('keydown-ESC', close);
+    if (!usesCoordinator && escToClose) scene.input.keyboard?.off('keydown-ESC', close);
   };
   const close = (): void => {
     if (closed) return;
     closed = true;
     cleanup();
+    const lease = overlayLease;
+    overlayLease = undefined;
+    if (lease) opts.coordinator?.close(lease);
     opts.onClose?.();
     if (container.active) container.destroy();
   };
 
-  if (opts.tapDimToClose) {
+  if (opts.tapDimToClose && shellCanDismiss) {
     dim.setInteractive({ useHandCursor: true });
     bindTapButton(scene, dim, (pointer) => {
       if (!pointer.rightButtonReleased()) close();
@@ -524,7 +543,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   }
   interactiveChildren.push(dim);
   let closeButton: ThemedButton | undefined;
-  if (opts.showClose ?? true) {
+  if ((opts.showClose ?? true) && shellCanDismiss) {
     closeButton = themedButton(scene, 0, 0, '×', {
       variant: 'ghost',
       size: 'sm',
@@ -556,8 +575,26 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
       layout.closeTrack.y + layout.closeTrack.height / 2,
     );
   }
-  if (escToClose) scene.input.keyboard?.on('keydown-ESC', close);
-  container.once('destroy', cleanup);
+  if (!usesCoordinator && escToClose) scene.input.keyboard?.on('keydown-ESC', close);
+  if (opts.coordinator) {
+    const registration: OverlayRegistration = {
+      ...opts.registration,
+      focus: opts.registration?.focus ?? opts.focus,
+      dismissible: registrationDismissible,
+      onDismiss: () => {
+        const callback = opts.registration?.onDismiss;
+        close();
+        callback?.();
+      },
+    };
+    overlayLease = opts.coordinator.open(registration);
+  }
+  container.once('destroy', () => {
+    cleanup();
+    const lease = overlayLease;
+    overlayLease = undefined;
+    if (lease) opts.coordinator?.close(lease);
+  });
   return {
     container,
     dim,
@@ -572,6 +609,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     },
     contentBounds: layout.contentBounds,
     focus: opts.focus,
+    overlayLease,
     close,
   };
 }
