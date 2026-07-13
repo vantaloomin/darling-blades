@@ -38,6 +38,48 @@ const graphics = {
   dim: colorInt(colors.dim),
 } as const;
 
+const DESIGN_WIDTH = 1280;
+const DESIGN_HEIGHT = 720;
+const TITLE_SAFE_MARGIN = 0.05;
+
+const control = {
+  heightSm: 30,
+  heightMd: 40,
+  minHitWidth: 90,
+  minHitHeight: 44,
+  borderWidth: 1,
+} as const;
+
+const titleSafe = {
+  left: DESIGN_WIDTH * TITLE_SAFE_MARGIN,
+  right: DESIGN_WIDTH - DESIGN_WIDTH * TITLE_SAFE_MARGIN,
+  top: DESIGN_HEIGHT * TITLE_SAFE_MARGIN,
+  bottom: DESIGN_HEIGHT - DESIGN_HEIGHT * TITLE_SAFE_MARGIN,
+} as const;
+
+const safeWidth = titleSafe.right - titleSafe.left;
+const safeHeight = titleSafe.bottom - titleSafe.top;
+const safeCenterX = titleSafe.left + safeWidth / 2;
+const safeCenterY = titleSafe.top + safeHeight / 2;
+
+const design = {
+  width: DESIGN_WIDTH,
+  height: DESIGN_HEIGHT,
+  centerX: DESIGN_WIDTH / 2,
+  centerY: DESIGN_HEIGHT / 2,
+  titleSafe,
+  safeLeft: titleSafe.left,
+  safeRight: titleSafe.right,
+  safeTop: titleSafe.top,
+  safeBottom: titleSafe.bottom,
+  safeWidth,
+  safeHeight,
+  safeCenterX,
+  safeCenterY,
+  headerCenterY: titleSafe.top + control.minHitHeight / 2,
+  footerCenterY: titleSafe.bottom - control.minHitHeight / 2,
+} as const;
+
 export const theme = {
   colors,
   graphics,
@@ -66,20 +108,9 @@ export const theme = {
     w600: '600',
     w700: '700',
   },
-  design: {
-    width: 1280,
-    height: 720,
-    centerX: 640,
-    centerY: 360,
-  },
+  design,
   space: (units: number): number => units * 4,
-  control: {
-    heightSm: 30,
-    heightMd: 40,
-    minHitWidth: 90,
-    minHitHeight: 44,
-    borderWidth: 1,
-  },
+  control,
   radius: {
     panel: 8,
     control: 6,
