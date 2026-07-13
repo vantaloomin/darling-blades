@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-12
+<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, docs/design-system.md, docs/plan-design-system-alignment.md, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-12
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -198,6 +198,23 @@ Boot → Preload → MainMenu → { Gauntlet→Duel, Duel, Shop→PackOpening, C
   rewards.
 - Shop → PackOpening passes the `PackResult` (the rolled cards) directly, so
   the opening scene animates a reveal without re-rolling.
+
+## UI and visual-system boundary
+
+Application chrome is built on the Phaser-free tokens in `src/ui/theme.ts`
+and the shared Phaser factories in `src/ui/themeWidgets.ts`. Scenes compose
+those primitives for buttons, panels, modals, navigation, currency, and
+paging; card materials, mana identity, board geometry, and FX remain reusable
+specialist systems in their owning UI modules. The full visual language,
+component rules, interaction floors, and exception policy live in
+[docs/design-system.md](design-system.md). The audited gaps, dependencies,
+file ownership, and implementation waves are maintained in
+[docs/plan-design-system-alignment.md](plan-design-system-alignment.md).
+
+This split is deliberate: tests can inspect the token contract without
+importing Phaser, while renderer-dependent factories stay in `src/ui`. It is
+the UI equivalent of the engine/render boundary, not permission for scenes to
+reimplement generic chrome locally.
 
 ## Anatomy of one turn in `DuelScene`
 

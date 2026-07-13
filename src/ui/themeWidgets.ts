@@ -23,11 +23,11 @@ export interface ThemedButton {
   setEnabled(enabled: boolean): void;
 }
 
-const BUTTON_STYLE: Record<ButtonVariant, { bg: string; fg: string; stroke: string }> = {
-  primary: { bg: theme.colors.btnPrimaryBg, fg: theme.colors.onGold, stroke: theme.colors.goldHover },
-  emphasis: { bg: theme.colors.btnEmphasisBg, fg: theme.colors.gold, stroke: theme.colors.panelStroke },
-  ghost: { bg: theme.colors.btnGhostBg, fg: theme.colors.body, stroke: theme.colors.panelStroke },
-  danger: { bg: theme.colors.dangerBg, fg: theme.colors.danger, stroke: theme.colors.dangerArmed },
+const BUTTON_STYLE: Record<ButtonVariant, { bg: string; fg: string; stroke: string; hoverStroke: string }> = {
+  primary: { bg: theme.colors.btnPrimaryBg, fg: theme.colors.onGold, stroke: theme.colors.goldHover, hoverStroke: theme.colors.heading },
+  emphasis: { bg: theme.colors.btnEmphasisBg, fg: theme.colors.gold, stroke: theme.colors.panelStroke, hoverStroke: theme.colors.goldHover },
+  ghost: { bg: theme.colors.btnGhostBg, fg: theme.colors.body, stroke: theme.colors.panelStroke, hoverStroke: theme.colors.goldHover },
+  danger: { bg: theme.colors.dangerBg, fg: theme.colors.danger, stroke: theme.colors.dangerArmed, hoverStroke: theme.colors.danger },
 };
 
 /** Rounded button chrome with an explicit Zone input target (never the container). */
@@ -41,7 +41,7 @@ export function themedButton(
   const variant = opts.variant ?? 'ghost';
   const size = opts.size ?? 'md';
   let style = BUTTON_STYLE[variant];
-  const height = size === 'sm' ? 30 : 40;
+  const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
   const padding = size === 'sm' ? theme.space(2) : theme.space(3);
   const fontSize = size === 'sm' ? theme.type.caption : theme.type.label;
   const container = scene.add.container(x, y);
@@ -58,23 +58,34 @@ export function themedButton(
   container.add([background, label, inputZone]);
 
   let enabled = opts.enabled ?? true;
+  let hovered = false;
   const redraw = (): void => {
     const width = Math.max(opts.minWidth ?? 0, Math.ceil(label.width + padding * 2));
     background.clear();
     background.fillStyle(colorInt(style.bg), 1);
     background.fillRoundedRect(-width / 2, -height / 2, width, height, theme.radius.control);
-    background.lineStyle(1, colorInt(style.stroke), theme.alpha.chrome);
+    background.lineStyle(
+      theme.control.borderWidth,
+      colorInt(hovered ? style.hoverStroke : style.stroke),
+      hovered ? 1 : theme.alpha.chrome,
+    );
     background.strokeRoundedRect(-width / 2, -height / 2, width, height, theme.radius.control);
     inputZone.setSize(width, height);
     // The Zone is the input surface. Re-apply after every label update so a
     // Phaser size/input refresh cannot regress the minimum touch target.
-    inflateHitArea(inputZone, Math.max(90, width), Math.max(44, height));
+    inflateHitArea(
+      inputZone,
+      Math.max(theme.control.minHitWidth, width),
+      Math.max(theme.control.minHitHeight, height),
+    );
   };
   const setEnabled = (next: boolean): void => {
     enabled = next;
+    if (!enabled) hovered = false;
     container.setAlpha(enabled ? 1 : theme.alpha.subtle);
     if (enabled) inputZone.setInteractive({ useHandCursor: true });
     else inputZone.disableInteractive();
+    redraw();
   };
   const setLabel = (next: string): void => {
     label.setText(next);
@@ -90,9 +101,15 @@ export function themedButton(
     if (enabled) opts.onTap?.(pointer);
   });
   inputZone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
-    if (!pointer.wasTouch && enabled) background.setAlpha(1);
+    if (!pointer.wasTouch && enabled) {
+      hovered = true;
+      redraw();
+    }
   });
-  inputZone.on('pointerout', () => background.setAlpha(1));
+  inputZone.on('pointerout', () => {
+    hovered = false;
+    redraw();
+  });
   redraw();
   setEnabled(enabled);
 
@@ -117,7 +134,7 @@ export function panel(
     .graphics()
     .fillStyle(theme.graphics.panelFill, opts.alpha ?? theme.alpha.panel)
     .fillRoundedRect(x, y, width, height, opts.radius ?? theme.radius.panel)
-    .lineStyle(1, theme.graphics.panelStroke, opts.strokeAlpha ?? theme.alpha.chrome)
+    .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, opts.strokeAlpha ?? theme.alpha.chrome)
     .strokeRoundedRect(x, y, width, height, opts.radius ?? theme.radius.panel);
 }
 
@@ -145,9 +162,16 @@ export interface ModalShell {
 
 /** Standardized modal chrome; callers retain ownership of ModalGuard lists. */
 export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalShell {
-  const x = opts.x ?? 640;
-  const y = opts.y ?? 360;
-  const dim = scene.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, opts.dimAlpha ?? theme.alpha.overlayDim);
+  const x = opts.x ?? theme.design.centerX;
+  const y = opts.y ?? theme.design.centerY;
+  const dim = scene.add.rectangle(
+    theme.design.centerX,
+    theme.design.centerY,
+    theme.design.width,
+    theme.design.height,
+    theme.graphics.dim,
+    opts.dimAlpha ?? theme.alpha.overlayDim,
+  );
   const chrome = panel(scene, x - opts.width / 2, y - opts.height / 2, opts.width, opts.height);
   const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
   const interactiveChildren: Phaser.GameObjects.GameObject[] = [];
@@ -203,17 +227,17 @@ export function backButton(
     })
     .setInteractive({ useHandCursor: true });
   bindTapButton(scene, button, onTap);
-  inflateHitArea(button, 90, 44);
+  inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
   button.on('pointerover', (pointer: Phaser.Input.Pointer) => {
     if (!pointer.wasTouch) {
       button.setColor(theme.colors.goldHover);
-      inflateHitArea(button, 90, 44);
+      inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
     }
   });
   button.on('pointerout', (pointer: Phaser.Input.Pointer) => {
     if (!pointer.wasTouch) {
       button.setColor(theme.colors.gold);
-      inflateHitArea(button, 90, 44);
+      inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
     }
   });
   return button;
@@ -253,7 +277,7 @@ export function goldBadge(
         targets: text,
         alpha: 0.35,
         yoyo: true,
-        duration: 100,
+        duration: theme.motion.fast,
         repeat: 1,
         onComplete: () => {
           if (text.active) text.setAlpha(1);
@@ -304,7 +328,7 @@ export function pager(
       const target = current + delta;
       if (target >= 0 && target < total) onChange(target);
     });
-    inflateHitArea(button, 44, 44);
+    inflateHitArea(button, theme.control.minHitHeight, theme.control.minHitHeight);
   }
   refresh(page, pageCount);
   return { container, previous, next, label, refresh };

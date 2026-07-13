@@ -16,8 +16,8 @@ export interface DropdownOption<T extends string> {
   label: string;
 }
 
-const ROW_H = 30;
-const PANEL_DEPTH = 200;
+const ROW_H = theme.control.minHitHeight;
+const PANEL_DEPTH = theme.depth.popover;
 
 export interface DropdownOpts<T extends string> {
   label: string;
@@ -45,7 +45,7 @@ export class Dropdown<T extends string> {
     this.button = scene.add
       .text(x, y, this.caption(), {
         fontFamily: theme.fonts.ui,
-        fontSize: '13px',
+        fontSize: `${theme.type.label}px`,
         fontStyle: theme.weight.w600,
         color: theme.colors.body,
         backgroundColor: theme.colors.btnGhostBg,
@@ -63,7 +63,20 @@ export class Dropdown<T extends string> {
 
   /** Text.updateText resets the hit area on any setText/style change — restore it. */
   private reinflate(): void {
-    inflateHitArea(this.button, this.minW, 40);
+    inflateHitArea(this.button, this.minW, theme.control.minHitHeight);
+  }
+
+  /** World-space bounds of the custom inflated hit area, not just the glyph box. */
+  private triggerBounds(): Phaser.Geom.Rectangle {
+    const visual = this.button.getBounds();
+    const hit = this.button.input?.hitArea as Phaser.Geom.Rectangle | undefined;
+    if (!hit) return visual;
+    return new Phaser.Geom.Rectangle(
+      visual.x + hit.x,
+      visual.y + hit.y,
+      hit.width,
+      hit.height,
+    );
   }
 
   private caption(): string {
@@ -87,13 +100,17 @@ export class Dropdown<T extends string> {
     this.reinflate();
 
     const n = this.opts.options.length;
-    const top = this.y + 16; // just under the button
+    const triggerBounds = this.triggerBounds();
+    const top = triggerBounds.bottom + theme.space(1);
     const w = Math.max(this.button.width, this.minW);
+    const panelBounds = new Phaser.Geom.Rectangle(this.x, top, w + 8, n * ROW_H + 8);
     const panel = this.scene.add.container(0, 0).setDepth(PANEL_DEPTH);
     const bg = this.scene.add
-      .rectangle(this.x, top, w + 8, n * ROW_H + 8, theme.graphics.panelFill, theme.alpha.panel)
-      .setOrigin(0, 0)
-      .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
+      .graphics()
+      .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
+      .fillRoundedRect(this.x, top, w + 8, n * ROW_H + 8, theme.radius.control)
+      .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+      .strokeRoundedRect(this.x, top, w + 8, n * ROW_H + 8, theme.radius.control);
     panel.add(bg);
     this.opts.options.forEach((o, i) => {
       const oy = top + 4 + i * ROW_H + ROW_H / 2;
@@ -101,7 +118,7 @@ export class Dropdown<T extends string> {
       const t = this.scene.add
         .text(this.x + 10, oy, o.label, {
           fontFamily: theme.fonts.ui,
-          fontSize: '13px',
+          fontSize: `${theme.type.label}px`,
           fontStyle: active ? theme.weight.w700 : theme.weight.w600,
           color: active ? theme.colors.gold : theme.colors.body,
         })
@@ -126,8 +143,8 @@ export class Dropdown<T extends string> {
     this.scene.time.delayedCall(0, () => {
       if (!this.panel) return;
       this.closeListener = (p: Phaser.Input.Pointer) => {
-        if (Phaser.Geom.Rectangle.Contains(this.button.getBounds(), p.worldX, p.worldY)) return;
-        if (Phaser.Geom.Rectangle.Contains(bg.getBounds(), p.worldX, p.worldY)) return;
+        if (Phaser.Geom.Rectangle.Contains(triggerBounds, p.worldX, p.worldY)) return;
+        if (Phaser.Geom.Rectangle.Contains(panelBounds, p.worldX, p.worldY)) return;
         this.close();
       };
       this.scene.input.on('pointerdown', this.closeListener);

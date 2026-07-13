@@ -53,7 +53,9 @@ const DESKTOP_DECK_PITCH = 22;
 const DESKTOP_DECK_Y0 = 240;
 /** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
 const DECK_PAGER_Y = 480;
-const DECK_STATS_Y = 510;
+const DECK_STATS_Y = 506;
+/** Right-panel inner gutter: panel spans x 880–1280, content sits at 900–1260. */
+const PANEL_RIGHT_X = 1260;
 const DECK_NAME_MAX_LENGTH = 24;
 
 interface DeckHeroDisplay {
@@ -173,7 +175,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.poolPager.container.setVisible(false);
 
     this.status = this.add
-      .text(width - 380, height - 60, '', {
+      .text(width - 380, height - 64, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.danger,
@@ -1016,14 +1018,17 @@ export class DeckBuilderScene extends Phaser.Scene {
     const x0 = width - 380;
 
     const active = Services.save.data.decks.find((d) => d.id === Services.save.data.activeDeckId);
-    const title = this.add.text(x0, 24, `${active?.name ?? 'Custom Deck'} · ${this.deck.length}/${RULES.deckSize}`, {
-      fontFamily: theme.fonts.display,
-      fontSize: `${theme.type.h2}px`,
-      color: this.deck.length === RULES.deckSize ? theme.colors.success : theme.colors.gold,
-    });
+    const title = this.add
+      .text(x0, 32, `${active?.name ?? 'Custom Deck'} · ${this.deck.length}/${RULES.deckSize}`, {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h2}px`,
+        color: this.deck.length === RULES.deckSize ? theme.colors.success : theme.colors.gold,
+      })
+      .setOrigin(0, 0.5);
+    this.fitTextToWidth(title, 250);
     this.rightPane.push(title);
     // F15: deck picker (switch / new / copy / rename / delete).
-    const decksBtn = themedButton(this, x0 + 326, 32, '☰ Decks', {
+    const decksBtn = themedButton(this, PANEL_RIGHT_X - 45, 32, '☰ Decks', {
       variant: 'emphasis',
       size: 'sm',
       minWidth: 90,
@@ -1039,18 +1044,20 @@ export class DeckBuilderScene extends Phaser.Scene {
       const d = byId(id);
       const y = 70 + i * basicsPitch;
       const n = this.countIn(this.deck, id);
-      const row = this.add.text(x0, y, `${d.name}: ${n}`, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.body,
-      });
-      const minus = themedButton(this, x0 + 190, y + 8, '−', {
+      const row = this.add
+        .text(x0, y + 8, `${d.name}: ${n}`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
+        })
+        .setOrigin(0, 0.5);
+      const minus = themedButton(this, PANEL_RIGHT_X - 145, y + 8, '−', {
         variant: 'danger',
         size: 'sm',
         minWidth: 90,
         onTap: () => this.removeCard(id),
       });
-      const plus = themedButton(this, x0 + 290, y + 8, '+', {
+      const plus = themedButton(this, PANEL_RIGHT_X - 45, y + 8, '+', {
         variant: 'emphasis',
         size: 'sm',
         minWidth: 90,
@@ -1140,7 +1147,7 @@ export class DeckBuilderScene extends Phaser.Scene {
             fontSize: `${theme.type.caption}px`,
             color: theme.colors.body,
           });
-          const minus = themedButton(this, x0 + 335, y + 8, '−', {
+          const minus = themedButton(this, PANEL_RIGHT_X - 45, y + 8, '−', {
             variant: 'danger',
             size: 'sm',
             minWidth: 90,
@@ -1162,19 +1169,22 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.status.setColor(issues.some((i) => i.kind === 'error') ? theme.colors.danger : this.deckCodeMessage ? theme.colors.success : theme.colors.danger);
     this.status.setText(statusLines.join('\n'));
     const canSave = issues.every((i) => i.kind !== 'error');
-    const exportBtn = themedButton(this, x0 + 56, 666, 'Export Code', {
+    // Bottom action row: Export left-aligned to the x0 gutter, Import
+    // right-aligned to the panel gutter (the old x0+334 center clipped it
+    // off-screen), Save centered between them on the same baseline.
+    const exportBtn = themedButton(this, x0 + 52, 684, 'Export Code', {
       variant: 'emphasis',
       size: 'sm',
-      minWidth: 112,
+      minWidth: 104,
       onTap: () => this.exportDeckCode(),
     });
-    const importBtn = themedButton(this, x0 + 334, 666, 'Import Code', {
+    const importBtn = themedButton(this, PANEL_RIGHT_X - 52, 684, 'Import Code', {
       variant: 'emphasis',
       size: 'sm',
-      minWidth: 112,
+      minWidth: 104,
       onTap: () => this.importDeckCode(),
     });
-    const saveBtn = themedButton(this, x0 + 180, 720 - 40, 'Save Deck', {
+    const saveBtn = themedButton(this, x0 + 180, 684, 'Save Deck', {
       variant: 'primary',
       minWidth: 140,
       enabled: canSave,

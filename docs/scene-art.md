@@ -86,7 +86,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 - **Mood & palette:** The most subdued asset in the program. Night war plain in near-monochrome indigo (`#131022` → `#0a0812`); mood, not scenery.
 - **Composition & safe zones:** A vast dark field under low mist, viewed from above the battle lines; the faintest suggestions of distant campfires and torn blank banners at the extreme left/right edges only. NO landmark, no horizon feature, no texture busier than mist anywhere — the whole 1280×720 frame is effectively a safe zone (the strip, both zone plates, the phase rail, and the bottom stage cover or border every region, and the exposed margins must stay featureless).
 - **Max luminance:** average ≤ 8 %; peak ≤ 22 % (edge campfire embers only); central 1160px play area ≤ 15 %.
-- **Integration:** Replaces the base gradient fill at the top of `buildZones()`; every existing plate/hairline/label draws over it unchanged, plus a dim rect `0x0a0812` at 0.55 between backdrop and plates.
+- **Integration:** Replaces the base gradient fill at the top of `buildZones()`; every existing plate/hairline/label draws over it unchanged, plus a dim rect `0x0a0812` at 0.45 between backdrop and plates.
 - **QA:** With plates over it, the 10px OPPONENT/YOU labels and land-stack badges must read at a glance; screenshot at hand-fan rest position — no backdrop feature may masquerade as a card edge.
 - **Prompt:** Night war plain shrouded in low rolling mist seen from above the battle lines, a vast dark empty field in near-monochrome deep indigo, the faintest ember glints of distant campfires and torn blank banners at the extreme left and right edges, no landmarks, soft dim low-contrast atmosphere throughout — crisp cel-shaded gacha anime environment art, 1280×720 stage backdrop
 
@@ -242,7 +242,7 @@ explicit depths start at 40 for arrows/overlays, all above).
 | Asset | Scene file · attach point | Replaces | Dim over the art |
 |---|---|---|---|
 | `scene-mainmenu` | `MainMenuScene.create()` | nothing (scene had no bg) | `0x0d0a14` @ 0.50 |
-| `scene-duel` | `DuelScene.buildZones()` | base gradient only — strip + inset zone plates/labels stay | `0x0a0812` @ 0.55 |
+| `scene-duel` | `DuelScene.buildZones()` | base gradient only — strip + inset zone plates/labels stay | `0x0a0812` @ 0.45 |
 | `scene-gauntlet` | `GauntletScene.create()` | gradient | `0x0b0812` @ 0.50 |
 | `scene-shop` | `ShopScene.create()` | gradient | `0x0b0812` @ 0.45 |
 | `scene-packopening` | `PackOpeningScene.create()` | gradient | `0x080610` @ 0.50 |
