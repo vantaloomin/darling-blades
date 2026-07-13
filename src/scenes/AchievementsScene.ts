@@ -173,15 +173,17 @@ export class AchievementsScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5);
 
-    const progress = `${Math.min(status.current, status.target)}/${status.target}`;
-    this.add
-      .text(x + w - 118, y + 14, progress, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        fontStyle: theme.weight.w600,
-        color: status.unlocked ? theme.colors.gold : theme.colors.body,
-      })
-      .setOrigin(1, 0.5);
+    if (!claimable) {
+      const progress = `${Math.min(status.current, status.target)}/${status.target}`;
+      this.add
+        .text(x + w - 118, y + 14, progress, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          fontStyle: theme.weight.w600,
+          color: status.unlocked ? theme.colors.gold : theme.colors.body,
+        })
+        .setOrigin(1, 0.5);
+    }
 
     if (claimable) {
       const btn = themedButton(this, x + w - 72, y + 22, `Claim +${status.def.reward.gold}`, {

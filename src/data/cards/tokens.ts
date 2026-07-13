@@ -47,7 +47,10 @@ export const TOKENS = [
     id: 'tok-bloom',
     name: 'Bloomling',
     types: ['creature'],
-    subtypes: ['Plant'],
+    // 'Fae' added 2026-07-12: the Silver Court's own summons must count for
+    // Fae tribal (Ash and Mistletoe's anthem) — measured as Titania's missing
+    // win-rate lever (28% vs Grave Harvest without it).
+    subtypes: ['Fae', 'Plant'],
     cost: cost(0),
     colors: ['G'],
     attack: 1,

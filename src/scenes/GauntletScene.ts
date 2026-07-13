@@ -12,7 +12,7 @@ import { colorInt, theme } from '../ui/theme';
 import { backButton, goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
- * The Avatar Gauntlet tower. A right-rail ladder of ten rungs (cleared ✓ /
+ * The Avatar Gauntlet tower. A right-rail ladder of twelve rungs (cleared ✓ /
  * current highlighted / future dimmed) and a left panel showing the selected
  * avatar — portrait, name/title/blurb, theme chip, difficulty pips, and the
  * rung's reward. Fight launches the duel; a loss resets the run, a full clear
@@ -88,7 +88,7 @@ export class GauntletScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(width / 2, 84, 'Climb ten rungs. A loss ends the run: the tower resets, your collection does not.', {
+      .text(width / 2, 84, `Climb ${ECONOMY.gauntletRungGold.length} rungs. A loss ends the run: the tower resets, your collection does not.`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -110,8 +110,11 @@ export class GauntletScene extends Phaser.Scene {
     const g = Services.save.data.gauntlet;
     const railX = width - 250;
     const topY = 150;
-    const rungs = ECONOMY.gauntletRungGold.length; // ladder length (10 with the Ragnarök bosses)
-    const rowH = 52; // tightened from 62 so all 10 rows fit the 720px design height
+    const rungs = ECONOMY.gauntletRungGold.length;
+    // Keep the original 52px rhythm when possible, but tighten for future
+    // summit additions so the complete ladder stays inside the 720px design
+    // window. The 12-rung Celtic Fae tower uses ~45px rows.
+    const rowH = Math.min(52, 500 / Math.max(1, rungs - 1));
 
     this.add
         .text(railX, topY - 34, `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : '—'}   ·   Clears: ${g.completions}`, {

@@ -13,7 +13,7 @@ _Dated 2026-07-04. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch offers an optional **tutorial**; a new
   player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (10 themed opponents on a ladder) or Practice duels → rewards → shop →
+  Gauntlet** (12 themed opponents on a ladder) or Practice duels → rewards → shop →
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** **Every

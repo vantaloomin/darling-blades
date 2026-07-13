@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/plan-v1.1-post-launch.md, docs/plan-commander-mode.md, docs/plan-mod-ugc.md, docs/expansions/celtic-fae.md, docs/art-pipeline.md, src/meta/Limited.ts, src/meta/SaveManager.ts, src/data/opponents.ts, src/meta/gauntletSeed.ts, src/meta/collectionFilter.ts, src/engine/types.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-07-11 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/plan-v1.1-post-launch.md, docs/plan-commander-mode.md, docs/plan-mod-ugc.md, docs/expansions/celtic-fae.md, docs/art-pipeline.md, src/meta/Limited.ts, src/meta/SaveManager.ts, src/data/opponents.ts, src/meta/gauntletSeed.ts, src/meta/collectionFilter.ts, src/engine/types.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-07-12 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.1 — program plan
 
@@ -21,14 +21,13 @@ PvP are explicitly **not** in 1.1 — they shelve to 1.2+.
 | Randomized tower | **Seeded daily rotation** (same shuffled tower for everyone each day) |
 | Base-set semantics | **Relabel for clarity** — data stays disjoint, copy-only facet rename |
 
-> **Status (2026-07-11):** Pillar 1 is BUILT and in review as a stacked PR
-> train — #56 engine exile/scry, #59 the 80 cards + set plumbing + art
-> bible, #60 DuelScene exile/scry wiring, #61 the 80 art finals, #62 the
-> booster SKU + Glimmer Bargain precon, #63 the achievements pass, #64
-> expansion pack art + shop polish. The "engine gap" described below is
-> closed; the section stays as the design record. Open: the #60/#62 live
-> probes, the Celtic Fae gauntlet-boss decision (rungs 11–12 vs the daily
-> rotation pool), and Pillar 2's Limited re-enable.
+> **Status (2026-07-12):** Pillar 1 SHIPPED — the stacked train merged to
+> main as the #64 bundle (mechanics rethemed to Sever/Foresee in PR #66).
+> The gauntlet-boss decision is RESOLVED (user-directed): The Morrigan and
+> Titania are **rungs 11–12**, measured 2026-07-12 (40-seed full matrix +
+> a 50-seed low/mid/high tier matrix — baseline in src/data/opponents.ts);
+> the daily-rotation pool (Pillar 5) gains them for free when it lands.
+> Open: Pillar 2's Limited re-enable.
 
 ## Pillar 1 — Celtic Fae expansion
 

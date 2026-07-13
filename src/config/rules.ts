@@ -58,10 +58,11 @@ export const ECONOMY = {
   shardFrameMult: { white: 1, blue: 1.5, red: 2, gold: 4, rainbow: 8, black: 15 } as const,
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 10-rung clear. Full run = 50+70+…+230 (=1400) + 250 = 1650g ≈ 6.6 packs,
+  // a full 12-rung clear. Full run = 50+70+…+270 (=1920) + 250 = 2170g ≈ 8.7 packs,
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
-  // Rungs 9-10 (210/230) are the Ragnarök expansion bosses (Hel, Brunhild).
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230] as const,
+  // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
+  // Celtic Fae summit bosses (The Morrigan, Titania).
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270] as const,
   gauntletCompletionBonus: 250,
   // Limited runs are free-entry and cards are ephemeral, so the run-end payout
   // is intentionally modest: enough to make 3 matches feel worthwhile without

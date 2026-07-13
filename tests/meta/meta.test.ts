@@ -863,47 +863,49 @@ describe('applyGauntletResult', () => {
     expect(save.gauntlet.run?.rung).toBe(9);
   });
 
-  it('clearing rung 10 pays the completion bonus and ends the run', () => {
+  it('clearing the final rung pays the completion bonus and ends the run', () => {
+    const finalRung = ECONOMY.gauntletRungGold.length; // 12 since the Celtic Fae summit
     const save = freshSave(0);
     save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
-    save.gauntlet.run = { rung: 10, startedAt: 1, seed: 42 };
-    const r = applyGauntletResult(save, 10, 'hard', true, '2026-07-02');
-    expect(r.gold).toBe(ECONOMY.gauntletRungGold[9] + ECONOMY.gauntletCompletionBonus);
+    save.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
+    const r = applyGauntletResult(save, finalRung, 'hard', true, '2026-07-02');
+    expect(r.gold).toBe(ECONOMY.gauntletRungGold[finalRung - 1] + ECONOMY.gauntletCompletionBonus);
     expect(r.completed).toBe(true);
     expect(r.runOver).toBe(true);
     expect(r.nextRung).toBeNull();
     expect(save.gauntlet.run).toBeNull();
     expect(save.gauntlet.completions).toBe(1);
-    expect(save.gauntlet.bestRung).toBe(10);
+    expect(save.gauntlet.bestRung).toBe(finalRung);
     expect(save.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 0 });
   });
 
   it('records mono-color and dual-color full clears when provided', () => {
+    const finalRung = ECONOMY.gauntletRungGold.length;
     const mono = freshSave(0);
     mono.stats.lastWinDay = '2026-07-02';
-    mono.gauntlet.run = { rung: 10, startedAt: 1, seed: 42 };
-    applyGauntletResult(mono, 10, 'hard', true, '2026-07-02', 'monoColor');
+    mono.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
+    applyGauntletResult(mono, finalRung, 'hard', true, '2026-07-02', 'monoColor');
     expect(mono.gauntlet.clearStyles).toEqual({ monoColor: 1, dualColor: 0 });
 
     const dual = freshSave(0);
     dual.stats.lastWinDay = '2026-07-02';
-    dual.gauntlet.run = { rung: 10, startedAt: 1, seed: 42 };
-    applyGauntletResult(dual, 10, 'hard', true, '2026-07-02', 'dualColor');
+    dual.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
+    applyGauntletResult(dual, finalRung, 'hard', true, '2026-07-02', 'dualColor');
     expect(dual.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 1 });
   });
 
-  it('a full 10-rung run pays exactly 1650 gold plus the daily bonus once', () => {
+  it('a full 12-rung run pays exactly 2170 gold plus the daily bonus once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
-    for (let rung = 1; rung <= 10; rung++) {
+    for (let rung = 1; rung <= ECONOMY.gauntletRungGold.length; rung++) {
       const diff = rung <= 3 ? 'easy' : rung <= 6 ? 'medium' : 'hard';
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(1400);
+    expect(rungSum).toBe(1920); // 50+70+…+270 across 12 rungs
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(1750); // 1400 + 250 + 100 (daily bonus once)
+    expect(total).toBe(2270); // 1920 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 

@@ -12,7 +12,7 @@ export interface GauntletState {
    */
   run: { rung: number; startedAt: number; seed: number } | null;
   bestRung: number; // highest rung ever cleared
-  completions: number; // full 10-rung clears
+  completions: number; // full gauntlet clears
   clearStyles: GauntletClearStyles;
 }
 
