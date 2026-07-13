@@ -58,7 +58,7 @@ patterned, never lettered.
 - **Background:** a shattered mountain pass under a bruised, wind-torn sky.
 - **Holo interaction:** Rolled specials favor void — concentrate texture variance in the metal, cloth-trim, and any relic so the finish lands there and the face stays quiet.
 - **Rarity ambition:** Marquee legend — the biggest hero splash in the set; the background participates.
-- **Prompt:** Fenrir, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Fenrir, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, the top of her head and hair well below the upper edge of the frame with generous empty storm-sky above her, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhao Yun, the Deathless Dragon — `rg-zhaoyun`
 - **Card facts:** {3}{W}{W} · W · 4/4 · twinBlades · ur, legendary · holo: void
@@ -184,7 +184,7 @@ patterned, never lettered.
 - **Card facts:** {4}{G} · G · 5/5 · overrun · sr · holo: radiant foil
 - **Character & source:** a towering Jotun giant-woman of the elemental wilds; mechanically an unstoppable bruiser.
 - **Personality / mood:** "When she walks, the map needs redrawing." — slow, immovable, and entirely certain.
-- **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
+- **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; natural heroic-anime head proportion (head full-sized for her shoulders — never shrunken), her giant scale sold by tiny environment cues, not a small head; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
 - **Costume & attire:** rough hide and rime-crusted plate, primal bone-and-gold jewelry.
 - **Palette:** G palette (`#4fa06a` → `#123a22`, accent `#a9dcae`) — pine-dark and moss; Ragnarök accents — glacier blue-white, aurora green-violet, runic gold, and ash — layered over the color anchor, never replacing it.
 - **Lighting:** a stark high key with a long cold rim down one flank.
@@ -193,7 +193,7 @@ patterned, never lettered.
 - **Background:** a shattered mountain pass under a bruised, wind-torn sky.
 - **Holo interaction:** Rolled specials favor radiant foil — concentrate texture variance in the metal, cloth-trim, and any relic so the finish lands there and the face stays quiet.
 - **Rarity ambition:** Rare "moment" — dramatic light and the split second the mechanic implies.
-- **Prompt:** Bergelmir, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Bergelmir, a towering Jotun giant-woman of the elemental wilds, drawn with natural heroic anime proportions — her head full-sized and in proportion to her shoulders — in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low camera angle, one stride that is itself an earthquake, her colossal scale told by the landscape: full-grown pines and ruined stone watchtowers tiny beside her hips far below, the top of her head and hair well below the upper edge of the frame with generous empty storm-sky above her, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Seeress of the Mist Well — `rg-mist-seer`
 - **Card facts:** {2}{U} · U · 2/3 · sr · holo: radiant foil
@@ -298,7 +298,7 @@ patterned, never lettered.
 - **Background:** a sunlit sacred grove around a great root of the world-tree.
 - **Holo interaction:** Rolled specials favor shiny — concentrate texture variance in the metal, cloth-trim, and any relic so the finish lands there and the face stays quiet.
 - **Rarity ambition:** Uncommon — the figure plus one environmental story beat or a beat of motion.
-- **Prompt:** Tidecaller of Vanaheim, a Vanir deity of seiðr and green growth, in flowing seiðr robes in amber and gold, living vines worked through the cloth; one hand raised in a working, growth answering the gesture, against a sunlit sacred grove around a great root of the world-tree; warm and knowing, unbothered by the twilight of the gods; a warm dappled sun-through-leaves key, soft green fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Tidecaller of Vanaheim, a Vanir deity of seiðr and green growth, in flowing seiðr robes in amber and gold, living vines worked through the cloth, a falcon-feather cloak spread from her shoulders into two broad visible feathered wings; clearly airborne, hovering well above the grove floor with her feet trailing free of the ground, one hand raised in a working, growth answering the gesture, against a sunlit sacred grove around a great root of the world-tree seen slightly from above; warm and knowing, unbothered by the twilight of the gods; a warm dappled sun-through-leaves key, soft green fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Mist-Wreathed Thief — `rg-memory-thief`
 - **Card facts:** {2}{U} · U · 2/2 · skyborne · r · holo: shiny
@@ -493,7 +493,7 @@ patterned, never lettered.
 - **Background:** a watchtower and command tents on the disciplined northern plain.
 - **Holo interaction:** Rolled specials favor shiny — concentrate texture variance in the metal, cloth-trim, and any relic so the finish lands there and the face stays quiet.
 - **Rarity ambition:** Uncommon — the figure plus one environmental story beat or a beat of motion.
-- **Prompt:** Xu Chu, a genderbent Three Kingdoms Wei officer, returned deathless, in lapis-and-bronze plate over a scholar-officer’s robe, high collar, cool grave-pallor; a full-body cleaving strike, armor half-shed for speed, against a watchtower and command tents on the disciplined northern plain; ferocious, past caring for her own defense; a hard overcast key with a bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Xu Chu, a genderbent Three Kingdoms Wei officer, returned deathless, in lapis-and-bronze plate over a scholar-officer’s robe, high collar, cool grave-pallor; a full-body cleaving strike, armor half-shed for speed, her hair bound low at the nape and streaming out behind her — no tall topknot, no high ponytail, nothing piled above the crown of her head — the top of her head well below the upper edge of the frame with generous empty overcast sky above her, against a watchtower and command tents on the disciplined northern plain; ferocious, past caring for her own defense; a hard overcast key with a bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dian Wei, the Ever-Faithful — `rg-dianwei`
 - **Card facts:** {3}{B} · B · 3/3 · twinBlades · r, legendary · holo: shiny
@@ -718,7 +718,7 @@ patterned, never lettered.
 - **Background:** a fog-drowned fen at dusk, shapes half-guessed in the murk.
 - **Holo interaction:** No signature holo; build clean readable value so a pulled shiny/rainbow foil reads well.
 - **Rarity ambition:** Common — one clear figure, one idea, a simple two-value background.
-- **Prompt:** Hungry Shade, a mist-wraith shade of the fens, in tattered translucent shrouds trailing away into vapor; half-dissolved, drifting forward faster than mist should move, against a fog-drowned fen at dusk, shapes half-guessed in the murk; hollow and hungry; a low grey diffuse key, no hard shadows — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Hungry Shade, a mist-wraith shade of the fens, in tattered translucent shrouds trailing away into vapor; seen from further back so its whole ghostly apparition is in frame, floating clear above the fen water, the lower body dissolving entirely into ragged trailing vapor with no legs at all, drifting forward faster than mist should move, against a fog-drowned fen at dusk, shapes half-guessed in the murk; hollow and hungry; a low grey diffuse key, no hard shadows — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Plaguebearer Draugr — `rg-plaguebearer-draugr`
 - **Card facts:** {3}{B} · B · 2/3 · deathblade · c · holo: none
@@ -823,7 +823,7 @@ patterned, never lettered.
 - **Background:** a shattered mountain pass under a bruised, wind-torn sky.
 - **Holo interaction:** No signature holo; build clean readable value so a pulled shiny/rainbow foil reads well.
 - **Rarity ambition:** Common — one clear figure, one idea, a simple two-value background.
-- **Prompt:** Frost Jotun, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Frost Jotun, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, the top of her head and hair well below the upper edge of the frame with generous empty storm-sky above her, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dire Wolf Pup — `rg-dire-pup`
 - **Card facts:** {1}{G} · G · 2/1 · c · holo: none
@@ -838,7 +838,7 @@ patterned, never lettered.
 - **Background:** a moonlit frost-forest, snow churned by the pack.
 - **Holo interaction:** No signature holo; build clean readable value so a pulled shiny/rainbow foil reads well.
 - **Rarity ambition:** Common — one clear figure, one idea, a simple two-value background.
-- **Prompt:** Dire Wolf Pup, a great dire-wolf of Fenrir's brood, in thick hackled winter fur, breath steaming; mid-lunge, low and fast, closing the distance, against a moonlit frost-forest, snow churned by the pack; feral, fixed on the throat; a cold moonlight key, blue snow-bounce fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Dire Wolf Pup, a dire-wolf puppy of Fenrir's brood, unmistakably a young pup — round juvenile proportions, oversized clumsy paws, fluffy soft winter puppy fur, big eyes, floppy half-pricked ears, breath steaming; an eager bounding pounce, low and fast, closing the distance, against a moonlit frost-forest, snow churned by the pack; feral in miniature, fixed on the throat; a cold moonlight key, blue snow-bounce fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Elder Jotun of the Peaks — `rg-elder-jotun`
 - **Card facts:** {5}{G} · G · 6/6 · c · holo: none
@@ -883,7 +883,7 @@ patterned, never lettered.
 - **Background:** a moonlit frost-forest, snow churned by the pack.
 - **Holo interaction:** No signature holo; build clean readable value so a pulled shiny/rainbow foil reads well.
 - **Rarity ambition:** Common — one clear figure, one idea, a simple two-value background.
-- **Prompt:** Wolf-Pack Runner, a great dire-wolf of Fenrir's brood, in thick hackled winter fur, breath steaming; mid-lunge, low and fast, closing the distance, against a moonlit frost-forest, snow churned by the pack; feral, fixed on the throat; a cold moonlight key, blue snow-bounce fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Wolf-Pack Runner, a great dire-wolf of Fenrir's brood, in thick hackled winter fur, breath steaming; camera pulled back to show her whole running body mid-lunge, low and fast, with the rest of the wolf pack streaming alongside and behind her through the churned snow, against a moonlit frost-forest; feral, fixed on the throat; a cold moonlight key, blue snow-bounce fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Shu Deathless Guard — `rg-shu-deathless-guard`
 - **Card facts:** {2}{W} · W · 2/2 · firstBlade · c · holo: none
@@ -913,4 +913,4 @@ patterned, never lettered.
 - **Background:** the far bank of the Styx under a starless sky, asphodel underfoot.
 - **Holo interaction:** No signature holo; build clean readable value so a pulled shiny/rainbow foil reads well.
 - **Rarity ambition:** Common — one clear figure, one idea, a simple two-value background.
-- **Prompt:** Charon, a Greek underworld power, drawn up by the twilight, in sun-bleached marble whites and gilt over a draped chiton, an ashen underworld tint; a slow, patient advance across the dark water, against the far bank of the Styx under a starless sky, asphodel underfoot; gentle and absolutely certain of the appointment; a low cold underworld key, single gilt rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Charon, a Greek underworld power, drawn up by the twilight, an undead ferrywoman with gaunt corpse-pale grey skin, sunken faintly glowing eyes, and withered skeletal hands, in sun-bleached marble whites and gilt over a draped chiton; camera pulled back to show her standing in her long dark ferry-boat, poling it slowly across the wide black River Styx, the boat and the river both clearly in frame, against the far bank of the Styx under a starless sky, asphodel along the shore; gentle and absolutely certain of the appointment; a low cold underworld key, single gilt rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait

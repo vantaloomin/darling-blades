@@ -71,7 +71,7 @@ over each card's color-identity anchor and never replace it.
 - **Background:** Two-value dim interior — a hint of marble wall, nothing to distract from the flame.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common — single figure, one idea (warmth), reads at thumbnail scale.
-- **Prompt:** Hestia kneeling in cream-white belted chiton and softly veiled himation, cupping a small brazier flame with a gilt hearth-key at her belt, dim marble interior, gentle maternal goddess with lowered eyes, warm hearth uplight and cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Hestia kneeling in a low-cut cream-white belted chiton and softly veiled himation, full-busted with generous soft cleavage warmed by the flame, cupping a small brazier flame with a gilt hearth-key at her belt, dim marble interior, gentle maternal goddess with lowered eyes, the top of her veiled head well below the upper edge of the frame with generous open space above it, warm hearth uplight and cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Nike, Herald of Triumph — `gk-nike`
 - **Card facts:** {1}{W} · W · 2/1 · skyborne · c · holo: none
@@ -101,7 +101,7 @@ over each card's color-identity anchor and never replace it.
 - **Background:** Two-value dusty plain, the suggestion of an allied shield-line to one side.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common — single figure, one idea (first-striking shield-wall).
-- **Prompt:** Spartan shieldmaiden braced behind a large lambda-blazoned round shield with leveled spear over the rim, bronze muscle cuirass and transverse-crested Corinthian helm, crimson cloak, dusty plain with implied shield-line, grim disciplined warrior, hard daylight key with cool bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Spartan shieldmaiden seen from further back in a three-quarter-body stance braced beside a large lambda-blazoned round shield with leveled spear, a bronze breastplate cropped above her bare sculpted midriff showing hard defined abs, transverse-crested Corinthian helm, crimson cloak, dusty plain with implied shield-line, grim disciplined warrior, the top of her crested helm well below the upper edge of the frame with generous open sky above it, hard daylight key with cool bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zeus, Thunder Empress — `gk-zeus`
 - **Card facts:** {2}{R}{R}{W}{W} · R/W (gold frame) · 5/5 · skyborne · ur, legendary · holo: galaxy (explicit)
@@ -206,7 +206,7 @@ over each card's color-identity anchor and never replace it.
 - **Background:** Sunlit marble sanctuary, a glowing sun-disc centered behind her.
 - **Holo interaction:** Sheen — the Shine sweep glides across gilt and warm cloth; keep the bright sun-disc field textured (rays, note-motes) so the sweep doesn't blow it flat white.
 - **Rarity ambition:** Uncommon — one figure plus the drifting music-motes as story.
-- **Prompt:** Genderbent Apollo mid-strum on a golden lyre in white-and-gold chiton with a sunburst himation and gilt laurel crown, glowing sun-disc behind her head, golden note-motes drifting from the strings, sunlit marble sanctuary, radiant rapt muse, warm backlit sun-disc key with soft gilt rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Genderbent Apollo mid-strum on a golden lyre in white-and-gold chiton with a sunburst himation and gilt laurel crown, glowing sun-disc behind her head, golden note-motes drifting from the strings, sunlit marble sanctuary, radiant rapt muse, the top of her head and laurel crown well below the upper edge of the frame with generous open sky above them, warm backlit sun-disc key with soft gilt rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hermes, Gale-Heeled Courier — `gk-hermes`
 - **Card facts:** {1}{U} · U · 2/1 · skyborne, warcry · r · holo: auto:sheen
@@ -341,7 +341,7 @@ over each card's color-identity anchor and never replace it.
 - **Background:** Two-value sunlit glade, dappled leaf-light, no landmarks.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common — single figure, one idea (the wild piper).
-- **Prompt:** Genderbent Pan mid-pipe with a syrinx to her lips, small ram's horns and ivy crown, rustic green-and-earth wraps with a fur half-mantle and goat legs braced on a mossy rock, sunlit dappled glade, wild grinning piper, warm dappled daylight key with cool leaf-shadow rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Genderbent Pan, a wild young faun woman with a distinctly feminine face and figure, mid-pipe with a syrinx to her lips, small ram's horns and ivy crown, rustic green-and-earth wraps with a fur half-mantle, caught mid-leap in a joyful caper with both knees tucked up high beneath her so her shaggy furred goat legs and cloven hooves are fully visible just below her waist, full body compact in the middle of the frame, sunlit dappled glade, wild grinning piper, the top of her head and horns well below the upper edge of the frame with generous open glade light above them, warm dappled daylight key with cool leaf-shadow rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Eos, Rosy Dawn — `gk-eos`
 - **Card facts:** {2}{W} · W · 2/2 · skyborne, sentinel · c · holo: none

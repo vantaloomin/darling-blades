@@ -17,7 +17,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 
 | Species | Ears | Tail | 1–2 locked animal traits |
 |---|---|---|---|
-| Nekomata | two upright cat ears, tufted | forked cat tail (two tips) | slit vertical pupils; small fangs |
+| Nekomata | two upright cat ears, tufted | single unforked cat tail (one tip) | slit vertical pupils; small fangs |
 | Wolfkin | pointed wolf ears atop head | single thick brush wolf tail | claw-nails; amber eyes |
 | Kitsune | tall triangular fox ears | multiple fox tails (matriarch = nine) | narrow amber/gold eyes; slender snout-hint |
 | Avian/harpy | feathered ear-tufts, no external ears | short fan of tail-feathers | wing-arms or feathered forearms; taloned feet |
@@ -44,7 +44,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Card facts:** {G} · G · 1/1 · c · holo: none
 - **Character & source:** Original Beastkin nekomata forager — a one-drop mana-dork whose whole job is finding things in the deep wood.
 - **Personality / mood:** "Nine lives, one job: find the good mushrooms." Curious, unhurried, quietly pleased with herself.
-- **Pose & composition:** Crouched low in three-quarter turn, weight on the balls of her feet, glancing back over one shoulder toward the viewer as if she just spotted something. Face ≈ y 330, eye line ≈ y 320; forked tail curling up into the right of the band.
+- **Pose & composition:** Crouched low in three-quarter turn, weight on the balls of her feet, glancing back over one shoulder toward the viewer as if she just spotted something. Face ≈ y 330, eye line ≈ y 320; her single tail curling up into the right of the band.
 - **Costume & attire:** Moss-dyed foraging wrap, woven grass satchel spilling pale mushroom caps, bone-bead necklace, bare clawed feet.
 - **Palette:** G palette (`#4fa06a` → `#123a22`, accent `#a9dcae`) with Beastkin warm-earth + fur naturals; two-value forest background.
 - **Lighting:** Soft dappled canopy key from upper-left; cool green bounce rim along her back and tail.
@@ -53,7 +53,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Background:** Two-value soft forest floor, blurred fern and loam — readability over richness.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common: single figure, one idea (a scout who finds things).
-- **Prompt:** Nekomata cat-girl scout crouched low with forked tail raised, moss-green foraging wrap and grass satchel of mushrooms, slit-pupil eyes glancing back at viewer, dappled forest-floor background, soft green canopy light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Nekomata cat-girl scout crouched low, a single unforked cat tail — one smooth continuous tail ending in exactly one tip — emerging from the base of her spine at the tailbone, centered on her lower back, and curving naturally up behind her, never attached at her hip, side, or waist, moss-green foraging wrap and grass satchel of mushrooms, slit-pupil eyes glancing back at viewer, dappled forest-floor background, soft green canopy light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wolfkin Raider — `bk-wolfkin-raider`
 - **Card facts:** {1}{R} · R · 2/1 · warcry · c · holo: none
@@ -248,7 +248,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Background:** Two-value sunlit barn interior, hay and soft light — readability over richness.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common: single figure, one idea (a warm, healing provider).
-- **Prompt:** Holstaur cow beast-girl offering a warmly glowing milk-pail toward the viewer, cream-and-brown farm dress and apron, cow ears and short horns, black-and-white hide markings, kind smile, sunlit barn, golden morning light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Plump chubby holstaur cow beast-girl with a soft full figure and a very large heavy bust, offering a warmly glowing milk-pail toward the viewer, cream-and-brown farm dress and gently straining laced bodice and apron, a round brass cow-bell on a collar at her throat, cow ears and short horns, black-and-white hide markings, kind smile, sunlit barn, golden morning light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sheepkin Dreamherd — `bk-sheepkin-dreamherd`
 - **Card facts:** {1}{G} · G · 0/4 · bulwark · c · holo: none
@@ -293,7 +293,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Background:** Two-value shadowed rafters strung with web, kept simple — readability over richness.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common: single figure, one idea (a lethal weaver in her web).
-- **Prompt:** Spiderkin beast-girl poised in a great silvery web drawing a silk thread taut, black-and-violet silk gown, an eight-eye brooch, a pair of glossy jointed spider-limbs arcing from her back, gracious fanged smile, shadowed webbed rafters, cool underlight with violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Spiderkin beast-girl seen from further back, her full body poised in a great silvery web drawing a silk thread taut, black-and-violet silk gown, an eight-eye brooch, the entire wide span of glossy jointed chitinous spider-limbs arcing out from her back fully in frame, gracious fanged smile, shadowed webbed rafters, cool underlight with violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Batkin Duskwing — `bk-batkin-duskwing`
 - **Card facts:** {1}{B} · B · 2/1 · skyborne · c · holo: none
@@ -323,7 +323,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Background:** Two-value sea-stack and haze, one distant ship silhouette — readability over richness.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common: single figure, one idea (a singer whose map deceives).
-- **Prompt:** Mermaid beast-girl perched on a wave-washed rock tracing a glowing light-map in the air, pearl-and-kelp bodice, teal-and-silver fish tail draped over the edge, webbed hands and gill-lines, inviting sly smile, sea-stack and distant ship, cool aqua light with warm rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Mermaid beast-girl seen from further back, her full figure perched on a wave-washed rock tracing a glowing light-map in the air, pearl-and-kelp bodice, the entire teal-and-silver fish tail clearly visible draped over the rock edge, webbed hands and gill-lines, inviting sly smile, sea-stack and distant ship, the top of her head well below the upper edge of the frame with generous open sky above it, cool aqua light with warm rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Deerkin Grovekeeper — `bk-deerkin-grovekeeper`
 - **Card facts:** {2}{G} · G · 2/2 · r · holo: auto:sheen
@@ -398,7 +398,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Background:** Two-value autumn-leaf litter and a hollow-tree hint — readability over richness.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common: single figure, one idea (a frantic possessive hoarder).
-- **Prompt:** Squirrelkin beast-girl crouched protectively over a heap of acorns, russet gatherer's tunic covered in pouches, huge bushy tail curling up, cheek-pouches bulging, possessive suspicious glare, autumn-leaf litter background, warm afternoon light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Squirrelkin beast-girl crouched protectively over a heap of acorns, russet gatherer's tunic covered in pouches, huge bushy tail curling up, both cheeks puffed out round and full, possessive suspicious glare, autumn-leaf litter background, the top of her head and tufted ears well below the upper edge of the frame with generous open space above them, warm afternoon light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Boarkin Rioter — `bk-boarkin-rioter`
 - **Card facts:** {2}{R} · R · 3/2 · warcry · c · holo: none

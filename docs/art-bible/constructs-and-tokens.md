@@ -27,7 +27,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Background:** Two-value practice-yard wall, faint straw dust; readability over richness.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common — single figure, one idea (an unmovable wall).
-- **Prompt:** Armored woman built of roped straw and lacquered wood as a martial training dummy, braced in a square blocking guard, padded practice armor scarred with old cuts, dim dojo shed with flat window light and soft grey rim, stoic painted face — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Armored woman built of roped straw and lacquered wood as a martial training dummy, camera pulled back to a full-body view showing the whole roped-straw torso and wooden armature from head to base post, braced in a square blocking guard, padded practice armor scarred with old cuts, dim dojo shed with flat window light and soft grey rim, stoic painted face, the top of her head well below the upper edge of the frame with generous open space above it — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ---
 
@@ -44,7 +44,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Background:** Two-value packed-earth trench wall, a hint of rank-mate silhouettes fading off; clean.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common — single figure, one idea (the disciplined clay line-holder).
-- **Prompt:** Woman of kiln-fired terracotta in segmented clay lamellar armor, cracked earth-red pigment in the seams, holding a grounded short spear and round shield at attention, warm tomb-lantern light and cool grey rim, packed-earth trench wall behind — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Woman of kiln-fired terracotta in segmented clay lamellar armor, cracked earth-red pigment in the seams, holding a grounded short spear and round shield at attention, camera pulled back to show ordered ranks of identical terracotta soldier women arrayed in formation behind her receding into the tomb, warm tomb-lantern light and cool grey rim, packed-earth trench walls around the formation — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ---
 
@@ -78,7 +78,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Background:** One environmental element — a temple plaza far below her feet, hazed and small, selling her height.
 - **Holo interaction:** Sheen — a moving shine sweep glides across the bronze; keep the metal textured (fluting, verdigris, relief) so the sweep reads as burnished light, never a flat white blowout.
 - **Rarity ambition:** Uncommon — single figure plus one story beat: the colossus waking.
-- **Prompt:** Colossal bronze war-idol woman cast from melted weapons in fluted metal robes and a heavy diadem, verdigris in the recesses, one great fist beginning to rise, seen from a low angle over a tiny hazed temple plaza, warm gold key and cold sky rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Colossal bronze war-idol woman cast from melted weapons in fluted metal robes and a heavy diadem, verdigris in the recesses; extreme wide establishing shot from very far away, the ENTIRE colossal statue visible from crown to feet with nothing cropped, her whole full-length body occupying the middle of the frame, her feet planted on a hazed temple plaza at the bottom of the image with tiny distant worshippers for scale, one great fist beginning to rise, open sky above her crown; warm gold key and cold sky rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ---
 
