@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import { Services } from '../meta/services';
 import { animTimeScale } from '../platform/animPolicy';
 import { activeRenderScale } from '../platform/renderScale';
+import { theme } from './theme';
 
 /**
  * Per-scene backdrop layer (docs/scene-art.md §3 integration contract).
@@ -14,10 +15,10 @@ import { activeRenderScale } from '../platform/renderScale';
  * - If the manifest-loaded texture `scene-<key>` exists, it cover-fits the real
  *   PNG to the 1280×720 design resolution at (640,360) and draws the per-scene
  *   dim/tint rect over it (from the §3 table) so the existing UI keeps reading.
- * - If it does NOT exist (the reality today — no scene PNGs are generated yet),
- *   it invokes the scene's `fallback` — the scene's current procedural gradient
- *   — leaving today's look byte-identical. Zero 404s (only manifest-listed
- *   files are ever loaded; PreloadScene queues them).
+ * - If it does NOT exist, it invokes the scene's `fallback` — the scene's
+ *   procedural gradient. Zero 404s: only manifest-listed files are loaded by
+ *   PreloadScene. The fallback remains part of the runtime contract even
+ *   though all currently shipped scene assets exist.
  *
  * The returned objects are added to the scene's display list normally; because
  * scenes RESTART (DuelScene between gauntlet rungs) the caller must invoke this
@@ -25,9 +26,9 @@ import { activeRenderScale } from '../platform/renderScale';
  * backdrop leaks or stacks across restarts.
  */
 
-/** Design resolution — matches src/main.ts (Phaser.Scale.FIT, 1280×720). */
-const DESIGN_W = 1280;
-const DESIGN_H = 720;
+/** Design resolution — matches src/main.ts (Phaser.Scale.FIT). */
+const DESIGN_W = theme.design.width;
+const DESIGN_H = theme.design.height;
 
 /**
  * Texture key for a manifest scene key (docs/scene-art.md §"Files & manifest":

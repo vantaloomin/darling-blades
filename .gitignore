@@ -19,6 +19,10 @@ src/data/art-manifest.json
 # ── Derived half-res mobile art (rebuilt by `npm run gen-art-halfres`) ────
 public/assets/art/cards-half/
 
+# ── Local-only balance workbench (card reference + power analysis; never committed) ─
+balance/
+scripts/card-reference.ts
+
 # ── Logs ──────────────────────────────────────────────────────────────────
 .artcrop-staging/
 

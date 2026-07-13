@@ -203,15 +203,12 @@ and it looks cheap; over-deliver on a common and it stops reading at 119×86.
 
 Derived from `src/ui/fx/HoloEffects.ts` and `src/ui/fx/IridescencePostFX.ts`.
 Holo effects are applied **over the art**, so the illustration must be designed to
-receive them. Every mid/high-rarity card additionally gets a **solid metallic
-border ring** (a per-tier tint echoing the gem — the animated iridescent ring is
-reserved exclusively for the `rainbow` variant frame) and sparse star-glint
-particles (ADD blend, ~1 glint per 0.4 s) regardless of style — that part needs
-no art accommodation. (Note: on the mobile `lite` quality tier the shader-driven
-effects — sheen sweep, foil/radial iridescence, and the ring's shine sweep — are
-gated off by the quality-tier table in `src/ui/fx/FXSupport.ts`, while the solid
-ring tint, galaxy nebula tile, and sparkle glints remain; everything below
-describes full quality, whose behavior is unchanged.)
+receive them. Rarity is now carried by the set symbol's fill; it does **not** add
+an outer frame ring. The outer ring/wash is a separate per-copy `FrameStyle`
+cosmetic (`white | blue | red | gold | rainbow | black`), with the animated
+iridescent ring reserved for `rainbow`. Holo finishes may add their own glints
+and overlays. On the mobile `lite` quality tier, shader-driven effects are gated
+by `src/ui/fx/FXSupport.ts`; everything below describes full quality.
 
 - **none** — commons. No overlay. Paint for pure readability.
 - **sheen** — the uncommon default (and a valid explicit rare style): a moving

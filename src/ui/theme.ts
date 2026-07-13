@@ -29,16 +29,18 @@ export function colorInt(color: string): number {
   return Number.parseInt(color.slice(1), 16);
 }
 
+const graphics = {
+  panelFill: colorInt(colors.panelFill),
+  panelStroke: colorInt(colors.panelStroke),
+  dangerBg: colorInt(colors.dangerBg),
+  rowFill: colorInt(colors.rowFill),
+  rowFillActive: colorInt(colors.rowFillActive),
+  dim: colorInt(colors.dim),
+} as const;
+
 export const theme = {
   colors,
-  graphics: {
-    panelFill: 0x161226,
-    panelStroke: 0x4a3f6e,
-    dangerBg: 0x3a1f28,
-    rowFill: 0x211a34,
-    rowFillActive: 0x2c2344,
-    dim: 0x0a0812,
-  },
+  graphics,
   rarity: {
     c: '#9aa0ab',
     r: '#dfe6f2',
@@ -64,10 +66,29 @@ export const theme = {
     w600: '600',
     w700: '700',
   },
+  design: {
+    width: 1280,
+    height: 720,
+    centerX: 640,
+    centerY: 360,
+  },
   space: (units: number): number => units * 4,
+  control: {
+    heightSm: 30,
+    heightMd: 40,
+    minHitWidth: 90,
+    minHitHeight: 44,
+    borderWidth: 1,
+  },
   radius: {
     panel: 8,
     control: 6,
+  },
+  motion: {
+    fast: 100,
+    base: 180,
+    slow: 220,
+    easeOut: 'Cubic.easeOut',
   },
   alpha: {
     overlayDim: 0.92,
@@ -94,6 +115,7 @@ export const theme = {
     modal: 105,
     inspect: 110,
     results: 120,
+    popover: 95,
   },
 } as const;
 
