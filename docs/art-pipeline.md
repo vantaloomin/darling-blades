@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-11
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-13
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -204,7 +204,20 @@ ART_RECT band, with any figure secondary — and its negatives harden the NO-TEX
 rule specifically against stamped banner-text/seal-glyphs/nameplates (the
 banner, seal, and oath cards invite them). Output goes to the same
 `public/assets/art/cards/` at 640×800, so the manifest and resolver pick spell
-PNGs up automatically. Together with the land program this closed the base set:
+PNGs up automatically.
+
+**Entry-coverage traps (learned 2026-07-13):** shipped images can exist with
+NO prompt entry anywhere (cf-dawn-torc and cf-silver-thread were generated
+outside the doc-driven pipeline during the Celtic Fae expansion) — when adding
+a record after the fact, note that the roster contracts are rigid:
+`check-art-bible` enforces creatures-only faction files with exact
+count/order, and `gen-spell-art.ts` **hard-fails on any id outside its fixed
+52-id roster**. Worse, the drivers' entry parsers treat any top-level
+`- **Prompt:**` line as the current entry's prompt, so a casually appended
+block **silently overwrites the previous entry's prompt**. The safe pattern is
+the parser-proof addendum convention at the end of `docs/spell-art.md`
+("Celtic Fae non-creature addendum"): `####` headings + indented field
+bullets, invisible to the parsers, verified with `--dry-run` after editing. Together with the land program this closed the base set:
 **all 210 base-set cards** (147 creatures + 15 lands + 43 spells) got real
 illustrations, and the later Ragnarök run extended the same drivers over the
 expansion — so **every one of the 282 cards** now has real art; only
@@ -217,7 +230,15 @@ The base run paused twice on the same root
 cause: four concurrent lanes raced the CLI's OAuth token refresh at expiry
 and invalidated the credential. **Concurrency across a token refresh is a
 documented no-go** — after the user re-authenticated (`codex login`), the
-remaining 61 generated *serially* without further auth incident. QA record:
+remaining 61 generated *serially* without further auth incident.
+**2026-07-13 refinement:** parallel generation IS workable as
+**faction-disjoint agent lanes that are each strictly serial inside**, with
+every lane instructed to halt immediately on any auth error (never retry into
+a possibly-dead credential) and a warm token at launch — a 3-lane, ~60-image
+feedback-regen round completed with zero auth incidents. The expiry race
+remains real; the rails turn a credential kill into a clean pause instead of
+a corrupted batch. Lanes must also own disjoint art-bible docs, since re-roll
+prompt edits happen mid-run. QA record:
 **zero text incidents across all 152 images** (the no-text guard holds);
 gender drift held at roughly **1 in 22** (`gk-apollo` rendered male against
 its genderbent entry — regenerated with `--force --only`); commons tend to

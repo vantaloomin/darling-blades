@@ -117,10 +117,19 @@ these at AUTHORING time so future expansions don't need a correction pass:
 - **Props behave.** Weapon grips are anatomically correct; object orientation
   is stated when it matters ("blade edge toward the viewer", "book facing
   her"); weapon, mount, and figure never fuse.
-- **Species tells are deliberate.** Monster-girl markers (a nekomata's twin
-  tails, a holstaur's neck-bell, a selkie's pelt) are stated explicitly in
-  the prompt — never left for the model to guess — and their count/shape is
-  a QA check, not a surprise.
+- **Species tells are deliberate.** Monster-girl markers (a nekomata's tail,
+  a holstaur's neck-bell, a selkie's pelt) are stated explicitly in the
+  prompt — never left for the model to guess — and their count/shape is a QA
+  check, not a surprise. **Tails are the new hands**: one card failed QA two
+  different ways (tip count, then a side-attached root), so any tailed
+  character's QA zooms the tail base AND tip — the prompt states count, tip
+  shape, and attachment ("emerging from the base of her spine at the
+  tailbone, never from her hip, side, or waist").
+- **Wide compositions must out-shout the preamble.** The injected generation
+  preamble demands waist-up portrait framing by default; entries that need a
+  pulled-back or full-body composition (formations, giants, full creature
+  bodies) must say so with force — "extreme wide establishing shot, crown to
+  feet, nothing cropped" succeeded where a bare "zoomed out" was ignored.
 - **Bodies are designed, not defaulted.** Build, bust, height impression,
   age-read (adult always; juvenile CREATURES like pups must read visibly
   young), and skin tone are explicit per character. Body diversity is a
