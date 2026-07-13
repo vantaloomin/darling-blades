@@ -17,8 +17,10 @@ export class CardShowcaseScene extends Phaser.Scene {
   private pickIdx = 0;
   private frame: FrameStyle = 'white';
   private holo: HoloFinish = 'none';
+  private fullArt = false;
   private frameChips: ThemedButton[] = [];
   private holoChips: ThemedButton[] = [];
+  private fullArtChip!: ThemedButton;
   private cardLabel!: Phaser.GameObjects.Text;
   private readout!: Phaser.GameObjects.Text;
   constructor() {
@@ -31,6 +33,7 @@ export class CardShowcaseScene extends Phaser.Scene {
     this.holoChips = [];
     this.frame = 'white';
     this.holo = 'none';
+    this.fullArt = false;
     applyBackdrop(this, 'showcase', {
       dim: theme.graphics.dim,
       dimAlpha: 0.4,
@@ -83,9 +86,11 @@ export class CardShowcaseScene extends Phaser.Scene {
         color: theme.colors.heading,
       })
       .setOrigin(0.5);
+    // ▶ center 1160: its 90px hit floor ends at 1205, inside title-safe 1216
+    // (the old 1180 center leaked to 1225 — SC-01 audit finding).
     for (const [x, label, direction] of [
       [680, '◀', -1],
-      [1180, '▶', 1],
+      [1160, '▶', 1],
     ] as const)
       themedButton(this, x, cycY, label, {
         variant: 'ghost',
@@ -95,29 +100,39 @@ export class CardShowcaseScene extends Phaser.Scene {
           this.apply();
         },
       });
-    this.addRowLabel(640, 216, 'FRAME');
+    // Six 104px chips on a 112px pitch: edges 552..1216 — flush against the
+    // title-safe right edge with 8px inactive gaps (the old 640+i*118 layout
+    // ran the last chip to x=1282, off the canvas entirely — user report).
+    const CHIP_X0 = 604;
+    const CHIP_PITCH = 112;
+    this.addRowLabel(552, 216, 'FRAME');
     FRAMES.forEach((f, i) =>
       this.frameChips.push(
-        this.chip(640 + i * 118, 262, f.toUpperCase(), () => {
+        this.chip(CHIP_X0 + i * CHIP_PITCH, 262, f.toUpperCase(), () => {
           this.frame = f;
           this.apply();
         }),
       ),
     );
-    this.addRowLabel(640, 336, 'HOLO');
+    this.addRowLabel(552, 336, 'HOLO');
     HOLOS.forEach((h, i) =>
       this.holoChips.push(
-        this.chip(640 + i * 118, 382, h.toUpperCase(), () => {
+        this.chip(CHIP_X0 + i * CHIP_PITCH, 382, h.toUpperCase(), () => {
           this.holo = h;
           this.apply();
         }),
       ),
     );
+    this.addRowLabel(552, 456, 'RENDER');
+    this.fullArtChip = this.chip(CHIP_X0, 502, 'FULL ART', () => {
+      this.fullArt = !this.fullArt;
+      this.apply();
+    });
     backButton(this, () => this.scene.start('MainMenu'));
     this.apply();
   }
   private addRowLabel(x: number, y: number, text: string): void {
-    this.add.text(x - 58, y, text, {
+    this.add.text(x, y, text, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.caption}px`,
       fontStyle: theme.weight.w700,
@@ -130,14 +145,19 @@ export class CardShowcaseScene extends Phaser.Scene {
   private apply(): void {
     const card = this.picks[this.pickIdx];
     if (!card) return;
-    this.view.setCard(card, { fx: 'full', variant: { frame: this.frame, holo: this.holo } });
+    this.view.setCard(card, {
+      fx: 'full',
+      variant: { frame: this.frame, holo: this.holo },
+      fullArt: this.fullArt,
+    });
     this.cardLabel.setText(`${card.name} · ${TIER_LABEL[card.rarity]}`);
     this.readout.setText(
-      `${TIER_LABEL[card.rarity]} · ${this.frame.toUpperCase()} FRAME · ${this.holo.toUpperCase()}`,
+      `${TIER_LABEL[card.rarity]} · ${this.frame.toUpperCase()} FRAME · ${this.holo.toUpperCase()} · FULL ART ${this.fullArt ? 'ON' : 'OFF'}`,
     );
     const style = (chips: ThemedButton[], selected: number): void =>
       chips.forEach((chip, index) => chip.setVariant(index === selected ? 'primary' : 'ghost'));
     style(this.frameChips, FRAMES.indexOf(this.frame));
     style(this.holoChips, HOLOS.indexOf(this.holo));
+    this.fullArtChip.setVariant(this.fullArt ? 'primary' : 'ghost');
   }
 }

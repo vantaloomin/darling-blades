@@ -15,6 +15,9 @@ export const CARD_H = 420;
 
 // Art window in card-local (center-origin) coordinates.
 const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
+// Full-art window follows the baked frame face: the 18px (2x texture) inset
+// leaves the card's rounded metal border visible on every edge.
+const FULL_ART_RECT = { x: -141, y: -201, w: 282, h: 402 };
 const TEXT_LEFT = -126;
 const TEXT_WIDTH = 252;
 const BOTTOM_BADGE_Y = 182;
@@ -95,6 +98,9 @@ export class CardView extends Phaser.GameObjects.Container {
   private frameTint: Phaser.GameObjects.Image;
   private ring: Phaser.GameObjects.Image;
   private art: Phaser.GameObjects.Image;
+  private namePlate: Phaser.GameObjects.Rectangle;
+  private typePlate: Phaser.GameObjects.Rectangle;
+  private textPlate: Phaser.GameObjects.Rectangle;
   private nameText: Phaser.GameObjects.Text;
   private typeText: Phaser.GameObjects.Text;
   private rulesTextObj: Phaser.GameObjects.Text;
@@ -124,6 +130,18 @@ export class CardView extends Phaser.GameObjects.Container {
       .setVisible(false);
     this.art = scene.add.image(0, ART_RECT.y + ART_RECT.h / 2, '__WHITE');
     this.ring = scene.add.image(0, 0, 'frame-ring').setDisplaySize(CARD_W, CARD_H).setVisible(false);
+    this.namePlate = scene.add
+      .rectangle(0, -182, 268, 26, 0xf7f1dc, 0.84)
+      .setStrokeStyle(1.5, 0x6b5a3e, 0.55)
+      .setVisible(false);
+    this.typePlate = scene.add
+      .rectangle(0, 45, 268, 22, 0xf7f1dc, 0.84)
+      .setStrokeStyle(1.5, 0x6b5a3e, 0.55)
+      .setVisible(false);
+    this.textPlate = scene.add
+      .rectangle(0, 116, 268, 108, 0xf2ead2, 0.82)
+      .setStrokeStyle(1.5, 0x6b5a3e, 0.5)
+      .setVisible(false);
 
     this.nameText = scene.add
       .text(TEXT_LEFT, -182, '', {
@@ -200,6 +218,9 @@ export class CardView extends Phaser.GameObjects.Container {
       this.frame,
       this.frameTint,
       this.art,
+      this.namePlate,
+      this.typePlate,
+      this.textPlate,
       this.ring,
       this.nameText,
       this.typeText,
@@ -219,7 +240,7 @@ export class CardView extends Phaser.GameObjects.Container {
 
   setCard(
     card: CardDef | null,
-    opts: { fx?: CardFxLevel; variant?: CardVariant } = {},
+    opts: { fx?: CardFxLevel; variant?: CardVariant; fullArt?: boolean } = {},
   ): this {
     this.clearFx();
     this.card = card;
@@ -248,20 +269,32 @@ export class CardView extends Phaser.GameObjects.Container {
     if (!card) return this;
 
     const fx: CardFxLevel = opts.fx ?? 'static';
+    const fullArt = opts.fullArt === true;
+    const artRect = fullArt ? FULL_ART_RECT : ART_RECT;
 
     // Frame + art
     this.frame.setTexture(frameKeyFor(card.colors, card.types)).setDisplaySize(CARD_W, CARD_H);
     const artRef = Art.resolver!.getArt(card.id);
     if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
     else this.art.setTexture(artRef.textureKey);
-    // Cover the window: scale to fill, crop the vertical overflow (art sources
-    // are 4:5 — placeholders 320×400, real art 640×800; the math is ratio-based).
+    // Cover the selected window: the standard window crops vertically; full art
+    // uses the taller frame interior and therefore crops a centered horizontal
+    // band from the same 4:5 source. Explicitly reposition after setCrop — crop
+    // does not recenter an Image whose source crop is offset.
     const srcW = this.art.frame.width;
     const srcH = this.art.frame.height;
-    const scale = Math.max(ART_RECT.w / srcW, ART_RECT.h / srcH);
-    const cropH = ART_RECT.h / scale;
-    this.art.setCrop(0, (srcH - cropH) / 2, srcW, cropH);
-    this.art.setScale(scale);
+    const scale = Math.max(artRect.w / srcW, artRect.h / srcH);
+    const cropW = artRect.w / scale;
+    const cropH = artRect.h / scale;
+    const cropX = (srcW - cropW) / 2;
+    const cropY = (srcH - cropH) / 2;
+    this.art
+      .setCrop(cropX, cropY, cropW, cropH)
+      .setScale(scale)
+      .setPosition(
+        artRect.x + artRect.w / 2 + scale * (srcW / 2 - cropX - cropW / 2),
+        artRect.y + artRect.h / 2 + scale * (srcH / 2 - cropY - cropH / 2),
+      );
 
     // Texts. With the cost moved to the bottom-left, the name owns the FULL top
     // band — auto-fit to 244px (was 215, when it had to dodge the top-right
@@ -325,6 +358,11 @@ export class CardView extends Phaser.GameObjects.Container {
       const dividerY = flavorTop - AFTER_DIVIDER;
       this.flavorRule.setPosition(TEXT_LEFT, dividerY).setVisible(true);
       this.flavorTextObj.setPosition(TEXT_LEFT, flavorTop).setVisible(true);
+    }
+    if (fullArt) {
+      this.namePlate.setVisible(true);
+      this.typePlate.setVisible(true);
+      this.textPlate.setVisible(true);
     }
     if (abilityMana.length > 0) {
       // [T]: Add [G] — icon form of the old "Tap: add G." line, sized to sit
@@ -485,9 +523,35 @@ export class CardView extends Phaser.GameObjects.Container {
 
     // Holo — a finish is per-copy (variant Axis C): no variant, no holo.
     if (fx === 'full' && variant && variant.holo !== 'none') {
-      this.holo = applyHolo(this.scene, this, this.art, variant.holo, ART_RECT);
+      this.holo = applyHolo(this.scene, this, this.art, variant.holo, artRect);
     }
+    // Full art: the holo overlay covers the whole frame (not just the art
+    // window), and applyHolo appends its objects last — so re-raise every
+    // text plate, text, and badge above the finish. Text must stay legible
+    // over any holo (user spec 2026-07-13).
+    if (fullArt) this.raiseFullArtChrome();
     return this;
+  }
+
+  /** Bring the readable chrome above full-frame holo overlays, in draw order. */
+  private raiseFullArtChrome(): void {
+    const chrome: Phaser.GameObjects.GameObject[] = [
+      this.namePlate,
+      this.typePlate,
+      this.textPlate,
+      this.nameText,
+      this.typeText,
+      this.rulesTextObj,
+      this.flavorRule,
+      this.flavorTextObj,
+      this.costPlate,
+      ...this.pips,
+      this.ptPlate,
+      this.ptText,
+      this.gem,
+      this.crown,
+    ];
+    for (const obj of chrome) this.bringToTop(obj);
   }
 
   /**
@@ -598,6 +662,9 @@ export class CardView extends Phaser.GameObjects.Container {
     this.ring.resetPostPipeline();
     this.ring.clearTint();
     this.frameTint.setVisible(false).clearTint();
+    this.namePlate.setVisible(false);
+    this.typePlate.setVisible(false);
+    this.textPlate.setVisible(false);
     this.flavorTextObj.setScale(1).setVisible(false);
     this.flavorRule.setVisible(false);
     for (const p of this.pips) p.destroy();
