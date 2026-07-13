@@ -190,6 +190,38 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   return lines.join('\n');
 }
 
+export interface GlossaryEntry {
+  name: string;
+  reminder: string;
+}
+
+/**
+ * Every keyword and named mechanic a card's face references: its own keyword
+ * line, keywords granted/named inside its rules text, and the Sever/Foresee
+ * mechanics. Derived from the generated rulesText so any op that prints a
+ * term automatically surfaces its definition (the inspect Keyword Guide was
+ * missing mechanics — e.g. Morrigan showed Skyborne but not Foresee/Sever).
+ */
+export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
+  const entries: GlossaryEntry[] = [];
+  const seen = new Set<string>();
+  const push = (name: string, reminder: string): void => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    entries.push({ name, reminder });
+  };
+  for (const k of d.keywords ?? []) push(KEYWORD_NAMES[k], KEYWORD_REMINDER[k]);
+  const text = rulesText(d).toLowerCase();
+  for (const k of Object.keys(KEYWORD_NAMES) as Keyword[]) {
+    if (new RegExp(`\\b${KEYWORD_NAMES[k].toLowerCase()}\\b`).test(text)) {
+      push(KEYWORD_NAMES[k], KEYWORD_REMINDER[k]);
+    }
+  }
+  if (/\bforesee\b/.test(text)) push('Foresee', MECHANIC_DEFINITIONS.foresee);
+  if (/\bsever(s|ed)?\b/.test(text)) push('Sever', MECHANIC_DEFINITIONS.sever);
+  return entries;
+}
+
 export function typeLine(d: CardDef): string {
   const supers = (d.supertypes ?? [])
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))

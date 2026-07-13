@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import type { CardDef, Keyword } from '../engine/types';
-import { KEYWORD_NAMES, KEYWORD_REMINDER } from './rulesText';
+import type { CardDef } from '../engine/types';
+import { cardGlossaryEntries } from './rulesText';
 import { theme } from './theme';
 
 interface KeywordGlossaryOpts {
@@ -17,14 +17,16 @@ export function addKeywordGlossaryPanel(
   card: CardDef,
   opts: KeywordGlossaryOpts,
 ): void {
-  const keywords = [...new Set(card.keywords ?? [])] as Keyword[];
-  if (keywords.length === 0) return;
+  // Keywords AND named mechanics (Foresee/Sever) the card's text references —
+  // the old card.keywords-only read hid mechanics (e.g. Morrigan's Foresee).
+  const entries = cardGlossaryEntries(card);
+  if (entries.length === 0) return;
 
   const compact = opts.width < 220;
   const pad = compact ? 10 : 14;
   const rowH = compact ? 86 : 68;
   const titleH = 36;
-  const height = titleH + keywords.length * rowH + pad;
+  const height = titleH + entries.length * rowH + pad;
 
   parent.add(
     scene.add
@@ -42,11 +44,11 @@ export function addKeywordGlossaryPanel(
       .setOrigin(0, 0.5),
   );
 
-  keywords.forEach((keyword, i) => {
+  entries.forEach((entry, i) => {
     const rowY = opts.y + titleH + i * rowH;
     parent.add(
       scene.add
-        .text(opts.x + pad, rowY + 10, KEYWORD_NAMES[keyword], {
+        .text(opts.x + pad, rowY + 10, entry.name, {
           fontFamily: theme.fonts.ui,
           fontSize: compact ? '12px' : '13px',
           fontStyle: theme.weight.w700,
@@ -56,7 +58,7 @@ export function addKeywordGlossaryPanel(
     );
     parent.add(
       scene.add
-        .text(opts.x + pad, rowY + 30, KEYWORD_REMINDER[keyword], {
+        .text(opts.x + pad, rowY + 30, entry.reminder, {
           fontFamily: theme.fonts.ui,
           fontSize: compact ? '11px' : '12px',
           color: theme.colors.body,
