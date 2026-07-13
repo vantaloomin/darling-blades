@@ -130,17 +130,19 @@ export class CardView extends Phaser.GameObjects.Container {
       .setVisible(false);
     this.art = scene.add.image(0, ART_RECT.y + ART_RECT.h / 2, '__WHITE');
     this.ring = scene.add.image(0, 0, 'frame-ring').setDisplaySize(CARD_W, CARD_H).setVisible(false);
+    // Plate alphas are the WCAG floor-holding values — see the full-art fade
+    // note in setCard before lowering them further.
     this.namePlate = scene.add
-      .rectangle(0, -182, 268, 26, 0xf7f1dc, 0.84)
-      .setStrokeStyle(1.5, 0x6b5a3e, 0.55)
+      .rectangle(0, -182, 268, 26, 0xf7f1dc, 0.7)
+      .setStrokeStyle(1.5, 0x6b5a3e, 0.4)
       .setVisible(false);
     this.typePlate = scene.add
-      .rectangle(0, 45, 268, 22, 0xf7f1dc, 0.84)
-      .setStrokeStyle(1.5, 0x6b5a3e, 0.55)
+      .rectangle(0, 45, 268, 22, 0xf7f1dc, 0.7)
+      .setStrokeStyle(1.5, 0x6b5a3e, 0.4)
       .setVisible(false);
     this.textPlate = scene.add
-      .rectangle(0, 116, 268, 108, 0xf2ead2, 0.82)
-      .setStrokeStyle(1.5, 0x6b5a3e, 0.5)
+      .rectangle(0, 116, 268, 108, 0xf2ead2, 0.68)
+      .setStrokeStyle(1.5, 0x6b5a3e, 0.38)
       .setVisible(false);
 
     this.nameText = scene.add
@@ -335,7 +337,9 @@ export class CardView extends Phaser.GameObjects.Container {
     const BOX_H = BOX_BOTTOM - textTop - MANA_LINE_H;
     const DIVIDER_GAP = 8; // space between rules block and the hairline
     const AFTER_DIVIDER = 6; // hairline to flavor text
-    const hasFlavor = !!card.flavor;
+    // Full art drops the lore line entirely (user spec 2026-07-13) — the
+    // rules field stays operational-only and the art owns the mood.
+    const hasFlavor = !!card.flavor && !fullArt;
 
     // Measure the flavor block first (height is needed to size the rules box).
     // Windows font-fallback trap: measure height only AFTER setText.
@@ -359,6 +363,16 @@ export class CardView extends Phaser.GameObjects.Container {
       this.flavorRule.setPosition(TEXT_LEFT, dividerY).setVisible(true);
       this.flavorTextObj.setPosition(TEXT_LEFT, flavorTop).setVisible(true);
     }
+    // Full-art fade: plates and text drop opacity but hold WCAG AA. Worst
+    // case is pure-black art behind the plate: effective background
+    // luminance = plateAlpha × plateLum (≈0.83), effective text luminance =
+    // textAlpha × textLum + (1−textAlpha) × bgLum; at plate 0.68 / text 0.90
+    // the near-black ink keeps ≥4.7:1 against any art, above the 4.5:1
+    // normal-text floor (light art only raises it).
+    const textAlpha = fullArt ? 0.9 : 1;
+    this.nameText.setAlpha(textAlpha);
+    this.typeText.setAlpha(textAlpha);
+    this.rulesTextObj.setAlpha(textAlpha);
     if (fullArt) {
       this.namePlate.setVisible(true);
       this.typePlate.setVisible(true);
