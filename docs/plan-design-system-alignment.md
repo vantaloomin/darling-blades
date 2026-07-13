@@ -322,6 +322,10 @@ Limited sub-scenes where they own persistent navigation.
 - Back target fully inside safe bounds.
 - Gold, title, and navigation visual/hit rectangles fully contained by the
   safe frame; a baseline or center coordinate alone is not sufficient.
+- **Currency placement decision (user, 2026-07-12):** the gold badge shows
+  ONLY on the main menu and the Shop. All other scenes omit it (removed
+  2026-07-12); Wave 2 lanes must not re-add per-scene currency, and actions
+  that pay out gold name the amount on their own control instead.
 - Bottom control centers at or above y=662 for 44px targets.
 - CardShowcase right cycle target inside x<=1216.
 - Pack inspect modal and Deck picker modal contained in safe bounds.

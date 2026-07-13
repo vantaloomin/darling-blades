@@ -7,7 +7,7 @@ import type { AnimationLevel } from '../platform/animPolicy';
 import type { RenderScaleSetting } from '../platform/renderScale';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
-import { backButton, goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL, checkForUpdate } from '../version';
 
 const SEGMENTS = 10;
@@ -80,7 +80,6 @@ export class SettingsScene extends Phaser.Scene {
         color: theme.colors.heading,
       })
       .setOrigin(0.5);
-    goldBadge(this, 1250, 30, { getValue: () => Services.save.data.gold });
     backButton(this, () => this.scene.start('MainMenu'));
 
     panel(this, 70, 124, 540, 420);
