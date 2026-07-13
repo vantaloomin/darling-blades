@@ -172,6 +172,197 @@ export function themedButton(
   };
 }
 
+export interface RoundedTriggerOptions {
+  variant?: Extract<ButtonVariant, 'emphasis' | 'ghost'>;
+  size?: ButtonSize;
+  minWidth?: number;
+  padding?: number;
+  selected?: boolean;
+  enabled?: boolean;
+  onTap?: (pointer: Phaser.Input.Pointer) => void;
+  focus?: FocusMetadata;
+}
+
+export interface RoundedTrigger {
+  container: Phaser.GameObjects.Container;
+  background: Phaser.GameObjects.Graphics;
+  label: Phaser.GameObjects.Text;
+  /** The only interactive object; the containing chrome stays unscaled. */
+  inputZone: Phaser.GameObjects.Zone;
+  /** Inert metadata for the future shared focus manager. */
+  focus?: FocusMetadata;
+  getMeasuredBounds(): ThemedButtonMeasurement;
+  getMeasuredSize(): {
+    visual: { width: number; height: number };
+    hit: { width: number; height: number };
+  };
+  setLabel(label: string): void;
+  setVariant(variant: Extract<ButtonVariant, 'emphasis' | 'ghost'>): void;
+  setSelected(selected: boolean): void;
+  setEnabled(enabled: boolean): void;
+}
+
+/**
+ * Rounded select/toggle chrome with a stable visual box and an unscaled Zone
+ * input. The x/y API is top-left for compatibility with the older flat Text
+ * controls; the internal container remains centered like themedButton.
+ */
+export function roundedTrigger(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  initialLabel: string,
+  opts: RoundedTriggerOptions = {},
+): RoundedTrigger {
+  let variant = opts.variant ?? 'ghost';
+  const size = opts.size ?? 'md';
+  let selected = opts.selected ?? false;
+  let enabled = opts.enabled ?? true;
+  let hovered = false;
+  let pressed = false;
+  let style = BUTTON_STYLE[variant];
+  const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
+  const fontSize = size === 'sm' ? theme.type.caption : theme.type.label;
+  const container = scene.add.container(0, 0);
+  const background = scene.add.graphics();
+  const label = scene.add
+    .text(0, 0, initialLabel, {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${fontSize}px`,
+      fontStyle: theme.weight.w600,
+      color: style.fg,
+    })
+    .setOrigin(0.5);
+  const inputZone = scene.add.zone(0, 0, 1, height).setInteractive({ useHandCursor: true });
+  container.add([background, label, inputZone]);
+
+  let measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
+  const activeStyle = (): { bg: string; fg: string; stroke: string; hoverStroke: string } =>
+    selected && variant === 'ghost' ? BUTTON_STYLE.emphasis : style;
+  const place = (): void => {
+    container.setPosition(x + measurement.visual.width / 2, y);
+  };
+  const redraw = (): void => {
+    measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
+    const stateStyle = activeStyle();
+    background.clear();
+    background.fillStyle(colorInt(stateStyle.bg), 1);
+    background.fillRoundedRect(
+      measurement.visual.x,
+      measurement.visual.y,
+      measurement.visual.width,
+      measurement.visual.height,
+      theme.radius.control,
+    );
+    background.lineStyle(
+      theme.control.borderWidth,
+      colorInt(hovered || pressed ? stateStyle.hoverStroke : stateStyle.stroke),
+      hovered || pressed ? 1 : theme.alpha.chrome,
+    );
+    background.strokeRoundedRect(
+      measurement.visual.x,
+      measurement.visual.y,
+      measurement.visual.width,
+      measurement.visual.height,
+      theme.radius.control,
+    );
+    label.setColor(stateStyle.fg);
+    inputZone.setSize(measurement.width, measurement.height);
+    // The Zone is the input surface. Re-apply after every label update so its
+    // minimum touch target remains explicit even when Phaser refreshes size.
+    inflateHitArea(inputZone, measurement.hitWidth, measurement.hitHeight);
+    place();
+  };
+  const setEnabled = (next: boolean): void => {
+    enabled = next;
+    if (!enabled) {
+      hovered = false;
+      pressed = false;
+    }
+    container.setAlpha(enabled ? 1 : theme.alpha.subtle);
+    if (enabled) inputZone.setInteractive({ useHandCursor: true });
+    else inputZone.disableInteractive();
+    redraw();
+  };
+  const setLabel = (next: string): void => {
+    label.setText(next);
+    redraw();
+  };
+  const setVariant = (next: Extract<ButtonVariant, 'emphasis' | 'ghost'>): void => {
+    variant = next;
+    style = BUTTON_STYLE[next];
+    redraw();
+  };
+  const setSelected = (next: boolean): void => {
+    selected = next;
+    redraw();
+  };
+
+  bindTapButton(scene, inputZone, (pointer) => {
+    if (enabled) opts.onTap?.(pointer);
+  });
+  inputZone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
+    if (!pointer.wasTouch && enabled) {
+      hovered = true;
+      redraw();
+    }
+  });
+  inputZone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    if (pointer.wasTouch && enabled) {
+      pressed = true;
+      redraw();
+    }
+  });
+  inputZone.on('pointerup', () => {
+    if (pressed) {
+      pressed = false;
+      redraw();
+    }
+  });
+  inputZone.on('pointerout', () => {
+    hovered = false;
+    pressed = false;
+    redraw();
+  });
+  redraw();
+  setEnabled(enabled);
+
+  // Existing scene consumers use Dropdown.button.setDepth(). Forward that
+  // call to the visual container while retaining the Zone as the guard target.
+  const zoneSetDepth = inputZone.setDepth.bind(inputZone);
+  inputZone.setDepth = (depth: number): Phaser.GameObjects.Zone => {
+    container.setDepth(depth);
+    zoneSetDepth(depth);
+    return inputZone;
+  };
+
+  const getMeasuredBounds = (): ThemedButtonMeasurement => ({
+    ...measurement,
+    visual: { ...measurement.visual },
+    hit: { ...measurement.hit },
+  });
+  const getMeasuredSize = (): {
+    visual: { width: number; height: number };
+    hit: { width: number; height: number };
+  } => ({
+    visual: { width: measurement.visual.width, height: measurement.visual.height },
+    hit: { width: measurement.hit.width, height: measurement.hit.height },
+  });
+  return {
+    container,
+    background,
+    label,
+    inputZone,
+    focus: opts.focus,
+    getMeasuredBounds,
+    getMeasuredSize,
+    setLabel,
+    setVariant,
+    setSelected,
+    setEnabled,
+  };
+}
+
 export interface PanelOptions {
   alpha?: number;
   strokeAlpha?: number;

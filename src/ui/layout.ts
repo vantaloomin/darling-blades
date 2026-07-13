@@ -80,6 +80,42 @@ export const COMPACT_TOUCH_GAP_RANGE = {
   max: 16,
 } as const;
 
+/**
+ * Shared select geometry. The row track is deliberately wider than its hit
+ * rect so adjacent options retain measurable inactive space for touch and
+ * controller use.
+ */
+export const DROPDOWN_GEOMETRY = {
+  rowHitHeight: Math.max(theme.control.minHitHeight, 44),
+  rowPitch: Math.max(52, Math.max(theme.control.minHitHeight, 44) + GAP_FLOORS.ordinary),
+  panelPadding: theme.space(2),
+  triggerGap: theme.space(1),
+  clampMargin: 0,
+} as const;
+
+export type DropdownOpenDirection = 'down' | 'up';
+
+export interface DropdownPopoverOptions {
+  panelWidth: number;
+  rowHitHeight?: number;
+  rowPitch?: number;
+  panelPadding?: number;
+  triggerGap?: number;
+  clampMargin?: number;
+  safeFrame?: RectEdges;
+}
+
+export interface DropdownPopoverLayout {
+  panel: Rect;
+  rows: Rect[];
+  direction: DropdownOpenDirection;
+  rowHitHeight: number;
+  rowPitch: number;
+  rowGap: number;
+  panelPadding: number;
+  clampMargin: number;
+}
+
 export const TITLE_SAFE_EDGES: RectEdges = {
   left: theme.design.titleSafe.left,
   right: theme.design.titleSafe.right,
@@ -94,6 +130,66 @@ export function rectFromEdges(edges: RectEdges): Rect {
     y: edges.top,
     width: edges.right - edges.left,
     height: edges.bottom - edges.top,
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+/**
+ * Place a dropdown panel from the trigger's world-space hit bounds. Horizontal
+ * placement is clamped to the title-safe frame. A down-opening panel wins when
+ * it fits exactly; otherwise the panel flips upward and is vertically clamped
+ * to the same frame.
+ */
+export function dropdownPopoverLayout(
+  triggerBounds: Rect,
+  optionCount: number,
+  opts: DropdownPopoverOptions,
+): DropdownPopoverLayout {
+  const safe = opts.safeFrame ?? TITLE_SAFE_EDGES;
+  const rowHitHeight = Math.max(theme.control.minHitHeight, 44, opts.rowHitHeight ?? DROPDOWN_GEOMETRY.rowHitHeight);
+  const rowPitch = Math.max(rowHitHeight + GAP_FLOORS.ordinary, opts.rowPitch ?? DROPDOWN_GEOMETRY.rowPitch);
+  const rowGap = rowPitch - rowHitHeight;
+  const panelPadding = Math.max(0, opts.panelPadding ?? DROPDOWN_GEOMETRY.panelPadding);
+  const triggerGap = Math.max(0, opts.triggerGap ?? DROPDOWN_GEOMETRY.triggerGap);
+  const clampMargin = Math.max(0, opts.clampMargin ?? DROPDOWN_GEOMETRY.clampMargin);
+  const count = Math.max(0, Math.floor(optionCount));
+  const maxWidth = Math.max(0, safe.right - safe.left - clampMargin * 2);
+  const panelWidth = Math.min(Math.max(0, opts.panelWidth), maxWidth);
+  const panelHeight = panelPadding * 2 + count * rowPitch;
+  const minX = safe.left + clampMargin;
+  const maxX = safe.right - clampMargin - panelWidth;
+  const panelX = clamp(triggerBounds.x, minX, maxX);
+
+  const downY = triggerBounds.y + triggerBounds.height + triggerGap;
+  const opensDown = downY + panelHeight <= safe.bottom - clampMargin;
+  const direction: DropdownOpenDirection = opensDown ? 'down' : 'up';
+  const requestedY = opensDown
+    ? downY
+    : triggerBounds.y - triggerGap - panelHeight;
+  const minY = safe.top + clampMargin;
+  const maxY = safe.bottom - clampMargin - panelHeight;
+  const panelY = clamp(requestedY, minY, maxY);
+  const panel = { x: panelX, y: panelY, width: panelWidth, height: panelHeight };
+  const rowWidth = Math.max(0, panelWidth - panelPadding * 2);
+  const rows = Array.from({ length: count }, (_, index) => ({
+    x: panelX + panelPadding,
+    y: panelY + panelPadding + index * rowPitch + (rowPitch - rowHitHeight) / 2,
+    width: rowWidth,
+    height: rowHitHeight,
+  }));
+
+  return {
+    panel,
+    rows,
+    direction,
+    rowHitHeight,
+    rowPitch,
+    rowGap,
+    panelPadding,
+    clampMargin,
   };
 }
 
