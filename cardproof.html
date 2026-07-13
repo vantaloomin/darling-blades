@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#100d18" />
+    <title>Darling Blades · Card Proof Sheet</title>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">Developer-only visual QA</p>
+          <h1>Card Proof Sheet</h1>
+          <p class="subtitle">
+            Every face is rendered by the production <code>CardView</code> pipeline.
+            This page never reads the game save.
+          </p>
+        </div>
+        <p class="warning">Non-production · built separately from <code>dist/</code></p>
+      </header>
+
+      <section class="controls" aria-label="Card proof-sheet controls">
+        <div class="control-row filter-row">
+          <label>Set<select id="filter-set">
+            <option value="all">All sets</option>
+            <option value="base">Base</option>
+            <option value="ragnarok">Ragnarök</option>
+            <option value="celtic-fae">Celtic Fae</option>
+          </select></label>
+          <label>Color<select id="filter-color">
+            <option value="all">All colors</option>
+            <option value="W">White</option>
+            <option value="U">Blue</option>
+            <option value="B">Black</option>
+            <option value="R">Red</option>
+            <option value="G">Green</option>
+          </select></label>
+          <label>Rarity<select id="filter-rarity">
+            <option value="all">All rarities</option>
+            <option value="c">C</option>
+            <option value="r">R</option>
+            <option value="sr">SR</option>
+            <option value="ssr">SSR</option>
+            <option value="ur">UR</option>
+          </select></label>
+          <label>Card type<select id="filter-type">
+            <option value="all">All types</option>
+            <option value="creature">Creature</option>
+            <option value="charm">Charm</option>
+            <option value="ritual">Ritual</option>
+            <option value="enchantment">Enchantment</option>
+            <option value="artifact">Artifact</option>
+            <option value="land">Land</option>
+          </select></label>
+          <label class="search-field">Text search<input id="filter-search" type="search" placeholder="Name, subtype, keyword…" /></label>
+          <label>Sort<select id="filter-sort">
+            <option value="rarity">Rarity</option>
+            <option value="mana">Mana</option>
+            <option value="name">Name</option>
+          </select></label>
+        </div>
+
+        <div class="control-row display-row">
+          <label>Frame<select id="frame-select">
+            <option value="default">Default</option>
+            <option value="white">White</option>
+            <option value="blue">Blue</option>
+            <option value="red">Red</option>
+            <option value="gold">Gold</option>
+            <option value="rainbow">Rainbow</option>
+            <option value="black">Black</option>
+          </select></label>
+          <label>Finish<select id="holo-select">
+            <option value="default">Default</option>
+            <option value="none">None</option>
+            <option value="shiny">Shiny</option>
+            <option value="rainbow">Rainbow</option>
+            <option value="pearlescent">Pearlescent</option>
+            <option value="fractal">Fractal</option>
+            <option value="void">Void</option>
+          </select></label>
+          <label>Card size<select id="scale-select">
+            <option value="0.48">Compact</option>
+            <option value="0.56" selected>Standard</option>
+            <option value="0.66">Large</option>
+          </select></label>
+          <label class="checkbox-label"><input id="include-tokens" type="checkbox" /> Include tokens and basic lands</label>
+        </div>
+
+        <div class="pager-row">
+          <p id="match-count" class="match-count" aria-live="polite">Loading card catalog…</p>
+          <div class="pager-controls">
+            <button id="first-page" type="button" title="First page">«</button>
+            <button id="previous-page" type="button" title="Previous page">‹</button>
+            <span id="page-label">Page —</span>
+            <button id="next-page" type="button" title="Next page">›</button>
+            <button id="last-page" type="button" title="Last page">»</button>
+          </div>
+        </div>
+      </section>
+
+      <main id="canvas-shell" aria-label="Rendered card proof sheet">
+        <p class="loading-note">Loading manifest art and baking the card frame library…</p>
+      </main>
+    </div>
+    <script type="module" src="/src/dev/cardproof/main.ts"></script>
+  </body>
+</html>

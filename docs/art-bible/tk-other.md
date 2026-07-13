@@ -146,7 +146,7 @@ kings, because for one violent season each of them held the world by the throat.
 - **Background:** One story element — her home ground at night, tribal fires and jungle silhouette, a target beyond the frame.
 - **Holo interaction:** Sheen — the Shine pass glides across the bronze scales, embroidery, and airborne blade; keep those metallic and silk surfaces toned so the sweep reads as firelit gleam, not glare.
 - **Rarity ambition:** Uncommon — single figure plus the night-fires home-ground beat.
-- **Prompt:** Genderbent Zhurong, fire-god descendant in crimson-and-bronze scaled Nanman war-dress with flame-embroidered sash and ember-streaked wild hair, cocked arm loosing a flying javelin, exhilarated bared-teeth grin, jungle-night home ground with tribal fires, hot firelight key from below with cool night rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Genderbent Zhurong, fire-god descendant in crimson-and-bronze scaled Nanman war-dress with flame-embroidered sash and ember-streaked wild hair, throwing arm drawn back in a clean overhand javelin throw, one hand gripping the single javelin shaft firmly and naturally with all five fingers wrapped correctly around it, spearhead angled up and forward, exhilarated bared-teeth grin, jungle-night home ground with tribal fires, hot firelight key from below with cool night rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zuo Ci, Mist-Walking Sage — `tk-other-zuoci`
 - **Card facts:** {2}{U} · U · 2/3 · untouchable · r · holo: auto:sheen

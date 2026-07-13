@@ -17,6 +17,20 @@ registry. Sessions on this repo follow that loop.
 section — the docs are the spec. Locked design decisions (documented in the
 session memory and docs) are never relitigated.
 
+## Requests are intent, not spec
+
+The user's requests describe what they're reaching for, not a complete or
+infallible spec (their words, 2026-07-13: "I am human and fallible — don't
+take my requests as 100% complete as written"). On every request: infer the
+adjacent changes it implies, and say so — fold the cheap, reversible ones in
+directly (naming them in the delivery), and put the expensive or
+taste-sensitive ones to the user as short suggest-or-confirm items rather
+than deciding silently or ignoring them. If a request contains a gap or
+contradicts something established, surface that instead of executing it
+faithfully. During iterative visual work especially, treat each delivery as
+a checkpoint: end with the inferred next steps, so "almost there" always
+arrives with a concrete proposal for what "there" looks like.
+
 ## Git & deploys
 
 Public repo (`vantaloomin/darling-blades`); **`main` auto-deploys** to GitHub

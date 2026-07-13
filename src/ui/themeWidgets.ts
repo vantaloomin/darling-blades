@@ -1,16 +1,35 @@
 import Phaser from 'phaser';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { colorInt, theme } from './theme';
+import {
+  anchoredControlBounds,
+  measureThemedButton,
+  modalShellLayout,
+  sceneHeaderFooterLayout,
+  type ControlSize,
+  type FocusMetadata,
+  type HeaderFooterLayout,
+  type ModalShellLayout,
+  type Rect,
+  type ThemedButtonMeasurement,
+} from './layout';
+import {
+  OverlayCoordinator,
+  type OverlayLease,
+  type OverlayRegistration,
+} from './OverlayCoordinator';
 
-type ButtonVariant = 'primary' | 'emphasis' | 'ghost' | 'danger';
-type ButtonSize = 'md' | 'sm';
+export type ButtonVariant = 'primary' | 'emphasis' | 'ghost' | 'danger';
+export type ButtonSize = ControlSize;
 
 export interface ThemedButtonOptions {
   variant?: ButtonVariant;
   size?: ButtonSize;
   minWidth?: number;
+  padding?: number;
   onTap?: (pointer: Phaser.Input.Pointer) => void;
   enabled?: boolean;
+  focus?: FocusMetadata;
 }
 
 export interface ThemedButton {
@@ -18,6 +37,13 @@ export interface ThemedButton {
   background: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
   inputZone: Phaser.GameObjects.Zone;
+  /** Inert metadata for the future shared focus manager. */
+  focus?: FocusMetadata;
+  getMeasuredBounds(): ThemedButtonMeasurement;
+  getMeasuredSize(): {
+    visual: { width: number; height: number };
+    hit: { width: number; height: number };
+  };
   setLabel(label: string): void;
   setVariant(variant: ButtonVariant): void;
   setEnabled(enabled: boolean): void;
@@ -42,7 +68,6 @@ export function themedButton(
   const size = opts.size ?? 'md';
   let style = BUTTON_STYLE[variant];
   const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
-  const padding = size === 'sm' ? theme.space(2) : theme.space(3);
   const fontSize = size === 'sm' ? theme.type.caption : theme.type.label;
   const container = scene.add.container(x, y);
   const background = scene.add.graphics();
@@ -59,24 +84,37 @@ export function themedButton(
 
   let enabled = opts.enabled ?? true;
   let hovered = false;
+  let measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
   const redraw = (): void => {
-    const width = Math.max(opts.minWidth ?? 0, Math.ceil(label.width + padding * 2));
+    measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
     background.clear();
     background.fillStyle(colorInt(style.bg), 1);
-    background.fillRoundedRect(-width / 2, -height / 2, width, height, theme.radius.control);
+    background.fillRoundedRect(
+      measurement.visual.x,
+      measurement.visual.y,
+      measurement.visual.width,
+      measurement.visual.height,
+      theme.radius.control,
+    );
     background.lineStyle(
       theme.control.borderWidth,
       colorInt(hovered ? style.hoverStroke : style.stroke),
       hovered ? 1 : theme.alpha.chrome,
     );
-    background.strokeRoundedRect(-width / 2, -height / 2, width, height, theme.radius.control);
-    inputZone.setSize(width, height);
+    background.strokeRoundedRect(
+      measurement.visual.x,
+      measurement.visual.y,
+      measurement.visual.width,
+      measurement.visual.height,
+      theme.radius.control,
+    );
+    inputZone.setSize(measurement.width, measurement.height);
     // The Zone is the input surface. Re-apply after every label update so a
     // Phaser size/input refresh cannot regress the minimum touch target.
     inflateHitArea(
       inputZone,
-      Math.max(theme.control.minHitWidth, width),
-      Math.max(theme.control.minHitHeight, height),
+      measurement.hitWidth,
+      measurement.hitHeight,
     );
   };
   const setEnabled = (next: boolean): void => {
@@ -113,7 +151,221 @@ export function themedButton(
   redraw();
   setEnabled(enabled);
 
-  return { container, background, label, inputZone, setLabel, setVariant, setEnabled };
+  const getMeasuredBounds = (): ThemedButtonMeasurement => ({
+    ...measurement,
+    visual: { ...measurement.visual },
+    hit: { ...measurement.hit },
+  });
+  const getMeasuredSize = (): {
+    visual: { width: number; height: number };
+    hit: { width: number; height: number };
+  } => ({
+    visual: { width: measurement.visual.width, height: measurement.visual.height },
+    hit: { width: measurement.hit.width, height: measurement.hit.height },
+  });
+  return {
+    container,
+    background,
+    label,
+    inputZone,
+    focus: opts.focus,
+    getMeasuredBounds,
+    getMeasuredSize,
+    setLabel,
+    setVariant,
+    setEnabled,
+  };
+}
+
+export interface RoundedTriggerOptions {
+  variant?: Extract<ButtonVariant, 'emphasis' | 'ghost'>;
+  size?: ButtonSize;
+  minWidth?: number;
+  padding?: number;
+  selected?: boolean;
+  enabled?: boolean;
+  onTap?: (pointer: Phaser.Input.Pointer) => void;
+  focus?: FocusMetadata;
+}
+
+export interface RoundedTrigger {
+  container: Phaser.GameObjects.Container;
+  background: Phaser.GameObjects.Graphics;
+  label: Phaser.GameObjects.Text;
+  /** The only interactive object; the containing chrome stays unscaled. */
+  inputZone: Phaser.GameObjects.Zone;
+  /** Inert metadata for the future shared focus manager. */
+  focus?: FocusMetadata;
+  getMeasuredBounds(): ThemedButtonMeasurement;
+  getMeasuredSize(): {
+    visual: { width: number; height: number };
+    hit: { width: number; height: number };
+  };
+  setLabel(label: string): void;
+  setVariant(variant: Extract<ButtonVariant, 'emphasis' | 'ghost'>): void;
+  setSelected(selected: boolean): void;
+  setEnabled(enabled: boolean): void;
+}
+
+/**
+ * Rounded select/toggle chrome with a stable visual box and an unscaled Zone
+ * input. The x/y API is top-left for compatibility with the older flat Text
+ * controls; the internal container remains centered like themedButton.
+ */
+export function roundedTrigger(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  initialLabel: string,
+  opts: RoundedTriggerOptions = {},
+): RoundedTrigger {
+  let variant = opts.variant ?? 'ghost';
+  const size = opts.size ?? 'md';
+  let selected = opts.selected ?? false;
+  let enabled = opts.enabled ?? true;
+  let hovered = false;
+  let pressed = false;
+  let style = BUTTON_STYLE[variant];
+  const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
+  const fontSize = size === 'sm' ? theme.type.caption : theme.type.label;
+  const container = scene.add.container(0, 0);
+  const background = scene.add.graphics();
+  const label = scene.add
+    .text(0, 0, initialLabel, {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${fontSize}px`,
+      fontStyle: theme.weight.w600,
+      color: style.fg,
+    })
+    .setOrigin(0.5);
+  const inputZone = scene.add.zone(0, 0, 1, height).setInteractive({ useHandCursor: true });
+  container.add([background, label, inputZone]);
+
+  let measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
+  const activeStyle = (): { bg: string; fg: string; stroke: string; hoverStroke: string } =>
+    selected && variant === 'ghost' ? BUTTON_STYLE.emphasis : style;
+  const place = (): void => {
+    container.setPosition(x + measurement.visual.width / 2, y);
+  };
+  const redraw = (): void => {
+    measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
+    const stateStyle = activeStyle();
+    background.clear();
+    background.fillStyle(colorInt(stateStyle.bg), 1);
+    background.fillRoundedRect(
+      measurement.visual.x,
+      measurement.visual.y,
+      measurement.visual.width,
+      measurement.visual.height,
+      theme.radius.control,
+    );
+    background.lineStyle(
+      theme.control.borderWidth,
+      colorInt(hovered || pressed ? stateStyle.hoverStroke : stateStyle.stroke),
+      hovered || pressed ? 1 : theme.alpha.chrome,
+    );
+    background.strokeRoundedRect(
+      measurement.visual.x,
+      measurement.visual.y,
+      measurement.visual.width,
+      measurement.visual.height,
+      theme.radius.control,
+    );
+    label.setColor(stateStyle.fg);
+    inputZone.setSize(measurement.width, measurement.height);
+    // The Zone is the input surface. Re-apply after every label update so its
+    // minimum touch target remains explicit even when Phaser refreshes size.
+    inflateHitArea(inputZone, measurement.hitWidth, measurement.hitHeight);
+    place();
+  };
+  const setEnabled = (next: boolean): void => {
+    enabled = next;
+    if (!enabled) {
+      hovered = false;
+      pressed = false;
+    }
+    container.setAlpha(enabled ? 1 : theme.alpha.subtle);
+    if (enabled) inputZone.setInteractive({ useHandCursor: true });
+    else inputZone.disableInteractive();
+    redraw();
+  };
+  const setLabel = (next: string): void => {
+    label.setText(next);
+    redraw();
+  };
+  const setVariant = (next: Extract<ButtonVariant, 'emphasis' | 'ghost'>): void => {
+    variant = next;
+    style = BUTTON_STYLE[next];
+    redraw();
+  };
+  const setSelected = (next: boolean): void => {
+    selected = next;
+    redraw();
+  };
+
+  bindTapButton(scene, inputZone, (pointer) => {
+    if (enabled) opts.onTap?.(pointer);
+  });
+  inputZone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
+    if (!pointer.wasTouch && enabled) {
+      hovered = true;
+      redraw();
+    }
+  });
+  inputZone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    if (pointer.wasTouch && enabled) {
+      pressed = true;
+      redraw();
+    }
+  });
+  inputZone.on('pointerup', () => {
+    if (pressed) {
+      pressed = false;
+      redraw();
+    }
+  });
+  inputZone.on('pointerout', () => {
+    hovered = false;
+    pressed = false;
+    redraw();
+  });
+  redraw();
+  setEnabled(enabled);
+
+  // Existing scene consumers use Dropdown.button.setDepth(). Forward that
+  // call to the visual container while retaining the Zone as the guard target.
+  const zoneSetDepth = inputZone.setDepth.bind(inputZone);
+  inputZone.setDepth = (depth: number): Phaser.GameObjects.Zone => {
+    container.setDepth(depth);
+    zoneSetDepth(depth);
+    return inputZone;
+  };
+
+  const getMeasuredBounds = (): ThemedButtonMeasurement => ({
+    ...measurement,
+    visual: { ...measurement.visual },
+    hit: { ...measurement.hit },
+  });
+  const getMeasuredSize = (): {
+    visual: { width: number; height: number };
+    hit: { width: number; height: number };
+  } => ({
+    visual: { width: measurement.visual.width, height: measurement.visual.height },
+    hit: { width: measurement.hit.width, height: measurement.hit.height },
+  });
+  return {
+    container,
+    background,
+    label,
+    inputZone,
+    focus: opts.focus,
+    getMeasuredBounds,
+    getMeasuredSize,
+    setLabel,
+    setVariant,
+    setSelected,
+    setEnabled,
+  };
 }
 
 export interface PanelOptions {
@@ -138,6 +390,76 @@ export function panel(
     .strokeRoundedRect(x, y, width, height, opts.radius ?? theme.radius.panel);
 }
 
+export type SceneFooterAction = Omit<ThemedButtonOptions, 'onTap'> & {
+  label: string;
+  onTap?: (pointer: Phaser.Input.Pointer) => void;
+};
+
+export interface SceneHeaderFooterOptions {
+  title: string;
+  onBack?: (pointer: Phaser.Input.Pointer) => void;
+  currency?: GoldBadgeOptions;
+  footerActions?: readonly SceneFooterAction[];
+  depth?: number;
+  focus?: FocusMetadata;
+  backFocus?: FocusMetadata;
+}
+
+export interface SceneHeaderFooter {
+  container: Phaser.GameObjects.Container;
+  back: Phaser.GameObjects.Text;
+  title: Phaser.GameObjects.Text;
+  currency: GoldBadge;
+  footerActions: ThemedButton[];
+  layout: HeaderFooterLayout;
+  /** Inert metadata for a future focus registration pass. */
+  focus?: FocusMetadata;
+}
+
+/** Safe-anchored page chrome for Wave 2 scene adoption. */
+export function sceneHeaderFooter(
+  scene: Phaser.Scene,
+  opts: SceneHeaderFooterOptions,
+): SceneHeaderFooter {
+  const back = backButton(scene, opts.onBack, { focus: opts.backFocus });
+  const title = scene.add
+    .text(0, 0, opts.title, {
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h1}px`,
+      fontStyle: theme.weight.w700,
+      color: theme.colors.heading,
+    })
+    .setOrigin(0.5);
+  const currency = goldBadge(scene, 0, 0, opts.currency);
+  const footerActions = (opts.footerActions ?? []).map((action) => {
+    const { label, ...buttonOpts } = action;
+    return themedButton(scene, 0, 0, label, buttonOpts);
+  });
+  const layout = sceneHeaderFooterLayout({
+    backVisual: { width: back.width, height: back.height },
+    titleVisual: { width: title.width, height: title.height },
+    currencyVisual: { width: currency.text.width, height: currency.text.height },
+    footerActionVisuals: footerActions.map((action) => {
+      const size = action.getMeasuredSize().visual;
+      return { width: size.width, height: size.height };
+    }),
+  });
+  back.setPosition(layout.back.visual.x, layout.back.visual.y + layout.back.visual.height / 2);
+  title.setPosition(layout.title.x + layout.title.width / 2, layout.title.y + layout.title.height / 2);
+  currency.text.setPosition(
+    layout.currency.x + layout.currency.width,
+    layout.currency.y + layout.currency.height / 2,
+  );
+  footerActions.forEach((action, index) => {
+    const visual = layout.footerActions[index].visual;
+    action.container.setPosition(visual.x + visual.width / 2, visual.y + visual.height / 2);
+  });
+  const container = scene.add
+    .container(0, 0, [back, title, currency.text, ...footerActions.map((action) => action.container)])
+    .setDepth(opts.depth ?? theme.depth.hud);
+  return { container, back, title, currency, footerActions, layout, focus: opts.focus };
+}
+
 export interface ModalShellOptions {
   width: number;
   height: number;
@@ -149,6 +471,14 @@ export interface ModalShellOptions {
   showClose?: boolean;
   tapDimToClose?: boolean;
   onClose?: () => void;
+  panelPadding?: number;
+  trackGap?: number;
+  titleTrackHeight?: number;
+  footerTrackHeight?: number;
+  focus?: FocusMetadata;
+  /** Optional Wave 1 registration; omitted callers retain the old lifecycle. */
+  coordinator?: OverlayCoordinator;
+  registration?: OverlayRegistration;
 }
 
 export interface ModalShell {
@@ -157,6 +487,12 @@ export interface ModalShell {
   panel: Phaser.GameObjects.Graphics;
   closeButton?: ThemedButton;
   interactiveChildren: Phaser.GameObjects.GameObject[];
+  tracks: Pick<ModalShellLayout, 'titleTrack' | 'contentBounds' | 'footerTrack' | 'closeTrack'>;
+  contentBounds: Rect;
+  /** Inert metadata for the future shared focus manager. */
+  focus?: FocusMetadata;
+  /** The coordinator lease when this shell was registered, if any. */
+  overlayLease?: OverlayLease;
   close(): void;
 }
 
@@ -176,19 +512,28 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
   const interactiveChildren: Phaser.GameObjects.GameObject[] = [];
   const escToClose = opts.escToClose ?? true;
+  const usesCoordinator = opts.coordinator !== undefined;
+  const registrationMandatory = opts.registration?.mandatory ?? false;
+  const registrationDismissible = opts.registration?.dismissible ?? escToClose;
+  const shellCanDismiss =
+    !usesCoordinator || (!registrationMandatory && registrationDismissible);
   let closed = false;
+  let overlayLease: OverlayLease | undefined;
   const cleanup = (): void => {
-    if (escToClose) scene.input.keyboard?.off('keydown-ESC', close);
+    if (!usesCoordinator && escToClose) scene.input.keyboard?.off('keydown-ESC', close);
   };
   const close = (): void => {
     if (closed) return;
     closed = true;
     cleanup();
+    const lease = overlayLease;
+    overlayLease = undefined;
+    if (lease) opts.coordinator?.close(lease);
     opts.onClose?.();
     if (container.active) container.destroy();
   };
 
-  if (opts.tapDimToClose) {
+  if (opts.tapDimToClose && shellCanDismiss) {
     dim.setInteractive({ useHandCursor: true });
     bindTapButton(scene, dim, (pointer) => {
       if (!pointer.rightButtonReleased()) close();
@@ -198,8 +543,8 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   }
   interactiveChildren.push(dim);
   let closeButton: ThemedButton | undefined;
-  if (opts.showClose ?? true) {
-    closeButton = themedButton(scene, x + opts.width / 2 - theme.space(4), y - opts.height / 2 + theme.space(4), '×', {
+  if ((opts.showClose ?? true) && shellCanDismiss) {
+    closeButton = themedButton(scene, 0, 0, '×', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 30,
@@ -208,24 +553,90 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     container.add(closeButton.container);
     interactiveChildren.push(closeButton.inputZone);
   }
-  if (escToClose) scene.input.keyboard?.on('keydown-ESC', close);
-  container.once('destroy', cleanup);
-  return { container, dim, panel: chrome, closeButton, interactiveChildren, close };
+  const closeSize = closeButton?.getMeasuredSize().hit ?? {
+    width: theme.control.minHitWidth,
+    height: theme.control.minHitHeight,
+  };
+  const layout = modalShellLayout({
+    width: opts.width,
+    height: opts.height,
+    x,
+    y,
+    panelPadding: opts.panelPadding,
+    trackGap: opts.trackGap,
+    titleTrackHeight: opts.titleTrackHeight,
+    footerTrackHeight: opts.footerTrackHeight,
+    closeHitWidth: closeSize.width,
+    closeHitHeight: closeSize.height,
+  });
+  if (closeButton) {
+    closeButton.container.setPosition(
+      layout.closeTrack.x + layout.closeTrack.width / 2,
+      layout.closeTrack.y + layout.closeTrack.height / 2,
+    );
+  }
+  if (!usesCoordinator && escToClose) scene.input.keyboard?.on('keydown-ESC', close);
+  if (opts.coordinator) {
+    const registration: OverlayRegistration = {
+      ...opts.registration,
+      focus: opts.registration?.focus ?? opts.focus,
+      dismissible: registrationDismissible,
+      onDismiss: () => {
+        const callback = opts.registration?.onDismiss;
+        close();
+        callback?.();
+      },
+    };
+    overlayLease = opts.coordinator.open(registration);
+  }
+  container.once('destroy', () => {
+    cleanup();
+    const lease = overlayLease;
+    overlayLease = undefined;
+    if (lease) opts.coordinator?.close(lease);
+  });
+  return {
+    container,
+    dim,
+    panel: chrome,
+    closeButton,
+    interactiveChildren,
+    tracks: {
+      titleTrack: layout.titleTrack,
+      contentBounds: layout.contentBounds,
+      footerTrack: layout.footerTrack,
+      closeTrack: layout.closeTrack,
+    },
+    contentBounds: layout.contentBounds,
+    focus: opts.focus,
+    overlayLease,
+    close,
+  };
 }
 
 /** The single shared back affordance for future scene migrations. */
+export interface BackButtonOptions {
+  focus?: FocusMetadata;
+}
+
+type FocusableText = Phaser.GameObjects.Text & { focusMetadata?: FocusMetadata };
+
 export function backButton(
   scene: Phaser.Scene,
   onTap: (pointer: Phaser.Input.Pointer) => void = () => scene.scene.start('MainMenu'),
-): Phaser.GameObjects.Text {
+  opts: BackButtonOptions = {},
+): FocusableText {
   const button = scene.add
-    .text(28, 28, '← Menu', {
+    .text(0, 0, '← Menu', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.label}px`,
       fontStyle: theme.weight.w600,
       color: theme.colors.gold,
     })
+    .setOrigin(0, 0.5)
     .setInteractive({ useHandCursor: true });
+  const placement = anchoredControlBounds('top-left', button.width, button.height);
+  button.setPosition(placement.visual.x, placement.visual.y + placement.visual.height / 2);
   bindTapButton(scene, button, onTap);
   inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
   button.on('pointerover', (pointer: Phaser.Input.Pointer) => {
@@ -240,7 +651,9 @@ export function backButton(
       inflateHitArea(button, theme.control.minHitWidth, theme.control.minHitHeight);
     }
   });
-  return button;
+  const focusable = button as FocusableText;
+  focusable.focusMetadata = opts.focus;
+  return focusable;
 }
 
 export interface GoldBadgeOptions {
@@ -294,7 +707,16 @@ export interface Pager {
   previous: Phaser.GameObjects.Text;
   next: Phaser.GameObjects.Text;
   label: Phaser.GameObjects.Text;
+  focus?: FocusMetadata;
+  previousFocus?: FocusMetadata;
+  nextFocus?: FocusMetadata;
   refresh(page: number, pageCount: number): void;
+}
+
+export interface PagerOptions {
+  focus?: FocusMetadata;
+  previousFocus?: FocusMetadata;
+  nextFocus?: FocusMetadata;
 }
 
 export function pager(
@@ -304,6 +726,7 @@ export function pager(
   page: number,
   pageCount: number,
   onChange: (page: number) => void,
+  opts: PagerOptions = {},
 ): Pager {
   // All three share the y centerline (the chevrons' old top-origin hung them
   // below the middle-anchored label), and the label centers BETWEEN the
@@ -315,21 +738,37 @@ export function pager(
   const container = scene.add.container(0, 0, [previous, label, next]);
   let current = page;
   let total = pageCount;
+  const setDirectionEnabled = (button: Phaser.GameObjects.Text, enabled: boolean): void => {
+    if (enabled) button.setInteractive({ useHandCursor: true });
+    else button.disableInteractive();
+    inflateHitArea(button, theme.control.minHitHeight, theme.control.minHitHeight);
+  };
   const refresh = (nextPage: number, nextPageCount: number): void => {
     current = nextPage;
     total = Math.max(1, nextPageCount);
     label.setText(`${current + 1} / ${total}`);
-    previous.setAlpha(current > 0 ? 1 : theme.alpha.subtle);
-    next.setAlpha(current < total - 1 ? 1 : theme.alpha.subtle);
+    const previousEnabled = current > 0;
+    const nextEnabled = current < total - 1;
+    previous.setAlpha(previousEnabled ? 1 : theme.alpha.subtle);
+    next.setAlpha(nextEnabled ? 1 : theme.alpha.subtle);
+    setDirectionEnabled(previous, previousEnabled);
+    setDirectionEnabled(next, nextEnabled);
   };
   for (const [button, delta] of [[previous, -1], [next, 1]] as const) {
-    button.setInteractive({ useHandCursor: true });
     bindTapButton(scene, button, () => {
       const target = current + delta;
       if (target >= 0 && target < total) onChange(target);
     });
-    inflateHitArea(button, theme.control.minHitHeight, theme.control.minHitHeight);
   }
   refresh(page, pageCount);
-  return { container, previous, next, label, refresh };
+  return {
+    container,
+    previous,
+    next,
+    label,
+    focus: opts.focus,
+    previousFocus: opts.previousFocus,
+    nextFocus: opts.nextFocus,
+    refresh,
+  };
 }

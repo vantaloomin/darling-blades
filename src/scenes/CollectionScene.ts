@@ -35,7 +35,7 @@ import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, goldBadge, modalShell, pager, themedButton, type GoldBadge, type Pager, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, modalShell, pager, themedButton, type Pager, type ThemedButton } from '../ui/themeWidgets';
 
 // Design canvas (Scale.FIT). All layout is in 1280×720 DESIGN px — never
 // this.scale.*: at renderScale k the canvas is 1280k×720k but the camera
@@ -104,7 +104,6 @@ export class CollectionScene extends Phaser.Scene {
   private pageControl!: Pager;
   private counterText!: Phaser.GameObjects.Text;
   private completionText!: Phaser.GameObjects.Text;
-  private goldText!: GoldBadge;
   private emptyText!: Phaser.GameObjects.Text;
   private inspect: Phaser.GameObjects.Container | null = null;
   /** The card the inspect overlay is showing — the ←/→ step anchor. */
@@ -161,10 +160,9 @@ export class CollectionScene extends Phaser.Scene {
         color: theme.colors.heading,
       })
       .setOrigin(0.5);
-    // Gold badge (top-right, stacked above the collection counter) — this is a
-    // shard-for-gold screen, so the balance must be on-screen and update live.
-    this.goldText = goldBadge(this, DESIGN_W - 28, 20, { getValue: () => Services.save.data.gold, flashOnChange: true });
-    this.refreshGold();
+    // Gold display is intentionally absent: currency shows only on the main
+    // menu and the Shop (user decision 2026-07-12). Shard payouts still name
+    // their gold amount on the shard button label.
     this.counterText = this.add
       .text(DESIGN_W - 28, 44, '', {
         fontFamily: theme.fonts.ui,
@@ -568,10 +566,6 @@ export class CollectionScene extends Phaser.Scene {
    * list): pick this card as the fallback hero portrait for decks without their
    * own starred hero. `heroCardId === id` toggles.
    */
-  private refreshGold(): void {
-    this.goldText.refresh();
-  }
-
   private addInspectActions(c: Phaser.GameObjects.Container, d: CardDef): void {
     const panelX = 740;
     // The two chips inflate to a 52px-tall tap area, so their row centres must be
@@ -609,7 +603,6 @@ export class CollectionScene extends Phaser.Scene {
         shardExcess(save, CARD_DB, d.id);
         Services.save.flush();
         Sfx.play('coin');
-        this.refreshGold(); // reflect the shard payout in the on-screen balance
         this.renderPage(); // refresh the ×N / ✦N badges beneath the overlay
         this.showInspect(d); // rebuild the overlay with the new counts
       });

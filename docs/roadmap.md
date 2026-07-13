@@ -756,6 +756,29 @@ _Dated 2026-07-04. Review monthly._
   see above).
 
 ## Planned
+- **Full Art variant — a 4th booster axis (decided 2026-07-13).** Locked
+  user picks: an INDEPENDENT per-slot roll at **0.25%** (rarer than Black
+  frame / Void holo at 0.45% each; ~1 pull per 45 packs) that **stacks**
+  with the frame and holo axes; shard multiplier **×25** (above the ×15
+  Black ceiling; a full-art UR shards for 12,500g). Rendering: the
+  existing 640×800 art cover-fits the whole 300×420 frame (no new art
+  assets — the deliverable is taller than the frame's aspect), with the
+  name/type/rules bands re-rendered as translucent faded plates in their
+  usual positions. Implementation requirements: `CardVariant` gains the
+  axis (variant-key format change ⇒ `SaveData.version` bump + real
+  `migrate()` + test; old keys parse as non-full-art), `variantRank`
+  places full art above black frame, the never-auto-melt special rule
+  includes it, `DROPS` gains the table (odds drawer derives
+  automatically), and the drop math gets a fresh Monte-Carlo
+  verification. Queued behind the Wave 1 design-system PR (touches
+  CardView, which has in-flight edits).
+- **"Mark" counter retheme (decided 2026-07-13).** Player-facing copy
+  only, same treatment as the Sever/Foresee retheme: "+1/+1 counter"
+  becomes "+1/+1 mark" in generated rules text, glossary, rules.md, and
+  any log/recap copy; engine op ids (`addCounters`) unchanged;
+  [keyword-map.md](keyword-map.md) documents the MTG mapping. The
+  counterspell verb collision was already solved ("cancel"). Queued
+  behind the current card-data work landing (touches rulesText.ts).
 - **Core design-system alignment.** The shipped theme foundation is now
   formalized in [design-system.md](design-system.md); the repository-wide audit
   and dependency-ordered implementation program live in

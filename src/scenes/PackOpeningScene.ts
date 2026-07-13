@@ -17,7 +17,7 @@ import { CARD_H, CARD_W, CardView, type CardFxLevel } from '../ui/CardView';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { bakePackArt, CELTIC_FAE_PACK_ART, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
@@ -212,7 +212,6 @@ export class PackOpeningScene extends Phaser.Scene {
       });
     }
 
-    goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
     backButton(this, () => this.scene.start('Shop'));
   }
 

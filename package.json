@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "npm run gen-art-manifest && vite",
     "build": "npm run gen-art-manifest && tsc --noEmit && vite build",
+    "cardproof": "npm run cardproof:build && vite preview --config vite.cardproof.config.ts --host localhost --port 5175",
+    "cardproof:build": "vite build --config vite.cardproof.config.ts",
     "preview": "vite preview",
     "tauri": "tauri",
     "app:dev": "tauri dev",

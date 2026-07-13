@@ -268,7 +268,7 @@ export class DuelScene extends Phaser.Scene {
   private zoneGuard = new ModalGuard();
   /** Set when inspect was opened FROM a zone modal: closing inspect returns there. */
   private zoneModalReturn: (() => void) | null = null;
-  /** Graveyard-target chooser (Raise Dead etc.): pick which creature to return. */
+  /** Graveyard-target chooser (Summon the Dead etc.): pick which creature to return. */
   private gravePicker: Phaser.GameObjects.Container | null = null;
   private gravePickerGuard = new ModalGuard();
   /** Two-tap concede guard (settings.confirmDestructive); armed by the first tap. */
@@ -3417,7 +3417,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------
-  // Graveyard-target chooser (Raise Dead, Call the Einherjar, …)
+  // Graveyard-target chooser (Summon the Dead, Call the Einherjar, …)
   // ---------------------------------------------------------------------
 
   /**

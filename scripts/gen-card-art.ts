@@ -55,6 +55,7 @@ const FACTIONS = [
   'beastkin',
   'constructs-and-tokens',
   'ragnarok',
+  'celtic-fae',
 ] as const;
 
 const OUT_W = 640;
@@ -88,6 +89,15 @@ const GEN_TIMEOUT_S = 300;
  * top-THIRD headroom plus an explicit seated-pose clause fixed the seated
  * cases without disturbing the standing ones.
  *
+ * Strengthened 2026-07-13 (crown-clip fix): the smart-crop program measured
+ * 111 of 212 shipped raws generated with the subject's crown at the crop
+ * ceiling (avg 6.7% of sky short), so their crowns clip at the card-window
+ * edge. The soft "top third is background" demand was not enough; an
+ * explicit HARD RULE now states that the very top of the head/hair/crown/
+ * halo/headdress sits clearly BELOW the top-third boundary with generous
+ * empty background above it (same additive pattern as the seated-pose
+ * clause). Smart crop handles placement; the preamble only has to buy sky.
+ *
  * Lighting is deliberately NOT keyed here: the bible's default (warm
  * upper-left key, cool fill) is overridden per entry, and every entry prompt
  * names its own key + rim (the holo shaders depend on per-card lighting), so
@@ -97,7 +107,10 @@ const PREAMBLE =
   // Composition (measured, keep verbatim — see above).
   'Composition: waist-up portrait framing (even for seated or enthroned poses), the face ' +
   'at the exact vertical center of the canvas with generous headroom — the entire top ' +
-  'third of the image is background only, above her head. ' +
+  'third of the image is background only, above her head. HARD RULE: the very top of her ' +
+  'head — including hair, crown, halo, horns, ears, or headdress — sits clearly BELOW the ' +
+  'top-third boundary line and never touches it; generous empty background (open sky, ' +
+  'mist, or ceiling) fills the whole top third of the canvas above the head. ' +
   // Cel DNA + register + scenic background (mirrors index.md §2).
   'Style: crisp cel-shaded gacha anime splash art — clean confident inked linework with ' +
   'line-weight variation, hard-edged cel shading in two to three tone steps, bright anime ' +

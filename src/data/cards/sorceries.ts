@@ -20,7 +20,7 @@ export const SORCERIES = [
   },
   {
     id: 'so-rampant-growth',
-    name: 'Rampant Growth',
+    name: 'Verdant Invitation',
     types: ['ritual'],
     subtypes: [],
     cost: cost(1, 'G'),
@@ -31,7 +31,7 @@ export const SORCERIES = [
   },
   {
     id: 'so-raise-dead',
-    name: 'Raise Dead',
+    name: 'Summon the Dead',
     types: ['ritual'],
     subtypes: [],
     cost: cost(0, 'B'),
