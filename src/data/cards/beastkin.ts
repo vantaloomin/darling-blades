@@ -150,7 +150,7 @@ export const BEASTKIN = [
     types: ['creature'],
     subtypes: ['Beastkin', 'Wolfkin'],
     supertypes: ['legendary'],
-    cost: cost(2, 'RG'),
+    cost: cost(3, 'RG'),
     colors: ['R', 'G'],
     attack: 4,
     defense: 4,

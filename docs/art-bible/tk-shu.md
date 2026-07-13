@@ -275,7 +275,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Guan Suo in a white-and-jade fighting dress with floral embroidery and a flower hairpin, holding a slender green-crescent guandao in an elegant guard, a blossom petal drifting, poised dangerous half-smile, soft courtyard blur, soft daylight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Liu Shan, Contented Heir — `tk-shu-liushan`
-- **Card facts:** {3}{W} · W · 0/7 · bulwark · c · holo: none
+- **Card facts:** {2}{W} · W · 0/8 · bulwark · c · holo: none
 - **Character & source:** Genderbent Liu Shan, Liu Bei's placid heir; a 0/7 defender who never attacks and never worries. Comfort as a wall.
 - **Personality / mood:** "'I quite enjoy it here.' — Liu Shan, on every here." Serene, soft, immovably content.
 - **Pose & composition:** A 0/7 defender does not lunge — she sits. Relaxed seated three-quarter behind a great shield or cushioned throne, teacup in hand; face ≈ y 315, blissfully calm. One idea: the content wall. Two-value background.

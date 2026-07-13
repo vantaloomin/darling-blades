@@ -59,7 +59,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Aine, an adult summer fae sovereign whose generosity reads as a binding contract, wearing sun-pale layered silk beneath nature-integrated gold-and-leaf armor, a thorn-and-apple crown, and bright silver jewelry; turning toward the viewer with the offered apple held at heart height, cloak sweeping into the lower band; radiant, patient, and dangerously sincere; against a sunwell grove at twilight where gold light filters through blackthorn branches; warm low sun as the key; cool silver moon rim across the crown and shoulder; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Nimue Before the Lake — `cf-nimue-before-the-lake`
-- **Card facts:** {3}{W}{U} · U/W (gold frame) · 3/5 · ur, legendary · holo: otherworldly aurora
+- **Card facts:** {3}{W}{U} · U/W (gold frame) · 4/5 · ur, legendary · holo: otherworldly aurora
 - **Character & source:** an adult lake fae mage, a poised proto-Arthurian keeper of impossible promises; mechanically a reader and arranger of fate, a keeper of the veil between worlds.
 - **Personality / mood:** “The lake keeps every promise, especially the ones you did not mean.” — calm, observant, and already aware of the promise the viewer will regret.
 - **Pose & composition:** waist-up at the shore, lifting the wand so a crescent of water arcs around one shoulder; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -134,7 +134,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Silver-Branch Oracle, an adult fae oracle who reads fate from living wood and reflected water, wearing a long moss-and-silver mantle, thorn circlet, layered beadwork, and lacquered leaf armor at the wrists; seated upright beside the pool, branch pointing through the frame while her gaze stays centered; serene, businesslike, and faintly amused by mortal certainty; against a silver-branch grove around a glassy pool, its boughs carefully clear of any readable marks; pool-light key across the face; cool moon rim tracing the branch and cloak edge; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Redcap Blood-Host — `cf-redcap-blood-host`
-- **Card facts:** {3}{R}{R} · R · 4/3 · warcry · sr · holo: radiant foil
+- **Card facts:** {2}{R}{R} · R · 4/4 · warcry · sr · holo: radiant foil
 - **Character & source:** an adult redcap skirmisher, compact, regal, and very pleased with the violence; mechanically an aggressive hunt leader.
 - **Personality / mood:** “The caps are red because washing them would be an admission.” — reckless, courtly in the worst possible way, and laughing through clenched teeth.
 - **Pose & composition:** caught at the first violent step of a sprint, sickle low and shoulders driving forward; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -149,7 +149,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Redcap Blood-Host, an adult redcap skirmisher, compact, regal, and very pleased with the violence, wearing a crimson cap over a thorn crownlet, short blackthorn cloak, layered peat-black armor, and silver rings; caught at the first violent step of a sprint, sickle low and shoulders driving forward; reckless, courtly in the worst possible way, and laughing through clenched teeth; against a blackthorn lane under a bruised moon, red mushrooms and wet stone flashing past; warm foxfire key across the cap and weapon; hard violet moon rim on the moving silhouette; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Queen Mab at Midnight — `cf-queen-mab-midnight`
-- **Card facts:** {4}{U}{B} · U/B (gold frame) · 3/5 · sr, legendary · holo: radiant foil
+- **Card facts:** {3}{U}{B} · U/B (gold frame) · 4/5 · sr, legendary · holo: radiant foil
 - **Character & source:** an adult fae queen, sovereign of a beautiful court that is quietly dangerous; mechanically a reader and arranger of fate, a keeper of the veil between worlds.
 - **Personality / mood:** “She rules the hour when even honest thoughts put on masks.” — perfectly composed, warm enough to invite trust and cold enough to punish it.
 - **Pose & composition:** seated or standing in absolute stillness, one hand extended as if granting a gift with a hidden hook; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.

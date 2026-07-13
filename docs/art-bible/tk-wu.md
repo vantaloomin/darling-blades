@@ -344,7 +344,7 @@ and low lacquered decks, never stone keeps. Keep water in the story wherever the
 - **Prompt:** Genderbent Quan Cong standing poised with a hand on a slim sheathed sword and a rolled ledger in the other, teal court-martial coat with river-gold buttons and crimson lining, clever poised smile, soft court antechamber — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zhuge Ke, Insufferable Prodigy — `tk-wu-zhugeke`
-- **Card facts:** {3}{U}{U} · U · 4/4 · c · holo: none
+- **Card facts:** {3}{U}{U} · U · 4/4 · skyborne · c · holo: none
 - **Character & source:** Genderbent Zhuge Ke, the arrogant boy-genius regent of Wu; a beefy 4/4 U body backing a very large ego.
 - **Personality / mood:** "Smarter than you, and worse: she knows it." Brilliant, condescending, insufferably pleased with herself; a prodigy who has never lost an argument (yet).
 - **Pose & composition:** Reclined-confident three-quarter, one elbow propped, a feather fan flicked open dismissively, chin tilted, face ≈ y 320 with a superior half-lidded look at the viewer. Reads at 119×86.

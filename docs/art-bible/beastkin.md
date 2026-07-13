@@ -191,7 +191,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Nine-tailed kitsune matriarch composed and smiling in a teal-and-jade embroidered kimono, tall fox ears and nine sweeping tails, two pale blue-white foxfire spirit foxes at her feet, dark night reed-shrine with lanterns, cool foxfire key and warm lantern rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wolfqueen Lupa — `bk-wolfqueen`
-- **Card facts:** {2}{R}{G} · R/G (gold frame) · 4/4 · warcry · ssr, legendary · holo: sparkle (explicit)
+- **Card facts:** {3}{R}{G} · R/G (gold frame) · 4/4 · warcry · ssr, legendary · holo: sparkle (explicit)
 - **Character & source:** Original Beastkin wolfkin queen — a `haste` 4/4 anthem for Wolfkin who rules by consensus of the howl.
 - **Personality / mood:** "The pack votes on everything. She counts the howls." Fierce democrat, warlord-charismatic, first into the charge.
 - **Pose & composition:** Mid-lunge forward-and-up (haste), head thrown back mid-howl, spear-arm cocked, one clawed foot leaving the ground. Face ≈ y 320, muzzle-lift to the sky; brush tail streaming into the lower band, spear breaking the top bleed. Distant pack-silhouettes howl in answer.

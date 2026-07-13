@@ -42,7 +42,7 @@ export const INSTANTS = [
     name: 'Read the Ruse',
     types: ['charm'],
     subtypes: [],
-    cost: cost(1, 'U'),
+    cost: cost(1, 'UU'),
     colors: ['U'],
     abilities: [
       { when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }] },
@@ -254,7 +254,7 @@ export const INSTANTS = [
     name: 'Dream Fracture',
     types: ['charm'],
     subtypes: [],
-    cost: cost(1, 'UU'),
+    cost: cost(2, 'UU'),
     colors: ['U'],
     abilities: [
       {

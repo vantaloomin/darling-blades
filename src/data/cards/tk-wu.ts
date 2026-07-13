@@ -304,6 +304,7 @@ export const TK_WU = [
     colors: ['U'],
     attack: 4,
     defense: 4,
+    keywords: ['skyborne'],
     rarity: 'c',
     flavor: 'Smarter than you, and worse: she knows it.',
   },
