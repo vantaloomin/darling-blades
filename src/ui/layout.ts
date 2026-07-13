@@ -59,6 +59,144 @@ export interface RectSize {
   height: number;
 }
 
+/** Measured Phaser Text heights for one stacked term/reminder row. */
+export interface MeasuredTextRow {
+  primaryHeight: number;
+  secondaryHeight: number;
+}
+
+export interface MeasuredRowsLayoutOptions {
+  titleHeight?: number;
+  horizontalPadding?: number;
+  contentTopPadding?: number;
+  contentBottomPadding?: number;
+  rowGap?: number;
+  rowPadding?: number;
+  textGap?: number;
+}
+
+export interface MeasuredRowRect extends Rect {
+  primaryY: number;
+  secondaryY: number;
+}
+
+export interface MeasuredRowsLayout {
+  width: number;
+  maxHeight: number;
+  contentViewport: Rect;
+  rows: MeasuredRowRect[];
+  /** Full measured content height before the viewport cap is applied. */
+  contentHeight: number;
+  /** Outer panel height after applying the max-height policy. */
+  totalHeight: number;
+  maxScroll: number;
+  overflow: boolean;
+}
+
+/** The two existing inspect hosts reserve a bottom gutter for their close hint. */
+export const KEYWORD_GLOSSARY_HOST_BOUNDS = {
+  compact: { width: 170, top: 156, bottom: 660 },
+  regular: { width: 300, top: 150, bottom: 660 },
+} as const;
+
+export type KeywordGlossaryViewport = keyof typeof KEYWORD_GLOSSARY_HOST_BOUNDS;
+
+export interface KeywordGlossaryViewportPolicy {
+  mode: KeywordGlossaryViewport;
+  width: number;
+  hostTop: number;
+  hostBottom: number;
+  maxHeight: number;
+}
+
+/** Select the measured viewport policy used by the unchanged glossary hosts. */
+export function keywordGlossaryViewport(width: number): KeywordGlossaryViewportPolicy {
+  const mode: KeywordGlossaryViewport = width < 220 ? 'compact' : 'regular';
+  const bounds = KEYWORD_GLOSSARY_HOST_BOUNDS[mode];
+  return {
+    mode,
+    width: bounds.width,
+    hostTop: bounds.top,
+    hostBottom: bounds.bottom,
+    maxHeight: bounds.bottom - bounds.top,
+  };
+}
+
+/**
+ * Lay out rows from rendered text measurements. The row heights are never
+ * inferred from copy or a fixed English line count; Phaser supplies the two
+ * text heights and this helper owns the wrapping/overflow math around them.
+ */
+export function measuredRowsLayout(
+  measurements: readonly MeasuredTextRow[],
+  width: number,
+  maxHeight: number,
+  opts: MeasuredRowsLayoutOptions = {},
+): MeasuredRowsLayout {
+  const safeWidth = Math.max(0, width);
+  const safeMaxHeight = Math.max(0, maxHeight);
+  const titleHeight = Math.max(0, opts.titleHeight ?? 0);
+  const horizontalPadding = Math.max(0, opts.horizontalPadding ?? theme.space(2));
+  const contentTopPadding = Math.max(0, opts.contentTopPadding ?? theme.space(2));
+  const contentBottomPadding = Math.max(0, opts.contentBottomPadding ?? theme.space(2));
+  const rowGap = Math.max(0, opts.rowGap ?? theme.space(2));
+  const rowPadding = Math.max(0, opts.rowPadding ?? theme.space(1));
+  const textGap = Math.max(0, opts.textGap ?? theme.space(1));
+  const rowWidth = Math.max(0, safeWidth - horizontalPadding * 2);
+  const rows: MeasuredRowRect[] = [];
+  let cursor = titleHeight + contentTopPadding;
+
+  for (const measurement of measurements) {
+    const primaryHeight = Math.max(0, measurement.primaryHeight);
+    const secondaryHeight = Math.max(0, measurement.secondaryHeight);
+    const betweenTextGap = primaryHeight > 0 && secondaryHeight > 0 ? textGap : 0;
+    const height = rowPadding * 2 + primaryHeight + betweenTextGap + secondaryHeight;
+    const primaryY = cursor + rowPadding;
+    const secondaryY = primaryY + primaryHeight + betweenTextGap;
+    rows.push({
+      x: horizontalPadding,
+      y: cursor,
+      width: rowWidth,
+      height,
+      primaryY,
+      secondaryY,
+    });
+    cursor += height + rowGap;
+  }
+
+  const contentHeight = rows.length === 0 ? 0 : cursor - titleHeight - contentTopPadding - rowGap;
+  const maxContentHeight = Math.max(
+    0,
+    safeMaxHeight - titleHeight - contentTopPadding - contentBottomPadding,
+  );
+  const overflow = contentHeight > maxContentHeight;
+  const viewportHeight = Math.min(contentHeight, maxContentHeight);
+  const contentViewport = {
+    x: horizontalPadding,
+    y: titleHeight + contentTopPadding,
+    width: rowWidth,
+    height: viewportHeight,
+  };
+  return {
+    width: safeWidth,
+    maxHeight: safeMaxHeight,
+    contentViewport,
+    rows,
+    contentHeight,
+    totalHeight: titleHeight + contentTopPadding + viewportHeight + contentBottomPadding,
+    maxScroll: Math.max(0, contentHeight - maxContentHeight),
+    overflow,
+  };
+}
+
+export function clampScrollOffset(offset: number, maxScroll: number): number {
+  return clamp(offset, 0, Math.max(0, maxScroll));
+}
+
+export function scrollOffsetByDelta(offset: number, delta: number, maxScroll: number): number {
+  return clampScrollOffset(offset + delta, maxScroll);
+}
+
 export interface ThemedButtonMeasurement extends ControlBounds {
   size: ControlSize;
   labelWidth: number;
