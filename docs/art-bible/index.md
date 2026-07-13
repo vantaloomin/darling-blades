@@ -96,7 +96,11 @@ these at AUTHORING time so future expansions don't need a correction pass:
 - **Headroom is sacred.** Generous empty background above the crown of the
   head/hair/headdress — the head top sits clearly below the top-third line
   (the generation preamble now demands this as a hard rule). Most of the
-  round's corrections were crowns kissing the crop ceiling.
+  round's corrections were crowns kissing the crop ceiling. Corollary: the
+  budget is spent by the FULL silhouette above the face — tall topknots,
+  piled hair, and towering headdresses eat headroom no matter how much sky
+  the image has; when a character needs one, bind the hair low or state a
+  low-profile version, or accept the documented crown-graze.
 - **Frame wide enough to show what the character IS.** Species-defining
   anatomy (a mermaid's tail, a satyr's goat legs, a spiderkin's spider body),
   signature physique, and the full held prop belong IN frame. Waist-up is the
