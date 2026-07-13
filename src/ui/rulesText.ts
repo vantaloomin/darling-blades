@@ -65,15 +65,15 @@ function opText(op: EffectOp): string {
     case 'destroy':
       return 'destroy target creature';
     case 'sever':
-      return 'sever target creature';
+      return 'Sever target creature';
     case 'severGrave': {
       const cards = op.n === 1 ? 'the top card' : `the top ${op.n} cards`;
       return op.who === 'self'
-        ? `sever ${cards} of your graveyard`
-        : `sever ${cards} of your opponent's graveyard`;
+        ? `Sever ${cards} of your graveyard`
+        : `Sever ${cards} of your opponent's graveyard`;
     }
     case 'severTop':
-      return `sever ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
+      return `Sever ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
     case 'recall':
       return "return target creature to its owner's hand";
     case 'cancel':
@@ -81,7 +81,7 @@ function opText(op: EffectOp): string {
     case 'boost': {
       const sign = (v: number): string => (v >= 0 ? `+${v}` : `${v}`);
       const kw = op.keywords?.length
-        ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k].toLowerCase()).join(', ')}`
+        ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
       return op.scope === 'target'
         ? `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`
@@ -104,7 +104,7 @@ function opText(op: EffectOp): string {
       if (!tok) return `create ${op.count} ${plural}`;
       const stats = tok.attack !== undefined && tok.defense !== undefined ? `${tok.attack}/${tok.defense} ` : '';
       const kw = tok.keywords?.length
-        ? ` with ${tok.keywords.map((k) => KEYWORD_NAMES[k].toLowerCase()).join(', ')}`
+        ? ` with ${tok.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
       return `create ${op.count} ${stats}${tok.name} ${plural}${kw}`;
     }
@@ -121,7 +121,7 @@ function opText(op: EffectOp): string {
         : `your opponent puts ${cards} of their deck into their graveyard`;
     }
     case 'foresee':
-      return `foresee ${op.n}`;
+      return `Foresee ${op.n}`;
     case 'raise':
       return op.to === 'top'
         ? 'return the top creature card of your graveyard to play'
@@ -137,7 +137,7 @@ function abilityText(ab: AbilityDef): string {
       return n >= 0 ? `+${n}` : `${n}`;
     };
     const kw = st.grantKeywords?.length
-      ? ` and have ${st.grantKeywords.map((k) => KEYWORD_NAMES[k].toLowerCase()).join(', ')}`
+      ? ` and have ${st.grantKeywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
       : '';
     if (st.scope === 'attached') {
       return `Enchanted creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`;
