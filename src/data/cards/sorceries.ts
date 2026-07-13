@@ -155,7 +155,7 @@ export const SORCERIES = [
     name: 'Warcry',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'R'),
+    cost: cost(0, 'R'),
     colors: ['R'],
     abilities: [
       { when: 'spell', ops: [{ op: 'boost', p: 1, t: 0, keywords: ['warcry'], scope: 'allYours' }] },
