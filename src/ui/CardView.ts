@@ -375,29 +375,44 @@ export class CardView extends Phaser.GameObjects.Container {
     this.rulesTextObj.setAlpha(textAlpha);
     // In full art the rules field is bottom-anchored and content-sized (user
     // spec 2026-07-13): full width, no dead parchment below short text. The
-    // mana-icon row and rules text shift down with it via fieldTop.
+    // mana-icon row and rules text shift down with it via fieldTop, and the
+    // type band rides down to sit directly on the text block, so the whole
+    // operational assembly gathers at the card's foot.
     let fieldTop = textTop;
+    this.typePlate.setPosition(0, 45);
+    this.typeText.setY(45);
     if (fullArt) {
       this.namePlate.setVisible(true);
       this.typePlate.setVisible(true);
+      const TYPE_BAND_H = 22;
+      const TYPE_SEAM = 2; // hairline gap so band and plate read as stacked plates
+      const setTypeBandAbove = (plateTop: number): void => {
+        const centerY = plateTop - TYPE_SEAM - TYPE_BAND_H / 2;
+        this.typePlate.setPosition(0, centerY);
+        this.typeText.setY(centerY);
+      };
       const hasFieldContent = rules.length > 0 || MANA_LINE_H > 0;
+      const PLATE_BOTTOM = 170;
       if (manaRow.length > 0) {
         // Lands keep the fixed plate — their [T]→pip row is centered in the
         // field, so a content-hugging plate has nothing to hug.
         this.textPlate.setSize(268, 108).setPosition(0, 116).setVisible(true);
+        setTypeBandAbove(62);
       } else if (hasFieldContent) {
         const PLATE_PAD = 8;
         // Bottom edge tucks behind the badge row exactly like the old fixed
         // plate did (it spanned y62..170; badges start at y166.5).
-        const PLATE_BOTTOM = 170;
         const rulesH = this.rulesTextObj.height * this.rulesTextObj.scaleY;
         const plateH = PLATE_PAD * 2 + MANA_LINE_H + rulesH;
         this.textPlate.setSize(268, plateH).setPosition(0, PLATE_BOTTOM - plateH / 2).setVisible(true);
         fieldTop = PLATE_BOTTOM - PLATE_PAD - rulesH - MANA_LINE_H;
         this.rulesTextObj.setPosition(TEXT_LEFT, fieldTop + MANA_LINE_H);
+        setTypeBandAbove(PLATE_BOTTOM - plateH);
       } else {
-        // Vanilla card: no rules, no mana line — the art owns the whole field.
+        // Vanilla card: no rules, no mana line — the art owns the whole field
+        // and the type band drops to the badge line.
         this.textPlate.setVisible(false);
+        setTypeBandAbove(PLATE_BOTTOM);
       }
     }
     if (abilityMana.length > 0) {
