@@ -107,6 +107,8 @@ export class CollectionScene extends Phaser.Scene {
   private goldText!: GoldBadge;
   private emptyText!: Phaser.GameObjects.Text;
   private inspect: Phaser.GameObjects.Container | null = null;
+  /** The card the inspect overlay is showing — the ←/→ step anchor. */
+  private inspectDef: CardDef | null = null;
   /** Live holo pointer feed — MUST be unhooked on inspect close. */
   private holoMove: ((p: Phaser.Input.Pointer) => void) | null = null;
   /** The DOM search <input> — hidden while the inspect overlay is open (DOM
@@ -127,6 +129,7 @@ export class CollectionScene extends Phaser.Scene {
     this.outgoing = [];
     this.turning = false;
     this.inspect = null;
+    this.inspectDef = null;
     this.holoMove = null;
 
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
@@ -212,6 +215,10 @@ export class CollectionScene extends Phaser.Scene {
       if (dy === 0) return;
       this.turnPage(dy > 0 ? 1 : -1);
     });
+    // ←/→ keyboard navigation — like the wheel, keyboard bypasses ModalGuard,
+    // so onArrowKey self-gates on the inspect overlay and the search input.
+    this.input.keyboard?.on('keydown-LEFT', () => this.onArrowKey(-1), this);
+    this.input.keyboard?.on('keydown-RIGHT', () => this.onArrowKey(1), this);
 
     this.emptyText = this.add
       .text(DESIGN_W / 2, 390, 'No cards match these filters.', {
@@ -256,6 +263,35 @@ export class CollectionScene extends Phaser.Scene {
 
   private currentPool(): CardDef[] {
     return applyFilters(collectiblePool(ALL_CARDS), this.state, Services.save.data);
+  }
+
+  /** ←/→: turn the spread in binder view; step the inspected card while the
+   * overlay is open. The DOM search <input> keeps its caret keys — Phaser's
+   * keyboard plugin listens on window and fires even while it has focus. */
+  private onArrowKey(dir: number): void {
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+    if (this.inspect) this.stepInspect(dir);
+    else this.turnPage(dir);
+  }
+
+  /** Step the inspect overlay to the adjacent card in the current filtered
+   * pool (binder order), crossing spreads with the same renderPage-then-
+   * showInspect rebuild the shard action already uses. Clamps at both ends. */
+  private stepInspect(dir: number): void {
+    const current = this.inspectDef;
+    if (!current) return;
+    const pool = this.currentPool();
+    const index = pool.findIndex((d) => d.id === current.id);
+    if (index < 0) return; // card left the filtered pool — stay put
+    const target = index + dir;
+    if (target < 0 || target >= pool.length) return;
+    const targetPage = Math.floor(target / SPREAD_SIZE);
+    if (targetPage !== this.page) {
+      this.page = targetPage;
+      this.renderPage();
+    }
+    this.showInspect(pool[target]);
   }
 
   private turnPage(dir: number): void {
@@ -510,6 +546,7 @@ export class CollectionScene extends Phaser.Scene {
 
     this.guard.open([...this.cells, ...this.guardTargets]);
     this.inspect = c;
+    this.inspectDef = d;
   }
 
   /** Themed overlay button whose Zone input remains safe across relabels. */
@@ -589,6 +626,7 @@ export class CollectionScene extends Phaser.Scene {
       this.inspect.destroy();
       this.inspect = null;
     }
+    this.inspectDef = null;
     this.searchInput?.setVisible(true);
   }
 }

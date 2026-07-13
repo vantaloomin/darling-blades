@@ -26,7 +26,23 @@ describe('theme tokens', () => {
     expect(theme.type).toEqual({ displayXL: 64, display: 44, h1: 28, h2: 20, body: 16, label: 14, caption: 12, micro: 11 });
     expect(theme.fonts).toEqual({ display: 'Cinzel, Georgia, serif', ui: 'Inter, Arial, sans-serif' });
     expect(theme.weight).toEqual({ w600: '600', w700: '700' });
-    expect(theme.design).toEqual({ width: 1280, height: 720, centerX: 640, centerY: 360 });
+    expect(theme.design).toEqual({
+      width: 1280,
+      height: 720,
+      centerX: 640,
+      centerY: 360,
+      titleSafe: { left: 64, right: 1216, top: 36, bottom: 684 },
+      safeLeft: 64,
+      safeRight: 1216,
+      safeTop: 36,
+      safeBottom: 684,
+      safeWidth: 1152,
+      safeHeight: 648,
+      safeCenterX: 640,
+      safeCenterY: 360,
+      headerCenterY: 58,
+      footerCenterY: 662,
+    });
     expect(theme.space(6)).toBe(24);
     expect(theme.control).toEqual({ heightSm: 30, heightMd: 40, minHitWidth: 90, minHitHeight: 44, borderWidth: 1 });
     expect(theme.radius).toEqual({ panel: 8, control: 6 });
