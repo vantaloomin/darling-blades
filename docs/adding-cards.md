@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-12
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-13
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -67,7 +67,7 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `x`           | `{ min: number }?`                     | Marks an X spell; `min` is the smallest legal X.                       |
 | `abilities`   | `AbilityDef[]?`                        | Triggered/static/spell abilities (below).                            |
 | `manaAbility` | `Color[]?`                             | Lands and mana creatures — the colors this source can tap for.        |
-| `entersTapped`| `boolean?`                             | Dual taplands enter tapped.                                          |
+| `entersTapped`| `boolean?`                             | Taplands enter tapped; the face prints "Enters play tapped."         |
 | `rarity`      | `Rarity`                               | `c`/`r`/`sr`/`ssr`/`ur` (displayed as C / R / SR / SSR / UR; best-first sort order `ur < ssr < sr < r < c`). |
 | `flavor`      | `string?`                              | Flavor text (may be suppressed on busy cards — see below).            |
 | `artRef`      | `string?`                              | Share another card's art key (both placeholder and real art).         |

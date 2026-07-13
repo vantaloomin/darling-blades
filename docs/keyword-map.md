@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-12 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-13 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
 
 # MTG keyword map — Darling Blades terms (shipped + future)
 

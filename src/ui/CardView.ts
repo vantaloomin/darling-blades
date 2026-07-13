@@ -283,7 +283,11 @@ export class CardView extends Phaser.GameObjects.Container {
     // Land faces get a composed mana-iconography row ([T] → [pip]) centered
     // in the otherwise-empty textbox; flavor (if any) drops below the row.
     const manaRow = isType(card, 'land') ? (card.manaAbility ?? []) : [];
-    const textTop = manaRow.length > 0 ? 132 : 66;
+    // Taplands print their rules line ("Enters play tapped.") above the mana
+    // row, MTG-style; the layout budgets one line there, so land rules text
+    // must stay a single short line.
+    const hasLandRules = manaRow.length > 0 && rules.length > 0;
+    const textTop = manaRow.length > 0 && !hasLandRules ? 132 : 66;
     this.rulesTextObj.setPosition(TEXT_LEFT, textTop);
     // The textbox spans from textTop down to the safe bottom edge. Flavor text
     // is anchored to that bottom edge, directly above cost/stat badges; rules
@@ -326,7 +330,9 @@ export class CardView extends Phaser.GameObjects.Container {
       const ARROW_W = 24;
       const OR_W = 26; // the "or" separator between adjacent color pips
       const SEP = GAP + OR_W + GAP; // one constant shared by width, label x, and advance
-      const rowY = hasFlavor ? 100 : 128; // centered in the free box when bare
+      // Centered in the free box when bare; nudged down past the rules line
+      // (one line ending ~81) when the land prints one, e.g. taplands.
+      const rowY = hasLandRules ? 108 : hasFlavor ? 100 : 128;
       const rowW = PIP + GAP + ARROW_W + GAP + manaRow.length * PIP + (manaRow.length - 1) * SEP;
       let ix = -rowW / 2 + PIP / 2;
       const tap = this.scene.add.image(ix, rowY, 'pip-T').setDisplaySize(PIP, PIP);
