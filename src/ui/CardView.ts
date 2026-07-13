@@ -373,16 +373,38 @@ export class CardView extends Phaser.GameObjects.Container {
     this.nameText.setAlpha(textAlpha);
     this.typeText.setAlpha(textAlpha);
     this.rulesTextObj.setAlpha(textAlpha);
+    // In full art the rules field is bottom-anchored and content-sized (user
+    // spec 2026-07-13): full width, no dead parchment below short text. The
+    // mana-icon row and rules text shift down with it via fieldTop.
+    let fieldTop = textTop;
     if (fullArt) {
       this.namePlate.setVisible(true);
       this.typePlate.setVisible(true);
-      this.textPlate.setVisible(true);
+      const hasFieldContent = rules.length > 0 || MANA_LINE_H > 0;
+      if (manaRow.length > 0) {
+        // Lands keep the fixed plate — their [T]→pip row is centered in the
+        // field, so a content-hugging plate has nothing to hug.
+        this.textPlate.setSize(268, 108).setPosition(0, 116).setVisible(true);
+      } else if (hasFieldContent) {
+        const PLATE_PAD = 8;
+        // Bottom edge tucks behind the badge row exactly like the old fixed
+        // plate did (it spanned y62..170; badges start at y166.5).
+        const PLATE_BOTTOM = 170;
+        const rulesH = this.rulesTextObj.height * this.rulesTextObj.scaleY;
+        const plateH = PLATE_PAD * 2 + MANA_LINE_H + rulesH;
+        this.textPlate.setSize(268, plateH).setPosition(0, PLATE_BOTTOM - plateH / 2).setVisible(true);
+        fieldTop = PLATE_BOTTOM - PLATE_PAD - rulesH - MANA_LINE_H;
+        this.rulesTextObj.setPosition(TEXT_LEFT, fieldTop + MANA_LINE_H);
+      } else {
+        // Vanilla card: no rules, no mana line — the art owns the whole field.
+        this.textPlate.setVisible(false);
+      }
     }
     if (abilityMana.length > 0) {
       // [T]: Add [G] — icon form of the old "Tap: add G." line, sized to sit
       // flush with the 13px rules text below it.
       const PIP = 18;
-      const rowYc = textTop + PIP / 2;
+      const rowYc = fieldTop + PIP / 2;
       const style = {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '13px',
