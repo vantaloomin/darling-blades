@@ -288,13 +288,18 @@ export class CardView extends Phaser.GameObjects.Container {
     // must stay a single short line.
     const hasLandRules = manaRow.length > 0 && rules.length > 0;
     const textTop = manaRow.length > 0 && !hasLandRules ? 132 : 66;
-    this.rulesTextObj.setPosition(TEXT_LEFT, textTop);
+    // Non-land mana abilities compose an icon line ([T]: Add [pip]) at the
+    // top of the rules box (replacing the old "Tap: add G." text line); the
+    // text block starts below it.
+    const abilityMana = !isType(card, 'land') ? (card.manaAbility ?? []) : [];
+    const MANA_LINE_H = abilityMana.length > 0 ? 24 : 0;
+    this.rulesTextObj.setPosition(TEXT_LEFT, textTop + MANA_LINE_H);
     // The textbox spans from textTop down to the safe bottom edge. Flavor text
     // is anchored to that bottom edge, directly above cost/stat badges; rules
     // text keeps the top of the box and shrinks if the two blocks would collide.
     const pipSpecs = pipsFor(card.cost ?? { generic: 0, pips: {} });
     const BOX_BOTTOM = 166;
-    const BOX_H = BOX_BOTTOM - textTop;
+    const BOX_H = BOX_BOTTOM - textTop - MANA_LINE_H;
     const DIVIDER_GAP = 8; // space between rules block and the hairline
     const AFTER_DIVIDER = 6; // hairline to flavor text
     const hasFlavor = !!card.flavor;
@@ -320,6 +325,39 @@ export class CardView extends Phaser.GameObjects.Container {
       const dividerY = flavorTop - AFTER_DIVIDER;
       this.flavorRule.setPosition(TEXT_LEFT, dividerY).setVisible(true);
       this.flavorTextObj.setPosition(TEXT_LEFT, flavorTop).setVisible(true);
+    }
+    if (abilityMana.length > 0) {
+      // [T]: Add [G] — icon form of the old "Tap: add G." line, sized to sit
+      // flush with the 13px rules text below it.
+      const PIP = 18;
+      const rowYc = textTop + PIP / 2;
+      const style = {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#20180e',
+        resolution: 2,
+      };
+      let ix = TEXT_LEFT;
+      const tap = this.scene.add.image(ix + PIP / 2, rowYc, 'pip-T').setDisplaySize(PIP, PIP);
+      this.add(tap);
+      this.pips.push(tap);
+      ix += PIP + 2;
+      const label = this.scene.add.text(ix, rowYc, ': Add', style).setOrigin(0, 0.5);
+      this.add(label);
+      this.pips.push(label);
+      ix += label.width + 5;
+      abilityMana.forEach((col, i) => {
+        if (i > 0) {
+          const or = this.scene.add.text(ix, rowYc, 'or', style).setOrigin(0, 0.5);
+          this.add(or);
+          this.pips.push(or);
+          ix += or.width + 5;
+        }
+        const pip = this.scene.add.image(ix + PIP / 2, rowYc, `pip-${col}`).setDisplaySize(PIP, PIP);
+        this.add(pip);
+        this.pips.push(pip);
+        ix += PIP + 5;
+      });
     }
     if (manaRow.length > 0) {
       // [T] → [G]; duals read [T] → [W] or [G] — bare side-by-side pips read

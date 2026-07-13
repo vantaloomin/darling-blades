@@ -104,7 +104,7 @@ export const CELTIC_FAE = [
     cost: cost(2, 'RR'), colors: ['R'], attack: 4, defense: 4,
     keywords: ['warcry'], rarity: 'sr', flavor: 'The caps are red because washing them would be an admission.',
   }),
-  fae('cf-queen-mab-midnight', 'Queen Mab at Midnight', 'Queen', {
+  fae('cf-queen-mab-midnight', 'Mab, Midnight Queen', 'Queen', {
     supertypes: ['legendary'], cost: cost(3, 'UB'), colors: ['U', 'B'], attack: 4, defense: 5,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }, { when: 'attacks', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }],
     rarity: 'sr', flavor: 'She rules the hour when even honest thoughts put on masks.',

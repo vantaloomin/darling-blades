@@ -141,7 +141,7 @@ export const TK_OTHER = [
     id: 'tk-other-chengong',
     name: 'Chen Gong, Conscience for Hire',
     types: ['creature'],
-    subtypes: ['Other', 'Strategist'],
+    subtypes: ['Strategist'],
     cost: cost(1, 'B'),
     colors: ['B'],
     attack: 2,

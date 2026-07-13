@@ -188,9 +188,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (d.entersTapped && (d.manaAbility?.length ?? 0) > 1) {
     lines.push('Arrives tapped.');
   }
-  if (d.manaAbility?.length && !d.types.includes('land')) {
-    lines.push(`Tap: add ${d.manaAbility.join(' or ')}.`);
-  }
+  // Non-land mana abilities are NOT part of the text: CardView composes an
+  // icon line ([T]: Add [pip]) at the top of the rules box instead.
   for (const ab of d.abilities ?? []) lines.push(abilityText(ab));
   return lines.join('\n');
 }
@@ -228,6 +227,10 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
 }
 
 export function typeLine(d: CardDef): string {
+  // Tokens read "Token Creature" (no subtypes) — user-requested 2026-07-13.
+  if (d.token) {
+    return `Token ${d.types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(' ')}`;
+  }
   const supers = (d.supertypes ?? [])
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(' ');

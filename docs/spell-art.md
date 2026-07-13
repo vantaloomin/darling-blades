@@ -182,10 +182,10 @@ The script appends the shared preamble and negatives; do not restate them per en
 ### Divination — `so-divination`
 - **Prompt:** A scrying vision blooming over still water — a blue seer's reflecting pool at frame center flaring with luminous arcane visions and drifting omen-sigils, two ghostly future-images rising from the surface, U insight palette `#4a90d9` and `#16294f` with `#a8d4f7` vision-glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
-### Rampant Growth — `so-rampant-growth`
+### Verdant Invitation — `so-rampant-growth`
 - **Prompt:** A landscape erupting into sudden verdant life — new forest, vines, and glowing green land-energy bursting up out of bare earth at frame center, a fresh spring of living mana welling forth, G growth palette `#4fa06a` and `#123a22` with `#a9dcae` sprout-glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
-### Raise Dead — `so-raise-dead`
+### Summon the Dead — `so-raise-dead`
 - **Prompt:** A resurrection clawing up from a grave — a violet-black necromantic glow pouring into an open tomb at frame center as a skeletal armored hand thrusts up through the soil, grave-mist and spectral light swirling, B death palette `#5a3a70` and `#140d1c` with `#9b6fc4` raising glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Lava Axe — `so-lava-axe`
