@@ -183,8 +183,10 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
       lines.push(d.keywords.map((k) => KEYWORD_NAMES[k]).join(', '));
     }
   }
-  if (d.entersTapped) {
-    lines.push('Enters play tapped.');
+  // Printed only on either/or duals — mono taplands stay bare by design,
+  // even though entersTapped still applies mechanically.
+  if (d.entersTapped && (d.manaAbility?.length ?? 0) > 1) {
+    lines.push('Arrives tapped.');
   }
   if (d.manaAbility?.length && !d.types.includes('land')) {
     lines.push(`Tap: add ${d.manaAbility.join(' or ')}.`);

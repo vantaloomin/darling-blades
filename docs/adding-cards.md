@@ -67,7 +67,7 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `x`           | `{ min: number }?`                     | Marks an X spell; `min` is the smallest legal X.                       |
 | `abilities`   | `AbilityDef[]?`                        | Triggered/static/spell abilities (below).                            |
 | `manaAbility` | `Color[]?`                             | Lands and mana creatures — the colors this source can tap for.        |
-| `entersTapped`| `boolean?`                             | Taplands enter tapped; the face prints "Enters play tapped."         |
+| `entersTapped`| `boolean?`                             | Taplands enter tapped; either/or duals print "Arrives tapped."       |
 | `rarity`      | `Rarity`                               | `c`/`r`/`sr`/`ssr`/`ur` (displayed as C / R / SR / SSR / UR; best-first sort order `ur < ssr < sr < r < c`). |
 | `flavor`      | `string?`                              | Flavor text (may be suppressed on busy cards — see below).            |
 | `artRef`      | `string?`                              | Share another card's art key (both placeholder and real art).         |
