@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-12 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-14 · review monthly -->
 
 # Roadmap
 
@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **620 tests green** (+3 skipped balance-tool assertions) across 62 files
+- **673 tests green** (+3 skipped balance-tool assertions) across 65 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -57,6 +57,40 @@ _Dated 2026-07-04. Review monthly._
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images — see Recently shipped). By-ear tuning remains
   open (see Planned).
+
+## Recently shipped (2026-07-14)
+
+- **Limited Draft re-implementation — 20 AI draft personas** (still
+  menu-hidden). The Bot Draft's seven bot seats are now **named characters**:
+  a 20-persona roster (`src/data/draftPersonas.ts` — grounded millennial
+  first names, 10f/10m; male portraits use non-character card art per the
+  portrait rule) where each persona pairs a **`PickerProfile`** draft style
+  (`src/meta/draftPicker.ts` — one parameterized scorer; frozen
+  `DEFAULT_PICKER` reproduces the old heuristic bit-for-bit, lockstep-tested
+  on the live pick path across 20 full drafts AND per-card over the whole
+  `CARD_DB`, which also pins the shared auto-build scoring) with a duel
+  **`Personality`** spread. Rare-chaser, swarm drafter, tribal loyalist,
+  mono-forcer, chaos drafter (pure-hash noise — determinism holds), curve
+  perfectionist, and 14 more. Seats are a seeded shuffle stored in
+  `DraftState.personaIds` — **`SaveData` bumped v15 → v16** with migration +
+  tests. The personas seated at 1–3 **pilot your three matches**: DuelScene
+  wears their name/portrait/Personality (deck = their actual drafted pool;
+  difficulty stays the easy→medium→hard ladder), the results screen names
+  who's next, and the hub shows "Match 2/3 · vs Kyle".
+  `LimitedDraftScene` was **fully rebuilt** on the theme system: an 8-seat
+  table strip with portrait discs + tap-for-identity-card popups,
+  pass-direction chevrons that point at the receiving seat, the pack as real
+  card thumbnails (select / right-click / long-press inspect), and a picks
+  panel with live color/curve readouts. Verified: tsc/lint/**673 tests**
+  (+28)/build/doc-checkers green; adversarial review (2 dimensions, majority
+  of candidates refuted; 2 confirmed findings — portrait mask undercoverage
+  and inverted pass chevrons — both fixed and re-probed); a full browser
+  probe of draft → auto-build → match 1 → results with zero console errors
+  and the save restored byte-clean. Limited remains hidden from MainMenu —
+  the remaining re-enable blockers are run-economy tuning and limited-pool
+  balance measurement ([plan-v1.1-post-launch.md](plan-v1.1-post-launch.md)
+  Feature 5). Visual by-eye pass (portrait crops, 45-pick density) still
+  wants human eyes on a live screen.
 
 ## Recently shipped (2026-07-12)
 
@@ -789,13 +823,17 @@ _Dated 2026-07-04. Review monthly._
   disjoint). Deterministic replays and Tier-2 LAN PvP shelve to 1.2+.
 - **Limited public release (post-1.0, with a future expansion; now part of
   the 1.1 program above).** The full
-  Sealed/Bot-Draft implementation (v14 save block, `src/meta/Limited.ts`, four
+  Sealed/Bot-Draft implementation (`src/meta/Limited.ts`, four
   scenes, tests) stays in the codebase but is unreachable from MainMenu
   (PR #54). User decision 2026-07-10: it ships in its own release after more
-  testing — blockers are Limited balance/economy (auto-build texture via the
-  balance harness, run-reward tuning) and general flow polish. Re-enabling is
-  one MainMenu entry plus a browser-preview probe of both run types
-  end-to-end. Blocker detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
+  testing. **2026-07-14: the Bot Draft was re-implemented around 20 AI draft
+  personas** (see Recently shipped) — the draft-flow polish blocker is
+  addressed (LimitedDraftScene rebuilt on the theme system; matches are now
+  played against named personas). Remaining blockers: Limited balance/economy
+  (auto-build texture via the balance harness, run-reward tuning) and a
+  Sealed-flow polish pass. Re-enabling is one MainMenu entry plus a
+  browser-preview probe of both run types end-to-end. Blocker detail:
+  [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program

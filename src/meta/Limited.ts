@@ -1,9 +1,18 @@
 import { ECONOMY } from '../config/rules';
+import { DRAFT_PERSONAS, draftPersonaById } from '../data/draftPersonas';
 import { createRngState, rngInt, type RngState } from '../engine/rng';
 import type { CardDb, CardDef, Color, Rarity } from '../engine/types';
-import { def, isType, manaValue } from '../engine/types';
+import { def, isType } from '../engine/types';
 import { isBasic } from './Collection';
 import { LIMITED_DECK_SIZE, validateLimitedDeck } from './DeckStorage';
+import {
+  assignDraftPersonas,
+  DEFAULT_PICKER,
+  pickNoise,
+  scoreBasePick,
+  scorePick,
+  type PickerProfile,
+} from './draftPicker';
 import { packPool } from './PackOpener';
 import { rollTier, TIER_RANK } from './variants';
 
@@ -35,6 +44,7 @@ export interface LimitedPool {
 
 export interface DraftState {
   seed: number;
+  personaIds: string[];
   packIndex: number;
   pickIndex: number;
   packs: string[][][];
@@ -64,7 +74,7 @@ export interface LimitedDuelData {
   deckOverride: string[];
   oppDeckOverride: string[];
   seedOverride: number;
-  limited: { runId: string; mode: LimitedMode; matchIndex: number };
+  limited: { runId: string; mode: LimitedMode; matchIndex: number; opponentPersonaId?: string };
 }
 
 export interface LimitedHistoryEntry {
@@ -109,7 +119,12 @@ export function limitedDuelData(run: LimitedRun): LimitedDuelData {
     deckOverride: [...run.deck],
     oppDeckOverride: [...(run.opponentDecks[run.matchIndex] ?? run.opponentDecks[0] ?? [])],
     seedOverride: limitedMatchSeed(run),
-    limited: { runId: run.id, mode: run.mode, matchIndex: run.matchIndex },
+    limited: {
+      runId: run.id,
+      mode: run.mode,
+      matchIndex: run.matchIndex,
+      opponentPersonaId: run.mode === 'draft' ? run.draft?.personaIds[run.matchIndex + 1] : undefined,
+    },
   };
 }
 
@@ -182,7 +197,8 @@ export function startDraftRun(db: CardDb, seed: number, now: number): LimitedRun
 }
 
 export function startBotDraft(db: CardDb, seed: number): DraftState {
-  const rng = createRngState(clampLimitedSeed(seed));
+  const runSeed = clampLimitedSeed(seed);
+  const rng = createRngState(runSeed);
   const packs: string[][][] = [];
   for (let pack = 0; pack < DRAFT_PACKS; pack++) {
     const round: string[][] = [];
@@ -190,7 +206,11 @@ export function startBotDraft(db: CardDb, seed: number): DraftState {
     packs.push(round);
   }
   return {
-    seed: clampLimitedSeed(seed),
+    seed: runSeed,
+    personaIds: assignDraftPersonas(
+      runSeed,
+      DRAFT_PERSONAS.map((persona) => persona.id),
+    ),
     packIndex: 0,
     pickIndex: 0,
     packs,
@@ -213,7 +233,10 @@ export function pickDraftCard(db: CardDb, state: DraftState, cardId: string): Dr
   for (let seat = 1; seat < DRAFT_SEATS; seat++) {
     const pack = currentPacks[seat];
     if (pack.length === 0) continue;
-    const chosen = chooseBotDraftPick(db, pack, picks[seat]);
+    const profile = draftPersonaById(state.personaIds[seat] ?? '')?.picker ?? DEFAULT_PICKER;
+    const chosen = chooseBotDraftPick(db, pack, picks[seat], profile, (cardId) =>
+      pickNoise(state.seed, seat, state.packIndex, state.pickIndex, cardId),
+    );
     removeOne(pack, chosen);
     picks[seat].push(chosen);
   }
@@ -305,9 +328,17 @@ function rollLimitedPackWithRng(db: CardDb, rng: RngState, set?: CardDef['set'])
   return cards.sort((a, b) => TIER_RANK[def(db, a).rarity] - TIER_RANK[def(db, b).rarity] || compareCardNames(db, a, b));
 }
 
-function chooseBotDraftPick(db: CardDb, pack: readonly string[], picks: readonly string[]): string {
+function chooseBotDraftPick(
+  db: CardDb,
+  pack: readonly string[],
+  picks: readonly string[],
+  profile: PickerProfile,
+  noiseForCard: (cardId: string) => number,
+): string {
   return [...pack].sort(
-    (a, b) => scoreDraftCard(db, b, picks) - scoreDraftCard(db, a, picks) || compareCardNames(db, a, b),
+    (a, b) =>
+      scorePick(db, b, picks, profile, noiseForCard(b)) -
+        scorePick(db, a, picks, profile, noiseForCard(a)) || compareCardNames(db, a, b),
   )[0];
 }
 
@@ -326,53 +357,14 @@ function removeOne(cards: string[], cardId: string): void {
   cards.splice(i, 1);
 }
 
-function scoreDraftCard(db: CardDb, id: string, picks: readonly string[]): number {
-  const d = def(db, id);
-  let score = scoreBaseCard(d);
-  const committed = committedColors(db, picks);
-  if (picks.length >= 5 && d.colors.length > 0) {
-    const overlap = d.colors.filter((c) => committed.includes(c)).length;
-    if (overlap === d.colors.length) score += 5;
-    else if (overlap > 0) score += 1;
-    else score -= 7;
-  }
-  if (isType(d, 'land') && !isBasic(db, id)) {
-    const mana = d.manaAbility ?? [];
-    score += mana.some((c) => committed.includes(c)) ? 4 : 1;
-  }
-  return score;
-}
-
 function scoreDeckCard(db: CardDb, id: string, colors: readonly Color[]): number {
   const d = def(db, id);
-  let score = scoreBaseCard(d);
+  let score = scoreBasePick(d, DEFAULT_PICKER);
   if (d.colors.length > 0) {
     const onColor = d.colors.every((c) => colors.includes(c));
     const overlap = d.colors.some((c) => colors.includes(c));
     score += onColor ? 7 : overlap ? 1 : -12;
   }
-  return score;
-}
-
-function scoreBaseCard(d: CardDef): number {
-  let score = TIER_RANK[d.rarity] * 4;
-  const mv = manaValue(d.cost);
-  if (isType(d, 'creature')) {
-    score += 5 + (d.attack ?? 0) * 1.2 + (d.defense ?? 0) * 0.8;
-    score += (d.keywords?.length ?? 0) * 1.5;
-  } else if (isType(d, 'charm') || isType(d, 'ritual')) {
-    score += 4;
-  } else if (isType(d, 'enchantment') || isType(d, 'artifact')) {
-    score += 2;
-  }
-  if (d.abilities?.some((a) => a.ops?.some((op) => op.op === 'destroy' || op.op === 'damage' || op.op === 'cancel'))) {
-    score += 5;
-  }
-  if (d.abilities?.some((a) => a.ops?.some((op) => op.op === 'draw' || op.op === 'raise' || op.op === 'reclaim'))) {
-    score += 3;
-  }
-  if (mv >= 2 && mv <= 4) score += 2;
-  if (mv >= 7) score -= 3;
   return score;
 }
 
@@ -388,26 +380,12 @@ function chooseDeckColors(db: CardDb, pool: readonly string[]): Color[] {
   for (const id of pool) {
     const d = def(db, id);
     if (d.token || isType(d, 'land')) continue;
-    for (const color of d.colors) scores.set(color, (scores.get(color) ?? 0) + Math.max(1, scoreBaseCard(d)));
+    for (const color of d.colors) scores.set(color, (scores.get(color) ?? 0) + Math.max(1, scoreBasePick(d, DEFAULT_PICKER)));
   }
   const ranked = COLOR_ORDER.filter((c) => (scores.get(c) ?? 0) > 0).sort(
     (a, b) => (scores.get(b) ?? 0) - (scores.get(a) ?? 0) || COLOR_ORDER.indexOf(a) - COLOR_ORDER.indexOf(b),
   );
   return ranked.slice(0, Math.min(2, Math.max(1, ranked.length)));
-}
-
-function committedColors(db: CardDb, picks: readonly string[]): Color[] {
-  if (picks.length === 0) return [];
-  const scores = new Map<Color, number>();
-  for (const color of COLOR_ORDER) scores.set(color, 0);
-  for (const id of picks) {
-    const d = def(db, id);
-    if (d.token || isType(d, 'land')) continue;
-    for (const color of d.colors) scores.set(color, (scores.get(color) ?? 0) + 1 + TIER_RANK[d.rarity]);
-  }
-  return COLOR_ORDER.filter((c) => (scores.get(c) ?? 0) > 0)
-    .sort((a, b) => (scores.get(b) ?? 0) - (scores.get(a) ?? 0) || COLOR_ORDER.indexOf(a) - COLOR_ORDER.indexOf(b))
-    .slice(0, 2);
 }
 
 function isPlayableSpell(db: CardDb, id: string): boolean {

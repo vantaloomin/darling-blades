@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { CARD_DB } from '../data/catalog';
+import { draftPersonaById } from '../data/draftPersonas';
 import {
   clampLimitedSeed,
   completeDraftRun,
@@ -84,12 +85,17 @@ export class LimitedScene extends Phaser.Scene {
       );
       return;
     }
+    // Draft matches are played against a seated persona — name the next one.
+    const nextPersona =
+      run.mode === 'draft' && run.status === 'matches'
+        ? draftPersonaById(run.draft?.personaIds[run.matchIndex + 1] ?? '')
+        : null;
     const status =
       run.status === 'draft'
         ? `Drafting pack ${run.draft ? run.draft.packIndex + 1 : 1}, pick ${run.draft ? run.draft.pickIndex + 1 : 1}`
         : run.status === 'build'
           ? `Building ${run.deck.length}/40`
-          : `Match ${run.matchIndex + 1}/3`;
+          : `Match ${run.matchIndex + 1}/3${nextPersona ? ` · vs ${nextPersona.name}` : ''}`;
     this.text(
       x + 24,
       y + 72,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { CARD_DB } from '../../src/data/catalog';
+import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
 import { THEME_DECKS } from '../../src/data/starterDecks';
 import { createRngState } from '../../src/engine/rng';
 import {
@@ -15,6 +16,8 @@ import {
 } from '../../src/meta/Collection';
 import { validateDeck } from '../../src/meta/DeckStorage';
 import { applyGauntletResult, applyMatchResult, buyThemeDeck, spendGold } from '../../src/meta/Economy';
+import { assignDraftPersonas } from '../../src/meta/draftPicker';
+import { startDraftRun, startSealedRun } from '../../src/meta/Limited';
 import { openPack, packPool } from '../../src/meta/PackOpener';
 import { freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, shardValue, TIER_RANK, variantKey, variantRank } from '../../src/meta/variants';
@@ -63,7 +66,7 @@ describe('SaveManager', () => {
     storage.raw.set('darlingblades.save.v1', '{not json');
     const m = new SaveManager(storage);
     expect(m.data.gold).toBe(0);
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
   });
 
   it('starts fresh saves with auto-skip off', () => {
@@ -83,7 +86,7 @@ describe('SaveManager', () => {
     storage.raw.set('waifutcg.save.v1', blob);
 
     const b = new SaveManager(storage);
-    expect(b.data.version).toBe(15);
+    expect(b.data.version).toBe(16);
     expect(b.data.gold).toBe(512);
     expect(b.data.collection['bear']).toBe(2);
     // The new key takes precedence when both exist.
@@ -115,7 +118,7 @@ describe('SaveManager', () => {
     expect(m.data.decks).toEqual([]);
     expect(m.data.starterChosen).toBeNull();
     expect(m.data.stats.wins).toBe(0);
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.createdAt).toBe(1234);
     // A subsequent boot from the same storage is also fresh.
     expect(new SaveManager(storage).data.gold).toBe(0);
@@ -430,7 +433,7 @@ describe('save migration old blobs → current schema', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v1blob));
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.gold).toBe(640);
     expect(m.data.collection['bk-wolfqueen']).toBe(2);
     expect(m.data.decks).toEqual([{ id: 'd1', name: 'Mine', cards: ['land-forest'], heroCardId: null }]);
@@ -493,7 +496,7 @@ describe('save migration old blobs → current schema', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v2blob));
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.gold).toBe(320);
     // v2 data survives, and v6 stamps the in-progress run with a reproducible
     // seed derived from its startedAt (400 & 0x7fffffff = 400).
@@ -533,7 +536,7 @@ describe('save migration old blobs → current schema', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v3blob));
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.collection).toEqual({ 'bk-wolfqueen': 4, 'oly-hera': 1 });
     expect(m.data.collectionVariants).toEqual({
       'bk-wolfqueen': { 'white|none': 4 },
@@ -560,7 +563,7 @@ describe('save migration old blobs → current schema', () => {
     const v4blob = { ...base, version: 4, settings: { ...base.settings, renderScale: 2 } };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v4blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.settings.renderScale).toBe(2); // 1440p choice survives
   });
 
@@ -575,7 +578,7 @@ describe('save migration old blobs → current schema', () => {
     };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v4blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.settings.renderScale).toBe(2);
   });
 
@@ -591,7 +594,7 @@ describe('save migration old blobs → current schema', () => {
     delete (v5blob as { heroCardId?: unknown }).heroCardId;
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v5blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.heroCardId).toBe(null);
     // The seedless run is stamped deterministically from startedAt (900).
     expect(m.data.gauntlet.run).toEqual({ rung: 3, startedAt: 900, seed: 900 });
@@ -604,7 +607,7 @@ describe('save migration old blobs → current schema', () => {
     const v5blob = { ...base, version: 5, heroCardId: 'oly-zeus', gauntlet: { run: null, bestRung: 5, completions: 2 } };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v5blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.heroCardId).toBe('oly-zeus'); // a pre-set hero survives
     expect(m.data.gauntlet).toEqual({
       run: null,
@@ -623,7 +626,7 @@ describe('save migration old blobs → current schema', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...base, version: 6, settings: v6settings }));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.settings.confirmDestructive).toBe(true); // default on
     expect(m.data.settings.renderScale).toBe(base.settings.renderScale); // rest of settings intact
 
@@ -634,7 +637,7 @@ describe('save migration old blobs → current schema', () => {
       JSON.stringify({ ...base, version: 6, settings: { ...v6settings, confirmDestructive: false } }),
     );
     const m2 = new SaveManager(s2);
-    expect(m2.data.version).toBe(15);
+    expect(m2.data.version).toBe(16);
     expect(m2.data.settings.confirmDestructive).toBe(false);
   });
 
@@ -647,7 +650,7 @@ describe('save migration old blobs → current schema', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...base, version: 7, settings: v7settings }));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.settings.keywordReminders).toBe(true); // default on
     expect(m.data.settings.confirmDestructive).toBe(base.settings.confirmDestructive); // v7 field intact
 
@@ -658,7 +661,7 @@ describe('save migration old blobs → current schema', () => {
       JSON.stringify({ ...base, version: 7, settings: { ...v7settings, keywordReminders: false } }),
     );
     const m2 = new SaveManager(s2);
-    expect(m2.data.version).toBe(15);
+    expect(m2.data.version).toBe(16);
     expect(m2.data.settings.keywordReminders).toBe(false);
   });
 
@@ -671,7 +674,7 @@ describe('save migration old blobs → current schema', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v8blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.heroPortraitId).toBe(null); // default
     expect(m.data.heroCardId).toBe(base.heroCardId); // the rest is intact
 
@@ -682,7 +685,7 @@ describe('save migration old blobs → current schema', () => {
       JSON.stringify({ ...base, version: 8, heroPortraitId: 'hero-valhalla' }),
     );
     const m2 = new SaveManager(s2);
-    expect(m2.data.version).toBe(15);
+    expect(m2.data.version).toBe(16);
     expect(m2.data.heroPortraitId).toBe('hero-valhalla');
   });
 
@@ -698,7 +701,7 @@ describe('save migration old blobs → current schema', () => {
     const fresh = fakeStorage();
     fresh.raw.set('darlingblades.save.v1', JSON.stringify(v9({})));
     const mFresh = new SaveManager(fresh);
-    expect(mFresh.data.version).toBe(15);
+    expect(mFresh.data.version).toBe(16);
     expect(mFresh.data.tutorialDone).toBe(false);
 
     // A player with any win/loss record is a veteran → tutorial already done.
@@ -729,13 +732,13 @@ describe('save migration old blobs → current schema', () => {
 
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.achievements).toEqual({ unlocked: [], claimed: [] });
     expect(m.data.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 0 });
     expect(m.data.tutorialDone).toBe(base.tutorialDone);
   });
 
-  it('migrates a v11 blob through v15: gauntlet clear styles and limited default empty', () => {
+  it('migrates a v11 blob through v16: gauntlet clear styles and limited default empty', () => {
     const base = freshSave(1);
     const v11blob = { ...base, version: 11, gauntlet: { run: null, bestRung: 10, completions: 3 } } as Record<
       string,
@@ -746,7 +749,7 @@ describe('save migration old blobs → current schema', () => {
 
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.gauntlet).toEqual({
       run: null,
       bestRung: 10,
@@ -757,7 +760,7 @@ describe('save migration old blobs → current schema', () => {
     expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0 });
   });
 
-  it('migrates a v12 blob to v15: daily quests, streaks, and limited default', () => {
+  it('migrates a v12 blob to v16: daily quests, streaks, and limited default', () => {
     const base = freshSave(new Date(2026, 6, 7).getTime());
     const v12blob = { ...base, version: 12 } as Record<string, unknown>;
     delete v12blob.daily;
@@ -766,7 +769,7 @@ describe('save migration old blobs → current schema', () => {
 
     const m = new SaveManager(storage, new Date(2026, 6, 8).getTime());
 
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.daily.day).toBe('2026-07-08');
     expect(m.data.daily.quests).toHaveLength(ECONOMY.dailyQuestCount);
     expect(new Set(m.data.daily.quests.map((q) => q.id)).size).toBe(ECONOMY.dailyQuestCount);
@@ -775,7 +778,7 @@ describe('save migration old blobs → current schema', () => {
     expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0 });
   });
 
-  it('migrates a v13 blob to v15: limited defaults empty', () => {
+  it('migrates a v13 blob to v16: limited defaults empty', () => {
     const base = freshSave(new Date(2026, 6, 8).getTime());
     const v13blob = { ...base, version: 13 } as Record<string, unknown>;
     delete v13blob.limited;
@@ -784,12 +787,12 @@ describe('save migration old blobs → current schema', () => {
 
     const m = new SaveManager(storage, new Date(2026, 6, 8).getTime());
 
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.daily.day).toBe('2026-07-08');
     expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0 });
   });
 
-  it('migrates a v14 blob to v15: saved decks gain per-deck hero selections', () => {
+  it('migrates a v14 blob through v16: saved decks gain per-deck hero selections', () => {
     const base = freshSave(new Date(2026, 6, 8).getTime());
     const v14blob = {
       ...base,
@@ -807,13 +810,53 @@ describe('save migration old blobs → current schema', () => {
 
     const m = new SaveManager(storage, new Date(2026, 6, 8).getTime());
 
-    expect(m.data.version).toBe(15);
+    expect(m.data.version).toBe(16);
     expect(m.data.decks).toEqual([
       { id: 'with-default', name: 'With Default', cards: ['hero-card', 'other-card'], heroCardId: 'hero-card' },
       { id: 'without-default', name: 'Without Default', cards: ['other-card'], heroCardId: null },
       { id: 'explicit', name: 'Explicit', cards: ['alpha', 'beta'], heroCardId: 'beta' },
       { id: 'stale', name: 'Stale', cards: ['alpha'], heroCardId: null },
     ]);
+  });
+
+  it('migrates v15 to v16 by backfilling in-flight draft personas and leaving sealed runs intact', () => {
+    const now = new Date(2026, 6, 8).getTime();
+    const seed = 4815;
+    const rosterIds = DRAFT_PERSONAS.map((persona) => persona.id);
+    const draftRun = startDraftRun(CARD_DB, seed, now);
+    const legacyDraft = { ...draftRun.draft } as Record<string, unknown>;
+    delete legacyDraft.personaIds;
+    const draftStorage = fakeStorage();
+    draftStorage.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify({
+        ...freshSave(now),
+        version: 15,
+        limited: {
+          ...freshSave(now).limited,
+          activeRun: { ...draftRun, draft: legacyDraft },
+        },
+      }),
+    );
+
+    const migratedDraft = new SaveManager(draftStorage, now);
+    expect(migratedDraft.data.version).toBe(16);
+    expect(migratedDraft.data.limited.activeRun?.draft?.personaIds).toEqual(assignDraftPersonas(seed, rosterIds));
+
+    const sealedRun = startSealedRun(CARD_DB, seed, now);
+    const sealedStorage = fakeStorage();
+    sealedStorage.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify({
+        ...freshSave(now),
+        version: 15,
+        limited: { ...freshSave(now).limited, activeRun: sealedRun },
+      }),
+    );
+
+    const migratedSealed = new SaveManager(sealedStorage, now);
+    expect(migratedSealed.data.version).toBe(16);
+    expect(migratedSealed.data.limited.activeRun).toEqual(sealedRun);
   });
 
   it('leaves an existing current-version save untouched and round-trips the new settings', () => {
@@ -827,7 +870,7 @@ describe('save migration old blobs → current schema', () => {
     a.data.settings.renderScale = 1.5;
     a.flush();
     const b = new SaveManager(storage);
-    expect(b.data.version).toBe(15);
+    expect(b.data.version).toBe(16);
     expect(b.data.gold).toBe(99);
     expect(b.data.gauntlet.bestRung).toBe(4);
     expect(b.data.settings.musicOn).toBe(false);

@@ -1,3 +1,5 @@
+import { DRAFT_PERSONAS } from '../data/draftPersonas';
+import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
 import { freshLimitedState, type LimitedState } from './Limited';
 import { PLAIN_VARIANT, variantKey } from './variants';
@@ -53,7 +55,7 @@ export interface SavedDeck {
 }
 
 export interface SaveData {
-  version: 15;
+  version: 16;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -153,7 +155,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 15,
+    version: 16,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -218,7 +220,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 15) return parsed as SaveData;
+      if (parsed.version === 16) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -244,7 +246,8 @@ export class SaveManager {
    * any player with a win/loss record); v10 → v11 adds achievements; v11 → v12
    * adds gauntlet clear-style counters; v12 -> v13 adds daily quests/streaks;
    * v13 -> v14 adds Limited runs/history; v14 -> v15 adds per-deck hero card
-   * selections. An unknown/garbage version starts fresh rather than crash.
+   * selections; v15 -> v16 seats deterministic personas into in-flight drafts.
+   * An unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
@@ -412,7 +415,32 @@ export class SaveManager {
         decks: normalizeSavedDecks(cur.decks, legacyHero),
       };
     }
-    if (cur.version === 15) return cur as unknown as SaveData;
+    if (cur.version === 15) {
+      const limited = (cur.limited ?? freshLimitedState()) as LimitedState;
+      const activeRun = limited.activeRun;
+      const legacyDraft = activeRun?.draft as (NonNullable<typeof activeRun>['draft'] & {
+        personaIds?: string[];
+      }) | undefined;
+      const migratedRun =
+        activeRun?.mode === 'draft' && legacyDraft && !Array.isArray(legacyDraft.personaIds)
+          ? {
+              ...activeRun,
+              draft: {
+                ...legacyDraft,
+                personaIds: assignDraftPersonas(
+                  legacyDraft.seed,
+                  DRAFT_PERSONAS.map((persona) => persona.id),
+                ),
+              },
+            }
+          : activeRun;
+      cur = {
+        ...cur,
+        version: 16,
+        limited: { ...limited, activeRun: migratedRun },
+      };
+    }
+    if (cur.version === 16) return cur as unknown as SaveData;
     return freshSave(now);
   }
 

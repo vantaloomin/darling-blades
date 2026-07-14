@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-12 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-14 · design/plan doc — re-verify when the referenced code changes -->
 
 # Post-launch (v1.1) — deferred backlog
 
@@ -382,16 +382,31 @@ an afternoon.
 its MainMenu entry, leaving everything else in place. It ships in its own
 post-1.0 release alongside a future expansion, after more testing.
 
+> **Update (2026-07-14):** the Bot Draft half was **re-implemented around 20
+> AI draft personas** — named drafters with data-driven pick styles
+> (`src/data/draftPersonas.ts` + `src/meta/draftPicker.ts`), a seeded seat
+> table persisted in `DraftState.personaIds` (**SaveData v15 → v16** with
+> migration + tests), persona identity carried into the three matches
+> (DuelScene name/portrait/Personality), and a **full themed rebuild of
+> `LimitedDraftScene`** (seat table with portrait discs and identity popups,
+> card-thumbnail pack grid with inspect, picks panel with color/curve
+> readout). The draft-flow-polish blocker below is addressed; balance/economy
+> and a Sealed-flow polish pass remain.
+
 ### Blockers to re-enable
 
 - **Balance/economy.** Auto-built limited decks' balance texture has never been
   tuned with play data — run the balance harness against limited pools and
   revisit `ECONOMY.limitedRunGold` ([40, 100, 180, 300]) against the retuned
   9-card/450g constructed economy (the progression-sim harness from PR #35 can
-  model the inflow).
-- **General polish.** The Limited flow (reveal, draft picker, 40-card builder,
-  three-match run) predates the 2026-07-10 UI-refresh theme system's duel-board
-  rebuild; it needs a flow-polish pass to match the refreshed game.
+  model the inflow). Note: persona pick *style* intentionally varies deck
+  strength (the Rare-Chaser drafts worse decks than the Curve Perfectionist),
+  so measure against the persona-drafted opponent pools, not a single
+  heuristic.
+- **General polish.** ~~The Limited flow predates the 2026-07-10 UI-refresh
+  theme system~~ — the **draft** flow was rebuilt on the theme system
+  2026-07-14 (persona re-implementation). What remains: the Sealed reveal,
+  the 40-card builder, and the run hub still want the same treatment.
 
 ### Re-enable mechanics
 
