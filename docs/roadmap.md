@@ -60,6 +60,18 @@ _Dated 2026-07-04. Review monthly._
 
 ## Recently shipped (2026-07-14)
 
+- **Base facet relabeled "Core Set"** (plan-1.1 Pillar 5.2; placed into 1.1
+  by the 2026-07-14 handoff). The `'base'` set facet's display text is now
+  **Core Set** in the Collection filter dropdown, the deck-builder pool
+  filter, and the Shop booster SKU — so the label can't read as "all cards"
+  now that three sets exist. Copy-only per the locked 2026-07-10 decision
+  (plan-v1.1-post-launch Feature 4 option 2): the `CardDef.set` id `'base'`,
+  pack pools, collection math, achievement definitions, and saves are all
+  untouched. Recorded in the same pass: **mixed-set packs are the decided
+  Limited set choice** (packs intentionally draw from all three sets;
+  single-set drafts shelved unscheduled) and **Limited run-history
+  achievement goals are scheduled to 1.2** with the opponent picker.
+
 - **Limited Draft re-implementation — 20 AI draft personas** (still
   menu-hidden). The Bot Draft's seven bot seats are now **named characters**:
   a 20-persona roster (`src/data/draftPersonas.ts` — grounded millennial
@@ -914,9 +926,12 @@ _Dated 2026-07-04. Review monthly._
   deterministic replays); **1.3** = seeded daily tower rotation (with its
   balance re-baseline); **1.5** = Commander mode, renamed **"Darlings"**;
   **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
-  the hub offers only Draft; its dormant code is cleanup-eligible. The
-  base-facet relabel and the Limited set-choice/achievement hooks await a
-  placement call.
+  the hub offers only Draft; its dormant code is cleanup-eligible.
+  **Placements locked (2026-07-14 handoff):** the base-facet relabel shipped
+  in 1.1 as **"Core Set"** (see Recently shipped); **mixed-set packs are the
+  decided, shipped Limited set choice** (single-set drafts shelved
+  unscheduled); **Limited run-history achievement goals land in 1.2** with
+  the practice opponent picker.
 - **Limited public release (partially live as of 2026-07-14).**
   **The Bot Draft half is now public**: re-implemented around 20 AI draft
   personas and reachable via the Play submenu (user decision 2026-07-14 —

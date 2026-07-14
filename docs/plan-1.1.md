@@ -47,8 +47,13 @@ PvP are explicitly **not** in 1.1 — they shelve to 1.2+.
 > - **Pillar 5.1 seeded daily tower rotation → 1.3** (carries its balance
 >   re-baseline).
 > - **Pillar 5.3 practice opponent picker → 1.2.**
-> - Pillar 5.2 (base-facet relabel) and the Limited set-choice/achievement
->   hooks are unassigned pending a user call.
+> - **Placements locked (user handoff 2026-07-14):** Pillar 5.2's base-facet
+>   relabel is **part of 1.1** (✅ shipped 2026-07-14 — the `'base'` facet
+>   displays as **"Core Set"** in the Collection filter, the deck-builder pool
+>   filter, and the Shop booster SKU; copy-only, data model untouched).
+>   Limited **set choice is decided: mixed-set packs are the shipped answer**
+>   (see Pillar 2's bullet). Limited **achievement hooks → 1.2**, landing
+>   alongside the practice opponent picker.
 
 ## Pillar 1 — Celtic Fae expansion
 
@@ -108,10 +113,14 @@ Feature 5:
 - **Flow polish.** Bring the four Limited scenes (reveal, draft picker,
   40-card builder, run flow) fully onto the 1.0 theme system and the rebuilt
   duel board's conventions; live-probe both run types end-to-end.
-- **Set choice.** Limited runs should be able to draw Celtic Fae packs —
-  decide whether a run is single-set (pick your set at run start) or mixed.
+- **Set choice.** ✅ **Decided 2026-07-14: mixed-set packs are the shipped
+  1.1 answer** — limited packs intentionally draw from all three sets
+  (`rollLimitedPackWithRng` passes `set` undefined into `packPool`, so no
+  filter applies). Single-set drafts (pick your set at run start) are
+  **shelved unscheduled**, not open.
 - **Achievement hooks.** The road-to-1.0 plan reserved Limited run-history
-  goals; add them with the re-enable.
+  goals; **scheduled to 1.2 (2026-07-14)**, landing alongside the practice
+  opponent picker — no code in 1.1.
 
 Re-enable mechanics: restore the MainMenu entry (one line), probe, ship.
 

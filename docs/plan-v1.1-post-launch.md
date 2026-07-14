@@ -297,6 +297,14 @@ answered — it changes both the balance surface and the SaveData shape.
 
 ## Feature 4 — "Base Set includes expansion" set semantics
 
+> **✅ Shipped (2026-07-14).** Option 2 below — decided 2026-07-10, placed
+> into 1.1 by the 2026-07-14 handoff — is implemented: the `'base'` facet's
+> display text is **"Core Set"** in the Collection filter dropdown
+> (`src/ui/binder/FilterBar.ts`), the deck-builder pool filter
+> (`src/scenes/DeckBuilderScene.ts`), and the Shop booster SKU
+> (`src/scenes/ShopScene.ts`). Copy-only: the `CardDef.set` id `'base'`,
+> pack pools, collection math, achievements, and saves are untouched.
+
 **Why deferred.** This one is a **product/data decision** first and a small code
 change second. Base and Ragnarök are currently modeled as strictly disjoint sets
 — in the collection filter *and* in the pack pools — so "should Base include the
@@ -405,6 +413,15 @@ post-1.0 release alongside a future expansion, after more testing.
 > completion; SaveData v18). Economy note for the tuning pass: 1,000g for
 > ~45 kept cards + the same run gold undercuts three 450g boosters (27
 > rolls) — priced by user direction, revisit alongside `limitedRunGold`.
+>
+> **Update 4 (2026-07-14, placements locked via handoff):** **Set choice is
+> decided — mixed-set packs are the intentional, shipped answer**: limited
+> packs draw from all three sets because `rollLimitedPackWithRng` calls
+> `packPool(db, tier, set)` with `set` undefined (no filter). Single-set
+> draft selection is shelved **unscheduled** ("someday"), not open. The
+> reserved **Limited run-history achievement goals** (first draft completed,
+> 3-0 a run, premium keeps, …) are **scheduled to 1.2**, landing alongside
+> the practice opponent picker.
 >
 > **Update (2026-07-14):** the Bot Draft half was **re-implemented around 20
 > AI draft personas** — named drafters with data-driven pick styles
