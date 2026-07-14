@@ -203,7 +203,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     // you hand your pack toward the left edge (wrapping to seat 1 at the far
     // right) and receive from the neighbor on your right, exactly like a real
     // table. Chevrons, the label, and the pass animation all share this frame.
-    const chevron = direction === 'left' ? '<' : '>';
+    const arrow = direction === 'left' ? '←' : '→';
 
     panel(this, x, y, width, height, { alpha: 0.96 });
     this.add.text(x + 16, y + 9, 'Draft Table', {
@@ -212,13 +212,13 @@ export class LimitedDraftScene extends Phaser.Scene {
       color: theme.colors.heading,
     });
     this.add
-      .text(x + width - 16, y + 10, `PASS ${direction.toUpperCase()}  ${chevron}${chevron}${chevron}`, {
+      .text(x + width / 2, y + 10, `${arrow}  PASS ${direction.toUpperCase()}  ${arrow}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
         color: theme.colors.gold,
       })
-      .setOrigin(1, 0);
+      .setOrigin(0.5, 0);
 
     for (let seat = 0; seat < 8; seat++) {
       const identity = this.identityForSeat(run, seat);
@@ -267,13 +267,14 @@ export class LimitedDraftScene extends Phaser.Scene {
 
     }
 
-    // Chevrons live between visual COLUMNS (the seat order is remapped), all
+    // Arrows live between visual COLUMNS (the seat order is remapped), all
     // pointing the way the packs flow this pack.
     for (let col = 0; col < 7; col++) {
       this.add
-        .text(SEAT_FIRST_X + col * SEAT_PITCH + SEAT_PITCH / 2, seatY - 9, chevron, {
-          fontFamily: theme.fonts.display,
+        .text(SEAT_FIRST_X + col * SEAT_PITCH + SEAT_PITCH / 2, seatY - 9, arrow, {
+          fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.body}px`,
+          fontStyle: theme.weight.w700,
           color: theme.colors.gold,
         })
         .setOrigin(0.5);
