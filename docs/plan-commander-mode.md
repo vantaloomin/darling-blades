@@ -1,6 +1,13 @@
 <!-- source-of-truth: src/config/rules.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/cards/greek.ts, src/data/cards/tk-wei.ts, src/data/cards/tk-wu.ts, src/data/cards/tk-shu.ts, src/data/cards/tk-jin.ts, src/data/cards/tk-other.ts, src/data/cards/beastkin.ts, src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/duals.ts, src/meta/deckFace.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/ui/CommanderPortrait.ts, src/scenes/DuelScene.ts, src/ai/personality.ts · last-verified: 2026-07-12 · design/plan doc — re-verify when the referenced code changes -->
 
-# Commander Mode — a Darling-Blades EDH format
+# Commander Mode ("Darlings") — a Darling-Blades EDH format
+
+> **Re-scope (user decisions 2026-07-14):** this mode is scheduled for
+> **release 1.5** (moved out of the 1.1 program), and its player-facing name
+> is **"Darlings"** — your commander is your Darling. The design below stays
+> authoritative for implementation; refresh the deck lists against the
+> current 349-card pool (Celtic Fae's UR legends are natural Darlings) when
+> the pillar starts.
 
 A single-player "Commander" mode: the player picks a **legendary creature as their
 commander**, plays a purpose-built themed deck led by that legend, and duels a

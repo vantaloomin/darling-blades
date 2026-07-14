@@ -28,6 +28,27 @@ PvP are explicitly **not** in 1.1 — they shelve to 1.2+.
 > a 50-seed low/mid/high tier matrix — baseline in src/data/opponents.ts);
 > the daily-rotation pool (Pillar 5) gains them for free when it lands.
 > Open: Pillar 2's Limited re-enable.
+>
+> **RE-SCOPE (user decisions 2026-07-14) — the pillar assignments below are
+> superseded by this release ladder:**
+>
+> - **Sealed is CANCELLED outright.** Not deferred — cancelled. The hub
+>   offers only the (persona) Draft; Sealed's meta core / reveal scene /
+>   tests remain in the codebase as dead code eligible for cleanup. Every
+>   "both run types" requirement in this doc is void.
+> - **Pillar 2's Draft half SHIPPED 2026-07-14** far beyond this doc's scope
+>   (20 AI draft personas, familiarity reveals, a Free + Premium two-tier
+>   entry, full scene rebuild, public via the Play submenu — see roadmap
+>   Recently shipped 2026-07-14). Remaining in 1.1 from Pillar 2: the
+>   **economy sim/tuning pass** (now player-facing).
+> - **Pillar 3 Commander mode → 1.5**, and the format is named
+>   **"Darlings"** (working title for the retheme).
+> - **Pillar 4 MOD/UGC → 2.0.**
+> - **Pillar 5.1 seeded daily tower rotation → 1.3** (carries its balance
+>   re-baseline).
+> - **Pillar 5.3 practice opponent picker → 1.2.**
+> - Pillar 5.2 (base-facet relabel) and the Limited set-choice/achievement
+>   hooks are unassigned pending a user call.
 
 ## Pillar 1 — Celtic Fae expansion
 

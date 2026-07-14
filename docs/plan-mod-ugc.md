@@ -2,6 +2,11 @@
 
 # Mod / UGC pack system
 
+> **Re-scope (user decision 2026-07-14):** scheduled for **release 2.0**
+> (moved out of the 1.1 program). The design below stays authoritative; the
+> op whitelist must include the Sever/Foresee ops that shipped with Celtic
+> Fae when the pillar starts.
+
 A plan for letting players author their own cards — art, name, flavor, and stats
 — as data-only "packs" that drop into the collection and deckbuilder alongside
 the 210 base cards. The hard constraint, enforced by a dedicated validation

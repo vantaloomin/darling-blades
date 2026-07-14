@@ -906,13 +906,17 @@ _Dated 2026-07-04. Review monthly._
   life squares; execution record in
   [plan-ui-refresh-wave2-wave3-impl.md](plan-ui-refresh-wave2-wave3-impl.md)).
   The Settings toggles closed the last QOL follow-up below.
-- **The 1.1 program (scoped 2026-07-10, post-1.0-cut).**
-  [plan-1.1.md](plan-1.1.md) is the spec. Locked picks: **Celtic Fae** is the
-  next expansion (80 cards; needs new engine surface — an exile zone + scry —
-  before card data), **Limited releases with it**, **Commander mode** and
-  **MOD/UGC packs** are the 1.1 systems, the tower gets a **seeded daily
-  rotation**, and the base facet gets a clarity **relabel** (data stays
-  disjoint). Deterministic replays and Tier-2 LAN PvP shelve to 1.2+.
+- **The 1.1 program (scoped 2026-07-10; RE-SCOPED 2026-07-14).**
+  [plan-1.1.md](plan-1.1.md) is the spec — see its re-scope note. The release
+  ladder now reads: **1.1** = Celtic Fae (✅ shipped) + the public persona
+  Draft (✅ shipped 2026-07-14) + the Limited **economy sim/tuning pass**
+  (remaining); **1.2** = practice opponent picker (+ the previously shelved
+  deterministic replays); **1.3** = seeded daily tower rotation (with its
+  balance re-baseline); **1.5** = Commander mode, renamed **"Darlings"**;
+  **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
+  the hub offers only Draft; its dormant code is cleanup-eligible. The
+  base-facet relabel and the Limited set-choice/achievement hooks await a
+  placement call.
 - **Limited public release (partially live as of 2026-07-14).**
   **The Bot Draft half is now public**: re-implemented around 20 AI draft
   personas and reachable via the Play submenu (user decision 2026-07-14 —

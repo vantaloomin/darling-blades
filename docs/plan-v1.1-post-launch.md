@@ -10,6 +10,13 @@
 > disjoint — and scheduled**; **Feature 5 (Limited) releases with the Celtic
 > Fae expansion in 1.1**. Feature 2 (drag-reorder) remains unscheduled. The
 > detailed analyses below stay authoritative for implementation.
+>
+> **Re-scope (user decisions 2026-07-14):** **Feature 1 (opponent picker) →
+> 1.2**; **Feature 3 (daily tower rotation) → 1.3**; **Sealed is CANCELLED
+> outright** (Feature 5's draft half shipped 2026-07-14 as the persona
+> Free/Premium Draft, public via the Play submenu; only the economy tuning
+> remains in 1.1). Commander — renamed **"Darlings"** — moves to 1.5 and
+> MOD/UGC to 2.0 (see plan-1.1.md's re-scope note).
 
 The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md), and as
 of 2026-07-08 all five of its features are shipped (tutorial, achievements,
