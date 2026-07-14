@@ -78,11 +78,25 @@ _Dated 2026-07-04. Review monthly._
   difficulty stays the easy→medium→hard ladder), the results screen names
   who's next, and the hub shows "Match 2/3 · vs Kyle".
   `LimitedDraftScene` was **fully rebuilt** on the theme system: an 8-seat
-  table strip with portrait discs + tap-for-identity-card popups,
-  pass-direction chevrons that point at the receiving seat, the pack as real
-  card thumbnails (select / right-click / long-press inspect; **inspect
+  table strip with portrait discs + tap-for-identity-card popups, the pack as
+  real card thumbnails (select / right-click / long-press inspect; **inspect
   hotkeys**: ←/→ browse the pack, Space/Enter selects then — pressed again —
-  picks), and a picks panel with live color/curve readouts. **Persona
+  picks), and a picks panel with live color/curve readouts. Polish rounds the
+  same day: the seat row draws **You, 7, 6, … 1** so the engine's pass-left
+  hand-off moves visually left (centered "← PASS LEFT ←" label + real arrow
+  glyphs between seats, direction flipping per pack) and every within-pack
+  pick plays a **pass animation** (pack tokens slide one seat over with an
+  edge-wrap twin; skipped at pack boundaries and on non-full animation
+  settings); the hub renamed the free entry **"Free Draft"**, hides all
+  seed/reroll controls (seeds stay a gauntlet affordance; runs roll hidden
+  seeds), regained its **gold badge**, and aligned all CTA rows on one shared
+  two-column grid; the **inspect modal's right column became a pick-impact
+  panel** (rarity·MV line, pool colors + curve with gold before→after deltas
+  for the inspected card, the shared Keyword Guide when relevant, premium
+  variant/owned-count lines) instead of duplicating the card face — design
+  settled by two independent reviews (Claude + gpt-5.6-sol, consulted unled);
+  and all color readouts use the real baked mana bead icons with the word
+  "pips" removed from player-facing text. **Persona
   familiarity** (user-directed): identities reveal progressively over
   completed drafts together — 1st meeting name+portrait, 2nd the color
   habits (`colorHint`), 3rd the theme, 4th the full profile — tracked in
