@@ -65,15 +65,15 @@ function opText(op: EffectOp): string {
     case 'destroy':
       return 'destroy target creature';
     case 'sever':
-      return 'sever target creature';
+      return 'Sever target creature';
     case 'severGrave': {
       const cards = op.n === 1 ? 'the top card' : `the top ${op.n} cards`;
       return op.who === 'self'
-        ? `sever ${cards} of your graveyard`
-        : `sever ${cards} of your opponent's graveyard`;
+        ? `Sever ${cards} of your graveyard`
+        : `Sever ${cards} of your opponent's graveyard`;
     }
     case 'severTop':
-      return `sever ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
+      return `Sever ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
     case 'recall':
       return "return target creature to its owner's hand";
     case 'cancel':
@@ -81,7 +81,7 @@ function opText(op: EffectOp): string {
     case 'boost': {
       const sign = (v: number): string => (v >= 0 ? `+${v}` : `${v}`);
       const kw = op.keywords?.length
-        ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k].toLowerCase()).join(', ')}`
+        ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
       return op.scope === 'target'
         ? `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`
@@ -104,7 +104,7 @@ function opText(op: EffectOp): string {
       if (!tok) return `create ${op.count} ${plural}`;
       const stats = tok.attack !== undefined && tok.defense !== undefined ? `${tok.attack}/${tok.defense} ` : '';
       const kw = tok.keywords?.length
-        ? ` with ${tok.keywords.map((k) => KEYWORD_NAMES[k].toLowerCase()).join(', ')}`
+        ? ` with ${tok.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
       return `create ${op.count} ${stats}${tok.name} ${plural}${kw}`;
     }
@@ -121,7 +121,7 @@ function opText(op: EffectOp): string {
         : `your opponent puts ${cards} of their deck into their graveyard`;
     }
     case 'foresee':
-      return `foresee ${op.n}`;
+      return `Foresee ${op.n}`;
     case 'raise':
       return op.to === 'top'
         ? 'return the top creature card of your graveyard to play'
@@ -137,7 +137,7 @@ function abilityText(ab: AbilityDef): string {
       return n >= 0 ? `+${n}` : `${n}`;
     };
     const kw = st.grantKeywords?.length
-      ? ` and have ${st.grantKeywords.map((k) => KEYWORD_NAMES[k].toLowerCase()).join(', ')}`
+      ? ` and have ${st.grantKeywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
       : '';
     if (st.scope === 'attached') {
       return `Enchanted creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`;
@@ -183,14 +183,54 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
       lines.push(d.keywords.map((k) => KEYWORD_NAMES[k]).join(', '));
     }
   }
-  if (d.manaAbility?.length && !d.types.includes('land')) {
-    lines.push(`Tap: add ${d.manaAbility.join(' or ')}.`);
+  // Printed only on either/or duals — mono taplands stay bare by design,
+  // even though entersTapped still applies mechanically.
+  if (d.entersTapped && (d.manaAbility?.length ?? 0) > 1) {
+    lines.push('Arrives tapped.');
   }
+  // Non-land mana abilities are NOT part of the text: CardView composes an
+  // icon line ([T]: Add [pip]) at the top of the rules box instead.
   for (const ab of d.abilities ?? []) lines.push(abilityText(ab));
   return lines.join('\n');
 }
 
+export interface GlossaryEntry {
+  name: string;
+  reminder: string;
+}
+
+/**
+ * Every keyword and named mechanic a card's face references: its own keyword
+ * line, keywords granted/named inside its rules text, and the Sever/Foresee
+ * mechanics. Derived from the generated rulesText so any op that prints a
+ * term automatically surfaces its definition (the inspect Keyword Guide was
+ * missing mechanics — e.g. Morrigan showed Skyborne but not Foresee/Sever).
+ */
+export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
+  const entries: GlossaryEntry[] = [];
+  const seen = new Set<string>();
+  const push = (name: string, reminder: string): void => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    entries.push({ name, reminder });
+  };
+  for (const k of d.keywords ?? []) push(KEYWORD_NAMES[k], KEYWORD_REMINDER[k]);
+  const text = rulesText(d).toLowerCase();
+  for (const k of Object.keys(KEYWORD_NAMES) as Keyword[]) {
+    if (new RegExp(`\\b${KEYWORD_NAMES[k].toLowerCase()}\\b`).test(text)) {
+      push(KEYWORD_NAMES[k], KEYWORD_REMINDER[k]);
+    }
+  }
+  if (/\bforesee\b/.test(text)) push('Foresee', MECHANIC_DEFINITIONS.foresee);
+  if (/\bsever(s|ed)?\b/.test(text)) push('Sever', MECHANIC_DEFINITIONS.sever);
+  return entries;
+}
+
 export function typeLine(d: CardDef): string {
+  // Tokens read "Token Creature" (no subtypes) — user-requested 2026-07-13.
+  if (d.token) {
+    return `Token ${d.types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(' ')}`;
+  }
   const supers = (d.supertypes ?? [])
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(' ');

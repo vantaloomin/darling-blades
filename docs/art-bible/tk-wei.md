@@ -118,7 +118,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Background:** Two-value open pale sky with drifting silk ribbons, no landmarks.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common: single figure, one idea (graceful flight).
-- **Prompt:** Genderbent Zhang He flamboyant flying duelist mid-leap, lapis-and-white silk costume with butterfly-wing sleeves, twin bronze claw-blades flared like wings, phoenix hairpin, drifting silk ribbons against pale sky, delighted showman's smile, bright sky key with cool underlight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Genderbent Zhang He, an elegant flamboyant duelist posed in a graceful dancer's stance on a palace rooftop ridge, flowing lapis-and-white silk battle-costume with sheer butterfly-wing sleeves, one ornate bronze-filigree claw-gauntlet worn snugly on each hand with short curved blades extending naturally from the knuckles, arms swept out in a theatrical flourish, phoenix hairpin in ribboned dark hair, pale luminous butterflies and drifting silk ribbons on the wind, delighted half-lidded showman's smile toward the viewer, bright sky key with cool blue rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Xu Huang, Greataxe Ascetic — `tk-wei-xuhuang`
 - **Card facts:** {2}{W} · W · 3/3 · c · holo: none
@@ -268,7 +268,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Background:** Two-value dim storehouse, stacked crates in shadow, single lamp.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common: single figure, one idea (grim logistics).
-- **Prompt:** Genderbent Cheng Yu grim quartermaster beside a supply crate, dark utilitarian robes and stained apron over lamellar, lapis badge, ledger in one hand and a heavy cleaver in the other, dim storehouse with stacked crates, low cold key with faint warm lamp rim, flat warning stare — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Genderbent Cheng Yu grim quartermaster beside a supply crate, dark utilitarian robes and stained apron over lamellar, lapis badge, an open supply ledger held up with its back cover and spine toward the viewer, its pages hidden from the camera and turned fully toward her own face, a heavy cleaver held raised at chest height in the other hand with its broad flat blade-side facing squarely out toward the viewer, both the ledger and the cleaver fully inside the frame, dim storehouse with stacked crates, low cold key with faint warm lamp rim, eyes lifted from the ledger in a flat warning stare — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Man Chong, Firewatch Magistrate — `tk-wei-manchong`
 - **Card facts:** {3}{U} · U · 2/4 · c · holo: none
@@ -343,7 +343,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Background:** Two-value muted dusk sky, a hint of distant homeland hills.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common: single figure, one idea (healing music).
-- **Prompt:** Genderbent Cai Wenji homeward harpist seated at a glowing guqin, soft ivory travelling robes with lapis shawl and bronze fastenings, warm restorative light rising from the strings, distant homeland hills at dusk, gentle sorrowful gaze lowered to the music, warm instrument key with soft cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** Cai Wenji homeward harpist, a gentle young woman poet-musician with a soft distinctly feminine face and figure, camera pulled back to show her seated and actively playing a glowing guqin laid across her lap, both hands visibly plucking the strings and the full instrument in frame, soft ivory travelling robes with lapis shawl and bronze fastenings, warm restorative light rising from the strings, distant homeland hills at dusk, gentle sorrowful gaze lowered to the music, warm instrument key with soft cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wang Yi, Unforgiving Edge — `tk-wei-wangyi`
 - **Card facts:** {1}{B} · B · 2/1 · deathblade · c · holo: none

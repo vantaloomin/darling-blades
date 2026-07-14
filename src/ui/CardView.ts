@@ -15,9 +15,20 @@ export const CARD_H = 420;
 
 // Art window in card-local (center-origin) coordinates.
 const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
+// Full-art window follows the baked frame face: the 18px (2x texture) inset
+// leaves the card's rounded metal border visible on every edge.
+const FULL_ART_RECT = { x: -141, y: -201, w: 282, h: 402 };
 const TEXT_LEFT = -126;
 const TEXT_WIDTH = 252;
-const BOTTOM_BADGE_Y = 182;
+// Badge-row geometry (user spec 2026-07-13): the cost tray's bottom-left
+// corner and the P/T plate's bottom-right corner sit exactly on the frame's
+// INNER bottom corners (the 9px frame-face inset — same derivation as
+// FULL_ART_RECT), both growing TOWARD center; the set symbol rides its own
+// centered plate so the row reads symmetric regardless of cost/stat widths.
+const FRAME_INNER = { left: -141, right: 141, bottom: 201 } as const;
+const BADGE_H = 31;
+const BOTTOM_BADGE_Y = FRAME_INNER.bottom - BADGE_H / 2; // 185.5
+const GEM_PLATE_W = 44;
 const BOTTOM_PIP_SIZE = 21;
 const SET_ICON_SIZE = 24; // set symbols are leaner silhouettes than the old diamond gem
 
@@ -95,12 +106,16 @@ export class CardView extends Phaser.GameObjects.Container {
   private frameTint: Phaser.GameObjects.Image;
   private ring: Phaser.GameObjects.Image;
   private art: Phaser.GameObjects.Image;
+  private namePlate: Phaser.GameObjects.Rectangle;
+  private typePlate: Phaser.GameObjects.Rectangle;
+  private textPlate: Phaser.GameObjects.Rectangle;
   private nameText: Phaser.GameObjects.Text;
   private typeText: Phaser.GameObjects.Text;
   private rulesTextObj: Phaser.GameObjects.Text;
   private flavorTextObj: Phaser.GameObjects.Text;
   private flavorRule: Phaser.GameObjects.Rectangle;
   private ptPlate: Phaser.GameObjects.Image;
+  private gemPlate: Phaser.GameObjects.Image;
   private ptText: Phaser.GameObjects.Text;
   private costPlate: Phaser.GameObjects.Image;
   private gem: Phaser.GameObjects.Image;
@@ -124,6 +139,20 @@ export class CardView extends Phaser.GameObjects.Container {
       .setVisible(false);
     this.art = scene.add.image(0, ART_RECT.y + ART_RECT.h / 2, '__WHITE');
     this.ring = scene.add.image(0, 0, 'frame-ring').setDisplaySize(CARD_W, CARD_H).setVisible(false);
+    // Plate alphas are the WCAG floor-holding values — see the full-art fade
+    // note in setCard before lowering them further.
+    this.namePlate = scene.add
+      .rectangle(0, -182, 268, 26, 0xf7f1dc, 0.7)
+      .setStrokeStyle(1.5, 0x6b5a3e, 0.4)
+      .setVisible(false);
+    this.typePlate = scene.add
+      .rectangle(0, 45, 268, 22, 0xf7f1dc, 0.7)
+      .setStrokeStyle(1.5, 0x6b5a3e, 0.4)
+      .setVisible(false);
+    this.textPlate = scene.add
+      .rectangle(0, 116, 268, 108, 0xf2ead2, 0.68)
+      .setStrokeStyle(1.5, 0x6b5a3e, 0.38)
+      .setVisible(false);
 
     this.nameText = scene.add
       .text(TEXT_LEFT, -182, '', {
@@ -176,9 +205,13 @@ export class CardView extends Phaser.GameObjects.Container {
       .setOrigin(0, 0)
       .setVisible(false);
 
-    this.ptPlate = scene.add.image(96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(75, 31);
+    // Right-anchored: the plate's bottom-right corner sits on the frame's
+    // inner bottom-right corner; wider P/T text grows the plate leftward.
+    this.ptPlate = scene.add
+      .image(FRAME_INNER.right - 75 / 2, BOTTOM_BADGE_Y, 'pt-plate')
+      .setDisplaySize(75, BADGE_H);
     this.ptText = scene.add
-      .text(96, BOTTOM_BADGE_Y - 1, '', {
+      .text(FRAME_INNER.right - 75 / 2, BOTTOM_BADGE_Y - 1, '', {
         fontFamily: 'Cinzel, Georgia, serif',
         fontSize: '17px',
         fontStyle: 'bold',
@@ -190,8 +223,13 @@ export class CardView extends Phaser.GameObjects.Container {
     // deliberate departure from MTG's top-right cost. Reuses the neutral
     // pt-plate texture; width is fitted to the pip row in setCard, hidden for
     // costless cards (lands).
-    this.costPlate = scene.add.image(-96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(50, 31).setVisible(false);
+    this.costPlate = scene.add.image(-96, BOTTOM_BADGE_Y, 'pt-plate').setDisplaySize(50, BADGE_H).setVisible(false);
 
+    // The set symbol's own centered plate — same material as cost/P/T, fixed
+    // at x=0 so the badge row reads symmetric whatever sits beside it.
+    this.gemPlate = scene.add
+      .image(0, BOTTOM_BADGE_Y, 'pt-plate')
+      .setDisplaySize(GEM_PLATE_W, BADGE_H);
     this.gem = scene.add.image(0, BOTTOM_BADGE_Y, 'seticon-base-c').setDisplaySize(SET_ICON_SIZE, SET_ICON_SIZE);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
     this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
@@ -200,6 +238,9 @@ export class CardView extends Phaser.GameObjects.Container {
       this.frame,
       this.frameTint,
       this.art,
+      this.namePlate,
+      this.typePlate,
+      this.textPlate,
       this.ring,
       this.nameText,
       this.typeText,
@@ -209,6 +250,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.ptPlate,
       this.ptText,
       this.costPlate,
+      this.gemPlate,
       this.gem,
       this.crown,
       this.back,
@@ -219,7 +261,7 @@ export class CardView extends Phaser.GameObjects.Container {
 
   setCard(
     card: CardDef | null,
-    opts: { fx?: CardFxLevel; variant?: CardVariant } = {},
+    opts: { fx?: CardFxLevel; variant?: CardVariant; fullArt?: boolean } = {},
   ): this {
     this.clearFx();
     this.card = card;
@@ -232,6 +274,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.nameText,
       this.typeText,
       this.rulesTextObj,
+      this.gemPlate,
       this.gem,
     ]) {
       (obj as Phaser.GameObjects.Image).setVisible(!faceDown);
@@ -248,20 +291,32 @@ export class CardView extends Phaser.GameObjects.Container {
     if (!card) return this;
 
     const fx: CardFxLevel = opts.fx ?? 'static';
+    const fullArt = opts.fullArt === true;
+    const artRect = fullArt ? FULL_ART_RECT : ART_RECT;
 
     // Frame + art
     this.frame.setTexture(frameKeyFor(card.colors, card.types)).setDisplaySize(CARD_W, CARD_H);
     const artRef = Art.resolver!.getArt(card.id);
     if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
     else this.art.setTexture(artRef.textureKey);
-    // Cover the window: scale to fill, crop the vertical overflow (art sources
-    // are 4:5 — placeholders 320×400, real art 640×800; the math is ratio-based).
+    // Cover the selected window: the standard window crops vertically; full art
+    // uses the taller frame interior and therefore crops a centered horizontal
+    // band from the same 4:5 source. Explicitly reposition after setCrop — crop
+    // does not recenter an Image whose source crop is offset.
     const srcW = this.art.frame.width;
     const srcH = this.art.frame.height;
-    const scale = Math.max(ART_RECT.w / srcW, ART_RECT.h / srcH);
-    const cropH = ART_RECT.h / scale;
-    this.art.setCrop(0, (srcH - cropH) / 2, srcW, cropH);
-    this.art.setScale(scale);
+    const scale = Math.max(artRect.w / srcW, artRect.h / srcH);
+    const cropW = artRect.w / scale;
+    const cropH = artRect.h / scale;
+    const cropX = (srcW - cropW) / 2;
+    const cropY = (srcH - cropH) / 2;
+    this.art
+      .setCrop(cropX, cropY, cropW, cropH)
+      .setScale(scale)
+      .setPosition(
+        artRect.x + artRect.w / 2 + scale * (srcW / 2 - cropX - cropW / 2),
+        artRect.y + artRect.h / 2 + scale * (srcH / 2 - cropY - cropH / 2),
+      );
 
     // Texts. With the cost moved to the bottom-left, the name owns the FULL top
     // band — auto-fit to 244px (was 215, when it had to dodge the top-right
@@ -283,17 +338,28 @@ export class CardView extends Phaser.GameObjects.Container {
     // Land faces get a composed mana-iconography row ([T] → [pip]) centered
     // in the otherwise-empty textbox; flavor (if any) drops below the row.
     const manaRow = isType(card, 'land') ? (card.manaAbility ?? []) : [];
-    const textTop = manaRow.length > 0 ? 132 : 66;
-    this.rulesTextObj.setPosition(TEXT_LEFT, textTop);
+    // Taplands print their rules line ("Enters play tapped.") above the mana
+    // row, MTG-style; the layout budgets one line there, so land rules text
+    // must stay a single short line.
+    const hasLandRules = manaRow.length > 0 && rules.length > 0;
+    const textTop = manaRow.length > 0 && !hasLandRules ? 132 : 66;
+    // Non-land mana abilities compose an icon line ([T]: Add [pip]) at the
+    // top of the rules box (replacing the old "Tap: add G." text line); the
+    // text block starts below it.
+    const abilityMana = !isType(card, 'land') ? (card.manaAbility ?? []) : [];
+    const MANA_LINE_H = abilityMana.length > 0 ? 24 : 0;
+    this.rulesTextObj.setPosition(TEXT_LEFT, textTop + MANA_LINE_H);
     // The textbox spans from textTop down to the safe bottom edge. Flavor text
     // is anchored to that bottom edge, directly above cost/stat badges; rules
     // text keeps the top of the box and shrinks if the two blocks would collide.
     const pipSpecs = pipsFor(card.cost ?? { generic: 0, pips: {} });
     const BOX_BOTTOM = 166;
-    const BOX_H = BOX_BOTTOM - textTop;
+    const BOX_H = BOX_BOTTOM - textTop - MANA_LINE_H;
     const DIVIDER_GAP = 8; // space between rules block and the hairline
     const AFTER_DIVIDER = 6; // hairline to flavor text
-    const hasFlavor = !!card.flavor;
+    // Full art drops the lore line entirely (user spec 2026-07-13) — the
+    // rules field stays operational-only and the art owns the mood.
+    const hasFlavor = !!card.flavor && !fullArt;
 
     // Measure the flavor block first (height is needed to size the rules box).
     // Windows font-fallback trap: measure height only AFTER setText.
@@ -317,6 +383,92 @@ export class CardView extends Phaser.GameObjects.Container {
       this.flavorRule.setPosition(TEXT_LEFT, dividerY).setVisible(true);
       this.flavorTextObj.setPosition(TEXT_LEFT, flavorTop).setVisible(true);
     }
+    // Full-art fade: plates and text drop opacity but hold WCAG AA. Worst
+    // case is pure-black art behind the plate: effective background
+    // luminance = plateAlpha × plateLum (≈0.83), effective text luminance =
+    // textAlpha × textLum + (1−textAlpha) × bgLum; at plate 0.68 / text 0.90
+    // the near-black ink keeps ≥4.7:1 against any art, above the 4.5:1
+    // normal-text floor (light art only raises it).
+    const textAlpha = fullArt ? 0.9 : 1;
+    this.nameText.setAlpha(textAlpha);
+    this.typeText.setAlpha(textAlpha);
+    this.rulesTextObj.setAlpha(textAlpha);
+    // In full art the rules field is bottom-anchored and content-sized (user
+    // spec 2026-07-13): full width, no dead parchment below short text. The
+    // mana-icon row and rules text shift down with it via fieldTop, and the
+    // type band rides down to sit directly on the text block, so the whole
+    // operational assembly gathers at the card's foot.
+    let fieldTop = textTop;
+    this.typePlate.setPosition(0, 45);
+    this.typeText.setY(45);
+    if (fullArt) {
+      this.namePlate.setVisible(true);
+      this.typePlate.setVisible(true);
+      const TYPE_BAND_H = 22;
+      const TYPE_SEAM = 2; // hairline gap so band and plate read as stacked plates
+      const setTypeBandAbove = (plateTop: number): void => {
+        const centerY = plateTop - TYPE_SEAM - TYPE_BAND_H / 2;
+        this.typePlate.setPosition(0, centerY);
+        this.typeText.setY(centerY);
+      };
+      const hasFieldContent = rules.length > 0 || MANA_LINE_H > 0;
+      // 2px behind the badge row (badge tops sit at FRAME_INNER.bottom − 31 = 170).
+      const PLATE_BOTTOM = 172;
+      if (manaRow.length > 0) {
+        // Lands keep the fixed plate — their [T]→pip row is centered in the
+        // field, so a content-hugging plate has nothing to hug.
+        this.textPlate.setSize(268, 108).setPosition(0, 116).setVisible(true);
+        setTypeBandAbove(62);
+      } else if (hasFieldContent) {
+        const PLATE_PAD = 8;
+        // Bottom edge tucks behind the badge row exactly like the old fixed
+        // plate did (it spanned y62..170; badges start at y166.5).
+        const rulesH = this.rulesTextObj.height * this.rulesTextObj.scaleY;
+        const plateH = PLATE_PAD * 2 + MANA_LINE_H + rulesH;
+        this.textPlate.setSize(268, plateH).setPosition(0, PLATE_BOTTOM - plateH / 2).setVisible(true);
+        fieldTop = PLATE_BOTTOM - PLATE_PAD - rulesH - MANA_LINE_H;
+        this.rulesTextObj.setPosition(TEXT_LEFT, fieldTop + MANA_LINE_H);
+        setTypeBandAbove(PLATE_BOTTOM - plateH);
+      } else {
+        // Vanilla card: no rules, no mana line — the art owns the whole field
+        // and the type band drops to the badge line.
+        this.textPlate.setVisible(false);
+        setTypeBandAbove(PLATE_BOTTOM);
+      }
+    }
+    if (abilityMana.length > 0) {
+      // [T]: Add [G] — icon form of the old "Tap: add G." line, sized to sit
+      // flush with the 13px rules text below it.
+      const PIP = 18;
+      const rowYc = fieldTop + PIP / 2;
+      const style = {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#20180e',
+        resolution: 2,
+      };
+      let ix = TEXT_LEFT;
+      const tap = this.scene.add.image(ix + PIP / 2, rowYc, 'pip-T').setDisplaySize(PIP, PIP);
+      this.add(tap);
+      this.pips.push(tap);
+      ix += PIP + 2;
+      const label = this.scene.add.text(ix, rowYc, ': Add', style).setOrigin(0, 0.5);
+      this.add(label);
+      this.pips.push(label);
+      ix += label.width + 5;
+      abilityMana.forEach((col, i) => {
+        if (i > 0) {
+          const or = this.scene.add.text(ix, rowYc, 'or', style).setOrigin(0, 0.5);
+          this.add(or);
+          this.pips.push(or);
+          ix += or.width + 5;
+        }
+        const pip = this.scene.add.image(ix + PIP / 2, rowYc, `pip-${col}`).setDisplaySize(PIP, PIP);
+        this.add(pip);
+        this.pips.push(pip);
+        ix += PIP + 5;
+      });
+    }
     if (manaRow.length > 0) {
       // [T] → [G]; duals read [T] → [W] or [G] — bare side-by-side pips read
       // as "provides both" (user-reported 2026-07-12). Sized generously — this
@@ -326,7 +478,9 @@ export class CardView extends Phaser.GameObjects.Container {
       const ARROW_W = 24;
       const OR_W = 26; // the "or" separator between adjacent color pips
       const SEP = GAP + OR_W + GAP; // one constant shared by width, label x, and advance
-      const rowY = hasFlavor ? 100 : 128; // centered in the free box when bare
+      // Centered in the free box when bare; nudged down past the rules line
+      // (one line ending ~81) when the land prints one, e.g. taplands.
+      const rowY = hasLandRules ? 108 : hasFlavor ? 100 : 128;
       const rowW = PIP + GAP + ARROW_W + GAP + manaRow.length * PIP + (manaRow.length - 1) * SEP;
       let ix = -rowW / 2 + PIP / 2;
       const tap = this.scene.add.image(ix, rowY, 'pip-T').setDisplaySize(PIP, PIP);
@@ -366,22 +520,34 @@ export class CardView extends Phaser.GameObjects.Container {
       });
     }
 
-    // P/T
+    // P/T — right-anchored on the frame's inner corner, growing LEFT (toward
+    // center) if the stat text ever outgrows the standard 75px plate.
     if (isType(card, 'creature')) {
-      this.ptPlate.setVisible(true);
       this.ptText.setVisible(true).setText(`${card.attack}/${card.defense}`);
+      const ptW = Math.max(75, Math.ceil(this.ptText.width) + 20);
+      const ptCx = FRAME_INNER.right - ptW / 2;
+      this.ptPlate.setVisible(true).setDisplaySize(ptW, BADGE_H).setX(ptCx);
+      this.ptText.setX(ptCx);
     }
 
     // Cost pips — BOTTOM-LEFT, mirroring the P/T plate at bottom-right. Read
-    // left-to-right (generic first, then colored pips), centred on x=-96 (the
-    // mirror of the P/T plate centre +96), on the neutral cost plate.
+    // left-to-right (generic first, then colored pips). The plate's bottom-left
+    // corner sits exactly on the frame's inner bottom-left corner and wide
+    // trays grow RIGHTWARD toward center (user spec 2026-07-13), stopping
+    // clear of the centered set-symbol plate.
     if (pipSpecs.length > 0) {
       const PIP = BOTTOM_PIP_SIZE;
       const STEP = 23;
+      const left = FRAME_INNER.left;
+      const maxRight = -GEM_PLATE_W / 2 - 4; // 4px clear of the set-symbol plate
       const rowW = PIP + (pipSpecs.length - 1) * STEP;
-      const cx = -96;
-      this.costPlate.setVisible(true).setDisplaySize(Math.max(46, rowW + 18), 31);
-      let px = cx - rowW / 2 + PIP / 2;
+      const plateW = Math.min(Math.max(46, rowW + 18), maxRight - left);
+      // Widest catalog costs (5 pips: gk-zeus) exceed the clamped plate —
+      // compress the pip step so the row fits rather than covering the symbol.
+      const fitRowW = Math.min(rowW, plateW - 18);
+      const step = pipSpecs.length > 1 ? STEP - (rowW - fitRowW) / (pipSpecs.length - 1) : 0;
+      this.costPlate.setVisible(true).setDisplaySize(plateW, BADGE_H).setX(left + plateW / 2);
+      let px = left + (plateW - fitRowW) / 2 + PIP / 2;
       for (const spec of pipSpecs) {
         const img = this.scene.add.image(px, BOTTOM_BADGE_Y, spec.texture).setDisplaySize(PIP, PIP);
         this.add(img);
@@ -399,7 +565,7 @@ export class CardView extends Phaser.GameObjects.Container {
           this.add(t);
           this.pips.push(t);
         }
-        px += STEP;
+        px += step;
       }
     }
 
@@ -433,9 +599,36 @@ export class CardView extends Phaser.GameObjects.Container {
 
     // Holo — a finish is per-copy (variant Axis C): no variant, no holo.
     if (fx === 'full' && variant && variant.holo !== 'none') {
-      this.holo = applyHolo(this.scene, this, this.art, variant.holo, ART_RECT);
+      this.holo = applyHolo(this.scene, this, this.art, variant.holo, artRect);
     }
+    // Full art: the holo overlay covers the whole frame (not just the art
+    // window), and applyHolo appends its objects last — so re-raise every
+    // text plate, text, and badge above the finish. Text must stay legible
+    // over any holo (user spec 2026-07-13).
+    if (fullArt) this.raiseFullArtChrome();
     return this;
+  }
+
+  /** Bring the readable chrome above full-frame holo overlays, in draw order. */
+  private raiseFullArtChrome(): void {
+    const chrome: Phaser.GameObjects.GameObject[] = [
+      this.namePlate,
+      this.typePlate,
+      this.textPlate,
+      this.nameText,
+      this.typeText,
+      this.rulesTextObj,
+      this.flavorRule,
+      this.flavorTextObj,
+      this.costPlate,
+      ...this.pips,
+      this.ptPlate,
+      this.ptText,
+      this.gemPlate,
+      this.gem,
+      this.crown,
+    ];
+    for (const obj of chrome) this.bringToTop(obj);
   }
 
   /**
@@ -546,6 +739,9 @@ export class CardView extends Phaser.GameObjects.Container {
     this.ring.resetPostPipeline();
     this.ring.clearTint();
     this.frameTint.setVisible(false).clearTint();
+    this.namePlate.setVisible(false);
+    this.typePlate.setVisible(false);
+    this.textPlate.setVisible(false);
     this.flavorTextObj.setScale(1).setVisible(false);
     this.flavorRule.setVisible(false);
     for (const p of this.pips) p.destroy();

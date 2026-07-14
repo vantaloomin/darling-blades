@@ -13,7 +13,7 @@ import { collectionCompletion } from '../meta/collectionFilter';
 import { Services } from '../meta/services';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, goldBadge, pager, panel, themedButton } from '../ui/themeWidgets';
+import { backButton, pager, panel, themedButton } from '../ui/themeWidgets';
 
 const DESIGN_W = 1280;
 const DESIGN_H = 720;
@@ -114,9 +114,9 @@ export class AchievementsScene extends Phaser.Scene {
         this.scene.restart({ page });
         },
       });
-    } else {
-      goldBadge(this, DESIGN_W - 30, 30, { getValue: () => save.gold });
     }
+    // No idle gold badge here: currency shows only on the main menu and the
+    // Shop (user decision 2026-07-12); Claim All still names its payout.
 
     this.drawCompletionPanel();
     visibleStatuses.forEach((status, index) => {

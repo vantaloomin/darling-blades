@@ -1,22 +1,23 @@
 import Phaser from 'phaser';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { bindTapButton } from '../platform/gestures';
+import { dropdownPopoverLayout, DROPDOWN_GEOMETRY, type FocusMetadata } from './layout';
+import { roundedTrigger, type RoundedTrigger } from './themeWidgets';
 import { theme } from './theme';
 
 /**
- * A compact select dropdown — the first reusable one in the codebase. Flat
- * scene objects (never a scaled interactive Container — playbook §11): a button
- * that shows `Label: Value ▾`, and an on-demand options panel at a high depth so
- * it floats over the page beneath. Closes on select, on an outside click, or
- * when a sibling opens (via `onOpen`). Positions are DESIGN-space (1280×720);
- * the outside-click test uses pointer WORLD coords so it is render-scale safe.
+ * A compact select dropdown. The trigger and option rows use flat Phaser
+ * objects with unscaled Zone input targets; the panel floats above the page at
+ * the shared popover depth and closes on select, outside click, or a sibling
+ * opening. Positions are DESIGN-space (1280x720); outside-click checks use
+ * pointer WORLD coords so the test remains render-scale safe.
  */
 
 export interface DropdownOption<T extends string> {
   value: T;
   label: string;
+  disabled?: boolean;
 }
 
-const ROW_H = theme.control.minHitHeight;
 const PANEL_DEPTH = theme.depth.popover;
 
 export interface DropdownOpts<T extends string> {
@@ -24,13 +25,17 @@ export interface DropdownOpts<T extends string> {
   options: DropdownOption<T>[];
   value: T;
   minW?: number;
+  enabled?: boolean;
+  focus?: FocusMetadata;
   onSelect: (v: T) => void;
-  /** Called just before this dropdown opens — FilterBar uses it to close siblings. */
+  /** Called just before this dropdown opens - FilterBar uses it to close siblings. */
   onOpen?: () => void;
 }
 
 export class Dropdown<T extends string> {
-  readonly button: Phaser.GameObjects.Text;
+  /** The shared trigger's unscaled Zone, retained as the public guard target. */
+  readonly button: Phaser.GameObjects.Zone;
+  private readonly trigger: RoundedTrigger;
   private panel: Phaser.GameObjects.Container | null = null;
   private closeListener: ((p: Phaser.Input.Pointer) => void) | null = null;
   private value: T;
@@ -42,46 +47,34 @@ export class Dropdown<T extends string> {
     private readonly opts: DropdownOpts<T>,
   ) {
     this.value = opts.value;
-    this.button = scene.add
-      .text(x, y, this.caption(), {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        fontStyle: theme.weight.w600,
-        color: theme.colors.body,
-        backgroundColor: theme.colors.btnGhostBg,
-        padding: { x: 10, y: 6 },
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(scene, this.button, () => this.toggle());
-    this.reinflate();
+    this.trigger = roundedTrigger(scene, x, y, this.caption(), {
+      variant: 'ghost',
+      minWidth: this.minW,
+      enabled: opts.enabled,
+      focus: opts.focus,
+      onTap: () => this.toggle(),
+    });
+    this.button = this.trigger.inputZone;
   }
 
   private get minW(): number {
     return this.opts.minW ?? 96;
   }
 
-  /** Text.updateText resets the hit area on any setText/style change — restore it. */
-  private reinflate(): void {
-    inflateHitArea(this.button, this.minW, theme.control.minHitHeight);
-  }
-
-  /** World-space bounds of the custom inflated hit area, not just the glyph box. */
+  /** World-space bounds of the shared trigger's custom inflated Zone target. */
   private triggerBounds(): Phaser.Geom.Rectangle {
-    const visual = this.button.getBounds();
-    const hit = this.button.input?.hitArea as Phaser.Geom.Rectangle | undefined;
-    if (!hit) return visual;
+    const measured = this.trigger.getMeasuredBounds();
     return new Phaser.Geom.Rectangle(
-      visual.x + hit.x,
-      visual.y + hit.y,
-      hit.width,
-      hit.height,
+      this.trigger.container.x + measured.hit.x,
+      this.trigger.container.y + measured.hit.y,
+      measured.hit.width,
+      measured.hit.height,
     );
   }
 
   private caption(): string {
     const sel = this.opts.options.find((o) => o.value === this.value);
-    return `${this.opts.label}: ${sel ? sel.label : '—'} ▾`;
+    return `${this.opts.label}: ${sel ? sel.label : '\u2014'} \u25be`;
   }
 
   get isOpen(): boolean {
@@ -96,50 +89,116 @@ export class Dropdown<T extends string> {
   open(): void {
     if (this.panel) return;
     this.opts.onOpen?.();
-    this.button.setBackgroundColor(theme.colors.btnEmphasisBg);
-    this.reinflate();
+    this.trigger.setSelected(true);
 
-    const n = this.opts.options.length;
     const triggerBounds = this.triggerBounds();
-    const top = triggerBounds.bottom + theme.space(1);
-    const w = Math.max(this.button.width, this.minW);
-    const panelBounds = new Phaser.Geom.Rectangle(this.x, top, w + 8, n * ROW_H + 8);
+    const popover = dropdownPopoverLayout(triggerBounds, this.opts.options.length, {
+      panelWidth: this.trigger.getMeasuredSize().visual.width + DROPDOWN_GEOMETRY.panelPadding * 2,
+    });
+    const panelBounds = new Phaser.Geom.Rectangle(
+      popover.panel.x,
+      popover.panel.y,
+      popover.panel.width,
+      popover.panel.height,
+    );
     const panel = this.scene.add.container(0, 0).setDepth(PANEL_DEPTH);
     const bg = this.scene.add
       .graphics()
       .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
-      .fillRoundedRect(this.x, top, w + 8, n * ROW_H + 8, theme.radius.control)
+      .fillRoundedRect(
+        popover.panel.x,
+        popover.panel.y,
+        popover.panel.width,
+        popover.panel.height,
+        theme.radius.control,
+      )
       .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
-      .strokeRoundedRect(this.x, top, w + 8, n * ROW_H + 8, theme.radius.control);
+      .strokeRoundedRect(
+        popover.panel.x,
+        popover.panel.y,
+        popover.panel.width,
+        popover.panel.height,
+        theme.radius.control,
+      );
     panel.add(bg);
-    this.opts.options.forEach((o, i) => {
-      const oy = top + 4 + i * ROW_H + ROW_H / 2;
-      const active = o.value === this.value;
-      const t = this.scene.add
-        .text(this.x + 10, oy, o.label, {
+
+    this.opts.options.forEach((option, index) => {
+      const rowBounds = popover.rows[index];
+      const selected = option.value === this.value;
+      const disabled = option.disabled ?? false;
+      let hovered = false;
+      let pressed = false;
+      const row = this.scene.add.container(0, 0);
+      const rowBg = this.scene.add.graphics();
+      const text = this.scene.add
+        .text(rowBounds.x + theme.space(2), rowBounds.y + rowBounds.height / 2, option.label, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
-          fontStyle: active ? theme.weight.w700 : theme.weight.w600,
-          color: active ? theme.colors.gold : theme.colors.body,
+          fontStyle: selected ? theme.weight.w700 : theme.weight.w600,
+          color: selected ? theme.colors.gold : theme.colors.body,
         })
-        .setOrigin(0, 0.5)
-        .setInteractive({ useHandCursor: true });
-      t.on('pointerover', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) t.setColor(theme.colors.heading);
+        .setOrigin(0, 0.5);
+      const zone = this.scene.add
+        .zone(
+          rowBounds.x + rowBounds.width / 2,
+          rowBounds.y + rowBounds.height / 2,
+          rowBounds.width,
+          rowBounds.height,
+        )
+        .setInteractive({ useHandCursor: !disabled });
+      const redraw = (): void => {
+        if (!row.active) return;
+        const active = selected || hovered || pressed;
+        rowBg.clear();
+        rowBg.fillStyle(
+          active ? theme.graphics.rowFillActive : theme.graphics.rowFill,
+          active ? 1 : theme.alpha.chrome,
+        );
+        rowBg.fillRoundedRect(
+          rowBounds.x,
+          rowBounds.y,
+          rowBounds.width,
+          rowBounds.height,
+          theme.radius.control,
+        );
+        row.setAlpha(disabled ? theme.alpha.subtle : 1);
+        text.setColor(
+          disabled
+            ? theme.colors.muted
+            : selected
+              ? theme.colors.gold
+              : hovered || pressed
+                ? theme.colors.heading
+                : theme.colors.body,
+        );
+      };
+      if (disabled) zone.disableInteractive();
+      zone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
+        if (!pointer.wasTouch && !disabled) {
+          hovered = true;
+          redraw();
+        }
       });
-      t.on('pointerout', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) t.setColor(active ? theme.colors.gold : theme.colors.body);
+      zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.wasTouch && !disabled) {
+          pressed = true;
+          redraw();
+        }
       });
-      bindTapButton(this.scene, t, () => this.select(o.value));
-      inflateHitArea(t, w, ROW_H);
-      panel.add(t);
+      zone.on('pointerout', () => {
+        hovered = false;
+        pressed = false;
+        redraw();
+      });
+      if (!disabled) bindTapButton(this.scene, zone, () => this.select(option.value));
+      row.add([rowBg, text, zone]);
+      panel.add(row);
+      redraw();
     });
     this.panel = panel;
 
-    // Outside-click closes. Deferred a tick so the opening click (this very
-    // pointerdown) doesn't immediately close it. Clicks ON the button are left
-    // to the button's own toggle (else pointerdown-close + pointerup-open would
-    // cancel out and the button could never close the panel).
+    // Defer registration so the opening pointerdown does not immediately
+    // close the panel. The trigger and panel are both explicitly exempted.
     this.scene.time.delayedCall(0, () => {
       if (!this.panel) return;
       this.closeListener = (p: Phaser.Input.Pointer) => {
@@ -153,8 +212,7 @@ export class Dropdown<T extends string> {
 
   private select(v: T): void {
     this.value = v;
-    this.button.setText(this.caption());
-    this.reinflate();
+    this.trigger.setLabel(this.caption());
     this.close();
     this.opts.onSelect(v);
   }
@@ -163,8 +221,7 @@ export class Dropdown<T extends string> {
     if (!this.panel) return;
     this.panel.destroy();
     this.panel = null;
-    this.button.setBackgroundColor(theme.colors.btnGhostBg);
-    this.reinflate();
+    this.trigger.setSelected(false);
     if (this.closeListener) {
       this.scene.input.off('pointerdown', this.closeListener);
       this.closeListener = null;
@@ -172,10 +229,9 @@ export class Dropdown<T extends string> {
   }
 
   /**
-   * Scene-shutdown cleanup: drop the outside-click listener and our panel ref.
-   * The button + panel GameObjects are destroyed by the scene itself during
-   * shutdown, so this must NOT touch them — restyling a Text whose canvas is
-   * mid-teardown throws in Text.updateText.
+   * Scene-shutdown cleanup: drop the outside-click listener and panel ref.
+   * The scene owns GameObject destruction during shutdown, so this does not
+   * restyle the trigger while Phaser's Text canvas is tearing down.
    */
   teardown(): void {
     if (this.closeListener) {
@@ -185,15 +241,14 @@ export class Dropdown<T extends string> {
     this.panel = null;
   }
 
-  /** Sync the displayed value from external state (e.g. a filter reset). */
+  /** Sync the displayed value from external state (for example a filter reset). */
   setValue(v: T): void {
     this.value = v;
-    this.button.setText(this.caption());
-    this.reinflate();
+    this.trigger.setLabel(this.caption());
   }
 
   destroy(): void {
     this.close();
-    this.button.destroy();
+    this.trigger.container.destroy();
   }
 }

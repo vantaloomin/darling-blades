@@ -136,7 +136,7 @@ The script appends the shared preamble and negatives; do not restate them per en
 - **Prompt:** A locked shieldwall snapping into formation — interlocking shields and leveled spears wreathed in a golden ward of protective light at frame center, disciplined soldiers braced behind, holy W palette `#f2e8cf` and `#c9a84c` with `#fffef2` radiant glint — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Valley Mist — `in-valley-mist`
-- **Prompt:** A concealing fog rolling through a valley battlefield — thick luminous green-white mist swallowing marching armies at frame center, dim silhouettes lost in the haze, everything softened and hushed, G palette `#4fa06a` and `#123a22` with pale `#a9dcae` mist-light — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+- **Prompt:** A concealing fog rolling low across an open battlefield — thick neutral silver-grey mist, the color of overcast cloud, sweeping over churned ground at frame center, the faint faded silhouettes of two armies clashing dimly deep in the hazy background, blurred plain tattered banners bearing no symbols or writing and leveled spears half-swallowed by the vapor, the mist itself grey-white and desaturated with only the faintest hint of `#a9dcae` green light glowing low where the fog is deepest — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Undertow — `in-undertow`
 - **Prompt:** A magical riptide dragging a warrior back into the sea — a swirling blue vortex of water and current pulling a struggling figure off their feet at frame center, foam and spray spiraling, U water palette `#4a90d9` and `#16294f` with `#a8d4f7` highlights — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
@@ -182,10 +182,10 @@ The script appends the shared preamble and negatives; do not restate them per en
 ### Divination — `so-divination`
 - **Prompt:** A scrying vision blooming over still water — a blue seer's reflecting pool at frame center flaring with luminous arcane visions and drifting omen-sigils, two ghostly future-images rising from the surface, U insight palette `#4a90d9` and `#16294f` with `#a8d4f7` vision-glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
-### Rampant Growth — `so-rampant-growth`
+### Verdant Invitation — `so-rampant-growth`
 - **Prompt:** A landscape erupting into sudden verdant life — new forest, vines, and glowing green land-energy bursting up out of bare earth at frame center, a fresh spring of living mana welling forth, G growth palette `#4fa06a` and `#123a22` with `#a9dcae` sprout-glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
-### Raise Dead — `so-raise-dead`
+### Summon the Dead — `so-raise-dead`
 - **Prompt:** A resurrection clawing up from a grave — a violet-black necromantic glow pouring into an open tomb at frame center as a skeletal armored hand thrusts up through the soil, grave-mist and spectral light swirling, B death palette `#5a3a70` and `#140d1c` with `#9b6fc4` raising glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Lava Axe — `so-lava-axe`
@@ -292,3 +292,30 @@ glyphs abstract, never lettered — the NO-TEXT rule is doubly load-bearing here
 
 ### Rune of Warding — `rg-rune-of-warding`
 - **Prompt:** Rune of Warding — a white-and-gold carved standing runestone at frame center haloed by a radiant protective ward-dome of golden light, an abstract shield-glyph shining in its face (abstract carving only, no letters), motes of holy light and a faint runic circle glowing on the ground, W holy palette `#f2e8cf` and `#c9a84c` with `#fffef2` highlight, the warding light the hero with no figure — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+---
+
+## Celtic Fae non-creature addendum — shipped-prompt record (NOT parsed by gen-spell-art)
+
+The Celtic Fae expansion's two colorless non-creature cards below shipped on
+2026-07-13 via one-off generations through the card pipeline (character
+smart-crop), regenerated to user review feedback. Their prompts are recorded
+here so the direction is durable. **Deliberately parser-proof formatting:**
+`scripts/gen-spell-art.ts` parses `### ` headings plus top-level
+`- **Prompt:**` lines and hard-fails on any id outside its fixed 52-id roster
+(a stray top-level Prompt bullet would even silently overwrite the previous
+entry's prompt) — so these records use `####` headings and indented field
+bullets, which that parser cannot see. Regenerating either card means a one-off
+CLI invocation (or temporary driver wiring), not a routine gen-spell-art run.
+
+#### Dawn Torc — cf-dawn-torc
+  - **Card facts:** {1} · C · Artifact (court trinket, tap: gain life) · c
+  - **User feedback driving the shipped render:** "more room above head" — the regen buys a tall band of clear dawn sky above the figure so nothing clips at the card-window ceiling.
+  - **Shipped direction (2026-07-13 15:40):** an adult fae courtier at first light holding the Dawn Torc — a glowing pale-gold woven-knotwork torc ring — at chest height as the hero object, its warm light washing over her leaf-and-silver court dress; blackthorn scrub, white blossoms, and standing stones fading into a misted sunrise valley behind her; warm ivory-and-gold W-support palette (`#f2e8cf`, `#c9a84c`, `#fffef2`) over silver fae accents; the entire top third clear empty dawn sky above her head; knotwork strictly abstract, no readable ogham, runes, letters, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+  - **Verified:** shipped PNG satisfies the feedback (head top ≈ y 205 with generous sky; torc hero-object centered in the visible band; text-free).
+
+#### Silver Thread — cf-silver-thread
+  - **Card facts:** {2} · C · Enchantment — Aura (attached gets +0/+2, scry) · c
+  - **User feedback driving the shipped render:** "zoom out, show more of the character, more room above her head" — the regen pulls the camera back to a full-figure view with clear moonlit sky above.
+  - **Shipped direction (2026-07-13 15:43):** an adult fae fate-weaver seen full-figure from further back, a single luminous silver thread of fate spiraling loosely around her whole body and trailing off-frame, a small silver key-charm dangling from one raised hand; she stands among mossy standing stones on a night moor beneath a full moon; cold moonlit silver-and-blue-black palette with thorn-silver gown detail; the entire top third clear empty moonlit sky above her head; no readable ogham, runes, letters, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+  - **Verified:** shipped PNG satisfies the feedback (full figure head-to-ankles in frame; head top ≈ y 255 under open sky and moon; thread reads clearly at card scale; text-free).

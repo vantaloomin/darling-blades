@@ -45,6 +45,168 @@ export interface ControlBounds {
   hit: Rect;
 }
 
+/** A small inert registration shape for the future shared focus manager. */
+export interface FocusMetadata {
+  group?: string;
+  order?: number;
+  id?: string;
+}
+
+export type ControlSize = 'md' | 'sm';
+
+export interface RectSize {
+  width: number;
+  height: number;
+}
+
+/** Measured Phaser Text heights for one stacked term/reminder row. */
+export interface MeasuredTextRow {
+  primaryHeight: number;
+  secondaryHeight: number;
+}
+
+export interface MeasuredRowsLayoutOptions {
+  titleHeight?: number;
+  horizontalPadding?: number;
+  contentTopPadding?: number;
+  contentBottomPadding?: number;
+  rowGap?: number;
+  rowPadding?: number;
+  textGap?: number;
+}
+
+export interface MeasuredRowRect extends Rect {
+  primaryY: number;
+  secondaryY: number;
+}
+
+export interface MeasuredRowsLayout {
+  width: number;
+  maxHeight: number;
+  contentViewport: Rect;
+  rows: MeasuredRowRect[];
+  /** Full measured content height before the viewport cap is applied. */
+  contentHeight: number;
+  /** Outer panel height after applying the max-height policy. */
+  totalHeight: number;
+  maxScroll: number;
+  overflow: boolean;
+}
+
+/** The two existing inspect hosts reserve a bottom gutter for their close hint. */
+export const KEYWORD_GLOSSARY_HOST_BOUNDS = {
+  compact: { width: 170, top: 156, bottom: 660 },
+  regular: { width: 300, top: 150, bottom: 660 },
+} as const;
+
+export type KeywordGlossaryViewport = keyof typeof KEYWORD_GLOSSARY_HOST_BOUNDS;
+
+export interface KeywordGlossaryViewportPolicy {
+  mode: KeywordGlossaryViewport;
+  width: number;
+  hostTop: number;
+  hostBottom: number;
+  maxHeight: number;
+}
+
+/** Select the measured viewport policy used by the unchanged glossary hosts. */
+export function keywordGlossaryViewport(width: number): KeywordGlossaryViewportPolicy {
+  const mode: KeywordGlossaryViewport = width < 220 ? 'compact' : 'regular';
+  const bounds = KEYWORD_GLOSSARY_HOST_BOUNDS[mode];
+  return {
+    mode,
+    width: bounds.width,
+    hostTop: bounds.top,
+    hostBottom: bounds.bottom,
+    maxHeight: bounds.bottom - bounds.top,
+  };
+}
+
+/**
+ * Lay out rows from rendered text measurements. The row heights are never
+ * inferred from copy or a fixed English line count; Phaser supplies the two
+ * text heights and this helper owns the wrapping/overflow math around them.
+ */
+export function measuredRowsLayout(
+  measurements: readonly MeasuredTextRow[],
+  width: number,
+  maxHeight: number,
+  opts: MeasuredRowsLayoutOptions = {},
+): MeasuredRowsLayout {
+  const safeWidth = Math.max(0, width);
+  const safeMaxHeight = Math.max(0, maxHeight);
+  const titleHeight = Math.max(0, opts.titleHeight ?? 0);
+  const horizontalPadding = Math.max(0, opts.horizontalPadding ?? theme.space(2));
+  const contentTopPadding = Math.max(0, opts.contentTopPadding ?? theme.space(2));
+  const contentBottomPadding = Math.max(0, opts.contentBottomPadding ?? theme.space(2));
+  const rowGap = Math.max(0, opts.rowGap ?? theme.space(2));
+  const rowPadding = Math.max(0, opts.rowPadding ?? theme.space(1));
+  const textGap = Math.max(0, opts.textGap ?? theme.space(1));
+  const rowWidth = Math.max(0, safeWidth - horizontalPadding * 2);
+  const rows: MeasuredRowRect[] = [];
+  let cursor = titleHeight + contentTopPadding;
+
+  for (const measurement of measurements) {
+    const primaryHeight = Math.max(0, measurement.primaryHeight);
+    const secondaryHeight = Math.max(0, measurement.secondaryHeight);
+    const betweenTextGap = primaryHeight > 0 && secondaryHeight > 0 ? textGap : 0;
+    const height = rowPadding * 2 + primaryHeight + betweenTextGap + secondaryHeight;
+    const primaryY = cursor + rowPadding;
+    const secondaryY = primaryY + primaryHeight + betweenTextGap;
+    rows.push({
+      x: horizontalPadding,
+      y: cursor,
+      width: rowWidth,
+      height,
+      primaryY,
+      secondaryY,
+    });
+    cursor += height + rowGap;
+  }
+
+  const contentHeight = rows.length === 0 ? 0 : cursor - titleHeight - contentTopPadding - rowGap;
+  const maxContentHeight = Math.max(
+    0,
+    safeMaxHeight - titleHeight - contentTopPadding - contentBottomPadding,
+  );
+  const overflow = contentHeight > maxContentHeight;
+  const viewportHeight = Math.min(contentHeight, maxContentHeight);
+  const contentViewport = {
+    x: horizontalPadding,
+    y: titleHeight + contentTopPadding,
+    width: rowWidth,
+    height: viewportHeight,
+  };
+  return {
+    width: safeWidth,
+    maxHeight: safeMaxHeight,
+    contentViewport,
+    rows,
+    contentHeight,
+    totalHeight: titleHeight + contentTopPadding + viewportHeight + contentBottomPadding,
+    maxScroll: Math.max(0, contentHeight - maxContentHeight),
+    overflow,
+  };
+}
+
+export function clampScrollOffset(offset: number, maxScroll: number): number {
+  return clamp(offset, 0, Math.max(0, maxScroll));
+}
+
+export function scrollOffsetByDelta(offset: number, delta: number, maxScroll: number): number {
+  return clampScrollOffset(offset + delta, maxScroll);
+}
+
+export interface ThemedButtonMeasurement extends ControlBounds {
+  size: ControlSize;
+  labelWidth: number;
+  padding: number;
+  width: number;
+  height: number;
+  hitWidth: number;
+  hitHeight: number;
+}
+
 export const GAP_FLOORS = {
   ordinary: 8,
   compactTouch: 12,
@@ -55,6 +217,42 @@ export const COMPACT_TOUCH_GAP_RANGE = {
   min: 12,
   max: 16,
 } as const;
+
+/**
+ * Shared select geometry. The row track is deliberately wider than its hit
+ * rect so adjacent options retain measurable inactive space for touch and
+ * controller use.
+ */
+export const DROPDOWN_GEOMETRY = {
+  rowHitHeight: Math.max(theme.control.minHitHeight, 44),
+  rowPitch: Math.max(52, Math.max(theme.control.minHitHeight, 44) + GAP_FLOORS.ordinary),
+  panelPadding: theme.space(2),
+  triggerGap: theme.space(1),
+  clampMargin: 0,
+} as const;
+
+export type DropdownOpenDirection = 'down' | 'up';
+
+export interface DropdownPopoverOptions {
+  panelWidth: number;
+  rowHitHeight?: number;
+  rowPitch?: number;
+  panelPadding?: number;
+  triggerGap?: number;
+  clampMargin?: number;
+  safeFrame?: RectEdges;
+}
+
+export interface DropdownPopoverLayout {
+  panel: Rect;
+  rows: Rect[];
+  direction: DropdownOpenDirection;
+  rowHitHeight: number;
+  rowPitch: number;
+  rowGap: number;
+  panelPadding: number;
+  clampMargin: number;
+}
 
 export const TITLE_SAFE_EDGES: RectEdges = {
   left: theme.design.titleSafe.left,
@@ -70,6 +268,66 @@ export function rectFromEdges(edges: RectEdges): Rect {
     y: edges.top,
     width: edges.right - edges.left,
     height: edges.bottom - edges.top,
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+/**
+ * Place a dropdown panel from the trigger's world-space hit bounds. Horizontal
+ * placement is clamped to the title-safe frame. A down-opening panel wins when
+ * it fits exactly; otherwise the panel flips upward and is vertically clamped
+ * to the same frame.
+ */
+export function dropdownPopoverLayout(
+  triggerBounds: Rect,
+  optionCount: number,
+  opts: DropdownPopoverOptions,
+): DropdownPopoverLayout {
+  const safe = opts.safeFrame ?? TITLE_SAFE_EDGES;
+  const rowHitHeight = Math.max(theme.control.minHitHeight, 44, opts.rowHitHeight ?? DROPDOWN_GEOMETRY.rowHitHeight);
+  const rowPitch = Math.max(rowHitHeight + GAP_FLOORS.ordinary, opts.rowPitch ?? DROPDOWN_GEOMETRY.rowPitch);
+  const rowGap = rowPitch - rowHitHeight;
+  const panelPadding = Math.max(0, opts.panelPadding ?? DROPDOWN_GEOMETRY.panelPadding);
+  const triggerGap = Math.max(0, opts.triggerGap ?? DROPDOWN_GEOMETRY.triggerGap);
+  const clampMargin = Math.max(0, opts.clampMargin ?? DROPDOWN_GEOMETRY.clampMargin);
+  const count = Math.max(0, Math.floor(optionCount));
+  const maxWidth = Math.max(0, safe.right - safe.left - clampMargin * 2);
+  const panelWidth = Math.min(Math.max(0, opts.panelWidth), maxWidth);
+  const panelHeight = panelPadding * 2 + count * rowPitch;
+  const minX = safe.left + clampMargin;
+  const maxX = safe.right - clampMargin - panelWidth;
+  const panelX = clamp(triggerBounds.x, minX, maxX);
+
+  const downY = triggerBounds.y + triggerBounds.height + triggerGap;
+  const opensDown = downY + panelHeight <= safe.bottom - clampMargin;
+  const direction: DropdownOpenDirection = opensDown ? 'down' : 'up';
+  const requestedY = opensDown
+    ? downY
+    : triggerBounds.y - triggerGap - panelHeight;
+  const minY = safe.top + clampMargin;
+  const maxY = safe.bottom - clampMargin - panelHeight;
+  const panelY = clamp(requestedY, minY, maxY);
+  const panel = { x: panelX, y: panelY, width: panelWidth, height: panelHeight };
+  const rowWidth = Math.max(0, panelWidth - panelPadding * 2);
+  const rows = Array.from({ length: count }, (_, index) => ({
+    x: panelX + panelPadding,
+    y: panelY + panelPadding + index * rowPitch + (rowPitch - rowHitHeight) / 2,
+    width: rowWidth,
+    height: rowHitHeight,
+  }));
+
+  return {
+    panel,
+    rows,
+    direction,
+    rowHitHeight,
+    rowPitch,
+    rowGap,
+    panelPadding,
+    clampMargin,
   };
 }
 
@@ -154,6 +412,281 @@ export function controlBounds(
   return {
     visual: { ...visual },
     hit: inflateHitRect(visual, floors.minHitWidth, floors.minHitHeight),
+  };
+}
+
+/** The visual text padding used by the shared button recipes. */
+export function controlPadding(size: ControlSize): number {
+  return size === 'sm' ? theme.space(2) : theme.space(3);
+}
+
+/**
+ * Predict the shared button's final visual and hit bounds before creating it.
+ * The visual rectangle is centered at the origin, matching a themedButton's
+ * unscaled child Zone and Container coordinate system.
+ */
+export function measureThemedButton(
+  labelWidth: number,
+  size: ControlSize = 'md',
+  minWidth = 0,
+  padding = controlPadding(size),
+): ThemedButtonMeasurement {
+  const safeLabelWidth = Math.max(0, labelWidth);
+  const safePadding = Math.max(0, padding);
+  const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
+  const width = Math.max(minWidth, Math.ceil(safeLabelWidth + safePadding * 2));
+  const visual = {
+    x: -width / 2,
+    y: -height / 2,
+    width,
+    height,
+  };
+  const bounds = controlBounds(visual);
+  return {
+    ...bounds,
+    size,
+    labelWidth: safeLabelWidth,
+    padding: safePadding,
+    width,
+    height,
+    hitWidth: bounds.hit.width,
+    hitHeight: bounds.hit.height,
+  };
+}
+
+/** Place a visual control so its centered hit rectangle is inside a frame. */
+export function anchoredControlBounds(
+  anchor: RectAnchor,
+  visualWidth: number,
+  visualHeight: number,
+  frame: RectEdges = theme.design.titleSafe,
+  floors: HitFloors = theme.control,
+  offset: Point = { x: 0, y: 0 },
+): ControlBounds {
+  const width = Math.max(0, visualWidth);
+  const height = Math.max(0, visualHeight);
+  const hitWidth = Math.max(width, floors.minHitWidth);
+  const hitHeight = Math.max(height, floors.minHitHeight);
+  const hit = anchoredRect(anchor, hitWidth, hitHeight, frame, offset);
+  return {
+    hit,
+    visual: {
+      x: hit.x + (hit.width - width) / 2,
+      y: hit.y + (hit.height - height) / 2,
+      width,
+      height,
+    },
+  };
+}
+
+function centeredRect(centerX: number, centerY: number, size: RectSize): Rect {
+  return {
+    x: centerX - size.width / 2,
+    y: centerY - size.height / 2,
+    width: size.width,
+    height: size.height,
+  };
+}
+
+export interface HeaderFooterLayoutOptions {
+  backVisual: RectSize;
+  titleVisual: RectSize;
+  currencyVisual: RectSize;
+  footerActionVisuals?: readonly RectSize[];
+  footerGap?: number;
+}
+
+export interface HeaderFooterLayout {
+  headerTrack: Rect;
+  footerTrack: Rect;
+  back: ControlBounds;
+  titleTrack: Rect;
+  title: Rect;
+  currency: Rect;
+  footerActionTrack: Rect;
+  footerActions: ControlBounds[];
+  tracksInsideTitleSafe: boolean;
+}
+
+/**
+ * Derive the shared page header/footer tracks from the title-safe frame. The
+ * returned footer action bounds are centered on the canonical footer line and
+ * use hit widths when calculating the cluster, so isolation is measurable
+ * before Phaser objects are created.
+ */
+export function sceneHeaderFooterLayout(opts: HeaderFooterLayoutOptions): HeaderFooterLayout {
+  const headerTrack = anchoredRect(
+    'top-left',
+    theme.design.safeWidth,
+    theme.control.minHitHeight,
+  );
+  const footerTrack = anchoredRect(
+    'bottom-left',
+    theme.design.safeWidth,
+    theme.control.minHitHeight,
+  );
+  const back = anchoredControlBounds(
+    'top-left',
+    opts.backVisual.width,
+    opts.backVisual.height,
+  );
+  const currency = centeredRect(
+    theme.design.safeRight - opts.currencyVisual.width / 2,
+    theme.design.headerCenterY,
+    opts.currencyVisual,
+  );
+  const trackGap = theme.space(6);
+  const titleTrack = {
+    x: back.hit.x + back.hit.width + trackGap,
+    y: headerTrack.y,
+    width: Math.max(0, currency.x - trackGap - (back.hit.x + back.hit.width + trackGap)),
+    height: headerTrack.height,
+  };
+  const title = centeredRect(
+    titleTrack.x + titleTrack.width / 2,
+    theme.design.headerCenterY,
+    opts.titleVisual,
+  );
+
+  const footerGap = opts.footerGap ?? theme.space(2);
+  const footerVisuals = opts.footerActionVisuals ?? [];
+  const footerMeasured = footerVisuals.map((visual) =>
+    controlBounds({ x: 0, y: 0, width: visual.width, height: visual.height }),
+  );
+  const footerHitWidth = footerMeasured.reduce((sum, bounds) => sum + bounds.hit.width, 0);
+  const totalFooterWidth = footerHitWidth + Math.max(0, footerMeasured.length - 1) * footerGap;
+  let cursor = theme.design.safeCenterX - totalFooterWidth / 2;
+  const footerActions = footerMeasured.map((bounds) => {
+    const hit = {
+      x: cursor,
+      y: theme.design.footerCenterY - bounds.hit.height / 2,
+      width: bounds.hit.width,
+      height: bounds.hit.height,
+    };
+    cursor += bounds.hit.width + footerGap;
+    return {
+      hit,
+      visual: {
+        x: hit.x + (hit.width - bounds.visual.width) / 2,
+        y: hit.y + (hit.height - bounds.visual.height) / 2,
+        width: bounds.visual.width,
+        height: bounds.visual.height,
+      },
+    };
+  });
+  const tracks = [
+    headerTrack,
+    footerTrack,
+    back.hit,
+    titleTrack,
+    currency,
+    ...footerActions.map((action) => action.hit),
+  ];
+  return {
+    headerTrack,
+    footerTrack,
+    back,
+    titleTrack,
+    title,
+    currency,
+    footerActionTrack: footerTrack,
+    footerActions,
+    tracksInsideTitleSafe: tracks.every((rect) => isInsideTitleSafe(rect)),
+  };
+}
+
+export interface ModalShellLayoutOptions {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  panelPadding?: number;
+  trackGap?: number;
+  titleTrackHeight?: number;
+  footerTrackHeight?: number;
+  closeHitWidth?: number;
+  closeHitHeight?: number;
+}
+
+export interface ModalShellLayout {
+  panel: Rect;
+  inner: Rect;
+  titleTrack: Rect;
+  contentBounds: Rect;
+  /** Alias for callers that think in terms of reserved tracks. */
+  contentTrack: Rect;
+  footerTrack: Rect;
+  closeTrack: Rect;
+  fits: boolean;
+  tracksInsidePanel: boolean;
+  tracksInsideTitleSafe: boolean;
+}
+
+/**
+ * Reserve non-intersecting modal tracks. The 24px inset is a hard minimum;
+ * title/content/footer rows use a 16px inter-track gap and 44px hit-height
+ * defaults, while the close track consumes the measured close target.
+ */
+export function modalShellLayout(opts: ModalShellLayoutOptions): ModalShellLayout {
+  const x = opts.x ?? theme.design.centerX;
+  const y = opts.y ?? theme.design.centerY;
+  const panel = {
+    x: x - opts.width / 2,
+    y: y - opts.height / 2,
+    width: opts.width,
+    height: opts.height,
+  };
+  const padding = Math.max(theme.space(6), opts.panelPadding ?? theme.space(6));
+  const trackGap = Math.max(theme.space(4), opts.trackGap ?? theme.space(4));
+  const inner = {
+    x: panel.x + padding,
+    y: panel.y + padding,
+    width: Math.max(0, panel.width - padding * 2),
+    height: Math.max(0, panel.height - padding * 2),
+  };
+  const titleHeight = Math.max(theme.control.minHitHeight, opts.titleTrackHeight ?? theme.control.minHitHeight);
+  const footerHeight = Math.max(theme.control.minHitHeight, opts.footerTrackHeight ?? theme.control.minHitHeight);
+  const closeWidth = Math.max(theme.control.minHitWidth, opts.closeHitWidth ?? theme.control.minHitWidth);
+  const closeHeight = Math.max(theme.control.minHitHeight, opts.closeHitHeight ?? theme.control.minHitHeight);
+  const closeTrack = {
+    x: inner.x + inner.width - closeWidth,
+    y: inner.y,
+    width: closeWidth,
+    height: closeHeight,
+  };
+  const titleTrack = {
+    x: inner.x,
+    y: inner.y,
+    width: Math.max(0, closeTrack.x - trackGap - inner.x),
+    height: titleHeight,
+  };
+  const footerTrack = {
+    x: inner.x,
+    y: inner.y + inner.height - footerHeight,
+    width: inner.width,
+    height: footerHeight,
+  };
+  const contentTop = titleTrack.y + titleTrack.height + trackGap;
+  const contentBottom = footerTrack.y - trackGap;
+  const contentY = Math.min(contentTop, contentBottom);
+  const contentBounds = {
+    x: inner.x,
+    y: contentY,
+    width: inner.width,
+    height: Math.max(0, contentBottom - contentY),
+  };
+  const tracks = [titleTrack, contentBounds, footerTrack, closeTrack];
+  return {
+    panel,
+    inner,
+    titleTrack,
+    contentBounds,
+    contentTrack: contentBounds,
+    footerTrack,
+    closeTrack,
+    fits: titleTrack.width > 0 && contentBottom >= contentTop,
+    tracksInsidePanel: tracks.every((rect) => isRectContained(rect, panel)),
+    tracksInsideTitleSafe: tracks.every((rect) => isInsideTitleSafe(rect)),
   };
 }
 

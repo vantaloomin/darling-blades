@@ -39,7 +39,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-thorn-crown-geas | Thorn-Crown Geas | SR | G | Enchantment | Fae bargain | static boost, exile clause | Build-around aura |
 | cf-glamour-of-the-hill | Glamour of the Hollow Hill | SR | U | Charm | Illusion glamour | scry, recall, exile token | Defensive trick |
 | cf-redcap-blood-host | Redcap Blood-Host | SR | R | Creature | Redcap warband | warcry, menace-like pressure | Aggro bridge |
-| cf-queen-mab-midnight | Queen Mab at Midnight | SR | U/B | Legendary Creature | Dream queen | scry, tap, exile tapped creature | Control legend |
+| cf-queen-mab-midnight | Mab, Midnight Queen | SR | U/B | Legendary Creature | Dream queen | scry, tap, exile tapped creature | Control legend |
 | cf-ogham-fate-stones | Ogham Fate-Stones | SR | C | Artifact | Ogham divination stones | tap: scry | Colorless smoothing |
 | cf-hollow-hill-gatekeeper | Hollow-Hill Gatekeeper | R | U | Creature | Fae sentinel | bulwark, scry | Control blocker |
 | cf-blackthorn-duelist | Blackthorn Duelist | R | G | Creature | Sidhe blade dancer | firstBlade, scry on combat damage | Combat value |

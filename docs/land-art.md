@@ -143,3 +143,111 @@ canon anchor.
 ### Wolfpack Highlands — `ld-wolfpack-highlands`
 - **Flavor:** "The howling is a land acknowledgment." Colors: **R/G**.
 - **Prompt:** Wild rugged highlands at dusk, wind-bent grass over rolling green-and-ochre moors with a jagged rocky tor, a lone wolf silhouetted small on a distant ridge mid-howl against a burning red-orange sky, blending the ember-red R palette (`#d95436`, `#f7b267`) with the verdant G palette (`#4fa06a`, `#123a22`), the wild moorland centered in frame, no lettering of any kind anywhere — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+---
+
+## 3. Proposed expansion land variants (not yet wired)
+
+**Status: PROPOSAL ONLY — none of these are wired into the game.** The game
+supports exactly one art file per land id, so these themed basic-land variants
+(base / ragnarok / celtic-fae, 2 per land per set) were generated ahead of a
+wiring decision and live **only in the art vault**
+(`WaifuTCG-Art-Pilots/raws/lands-variants/`, deliverables named
+`<land-id>-<set>-v<N>.png`) — **never** in `public/assets/`. The entries below
+are kept inside a fenced block deliberately: `scripts/gen-land-art.ts` skips
+fenced code blocks when parsing, so these can never masquerade as live land
+entries and be generated into the shipping art directory by a routine run.
+They follow the same environment-first contract as section 1 and were produced
+at 1024×1536 → smartcrop **environment** mode → 640×800.
+
+```markdown
+### Plains (base) — `land-plains-base-v1`
+- **Prompt:** Rolling golden meadowlands under a bright morning sky, wildflower-dotted grass bending in a soft wind, a chalk-white road winding toward a distant walled keep, warm ivory-and-gold light in the W palette (`#f2e8cf`, `#c9a84c`, `#fffef2`), the sweeping meadows centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Plains (base) — `land-plains-base-v2`
+- **Prompt:** Harvest-gold pastureland at dawn, round haystacks and a lone windmill on a low rise, mist lifting off hedgerowed fields, warm ivory-and-gold W palette (`#f2e8cf`, `#c9a84c`, `#fffef2`), the golden fields centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Plains (ragnarok) — `land-plains-ragnarok-v1`
+- **Prompt:** A wind-silvered Norse coastal plain over old grassy barrow mounds, a long turf-roofed hall with blank banners far off under a pale gold northern sky, cold sunlight in the W palette (`#f2e8cf`, `#c9a84c`, `#fffef2`), the barrow plain centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Plains (ragnarok) — `land-plains-ragnarok-v2`
+- **Prompt:** The plain of Idavoll at first light after a storm, bright gold meadow braided with glacier-fed streams, distant blank runestones on the horizon and a fading green aurora above dawn, W palette (`#f2e8cf`, `#c9a84c`, `#fffef2`) with a glacier-blue accent, the shining plain centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Plains (celtic-fae) — `land-plains-celtic-fae-v1`
+- **Prompt:** Dawn over a fae meadow, dew-bright pale-gold grass around a ring of small white standing stones, drifting hawthorn petals and a hollow hill soft in the mist beyond, pearl-and-gold W palette (`#f2e8cf`, `#c9a84c`, `#fffef2`) with silver mist, the stone-ring meadow centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Plains (celtic-fae) — `land-plains-celtic-fae-v2`
+- **Prompt:** A sunlit fae orchard-meadow, pale gold light slanting through hawthorn trees in white bloom, a wide mushroom ring in the open grass and torc-gold light along the horizon, W palette (`#f2e8cf`, `#c9a84c`, `#fffef2`), the blossoming meadow centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Island (base) — `land-island-base-v1`
+- **Prompt:** A vast calm lake scattered with small rocky isles under a bright blue sky, sunlight glittering on open water and one tiny white sail far off, deep blue U palette (`#4a90d9`, `#16294f`, `#a8d4f7`), the island-dotted water centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Island (base) — `land-island-base-v2`
+- **Prompt:** Sea cliffs sheltering a turquoise cove, tide pools mirroring the sky between wet rocks, gulls reduced to distant specks, azure U palette (`#4a90d9`, `#16294f`, `#a8d4f7`), the cove and its bright water centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Island (ragnarok) — `land-island-ragnarok-v1`
+- **Prompt:** A deep Norse fjord between snow-dusted cliffs, still glacier-blue water mirroring a green-violet aurora, one tiny longship silhouette far down the channel, glacial U palette (`#4a90d9`, `#16294f`, `#a8d4f7`), the mirrored fjord centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Island (ragnarok) — `land-island-ragnarok-v2`
+- **Prompt:** An iceberg-strewn northern sea under a pale midnight sun, long whale-road swells and a glacier front calving in the far distance, cold blue U palette (`#4a90d9`, `#16294f`, `#a8d4f7`), the ice-scattered sea centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Island (celtic-fae) — `land-island-celtic-fae-v1`
+- **Prompt:** A glassy moonlit lough with a single reed-ringed isle, silver mist low over black-blue water and one warm hollow-hill light reflected across it, moonlit U palette (`#4a90d9`, `#16294f`, `#a8d4f7`), the mirrored lough and isle centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Island (celtic-fae) — `land-island-celtic-fae-v2`
+- **Prompt:** A wet tidal causeway leading out to a mist-veiled otherworld isle at moonrise, rippled sand mirroring the pale blue sky, seal-shaped rocks dark along the waterline, silvery U palette (`#4a90d9`, `#16294f`, `#a8d4f7`), the causeway and isle centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Swamp (base) — `land-swamp-base-v1`
+- **Prompt:** A black-water marsh at dusk, drowned skeletal trees rising from still pools, faint will-o'-wisp lights drifting through violet fog, purple-black B palette (`#5a3a70`, `#140d1c`, `#9b6fc4`), the haunted marsh centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Swamp (base) — `land-swamp-base-v2`
+- **Prompt:** A sunken graveyard fen, leaning weathered stones (entirely blank) half-swallowed by black pools, pale night-blooming flowers glowing along the waterline, violet-black B palette (`#5a3a70`, `#140d1c`, `#9b6fc4`), the drowned stones centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Swamp (ragnarok) — `land-swamp-ragnarok-v1`
+- **Prompt:** The poison-fens below Niflheim, steaming black bog water between rime-crusted roots, a great serpent-spine ridge of dark stone half-lost in the mist, cold green-violet aurora glow above, B palette (`#5a3a70`, `#140d1c`, `#9b6fc4`), the steaming fen centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Swamp (ragnarok) — `land-swamp-ragnarok-v2`
+- **Prompt:** A drowned battlefield bog at violet dusk, rusted blades and round shield-bosses swallowed by dark peat water, cold marsh-lights guttering between tussocks, B palette (`#5a3a70`, `#140d1c`, `#9b6fc4`), the relic-strewn bog centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Swamp (celtic-fae) — `land-swamp-celtic-fae-v1`
+- **Prompt:** A moonlit blackthorn bog, glassy black pools between low stone cairns, lilac bog-glow rising off the water and raven feathers drifting on the surface, B palette (`#5a3a70`, `#140d1c`, `#9b6fc4`), the cairn-ringed bog centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Swamp (celtic-fae) — `land-swamp-celtic-fae-v2`
+- **Prompt:** A haunted fae mire under a bruised violet moon, pale bog-cotton and ghostly asphodel glowing among black pools, faint mushroom-ring lights deep in the fog, B palette (`#5a3a70`, `#140d1c`, `#9b6fc4`), the glowing mire centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Mountain (base) — `land-mountain-base-v1`
+- **Prompt:** Jagged volcanic crags at sunset, rivers of ember light glowing in the rock fissures beneath drifting ash haze, fierce red-ochre R palette (`#d95436`, `#5e0f0f`, `#f7b267`), the burning ridgeline centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Mountain (base) — `land-mountain-base-v2`
+- **Prompt:** A red-rock canyon pass, a frayed rope bridge spanning a lava-lit gorge between sheer cliffs, heat shimmer rising from below, ember R palette (`#d95436`, `#5e0f0f`, `#f7b267`), the gorge and bridge centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Mountain (ragnarok) — `land-mountain-ragnarok-v1`
+- **Prompt:** The borderlands of Muspelheim, black basalt peaks veined with running fire under a smoke-red sky, ember rain drifting across the pass, R palette (`#d95436`, `#5e0f0f`, `#f7b267`), the fire-veined peaks centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Mountain (ragnarok) — `land-mountain-ragnarok-v2`
+- **Prompt:** A shattered mountain pass after the first tremor of Ragnarök, freshly split cliffs and tumbled scree, a bruised red storm sky torn by lightning beyond the ridge, R palette (`#d95436`, `#5e0f0f`, `#f7b267`), the broken pass centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Mountain (celtic-fae) — `land-mountain-celtic-fae-v1`
+- **Prompt:** A red-heather highland tor at fiery sunset, scree slopes climbing to a jagged natural stone crown at the summit, foxfire sparks drifting on the wind, R palette (`#d95436`, `#5e0f0f`, `#f7b267`) over moor tones, the crowned tor centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Mountain (celtic-fae) — `land-mountain-celtic-fae-v2`
+- **Prompt:** A fomorian coast of storm-red sea cliffs, giant basalt columns stepping into a violent surf, one burning beacon flame on the far headland, R palette (`#d95436`, `#5e0f0f`, `#f7b267`), the cliff wall centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Forest (base) — `land-forest-base-v1`
+- **Prompt:** Ancient deep forest, colossal moss-covered trunks under shafts of green-gold light, ferns and roots tangling the shaded floor, rich G palette (`#4fa06a`, `#123a22`, `#a9dcae`), the towering trees centered in frame, wild and unpeopled — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Forest (base) — `land-forest-base-v2`
+- **Prompt:** A fern-choked river glen beneath old-growth canopy, a small waterfall sliding into a green-shaded pool, moss glowing where the light lands, deep G palette (`#4fa06a`, `#123a22`, `#a9dcae`), the glen and falls centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Forest (ragnarok) — `land-forest-ragnarok-v1`
+- **Prompt:** The iron-wood Járnviðr in deep winter, dark snow-laden pines in ranks, fresh wolf tracks crossing the drifts and a cold green-violet aurora between the trunks, wintry G palette (`#4fa06a`, `#123a22`, `#a9dcae`), the dark pinewood centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Forest (ragnarok) — `land-forest-ragnarok-v2`
+- **Prompt:** A colossal root of the world-tree rising through a sunlit spruce forest, its bark ancient and blank, golden motes drifting in the green light along its curve, G palette (`#4fa06a`, `#123a22`, `#a9dcae`) with runic-gold accents, the great root centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Forest (celtic-fae) — `land-forest-celtic-fae-v1`
+- **Prompt:** A moonlit fae greenwood, a glowing mushroom ring in a mossy clearing between ancient oaks, silver mist threading the undergrowth, G palette (`#4fa06a`, `#123a22`, `#a9dcae`) under cold moonlight, the luminous ring centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Forest (celtic-fae) — `land-forest-celtic-fae-v2`
+- **Prompt:** A blackthorn-and-oak hollow way, arched branches forming a long tunnel toward the soft green light of a hollow hill door, wet leaves catching moonlight, G palette (`#4fa06a`, `#123a22`, `#a9dcae`), the branch tunnel centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+```

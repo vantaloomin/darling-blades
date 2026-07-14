@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts · last-verified: 2026-07-10 -->
+<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts · last-verified: 2026-07-13 -->
 
 # Darling Blades Art Bible — Index (The Contract)
 
@@ -87,6 +87,61 @@ do not contradict them.
 - **Anatomy & consistency negatives** (carried on every generation prompt):
   no extra or melted fingers, no broken weapon geometry, no same-face, no
   real-person likeness, no muddy or desaturated palette, no plastic skin.
+
+### Direction preferences (distilled 2026-07-13 — binding for future sets)
+
+The 43-card feedback regen round exposed consistent user preferences. Encode
+these at AUTHORING time so future expansions don't need a correction pass:
+
+- **Headroom is sacred.** Generous empty background above the crown of the
+  head/hair/headdress — the head top sits clearly below the top-third line
+  (the generation preamble now demands this as a hard rule). Most of the
+  round's corrections were crowns kissing the crop ceiling. Corollary: the
+  budget is spent by the FULL silhouette above the face — tall topknots,
+  piled hair, and towering headdresses eat headroom no matter how much sky
+  the image has; when a character needs one, bind the hair low or state a
+  low-profile version, or accept the documented crown-graze.
+- **Frame wide enough to show what the character IS.** Species-defining
+  anatomy (a mermaid's tail, a satyr's goat legs, a spiderkin's spider body),
+  signature physique, and the full held prop belong IN frame. Waist-up is the
+  floor, not the target — when identity and framing fight, pull back; never
+  crop away the feature that defines the creature.
+- **Show the verb, not just the subject.** Compose the character *doing* the
+  card's thing — playing the instrument, manning the ferry across the river,
+  running with the pack, presiding over the revel — with the supporting cast
+  or scene the card implies. A static bust in front of scenery is the
+  fallback, not the goal.
+- **Art agrees with mechanics.** Check the card's keywords against the
+  composition: a Skyborne creature is airborne or unmistakably winged, never
+  planted on the ground; a wall reads immovable; a haste-analog reads mid-charge.
+- **Props behave.** Weapon grips are anatomically correct; object orientation
+  is stated when it matters ("blade edge toward the viewer", "book facing
+  her"); weapon, mount, and figure never fuse.
+- **Species tells are deliberate.** Monster-girl markers (a nekomata's tail,
+  a holstaur's neck-bell, a selkie's pelt) are stated explicitly in the
+  prompt — never left for the model to guess — and their count/shape is a QA
+  check, not a surprise. **Tails are the new hands**: one card failed QA two
+  different ways (tip count, then a side-attached root), so any tailed
+  character's QA zooms the tail base AND tip — the prompt states count, tip
+  shape, and attachment ("emerging from the base of her spine at the
+  tailbone, never from her hip, side, or waist").
+- **Wide compositions must out-shout the preamble.** The injected generation
+  preamble demands waist-up portrait framing by default; entries that need a
+  pulled-back or full-body composition (formations, giants, full creature
+  bodies) must say so with force — "extreme wide establishing shot, crown to
+  feet, nothing cropped" succeeded where a bare "zoomed out" was ignored.
+- **Bodies are designed, not defaulted.** Build, bust, height impression,
+  age-read (adult always; juvenile CREATURES like pups must read visibly
+  young), and skin tone are explicit per character. Body diversity is a
+  directed choice; prompts state it plainly rather than inheriting a
+  template physique.
+- **Describe the visual, not the metaphor.** Generators literalize cute
+  phrasing ("acorn cheeks" produced literal acorns); write the effect you
+  want to see ("puffed-out full cheeks").
+- **Effect art keeps scene readability** (spells especially): the magical
+  moment is the hero, but the palette must not collapse into one hue —
+  ground the effect in a readable scene (a battle dimly visible behind the
+  rolling mist), keyed to color identity without monochrome murk.
 
 ---
 

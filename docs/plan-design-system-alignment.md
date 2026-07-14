@@ -9,6 +9,15 @@ into conformance with [the core design system](design-system.md). It is based on
 a file-by-file static audit of all 18 scenes, shared UI components, platform
 input helpers, and current UI tests on 2026-07-12.
 
+**Status 2026-07-13: Wave 0 and all four Wave 1 sub-waves are SHIPPED**
+(DS-01 title-safe geometry + pure layout math + LayoutDebugOverlay; DS-02
+measurable controls + safe header/footer + modal tracks; DS-04 rounded
+trigger + edge-aware popover; DS-03/DS-05 OverlayCoordinator + exact-restore
+ModalGuard + SearchInputHandle; DS-08 measured glossary/drawer rows). Wave 2
+scene lanes (2A–2F) are unblocked. Two SC-01 items landed early during
+iteration: the CardShowcase chip/cycle safe-edge fix and safe-anchored
+backButton defaults.
+
 The audit itself changed no runtime code. Baseline on the reviewed worktree:
 
 - `npx.cmd tsc --noEmit`: pass
@@ -322,6 +331,10 @@ Limited sub-scenes where they own persistent navigation.
 - Back target fully inside safe bounds.
 - Gold, title, and navigation visual/hit rectangles fully contained by the
   safe frame; a baseline or center coordinate alone is not sufficient.
+- **Currency placement decision (user, 2026-07-12):** the gold badge shows
+  ONLY on the main menu and the Shop. All other scenes omit it (removed
+  2026-07-12); Wave 2 lanes must not re-add per-scene currency, and actions
+  that pay out gold name the amount on their own control instead.
 - Bottom control centers at or above y=662 for 44px targets.
 - CardShowcase right cycle target inside x<=1216.
 - Pack inspect modal and Deck picker modal contained in safe bounds.

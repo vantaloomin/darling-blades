@@ -9,7 +9,7 @@ import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
  * The Avatar Gauntlet tower. A right-rail ladder of twelve rungs (cleared ✓ /
@@ -94,8 +94,6 @@ export class GauntletScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
-
-    goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
 
     this.buildTower();
     this.buildPanel();

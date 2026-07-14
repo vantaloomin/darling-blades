@@ -14,7 +14,7 @@ import {
 import { Services } from '../meta/services';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
-import { backButton, goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 export class LimitedScene extends Phaser.Scene {
   private pendingSeed: number | null = null;
@@ -62,7 +62,6 @@ export class LimitedScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
-    goldBadge(this, 1250, 30, { getValue: () => save.gold });
     backButton(this, () => this.scene.start('MainMenu'));
     this.drawRunPanel();
     this.drawStartPanel();

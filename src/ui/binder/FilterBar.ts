@@ -6,28 +6,28 @@ import {
   type SortMode,
 } from '../../meta/collectionFilter';
 import { TIER_LABEL } from '../../meta/variants';
-import { bindTapButton, inflateHitArea } from '../../platform/gestures';
 import { Dropdown, type DropdownOption } from '../Dropdown';
-import { TIER_TEXT_COLOR, theme } from '../theme';
+import { roundedTrigger, type RoundedTrigger } from '../themeWidgets';
+import { TIER_TEXT_COLOR } from '../theme';
 
 /**
- * Tier text colours for chips and binder badges — the light stops of
+ * Tier text colours for chips and binder badges - the light stops of
  * CardFrameFactory's gem palette (c lightened from the near-black gem grey so
  * it reads on the dimmed backdrop).
  */
 export { TIER_TEXT_COLOR };
 
 /**
- * The Collection binder's control bar. Modern dropdowns (one per facet — set /
+ * The Collection binder's control bar. Modern dropdowns (one per facet - set /
  * colour / type / rarity / sort) plus an Owned toggle pill, all mutating a
- * shared CollectionFilterState and calling `onChange`. Replaces the old
+ * shared CollectionFilterState and calling onChange. Replaces the old
  * two-row chip grid. Opening one dropdown closes the others.
  */
 export class FilterBar {
   /** Interactive controls handed to the scene's ModalGuard. */
   readonly targets: Phaser.GameObjects.GameObject[] = [];
   private readonly dropdowns: Dropdown<string>[] = [];
-  private readonly ownedPill: Phaser.GameObjects.Text;
+  private readonly ownedPill: RoundedTrigger;
   private readonly state: CollectionFilterState;
 
   constructor(
@@ -65,7 +65,7 @@ export class FilterBar {
     const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae'>[] = [
       { value: 'all', label: 'All Sets' },
       { value: 'base', label: 'Base' },
-      { value: 'ragnarok', label: 'Ragnarök' },
+      { value: 'ragnarok', label: 'Ragnar\u00f6k' },
       { value: 'celtic-fae', label: 'Celtic Fae' },
     ];
     mk(55, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
@@ -108,30 +108,24 @@ export class FilterBar {
     ];
     mk(775, 'Sort', sortOpts, () => state.sort, (v) => (state.sort = v), 92);
 
-    // Owned toggle — a pill, since it is boolean, not a select.
-    this.ownedPill = scene.add
-      .text(955, y, '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: '13px',
-        fontStyle: theme.weight.w600,
-        color: theme.colors.body,
-        backgroundColor: theme.colors.btnGhostBg,
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive({ useHandCursor: true });
-    bindTapButton(scene, this.ownedPill, () => {
-      state.ownedOnly = !state.ownedOnly;
-      this.refreshOwned();
-      change();
+    // Owned toggle - a rounded shared trigger, since it is boolean, not a select.
+    this.ownedPill = roundedTrigger(scene, 955, y, '', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 96,
+      onTap: () => {
+        state.ownedOnly = !state.ownedOnly;
+        this.refreshOwned();
+        change();
+      },
     });
-    this.targets.push(this.ownedPill);
+    this.targets.push(this.ownedPill.inputZone);
     this.refreshOwned();
 
     // On scene shutdown, drop each dropdown's outside-click pointer listener so
-    // it can't fire on a torn-down scene. Uses teardown() (listener + panel ref
-    // only) rather than close(), because restyling the being-destroyed button
-    // Texts during shutdown throws in Text.updateText. `once` auto-removes.
+    // it cannot fire on a torn-down scene. Uses teardown() (listener + panel ref
+    // only) rather than close(), because restyling the being-destroyed trigger
+    // during shutdown is unsafe. once auto-removes.
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       for (const dd of this.dropdowns) dd.teardown();
     });
@@ -141,16 +135,14 @@ export class FilterBar {
     for (const dd of this.dropdowns) if (dd !== keep) dd.close();
   }
 
-  /** Close any open dropdown — the scene calls this before opening an overlay. */
+  /** Close any open dropdown - the scene calls this before opening an overlay. */
   closeAll(): void {
     for (const dd of this.dropdowns) dd.close();
   }
 
   private refreshOwned(): void {
     const on = this.state.ownedOnly;
-    this.ownedPill.setText(on ? '● Owned only' : '○ Owned only');
-    this.ownedPill.setColor(on ? theme.colors.heading : theme.colors.body);
-    this.ownedPill.setBackgroundColor(on ? theme.colors.btnEmphasisBg : theme.colors.btnGhostBg);
-    inflateHitArea(this.ownedPill, 96, 40);
+    this.ownedPill.setLabel(on ? '\u25cf Owned only' : '\u25cb Owned only');
+    this.ownedPill.setSelected(on);
   }
 }
