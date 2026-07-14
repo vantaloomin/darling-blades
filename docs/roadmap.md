@@ -80,8 +80,9 @@ _Dated 2026-07-04. Review monthly._
   `LimitedDraftScene` was **fully rebuilt** on the theme system: an 8-seat
   table strip with portrait discs + tap-for-identity-card popups,
   pass-direction chevrons that point at the receiving seat, the pack as real
-  card thumbnails (select / right-click / long-press inspect), and a picks
-  panel with live color/curve readouts. Verified: tsc/lint/**673 tests**
+  card thumbnails (select / right-click / long-press inspect; **inspect
+  hotkeys**: ←/→ browse the pack, Space/Enter selects then — pressed again —
+  picks), and a picks panel with live color/curve readouts. Verified: tsc/lint/**673 tests**
   (+28)/build/doc-checkers green; adversarial review (2 dimensions, majority
   of candidates refuted; 2 confirmed findings — portrait mask undercoverage
   and inverted pass chevrons — both fixed and re-probed); a full browser

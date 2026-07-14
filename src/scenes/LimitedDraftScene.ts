@@ -33,7 +33,7 @@ import {
 
 const DESIGN_W = theme.design.width;
 const DESIGN_H = theme.design.height;
-const PACK_THUMB_SCALE = 0.26;
+const PACK_THUMB_SCALE = 0.25;
 const PICK_THUMB_SCALE = 0.09;
 const PACK_COLS = 5;
 const PICK_COLS = 9;
@@ -62,6 +62,9 @@ export class LimitedDraftScene extends Phaser.Scene {
   private modal: ModalShell | null = null;
   private guard = new ModalGuard();
   private pickButton: ThemedButton | null = null;
+  /** Pack index shown in the card-inspect modal; null when no inspect is open. */
+  private inspectIndex: number | null = null;
+  private inspectHint: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('LimitedDraft');
@@ -75,6 +78,8 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.modal = null;
     this.guard = new ModalGuard();
     this.pickButton = null;
+    this.inspectIndex = null;
+    this.inspectHint = null;
 
     applyBackdrop(this, 'packopening', {
       dim: theme.graphics.dim,
@@ -94,6 +99,14 @@ export class LimitedDraftScene extends Phaser.Scene {
 
     this.input.on('gameobjectover', this.onGameObjectOver);
     this.input.on('gameobjectup', this.onGameObjectUp);
+    // Inspect-modal hotkeys: arrows browse the pack, Space/Enter selects then
+    // confirms. Scene-plugin keyboard listeners bypass ModalGuard (playbook
+    // §11), so every handler self-guards on inspectIndex — they are inert
+    // unless a pack-card inspect is the open modal.
+    this.input.keyboard?.on('keydown-LEFT', this.onInspectPrev);
+    this.input.keyboard?.on('keydown-RIGHT', this.onInspectNext);
+    this.input.keyboard?.on('keydown-SPACE', this.onInspectSelect);
+    this.input.keyboard?.on('keydown-ENTER', this.onInspectSelect);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
     if (!contextMenuDisabled) {
       this.input.mouse?.disableContextMenu();
@@ -236,7 +249,10 @@ export class LimitedDraftScene extends Phaser.Scene {
   private drawPack(pack: readonly string[]): void {
     const x = theme.design.safeLeft;
     const y = 224;
-    panel(this, x, y, 760, 404, { alpha: 0.96 });
+    // Panel 224..640; the title band ends ~264, so the first plate row (top =
+    // 330 − 58) starts at 272 — no overlap; the last row bottom (574 + 58 =
+    // 632) stays inside, and the footer hint at y=660 clears the 640 edge.
+    panel(this, x, y, 760, 416, { alpha: 0.96 });
     this.add.text(x + 16, y + 12, `Current Pack (${pack.length})`, {
       fontFamily: theme.fonts.display,
       fontSize: `${theme.type.h2}px`,
@@ -248,9 +264,9 @@ export class LimitedDraftScene extends Phaser.Scene {
       const col = index % PACK_COLS;
       const row = Math.floor(index / PACK_COLS);
       const cx = 128 + col * 150;
-      const cy = 310 + row * 129;
+      const cy = 330 + row * 122;
       const plate = this.add
-        .rectangle(cx, cy, 90, 121, theme.graphics.rowFill, 0.92)
+        .rectangle(cx, cy, 86, 116, theme.graphics.rowFill, 0.92)
         .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
       const thumb = makeCardThumb(this, cx, cy, card, PACK_THUMB_SCALE).setInteractive({
         useHandCursor: true,
@@ -260,10 +276,10 @@ export class LimitedDraftScene extends Phaser.Scene {
         this,
         thumb,
         (pointer) => {
-          if (pointer.rightButtonReleased()) this.showCardInspect(card);
+          if (pointer.rightButtonReleased()) this.showCardInspect(card, index);
           else this.selectCard(index, id);
         },
-        { onLongPress: () => this.showCardInspect(card) },
+        { onLongPress: () => this.showCardInspect(card, index) },
       );
       thumb.on('pointerover', (pointer: Phaser.Input.Pointer) => {
         if (!pointer.wasTouch && index !== this.selectedCell) {
@@ -361,7 +377,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       660,
       isTouchDevice()
         ? 'Tap a card to select  -  long-press to inspect'
-        : 'Click a card to select  -  right-click to inspect',
+        : 'Click selects  -  right-click inspects  -  in inspect: arrows browse, Space/Enter selects then picks',
       {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
@@ -384,11 +400,58 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   private selectCard(index: number, id: string): void {
-    if (this.modal) return;
+    // No modal guard here: pointer paths are already deadened by ModalGuard
+    // while a modal is open, and the inspect-modal hotkeys select on purpose.
     this.selectedCell = index;
     this.selectedId = id;
     this.pickButton?.setEnabled(true);
     this.refreshPackSelection();
+  }
+
+  /** The pack shown by the current draft state (empty when no run). */
+  private currentPack(): readonly string[] {
+    const run = Services.save.data.limited.activeRun;
+    return run?.draft ? currentDraftPack(run.draft) : [];
+  }
+
+  private stepInspect(delta: number): void {
+    if (this.inspectIndex === null || !this.modal) return;
+    const pack = this.currentPack();
+    if (pack.length === 0) return;
+    const next = (this.inspectIndex + delta + pack.length) % pack.length;
+    this.showCardInspect(def(CARD_DB, pack[next]), next);
+  }
+
+  private readonly onInspectPrev = (): void => this.stepInspect(-1);
+  private readonly onInspectNext = (): void => this.stepInspect(1);
+
+  /** Space/Enter in the inspect modal: first press selects, second confirms. */
+  private readonly onInspectSelect = (): void => {
+    if (this.inspectIndex === null || !this.modal) return;
+    const pack = this.currentPack();
+    const id = pack[this.inspectIndex];
+    if (!id) return;
+    if (this.selectedCell !== this.inspectIndex) {
+      this.selectCard(this.inspectIndex, id);
+      this.refreshInspectHint();
+      return;
+    }
+    const run = Services.save.data.limited.activeRun;
+    if (!run) return;
+    this.closeModal();
+    this.confirmPick(run);
+  };
+
+  private refreshInspectHint(): void {
+    if (!this.inspectHint?.active || this.inspectIndex === null) return;
+    const selected = this.selectedCell === this.inspectIndex;
+    this.inspectHint
+      .setText(
+        selected
+          ? 'SELECTED — Space/Enter again to pick it'
+          : '←/→ browse the pack · Space/Enter to select',
+      )
+      .setColor(selected ? theme.colors.gold : theme.colors.muted);
   }
 
   private refreshPackSelection(): void {
@@ -469,7 +532,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     );
   }
 
-  private showCardInspect(card: CardDef): void {
+  private showCardInspect(card: CardDef, packIndex: number): void {
     this.closeModal();
     const shell = modalShell(this, {
       width: 980,
@@ -481,6 +544,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       onClose: () => this.onModalClosed(shell),
     });
     this.modal = shell;
+    this.inspectIndex = packIndex;
     this.guard.open(this.interactiveTargets);
     const c = shell.container;
     c.add(new CardView(this, 430, 360).setScale(1.25).setCard(card, { fx: 'full' }));
@@ -518,6 +582,16 @@ export class LimitedDraftScene extends Phaser.Scene {
         wordWrap: { width: 380 },
       }),
     );
+    this.inspectHint = this.add
+      .text(640, 634, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        fontStyle: theme.weight.w600,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    c.add(this.inspectHint);
+    this.refreshInspectHint();
     c.add(
       this.add
         .text(884, 598, 'Click outside or use X to close', {
@@ -597,6 +671,10 @@ export class LimitedDraftScene extends Phaser.Scene {
     if (this.modal !== shell) return;
     this.guard.close();
     this.modal = null;
+    // The hint Text died with the shell container; the index must not leak
+    // into the persona modal (the hotkey handlers key off it).
+    this.inspectIndex = null;
+    this.inspectHint = null;
   }
 
   private confirmPick(run: LimitedRun): void {
@@ -623,6 +701,10 @@ export class LimitedDraftScene extends Phaser.Scene {
   private onShutdown(): void {
     this.input.off('gameobjectover', this.onGameObjectOver);
     this.input.off('gameobjectup', this.onGameObjectUp);
+    this.input.keyboard?.off('keydown-LEFT', this.onInspectPrev);
+    this.input.keyboard?.off('keydown-RIGHT', this.onInspectNext);
+    this.input.keyboard?.off('keydown-SPACE', this.onInspectSelect);
+    this.input.keyboard?.off('keydown-ENTER', this.onInspectSelect);
     this.closeModal();
   }
 }
