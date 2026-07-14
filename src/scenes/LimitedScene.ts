@@ -8,11 +8,9 @@ import {
   completeDraftRun,
   limitedDuelData,
   startDraftRun,
-  startSealedRun,
   type LimitedRun,
 } from '../meta/Limited';
 import { Services } from '../meta/services';
-import { IS_DEV } from '../platform/env';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
 import { backButton, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
@@ -50,14 +48,14 @@ export class LimitedScene extends Phaser.Scene {
       save.limited.activeRun?.seed ??
       clampLimitedSeed(this.pendingSeed ?? Math.floor(Math.random() * 2 ** 31));
     this.add
-      .text(640, 52, 'Limited', {
+      .text(640, 52, 'Draft', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.display}px`,
         color: theme.colors.heading,
       })
       .setOrigin(0.5);
     this.add
-      .text(640, 90, 'Open a temporary pool, build exactly 40 cards, then play three matches.', {
+      .text(640, 90, 'Draft from packs against seven rivals, build exactly 40 cards, then play three matches.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.body}px`,
         color: theme.colors.muted,
@@ -79,7 +77,7 @@ export class LimitedScene extends Phaser.Scene {
       this.text(
         x + 24,
         y + 112,
-        'Start Sealed or Bot Draft to create a temporary card pool.',
+        'Start a Bot Draft run to build a temporary card pool.',
         theme.type.label,
         theme.colors.muted,
       );
@@ -135,27 +133,11 @@ export class LimitedScene extends Phaser.Scene {
       theme.type.label,
       runActive ? theme.colors.muted : theme.colors.body,
     );
-    // Sealed is dev-only for now (same gate pattern as Card Showcase): the
-    // public Play-menu entry exposes the persona Bot Draft; the Sealed reveal
-    // flow still awaits its polish pass (plan-v1.1-post-launch.md Feature 5).
-    if (IS_DEV) {
-      this.button(
-        x + 112,
-        y + 124,
-        'Sealed Run',
-        'primary',
-        () => {
-          if (!runActive) {
-            Services.save.data.limited.activeRun = startSealedRun(CARD_DB, seed, Date.now());
-            Services.save.flush();
-            this.scene.start('LimitedReveal');
-          }
-        },
-        runActive,
-      );
-    }
+    // Sealed was removed from the hub (user decision 2026-07-14) — the mode's
+    // meta core and scenes stay in the codebase, but only Bot Draft is
+    // offered. Removal record: plan-v1.1-post-launch.md Feature 5.
     this.button(
-      IS_DEV ? x + 320 : x + 216,
+      x + 216,
       y + 124,
       'Bot Draft Run',
       'primary',
@@ -197,11 +179,11 @@ export class LimitedScene extends Phaser.Scene {
     const x = 670;
     const y = 140;
     panel(this, x, y, 540, 480);
-    this.title(x + 24, y + 28, 'Limited Records');
+    this.title(x + 24, y + 28, 'Draft Records');
     this.text(
       x + 24,
       y + 62,
-      `Best Sealed ${save.limited.bestSealedWins}/3   Best Draft ${save.limited.bestDraftWins}/3`,
+      `Best Draft ${save.limited.bestDraftWins}/3`,
       theme.type.label,
       theme.colors.gold,
     );
@@ -209,7 +191,7 @@ export class LimitedScene extends Phaser.Scene {
       this.text(
         x + 24,
         y + 110,
-        'Completed Limited runs will appear here.',
+        'Completed draft runs will appear here.',
         theme.type.body,
         theme.colors.muted,
       );

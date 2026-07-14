@@ -88,14 +88,6 @@ export class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.add
-      .text(width / 2, 205, 'Three Kingdoms · Olympus · The Wilds', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h2}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
-
     goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
 
     // Settings entry: a gear under the gold counter (the 8-row menu list is

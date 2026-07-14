@@ -385,8 +385,10 @@ post-1.0 release alongside a future expansion, after more testing.
 > **Update 2 (2026-07-14, later the same day):** the user directed a **"Play"
 > submenu** (MainMenu's Gauntlet + Practice rows moved into a new `PlayScene`,
 > plus a **Draft** entry) — so **the Bot Draft is now publicly reachable**,
-> superseding the PR #54 hide for the draft half. Sealed stays dev-only
-> (IS_DEV gate). The balance/economy blocker below is therefore now
+> superseding the PR #54 hide for the draft half. Sealed was removed from
+> the hub UI entirely (follow-up decision the same day; the hub is retitled
+> "Draft" — Sealed's meta core, LimitedRevealScene, and tests remain in the
+> codebase, unoffered). The balance/economy blocker below is therefore now
 > player-facing: draft runs cost nothing to enter and pay `limitedRunGold`
 > [40/100/180/300] on completion — tune it soon.
 >

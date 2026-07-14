@@ -94,8 +94,11 @@ _Dated 2026-07-04. Review monthly._
   into a single **Play** entry opening a new `PlayScene` submenu: Avatar
   Gauntlet, **Draft**, Practice · Easy/Medium/Hard, Return. Draft routes to
   the Limited hub, making the persona Bot Draft **publicly reachable for the
-  first time** (supersedes the PR #54 hide); **Sealed stays dev-only**
-  (IS_DEV gate, Card-Showcase pattern) pending its polish pass. Gauntlet and
+  first time** (supersedes the PR #54 hide); **Sealed was removed from the
+  hub entirely** (follow-up user decision the same day — the hub is retitled
+  "Draft"; Sealed's meta core, reveal scene, and tests stay in the codebase,
+  just unoffered). The MainMenu subtitle ("Three Kingdoms · Olympus · The
+  Wilds") was retired. Gauntlet and
   the Limited hub's back buttons retarget to Play. Probed live end-to-end
   (all six rows navigate; back-paths land on Play; save byte-identical;
   zero console errors). ⚠ Known-open economics: draft runs are free to
@@ -879,9 +882,11 @@ _Dated 2026-07-04. Review monthly._
 - **Limited public release (partially live as of 2026-07-14).**
   **The Bot Draft half is now public**: re-implemented around 20 AI draft
   personas and reachable via the Play submenu (user decision 2026-07-14 —
-  see Recently shipped; supersedes the PR #54 hide for draft). **Sealed
-  remains dev-only** (IS_DEV gate on the hub's Sealed Run button) pending
-  its flow-polish pass. Remaining blockers, now partially player-facing:
+  see Recently shipped; supersedes the PR #54 hide for draft). **Sealed was
+  removed from the hub UI entirely** (user decision later the same day; the
+  meta core/reveal scene/tests remain in the codebase, unoffered — restoring
+  it is one button plus its polish pass). Remaining blockers, now partially
+  player-facing:
   Limited balance/economy (auto-build texture via the balance harness,
   run-reward tuning — draft runs are free to enter and pay
   `limitedRunGold` on completion) and the Sealed polish pass. Blocker
