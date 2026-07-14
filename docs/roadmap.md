@@ -88,7 +88,20 @@ _Dated 2026-07-04. Review monthly._
   habits (`colorHint`), 3rd the theme, 4th the full profile — tracked in
   `limited.personaSeen` (**SaveData v16 → v17**, migration + tests;
   counters tick only when a draft's 45 picks finish, so retire-scumming
-  teaches nothing). Verified: tsc/lint/**673 tests**
+  teaches nothing). **Premium Draft** (user-directed): a second hub entry at
+  **1,000g** (`ECONOMY.premiumDraftEntry`, paid via `spendGold`) whose packs
+  roll **frame + holo variants** from the run seed (Full Art excluded until
+  its booster axis ships) — variants ride slot-aligned parallel arrays
+  through every pass/pick (duplicate-safe via the selected cell index), show
+  as frame-tinted plates + holo pips in the grid and real FX in inspect, and
+  the player **keeps all 45 picks**: granted into the collection through
+  `Collection.addCard` (identical playset/melt rules to pack opening) the
+  moment the draft completes, once-guarded by the draft→build status
+  transition, at all three completion sites. Auto-added basics are never
+  granted; the free draft is bit-identical to before (lockstep-tested) and
+  grants nothing. **SaveData v17 → v18** (premium/variant fields + history
+  flag) with migration + tests. Both modes advance persona familiarity and
+  pay the same run-end gold. Verified: tsc/lint/**673 tests**
   (+28)/build/doc-checkers green; adversarial review (2 dimensions, majority
   of candidates refuted; 2 confirmed findings — portrait mask undercoverage
   and inverted pass chevrons — both fixed and re-probed); a full browser

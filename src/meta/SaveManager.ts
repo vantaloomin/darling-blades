@@ -55,7 +55,7 @@ export interface SavedDeck {
 }
 
 export interface SaveData {
-  version: 17;
+  version: 18;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -101,9 +101,9 @@ export interface SaveData {
    */
   daily: DailyState;
   /**
-   * Road-to-1.0 Limited mode. Cards opened/drafted here are ephemeral and never
-   * enter collection; only active run state, compact history, and best records
-   * persist. v14 addition.
+   * Road-to-1.0 Limited mode. Free-run cards are ephemeral; Premium Draft's 45
+   * human picks enter the collection on draft completion. Active run state,
+   * compact history, and best records persist. v14 addition; premium fields v18.
    */
   limited: LimitedState;
   stats: {
@@ -155,7 +155,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 17,
+    version: 18,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -220,7 +220,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 17) return parsed as SaveData;
+      if (parsed.version === 18) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -247,7 +247,8 @@ export class SaveManager {
    * adds gauntlet clear-style counters; v12 -> v13 adds daily quests/streaks;
    * v13 -> v14 adds Limited runs/history; v14 -> v15 adds per-deck hero card
    * selections; v15 -> v16 seats deterministic personas into in-flight drafts;
-   * v16 -> v17 adds persona familiarity counters (progressive reveal).
+   * v16 -> v17 adds persona familiarity counters (progressive reveal);
+   * v17 -> v18 stamps the Premium Draft schema (all new fields are optional).
    * An unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
@@ -451,7 +452,11 @@ export class SaveManager {
         limited: { ...limited, personaSeen: limited.personaSeen ?? {} },
       };
     }
-    if (cur.version === 17) return cur as unknown as SaveData;
+    if (cur.version === 17) {
+      // v17 -> v18: Premium Draft fields are optional, so existing state passes through intact.
+      cur = { ...cur, version: 18 };
+    }
+    if (cur.version === 18) return cur as unknown as SaveData;
     return freshSave(now);
   }
 

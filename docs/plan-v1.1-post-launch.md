@@ -389,8 +389,15 @@ post-1.0 release alongside a future expansion, after more testing.
 > the hub UI entirely (follow-up decision the same day; the hub is retitled
 > "Draft" — Sealed's meta core, LimitedRevealScene, and tests remain in the
 > codebase, unoffered). The balance/economy blocker below is therefore now
-> player-facing: draft runs cost nothing to enter and pay `limitedRunGold`
-> [40/100/180/300] on completion — tune it soon.
+> player-facing: FREE draft runs cost nothing to enter and pay
+> `limitedRunGold` [40/100/180/300] on completion — tune it soon.
+>
+> **Update 3 (2026-07-14): Premium Draft shipped** — 1,000g entry
+> (`ECONOMY.premiumDraftEntry`), packs roll frame/holo variants, and the
+> player keeps all 45 picks (granted via `Collection.addCard` at draft
+> completion; SaveData v18). Economy note for the tuning pass: 1,000g for
+> ~45 kept cards + the same run gold undercuts three 450g boosters (27
+> rolls) — priced by user direction, revisit alongside `limitedRunGold`.
 >
 > **Update (2026-07-14):** the Bot Draft half was **re-implemented around 20
 > AI draft personas** — named drafters with data-driven pick styles

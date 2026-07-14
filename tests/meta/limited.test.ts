@@ -6,13 +6,14 @@ import type { CardDb, CardDef, Color } from '../../src/engine/types';
 import { def, isType, manaValue } from '../../src/engine/types';
 import { isBasic } from '../../src/meta/Collection';
 import { validateLimitedDeck } from '../../src/meta/DeckStorage';
-import { applyLimitedMatchResult } from '../../src/meta/Economy';
+import { applyLimitedMatchResult, payPremiumDraftEntry } from '../../src/meta/Economy';
 import {
   buildLimitedDeck,
   completeDraftRun,
   currentDraftPack,
   DRAFT_SEATS,
   freshLimitedState,
+  grantPremiumDraftPool,
   limitedDuelData,
   personaRevealTier,
   pickDraftCard,
@@ -25,7 +26,7 @@ import {
 } from '../../src/meta/Limited';
 import { DEFAULT_PICKER, scoreBasePick } from '../../src/meta/draftPicker';
 import { freshSave } from '../../src/meta/SaveManager';
-import { TIER_RANK } from '../../src/meta/variants';
+import { PLAIN_VARIANT, TIER_RANK, variantKey, type CardVariant } from '../../src/meta/variants';
 import { deckOf, TEST_DB } from '../helpers';
 
 describe('limited pack rolling', () => {
@@ -100,6 +101,55 @@ describe('bot draft', () => {
     expect(next.picks[0]).toEqual([firstPick]);
     expect(next.pickIndex).toBe(1);
     expect(currentDraftPack(next)).toHaveLength(ECONOMY.limitedPackSize - 1);
+  });
+
+  it('rolls deterministic premium variants while free drafts carry no premium fields', () => {
+    const premiumA = startBotDraft(CARD_DB, 909, { premium: true });
+    const premiumB = startBotDraft(CARD_DB, 909, { premium: true });
+    const free = startBotDraft(CARD_DB, 909);
+    const freeRun = startDraftRun(CARD_DB, 909, 1000);
+
+    expect(premiumA.packVariants).toEqual(premiumB.packVariants);
+    expect(premiumA.currentPackVariants).toEqual(premiumB.currentPackVariants);
+    expect(premiumA.packVariants).toHaveLength(3);
+    expect(premiumA.packVariants?.[0]).toHaveLength(DRAFT_SEATS);
+    expect(premiumA.packVariants?.[0][0]).toHaveLength(ECONOMY.limitedPackSize);
+    expect(free).not.toHaveProperty('packVariants');
+    expect(free).not.toHaveProperty('currentPackVariants');
+    expect(free).not.toHaveProperty('pickVariants');
+    expect(freeRun).not.toHaveProperty('premium');
+    expect(freeRun.draft).not.toHaveProperty('packVariants');
+    const freeNext = pickDraftCard(CARD_DB, free, free.currentPacks[0][0], 0);
+    expect(freeNext).not.toHaveProperty('packVariants');
+    expect(freeNext).not.toHaveProperty('currentPackVariants');
+    expect(freeNext).not.toHaveProperty('pickVariants');
+  });
+
+  it('keeps every premium variant aligned with its card through two pack rotations', () => {
+    const initial = startBotDraft(CARD_DB, 1919, { premium: true });
+    const originalSeatZero = draftPairs(initial.currentPacks[0], initial.currentPackVariants![0]);
+
+    const once = pickDraftCard(CARD_DB, initial, initial.currentPacks[0][0], 0);
+    expect(draftPairs(once.currentPacks[1], once.currentPackVariants![1])).toEqual(originalSeatZero.slice(1));
+    expect(once.pickVariants).toEqual([initial.currentPackVariants![0][0]]);
+
+    const beforeSecondBotPick = draftPairs(once.currentPacks[1], once.currentPackVariants![1]);
+    const twice = pickDraftCard(CARD_DB, once, once.currentPacks[0][0], 0);
+    const botChoice = twice.picks[1].at(-1)!;
+    const removedIndex = beforeSecondBotPick.findIndex((slot) => slot.cardId === botChoice);
+    const expectedAfterSecondPass = beforeSecondBotPick.filter((_, index) => index !== removedIndex);
+
+    expect(removedIndex).toBeGreaterThanOrEqual(0);
+    expect(draftPairs(twice.currentPacks[2], twice.currentPackVariants![2])).toEqual(expectedAfterSecondPass);
+
+    let atNextPack = twice;
+    while (atNextPack.packIndex === 0) {
+      atNextPack = pickDraftCard(CARD_DB, atNextPack, atNextPack.currentPacks[0][0], 0);
+    }
+    expect(atNextPack.packIndex).toBe(1);
+    expect(draftPairs(atNextPack.currentPacks[0], atNextPack.currentPackVariants![0])).toEqual(
+      draftPairs(atNextPack.packs[1][0], atNextPack.packVariants![1][0]),
+    );
   });
 
   it('completes a 3-pack bot draft and builds legal opponent decks', () => {
@@ -226,6 +276,123 @@ describe('bot draft', () => {
 });
 
 describe('limited rewards', () => {
+  it('charges the Premium Draft fee only when affordable', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.premiumDraftEntry;
+    expect(payPremiumDraftEntry(save)).toBe(true);
+    expect(save.gold).toBe(0);
+
+    save.gold = ECONOMY.premiumDraftEntry - 1;
+    expect(payPremiumDraftEntry(save)).toBe(false);
+    expect(save.gold).toBe(ECONOMY.premiumDraftEntry - 1);
+  });
+
+  it('grants all 45 premium picks with their rolled variants exactly once', () => {
+    const run = finishDraft(4242, true);
+    const save = freshSave(0);
+    const ids = [...run.draft!.picks[0]];
+    const variants = run.draft!.pickVariants!.map((variant) => ({ ...variant }));
+
+    const results = grantPremiumDraftPool(save, CARD_DB, run);
+
+    expect(results).toHaveLength(45);
+    expect(results.map((result) => result.cardId)).toEqual(ids);
+    expect(results.map(({ frame, holo }) => ({ frame, holo }))).toEqual(variants);
+    const expectedVariants: Record<string, Record<string, number>> = {};
+    for (const result of results) {
+      if (result.dupeGold > 0) continue;
+      const perCard = (expectedVariants[result.cardId] ??= {});
+      const key = variantKey({ frame: result.frame, holo: result.holo });
+      perCard[key] = (perCard[key] ?? 0) + 1;
+    }
+    expect(save.collectionVariants).toEqual(expectedVariants);
+    expect(save.collection).toEqual(
+      Object.fromEntries(
+        Object.entries(expectedVariants).map(([id, perVariant]) => [
+          id,
+          Object.values(perVariant).reduce((sum, count) => sum + count, 0),
+        ]),
+      ),
+    );
+
+    const completed = completeDraftRun(CARD_DB, run);
+    const collectionAfterFirstGrant = structuredClone(save.collection);
+    const variantsAfterFirstGrant = structuredClone(save.collectionVariants);
+    const goldAfterFirstGrant = save.gold;
+    expect(grantPremiumDraftPool(save, CARD_DB, completed)).toEqual([]);
+    expect(save.collection).toEqual(collectionAfterFirstGrant);
+    expect(save.collectionVariants).toEqual(variantsAfterFirstGrant);
+    expect(save.gold).toBe(goldAfterFirstGrant);
+  });
+
+  it('melts plain premium picks past the playset exactly like pack opening', () => {
+    const run = finishDraft(5252, true);
+    const cardId = run.draft!.picks[0][0];
+    run.draft!.picks[0] = Array.from({ length: 45 }, () => cardId);
+    run.draft!.pickVariants = Array.from({ length: 45 }, () => ({ ...PLAIN_VARIANT }));
+    const save = freshSave(0);
+
+    const results = grantPremiumDraftPool(save, CARD_DB, run);
+    const dupeGold = ECONOMY.dupeGold[def(CARD_DB, cardId).rarity];
+
+    expect(results).toHaveLength(45);
+    expect(results.filter((result) => result.dupeGold === dupeGold)).toHaveLength(41);
+    expect(save.collection[cardId]).toBe(4);
+    expect(save.collectionVariants[cardId]).toEqual({ [variantKey(PLAIN_VARIANT)]: 4 });
+    expect(save.gold).toBe(41 * dupeGold);
+  });
+
+  it('keeps special premium variants past the playset', () => {
+    const run = finishDraft(5353, true);
+    const cardId = run.draft!.picks[0][0];
+    const special: CardVariant = { frame: 'gold', holo: 'shiny' };
+    run.draft!.picks[0] = Array.from({ length: 45 }, () => cardId);
+    run.draft!.pickVariants = Array.from({ length: 45 }, () => ({ ...special }));
+    const save = freshSave(0);
+
+    const results = grantPremiumDraftPool(save, CARD_DB, run);
+
+    expect(results.every((result) => result.dupeGold === 0)).toBe(true);
+    expect(save.collection[cardId]).toBe(45);
+    expect(save.collectionVariants[cardId]).toEqual({ [variantKey(special)]: 45 });
+    expect(save.gold).toBe(0);
+  });
+
+  it('grants nothing for free drafts or sealed runs', () => {
+    const freeRun = finishDraft(6262, false);
+    const sealedRun = startSealedRun(CARD_DB, 6263, 1000);
+    sealedRun.premium = true;
+    const save = freshSave(0);
+
+    expect(grantPremiumDraftPool(save, CARD_DB, freeRun)).toEqual([]);
+    expect(grantPremiumDraftPool(save, CARD_DB, sealedRun)).toEqual([]);
+    expect(save.collection).toEqual({});
+    expect(save.collectionVariants).toEqual({});
+  });
+
+  it('stamps premium draft history while leaving the run reward unchanged', () => {
+    const save = freshSave(0);
+    const run = startDraftRun(CARD_DB, 7272, 1000, { premium: true });
+    run.status = 'matches';
+    save.limited.activeRun = run;
+
+    applyLimitedMatchResult(save, 'easy', false, '2026-07-14', 'dual', 2000);
+    applyLimitedMatchResult(save, 'medium', false, '2026-07-14', 'dual', 3000);
+    const result = applyLimitedMatchResult(save, 'hard', false, '2026-07-14', 'dual', 4000);
+
+    expect(result.gold).toBe(ECONOMY.limitedRunGold[0]);
+    expect(save.limited.history[0]).toMatchObject({ mode: 'draft', premium: true, rewardGold: result.gold });
+
+    const freeSave = freshSave(0);
+    const freeRun = startDraftRun(CARD_DB, 7273, 1000);
+    freeRun.status = 'matches';
+    freeSave.limited.activeRun = freeRun;
+    applyLimitedMatchResult(freeSave, 'easy', false, '2026-07-14', 'dual', 2000);
+    applyLimitedMatchResult(freeSave, 'medium', false, '2026-07-14', 'dual', 3000);
+    applyLimitedMatchResult(freeSave, 'hard', false, '2026-07-14', 'dual', 4000);
+    expect(freeSave.limited.history[0]).not.toHaveProperty('premium');
+  });
+
   it('records match stats and pays run-end gold without adding cards', () => {
     const save = freshSave(0);
     const run = startSealedRun(CARD_DB, 202, 1000);
@@ -258,6 +425,21 @@ describe('limited rewards', () => {
     expect(save.collection).toEqual({});
   });
 });
+
+function finishDraft(seed: number, premium: boolean) {
+  let run = startDraftRun(CARD_DB, seed, 1000, premium ? { premium: true } : {});
+  while (run.draft && !run.draft.completed) {
+    run = {
+      ...run,
+      draft: pickDraftCard(CARD_DB, run.draft, currentDraftPack(run.draft)[0], 0),
+    };
+  }
+  return run;
+}
+
+function draftPairs(cards: readonly string[], variants: readonly CardVariant[]) {
+  return cards.map((cardId, index) => ({ cardId, variant: variants[index] }));
+}
 
 // Frozen copy of the pre-persona Limited.ts picker. This is deliberately kept
 // independent from draftPicker.ts so neutral-profile arithmetic drift is caught.

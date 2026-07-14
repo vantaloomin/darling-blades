@@ -64,9 +64,9 @@ export const ECONOMY = {
   // Celtic Fae summit bosses (The Morrigan, Titania).
   gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270] as const,
   gauntletCompletionBonus: 250,
-  // Limited runs are free-entry and cards are ephemeral, so the run-end payout
-  // is intentionally modest: enough to make 3 matches feel worthwhile without
-  // outpacing constructed practice or tower risk/reward.
+  // Free Limited runs are free-entry with ephemeral cards; Premium Draft pays
+  // to keep its picks. Both use the same intentionally modest run-end payout.
+  premiumDraftEntry: 1000,
   limitedRunGold: [40, 100, 180, 300] as const,
 } as const;
 

@@ -172,6 +172,7 @@ export function applyLimitedMatchResult(
       deckStyle,
       completedAt: now,
       rewardGold,
+      ...(run.premium ? { premium: true } : {}),
     });
     save.limited.history = save.limited.history.slice(0, 20);
     save.limited.activeRun = null;
@@ -187,6 +188,11 @@ export function spendGold(save: SaveData, amount: number): boolean {
   if (save.gold < amount) return false;
   save.gold -= amount;
   return true;
+}
+
+/** Pay the fixed Premium Draft entry fee, with no mutation when unaffordable. */
+export function payPremiumDraftEntry(save: SaveData): boolean {
+  return spendGold(save, ECONOMY.premiumDraftEntry);
 }
 
 export function todayString(now = new Date()): string {

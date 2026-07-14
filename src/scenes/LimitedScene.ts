@@ -1,16 +1,19 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
+import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { draftPersonaById } from '../data/draftPersonas';
 import {
   clampLimitedSeed,
   completeDraftRun,
+  grantPremiumDraftPool,
   limitedDuelData,
   recordDraftEncounters,
   startDraftRun,
   type LimitedRun,
 } from '../meta/Limited';
+import { payPremiumDraftEntry } from '../meta/Economy';
 import { Services } from '../meta/services';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
@@ -44,6 +47,7 @@ export class LimitedScene extends Phaser.Scene {
     ) {
       // Interrupted-save path: the draft finished but completeDraftRun never
       // ran, so the familiarity tick from confirmPick never fired either.
+      grantPremiumDraftPool(save, CARD_DB, save.limited.activeRun);
       recordDraftEncounters(save.limited, save.limited.activeRun);
       save.limited.activeRun = completeDraftRun(CARD_DB, save.limited.activeRun);
       Services.save.flush();
@@ -124,11 +128,13 @@ export class LimitedScene extends Phaser.Scene {
     this.retireBtn = this.button(x + 360, y + 196, 'Retire Run', 'danger', () => this.retireRun());
   }
   private drawStartPanel(): void {
-    const runActive = !!Services.save.data.limited.activeRun;
+    const save = Services.save.data;
+    const runActive = !!save.limited.activeRun;
+    const premiumDisabled = runActive || save.gold < ECONOMY.premiumDraftEntry;
     const x = 70;
     const y = 410;
     const seed = this.pendingSeed ?? 1;
-    panel(this, x, y, 540, 210);
+    panel(this, x, y, 540, 250);
     this.title(x + 24, y + 28, 'New Run', runActive ? theme.colors.muted : theme.colors.heading);
     this.text(
       x + 24,
@@ -141,8 +147,8 @@ export class LimitedScene extends Phaser.Scene {
     // meta core and scenes stay in the codebase, but only Bot Draft is
     // offered. Removal record: plan-v1.1-post-launch.md Feature 5.
     this.button(
-      x + 216,
-      y + 124,
+      x + 150,
+      y + 104,
       'Bot Draft Run',
       'primary',
       () => {
@@ -155,8 +161,30 @@ export class LimitedScene extends Phaser.Scene {
       runActive,
     );
     this.button(
-      x + 112,
-      y + 176,
+      x + 390,
+      y + 104,
+      `Premium Draft - ${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`,
+      'primary',
+      () => {
+        if (runActive) return;
+        const run = startDraftRun(CARD_DB, seed, Date.now(), { premium: true });
+        if (!payPremiumDraftEntry(save)) return;
+        save.limited.activeRun = run;
+        Services.save.flush();
+        this.scene.start('LimitedDraft');
+      },
+      premiumDisabled,
+    );
+    this.text(
+      x + 24,
+      y + 144,
+      'Variants roll, and every card you draft is yours to keep.',
+      theme.type.caption,
+      premiumDisabled ? theme.colors.muted : theme.colors.body,
+    );
+    this.button(
+      x + 150,
+      y + 204,
       'Reroll Seed',
       'ghost',
       () => {
@@ -168,8 +196,8 @@ export class LimitedScene extends Phaser.Scene {
       runActive,
     );
     this.button(
-      x + 320,
-      y + 176,
+      x + 390,
+      y + 204,
       'Set Seed',
       'ghost',
       () => {
@@ -215,7 +243,7 @@ export class LimitedScene extends Phaser.Scene {
       this.title(
         x + 24,
         rowY + 2,
-        `${labelMode(entry)} ${entry.wins}-${entry.losses}`,
+        `${entry.premium ? '[P] Draft' : labelMode(entry)} ${entry.wins}-${entry.losses}`,
         entry.wins === 3 ? theme.colors.gold : theme.colors.heading,
         theme.type.label,
       );
@@ -289,8 +317,8 @@ export class LimitedScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
   }
 }
-function labelMode(run: Pick<LimitedRun, 'mode'> | { mode: 'sealed' | 'draft' }): string {
-  return run.mode === 'sealed' ? 'Sealed' : 'Draft';
+function labelMode(run: { mode: 'sealed' | 'draft'; premium?: boolean }): string {
+  return run.mode === 'sealed' ? 'Sealed' : run.premium ? 'Premium Draft' : 'Draft';
 }
 function primaryActionLabel(run: LimitedRun): string {
   return run.status === 'draft'

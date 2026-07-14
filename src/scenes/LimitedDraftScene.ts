@@ -12,6 +12,7 @@ import {
   currentDraftPack,
   DRAFT_PACKS,
   draftDirection,
+  grantPremiumDraftPool,
   personaRevealTier,
   pickDraftCard,
   recordDraftEncounters,
@@ -19,8 +20,10 @@ import {
   type PersonaRevealTier,
 } from '../meta/Limited';
 import { Services } from '../meta/services';
+import { isPlainVariant, type CardVariant, type FrameStyle, type HoloFinish } from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
+import { FRAME_TREATMENTS } from '../ui/CardFrameFactory';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { ModalGuard } from '../ui/Modal';
@@ -58,6 +61,9 @@ interface SeatIdentity {
 interface PackCell {
   plate: Phaser.GameObjects.Rectangle;
   thumb: Phaser.GameObjects.Image;
+  baseStroke: number;
+  baseStrokeWidth: number;
+  baseStrokeAlpha: number;
 }
 
 export class LimitedDraftScene extends Phaser.Scene {
@@ -127,6 +133,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     }
     if (run.draft.completed) {
       // Interrupted-save path (confirmPick normally records before this).
+      grantPremiumDraftPool(Services.save.data, CARD_DB, run);
       recordDraftEncounters(Services.save.data.limited, run);
       Services.save.data.limited.activeRun = completeDraftRun(CARD_DB, run);
       Services.save.flush();
@@ -137,7 +144,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     const pack = currentDraftPack(run.draft);
     this.drawHeader(run, pack.length);
     this.drawSeatTable(run);
-    this.drawPack(pack);
+    this.drawPack(run, pack);
     this.drawPicks(run);
     this.drawActions(run);
   }
@@ -146,7 +153,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     const draft = run.draft!;
     const packSize = Math.max(ECONOMY.limitedPackSize, remainingCards + draft.pickIndex);
     this.add
-      .text(DESIGN_W / 2, 44, 'Bot Draft', {
+      .text(DESIGN_W / 2, 44, run.premium ? 'Premium Draft' : 'Bot Draft', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
@@ -254,7 +261,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     }
   }
 
-  private drawPack(pack: readonly string[]): void {
+  private drawPack(run: LimitedRun, pack: readonly string[]): void {
     const x = theme.design.safeLeft;
     const y = 224;
     // Panel 224..640; the title band ends ~264, so the first plate row (top =
@@ -269,13 +276,23 @@ export class LimitedDraftScene extends Phaser.Scene {
 
     pack.forEach((id, index) => {
       const card = def(CARD_DB, id);
+      const variant = run.premium ? run.draft?.currentPackVariants?.[0]?.[index] : undefined;
+      const special = variant !== undefined && !isPlainVariant(variant);
+      const baseStroke = special ? frameIndicatorColor(variant.frame) : theme.graphics.panelStroke;
+      const baseStrokeWidth = special ? 2 : 1;
+      const baseStrokeAlpha = special ? 1 : theme.alpha.chrome;
       const col = index % PACK_COLS;
       const row = Math.floor(index / PACK_COLS);
       const cx = 128 + col * 150;
       const cy = 330 + row * 122;
       const plate = this.add
         .rectangle(cx, cy, 86, 116, theme.graphics.rowFill, 0.92)
-        .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
+        .setStrokeStyle(baseStrokeWidth, baseStroke, baseStrokeAlpha);
+      if (special) {
+        this.add
+          .circle(cx + 33, cy - 48, 5, colorInt(holoIndicatorColor(variant.holo)), 1)
+          .setStrokeStyle(1, colorInt(theme.colors.heading), theme.alpha.chrome);
+      }
       const thumb = makeCardThumb(this, cx, cy, card, PACK_THUMB_SCALE).setInteractive({
         useHandCursor: true,
       });
@@ -295,7 +312,7 @@ export class LimitedDraftScene extends Phaser.Scene {
         }
       });
       thumb.on('pointerout', () => this.refreshPackSelection());
-      this.packCells.push({ plate, thumb });
+      this.packCells.push({ plate, thumb, baseStroke, baseStrokeWidth, baseStrokeAlpha });
       this.interactiveTargets.push(thumb);
     });
   }
@@ -463,14 +480,14 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   private refreshPackSelection(): void {
-    this.packCells.forEach(({ plate }, index) => {
+    this.packCells.forEach(({ plate, baseStroke, baseStrokeWidth, baseStrokeAlpha }, index) => {
       const selected = index === this.selectedCell;
       plate
         .setFillStyle(selected ? theme.graphics.rowFillActive : theme.graphics.rowFill, selected ? 1 : 0.92)
         .setStrokeStyle(
-          selected ? 3 : 1,
-          selected ? colorInt(theme.colors.gold) : theme.graphics.panelStroke,
-          selected ? 1 : theme.alpha.chrome,
+          selected ? 3 : baseStrokeWidth,
+          selected ? colorInt(theme.colors.gold) : baseStroke,
+          selected ? 1 : baseStrokeAlpha,
         );
     });
   }
@@ -584,7 +601,10 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.inspectIndex = packIndex;
     this.guard.open(this.interactiveTargets);
     const c = shell.container;
-    c.add(new CardView(this, 430, 360).setScale(1.25).setCard(card, { fx: 'full' }));
+    const cardView = new CardView(this, 430, 360).setScale(1.25);
+    const variant = this.currentPackVariant(packIndex);
+    cardView.setCard(card, variant ? { fx: 'full', variant } : { fx: 'full' });
+    c.add(cardView);
     c.add(
       this.add.text(690, 150, card.name, {
         fontFamily: theme.fonts.display,
@@ -726,11 +746,12 @@ export class LimitedDraftScene extends Phaser.Scene {
     if (!this.selectedId || !run.draft) return;
     const updated: LimitedRun = {
       ...run,
-      draft: pickDraftCard(CARD_DB, run.draft, this.selectedId),
+      draft: pickDraftCard(CARD_DB, run.draft, this.selectedId, this.selectedCell),
     };
     if (updated.draft?.completed) {
       // A finished draft (all 45 picks) is what teaches you the table —
       // familiarity advances exactly once per completed draft per persona.
+      grantPremiumDraftPool(Services.save.data, CARD_DB, updated);
       recordDraftEncounters(Services.save.data.limited, updated);
     }
     Services.save.data.limited.activeRun = updated.draft?.completed
@@ -738,6 +759,11 @@ export class LimitedDraftScene extends Phaser.Scene {
       : updated;
     Services.save.flush();
     this.scene.start(updated.draft?.completed ? 'LimitedDeckBuilder' : 'LimitedDraft');
+  }
+
+  private currentPackVariant(index: number): CardVariant | undefined {
+    const run = Services.save.data.limited.activeRun;
+    return run?.premium ? run.draft?.currentPackVariants?.[0]?.[index] : undefined;
   }
 
   private readonly onGameObjectOver = (pointer: Phaser.Input.Pointer): void => {
@@ -756,6 +782,21 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.input.keyboard?.off('keydown-SPACE', this.onInspectSelect);
     this.input.keyboard?.off('keydown-ENTER', this.onInspectSelect);
     this.closeModal();
+  }
+}
+
+function frameIndicatorColor(frame: FrameStyle): number {
+  return FRAME_TREATMENTS[frame].ring ?? colorInt(theme.colors.heading);
+}
+
+function holoIndicatorColor(holo: HoloFinish): string {
+  switch (holo) {
+    case 'none': return theme.colors.body;
+    case 'shiny': return theme.colors.heading;
+    case 'rainbow': return theme.colors.success;
+    case 'pearlescent': return theme.colors.muted;
+    case 'fractal': return theme.colors.gold;
+    case 'void': return theme.colors.danger;
   }
 }
 
