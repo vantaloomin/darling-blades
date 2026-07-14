@@ -288,8 +288,8 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae'>[] = [
       { value: 'all', label: 'All Sets' },
-      { value: 'base', label: 'Base' },
-      { value: 'ragnarok', label: 'Ragnarok' },
+      { value: 'base', label: 'Core Set' },
+      { value: 'ragnarok', label: 'Ragnarök' },
       { value: 'celtic-fae', label: 'Celtic Fae' },
     ];
     mk(158, 'Set', setOpts, () => this.filterState.set, (v) => (this.filterState.set = v));

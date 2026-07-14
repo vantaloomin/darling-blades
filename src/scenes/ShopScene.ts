@@ -342,7 +342,7 @@ export class ShopScene extends Phaser.Scene {
   // --- Boosters tab ---------------------------------------------------------
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
-    this.buildPackSku(group, 340, 'Base Set', 'packart', ECONOMY.packPrice, () =>
+    this.buildPackSku(group, 340, 'Core Set', 'packart', ECONOMY.packPrice, () =>
       this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
     );
     this.buildPackSku(
