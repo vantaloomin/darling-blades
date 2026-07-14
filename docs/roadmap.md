@@ -86,11 +86,23 @@ _Dated 2026-07-04. Review monthly._
   of candidates refuted; 2 confirmed findings — portrait mask undercoverage
   and inverted pass chevrons — both fixed and re-probed); a full browser
   probe of draft → auto-build → match 1 → results with zero console errors
-  and the save restored byte-clean. Limited remains hidden from MainMenu —
-  the remaining re-enable blockers are run-economy tuning and limited-pool
-  balance measurement ([plan-v1.1-post-launch.md](plan-v1.1-post-launch.md)
-  Feature 5). Visual by-eye pass (portrait crops, 45-pick density) still
-  wants human eyes on a live screen.
+  and the save restored byte-clean. Visual by-eye pass (portrait crops,
+  45-pick density) still wants human eyes on a live screen.
+
+- **"Play" submenu — and Draft goes public (user-directed 2026-07-14).**
+  MainMenu's four game-mode rows (Avatar Gauntlet + Practice ×3) collapsed
+  into a single **Play** entry opening a new `PlayScene` submenu: Avatar
+  Gauntlet, **Draft**, Practice · Easy/Medium/Hard, Return. Draft routes to
+  the Limited hub, making the persona Bot Draft **publicly reachable for the
+  first time** (supersedes the PR #54 hide); **Sealed stays dev-only**
+  (IS_DEV gate, Card-Showcase pattern) pending its polish pass. Gauntlet and
+  the Limited hub's back buttons retarget to Play. Probed live end-to-end
+  (all six rows navigate; back-paths land on Play; save byte-identical;
+  zero console errors). ⚠ Known-open economics: draft runs are free to
+  enter and pay `limitedRunGold` [40/100/180/300] on completion — the
+  run-reward tuning blocker
+  ([plan-v1.1-post-launch.md](plan-v1.1-post-launch.md) Feature 5) is now
+  player-facing rather than hidden, accepted by user direction.
 
 ## Recently shipped (2026-07-12)
 
@@ -864,19 +876,16 @@ _Dated 2026-07-04. Review monthly._
   **MOD/UGC packs** are the 1.1 systems, the tower gets a **seeded daily
   rotation**, and the base facet gets a clarity **relabel** (data stays
   disjoint). Deterministic replays and Tier-2 LAN PvP shelve to 1.2+.
-- **Limited public release (post-1.0, with a future expansion; now part of
-  the 1.1 program above).** The full
-  Sealed/Bot-Draft implementation (`src/meta/Limited.ts`, four
-  scenes, tests) stays in the codebase but is unreachable from MainMenu
-  (PR #54). User decision 2026-07-10: it ships in its own release after more
-  testing. **2026-07-14: the Bot Draft was re-implemented around 20 AI draft
-  personas** (see Recently shipped) — the draft-flow polish blocker is
-  addressed (LimitedDraftScene rebuilt on the theme system; matches are now
-  played against named personas). Remaining blockers: Limited balance/economy
-  (auto-build texture via the balance harness, run-reward tuning) and a
-  Sealed-flow polish pass. Re-enabling is one MainMenu entry plus a
-  browser-preview probe of both run types end-to-end. Blocker detail:
-  [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
+- **Limited public release (partially live as of 2026-07-14).**
+  **The Bot Draft half is now public**: re-implemented around 20 AI draft
+  personas and reachable via the Play submenu (user decision 2026-07-14 —
+  see Recently shipped; supersedes the PR #54 hide for draft). **Sealed
+  remains dev-only** (IS_DEV gate on the hub's Sealed Run button) pending
+  its flow-polish pass. Remaining blockers, now partially player-facing:
+  Limited balance/economy (auto-build texture via the balance harness,
+  run-reward tuning — draft runs are free to enter and pay
+  `limitedRunGold` on completion) and the Sealed polish pass. Blocker
+  detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program

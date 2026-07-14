@@ -12,6 +12,7 @@ import {
   type LimitedRun,
 } from '../meta/Limited';
 import { Services } from '../meta/services';
+import { IS_DEV } from '../platform/env';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
 import { backButton, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
@@ -62,7 +63,7 @@ export class LimitedScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
-    backButton(this, () => this.scene.start('MainMenu'));
+    backButton(this, () => this.scene.start('Play'));
     this.drawRunPanel();
     this.drawStartPanel();
     this.drawHistory();
@@ -134,22 +135,27 @@ export class LimitedScene extends Phaser.Scene {
       theme.type.label,
       runActive ? theme.colors.muted : theme.colors.body,
     );
+    // Sealed is dev-only for now (same gate pattern as Card Showcase): the
+    // public Play-menu entry exposes the persona Bot Draft; the Sealed reveal
+    // flow still awaits its polish pass (plan-v1.1-post-launch.md Feature 5).
+    if (IS_DEV) {
+      this.button(
+        x + 112,
+        y + 124,
+        'Sealed Run',
+        'primary',
+        () => {
+          if (!runActive) {
+            Services.save.data.limited.activeRun = startSealedRun(CARD_DB, seed, Date.now());
+            Services.save.flush();
+            this.scene.start('LimitedReveal');
+          }
+        },
+        runActive,
+      );
+    }
     this.button(
-      x + 112,
-      y + 124,
-      'Sealed Run',
-      'primary',
-      () => {
-        if (!runActive) {
-          Services.save.data.limited.activeRun = startSealedRun(CARD_DB, seed, Date.now());
-          Services.save.flush();
-          this.scene.start('LimitedReveal');
-        }
-      },
-      runActive,
-    );
-    this.button(
-      x + 320,
+      IS_DEV ? x + 320 : x + 216,
       y + 124,
       'Bot Draft Run',
       'primary',

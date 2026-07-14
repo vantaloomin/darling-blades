@@ -99,7 +99,7 @@ export class GauntletScene extends Phaser.Scene {
     this.buildPanel();
     this.buildSeedBar();
 
-    backButton(this, () => this.scene.start('MainMenu'));
+    backButton(this, () => this.scene.start('Play'));
   }
 
   // ---------------------------------------------------------------------

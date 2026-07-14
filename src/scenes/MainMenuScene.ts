@@ -24,10 +24,8 @@ import { goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWi
 import { VERSION_LABEL } from '../version';
 
 const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
-  { label: 'Avatar Gauntlet', scene: 'Gauntlet' },
-  { label: 'Practice · Easy', scene: 'Duel', data: { difficulty: 'easy' } },
-  { label: 'Practice · Medium', scene: 'Duel', data: { difficulty: 'medium' } },
-  { label: 'Practice · Hard', scene: 'Duel', data: { difficulty: 'hard' } },
+  // Game modes live one level down (PlayScene): Gauntlet, Draft, Practice ×3.
+  { label: 'Play', scene: 'Play' },
   { label: 'Open Packs', scene: 'Shop' },
   { label: 'Collection', scene: 'Collection' },
   { label: 'Achievements', scene: 'Achievements' },

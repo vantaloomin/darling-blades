@@ -382,6 +382,14 @@ an afternoon.
 its MainMenu entry, leaving everything else in place. It ships in its own
 post-1.0 release alongside a future expansion, after more testing.
 
+> **Update 2 (2026-07-14, later the same day):** the user directed a **"Play"
+> submenu** (MainMenu's Gauntlet + Practice rows moved into a new `PlayScene`,
+> plus a **Draft** entry) — so **the Bot Draft is now publicly reachable**,
+> superseding the PR #54 hide for the draft half. Sealed stays dev-only
+> (IS_DEV gate). The balance/economy blocker below is therefore now
+> player-facing: draft runs cost nothing to enter and pay `limitedRunGold`
+> [40/100/180/300] on completion — tune it soon.
+>
 > **Update (2026-07-14):** the Bot Draft half was **re-implemented around 20
 > AI draft personas** — named drafters with data-driven pick styles
 > (`src/data/draftPersonas.ts` + `src/meta/draftPicker.ts`), a seeded seat
