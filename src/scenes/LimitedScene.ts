@@ -172,7 +172,7 @@ export class LimitedScene extends Phaser.Scene {
     // Premium-only descriptor, anchored under the Premium column so it can't
     // read as applying to the free entry.
     this.add
-      .text(x + CTA_COL_RIGHT, y + 118, 'Variants roll, and every card you draft is yours to keep.', {
+      .text(x + CTA_COL_RIGHT, y + 118, 'Every card you draft is yours to keep.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: premiumDisabled ? theme.colors.muted : theme.colors.body,
