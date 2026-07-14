@@ -17,7 +17,7 @@ import { payPremiumDraftEntry } from '../meta/Economy';
 import { Services } from '../meta/services';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
-import { backButton, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
  * One shared two-column CTA grid for every button row in the left panels
@@ -77,6 +77,9 @@ export class LimitedScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     backButton(this, () => this.scene.start('Play'));
+    // Gold is spendable here (the Premium Draft entry), so show the balance in
+    // its usual top-right corner spot.
+    goldBadge(this, 1250, 30, { getValue: () => Services.save.data.gold });
     this.drawRunPanel();
     this.drawStartPanel();
     this.drawHistory();
