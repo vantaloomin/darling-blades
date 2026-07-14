@@ -359,7 +359,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       color: theme.colors.heading,
     });
 
-    this.add.text(x + 16, y + 49, 'COLOR PIPS', {
+    this.add.text(x + 16, y + 49, 'COLORS', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       fontStyle: theme.weight.w700,
@@ -661,7 +661,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     const stats = computeDeckStats([...(run?.draft?.picks[0] ?? [])], CARD_DB);
     c.add(
       this.add
-        .text(columnX, 176, 'POOL PIPS', {
+        .text(columnX, 176, 'POOL COLORS', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
