@@ -92,7 +92,7 @@ export class LimitedScene extends Phaser.Scene {
       this.text(
         x + 24,
         y + 112,
-        'Start a Bot Draft run to build a temporary card pool.',
+        'Start a Free or Premium Draft to build a card pool.',
         theme.type.label,
         theme.colors.muted,
       );
@@ -143,7 +143,7 @@ export class LimitedScene extends Phaser.Scene {
     this.button(
       x + CTA_COL_LEFT,
       y + 84,
-      'Bot Draft Run',
+      'Free Draft',
       'primary',
       () => {
         if (!runActive) {
@@ -169,13 +169,17 @@ export class LimitedScene extends Phaser.Scene {
       },
       premiumDisabled,
     );
-    this.text(
-      x + 24,
-      y + 132,
-      'Variants roll, and every card you draft is yours to keep.',
-      theme.type.caption,
-      premiumDisabled ? theme.colors.muted : theme.colors.body,
-    );
+    // Premium-only descriptor, anchored under the Premium column so it can't
+    // read as applying to the free entry.
+    this.add
+      .text(x + CTA_COL_RIGHT, y + 118, 'Variants roll, and every card you draft is yours to keep.', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: premiumDisabled ? theme.colors.muted : theme.colors.body,
+        align: 'center',
+        wordWrap: { width: CTA_W },
+      })
+      .setOrigin(0.5, 0);
   }
   private drawHistory(): void {
     const save = Services.save.data;

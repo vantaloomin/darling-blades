@@ -153,7 +153,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     const draft = run.draft!;
     const packSize = Math.max(ECONOMY.limitedPackSize, remainingCards + draft.pickIndex);
     this.add
-      .text(DESIGN_W / 2, 44, run.premium ? 'Premium Draft' : 'Bot Draft', {
+      .text(DESIGN_W / 2, 44, run.premium ? 'Premium Draft' : 'Free Draft', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
