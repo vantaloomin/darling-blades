@@ -19,6 +19,17 @@ import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
 import { backButton, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
+/**
+ * One shared two-column CTA grid for every button row in the left panels
+ * (Resume/Retire, Bot Draft/Premium, Reroll/Set Seed): a fixed width wide
+ * enough for the longest label ("Premium Draft - 1,000g", the armed "Click
+ * again to retire"), the left column's edge flush with the x+24 text inset
+ * and the right column's edge flush with the right inset of the 540 panel.
+ */
+const CTA_W = 220;
+const CTA_COL_LEFT = 24 + CTA_W / 2; // 134
+const CTA_COL_RIGHT = 540 - 24 - CTA_W / 2; // 406
+
 export class LimitedScene extends Phaser.Scene {
   private pendingSeed: number | null = null;
   private retireArmed = false;
@@ -124,8 +135,8 @@ export class LimitedScene extends Phaser.Scene {
       theme.type.label,
       theme.colors.muted,
     );
-    this.button(x + 110, y + 196, primaryActionLabel(run), 'primary', () => this.continueRun(run));
-    this.retireBtn = this.button(x + 360, y + 196, 'Retire Run', 'danger', () => this.retireRun());
+    this.button(x + CTA_COL_LEFT, y + 196, primaryActionLabel(run), 'primary', () => this.continueRun(run));
+    this.retireBtn = this.button(x + CTA_COL_RIGHT, y + 196, 'Retire Run', 'danger', () => this.retireRun());
   }
   private drawStartPanel(): void {
     const save = Services.save.data;
@@ -147,7 +158,7 @@ export class LimitedScene extends Phaser.Scene {
     // meta core and scenes stay in the codebase, but only Bot Draft is
     // offered. Removal record: plan-v1.1-post-launch.md Feature 5.
     this.button(
-      x + 150,
+      x + CTA_COL_LEFT,
       y + 104,
       'Bot Draft Run',
       'primary',
@@ -161,7 +172,7 @@ export class LimitedScene extends Phaser.Scene {
       runActive,
     );
     this.button(
-      x + 390,
+      x + CTA_COL_RIGHT,
       y + 104,
       `Premium Draft - ${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`,
       'primary',
@@ -183,7 +194,7 @@ export class LimitedScene extends Phaser.Scene {
       premiumDisabled ? theme.colors.muted : theme.colors.body,
     );
     this.button(
-      x + 150,
+      x + CTA_COL_LEFT,
       y + 204,
       'Reroll Seed',
       'ghost',
@@ -196,7 +207,7 @@ export class LimitedScene extends Phaser.Scene {
       runActive,
     );
     this.button(
-      x + 390,
+      x + CTA_COL_RIGHT,
       y + 204,
       'Set Seed',
       'ghost',
@@ -292,7 +303,7 @@ export class LimitedScene extends Phaser.Scene {
     onTap: () => void,
     disabled = false,
   ): ThemedButton {
-    return themedButton(this, x, y, label, { variant, minWidth: 170, enabled: !disabled, onTap });
+    return themedButton(this, x, y, label, { variant, minWidth: CTA_W, enabled: !disabled, onTap });
   }
   private title(
     x: number,
