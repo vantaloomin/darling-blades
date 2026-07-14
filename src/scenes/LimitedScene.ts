@@ -31,7 +31,6 @@ const CTA_COL_LEFT = 24 + CTA_W / 2; // 134
 const CTA_COL_RIGHT = 540 - 24 - CTA_W / 2; // 406
 
 export class LimitedScene extends Phaser.Scene {
-  private pendingSeed: number | null = null;
   private retireArmed = false;
   private retireBtn: ThemedButton | null = null;
   constructor() {
@@ -63,9 +62,6 @@ export class LimitedScene extends Phaser.Scene {
       save.limited.activeRun = completeDraftRun(CARD_DB, save.limited.activeRun);
       Services.save.flush();
     }
-    this.pendingSeed =
-      save.limited.activeRun?.seed ??
-      clampLimitedSeed(this.pendingSeed ?? Math.floor(Math.random() * 2 ** 31));
     this.add
       .text(640, 52, 'Draft', {
         fontFamily: theme.fonts.display,
@@ -121,13 +117,7 @@ export class LimitedScene extends Phaser.Scene {
       theme.colors.gold,
       theme.weight.w700,
     );
-    this.text(
-      x + 24,
-      y + 106,
-      `Record ${run.wins}-${run.losses}   Seed ${run.seed}`,
-      theme.type.label,
-      theme.colors.body,
-    );
+    this.text(x + 24, y + 106, `Record ${run.wins}-${run.losses}`, theme.type.label, theme.colors.body);
     this.text(
       x + 24,
       y + 134,
@@ -144,27 +134,20 @@ export class LimitedScene extends Phaser.Scene {
     const premiumDisabled = runActive || save.gold < ECONOMY.premiumDraftEntry;
     const x = 70;
     const y = 410;
-    const seed = this.pendingSeed ?? 1;
-    panel(this, x, y, 540, 250);
+    panel(this, x, y, 540, 180);
     this.title(x + 24, y + 28, 'New Run', runActive ? theme.colors.muted : theme.colors.heading);
-    this.text(
-      x + 24,
-      y + 62,
-      `Next seed ${seed}`,
-      theme.type.label,
-      runActive ? theme.colors.muted : theme.colors.body,
-    );
-    // Sealed was removed from the hub (user decision 2026-07-14) — the mode's
-    // meta core and scenes stay in the codebase, but only Bot Draft is
-    // offered. Removal record: plan-v1.1-post-launch.md Feature 5.
+    // Seed controls are deliberately NOT exposed here (user decision
+    // 2026-07-14): draft runs roll a fresh hidden seed at start — the
+    // seed-sharing affordance stays a gauntlet feature. Sealed was removed
+    // from the hub the same day (plan-v1.1-post-launch.md Feature 5).
     this.button(
       x + CTA_COL_LEFT,
-      y + 104,
+      y + 84,
       'Bot Draft Run',
       'primary',
       () => {
         if (!runActive) {
-          Services.save.data.limited.activeRun = startDraftRun(CARD_DB, seed, Date.now());
+          Services.save.data.limited.activeRun = startDraftRun(CARD_DB, freshRunSeed(), Date.now());
           Services.save.flush();
           this.scene.start('LimitedDraft');
         }
@@ -173,12 +156,12 @@ export class LimitedScene extends Phaser.Scene {
     );
     this.button(
       x + CTA_COL_RIGHT,
-      y + 104,
+      y + 84,
       `Premium Draft - ${ECONOMY.premiumDraftEntry.toLocaleString('en-US')}g`,
       'primary',
       () => {
         if (runActive) return;
-        const run = startDraftRun(CARD_DB, seed, Date.now(), { premium: true });
+        const run = startDraftRun(CARD_DB, freshRunSeed(), Date.now(), { premium: true });
         if (!payPremiumDraftEntry(save)) return;
         save.limited.activeRun = run;
         Services.save.flush();
@@ -188,33 +171,10 @@ export class LimitedScene extends Phaser.Scene {
     );
     this.text(
       x + 24,
-      y + 144,
+      y + 132,
       'Variants roll, and every card you draft is yours to keep.',
       theme.type.caption,
       premiumDisabled ? theme.colors.muted : theme.colors.body,
-    );
-    this.button(
-      x + CTA_COL_LEFT,
-      y + 204,
-      'Reroll Seed',
-      'ghost',
-      () => {
-        if (!runActive) {
-          this.pendingSeed = clampLimitedSeed(Math.floor(Math.random() * 2 ** 31));
-          this.scene.restart();
-        }
-      },
-      runActive,
-    );
-    this.button(
-      x + CTA_COL_RIGHT,
-      y + 204,
-      'Set Seed',
-      'ghost',
-      () => {
-        if (!runActive) this.promptSeed();
-      },
-      runActive,
     );
   }
   private drawHistory(): void {
@@ -261,7 +221,7 @@ export class LimitedScene extends Phaser.Scene {
       this.text(
         x + 174,
         rowY + 2,
-        `${entry.deckStyle}   seed ${entry.seed}   +${entry.rewardGold} gold`,
+        `${entry.deckStyle}   +${entry.rewardGold} gold`,
         theme.type.caption,
         theme.colors.muted,
       );
@@ -282,18 +242,6 @@ export class LimitedScene extends Phaser.Scene {
     Services.save.data.limited.activeRun = null;
     Services.save.flush();
     this.scene.restart();
-  }
-  private promptSeed(): void {
-    try {
-      const input = window.prompt('Enter a Limited run seed.', String(this.pendingSeed));
-      if (input == null) return;
-      const n = Number(input.trim());
-      if (!Number.isFinite(n)) return;
-      this.pendingSeed = clampLimitedSeed(n);
-      this.scene.restart();
-    } catch {
-      /* prompt unavailable */
-    }
   }
   private button(
     x: number,
@@ -328,6 +276,11 @@ export class LimitedScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
   }
 }
+/** Draft runs roll a hidden seed at start — the run stays reproducible internally, but seed sharing is a gauntlet-only affordance. */
+function freshRunSeed(): number {
+  return clampLimitedSeed(Math.floor(Math.random() * 2 ** 31));
+}
+
 function labelMode(run: { mode: 'sealed' | 'draft'; premium?: boolean }): string {
   return run.mode === 'sealed' ? 'Sealed' : run.premium ? 'Premium Draft' : 'Draft';
 }
