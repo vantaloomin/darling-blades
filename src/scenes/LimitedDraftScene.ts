@@ -6,7 +6,7 @@ import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { draftPersonaById, type DraftPersona } from '../data/draftPersonas';
 import type { CardDef } from '../engine/types';
-import { def, isType, manaValue } from '../engine/types';
+import { def, manaValue } from '../engine/types';
 import {
   completeDraftRun,
   currentDraftPack,
@@ -20,13 +20,22 @@ import {
   type LimitedRun,
   type PersonaRevealTier,
 } from '../meta/Limited';
+import { ownedCount, PLAYSET } from '../meta/Collection';
 import { Services } from '../meta/services';
-import { isPlainVariant, type CardVariant, type FrameStyle, type HoloFinish } from '../meta/variants';
+import {
+  isPlainVariant,
+  TIER_LABEL,
+  type CardVariant,
+  type FrameStyle,
+  type HoloFinish,
+} from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { FRAME_TREATMENTS } from '../ui/CardFrameFactory';
 import { CardView } from '../ui/CardView';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
+import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
+import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
@@ -109,6 +118,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.inspectHint = null;
     this.passing = false;
 
+    bakeManaSymbols(this);
     applyBackdrop(this, 'packopening', {
       dim: theme.graphics.dim,
       dimAlpha: 0.66,
@@ -355,17 +365,18 @@ export class LimitedDraftScene extends Phaser.Scene {
       fontStyle: theme.weight.w700,
       color: theme.colors.muted,
     });
-    this.add.text(
-      x + 16,
-      y + 67,
-      PIE_COLORS.map((color) => `${color} ${stats.colorPips[color]}`).join('    '),
-      {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        fontStyle: theme.weight.w600,
-        color: theme.colors.body,
-      },
-    );
+    PIE_COLORS.forEach((color, index) => {
+      const pipX = x + 27 + index * 67;
+      this.add.image(pipX, y + 70, `pip-${color}`).setDisplaySize(18, 18);
+      this.add
+        .text(pipX + 13, y + 70, String(stats.colorPips[color]), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          fontStyle: theme.weight.w600,
+          color: theme.colors.body,
+        })
+        .setOrigin(0, 0.5);
+    });
 
     this.add.text(x + 16, y + 91, 'MANA CURVE', {
       fontFamily: theme.fonts.ui,
@@ -625,40 +636,132 @@ export class LimitedDraftScene extends Phaser.Scene {
     const variant = this.currentPackVariant(packIndex);
     cardView.setCard(card, variant ? { fx: 'full', variant } : { fx: 'full' });
     c.add(cardView);
+
+    const columnX = 650;
+    const columnWidth = 430;
     c.add(
-      this.add.text(690, 150, card.name, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
-        color: theme.colors.gold,
-        wordWrap: { width: 380 },
-      }),
-    );
-    c.add(
-      this.add.text(690, 220, detailLine(card), {
+      this.add.text(columnX, 94, `${TIER_LABEL[card.rarity]}  ·  MV ${manaValue(card.cost)}`, {
         fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
+        fontSize: `${theme.type.label}px`,
+        fontStyle: theme.weight.w700,
         color: theme.colors.heading,
-        wordWrap: { width: 380 },
       }),
     );
+    c.add(this.add.rectangle(columnX + columnWidth / 2, 126, columnWidth, 1, theme.graphics.panelStroke, 1));
     c.add(
-      this.add.text(690, 290, card.keywords?.join(', ') || 'No keyword abilities', {
+      this.add.text(columnX, 140, 'PICK IMPACT', {
         fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.body,
-        wordWrap: { width: 380 },
-      }),
-    );
-    c.add(
-      this.add.text(690, 350, card.flavor ?? '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        fontStyle: 'italic',
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
         color: theme.colors.muted,
-        lineSpacing: 5,
-        wordWrap: { width: 380 },
       }),
     );
+
+    const run = Services.save.data.limited.activeRun;
+    const stats = computeDeckStats([...(run?.draft?.picks[0] ?? [])], CARD_DB);
+    c.add(
+      this.add
+        .text(columnX, 176, 'POOL PIPS', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.muted,
+        })
+        .setOrigin(0, 0.5),
+    );
+    PIE_COLORS.forEach((color, index) => {
+      const pipX = columnX + 112 + index * 68;
+      const before = stats.colorPips[color];
+      const contribution = card.colors.includes(color) ? (card.cost?.pips[color] ?? 0) : 0;
+      c.add(this.add.image(pipX, 176, `pip-${color}`).setDisplaySize(18, 18));
+      c.add(
+        this.add
+          .text(
+            pipX + 13,
+            176,
+            contribution > 0 ? `${before}→${before + contribution}` : String(before),
+            {
+              fontFamily: theme.fonts.ui,
+              fontSize: `${theme.type.caption}px`,
+              fontStyle: contribution > 0 ? theme.weight.w700 : theme.weight.w600,
+              color: contribution > 0 ? theme.colors.gold : theme.colors.body,
+            },
+          )
+          .setOrigin(0, 0.5),
+      );
+    });
+
+    c.add(
+      this.add
+        .text(columnX, 221, 'CURVE', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.muted,
+        })
+        .setOrigin(0, 0.5),
+    );
+    const curveBucket = card.types.includes('land') ? null : Math.min(manaValue(card.cost), CURVE_MAX);
+    for (let mv = 0; mv <= CURVE_MAX; mv++) {
+      const bucketX = columnX + 94 + mv * 47;
+      const highlighted = mv === curveBucket;
+      c.add(
+        this.add
+          .text(bucketX, 207, mv === CURVE_MAX ? '7+' : String(mv), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.micro}px`,
+            color: highlighted ? theme.colors.gold : theme.colors.muted,
+          })
+          .setOrigin(0.5),
+      );
+      c.add(
+        this.add
+          .text(bucketX, 228, highlighted ? `${stats.curve[mv]}→${stats.curve[mv] + 1}` : String(stats.curve[mv]), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            fontStyle: highlighted ? theme.weight.w700 : theme.weight.w600,
+            color: highlighted ? theme.colors.gold : theme.colors.body,
+          })
+          .setOrigin(0.5),
+      );
+    }
+
+    if (card.keywords && card.keywords.length > 0) {
+      addKeywordGlossaryPanel(this, c, card, {
+        x: columnX,
+        y: 258,
+        width: columnWidth,
+        maxHeight: run?.premium ? 238 : 284,
+      });
+    }
+
+    if (run?.premium) {
+      c.add(
+        this.add.text(columnX, 520, premiumVariantLine(variant), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          fontStyle: theme.weight.w600,
+          color: !variant || isPlainVariant(variant) ? theme.colors.body : theme.colors.gold,
+          wordWrap: { width: columnWidth },
+        }),
+      );
+      const owned = ownedCount(Services.save.data, card.id);
+      c.add(
+        this.add.text(
+          columnX,
+          550,
+          owned >= PLAYSET - 1
+            ? `You own ${owned}/${PLAYSET} plain, a 5th plain copy melts to gold`
+            : `You own ${owned}/${PLAYSET}`,
+          {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.muted,
+            wordWrap: { width: columnWidth },
+          },
+        ),
+      );
+    }
     this.inspectHint = this.add
       .text(640, 634, '', {
         fontFamily: theme.fonts.ui,
@@ -879,9 +982,15 @@ function revealHint(tier: PersonaRevealTier): string {
       : 'One more draft together and you will have their full read.';
 }
 
-function detailLine(card: CardDef): string {
-  const stats = isType(card, 'creature') ? ` - ${card.attack}/${card.defense}` : '';
-  return `${card.rarity.toUpperCase()} - ${card.types.join(' ')} - MV ${manaValue(card.cost)}${stats}`;
+function premiumVariantLine(variant: CardVariant | undefined): string {
+  if (!variant || isPlainVariant(variant)) return 'Standard print';
+  const frame = capitalize(variant.frame);
+  const holo = variant.holo === 'none' ? 'No holo' : `${capitalize(variant.holo)} holo`;
+  return `${frame} frame - ${holo} - yours when the draft completes`;
+}
+
+function capitalize(value: string): string {
+  return value.length > 0 ? value[0].toUpperCase() + value.slice(1) : value;
 }
 
 function firstName(name: string): string {
