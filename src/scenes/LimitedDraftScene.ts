@@ -11,6 +11,7 @@ import {
   completeDraftRun,
   currentDraftPack,
   DRAFT_PACKS,
+  DRAFT_SEATS,
   draftDirection,
   grantPremiumDraftPool,
   personaRevealTier,
@@ -43,6 +44,9 @@ const PACK_THUMB_SCALE = 0.25;
 const PICK_THUMB_SCALE = 0.09;
 const PACK_COLS = 5;
 const PICK_COLS = 9;
+/** Seat-table geometry, shared by the row layout and the pass animation. */
+const SEAT_FIRST_X = 140;
+const SEAT_PITCH = 142;
 
 /** MouseManager installs a game-lifetime DOM listener, so install it once. */
 let contextMenuDisabled = false;
@@ -77,6 +81,17 @@ export class LimitedDraftScene extends Phaser.Scene {
   /** Pack index shown in the card-inspect modal; null when no inspect is open. */
   private inspectIndex: number | null = null;
   private inspectHint: Phaser.GameObjects.Text | null = null;
+  /** True while the pass animation plays — re-entry guard for confirmPick. */
+  private passing = false;
+
+  /**
+   * Visual column for a seat: You, 7, 6, … 1 left-to-right, so the engine's
+   * seat k -> k+1 pass renders as leftward motion (see drawSeatTable).
+   */
+  private seatColumnX(seat: number): number {
+    const column = seat === 0 ? 0 : DRAFT_SEATS - seat;
+    return SEAT_FIRST_X + column * SEAT_PITCH;
+  }
 
   constructor() {
     super('LimitedDraft');
@@ -92,6 +107,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.pickButton = null;
     this.inspectIndex = null;
     this.inspectHint = null;
+    this.passing = false;
 
     applyBackdrop(this, 'packopening', {
       dim: theme.graphics.dim,
@@ -180,14 +196,14 @@ export class LimitedDraftScene extends Phaser.Scene {
     const y = 96;
     const width = theme.design.safeWidth;
     const height = 116;
-    const firstX = 140;
-    const pitch = 142;
     const seatY = 163;
     const direction = draftDirection(draft.packIndex);
-    // passDraftPacks moves packs seat k -> k+1 for 'left' (Limited.ts), which
-    // flows RIGHTWARD along this rendered row — chevrons point at the seat that
-    // receives your pack, so signal-readers watch the correct neighbor.
-    const chevron = direction === 'left' ? '>' : '<';
+    // The row is drawn You, 7, 6, … 1 (seatColumnX) so that the engine's
+    // seat k -> k+1 hand-off (passDraftPacks, 'left') moves VISUALLY LEFT —
+    // you hand your pack toward the left edge (wrapping to seat 1 at the far
+    // right) and receive from the neighbor on your right, exactly like a real
+    // table. Chevrons, the label, and the pass animation all share this frame.
+    const chevron = direction === 'left' ? '<' : '>';
 
     panel(this, x, y, width, height, { alpha: 0.96 });
     this.add.text(x + 16, y + 9, 'Draft Table', {
@@ -196,7 +212,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       color: theme.colors.heading,
     });
     this.add
-      .text(x + width - 16, y + 10, `PACKS PASS  ${chevron}${chevron}${chevron}`, {
+      .text(x + width - 16, y + 10, `PASS ${direction.toUpperCase()}  ${chevron}${chevron}${chevron}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
@@ -206,7 +222,7 @@ export class LimitedDraftScene extends Phaser.Scene {
 
     for (let seat = 0; seat < 8; seat++) {
       const identity = this.identityForSeat(run, seat);
-      const cx = firstX + seat * pitch;
+      const cx = this.seatColumnX(seat);
       const fill = identity.human ? theme.graphics.rowFillActive : theme.graphics.rowFill;
       const stroke = identity.human ? theme.colors.gold : theme.colors.panelStroke;
       const seatPlate = this.add
@@ -249,15 +265,18 @@ export class LimitedDraftScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
 
-      if (seat < 7) {
-        this.add
-          .text(cx + pitch / 2, seatY - 9, chevron, {
-            fontFamily: theme.fonts.display,
-            fontSize: `${theme.type.body}px`,
-            color: theme.colors.gold,
-          })
-          .setOrigin(0.5);
-      }
+    }
+
+    // Chevrons live between visual COLUMNS (the seat order is remapped), all
+    // pointing the way the packs flow this pack.
+    for (let col = 0; col < 7; col++) {
+      this.add
+        .text(SEAT_FIRST_X + col * SEAT_PITCH + SEAT_PITCH / 2, seatY - 9, chevron, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0.5);
     }
   }
 
@@ -743,7 +762,8 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
 
   private confirmPick(run: LimitedRun): void {
-    if (!this.selectedId || !run.draft) return;
+    if (this.passing || !this.selectedId || !run.draft) return;
+    const prevPackIndex = run.draft.packIndex;
     const updated: LimitedRun = {
       ...run,
       draft: pickDraftCard(CARD_DB, run.draft, this.selectedId, this.selectedCell),
@@ -758,7 +778,57 @@ export class LimitedDraftScene extends Phaser.Scene {
       ? completeDraftRun(CARD_DB, updated)
       : updated;
     Services.save.flush();
-    this.scene.start(updated.draft?.completed ? 'LimitedDeckBuilder' : 'LimitedDraft');
+    if (updated.draft?.completed) {
+      this.scene.start('LimitedDeckBuilder');
+      return;
+    }
+    // Within a pack, sell the table illusion: every seat's pack visibly slides
+    // one seat over before the next pick appears. Pack boundaries (fresh packs
+    // are opened, nothing passes) and non-full animation settings skip it.
+    const samePack = updated.draft!.packIndex === prevPackIndex;
+    if (!samePack || Services.save.data.settings.animations !== 'full') {
+      this.scene.start('LimitedDraft');
+      return;
+    }
+    this.passing = true;
+    this.guard.open(this.interactiveTargets);
+    this.playPassAnimation(draftDirection(prevPackIndex), () => this.scene.start('LimitedDraft'));
+  }
+
+  /**
+   * Slide a pack token from every seat to its neighbor in the pass direction.
+   * The visual row is You,7,6,…1 (seatColumnX), so engine-'left' hand-offs move
+   * one column LEFT; the edge token wraps by fading out while a twin fades in
+   * on the opposite edge. Pure decoration: state is already committed and
+   * input is guard-deadened until the scene restarts in `done`.
+   */
+  private playPassAnimation(direction: 'left' | 'right', done: () => void): void {
+    const seatY = 163;
+    const step = direction === 'left' ? -SEAT_PITCH : SEAT_PITCH;
+    const cols = Array.from({ length: 8 }, (_, col) => SEAT_FIRST_X + col * SEAT_PITCH);
+    const duration = 380;
+    const makeToken = (tx: number, alpha = 1): Phaser.GameObjects.Rectangle =>
+      this.add
+        .rectangle(tx, seatY, 34, 44, theme.graphics.rowFillActive, 0.96)
+        .setStrokeStyle(1.5, colorInt(theme.colors.gold), 1)
+        .setDepth(60)
+        .setAlpha(alpha);
+    for (const cx of cols) {
+      const wrapsOut = direction === 'left' ? cx === cols[0] : cx === cols[cols.length - 1];
+      const token = makeToken(cx);
+      this.tweens.add({
+        targets: token,
+        x: cx + step,
+        alpha: wrapsOut ? 0 : 1,
+        duration,
+        ease: 'Cubic.easeInOut',
+      });
+    }
+    // The wrap twin: enters from beyond the far edge toward the edge seat.
+    const enterTo = direction === 'left' ? cols[cols.length - 1] : cols[0];
+    const twin = makeToken(enterTo - step, 0);
+    this.tweens.add({ targets: twin, x: enterTo, alpha: 1, duration, ease: 'Cubic.easeInOut' });
+    this.time.delayedCall(duration + 40, done);
   }
 
   private currentPackVariant(index: number): CardVariant | undefined {
