@@ -58,6 +58,7 @@ describe('draft persona roster', () => {
         expect(isType(portrait, 'creature'), draftPersona.id).toBe(true);
       }
 
+      expect(draftPersona.colorHint.length, draftPersona.id).toBeGreaterThan(0);
       for (const value of Object.values(draftPersona.picker)) {
         if (typeof value === 'number') expect(Number.isFinite(value), draftPersona.id).toBe(true);
       }

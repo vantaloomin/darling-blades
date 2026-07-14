@@ -7,6 +7,7 @@ import {
   clampLimitedSeed,
   completeDraftRun,
   limitedDuelData,
+  recordDraftEncounters,
   startDraftRun,
   type LimitedRun,
 } from '../meta/Limited';
@@ -41,6 +42,9 @@ export class LimitedScene extends Phaser.Scene {
       save.limited.activeRun.status === 'draft' &&
       save.limited.activeRun.draft?.completed
     ) {
+      // Interrupted-save path: the draft finished but completeDraftRun never
+      // ran, so the familiarity tick from confirmPick never fired either.
+      recordDraftEncounters(save.limited, save.limited.activeRun);
       save.limited.activeRun = completeDraftRun(CARD_DB, save.limited.activeRun);
       Services.save.flush();
     }

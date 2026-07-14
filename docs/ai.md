@@ -275,7 +275,11 @@ of:
 
 Seat assignment is a seeded shuffle (`assignDraftPersonas`) stored in
 `DraftState.personaIds` (SaveData v16), so a run's table is reproducible from
-its seed. Roster edits are guarded: unknown persona ids fall back to
+its seed. Persona identities are **familiarity-gated** (SaveData v17):
+`limited.personaSeen` counts completed drafts per seated persona, and
+`personaRevealTier` unlocks the identity card in four steps — name+portrait,
+color habits (`DraftPersona.colorHint`), theme (title), full profile — so
+players learn the table by drafting against it rather than reading it. Roster edits are guarded: unknown persona ids fall back to
 `DEFAULT_PICKER`, and the roster must never shrink below 7 unique ids (the
 save-migration path would otherwise throw and reset saves — tests pin the
 floor). Personas are draft-table opponents, not gauntlet avatars: they carry no

@@ -82,7 +82,13 @@ _Dated 2026-07-04. Review monthly._
   pass-direction chevrons that point at the receiving seat, the pack as real
   card thumbnails (select / right-click / long-press inspect; **inspect
   hotkeys**: ←/→ browse the pack, Space/Enter selects then — pressed again —
-  picks), and a picks panel with live color/curve readouts. Verified: tsc/lint/**673 tests**
+  picks), and a picks panel with live color/curve readouts. **Persona
+  familiarity** (user-directed): identities reveal progressively over
+  completed drafts together — 1st meeting name+portrait, 2nd the color
+  habits (`colorHint`), 3rd the theme, 4th the full profile — tracked in
+  `limited.personaSeen` (**SaveData v16 → v17**, migration + tests;
+  counters tick only when a draft's 45 picks finish, so retire-scumming
+  teaches nothing). Verified: tsc/lint/**673 tests**
   (+28)/build/doc-checkers green; adversarial review (2 dimensions, majority
   of candidates refuted; 2 confirmed findings — portrait mask undercoverage
   and inverted pass chevrons — both fixed and re-probed); a full browser

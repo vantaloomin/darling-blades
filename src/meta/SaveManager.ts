@@ -55,7 +55,7 @@ export interface SavedDeck {
 }
 
 export interface SaveData {
-  version: 16;
+  version: 17;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -155,7 +155,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 16,
+    version: 17,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -220,7 +220,7 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 16) return parsed as SaveData;
+      if (parsed.version === 17) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -246,7 +246,8 @@ export class SaveManager {
    * any player with a win/loss record); v10 → v11 adds achievements; v11 → v12
    * adds gauntlet clear-style counters; v12 -> v13 adds daily quests/streaks;
    * v13 -> v14 adds Limited runs/history; v14 -> v15 adds per-deck hero card
-   * selections; v15 -> v16 seats deterministic personas into in-flight drafts.
+   * selections; v15 -> v16 seats deterministic personas into in-flight drafts;
+   * v16 -> v17 adds persona familiarity counters (progressive reveal).
    * An unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
@@ -440,7 +441,17 @@ export class SaveManager {
         limited: { ...limited, activeRun: migratedRun },
       };
     }
-    if (cur.version === 16) return cur as unknown as SaveData;
+    if (cur.version === 16) {
+      // v16 -> v17: persona familiarity counters (progressive identity reveal).
+      const limited = (cur.limited ?? freshLimitedState()) as Omit<LimitedState, 'personaSeen'> &
+        Partial<Pick<LimitedState, 'personaSeen'>>;
+      cur = {
+        ...cur,
+        version: 17,
+        limited: { ...limited, personaSeen: limited.personaSeen ?? {} },
+      };
+    }
+    if (cur.version === 17) return cur as unknown as SaveData;
     return freshSave(now);
   }
 

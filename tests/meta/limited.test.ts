@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { CARD_DB } from '../../src/data/catalog';
+import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
 import type { CardDb, CardDef, Color } from '../../src/engine/types';
 import { def, isType, manaValue } from '../../src/engine/types';
 import { isBasic } from '../../src/meta/Collection';
@@ -11,8 +12,11 @@ import {
   completeDraftRun,
   currentDraftPack,
   DRAFT_SEATS,
+  freshLimitedState,
   limitedDuelData,
+  personaRevealTier,
   pickDraftCard,
+  recordDraftEncounters,
   rollLimitedPack,
   rollSealedPool,
   startBotDraft,
@@ -184,6 +188,29 @@ describe('bot draft', () => {
         ).toHaveLength(0);
       });
     }
+  });
+
+  it('advances persona familiarity per completed draft and clamps the reveal tier at 4', () => {
+    const state = freshLimitedState();
+    const run = startDraftRun(CARD_DB, 616, 1000);
+    const seated = run.draft!.personaIds.filter((id) => id !== '');
+    const absent = DRAFT_PERSONAS.map((p) => p.id).find((id) => !seated.includes(id))!;
+
+    // Tier 1 before any completed draft — a first meeting shows name+portrait.
+    expect(personaRevealTier(state, seated[0])).toBe(1);
+
+    for (let drafts = 1; drafts <= 5; drafts++) {
+      recordDraftEncounters(state, run);
+      for (const id of seated) {
+        expect(state.personaSeen[id], id).toBe(drafts);
+        expect(personaRevealTier(state, id), id).toBe(Math.min(4, drafts + 1));
+      }
+    }
+    // Personas not at the table learn nothing; sealed runs never count.
+    expect(state.personaSeen[absent]).toBeUndefined();
+    const before = { ...state.personaSeen };
+    recordDraftEncounters(state, startSealedRun(CARD_DB, 617, 1000));
+    expect(state.personaSeen).toEqual(before);
   });
 
   it('carries the matching draft opponent persona into duel data and leaves sealed duels unassigned', () => {

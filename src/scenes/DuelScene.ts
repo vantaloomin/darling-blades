@@ -20,7 +20,7 @@ import {
 } from '../meta/Economy';
 import { ownedVariantEntries } from '../meta/collectionFilter';
 import { rungSeed } from '../meta/gauntletSeed';
-import { LIMITED_MATCHES, limitedDuelData, type LimitedDuelData } from '../meta/Limited';
+import { LIMITED_MATCHES, limitedDuelData, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
 import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
 import { Services } from '../meta/services';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
@@ -4020,13 +4020,15 @@ export class DuelScene extends Phaser.Scene {
     );
 
     // Name the persona waiting in the next draft match so the run reads like a
-    // table of opponents, not a difficulty ladder.
+    // table of opponents, not a difficulty ladder. Their theme (title) is
+    // familiarity-gated — below reveal tier 3 the player only knows the name.
     const nextRun = reward.runOver ? null : save.limited.activeRun;
     const nextPersona = nextRun ? draftPersonaById(limitedDuelData(nextRun).limited.opponentPersonaId ?? '') : null;
     if (nextPersona) {
+      const knowsTheme = personaRevealTier(save.limited, nextPersona.id) >= 3;
       c.add(
         this.add
-          .text(640, 414, `Next: ${nextPersona.name}, ${nextPersona.title}`, {
+          .text(640, 414, knowsTheme ? `Next: ${nextPersona.name}, ${nextPersona.title}` : `Next: ${nextPersona.name}`, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.label}px`,
             color: theme.colors.body,

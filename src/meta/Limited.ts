@@ -93,10 +93,39 @@ export interface LimitedState {
   history: LimitedHistoryEntry[];
   bestSealedWins: number;
   bestDraftWins: number;
+  /**
+   * Familiarity: how many drafts the player has COMPLETED (all 45 picks) with
+   * each persona seated at the table. Drives the progressive identity reveal —
+   * retiring mid-draft teaches nothing, so knowledge can't be farmed by
+   * start-retire loops.
+   */
+  personaSeen: Record<string, number>;
 }
 
 export function freshLimitedState(): LimitedState {
-  return { activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0 };
+  return { activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {} };
+}
+
+/**
+ * Reveal tiers (user-directed 2026-07-14): what the player knows about a
+ * persona, by completed drafts together — the CURRENT run counts as one, so
+ * a first meeting already shows tier 1.
+ *   1 name + portrait · 2 + color preference · 3 + theme (title) · 4 full profile
+ */
+export type PersonaRevealTier = 1 | 2 | 3 | 4;
+
+export function personaRevealTier(state: Pick<LimitedState, 'personaSeen'>, personaId: string): PersonaRevealTier {
+  const seen = state.personaSeen?.[personaId] ?? 0;
+  return Math.max(1, Math.min(4, seen + 1)) as PersonaRevealTier;
+}
+
+/** Count a completed draft for every persona seated in the run (idempotence is the caller's job — call exactly once, when the draft completes). */
+export function recordDraftEncounters(state: Pick<LimitedState, 'personaSeen'>, run: LimitedRun): void {
+  if (run.mode !== 'draft' || !run.draft) return;
+  for (const id of run.draft.personaIds) {
+    if (!id) continue;
+    state.personaSeen[id] = (state.personaSeen[id] ?? 0) + 1;
+  }
 }
 
 export function clampLimitedSeed(seed: number): number {

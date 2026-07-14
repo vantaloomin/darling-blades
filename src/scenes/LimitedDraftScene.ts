@@ -12,8 +12,11 @@ import {
   currentDraftPack,
   DRAFT_PACKS,
   draftDirection,
+  personaRevealTier,
   pickDraftCard,
+  recordDraftEncounters,
   type LimitedRun,
+  type PersonaRevealTier,
 } from '../meta/Limited';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
@@ -45,6 +48,9 @@ interface SeatIdentity {
   name: string;
   title: string;
   blurb: string;
+  colorHint: string;
+  /** Familiarity reveal: 1 name+portrait · 2 +colors · 3 +theme · 4 full. */
+  tier: PersonaRevealTier;
   portraitCardId: string | null;
   human: boolean;
 }
@@ -120,6 +126,8 @@ export class LimitedDraftScene extends Phaser.Scene {
       return;
     }
     if (run.draft.completed) {
+      // Interrupted-save path (confirmPick normally records before this).
+      recordDraftEncounters(Services.save.data.limited, run);
       Services.save.data.limited.activeRun = completeDraftRun(CARD_DB, run);
       Services.save.flush();
       this.scene.start('LimitedDeckBuilder');
@@ -504,30 +512,59 @@ export class LimitedDraftScene extends Phaser.Scene {
         wordWrap: { width: 330 },
       }),
     );
+    // Progressive reveal: tier 2 shows color habits, tier 3 the theme, tier 4
+    // the full read. Below the threshold each slot shows what's still hidden.
+    if (identity.tier >= 3) {
+      c.add(
+        this.add.text(582, 259, identity.title, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.body}px`,
+          fontStyle: 'italic',
+          color: theme.colors.gold,
+          wordWrap: { width: 330 },
+        }),
+      );
+    }
+    if (identity.tier >= 2) {
+      c.add(
+        this.add.text(582, identity.tier >= 3 ? 302 : 259, `Colors: ${identity.colorHint}`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
+          lineSpacing: 5,
+          wordWrap: { width: 330 },
+        }),
+      );
+    }
+    if (identity.tier >= 4) {
+      c.add(
+        this.add.text(582, 352, identity.blurb, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.body,
+          lineSpacing: 6,
+          wordWrap: { width: 330 },
+        }),
+      );
+    } else {
+      c.add(
+        this.add.text(582, identity.tier >= 2 ? 352 : 259, revealHint(identity.tier), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          fontStyle: 'italic',
+          color: theme.colors.muted,
+          lineSpacing: 5,
+          wordWrap: { width: 330 },
+        }),
+      );
+    }
+    const pips = '◆'.repeat(identity.tier) + '◇'.repeat(4 - identity.tier);
     c.add(
-      this.add.text(582, 259, identity.title, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.body}px`,
-        fontStyle: 'italic',
-        color: theme.colors.gold,
-        wordWrap: { width: 330 },
-      }),
-    );
-    c.add(
-      this.add.text(582, 310, identity.blurb, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
-        color: theme.colors.body,
-        lineSpacing: 6,
-        wordWrap: { width: 330 },
-      }),
-    );
-    c.add(
-      this.add.text(582, 465, 'Seat profile', {
+      this.add.text(582, 465, `Familiarity ${pips}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
-        color: theme.colors.muted,
+        color: identity.tier >= 4 ? theme.colors.gold : theme.colors.muted,
       }),
     );
   }
@@ -609,6 +646,8 @@ export class LimitedDraftScene extends Phaser.Scene {
         name: 'You',
         title: 'the Human Drafter',
         blurb: 'Your seat at the table. Read the signals, build a curve, and choose one card before the pack moves on.',
+        colorHint: 'Whatever you make of the packs.',
+        tier: 4,
         portraitCardId: null,
         human: true,
       };
@@ -619,6 +658,8 @@ export class LimitedDraftScene extends Phaser.Scene {
         name: 'Drafter',
         title: 'the Unknown Seat',
         blurb: 'A quiet drafter with an unreadable plan. Their missing profile will not interrupt this run.',
+        colorHint: 'Unreadable.',
+        tier: 4,
         portraitCardId: null,
         human: false,
       };
@@ -627,6 +668,10 @@ export class LimitedDraftScene extends Phaser.Scene {
       name: persona.name,
       title: persona.title,
       blurb: persona.blurb,
+      colorHint: persona.colorHint,
+      // Familiarity is earned: profiles unlock over completed drafts together
+      // (the current run counts as the first meeting).
+      tier: personaRevealTier(Services.save.data.limited, persona.id),
       portraitCardId: persona.portraitCardId,
       human: false,
     };
@@ -683,6 +728,11 @@ export class LimitedDraftScene extends Phaser.Scene {
       ...run,
       draft: pickDraftCard(CARD_DB, run.draft, this.selectedId),
     };
+    if (updated.draft?.completed) {
+      // A finished draft (all 45 picks) is what teaches you the table —
+      // familiarity advances exactly once per completed draft per persona.
+      recordDraftEncounters(Services.save.data.limited, updated);
+    }
     Services.save.data.limited.activeRun = updated.draft?.completed
       ? completeDraftRun(CARD_DB, updated)
       : updated;
@@ -707,6 +757,14 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.input.keyboard?.off('keydown-ENTER', this.onInspectSelect);
     this.closeModal();
   }
+}
+
+function revealHint(tier: PersonaRevealTier): string {
+  return tier <= 1
+    ? 'A new face at the table. Finish drafts with them to learn how they pick.'
+    : tier === 2
+      ? 'Their deeper habits are still a mystery — keep drafting together.'
+      : 'One more draft together and you will have their full read.';
 }
 
 function detailLine(card: CardDef): string {
