@@ -24,7 +24,6 @@ import { ownedCount, PLAYSET } from '../meta/Collection';
 import { Services } from '../meta/services';
 import {
   isPlainVariant,
-  TIER_LABEL,
   type CardVariant,
   type FrameStyle,
   type HoloFinish,
@@ -637,19 +636,23 @@ export class LimitedDraftScene extends Phaser.Scene {
     cardView.setCard(card, variant ? { fx: 'full', variant } : { fx: 'full' });
     c.add(cardView);
 
+    // The close button hugs the shell's INNER top-right corner (user-directed
+    // 2026-07-14); the shared shell places it on its own title track, so this
+    // modal repositions the exposed button after creation.
+    if (shell.closeButton) {
+      // Align the VISIBLE button to the corner — the inflated hit area may
+      // overflow the shell edge, which is fine (hit boxes are invisible).
+      const visual = shell.closeButton.getMeasuredSize().visual;
+      shell.closeButton.container.setPosition(1130 - 10 - visual.width / 2, 55 + 10 + visual.height / 2);
+    }
+
+    // No title line — the card face carries the identity; the column opens
+    // straight into PICK IMPACT with generous spacing (room reserved for
+    // future rarity-rate lines).
     const columnX = 650;
     const columnWidth = 430;
     c.add(
-      this.add.text(columnX, 94, `${TIER_LABEL[card.rarity]}  ·  MV ${manaValue(card.cost)}`, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        fontStyle: theme.weight.w700,
-        color: theme.colors.heading,
-      }),
-    );
-    c.add(this.add.rectangle(columnX + columnWidth / 2, 126, columnWidth, 1, theme.graphics.panelStroke, 1));
-    c.add(
-      this.add.text(columnX, 140, 'PICK IMPACT', {
+      this.add.text(columnX, 104, 'PICK IMPACT', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
@@ -661,7 +664,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     const stats = computeDeckStats([...(run?.draft?.picks[0] ?? [])], CARD_DB);
     c.add(
       this.add
-        .text(columnX, 176, 'POOL COLORS', {
+        .text(columnX, 160, 'POOL COLORS', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
@@ -673,12 +676,12 @@ export class LimitedDraftScene extends Phaser.Scene {
       const pipX = columnX + 112 + index * 68;
       const before = stats.colorPips[color];
       const contribution = card.colors.includes(color) ? (card.cost?.pips[color] ?? 0) : 0;
-      c.add(this.add.image(pipX, 176, `pip-${color}`).setDisplaySize(18, 18));
+      c.add(this.add.image(pipX, 160, `pip-${color}`).setDisplaySize(18, 18));
       c.add(
         this.add
           .text(
             pipX + 13,
-            176,
+            160,
             contribution > 0 ? `${before}→${before + contribution}` : String(before),
             {
               fontFamily: theme.fonts.ui,
@@ -693,7 +696,7 @@ export class LimitedDraftScene extends Phaser.Scene {
 
     c.add(
       this.add
-        .text(columnX, 221, 'CURVE', {
+        .text(columnX, 232, 'CURVE', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
@@ -707,7 +710,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       const highlighted = mv === curveBucket;
       c.add(
         this.add
-          .text(bucketX, 207, mv === CURVE_MAX ? '7+' : String(mv), {
+          .text(bucketX, 218, mv === CURVE_MAX ? '7+' : String(mv), {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             color: highlighted ? theme.colors.gold : theme.colors.muted,
@@ -716,7 +719,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       );
       c.add(
         this.add
-          .text(bucketX, 228, highlighted ? `${stats.curve[mv]}→${stats.curve[mv] + 1}` : String(stats.curve[mv]), {
+          .text(bucketX, 244, highlighted ? `${stats.curve[mv]}→${stats.curve[mv] + 1}` : String(stats.curve[mv]), {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             fontStyle: highlighted ? theme.weight.w700 : theme.weight.w600,
@@ -729,9 +732,9 @@ export class LimitedDraftScene extends Phaser.Scene {
     if (card.keywords && card.keywords.length > 0) {
       addKeywordGlossaryPanel(this, c, card, {
         x: columnX,
-        y: 258,
+        y: 300,
         width: columnWidth,
-        maxHeight: run?.premium ? 238 : 284,
+        maxHeight: run?.premium ? 200 : 280,
       });
     }
 
