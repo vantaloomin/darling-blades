@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-12 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-13 · review monthly -->
 
 # Roadmap
 
@@ -770,15 +770,35 @@ _Dated 2026-07-04. Review monthly._
   places full art above black frame, the never-auto-melt special rule
   includes it, `DROPS` gains the table (odds drawer derives
   automatically), and the drop math gets a fresh Monte-Carlo
-  verification. Queued behind the Wave 1 design-system PR (touches
-  CardView, which has in-flight edits).
+  verification. **Stage 1 (the render mode) SHIPPED 2026-07-13 in PR
+  #73**: `CardView.setCard({ fullArt: true })` — no lore line, WCAG-floor
+  faded plates, text layered above holo, bottom-anchored content-sized
+  rules plate with the type band seated on it, vanilla cards render pure
+  art; preview via the Card Showcase FULL ART toggle. Remaining work is
+  the axis wiring above (variants/DROPS/save/economy) plus routing
+  `variant.fullArt` into the shipped render flag, and a Full Art toggle
+  on the card proof sheet for catalog-wide QA.
 - **"Mark" counter retheme (decided 2026-07-13).** Player-facing copy
   only, same treatment as the Sever/Foresee retheme: "+1/+1 counter"
   becomes "+1/+1 mark" in generated rules text, glossary, rules.md, and
   any log/recap copy; engine op ids (`addCounters`) unchanged;
   [keyword-map.md](keyword-map.md) documents the MTG mapping. The
-  counterspell verb collision was already solved ("cancel"). Queued
-  behind the current card-data work landing (touches rulesText.ts).
+  counterspell verb collision was already solved ("cancel"). Unblocked
+  as of 2026-07-13 (the card-data work it queued behind has landed);
+  ready to implement any time.
+- **Basic-land art variants — wiring decision pending (user).** Thirty
+  themed variants (5 basics × base/Ragnarök/Celtic-Fae × 2, all QA'd)
+  sit in the out-of-repo art vault; prompts and staging are recorded in
+  [land-art.md §3](land-art.md). The game supports one art file per land
+  id, so shipping them needs one of: **(A) per-set basic-land card ids**
+  (e.g. `rg-forest`) — real catalog entries sharing rules text, giving
+  lands collectible/booster presence but touching catalog, drops, deck-
+  builder basics UI, and deck codes; or **(B) an art-variant axis on the
+  existing five ids** — cosmetic-only, fits the established variant
+  system (or a lighter per-deck "land style" selector), no catalog
+  surface. B is the smaller, save-schema-bounded change; A makes lands a
+  collectible product. Decision unmade — no implementation until the
+  user picks.
 - **Core design-system alignment.** The shipped theme foundation is now
   formalized in [design-system.md](design-system.md); the repository-wide audit
   and dependency-ordered implementation program live in
