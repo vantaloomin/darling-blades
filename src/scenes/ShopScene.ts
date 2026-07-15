@@ -3,20 +3,25 @@ import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
+import { DECK_INFO } from '../data/deckInfo';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue, type CardDef } from '../engine/types';
 import { buyThemeDeck, claimFreeStarter, previewDeckGrant, spendGold } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
 import { Services } from '../meta/services';
-import { bindTapButton } from '../platform/gestures';
-import { CardView } from '../ui/CardView';
+import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { makeCardThumb } from '../ui/CardThumbCache';
+import { CARD_H, CardView } from '../ui/CardView';
+import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { fxPolicy } from '../ui/fx/FXSupport';
+import { modalGuardTarget } from '../ui/Modal';
 import { OddsDrawer } from '../ui/OddsDrawer';
+import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, goldBadge, modalShell, panel, themedButton, type GoldBadge, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, goldBadge, modalShell, pager, panel, themedButton, type GoldBadge, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
 
 const PACK_W = 280;
 const PACK_H = 400;
@@ -206,56 +211,6 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
 
 type ShopTab = 'boosters' | 'decks';
 
-/**
- * Per-deck presentation copy (id-keyed): color identity (authored order — the
- * deck-row blurb and the preview modal's pip icons both derive from it), an
- * archetype tag, and a short "how it plays" paragraph for the preview modal.
- */
-const DECK_INFO: Record<string, { colors: string; archetype: string; plays: string }> = {
-  'starter-crimson': {
-    colors: 'R/W',
-    archetype: 'Warband aggro',
-    plays:
-      'Flood the board with cheap warband bodies and end the game before slower decks set up — Nike and Ares turn a wide board lethal. Light on answers: if the rush stalls, it runs out of gas.',
-  },
-  'starter-wild': {
-    colors: 'G/W',
-    archetype: 'Beastkin tribal',
-    plays:
-      'Curve out with efficient Beastkin and win through big, straightforward combat — Wild Surge ambushes attackers mid-fight. Few tricks beyond the creatures themselves.',
-  },
-  'starter-tides': {
-    colors: 'U/R',
-    archetype: 'Wu tempo-burn',
-    plays:
-      'Land early evasive threats, then protect the lead — Fire Attack clears blockers while Undertow buys the tempo back. Punishing when ahead, fragile when behind.',
-  },
-  'starter-mandate': {
-    colors: 'U/B',
-    archetype: 'Jin control',
-    plays:
-      'Trade one-for-one with removal and card draw, grind value with Jin schemers, and take over the late game. The slowest starter: you exhaust the opponent rather than race them.',
-  },
-  'starter-harvest': {
-    colors: 'B/G',
-    archetype: 'Underworld attrition',
-    plays:
-      'Trade freely — Deathblade blockers make every exchange profitable — then Raise Dead rebuilds your board from the graveyard. Patient, grindy midrange.',
-  },
-  'theme-ragnarok': {
-    colors: 'B/G',
-    archetype: 'Ragnarök reanimator',
-    plays:
-      'Mill your own creatures into the graveyard, then cheat the fattest Jotun back with Call the Einherjar. Explosive once the yard fills; awkward when the pieces arrive in the wrong order.',
-  },
-  'theme-celtic-fae': {
-    colors: 'U/B/G',
-    archetype: 'Celtic Fae tempo-control',
-    plays:
-      'Evasive fae chip in while Foresee smooths your draws and bounce effects hold the board back. Every turn is a tempo decision — the highest-skill deck in the shop.',
-  },
-};
-
 /** The deck-row identity line, derived from DECK_INFO (e.g. "R/W · Warband aggro"). */
 const deckBlurb = (id: string): string => {
   const info = DECK_INFO[id];
@@ -269,6 +224,15 @@ interface DeckSku {
   theme: boolean;
 }
 
+interface PreviewEntry {
+  d: CardDef;
+  n: number;
+}
+
+const PREVIEW_ROWS_PER_COLUMN = 9;
+const PREVIEW_PAGE_SIZE = PREVIEW_ROWS_PER_COLUMN * 2;
+const FEATURED_THUMB_SCALE = 0.21;
+
 export class ShopScene extends Phaser.Scene {
   private goldBadge!: GoldBadge;
   private tab: ShopTab = 'boosters';
@@ -281,7 +245,12 @@ export class ShopScene extends Phaser.Scene {
   /** Index into previewEntries shown by the open inspect; null when closed. */
   private inspectIdx: number | null = null;
   /** The open preview's distinct-card entries in visual order (creatures → spells → lands). */
-  private previewEntries: { d: CardDef; n: number }[] = [];
+  private previewEntries: PreviewEntry[] = [];
+  private previewInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
+  private shopInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
+  private deckInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
+  private oddsDrawer: OddsDrawer | null = null;
+  private coordinator!: OverlayCoordinator;
   /** F10 bulk-buy: quantity + the SKU buy buttons / quantity chips it drives. */
   private qty = 1;
   private skuButtons: { btn: ThemedButton; price: number }[] = [];
@@ -311,12 +280,18 @@ export class ShopScene extends Phaser.Scene {
     this.inspect = null;
     this.inspectIdx = null;
     this.previewEntries = [];
+    this.previewInteractiveTargets = [];
+    this.shopInteractiveTargets = [];
+    this.deckInteractiveTargets = [];
+    this.oddsDrawer = null;
+    this.coordinator = new OverlayCoordinator();
     // Deck-preview hotkeys. Keyboard bypasses the modal dims, so every handler
     // self-guards on the overlay/inspect state (the LimitedDraftScene pattern);
     // the KeyboardPlugin is scene-scoped, so shutdown clears these listeners.
     this.input.keyboard?.on('keydown-ESC', this.onEscKey);
     this.input.keyboard?.on('keydown-LEFT', this.onInspectPrev);
     this.input.keyboard?.on('keydown-RIGHT', this.onInspectNext);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
@@ -352,7 +327,7 @@ export class ShopScene extends Phaser.Scene {
     this.refreshGold();
 
     // Drop-rate disclosure: a left slide-out drawer (percentages, from DROPS).
-    new OddsDrawer(this);
+    this.oddsDrawer = new OddsDrawer(this);
 
     this.buildTabBar();
     this.boostersGroup = this.add.container(0, 0);
@@ -361,7 +336,23 @@ export class ShopScene extends Phaser.Scene {
     this.buildDecksGroup(this.decksGroup);
     this.setTab(this.tab); // honors the initial tab (onboarding routes to 'decks')
 
-    backButton(this, () => this.scene.start('MainMenu'));
+    this.shopInteractiveTargets.push(backButton(this, () => this.scene.start('MainMenu')));
+  }
+
+  private readonly onShutdown = (): void => {
+    this.closeOverlay();
+    this.coordinator.destroy();
+    this.input.keyboard?.off('keydown-ESC', this.onEscKey);
+    this.input.keyboard?.off('keydown-LEFT', this.onInspectPrev);
+    this.input.keyboard?.off('keydown-RIGHT', this.onInspectNext);
+  };
+
+  private underlyingInteractiveTargets(): Phaser.GameObjects.GameObject[] {
+    return [
+      ...this.shopInteractiveTargets,
+      ...this.deckInteractiveTargets,
+      ...(this.oddsDrawer?.interactiveTargets ?? []),
+    ];
   }
 
   private refreshGold(): void {
@@ -389,6 +380,7 @@ export class ShopScene extends Phaser.Scene {
         onTap: () => this.setTab(d.key),
       });
       this.tabButtons.set(d.key, button);
+      this.shopInteractiveTargets.push(button.inputZone);
     });
   }
 
@@ -459,6 +451,7 @@ export class ShopScene extends Phaser.Scene {
     });
     bindTapButton(this, pack, onBuy);
     this.skuButtons.push({ btn: buyBtn, price });
+    this.shopInteractiveTargets.push(pack, buyBtn.inputZone);
     group.add([title, pack, buyBtn.container]);
   }
 
@@ -481,6 +474,7 @@ export class ShopScene extends Phaser.Scene {
         },
       });
       this.qtyChips.set(n, chip);
+      this.shopInteractiveTargets.push(chip.inputZone);
       group.add(chip.container);
       x += 80;
     }
@@ -526,6 +520,7 @@ export class ShopScene extends Phaser.Scene {
 
   private buildDecksGroup(group: Phaser.GameObjects.Container): void {
     group.removeAll(true); // rebuildable after a purchase
+    this.deckInteractiveTargets = [];
     const intro = this.add
       .text(640, 152, 'Preconstructed decks: inspect the list, then buy the ones you didn’t start with.', {
         fontFamily: theme.fonts.ui,
@@ -584,6 +579,7 @@ export class ShopScene extends Phaser.Scene {
       minWidth: 90,
       onTap: () => this.showDeckPreview(sku),
     });
+    this.deckInteractiveTargets.push(preview.inputZone);
     group.add(preview.container);
 
     if (!owned) {
@@ -593,6 +589,7 @@ export class ShopScene extends Phaser.Scene {
         minWidth: 130,
         onTap: () => this.onBuyDeck(sku),
       });
+      this.deckInteractiveTargets.push(buy.inputZone);
       group.add(buy.container);
     } else {
       // The old premium-hero "Set as Hero" toggle is gone (user-directed
@@ -653,11 +650,21 @@ export class ShopScene extends Phaser.Scene {
    */
   private showDeckPreview(sku: DeckSku): void {
     this.closeOverlay();
+    this.oddsDrawer?.close();
     const { deck, price } = sku;
     const save = Services.save.data;
     const owned = save.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
     const info = DECK_INFO[deck.id];
+    const counts = new Map<string, number>();
+    for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+    const entries = [...counts.entries()].map(([id, n]) => ({ d: def(CARD_DB, id), n }));
+    const sortFn = (a: PreviewEntry, b: PreviewEntry): number =>
+      manaValue(a.d.cost) - manaValue(b.d.cost) || a.d.name.localeCompare(b.d.name);
+    const creatures = entries.filter((e) => isType(e.d, 'creature')).sort(sortFn);
+    const spells = entries.filter((e) => !isType(e.d, 'creature') && !isType(e.d, 'land')).sort(sortFn);
+    const lands = entries.filter((e) => isType(e.d, 'land')).sort(sortFn);
+    this.previewEntries = [...creatures, ...spells, ...lands];
     const shell = modalShell(this, {
       width: 980,
       height: 600,
@@ -666,24 +673,32 @@ export class ShopScene extends Phaser.Scene {
       showClose: false,
       tapDimToClose: true,
       escToClose: false, // Esc is handled scene-side so it closes top-most only
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.underlyingInteractiveTargets().map(modalGuardTarget),
+      },
+      onClose: () => this.onPreviewClosed(shell),
     });
-    shell.container.once(Phaser.GameObjects.Events.DESTROY, () => {
-      if (this.overlay === shell) this.overlay = null;
-    });
+    this.overlay = shell;
+    this.previewInteractiveTargets = [...shell.interactiveChildren];
     const c = shell.container;
+    const content = shell.tracks.contentBounds;
+    const contentCenterX = content.x + content.width / 2;
 
     // Header: name, color identity as real mana beads + archetype, how-it-plays.
     const titleY = shell.tracks.titleTrack.y + shell.tracks.titleTrack.height / 2;
+    const titleX = shell.tracks.titleTrack.x + shell.tracks.titleTrack.width / 2;
     c.add(
       this.add
-        .text(640, titleY, deck.name, {
+        .text(titleX, titleY, deck.name, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h1}px`,
           color: theme.colors.gold,
         })
         .setOrigin(0.5),
     );
-    const idY = titleY + 34;
+    const idY = content.y + 8;
     const archText = this.add
       .text(0, idY, `${info?.archetype ?? ''} · ${deck.cards.length} cards`, {
         fontFamily: theme.fonts.ui,
@@ -695,7 +710,7 @@ export class ShopScene extends Phaser.Scene {
     const pipSize = 22;
     const pipPitch = pipSize + 4;
     const clusterW = pipKeys.length * pipPitch + 8 + archText.width;
-    let px = 640 - clusterW / 2;
+    let px = contentCenterX - clusterW / 2;
     for (const k of pipKeys) {
       c.add(this.add.image(px + pipSize / 2, idY, `pip-${k}`).setDisplaySize(pipSize, pipSize));
       px += pipPitch;
@@ -705,11 +720,11 @@ export class ShopScene extends Phaser.Scene {
     if (info?.plays) {
       c.add(
         this.add
-          .text(640, idY + 22, info.plays, {
+          .text(contentCenterX, content.y + 24, info.plays, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             color: theme.colors.body,
-            wordWrap: { width: 840 },
+            wordWrap: { width: content.width - 72 },
             align: 'center',
             lineSpacing: 4,
           })
@@ -717,9 +732,9 @@ export class ShopScene extends Phaser.Scene {
       );
     }
 
-    // Left column: mana curve, composition, color totals, grant preview.
+    // Left column: signature cards, mana curve, composition, and grant preview.
     const stats = computeDeckStats(deck.cards, CARD_DB);
-    const statsX = 200;
+    const statsX = content.x + 16;
     const sectionLabel = (x: number, y: number, label: string): Phaser.GameObjects.Text =>
       this.add
         .text(x, y, label, {
@@ -729,8 +744,46 @@ export class ShopScene extends Phaser.Scene {
           color: theme.colors.muted,
         })
         .setOrigin(0, 0.5);
-    c.add(sectionLabel(statsX, 252, 'MANA CURVE'));
-    const barBase = 326;
+
+    c.add(sectionLabel(statsX, content.y + 78, 'SIGNATURE CARDS · TAP TO INSPECT'));
+    const featuredY = content.y + 140;
+    const featuredPitch = 92;
+    const featuredX0 = statsX + 38;
+    for (const [slot, id] of (info?.featured ?? []).entries()) {
+      const idx = this.previewEntries.findIndex((entry) => entry.d.id === id);
+      if (idx < 0) continue;
+      const entry = this.previewEntries[idx];
+      const x = featuredX0 + slot * featuredPitch;
+      const thumb = makeCardThumb(this, x, featuredY, entry.d, FEATURED_THUMB_SCALE)
+        .setInteractive({ useHandCursor: true });
+      inflateHitArea(thumb, 70, 88);
+      bindTapButton(this, thumb, () => this.showCardInspect(idx));
+      thumb.on('pointerover', (pointer: Phaser.Input.Pointer) => {
+        if (!pointer.wasTouch) thumb.setTint(colorInt(theme.colors.gold));
+      });
+      thumb.on('pointerout', () => thumb.clearTint());
+      c.add(thumb);
+      this.previewInteractiveTargets.push(thumb);
+
+      const label = this.add
+        .text(x + thumb.displayWidth / 2 - 4, featuredY - thumb.displayHeight / 2 + 4, `x${entry.n}`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+        })
+        .setOrigin(1, 0);
+      const badgeW = Math.max(34, Math.ceil(label.width + 10));
+      const badge = this.add.graphics();
+      badge.fillStyle(theme.graphics.panelFill, 0.94);
+      badge.fillRoundedRect(label.x - badgeW, label.y - 2, badgeW, 18, theme.radius.control);
+      badge.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
+      badge.strokeRoundedRect(label.x - badgeW, label.y - 2, badgeW, 18, theme.radius.control);
+      c.add([badge, label]);
+    }
+
+    c.add(sectionLabel(statsX, content.y + 204, 'MANA CURVE'));
+    const barBase = content.y + 258;
     const maxCount = Math.max(1, ...stats.curve);
     stats.curve.forEach((count, mv) => {
       const bx = statsX + 10 + mv * 24;
@@ -764,7 +817,7 @@ export class ShopScene extends Phaser.Scene {
     const other = stats.nonlands - stats.typeCounts.creature;
     c.add(
       this.add
-        .text(statsX, 360, `${stats.typeCounts.creature} creatures · ${stats.lands} lands · ${other} other`, {
+        .text(statsX, content.y + 288, `${stats.typeCounts.creature} creatures · ${stats.lands} lands · ${other} other`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
@@ -772,7 +825,7 @@ export class ShopScene extends Phaser.Scene {
         .setOrigin(0, 0.5),
     );
     let pipX = statsX;
-    const pipY = 390;
+    const pipY = content.y + 318;
     for (const color of PIE_COLORS) {
       const n = stats.colorPips[color];
       if (n === 0) continue;
@@ -789,15 +842,15 @@ export class ShopScene extends Phaser.Scene {
     }
 
     // What the purchase actually adds (mirrors grantDeckCards — see Economy).
-    c.add(sectionLabel(statsX, 432, 'WHAT YOU GET'));
+    c.add(sectionLabel(statsX, content.y + 346, 'WHAT YOU GET'));
     const grant = previewDeckGrant(save, CARD_DB, deck.cards);
     const grantText =
       grant.grantedCopies > 0
-        ? `Adds ${grant.grantedCopies} new card copies to your collection — you already own ${grant.ownedCopies} of its ${grant.nonBasicCopies} non-basic copies. Basics are always free.`
-        : 'Adds no new copies — your collection already has every card this deck runs.';
+        ? `Adds ${grant.grantedCopies} new card copies to your collection; you already own ${grant.ownedCopies} of its ${grant.nonBasicCopies} non-basic copies. Basics are always free.`
+        : 'Adds no new copies: your collection already has every card this deck runs.';
     c.add(
       this.add
-        .text(statsX, 450, grantText, {
+        .text(statsX, content.y + 364, grantText, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
@@ -807,37 +860,63 @@ export class ShopScene extends Phaser.Scene {
         .setOrigin(0, 0),
     );
 
-    // Right block: the full list as tappable rows (tap = inspect the card).
-    const counts = new Map<string, number>();
-    for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
-    const entries = [...counts.entries()].map(([id, n]) => ({ d: def(CARD_DB, id), n }));
-    const sortFn = (a: { d: CardDef }, b: { d: CardDef }): number =>
-      manaValue(a.d.cost) - manaValue(b.d.cost) || a.d.name.localeCompare(b.d.name);
-    const creatures = entries.filter((e) => isType(e.d, 'creature')).sort(sortFn);
-    const spells = entries.filter((e) => !isType(e.d, 'creature') && !isType(e.d, 'land')).sort(sortFn);
-    const lands = entries.filter((e) => isType(e.d, 'land')).sort(sortFn);
-    this.previewEntries = [...creatures, ...spells, ...lands];
-
+    // Right block: the complete, bounded list. One page is a stable pair of
+    // nine-row columns; the pure shared helpers guarantee no entry is dropped.
+    type Category = 'Creatures' | 'Spells' | 'Lands';
+    interface CategorizedEntry {
+      entry: PreviewEntry;
+      index: number;
+      category: Category;
+    }
+    const categorized: CategorizedEntry[] = this.previewEntries.map((entry, index) => ({
+      entry,
+      index,
+      category: isType(entry.d, 'creature') ? 'Creatures' : isType(entry.d, 'land') ? 'Lands' : 'Spells',
+    }));
+    const categoryTotals = new Map<Category, number>([
+      ['Creatures', creatures.reduce((sum, entry) => sum + entry.n, 0)],
+      ['Spells', spells.reduce((sum, entry) => sum + entry.n, 0)],
+      ['Lands', lands.reduce((sum, entry) => sum + entry.n, 0)],
+    ]);
     const colW = 260;
     const pitch = 24;
-    let flatIdx = 0;
-    const addRow = (x: number, y: number, e: { d: CardDef; n: number }): void => {
-      const idx = flatIdx++;
+    const listX = content.x + 376;
+    const secondListX = listX + 295;
+    const listTop = content.y + 104;
+    const pages = deckPageCount(categorized.length, PREVIEW_PAGE_SIZE);
+    let pageControl: ReturnType<typeof pager> | null = null;
+    let listItems: Phaser.GameObjects.GameObject[] = [];
+    let listTargets: Phaser.GameObjects.GameObject[] = [];
+    const addListItem = (item: Phaser.GameObjects.GameObject): void => {
+      listItems.push(item);
+      c.add(item);
+    };
+    const clearList = (): void => {
+      const staleTargets = new Set(listTargets);
+      this.previewInteractiveTargets = this.previewInteractiveTargets.filter((target) => !staleTargets.has(target));
+      for (const item of listItems) if (item.active) item.destroy();
+      listItems = [];
+      listTargets = [];
+    };
+    const addRow = (x: number, y: number, item: CategorizedEntry): void => {
+      const { entry, index } = item;
       const band = this.add
         .rectangle(x + colW / 2, y, colW, 22, theme.graphics.rowFill, 0.55)
         .setInteractive({ useHandCursor: true });
       band.on('pointerover', () => band.setFillStyle(theme.graphics.rowFillActive, 0.95));
       band.on('pointerout', () => band.setFillStyle(theme.graphics.rowFill, 0.55));
-      bindTapButton(this, band, () => this.showCardInspect(idx));
+      bindTapButton(this, band, () => this.showCardInspect(index));
+      listTargets.push(band);
+      this.previewInteractiveTargets.push(band);
       const cnt = this.add
-        .text(x + 28, y, `${e.n}×`, {
+        .text(x + 28, y, `${entry.n}×`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
         })
         .setOrigin(1, 0.5);
       const name = this.add
-        .text(x + 36, y, e.d.name, {
+        .text(x + 36, y, entry.d.name, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
@@ -847,45 +926,61 @@ export class ShopScene extends Phaser.Scene {
       const maxNameW = colW - 76;
       if (name.width > maxNameW) name.setScale(maxNameW / name.width);
       const mv = this.add
-        .text(x + colW - 8, y, isType(e.d, 'land') ? '' : `${manaValue(e.d.cost)}`, {
+        .text(x + colW - 8, y, isType(entry.d, 'land') ? '' : `${manaValue(entry.d.cost)}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
         })
         .setOrigin(1, 0.5);
-      c.add([band, cnt, name, mv]);
+      for (const gameObject of [band, cnt, name, mv]) addListItem(gameObject);
     };
-    const renderSections = (x: number, sections: { title: string; items: { d: CardDef; n: number }[] }[]): void => {
-      let y = 252;
-      for (const s of sections) {
-        if (s.items.length === 0) continue;
-        const total = s.items.reduce((sum, e) => sum + e.n, 0);
-        c.add(sectionLabel(x, y, `${s.title.toUpperCase()} · ${total}`));
-        y += pitch;
-        for (const e of s.items) {
-          addRow(x, y, e);
+    const renderColumn = (x: number, items: CategorizedEntry[]): void => {
+      let y = listTop;
+      let activeCategory: Category | null = null;
+      for (const item of items) {
+        if (item.category !== activeCategory) {
+          activeCategory = item.category;
+          addListItem(sectionLabel(x, y, `${item.category.toUpperCase()} · ${categoryTotals.get(item.category) ?? 0}`));
           y += pitch;
         }
-        y += 10;
+        addRow(x, y, item);
+        y += pitch;
       }
     };
-    renderSections(550, [{ title: 'Creatures', items: creatures }]);
-    renderSections(845, [
-      { title: 'Spells', items: spells },
-      { title: 'Lands', items: lands },
-    ]);
+    const renderPage = (page: number): void => {
+      clearList();
+      const visible = deckPageSlice(categorized, page, PREVIEW_PAGE_SIZE);
+      renderColumn(listX, visible.slice(0, PREVIEW_ROWS_PER_COLUMN));
+      renderColumn(secondListX, visible.slice(PREVIEW_ROWS_PER_COLUMN));
+      pageControl?.refresh(page, pages);
+    };
+    if (pages > 1) {
+      pageControl = pager(
+        this,
+        (listX + colW + secondListX) / 2 - 44,
+        content.y + content.height - 4,
+        0,
+        pages,
+        renderPage,
+      );
+      c.add(pageControl.container);
+      this.previewInteractiveTargets.push(pageControl.previous, pageControl.next);
+    }
+    renderPage(0);
 
     // Footer: the honest decision block — price vs balance before committing —
     // positioned on the shell's own footer track (the old hardcoded y overhung
     // the panel by 2px). Buy stays disabled when unaffordable; the modal only
     // closes after a purchase actually happens.
-    const footY = shell.tracks.footerTrack.y + shell.tracks.footerTrack.height / 2;
+    const footer = shell.tracks.footerTrack;
+    const footY = footer.y + footer.height / 2;
+    const footerRight = footer.x + footer.width;
     const affordable = freeClaim || save.gold >= price;
     const footerInfo = owned
       ? { text: 'Owned ✓', color: theme.colors.success }
       : freeClaim
         ? {
-            text: `✦ Your one free starter — the other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,
+            text: `✦ Your one free starter. The other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,
             color: theme.colors.gold,
           }
         : affordable
@@ -894,12 +989,12 @@ export class ShopScene extends Phaser.Scene {
               color: theme.colors.body,
             }
           : {
-              text: `Price 🪙 ${price} · Balance 🪙 ${save.gold} — 🪙 ${price - save.gold} short`,
+              text: `Price 🪙 ${price} · Balance 🪙 ${save.gold} · 🪙 ${price - save.gold} short`,
               color: theme.colors.danger,
             };
     c.add(
       this.add
-        .text(200, footY, footerInfo.text, {
+        .text(footer.x + 16, footY, footerInfo.text, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: footerInfo.color,
@@ -909,7 +1004,7 @@ export class ShopScene extends Phaser.Scene {
         .setOrigin(0, 0.5),
     );
     if (!owned) {
-      const buy = themedButton(this, 890, footY, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
+      const buy = themedButton(this, footerRight - 216, footY, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
         variant: 'primary',
         minWidth: 170,
         enabled: affordable,
@@ -918,15 +1013,15 @@ export class ShopScene extends Phaser.Scene {
         },
       });
       c.add(buy.container);
+      this.previewInteractiveTargets.push(buy.inputZone);
     }
-    const close = themedButton(this, 1045, footY, 'Close', {
+    const close = themedButton(this, footerRight - 61, footY, 'Close', {
       variant: 'ghost',
       minWidth: 90,
       onTap: () => this.closeOverlay(),
     });
     c.add(close.container);
-
-    this.overlay = shell;
+    this.previewInteractiveTargets.push(close.inputZone);
   }
 
   /** Full-card inspect layered above the deck preview; ←/→ steps the list. */
@@ -942,6 +1037,11 @@ export class ShopScene extends Phaser.Scene {
       showClose: true,
       tapDimToClose: true,
       escToClose: false, // scene-side Esc closes the inspect before the preview
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.previewInteractiveTargets.map(modalGuardTarget),
+      },
       onClose: () => {
         if (this.inspect === shell) {
           this.inspect = null;
@@ -952,18 +1052,30 @@ export class ShopScene extends Phaser.Scene {
     this.inspect = shell;
     this.inspectIdx = idx;
     const c = shell.container;
-    const view = new CardView(this, 640, 338).setScale(1.25);
+    const content = shell.tracks.contentBounds;
+    const contentX = content.x + content.width / 2;
+    const contentY = content.y + content.height / 2;
+    const inspectScale = Math.min(1.25, (content.height - 12) / CARD_H);
+    const view = new CardView(this, contentX, contentY).setScale(inspectScale);
     view.setCard(entry.d, { fx: 'full' });
     c.add(view);
+    const footer = shell.tracks.footerTrack;
     c.add(
       this.add
-        .text(640, 632, `${entry.n}× in this deck   ·   ←/→ browse the list · Esc closes`, {
+        .text(footer.x + footer.width / 2, footer.y + footer.height / 2, `${entry.n}× in this deck   ·   ←/→ browse the list · Esc closes`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
         })
         .setOrigin(0.5),
     );
+  }
+
+  private onPreviewClosed(shell: ModalShell): void {
+    if (this.overlay !== shell) return;
+    this.overlay = null;
+    this.previewEntries = [];
+    this.previewInteractiveTargets = [];
   }
 
   private closeInspect(): void {

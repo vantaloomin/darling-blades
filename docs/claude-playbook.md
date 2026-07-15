@@ -92,6 +92,11 @@ the executor half of the [[orchestration-workflow]] split:
 - **Preserve the constraints that matter** — call out the 1–2 boundaries that
   count (API shape, an invariant, "keep the fix minimal"), not every
   micro-rule; over-fencing is as costly as under-fencing.
+- **Any prompt that authors player-facing text quotes the copy rules** from
+  design-system.md §Content voice — above all: **no em-dashes in
+  player-facing copy** (use period / semicolon / colon / comma / parentheses;
+  `·` in stat lines). Codex and Claude both default to em-dash-heavy prose;
+  the rule must be in the contract, not assumed.
 - **Say how the change gets verified** and have Codex run those checks itself
   (the ladder rungs in §8 that apply), then report the real numbers.
 - **Plan before editing on risky or large tasks** — ask for the approach
