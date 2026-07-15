@@ -904,6 +904,34 @@ _Dated 2026-07-04. Review monthly._
   see above).
 
 ## Planned
+- **Economy testing at scale (plan authored 2026-07-15; Phases 0–1
+  SHIPPED same day).**
+  [plan-economy-testing.md](plan-economy-testing.md) is the spec — the
+  instrumentation half of the 1.1 Limited economy tuning pass, built FIRST
+  so tuning happens against measurements (instrument-then-hypothesize).
+  Shipped: the progression sim modernized to the shipped game (draft-only,
+  real `scorePick` picker profiles by pilot skill, persona-Personality
+  opponents, Premium Draft through the real entry/grant APIs, shard
+  income; 31.6s at 2 seeds × 7 days × 10 personas) and
+  `src/meta/economyModel.ts` (pack dupe-EV computed **67.5g** at full
+  completion, verifying the ≈68g claim; run/gauntlet/practice/quest EVs;
+  the two-axis premium-vs-boosters comparison; 4 hard invariants incl. a
+  3,000-pack no-gold-positive sweep and buy-then-shard-negative across
+  all 7 SKUs). Remaining: Phase 2 (full-matrix baseline + gates — needs
+  decision points 1–2) and Phase 3 (optimizer + exploit probes).
+  Three layers: a pure analytic EV suite (`economyModel.ts` — pack/run/
+  gauntlet/quest EVs + hard invariants like "no pack sequence is
+  gold-positive", always in CI), the progression sim modernized to the
+  shipped game (Sealed out, real `DEFAULT_PICKER` + persona opponents,
+  Premium Draft + shard modeling in) and gated at coarse bands with a
+  date-stamped full-matrix baseline next to `ECONOMY`, and adversarial
+  exploit probes (a greedy gold-per-minute optimizer persona + named
+  regression tests per closed loophole). Live evidence already in hand:
+  the harness's 7-day smoke run flags "Free Limited is ahead" (1.00 vs
+  0.43 packs/day). Four decision points are marked in the doc (intended
+  faucet ordering, CI gate strictness, the premium card-value model,
+  tuning timing); the tuning pass itself stays a separate user-directed
+  follow-up.
 - **Full Art variant — a 4th booster axis (decided 2026-07-13).** Locked
   user picks: an INDEPENDENT per-slot roll at **0.25%** (rarer than Black
   frame / Void holo at 0.45% each; ~1 pull per 45 packs) that **stacks**

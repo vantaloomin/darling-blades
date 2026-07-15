@@ -16,13 +16,15 @@ import type { AIPlayer } from '../src/ai/AIPlayer';
 import { buildAI } from '../src/ai/personality';
 import { ECONOMY } from '../src/config/rules';
 import { CARD_DB } from '../src/data/catalog';
+import { draftPersonaById } from '../src/data/draftPersonas';
 import { avatarForRung } from '../src/data/opponents';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../src/data/starterDecks';
 import type { GameEvent } from '../src/engine/events';
 import { Game } from '../src/engine/Game';
 import { createRngState, rngFloat, type RngState } from '../src/engine/rng';
-import { def, isType, manaValue, type CardDb, type CardDef, type Color } from '../src/engine/types';
+import { def, isType, type CardDb, type CardDef, type Color } from '../src/engine/types';
 import { claimAllAchievements, syncAchievements } from '../src/meta/Achievements';
+import { shardableCount, shardExcess, shardGold } from '../src/meta/Collection';
 import { collectionCompletion } from '../src/meta/collectionFilter';
 import { deckColorStyle } from '../src/meta/deckColorIdentity';
 import {
@@ -31,6 +33,7 @@ import {
   applyMatchResult,
   buyThemeDeck,
   claimFreeStarter,
+  payPremiumDraftEntry,
   spendGold,
   type Difficulty,
 } from '../src/meta/Economy';
@@ -39,13 +42,13 @@ import {
   buildLimitedDeck,
   completeDraftRun,
   currentDraftPack,
+  grantPremiumDraftPool,
   limitedDuelData,
   pickDraftCard,
   startDraftRun,
-  startSealedRun,
-  type LimitedMode,
   type LimitedRun,
 } from '../src/meta/Limited';
+import { DEFAULT_PICKER, makePicker, pickNoise, scorePick, type PickerProfile } from '../src/meta/draftPicker';
 import { openPack } from '../src/meta/PackOpener';
 import {
   applyDailyQuestProgress,
@@ -56,7 +59,6 @@ import {
   rerollDailyQuest,
 } from '../src/meta/Quests';
 import { freshSave, type SaveData } from '../src/meta/SaveManager';
-import { TIER_RANK } from '../src/meta/variants';
 
 const START_DAY_MS = Date.UTC(2026, 6, 9);
 const MAX_STEPS = 40_000;
@@ -64,7 +66,6 @@ const HUMAN = 0;
 const PRACTICE_MATCH_MINUTES = 10;
 const GAUNTLET_MATCH_MINUTES = 12;
 const LIMITED_MATCH_MINUTES = 14;
-const SEALED_SETUP_MINUTES = 8;
 const DRAFT_SETUP_MINUTES = 14;
 const PACK_OPEN_MINUTES = 1.25;
 const DECK_BUY_MINUTES = 1.5;
@@ -100,9 +101,10 @@ export interface PlayerPersona {
   practice?: PracticePlan;
   gauntletMatches?: DailyCount;
   stopGauntletAfterLoss?: boolean;
-  limited?: { mode: LimitedMode | 'mixed'; matches: DailyCount };
+  limited?: { matches: DailyCount; premiumWhenAffordable?: boolean };
   questChase?: QuestChasePlan;
   rerollOffColorQuests?: boolean;
+  shardSpecialExcess?: boolean;
   spending: SpendingPlan;
   achievements: AchievementPolicy;
 }
@@ -117,11 +119,13 @@ export interface RewardLedger {
   daily: number;
   achievements: number;
   dupes: number;
+  shards: number;
 }
 
 export interface SpendLedger {
   packs: number;
   decks: number;
+  premiumDraftEntries: number;
 }
 
 export interface ProgressSnapshot {
@@ -147,6 +151,7 @@ export interface ProgressSnapshot {
   collectionPct: number;
   specialVariants: number;
   duplicateRefundGold: number;
+  shardGold: number;
   achievementsUnlocked: number;
   achievementsClaimed: number;
   dailyQuestCompletions: number;
@@ -157,6 +162,8 @@ export interface ProgressSnapshot {
   gauntletBestRung: number;
   gauntletCompletions: number;
   limitedRuns: number;
+  premiumDraftRuns: number;
+  premiumDraftCardsKept: number;
   limitedWins: number;
   limitedLosses: number;
   limitedAvgWins: number;
@@ -187,6 +194,7 @@ export interface ProgressAggregate {
   collectionPct: number;
   specialVariants: number;
   duplicateRefundGold: number;
+  shardGold: number;
   achievementsUnlocked: number;
   achievementsClaimed: number;
   dailyQuestCompletions: number;
@@ -197,6 +205,8 @@ export interface ProgressAggregate {
   gauntletBestRung: number;
   gauntletCompletions: number;
   limitedRuns: number;
+  premiumDraftRuns: number;
+  premiumDraftCardsKept: number;
   limitedWins: number;
   limitedLosses: number;
   limitedAvgWins: number;
@@ -232,6 +242,8 @@ interface SimStats {
   dailyQuestSlots: number;
   gauntletCompletions: number;
   limitedRuns: number;
+  premiumDraftRuns: number;
+  premiumDraftCardsKept: number;
   limitedWins: number;
   limitedLosses: number;
   rewards: RewardLedger;
@@ -298,12 +310,12 @@ export const PLAYER_PERSONAS: readonly PlayerPersona[] = Object.freeze([
   {
     id: 'limited-fan',
     name: 'Limited Fan',
-    style: 'spends most sessions in Sealed/Draft',
+    style: 'drafts most days and saves for Premium Draft entries',
     starterId: 'starter-mandate',
     pilotSkill: 'medium',
     practice: { difficulty: 'medium', games: 1 },
-    limited: { mode: 'mixed', matches: 3 },
-    spending: { packPreference: 'mixed', reserveGold: 250 },
+    limited: { matches: 3, premiumWhenAffordable: true },
+    spending: { packPreference: 'mixed', reserveGold: ECONOMY.premiumDraftEntry },
     achievements: 'claim',
   },
   {
@@ -313,6 +325,7 @@ export const PLAYER_PERSONAS: readonly PlayerPersona[] = Object.freeze([
     starterId: 'starter-harvest',
     pilotSkill: 'medium',
     practice: { difficulty: 'easy', games: 3 },
+    shardSpecialExcess: true,
     spending: { packPreference: 'mixed' },
     achievements: 'claim',
   },
@@ -373,7 +386,7 @@ export const PLAYER_PERSONAS: readonly PlayerPersona[] = Object.freeze([
     pilotSkill: 'hard',
     practice: { difficulty: 'hard', games: 3 },
     gauntletMatches: 2,
-    limited: { mode: 'mixed', matches: 1 },
+    limited: { matches: 1 },
     questChase: { difficulty: 'hard', maxExtraGames: 2 },
     rerollOffColorQuests: true,
     spending: {
@@ -396,9 +409,10 @@ const emptyRewards = (): RewardLedger => ({
   daily: 0,
   achievements: 0,
   dupes: 0,
+  shards: 0,
 });
 
-const emptySpent = (): SpendLedger => ({ packs: 0, decks: 0 });
+const emptySpent = (): SpendLedger => ({ packs: 0, decks: 0, premiumDraftEntries: 0 });
 
 function freshStats(): SimStats {
   return {
@@ -412,6 +426,8 @@ function freshStats(): SimStats {
     dailyQuestSlots: 0,
     gauntletCompletions: 0,
     limitedRuns: 0,
+    premiumDraftRuns: 0,
+    premiumDraftCardsKept: 0,
     limitedWins: 0,
     limitedLosses: 0,
     rewards: emptyRewards(),
@@ -430,11 +446,16 @@ function addRewards(a: RewardLedger, b: RewardLedger): RewardLedger {
     daily: a.daily + b.daily,
     achievements: a.achievements + b.achievements,
     dupes: a.dupes + b.dupes,
+    shards: a.shards + b.shards,
   };
 }
 
 function addSpent(a: SpendLedger, b: SpendLedger): SpendLedger {
-  return { packs: a.packs + b.packs, decks: a.decks + b.decks };
+  return {
+    packs: a.packs + b.packs,
+    decks: a.decks + b.decks,
+    premiumDraftEntries: a.premiumDraftEntries + b.premiumDraftEntries,
+  };
 }
 
 function rewardTotal(rewards: RewardLedger): number {
@@ -447,12 +468,13 @@ function rewardTotal(rewards: RewardLedger): number {
     rewards.streak +
     rewards.daily +
     rewards.achievements +
-    rewards.dupes
+    rewards.dupes +
+    rewards.shards
   );
 }
 
 function spentTotal(spent: SpendLedger): number {
-  return spent.packs + spent.decks;
+  return spent.packs + spent.decks + spent.premiumDraftEntries;
 }
 
 function hashString(input: string): number {
@@ -538,13 +560,6 @@ function dailyCount(count: DailyCount | undefined, ctx: SimContext, dayIndex: nu
   if (max === min) return min;
   const roll = hashString(`${ctx.baseSeed}|${ctx.persona.id}|${ctx.sample}|${dayIndex}|${label}`);
   return min + (roll % (max - min + 1));
-}
-
-function chooseLimitedMode(ctx: SimContext, dayIndex: number): LimitedMode {
-  const mode = ctx.persona.limited?.mode ?? 'sealed';
-  if (mode !== 'mixed') return mode;
-  const roll = hashString(`${ctx.baseSeed}|${ctx.persona.id}|${ctx.sample}|${dayIndex}|limited-mode`);
-  return roll % 2 === 0 ? 'sealed' : 'draft';
 }
 
 function playHeadlessMatch(
@@ -668,18 +683,20 @@ function applyDailyQuestProgressToSave(ctx: SimContext, events: readonly GameEve
   ctx.stats.dailyQuestCompletions += result.completedQuestIds.length;
 }
 
-function runLimitedMatch(ctx: SimContext, mode: LimitedMode, today: string, now: number): void {
+function runLimitedMatch(ctx: SimContext, today: string, now: number): void {
   if (!ctx.save.limited.activeRun) {
-    ctx.save.limited.activeRun = startPreparedLimitedRun(ctx, mode, now);
+    ctx.save.limited.activeRun = startPreparedLimitedRun(ctx, now);
     ctx.stats.limitedRuns++;
-    ctx.stats.sessionMinutes += mode === 'draft' ? DRAFT_SETUP_MINUTES : SEALED_SETUP_MINUTES;
+    if (ctx.save.limited.activeRun.premium) ctx.stats.premiumDraftRuns++;
+    ctx.stats.sessionMinutes += DRAFT_SETUP_MINUTES;
   }
   const run = ctx.save.limited.activeRun;
   if (!run || run.status !== 'matches') throw new Error('Limited run did not reach matches');
   const duel = limitedDuelData(run);
   const seed = duel.seedOverride;
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
-  const opp = buildAI(duel.difficulty, CARD_DB, seed ^ 0x5eed);
+  const opponentPersonality = draftPersonaById(duel.limited.opponentPersonaId ?? '')?.personality;
+  const opp = buildAI(duel.difficulty, CARD_DB, seed ^ 0x5eed, opponentPersonality);
   const match = playHeadlessMatch(seed, player, opp, [duel.deckOverride, duel.oppDeckOverride]);
   ctx.stats.sessionMinutes += LIMITED_MATCH_MINUTES;
   applyDailyQuestProgressToSave(ctx, match.events, today);
@@ -705,45 +722,60 @@ function limitedDeckStyle(deck: readonly string[]): 'mono' | 'dual' | 'other' {
   return deckColorStyle(deck, CARD_DB);
 }
 
-function startPreparedLimitedRun(ctx: SimContext, mode: LimitedMode, now: number): LimitedRun {
-  const seed = nextSeed(ctx, `limited-${mode}`);
-  let run = mode === 'sealed' ? startSealedRun(CARD_DB, seed, now) : draftRun(CARD_DB, seed, now);
+function startPreparedLimitedRun(ctx: SimContext, now: number): LimitedRun {
+  const seed = nextSeed(ctx, 'limited-draft');
+  const premium = Boolean(
+    ctx.persona.limited?.premiumWhenAffordable && payPremiumDraftEntry(ctx.save),
+  );
+  if (premium) ctx.stats.spent.premiumDraftEntries += ECONOMY.premiumDraftEntry;
+  let run = draftRun(ctx, CARD_DB, seed, now, premium);
   run = { ...run, status: 'matches', deck: buildLimitedDeck(CARD_DB, run.pool) };
   return run;
 }
 
-function draftRun(db: CardDb, seed: number, now: number): LimitedRun {
-  let run = startDraftRun(db, seed, now);
+function draftRun(ctx: SimContext, db: CardDb, seed: number, now: number, premium: boolean): LimitedRun {
+  let run = startDraftRun(db, seed, now, { premium });
   let draft = run.draft;
   if (!draft) throw new Error('Draft run missing draft state');
+  const profile = pickerProfileForSkill(ctx.persona.pilotSkill);
   while (!draft.completed) {
     const pack = currentDraftPack(draft);
-    const pick = chooseDraftPick(db, pack);
+    const pick = chooseHumanDraftPick(db, draft, pack, profile);
     draft = pickDraftCard(db, draft, pick);
+  }
+  if (premium) {
+    const grants = grantPremiumDraftPool(ctx.save, db, { ...run, draft });
+    ctx.stats.premiumDraftCardsKept += grants.filter((grant) => grant.dupeGold === 0).length;
+    ctx.stats.rewards.dupes += grants.reduce((sum, grant) => sum + grant.dupeGold, 0);
   }
   run = completeDraftRun(db, { ...run, draft });
   return run;
 }
 
-function chooseDraftPick(db: CardDb, pack: readonly string[]): string {
-  if (pack.length === 0) throw new Error('Cannot pick from an empty draft pack');
-  return [...pack].sort((a, b) => draftScore(db, b) - draftScore(db, a) || compareCardNames(db, a, b))[0];
+const DRAFT_PICKER_BY_SKILL: Readonly<Record<Difficulty, Readonly<PickerProfile>>> = Object.freeze({
+  easy: Object.freeze(makePicker({ chaos: 0.35 })),
+  medium: Object.freeze(makePicker({ chaos: 0.12 })),
+  hard: DEFAULT_PICKER,
+});
+
+function pickerProfileForSkill(skill: Difficulty): Readonly<PickerProfile> {
+  return DRAFT_PICKER_BY_SKILL[skill];
 }
 
-function draftScore(db: CardDb, id: string): number {
-  const card = def(db, id);
-  let score = TIER_RANK[card.rarity] * 8 - manaValue(card.cost) * 0.2;
-  if (isType(card, 'creature')) {
-    score += 5 + (card.attack ?? 0) * 1.1 + (card.defense ?? 0) * 0.9 + (card.keywords?.length ?? 0) * 2;
-  }
-  if (isType(card, 'charm') || isType(card, 'ritual')) score += 4;
-  if (card.abilities?.some((a) => a.ops?.some((op) => op.op === 'destroy' || op.op === 'damage' || op.op === 'cancel'))) {
-    score += 6;
-  }
-  if (card.abilities?.some((a) => a.ops?.some((op) => op.op === 'draw' || op.op === 'raise' || op.op === 'reclaim'))) {
-    score += 3;
-  }
-  return score;
+function chooseHumanDraftPick(
+  db: CardDb,
+  draft: NonNullable<LimitedRun['draft']>,
+  pack: readonly string[],
+  profile: Readonly<PickerProfile>,
+): string {
+  if (pack.length === 0) throw new Error('Cannot pick from an empty draft pack');
+  const picks = draft.picks[HUMAN];
+  return [...pack].sort(
+    (a, b) =>
+      scorePick(db, b, picks, profile, pickNoise(draft.seed, HUMAN, draft.packIndex, draft.pickIndex, b)) -
+        scorePick(db, a, picks, profile, pickNoise(draft.seed, HUMAN, draft.packIndex, draft.pickIndex, a)) ||
+      compareCardNames(db, a, b),
+  )[0];
 }
 
 function compareCardNames(db: CardDb, a: string, b: string): number {
@@ -770,7 +802,7 @@ function runDay(ctx: SimContext, dayIndex: number): void {
   }
   const limitedMatches = dailyCount(ctx.persona.limited?.matches, ctx, dayIndex, 'limited');
   for (let i = 0; i < limitedMatches; i++) {
-    runLimitedMatch(ctx, chooseLimitedMode(ctx, dayIndex), today, now + i);
+    runLimitedMatch(ctx, today, now + i);
   }
 
   if (ctx.persona.questChase) {
@@ -793,8 +825,23 @@ function runEconomyMaintenance(ctx: SimContext, dayIndex: number): void {
   claimAchievementRewards(ctx);
   buyDecks(ctx);
   buyPacks(ctx, dayIndex);
+  shardPersonaExcess(ctx);
   claimAchievementRewards(ctx);
   buyPacks(ctx, dayIndex + 1000);
+  shardPersonaExcess(ctx);
+}
+
+function shardPersonaExcess(ctx: SimContext): void {
+  if (!ctx.persona.shardSpecialExcess) return;
+  for (const cardId of Object.keys(ctx.save.collection).sort()) {
+    if (shardableCount(ctx.save, cardId) === 0) continue;
+    const expectedGold = shardGold(ctx.save, CARD_DB, cardId);
+    const result = shardExcess(ctx.save, CARD_DB, cardId);
+    if (result.gold !== expectedGold) {
+      throw new Error(`Shard preview drifted for ${cardId}: expected ${expectedGold}, paid ${result.gold}`);
+    }
+    ctx.stats.rewards.shards += result.gold;
+  }
 }
 
 function buyDecks(ctx: SimContext): void {
@@ -917,6 +964,7 @@ function snapshot(ctx: SimContext, day: number): ProgressSnapshot {
     collectionPct: completion.percent,
     specialVariants: completion.variants.specialVariants,
     duplicateRefundGold: ctx.stats.rewards.dupes,
+    shardGold: ctx.stats.rewards.shards,
     achievementsUnlocked: ctx.save.achievements.unlocked.length,
     achievementsClaimed: ctx.save.achievements.claimed.length,
     dailyQuestCompletions: ctx.stats.dailyQuestCompletions,
@@ -928,6 +976,8 @@ function snapshot(ctx: SimContext, day: number): ProgressSnapshot {
     gauntletBestRung: ctx.save.gauntlet.bestRung,
     gauntletCompletions: ctx.save.gauntlet.completions,
     limitedRuns: ctx.stats.limitedRuns,
+    premiumDraftRuns: ctx.stats.premiumDraftRuns,
+    premiumDraftCardsKept: ctx.stats.premiumDraftCardsKept,
     limitedWins: ctx.stats.limitedWins,
     limitedLosses: ctx.stats.limitedLosses,
     limitedAvgWins,
@@ -1003,6 +1053,7 @@ function aggregateSnapshots(
         collectionPct: avg(rows.map((r) => r.collectionPct)),
         specialVariants: avg(rows.map((r) => r.specialVariants)),
         duplicateRefundGold: avg(rows.map((r) => r.duplicateRefundGold)),
+        shardGold: avg(rows.map((r) => r.shardGold)),
         achievementsUnlocked: avg(rows.map((r) => r.achievementsUnlocked)),
         achievementsClaimed: avg(rows.map((r) => r.achievementsClaimed)),
         dailyQuestCompletions: avg(rows.map((r) => r.dailyQuestCompletions)),
@@ -1013,6 +1064,8 @@ function aggregateSnapshots(
         gauntletBestRung: avg(rows.map((r) => r.gauntletBestRung)),
         gauntletCompletions: avg(rows.map((r) => r.gauntletCompletions)),
         limitedRuns: avg(rows.map((r) => r.limitedRuns)),
+        premiumDraftRuns: avg(rows.map((r) => r.premiumDraftRuns)),
+        premiumDraftCardsKept: avg(rows.map((r) => r.premiumDraftCardsKept)),
         limitedWins: avg(rows.map((r) => r.limitedWins)),
         limitedLosses: avg(rows.map((r) => r.limitedLosses)),
         limitedAvgWins: avg(rows.map((r) => r.limitedAvgWins)),
@@ -1041,11 +1094,16 @@ function divideRewards(x: RewardLedger, n: number): RewardLedger {
     daily: x.daily / n,
     achievements: x.achievements / n,
     dupes: x.dupes / n,
+    shards: x.shards / n,
   };
 }
 
 function divideSpent(x: SpendLedger, n: number): SpendLedger {
-  return { packs: x.packs / n, decks: x.decks / n };
+  return {
+    packs: x.packs / n,
+    decks: x.decks / n,
+    premiumDraftEntries: x.premiumDraftEntries / n,
+  };
 }
 
 export function analyzeRewardTuning(aggregates: readonly ProgressAggregate[], days: readonly number[]): RewardVerdict {
@@ -1091,7 +1149,7 @@ export function analyzeRewardTuning(aggregates: readonly ProgressAggregate[], da
     const baselinePacks = avg(nonLimited.map((r) => r.packsPerDay));
     if (baselinePacks > 0 && limitedPacks > baselinePacks * 1.35) {
       bullets.push(
-        `Free Limited is ahead on collection spend: ${limitedPacks.toFixed(2)} packs/day vs ${baselinePacks.toFixed(2)} for non-Limited personas.`,
+        `Draft-focused play is ahead on collection spend: ${limitedPacks.toFixed(2)} packs/day vs ${baselinePacks.toFixed(2)} for non-Draft personas.`,
       );
     }
   }
@@ -1104,7 +1162,7 @@ export function analyzeRewardTuning(aggregates: readonly ProgressAggregate[], da
   }
 
   const stingy = bullets.some((b) => b.includes('low:'));
-  const generous = bullets.some((b) => b.includes('high:') || b.includes('Free Limited is ahead'));
+  const generous = bullets.some((b) => b.includes('high:') || b.includes('Draft-focused play is ahead'));
   const uneven = bullets.length > 1 && bullets.some((b) => b.includes('spread') || b.includes('uneven'));
   const label: RewardVerdict['label'] = uneven ? 'uneven' : generous ? 'generous' : stingy ? 'stingy' : 'reasonable';
   return { label, bullets };
@@ -1155,37 +1213,37 @@ export function renderProgressionReport(report: ProgressionReport): string {
     `=== PROGRESSION SIM - ${report.personas.length} personas * ${report.seeds} deterministic seeds * ${report.days.join('/')}-day checkpoints ===`,
   );
   lines.push('Assumption: opened cards grow collection only; constructed decks are not auto-rebuilt from pulls.');
-  lines.push('Time model: practice 10m, Gauntlet 12m, Limited 14m plus setup, packs/decks/rerolls included.');
+  lines.push('Time model: practice 10m, Gauntlet 12m, Draft 14m plus setup, packs/decks/rerolls included.');
   for (const day of report.days) {
     const rows = report.aggregates.filter((r) => r.day === day);
     lines.push('');
     lines.push(`--- Day ${day} economy averages ---`);
     lines.push(
-      `${pad('Persona', 20)} ${pad('Earn', 7)} ${pad('Spend', 7)} ${pad('Net', 7)} ${pad('Packs', 7)} ${pad('DupeGold', 9)}`,
+      `${pad('Persona', 20)} ${pad('Earn', 7)} ${pad('Spend', 7)} ${pad('Net', 7)} ${pad('Packs', 7)} ${pad('DupeGold', 9)} ${pad('ShardGold', 10)} ${pad('PremFee', 8)}`,
     );
     for (const r of rows) {
       lines.push(
-        `${pad(r.personaName, 20)} ${pad(fixed(r.goldEarned), 7)} ${pad(fixed(r.goldSpent), 7)} ${pad(fixed(r.goldNet), 7)} ${pad(fixed(r.packsOpened, 1), 7)} ${pad(fixed(r.duplicateRefundGold), 9)}`,
+        `${pad(r.personaName, 20)} ${pad(fixed(r.goldEarned), 7)} ${pad(fixed(r.goldSpent), 7)} ${pad(fixed(r.goldNet), 7)} ${pad(fixed(r.packsOpened, 1), 7)} ${pad(fixed(r.duplicateRefundGold), 9)} ${pad(fixed(r.shardGold), 10)} ${pad(fixed(r.spent.premiumDraftEntries), 8)}`,
       );
     }
     lines.push('');
     lines.push(`--- Day ${day} collection and claims ---`);
     lines.push(
-      `${pad('Persona', 20)} ${pad('Copies', 7)} ${pad('Unique', 7)} ${pad('Coll', 6)} ${pad('Variants', 9)} ${pad('Daily C/K', 10)} ${pad('Streak', 7)} ${pad('Ach U/C', 8)}`,
+      `${pad('Persona', 20)} ${pad('Copies', 7)} ${pad('Unique', 7)} ${pad('Coll', 6)} ${pad('Variants', 9)} ${pad('PremKeep', 9)} ${pad('Daily C/K', 10)} ${pad('Streak', 7)} ${pad('Ach U/C', 8)}`,
     );
     for (const r of rows) {
       lines.push(
-        `${pad(r.personaName, 20)} ${pad(fixed(r.collectionSize, 1), 7)} ${pad(fixed(r.uniqueCards, 1), 7)} ${pad(pct(r.collectionPct), 6)} ${pad(fixed(r.specialVariants, 1), 9)} ${pad(dailyText(r), 10)} ${pad(fixed(r.streakLength, 1), 7)} ${pad(achievementText(r), 8)}`,
+        `${pad(r.personaName, 20)} ${pad(fixed(r.collectionSize, 1), 7)} ${pad(fixed(r.uniqueCards, 1), 7)} ${pad(pct(r.collectionPct), 6)} ${pad(fixed(r.specialVariants, 1), 9)} ${pad(fixed(r.premiumDraftCardsKept, 1), 9)} ${pad(dailyText(r), 10)} ${pad(fixed(r.streakLength, 1), 7)} ${pad(achievementText(r), 8)}`,
       );
     }
     lines.push('');
     lines.push(`--- Day ${day} mode and load ---`);
     lines.push(
-      `${pad('Persona', 20)} ${pad('Matches', 8)} ${pad('Win', 6)} ${pad('Load', 12)} ${pad('Limited', 8)} ${pad('AvgRec', 7)} ${pad('Gauntlet', 9)}`,
+      `${pad('Persona', 20)} ${pad('Matches', 8)} ${pad('Win', 6)} ${pad('Load', 12)} ${pad('Drafts', 7)} ${pad('Premium', 8)} ${pad('AvgRec', 7)} ${pad('Gauntlet', 9)}`,
     );
     for (const r of rows) {
       lines.push(
-        `${pad(r.personaName, 20)} ${pad(fixed(r.games, 1), 8)} ${pad(pct(r.winRate), 6)} ${pad(loadText(r), 12)} ${pad(fixed(r.limitedRuns, 1), 8)} ${pad(recordText(r), 7)} ${pad(gauntletText(r), 9)}`,
+        `${pad(r.personaName, 20)} ${pad(fixed(r.games, 1), 8)} ${pad(pct(r.winRate), 6)} ${pad(loadText(r), 12)} ${pad(fixed(r.limitedRuns, 1), 7)} ${pad(fixed(r.premiumDraftRuns, 1), 8)} ${pad(recordText(r), 7)} ${pad(gauntletText(r), 9)}`,
       );
     }
   }
