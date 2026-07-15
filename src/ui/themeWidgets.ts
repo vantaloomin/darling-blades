@@ -399,6 +399,7 @@ export interface SceneHeaderFooterOptions {
   title: string;
   onBack?: (pointer: Phaser.Input.Pointer) => void;
   currency?: GoldBadgeOptions;
+  showCurrency?: boolean;
   footerActions?: readonly SceneFooterAction[];
   depth?: number;
   focus?: FocusMetadata;
@@ -431,6 +432,8 @@ export function sceneHeaderFooter(
     })
     .setOrigin(0.5);
   const currency = goldBadge(scene, 0, 0, opts.currency);
+  const showCurrency = opts.showCurrency ?? true;
+  currency.text.setVisible(showCurrency);
   const footerActions = (opts.footerActions ?? []).map((action) => {
     const { label, ...buttonOpts } = action;
     return themedButton(scene, 0, 0, label, buttonOpts);
@@ -438,7 +441,9 @@ export function sceneHeaderFooter(
   const layout = sceneHeaderFooterLayout({
     backVisual: { width: back.width, height: back.height },
     titleVisual: { width: title.width, height: title.height },
-    currencyVisual: { width: currency.text.width, height: currency.text.height },
+    currencyVisual: showCurrency
+      ? { width: currency.text.width, height: currency.text.height }
+      : { width: 0, height: 0 },
     footerActionVisuals: footerActions.map((action) => {
       const size = action.getMeasuredSize().visual;
       return { width: size.width, height: size.height };
