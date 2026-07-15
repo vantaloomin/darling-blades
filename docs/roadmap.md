@@ -904,10 +904,21 @@ _Dated 2026-07-04. Review monthly._
   see above).
 
 ## Planned
-- **Economy testing at scale (plan authored 2026-07-15).**
+- **Economy testing at scale (plan authored 2026-07-15; Phases 0–1
+  SHIPPED same day).**
   [plan-economy-testing.md](plan-economy-testing.md) is the spec — the
   instrumentation half of the 1.1 Limited economy tuning pass, built FIRST
   so tuning happens against measurements (instrument-then-hypothesize).
+  Shipped: the progression sim modernized to the shipped game (draft-only,
+  real `scorePick` picker profiles by pilot skill, persona-Personality
+  opponents, Premium Draft through the real entry/grant APIs, shard
+  income; 31.6s at 2 seeds × 7 days × 10 personas) and
+  `src/meta/economyModel.ts` (pack dupe-EV computed **67.5g** at full
+  completion, verifying the ≈68g claim; run/gauntlet/practice/quest EVs;
+  the two-axis premium-vs-boosters comparison; 4 hard invariants incl. a
+  3,000-pack no-gold-positive sweep and buy-then-shard-negative across
+  all 7 SKUs). Remaining: Phase 2 (full-matrix baseline + gates — needs
+  decision points 1–2) and Phase 3 (optimizer + exploit probes).
   Three layers: a pure analytic EV suite (`economyModel.ts` — pack/run/
   gauntlet/quest EVs + hard invariants like "no pack sequence is
   gold-positive", always in CI), the progression sim modernized to the

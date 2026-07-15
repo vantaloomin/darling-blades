@@ -2,6 +2,16 @@
 
 # Economy testing at scale — plan
 
+> **Status (2026-07-15, same day):** Phases 0 and 1 SHIPPED as two
+> concurrent Codex streams (disjoint file sets, orchestrator-verified).
+> The sim is draft-only on the real `scorePick`/`DEFAULT_PICKER` with
+> persona-Personality opponents, Premium Draft (real
+> `payPremiumDraftEntry` + `grantPremiumDraftPool`), and shard income;
+> `src/meta/economyModel.ts` ships the EV surface + 4 hard invariants
+> (computed full-completion pack dupe-EV: **67.5g** — the ≈68g claim
+> verified). Next: Phase 2 (baseline + gates) needs the doc's decision
+> points 1–2; Phase 3 needs Phase 1 (done).
+
 _Authored 2026-07-15 (user-directed). This is the instrumentation half of the
 1.1 Limited economy tuning pass: build the measurement + regression layer
 FIRST, then turn the knobs against it (playbook §6:
