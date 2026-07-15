@@ -214,6 +214,37 @@ export function grantDeckCards(save: SaveData, db: CardDb, cards: readonly strin
   }
 }
 
+export interface DeckGrantPreview {
+  /** Copy total of the deck's non-basic cards (the grant denominator). */
+  nonBasicCopies: number;
+  /** Copies of that requirement already in the collection (capped per card at the deck's count). */
+  ownedCopies: number;
+  /** Plain copies grantDeckCards would actually add. */
+  grantedCopies: number;
+}
+
+/**
+ * Read-only mirror of grantDeckCards: what WOULD buying this deck add to the
+ * collection? The shop's deck preview shows this before the purchase — keep
+ * the walk in lockstep with grantDeckCards (same basic-skip, same top-up cap).
+ */
+export function previewDeckGrant(
+  save: SaveData,
+  db: CardDb,
+  cards: readonly string[],
+): DeckGrantPreview {
+  const counts = new Map<string, number>();
+  for (const id of cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+  let nonBasicCopies = 0;
+  let ownedCopies = 0;
+  for (const [id, n] of counts) {
+    if (def(db, id).supertypes?.includes('basic')) continue;
+    nonBasicCopies += n;
+    ownedCopies += Math.min(save.collection[id] ?? 0, n);
+  }
+  return { nonBasicCopies, ownedCopies, grantedCopies: nonBasicCopies - ownedCopies };
+}
+
 /**
  * Buy a precon/starter deck: spend `price` (defaults to preconPrice for theme
  * decks; the shop passes starterDeckPrice for the buyable starters), grant its

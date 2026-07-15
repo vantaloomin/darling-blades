@@ -15,7 +15,7 @@ import {
   shardGold,
 } from '../../src/meta/Collection';
 import { validateDeck } from '../../src/meta/DeckStorage';
-import { applyGauntletResult, applyMatchResult, buyThemeDeck, spendGold } from '../../src/meta/Economy';
+import { applyGauntletResult, applyMatchResult, buyThemeDeck, previewDeckGrant, spendGold } from '../../src/meta/Economy';
 import { assignDraftPersonas } from '../../src/meta/draftPicker';
 import { startDraftRun, startSealedRun } from '../../src/meta/Limited';
 import { openPack, packPool } from '../../src/meta/PackOpener';
@@ -1032,6 +1032,47 @@ describe('buyThemeDeck (RagnarÃ¶k precon)', () => {
     expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
     expect(save.gold).toBe(ECONOMY.preconPrice - 1);
     expect(save.decks.some((d) => d.id === deck.id)).toBe(false);
+  });
+});
+
+describe('previewDeckGrant (the shop preview\'s "what you get" math)', () => {
+  const deck = THEME_DECKS[0];
+
+  it('mirrors grantDeckCards: the predicted grant equals the copies a buy actually adds', () => {
+    const save = freshSave(0);
+    // Partial ownership: two copies of one of the deck's non-basics via the
+    // real addCard path (keeps the variant-sum invariant intact).
+    const aNonBasic = deck.cards.find((id) => !CARD_DB[id].supertypes?.includes('basic'))!;
+    addCard(save, CARD_DB, aNonBasic, PLAIN_VARIANT);
+    addCard(save, CARD_DB, aNonBasic, PLAIN_VARIANT);
+    const before = { ...save.collection };
+
+    const p = previewDeckGrant(save, CARD_DB, deck.cards);
+    expect(p.ownedCopies).toBe(2);
+    expect(p.nonBasicCopies).toBe(p.ownedCopies + p.grantedCopies);
+
+    save.gold = ECONOMY.preconPrice;
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
+    const added = Object.entries(save.collection).reduce(
+      (sum, [id, n]) => sum + n - (before[id] ?? 0),
+      0,
+    );
+    expect(added).toBe(p.grantedCopies);
+    expectVariantSumInvariant(save);
+  });
+
+  it('owned copies past the deck requirement do not overcount, and a full collection grants zero', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.preconPrice;
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
+    // Overshoot a card the deck runs at 2 (below the playset cap, so the extra
+    // plain copy sticks instead of auto-melting) — the preview caps at need.
+    addCard(save, CARD_DB, 'rg-jotun-warleader', PLAIN_VARIANT);
+    expect(save.collection['rg-jotun-warleader']).toBe(3);
+
+    const p = previewDeckGrant(save, CARD_DB, deck.cards);
+    expect(p.grantedCopies).toBe(0);
+    expect(p.ownedCopies).toBe(p.nonBasicCopies);
   });
 });
 

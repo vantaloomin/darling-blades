@@ -60,6 +60,32 @@ _Dated 2026-07-04. Review monthly._
 
 ## Recently shipped (2026-07-14)
 
+- **Shop deck-preview overhaul** (user-directed; design consult by
+  gpt-5.6-sol run unled, its items 1–6 shipped). The precon preview modal is
+  now a buying aid rather than a name manifest: an **honest decision footer**
+  (price · balance · post-purchase balance or exact shortfall; Buy disabled
+  when unaffordable and the modal only closes on a successful purchase; the
+  free-starter claim states its consequence — "the other starters cost 🪙 350
+  once you claim it"), **full card names** (the old `split(',')` chopped
+  every subtitle — 32 of 99 rows were wrong; long names shrink-to-fit, never
+  truncate) in aligned count/name/mana-value columns on hoverable row bands,
+  an authored **"How it plays"** paragraph per deck (`DECK_INFO`, which also
+  drives the deck-row blurbs), a **mana curve + composition + color totals**
+  block reusing `computeDeckStats` with the real baked mana-bead icons
+  (color identity in the header renders as beads too, not letters), a
+  **"What you get" grant preview** (`previewDeckGrant` in `src/meta/Economy.ts`,
+  a read-only mirror of `grantDeckCards` with a lockstep test — says exactly
+  how many new copies a purchase adds given your collection), and **tap-any-
+  row card inspect** (full `CardView` layered above the preview; ←/→ steps
+  the list, Esc closes top-most only — inspect first, then the preview; the
+  footer buttons also moved onto the shell's footer track, fixing a 2px
+  overhang). Probed live end-to-end on :5174 (free-claim/unaffordable/
+  affordable/owned footers, disabled-Buy inert, buy-from-preview and
+  claim-from-preview both land and re-render the rows, keyboard stepping,
+  save restored byte-exact, zero console errors). Parked from the consult:
+  a signature-card visual, prev/next deck paging, list paging policy, and
+  the full modal-contract migration (ModalGuard/coordinator).
+
 - **Base facet relabeled "Core Set"** (plan-1.1 Pillar 5.2; placed into 1.1
   by the 2026-07-14 handoff). The `'base'` set facet's display text is now
   **Core Set** in the Collection filter dropdown, the deck-builder pool
