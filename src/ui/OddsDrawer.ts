@@ -47,6 +47,7 @@ export class OddsDrawer {
   private readonly scene: Phaser.Scene;
   private readonly container: Phaser.GameObjects.Container;
   private readonly tabLabel: Phaser.GameObjects.Text;
+  private readonly targets: Phaser.GameObjects.GameObject[];
   private slideTween: Phaser.Tweens.Tween | null = null;
   private open = false;
 
@@ -236,6 +237,8 @@ export class OddsDrawer {
 
     const children: Phaser.GameObjects.GameObject[] = [bg, blocker, title, sub, rule, content, maskShape, tabBg, this.tabLabel];
     if (scrollRange > 0 && scrollbar && scrollThumb && scrollZone) children.push(scrollbar, scrollThumb, scrollZone);
+    this.targets = [blocker, this.tabLabel];
+    if (scrollZone) this.targets.push(scrollZone);
     this.container = scene.add.container(CLOSED_X, 0, children).setDepth(DEPTH);
     if (scrollZone) {
       redrawScrollbar();
@@ -246,6 +249,20 @@ export class OddsDrawer {
     }
 
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
+  }
+
+  /** Interactive surfaces a parent scene should include in its modal guard. */
+  get interactiveTargets(): readonly Phaser.GameObjects.GameObject[] {
+    return this.targets;
+  }
+
+  /** Close synchronously so a higher overlay never opens over a moving drawer. */
+  close(): void {
+    if (!this.container.active) return;
+    this.open = false;
+    this.slideTween?.stop();
+    this.slideTween = null;
+    this.container.setX(CLOSED_X);
   }
 
   private toggle(): void {

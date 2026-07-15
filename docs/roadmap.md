@@ -58,6 +58,32 @@ _Dated 2026-07-04. Review monthly._
   v14→v15 per-deck hero images — see Recently shipped). By-ear tuning remains
   open (see Planned).
 
+## Recently shipped (2026-07-15)
+
+- **Deck-preview wave 2 — modal contract, signature cards, paging** (Sol
+  consult items 8–10, user-directed bundle; Codex-implemented under a file
+  contract, orchestrator-reviewed + live-probed). The preview and inspect
+  modals now sit on the shared overlay machinery: one scene-owned
+  `OverlayCoordinator` whose leases **ModalGuard the underlying Shop
+  controls** (tabs, SKUs, quantity chips, deck rows, Back, the OddsDrawer's
+  surfaces — state-verified disabled while a modal is open and restored on
+  close; the stacked inspect lease guards the preview's own controls), all
+  content anchored to the shell's title/content/footer tracks, and the
+  OddsDrawer gains a synchronous `close()` called before the preview opens.
+  Each deck shows **2–3 signature-card thumbnails** with count badges,
+  tap-to-inspect (picks hand-authored in the new Phaser-free
+  `src/data/deckInfo.ts` — `DECK_INFO` moved there with a purity test
+  pinning every featured id into its deck; Burning Tides features Sun Ce).
+  The card list adopts an **explicit overflow policy**: stable 9-row column
+  pairs through `deckPageCount`/`deckPageSlice` + the shared pager (hidden
+  today — every deck fits one page), headers repeat across columns/pages,
+  and ←/→ inspect stepping walks the full list regardless of page. Verified:
+  tsc/lint/**713 tests** (+2)/build/doc checkers green (independent re-run of
+  Codex's ladder); live :5174 probe (guard on/off by state, Esc layering,
+  claim-from-preview while the guard lease is live, save byte-exact, zero
+  console errors). Still parked from the consult: prev/next deck comparison
+  (item 7). Visual by-eye pass of the thumbnails flagged for a live screen.
+
 ## Recently shipped (2026-07-14)
 
 - **Shop deck-preview overhaul** (user-directed; design consult by
@@ -82,9 +108,10 @@ _Dated 2026-07-04. Review monthly._
   overhang). Probed live end-to-end on :5174 (free-claim/unaffordable/
   affordable/owned footers, disabled-Buy inert, buy-from-preview and
   claim-from-preview both land and re-render the rows, keyboard stepping,
-  save restored byte-exact, zero console errors). Parked from the consult:
-  a signature-card visual, prev/next deck paging, list paging policy, and
-  the full modal-contract migration (ModalGuard/coordinator).
+  save restored byte-exact, zero console errors). The consult's items 8–10
+  (modal contract, signature cards, paging) shipped the next day — see
+  Recently shipped 2026-07-15; only item 7 (prev/next deck comparison)
+  remains parked.
 
 - **Base facet relabeled "Core Set"** (plan-1.1 Pillar 5.2; placed into 1.1
   by the 2026-07-14 handoff). The `'base'` set facet's display text is now
