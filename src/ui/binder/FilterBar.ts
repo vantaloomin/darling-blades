@@ -64,7 +64,7 @@ export class FilterBar {
 
     const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae'>[] = [
       { value: 'all', label: 'All Sets' },
-      { value: 'base', label: 'Base' },
+      { value: 'base', label: 'Core Set' },
       { value: 'ragnarok', label: 'Ragnar\u00f6k' },
       { value: 'celtic-fae', label: 'Celtic Fae' },
     ];

@@ -21,6 +21,7 @@ import { LimitedDraftScene } from './scenes/LimitedDraftScene';
 import { LimitedRevealScene } from './scenes/LimitedRevealScene';
 import { LimitedScene } from './scenes/LimitedScene';
 import { PackOpeningScene } from './scenes/PackOpeningScene';
+import { PlayScene } from './scenes/PlayScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { ProfileScene } from './scenes/ProfileScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
@@ -102,6 +103,7 @@ const game = new Phaser.Game({
     BootScene,
     PreloadScene,
     MainMenuScene,
+    PlayScene,
     SettingsScene,
     GlossaryScene,
     // Card Showcase (variant QA) registers only on dev/local builds — see

@@ -1,11 +1,21 @@
 import { ECONOMY } from '../config/rules';
+import { DRAFT_PERSONAS, draftPersonaById } from '../data/draftPersonas';
 import { createRngState, rngInt, type RngState } from '../engine/rng';
 import type { CardDb, CardDef, Color, Rarity } from '../engine/types';
-import { def, isType, manaValue } from '../engine/types';
-import { isBasic } from './Collection';
+import { def, isType } from '../engine/types';
+import { addCard, isBasic, type AddResult } from './Collection';
 import { LIMITED_DECK_SIZE, validateLimitedDeck } from './DeckStorage';
+import {
+  assignDraftPersonas,
+  DEFAULT_PICKER,
+  pickNoise,
+  scoreBasePick,
+  scorePick,
+  type PickerProfile,
+} from './draftPicker';
 import { packPool } from './PackOpener';
-import { rollTier, TIER_RANK } from './variants';
+import type { SaveData } from './SaveManager';
+import { PLAIN_VARIANT, rollFrame, rollHolo, rollTier, TIER_RANK, type CardVariant } from './variants';
 
 export type LimitedMode = 'sealed' | 'draft';
 export type LimitedRunStatus = 'draft' | 'build' | 'matches';
@@ -35,11 +45,18 @@ export interface LimitedPool {
 
 export interface DraftState {
   seed: number;
+  personaIds: string[];
   packIndex: number;
   pickIndex: number;
   packs: string[][][];
   currentPacks: string[][];
   picks: string[][];
+  /** Premium-only variants aligned slot-for-slot with `packs`. */
+  packVariants?: CardVariant[][][];
+  /** Premium-only variants aligned slot-for-slot with `currentPacks`. */
+  currentPackVariants?: CardVariant[][];
+  /** Premium-only variants aligned with the human's `picks[0]` row. */
+  pickVariants?: CardVariant[];
   completed: boolean;
 }
 
@@ -56,6 +73,8 @@ export interface LimitedRun {
   matchIndex: number;
   opponentSeeds: number[];
   opponentDecks: string[][];
+  /** Absent/false is the unchanged free draft. */
+  premium?: boolean;
   draft?: DraftState;
 }
 
@@ -64,7 +83,7 @@ export interface LimitedDuelData {
   deckOverride: string[];
   oppDeckOverride: string[];
   seedOverride: number;
-  limited: { runId: string; mode: LimitedMode; matchIndex: number };
+  limited: { runId: string; mode: LimitedMode; matchIndex: number; opponentPersonaId?: string };
 }
 
 export interface LimitedHistoryEntry {
@@ -76,6 +95,7 @@ export interface LimitedHistoryEntry {
   deckStyle: LimitedDeckStyle;
   completedAt: number;
   rewardGold: number;
+  premium?: boolean;
 }
 
 export interface LimitedState {
@@ -83,10 +103,39 @@ export interface LimitedState {
   history: LimitedHistoryEntry[];
   bestSealedWins: number;
   bestDraftWins: number;
+  /**
+   * Familiarity: how many drafts the player has COMPLETED (all 45 picks) with
+   * each persona seated at the table. Drives the progressive identity reveal —
+   * retiring mid-draft teaches nothing, so knowledge can't be farmed by
+   * start-retire loops.
+   */
+  personaSeen: Record<string, number>;
 }
 
 export function freshLimitedState(): LimitedState {
-  return { activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0 };
+  return { activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {} };
+}
+
+/**
+ * Reveal tiers (user-directed 2026-07-14): what the player knows about a
+ * persona, by completed drafts together — the CURRENT run counts as one, so
+ * a first meeting already shows tier 1.
+ *   1 name + portrait · 2 + color preference · 3 + theme (title) · 4 full profile
+ */
+export type PersonaRevealTier = 1 | 2 | 3 | 4;
+
+export function personaRevealTier(state: Pick<LimitedState, 'personaSeen'>, personaId: string): PersonaRevealTier {
+  const seen = state.personaSeen?.[personaId] ?? 0;
+  return Math.max(1, Math.min(4, seen + 1)) as PersonaRevealTier;
+}
+
+/** Count a completed draft for every persona seated in the run (idempotence is the caller's job — call exactly once, when the draft completes). */
+export function recordDraftEncounters(state: Pick<LimitedState, 'personaSeen'>, run: LimitedRun): void {
+  if (run.mode !== 'draft' || !run.draft) return;
+  for (const id of run.draft.personaIds) {
+    if (!id) continue;
+    state.personaSeen[id] = (state.personaSeen[id] ?? 0) + 1;
+  }
 }
 
 export function clampLimitedSeed(seed: number): number {
@@ -109,7 +158,12 @@ export function limitedDuelData(run: LimitedRun): LimitedDuelData {
     deckOverride: [...run.deck],
     oppDeckOverride: [...(run.opponentDecks[run.matchIndex] ?? run.opponentDecks[0] ?? [])],
     seedOverride: limitedMatchSeed(run),
-    limited: { runId: run.id, mode: run.mode, matchIndex: run.matchIndex },
+    limited: {
+      runId: run.id,
+      mode: run.mode,
+      matchIndex: run.matchIndex,
+      opponentPersonaId: run.mode === 'draft' ? run.draft?.personaIds[run.matchIndex + 1] : undefined,
+    },
   };
 }
 
@@ -162,7 +216,12 @@ export function startSealedRun(db: CardDb, seed: number, now: number): LimitedRu
   };
 }
 
-export function startDraftRun(db: CardDb, seed: number, now: number): LimitedRun {
+export function startDraftRun(
+  db: CardDb,
+  seed: number,
+  now: number,
+  options: { premium?: boolean } = {},
+): LimitedRun {
   const runSeed = clampLimitedSeed(seed);
   return {
     id: limitedRunId('draft', runSeed, now),
@@ -177,44 +236,74 @@ export function startDraftRun(db: CardDb, seed: number, now: number): LimitedRun
     matchIndex: 0,
     opponentSeeds: [0, 1, 2].map((i) => clampLimitedSeed((runSeed ^ Math.imul(i + 11, 0x27d4eb2d)) >>> 0)),
     opponentDecks: [],
-    draft: startBotDraft(db, runSeed),
+    ...(options.premium ? { premium: true } : {}),
+    draft: startBotDraft(db, runSeed, options),
   };
 }
 
-export function startBotDraft(db: CardDb, seed: number): DraftState {
-  const rng = createRngState(clampLimitedSeed(seed));
+export function startBotDraft(db: CardDb, seed: number, options: { premium?: boolean } = {}): DraftState {
+  const runSeed = clampLimitedSeed(seed);
+  const rng = createRngState(runSeed);
   const packs: string[][][] = [];
+  const packVariants: CardVariant[][][] = [];
   for (let pack = 0; pack < DRAFT_PACKS; pack++) {
     const round: string[][] = [];
-    for (let seat = 0; seat < DRAFT_SEATS; seat++) round.push(rollLimitedPackWithRng(db, rng));
+    const roundVariants: CardVariant[][] = [];
+    for (let seat = 0; seat < DRAFT_SEATS; seat++) {
+      if (options.premium) {
+        const rolled = rollPremiumLimitedPackWithRng(db, rng);
+        round.push(rolled.cards);
+        roundVariants.push(rolled.variants);
+      } else {
+        round.push(rollLimitedPackWithRng(db, rng));
+      }
+    }
     packs.push(round);
+    if (options.premium) packVariants.push(roundVariants);
   }
   return {
-    seed: clampLimitedSeed(seed),
+    seed: runSeed,
+    personaIds: assignDraftPersonas(
+      runSeed,
+      DRAFT_PERSONAS.map((persona) => persona.id),
+    ),
     packIndex: 0,
     pickIndex: 0,
     packs,
     currentPacks: packs[0].map((pack) => [...pack]),
     picks: Array.from({ length: DRAFT_SEATS }, () => []),
+    ...(options.premium
+      ? {
+          packVariants,
+          currentPackVariants: packVariants[0].map((variants) => variants.map(copyVariant)),
+          pickVariants: [],
+        }
+      : {}),
     completed: false,
   };
 }
 
-export function pickDraftCard(db: CardDb, state: DraftState, cardId: string): DraftState {
+export function pickDraftCard(db: CardDb, state: DraftState, cardId: string, cardIndex?: number): DraftState {
   if (state.completed) return state;
   const playerPack = state.currentPacks[0] ?? [];
   if (!playerPack.includes(cardId)) throw new Error(`Draft pack does not contain ${cardId}`);
 
   const picks = state.picks.map((seat) => [...seat]);
   const currentPacks = state.currentPacks.map((pack) => [...pack]);
-  removeOne(currentPacks[0], cardId);
+  const currentPackVariants = state.currentPackVariants?.map((variants) => variants.map(copyVariant));
+  const pickedVariant = removeDraftSlot(currentPacks[0], currentPackVariants?.[0], cardId, cardIndex);
+  const pickVariants = state.pickVariants?.map(copyVariant);
   picks[0].push(cardId);
+  if (pickVariants && pickedVariant) pickVariants.push(pickedVariant);
 
   for (let seat = 1; seat < DRAFT_SEATS; seat++) {
     const pack = currentPacks[seat];
     if (pack.length === 0) continue;
-    const chosen = chooseBotDraftPick(db, pack, picks[seat]);
-    removeOne(pack, chosen);
+    const profile = draftPersonaById(state.personaIds[seat] ?? '')?.picker ?? DEFAULT_PICKER;
+    const chosen = chooseBotDraftPick(db, pack, picks[seat], profile, (cardId) =>
+      pickNoise(state.seed, seat, state.packIndex, state.pickIndex, cardId),
+    );
+    removeDraftSlot(pack, currentPackVariants?.[seat], chosen);
     picks[seat].push(chosen);
   }
 
@@ -222,7 +311,15 @@ export function pickDraftCard(db: CardDb, state: DraftState, cardId: string): Dr
   if (nextPickIndex >= ECONOMY.limitedPackSize) {
     const nextPackIndex = state.packIndex + 1;
     if (nextPackIndex >= DRAFT_PACKS) {
-      return { ...state, picks, currentPacks: Array.from({ length: DRAFT_SEATS }, () => []), completed: true };
+      return {
+        ...state,
+        picks,
+        currentPacks: Array.from({ length: DRAFT_SEATS }, () => []),
+        ...(currentPackVariants
+          ? { currentPackVariants: Array.from({ length: DRAFT_SEATS }, () => [] as CardVariant[]), pickVariants }
+          : {}),
+        completed: true,
+      };
     }
     return {
       ...state,
@@ -230,6 +327,12 @@ export function pickDraftCard(db: CardDb, state: DraftState, cardId: string): Dr
       pickIndex: 0,
       picks,
       currentPacks: state.packs[nextPackIndex].map((pack) => [...pack]),
+      ...(currentPackVariants
+        ? {
+            currentPackVariants: state.packVariants![nextPackIndex].map((variants) => variants.map(copyVariant)),
+            pickVariants,
+          }
+        : {}),
     };
   }
 
@@ -238,7 +341,21 @@ export function pickDraftCard(db: CardDb, state: DraftState, cardId: string): Dr
     pickIndex: nextPickIndex,
     picks,
     currentPacks: passDraftPacks(currentPacks, draftDirection(state.packIndex)),
+    ...(currentPackVariants
+      ? {
+          currentPackVariants: passDraftPacks(currentPackVariants, draftDirection(state.packIndex)),
+          pickVariants,
+        }
+      : {}),
   };
+}
+
+/** Grant the 45 human-picked premium cards exactly while the draft->build once-guard is open. */
+export function grantPremiumDraftPool(save: SaveData, db: CardDb, run: LimitedRun): AddResult[] {
+  if (!run.premium || run.mode !== 'draft' || run.status !== 'draft' || !run.draft?.completed) return [];
+  return run.draft.picks[0].map((id, index) =>
+    addCard(save, db, id, run.draft!.pickVariants?.[index] ?? PLAIN_VARIANT),
+  );
 }
 
 export function completeDraftRun(db: CardDb, run: LimitedRun): LimitedRun {
@@ -305,14 +422,48 @@ function rollLimitedPackWithRng(db: CardDb, rng: RngState, set?: CardDef['set'])
   return cards.sort((a, b) => TIER_RANK[def(db, a).rarity] - TIER_RANK[def(db, b).rarity] || compareCardNames(db, a, b));
 }
 
-function chooseBotDraftPick(db: CardDb, pack: readonly string[], picks: readonly string[]): string {
+function rollPremiumLimitedPackWithRng(
+  db: CardDb,
+  rng: RngState,
+  set?: CardDef['set'],
+): { cards: string[]; variants: CardVariant[] } {
+  const slots: { cardId: string; variant: CardVariant }[] = [];
+  for (let i = 0; i < ECONOMY.limitedPackSize; i++) {
+    let tier = rollTier(rng);
+    let pool = packPool(db, tier, set);
+    while (pool.length === 0) {
+      const down = LIMITED_TIER_FALLBACK[tier];
+      if (down === null) throw new Error('limited booster pool is empty at every tier');
+      tier = down;
+      pool = packPool(db, tier, set);
+    }
+    const cardId = pool[rngInt(rng, pool.length)];
+    slots.push({ cardId, variant: { frame: rollFrame(rng), holo: rollHolo(rng) } });
+  }
+  slots.sort(
+    (a, b) =>
+      TIER_RANK[def(db, a.cardId).rarity] - TIER_RANK[def(db, b.cardId).rarity] ||
+      compareCardNames(db, a.cardId, b.cardId),
+  );
+  return { cards: slots.map((slot) => slot.cardId), variants: slots.map((slot) => slot.variant) };
+}
+
+function chooseBotDraftPick(
+  db: CardDb,
+  pack: readonly string[],
+  picks: readonly string[],
+  profile: PickerProfile,
+  noiseForCard: (cardId: string) => number,
+): string {
   return [...pack].sort(
-    (a, b) => scoreDraftCard(db, b, picks) - scoreDraftCard(db, a, picks) || compareCardNames(db, a, b),
+    (a, b) =>
+      scorePick(db, b, picks, profile, noiseForCard(b)) -
+        scorePick(db, a, picks, profile, noiseForCard(a)) || compareCardNames(db, a, b),
   )[0];
 }
 
-function passDraftPacks(packs: string[][], direction: 'left' | 'right'): string[][] {
-  const out = Array.from({ length: DRAFT_SEATS }, () => [] as string[]);
+function passDraftPacks<T>(packs: T[][], direction: 'left' | 'right'): T[][] {
+  const out = Array.from({ length: DRAFT_SEATS }, () => [] as T[]);
   for (let seat = 0; seat < DRAFT_SEATS; seat++) {
     const target = direction === 'left' ? (seat + 1) % DRAFT_SEATS : (seat + DRAFT_SEATS - 1) % DRAFT_SEATS;
     out[target] = packs[seat];
@@ -320,59 +471,30 @@ function passDraftPacks(packs: string[][], direction: 'left' | 'right'): string[
   return out;
 }
 
-function removeOne(cards: string[], cardId: string): void {
-  const i = cards.indexOf(cardId);
+function removeDraftSlot(
+  cards: string[],
+  variants: CardVariant[] | undefined,
+  cardId: string,
+  requestedIndex?: number,
+): CardVariant | undefined {
+  const i = requestedIndex !== undefined && cards[requestedIndex] === cardId ? requestedIndex : cards.indexOf(cardId);
   if (i < 0) throw new Error(`Missing card ${cardId}`);
   cards.splice(i, 1);
+  return variants?.splice(i, 1)[0];
 }
 
-function scoreDraftCard(db: CardDb, id: string, picks: readonly string[]): number {
-  const d = def(db, id);
-  let score = scoreBaseCard(d);
-  const committed = committedColors(db, picks);
-  if (picks.length >= 5 && d.colors.length > 0) {
-    const overlap = d.colors.filter((c) => committed.includes(c)).length;
-    if (overlap === d.colors.length) score += 5;
-    else if (overlap > 0) score += 1;
-    else score -= 7;
-  }
-  if (isType(d, 'land') && !isBasic(db, id)) {
-    const mana = d.manaAbility ?? [];
-    score += mana.some((c) => committed.includes(c)) ? 4 : 1;
-  }
-  return score;
+function copyVariant(variant: CardVariant): CardVariant {
+  return { frame: variant.frame, holo: variant.holo };
 }
 
 function scoreDeckCard(db: CardDb, id: string, colors: readonly Color[]): number {
   const d = def(db, id);
-  let score = scoreBaseCard(d);
+  let score = scoreBasePick(d, DEFAULT_PICKER);
   if (d.colors.length > 0) {
     const onColor = d.colors.every((c) => colors.includes(c));
     const overlap = d.colors.some((c) => colors.includes(c));
     score += onColor ? 7 : overlap ? 1 : -12;
   }
-  return score;
-}
-
-function scoreBaseCard(d: CardDef): number {
-  let score = TIER_RANK[d.rarity] * 4;
-  const mv = manaValue(d.cost);
-  if (isType(d, 'creature')) {
-    score += 5 + (d.attack ?? 0) * 1.2 + (d.defense ?? 0) * 0.8;
-    score += (d.keywords?.length ?? 0) * 1.5;
-  } else if (isType(d, 'charm') || isType(d, 'ritual')) {
-    score += 4;
-  } else if (isType(d, 'enchantment') || isType(d, 'artifact')) {
-    score += 2;
-  }
-  if (d.abilities?.some((a) => a.ops?.some((op) => op.op === 'destroy' || op.op === 'damage' || op.op === 'cancel'))) {
-    score += 5;
-  }
-  if (d.abilities?.some((a) => a.ops?.some((op) => op.op === 'draw' || op.op === 'raise' || op.op === 'reclaim'))) {
-    score += 3;
-  }
-  if (mv >= 2 && mv <= 4) score += 2;
-  if (mv >= 7) score -= 3;
   return score;
 }
 
@@ -388,26 +510,12 @@ function chooseDeckColors(db: CardDb, pool: readonly string[]): Color[] {
   for (const id of pool) {
     const d = def(db, id);
     if (d.token || isType(d, 'land')) continue;
-    for (const color of d.colors) scores.set(color, (scores.get(color) ?? 0) + Math.max(1, scoreBaseCard(d)));
+    for (const color of d.colors) scores.set(color, (scores.get(color) ?? 0) + Math.max(1, scoreBasePick(d, DEFAULT_PICKER)));
   }
   const ranked = COLOR_ORDER.filter((c) => (scores.get(c) ?? 0) > 0).sort(
     (a, b) => (scores.get(b) ?? 0) - (scores.get(a) ?? 0) || COLOR_ORDER.indexOf(a) - COLOR_ORDER.indexOf(b),
   );
   return ranked.slice(0, Math.min(2, Math.max(1, ranked.length)));
-}
-
-function committedColors(db: CardDb, picks: readonly string[]): Color[] {
-  if (picks.length === 0) return [];
-  const scores = new Map<Color, number>();
-  for (const color of COLOR_ORDER) scores.set(color, 0);
-  for (const id of picks) {
-    const d = def(db, id);
-    if (d.token || isType(d, 'land')) continue;
-    for (const color of d.colors) scores.set(color, (scores.get(color) ?? 0) + 1 + TIER_RANK[d.rarity]);
-  }
-  return COLOR_ORDER.filter((c) => (scores.get(c) ?? 0) > 0)
-    .sort((a, b) => (scores.get(b) ?? 0) - (scores.get(a) ?? 0) || COLOR_ORDER.indexOf(a) - COLOR_ORDER.indexOf(b))
-    .slice(0, 2);
 }
 
 function isPlayableSpell(db: CardDb, id: string): boolean {

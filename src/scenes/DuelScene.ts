@@ -7,6 +7,7 @@ import { ECONOMY, RULES } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
 import { avatarById, avatarForRung, type Avatar } from '../data/opponents';
+import { draftPersonaById, type DraftPersona } from '../data/draftPersonas';
 import { heroById } from '../data/heroes';
 import type { SaveData } from '../meta/SaveManager';
 import { STARTER_DECKS } from '../data/starterDecks';
@@ -19,7 +20,7 @@ import {
 } from '../meta/Economy';
 import { ownedVariantEntries } from '../meta/collectionFilter';
 import { rungSeed } from '../meta/gauntletSeed';
-import { LIMITED_MATCHES, limitedDuelData, type LimitedDuelData } from '../meta/Limited';
+import { LIMITED_MATCHES, limitedDuelData, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
 import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
 import { Services } from '../meta/services';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
@@ -283,6 +284,13 @@ export class DuelScene extends Phaser.Scene {
    */
   private tutorial = false;
   private limited: LimitedDuelData['limited'] | null = null;
+  /**
+   * Draft-mode Limited matches are played against the persona seated at
+   * `matchIndex + 1` of the bot draft. Like the gauntlet `opponent`, it only
+   * skins identity (name/portrait) and Personality knobs onto the brain the
+   * difficulty ladder picks — never the deck (that's `oppDeckOverride`).
+   */
+  private limitedPersona: DraftPersona | null = null;
   private coach: CoachMark | null = null;
   /**
    * Hard-constrains input to the one control the current coach mark points at:
@@ -369,6 +377,9 @@ export class DuelScene extends Phaser.Scene {
     this.difficulty = this.opponent?.difficulty ?? data.difficulty ?? 'easy';
     this.tutorial = data.tutorial ?? false;
     this.limited = data.limited ?? null;
+    this.limitedPersona = this.limited?.opponentPersonaId
+      ? draftPersonaById(this.limited.opponentPersonaId)
+      : null;
     this.tutGoalShown = false;
     this.tutSicknessShown = false;
     this.tutBlocked = false;
@@ -481,9 +492,12 @@ export class DuelScene extends Phaser.Scene {
     const defaultHero = !deckHero && save.heroCardId && CARD_DB[save.heroCardId] ? save.heroCardId : null;
     this.myHeroTextureKey = deckHero ? null : this.resolveHeroPortrait(save);
     this.myFaceCardId = deckHero ?? defaultHero ?? faceCardFor(myDeck, CARD_DB);
-    this.oppFaceCardId = this.opponent?.portraitCardId ?? faceCardFor(aiDeck, CARD_DB);
+    this.oppFaceCardId =
+      this.opponent?.portraitCardId ?? this.limitedPersona?.portraitCardId ?? faceCardFor(aiDeck, CARD_DB);
     this.duel = new Game({ decks: [myDeck, aiDeck], seed, db: CARD_DB });
-    this.ai = data.aiOverride ?? buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality);
+    this.ai =
+      data.aiOverride ??
+      buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality ?? this.limitedPersona?.personality);
 
     this.buildHud();
     this.bindHotkeys();
@@ -826,9 +840,13 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private matchupLabel(): string {
-    return this.opponent
-      ? `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`
-      : `Practice · vs ${this.difficulty} AI`;
+    if (this.opponent) {
+      return `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`;
+    }
+    if (this.limited && this.limitedPersona) {
+      return `Draft · Match ${this.limited.matchIndex + 1}/${LIMITED_MATCHES} · vs ${this.limitedPersona.name}`;
+    }
+    return `Practice · vs ${this.difficulty} AI`;
   }
 
   private addLifeBadgePlate(x: number, y: number): void {
@@ -887,7 +905,7 @@ export class DuelScene extends Phaser.Scene {
       height: LAYOUT.oppPortrait.h,
       edge: 'top',
       cardId: this.oppFaceCardId,
-      label: this.opponent?.name ?? `${this.difficulty} AI`,
+      label: this.opponent?.name ?? this.limitedPersona?.name ?? `${this.difficulty} AI`,
     });
     this.addLifeBadgePlate(LAYOUT.myLife.x, LAYOUT.myLife.y);
     this.addLifeBadgePlate(LAYOUT.oppLife.x, LAYOUT.oppLife.y);
@@ -1973,7 +1991,7 @@ export class DuelScene extends Phaser.Scene {
       this.tweens.killTweensOf(this.turnBanner);
       this.turnBanner.destroy();
     }
-    const who = isYou ? 'Your Turn' : `${this.opponent?.name ?? 'Opponent'}'s Turn`;
+    const who = isYou ? 'Your Turn' : `${this.opponent?.name ?? this.limitedPersona?.name ?? 'Opponent'}'s Turn`;
     const accent = isYou ? theme.colors.gold : theme.colors.body;
     const bannerY = 74;
     const banner = this.add.container(BOARD_CENTER_X, bannerY).setDepth(theme.depth.banner).setAlpha(0);
@@ -4000,6 +4018,25 @@ export class DuelScene extends Phaser.Scene {
         )
         .setOrigin(0.5),
     );
+
+    // Name the persona waiting in the next draft match so the run reads like a
+    // table of opponents, not a difficulty ladder. Their theme (title) is
+    // familiarity-gated — below reveal tier 3 the player only knows the name.
+    const nextRun = reward.runOver ? null : save.limited.activeRun;
+    const nextPersona = nextRun ? draftPersonaById(limitedDuelData(nextRun).limited.opponentPersonaId ?? '') : null;
+    if (nextPersona) {
+      const knowsTheme = personaRevealTier(save.limited, nextPersona.id) >= 3;
+      c.add(
+        this.add
+          .text(640, 414, knowsTheme ? `Next: ${nextPersona.name}, ${nextPersona.title}` : `Next: ${nextPersona.name}`, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            color: theme.colors.body,
+            resolution: 2,
+          })
+          .setOrigin(0.5),
+      );
+    }
 
     const mk = (x: number, label: string, variant: 'primary' | 'ghost', cb: () => void): void => {
       const btn = themedButton(this, x, 456, label, {

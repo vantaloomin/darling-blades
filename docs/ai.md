@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-12
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-14
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -249,3 +249,40 @@ and difficulty round-robin matrices, and the dated baseline (all guidance bands
 green as of 2026-07-02) lives in a comment block in `src/data/opponents.ts` —
 re-measure and refresh it after any change to decks, personalities, starters,
 or brains.
+
+## Draft personas (Limited Bot Draft)
+
+The Bot Draft's seven bot seats are **draft personas** (shipped 2026-07-14) —
+20 grounded drafters in `src/data/draftPersonas.ts` (Tiffany the Rare-Chaser,
+Kevin the Wall Architect, Cody the Chaos Drafter, …), each a pure-data pairing
+of:
+
+- a **`PickerProfile`** (`src/meta/draftPicker.ts`) — tunable knobs over one
+  parameterized pick scorer (`scorePick`/`scoreBasePick`): rarity/color-loyalty/
+  curve/removal/keyword/subtype/legend weights, forced colors, big-stuff and
+  bargain biases, and a `chaos` dial whose noise is a **pure hash** of
+  `(draft seed, seat, pack, pick, cardId)` — no RNG state, fully deterministic.
+  The frozen `DEFAULT_PICKER` reproduces the pre-persona draft heuristic
+  **bit-for-bit** (same discipline as `DEFAULT_PERSONALITY`; lockstep specs in
+  `tests/meta/limited.test.ts` pin both the live bot-pick path across 20 full
+  drafts and the base score over every card in `CARD_DB`, which also guards the
+  shared limited auto-build path).
+- a **`Personality`** spread — the persona you drafted against pilots your
+  post-draft matches: `limitedDuelData` carries the seat's persona id, and
+  DuelScene skins its name/portrait onto the duel and passes its Personality
+  into `buildAI` (deck comes from the seat's actual drafted pool; difficulty
+  stays the match ladder easy→medium→hard).
+
+Seat assignment is a seeded shuffle (`assignDraftPersonas`) stored in
+`DraftState.personaIds` (SaveData v16), so a run's table is reproducible from
+its seed. Persona identities are **familiarity-gated** (SaveData v17):
+`limited.personaSeen` counts completed drafts per seated persona, and
+`personaRevealTier` unlocks the identity card in four steps — name+portrait,
+color habits (`DraftPersona.colorHint`), theme (title), full profile — so
+players learn the table by drafting against it rather than reading it. Roster edits are guarded: unknown persona ids fall back to
+`DEFAULT_PICKER`, and the roster must never shrink below 7 unique ids (the
+save-migration path would otherwise throw and reset saves — tests pin the
+floor). Personas are draft-table opponents, not gauntlet avatars: they carry no
+decks and no balance bands of their own, and pick *style* is deliberately not
+pick *strength* — the Rare-Chaser drafts worse decks than the Curve
+Perfectionist by design.

@@ -96,6 +96,15 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         },
       )
       .setOrigin(0.5);
+    if (run.premium) {
+      this.add
+        .text(640, 99, 'Your 45 drafted cards were added to your collection.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0.5);
+    }
     this.drawPool(run);
     this.drawDeck(run);
     this.drawInspector(run);

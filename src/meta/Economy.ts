@@ -172,6 +172,7 @@ export function applyLimitedMatchResult(
       deckStyle,
       completedAt: now,
       rewardGold,
+      ...(run.premium ? { premium: true } : {}),
     });
     save.limited.history = save.limited.history.slice(0, 20);
     save.limited.activeRun = null;
@@ -187,6 +188,11 @@ export function spendGold(save: SaveData, amount: number): boolean {
   if (save.gold < amount) return false;
   save.gold -= amount;
   return true;
+}
+
+/** Pay the fixed Premium Draft entry fee, with no mutation when unaffordable. */
+export function payPremiumDraftEntry(save: SaveData): boolean {
+  return spendGold(save, ECONOMY.premiumDraftEntry);
 }
 
 export function todayString(now = new Date()): string {
@@ -206,6 +212,37 @@ export function grantDeckCards(save: SaveData, db: CardDb, cards: readonly strin
     const have = save.collection[id] ?? 0;
     for (let i = have; i < n; i++) addCard(save, db, id, PLAIN_VARIANT);
   }
+}
+
+export interface DeckGrantPreview {
+  /** Copy total of the deck's non-basic cards (the grant denominator). */
+  nonBasicCopies: number;
+  /** Copies of that requirement already in the collection (capped per card at the deck's count). */
+  ownedCopies: number;
+  /** Plain copies grantDeckCards would actually add. */
+  grantedCopies: number;
+}
+
+/**
+ * Read-only mirror of grantDeckCards: what WOULD buying this deck add to the
+ * collection? The shop's deck preview shows this before the purchase — keep
+ * the walk in lockstep with grantDeckCards (same basic-skip, same top-up cap).
+ */
+export function previewDeckGrant(
+  save: SaveData,
+  db: CardDb,
+  cards: readonly string[],
+): DeckGrantPreview {
+  const counts = new Map<string, number>();
+  for (const id of cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+  let nonBasicCopies = 0;
+  let ownedCopies = 0;
+  for (const [id, n] of counts) {
+    if (def(db, id).supertypes?.includes('basic')) continue;
+    nonBasicCopies += n;
+    ownedCopies += Math.min(save.collection[id] ?? 0, n);
+  }
+  return { nonBasicCopies, ownedCopies, grantedCopies: nonBasicCopies - ownedCopies };
 }
 
 /**

@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-12 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-14 · design/plan doc — re-verify when the referenced code changes -->
 
 # Post-launch (v1.1) — deferred backlog
 
@@ -10,6 +10,13 @@
 > disjoint — and scheduled**; **Feature 5 (Limited) releases with the Celtic
 > Fae expansion in 1.1**. Feature 2 (drag-reorder) remains unscheduled. The
 > detailed analyses below stay authoritative for implementation.
+>
+> **Re-scope (user decisions 2026-07-14):** **Feature 1 (opponent picker) →
+> 1.2**; **Feature 3 (daily tower rotation) → 1.3**; **Sealed is CANCELLED
+> outright** (Feature 5's draft half shipped 2026-07-14 as the persona
+> Free/Premium Draft, public via the Play submenu; only the economy tuning
+> remains in 1.1). Commander — renamed **"Darlings"** — moves to 1.5 and
+> MOD/UGC to 2.0 (see plan-1.1.md's re-scope note).
 
 The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md), and as
 of 2026-07-08 all five of its features are shipped (tutorial, achievements,
@@ -290,6 +297,14 @@ answered — it changes both the balance surface and the SaveData shape.
 
 ## Feature 4 — "Base Set includes expansion" set semantics
 
+> **✅ Shipped (2026-07-14).** Option 2 below — decided 2026-07-10, placed
+> into 1.1 by the 2026-07-14 handoff — is implemented: the `'base'` facet's
+> display text is **"Core Set"** in the Collection filter dropdown
+> (`src/ui/binder/FilterBar.ts`), the deck-builder pool filter
+> (`src/scenes/DeckBuilderScene.ts`), and the Shop booster SKU
+> (`src/scenes/ShopScene.ts`). Copy-only: the `CardDef.set` id `'base'`,
+> pack pools, collection math, achievements, and saves are untouched.
+
 **Why deferred.** This one is a **product/data decision** first and a small code
 change second. Base and Ragnarök are currently modeled as strictly disjoint sets
 — in the collection filter *and* in the pack pools — so "should Base include the
@@ -382,16 +397,57 @@ an afternoon.
 its MainMenu entry, leaving everything else in place. It ships in its own
 post-1.0 release alongside a future expansion, after more testing.
 
+> **Update 2 (2026-07-14, later the same day):** the user directed a **"Play"
+> submenu** (MainMenu's Gauntlet + Practice rows moved into a new `PlayScene`,
+> plus a **Draft** entry) — so **the Bot Draft is now publicly reachable**,
+> superseding the PR #54 hide for the draft half. Sealed was removed from
+> the hub UI entirely (follow-up decision the same day; the hub is retitled
+> "Draft" — Sealed's meta core, LimitedRevealScene, and tests remain in the
+> codebase, unoffered). The balance/economy blocker below is therefore now
+> player-facing: FREE draft runs cost nothing to enter and pay
+> `limitedRunGold` [40/100/180/300] on completion — tune it soon.
+>
+> **Update 3 (2026-07-14): Premium Draft shipped** — 1,000g entry
+> (`ECONOMY.premiumDraftEntry`), packs roll frame/holo variants, and the
+> player keeps all 45 picks (granted via `Collection.addCard` at draft
+> completion; SaveData v18). Economy note for the tuning pass: 1,000g for
+> ~45 kept cards + the same run gold undercuts three 450g boosters (27
+> rolls) — priced by user direction, revisit alongside `limitedRunGold`.
+>
+> **Update 4 (2026-07-14, placements locked via handoff):** **Set choice is
+> decided — mixed-set packs are the intentional, shipped answer**: limited
+> packs draw from all three sets because `rollLimitedPackWithRng` calls
+> `packPool(db, tier, set)` with `set` undefined (no filter). Single-set
+> draft selection is shelved **unscheduled** ("someday"), not open. The
+> reserved **Limited run-history achievement goals** (first draft completed,
+> 3-0 a run, premium keeps, …) are **scheduled to 1.2**, landing alongside
+> the practice opponent picker.
+>
+> **Update (2026-07-14):** the Bot Draft half was **re-implemented around 20
+> AI draft personas** — named drafters with data-driven pick styles
+> (`src/data/draftPersonas.ts` + `src/meta/draftPicker.ts`), a seeded seat
+> table persisted in `DraftState.personaIds` (**SaveData v15 → v16** with
+> migration + tests), persona identity carried into the three matches
+> (DuelScene name/portrait/Personality), and a **full themed rebuild of
+> `LimitedDraftScene`** (seat table with portrait discs and identity popups,
+> card-thumbnail pack grid with inspect, picks panel with color/curve
+> readout). The draft-flow-polish blocker below is addressed; balance/economy
+> and a Sealed-flow polish pass remain.
+
 ### Blockers to re-enable
 
 - **Balance/economy.** Auto-built limited decks' balance texture has never been
   tuned with play data — run the balance harness against limited pools and
   revisit `ECONOMY.limitedRunGold` ([40, 100, 180, 300]) against the retuned
   9-card/450g constructed economy (the progression-sim harness from PR #35 can
-  model the inflow).
-- **General polish.** The Limited flow (reveal, draft picker, 40-card builder,
-  three-match run) predates the 2026-07-10 UI-refresh theme system's duel-board
-  rebuild; it needs a flow-polish pass to match the refreshed game.
+  model the inflow). Note: persona pick *style* intentionally varies deck
+  strength (the Rare-Chaser drafts worse decks than the Curve Perfectionist),
+  so measure against the persona-drafted opponent pools, not a single
+  heuristic.
+- **General polish.** ~~The Limited flow predates the 2026-07-10 UI-refresh
+  theme system~~ — the **draft** flow was rebuilt on the theme system
+  2026-07-14 (persona re-implementation). What remains: the Sealed reveal,
+  the 40-card builder, and the run hub still want the same treatment.
 
 ### Re-enable mechanics
 

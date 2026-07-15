@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-13 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-14 · review monthly -->
 
 # Roadmap
 
@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **620 tests green** (+3 skipped balance-tool assertions) across 62 files
+- **698 tests green** (+3 skipped balance-tool assertions) across 68 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -57,6 +57,127 @@ _Dated 2026-07-04. Review monthly._
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images — see Recently shipped). By-ear tuning remains
   open (see Planned).
+
+## Recently shipped (2026-07-14)
+
+- **Shop deck-preview overhaul** (user-directed; design consult by
+  gpt-5.6-sol run unled, its items 1–6 shipped). The precon preview modal is
+  now a buying aid rather than a name manifest: an **honest decision footer**
+  (price · balance · post-purchase balance or exact shortfall; Buy disabled
+  when unaffordable and the modal only closes on a successful purchase; the
+  free-starter claim states its consequence — "the other starters cost 🪙 350
+  once you claim it"), **full card names** (the old `split(',')` chopped
+  every subtitle — 32 of 99 rows were wrong; long names shrink-to-fit, never
+  truncate) in aligned count/name/mana-value columns on hoverable row bands,
+  an authored **"How it plays"** paragraph per deck (`DECK_INFO`, which also
+  drives the deck-row blurbs), a **mana curve + composition + color totals**
+  block reusing `computeDeckStats` with the real baked mana-bead icons
+  (color identity in the header renders as beads too, not letters), a
+  **"What you get" grant preview** (`previewDeckGrant` in `src/meta/Economy.ts`,
+  a read-only mirror of `grantDeckCards` with a lockstep test — says exactly
+  how many new copies a purchase adds given your collection), and **tap-any-
+  row card inspect** (full `CardView` layered above the preview; ←/→ steps
+  the list, Esc closes top-most only — inspect first, then the preview; the
+  footer buttons also moved onto the shell's footer track, fixing a 2px
+  overhang). Probed live end-to-end on :5174 (free-claim/unaffordable/
+  affordable/owned footers, disabled-Buy inert, buy-from-preview and
+  claim-from-preview both land and re-render the rows, keyboard stepping,
+  save restored byte-exact, zero console errors). Parked from the consult:
+  a signature-card visual, prev/next deck paging, list paging policy, and
+  the full modal-contract migration (ModalGuard/coordinator).
+
+- **Base facet relabeled "Core Set"** (plan-1.1 Pillar 5.2; placed into 1.1
+  by the 2026-07-14 handoff). The `'base'` set facet's display text is now
+  **Core Set** in the Collection filter dropdown, the deck-builder pool
+  filter, and the Shop booster SKU — so the label can't read as "all cards"
+  now that three sets exist. Copy-only per the locked 2026-07-10 decision
+  (plan-v1.1-post-launch Feature 4 option 2): the `CardDef.set` id `'base'`,
+  pack pools, collection math, achievement definitions, and saves are all
+  untouched. Recorded in the same pass: **mixed-set packs are the decided
+  Limited set choice** (packs intentionally draw from all three sets;
+  single-set drafts shelved unscheduled) and **Limited run-history
+  achievement goals are scheduled to 1.2** with the opponent picker.
+
+- **Limited Draft re-implementation — 20 AI draft personas** (still
+  menu-hidden). The Bot Draft's seven bot seats are now **named characters**:
+  a 20-persona roster (`src/data/draftPersonas.ts` — grounded millennial
+  first names, 10f/10m; male portraits use non-character card art per the
+  portrait rule) where each persona pairs a **`PickerProfile`** draft style
+  (`src/meta/draftPicker.ts` — one parameterized scorer; frozen
+  `DEFAULT_PICKER` reproduces the old heuristic bit-for-bit, lockstep-tested
+  on the live pick path across 20 full drafts AND per-card over the whole
+  `CARD_DB`, which also pins the shared auto-build scoring) with a duel
+  **`Personality`** spread. Rare-chaser, swarm drafter, tribal loyalist,
+  mono-forcer, chaos drafter (pure-hash noise — determinism holds), curve
+  perfectionist, and 14 more. Seats are a seeded shuffle stored in
+  `DraftState.personaIds` — **`SaveData` bumped v15 → v16** with migration +
+  tests. The personas seated at 1–3 **pilot your three matches**: DuelScene
+  wears their name/portrait/Personality (deck = their actual drafted pool;
+  difficulty stays the easy→medium→hard ladder), the results screen names
+  who's next, and the hub shows "Match 2/3 · vs Kyle".
+  `LimitedDraftScene` was **fully rebuilt** on the theme system: an 8-seat
+  table strip with portrait discs + tap-for-identity-card popups, the pack as
+  real card thumbnails (select / right-click / long-press inspect; **inspect
+  hotkeys**: ←/→ browse the pack, Space/Enter selects then — pressed again —
+  picks), and a picks panel with live color/curve readouts. Polish rounds the
+  same day: the seat row draws **You, 7, 6, … 1** so the engine's pass-left
+  hand-off moves visually left (centered "← PASS LEFT ←" label + real arrow
+  glyphs between seats, direction flipping per pack) and every within-pack
+  pick plays a **pass animation** (pack tokens slide one seat over with an
+  edge-wrap twin; skipped at pack boundaries and on non-full animation
+  settings); the hub renamed the free entry **"Free Draft"**, hides all
+  seed/reroll controls (seeds stay a gauntlet affordance; runs roll hidden
+  seeds), regained its **gold badge**, and aligned all CTA rows on one shared
+  two-column grid; the **inspect modal's right column became a pick-impact
+  panel** (rarity·MV line, pool colors + curve with gold before→after deltas
+  for the inspected card, the shared Keyword Guide when relevant, premium
+  variant/owned-count lines) instead of duplicating the card face — design
+  settled by two independent reviews (Claude + gpt-5.6-sol, consulted unled);
+  and all color readouts use the real baked mana bead icons with the word
+  "pips" removed from player-facing text. **Persona
+  familiarity** (user-directed): identities reveal progressively over
+  completed drafts together — 1st meeting name+portrait, 2nd the color
+  habits (`colorHint`), 3rd the theme, 4th the full profile — tracked in
+  `limited.personaSeen` (**SaveData v16 → v17**, migration + tests;
+  counters tick only when a draft's 45 picks finish, so retire-scumming
+  teaches nothing). **Premium Draft** (user-directed): a second hub entry at
+  **1,000g** (`ECONOMY.premiumDraftEntry`, paid via `spendGold`) whose packs
+  roll **frame + holo variants** from the run seed (Full Art excluded until
+  its booster axis ships) — variants ride slot-aligned parallel arrays
+  through every pass/pick (duplicate-safe via the selected cell index), show
+  as frame-tinted plates + holo pips in the grid and real FX in inspect, and
+  the player **keeps all 45 picks**: granted into the collection through
+  `Collection.addCard` (identical playset/melt rules to pack opening) the
+  moment the draft completes, once-guarded by the draft→build status
+  transition, at all three completion sites. Auto-added basics are never
+  granted; the free draft is bit-identical to before (lockstep-tested) and
+  grants nothing. **SaveData v17 → v18** (premium/variant fields + history
+  flag) with migration + tests. Both modes advance persona familiarity and
+  pay the same run-end gold. Verified: tsc/lint/**673 tests**
+  (+28)/build/doc-checkers green; adversarial review (2 dimensions, majority
+  of candidates refuted; 2 confirmed findings — portrait mask undercoverage
+  and inverted pass chevrons — both fixed and re-probed); a full browser
+  probe of draft → auto-build → match 1 → results with zero console errors
+  and the save restored byte-clean. Visual by-eye pass (portrait crops,
+  45-pick density) still wants human eyes on a live screen.
+
+- **"Play" submenu — and Draft goes public (user-directed 2026-07-14).**
+  MainMenu's four game-mode rows (Avatar Gauntlet + Practice ×3) collapsed
+  into a single **Play** entry opening a new `PlayScene` submenu: Avatar
+  Gauntlet, **Draft**, Practice · Easy/Medium/Hard, Return. Draft routes to
+  the Limited hub, making the persona Bot Draft **publicly reachable for the
+  first time** (supersedes the PR #54 hide); **Sealed was removed from the
+  hub entirely** (follow-up user decision the same day — the hub is retitled
+  "Draft"; Sealed's meta core, reveal scene, and tests stay in the codebase,
+  just unoffered). The MainMenu subtitle ("Three Kingdoms · Olympus · The
+  Wilds") was retired. Gauntlet and
+  the Limited hub's back buttons retarget to Play. Probed live end-to-end
+  (all six rows navigate; back-paths land on Play; save byte-identical;
+  zero console errors). ⚠ Known-open economics: draft runs are free to
+  enter and pay `limitedRunGold` [40/100/180/300] on completion — the
+  run-reward tuning blocker
+  ([plan-v1.1-post-launch.md](plan-v1.1-post-launch.md) Feature 5) is now
+  player-facing rather than hidden, accepted by user direction.
 
 ## Recently shipped (2026-07-12)
 
@@ -823,22 +944,32 @@ _Dated 2026-07-04. Review monthly._
   life squares; execution record in
   [plan-ui-refresh-wave2-wave3-impl.md](plan-ui-refresh-wave2-wave3-impl.md)).
   The Settings toggles closed the last QOL follow-up below.
-- **The 1.1 program (scoped 2026-07-10, post-1.0-cut).**
-  [plan-1.1.md](plan-1.1.md) is the spec. Locked picks: **Celtic Fae** is the
-  next expansion (80 cards; needs new engine surface — an exile zone + scry —
-  before card data), **Limited releases with it**, **Commander mode** and
-  **MOD/UGC packs** are the 1.1 systems, the tower gets a **seeded daily
-  rotation**, and the base facet gets a clarity **relabel** (data stays
-  disjoint). Deterministic replays and Tier-2 LAN PvP shelve to 1.2+.
-- **Limited public release (post-1.0, with a future expansion; now part of
-  the 1.1 program above).** The full
-  Sealed/Bot-Draft implementation (v14 save block, `src/meta/Limited.ts`, four
-  scenes, tests) stays in the codebase but is unreachable from MainMenu
-  (PR #54). User decision 2026-07-10: it ships in its own release after more
-  testing — blockers are Limited balance/economy (auto-build texture via the
-  balance harness, run-reward tuning) and general flow polish. Re-enabling is
-  one MainMenu entry plus a browser-preview probe of both run types
-  end-to-end. Blocker detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
+- **The 1.1 program (scoped 2026-07-10; RE-SCOPED 2026-07-14).**
+  [plan-1.1.md](plan-1.1.md) is the spec — see its re-scope note. The release
+  ladder now reads: **1.1** = Celtic Fae (✅ shipped) + the public persona
+  Draft (✅ shipped 2026-07-14) + the Limited **economy sim/tuning pass**
+  (remaining); **1.2** = practice opponent picker (+ the previously shelved
+  deterministic replays); **1.3** = seeded daily tower rotation (with its
+  balance re-baseline); **1.5** = Commander mode, renamed **"Darlings"**;
+  **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
+  the hub offers only Draft; its dormant code is cleanup-eligible.
+  **Placements locked (2026-07-14 handoff):** the base-facet relabel shipped
+  in 1.1 as **"Core Set"** (see Recently shipped); **mixed-set packs are the
+  decided, shipped Limited set choice** (single-set drafts shelved
+  unscheduled); **Limited run-history achievement goals land in 1.2** with
+  the practice opponent picker.
+- **Limited public release (partially live as of 2026-07-14).**
+  **The Bot Draft half is now public**: re-implemented around 20 AI draft
+  personas and reachable via the Play submenu (user decision 2026-07-14 —
+  see Recently shipped; supersedes the PR #54 hide for draft). **Sealed was
+  removed from the hub UI entirely** (user decision later the same day; the
+  meta core/reveal scene/tests remain in the codebase, unoffered — restoring
+  it is one button plus its polish pass). Remaining blockers, now partially
+  player-facing:
+  Limited balance/economy (auto-build texture via the balance harness,
+  run-reward tuning — draft runs are free to enter and pay
+  `limitedRunGold` on completion) and the Sealed polish pass. Blocker
+  detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program
