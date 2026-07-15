@@ -846,8 +846,8 @@ export class ShopScene extends Phaser.Scene {
     const grant = previewDeckGrant(save, CARD_DB, deck.cards);
     const grantText =
       grant.grantedCopies > 0
-        ? `Adds ${grant.grantedCopies} new card copies to your collection — you already own ${grant.ownedCopies} of its ${grant.nonBasicCopies} non-basic copies. Basics are always free.`
-        : 'Adds no new copies — your collection already has every card this deck runs.';
+        ? `Adds ${grant.grantedCopies} new card copies to your collection; you already own ${grant.ownedCopies} of its ${grant.nonBasicCopies} non-basic copies. Basics are always free.`
+        : 'Adds no new copies: your collection already has every card this deck runs.';
     c.add(
       this.add
         .text(statsX, content.y + 364, grantText, {
@@ -980,7 +980,7 @@ export class ShopScene extends Phaser.Scene {
       ? { text: 'Owned ✓', color: theme.colors.success }
       : freeClaim
         ? {
-            text: `✦ Your one free starter — the other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,
+            text: `✦ Your one free starter. The other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,
             color: theme.colors.gold,
           }
         : affordable
@@ -989,7 +989,7 @@ export class ShopScene extends Phaser.Scene {
               color: theme.colors.body,
             }
           : {
-              text: `Price 🪙 ${price} · Balance 🪙 ${save.gold} — 🪙 ${price - save.gold} short`,
+              text: `Price 🪙 ${price} · Balance 🪙 ${save.gold} · 🪙 ${price - save.gold} short`,
               color: theme.colors.danger,
             };
     c.add(

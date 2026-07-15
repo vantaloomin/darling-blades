@@ -503,7 +503,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.inspectHint
       .setText(
         selected
-          ? 'SELECTED — Space/Enter again to pick it'
+          ? 'SELECTED. Space/Enter again to pick it'
           : '←/→ browse the pack · Space/Enter to select',
       )
       .setColor(selected ? theme.colors.gold : theme.colors.muted);
@@ -981,7 +981,7 @@ function revealHint(tier: PersonaRevealTier): string {
   return tier <= 1
     ? 'A new face at the table. Finish drafts with them to learn how they pick.'
     : tier === 2
-      ? 'Their deeper habits are still a mystery — keep drafting together.'
+      ? 'Their deeper habits are still a mystery; keep drafting together.'
       : 'One more draft together and you will have their full read.';
 }
 

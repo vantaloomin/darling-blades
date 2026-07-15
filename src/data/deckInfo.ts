@@ -15,21 +15,21 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     colors: 'R/W',
     archetype: 'Warband aggro',
     plays:
-      'Flood the board with cheap warband bodies and end the game before slower decks set up — Nike and Ares turn a wide board lethal. Light on answers: if the rush stalls, it runs out of gas.',
+      'Flood the board with cheap warband bodies and end the game before slower decks set up; Nike and Ares turn a wide board lethal. Light on answers: if the rush stalls, it runs out of gas.',
     featured: ['tk-other-lubu', 'gk-ares', 'gk-nike'],
   },
   'starter-wild': {
     colors: 'G/W',
     archetype: 'Beastkin tribal',
     plays:
-      'Curve out with efficient Beastkin and win through big, straightforward combat — Wild Surge ambushes attackers mid-fight. Few tricks beyond the creatures themselves.',
+      'Curve out with efficient Beastkin and win through big, straightforward combat, with Wild Surge to ambush attackers mid-fight. Few tricks beyond the creatures themselves.',
     featured: ['gk-athena', 'bk-packmother', 'in-wild-surge'],
   },
   'starter-tides': {
     colors: 'U/R',
     archetype: 'Wu tempo-burn',
     plays:
-      'Land early evasive threats, then protect the lead — Fire Attack clears blockers while Undertow buys the tempo back. Punishing when ahead, fragile when behind.',
+      'Land early evasive threats, then protect the lead: Fire Attack clears blockers while Undertow buys the tempo back. Punishing when ahead, fragile when behind.',
     featured: ['tk-wu-sunce', 'tk-wu-sunquan', 'in-fire-attack'],
   },
   'starter-mandate': {
@@ -43,7 +43,7 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     colors: 'B/G',
     archetype: 'Underworld attrition',
     plays:
-      'Trade freely — Deathblade blockers make every exchange profitable — then Raise Dead rebuilds your board from the graveyard. Patient, grindy midrange.',
+      'Trade freely (Deathblade blockers make every exchange profitable), then Raise Dead rebuilds your board from the graveyard. Patient, grindy midrange.',
     featured: ['gk-persephone', 'gk-hades', 'so-raise-dead'],
   },
   'theme-ragnarok': {
@@ -57,7 +57,7 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     colors: 'U/B/G',
     archetype: 'Celtic Fae tempo-control',
     plays:
-      'Evasive fae chip in while Foresee smooths your draws and bounce effects hold the board back. Every turn is a tempo decision — the highest-skill deck in the shop.',
+      'Evasive fae chip in while Foresee smooths your draws and bounce effects hold the board back. Every turn is a tempo decision; this is the highest-skill deck in the shop.',
     featured: ['cf-morrigan-black-wing', 'cf-selkie-tide-queen', 'cf-bargain-for-time'],
   },
 };

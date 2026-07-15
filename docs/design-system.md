@@ -431,6 +431,13 @@ not substitutions for interface action/status colors.
   reversibility directly.
 - Flavor can be confident and lightly wry, but operational UI avoids lore
   dumps, faux-archaic prose, and vague corporate labels.
+- **No em-dashes (—) in player-facing prose** (user direction 2026-07-15).
+  Use a period, semicolon, colon, comma, or parentheses instead; stat lines
+  separate segments with the interpunct (·). Exempt: code comments and
+  internal docs, the standalone "—" empty-value placeholder glyph (profile
+  stats, turn label, best-rung readouts), and the card type-line separator
+  ("Creature — Beastkin"), which is typographic structure, not prose. Quote
+  this rule into any agent contract that authors player-facing text.
 - Match established game terms exactly; do not reintroduce superseded MTG
   names in player-facing copy.
 
