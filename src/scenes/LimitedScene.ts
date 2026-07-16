@@ -176,8 +176,11 @@ export class LimitedScene extends Phaser.Scene {
     );
     // Premium-only descriptor, anchored under the Premium column so it can't
     // read as applying to the free entry.
+    // Caption geometry: the panel bottoms out at y+180, so the allowance line
+    // starts at y+112 (a two-line wrap ends ~y+142) and the keep-line at y+152
+    // is kept short enough to stay single-line inside CTA_W.
     this.add
-      .text(x + CTA_COL_RIGHT, y + 114, premiumAllowanceCopy(premiumStatus, runActive, premiumUnaffordable), {
+      .text(x + CTA_COL_RIGHT, y + 112, premiumAllowanceCopy(premiumStatus, runActive, premiumUnaffordable), {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: premiumDisabled ? theme.colors.muted : theme.colors.body,
@@ -186,7 +189,7 @@ export class LimitedScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0);
     this.add
-      .text(x + CTA_COL_RIGHT, y + 150, 'Every card you draft is yours to keep.', {
+      .text(x + CTA_COL_RIGHT, y + 152, 'Every pick is yours to keep.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: premiumDisabled ? theme.colors.muted : theme.colors.body,
@@ -308,7 +311,7 @@ function premiumAllowanceCopy(
   runActive: boolean,
   unaffordable: boolean,
 ): string {
-  if (!status.allowed) return `Weekly limit reached · Resets in ${status.resetsInDays} ${status.resetsInDays === 1 ? 'day' : 'days'}`;
+  if (!status.allowed) return `Weekly limit · Resets in ${status.resetsInDays} ${status.resetsInDays === 1 ? 'day' : 'days'}`;
   if (runActive) return 'Finish active run first';
   if (unaffordable) return `Not enough gold · ${status.remaining} left this week`;
   return `${status.remaining} left this week`;

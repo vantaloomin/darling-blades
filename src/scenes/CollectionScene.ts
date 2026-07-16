@@ -174,7 +174,7 @@ export class CollectionScene extends Phaser.Scene {
       .setOrigin(0.5);
     // Crafting spends gold here, so keep the shared currency badge beside the
     // collection stats and refresh it with the binder view.
-    this.goldBadge = goldBadge(this, DESIGN_W - 28, 30, { flashOnChange: true });
+    this.goldBadge = goldBadge(this, DESIGN_W - 30, 30, { flashOnChange: true });
     this.counterText = this.add
       .text(DESIGN_W - 200, 30, '', {
         fontFamily: theme.fonts.ui,
@@ -612,7 +612,9 @@ export class CollectionScene extends Phaser.Scene {
       let armed = false;
       const label = (): string => (armed ? `Craft: confirm (${costLabel})` : `Craft (${costLabel})`);
       const craftBtn = this.overlayChip(c, panelX, 620, label(), 'emphasis', () => {
-        if (!armed) {
+        // Shared destructive-confirm policy (matches the Shard chip): two-tap
+        // unless the player opted out in Settings.
+        if (save.settings.confirmDestructive && !armed) {
           armed = true;
           craftBtn.setLabel(label());
           craftBtn.setVariant('primary');
