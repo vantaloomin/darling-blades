@@ -60,6 +60,41 @@ _Dated 2026-07-04. Review monthly._
 
 ## Recently shipped (2026-07-15)
 
+- **Economy instrumentation — phases 0–2a of
+  [plan-economy-testing.md](plan-economy-testing.md)** (PRs #78/#80; two
+  concurrent Codex streams for 0/1, orchestrator-built dashboard for 2a).
+  The progression sim now simulates the shipped game (draft-only, the real
+  `scorePick` picker with skill profiles, persona-Personality opponents,
+  Premium Draft through the real entry/grant APIs, shard income, per-rarity
+  acquisition); `src/meta/economyModel.ts` ships the analytic EV surface
+  with four hard CI invariants (computed pack dupe-EV 67.5g at full
+  completion, verifying the ≈68g claim). The eight Phase-2 design decisions
+  are locked in the plan doc (headline: gold ordering Full Gauntlet >>>
+  successful Premium Draft >> Practice >= Free Draft > failed Premium).
+  The full **10 personas × 8 seeds × 60 days baseline** ran with daily
+  snapshots and is live as a filterable data-insights site (private
+  Artifact; generator repeatable via `scripts/econ-dashboard/`). Baseline
+  headlines: Limited Fan reaches **97% collection on 35 premium drafts
+  with 4 boosters ever bought** (first premium: day 3) — premium dominance
+  confirmed in play; casuals land 53–57% (on the ≈50% target); the
+  Hardcore Optimizer reaches 90% (slightly behind the 50–75-day window);
+  harness verdict UNEVEN. Phase 2b (gates) + the tuning pass wait on the
+  user's read of the dashboard.
+
+- **Achievements screen — full UX pass** (PR #79; unled gpt-5.6-sol review,
+  findings audit-verified, Codex-implemented). Rows center one
+  `count · percent` cluster on a single shared rail (the old counter/percent
+  diagonal pair is gone) with a stable `+N Gold` reward column in every
+  state and three distinct row states; the summary bar became a full-width
+  KPI strip with the baked mana beads; header/pager moved onto the
+  title-safe tracks (the pager previously breached the frame and overlapped
+  the last row's Claim hit band by 2px); pagination re-cut 20/20/8 →
+  16/16/16; All/Ready/In Progress/Claimed filters added; Claim All is the
+  lone primary; the unreachable 'Unlocked' branch died.
+  `sceneHeaderFooter` gained a default-on `showCurrency` flag. Live-probed
+  with crafted save states; flagged for eyes: KPI pip optical centering,
+  longest-copy ellipses, claimed-state contrast.
+
 - **Deck-preview wave 2 — modal contract, signature cards, paging** (Sol
   consult items 8–10, user-directed bundle; Codex-implemented under a file
   contract, orchestrator-reviewed + live-probed). The preview and inspect
@@ -917,8 +952,13 @@ _Dated 2026-07-04. Review monthly._
   completion, verifying the ≈68g claim; run/gauntlet/practice/quest EVs;
   the two-axis premium-vs-boosters comparison; 4 hard invariants incl. a
   3,000-pack no-gold-positive sweep and buy-then-shard-negative across
-  all 7 SKUs). Remaining: Phase 2 (full-matrix baseline + gates — needs
-  decision points 1–2) and Phase 3 (optimizer + exploit probes).
+  all 7 SKUs). **Phase 2a also shipped 2026-07-15** (all eight design
+  decisions locked; the full 10×8×60 daily-snapshot baseline ran and is
+  live as a filterable private-Artifact site; generator in
+  `scripts/econ-dashboard/` — see Recently shipped 2026-07-15).
+  Remaining: Phase 2b (CI gates from the locked decisions, after the user
+  reviews the baseline) and Phase 3 (optimizer + exploit probes,
+  unblocked); then the tuning pass itself.
   Three layers: a pure analytic EV suite (`economyModel.ts` — pack/run/
   gauntlet/quest EVs + hard invariants like "no pack sequence is
   gold-positive", always in CI), the progression sim modernized to the
