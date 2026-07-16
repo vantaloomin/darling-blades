@@ -70,6 +70,26 @@ export const ECONOMY = {
   limitedRunGold: [40, 100, 180, 300] as const,
 } as const;
 
+/*
+ * Economy baseline (comments only; constants above are unchanged).
+ * Source: balance/econ-baseline-2026-07-15.report.json.
+ * Sample: 10 personas x 8 seeds x 60 days, baseline 2026-07-15, pre-tuning.
+ * Day-60 aggregate values are seed means; first Premium is the median first
+ * day across the eight seed snapshots and is shown only where derivable.
+ *
+ * Persona              Collection  Packs/day  Premium runs  Quest claim  First Premium
+ * New Casual              57.41%       0.56          0          43.33%          -
+ * Daily Grinder            80.05%       1.59          0          69.86%          -
+ * Gauntlet Climber         77.15%       1.41          0          68.33%          -
+ * Limited Fan              96.81%       0.06      35.38          70.07%          3
+ * Collector                 71.49%       1.04          0          65.97%          -
+ * Theme Deck Buyer          80.27%       0.91          0          60.07%          -
+ * Hardcore Optimizer        89.72%       2.41          0          80.83%          -
+ * Low Skill Casual          52.47%       0.47          0          40.83%          -
+ * High Skill Veteran        85.10%       1.93          0          78.19%          -
+ * Completionist             91.44%       2.29          0          88.54%          -
+ */
+
 /**
  * Multi-axis booster drop tables. Each of a pack's `ECONOMY.boosterPackSize` slots
  * rolls all three axes independently: rarity tier, frame style, holo finish.
