@@ -455,10 +455,10 @@ export const ARTHURIAN_COURT = [
     rarity: 'c', flavor: 'She looses arrows from the gallery and never disturbs the music.',
   }),
   {
-    id: 'ac-silver-spur', name: 'Silver Spur', types: ['artifact'], subtypes: [],
+    id: 'ac-rallying-horn', name: 'Rallying Horn', types: ['artifact'], subtypes: [],
     cost: cost(2), colors: [],
     abilities: [{ when: 'arrives', ops: [{ op: 'boost', p: 1, t: 0, scope: 'allYours' }] }],
-    rarity: 'c', flavor: 'The spur flashes once; every horse remembers the road home.',
+    rarity: 'c', flavor: 'One clear note, and every lance in the valley points the same way.',
   },
   creature('ac-prophecy-attendant', "Prophecy Attendant", ['Attendant', 'Seer'], {
     cost: cost(2, 'U'), colors: ['U'], attack: 1, defense: 3,
