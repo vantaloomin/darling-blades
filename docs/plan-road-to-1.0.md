@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/scenes/AchievementsScene.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/collectionFilter.test.ts, tests/meta/limited.test.ts, tests/meta/deckCode.test.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-12 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, docs/mobile-lan-plan.md, src/engine/rng.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/engine/events.ts, src/meta/SaveManager.ts, src/meta/Achievements.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/scenes/AchievementsScene.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/collectionFilter.test.ts, tests/meta/limited.test.ts, tests/meta/deckCode.test.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/config/rules.ts, src/scenes/, src/ai/personality.ts · last-verified: 2026-07-16 · design/plan doc — re-verify when the referenced code changes -->
 
 # Road to 1.0 — feature plan
 
@@ -281,7 +281,14 @@ from Deck Builder and another player can paste it into their Deck Builder, with
 normal ownership and legality rules enforced on import.
 
 Deterministic replay logs/viewer remain valuable, but they are now explicitly
-deferred to 1.1/1.2 instead of gating 1.0.
+deferred to 1.1/1.2 instead of gating 1.0. **The deferred slice SHIPPED
+2026-07-16 in the 1.2 build** essentially as sketched below: `src/meta/Replay.ts`
+records every non-tutorial duel into `SaveData.replays` (**v19 → v20**, a
+last-10 newest-first reel), a card-db content stamp answers the dbVersion
+question as hard-refuse (with a documented `REPLAY_LOG_VERSION` discipline
+for engine-code drift), the golden-replay test pins byte-identical re-runs,
+and the viewer is a Profile reel + a locked-input DuelScene playback mode.
+See roadmap Recently shipped (2026-07-16 · the 1.2 build).
 
 ### Design
 

@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/plan-v1.1-post-launch.md, docs/plan-commander-mode.md, docs/plan-mod-ugc.md, docs/expansions/celtic-fae.md, docs/art-pipeline.md, src/meta/Limited.ts, src/meta/SaveManager.ts, src/data/opponents.ts, src/meta/gauntletSeed.ts, src/meta/collectionFilter.ts, src/engine/types.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-07-12 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/plan-v1.1-post-launch.md, docs/plan-commander-mode.md, docs/plan-mod-ugc.md, docs/expansions/celtic-fae.md, docs/art-pipeline.md, src/meta/Limited.ts, src/meta/SaveManager.ts, src/data/opponents.ts, src/meta/gauntletSeed.ts, src/meta/collectionFilter.ts, src/engine/types.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-07-16 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.1 — program plan
 

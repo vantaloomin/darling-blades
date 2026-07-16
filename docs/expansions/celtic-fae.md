@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/celtic-fae.ts, src/engine/types.ts · last-verified: 2026-07-10 · concept spec implemented in src/data/cards/celtic-fae.ts; the card data is authoritative where a concept mechanic needs a v1 engine adaptation -->
+<!-- source-of-truth: src/data/cards/celtic-fae.ts, src/engine/types.ts · last-verified: 2026-07-16 · concept spec implemented in src/data/cards/celtic-fae.ts; the card data is authoritative where a concept mechanic needs a v1 engine adaptation -->
 
 # Expansion 2 - Celtic Fae: The Silver Veil
 
