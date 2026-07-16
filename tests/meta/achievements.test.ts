@@ -378,3 +378,56 @@ describe('achievements', () => {
     expect(claimAllAchievements(save)).toEqual({ ids: [], gold: 0 });
   });
 });
+
+describe('limited run-history achievements (1.2)', () => {
+  function draftEntry(over: Partial<import('../../src/meta/Limited').LimitedHistoryEntry> = {}) {
+    return {
+      id: `run-${Math.abs(over.seed ?? 1)}`,
+      mode: 'draft' as const,
+      seed: over.seed ?? 1,
+      wins: 2,
+      losses: 1,
+      deckStyle: 'dual' as const,
+      completedAt: 1000,
+      rewardGold: 100,
+      ...over,
+    };
+  }
+
+  it('draft-first-run and draft-five-runs count completed draft runs only', () => {
+    const save = freshSave(0);
+    expect(status('draft-first-run', save)).toMatchObject({ current: 0, unlocked: false });
+
+    save.limited.history = [
+      draftEntry({ seed: 1 }),
+      { ...draftEntry({ seed: 2 }), mode: 'sealed' as const },
+    ];
+    expect(status('draft-first-run', save)).toMatchObject({ current: 1, target: 1, unlocked: true });
+    expect(status('draft-five-runs', save)).toMatchObject({ current: 1, target: 5, unlocked: false });
+
+    save.limited.history = [1, 2, 3, 4, 5].map((seed) => draftEntry({ seed }));
+    expect(status('draft-five-runs', save)).toMatchObject({ current: 5, unlocked: true });
+  });
+
+  it('draft-clean-sweep reads the durable bestDraftWins record (FIFO-immune)', () => {
+    const save = freshSave(0);
+    save.limited.bestDraftWins = 2;
+    expect(status('draft-clean-sweep', save)).toMatchObject({ current: 2, target: 3, unlocked: false });
+    save.limited.bestDraftWins = 3;
+    expect(status('draft-clean-sweep', save)).toMatchObject({ unlocked: true });
+  });
+
+  it('draft-premium-run requires a completed premium entry, and unlocks latch past the FIFO', () => {
+    const save = freshSave(0);
+    save.limited.history = [draftEntry({ seed: 1 })];
+    expect(status('draft-premium-run', save)).toMatchObject({ current: 0, unlocked: false });
+
+    save.limited.history = [draftEntry({ seed: 2, premium: true })];
+    expect(status('draft-premium-run', save)).toMatchObject({ current: 1, unlocked: true });
+    expect(syncAchievements(save, DB)).toContain('draft-premium-run');
+
+    // The run rolls off the 20-entry FIFO; the latched unlock survives.
+    save.limited.history = [];
+    expect(status('draft-premium-run', save)).toMatchObject({ current: 0, unlocked: true });
+  });
+});
