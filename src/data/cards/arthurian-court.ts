@@ -208,7 +208,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'r', flavor: 'The chapel bell rings for the living, who know better than to answer.',
   },
   {
-    id: 'ac-sword-test-stone', name: 'Sword-Test Stone', types: ['artifact'], subtypes: [],
+    id: 'ac-sword-test-stone', name: 'The Sword in the Stone', types: ['artifact'], subtypes: [],
     cost: cost(3), colors: [],
     abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'awaken', scope: 'allYours' }] }],
     rarity: 'r', flavor: 'Stone asks no question twice; the sword gives no second chance.',

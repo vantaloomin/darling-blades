@@ -54,7 +54,7 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-questing-beast-maiden | Questing Beast-Maiden | R | G | Creature | Mythic huntress | overrun, sentinel | Green pressure |
 | ac-mirror-of-avalon | Mirror of Avalon | R | U | Artifact | Avalon mirror | dawn: foresee | Control relic |
 | ac-black-chapel-curse | Black Chapel Curse | R | B | Enchantment - Quest | Morgan curse | chapters: loseLife opponent / discardRandom / severGrave opponent | Black Quest |
-| ac-sword-test-stone | Sword-Test Stone | R | C | Artifact | Sword in stone | dawn if questActive: awaken allYours | Awakening enabler |
+| ac-sword-test-stone | The Sword in the Stone | R | C | Artifact | Sword in stone | dawn if questActive: awaken allYours | Awakening enabler |
 | ac-grail-procession | Grail Procession | R | W | Ritual | Sacred march | createToken Squire x2, gainLife | Token support |
 | ac-lion-standard | Lion Standard | R | W | Enchantment | Royal banner | static: your Knights +1/+1 | Tribal support |
 | ac-courtly-betrayal | Courtly Betrayal | R | B | Ritual | Court intrigue | discardRandom, foresee | Black disruption |

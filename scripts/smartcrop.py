@@ -84,20 +84,23 @@ def focal_crop_box(
     focal_x: float,
     focal_y: float,
     subject_top: float | None = None,
+    focal_frac: float = FOCAL_FRAC,
 ) -> CropBox:
     crop_w, crop_h = cover_crop_size(src_w, src_h, out_w, out_h)
     left = clamp(round(focal_x - crop_w / 2), 0, src_w - crop_w)
-    top = round(focal_y - FOCAL_FRAC * crop_h)
+    top = round(focal_y - focal_frac * crop_h)
     if subject_top is not None:
         top = min(top, round(subject_top - HEADROOM_FRAC * crop_h))
     top = clamp(top, 0, src_h - crop_h)
     # Zoom fallback: only for detected subjects (subject_top present) whose
     # face would land hidden above the visible band at the image ceiling.
+    # A per-card `focal_frac` below the default zooms LESS (art-review tool:
+    # a lower target shows more body while the face stays inside the window).
     if subject_top is not None and top == 0 and focal_y / crop_h < ZOOM_TRIGGER_FRAC:
         min_crop_h = math.ceil(out_h / MAX_UPSCALE)
-        zoom_h = clamp(round(focal_y / FOCAL_FRAC), min_crop_h, crop_h)
+        zoom_h = clamp(round(focal_y / focal_frac), min_crop_h, crop_h)
         zoom_w = min(src_w, round(zoom_h * out_w / out_h))
-        ztop = round(focal_y - FOCAL_FRAC * zoom_h)
+        ztop = round(focal_y - focal_frac * zoom_h)
         ztop = min(ztop, round(subject_top - HEADROOM_FRAC * zoom_h))
         ztop = clamp(ztop, 0, src_h - zoom_h)
         zleft = clamp(round(focal_x - zoom_w / 2), 0, src_w - zoom_w)
@@ -293,7 +296,15 @@ def focal_from_detection(det: Detection) -> tuple[float, float]:
     return focal_x, focal_y
 
 
-def crop_image(src: Path, dst: Path, out_w: int, out_h: int, mode: str) -> dict[str, Any]:
+def crop_image(
+    src: Path,
+    dst: Path,
+    out_w: int,
+    out_h: int,
+    mode: str,
+    band_frac: float | None = None,
+    focal_frac: float = FOCAL_FRAC,
+) -> dict[str, Any]:
     if out_w <= 0 or out_h <= 0:
         raise ValueError("target width and height must be positive")
     if mode not in {"character", "environment"}:
@@ -309,10 +320,19 @@ def crop_image(src: Path, dst: Path, out_w: int, out_h: int, mode: str) -> dict[
     if det is None:
         source = "center"
         crop = center_crop_box(im.width, im.height, out_w, out_h)
+        # Per-card vertical band override (art-review tool, 2026-07-16): slide
+        # the environment/center band toward the top (0.0) or bottom (1.0)
+        # when the card's key content sits outside the default centered band.
+        # None (the default) keeps the historical center crop byte-identical.
+        if band_frac is not None:
+            slack = im.height - crop.height
+            crop = CropBox(crop.left, clamp(round(slack * band_frac), 0, max(0, slack)), crop.width, crop.height)
     else:
         source = det.source
         focal_x, focal_y = focal_from_detection(det)
-        crop = focal_crop_box(im.width, im.height, out_w, out_h, focal_x, focal_y, det.bbox[1])
+        crop = focal_crop_box(
+            im.width, im.height, out_w, out_h, focal_x, focal_y, det.bbox[1], focal_frac
+        )
 
     save_crop(im, dst, crop, out_w, out_h)
     return {
@@ -397,14 +417,35 @@ def main(argv: list[str]) -> int:
         run_self_test()
         print("smartcrop: self-test ok")
         return 0
-    if len(argv) != 5:
-        print("usage: python scripts/smartcrop.py <src> <dst> <W> <H> <character|environment>", file=sys.stderr)
+    # Optional per-card overrides (art-review tool): --band-frac F slides the
+    # environment band (0 top … 1 bottom); --focal-frac F retargets the
+    # character focal line (a lower value zooms less / shows more body).
+    band_frac: float | None = None
+    focal_frac = FOCAL_FRAC
+    positional: list[str] = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--band-frac" and i + 1 < len(argv):
+            band_frac = float(argv[i + 1])
+            i += 2
+        elif argv[i] == "--focal-frac" and i + 1 < len(argv):
+            focal_frac = float(argv[i + 1])
+            i += 2
+        else:
+            positional.append(argv[i])
+            i += 1
+    if len(positional) != 5:
+        print(
+            "usage: python scripts/smartcrop.py <src> <dst> <W> <H> <character|environment>"
+            " [--band-frac F] [--focal-frac F]",
+            file=sys.stderr,
+        )
         print("       python scripts/smartcrop.py --self-test", file=sys.stderr)
         return 2
-    src = Path(argv[0])
-    dst = Path(argv[1])
+    src = Path(positional[0])
+    dst = Path(positional[1])
     try:
-        result = crop_image(src, dst, int(argv[2]), int(argv[3]), argv[4])
+        result = crop_image(src, dst, int(positional[2]), int(positional[3]), positional[4], band_frac, focal_frac)
     except Exception as exc:
         print(f"smartcrop: {exc}", file=sys.stderr)
         return 1
