@@ -64,10 +64,15 @@ export const ECONOMY = {
   // Celtic Fae summit bosses (The Morrigan, Titania).
   gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270] as const,
   gauntletCompletionBonus: 250,
-  // Free Limited runs are free-entry with ephemeral cards; Premium Draft pays
-  // to keep its picks. Both use the same intentionally modest run-end payout.
+  // Free Limited runs are free-entry with ephemeral cards and pay the record
+  // payout below. Premium Draft pays to keep its picks; the entry fee already
+  // buys the 45 kept cards, so Premium pays no run-end gold.
   premiumDraftEntry: 1000,
+  premiumWeeklyCap: 2, // Premium Draft entries per UTC seven-day week.
   limitedRunGold: [40, 100, 180, 300] as const,
+  // One plain missing unique costs six times the ordinary dupe refund. This
+  // keeps crafting a catch-up sink rather than a craft-then-shard faucet.
+  craftCostMult: 6,
 } as const;
 
 /*

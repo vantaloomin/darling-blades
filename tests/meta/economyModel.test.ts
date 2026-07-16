@@ -47,9 +47,7 @@ describe('analytic economy EVs', () => {
   it('computes Limited, gauntlet, practice, and daily ceilings from win-rate inputs', () => {
     expect(freeDraftRunEv(0)).toMatchObject({ expectedWins: 0, expectedRunGold: 40 });
     expect(freeDraftRunEv(1)).toMatchObject({ expectedWins: 3, expectedRunGold: 300 });
-    expect(premiumDraftRunEv(0.5, 125).expectedNetGold).toBeCloseTo(
-      freeDraftRunEv(0.5).expectedRunGold + 125 - ECONOMY.premiumDraftEntry,
-    );
+    expect(premiumDraftRunEv(0.5, 125)).toMatchObject({ expectedRunGold: 0, expectedNetGold: 125 - ECONOMY.premiumDraftEntry });
 
     const failedClimb = gauntletClimbEv(0);
     expect(failedClimb).toMatchObject({ expectedGold: ECONOMY.lossGold, completionProbability: 0 });
