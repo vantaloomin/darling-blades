@@ -34,8 +34,8 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 export const MECHANIC_DEFINITIONS: Record<'sever' | 'foresee' | 'quest' | 'championAwakening', string> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
-  quest: 'a saga enchantment that advances through chapters at dawn, then leaves after its final chapter',
-  championAwakening: 'a one-way upgrade that grants the listed stats and keywords when the creature awakens',
+  quest: 'advances a chapter at each of your dawns; leaves after the last',
+  championAwakening: 'a one-way upgrade granting the listed stats and keywords',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */

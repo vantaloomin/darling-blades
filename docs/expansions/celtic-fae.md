@@ -2,7 +2,7 @@
 
 # Expansion 2 - Celtic Fae: The Silver Veil
 
-Linked block: **Celtic Fae** is part one of the Celtic/Arthurian double saga. It introduces the Otherworld, fate manipulation, exile pressure, and scry setup. Arthurian Court follows as the mortal response to the bargains made here.
+Linked block: **Celtic Fae** is part one of the Celtic/Arthurian two-set block. It introduces the Otherworld, fate manipulation, exile pressure, and scry setup. Arthurian Court follows as the mortal response to the bargains made here.
 
 ## Theme And Visual Identity
 

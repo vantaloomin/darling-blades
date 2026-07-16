@@ -347,7 +347,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
     id: 'theme-ragnarok-50',
     bucket: 'theme',
-    title: 'Saga Binder',
+    title: 'Edda Binder',
     description: 'Own 50% of Ragnarök cards.',
     reward: { gold: 400 },
     progress: (save, db) => themedCollectionProgress(save, db, isRagnarok, 0.5),

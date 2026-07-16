@@ -2,7 +2,7 @@
 
 # Expansion 3 - Arthurian Court: The Grail Oath
 
-Linked block: **Arthurian Court** is part two of the Celtic/Arthurian double saga. Celtic Fae establishes bargains, the severed zone, and fate manipulation; Arthurian Court answers with vows, Quests, awakened champions, and steel-backed heroism.
+Linked block: **Arthurian Court** is part two of the Celtic/Arthurian two-set block. Celtic Fae establishes bargains, the severed zone, and fate manipulation; Arthurian Court answers with vows, Quests, awakened champions, and steel-backed heroism.
 
 ## Theme And Visual Identity
 
@@ -12,7 +12,7 @@ Visual anchors: polished steel, white-gold sunlight, crimson pennants, moonlit l
 
 ## Mechanic Summary
 
-- **Quests**: saga-style enchantments (`subtypes: ['Quest']`) that advance one chapter at each of the controller's dawns and deliver a final payoff, then leave the battlefield. Chapter effects are triggers, so they obey the trigger law (never target); chapter op lists live in `CardDef.chapters`.
+- **Quests**: chapter enchantments (`subtypes: ['Quest']`) that advance one chapter at each of the controller's dawns and deliver a final payoff, then leave the battlefield. Chapter effects are triggers, so they obey the trigger law (never target); chapter op lists live in `CardDef.chapters`.
 - **Champion Awakening**: creatures with an `awakening` block (stat/keyword upgrade) flip to a persistent awakened state when an `awaken` effect resolves. The flip is one-way.
 - **Quest riders**: "while a Quest is active" (`questActive` condition on abilities and statics) rewards keeping a Quest on the battlefield.
 - Primary colors: W/U/R, with B Morgan curse/control and G Grail nature support.
@@ -37,7 +37,7 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-guinevere-court-sun | Guinevere, Court Sun | SSR | W/U | Legendary Creature | Court queen | arrives: foresee; dawn if questActive: createToken Squire | Court engine |
 | ac-gawain-noonblade | Gawain of the Noonblade | SSR | R/W | Legendary Creature | Solar knight | firstBlade; attacks if questActive: damage opponent | Aggro legend |
 | ac-quest-for-the-grail | Quest for the Grail | SSR | W | Enchantment - Quest | Grail quest | chapters: foresee / gainLife / awaken allYours | Signature Quest |
-| ac-fall-of-camelot | The Fall of Camelot | SSR | B/R | Legendary Enchantment - Quest | Tragic collapse | chapters: damage opponent / discardRandom / massDestroy | Big saga payoff |
+| ac-fall-of-camelot | The Fall of Camelot | SSR | B/R | Legendary Enchantment - Quest | Tragic collapse | chapters: damage opponent / discardRandom / massDestroy | Big chapter payoff |
 | ac-percival-clear-heart | Percival, Clear-Heart Knight | SR | W/G | Legendary Creature | Grail knight | sentinel, bloodoath | Midrange lifegain |
 | ac-galahad-silver-oath | Galahad, Silver Oath | SR | W | Legendary Creature | Pure knight | untouchable while questActive (self static) | Quest payoff threat |
 | ac-merlin-crow-clock | Merlin, Crow-Clock Sage | SR | U | Legendary Creature | Merlin analogue | arrives: foresee; dawn if questActive: foresee | Blue setup |

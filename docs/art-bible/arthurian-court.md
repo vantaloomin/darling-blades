@@ -2,7 +2,7 @@
 
 # Darling Blades Art Bible — Arthurian Court (`ac`)
 
-Arthurian Court is the polished-steel half of the Celtic/Arthurian double saga:
+Arthurian Court is the polished-steel half of the Celtic/Arthurian two-set block:
 adult-coded, genderbent court figures carry vows through white-gold sunlight,
 crimson pennants, moonlit lakes, chapel windows, tournament grounds, stone
 keeps, thorned crowns, grail radiance, and enchanted blades. Court fabrics and
