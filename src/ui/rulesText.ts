@@ -188,7 +188,7 @@ function abilityText(ab: AbilityDef): string {
   return `${prefix}${sentence}`;
 }
 
-function romanNumeral(n: number): string {
+export function romanNumeral(n: number): string {
   const numerals: [number, string][] = [
     [10, 'X'],
     [9, 'IX'],

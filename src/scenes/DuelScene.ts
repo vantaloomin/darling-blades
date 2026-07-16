@@ -65,6 +65,7 @@ import { HistoryPanel } from '../ui/HistoryPanel';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
+import { romanNumeral } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import { packRow, type RowPacking } from '../ui/rowPacking';
@@ -1680,6 +1681,12 @@ export class DuelScene extends Phaser.Scene {
         this.log(`${def(CARD_DB, e.cardId).name} was severed`, e.cardId);
         this.showSeverTravel(e);
         break;
+      case 'chapterAdvanced':
+        this.log(`${def(CARD_DB, e.cardId).name}: Chapter ${romanNumeral(e.chapter)}`, e.cardId);
+        break;
+      case 'awakened':
+        this.log(`${def(CARD_DB, e.cardId).name} awakens`, e.cardId);
+        break;
       case 'turnBegan':
         this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
@@ -2319,6 +2326,10 @@ export class DuelScene extends Phaser.Scene {
       view.setSummoningSick(
         isType(d, 'creature') && isSummoningSick(this.duel.state.battlefield, CARD_DB, perm),
       );
+      // Quest chapter badge + Champion Awakening ring (1.2). The engine's
+      // Permanent fields are the source of truth; non-Quests hide the badge.
+      view.setChapter(d.chapters ? perm.chapter ?? 0 : null, d.chapters ? d.chapters.length : null);
+      view.setAwakened(perm.awakened === true && d.awakening !== undefined);
     });
   }
 
