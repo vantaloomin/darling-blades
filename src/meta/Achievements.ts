@@ -86,6 +86,19 @@ const CELTIC_FAE_COURT_SOVEREIGNS = [
   'cf-aine-sunlit-bargain',
   'cf-nimue-before-the-lake',
 ] as const;
+const ARTHURIAN_ROUND_TABLE = [
+  'ac-artoria-once-future',
+  'ac-lancelot-moonlit-shame',
+  'ac-gawain-noonblade',
+  'ac-percival-clear-heart',
+  'ac-galahad-silver-oath',
+] as const;
+const ARTHURIAN_CROWN_JEWELS = [
+  'ac-artoria-once-future',
+  'ac-morgan-thorn-crown',
+  'ac-nimue-lake-sovereign',
+  'ac-grail-radiant-secret',
+] as const;
 
 function themeIds(ids: readonly string[], db: CardDb): string[] {
   return ids.filter((id) => Boolean(db[id]));
@@ -144,6 +157,7 @@ const isSpecialVariant = (variant: ReturnType<typeof parseVariantKey>): boolean 
 const isRainbowBorder = (variant: ReturnType<typeof parseVariantKey>): boolean => variant.frame === 'rainbow';
 const isRagnarok = (card: CardDef): boolean => card.set === 'ragnarok';
 const isCelticFae = (card: CardDef): boolean => card.set === 'celtic-fae';
+const isArthurianCourt = (card: CardDef): boolean => card.set === 'arthurian-court';
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
@@ -465,6 +479,74 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     reward: { gold: 350 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Redcap')),
+  },
+  // Arthurian Court (1.2) — schema-free, mirroring the Celtic Fae pass.
+  {
+    id: 'theme-arthurian-25',
+    bucket: 'theme',
+    title: "Squire's Oath",
+    description: 'Own 25% of Arthurian Court cards.',
+    reward: { gold: 200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isArthurianCourt, 0.25),
+  },
+  {
+    id: 'theme-arthurian-50',
+    bucket: 'theme',
+    title: 'Half the Table',
+    description: 'Own 50% of Arthurian Court cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, isArthurianCourt, 0.5),
+  },
+  {
+    id: 'theme-arthurian-complete',
+    bucket: 'theme',
+    title: 'Grail Oath Complete',
+    description: 'Own every Arthurian Court card.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isArthurianCourt),
+  },
+  {
+    id: 'theme-arthurian-round-table',
+    bucket: 'theme',
+    title: 'The Table Assembled',
+    description: 'Own Artoria, Lancelot, Gawain, Percival, and Galahad.',
+    reward: { gold: 600 },
+    progress: (save, db) => themeProgress(save, ARTHURIAN_ROUND_TABLE, db),
+  },
+  {
+    id: 'theme-arthurian-crown-jewels',
+    bucket: 'theme',
+    title: 'Crown Jewels',
+    description: 'Own Artoria, Morgan, Nimue, and The Grail.',
+    reward: { gold: 800 },
+    progress: (save, db) => themeProgress(save, ARTHURIAN_CROWN_JEWELS, db),
+  },
+  {
+    id: 'theme-arthurian-knights',
+    bucket: 'theme',
+    title: 'Full Muster',
+    description: 'Own every Arthurian Court Knight.',
+    reward: { gold: 400 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.subtypes.includes('Knight')),
+  },
+  {
+    id: 'theme-arthurian-quests',
+    bucket: 'theme',
+    title: 'Seven Vows',
+    description: 'Own every Arthurian Court Quest.',
+    reward: { gold: 350 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.subtypes.includes('Quest')),
+  },
+  {
+    id: 'theme-arthurian-champions',
+    bucket: 'theme',
+    title: 'Champions in Waiting',
+    description: 'Own every Arthurian Court card with Champion Awakening.',
+    reward: { gold: 350 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.awakening !== undefined),
   },
   {
     id: 'first-win',

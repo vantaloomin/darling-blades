@@ -379,6 +379,37 @@ describe('achievements', () => {
   });
 });
 
+describe('arthurian court achievements (1.2)', () => {
+  it('tracks the Round Table and Crown Jewels named sets against the live catalog', () => {
+    const save = freshSave(0);
+    expect(status('theme-arthurian-round-table', save, CARD_DB)).toMatchObject({
+      current: 0,
+      target: 5,
+      unlocked: false,
+    });
+    for (const id of [
+      'ac-artoria-once-future',
+      'ac-lancelot-moonlit-shame',
+      'ac-gawain-noonblade',
+      'ac-percival-clear-heart',
+      'ac-galahad-silver-oath',
+    ]) {
+      save.collection[id] = 1;
+    }
+    expect(status('theme-arthurian-round-table', save, CARD_DB)).toMatchObject({ current: 5, unlocked: true });
+    expect(status('theme-arthurian-crown-jewels', save, CARD_DB)).toMatchObject({ current: 1, target: 4 });
+  });
+
+  it('scopes the Quest and Champion Awakening cuts to the real set contents', () => {
+    const save = freshSave(0);
+    // Seven Quests and five awakening carriers ship in the set; the targets
+    // derive from the catalog, so a future set change moves them honestly.
+    expect(status('theme-arthurian-quests', save, CARD_DB).target).toBe(7);
+    expect(status('theme-arthurian-champions', save, CARD_DB).target).toBe(5);
+    expect(status('theme-arthurian-complete', save, CARD_DB).target).toBe(80);
+  });
+});
+
 describe('limited run-history achievements (1.2)', () => {
   function draftEntry(over: Partial<import('../../src/meta/Limited').LimitedHistoryEntry> = {}) {
     return {
