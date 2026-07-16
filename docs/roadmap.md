@@ -60,6 +60,30 @@ _Dated 2026-07-04. Review monthly._
 
 ## Recently shipped (2026-07-15)
 
+- **Economy instrumentation — phases 2b + 3 of
+  [plan-economy-testing.md](plan-economy-testing.md): the locked
+  decisions became CI gates, and the exploit probes went live** (two
+  concurrent Codex streams on disjoint files + two adversarially-reviewed
+  fix rounds). Phase 2b: `tests/meta/economyGates.test.ts` pins the
+  Layer-1 EV inequalities (measured: full gauntlet 15.07 g/min ≥ 1.2×
+  successful premium 11.41 gross; free draft ≤ 1.0× practice at 0.60×;
+  premium total value 639g < the 2,170g full clear) plus coarse
+  progression bands at a measured 1.17s CI config; `--check` runs the
+  full matrix with fine bands flag-only (coarse bands gate only when
+  their calibration cohort/day is present); a date-stamped 10×8×60
+  baseline table lives next to `ECONOMY` in rules.ts. Phase 3:
+  `scripts/optimizerPolicy.ts` (greedy g/min probe over the EV surface,
+  driven through a new exported `dailyPolicy` persona seam — scripted
+  personas verified byte-identical) gated at ≤ 1.5× the best honest
+  persona (measured 0.585×), plus named exploit regressions
+  (concede-farm, free-draft spam at 0.44× practice, retire-scumming,
+  and reachable-state shard-loop Monte Carlos: base pack pays 96.9g mean
+  vs 450g). **One measured live finding**, pinned honest-red as
+  `it.fails`: the premium-draft shard-farm (finished collector nets mean
+  1,127.5g vs the 1,000g entry) — a tuning-pass input, alongside the
+  measured completion-curve verdict that pack-only routes asymptote near
+  90% (catch-up mechanism on the agenda).
+
 - **Economy instrumentation — phases 0–2a of
   [plan-economy-testing.md](plan-economy-testing.md)** (PRs #78/#80; two
   concurrent Codex streams for 0/1, orchestrator-built dashboard for 2a).
@@ -78,8 +102,8 @@ _Dated 2026-07-04. Review monthly._
   with 4 boosters ever bought** (first premium: day 3) — premium dominance
   confirmed in play; casuals land 53–57% (on the ≈50% target); the
   Hardcore Optimizer reaches 90% (slightly behind the 50–75-day window);
-  harness verdict UNEVEN. Phase 2b (gates) + the tuning pass wait on the
-  user's read of the dashboard.
+  harness verdict UNEVEN. Phases 2b + 3 shipped later the same day (see
+  the bullet above); only the tuning pass remains (see Planned).
 
 - **Achievements screen — full UX pass** (PR #79; unled gpt-5.6-sol review,
   findings audit-verified, Codex-implemented). Rows center one
@@ -939,39 +963,27 @@ _Dated 2026-07-04. Review monthly._
   see above).
 
 ## Planned
-- **Economy testing at scale (plan authored 2026-07-15; Phases 0–1
-  SHIPPED same day).**
-  [plan-economy-testing.md](plan-economy-testing.md) is the spec — the
-  instrumentation half of the 1.1 Limited economy tuning pass, built FIRST
-  so tuning happens against measurements (instrument-then-hypothesize).
-  Shipped: the progression sim modernized to the shipped game (draft-only,
-  real `scorePick` picker profiles by pilot skill, persona-Personality
-  opponents, Premium Draft through the real entry/grant APIs, shard
-  income; 31.6s at 2 seeds × 7 days × 10 personas) and
-  `src/meta/economyModel.ts` (pack dupe-EV computed **67.5g** at full
-  completion, verifying the ≈68g claim; run/gauntlet/practice/quest EVs;
-  the two-axis premium-vs-boosters comparison; 4 hard invariants incl. a
-  3,000-pack no-gold-positive sweep and buy-then-shard-negative across
-  all 7 SKUs). **Phase 2a also shipped 2026-07-15** (all eight design
-  decisions locked; the full 10×8×60 daily-snapshot baseline ran and is
-  live as a filterable private-Artifact site; generator in
-  `scripts/econ-dashboard/` — see Recently shipped 2026-07-15).
-  Remaining: Phase 2b (CI gates from the locked decisions, after the user
-  reviews the baseline) and Phase 3 (optimizer + exploit probes,
-  unblocked); then the tuning pass itself.
-  Three layers: a pure analytic EV suite (`economyModel.ts` — pack/run/
-  gauntlet/quest EVs + hard invariants like "no pack sequence is
-  gold-positive", always in CI), the progression sim modernized to the
-  shipped game (Sealed out, real `DEFAULT_PICKER` + persona opponents,
-  Premium Draft + shard modeling in) and gated at coarse bands with a
-  date-stamped full-matrix baseline next to `ECONOMY`, and adversarial
-  exploit probes (a greedy gold-per-minute optimizer persona + named
-  regression tests per closed loophole). Live evidence already in hand:
-  the harness's 7-day smoke run flags "Free Limited is ahead" (1.00 vs
-  0.43 packs/day). Four decision points are marked in the doc (intended
-  faucet ordering, CI gate strictness, the premium card-value model,
-  tuning timing); the tuning pass itself stays a separate user-directed
-  follow-up.
+- **The 1.1 Limited economy TUNING pass (direction set 2026-07-15; all
+  instrumentation phases 0–3 of
+  [plan-economy-testing.md](plan-economy-testing.md) SHIPPED — see
+  Recently shipped 2026-07-15).** User-directed knobs, decided from the
+  baseline dashboard: a **premium-draft frequency limiter** leads (the
+  baseline indicts the run rate — 35 premium runs/60 days — not the
+  per-run experience; `premiumDraftEntry` stays 1,000g to protect the
+  day-3 first-premium onboarding), with a **`limitedRunGold` trim** as
+  the second lever for global generosity (1.22 packs/day median, ~80%
+  median collection at day 60). Also on the agenda: a **late-game
+  catch-up mechanism** (measured: pack-only routes asymptote near 90% —
+  Hardcore Optimizer gains only ~0.68 uniques/day at day 55–60,
+  completion extrapolates past day 110 vs the locked 50–75-day window)
+  and **closing the premium shard-farm** (measured live finding: a
+  finished collector nets mean 1,127.5g vs the 1,000g entry with a
+  best-record run; pinned `it.fails` in tests/meta/exploits.test.ts).
+  Flow: adjust knobs → re-run the canonical matrix → refresh the
+  dashboard Artifact → re-ratchet the Phase-2b gates (they only ratchet
+  up) → record before/after in the plan doc. The quest claim-rate spread
+  (41–89% by deck/style) is explicitly OUT of this pass (quest-pool
+  fairness, its own item).
 - **Full Art variant — a 4th booster axis (decided 2026-07-13).** Locked
   user picks: an INDEPENDENT per-slot roll at **0.25%** (rarer than Black
   frame / Void holo at 0.45% each; ~1 pull per 45 packs) that **stacks**
