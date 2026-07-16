@@ -51,7 +51,12 @@ const PREMIUM_SHARD_FARM_SEEDS = [
   0x6006, 0x7007, 0x8008, 0x9009, 0xa00a,
 ] as const;
 const PACK_TIERS: readonly Rarity[] = ['c', 'r', 'sr', 'ssr', 'ur'];
-const PACK_SETS: readonly ('ragnarok' | 'celtic-fae' | undefined)[] = [undefined, 'ragnarok', 'celtic-fae'];
+const PACK_SETS: readonly ('ragnarok' | 'celtic-fae' | 'arthurian-court' | undefined)[] = [
+  undefined,
+  'ragnarok',
+  'celtic-fae',
+  'arthurian-court',
+];
 const POOL_CARD_IDS = [...new Set(
   PACK_SETS.flatMap((set) => PACK_TIERS.flatMap((tier) => packPool(CARD_DB, tier, set))),
 )];

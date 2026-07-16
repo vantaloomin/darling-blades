@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { manaValue } from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
+import { ARTHURIAN_COURT } from '../../src/data/cards/arthurian-court';
 import { BEASTKIN } from '../../src/data/cards/beastkin';
 import { CELTIC_FAE } from '../../src/data/cards/celtic-fae';
 import { DUALS } from '../../src/data/cards/duals';
@@ -38,6 +39,7 @@ describe('catalog integrity', () => {
       [BEASTKIN, 'bk-'],
       [RAGNAROK, 'rg-'],
       [CELTIC_FAE, 'cf-'],
+      [ARTHURIAN_COURT, 'ac-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -138,13 +140,15 @@ describe('catalog integrity', () => {
     expect(ALL_CARDS.length).toBeGreaterThanOrEqual(180);
   });
 
-  it('stamps every ragnarok card set:ragnarok and every other collectible set:base', () => {
+  it('stamps every expansion card with its set and every other collectible set:base', () => {
     for (const card of ALL_CARDS) {
       if (card.token) continue; // tokens are non-collectible; set is irrelevant
       if (card.id.startsWith('rg-')) {
         expect(card.set, `${card.id} should be set:ragnarok`).toBe('ragnarok');
       } else if (card.id.startsWith('cf-')) {
         expect(card.set, card.id + ' should be set:celtic-fae').toBe('celtic-fae');
+      } else if (card.id.startsWith('ac-')) {
+        expect(card.set, card.id + ' should be set:arthurian-court').toBe('arthurian-court');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }

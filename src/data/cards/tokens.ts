@@ -113,4 +113,17 @@ export const TOKENS = [
     rarity: 'c',
     flavor: 'Fenrir’s brood runs the long night.',
   },
+  {
+    id: 'tok-squire',
+    name: 'Squire',
+    types: ['creature'],
+    subtypes: ['Squire'],
+    cost: cost(0),
+    colors: ['W'],
+    attack: 1,
+    defense: 1,
+    token: true,
+    rarity: 'c',
+    flavor: 'She carries the shield until the shield is ready for her.',
+  },
 ] as const satisfies readonly CardDef[];

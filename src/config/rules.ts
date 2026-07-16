@@ -21,6 +21,7 @@ export const ECONOMY = {
   packPrice: 450,
   ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 69-card chase)
   celticFaePackPrice: 525, // expansion booster — only pulls set:'celtic-fae' cards (80-card chase density)
+  arthurianCourtPackPrice: 525, // expansion booster — only pulls set:'arthurian-court' cards (80-card chase density)
   boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo independently (DROPS)
   limitedPackSize: 15, // Limited packs stay MTG-sized for Sealed/Draft pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,

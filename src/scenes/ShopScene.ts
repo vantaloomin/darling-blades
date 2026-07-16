@@ -26,7 +26,7 @@ import { backButton, goldBadge, modalShell, pager, panel, themedButton, type Gol
 const PACK_W = 280;
 const PACK_H = 400;
 
-export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae';
+export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court';
 
 interface PackTint {
   start: string;
@@ -52,6 +52,15 @@ const CELTIC_FAE_PACK_TINT: PackTint = {
   trim: theme.colors.heading,
   foil: theme.colors.heading,
   mist: theme.colors.success,
+};
+
+const ARTHURIAN_COURT_PACK_TINT: PackTint = {
+  start: theme.colors.heading,
+  middle: theme.colors.panelFill,
+  end: theme.colors.muted,
+  trim: theme.colors.gold,
+  foil: theme.colors.heading,
+  mist: theme.colors.gold,
 };
 
 const packRR = (
@@ -168,9 +177,16 @@ export const CELTIC_FAE_PACK_ART: PackArtOpts = {
   tint: CELTIC_FAE_PACK_TINT,
 };
 
+export const ARTHURIAN_COURT_PACK_ART: PackArtOpts = {
+  key: 'packart-arthurian-court',
+  sceneArtKey: 'scene-pack-art-arthurian-court',
+  tint: ARTHURIAN_COURT_PACK_TINT,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
+  if (sku === 'arthurian-court') return 'packart-arthurian-court';
   return 'packart';
 }
 
@@ -312,6 +328,7 @@ export class ShopScene extends Phaser.Scene {
       sceneArtKey: 'scene-pack-art-ragnarok',
     });
     bakePackArt(this, CELTIC_FAE_PACK_ART);
+    bakePackArt(this, ARTHURIAN_COURT_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
@@ -396,12 +413,12 @@ export class ShopScene extends Phaser.Scene {
   // --- Boosters tab ---------------------------------------------------------
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
-    this.buildPackSku(group, 340, 'Core Set', 'packart', ECONOMY.packPrice, () =>
+    this.buildPackSku(group, 160, 'Core Set', 'packart', ECONOMY.packPrice, () =>
       this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
     );
     this.buildPackSku(
       group,
-      640,
+      480,
       'Ragnarök',
       'packart-ragnarok',
       ECONOMY.ragnarokPackPrice,
@@ -409,11 +426,19 @@ export class ShopScene extends Phaser.Scene {
     );
     this.buildPackSku(
       group,
-      940,
+      800,
       'Celtic Fae',
       'packart-celtic-fae',
       ECONOMY.celticFaePackPrice,
       () => this.buyPacks(ECONOMY.celticFaePackPrice, 'celtic-fae', 'celtic-fae'),
+    );
+    this.buildPackSku(
+      group,
+      1120,
+      'Arthurian Court',
+      'packart-arthurian-court',
+      ECONOMY.arthurianCourtPackPrice,
+      () => this.buyPacks(ECONOMY.arthurianCourtPackPrice, 'arthurian-court', 'arthurian-court'),
     );
     this.buildQtySelector(group);
     this.refreshQtyLabels();
