@@ -13,7 +13,7 @@ import {
   startDraftRun,
   type LimitedRun,
 } from '../meta/Limited';
-import { payPremiumDraftEntry } from '../meta/Economy';
+import { payPremiumDraftEntry, premiumEntryStatus, todayString } from '../meta/Economy';
 import { Services } from '../meta/services';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
@@ -134,7 +134,9 @@ export class LimitedScene extends Phaser.Scene {
   private drawStartPanel(): void {
     const save = Services.save.data;
     const runActive = !!save.limited.activeRun;
-    const premiumDisabled = runActive || save.gold < ECONOMY.premiumDraftEntry;
+    const premiumStatus = premiumEntryStatus(save, todayString());
+    const premiumUnaffordable = save.gold < ECONOMY.premiumDraftEntry;
+    const premiumDisabled = runActive || !premiumStatus.allowed || premiumUnaffordable;
     const x = 70;
     const y = 410;
     panel(this, x, y, 540, 180);
@@ -164,8 +166,8 @@ export class LimitedScene extends Phaser.Scene {
       'primary',
       () => {
         if (runActive) return;
+        if (!payPremiumDraftEntry(save, todayString())) return;
         const run = startDraftRun(CARD_DB, freshRunSeed(), Date.now(), { premium: true });
-        if (!payPremiumDraftEntry(save)) return;
         save.limited.activeRun = run;
         Services.save.flush();
         this.scene.start('LimitedDraft');
@@ -174,8 +176,20 @@ export class LimitedScene extends Phaser.Scene {
     );
     // Premium-only descriptor, anchored under the Premium column so it can't
     // read as applying to the free entry.
+    // Caption geometry: the panel bottoms out at y+180, so the allowance line
+    // starts at y+112 (a two-line wrap ends ~y+142) and the keep-line at y+152
+    // is kept short enough to stay single-line inside CTA_W.
     this.add
-      .text(x + CTA_COL_RIGHT, y + 118, 'Every card you draft is yours to keep.', {
+      .text(x + CTA_COL_RIGHT, y + 112, premiumAllowanceCopy(premiumStatus, runActive, premiumUnaffordable), {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: premiumDisabled ? theme.colors.muted : theme.colors.body,
+        align: 'center',
+        wordWrap: { width: CTA_W },
+      })
+      .setOrigin(0.5, 0);
+    this.add
+      .text(x + CTA_COL_RIGHT, y + 152, 'Every pick is yours to keep.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: premiumDisabled ? theme.colors.muted : theme.colors.body,
@@ -228,7 +242,7 @@ export class LimitedScene extends Phaser.Scene {
       this.text(
         x + 174,
         rowY + 2,
-        `${entry.deckStyle}   +${entry.rewardGold} gold`,
+        entry.premium ? entry.deckStyle : `${entry.deckStyle}   +${entry.rewardGold} gold`,
         theme.type.caption,
         theme.colors.muted,
       );
@@ -291,6 +305,18 @@ function freshRunSeed(): number {
 function labelMode(run: { mode: 'sealed' | 'draft'; premium?: boolean }): string {
   return run.mode === 'sealed' ? 'Sealed' : run.premium ? 'Premium Draft' : 'Draft';
 }
+
+function premiumAllowanceCopy(
+  status: { allowed: boolean; remaining: number; resetsInDays: number },
+  runActive: boolean,
+  unaffordable: boolean,
+): string {
+  if (!status.allowed) return `Weekly limit · Resets in ${status.resetsInDays} ${status.resetsInDays === 1 ? 'day' : 'days'}`;
+  if (runActive) return 'Finish active run first';
+  if (unaffordable) return `Not enough gold · ${status.remaining} left this week`;
+  return `${status.remaining} left this week`;
+}
+
 function primaryActionLabel(run: LimitedRun): string {
   return run.status === 'draft'
     ? 'Resume Draft'

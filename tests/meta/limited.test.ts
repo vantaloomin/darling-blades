@@ -279,11 +279,11 @@ describe('limited rewards', () => {
   it('charges the Premium Draft fee only when affordable', () => {
     const save = freshSave(0);
     save.gold = ECONOMY.premiumDraftEntry;
-    expect(payPremiumDraftEntry(save)).toBe(true);
+    expect(payPremiumDraftEntry(save, '2026-07-14')).toBe(true);
     expect(save.gold).toBe(0);
 
     save.gold = ECONOMY.premiumDraftEntry - 1;
-    expect(payPremiumDraftEntry(save)).toBe(false);
+    expect(payPremiumDraftEntry(save, '2026-07-14')).toBe(false);
     expect(save.gold).toBe(ECONOMY.premiumDraftEntry - 1);
   });
 
@@ -370,7 +370,7 @@ describe('limited rewards', () => {
     expect(save.collectionVariants).toEqual({});
   });
 
-  it('stamps premium draft history while leaving the run reward unchanged', () => {
+  it('stamps premium draft history with no Premium run-end reward', () => {
     const save = freshSave(0);
     const run = startDraftRun(CARD_DB, 7272, 1000, { premium: true });
     run.status = 'matches';
@@ -380,7 +380,7 @@ describe('limited rewards', () => {
     applyLimitedMatchResult(save, 'medium', false, '2026-07-14', 'dual', 3000);
     const result = applyLimitedMatchResult(save, 'hard', false, '2026-07-14', 'dual', 4000);
 
-    expect(result.gold).toBe(ECONOMY.limitedRunGold[0]);
+    expect(result.gold).toBe(0);
     expect(save.limited.history[0]).toMatchObject({ mode: 'draft', premium: true, rewardGold: result.gold });
 
     const freeSave = freshSave(0);

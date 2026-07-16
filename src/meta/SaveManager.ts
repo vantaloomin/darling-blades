@@ -54,8 +54,13 @@ export interface SavedDeck {
   heroCardId: string | null;
 }
 
+export interface PremiumWeekState {
+  week: number;
+  entries: number;
+}
+
 export interface SaveData {
-  version: 18;
+  version: 19;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -103,9 +108,10 @@ export interface SaveData {
   /**
    * Road-to-1.0 Limited mode. Free-run cards are ephemeral; Premium Draft's 45
    * human picks enter the collection on draft completion. Active run state,
-   * compact history, and best records persist. v14 addition; premium fields v18.
+   * compact history, and best records persist. v14 addition; Premium fields
+   * v18, weekly allowance v19.
    */
-  limited: LimitedState;
+  limited: LimitedState & { premiumWeek: PremiumWeekState };
   stats: {
     wins: number;
     losses: number;
@@ -155,7 +161,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 18,
+    version: 19,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -168,7 +174,7 @@ export function freshSave(now: number): SaveData {
     tutorialDone: false,
     achievements: freshAchievements(),
     daily: freshDailyState(dayStringFromTimestamp(now)),
-    limited: freshLimitedState(),
+    limited: { ...freshLimitedState(), premiumWeek: { week: 0, entries: 0 } },
     stats: {
       wins: 0,
       losses: 0,
@@ -220,7 +226,6 @@ export class SaveManager {
       const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
       if (!raw) return freshSave(now);
       const parsed = JSON.parse(raw) as { version?: number };
-      if (parsed.version === 18) return parsed as SaveData;
       return this.migrate(parsed, now);
     } catch {
       return freshSave(now);
@@ -248,7 +253,9 @@ export class SaveManager {
    * v13 -> v14 adds Limited runs/history; v14 -> v15 adds per-deck hero card
    * selections; v15 -> v16 seats deterministic personas into in-flight drafts;
    * v16 -> v17 adds persona familiarity counters (progressive reveal);
-   * v17 -> v18 stamps the Premium Draft schema (all new fields are optional).
+   * v17 -> v18 stamps the Premium Draft schema (all new fields are optional);
+   * v18 -> v19 adds the Premium Draft weekly allowance, defaulting old saves
+   * to zero entries so nobody inherits a partially spent week.
    * An unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
@@ -456,7 +463,34 @@ export class SaveManager {
       // v17 -> v18: Premium Draft fields are optional, so existing state passes through intact.
       cur = { ...cur, version: 18 };
     }
-    if (cur.version === 18) return cur as unknown as SaveData;
+    if (cur.version === 18) {
+      // v18 -> v19: a prior save has no reliable Premium weekly ledger. Start
+      // the new allowance empty; the first call to payPremiumDraftEntry stamps
+      // the current UTC week into the state.
+      const limited = (cur.limited ?? freshLimitedState()) as LimitedState;
+      cur = {
+        ...cur,
+        version: 19,
+        limited: { ...limited, premiumWeek: { week: 0, entries: 0 } },
+      };
+    }
+    if (cur.version === 19) {
+      const limited = (cur.limited ?? freshLimitedState()) as LimitedState & {
+        premiumWeek?: Partial<PremiumWeekState>;
+      };
+      const premiumWeek = limited.premiumWeek;
+      const week = typeof premiumWeek?.week === 'number' && Number.isInteger(premiumWeek.week)
+        ? premiumWeek.week
+        : 0;
+      const entries = typeof premiumWeek?.entries === 'number' && Number.isInteger(premiumWeek.entries)
+        ? Math.max(0, premiumWeek.entries)
+        : 0;
+      return {
+        ...cur,
+        version: 19,
+        limited: { ...limited, premiumWeek: { week, entries } },
+      } as unknown as SaveData;
+    }
     return freshSave(now);
   }
 

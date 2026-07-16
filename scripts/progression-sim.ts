@@ -25,8 +25,8 @@ import { Game } from '../src/engine/Game';
 import { createRngState, rngFloat, type RngState } from '../src/engine/rng';
 import { def, isType, type CardDb, type CardDef, type Color, type Rarity } from '../src/engine/types';
 import { claimAllAchievements, syncAchievements } from '../src/meta/Achievements';
-import { shardableCount, shardExcess, shardGold } from '../src/meta/Collection';
-import { collectionCompletion } from '../src/meta/collectionFilter';
+import { craftCard, craftCost, shardableCount, shardExcess, shardGold } from '../src/meta/Collection';
+import { collectiblePool, collectionCompletion } from '../src/meta/collectionFilter';
 import { deckColorStyle } from '../src/meta/deckColorIdentity';
 import {
   applyGauntletResult,
@@ -35,6 +35,7 @@ import {
   buyThemeDeck,
   claimFreeStarter,
   payPremiumDraftEntry,
+  premiumWeekKey,
   spendGold,
   type Difficulty,
 } from '../src/meta/Economy';
@@ -200,6 +201,24 @@ export interface PlayerPersona {
   achievements: AchievementPolicy;
 }
 
+/**
+ * Additive, sim-only economy experiments. An omitted config is the shipped
+ * progression model; no product constants are changed by these knobs.
+ */
+export interface TuningExperimentConfig {
+  cooldownDays?: number;
+  weeklyCap?: number;
+  limitedRunGoldOverride?: readonly [number, number, number, number];
+  premiumRunGold?: 'full' | 'none';
+  crafting?: { enabled: true; craftCostMult: number };
+}
+
+const SHIPPED_TUNING_DEFAULTS: TuningExperimentConfig = Object.freeze({
+  weeklyCap: ECONOMY.premiumWeeklyCap,
+  premiumRunGold: 'none',
+  crafting: { enabled: true as const, craftCostMult: ECONOMY.craftCostMult },
+});
+
 export interface RewardLedger {
   starting: number;
   practice: number;
@@ -217,6 +236,7 @@ export interface SpendLedger {
   packs: number;
   decks: number;
   premiumDraftEntries: number;
+  crafts: number;
 }
 
 export interface ProgressSnapshot {
@@ -263,6 +283,7 @@ export interface ProgressSnapshot {
   limitedAvgLosses: number;
   sessionMinutes: number;
   minutesPerDay: number;
+  craftedUniques?: number;
   rewards: RewardLedger;
   spent: SpendLedger;
 }
@@ -308,6 +329,7 @@ export interface ProgressAggregate {
   limitedAvgLosses: number;
   sessionMinutes: number;
   minutesPerDay: number;
+  craftedUniques?: number;
   rewards: RewardLedger;
   spent: SpendLedger;
 }
@@ -321,6 +343,7 @@ export interface ProgressionReport {
   seeds: number;
   days: number[];
   personas: PlayerPersona[];
+  experiment?: TuningExperimentConfig;
   snapshots: ProgressSnapshot[];
   aggregates: ProgressAggregate[];
   verdict: RewardVerdict;
@@ -339,6 +362,7 @@ interface SimStats {
   limitedRuns: number;
   premiumDraftRuns: number;
   premiumDraftCardsKept: number;
+  craftedUniques: number;
   limitedWins: number;
   limitedLosses: number;
   rewards: RewardLedger;
@@ -349,10 +373,13 @@ interface SimContext {
   persona: PlayerPersona;
   sample: number;
   baseSeed: number;
+  experiment?: TuningExperimentConfig;
   save: SaveData;
   rng: RngState;
   serial: number;
   dayMinutes: number;
+  lastPremiumDay: number | null;
+  premiumEntryDays: string[];
   dayPlan?: PolicyDayPlan;
   stats: SimStats;
 }
@@ -363,11 +390,12 @@ interface MatchResult {
   turns: number;
 }
 
-interface RunOptions {
+export interface RunOptions {
   seeds?: number;
   days?: readonly number[];
   personas?: readonly PlayerPersona[];
   baseSeed?: number;
+  experiment?: TuningExperimentConfig;
 }
 
 export const PLAYER_PERSONAS: readonly PlayerPersona[] = Object.freeze([
@@ -537,12 +565,13 @@ export interface ProgressionBandReport {
  * the rationale for these edges are updated from the CI-fast run, never tuned
  * to make an unrelated change pass.
  *
- * CI-fast measurement on 2026-07-15: 2 persona aggregates (New Casual and
- * Limited Fan) x 1 seed x day 7; packs/day median 0.286, minimum quest claim
- * rate 0.286, max-gold/game ÷ cohort-median 1.026, and median collection
- * 0.228. The bands [0.15, 2.5], >=0.20, <=4.0, and [0.03, 0.70] leave at
- * least 30% downward headroom on the floor metrics and are deliberately broad
- * enough to catch only large macro drift. The direct simulation took 1.17s.
+ * CI-fast measurement on 2026-07-16: 2 persona aggregates (New Casual and
+ * Limited Fan) x 1 seed x day 7; packs/day median 0.429, minimum quest claim
+ * rate 0.286, max-gold/game ÷ cohort-median 1.000, and median collection
+ * 0.266. Limited Fan completed 2 Premium runs, matching the weekly cap. The
+ * bands [0.15, 2.5], >=0.20, <=4.0, and [0.03, 0.70] leave at least 30%
+ * downward headroom on the floor metrics and are deliberately broad enough to
+ * catch only large macro drift. The direct simulation took 1.07s.
  */
 export const COARSE_PROGRESSION_BANDS = Object.freeze({
   packsPerDay: Object.freeze({ min: 0.15, max: 2.5 }),
@@ -602,7 +631,7 @@ const emptyRewards = (): RewardLedger => ({
   shards: 0,
 });
 
-const emptySpent = (): SpendLedger => ({ packs: 0, decks: 0, premiumDraftEntries: 0 });
+const emptySpent = (): SpendLedger => ({ packs: 0, decks: 0, premiumDraftEntries: 0, crafts: 0 });
 
 function freshStats(): SimStats {
   return {
@@ -618,6 +647,7 @@ function freshStats(): SimStats {
     limitedRuns: 0,
     premiumDraftRuns: 0,
     premiumDraftCardsKept: 0,
+    craftedUniques: 0,
     limitedWins: 0,
     limitedLosses: 0,
     rewards: emptyRewards(),
@@ -645,6 +675,7 @@ function addSpent(a: SpendLedger, b: SpendLedger): SpendLedger {
     packs: a.packs + b.packs,
     decks: a.decks + b.decks,
     premiumDraftEntries: a.premiumDraftEntries + b.premiumDraftEntries,
+    crafts: a.crafts + b.crafts,
   };
 }
 
@@ -664,7 +695,7 @@ function rewardTotal(rewards: RewardLedger): number {
 }
 
 function spentTotal(spent: SpendLedger): number {
-  return spent.packs + spent.decks + spent.premiumDraftEntries;
+  return spent.packs + spent.decks + spent.premiumDraftEntries + spent.crafts;
 }
 
 function hashString(input: string): number {
@@ -697,6 +728,28 @@ function dayString(dayIndex: number): string {
 
 function dayTimestamp(dayIndex: number): number {
   return START_DAY_MS + dayIndex * 24 * 60 * 60 * 1000;
+}
+
+function configuredLimitedRunGold(
+  experiment: TuningExperimentConfig | undefined,
+  wins: number,
+  premium: boolean,
+): number {
+  const recordGold = experiment?.limitedRunGoldOverride?.[wins] ?? ECONOMY.limitedRunGold[wins] ?? 0;
+  return premium && experiment?.premiumRunGold !== 'full' ? 0 : recordGold;
+}
+
+function configuredPremiumWeeklyCap(experiment: TuningExperimentConfig | undefined): number {
+  return experiment?.weeklyCap ?? ECONOMY.premiumWeeklyCap;
+}
+
+function premiumEntryAllowed(ctx: SimContext, day: number, today: string): boolean {
+  if (ctx.experiment?.cooldownDays !== undefined && ctx.lastPremiumDay !== null && day < ctx.lastPremiumDay + ctx.experiment.cooldownDays) {
+    return false;
+  }
+  const week = premiumWeekKey(today);
+  const entriesThisWeek = ctx.premiumEntryDays.filter((entryDay) => premiumWeekKey(entryDay) === week).length;
+  return entriesThisWeek < configuredPremiumWeeklyCap(ctx.experiment);
 }
 
 function starterById(id: string): DeckList {
@@ -963,15 +1016,16 @@ function applyDailyQuestProgressToSave(ctx: SimContext, events: readonly GameEve
   ctx.stats.dailyQuestCompletions += result.completedQuestIds.length;
 }
 
-function runLimitedMatch(ctx: SimContext, today: string, now: number): void {
+function runLimitedMatch(ctx: SimContext, today: string, now: number, day: number): void {
   if (!ctx.save.limited.activeRun) {
-    ctx.save.limited.activeRun = startPreparedLimitedRun(ctx, now);
+    ctx.save.limited.activeRun = startPreparedLimitedRun(ctx, now, day, today);
     ctx.stats.limitedRuns++;
     if (ctx.save.limited.activeRun.premium) ctx.stats.premiumDraftRuns++;
     addMinutes(ctx, DRAFT_SETUP_MINUTES);
   }
   const run = ctx.save.limited.activeRun;
   if (!run || run.status !== 'matches') throw new Error('Limited run did not reach matches');
+  const premium = run.premium === true;
   const duel = limitedDuelData(run);
   const seed = duel.seedOverride;
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
@@ -991,8 +1045,19 @@ function runLimitedMatch(ctx: SimContext, today: string, now: number): void {
     limitedDeckStyle(run.deck),
     now,
   );
+  let runGoldAdjustment = 0;
+  if (reward.runOver && ctx.experiment) {
+    const productRunGold = premium ? 0 : ECONOMY.limitedRunGold[reward.wins] ?? 0;
+    const experimentRunGold = configuredLimitedRunGold(ctx.experiment, reward.wins, premium);
+    runGoldAdjustment = experimentRunGold - productRunGold;
+    if (runGoldAdjustment !== 0) {
+      ctx.save.gold += runGoldAdjustment;
+      const history = ctx.save.limited.history[0];
+      if (history?.id === run.id) history.rewardGold = experimentRunGold;
+    }
+  }
   const fw = firstWinGold(reward.firstWinBonus);
-  ctx.stats.rewards.limited += reward.gold - fw;
+  ctx.stats.rewards.limited += reward.gold - fw + runGoldAdjustment;
   ctx.stats.rewards.firstWin += fw;
   applyWinStreak(ctx, won, today);
   claimDailyRewards(ctx, today);
@@ -1002,13 +1067,18 @@ function limitedDeckStyle(deck: readonly string[]): 'mono' | 'dual' | 'other' {
   return deckColorStyle(deck, CARD_DB);
 }
 
-function startPreparedLimitedRun(ctx: SimContext, now: number): LimitedRun {
+function startPreparedLimitedRun(ctx: SimContext, now: number, day: number, today: string): LimitedRun {
   const seed = nextSeed(ctx, 'limited-draft');
+  const weeklyCap = configuredPremiumWeeklyCap(ctx.experiment);
   const premiumRequested = ctx.dayPlan?.limited?.premium ?? ctx.persona.limited?.premiumWhenAffordable;
   const premium = Boolean(
-    premiumRequested && payPremiumDraftEntry(ctx.save),
+    premiumRequested && premiumEntryAllowed(ctx, day, today) && payPremiumDraftEntry(ctx.save, today, weeklyCap),
   );
-  if (premium) ctx.stats.spent.premiumDraftEntries += ECONOMY.premiumDraftEntry;
+  if (premium) {
+    ctx.stats.spent.premiumDraftEntries += ECONOMY.premiumDraftEntry;
+    ctx.lastPremiumDay = day;
+    ctx.premiumEntryDays.push(today);
+  }
   let run = draftRun(ctx, CARD_DB, seed, now, premium);
   run = { ...run, status: 'matches', deck: buildLimitedDeck(CARD_DB, run.pool) };
   return run;
@@ -1093,7 +1163,7 @@ function runDay(ctx: SimContext, dayIndex: number): void {
     ? Math.max(0, Math.trunc(ctx.dayPlan.limited.matches))
     : dailyCount(ctx.persona.limited?.matches, ctx, dayIndex, 'limited');
   for (let i = 0; i < limitedMatches; i++) {
-    runLimitedMatch(ctx, today, now + i);
+    runLimitedMatch(ctx, today, now + i, dayIndex + 1);
   }
 
   const questChase = ctx.dayPlan?.quests?.chase === null
@@ -1118,11 +1188,25 @@ function allDailyQuestsClaimed(save: SaveData, today: string): boolean {
 function runEconomyMaintenance(ctx: SimContext, dayIndex: number): void {
   claimAchievementRewards(ctx);
   buyDecks(ctx);
-  buyPacks(ctx, dayIndex);
+  // With a craft sink live and the collection near-complete, pack EV per new
+  // unique collapses below craft cost; a rational player banks pack gold for
+  // crafts instead. Without this gate, greedy pack-buying leaves less than one
+  // pack price above reserve, so SSR/UR crafts (900-5000g) are never reachable.
+  const banking = craftingBankActive(ctx);
+  if (!banking) buyPacks(ctx, dayIndex);
   shardPersonaExcess(ctx);
   claimAchievementRewards(ctx);
-  buyPacks(ctx, dayIndex + 1000);
+  if (!banking) buyPacks(ctx, dayIndex + 1000);
   shardPersonaExcess(ctx);
+  craftMissingUniques(ctx);
+}
+
+function craftingBankActive(ctx: SimContext): boolean {
+  const crafting = ctx.experiment?.crafting;
+  if (!crafting?.enabled) return false;
+  const completion = collectionCompletion(Object.values(CARD_DB), ctx.save);
+  if (completion.percent < 0.85) return false;
+  return collectiblePool(Object.values(CARD_DB)).some((card) => (ctx.save.collection[card.id] ?? 0) <= 0);
 }
 
 function shardPersonaExcess(ctx: SimContext): void {
@@ -1135,6 +1219,31 @@ function shardPersonaExcess(ctx: SimContext): void {
       throw new Error(`Shard preview drifted for ${cardId}: expected ${expectedGold}, paid ${result.gold}`);
     }
     ctx.stats.rewards.shards += result.gold;
+  }
+}
+
+function craftMissingUniques(ctx: SimContext): void {
+  const crafting = ctx.experiment?.crafting;
+  if (!crafting?.enabled) return;
+  const completion = collectionCompletion(Object.values(CARD_DB), ctx.save);
+  if (completion.percent < 0.85) return;
+
+  const reserveGold = spendingPlan(ctx).reserveGold ?? 0;
+  const missing = collectiblePool(Object.values(CARD_DB))
+    .filter((card) => (ctx.save.collection[card.id] ?? 0) <= 0)
+    .sort((a, b) =>
+      ECONOMY.dupeGold[a.rarity] - ECONOMY.dupeGold[b.rarity] ||
+      a.name.localeCompare(b.name) ||
+      a.id.localeCompare(b.id),
+    );
+
+  for (const card of missing) {
+    const cost = craftCost(CARD_DB, card.id, crafting.craftCostMult);
+    if (ctx.save.gold - cost < reserveGold) break;
+    const result = craftCard(ctx.save, CARD_DB, card.id, crafting.craftCostMult);
+    if (!result.ok) throw new Error(`Craft failed for ${card.id}: ${result.reason}`);
+    ctx.stats.craftedUniques++;
+    ctx.stats.spent.crafts += cost;
   }
 }
 
@@ -1214,7 +1323,12 @@ function choosePack(
   }
 }
 
-function setupContext(persona: PlayerPersona, sample: number, baseSeed: number): SimContext {
+function setupContext(
+  persona: PlayerPersona,
+  sample: number,
+  baseSeed: number,
+  experiment?: TuningExperimentConfig,
+): SimContext {
   const save = freshSave(START_DAY_MS);
   const starter = starterById(persona.starterId);
   if (!claimFreeStarter(save, CARD_DB, starter)) throw new Error(`Failed to claim starter for ${persona.id}`);
@@ -1225,10 +1339,13 @@ function setupContext(persona: PlayerPersona, sample: number, baseSeed: number):
     persona,
     sample,
     baseSeed,
+    experiment,
     save,
     rng: createRngState(clampSeed(hashString(`shop|${baseSeed}|${persona.id}|${sample}`))),
     serial: 0,
     dayMinutes: 0,
+    lastPremiumDay: null,
+    premiumEntryDays: [],
     stats: freshStats(),
   };
   ctx.stats.rewards.starting += ECONOMY.startingGold;
@@ -1263,6 +1380,7 @@ function snapshot(ctx: SimContext, day: number): ProgressSnapshot {
   const goldEarned = rewardTotal(ctx.stats.rewards);
   const goldSpent = spentTotal(ctx.stats.spent);
   const uniqueCards = completion.owned;
+  const craftedUniques = ctx.experiment?.crafting?.enabled ? ctx.stats.craftedUniques : undefined;
   const limitedAvgWins = ctx.stats.limitedRuns === 0 ? 0 : ctx.stats.limitedWins / ctx.stats.limitedRuns;
   const limitedAvgLosses = ctx.stats.limitedRuns === 0 ? 0 : ctx.stats.limitedLosses / ctx.stats.limitedRuns;
   return {
@@ -1309,6 +1427,7 @@ function snapshot(ctx: SimContext, day: number): ProgressSnapshot {
     limitedAvgLosses,
     sessionMinutes: ctx.stats.sessionMinutes,
     minutesPerDay: ctx.stats.sessionMinutes / day,
+    ...(craftedUniques === undefined ? {} : { craftedUniques }),
     rewards: { ...ctx.stats.rewards },
     spent: { ...ctx.stats.spent },
   };
@@ -1320,12 +1439,13 @@ export function runProgressionSimulation(options: RunOptions = {}): ProgressionR
   const days = normalizeDays(options.days ?? [7, 14, 30, 60]);
   const personas = [...(options.personas ?? PLAYER_PERSONAS)];
   const baseSeed = options.baseSeed ?? 0x5eed_2050;
+  const experiment = normalizeExperiment(options.experiment);
   const maxDay = Math.max(...days);
   const snapshots: ProgressSnapshot[] = [];
 
   for (const persona of personas) {
     for (let sample = 0; sample < seeds; sample++) {
-      const ctx = setupContext(persona, sample, baseSeed);
+      const ctx = setupContext(persona, sample, baseSeed, experiment);
       for (let dayIndex = 0; dayIndex < maxDay; dayIndex++) {
         runDay(ctx, dayIndex);
         const day = dayIndex + 1;
@@ -1335,7 +1455,55 @@ export function runProgressionSimulation(options: RunOptions = {}): ProgressionR
   }
 
   const aggregates = aggregateSnapshots(snapshots, personas, days);
-  return { seeds, days, personas, snapshots, aggregates, verdict: analyzeRewardTuning(aggregates, days) };
+  const report = { seeds, days, personas, snapshots, aggregates, verdict: analyzeRewardTuning(aggregates, days) };
+  return experiment ? { ...report, experiment } : report;
+}
+
+function normalizeExperiment(config: TuningExperimentConfig | undefined): TuningExperimentConfig | undefined {
+  const out: TuningExperimentConfig = {
+    weeklyCap: SHIPPED_TUNING_DEFAULTS.weeklyCap,
+    premiumRunGold: SHIPPED_TUNING_DEFAULTS.premiumRunGold,
+    crafting: SHIPPED_TUNING_DEFAULTS.crafting,
+  };
+  if (!config) return out;
+  if (config.cooldownDays !== undefined) {
+    if (!Number.isInteger(config.cooldownDays) || config.cooldownDays <= 0) {
+      throw new Error(`cooldownDays must be a positive integer: ${config.cooldownDays}`);
+    }
+    out.cooldownDays = config.cooldownDays;
+  }
+  if (config.weeklyCap !== undefined) {
+    if (!Number.isInteger(config.weeklyCap) || config.weeklyCap <= 0) {
+      throw new Error(`weeklyCap must be a positive integer: ${config.weeklyCap}`);
+    }
+    out.weeklyCap = config.weeklyCap;
+  }
+  if (config.limitedRunGoldOverride !== undefined) {
+    if (
+      config.limitedRunGoldOverride.length !== 4 ||
+      config.limitedRunGoldOverride.some((value) => !Number.isInteger(value) || value < 0)
+    ) {
+      throw new Error('limitedRunGoldOverride must contain four non-negative integers');
+    }
+    out.limitedRunGoldOverride = [...config.limitedRunGoldOverride] as [number, number, number, number];
+  }
+  if (config.premiumRunGold !== undefined) {
+    if (config.premiumRunGold !== 'full' && config.premiumRunGold !== 'none') {
+      throw new Error(`premiumRunGold must be full or none: ${config.premiumRunGold}`);
+    }
+    out.premiumRunGold = config.premiumRunGold;
+  }
+  if (config.crafting !== undefined) {
+    if (
+      config.crafting.enabled !== true ||
+      !Number.isFinite(config.crafting.craftCostMult) ||
+      config.crafting.craftCostMult <= 0
+    ) {
+      throw new Error('crafting requires enabled=true and a positive craftCostMult');
+    }
+    out.crafting = { enabled: true, craftCostMult: config.crafting.craftCostMult };
+  }
+  return out;
 }
 
 function normalizeDays(days: readonly number[]): number[] {
@@ -1358,6 +1526,9 @@ function aggregateSnapshots(
     for (const day of days) {
       const rows = snapshots.filter((s) => s.personaId === persona.id && s.day === day);
       if (rows.length === 0) continue;
+      const craftedUniques = rows.some((row) => row.craftedUniques !== undefined)
+        ? avg(rows.map((row) => row.craftedUniques ?? 0))
+        : undefined;
       out.push({
         personaId: persona.id,
         personaName: persona.name,
@@ -1398,6 +1569,7 @@ function aggregateSnapshots(
         limitedAvgLosses: avg(rows.map((r) => r.limitedAvgLosses)),
         sessionMinutes: avg(rows.map((r) => r.sessionMinutes)),
         minutesPerDay: avg(rows.map((r) => r.minutesPerDay)),
+        ...(craftedUniques === undefined ? {} : { craftedUniques }),
         rewards: rows.map((r) => r.rewards).reduce(addRewards, emptyRewards()),
         spent: rows.map((r) => r.spent).reduce(addSpent, emptySpent()),
       });
@@ -1429,6 +1601,7 @@ function divideSpent(x: SpendLedger, n: number): SpendLedger {
     packs: x.packs / n,
     decks: x.decks / n,
     premiumDraftEntries: x.premiumDraftEntries / n,
+    crafts: x.crafts / n,
   };
 }
 
@@ -1692,6 +1865,35 @@ export function renderProgressionReport(report: ProgressionReport): string {
   return lines.join('\n');
 }
 
+function parseExperimentArgs(argv: readonly string[]): TuningExperimentConfig | undefined {
+  const option = (name: string): string | undefined => {
+    const inline = argv.find((arg) => arg.startsWith(`--${name}=`));
+    if (inline !== undefined) return inline.slice(name.length + 3);
+    const index = argv.indexOf(`--${name}`);
+    return index >= 0 && index + 1 < argv.length ? argv[index + 1] : undefined;
+  };
+  const hasFlag = (name: string): boolean => argv.includes(`--${name}`);
+  const experiment: TuningExperimentConfig = {};
+  const cooldownDays = option('cooldown-days');
+  const weeklyCap = option('weekly-cap');
+  const runGold = option('limited-run-gold');
+  const premiumRunGold = option('premium-run-gold');
+  const craftCostMult = option('craft-cost-mult');
+
+  if (cooldownDays !== undefined) experiment.cooldownDays = Number(cooldownDays);
+  if (weeklyCap !== undefined) experiment.weeklyCap = Number(weeklyCap);
+  if (runGold !== undefined) {
+    const values = runGold.split(',').map(Number);
+    experiment.limitedRunGoldOverride = values as [number, number, number, number];
+  }
+  if (premiumRunGold !== undefined) experiment.premiumRunGold = premiumRunGold as 'full' | 'none';
+  if (hasFlag('crafting') || craftCostMult !== undefined) {
+    if (craftCostMult === undefined) throw new Error('--crafting requires --craft-cost-mult K');
+    experiment.crafting = { enabled: true, craftCostMult: Number(craftCostMult) };
+  }
+  return normalizeExperiment(experiment);
+}
+
 function parseArgs(argv: readonly string[]): RunOptions & { json?: boolean; check?: boolean } {
   const opt = (name: string): string | undefined => {
     const i = argv.indexOf(`--${name}`);
@@ -1719,11 +1921,13 @@ function parseArgs(argv: readonly string[]): RunOptions & { json?: boolean; chec
     const missing = personaIds.filter((id) => !found.has(id));
     throw new Error(`Unknown persona(s): ${missing.join(', ')}`);
   }
+  const experiment = parseExperimentArgs(argv);
   return {
     seeds: opt('seeds') === undefined ? undefined : Number(opt('seeds')),
     days: opt('days')?.split(',').map(Number),
     personas,
     baseSeed: opt('base-seed') === undefined ? undefined : Number(opt('base-seed')),
+    ...(experiment ? { experiment } : {}),
     json: flag('json'),
     check: flag('check'),
   };

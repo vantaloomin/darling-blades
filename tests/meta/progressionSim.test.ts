@@ -62,7 +62,7 @@ describe('progression simulation harness', () => {
       premiumDraftRuns: expect.any(Number),
       premiumDraftCardsKept: expect.any(Number),
     });
-    expect(limitedFan!.premiumDraftRuns).toBeGreaterThan(0);
+    expect(limitedFan!.premiumDraftRuns).toBe(2);
     expect(limitedFan!.premiumDraftCardsKept).toBeGreaterThan(0);
     expect(limitedFan!.spent.premiumDraftEntries).toBe(
       limitedFan!.premiumDraftRuns * ECONOMY.premiumDraftEntry,

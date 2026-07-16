@@ -126,7 +126,7 @@ export function applyGauntletResult(
   return { gold, firstWinBonus, runOver: nextRung === null, completed, nextRung };
 }
 
-/** Record one Limited match; pays first-win immediately and run gold after match 3. */
+/** Record one Limited match; pays first-win immediately and free-run gold after match 3. */
 export function applyLimitedMatchResult(
   save: SaveData,
   difficulty: Difficulty,
@@ -159,7 +159,10 @@ export function applyLimitedMatchResult(
   const runOver = run.matchIndex >= 3;
   let nextMatch: number | null = run.matchIndex;
   if (runOver) {
-    const rewardGold = ECONOMY.limitedRunGold[run.wins] ?? 0;
+    // Premium's 1,000g entry buys the 45 kept picks. It never also pays the
+    // free-run record reward; first-win and streak rewards remain daily-level
+    // rewards and are intentionally handled above/by Quests.
+    const rewardGold = run.premium ? 0 : ECONOMY.limitedRunGold[run.wins] ?? 0;
     gold += rewardGold;
     if (run.mode === 'sealed') save.limited.bestSealedWins = Math.max(save.limited.bestSealedWins, run.wins);
     else save.limited.bestDraftWins = Math.max(save.limited.bestDraftWins, run.wins);
@@ -190,9 +193,61 @@ export function spendGold(save: SaveData, amount: number): boolean {
   return true;
 }
 
-/** Pay the fixed Premium Draft entry fee, with no mutation when unaffordable. */
-export function payPremiumDraftEntry(save: SaveData): boolean {
-  return spendGold(save, ECONOMY.premiumDraftEntry);
+const UTC_DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The seven-day Premium grid, anchored to the UTC epoch as specified. */
+export function premiumWeekKey(today: string): number {
+  const timestamp = Date.parse(`${today}T00:00:00.000Z`);
+  if (!Number.isFinite(timestamp)) throw new RangeError(`Invalid day string: ${today}`);
+  return Math.floor(timestamp / UTC_DAY_MS / 7);
+}
+
+function premiumWeekDay(today: string): number {
+  const timestamp = Date.parse(`${today}T00:00:00.000Z`);
+  if (!Number.isFinite(timestamp)) throw new RangeError(`Invalid day string: ${today}`);
+  return Math.floor(timestamp / UTC_DAY_MS);
+}
+
+function premiumWeekEntries(save: SaveData, today: string): { week: number; entries: number } {
+  const week = premiumWeekKey(today);
+  const state = save.limited.premiumWeek;
+  return { week, entries: state?.week === week ? Math.max(0, state.entries) : 0 };
+}
+
+export interface PremiumEntryStatus {
+  allowed: boolean;
+  remaining: number;
+  resetsInDays: number;
+}
+
+/** Pure Premium Draft allowance read. Gold affordability is checked at payment time. */
+export function premiumEntryStatus(save: SaveData, today: string): PremiumEntryStatus {
+  const { entries } = premiumWeekEntries(save, today);
+  const day = premiumWeekDay(today);
+  const remaining = Math.max(0, ECONOMY.premiumWeeklyCap - entries);
+  return {
+    allowed: remaining > 0,
+    remaining,
+    resetsInDays: 7 - (day - premiumWeekKey(today) * 7),
+  };
+}
+
+/**
+ * Pay the fixed Premium Draft entry fee and record the weekly entry. The
+ * optional cap is simulator-only so experiment runs can loosen/tighten the
+ * shipped default; UI callers should pass just `(save, today)`.
+ */
+export function payPremiumDraftEntry(
+  save: SaveData,
+  today = todayString(),
+  weeklyCap: number = ECONOMY.premiumWeeklyCap,
+): boolean {
+  if (!Number.isInteger(weeklyCap) || weeklyCap <= 0) throw new RangeError('weeklyCap must be a positive integer');
+  const { week, entries } = premiumWeekEntries(save, today);
+  if (entries >= weeklyCap) return false;
+  if (!spendGold(save, ECONOMY.premiumDraftEntry)) return false;
+  save.limited.premiumWeek = { week, entries: entries + 1 };
+  return true;
 }
 
 export function todayString(now = new Date()): string {

@@ -95,6 +95,39 @@ export function addCard(
   return { ...base, isNew: owned === 0, isNewVariant: had === 0, dupeGold: 0 };
 }
 
+/** Gold cost for one plain copy of a card, before eligibility checks. */
+export function craftCost(db: CardDb, cardId: string, costMult: number = ECONOMY.craftCostMult): number {
+  return costMult * ECONOMY.dupeGold[def(db, cardId).rarity];
+}
+
+export type CraftResult = { ok: true } | { ok: false; reason: string };
+
+/**
+ * Craft one missing collectible as a PLAIN copy. Crafting is deliberately
+ * identity-based: any owned variant blocks the action, and the normal addCard
+ * path owns the aggregate and per-variant bookkeeping.
+ */
+export function craftCard(
+  save: SaveData,
+  db: CardDb,
+  cardId: string,
+  costMult: number = ECONOMY.craftCostMult,
+): CraftResult {
+  const card = db[cardId];
+  if (!card) return { ok: false, reason: 'unknown-card' };
+  if (card.token || card.supertypes?.includes('basic')) return { ok: false, reason: 'not-collectible' };
+  if (ownedCount(save, cardId) > 0) return { ok: false, reason: 'already-owned' };
+
+  const cost = craftCost(db, cardId, costMult);
+  if (save.gold < cost) return { ok: false, reason: 'insufficient-gold' };
+  save.gold -= cost;
+  const result = addCard(save, db, cardId, PLAIN_VARIANT);
+  if (!result.isNew || !result.isNewVariant || result.dupeGold !== 0) {
+    throw new Error(`Crafted card did not grant a new plain copy: ${cardId}`);
+  }
+  return { ok: true };
+}
+
 export interface ShardResult {
   gold: number; // total gold gained
   copies: number; // total copies sharded away

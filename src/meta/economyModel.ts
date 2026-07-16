@@ -269,7 +269,7 @@ export function freeDraftRunEv(winRate: number): LimitedRunEv {
   };
 }
 
-/** Premium Draft payout after its fee, with caller-supplied kept-card shard EV. */
+/** Premium Draft value after its fee; kept-card value is the only run payout. */
 export function premiumDraftRunEv(winRate: number, expectedKeptCardGold = 0): PremiumDraftRunEv {
   if (!Number.isFinite(expectedKeptCardGold) || expectedKeptCardGold < 0) {
     throw new RangeError('expectedKeptCardGold must be non-negative');
@@ -277,9 +277,10 @@ export function premiumDraftRunEv(winRate: number, expectedKeptCardGold = 0): Pr
   const run = freeDraftRunEv(winRate);
   return {
     ...run,
+    expectedRunGold: 0,
     entryCost: ECONOMY.premiumDraftEntry,
     expectedKeptCardGold,
-    expectedNetGold: run.expectedRunGold + expectedKeptCardGold - ECONOMY.premiumDraftEntry,
+    expectedNetGold: expectedKeptCardGold - ECONOMY.premiumDraftEntry,
   };
 }
 
@@ -407,7 +408,9 @@ function sampledCardValue(
  * Compare a selection-neutral 45-card Premium Draft baseline with three
  * collection boosters (27 rolls). The caller owns the seeded RNG. Premium
  * draws use Limited's unprotected card rolls; booster draws use openPack's
- * high-tier playset protection. Both sides use the same per-variant value rules.
+ * high-tier playset protection. Both sides use the same per-variant value rules;
+ * Premium's mode-gold term is zero because its entry fee already buys the kept
+ * picks.
  */
 export function premiumVsBoosters(
   db: CardDb,
