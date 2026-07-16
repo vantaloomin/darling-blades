@@ -1,4 +1,4 @@
-<!-- source-of-truth: scripts/progression-sim.ts, scripts/balance-matrix.ts, src/config/rules.ts, src/meta/Economy.ts, src/meta/Limited.ts, src/meta/Collection.ts, src/meta/Quests.ts, tests/meta/progressionSim.test.ts · last-verified: 2026-07-15 · design/plan doc — re-verify when the economy code or harnesses change -->
+<!-- source-of-truth: scripts/progression-sim.ts, scripts/balance-matrix.ts, src/config/rules.ts, src/meta/Economy.ts, src/meta/Limited.ts, src/meta/Collection.ts, src/meta/Quests.ts, tests/meta/progressionSim.test.ts · last-verified: 2026-07-16 · design/plan doc — re-verify when the economy code or harnesses change -->
 
 # Economy testing at scale — plan
 
@@ -15,7 +15,59 @@
 > the date-stamped baseline table next to `ECONOMY`, and a dynamic-policy
 > seam; 3: the greedy g/min optimizer + cap gate + named exploit
 > regressions, which surfaced the premium shard-farm finding below).
-> Remaining: the tuning pass (direction set below).
+>
+> **TUNING PASS SHIPPED 2026-07-16 — the plan is complete.** The knobs were
+> chosen by measurement (a 12-candidate sim sweep at 4 seeds × 60 days, then
+> a 9-config finalist sweep at 6 seeds × 75 days; harness committed as
+> `scripts/tuning-sweep.ts`, experiment knobs in the sim) and picked by the
+> user (2026-07-16, locked):
+>
+> 1. **Premium weekly allowance — 2 entries per UTC week**
+>    (`ECONOMY.premiumWeeklyCap`, `premiumEntryStatus` /
+>    `payPremiumDraftEntry(save, today)`, persisted as
+>    `limited.premiumWeek`, **SaveData v18 → v19** with migration + tests).
+>    Measured: Limited Fan 35.38 → **18** premium runs/60d with collection
+>    HELD at 97.3% (crafting compensates); first premium stays day 3. The
+>    2-day/3-day cooldown shapes measured nearly identical; weekly allowance
+>    chosen for player feel (burst-friendly quota).
+> 2. **Premium runs pay no run-end gold** (`applyLimitedMatchResult`; the
+>    1,000g entry buys the 45 kept picks; free-draft payouts untouched).
+>    The only lever that closes the premium shard-farm: mean 1,127.5g →
+>    **827.5g** vs the 1,000g entry (max 1,295g — a one-off jackpot, not a
+>    repeatable cycle; the hard gate in exploits.test.ts asserts the mean,
+>    and the old `it.fails` pin is FLIPPED). The measured-weak alternative
+>    (`limitedRunGold` trim −40%) left the farm at 1,007g and moved global
+>    generosity not at all, so `limitedRunGold` stays [40/100/180/300].
+>    Consequence recorded honestly: the decision-1 clause "successful
+>    Premium ≥ 1.35× practice" as a GOLD faucet is intentionally void
+>    (premium's value is cards now); that inequality was removed from
+>    economyGates.test.ts. The gauntlet lead gate is intact and easier
+>    (measured ratio 1.32× → 2.488× against the unchanged 1.20× floor).
+> 3. **Shard-crafting catch-up — craft one plain copy of any wholly
+>    unowned collectible at 6× its dupe value** (`ECONOMY.craftCostMult`,
+>    `craftCard`/`craftCost` in Collection.ts; Craft chip in the Collection
+>    inspect, honoring `confirmDestructive`). Fixes the measured ~90%
+>    pack-route asymptote: finalist sweep (75d × 6 seeds) puts Hardcore
+>    Optimizer completion at **day 68 median (4/6 seeds)** and
+>    Completionist at day 63.5 (6/6) — inside the locked 50–75-day window.
+>    K=10 measured too stingy (0/6 complete by d75); craft-then-shard is
+>    gate-pinned gold-negative at every tier.
+>
+> Post-tuning canonical baseline (10×8×60, daily snapshots) is date-stamped
+> beside `ECONOMY` in rules.ts; the dashboard Artifact is refreshed from it
+> (generator: `npx tsx scripts/econ-dashboard/prep-baseline.ts report.json
+> data.js`, then inline into `dashboard-template.html` at `/*__DATA__*/`).
+> Known accepted properties (adversarially reviewed, 2 dimensions + probes,
+> zero confirmed findings): a clock rollback can re-mint the weekly
+> allowance (same clock-trust posture as dailies/streaks — spending, not a
+> faucet); the farm max (1,295g) stays above entry on jackpot seeds while
+> the EV gate holds; hub pay-before-start would strand 1,000g only if the
+> booster pool emptied (impossible with the shipped CARD_DB — revisit if
+> set-filtered drafts ever ship).
+>
+> Remaining follow-ups live OUTSIDE this plan: the quest claim-rate spread
+> (41–89%, its own item) and the visual by-eye pass of the new hub/craft
+> copy (flagged; hidden-pane screenshots time out).
 
 _Authored 2026-07-15 (user-directed). This is the instrumentation half of the
 1.1 Limited economy tuning pass: build the measurement + regression layer
@@ -179,7 +231,7 @@ Scripted personas play fair; exploits don't. Two additions:
 > snapshots (9.4 MB report, ~50 min detached); the dashboard is published
 > as a private Artifact and its generator is repeatable in-repo:
 > `npx tsx scripts/progression-sim.ts --seeds 8 --days 1,…,60 --json >
-> report.json`, then `node scripts/econ-dashboard/prep-baseline.mjs
+> report.json`, then `npx tsx scripts/econ-dashboard/prep-baseline.ts
 > report.json data.js`, then inline `data.js` into
 > `scripts/econ-dashboard/dashboard-template.html` at the `/*__DATA__*/`
 > marker. Headline baseline findings: Limited Fan reaches 97% collection

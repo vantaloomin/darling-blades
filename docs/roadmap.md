@@ -58,6 +58,42 @@ _Dated 2026-07-04. Review monthly._
   v14→v15 per-deck hero images — see Recently shipped). By-ear tuning remains
   open (see Planned).
 
+## Recently shipped (2026-07-16)
+
+- **The 1.1 Limited economy TUNING pass — the last 1.1 engineering item**
+  (user knob decisions 2026-07-16; measured end-to-end per
+  [plan-economy-testing.md](plan-economy-testing.md)'s tuning record, which
+  carries the full numbers). Instrumentation first: sim-side experiment
+  knobs + a `scripts/tuning-sweep.ts` candidate driver (default-off, default
+  path byte-identical, adversarially reviewed — two instrument defects fixed
+  before any decision was read off it), a 12-candidate screening sweep
+  (4 seeds × 60d) and a 9-config finalist sweep (6 seeds × 75d). The three
+  shipped changes: **(1) Premium Draft weekly allowance** — 2 entries per
+  UTC week (**SaveData v18 → v19**, hub copy "N left this week" / "Weekly
+  limit · Resets in N days"; Limited Fan 35 → 18 runs/60d, collection held
+  at 97.3%, first premium stays day 3); **(2) premium runs pay no run-end
+  gold** (entry buys the 45 kept picks; free-draft payouts untouched) —
+  the only measured lever that closes the premium shard-farm (mean 1,127.5g
+  → 827.5g vs the 1,000g entry; the `it.fails` pin in exploits.test.ts is
+  now a hard EV gate; the run-gold trim measured too weak at 1,007g and was
+  dropped); **(3) shard-crafting catch-up** — craft one plain copy of any
+  wholly unowned collectible at 6× dupe value (C/R/SR/SSR/UR =
+  30/60/300/900/3,000g; Craft chip in the Collection inspect honoring
+  `confirmDestructive`; Collection gains the shared gold badge since it now
+  spends — supersedes the 2026-07-12 currency-placement pick, flagged to
+  the user). Crafting fixes the measured ~90% pack-route asymptote:
+  Hardcore Optimizer completes day 68 median (4/6 seeds at 75d),
+  Completionist 63.5 (6/6) — inside the locked 50–75-day window for the
+  first time. Gates re-measured 2026-07-16 (gauntlet/premium 2.488× vs the
+  intact 1.20× floor; the premium≥1.35×-practice GOLD inequality is
+  intentionally void — premium's value is cards now); post-tuning canonical
+  baseline (10×8×60 daily) date-stamped beside `ECONOMY`; dashboard
+  Artifact refreshed. 745+ tests green; live-probed on :5174 (allowance
+  states, refused payment, craft arm/confirm, history rendering, zero
+  console errors); adversarial review 2 dimensions, zero confirmed
+  findings. Visual by-eye pass of the new hub/craft copy flagged for a
+  live screen.
+
 ## Recently shipped (2026-07-15)
 
 - **Economy instrumentation — phases 2b + 3 of
@@ -963,27 +999,14 @@ _Dated 2026-07-04. Review monthly._
   see above).
 
 ## Planned
-- **The 1.1 Limited economy TUNING pass (direction set 2026-07-15; all
-  instrumentation phases 0–3 of
-  [plan-economy-testing.md](plan-economy-testing.md) SHIPPED — see
-  Recently shipped 2026-07-15).** User-directed knobs, decided from the
-  baseline dashboard: a **premium-draft frequency limiter** leads (the
-  baseline indicts the run rate — 35 premium runs/60 days — not the
-  per-run experience; `premiumDraftEntry` stays 1,000g to protect the
-  day-3 first-premium onboarding), with a **`limitedRunGold` trim** as
-  the second lever for global generosity (1.22 packs/day median, ~80%
-  median collection at day 60). Also on the agenda: a **late-game
-  catch-up mechanism** (measured: pack-only routes asymptote near 90% —
-  Hardcore Optimizer gains only ~0.68 uniques/day at day 55–60,
-  completion extrapolates past day 110 vs the locked 50–75-day window)
-  and **closing the premium shard-farm** (measured live finding: a
-  finished collector nets mean 1,127.5g vs the 1,000g entry with a
-  best-record run; pinned `it.fails` in tests/meta/exploits.test.ts).
-  Flow: adjust knobs → re-run the canonical matrix → refresh the
-  dashboard Artifact → re-ratchet the Phase-2b gates (they only ratchet
-  up) → record before/after in the plan doc. The quest claim-rate spread
-  (41–89% by deck/style) is explicitly OUT of this pass (quest-pool
-  fairness, its own item).
+- **The 1.1 Limited economy TUNING pass — ✅ SHIPPED 2026-07-16** (see
+  Recently shipped; the full measured record lives in
+  [plan-economy-testing.md](plan-economy-testing.md)'s tuning-pass note).
+  With it, **the 1.1 release ladder's engineering is complete** — what
+  remains for the 1.1 cut is release mechanics (version bump + tag, doc
+  sweep) plus the standing carry-over validation passes below. The quest
+  claim-rate spread (41–89% by deck/style) stays explicitly OUT of the
+  pass (quest-pool fairness, its own item).
 - **Full Art variant — a 4th booster axis (decided 2026-07-13).** Locked
   user picks: an INDEPENDENT per-slot roll at **0.25%** (rarer than Black
   frame / Void holo at 0.45% each; ~1 pull per 45 packs) that **stacks**
@@ -1055,7 +1078,8 @@ _Dated 2026-07-04. Review monthly._
   [plan-1.1.md](plan-1.1.md) is the spec — see its re-scope note. The release
   ladder now reads: **1.1** = Celtic Fae (✅ shipped) + the public persona
   Draft (✅ shipped 2026-07-14) + the Limited **economy sim/tuning pass**
-  (remaining); **1.2** = practice opponent picker (+ the previously shelved
+  (✅ shipped 2026-07-16 — 1.1's engineering is complete);
+  **1.2** = practice opponent picker (+ the previously shelved
   deterministic replays); **1.3** = seeded daily tower rotation (with its
   balance re-baseline); **1.5** = Commander mode, renamed **"Darlings"**;
   **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —

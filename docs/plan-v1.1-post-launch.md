@@ -414,6 +414,17 @@ post-1.0 release alongside a future expansion, after more testing.
 > ~45 kept cards + the same run gold undercuts three 450g boosters (27
 > rolls) — priced by user direction, revisit alongside `limitedRunGold`.
 >
+> **Update 5 (2026-07-16): the economy tuning pass SHIPPED — this feature's
+> blocker list is closed.** User-decided knobs, measured via the
+> plan-economy-testing sweeps (full record in that doc's tuning note):
+> Premium Draft is capped at **2 entries per UTC week** (SaveData v19),
+> **premium runs pay no run-end gold** (closes the premium shard-farm:
+> mean 827.5g vs the 1,000g entry, hard-gated in exploits.test.ts), and a
+> **shard-crafting catch-up** ships (one plain copy of a wholly unowned
+> collectible at 6× dupe value) fixing the ~90% pack-route completion
+> asymptote. `limitedRunGold` [40/100/180/300] stays — the trim measured
+> too weak to matter and the free-draft ≤ practice gate already holds.
+>
 > **Update 4 (2026-07-14, placements locked via handoff):** **Set choice is
 > decided — mixed-set packs are the intentional, shipped answer**: limited
 > packs draw from all three sets because `rollLimitedPackWithRng` calls

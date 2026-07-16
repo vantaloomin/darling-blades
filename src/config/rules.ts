@@ -93,6 +93,26 @@ export const ECONOMY = {
  * Low Skill Casual          52.47%       0.47          0          40.83%          -
  * High Skill Veteran        85.10%       1.93          0          78.19%          -
  * Completionist             91.44%       2.29          0          88.54%          -
+ *
+ * Post-tuning baseline 2026-07-16 (same 10 personas x 8 seeds x 60 days,
+ * daily snapshots) after the 1.1 tuning pass: premiumWeeklyCap 2, premium
+ * run-end gold 0, crafting at craftCostMult 6. The weekly cap binds Limited
+ * Fan to 18 premium runs (was 35.38) with collection held by crafting; the
+ * craft sink lifts the pack-route completion asymptote (Hardcore Optimizer
+ * 89.72% -> 96.63%; finalist sweep at 75d/6 seeds measured completion day 68
+ * median). Casuals and packs/day are deliberately untouched.
+ *
+ * Persona              Collection  Packs/day  Premium runs  Quest claim  Crafted  First Premium
+ * New Casual              57.41%       0.56          0          43.33%       0          -
+ * Daily Grinder            80.05%       1.59          0          69.86%       0          -
+ * Gauntlet Climber         77.15%       1.41          0          68.33%       0          -
+ * Limited Fan              97.28%       0.39      18.00          69.93%    37.1          3
+ * Collector                 71.49%       1.04          0          65.97%       0          -
+ * Theme Deck Buyer          80.27%       0.91          0          60.07%       0          -
+ * Hardcore Optimizer        96.63%       1.88          0          80.83%    39.1          -
+ * Low Skill Casual          52.47%       0.47          0          40.83%       0          -
+ * High Skill Veteran        90.08%       1.87          0          78.19%    19.6          -
+ * Completionist             99.43%       1.76          0          88.54%    49.4          -
  */
 
 /**
