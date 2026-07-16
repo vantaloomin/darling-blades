@@ -5,6 +5,8 @@ import { ALL_CARDS, CARD_DB } from '../data/catalog';
 import type { CardDef } from '../engine/types';
 import {
   bestOwnedVariant,
+  craftCard,
+  craftCost,
   ownedCount,
   PLAYSET,
   shardableCount,
@@ -35,7 +37,16 @@ import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, modalShell, pager, themedButton, type Pager, type ThemedButton } from '../ui/themeWidgets';
+import {
+  backButton,
+  goldBadge,
+  modalShell,
+  pager,
+  themedButton,
+  type GoldBadge,
+  type Pager,
+  type ThemedButton,
+} from '../ui/themeWidgets';
 
 // Design canvas (Scale.FIT). All layout is in 1280×720 DESIGN px — never
 // this.scale.*: at renderScale k the canvas is 1280k×720k but the camera
@@ -102,6 +113,7 @@ export class CollectionScene extends Phaser.Scene {
   private outgoing: Phaser.GameObjects.Container[] = [];
   private turning = false;
   private pageControl!: Pager;
+  private goldBadge!: GoldBadge;
   private counterText!: Phaser.GameObjects.Text;
   private completionText!: Phaser.GameObjects.Text;
   private emptyText!: Phaser.GameObjects.Text;
@@ -160,18 +172,18 @@ export class CollectionScene extends Phaser.Scene {
         color: theme.colors.heading,
       })
       .setOrigin(0.5);
-    // Gold display is intentionally absent: currency shows only on the main
-    // menu and the Shop (user decision 2026-07-12). Shard payouts still name
-    // their gold amount on the shard button label.
+    // Crafting spends gold here, so keep the shared currency badge beside the
+    // collection stats and refresh it with the binder view.
+    this.goldBadge = goldBadge(this, DESIGN_W - 28, 30, { flashOnChange: true });
     this.counterText = this.add
-      .text(DESIGN_W - 28, 44, '', {
+      .text(DESIGN_W - 200, 30, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
       })
       .setOrigin(1, 0.5);
     this.completionText = this.add
-      .text(DESIGN_W - 28, 66, '', {
+      .text(DESIGN_W - 200, 52, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
@@ -317,6 +329,7 @@ export class CollectionScene extends Phaser.Scene {
 
     const ownedKinds = collectible.filter((d) => ownedCount(save, d.id) > 0).length;
     const completion = collectionCompletion(ALL_CARDS, save);
+    this.goldBadge.refresh(save.gold);
     this.counterText.setText(`${ownedKinds}/${collectible.length} collected`);
     this.completionText.setText(
       `${Math.round(completion.percent * 100)}% pool  |  ${completion.variants.specialCards} special cards`,
@@ -528,8 +541,9 @@ export class CollectionScene extends Phaser.Scene {
       restyle();
     }
 
-    // Card actions (owned cards only): choose this card as the fallback hero portrait.
-    if (owned > 0) this.addInspectActions(c, d);
+    // Card actions: owned cards can choose a fallback hero portrait or shard;
+    // missing collectibles can be crafted.
+    this.addInspectActions(c, d);
 
     c.add(
       this.add
@@ -568,20 +582,53 @@ export class CollectionScene extends Phaser.Scene {
    */
   private addInspectActions(c: Phaser.GameObjects.Container, d: CardDef): void {
     const panelX = 740;
-    // The two chips inflate to a 52px-tall tap area, so their row centres must be
-    // ≥ 52px apart or the rects overlap and the later-added (Shard) chip steals
-    // the seam — 620 / 684 (64px pitch) keeps a clean gap, clear of the variant
-    // rows above (≤ 582) and the non-interactive close hint below.
+    // Action chips inflate to a 52px-tall tap area, so their row centres must
+    // be ≥ 52px apart or the later-added chip steals the seam. Hero or Craft
+    // uses 620; Shard uses 684 (64px pitch), clear of variant rows above.
     const save = Services.save.data;
-    const heroLabel = (): string =>
-      save.heroCardId === d.id ? '★ Default hero (tap to clear)' : '☆ Set default hero';
-    const heroBtn = this.overlayChip(c, panelX, 620, heroLabel(), save.heroCardId === d.id ? 'primary' : 'emphasis', () => {
-      save.heroCardId = save.heroCardId === d.id ? null : d.id;
-      Services.save.flush();
-      Sfx.play('shimmer');
-      heroBtn.setLabel(heroLabel());
-      heroBtn.setVariant(save.heroCardId === d.id ? 'primary' : 'emphasis');
-    });
+    if (ownedCount(save, d.id) > 0) {
+      const heroLabel = (): string =>
+        save.heroCardId === d.id ? '★ Default hero (tap to clear)' : '☆ Set default hero';
+      const heroBtn = this.overlayChip(
+        c,
+        panelX,
+        620,
+        heroLabel(),
+        save.heroCardId === d.id ? 'primary' : 'emphasis',
+        () => {
+          save.heroCardId = save.heroCardId === d.id ? null : d.id;
+          Services.save.flush();
+          Sfx.play('shimmer');
+          heroBtn.setLabel(heroLabel());
+          heroBtn.setVariant(save.heroCardId === d.id ? 'primary' : 'emphasis');
+        },
+      );
+    }
+
+    const owned = ownedCount(save, d.id);
+    if (owned === 0 && !d.token && !d.supertypes?.includes('basic')) {
+      const cost = craftCost(CARD_DB, d.id);
+      const costLabel = `-${cost.toLocaleString('en-US')}g`;
+      let armed = false;
+      const label = (): string => (armed ? `Craft: confirm (${costLabel})` : `Craft (${costLabel})`);
+      const craftBtn = this.overlayChip(c, panelX, 620, label(), 'emphasis', () => {
+        if (!armed) {
+          armed = true;
+          craftBtn.setLabel(label());
+          craftBtn.setVariant('primary');
+          return;
+        }
+        const result = craftCard(save, CARD_DB, d.id);
+        if (!result.ok) return;
+        Services.save.flush();
+        Sfx.play('coin');
+        this.renderPage(); // refresh counts, thumb alpha, and the gold badge
+        this.showInspect(d); // keep the inspect overlay open on the new copy
+      });
+      // Shop convention: keep an unaffordable action visible with its price,
+      // but make its input inert until the balance can cover the cost.
+      craftBtn.setEnabled(save.gold >= cost);
+    }
 
     // Shard/sell: convert copies past the per-variant playset (4 of each
     // frame|holo) to gold. Two-tap confirm (destructive); rebuilds the overlay
