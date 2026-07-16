@@ -17,12 +17,12 @@ export const ARTHURIAN_COURT = [
   // ULTRA RARE (4)
   // =========================================================================
   creature('ac-artoria-once-future', 'Artoria, Once and Future Queen', ['Knight', 'Queen'], {
-    supertypes: ['legendary'], cost: cost(4, 'WU'), colors: ['W', 'U'], attack: 4, defense: 5,
-    keywords: ['sentinel'], awakening: { p: 2, t: 2, keywords: ['firstBlade'] },
+    supertypes: ['legendary'], cost: cost(4, 'WU'), colors: ['W', 'U'], attack: 5, defense: 5,
+    keywords: ['sentinel'], awakening: { p: 3, t: 3, keywords: ['firstBlade'] },
     rarity: 'ur', flavor: 'The crown remembers every oath, even the one that breaks it.',
   }),
   creature('ac-morgan-thorn-crown', 'Morgan of the Thorn Crown', ['Witch', 'Queen'], {
-    supertypes: ['legendary'], cost: cost(4, 'UB'), colors: ['U', 'B'], attack: 4, defense: 5,
+    supertypes: ['legendary'], cost: cost(4, 'UB'), colors: ['U', 'B'], attack: 4, defense: 6,
     abilities: [
       { when: 'arrives', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] },
       { when: 'dawn', ops: [{ op: 'foresee', n: 1 }] },
@@ -72,7 +72,7 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-quest-for-the-grail', name: 'Quest for the Grail', types: ['enchantment'], subtypes: ['Quest'],
-    cost: cost(3, 'W'), colors: ['W'],
+    cost: cost(2, 'W'), colors: ['W'],
     chapters: [
       [{ op: 'foresee', n: 2 }],
       [{ op: 'gainLife', n: 4 }],
@@ -100,7 +100,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'sr', flavor: 'She enters the chapel with an empty hand and leaves with a heavier heart.',
   }),
   creature('ac-galahad-silver-oath', 'Galahad, Silver Oath', ['Knight', 'Champion'], {
-    supertypes: ['legendary'], cost: cost(3, 'W'), colors: ['W'], attack: 3, defense: 4,
+    supertypes: ['legendary'], cost: cost(3, 'W'), colors: ['W'], attack: 4, defense: 4,
     abilities: [{
       when: 'static', condition: 'questActive',
       static: { scope: 'self', condition: 'questActive', grantKeywords: ['untouchable'] },
@@ -120,7 +120,7 @@ export const ARTHURIAN_COURT = [
     supertypes: ['legendary'], cost: cost(3), colors: [],
     abilities: [{
       when: 'static',
-      static: { scope: 'filter', filter: { subtype: 'Knight' }, p: 1, t: 1, grantKeywords: ['firstBlade'] },
+      static: { scope: 'filter', filter: { subtype: 'Knight' }, p: 2, t: 1, grantKeywords: ['firstBlade'] },
     }],
     rarity: 'sr', flavor: 'The hand that draws it inherits the lake, the oath, and the ending.',
   },
@@ -155,13 +155,13 @@ export const ARTHURIAN_COURT = [
   // RARE (24)
   // =========================================================================
   creature('ac-camelot-banneret', 'Camelot Banneret', ['Knight', 'Soldier'], {
-    cost: cost(2, 'W'), colors: ['W'], attack: 2, defense: 3, keywords: ['sentinel'],
+    cost: cost(2, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['sentinel'],
     awakening: { p: 1, t: 1, keywords: ['firstBlade'] },
     abilities: [{ when: 'arrives', condition: 'questActive', ops: [{ op: 'createToken', token: 'tok-squire', count: 1 }] }],
     rarity: 'r', flavor: 'She carries the banner because someone must carry the memory.',
   }),
   creature('ac-lakeblade-initiate', 'Lakeblade Initiate', ['Knight', 'Initiate'], {
-    cost: cost(2, 'U'), colors: ['U'], attack: 3, defense: 2, keywords: ['firstBlade'],
+    cost: cost(2, 'U'), colors: ['U'], attack: 3, defense: 3, keywords: ['firstBlade'],
     awakening: { p: 1, t: 1, keywords: ['untouchable'] },
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'The lake gives her a blade before it gives her permission.',
@@ -199,7 +199,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-black-chapel-curse', name: 'Black Chapel Curse', types: ['enchantment'], subtypes: ['Quest'],
-    cost: cost(3, 'B'), colors: ['B'],
+    cost: cost(2, 'B'), colors: ['B'],
     chapters: [
       [{ op: 'loseLife', n: 2, who: 'opponent' }],
       [{ op: 'discardRandom', n: 1, who: 'opponent' }],
@@ -370,7 +370,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-squire-to-champion', name: 'Squire to Champion', types: ['enchantment'], subtypes: ['Quest'],
-    cost: cost(2, 'W'), colors: ['W'],
+    cost: cost(1, 'W'), colors: ['W'],
     chapters: [
       [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }],
       [{ op: 'awaken', scope: 'allYours' }],

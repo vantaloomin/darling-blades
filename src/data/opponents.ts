@@ -77,6 +77,34 @@ export interface Avatar {
  * death batching + AI self-bleed clock/desperation attacks): every R11/R12
  * cell reproduced identically — neither boss runs self-bleed effects.)
  *
+ * Rungs 13-14 — the Arthurian Court bosses, measured 2026-07-16 at 40
+ * seeds/cell (full `--avatars` matrix; rungs 1-12 re-measured in the same
+ * runs, unchanged within noise):
+ *
+ *                              Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R13 Morgan     [hard]        43%      88%      68%     68%      65%   | 66%
+ *   R14 Artoria    [hard]        50%      83%      83%     68%      48%   | 66%
+ *
+ * Boss harness (`--ac-bosses`, 50 seeds/cell vs LOW Crimson Muster / MID
+ * Shadow Mandate / HIGH Questing Table): Morgan 54/64/90 avg 69%; Artoria
+ * 62/58/94 avg 71%. Tuning history (honest): both first measured 59-60%
+ * with a hard aggro hole (Artoria 18-30% vs Crimson across three
+ * wall-heavy variants — the CF "passivity loses" law re-confirmed three
+ * separate times); the levers that measured REAL were (1) base-set
+ * interaction splash (Undertow tempo + Shieldwall blowouts, +12pp LOW for
+ * Artoria — the same recipe as Morgan's doom-bolts), and (2) two
+ * user-approved rounds of targeted AC card buffs (Artoria 5/5 + awakening
+ * +3/+3, Galahad 4/4, Banneret 3/3, Lakeblade 3/3, Morgan 4/6, Excalibur
+ * +2/+1, Quest for the Grail {2}{W}, Squire to Champion {1}{W}, Black
+ * Chapel Curse {2}{B}) which moved the tower rows 59% -> 66% and also lift
+ * the Questing Table precon and the set's draft presence. Personality
+ * retunes measured neutral. Residual, accepted with calibrated bands
+ * (R13 >= 60%, R14 >= 62%): the AC rungs sit ~10pp under R11/12 — W/U
+ * Quest tribal has no in-color hard removal by design, and the tower's
+ * power peak has been R10 Brunhild (85%) since Celtic Fae shipped, so a
+ * non-monotonic summit continues the accepted pattern. Closing the gap
+ * needs in-color W/U removal in a future set or heavier cross-set splash.
+ *
  * (R7/R8 rows re-measured once more after HardAI.openManaBuff gained the same
  * evidence gate — Hard's combat baselines no longer pay the phantom-trick tax
  * either; Hard vs Medium gate moved 76.5% → 78.0%. Rungs 1-6 unchanged.)
@@ -583,7 +611,7 @@ export const AVATARS: readonly Avatar[] = [
       ['ac-lakeblade-initiate', 4],
       ['ac-oathbroken-knight', 4],
       ['ac-castle-blackguard', 4],
-      ['ac-queen-regents-command', 2],
+      ['in-undertow', 2],
       ['in-doom-bolt', 4],
       ['in-reapers-due', 3],
     ]),

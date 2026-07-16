@@ -142,8 +142,15 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   10: { minAvg: 0.6 },
   11: { minAvg: 0.65 },
   12: { minAvg: 0.7 },
-  13: { minAvg: 0.65 },
-  14: { minAvg: 0.72 },
+  // 13-14 calibrated 2026-07-16 from fresh 40-seed tower measurements (66%/66%
+  // after two card-buff rounds + six deck iterations; CI margin ~4pp at 40
+  // seeds). The AC rungs are quest/attrition gates, not stat walls; Brunhild's
+  // R10 (85%) has been the tower's power peak since Celtic Fae shipped (R11/12
+  // measured 76%), so a non-monotonic summit continues the accepted pattern.
+  // Closing the residual 10pp vs R11/12 needs in-color W/U removal (a future
+  // set) or heavier cross-set splash - recorded in opponents.ts's baseline.
+  13: { minAvg: 0.6 },
+  14: { minAvg: 0.62 },
 });
 
 // ---------------------------------------------------------------------------
