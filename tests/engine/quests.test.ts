@@ -76,6 +76,12 @@ const DB: CardDb = {
     name: 'Dawn Marker',
     abilities: [{ when: 'dawn', ops: [{ op: 'damage', n: 1, to: 'controller' }] }],
   },
+  dawn_grind: {
+    ...TEST_DB.bear,
+    id: 'dawn_grind',
+    name: 'Dawn Self-Grinder',
+    abilities: [{ when: 'dawn', ops: [{ op: 'grind', n: 9, who: 'self' }] }],
+  },
   conditional_arrives: {
     ...TEST_DB.bear,
     id: 'conditional_arrives',
@@ -232,6 +238,30 @@ describe('quests', () => {
     expect(game.state.players[0].life).toBe(25);
     expect(events.filter((event) => event.e === 'died')).toHaveLength(1);
     expect(events.filter((event) => event.e === 'triggerFired' && event.when === 'dies')).toHaveLength(1);
+  });
+
+  it('resumes the dawn when every queued dawn foresee whiffs on an emptied deck', () => {
+    // Adversarial finding 2026-07-16: a dawn foresee queues while the deck
+    // still has cards; a later dawn ability then empties the deck, so the
+    // queued decision whiffs in maybeRaiseDeferredDecision's drain. The drain
+    // itself must resume through finishDawn (whose turn draw then decks the
+    // player out) instead of stranding the turn in 'dawn' forever.
+    const state = makeTestState({
+      active: 1,
+      battlefield: [
+        { iid: 1, cardId: 'dawn_foresee', controller: 0 },
+        { iid: 2, cardId: 'dawn_grind', controller: 0 },
+      ],
+    });
+    state.step = 'main2';
+    state.awaiting = { player: 1, kind: 'main' };
+    state.players[0].deck = ['bear', 'elf'];
+    const game = Game.restore(state, DB);
+    game.submit(1, { type: 'passStep' });
+
+    expect(game.state.step).not.toBe('dawn');
+    expect(game.awaiting.kind).toBe('gameOver');
+    expect(game.state.winner).toBe(1);
   });
 
   it('queues a chapter Foresee behind another dawn Foresee and resumes through finishDawn', () => {
