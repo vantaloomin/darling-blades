@@ -65,10 +65,13 @@ export type EffectOp =
   | { op: 'reclaim' } // return target creature card from your graveyard to hand
   | { op: 'grind'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
   | { op: 'foresee'; n: number } // look at top n, then choose any subset to bottom
+  | { op: 'awaken'; scope: 'self' | 'allYours' } // one-way champion upgrade; trigger-safe
   | { op: 'raise'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
 
 export interface StaticDef {
-  scope: 'attached' | 'filter';
+  /** `questActive` reads the source controller's public battlefield. */
+  condition?: 'questActive';
+  scope: 'self' | 'attached' | 'filter';
   /** filter scope: your creatures matching; `other` excludes the source. */
   filter?: { subtype?: string; other?: boolean };
   p?: number;
@@ -78,6 +81,8 @@ export interface StaticDef {
 
 export interface AbilityDef {
   when: TriggerWhen;
+  /** The source controller must control a CardDef with `chapters` present. */
+  condition?: 'questActive';
   targets?: TargetSpec[];
   ops?: EffectOp[];
   static?: StaticDef;
@@ -101,6 +106,10 @@ export interface CardDef {
   keywords?: Keyword[];
   x?: { min: number }; // X spells
   abilities?: AbilityDef[];
+  /** Quest chapters are the source of truth for Quest identity and activation. */
+  chapters?: EffectOp[][];
+  /** One-way stat and keyword upgrade granted by an `awaken` op. */
+  awakening?: { p?: number; t?: number; keywords?: Keyword[] };
   manaAbility?: Color[]; // lands & mana creatures
   entersTapped?: boolean; // dual taplands
   rarity: Rarity;
@@ -153,6 +162,10 @@ export interface Permanent {
   attachedTo?: number; // set if I am an aura
   plusOneCounters: number;
   untilEotMods: UntilEotMod[];
+  /** Current chapter number. Arrival enters I; each later controller dawn increments it. */
+  chapter?: number;
+  /** Set true by `awaken`; never reset while this permanent remains in play. */
+  awakened?: boolean;
 }
 
 export interface StackItem {

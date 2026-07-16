@@ -104,6 +104,8 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `spellCountered`       | `sid`                                           | A stack item was countered off the stack.                                                                                  |
 | `targetsFizzled`       | `sid`                                           | Every target became illegal; the spell fizzled to the graveyard.                                                           |
 | `permanentEntered`     | `perm`                                          | A non-token permanent entered the battlefield.                                                                             |
+| `chapterAdvanced`      | `iid`, `cardId`, `chapter`                      | A Quest entered its next chapter (I on arrival, then one per controller dawn); its chapter ops follow.                     |
+| `awakened`             | `iid`, `cardId`                                 | A creature's Champion Awakening flipped on (one-way); its awakening stats/keywords now apply.                              |
 | `attackersDeclared`    | `iids`                                          | The active player declared these attackers.                                                                                |
 | `blockersDeclared`     | `blocks`                                        | The defender declared these blocker→attacker pairs.                                                                        |
 | `combatDamage`         | `hits[{source, target, amount}]`, `firstStrike` | A batch of simultaneous combat damage was computed.                                                                        |
