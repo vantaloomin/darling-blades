@@ -22,7 +22,7 @@ import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../src/data/starterDe
 import type { GameEvent } from '../src/engine/events';
 import { Game } from '../src/engine/Game';
 import { createRngState, rngFloat, type RngState } from '../src/engine/rng';
-import { def, isType, type CardDb, type CardDef, type Color } from '../src/engine/types';
+import { def, isType, type CardDb, type CardDef, type Color, type Rarity } from '../src/engine/types';
 import { claimAllAchievements, syncAchievements } from '../src/meta/Achievements';
 import { shardableCount, shardExcess, shardGold } from '../src/meta/Collection';
 import { collectionCompletion } from '../src/meta/collectionFilter';
@@ -150,6 +150,8 @@ export interface ProgressSnapshot {
   cardsOwned: number;
   collectionPct: number;
   specialVariants: number;
+  /** Distinct owned card identities per rarity tier (graphable acquisition rates). */
+  ownedUniquesByTier: Record<Rarity, number>;
   duplicateRefundGold: number;
   shardGold: number;
   achievementsUnlocked: number;
@@ -193,6 +195,8 @@ export interface ProgressAggregate {
   cardsOwned: number;
   collectionPct: number;
   specialVariants: number;
+  /** Distinct owned card identities per rarity tier (graphable acquisition rates). */
+  ownedUniquesByTier: Record<Rarity, number>;
   duplicateRefundGold: number;
   shardGold: number;
   achievementsUnlocked: number;
@@ -934,6 +938,24 @@ function collectionSize(save: SaveData): number {
   return Object.values(save.collection).reduce((sum, count) => sum + count, 0);
 }
 
+const RARITY_TIERS = ['c', 'r', 'sr', 'ssr', 'ur'] as const;
+
+function ownedUniquesByTier(save: SaveData): Record<Rarity, number> {
+  const out: Record<Rarity, number> = { c: 0, r: 0, sr: 0, ssr: 0, ur: 0 };
+  for (const [id, count] of Object.entries(save.collection)) {
+    if (count <= 0) continue;
+    const d = CARD_DB[id];
+    if (d) out[d.rarity]++;
+  }
+  return out;
+}
+
+function avgTiers(rows: readonly ProgressSnapshot[]): Record<Rarity, number> {
+  const out: Record<Rarity, number> = { c: 0, r: 0, sr: 0, ssr: 0, ur: 0 };
+  for (const tier of RARITY_TIERS) out[tier] = avg(rows.map((r) => r.ownedUniquesByTier[tier]));
+  return out;
+}
+
 function snapshot(ctx: SimContext, day: number): ProgressSnapshot {
   const completion = collectionCompletion(Object.values(CARD_DB), ctx.save);
   const goldEarned = rewardTotal(ctx.stats.rewards);
@@ -963,6 +985,7 @@ function snapshot(ctx: SimContext, day: number): ProgressSnapshot {
     cardsOwned: uniqueCards,
     collectionPct: completion.percent,
     specialVariants: completion.variants.specialVariants,
+    ownedUniquesByTier: ownedUniquesByTier(ctx.save),
     duplicateRefundGold: ctx.stats.rewards.dupes,
     shardGold: ctx.stats.rewards.shards,
     achievementsUnlocked: ctx.save.achievements.unlocked.length,
@@ -1052,6 +1075,7 @@ function aggregateSnapshots(
         cardsOwned: avg(rows.map((r) => r.cardsOwned)),
         collectionPct: avg(rows.map((r) => r.collectionPct)),
         specialVariants: avg(rows.map((r) => r.specialVariants)),
+        ownedUniquesByTier: avgTiers(rows),
         duplicateRefundGold: avg(rows.map((r) => r.duplicateRefundGold)),
         shardGold: avg(rows.map((r) => r.shardGold)),
         achievementsUnlocked: avg(rows.map((r) => r.achievementsUnlocked)),
