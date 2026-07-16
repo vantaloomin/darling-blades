@@ -209,10 +209,23 @@ reserved here.
 
 ## Definition of 1.1
 
-Release-ready when: Celtic Fae is fully illustrated, purchasable, and
-balance-measured; Limited is public with both run types probed and its
-economy sim-checked; Commander mode ships with its precons; a MOD pack can be
-authored, validated, loaded, and played on both browser and desktop; the
-daily tower rotates with green re-measured bands; the facet relabel and
-opponent picker are live; and the whole ladder (tsc / lint / vitest / build /
-doc checkers) is green with every new save migration tested.
+> **Superseded by the 2026-07-14 re-scope (see the note at the top) and MET
+> 2026-07-16 — 1.1 released as v1.1.0.** The original definition below listed
+> Commander, MOD/UGC, the daily rotation, and the opponent picker, all of
+> which the re-scope moved to later releases; "both run types" died with
+> Sealed's cancellation.
+
+The re-scoped definition, all satisfied at release:
+
+- ✅ Celtic Fae fully illustrated, purchasable, and balance-measured
+  (shipped 2026-07-12; bosses at rungs 11–12, bands green).
+- ✅ The persona Draft public via the Play submenu, Free + Premium, probed
+  live (shipped 2026-07-14/15).
+- ✅ The base facet relabeled **Core Set** (shipped 2026-07-14).
+- ✅ The Limited economy instrumented (EV model, CI gates, exploit probes,
+  baseline dashboard) and then **tuned against the measurements** (shipped
+  2026-07-16: premium weekly allowance, premium pays no run-end gold,
+  shard-crafting catch-up; the shard-farm exploit gate flipped hard; the
+  hardcore completion window 50–75 days finally met).
+- ✅ The whole ladder (tsc / lint / vitest / build / doc checkers) green
+  with every new save migration (v16–v19) tested.
