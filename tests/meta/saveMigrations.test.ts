@@ -20,7 +20,7 @@ describe('SaveData v19 migration', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 18, limited: oldLimited }));
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(19);
+    expect(manager.data.version).toBe(20);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
     expect(manager.data.createdAt).toBe(123);
   });
@@ -35,8 +35,40 @@ describe('SaveData v19 migration', () => {
     );
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(19);
+    expect(manager.data.version).toBe(20);
     expect(manager.data.gold).toBe(777);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
+  });
+});
+
+describe('SaveData v20 migration (deterministic replays)', () => {
+  it('migrates a v19 blob to an empty replay reel without touching the rest', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    delete old.replays;
+    old.gold = 555;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 19 }));
+
+    const manager = new SaveManager(storage, 456);
+    expect(manager.data.version).toBe(20);
+    expect(manager.data.replays).toEqual([]);
+    expect(manager.data.gold).toBe(555);
+    expect(manager.data.createdAt).toBe(123);
+  });
+
+  it('drops malformed replay entries on load instead of crashing', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    storage.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify({
+        ...current,
+        replays: [{ v: 99, junk: true }, 'garbage', null],
+      }),
+    );
+
+    const manager = new SaveManager(storage, 456);
+    expect(manager.data.version).toBe(20);
+    expect(manager.data.replays).toEqual([]);
   });
 });

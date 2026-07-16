@@ -2,6 +2,7 @@ import { DRAFT_PERSONAS } from '../data/draftPersonas';
 import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
 import { freshLimitedState, type LimitedState } from './Limited';
+import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { PLAIN_VARIANT, variantKey } from './variants';
 
 /** Active gauntlet run state; null when no run is in progress. */
@@ -60,7 +61,7 @@ export interface PremiumWeekState {
 }
 
 export interface SaveData {
-  version: 19;
+  version: 20;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -112,6 +113,12 @@ export interface SaveData {
    * v18, weekly allowance v19.
    */
   limited: LimitedState & { premiumWeek: PremiumWeekState };
+  /**
+   * Deterministic replays: the last few completed duels as recorded input
+   * logs (seed + decks + action stream — src/meta/Replay.ts), newest first,
+   * capped at REPLAY_CAP. v20 addition.
+   */
+  replays: ReplayLog[];
   stats: {
     wins: number;
     losses: number;
@@ -161,7 +168,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 19,
+    version: 20,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -175,6 +182,7 @@ export function freshSave(now: number): SaveData {
     achievements: freshAchievements(),
     daily: freshDailyState(dayStringFromTimestamp(now)),
     limited: { ...freshLimitedState(), premiumWeek: { week: 0, entries: 0 } },
+    replays: [],
     stats: {
       wins: 0,
       losses: 0,
@@ -475,6 +483,11 @@ export class SaveManager {
       };
     }
     if (cur.version === 19) {
+      // v19 -> v20: deterministic replays — a prior save has no recorded
+      // duels, so the reel starts empty.
+      cur = { ...cur, version: 20, replays: [] };
+    }
+    if (cur.version === 20) {
       const limited = (cur.limited ?? freshLimitedState()) as LimitedState & {
         premiumWeek?: Partial<PremiumWeekState>;
       };
@@ -485,10 +498,14 @@ export class SaveManager {
       const entries = typeof premiumWeek?.entries === 'number' && Number.isInteger(premiumWeek.entries)
         ? Math.max(0, premiumWeek.entries)
         : 0;
+      const replays = Array.isArray(cur.replays)
+        ? (cur.replays as unknown[]).filter(isReplayLog).slice(0, REPLAY_CAP)
+        : [];
       return {
         ...cur,
-        version: 19,
+        version: 20,
         limited: { ...limited, premiumWeek: { week, entries } },
+        replays,
       } as unknown as SaveData;
     }
     return freshSave(now);

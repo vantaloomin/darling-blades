@@ -22,6 +22,15 @@ import { ownedVariantEntries } from '../meta/collectionFilter';
 import { rungSeed } from '../meta/gauntletSeed';
 import { LIMITED_MATCHES, limitedDuelData, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
 import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
+import {
+  finishReplay,
+  pushReplay,
+  recordReplayAction,
+  replayDbStamp,
+  startReplayDraft,
+  undoReplayAction,
+  type ReplayDraft,
+} from '../meta/Replay';
 import { Services } from '../meta/services';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
@@ -198,6 +207,8 @@ export class DuelScene extends Phaser.Scene {
   private duel!: Game;
   /** One-deep pre-action snapshot for local Undo; null when undo is unavailable. */
   private undoSnapshot: Game | null = null;
+  /** Replay recording for this duel (src/meta/Replay.ts); null = not recorded (tutorial). */
+  private replayDraft: ReplayDraft | null = null;
   private undoBtn!: Phaser.GameObjects.Text;
   /** Live combat-damage forecast shown while you assign blocks (F12). */
   private combatPreviewText!: Phaser.GameObjects.Text;
@@ -411,6 +422,7 @@ export class DuelScene extends Phaser.Scene {
     this.blockAssignments = [];
     this.pendingBlocker = null;
     this.undoSnapshot = null;
+    this.replayDraft = null;
     this.overlay = null;
     this.guard = new ModalGuard();
     this.inspect = null;
@@ -498,6 +510,24 @@ export class DuelScene extends Phaser.Scene {
     this.ai =
       data.aiOverride ??
       buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality ?? this.limitedPersona?.personality);
+    // Deterministic replay recording (1.2): every non-tutorial duel records
+    // its inputs (seed + decks + every successful submit); the log persists
+    // only when the duel completes (showResults). The tutorial is scripted
+    // teaching, not a game worth reliving.
+    this.replayDraft = data.tutorial
+      ? null
+      : startReplayDraft({
+          dbStamp: replayDbStamp(CARD_DB),
+          seed,
+          decks: [myDeck.slice(), aiDeck.slice()],
+          context: {
+            mode: this.limited ? 'limited' : this.gauntletRung != null ? 'gauntlet' : 'practice',
+            difficulty: this.difficulty,
+            opponentId: this.opponent?.id ?? null,
+            opponentName: this.opponent?.name ?? this.limitedPersona?.name ?? `Practice AI (${this.difficulty})`,
+            gauntletRung: this.gauntletRung,
+          },
+        });
 
     this.buildHud();
     this.bindHotkeys();
@@ -1177,6 +1207,7 @@ export class DuelScene extends Phaser.Scene {
         if (types.includes('charm')) this.tutCharmCast = true;
       }
       const events = this.duel.submit(HUMAN, action);
+      if (this.replayDraft) recordReplayAction(this.replayDraft, HUMAN, action);
       if (this.tutorial && action.type === 'declareBlockers' && action.blocks.length > 0) {
         this.tutBlocked = true;
       }
@@ -1210,6 +1241,9 @@ export class DuelScene extends Phaser.Scene {
     if (!this.undoSnapshot || this.ended || this.animatingCombat) return;
     this.duel = this.undoSnapshot;
     this.undoSnapshot = null;
+    // The undone submit must leave the replay too — the tail is that action
+    // by contract (undo dies the moment priority reaches the AI).
+    if (this.replayDraft) undoReplayAction(this.replayDraft, HUMAN);
     // Mirror the scene-side state act() clears, so no stale selection survives.
     this.selectedAttackers.clear();
     this.blockAssignments = [];
@@ -1381,6 +1415,7 @@ export class DuelScene extends Phaser.Scene {
       if (!('player' in aw) || aw.player !== AI) return;
       const action = this.ai.chooseAction(this.duel.viewFor(AI), this.duel.legalActions(AI));
       const events = this.duel.submit(AI, action);
+      if (this.replayDraft) recordReplayAction(this.replayDraft, AI, action);
       this.processEvents(events);
       // Deferred through afterEvents so the AI's combat damage animates before
       // its next decision (its declareAttackers still drives your blockers).
@@ -3867,6 +3902,16 @@ export class DuelScene extends Phaser.Scene {
       // mid-tutorial concede lands here — treat it as finishing (reward on skip).
       this.tutorialComplete(false);
       return;
+    }
+    // Persist the finished recording before the mode branches (each branch
+    // flushes the save as part of paying out); a duel that never reaches
+    // results (app closed mid-game) is intentionally not kept.
+    if (this.replayDraft) {
+      Services.save.data.replays = pushReplay(
+        Services.save.data.replays,
+        finishReplay(this.replayDraft, won ? 'win' : 'loss', Date.now(), this.duel.state.turn),
+      );
+      this.replayDraft = null;
     }
     if (this.opponent && this.gauntletRung !== null) {
       this.showGauntletResults(won, reason);
