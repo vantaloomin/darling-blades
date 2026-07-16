@@ -140,7 +140,52 @@ Scripted personas play fair; exploits don't. Two additions:
   economy side pays nothing), shard-loop searches (no buy→shard cycle is
   gold-positive — property-tested across all SKUs and variant tables).
 
-## Design decisions this plan needs (user calls, marked)
+## Decision points — RESOLVED (user calls 2026-07-15, locked)
+
+1. **Faucet ordering (gold income):** Full Gauntlet Run >>> FULL (successful)
+   Premium Draft >> Practice >= Free Draft > FAILED Premium Draft. The ">>"
+   marks are intent about magnitude gaps, not just order.
+2. **Free-draft farmability bound:** free draft gold/hour <= 1.0x practice
+   grinding (per the ordering + accepted recommendation).
+3. **Premium value:** a fully successful premium run's total gold value stays
+   BELOW a full gauntlet clear (2,170g). Onboarding note (user): a fresh
+   player should reach their first 1,000g premium entry "semi-quickly"
+   through daily quests + achievements — days-to-first-premium is a tracked
+   baseline metric for the new-player personas.
+4. **Premium gate axis:** gate on new-uniques per gold; shard-value reported
+   advisory (default accepted).
+5. **Completion targets:** a hardcore grinder completes a standard collection
+   (one of each card) in 50-75 days; a full casual who cannot beat the
+   gauntlet lands near 50% on the same horizon. Tuning edges toward a
+   friendly economy, never overpowered.
+6. **Benchmarks:** headline checkpoints at 1/7/14/30/45/60 days covering
+   completion, gold income (by source), packs opened, rarity-tier
+   acquisition rates, and any other graph-worthy series; the baseline run
+   snapshots daily so the site can draw full curves.
+7. **Optimizer cap (Phase 3):** greedy optimizer <= 1.5x the best honest
+   persona (default accepted).
+8. **Sequencing:** baseline FIRST, presented as a standalone, filterable,
+   professional data-insights website; gates and tuning are decided from
+   that view. Phase 2 therefore splits: 2a = metrics + full matrix +
+   dashboard (now); 2b = gates (after the user reviews the data).
+
+> **Phase 2a SHIPPED (2026-07-15).** The sim snapshots per-rarity owned
+> uniques; the full 10 personas × 8 seeds × 60 days matrix ran with DAILY
+> snapshots (9.4 MB report, ~50 min detached); the dashboard is published
+> as a private Artifact and its generator is repeatable in-repo:
+> `npx tsx scripts/progression-sim.ts --seeds 8 --days 1,…,60 --json >
+> report.json`, then `node scripts/econ-dashboard/prep-baseline.mjs
+> report.json data.js`, then inline `data.js` into
+> `scripts/econ-dashboard/dashboard-template.html` at the `/*__DATA__*/`
+> marker. Headline baseline findings: Limited Fan reaches 97% collection
+> by day 60 on 35 premium drafts with only 4 boosters ever bought (first
+> premium entry: day 3 median) — premium dominance confirmed in play, not
+> just in EV; casual personas land 53–57% (on the ≈50% target); Hardcore
+> Optimizer reaches 90% (slightly behind the 50–75-day completion window);
+> harness verdict UNEVEN (median 1.22 packs/day, 80% median collection is
+> high; quest claim rates spread 41–89% by deck/style).
+
+## Design decisions this plan needed (original list, kept for context)
 
 1. **The intended faucet ordering.** The gates need a design statement of
    which mode SHOULD pay best per hour. Current documented intent: gauntlet

@@ -1,0 +1,646 @@
+<title>Darling Blades · Economy Baseline</title>
+<style>
+  :root {
+    color-scheme: light;
+    --plane: #f8f7fa;
+    --surface: #fdfdfe;
+    --ink: #141318;
+    --ink-2: #55525e;
+    --ink-3: #8b8794;
+    --grid: #e6e4ec;
+    --axis: #c6c2d0;
+    --ring: rgba(20, 19, 24, 0.10);
+    --accent: #6d5bd0;
+    --accent-ink: #ffffff;
+    --good: #0ca30c;
+    --warn: #b97900;
+    --crit: #d03b3b;
+    --band: rgba(42, 120, 214, 0.10);
+    --chip-bg: rgba(20, 19, 24, 0.04);
+    --s1: #2a78d6; --s2: #1baf7a; --s3: #eda100; --s4: #008300;
+    --s5: #4a3aa7; --s6: #e34948; --s7: #e87ba4; --s8: #eb6834;
+    --seq1: #86b6ef; --seq2: #5598e7; --seq3: #2a78d6; --seq4: #1c5cab; --seq5: #104281;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --plane: #101014;
+      --surface: #1a1a20;
+      --ink: #f2f0f7;
+      --ink-2: #b7b3c2;
+      --ink-3: #837f8e;
+      --grid: #2a2a32;
+      --axis: #3a3944;
+      --ring: rgba(255, 255, 255, 0.10);
+      --accent: #9a8cf0;
+      --accent-ink: #17151f;
+      --warn: #fab219;
+      --band: rgba(57, 135, 229, 0.16);
+      --chip-bg: rgba(255, 255, 255, 0.05);
+      --s1: #3987e5; --s2: #199e70; --s3: #c98500; --s4: #008300;
+      --s5: #9085e9; --s6: #e66767; --s7: #d55181; --s8: #d95926;
+      --seq1: #6da7ec; --seq2: #3987e5; --seq3: #256abf; --seq4: #184f95; --seq5: #0d366b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --plane: #101014; --surface: #1a1a20; --ink: #f2f0f7; --ink-2: #b7b3c2; --ink-3: #837f8e;
+    --grid: #2a2a32; --axis: #3a3944; --ring: rgba(255,255,255,0.10);
+    --accent: #9a8cf0; --accent-ink: #17151f; --warn: #fab219;
+    --band: rgba(57,135,229,0.16); --chip-bg: rgba(255,255,255,0.05);
+    --s1: #3987e5; --s2: #199e70; --s3: #c98500; --s4: #008300;
+    --s5: #9085e9; --s6: #e66767; --s7: #d55181; --s8: #d95926;
+    --seq1: #6da7ec; --seq2: #3987e5; --seq3: #256abf; --seq4: #184f95; --seq5: #0d366b;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --plane: #f8f7fa; --surface: #fdfdfe; --ink: #141318; --ink-2: #55525e; --ink-3: #8b8794;
+    --grid: #e6e4ec; --axis: #c6c2d0; --ring: rgba(20,19,24,0.10);
+    --accent: #6d5bd0; --accent-ink: #ffffff; --warn: #b97900;
+    --band: rgba(42,120,214,0.10); --chip-bg: rgba(20,19,24,0.04);
+    --s1: #2a78d6; --s2: #1baf7a; --s3: #eda100; --s4: #008300;
+    --s5: #4a3aa7; --s6: #e34948; --s7: #e87ba4; --s8: #eb6834;
+    --seq1: #86b6ef; --seq2: #5598e7; --seq3: #2a78d6; --seq4: #1c5cab; --seq5: #104281;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--plane); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  header.page { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px; margin-bottom: 6px; }
+  header.page h1 { font-size: 21px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  header.page .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 2px 10px; }
+  .meta-line { color: var(--ink-3); font-size: 12.5px; margin: 0 0 18px; }
+  .meta-line b { color: var(--ink-2); font-weight: 600; }
+
+  .verdict { display: flex; gap: 12px; align-items: flex-start; background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; }
+  .verdict .pill { flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px; margin-top: 1px; }
+  .verdict ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 14px 16px 12px; }
+  .tile .k { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px; }
+  .tile .v { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .tile .v small { font-size: 14px; font-weight: 600; color: var(--ink-2); }
+  .tile .d { font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+  .tile .d .ok { color: var(--good); font-weight: 600; }
+  .tile .d .miss { color: var(--crit); font-weight: 600; }
+
+  .filters { position: sticky; top: 0; z-index: 20; background: var(--plane); padding: 10px 0 12px; border-bottom: 1px solid var(--grid); margin-bottom: 22px; display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+  .fgroup { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .fgroup .fl { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); margin-right: 2px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: var(--chip-bg); border: 1px solid transparent; border-radius: 999px; padding: 4px 11px; cursor: pointer; user-select: none; }
+  .chip .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--sw, var(--ink-3)); flex: none; }
+  .chip .sw.dash { background: repeating-linear-gradient(90deg, var(--sw), var(--sw) 2px, transparent 2px, transparent 4px); border-radius: 1px; height: 3px; width: 14px; }
+  .chip[aria-pressed="true"] { color: var(--ink); border-color: var(--sw, var(--accent)); background: var(--surface); }
+  .chip:focus-visible, .seg button:focus-visible, .tbtn:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .chip[disabled] { opacity: 0.45; cursor: not-allowed; }
+  .seg { display: inline-flex; border: 1px solid var(--ring); border-radius: 8px; overflow: hidden; }
+  .seg button { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: transparent; border: 0; padding: 4px 11px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  select { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink); background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 4px 8px; }
+
+  section.block { margin-bottom: 30px; }
+  section.block > h2 { font-size: 12px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; }
+  .cards { display: grid; gap: 14px; }
+  .cards.two { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 16px 18px 12px; }
+  .card h3 { font-size: 14.5px; font-weight: 700; margin: 0; }
+  .card .sub { font-size: 12px; color: var(--ink-3); margin: 2px 0 10px; }
+  .card .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .tbtn { font: inherit; font-size: 11.5px; font-weight: 600; color: var(--ink-2); background: transparent; border: 1px solid var(--ring); border-radius: 7px; padding: 3px 9px; cursor: pointer; flex: none; }
+  .tbtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 5px 14px; font-size: 12px; color: var(--ink-2); margin: 8px 0 2px; }
+  .legend .li { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .li .m { width: 12px; height: 3px; border-radius: 2px; background: var(--c); }
+  .legend .li .m.dashed { background: repeating-linear-gradient(90deg, var(--c), var(--c) 3px, transparent 3px, transparent 6px); }
+  .legend .li .m.box { width: 10px; height: 10px; border-radius: 3px; }
+
+  .chartbox { position: relative; }
+  svg.chart { display: block; width: 100%; height: auto; }
+  svg.chart text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+  svg.chart .endlab { font-size: 11px; font-weight: 600; }
+  .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 8px 11px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: none; min-width: 150px; z-index: 30; }
+  .tip .tt { font-weight: 700; margin-bottom: 4px; }
+  .tip .tr { display: flex; justify-content: space-between; gap: 14px; }
+  .tip .tr .n { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+  .tip .tr .n i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+  .tip .tr .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .tablewrap { overflow-x: auto; margin-top: 8px; }
+  table.data { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  table.data th, table.data td { text-align: right; padding: 5px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.data th { color: var(--ink-3); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+  table.data th:first-child, table.data td:first-child { text-align: left; }
+  table.data td:first-child { font-weight: 600; }
+
+  footer.page { margin-top: 40px; color: var(--ink-3); font-size: 12px; border-top: 1px solid var(--grid); padding-top: 14px; }
+  @media (prefers-reduced-motion: no-preference) { .chip, .tbtn, .seg button { transition: background-color 120ms ease, color 120ms ease; } }
+  @media (max-width: 700px) { .cards.two { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <header class="page">
+    <h1>Darling Blades — Economy Baseline</h1>
+    <span class="tag">Phase 2a</span>
+  </header>
+  <p class="meta-line" id="metaLine"></p>
+  <div class="verdict" id="verdictBox"></div>
+  <div class="tiles" id="tiles"></div>
+
+  <div class="filters" id="filters">
+    <div class="fgroup" id="personaChips"><span class="fl">Personas</span></div>
+    <div class="fgroup"><span class="fl">Focus</span><select id="focusSel" aria-label="Focus persona for detail charts"></select></div>
+    <div class="fgroup"><span class="fl">Days</span><div class="seg" id="daySeg" role="group" aria-label="Day range"></div></div>
+    <div class="fgroup"><span class="fl">Seed spread</span><div class="seg" id="spreadSeg" role="group" aria-label="Seed spread band"><button aria-pressed="false" data-v="on">p10–p90</button><button aria-pressed="true" data-v="off">Off</button></div></div>
+  </div>
+
+  <section class="block">
+    <h2>Collection</h2>
+    <div class="cards two">
+      <div class="card" data-chart="collection"></div>
+      <div class="card" data-chart="tiers"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Gold</h2>
+    <div class="cards two">
+      <div class="card" data-chart="goldEarned"></div>
+      <div class="card" data-chart="sources"></div>
+    </div>
+    <div class="cards" style="margin-top:14px">
+      <div class="card" data-chart="sourceBars"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Products</h2>
+    <div class="cards two">
+      <div class="card" data-chart="packs"></div>
+      <div class="card" data-chart="premium"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Checkpoint table</h2>
+    <div class="card">
+      <div class="head">
+        <div><h3>Every persona at the benchmark days</h3><p class="sub">Averages over all seeds. Pick the checkpoint day.</p></div>
+        <div class="seg" id="ckSeg" role="group" aria-label="Checkpoint day"></div>
+      </div>
+      <div class="tablewrap" id="ckTable"></div>
+    </div>
+  </section>
+
+  <footer class="page" id="footNote"></footer>
+</div>
+
+<script id="econ-data">/*__DATA__*/</script>
+<script>
+(() => {
+  'use strict';
+  const D = window.ECON_DATA;
+  if (!D) { document.getElementById('metaLine').textContent = 'Dataset failed to load.'; return; }
+
+  // Fixed persona identity: color slot + dash never change with filtering.
+  const P_STYLE = {
+    'new-casual':         { slot: 1, dash: false, short: 'Casual' },
+    'low-skill-casual':   { slot: 1, dash: true,  short: 'Low-skill' },
+    'daily-grinder':      { slot: 2, dash: false, short: 'Grinder' },
+    'gauntlet-climber':   { slot: 3, dash: false, short: 'Gauntlet' },
+    'high-skill-veteran': { slot: 3, dash: true,  short: 'Veteran' },
+    'limited-fan':        { slot: 4, dash: false, short: 'Limited' },
+    'collector':          { slot: 5, dash: false, short: 'Collector' },
+    'hardcore-optimizer': { slot: 6, dash: false, short: 'Optimizer' },
+    'theme-deck-buyer':   { slot: 7, dash: false, short: 'Deck buyer' },
+    'completionist':      { slot: 8, dash: false, short: 'Completion' },
+  };
+  const slotColor = (n) => getComputedStyle(document.documentElement).getPropertyValue(`--s${n}`).trim();
+  const seqColor = (n) => getComputedStyle(document.documentElement).getPropertyValue(`--seq${n}`).trim();
+
+  const SOURCES = [
+    { key: 'gauntlet', label: 'Gauntlet', slot: 3 },
+    { key: 'limited', label: 'Limited runs', slot: 4 },
+    { key: 'practice', label: 'Practice', slot: 1 },
+    { key: 'daily', label: 'Daily systems', slot: 2 },
+    { key: 'achievements', label: 'Achievements', slot: 5 },
+    { key: 'melt', label: 'Melt & shards', slot: 8 },
+    { key: 'starting', label: 'Starting grant', slot: 7 },
+  ];
+
+  const state = {
+    selected: ['new-casual', 'daily-grinder', 'gauntlet-climber', 'limited-fan', 'collector', 'hardcore-optimizer'],
+    focus: 'limited-fan',
+    maxDay: 60,
+    spread: false,
+    checkpoint: 60,
+  };
+  const MAX_SELECTED = 8;
+
+  const fmt = (n, dp = 0) => Number(n).toLocaleString('en-US', { maximumFractionDigits: dp, minimumFractionDigits: 0 });
+  const pctf = (n) => `${Math.round(n * 100)}%`;
+  const byId = (id) => D.meta.personas.find((p) => p.id === id);
+  const days = D.meta.days;
+  const dayIdx = (d) => days.indexOf(d);
+
+  // ---------- header, verdict, tiles ----------
+  document.getElementById('metaLine').innerHTML =
+    `<b>${D.meta.personas.length} personas</b> × <b>${D.meta.seeds} deterministic seeds</b> × <b>${days.length} simulated days</b>, snapshotted daily · pool ${D.meta.poolTotal} collectible cards · generated ${D.meta.generated} · headless engine + real AI + real reward systems`;
+
+  const vb = document.getElementById('verdictBox');
+  const vLabel = D.meta.verdict.label.toUpperCase();
+  const vColor = vLabel === 'REASONABLE' ? 'var(--good)' : vLabel === 'UNEVEN' ? 'var(--warn)' : 'var(--crit)';
+  vb.innerHTML = `<span class="pill" style="background:${vColor};color:#fff">HARNESS VERDICT · ${vLabel}</span><ul>${D.meta.verdict.bullets.map((b) => `<li>${b}</li>`).join('')}</ul>`;
+
+  const at = (pid, field, d) => D.series[pid][field][dayIdx(d)];
+  const tiles = [];
+  const hc60 = at('hardcore-optimizer', 'collectionPct', 60);
+  const lo60 = at('low-skill-casual', 'collectionPct', 60);
+  tiles.push({ k: 'Hardcore collection · day 60', v: pctf(hc60), d: `target: 100% by day 50–75 → <span class="${hc60 >= 0.8 ? 'ok' : 'miss'}">${hc60 >= 0.8 ? 'on pace' : 'behind pace'}</span>` });
+  tiles.push({ k: 'Low-skill casual · day 60', v: pctf(lo60), d: `target: ≈50% → <span class="${Math.abs(lo60 - 0.5) <= 0.15 ? 'ok' : 'miss'}">${lo60 > 0.65 ? 'too fast' : lo60 < 0.35 ? 'too slow' : 'in band'}</span>` });
+  const fp = D.series['limited-fan'].firstPremiumDay;
+  tiles.push({ k: 'First premium draft', v: fp ? `day ${fmt(fp.median)}` : 'never', d: fp ? `median across seeds (${fp.n}/${fp.samples} reached it) · Limited Fan` : 'no seed afforded 1,000g' });
+  const medPacks = [...state.selected].map((p) => at(p, 'packsOpened', 60) / 60).sort((a, b) => a - b);
+  tiles.push({ k: 'Packs per day · day-60 median', v: fmt(medPacks[Math.floor(medPacks.length / 2)], 2), d: 'across default persona set' });
+  tiles.push({ k: 'Gold earned · day 60 range', v: `${fmt(Math.min(...D.meta.personas.map((p) => at(p.id, 'goldEarned', 60))) / 1000, 1)}k–${fmt(Math.max(...D.meta.personas.map((p) => at(p.id, 'goldEarned', 60))) / 1000, 1)}k`, d: 'least to most active persona' });
+  document.getElementById('tiles').innerHTML = tiles.map((t) => `<div class="tile"><div class="k">${t.k}</div><div class="v">${t.v}</div><div class="d">${t.d}</div></div>`).join('');
+
+  // ---------- filters ----------
+  const chipsEl = document.getElementById('personaChips');
+  for (const p of D.meta.personas) {
+    const st = P_STYLE[p.id];
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.style.setProperty('--sw', slotColor(st.slot));
+    b.setAttribute('aria-pressed', String(state.selected.includes(p.id)));
+    b.innerHTML = `<span class="sw${st.dash ? ' dash' : ''}"></span>${p.name}`;
+    b.title = p.style;
+    b.addEventListener('click', () => {
+      const i = state.selected.indexOf(p.id);
+      if (i >= 0) state.selected.splice(i, 1);
+      else if (state.selected.length < MAX_SELECTED) state.selected.push(p.id);
+      else return;
+      syncChips();
+      renderAll();
+    });
+    b.dataset.pid = p.id;
+    chipsEl.appendChild(b);
+  }
+  function syncChips() {
+    for (const b of chipsEl.querySelectorAll('.chip')) {
+      const on = state.selected.includes(b.dataset.pid);
+      b.setAttribute('aria-pressed', String(on));
+      if (!on && state.selected.length >= MAX_SELECTED) b.setAttribute('disabled', '');
+      else b.removeAttribute('disabled');
+    }
+  }
+  syncChips();
+
+  const focusSel = document.getElementById('focusSel');
+  focusSel.innerHTML = D.meta.personas.map((p) => `<option value="${p.id}"${p.id === state.focus ? ' selected' : ''}>${p.name}</option>`).join('');
+  focusSel.addEventListener('change', () => { state.focus = focusSel.value; renderAll(); });
+
+  const daySeg = document.getElementById('daySeg');
+  for (const d of [7, 14, 30, 45, 60]) {
+    const b = document.createElement('button');
+    b.textContent = String(d);
+    b.setAttribute('aria-pressed', String(d === state.maxDay));
+    b.addEventListener('click', () => { state.maxDay = d; for (const x of daySeg.children) x.setAttribute('aria-pressed', String(x === b)); renderAll(); });
+    daySeg.appendChild(b);
+  }
+  document.getElementById('spreadSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    state.spread = b.dataset.v === 'on';
+    for (const x of e.currentTarget.children) x.setAttribute('aria-pressed', String(x === b));
+    renderAll();
+  });
+
+  // ---------- chart engine ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+  function niceMax(v) {
+    if (v <= 0) return 1;
+    const p = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p;
+    return 10 * p;
+  }
+
+  function lineChart(card, opts) {
+    // opts: title, sub, series [{label, color, dash, values, band?}], yFmt, tableCols
+    card.innerHTML = '';
+    const head = document.createElement('div');
+    head.className = 'head';
+    head.innerHTML = `<div><h3>${opts.title}</h3><p class="sub">${opts.sub}</p></div>`;
+    const tbtn = document.createElement('button');
+    tbtn.className = 'tbtn'; tbtn.textContent = 'Table'; tbtn.setAttribute('aria-pressed', 'false');
+    head.appendChild(tbtn);
+    card.appendChild(head);
+
+    const box = document.createElement('div'); box.className = 'chartbox'; card.appendChild(box);
+    const W = 560, H = 240, ML = 46, MR = 86, MT = 10, MB = 26;
+    const iw = W - ML - MR, ih = H - MT - MB;
+    const xmax = state.maxDay;
+    const xs = (d) => ML + ((d - 1) / Math.max(1, xmax - 1)) * iw;
+    const upTo = (vals) => vals.slice(0, dayIdx(xmax) + 1);
+    let ymax = 0;
+    for (const s of opts.series) ymax = Math.max(ymax, ...upTo(s.values), ...(s.band && state.spread ? upTo(s.band.p90) : [0]));
+    ymax = opts.yMax ?? niceMax(ymax);
+    const ys = (v) => MT + ih - (v / ymax) * ih;
+
+    const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': opts.title });
+    for (let t = 0; t <= 4; t++) {
+      const v = (ymax / 4) * t;
+      svg.appendChild(el('line', { x1: ML, x2: ML + iw, y1: ys(v), y2: ys(v), stroke: 'var(--grid)', 'stroke-width': 1 }));
+      const lab = el('text', { x: ML - 6, y: ys(v) + 3.5, 'text-anchor': 'end' });
+      lab.textContent = opts.yFmt(v); svg.appendChild(lab);
+    }
+    svg.appendChild(el('line', { x1: ML, x2: ML + iw, y1: MT + ih, y2: MT + ih, stroke: 'var(--axis)', 'stroke-width': 1 }));
+    const ticks = xmax <= 14 ? [1, 7, 14].filter((d) => d <= xmax) : [1, 7, 14, 30, 45, 60].filter((d) => d <= xmax);
+    for (const d of ticks) {
+      const lab = el('text', { x: xs(d), y: MT + ih + 16, 'text-anchor': 'middle' });
+      lab.textContent = `d${d}`; svg.appendChild(lab);
+    }
+    if (opts.guides) for (const g of opts.guides) {
+      if (g.y !== undefined && g.y <= ymax) {
+        svg.appendChild(el('line', { x1: ML, x2: ML + iw, y1: ys(g.y), y2: ys(g.y), stroke: 'var(--axis)', 'stroke-width': 1 }));
+        const lab = el('text', { x: ML + 4, y: ys(g.y) - 4 }); lab.textContent = g.label; svg.appendChild(lab);
+      }
+    }
+    for (const s of opts.series) {
+      if (s.band && state.spread) {
+        const lo = upTo(s.band.p10), hi = upTo(s.band.p90);
+        let dpath = `M ${xs(1)} ${ys(hi[0])}`;
+        hi.forEach((v, i) => { dpath += ` L ${xs(days[i])} ${ys(Math.min(v, ymax))}`; });
+        for (let i = lo.length - 1; i >= 0; i--) dpath += ` L ${xs(days[i])} ${ys(lo[i])}`;
+        svg.appendChild(el('path', { d: dpath + ' Z', fill: 'var(--band)', stroke: 'none' }));
+      }
+    }
+    const endpoints = [];
+    for (const s of opts.series) {
+      const vals = upTo(s.values);
+      let dpath = '';
+      vals.forEach((v, i) => { dpath += `${i === 0 ? 'M' : 'L'} ${xs(days[i])} ${ys(v)} `; });
+      svg.appendChild(el('path', { d: dpath, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-dasharray': s.dash ? '5 4' : 'none', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      endpoints.push({ y: ys(vals[vals.length - 1]), label: s.short ?? s.label, color: s.color });
+    }
+    endpoints.sort((a, b) => a.y - b.y);
+    let lastY = -99;
+    for (const e of endpoints) {
+      const y = Math.max(e.y, lastY + 12);
+      lastY = y;
+      const lab = el('text', { x: ML + iw + 6, y: Math.min(y, MT + ih) + 3.5, class: 'endlab' });
+      lab.setAttribute('fill', e.color);
+      lab.textContent = e.label;
+      svg.appendChild(lab);
+    }
+    box.appendChild(svg);
+
+    const tip = document.createElement('div'); tip.className = 'tip'; box.appendChild(tip);
+    const cross = el('line', { y1: MT, y2: MT + ih, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden' });
+    svg.appendChild(cross);
+    const onMove = (ev) => {
+      const r = svg.getBoundingClientRect();
+      const px = ((ev.clientX - r.left) / r.width) * W;
+      if (px < ML || px > ML + iw) { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); return; }
+      const d = Math.max(1, Math.min(xmax, Math.round(1 + ((px - ML) / iw) * (xmax - 1))));
+      cross.setAttribute('x1', xs(d)); cross.setAttribute('x2', xs(d)); cross.setAttribute('visibility', 'visible');
+      const rows = opts.series.map((s) => `<div class="tr"><span class="n"><i style="--c:${s.color}"></i>${s.short ?? s.label}</span><span class="v">${opts.yFmt(s.values[dayIdx(d)])}</span></div>`).join('');
+      tip.innerHTML = `<div class="tt">Day ${d}</div>${rows}`;
+      tip.style.display = 'block';
+      const bw = box.clientWidth;
+      const tx = (xs(d) / W) * bw;
+      tip.style.left = `${Math.min(Math.max(tx + 12, 0), bw - tip.offsetWidth - 4)}px`;
+      tip.style.top = '10px';
+    };
+    svg.addEventListener('pointermove', onMove);
+    svg.addEventListener('pointerleave', () => { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); });
+
+    const legend = document.createElement('div');
+    legend.className = 'legend';
+    legend.innerHTML = opts.series.map((s) => `<span class="li"><span class="m${s.dash ? ' dashed' : ''}" style="--c:${s.color}"></span>${s.label}</span>`).join('');
+    card.appendChild(legend);
+
+    const twrap = document.createElement('div'); twrap.className = 'tablewrap'; twrap.hidden = true; card.appendChild(twrap);
+    tbtn.addEventListener('click', () => {
+      const open = twrap.hidden;
+      twrap.hidden = !open;
+      tbtn.setAttribute('aria-pressed', String(open));
+      if (open && !twrap.innerHTML) {
+        const cps = D.meta.checkpoints.filter((c) => c <= state.maxDay);
+        twrap.innerHTML = `<table class="data"><thead><tr><th>Series</th>${cps.map((c) => `<th>Day ${c}</th>`).join('')}</tr></thead><tbody>${opts.series.map((s) => `<tr><td>${s.label}</td>${cps.map((c) => `<td>${opts.yFmt(s.values[dayIdx(c)])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+      }
+    });
+  }
+
+  function stackedArea(card, opts) {
+    // opts: title, sub, layers [{label, color, values}], yFmt
+    card.innerHTML = '';
+    const head = document.createElement('div'); head.className = 'head';
+    head.innerHTML = `<div><h3>${opts.title}</h3><p class="sub">${opts.sub}</p></div>`;
+    const tbtn = document.createElement('button'); tbtn.className = 'tbtn'; tbtn.textContent = 'Table'; tbtn.setAttribute('aria-pressed', 'false');
+    head.appendChild(tbtn); card.appendChild(head);
+    const box = document.createElement('div'); box.className = 'chartbox'; card.appendChild(box);
+    const W = 560, H = 240, ML = 52, MR = 14, MT = 10, MB = 26;
+    const iw = W - ML - MR, ih = H - MT - MB;
+    const xmax = state.maxDay;
+    const n = dayIdx(xmax) + 1;
+    const xs = (i) => ML + (i / Math.max(1, n - 1)) * iw;
+    const totals = Array.from({ length: n }, (_, i) => opts.layers.reduce((s, L) => s + L.values[i], 0));
+    const ymax = niceMax(Math.max(...totals));
+    const ys = (v) => MT + ih - (v / ymax) * ih;
+    const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': opts.title });
+    for (let t = 0; t <= 4; t++) {
+      const v = (ymax / 4) * t;
+      svg.appendChild(el('line', { x1: ML, x2: ML + iw, y1: ys(v), y2: ys(v), stroke: 'var(--grid)', 'stroke-width': 1 }));
+      const lab = el('text', { x: ML - 6, y: ys(v) + 3.5, 'text-anchor': 'end' }); lab.textContent = opts.yFmt(v); svg.appendChild(lab);
+    }
+    const cum = new Array(n).fill(0);
+    for (const L of opts.layers) {
+      const lo = [...cum];
+      for (let i = 0; i < n; i++) cum[i] += L.values[i];
+      let d = `M ${xs(0)} ${ys(cum[0])}`;
+      for (let i = 1; i < n; i++) d += ` L ${xs(i)} ${ys(cum[i])}`;
+      for (let i = n - 1; i >= 0; i--) d += ` L ${xs(i)} ${ys(lo[i])}`;
+      svg.appendChild(el('path', { d: d + ' Z', fill: L.color, 'fill-opacity': 0.82, stroke: 'var(--surface)', 'stroke-width': 1.5 }));
+    }
+    const ticks = xmax <= 14 ? [1, 7, 14].filter((d) => d <= xmax) : [1, 7, 14, 30, 45, 60].filter((d) => d <= xmax);
+    for (const d of ticks) { const lab = el('text', { x: xs(dayIdx(d)), y: MT + ih + 16, 'text-anchor': 'middle' }); lab.textContent = `d${d}`; svg.appendChild(lab); }
+    box.appendChild(svg);
+    const tip = document.createElement('div'); tip.className = 'tip'; box.appendChild(tip);
+    svg.addEventListener('pointermove', (ev) => {
+      const r = svg.getBoundingClientRect();
+      const px = ((ev.clientX - r.left) / r.width) * W;
+      if (px < ML || px > ML + iw) { tip.style.display = 'none'; return; }
+      const i = Math.max(0, Math.min(n - 1, Math.round(((px - ML) / iw) * (n - 1))));
+      tip.innerHTML = `<div class="tt">Day ${days[i]} · total ${opts.yFmt(totals[i])}</div>` +
+        [...opts.layers].reverse().map((L) => `<div class="tr"><span class="n"><i style="--c:${L.color}"></i>${L.label}</span><span class="v">${opts.yFmt(L.values[i])}</span></div>`).join('');
+      tip.style.display = 'block';
+      const bw = box.clientWidth;
+      tip.style.left = `${Math.min(Math.max((xs(i) / W) * bw + 12, 0), bw - tip.offsetWidth - 4)}px`;
+      tip.style.top = '10px';
+    });
+    svg.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+    const legend = document.createElement('div'); legend.className = 'legend';
+    legend.innerHTML = opts.layers.map((L) => `<span class="li"><span class="m box" style="--c:${L.color}"></span>${L.label}</span>`).join('');
+    card.appendChild(legend);
+    const twrap = document.createElement('div'); twrap.className = 'tablewrap'; twrap.hidden = true; card.appendChild(twrap);
+    tbtn.addEventListener('click', () => {
+      const open = twrap.hidden; twrap.hidden = !open; tbtn.setAttribute('aria-pressed', String(open));
+      if (open && !twrap.innerHTML) {
+        const cps = D.meta.checkpoints.filter((c) => c <= state.maxDay);
+        twrap.innerHTML = `<table class="data"><thead><tr><th>Source</th>${cps.map((c) => `<th>Day ${c}</th>`).join('')}</tr></thead><tbody>${opts.layers.map((L) => `<tr><td>${L.label}</td>${cps.map((c) => `<td>${opts.yFmt(L.values[dayIdx(c)])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+      }
+    });
+  }
+
+  function stackedBars(card, opts) {
+    // horizontal stacked bars: rows [{label, parts: [{label, color, v}]}]
+    card.innerHTML = '';
+    card.innerHTML = `<div class="head"><div><h3>${opts.title}</h3><p class="sub">${opts.sub}</p></div></div>`;
+    const box = document.createElement('div'); box.className = 'chartbox'; card.appendChild(box);
+    const rows = opts.rows;
+    const W = 1140, RH = 26, GAP = 10, ML = 150, MR = 70, MT = 4;
+    const H = MT + rows.length * (RH + GAP) + 24;
+    const iw = W - ML - MR;
+    const vmax = niceMax(Math.max(...rows.map((r) => r.parts.reduce((s, p) => s + p.v, 0))));
+    const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': opts.title });
+    for (let t = 0; t <= 4; t++) {
+      const x = ML + (iw / 4) * t;
+      svg.appendChild(el('line', { x1: x, x2: x, y1: MT, y2: MT + rows.length * (RH + GAP) - GAP, stroke: 'var(--grid)', 'stroke-width': 1 }));
+      const lab = el('text', { x, y: H - 6, 'text-anchor': 'middle' }); lab.textContent = fmt((vmax / 4) * t); svg.appendChild(lab);
+    }
+    rows.forEach((r, ri) => {
+      const y = MT + ri * (RH + GAP);
+      const lab = el('text', { x: ML - 8, y: y + RH / 2 + 4, 'text-anchor': 'end' });
+      lab.setAttribute('fill', 'var(--ink-2)'); lab.style.fontWeight = '600';
+      lab.textContent = r.label; svg.appendChild(lab);
+      let x = ML;
+      for (const p of r.parts) {
+        const w = (p.v / vmax) * iw;
+        if (w > 0.5) {
+          svg.appendChild(el('rect', { x, y, width: Math.max(0, w - 2), height: RH, rx: 3, fill: p.color, 'fill-opacity': 0.88 }));
+        }
+        x += w;
+      }
+      const total = r.parts.reduce((s, p) => s + p.v, 0);
+      const tl = el('text', { x: x + 6, y: y + RH / 2 + 4 });
+      tl.setAttribute('fill', 'var(--ink-2)'); tl.style.fontWeight = '600';
+      tl.textContent = fmt(total); svg.appendChild(tl);
+    });
+    box.appendChild(svg);
+    const tip = document.createElement('div'); tip.className = 'tip'; box.appendChild(tip);
+    svg.addEventListener('pointermove', (ev) => {
+      const r = svg.getBoundingClientRect();
+      const py = ((ev.clientY - r.top) / r.height) * H;
+      const ri = Math.floor((py - MT) / (RH + GAP));
+      if (ri < 0 || ri >= rows.length) { tip.style.display = 'none'; return; }
+      const row = rows[ri];
+      tip.innerHTML = `<div class="tt">${row.label}</div>` + row.parts.filter((p) => p.v >= 1).map((p) => `<div class="tr"><span class="n"><i style="--c:${p.color}"></i>${p.label}</span><span class="v">${fmt(p.v)}g</span></div>`).join('');
+      tip.style.display = 'block';
+      const bw = box.clientWidth;
+      tip.style.left = `${Math.min(((ev.clientX - r.left)) + 14, bw - tip.offsetWidth - 4)}px`;
+      tip.style.top = `${((ev.clientY - r.top)) + 12}px`;
+    });
+    svg.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+    const legend = document.createElement('div'); legend.className = 'legend';
+    legend.innerHTML = SOURCES.map((s) => `<span class="li"><span class="m box" style="--c:${slotColor(s.slot)}"></span>${s.label}</span>`).join('');
+    card.appendChild(legend);
+  }
+
+  // ---------- render ----------
+  const $chart = (name) => document.querySelector(`[data-chart="${name}"]`);
+  function seriesFor(field, yFactor = 1) {
+    return state.selected.map((pid) => {
+      const st = P_STYLE[pid];
+      return {
+        label: byId(pid).name, short: st.short, color: slotColor(st.slot), dash: st.dash,
+        values: D.series[pid][field].map((v) => v * yFactor),
+        band: pid === state.focus && D.series[pid].spread[field] ? {
+          p10: D.series[pid].spread[field].p10.map((v) => v * yFactor),
+          p90: D.series[pid].spread[field].p90.map((v) => v * yFactor),
+        } : undefined,
+      };
+    });
+  }
+
+  function renderAll() {
+    lineChart($chart('collection'), {
+      title: 'Collection completion',
+      sub: `Unique cards owned as a share of the ${D.meta.poolTotal}-card pool. Guides mark the locked targets.`,
+      series: seriesFor('collectionPct', 100),
+      yFmt: (v) => `${Math.round(v)}%`, yMax: 100,
+      guides: [{ y: 100, label: 'complete' }, { y: 50, label: 'casual target ≈50%' }],
+    });
+    const f = D.series[state.focus];
+    lineChart($chart('tiers'), {
+      title: `Rarity acquisition — ${byId(state.focus).name}`,
+      sub: 'Owned uniques per tier as a share of that tier’s pool (ordinal ramp, C light → UR dark).',
+      series: ['c', 'r', 'sr', 'ssr', 'ur'].map((t, i) => ({
+        label: `${t.toUpperCase()} · ${D.meta.tierTotals[t]} cards`, short: t.toUpperCase(),
+        color: seqColor(i + 1), dash: false,
+        values: f.tiers[t].map((v) => (v / D.meta.tierTotals[t]) * 100),
+      })),
+      yFmt: (v) => `${Math.round(v)}%`, yMax: 100,
+    });
+    lineChart($chart('goldEarned'), {
+      title: 'Cumulative gold earned',
+      sub: 'All faucets combined, before spending.',
+      series: seriesFor('goldEarned'),
+      yFmt: (v) => (v >= 1000 ? `${fmt(v / 1000, 1)}k` : fmt(v)),
+    });
+    stackedArea($chart('sources'), {
+      title: `Income mix — ${byId(state.focus).name}`,
+      sub: 'Cumulative gold by faucet. Layer order is fixed; hover for the split.',
+      layers: SOURCES.map((s) => ({ label: s.label, color: slotColor(s.slot), values: D.series[state.focus].sources[s.key] })),
+      yFmt: (v) => (v >= 1000 ? `${fmt(v / 1000, 1)}k` : fmt(v)),
+    });
+    stackedBars($chart('sourceBars'), {
+      title: `Where the gold comes from — day ${state.maxDay}`,
+      sub: 'Cumulative income by faucet for every selected persona. The faucet-ordering evidence: compare gauntlet, limited, and practice shares.',
+      rows: state.selected.map((pid) => ({
+        label: byId(pid).name,
+        parts: SOURCES.map((s) => ({ label: s.label, color: slotColor(s.slot), v: at(pid, 'goldEarned', state.maxDay) === undefined ? 0 : D.series[pid].sources[s.key][dayIdx(state.maxDay)] })),
+      })),
+    });
+    lineChart($chart('packs'), {
+      title: 'Boosters opened',
+      sub: 'Cumulative packs opened (bought from any SKU).',
+      series: seriesFor('packsOpened'),
+      yFmt: (v) => fmt(v),
+    });
+    lineChart($chart('premium'), {
+      title: 'Premium drafts entered',
+      sub: 'Cumulative 1,000g premium entries. Flat lines never afforded or never chose one.',
+      series: seriesFor('premiumRuns'),
+      yFmt: (v) => fmt(v, 1),
+    });
+    renderCkTable();
+  }
+
+  // checkpoint table
+  const ckSeg = document.getElementById('ckSeg');
+  for (const c of D.meta.checkpoints) {
+    const b = document.createElement('button');
+    b.textContent = String(c);
+    b.setAttribute('aria-pressed', String(c === state.checkpoint));
+    b.addEventListener('click', () => { state.checkpoint = c; for (const x of ckSeg.children) x.setAttribute('aria-pressed', String(x === b)); renderCkTable(); });
+    ckSeg.appendChild(b);
+  }
+  function renderCkTable() {
+    const c = Math.min(state.checkpoint, state.maxDay);
+    const rows = D.meta.personas.map((p) => {
+      const s = D.series[p.id];
+      const i = dayIdx(c);
+      return `<tr><td>${p.name}</td><td>${pctf(s.collectionPct[i])}</td><td>${fmt(s.uniqueCards[i])}</td><td>${fmt(s.goldEarned[i])}</td><td>${fmt(s.goldSpent[i])}</td><td>${fmt(s.finalGold[i])}</td><td>${fmt(s.packsOpened[i], 1)}</td><td>${fmt(s.premiumRuns[i], 1)}</td><td>${fmt(s.limitedRuns[i], 1)}</td><td>${pctf(s.winRate[i])}</td><td>${fmt(s.gauntletBest[i], 1)}</td><td>${pctf(s.questClaimRate[i])}</td><td>${fmt(s.minutesPerDay[i])}m</td></tr>`;
+    }).join('');
+    document.getElementById('ckTable').innerHTML = `<table class="data"><thead><tr><th>Persona (day ${c})</th><th>Coll %</th><th>Uniques</th><th>Earned</th><th>Spent</th><th>Bank</th><th>Packs</th><th>Premium</th><th>Drafts</th><th>Win %</th><th>Best rung</th><th>Quests</th><th>Min/day</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  document.getElementById('footNote').innerHTML =
+    `Deterministic headless simulation: real engine, real AI opponents, real reward code paths (scripts/progression-sim.ts). Personas sharing a hue are skill variants of the same archetype; the dashed line marks the variant. Colors are fixed per persona and never reassigned by filtering. Faucet ordering target (locked 2026-07-15): Full Gauntlet Run &gt;&gt;&gt; successful Premium Draft &gt;&gt; Practice ≥ Free Draft &gt; failed Premium Draft.`;
+
+  renderAll();
+})();
+</script>
