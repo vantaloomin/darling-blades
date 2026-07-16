@@ -4,6 +4,7 @@
  * Usage:
  *   npx tsx scripts/progression-sim.ts --seeds 8
  *   npx tsx scripts/progression-sim.ts --seeds 12 --days 7,14,30,60 --personas new-casual,hardcore-optimizer
+ *   npx tsx scripts/progression-sim.ts --check --seeds 1 --days 7 --personas new-casual,limited-fan,hardcore-optimizer
  *
  * The harness runs the real engine + AI + meta reward systems. It does not
  * auto-build upgraded constructed decks from opened packs; combat power stays
@@ -54,6 +55,9 @@ import {
   applyDailyQuestProgress,
   claimDailyQuest,
   dailyQuestStatuses,
+  dailyQuestDef,
+  dailyRerollsRemaining,
+  dailyStreakStatus,
   ensureDailyState,
   recordDailyWin,
   rerollDailyQuest,
@@ -63,13 +67,13 @@ import { freshSave, type SaveData } from '../src/meta/SaveManager';
 const START_DAY_MS = Date.UTC(2026, 6, 9);
 const MAX_STEPS = 40_000;
 const HUMAN = 0;
-const PRACTICE_MATCH_MINUTES = 10;
-const GAUNTLET_MATCH_MINUTES = 12;
-const LIMITED_MATCH_MINUTES = 14;
-const DRAFT_SETUP_MINUTES = 14;
-const PACK_OPEN_MINUTES = 1.25;
-const DECK_BUY_MINUTES = 1.5;
-const QUEST_REROLL_MINUTES = 0.5;
+export const PRACTICE_MATCH_MINUTES = 10;
+export const GAUNTLET_MATCH_MINUTES = 12;
+export const LIMITED_MATCH_MINUTES = 14;
+export const DRAFT_SETUP_MINUTES = 14;
+export const PACK_OPEN_MINUTES = 1.25;
+export const DECK_BUY_MINUTES = 1.5;
+export const QUEST_REROLL_MINUTES = 0.5;
 
 type PackPreference = 'base' | 'ragnarok' | 'mixed' | 'none';
 type AchievementPolicy = 'claim' | 'ignore';
@@ -92,6 +96,84 @@ interface SpendingPlan {
   buyThemeDeckFirst?: boolean;
 }
 
+export interface PolicyQuestView {
+  readonly id: string;
+  readonly progress: number;
+  readonly target: number;
+  readonly complete: boolean;
+  readonly claimed: boolean;
+  readonly rewardGold: number;
+}
+
+/** Read-only state passed to a persona's optional daily policy callback. */
+export interface PolicyView {
+  readonly day: number;
+  readonly today: string;
+  readonly gold: number;
+  readonly collectionPct: number;
+  readonly collectionSize: number;
+  readonly packsOpened: number;
+  readonly games: number;
+  readonly wins: number;
+  readonly losses: number;
+  readonly draws: number;
+  /**
+   * Start-of-day planning view: this is 0 when the daily policy is called.
+   * The time budget is advisory; policies must self-police their planned work.
+   */
+  readonly minutesUsed: number;
+  /** Infinity when the persona did not declare a daily time budget. */
+  readonly minutesBudget: number;
+  /**
+   * Start-of-day planning view: this equals the full declared budget when the
+   * daily policy is called. The budget is advisory; policies must self-police.
+   */
+  readonly minutesRemaining: number;
+  readonly quests: readonly PolicyQuestView[];
+  readonly quest: {
+    readonly completed: number;
+    readonly claimed: number;
+    readonly rerollsRemaining: number;
+  };
+  readonly gauntlet: {
+    readonly activeRung: number | null;
+    readonly bestRung: number;
+    readonly completions: number;
+  };
+  readonly streak: {
+    readonly count: number;
+    readonly wonToday: boolean;
+    readonly nextCount: number;
+    readonly nextGold: number;
+  };
+  readonly limited: {
+    readonly active: boolean;
+    readonly premium: boolean;
+  };
+  readonly achievements: {
+    readonly unlocked: number;
+    readonly claimed: number;
+  };
+  readonly premiumDraftAffordable: boolean;
+}
+
+export interface PolicyDayPlan {
+  readonly practice?: { difficulty: Difficulty; count: number };
+  readonly gauntlet?: { matches: number; stopAfterLoss?: boolean };
+  readonly limited?: { matches: number; premium?: boolean };
+  readonly quests?: {
+    /** Explicit quest indexes to reroll. The callback owns their ordering. */
+    rerollIndexes?: readonly number[];
+    rerollOffColor?: boolean;
+    claimIndexes?: readonly number[];
+    claimCompleted?: boolean;
+    chase?: { difficulty: Difficulty; maxExtraGames: number } | null;
+  };
+  readonly spending?: Partial<SpendingPlan>;
+  readonly shardSpecialExcess?: boolean;
+  readonly claimAchievements?: boolean;
+}
+
 export interface PlayerPersona {
   id: string;
   name: string;
@@ -105,6 +187,15 @@ export interface PlayerPersona {
   questChase?: QuestChasePlan;
   rerollOffColorQuests?: boolean;
   shardSpecialExcess?: boolean;
+  /**
+   * Optional advisory daily budget exposed to a dynamic policy; no budget
+   * means Infinity. The simulator does not enforce it, so policies must
+   * self-police their planned work: a policy returning practice:{count:500}
+   * runs all 500 games.
+   */
+  timeBudgetMinutes?: number;
+  /** Deterministic per-day override layer; absent keeps the scripted persona byte-identical. */
+  dailyPolicy?: (view: PolicyView) => PolicyDayPlan;
   spending: SpendingPlan;
   achievements: AchievementPolicy;
 }
@@ -261,6 +352,8 @@ interface SimContext {
   save: SaveData;
   rng: RngState;
   serial: number;
+  dayMinutes: number;
+  dayPlan?: PolicyDayPlan;
   stats: SimStats;
 }
 
@@ -272,7 +365,7 @@ interface MatchResult {
 
 interface RunOptions {
   seeds?: number;
-  days?: number[];
+  days?: readonly number[];
   personas?: readonly PlayerPersona[];
   baseSeed?: number;
 }
@@ -403,6 +496,99 @@ export const PLAYER_PERSONAS: readonly PlayerPersona[] = Object.freeze([
   },
 ]);
 
+export const CI_FAST_PERSONA_IDS = Object.freeze([
+  'new-casual',
+  'limited-fan',
+] as const);
+
+/**
+ * The always-on macro gate: 2 personas x 1 deterministic seed x 7 simulated
+ * days. The first measured 3-person run took 13.81s on 2026-07-15, above the
+ * roughly-10s CI target, so the gate keeps the casual + Limited coverage and
+ * shrinks only the persona count.
+ */
+export const CI_FAST_CONFIG = Object.freeze({
+  seeds: 1,
+  days: Object.freeze([7]),
+  personas: Object.freeze(
+    PLAYER_PERSONAS.filter((persona) => CI_FAST_PERSONA_IDS.includes(persona.id as (typeof CI_FAST_PERSONA_IDS)[number])),
+  ),
+});
+
+export interface ProgressionBandResult {
+  name: string;
+  measured: number;
+  min?: number;
+  max?: number;
+  sample: string;
+  passed: boolean;
+}
+
+export interface ProgressionBandReport {
+  day: number;
+  coarse: ProgressionBandResult[];
+  coarseSkipReason?: string;
+  fineFlags: string[];
+  violations: string[];
+}
+
+/**
+ * Coarse CI bands are intentionally wide. The measured reference values and
+ * the rationale for these edges are updated from the CI-fast run, never tuned
+ * to make an unrelated change pass.
+ *
+ * CI-fast measurement on 2026-07-15: 2 persona aggregates (New Casual and
+ * Limited Fan) x 1 seed x day 7; packs/day median 0.286, minimum quest claim
+ * rate 0.286, max-gold/game ÷ cohort-median 1.026, and median collection
+ * 0.228. The bands [0.15, 2.5], >=0.20, <=4.0, and [0.03, 0.70] leave at
+ * least 30% downward headroom on the floor metrics and are deliberately broad
+ * enough to catch only large macro drift. The direct simulation took 1.17s.
+ */
+export const COARSE_PROGRESSION_BANDS = Object.freeze({
+  packsPerDay: Object.freeze({ min: 0.15, max: 2.5 }),
+  minQuestClaimRate: 0.2,
+  maxGoldPerGameMultiple: 4,
+  collectionPct: Object.freeze({ min: 0.03, max: 0.7 }),
+});
+
+export const CANONICAL_FINE_BASELINE_DATE = '2026-07-15';
+export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, pre-tuning';
+
+/**
+ * Flag-only bands measured from balance/econ-baseline-2026-07-15.report.json.
+ * Baseline rows are day-60 aggregates; the wide edges are intentional and do
+ * not affect --check's exit code. Measured -> band: collection %, packs/day,
+ * premium runs, quest claim rate.
+ *
+ * new-casual 57.41 -> 45..70, 0.56 -> 0.10..1.20, 0 -> 0..1, 43.33 -> 25..65
+ * daily-grinder 80.05 -> 65..95, 1.59 -> 0.90..2.40, 0 -> 0..1, 69.86 -> 50..90
+ * gauntlet-climber 77.15 -> 62..92, 1.41 -> 0.80..2.20, 0 -> 0..1, 68.33 -> 48..88
+ * limited-fan 96.81 -> 82..100, 0.06 -> 0..0.90, 35.38 -> 25..45, 70.07 -> 50..90
+ * collector 71.49 -> 56..87, 1.04 -> 0.50..1.80, 0 -> 0..1, 65.97 -> 45..85
+ * theme-deck-buyer 80.27 -> 65..95, 0.91 -> 0.40..1.60, 0 -> 0..1, 60.07 -> 40..80
+ * hardcore-optimizer 89.72 -> 75..100, 2.41 -> 1.50..3.40, 0 -> 0..1, 80.83 -> 65..95
+ * low-skill-casual 52.47 -> 37..67, 0.47 -> 0.10..1.00, 0 -> 0..1, 40.83 -> 20..60
+ * high-skill-veteran 85.10 -> 70..100, 1.93 -> 1.10..2.80, 0 -> 0..1, 78.19 -> 60..95
+ * completionist 91.44 -> 76..100, 2.29 -> 1.40..3.20, 0 -> 0..1, 88.54 -> 70..100
+ */
+export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
+  collectionPct: readonly [number, number];
+  packsPerDay: readonly [number, number];
+  premiumDraftRuns: readonly [number, number];
+  dailyQuestClaimRate: readonly [number, number];
+}>> = Object.freeze({
+  'new-casual': { collectionPct: [0.45, 0.7], packsPerDay: [0.1, 1.2], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.65] },
+  'daily-grinder': { collectionPct: [0.65, 0.95], packsPerDay: [0.9, 2.4], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.5, 0.9] },
+  'gauntlet-climber': { collectionPct: [0.62, 0.92], packsPerDay: [0.8, 2.2], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.48, 0.88] },
+  'limited-fan': { collectionPct: [0.82, 1], packsPerDay: [0, 0.9], premiumDraftRuns: [25, 45], dailyQuestClaimRate: [0.5, 0.9] },
+  collector: { collectionPct: [0.56, 0.87], packsPerDay: [0.5, 1.8], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.45, 0.85] },
+  'theme-deck-buyer': { collectionPct: [0.65, 0.95], packsPerDay: [0.4, 1.6], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
+  'hardcore-optimizer': { collectionPct: [0.75, 1], packsPerDay: [1.5, 3.4], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.65, 0.95] },
+  'low-skill-casual': { collectionPct: [0.37, 0.67], packsPerDay: [0.1, 1], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.2, 0.6] },
+  'high-skill-veteran': { collectionPct: [0.7, 1], packsPerDay: [1.1, 2.8], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.6, 0.95] },
+  completionist: { collectionPct: [0.76, 1], packsPerDay: [1.4, 3.2], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
+});
+
 const emptyRewards = (): RewardLedger => ({
   starting: 0,
   practice: 0,
@@ -500,6 +686,11 @@ function nextSeed(ctx: SimContext, label: string): number {
   return clampSeed(hashString(`${ctx.baseSeed}|${ctx.persona.id}|${ctx.sample}|${ctx.serial}|${label}`));
 }
 
+function addMinutes(ctx: SimContext, minutes: number): void {
+  ctx.stats.sessionMinutes += minutes;
+  ctx.dayMinutes += minutes;
+}
+
 function dayString(dayIndex: number): string {
   return new Date(START_DAY_MS + dayIndex * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
@@ -552,8 +743,90 @@ function rerollOffColorQuests(ctx: SimContext, today: string): void {
     if (!q || q.claimed) continue;
     if (!offColorQuestId(q.id, colors)) continue;
     const result = rerollDailyQuest(ctx.save, i, today);
-    if (result.ok) ctx.stats.sessionMinutes += QUEST_REROLL_MINUTES;
+    if (result.ok) addMinutes(ctx, QUEST_REROLL_MINUTES);
   }
+}
+
+function rerollQuestIndexes(ctx: SimContext, today: string, indexes: readonly number[]): void {
+  for (const index of indexes) {
+    if (!Number.isInteger(index) || index < 0) continue;
+    const result = rerollDailyQuest(ctx.save, index, today);
+    if (result.ok) addMinutes(ctx, QUEST_REROLL_MINUTES);
+  }
+}
+
+function applyDailyPolicyRerolls(ctx: SimContext, today: string): void {
+  const quests = ctx.dayPlan?.quests;
+  if (quests?.rerollIndexes !== undefined) {
+    rerollQuestIndexes(ctx, today, quests.rerollIndexes);
+    return;
+  }
+  if (quests?.rerollOffColor !== undefined) {
+    if (quests.rerollOffColor) rerollOffColorQuests(ctx, today);
+    return;
+  }
+  rerollOffColorQuests(ctx, today);
+}
+
+function buildPolicyView(ctx: SimContext, day: number, today: string): PolicyView {
+  const completion = collectionCompletion(Object.values(CARD_DB), ctx.save);
+  const statuses = dailyQuestStatuses(ctx.save, today);
+  const quests = Object.freeze(statuses.map((status) => Object.freeze({
+    // Keep the policy view sourced from the definition, not the persisted
+    // save value, so per-quest reward changes cannot desync planning.
+    rewardGold: dailyQuestDef(status.id)!.rewardGold,
+    id: status.id,
+    progress: status.progress,
+    target: status.target,
+    complete: status.complete,
+    claimed: status.claimed,
+  })));
+  const streak = dailyStreakStatus(ctx.save, today);
+  const minutesBudget = ctx.persona.timeBudgetMinutes ?? Number.POSITIVE_INFINITY;
+  const minutesRemaining = Number.isFinite(minutesBudget)
+    ? Math.max(0, minutesBudget - ctx.dayMinutes)
+    : Number.POSITIVE_INFINITY;
+  return {
+    day,
+    today,
+    gold: ctx.save.gold,
+    collectionPct: completion.percent,
+    collectionSize: completion.owned,
+    packsOpened: ctx.save.stats.packsOpened,
+    games: ctx.stats.games,
+    wins: ctx.stats.wins,
+    losses: ctx.stats.losses,
+    draws: ctx.stats.draws,
+    minutesUsed: ctx.dayMinutes,
+    minutesBudget,
+    minutesRemaining,
+    quests,
+    quest: {
+      completed: quests.filter((quest) => quest.complete).length,
+      claimed: quests.filter((quest) => quest.claimed).length,
+      rerollsRemaining: dailyRerollsRemaining(ctx.save, today),
+    },
+    gauntlet: {
+      activeRung: ctx.save.gauntlet.run?.rung ?? null,
+      bestRung: ctx.save.gauntlet.bestRung,
+      completions: ctx.save.gauntlet.completions,
+    },
+    streak: {
+      count: streak.count,
+      wonToday: streak.wonToday,
+      nextCount: streak.nextCount,
+      nextGold: streak.nextGold,
+    },
+    limited: {
+      active: ctx.save.limited.activeRun !== null,
+      premium: ctx.save.limited.activeRun?.premium ?? false,
+    },
+    achievements: {
+      unlocked: ctx.save.achievements.unlocked.length,
+      claimed: ctx.save.achievements.claimed.length,
+    },
+    premiumDraftAffordable: ctx.save.gold >= ECONOMY.premiumDraftEntry,
+  };
 }
 
 function dailyCount(count: DailyCount | undefined, ctx: SimContext, dayIndex: number, label: string): number {
@@ -611,10 +884,13 @@ function applyWinStreak(ctx: SimContext, won: boolean, today: string): void {
 }
 
 function claimDailyRewards(ctx: SimContext, today: string): void {
+  const questPlan = ctx.dayPlan?.quests;
+  if (questPlan?.claimCompleted === false) return;
   const statuses = dailyQuestStatuses(ctx.save, today);
   for (let i = 0; i < statuses.length; i++) {
     const s = statuses[i];
     if (!s.complete || s.claimed) continue;
+    if (questPlan?.claimIndexes !== undefined && !questPlan.claimIndexes.includes(i)) continue;
     const result = claimDailyQuest(ctx.save, i, today);
     if (!result.ok) continue;
     ctx.stats.dailyQuestClaims++;
@@ -623,7 +899,7 @@ function claimDailyRewards(ctx: SimContext, today: string): void {
 }
 
 function claimAchievementRewards(ctx: SimContext): void {
-  if (ctx.persona.achievements !== 'claim') return;
+  if (!(ctx.dayPlan?.claimAchievements ?? ctx.persona.achievements === 'claim')) return;
   syncAchievements(ctx.save, CARD_DB);
   const result = claimAllAchievements(ctx.save);
   ctx.stats.rewards.achievements += result.gold;
@@ -634,7 +910,7 @@ function runPractice(ctx: SimContext, difficulty: Difficulty, today: string): vo
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
   const opp = buildAI(difficulty, CARD_DB, seed ^ 0x5eed);
   const match = playHeadlessMatch(seed, player, opp, [activeDeck(ctx.save), practiceOpponentDeck(ctx.save)]);
-  ctx.stats.sessionMinutes += PRACTICE_MATCH_MINUTES;
+  addMinutes(ctx, PRACTICE_MATCH_MINUTES);
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);
   const reward = applyMatchResult(ctx.save, difficulty, won, today, match.turns);
@@ -660,7 +936,7 @@ function runGauntlet(ctx: SimContext, today: string, now: number): boolean {
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
   const opp = buildAI(avatar.difficulty, CARD_DB, seed ^ 0x5eed, avatar.personality);
   const match = playHeadlessMatch(seed, player, opp, [activeDeck(ctx.save), avatar.deck]);
-  ctx.stats.sessionMinutes += GAUNTLET_MATCH_MINUTES;
+  addMinutes(ctx, GAUNTLET_MATCH_MINUTES);
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);
   const clearStyle = deckColorStyle(activeDeck(ctx.save), CARD_DB);
@@ -692,7 +968,7 @@ function runLimitedMatch(ctx: SimContext, today: string, now: number): void {
     ctx.save.limited.activeRun = startPreparedLimitedRun(ctx, now);
     ctx.stats.limitedRuns++;
     if (ctx.save.limited.activeRun.premium) ctx.stats.premiumDraftRuns++;
-    ctx.stats.sessionMinutes += DRAFT_SETUP_MINUTES;
+    addMinutes(ctx, DRAFT_SETUP_MINUTES);
   }
   const run = ctx.save.limited.activeRun;
   if (!run || run.status !== 'matches') throw new Error('Limited run did not reach matches');
@@ -702,7 +978,7 @@ function runLimitedMatch(ctx: SimContext, today: string, now: number): void {
   const opponentPersonality = draftPersonaById(duel.limited.opponentPersonaId ?? '')?.personality;
   const opp = buildAI(duel.difficulty, CARD_DB, seed ^ 0x5eed, opponentPersonality);
   const match = playHeadlessMatch(seed, player, opp, [duel.deckOverride, duel.oppDeckOverride]);
-  ctx.stats.sessionMinutes += LIMITED_MATCH_MINUTES;
+  addMinutes(ctx, LIMITED_MATCH_MINUTES);
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);
   if (won) ctx.stats.limitedWins++;
@@ -728,8 +1004,9 @@ function limitedDeckStyle(deck: readonly string[]): 'mono' | 'dual' | 'other' {
 
 function startPreparedLimitedRun(ctx: SimContext, now: number): LimitedRun {
   const seed = nextSeed(ctx, 'limited-draft');
+  const premiumRequested = ctx.dayPlan?.limited?.premium ?? ctx.persona.limited?.premiumWhenAffordable;
   const premium = Boolean(
-    ctx.persona.limited?.premiumWhenAffordable && payPremiumDraftEntry(ctx.save),
+    premiumRequested && payPremiumDraftEntry(ctx.save),
   );
   if (premium) ctx.stats.spent.premiumDraftEntries += ECONOMY.premiumDraftEntry;
   let run = draftRun(ctx, CARD_DB, seed, now, premium);
@@ -791,28 +1068,41 @@ function compareCardNames(db: CardDb, a: string, b: string): number {
 function runDay(ctx: SimContext, dayIndex: number): void {
   const today = dayString(dayIndex);
   const now = dayTimestamp(dayIndex);
+  ctx.dayMinutes = 0;
   ensureDailyState(ctx.save, today);
   ctx.stats.dailyQuestSlots += ECONOMY.dailyQuestCount;
-  rerollOffColorQuests(ctx, today);
+  ctx.dayPlan = ctx.persona.dailyPolicy?.(buildPolicyView(ctx, dayIndex + 1, today));
+  applyDailyPolicyRerolls(ctx, today);
 
-  const practiceGames = dailyCount(ctx.persona.practice?.games, ctx, dayIndex, 'practice');
+  const practiceGames = ctx.dayPlan?.practice
+    ? Math.max(0, Math.trunc(ctx.dayPlan.practice.count))
+    : dailyCount(ctx.persona.practice?.games, ctx, dayIndex, 'practice');
+  const practiceDifficulty = ctx.dayPlan?.practice?.difficulty ?? ctx.persona.practice?.difficulty ?? 'medium';
   for (let i = 0; i < practiceGames; i++) {
-    runPractice(ctx, ctx.persona.practice!.difficulty, today);
+    runPractice(ctx, practiceDifficulty, today);
   }
-  const gauntletMatches = dailyCount(ctx.persona.gauntletMatches, ctx, dayIndex, 'gauntlet');
+  const gauntletMatches = ctx.dayPlan?.gauntlet
+    ? Math.max(0, Math.trunc(ctx.dayPlan.gauntlet.matches))
+    : dailyCount(ctx.persona.gauntletMatches, ctx, dayIndex, 'gauntlet');
+  const stopGauntletAfterLoss = ctx.dayPlan?.gauntlet?.stopAfterLoss ?? ctx.persona.stopGauntletAfterLoss;
   for (let i = 0; i < gauntletMatches; i++) {
     const won = runGauntlet(ctx, today, now);
-    if (!won && ctx.persona.stopGauntletAfterLoss) break;
+    if (!won && stopGauntletAfterLoss) break;
   }
-  const limitedMatches = dailyCount(ctx.persona.limited?.matches, ctx, dayIndex, 'limited');
+  const limitedMatches = ctx.dayPlan?.limited
+    ? Math.max(0, Math.trunc(ctx.dayPlan.limited.matches))
+    : dailyCount(ctx.persona.limited?.matches, ctx, dayIndex, 'limited');
   for (let i = 0; i < limitedMatches; i++) {
     runLimitedMatch(ctx, today, now + i);
   }
 
-  if (ctx.persona.questChase) {
+  const questChase = ctx.dayPlan?.quests?.chase === null
+    ? undefined
+    : ctx.dayPlan?.quests?.chase ?? ctx.persona.questChase;
+  if (questChase) {
     let extra = 0;
-    while (extra < ctx.persona.questChase.maxExtraGames && !allDailyQuestsClaimed(ctx.save, today)) {
-      runPractice(ctx, ctx.persona.questChase.difficulty, today);
+    while (extra < Math.max(0, Math.trunc(questChase.maxExtraGames)) && !allDailyQuestsClaimed(ctx.save, today)) {
+      runPractice(ctx, questChase.difficulty, today);
       extra++;
     }
   }
@@ -836,7 +1126,7 @@ function runEconomyMaintenance(ctx: SimContext, dayIndex: number): void {
 }
 
 function shardPersonaExcess(ctx: SimContext): void {
-  if (!ctx.persona.shardSpecialExcess) return;
+  if (!(ctx.dayPlan?.shardSpecialExcess ?? ctx.persona.shardSpecialExcess)) return;
   for (const cardId of Object.keys(ctx.save.collection).sort()) {
     if (shardableCount(ctx.save, cardId) === 0) continue;
     const expectedGold = shardGold(ctx.save, CARD_DB, cardId);
@@ -848,15 +1138,26 @@ function shardPersonaExcess(ctx: SimContext): void {
   }
 }
 
+function spendingPlan(ctx: SimContext): SpendingPlan {
+  const override = ctx.dayPlan?.spending;
+  return {
+    ...ctx.persona.spending,
+    ...(override?.packPreference === undefined ? {} : { packPreference: override.packPreference }),
+    ...(override?.reserveGold === undefined ? {} : { reserveGold: override.reserveGold }),
+    ...(override?.buyOtherStartersFirst === undefined ? {} : { buyOtherStartersFirst: override.buyOtherStartersFirst }),
+    ...(override?.buyThemeDeckFirst === undefined ? {} : { buyThemeDeckFirst: override.buyThemeDeckFirst }),
+  };
+}
+
 function buyDecks(ctx: SimContext): void {
-  const plan = ctx.persona.spending;
+  const plan = spendingPlan(ctx);
   if (plan.buyOtherStartersFirst) {
     for (const deck of STARTER_DECKS) {
       if (deck.id === ctx.persona.starterId) continue;
       if (ctx.save.decks.some((d) => d.id === deck.id)) continue;
       if (buyThemeDeck(ctx.save, CARD_DB, deck, ECONOMY.starterDeckPrice)) {
         ctx.stats.spent.decks += ECONOMY.starterDeckPrice;
-        ctx.stats.sessionMinutes += DECK_BUY_MINUTES;
+        addMinutes(ctx, DECK_BUY_MINUTES);
       }
     }
   }
@@ -865,14 +1166,14 @@ function buyDecks(ctx: SimContext): void {
       if (ctx.save.decks.some((d) => d.id === deck.id)) continue;
       if (buyThemeDeck(ctx.save, CARD_DB, deck, ECONOMY.preconPrice)) {
         ctx.stats.spent.decks += ECONOMY.preconPrice;
-        ctx.stats.sessionMinutes += DECK_BUY_MINUTES;
+        addMinutes(ctx, DECK_BUY_MINUTES);
       }
     }
   }
 }
 
 function buyPacks(ctx: SimContext, dayIndex: number): void {
-  const plan = ctx.persona.spending;
+  const plan = spendingPlan(ctx);
   if (plan.packPreference === 'none') return;
   const reserve = plan.reserveGold ?? 0;
   let guard = 0;
@@ -882,7 +1183,7 @@ function buyPacks(ctx: SimContext, dayIndex: number): void {
     if (ctx.save.gold - reserve < pack.price) return;
     if (!spendGold(ctx.save, pack.price)) return;
     ctx.stats.spent.packs += pack.price;
-    ctx.stats.sessionMinutes += PACK_OPEN_MINUTES;
+    addMinutes(ctx, PACK_OPEN_MINUTES);
     const beforeGold = ctx.save.gold;
     const result = openPack(ctx.save, CARD_DB, ctx.rng, pack.set);
     const dupeGold = result.cards.reduce((sum, card) => sum + card.dupeGold, 0);
@@ -899,7 +1200,7 @@ function choosePack(
   ctx: SimContext,
   dayIndex: number,
 ): { price: number; set?: CardDef['set'] } | null {
-  switch (ctx.persona.spending.packPreference) {
+  switch (spendingPlan(ctx).packPreference) {
     case 'none':
       return null;
     case 'base':
@@ -927,6 +1228,7 @@ function setupContext(persona: PlayerPersona, sample: number, baseSeed: number):
     save,
     rng: createRngState(clampSeed(hashString(`shop|${baseSeed}|${persona.id}|${sample}`))),
     serial: 0,
+    dayMinutes: 0,
     stats: freshStats(),
   };
   ctx.stats.rewards.starting += ECONOMY.startingGold;
@@ -1130,6 +1432,119 @@ function divideSpent(x: SpendLedger, n: number): SpendLedger {
   };
 }
 
+function checkBand(
+  name: string,
+  measured: number,
+  min: number | undefined,
+  max: number | undefined,
+  sample: string,
+): ProgressionBandResult {
+  const passed = (min === undefined || measured >= min) && (max === undefined || measured <= max);
+  return { name, measured, min, max, sample, passed };
+}
+
+export function evaluateProgressionBands(report: ProgressionReport): ProgressionBandReport {
+  const coarseDay = report.days.includes(7) ? 7 : Math.max(...report.days);
+  const missingPersonaIds = CI_FAST_PERSONA_IDS.filter(
+    (id) => !report.personas.some((persona) => persona.id === id),
+  );
+  const coarseSkipReasons: string[] = [];
+  if (!report.days.includes(7)) coarseSkipReasons.push('day 7 is not present');
+  if (missingPersonaIds.length > 0) {
+    coarseSkipReasons.push(`missing calibrated persona(s): ${missingPersonaIds.join(', ')}`);
+  }
+  if (coarseSkipReasons.length > 0) {
+    return {
+      day: coarseDay,
+      coarse: [],
+      coarseSkipReason: coarseSkipReasons.join('; '),
+      fineFlags: evaluateFineProgressionFlags(report),
+      violations: [],
+    };
+  }
+
+  const calibratedPersonaIds = new Set<string>(CI_FAST_PERSONA_IDS);
+  const coarseRows = report.aggregates.filter(
+    (row) => row.day === 7 && calibratedPersonaIds.has(row.personaId),
+  );
+  const sample = `${coarseRows.length} persona aggregates, ${report.seeds} seed${report.seeds === 1 ? '' : 's'}, day ${coarseDay}`;
+  const packsPerDay = median(coarseRows.map((row) => row.packsPerDay));
+  const minQuestClaimRate = coarseRows.length === 0 ? 0 : Math.min(...coarseRows.map((row) => row.dailyQuestClaimRate));
+  const goldPerGame = coarseRows
+    .filter((row) => row.games > 0)
+    .map((row) => row.goldEarned / row.games)
+    .filter((value) => Number.isFinite(value));
+  const medianGoldPerGame = median(goldPerGame);
+  const maxGoldPerGameMultiple = medianGoldPerGame <= 0
+    ? 0
+    : Math.max(...goldPerGame) / medianGoldPerGame;
+  const collectionPct = median(coarseRows.map((row) => row.collectionPct));
+  const coarse = [
+    checkBand(
+      'cohort packs/day',
+      packsPerDay,
+      COARSE_PROGRESSION_BANDS.packsPerDay.min,
+      COARSE_PROGRESSION_BANDS.packsPerDay.max,
+      sample,
+    ),
+    checkBand(
+      'minimum quest claim rate',
+      minQuestClaimRate,
+      COARSE_PROGRESSION_BANDS.minQuestClaimRate,
+      undefined,
+      sample,
+    ),
+    checkBand(
+      'maximum persona gold/game divided by cohort median',
+      maxGoldPerGameMultiple,
+      undefined,
+      COARSE_PROGRESSION_BANDS.maxGoldPerGameMultiple,
+      sample,
+    ),
+    checkBand(
+      `median day-${coarseDay} collection`,
+      collectionPct,
+      COARSE_PROGRESSION_BANDS.collectionPct.min,
+      COARSE_PROGRESSION_BANDS.collectionPct.max,
+      sample,
+    ),
+  ];
+  const violations = coarse
+    .filter((band) => !band.passed)
+    .map((band) => `${band.name}: measured ${band.measured.toFixed(4)} outside ${band.min ?? '-Infinity'}..${band.max ?? 'Infinity'} (${band.sample})`);
+
+  const fineFlags = evaluateFineProgressionFlags(report);
+  return { day: coarseDay, coarse, fineFlags, violations };
+}
+
+function evaluateFineProgressionFlags(report: ProgressionReport): string[] {
+  const finalDay = Math.max(...report.days);
+  const fineFlags: string[] = [];
+  if (finalDay !== 60) {
+    fineFlags.push(`fine bands skipped: requested final day ${finalDay}, canonical fine baseline is day 60`);
+  } else {
+    const final = report.aggregates.filter((row) => row.day === finalDay);
+    for (const [personaId, bands] of Object.entries(CANONICAL_FINE_BANDS)) {
+      const row = final.find((candidate) => candidate.personaId === personaId);
+      if (!row) continue;
+      const checks: [string, number, readonly [number, number]][] = [
+        ['collectionPct', row.collectionPct, bands.collectionPct],
+        ['packsPerDay', row.packsPerDay, bands.packsPerDay],
+        ['premiumDraftRuns', row.premiumDraftRuns, bands.premiumDraftRuns],
+        ['dailyQuestClaimRate', row.dailyQuestClaimRate, bands.dailyQuestClaimRate],
+      ];
+      for (const [metric, measured, [min, max]] of checks) {
+        if (measured < min || measured > max) {
+          fineFlags.push(
+            `${personaId} ${metric}: measured ${measured.toFixed(4)} outside ${min}..${max} (${CANONICAL_FINE_BASELINE_SAMPLE}, baseline ${CANONICAL_FINE_BASELINE_DATE})`,
+          );
+        }
+      }
+    }
+  }
+  return fineFlags;
+}
+
 export function analyzeRewardTuning(aggregates: readonly ProgressAggregate[], days: readonly number[]): RewardVerdict {
   const finalDay = Math.max(...days);
   const final = aggregates.filter((r) => r.day === finalDay);
@@ -1277,13 +1692,25 @@ export function renderProgressionReport(report: ProgressionReport): string {
   return lines.join('\n');
 }
 
-function parseArgs(argv: readonly string[]): RunOptions & { json?: boolean } {
+function parseArgs(argv: readonly string[]): RunOptions & { json?: boolean; check?: boolean } {
   const opt = (name: string): string | undefined => {
     const i = argv.indexOf(`--${name}`);
     return i >= 0 && i + 1 < argv.length ? argv[i + 1] : undefined;
   };
   const flag = (name: string): boolean => argv.includes(`--${name}`);
-  const personaIds = opt('personas')?.split(',').map((s) => s.trim()).filter(Boolean);
+  const personaFlagIndex = argv.indexOf('--personas');
+  const inlinePersonaArg = argv.find((arg) => arg.startsWith('--personas='));
+  const personaValue = inlinePersonaArg === undefined
+    ? opt('personas')
+    : inlinePersonaArg.slice('--personas='.length);
+  const personaOptionProvided = personaFlagIndex >= 0 || inlinePersonaArg !== undefined;
+  if (personaOptionProvided && (personaValue === undefined || personaValue.startsWith('--'))) {
+    throw new Error('--personas must include at least one known persona');
+  }
+  const personaIds = personaValue?.split(',').map((s) => s.trim()).filter(Boolean);
+  if (personaIds !== undefined && personaIds.length === 0) {
+    throw new Error('--personas must include at least one known persona');
+  }
   const personas = personaIds
     ? PLAYER_PERSONAS.filter((p) => personaIds.includes(p.id) || personaIds.includes(p.name.toLowerCase()))
     : undefined;
@@ -1298,15 +1725,42 @@ function parseArgs(argv: readonly string[]): RunOptions & { json?: boolean } {
     personas,
     baseSeed: opt('base-seed') === undefined ? undefined : Number(opt('base-seed')),
     json: flag('json'),
+    check: flag('check'),
   };
 }
 
 function main(): void {
   try {
-    const { json, ...options } = parseArgs(process.argv.slice(2));
+    const { json, check, ...options } = parseArgs(process.argv.slice(2));
     const t0 = Date.now();
     const report = runProgressionSimulation(options);
-    if (json) console.log(JSON.stringify(report, null, 2));
+    if (check) {
+      const bands = evaluateProgressionBands(report);
+      if (json) console.log(JSON.stringify({ report, bands }, null, 2));
+      else {
+        console.log(renderProgressionReport(report));
+        if (bands.coarseSkipReason) {
+          console.log(`\ncoarse bands skipped: ${bands.coarseSkipReason}`);
+        } else {
+          console.log('\n--- Coarse CI bands ---');
+          for (const band of bands.coarse) {
+            console.log(
+              `${band.passed ? 'PASS' : 'FAIL'} ${band.name}: ${band.measured.toFixed(4)} ` +
+                `[${band.min ?? '-Infinity'}, ${band.max ?? 'Infinity'}] sample=${band.sample}`,
+            );
+          }
+        }
+        if (bands.fineFlags.length === 0) console.log('FINE FLAGS: none');
+        else {
+          console.log('FINE FLAGS:');
+          for (const flag of bands.fineFlags) console.log(`  ! ${flag}`);
+        }
+      }
+      if (bands.violations.length > 0) {
+        for (const violation of bands.violations) console.error(`COARSE BAND VIOLATION: ${violation}`);
+        process.exitCode = 1;
+      }
+    } else if (json) console.log(JSON.stringify(report, null, 2));
     else {
       console.log(renderProgressionReport(report));
       console.log(`\n(${((Date.now() - t0) / 1000).toFixed(1)}s)`);

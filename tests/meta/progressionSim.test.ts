@@ -71,5 +71,6 @@ describe('progression simulation harness', () => {
     expect(rendered).toContain('ShardGold');
     expect(rendered).toContain('PremKeep');
     expect(rendered).toContain('Premium');
-  });
+  // CI runners are 2-core and can contend with other simulation tests.
+  }, 30_000);
 });

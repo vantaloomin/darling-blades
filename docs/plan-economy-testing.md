@@ -9,8 +9,13 @@
 > `payPremiumDraftEntry` + `grantPremiumDraftPool`), and shard income;
 > `src/meta/economyModel.ts` ships the EV surface + 4 hard invariants
 > (computed full-completion pack dupe-EV: **67.5g** — the ≈68g claim
-> verified). Next: Phase 2 (baseline + gates) needs the doc's decision
-> points 1–2; Phase 3 needs Phase 1 (done).
+> verified). **Phases 2a, 2b, and 3 ALL SHIPPED 2026-07-15** (2a:
+> baseline + dashboard; 2b: the locked decisions as CI gates — Layer-1 EV
+> inequalities, coarse CI-fast bands, `--check` with flag-only fine bands,
+> the date-stamped baseline table next to `ECONOMY`, and a dynamic-policy
+> seam; 3: the greedy g/min optimizer + cap gate + named exploit
+> regressions, which surfaced the premium shard-farm finding below).
+> Remaining: the tuning pass (direction set below).
 
 _Authored 2026-07-15 (user-directed). This is the instrumentation half of the
 1.1 Limited economy tuning pass: build the measurement + regression layer
@@ -184,6 +189,42 @@ Scripted personas play fair; exploits don't. Two additions:
 > Optimizer reaches 90% (slightly behind the 50–75-day completion window);
 > harness verdict UNEVEN (median 1.22 packs/day, 80% median collection is
 > high; quest claim rates spread 41–89% by deck/style).
+
+> **Tuning direction — SET (user calls 2026-07-15, post-baseline review):**
+> the pass is led by a **premium-draft frequency limiter** (the baseline
+> indicts the run *rate* — 35 premium runs in 60 days — not the per-run
+> experience; `premiumDraftEntry` stays at 1,000g so first-premium
+> onboarding keeps its day-3 median), with a **`limitedRunGold` trim** as
+> the second lever for the global generosity reading (1.22 packs/day
+> median, ~80% median collection at day 60). The Hardcore-Optimizer
+> completion gap (90% at day 60 vs the 50–75-day window) waited on a
+> completion-curve slope check from the daily-snapshot baseline —
+> **measured 2026-07-15 (8 seeds, daily snapshots): the window is missed
+> badly, not slightly.** Hardcore Optimizer gains only ~0.68 new
+> uniques/day over days 55–60 and decelerating (313/349 at day 60, 36
+> missing); linear extrapolation puts completion past day 110, and the
+> true curve is convex (each remaining unique is rarer). The pack-only
+> route asymptotes near ~90%: Hardcore Optimizer and Completionist run 0
+> premium drafts and open 137–144 packs to reach 90–91%, while Limited
+> Fan reaches 97% on 35 premium runs and 3.6 packs — picked cards, not
+> pack rolls, are the only working late-game unique source. A late-game
+> catch-up mechanism (e.g. shard-crafting a chosen card) is therefore ON
+> the tuning-pass agenda, and matters more once the premium limiter
+> lands, since the limiter also drags the one persona that currently
+> completes fastest. **Also on the agenda — a measured live finding from
+> the Phase-3 exploit probes (2026-07-15, 10 seeds): the premium-draft
+> shard-farm.** A finished collector (plain playsets) who drafts premium
+> purely for melt value realizes a mean 1,127.5g / max 1,595g against the
+> 1,000g entry with a best-record run (~827.5g melt + 300g run gold) —
+> net-positive, violating the endgame no-gold-positive-cycle principle,
+> though unattractive as a faucet (~2.3 g/min vs practice ~6) and
+> net-negative on a failed run. Pinned as `it.fails` in
+> tests/meta/exploits.test.ts; the `limitedRunGold` trim shrinks it
+> directly, and the tuning pass should re-measure and flip the test to a
+> hard gate once closed. The quest claim-rate spread (41–89% by
+> deck/style) is explicitly OUT of this pass: it is a quest-pool fairness
+> design item, tracked separately. Exact constants/mechanics are decided
+> at tuning time against the Phase 2b gates.
 
 ## Design decisions this plan needed (original list, kept for context)
 
