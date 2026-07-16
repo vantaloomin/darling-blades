@@ -30,6 +30,17 @@ MIN_DET_FRAC = 0.06
 # image ceiling (top=0) — those keep max headroom and the crown clips at the
 # window edge (accepted 2026-07-09, user-directed: no synthesized padding).
 HEADROOM_FRAC = 0.25
+# Zoom fallback (2026-07-16, for full-body/wide raws that predate the waist-up
+# preamble): when the ceiling-clamped full-width crop would leave the detected
+# focal ABOVE this fraction, the face sits at or above CardView's visible band
+# (window edge 20.9%) — i.e. hidden, the Frost-Jotun class. Instead of shipping
+# a hidden face, shrink the crop window (zoom in) until the focal reaches
+# FOCAL_FRAC. Mild ceiling grazes (focal between 0.28 and 0.40) keep the
+# accepted crown-clip behavior unchanged, so previously-approved crops do not
+# drift. Quality bound: never zoom past MAX_UPSCALE (deliverables display at
+# <=282px wide, so a 2x upscale of the source crop still downsamples on card).
+ZOOM_TRIGGER_FRAC = 0.28
+MAX_UPSCALE = 2.0
 
 RESAMPLE_LANCZOS = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.LANCZOS
 
@@ -80,6 +91,17 @@ def focal_crop_box(
     if subject_top is not None:
         top = min(top, round(subject_top - HEADROOM_FRAC * crop_h))
     top = clamp(top, 0, src_h - crop_h)
+    # Zoom fallback: only for detected subjects (subject_top present) whose
+    # face would land hidden above the visible band at the image ceiling.
+    if subject_top is not None and top == 0 and focal_y / crop_h < ZOOM_TRIGGER_FRAC:
+        min_crop_h = math.ceil(out_h / MAX_UPSCALE)
+        zoom_h = clamp(round(focal_y / FOCAL_FRAC), min_crop_h, crop_h)
+        zoom_w = min(src_w, round(zoom_h * out_w / out_h))
+        ztop = round(focal_y - FOCAL_FRAC * zoom_h)
+        ztop = min(ztop, round(subject_top - HEADROOM_FRAC * zoom_h))
+        ztop = clamp(ztop, 0, src_h - zoom_h)
+        zleft = clamp(round(focal_x - zoom_w / 2), 0, src_w - zoom_w)
+        return CropBox(zleft, ztop, zoom_w, zoom_h)
     return CropBox(left, top, crop_w, crop_h)
 
 
@@ -327,6 +349,26 @@ def run_self_test() -> None:
         focal_crop_box(1024, 1536, 640, 800, 512, 768, 700), CropBox(0, 256, 1024, 1280), "headroom inactive"
     )
     assert_equal(center_crop_box(1024, 1536, 640, 800), CropBox(0, 128, 1024, 1280), "center fallback")
+    # Zoom fallback: focal 170/1280 = 0.13 would hide the face above the
+    # window band — zoom in until the focal reaches 0.40 (crop_h 170/0.4=425).
+    assert_equal(
+        focal_crop_box(1024, 1536, 640, 800, 539, 170, 42), CropBox(369, 0, 340, 425), "zoom rescue"
+    )
+    # Zoom quality floor: focal 100 wants crop_h 250, clamped to out_h/2=400
+    # (max 2x upscale); the face lands at the best achievable 0.25.
+    assert_equal(
+        focal_crop_box(1024, 1536, 640, 800, 512, 100, 30), CropBox(352, 0, 320, 400), "zoom quality floor"
+    )
+    # Mild ceiling graze (focal 400/1280 = 0.31 >= 0.28): no zoom — the
+    # accepted crown-clip behavior is unchanged (same box as headroom ceiling).
+    assert_equal(
+        focal_crop_box(1024, 1536, 640, 800, 512, 400, 54), CropBox(0, 0, 1024, 1280), "zoom not triggered"
+    )
+    # No detection metadata (subject_top None): zoom never fires even for a
+    # very high focal — the pre-zoom behavior is preserved byte-for-byte.
+    assert_equal(
+        focal_crop_box(1024, 1536, 640, 800, 512, 250), CropBox(0, 0, 1024, 1280), "zoom needs subject_top"
+    )
 
     with tempfile.TemporaryDirectory() as td:
         base = Path(td)
