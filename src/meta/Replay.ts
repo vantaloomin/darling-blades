@@ -118,9 +118,16 @@ export function canReplay(log: ReplayLog, db: CardDb): boolean {
 
 /**
  * Re-run a recorded game to completion. Throws on db drift (see canReplay for
- * a graceful pre-check) and on any illegal recorded action — a well-formed
- * log can only fail if the engine's rules changed under it, which the stamp
- * is designed to catch first.
+ * a graceful pre-check) and on any illegal recorded action.
+ *
+ * HONEST LIMIT (adversarial review 2026-07-16): the stamp guards CARD-DATA
+ * drift only. A change to engine CODE (combat ordering, resolution rules, …)
+ * alters replay behavior without changing the stamp — old logs would then
+ * diverge or throw. The discipline: any engine change that alters observable
+ * game behavior must bump REPLAY_LOG_VERSION so persisted logs fail closed
+ * via the `v` check instead of replaying wrong. The engine determinism suite
+ * (tests/engine/determinism + the golden test in tests/meta/replay.test.ts)
+ * catches unintentional drift at CI time, not in shipped saves.
  */
 export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: GameEvent[] } {
   if (!canReplay(log, db)) {

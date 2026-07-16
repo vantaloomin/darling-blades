@@ -1079,8 +1079,13 @@ _Dated 2026-07-04. Review monthly._
   ladder now reads: **1.1** = Celtic Fae (✅ shipped) + the public persona
   Draft (✅ shipped 2026-07-14) + the Limited **economy sim/tuning pass**
   (✅ shipped 2026-07-16 — 1.1's engineering is complete);
-  **1.2** = practice opponent picker (+ the previously shelved
-  deterministic replays); **1.3** = seeded daily tower rotation (with its
+  **1.2** = practice opponent picker + the previously shelved
+  deterministic replays + Limited run-history achievement hooks + **the
+  Arthurian Court expansion (Expansion 3 — folded into 1.2 by user decision
+  2026-07-16**; Quest/Awakening engine mechanics, 80 cards, set booster +
+  Questing Table precon, gauntlet rungs 13–14; concretized spec in
+  [expansions/arthurian-court.md](expansions/arthurian-court.md));
+  **1.3** = seeded daily tower rotation (with its
   balance re-baseline); **1.5** = Commander mode, renamed **"Darlings"**;
   **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
   the hub offers only Draft; its dormant code is cleanup-eligible.

@@ -47,6 +47,13 @@ PvP are explicitly **not** in 1.1 — they shelve to 1.2+.
 > - **Pillar 5.1 seeded daily tower rotation → 1.3** (carries its balance
 >   re-baseline).
 > - **Pillar 5.3 practice opponent picker → 1.2.**
+> - **The Arthurian Court expansion (Expansion 3) is FOLDED INTO 1.2**
+>   (user decision 2026-07-16; it was previously "the next release after
+>   1.1"). 1.2 = opponent picker + deterministic replays + Limited
+>   achievement hooks + Arthurian Court (Quest/Awakening engine mechanics,
+>   80 cards, set booster + Questing Table precon, gauntlet rungs 13-14).
+>   The concretized set spec is
+>   [expansions/arthurian-court.md](expansions/arthurian-court.md).
 > - **Placements locked (user handoff 2026-07-14):** Pillar 5.2's base-facet
 >   relabel is **part of 1.1** (✅ shipped 2026-07-14 — the `'base'` facet
 >   displays as **"Core Set"** in the Collection filter, the deck-builder pool
