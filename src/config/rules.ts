@@ -115,6 +115,32 @@ export const ECONOMY = {
  * Low Skill Casual          52.47%       0.47          0          40.83%       0          -
  * High Skill Veteran        90.08%       1.87          0          78.19%    19.6          -
  * Completionist             99.43%       1.76          0          88.54%    49.4          -
+ *
+ * Post-Arthurian-Court baseline 2026-07-16 (same 10 personas x 8 seeds x
+ * 60 days; balance/econ-baseline-2026-07-16-post-ac.report.json) after the
+ * 1.2 set landed: 429 collectible cards (+80, a 23% larger pool), the
+ * 525g arthurian-court booster SKU, rungs 13-14 (full clear 2,770g), and
+ * the two AC card-buff rounds. Every persona's 60-day completion drops
+ * 5-11pp - the mechanically expected effect of a bigger chase, not an
+ * economy change (all four Layer-1 EV gates stay green; verdict label
+ * unchanged at 'uneven' on the same quest-claim-spread bullet, which
+ * remains its own backlog item). Casuals hold the ~50% target (44.7 /
+ * 50.6%). Watch item for a future tuning pass: Hardcore Optimizer 88.3%
+ * at day 60 extrapolates full completion slightly past the 50-75-day
+ * window that was calibrated against the 349-card pool; whether that
+ * window is per-set-era or perpetual is an open design question.
+ *
+ * Persona              Collection  Packs/day  Premium runs  Quest claim  Crafted
+ * New Casual              50.55%       0.56          0          43.33%       0
+ * Daily Grinder           73.40%       1.55          0          69.86%       0
+ * Gauntlet Climber        70.16%       1.40          0          68.33%       0
+ * Limited Fan             92.86%       0.55      18.00          71.74%    29.0
+ * Collector               62.41%       1.04          0          65.97%       0
+ * Theme Deck Buyer        74.68%       0.92          0          60.07%       0
+ * Hardcore Optimizer      88.32%       2.37          0          80.83%    19.1
+ * Low Skill Casual        44.67%       0.45          0          40.83%       0
+ * High Skill Veteran      79.87%       1.96          0          78.19%       0
+ * Completionist           95.19%       2.09          0          89.10%    43.5
  */
 
 /**
