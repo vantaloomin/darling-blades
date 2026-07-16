@@ -16,15 +16,15 @@ import { ECONOMY, RULES } from '../../src/config/rules';
  */
 
 describe('avatar roster shape', () => {
-  it('has exactly 12 avatars with unique tiers 1..12', () => {
-    expect(AVATARS).toHaveLength(12);
+  it('has exactly 14 avatars with unique tiers 1..14', () => {
+    expect(AVATARS).toHaveLength(14);
     const tiers = AVATARS.map((a) => a.tier).sort((x, y) => x - y);
-    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(12);
-    expect(ECONOMY.gauntletRungGold).toHaveLength(12);
+    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(14);
+    expect(ECONOMY.gauntletRungGold).toHaveLength(14);
   });
 
-  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-12 hard)', () => {
+  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-14 hard)', () => {
     for (const a of AVATARS) {
       const expected = a.tier <= 3 ? 'easy' : a.tier <= 6 ? 'medium' : 'hard';
       expect(a.difficulty).toBe(expected);
@@ -39,7 +39,9 @@ describe('avatar roster shape', () => {
     }
     expect(avatarForRung(11).id).toBe('the-morrigan');
     expect(avatarForRung(12).id).toBe('titania');
-    expect(() => avatarForRung(13)).toThrow();
+    expect(avatarForRung(13).id).toBe('morgan');
+    expect(avatarForRung(14).id).toBe('artoria');
+    expect(() => avatarForRung(15)).toThrow();
     expect(() => avatarById('nope')).toThrow();
   });
 });

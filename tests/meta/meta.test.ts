@@ -972,7 +972,7 @@ describe('applyGauntletResult', () => {
     expect(dual.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 1 });
   });
 
-  it('a full 12-rung run pays exactly 2170 gold plus the daily bonus once', () => {
+  it('a full 14-rung run pays exactly 2770 gold plus the daily bonus once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
@@ -981,9 +981,9 @@ describe('applyGauntletResult', () => {
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(1920); // 50+70+â€¦+270 across 12 rungs
+    expect(rungSum).toBe(2520); // 50+70+…+310 across 14 rungs (1.2 added 13-14)
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(2270); // 1920 + 250 + 100 (daily bonus once)
+    expect(total).toBe(2870); // 2520 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 
