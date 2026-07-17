@@ -24,7 +24,7 @@ describe('optimizer gold-per-minute cap', () => {
   // 90s runtime allowance: the sim measures ~22s alone but times out at the
   // 30s default under full-suite CPU contention (measured 2026-07-17). The
   // 1.5x cap assertion below is untouched; only the allowance moved.
-  it('keeps the optimizer at or below 1.5x the best honest persona', { timeout: 90_000 }, () => {
+  it('keeps the optimizer at or below 1.5x the best honest persona', () => {
     // Day 3 inflated honest g/min with one-time achievement bursts over a
     // short session horizon. A day-7 trial took 18.015s, above the roughly
     // 15s target, so use day 5 with the same canonical three leaders plus the
@@ -60,6 +60,7 @@ describe('optimizer gold-per-minute cap', () => {
       ratio,
       `optimizer=${optimizerGoldPerMinute.toFixed(3)}g/min; best=${bestHonest!.personaId} ${honestGoldPerMinute.toFixed(3)}g/min; ratio=${ratio.toFixed(3)}x; wall=${wallClockMs.toFixed(0)}ms`,
     ).toBeLessThanOrEqual(OPTIMIZER_CAP);
-  // CI runners are 2-core and can contend with other simulation tests.
-  }, 30_000);
+  // CI runners are 2-core and can contend with other simulation tests; the
+  // sim measures ~22s alone, so the 30s allowance flaked under load.
+  }, 90_000);
 });
