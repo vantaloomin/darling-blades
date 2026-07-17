@@ -1125,8 +1125,9 @@ _Dated 2026-07-04. Review monthly._
   existing five ids** — cosmetic-only, fits the established variant
   system (or a lighter per-deck "land style" selector), no catalog
   surface. B is the smaller, save-schema-bounded change; A makes lands a
-  collectible product. Decision unmade — no implementation until the
-  user picks.
+  collectible product. **Decided 2026-07-17: a deck-builder land-style
+  selector (B-lite) — cosmetic only, not collectible; scheduled into 1.3
+  ([plan-1.3.md](plan-1.3.md) Pillar 2).**
 - **Core design-system alignment.** The shipped theme foundation is now
   formalized in [design-system.md](design-system.md); the repository-wide audit
   and dependency-ordered implementation program live in
@@ -1162,8 +1163,11 @@ _Dated 2026-07-04. Review monthly._
   SHIPPED 2026-07-16** (see Recently shipped · the 1.2 build); what
   remains for the 1.2 cut is release mechanics (version bump + tag +
   README consumer notes) plus the standing validation passes;
-  **1.3** = seeded daily tower rotation (with its
-  balance re-baseline); **1.5** = Commander mode, renamed **"Darlings"**;
+  **1.3** = seeded daily tower rotation (full-shuffle roster with
+  floor-scaled AI tiers, plus its balance re-baseline), the deck-builder
+  land-style selector, and the "Hardcore MTG Fan" balance personas — user
+  decisions 2026-07-17, spec in [plan-1.3.md](plan-1.3.md);
+  **1.5** = Commander mode, renamed **"Darlings"**;
   **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
   the hub offers only Draft; its dormant code is cleanup-eligible.
   **Placements locked (2026-07-14 handoff):** the base-facet relabel shipped
