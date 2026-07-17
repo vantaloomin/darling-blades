@@ -136,6 +136,36 @@ export interface Avatar {
  * Harvest 27→30, R7 Yohime 72→73% (Muster 60→63); every other row
  * byte-identical. No flags, bands green, ladder monotonic. Table above
  * updated in place.
+ *
+ * 2026-07-17 — prefab round-robin tuning (PR #85): the new
+ * `--prefabs --ai hard --seeds 500` harness measured Grave Harvest 63.9% /
+ * Glimmer Bargain 29.8% aggregate, so Grave Harvest was shaved (-1 Doom
+ * Bolt, -1 Thanatos, Gaia out, situational 1-ofs in) and Glimmer Bargain
+ * rebuilt (6 cf duals, singletons consolidated) — see starterDecks.ts.
+ * Post-tune prefab aggregates: Grave 54.3, Glimmer 46.5, spread 39.7-59.4.
+ * Full --avatars re-measure at 40 seeds (fresh table; only Harvest-column
+ * cells and noise moved vs the table above):
+ *
+ *                            Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R1 Meng Huo   [easy]       38%      35%      38%     25%      30%   | 33%
+ *   R2 Hestia     [easy]       28%      33%      13%     13%      18%   | 21%
+ *   R3 Lupa       [easy]       20%      15%      38%     35%      38%   | 29%
+ *   R4 Hera       [medium]     33%      42%      38%     70%      61%   | 49%
+ *   R5 Zhurong    [medium]     45%      80%      63%     55%      68%   | 62%
+ *   R6 Sima Yi    [medium]     64%      80%      63%     50%      47%   | 61%
+ *   R7 Yohime     [hard]       60%      90%      63%     53%      65%   | 66%
+ *   R8 Cao Cao    [hard]       73%      88%      80%     80%      57%   | 76%
+ *   R9 Hel        [hard]       65%      90%      70%     68%      55%   | 70%
+ *   R10 Brunhild  [hard]       93%      80%      70%     85%     100%   | 86%
+ *   R11 Morrigan  [hard]       68%      78%      78%     75%      88%   | 77%
+ *   R12 Titania   [hard]       63%      88%      88%     78%      68%   | 77%
+ *
+ * Bands green. ONE WARNING (accepted): rung 2 (21%) sits exactly 12pp below
+ * rung 1 (33%) — the gap was already 10pp before this tuning (Hestia as the
+ * documented welcome mat); the Grave Harvest nerf lifted Meng Huo's hardest
+ * cell (Harvest 20→30%), widening it to the flag threshold. Revisit only if
+ * Meng Huo gets further buffs. CF-boss tier matrix re-measured, unflagged
+ * (Morrigan avg 89, Titania 80 at 40 seeds).
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------

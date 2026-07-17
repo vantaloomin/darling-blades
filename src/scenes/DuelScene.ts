@@ -4539,7 +4539,10 @@ export class DuelScene extends Phaser.Scene {
 
     parent.add(
       this.add
-        .text(x, y + h / 2 + 8, `R${rung} ${avatar.name}`, {
+        // Short display name: epithets after a comma are dropped so the recap
+        // reads "R7 Yohime", not "R7 Yohime, Kitsune Matriarch" (playtest
+        // 2026-07-16). Comma-less names (Hestia, The Morrigan) pass through.
+        .text(x, y + h / 2 + 8, `R${rung} ${avatar.name.split(',')[0]}`, {
           fontFamily: 'Inter, Arial, sans-serif',
           fontSize: '11px',
           fontStyle: '700',
