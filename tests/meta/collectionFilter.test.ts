@@ -164,6 +164,7 @@ describe('set facet', () => {
     card('base_b', { set: 'base' }),
     card('rg_a', { set: 'ragnarok' }),
     card('rg_b', { set: 'ragnarok' }),
+    card('gm_a', { set: 'gothic-monsters' }),
   ];
   const st = (set: CollectionFilterState['set']): CollectionFilterState => ({
     ...defaultFilterState(),
@@ -172,7 +173,7 @@ describe('set facet', () => {
 
   it("default 'all' returns every set", () => {
     expect(defaultFilterState().set).toBe('all');
-    expect(applyFilters(pool, st('all'), save)).toHaveLength(4);
+    expect(applyFilters(pool, st('all'), save)).toHaveLength(5);
   });
 
   it("'ragnarok' returns only expansion cards", () => {
@@ -187,6 +188,10 @@ describe('set facet', () => {
       'base_a',
       'base_b',
     ]);
+  });
+
+  it("'gothic-monsters' returns only Gothic Monsters cards", () => {
+    expect(applyFilters(pool, st('gothic-monsters'), save).map((d) => d.id)).toEqual(['gm_a']);
   });
 });
 

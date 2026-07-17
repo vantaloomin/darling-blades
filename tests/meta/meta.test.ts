@@ -372,6 +372,21 @@ describe('PackOpener', () => {
     }
   });
 
+  it('a Gothic Monsters booster charges its SKU price and pulls only gm- cards', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.gothicMonstersPackPrice;
+
+    expect(spendGold(save, ECONOMY.gothicMonstersPackPrice)).toBe(true);
+    const result = openPack(save, CARD_DB, createRngState(20260717), 'gothic-monsters');
+
+    expect(save.gold).toBe(0);
+    expect(result.cards).toHaveLength(ECONOMY.boosterPackSize);
+    for (const card of result.cards) {
+      expect(card.cardId.startsWith('gm-'), `${card.cardId} must be Gothic Monsters`).toBe(true);
+      expect(CARD_DB[card.cardId].set).toBe('gothic-monsters');
+    }
+  });
+
   it('dupe-protects the sr/ssr/ur slots (prefers sub-playset cards)', () => {
     // own a playset of every sr except dt_rhino â†’ every sr slot must roll it
     const srs = packPool(TEST_DB, 'sr');

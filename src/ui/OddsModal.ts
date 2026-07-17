@@ -6,7 +6,7 @@ import { measuredRowsLayout } from './layout';
 import { theme } from './theme';
 import { modalShell, themedButton, type ModalShell } from './themeWidgets';
 
-export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court';
+export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters';
 
 interface PackOddsMeta {
   packName: string;
@@ -25,6 +25,7 @@ const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
   ragnarok: { packName: 'Ragnarök', setName: 'Ragnarök' },
   'celtic-fae': { packName: 'Celtic Fae', setName: 'Celtic Fae' },
   'arthurian-court': { packName: 'Arthurian Court', setName: 'Arthurian Court' },
+  'gothic-monsters': { packName: 'Gothic Monsters', setName: 'Gothic Monsters' },
 };
 
 const TIER_LABELS: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };

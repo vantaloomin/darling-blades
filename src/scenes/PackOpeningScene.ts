@@ -18,7 +18,7 @@ import { fxPolicy } from '../ui/fx/FXSupport';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, packTextureForSku, type BoosterSku } from './ShopScene';
+import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, GOTHIC_MONSTERS_PACK_ART, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
 const GRID_DY = 216;
@@ -102,6 +102,8 @@ export class PackOpeningScene extends Phaser.Scene {
       bakePackArt(this, CELTIC_FAE_PACK_ART);
     } else if (this.sku === 'arthurian-court') {
       bakePackArt(this, ARTHURIAN_COURT_PACK_ART);
+    } else if (this.sku === 'gothic-monsters') {
+      bakePackArt(this, GOTHIC_MONSTERS_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {
@@ -762,7 +764,9 @@ export class PackOpeningScene extends Phaser.Scene {
           ? ECONOMY.celticFaePackPrice
           : this.sku === 'arthurian-court'
             ? ECONOMY.arthurianCourtPackPrice
-            : ECONOMY.packPrice;
+            : this.sku === 'gothic-monsters'
+              ? ECONOMY.gothicMonstersPackPrice
+              : ECONOMY.packPrice;
     mk(width / 2 - 200, `Open Another (🪙 ${openPrice})`, () => {
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;
