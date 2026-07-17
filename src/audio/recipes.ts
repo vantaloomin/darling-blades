@@ -51,6 +51,7 @@ export type SfxName =
   | 'coin'
   | 'flip'
   | 'shimmer'
+  | 'yourTurn'
   | 'rungClear';
 
 const tone = (
@@ -154,6 +155,12 @@ export const SFX: Record<SfxName, Voice[]> = {
     tone('sine', 2349.3, 0.07, 0.01, 0.65, { at: 0.27 }),
     noise(0.045, 0.15, 0.7, { filter: { type: 'highpass', freq: 5500 } }),
     tone('sine', 523.25, 0.035, 0.1, 0.8),
+  ],
+  // Your turn: a gentle two-step handoff chime with a faint high bloom.
+  yourTurn: [
+    tone('sine', 659.25, 0.07, 0.015, 0.28),
+    tone('triangle', 783.99, 0.08, 0.015, 0.34, { at: 0.1 }),
+    tone('sine', 1046.5, 0.04, 0.02, 0.4, { at: 0.22 }),
   ],
   // Gauntlet rung clear: a short two-note "level up" — G5 stepping to C6.
   rungClear: [

@@ -81,7 +81,7 @@ The main menu routes to:
 | **Play → Practice** | A one-off duel with no ladder attached: pick any of the 14 tower bosses (with their deck and personality) or a plain Easy / Medium / Hard opponent. |
 | **Shop** | Buy a 9-card booster (Core Set, Ragnarök, Celtic Fae, or Arthurian Court) and watch the rarity/frame/holo reveal animate slot by slot, or buy whole decks (the unpicked starters and the expansion precons) from the Decks tab, each with a full-stats preview. Every booster carries an info glyph with that set's exact drop rates. |
 | **Collection** | A binder-style spread of every card you own, filterable by color / type / rarity / set / owned, showing your best-owned print of each plus pool and special-variant completion progress, with a Craft action on any card you're missing. |
-| **Deck Builder** | Build and edit your active 60-card deck from your owned collection. |
+| **Decks** | Pick your active deck, and build or edit your 60-card decks from your owned collection. |
 | **Achievements** | Review locked/unlocked/claimed goals and claim gold rewards for collection, variant, themed, mastery, and economy milestones. |
 | **Card Showcase** | A gallery of every frame style × holo finish available on a given card. |
 
