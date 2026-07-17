@@ -47,6 +47,15 @@ export function canBlock(
   return true;
 }
 
+/** The minimum final assignment size for one attacker. */
+export function minimumBlockersForAttacker(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  attackerIid: number,
+): number {
+  return getEffectiveStats(battlefield, db, attackerIid).keywords.has('dreaded') ? 2 : 1;
+}
+
 export function validateAttackers(
   battlefield: readonly Permanent[],
   db: CardDb,
@@ -85,10 +94,21 @@ export function validateBlocks(
       return `more than ${RULES.maxBlockersPerAttacker} blockers on ${b.attacker}`;
     perAttacker.set(b.attacker, n);
   }
+  // blockOptions() intentionally exposes each individually legal blocker so
+  // incremental UI/AI flows can show a lone block-in-progress. A submitted
+  // action is final, however, so Dreaded's minimum is enforced here.
+  for (const [attacker, count] of perAttacker) {
+    const minimum = minimumBlockersForAttacker(battlefield, db, attacker);
+    if (count < minimum) return `${attacker} requires at least ${minimum} blockers`;
+  }
   return null;
 }
 
-/** For UI highlighting and AI block construction. */
+/**
+ * For UI highlighting and AI block construction. Each pair is individually
+ * legal. A lone Dreaded pair is intentionally shown as a partial assignment;
+ * validateBlocks rejects it when the player submits the final assignment.
+ */
 export function blockOptions(
   battlefield: readonly Permanent[],
   db: CardDb,

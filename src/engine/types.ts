@@ -14,7 +14,8 @@ export type Keyword =
   | 'bulwark'
   | 'deathblade'
   | 'bloodoath'
-  | 'untouchable';
+  | 'untouchable'
+  | 'dreaded';
 
 export type CardType = 'creature' | 'charm' | 'ritual' | 'enchantment' | 'artifact' | 'land';
 export type Rarity = 'c' | 'r' | 'sr' | 'ssr' | 'ur';
@@ -88,6 +89,17 @@ export interface AbilityDef {
   static?: StaticDef;
 }
 
+/**
+ * Optional Empower rider. The extra cost is paid as part of casting the card,
+ * and the ops run after the card's normal resolution. Empower ops are required
+ * to be trigger-safe and must never introduce targets. The engine keeps this
+ * contract explicit here because v1 has no separate data-validation pass.
+ */
+export interface EmpowerDef {
+  cost: ManaCost;
+  ops: EffectOp[];
+}
+
 // ---------------------------------------------------------------------------
 // Card definitions (static data). The engine receives a CardDb via the Game
 // constructor — it never imports the catalog, so tests can inject tiny pools.
@@ -110,6 +122,8 @@ export interface CardDef {
   chapters?: EffectOp[][];
   /** One-way stat and keyword upgrade granted by an `awaken` op. */
   awakening?: { p?: number; t?: number; keywords?: Keyword[] };
+  /** Optional additional cast cost and trigger-safe resolution rider. */
+  empower?: EmpowerDef;
   manaAbility?: Color[]; // lands & mana creatures
   entersTapped?: boolean; // dual taplands
   rarity: Rarity;
@@ -174,6 +188,8 @@ export interface StackItem {
   controller: PlayerId;
   targets: TargetRef[];
   x?: number;
+  /** Omitted means the ordinary, unempowered cast. */
+  empowered?: boolean;
 }
 
 export type TargetRef =

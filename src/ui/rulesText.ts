@@ -1,4 +1,4 @@
-import type { AbilityDef, CardDef, CardType, EffectOp, Keyword } from '../engine/types';
+import type { AbilityDef, CardDef, CardType, Color, EffectOp, Keyword, ManaCost } from '../engine/types';
 import { CARD_DB } from '../data/catalog';
 
 export const KEYWORD_NAMES: Record<Keyword, string> = {
@@ -13,6 +13,7 @@ export const KEYWORD_NAMES: Record<Keyword, string> = {
   deathblade: 'Deathblade',
   bloodoath: 'Blood Oath',
   untouchable: 'Untouchable',
+  dreaded: 'Dreaded',
 };
 
 /** One-line, player-facing reminder for each evergreen keyword (F9 glossary). */
@@ -28,6 +29,7 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
   deathblade: 'any amount of damage it deals to a creature is lethal',
   bloodoath: 'damage it deals also gains you that much life',
   untouchable: 'cannot be targeted by spells or abilities your opponents control',
+  dreaded: 'cannot be blocked except by two or more creatures',
 };
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
@@ -131,6 +133,22 @@ function opText(op: EffectOp): string {
         ? 'return the top creature card of your graveyard to play'
         : 'return target creature card from your graveyard to play';
   }
+}
+
+function manaCostText(cost: ManaCost): string {
+  const parts: string[] = [];
+  if (cost.generic > 0) parts.push(`{${cost.generic}}`);
+  for (const color of ['W', 'U', 'B', 'R', 'G'] as Color[]) {
+    for (let i = 0; i < (cost.pips[color] ?? 0); i++) parts.push(`{${color}}`);
+  }
+  return parts.join('') || '{0}';
+}
+
+function empowerText(d: CardDef): string | undefined {
+  if (!d.empower) return undefined;
+  const body = d.empower.ops.map(opText).join(', then ');
+  const cap = body.charAt(0).toUpperCase() + body.slice(1);
+  return `Empower ${manaCostText(d.empower.cost)}: ${cap}.`;
 }
 
 function abilityText(ab: AbilityDef): string {
@@ -242,6 +260,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
     lines.push('Arrives tapped.');
   }
   if (d.awakening) lines.push(awakeningText(d));
+  const empower = empowerText(d);
+  if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
     lines.push(chapterText(chapter, index));
   }

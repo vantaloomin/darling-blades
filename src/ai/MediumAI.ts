@@ -8,7 +8,7 @@ import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { choosePlayDraw } from './playDraw';
-import { cardValue, permValue } from './value';
+import { cardValue, empowerValue, permValue } from './value';
 
 type Cast = Extract<Action, { type: 'castSpell' }>;
 
@@ -189,6 +189,13 @@ export class MediumAI implements AIPlayer {
     return v;
   }
 
+  /** Prefer a payable Empower rider when its deterministic value is positive. */
+  private castScore(view: PlayerView, cast: Cast): number {
+    const cardId = view.you.hand[cast.handIndex];
+    return this.developScore(cardId) + (cast.x ?? 0) +
+      (cast.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+  }
+
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
   private gainsLife(cardId: string): boolean {
     const d = def(this.db, cardId);
@@ -310,8 +317,7 @@ export class MediumAI implements AIPlayer {
       });
       if (developable.length > 0) {
         const best = developable.reduce((a, b) =>
-          this.developScore(view.you.hand[a.handIndex]) + (a.x ?? 0) >=
-          this.developScore(view.you.hand[b.handIndex]) + (b.x ?? 0)
+          this.castScore(view, a) >= this.castScore(view, b)
             ? a
             : b,
         );

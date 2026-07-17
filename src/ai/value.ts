@@ -1,5 +1,5 @@
 import { getEffectiveStats } from '../engine/statics';
-import type { CardDb, Keyword, Permanent, PlayerId } from '../engine/types';
+import type { CardDb, EffectOp, Keyword, Permanent, PlayerId } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
 
 const KEYWORD_BONUS: Record<Keyword, number> = {
@@ -14,6 +14,7 @@ const KEYWORD_BONUS: Record<Keyword, number> = {
   wardingGaze: 0.25,
   untouchable: 0.5,
   bulwark: -0.5,
+  dreaded: 1,
 };
 
 function keywordScore(keywords: Iterable<Keyword>): number {
@@ -54,6 +55,36 @@ export function cardValue(db: CardDb, cardId: string): number {
   if (d.chapters) v += d.chapters.length * 0.75;
   if (isType(d, 'creature') && d.awakening) v += 0.5 + awakeningValue(d);
   return v;
+}
+
+/** Cheap deterministic estimate used when an AI chooses whether to pay Empower. */
+export function empowerValue(db: CardDb, cardId: string): number {
+  const ops = def(db, cardId).empower?.ops ?? [];
+  const opValue = (op: EffectOp): number => {
+    switch (op.op) {
+      case 'damage':
+        return op.n === 'X' ? 0 : op.n * (op.to === 'controller' ? -0.6 : 0.9);
+      case 'loseLife':
+        return op.n * 0.9;
+      case 'gainLife':
+        return op.n * 0.25;
+      case 'draw':
+        return op.n * 1.2;
+      case 'addCounters':
+        return op.n * 1.5;
+      case 'createToken':
+        return op.count * 2;
+      case 'raise':
+        return op.to === 'target' ? 0 : 3;
+      case 'foresee':
+        return op.n * 0.6;
+      case 'boost':
+        return (op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5;
+      default:
+        return 0;
+    }
+  };
+  return ops.reduce((sum, op) => sum + opValue(op), 0);
 }
 
 /**
