@@ -76,7 +76,7 @@ The main menu routes to:
 | **Play → Avatar Gauntlet** | Climb the 12-rung ladder of named boss opponents; clear a rung and roll straight into the next, with per-rung gold and a completion bonus. |
 | **Play → Draft** | An eight-seat draft against seven named AI drafters: pick 45 cards across three passed packs, build a 40-card deck, and play three matches. Free entry pays gold on your record; Premium (1,000g, twice a week) keeps every pick. |
 | **Play → Practice (Easy / Medium / Hard)** | A one-off duel against the AI at your chosen difficulty, no ladder attached. |
-| **Open Packs** | The shop: buy a 9-card booster (Core Set, Ragnarök, or Celtic Fae) and watch the rarity/frame/holo reveal animate slot by slot, or buy whole decks (the unpicked starters and the expansion precons) from the Decks tab, each with a full-stats preview. |
+| **Shop** | Buy a 9-card booster (Core Set, Ragnarök, or Celtic Fae) and watch the rarity/frame/holo reveal animate slot by slot, or buy whole decks (the unpicked starters and the expansion precons) from the Decks tab, each with a full-stats preview. |
 | **Collection** | A binder-style spread of every card you own, filterable by color / type / rarity / set / owned, showing your best-owned print of each plus pool and special-variant completion progress, with a Craft action on any card you're missing. |
 | **Deck Builder** | Build and edit your active 60-card deck from your owned collection. |
 | **Achievements** | Review locked/unlocked/claimed goals and claim gold rewards for collection, variant, themed, mastery, and economy milestones. |

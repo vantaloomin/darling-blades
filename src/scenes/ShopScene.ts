@@ -324,9 +324,12 @@ export class ShopScene extends Phaser.Scene {
   }
 
   create(data: { tab?: ShopTab } = {}): void {
-    // Onboarding routes here with { tab: 'decks' } so a new player lands on their
-    // free-starter claim; everything else defaults to the boosters tab.
-    this.tab = data.tab ?? 'boosters';
+    // Default tab follows the free-starter claim (user-directed 2026-07-17):
+    // while the claim is unspent the shop opens on the precon decks so a new
+    // player lands on Claim Free; once spent it opens on boosters. An explicit
+    // data.tab (onboarding routes { tab: 'decks' }) always wins.
+    const freeClaimAvailable = Services.save.data.starterChosen === null;
+    this.tab = data.tab ?? (freeClaimAvailable ? 'decks' : 'boosters');
     this.qty = 1;
     this.skuButtons = [];
     this.qtyChips = new Map();
@@ -585,15 +588,6 @@ export class ShopScene extends Phaser.Scene {
   private buildDecksGroup(group: Phaser.GameObjects.Container): void {
     group.removeAll(true); // rebuildable after a purchase
     this.deckInteractiveTargets = [];
-    const intro = this.add
-      .text(640, 152, 'Preconstructed decks: inspect the list, then buy the ones you didn’t start with.', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
-    group.add(intro);
-
     const skus = this.deckSkus();
     const grid = deckGridLayout(skus.length);
     skus.forEach((sku, i) => {
@@ -661,9 +655,9 @@ export class ShopScene extends Phaser.Scene {
       );
     }
     const blurbLeft = textLeft + (pipKeys.length > 0 ? pipKeys.length * pipStep + 2 : 0);
-    const blurbText =
-      (info?.archetype ?? '') +
-      (owned ? '  ·  Owned' : freeClaim ? '  ·  ✦ your free starter' : '');
+    // No free-starter marker here: the Claim Free button already carries that
+    // state (user-directed 2026-07-17).
+    const blurbText = (info?.archetype ?? '') + (owned ? '  ·  Owned' : '');
     const blurb = this.add
       .text(blurbLeft, cy + 11, blurbText, {
         fontFamily: theme.fonts.ui,
