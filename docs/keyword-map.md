@@ -99,7 +99,7 @@ text swap.
 | **Momentum** | Prowess | "Whenever you cast a noncreature spell, this gets +1/+1 until end of turn." | A cast-trigger + until-end-of-turn buff plumbing; AI sequencing value. |
 | **Fight** | Fight | "Each creature deals damage equal to its Attack to the other." | A `fight` `EffectOp` reusing the damage pipeline; targeting for two creatures. |
 | **Sacrifice** | Sacrifice | "Put a permanent you control into its owner's graveyard." | A `sacrifice` `EffectOp` (as cost and as effect); death triggers already exist. |
-| **Empower** | Kicker | "You may pay an additional {cost} as you cast this. If you do, [the empowered effect]." | Optional-cost casting: the cast action carries an empowered flag, `validateAction` + the mana solver price the extra cost, the interpreter branches on it, and every AI difficulty must price when to pay. Scheduled with Gothic Monsters (1.3, plan-1.3.md Pillar 0) alongside Dreaded. |
+| **Empower** | Kicker | "You may pay an additional {cost} as you cast this. If you do, [the empowered effect]." | Optional-cost casting: the cast action carries an empowered flag, `validateAction` + the mana solver price the extra cost, the interpreter branches on it, and every AI difficulty must price when to pay. The duel UI adds a cast-time Empower option, offered only when the extra cost is actually payable (user decision 2026-07-17). Scheduled with Gothic Monsters (1.3, plan-1.3.md Pillar 0) alongside Dreaded. |
 
 ## Naming rules (collision guard)
 
