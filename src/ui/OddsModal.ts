@@ -201,7 +201,7 @@ export function createOddsModal(
     })
     .setOrigin(0, 0);
   const noteOne = scene.add
-    .text(content.x, notesTop + notesLabel.height + theme.space(1), 'SR, SSR, and UR slots favor cards below a playset.', {
+    .text(content.x, notesTop + notesLabel.height + theme.space(1), 'SR, SSR, and UR slots only roll cards you own fewer than 4 copies of, until the whole tier is complete.', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.caption}px`,
       color: theme.colors.muted,
