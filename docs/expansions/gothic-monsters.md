@@ -10,8 +10,10 @@ Visual anchors: crimson velvet, black lace, moonlit stone, stormglass, cathedral
 
 ## Mechanic Summary
 
-- **Menace**: pressure creatures that demand multiple blockers.
-- **Kicker**: late-game upgraded spells and creatures.
+- **Dreaded** (Magic: menace; name decided in keyword-map.md): pressure creatures that demand multiple blockers.
+- **Empower** (Magic: kicker; name decided 2026-07-17, keyword-map.md): late-game upgraded spells and creatures that may pay an additional cost for a stronger effect.
+
+_Naming note: the card table below still says "menace"/"kicker" from the 2026-07-10 sketch; the 1.3 concretion pass (plan-1.3.md Pillar 0) rewrites every row in real engine vocabulary under the decided names._
 - Primary colors: B/R/W, with U mad science and G wolf/plant horror.
 - Mechanical identity: evasive pressure, expensive kicked payoffs, sacrifice-adjacent attrition using existing primitives, and combat math that punishes single blockers.
 
