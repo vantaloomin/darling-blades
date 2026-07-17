@@ -227,12 +227,6 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
 
 type ShopTab = 'boosters' | 'decks';
 
-/** The deck-row identity line, derived from DECK_INFO (e.g. "R/W · Warband aggro"). */
-const deckBlurb = (id: string): string => {
-  const info = DECK_INFO[id];
-  return info ? `${info.colors} · ${info.archetype}` : '';
-};
-
 /** A buyable deck SKU: the list, its price, and whether it's a theme/precon. */
 interface DeckSku {
   deck: DeckList;
@@ -243,6 +237,51 @@ interface DeckSku {
 interface PreviewEntry {
   d: CardDef;
   n: number;
+}
+
+// --- Decks-tab grid ---------------------------------------------------------
+// Two-column, count-aware plate grid: the row pitch is derived from the deck
+// count so the roster keeps fitting as sets add precons (comfortable through
+// at least 14 decks). tests/ui/layout.test.ts mirrors this math ("deck shop
+// grid") — update the test in lockstep with any change here.
+const DECK_GRID = {
+  cols: 2,
+  top: 186, // below the intro line at y=152
+  bottom: 696, // last plate bottom must stay above y=700
+  plateW: 560,
+  gapX: 16,
+  maxPitch: 118,
+  maxPlateH: 100,
+  plateGapY: 8,
+} as const;
+
+interface DeckGridLayout {
+  rows: number;
+  rowPitch: number;
+  plateH: number;
+  colLefts: number[];
+  rowCenter(row: number): number;
+}
+
+function deckGridLayout(count: number): DeckGridLayout {
+  const rows = Math.max(1, Math.ceil(count / DECK_GRID.cols));
+  const band = DECK_GRID.bottom - DECK_GRID.top;
+  const rowPitch = Math.min(DECK_GRID.maxPitch, band / rows);
+  const plateH = Math.min(DECK_GRID.maxPlateH, rowPitch - DECK_GRID.plateGapY);
+  const y0 = DECK_GRID.top + (band - rows * rowPitch) / 2 + rowPitch / 2;
+  const totalW = DECK_GRID.cols * DECK_GRID.plateW + (DECK_GRID.cols - 1) * DECK_GRID.gapX;
+  const x0 = (theme.design.width - totalW) / 2;
+  const colLefts = Array.from(
+    { length: DECK_GRID.cols },
+    (_, c) => x0 + c * (DECK_GRID.plateW + DECK_GRID.gapX),
+  );
+  return {
+    rows,
+    rowPitch,
+    plateH,
+    colLefts,
+    rowCenter: (row) => Math.round(y0 + row * rowPitch),
+  };
 }
 
 const PREVIEW_ROWS_PER_COLUMN = 9;
@@ -556,11 +595,12 @@ export class ShopScene extends Phaser.Scene {
     group.add(intro);
 
     const skus = this.deckSkus();
-    let y = 210;
-    for (const sku of skus) {
-      this.buildDeckRow(group, sku, y);
-      y += 74;
-    }
+    const grid = deckGridLayout(skus.length);
+    skus.forEach((sku, i) => {
+      const left = grid.colLefts[i % DECK_GRID.cols];
+      const cy = grid.rowCenter(Math.floor(i / DECK_GRID.cols));
+      this.buildDeckPlate(group, sku, left, cy, grid.plateH);
+    });
   }
 
   /** A starter is a one-time FREE claim while the player hasn't taken their free deck yet. */
@@ -573,32 +613,69 @@ export class ShopScene extends Phaser.Scene {
     );
   }
 
-  private buildDeckRow(group: Phaser.GameObjects.Container, sku: DeckSku, y: number): void {
+  private buildDeckPlate(
+    group: Phaser.GameObjects.Container,
+    sku: DeckSku,
+    left: number,
+    cy: number,
+    plateH: number,
+  ): void {
     const { deck, price, theme: isTheme } = sku;
     const owned = Services.save.data.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
 
-    const plate = panel(this, 190, y - 31, 900, 62, { alpha: 0.7 });
-    const name = this.add
-      .text(220, y - 10, deck.name, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h2}px`,
-        color: isTheme ? theme.colors.gold : theme.colors.heading,
-      })
-      .setOrigin(0, 0.5);
+    // Controls hug the plate's right edge: Buy/Claim (130-wide hit) inset 12px,
+    // Preview (90-wide hit) to its left with a 10px hit gap (>= the 8px floor).
+    const buyX = left + DECK_GRID.plateW - 77;
+    const previewX = buyX - 120;
+    const textLeft = left + 16;
+    const textMaxW = previewX - 45 - 10 - textLeft; // stop short of the Preview hit rect
+
+    const plate = panel(this, left, cy - plateH / 2, DECK_GRID.plateW, plateH, { alpha: 0.7 });
+    // Long name/blurb lines shrink toward their left anchor instead of running
+    // under the Preview button (plain Text scaling — no scaled-Container input).
+    const fit = (t: Phaser.GameObjects.Text): Phaser.GameObjects.Text => {
+      if (t.width > textMaxW) t.setScale(textMaxW / t.width);
+      return t;
+    };
+    const name = fit(
+      this.add
+        .text(textLeft, cy - 12, deck.name, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: isTheme ? theme.colors.gold : theme.colors.heading,
+        })
+        .setOrigin(0, 0.5),
+    );
+    // Color identity renders as mana pips, never letter codes (design-system
+    // "Color identity" rule); the archetype line starts after the pip run.
+    const info = DECK_INFO[deck.id];
+    const pipKeys = info ? info.colors.split('/') : [];
+    const PIP = 16;
+    const pipStep = PIP + 4;
+    for (let i = 0; i < pipKeys.length; i++) {
+      group.add(
+        this.add
+          .image(textLeft + PIP / 2 + i * pipStep, cy + 11, `pip-${pipKeys[i]}`)
+          .setDisplaySize(PIP, PIP),
+      );
+    }
+    const blurbLeft = textLeft + (pipKeys.length > 0 ? pipKeys.length * pipStep + 2 : 0);
     const blurbText =
-      deckBlurb(deck.id) +
+      (info?.archetype ?? '') +
       (owned ? '  ·  Owned' : freeClaim ? '  ·  ✦ your free starter' : '');
     const blurb = this.add
-      .text(220, y + 13, blurbText, {
+      .text(blurbLeft, cy + 11, blurbText, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0, 0.5);
+    const blurbMaxW = textMaxW - (blurbLeft - textLeft);
+    if (blurb.width > blurbMaxW) blurb.setScale(blurbMaxW / blurb.width);
     group.add([plate, name, blurb]);
 
-    const preview = themedButton(this, 720, y, 'Preview', {
+    const preview = themedButton(this, previewX, cy, 'Preview', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 90,
@@ -608,7 +685,7 @@ export class ShopScene extends Phaser.Scene {
     group.add(preview.container);
 
     if (!owned) {
-      const buy = themedButton(this, 920, y, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
+      const buy = themedButton(this, buyX, cy, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
         variant: 'primary',
         size: 'sm',
         minWidth: 130,
@@ -623,7 +700,7 @@ export class ShopScene extends Phaser.Scene {
       // set heroPortraitId keep working via DuelScene's fallback chain.
       group.add(
         this.add
-          .text(920, y, 'Owned ✓', {
+          .text(buyX, cy, 'Owned ✓', {
             fontFamily: theme.fonts.display,
             fontSize: `${theme.type.label}px`,
             color: theme.colors.success,

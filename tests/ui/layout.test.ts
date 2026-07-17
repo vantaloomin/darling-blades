@@ -172,6 +172,53 @@ describe('layout geometry', () => {
     );
   });
 
+  it('keeps the deck shop grid inside the design frame for 8 and 12 decks', () => {
+    // Mirrors ShopScene's deckGridLayout (two-column, count-aware plate grid
+    // for the Decks tab); if the scene formula changes, update this in
+    // lockstep. The grid must clear the intro line at y=152 above and keep the
+    // last plate's bottom above y=700 below as the precon roster grows.
+    const grid = (count: number) => {
+      const cols = 2;
+      const top = 186;
+      const bottom = 696;
+      const rows = Math.max(1, Math.ceil(count / cols));
+      const band = bottom - top;
+      const rowPitch = Math.min(118, band / rows);
+      const plateH = Math.min(100, rowPitch - 8);
+      const y0 = top + (band - rows * rowPitch) / 2 + rowPitch / 2;
+      const plateW = 560;
+      const totalW = cols * plateW + (cols - 1) * 16;
+      const x0 = (theme.design.width - totalW) / 2;
+      return { rows, rowPitch, plateH, y0, x0, totalW, plateW };
+    };
+
+    for (const count of [8, 12]) {
+      const g = grid(count);
+      const lastRowCenter = g.y0 + (g.rows - 1) * g.rowPitch;
+      expect(lastRowCenter + g.plateH / 2).toBeLessThan(700);
+      expect(g.y0 - g.plateH / 2).toBeGreaterThan(160);
+      // Both columns stay inside the title-safe width.
+      expect(g.x0).toBeGreaterThanOrEqual(theme.design.safeLeft);
+      expect(g.x0 + g.totalW).toBeLessThanOrEqual(theme.design.safeRight);
+      // The 44px-tall button hit rows keep at least the ordinary gap floor
+      // between vertically adjacent plates, and plates host the sm controls.
+      expect(g.rowPitch - theme.control.minHitHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
+      expect(g.plateH).toBeGreaterThanOrEqual(60);
+
+      // Within a plate: Buy (130 hit, 12px inset) and Preview (90 hit) keep
+      // the ordinary floor between their inflated hit rects and stay inside
+      // the plate. Label widths are below both minWidths, so hits equal them.
+      const buyHit = measureThemedButton(80, 'sm', 130).hit;
+      const previewHit = measureThemedButton(48, 'sm', 90).hit;
+      const buyX = g.plateW - 77;
+      const previewX = buyX - 120;
+      expect(buyX + buyHit.x + buyHit.width).toBeLessThanOrEqual(g.plateW);
+      expect((buyX + buyHit.x) - (previewX + previewHit.x + previewHit.width)).toBeGreaterThanOrEqual(
+        GAP_FLOORS.ordinary,
+      );
+    }
+  });
+
   it('reports signed axis gaps and the 82px-pitch overlap', () => {
     const first = { x: 0, y: 0, width: 90, height: 44 };
     const second = { x: 82, y: 0, width: 90, height: 44 };

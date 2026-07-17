@@ -373,6 +373,14 @@ specialist components. Reuse them in their intended context. Their internal
 geometry and palettes should be named and centralized in their owning module,
 but they do not need to use application-chrome colors for material identity.
 
+**Color identity is always shown with mana pips, never letter codes.**
+Anywhere the UI presents the colors of a deck, card, avatar, or archetype
+(shop plates and previews, deck builder, draft screens, achievements,
+glossary), render the baked `pip-<W|U|B|R|G|C>` bead textures
+(`src/ui/ManaSymbols.ts`, typically 16-20px via `setDisplaySize`) instead of
+text like "U/B/G". Letter strings such as `DeckInfo.colors` are data to parse
+into pips, not display copy. (User-directed 2026-07-17.)
+
 ## Interaction and accessibility contract
 
 - Core button hit regions are at least 90 × 44 design pixels. Smaller icons
