@@ -182,6 +182,47 @@ describe('Glimmer Bargain composition', () => {
   });
 });
 
+describe('Bloodmoon Masquerade composition', () => {
+  const deck = THEME_DECKS.find((d) => d.id === 'theme-gothic-monsters')!;
+  const expectedCounts = {
+    'land-swamp': 14,
+    'land-mountain': 10,
+    'gm-carmilla-crimson-host': 2,
+    'gm-elizabeth-blood-mirror': 2,
+    'gm-ravenloft-heiress': 4,
+    'gm-black-veil-matron': 3,
+    'gm-batcloak-cutthroat': 4,
+    'gm-blood-opera-soloist': 3,
+    'gm-manor-thrall': 4,
+    'gm-stitched-hound': 2,
+    'gm-kicked-door': 4,
+    'gm-red-curtain-cut': 1,
+    'gm-dracula-ball-invite': 3,
+    'gm-black-lace-pact': 2,
+    'gm-funeral-bell': 2,
+  };
+
+  it('uses exactly the approved B/R Gothic Monsters card pool', () => {
+    const actualCounts = Object.fromEntries(
+      [...new Set(deck.cards)].map((id) => [id, deck.cards.filter((cardId) => cardId === id).length]),
+    );
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+    expect(actualCounts).toEqual(expectedCounts);
+
+    for (const id of deck.cards) {
+      const card = CARD_DB[id];
+      expect(card, `${id} must exist`).toBeDefined();
+      if (card.supertypes?.includes('basic')) {
+        expect(['land-swamp', 'land-mountain']).toContain(id);
+      } else {
+        expect(id.startsWith('gm-'), `${id} must be a Gothic Monsters card`).toBe(true);
+        expect(card.set, `${id} must be Gothic Monsters`).toBe('gothic-monsters');
+        expect(card.colors.every((color) => color === 'B' || color === 'R'), `${id} color identity`).toBe(true);
+      }
+    }
+  });
+});
+
 describe('theme deck termination smoke (vs Crimson Muster)', () => {
   const crimson = STARTER_DECKS.find((d) => d.id === 'starter-crimson')!;
   for (const deck of THEME_DECKS) {
