@@ -76,7 +76,7 @@ export const PACK_OPEN_MINUTES = 1.25;
 export const DECK_BUY_MINUTES = 1.5;
 export const QUEST_REROLL_MINUTES = 0.5;
 
-type PackPreference = 'base' | 'ragnarok' | 'mixed' | 'none';
+type PackPreference = 'base' | 'ragnarok' | 'arthurian-court' | 'mixed' | 'none';
 type AchievementPolicy = 'claim' | 'ignore';
 type DailyCount = number | { min: number; max: number };
 
@@ -1316,6 +1316,8 @@ function choosePack(
       return { price: ECONOMY.packPrice };
     case 'ragnarok':
       return { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' };
+    case 'arthurian-court':
+      return { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' };
     case 'mixed':
       return rngFloat(ctx.rng) < (dayIndex % 3 === 0 ? 0.6 : 0.35)
         ? { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' }

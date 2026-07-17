@@ -5,7 +5,10 @@ import { isType } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 import { KEYWORD_ICON_KEY } from './KeywordIcons';
-import { theme } from './theme';
+import { colorInt, theme } from './theme';
+
+/** Chapter numerals for the Quest badge (chapters ship 2-3 deep; 5 is headroom). */
+const ROMAN_CHAPTERS = ['', 'I', 'II', 'III', 'IV', 'V'] as const;
 
 /**
  * Compact battlefield tile for the duel board: a large portrait art window that
@@ -156,6 +159,10 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private keywordIcons: Phaser.GameObjects.Image[] = [];
   private keywordOverflow: Phaser.GameObjects.Text | null = null;
   private sickIcon: Phaser.GameObjects.Image;
+  private chapterBadge: Phaser.GameObjects.Text;
+  private awakenedRect: Phaser.GameObjects.Rectangle;
+  private chapterLabel: string | null = null;
+  private awakenedState = false;
   private holo: HoloHandle | null = null;
   private holoFinish: CardVariant['holo'] | null = null;
   private sick = false;
@@ -259,6 +266,29 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .setDisplaySize(22, 22)
       .setVisible(false);
 
+    // Quest chapter badge: bottom-right corner, mirroring the aura badge's
+    // corner-plate look on the opposite side. Hidden until a Quest sets it.
+    this.chapterBadge = scene.add
+      .text(TILE_W / 2 - 3, TILE_H / 2 - 3, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '11px',
+        fontStyle: '700',
+        color: theme.colors.gold,
+        backgroundColor: theme.colors.rowFill,
+        padding: { x: 4, y: 1 },
+        resolution: 2,
+      })
+      .setOrigin(1, 1)
+      .setVisible(false);
+
+    // Champion Awakening: a persistent gold ring once the flip happens. Its
+    // own rectangle (not the highlight) so targeting highlights, which clear
+    // the art tint every sync, cannot wipe the awakened state's cue.
+    this.awakenedRect = scene.add
+      .rectangle(0, 0, TILE_W + 4, TILE_H + 4, 0x000000, 0)
+      .setStrokeStyle(2, colorInt(theme.colors.gold), 0.95)
+      .setVisible(false);
+
     this.highlightRect = scene.add
       .rectangle(0, 0, TILE_W + 6, TILE_H + 6, 0x000000, 0)
       .setStrokeStyle(3, 0xffffff, 1)
@@ -273,7 +303,9 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.ptPlate,
       this.ptText,
       this.auraBadge,
+      this.chapterBadge,
       this.sickIcon,
+      this.awakenedRect,
       this.highlightRect,
     ]);
     this.setSize(TILE_W, TILE_H);
@@ -291,6 +323,29 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   setAuraCount(n: number): this {
     this.auraBadge.setVisible(n > 0);
     if (n > 0) this.auraBadge.setText(`✦${n}`);
+    return this;
+  }
+
+  /**
+   * Quest progress: "II/III" in the bottom-right corner. Pass null to hide
+   * (non-Quests). Chapter 0 means cast-but-not-yet-arrived states never
+   * render; the engine stamps chapter 1 on arrival.
+   */
+  setChapter(chapter: number | null, total: number | null): this {
+    const label = chapter && total ? `${ROMAN_CHAPTERS[chapter] ?? chapter}/${ROMAN_CHAPTERS[total] ?? total}` : null;
+    if (label === this.chapterLabel) return this;
+    this.chapterLabel = label;
+    this.chapterBadge.setVisible(label !== null);
+    if (label !== null) this.chapterBadge.setText(label);
+    return this;
+  }
+
+  /** Champion Awakening's persistent gold ring; one-way in play, but the
+   *  setter stays symmetric so view reuse across permanents cannot leak it. */
+  setAwakened(awakened: boolean): this {
+    if (this.awakenedState === awakened) return this;
+    this.awakenedState = awakened;
+    this.awakenedRect.setVisible(awakened);
     return this;
   }
 

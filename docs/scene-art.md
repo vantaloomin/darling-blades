@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-11 -->
+<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-16 -->
 
 # Scene & Menu Art — Direction + Integration Contract
 
@@ -199,6 +199,16 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 - **Integration:** `bakePackArt(scene, CELTIC_FAE_PACK_ART)` — already wired; the asset landing on disk + manifest is the whole switch.
 - **QA:** Reads as sealed product at 238×340; crimp zones plain; zero letterforms (no ogham marks — keep stones/trim abstract).
 - **Prompt:** Booster pack front key art, a pale golden diamond sigil crowned with blackthorn floating over silver moonlit mist and deep moss-green twilight, thin silver-and-gold trim frame like a woven torc, faint glassy foil shimmer and drifting fae light motes, dark field deepening toward the plain top and bottom edges, dramatic sealed-product presentation with no lettering and no ogham marks — crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait
+
+### Arthurian Court Booster Pack Front — `pack-art-arthurian-court`
+- **Role:** The Arthurian Court expansion booster in `ShopScene`'s pack row and its `PackOpeningScene` tear. Consumed by `bakePackArt` via `ARTHURIAN_COURT_PACK_ART`; until this asset ships the SKU falls back to the procedural white-gold tinted pack.
+- **Deliverable:** 640×800 PNG (portrait).
+- **Mood & palette:** The Grail Oath as sealed product: polished steel and white-gold radiance over deep twilight blue, a grail glow at the sigil's heart, crimson pennant accents, chapel-window glints. Gold trim continuity with the other packs.
+- **Composition & safe zones:** Identical to `pack-art` — keep trim + sigil inside x 40–600; top and bottom ~52 px bands plain for the code-stamped crimps.
+- **Max luminance:** average ≤ 25 %; peak ≤ 70 % (grail glow / steel glints).
+- **Integration:** `bakePackArt(scene, ARTHURIAN_COURT_PACK_ART)` — already wired; the asset landing on disk + manifest is the whole switch.
+- **QA:** Reads as sealed product at 238×340; crimp zones plain; zero letterforms (heraldry stays pure imagery).
+- **Prompt:** Booster pack front key art, an upright sword-in-stone sigil haloed by soft grail radiance floating over deep twilight blue and polished-steel sheen, thin white-gold trim frame like cathedral filigree, faint crimson pennant ribbons and chapel-window glints, dark field deepening toward the plain top and bottom edges, dramatic sealed-product presentation with no lettering and no heraldic text — crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait
 
 ---
 

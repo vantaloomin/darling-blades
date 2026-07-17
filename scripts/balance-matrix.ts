@@ -4,7 +4,7 @@
  * pass"). Pure engine + ai + data; no Phaser.
  *
  * USAGE (via `npm run balance-matrix -- <flags>`):
- *   --avatars            12 gauntlet avatars (own brain + personality + deck)
+ *   --avatars            14 gauntlet avatars (own brain + personality + deck)
  *                        vs the 5 starter decks piloted by a neutral Medium
  *                        proxy standing in for a competent human. DEFAULT.
  *   --starters           5x5 starter-vs-starter mirror matrix, Medium both
@@ -14,6 +14,8 @@
  *                        alternate so no brain owns the better deck).
  *   --cf-bosses          The Morrigan and Titania vs Low/Mid/High CF references
  *                        (Wild Communion / Grave Harvest / Glimmer Bargain).
+ *   --ac-bosses          Morgan and Artoria vs Low/Mid/High AC references
+ *                        (Crimson Muster / Shadow Mandate / Questing Table).
  *   --seeds <n>          Games per cell (default 20).
  *   --only <id,id,...>   Avatar-matrix row filter for fast tuning iteration
  *                        (e.g. --only simayi,menghuo). Cell seeds are keyed by
@@ -119,12 +121,13 @@ export interface RungBand {
 
 /**
  * Plan guidance: rungs 1-3 <= ~45% AI-wins vs a Medium-proxied starter,
- * rungs 8-12 escalate (>= ~55/55/60/65/70%), roughly monotonic in between, and no
+ * rungs 8-14 escalate (>= ~55/55/60/65/70/65/72%), roughly monotonic in between, and no
  * low rung may make any single starter hopeless. Mid bands are wide on purpose
  * — they catch regressions, not tuning jitter. Rungs 9-10 are the Ragnarök
  * expansion bosses (Hel mill-reanimator, Brunhild double-strike aggro) and
- * rungs 11-12 are the Celtic Fae summit (Morrigan sever-control, Titania token
- * court).
+ * rungs 11-12 are the Celtic Fae bosses (Morrigan sever-control, Titania token
+ * court), and rungs 13-14 are the Arthurian Court summit (Morgan Quest-control,
+ * Artoria awakened Knights).
  */
 export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.45, cellMax: 0.65 },
@@ -139,6 +142,15 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   10: { minAvg: 0.6 },
   11: { minAvg: 0.65 },
   12: { minAvg: 0.7 },
+  // 13-14 calibrated 2026-07-16 from fresh 40-seed tower measurements (66%/66%
+  // after two card-buff rounds + six deck iterations; CI margin ~4pp at 40
+  // seeds). The AC rungs are quest/attrition gates, not stat walls; Brunhild's
+  // R10 (85%) has been the tower's power peak since Celtic Fae shipped (R11/12
+  // measured 76%), so a non-monotonic summit continues the accepted pattern.
+  // Closing the residual 10pp vs R11/12 needs in-color W/U removal (a future
+  // set) or heavier cross-set splash - recorded in opponents.ts's baseline.
+  13: { minAvg: 0.6 },
+  14: { minAvg: 0.62 },
 });
 
 // ---------------------------------------------------------------------------
@@ -322,6 +334,71 @@ export function runCelticFaeBossMatrix(seedsPerCell: number): CelticFaeBossMatri
   return { rows, flags, table };
 }
 
+export interface ArthurianCourtBossRow {
+  avatar: Avatar;
+  cells: CellResult[]; // low, mid, high reference decks
+  avg: number;
+}
+
+export interface ArthurianCourtBossMatrixReport {
+  rows: ArthurianCourtBossRow[];
+  flags: string[];
+  table: string;
+}
+
+/**
+ * The directed Arthurian Court boss pass: each summit avatar faces three
+ * reference power bands, with the avatar's own Hard brain and a neutral
+ * Medium proxy on the reference deck. Its seed range is separate from the
+ * Celtic Fae pass so the two harnesses never share sampled games.
+ */
+export function runArthurianCourtBossMatrix(seedsPerCell: number): ArthurianCourtBossMatrixReport {
+  const low = STARTER_DECKS.find((deck) => deck.id === 'starter-crimson');
+  const mid = STARTER_DECKS.find((deck) => deck.id === 'starter-mandate');
+  const questingTable = THEME_DECKS.find((deck) => deck.id === 'theme-arthurian-court');
+  if (!low || !mid || !questingTable) throw new Error('Arthurian Court balance references are missing');
+  const refs = [
+    { label: 'LOW Crimson Muster', cards: low.cards },
+    { label: 'MID Shadow Mandate', cards: mid.cards },
+    { label: 'HIGH Questing Table', cards: questingTable.cards },
+  ] as const;
+  const bosses = [...AVATARS].filter((avatar) => avatar.tier >= 13).sort((a, b) => a.tier - b.tier);
+  const rows = bosses.map((avatar, rowIndex) => {
+    const cells = refs.map((ref, refIndex) =>
+      runCell(
+        {
+          rowAI: (seed) => buildAI(avatar.difficulty, CARD_DB, seed, avatar.personality),
+          colAI: () => new MediumAI(CARD_DB),
+          decks: () => [avatar.deck, ref.cards],
+        },
+        seedsPerCell,
+        40_000 + rowIndex * 10 + refIndex,
+      ),
+    );
+    return { avatar, cells, avg: mean(cells.map((cell) => cell.rate)) };
+  });
+  const flags: string[] = [];
+  for (const row of rows) {
+    const band = RUNG_BANDS[row.avatar.tier] ?? {};
+    const tag = `Rung ${row.avatar.tier} ${row.avatar.name}`;
+    if (band.maxAvg !== undefined && row.avg > band.maxAvg) {
+      flags.push(`${tag}: avg ${(row.avg * 100).toFixed(0)}% ABOVE band max ${band.maxAvg * 100}%`);
+    }
+    if (band.minAvg !== undefined && row.avg < band.minAvg) {
+      flags.push(`${tag}: avg ${(row.avg * 100).toFixed(0)}% BELOW band min ${band.minAvg * 100}%`);
+    }
+  }
+  const table = renderTable(
+    `=== ARTHURIAN COURT BOSSES - boss win % vs reference decks · ${seedsPerCell} seeds/cell ===\n` +
+      '    LOW = Crimson Muster · MID = Shadow Mandate · HIGH = Questing Table; decided games (+draws)',
+    rows.map((row) => `R${row.avatar.tier} ${row.avatar.name}`),
+    refs.map((ref) => ref.label),
+    rows.map((row) => row.cells),
+    (index) => `| avg ${(rows[index].avg * 100).toFixed(0).padStart(3)}%`,
+  );
+  return { rows, flags, table };
+}
+
 export interface StarterMatrixReport {
   cells: CellResult[][]; // [row starter][col starter]
   flags: string[];
@@ -432,7 +509,8 @@ function main(): void {
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
   const wantCelticFaeBosses = flag('cf-bosses');
-  const wantAvatars = flag('avatars') || (!wantStarters && !wantDifficulty && !wantCelticFaeBosses);
+  const wantArthurianCourtBosses = flag('ac-bosses');
+  const wantAvatars = flag('avatars') || (!wantStarters && !wantDifficulty && !wantCelticFaeBosses && !wantArthurianCourtBosses);
 
   const t0 = Date.now();
   const reports: { table: string; flags: string[] }[] = [];
@@ -440,6 +518,7 @@ function main(): void {
   if (wantStarters) reports.push(runStarterMatrix(seeds));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds));
   if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds));
+  if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds));
 
   for (const r of reports) {
     console.log('\n' + r.table);

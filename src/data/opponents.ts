@@ -9,9 +9,9 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..12, unique). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-12 Hard (9-10 are the Ragnarök bosses and
- * 11-12 are the Celtic Fae summit).
+ * Gauntlet ordering is by `tier` (1..14, unique). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-14 Hard (9-10 are the Ragnarök bosses,
+ * 11-12 are the Celtic Fae bosses, and 13-14 are the Arthurian Court summit).
  */
 export interface Avatar {
   id: string;
@@ -19,7 +19,7 @@ export interface Avatar {
   title: string;
   blurb: string;
   theme: string;
-  tier: number; // 1..12 (unique)
+  tier: number; // 1..14 (unique)
   difficulty: Difficulty;
   deck: string[]; // 60 real cardIds
   personality: Personality;
@@ -76,6 +76,34 @@ export interface Avatar {
  * Both matrices re-measured after merging the #68 playtest batch (SBA
  * death batching + AI self-bleed clock/desperation attacks): every R11/R12
  * cell reproduced identically — neither boss runs self-bleed effects.)
+ *
+ * Rungs 13-14 — the Arthurian Court bosses, measured 2026-07-16 at 40
+ * seeds/cell (full `--avatars` matrix; rungs 1-12 re-measured in the same
+ * runs, unchanged within noise):
+ *
+ *                              Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R13 Morgan     [hard]        43%      88%      68%     68%      65%   | 66%
+ *   R14 Artoria    [hard]        50%      83%      83%     68%      48%   | 66%
+ *
+ * Boss harness (`--ac-bosses`, 50 seeds/cell vs LOW Crimson Muster / MID
+ * Shadow Mandate / HIGH Questing Table): Morgan 54/64/90 avg 69%; Artoria
+ * 62/58/94 avg 71%. Tuning history (honest): both first measured 59-60%
+ * with a hard aggro hole (Artoria 18-30% vs Crimson across three
+ * wall-heavy variants — the CF "passivity loses" law re-confirmed three
+ * separate times); the levers that measured REAL were (1) base-set
+ * interaction splash (Undertow tempo + Shieldwall blowouts, +12pp LOW for
+ * Artoria — the same recipe as Morgan's doom-bolts), and (2) two
+ * user-approved rounds of targeted AC card buffs (Artoria 5/5 + awakening
+ * +3/+3, Galahad 4/4, Banneret 3/3, Lakeblade 3/3, Morgan 4/6, Excalibur
+ * +2/+1, Quest for the Grail {2}{W}, Squire to Champion {1}{W}, Black
+ * Chapel Curse {2}{B}) which moved the tower rows 59% -> 66% and also lift
+ * the Questing Table precon and the set's draft presence. Personality
+ * retunes measured neutral. Residual, accepted with calibrated bands
+ * (R13 >= 60%, R14 >= 62%): the AC rungs sit ~10pp under R11/12 — W/U
+ * Quest tribal has no in-color hard removal by design, and the tower's
+ * power peak has been R10 Brunhild (85%) since Celtic Fae shipped, so a
+ * non-monotonic summit continues the accepted pattern. Closing the gap
+ * needs in-color W/U removal in a future set or heavier cross-set splash.
  *
  * (R7/R8 rows re-measured once more after HardAI.openManaBuff gained the same
  * evidence gate — Hard's combat baselines no longer pay the phantom-trick tax
@@ -136,6 +164,14 @@ export interface Avatar {
  * Harvest 27→30, R7 Yohime 72→73% (Muster 60→63); every other row
  * byte-identical. No flags, bands green, ladder monotonic. Table above
  * updated in place.
+ *
+ * 2026-07-16 — Arthurian Court adds the next two hard rungs: Morgan of the
+ * Thorn Crown (U/B Quest-control) and Artoria, Once and Future Queen (W/U
+ * knight-Quest awakening). The 50-seed full calibration is intentionally
+ * deferred to the main session; the companion --ac-bosses harness has a
+ * separate 10-seed smoke pass for these provisional decks. Smoke result with
+ * LOW Crimson Muster / MID Shadow Mandate / HIGH Questing Table: Morgan
+ * 40/50/80% (57% avg), Artoria 50/60/100% (70% avg), all 10 games decided.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------
@@ -543,6 +579,81 @@ export const AVATARS: readonly Avatar[] = [
       ['cf-ash-and-mistletoe', 4],
     ]),
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 13 — Morgan: U/B Thorn-Crown Quest control. (Hard · Arthurian Court)
+  {
+    id: 'morgan',
+    name: 'Morgan of the Thorn Crown',
+    title: 'Queen of the Woundbound Court',
+    blurb: 'Morgan keeps the chapel bell tolling after the kingdom has gone silent. She severs what you meant to reclaim, curses each dawn, and waits behind a crown of answers until your last safe creature is gone.',
+    theme: 'Blue-Black Thorn-Crown Quest Control',
+    tier: 13,
+    difficulty: 'hard',
+    portraitCardId: 'ac-morgan-thorn-crown',
+    personality: makePersonality({
+      aggression: 1.05,
+      holdback: 1.15,
+      attackThreshold: 0.1,
+      blockLifePressure: 1.15,
+      mulliganShift: 1,
+      removalBias: -0.5,
+    }),
+    deck: expand([
+      ['land-island', 9],
+      ['land-swamp', 10],
+      ['ld-moonlit-marsh', 4],
+      ['ac-morgan-thorn-crown', 4],
+      ['ac-black-chapel-curse', 2],
+      ['ac-raven-of-camlann', 3],
+      ['ac-velvet-court-spy', 4],
+      ['ac-merlin-crow-clock', 3],
+      ['ac-lakeblade-initiate', 4],
+      ['ac-oathbroken-knight', 4],
+      ['ac-castle-blackguard', 4],
+      ['in-undertow', 2],
+      ['in-doom-bolt', 4],
+      ['in-reapers-due', 3],
+    ]),
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 14 — Artoria: W/U awakened Knight Quest summit. (Hard · Arthurian Court)
+  {
+    id: 'artoria',
+    name: 'Artoria, Once and Future Queen',
+    title: 'The Crown That Rises Again',
+    blurb: 'Artoria builds a court from every broken oath. Quests call squires to her banner, awakened knights take the field, and disciplined steel closes the distance before hope can find another shape.',
+    theme: 'White-Blue Awakened Knight Quests',
+    tier: 14,
+    difficulty: 'hard',
+    portraitCardId: 'ac-artoria-once-future',
+    personality: makePersonality({
+      aggression: 1.15,
+      holdback: 1.0,
+      attackThreshold: -0.1,
+      blockThreshold: -0.4,
+      subtypeBias: 2,
+      preferredSubtypes: ['Knight'],
+      mulliganShift: 1,
+    }),
+    deck: expand([
+      ['land-plains', 9],
+      ['land-island', 8],
+      ['ac-avalon-shore', 4],
+      ['ac-lowland-fort', 2],
+      ['ac-artoria-once-future', 4],
+      ['ac-galahad-silver-oath', 4],
+      ['ac-lakeblade-initiate', 4],
+      ['ac-camelot-banneret', 4],
+      ['ac-pennant-carrier', 4],
+      ['ac-excalibur-from-lake', 4],
+      ['ac-lion-standard', 4],
+      ['ac-quest-for-the-grail', 2],
+      ['in-undertow', 4],
+      ['in-shieldwall', 3],
+    ]),
+  },
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -552,7 +663,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..12). */
+/** The avatar at a 1-based gauntlet rung (1..14). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);

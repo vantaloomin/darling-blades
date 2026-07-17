@@ -1,6 +1,6 @@
 import type { Emit } from './battlefield';
 import { enterBattlefield } from './battlefield';
-import { fireTriggers, runOps, targetSpecsOf } from './effects/EffectInterpreter';
+import { conditionSatisfied, fireTriggers, runOps, targetSpecsOf } from './effects/EffectInterpreter';
 import { isLegalTarget } from './effects/targeting';
 import type { CardDb, CardDef, GameState, StackItem, TargetSpec } from './types';
 import { def, isType } from './types';
@@ -54,7 +54,11 @@ export function resolveStackItem(
 
   if (isType(d, 'charm') || isType(d, 'ritual')) {
     for (const ab of d.abilities ?? []) {
-      if (ab.when === 'spell' && ab.ops) {
+      if (
+        ab.when === 'spell' &&
+        ab.ops &&
+        conditionSatisfied(state, db, item.controller, ab.condition)
+      ) {
         runOps(
           state,
           db,

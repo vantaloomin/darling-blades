@@ -22,6 +22,16 @@ import { ownedVariantEntries } from '../meta/collectionFilter';
 import { rungSeed } from '../meta/gauntletSeed';
 import { LIMITED_MATCHES, limitedDuelData, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
 import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
+import {
+  finishReplay,
+  pushReplay,
+  recordReplayAction,
+  replayDbStamp,
+  startReplayDraft,
+  undoReplayAction,
+  type ReplayDraft,
+  type ReplayLog,
+} from '../meta/Replay';
 import { Services } from '../meta/services';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
@@ -56,12 +66,13 @@ import { HistoryPanel } from '../ui/HistoryPanel';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
+import { romanNumeral } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import { packRow, type RowPacking } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { modalShell, themedButton } from '../ui/themeWidgets';
+import { modalShell, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { showZoneContents, type ZoneContentsEntry, type ZoneContentsModal } from '../ui/ZoneContentsModal';
 
 const HUMAN: PlayerId = 0;
@@ -198,6 +209,20 @@ export class DuelScene extends Phaser.Scene {
   private duel!: Game;
   /** One-deep pre-action snapshot for local Undo; null when undo is unavailable. */
   private undoSnapshot: Game | null = null;
+  /** Replay recording for this duel (src/meta/Replay.ts); null = not recorded (tutorial). */
+  private replayDraft: ReplayDraft | null = null;
+  /** Read-only playback state. A replay never shares the recorder draft. */
+  private replayLog: ReplayLog | null = null;
+  private replayMode = false;
+  private replayCursor = 0;
+  private replayPlaying = false;
+  private replaySpeed: 1 | 2 | 4 = 1;
+  private replayTimer: Phaser.Time.TimerEvent | null = null;
+  private replayGuard = new ModalGuard();
+  private replayControls: Phaser.GameObjects.Container | null = null;
+  private replayPlayButton: ThemedButton | null = null;
+  private replaySpeedButton: ThemedButton | null = null;
+  private replayOutcome: Phaser.GameObjects.Container | null = null;
   private undoBtn!: Phaser.GameObjects.Text;
   /** Live combat-damage forecast shown while you assign blocks (F12). */
   private combatPreviewText!: Phaser.GameObjects.Text;
@@ -368,16 +393,32 @@ export class DuelScene extends Phaser.Scene {
       aiOverride?: AIPlayer;
       tutorial?: boolean;
       limited?: LimitedDuelData['limited'];
+      replay?: ReplayLog;
     } = {},
   ): void {
     // Gauntlet mode: an avatar opponent drives the deck, difficulty, and brain
     // personality. Practice mode leaves opponent null and uses the plain AI.
-    this.opponent = data.opponentId ? avatarById(data.opponentId) : null;
-    this.gauntletRung = data.gauntletRung ?? null;
-    this.difficulty = this.opponent?.difficulty ?? data.difficulty ?? 'easy';
+    this.replayLog = data.replay ?? null;
+    this.replayMode = this.replayLog !== null;
+    this.replayCursor = 0;
+    this.replayPlaying = false;
+    this.replaySpeed = 1;
+    this.replayTimer = null;
+    this.replayControls = null;
+    this.replayPlayButton = null;
+    this.replaySpeedButton = null;
+    this.replayOutcome = null;
+    this.replayGuard = new ModalGuard();
+    this.opponent = data.replay?.context.opponentId
+      ? this.avatarForReplay(data.replay.context.opponentId)
+      : data.opponentId
+        ? avatarById(data.opponentId)
+        : null;
+    this.gauntletRung = data.replay?.context.gauntletRung ?? data.gauntletRung ?? null;
+    this.difficulty = data.replay?.context.difficulty ?? this.opponent?.difficulty ?? data.difficulty ?? 'easy';
     this.tutorial = data.tutorial ?? false;
     this.limited = data.limited ?? null;
-    this.limitedPersona = this.limited?.opponentPersonaId
+    this.limitedPersona = !this.replayMode && this.limited?.opponentPersonaId
       ? draftPersonaById(this.limited.opponentPersonaId)
       : null;
     this.tutGoalShown = false;
@@ -411,6 +452,12 @@ export class DuelScene extends Phaser.Scene {
     this.blockAssignments = [];
     this.pendingBlocker = null;
     this.undoSnapshot = null;
+    this.replayDraft = null;
+    // Scene instances are REUSED on restart: a stale aiTimer reference from an
+    // abandoned duel (left mid-AI-decision) points at the dead clock and its
+    // `if (this.aiTimer) return` guard would mute the AI forever (found live
+    // 2026-07-16; the restart-hygiene trap class from playbook §11).
+    this.aiTimer = null;
     this.overlay = null;
     this.guard = new ModalGuard();
     this.inspect = null;
@@ -464,16 +511,18 @@ export class DuelScene extends Phaser.Scene {
     // whole run is one reproducible playthrough (src/meta/gauntletSeed.ts);
     // practice duels stay freshly random each time.
     const seed =
+      data.replay?.seed ??
       data.seedOverride ??
       (this.gauntletRung != null && save.gauntlet.run
         ? rungSeed(save.gauntlet.run.seed, this.gauntletRung)
         : Math.floor(Math.random() * 2 ** 31));
     const myDeckEntry = save.decks.find((d) => d.id === save.activeDeckId);
-    const myDeck = data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
+    const myDeck = data.replay?.decks[0].slice() ?? data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
     this.myDeckColorStyle = deckColorStyle(myDeck, CARD_DB);
     // Gauntlet: the avatar pilots its themed deck. Practice: the AI pilots a
     // starter the player is NOT using (or the second one). Tutorial: a fixed deck.
     const aiDeck =
+      data.replay?.decks[1].slice() ??
       data.oppDeckOverride ??
       (this.opponent
         ? this.opponent.deck
@@ -481,7 +530,11 @@ export class DuelScene extends Phaser.Scene {
     // Duel identities, the opponents.ts "portraits cost zero new art" idiom:
     // your commander portrait is your deck's face card; the opponent's strip
     // avatar is their curated portraitCardId (gauntlet) or their deck's face.
-    this.myDeckName = this.limited ? `${this.limited.mode === 'sealed' ? 'Sealed' : 'Draft'} Deck` : myDeckEntry?.name ?? STARTER_DECKS[0].name;
+    this.myDeckName = this.replayMode
+      ? 'Replay Deck'
+      : this.limited
+        ? `${this.limited.mode === 'sealed' ? 'Sealed' : 'Draft'} Deck`
+        : myDeckEntry?.name ?? STARTER_DECKS[0].name;
     // A deck-builder star is this specific deck's hero image. Limited/tutorial
     // deck overrides ignore saved-deck art; otherwise fall back to the old
     // premium/default hero behavior, then the active deck's derived face.
@@ -498,9 +551,28 @@ export class DuelScene extends Phaser.Scene {
     this.ai =
       data.aiOverride ??
       buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality ?? this.limitedPersona?.personality);
+    // Deterministic replay recording (1.2): every non-tutorial duel records
+    // its inputs (seed + decks + every successful submit); the log persists
+    // only when the duel completes (showResults). The tutorial is scripted
+    // teaching, not a game worth reliving.
+    this.replayDraft = this.replayMode || data.tutorial
+      ? null
+      : startReplayDraft({
+          dbStamp: replayDbStamp(CARD_DB),
+          seed,
+          decks: [myDeck.slice(), aiDeck.slice()],
+          context: {
+            mode: this.limited ? 'limited' : this.gauntletRung != null ? 'gauntlet' : 'practice',
+            difficulty: this.difficulty,
+            opponentId: this.opponent?.id ?? null,
+            opponentName: this.opponent?.name ?? this.limitedPersona?.name ?? `Practice AI (${this.difficulty})`,
+            gauntletRung: this.gauntletRung,
+          },
+        });
 
     this.buildHud();
     this.bindHotkeys();
+    if (this.replayMode) this.buildReplayControls();
     // Right-edge history slide-out + attack-FX renderer. Both are fresh per
     // create(); the old history auto-destroys on the scene SHUTDOWN it hooks,
     // and the old combatFx's objects/timers died with the previous scene. Built
@@ -529,6 +601,7 @@ export class DuelScene extends Phaser.Scene {
     this.sync();
     this.maybeRunAI();
     this.maybeAutoSkip();
+    if (this.replayMode) this.startReplayPlayback();
   }
 
   /**
@@ -840,6 +913,9 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private matchupLabel(): string {
+    if (this.replayMode && this.replayLog) {
+      return `Replay · vs ${this.replayLog.context.opponentName}`;
+    }
     if (this.opponent) {
       return `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`;
     }
@@ -847,6 +923,15 @@ export class DuelScene extends Phaser.Scene {
       return `Draft · Match ${this.limited.matchIndex + 1}/${LIMITED_MATCHES} · vs ${this.limitedPersona.name}`;
     }
     return `Practice · vs ${this.difficulty} AI`;
+  }
+
+  /** Replay context keeps its recorded display name even if the roster moves. */
+  private avatarForReplay(id: string): Avatar | null {
+    try {
+      return avatarById(id);
+    } catch {
+      return null;
+    }
   }
 
   private addLifeBadgePlate(x: number, y: number): void {
@@ -905,7 +990,7 @@ export class DuelScene extends Phaser.Scene {
       height: LAYOUT.oppPortrait.h,
       edge: 'top',
       cardId: this.oppFaceCardId,
-      label: this.opponent?.name ?? this.limitedPersona?.name ?? `${this.difficulty} AI`,
+      label: this.replayLog?.context.opponentName ?? this.opponent?.name ?? this.limitedPersona?.name ?? `${this.difficulty} AI`,
     });
     this.addLifeBadgePlate(LAYOUT.myLife.x, LAYOUT.myLife.y);
     this.addLifeBadgePlate(LAYOUT.oppLife.x, LAYOUT.oppLife.y);
@@ -1147,6 +1232,215 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------
+  // Read-only replay viewer
+  // ---------------------------------------------------------------------
+
+  private buildReplayControls(): void {
+    const bar = this.add.container(0, 0).setDepth(theme.depth.results + 10);
+    bar.add(
+      this.add
+        .graphics()
+        .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
+        .fillRoundedRect(332, 36, 616, 50, theme.radius.panel)
+        .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+        .strokeRoundedRect(332, 36, 616, 50, theme.radius.panel),
+    );
+    bar.add(
+      this.add
+        .text(366, 61, 'Replay', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0, 0.5),
+    );
+    this.replayPlayButton = themedButton(this, 492, 61, 'Pause', {
+      variant: 'primary',
+      size: 'sm',
+      minWidth: 92,
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.setReplayPlaying(!this.replayPlaying);
+      },
+    });
+    this.replaySpeedButton = themedButton(this, 640, 61, 'Speed x1', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 104,
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.cycleReplaySpeed();
+      },
+    });
+    const step = themedButton(this, 568, 61, 'Step', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 64,
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.stepReplayAction();
+      },
+    });
+    const exit = themedButton(this, 824, 61, 'Exit', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 82,
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.exitReplayViewer();
+      },
+    });
+    bar.add([this.replayPlayButton.container, step.container, this.replaySpeedButton.container, exit.container]);
+    this.replayControls = bar;
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.replayTimer?.remove(false);
+      this.replayTimer = null;
+      this.replayPlaying = false;
+      this.replayGuard.close();
+    });
+  }
+
+  private startReplayPlayback(): void {
+    if (!this.replayMode || !this.replayLog) return;
+    this.setReplayPlaying(true);
+  }
+
+  private setReplayPlaying(playing: boolean): void {
+    if (!this.replayMode || this.replayOutcome) return;
+    this.replayPlaying = playing;
+    if (!playing) {
+      this.replayTimer?.remove(false);
+      this.replayTimer = null;
+    } else {
+      this.scheduleReplayAction(450);
+    }
+    this.replayPlayButton?.setLabel(playing ? 'Pause' : 'Play');
+  }
+
+  private cycleReplaySpeed(): void {
+    this.replaySpeed = this.replaySpeed === 1 ? 2 : this.replaySpeed === 2 ? 4 : 1;
+    this.replaySpeedButton?.setLabel(`Speed x${this.replaySpeed}`);
+  }
+
+  private stepReplayAction(): void {
+    if (!this.replayMode || this.replayOutcome) return;
+    this.setReplayPlaying(false);
+    this.replayAdvance();
+  }
+
+  private replayDelay(): number {
+    return 850 / this.replaySpeed;
+  }
+
+  private scheduleReplayAction(delay = this.replayDelay()): void {
+    if (!this.replayMode || !this.replayPlaying || this.replayOutcome || this.ended || this.animatingCombat) return;
+    if (this.replayTimer) return;
+    this.replayTimer = this.time.delayedCall(delay, () => {
+      this.replayTimer = null;
+      this.replayAdvance();
+    });
+  }
+
+  /** Submit exactly the next recorded action, preserving the normal event path. */
+  private replayAdvance(): void {
+    if (!this.replayMode || !this.replayLog || this.replayOutcome || this.ended || this.animatingCombat) return;
+    const step = this.replayLog.actions[this.replayCursor];
+    if (!step) {
+      this.completeReplayPlayback();
+      return;
+    }
+    this.replayCursor += 1;
+    try {
+      this.humanPlayOrigin = null;
+      if (step.p === HUMAN && (step.a.type === 'playLand' || step.a.type === 'castSpell')) {
+        const playedCard = def(CARD_DB, this.duel.state.players[HUMAN].hand[step.a.handIndex]);
+        const playedSource = this.handOrigin(step.a.handIndex);
+        if (playedSource) this.humanPlayOrigin = { cardId: playedCard.id, source: playedSource };
+      }
+      const events = this.duel.submit(step.p, step.a);
+      this.undoSnapshot = null;
+      this.selectedAttackers.clear();
+      this.blockAssignments = [];
+      this.pendingBlocker = null;
+      this.pendingCasts = null;
+      this.processEvents(events);
+      this.afterEvents();
+    } catch {
+      this.failReplayPlayback();
+    }
+  }
+
+  private finishReplayPlayback(message: string): void {
+    if (!this.replayMode || this.replayOutcome) return;
+    this.stopReplayPlayback();
+    this.ended = true;
+    this.closeInspect();
+    this.zoom.setSuppressed(true);
+    this.sync();
+    const shell = modalShell(this, {
+      width: 460,
+      height: message === 'Replay complete' ? 170 : 220,
+      dimAlpha: 0.78,
+      tapDimToClose: false,
+      escToClose: false,
+      showClose: false,
+      depth: theme.depth.results,
+    });
+    const c = shell.container;
+    c.add(
+      this.add
+        .text(640, message === 'Replay complete' ? 320 : 300, message, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0.5),
+    );
+    if (message !== 'Replay complete') {
+      c.add(
+        this.add
+          .text(640, 350, 'This replay was recorded on an older version.', {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.body}px`,
+            color: theme.colors.muted,
+            align: 'center',
+            wordWrap: { width: 390 },
+          })
+          .setOrigin(0.5),
+      );
+    }
+    const exit = themedButton(this, 640, message === 'Replay complete' ? 390 : 420, 'Exit', {
+      variant: 'primary',
+      minWidth: 140,
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.exitReplayViewer();
+      },
+    });
+    c.add(exit.container);
+    this.replayOutcome = c;
+  }
+
+  private completeReplayPlayback(): void {
+    this.finishReplayPlayback('Replay complete');
+  }
+
+  private failReplayPlayback(): void {
+    this.finishReplayPlayback('Replay unavailable');
+  }
+
+  private stopReplayPlayback(): void {
+    this.replayPlaying = false;
+    this.replayTimer?.remove(false);
+    this.replayTimer = null;
+    this.replayGuard.close();
+    this.replayPlayButton?.setLabel('Play');
+  }
+
+  private exitReplayViewer(): void {
+    if (!this.replayMode) return;
+    this.stopReplayPlayback();
+    this.replayOutcome?.destroy();
+    this.replayOutcome = null;
+    this.scene.start('Profile');
+  }
+
+  // ---------------------------------------------------------------------
   // Action submission + AI loop
   // ---------------------------------------------------------------------
 
@@ -1156,7 +1450,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private act(action: Action): void {
-    if (this.ended) return;
+    if (this.replayMode || this.ended) return;
     if (this.animatingCombat) return; // swallow input while a combat sequence plays
     try {
       const playedCard =
@@ -1177,6 +1471,7 @@ export class DuelScene extends Phaser.Scene {
         if (types.includes('charm')) this.tutCharmCast = true;
       }
       const events = this.duel.submit(HUMAN, action);
+      if (this.replayDraft) recordReplayAction(this.replayDraft, HUMAN, action);
       if (this.tutorial && action.type === 'declareBlockers' && action.blocks.length > 0) {
         this.tutBlocked = true;
       }
@@ -1210,6 +1505,9 @@ export class DuelScene extends Phaser.Scene {
     if (!this.undoSnapshot || this.ended || this.animatingCombat) return;
     this.duel = this.undoSnapshot;
     this.undoSnapshot = null;
+    // The undone submit must leave the replay too — the tail is that action
+    // by contract (undo dies the moment priority reaches the AI).
+    if (this.replayDraft) undoReplayAction(this.replayDraft, HUMAN);
     // Mirror the scene-side state act() clears, so no stale selection survives.
     this.selectedAttackers.clear();
     this.blockAssignments = [];
@@ -1285,7 +1583,7 @@ export class DuelScene extends Phaser.Scene {
   private syncTurnPill(turn: number, yours: boolean): void {
     const label = this.hud.turnPill.label;
     const fill = this.hud.turnPill.fill;
-    label.setText(turn === 0 ? '—' : `T${turn}`);
+    label.setText(turn === 0 ? '' : `T${turn}`);
     label.setColor(yours ? theme.colors.gold : theme.colors.body);
     const w = Math.max(52, label.width + 22);
     fill.clear();
@@ -1342,6 +1640,10 @@ export class DuelScene extends Phaser.Scene {
     this.sync();
     this.flushPlayReveals();
     if (ended) this.narrateEvent(ended);
+    if (this.replayMode) {
+      this.scheduleReplayAction();
+      return;
+    }
     this.maybeRunAI();
     this.maybeAutoSkip();
     this.endTurnTick();
@@ -1368,7 +1670,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private maybeRunAI(): void {
-    if (this.ended) return;
+    if (this.replayMode || this.ended) return;
     if (this.animatingCombat) return; // wait out a combat sequence; finishStep resumes us
     const a = this.duel.awaiting;
     if (!('player' in a) || a.player !== AI) return;
@@ -1381,6 +1683,7 @@ export class DuelScene extends Phaser.Scene {
       if (!('player' in aw) || aw.player !== AI) return;
       const action = this.ai.chooseAction(this.duel.viewFor(AI), this.duel.legalActions(AI));
       const events = this.duel.submit(AI, action);
+      if (this.replayDraft) recordReplayAction(this.replayDraft, AI, action);
       this.processEvents(events);
       // Deferred through afterEvents so the AI's combat damage animates before
       // its next decision (its declareAttackers still drives your blockers).
@@ -1398,7 +1701,7 @@ export class DuelScene extends Phaser.Scene {
    * at the next real decision naturally.
    */
   private maybeAutoSkip(): void {
-    if (this.tutorial) return; // the coach-mark guide drives pacing explicitly
+    if (this.replayMode || this.tutorial) return; // the coach-mark guide drives pacing explicitly
     if (this.endingTurn) return; // end-turn mode drives its own hops (endTurnTick)
     if (!Services.save.data.settings.autoSkip) return; // settings toggle (SettingsScene)
     if (this.ended) return;
@@ -1542,7 +1845,7 @@ export class DuelScene extends Phaser.Scene {
    * time (the pre-sequencing behavior).
    */
   private processEvents(events: GameEvent[]): void {
-    if (!this.tutorial && events.length > 0) {
+    if (!this.replayMode && !this.tutorial && events.length > 0) {
       const progress = applyDailyQuestProgress(Services.save.data, CARD_DB, events, todayString());
       if (progress.changed) Services.save.touch();
     }
@@ -1645,6 +1948,12 @@ export class DuelScene extends Phaser.Scene {
         this.log(`${def(CARD_DB, e.cardId).name} was severed`, e.cardId);
         this.showSeverTravel(e);
         break;
+      case 'chapterAdvanced':
+        this.log(`${def(CARD_DB, e.cardId).name}: Chapter ${romanNumeral(e.chapter)}`, e.cardId);
+        break;
+      case 'awakened':
+        this.log(`${def(CARD_DB, e.cardId).name} awakens`, e.cardId);
+        break;
       case 'turnBegan':
         this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
@@ -1654,7 +1963,8 @@ export class DuelScene extends Phaser.Scene {
         break;
       case 'gameEnded':
         this.ended = true;
-        this.showResults(e.winner === HUMAN, e.reason);
+        if (this.replayMode) this.completeReplayPlayback();
+        else this.showResults(e.winner === HUMAN, e.reason);
         break;
       default:
         break;
@@ -2103,6 +2413,7 @@ export class DuelScene extends Phaser.Scene {
   // ---------------------------------------------------------------------
 
   private sync(): void {
+    if (this.replayMode) this.replayGuard.close();
     const st = this.duel.state;
     const view = this.duel.viewFor(HUMAN);
 
@@ -2284,6 +2595,10 @@ export class DuelScene extends Phaser.Scene {
       view.setSummoningSick(
         isType(d, 'creature') && isSummoningSick(this.duel.state.battlefield, CARD_DB, perm),
       );
+      // Quest chapter badge + Champion Awakening ring (1.2). The engine's
+      // Permanent fields are the source of truth; non-Quests hide the badge.
+      view.setChapter(d.chapters ? perm.chapter ?? 0 : null, d.chapters ? d.chapters.length : null);
+      view.setAwakened(perm.awakened === true && d.awakening !== undefined);
     });
   }
 
@@ -2921,6 +3236,7 @@ export class DuelScene extends Phaser.Scene {
 
   private onConfirmKey(e: KeyboardEvent): void {
     e.preventDefault(); // Space would otherwise scroll the page in the browser
+    if (this.replayMode) return;
     if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
     if (this.overlay && this.confirmForeseeOverlay()) return;
     this.onButton(); // self-guards: auto-skip input lock + not-your-decision
@@ -2928,6 +3244,7 @@ export class DuelScene extends Phaser.Scene {
 
   private onCancelKey(e: KeyboardEvent): void {
     e.preventDefault();
+    if (this.replayMode) return;
     if (this.inspect) {
       this.closeInspect();
       return;
@@ -3551,7 +3868,19 @@ export class DuelScene extends Phaser.Scene {
     ];
   }
 
+  /** Replay controls are the only interactive objects left enabled. */
+  private replayGuardTargets(): Phaser.GameObjects.GameObject[] {
+    return [...this.overlayGuardTargets(), this.undoBtn];
+  }
+
   private syncOverlay(): void {
+    if (this.replayMode) {
+      this.guard.close();
+      this.overlay?.destroy();
+      this.overlay = null;
+      this.replayGuard.open(this.replayGuardTargets());
+      return;
+    }
     this.guard.close(); // restore before rebuild; no-op when nothing is guarded
     this.overlay?.destroy();
     this.overlay = null;
@@ -3860,6 +4189,10 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private showResults(won: boolean, reason: string): void {
+    if (this.replayMode) {
+      this.completeReplayPlayback();
+      return;
+    }
     this.closeInspect();
     this.zoom.setSuppressed(true);
     if (this.tutorial) {
@@ -3867,6 +4200,16 @@ export class DuelScene extends Phaser.Scene {
       // mid-tutorial concede lands here — treat it as finishing (reward on skip).
       this.tutorialComplete(false);
       return;
+    }
+    // Persist the finished recording before the mode branches (each branch
+    // flushes the save as part of paying out); a duel that never reaches
+    // results (app closed mid-game) is intentionally not kept.
+    if (this.replayDraft) {
+      Services.save.data.replays = pushReplay(
+        Services.save.data.replays,
+        finishReplay(this.replayDraft, won ? 'win' : 'loss', Date.now(), this.duel.state.turn),
+      );
+      this.replayDraft = null;
     }
     if (this.opponent && this.gauntletRung !== null) {
       this.showGauntletResults(won, reason);

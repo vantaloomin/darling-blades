@@ -498,20 +498,25 @@ export function makeTestState(opts: {
   hands?: [string[], string[]];
   active?: PlayerId;
 }): GameState {
-  const battlefield: Permanent[] = (opts.battlefield ?? []).map((p) => ({
-    iid: p.iid ?? nextIid++,
-    cardId: p.cardId ?? 'forest',
-    owner: p.owner ?? p.controller ?? 0,
-    controller: p.controller ?? 0,
-    tapped: p.tapped ?? false,
-    enteredThisTurn: p.enteredThisTurn ?? false,
-    damage: p.damage ?? 0,
-    deathtouched: p.deathtouched ?? false,
-    attachments: p.attachments ?? [],
-    attachedTo: p.attachedTo,
-    plusOneCounters: p.plusOneCounters ?? 0,
-    untilEotMods: p.untilEotMods ?? [],
-  }));
+  const battlefield: Permanent[] = (opts.battlefield ?? []).map((p) => {
+    const perm: Permanent = {
+      iid: p.iid ?? nextIid++,
+      cardId: p.cardId ?? 'forest',
+      owner: p.owner ?? p.controller ?? 0,
+      controller: p.controller ?? 0,
+      tapped: p.tapped ?? false,
+      enteredThisTurn: p.enteredThisTurn ?? false,
+      damage: p.damage ?? 0,
+      deathtouched: p.deathtouched ?? false,
+      attachments: p.attachments ?? [],
+      attachedTo: p.attachedTo,
+      plusOneCounters: p.plusOneCounters ?? 0,
+      untilEotMods: p.untilEotMods ?? [],
+    };
+    if (p.chapter !== undefined) perm.chapter = p.chapter;
+    if (p.awakened !== undefined) perm.awakened = p.awakened;
+    return perm;
+  });
   const player = (hand: string[]) => ({
     life: 20,
     deck: [] as string[],

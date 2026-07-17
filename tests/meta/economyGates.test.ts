@@ -64,9 +64,10 @@ describe('locked Layer-1 economy gates', () => {
     // 1's gross-income ordering - this gate ranks the flows a run PAYS OUT,
     // not net earnings.
     // `>>>` is a 1.20x multiplicative floor. Measured 2026-07-16 with seed
-    // 20260715 and 1,000 Premium value samples: full clear=2,170g,
-    // successful Premium=339.14g, ratio=2.488x. Removing Premium run gold
-    // makes this inequality strictly easier than the pre-tuning ~1.32x ratio.
+    // 20260715 and 1,000 Premium value samples: full clear=2,770g,
+    // full-clear=16.488g/min, successful Premium=339.14g (6.056g/min),
+    // ratio=2.723x. Removing Premium run gold makes this inequality strictly
+    // easier than the pre-tuning ~1.32x ratio.
     expect(fullGauntletGoldPerMinute).toBeGreaterThanOrEqual(successfulPremiumGoldPerMinute * 1.2);
 
     const failedPremiumGoldPerMinute = premiumDraftRunEv(0).expectedRunGold /
@@ -107,7 +108,7 @@ describe('locked Layer-1 economy gates', () => {
     const premiumTotalGoldValue = premiumDraftRunEv(1, premiumCardValue).expectedRunGold + premiumCardValue;
     const fullGauntletGoldValue = gauntletClimbEv(1).expectedGold;
     // Seed 20260715, 1,000 model samples measured 339.14g kept-card shard
-    // value. Premium now totals 339.14g versus 2,170g because run-end gold is
+    // value. Premium now totals 339.14g versus 2,770g because run-end gold is
     // intentionally zero.
     expect(premiumTotalGoldValue).toBeLessThan(fullGauntletGoldValue);
   });

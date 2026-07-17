@@ -1,10 +1,25 @@
-import type { CardDb, Keyword, Permanent } from './types';
+import type { CardDb, Keyword, Permanent, PlayerId } from './types';
 import { def, isType } from './types';
 
 export interface EffectiveStats {
   attack: number;
   defense: number;
   keywords: ReadonlySet<Keyword>;
+}
+
+/**
+ * Quest identity is data-driven by `CardDef.chapters` being present. The
+ * `Quest` subtype is the authoring convention, but it is not what activates
+ * `questActive`; this keeps the condition tied to executable chapter data.
+ */
+export function isQuestActive(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  controller: PlayerId,
+): boolean {
+  return battlefield.some(
+    (perm) => perm.controller === controller && def(db, perm.cardId).chapters !== undefined,
+  );
 }
 
 /**
@@ -30,6 +45,12 @@ export function getEffectiveStats(
   attack += perm.plusOneCounters;
   defense += perm.plusOneCounters;
 
+  if (perm.awakened && d.awakening) {
+    attack += d.awakening.p ?? 0;
+    defense += d.awakening.t ?? 0;
+    for (const k of d.awakening.keywords ?? []) keywords.add(k);
+  }
+
   for (const mod of perm.untilEotMods) {
     attack += mod.p;
     defense += mod.t;
@@ -42,9 +63,15 @@ export function getEffectiveStats(
     for (const ab of srcDef.abilities ?? []) {
       if (ab.when !== 'static' || !ab.static) continue;
       const st = ab.static;
+      const condition = ab.condition ?? st.condition;
+      if (condition === 'questActive' && !isQuestActive(battlefield, db, src.controller)) {
+        continue;
+      }
 
       let applies: boolean;
-      if (st.scope === 'attached') {
+      if (st.scope === 'self') {
+        applies = src.iid === iid;
+      } else if (st.scope === 'attached') {
         applies = src.attachedTo === iid;
       } else {
         // filter scope: source controller's creatures matching the filter

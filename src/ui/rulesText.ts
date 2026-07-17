@@ -31,9 +31,11 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 };
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
-export const MECHANIC_DEFINITIONS: Record<'sever' | 'foresee', string> = {
+export const MECHANIC_DEFINITIONS: Record<'sever' | 'foresee' | 'quest' | 'championAwakening', string> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
+  quest: 'advances a chapter at each of your dawns; leaves after the last',
+  championAwakening: 'a one-way upgrade granting the listed stats and keywords',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -122,6 +124,8 @@ function opText(op: EffectOp): string {
     }
     case 'foresee':
       return `Foresee ${op.n}`;
+    case 'awaken':
+      return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
     case 'raise':
       return op.to === 'top'
         ? 'return the top creature card of your graveyard to play'
@@ -130,6 +134,10 @@ function opText(op: EffectOp): string {
 }
 
 function abilityText(ab: AbilityDef): string {
+  const prefix =
+    (ab.condition ?? ab.static?.condition) === 'questActive'
+      ? 'While a Quest is active, '
+      : '';
   if (ab.when === 'static' && ab.static) {
     const st = ab.static;
     const sign = (v: number | undefined): string => {
@@ -140,32 +148,77 @@ function abilityText(ab: AbilityDef): string {
       ? ` and have ${st.grantKeywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
       : '';
     if (st.scope === 'attached') {
-      return `Enchanted creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`;
+      return `${prefix}Enchanted creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`;
+    }
+    if (st.scope === 'self') {
+      return `${prefix}This gets ${sign(st.p)}/${sign(st.t)}${kw}.`;
     }
     const who = st.filter?.subtype
       ? `${st.filter.other ? 'Other ' : ''}${st.filter.subtype} creatures you control`
       : `${st.filter?.other ? 'Other creatures' : 'Creatures'} you control`;
-    return `${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`;
+    return `${prefix}${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`;
   }
 
   const body = (ab.ops ?? []).map(opText).join(', then ');
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
+  let sentence: string;
   switch (ab.when) {
     case 'spell':
-      return `${cap}.`;
+      sentence = `${cap}.`;
+      break;
     case 'arrives':
-      return `When this arrives, ${body}.`;
+      sentence = `When this arrives, ${body}.`;
+      break;
     case 'dies':
-      return `When this dies, ${body}.`;
+      sentence = `When this dies, ${body}.`;
+      break;
     case 'dawn':
-      return `At the start of your turn, ${body}.`;
+      sentence = `At the start of your turn, ${body}.`;
+      break;
     case 'combatDamageToPlayer':
-      return `Whenever this deals combat damage to a player, ${body}.`;
+      sentence = `Whenever this deals combat damage to a player, ${body}.`;
+      break;
     case 'attacks':
-      return `Whenever this attacks, ${body}.`;
+      sentence = `Whenever this attacks, ${body}.`;
+      break;
     default:
-      return `${cap}.`;
+      sentence = `${cap}.`;
+      break;
   }
+  return `${prefix}${sentence}`;
+}
+
+export function romanNumeral(n: number): string {
+  const numerals: [number, string][] = [
+    [10, 'X'],
+    [9, 'IX'],
+    [5, 'V'],
+    [4, 'IV'],
+    [1, 'I'],
+  ];
+  let out = '';
+  let remaining = n;
+  for (const [value, numeral] of numerals) {
+    while (remaining >= value) {
+      out += numeral;
+      remaining -= value;
+    }
+  }
+  return out;
+}
+
+function chapterText(ops: EffectOp[], index: number): string {
+  const body = ops.map(opText).join(', then ');
+  if (!body) return `Chapter ${romanNumeral(index + 1)}.`;
+  const cap = body.charAt(0).toUpperCase() + body.slice(1);
+  return `Chapter ${romanNumeral(index + 1)}: ${cap}.`;
+}
+
+function awakeningText(d: CardDef): string {
+  const awakening = d.awakening!;
+  const sign = (v: number | undefined): string => `${(v ?? 0) >= 0 ? '+' : ''}${v ?? 0}`;
+  const keywords = awakening.keywords?.map((k) => KEYWORD_NAMES[k]).join(', ');
+  return `Awakening: ${sign(awakening.p)}/${sign(awakening.t)}${keywords ? `, ${keywords}` : ''}`;
 }
 
 /**
@@ -187,6 +240,10 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   // even though entersTapped still applies mechanically.
   if (d.entersTapped && (d.manaAbility?.length ?? 0) > 1) {
     lines.push('Arrives tapped.');
+  }
+  if (d.awakening) lines.push(awakeningText(d));
+  for (const [index, chapter] of (d.chapters ?? []).entries()) {
+    lines.push(chapterText(chapter, index));
   }
   // Non-land mana abilities are NOT part of the text: CardView composes an
   // icon line ([T]: Add [pip]) at the top of the rules box instead.
@@ -223,6 +280,8 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   }
   if (/\bforesee\b/.test(text)) push('Foresee', MECHANIC_DEFINITIONS.foresee);
   if (/\bsever(s|ed)?\b/.test(text)) push('Sever', MECHANIC_DEFINITIONS.sever);
+  if (d.chapters) push('Quest', MECHANIC_DEFINITIONS.quest);
+  if (d.awakening) push('Champion Awakening', MECHANIC_DEFINITIONS.championAwakening);
   return entries;
 }
 
@@ -235,6 +294,6 @@ export function typeLine(d: CardDef): string {
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(' ');
   const types = d.types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(' ');
-  const subs = d.subtypes.length > 0 ? ` — ${d.subtypes.join(' ')}` : '';
+  const subs = d.subtypes.length > 0 ? `: ${d.subtypes.join(' ')}` : '';
   return `${supers ? supers + ' ' : ''}${types}${subs}`;
 }

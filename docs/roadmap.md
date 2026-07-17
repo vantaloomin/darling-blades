@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-14 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-16 · review monthly -->
 
 # Roadmap
 
@@ -13,7 +13,7 @@ _Dated 2026-07-04. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch offers an optional **tutorial**; a new
   player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (12 themed opponents on a ladder) or Practice duels → rewards → shop →
+  Gauntlet** (14 themed opponents on a ladder) or Practice duels → rewards → shop →
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** **Every
@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **698 tests green** (+3 skipped balance-tool assertions) across 68 files
+- **798 tests green** (+3 skipped balance-tool assertions; count refreshed with the 1.2 build) across 80+ files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -43,20 +43,97 @@ _Dated 2026-07-04. Review monthly._
   goals, deck-color identity). The whole suite runs in ~25–30 s.
 - **210 cards** in the base pool (`CARD_DB`), across the five colors and three
   factions, bucketed into **five rarity tiers** (C 103 / R 65 / SR 13 /
-  SSR 11 / UR 8 booster-eligible) — plus the **69-card Ragnarök** and
-  **80-card Celtic Fae** expansions in their own set-scoped boosters
-  (349 collectible cards total).
+  SSR 11 / UR 8 booster-eligible) — plus the **69-card Ragnarök**,
+  **80-card Celtic Fae**, and **80-card Arthurian Court** expansions in
+  their own set-scoped boosters (429 collectible cards total).
 - **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
   each color in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
   (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v15** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v20** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
-  v14→v15 per-deck hero images — see Recently shipped). By-ear tuning remains
+  v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
+  familiarity, v17→v18 Premium Draft, v18→v19 premium weekly allowance,
+  v19→v20 deterministic replays — see Recently shipped). By-ear tuning remains
   open (see Planned).
+
+## Recently shipped (2026-07-16 · the 1.2 build)
+
+- **The whole 1.2 release built in one orchestrated session** (plan file
+  session-handoff-begin-1-2-glimmering-meteor; user decisions locked
+  up front: full Quest/Awakening engine build, rungs 13–14 now, replays
+  full-but-phased, one-Practice-row picker). The four 1.2 features:
+  1. **Practice opponent picker** — the Play submenu's three difficulty
+     rows collapsed into one Practice entry opening
+     `PracticePickerScene`: all 14 tower avatars with the gauntlet's
+     card presentation (difficulty inherits from the avatar; no tower
+     state touched) plus plain Easy/Medium/Hard training rows.
+  2. **Deterministic replays** — `src/meta/Replay.ts` records every
+     non-tutorial duel (seed + both decklists + every successful submit,
+     both seats) into **SaveData v19 → v20** (`replays[]`, newest-first,
+     cap 10, real `migrate()` + tests). A card-db content stamp
+     hard-refuses drifted logs (engine-code drift instead rides a
+     documented `REPLAY_LOG_VERSION` discipline). Golden test: a
+     recorded game replays to a byte-identical state AND event stream.
+     The viewer: a Replays reel on Profile (Watch / drift notices) and a
+     locked-input DuelScene playback mode (play/pause/step/speed/exit,
+     'Replay complete' banner, never the rewards flow) — live-verified
+     save-byte-identical through a full watch. A probe found and fixed a
+     real pre-existing bug: a stale `aiTimer` stranded the next duel
+     after abandoning one mid-AI-decision.
+  3. **Limited run-history achievements** — four schema-free mastery
+     goals over `limited.history`/`bestDraftWins` (first draft, 5 drafts,
+     3-0 Clean Sweep, Premium Keeps); unlocks latch so the 20-entry FIFO
+     cannot revoke them.
+  4. **The Arthurian Court expansion** (below).
+- **3rd expansion: "Arthurian Court — The Grail Oath" (80 collectible
+  cards — set `arthurian-court`, prefix `ac-`) + the Quest/Champion
+  Awakening engine mechanics** (spec: the concretized
+  [expansions/arthurian-court.md](expansions/arthurian-court.md); folded
+  into 1.2 by user decision 2026-07-16). New engine surface, landed pure
+  + tested before card data per the set precedent: **Quests**
+  (`CardDef.chapters` — chapter I on arrival, one chapter per controller
+  dawn in battlefield order, final chapter leaves via the normal dies
+  path; chapter ops are trigger-safe and ride the existing
+  pendingDecisions FIFO), **Champion Awakening** (`awakening` stat/keyword
+  block + one-way `Permanent.awakened` flip via the trigger-safe `awaken`
+  op), and the **`questActive` condition** on abilities, spell bodies, and
+  statics (+ `StaticDef` scope `'self'`). An adversarial review pass
+  confirmed one real latent engine bug (an all-whiff dawn foresee drain
+  stranded the turn), fixed with a red-test-proven regression. W/U/R
+  knight tribal with 7 chapter Quests and five awakening carriers; the
+  1/1 W Squire token (`tok-squire`); set booster SKU at 525g with a
+  sword-in-stone set icon; the **Questing Table** precon; 8 schema-free
+  set achievements; Duel UI chapter badges (I/II plates), awakened gold
+  rings, and history narration; the Glossary teaches all four game
+  mechanics in a recut 2×2 grid. **Art**: all 80 raws were pre-generated
+  in the vault and audited card-by-card by vision sub-agents against the
+  art-bible rules (76/80 first-pass; zero text violations), then two
+  user-review rounds drove 21 content regens + the Squire token and a
+  crop-side rescue: `smartcrop.py` gained a zoom fallback
+  (hidden-face count 20 → 0 on the wide pre-preamble raws) plus per-card
+  `--band-frac`/`--focal-frac` review flags; two cards were renamed from
+  review (**The Sword in the Stone**, **Rallying Horn**). The art bible
+  (294 entries incl. the token) retrospectively describes the approved
+  art. **Balance, measured honestly**: rungs 13–14 (Morgan of the Thorn
+  Crown, Artoria) first measured 59% with a ladder inversion; six
+  50-seed deck iterations (walls measured WORSE three times — the CF
+  tuning law re-confirmed; base-set interaction splash was the real
+  lever) plus two user-approved card-buff rounds moved the tower rows to
+  66%, bands calibrated fresh at R13 ≥ 60 / R14 ≥ 62 with the residual
+  ~10pp gap vs R11/12 documented in `opponents.ts` (W/U Quest tribal has
+  no in-color removal; R10 Brunhild has been the tower's power peak
+  since Celtic Fae). Full clear now 2,770g; all economy gates green; the
+  post-AC 10×8×60 baseline is date-stamped beside `ECONOMY` (every
+  persona −5–11pp completion, the expected effect of a 23% larger pool;
+  Hardcore-Optimizer window drift flagged as an open design question).
+  **Copy rule (user, 2026-07-16): the word "saga" is retired everywhere**
+  (MTG-distinctive) — the Ragnarök 'Saga Binder' achievement is now
+  **'Edda Binder'**. 798 tests + 3 skipped green; live probes throughout
+  (a real Quest awakened a Camelot Banneret in play).
 
 ## Recently shipped (2026-07-16)
 
@@ -1079,8 +1156,13 @@ _Dated 2026-07-04. Review monthly._
   ladder now reads: **1.1** = Celtic Fae (✅ shipped) + the public persona
   Draft (✅ shipped 2026-07-14) + the Limited **economy sim/tuning pass**
   (✅ shipped 2026-07-16 — 1.1's engineering is complete);
-  **1.2** = practice opponent picker (+ the previously shelved
-  deterministic replays); **1.3** = seeded daily tower rotation (with its
+  **1.2** = practice opponent picker + deterministic replays + Limited
+  run-history achievement hooks + the Arthurian Court expansion (folded
+  into 1.2 by user decision 2026-07-16) — **✅ ALL 1.2 engineering
+  SHIPPED 2026-07-16** (see Recently shipped · the 1.2 build); what
+  remains for the 1.2 cut is release mechanics (version bump + tag +
+  README consumer notes) plus the standing validation passes;
+  **1.3** = seeded daily tower rotation (with its
   balance re-baseline); **1.5** = Commander mode, renamed **"Darlings"**;
   **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
   the hub offers only Draft; its dormant code is cleanup-eligible.

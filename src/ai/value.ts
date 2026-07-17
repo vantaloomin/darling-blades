@@ -34,6 +34,13 @@ function hasTriggeredAbility(db: CardDb, cardId: string): boolean {
   );
 }
 
+function awakeningValue(d: ReturnType<typeof def>): number {
+  return (
+    ((d.awakening?.p ?? 0) + (d.awakening?.t ?? 0)) / 2 +
+    keywordScore(d.awakening?.keywords ?? [])
+  );
+}
+
 /** Shared card-value heuristic — printed stats (hand cards, hypotheticals). */
 export function cardValue(db: CardDb, cardId: string): number {
   const d = def(db, cardId);
@@ -44,6 +51,8 @@ export function cardValue(db: CardDb, cardId: string): number {
   }
   if (isLordOrLegendary(db, cardId)) v += 1;
   if (hasTriggeredAbility(db, cardId)) v += 0.75;
+  if (d.chapters) v += d.chapters.length * 0.75;
+  if (isType(d, 'creature') && d.awakening) v += 0.5 + awakeningValue(d);
   return v;
 }
 
@@ -92,5 +101,12 @@ export function permValue(
     v += keywordScore(stats.keywords);
   }
   if (isLordOrLegendary(db, perm.cardId)) v += 1;
+  if (d.chapters) {
+    const completed = perm.chapter ?? 0;
+    v += Math.max(0, d.chapters.length - completed) * 0.75;
+  }
+  if (isType(d, 'creature') && d.awakening && !perm.awakened) {
+    v += 0.5 + awakeningValue(d);
+  }
   return v;
 }

@@ -3,7 +3,7 @@ import type { Emit } from '../battlefield';
 import { destroyPermanent, enterBattlefield, severPermanent } from '../battlefield';
 import { drawCards } from '../phases';
 import { rngInt, rngShuffle } from '../rng';
-import { getEffectiveStats } from '../statics';
+import { getEffectiveStats, isQuestActive } from '../statics';
 import type {
   AbilityDef,
   CardDb,
@@ -36,10 +36,48 @@ function dealPlayerDamage(state: GameState, emit: Emit, player: PlayerId, n: num
   emit({ e: 'lifeChanged', player, delta: -n, now: state.players[player].life });
 }
 
+/** Ability conditions are evaluated from public battlefield state only. */
+export function conditionSatisfied(
+  state: GameState,
+  db: CardDb,
+  controller: PlayerId,
+  condition: AbilityDef['condition'],
+): boolean {
+  return condition !== 'questActive' || isQuestActive(state.battlefield, db, controller);
+}
+
+function awakenPermanent(db: CardDb, perm: Permanent): boolean {
+  const d = def(db, perm.cardId);
+  if (!isType(d, 'creature') || !d.awakening || perm.awakened) return false;
+  perm.awakened = true;
+  return true;
+}
+
 /** Execute one op. SBAs are the CALLER's responsibility after the batch. */
 function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op: EffectOp): void {
-  emit({ e: 'effectApplied', op: op.op });
+  // A source with no awakening block is a true no-op, including no event.
+  // Successful awakenings retain the normal EffectOp log ordering.
+  if (op.op !== 'awaken') emit({ e: 'effectApplied', op: op.op });
   switch (op.op) {
+    case 'awaken': {
+      const awakened: Permanent[] = [];
+      if (op.scope === 'self') {
+        const source = state.battlefield.find((p) => p.iid === ctx.sourceIid);
+        if (source && awakenPermanent(db, source)) awakened.push(source);
+      } else {
+        for (const perm of state.battlefield) {
+          if (perm.controller !== ctx.controller) continue;
+          if (awakenPermanent(db, perm)) awakened.push(perm);
+        }
+      }
+      if (awakened.length > 0) {
+        emit({ e: 'effectApplied', op: op.op });
+        for (const perm of awakened) {
+          emit({ e: 'awakened', iid: perm.iid, cardId: perm.cardId });
+        }
+      }
+      return;
+    }
     case 'damage': {
       const n = op.n === 'X' ? (ctx.x ?? 0) : op.n;
       if (op.to === 'controller') {
@@ -326,7 +364,11 @@ export function fireTriggers(
 ): void {
   const d = def(db, perm.cardId);
   for (const ab of d.abilities ?? []) {
-    if (ab.when !== when || !ab.ops) continue;
+    if (
+      ab.when !== when ||
+      !ab.ops ||
+      !conditionSatisfied(state, db, perm.controller, ab.condition)
+    ) continue;
     emit({ e: 'triggerFired', iid: perm.iid, when });
     runOps(
       state,
@@ -336,6 +378,41 @@ export function fireTriggers(
       ab.ops,
     );
   }
+
+  if (when === 'arrives' && d.chapters && d.chapters.length > 0) {
+    advanceChapter(state, db, emit, perm, true);
+  } else if (when === 'dawn' && d.chapters && d.chapters.length > 0) {
+    advanceChapter(state, db, emit, perm, false);
+  }
+}
+
+/**
+ * Quest chapters are trigger-safe ops. Arrival enters Chapter I; later dawns
+ * increment the current chapter. A final chapter leaves through the ordinary
+ * destroy/dies path after its ops finish.
+ */
+function advanceChapter(
+  state: GameState,
+  db: CardDb,
+  emit: Emit,
+  perm: Permanent,
+  arriving: boolean,
+): void {
+  const chapters = def(db, perm.cardId).chapters;
+  if (!chapters || chapters.length === 0) return;
+  const chapter = arriving ? 1 : (perm.chapter ?? 0) + 1;
+  if (chapter > chapters.length) return;
+  perm.chapter = chapter;
+  emit({ e: 'chapterAdvanced', iid: perm.iid, cardId: perm.cardId, chapter });
+  runOps(
+    state,
+    db,
+    emit,
+    { controller: perm.controller, sourceCardId: perm.cardId, sourceIid: perm.iid, targets: [] },
+    chapters[chapter - 1],
+  );
+  if (chapter !== chapters.length || state.winner !== null) return;
+  if (destroyPermanent(state, db, perm, emit)) fireTriggers(state, db, emit, 'dies', perm);
 }
 
 /** Does this ability list include a triggered ability of the given kind? */
