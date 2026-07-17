@@ -1194,10 +1194,15 @@ _Dated 2026-07-04. Review monthly._
   (engineering shipped 2026-07-16, PR #85 + the v1.2.0 cut closed it
   out 2026-07-17 — see Recently shipped · the 1.2 close-out); the
   standing validation passes remain;
-  **1.3** = seeded daily tower rotation (full-shuffle roster with
-  floor-scaled AI tiers, plus its balance re-baseline), the deck-builder
-  land-style selector, and the "Hardcore MTG Fan" balance personas — user
-  decisions 2026-07-17, spec in [plan-1.3.md](plan-1.3.md);
+  **1.3** = the **Gothic Monsters: Nocturne Manor** expansion (80 cards,
+  Menace + Kicker engine mechanics, rungs 15-16 — concept in
+  [expansions/gothic-monsters.md](expansions/gothic-monsters.md), needs
+  the AC-style concretion pass; added by user decision 2026-07-17),
+  the seeded daily tower rotation (full-shuffle roster with
+  floor-scaled AI tiers, plus its balance re-baseline, measured once
+  AFTER the set lands), the deck-builder land-style selector, and the
+  "Hardcore MTG Fan" balance personas — user decisions 2026-07-17,
+  spec in [plan-1.3.md](plan-1.3.md);
   **1.5** = Commander mode, renamed **"Darlings"**;
   **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
   the hub offers only Draft; its dormant code is cleanup-eligible.

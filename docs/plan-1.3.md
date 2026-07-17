@@ -1,13 +1,51 @@
-<!-- source-of-truth: docs/plan-1.1.md, docs/plan-v1.1-post-launch.md, src/data/opponents.ts, src/ai/personality.ts, src/meta/gauntletSeed.ts, src/meta/SaveManager.ts, src/data/starterDecks.ts, scripts/balance-matrix.ts, docs/land-art.md · last-verified: 2026-07-17 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.1.md, docs/plan-v1.1-post-launch.md, docs/expansions/gothic-monsters.md, src/data/opponents.ts, src/ai/personality.ts, src/meta/gauntletSeed.ts, src/meta/SaveManager.ts, src/data/starterDecks.ts, scripts/balance-matrix.ts, docs/land-art.md · last-verified: 2026-07-17 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.3 — program plan
 
 User decisions locked 2026-07-17 (this doc is their record; do not
-relitigate without the user). Scope: the daily tower rotation with a
+relitigate without the user). Scope: the Gothic Monsters expansion
+(added by user decision 2026-07-17), the daily tower rotation with a
 floor-scaled AI model, the deck-builder land-style selector, the
 "Hardcore MTG Fan" balance personas, plus the riders inherited from the
-Planned backlog. Starts after PR #85 lands and the 1.1/1.2 release
-mechanics (version bumps + tags + README notes) are cleared.
+Planned backlog. 1.2.0 released 2026-07-17; 1.3 is the active program.
+
+## Pillar 0 — Gothic Monsters: Nocturne Manor (Expansion 4)
+
+**Locked 2026-07-17: the set ships in 1.3.** The concept doc is
+[expansions/gothic-monsters.md](expansions/gothic-monsters.md) (80
+cards, `gm-` prefix, vampire courts / stitched brides / wolf-cursed
+nobility; primary B/R/W with U mad science and G plant horror;
+40C/24R/7SR/5SSR/4UR). It follows the release pattern every prior set
+used: engine mechanics land pure and tested first, then card data, then
+booster SKU + precon + achievements + boss rungs + art run + glossary +
+measured balance bands.
+
+Known gaps between the concept doc and the engine (the AC precedent —
+a concretion pass is required before any card data):
+
+- **Menace and Kicker are the set's two signature mechanics and neither
+  exists in the engine.** Per the two-new-mechanics-per-set precedent
+  (Ragnarök: twinBlades/mill/reanimate; CF: sever/foresee; AC:
+  quests/awakening) the default is to BUILD both: menace is a combat-
+  legality change (multi-blocker constraint), kicker an optional-cost
+  change in casting (validateAction/castSpell/mana solving + AI
+  understanding at all difficulties). Both touch invariant-adjacent
+  engine code and need full headless coverage before card data.
+- The 2026-07-10 card table uses retired/nonexistent vocabulary (scry
+  vs foresee, "exile grave" vs sever, activated tap abilities, generic
+  multicolor rows against the legends-only multicolor invariant). The
+  concretion pass rewrites every row in real vocabulary, exactly as
+  arthurian-court.md was concretized on 2026-07-16.
+- Bosses: rungs 15-16 (Carmilla and one more marquee per the summit-
+  pair pattern) with calibrated bands and the honest-residual
+  discipline; the tower grows to 16 rungs.
+
+Sequencing inside 1.3: the set lands BEFORE the tower rotation's
+re-baseline (Pillar 1) so the 16-rung roster, the prefab tuning
+(Questing Table / Wild Communion), and the floor-tier calibration are
+all measured in one pass instead of twice. The economy baseline
+re-measures after the set (pool grows to 509 cards; every prior set
+shifted persona completion and the dashboards re-date).
 
 ## Pillar 1 — Seeded daily tower rotation with floor-scaled AI
 
