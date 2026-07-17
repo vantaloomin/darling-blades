@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-13 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-17 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
 
 # MTG keyword map — Darling Blades terms (shipped + future)
 
@@ -57,12 +57,12 @@ rather than mechanics.
 | Equip | **Equip** *(kept)* | — | Planned | "Equip" kept as-is (generic enough). Needs an equipment / artifact-attach subsystem first — none exists today. |
 | Flash | **Sudden** | — | Planned | "Play any time you could play a Charm." (Charm = our instant; today only whole card *types* are instant-speed, not a per-card keyword.) |
 | Indestructible | **Unbreakable** | — | Planned | "Can't be destroyed by damage or by 'destroy' effects." |
-| Menace | **Dreaded** | — | Planned | "Can't be blocked except by two or more creatures." |
+| Menace | **Dreaded** | `dreaded` | Shipped | Cannot be blocked except by two or more creatures. *(1.3, with Gothic Monsters)* |
 | Protection | **Aegis** | — | Planned | Quality-scoped (can't be blocked/targeted/damaged/enchanted by a quality) — the heaviest feature here. |
 | Prowess | **Momentum** | — | Planned | "Whenever you cast a noncreature spell, this gets +1/+1 until end of turn." |
 
-**Shipped: 11 of 18.** Enchant is present as a system (auras), not a keyword.
-Missing as keyword abilities: Equip, Flash, Indestructible, Menace, Protection,
+**Shipped: 12 of 18.** Enchant is present as a system (auras), not a keyword.
+Missing as keyword abilities: Equip, Flash, Indestructible, Protection,
 Prowess.
 
 ## Evergreen keyword actions
@@ -94,12 +94,11 @@ text swap.
 | **Equip** | Equip | "{cost}: attach to a creature you control. Equip only during your main phase." | An Equipment subsystem (artifact-attach, re-attach, falls off on death). Large. |
 | **Sudden** | Flash | "You may play this any time you could play a Charm." | A per-card instant-speed flag on non-Charm cards + cast-timing legality. |
 | **Unbreakable** | Indestructible | "Can't be destroyed by damage or by 'destroy' effects." | SBA + `destroy`/`massDestroy` op guards; AI value/removal heuristics. |
-| **Dreaded** | Menace | "Can't be blocked except by two or more creatures." | Block-legality (`canBlock` / block-assignment min-count); AI block planner. |
 | **Aegis** | Protection | "Can't be blocked, targeted, damaged, or enchanted by [quality]." | Quality-parameterized guard across targeting, combat, damage, auras. Heaviest. |
 | **Momentum** | Prowess | "Whenever you cast a noncreature spell, this gets +1/+1 until end of turn." | A cast-trigger + until-end-of-turn buff plumbing; AI sequencing value. |
 | **Fight** | Fight | "Each creature deals damage equal to its Attack to the other." | A `fight` `EffectOp` reusing the damage pipeline; targeting for two creatures. |
 | **Sacrifice** | Sacrifice | "Put a permanent you control into its owner's graveyard." | A `sacrifice` `EffectOp` (as cost and as effect); death triggers already exist. |
-| **Empower** | Kicker | "You may pay an additional {cost} as you cast this. If you do, [the empowered effect]." | Optional-cost casting: the cast action carries an empowered flag, `validateAction` + the mana solver price the extra cost, the interpreter branches on it, and every AI difficulty must price when to pay. The duel UI adds a cast-time Empower option, offered only when the extra cost is actually payable (user decision 2026-07-17). Scheduled with Gothic Monsters (1.3, plan-1.3.md Pillar 0) alongside Dreaded. |
+| **Empower** | Kicker | "You may pay an additional {cost} as you cast this. If you do, [the empowered effect]." | **SHIPPED (1.3, engine + duel-UI chooser):** `CardDef.empower {cost, ops}`, empowered flag on the cast action, combined-cost pricing in `validateAction`/the mana solver, trigger-safe riders in `resolve.ts`, AI pricing at every difficulty, and a cast-time chooser shown only when the extra cost is payable (user decision 2026-07-17). Kept in this table because Kicker is not evergreen; listed as shipped for the record. |
 
 ## Naming rules (collision guard)
 

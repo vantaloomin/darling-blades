@@ -135,7 +135,7 @@ function opText(op: EffectOp): string {
   }
 }
 
-function manaCostText(cost: ManaCost): string {
+export function manaCostText(cost: ManaCost): string {
   const parts: string[] = [];
   if (cost.generic > 0) parts.push(`{${cost.generic}}`);
   for (const color of ['W', 'U', 'B', 'R', 'G'] as Color[]) {
@@ -144,7 +144,7 @@ function manaCostText(cost: ManaCost): string {
   return parts.join('') || '{0}';
 }
 
-function empowerText(d: CardDef): string | undefined {
+export function empowerText(d: CardDef): string | undefined {
   if (!d.empower) return undefined;
   const body = d.empower.ops.map(opText).join(', then ');
   const cap = body.charAt(0).toUpperCase() + body.slice(1);

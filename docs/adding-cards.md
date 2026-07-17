@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-16
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-17
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -65,8 +65,9 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `colors`      | `Color[]`                              | `W`/`U`/`B`/`R`/`G`. Drives the frame. **Multicolor nonland cards must be legendary** (enforced by a catalog test). |
 | `attack`       | `number?`                              | Creatures only.                                                       |
 | `defense`   | `number?`                              | Creatures only.                                                       |
-| `keywords`    | `Keyword[]?`                           | The eleven keywords (see [rules.md](rules.md)).                       |
-| `x`           | `{ min: number }?`                     | Marks an X spell; `min` is the smallest legal X.                       |
+| `keywords`    | `Keyword[]?`                           | The twelve keywords (see [rules.md](rules.md)).                       |
+| `x`           | `{ min: number }?`                     | Marks an X spell; `min` is the smallest legal X. X cards cannot also carry `empower`. |
+| `empower`     | `{ cost: ManaCost; ops: EffectOp[] }?` | Optional Empower cast cost + rider ops (run after normal resolution; trigger-safe, never targeting). |
 | `abilities`   | `AbilityDef[]?`                        | Triggered/static/spell abilities (below).                            |
 | `manaAbility` | `Color[]?`                             | Lands and mana creatures — the colors this source can tap for.        |
 | `entersTapped`| `boolean?`                             | Taplands enter tapped; either/or duals print "Arrives tapped."       |
