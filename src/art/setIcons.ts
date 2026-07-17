@@ -6,10 +6,10 @@
  * MUST fill with the 'evenodd' rule — positive subpaths never overlap each
  * other, so every nested subpath is a punched hole.
  *
- * Motifs (user-picked 2026-07-12): base = a heart pierced by a downward
- * blade ("Darling Blades"); ragnarok = a Mjölnir pendant; celtic-fae = a
- * crescent moon with a four-point star ("The Silver Veil"). Tuned to read at
- * ~21px on the card face and ~40px in the glossary.
+ * Motifs: base = a heart pierced by a downward blade ("Darling Blades");
+ * ragnarok = a Mjölnir pendant; celtic-fae = a crescent moon with a
+ * four-point star ("The Silver Veil"); arthurian-court = a five-point royal
+ * crown. Tuned to read at ~21px on the card face and ~40px in the glossary.
  */
 export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court';
 
@@ -32,10 +32,12 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
   'celtic-fae':
     'M46 8 A42 42 0 1 0 46 92 A44.3 44.3 0 0 1 46 8 Z ' +
     'M66 32 L70 46 L84 50 L70 54 L66 68 L62 54 L48 50 L62 46 Z',
-  // Sword in a stone: an upright blade and crossguard rise from a simple
-  // wedge, with separate subpaths so the icon remains evenodd-safe at 12px.
+  // Five-point royal crown: deep valleys keep the crown silhouette legible at
+  // card size, while three punched jewels separate its broad band from the
+  // solid head of the Ragnarök hammer.
   'arthurian-court':
-    'M46 8 L54 8 L54 53 L46 53 Z ' +
-    'M37 55 L63 55 L63 63 L37 63 Z ' +
-    'M22 65 L78 65 L68 92 L32 92 Z',
+    'M8 30 L26 48 L34 19 L46 44 L50 8 L54 44 L66 19 L74 48 L92 30 L82 84 L18 84 Z ' +
+    'M26 64 L32 58 L38 64 L32 70 Z ' +
+    'M44 64 L50 58 L56 64 L50 70 Z ' +
+    'M62 64 L68 58 L74 64 L68 70 Z',
 };

@@ -36,7 +36,7 @@ export interface GameConfig {
   decks: [string[], string[]];
   seed: number;
   db: CardDb;
-  /** Opt into the pre-mulligan coin-flip winner's play/draw decision. */
+  /** Opt into the pre-deal coin-flip winner's play/draw decision. */
   playDrawChoice?: boolean;
 }
 
@@ -49,7 +49,7 @@ export class Game {
   private st: GameState;
   private readonly db: CardDb;
   private buf: GameEvent[] = [];
-  /** Events produced by setup (shuffles, opening hands, first-player roll). */
+  /** Events produced during construction; opted-in opening draws occur after the choice. */
   readonly initialEvents: GameEvent[] = [];
 
   constructor(cfg: GameConfig) {
@@ -87,10 +87,16 @@ export class Game {
     };
 
     const emit: Emit = (e) => this.initialEvents.push(e);
-    if (cfg.playDrawChoice) emit({ e: 'coinFlipped', winner: startingPlayer });
-    else emit({ e: 'firstPlayerChosen', player: startingPlayer });
-    for (const p of [0, 1] as const) {
-      drawCards(this.st, emit, p, RULES.startingHandSize);
+    if (cfg.playDrawChoice) {
+      // The call/reveal happens before either player sees an opening hand.
+      // Dealing moves to choosePlayDraw below; drawCards consumes no RNG, so
+      // the seeded winner and post-choice RNG stream stay unchanged.
+      emit({ e: 'coinFlipped', winner: startingPlayer });
+    } else {
+      emit({ e: 'firstPlayerChosen', player: startingPlayer });
+      for (const p of [0, 1] as const) {
+        drawCards(this.st, emit, p, RULES.startingHandSize);
+      }
     }
   }
 
@@ -231,6 +237,9 @@ export class Game {
         st.activePlayer = startingPlayer;
         emit({ e: 'playDrawChosen', player, play: action.play });
         emit({ e: 'firstPlayerChosen', player: startingPlayer });
+        for (const p of [0, 1] as const) {
+          drawCards(st, emit, p, RULES.startingHandSize);
+        }
         st.awaiting = { player: startingPlayer, kind: 'mulligan' };
         return;
       }

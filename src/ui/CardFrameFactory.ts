@@ -221,7 +221,8 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
 
   // Set symbols, MTG-style: the SHAPE names the set (src/art/setIcons.ts —
   // heart-and-blade for base, Mjölnir for Ragnarök, crescent-veil for Celtic
-  // Fae), the FILL tint names the rarity tier. Replaced the old uniform
+  // Fae, royal crown for Arthurian Court), the FILL tint names the rarity tier.
+  // Replaced the old uniform
   // diamond gems (user-directed 2026-07-12); the tier gradients carry over.
   const tierTints: [string, string, string][] = [
     ['c', '#3a3a41', '#141417'], // grey (a touch lighter than the old gem — silhouettes need it)

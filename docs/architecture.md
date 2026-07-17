@@ -66,8 +66,10 @@ Other facade methods:
 - `viewFor(player)` — the **redacted** view (see below).
 - `clone()` / `static restore(state, db)` — deep-copy / reconstruct a game from
   a bare state.
-- `initialEvents` — the events produced during setup (first-player roll, shuffles,
-  opening hands), available immediately after construction.
+- `initialEvents` — events produced during construction. The legacy/default-off
+  path includes the first-player roll and opening draws; opted-in normal duels
+  initially emit only the coin winner, then emit both opening draws after the
+  play/draw choice resolves.
 
 **The `CardDb` is injected, not imported.** `Game`'s constructor takes
 `{ decks, seed, db }`. The engine never imports `src/data/catalog.ts`; it only

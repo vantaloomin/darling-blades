@@ -59,13 +59,17 @@ describe('coin flip and play/draw choice', () => {
 
     expect(winner).toBe(legacy.state.startingPlayer);
     expect(game.state.rng).toEqual(legacy.state.rng);
-    expect(game.state.players).toEqual(legacy.state.players);
+    expect(game.state.players[0].hand).toEqual([]);
+    expect(game.state.players[1].hand).toEqual([]);
+    expect(game.state.players[0].deck).toHaveLength(smallGreenDeck().length);
+    expect(game.state.players[1].deck).toHaveLength(smallGreenDeck().length);
 
     const events = game.submit(winner, { type: 'choosePlayDraw', play: true });
-    expect(events).toEqual([
+    expect(events.slice(0, 2)).toEqual([
       { e: 'playDrawChosen', player: winner, play: true },
       { e: 'firstPlayerChosen', player: winner },
     ]);
+    expect(events.filter((event) => event.e === 'drew')).toHaveLength(14);
     expect(JSON.stringify(game.state)).toBe(JSON.stringify(legacy.state));
   });
 
@@ -77,10 +81,11 @@ describe('coin flip and play/draw choice', () => {
 
     const events = game.submit(winner, { type: 'choosePlayDraw', play: false });
 
-    expect(events).toEqual([
+    expect(events.slice(0, 2)).toEqual([
       { e: 'playDrawChosen', player: winner, play: false },
       { e: 'firstPlayerChosen', player: starter },
     ]);
+    expect(events.filter((event) => event.e === 'drew')).toHaveLength(14);
     expect(game.state.rng).toEqual(rngBeforeChoice);
     expect(game.state.startingPlayer).toBe(starter);
     expect(game.state.activePlayer).toBe(starter);

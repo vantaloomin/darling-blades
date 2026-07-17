@@ -19,6 +19,7 @@ import {
   type Difficulty,
 } from '../meta/Economy';
 import { ownedVariantEntries } from '../meta/collectionFilter';
+import { resolveDuelDifficulty } from '../meta/duelSetup';
 import type { CardVariant } from '../meta/variants';
 import { rungSeed } from '../meta/gauntletSeed';
 import { LIMITED_MATCHES, limitedDuelData, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
@@ -60,6 +61,14 @@ import { CardView, CARD_W, CARD_H } from '../ui/CardView';
 import { CoachMark } from '../ui/CoachMark';
 import { CombatFx } from '../ui/CombatFx';
 import { planCombat, type CombatHit, type CombatStep } from '../ui/combatSequence';
+import {
+  COIN_FLIP_ACTION_CENTERS,
+  COIN_FLIP_ACTION_WIDTH,
+  COIN_FLIP_CALL_Y,
+  COIN_FLIP_FACE_TEXTURES,
+  COIN_FLIP_RESULT_Y,
+  type CoinFlipSide,
+} from '../ui/coinFlipLayout';
 import { CommanderPortrait } from '../ui/CommanderPortrait';
 import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
@@ -398,8 +407,9 @@ export class DuelScene extends Phaser.Scene {
       replay?: ReplayLog;
     } = {},
   ): void {
-    // Gauntlet mode: an avatar opponent drives the deck, difficulty, and brain
-    // personality. Practice mode leaves opponent null and uses the plain AI.
+    // When present, an avatar drives the deck and personality. Gauntlet
+    // inherits that avatar's tuned difficulty; Practice may explicitly
+    // override the brain tier while keeping the real deck and temperament.
     this.replayLog = data.replay ?? null;
     this.replayMode = this.replayLog !== null;
     this.replayCursor = 0;
@@ -417,7 +427,11 @@ export class DuelScene extends Phaser.Scene {
         ? avatarById(data.opponentId)
         : null;
     this.gauntletRung = data.replay?.context.gauntletRung ?? data.gauntletRung ?? null;
-    this.difficulty = data.replay?.context.difficulty ?? this.opponent?.difficulty ?? data.difficulty ?? 'easy';
+    this.difficulty = resolveDuelDifficulty(
+      data.replay?.context.difficulty,
+      data.difficulty,
+      this.opponent?.difficulty,
+    );
     this.tutorial = data.tutorial ?? false;
     this.limited = data.limited ?? null;
     this.limitedPersona = !this.replayMode && this.limited?.opponentPersonaId
@@ -1877,7 +1891,8 @@ export class DuelScene extends Phaser.Scene {
   private narrateEvent(e: GameEvent, batch: readonly GameEvent[] = []): void {
     switch (e.e) {
       case 'coinFlipped':
-        this.log(`${e.winner === HUMAN ? 'You' : 'Opponent'} won the flip`);
+        // The seeded winner is known to the engine, but the player has not
+        // called a side yet. The overlay logs the result only after reveal.
         break;
       case 'playDrawChosen':
         this.log(
@@ -4000,11 +4015,19 @@ export class DuelScene extends Phaser.Scene {
     }
   }
 
-  /** Mandatory opening reveal. Full motion flips; reduced/off shows the result immediately. */
+  /** Render the high-resolution painted coin face for the pregame call and reveal. */
+  private buildCoinFace(side: CoinFlipSide, x: number, y: number): Phaser.GameObjects.Container {
+    const coin = this.add.container(x, y);
+    const face = this.add.image(0, 0, COIN_FLIP_FACE_TEXTURES[side]).setDisplaySize(96, 96);
+    coin.add(face);
+    return coin;
+  }
+
+  /** Call first, then reveal. Full motion flips; reduced/off reveals immediately. */
   private buildCoinFlipOverlay(winner: PlayerId): void {
     const shell = modalShell(this, {
-      width: 520,
-      height: 390,
+      width: 560,
+      height: 410,
       tapDimToClose: false,
       escToClose: false,
       showClose: false,
@@ -4013,7 +4036,7 @@ export class DuelScene extends Phaser.Scene {
     const c = shell.container;
     c.add(
       this.add
-        .text(theme.design.centerX, 220, 'Coin Flip', {
+        .text(theme.design.centerX, 205, 'Coin Flip', {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h1}px`,
           fontStyle: theme.weight.w700,
@@ -4022,25 +4045,8 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
-    const coin = this.add.container(theme.design.centerX, 325);
-    const face = this.add.graphics();
-    face.fillStyle(colorInt(theme.colors.gold), 1);
-    face.fillCircle(0, 0, 48);
-    face.lineStyle(3, colorInt(theme.colors.goldHover), 1);
-    face.strokeCircle(0, 0, 48);
-    const mark = this.add
-      .text(0, 0, 'DB', {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h2}px`,
-        fontStyle: theme.weight.w700,
-        color: theme.colors.onGold,
-      })
-      .setOrigin(0.5);
-    coin.add([face, mark]);
-    c.add(coin);
-
     const status = this.add
-      .text(theme.design.centerX, 410, 'Flipping...', {
+      .text(theme.design.centerX, 260, 'Call heads or tails.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.body}px`,
         color: theme.colors.body,
@@ -4051,71 +4057,120 @@ export class DuelScene extends Phaser.Scene {
       .setOrigin(0.5);
     c.add(status);
 
-    let revealed = false;
-    const reveal = (): void => {
-      if (revealed || !c.active || !coin.active || !status.active) return;
-      revealed = true;
-      coin.setAngle(0).setScale(1);
-      Sfx.play('coin');
+    const [leftActionX, rightActionX] = COIN_FLIP_ACTION_CENTERS;
+    const headsIcon = this.buildCoinFace('heads', leftActionX, 342);
+    const tailsIcon = this.buildCoinFace('tails', rightActionX, 342);
+    c.add([headsIcon, tailsIcon]);
 
-      if (winner === HUMAN) {
-        status.setText('You won the flip. Choose whether to play or draw.');
-        const choose = (play: boolean): void => {
-          const awaiting = this.duel.awaiting;
-          if (!c.active || awaiting.kind !== 'choosePlayDraw' || awaiting.player !== HUMAN) return;
-          this.act({ type: 'choosePlayDraw', play });
-        };
-        const play = themedButton(this, 565, 490, 'Play First', {
-          variant: 'primary',
-          minWidth: 150,
-          onTap: (pointer) => {
-            if (!pointer.rightButtonReleased()) choose(true);
-          },
-        });
-        const draw = themedButton(this, 715, 490, 'Draw First', {
-          variant: 'ghost',
-          minWidth: 150,
-          onTap: (pointer) => {
-            if (!pointer.rightButtonReleased()) choose(false);
-          },
-        });
-        c.add([play.container, draw.container]);
-        return;
+    let called = false;
+    const callButtons: ThemedButton[] = [];
+    function opposite(side: 'heads' | 'tails'): 'heads' | 'tails' {
+      return side === 'heads' ? 'tails' : 'heads';
+    }
+    const callFlip = (calledSide: 'heads' | 'tails'): void => {
+      if (called || !c.active || !status.active) return;
+      called = true;
+      headsIcon.setVisible(false);
+      tailsIcon.setVisible(false);
+      for (const button of callButtons) {
+        button.setEnabled(false);
+        button.container.setVisible(false);
       }
+      status.setY(410).setText('Flipping...');
 
-      const legal = this.duel.legalActions(AI);
-      const proposed = this.ai.chooseAction(this.duel.viewFor(AI), legal);
-      const choice =
-        proposed.type === 'choosePlayDraw'
-          ? proposed
-          : ({ type: 'choosePlayDraw', play: true } as const);
-      status.setText(`Opponent won the flip and chose to ${choice.play ? 'play' : 'draw'} first`);
-      this.coinChoiceTimer = this.time.delayedCall(750, () => {
-        this.coinChoiceTimer = null;
-        if (!c.active) return;
-        const awaiting = this.duel.awaiting;
-        if (awaiting.kind !== 'choosePlayDraw' || awaiting.player !== AI) return;
-        const events = this.duel.submit(AI, choice);
-        this.processEvents(events);
-        this.afterEvents();
-      });
+      // The engine's single seeded winner roll remains authoritative. Mapping
+      // it through the player's call produces the equivalent revealed side
+      // without consuming a second RNG value or changing replay determinism.
+      const revealedSide = winner === HUMAN ? calledSide : opposite(calledSide);
+      const coin = this.buildCoinFace(revealedSide, theme.design.centerX, 320);
+      c.add(coin);
+
+      let revealed = false;
+      const reveal = (): void => {
+        if (revealed || !c.active || !coin.active || !status.active) return;
+        revealed = true;
+        coin.setAngle(0).setScale(1);
+        Sfx.play('coin');
+        const sideLabel = revealedSide === 'heads' ? 'Heads' : 'Tails';
+        this.log(`${sideLabel} · ${winner === HUMAN ? 'you' : 'opponent'} won the flip`);
+
+        if (winner === HUMAN) {
+          status.setText(`${sideLabel}. You won the flip. Choose whether to play or draw.`);
+          const choose = (play: boolean): void => {
+            const awaiting = this.duel.awaiting;
+            if (!c.active || awaiting.kind !== 'choosePlayDraw' || awaiting.player !== HUMAN) return;
+            this.act({ type: 'choosePlayDraw', play });
+          };
+          const play = themedButton(this, leftActionX, COIN_FLIP_RESULT_Y, 'Play First', {
+            variant: 'primary',
+            minWidth: COIN_FLIP_ACTION_WIDTH,
+            onTap: (pointer) => {
+              if (!pointer.rightButtonReleased()) choose(true);
+            },
+          });
+          const draw = themedButton(this, rightActionX, COIN_FLIP_RESULT_Y, 'Draw First', {
+            variant: 'ghost',
+            minWidth: COIN_FLIP_ACTION_WIDTH,
+            onTap: (pointer) => {
+              if (!pointer.rightButtonReleased()) choose(false);
+            },
+          });
+          c.add([play.container, draw.container]);
+          return;
+        }
+
+        const legal = this.duel.legalActions(AI);
+        const proposed = this.ai.chooseAction(this.duel.viewFor(AI), legal);
+        const choice =
+          proposed.type === 'choosePlayDraw'
+            ? proposed
+            : ({ type: 'choosePlayDraw', play: true } as const);
+        status.setText(`${sideLabel}. Opponent won and chose to ${choice.play ? 'play' : 'draw'} first.`);
+        this.coinChoiceTimer = this.time.delayedCall(900, () => {
+          this.coinChoiceTimer = null;
+          if (!c.active) return;
+          const awaiting = this.duel.awaiting;
+          if (awaiting.kind !== 'choosePlayDraw' || awaiting.player !== AI) return;
+          const events = this.duel.submit(AI, choice);
+          this.processEvents(events);
+          this.afterEvents();
+        });
+      };
+
+      if (this.motionLevel() === 'full') {
+        Sfx.play('flip');
+        this.tweens.add({
+          targets: coin,
+          angle: 720,
+          scaleX: 0.15,
+          duration: theme.motion.slow,
+          ease: 'Sine.easeInOut',
+          yoyo: true,
+          repeat: 1,
+          onComplete: reveal,
+        });
+      } else {
+        reveal();
+      }
     };
 
-    if (this.motionLevel() === 'full') {
-      Sfx.play('flip');
-      this.tweens.add({
-        targets: coin,
-        angle: 720,
-        scaleX: 0.15,
-        duration: theme.motion.slow,
-        ease: 'Sine.easeInOut',
-        yoyo: true,
-        repeat: 1,
-        onComplete: reveal,
-      });
-    } else {
-      reveal();
-    }
+    // 160px controls on a 176px pitch leave the compact-touch 16px floor.
+    const headsButton = themedButton(this, leftActionX, COIN_FLIP_CALL_Y, 'Heads', {
+      variant: 'ghost',
+      minWidth: COIN_FLIP_ACTION_WIDTH,
+      onTap: (pointer) => {
+        if (!pointer.rightButtonReleased()) callFlip('heads');
+      },
+    });
+    const tailsButton = themedButton(this, rightActionX, COIN_FLIP_CALL_Y, 'Tails', {
+      variant: 'ghost',
+      minWidth: COIN_FLIP_ACTION_WIDTH,
+      onTap: (pointer) => {
+        if (!pointer.rightButtonReleased()) callFlip('tails');
+      },
+    });
+    callButtons.push(headsButton, tailsButton);
+    c.add([headsButton.container, tailsButton.container]);
 
     this.guard.open(this.overlayGuardTargets());
     this.overlay = c;

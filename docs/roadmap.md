@@ -74,7 +74,10 @@ _Dated 2026-07-04. Review monthly._
   color pips, claim-aware default tab, per-pack odds modal replacing the
   drawer), the **Full Art axis** (0.25% booster-only roll, ×25 shards,
   SaveData v21 — Premium Draft excludes it, see the Planned entry's gate
-  numbers), and docs/plan-1.3.md (the locked 1.3 decisions).
+  numbers), the coin-flow follow-up (call Heads/Tails before the reveal,
+  defer both opening hands until the play/draw choice resolves, and isolate
+  both two-CTA rows at the compact-touch spacing floor), and
+  docs/plan-1.3.md (the locked 1.3 decisions).
 - **1.2.0 release cut**: version bump + tag `v1.2.0`, README rewritten
   (condensed 1.1 notes, full 1.2 "The Grail Oath" notes, 429-card /
   14-rung / 825-test / Full-Art numbers swept).
@@ -87,9 +90,10 @@ _Dated 2026-07-04. Review monthly._
   full-but-phased, one-Practice-row picker). The four 1.2 features:
   1. **Practice opponent picker** — the Play submenu's three difficulty
      rows collapsed into one Practice entry opening
-     `PracticePickerScene`: all 14 tower avatars with the gauntlet's
-     card presentation (difficulty inherits from the avatar; no tower
-     state touched) plus plain Easy/Medium/Hard training rows.
+     `PracticePickerScene`: all 14 tower avatars appear as a compact
+     portrait-and-name roster, followed by Easy/Medium/Hard actions that
+     launch the selected real deck and personality at that AI tier. No
+     tower state is touched.
   2. **Deterministic replays** — `src/meta/Replay.ts` records every
      non-tutorial duel (seed + both decklists + every successful submit,
      both seats) into **SaveData v19 → v20** (`replays[]`, newest-first,
@@ -125,7 +129,7 @@ _Dated 2026-07-04. Review monthly._
   stranded the turn), fixed with a red-test-proven regression. W/U/R
   knight tribal with 7 chapter Quests and five awakening carriers; the
   1/1 W Squire token (`tok-squire`); set booster SKU at 525g with a
-  sword-in-stone set icon; the **Questing Table** precon; 8 schema-free
+  five-point crown set icon; the **Questing Table** precon; 8 schema-free
   set achievements; Duel UI chapter badges (I/II plates), awakened gold
   rings, and history narration; the Glossary teaches all four game
   mechanics in a recut 2×2 grid. **Art**: all 80 raws were pre-generated
