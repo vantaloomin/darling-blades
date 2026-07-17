@@ -69,6 +69,8 @@ export type TutorialCueKind =
   | 'playLand' // spotlight a land in hand
   | 'playCreature' // spotlight a castable creature in hand
   | 'sickness' // info card: summoning sickness
+  | 'inspectInfo' // info card: right-click / long-press inspect + keyword reminders
+  | 'healInfo' // info card: marked damage wears off at end of turn
   | 'castRitual' // spotlight a Ritual (sorcery) in hand
   | 'ritualInfo' // info card: Ritual timing (your turn only)
   | 'castCharm' // spotlight a Charm (instant) in a response window
@@ -102,6 +104,8 @@ export interface TutorialCueInput {
   isTouch: boolean;
   goalShown: boolean;
   sicknessShown: boolean;
+  inspectShown: boolean;
+  healInfoShown: boolean;
   blocked: boolean;
   ritualCast: boolean;
   ritualInfoShown: boolean;
@@ -124,6 +128,10 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
   // Info cards fire the moment their spell resolves, whatever the phase.
   if (i.ritualCast && !i.ritualInfoShown)
     return { kind: 'ritualInfo', text: 'Rituals cast only on your own turn.' };
+  // The block lesson's follow-up: marked damage is temporary. Fires at the
+  // player's next window after they declare a block (combat has resolved).
+  if (i.blocked && !i.healInfoShown)
+    return { kind: 'healInfo', text: 'Combat wounds are not permanent. Creatures heal back to full at end of turn.' };
   if (i.charmCast && !i.charmInfoShown)
     return { kind: 'charmInfo', text: 'Charm spells can be cast at any time. Even during your foe’s turn!' };
   const use = i.isTouch ? 'Tap' : 'Click';
@@ -136,6 +144,15 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
         return { kind: 'playCreature', text: 'Spend mana to play a creature.' };
       if (i.myCreatureCount >= 1 && !i.sicknessShown)
         return { kind: 'sickness', text: "A new creature can't attack this turn." };
+      // With the first creature on the board, teach how to read any card:
+      // the inspect overlay is where keyword reminders (and more) live.
+      if (i.sicknessShown && !i.inspectShown)
+        return {
+          kind: 'inspectInfo',
+          text: i.isTouch
+            ? 'Long-press a card and tap the preview to inspect it. Keywords are explained there.'
+            : 'Right-click any card to inspect it. Keywords are explained there.',
+        };
       if (!i.ritualCast && i.hasCastableRitual)
         return { kind: 'castRitual', text: 'Cast this Ritual spell.' };
       // After the block lesson, keep mana open so the Charm can be cast at the

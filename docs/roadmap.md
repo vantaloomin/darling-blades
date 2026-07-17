@@ -49,7 +49,7 @@ _Dated 2026-07-04. Review monthly._
 - **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
   each color in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
-  (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
+  (`src/audio/`, 15 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
   the `SettingsScene`. `SaveData` is **v21** (v7→v8 keyword-reminders, v8→v9 shop
@@ -1068,7 +1068,7 @@ _Dated 2026-07-04. Review monthly._
   Legality + termination tests in `tests/data/starterDecks.test.ts`; the
   MainMenu starter picker was relaid out for five.
 - **Audio layer.** Procedural WebAudio SFX — pure-data recipes
-  (`src/audio/recipes.ts`, 14 cues), a gesture-gated `AudioManager` (autoplay
+  (`src/audio/recipes.ts`, 15 cues), a gesture-gated `AudioManager` (autoplay
   policy respected, retrigger dedupe, headless no-op), and the `Sfx` singleton
   (`src/audio/sfx.ts`) wired into all scenes (cast/land/attack/hit/death/
   lifeLoss/win/loss/coin/flip/shimmer/rungClear/click/hover). A
@@ -1261,7 +1261,7 @@ _Dated 2026-07-04. Review monthly._
 - **A by-ear / by-eye polish pass.** The ambient-music `MOODS` table
   (`src/audio/musicPatterns.ts`) still needs an iterative-listening pass, and
   the perceptual list grew with the 2026-07-04 features: SFX loudness balance
-  across the 14 recipes, pack-opening cascade + tier-escalation choreography,
+  across the 15 recipes, pack-opening cascade + tier-escalation choreography,
   the six holo finishes and frame tints by eye (the Showcase scene is the QA
   surface), binder badge legibility over the backdrop art, render-scale at
   k=2 on a real hiDPI display, and auto-skip notice pacing in real play.

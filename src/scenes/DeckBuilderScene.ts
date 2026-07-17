@@ -139,7 +139,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     Music.setMood('shop'); // the light browsing bed
 
     this.add
-      .text(340, 40, 'Deck Builder', {
+      .text(340, 40, 'Decks', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
