@@ -99,6 +99,7 @@ text swap.
 | **Momentum** | Prowess | "Whenever you cast a noncreature spell, this gets +1/+1 until end of turn." | A cast-trigger + until-end-of-turn buff plumbing; AI sequencing value. |
 | **Fight** | Fight | "Each creature deals damage equal to its Attack to the other." | A `fight` `EffectOp` reusing the damage pipeline; targeting for two creatures. |
 | **Sacrifice** | Sacrifice | "Put a permanent you control into its owner's graveyard." | A `sacrifice` `EffectOp` (as cost and as effect); death triggers already exist. |
+| **Empower** | Kicker | "You may pay an additional {cost} as you cast this. If you do, [the empowered effect]." | Optional-cost casting: the cast action carries an empowered flag, `validateAction` + the mana solver price the extra cost, the interpreter branches on it, and every AI difficulty must price when to pay. Scheduled with Gothic Monsters (1.3, plan-1.3.md Pillar 0) alongside Dreaded. |
 
 ## Naming rules (collision guard)
 
@@ -113,8 +114,13 @@ text swap.
 - **Untouchable is one-sided** — the reminder must say *your opponents* can't
   target it; never shorten to "can't be targeted" (`rules.md` Keywords table).
 - New themed labels were collision-checked against the shipped set: **Aegis**,
-  **Sudden**, **Unbreakable**, **Dreaded**, and **Momentum** don't shadow any
-  existing label. (Equip, Fight, and Sacrifice keep their generic Magic names.)
+  **Sudden**, **Unbreakable**, **Dreaded**, **Momentum**, and **Empower**
+  don't shadow any existing label. (Equip, Fight, and Sacrifice keep their
+  generic Magic names.)
+- **Empower** (Kicker, decided 2026-07-17) was chosen over Tribute/Invoke:
+  it describes the mechanic rather than the set, and unlike Surge, Escalate,
+  Overload, or Entwine it is not a Magic keyword (the distinctiveness rule
+  that retired "saga").
 
 ## Cross-references
 
