@@ -8,6 +8,7 @@ import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
+import { choosePlayDraw } from './playDraw';
 
 /**
  * Easy: plays lands, curves out roughly, and swings — but loses by tactics.
@@ -30,6 +31,8 @@ export class EasyAI implements AIPlayer {
   chooseAction(view: PlayerView, legal: Action[]): Action {
     const a = view.awaiting;
     switch (a.kind) {
+      case 'choosePlayDraw':
+        return choosePlayDraw(legal);
       case 'mulligan':
         return this.mulligan(view);
       case 'bottomCards':

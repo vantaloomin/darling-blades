@@ -9,6 +9,7 @@ import { determinize, simDb } from './determinize';
 import { evaluate } from './evaluate';
 import { MediumAI } from './MediumAI';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
+import { choosePlayDraw } from './playDraw';
 
 /**
  * Hard: Medium's heuristics as candidate generators, then honest simulation
@@ -39,6 +40,8 @@ export class HardAI implements AIPlayer {
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
     switch (view.awaiting.kind) {
+      case 'choosePlayDraw':
+        return choosePlayDraw(legal);
       case 'main':
         return this.searchMain(view, legal);
       case 'declareAttackers':

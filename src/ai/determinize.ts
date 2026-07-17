@@ -228,6 +228,11 @@ function fillZones(
  * flat priors (see the module header). Same view + seed → same Game.
  */
 export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
+  // This awaiting exists only before mulligans, outside every Hard search entry
+  // point. Fail loudly if a future caller tries to simulate before it resolves.
+  if (view.awaiting.kind === 'choosePlayDraw') {
+    throw new Error('determinize cannot run before the play/draw choice resolves');
+  }
   const me = view.myId;
   const opp = opponentOf(me);
   const fillRng = createRngState((seed ^ 0x51ab17e5) >>> 0);

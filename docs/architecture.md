@@ -88,7 +88,9 @@ The full `GameEvent` union (`src/engine/events.ts`):
 
 | Event                  | Payload (besides `e`)                           | Meaning                                                                                                                    |
 | ---------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `firstPlayerChosen`    | `player`                                        | The seeded coin flip picked the starting player.                                                                           |
+| `coinFlipped`          | `winner`                                        | Opt-in play/draw choice (`playDrawChoice`): the seeded flip picked who chooses.                                            |
+| `playDrawChosen`       | `player`, `play`                                | The flip winner chose to play first (`play: true`) or draw first.                                                          |
+| `firstPlayerChosen`    | `player`                                        | The starting player is set (directly from the seeded flip, or after the play/draw choice resolves).                        |
 | `turnBegan`            | `player`, `turn`                                | A new turn started for `player`.                                                                                           |
 | `stepChanged`          | `step`                                          | The turn advanced to a new step.                                                                                           |
 | `untapped`             | `iids`                                          | These permanents untapped during the untap step.                                                                           |
@@ -113,6 +115,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `discarded`            | `player`, `cardId`                              | A card went from hand to graveyard.                                                                                        |
 | `milled`               | `player`, `cardId`                              | A card went from the top of a deck to the graveyard (the `grind` op).                                                      |
 | `severed`              | `player`, `cardId`, `from`, `iid?`              | A card was severed (removed from the game) from the battlefield, a graveyard, or a deck into `player`'s severed pile       |
+| `foresaw`              | `player`, `kept`, `bottomed`                    | A foresee resolved: cardIds left on top / sent to the bottom (full info; the presenter redacts the opponent's).            |
 | `triggerFired`         | `iid`, `when`                                   | A permanent's triggered ability fired.                                                                                     |
 | `effectApplied`        | `op`, `detail?`                                 | One `EffectOp` executed (op name for logging).                                                                             |
 | `tokenCreated`         | `perm`                                          | A token permanent entered.                                                                                                 |

@@ -188,6 +188,7 @@ export type Step =
   | 'cleanup';
 
 export type Awaiting =
+  | { player: PlayerId; kind: 'choosePlayDraw' }
   | { player: PlayerId; kind: 'mulligan' }
   | { player: PlayerId; kind: 'bottomCards'; count: number }
   // `cards` are top-first. They are redacted to [] in an opponent PlayerView.

@@ -9,6 +9,12 @@
  *                        proxy standing in for a competent human. DEFAULT.
  *   --starters           5x5 starter-vs-starter mirror matrix, Medium both
  *                        sides (deck strength, skill held constant).
+ *   --prefabs            7x7 prefab round-robin (5 starters + 2 theme decks),
+ *                        the same neutral brain both sides (--ai, default
+ *                        hard). Upper triangle simmed, mirrored below; prints
+ *                        a per-deck aggregate ranking to surface outliers.
+ *   --ai <difficulty>    Brain for --prefabs: easy | medium | hard (default
+ *                        hard). Neutral (no avatar personality).
  *   --difficulty         Easy/Medium/Hard round-robin on a fixed deck pair
  *                        (Crimson Muster vs Wild Communion, sides + decks
  *                        alternate so no brain owns the better deck).
@@ -363,6 +369,93 @@ export function runStarterMatrix(seedsPerCell: number): StarterMatrixReport {
   return { cells, flags, table };
 }
 
+export interface PrefabMatrixReport {
+  /** Full 7x7 grid; lower triangle is the mirror of the upper, diagonal null. */
+  cells: (CellResult | null)[][];
+  /** Per-deck aggregate (wins / decided across its 6 matchups), sorted desc. */
+  summary: { name: string; wins: number; decided: number; draws: number; rate: number }[];
+  totalGames: number;
+  table: string;
+}
+
+/**
+ * All 7 prefab decks (5 starters + 2 theme decks) in a round-robin, the SAME
+ * neutral brain piloting both sides so only deck strength varies. Only the
+ * upper triangle is simulated (sides alternate per game, so cell (r,c) already
+ * contains the (c,r) information); the lower triangle is its mirror and the
+ * diagonal is skipped. Cell seeds are stable at 40_000 + r * 10 + c.
+ */
+export function runPrefabMatrix(seedsPerCell: number, ai: Difficulty): PrefabMatrixReport {
+  const decks = [...STARTER_DECKS, ...THEME_DECKS];
+  const n = decks.length;
+  const cells: (CellResult | null)[][] = decks.map(() => decks.map(() => null));
+  for (let r = 0; r < n; r++) {
+    for (let c = r + 1; c < n; c++) {
+      process.stderr.write(`  cell ${decks[r].name} vs ${decks[c].name} (${seedsPerCell} games)...\n`);
+      const cell = runCell(
+        {
+          rowAI: (seed) => buildAI(ai, CARD_DB, seed),
+          colAI: (seed) => buildAI(ai, CARD_DB, seed),
+          decks: () => [decks[r].cards, decks[c].cards],
+        },
+        seedsPerCell,
+        40_000 + r * 10 + c,
+      );
+      cells[r][c] = cell;
+      const decidedMirror = cell.rowWins + cell.colWins;
+      cells[c][r] = {
+        rowWins: cell.colWins,
+        colWins: cell.rowWins,
+        draws: cell.draws,
+        games: cell.games,
+        rate: decidedMirror === 0 ? 0 : cell.colWins / decidedMirror,
+      };
+    }
+  }
+
+  const summary = decks
+    .map((deck, i) => {
+      let wins = 0;
+      let decided = 0;
+      let draws = 0;
+      for (let j = 0; j < n; j++) {
+        const cell = cells[i][j];
+        if (!cell) continue;
+        wins += cell.rowWins;
+        decided += cell.rowWins + cell.colWins;
+        draws += cell.draws;
+      }
+      return { name: deck.name, wins, decided, draws, rate: decided === 0 ? 0 : wins / decided };
+    })
+    .sort((a, b) => b.rate - a.rate);
+
+  const totalGames = (n * (n - 1) / 2) * seedsPerCell;
+  // First word, not shortName (last word): "Crimson Muster" and "Valhalla's
+  // Muster" would otherwise both label as "Muster".
+  const labels = decks.map((d) => d.name.split(' ')[0]);
+  const labelW = Math.max(...labels.map((l) => l.length)) + 2;
+  const lines: string[] = [
+    `=== PREFAB ROUND-ROBIN — row-deck win %, neutral ${ai} piloting both sides · ${seedsPerCell} seeds/cell ===\n` +
+      '    cell = row win % of decided games (decided count, +draws); diagonal skipped',
+  ];
+  lines.push(''.padEnd(labelW) + labels.map((l) => l.padEnd(CELL_W)).join(' '));
+  cells.forEach((row, r) => {
+    lines.push(
+      labels[r].padEnd(labelW) +
+        row.map((cell) => (cell ? pctCell(cell) : '--'.padStart(4).padEnd(CELL_W))).join(' '),
+    );
+  });
+  lines.push('');
+  lines.push('PER-DECK AGGREGATE (wins / decided across all matchups):');
+  for (const s of summary) {
+    lines.push(
+      `  ${s.name.padEnd(labelW + 8)} ${(s.rate * 100).toFixed(1).padStart(5)}%  (${s.wins}/${s.decided}${s.draws > 0 ? ` +${s.draws}d` : ''})`,
+    );
+  }
+  lines.push(`NOTE: ${totalGames} total games across ${n * (n - 1) / 2} cells.`);
+  return { cells, summary, totalGames, table: lines.join('\n') };
+}
+
 export interface DifficultyMatrixReport {
   cells: CellResult[][]; // [row difficulty][col difficulty]
   flags: string[];
@@ -432,17 +525,27 @@ function main(): void {
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
   const wantCelticFaeBosses = flag('cf-bosses');
-  const wantAvatars = flag('avatars') || (!wantStarters && !wantDifficulty && !wantCelticFaeBosses);
+  const wantPrefabs = flag('prefabs');
+  const wantAvatars =
+    flag('avatars') || (!wantStarters && !wantDifficulty && !wantCelticFaeBosses && !wantPrefabs);
+  const ai = (opt('ai') ?? 'hard') as Difficulty;
+  if (!DIFFS.includes(ai)) {
+    console.error(`--ai must be one of ${DIFFS.join(' | ')} (got ${opt('ai')})`);
+    process.exitCode = 1;
+    return;
+  }
 
   const t0 = Date.now();
-  const reports: { table: string; flags: string[] }[] = [];
+  const reports: { table: string; flags?: string[] }[] = [];
   if (wantAvatars) reports.push(runAvatarMatrix(seeds, only));
   if (wantStarters) reports.push(runStarterMatrix(seeds));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds));
   if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds));
+  if (wantPrefabs) reports.push(runPrefabMatrix(seeds, ai));
 
   for (const r of reports) {
     console.log('\n' + r.table);
+    if (!r.flags) continue;
     if (r.flags.length === 0) console.log('FLAGS: none — all cells within guidance bands.');
     else {
       console.log('FLAGS:');

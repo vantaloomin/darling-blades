@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
 import {
   COMPACT_TOUCH_GAP_RANGE,
@@ -132,6 +133,41 @@ describe('layout geometry', () => {
       expect(inactiveGap(layout.titleTrack, layout.contentBounds).gap).toBe(16);
       expect(inactiveGap(layout.contentBounds, layout.footerTrack).gap).toBe(16);
     }
+  });
+
+  it('keeps the gauntlet recap grid clear of the 820x640 modal footer track', () => {
+    // Mirrors DuelScene.showGauntletRunRecap's count-aware grid math; if the
+    // scene formula changes, update this in lockstep. Pins the layout facts
+    // the recap relies on, then proves the last portrait row (plus its label
+    // block) ends above the footer track for the full rung ladder.
+    const layout = modalShellLayout({ width: 820, height: 640 });
+    expect(layout.footerTrack.y).toBe(612);
+    expect(layout.contentBounds.y + layout.contentBounds.height).toBe(596);
+
+    const rungCount = ECONOMY.gauntletRungGold.length;
+    const gridTop = Math.max(layout.contentBounds.y, 206);
+    const gridBottom = layout.contentBounds.y + layout.contentBounds.height;
+    const rows = Math.ceil(rungCount / 6);
+    const cols = Math.ceil(rungCount / rows);
+    const xPitch = Math.min(132, layout.contentBounds.width / cols);
+    const yPitch = Math.min(156, (gridBottom - gridTop) / rows);
+    const cellScale = Math.min(1, xPitch / 132, yPitch / 156);
+    const y0 = gridTop + (gridBottom - gridTop - rows * yPitch) / 2 + yPitch / 2;
+
+    const portraitH = Math.round(112 * cellScale);
+    const lastRowCenter = y0 + (rows - 1) * yPitch;
+    // Label sits at portraitBottom + 8 and wraps to at most two 11px lines
+    // (~30px with line spacing).
+    const labelBottom = lastRowCenter + portraitH / 2 + 8 + 30;
+    expect(labelBottom).toBeLessThan(layout.footerTrack.y);
+
+    // The grid's left/right extents stay inside the content track.
+    const x0 = theme.design.centerX - ((cols - 1) * xPitch) / 2;
+    const halfCell = (92 * cellScale) / 2;
+    expect(x0 - halfCell).toBeGreaterThanOrEqual(layout.contentBounds.x);
+    expect(x0 + (cols - 1) * xPitch + halfCell).toBeLessThanOrEqual(
+      layout.contentBounds.x + layout.contentBounds.width,
+    );
   });
 
   it('reports signed axis gaps and the 82px-pitch overlap', () => {

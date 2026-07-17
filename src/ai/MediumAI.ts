@@ -7,6 +7,7 @@ import type { AIPlayer } from './AIPlayer';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
+import { choosePlayDraw } from './playDraw';
 import { cardValue, permValue } from './value';
 
 type Cast = Extract<Action, { type: 'castSpell' }>;
@@ -25,6 +26,8 @@ export class MediumAI implements AIPlayer {
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
     switch (view.awaiting.kind) {
+      case 'choosePlayDraw':
+        return choosePlayDraw(legal);
       case 'mulligan':
         return this.mulligan(view);
       case 'bottomCards':

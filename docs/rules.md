@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-12
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-16
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -33,9 +33,13 @@ Each player starts at **20 life**, shuffles a **60-card** deck (≤4 copies of a
 non-basic; basics unlimited — enforced by `validateDeck` in
 `src/meta/DeckStorage.ts`), and draws a **7-card** opening hand.
 
-The starting player is chosen by the seeded RNG at construction
-(`firstPlayerChosen`), and **skips their turn-1 draw** (`startTurn` in
-`src/engine/phases.ts`).
+A seeded coin flip runs at construction. In normal duels, the flip winner
+chooses to play first or draw first; the chosen starting player is then emitted
+as `firstPlayerChosen` and **skips their turn-1 draw** (`startTurn` in
+`src/engine/phases.ts`). The scripted tutorial leaves the engine's optional
+`playDrawChoice` flag off so its fixed opening remains unchanged. Headless
+callers also default to the legacy direct starting-player roll unless they opt
+in, preserving existing seeded simulations and tests.
 
 ## Mulligans
 
