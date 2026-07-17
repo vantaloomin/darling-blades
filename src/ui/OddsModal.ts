@@ -44,6 +44,7 @@ const HOLO_LABELS: Record<string, string> = {
   fractal: 'Fractal',
   void: 'Void',
 };
+const FULL_ART_LABELS: Record<string, string> = { 'full-art': 'Full Art' };
 
 const cap = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);
 const percent = (weight: number): string => `${weight}%`;
@@ -74,6 +75,12 @@ export function createOddsModal(
       heading: 'HOLO FINISH',
       rows: DROPS.holo,
       labelFor: (value) => HOLO_LABELS[value] ?? cap(value),
+      colorFor: () => theme.colors.body,
+    },
+    {
+      heading: 'FULL ART',
+      rows: DROPS.fullArt.filter(([value]) => value === 'full-art'),
+      labelFor: (value) => FULL_ART_LABELS[value] ?? cap(value),
       colorFor: () => theme.colors.body,
     },
   ];
@@ -109,7 +116,7 @@ export function createOddsModal(
   );
 
   const lead = scene.add
-    .text(content.x, content.y, 'Per card. Each slot rolls rarity, frame, and holo finish independently.', {
+    .text(content.x, content.y, 'Per card. Each slot rolls rarity, frame, holo finish, and Full Art independently.', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.body}px`,
       color: theme.colors.body,

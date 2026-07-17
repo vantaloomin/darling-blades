@@ -94,7 +94,11 @@ export class CardProofScene extends Phaser.Scene {
       const x = left + column * (cardWidth + CARD_GAP) + cardWidth / 2;
       const y = GRID_TOP + row * (cardHeight + CARD_GAP) + cardHeight / 2;
       const view = new CardView(this, x, y).setScale(state.scale);
-      view.setCard(card, { fx: 'full', variant: variantForChoices(state) });
+      view.setCard(card, {
+        fx: 'full',
+        variant: variantForChoices(state),
+        fullArt: state.fullArt,
+      });
       this.views.push(view);
     });
   }

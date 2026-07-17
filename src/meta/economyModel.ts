@@ -6,6 +6,7 @@ import { packPool } from './PackOpener';
 import {
   PLAIN_VARIANT,
   rollFrame,
+  rollFullArt,
   rollHolo,
   rollTier,
   shardValue,
@@ -374,7 +375,7 @@ function drawKeptCard(
   }
   const card: KeptCard = {
     cardId: pool[rngInt(rng, pool.length)],
-    variant: { frame: rollFrame(rng), holo: rollHolo(rng) },
+    variant: { frame: rollFrame(rng), holo: rollHolo(rng), fullArt: rollFullArt(rng) },
   };
   return applyKeptCard(state, db, card);
 }

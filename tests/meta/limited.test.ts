@@ -114,6 +114,7 @@ describe('bot draft', () => {
     expect(premiumA.packVariants).toHaveLength(3);
     expect(premiumA.packVariants?.[0]).toHaveLength(DRAFT_SEATS);
     expect(premiumA.packVariants?.[0][0]).toHaveLength(ECONOMY.limitedPackSize);
+    expect(premiumA.packVariants?.flat(2).every((variant) => !variant.fullArt)).toBe(true);
     expect(free).not.toHaveProperty('packVariants');
     expect(free).not.toHaveProperty('currentPackVariants');
     expect(free).not.toHaveProperty('pickVariants');
@@ -297,12 +298,12 @@ describe('limited rewards', () => {
 
     expect(results).toHaveLength(45);
     expect(results.map((result) => result.cardId)).toEqual(ids);
-    expect(results.map(({ frame, holo }) => ({ frame, holo }))).toEqual(variants);
+    expect(results.map(({ frame, holo, fullArt }) => ({ frame, holo, fullArt }))).toEqual(variants);
     const expectedVariants: Record<string, Record<string, number>> = {};
     for (const result of results) {
       if (result.dupeGold > 0) continue;
       const perCard = (expectedVariants[result.cardId] ??= {});
-      const key = variantKey({ frame: result.frame, holo: result.holo });
+      const key = variantKey({ frame: result.frame, holo: result.holo, fullArt: result.fullArt });
       perCard[key] = (perCard[key] ?? 0) + 1;
     }
     expect(save.collectionVariants).toEqual(expectedVariants);
@@ -345,7 +346,7 @@ describe('limited rewards', () => {
   it('keeps special premium variants past the playset', () => {
     const run = finishDraft(5353, true);
     const cardId = run.draft!.picks[0][0];
-    const special: CardVariant = { frame: 'gold', holo: 'shiny' };
+    const special: CardVariant = { frame: 'gold', holo: 'shiny', fullArt: false };
     run.draft!.picks[0] = Array.from({ length: 45 }, () => cardId);
     run.draft!.pickVariants = Array.from({ length: 45 }, () => ({ ...special }));
     const save = freshSave(0);

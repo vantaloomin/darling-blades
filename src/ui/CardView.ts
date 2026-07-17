@@ -94,9 +94,9 @@ const RARITY_RING: Record<'sr' | 'ssr' | 'ur', number> = {
  * hand 0.55, battlefield 0.45. Keep ≤ ~15 fx:'full' instances alive at once.
  *
  * Variants (per-copy pull cosmetics, src/meta/variants.ts): pass
- * `setCard(card, { fx, variant })` to render both cosmetic axes —
+ * `setCard(card, { fx, variant })` to render all cosmetic axes —
  * Axis B frame (ring + wash over the frame, never the art) and Axis C holo
- * (finish over the art; fx:'full' only). Without a variant the card renders
+ * (finish over the art; fx:'full' only), plus the Full Art treatment. Without a variant the card renders
  * the plain look: the tier ring/gem treatment and NO holo. A non-white frame
  * claims the ring for the frame color; the rarity gem stays the tier
  * indicator either way. Per-finish/frame FX costs: see fx/HoloEffects.ts.
@@ -291,7 +291,7 @@ export class CardView extends Phaser.GameObjects.Container {
     if (!card) return this;
 
     const fx: CardFxLevel = opts.fx ?? 'static';
-    const fullArt = opts.fullArt === true;
+    const fullArt = opts.fullArt === true || opts.variant?.fullArt === true;
     const artRect = fullArt ? FULL_ART_RECT : ART_RECT;
 
     // Frame + art

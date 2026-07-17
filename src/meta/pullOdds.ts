@@ -11,11 +11,16 @@ function weightOdds(table: readonly (readonly [string, number])[], value: string
 }
 
 /**
- * Probability of an exact booster-slot pull. Tier, frame, and holo are
- * independent rolls, so their runtime-derived table probabilities multiply.
+ * Probability of an exact booster-slot pull. Tier, frame, holo, and Full Art
+ * are independent rolls, so their runtime-derived table probabilities multiply.
  */
-export function variantOdds(tier: Rarity, frame: FrameStyle, holo: HoloFinish): number {
-  return weightOdds(DROPS.tier, tier) * weightOdds(DROPS.frame, frame) * weightOdds(DROPS.holo, holo);
+export function variantOdds(tier: Rarity, frame: FrameStyle, holo: HoloFinish, fullArt: boolean): number {
+  return (
+    weightOdds(DROPS.tier, tier) *
+    weightOdds(DROPS.frame, frame) *
+    weightOdds(DROPS.holo, holo) *
+    weightOdds(DROPS.fullArt, fullArt ? 'full-art' : 'standard')
+  );
 }
 
 function roundToSignificantFigures(value: number, digits: number): number {

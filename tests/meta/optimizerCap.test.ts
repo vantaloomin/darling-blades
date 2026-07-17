@@ -21,7 +21,10 @@ function rewardGoldPerMinute(row: ProgressAggregate): number {
 }
 
 describe('optimizer gold-per-minute cap', () => {
-  it('keeps the optimizer at or below 1.5x the best honest persona', () => {
+  // 90s runtime allowance: the sim measures ~22s alone but times out at the
+  // 30s default under full-suite CPU contention (measured 2026-07-17). The
+  // 1.5x cap assertion below is untouched; only the allowance moved.
+  it('keeps the optimizer at or below 1.5x the best honest persona', { timeout: 90_000 }, () => {
     // Day 3 inflated honest g/min with one-time achievement bursts over a
     // short session horizon. A day-7 trial took 18.015s, above the roughly
     // 15s target, so use day 5 with the same canonical three leaders plus the

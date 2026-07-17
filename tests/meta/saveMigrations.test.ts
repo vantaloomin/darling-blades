@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { freshSave, SaveManager } from '../../src/meta/SaveManager';
+import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 
 function fakeStorage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> & { raw: Map<string, string> } {
   const raw = new Map<string, string>();
@@ -20,7 +21,7 @@ describe('SaveData v19 migration', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 18, limited: oldLimited }));
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(20);
+    expect(manager.data.version).toBe(21);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
     expect(manager.data.createdAt).toBe(123);
   });
@@ -35,7 +36,7 @@ describe('SaveData v19 migration', () => {
     );
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(20);
+    expect(manager.data.version).toBe(21);
     expect(manager.data.gold).toBe(777);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
   });
@@ -50,7 +51,7 @@ describe('SaveData v20 migration (deterministic replays)', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 19 }));
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(20);
+    expect(manager.data.version).toBe(21);
     expect(manager.data.replays).toEqual([]);
     expect(manager.data.gold).toBe(555);
     expect(manager.data.createdAt).toBe(123);
@@ -68,7 +69,30 @@ describe('SaveData v20 migration (deterministic replays)', () => {
     );
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(20);
+    expect(manager.data.version).toBe(21);
     expect(manager.data.replays).toEqual([]);
+  });
+});
+
+describe('SaveData v21 migration (Full Art variant axis)', () => {
+  it('rewrites v20 two-part variant keys as non-full-art without changing counts', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123);
+    old.collection.bear = 3;
+    old.collectionVariants.bear = { 'white|none': 2, 'gold|void': 1 };
+    storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 20 }));
+
+    const manager = new SaveManager(storage, 456);
+
+    expect(manager.data.version).toBe(21);
+    expect(manager.data.collection.bear).toBe(3);
+    expect(manager.data.collectionVariants.bear).toEqual({
+      [variantKey(PLAIN_VARIANT)]: 2,
+      [variantKey({ frame: 'gold', holo: 'void', fullArt: false })]: 1,
+    });
+    expect(Object.keys(manager.data.collectionVariants.bear).map(parseVariantKey)).toEqual([
+      PLAIN_VARIANT,
+      { frame: 'gold', holo: 'void', fullArt: false },
+    ]);
   });
 });

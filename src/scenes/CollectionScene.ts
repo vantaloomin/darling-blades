@@ -463,7 +463,10 @@ export class CollectionScene extends Phaser.Scene {
     });
     const shown = owned > 0 ? bestOwnedVariant(save, d.id) : null;
     const view = new CardView(this, 450, 360);
-    view.setScale(1.35).setCard(d, shown ? { fx: 'full', variant: shown } : { fx: 'full' });
+    view.setScale(1.35).setCard(
+      d,
+      shown ? { fx: 'full', variant: shown, fullArt: shown.fullArt } : { fx: 'full' },
+    );
     c.add(view);
     addKeywordGlossaryPanel(this, c, d, { x: 58, y: 156, width: 170 });
 
@@ -521,7 +524,7 @@ export class CollectionScene extends Phaser.Scene {
           .setInteractive({ useHandCursor: true });
         bindTapButton(this, t, () => {
           selectedKey = variantKey(e.variant);
-          view.setCard(d, { fx: 'full', variant: e.variant });
+          view.setCard(d, { fx: 'full', variant: e.variant, fullArt: e.variant.fullArt });
           restyle();
         });
         rows.push({ background, text: t, variant: e.variant, count: e.count });

@@ -9,6 +9,7 @@ import {
   parseVariantKey,
   PLAIN_VARIANT,
   rollFrame,
+  rollFullArt,
   rollHolo,
   rollTier,
   variantKey,
@@ -18,31 +19,36 @@ import { TEST_DB } from '../helpers';
 
 describe('variant keys and ranking', () => {
   it('variantKey/parseVariantKey round-trip', () => {
-    const v = { frame: 'gold', holo: 'pearlescent' } as const;
-    expect(variantKey(v)).toBe('gold|pearlescent');
-    expect(parseVariantKey('gold|pearlescent')).toEqual(v);
+    const v = { frame: 'gold', holo: 'pearlescent', fullArt: true } as const;
+    expect(variantKey(v)).toBe('gold|pearlescent|full-art');
+    expect(parseVariantKey('gold|pearlescent|full-art')).toEqual(v);
+    expect(parseVariantKey('gold|pearlescent')).toEqual({ ...v, fullArt: false });
     expect(parseVariantKey(variantKey(PLAIN_VARIANT))).toEqual(PLAIN_VARIANT);
   });
 
-  it('PLAIN is white|none and ranks lowest; frame outranks holo', () => {
-    expect(PLAIN_VARIANT).toEqual({ frame: 'white', holo: 'none' });
+  it('PLAIN is white|none|standard and ranks lowest; full art outranks black frame', () => {
+    expect(PLAIN_VARIANT).toEqual({ frame: 'white', holo: 'none', fullArt: false });
     expect(isPlainVariant(PLAIN_VARIANT)).toBe(true);
-    expect(isPlainVariant({ frame: 'white', holo: 'shiny' })).toBe(false);
+    expect(isPlainVariant({ frame: 'white', holo: 'shiny', fullArt: false })).toBe(false);
+    expect(isPlainVariant({ frame: 'white', holo: 'none', fullArt: true })).toBe(false);
     expect(variantRank(PLAIN_VARIANT)).toBe(0);
     // frame is the primary axis: the plainest blue beats the fanciest white
-    expect(variantRank({ frame: 'blue', holo: 'none' })).toBeGreaterThan(
-      variantRank({ frame: 'white', holo: 'void' }),
+    expect(variantRank({ frame: 'blue', holo: 'none', fullArt: false })).toBeGreaterThan(
+      variantRank({ frame: 'white', holo: 'void', fullArt: false }),
     );
     // holo breaks ties within a frame
-    expect(variantRank({ frame: 'black', holo: 'void' })).toBeGreaterThan(
-      variantRank({ frame: 'black', holo: 'fractal' }),
+    expect(variantRank({ frame: 'black', holo: 'void', fullArt: false })).toBeGreaterThan(
+      variantRank({ frame: 'black', holo: 'fractal', fullArt: false }),
+    );
+    expect(variantRank({ frame: 'white', holo: 'none', fullArt: true })).toBeGreaterThan(
+      variantRank({ frame: 'black', holo: 'void', fullArt: false }),
     );
   });
 });
 
 describe('DROPS tables', () => {
   it('every table sums to exactly 100', () => {
-    for (const table of [DROPS.tier, DROPS.frame, DROPS.holo]) {
+    for (const table of [DROPS.tier, DROPS.frame, DROPS.holo, DROPS.fullArt]) {
       const sum = table.reduce((s, [, w]) => s + w, 0);
       expect(sum).toBeCloseTo(100, 9);
     }
@@ -68,27 +74,34 @@ describe('DROPS tables', () => {
       expect(rollTier(a)).toBe(rollTier(b));
       expect(rollFrame(a)).toBe(rollFrame(b));
       expect(rollHolo(a)).toBe(rollHolo(b));
+      expect(rollFullArt(a)).toBe(rollFullArt(b));
     }
   });
 });
 
 describe('pull odds', () => {
-  it('formats the UR black void god roll as 1:4.94M', () => {
-    const odds = variantOdds('ur', 'black', 'void');
-    expect(odds).toBeCloseTo(0.01 * 0.0045 * 0.0045, 12);
-    expect(formatOdds(odds)).toBe('1:4.94M');
+  it('formats the standard UR black void god roll as 1:4.95M', () => {
+    const odds = variantOdds('ur', 'black', 'void', false);
+    expect(odds).toBeCloseTo(0.01 * 0.0045 * 0.0045 * 0.9975, 12);
+    expect(formatOdds(odds)).toBe('1:4.95M');
   });
 
   it('formats the common white none pull as 1:6.7', () => {
-    const odds = variantOdds('c', 'white', 'none');
-    expect(odds).toBeCloseTo(0.5 * 0.5 * 0.6, 12);
+    const odds = variantOdds('c', 'white', 'none', false);
+    expect(odds).toBeCloseTo(0.5 * 0.5 * 0.6 * 0.9975, 12);
     expect(formatOdds(odds)).toBe('1:6.7');
   });
 
-  it('derives a mid-table pull from all three independent axes', () => {
-    const odds = variantOdds('r', 'gold', 'pearlescent');
-    expect(odds).toBeCloseTo(0.3 * 0.0355 * 0.08, 12);
-    expect(formatOdds(odds)).toBe('1:1,170');
+  it('derives a mid-table pull from all four independent axes', () => {
+    const odds = variantOdds('r', 'gold', 'pearlescent', false);
+    expect(odds).toBeCloseTo(0.3 * 0.0355 * 0.08 * 0.9975, 12);
+    expect(formatOdds(odds)).toBe('1:1,180');
+  });
+
+  it('derives Full Art odds independently of tier, frame, and holo', () => {
+    const odds = variantOdds('ur', 'white', 'none', true);
+    expect(odds).toBeCloseTo(0.01 * 0.5 * 0.6 * 0.0025, 12);
+    expect(formatOdds(odds)).toBe('1:133,000');
   });
 
   it('rounds and groups format boundaries predictably', () => {
@@ -102,7 +115,10 @@ describe('pull odds', () => {
     const total = DROPS.tier.reduce(
       (sum, [tier]) => sum + DROPS.frame.reduce(
         (frameSum, [frame]) => frameSum + DROPS.holo.reduce(
-          (holoSum, [holo]) => holoSum + variantOdds(tier, frame, holo),
+          (holoSum, [holo]) => holoSum + DROPS.fullArt.reduce(
+            (fullArtSum, [fullArt]) => fullArtSum + variantOdds(tier, frame, holo, fullArt === 'full-art'),
+            0,
+          ),
           0,
         ),
         0,
@@ -114,27 +130,39 @@ describe('pull odds', () => {
 });
 
 describe('seeded drop distribution', () => {
-  it('2000 packs land near the DROPS weights on every axis', () => {
+  it('20000 packs land near every DROPS axis and Full Art stacks independently', () => {
     // One seeded run — deterministic, so these are fixed measurements, not
-    // flaky statistics. n = 2000 × 15 = 30,000 slots. Bands are ±~3–4 sd
-    // around the table weights. Measured 2026-07-04 (seed 12345, %):
-    //   tier  c 49.523 / r 30.017 / sr 14.163 / ssr 5.320 / ur 0.977
-    //   frame white 49.950 / blue 29.847 / red 15.147 / gold 3.497
-    //         / rainbow 1.023 / black 0.537
-    //   holo  none 60.277 / shiny 19.937 / rainbow 10.170 / pearlescent 7.587
-    //         / fractal 1.547 / void 0.483
+    // flaky statistics. n = 20,000 × 9 = 180,000 slots. Bands are generous
+    // seeded-sample guards. Measured 2026-07-17 (seed 12345, %):
+    //   tier  c 49.959 / r 30.047 / sr 13.945 / ssr 5.054 / ur 0.994
+    //   frame white 50.006 / blue 29.909 / red 15.126 / gold 3.535
+    //         / rainbow 0.961 / black 0.463
+    //   holo  none 59.902 / shiny 19.993 / rainbow 10.070 / pearlescent 8.021
+    //         / fractal 1.571 / void 0.443
+    //   full art 482 pulls = 0.2678%; conditional non-white 54.357%,
+    //            holo 38.797%, both 22.407%
     const save = freshSave(0);
     const rng = createRngState(12345);
     const tier: Record<string, number> = {};
     const frame: Record<string, number> = {};
     const holo: Record<string, number> = {};
-    const packs = 2000;
+    let fullArt = 0;
+    let fullArtNonWhite = 0;
+    let fullArtHolo = 0;
+    let fullArtFrameAndHolo = 0;
+    const packs = 20_000;
     for (let i = 0; i < packs; i++) {
       const result = openPack(save, TEST_DB, rng);
       for (const c of result.cards) {
         tier[c.tier] = (tier[c.tier] ?? 0) + 1;
         frame[c.frame] = (frame[c.frame] ?? 0) + 1;
         holo[c.holo] = (holo[c.holo] ?? 0) + 1;
+        if (c.fullArt) {
+          fullArt++;
+          if (c.frame !== 'white') fullArtNonWhite++;
+          if (c.holo !== 'none') fullArtHolo++;
+          if (c.frame !== 'white' && c.holo !== 'none') fullArtFrameAndHolo++;
+        }
       }
     }
     const n = packs * ECONOMY.boosterPackSize;
@@ -174,13 +202,35 @@ describe('seeded drop distribution', () => {
     expectBand(holo, 'fractal', 1.15, 2.0);
     expectBand(holo, 'void', 0.3, 0.62);
 
+    const fullArtPct = (fullArt / n) * 100;
+    expect(fullArtPct).toBeGreaterThanOrEqual(0.2);
+    expect(fullArtPct).toBeLessThanOrEqual(0.3);
+    const conditional = {
+      nonWhite: fullArtNonWhite / fullArt,
+      holo: fullArtHolo / fullArt,
+      both: fullArtFrameAndHolo / fullArt,
+    };
+    expect(conditional.nonWhite).toBeGreaterThanOrEqual(0.4);
+    expect(conditional.nonWhite).toBeLessThanOrEqual(0.6);
+    expect(conditional.holo).toBeGreaterThanOrEqual(0.3);
+    expect(conditional.holo).toBeLessThanOrEqual(0.5);
+    expect(conditional.both).toBeGreaterThanOrEqual(0.12);
+    expect(conditional.both).toBeLessThanOrEqual(0.28);
+
     // Log the measured run so the numbers in reports stay honest.
     console.log(
-      'drop distribution (seed 12345, 2000 packs, % of 30000 slots):',
+      `drop distribution (seed 12345, ${packs} packs, ${n} slots):`,
       JSON.stringify({
         tier: Object.fromEntries(Object.entries(tier).map(([k, v]) => [k, +((v / n) * 100).toFixed(3)])),
         frame: Object.fromEntries(Object.entries(frame).map(([k, v]) => [k, +((v / n) * 100).toFixed(3)])),
         holo: Object.fromEntries(Object.entries(holo).map(([k, v]) => [k, +((v / n) * 100).toFixed(3)])),
+        fullArt: {
+          count: fullArt,
+          pct: +fullArtPct.toFixed(4),
+          conditionalNonWhitePct: +(conditional.nonWhite * 100).toFixed(3),
+          conditionalHoloPct: +(conditional.holo * 100).toFixed(3),
+          conditionalBothPct: +(conditional.both * 100).toFixed(3),
+        },
       }),
     );
   });

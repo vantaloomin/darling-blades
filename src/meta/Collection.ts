@@ -55,19 +55,21 @@ export function bestOwnedVariant(save: SaveData, cardId: string): CardVariant {
 export interface AddResult {
   cardId: string;
   isNew: boolean; // first copy of this card, any variant
-  isNewVariant: boolean; // first copy of this exact (frame, holo) variant
+  isNewVariant: boolean; // first copy of this exact (frame, holo, full-art) variant
   dupeGold: number; // 0 unless this copy melted (plain past the playset)
   tier: Rarity;
   frame: FrameStyle;
   holo: HoloFinish;
+  fullArt: boolean;
 }
 
 /**
  * Add one card in a specific variant. Per-variant playset (4 of each distinct
- * frame|holo): a PLAIN copy past 4 PLAIN copies auto-melts to gold
+ * frame|holo|treatment): a PLAIN copy past 4 PLAIN copies auto-melts to gold
  * (`ECONOMY.dupeGold` by tier) without being recorded — the anti-loop /
  * declutter guard. A SPECIAL variant (any non-plain frame or holo) is ALWAYS
- * recorded, even past 4 — the player sells its beyond-4 excess by hand
+ * recorded, even past 4. Full Art is therefore never auto-melted. The player
+ * sells special beyond-4 excess by hand
  * (`shardExcess`). Decks still cap at `RULES.maxCopies` regardless of how many
  * copies are recorded.
  */
@@ -79,7 +81,7 @@ export function addCard(
 ): AddResult {
   const tier = def(db, cardId).rarity;
   const owned = ownedCount(save, cardId);
-  const base = { cardId, tier, frame: variant.frame, holo: variant.holo };
+  const base = { cardId, tier, frame: variant.frame, holo: variant.holo, fullArt: variant.fullArt };
   const key = variantKey(variant);
   const perCard = (save.collectionVariants[cardId] ??= {});
   const had = perCard[key] ?? 0;
@@ -155,7 +157,7 @@ export function shardGold(save: SaveData, db: CardDb, cardId: string): number {
 
 /**
  * Sell every copy of `cardId` past the per-variant playset (4 of each
- * frame|holo) for gold (`shardValue` per copy, specials worth more). Reduces
+ * frame|holo|treatment) for gold (`shardValue` per copy, specials worth more). Reduces
  * each over-cap variant to 4, pays gold, and preserves the aggregate =
  * sum-of-variants invariant. A no-op ({0,0}) when nothing is over the cap;
  * legacy plain-only aggregates (no variant record) materialize as PLAIN first.

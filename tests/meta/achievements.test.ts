@@ -156,8 +156,8 @@ describe('achievements', () => {
     const save = freshSave(0);
     save.collection = { green_a: 1, green_b: 1, black_a: 2 };
     save.collectionVariants.black_a = {
-      [variantKey({ frame: 'black', holo: 'none' })]: 1,
-      [variantKey({ frame: 'white', holo: 'void' })]: 1,
+      [variantKey({ frame: 'black', holo: 'none', fullArt: false })]: 1,
+      [variantKey({ frame: 'white', holo: 'void', fullArt: false })]: 1,
     };
 
     const newly = syncAchievements(save, DB);
@@ -175,9 +175,9 @@ describe('achievements', () => {
       'tk-wu-sunquan': 1,
     };
     save.collectionVariants = {
-      'tk-wei-caocao': { [variantKey({ frame: 'white', holo: 'none' })]: 1 },
-      'tk-shu-liubei': { [variantKey({ frame: 'white', holo: 'none' })]: 1 },
-      'tk-wu-sunquan': { [variantKey({ frame: 'white', holo: 'none' })]: 1 },
+      'tk-wei-caocao': { [variantKey({ frame: 'white', holo: 'none', fullArt: false })]: 1 },
+      'tk-shu-liubei': { [variantKey({ frame: 'white', holo: 'none', fullArt: false })]: 1 },
+      'tk-wu-sunquan': { [variantKey({ frame: 'white', holo: 'none', fullArt: false })]: 1 },
     };
 
     expect(evaluateAchievements(save, LEADER_DB).find((entry) => entry.def.id === 'theme-rotk-three-lords')).toMatchObject({
@@ -192,9 +192,9 @@ describe('achievements', () => {
     });
 
     save.collectionVariants = {
-      'tk-wei-caocao': { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 },
-      'tk-shu-liubei': { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 },
-      'tk-wu-sunquan': { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 },
+      'tk-wei-caocao': { [variantKey({ frame: 'rainbow', holo: 'none', fullArt: false })]: 1 },
+      'tk-shu-liubei': { [variantKey({ frame: 'rainbow', holo: 'none', fullArt: false })]: 1 },
+      'tk-wu-sunquan': { [variantKey({ frame: 'rainbow', holo: 'none', fullArt: false })]: 1 },
     };
 
     const newly = syncAchievements(save, LEADER_DB);
@@ -211,7 +211,7 @@ describe('achievements', () => {
     const save = freshSave(0);
     save.collection = Object.fromEntries([...GREEK_COURT, ...BEAST_COUNCIL].map((id) => [id, 1]));
     save.collectionVariants = Object.fromEntries(
-      [...GREEK_COURT, ...BEAST_COUNCIL].map((id) => [id, { [variantKey({ frame: 'white', holo: 'none' })]: 1 }]),
+      [...GREEK_COURT, ...BEAST_COUNCIL].map((id) => [id, { [variantKey({ frame: 'white', holo: 'none', fullArt: false })]: 1 }]),
     );
 
     expect(status('theme-greek-olympian-court', save, THEME_DB)).toMatchObject({
@@ -231,7 +231,7 @@ describe('achievements', () => {
     });
 
     save.collectionVariants = Object.fromEntries(
-      [...GREEK_COURT, ...BEAST_COUNCIL].map((id) => [id, { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 }]),
+      [...GREEK_COURT, ...BEAST_COUNCIL].map((id) => [id, { [variantKey({ frame: 'rainbow', holo: 'none', fullArt: false })]: 1 }]),
     );
 
     const newly = syncAchievements(save, THEME_DB);
@@ -275,7 +275,7 @@ describe('achievements', () => {
     const save = freshSave(0);
     save.collection = Object.fromEntries(RAGNAROK_COURT.map((id) => [id, 1]));
     save.collectionVariants = Object.fromEntries(
-      RAGNAROK_COURT.map((id) => [id, { [variantKey({ frame: 'gold', holo: 'none' })]: 1 }]),
+      RAGNAROK_COURT.map((id) => [id, { [variantKey({ frame: 'gold', holo: 'none', fullArt: false })]: 1 }]),
     );
 
     expect(status('theme-ragnarok-twilight-court-special', save, THEME_DB)).toMatchObject({
@@ -290,7 +290,7 @@ describe('achievements', () => {
     });
 
     save.collectionVariants = Object.fromEntries(
-      RAGNAROK_COURT.map((id) => [id, { [variantKey({ frame: 'rainbow', holo: 'none' })]: 1 }]),
+      RAGNAROK_COURT.map((id) => [id, { [variantKey({ frame: 'rainbow', holo: 'none', fullArt: false })]: 1 }]),
     );
 
     expect(syncAchievements(save, THEME_DB)).toContain('theme-ragnarok-twilight-court-rainbow');

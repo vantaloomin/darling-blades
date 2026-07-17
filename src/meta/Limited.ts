@@ -438,7 +438,10 @@ function rollPremiumLimitedPackWithRng(
       pool = packPool(db, tier, set);
     }
     const cardId = pool[rngInt(rng, pool.length)];
-    slots.push({ cardId, variant: { frame: rollFrame(rng), holo: rollHolo(rng) } });
+    slots.push({
+      cardId,
+      variant: { frame: rollFrame(rng), holo: rollHolo(rng), fullArt: false },
+    });
   }
   slots.sort(
     (a, b) =>
@@ -484,7 +487,7 @@ function removeDraftSlot(
 }
 
 function copyVariant(variant: CardVariant): CardVariant {
-  return { frame: variant.frame, holo: variant.holo };
+  return { frame: variant.frame, holo: variant.holo, fullArt: variant.fullArt };
 }
 
 function scoreDeckCard(db: CardDb, id: string, colors: readonly Color[]): number {

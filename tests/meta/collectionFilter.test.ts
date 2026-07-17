@@ -271,8 +271,8 @@ describe('variant summaries', () => {
 
     save.collectionVariants.a = {
       [variantKey(PLAIN_VARIANT)]: 2,
-      [variantKey({ frame: 'gold', holo: 'none' })]: 1,
-      [variantKey({ frame: 'white', holo: 'shiny' })]: 2,
+      [variantKey({ frame: 'gold', holo: 'none', fullArt: false })]: 1,
+      [variantKey({ frame: 'white', holo: 'shiny', fullArt: false })]: 2,
     };
     expect(specialVariantCount(save, 'a')).toBe(3);
     expect(specialVariantCount(save, 'missing')).toBe(0);
@@ -282,14 +282,14 @@ describe('variant summaries', () => {
     const save = saveWith({ a: 4, b: 2 });
     save.collectionVariants.a = {
       [variantKey(PLAIN_VARIANT)]: 2,
-      [variantKey({ frame: 'black', holo: 'void' })]: 1,
-      [variantKey({ frame: 'white', holo: 'shiny' })]: 1,
+      [variantKey({ frame: 'black', holo: 'void', fullArt: false })]: 1,
+      [variantKey({ frame: 'white', holo: 'shiny', fullArt: false })]: 1,
     };
     const entries = ownedVariantEntries(save, 'a');
     expect(entries.map((e) => variantKey(e.variant))).toEqual([
-      'black|void',
-      'white|shiny',
-      'white|none',
+      'black|void|standard',
+      'white|shiny|standard',
+      'white|none|standard',
     ]);
     expect(entries.map((e) => e.count)).toEqual([1, 1, 2]);
 
@@ -301,9 +301,10 @@ describe('variant summaries', () => {
 
   it('variantLabel names both axes, either alone, and plain as Standard', () => {
     expect(variantLabel(PLAIN_VARIANT)).toBe('Standard');
-    expect(variantLabel({ frame: 'gold', holo: 'void' })).toBe('Gold Frame · Void');
-    expect(variantLabel({ frame: 'black', holo: 'none' })).toBe('Black Frame');
-    expect(variantLabel({ frame: 'white', holo: 'pearlescent' })).toBe('Pearlescent');
+    expect(variantLabel({ frame: 'gold', holo: 'void', fullArt: false })).toBe('Gold Frame · Void');
+    expect(variantLabel({ frame: 'black', holo: 'none', fullArt: false })).toBe('Black Frame');
+    expect(variantLabel({ frame: 'white', holo: 'pearlescent', fullArt: false })).toBe('Pearlescent');
+    expect(variantLabel({ frame: 'white', holo: 'none', fullArt: true })).toBe('Full Art');
   });
 });
 
@@ -312,10 +313,10 @@ describe('collectionCompletion', () => {
     const save = saveWith({ g_bear: 1, w_knight: 1, gw_aura: 2, dual_land: 1 });
     save.collectionVariants.g_bear = {
       [variantKey(PLAIN_VARIANT)]: 1,
-      [variantKey({ frame: 'black', holo: 'none' })]: 1,
+      [variantKey({ frame: 'black', holo: 'none', fullArt: false })]: 1,
     };
     save.collectionVariants.gw_aura = {
-      [variantKey({ frame: 'gold', holo: 'void' })]: 2,
+      [variantKey({ frame: 'gold', holo: 'void', fullArt: false })]: 2,
     };
 
     const summary = collectionCompletion(POOL, save);

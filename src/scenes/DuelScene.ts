@@ -19,6 +19,7 @@ import {
   type Difficulty,
 } from '../meta/Economy';
 import { ownedVariantEntries } from '../meta/collectionFilter';
+import type { CardVariant } from '../meta/variants';
 import { rungSeed } from '../meta/gauntletSeed';
 import { LIMITED_MATCHES, limitedDuelData, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
 import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
@@ -497,9 +498,9 @@ export class DuelScene extends Phaser.Scene {
     // touch equivalent of right-click inspect (mobile-lan-plan §1.3). During
     // targeting inspect stays blocked (right-click cancels there on desktop).
     this.zoom = new CardZoomPreview(this, {
-      onStickyTap: (card) => {
+      onStickyTap: (card, variant) => {
         if (this.pendingCasts) this.zoom.dismissSticky();
-        else this.showInspect(card);
+        else this.showInspect(card, variant);
       },
     });
     setStickyHost(this, this.zoom);
@@ -2596,10 +2597,11 @@ export class DuelScene extends Phaser.Scene {
         // (the board doesn't track per-copy cosmetics, so use your best owned
         // variant of the card; opponents stay plain). Applied once at create;
         // a no-op for plain finishes, fxPolicy-gated inside setVariant.
-        if (perm.controller === HUMAN) {
-          const best = ownedVariantEntries(Services.save.data, perm.cardId)[0];
-          view.setVariant(best ? best.variant : null);
-        }
+        const best = perm.controller === HUMAN
+          ? ownedVariantEntries(Services.save.data, perm.cardId)[0]
+          : undefined;
+        const ownedVariant = best?.variant;
+        if (perm.controller === HUMAN) view.setVariant(ownedVariant ?? null);
         view.enableInput();
         const iid = perm.iid;
         view.on('pointerup', (p: Phaser.Input.Pointer) => {
@@ -2610,13 +2612,14 @@ export class DuelScene extends Phaser.Scene {
           // p.button (initiating button of THIS press), not the live
           // rightButtonDown() bitmask -- a chorded left press while the right
           // button is held must act as a left click, not open inspect.
-          if (p.button === 2 && !this.pendingCasts) this.showInspect(d);
+          if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant);
         });
         attachTouchGestures(this, view, {
           card: d, // long-press: sticky zoom preview
+          variant: ownedVariant,
           onTap: () => this.onBattlefieldTap(iid, d),
         });
-        this.zoom.attach(view, d);
+        this.zoom.attach(view, d, ownedVariant);
         this.views.set(perm.iid, view);
         view.setAlpha(0);
         this.tweens.add({ targets: view, alpha: 1, duration: 200 });
@@ -2950,10 +2953,15 @@ export class DuelScene extends Phaser.Scene {
       const x = BOARD_CENTER_X + slot.dx;
       const y = restY + slot.dy;
       const d = def(CARD_DB, cardId);
+      const ownedVariant = ownedVariantEntries(Services.save.data, cardId)[0]?.variant;
       const view = new CardView(this, x, y);
       view.setScale(scale);
       view.setAngle(slot.angleDeg);
-      view.setCard(d, { fx: 'none' });
+      view.setCard(d, {
+        fx: 'none',
+        variant: ownedVariant,
+        fullArt: ownedVariant?.fullArt === true,
+      });
       view.setDepth(theme.depth.hand + pos);
       const playable = playableIdx.has(handIdx);
       const priorCount = previousRemaining.get(cardId) ?? 0;
@@ -3022,16 +3030,17 @@ export class DuelScene extends Phaser.Scene {
         // p.button (initiating button of THIS press), not the live
         // rightButtonDown() bitmask — a chorded left press while the right
         // button is held must act as a left click, not open inspect.
-        if (p.button === 2 && !this.pendingCasts) this.showInspect(d);
+        if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant);
       });
       // Touch: tap = exactly onHandClick; long-press = sticky preview whose
       // release never casts; drags across the fan die in the classifier.
       attachTouchGestures(this, view, {
         card: d,
+        variant: ownedVariant,
         pressLift: 12,
         onTap: () => this.onHandClick(handIdx),
       });
-      this.zoom.attach(view, d);
+      this.zoom.attach(view, d, ownedVariant);
       this.handViews.push(view);
       this.renderedHand.push({ cardId, view });
       this.handPoses.set(handIdx, { x, y, scale, angle: slot.angleDeg });
@@ -3586,7 +3595,7 @@ export class DuelScene extends Phaser.Scene {
   // Inspect overlay: right-click any card for the full CardView
   // ---------------------------------------------------------------------
 
-  private showInspect(card: CardDef): void {
+  private showInspect(card: CardDef, variant?: CardVariant): void {
     if (this.ended) return;
     this.closeInspect();
     this.zoom.setSuppressed(true);
@@ -3607,7 +3616,11 @@ export class DuelScene extends Phaser.Scene {
       .setInteractive();
     c.add(dim);
     const view = new CardView(this, width / 2, height / 2);
-    view.setScale(1.35).setCard(card, { fx: 'full' });
+    view.setScale(1.35).setCard(card, {
+      fx: 'full',
+      variant,
+      fullArt: variant?.fullArt === true,
+    });
     c.add(view);
     addKeywordGlossaryPanel(this, c, card, { x: 875, y: 150, width: 300 });
     c.add(

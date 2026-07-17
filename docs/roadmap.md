@@ -52,13 +52,14 @@ _Dated 2026-07-04. Review monthly._
   (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v20** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v21** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
   familiarity, v17→v18 Premium Draft, v18→v19 premium weekly allowance,
-  v19→v20 deterministic replays — see Recently shipped). By-ear tuning remains
-  open (see Planned).
+  v19→v20 deterministic replays, v20→v21 Full Art three-segment variant
+  keys — see Recently shipped and the Full Art entry under Planned). By-ear
+  tuning remains open (see Planned).
 
 ## Recently shipped (2026-07-16 · the 1.2 build)
 
@@ -1105,7 +1106,19 @@ _Dated 2026-07-04. Review monthly._
   art; preview via the Card Showcase FULL ART toggle. Remaining work is
   the axis wiring above (variants/DROPS/save/economy) plus routing
   `variant.fullArt` into the shipped render flag, and a Full Art toggle
-  on the card proof sheet for catalog-wide QA.
+  on the card proof sheet for catalog-wide QA. **Stage 2 (the axis)
+  SHIPPED 2026-07-17 on the PR #85 branch**: `CardVariant.fullArt` with
+  the three-segment variant key (SaveData v20 → v21, real migrate() +
+  tests; old two-segment keys parse as non-full-art), the 0.25% DROPS
+  table + Monte-Carlo verification, ×25 shard multiplier, rank above
+  black frame, never-auto-melt, the flag routed through collection /
+  pack reveal / duel previews / showcase / draft inspection, the odds
+  modal's FULL ART section, and the cardproof toggle. **Premium Draft
+  packs exclude the axis permanently** (pinned by test): including it
+  measured the premium shard-farm EV at 1,096.5g per 1,000g entry
+  across the 10 fixed gate seeds, re-opening the exploit the 1.1
+  economy pass closed; with the exclusion the gate passes at 966.5g
+  mean. Full Art is a booster-only pull.
 - **"Mark" counter retheme (decided 2026-07-13).** Player-facing copy
   only, same treatment as the Sever/Foresee retheme: "+1/+1 counter"
   becomes "+1/+1 mark" in generated rules text, glossary, rules.md, and

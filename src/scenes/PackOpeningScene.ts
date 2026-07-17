@@ -209,7 +209,12 @@ export class PackOpeningScene extends Phaser.Scene {
         const rowLen = Math.min(cols, notable.length - row * cols);
         const x = width / 2 - ((rowLen - 1) * dx) / 2 + col * dx;
         const y = 300 + row * 210;
-        const view = new CardView(this, x, y).setScale(0.42).setCard(def(CARD_DB, c.cardId), { fx: 'none' });
+        const variant: CardVariant = { frame: c.frame, holo: c.holo, fullArt: c.fullArt };
+        const view = new CardView(this, x, y).setScale(0.42).setCard(def(CARD_DB, c.cardId), {
+          fx: 'none',
+          variant: isPlainVariant(variant) ? undefined : variant,
+          fullArt: variant.fullArt,
+        });
         this.enablePackInspect(view, c);
       });
     }
@@ -373,7 +378,7 @@ export class PackOpeningScene extends Phaser.Scene {
   private flip(view: CardView, card: AddResult, minFx: 'none' | 'static', fast = false): void {
     if (!view.active) return; // a re-render/restart may have destroyed it
     const d = def(CARD_DB, card.cardId);
-    const variant = { frame: card.frame, holo: card.holo };
+    const variant: CardVariant = { frame: card.frame, holo: card.holo, fullArt: card.fullArt };
     const plain = isPlainVariant(variant);
     const fx: CardFxLevel = card.holo !== 'none' ? 'full' : plain ? minFx : 'static';
     this.tweens.add({
@@ -384,7 +389,7 @@ export class PackOpeningScene extends Phaser.Scene {
       onComplete: () => {
         if (!view.active) return;
         Sfx.play('flip');
-        view.setCard(d, { fx, variant: plain ? undefined : variant });
+        view.setCard(d, { fx, variant: plain ? undefined : variant, fullArt: variant.fullArt });
         // Auto-sold plain duplicate (dupeGold > 0 ⇒ over-playset, melted for gold,
         // never recorded): ghost it so it reads "sold, not added" — the gold chip
         // in the inspect modal shows the payout.
@@ -438,7 +443,7 @@ export class PackOpeningScene extends Phaser.Scene {
 
   private showPackInspect(card: AddResult): void {
     const width = 1280;
-    const variant = { frame: card.frame, holo: card.holo };
+    const variant: CardVariant = { frame: card.frame, holo: card.holo, fullArt: card.fullArt };
     const shell = modalShell(this, {
       width: 600,
       height: 680,
@@ -454,6 +459,7 @@ export class PackOpeningScene extends Phaser.Scene {
     view.setCard(def(CARD_DB, card.cardId), {
       fx: card.holo !== 'none' ? 'full' : 'static',
       variant: isPlainVariant(variant) ? undefined : variant,
+      fullArt: variant.fullArt,
     });
     c.add(view);
 
@@ -482,13 +488,14 @@ export class PackOpeningScene extends Phaser.Scene {
     // Pull odds lead so the marquee stat never clips when all lines are
     // present (user-directed 2026-07-11).
     const lines: string[] = [
-      `Pull odds ${formatOdds(variantOdds(card.tier, variant.frame, variant.holo))}`,
+      `Pull odds ${formatOdds(variantOdds(card.tier, variant.frame, variant.holo, variant.fullArt))}`,
     ];
     if (card.isNew) lines.push('★ New Card');
     else if (card.isNewVariant) lines.push('★ New Variant');
     lines.push(`Rarity: ${this.rarityLabel(card.tier)}`);
     if (variant.frame !== 'white') lines.push(`Frame: ${this.titleCase(variant.frame)}`);
     if (variant.holo !== 'none') lines.push(`Shiny: ${this.titleCase(variant.holo)}`);
+    if (variant.fullArt) lines.push('Treatment: Full Art');
     return lines;
   }
 
@@ -516,6 +523,7 @@ export class PackOpeningScene extends Phaser.Scene {
 
   private variantLabel(variant: CardVariant): string {
     const parts: string[] = [];
+    if (variant.fullArt) parts.push('Full Art');
     if (variant.frame !== 'white') parts.push(`${this.titleCase(variant.frame)} Frame`);
     if (variant.holo !== 'none') parts.push(this.titleCase(variant.holo));
     return parts.length > 0 ? parts.join(' · ') : 'Plain';
@@ -531,7 +539,7 @@ export class PackOpeningScene extends Phaser.Scene {
    * tag on any special variant).
    */
   private badge(view: CardView, card: AddResult): void {
-    const special = !isPlainVariant({ frame: card.frame, holo: card.holo });
+    const special = !isPlainVariant({ frame: card.frame, holo: card.holo, fullArt: card.fullArt });
     const topY = view.y - 220 * view.scaleY;
     if (TIER_RANK[card.tier] >= TIER_RANK.sr) {
       const tag = this.add

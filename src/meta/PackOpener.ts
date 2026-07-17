@@ -4,7 +4,7 @@ import type { CardDb, CardDef, Rarity } from '../engine/types';
 import { isType } from '../engine/types';
 import { addCard, ownedCount, PLAYSET, type AddResult } from './Collection';
 import type { SaveData } from './SaveManager';
-import { rollFrame, rollHolo, rollTier, TIER_RANK, variantRank } from './variants';
+import { rollFrame, rollFullArt, rollHolo, rollTier, TIER_RANK, variantRank } from './variants';
 
 /** Cards that can appear in boosters: no basics, no tokens. */
 export function packPool(db: CardDb, tier: Rarity, set?: CardDef['set']): string[] {
@@ -62,7 +62,8 @@ export function openPack(save: SaveData, db: CardDb, rng: RngState, set?: CardDe
     const cardId = pool[rngInt(rng, pool.length)];
     const frame = rollFrame(rng);
     const holo = rollHolo(rng);
-    cards.push(addCard(save, db, cardId, { frame, holo }));
+    const fullArt = rollFullArt(rng);
+    cards.push(addCard(save, db, cardId, { frame, holo, fullArt }));
   }
   save.stats.packsOpened++;
   // Reveal order: tier ascending (c first, ur last), plainer variants before
@@ -70,7 +71,8 @@ export function openPack(save: SaveData, db: CardDb, rng: RngState, set?: CardDe
   cards.sort(
     (a, b) =>
       TIER_RANK[a.tier] - TIER_RANK[b.tier] ||
-      variantRank({ frame: a.frame, holo: a.holo }) - variantRank({ frame: b.frame, holo: b.holo }),
+      variantRank({ frame: a.frame, holo: a.holo, fullArt: a.fullArt }) -
+        variantRank({ frame: b.frame, holo: b.holo, fullArt: b.fullArt }),
   );
   return { cards };
 }

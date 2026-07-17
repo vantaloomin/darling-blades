@@ -29,6 +29,7 @@ const searchFilter = byId<HTMLInputElement>('filter-search');
 const sortFilter = byId<HTMLSelectElement>('filter-sort');
 const frameSelect = byId<HTMLSelectElement>('frame-select');
 const holoSelect = byId<HTMLSelectElement>('holo-select');
+const fullArtToggle = byId<HTMLInputElement>('full-art');
 const scaleSelect = byId<HTMLSelectElement>('scale-select');
 const includeTokens = byId<HTMLInputElement>('include-tokens');
 const matchCount = byId<HTMLParagraphElement>('match-count');
@@ -61,6 +62,9 @@ frameSelect.addEventListener('change', () => {
 });
 holoSelect.addEventListener('change', () => {
   store.update((state) => ({ ...state, holo: holoSelect.value as HoloChoice }));
+});
+fullArtToggle.addEventListener('change', () => {
+  store.update((state) => ({ ...state, fullArt: fullArtToggle.checked }));
 });
 scaleSelect.addEventListener('change', () => {
   const scale = Number(scaleSelect.value);

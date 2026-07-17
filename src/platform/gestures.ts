@@ -26,6 +26,7 @@
 
 import type Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
+import type { CardVariant } from '../meta/variants';
 import { GestureRecognizer, LONGPRESS_MS } from './gestureCore';
 
 // ---------------------------------------------------------------------------
@@ -160,7 +161,7 @@ export function inflateHitArea(
  * preview; structural so platform never imports src/ui.
  */
 export interface StickyPreviewHost {
-  showSticky(card: CardDef, worldX: number): void;
+  showSticky(card: CardDef, worldX: number, variant?: CardVariant): void;
   dismissSticky(): void;
   isSticky(): boolean;
 }
@@ -173,6 +174,8 @@ export interface GestureOptions {
    * setStickyHost). Ignored if `onLongPress` is provided.
    */
   card?: CardDef;
+  /** Optional owned treatment rendered by the sticky CardView preview. */
+  variant?: CardVariant;
   /** Custom long-press behavior (overrides the sticky-preview default). */
   onLongPress?: () => void;
   /** Pressed-state lift in px (hand cards), applied on top of the dim. */
@@ -321,7 +324,7 @@ class SceneGestureLayer {
     }
     if (a.opts.card && this.stickyHost && a.obj.active) {
       const wx = a.obj.getWorldTransformMatrix?.().tx ?? (a.obj.x as number) ?? 0;
-      this.stickyHost.showSticky(a.opts.card, wx);
+      this.stickyHost.showSticky(a.opts.card, wx, a.opts.variant);
     }
   }
 

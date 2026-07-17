@@ -29,7 +29,7 @@ import {
 } from '../src/meta/Limited';
 import { packPool } from '../src/meta/PackOpener';
 import { freshSave } from '../src/meta/SaveManager';
-import { PLAIN_VARIANT } from '../src/meta/variants';
+import { isPlainVariant, PLAIN_VARIANT } from '../src/meta/variants';
 import type {
   ProgressAggregate,
   ProgressionReport,
@@ -298,7 +298,7 @@ function shardFarmMetrics(candidate: Candidate): FarmMetrics {
       let bestValue = -Infinity;
       for (let index = 0; index < cards.length; index++) {
         const variant = variants[index] ?? PLAIN_VARIANT;
-        const isPlain = variant.frame === PLAIN_VARIANT.frame && variant.holo === PLAIN_VARIANT.holo;
+        const isPlain = isPlainVariant(variant);
         const value = isPlain ? ECONOMY.dupeGold[CARD_DB[cards[index]].rarity] : 0;
         if (value > bestValue) {
           bestValue = value;

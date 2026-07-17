@@ -61,8 +61,6 @@ Version 1.2 adds a third expansion with two new mechanics, makes every duel rewa
 
 **Shop rework.** The shop is now the menu's **Shop** (formerly Open Packs) and opens on whichever tab you need: the precon decks while your free starter claim is unspent, boosters after. The Decks tab fits the full precon roster in a two-column grid with mana-pip color identities, and every booster carries an info glyph that opens that set's drop-rates table, with rarity, frame, and holo odds as aligned rows.
 
-**Full Art cards.** A fourth booster axis: every slot has a 0.25% chance (independent of frame and holo, roughly one pull in 45 packs) of rolling a **Full Art** print, where the illustration covers the entire card face and the text sits on translucent plates. Full Art prints rank above black frame in your binder, never auto-melt, and shard at 25 times base value.
-
 **Quality of life from playtesting.** The match history now reports what Foresee and Sever actually did (your own foresees name the cards; your opponent's show only counts), and every card name in the history is [bracketed] and tappable. Esc opens the in-game menu. The gauntlet failure screen fits all 14 rungs cleanly, names opponents briefly, and says what actually ended the run in plain language.
 
 **Balance and fixes.**

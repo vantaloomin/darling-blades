@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
+import type { CardVariant } from '../meta/variants';
 import { attachTouchGestures } from '../platform/gestures';
 import { CardView } from './CardView';
 
@@ -54,7 +55,7 @@ export interface CardZoomOptions {
   leftX?: number;
   rightX?: number;
   /** Touch: tap on the STICKY preview (host opens its full inspect). */
-  onStickyTap?: (card: CardDef) => void;
+  onStickyTap?: (card: CardDef, variant?: CardVariant) => void;
 }
 
 export class CardZoomPreview {
@@ -63,12 +64,12 @@ export class CardZoomPreview {
   /** The object whose hover produced the currently VISIBLE preview. */
   private sourceObj: Phaser.GameObjects.GameObject | null = null;
   private timer: Phaser.Time.TimerEvent | null = null;
-  private pending: { card: CardDef; worldX: number; obj: Phaser.GameObjects.GameObject } | null =
+  private pending: { card: CardDef; variant?: CardVariant; worldX: number; obj: Phaser.GameObjects.GameObject } | null =
     null;
   private suppressed = false;
   private zHeld = false;
   private sticky = false;
-  private readonly onStickyTap: ((card: CardDef) => void) | null;
+  private readonly onStickyTap: ((card: CardDef, variant?: CardVariant) => void) | null;
   private readonly scale: number;
   private readonly depth: number;
   private readonly delayMs: number;
@@ -95,12 +96,12 @@ export class CardZoomPreview {
    * Wire hover preview onto an interactive object (or a CardView/container
    * that re-emits pointer events with the Pointer threaded through).
    */
-  attach(obj: Phaser.GameObjects.GameObject, card: CardDef): void {
+  attach(obj: Phaser.GameObjects.GameObject, card: CardDef, variant?: CardVariant): void {
     obj.on('pointerover', (p: Phaser.Input.Pointer) => {
       // Touch fires pointerover on finger-down; the long-press gesture owns
       // previews there — never schedule a hover dwell for a touch pointer.
       if (p.wasTouch) return;
-      this.schedule(card, p.worldX, obj);
+      this.schedule(card, variant, p.worldX, obj);
     });
     obj.on('pointerout', () => this.cancelFor(obj));
     obj.once(Phaser.GameObjects.Events.DESTROY, () => this.cancelFor(obj));
@@ -110,10 +111,10 @@ export class CardZoomPreview {
    * Touch long-press: show the preview STICKY — no hover source, so
    * re-renders and pointerout can't dismiss it. No-op while suppressed.
    */
-  showSticky(card: CardDef, worldX: number): void {
+  showSticky(card: CardDef, worldX: number, variant?: CardVariant): void {
     if (this.suppressed) return;
     this.cancel();
-    this.show(card, worldX, null);
+    this.show(card, variant, worldX, null);
     this.sticky = true;
     if (this.view && this.onStickyTap) {
       // The sticky preview is a huge tap target: tap = full inspect. Uses the
@@ -122,7 +123,7 @@ export class CardZoomPreview {
       this.view.enableInput();
       attachTouchGestures(this.scene, this.view, {
         onTap: () => {
-          if (this.sticky) this.onStickyTap!(card);
+          if (this.sticky) this.onStickyTap!(card, variant);
         },
       });
     }
@@ -166,12 +167,12 @@ export class CardZoomPreview {
     this.scene.input.keyboard?.off('keyup-Z', this.onZUp, this);
   }
 
-  private schedule(card: CardDef, worldX: number, obj: Phaser.GameObjects.GameObject): void {
+  private schedule(card: CardDef, variant: CardVariant | undefined, worldX: number, obj: Phaser.GameObjects.GameObject): void {
     this.cancel();
     if (this.suppressed) return;
-    this.pending = { card, worldX, obj };
+    this.pending = { card, variant, worldX, obj };
     if (this.zHeld) {
-      this.show(card, worldX, obj);
+      this.show(card, variant, worldX, obj);
       return;
     }
     this.timer = this.scene.time.delayedCall(this.delayMs, () => {
@@ -179,12 +180,13 @@ export class CardZoomPreview {
       const p = this.pending;
       // The hovered object may have been destroyed by a re-render mid-dwell.
       if (!p || p.card !== card || !p.obj.active || this.suppressed) return;
-      this.show(card, worldX, p.obj);
+      this.show(card, variant, worldX, p.obj);
     });
   }
 
   private show(
     card: CardDef,
+    variant: CardVariant | undefined,
     hoveredWorldX: number,
     obj: Phaser.GameObjects.GameObject | null,
   ): void {
@@ -196,7 +198,7 @@ export class CardZoomPreview {
     const x = hoveredWorldX >= DESIGN_W / 2 ? this.leftX : this.rightX;
     this.view = new CardView(this.scene, x, this.dockY);
     this.view.setScale(this.scale);
-    this.view.setCard(card, { fx: 'none' });
+    this.view.setCard(card, { fx: 'none', variant, fullArt: variant?.fullArt === true });
     this.view.setDepth(this.depth);
     // Hover mode never enableInput(): the preview must not intercept or
     // misroute mouse input. (showSticky opts in for the touch tap target.)
@@ -209,7 +211,9 @@ export class CardZoomPreview {
     if (this.pending && this.timer) {
       this.timer.remove(false);
       this.timer = null;
-      if (this.pending.obj.active) this.show(this.pending.card, this.pending.worldX, this.pending.obj);
+      if (this.pending.obj.active) {
+        this.show(this.pending.card, this.pending.variant, this.pending.worldX, this.pending.obj);
+      }
     }
   }
 

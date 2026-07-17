@@ -22,6 +22,7 @@ export interface CardProofState {
   includeTokens: boolean;
   frame: FrameChoice;
   holo: HoloChoice;
+  fullArt: boolean;
   scale: number;
   page: number;
 }
@@ -35,6 +36,7 @@ export function createInitialState(): CardProofState {
     includeTokens: false,
     frame: 'default',
     holo: 'default',
+    fullArt: false,
     scale: 0.56,
     page: 0,
   };
@@ -81,10 +83,11 @@ export function withPage(state: CardProofState, page: number): CardProofState {
 }
 
 export function variantForChoices(state: CardProofState): CardVariant | undefined {
-  if (state.frame === 'default' && state.holo === 'default') return undefined;
+  if (state.frame === 'default' && state.holo === 'default' && !state.fullArt) return undefined;
   return {
     frame: state.frame === 'default' ? 'white' : state.frame,
     holo: state.holo === 'default' ? 'none' : state.holo,
+    fullArt: state.fullArt,
   };
 }
 

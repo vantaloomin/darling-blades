@@ -8,7 +8,7 @@ import { DROPS } from '../../src/config/rules';
  * 100 — so this guards the displayed odds AND the roll against silent drift.
  */
 describe('DROPS drop tables', () => {
-  for (const axis of ['tier', 'frame', 'holo'] as const) {
+  for (const axis of ['tier', 'frame', 'holo', 'fullArt'] as const) {
     it(`${axis} weights sum to 100`, () => {
       const sum = DROPS[axis].reduce((total, [, weight]) => total + weight, 0);
       expect(sum).toBeCloseTo(100, 6);
