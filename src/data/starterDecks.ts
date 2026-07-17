@@ -138,6 +138,8 @@ export const STARTER_DECKS: DeckList[] = [
  * yard, then return the fattest Jotun with Call the Einherjar / Barrow-Jarl.
  * Glimmer Bargain — U/B/G Celtic Fae tempo-control: evasive fae pressure while
  * foresee and recall effects keep the next draw and opposing board constrained.
+ * Questing Table — W/U/R Arthurian heroic midrange: build a knight court,
+ * advance Quests, then turn awakened champions into the closing pressure.
  */
 export const THEME_DECKS: DeckList[] = [
   {
@@ -183,6 +185,35 @@ export const THEME_DECKS: DeckList[] = [
       ['cf-raven-torc-envoy', 2],
       ['cf-glimmerdust-trick', 3],
       ['cf-bargain-for-time', 3],
+    ]),
+  },
+  {
+    id: 'theme-arthurian-court',
+    name: 'Questing Table',
+    cards: expand([
+      ['land-plains', 9],
+      ['land-island', 6],
+      ['land-mountain', 3],
+      ['ac-holy-well', 2],
+      ['ac-avalon-shore', 2],
+      ['ac-lowland-fort', 1],
+      ['ac-red-tournament-ground', 1],
+      ['ac-artoria-once-future', 2],
+      ['ac-lancelot-moonlit-shame', 2],
+      ['ac-guinevere-court-sun', 2],
+      ['ac-gawain-noonblade', 2],
+      ['ac-camelot-banneret', 3],
+      ['ac-lakeblade-initiate', 3],
+      ['ac-tournament-favorite', 3],
+      ['ac-torchbearer-knight', 3],
+      ['ac-novice-squire', 3],
+      ['ac-quest-for-the-grail', 2],
+      ['ac-round-table-vow', 2],
+      ['ac-squire-to-champion', 2],
+      ['ac-steel-prayer', 2],
+      ['ac-moonlit-joust', 2],
+      ['ac-shieldwall-call', 2],
+      ['ac-grail-procession', 1],
     ]),
   },
 ];

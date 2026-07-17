@@ -226,3 +226,17 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Holo interaction:** none — common token.
 - **Rarity ambition:** Common token — one clear dire-wolf, one idea (the lunge).
 - **Prompt:** A great dire-wolf of Fenrir's brood with thick hackled winter fur, mid-lunge low and fast with breath steaming, in a moonlit frost-forest with snow churned by the pack, feral and fixed on the kill, cold moonlight with blue snow-bounce — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+### Squire — `tok-squire`
+- **Card facts:** {0} · W · 1/1 · c · holo: none
+- **Character & source:** W creature token (Squire) created by Arthurian Court Quests and court creatures — an adult retainer woman carrying the training bundle before she earns a champion's blade. A 1/1 support body.
+- **Personality / mood:** "She carries the shield until the shield is ready for her." Earnest, patient, and quietly determined to be ready when called.
+- **Pose & composition:** Full-body or three-quarter dawn-yard stance, the adult squire woman carrying a bundle of practice swords across both arms; face ≈ y 320 and the bundle clearly separated from her torso. Keep the top third open above her head and the blank pennants.
+- **Costume & attire:** Simple white-and-steel adult squire armor, polished bracers, a plain white tabard with a narrow crimson practice cord, and a small silver circlet; practical, clean, and not yet ornate.
+- **Palette:** W palette (`#f2e8cf` → `#c9a84c`, accent `#fffef2`) — white steel, pale gold dawn, cool grey practice blades, and one restrained crimson pennant accent.
+- **Lighting:** Warm dawn sunlight as key across the face, swords, and shoulder plates; cool steel-blue rim along the far side of the armor and weapon bundle.
+- **Expression:** Attentive, hopeful, and a little breathless from training; adult composure under beginner's concentration.
+- **Props / weapon:** A bundle of plain practice swords carried in both arms, with wooden grips and blunt steel-colored training blades clearly visible; no live weapon, lettering, or emblem.
+- **Background:** A dawn training yard beside a stone keep, weapon racks and blank pennants behind, quiet enough that the white-and-steel silhouette remains the first read.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear adult squire, one idea (service before glory), consistent with Arthurian Court's court-soldier register.
+- **Prompt:** Adult squire woman in simple white-and-steel practice armor carrying a bundle of plain practice swords in both arms, attentive hopeful expression, dawn training yard beside a stone keep with blank pennants and quiet weapon racks, warm dawn key light with cool steel-blue rim, full readable figure with open headroom — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait

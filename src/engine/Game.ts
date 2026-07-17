@@ -169,6 +169,7 @@ export class Game {
     // as the interpreter's no-basic no-op). Guarantees a raised choice always
     // has ≥1 legal option, so the AI is never handed only `concede` and the
     // human never gets a zero-option overlay.
+    const hadPending = st.pendingDecisions.length > 0;
     while (st.pendingDecisions.length > 0) {
       const next = st.pendingDecisions[0];
       if (next.kind === 'chooseBasicLand' && !this.hasFetchableBasic(next.player)) {
@@ -186,9 +187,15 @@ export class Game {
       st.awaiting = { player: next.player, kind: 'chooseBasicLand' };
     } else if (next?.kind === 'foresee') {
       st.awaiting = { player: next.player, kind: 'foresee', cards: this.foreseeCards(next.player, next.n) };
-    } else if (st.awaiting.kind === 'chooseBasicLand' || st.awaiting.kind === 'foresee') {
-      // The last queued choice just resolved (the apply leaves the awaiting
-      // stale); the queue is empty, so rejoin normal play from the flush point.
+    } else if (hadPending || st.awaiting.kind === 'chooseBasicLand' || st.awaiting.kind === 'foresee') {
+      // The queue is empty: either the last queued choice just resolved (the
+      // apply leaves the awaiting stale), or every queued decision whiffed in
+      // the drain above (adversarial review 2026-07-16: the dawn path never
+      // pre-resumes, so an all-whiff drain — a dawn foresee whose deck was
+      // emptied before it raised — used to strand the turn in 'dawn' forever;
+      // `hadPending` makes the drain itself rejoin the flush point). The
+      // resume re-derives from `st.step` and is idempotent on paths that
+      // already resumed, e.g. closeAndFlush.
       this.resumeAfterFlush(emit);
     }
   }

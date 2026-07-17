@@ -11,7 +11,7 @@
  * crescent moon with a four-point star ("The Silver Veil"). Tuned to read at
  * ~21px on the card face and ~40px in the glossary.
  */
-export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae';
+export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court';
 
 export const SET_ICON_PATHS: Record<CardSetId, string> = {
   // Heart pierced by a blade: grip + crossguard above the cleft, a tapered
@@ -32,4 +32,10 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
   'celtic-fae':
     'M46 8 A42 42 0 1 0 46 92 A44.3 44.3 0 0 1 46 8 Z ' +
     'M66 32 L70 46 L84 50 L70 54 L66 68 L62 54 L48 50 L62 46 Z',
+  // Sword in a stone: an upright blade and crossguard rise from a simple
+  // wedge, with separate subpaths so the icon remains evenodd-safe at 12px.
+  'arthurian-court':
+    'M46 8 L54 8 L54 53 L46 53 Z ' +
+    'M37 55 L63 55 L63 63 L37 63 Z ' +
+    'M22 65 L78 65 L68 92 L32 92 Z',
 };

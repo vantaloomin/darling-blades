@@ -60,4 +60,11 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Evasive fae chip in while Foresee smooths your draws and bounce effects hold the board back. Every turn is a tempo decision; this is the highest-skill deck in the shop.',
     featured: ['cf-morrigan-black-wing', 'cf-selkie-tide-queen', 'cf-bargain-for-time'],
   },
+  'theme-arthurian-court': {
+    colors: 'W/U/R',
+    archetype: 'Heroic Quest midrange',
+    plays:
+      'Build a court of Knights, keep a Quest active, and let chapter payoffs turn a disciplined board into awakened champions. Combat tricks and Squire support make the deck strongest when it attacks with a plan.',
+    featured: ['ac-artoria-once-future', 'ac-quest-for-the-grail', 'ac-lancelot-moonlit-shame'],
+  },
 };

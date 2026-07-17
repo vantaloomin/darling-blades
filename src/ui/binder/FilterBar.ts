@@ -62,11 +62,12 @@ export class FilterBar {
       this.targets.push(dd.button);
     };
 
-    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae'>[] = [
+    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court'>[] = [
       { value: 'all', label: 'All Sets' },
       { value: 'base', label: 'Core Set' },
       { value: 'ragnarok', label: 'Ragnar\u00f6k' },
       { value: 'celtic-fae', label: 'Celtic Fae' },
+      { value: 'arthurian-court', label: 'Arthurian Court' },
     ];
     mk(55, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
 

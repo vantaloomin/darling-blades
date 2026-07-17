@@ -37,7 +37,7 @@ describe.skip('gauntlet balance matrices (manual tool)', () => {
     if (report.flags.length > 0) {
       console.log('FLAGS:\n' + report.flags.map((f) => `  ! ${f}`).join('\n'));
     }
-    expect(report.rows).toHaveLength(8);
+    expect(report.rows).toHaveLength(14);
     // The plan's hard floors/ceilings, with a small allowance beyond the
     // in-harness bands so a marginal cell reads as a flag before a failure.
     for (const row of report.rows) {

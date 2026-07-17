@@ -57,6 +57,8 @@ const GLOSSARY_SECTIONS: GlossarySection[] = [
     entries: [
       { name: 'Sever', description: MECHANIC_DEFINITIONS.sever, icon: { kind: 'none' } },
       { name: 'Foresee', description: MECHANIC_DEFINITIONS.foresee, icon: { kind: 'none' } },
+      { name: 'Quest', description: MECHANIC_DEFINITIONS.quest, icon: { kind: 'none' } },
+      { name: 'Champion Awakening', description: MECHANIC_DEFINITIONS.championAwakening, icon: { kind: 'none' } },
     ],
   },
   {
@@ -164,17 +166,23 @@ export class GlossaryScene extends Phaser.Scene {
     this.sectionTitle(LEFT_X + 20, 142, combat.title);
     const splitAt = Math.ceil(combat.entries.length / 2);
     const columns = [combat.entries.slice(0, splitAt), combat.entries.slice(splitAt)];
+    // 62px pitch / 56px plates (was 74/66): the recut buys the room the
+    // four-entry Mechanics grid below needs inside the same panel (1.2 added
+    // Quest + Champion Awakening). Reminder copy is one to two micro lines,
+    // which the shorter plate still holds; flagged for the by-eye pass.
     columns.forEach((entries, column) => {
       const x = LEFT_X + (column === 0 ? 16 : 298);
-      entries.forEach((entry, row) => this.drawCombatRow(entry, x, 164 + row * 74, 254));
+      entries.forEach((entry, row) => this.drawCombatRow(entry, x, 164 + row * 62, 254, 56));
     });
+    // Rides the section header's right edge; its old bottom-line home (y 650)
+    // now belongs to the four-entry Mechanics grid.
     this.add
-      .text(LEFT_X + 20, 650, 'Traits appear in a creature’s rules text.', {
+      .text(LEFT_X + PANEL_W - 20, 142, 'Traits appear in a creature’s rules text.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
       })
-      .setOrigin(0, 0.5);
+      .setOrigin(1, 0.5);
   }
 
   private drawCombatRow(entry: GlossaryEntry, x: number, y: number, width: number, height = 66): void {
@@ -208,9 +216,15 @@ export class GlossaryScene extends Phaser.Scene {
    * Traits column; entries are icon-less, like Card Types.
    */
   private drawMechanics(mechanics: GlossarySection): void {
-    const x = LEFT_X + 298;
-    this.sectionTitle(x + 4, 540, mechanics.title);
-    mechanics.entries.forEach((entry, index) => this.drawCombatRow(entry, x, 556 + index * 62, 254, 56));
+    // Two-by-two grid spanning both trait columns (four mechanics since 1.2:
+    // Sever, Foresee, Quest, Champion Awakening). Bottom row ends y=678,
+    // inside the panel's 684 bottom edge.
+    this.sectionTitle(LEFT_X + 20, 544, mechanics.title);
+    mechanics.entries.forEach((entry, index) => {
+      const x = LEFT_X + (index % 2 === 0 ? 16 : 298);
+      const y = 560 + Math.floor(index / 2) * 62;
+      this.drawCombatRow(entry, x, y, 254, 56);
+    });
   }
 
   private drawCardTypes(types: GlossarySection): void {

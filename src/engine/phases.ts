@@ -57,7 +57,9 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   state.players[active].landPlayedThisTurn = false;
   if (untapped.length > 0) emit({ e: 'untapped', iids: untapped });
 
-  // Dawn — the active player's start-of-turn triggers resolve, no response window.
+  // Dawn: battlefield order is preserved. For each permanent, ordinary dawn
+  // abilities resolve first, then a Quest advances and resolves its chapter.
+  // Chapter ops are trigger-safe and can queue FIFO pending decisions.
   state.step = 'dawn';
   emit({ e: 'stepChanged', step: 'dawn' });
   for (const perm of [...state.battlefield]) {

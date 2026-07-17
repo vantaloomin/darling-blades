@@ -21,6 +21,7 @@ export const ECONOMY = {
   packPrice: 450,
   ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 69-card chase)
   celticFaePackPrice: 525, // expansion booster — only pulls set:'celtic-fae' cards (80-card chase density)
+  arthurianCourtPackPrice: 525, // expansion booster — only pulls set:'arthurian-court' cards (80-card chase density)
   boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo independently (DROPS)
   limitedPackSize: 15, // Limited packs stay MTG-sized for Sealed/Draft pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
@@ -58,11 +59,12 @@ export const ECONOMY = {
   shardFrameMult: { white: 1, blue: 1.5, red: 2, gold: 4, rainbow: 8, black: 15 } as const,
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 12-rung clear. Full run = 50+70+…+270 (=1920) + 250 = 2170g ≈ 8.7 packs,
+  // a full 14-rung clear. Full run = 50+70+…+270 (=1920) + 290 + 310 + 250 = 2770g ≈ 11.1 packs,
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
   // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
-  // Celtic Fae summit bosses (The Morrigan, Titania).
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270] as const,
+  // Celtic Fae bosses (The Morrigan, Titania); 13-14 (290/310) are the
+  // Arthurian Court summit bosses (Morgan, Artoria).
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310] as const,
   gauntletCompletionBonus: 250,
   // Free Limited runs are free-entry with ephemeral cards and pay the record
   // payout below. Premium Draft pays to keep its picks; the entry fee already
@@ -113,6 +115,32 @@ export const ECONOMY = {
  * Low Skill Casual          52.47%       0.47          0          40.83%       0          -
  * High Skill Veteran        90.08%       1.87          0          78.19%    19.6          -
  * Completionist             99.43%       1.76          0          88.54%    49.4          -
+ *
+ * Post-Arthurian-Court baseline 2026-07-16 (same 10 personas x 8 seeds x
+ * 60 days; balance/econ-baseline-2026-07-16-post-ac.report.json) after the
+ * 1.2 set landed: 429 collectible cards (+80, a 23% larger pool), the
+ * 525g arthurian-court booster SKU, rungs 13-14 (full clear 2,770g), and
+ * the two AC card-buff rounds. Every persona's 60-day completion drops
+ * 5-11pp - the mechanically expected effect of a bigger chase, not an
+ * economy change (all four Layer-1 EV gates stay green; verdict label
+ * unchanged at 'uneven' on the same quest-claim-spread bullet, which
+ * remains its own backlog item). Casuals hold the ~50% target (44.7 /
+ * 50.6%). Watch item for a future tuning pass: Hardcore Optimizer 88.3%
+ * at day 60 extrapolates full completion slightly past the 50-75-day
+ * window that was calibrated against the 349-card pool; whether that
+ * window is per-set-era or perpetual is an open design question.
+ *
+ * Persona              Collection  Packs/day  Premium runs  Quest claim  Crafted
+ * New Casual              50.55%       0.56          0          43.33%       0
+ * Daily Grinder           73.40%       1.55          0          69.86%       0
+ * Gauntlet Climber        70.16%       1.40          0          68.33%       0
+ * Limited Fan             92.86%       0.55      18.00          71.74%    29.0
+ * Collector               62.41%       1.04          0          65.97%       0
+ * Theme Deck Buyer        74.68%       0.92          0          60.07%       0
+ * Hardcore Optimizer      88.32%       2.37          0          80.83%    19.1
+ * Low Skill Casual        44.67%       0.45          0          40.83%       0
+ * High Skill Veteran      79.87%       1.96          0          78.19%       0
+ * Completionist           95.19%       2.09          0          89.10%    43.5
  */
 
 /**

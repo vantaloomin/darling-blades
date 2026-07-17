@@ -1,8 +1,8 @@
-<!-- source-of-truth: src/data/cards/celtic-fae.ts, src/engine/types.ts · last-verified: 2026-07-10 · concept spec implemented in src/data/cards/celtic-fae.ts; the card data is authoritative where a concept mechanic needs a v1 engine adaptation -->
+<!-- source-of-truth: src/data/cards/celtic-fae.ts, src/engine/types.ts · last-verified: 2026-07-16 · concept spec implemented in src/data/cards/celtic-fae.ts; the card data is authoritative where a concept mechanic needs a v1 engine adaptation -->
 
 # Expansion 2 - Celtic Fae: The Silver Veil
 
-Linked block: **Celtic Fae** is part one of the Celtic/Arthurian double saga. It introduces the Otherworld, fate manipulation, exile pressure, and scry setup. Arthurian Court follows as the mortal response to the bargains made here.
+Linked block: **Celtic Fae** is part one of the Celtic/Arthurian two-set block. It introduces the Otherworld, fate manipulation, exile pressure, and scry setup. Arthurian Court follows as the mortal response to the bargains made here.
 
 ## Theme And Visual Identity
 

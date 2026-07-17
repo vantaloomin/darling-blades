@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ARTIFACTS } from '../src/data/cards/artifacts';
+import { ARTHURIAN_COURT } from '../src/data/cards/arthurian-court';
 import { BEASTKIN } from '../src/data/cards/beastkin';
 import { CELTIC_FAE } from '../src/data/cards/celtic-fae';
 import { GREEK } from '../src/data/cards/greek';
@@ -42,6 +43,7 @@ const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
   { file: 'beastkin.md', sets: [BEASTKIN] },
   { file: 'ragnarok.md', sets: [RAGNAROK] },
   { file: 'celtic-fae.md', sets: [CELTIC_FAE] },
+  { file: 'arthurian-court.md', sets: [ARTHURIAN_COURT] },
   { file: 'constructs-and-tokens.md', sets: [ARTIFACTS, TOKENS] },
 ];
 

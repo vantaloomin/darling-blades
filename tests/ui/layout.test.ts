@@ -146,7 +146,9 @@ describe('layout geometry', () => {
 
     const rungCount = ECONOMY.gauntletRungGold.length;
     const gridTop = Math.max(layout.contentBounds.y, 206);
-    const gridBottom = layout.contentBounds.y + layout.contentBounds.height;
+    // The scene reserves the last row's 38px label block (8px gap + ~30px of
+    // wrapped lines) out of the band before deriving the pitch.
+    const gridBottom = layout.contentBounds.y + layout.contentBounds.height - 38;
     const rows = Math.ceil(rungCount / 6);
     const cols = Math.ceil(rungCount / rows);
     const xPitch = Math.min(132, layout.contentBounds.width / cols);

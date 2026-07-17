@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-13
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-16
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -274,7 +274,17 @@ the crop when the raw has the sky for it — CardView's visible band starts at
 Raws whose subject sits higher than the ceiling crop can absorb keep max
 headroom and accept a crown-clip at the window edge (user-directed
 2026-07-09; measured over the 215-raw pool: 103 such raws, avg 6.7% of sky
-short). Multiple detections are
+short). **Zoom fallback (2026-07-16):** a mild crown graze is accepted, but a
+full-body/wide raw can leave the face itself hidden above the window band
+(the Frost-Jotun class — the Arthurian Court vault, generated before the
+waist-up preamble hardening, had ~20/36 such creatures). When the
+ceiling-clamped crop leaves the focal above `ZOOM_TRIGGER_FRAC = 0.28`,
+character mode now shrinks the crop window until the focal reaches
+`FOCAL_FRAC`, bounded at `MAX_UPSCALE = 2.0` (deliverables display at
+≤282px wide, so a 2× upscale still downsamples on card). Grazes between
+0.28 and 0.40 keep the old behavior byte-for-byte, so approved crops never
+drift; measured over the 36 Arthurian creature raws the hidden-face count
+went 20 → 0. Multiple detections are
 ranked by `score * area * horizontal_centrality`, with tiny detections filtered
 out at `MIN_DET_FRAC = 0.06` of the image min dimension. If no usable detection
 exists, the cropper falls back to the old center crop.

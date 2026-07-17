@@ -15,9 +15,9 @@ import { goldBadge, themedButton } from '../ui/themeWidgets';
 const PLAY_ITEMS: { label: string; scene: string; data?: object }[] = [
   { label: 'Avatar Gauntlet', scene: 'Gauntlet' },
   { label: 'Draft', scene: 'Limited' },
-  { label: 'Practice · Easy', scene: 'Duel', data: { difficulty: 'easy' } },
-  { label: 'Practice · Medium', scene: 'Duel', data: { difficulty: 'medium' } },
-  { label: 'Practice · Hard', scene: 'Duel', data: { difficulty: 'hard' } },
+  // The three difficulty rows collapsed into the opponent picker (1.2): pick
+  // any tower avatar (their difficulty applies) or a plain training duel.
+  { label: 'Practice', scene: 'PracticePicker' },
   { label: 'Return', scene: 'MainMenu' },
 ];
 

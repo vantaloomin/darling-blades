@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-14 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-16 · design/plan doc — re-verify when the referenced code changes -->
 
 # Post-launch (v1.1) — deferred backlog
 
@@ -17,6 +17,15 @@
 > Free/Premium Draft, public via the Play submenu; only the economy tuning
 > remains in 1.1). Commander — renamed **"Darlings"** — moves to 1.5 and
 > MOD/UGC to 2.0 (see plan-1.1.md's re-scope note).
+>
+> **Feature 1 ✅ SHIPPED 2026-07-16 in the 1.2 build**, exactly per the
+> analysis below: `PracticePickerScene` (the Play submenu's one Practice
+> row) reuses the gauntlet's avatar-card presentation over the full
+> roster — now 14 avatars including the Arthurian rungs — plus plain
+> Easy/Medium/Hard training rows; launch is `scene.start('Duel',
+> { opponentId })` with the avatar's difficulty inheriting, and no
+> SaveData change was needed. See roadmap Recently shipped (2026-07-16 ·
+> the 1.2 build).
 
 The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md), and as
 of 2026-07-08 all five of its features are shipped (tutorial, achievements,

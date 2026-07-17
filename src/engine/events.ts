@@ -24,6 +24,8 @@ export type GameEvent =
   | { e: 'spellCountered'; sid: number }
   | { e: 'targetsFizzled'; sid: number }
   | { e: 'permanentEntered'; perm: Permanent }
+  | { e: 'chapterAdvanced'; iid: number; cardId: string; chapter: number }
+  | { e: 'awakened'; iid: number; cardId: string }
   | { e: 'attackersDeclared'; iids: number[] }
   | { e: 'blockersDeclared'; blocks: { blocker: number; attacker: number }[] }
   | {
