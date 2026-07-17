@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **798 tests green** (+3 skipped balance-tool assertions; count refreshed with the 1.2 build) across 80+ files
+- **825 tests green** (+3 skipped balance-tool assertions; count refreshed with the 1.2.0 release cut 2026-07-17) across 85 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -60,6 +60,24 @@ _Dated 2026-07-04. Review monthly._
   v19→v20 deterministic replays, v20→v21 Full Art three-segment variant
   keys — see Recently shipped and the Full Art entry under Planned). By-ear
   tuning remains open (see Planned).
+
+## Recently shipped (2026-07-17 · the 1.2 close-out)
+
+- **PR #85 merged** (squash `dc50189`) — the 2026-07-16/17 playtest batch:
+  all 8 playtest items (coin flip with the play/draw choice, history
+  foresee/sever detail + [bracketed] tappable names, Esc menu, failure
+  screen rework with count-aware recap grid and plain end-reason copy,
+  foresee/firstBlade verifications pinned by tests), the `--prefabs`
+  balance harness + measured Glimmer/Grave tuning (29.8→46.5 /
+  63.9→54.3 Hard aggregate at 500 seeds/cell), the cleanup-step deferred-
+  decision engine crash fix, the shop rework (two-column deck grid with
+  color pips, claim-aware default tab, per-pack odds modal replacing the
+  drawer), the **Full Art axis** (0.25% booster-only roll, ×25 shards,
+  SaveData v21 — Premium Draft excludes it, see the Planned entry's gate
+  numbers), and docs/plan-1.3.md (the locked 1.3 decisions).
+- **1.2.0 release cut**: version bump + tag `v1.2.0`, README rewritten
+  (condensed 1.1 notes, full 1.2 "The Grail Oath" notes, 429-card /
+  14-rung / 825-test / Full-Art numbers swept).
 
 ## Recently shipped (2026-07-16 · the 1.2 build)
 
@@ -1172,10 +1190,10 @@ _Dated 2026-07-04. Review monthly._
   (✅ shipped 2026-07-16 — 1.1's engineering is complete);
   **1.2** = practice opponent picker + deterministic replays + Limited
   run-history achievement hooks + the Arthurian Court expansion (folded
-  into 1.2 by user decision 2026-07-16) — **✅ ALL 1.2 engineering
-  SHIPPED 2026-07-16** (see Recently shipped · the 1.2 build); what
-  remains for the 1.2 cut is release mechanics (version bump + tag +
-  README consumer notes) plus the standing validation passes;
+  into 1.2 by user decision 2026-07-16) — **✅ 1.2 RELEASED 2026-07-17**
+  (engineering shipped 2026-07-16, PR #85 + the v1.2.0 cut closed it
+  out 2026-07-17 — see Recently shipped · the 1.2 close-out); the
+  standing validation passes remain;
   **1.3** = seeded daily tower rotation (full-shuffle roster with
   floor-scaled AI tiers, plus its balance re-baseline), the deck-builder
   land-style selector, and the "Hardcore MTG Fan" balance personas — user
