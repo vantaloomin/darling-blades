@@ -17,7 +17,7 @@ import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { modalGuardTarget } from '../ui/Modal';
-import { OddsDrawer } from '../ui/OddsDrawer';
+import { createOddsModal, type BoosterSku } from '../ui/OddsModal';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
@@ -26,7 +26,7 @@ import { backButton, goldBadge, modalShell, pager, panel, themedButton, type Gol
 const PACK_W = 280;
 const PACK_H = 400;
 
-export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court';
+export type { BoosterSku } from '../ui/OddsModal';
 
 interface PackTint {
   start: string;
@@ -304,7 +304,7 @@ export class ShopScene extends Phaser.Scene {
   private previewInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private shopInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private deckInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
-  private oddsDrawer: OddsDrawer | null = null;
+  private oddsModal: ModalShell | null = null;
   private coordinator!: OverlayCoordinator;
   /** F10 bulk-buy: quantity + the SKU buy buttons / quantity chips it drives. */
   private qty = 1;
@@ -341,7 +341,7 @@ export class ShopScene extends Phaser.Scene {
     this.previewInteractiveTargets = [];
     this.shopInteractiveTargets = [];
     this.deckInteractiveTargets = [];
-    this.oddsDrawer = null;
+    this.oddsModal = null;
     this.coordinator = new OverlayCoordinator();
     // Deck-preview hotkeys. Keyboard bypasses the modal dims, so every handler
     // self-guards on the overlay/inspect state (the LimitedDraftScene pattern);
@@ -385,9 +385,6 @@ export class ShopScene extends Phaser.Scene {
     this.goldBadge = goldBadge(this, width - 30, 30, { flashOnChange: true });
     this.refreshGold();
 
-    // Drop-rate disclosure: a left slide-out drawer (percentages, from DROPS).
-    this.oddsDrawer = new OddsDrawer(this);
-
     this.buildTabBar();
     this.boostersGroup = this.add.container(0, 0);
     this.decksGroup = this.add.container(0, 0);
@@ -410,7 +407,6 @@ export class ShopScene extends Phaser.Scene {
     return [
       ...this.shopInteractiveTargets,
       ...this.deckInteractiveTargets,
-      ...(this.oddsDrawer?.interactiveTargets ?? []),
     ];
   }
 
@@ -447,8 +443,6 @@ export class ShopScene extends Phaser.Scene {
     this.tab = tab;
     this.boostersGroup.setVisible(tab === 'boosters');
     this.decksGroup.setVisible(tab === 'decks');
-    // Drop rates describe boosters only; the drawer (tab included) hides on Decks.
-    this.oddsDrawer?.setVisible(tab === 'boosters');
     for (const [key, btn] of this.tabButtons) {
       btn.setVariant(key === tab ? 'primary' : 'ghost');
     }
@@ -457,7 +451,7 @@ export class ShopScene extends Phaser.Scene {
   // --- Boosters tab ---------------------------------------------------------
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
-    this.buildPackSku(group, 160, 'Core Set', 'packart', ECONOMY.packPrice, () =>
+    this.buildPackSku(group, 160, 'Core Set', 'packart', ECONOMY.packPrice, 'base', () =>
       this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
     );
     this.buildPackSku(
@@ -466,6 +460,7 @@ export class ShopScene extends Phaser.Scene {
       'Ragnarök',
       'packart-ragnarok',
       ECONOMY.ragnarokPackPrice,
+      'ragnarok',
       () => this.buyPacks(ECONOMY.ragnarokPackPrice, 'ragnarok', 'ragnarok'),
     );
     this.buildPackSku(
@@ -474,6 +469,7 @@ export class ShopScene extends Phaser.Scene {
       'Celtic Fae',
       'packart-celtic-fae',
       ECONOMY.celticFaePackPrice,
+      'celtic-fae',
       () => this.buyPacks(ECONOMY.celticFaePackPrice, 'celtic-fae', 'celtic-fae'),
     );
     this.buildPackSku(
@@ -482,6 +478,7 @@ export class ShopScene extends Phaser.Scene {
       'Arthurian Court',
       'packart-arthurian-court',
       ECONOMY.arthurianCourtPackPrice,
+      'arthurian-court',
       () => this.buyPacks(ECONOMY.arthurianCourtPackPrice, 'arthurian-court', 'arthurian-court'),
     );
     this.buildQtySelector(group);
@@ -495,6 +492,7 @@ export class ShopScene extends Phaser.Scene {
     label: string,
     textureKey: string,
     price: number,
+    sku: BoosterSku,
     onBuy: () => void,
   ): void {
     const title = this.add
@@ -518,10 +516,27 @@ export class ShopScene extends Phaser.Scene {
       minWidth: 180,
       onTap: onBuy,
     });
+    const infoX = x + theme.space(24);
+    const infoBg = this.add.graphics();
+    infoBg.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
+    infoBg.fillCircle(infoX, title.y, theme.space(3));
+    infoBg.lineStyle(theme.control.borderWidth, colorInt(theme.colors.gold), theme.alpha.chrome);
+    infoBg.strokeCircle(infoX, title.y, theme.space(3));
+    const info = this.add
+      .text(infoX, title.y, 'i', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.gold,
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    inflateHitArea(info, theme.control.minHitHeight, theme.control.minHitHeight);
+    bindTapButton(this, info, () => this.showOddsModal(sku));
     bindTapButton(this, pack, onBuy);
     this.skuButtons.push({ btn: buyBtn, price });
-    this.shopInteractiveTargets.push(pack, buyBtn.inputZone);
-    group.add([title, pack, buyBtn.container]);
+    this.shopInteractiveTargets.push(pack, buyBtn.inputZone, info);
+    group.add([title, infoBg, info, pack, buyBtn.container]);
   }
 
   /** F10 bulk-buy quantity selector (×1 / ×5 / ×10), added to `group`. */
@@ -724,12 +739,21 @@ export class ShopScene extends Phaser.Scene {
 
   // --- Deck preview overlay -------------------------------------------------
 
-  /** Esc closes the TOP overlay only — inspect first, then the preview. Both
-   * shells register with escToClose:false so one press can't close both. */
+  /** Esc closes the TOP overlay only: inspect, odds, then deck preview. All
+   * shells register with escToClose:false so one press can't close two. */
   private readonly onEscKey = (): void => {
     if (this.inspect) this.closeInspect();
+    else if (this.oddsModal) this.closeOddsModal();
     else this.overlay?.close();
   };
+
+  private showOddsModal(sku: BoosterSku): void {
+    this.closeOverlay();
+    const shell = createOddsModal(this, this.coordinator, sku, this.underlyingInteractiveTargets(), () => {
+      if (this.oddsModal === shell) this.oddsModal = null;
+    });
+    this.oddsModal = shell;
+  }
 
   private readonly onInspectPrev = (): void => this.stepInspect(-1);
   private readonly onInspectNext = (): void => this.stepInspect(1);
@@ -748,7 +772,6 @@ export class ShopScene extends Phaser.Scene {
    */
   private showDeckPreview(sku: DeckSku): void {
     this.closeOverlay();
-    this.oddsDrawer?.close();
     const { deck, price } = sku;
     const save = Services.save.data;
     const owned = save.decks.some((d) => d.id === deck.id);
@@ -1187,5 +1210,11 @@ export class ShopScene extends Phaser.Scene {
     this.overlay?.close();
     this.overlay = null;
     this.previewEntries = [];
+    this.closeOddsModal();
+  }
+
+  private closeOddsModal(): void {
+    this.oddsModal?.close();
+    this.oddsModal = null;
   }
 }

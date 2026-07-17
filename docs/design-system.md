@@ -356,14 +356,14 @@ clean up keyboard listeners when the container is destroyed.
   zero-based in code; unavailable directions are visibly subdued and must not
   change page state.
 
-### Inputs, selects, filters, and drawers
+### Inputs, selects, filters, and disclosure modals
 
-Reuse `SearchInput`, `Dropdown`, `FilterBar`, `OddsDrawer`, and
-`KeywordGlossaryPanel`. Their DOM or specialist rendering is an implementation
-detail; their semantic colors, font families, interaction floors, and depth
-come from the core theme. Extend the shared component when a new state is
-general. Do not create a scene-local square `Text.backgroundColor` control
-beside rounded core controls.
+Reuse `SearchInput`, `Dropdown`, `FilterBar`, the shop's per-pack odds modal,
+and `KeywordGlossaryPanel`. Their DOM or specialist rendering is an
+implementation detail; their semantic colors, font families, interaction
+floors, and depth come from the core theme. Extend the shared component when a
+new state is general. Do not create a scene-local square
+`Text.backgroundColor` control beside rounded core controls.
 
 ### Cards and game-specific readouts
 

@@ -576,7 +576,7 @@ Run sequentially where files overlap:
    and focus hooks/metadata only (not traversal or scene adoption).
 2. `Dropdown.ts` + `FilterBar.ts` select/toggle geometry.
 3. `Modal.ts` + `SearchInput.ts` overlay/DOM lifecycle primitives.
-4. `OddsDrawer.ts`, `KeywordGlossaryPanel.ts`, and remaining
+4. The shop odds modal, `KeywordGlossaryPanel.ts`, and remaining
    focus-hook-ready shared-control cleanup.
 
 **Delivers:** DS-02 measurement primitives, DS-03 through DS-05 coordinator /

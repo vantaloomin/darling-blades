@@ -237,11 +237,11 @@ _Dated 2026-07-04. Review monthly._
   contract, orchestrator-reviewed + live-probed). The preview and inspect
   modals now sit on the shared overlay machinery: one scene-owned
   `OverlayCoordinator` whose leases **ModalGuard the underlying Shop
-  controls** (tabs, SKUs, quantity chips, deck rows, Back, the OddsDrawer's
-  surfaces — state-verified disabled while a modal is open and restored on
-  close; the stacked inspect lease guards the preview's own controls), all
-  content anchored to the shell's title/content/footer tracks, and the
-  OddsDrawer gains a synchronous `close()` called before the preview opens.
+  controls** (tabs, SKUs, quantity chips, deck rows, Back, the shop odds modal
+  surfaces, with state-verified disable and restore while a modal is open; the
+  stacked inspect lease guards the preview's own controls), all content
+  anchored to the shell's title/content/footer tracks. The odds disclosure is
+  now a per-pack modal that closes synchronously before the preview opens.
   Each deck shows **2–3 signature-card thumbnails** with count badges,
   tap-to-inspect (picks hand-authored in the new Phaser-free
   `src/data/deckInfo.ts` — `DECK_INFO` moved there with a purity test
@@ -648,7 +648,7 @@ _Dated 2026-07-04. Review monthly._
   owned-cards default filter, dev-gated card showcase, on-screen version label.
   **Wave C (#8):** card-face mirror layout, playmat battlefield-tile redesign,
   dropdown filters. **Wave B — shop restructure (#9):** Boosters / Decks tabs,
-  a drop-rate % drawer, a buyable deck store with preview, and a unique generated
+  a per-pack drop-rate % modal, a buyable deck store with preview, and a unique generated
   Valkyrie hero portrait — the **v8 → v9** `SaveData` bump.
 
 ## Recently shipped (2026-07-05)
