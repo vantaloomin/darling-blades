@@ -33,11 +33,12 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 };
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
-export const MECHANIC_DEFINITIONS: Record<'sever' | 'foresee' | 'quest' | 'championAwakening', string> = {
+export const MECHANIC_DEFINITIONS: Record<'sever' | 'foresee' | 'quest' | 'championAwakening' | 'empower', string> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
   quest: 'advances a chapter at each of your dawns; leaves after the last',
   championAwakening: 'a one-way upgrade granting the listed stats and keywords',
+  empower: 'pay the extra cost as you cast this for the listed bonus effect',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -302,6 +303,7 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   if (/\bsever(s|ed)?\b/.test(text)) push('Sever', MECHANIC_DEFINITIONS.sever);
   if (d.chapters) push('Quest', MECHANIC_DEFINITIONS.quest);
   if (d.awakening) push('Champion Awakening', MECHANIC_DEFINITIONS.championAwakening);
+  if (d.empower) push('Empower', MECHANIC_DEFINITIONS.empower);
   return entries;
 }
 
