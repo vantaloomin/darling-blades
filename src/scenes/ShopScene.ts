@@ -447,6 +447,8 @@ export class ShopScene extends Phaser.Scene {
     this.tab = tab;
     this.boostersGroup.setVisible(tab === 'boosters');
     this.decksGroup.setVisible(tab === 'decks');
+    // Drop rates describe boosters only; the drawer (tab included) hides on Decks.
+    this.oddsDrawer?.setVisible(tab === 'boosters');
     for (const [key, btn] of this.tabButtons) {
       btn.setVariant(key === tab ? 'primary' : 'ghost');
     }

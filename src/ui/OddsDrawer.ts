@@ -256,6 +256,18 @@ export class OddsDrawer {
     return this.targets;
   }
 
+  /**
+   * Show or hide the whole drawer (tab included). Hiding also snaps it
+   * closed, so switching back never reveals a stranded open panel. Drop
+   * rates only describe boosters; the shop hides the drawer on the Decks
+   * tab (user-directed 2026-07-17).
+   */
+  setVisible(visible: boolean): void {
+    if (!this.container.active) return;
+    if (!visible) this.close();
+    this.container.setVisible(visible);
+  }
+
   /** Close synchronously so a higher overlay never opens over a moving drawer. */
   close(): void {
     if (!this.container.active) return;
