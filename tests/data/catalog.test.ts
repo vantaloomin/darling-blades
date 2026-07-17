@@ -7,6 +7,7 @@ import { BEASTKIN } from '../../src/data/cards/beastkin';
 import { CELTIC_FAE } from '../../src/data/cards/celtic-fae';
 import { DUALS } from '../../src/data/cards/duals';
 import { ENCHANTMENTS } from '../../src/data/cards/enchantments';
+import { GOTHIC_MONSTERS } from '../../src/data/cards/gothic-monsters';
 import { GREEK } from '../../src/data/cards/greek';
 import { INSTANTS } from '../../src/data/cards/instants';
 import { LANDS } from '../../src/data/cards/lands';
@@ -40,6 +41,7 @@ describe('catalog integrity', () => {
       [RAGNAROK, 'rg-'],
       [CELTIC_FAE, 'cf-'],
       [ARTHURIAN_COURT, 'ac-'],
+      [GOTHIC_MONSTERS, 'gm-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -104,8 +106,8 @@ describe('catalog integrity', () => {
     );
     const share = (rarity: string) =>
       pool.filter((c) => c.rarity === rarity).length / pool.length;
-    // Bands derived from the measured 2026-07-04 remap: 103 c / 65 r / 13 sr /
-    // 11 ssr / 8 ur over a 200-card pool (51.5 / 32.5 / 6.5 / 5.5 / 4.0 %).
+    // Measured catalog after Gothic Monsters: 257 c / 157 r / 40 sr / 31 ssr /
+    // 24 ur over a 509-card collectible pool (50.5 / 30.8 / 7.9 / 6.1 / 4.7 %).
     expect(share('c')).toBeGreaterThanOrEqual(0.45);
     expect(share('c')).toBeLessThanOrEqual(0.6);
     expect(share('r')).toBeGreaterThanOrEqual(0.25);
@@ -149,6 +151,8 @@ describe('catalog integrity', () => {
         expect(card.set, card.id + ' should be set:celtic-fae').toBe('celtic-fae');
       } else if (card.id.startsWith('ac-')) {
         expect(card.set, card.id + ' should be set:arthurian-court').toBe('arthurian-court');
+      } else if (card.id.startsWith('gm-')) {
+        expect(card.set, card.id + ' should be set:gothic-monsters').toBe('gothic-monsters');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }
@@ -161,6 +165,20 @@ describe('catalog integrity', () => {
     expect(count('ur'), 'ragnarok ur pool must support dupe-protected picks').toBeGreaterThanOrEqual(4);
     expect(count('ssr')).toBeGreaterThanOrEqual(1);
     expect(count('sr')).toBeGreaterThanOrEqual(1);
+  });
+
+  it('the Gothic Monsters set has its specified 80-card rarity mix', () => {
+    const gm = ALL_CARDS.filter(
+      (c) => c.set === 'gothic-monsters' && !c.token && !(c.supertypes ?? []).includes('basic'),
+    );
+    expect(gm.length).toBe(80);
+    expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((r) => [r, gm.filter((c) => c.rarity === r).length]))).toEqual({
+      c: 40,
+      r: 24,
+      sr: 7,
+      ssr: 5,
+      ur: 4,
+    });
   });
 
   it('every multicolor nonland card is legendary', () => {
