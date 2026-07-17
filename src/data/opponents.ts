@@ -172,6 +172,46 @@ export interface Avatar {
  * separate 10-seed smoke pass for these provisional decks. Smoke result with
  * LOW Crimson Muster / MID Shadow Mandate / HIGH Questing Table: Morgan
  * 40/50/80% (57% avg), Artoria 50/60/100% (70% avg), all 10 games decided.
+ *
+ * 2026-07-17 — prefab round-robin tuning (PR #85): the new
+ * `--prefabs --ai hard --seeds 500` harness measured Grave Harvest 63.9% /
+ * Glimmer Bargain 29.8% aggregate, so Grave Harvest was shaved (-1 Doom
+ * Bolt, -1 Thanatos, Gaia out, situational 1-ofs in) and Glimmer Bargain
+ * rebuilt (6 cf duals, singletons consolidated) — see starterDecks.ts.
+ * Post-tune prefab aggregates: Grave 54.3, Glimmer 46.5, spread 39.7-59.4
+ * (measured on the pre-#84 7-deck pool). Full --avatars re-measure at 40
+ * seeds AFTER merging #84's 14-rung roster (rungs 1-12 rows reproduced
+ * byte-identical across the merge — the 1.2 engine additions do not touch
+ * these matchups; only the Harvest column moved vs the 2026-07-16 tables):
+ *
+ *                            Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R1 Meng Huo   [easy]       38%      35%      38%     25%      30%   | 33%
+ *   R2 Hestia     [easy]       28%      33%      13%     13%      18%   | 21%
+ *   R3 Lupa       [easy]       20%      15%      38%     35%      38%   | 29%
+ *   R4 Hera       [medium]     33%      42%      38%     70%      61%   | 49%
+ *   R5 Zhurong    [medium]     45%      80%      63%     55%      68%   | 62%
+ *   R6 Sima Yi    [medium]     64%      80%      63%     50%      47%   | 61%
+ *   R7 Yohime     [hard]       60%      90%      63%     53%      65%   | 66%
+ *   R8 Cao Cao    [hard]       73%      88%      80%     80%      57%   | 76%
+ *   R9 Hel        [hard]       65%      90%      70%     68%      55%   | 70%
+ *   R10 Brunhild  [hard]       93%      80%      70%     85%     100%   | 86%
+ *   R11 Morrigan  [hard]       68%      78%      78%     75%      88%   | 77%
+ *   R12 Titania   [hard]       63%      88%      88%     78%      68%   | 77%
+ *   R13 Morgan    [hard]       43%      88%      68%     68%      70%   | 67%
+ *   R14 Artoria   [hard]       50%      83%      83%     68%      70%   | 71%
+ *
+ * Bands green (R13 67 ≥ 60, R14 71 ≥ 62 — the Grave Harvest nerf lifted
+ * Artoria's Harvest cell 48→70, closing part of the accepted AC summit
+ * gap for free). ONE WARNING (accepted): rung 2 (21%) sits exactly 12pp
+ * below rung 1 (33%) — the gap was already 10pp before this tuning (Hestia
+ * as the documented welcome mat); the Grave Harvest nerf lifted Meng Huo's
+ * hardest cell (Harvest 20→30), widening it to the flag threshold. Revisit
+ * only if Meng Huo gets further buffs. CF-boss tier matrix unflagged
+ * (Morrigan avg 89, Titania 80 at 40 seeds). Post-merge 8-deck prefab
+ * sanity (hard, 100 seeds/cell): Grave 58.6 / Glimmer 49.9 hold mid-band;
+ * the NEW 1.2 Questing Table precon measures 24.4% aggregate vs the tuned
+ * field — a bottom outlier flagged for a future tuning pass (its list is
+ * also the --ac-bosses HIGH reference, so tune with that in mind).
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------

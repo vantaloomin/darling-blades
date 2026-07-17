@@ -6,9 +6,9 @@ import type { Rarity } from '../engine/types';
  * Card variants — the collectible axes a booster slot rolls on top of the
  * card itself. Pure and headless: plain data + seeded rolls, no Phaser.
  *
- * A variant is a (frame, holo) pair. `white|none` is the PLAIN variant every
- * pre-v4 save's copies migrate to; anything else is "special" and is always
- * kept by the collection (see `src/meta/Collection.ts` melt rule).
+ * A variant is a (frame, holo, full-art) tuple. `white|none|standard` is the
+ * PLAIN variant every pre-v4 save's copies migrate to; anything else is
+ * "special" and is always kept by the collection (see the melt rule there).
  */
 
 export type FrameStyle = 'white' | 'blue' | 'red' | 'gold' | 'rainbow' | 'black';
@@ -17,22 +17,27 @@ export type HoloFinish = 'none' | 'shiny' | 'rainbow' | 'pearlescent' | 'fractal
 export interface CardVariant {
   frame: FrameStyle;
   holo: HoloFinish;
+  fullArt: boolean;
 }
 
-export const PLAIN_VARIANT: CardVariant = { frame: 'white', holo: 'none' };
+export const PLAIN_VARIANT: CardVariant = { frame: 'white', holo: 'none', fullArt: false };
 
-/** Canonical storage key for a variant: `${frame}|${holo}`. */
+/** Canonical storage key: `${frame}|${holo}|${standardOrFullArt}`. */
 export function variantKey(v: CardVariant): string {
-  return `${v.frame}|${v.holo}`;
+  return `${v.frame}|${v.holo}|${v.fullArt ? 'full-art' : 'standard'}`;
 }
 
 export function parseVariantKey(key: string): CardVariant {
-  const [frame, holo] = key.split('|');
-  return { frame: frame as FrameStyle, holo: holo as HoloFinish };
+  const [frame, holo, treatment] = key.split('|');
+  return {
+    frame: frame as FrameStyle,
+    holo: holo as HoloFinish,
+    fullArt: treatment === 'full-art',
+  };
 }
 
 export function isPlainVariant(v: CardVariant): boolean {
-  return v.frame === PLAIN_VARIANT.frame && v.holo === PLAIN_VARIANT.holo;
+  return v.frame === PLAIN_VARIANT.frame && v.holo === PLAIN_VARIANT.holo && !v.fullArt;
 }
 
 /** Rarity-tier rank, higher = better (ur best). Best-first sort: ur < ssr < sr < r < c. */
@@ -66,23 +71,26 @@ const HOLO_RANK: Record<HoloFinish, number> = {
 };
 
 /**
- * Specialness ranking, higher = more special. The frame is the primary axis
- * (drop-rarity order white → black), the holo finish breaks ties (none →
- * void). So any black-frame variant outranks any rainbow-frame one, and
- * `white|void` outranks `white|fractal`. `variantRank(PLAIN_VARIANT)` is 0.
- * Used for "best owned variant" (Collection) and within-tier reveal order.
+ * Specialness ranking, higher = more special. Full Art is the primary band,
+ * above every non-full-art treatment (including black frame). Within a band,
+ * frame is primary and holo breaks ties. `variantRank(PLAIN_VARIANT)` is 0.
  */
 export function variantRank(v: CardVariant): number {
-  return FRAME_RANK[v.frame] * 8 + HOLO_RANK[v.holo];
+  return (v.fullArt ? 64 : 0) + FRAME_RANK[v.frame] * 8 + HOLO_RANK[v.holo];
 }
 
 /**
  * Gold paid for manually sharding one copy of a `(tier, variant)`: the plain
- * dupe value scaled up by the variant's frame + holo rarity (see ECONOMY).
+ * dupe value scaled by the variant's frame, holo, and Full Art multipliers.
  * A plain copy shards for exactly `dupeGold[tier]`; specials pay more.
  */
 export function shardValue(tier: Rarity, v: CardVariant): number {
-  return Math.round(ECONOMY.dupeGold[tier] * ECONOMY.shardFrameMult[v.frame] * ECONOMY.shardHoloMult[v.holo]);
+  return Math.round(
+    ECONOMY.dupeGold[tier] *
+      ECONOMY.shardFrameMult[v.frame] *
+      ECONOMY.shardHoloMult[v.holo] *
+      (v.fullArt ? ECONOMY.shardFullArtMult : 1),
+  );
 }
 
 /**
@@ -109,4 +117,8 @@ export function rollFrame(rng: RngState): FrameStyle {
 
 export function rollHolo(rng: RngState): HoloFinish {
   return walk(rng, DROPS.holo);
+}
+
+export function rollFullArt(rng: RngState): boolean {
+  return walk(rng, DROPS.fullArt) === 'full-art';
 }

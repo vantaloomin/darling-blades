@@ -181,16 +181,14 @@ flag). None touch the engine, AI, decks, or balance.
 
 ### 5. Pack odds display + pity/dupe-protection surfacing
 
-- **Problem.** No drop-rate disclosure anywhere (a baseline expectation, and a
-  legal norm in several markets) — the only hint is a baked pack-art string of
-  axis *counts* (`ShopScene.ts:131`), not *rates*. Worse, the SR/SSR/UR
-  dupe-protection that already runs (`PackOpener.ts:57-59`, skips completed
-  playsets) is invisible, so players get none of its trust/retention value.
-- **Design & code fit.** `DROPS` (`rules.ts:54-78`) is a clean `[value, weight][]`
-  per axis (tier / frame / holo), each summing to 100 — render it read-only near
-  the price in `ShopScene.create` (space is free after `:224`). Add a one-line
-  pity note reusing `ownedCount`/`PLAYSET` from `Collection.ts`, phrased to match
-  that protection applies to sr/ssr/ur only.
+- **Problem addressed.** The shop previously lacked a per-pack drop-rate
+  disclosure. It now exposes the three live axes from `DROPS` through a modal.
+  The SR/SSR/UR dupe-protection that already runs (`PackOpener.ts:58-61`, skips
+  completed playsets) is also named in the modal.
+- **Design & code fit.** `DROPS` (`rules.ts:156-180`) is a clean
+  `[value, weight][]` per axis (tier / frame / holo), each summing to 100.
+  The modal is opened by each booster plate and names the selected set's card
+  pool. Its notes match the fallback and playset behavior in `PackOpener.ts`.
 - **Effort / risk.** Small. Read-only render of an existing config const; no new
   state; respects the config-is-spec pattern.
 - **Tests.** Visual, plus an optional assertion that each `DROPS` axis sums to

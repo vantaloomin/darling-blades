@@ -49,6 +49,26 @@ const DB: CardDb = {
     rarity: 'c',
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 10 }] }],
   },
+  foresee2: {
+    id: 'foresee2',
+    name: 'Foresee Two',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    rarity: 'c',
+    abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }] }],
+  },
+  draw_one: {
+    id: 'draw_one',
+    name: 'Draw One',
+    types: ['charm'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    rarity: 'c',
+    abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 1 }] }],
+  },
   foresee0: {
     id: 'foresee0',
     name: 'Foresee Zero',
@@ -329,6 +349,88 @@ describe('foresee', () => {
       targets: [{ kind: 'permanent', iid: 1 }],
     });
     expect(diesGame.awaiting).toMatchObject({ player: 1, kind: 'foresee' });
+  });
+});
+
+/**
+ * Playtest pin (2026-07-16): "when I foresee 2 and bottom 1, I should draw the
+ * card I kept on top." Each test resolves foresee through the real action flow
+ * and then CASTS A REAL DRAW SPELL, asserting the physically drawn card — not
+ * just the deck array. Deck arrays are bottom-first (deck[len-1] is the top);
+ * awaiting.cards is top-first (cards[0] is the top of the deck).
+ */
+describe('foresee draw order (playtest pin)', () => {
+  // Deck bottom-first: forest(bottom), bear, elf, giant(top). Foresee 2 reveals
+  // top-first: ['giant', 'elf'].
+  function foreseeThenDraw(
+    foreseeCard: 'foresee2' | 'foresee3',
+    deck: string[],
+    bottomIndices: number[],
+  ): Game {
+    const state = makeTestState({ hands: [[foreseeCard, 'draw_one'], []], active: 0 });
+    state.players[0].deck = [...deck];
+    const game = Game.restore(state, DB);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(game.awaiting.kind).toBe('foresee');
+    game.submit(0, { type: 'foresee', bottomIndices });
+    return game;
+  }
+
+  it('foresee 2, bottom the top card (index 0): next draw is the former second card', () => {
+    const game = foreseeThenDraw('foresee2', ['forest', 'bear', 'elf', 'giant'], [0]);
+
+    // giant (the old top) is now the single bottom card; elf stayed on top.
+    expect(game.state.players[0].deck).toEqual(['giant', 'forest', 'bear', 'elf']);
+    expect(game.state.players[0].deck[0]).toBe('giant'); // bottomed card at deck bottom
+
+    game.submit(0, { type: 'castSpell', handIndex: 0 }); // cast draw_one
+    expect(game.state.players[0].hand).toEqual(['elf']); // drew the kept card
+    expect(game.state.players[0].deck).toEqual(['giant', 'forest', 'bear']);
+  });
+
+  it('foresee 2, bottom the second card (index 1): next draw is the former top card', () => {
+    const game = foreseeThenDraw('foresee2', ['forest', 'bear', 'elf', 'giant'], [1]);
+
+    expect(game.state.players[0].deck).toEqual(['elf', 'forest', 'bear', 'giant']);
+
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(game.state.players[0].hand).toEqual(['giant']); // the old top stayed on top
+  });
+
+  it('foresee 2, bottom nothing: deck order is unchanged and the old top is drawn', () => {
+    const game = foreseeThenDraw('foresee2', ['forest', 'bear', 'elf', 'giant'], []);
+
+    expect(game.state.players[0].deck).toEqual(['forest', 'bear', 'elf', 'giant']);
+
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(game.state.players[0].hand).toEqual(['giant']);
+  });
+
+  it('foresee 2, bottom both: both go to the bottom in original relative order', () => {
+    const game = foreseeThenDraw('foresee2', ['forest', 'bear', 'elf', 'giant'], [0, 1]);
+
+    // Bottom-first array: elf is the very bottom, giant sits directly above it
+    // — reading top-down that is giant-then-elf, their original relative order.
+    expect(game.state.players[0].deck).toEqual(['elf', 'giant', 'forest', 'bear']);
+
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(game.state.players[0].hand).toEqual(['bear']); // former third card is drawn
+  });
+
+  it('foresee 3 mixed: kept cards keep top-down order on top, bottomed keep theirs below', () => {
+    // Top-first reveal: ['knight', 'giant', 'elf']. Bottom the middle (giant).
+    const game = foreseeThenDraw(
+      'foresee3',
+      ['forest', 'bear', 'elf', 'giant', 'knight'],
+      [1],
+    );
+
+    // Full deck, bottom-first: giant at the very bottom; kept knight/elf back on
+    // top in their original top-down order (knight above elf).
+    expect(game.state.players[0].deck).toEqual(['giant', 'forest', 'bear', 'elf', 'knight']);
+
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(game.state.players[0].hand).toEqual(['knight']);
   });
 });
 

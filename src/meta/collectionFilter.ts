@@ -260,6 +260,7 @@ function cap(s: string): string {
 export function variantLabel(v: CardVariant): string {
   if (isPlainVariant(v)) return 'Standard';
   const parts: string[] = [];
+  if (v.fullArt) parts.push('Full Art');
   if (v.frame !== 'white') parts.push(`${cap(v.frame)} Frame`);
   if (v.holo !== 'none') parts.push(cap(v.holo));
   return parts.join(' · ');

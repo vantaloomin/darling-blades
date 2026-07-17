@@ -24,7 +24,8 @@ describe('card proof-sheet logic', () => {
   it('maps the default selectors to the real variant contract', () => {
     const state = createInitialState();
     expect(variantForChoices(state)).toBeUndefined();
-    expect(variantForChoices({ ...state, frame: 'gold' })).toEqual({ frame: 'gold', holo: 'none' });
-    expect(variantForChoices({ ...state, holo: 'void' })).toEqual({ frame: 'white', holo: 'void' });
+    expect(variantForChoices({ ...state, frame: 'gold' })).toEqual({ frame: 'gold', holo: 'none', fullArt: false });
+    expect(variantForChoices({ ...state, holo: 'void' })).toEqual({ frame: 'white', holo: 'void', fullArt: false });
+    expect(variantForChoices({ ...state, fullArt: true })).toEqual({ frame: 'white', holo: 'none', fullArt: true });
   });
 });

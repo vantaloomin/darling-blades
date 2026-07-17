@@ -356,14 +356,14 @@ clean up keyboard listeners when the container is destroyed.
   zero-based in code; unavailable directions are visibly subdued and must not
   change page state.
 
-### Inputs, selects, filters, and drawers
+### Inputs, selects, filters, and disclosure modals
 
-Reuse `SearchInput`, `Dropdown`, `FilterBar`, `OddsDrawer`, and
-`KeywordGlossaryPanel`. Their DOM or specialist rendering is an implementation
-detail; their semantic colors, font families, interaction floors, and depth
-come from the core theme. Extend the shared component when a new state is
-general. Do not create a scene-local square `Text.backgroundColor` control
-beside rounded core controls.
+Reuse `SearchInput`, `Dropdown`, `FilterBar`, the shop's per-pack odds modal,
+and `KeywordGlossaryPanel`. Their DOM or specialist rendering is an
+implementation detail; their semantic colors, font families, interaction
+floors, and depth come from the core theme. Extend the shared component when a
+new state is general. Do not create a scene-local square
+`Text.backgroundColor` control beside rounded core controls.
 
 ### Cards and game-specific readouts
 
@@ -372,6 +372,14 @@ keyword icons, set symbols, card-frame treatments, and combat FX are sanctioned
 specialist components. Reuse them in their intended context. Their internal
 geometry and palettes should be named and centralized in their owning module,
 but they do not need to use application-chrome colors for material identity.
+
+**Color identity is always shown with mana pips, never letter codes.**
+Anywhere the UI presents the colors of a deck, card, avatar, or archetype
+(shop plates and previews, deck builder, draft screens, achievements,
+glossary), render the baked `pip-<W|U|B|R|G|C>` bead textures
+(`src/ui/ManaSymbols.ts`, typically 16-20px via `setDisplaySize`) instead of
+text like "U/B/G". Letter strings such as `DeckInfo.colors` are data to parse
+into pips, not display copy. (User-directed 2026-07-17.)
 
 ## Interaction and accessibility contract
 

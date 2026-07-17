@@ -26,7 +26,7 @@ import { VERSION_LABEL } from '../version';
 const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
   // Game modes live one level down (PlayScene): Gauntlet, Draft, Practice ×3.
   { label: 'Play', scene: 'Play' },
-  { label: 'Open Packs', scene: 'Shop' },
+  { label: 'Shop', scene: 'Shop' },
   { label: 'Collection', scene: 'Collection' },
   { label: 'Achievements', scene: 'Achievements' },
   { label: 'Deck Builder', scene: 'DeckBuilder' },

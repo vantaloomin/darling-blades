@@ -22,7 +22,7 @@ export const ECONOMY = {
   ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 69-card chase)
   celticFaePackPrice: 525, // expansion booster — only pulls set:'celtic-fae' cards (80-card chase density)
   arthurianCourtPackPrice: 525, // expansion booster — only pulls set:'arthurian-court' cards (80-card chase density)
-  boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo independently (DROPS)
+  boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo + full art independently (DROPS)
   limitedPackSize: 15, // Limited packs stay MTG-sized for Sealed/Draft pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
   lossGold: 20,
@@ -58,6 +58,7 @@ export const ECONOMY = {
   // stack past 4 — rarer frames/holos effectively never do.
   shardFrameMult: { white: 1, blue: 1.5, red: 2, gold: 4, rainbow: 8, black: 15 } as const,
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
+  shardFullArtMult: 25,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
   // a full 14-rung clear. Full run = 50+70+…+270 (=1920) + 290 + 310 + 250 = 2770g ≈ 11.1 packs,
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
@@ -145,7 +146,8 @@ export const ECONOMY = {
 
 /**
  * Multi-axis booster drop tables. Each of a pack's `ECONOMY.boosterPackSize` slots
- * rolls all three axes independently: rarity tier, frame style, holo finish.
+ * rolls all four axes independently: rarity tier, frame style, holo finish,
+ * and Full Art treatment.
  * Weights are percentages — every table sums to exactly 100 — consumed by the
  * cumulative-weight walks in `src/meta/variants.ts` (`rngFloat(rng) * 100`).
  *
@@ -176,5 +178,9 @@ export const DROPS = {
     ['pearlescent', 8],
     ['fractal', 1.55],
     ['void', 0.45],
+  ],
+  fullArt: [
+    ['standard', 99.75],
+    ['full-art', 0.25],
   ],
 } as const;

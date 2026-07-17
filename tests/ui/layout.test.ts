@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
 import {
   COMPACT_TOUCH_GAP_RANGE,
@@ -131,6 +132,90 @@ describe('layout geometry', () => {
       expect(inactiveGap(layout.titleTrack, layout.closeTrack).gap).toBe(16);
       expect(inactiveGap(layout.titleTrack, layout.contentBounds).gap).toBe(16);
       expect(inactiveGap(layout.contentBounds, layout.footerTrack).gap).toBe(16);
+    }
+  });
+
+  it('keeps the gauntlet recap grid clear of the 820x640 modal footer track', () => {
+    // Mirrors DuelScene.showGauntletRunRecap's count-aware grid math; if the
+    // scene formula changes, update this in lockstep. Pins the layout facts
+    // the recap relies on, then proves the last portrait row (plus its label
+    // block) ends above the footer track for the full rung ladder.
+    const layout = modalShellLayout({ width: 820, height: 640 });
+    expect(layout.footerTrack.y).toBe(612);
+    expect(layout.contentBounds.y + layout.contentBounds.height).toBe(596);
+
+    const rungCount = ECONOMY.gauntletRungGold.length;
+    const gridTop = Math.max(layout.contentBounds.y, 206);
+    // The scene reserves the last row's 38px label block (8px gap + ~30px of
+    // wrapped lines) out of the band before deriving the pitch.
+    const gridBottom = layout.contentBounds.y + layout.contentBounds.height - 38;
+    const rows = Math.ceil(rungCount / 6);
+    const cols = Math.ceil(rungCount / rows);
+    const xPitch = Math.min(132, layout.contentBounds.width / cols);
+    const yPitch = Math.min(156, (gridBottom - gridTop) / rows);
+    const cellScale = Math.min(1, xPitch / 132, yPitch / 156);
+    const y0 = gridTop + (gridBottom - gridTop - rows * yPitch) / 2 + yPitch / 2;
+
+    const portraitH = Math.round(112 * cellScale);
+    const lastRowCenter = y0 + (rows - 1) * yPitch;
+    // Label sits at portraitBottom + 8 and wraps to at most two 11px lines
+    // (~30px with line spacing).
+    const labelBottom = lastRowCenter + portraitH / 2 + 8 + 30;
+    expect(labelBottom).toBeLessThan(layout.footerTrack.y);
+
+    // The grid's left/right extents stay inside the content track.
+    const x0 = theme.design.centerX - ((cols - 1) * xPitch) / 2;
+    const halfCell = (92 * cellScale) / 2;
+    expect(x0 - halfCell).toBeGreaterThanOrEqual(layout.contentBounds.x);
+    expect(x0 + (cols - 1) * xPitch + halfCell).toBeLessThanOrEqual(
+      layout.contentBounds.x + layout.contentBounds.width,
+    );
+  });
+
+  it('keeps the deck shop grid inside the design frame for 8 and 12 decks', () => {
+    // Mirrors ShopScene's deckGridLayout (two-column, count-aware plate grid
+    // for the Decks tab); if the scene formula changes, update this in
+    // lockstep. The grid must clear the intro line at y=152 above and keep the
+    // last plate's bottom above y=700 below as the precon roster grows.
+    const grid = (count: number) => {
+      const cols = 2;
+      const top = 186;
+      const bottom = 696;
+      const rows = Math.max(1, Math.ceil(count / cols));
+      const band = bottom - top;
+      const rowPitch = Math.min(118, band / rows);
+      const plateH = Math.min(100, rowPitch - 8);
+      const y0 = top + (band - rows * rowPitch) / 2 + rowPitch / 2;
+      const plateW = 560;
+      const totalW = cols * plateW + (cols - 1) * 16;
+      const x0 = (theme.design.width - totalW) / 2;
+      return { rows, rowPitch, plateH, y0, x0, totalW, plateW };
+    };
+
+    for (const count of [8, 12]) {
+      const g = grid(count);
+      const lastRowCenter = g.y0 + (g.rows - 1) * g.rowPitch;
+      expect(lastRowCenter + g.plateH / 2).toBeLessThan(700);
+      expect(g.y0 - g.plateH / 2).toBeGreaterThan(160);
+      // Both columns stay inside the title-safe width.
+      expect(g.x0).toBeGreaterThanOrEqual(theme.design.safeLeft);
+      expect(g.x0 + g.totalW).toBeLessThanOrEqual(theme.design.safeRight);
+      // The 44px-tall button hit rows keep at least the ordinary gap floor
+      // between vertically adjacent plates, and plates host the sm controls.
+      expect(g.rowPitch - theme.control.minHitHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
+      expect(g.plateH).toBeGreaterThanOrEqual(60);
+
+      // Within a plate: Buy (130 hit, 12px inset) and Preview (90 hit) keep
+      // the ordinary floor between their inflated hit rects and stay inside
+      // the plate. Label widths are below both minWidths, so hits equal them.
+      const buyHit = measureThemedButton(80, 'sm', 130).hit;
+      const previewHit = measureThemedButton(48, 'sm', 90).hit;
+      const buyX = g.plateW - 77;
+      const previewX = buyX - 120;
+      expect(buyX + buyHit.x + buyHit.width).toBeLessThanOrEqual(g.plateW);
+      expect((buyX + buyHit.x) - (previewX + previewHit.x + previewHit.width)).toBeGreaterThanOrEqual(
+        GAP_FLOORS.ordinary,
+      );
     }
   });
 

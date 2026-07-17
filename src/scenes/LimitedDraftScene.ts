@@ -633,7 +633,10 @@ export class LimitedDraftScene extends Phaser.Scene {
     const c = shell.container;
     const cardView = new CardView(this, 430, 360).setScale(1.25);
     const variant = this.currentPackVariant(packIndex);
-    cardView.setCard(card, variant ? { fx: 'full', variant } : { fx: 'full' });
+    cardView.setCard(
+      card,
+      variant ? { fx: 'full', variant, fullArt: variant.fullArt } : { fx: 'full' },
+    );
     c.add(cardView);
 
     // The close button hugs the shell's INNER top-right corner (user-directed
@@ -989,7 +992,8 @@ function premiumVariantLine(variant: CardVariant | undefined): string {
   if (!variant || isPlainVariant(variant)) return 'Standard print';
   const frame = capitalize(variant.frame);
   const holo = variant.holo === 'none' ? 'No holo' : `${capitalize(variant.holo)} holo`;
-  return `${frame} frame - ${holo} - yours when the draft completes`;
+  const fullArt = variant.fullArt ? 'Full Art - ' : '';
+  return `${fullArt}${frame} frame - ${holo} - yours when the draft completes`;
 }
 
 function capitalize(value: string): string {

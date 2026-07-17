@@ -15,6 +15,7 @@ import {
   enterEndStep,
   finishDawn,
   finishCleanup,
+  resumeCleanup,
   startTurn,
 } from './phases';
 import { createRngState, rngInt, rngShuffle } from './rng';
@@ -35,6 +36,8 @@ export interface GameConfig {
   decks: [string[], string[]];
   seed: number;
   db: CardDb;
+  /** Opt into the pre-mulligan coin-flip winner's play/draw decision. */
+  playDrawChoice?: boolean;
 }
 
 /**
@@ -71,7 +74,11 @@ export class Game {
       stackClosed: false,
       combat: null,
       fogThisTurn: false,
-      awaiting: { player: startingPlayer, kind: 'mulligan' },
+      // Until an opted-in play/draw choice resolves, startingPlayer is the
+      // provisional flip winner. No turn or mulligan logic reads it first.
+      awaiting: cfg.playDrawChoice
+        ? { player: startingPlayer, kind: 'choosePlayDraw' }
+        : { player: startingPlayer, kind: 'mulligan' },
       pendingDecisions: [],
       nextIid: 1,
       nextSid: 1,
@@ -80,7 +87,8 @@ export class Game {
     };
 
     const emit: Emit = (e) => this.initialEvents.push(e);
-    emit({ e: 'firstPlayerChosen', player: startingPlayer });
+    if (cfg.playDrawChoice) emit({ e: 'coinFlipped', winner: startingPlayer });
+    else emit({ e: 'firstPlayerChosen', player: startingPlayer });
     for (const p of [0, 1] as const) {
       drawCards(this.st, emit, p, RULES.startingHandSize);
     }
@@ -217,6 +225,16 @@ export class Game {
         endGame(st, emit, opponentOf(player), 'concede');
         return;
 
+      case 'choosePlayDraw': {
+        const startingPlayer = action.play ? player : opponentOf(player);
+        st.startingPlayer = startingPlayer;
+        st.activePlayer = startingPlayer;
+        emit({ e: 'playDrawChosen', player, play: action.play });
+        emit({ e: 'firstPlayerChosen', player: startingPlayer });
+        st.awaiting = { player: startingPlayer, kind: 'mulligan' };
+        return;
+      }
+
       case 'mulligan': {
         me.mulligans++;
         me.deck.push(...me.hand.splice(0));
@@ -288,6 +306,10 @@ export class Game {
         lib.splice(Math.max(0, lib.length - awaiting.cards.length), awaiting.cards.length);
         lib.unshift(...[...bottomed].reverse());
         lib.push(...[...kept].reverse());
+        // Outcome summary for the presentation layer (history log). Carries
+        // identities; the presenter redacts the non-local player's cards to
+        // counts — see the `foresaw` comment in events.ts.
+        emit({ e: 'foresaw', player, kept, bottomed });
         return;
       }
 
@@ -453,6 +475,13 @@ export class Game {
       case 'end':
         // The single end-step window has been used.
         enterCleanup(st, this.db, emit);
+        return;
+      case 'cleanup':
+        // A deferred decision (a foresee or land fetch resolved out of the
+        // end-step window's stack) was raised OVER the cleanup discard
+        // prompt; rejoin cleanup, which re-raises the discard or ends the
+        // turn. Found by the 2026-07-16 prefab mass-sim (seed 4000600333).
+        resumeCleanup(st, this.db, emit);
         return;
       case 'combat': {
         const combat = st.combat;

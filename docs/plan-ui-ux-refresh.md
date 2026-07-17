@@ -68,7 +68,8 @@ gold-badge formats, four panel fill/stroke recipes, and one alien cyan
   panel, close affordances incl. Esc, ModalGuard wiring), `backButton()`,
   `goldBadge()`, `pager()`.
 - **Shared-widget migration**: `Dropdown`, `FilterBar`, `SearchInput` (CSS
-  string generated from tokens), `OddsDrawer`, `KeywordGlossaryPanel`.
+  string generated from tokens), the shop's per-pack odds modal, and
+  `KeywordGlossaryPanel`.
 
 No scene redesigns in this wave; visual deltas are limited to the normalized
 tokens showing through the migrated shared widgets. **Effort: medium. Risk:

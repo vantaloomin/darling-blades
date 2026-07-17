@@ -40,32 +40,35 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
 - **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built; see Project status below.
 
-## What's new in 1.1 (The Silver Veil)
+## What shipped in 1.1 (The Silver Veil)
 
-Version 1.1 adds a second expansion and makes Draft a playable game mode, then spends the rest of its changelog on the economy and the shop.
+- **Celtic Fae: The Silver Veil (Expansion 2).** 80 collectible cards of fae courts, selkies, and banshees, plus two game-wide mechanics: **Sever** (removes cards from the game for good) and **Foresee** (peek at your deck top and decide what stays). Its own booster, the **Glimmer Bargain** precon, eight achievements, and gauntlet rungs 11-12 (**The Morrigan** and **Titania**).
+- **Draft went public.** An eight-seat table against seven of twenty named AI drafters, each with a real pick style you learn over repeated drafts. Free Draft pays gold on your record; Premium Draft (1,000 gold, twice weekly) rolls variants and keeps all 45 picks.
+- **Shard-crafting**: buy any card you own zero copies of, at six times shard value.
+- **Shop deck previews, the achievements-screen rebuild, and the Glossary** landed, and the economy closed its exploit routes with tuning verified across 10 simulated player archetypes.
 
-**Celtic Fae: The Silver Veil (Expansion 2).** 80 new collectible cards of fae courts, selkies, banshees, and impossible bargains. It is a Blue/Black/Green tempo-control set, with White fae knights and Red wild-hunt aggression around the edges, and all of it is fully illustrated. Two new mechanics arrive with it and apply game-wide: **Sever** removes cards from the game entirely (a one-way public zone that reanimation cannot reach), and **Foresee** lets you peek at the top of your deck and decide what stays. The set ships with its own 525-gold booster, the buyable **Glimmer Bargain** precon, eight new achievements, and two new bosses at the top of the Avatar Gauntlet: **The Morrigan** at rung 11 and **Titania, Queen of the Silver Court** at rung 12.
+## What's new in 1.2 (The Grail Oath)
 
-**Draft.** The new **Play** menu adds Draft: an eight-seat table where you and seven AI drafters pass packs and pick 45 cards, then you build a 40-card deck (auto-build or hand-tune) and play three matches against the rivals seated beside you. The seven opponents come from a roster of twenty named characters, each with a distinct pick style; the roster includes rare-chasers, curve perfectionists, tribal loyalists, mono-forcers, and one drafter who picks on pure chaos. You learn who they are by drafting with them: the first draft shows a name and face, later drafts reveal their color habits and eventually their full profile.
+Version 1.2 adds a third expansion with two new mechanics, makes every duel rewatchable, and rebuilds the parts of the game you touch between duels: the shop, the practice menu, and the opening coin flip.
 
-- **Free Draft** costs nothing to enter and pays gold based on your record.
-- **Premium Draft** (1,000 gold, twice per week) rolls frame and holo variants into its packs, and you keep all 45 of your picks.
+**Arthurian Court: The Grail Oath (Expansion 3).** 80 new collectible cards of knights, quests, and grail light: White/Blue/Red knight tribal with a court of legends (Artoria, Lancelot, Galahad, Mordred, Merlin, Morgan) that brings the game to **429 collectible cards**, all fully illustrated. Two new mechanics arrive with it: **Quests** advance a chapter at each of your dawns and pay off as they go, and **Champion Awakening** transforms a knight permanently once its condition is met. The set ships with its own 525-gold booster, the buyable **Questing Table** precon, eight new achievements, and two new bosses at the top of the tower: **Morgan of the Thorn Crown** at rung 13 and **Artoria, Once and Future Queen** at rung 14.
 
-**Shard-crafting.** Any card you own zero copies of can be crafted from the Collection screen for gold, at six times its shard value (30 gold for a Common, 3,000 for an Ultra Rare). If your last few missing legends refuse to show up in packs, you can now buy them outright.
+**Replays.** The game now records your last ten duels (seed, decks, and every action) and replays them deterministically: open the Replays reel on your Profile and watch any of them with play, pause, step, and speed controls. A replay is a byte-exact re-simulation, not a video.
 
-**Shop deck previews.** Every precon in the shop now shows its complete card list with a mana curve, color breakdown, and composition stats, a short description of how the deck plays, its signature cards, and exactly how many new copies a purchase would add to your collection. The buy footer shows your balance and any shortfall before you commit, and tapping any row opens the full card.
+**Practice opponent picker.** The Play menu's Practice entry now opens a full roster: challenge any of the 14 tower avatars directly (with their deck and personality, no ladder attached) or take a plain Easy, Medium, or Hard training duel.
 
-**Achievements screen.** Rebuilt with filters (All / Ready / In Progress / Claimed), a summary strip, cleaner rows that always show the reward, and a one-tap Claim All.
+**The opening coin flip.** Duels now start with a visible coin flip; the winner chooses to play first or draw first. The choice is yours when you win the toss, and the whole exchange lands in the match history.
 
-**Glossary of Terms.** A learning-corner scene covering every keyword with its icon and reminder text, plus card types, mana symbols, and rarity tiers.
+**Shop rework.** The shop is now the menu's **Shop** (formerly Open Packs) and opens on whichever tab you need: the precon decks while your free starter claim is unspent, boosters after. The Decks tab fits the full precon roster in a two-column grid with mana-pip color identities, and every booster carries an info glyph that opens that set's drop-rates table, with rarity, frame, and holo odds as aligned rows.
+
+**Quality of life from playtesting.** The match history now reports what Foresee and Sever actually did (your own foresees name the cards; your opponent's show only counts), and every card name in the history is [bracketed] and tappable. Esc opens the in-game menu. The gauntlet failure screen fits all 14 rungs cleanly, names opponents briefly, and says what actually ended the run in plain language.
 
 **Balance and fixes.**
 
-- The AI now accounts for its own life loss when its cards bleed it, and it will go for lethal instead of sitting behind a full bench while it dies. Simultaneous deaths also resolve together, which fixes several token interactions on crowded boards.
-- Dual-color lands read as either/or on their card faces, and the playmat gives flexible mana sources a split-pip counter.
-- MTG-style set symbols replace the old rarity gem. The shape names the set; the tint names the rarity.
-- The economy closed its exploit routes: a finished collector can no longer farm Premium Draft for profit, concede-farming and free-draft spam pay nothing extra, and the gold faucets were re-measured end to end. The tuning was verified in simulation across 10 player archetypes over 60 simulated days each.
-- "Bloodoath" is now written **Blood Oath**, the base set is labeled **Core Set** in filters and the shop, the Collection turns pages with ←/→, and dozens of smaller copy, layout, and readability fixes landed across every scene.
+- Limited run-history achievements: four new mastery goals for drafters, including the 3-0 Clean Sweep.
+- A 10,500-game AI-vs-AI round-robin of the precon decks exposed the two outliers: **Glimmer Bargain** was rebuilt (a real manabase with six duals and a consolidated list, 30% to 47% aggregate) and **Grave Harvest** was trimmed (64% to 54%), tightening the field.
+- The same mass-run caught a rare engine crash (a Foresee resolved during the opponent's end step while over hand size would freeze the game); fixed with regression tests.
+- The AI plays the new Quest and Awakening mechanics at every difficulty, and rungs 13-14 were tuned through six measured deck iterations plus targeted card buffs.
 
 ## How to play
 
@@ -76,7 +79,7 @@ The main menu routes to:
 | **Play → Avatar Gauntlet** | Climb the 12-rung ladder of named boss opponents; clear a rung and roll straight into the next, with per-rung gold and a completion bonus. |
 | **Play → Draft** | An eight-seat draft against seven named AI drafters: pick 45 cards across three passed packs, build a 40-card deck, and play three matches. Free entry pays gold on your record; Premium (1,000g, twice a week) keeps every pick. |
 | **Play → Practice (Easy / Medium / Hard)** | A one-off duel against the AI at your chosen difficulty, no ladder attached. |
-| **Open Packs** | The shop: buy a 9-card booster (Core Set, Ragnarök, or Celtic Fae) and watch the rarity/frame/holo reveal animate slot by slot, or buy whole decks (the unpicked starters and the expansion precons) from the Decks tab, each with a full-stats preview. |
+| **Shop** | Buy a 9-card booster (Core Set, Ragnarök, or Celtic Fae) and watch the rarity/frame/holo reveal animate slot by slot, or buy whole decks (the unpicked starters and the expansion precons) from the Decks tab, each with a full-stats preview. |
 | **Collection** | A binder-style spread of every card you own, filterable by color / type / rarity / set / owned, showing your best-owned print of each plus pool and special-variant completion progress, with a Craft action on any card you're missing. |
 | **Deck Builder** | Build and edit your active 60-card deck from your owned collection. |
 | **Achievements** | Review locked/unlocked/claimed goals and claim gold rewards for collection, variant, themed, mastery, and economy milestones. |

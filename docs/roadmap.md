@@ -52,13 +52,14 @@ _Dated 2026-07-04. Review monthly._
   (`src/audio/`, 14 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v20** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v21** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
   familiarity, v17→v18 Premium Draft, v18→v19 premium weekly allowance,
-  v19→v20 deterministic replays — see Recently shipped). By-ear tuning remains
-  open (see Planned).
+  v19→v20 deterministic replays, v20→v21 Full Art three-segment variant
+  keys — see Recently shipped and the Full Art entry under Planned). By-ear
+  tuning remains open (see Planned).
 
 ## Recently shipped (2026-07-16 · the 1.2 build)
 
@@ -237,11 +238,11 @@ _Dated 2026-07-04. Review monthly._
   contract, orchestrator-reviewed + live-probed). The preview and inspect
   modals now sit on the shared overlay machinery: one scene-owned
   `OverlayCoordinator` whose leases **ModalGuard the underlying Shop
-  controls** (tabs, SKUs, quantity chips, deck rows, Back, the OddsDrawer's
-  surfaces — state-verified disabled while a modal is open and restored on
-  close; the stacked inspect lease guards the preview's own controls), all
-  content anchored to the shell's title/content/footer tracks, and the
-  OddsDrawer gains a synchronous `close()` called before the preview opens.
+  controls** (tabs, SKUs, quantity chips, deck rows, Back, the shop odds modal
+  surfaces, with state-verified disable and restore while a modal is open; the
+  stacked inspect lease guards the preview's own controls), all content
+  anchored to the shell's title/content/footer tracks. The odds disclosure is
+  now a per-pack modal that closes synchronously before the preview opens.
   Each deck shows **2–3 signature-card thumbnails** with count badges,
   tap-to-inspect (picks hand-authored in the new Phaser-free
   `src/data/deckInfo.ts` — `DECK_INFO` moved there with a purity test
@@ -648,7 +649,7 @@ _Dated 2026-07-04. Review monthly._
   owned-cards default filter, dev-gated card showcase, on-screen version label.
   **Wave C (#8):** card-face mirror layout, playmat battlefield-tile redesign,
   dropdown filters. **Wave B — shop restructure (#9):** Boosters / Decks tabs,
-  a drop-rate % drawer, a buyable deck store with preview, and a unique generated
+  a per-pack drop-rate % modal, a buyable deck store with preview, and a unique generated
   Valkyrie hero portrait — the **v8 → v9** `SaveData` bump.
 
 ## Recently shipped (2026-07-05)
@@ -1105,7 +1106,19 @@ _Dated 2026-07-04. Review monthly._
   art; preview via the Card Showcase FULL ART toggle. Remaining work is
   the axis wiring above (variants/DROPS/save/economy) plus routing
   `variant.fullArt` into the shipped render flag, and a Full Art toggle
-  on the card proof sheet for catalog-wide QA.
+  on the card proof sheet for catalog-wide QA. **Stage 2 (the axis)
+  SHIPPED 2026-07-17 on the PR #85 branch**: `CardVariant.fullArt` with
+  the three-segment variant key (SaveData v20 → v21, real migrate() +
+  tests; old two-segment keys parse as non-full-art), the 0.25% DROPS
+  table + Monte-Carlo verification, ×25 shard multiplier, rank above
+  black frame, never-auto-melt, the flag routed through collection /
+  pack reveal / duel previews / showcase / draft inspection, the odds
+  modal's FULL ART section, and the cardproof toggle. **Premium Draft
+  packs exclude the axis permanently** (pinned by test): including it
+  measured the premium shard-farm EV at 1,096.5g per 1,000g entry
+  across the 10 fixed gate seeds, re-opening the exploit the 1.1
+  economy pass closed; with the exclusion the gate passes at 966.5g
+  mean. Full Art is a booster-only pull.
 - **"Mark" counter retheme (decided 2026-07-13).** Player-facing copy
   only, same treatment as the Sever/Foresee retheme: "+1/+1 counter"
   becomes "+1/+1 mark" in generated rules text, glossary, rules.md, and
@@ -1125,8 +1138,9 @@ _Dated 2026-07-04. Review monthly._
   existing five ids** — cosmetic-only, fits the established variant
   system (or a lighter per-deck "land style" selector), no catalog
   surface. B is the smaller, save-schema-bounded change; A makes lands a
-  collectible product. Decision unmade — no implementation until the
-  user picks.
+  collectible product. **Decided 2026-07-17: a deck-builder land-style
+  selector (B-lite) — cosmetic only, not collectible; scheduled into 1.3
+  ([plan-1.3.md](plan-1.3.md) Pillar 2).**
 - **Core design-system alignment.** The shipped theme foundation is now
   formalized in [design-system.md](design-system.md); the repository-wide audit
   and dependency-ordered implementation program live in
@@ -1162,8 +1176,11 @@ _Dated 2026-07-04. Review monthly._
   SHIPPED 2026-07-16** (see Recently shipped · the 1.2 build); what
   remains for the 1.2 cut is release mechanics (version bump + tag +
   README consumer notes) plus the standing validation passes;
-  **1.3** = seeded daily tower rotation (with its
-  balance re-baseline); **1.5** = Commander mode, renamed **"Darlings"**;
+  **1.3** = seeded daily tower rotation (full-shuffle roster with
+  floor-scaled AI tiers, plus its balance re-baseline), the deck-builder
+  land-style selector, and the "Hardcore MTG Fan" balance personas — user
+  decisions 2026-07-17, spec in [plan-1.3.md](plan-1.3.md);
+  **1.5** = Commander mode, renamed **"Darlings"**;
   **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
   the hub offers only Draft; its dormant code is cleanup-eligible.
   **Placements locked (2026-07-14 handoff):** the base-facet relabel shipped

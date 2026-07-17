@@ -110,6 +110,17 @@ export function enterEndStep(state: GameState, db: CardDb, emit: Emit): void {
 export function enterCleanup(state: GameState, db: CardDb, emit: Emit): void {
   state.step = 'cleanup';
   emit({ e: 'stepChanged', step: 'cleanup' });
+  resumeCleanup(state, db, emit);
+}
+
+/**
+ * Raise (or re-raise) the hand-size discard, or finish the turn. Split from
+ * enterCleanup so resumeAfterFlush can rejoin the cleanup step after a
+ * deferred decision (e.g. a foresee cast in the end-step window) clobbered
+ * the discardToHandSize awaiting — re-entering here recomputes the overage
+ * instead of throwing on the unexpected step.
+ */
+export function resumeCleanup(state: GameState, db: CardDb, emit: Emit): void {
   const active = state.activePlayer;
   const over = state.players[active].hand.length - RULES.maxHandSize;
   if (over > 0) {

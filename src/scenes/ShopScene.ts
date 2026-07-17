@@ -17,7 +17,7 @@ import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { modalGuardTarget } from '../ui/Modal';
-import { OddsDrawer } from '../ui/OddsDrawer';
+import { createOddsModal, type BoosterSku } from '../ui/OddsModal';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
@@ -26,7 +26,7 @@ import { backButton, goldBadge, modalShell, pager, panel, themedButton, type Gol
 const PACK_W = 280;
 const PACK_H = 400;
 
-export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court';
+export type { BoosterSku } from '../ui/OddsModal';
 
 interface PackTint {
   start: string;
@@ -227,12 +227,6 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
 
 type ShopTab = 'boosters' | 'decks';
 
-/** The deck-row identity line, derived from DECK_INFO (e.g. "R/W · Warband aggro"). */
-const deckBlurb = (id: string): string => {
-  const info = DECK_INFO[id];
-  return info ? `${info.colors} · ${info.archetype}` : '';
-};
-
 /** A buyable deck SKU: the list, its price, and whether it's a theme/precon. */
 interface DeckSku {
   deck: DeckList;
@@ -243,6 +237,51 @@ interface DeckSku {
 interface PreviewEntry {
   d: CardDef;
   n: number;
+}
+
+// --- Decks-tab grid ---------------------------------------------------------
+// Two-column, count-aware plate grid: the row pitch is derived from the deck
+// count so the roster keeps fitting as sets add precons (comfortable through
+// at least 14 decks). tests/ui/layout.test.ts mirrors this math ("deck shop
+// grid") — update the test in lockstep with any change here.
+const DECK_GRID = {
+  cols: 2,
+  top: 186, // below the intro line at y=152
+  bottom: 696, // last plate bottom must stay above y=700
+  plateW: 560,
+  gapX: 16,
+  maxPitch: 118,
+  maxPlateH: 100,
+  plateGapY: 8,
+} as const;
+
+interface DeckGridLayout {
+  rows: number;
+  rowPitch: number;
+  plateH: number;
+  colLefts: number[];
+  rowCenter(row: number): number;
+}
+
+function deckGridLayout(count: number): DeckGridLayout {
+  const rows = Math.max(1, Math.ceil(count / DECK_GRID.cols));
+  const band = DECK_GRID.bottom - DECK_GRID.top;
+  const rowPitch = Math.min(DECK_GRID.maxPitch, band / rows);
+  const plateH = Math.min(DECK_GRID.maxPlateH, rowPitch - DECK_GRID.plateGapY);
+  const y0 = DECK_GRID.top + (band - rows * rowPitch) / 2 + rowPitch / 2;
+  const totalW = DECK_GRID.cols * DECK_GRID.plateW + (DECK_GRID.cols - 1) * DECK_GRID.gapX;
+  const x0 = (theme.design.width - totalW) / 2;
+  const colLefts = Array.from(
+    { length: DECK_GRID.cols },
+    (_, c) => x0 + c * (DECK_GRID.plateW + DECK_GRID.gapX),
+  );
+  return {
+    rows,
+    rowPitch,
+    plateH,
+    colLefts,
+    rowCenter: (row) => Math.round(y0 + row * rowPitch),
+  };
 }
 
 const PREVIEW_ROWS_PER_COLUMN = 9;
@@ -265,7 +304,7 @@ export class ShopScene extends Phaser.Scene {
   private previewInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private shopInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private deckInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
-  private oddsDrawer: OddsDrawer | null = null;
+  private oddsModal: ModalShell | null = null;
   private coordinator!: OverlayCoordinator;
   /** F10 bulk-buy: quantity + the SKU buy buttons / quantity chips it drives. */
   private qty = 1;
@@ -285,9 +324,12 @@ export class ShopScene extends Phaser.Scene {
   }
 
   create(data: { tab?: ShopTab } = {}): void {
-    // Onboarding routes here with { tab: 'decks' } so a new player lands on their
-    // free-starter claim; everything else defaults to the boosters tab.
-    this.tab = data.tab ?? 'boosters';
+    // Default tab follows the free-starter claim (user-directed 2026-07-17):
+    // while the claim is unspent the shop opens on the precon decks so a new
+    // player lands on Claim Free; once spent it opens on boosters. An explicit
+    // data.tab (onboarding routes { tab: 'decks' }) always wins.
+    const freeClaimAvailable = Services.save.data.starterChosen === null;
+    this.tab = data.tab ?? (freeClaimAvailable ? 'decks' : 'boosters');
     this.qty = 1;
     this.skuButtons = [];
     this.qtyChips = new Map();
@@ -299,7 +341,7 @@ export class ShopScene extends Phaser.Scene {
     this.previewInteractiveTargets = [];
     this.shopInteractiveTargets = [];
     this.deckInteractiveTargets = [];
-    this.oddsDrawer = null;
+    this.oddsModal = null;
     this.coordinator = new OverlayCoordinator();
     // Deck-preview hotkeys. Keyboard bypasses the modal dims, so every handler
     // self-guards on the overlay/inspect state (the LimitedDraftScene pattern);
@@ -343,9 +385,6 @@ export class ShopScene extends Phaser.Scene {
     this.goldBadge = goldBadge(this, width - 30, 30, { flashOnChange: true });
     this.refreshGold();
 
-    // Drop-rate disclosure: a left slide-out drawer (percentages, from DROPS).
-    this.oddsDrawer = new OddsDrawer(this);
-
     this.buildTabBar();
     this.boostersGroup = this.add.container(0, 0);
     this.decksGroup = this.add.container(0, 0);
@@ -368,7 +407,6 @@ export class ShopScene extends Phaser.Scene {
     return [
       ...this.shopInteractiveTargets,
       ...this.deckInteractiveTargets,
-      ...(this.oddsDrawer?.interactiveTargets ?? []),
     ];
   }
 
@@ -413,7 +451,7 @@ export class ShopScene extends Phaser.Scene {
   // --- Boosters tab ---------------------------------------------------------
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
-    this.buildPackSku(group, 160, 'Core Set', 'packart', ECONOMY.packPrice, () =>
+    this.buildPackSku(group, 160, 'Core Set', 'packart', ECONOMY.packPrice, 'base', () =>
       this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
     );
     this.buildPackSku(
@@ -422,6 +460,7 @@ export class ShopScene extends Phaser.Scene {
       'Ragnarök',
       'packart-ragnarok',
       ECONOMY.ragnarokPackPrice,
+      'ragnarok',
       () => this.buyPacks(ECONOMY.ragnarokPackPrice, 'ragnarok', 'ragnarok'),
     );
     this.buildPackSku(
@@ -430,6 +469,7 @@ export class ShopScene extends Phaser.Scene {
       'Celtic Fae',
       'packart-celtic-fae',
       ECONOMY.celticFaePackPrice,
+      'celtic-fae',
       () => this.buyPacks(ECONOMY.celticFaePackPrice, 'celtic-fae', 'celtic-fae'),
     );
     this.buildPackSku(
@@ -438,6 +478,7 @@ export class ShopScene extends Phaser.Scene {
       'Arthurian Court',
       'packart-arthurian-court',
       ECONOMY.arthurianCourtPackPrice,
+      'arthurian-court',
       () => this.buyPacks(ECONOMY.arthurianCourtPackPrice, 'arthurian-court', 'arthurian-court'),
     );
     this.buildQtySelector(group);
@@ -451,6 +492,7 @@ export class ShopScene extends Phaser.Scene {
     label: string,
     textureKey: string,
     price: number,
+    sku: BoosterSku,
     onBuy: () => void,
   ): void {
     const title = this.add
@@ -474,10 +516,27 @@ export class ShopScene extends Phaser.Scene {
       minWidth: 180,
       onTap: onBuy,
     });
+    const infoX = x + theme.space(24);
+    const infoBg = this.add.graphics();
+    infoBg.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
+    infoBg.fillCircle(infoX, title.y, theme.space(3));
+    infoBg.lineStyle(theme.control.borderWidth, colorInt(theme.colors.gold), theme.alpha.chrome);
+    infoBg.strokeCircle(infoX, title.y, theme.space(3));
+    const info = this.add
+      .text(infoX, title.y, 'i', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.gold,
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    inflateHitArea(info, theme.control.minHitHeight, theme.control.minHitHeight);
+    bindTapButton(this, info, () => this.showOddsModal(sku));
     bindTapButton(this, pack, onBuy);
     this.skuButtons.push({ btn: buyBtn, price });
-    this.shopInteractiveTargets.push(pack, buyBtn.inputZone);
-    group.add([title, pack, buyBtn.container]);
+    this.shopInteractiveTargets.push(pack, buyBtn.inputZone, info);
+    group.add([title, infoBg, info, pack, buyBtn.container]);
   }
 
   /** F10 bulk-buy quantity selector (×1 / ×5 / ×10), added to `group`. */
@@ -546,21 +605,13 @@ export class ShopScene extends Phaser.Scene {
   private buildDecksGroup(group: Phaser.GameObjects.Container): void {
     group.removeAll(true); // rebuildable after a purchase
     this.deckInteractiveTargets = [];
-    const intro = this.add
-      .text(640, 152, 'Preconstructed decks: inspect the list, then buy the ones you didn’t start with.', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
-    group.add(intro);
-
     const skus = this.deckSkus();
-    let y = 210;
-    for (const sku of skus) {
-      this.buildDeckRow(group, sku, y);
-      y += 74;
-    }
+    const grid = deckGridLayout(skus.length);
+    skus.forEach((sku, i) => {
+      const left = grid.colLefts[i % DECK_GRID.cols];
+      const cy = grid.rowCenter(Math.floor(i / DECK_GRID.cols));
+      this.buildDeckPlate(group, sku, left, cy, grid.plateH);
+    });
   }
 
   /** A starter is a one-time FREE claim while the player hasn't taken their free deck yet. */
@@ -573,32 +624,69 @@ export class ShopScene extends Phaser.Scene {
     );
   }
 
-  private buildDeckRow(group: Phaser.GameObjects.Container, sku: DeckSku, y: number): void {
+  private buildDeckPlate(
+    group: Phaser.GameObjects.Container,
+    sku: DeckSku,
+    left: number,
+    cy: number,
+    plateH: number,
+  ): void {
     const { deck, price, theme: isTheme } = sku;
     const owned = Services.save.data.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
 
-    const plate = panel(this, 190, y - 31, 900, 62, { alpha: 0.7 });
-    const name = this.add
-      .text(220, y - 10, deck.name, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h2}px`,
-        color: isTheme ? theme.colors.gold : theme.colors.heading,
-      })
-      .setOrigin(0, 0.5);
-    const blurbText =
-      deckBlurb(deck.id) +
-      (owned ? '  ·  Owned' : freeClaim ? '  ·  ✦ your free starter' : '');
+    // Controls hug the plate's right edge: Buy/Claim (130-wide hit) inset 12px,
+    // Preview (90-wide hit) to its left with a 10px hit gap (>= the 8px floor).
+    const buyX = left + DECK_GRID.plateW - 77;
+    const previewX = buyX - 120;
+    const textLeft = left + 16;
+    const textMaxW = previewX - 45 - 10 - textLeft; // stop short of the Preview hit rect
+
+    const plate = panel(this, left, cy - plateH / 2, DECK_GRID.plateW, plateH, { alpha: 0.7 });
+    // Long name/blurb lines shrink toward their left anchor instead of running
+    // under the Preview button (plain Text scaling — no scaled-Container input).
+    const fit = (t: Phaser.GameObjects.Text): Phaser.GameObjects.Text => {
+      if (t.width > textMaxW) t.setScale(textMaxW / t.width);
+      return t;
+    };
+    const name = fit(
+      this.add
+        .text(textLeft, cy - 12, deck.name, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: isTheme ? theme.colors.gold : theme.colors.heading,
+        })
+        .setOrigin(0, 0.5),
+    );
+    // Color identity renders as mana pips, never letter codes (design-system
+    // "Color identity" rule); the archetype line starts after the pip run.
+    const info = DECK_INFO[deck.id];
+    const pipKeys = info ? info.colors.split('/') : [];
+    const PIP = 16;
+    const pipStep = PIP + 4;
+    for (let i = 0; i < pipKeys.length; i++) {
+      group.add(
+        this.add
+          .image(textLeft + PIP / 2 + i * pipStep, cy + 11, `pip-${pipKeys[i]}`)
+          .setDisplaySize(PIP, PIP),
+      );
+    }
+    const blurbLeft = textLeft + (pipKeys.length > 0 ? pipKeys.length * pipStep + 2 : 0);
+    // No free-starter marker here: the Claim Free button already carries that
+    // state (user-directed 2026-07-17).
+    const blurbText = (info?.archetype ?? '') + (owned ? '  ·  Owned' : '');
     const blurb = this.add
-      .text(220, y + 13, blurbText, {
+      .text(blurbLeft, cy + 11, blurbText, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0, 0.5);
+    const blurbMaxW = textMaxW - (blurbLeft - textLeft);
+    if (blurb.width > blurbMaxW) blurb.setScale(blurbMaxW / blurb.width);
     group.add([plate, name, blurb]);
 
-    const preview = themedButton(this, 720, y, 'Preview', {
+    const preview = themedButton(this, previewX, cy, 'Preview', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 90,
@@ -608,7 +696,7 @@ export class ShopScene extends Phaser.Scene {
     group.add(preview.container);
 
     if (!owned) {
-      const buy = themedButton(this, 920, y, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
+      const buy = themedButton(this, buyX, cy, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
         variant: 'primary',
         size: 'sm',
         minWidth: 130,
@@ -623,7 +711,7 @@ export class ShopScene extends Phaser.Scene {
       // set heroPortraitId keep working via DuelScene's fallback chain.
       group.add(
         this.add
-          .text(920, y, 'Owned ✓', {
+          .text(buyX, cy, 'Owned ✓', {
             fontFamily: theme.fonts.display,
             fontSize: `${theme.type.label}px`,
             color: theme.colors.success,
@@ -651,12 +739,21 @@ export class ShopScene extends Phaser.Scene {
 
   // --- Deck preview overlay -------------------------------------------------
 
-  /** Esc closes the TOP overlay only — inspect first, then the preview. Both
-   * shells register with escToClose:false so one press can't close both. */
+  /** Esc closes the TOP overlay only: inspect, odds, then deck preview. All
+   * shells register with escToClose:false so one press can't close two. */
   private readonly onEscKey = (): void => {
     if (this.inspect) this.closeInspect();
+    else if (this.oddsModal) this.closeOddsModal();
     else this.overlay?.close();
   };
+
+  private showOddsModal(sku: BoosterSku): void {
+    this.closeOverlay();
+    const shell = createOddsModal(this, this.coordinator, sku, this.underlyingInteractiveTargets(), () => {
+      if (this.oddsModal === shell) this.oddsModal = null;
+    });
+    this.oddsModal = shell;
+  }
 
   private readonly onInspectPrev = (): void => this.stepInspect(-1);
   private readonly onInspectNext = (): void => this.stepInspect(1);
@@ -675,7 +772,6 @@ export class ShopScene extends Phaser.Scene {
    */
   private showDeckPreview(sku: DeckSku): void {
     this.closeOverlay();
-    this.oddsDrawer?.close();
     const { deck, price } = sku;
     const save = Services.save.data;
     const owned = save.decks.some((d) => d.id === deck.id);
@@ -1114,5 +1210,11 @@ export class ShopScene extends Phaser.Scene {
     this.overlay?.close();
     this.overlay = null;
     this.previewEntries = [];
+    this.closeOddsModal();
+  }
+
+  private closeOddsModal(): void {
+    this.oddsModal?.close();
+    this.oddsModal = null;
   }
 }

@@ -3,7 +3,7 @@ import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
 import { freshLimitedState, type LimitedState } from './Limited';
 import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
-import { PLAIN_VARIANT, variantKey } from './variants';
+import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 
 /** Active gauntlet run state; null when no run is in progress. */
 export interface GauntletState {
@@ -61,12 +61,12 @@ export interface PremiumWeekState {
 }
 
 export interface SaveData {
-  version: 20;
+  version: 21;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
   /**
-   * cardId -> variantKey (`${frame}|${holo}`, src/meta/variants.ts) -> count.
+   * cardId -> variantKey (`${frame}|${holo}|${treatment}`, src/meta/variants.ts) -> count.
    * Invariant: per-card variant counts sum to `collection[cardId]`.
    */
   collectionVariants: Record<string, Record<string, number>>;
@@ -168,7 +168,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 20,
+    version: 21,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -263,7 +263,9 @@ export class SaveManager {
    * v16 -> v17 adds persona familiarity counters (progressive reveal);
    * v17 -> v18 stamps the Premium Draft schema (all new fields are optional);
    * v18 -> v19 adds the Premium Draft weekly allowance, defaulting old saves
-   * to zero entries so nobody inherits a partially spent week.
+   * to zero entries so nobody inherits a partially spent week; v19 -> v20 adds
+   * deterministic replays; v20 -> v21 canonicalizes two-part variant keys as
+   * explicitly non-full-art three-part keys.
    * An unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
@@ -488,6 +490,23 @@ export class SaveManager {
       cur = { ...cur, version: 20, replays: [] };
     }
     if (cur.version === 20) {
+      // v20 -> v21: Full Art becomes a persisted fourth booster axis. Rewrite
+      // every legacy two-part key into the canonical three-part format. The
+      // parser defaults missing treatment segments to non-full-art, so old
+      // saves retain every count without gaining Full Art copies.
+      const oldVariants = (cur.collectionVariants ?? {}) as Record<string, Record<string, number>>;
+      const collectionVariants: Record<string, Record<string, number>> = {};
+      for (const [cardId, variants] of Object.entries(oldVariants)) {
+        const migrated: Record<string, number> = {};
+        for (const [key, count] of Object.entries(variants)) {
+          const canonical = variantKey(parseVariantKey(key));
+          migrated[canonical] = (migrated[canonical] ?? 0) + count;
+        }
+        if (Object.keys(migrated).length > 0) collectionVariants[cardId] = migrated;
+      }
+      cur = { ...cur, version: 21, collectionVariants };
+    }
+    if (cur.version === 21) {
       const limited = (cur.limited ?? freshLimitedState()) as LimitedState & {
         premiumWeek?: Partial<PremiumWeekState>;
       };
@@ -503,7 +522,7 @@ export class SaveManager {
         : [];
       return {
         ...cur,
-        version: 20,
+        version: 21,
         limited: { ...limited, premiumWeek: { week, entries } },
         replays,
       } as unknown as SaveData;

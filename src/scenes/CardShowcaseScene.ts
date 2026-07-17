@@ -147,7 +147,7 @@ export class CardShowcaseScene extends Phaser.Scene {
     if (!card) return;
     this.view.setCard(card, {
       fx: 'full',
-      variant: { frame: this.frame, holo: this.holo },
+      variant: { frame: this.frame, holo: this.holo, fullArt: this.fullArt },
       fullArt: this.fullArt,
     });
     this.cardLabel.setText(`${card.name} · ${TIER_LABEL[card.rarity]}`);

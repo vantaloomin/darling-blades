@@ -12,6 +12,7 @@ import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from './types';
 import { def, isType, opponentOf } from './types';
 
 export type Action =
+  | { type: 'choosePlayDraw'; play: boolean }
   | { type: 'keepHand' }
   | { type: 'mulligan' }
   | { type: 'bottomCards'; handIndices: number[] }
@@ -159,6 +160,11 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
   const out: Action[] = [];
 
   switch (a.kind) {
+    case 'choosePlayDraw':
+      out.push({ type: 'choosePlayDraw', play: true });
+      out.push({ type: 'choosePlayDraw', play: false });
+      break;
+
     case 'mulligan':
       // Keep is always legal; offer another mulligan only under the cap. At the
       // cap the player must keep or concede (concede is pushed unconditionally
@@ -285,6 +291,9 @@ export function validateAction(
   const me = state.players[player];
 
   switch (action.type) {
+    case 'choosePlayDraw':
+      return a.kind === 'choosePlayDraw' ? null : 'not choosing play or draw';
+
     case 'keepHand':
     case 'mulligan':
       return a.kind === 'mulligan' ? null : 'not in mulligan';
@@ -483,7 +492,8 @@ export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerI
  * - 'declareAttackers' with no eligible attackers → attack with []
  * - 'declareBlockers' with no legal block assignment → block with []
  *
- * Never forced: mulligan / bottomCards / discardToHandSize (real picks),
+ * Never forced: choosePlayDraw / mulligan / bottomCards / discardToHandSize
+ * (real picks),
  * respond / endStepWindow (the engine only opens those windows when a
  * castable instant actually exists — see openResponseWindow/enterEndStep),
  * gameOver. Concede never counts as a "choice" that blocks skipping, and is
