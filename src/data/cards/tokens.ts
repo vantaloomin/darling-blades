@@ -138,7 +138,7 @@ export const TOKENS = [
     keywords: ['skyborne'],
     token: true,
     rarity: 'c',
-    flavor: 'She leaves the belfry before the sermon gets interesting.',
+    flavor: 'Out of the belfry before the sermon gets interesting.',
   },
   {
     id: 'tok-rat',
@@ -151,7 +151,7 @@ export const TOKENS = [
     defense: 1,
     token: true,
     rarity: 'c',
-    flavor: 'She knows where the pantry keeps its secrets.',
+    flavor: 'No pantry keeps a secret from her.',
   },
   {
     id: 'tok-doll',
@@ -165,7 +165,7 @@ export const TOKENS = [
     keywords: ['sentinel'],
     token: true,
     rarity: 'c',
-    flavor: 'She waits politely until someone turns away.',
+    flavor: 'Perfectly polite, right up until someone turns away.',
   },
   {
     id: 'tok-grave-rose',
@@ -179,7 +179,7 @@ export const TOKENS = [
     keywords: ['deathblade'],
     token: true,
     rarity: 'c',
-    flavor: 'She blooms where the cemetery keeps its best soil.',
+    flavor: 'Rich soil, quiet neighbors, thorns on retainer.',
   },
   {
     id: 'tok-revenant',
@@ -192,6 +192,6 @@ export const TOKENS = [
     defense: 2,
     token: true,
     rarity: 'c',
-    flavor: 'She returned for the encore and disliked the review.',
+    flavor: 'Back for the encore, unimpressed by the reviews.',
   },
 ] as const satisfies readonly CardDef[];
