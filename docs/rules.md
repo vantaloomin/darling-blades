@@ -29,17 +29,20 @@ explicitly in the appendix. All the numbers below come from `RULES` in
 
 <!-- END GENERATED -->
 
-Each player starts at **20 life**, shuffles a **60-card** deck (≤4 copies of any
-non-basic; basics unlimited — enforced by `validateDeck` in
-`src/meta/DeckStorage.ts`), and draws a **7-card** opening hand.
+Each player starts at **20 life** and shuffles a **60-card** deck (≤4 copies of
+any non-basic; basics unlimited — enforced by `validateDeck` in
+`src/meta/DeckStorage.ts`).
 
-A seeded coin flip runs at construction. In normal duels, the flip winner
-chooses to play first or draw first; the chosen starting player is then emitted
-as `firstPlayerChosen` and **skips their turn-1 draw** (`startTurn` in
-`src/engine/phases.ts`). The scripted tutorial leaves the engine's optional
-`playDrawChoice` flag off so its fixed opening remains unchanged. Headless
-callers also default to the legacy direct starting-player roll unless they opt
-in, preserving existing seeded simulations and tests.
+A seeded coin flip runs at construction. In normal duels, the player calls
+**Heads** or **Tails** before the result is revealed. The flip winner chooses to
+play first or draw first; only after that choice resolves does each player draw
+a **7-card** opening hand and begin the mulligan process. The chosen starting
+player is emitted as `firstPlayerChosen` and **skips their turn-1 draw**
+(`startTurn` in `src/engine/phases.ts`). The scripted tutorial leaves the
+engine's optional `playDrawChoice` flag off, so its fixed opening hand is still
+dealt during construction. Headless callers also default to that legacy direct
+starting-player roll unless they opt in, preserving existing seeded simulations
+and tests.
 
 ## Mulligans
 

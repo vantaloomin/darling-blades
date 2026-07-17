@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-16 · design/plan doc — re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/claude-playbook.md, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/ai/personality.ts, src/ui/BoardCardView.ts, src/meta/gauntletSeed.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, src/engine/types.ts, src/data/catalog.ts, src/meta/collectionFilter.ts, src/meta/PackOpener.ts · last-verified: 2026-07-17 · design/plan doc — re-verify when the referenced code changes -->
 
 # Post-launch (v1.1) — deferred backlog
 
@@ -20,12 +20,10 @@
 >
 > **Feature 1 ✅ SHIPPED 2026-07-16 in the 1.2 build**, exactly per the
 > analysis below: `PracticePickerScene` (the Play submenu's one Practice
-> row) reuses the gauntlet's avatar-card presentation over the full
-> roster — now 14 avatars including the Arthurian rungs — plus plain
-> Easy/Medium/Hard training rows; launch is `scene.start('Duel',
-> { opponentId })` with the avatar's difficulty inheriting, and no
-> SaveData change was needed. See roadmap Recently shipped (2026-07-16 ·
-> the 1.2 build).
+> row) presents the full 14-avatar roster as portrait-and-name tiles, then
+> launches the selected real deck and personality at the player's chosen
+> Easy/Medium/Hard AI tier. No tower state or SaveData change is involved.
+> See roadmap Recently shipped (2026-07-16 · the 1.2 build).
 
 The 1.0 program is scoped by [plan-road-to-1.0.md](plan-road-to-1.0.md), and as
 of 2026-07-08 all five of its features are shipped (tutorial, achievements,
@@ -90,18 +88,19 @@ climbing the tower to that rung.
 
 A small pre-duel **opponent picker**: either a dedicated select screen reached
 from a single "Practice" MainMenu entry, or a lightweight overlay on the
-existing practice rows. The player picks a difficulty (or inherits it from the
-chosen avatar) and an opponent from the `AVATARS` roster, and the picker calls
+existing practice rows. The player picks a difficulty and an opponent from the
+`AVATARS` roster, and the picker calls
 `scene.start('Duel', { difficulty, opponentId })`. That's essentially the exact
 call `GauntletScene.startFight` already makes —
 `this.scene.start('Duel', { opponentId: av.id, gauntletRung: av.tier })`
 (GauntletScene.ts ~line 393) — minus the `gauntletRung`, so the run stays a
 one-off practice duel with no tower/reward plumbing.
 
-A natural build reuses the gauntlet's own avatar-card presentation
-(`GauntletScene.buildPanel` renders portrait + name + title + theme chip +
-difficulty pips + blurb from an `Avatar`), so the picker can look like a
-"free play" version of the tower without the rung-locking.
+The shipped screen uses a compact two-row roster of portrait-and-name tiles.
+It deliberately omits tower rung, lore blurb, title, theme chip, reward, and
+lock-state information because the current decision is only rival plus AI
+strength. This keeps the Practice hierarchy distinct from the progression-heavy
+Gauntlet screen.
 
 ### Architecture fit
 
