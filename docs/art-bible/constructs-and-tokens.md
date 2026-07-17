@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/artifacts.ts, src/data/cards/tokens.ts · last-verified: 2026-07-07 -->
+<!-- source-of-truth: src/data/cards/artifacts.ts, src/data/cards/tokens.ts · last-verified: 2026-07-17 -->
 
 # Darling Blades Art Bible — Constructs & Tokens
 
@@ -240,3 +240,78 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Holo interaction:** none — common token.
 - **Rarity ambition:** Common token — one clear adult squire, one idea (service before glory), consistent with Arthurian Court's court-soldier register.
 - **Prompt:** Adult squire woman in simple white-and-steel practice armor carrying a bundle of plain practice swords in both arms, attentive hopeful expression, dawn training yard beside a stone keep with blank pennants and quiet weapon racks, warm dawn key light with cool steel-blue rim, full readable figure with open headroom — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Bat — `tok-bat`
+- **Card facts:** {0} · B · 1/1 · skyborne · c · holo: none
+- **Character & source:** B flying token (Bat) minted by Gothic Monsters — `gm-cathedral-of-bats` at dawn and `gm-nocturne-manor`'s empowered arrival. One small bat-girl of the manor colony, airborne always, styled to Nocturne Manor's candlelit horror-glamour: luxurious, never grimy.
+- **Personality / mood:** "She leaves the belfry before the sermon gets interesting." Flighty, punctual about exits, cheerfully allergic to sincerity.
+- **Pose & composition:** a small bat-girl mid-flight banking out of a cathedral window arch, wings wide, knees tucked; face ≈ y 320, clearly airborne with open air below her. The top third stays clear above her wing crests for crop-safe headroom.
+- **Costume & attire:** a short black lace-trimmed flutter-dress, membrane wings from her forearms, big fuzzy bat ears through dark hair, tiny fangs in a grin.
+- **Palette:** B palette (`#5a3a70` → `#140d1c`, accent `#9b6fc4`) — violet night, plum wing membranes, one candle-gold note from the window she is escaping.
+- **Lighting:** cold moonlight key on the wings; warm candle rim from the cathedral window behind.
+- **Expression:** impish escapee's grin, mid-giggle.
+- **Props / weapon:** none — wings and timing.
+- **Background:** two-value cathedral window arch and open night sky; readability first.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear winged figure, one idea (the early exit), consistent with the Gothic Monsters bat rooms.
+- **Prompt:** Small adult bat-girl in a short black lace-trimmed flutter-dress with membrane wings, fuzzy bat ears, and tiny fangs, banking mid-flight out of a candlelit cathedral window arch into the night with an impish grin, cold moonlight on the wings and warm candle rim from the window, open night sky above her with generous headroom, no readable letters or inscriptions anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Rat — `tok-rat`
+- **Card facts:** {0} · B · 1/1 · c · holo: none
+- **Character & source:** B creature token (Rat) minted by `gm-catacomb-ratcatcher`'s arrival — a sleek manor rat-girl who knows every pantry and passage, recruited rather than caught. Match the Ratcatcher's shoulder companion: glossy black, well-fed, professional.
+- **Personality / mood:** "She knows where the pantry keeps its secrets." Quick, larcenous, impeccably informed; the smallest spy on staff.
+- **Pose & composition:** a small rat-girl crouched low on a pantry shelf edge, tail curled for balance, one round of cheese held like contraband; face ≈ y 330, whiskered and alert. The top third stays clear above her ears for crop-safe headroom.
+- **Costume & attire:** a charcoal scullery dress with a lace apron gone slightly askew, round rat ears, a long sleek tail, whisker markings, bare quick feet.
+- **Palette:** B palette (`#5a3a70` → `#140d1c`, accent `#9b6fc4`) — cellar violet-dark, glossy black fur tones, one warm cheese-gold note.
+- **Lighting:** warm larder-candle key from a doorway; cold seep-light fill along the shelf.
+- **Expression:** bright-eyed caught-in-the-act delight, entirely unrepentant.
+- **Props / weapon:** the pilfered cheese round and her balancing tail.
+- **Background:** two-value pantry shelves with blank jars and hanging herbs; readability first.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear figure, one idea (the pantry heist), consistent with her summoner's catacomb colleague.
+- **Prompt:** Small adult rat-girl with round rat ears, whisker markings, and a long sleek tail, in a charcoal scullery dress with an askew lace apron, crouched on a pantry shelf edge clutching a stolen cheese round with bright unrepentant delight, blank jars and hanging herbs behind, warm candle key from the doorway and cold cellar fill, generous open headroom above her ears, no readable letters or labels anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Doll — `tok-doll`
+- **Card facts:** {0} · U · 1/1 · sentinel · c · holo: none
+- **Character & source:** U artifact-creature token (Doll/Construct) minted by `gm-moon-doll-orchestra`'s empowered arrival — one porcelain musician from the orchestra, matching the conductor's ensemble: midnight-blue satin, glaze-cracked porcelain, glass eyes. Sentinel: she watches while pretending to perform.
+- **Personality / mood:** "She waits politely until someone turns away." Patient porcelain courtesy with a countdown inside it.
+- **Pose & composition:** a porcelain doll-girl seated primly on a gilt orchestra chair, a small violin held at rest against her shoulder, head turned a few degrees past natural to keep the viewer in view; face ≈ y 325, glassy and lovely. The top third stays clear above her ringlets for crop-safe headroom.
+- **Costume & attire:** a midnight-blue satin recital dress with silver frogging matching the Orchestra's livery, white gloves, lacquered ringlets, porcelain skin with one hairline glaze crack at the cheek.
+- **Palette:** U palette (`#4a90d9` → `#16294f`, accent `#a8d4f7`) — moonlight blue, porcelain white, silver trim, one candle-gold note from the music room.
+- **Lighting:** cold moonlight key through tall windows on the porcelain; warm candle-stand rim from the pit.
+- **Expression:** serene painted smile; the glass eyes alone track the viewer.
+- **Props / weapon:** the small violin at rest and a blank unlettered score on a stand beside her.
+- **Background:** two-value manor music-room corner with velvet drapes; readability first.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear figure, one idea (the watching musician), matched to `gm-moon-doll-orchestra`'s ensemble.
+- **Prompt:** Porcelain doll-girl musician with glaze-cracked porcelain skin, glass eyes, and lacquered ringlets, in a midnight-blue satin recital dress with silver frogging and white gloves, seated primly on a gilt orchestra chair with a small violin at rest and her head turned slightly too far to keep the viewer in view, blank unlettered score on a stand beside her, moonlit manor music room with velvet drapes, cold moonlight key and warm candle rim, generous open headroom, no readable letters or sheet-music text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Grave Rose — `tok-grave-rose`
+- **Card facts:** {0} · G · 1/1 · deathblade · c · holo: none
+- **Character & source:** G creature token (Plant) minted at dawn by `gm-grave-rose-garden` — an ambulatory grave-rose girl grown from the cemetery's best soil. Deathblade: every thorn on her is quietly lethal; small, beautiful, and not to be touched.
+- **Personality / mood:** "She blooms where the cemetery keeps its best soil." Sweet-natured and toxic; a flower with burial records.
+- **Pose & composition:** a small rose-girl stepping out of a garden bed on rooted legs, arms of woven stem and thorn half-raised in greeting, one enormous crimson rose blooming as her hair; face ≈ y 330, upturned and gentle, thorns glinting everywhere. The top third stays clear above the rose crown for crop-safe headroom.
+- **Costume & attire:** a bodice and skirt of layered dark-green leaves over stem limbs studded with fine glinting thorns, the great crimson grave-rose as her crown, dew like jewelry.
+- **Palette:** G palette (`#4fa06a` → `#123a22`, accent `#a9dcae`) — deep leaf green, grave-rose crimson, moonlit stone grey, dew-silver highlights.
+- **Lighting:** cold moonlight key on the bloom; soft warm lantern rim from a chapel path lamp.
+- **Expression:** gentle welcoming smile that does not explain the thorns.
+- **Props / weapon:** the glinting thorn-studded limbs — the deathblade is her whole surface.
+- **Background:** two-value grave-garden bed with unlettered stones and climbing roses; readability first.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear figure, one idea (the lovely lethal bloom), consistent with `gm-grave-rose-garden`.
+- **Prompt:** Small adult rose-girl of woven green stems and layered leaves with fine glinting thorns on every limb, crowned by one enormous crimson grave-rose in place of hair, stepping from a moonlit cemetery garden bed with arms half-raised in gentle greeting, dew glinting like jewelry, unlettered stones and climbing roses behind, cold moonlight key with warm path-lantern rim, generous open headroom above the rose crown, no readable letters or inscriptions anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Revenant — `tok-revenant`
+- **Card facts:** {0} · B · 2/2 · c · holo: none
+- **Character & source:** B creature token (Revenant) minted by `gm-graveyard-waltz` — an aristocrat dancer returned for the encore, mid-waltz and mildly offended by her obituary. She matches the ritual's pageantry: gorgeous, spectral, and formally dressed.
+- **Personality / mood:** "She returned for the encore and disliked the review." Posthumous poise with a grievance; the dance continues under protest.
+- **Pose & composition:** a revenant noblewoman mid-waltz turn among headstones, gown hem dissolving into grave-mist, one gloved hand raised to an unseen partner; face ≈ y 325, pale and composed with faint blue spirit-glow at the eyes. The top third stays clear above her coiffure for crop-safe headroom.
+- **Costume & attire:** a faded-once-fine ballgown in ash-violet with tattered lace and jet jewelry, opera gloves, an old dance card hanging blank from her wrist, hair in a collapsed formal coiffure.
+- **Palette:** B palette (`#5a3a70` → `#140d1c`, accent `#9b6fc4`) — ash violet, grave-mist grey, jet black, cold blue spirit-glow accents.
+- **Lighting:** cold moonlight key across the gown; faint blue self-glow rim where the hem dissolves.
+- **Expression:** chin high, lips pressed in elegant disapproval, eyes glowing softly.
+- **Props / weapon:** the blank dance card at her wrist and the mist-dissolving hem.
+- **Background:** two-value moonlit graveyard clearing with unlettered stones ringed like a ballroom; readability first.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear figure, one idea (the waltz resumed), consistent with `gm-graveyard-waltz`.
+- **Prompt:** Revenant noblewoman in a faded ash-violet ballgown with tattered lace, jet jewelry, and opera gloves, mid-waltz turn among unlettered headstones with one hand raised to an unseen partner, gown hem dissolving into grave-mist, blank dance card hanging from her wrist, pale composed face with faint blue-glowing eyes and elegant disapproval, cold moonlight key with soft blue spirit rim, generous open headroom above her coiffure, no readable letters or inscriptions anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
