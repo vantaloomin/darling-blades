@@ -61,12 +61,13 @@ export const ECONOMY = {
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   shardFullArtMult: 25,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 14-rung clear. Full run = 50+70+…+270 (=1920) + 290 + 310 + 250 = 2770g ≈ 11.1 packs,
+  // a full 16-rung clear. Full run = 50+70+…+310 (=2520) + 330 + 350 + 250 = 3450g.
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
   // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
   // Celtic Fae bosses (The Morrigan, Titania); 13-14 (290/310) are the
-  // Arthurian Court summit bosses (Morgan, Artoria).
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310] as const,
+  // Arthurian Court pair (Morgan, Artoria); 15-16 are the Gothic Monsters
+  // summit pair (Carmilla, The Bride).
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350] as const,
   gauntletCompletionBonus: 250,
   // Free Limited runs are free-entry with ephemeral cards and pay the record
   // payout below. Premium Draft pays to keep its picks; the entry fee already
