@@ -119,6 +119,27 @@ export const ECONOMY = {
  * High Skill Veteran        90.08%       1.87          0          78.19%    19.6          -
  * Completionist             99.43%       1.76          0          88.54%    49.4          -
  *
+ * Post-Gothic-Monsters baseline 2026-07-17 (same 10 personas x 8 seeds x
+ * 60 days; 4,800 daily snapshots) after the 1.3 pool landed: 509 collectible
+ * cards, the 525g gothic-monsters booster SKU, 16 gauntlet rungs with a
+ * 3,450g full-clear payout, and 8 new gold-paying achievements. Day-60 rows
+ * are seed means; first Premium is the median first day across the eight seed
+ * snapshots. The collection shifts are the measured chase-pool effect; the
+ * Premium allowance remains at 18 runs and the CI-fast 2-persona x 1-seed x
+ * day-7 coarse check stayed green.
+ *
+ * Persona              Collection  Packs/day  Premium runs  Quest claim  Crafted  Achievements  First Premium
+ * New Casual              44.03%       0.53          0          43.26%       0.0         13.1              -
+ * Daily Grinder            68.27%       1.59          0          69.86%       0.0         23.3              -
+ * Gauntlet Climber         64.96%       1.42          0          68.33%       0.0         22.6              -
+ * Limited Fan              85.27%       0.58      18.00          71.60%       3.3         30.5              2
+ * Collector                 56.24%       1.04          0          66.60%       0.0         19.6              -
+ * Theme Deck Buyer          69.18%       0.89          0          60.07%       0.0         22.1              -
+ * Hardcore Optimizer        79.96%       2.43          0          80.83%       0.0         27.6              -
+ * Low Skill Casual          38.58%       0.45          0          40.83%       0.0         12.5              -
+ * High Skill Veteran        74.14%       1.96          0          78.19%       0.0         26.3              -
+ * Completionist             82.20%       2.14          0          89.72%       0.6         33.5              -
+ *
  * Post-Arthurian-Court baseline 2026-07-16 (same 10 personas x 8 seeds x
  * 60 days; balance/econ-baseline-2026-07-16-post-ac.report.json) after the
  * 1.2 set landed: 429 collectible cards (+80, a 23% larger pool), the

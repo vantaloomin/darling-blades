@@ -1,4 +1,4 @@
-<!-- source-of-truth: scripts/progression-sim.ts, scripts/balance-matrix.ts, src/config/rules.ts, src/meta/Economy.ts, src/meta/Limited.ts, src/meta/Collection.ts, src/meta/Quests.ts, tests/meta/progressionSim.test.ts · last-verified: 2026-07-16 · design/plan doc — re-verify when the economy code or harnesses change -->
+<!-- source-of-truth: scripts/progression-sim.ts, scripts/balance-matrix.ts, src/config/rules.ts, src/meta/Economy.ts, src/meta/Limited.ts, src/meta/Collection.ts, src/meta/Quests.ts, tests/meta/progressionSim.test.ts · last-verified: 2026-07-17 · design/plan doc — re-verify when the economy code or harnesses change -->
 
 # Economy testing at scale — plan
 
@@ -68,6 +68,15 @@
 > Remaining follow-ups live OUTSIDE this plan: the quest claim-rate spread
 > (41–89%, its own item) and the visual by-eye pass of the new hub/craft
 > copy (flagged; hidden-pane screenshots time out).
+
+> **Gothic Monsters 1.3 re-baseline measured 2026-07-17:** the canonical
+> `npx tsx scripts/progression-sim.ts --seeds 8 --days 1,…,60 --json` run
+> covered 10 personas × 8 seeds × 60 days (4,800 daily snapshots). The live
+> pool measured 509 collectible cards; the 16-rung tower's full-clear payout
+> measured 3,450g; the Gothic Monsters booster SKU is 525g; and the eight new
+> gold-paying achievements are included in the day-60 results. The dated
+> baseline table is recorded beside `ECONOMY` in `src/config/rules.ts`; the
+> CI-fast 2-persona × 1-seed × day-7 check passed all four coarse bands.
 
 _Authored 2026-07-15 (user-directed). This is the instrumentation half of the
 1.1 Limited economy tuning pass: build the measurement + regression layer
