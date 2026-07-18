@@ -1,11 +1,11 @@
-<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/ui/CardView.ts · last-verified: 2026-07-09 -->
+<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/data/cards/gothic-monsters.ts, src/ui/CardView.ts · last-verified: 2026-07-17 -->
 
 # Darling Blades Art Bible — Spells (Charms · Rituals · Enchantments · the Jade Seal)
 
 This file is the **binding contract** for the art of the base set's **43 non-creature
 spell cards** — the 18 charms, 14 rituals, 10 enchantments, and the single
 non-creature artifact (`ar-imperial-jade-seal`) — plus the 9-card Ragnarök addendum
-below, for 52 entries in all. The 215-entry creature art-bible
+and the 31-card Gothic Monsters section below, for 83 entries in all. The creature art-bible
 (`docs/art-bible/`) covers creatures, tokens, and the Construct creatures; it does
 **not** cover these cards, which otherwise render procedural placeholders. Every rule
 below is grounded in the source files named in the header comment. When this document
@@ -295,6 +295,113 @@ glyphs abstract, never lettered — the NO-TEXT rule is doubly load-bearing here
 
 ---
 
+## Gothic Monsters expansion (31)
+
+The 4th expansion's non-creature cards — 9 charms, 8 rituals, 6 enchantments, and 8
+non-creature artifacts (`src/data/cards/gothic-monsters.ts`; the set's artifact
+*creatures* live in `docs/art-bible/gothic-monsters.md`). Effect-first like the rest
+of this file, in the set's candlelit horror-glamour identity: crimson velvet, black
+lace, moonlit stone, stormglass, cathedral gold, candle wax, grave roses, white
+lightning — luxurious, never grimy. The NO-TEXT rule is triply load-bearing here
+(invitations, seals, headstones, and lace all invite lettering — everything renders
+blank or patterned). Per the player-copy style rule these Prompt lines use commas
+before the standard suffix instead of a dash.
+
+### Red-Moon Rampage — `gm-red-moon-rampage`
+- **Prompt:** A red moon igniting the hunt, a huge blood-crimson moon breaking through storm clouds at frame center as a shockwave of scarlet curse-light sweeps across a moonlit moor, a crowded wave of wolf and monster silhouettes surging forward beneath it past burst iron gates, R fury palette `#d95436` and `#5e0f0f` with `#f7b267` moonfire rim, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Silver Knife — `gm-silver-knife`
+- **Prompt:** A blessed silver knife flashing first, a slender bright silver blade at frame center catching a lance of holy candlelight as a ring of white ward-light blesses the lace-cuffed hand raising it, wolf-shadow recoiling in the gloom behind, W holy palette `#f2e8cf` and `#c9a84c` with `#fffef2` silver flash, candlelit manor interior, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Fogged Window — `gm-fogged-window`
+- **Prompt:** Enchanted fog blooming across a tall manor window, a leaded window at frame center misting over with swirling blue arcane condensation that blinds the room beyond, one clear wiped circle in the fog glowing with a glimpse of what comes next, cold moonlight through the glass, U mind palette `#4a90d9` and `#16294f` with `#a8d4f7` glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Rose-Thorn Snare — `gm-rose-thorn-snare`
+- **Prompt:** Grave roses lending their thorns, glowing green briar-vines and dark crimson grave roses coiling up a duelist's blade-arm at frame center, every thorn-tip gleaming with a venomous glint of deathblade light, petals drifting through a moonlit garden, G palette `#4fa06a` and `#123a22` with `#a9dcae` living glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Red-Curtain Cut — `gm-red-curtain-cut`
+- **Prompt:** A velvet theatre curtain slashed by fire, a sweeping crimson stage curtain at frame center parting around one white-hot cutting arc of flame, sparks and burning thread-embers scattering into a candlelit opera-house dark, R palette `#d95436` and `#5e0f0f` with `#f7b267` searing edge, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Moonlit Prowl — `gm-moonlit-prowl`
+- **Prompt:** A predator's aura granted by the moon, a spectral green wolf-shape of moonlight prowling low across manor lawns at frame center, its dreaded glow swelling the shadow of a hidden hunter beneath it, iron gates and clipped hedges silvered behind, G palette `#4fa06a` and `#123a22` with `#a9dcae` prowl-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Thunderclap — `gm-thunderclap`
+- **Prompt:** A thunderclap over the storm tower, one blinding fork of white lightning striking an iron rod at frame center as a ringing red shockwave rolls outward through the rain, stormglass windows flaring below, R palette `#d95436` and `#5e0f0f` with `#f7b267` flash core and a white-lightning accent, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Wolfsbane Shot — `gm-wolfbane-shot`
+- **Prompt:** A silver bullet trailing blessed light, a single gleaming silver shot streaking across frame center wrapped in a spiral of white banishing radiance, purple wolfsbane petals scattering in its wake as a monstrous shadow unravels where it lands, W palette `#f2e8cf` and `#c9a84c` with `#fffef2` tracer glow, candlelit night behind, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Midnight Bite — `gm-midnight-bite`
+- **Prompt:** A vampire's kiss collecting its due, twin puncture-lights of violet-black glowing at a bared throat at frame center as ribbons of stolen crimson life spiral away into the dark toward unseen lips, the figure secondary and half-lost in shadow, candlelit boudoir gloom, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` drain-glow and one crimson thread, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Invitation to the Crimson Ball — `gm-dracula-ball-invite`
+- **Prompt:** The crimson ball claiming its guests, a blank wax-sealed invitation card floating at frame center in a swirl of crimson drain-magic that pulls glowing motes of life out of the night toward a candlelit ballroom doorway, velvet drapes and chandelier glow beyond, the card and seal utterly blank, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` accent over crimson velvet, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Stormtower Resurrection — `gm-stormtower-resurrection`
+- **Prompt:** Lightning restarting a heart, white storm-power pouring down cables into a shrouded figure on a raised laboratory slab at frame center, the body arching in a burst of violet-black revival light as stormglass jars blaze around it, B death palette `#5a3a70` and `#140d1c` with `#9b6fc4` glow and a white-lightning accent, the resurrection effect the hero of the frame, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Graveyard Waltz — `gm-graveyard-waltz`
+- **Prompt:** The dead rising to dance, two elegant revenant silhouettes lifting out of open graves into a slow waltz at frame center, wrapped in ribbons of violet grave-light with drifting candle motes, blank tilted headstones and iron fencing behind, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` waltz-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Black-Lace Pact — `gm-black-lace-pact`
+- **Prompt:** A bargain sealed in black lace, a length of glowing black lace binding a pale offered wrist at frame center as two motes of forbidden knowledge rise into the caster's reach and a single bead of crimson falls, violet contract-light coiling through the weave, the lace patterned never lettered, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` pact-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Midnight Autopsy — `gm-midnight-autopsy`
+- **Prompt:** Secrets opened at midnight, a candlelit examination table at frame center where violet revelation-light rises from beneath a drawn white sheet into two glowing insight-motes, gleaming instruments and stormglass jars arrayed around it, elegant and clinical never gory, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` revelation-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Candlelit Seance — `gm-candlelit-seance`
+- **Prompt:** A seance circle receiving its answer, a ring of guttering candles around a small draped table at frame center as pale violet spirit-hands of smoke rise from below and one glowing answer-mote descends into a waiting teacup, blank cards scattered face-down on the cloth, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` spirit-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Kicked Door — `gm-kicked-door`
+- **Prompt:** A manor door blasted off its hinges, a heavy iron-banded door bursting inward at frame center in a shockwave of red force-light and flying splinters, lantern-light and storm wind flooding through the breach into a dark hall, a boot-heel silhouette secondary at the frame edge, R palette `#d95436` and `#5e0f0f` with `#f7b267` impact flash, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Tattered Invitation — `gm-tattered-invitation`
+- **Prompt:** An insult returned to sender, a torn invitation card shredding itself into violet-edged fragments at frame center as a ribbon of black spite-light snatches a glowing card from a shadowed hand, every scrap of paper utterly blank, candlelight guttering in the draft, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` spite-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Nocturne Manor — `gm-nocturne-manor`
+- **Prompt:** Nocturne Manor awake at midnight, the great gothic manor on its hill at frame center with every window glowing candle-warm against a cold storm sky, a thin stream of crimson life-light drawn out of the dark countryside into its open doors while bats circle the spires, iron gates and grave roses along the drive, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` accent over candle gold, luxurious never grimy, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Grave-Rose Garden — `gm-grave-rose-garden`
+- **Prompt:** A garden that blooms from burials, ranks of dark crimson grave roses opening all at once at frame center as one luminous rose-spirit lifts free of the beds, green vitality-light pooling along the moonlit rows, blank headstones half-swallowed by the hedges, G palette `#4fa06a` and `#123a22` with `#a9dcae` bloom-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Cathedral of Bats — `gm-cathedral-of-bats`
+- **Prompt:** A cathedral exhaling its choir, the rose window and vaulted arches of a night cathedral at frame center as a spiraling column of bats pours upward wrapped in violet consecration-light, banks of candles blazing below and moonlight through the tracery, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` accent over cathedral gold, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Wolfsbane Ward — `gm-wolfsbane-ward`
+- **Prompt:** A ward of wolfsbane and prayer, a sprig of purple wolfsbane bound in white ribbon hanging at frame center inside a golden circle of ward-light whose radiance visibly withers a looming beast-shadow back into the dark, candle flames steady around the threshold, W palette `#f2e8cf` and `#c9a84c` with `#fffef2` ward-glow and a violet wolfsbane accent, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Howling Gallery — `gm-howling-gallery`
+- **Prompt:** A portrait hall that howls, a candlelit gallery corridor at frame center where gilt-framed paintings of wolves come alive mid-howl, red rings of the shared cry rippling down the hall and rattling the sconces, the ornate frames bearing no plaques or lettering, R palette `#d95436` and `#5e0f0f` with `#f7b267` howl-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Blood Candle — `gm-blood-candle`
+- **Prompt:** A candle burning on a bad bargain, one tall crimson candle at frame center burning with a violet-black flame, wax running down its column like slow drops of blood while a bright mote of insight rises in the smoke, a dark manor alcove of velvet and old books behind, all spines blank, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` flame-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Candelabra of Souls — `gm-candelabra-of-souls`
+- **Prompt:** A candelabra of five souls, an ornate cathedral-gold candelabra at frame center whose five flames burn white, blue, violet, red, and green, tiny soul-motes orbiting the branches and wax pooling like ivory, an OBJECT hero-shot with no figure, dark velvet gloom behind, C relic palette `#a9adb5` and `#4e535c` with `#dfe3ea` gleam over candle gold, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Velvet Coffin — `gm-velvet-coffin`
+- **Prompt:** A coffin of crimson velvet sealing shut, an open cedar casket lined in deep red velvet at frame center as violet banishing-light draws stray grave-spirits down into it and the lid begins to close, silk sheen and polished brass catching candlelight, an OBJECT hero-shot with no figure, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` banishing glow, luxurious never grimy, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Lightning-Rod Spire — `gm-lightning-rod-spire`
+- **Prompt:** A spire drinking the storm, a slender iron lightning-rod spire at frame center taking a white bolt full on its tip, rings of blue stored charge sliding down its coils into glowing stormglass bulbs at the base, rain streaking past a night rooftop, an OBJECT hero-shot with no figure, U palette `#4a90d9` and `#16294f` with `#a8d4f7` charge-glow and a white-lightning accent, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Silvered Rapier — `gm-silvered-rapier`
+- **Prompt:** A silvered rapier presented to the hunt, an elegant bright rapier floating upright at frame center over crossed beams of candlelight, moon-white light running the fluted blade and a faint ring of hunter's blessing circling the swept guard, an OBJECT hero-shot with no figure, dark manor armory gloom behind, C palette `#a9adb5` and `#4e535c` with `#dfe3ea` silver gleam, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Holy Water Vial — `gm-holy-water-vial`
+- **Prompt:** A vial of blessed water uncorked, a small crystal vial at frame center spilling a rising spiral of golden holy water that dissolves a wisp of grave-shadow into motes of light, candle flames bowing toward the blessing, an OBJECT hero-shot with no figure, W palette `#f2e8cf` and `#c9a84c` with `#fffef2` sanctified glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Cellar Door — `gm-cellar-door`
+- **Prompt:** A cellar door ajar on the dark below, a heavy wooden cellar door at frame center open a hand's width onto stone steps descending into violet-grey gloom, cold air and dust-motes drifting up past a hanging lantern, something faintly glowing far down the stair, an OBJECT hero-shot with no figure, C palette `#a9adb5` and `#4e535c` with `#dfe3ea` lantern gleam and a faint violet under-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Funeral Bell — `gm-funeral-bell`
+- **Prompt:** A funeral bell mid-toll, a great bronze bell swinging in a dark belfry at frame center, its violet mourning-ring rippling visibly outward as pale soul-motes drift up through the tower past roosting bats, the bell face blank of any inscription, an OBJECT hero-shot with no figure, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` toll-glow over candle gold, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Broken Mirror — `gm-broken-mirror`
+- **Prompt:** A broken mirror showing two tomorrows, a tall gilt manor mirror at frame center cracked into shining shards, each large shard glowing with a different cold blue glimpse of the turn to come, moonlight and candlelight crossing on the fractured glass, an OBJECT hero-shot with no figure, U palette `#4a90d9` and `#16294f` with `#a8d4f7` vision-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+---
+
 ## Celtic Fae non-creature addendum — shipped-prompt record (NOT parsed by gen-spell-art)
 
 The Celtic Fae expansion's two colorless non-creature cards below shipped on
@@ -302,7 +409,7 @@ The Celtic Fae expansion's two colorless non-creature cards below shipped on
 smart-crop), regenerated to user review feedback. Their prompts are recorded
 here so the direction is durable. **Deliberately parser-proof formatting:**
 `scripts/gen-spell-art.ts` parses `### ` headings plus top-level
-`- **Prompt:**` lines and hard-fails on any id outside its fixed 52-id roster
+`- **Prompt:**` lines and hard-fails on any id outside its fixed roster
 (a stray top-level Prompt bullet would even silently overwrite the previous
 entry's prompt) — so these records use `####` headings and indented field
 bullets, which that parser cannot see. Regenerating either card means a one-off

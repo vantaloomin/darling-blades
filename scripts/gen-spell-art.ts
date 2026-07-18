@@ -1,6 +1,7 @@
 /**
- * Generates real card art for the 52 non-creature SPELL cards (18 instants, 14
- * sorceries, 10 enchantments, 1 artifact, + 9 Ragnarök spells/runes) from the prompts in
+ * Generates real card art for the 83 non-creature SPELL cards (18 instants, 14
+ * sorceries, 10 enchantments, 1 artifact, + 9 Ragnarök spells/runes, + 31 Gothic
+ * Monsters charms/rituals/enchantments/artifacts) from the prompts in
  * docs/spell-art.md, via the chatgpt-imagegen CLI (backed by the user's ChatGPT
  * subscription — see the `anthropic-skills:chatgpt-imagegen` skill), then
  * post-processes each image to the exact 640×800 PNG deliverable
@@ -59,8 +60,9 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 52 spell ids docs/spell-art.md must cover, in the authored order (instants
- * → sorceries → enchantments → the Jade Seal). Parsing cross-checks against this
+ * The 83 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters).
+ * Parsing cross-checks against this
  * so a dropped or renamed entry fails loudly instead of silently generating a
  * short batch. Transcribed from src/data/cards/{instants,sorceries,enchantments,
  * artifacts}.ts (the artifact list contributes ONLY the non-creature Seal — the
@@ -86,6 +88,19 @@ const EXPECTED_IDS = [
   'rg-ragnarok', 'rg-read-the-runes', 'rg-berserkers-fury', 'rg-call-the-einherjar',
   'rg-rune-of-fury', 'rg-rune-of-the-hunt', 'rg-rune-of-hunger', 'rg-rune-of-insight',
   'rg-rune-of-warding',
+  // Gothic Monsters expansion (31): 9 charms + 8 rituals + 6 enchantments +
+  // 8 non-creature artifacts (src/data/cards/gothic-monsters.ts — the set's
+  // artifact CREATURES live in docs/art-bible/gothic-monsters.md)
+  'gm-red-moon-rampage', 'gm-silver-knife', 'gm-fogged-window', 'gm-rose-thorn-snare',
+  'gm-red-curtain-cut', 'gm-moonlit-prowl', 'gm-thunderclap', 'gm-wolfbane-shot',
+  'gm-midnight-bite',
+  'gm-dracula-ball-invite', 'gm-stormtower-resurrection', 'gm-graveyard-waltz',
+  'gm-black-lace-pact', 'gm-midnight-autopsy', 'gm-candlelit-seance', 'gm-kicked-door',
+  'gm-tattered-invitation',
+  'gm-nocturne-manor', 'gm-grave-rose-garden', 'gm-cathedral-of-bats', 'gm-wolfsbane-ward',
+  'gm-howling-gallery', 'gm-blood-candle',
+  'gm-candelabra-of-souls', 'gm-velvet-coffin', 'gm-lightning-rod-spire', 'gm-silvered-rapier',
+  'gm-holy-water-vial', 'gm-cellar-door', 'gm-funeral-bell', 'gm-broken-mirror',
 ] as const;
 
 /**
@@ -211,7 +226,7 @@ function parseSpec(): Entry[] {
     fail(`spell-art.md: entries missing a Prompt field: ${missing.map((e) => e.id).join(', ')}`);
   }
 
-  // Cross-check against the expected 43 ids so a dropped/renamed/reordered entry
+  // Cross-check against the expected ids so a dropped/renamed/reordered entry
   // fails loudly instead of silently generating a short or wrong batch.
   const seen = entries.map((e) => e.id);
   const expected = new Set<string>(EXPECTED_IDS);
@@ -224,7 +239,7 @@ function parseSpec(): Entry[] {
       unexpected.length ? `unexpected: ${unexpected.join(', ')}` : '',
       dupes.length ? `duplicated: ${[...new Set(dupes)].join(', ')}` : '',
     ].filter(Boolean);
-    fail(`spell-art.md roster does not match the 52 expected spell ids — ${parts.join('; ')}`);
+    fail(`spell-art.md roster does not match the ${EXPECTED_IDS.length} expected spell ids — ${parts.join('; ')}`);
   }
   return entries;
 }
