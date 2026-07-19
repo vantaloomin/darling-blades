@@ -308,9 +308,13 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
 }
 
 export function typeLine(d: CardDef): string {
-  // Tokens read "Token Creature" (no subtypes) — user-requested 2026-07-13.
+  // Tokens show their subtypes (user feedback 2026-07-18: Bloomlings counting
+  // as hidden Fae confused tribal math; supersedes the 2026-07-13 no-subtypes
+  // request that caused it).
   if (d.token) {
-    return `Token ${d.types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(' ')}`;
+    const types = d.types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(' ');
+    const subs = d.subtypes.length > 0 ? `: ${d.subtypes.join(' ')}` : '';
+    return `Token ${types}${subs}`;
   }
   const supers = (d.supertypes ?? [])
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
