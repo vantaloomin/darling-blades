@@ -72,6 +72,7 @@ import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import { packRow, type RowPacking } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
 import { modalShell, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { showZoneContents, type ZoneContentsEntry, type ZoneContentsModal } from '../ui/ZoneContentsModal';
@@ -118,7 +119,7 @@ const LAYOUT = {
   /** The opponent row stays at its audited y but centers in its narrower plate. */
   oppCreatures: { cy: 200, x: 577, usable: 860 },
   /** Between the zone plates: skip toast + stack readout float here. */
-  gap: { cy: 298 },
+  gap: { cy: 298, stackX: 400, stackY: 283 },
   /** Player zone now matches the opponent plate's right edge for the sidebar. */
   myZone: { x0: 108, x1: 1046, y0: 312, y1: 532 },
   myCreatures: { cy: 404, x: 577, usable: 860 },
@@ -252,10 +253,11 @@ export class DuelScene extends Phaser.Scene {
     phaseRows: { fill: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text }[];
     /** Smart-button label; input lives on `passArc` (the circle is the button). */
     button: Phaser.GameObjects.Text;
-    stack: Phaser.GameObjects.Text;
   };
   /** The circular smart button (wireframe 1a "PASS"); relabeled per decision. */
   private passArc!: Phaser.GameObjects.Arc;
+  /** Public stack cards shown only while a response decision is live. */
+  private stackDisplay!: StackDisplay;
   /** Deck/grave/hand pile indicators. Severed slots are reserved behind SEVER_ENABLED. */
   private oppDeckPile!: PileView;
   private oppGravePile!: PileView;
@@ -500,6 +502,10 @@ export class DuelScene extends Phaser.Scene {
     // touch equivalent of right-click inspect (mobile-lan-plan §1.3). During
     // targeting inspect stays blocked (right-click cancels there on desktop).
     this.zoom = new CardZoomPreview(this, {
+      // Keep the docked card above the player mana-plan strip. At 1.1x the
+      // preview is 462px tall, so this center leaves its lower edge at 461.
+      scale: 1.1,
+      dockY: 230,
       onStickyTap: (card, variant) => {
         if (this.pendingCasts) this.zoom.dismissSticky();
         else this.showInspect(card, variant);
@@ -1080,21 +1086,18 @@ export class DuelScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setDepth(57),
-      stack: this.add
-        .text(250, LAYOUT.gap.cy, '', {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '12px',
-          color: '#c7a8f0',
-          align: 'center',
-          backgroundColor: '#1c1730',
-          padding: { x: 8, y: 4 },
-          resolution: 2,
-        })
-        .setOrigin(0.5)
-        .setDepth(55)
-        .setVisible(false)
-        .setInteractive({ useHandCursor: true }),
     };
+    this.stackDisplay = new StackDisplay(this, {
+      x: LAYOUT.gap.stackX,
+      y: LAYOUT.gap.stackY,
+      cardFor: (cardId) => def(CARD_DB, cardId),
+      casterLabel: (controller) => (controller === HUMAN ? 'You' : 'Opponent'),
+      isTargetable: (sid) =>
+        this.pendingCasts?.some((cast) =>
+          cast.targets?.some((target) => target.kind === 'stackItem' && target.sid === sid),
+        ) ?? false,
+      onTarget: (sid) => this.tryTarget({ kind: 'stackItem', sid }),
+    });
     // The circular smart button (1a "PASS"): the Arc carries the input, the
     // label Text above it never does — so relabeling via setText can't hit the
     // Text.updateText hit-area trap, and the circle's default 92×92 hit rect
@@ -1103,7 +1106,7 @@ export class DuelScene extends Phaser.Scene {
       .circle(LAYOUT.cluster.x, LAYOUT.cluster.passY, LAYOUT.cluster.passR, 0x2c2344, 0.95)
       .setStrokeStyle(2.5, 0xffd88a, 0.9)
       // With the End Turn chip and skip toast family: above arrows (50) and
-      // the stack readout (55) is unnecessary here, but keeping the control
+      // the stack cards (55) are separate from this control, but keeping the control
       // cluster's established depth (56) keeps the ladder simple.
       .setDepth(56)
       .setInteractive({ useHandCursor: true });
@@ -1116,11 +1119,6 @@ export class DuelScene extends Phaser.Scene {
       if (p.rightButtonReleased()) return;
       this.onButton();
     });
-    // clicking/tapping the stack targets its TOP item (counterspells)
-    bindTapButton(this, this.hud.stack, () => {
-      const top = this.duel.state.stack.at(-1);
-      if (top) this.tryTarget({ kind: 'stackItem', sid: top.sid });
-    });
     // life totals are targetable (burn to the face)
     for (const [text, player] of [
       [this.hud.myLife, HUMAN],
@@ -1130,12 +1128,9 @@ export class DuelScene extends Phaser.Scene {
       bindTapButton(this, text, () => this.tryTarget({ kind: 'player', player }));
     }
     // Hit inflation (mobile-lan-plan §1.4). Life totals meet the 44px floor; the
-    // stack readout keeps a 44px height so its inflated rect (it renders at
-    // depth 55, ABOVE the tiles) overlaps the creature rows (opp bottom 287,
-    // yours top 313) by only ~11px at the zone-gap seam. Texts that change
-    // per sync are re-inflated there — Phaser never refreshes hit areas
-    // itself. The smart button needs none: the Arc's hit rect is static.
-    inflateHitArea(this.hud.stack, 90, 44);
+    // Stack cards use CardView's child Zone and never make a scaled Container
+    // interactive. Life totals use inflated text hit areas. The smart button
+    // needs none: the Arc's hit rect is static.
     inflateHitArea(this.hud.myLife, 44, 44);
     inflateHitArea(this.hud.oppLife, 44, 44);
     // Right-click cancels targeting. Test the INITIATING button (p.button),
@@ -3090,19 +3085,12 @@ export class DuelScene extends Phaser.Scene {
     this.hud.button.setVisible(false);
     this.endTurnBtn.setVisible(false);
 
-    // stack readout
     const items = this.duel.state.stack;
-    this.hud.stack
-      .setText(
-        items.length === 0
-          ? ''
-          : 'Pending (top last):\n' + items.map((s) => def(CARD_DB, s.cardId).name).join('\n'),
-      )
-      .setVisible(items.length > 0);
-
-    // Text hit areas go stale on setText; re-inflate (height stays clamped so
-    // the depth-55 rect only grazes the creature rows — see buildHud).
-    inflateHitArea(this.hud.stack, 90, 44);
+    const stackDecisionLive =
+      !this.ended &&
+      'player' in a &&
+      (a.kind === 'respond' || a.kind === 'endStepWindow');
+    this.stackDisplay.setItems(items, stackDecisionLive);
 
     if (this.ended || !('player' in a) || a.player !== HUMAN) return;
     if (this.pendingCasts) {
@@ -4071,7 +4059,7 @@ export class DuelScene extends Phaser.Scene {
         this.myGravePile.inputZone,
       ].filter((zone): zone is Phaser.GameObjects.Zone => !!zone),
       this.passArc, // the smart button's input carrier (its label Text never is)
-      this.hud.stack,
+      ...this.stackDisplay.interactiveTargets(),
       this.hud.myLife,
       this.hud.oppLife,
       this.menuBtn,
