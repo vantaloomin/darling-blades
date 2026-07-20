@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.3.md, src/meta/gauntletSeed.ts, src/ai/personality.ts, src/meta/SaveManager.ts, src/data/opponents.ts, scripts/balance-matrix.ts · last-verified: 2026-07-20 · concretion of Pillar 1 — APPROVED 2026-07-20 (all five flags at recommended) and BUILT: headless core + scene wiring shipped on this branch; measured ladder stamped in src/ai/tiers.ts; the 16-floor re-baseline (section 4) awaits the Pillar 0 merge -->
+<!-- source-of-truth: docs/plan-1.3.md, src/meta/gauntletSeed.ts, src/ai/personality.ts, src/meta/SaveManager.ts, src/data/opponents.ts, scripts/balance-matrix.ts · last-verified: 2026-07-20 · concretion of Pillar 1 — APPROVED 2026-07-20 (all five flags at recommended) and BUILT: headless core + scene wiring shipped on this branch; measured ladder stamped in src/ai/tiers.ts; section 4 re-baseline COMPLETE 2026-07-20 (FLOOR_BANDS + prefab tuning folded in) -->
 
 # 1.3 Pillar 1 concretion - seeded daily tower rotation with floor-scaled AI
 
@@ -14,8 +14,11 @@ runs finish on the old fixed roster; today-only roster preview; the
 dial is tower-only). The build shipped on this branch. The accepted
 ladder moved T3/T4 off the starting guesses: T3 medium/0.32, T4
 medium/0 (measured at 80 seeds/cell after 40-seed runs flip-flopped a
-4pp boundary; medium responds shallowly to noise below ~0.3). Section 4
-remains open until Pillar 0 lands in release/1.3.
+4pp boundary; medium responds shallowly to noise below ~0.3). Section 4 CLOSED 2026-07-20: FLOOR_BANDS measured and stamped
+(scripts/balance-matrix.ts --floors, tier plateaus 23/30/33/50/60/77),
+the prefab tuning pass landed (Questing Table 45.2, Bloodmoon 57.3,
+Wild Communion 42.1 at 300 seeds), and the tier ladder re-measured
+within noise after the Wild Communion swap. Pillar 1 is complete.
 
 ## 1. The strength dial: a seeded decision-noise decorator
 

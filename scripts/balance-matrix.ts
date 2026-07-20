@@ -693,9 +693,11 @@ export interface FloorMatrixReport {
  *
  * MEASURED BASELINE - 2026-07-20, `npx tsx scripts/balance-matrix.ts --floors
  * --seeds 80` (16 floors x 5 starters, roster round-robin, 6,400 games):
- *   T1 floors 1-3: 24.3 / 23.3 / 21.5   T2 floors 4-6: 28.6 / 33.8 / 31.3
- *   T3 floors 7-9: 35.0 / 32.0 / 36.0   T4 floors 10-12: 50.8 / 49.2 / 54.1
- *   T5 floors 13-15: 59.7 / 61.1 / 58.3 T6 floor 16: 77.2
+ *   T1 floors 1-3: 23.5 / 21.7 / 21.0   T2 floors 4-6: 28.0 / 33.1 / 29.7
+ *   T3 floors 7-9: 33.0 / 30.8 / 35.8   T4 floors 10-12: 50.3 / 48.0 / 54.7
+ *   T5 floors 13-15: 59.9 / 60.3 / 58.4 T6 floor 16: 77.2
+ *   (re-measured 2026-07-20 after the prefab tuning pass touched the
+ *   Wild Communion reference starter; every floor moved < 3pp.)
  * Clean tier plateaus, no flags; ~2.4pp SE per row avg (400 games). Bands
  * leave ~7pp margin beyond the measured plateau edges.
  */
