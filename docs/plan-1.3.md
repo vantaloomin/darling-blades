@@ -124,8 +124,11 @@ Implications (design latitude within these):
 ## Riders (inherited from Planned, cheap)
 
 - **"Mark" counter retheme** — copy-only, ready since 2026-07-13.
-- **Sealed dead-code cleanup** — cancelled feature's unoffered
-  meta/scene/tests removed.
+- **Sealed dead-code cleanup — ✅ SHIPPED 2026-07-20.** The cancelled
+  feature's unoffered meta core, reveal scene, mode branches, strings, and
+  feature tests were removed. SaveData stays v22: legacy history and
+  `bestSealedWins` survive inert, while an active legacy Sealed run loads as no
+  active run.
 
 ## Explicitly out (user decisions 2026-07-17)
 

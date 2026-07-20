@@ -1208,8 +1208,10 @@ _Dated 2026-07-04. Review monthly._
   "Hardcore MTG Fan" balance personas — user decisions 2026-07-17,
   spec in [plan-1.3.md](plan-1.3.md);
   **1.5** = Commander mode, renamed **"Darlings"**;
-  **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
-  the hub offers only Draft; its dormant code is cleanup-eligible.
+  **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) and
+  its dormant code was removed 2026-07-20; the hub offers only Draft. Legacy
+  save history and records remain inert, and an active legacy Sealed run loads
+  safely as no active run.
   **Placements locked (2026-07-14 handoff):** the base-facet relabel shipped
   in 1.1 as **"Core Set"** (see Recently shipped); **mixed-set packs are the
   decided, shipped Limited set choice** (single-set drafts shelved
@@ -1219,13 +1221,12 @@ _Dated 2026-07-04. Review monthly._
   **The Bot Draft half is now public**: re-implemented around 20 AI draft
   personas and reachable via the Play submenu (user decision 2026-07-14 —
   see Recently shipped; supersedes the PR #54 hide for draft). **Sealed was
-  removed from the hub UI entirely** (user decision later the same day; the
-  meta core/reveal scene/tests remain in the codebase, unoffered — restoring
-  it is one button plus its polish pass). Remaining blockers, now partially
+  removed from the hub UI and its dormant implementation was deleted
+  2026-07-20.** Remaining blockers, now partially
   player-facing:
   Limited balance/economy (auto-build texture via the balance harness,
   run-reward tuning — draft runs are free to enter and pay
-  `limitedRunGold` on completion) and the Sealed polish pass. Blocker
+  `limitedRunGold` on completion). Blocker
   detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —

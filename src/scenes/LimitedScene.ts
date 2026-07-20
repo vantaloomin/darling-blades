@@ -51,8 +51,7 @@ export class LimitedScene extends Phaser.Scene {
     Music.setMood('menu');
     const save = Services.save.data;
     if (
-      save.limited.activeRun?.mode === 'draft' &&
-      save.limited.activeRun.status === 'draft' &&
+      save.limited.activeRun?.status === 'draft' &&
       save.limited.activeRun.draft?.completed
     ) {
       // Interrupted-save path: the draft finished but completeDraftRun never
@@ -103,9 +102,7 @@ export class LimitedScene extends Phaser.Scene {
     }
     // Draft matches are played against a seated persona — name the next one.
     const nextPersona =
-      run.mode === 'draft' && run.status === 'matches'
-        ? draftPersonaById(run.draft?.personaIds[run.matchIndex + 1] ?? '')
-        : null;
+      run.status === 'matches' ? draftPersonaById(run.draft?.personaIds[run.matchIndex + 1] ?? '') : null;
     const status =
       run.status === 'draft'
         ? `Drafting pack ${run.draft ? run.draft.packIndex + 1 : 1}, pick ${run.draft ? run.draft.pickIndex + 1 : 1}`
@@ -115,7 +112,7 @@ export class LimitedScene extends Phaser.Scene {
     this.text(
       x + 24,
       y + 72,
-      `${labelMode(run)} · ${status}`,
+      `${draftModeLabel(run)} · ${status}`,
       theme.type.body,
       theme.colors.gold,
       theme.weight.w700,
@@ -143,8 +140,7 @@ export class LimitedScene extends Phaser.Scene {
     this.title(x + 24, y + 28, 'New Run', runActive ? theme.colors.muted : theme.colors.heading);
     // Seed controls are deliberately NOT exposed here (user decision
     // 2026-07-14): draft runs roll a fresh hidden seed at start — the
-    // seed-sharing affordance stays a gauntlet feature. Sealed was removed
-    // from the hub the same day (plan-v1.1-post-launch.md Feature 5).
+    // seed-sharing affordance stays a gauntlet feature.
     this.button(
       x + CTA_COL_LEFT,
       y + 84,
@@ -211,7 +207,8 @@ export class LimitedScene extends Phaser.Scene {
       theme.type.label,
       theme.colors.gold,
     );
-    if (!save.limited.history.length) {
+    const draftHistory = save.limited.history.filter((entry) => entry.mode === 'draft');
+    if (!draftHistory.length) {
       this.text(
         x + 24,
         y + 110,
@@ -221,7 +218,7 @@ export class LimitedScene extends Phaser.Scene {
       );
       return;
     }
-    save.limited.history.slice(0, 8).forEach((entry, i) => {
+    draftHistory.slice(0, 8).forEach((entry, i) => {
       const rowY = y + 104 + i * 42;
       const row = this.add.rectangle(
         x + 270,
@@ -235,7 +232,7 @@ export class LimitedScene extends Phaser.Scene {
       this.title(
         x + 24,
         rowY + 2,
-        `${entry.premium ? '[P] Draft' : labelMode(entry)} ${entry.wins}-${entry.losses}`,
+        `${entry.premium ? '[P] Draft' : draftModeLabel(entry)} ${entry.wins}-${entry.losses}`,
         entry.wins === 3 ? theme.colors.gold : theme.colors.heading,
         theme.type.label,
       );
@@ -302,8 +299,8 @@ function freshRunSeed(): number {
   return clampLimitedSeed(Math.floor(Math.random() * 2 ** 31));
 }
 
-function labelMode(run: { mode: 'sealed' | 'draft'; premium?: boolean }): string {
-  return run.mode === 'sealed' ? 'Sealed' : run.premium ? 'Premium Draft' : 'Draft';
+function draftModeLabel(run: { premium?: boolean }): string {
+  return run.premium ? 'Premium Draft' : 'Draft';
 }
 
 function premiumAllowanceCopy(

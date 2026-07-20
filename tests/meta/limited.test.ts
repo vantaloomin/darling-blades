@@ -8,7 +8,6 @@ import { isBasic } from '../../src/meta/Collection';
 import { validateLimitedDeck } from '../../src/meta/DeckStorage';
 import { applyLimitedMatchResult, payPremiumDraftEntry } from '../../src/meta/Economy';
 import {
-  buildLimitedDeck,
   completeDraftRun,
   currentDraftPack,
   DRAFT_SEATS,
@@ -19,10 +18,8 @@ import {
   pickDraftCard,
   recordDraftEncounters,
   rollLimitedPack,
-  rollSealedPool,
   startBotDraft,
   startDraftRun,
-  startSealedRun,
 } from '../../src/meta/Limited';
 import { DEFAULT_PICKER, scoreBasePick } from '../../src/meta/draftPicker';
 import { freshSave } from '../../src/meta/SaveManager';
@@ -43,17 +40,6 @@ describe('limited pack rolling', () => {
       expect(card.token).not.toBe(true);
       expect(isBasic(CARD_DB, id)).toBe(false);
     }
-  });
-
-  it('rolls deterministic six-pack sealed pools', () => {
-    const a = rollSealedPool(CARD_DB, 77);
-    const b = rollSealedPool(CARD_DB, 77);
-    const c = rollSealedPool(CARD_DB, 78);
-
-    expect(a).toEqual(b);
-    expect(a.cards).not.toEqual(c.cards);
-    expect(a.packs).toHaveLength(6);
-    expect(a.cards).toHaveLength(6 * ECONOMY.limitedPackSize);
   });
 });
 
@@ -77,15 +63,6 @@ describe('limited deck validation and auto-build', () => {
     expect(validateLimitedDeck(TEST_DB, pool, [...legal.slice(0, 39), 'elf']).some((i) => i.message.includes('pool'))).toBe(true);
     expect(validateLimitedDeck(TEST_DB, pool, [...legal.slice(0, 39), 'tok_fox']).some((i) => i.message.includes('token'))).toBe(true);
     expect(validateLimitedDeck(TEST_DB, pool, [...legal.slice(0, 39), 'bear']).some((i) => i.message.includes('pool'))).toBe(true);
-  });
-
-  it('auto-builds legal sealed decks across representative seeds', () => {
-    for (let seed = 1; seed <= 40; seed++) {
-      const pool = rollSealedPool(CARD_DB, seed).cards;
-      const deck = buildLimitedDeck(CARD_DB, pool);
-      expect(deck).toHaveLength(40);
-      expect(validateLimitedDeck(CARD_DB, pool, deck).filter((i) => i.kind === 'error')).toHaveLength(0);
-    }
   });
 });
 
@@ -257,22 +234,16 @@ describe('bot draft', () => {
         expect(personaRevealTier(state, id), id).toBe(Math.min(4, drafts + 1));
       }
     }
-    // Personas not at the table learn nothing; sealed runs never count.
+    // Personas not at the table learn nothing.
     expect(state.personaSeen[absent]).toBeUndefined();
-    const before = { ...state.personaSeen };
-    recordDraftEncounters(state, startSealedRun(CARD_DB, 617, 1000));
-    expect(state.personaSeen).toEqual(before);
   });
 
-  it('carries the matching draft opponent persona into duel data and leaves sealed duels unassigned', () => {
+  it('carries the matching draft opponent persona into duel data', () => {
     const draft = startDraftRun(CARD_DB, 808, 1000);
     for (let matchIndex = 0; matchIndex < 3; matchIndex++) {
       draft.matchIndex = matchIndex;
       expect(limitedDuelData(draft).limited.opponentPersonaId).toBe(draft.draft!.personaIds[matchIndex + 1]);
     }
-
-    const sealed = startSealedRun(CARD_DB, 809, 1000);
-    expect(limitedDuelData(sealed).limited.opponentPersonaId).toBeUndefined();
   });
 });
 
@@ -359,14 +330,11 @@ describe('limited rewards', () => {
     expect(save.gold).toBe(0);
   });
 
-  it('grants nothing for free drafts or sealed runs', () => {
+  it('grants nothing for free drafts', () => {
     const freeRun = finishDraft(6262, false);
-    const sealedRun = startSealedRun(CARD_DB, 6263, 1000);
-    sealedRun.premium = true;
     const save = freshSave(0);
 
     expect(grantPremiumDraftPool(save, CARD_DB, freeRun)).toEqual([]);
-    expect(grantPremiumDraftPool(save, CARD_DB, sealedRun)).toEqual([]);
     expect(save.collection).toEqual({});
     expect(save.collectionVariants).toEqual({});
   });
@@ -396,8 +364,7 @@ describe('limited rewards', () => {
 
   it('records match stats and pays run-end gold without adding cards', () => {
     const save = freshSave(0);
-    const run = startSealedRun(CARD_DB, 202, 1000);
-    run.deck = buildLimitedDeck(CARD_DB, run.pool);
+    const run = startDraftRun(CARD_DB, 202, 1000);
     run.status = 'matches';
     save.limited.activeRun = run;
 
@@ -412,9 +379,9 @@ describe('limited rewards', () => {
     const r3 = applyLimitedMatchResult(save, 'hard', true, '2026-07-08', 'dual', 4000);
     expect(r3).toMatchObject({ runOver: true, wins: 2, losses: 1, gold: ECONOMY.limitedRunGold[2] });
     expect(save.limited.activeRun).toBeNull();
-    expect(save.limited.bestSealedWins).toBe(2);
+    expect(save.limited.bestDraftWins).toBe(2);
     expect(save.limited.history[0]).toMatchObject({
-      mode: 'sealed',
+      mode: 'draft',
       seed: 202,
       wins: 2,
       losses: 1,
