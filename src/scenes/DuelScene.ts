@@ -151,11 +151,11 @@ const LAYOUT = {
   /** Foe targetable life badge: inside the portrait's bottom-right corner. */
   oppLife: { x: 1230, y: 162 },
   /** Turn chip atop the phase track — all turn info lives in one column. */
-  turnPill: { x: 1113, y: 322 },
+  turnPill: { x: 1113, y: 292 },
   /** Display-only phase track in the right sidebar above End Turn. */
-  phaseTrack: { x: 1113, firstRowY: 356, rowStep: 34 },
+  phaseTrack: { x: 1113, firstRowY: 326, rowStep: 34 },
   /** Right-side control cluster: smart button · ⏭ End Turn chip (top→bottom). */
-  cluster: { x: 1108, passY: 548, endTurnY: 642, passR: 46 },
+  cluster: { x: 1108, passY: 536, endTurnY: 639, passR: 46 },
   /** Opponent hand/grave/deck icon stack in the left pile column. */
   oppPiles: { x: 38, handY: 40, graveY: 110, deckY: 180, severedY: 250 },
   /** Your deck/grave icon stack, with a hidden severed slot reserved above deck. */
@@ -1222,7 +1222,9 @@ export class DuelScene extends Phaser.Scene {
 
     // Feature 2 — "⏭ End Turn" quick button: fast-forwards the rest of your turn
     // (see startEndTurn). Sits in the right cluster below the smart button
-    // (the smart rect ends 594 / End Turn starts 597 — close but disjoint); only
+    // (smart rect ends 582 / End Turn starts 594 — the 12px compact-cluster
+    // gap from design-system.md interactive isolation, and the inflated
+    // target bottoms out exactly on the 684 title-safe line); only
     // shown during your own main phases (syncButton toggles it).
     this.endTurnBtn = this.add
       .text(LAYOUT.cluster.x, LAYOUT.cluster.endTurnY, '⏭ End Turn', {

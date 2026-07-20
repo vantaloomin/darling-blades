@@ -306,7 +306,7 @@ in the UI-refresh Wave 1.5a (plan-ui-ux-refresh.md). Layout regions (the
   board-facing upper-right corner (214,540); both portraits **react** to
   their owner's plays (cast glow) and pain (damage flinch), pure decoration.
   Center: the **arced hand fan** (pure math in `src/ui/handFan.ts`). Right:
-  the **⏭ End Turn** chip above the **circular smart button** (the 1a "PASS"
+  the **circular smart button** above the **⏭ End Turn** chip (the 1a "PASS"
   circle — an `Arc` carries the input so relabeling the separate label Text
   can never hit the Text hit-area trap), your deck/grave piles, and the Menu
   button whose pause panel houses Resume, quick toggles, the matchup subtitle,
