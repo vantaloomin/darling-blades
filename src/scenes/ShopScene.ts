@@ -499,7 +499,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       640,
-      'Celtic Fae',
+      'The Silver Veil',
       'packart-celtic-fae',
       ECONOMY.celticFaePackPrice,
       'celtic-fae',
@@ -508,7 +508,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       896,
-      'Arthurian Court',
+      'The Grail Oath',
       'packart-arthurian-court',
       ECONOMY.arthurianCourtPackPrice,
       'arthurian-court',
@@ -517,7 +517,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       1152,
-      'Gothic Monsters',
+      'Nocturne Manor',
       'packart-gothic-monsters',
       ECONOMY.gothicMonstersPackPrice,
       'gothic-monsters',
@@ -559,7 +559,9 @@ export class ShopScene extends Phaser.Scene {
       minWidth: 180,
       onTap: onBuy,
     });
-    const infoX = x + theme.space(24);
+    // Clear the centered title's right edge plus an isolation gap; the fixed
+    // 96px offset let long titles run under the bubble (design-system.md).
+    const infoX = Math.max(x + theme.space(24), x + title.width / 2 + theme.space(5));
     const infoBg = this.add.graphics();
     infoBg.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
     infoBg.fillCircle(infoX, title.y, theme.space(3));

@@ -23,9 +23,9 @@ interface OddsSection {
 const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
   base: { packName: 'Core Set', setName: 'Core Set' },
   ragnarok: { packName: 'Ragnarök', setName: 'Ragnarök' },
-  'celtic-fae': { packName: 'Celtic Fae', setName: 'Celtic Fae' },
-  'arthurian-court': { packName: 'Arthurian Court', setName: 'Arthurian Court' },
-  'gothic-monsters': { packName: 'Gothic Monsters', setName: 'Gothic Monsters' },
+  'celtic-fae': { packName: 'The Silver Veil', setName: 'Celtic Fae' },
+  'arthurian-court': { packName: 'The Grail Oath', setName: 'Arthurian Court' },
+  'gothic-monsters': { packName: 'Nocturne Manor', setName: 'Gothic Monsters' },
 };
 
 const TIER_LABELS: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };
