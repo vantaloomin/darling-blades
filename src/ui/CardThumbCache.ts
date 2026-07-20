@@ -38,13 +38,13 @@ const BLEED_Y = 8;
  * scales k² — but the lite tier resolves k=1 (renderScale.ts), so mobile is
  * unchanged, and the ~210-card desktop pool stays well within budget.
  */
-function thumbKey(cardId: string): string {
-  return `card-thumb-${cardId}`;
+function thumbKey(cardId: string, landStyle?: string): string {
+  return `card-thumb-${cardId}${landStyle ? `--${landStyle}` : ''}`;
 }
 
 /** Bake (or reuse) the thumbnail texture for a card; returns its texture key. */
-export function ensureCardThumb(scene: Phaser.Scene, card: CardDef): string {
-  const key = thumbKey(card.id);
+export function ensureCardThumb(scene: Phaser.Scene, card: CardDef, landStyle?: string): string {
+  const key = thumbKey(card.id, landStyle);
   if (scene.textures.exists(key)) return key;
 
   // Render one throwaway CardView into the texture. Created and destroyed
@@ -56,7 +56,7 @@ export function ensureCardThumb(scene: Phaser.Scene, card: CardDef): string {
   const w = CARD_W * bakeScale;
   const h = (CARD_H + 2 * BLEED_Y) * bakeScale;
   const view = new CardView(scene, 0, 0);
-  view.setCard(card, { fx: 'none' });
+  view.setCard(card, { fx: 'none', landStyle });
   view.setScale(bakeScale);
   const dt = scene.textures.addDynamicTexture(key, w, h);
   if (dt) dt.draw(view, w / 2, h / 2);
@@ -77,7 +77,8 @@ export function makeCardThumb(
   y: number,
   card: CardDef,
   cardScale: number,
+  landStyle?: string,
 ): Phaser.GameObjects.Image {
   const displayScale = cardScale / (THUMB_SCALE * activeRenderScale());
-  return scene.add.image(x, y, ensureCardThumb(scene, card)).setScale(displayScale);
+  return scene.add.image(x, y, ensureCardThumb(scene, card, landStyle)).setScale(displayScale);
 }
