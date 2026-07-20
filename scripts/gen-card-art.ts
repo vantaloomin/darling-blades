@@ -56,6 +56,8 @@ const FACTIONS = [
   'constructs-and-tokens',
   'ragnarok',
   'celtic-fae',
+  'arthurian-court',
+  'gothic-monsters',
 ] as const;
 
 const OUT_W = 640;

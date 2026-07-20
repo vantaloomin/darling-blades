@@ -160,6 +160,14 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // set) or heavier cross-set splash - recorded in opponents.ts's baseline.
   13: { minAvg: 0.6 },
   14: { minAvg: 0.62 },
+  // 15-16 calibrated 2026-07-17 from fresh 40-seed tower measurements (77.6% /
+  // 76.8%; CI margin ~4pp at 40 seeds). The Gothic Monsters summit pair sits
+  // clearly above Artoria's 70.8%; the pair itself measured a statistical tie
+  // (0.8pp, inside noise), with the ordering expectation (16 >= 15) encoded in
+  // the win-rate test floors (72% / 73%), not here. Full tower re-baseline
+  // lands with the 1.3 floor-tier model (plan-1.3.md Pillar 1).
+  15: { minAvg: 0.7 },
+  16: { minAvg: 0.7 },
 });
 
 // ---------------------------------------------------------------------------

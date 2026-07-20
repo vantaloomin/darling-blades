@@ -190,4 +190,15 @@ export const SORCERIES = [
     rarity: 'sr',
     flavor: 'Heaven audits everyone at once.',
   },
+  {
+    id: 'so-the-wilds-take-it-back',
+    name: 'The Wilds Take It Back',
+    types: ['ritual'],
+    subtypes: [],
+    cost: cost(3, 'G'),
+    colors: ['G'],
+    abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allEnchantments' }] }],
+    rarity: 'r',
+    flavor: 'The forest reviewed your enchantments and found them insufficiently feral.',
+  },
 ] as const satisfies readonly CardDef[];

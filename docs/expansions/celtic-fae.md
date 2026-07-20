@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/celtic-fae.ts, src/engine/types.ts · last-verified: 2026-07-16 · concept spec implemented in src/data/cards/celtic-fae.ts; the card data is authoritative where a concept mechanic needs a v1 engine adaptation -->
+<!-- source-of-truth: src/data/cards/celtic-fae.ts, src/engine/types.ts · last-verified: 2026-07-19 · concept spec implemented in src/data/cards/celtic-fae.ts; the card data is authoritative where a concept mechanic needs a v1 engine adaptation -->
 
 # Expansion 2 - Celtic Fae: The Silver Veil
 
@@ -19,7 +19,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 
 ## Rarity Target
 
-`40 C / 24 R / 7 SR / 5 SSR / 4 UR = 80 booster cards`
+`41 C / 24 R / 7 SR / 5 SSR / 4 UR = 81 booster cards`
 
 ## Full Card List
 
@@ -105,6 +105,9 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-veil-touched-hart | Veil-Touched Hart | C | G | Creature | Otherworld deer | scry arrives | Green setup |
 | cf-cairnlight-adept | Cairnlight Adept | C | B | Creature | Cairn witch | grind self | Grave setup |
 | cf-fae-spark | Fae Spark | C | R | Charm | Wild glamour | boost + damage to controller | Red trick |
+| cf-bargain-unwound | Bargain Unwound | C | U | Charm | Fae contract undone | recall artifact/enchantment, scry | Artifact/enchantment answer |
+
+_Removal answer cycle (2026-07-18): added Bargain Unwound, the set's common artifact/enchantment answer (bounce with a scry rider, in the fae contract idiom), lifting the rarity target to 41 C / 81 booster cards._
 
 ## Precon Identity
 

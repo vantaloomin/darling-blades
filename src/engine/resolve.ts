@@ -49,6 +49,7 @@ export function resolveStackItem(
       isAura(d) && item.targets[0]?.kind === 'permanent' ? item.targets[0].iid : undefined;
     const perm = enterBattlefield(state, db, item.cardId, item.controller, emit, { attachedTo });
     fireTriggers(state, db, emit, 'arrives', perm);
+    runEmpowerRider(state, db, item, d, emit, perm.iid);
     return;
   }
 
@@ -73,9 +74,34 @@ export function resolveStackItem(
         );
       }
     }
+    runEmpowerRider(state, db, item, d, emit);
     state.players[item.controller].graveyard.push(item.cardId);
     return;
   }
 
   throw new Error(`resolveStackItem: cannot resolve card type of ${item.cardId}`);
+}
+
+/** Empower rider: trigger-safe extra ops that run after the card's normal resolution. */
+function runEmpowerRider(
+  state: GameState,
+  db: CardDb,
+  item: StackItem,
+  d: CardDef,
+  emit: Emit,
+  sourceIid?: number,
+): void {
+  if (!item.empowered || !d.empower) return;
+  runOps(
+    state,
+    db,
+    emit,
+    {
+      controller: item.controller,
+      sourceCardId: item.cardId,
+      ...(sourceIid === undefined ? {} : { sourceIid }),
+      targets: [],
+    },
+    d.empower.ops,
+  );
 }

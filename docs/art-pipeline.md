@@ -89,7 +89,7 @@ To replace a card's placeholder with a real illustration:
    changes; no 404s (the file is in the manifest, so it's requested; unlisted
    files are never requested).
 
-Current status: **every card in the pool has real art on disk** — all **282**
+Current status: **every card in the pool has real art on disk** — all **537**
 entries (`public/assets/art/cards/`, every one listed in
 `src/data/art-manifest.json` with a matching half-res variant in `cards-half/`),
 so no card renders a procedural placeholder anymore — the placeholder path
@@ -220,12 +220,12 @@ the parser-proof addendum convention at the end of `docs/spell-art.md`
 bullets, invisible to the parsers, verified with `--dry-run` after editing. Together with the land program this closed the base set:
 **all 210 base-set cards** (147 creatures + 15 lands + 43 spells) got real
 illustrations, and the later Ragnarök run extended the same drivers over the
-expansion — so **every one of the 282 cards** now has real art; only
+expansion — so **every one of the 537 cards** now has real art; only
 pre-generation does a card fall back to its type-palette procedural placeholder.
 
 **Base-set run status (2026-07-03): COMPLETE — 152/152 on disk** (plus 152
 half-res variants and the 11 scene assets); the Ragnarök expansion art was
-generated in a later run, bringing the on-disk total to **282** (+282 half-res).
+generated in a later run, bringing the on-disk total to **282** (+282 half-res); the Gothic Monsters + removal-cycle runs (2026-07-18/19) brought it to **537** (+537 half-res, 15 scene assets).
 The base run paused twice on the same root
 cause: four concurrent lanes raced the CLI's OAuth token refresh at expiry
 and invalidated the credential. **Concurrency across a token refresh is a

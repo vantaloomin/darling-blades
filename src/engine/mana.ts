@@ -8,6 +8,16 @@ export interface ManaSource {
   isLand: boolean;
 }
 
+/** Combine two costs without changing either input. Used by Empower so the
+ * normal auto-tap and explicit mana-plan paths price one atomic cast cost. */
+export function combineManaCosts(a: ManaCost, b: ManaCost): ManaCost {
+  const pips: Partial<Record<Color, number>> = { ...a.pips };
+  for (const color of Object.keys(b.pips) as Color[]) {
+    pips[color] = (pips[color] ?? 0) + (b.pips[color] ?? 0);
+  }
+  return { generic: a.generic + b.generic, pips };
+}
+
 /** Untapped lands + untapped non-sick mana creatures controlled by `player`. */
 export function manaSources(state: GameState, db: CardDb, player: PlayerId): ManaSource[] {
   const out: ManaSource[] = [];

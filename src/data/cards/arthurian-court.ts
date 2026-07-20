@@ -518,4 +518,10 @@ export const ARTHURIAN_COURT = [
     cost: cost(2), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'c', flavor: 'The map marks the road in ink that fades after the journey.',
   },
+  {
+    id: 'ac-recant-the-vow', name: 'Recant the Vow', types: ['charm'], subtypes: [],
+    cost: cost(2, 'W'), colors: ['W'],
+    abilities: [{ when: 'spell', targets: [{ what: 'enchantment' }], ops: [{ op: 'sever', to: 'target' }, { op: 'draw', n: 1 }] }],
+    rarity: 'c', flavor: 'She withdrew the vow, kept the moral high ground, and drew a card.',
+  },
 ] satisfies readonly CardDef[];

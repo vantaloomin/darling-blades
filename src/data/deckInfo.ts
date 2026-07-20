@@ -67,4 +67,11 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Build a court of Knights, keep a Quest active, and let chapter payoffs turn a disciplined board into awakened champions. Combat tricks and Squire support make the deck strongest when it attacks with a plan.',
     featured: ['ac-artoria-once-future', 'ac-quest-for-the-grail', 'ac-lancelot-moonlit-shame'],
   },
+  'theme-gothic-monsters': {
+    colors: 'B/R',
+    archetype: 'Vampire pressure',
+    plays:
+      'Start with Dreaded attackers and evasive vampires, then make every exchange hurt. Damage spells clear the path while Empower turns the late game into a velvet drain. Carmilla, Crimson Host closes the curtain when the night runs long.',
+    featured: ['gm-carmilla-crimson-host', 'gm-black-veil-matron', 'gm-dracula-ball-invite'],
+  },
 };

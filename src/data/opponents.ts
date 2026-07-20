@@ -9,9 +9,10 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..14, unique). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-14 Hard (9-10 are the Ragnarök bosses,
- * 11-12 are the Celtic Fae bosses, and 13-14 are the Arthurian Court summit).
+ * Gauntlet ordering is by `tier` (1..16, unique). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-16 Hard (9-10 are the Ragnarök bosses,
+ * 11-12 are the Celtic Fae bosses, 13-14 are the Arthurian Court pair, and
+ * 15-16 are the Gothic Monsters summit pair).
  */
 export interface Avatar {
   id: string;
@@ -19,7 +20,7 @@ export interface Avatar {
   title: string;
   blurb: string;
   theme: string;
-  tier: number; // 1..14 (unique)
+  tier: number; // 1..16 (unique)
   difficulty: Difficulty;
   deck: string[]; // 60 real cardIds
   personality: Personality;
@@ -212,6 +213,25 @@ export interface Avatar {
  * the NEW 1.2 Questing Table precon measures 24.4% aggregate vs the tuned
  * field — a bottom outlier flagged for a future tuning pass (its list is
  * also the --ac-bosses HIGH reference, so tune with that in mind).
+ *
+ * Rungs 15-16 - the Gothic Monsters summit pair, measured 2026-07-17 at 40
+ * seeds/cell with the full `--avatars` matrix. Every cell below had 40 decided
+ * games and zero draws:
+ *
+ *                              Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R15 Carmilla    [hard]       80%      80%      68%     80%      80%   | 78%
+ *   R16 The Bride   [hard]       63%      88%      65%     85%      83%   | 77%
+ *
+ * Calibrated floors for the new rows are R15 >= 72% and R16 >= 73%, leaving
+ * CI-variance margin below these fresh point estimates. Carmilla clears the
+ * preceding R14 Artoria row by 7pp; The Bride clears it by 6pp and is the new
+ * sixteenth and final tower slot. Honest residual: this 40-seed sample puts
+ * The Bride 1pp below Carmilla, so strict pairwise monotonicity is not claimed
+ * at this sample size. Genuine tuning iterations included The Bride's initial
+ * 34% artifact/control list, 49% after replacing weak setup with Doom Bolt and
+ * Undertow, 73% after adding the low-curve vampire bodies, 62% for a Summon the
+ * Dead substitution, and 77% after restoring the artifact finisher and adding
+ * Divination. The final Black-Veil variant keeps the strongest measured spread.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------
@@ -694,6 +714,80 @@ export const AVATARS: readonly Avatar[] = [
       ['in-shieldwall', 3],
     ]),
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 15 — Carmilla: B/R dreaded vampire pressure. (Hard · Gothic Monsters)
+  {
+    id: 'carmilla',
+    name: 'Carmilla, Crimson Host',
+    title: 'The Feast That Walks',
+    blurb: 'Carmilla opens the doors and lets the night rush in. Her dreaded court comes from two directions at once, while every bite leaves her stronger and your defenses thinner.',
+    theme: 'Black-Red Dreaded Vampire Pressure',
+    tier: 15,
+    difficulty: 'hard',
+    portraitCardId: 'gm-carmilla-crimson-host',
+    personality: makePersonality({
+      aggression: 1.35,
+      attackThreshold: -0.4,
+      blockLifePressure: 1.1,
+      subtypeBias: 1.25,
+      preferredSubtypes: ['Vampire'],
+      removalBias: 0.25,
+    }),
+    deck: expand([
+      ['land-swamp', 10],
+      ['land-mountain', 10],
+      ['ld-burning-luoyang', 4],
+      ['gm-carmilla-crimson-host', 4],
+      ['gm-elizabeth-blood-mirror', 4],
+      ['gm-ravenloft-heiress', 4],
+      ['gm-black-veil-matron', 4],
+      ['gm-blood-opera-soloist', 4],
+      ['gm-batcloak-cutthroat', 4],
+      ['gm-moonlit-werewolf', 4],
+      ['gm-manor-thrall', 4],
+      ['gm-midnight-bite', 4],
+    ]),
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 16 — The Bride: U/B empowered stitchwork control. (Hard · Gothic Monsters summit)
+  {
+    id: 'the-bride',
+    name: 'The Bride, Storm-Crowned',
+    title: 'The Vow Beneath the Lightning',
+    blurb: 'The Bride does not hurry the ending. She filters every draw, stitches the fallen back into service, and surrounds herself with artifact bodies until the storm has nowhere left to break.',
+    theme: 'Blue-Black Empowered Stitchwork Control',
+    tier: 16,
+    difficulty: 'hard',
+    portraitCardId: 'gm-bride-storm-crowned',
+    personality: makePersonality({
+      aggression: 1.25,
+      holdback: 1,
+      attackThreshold: -0.25,
+      blockLifePressure: 1.15,
+      blockThreshold: -0.3,
+      trickRespect: 1.1,
+      mulliganShift: 1,
+      removalBias: -0.75,
+      subtypeBias: 1,
+      preferredSubtypes: ['Construct'],
+    }),
+    deck: expand([
+      ['land-island', 10],
+      ['land-swamp', 10],
+      ['ld-moonlit-marsh', 4],
+      ['gm-bride-storm-crowned', 4],
+      ['so-divination', 4],
+      ['gm-stitchwork-guardian', 4],
+      ['gm-stormglass-golem', 4],
+      ['gm-black-veil-matron', 4],
+      ['gm-batcloak-cutthroat', 4],
+      ['in-doom-bolt', 4],
+      ['in-undertow', 4],
+      ['gm-stormtower-resurrection', 4],
+    ]),
+  },
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -703,7 +797,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..14). */
+/** The avatar at a 1-based gauntlet rung (1..16). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);

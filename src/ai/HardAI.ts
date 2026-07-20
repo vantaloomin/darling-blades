@@ -1,4 +1,5 @@
 import type { Action } from '../engine/actions';
+import { minimumBlockersForAttacker } from '../engine/combat/legality';
 import type { Game } from '../engine/Game';
 import type { CardDb, PlayerId } from '../engine/types';
 import { opponentOf } from '../engine/types';
@@ -176,7 +177,26 @@ export class HardAI implements AIPlayer {
    * exact first-strike/trample/deathtouch math beats any heuristic.
    */
   private searchMain(view: PlayerView, legal: Action[]): Action {
-    return this.medium.chooseAction(view, legal);
+    const baseline = this.medium.chooseAction(view, legal);
+    const empowered = legal.filter(
+      (a): a is Extract<Action, { type: 'castSpell' }> =>
+        a.type === 'castSpell' && a.empowered === true,
+    );
+    if (empowered.length === 0) return baseline;
+
+    const base = this.aggregateOutcome(view, [baseline]);
+    if (!base) return baseline; // own line illegal in the sim; trust Medium
+    let best = baseline;
+    let bestScore = base.score;
+    // Cap the sim fanout: empowered variants scale with target count.
+    for (const candidate of empowered.slice(0, 8)) {
+      const outcome = this.aggregateOutcome(view, [candidate]);
+      if (outcome && outcome.score > bestScore) {
+        best = candidate;
+        bestScore = outcome.score;
+      }
+    }
+    return best;
   }
 
   // -------------------------------------------------------------------
@@ -316,10 +336,26 @@ export class HardAI implements AIPlayer {
       const used = new Set(plan.map((b) => b.blocker));
       for (const b of plan) out.push(plan.filter((x) => x !== b)); // unblock one
       for (const attacker of attackers) {
+        // An attacker can die to a response before blocks — no stats to read.
+        if (!view.battlefield.some((p) => p.iid === attacker)) continue;
         const gang = plan.filter((b) => b.attacker === attacker).length;
         if (gang >= 3) continue;
-        for (const c of myCreatures) {
-          if (used.has(c.iid)) continue;
+        const free = myCreatures.filter((c) => !used.has(c.iid));
+        if (gang === 0 && minimumBlockersForAttacker(view.battlefield, this.db, attacker) === 2) {
+          // A single add to an unblocked Dreaded attacker is illegal, so the
+          // climb could never reach a gang block: mutate by whole pairs.
+          for (let i = 0; i < free.length; i++) {
+            for (let j = i + 1; j < free.length; j++) {
+              out.push([
+                ...plan,
+                { blocker: free[i].iid, attacker },
+                { blocker: free[j].iid, attacker },
+              ]);
+            }
+          }
+          continue;
+        }
+        for (const c of free) {
           out.push([...plan, { blocker: c.iid, attacker }]); // add / gang up
         }
       }

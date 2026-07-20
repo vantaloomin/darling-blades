@@ -8,7 +8,7 @@ import { applyFilters, defaultFilterState } from '../../src/meta/collectionFilte
 import { packPool } from '../../src/meta/PackOpener';
 import { freshSave } from '../../src/meta/SaveManager';
 
-const RARITY_COUNTS = { c: 40, r: 24, sr: 7, ssr: 5, ur: 4 } as const;
+const RARITY_COUNTS = { c: 41, r: 24, sr: 7, ssr: 5, ur: 4 } as const;
 const KEYWORDS = new Set<Keyword>([
   'skyborne',
   'wardingGaze',
@@ -89,8 +89,8 @@ const LAKE_DECK = acDeck([
 ]);
 
 describe('Arthurian Court data integrity', () => {
-  it('contains the complete 80-card booster set with the target rarity histogram', () => {
-    expect(ARTHURIAN_COURT).toHaveLength(80);
+  it('contains the complete 81-card booster set with the target rarity histogram', () => {
+    expect(ARTHURIAN_COURT).toHaveLength(81);
     const actual = Object.fromEntries(
       Object.keys(RARITY_COUNTS).map((rarity) => [
         rarity,

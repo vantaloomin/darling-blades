@@ -5,7 +5,7 @@ import { hasCastableInstant } from './actions';
 import { resolveCombatDamage } from './combat/damage';
 import { fireTriggers } from './effects/EffectInterpreter';
 import type { GameEvent } from './events';
-import { solveMana } from './mana';
+import { combineManaCosts, solveMana } from './mana';
 import { checkStateBased } from './sba';
 import { getEffectiveStats } from './statics';
 import {
@@ -334,8 +334,11 @@ export class Game {
         const cardId = me.hand[action.handIndex];
         const d = def(this.db, cardId);
         const extra = action.x ?? 0;
-        const plan =
-          action.manaPlan ?? solveMana(st, this.db, player, d.cost!, extra)!;
+        // Empower is an additional cast cost (validateAction rejects X+empower,
+        // so `extra` is always 0 on an empowered cast).
+        const cost =
+          action.empowered && d.empower ? combineManaCosts(d.cost!, d.empower.cost) : d.cost!;
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, cost, extra)!;
         for (const iid of plan) {
           const src = findPermanent(st, iid)!;
           src.tapped = true;
@@ -349,6 +352,7 @@ export class Game {
           controller: player,
           targets: action.targets ?? [],
           x: action.x,
+          ...(action.empowered ? { empowered: true } : {}),
         };
         st.stack.push(item);
         emit({

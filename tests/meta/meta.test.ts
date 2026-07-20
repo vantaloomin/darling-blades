@@ -372,6 +372,21 @@ describe('PackOpener', () => {
     }
   });
 
+  it('a Gothic Monsters booster charges its SKU price and pulls only gm- cards', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.gothicMonstersPackPrice;
+
+    expect(spendGold(save, ECONOMY.gothicMonstersPackPrice)).toBe(true);
+    const result = openPack(save, CARD_DB, createRngState(20260717), 'gothic-monsters');
+
+    expect(save.gold).toBe(0);
+    expect(result.cards).toHaveLength(ECONOMY.boosterPackSize);
+    for (const card of result.cards) {
+      expect(card.cardId.startsWith('gm-'), `${card.cardId} must be Gothic Monsters`).toBe(true);
+      expect(CARD_DB[card.cardId].set).toBe('gothic-monsters');
+    }
+  });
+
   it('dupe-protects the sr/ssr/ur slots (prefers sub-playset cards)', () => {
     // own a playset of every sr except dt_rhino â†’ every sr slot must roll it
     const srs = packPool(TEST_DB, 'sr');
@@ -995,7 +1010,7 @@ describe('applyGauntletResult', () => {
   });
 
   it('clearing the final rung pays the completion bonus and ends the run', () => {
-    const finalRung = ECONOMY.gauntletRungGold.length; // 12 since the Celtic Fae summit
+    const finalRung = ECONOMY.gauntletRungGold.length; // 16 since the Gothic Monsters summit
     const save = freshSave(0);
     save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
     save.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
@@ -1025,7 +1040,7 @@ describe('applyGauntletResult', () => {
     expect(dual.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 1 });
   });
 
-  it('a full 14-rung run pays exactly 2770 gold plus the daily bonus once', () => {
+  it('a full 16-rung run pays exactly 3450 gold plus the daily bonus once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
@@ -1034,9 +1049,9 @@ describe('applyGauntletResult', () => {
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(2520); // 50+70+…+310 across 14 rungs (1.2 added 13-14)
+    expect(rungSum).toBe(3200); // 50+70+…+350 across 16 rungs (1.3 added 15-16)
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(2870); // 2520 + 250 + 100 (daily bonus once)
+    expect(total).toBe(3550); // 3200 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 

@@ -286,12 +286,13 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.filterDropdownRefreshers.push(() => dd.setValue(get()));
     };
 
-    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court'>[] = [
+    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters'>[] = [
       { value: 'all', label: 'All Sets' },
       { value: 'base', label: 'Core Set' },
       { value: 'ragnarok', label: 'Ragnarök' },
       { value: 'celtic-fae', label: 'Celtic Fae' },
       { value: 'arthurian-court', label: 'Arthurian Court' },
+      { value: 'gothic-monsters', label: 'Gothic Monsters' },
     ];
     mk(158, 'Set', setOpts, () => this.filterState.set, (v) => (this.filterState.set = v));
 

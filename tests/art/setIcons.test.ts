@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SET_ICON_PATHS, type CardSetId } from '../../src/art/setIcons';
 
-const EXPECTED: CardSetId[] = ['base', 'ragnarok', 'celtic-fae', 'arthurian-court'];
+const EXPECTED: CardSetId[] = ['base', 'ragnarok', 'celtic-fae', 'arthurian-court', 'gothic-monsters'];
 
 // Matches the absolute-only path contract documented by setIcons.ts.
 const PATH_DATA = /^M[MLCAZ0-9 .,-]*Z$/;

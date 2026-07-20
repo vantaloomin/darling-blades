@@ -111,9 +111,11 @@ Implications (design latitude within these):
   can express (candidates: mono-R burn/Sligh, U/x draw-go control, B/G
   attrition midrange, reanimator, W-weenie/tempo). Persona flavor text
   and names are player-facing copy (no em-dashes).
-- Surfaced via the Practice picker roster (their own row or grouping);
-  NOT part of the gauntlet rotation roster unless the user later says
-  so.
+- **Corrected 2026-07-20 (user): the personas are a TESTING instrument
+  for the developers, not a production feature.** No Practice picker
+  row, no player-facing surface, no gauntlet presence. They live only
+  in the balance harness (dev-side deck definitions + the matrix mode
+  below); the original Practice-picker bullet is superseded.
 - The balance harness gains a mode that runs the fan decks against the
   prefab field (the 2026-07-17 `--prefabs` idiom) so "how does our
   balance hold against tuned-archetype pressure" becomes a repeatable
