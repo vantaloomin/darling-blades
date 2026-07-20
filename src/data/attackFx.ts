@@ -77,6 +77,7 @@ export const ATTACK_FX_MAP: Record<string, AttackFxSpec> = {
   'bk-turtlekin-bulwark': { archetype: 'claw', heavy: false },
   'bk-squirrelkin-hoarder': { archetype: 'claw', heavy: false },
   'bk-boarkin-rioter': { archetype: 'claw', heavy: false },
+  'bk-boarkin-rootbreaker': { archetype: 'claw', heavy: false },
   'tk-shu-liubei': { archetype: 'radiance', heavy: false },
   'tk-shu-guanyu': { archetype: 'cleave', heavy: true },
   'tk-shu-zhangfei': { archetype: 'cleave', heavy: true },

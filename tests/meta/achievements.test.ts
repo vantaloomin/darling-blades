@@ -318,8 +318,8 @@ describe('achievements', () => {
     expect(syncAchievements(save, THEME_DB)).toContain('theme-ragnarok-twilight-court-rainbow');
   });
 
-  it('uses the 80-card Celtic Fae pool and its intended court sub-archetype ids', () => {
-    expect(CELTIC_FAE_IDS).toHaveLength(80);
+  it('uses the 81-card Celtic Fae pool and its intended court sub-archetype ids', () => {
+    expect(CELTIC_FAE_IDS).toHaveLength(81);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].rarity === 'ssr')).toEqual(CELTIC_FAE_SSR_COURT);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Selkie'))).toEqual(CELTIC_FAE_SELKIES);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Raven'))).toEqual(CELTIC_FAE_RAVENS);
@@ -428,13 +428,13 @@ describe('arthurian court achievements (1.2)', () => {
     // derive from the catalog, so a future set change moves them honestly.
     expect(status('theme-arthurian-quests', save, CARD_DB).target).toBe(7);
     expect(status('theme-arthurian-champions', save, CARD_DB).target).toBe(5);
-    expect(status('theme-arthurian-complete', save, CARD_DB).target).toBe(80);
+    expect(status('theme-arthurian-complete', save, CARD_DB).target).toBe(81);
   });
 });
 
 describe('gothic monsters achievements (1.3)', () => {
-  it('uses the 80-card Gothic Monsters pool and the intended sub-archetypes', () => {
-    expect(GOTHIC_MONSTERS_IDS).toHaveLength(80);
+  it('uses the 81-card Gothic Monsters pool and the intended sub-archetypes', () => {
+    expect(GOTHIC_MONSTERS_IDS).toHaveLength(81);
     expect(GOTHIC_MONSTERS_HEADLINERS.every((id) => CARD_DB[id]?.rarity === 'ur')).toBe(true);
     expect(GOTHIC_MONSTERS_DREADED).toHaveLength(10);
     expect(GOTHIC_MONSTERS_EMPOWERED).toHaveLength(20);

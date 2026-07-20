@@ -459,4 +459,10 @@ export const GOTHIC_MONSTERS = [
     cost: cost(5, 'G'), colors: ['G'], attack: 5, defense: 5, keywords: ['overrun'],
     rarity: 'c', flavor: 'When the harvest goes unauthorized, the garden itself rises to object.',
   }),
+  {
+    id: 'gm-hunters-writ', name: "Hunter's Writ", types: ['charm'], subtypes: [],
+    cost: cost(1, 'W'), colors: ['W'],
+    abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'sever', to: 'target' }, { op: 'gainLife', n: 2 }] }],
+    rarity: 'c', flavor: 'She serves notice in silver and bills the monster for postage.',
+  },
 ] satisfies readonly CardDef[];

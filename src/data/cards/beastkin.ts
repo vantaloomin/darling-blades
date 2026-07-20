@@ -344,4 +344,17 @@ export const BEASTKIN = [
     rarity: 'c',
     flavor: 'First through the fence. Any fence. All fences.',
   },
+  {
+    id: 'bk-boarkin-rootbreaker',
+    name: 'Boarkin Rootbreaker',
+    types: ['creature'],
+    subtypes: ['Beastkin', 'Boarkin'],
+    cost: cost(1, 'G'),
+    colors: ['G'],
+    attack: 2,
+    defense: 2,
+    abilities: [{ when: 'arrives', ops: [{ op: 'destroyNewestOpponentArtifactOrEnchantment' }] }],
+    rarity: 'c',
+    flavor: 'She uproots first and asks whether it was valuable later.',
+  },
 ] as const satisfies readonly CardDef[];

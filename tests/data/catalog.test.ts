@@ -106,8 +106,9 @@ describe('catalog integrity', () => {
     );
     const share = (rarity: string) =>
       pool.filter((c) => c.rarity === rarity).length / pool.length;
-    // Measured catalog after Gothic Monsters: 257 c / 157 r / 40 sr / 31 ssr /
-    // 24 ur over a 509-card collectible pool (50.5 / 30.8 / 7.9 / 6.1 / 4.7 %).
+    // Measured catalog after the nine removal answers: 266 c / 157 r / 40 sr /
+    // 31 ssr / 24 ur over a 518-card collectible pool (51.4 / 30.3 / 7.7 /
+    // 6.0 / 4.6 %).
     expect(share('c')).toBeGreaterThanOrEqual(0.45);
     expect(share('c')).toBeLessThanOrEqual(0.6);
     expect(share('r')).toBeGreaterThanOrEqual(0.25);
@@ -167,13 +168,13 @@ describe('catalog integrity', () => {
     expect(count('sr')).toBeGreaterThanOrEqual(1);
   });
 
-  it('the Gothic Monsters set has its specified 80-card rarity mix', () => {
+  it('the Gothic Monsters set has its specified 81-card rarity mix', () => {
     const gm = ALL_CARDS.filter(
       (c) => c.set === 'gothic-monsters' && !c.token && !(c.supertypes ?? []).includes('basic'),
     );
-    expect(gm.length).toBe(80);
+    expect(gm.length).toBe(81);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((r) => [r, gm.filter((c) => c.rarity === r).length]))).toEqual({
-      c: 40,
+      c: 41,
       r: 24,
       sr: 7,
       ssr: 5,

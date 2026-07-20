@@ -421,4 +421,9 @@ export const CELTIC_FAE = [
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 2, t: 0, scope: 'target' }, { op: 'damage', n: 1, to: 'controller' }] }],
     rarity: 'c', flavor: 'It makes a lovely light. It also knows who paid for it.',
   },
+  {
+    id: 'cf-bargain-unwound', name: 'Bargain Unwound', types: ['charm'], subtypes: [], cost: cost(1, 'U'), colors: ['U'],
+    abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'recall', to: 'target' }, { op: 'foresee', n: 1 }] }],
+    rarity: 'c', flavor: 'The fae read the fine print, then return the whole contract with edits.',
+  },
 ] satisfies readonly CardDef[];
