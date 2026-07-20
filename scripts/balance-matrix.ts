@@ -18,6 +18,8 @@
  *   --difficulty         Easy/Medium/Hard round-robin on a fixed deck pair
  *                        (Crimson Muster vs Wild Communion, sides + decks
  *                        alternate so no brain owns the better deck).
+ *   --tiers              6 tower AI tiers vs the 5 starter decks, each as a
+ *                        mirror against a neutral Medium human proxy.
  *   --cf-bosses          The Morrigan and Titania vs Low/Mid/High CF references
  *                        (Wild Communion / Grave Harvest / Glimmer Bargain).
  *   --ac-bosses          Morgan and Artoria vs Low/Mid/High AC references
@@ -38,7 +40,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AIPlayer } from '../src/ai/AIPlayer';
 import { MediumAI } from '../src/ai/MediumAI';
-import { buildAI } from '../src/ai/personality';
+import { buildAI, DEFAULT_PERSONALITY } from '../src/ai/personality';
+import { buildTierAI, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
 import { CARD_DB } from '../src/data/catalog';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
@@ -581,6 +584,78 @@ export function runDifficultyMatrix(seedsPerCell: number): DifficultyMatrixRepor
   return { cells, flags, table };
 }
 
+export interface TierRow {
+  tier: TowerTier;
+  cells: CellResult[]; // one same-deck mirror per starter, STARTER_DECKS order
+  avg: number;
+}
+
+export interface TierMatrixReport {
+  rows: TierRow[];
+  flags: string[];
+  table: string;
+}
+
+const TOWER_TIERS: readonly TowerTier[] = [1, 2, 3, 4, 5, 6];
+const MIN_TIER_GAP = 0.04;
+
+export function tierMonotonicityFlags(
+  rows: readonly Pick<TierRow, 'tier' | 'avg'>[],
+): string[] {
+  const flags: string[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const previous = rows[i - 1];
+    const current = rows[i];
+    // Keep an exact 4pp boundary from failing on binary floating-point drift.
+    if (current.avg - previous.avg < MIN_TIER_GAP - 1e-12) {
+      flags.push(
+        `Tier separation: T${current.tier} avg ${(current.avg * 100).toFixed(1)}% is less than 4pp above T${previous.tier} avg ${(previous.avg * 100).toFixed(1)}%`,
+      );
+    }
+  }
+  return flags;
+}
+
+/**
+ * Tower tiers vs a neutral Medium proxy across all five reference starters.
+ * Same-deck mirrors isolate the strength dial from prefab deck power; runCell
+ * alternates sides and supplies stable per-cell seeds.
+ */
+export function runTierMatrix(seedsPerCell: number): TierMatrixReport {
+  const rows = TOWER_TIERS.map((tier) => {
+    const cells = STARTER_DECKS.map((starter, starterIndex) =>
+      runCell(
+        {
+          rowAI: (seed) => buildTierAI(tier, CARD_DB, seed, DEFAULT_PERSONALITY),
+          colAI: () => new MediumAI(CARD_DB, DEFAULT_PERSONALITY),
+          decks: () => [starter.cards, starter.cards],
+        },
+        seedsPerCell,
+        50_000 + tier * 10 + starterIndex,
+      ),
+    );
+    return { tier, cells, avg: mean(cells.map((cell) => cell.rate)) };
+  });
+
+  const flags = tierMonotonicityFlags(rows);
+
+  const matrix = renderTable(
+    `=== TOWER TIERS - tier win % vs neutral Medium mirror \u00b7 ${seedsPerCell} seeds/cell ===\n` +
+      '    each tier and proxy pilot the same named starter; decided games (+draws)',
+    rows.map((row) => {
+      const def = TIER_DEFS[row.tier];
+      return `T${row.tier} [${def.brain}, noise ${def.noise}]`;
+    }),
+    STARTER_DECKS.map((starter) => shortName(starter.name)),
+    rows.map((row) => row.cells),
+    (index) => `| avg ${(rows[index].avg * 100).toFixed(1).padStart(5)}%`,
+  );
+  const table =
+    matrix +
+    `\n\nMONOTONICITY: ${flags.length === 0 ? 'PASS (every adjacent tier gains at least 4pp)' : `FAIL (${flags.length} adjacent separation${flags.length === 1 ? '' : 's'} below 4pp)`}`;
+  return { rows, flags, table };
+}
+
 // ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
@@ -601,12 +676,18 @@ function main(): void {
   const only = opt('only')?.split(',').map((s) => s.trim()).filter(Boolean);
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
+  const wantTiers = flag('tiers');
   const wantCelticFaeBosses = flag('cf-bosses');
   const wantPrefabs = flag('prefabs');
   const wantArthurianCourtBosses = flag('ac-bosses');
   const wantAvatars =
     flag('avatars') ||
-    (!wantStarters && !wantDifficulty && !wantCelticFaeBosses && !wantArthurianCourtBosses && !wantPrefabs);
+    (!wantStarters &&
+      !wantDifficulty &&
+      !wantTiers &&
+      !wantCelticFaeBosses &&
+      !wantArthurianCourtBosses &&
+      !wantPrefabs);
   const ai = (opt('ai') ?? 'hard') as Difficulty;
   if (!DIFFS.includes(ai)) {
     console.error(`--ai must be one of ${DIFFS.join(' | ')} (got ${opt('ai')})`);
@@ -619,6 +700,7 @@ function main(): void {
   if (wantAvatars) reports.push(runAvatarMatrix(seeds, only));
   if (wantStarters) reports.push(runStarterMatrix(seeds));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds));
+  if (wantTiers) reports.push(runTierMatrix(seeds));
   if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds));
   if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds));
   if (wantPrefabs) reports.push(runPrefabMatrix(seeds, ai));
@@ -626,7 +708,7 @@ function main(): void {
   for (const r of reports) {
     console.log('\n' + r.table);
     if (!r.flags) continue;
-    if (r.flags.length === 0) console.log('FLAGS: none — all cells within guidance bands.');
+    if (r.flags.length === 0) console.log('FLAGS: none.');
     else {
       console.log('FLAGS:');
       for (const f of r.flags) console.log(`  ! ${f}`);

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { clampSeed, rungSeed } from '../../src/meta/gauntletSeed';
+import {
+  clampSeed,
+  daySeed,
+  localDateKey,
+  rosterOrder,
+  rungSeed,
+} from '../../src/meta/gauntletSeed';
 
 describe('clampSeed', () => {
   it('maps any number into the 31-bit non-zero seed domain', () => {
@@ -62,4 +68,45 @@ describe('rungSeed', () => {
     expect(rungSeed(-42, 2)).toBe(rungSeed(42, 2)); // sign-stripped by clampSeed
     expect(rungSeed(2 ** 31 + 9, 5)).toBe(rungSeed(9, 5)); // wrapped
   });
+});
+
+describe('daySeed', () => {
+  it('is deterministic and separates adjacent calendar days', () => {
+    expect(daySeed(20260720)).toBe(daySeed(20260720));
+    expect(daySeed(20260720)).not.toBe(daySeed(20260721));
+  });
+
+  it('always returns a non-zero 31-bit seed', () => {
+    for (const dateKey of [20250101, 20251231, 20260720, 20260721]) {
+      const seed = daySeed(dateKey);
+      expect(Number.isInteger(seed)).toBe(true);
+      expect(seed).toBeGreaterThan(0);
+      expect(seed).toBeLessThan(2 ** 31);
+    }
+  });
+});
+
+describe('localDateKey', () => {
+  it('uses the local calendar across month and year boundaries', () => {
+    expect(localDateKey(new Date(2025, 0, 31, 23, 59).getTime())).toBe(20250131);
+    expect(localDateKey(new Date(2025, 1, 1, 0, 1).getTime())).toBe(20250201);
+    expect(localDateKey(new Date(2025, 11, 31, 23, 59).getTime())).toBe(20251231);
+    expect(localDateKey(new Date(2026, 0, 1, 0, 1).getTime())).toBe(20260101);
+  });
+});
+
+describe('rosterOrder', () => {
+  for (const count of [14, 16]) {
+    it(`returns a deterministic ${count}-entry permutation that varies by seed`, () => {
+      const first = rosterOrder(12345, count);
+      const repeated = rosterOrder(12345, count);
+      const otherSeed = rosterOrder(67890, count);
+
+      expect(first).toEqual(repeated);
+      expect(first).not.toEqual(otherSeed);
+      expect([...first].sort((a, b) => a - b)).toEqual(
+        Array.from({ length: count }, (_, index) => index),
+      );
+    });
+  }
 });
