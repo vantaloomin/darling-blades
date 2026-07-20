@@ -9,6 +9,7 @@ import { createRngState } from '../engine/rng';
 import { def, isType, manaValue, type CardDef } from '../engine/types';
 import { buyThemeDeck, claimFreeStarter, previewDeckGrant, spendGold } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
+import { packPoolSummary, type PackPoolSummary } from '../meta/packSummary';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
@@ -541,6 +542,16 @@ export class ShopScene extends Phaser.Scene {
     const title = this.add
       .text(x, 178, label, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
       .setOrigin(0.5);
+    // Pool-first disclosure: slot odds are identical across boosters, so the
+    // pool is the real decision variable between tiles.
+    const pool = packPoolSummary(Services.save.data, CARD_DB, sku === 'base' ? undefined : sku);
+    this.add
+      .text(x, 204, `${pool.poolSize}-card pool · Own ${pool.ownedDistinct}/${pool.poolSize}`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
     const pack = this.add
       .image(x, 368, textureKey)
       .setDisplaySize(200, 286)
@@ -577,7 +588,7 @@ export class ShopScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     inflateHitArea(info, theme.control.minHitHeight, theme.control.minHitHeight);
-    bindTapButton(this, info, () => this.showOddsModal(sku));
+    bindTapButton(this, info, () => this.showOddsModal(sku, pool));
     bindTapButton(this, pack, onBuy);
     this.skuButtons.push({ btn: buyBtn, price });
     this.shopInteractiveTargets.push(pack, buyBtn.inputZone, info);
@@ -797,9 +808,9 @@ export class ShopScene extends Phaser.Scene {
     else this.overlay?.close();
   };
 
-  private showOddsModal(sku: BoosterSku): void {
+  private showOddsModal(sku: BoosterSku, pool: PackPoolSummary): void {
     this.closeOverlay();
-    const shell = createOddsModal(this, this.coordinator, sku, this.underlyingInteractiveTargets(), () => {
+    const shell = createOddsModal(this, this.coordinator, sku, pool, this.underlyingInteractiveTargets(), () => {
       if (this.oddsModal === shell) this.oddsModal = null;
     });
     this.oddsModal = shell;
