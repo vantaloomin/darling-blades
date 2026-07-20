@@ -499,7 +499,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       640,
-      'The Silver Veil',
+      'Silver Veil',
       'packart-celtic-fae',
       ECONOMY.celticFaePackPrice,
       'celtic-fae',
@@ -508,7 +508,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       896,
-      'The Grail Oath',
+      'Grail Oath',
       'packart-arthurian-court',
       ECONOMY.arthurianCourtPackPrice,
       'arthurian-court',

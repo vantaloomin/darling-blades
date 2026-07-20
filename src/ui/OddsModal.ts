@@ -23,8 +23,8 @@ interface OddsSection {
 const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
   base: { packName: 'Core Set', setName: 'Core Set' },
   ragnarok: { packName: 'Ragnarök', setName: 'Ragnarök' },
-  'celtic-fae': { packName: 'The Silver Veil', setName: 'Celtic Fae' },
-  'arthurian-court': { packName: 'The Grail Oath', setName: 'Arthurian Court' },
+  'celtic-fae': { packName: 'Silver Veil', setName: 'Celtic Fae' },
+  'arthurian-court': { packName: 'Grail Oath', setName: 'Arthurian Court' },
   'gothic-monsters': { packName: 'Nocturne Manor', setName: 'Gothic Monsters' },
 };
 
