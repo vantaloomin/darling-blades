@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, docs/keyword-map.md · last-verified: 2026-07-17 · concept doc — Expansion 4, scheduled for 1.3 (plan-1.3.md Pillar 0); implementation target src/data/cards/gothic-monsters.ts; anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
+<!-- source-of-truth: src/engine/types.ts, docs/keyword-map.md · last-verified: 2026-07-19 · concept doc — Expansion 4, scheduled for 1.3 (plan-1.3.md Pillar 0); implementation target src/data/cards/gothic-monsters.ts; anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
 
 # Expansion 4 - Gothic Monsters: Nocturne Manor
 
@@ -21,7 +21,7 @@ _Concretion note (2026-07-17): the 2026-07-10 sketch used vocabulary the engine 
 
 ## Rarity Target
 
-`40 C / 24 R / 7 SR / 5 SSR / 4 UR = 80 booster cards`
+`41 C / 24 R / 7 SR / 5 SSR / 4 UR = 81 booster cards`
 
 ## Full Card List
 
@@ -107,6 +107,9 @@ _Concretion note (2026-07-17): the 2026-07-10 sketch used vocabulary the engine 
 | gm-lantern-patrol | Lantern Patrol | C | W | Creature | Hunter patrol | firstBlade | Hunter filler |
 | gm-screaming-staircase | Screaming Staircase | C | U | Artifact Creature | Haunted stairs | bulwark (high defense) | Blue defense |
 | gm-grave-soil-giant | Grave-Soil Giant | C | G | Creature | Earth horror | overrun | Green top common |
+| gm-hunters-writ | Hunter's Writ | C | W | Charm | Hunter lodge writ | sever target artifact or enchantment, gainLife 2 | Artifact/enchantment answer |
+
+_Removal answer cycle (2026-07-18): added Hunter's Writ, the set's common artifact/enchantment answer (a targeted sever with a lifegain rider, in the hunter idiom), lifting the rarity target to 41 C / 81 booster cards._
 
 _Changed from the original sketch (2026-07-17 concretion): (1) mono-colored 18 generic multicolor rows (dracula-ball-invite B, grave-rose-garden G, stormtower-resurrection B, silver-bullet-duelist W, moonlit-werewolf R, stitchwork-guardian U, blood-opera-soloist B, madame-macabre B, lightning-rod-spire U, red-moon-rampage R, choir-of-the-dead W, thunderclap R, stitched-footman U, moonlit-prowl G, funeral-bell B, tattered-invitation B, raven-courier U, midnight-autopsy B), per the multicolor-implies-legendary catalog invariant (dual lands are exempt); (2) scry → foresee and "exile grave" → severGrave throughout; targeted battlefield exile is sever (Wolfsbane Shot); (3) menace → dreaded and kicker → empower per the locked keyword-map names, with empowered riders written trigger-safe (an empowered permanent's rider joins its arrives trigger; no empower-only targets); (4) activated tap abilities re-expressed: Candelabra of Souls is a manaAbility mana rock (five-color, per the base-set precedent) with an arrives foresee, Cellar Door grinds at dawn; (5) Iron-Gate Sentinel's bulwark+sentinel contradiction (cannot attack + attacking does not tap) resolved to bulwark; (6) Screaming Staircase retyped Artifact Creature — a recurring "tap an attacker" enchantment has no trigger-safe expression; (7) Wolfsbane Ward's exile-on-death rider dropped (attached -2/-2, the Wounded Oath pattern); (8) Waxwork Double's copy-stat mimic and Broken Mirror's draw-discard dropped (no copy or self-discard ops) — both are foresee selection now; (9) drain rows use loseLife opponent + gainLife, self-pain uses damage to controller; (10) token plan (user decision 2026-07-17, set-unique tokens): Bat (Cathedral of Bats, Nocturne Manor), Rat (Catacomb Ratcatcher), Doll (Moon-Doll Orchestra's empowered arrival), Grave Rose (Grave-Rose Garden; the token itself carries deathblade), Revenant (Graveyard Waltz); (11) duplicate-fix diffs: Lantern Patrol is a firstBlade Hunter (Chapel Guard keeps sentinel), Thunderclap is damage 1 + foresee 1 (Red-Curtain Cut keeps damage 2), Candlelit Seance draws 1 where Midnight Autopsy draws 2, Choir of the Dead's role renamed Lifegain flier (no token-payoff mechanic exists); (12) Hunter tribal rows (Silver-Bullet Duelist, Wolfbitten Hunter, Chapel Exorcist, Lantern Patrol) carry the Hunter subtype for Silvered Rapier's static; (13) Kicked Door's empower rider re-aimed at the opponent's face (a targeted rider would violate the trigger-safe empower rule; caught in implementation 2026-07-17)._
 

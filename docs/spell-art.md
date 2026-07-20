@@ -1,11 +1,12 @@
-<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/data/cards/gothic-monsters.ts, src/ui/CardView.ts · last-verified: 2026-07-17 -->
+<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/data/cards/celtic-fae.ts, src/data/cards/arthurian-court.ts, src/data/cards/gothic-monsters.ts, src/ui/CardView.ts · last-verified: 2026-07-19 -->
 
 # Darling Blades Art Bible — Spells (Charms · Rituals · Enchantments · the Jade Seal)
 
 This file is the **binding contract** for the art of the base set's **43 non-creature
 spell cards** — the 18 charms, 14 rituals, 10 enchantments, and the single
-non-creature artifact (`ar-imperial-jade-seal`) — plus the 9-card Ragnarök addendum
-and the 31-card Gothic Monsters section below, for 83 entries in all. The creature art-bible
+non-creature artifact (`ar-imperial-jade-seal`) — plus the 9-card Ragnarök addendum,
+the 31-card Gothic Monsters section, and the 8-card removal answer cycle below, for
+91 entries in all. The creature art-bible
 (`docs/art-bible/`) covers creatures, tokens, and the Construct creatures; it does
 **not** cover these cards, which otherwise render procedural placeholders. Every rule
 below is grounded in the source files named in the header comment. When this document
@@ -399,6 +400,43 @@ before the standard suffix instead of a dash.
 
 ### Broken Mirror — `gm-broken-mirror`
 - **Prompt:** A broken mirror showing two tomorrows, a tall gilt manor mirror at frame center cracked into shining shards, each large shard glowing with a different cold blue glimpse of the turn to come, moonlight and candlelight crossing on the fractured glass, an OBJECT hero-shot with no figure, U palette `#4a90d9` and `#16294f` with `#a8d4f7` vision-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+---
+
+## Removal answer cycle (8), added 2026-07-18
+
+The nine-card removal answer cycle's eight non-creature spells, one per house
+(the ninth member, `bk-boarkin-rootbreaker`, is a creature and lives in
+`docs/art-bible/beastkin.md`). Effect-first like the rest of this file: the
+answer resolving is the hero of every frame, each rendered in its own house
+register. The NO-TEXT rule stays load-bearing on every entry (writs, contracts,
+vows, and carved stones all invite lettering, so everything renders blank or
+abstract). Per the player-copy style rule these Prompt lines use commas before
+the standard suffix instead of a dash.
+
+### Cleanse the Shrine — `in-cleanse-the-shrine`
+- **Prompt:** A Greek temple rite scouring away a profane relic, a white-robed priestess sweeping lustral water and golden censer-smoke across a marble shrine altar at frame center as a corrupt talisman dissolves into departing motes of banished light, olive branches and Doric columns behind, every frieze and offering-tablet blank abstract carving with no readable text anywhere, W holy palette `#f2e8cf` and `#c9a84c` with `#fffef2` purifying glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Ram the Gates — `in-ram-the-gates`
+- **Prompt:** A siege ram bursting a fortress gate, a massive iron-capped battering ram driven by ember-lit soldiers slamming through splintering gates at frame center in a shockwave of red force-light and flying timber, sparks and dust erupting up the battlements into the night, every war-banner and gate-plaque blank with no readable text anywhere, R fire palette `#d95436` and `#5e0f0f` with `#f7b267` impact flash, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Empty Fort Stratagem — `in-empty-fort-stratagem`
+- **Prompt:** The empty-fort ruse revealed, a wide-open fortress gate at frame center where a lone serene strategist plays a zither on the wall above while a wave of cold blue illusion-light unmakes a gilded war-engine below and draws it backward out of the field as coiling arcane mist, the courtyard beyond conspicuously deserted, every banner and scroll blank with no readable text anywhere, U mind palette `#4a90d9` and `#16294f` with `#a8d4f7` glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### The Wilds Take It Back — `so-the-wilds-take-it-back`
+- **Prompt:** The wilds reclaiming every enchantment at once, a roaring green tide of vines, roots, and moss surging across a battlefield at frame center and tearing hanging auras and glowing charms apart into drifting leaf-light, beastkin den-totems of bone and woven grass standing untouched where the magic falls, torn earth greening behind the wave, no readable text anywhere, G wild palette `#4fa06a` and `#123a22` with `#a9dcae` reclaiming glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Yggdrasil's Verdict — `rg-yggdrasils-verdict`
+- **Prompt:** Yggdrasil handing down its verdict, one colossal world-tree root descending through parting storm cloud at frame center to crush a gilded relic against a cold Norse valley floor while green judgment-light falls as drifting ash-leaves, carved standing stones watching from the mist with strictly abstract carvings and no readable runes, letters, or text anywhere, G palette `#4fa06a` and `#123a22` with `#a9dcae` verdict-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Bargain Unwound — `cf-bargain-unwound`
+- **Prompt:** A fae bargain unwinding thread by thread, a glowing silver contract-scroll at frame center unravelling into spirals of cold blue thread-light that carry a bargained treasure backward through a moonlit mushroom ring toward its owner, one pale omen-glint of what comes next hanging in the mist above, the scroll utterly blank with no readable text anywhere, U palette `#4a90d9` and `#16294f` with `#a8d4f7` unweaving glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Recant the Vow — `ac-recant-the-vow`
+- **Prompt:** A knightly vow recanted before the chapel, a kneeling knight's sworn oath-aura lifting off her armor at frame center and dissolving into golden motes beneath stained-glass dawn light while one bright mote of new counsel descends to her open gauntlet, chapel banners and windows all blank or abstract with no readable text anywhere, W holy palette `#f2e8cf` and `#c9a84c` with `#fffef2` absolving glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Hunter's Writ — `gm-hunters-writ`
+- **Prompt:** A hunter's writ served by candlelight, a wax-sealed lodge writ held out at frame center flaring with a ring of white banishing light that unravels a cursed amulet into departing motes while warm restoring radiance settles over the hunter's silver-trimmed gauntlet, trophy-lined gothic lodge gloom behind, the writ and its seal utterly blank with no readable text anywhere, W palette `#f2e8cf` and `#c9a84c` with `#fffef2` sanction glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ---
 

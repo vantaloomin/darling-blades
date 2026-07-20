@@ -60,8 +60,9 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 83 spell ids docs/spell-art.md must cover, in the authored order (instants
- * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters).
+ * The 91 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters →
+ * the removal answer cycle).
  * Parsing cross-checks against this
  * so a dropped or renamed entry fails loudly instead of silently generating a
  * short batch. Transcribed from src/data/cards/{instants,sorceries,enchantments,
@@ -101,6 +102,11 @@ const EXPECTED_IDS = [
   'gm-howling-gallery', 'gm-blood-candle',
   'gm-candelabra-of-souls', 'gm-velvet-coffin', 'gm-lightning-rod-spire', 'gm-silvered-rapier',
   'gm-holy-water-vial', 'gm-cellar-door', 'gm-funeral-bell', 'gm-broken-mirror',
+  // Removal answer cycle (8), added 2026-07-18: one non-creature answer per house
+  // (the ninth member, bk-boarkin-rootbreaker, is a creature in the beastkin bible)
+  'in-cleanse-the-shrine', 'in-ram-the-gates', 'in-empty-fort-stratagem',
+  'so-the-wilds-take-it-back', 'rg-yggdrasils-verdict', 'cf-bargain-unwound',
+  'ac-recant-the-vow', 'gm-hunters-writ',
 ] as const;
 
 /**
