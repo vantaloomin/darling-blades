@@ -41,7 +41,22 @@ export type TriggerWhen =
   | 'static';
 
 export interface TargetSpec {
-  what: 'creature' | 'player' | 'any' | 'spell' | 'yourCreature' | 'yourGraveCreature';
+  /**
+   * `artifact` and `enchantment` match that permanent type, including a
+   * multi-typed permanent. `artifactOrEnchantment` is the tight union used by
+   * cross-type removal. Untouchable remains a creature-targeting restriction:
+   * these specs do not consult it, even for an artifact creature.
+   */
+  what:
+    | 'creature'
+    | 'player'
+    | 'any'
+    | 'spell'
+    | 'yourCreature'
+    | 'yourGraveCreature'
+    | 'artifact'
+    | 'enchantment'
+    | 'artifactOrEnchantment';
 }
 
 export type EffectOp =
@@ -50,18 +65,23 @@ export type EffectOp =
   | { op: 'loseLife'; n: number; who: 'opponent' }
   | { op: 'draw'; n: number }
   | { op: 'discardRandom'; n: number; who: 'opponent' }
-  | { op: 'destroy'; to: 'target' }
-  | { op: 'sever'; to: 'target' } // target creature → its owner's severed zone
+  | { op: 'destroy'; to: 'target' } // target permanent → its owner's graveyard
+  | { op: 'sever'; to: 'target' } // target permanent → its owner's severed zone
   | { op: 'severGrave'; n: number; who: 'self' | 'opponent' } // top n grave cards → severed zone
   | { op: 'severTop'; n: number; who: 'self' } // top n deck cards → severed zone
-  | { op: 'recall'; to: 'target' }
+  | { op: 'recall'; to: 'target' } // target permanent → its owner's hand; tokens evaporate
+  | {
+      op: 'destroyArtifactOrSeverEnchantment';
+      to: 'target';
+    } // branch is artifact-first; otherwise an enchantment is severed
   | { op: 'cancel'; to: 'target' } // target is a stack item
   | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
   | { op: 'fetchLand' } // a basic land from deck → battlefield tapped
   | { op: 'createToken'; token: string; count: number }
-  | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' }
+  | { op: 'destroyNewestOpponentArtifactOrEnchantment' } // trigger-safe, no target
+  | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' | 'allEnchantments' }
   | { op: 'preventCombat' } // prevent all combat damage this turn
   | { op: 'reclaim' } // return target creature card from your graveyard to hand
   | { op: 'grind'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard

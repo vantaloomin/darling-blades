@@ -9,7 +9,7 @@ import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { choosePlayDraw } from './playDraw';
-import { empowerValue } from './value';
+import { empowerValue, removalKind, removalValueForCast } from './value';
 
 /**
  * Easy: plays lands, curves out roughly, and swings — but loses by tactics.
@@ -48,7 +48,7 @@ export class EasyAI implements AIPlayer {
         return this.block(view);
       case 'respond':
       case 'endStepWindow':
-        return this.respond(legal);
+        return this.respond(view, legal);
       case 'discardToHandSize':
         return legal[rngInt(this.rng, Math.max(1, legal.length - 1))]; // skip concede at end
       default:
@@ -100,15 +100,32 @@ export class EasyAI implements AIPlayer {
 
     const casts = nonConcede.filter((l) => l.type === 'castSpell');
     if (casts.length > 0) {
+      const usefulCasts = casts.filter((cast) => {
+        const kind = removalKind(this.db, view.you.hand[cast.handIndex]);
+        if (kind !== 'massDestroy' && kind !== 'destroyNewest') return true;
+        return removalValueForCast(
+          view.battlefield,
+          this.db,
+          view.myId,
+          view.you.hand[cast.handIndex],
+        ) > 0;
+      });
+      if (usefulCasts.length === 0 && usefulCasts.length !== casts.length) {
+        const nonRemoval = casts.filter(
+          (cast) => removalKind(this.db, view.you.hand[cast.handIndex]) === null,
+        );
+        if (nonRemoval.length === 0) return nonConcede.find((l) => l.type === 'passStep') ?? nonConcede[0];
+      }
+      const castPool = usefulCasts.length > 0 ? usefulCasts : casts;
       // Cast the biggest thing it can afford.
-      casts.sort((x, y) => {
+      castPool.sort((x, y) => {
         const mv = (c: Extract<Action, { type: 'castSpell' }>): number =>
           manaValue(def(this.db, view.you.hand[c.handIndex]).cost) +
           (c.x ?? 0) +
           (c.empowered ? empowerValue(this.db, view.you.hand[c.handIndex]) + 0.01 : 0);
         return mv(y as Extract<Action, { type: 'castSpell' }>) - mv(x as Extract<Action, { type: 'castSpell' }>);
       });
-      return casts[0];
+      return castPool[0];
     }
     return nonConcede.find((l) => l.type === 'passStep') ?? nonConcede[0];
   }
@@ -200,11 +217,17 @@ export class EasyAI implements AIPlayer {
     return { type: 'declareBlockers', blocks };
   }
 
-  private respond(legal: Action[]): Action {
+  private respond(view: PlayerView, legal: Action[]): Action {
     const pass = legal.find((l) => l.type === 'passResponse')!;
     if (rngFloat(this.rng) < this.pers.easyPassRate) return pass;
     const casts = legal.filter((l) => l.type === 'castSpell');
     if (casts.length === 0) return pass;
-    return casts[rngInt(this.rng, casts.length)];
+    const useful = casts.filter((cast) => {
+      const kind = removalKind(this.db, view.you.hand[cast.handIndex]);
+      if (kind !== 'massDestroy' && kind !== 'destroyNewest') return true;
+      return removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[cast.handIndex]) > 0;
+    });
+    if (useful.length === 0) return pass;
+    return useful[rngInt(this.rng, useful.length)];
   }
 }

@@ -1,4 +1,13 @@
-import type { AbilityDef, CardDef, CardType, Color, EffectOp, Keyword, ManaCost } from '../engine/types';
+import type {
+  AbilityDef,
+  CardDef,
+  CardType,
+  Color,
+  EffectOp,
+  Keyword,
+  ManaCost,
+  TargetSpec,
+} from '../engine/types';
 import { CARD_DB } from '../data/catalog';
 
 export const KEYWORD_NAMES: Record<Keyword, string> = {
@@ -51,7 +60,20 @@ export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
   land: 'Play one each turn to tap for mana.',
 };
 
-function opText(op: EffectOp): string {
+function targetNoun(spec: TargetSpec | undefined): string {
+  switch (spec?.what) {
+    case 'artifact':
+      return 'artifact';
+    case 'enchantment':
+      return 'enchantment';
+    case 'artifactOrEnchantment':
+      return 'artifact or enchantment';
+    default:
+      return 'creature';
+  }
+}
+
+function opText(op: EffectOp, target?: TargetSpec): string {
   switch (op.op) {
     case 'damage': {
       const n = op.n === 'X' ? 'X' : op.n;
@@ -68,9 +90,9 @@ function opText(op: EffectOp): string {
     case 'discardRandom':
       return `your opponent discards ${op.n === 1 ? 'a card' : `${op.n} cards`} at random`;
     case 'destroy':
-      return 'destroy target creature';
+      return `destroy target ${targetNoun(target)}`;
     case 'sever':
-      return 'Sever target creature';
+      return `Sever target ${targetNoun(target)}`;
     case 'severGrave': {
       const cards = op.n === 1 ? 'the top card' : `the top ${op.n} cards`;
       return op.who === 'self'
@@ -80,7 +102,9 @@ function opText(op: EffectOp): string {
     case 'severTop':
       return `Sever ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
     case 'recall':
-      return "return target creature to its owner's hand";
+      return `return target ${targetNoun(target)} to its owner's hand`;
+    case 'destroyArtifactOrSeverEnchantment':
+      return 'destroy target artifact if it is an artifact; otherwise, Sever it if it is an enchantment';
     case 'cancel':
       return 'cancel target spell';
     case 'boost': {
@@ -114,7 +138,10 @@ function opText(op: EffectOp): string {
       return `create ${op.count} ${stats}${tok.name} ${plural}${kw}`;
     }
     case 'massDestroy':
+      if (op.filter === 'allEnchantments') return 'destroy all enchantments';
       return op.filter === 'allCreatures' ? 'destroy all creatures' : 'destroy all creatures with Skyborne';
+    case 'destroyNewestOpponentArtifactOrEnchantment':
+      return "destroy your opponent's newest artifact or enchantment";
     case 'preventCombat':
       return 'prevent all combat damage that would be dealt this turn';
     case 'reclaim':
@@ -147,7 +174,7 @@ export function manaCostText(cost: ManaCost): string {
 
 export function empowerText(d: CardDef): string | undefined {
   if (!d.empower) return undefined;
-  const body = d.empower.ops.map(opText).join(', then ');
+  const body = d.empower.ops.map((op) => opText(op)).join(', then ');
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   return `Empower ${manaCostText(d.empower.cost)}: ${cap}.`;
 }
@@ -178,7 +205,7 @@ function abilityText(ab: AbilityDef): string {
     return `${prefix}${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`;
   }
 
-  const body = (ab.ops ?? []).map(opText).join(', then ');
+  const body = (ab.ops ?? []).map((op) => opText(op, ab.targets?.[0])).join(', then ');
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   let sentence: string;
   switch (ab.when) {
@@ -227,7 +254,7 @@ export function romanNumeral(n: number): string {
 }
 
 function chapterText(ops: EffectOp[], index: number): string {
-  const body = ops.map(opText).join(', then ');
+  const body = ops.map((op) => opText(op)).join(', then ');
   if (!body) return `Chapter ${romanNumeral(index + 1)}.`;
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   return `Chapter ${romanNumeral(index + 1)}: ${cap}.`;
