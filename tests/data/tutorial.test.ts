@@ -176,6 +176,8 @@ describe('tutorialCue (pure guide)', () => {
     isTouch: false,
     goalShown: false,
     sicknessShown: false,
+    inspectShown: false,
+    healInfoShown: false,
     blocked: false,
     ritualCast: false,
     ritualInfoShown: false,
@@ -191,7 +193,7 @@ describe('tutorialCue (pure guide)', () => {
     expect(tutorialCue({ ...base, safetyDone: true }).kind).toBe('done');
   });
 
-  it('walks land → creature → sickness → Ritual on the main phase', () => {
+  it('walks land → creature → sickness → inspect tip → Ritual on the main phase', () => {
     const afterGoal = { ...base, goalShown: true };
     expect(tutorialCue(afterGoal).kind).toBe('playLand');
     const landDown = { ...afterGoal, landPlayedThisTurn: true, hasCastableCreature: true };
@@ -199,10 +201,31 @@ describe('tutorialCue (pure guide)', () => {
     const creatureDown = { ...landDown, myCreatureCount: 1, hasCastableCreature: false };
     expect(tutorialCue(creatureDown).kind).toBe('sickness');
     const afterSick = { ...creatureDown, sicknessShown: true, hasCastableRitual: true };
-    const ritual = tutorialCue(afterSick);
+    // With the first creature down, the inspect tip teaches where keyword
+    // reminder text lives, with the right gesture per input mode.
+    const inspect = tutorialCue(afterSick);
+    expect(inspect.kind).toBe('inspectInfo');
+    expect(inspect.text).toBe('Right-click any card to inspect it. Keywords are explained there.');
+    expect(tutorialCue({ ...afterSick, isTouch: true }).text).toBe(
+      'Long-press a card and tap the preview to inspect it. Keywords are explained there.',
+    );
+    const afterInspect = { ...afterSick, inspectShown: true };
+    const ritual = tutorialCue(afterInspect);
     expect(ritual.kind).toBe('castRitual');
     expect(ritual.text).toBe('Cast this Ritual spell.'); // no "sorcery-speed" descriptor
-    expect(tutorialCue({ ...afterSick, ritualCast: true }).kind).toBe('ritualInfo');
+    expect(tutorialCue({ ...afterInspect, ritualCast: true }).kind).toBe('ritualInfo');
+  });
+
+  it('teaches that combat damage wears off after the block lesson', () => {
+    const blocked = { ...base, goalShown: true, inspectShown: true, sicknessShown: true, blocked: true };
+    const heal = tutorialCue(blocked);
+    expect(heal.kind).toBe('healInfo');
+    expect(heal.text).toBe('Combat wounds are not permanent. Creatures heal back to full at end of turn.');
+    // Once shown it never repeats, whatever the phase.
+    expect(tutorialCue({ ...blocked, healInfoShown: true }).kind).not.toBe('healInfo');
+    expect(
+      tutorialCue({ ...blocked, healInfoShown: true, awaitingKind: 'endStepWindow' }).kind,
+    ).not.toBe('healInfo');
   });
 
   it('teaches the Charm at the END of your own turn (endStepWindow), passing responses', () => {
@@ -221,6 +244,28 @@ describe('tutorialCue (pure guide)', () => {
     const g = { ...base, goalShown: true, awaitingKind: 'declareAttackers', step: 'combat', eligibleAttackerCount: 1 };
     expect(tutorialCue({ ...g, isTouch: false }).text).toBe('Click a creature to attack.');
     expect(tutorialCue({ ...g, isTouch: true }).text).toBe('Tap a creature to attack.');
+  });
+
+  it('never uses em-dashes in cue copy (player-copy rule)', () => {
+    const states: Partial<TutorialCueInput>[] = [
+      {},
+      { goalShown: true },
+      { goalShown: true, landPlayedThisTurn: true, hasCastableCreature: true },
+      { goalShown: true, landPlayedThisTurn: true, myCreatureCount: 1 },
+      { goalShown: true, landPlayedThisTurn: true, myCreatureCount: 1, sicknessShown: true },
+      { goalShown: true, isTouch: true, landPlayedThisTurn: true, myCreatureCount: 1, sicknessShown: true },
+      { goalShown: true, sicknessShown: true, inspectShown: true, hasCastableRitual: true },
+      { goalShown: true, ritualCast: true },
+      { goalShown: true, blocked: true },
+      { goalShown: true, blocked: true, healInfoShown: true, charmCast: true },
+      { goalShown: true, blocked: true, healInfoShown: true, handHasCharm: true, landPlayedThisTurn: true, myCreatureCount: 1, sicknessShown: true, inspectShown: true, ritualCast: true, ritualInfoShown: true },
+      { goalShown: true, awaitingKind: 'declareAttackers', eligibleAttackerCount: 1 },
+      { goalShown: true, awaitingKind: 'declareBlockers', hasLegalBlocker: true },
+      { goalShown: true, awaitingKind: 'endStepWindow', hasCastableCharm: true },
+    ];
+    for (const s of states) {
+      expect(tutorialCue({ ...base, ...s }).text).not.toContain('—');
+    }
   });
 
   it('guides attacking and blocking', () => {

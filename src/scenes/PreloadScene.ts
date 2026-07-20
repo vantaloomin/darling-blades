@@ -6,6 +6,11 @@ import { PREMIUM_HEROES } from '../data/heroes';
 import { bakeCardFrames } from '../ui/CardFrameFactory';
 import { bakeFxTextures } from '../ui/fx/HoloEffects';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
+import {
+  COIN_FLIP_FACE_ASSETS,
+  COIN_FLIP_FACE_TEXTURES,
+  COIN_FLIP_SIDES,
+} from '../ui/coinFlipLayout';
 import { applySceneSettings, sceneTextureKey } from '../ui/SceneBackdrop';
 
 /** Scene/menu art keys from the manifest (empty until scene PNGs generate). */
@@ -70,6 +75,10 @@ export class PreloadScene extends Phaser.Scene {
     // to the card-based hero/face, so the duel never breaks.
     for (const h of PREMIUM_HEROES) {
       this.load.image(h.textureKey, `assets/art/heroes/${h.textureKey}.png`);
+    }
+
+    for (const side of COIN_FLIP_SIDES) {
+      this.load.image(COIN_FLIP_FACE_TEXTURES[side], COIN_FLIP_FACE_ASSETS[side]);
     }
   }
 

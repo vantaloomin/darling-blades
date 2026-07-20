@@ -429,6 +429,22 @@ export class ShopScene extends Phaser.Scene {
 
   private refreshGold(): void {
     this.goldBadge.refresh(Services.save.data.gold);
+    this.refreshSkuAffordability();
+  }
+
+  /**
+   * Fade (disable) every booster Buy button whose displayed total — unit price
+   * times the selected quantity — exceeds the current balance (the Limited
+   * Premium-entry pattern: themedButton enabled:false). Re-run on every gold
+   * change (refreshGold) and every quantity switch. The pack art itself stays
+   * tappable; buyPacks clamps that path to what is affordable and fires the
+   * insufficient-funds shake when not even one pack is.
+   */
+  private refreshSkuAffordability(): void {
+    const gold = Services.save.data.gold;
+    for (const { btn, price } of this.skuButtons) {
+      btn.setEnabled(gold >= price * this.qty);
+    }
   }
 
   /** Shake + flash the gold readout red — a can't-afford / already-owned cue. */
@@ -509,6 +525,7 @@ export class ShopScene extends Phaser.Scene {
     );
     this.buildQtySelector(group);
     this.refreshQtyLabels();
+    this.refreshSkuAffordability();
   }
 
   /** One booster column: label + floating pack + buy button, added to `group`. */
@@ -581,6 +598,7 @@ export class ShopScene extends Phaser.Scene {
           this.qty = n;
           this.refreshQtyLabels();
           this.refreshQtyChips();
+          this.refreshSkuAffordability();
         },
       });
       this.qtyChips.set(n, chip);
@@ -722,10 +740,14 @@ export class ShopScene extends Phaser.Scene {
     group.add(preview.container);
 
     if (!owned) {
+      // Claim Free is always enabled; a paid Buy fades when the balance can't
+      // cover it. The grid rebuilds after every purchase (onBuyDeck →
+      // buildDecksGroup), which re-evaluates this with the new balance.
       const buy = themedButton(this, buyX, cy, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
         variant: 'primary',
         size: 'sm',
         minWidth: 130,
+        enabled: freeClaim || Services.save.data.gold >= price,
         onTap: () => this.onBuyDeck(sku),
       });
       this.deckInteractiveTargets.push(buy.inputZone);

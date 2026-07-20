@@ -29,7 +29,9 @@ const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
   { label: 'Shop', scene: 'Shop' },
   { label: 'Collection', scene: 'Collection' },
   { label: 'Achievements', scene: 'Achievements' },
-  { label: 'Deck Builder', scene: 'DeckBuilder' },
+  // "Decks" (not "Deck Builder"): the scene is where you pick your active
+  // deck as well as build them (user-directed 2026-07-17). Scene key unchanged.
+  { label: 'Decks', scene: 'DeckBuilder' },
   { label: 'Card Showcase', scene: 'Showcase' },
 ];
 
@@ -134,18 +136,20 @@ export class MainMenuScene extends Phaser.Scene {
     const firstY = items.length > 8 ? 268 : 286;
     const pitchY = items.length > 8 ? 42 : 50;
     items.forEach((entry, i) => {
-      const label =
-        entry.scene === 'Achievements' && claimableAchievements > 0
-          ? `${entry.label} (${claimableAchievements})`
-          : entry.label;
-      const item = themedButton(this, menuX, firstY + i * pitchY, label, {
+      const item = themedButton(this, menuX, firstY + i * pitchY, entry.label, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 300,
         onTap: () => entry.scene && this.scene.start(entry.scene, entry.data),
       });
+      // Unlocked-but-unclaimed achievements get a small gold claim-count badge
+      // at the row's right edge (replaces the old "(N)" label suffix). The
+      // count recomputes on scene create, which re-runs after every duel/shop
+      // visit. Pulse only at animations 'full'; reduced/off show it static.
+      if (entry.scene === 'Achievements' && claimableAchievements > 0) {
+        this.addClaimBadge(menuX + 172, firstY + i * pitchY, claimableAchievements);
+      }
 
-      
       // Hit boxes fill the full 56px row pitch (the audited 15px dead gaps
       // between rows are the fix column's target — plan §1.4).
       this.menuItems.push(item.inputZone);
@@ -160,6 +164,43 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     if (!Services.save.data.tutorialDone) this.promptTutorial();
+  }
+
+  /**
+   * Small gold circle badge with the unlocked-but-unclaimed achievement count.
+   * Non-interactive (the row button is the tap target). At animations 'full'
+   * it breathes with a soft, slow scale/alpha pulse — subtle over flashy;
+   * 'reduced'/'off' render it static, no tween at all.
+   */
+  private addClaimBadge(x: number, y: number, count: number): void {
+    const badge = this.add.container(x, y);
+    const r = 13;
+    const bg = this.add
+      .graphics()
+      .fillStyle(colorInt(theme.colors.gold), 1)
+      .fillCircle(0, 0, r)
+      .lineStyle(theme.control.borderWidth, colorInt(theme.colors.goldHover), 1)
+      .strokeCircle(0, 0, r);
+    const label = this.add
+      .text(0, 0, `${count}`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.onGold,
+      })
+      .setOrigin(0.5);
+    badge.add([bg, label]);
+    if (Services.save.data.settings.animations === 'full') {
+      this.tweens.add({
+        targets: badge,
+        scale: { from: 1, to: 1.12 },
+        alpha: { from: 1, to: 0.8 },
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
   }
 
   private drawDailyPanel(today: string): void {

@@ -2,45 +2,44 @@ import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
-import { AVATARS, type Avatar } from '../data/opponents';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { AVATARS } from '../data/opponents';
+import type { Difficulty } from '../meta/Economy';
+import { practiceDuelLaunchData } from '../meta/duelSetup';
+import { bindTapButton } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, panel, themedButton } from '../ui/themeWidgets';
+import { backButton, themedButton } from '../ui/themeWidgets';
 
 /**
- * Practice opponent picker (1.2, plan-v1.1-post-launch Feature 1). The Play
- * submenu's three difficulty rows collapsed into one "Practice" entry that
- * lands here: a right-rail roster of the twelve tower avatars (summit on top,
- * mirroring the gauntlet ladder) with the gauntlet's avatar-card presentation
- * on the left, plus three plain training duels for a no-frills spar.
- *
- * Pure navigation over existing plumbing: picking an avatar launches
- * `scene.start('Duel', { opponentId })` — DuelScene already resolves the
- * deck, portrait, personality, and difficulty (the avatar's own difficulty
- * wins) and labels the strip "vs {name}". No gauntletRung means no tower
- * state is read or written; practice never touches a run. No SaveData change.
+ * Practice opponent picker. Practice is one decision flow: choose an avatar,
+ * then choose the AI strength. Every launch carries both values, so the chosen
+ * avatar always supplies the real deck and personality while difficulty only
+ * changes the brain that pilots them. No gauntlet state is read or written.
  */
 export class PracticePickerScene extends Phaser.Scene {
-  private selectedTier = 1;
-  private panel: Phaser.GameObjects.Container | null = null;
-  private rowNodes: { tier: number; box: Phaser.GameObjects.Rectangle }[] = [];
+  private selectedAvatarId = AVATARS[AVATARS.length - 1]?.id ?? '';
+  private tileNodes: {
+    id: string;
+    box: Phaser.GameObjects.Rectangle;
+    name: Phaser.GameObjects.Text;
+  }[] = [];
+  private selectionLabel: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('PracticePicker');
   }
 
   create(): void {
-    this.selectedTier = 1;
-    this.panel = null;
-    this.rowNodes = [];
+    this.selectedAvatarId = AVATARS[AVATARS.length - 1]?.id ?? '';
+    this.tileNodes = [];
+    this.selectionLabel = null;
 
     // Design-space constants, NOT this.scale (see src/platform/renderScale.ts).
     const width = 1280;
     const height = 720;
     applyBackdrop(this, 'gauntlet', {
       dim: colorInt(theme.colors.dim),
-      dimAlpha: 0.5,
+      dimAlpha: 0.58,
       fallback: () => {
         const bg = this.add.graphics();
         bg.fillGradientStyle(
@@ -61,14 +60,14 @@ export class PracticePickerScene extends Phaser.Scene {
     Music.setMood('menu');
 
     this.add
-      .text(width / 2, 46, 'Practice', {
+      .text(width / 2, 48, 'Practice', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.display}px`,
         color: theme.colors.heading,
       })
       .setOrigin(0.5);
     this.add
-      .text(width / 2, 84, 'Spar any rival from the tower, or take a plain training duel. Practice never touches your run.', {
+      .text(width / 2, 86, 'Choose a rival, then choose how hard they fight.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -76,213 +75,122 @@ export class PracticePickerScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.buildRoster();
-    this.buildPanel();
-    this.buildTrainingRow();
+    this.buildDifficultyActions();
 
     backButton(this, () => this.scene.start('Play'));
   }
 
-  private difficultyPips(av: Avatar): number {
-    return av.difficulty === 'easy' ? 1 : av.difficulty === 'medium' ? 2 : 3;
-  }
-
-  // ---------------------------------------------------------------------
-  /** Right-rail avatar roster, summit on top like the gauntlet ladder. */
+  /** Two calm rows of portrait tiles, summit-first to match the tower roster. */
   private buildRoster(): void {
-    const width = 1280;
-    const railX = width - 250;
-    const topY = 150;
-    const count = AVATARS.length;
-    const rowH = Math.min(52, 500 / Math.max(1, count - 1));
+    const roster = [...AVATARS].sort((a, b) => b.tier - a.tier);
+    const columns = 7;
+    const tileW = 152;
+    const tileH = 202;
+    const gapX = 12;
+    const gapY = 14;
+    const gridW = columns * tileW + (columns - 1) * gapX;
+    const startX = (1280 - gridW) / 2;
+    const startY = 118;
 
-    this.add
-      .text(railX, topY - 34, 'Every avatar fights with their real deck and temperament.', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
-
-    for (let tier = count; tier >= 1; tier--) {
-      const rowIndex = count - tier; // 0 at top
-      const y = topY + rowIndex * rowH;
-      const av = AVATARS.find((a) => a.tier === tier);
-      if (!av) continue;
+    roster.forEach((av, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const x = startX + column * (tileW + gapX) + tileW / 2;
+      const y = startY + row * (tileH + gapY) + tileH / 2;
 
       const box = this.add
-        .rectangle(railX, y, 420, rowH - 12, theme.graphics.rowFill, theme.alpha.panel)
+        .rectangle(x, y, tileW, tileH, theme.graphics.rowFill, theme.alpha.panel)
         .setStrokeStyle(2, colorInt(theme.colors.panelStroke))
         .setInteractive({ useHandCursor: true });
-      this.add
-        .text(railX - 195, y, av.name, {
+      this.addPortrait(av.portraitCardId, x, y - 20, tileW - 12, 150);
+      const name = this.add
+        .text(x, y + 70, av.name, {
           fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.body}px`,
+          fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
+          align: 'center',
+          lineSpacing: -2,
+          wordWrap: { width: tileW - 12 },
         })
-        .setOrigin(0, 0.5);
-      this.add
-        .text(railX + 195, y, '★'.repeat(this.difficultyPips(av)), {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.gold,
-        })
-        .setOrigin(1, 0.5);
+        .setOrigin(0.5, 0);
 
       bindTapButton(this, box, () => {
-        this.selectedTier = tier;
-        this.refreshRoster();
-        this.buildPanel();
+        this.selectedAvatarId = av.id;
+        this.refreshSelection();
       });
-      inflateHitArea(box, 90, rowH);
       box.on('pointerover', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch && tier !== this.selectedTier) box.setStrokeStyle(2, theme.graphics.rowFillActive);
+        if (!p.wasTouch && av.id !== this.selectedAvatarId) {
+          box.setStrokeStyle(2, theme.graphics.rowFillActive);
+        }
       });
       box.on('pointerout', (p: Phaser.Input.Pointer) => {
-        if (!p.wasTouch) this.refreshRoster();
+        if (!p.wasTouch) this.refreshSelection();
       });
-      this.rowNodes.push({ tier, box });
-    }
-    this.refreshRoster();
+
+      this.tileNodes.push({ id: av.id, box, name });
+    });
+
+    this.refreshSelection();
   }
 
-  private refreshRoster(): void {
-    for (const node of this.rowNodes) {
-      const isSelected = node.tier === this.selectedTier;
-      node.box.setFillStyle(isSelected ? theme.graphics.rowFillActive : theme.graphics.rowFill, 1);
-      node.box.setStrokeStyle(isSelected ? 3 : 2, colorInt(isSelected ? theme.colors.goldHover : theme.colors.panelStroke));
-    }
-  }
-
-  // ---------------------------------------------------------------------
-  /** Left detail panel: the gauntlet's avatar-card presentation minus the
-   *  tower plumbing (no reward line, no lock states, no abandon). */
-  private buildPanel(): void {
-    this.panel?.destroy();
-    const av = AVATARS.find((a) => a.tier === this.selectedTier);
-    if (!av) return;
-    const c = this.add.container(0, 0);
-
-    const px = 300;
-    const portraitY = 300;
-
-    const frame = panel(this, px - 134, portraitY - 168, 268, 336, { alpha: 1 });
-    c.add(frame);
-    this.addPortrait(c, av.portraitCardId, px, portraitY);
-
-    const chip = this.add
-      .text(px, portraitY + 190, av.theme, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        fontStyle: theme.weight.w600,
-        color: theme.colors.body,
-      })
-      .setOrigin(0.5);
-    c.add(chip);
-
-    const textX = px + 200;
-    const COL_W = 300;
-    const nameText = this.add
-      .text(textX, 150, av.name, {
+  private buildDifficultyActions(): void {
+    this.selectionLabel = this.add
+      .text(640, 568, '', {
         fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
+        fontSize: `${theme.type.h2}px`,
         color: theme.colors.heading,
       })
-      .setOrigin(0, 0);
-    nameText.setScale(Math.min(1, COL_W / Math.max(1, nameText.width)));
-    c.add(nameText);
-    c.add(
-      this.add
-        .text(textX, 196, av.title, {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.body}px`,
-          fontStyle: 'italic',
-          color: theme.colors.gold,
-          wordWrap: { width: COL_W },
-        })
-        .setOrigin(0, 0),
-    );
+      .setOrigin(0.5);
 
-    c.add(
-      this.add
-        .text(textX, 232, `${'★'.repeat(this.difficultyPips(av))}   (${av.difficulty})   ·   Tower rung ${av.tier}`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.gold,
-        })
-        .setOrigin(0, 0),
-    );
-
-    c.add(
-      this.add
-        .text(textX, 274, av.blurb, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          color: theme.colors.body,
-          lineSpacing: 4,
-          wordWrap: { width: COL_W },
-        })
-        .setOrigin(0, 0),
-    );
-
-    const duel = themedButton(this, textX + 104, 478, 'Duel', {
-      variant: 'primary',
-      minWidth: 208,
-      onTap: () => this.scene.start('Duel', { opponentId: av.id }),
-    });
-    c.add(duel.container);
-
-    this.panel = c;
-  }
-
-  // ---------------------------------------------------------------------
-  /** Plain training duels: the old Practice rows, one line at the bottom. */
-  private buildTrainingRow(): void {
-    const y = 660;
-    this.add
-      .text(64, y, 'Training duel:', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        fontStyle: theme.weight.w600,
-        color: theme.colors.body,
-      })
-      .setOrigin(0, 0.5);
-    const difficulties = ['easy', 'medium', 'hard'] as const;
-    difficulties.forEach((difficulty, i) => {
+    const difficulties: readonly Difficulty[] = ['easy', 'medium', 'hard'];
+    difficulties.forEach((difficulty, index) => {
       const label = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
-      themedButton(this, 280 + i * 150, y, label, {
+      themedButton(this, 476 + index * 164, 624, label, {
         variant: 'ghost',
-        size: 'sm',
-        minWidth: 130,
-        onTap: () => this.scene.start('Duel', { difficulty }),
+        minWidth: 148,
+        onTap: () => this.startPractice(difficulty),
       });
     });
+
+    this.refreshSelection();
   }
 
-  /**
-   * Render the avatar's portrait card art large, cropped to the upper "bust"
-   * band; silent fallback if art is missing. Mirrors GauntletScene.addPortrait
-   * (kept duplicated: both are scene-bound one-pagers; extract to a shared
-   * widget only when a third consumer appears).
-   */
-  private addPortrait(c: Phaser.GameObjects.Container, cardId: string, x: number, y: number): void {
+  private refreshSelection(): void {
+    for (const node of this.tileNodes) {
+      const selected = node.id === this.selectedAvatarId;
+      node.box.setFillStyle(
+        selected ? theme.graphics.rowFillActive : theme.graphics.rowFill,
+        selected ? 1 : theme.alpha.panel,
+      );
+      node.box.setStrokeStyle(selected ? 3 : 2, colorInt(selected ? theme.colors.goldHover : theme.colors.panelStroke));
+      node.name.setColor(selected ? theme.colors.gold : theme.colors.body);
+    }
+
+    const selected = AVATARS.find((av) => av.id === this.selectedAvatarId);
+    this.selectionLabel?.setText(selected ? `Face ${selected.name}` : 'Choose a rival');
+  }
+
+  private startPractice(difficulty: Difficulty): void {
+    const selected = AVATARS.find((av) => av.id === this.selectedAvatarId);
+    if (!selected) return;
+    this.scene.start('Duel', practiceDuelLaunchData(selected.id, difficulty));
+  }
+
+  /** Render an avatar portrait into a stable, masked tile crop. */
+  private addPortrait(cardId: string, x: number, y: number, targetW: number, targetH: number): void {
     try {
       const ref = Art.resolver?.getArt(cardId);
       if (!ref) return;
       const img = this.add.image(x, y, ref.textureKey, ref.frameName);
-      const targetW = 260;
-      const targetH = 328;
-      const scale = Math.max(targetW / img.width, targetH / img.height) * 1.12;
+      const scale = Math.max(targetW / img.width, targetH / img.height) * 1.1;
       img.setScale(scale);
-      img.y = y - 26; // bias upward toward the face
+      img.y = y - targetH * 0.07;
       const maskShape = this.add
         .rectangle(x, y, targetW, targetH, colorInt(theme.colors.heading))
         .setVisible(false);
-      const mask = maskShape.createGeometryMask();
-      img.setMask(mask);
-      c.add(img);
-      c.add(maskShape);
+      img.setMask(maskShape.createGeometryMask());
     } catch {
-      // no art — the framed panel alone is an acceptable fallback
+      // The tokenized tile and name remain usable if art is unavailable.
     }
   }
 }
