@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, 'release/**']
 
 # Least privilege by default; the deploy job elevates to what Pages needs.
 permissions:
