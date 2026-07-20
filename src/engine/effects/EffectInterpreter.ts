@@ -1,6 +1,11 @@
 import { RULES } from '../../config/rules';
 import type { Emit } from '../battlefield';
-import { destroyPermanent, enterBattlefield, severPermanent } from '../battlefield';
+import {
+  destroyPermanent,
+  enterBattlefield,
+  recallPermanent,
+  severPermanent,
+} from '../battlefield';
 import { drawCards } from '../phases';
 import { rngInt, rngShuffle } from '../rng';
 import { getEffectiveStats, isQuestActive } from '../statics';
@@ -138,6 +143,21 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       if (perm) severPermanent(state, db, perm, emit);
       return;
     }
+    case 'destroyArtifactOrSeverEnchantment': {
+      const perm = targetPermanent(state, ctx.targets[0]);
+      if (!perm) return;
+      const d = def(db, perm.cardId);
+      // Artifact wins for a multi-typed permanent. This keeps the branch
+      // deterministic and mirrors the op name's left-to-right contract.
+      if (isType(d, 'artifact')) {
+        if (destroyPermanent(state, db, perm, emit)) {
+          fireTriggers(state, db, emit, 'dies', perm);
+        }
+      } else if (isType(d, 'enchantment')) {
+        severPermanent(state, db, perm, emit);
+      }
+      return;
+    }
     case 'severGrave': {
       const victim = op.who === 'self' ? ctx.controller : opponentOf(ctx.controller);
       const grave = state.players[victim].graveyard;
@@ -161,16 +181,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'recall': {
       const perm = targetPermanent(state, ctx.targets[0]);
-      if (perm) {
-        const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
-        state.battlefield.splice(idx, 1);
-        const d = def(db, perm.cardId);
-        if (!d.token) {
-          state.players[perm.owner].hand.push(perm.cardId);
-          emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
-        }
-        emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
-      }
+      if (perm) recallPermanent(state, db, perm, emit);
       return;
     }
     case 'cancel': {
@@ -255,9 +266,24 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
+    case 'destroyNewestOpponentArtifactOrEnchantment': {
+      const opponent = opponentOf(ctx.controller);
+      for (let i = state.battlefield.length - 1; i >= 0; i--) {
+        const perm = state.battlefield[i];
+        if (perm.controller !== opponent) continue;
+        const d = def(db, perm.cardId);
+        if (!isType(d, 'artifact') && !isType(d, 'enchantment')) continue;
+        if (destroyPermanent(state, db, perm, emit)) {
+          fireTriggers(state, db, emit, 'dies', perm);
+        }
+        return;
+      }
+      return;
+    }
     case 'massDestroy': {
       const doomed = state.battlefield.filter((p) => {
         const d = def(db, p.cardId);
+        if (op.filter === 'allEnchantments') return isType(d, 'enchantment');
         if (!isType(d, 'creature')) return false;
         if (op.filter === 'allFliers') {
           return getEffectiveStats(state.battlefield, db, p.iid).keywords.has('skyborne');

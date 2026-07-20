@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-16 -->
+<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-17 -->
 
 # Scene & Menu Art — Direction + Integration Contract
 
@@ -210,6 +210,16 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 - **QA:** Reads as sealed product at 238×340; crimp zones plain; zero letterforms (heraldry stays pure imagery).
 - **Prompt:** Booster pack front key art, an upright sword-in-stone sigil haloed by soft grail radiance floating over deep twilight blue and polished-steel sheen, thin white-gold trim frame like cathedral filigree, faint crimson pennant ribbons and chapel-window glints, dark field deepening toward the plain top and bottom edges, dramatic sealed-product presentation with no lettering and no heraldic text — crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait
 
+### Gothic Monsters Booster Pack Front — `pack-art-gothic-monsters`
+- **Role:** The Gothic Monsters expansion booster in `ShopScene`'s pack row and its `PackOpeningScene` tear. Consumed by `bakePackArt` via `GOTHIC_MONSTERS_PACK_ART` (`packart-gothic-monsters` / `scene-pack-art-gothic-monsters`); until this asset ships the SKU falls back to the procedural crimson-tinted pack.
+- **Deliverable:** 640×800 PNG (portrait).
+- **Mood & palette:** Nocturne Manor as sealed product: crimson velvet and black lace over moonlit stone, cathedral-gold trim, candle-warm glow against storm cold, grave roses at the sigil's foot and one thin white-lightning glint. Same product-hero saturation allowance as `pack-art`; luxurious, never grimy.
+- **Composition & safe zones:** Identical to `pack-art` — cover-crop cuts ≈40 px per side (keep trim + sigil inside x 40–600); top and bottom ~52 px bands strictly plain flat dark for the code-stamped crimps: no filigree, trim, lace, roses, glints, or ornament of any kind may enter them (user review 2026-07-18: the prior render ran filigree into the crimp bands). The gold trim frame and all ornament stay fully between the bands.
+- **Max luminance:** average ≤ 25 %; peak ≤ 70 % (candle glints / lightning glint / sigil core).
+- **Integration:** `bakePackArt(scene, GOTHIC_MONSTERS_PACK_ART)` — already wired; the asset landing on disk + manifest is the whole switch.
+- **QA:** Reads as sealed product at 238×340; crimp zones completely plain unornamented flat dark bands per the pack template rule; zero letterforms (invitations, seals, and lace stay blank or patterned, never lettered).
+- **Prompt:** Booster pack front key art, the top and bottom bands solid matte near-black bars, completely empty, zero ornament, zero gold, zero trim, zero filigree, zero pattern, as if masked off, a golden diamond sigil wreathed in black lace and dark crimson grave roses floating over rich crimson velvet drapery and moonlit gothic stone, warm candlelight rising from below against a cold storm-blue upper gloom crossed by one thin white lightning glint, ornate cathedral-gold trim frame confined to the middle of the composition, faint sparkling foil glints only in the central art, all decoration ending well before the top and bottom edges, dramatic sealed-product presentation with no lettering, crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait — the top and bottom bands solid matte near-black bars, completely empty, zero ornament, zero gold, zero trim, zero filigree, zero pattern, as if masked off
+
 ---
 
 ## 3. Integration contract
@@ -217,11 +227,13 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 This section defines the integration contract — **now implemented** in
 `src/ui/SceneBackdrop.ts` (`applyBackdrop` / `sceneTextureKey`, called at the
 top of every scene's `create()`), with the loader in `PreloadScene`/`BootScene`
-and the two bake-function consumers in `CardFrameFactory`/`ShopScene`. All 13
-assets are generated (`scripts/gen-scene-art.ts`), on disk under
+and the two bake-function consumers in `CardFrameFactory`/`ShopScene`. The
+first 14 assets are generated (`scripts/gen-scene-art.ts`), on disk under
 `public/assets/art/scenes/`, and manifest-listed (the original 11-asset
-program plus the two expansion pack fronts added 2026-07-11); the
-descriptions below match what shipped.
+program plus the Ragnarök, Celtic Fae, and Arthurian Court pack fronts); the
+descriptions below match what shipped. The Gothic Monsters pack front
+(entry added 2026-07-17) is authored but not yet generated — its `ShopScene`
+wiring already falls back to the procedural tinted pack until the asset lands.
 
 ### Files & manifest
 

@@ -14,7 +14,8 @@ export type Keyword =
   | 'bulwark'
   | 'deathblade'
   | 'bloodoath'
-  | 'untouchable';
+  | 'untouchable'
+  | 'dreaded';
 
 export type CardType = 'creature' | 'charm' | 'ritual' | 'enchantment' | 'artifact' | 'land';
 export type Rarity = 'c' | 'r' | 'sr' | 'ssr' | 'ur';
@@ -40,7 +41,22 @@ export type TriggerWhen =
   | 'static';
 
 export interface TargetSpec {
-  what: 'creature' | 'player' | 'any' | 'spell' | 'yourCreature' | 'yourGraveCreature';
+  /**
+   * `artifact` and `enchantment` match that permanent type, including a
+   * multi-typed permanent. `artifactOrEnchantment` is the tight union used by
+   * cross-type removal. Untouchable remains a creature-targeting restriction:
+   * these specs do not consult it, even for an artifact creature.
+   */
+  what:
+    | 'creature'
+    | 'player'
+    | 'any'
+    | 'spell'
+    | 'yourCreature'
+    | 'yourGraveCreature'
+    | 'artifact'
+    | 'enchantment'
+    | 'artifactOrEnchantment';
 }
 
 export type EffectOp =
@@ -49,18 +65,23 @@ export type EffectOp =
   | { op: 'loseLife'; n: number; who: 'opponent' }
   | { op: 'draw'; n: number }
   | { op: 'discardRandom'; n: number; who: 'opponent' }
-  | { op: 'destroy'; to: 'target' }
-  | { op: 'sever'; to: 'target' } // target creature → its owner's severed zone
+  | { op: 'destroy'; to: 'target' } // target permanent → its owner's graveyard
+  | { op: 'sever'; to: 'target' } // target permanent → its owner's severed zone
   | { op: 'severGrave'; n: number; who: 'self' | 'opponent' } // top n grave cards → severed zone
   | { op: 'severTop'; n: number; who: 'self' } // top n deck cards → severed zone
-  | { op: 'recall'; to: 'target' }
+  | { op: 'recall'; to: 'target' } // target permanent → its owner's hand; tokens evaporate
+  | {
+      op: 'destroyArtifactOrSeverEnchantment';
+      to: 'target';
+    } // branch is artifact-first; otherwise an enchantment is severed
   | { op: 'cancel'; to: 'target' } // target is a stack item
   | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
   | { op: 'fetchLand' } // a basic land from deck → battlefield tapped
   | { op: 'createToken'; token: string; count: number }
-  | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' }
+  | { op: 'destroyNewestOpponentArtifactOrEnchantment' } // trigger-safe, no target
+  | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' | 'allEnchantments' }
   | { op: 'preventCombat' } // prevent all combat damage this turn
   | { op: 'reclaim' } // return target creature card from your graveyard to hand
   | { op: 'grind'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
@@ -88,6 +109,17 @@ export interface AbilityDef {
   static?: StaticDef;
 }
 
+/**
+ * Optional Empower rider. The extra cost is paid as part of casting the card,
+ * and the ops run after the card's normal resolution. Empower ops are required
+ * to be trigger-safe and must never introduce targets. The engine keeps this
+ * contract explicit here because v1 has no separate data-validation pass.
+ */
+export interface EmpowerDef {
+  cost: ManaCost;
+  ops: EffectOp[];
+}
+
 // ---------------------------------------------------------------------------
 // Card definitions (static data). The engine receives a CardDb via the Game
 // constructor — it never imports the catalog, so tests can inject tiny pools.
@@ -110,13 +142,15 @@ export interface CardDef {
   chapters?: EffectOp[][];
   /** One-way stat and keyword upgrade granted by an `awaken` op. */
   awakening?: { p?: number; t?: number; keywords?: Keyword[] };
+  /** Optional additional cast cost and trigger-safe resolution rider. */
+  empower?: EmpowerDef;
   manaAbility?: Color[]; // lands & mana creatures
   entersTapped?: boolean; // dual taplands
   rarity: Rarity;
   flavor?: string;
   artRef?: string;
   token?: boolean; // non-collectible
-  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
+  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
 }
 
 export type CardDb = Readonly<Record<string, CardDef>>;
@@ -174,6 +208,8 @@ export interface StackItem {
   controller: PlayerId;
   targets: TargetRef[];
   x?: number;
+  /** Omitted means the ordinary, unempowered cast. */
+  empowered?: boolean;
 }
 
 export type TargetRef =

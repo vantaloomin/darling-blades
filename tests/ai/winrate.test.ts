@@ -4,6 +4,7 @@ import { EasyAI } from '../../src/ai/EasyAI';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
 import { Game } from '../../src/engine/Game';
+import { runAvatarMatrix } from '../../scripts/balance-matrix';
 import { deckOf, TEST_DB } from '../helpers';
 
 /** Coherent two-color 40-card decks — skill decides games, not color screw. */
@@ -114,4 +115,27 @@ describe('AI win-rate gates', () => {
     // CI-variance margin (±3.5pp at 200 games) under the ~0.78 measured rate.
     expect(rate).toBeGreaterThanOrEqual(0.7);
   }, 600_000);
+
+  it('Gothic Monsters rungs clear fresh 40-seed floors and terminate', () => {
+    const report = runAvatarMatrix(40);
+    const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
+    const r14 = row('artoria');
+    const r15 = row('carmilla');
+    const r16 = row('the-bride');
+    expect(r14).toBeDefined();
+    expect(r15).toBeDefined();
+    expect(r16).toBeDefined();
+    if (!r14 || !r15 || !r16) return;
+
+    // Fresh 2026-07-17 full --avatars measurement, 40 seeds/cell:
+    // R14 = 70.8%, R15 = 77.6%, R16 = 76.8%, all 40 games decided per cell.
+    // Floors leave 5.6pp and 3.8pp below the new-rung point estimates.
+    expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.72);
+    expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.73);
+    expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
+    expect(r16.avg, 'rung 16 must clear rung 14').toBeGreaterThan(r14.avg);
+    for (const cell of [...r15.cells, ...r16.cells]) {
+      expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
+    }
+  }, 900_000);
 });

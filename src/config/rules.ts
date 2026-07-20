@@ -20,8 +20,9 @@ export const ECONOMY = {
   startingGold: 250, // granted with the starter deck — one booster to crack
   packPrice: 450,
   ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 69-card chase)
-  celticFaePackPrice: 525, // expansion booster — only pulls set:'celtic-fae' cards (80-card chase density)
-  arthurianCourtPackPrice: 525, // expansion booster — only pulls set:'arthurian-court' cards (80-card chase density)
+  celticFaePackPrice: 525, // expansion booster — only pulls set:'celtic-fae' cards (81-card chase density)
+  arthurianCourtPackPrice: 525, // expansion booster — only pulls set:'arthurian-court' cards (81-card chase density)
+  gothicMonstersPackPrice: 525, // expansion booster - only pulls set:'gothic-monsters' cards (81-card chase density)
   boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo + full art independently (DROPS)
   limitedPackSize: 15, // Limited packs stay MTG-sized for Sealed/Draft pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
@@ -60,12 +61,13 @@ export const ECONOMY = {
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   shardFullArtMult: 25,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 14-rung clear. Full run = 50+70+…+270 (=1920) + 290 + 310 + 250 = 2770g ≈ 11.1 packs,
+  // a full 16-rung clear. Full run = 50+70+…+310 (=2520) + 330 + 350 + 250 = 3450g.
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
   // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
   // Celtic Fae bosses (The Morrigan, Titania); 13-14 (290/310) are the
-  // Arthurian Court summit bosses (Morgan, Artoria).
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310] as const,
+  // Arthurian Court pair (Morgan, Artoria); 15-16 are the Gothic Monsters
+  // summit pair (Carmilla, The Bride).
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350] as const,
   gauntletCompletionBonus: 250,
   // Free Limited runs are free-entry with ephemeral cards and pay the record
   // payout below. Premium Draft pays to keep its picks; the entry fee already
@@ -116,6 +118,29 @@ export const ECONOMY = {
  * Low Skill Casual          52.47%       0.47          0          40.83%       0          -
  * High Skill Veteran        90.08%       1.87          0          78.19%    19.6          -
  * Completionist             99.43%       1.76          0          88.54%    49.4          -
+ *
+ * Post-Gothic-Monsters baseline 2026-07-19 (same 10 personas x 8 seeds x
+ * 60 days; 4,800 daily snapshots) after the nine-card removal cycle: 518
+ * collectible cards, with Celtic Fae, Arthurian Court, and Gothic Monsters
+ * at 81 collectible cards each. The 525g gothic-monsters booster SKU, 16
+ * gauntlet rungs with a 3,450g full-clear payout, and 8 new gold-paying
+ * achievements remain in the day-60 results. Day-60 rows are seed means;
+ * first Premium is the median first day across the eight seed snapshots. The
+ * overall day-60 medians are 68.1467% collection and 1.2115 packs/day; the
+ * verdict remains UNEVEN. Premium allowance remains at 18 runs, and the
+ * CI-fast 2-persona x 1-seed x day-7 coarse check stayed green.
+ *
+ * Persona              Collection  Packs/day  Premium runs  Quest claim  Crafted  Achievements  First Premium
+ * New Casual              43.39%       0.53          0          43.26%       0.0         13.3              -
+ * Daily Grinder            68.07%       1.58          0          69.86%       0.0         22.5              -
+ * Gauntlet Climber         63.10%       1.40          0          68.33%       0.0         22.1              -
+ * Limited Fan              86.22%       0.60      18.00          70.42%       6.0         30.6            2.5
+ * Collector                 56.13%       1.02          0          66.60%       0.0         18.9              -
+ * Theme Deck Buyer          68.22%       0.90          0          60.07%       0.0         22.8              -
+ * Hardcore Optimizer        80.31%       2.43          0          80.83%       0.0         28.3              -
+ * Low Skill Casual          38.39%       0.45          0          40.83%       0.0         12.5              -
+ * High Skill Veteran        72.64%       1.95          0          78.19%       0.0         25.1              -
+ * Completionist             84.27%       2.11          0          89.72%      11.9         34.0              -
  *
  * Post-Arthurian-Court baseline 2026-07-16 (same 10 personas x 8 seeds x
  * 60 days; balance/econ-baseline-2026-07-16-post-ac.report.json) after the

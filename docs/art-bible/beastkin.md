@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/beastkin.ts · last-verified: 2026-07-07 -->
+<!-- source-of-truth: src/data/cards/beastkin.ts · last-verified: 2026-07-19 -->
 
 # Darling Blades Art Bible — Beastkin (`bk`)
 
@@ -414,3 +414,18 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common: single figure, one idea (an instant, fence-smashing charge).
 - **Prompt:** Boarkin beast-girl crashing shoulder-first through a splintering fence with an iron riot-mace swinging, scorched red-and-iron harness, upward tusks and bristle-mane, wild roaring grin, flying fence-planks and dust, warm flame light with cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Boarkin Rootbreaker — `bk-boarkin-rootbreaker`
+- **Card facts:** {1}{G} · G · 2/2 · c · holo: none
+- **Character & source:** Original Beastkin boarkin salvage-wrecker — a two-drop whose arrival uproots the opponent's newest artifact or enchantment.
+- **Personality / mood:** "She uproots first and asks whether it was valuable later." Cheerful demolition, zero appraisal skills, immense job satisfaction.
+- **Pose & composition:** Mid-heave action shot: body braced low on a strong diagonal, legs planted wide at the crater's edge, shoulders coiled, both hands wrenching a half-buried glowing arcane relic up out of churned earth, soil clods and torn roots of light tearing loose mid-air around it — the violent instant of the uprooting, never a static stance. Face ≈ y 320 above the lifted relic; bristle-mane ridge and tusks catching the light, short tufted tail out behind, the relic's glow centered in the band.
+- **Costume & attire:** Rugged green-and-leather digging harness over tanned wraps, bone toggles, an iron-shod spade slung across her back, upward tusks, low bristled ears, bristle-mane ridge, short tufted boar tail.
+- **Palette:** G palette (`#4fa06a` → `#123a22`, accent `#a9dcae`) with Beastkin warm-earth and russet bristle naturals; the uprooted relic a cool out-of-place gleam.
+- **Lighting:** Warm forest-clearing key from upper-left; cool glint rim off the uprooted relic onto her tusks and forearms.
+- **Expression:** Tusked grin of triumphant effort, eyes bright on the prize she is about to discard.
+- **Props / weapon:** The uprooted glowing relic itself, roots of light still dangling; the slung spade stays on her back.
+- **Background:** Two-value torn-earth forest clearing with a fresh crater and a few glowing root-tendrils — readability over richness.
+- **Holo interaction:** none — common.
+- **Rarity ambition:** Common: single figure, one idea (she rips enchanted things out of the ground).
+- **Prompt:** Adult boarkin beast-woman caught mid-heave, body braced low and diagonal with legs planted wide, both hands wrenching a half-buried glowing arcane relic out of churned earth, soil clods and torn roots of light tearing loose mid-air around it, upward tusks and bristle-mane ridge, low bristled ears and short tufted boar tail, rugged green digging harness with bone toggles and a slung iron spade, triumphant tusked grin of effort, torn-earth forest clearing background, warm clearing light with cool relic glint, not a static standing portrait, not holding the relic at rest — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait

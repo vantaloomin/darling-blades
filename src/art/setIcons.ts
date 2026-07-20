@@ -11,7 +11,7 @@
  * four-point star ("The Silver Veil"); arthurian-court = a five-point royal
  * crown. Tuned to read at ~21px on the card face and ~40px in the glossary.
  */
-export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court';
+export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters';
 
 export const SET_ICON_PATHS: Record<CardSetId, string> = {
   // Heart pierced by a blade: grip + crossguard above the cleft, a tapered
@@ -40,4 +40,7 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
     'M26 64 L32 58 L38 64 L32 70 Z ' +
     'M44 64 L50 58 L56 64 L50 70 Z ' +
     'M62 64 L68 58 L74 64 L68 70 Z',
+  // Bat silhouette: broad angular wings fold into a pointed body and ears.
+  'gothic-monsters':
+    'M50 86 C42 78 34 70 28 61 L12 70 L20 52 L8 48 L31 39 L26 22 L43 33 L50 14 L57 33 L74 22 L69 39 L92 48 L80 52 L88 70 L72 61 C66 70 58 78 50 86 Z',
 };

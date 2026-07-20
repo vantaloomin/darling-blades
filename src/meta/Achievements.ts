@@ -99,6 +99,12 @@ const ARTHURIAN_CROWN_JEWELS = [
   'ac-nimue-lake-sovereign',
   'ac-grail-radiant-secret',
 ] as const;
+const GOTHIC_MONSTERS_HEADLINERS = [
+  'gm-carmilla-crimson-host',
+  'gm-bride-storm-crowned',
+  'gm-luna-wolf-matriarch',
+  'gm-lenore-velvet-saint',
+] as const;
 
 function themeIds(ids: readonly string[], db: CardDb): string[] {
   return ids.filter((id) => Boolean(db[id]));
@@ -158,6 +164,7 @@ const isRainbowBorder = (variant: ReturnType<typeof parseVariantKey>): boolean =
 const isRagnarok = (card: CardDef): boolean => card.set === 'ragnarok';
 const isCelticFae = (card: CardDef): boolean => card.set === 'celtic-fae';
 const isArthurianCourt = (card: CardDef): boolean => card.set === 'arthurian-court';
+const isGothicMonsters = (card: CardDef): boolean => card.set === 'gothic-monsters';
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
@@ -547,6 +554,74 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     reward: { gold: 350 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.awakening !== undefined),
+  },
+  // Gothic Monsters (1.3), schema-free and derived from the live 80-card pool.
+  {
+    id: 'theme-gothic-monsters-25',
+    bucket: 'theme',
+    title: 'First Candle',
+    description: 'Own 25% of Gothic Monsters cards.',
+    reward: { gold: 200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isGothicMonsters, 0.25),
+  },
+  {
+    id: 'theme-gothic-monsters-50',
+    bucket: 'theme',
+    title: 'Half the Manor',
+    description: 'Own 50% of Gothic Monsters cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, isGothicMonsters, 0.5),
+  },
+  {
+    id: 'theme-gothic-monsters-complete',
+    bucket: 'theme',
+    title: 'Manor Without End',
+    description: 'Own every Gothic Monsters card.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isGothicMonsters),
+  },
+  {
+    id: 'theme-gothic-monsters-headliners',
+    bucket: 'theme',
+    title: 'The Bloodmoon Court',
+    description: 'Own Carmilla, The Bride, Luna, and Lenore.',
+    reward: { gold: 600 },
+    progress: (save, db) => themeProgress(save, GOTHIC_MONSTERS_HEADLINERS, db),
+  },
+  {
+    id: 'theme-gothic-monsters-headliners-special',
+    bucket: 'theme',
+    title: 'Velvet Regalia',
+    description: 'Own all four Gothic Monsters headliners as special variants.',
+    reward: { gold: 900 },
+    progress: (save, db) => themeVariantProgress(save, GOTHIC_MONSTERS_HEADLINERS, db, isSpecialVariant),
+  },
+  {
+    id: 'theme-gothic-monsters-dreaded',
+    bucket: 'theme',
+    title: 'No Single Blocker',
+    description: 'Own every Gothic Monsters card with Dreaded.',
+    reward: { gold: 400 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.keywords?.includes('dreaded') === true),
+  },
+  {
+    id: 'theme-gothic-monsters-empowered',
+    bucket: 'theme',
+    title: 'Paid in Blood',
+    description: 'Own every Gothic Monsters card with Empower.',
+    reward: { gold: 450 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.empower !== undefined),
+  },
+  {
+    id: 'theme-gothic-monsters-vampires',
+    bucket: 'theme',
+    title: 'The Masquerade Bloodline',
+    description: 'Own every Gothic Monsters Vampire.',
+    reward: { gold: 350 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.subtypes.includes('Vampire')),
   },
   {
     id: 'first-win',

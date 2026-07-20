@@ -14,6 +14,7 @@ import { ARTIFACTS } from '../src/data/cards/artifacts';
 import { ARTHURIAN_COURT } from '../src/data/cards/arthurian-court';
 import { BEASTKIN } from '../src/data/cards/beastkin';
 import { CELTIC_FAE } from '../src/data/cards/celtic-fae';
+import { GOTHIC_MONSTERS } from '../src/data/cards/gothic-monsters';
 import { GREEK } from '../src/data/cards/greek';
 import { RAGNAROK } from '../src/data/cards/ragnarok';
 import { TK_JIN } from '../src/data/cards/tk-jin';
@@ -44,6 +45,7 @@ const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
   { file: 'ragnarok.md', sets: [RAGNAROK] },
   { file: 'celtic-fae.md', sets: [CELTIC_FAE] },
   { file: 'arthurian-court.md', sets: [ARTHURIAN_COURT] },
+  { file: 'gothic-monsters.md', sets: [GOTHIC_MONSTERS] },
   { file: 'constructs-and-tokens.md', sets: [ARTIFACTS, TOKENS] },
 ];
 

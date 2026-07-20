@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-16 · concept doc — Expansion 3, folded into the 1.2 release (user decision 2026-07-16); implementation target src/data/cards/arthurian-court.ts; anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
+<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-19 · concept doc — Expansion 3, folded into the 1.2 release (user decision 2026-07-16); implementation target src/data/cards/arthurian-court.ts; anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
 
 # Expansion 3 - Arthurian Court: The Grail Oath
 
@@ -23,7 +23,7 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 
 ## Rarity Target
 
-`40 C / 24 R / 7 SR / 5 SSR / 4 UR = 80 booster cards`
+`41 C / 24 R / 7 SR / 5 SSR / 4 UR = 81 booster cards`
 
 ## Full Card List
 
@@ -109,6 +109,9 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-treasonous-glance | Treasonous Glance | C | B | Charm | Betrayal | loseLife opponent, foresee | Black trick |
 | ac-campfire-tale | Campfire Tale | C | R | Ritual | Knight tale | grind self, draw | Red rummage |
 | ac-questing-map | Questing Map | C | C | Artifact | Map relic | arrives: foresee 2 | Quest support |
+| ac-recant-the-vow | Recant the Vow | C | W | Charm | Withdrawn vow | sever target enchantment, draw | Enchantment answer |
+
+_Removal answer cycle (2026-07-18): added Recant the Vow, the set's common enchantment answer (a targeted sever that replaces itself with a draw, in the vow idiom), lifting the rarity target to 41 C / 81 booster cards._
 
 _Changed from the original sketch (2026-07-16 concretion): (1) mono-colored 12 generic multicolor rows (lakeblade-initiate U, velvet-court-spy B, tournament-favorite R, lady-of-lilies U, grail-hermit G, castle-under-siege R, oathbroken-knight B, queen-regents-command U, riverford-guard W, root-chapel-warden G, tilting-lance R, fallen-banner B) and made The Fall of Camelot a legendary enchantment, per the multicolor-implies-legendary catalog invariant; (2) chapter effects rewritten trigger-safe (Green Knight's Challenge, Black Chapel Curse, Squire to Champion); (3) Camelot Banneret's cost discount re-scoped to a questActive arrives token (no cost-modification seam exists); (4) "tap:" activated abilities re-expressed as dawn/arrives triggers (Mirror of Avalon, Silver Spur, Questing Map, Nimue); (5) Campfire Tale's rummage is grind-self + draw (no self-discard op); (6) Mordred's menace became overrun + warcry; (7) Lance of Dawn retyped Enchantment - Aura (no equipment system); (8) Red Dragon Banner / Training Yard attack pumps are dawn until-end-of-turn team boosts (no attacker-filter static); (9) art-review renames 2026-07-16: Sword-Test Stone became The Sword in the Stone, and Silver Spur became Rallying Horn (id ac-rallying-horn; a war horn renders the team-charge arrival legibly where a boot spur could not)._
 

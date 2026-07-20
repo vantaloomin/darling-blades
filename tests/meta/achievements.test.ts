@@ -114,6 +114,28 @@ const CELTIC_FAE_GOALS = [
   { id: 'theme-celtic-fae-redcaps', ids: CELTIC_FAE_REDCAPS },
 ] as const;
 
+const GOTHIC_MONSTERS_IDS = Object.values(CARD_DB)
+  .filter((entry) => entry.set === 'gothic-monsters')
+  .map((entry) => entry.id);
+const GOTHIC_MONSTERS_HEADLINERS = [
+  'gm-carmilla-crimson-host',
+  'gm-bride-storm-crowned',
+  'gm-luna-wolf-matriarch',
+  'gm-lenore-velvet-saint',
+] as const;
+const GOTHIC_MONSTERS_DREADED = GOTHIC_MONSTERS_IDS.filter((id) => CARD_DB[id].keywords?.includes('dreaded'));
+const GOTHIC_MONSTERS_EMPOWERED = GOTHIC_MONSTERS_IDS.filter((id) => CARD_DB[id].empower !== undefined);
+const GOTHIC_MONSTERS_VAMPIRES = GOTHIC_MONSTERS_IDS.filter((id) => CARD_DB[id].subtypes.includes('Vampire'));
+const GOTHIC_MONSTERS_GOALS = [
+  { id: 'theme-gothic-monsters-25', ids: GOTHIC_MONSTERS_IDS.slice(0, Math.ceil(GOTHIC_MONSTERS_IDS.length * 0.25)) },
+  { id: 'theme-gothic-monsters-50', ids: GOTHIC_MONSTERS_IDS.slice(0, Math.ceil(GOTHIC_MONSTERS_IDS.length * 0.5)) },
+  { id: 'theme-gothic-monsters-complete', ids: GOTHIC_MONSTERS_IDS },
+  { id: 'theme-gothic-monsters-headliners', ids: GOTHIC_MONSTERS_HEADLINERS },
+  { id: 'theme-gothic-monsters-dreaded', ids: GOTHIC_MONSTERS_DREADED },
+  { id: 'theme-gothic-monsters-empowered', ids: GOTHIC_MONSTERS_EMPOWERED },
+  { id: 'theme-gothic-monsters-vampires', ids: GOTHIC_MONSTERS_VAMPIRES },
+] as const;
+
 const THEME_DB: CardDb = Object.freeze({
   ...DB,
   ...Object.fromEntries(GREEK_COURT.map((id) => [id, card(id, { subtypes: ['Olympian', 'God'], rarity: 'ur' })])),
@@ -296,8 +318,8 @@ describe('achievements', () => {
     expect(syncAchievements(save, THEME_DB)).toContain('theme-ragnarok-twilight-court-rainbow');
   });
 
-  it('uses the 80-card Celtic Fae pool and its intended court sub-archetype ids', () => {
-    expect(CELTIC_FAE_IDS).toHaveLength(80);
+  it('uses the 81-card Celtic Fae pool and its intended court sub-archetype ids', () => {
+    expect(CELTIC_FAE_IDS).toHaveLength(81);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].rarity === 'ssr')).toEqual(CELTIC_FAE_SSR_COURT);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Selkie'))).toEqual(CELTIC_FAE_SELKIES);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Raven'))).toEqual(CELTIC_FAE_RAVENS);
@@ -406,7 +428,55 @@ describe('arthurian court achievements (1.2)', () => {
     // derive from the catalog, so a future set change moves them honestly.
     expect(status('theme-arthurian-quests', save, CARD_DB).target).toBe(7);
     expect(status('theme-arthurian-champions', save, CARD_DB).target).toBe(5);
-    expect(status('theme-arthurian-complete', save, CARD_DB).target).toBe(80);
+    expect(status('theme-arthurian-complete', save, CARD_DB).target).toBe(81);
+  });
+});
+
+describe('gothic monsters achievements (1.3)', () => {
+  it('uses the 81-card Gothic Monsters pool and the intended sub-archetypes', () => {
+    expect(GOTHIC_MONSTERS_IDS).toHaveLength(81);
+    expect(GOTHIC_MONSTERS_HEADLINERS.every((id) => CARD_DB[id]?.rarity === 'ur')).toBe(true);
+    expect(GOTHIC_MONSTERS_DREADED).toHaveLength(10);
+    expect(GOTHIC_MONSTERS_EMPOWERED).toHaveLength(20);
+    expect(GOTHIC_MONSTERS_VAMPIRES).toHaveLength(10);
+  });
+
+  for (const { id, ids } of GOTHIC_MONSTERS_GOALS) {
+    it(`unlocks ${id} with exactly its qualifying Gothic Monsters collection and locks one card short`, () => {
+      const complete = freshSave(0);
+      complete.collection = Object.fromEntries(ids.map((cardId) => [cardId, 1]));
+
+      expect(status(id, complete, CARD_DB)).toMatchObject({
+        current: ids.length,
+        target: ids.length,
+        unlocked: true,
+      });
+      expect(syncAchievements(complete, CARD_DB)).toContain(id);
+
+      const oneShort = freshSave(0);
+      oneShort.collection = Object.fromEntries(ids.slice(0, -1).map((cardId) => [cardId, 1]));
+
+      expect(status(id, oneShort, CARD_DB)).toMatchObject({
+        current: ids.length - 1,
+        target: ids.length,
+        unlocked: false,
+      });
+    });
+  }
+
+  it('tracks special variants for all four Gothic Monsters headliners', () => {
+    const save = freshSave(0);
+    save.collection = Object.fromEntries(GOTHIC_MONSTERS_HEADLINERS.map((id) => [id, 1]));
+    save.collectionVariants = Object.fromEntries(
+      GOTHIC_MONSTERS_HEADLINERS.map((id) => [id, { [variantKey({ frame: 'gold', holo: 'none', fullArt: false })]: 1 }]),
+    );
+
+    expect(status('theme-gothic-monsters-headliners-special', save, CARD_DB)).toMatchObject({
+      current: 4,
+      target: 4,
+      unlocked: true,
+    });
+    expect(syncAchievements(save, CARD_DB)).toContain('theme-gothic-monsters-headliners-special');
   });
 });
 

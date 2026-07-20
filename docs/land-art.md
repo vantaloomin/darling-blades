@@ -1,9 +1,9 @@
-<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/ui/CardView.ts · last-verified: 2026-07-09 -->
+<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/data/cards/gothic-monsters.ts, src/ui/CardView.ts · last-verified: 2026-07-17 -->
 
 # Land Art — Direction + Generation Contract
 
-The 15 **land cards** — 5 basic lands and 10 dual taplands — get their own art
-program here. The 215-entry creature art bible (`docs/art-bible/index.md`)
+The 22 **land cards** — 5 basic lands, 10 dual taplands, and the 7 Gothic
+Monsters set lands (section 4) — get their own art program here. The 215-entry creature art bible (`docs/art-bible/index.md`)
 covers creatures and tokens only; without the entries below, lands render the
 deterministic procedural placeholder. This document is the **binding contract**
 for authoring land art and the parse source for the generation driver
@@ -251,3 +251,44 @@ at 1024×1536 → smartcrop **environment** mode → 640×800.
 ### Forest (celtic-fae) — `land-forest-celtic-fae-v2`
 - **Prompt:** A blackthorn-and-oak hollow way, arched branches forming a long tunnel toward the soft green light of a hollow hill door, wet leaves catching moonlight, G palette (`#4fa06a`, `#123a22`, `#a9dcae`), the branch tunnel centered in frame, no people — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
 ```
+
+---
+
+## 4. Gothic Monsters set lands (7) — LIVE entries
+
+The Gothic Monsters expansion's 7 set lands (`src/data/cards/gothic-monsters.ts`):
+5 mono-color taplands and 2 dual taplands. Same environment-first contract as
+section 1, in the set's candlelit horror-glamour identity — moonlit stone,
+candle-warm windows against storm cold, iron gates, grave roses, stormglass,
+white lightning — luxurious, never grimy. These are parsed by
+`scripts/gen-land-art.ts` exactly like section 2 (unlike the fenced section-3
+proposals). Per the player-copy style rule these Prompt lines use commas before
+the standard suffix instead of a dash.
+
+### Chapel Yard — `gm-chapel-yard`
+- **Flavor:** "The graves are tidy and the roses have opinions." Single color: **W**.
+- **Prompt:** A tidy chapel graveyard at candlelit dusk, white chapel walls and neat rows of blank gravestones among climbing grave roses, warm lantern-light pooling on a swept stone path against a cold violet evening sky, gothic W palette (`#f2e8cf`, `#c9a84c`, `#fffef2`), the chapel and its yard centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Lab Annex — `gm-lab-annex`
+- **Flavor:** "The main lab exploded, so this one is the responsible branch." Single color: **U**.
+- **Prompt:** A stone laboratory annex under a night storm, tall leaded windows glowing cold blue with stormglass apparatus arcing inside, a lightning rod on the slate roof catching a distant white bolt, rain-slick cobbles and copper pipes along the wall, U palette (`#4a90d9`, `#16294f`, `#a8d4f7`) with a white-lightning accent, the glowing annex centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Moor Path — `gm-moor-path`
+- **Flavor:** "The path is damp, dark, and technically a shortcut." Single color: **B**.
+- **Prompt:** A damp moor path at night, a narrow flagstone track winding between black pools and leaning blank waymarker stones under a bruised violet sky, cold marsh-lights guttering low in the fog and one far-off candle-warm manor window, B palette (`#5a3a70`, `#140d1c`, `#9b6fc4`), the winding path centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Red-Roof Village — `gm-red-roof-village`
+- **Flavor:** "The roofs are red from paint, weather, and one regrettable festival." Single color: **R**.
+- **Prompt:** A gothic village of steep red rooftops at dusk, crooked chimneys and warm lantern-lit windows stacked down a hillside lane below a dark castle ridge, ember light glowing against a rolling storm sky, R palette (`#d95436`, `#5e0f0f`, `#f7b267`), the red rooftops centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Thorned Cemetery — `gm-thorned-cemetery`
+- **Flavor:** "The vines keep visitors from leaving with the wrong memories." Single color: **G**.
+- **Prompt:** An overgrown cemetery swallowed by briars, glowing green vines and dark crimson grave roses winding over blank tilted headstones, moonlight filtering through a broken iron fence onto moss-deep ground, G palette (`#4fa06a`, `#123a22`, `#a9dcae`), the thorn-wrapped graves centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Stormtower Roof — `gm-stormtower-roof`
+- **Flavor:** "The roof catches storms, secrets, and the occasional ambitious gargoyle." Colors: **U/B**.
+- **Prompt:** The flat rooftop of a storm tower at the height of a night storm, iron conductors and stormglass domes crackling with white lightning above a stone parapet lined with gargoyle silhouettes, churning clouds and moonlit rain beyond, blending the azure U palette (`#4a90d9`, `#a8d4f7`) with the purple-black B palette (`#5a3a70`, `#140d1c`), the crackling rooftop centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Moonmoor Estate — `gm-moonmoor-estate`
+- **Flavor:** "The moor has room for one more estate and no more sensible heirs." Colors: **R/G**.
+- **Prompt:** A grand moorland estate under a huge low moon, wind-bent green moor grass rolling up to open iron gates and a firelit manor front, a lone wolf silhouetted small on a distant ridge, blending the ember-red R palette (`#d95436`, `#f7b267`) with the verdant G palette (`#4fa06a`, `#123a22`), the moonlit estate centered in frame, no people, crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait

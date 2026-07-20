@@ -17,6 +17,7 @@ export const KEYWORD_ICON_KEY: Record<Keyword, string> = {
   deathblade: 'keyword-deathblade',
   bloodoath: 'keyword-bloodoath',
   untouchable: 'keyword-untouchable',
+  dreaded: 'keyword-dreaded',
 };
 
 /** Deliberately bold silhouettes; these are read at a 16px display size. */
@@ -32,6 +33,7 @@ const KEYWORD_ICON_PATH: Record<Keyword, string> = {
   deathblade: 'M22 3 L28 17 L25 30 L22 38 L19 30 L16 17 Z M15 29 Q22 24 29 29 L29 37 L25 41 L19 41 L15 37 Z M18 32 A2 2 0 1 0 22 32 A2 2 0 1 0 18 32 M22 32 A2 2 0 1 0 26 32 A2 2 0 1 0 22 32',
   bloodoath: 'M22 3 C22 3 10 19 10 28 A12 12 0 0 0 34 28 C34 19 22 3 22 3 Z',
   untouchable: 'M5 7 L39 37 M39 7 L5 37 M8 10 Q22 1 36 10 L39 22 Q34 37 22 42 Q10 37 5 22 Z',
+  dreaded: 'M8 5 L15 8 L15 39 L8 34 Z M19 5 L26 8 L26 39 L19 34 Z M30 5 L37 8 L37 39 L30 34 Z',
 };
 
 /** Bake one small dark trait chip per keyword. Safe to call on every scene create/restart. */

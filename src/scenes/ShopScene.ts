@@ -63,6 +63,15 @@ const ARTHURIAN_COURT_PACK_TINT: PackTint = {
   mist: theme.colors.gold,
 };
 
+const GOTHIC_MONSTERS_PACK_TINT: PackTint = {
+  start: theme.colors.dangerBg,
+  middle: theme.colors.panelFill,
+  end: theme.colors.muted,
+  trim: theme.colors.gold,
+  foil: theme.colors.danger,
+  mist: theme.colors.danger,
+};
+
 const packRR = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -183,10 +192,17 @@ export const ARTHURIAN_COURT_PACK_ART: PackArtOpts = {
   tint: ARTHURIAN_COURT_PACK_TINT,
 };
 
+export const GOTHIC_MONSTERS_PACK_ART: PackArtOpts = {
+  key: 'packart-gothic-monsters',
+  sceneArtKey: 'scene-pack-art-gothic-monsters',
+  tint: GOTHIC_MONSTERS_PACK_TINT,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
   if (sku === 'arthurian-court') return 'packart-arthurian-court';
+  if (sku === 'gothic-monsters') return 'packart-gothic-monsters';
   return 'packart';
 }
 
@@ -371,6 +387,7 @@ export class ShopScene extends Phaser.Scene {
     });
     bakePackArt(this, CELTIC_FAE_PACK_ART);
     bakePackArt(this, ARTHURIAN_COURT_PACK_ART);
+    bakePackArt(this, GOTHIC_MONSTERS_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
@@ -467,12 +484,12 @@ export class ShopScene extends Phaser.Scene {
   // --- Boosters tab ---------------------------------------------------------
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
-    this.buildPackSku(group, 160, 'Core Set', 'packart', ECONOMY.packPrice, 'base', () =>
+    this.buildPackSku(group, 128, 'Core Set', 'packart', ECONOMY.packPrice, 'base', () =>
       this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
     );
     this.buildPackSku(
       group,
-      480,
+      384,
       'Ragnarök',
       'packart-ragnarok',
       ECONOMY.ragnarokPackPrice,
@@ -481,7 +498,7 @@ export class ShopScene extends Phaser.Scene {
     );
     this.buildPackSku(
       group,
-      800,
+      640,
       'Celtic Fae',
       'packart-celtic-fae',
       ECONOMY.celticFaePackPrice,
@@ -490,12 +507,21 @@ export class ShopScene extends Phaser.Scene {
     );
     this.buildPackSku(
       group,
-      1120,
+      896,
       'Arthurian Court',
       'packart-arthurian-court',
       ECONOMY.arthurianCourtPackPrice,
       'arthurian-court',
       () => this.buyPacks(ECONOMY.arthurianCourtPackPrice, 'arthurian-court', 'arthurian-court'),
+    );
+    this.buildPackSku(
+      group,
+      1152,
+      'Gothic Monsters',
+      'packart-gothic-monsters',
+      ECONOMY.gothicMonstersPackPrice,
+      'gothic-monsters',
+      () => this.buyPacks(ECONOMY.gothicMonstersPackPrice, 'gothic-monsters', 'gothic-monsters'),
     );
     this.buildQtySelector(group);
     this.refreshQtyLabels();

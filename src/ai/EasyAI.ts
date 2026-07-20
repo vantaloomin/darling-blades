@@ -1,5 +1,5 @@
 import type { Action } from '../engine/actions';
-import { blockOptions } from '../engine/combat/legality';
+import { blockOptions, minimumBlockersForAttacker } from '../engine/combat/legality';
 import { createRngState, rngFloat, rngInt, type RngState } from '../engine/rng';
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb } from '../engine/types';
@@ -9,6 +9,7 @@ import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { choosePlayDraw } from './playDraw';
+import { empowerValue, removalKind, removalValueForCast } from './value';
 
 /**
  * Easy: plays lands, curves out roughly, and swings — but loses by tactics.
@@ -47,7 +48,7 @@ export class EasyAI implements AIPlayer {
         return this.block(view);
       case 'respond':
       case 'endStepWindow':
-        return this.respond(legal);
+        return this.respond(view, legal);
       case 'discardToHandSize':
         return legal[rngInt(this.rng, Math.max(1, legal.length - 1))]; // skip concede at end
       default:
@@ -99,13 +100,32 @@ export class EasyAI implements AIPlayer {
 
     const casts = nonConcede.filter((l) => l.type === 'castSpell');
     if (casts.length > 0) {
+      const usefulCasts = casts.filter((cast) => {
+        const kind = removalKind(this.db, view.you.hand[cast.handIndex]);
+        if (kind !== 'massDestroy' && kind !== 'destroyNewest') return true;
+        return removalValueForCast(
+          view.battlefield,
+          this.db,
+          view.myId,
+          view.you.hand[cast.handIndex],
+        ) > 0;
+      });
+      if (usefulCasts.length === 0 && usefulCasts.length !== casts.length) {
+        const nonRemoval = casts.filter(
+          (cast) => removalKind(this.db, view.you.hand[cast.handIndex]) === null,
+        );
+        if (nonRemoval.length === 0) return nonConcede.find((l) => l.type === 'passStep') ?? nonConcede[0];
+      }
+      const castPool = usefulCasts.length > 0 ? usefulCasts : casts;
       // Cast the biggest thing it can afford.
-      casts.sort((x, y) => {
+      castPool.sort((x, y) => {
         const mv = (c: Extract<Action, { type: 'castSpell' }>): number =>
-          manaValue(def(this.db, view.you.hand[c.handIndex]).cost) + (c.x ?? 0);
+          manaValue(def(this.db, view.you.hand[c.handIndex]).cost) +
+          (c.x ?? 0) +
+          (c.empowered ? empowerValue(this.db, view.you.hand[c.handIndex]) + 0.01 : 0);
         return mv(y as Extract<Action, { type: 'castSpell' }>) - mv(x as Extract<Action, { type: 'castSpell' }>);
       });
-      return casts[0];
+      return castPool[0];
     }
     return nonConcede.find((l) => l.type === 'passStep') ?? nonConcede[0];
   }
@@ -130,7 +150,13 @@ export class EasyAI implements AIPlayer {
     ).length;
     // All-in or nothing — the signature Easy weakness. `easyAllIn` slack lets
     // an aggressive Easy swing into slightly more blockers (default 0).
-    return myCreatures + this.pers.easyAllIn >= oppUntapped && myCreatures > 0 ? allIn : none;
+    const blockerDemand = allIn.attackers.reduce((n, iid) => {
+      return n + minimumBlockersForAttacker(view.battlefield, this.db, iid);
+    }, 0);
+    // Attack when the swing demands at least as many blockers as they have
+    // untapped (dreaded attackers demand two): the pre-dreaded gate
+    // generalized from attacker count to blocker demand.
+    return blockerDemand + this.pers.easyAllIn >= oppUntapped && myCreatures > 0 ? allIn : none;
   }
 
   private block(view: PlayerView): Action {
@@ -153,33 +179,55 @@ export class EasyAI implements AIPlayer {
       const candidates = options.filter(
         (o) => !usedBlockers.has(o.blocker) && o.canBlock.includes(attacker),
       );
-      let choice: number | undefined;
-      for (const c of candidates) {
-        const blk = getEffectiveStats(view.battlefield, this.db, c.blocker);
-        const kills = blk.attack >= atk.defense || blk.keywords.has('deathblade');
-        const survives = blk.defense > atk.attack && !atk.keywords.has('deathblade');
-        if (kills || survives) {
-          choice = c.blocker;
-          break;
+      let choices: number[] = [];
+      if (minimumBlockersForAttacker(view.battlefield, this.db, attacker) === 2) {
+        for (let i = 0; i < candidates.length && choices.length === 0; i++) {
+          const first = getEffectiveStats(view.battlefield, this.db, candidates[i].blocker);
+          for (let j = i + 1; j < candidates.length; j++) {
+            const second = getEffectiveStats(view.battlefield, this.db, candidates[j].blocker);
+            const kills = first.attack + second.attack >= atk.defense ||
+              first.keywords.has('deathblade') || second.keywords.has('deathblade');
+            // Commit the pair only when it kills; otherwise chump only when
+            // desperate (the single-block philosophy, pair-sized).
+            if (kills || desperate) {
+              choices = [candidates[i].blocker, candidates[j].blocker];
+              break;
+            }
+          }
+        }
+      } else {
+        for (const c of candidates) {
+          const blk = getEffectiveStats(view.battlefield, this.db, c.blocker);
+          const kills = blk.attack >= atk.defense || blk.keywords.has('deathblade');
+          const survives = blk.defense > atk.attack && !atk.keywords.has('deathblade');
+          if (kills || survives || (desperate && candidates.length > 0)) {
+            choices = [c.blocker];
+            break;
+          }
         }
       }
-      if (choice === undefined && desperate && candidates.length > 0) {
-        choice = candidates[0].blocker; // chump when about to die
-      }
-      if (choice !== undefined) {
-        blocks.push({ blocker: choice, attacker });
-        usedBlockers.add(choice);
+      if (choices.length > 0) {
+        for (const blocker of choices) {
+          blocks.push({ blocker, attacker });
+          usedBlockers.add(blocker);
+        }
         blockedAttackers.add(attacker);
       }
     }
     return { type: 'declareBlockers', blocks };
   }
 
-  private respond(legal: Action[]): Action {
+  private respond(view: PlayerView, legal: Action[]): Action {
     const pass = legal.find((l) => l.type === 'passResponse')!;
     if (rngFloat(this.rng) < this.pers.easyPassRate) return pass;
     const casts = legal.filter((l) => l.type === 'castSpell');
     if (casts.length === 0) return pass;
-    return casts[rngInt(this.rng, casts.length)];
+    const useful = casts.filter((cast) => {
+      const kind = removalKind(this.db, view.you.hand[cast.handIndex]);
+      if (kind !== 'massDestroy' && kind !== 'destroyNewest') return true;
+      return removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[cast.handIndex]) > 0;
+    });
+    if (useful.length === 0) return pass;
+    return useful[rngInt(this.rng, useful.length)];
   }
 }

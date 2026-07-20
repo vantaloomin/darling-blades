@@ -966,4 +966,15 @@ export const RAGNAROK = [
     rarity: 'c',
     flavor: 'Twice the swing, half the plan.',
   },
+  {
+    id: 'rg-yggdrasils-verdict',
+    name: "Yggdrasil's Verdict",
+    types: ['charm'],
+    subtypes: [],
+    cost: cost(1, 'G'),
+    colors: ['G'],
+    abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'destroyArtifactOrSeverEnchantment', to: 'target' }] }],
+    rarity: 'c',
+    flavor: 'Yggdrasil offers one ruling: roots stay, decorations do not.',
+  },
 ] as const satisfies readonly CardDef[];

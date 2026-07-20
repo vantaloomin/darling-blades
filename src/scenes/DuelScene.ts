@@ -38,10 +38,10 @@ import { Services } from '../meta/services';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
 import { previewCombat } from '../engine/combat/damage';
-import { eligibleAttackers, blockOptions } from '../engine/combat/legality';
+import { eligibleAttackers, blockOptions, minimumBlockersForAttacker } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
-import { manaSources, solveMana } from '../engine/mana';
+import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
 import { ensureSplitPip } from '../ui/ManaSymbols';
 import { getEffectiveStats, isSummoningSick } from '../engine/statics';
 import type { CardDef, Color, PlayerId, Permanent, TargetRef } from '../engine/types';
@@ -77,7 +77,7 @@ import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
 import { ModalGuard } from '../ui/Modal';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
-import { romanNumeral } from '../ui/rulesText';
+import { empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import { packRow, type RowPacking } from '../ui/rowPacking';
@@ -312,6 +312,8 @@ export class DuelScene extends Phaser.Scene {
   /** Graveyard-target chooser (Summon the Dead etc.): pick which creature to return. */
   private gravePicker: Phaser.GameObjects.Container | null = null;
   private gravePickerGuard = new ModalGuard();
+  private empowerChooser: Phaser.GameObjects.Container | null = null;
+  private empowerChooserGuard = new ModalGuard();
   /** Two-tap concede guard (settings.confirmDestructive); armed by the first tap. */
   private concedeArmed = false;
   private discardPicks = new Set<number>();
@@ -3416,9 +3418,17 @@ export class DuelScene extends Phaser.Scene {
       case 'declareAttackers':
         this.act({ type: 'declareAttackers', attackers: [...this.selectedAttackers] });
         break;
-      case 'declareBlockers':
+      case 'declareBlockers': {
+        // A lone blocker on a Dreaded attacker is a partial assignment the
+        // engine will reject; explain it by card name instead of submitting.
+        const short = this.dreadedShortfall();
+        if (short) {
+          this.showSkipNotice(`${short} can only be blocked by two or more creatures.`);
+          break;
+        }
         this.act({ type: 'declareBlockers', blocks: [...this.blockAssignments] });
         break;
+      }
       case 'respond':
       case 'endStepWindow':
         this.act({ type: 'passResponse' });
@@ -3539,6 +3549,18 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
 
+    // Empower choice comes first: the enumerator only emits the empowered
+    // variant when the extra cost is actually payable, so the chooser appears
+    // exactly when the option is real (user decision 2026-07-17).
+    if (casts.some((c) => c.empowered) && casts.some((c) => !c.empowered)) {
+      this.showEmpowerChooser(d, casts);
+      return;
+    }
+    this.continueCast(casts);
+  }
+
+  /** The cast flow after any Empower choice: act, grave-pick, or target. */
+  private continueCast(casts: Extract<Action, { type: 'castSpell' }>[]): void {
     const targeted = casts[0].targets !== undefined && casts[0].targets.length > 0;
     if (!targeted) {
       // untargeted; for X spells default to the biggest X
@@ -3591,10 +3613,30 @@ export class DuelScene extends Phaser.Scene {
         if (opt && opt.canBlock.includes(iid)) {
           this.blockAssignments.push({ blocker: this.pendingBlocker, attacker: iid });
           this.pendingBlocker = null;
+          // First blocker onto a Dreaded attacker: nudge for the second.
+          const assigned = this.blockAssignments.filter((b) => b.attacker === iid).length;
+          if (assigned === 1 && minimumBlockersForAttacker(st.battlefield, CARD_DB, iid) === 2) {
+            this.showSkipNotice(`${def(CARD_DB, perm.cardId).name} is Dreaded. Add a second blocker.`);
+          }
         }
       }
       this.sync();
     }
+  }
+
+  /** Name of a Dreaded attacker currently assigned exactly one blocker, if any. */
+  private dreadedShortfall(): string | null {
+    const st = this.duel.state;
+    const counts = new Map<number, number>();
+    for (const b of this.blockAssignments) counts.set(b.attacker, (counts.get(b.attacker) ?? 0) + 1);
+    for (const [attacker, n] of counts) {
+      const perm = st.battlefield.find((p) => p.iid === attacker);
+      if (!perm) continue;
+      if (n < minimumBlockersForAttacker(st.battlefield, CARD_DB, attacker)) {
+        return def(CARD_DB, perm.cardId).name;
+      }
+    }
+    return null;
   }
 
   /**
@@ -4089,6 +4131,99 @@ export class DuelScene extends Phaser.Scene {
     this.gravePicker.destroy();
     this.gravePicker = null;
     this.gravePickerGuard.close();
+    this.maybeAutoSkip();
+    this.endTurnTick();
+  }
+
+  /**
+   * Cast-or-Empower chooser. Shown only when both variants are in the legal
+   * list, which the enumerator guarantees means the extra cost is payable.
+   */
+  private showEmpowerChooser(
+    d: CardDef,
+    casts: Extract<Action, { type: 'castSpell' }>[],
+  ): void {
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(105);
+    const dim = this.add
+      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .setInteractive();
+    dim.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonReleased()) return;
+      this.closeEmpowerChooser(); // tap outside cancels the cast
+    });
+    c.add(dim);
+    c.add(
+      this.add
+        .text(width / 2, 130, 'Cast, or pay more to Empower?', {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '28px',
+          color: '#f0e6ff',
+        })
+        .setOrigin(0.5),
+    );
+    const v = new CardView(this, width / 2, 340).setScale(0.62);
+    v.setCard(d, { fx: 'none' });
+    c.add(v);
+    v.enableInput();
+    this.zoom.attach(v, d);
+
+    const pick = (empowered: boolean): void => {
+      const subset = casts.filter((cast) => (cast.empowered ?? false) === empowered);
+      this.closeEmpowerChooser();
+      if (subset.length > 0) this.continueCast(subset);
+    };
+    const button = (
+      x: number,
+      label: string,
+      bg: string,
+      onPick: () => void,
+    ): Phaser.GameObjects.Text => {
+      const t = this.add
+        .text(x, 545, label, {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '22px',
+          color: '#f0e6ff',
+          backgroundColor: bg,
+          padding: { x: 18, y: 10 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, t, (p) => {
+        if (p.rightButtonReleased()) return;
+        onPick();
+      });
+      inflateHitArea(t, 90, 60);
+      c.add(t);
+      return t;
+    };
+    const total = combineManaCosts(d.cost!, d.empower!.cost);
+    button(width / 2 - 170, `Cast ${manaCostText(d.cost!)}`, '#20303a', () => pick(false));
+    button(width / 2 + 170, `Empower ${manaCostText(total)}`, '#3a2030', () => pick(true));
+    const rider = empowerText(d);
+    if (rider) {
+      c.add(
+        this.add
+          .text(width / 2, 605, rider, {
+            fontFamily: 'Georgia, serif',
+            fontSize: '17px',
+            color: '#cdbfe0',
+            wordWrap: { width: 640 },
+            align: 'center',
+          })
+          .setOrigin(0.5, 0),
+      );
+    }
+    this.empowerChooser = c;
+    this.empowerChooserGuard.open(this.overlayGuardTargets());
+  }
+
+  private closeEmpowerChooser(): void {
+    if (!this.empowerChooser) return;
+    this.empowerChooser.destroy();
+    this.empowerChooser = null;
+    this.empowerChooserGuard.close();
     this.maybeAutoSkip();
     this.endTurnTick();
   }
