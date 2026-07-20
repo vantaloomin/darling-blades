@@ -51,12 +51,18 @@ const POOL_PITCH_X = 170;
 const POOL_PITCH_Y = 202;
 const POOL_BADGE_OFFSET_Y = -84;
 /** Touch profile: deck-list rows per page and their pitch (plan §1.4). */
-const TOUCH_DECK_ROWS = 2;
+const TOUCH_DECK_ROWS = 5;
 const TOUCH_DECK_PITCH = 44;
 /** Desktop profile: denser tap-to-remove rows, same paging model (no hard clip). */
-const DESKTOP_DECK_ROWS = 5;
+const DESKTOP_DECK_ROWS = 6;
 const DESKTOP_DECK_PITCH = 22;
-const DESKTOP_DECK_Y0 = 348;
+/**
+ * Inline basics end at y=296; their 44px hit target ends at 318. The list
+ * starts at 326, preserving the 8px group gap. Six 12px rows at 22px pitch
+ * end near 448, before the pager target begins at 492 - 22 = 470. A seventh
+ * would end near 470, so six is the maximum without consuming that clearance.
+ */
+const DESKTOP_DECK_Y0 = 326;
 /** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
 const DECK_PAGER_Y = 492;
 const DECK_STATS_Y = 528;
@@ -520,9 +526,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.renderDeck();
   }
 
-  private cycleLandStyle(basicId: BasicLandId): void {
+  private cycleLandStyle(basicId: BasicLandId, rerenderDeck = true): LandStyleId | null {
     const deck = this.activeSavedDeck();
-    if (!deck) return;
+    if (!deck) return null;
     const current = deck.landStyle?.[basicId] ?? null;
     const cycle: readonly (LandStyleId | null)[] = [null, ...LAND_STYLE_IDS];
     const next = cycle[(cycle.indexOf(current) + 1) % cycle.length];
@@ -531,7 +537,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     else delete styles[basicId];
     deck.landStyle = Object.keys(styles).length > 0 ? styles : null;
     Services.save.flush();
-    this.renderDeck();
+    if (rerenderDeck) this.renderDeck();
+    return next;
   }
 
   private landStyleControl(
@@ -539,6 +546,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     y: number,
     basicId: BasicLandId,
     style: LandStyleId | null,
+    onCycle: () => void = () => {
+      this.cycleLandStyle(basicId);
+    },
   ): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
     const background = this.add.graphics();
@@ -558,7 +568,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       );
       background.strokeRoundedRect(-20, -15, 40, 30, theme.radius.control);
     };
-    bindTapButton(this, zone, () => this.cycleLandStyle(basicId));
+    bindTapButton(this, zone, onCycle);
     zone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
       if (!pointer.wasTouch) {
         hovered = true;
@@ -572,6 +582,85 @@ export class DeckBuilderScene extends Phaser.Scene {
     container.add(icon ? [background, icon, zone] : [background, zone]);
     redraw();
     return container;
+  }
+
+  private showLandStylesModal(): void {
+    this.closeFilterPanel();
+    this.setSearchInputVisible(false);
+    this.zoom.setSuppressed(true);
+
+    const shell = modalShell(this, {
+      width: 620,
+      height: 520,
+      dimAlpha: 0.52,
+      depth: theme.depth.inspect,
+      tapDimToClose: false,
+      escToClose: true,
+      onClose: () => {
+        this.setSearchInputVisible(true);
+        this.zoom.setSuppressed(false);
+        this.renderDeck();
+      },
+    });
+    const overlay = shell.container;
+    const titleTrack = shell.tracks.titleTrack;
+    overlay.add(
+      this.add
+        .text(titleTrack.x, titleTrack.y + titleTrack.height / 2, 'Land styles', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: theme.colors.heading,
+        })
+        .setOrigin(0, 0.5),
+    );
+
+    const bounds = shell.contentBounds;
+    const rowPitch = 60;
+    const rowY0 = bounds.y + 26;
+    BASIC_LAND_IDS.forEach((id, i) => {
+      const d = byId(id);
+      const y = rowY0 + i * rowPitch;
+      const rowBg = themedPanel(this, bounds.x, y - 26, bounds.width, 52, {
+        alpha: theme.alpha.panel,
+        radius: theme.radius.control,
+      });
+      const name = this.add.text(bounds.x + 92, y, d.name, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        color: theme.colors.body,
+      }).setOrigin(0, 0.5);
+      overlay.add([rowBg, name]);
+
+      let dynamic: Phaser.GameObjects.Container | null = null;
+      const renderRow = (): void => {
+        dynamic?.destroy();
+        const style = this.activeSavedDeck()?.landStyle?.[id] ?? null;
+        const preview = makeCardThumb(this, bounds.x + 48, y, d, 0.095, style ?? undefined);
+        const cycler = this.landStyleControl(
+          bounds.x + bounds.width - 36,
+          y,
+          id,
+          style,
+          () => {
+            this.cycleLandStyle(id, false);
+            renderRow();
+          },
+        );
+        dynamic = this.add.container(0, 0, [preview, cycler]);
+        overlay.add(dynamic);
+      };
+      renderRow();
+    });
+
+    const footer = shell.tracks.footerTrack;
+    const close = themedButton(
+      this,
+      footer.x + footer.width / 2,
+      footer.y + footer.height / 2,
+      'Close',
+      { variant: 'primary', minWidth: 120, onTap: shell.close },
+    );
+    overlay.add(close.container);
   }
 
   /** ‹ N/M › deck-list pager, shared by both profiles; sits below the list. */
@@ -1087,8 +1176,17 @@ export class DeckBuilderScene extends Phaser.Scene {
         color: this.deck.length === RULES.deckSize ? theme.colors.success : theme.colors.gold,
       })
       .setOrigin(0, 0.5);
-    this.fitTextToWidth(title, 250);
+    this.fitTextToWidth(title, this.touch ? 130 : 250);
     this.rightPane.push(title);
+    if (this.touch) {
+      const landStylesBtn = themedButton(this, x0 + 200, 32, 'Land styles', {
+        variant: 'emphasis',
+        size: 'sm',
+        minWidth: 110,
+        onTap: () => this.showLandStylesModal(),
+      });
+      this.rightPane.push(landStylesBtn.container);
+    }
     // F15: deck picker (switch / new / copy / rename / delete).
     const decksBtn = themedButton(this, PANEL_RIGHT_X - 45, 32, '☰ Decks', {
       variant: 'emphasis',
@@ -1098,25 +1196,23 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     this.rightPane.push(decksBtn.container);
 
-    // The icon selector and ± controls keep 8px desktop and 12-16px touch
-    // isolation after their 44px minimum hit regions are applied.
-    const basicsPitch = this.touch ? 60 : 52;
+    // Touch restores the pre-feature five-row block. Desktop keeps the inline
+    // preview and selector at a 52px pitch, leaving 8px between 44px targets.
+    const basicsPitch = this.touch ? 40 : 52;
     BASIC_LAND_IDS.forEach((id, i) => {
       const d = byId(id);
-      const y = 88 + i * basicsPitch;
+      const y = (this.touch ? 78 : 88) + i * basicsPitch;
       const n = this.countIn(this.deck, id);
       const landStyle = active?.landStyle?.[id] ?? null;
       const row = this.add
         .text(x0, y, `${d.name}: ${n}`, {
           fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
+          fontSize: `${this.touch ? theme.type.label : theme.type.caption}px`,
           color: theme.colors.body,
         })
         .setOrigin(0, 0.5);
-      this.fitTextToWidth(row, 76);
-      const preview = makeCardThumb(this, x0 + 94, y, d, 0.095, landStyle ?? undefined);
-      const style = this.landStyleControl(x0 + 132, y, id, landStyle);
-      const minus = themedButton(this, PANEL_RIGHT_X - 149, y, '−', {
+      if (!this.touch) this.fitTextToWidth(row, 76);
+      const minus = themedButton(this, PANEL_RIGHT_X - (this.touch ? 145 : 149), y, '−', {
         variant: 'danger',
         size: 'sm',
         minWidth: 90,
@@ -1132,7 +1228,13 @@ export class DeckBuilderScene extends Phaser.Scene {
           this.renderDeck();
         },
       });
-      this.rightPane.push(row, preview, style, minus.container, plus.container);
+      this.rightPane.push(row);
+      if (!this.touch) {
+        const preview = makeCardThumb(this, x0 + 94, y, d, 0.095, landStyle ?? undefined);
+        const style = this.landStyleControl(x0 + 132, y, id, landStyle);
+        this.rightPane.push(preview, style);
+      }
+      this.rightPane.push(minus.container, plus.container);
     });
 
     // nonbasic list grouped with counts
@@ -1192,7 +1294,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       // instead of the hard clip.
       const pages = deckPageCount(entries.length, TOUCH_DECK_ROWS);
       this.deckPage = clampDeckPage(this.deckPage, entries.length, TOUCH_DECK_ROWS);
-      const listY0 = 380;
+      const listY0 = 270;
       deckPageSlice(entries, this.deckPage, TOUCH_DECK_ROWS).forEach(([id, n], i) => {
           const d = def(CARD_DB, id);
           const y = listY0 + i * TOUCH_DECK_PITCH;
