@@ -3,6 +3,7 @@ import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { Art } from '../art/ArtResolver';
 import { SET_ICON_PATHS } from '../art/setIcons';
+import { SET_TITLES } from '../data/setTitles';
 import { RULES } from '../config/rules';
 import { heroById } from '../data/heroes';
 import { ALL_CARDS, CARD_DB, byId } from '../data/catalog';
@@ -300,11 +301,11 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters'>[] = [
       { value: 'all', label: 'All Sets' },
-      { value: 'base', label: 'Core Set' },
-      { value: 'ragnarok', label: 'Ragnarök' },
-      { value: 'celtic-fae', label: 'Celtic Fae' },
-      { value: 'arthurian-court', label: 'Arthurian Court' },
-      { value: 'gothic-monsters', label: 'Gothic Monsters' },
+      { value: 'base', label: SET_TITLES.base },
+      { value: 'ragnarok', label: SET_TITLES.ragnarok },
+      { value: 'celtic-fae', label: SET_TITLES['celtic-fae'] },
+      { value: 'arthurian-court', label: SET_TITLES['arthurian-court'] },
+      { value: 'gothic-monsters', label: SET_TITLES['gothic-monsters'] },
     ];
     mk(158, 'Set', setOpts, () => this.filterState.set, (v) => (this.filterState.set = v));
 

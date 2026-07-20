@@ -55,7 +55,7 @@ export const DECK_INFO: Record<string, DeckInfo> = {
   },
   'theme-celtic-fae': {
     colors: 'U/B/G',
-    archetype: 'Celtic Fae tempo-control',
+    archetype: 'Silver Veil tempo-control',
     plays:
       'Evasive fae chip in while Foresee smooths your draws and bounce effects hold the board back. Every turn is a tempo decision; this is the highest-skill deck in the shop.',
     featured: ['cf-morrigan-black-wing', 'cf-selkie-tide-queen', 'cf-bargain-for-time'],

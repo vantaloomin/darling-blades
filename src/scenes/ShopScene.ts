@@ -4,6 +4,7 @@ import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { DECK_INFO } from '../data/deckInfo';
+import { SET_TITLES } from '../data/setTitles';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue, type CardDef } from '../engine/types';
@@ -485,13 +486,13 @@ export class ShopScene extends Phaser.Scene {
   // --- Boosters tab ---------------------------------------------------------
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
-    this.buildPackSku(group, 128, 'Core Set', 'packart', ECONOMY.packPrice, 'base', () =>
+    this.buildPackSku(group, 128, SET_TITLES.base, 'packart', ECONOMY.packPrice, 'base', () =>
       this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
     );
     this.buildPackSku(
       group,
       384,
-      'Ragnarök',
+      SET_TITLES.ragnarok,
       'packart-ragnarok',
       ECONOMY.ragnarokPackPrice,
       'ragnarok',
@@ -500,7 +501,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       640,
-      'Silver Veil',
+      SET_TITLES['celtic-fae'],
       'packart-celtic-fae',
       ECONOMY.celticFaePackPrice,
       'celtic-fae',
@@ -509,7 +510,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       896,
-      'Grail Oath',
+      SET_TITLES['arthurian-court'],
       'packart-arthurian-court',
       ECONOMY.arthurianCourtPackPrice,
       'arthurian-court',
@@ -518,7 +519,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       1152,
-      'Nocturne Manor',
+      SET_TITLES['gothic-monsters'],
       'packart-gothic-monsters',
       ECONOMY.gothicMonstersPackPrice,
       'gothic-monsters',

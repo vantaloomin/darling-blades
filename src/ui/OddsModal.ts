@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { DROPS } from '../config/rules';
+import { SET_TITLES } from '../data/setTitles';
 import { modalGuardTarget } from './Modal';
 import { OverlayCoordinator } from './OverlayCoordinator';
 import { measuredRowsLayout } from './layout';
@@ -21,11 +22,11 @@ interface OddsSection {
 }
 
 const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
-  base: { packName: 'Core Set', setName: 'Core Set' },
-  ragnarok: { packName: 'Ragnarök', setName: 'Ragnarök' },
-  'celtic-fae': { packName: 'Silver Veil', setName: 'Celtic Fae' },
-  'arthurian-court': { packName: 'Grail Oath', setName: 'Arthurian Court' },
-  'gothic-monsters': { packName: 'Nocturne Manor', setName: 'Gothic Monsters' },
+  base: { packName: SET_TITLES.base, setName: SET_TITLES.base },
+  ragnarok: { packName: SET_TITLES.ragnarok, setName: SET_TITLES.ragnarok },
+  'celtic-fae': { packName: SET_TITLES['celtic-fae'], setName: SET_TITLES['celtic-fae'] },
+  'arthurian-court': { packName: SET_TITLES['arthurian-court'], setName: SET_TITLES['arthurian-court'] },
+  'gothic-monsters': { packName: SET_TITLES['gothic-monsters'], setName: SET_TITLES['gothic-monsters'] },
 };
 
 const TIER_LABELS: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };
