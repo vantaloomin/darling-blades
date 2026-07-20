@@ -545,7 +545,7 @@ export class ShopScene extends Phaser.Scene {
     // Pool-first disclosure: slot odds are identical across boosters, so the
     // pool is the real decision variable between tiles.
     const pool = packPoolSummary(Services.save.data, CARD_DB, sku === 'base' ? undefined : sku);
-    this.add
+    const poolCaption = this.add
       .text(x, 204, `${pool.ownedDistinct}/${pool.poolSize} Owned`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
@@ -570,16 +570,18 @@ export class ShopScene extends Phaser.Scene {
       minWidth: 180,
       onTap: onBuy,
     });
-    // Clear the centered title's right edge plus an isolation gap; the fixed
-    // 96px offset let long titles run under the bubble (design-system.md).
-    const infoX = Math.max(x + theme.space(24), x + title.width / 2 + theme.space(5));
+    // The bubble rides the short pool caption, not the title: wide theme
+    // titles (Nocturne Manor) pushed a title-anchored bubble to the screen
+    // edge. The caption is data-bounded, so the edge stays clear.
+    const infoX = x + poolCaption.width / 2 + theme.space(5);
+    const infoY = poolCaption.y;
     const infoBg = this.add.graphics();
     infoBg.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
-    infoBg.fillCircle(infoX, title.y, theme.space(3));
+    infoBg.fillCircle(infoX, infoY, theme.space(3));
     infoBg.lineStyle(theme.control.borderWidth, colorInt(theme.colors.gold), theme.alpha.chrome);
-    infoBg.strokeCircle(infoX, title.y, theme.space(3));
+    infoBg.strokeCircle(infoX, infoY, theme.space(3));
     const info = this.add
-      .text(infoX, title.y, 'i', {
+      .text(infoX, infoY, 'i', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.body}px`,
         fontStyle: theme.weight.w700,
@@ -592,7 +594,7 @@ export class ShopScene extends Phaser.Scene {
     bindTapButton(this, pack, onBuy);
     this.skuButtons.push({ btn: buyBtn, price });
     this.shopInteractiveTargets.push(pack, buyBtn.inputZone, info);
-    group.add([title, infoBg, info, pack, buyBtn.container]);
+    group.add([title, poolCaption, infoBg, info, pack, buyBtn.container]);
   }
 
   /** F10 bulk-buy quantity selector (×1 / ×5 / ×10), added to `group`. */
