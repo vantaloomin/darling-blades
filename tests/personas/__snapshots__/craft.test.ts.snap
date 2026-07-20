@@ -1,0 +1,139 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`greedy persona builder: 'attrition' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
+{
+  "curve": {
+    "early": 15,
+    "late": 4,
+    "mid": 17,
+  },
+  "lands": 24,
+  "maxNonbasicCopies": 4,
+  "nonlands": 36,
+  "roles": {
+    "draw": 4,
+    "finishers": 4,
+    "interaction": 4,
+    "lands": 24,
+    "removal": 10,
+    "threats": 14,
+  },
+  "total": 60,
+  "uniqueCards": 13,
+}
+`;
+
+exports[`greedy persona builder: 'burn' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
+{
+  "curve": {
+    "early": 26,
+    "late": 0,
+    "mid": 10,
+  },
+  "lands": 24,
+  "maxNonbasicCopies": 4,
+  "nonlands": 36,
+  "roles": {
+    "draw": 2,
+    "finishers": 4,
+    "interaction": 4,
+    "lands": 24,
+    "removal": 8,
+    "threats": 18,
+  },
+  "total": 60,
+  "uniqueCards": 12,
+}
+`;
+
+exports[`greedy persona builder: 'draw-go' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
+{
+  "curve": {
+    "early": 12,
+    "late": 6,
+    "mid": 18,
+  },
+  "lands": 24,
+  "maxNonbasicCopies": 4,
+  "nonlands": 36,
+  "roles": {
+    "draw": 8,
+    "finishers": 6,
+    "interaction": 10,
+    "lands": 24,
+    "removal": 6,
+    "threats": 6,
+  },
+  "total": 60,
+  "uniqueCards": 13,
+}
+`;
+
+exports[`greedy persona builder: 'midrange' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
+{
+  "curve": {
+    "early": 22,
+    "late": 0,
+    "mid": 16,
+  },
+  "lands": 22,
+  "maxNonbasicCopies": 4,
+  "nonlands": 38,
+  "roles": {
+    "draw": 4,
+    "finishers": 4,
+    "interaction": 6,
+    "lands": 22,
+    "removal": 8,
+    "threats": 16,
+  },
+  "total": 60,
+  "uniqueCards": 12,
+}
+`;
+
+exports[`greedy persona builder: 'reanimator' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
+{
+  "curve": {
+    "early": 20,
+    "late": 10,
+    "mid": 6,
+  },
+  "lands": 24,
+  "maxNonbasicCopies": 4,
+  "nonlands": 36,
+  "roles": {
+    "draw": 6,
+    "finishers": 6,
+    "interaction": 6,
+    "lands": 24,
+    "removal": 4,
+    "threats": 14,
+  },
+  "total": 60,
+  "uniqueCards": 12,
+}
+`;
+
+exports[`greedy persona builder: 'weenie' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
+{
+  "curve": {
+    "early": 24,
+    "late": 2,
+    "mid": 10,
+  },
+  "lands": 24,
+  "maxNonbasicCopies": 4,
+  "nonlands": 36,
+  "roles": {
+    "draw": 2,
+    "finishers": 4,
+    "interaction": 4,
+    "lands": 24,
+    "removal": 4,
+    "threats": 22,
+  },
+  "total": 60,
+  "uniqueCards": 12,
+}
+`;
