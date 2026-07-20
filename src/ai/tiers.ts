@@ -60,3 +60,14 @@ export function floorTier(floor: number): TowerTier {
   if (floor >= FLOOR_TIERS.length) return 6;
   return FLOOR_TIERS[Math.max(1, Math.trunc(floor)) - 1] ?? 1;
 }
+
+/** The base brain used for stats and difficulty-labelled Tower UI. */
+export function floorBrain(floor: number): Difficulty {
+  return TIER_DEFS[floorTier(floor)].brain;
+}
+
+/** One pip per base-brain band; decision noise stays an invisible tier dial. */
+export function floorDifficultyPips(floor: number): 1 | 2 | 3 {
+  const brain = floorBrain(floor);
+  return brain === 'easy' ? 1 : brain === 'medium' ? 2 : 3;
+}

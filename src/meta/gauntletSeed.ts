@@ -54,3 +54,50 @@ export function rosterOrder(seed: number, count: number): number[] {
   const order = Array.from({ length: count }, (_, index) => index);
   return rngShuffle(createRngState(seed), order);
 }
+
+/** The roster identity persisted on an active v22 Tower run. */
+export interface GauntletRosterStamp {
+  rosterDay?: number;
+  rosterSeed?: number;
+}
+
+export interface ResolvedGauntletRoster {
+  rosterDay: number;
+  rosterSeed: number;
+  order: number[];
+  /** True for the 0/0 legacy sentinel, which keeps AVATARS-by-tier order. */
+  fixed: boolean;
+}
+
+/**
+ * Resolve the roster shown and played by the Tower. An active run always wins
+ * over today's date so reloads and local midnight cannot change its opponents.
+ * Migrated or staging-gap runs use the 0/0 sentinel and retain fixed order.
+ */
+export function resolveGauntletRoster(
+  run: GauntletRosterStamp | null,
+  todayDay: number,
+  count: number,
+): ResolvedGauntletRoster {
+  if (run) {
+    const rosterDay = run.rosterDay ?? 0;
+    const rosterSeed = run.rosterSeed ?? 0;
+    if (rosterDay <= 0 || rosterSeed <= 0) {
+      return {
+        rosterDay: 0,
+        rosterSeed: 0,
+        order: Array.from({ length: count }, (_, index) => index),
+        fixed: true,
+      };
+    }
+    return { rosterDay, rosterSeed, order: rosterOrder(rosterSeed, count), fixed: false };
+  }
+
+  const rosterSeed = daySeed(todayDay);
+  return {
+    rosterDay: todayDay,
+    rosterSeed,
+    order: rosterOrder(rosterSeed, count),
+    fixed: false,
+  };
+}

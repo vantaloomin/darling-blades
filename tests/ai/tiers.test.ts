@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { tierMonotonicityFlags } from '../../scripts/balance-matrix';
 import { HardAI } from '../../src/ai/HardAI';
-import { buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../../src/ai/tiers';
+import {
+  buildTierAI,
+  floorBrain,
+  floorDifficultyPips,
+  floorTier,
+  TIER_DEFS,
+  type TowerTier,
+} from '../../src/ai/tiers';
 import { TEST_DB } from '../helpers';
 
 describe('tower AI tiers', () => {
@@ -37,6 +44,19 @@ describe('tower AI tiers', () => {
     ]);
     expect(floorTier(17)).toBe(6);
     expect(floorTier(1000)).toBe(6);
+  });
+
+  it('derives difficulty labels and pips from the floor brain', () => {
+    expect(Array.from({ length: 16 }, (_, i) => floorBrain(i + 1))).toEqual([
+      'easy', 'easy', 'easy', 'easy', 'easy', 'easy',
+      'medium', 'medium', 'medium', 'medium', 'medium', 'medium',
+      'hard', 'hard', 'hard', 'hard',
+    ]);
+    expect(Array.from({ length: 16 }, (_, i) => floorDifficultyPips(i + 1))).toEqual([
+      1, 1, 1, 1, 1, 1,
+      2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3,
+    ]);
   });
 
   it('accepts an exact 4pp matrix gap and flags a smaller adjacent gap', () => {

@@ -1,4 +1,5 @@
 import type { Difficulty } from './Economy';
+import { floorBrain } from '../ai/tiers';
 
 export interface PracticeDuelLaunchData {
   opponentId: string;
@@ -11,13 +12,16 @@ export function practiceDuelLaunchData(opponentId: string, difficulty: Difficult
 }
 
 /**
- * Replay metadata is authoritative. A live Practice choice overrides an
- * avatar's tower tier; Gauntlet launches omit it and inherit the avatar tier.
+ * A Tower floor is authoritative because it sets the brain independently of
+ * the assigned avatar. Outside the Tower, replay metadata and explicit
+ * Practice choices keep their existing precedence.
  */
 export function resolveDuelDifficulty(
   replayDifficulty: Difficulty | undefined,
   requestedDifficulty: Difficulty | undefined,
   opponentDifficulty: Difficulty | undefined,
+  gauntletRung: number | null = null,
 ): Difficulty {
+  if (gauntletRung !== null) return floorBrain(gauntletRung);
   return replayDifficulty ?? requestedDifficulty ?? opponentDifficulty ?? 'easy';
 }

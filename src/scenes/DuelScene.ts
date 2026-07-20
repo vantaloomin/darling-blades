@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
 import type { AIPlayer } from '../ai/AIPlayer';
+import { buildTierAI, floorTier } from '../ai/tiers';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { buildAI } from '../ai/personality';
 import { ECONOMY, RULES } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
-import { avatarById, avatarForRung, type Avatar } from '../data/opponents';
+import { avatarById, avatarForRung, AVATARS, type Avatar } from '../data/opponents';
 import { draftPersonaById, type DraftPersona } from '../data/draftPersonas';
 import { heroById } from '../data/heroes';
 import type { SaveData } from '../meta/SaveManager';
@@ -21,7 +22,7 @@ import {
 import { ownedVariantEntries } from '../meta/collectionFilter';
 import { resolveDuelDifficulty } from '../meta/duelSetup';
 import type { CardVariant } from '../meta/variants';
-import { rungSeed } from '../meta/gauntletSeed';
+import { localDateKey, resolveGauntletRoster, rungSeed } from '../meta/gauntletSeed';
 import { LIMITED_MATCHES, limitedDuelData, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
 import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
 import {
@@ -242,6 +243,8 @@ export class DuelScene extends Phaser.Scene {
   private difficulty: Difficulty = 'easy';
   private opponent: Avatar | null = null; // set in gauntlet mode
   private gauntletRung: number | null = null;
+  /** Live run roster cached before results can clear the run from the save. */
+  private gauntletRosterOrder: readonly number[] | null = null;
   private views = new Map<number, BoardCardView>(); // battlefield iid → tile
   private handViews: CardView[] = [];
   /** Last rendered hand, retained briefly only so rebuild exits can read as motion. */
@@ -434,10 +437,12 @@ export class DuelScene extends Phaser.Scene {
         ? avatarById(data.opponentId)
         : null;
     this.gauntletRung = data.replay?.context.gauntletRung ?? data.gauntletRung ?? null;
+    this.gauntletRosterOrder = null;
     this.difficulty = resolveDuelDifficulty(
       data.replay?.context.difficulty,
       data.difficulty,
       this.opponent?.difficulty,
+      this.gauntletRung,
     );
     this.tutorial = data.tutorial ?? false;
     this.limited = data.limited ?? null;
@@ -538,6 +543,13 @@ export class DuelScene extends Phaser.Scene {
     this.arrows = this.add.graphics().setDepth(50);
 
     const save = Services.save.data;
+    if (!this.replayMode && this.gauntletRung !== null && save.gauntlet.run) {
+      this.gauntletRosterOrder = resolveGauntletRoster(
+        save.gauntlet.run,
+        localDateKey(Date.now()),
+        AVATARS.length,
+      ).order;
+    }
     // Tower (gauntlet) duels derive their seed from the run's fixed seed, so the
     // whole run is one reproducible playthrough (src/meta/gauntletSeed.ts);
     // practice duels stay freshly random each time.
@@ -586,9 +598,11 @@ export class DuelScene extends Phaser.Scene {
       // Every normal duel path, including Limited and gauntlet, opts in.
       playDrawChoice: !this.tutorial,
     });
-    this.ai =
-      data.aiOverride ??
-      buildAI(this.difficulty, CARD_DB, seed ^ 0x5eed, this.opponent?.personality ?? this.limitedPersona?.personality);
+    const aiSeed = seed ^ 0x5eed;
+    const personality = this.opponent?.personality ?? this.limitedPersona?.personality;
+    this.ai = data.aiOverride ?? (this.gauntletRung !== null
+      ? buildTierAI(floorTier(this.gauntletRung), CARD_DB, aiSeed, personality)
+      : buildAI(this.difficulty, CARD_DB, aiSeed, personality));
     // Deterministic replay recording (1.2): every non-tutorial duel records
     // its inputs (seed + decks + every successful submit); the log persists
     // only when the duel completes (showResults). The tutorial is scripted
@@ -976,6 +990,11 @@ export class DuelScene extends Phaser.Scene {
     } catch {
       return null;
     }
+  }
+
+  private avatarForGauntletFloor(floor: number): Avatar {
+    const rosterIndex = this.gauntletRosterOrder?.[floor - 1];
+    return rosterIndex === undefined ? avatarForRung(floor) : (AVATARS[rosterIndex] ?? avatarForRung(floor));
   }
 
   private addLifeBadgePlate(x: number, y: number): void {
@@ -4929,7 +4948,7 @@ export class DuelScene extends Phaser.Scene {
     if (reward.nextRung !== null) {
       const next = reward.nextRung;
       mk(520, 'Next Foe', 'primary', () =>
-        this.scene.restart({ opponentId: avatarForRung(next).id, gauntletRung: next }),
+        this.scene.restart({ opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next }),
       );
       mk(760, 'Tower', 'ghost', () => this.scene.start('Gauntlet'));
     }
@@ -5040,7 +5059,7 @@ export class DuelScene extends Phaser.Scene {
             : 'unreached';
       this.addGauntletRecapPortrait(
         c,
-        avatarForRung(rung),
+        this.avatarForGauntletFloor(rung),
         rung,
         x0 + col * xPitch,
         y0 + row * yPitch,

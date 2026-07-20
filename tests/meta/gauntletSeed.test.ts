@@ -3,6 +3,7 @@ import {
   clampSeed,
   daySeed,
   localDateKey,
+  resolveGauntletRoster,
   rosterOrder,
   rungSeed,
 } from '../../src/meta/gauntletSeed';
@@ -109,4 +110,43 @@ describe('rosterOrder', () => {
       );
     });
   }
+});
+
+describe('resolveGauntletRoster', () => {
+  const todayDay = 20260720;
+  const count = 14;
+
+  it("uses today's full seeded shuffle before a run starts", () => {
+    expect(resolveGauntletRoster(null, todayDay, count)).toEqual({
+      rosterDay: todayDay,
+      rosterSeed: daySeed(todayDay),
+      order: rosterOrder(daySeed(todayDay), count),
+      fixed: false,
+    });
+  });
+
+  it("gives an active run's stamped roster precedence across midnight", () => {
+    const rosterDay = 20260719;
+    const rosterSeed = daySeed(rosterDay);
+    const resolved = resolveGauntletRoster({ rosterDay, rosterSeed }, todayDay, count);
+
+    expect(resolved).toEqual({
+      rosterDay,
+      rosterSeed,
+      order: rosterOrder(rosterSeed, count),
+      fixed: false,
+    });
+    expect(resolved.order).not.toEqual(rosterOrder(daySeed(todayDay), count));
+  });
+
+  it('keeps sentinel and unstamped active runs in fixed AVATARS-by-tier order', () => {
+    const fixed = Array.from({ length: count }, (_, index) => index);
+    expect(resolveGauntletRoster({ rosterDay: 0, rosterSeed: 0 }, todayDay, count)).toEqual({
+      rosterDay: 0,
+      rosterSeed: 0,
+      order: fixed,
+      fixed: true,
+    });
+    expect(resolveGauntletRoster({}, todayDay, count).order).toEqual(fixed);
+  });
 });
