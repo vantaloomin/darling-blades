@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.3.md, docs/land-art.md, src/art/ArtResolver.ts, src/ui/CardView.ts, src/scenes/DeckBuilderScene.ts, src/meta/SaveManager.ts · last-verified: 2026-07-20 · concretion of Pillar 2 — design proposal awaiting user answers to the flagged items; build follows the approved spec -->
+<!-- source-of-truth: docs/plan-1.3.md, docs/land-art.md, src/art/ArtResolver.ts, src/ui/CardView.ts, src/scenes/DeckBuilderScene.ts, src/meta/SaveManager.ts · last-verified: 2026-07-20 · concretion of Pillar 2 — flags ANSWERED 2026-07-20 (per-basic granularity, gallery curation done, opponents default, set icons for theming); build in progress -->
 
 # 1.3 Pillar 2 concretion - deck-builder land-style selector
 
@@ -75,7 +75,21 @@ save/copy (exists since v22), and a manifest-integrity check that every
 via the preview probe: builder cycler writes the save, duel bakes the
 styled texture for the human side only.
 
-## 6. Flagged for the user before the build
+## 6. Flag resolutions (user, 2026-07-20)
+
+1. **Per BASIC TYPE** (user overrode the per-deck proposal): each basics
+   row carries its own style; `SavedDeck.landStyle` becomes a per-basic
+   map (`Record<basicId, style> | null`), amended INSIDE the unreleased
+   v22 migration so 1.3 still ships one save bump.
+2. **Curated via gallery**: picks (v-number per basic-theme) =
+   plains v1/v2/v1, island v2/v1/v2, swamp v2/v1/v1, mountain v1/v1/v2,
+   forest v1/v1/v1 (base/ragnarok/celtic-fae order); the 15 files are
+   staged as `land-<basic>--<style>.png`.
+3. **Opponents stay default.**
+4. **No invented style names**: the selector indicates the theme with
+   the SET ICON (src/art/setIcons.ts glyphs); default shows no icon.
+
+## 7. Original flags (for the record)
 
 1. **Granularity: one style per deck** (proposed) - or per basic type?
 2. **Curation**: user picks v1/v2 per (basic, theme) from a staged
