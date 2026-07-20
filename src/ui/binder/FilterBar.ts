@@ -6,6 +6,8 @@ import {
   type SortMode,
 } from '../../meta/collectionFilter';
 import { TIER_LABEL } from '../../meta/variants';
+import { SET_TITLES } from '../../data/setTitles';
+import { theme } from '../theme';
 import { Dropdown, type DropdownOption } from '../Dropdown';
 import { roundedTrigger, type RoundedTrigger } from '../themeWidgets';
 import { TIER_TEXT_COLOR } from '../theme';
@@ -54,6 +56,7 @@ export class FilterBar {
         minW,
         onSelect: (v) => {
           set(v);
+          this.reflow();
           change();
         },
         onOpen: () => this.closeAllExcept(dd as unknown as Dropdown<string>),
@@ -64,11 +67,11 @@ export class FilterBar {
 
     const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters'>[] = [
       { value: 'all', label: 'All Sets' },
-      { value: 'base', label: 'Core Set' },
-      { value: 'ragnarok', label: 'Ragnar\u00f6k' },
-      { value: 'celtic-fae', label: 'Celtic Fae' },
-      { value: 'arthurian-court', label: 'Arthurian Court' },
-      { value: 'gothic-monsters', label: 'Gothic Monsters' },
+      { value: 'base', label: SET_TITLES.base },
+      { value: 'ragnarok', label: SET_TITLES.ragnarok },
+      { value: 'celtic-fae', label: SET_TITLES['celtic-fae'] },
+      { value: 'arthurian-court', label: SET_TITLES['arthurian-court'] },
+      { value: 'gothic-monsters', label: SET_TITLES['gothic-monsters'] },
     ];
     mk(55, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
 
@@ -109,6 +112,7 @@ export class FilterBar {
       { value: 'name', label: SORT_LABEL.name },
     ];
     mk(775, 'Sort', sortOpts, () => state.sort, (v) => (state.sort = v), 92);
+    this.reflow();
 
     // Owned toggle - a rounded shared trigger, since it is boolean, not a select.
     this.ownedPill = roundedTrigger(scene, 955, y, '', {
@@ -131,6 +135,21 @@ export class FilterBar {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       for (const dd of this.dropdowns) dd.teardown();
     });
+  }
+
+  /**
+   * Interactive isolation for the chip row: selected labels change trigger
+   * widths, so chips reflow left-to-right keeping at least 8px between
+   * INFLATED hit rects (design-system.md; the first chip anchors the row).
+   */
+  private reflow(): void {
+    const gap = theme.space(2);
+    let cursor: number | null = null;
+    for (const dd of this.dropdowns) {
+      const hit = dd.hitBounds();
+      if (cursor !== null) dd.setX(cursor - hit.x);
+      cursor = dd.containerX + hit.x + hit.width + gap;
+    }
   }
 
   private closeAllExcept(keep: Dropdown<string>): void {

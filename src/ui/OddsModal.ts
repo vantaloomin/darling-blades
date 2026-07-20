@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { DROPS } from '../config/rules';
+import { SET_TITLES } from '../data/setTitles';
 import { modalGuardTarget } from './Modal';
 import { OverlayCoordinator } from './OverlayCoordinator';
 import { measuredRowsLayout } from './layout';
@@ -21,11 +22,11 @@ interface OddsSection {
 }
 
 const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
-  base: { packName: 'Core Set', setName: 'Core Set' },
-  ragnarok: { packName: 'Ragnarök', setName: 'Ragnarök' },
-  'celtic-fae': { packName: 'Celtic Fae', setName: 'Celtic Fae' },
-  'arthurian-court': { packName: 'Arthurian Court', setName: 'Arthurian Court' },
-  'gothic-monsters': { packName: 'Gothic Monsters', setName: 'Gothic Monsters' },
+  base: { packName: SET_TITLES.base, setName: SET_TITLES.base },
+  ragnarok: { packName: SET_TITLES.ragnarok, setName: SET_TITLES.ragnarok },
+  'celtic-fae': { packName: SET_TITLES['celtic-fae'], setName: SET_TITLES['celtic-fae'] },
+  'arthurian-court': { packName: SET_TITLES['arthurian-court'], setName: SET_TITLES['arthurian-court'] },
+  'gothic-monsters': { packName: SET_TITLES['gothic-monsters'], setName: SET_TITLES['gothic-monsters'] },
 };
 
 const TIER_LABELS: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };
@@ -55,6 +56,7 @@ export function createOddsModal(
   scene: Phaser.Scene,
   coordinator: OverlayCoordinator,
   sku: BoosterSku,
+  pool: { poolSize: number; ownedDistinct: number },
   guardTargets: readonly Phaser.GameObjects.GameObject[],
   onClose: () => void,
 ): ModalShell {
@@ -124,15 +126,37 @@ export function createOddsModal(
       wordWrap: { width: content.width },
     })
     .setOrigin(0, 0);
-  const source = scene.add
-    .text(content.x, content.y + lead.height + theme.space(1), `This pack pulls from the ${meta.setName} card pool.`, {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.caption}px`,
-      color: theme.colors.muted,
-      wordWrap: { width: content.width },
-    })
+  // Pool-first summary band: rates are global, the pool is what differs.
+  const poolLine = scene.add
+    .text(
+      content.x,
+      content.y + lead.height + theme.space(1),
+      `Pool: ${pool.poolSize} cards · You own ${pool.ownedDistinct} of ${pool.poolSize}`,
+      {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.gold,
+        wordWrap: { width: content.width },
+      },
+    )
     .setOrigin(0, 0);
-  container.add([lead, source]);
+  const source = scene.add
+    .text(
+      content.x,
+      poolLine.y + poolLine.height + theme.space(1),
+      sku === 'base'
+        ? 'Drop rates are the same in every booster. This pack pulls from every set.'
+        : `Drop rates are the same in every booster. This pack pulls only ${meta.setName} cards.`,
+      {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
+        wordWrap: { width: content.width },
+      },
+    )
+    .setOrigin(0, 0);
+  container.add([lead, poolLine, source]);
 
   const sectionTop = source.y + source.height + theme.space(3);
   const columnWidth = (content.width - columnGap * (sections.length - 1)) / sections.length;
