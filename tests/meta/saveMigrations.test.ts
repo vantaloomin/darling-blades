@@ -21,7 +21,7 @@ describe('SaveData v19 migration', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 18, limited: oldLimited }));
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(21);
+    expect(manager.data.version).toBe(22);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
     expect(manager.data.createdAt).toBe(123);
   });
@@ -36,7 +36,7 @@ describe('SaveData v19 migration', () => {
     );
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(21);
+    expect(manager.data.version).toBe(22);
     expect(manager.data.gold).toBe(777);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
   });
@@ -51,7 +51,7 @@ describe('SaveData v20 migration (deterministic replays)', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 19 }));
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(21);
+    expect(manager.data.version).toBe(22);
     expect(manager.data.replays).toEqual([]);
     expect(manager.data.gold).toBe(555);
     expect(manager.data.createdAt).toBe(123);
@@ -69,7 +69,7 @@ describe('SaveData v20 migration (deterministic replays)', () => {
     );
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(21);
+    expect(manager.data.version).toBe(22);
     expect(manager.data.replays).toEqual([]);
   });
 });
@@ -84,7 +84,7 @@ describe('SaveData v21 migration (Full Art variant axis)', () => {
 
     const manager = new SaveManager(storage, 456);
 
-    expect(manager.data.version).toBe(21);
+    expect(manager.data.version).toBe(22);
     expect(manager.data.collection.bear).toBe(3);
     expect(manager.data.collectionVariants.bear).toEqual({
       [variantKey(PLAIN_VARIANT)]: 2,
@@ -94,5 +94,51 @@ describe('SaveData v21 migration (Full Art variant axis)', () => {
       PLAIN_VARIANT,
       { frame: 'gold', holo: 'void', fullArt: false },
     ]);
+  });
+});
+
+describe('SaveData v22 migration (tower roster and deck land style)', () => {
+  it('preserves an active v21 run with the legacy roster sentinel and defaults saved decks', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123);
+    const oldRun = { rung: 7, startedAt: 111, seed: 222 };
+    const oldDecks = [
+      { id: 'deck-1', name: 'First', cards: ['bear'], heroCardId: 'bear' },
+      { id: 'deck-2', name: 'Second', cards: ['wolf'], heroCardId: null },
+    ];
+    storage.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify({
+        ...old,
+        version: 21,
+        decks: oldDecks,
+        gauntlet: { ...old.gauntlet, run: oldRun },
+      }),
+    );
+
+    const manager = new SaveManager(storage, 456);
+
+    expect(manager.data.version).toBe(22);
+    expect(manager.data.gauntlet.run).toEqual({ ...oldRun, rosterDay: 0, rosterSeed: 0 });
+    expect(manager.data.decks).toEqual(oldDecks.map((deck) => ({ ...deck, landStyle: null })));
+    expect(manager.data.createdAt).toBe(123);
+  });
+
+  it('creates fresh saves at v22', () => {
+    expect(freshSave(123).version).toBe(22);
+  });
+
+  it('stamps an unstamped active v22 run from the UI staging gap', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    const run = { rung: 2, startedAt: 111, seed: 222 };
+    storage.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify({ ...current, gauntlet: { ...current.gauntlet, run } }),
+    );
+
+    const manager = new SaveManager(storage, 456);
+
+    expect(manager.data.gauntlet.run).toEqual({ ...run, rosterDay: 0, rosterSeed: 0 });
   });
 });

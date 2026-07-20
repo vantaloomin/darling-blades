@@ -13,7 +13,14 @@ export interface GauntletState {
    * is fully reproducible and two runs with different seeds diverge — "every
    * playthrough is different". The seed is chosen once, when the run begins.
    */
-  run: { rung: number; startedAt: number; seed: number } | null;
+  run: {
+    rung: number;
+    startedAt: number;
+    seed: number;
+    /** v22 migration stamps legacy runs 0/0; the later tower UI stamps new runs. */
+    rosterDay?: number;
+    rosterSeed?: number;
+  } | null;
   bestRung: number; // highest rung ever cleared
   completions: number; // full gauntlet clears
   clearStyles: GauntletClearStyles;
@@ -53,6 +60,8 @@ export interface SavedDeck {
   cards: string[];
   /** Per-deck hero card art for the commander portrait. `null` = auto/default. v15 addition. */
   heroCardId: string | null;
+  /** Per-deck basic-land art style. `null` = default land art. v22 addition. */
+  landStyle: string | null;
 }
 
 export interface PremiumWeekState {
@@ -61,7 +70,7 @@ export interface PremiumWeekState {
 }
 
 export interface SaveData {
-  version: 21;
+  version: 22;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -168,7 +177,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 21,
+    version: 22,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -265,7 +274,8 @@ export class SaveManager {
    * v18 -> v19 adds the Premium Draft weekly allowance, defaulting old saves
    * to zero entries so nobody inherits a partially spent week; v19 -> v20 adds
    * deterministic replays; v20 -> v21 canonicalizes two-part variant keys as
-   * explicitly non-full-art three-part keys.
+   * explicitly non-full-art three-part keys; v21 -> v22 stamps tower roster
+   * identity and adds per-deck land-art selection.
    * An unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
@@ -507,6 +517,35 @@ export class SaveManager {
       cur = { ...cur, version: 21, collectionVariants };
     }
     if (cur.version === 21) {
+      const decks = Array.isArray(cur.decks)
+        ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({ ...deck, landStyle: null }))
+        : [];
+      const gauntlet = (cur.gauntlet ?? freshGauntlet()) as GauntletState & {
+        run: (Omit<NonNullable<GauntletState['run']>, 'rosterDay' | 'rosterSeed'> & {
+          rosterDay?: number;
+          rosterSeed?: number;
+        }) | null;
+      };
+      // The 0/0 sentinel keeps an in-flight legacy run on the fixed AVATARS-by-tier
+      // roster so it finishes exactly as it started.
+      const run = gauntlet.run ? { ...gauntlet.run, rosterDay: 0, rosterSeed: 0 } : null;
+      cur = {
+        ...cur,
+        version: 22,
+        decks,
+        gauntlet: { ...gauntlet, run },
+      };
+    }
+    if (cur.version === 22) {
+      const gauntlet = (cur.gauntlet ?? freshGauntlet()) as GauntletState;
+      const activeRun = gauntlet.run;
+      const hasRosterIdentity =
+        typeof activeRun?.rosterDay === 'number' && typeof activeRun.rosterSeed === 'number';
+      // Runs created during the headless-core/UI staging gap use the same fixed
+      // roster sentinel as migrated v21 runs. Later UI-stamped runs pass through.
+      const run = activeRun && !hasRosterIdentity
+        ? { ...activeRun, rosterDay: 0, rosterSeed: 0 }
+        : activeRun;
       const limited = (cur.limited ?? freshLimitedState()) as LimitedState & {
         premiumWeek?: Partial<PremiumWeekState>;
       };
@@ -522,7 +561,8 @@ export class SaveManager {
         : [];
       return {
         ...cur,
-        version: 21,
+        version: 22,
+        gauntlet: { ...gauntlet, run },
         limited: { ...limited, premiumWeek: { week, entries } },
         replays,
       } as unknown as SaveData;
@@ -581,6 +621,7 @@ function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): 
         name: deck.name,
         cards,
         heroCardId: migratedHero && cards.includes(migratedHero) ? migratedHero : null,
+        landStyle: null,
       };
     })
     .filter((deck): deck is SavedDeck => deck !== null);

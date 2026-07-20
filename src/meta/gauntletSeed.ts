@@ -8,6 +8,8 @@
  * and unit-testable — the randomness that starts a run lives in the UI layer.
  */
 
+import { createRngState, rngShuffle } from '../engine/rng';
+
 /** Largest run/duel seed + 1 — the 31-bit domain used by the practice seed too. */
 const SEED_MOD = 0x80000000; // 2**31
 
@@ -30,4 +32,72 @@ export function rungSeed(runSeed: number, rung: number): number {
   h = Math.imul(h ^ (h >>> 15), 0x735a2d97) >>> 0;
   h = (h ^ (h >>> 15)) >>> 0;
   return h % SEED_MOD; // 31-bit, matches DuelScene's practice-seed range
+}
+
+/** Derive the deterministic daily roster seed from a local YYYYMMDD key. */
+export function daySeed(dateKey: number): number {
+  let h = clampSeed(dateKey) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x21f0aaad) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x735a2d97) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0;
+  return clampSeed(h);
+}
+
+/** Convert a caller-supplied timestamp to its local-calendar YYYYMMDD key. */
+export function localDateKey(ts: number): number {
+  const date = new Date(ts);
+  return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+}
+
+/** Full seeded Fisher-Yates permutation of roster indices. */
+export function rosterOrder(seed: number, count: number): number[] {
+  const order = Array.from({ length: count }, (_, index) => index);
+  return rngShuffle(createRngState(seed), order);
+}
+
+/** The roster identity persisted on an active v22 Tower run. */
+export interface GauntletRosterStamp {
+  rosterDay?: number;
+  rosterSeed?: number;
+}
+
+export interface ResolvedGauntletRoster {
+  rosterDay: number;
+  rosterSeed: number;
+  order: number[];
+  /** True for the 0/0 legacy sentinel, which keeps AVATARS-by-tier order. */
+  fixed: boolean;
+}
+
+/**
+ * Resolve the roster shown and played by the Tower. An active run always wins
+ * over today's date so reloads and local midnight cannot change its opponents.
+ * Migrated or staging-gap runs use the 0/0 sentinel and retain fixed order.
+ */
+export function resolveGauntletRoster(
+  run: GauntletRosterStamp | null,
+  todayDay: number,
+  count: number,
+): ResolvedGauntletRoster {
+  if (run) {
+    const rosterDay = run.rosterDay ?? 0;
+    const rosterSeed = run.rosterSeed ?? 0;
+    if (rosterDay <= 0 || rosterSeed <= 0) {
+      return {
+        rosterDay: 0,
+        rosterSeed: 0,
+        order: Array.from({ length: count }, (_, index) => index),
+        fixed: true,
+      };
+    }
+    return { rosterDay, rosterSeed, order: rosterOrder(rosterSeed, count), fixed: false };
+  }
+
+  const rosterSeed = daySeed(todayDay);
+  return {
+    rosterDay: todayDay,
+    rosterSeed,
+    order: rosterOrder(rosterSeed, count),
+    fixed: false,
+  };
 }
