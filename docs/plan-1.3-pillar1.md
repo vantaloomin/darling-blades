@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.3.md, src/meta/gauntletSeed.ts, src/ai/personality.ts, src/meta/SaveManager.ts, src/data/opponents.ts, scripts/balance-matrix.ts · last-verified: 2026-07-20 · concretion of Pillar 1 — design proposal awaiting user approval; engine work follows the approved spec -->
+<!-- source-of-truth: docs/plan-1.3.md, src/meta/gauntletSeed.ts, src/ai/personality.ts, src/meta/SaveManager.ts, src/data/opponents.ts, scripts/balance-matrix.ts · last-verified: 2026-07-20 · concretion of Pillar 1 — APPROVED 2026-07-20 (all five flags at recommended) and BUILT: headless core + scene wiring shipped on this branch; measured ladder stamped in src/ai/tiers.ts; the 16-floor re-baseline (section 4) awaits the Pillar 0 merge -->
 
 # 1.3 Pillar 1 concretion - seeded daily tower rotation with floor-scaled AI
 
@@ -7,6 +7,15 @@ Locked upstream: FULL random shuffle from the daily seed; the floor sets
 the brain, the avatar brings its deck and personality flavor; rewards
 stay positional. Everything below is the proposed how; flagged items
 need the user before the build starts.
+
+STATUS 2026-07-20: all five flagged decisions were answered at the
+recommended option (six tiers; the decision-noise decorator; legacy
+runs finish on the old fixed roster; today-only roster preview; the
+dial is tower-only). The build shipped on this branch. The accepted
+ladder moved T3/T4 off the starting guesses: T3 medium/0.32, T4
+medium/0 (measured at 80 seeds/cell after 40-seed runs flip-flopped a
+4pp boundary; medium responds shallowly to noise below ~0.3). Section 4
+remains open until Pillar 0 lands in release/1.3.
 
 ## 1. The strength dial: a seeded decision-noise decorator
 

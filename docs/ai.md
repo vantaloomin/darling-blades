@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-14
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-20
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -249,6 +249,22 @@ and difficulty round-robin matrices, and the dated baseline (all guidance bands
 green as of 2026-07-02) lives in a comment block in `src/data/opponents.ts` —
 re-measure and refresh it after any change to decks, personalities, starters,
 or brains.
+
+## Tower strength tiers (the decision-noise dial)
+
+The Tower decouples AI strength from the avatar (1.3 Pillar 1): the FLOOR
+sets the brain, the avatar brings its deck and personality. `src/ai/tiers.ts`
+defines six tiers as (brain, noise) pairs, where `NoisyAI`
+(`src/ai/NoisyAI.ts`) is a seeded decorator that with probability `noise`
+replaces the inner brain's action with a uniformly random legal action
+(never concede; the inner brain always advances first so its rng stream is
+unaffected). The measured ladder (2026-07-20, 80 seeds/cell, starter
+mirrors vs a neutral Medium proxy — `npx tsx scripts/balance-matrix.ts
+--tiers --seeds 80`) is date-stamped in `tiers.ts`; T4 medium/0 and T6
+hard/0 are byte-identical to the plain Medium/Hard brains. The dial is
+TOWER-ONLY: Practice, prefabs, Limited, and replay playback stay on
+`buildAI`. Measurement note: use 80 seeds for tier gates — a 4pp adjacent
+boundary flip-flops inside 40-seed sampling noise.
 
 ## Draft personas (Limited Bot Draft)
 
