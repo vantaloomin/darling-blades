@@ -6,14 +6,29 @@ import { buildAI, DEFAULT_PERSONALITY, type Personality } from './personality';
 
 export type TowerTier = 1 | 2 | 3 | 4 | 5 | 6;
 
-// STARTING GUESSES: the matrix pass will stamp the measured ladder.
+/*
+ * MEASURED LADDER — 2026-07-20, `npx tsx scripts/balance-matrix.ts --tiers
+ * --seeds 80` (same-deck starter mirrors vs a neutral Medium proxy; the
+ * 40-seed protocol was upgraded to 80 after a 4pp boundary flip-flopped
+ * within 40-seed sampling noise):
+ *
+ *   T1 easy/0.35 18.3% -> T2 easy/0.10 23.6% -> T3 medium/0.32 33.0%
+ *   -> T4 medium/0 49.4% -> T5 hard/0.12 62.2% -> T6 hard/0 75.7%
+ *
+ * Monotonic, every adjacent gap >= 4pp (smallest: T1->T2 +5.3pp). Tuning
+ * history (honest): medium 0.20/0.05 INVERTED (43.0/40.1 at 40 seeds);
+ * medium responds shallowly to noise below ~0.3 (0.02..0.28 all landed
+ * 38-43%) and a heavily noised medium converges on lightly noised easy
+ * (0.40 -> 26.0% vs easy/0.10 23.6%), so T3 needs the 0.30-0.35 window.
+ * T4 medium/0 and T6 hard/0 are byte-identical to today's Medium/Hard.
+ */
 export const TIER_DEFS: Readonly<
   Record<TowerTier, { brain: Difficulty; noise: number }>
 > = {
   1: { brain: 'easy', noise: 0.35 },
   2: { brain: 'easy', noise: 0.10 },
-  3: { brain: 'medium', noise: 0.20 },
-  4: { brain: 'medium', noise: 0.05 },
+  3: { brain: 'medium', noise: 0.32 },
+  4: { brain: 'medium', noise: 0 },
   5: { brain: 'hard', noise: 0.12 },
   6: { brain: 'hard', noise: 0 },
 };
