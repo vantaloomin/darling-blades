@@ -546,7 +546,7 @@ export class ShopScene extends Phaser.Scene {
     // pool is the real decision variable between tiles.
     const pool = packPoolSummary(Services.save.data, CARD_DB, sku === 'base' ? undefined : sku);
     this.add
-      .text(x, 204, `${pool.poolSize}-card pool · Own ${pool.ownedDistinct}/${pool.poolSize}`, {
+      .text(x, 204, `${pool.ownedDistinct}/${pool.poolSize} Owned`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
