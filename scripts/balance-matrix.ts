@@ -20,6 +20,8 @@
  *                        alternate so no brain owns the better deck).
  *   --tiers              6 tower AI tiers vs the 5 starter decks, each as a
  *                        mirror against a neutral Medium human proxy.
+ *   --floors             16 rotating-tower floors (tier brain piloting the
+ *                        avatar roster round-robin) vs the 5 starters.
  *   --cf-bosses          The Morrigan and Titania vs Low/Mid/High CF references
  *                        (Wild Communion / Grave Harvest / Glimmer Bargain).
  *   --ac-bosses          Morgan and Artoria vs Low/Mid/High AC references
@@ -41,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 import type { AIPlayer } from '../src/ai/AIPlayer';
 import { MediumAI } from '../src/ai/MediumAI';
 import { buildAI, DEFAULT_PERSONALITY } from '../src/ai/personality';
-import { buildTierAI, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
+import { buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
 import { CARD_DB } from '../src/data/catalog';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
@@ -62,8 +64,12 @@ export interface CellResult {
 }
 
 export interface CellSpec {
-  /** Fresh row-side AI for one game (seeded brains like Easy need the seed). */
-  rowAI: (seed: number) => AIPlayer;
+  /**
+   * Fresh row-side AI for one game (seeded brains like Easy need the seed).
+   * `gameIndex` lets a cell vary its pilot per game (the floor matrix rotates
+   * the avatar roster through one cell); most specs ignore it.
+   */
+  rowAI: (seed: number, gameIndex: number) => AIPlayer;
   colAI: (seed: number) => AIPlayer;
   /** Deck assignment for game i as [rowDeck, colDeck] (lets mirrors alternate). */
   decks: (i: number) => [string[], string[]];
@@ -98,7 +104,7 @@ export function runCell(spec: CellSpec, seeds: number, cellIndex: number): CellR
   for (let i = 0; i < seeds; i++) {
     const gameSeed = cellIndex * 100_000 + i;
     const rowIsP0 = i % 2 === 0;
-    const row = spec.rowAI(gameSeed * 7 + 1);
+    const row = spec.rowAI(gameSeed * 7 + 1, i);
     const col = spec.colAI(gameSeed * 13 + 5);
     const [rowDeck, colDeck] = spec.decks(i);
     const winner = playOut(
@@ -664,6 +670,113 @@ export function runTierMatrix(seedsPerCell: number): TierMatrixReport {
   return { rows, flags, table };
 }
 
+export interface FloorRow {
+  floor: number;
+  tier: TowerTier;
+  cells: CellResult[]; // one per starter, STARTER_DECKS order
+  avg: number;
+}
+
+export interface FloorMatrixReport {
+  rows: FloorRow[];
+  flags: string[];
+  table: string;
+}
+
+/**
+ * Floor guidance bands for the ROTATING tower (1.3 Pillar 1): a floor's
+ * difficulty is its TIER strength marginalized over the whole avatar roster
+ * (the daily shuffle can put any avatar on any floor), so rows here average
+ * the roster rather than pin one avatar. Within-tier floors are statistically
+ * identical by construction (same tier, same roster marginal); bands gate the
+ * TIER plateaus and are wide on purpose - regressions, not tuning jitter.
+ *
+ * MEASURED BASELINE - 2026-07-20, `npx tsx scripts/balance-matrix.ts --floors
+ * --seeds 80` (16 floors x 5 starters, roster round-robin, 6,400 games):
+ *   T1 floors 1-3: 24.3 / 23.3 / 21.5   T2 floors 4-6: 28.6 / 33.8 / 31.3
+ *   T3 floors 7-9: 35.0 / 32.0 / 36.0   T4 floors 10-12: 50.8 / 49.2 / 54.1
+ *   T5 floors 13-15: 59.7 / 61.1 / 58.3 T6 floor 16: 77.2
+ * Clean tier plateaus, no flags; ~2.4pp SE per row avg (400 games). Bands
+ * leave ~7pp margin beyond the measured plateau edges.
+ */
+export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
+  1: { maxAvg: 0.33, cellMax: 0.5 },
+  2: { maxAvg: 0.33, cellMax: 0.5 },
+  3: { maxAvg: 0.33, cellMax: 0.5 },
+  4: { minAvg: 0.2, maxAvg: 0.42 },
+  5: { minAvg: 0.2, maxAvg: 0.42 },
+  6: { minAvg: 0.2, maxAvg: 0.42 },
+  7: { minAvg: 0.24, maxAvg: 0.45 },
+  8: { minAvg: 0.24, maxAvg: 0.45 },
+  9: { minAvg: 0.24, maxAvg: 0.45 },
+  10: { minAvg: 0.4, maxAvg: 0.62 },
+  11: { minAvg: 0.4, maxAvg: 0.62 },
+  12: { minAvg: 0.4, maxAvg: 0.62 },
+  13: { minAvg: 0.5, maxAvg: 0.72 },
+  14: { minAvg: 0.5, maxAvg: 0.72 },
+  15: { minAvg: 0.5, maxAvg: 0.72 },
+  16: { minAvg: 0.68 },
+});
+
+/**
+ * The rotating tower's floor difficulty: floorTier's (brain, noise) piloting
+ * the avatar roster round-robin (game i uses avatar i mod roster) vs the
+ * Medium-proxied starters. One pass measures the tower as the player meets
+ * it: floor strength from the tier dial, deck/personality flavor averaged
+ * over the daily shuffle's distribution.
+ */
+export function runFloorMatrix(seedsPerCell: number): FloorMatrixReport {
+  const roster = [...AVATARS].sort((a, b) => a.tier - b.tier);
+  const floors = Array.from({ length: roster.length }, (_, i) => i + 1);
+  const rows: FloorRow[] = floors.map((floor) => {
+    const tier = floorTier(floor);
+    const cells = STARTER_DECKS.map((starter, sIdx) =>
+      runCell(
+        {
+          rowAI: (seed, gameIndex) =>
+            buildTierAI(tier, CARD_DB, seed, roster[gameIndex % roster.length].personality),
+          colAI: () => new MediumAI(CARD_DB),
+          decks: (i) => [roster[i % roster.length].deck, starter.cards],
+        },
+        seedsPerCell,
+        70_000 + floor * 100 + sIdx,
+      ),
+    );
+    return { floor, tier, cells, avg: mean(cells.map((c) => c.rate)) };
+  });
+
+  const flags: string[] = [];
+  for (const row of rows) {
+    const band = FLOOR_BANDS[row.floor] ?? {};
+    const tag = `Floor ${row.floor} (T${row.tier})`;
+    if (band.maxAvg !== undefined && row.avg > band.maxAvg) {
+      flags.push(`${tag}: avg ${(row.avg * 100).toFixed(0)}% ABOVE band max ${band.maxAvg * 100}%`);
+    }
+    if (band.minAvg !== undefined && row.avg < band.minAvg) {
+      flags.push(`${tag}: avg ${(row.avg * 100).toFixed(0)}% BELOW band min ${band.minAvg * 100}%`);
+    }
+    if (band.cellMax !== undefined) {
+      row.cells.forEach((c, i) => {
+        if (c.rate > band.cellMax!) {
+          flags.push(
+            `${tag}: ${shortName(STARTER_DECKS[i].name)} cell ${(c.rate * 100).toFixed(0)}% ABOVE cellMax ${band.cellMax! * 100}%`,
+          );
+        }
+      });
+    }
+  }
+
+  const table = renderTable(
+    `=== TOWER FLOORS - floor win % vs Medium-proxied starters · ${seedsPerCell} seeds/cell ===\n` +
+      '    tier brain+noise pilots the avatar roster round-robin per game',
+    rows.map((row) => `F${String(row.floor).padStart(2)} [T${row.tier}]`),
+    STARTER_DECKS.map((starter) => shortName(starter.name)),
+    rows.map((row) => row.cells),
+    (index) => `| avg ${(rows[index].avg * 100).toFixed(1).padStart(5)}%`,
+  );
+  return { rows, flags, table };
+}
+
 // ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
@@ -685,6 +798,7 @@ function main(): void {
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
   const wantTiers = flag('tiers');
+  const wantFloors = flag('floors');
   const wantCelticFaeBosses = flag('cf-bosses');
   const wantPrefabs = flag('prefabs');
   const wantArthurianCourtBosses = flag('ac-bosses');
@@ -693,6 +807,7 @@ function main(): void {
     (!wantStarters &&
       !wantDifficulty &&
       !wantTiers &&
+      !wantFloors &&
       !wantCelticFaeBosses &&
       !wantArthurianCourtBosses &&
       !wantPrefabs);
@@ -709,6 +824,7 @@ function main(): void {
   if (wantStarters) reports.push(runStarterMatrix(seeds));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds));
   if (wantTiers) reports.push(runTierMatrix(seeds));
+  if (wantFloors) reports.push(runFloorMatrix(seeds));
   if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds));
   if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds));
   if (wantPrefabs) reports.push(runPrefabMatrix(seeds, ai));

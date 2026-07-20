@@ -232,6 +232,17 @@ export interface Avatar {
  * Undertow, 73% after adding the low-curve vampire bodies, 62% for a Summon the
  * Dead substitution, and 77% after restoring the artifact finisher and adding
  * Divination. The final Black-Veil variant keeps the strongest measured spread.
+ *
+ * 2026-07-20 - 1.3 Pillar 1 changes what this table gates. The tower now
+ * rotates the roster daily and the FLOOR sets the AI brain via the tier dial
+ * (src/ai/tiers.ts, measured ladder stamped there), so the avatar rows above
+ * measure INTRINSIC avatar strength (own brain + personality + deck) - the
+ * quantity Practice mode and the boss win-rate gates still use - while the
+ * tower itself is baselined by the FLOOR matrix (FLOOR_BANDS + runFloorMatrix
+ * in scripts/balance-matrix.ts, `--floors --seeds 80`, dated baseline in that
+ * comment block: tier plateaus 23/31/34/51/60/77). The `difficulty` field
+ * below no longer sets tower brains; it still drives Practice-vs-avatar duels
+ * and the avatar matrix rows.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------
