@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.3.md, scripts/balance-matrix.ts, src/meta/DeckStorage.ts, src/meta/deckColorIdentity.ts, src/ai/value.ts, src/ai/evaluate.ts, src/engine/rng.ts · last-verified: 2026-07-20 · concretion of Pillar 3 — design proposal awaiting user answers to the flagged items; build follows the approved spec -->
+<!-- source-of-truth: docs/plan-1.3.md, scripts/balance-matrix.ts, src/meta/DeckStorage.ts, src/meta/deckColorIdentity.ts, src/ai/value.ts, src/ai/evaluate.ts, src/engine/rng.ts · last-verified: 2026-07-20 · concretion of Pillar 3 — flags ANSWERED 2026-07-20 (six personas incl. Midrange control, committed JSON, 80x150 default budget, prefab field, no CI gates); build in progress -->
 
 # 1.3 Pillar 3 concretion - persona deck-crafting harness (dev-only)
 
@@ -96,7 +96,19 @@ quota-shortfall report), not silently produce a bad deck.
 - Deck legality via `validateDeck`'s rules (60 cards, 4-copy cap,
   basics exempt) minus the ownership check - personas own everything.
 
-## 6. Flagged for the user before the build
+## 6. Flag resolutions (user, 2026-07-20)
+
+1. **SIX personas**: the proposed five PLUS a Midrange goodstuff
+   persona - a template-light "best rate at every slot" builder that
+   serves as the power-level control group for the other templates.
+2. **Committed JSON** under `scripts/personas/decks/`.
+3. **Deep default budget: 80 swap-iterations x 150 seeds** per measure
+   (multi-hour single-persona runs accepted; the CLI keeps
+   --iterations/--seeds overrides for quick passes).
+4. **Prefab reference field** by default.
+5. **No CI gates in v1** (default accepted).
+
+## 7. Original flags (for the record)
 
 1. **Roster of five** as proposed above - or trim/extend (each persona
    is one template file; marginal cost is small)?
