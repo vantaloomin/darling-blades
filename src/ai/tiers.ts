@@ -12,10 +12,13 @@ export type TowerTier = 1 | 2 | 3 | 4 | 5 | 6;
  * 40-seed protocol was upgraded to 80 after a 4pp boundary flip-flopped
  * within 40-seed sampling noise):
  *
- *   T1 easy/0.35 18.3% -> T2 easy/0.10 23.6% -> T3 medium/0.32 33.0%
- *   -> T4 medium/0 49.4% -> T5 hard/0.12 62.2% -> T6 hard/0 75.7%
+ *   T1 easy/0.35 18.0% -> T2 easy/0.10 23.4% -> T3 medium/0.32 31.3%
+ *   -> T4 medium/0 48.2% -> T5 hard/0.12 60.3% -> T6 hard/0 75.9%
+ *   (re-measured 2026-07-20 after the prefab tuning pass touched the
+ *   Wild Communion reference starter; pre-tune ladder was
+ *   18.3/23.6/33.0/49.4/62.2/75.7 - every plateau within noise.)
  *
- * Monotonic, every adjacent gap >= 4pp (smallest: T1->T2 +5.3pp). Tuning
+ * Monotonic, every adjacent gap >= 4pp (smallest: T1->T2 +5.4pp). Tuning
  * history (honest): medium 0.20/0.05 INVERTED (43.0/40.1 at 40 seeds);
  * medium responds shallowly to noise below ~0.3 (0.02..0.28 all landed
  * 38-43%) and a heavily noised medium converges on lightly noised easy

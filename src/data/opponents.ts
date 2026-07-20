@@ -233,6 +233,18 @@ export interface Avatar {
  * Dead substitution, and 77% after restoring the artifact finisher and adding
  * Divination. The final Black-Veil variant keeps the strongest measured spread.
  *
+ * 2026-07-20 - 1.3 prefab tuning pass (user-approved slate) on the 518
+ * pool, measured `--prefabs --ai hard --seeds 300` (10,800 games,
+ * reproduced independently by the main session): Questing Table rebuilt
+ * into the W/U pressure shell 23.5% -> 45.2%; Bloodmoon Masquerade shaved
+ * (Heiress/Cutthroat/Kicked Door out) 69.6% -> 57.3%; Wild Communion best
+ * small identity-preserving swap 42.0% -> 42.1% (honest stall - Boarkin
+ * and Zhao Yun variants measured worse; recorded at the deck). Nine-deck
+ * spread 42.1-59.9, all inside the rough 40-60 band. Per-deck tuning
+ * history lives at each list in starterDecks.ts. AC boss harness after
+ * the Questing Table rebuild (its HIGH reference): Morgan 70% / Artoria
+ * 67% / Carmilla 76% / Bride 77% avg at 50 seeds, no flags.
+ *
  * 2026-07-20 - 1.3 Pillar 1 changes what this table gates. The tower now
  * rotates the roster daily and the FLOOR sets the AI brain via the tier dial
  * (src/ai/tiers.ts, measured ladder stamped there), so the avatar rows above
