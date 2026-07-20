@@ -9,6 +9,7 @@ import { modalShell, pager, type ModalShellOptions } from './themeWidgets';
 export interface ZoneContentsEntry {
   card: CardDef;
   count: number;
+  landStyle?: string;
 }
 
 export interface ZoneContentsModalOptions
@@ -18,7 +19,7 @@ export interface ZoneContentsModalOptions
   > {
   title: string;
   entries: ZoneContentsEntry[];
-  onInspect: (card: CardDef) => void;
+  onInspect: (card: CardDef, landStyle?: string) => void;
   emptyText?: string;
 }
 
@@ -129,12 +130,12 @@ export function showZoneContents(
       const row = Math.floor(i / GRID_COLS);
       const x = GRID_CX - ((GRID_COLS - 1) * COL_GAP) / 2 + col * COL_GAP;
       const y = GRID_TOP_Y + row * ROW_GAP;
-      const thumb = makeCardThumb(scene, x, y, entry.card, THUMB_SCALE);
+      const thumb = makeCardThumb(scene, x, y, entry.card, THUMB_SCALE, entry.landStyle);
       thumb.setInteractive({ useHandCursor: true });
       bindTapButton(scene, thumb, (pointer) => {
         if (pointer.rightButtonReleased()) return;
         shell.close();
-        opts.onInspect(entry.card);
+        opts.onInspect(entry.card, entry.landStyle);
       });
       inflateHitArea(thumb, 44, 44);
       thumb.on('pointerover', (pointer: Phaser.Input.Pointer) => {

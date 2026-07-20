@@ -19,7 +19,7 @@ export const RULES = {
 export const ECONOMY = {
   startingGold: 250, // granted with the starter deck — one booster to crack
   packPrice: 450,
-  ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 69-card chase)
+  ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 70-card chase)
   celticFaePackPrice: 525, // expansion booster — only pulls set:'celtic-fae' cards (81-card chase density)
   arthurianCourtPackPrice: 525, // expansion booster — only pulls set:'arthurian-court' cards (81-card chase density)
   gothicMonstersPackPrice: 525, // expansion booster - only pulls set:'gothic-monsters' cards (81-card chase density)
