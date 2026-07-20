@@ -98,6 +98,7 @@ export function saveDeck(
     name: deck.name,
     cards: deck.cards,
     heroCardId: heroCardId && deck.cards.includes(heroCardId) ? heroCardId : null,
+    landStyle: existing >= 0 ? save.decks[existing].landStyle : null,
   };
   if (existing >= 0) save.decks[existing] = saved;
   else save.decks.push(saved);
@@ -126,7 +127,13 @@ export function copyDeck(save: SaveData, deckId: string): string | null {
   const src = save.decks.find((d) => d.id === deckId);
   if (!src) return null;
   const id = generateDeckId(save);
-  save.decks.push({ id, name: `${src.name} copy`, cards: [...src.cards], heroCardId: src.heroCardId });
+  save.decks.push({
+    id,
+    name: `${src.name} copy`,
+    cards: [...src.cards],
+    heroCardId: src.heroCardId,
+    landStyle: src.landStyle,
+  });
   return id;
 }
 

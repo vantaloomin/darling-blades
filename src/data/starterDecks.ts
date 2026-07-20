@@ -42,13 +42,10 @@ export const STARTER_DECKS: DeckList[] = [
   {
     id: 'starter-wild',
     name: 'Wild Communion',
-    // 2026-07-02 mirror-balance tweak: -2 gk-nike, -1 bk-bunny-vanguard,
-    // +3 in-wild-surge. Communion was the only starter with zero instants;
-    // after MediumAI's trick respect became evidence-gated (see
-    // MediumAI.trickBuff), every pilot correctly stopped fearing its open
-    // mana and its mirror row collapsed (20%/21% vs Tides/Harvest at 40
-    // seeds/cell). A real namesake combat trick restores both the combat
-    // value and the earned respect while keeping the creature-deck identity.
+    // 2026-07-20 1.3 prefab tune: Wild Surge became +1 Athena / +2 Liu Bei,
+    // preserving the zero-charm creature identity. Final hard-AI aggregate:
+    // 42.1% at 300 seeds/cell (baseline 42.0%). Boarkin and Zhao Yun variants
+    // measured 38.8% and 37.1% at 100 seeds/cell, so this is the best small swap.
     cards: expand([
       ['land-forest', 15],
       ['land-plains', 9],
@@ -59,9 +56,9 @@ export const STARTER_DECKS: DeckList[] = [
       ['bk-rhinokin-charger', 4],
       ['bk-packmother', 4],
       ['gk-hestia', 4],
-      ['gk-athena', 2],
+      ['gk-athena', 3],
       ['gk-hoplite', 4],
-      ['in-wild-surge', 3],
+      ['tk-shu-liubei', 2],
     ]),
   },
   {
@@ -138,7 +135,7 @@ export const STARTER_DECKS: DeckList[] = [
  * yard, then return the fattest Jotun with Call the Einherjar / Barrow-Jarl.
  * Glimmer Bargain — U/B/G Celtic Fae tempo-control: evasive fae pressure while
  * foresee and recall effects keep the next draw and opposing board constrained.
- * Questing Table — W/U/R Arthurian heroic midrange: build a knight court,
+ * Questing Table — W/U Arthurian heroic midrange: build a knight court,
  * advance Quests, then turn awakened champions into the closing pressure.
  */
 export const THEME_DECKS: DeckList[] = [
@@ -190,47 +187,47 @@ export const THEME_DECKS: DeckList[] = [
   {
     id: 'theme-arthurian-court',
     name: 'Questing Table',
+    // 2026-07-20 1.3 prefab tune: rebuilt the red/slow slots into the measured
+    // W/U pressure shell (Undertow, Shieldwall, max Banneret/Lakeblade, anthems).
+    // Final hard-AI aggregate: 45.2% at 300 seeds/cell (baseline 23.5%).
     cards: expand([
       ['land-plains', 9],
-      ['land-island', 6],
-      ['land-mountain', 3],
-      ['ac-holy-well', 2],
-      ['ac-avalon-shore', 2],
-      ['ac-lowland-fort', 1],
-      ['ac-red-tournament-ground', 1],
+      ['land-island', 8],
+      ['ac-avalon-shore', 4],
+      ['ac-lowland-fort', 3],
       ['ac-artoria-once-future', 2],
-      ['ac-lancelot-moonlit-shame', 2],
-      ['ac-guinevere-court-sun', 2],
-      ['ac-gawain-noonblade', 2],
-      ['ac-camelot-banneret', 3],
-      ['ac-lakeblade-initiate', 3],
-      ['ac-tournament-favorite', 3],
-      ['ac-torchbearer-knight', 3],
-      ['ac-novice-squire', 3],
+      ['ac-galahad-silver-oath', 2],
+      ['ac-camelot-banneret', 4],
+      ['ac-lakeblade-initiate', 4],
+      ['ac-pennant-carrier', 4],
+      ['ac-novice-squire', 4],
+      ['ac-excalibur-from-lake', 2],
+      ['ac-lion-standard', 1],
       ['ac-quest-for-the-grail', 2],
       ['ac-round-table-vow', 2],
       ['ac-squire-to-champion', 2],
-      ['ac-steel-prayer', 2],
-      ['ac-moonlit-joust', 2],
-      ['ac-shieldwall-call', 2],
-      ['ac-grail-procession', 1],
+      ['in-undertow', 4],
+      ['in-shieldwall', 3],
     ]),
   },
   {
     id: 'theme-gothic-monsters',
     name: 'Bloodmoon Masquerade',
+    // 2026-07-20 1.3 prefab tune: shaved the over-rate Heiress, Cutthroat, and
+    // Kicked Door packages for slower Vampire/Monster/Empower cards. Final
+    // hard-AI aggregate: 57.3% at 300 seeds/cell (baseline 69.6%).
     cards: expand([
       ['land-swamp', 14],
       ['land-mountain', 10],
       ['gm-carmilla-crimson-host', 2],
       ['gm-elizabeth-blood-mirror', 2],
-      ['gm-ravenloft-heiress', 4],
+      ['gm-blood-drop-initiate', 4],
       ['gm-black-veil-matron', 3],
-      ['gm-batcloak-cutthroat', 4],
+      ['gm-stormglass-golem', 4],
       ['gm-blood-opera-soloist', 3],
       ['gm-manor-thrall', 4],
       ['gm-stitched-hound', 2],
-      ['gm-kicked-door', 4],
+      ['gm-tattered-invitation', 4],
       ['gm-red-curtain-cut', 1],
       ['gm-dracula-ball-invite', 3],
       ['gm-black-lace-pact', 2],

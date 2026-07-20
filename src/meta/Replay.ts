@@ -23,6 +23,7 @@ export const REPLAY_CAP = 10;
 
 export interface ReplayContext {
   mode: 'practice' | 'gauntlet' | 'limited';
+  /** Tower logs store the floor tier's base brain, not the avatar's old band. */
   difficulty: 'easy' | 'medium' | 'hard';
   /** Avatar id for gauntlet/practice-vs-avatar duels; null for plain AI. */
   opponentId: string | null;
