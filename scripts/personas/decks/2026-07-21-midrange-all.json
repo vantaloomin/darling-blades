@@ -1,0 +1,518 @@
+{
+  "schemaVersion": 1,
+  "persona": {
+    "id": "midrange",
+    "name": "The Midrange Player"
+  },
+  "pool": "all",
+  "field": "prefabs",
+  "seed": 20260720,
+  "seeds": 150,
+  "iterations": 80,
+  "templateVersion": "persona-v1.0.0",
+  "selectedColors": [
+    "R",
+    "G"
+  ],
+  "referenceField": [
+    {
+      "id": "starter-crimson",
+      "name": "Crimson Muster"
+    },
+    {
+      "id": "starter-wild",
+      "name": "Wild Communion"
+    },
+    {
+      "id": "starter-tides",
+      "name": "Burning Tides"
+    },
+    {
+      "id": "starter-mandate",
+      "name": "Shadow Mandate"
+    },
+    {
+      "id": "starter-harvest",
+      "name": "Grave Harvest"
+    },
+    {
+      "id": "theme-ragnarok",
+      "name": "Valhalla's Muster"
+    },
+    {
+      "id": "theme-celtic-fae",
+      "name": "Glimmer Bargain"
+    },
+    {
+      "id": "theme-arthurian-court",
+      "name": "Questing Table"
+    },
+    {
+      "id": "theme-gothic-monsters",
+      "name": "Bloodmoon Masquerade"
+    }
+  ],
+  "deck": [
+    "tk-other-lubu",
+    "tk-shu-weiyan",
+    "tk-other-lubu",
+    "ar-siege-juggernaut",
+    "cf-blackthorn-duelist",
+    "cf-blackthorn-duelist",
+    "cf-blackthorn-duelist",
+    "cf-thornmaze-patrol",
+    "ac-hunt-the-boar",
+    "tk-shu-zhangfei",
+    "tk-shu-zhangfei",
+    "tk-shu-zhangfei",
+    "tk-shu-zhangfei",
+    "tk-wu-huanggai",
+    "rg-berserker-chieftain",
+    "tk-wu-huanggai",
+    "bk-boarkin-rootbreaker",
+    "ac-castle-under-siege",
+    "bk-boarkin-rootbreaker",
+    "bk-boarkin-rootbreaker",
+    "cf-fae-spark",
+    "cf-fae-spark",
+    "cf-thorn-sprite",
+    "bk-rhinokin-charger",
+    "bk-nekomata-scout",
+    "cf-thorn-sprite",
+    "bk-boarkin-rioter",
+    "tk-shu-huangzhong",
+    "tk-wei-xiahoudun",
+    "tk-shu-weiyan",
+    "cf-hounds-of-annwn",
+    "cf-hounds-of-annwn",
+    "bk-dragonmaid",
+    "cf-hounds-of-annwn",
+    "tk-wu-handang",
+    "bk-deerkin-grovekeeper",
+    "gk-gaia",
+    "ac-ashwood-ranger",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest"
+  ],
+  "counts": {
+    "ac-ashwood-ranger": 1,
+    "ac-castle-under-siege": 1,
+    "ac-hunt-the-boar": 1,
+    "ar-siege-juggernaut": 1,
+    "bk-boarkin-rioter": 1,
+    "bk-boarkin-rootbreaker": 3,
+    "bk-deerkin-grovekeeper": 1,
+    "bk-dragonmaid": 1,
+    "bk-nekomata-scout": 1,
+    "bk-rhinokin-charger": 1,
+    "cf-blackthorn-duelist": 3,
+    "cf-fae-spark": 2,
+    "cf-hounds-of-annwn": 3,
+    "cf-thorn-sprite": 2,
+    "cf-thornmaze-patrol": 1,
+    "gk-gaia": 1,
+    "land-forest": 13,
+    "land-mountain": 9,
+    "rg-berserker-chieftain": 1,
+    "tk-other-lubu": 2,
+    "tk-shu-huangzhong": 1,
+    "tk-shu-weiyan": 2,
+    "tk-shu-zhangfei": 4,
+    "tk-wei-xiahoudun": 1,
+    "tk-wu-handang": 1,
+    "tk-wu-huanggai": 2
+  },
+  "measured": {
+    "field": "prefabs",
+    "seeds": 150,
+    "matchups": [
+      {
+        "referenceId": "starter-crimson",
+        "referenceName": "Crimson Muster",
+        "rowWins": 92,
+        "colWins": 58,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6133333333333333
+      },
+      {
+        "referenceId": "starter-wild",
+        "referenceName": "Wild Communion",
+        "rowWins": 115,
+        "colWins": 35,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7666666666666667
+      },
+      {
+        "referenceId": "starter-tides",
+        "referenceName": "Burning Tides",
+        "rowWins": 89,
+        "colWins": 61,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.5933333333333334
+      },
+      {
+        "referenceId": "starter-mandate",
+        "referenceName": "Shadow Mandate",
+        "rowWins": 98,
+        "colWins": 52,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6533333333333333
+      },
+      {
+        "referenceId": "starter-harvest",
+        "referenceName": "Grave Harvest",
+        "rowWins": 107,
+        "colWins": 43,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7133333333333334
+      },
+      {
+        "referenceId": "theme-ragnarok",
+        "referenceName": "Valhalla's Muster",
+        "rowWins": 94,
+        "colWins": 56,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6266666666666667
+      },
+      {
+        "referenceId": "theme-celtic-fae",
+        "referenceName": "Glimmer Bargain",
+        "rowWins": 105,
+        "colWins": 45,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7
+      },
+      {
+        "referenceId": "theme-arthurian-court",
+        "referenceName": "Questing Table",
+        "rowWins": 103,
+        "colWins": 47,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6866666666666666
+      },
+      {
+        "referenceId": "theme-gothic-monsters",
+        "referenceName": "Bloodmoon Masquerade",
+        "rowWins": 106,
+        "colWins": 44,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7066666666666667
+      }
+    ],
+    "rowWins": 909,
+    "losses": 441,
+    "draws": 0,
+    "games": 1350,
+    "score": 0.6733333333333333
+  },
+  "hillClimb": {
+    "initialList": [
+      "tk-other-lubu",
+      "tk-other-lubu",
+      "tk-other-lubu",
+      "tk-other-lubu",
+      "cf-blackthorn-duelist",
+      "cf-blackthorn-duelist",
+      "cf-blackthorn-duelist",
+      "cf-blackthorn-duelist",
+      "tk-shu-zhangfei",
+      "tk-shu-zhangfei",
+      "tk-shu-zhangfei",
+      "tk-shu-zhangfei",
+      "cf-fomorian-raider",
+      "cf-fomorian-raider",
+      "cf-fomorian-raider",
+      "cf-fomorian-raider",
+      "bk-boarkin-rootbreaker",
+      "bk-boarkin-rootbreaker",
+      "bk-boarkin-rootbreaker",
+      "bk-boarkin-rootbreaker",
+      "cf-fae-spark",
+      "cf-fae-spark",
+      "cf-thorn-sprite",
+      "cf-thorn-sprite",
+      "cf-thorn-sprite",
+      "cf-thorn-sprite",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "cf-hounds-of-annwn",
+      "cf-hounds-of-annwn",
+      "cf-hounds-of-annwn",
+      "cf-hounds-of-annwn",
+      "tk-wu-handang",
+      "tk-wu-handang",
+      "tk-wu-handang",
+      "tk-wu-handang",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest"
+    ],
+    "initialScore": 0.4177777777777778,
+    "acceptedSwaps": [
+      {
+        "iteration": 1,
+        "out": "bk-boarkin-rootbreaker",
+        "in": "ac-castle-under-siege",
+        "role": "interaction",
+        "priorScore": 0.4177777777777778,
+        "nextScore": 0.4192592592592593,
+        "scoreDelta": 0.0014814814814814725
+      },
+      {
+        "iteration": 2,
+        "out": "ar-training-dummy",
+        "in": "tk-shu-weiyan",
+        "role": "threats",
+        "priorScore": 0.4192592592592593,
+        "nextScore": 0.4474074074074074,
+        "scoreDelta": 0.028148148148148144
+      },
+      {
+        "iteration": 4,
+        "out": "cf-thorn-sprite",
+        "in": "bk-nekomata-scout",
+        "role": "threats",
+        "priorScore": 0.4474074074074074,
+        "nextScore": 0.457037037037037,
+        "scoreDelta": 0.009629629629629599
+      },
+      {
+        "iteration": 5,
+        "out": "tk-wu-handang",
+        "in": "gk-gaia",
+        "role": "threats",
+        "priorScore": 0.457037037037037,
+        "nextScore": 0.47555555555555556,
+        "scoreDelta": 0.018518518518518545
+      },
+      {
+        "iteration": 6,
+        "out": "cf-fomorian-raider",
+        "in": "tk-wu-huanggai",
+        "role": "removal",
+        "priorScore": 0.47555555555555556,
+        "nextScore": 0.4866666666666667,
+        "scoreDelta": 0.011111111111111127
+      },
+      {
+        "iteration": 14,
+        "out": "tk-wu-handang",
+        "in": "bk-deerkin-grovekeeper",
+        "role": "threats",
+        "priorScore": 0.4866666666666667,
+        "nextScore": 0.48962962962962964,
+        "scoreDelta": 0.002962962962962945
+      },
+      {
+        "iteration": 15,
+        "out": "ar-training-dummy",
+        "in": "cf-mushroom-ring-guard",
+        "role": "threats",
+        "priorScore": 0.48962962962962964,
+        "nextScore": 0.4948148148148148,
+        "scoreDelta": 0.005185185185185182
+      },
+      {
+        "iteration": 19,
+        "out": "cf-thorn-sprite",
+        "in": "bk-rhinokin-charger",
+        "role": "threats",
+        "priorScore": 0.4948148148148148,
+        "nextScore": 0.5022222222222222,
+        "scoreDelta": 0.007407407407407418
+      },
+      {
+        "iteration": 21,
+        "out": "cf-fomorian-raider",
+        "in": "ac-castle-under-siege",
+        "role": "removal",
+        "priorScore": 0.5022222222222222,
+        "nextScore": 0.5155555555555555,
+        "scoreDelta": 0.013333333333333308
+      },
+      {
+        "iteration": 28,
+        "out": "cf-fomorian-raider",
+        "in": "rg-berserker-chieftain",
+        "role": "removal",
+        "priorScore": 0.5155555555555555,
+        "nextScore": 0.557037037037037,
+        "scoreDelta": 0.04148148148148145
+      },
+      {
+        "iteration": 29,
+        "out": "cf-mushroom-ring-guard",
+        "in": "tk-wei-xiahoudun",
+        "role": "threats",
+        "priorScore": 0.557037037037037,
+        "nextScore": 0.5592592592592592,
+        "scoreDelta": 0.0022222222222222365
+      },
+      {
+        "iteration": 31,
+        "out": "cf-hounds-of-annwn",
+        "in": "bk-dragonmaid",
+        "role": "threats",
+        "priorScore": 0.5592592592592592,
+        "nextScore": 0.5659259259259259,
+        "scoreDelta": 0.00666666666666671
+      },
+      {
+        "iteration": 32,
+        "out": "ar-training-dummy",
+        "in": "tk-shu-huangzhong",
+        "role": "threats",
+        "priorScore": 0.5659259259259259,
+        "nextScore": 0.5896296296296296,
+        "scoreDelta": 0.02370370370370367
+      },
+      {
+        "iteration": 37,
+        "out": "tk-other-lubu",
+        "in": "ac-training-yard",
+        "role": "finishers",
+        "priorScore": 0.5896296296296296,
+        "nextScore": 0.5911111111111111,
+        "scoreDelta": 0.001481481481481528
+      },
+      {
+        "iteration": 38,
+        "out": "ac-training-yard",
+        "in": "rg-jotun-warleader",
+        "role": "finishers",
+        "priorScore": 0.5911111111111111,
+        "nextScore": 0.6014814814814815,
+        "scoreDelta": 0.010370370370370363
+      },
+      {
+        "iteration": 39,
+        "out": "tk-other-lubu",
+        "in": "tk-shu-weiyan",
+        "role": "finishers",
+        "priorScore": 0.6014814814814815,
+        "nextScore": 0.6207407407407407,
+        "scoreDelta": 0.019259259259259198
+      },
+      {
+        "iteration": 43,
+        "out": "rg-jotun-warleader",
+        "in": "ar-siege-juggernaut",
+        "role": "finishers",
+        "priorScore": 0.6207407407407407,
+        "nextScore": 0.6237037037037036,
+        "scoreDelta": 0.002962962962962945
+      },
+      {
+        "iteration": 47,
+        "out": "ar-training-dummy",
+        "in": "bk-boarkin-rioter",
+        "role": "threats",
+        "priorScore": 0.6237037037037036,
+        "nextScore": 0.6251851851851852,
+        "scoreDelta": 0.001481481481481528
+      },
+      {
+        "iteration": 49,
+        "out": "ac-castle-under-siege",
+        "in": "tk-wu-huanggai",
+        "role": "removal",
+        "priorScore": 0.6251851851851852,
+        "nextScore": 0.6370370370370371,
+        "scoreDelta": 0.011851851851851891
+      },
+      {
+        "iteration": 54,
+        "out": "tk-wu-handang",
+        "in": "ac-ashwood-ranger",
+        "role": "threats",
+        "priorScore": 0.6370370370370371,
+        "nextScore": 0.6525925925925926,
+        "scoreDelta": 0.015555555555555545
+      },
+      {
+        "iteration": 55,
+        "out": "cf-blackthorn-duelist",
+        "in": "cf-thornmaze-patrol",
+        "role": "draw",
+        "priorScore": 0.6525925925925926,
+        "nextScore": 0.6562962962962963,
+        "scoreDelta": 0.0037037037037036535
+      },
+      {
+        "iteration": 60,
+        "out": "tk-shu-zhangfei",
+        "in": "ac-hunt-the-boar",
+        "role": "removal",
+        "priorScore": 0.6562962962962963,
+        "nextScore": 0.6666666666666666,
+        "scoreDelta": 0.010370370370370363
+      },
+      {
+        "iteration": 71,
+        "out": "cf-fomorian-raider",
+        "in": "tk-shu-zhangfei",
+        "role": "removal",
+        "priorScore": 0.6666666666666666,
+        "nextScore": 0.6733333333333333,
+        "scoreDelta": 0.00666666666666671
+      }
+    ],
+    "rejectedSwaps": 57,
+    "unproposedIterations": 0
+  },
+  "quotaShortfalls": [],
+  "honesty": {
+    "greedyBeatsFinal": false,
+    "nonMonotonicClimb": false
+  }
+}
