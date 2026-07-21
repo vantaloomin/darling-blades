@@ -16,6 +16,7 @@ import { activeRenderScale } from '../platform/renderScale';
 import { CARD_H, CARD_W, CardView, type CardFxLevel } from '../ui/CardView';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { bindInspectHotkeys } from '../ui/inspectHotkeys';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, GOTHIC_MONSTERS_PACK_ART, packTextureForSku, type BoosterSku } from './ShopScene';
@@ -71,6 +72,10 @@ interface SpecialEntry {
  */
 export class PackOpeningScene extends Phaser.Scene {
   private result!: PackResult;
+  /** Revealed, inspectable pulls in reveal order - the arrow-key ring. */
+  private inspectables: { card: AddResult; view: CardView }[] = [];
+  private inspectShell: import('../ui/themeWidgets').ModalShell | null = null;
+  private unbindInspectKeys: (() => void) | null = null;
   private sku: BoosterSku = 'base';
   private revealed = 0;
   private specials: SpecialEntry[] = [];
@@ -130,6 +135,7 @@ export class PackOpeningScene extends Phaser.Scene {
       },
     });
 
+    this.inspectables = [];
     // F10: a multi-pack buy skips the choreographed single-pack reveal and shows
     // a summary of the whole batch instead.
     if ('batch' in data) {
@@ -416,6 +422,7 @@ export class PackOpeningScene extends Phaser.Scene {
     this.addNewMarker(view, card);
     if (view.getData('packInspectBound')) return;
     view.setData('packInspectBound', true);
+    this.inspectables.push({ card, view });
     view.on('pointerup', () => {
       if (view.getData('packInspectBlocked')) return;
       this.showPackInspect(card);
@@ -444,6 +451,8 @@ export class PackOpeningScene extends Phaser.Scene {
   }
 
   private showPackInspect(card: AddResult): void {
+    // Re-entry (arrow stepping) replaces the open modal; close silently first.
+    this.closePackInspect();
     const width = 1280;
     const variant: CardVariant = { frame: card.frame, holo: card.holo, fullArt: card.fullArt };
     const shell = modalShell(this, {
@@ -453,7 +462,20 @@ export class PackOpeningScene extends Phaser.Scene {
       depth: theme.depth.inspect,
       showClose: true, // the shell's standard top-right close (was a hand-placed × at (918,112))
       tapDimToClose: true,
-      escToClose: false,
+      escToClose: false, // ESC arrives via the shared inspect-hotkeys binding below
+      onClose: () => {
+        if (this.inspectShell === shell) this.closePackInspect(false);
+      },
+    });
+    this.inspectShell = shell;
+    // Shared inspect convention (src/ui/inspectHotkeys.ts): arrows step the
+    // revealed pulls, skipping cards whose reveal animation still blocks
+    // inspect (no peeking at face-down specials); ESC closes.
+    const index = this.inspectables.findIndex((entry) => entry.card === card);
+    this.unbindInspectKeys = bindInspectHotkeys(this, {
+      onPrev: () => this.stepPackInspect(index, -1),
+      onNext: () => this.stepPackInspect(index, 1),
+      onClose: () => this.closePackInspect(),
     });
     const c = shell.container;
 
@@ -484,6 +506,26 @@ export class PackOpeningScene extends Phaser.Scene {
           .setOrigin(0.5),
       );
     });
+  }
+
+  private stepPackInspect(from: number, delta: number): void {
+    const n = this.inspectables.length;
+    for (let hop = 1; hop <= n; hop++) {
+      const entry = this.inspectables[(from + delta * hop + n * hop) % n];
+      if (entry && entry.view.active && !entry.view.getData('packInspectBlocked')) {
+        this.showPackInspect(entry.card);
+        return;
+      }
+    }
+  }
+
+  /** Unbind + optionally close the shell (false when the shell is already closing). */
+  private closePackInspect(closeShell = true): void {
+    this.unbindInspectKeys?.();
+    this.unbindInspectKeys = null;
+    const shell = this.inspectShell;
+    this.inspectShell = null;
+    if (closeShell) shell?.close();
   }
 
   private packPullDetails(card: AddResult, variant: CardVariant): string[] {
