@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-20
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-20
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -39,6 +39,10 @@ the pattern to copy for any horizontal chip row whose content resizes.
 - `CardView` is the single card renderer (frame, art, stats, set icon,
   variants, full-art, land styles via `landStyle`). Never draw a card by
   hand.
+- `renderManaText` / `segmentManaText` compose brace-token mana costs into
+  wrapped text with baked pip images. Use this anywhere player-facing copy
+  contains `{2}{B}`-style interchange tokens; keep the returned Text and pips
+  in the same container so dynamic-texture bakes retain them.
 - `ensureCardThumb` / `makeCardThumb` bake-and-cache static thumbnails;
   the cache key includes every render-affecting input (card id + land
   style today) - extend the key when you add one, or stale thumbs leak

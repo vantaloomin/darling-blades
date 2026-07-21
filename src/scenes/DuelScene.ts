@@ -82,6 +82,7 @@ import { HistoryPanel } from '../ui/HistoryPanel';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
 import { ModalGuard } from '../ui/Modal';
+import { renderManaText } from '../ui/ManaText';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
 import { empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
@@ -4232,22 +4233,22 @@ export class DuelScene extends Phaser.Scene {
       bg: string,
       onPick: () => void,
     ): Phaser.GameObjects.Text => {
-      const t = this.add
-        .text(x, 545, label, {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '22px',
-          color: '#f0e6ff',
-          backgroundColor: bg,
-          padding: { x: 18, y: 10 },
-        })
-        .setOrigin(0.5)
+      const rendered = renderManaText(this, c, 0, 0, label, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '22px',
+        color: '#f0e6ff',
+        backgroundColor: bg,
+        padding: { x: 18, y: 10 },
+      });
+      const t = rendered.text
+        .setPosition(x - rendered.text.width / 2, 545 - rendered.text.height / 2)
         .setInteractive({ useHandCursor: true });
+      rendered.reflow();
       bindTapButton(this, t, (p) => {
         if (p.rightButtonReleased()) return;
         onPick();
       });
       inflateHitArea(t, 90, 60);
-      c.add(t);
       return t;
     };
     const total = combineManaCosts(d.cost!, d.empower!.cost);
@@ -4255,17 +4256,15 @@ export class DuelScene extends Phaser.Scene {
     button(width / 2 + 170, `Empower ${manaCostText(total)}`, '#3a2030', () => pick(true));
     const rider = empowerText(d);
     if (rider) {
-      c.add(
-        this.add
-          .text(width / 2, 605, rider, {
-            fontFamily: 'Georgia, serif',
-            fontSize: '17px',
-            color: '#cdbfe0',
-            wordWrap: { width: 640 },
-            align: 'center',
-          })
-          .setOrigin(0.5, 0),
-      );
+      const renderedRider = renderManaText(this, c, width / 2, 605, rider, {
+        fontFamily: 'Georgia, serif',
+        fontSize: '17px',
+        color: '#cdbfe0',
+        wordWrap: { width: 640 },
+        align: 'center',
+      });
+      renderedRider.text.setOrigin(0.5, 0);
+      renderedRider.reflow();
     }
     this.empowerChooser = c;
     this.empowerChooserGuard.open(this.overlayGuardTargets());

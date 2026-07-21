@@ -9,6 +9,7 @@ import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 import { fxPolicy } from './fx/FXSupport';
 import { IridescencePostFX } from './fx/IridescencePostFX';
+import { renderManaText, type ManaTextRender } from './ManaText';
 import { pipsFor } from './ManaSymbols';
 import { rulesText, typeLine } from './rulesText';
 
@@ -114,6 +115,8 @@ export class CardView extends Phaser.GameObjects.Container {
   private nameText: Phaser.GameObjects.Text;
   private typeText: Phaser.GameObjects.Text;
   private rulesTextObj: Phaser.GameObjects.Text;
+  private plainRulesTextObj: Phaser.GameObjects.Text;
+  private manaRules: ManaTextRender | null = null;
   private flavorTextObj: Phaser.GameObjects.Text;
   private flavorRule: Phaser.GameObjects.Rectangle;
   private ptPlate: Phaser.GameObjects.Image;
@@ -186,6 +189,7 @@ export class CardView extends Phaser.GameObjects.Container {
         lineSpacing: 2,
       })
       .setOrigin(0, 0);
+    this.plainRulesTextObj = this.rulesTextObj;
 
     // Flavor renders as its own italic block at the bottom of the text area,
     // in a warm muted sepia to separate it from the rules text above. A faint
@@ -339,7 +343,20 @@ export class CardView extends Phaser.GameObjects.Container {
     const typeW = Math.max(1, this.typeText.width);
     this.typeText.setScale(Math.min(1, TEXT_WIDTH / typeW));
     const rules = rulesText(card);
-    this.rulesTextObj.setText(rules);
+    if (/\{/.test(rules)) {
+      this.plainRulesTextObj.setVisible(false);
+      this.manaRules = renderManaText(this.scene, this, TEXT_LEFT, 66, rules, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '13px',
+        color: '#20180e',
+        resolution: 2,
+        wordWrap: { width: TEXT_WIDTH },
+        lineSpacing: 2,
+      });
+      this.rulesTextObj = this.manaRules.text;
+    } else {
+      this.rulesTextObj.setText(rules);
+    }
     // Land faces get a composed mana-iconography row ([T] → [pip]) centered
     // in the otherwise-empty textbox; flavor (if any) drops below the row.
     const manaRow = isType(card, 'land') ? (card.manaAbility ?? []) : [];
@@ -398,6 +415,7 @@ export class CardView extends Phaser.GameObjects.Container {
     this.nameText.setAlpha(textAlpha);
     this.typeText.setAlpha(textAlpha);
     this.rulesTextObj.setAlpha(textAlpha);
+    this.manaRules?.setAlpha(textAlpha);
     // In full art the rules field is bottom-anchored and content-sized (user
     // spec 2026-07-13): full width, no dead parchment below short text. The
     // mana-icon row and rules text shift down with it via fieldTop, and the
@@ -441,6 +459,7 @@ export class CardView extends Phaser.GameObjects.Container {
         setTypeBandAbove(PLATE_BOTTOM);
       }
     }
+    this.manaRules?.reflow();
     if (abilityMana.length > 0) {
       // [T]: Add [G] — icon form of the old "Tap: add G." line, sized to sit
       // flush with the 13px rules text below it.
@@ -623,6 +642,8 @@ export class CardView extends Phaser.GameObjects.Container {
       this.nameText,
       this.typeText,
       this.rulesTextObj,
+      ...(this.manaRules?.pips ?? []),
+      ...(this.manaRules?.numbers ?? []),
       this.flavorRule,
       this.flavorTextObj,
       this.costPlate,
@@ -733,6 +754,10 @@ export class CardView extends Phaser.GameObjects.Container {
   }
 
   private clearFx(): void {
+    this.manaRules?.destroy();
+    this.manaRules = null;
+    this.rulesTextObj = this.plainRulesTextObj;
+    this.plainRulesTextObj.setVisible(true);
     this.holo?.destroy();
     this.holo = null;
     if (this.shineFx) {
