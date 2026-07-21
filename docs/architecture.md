@@ -182,10 +182,11 @@ Boot → Preload → MainMenu → { Gauntlet→Duel, Duel, Shop→PackOpening, C
 - **Gauntlet** (`GauntletScene.ts`) — the Avatar Gauntlet ladder, reached from
   the MainMenu "Avatar Gauntlet" item; shows the ten rungs and launches
   gauntlet duels.
-- **Limited** (`LimitedScene.ts`, `LimitedRevealScene.ts`, `LimitedDraftScene.ts`,
-  `LimitedDeckBuilderScene.ts`) — Sealed and Bot Draft run setup, temporary pool
-  reveal/picking, 40-card limited deck building, then launch into Duel with deck
-  overrides.
+- **Limited** (`LimitedScene.ts`, `LimitedDraftScene.ts`,
+  `LimitedDeckBuilderScene.ts`) — Bot Draft run setup, pack picking, 40-card
+  limited deck building, then launch into Duel with deck overrides. Legacy
+  Sealed history and records remain inert in old saves; an active legacy Sealed
+  run is discarded safely at load.
 - **Duel / Shop / PackOpening / Collection / DeckBuilder / Achievements / Showcase** — the
   remaining feature scenes.
 

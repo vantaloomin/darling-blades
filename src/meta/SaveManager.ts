@@ -568,6 +568,10 @@ export class SaveManager {
       const limited = (cur.limited ?? freshLimitedState()) as LimitedState & {
         premiumWeek?: Partial<PremiumWeekState>;
       };
+      // Sealed was cancelled after v14 saves could persist it. Preserve legacy
+      // history and bestSealedWins via the spread below, but an in-flight sealed
+      // run cannot resume now that its meta and scene paths are gone.
+      const limitedActiveRun = limited.activeRun?.mode === 'draft' ? limited.activeRun : null;
       const premiumWeek = limited.premiumWeek;
       const week = typeof premiumWeek?.week === 'number' && Number.isInteger(premiumWeek.week)
         ? premiumWeek.week
@@ -583,7 +587,7 @@ export class SaveManager {
         version: 22,
         decks,
         gauntlet: { ...gauntlet, run },
-        limited: { ...limited, premiumWeek: { week, entries } },
+        limited: { ...limited, activeRun: limitedActiveRun, premiumWeek: { week, entries } },
         replays,
       } as unknown as SaveData;
     }

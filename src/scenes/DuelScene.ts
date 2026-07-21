@@ -589,7 +589,7 @@ export class DuelScene extends Phaser.Scene {
     this.myDeckName = this.replayMode
       ? 'Replay Deck'
       : this.limited
-        ? `${this.limited.mode === 'sealed' ? 'Sealed' : 'Draft'} Deck`
+        ? 'Draft Deck'
         : myDeckEntry?.name ?? STARTER_DECKS[0].name;
     // A deck-builder star is this specific deck's hero image. Limited/tutorial
     // deck overrides ignore saved-deck art; otherwise fall back to the old

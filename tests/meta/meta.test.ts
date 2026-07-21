@@ -17,7 +17,7 @@ import {
 import { validateDeck } from '../../src/meta/DeckStorage';
 import { applyGauntletResult, applyMatchResult, buyThemeDeck, previewDeckGrant, spendGold } from '../../src/meta/Economy';
 import { assignDraftPersonas } from '../../src/meta/draftPicker';
-import { startDraftRun, startSealedRun } from '../../src/meta/Limited';
+import { startDraftRun } from '../../src/meta/Limited';
 import { openPack, packPool } from '../../src/meta/PackOpener';
 import { freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, shardValue, TIER_RANK, variantKey, variantRank } from '../../src/meta/variants';
@@ -504,7 +504,7 @@ describe('save migration old blobs â†’ current schema', () => {
     expect(m.data.achievements).toEqual({ unlocked: [], claimed: [] }); // v11
     expect(m.data.daily.quests).toHaveLength(ECONOMY.dailyQuestCount); // v13
     expect(m.data.daily.rerollsUsed).toBe(0);
-    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } }); // v14/v19
+    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } }); // v14/v19
     // v4: pre-variant copies become PLAIN; zero-count entries are not seeded
     expect(m.data.collectionVariants['bk-wolfqueen']).toEqual({ [variantKey(PLAIN_VARIANT)]: 2 });
     expect(m.data.collectionVariants['land-forest']).toBeUndefined();
@@ -807,7 +807,7 @@ describe('save migration old blobs â†’ current schema', () => {
       clearStyles: { monoColor: 0, dualColor: 0 },
     });
     expect(m.data.daily.quests).toHaveLength(ECONOMY.dailyQuestCount);
-    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
+    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
   });
 
   it('migrates a v12 blob forward: daily quests, streaks, and limited default', () => {
@@ -825,7 +825,7 @@ describe('save migration old blobs â†’ current schema', () => {
     expect(new Set(m.data.daily.quests.map((q) => q.id)).size).toBe(ECONOMY.dailyQuestCount);
     expect(m.data.daily.rerollsUsed).toBe(0);
     expect(m.data.daily.streak).toEqual({ count: 0, lastWinDay: null });
-    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
+    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
   });
 
   it('migrates a v13 blob forward: limited defaults empty', () => {
@@ -839,7 +839,7 @@ describe('save migration old blobs â†’ current schema', () => {
 
     expect(m.data.version).toBe(22);
     expect(m.data.daily.day).toBe('2026-07-08');
-    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
+    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
   });
 
   it('migrates a v14 blob forward: saved decks gain per-deck hero selections', () => {
@@ -875,7 +875,7 @@ describe('save migration old blobs â†’ current schema', () => {
     ]);
   });
 
-  it('migrates a v15 blob forward: backfills in-flight draft personas and leaves sealed runs intact', () => {
+  it('migrates a v15 blob forward: backfills draft personas and safely drops an active sealed run', () => {
     const now = new Date(2026, 6, 8).getTime();
     const seed = 4815;
     const rosterIds = DRAFT_PERSONAS.map((persona) => persona.id);
@@ -899,20 +899,43 @@ describe('save migration old blobs â†’ current schema', () => {
     expect(migratedDraft.data.version).toBe(22);
     expect(migratedDraft.data.limited.activeRun?.draft?.personaIds).toEqual(assignDraftPersonas(seed, rosterIds));
 
-    const sealedRun = startSealedRun(CARD_DB, seed, now);
+    const sealedHistory = {
+      id: 'limited-sealed-4815-1000',
+      mode: 'sealed',
+      seed,
+      wins: 3,
+      losses: 0,
+      deckStyle: 'dual',
+      completedAt: now,
+      rewardGold: 300,
+    };
+    const sealedRun = {
+      ...draftRun,
+      id: 'limited-sealed-4815-1000',
+      mode: 'sealed',
+      status: 'build',
+      draft: undefined,
+    };
     const sealedStorage = fakeStorage();
     sealedStorage.raw.set(
       'darlingblades.save.v1',
       JSON.stringify({
         ...freshSave(now),
         version: 15,
-        limited: { ...freshSave(now).limited, activeRun: sealedRun },
+        limited: {
+          ...freshSave(now).limited,
+          activeRun: sealedRun,
+          history: [sealedHistory],
+          bestSealedWins: 3,
+        },
       }),
     );
 
     const migratedSealed = new SaveManager(sealedStorage, now);
     expect(migratedSealed.data.version).toBe(22);
-    expect(migratedSealed.data.limited.activeRun).toEqual(sealedRun);
+    expect(migratedSealed.data.limited.activeRun).toBeNull();
+    expect(migratedSealed.data.limited.history).toEqual([sealedHistory]);
+    expect(migratedSealed.data.limited.bestSealedWins).toBe(3);
   });
 
   it('migrates a v16 blob forward: persona familiarity counters default empty, everything else intact', () => {
