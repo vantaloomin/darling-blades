@@ -141,4 +141,40 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
 
     expect(manager.data.gauntlet.run).toEqual({ ...run, rosterDay: 0, rosterSeed: 0 });
   });
+
+  it('coerces the interim v22 string land style to the default', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    storage.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify({
+        ...current,
+        decks: [
+          {
+            id: 'interim',
+            name: 'Interim',
+            cards: ['land-forest'],
+            heroCardId: null,
+            landStyle: 'celtic-fae',
+          },
+          {
+            id: 'mapped',
+            name: 'Mapped',
+            cards: ['land-plains', 'land-forest'],
+            heroCardId: null,
+            landStyle: { 'land-plains': 'base', 'land-forest': 'celtic-fae' },
+          },
+        ],
+      }),
+    );
+
+    const manager = new SaveManager(storage, 456);
+
+    expect(manager.data.version).toBe(22);
+    expect(manager.data.decks[0].landStyle).toBeNull();
+    expect(manager.data.decks[1].landStyle).toEqual({
+      'land-plains': 'base',
+      'land-forest': 'celtic-fae',
+    });
+  });
 });

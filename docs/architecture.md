@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, docs/design-system.md, docs/plan-design-system-alignment.md, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-16
+<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, docs/design-system.md, docs/plan-design-system-alignment.md, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-20
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -341,6 +341,8 @@ Seven dedicated ui components carry the board:
   strip at the old land anchor is the lands readout — tapping it opens a
   `ZoneContentsModal` breakdown of that player's battlefield lands by type
   with an untapped count in the title (public info, both sides clickable).
+  Per-basic saved-deck land styles render only for the human side; opponents
+  and replay playback always use default land art.
 - **`ZoneContentsModal`** (`src/ui/ZoneContentsModal.ts`) — reusable
   zone-contents grid on `modalShell` (cached thumbs, ×N badges, shared pager);
   serves both graveyards, YOUR deck (aggregated + sorted lands → mana value →
@@ -429,13 +431,13 @@ anywhere:
   Phaser registry or event bus. It holds a single `SaveManager`. Tests construct
   their own `SaveManager` with a fake storage instead.
 - **`SaveManager`** (`SaveManager.ts`) — one versioned JSON blob
-  (`SaveData`, `version: 15`) in `localStorage` under the key `darlingblades.save.v1`.
+  (`SaveData`, `version: 22`) in `localStorage` under the key `darlingblades.save.v1`.
   The key is a storage slot name, not the schema version — the version lives
   inside the blob, and the key deliberately never changes so older builds and
   newer builds read the same slot (the legacy `waifutcg.save.v1` key is still
   read once for save migration — see `src/meta/SaveManager.ts`). Writes are debounced (`touch()` → 250 ms →
   `flush()`); corrupt or missing data falls back to a fresh save. Any blob that
-  isn't `version: 15` routes through `migrate()`, which forward-migrates
+  isn't `version: 22` routes through `migrate()`, which forward-migrates
   **stepwise** so a v1 save walks the whole chain: v1 → v2 (gold / collection /
   decks / stats / settings preserved, `gauntlet` defaults spread in), then
   v2 → v3 (grows `settings.musicOn`, defaulting on), then v3 → v4 (seeds

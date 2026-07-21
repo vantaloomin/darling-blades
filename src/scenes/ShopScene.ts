@@ -4,11 +4,13 @@ import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { DECK_INFO } from '../data/deckInfo';
+import { SET_TITLES } from '../data/setTitles';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue, type CardDef } from '../engine/types';
 import { buyThemeDeck, claimFreeStarter, previewDeckGrant, spendGold } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
+import { packPoolSummary, type PackPoolSummary } from '../meta/packSummary';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
@@ -484,13 +486,13 @@ export class ShopScene extends Phaser.Scene {
   // --- Boosters tab ---------------------------------------------------------
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
-    this.buildPackSku(group, 128, 'Core Set', 'packart', ECONOMY.packPrice, 'base', () =>
+    this.buildPackSku(group, 128, SET_TITLES.base, 'packart', ECONOMY.packPrice, 'base', () =>
       this.buyPacks(ECONOMY.packPrice, undefined, 'base'),
     );
     this.buildPackSku(
       group,
       384,
-      'Ragnarök',
+      SET_TITLES.ragnarok,
       'packart-ragnarok',
       ECONOMY.ragnarokPackPrice,
       'ragnarok',
@@ -499,7 +501,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       640,
-      'Celtic Fae',
+      SET_TITLES['celtic-fae'],
       'packart-celtic-fae',
       ECONOMY.celticFaePackPrice,
       'celtic-fae',
@@ -508,7 +510,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       896,
-      'Arthurian Court',
+      SET_TITLES['arthurian-court'],
       'packart-arthurian-court',
       ECONOMY.arthurianCourtPackPrice,
       'arthurian-court',
@@ -517,7 +519,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPackSku(
       group,
       1152,
-      'Gothic Monsters',
+      SET_TITLES['gothic-monsters'],
       'packart-gothic-monsters',
       ECONOMY.gothicMonstersPackPrice,
       'gothic-monsters',
@@ -541,6 +543,16 @@ export class ShopScene extends Phaser.Scene {
     const title = this.add
       .text(x, 178, label, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
       .setOrigin(0.5);
+    // Pool-first disclosure: slot odds are identical across boosters, so the
+    // pool is the real decision variable between tiles.
+    const pool = packPoolSummary(Services.save.data, CARD_DB, sku === 'base' ? undefined : sku);
+    const poolCaption = this.add
+      .text(x, 204, `${pool.ownedDistinct}/${pool.poolSize} Owned`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
     const pack = this.add
       .image(x, 368, textureKey)
       .setDisplaySize(200, 286)
@@ -559,14 +571,18 @@ export class ShopScene extends Phaser.Scene {
       minWidth: 180,
       onTap: onBuy,
     });
-    const infoX = x + theme.space(24);
+    // The bubble rides the short pool caption, not the title: wide theme
+    // titles (Nocturne Manor) pushed a title-anchored bubble to the screen
+    // edge. The caption is data-bounded, so the edge stays clear.
+    const infoX = x + poolCaption.width / 2 + theme.space(5);
+    const infoY = poolCaption.y;
     const infoBg = this.add.graphics();
     infoBg.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
-    infoBg.fillCircle(infoX, title.y, theme.space(3));
+    infoBg.fillCircle(infoX, infoY, theme.space(3));
     infoBg.lineStyle(theme.control.borderWidth, colorInt(theme.colors.gold), theme.alpha.chrome);
-    infoBg.strokeCircle(infoX, title.y, theme.space(3));
+    infoBg.strokeCircle(infoX, infoY, theme.space(3));
     const info = this.add
-      .text(infoX, title.y, 'i', {
+      .text(infoX, infoY, 'i', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.body}px`,
         fontStyle: theme.weight.w700,
@@ -575,11 +591,11 @@ export class ShopScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     inflateHitArea(info, theme.control.minHitHeight, theme.control.minHitHeight);
-    bindTapButton(this, info, () => this.showOddsModal(sku));
+    bindTapButton(this, info, () => this.showOddsModal(sku, pool));
     bindTapButton(this, pack, onBuy);
     this.skuButtons.push({ btn: buyBtn, price });
     this.shopInteractiveTargets.push(pack, buyBtn.inputZone, info);
-    group.add([title, infoBg, info, pack, buyBtn.container]);
+    group.add([title, poolCaption, infoBg, info, pack, buyBtn.container]);
   }
 
   /** F10 bulk-buy quantity selector (×1 / ×5 / ×10), added to `group`. */
@@ -795,9 +811,9 @@ export class ShopScene extends Phaser.Scene {
     else this.overlay?.close();
   };
 
-  private showOddsModal(sku: BoosterSku): void {
+  private showOddsModal(sku: BoosterSku, pool: PackPoolSummary): void {
     this.closeOverlay();
-    const shell = createOddsModal(this, this.coordinator, sku, this.underlyingInteractiveTargets(), () => {
+    const shell = createOddsModal(this, this.coordinator, sku, pool, this.underlyingInteractiveTargets(), () => {
       if (this.oddsModal === shell) this.oddsModal = null;
     });
     this.oddsModal = shell;

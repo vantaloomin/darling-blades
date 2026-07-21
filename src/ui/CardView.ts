@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
+import { CARD_DB } from '../data/catalog';
 import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
+import { isBasic } from '../meta/Collection';
 import type { CardVariant, FrameStyle } from '../meta/variants';
 import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
@@ -261,7 +263,7 @@ export class CardView extends Phaser.GameObjects.Container {
 
   setCard(
     card: CardDef | null,
-    opts: { fx?: CardFxLevel; variant?: CardVariant; fullArt?: boolean } = {},
+    opts: { fx?: CardFxLevel; variant?: CardVariant; fullArt?: boolean; landStyle?: string } = {},
   ): this {
     this.clearFx();
     this.card = card;
@@ -296,7 +298,10 @@ export class CardView extends Phaser.GameObjects.Container {
 
     // Frame + art
     this.frame.setTexture(frameKeyFor(card.colors, card.types)).setDisplaySize(CARD_W, CARD_H);
-    const artRef = Art.resolver!.getArt(card.id);
+    const artRef = Art.resolver!.getArt(
+      card.id,
+      isBasic(CARD_DB, card.id) ? opts.landStyle : undefined,
+    );
     if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
     else this.art.setTexture(artRef.textureKey);
     // Cover the selected window: the standard window crops vertically; full art

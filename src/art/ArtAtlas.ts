@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import { ART_H, ART_W } from './PlaceholderArtGenerator';
 
 const COLS = 6;
