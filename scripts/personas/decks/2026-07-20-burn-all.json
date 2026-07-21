@@ -1,0 +1,507 @@
+{
+  "schemaVersion": 1,
+  "persona": {
+    "id": "burn",
+    "name": "The Burn Player"
+  },
+  "pool": "all",
+  "field": "prefabs",
+  "seed": 20260720,
+  "seeds": 150,
+  "iterations": 80,
+  "templateVersion": "persona-v1.0.0",
+  "selectedColors": [
+    "R",
+    "B"
+  ],
+  "referenceField": [
+    {
+      "id": "starter-crimson",
+      "name": "Crimson Muster"
+    },
+    {
+      "id": "starter-wild",
+      "name": "Wild Communion"
+    },
+    {
+      "id": "starter-tides",
+      "name": "Burning Tides"
+    },
+    {
+      "id": "starter-mandate",
+      "name": "Shadow Mandate"
+    },
+    {
+      "id": "starter-harvest",
+      "name": "Grave Harvest"
+    },
+    {
+      "id": "theme-ragnarok",
+      "name": "Valhalla's Muster"
+    },
+    {
+      "id": "theme-celtic-fae",
+      "name": "Glimmer Bargain"
+    },
+    {
+      "id": "theme-arthurian-court",
+      "name": "Questing Table"
+    },
+    {
+      "id": "theme-gothic-monsters",
+      "name": "Bloodmoon Masquerade"
+    }
+  ],
+  "deck": [
+    "tk-other-lubu",
+    "tk-other-lubu",
+    "tk-other-lubu",
+    "in-comet-blast",
+    "cf-omen-raven",
+    "cf-omen-raven",
+    "rg-berserker-chieftain",
+    "rg-berserker-chieftain",
+    "rg-warband-leader",
+    "rg-berserker-chieftain",
+    "in-fire-attack",
+    "so-flame-lash",
+    "cf-fae-spark",
+    "in-char",
+    "in-fire-attack",
+    "in-doom-bolt",
+    "ac-castle-under-siege",
+    "gm-red-moon-rampage",
+    "cf-omen-raven",
+    "cf-omen-raven",
+    "tk-other-chengong",
+    "cf-crowbone-prophet",
+    "tk-wu-taishici",
+    "tk-wei-yujin",
+    "tk-wu-sunce",
+    "tk-wu-sunce",
+    "tk-wu-sunce",
+    "tk-wu-sunce",
+    "gm-blood-opera-soloist",
+    "tk-wu-handang",
+    "ac-tournament-favorite",
+    "rg-barrow-wight",
+    "cf-laughing-pooka",
+    "cf-laughing-pooka",
+    "cf-laughing-pooka",
+    "cf-laughing-pooka",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-mountain",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp"
+  ],
+  "counts": {
+    "ac-castle-under-siege": 1,
+    "ac-tournament-favorite": 1,
+    "cf-crowbone-prophet": 1,
+    "cf-fae-spark": 1,
+    "cf-laughing-pooka": 4,
+    "cf-omen-raven": 4,
+    "gm-blood-opera-soloist": 1,
+    "gm-red-moon-rampage": 1,
+    "in-char": 1,
+    "in-comet-blast": 1,
+    "in-doom-bolt": 1,
+    "in-fire-attack": 2,
+    "land-mountain": 17,
+    "land-swamp": 7,
+    "rg-barrow-wight": 1,
+    "rg-berserker-chieftain": 3,
+    "rg-warband-leader": 1,
+    "so-flame-lash": 1,
+    "tk-other-chengong": 1,
+    "tk-other-lubu": 3,
+    "tk-wei-yujin": 1,
+    "tk-wu-handang": 1,
+    "tk-wu-sunce": 4,
+    "tk-wu-taishici": 1
+  },
+  "measured": {
+    "field": "prefabs",
+    "seeds": 150,
+    "matchups": [
+      {
+        "referenceId": "starter-crimson",
+        "referenceName": "Crimson Muster",
+        "rowWins": 93,
+        "colWins": 57,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.62
+      },
+      {
+        "referenceId": "starter-wild",
+        "referenceName": "Wild Communion",
+        "rowWins": 95,
+        "colWins": 55,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6333333333333333
+      },
+      {
+        "referenceId": "starter-tides",
+        "referenceName": "Burning Tides",
+        "rowWins": 111,
+        "colWins": 39,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.74
+      },
+      {
+        "referenceId": "starter-mandate",
+        "referenceName": "Shadow Mandate",
+        "rowWins": 105,
+        "colWins": 45,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7
+      },
+      {
+        "referenceId": "starter-harvest",
+        "referenceName": "Grave Harvest",
+        "rowWins": 109,
+        "colWins": 41,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7266666666666667
+      },
+      {
+        "referenceId": "theme-ragnarok",
+        "referenceName": "Valhalla's Muster",
+        "rowWins": 97,
+        "colWins": 53,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6466666666666666
+      },
+      {
+        "referenceId": "theme-celtic-fae",
+        "referenceName": "Glimmer Bargain",
+        "rowWins": 100,
+        "colWins": 50,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6666666666666666
+      },
+      {
+        "referenceId": "theme-arthurian-court",
+        "referenceName": "Questing Table",
+        "rowWins": 97,
+        "colWins": 53,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6466666666666666
+      },
+      {
+        "referenceId": "theme-gothic-monsters",
+        "referenceName": "Bloodmoon Masquerade",
+        "rowWins": 99,
+        "colWins": 51,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.66
+      }
+    ],
+    "rowWins": 906,
+    "losses": 444,
+    "draws": 0,
+    "games": 1350,
+    "score": 0.6711111111111111
+  },
+  "hillClimb": {
+    "initialList": [
+      "tk-other-lubu",
+      "tk-other-lubu",
+      "tk-other-lubu",
+      "tk-other-lubu",
+      "cf-omen-raven",
+      "cf-omen-raven",
+      "rg-berserker-chieftain",
+      "rg-berserker-chieftain",
+      "rg-berserker-chieftain",
+      "rg-berserker-chieftain",
+      "cf-fomorian-raider",
+      "cf-fomorian-raider",
+      "cf-fae-spark",
+      "cf-fae-spark",
+      "cf-fae-spark",
+      "cf-fae-spark",
+      "in-ram-the-gates",
+      "in-ram-the-gates",
+      "cf-omen-raven",
+      "cf-omen-raven",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "tk-wu-sunce",
+      "tk-wu-sunce",
+      "tk-wu-sunce",
+      "tk-wu-sunce",
+      "tk-wu-handang",
+      "tk-wu-handang",
+      "tk-wu-handang",
+      "tk-wu-handang",
+      "cf-laughing-pooka",
+      "cf-laughing-pooka",
+      "cf-laughing-pooka",
+      "cf-laughing-pooka",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-mountain",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp"
+    ],
+    "initialScore": 0.4318518518518519,
+    "acceptedSwaps": [
+      {
+        "iteration": 1,
+        "out": "in-ram-the-gates",
+        "in": "ac-castle-under-siege",
+        "role": "interaction",
+        "priorScore": 0.4318518518518519,
+        "nextScore": 0.4474074074074074,
+        "scoreDelta": 0.015555555555555545
+      },
+      {
+        "iteration": 3,
+        "out": "rg-berserker-chieftain",
+        "in": "tk-wu-ganning",
+        "role": "removal",
+        "priorScore": 0.4474074074074074,
+        "nextScore": 0.45185185185185184,
+        "scoreDelta": 0.0044444444444444176
+      },
+      {
+        "iteration": 4,
+        "out": "ar-training-dummy",
+        "in": "cf-bog-lantern-witch",
+        "role": "threats",
+        "priorScore": 0.45185185185185184,
+        "nextScore": 0.46370370370370373,
+        "scoreDelta": 0.011851851851851891
+      },
+      {
+        "iteration": 6,
+        "out": "cf-fae-spark",
+        "in": "tk-wu-huanggai",
+        "role": "removal",
+        "priorScore": 0.46370370370370373,
+        "nextScore": 0.48148148148148145,
+        "scoreDelta": 0.017777777777777726
+      },
+      {
+        "iteration": 7,
+        "out": "cf-fomorian-raider",
+        "in": "gm-kicked-door",
+        "role": "removal",
+        "priorScore": 0.48148148148148145,
+        "nextScore": 0.48962962962962964,
+        "scoreDelta": 0.008148148148148182
+      },
+      {
+        "iteration": 12,
+        "out": "in-ram-the-gates",
+        "in": "gm-red-moon-rampage",
+        "role": "interaction",
+        "priorScore": 0.48962962962962964,
+        "nextScore": 0.5148148148148148,
+        "scoreDelta": 0.0251851851851852
+      },
+      {
+        "iteration": 13,
+        "out": "tk-wu-handang",
+        "in": "ac-tournament-favorite",
+        "role": "threats",
+        "priorScore": 0.5148148148148148,
+        "nextScore": 0.5288888888888889,
+        "scoreDelta": 0.014074074074074017
+      },
+      {
+        "iteration": 19,
+        "out": "ar-training-dummy",
+        "in": "cf-crowbone-prophet",
+        "role": "threats",
+        "priorScore": 0.5288888888888889,
+        "nextScore": 0.54,
+        "scoreDelta": 0.011111111111111183
+      },
+      {
+        "iteration": 20,
+        "out": "ar-training-dummy",
+        "in": "tk-other-chengong",
+        "role": "threats",
+        "priorScore": 0.54,
+        "nextScore": 0.5548148148148148,
+        "scoreDelta": 0.014814814814814725
+      },
+      {
+        "iteration": 21,
+        "out": "cf-fae-spark",
+        "in": "ac-castle-under-siege",
+        "role": "interaction",
+        "priorScore": 0.5548148148148148,
+        "nextScore": 0.5707931801334322,
+        "scoreDelta": 0.015978365318617405
+      },
+      {
+        "iteration": 23,
+        "out": "tk-wu-ganning",
+        "in": "rg-warband-leader",
+        "role": "removal",
+        "priorScore": 0.5707931801334322,
+        "nextScore": 0.5767234988880652,
+        "scoreDelta": 0.005930318754633013
+      },
+      {
+        "iteration": 27,
+        "out": "cf-fomorian-raider",
+        "in": "tk-wu-huanggai",
+        "role": "removal",
+        "priorScore": 0.5767234988880652,
+        "nextScore": 0.5833951074870274,
+        "scoreDelta": 0.006671608598962209
+      },
+      {
+        "iteration": 28,
+        "out": "tk-wu-huanggai",
+        "in": "in-char",
+        "role": "removal",
+        "priorScore": 0.5833951074870274,
+        "nextScore": 0.5945144551519644,
+        "scoreDelta": 0.011119347664937052
+      },
+      {
+        "iteration": 38,
+        "out": "tk-other-lubu",
+        "in": "in-comet-blast",
+        "role": "finishers",
+        "priorScore": 0.5945144551519644,
+        "nextScore": 0.6152705707931801,
+        "scoreDelta": 0.02075611564121571
+      },
+      {
+        "iteration": 41,
+        "out": "tk-wu-handang",
+        "in": "rg-barrow-wight",
+        "role": "threats",
+        "priorScore": 0.6152705707931801,
+        "nextScore": 0.6192592592592593,
+        "scoreDelta": 0.003988688466079138
+      },
+      {
+        "iteration": 44,
+        "out": "cf-fae-spark",
+        "in": "in-doom-bolt",
+        "role": "interaction",
+        "priorScore": 0.6192592592592593,
+        "nextScore": 0.6274074074074074,
+        "scoreDelta": 0.008148148148148127
+      },
+      {
+        "iteration": 51,
+        "out": "ar-training-dummy",
+        "in": "tk-wu-taishici",
+        "role": "threats",
+        "priorScore": 0.6274074074074074,
+        "nextScore": 0.6392592592592593,
+        "scoreDelta": 0.011851851851851891
+      },
+      {
+        "iteration": 52,
+        "out": "gm-kicked-door",
+        "in": "in-fire-attack",
+        "role": "removal",
+        "priorScore": 0.6392592592592593,
+        "nextScore": 0.6451851851851852,
+        "scoreDelta": 0.00592592592592589
+      },
+      {
+        "iteration": 53,
+        "out": "cf-bog-lantern-witch",
+        "in": "tk-wei-yujin",
+        "role": "threats",
+        "priorScore": 0.6451851851851852,
+        "nextScore": 0.6518518518518519,
+        "scoreDelta": 0.00666666666666671
+      },
+      {
+        "iteration": 61,
+        "out": "tk-wu-handang",
+        "in": "gm-blood-opera-soloist",
+        "role": "threats",
+        "priorScore": 0.6518518518518519,
+        "nextScore": 0.6555555555555556,
+        "scoreDelta": 0.0037037037037036535
+      },
+      {
+        "iteration": 66,
+        "out": "ac-castle-under-siege",
+        "in": "in-fire-attack",
+        "role": "interaction",
+        "priorScore": 0.6555555555555556,
+        "nextScore": 0.6666666666666666,
+        "scoreDelta": 0.011111111111111072
+      },
+      {
+        "iteration": 71,
+        "out": "tk-wu-huanggai",
+        "in": "so-flame-lash",
+        "role": "removal",
+        "priorScore": 0.6666666666666666,
+        "nextScore": 0.6711111111111111,
+        "scoreDelta": 0.004444444444444473
+      }
+    ],
+    "rejectedSwaps": 58,
+    "unproposedIterations": 0
+  },
+  "quotaShortfalls": [],
+  "honesty": {
+    "greedyBeatsFinal": false,
+    "nonMonotonicClimb": false
+  }
+}

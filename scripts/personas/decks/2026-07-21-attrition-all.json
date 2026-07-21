@@ -1,0 +1,508 @@
+{
+  "schemaVersion": 1,
+  "persona": {
+    "id": "attrition",
+    "name": "The Attrition Player"
+  },
+  "pool": "all",
+  "field": "prefabs",
+  "seed": 20260720,
+  "seeds": 150,
+  "iterations": 80,
+  "templateVersion": "persona-v1.0.0",
+  "selectedColors": [
+    "B",
+    "W"
+  ],
+  "referenceField": [
+    {
+      "id": "starter-crimson",
+      "name": "Crimson Muster"
+    },
+    {
+      "id": "starter-wild",
+      "name": "Wild Communion"
+    },
+    {
+      "id": "starter-tides",
+      "name": "Burning Tides"
+    },
+    {
+      "id": "starter-mandate",
+      "name": "Shadow Mandate"
+    },
+    {
+      "id": "starter-harvest",
+      "name": "Grave Harvest"
+    },
+    {
+      "id": "theme-ragnarok",
+      "name": "Valhalla's Muster"
+    },
+    {
+      "id": "theme-celtic-fae",
+      "name": "Glimmer Bargain"
+    },
+    {
+      "id": "theme-arthurian-court",
+      "name": "Questing Table"
+    },
+    {
+      "id": "theme-gothic-monsters",
+      "name": "Bloodmoon Masquerade"
+    }
+  ],
+  "deck": [
+    "rg-zhaoyun",
+    "rg-zhaoyun",
+    "rg-zhaoyun",
+    "rg-zhaoyun",
+    "cf-omen-raven",
+    "so-night-extortion",
+    "cf-omen-raven",
+    "cf-omen-raven",
+    "in-reapers-due",
+    "gm-silver-bullet-duelist",
+    "gm-wolfbane-shot",
+    "gm-silver-bullet-duelist",
+    "gm-hunters-writ",
+    "gm-tattered-invitation",
+    "in-doom-bolt",
+    "gm-wolfbane-shot",
+    "ac-fallen-banner",
+    "in-reapers-due",
+    "gm-midnight-bite",
+    "cf-oak-shield-vow",
+    "in-doom-bolt",
+    "ac-shieldwall-call",
+    "tk-wei-yujin",
+    "bk-crowkin-shrike",
+    "tk-wei-caocao",
+    "bk-bunny-vanguard",
+    "gk-hecate",
+    "tk-shu-zhaoyun",
+    "ac-camelot-banneret",
+    "ac-camelot-banneret",
+    "bk-holstaur-milkmaid",
+    "gm-madame-macabre",
+    "gm-madame-macabre",
+    "gm-madame-macabre",
+    "gm-madame-macabre",
+    "ar-training-dummy",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains"
+  ],
+  "counts": {
+    "ac-camelot-banneret": 2,
+    "ac-fallen-banner": 1,
+    "ac-shieldwall-call": 1,
+    "ar-training-dummy": 1,
+    "bk-bunny-vanguard": 1,
+    "bk-crowkin-shrike": 1,
+    "bk-holstaur-milkmaid": 1,
+    "cf-oak-shield-vow": 1,
+    "cf-omen-raven": 3,
+    "gk-hecate": 1,
+    "gm-hunters-writ": 1,
+    "gm-madame-macabre": 4,
+    "gm-midnight-bite": 1,
+    "gm-silver-bullet-duelist": 2,
+    "gm-tattered-invitation": 1,
+    "gm-wolfbane-shot": 2,
+    "in-doom-bolt": 2,
+    "in-reapers-due": 2,
+    "land-plains": 12,
+    "land-swamp": 12,
+    "rg-zhaoyun": 4,
+    "so-night-extortion": 1,
+    "tk-shu-zhaoyun": 1,
+    "tk-wei-caocao": 1,
+    "tk-wei-yujin": 1
+  },
+  "measured": {
+    "field": "prefabs",
+    "seeds": 150,
+    "matchups": [
+      {
+        "referenceId": "starter-crimson",
+        "referenceName": "Crimson Muster",
+        "rowWins": 90,
+        "colWins": 60,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6
+      },
+      {
+        "referenceId": "starter-wild",
+        "referenceName": "Wild Communion",
+        "rowWins": 106,
+        "colWins": 42,
+        "draws": 2,
+        "games": 150,
+        "rate": 0.7162162162162162
+      },
+      {
+        "referenceId": "starter-tides",
+        "referenceName": "Burning Tides",
+        "rowWins": 92,
+        "colWins": 58,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6133333333333333
+      },
+      {
+        "referenceId": "starter-mandate",
+        "referenceName": "Shadow Mandate",
+        "rowWins": 76,
+        "colWins": 74,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.5066666666666667
+      },
+      {
+        "referenceId": "starter-harvest",
+        "referenceName": "Grave Harvest",
+        "rowWins": 105,
+        "colWins": 45,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7
+      },
+      {
+        "referenceId": "theme-ragnarok",
+        "referenceName": "Valhalla's Muster",
+        "rowWins": 89,
+        "colWins": 61,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.5933333333333334
+      },
+      {
+        "referenceId": "theme-celtic-fae",
+        "referenceName": "Glimmer Bargain",
+        "rowWins": 91,
+        "colWins": 59,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6066666666666667
+      },
+      {
+        "referenceId": "theme-arthurian-court",
+        "referenceName": "Questing Table",
+        "rowWins": 116,
+        "colWins": 34,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7733333333333333
+      },
+      {
+        "referenceId": "theme-gothic-monsters",
+        "referenceName": "Bloodmoon Masquerade",
+        "rowWins": 94,
+        "colWins": 56,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6266666666666667
+      }
+    ],
+    "rowWins": 859,
+    "losses": 489,
+    "draws": 2,
+    "games": 1350,
+    "score": 0.637240356083086
+  },
+  "hillClimb": {
+    "initialList": [
+      "rg-zhaoyun",
+      "rg-zhaoyun",
+      "rg-zhaoyun",
+      "rg-zhaoyun",
+      "cf-omen-raven",
+      "cf-omen-raven",
+      "cf-omen-raven",
+      "cf-omen-raven",
+      "gm-silver-bullet-duelist",
+      "gm-silver-bullet-duelist",
+      "gm-silver-bullet-duelist",
+      "gm-silver-bullet-duelist",
+      "gm-hunters-writ",
+      "gm-hunters-writ",
+      "gm-hunters-writ",
+      "gm-hunters-writ",
+      "gm-tattered-invitation",
+      "in-reapers-due",
+      "cf-oak-shield-vow",
+      "cf-oak-shield-vow",
+      "cf-oak-shield-vow",
+      "cf-oak-shield-vow",
+      "tk-wei-caocao",
+      "tk-wei-caocao",
+      "tk-wei-caocao",
+      "tk-wei-caocao",
+      "ac-camelot-banneret",
+      "ac-camelot-banneret",
+      "ac-camelot-banneret",
+      "ac-camelot-banneret",
+      "ar-training-dummy",
+      "gm-madame-macabre",
+      "gm-madame-macabre",
+      "gm-madame-macabre",
+      "gm-madame-macabre",
+      "ar-training-dummy",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains"
+    ],
+    "initialScore": 0.4346210995542348,
+    "acceptedSwaps": [
+      {
+        "iteration": 1,
+        "out": "gm-tattered-invitation",
+        "in": "ac-fallen-banner",
+        "role": "removal",
+        "priorScore": 0.4346210995542348,
+        "nextScore": 0.4370811615785555,
+        "scoreDelta": 0.002460062024320697
+      },
+      {
+        "iteration": 4,
+        "out": "tk-wei-caocao",
+        "in": "bk-spiderkin-weaver",
+        "role": "threats",
+        "priorScore": 0.4370811615785555,
+        "nextScore": 0.4552238805970149,
+        "scoreDelta": 0.01814271901845943
+      },
+      {
+        "iteration": 8,
+        "out": "ac-camelot-banneret",
+        "in": "ac-galahad-silver-oath",
+        "role": "threats",
+        "priorScore": 0.4552238805970149,
+        "nextScore": 0.4634328358208955,
+        "scoreDelta": 0.008208955223880599
+      },
+      {
+        "iteration": 13,
+        "out": "ar-training-dummy",
+        "in": "ac-novice-squire",
+        "role": "threats",
+        "priorScore": 0.4634328358208955,
+        "nextScore": 0.47884187082405344,
+        "scoreDelta": 0.015409035003157934
+      },
+      {
+        "iteration": 15,
+        "out": "ac-camelot-banneret",
+        "in": "gk-hecate",
+        "role": "threats",
+        "priorScore": 0.47884187082405344,
+        "nextScore": 0.4795539033457249,
+        "scoreDelta": 0.0007120325216714574
+      },
+      {
+        "iteration": 19,
+        "out": "cf-oak-shield-vow",
+        "in": "ac-shieldwall-call",
+        "role": "interaction",
+        "priorScore": 0.4795539033457249,
+        "nextScore": 0.4821693907875186,
+        "scoreDelta": 0.0026154874417936846
+      },
+      {
+        "iteration": 20,
+        "out": "cf-oak-shield-vow",
+        "in": "in-doom-bolt",
+        "role": "interaction",
+        "priorScore": 0.4821693907875186,
+        "nextScore": 0.511177347242921,
+        "scoreDelta": 0.029007956455402384
+      },
+      {
+        "iteration": 21,
+        "out": "gm-hunters-writ",
+        "in": "ac-fallen-banner",
+        "role": "removal",
+        "priorScore": 0.511177347242921,
+        "nextScore": 0.530156366344006,
+        "scoreDelta": 0.018979019101085015
+      },
+      {
+        "iteration": 23,
+        "out": "gm-silver-bullet-duelist",
+        "in": "in-reapers-due",
+        "role": "removal",
+        "priorScore": 0.530156366344006,
+        "nextScore": 0.5453194650817236,
+        "scoreDelta": 0.015163098737717595
+      },
+      {
+        "iteration": 25,
+        "out": "cf-omen-raven",
+        "in": "so-night-extortion",
+        "role": "draw",
+        "priorScore": 0.5453194650817236,
+        "nextScore": 0.5512630014858841,
+        "scoreDelta": 0.005943536404160565
+      },
+      {
+        "iteration": 28,
+        "out": "gm-hunters-writ",
+        "in": "gm-tattered-invitation",
+        "role": "removal",
+        "priorScore": 0.5512630014858841,
+        "nextScore": 0.5580357142857143,
+        "scoreDelta": 0.006772712799830161
+      },
+      {
+        "iteration": 29,
+        "out": "ac-galahad-silver-oath",
+        "in": "tk-shu-zhaoyun",
+        "role": "threats",
+        "priorScore": 0.5580357142857143,
+        "nextScore": 0.5657015590200446,
+        "scoreDelta": 0.007665844734330296
+      },
+      {
+        "iteration": 30,
+        "out": "ac-novice-squire",
+        "in": "tk-shu-guanping",
+        "role": "threats",
+        "priorScore": 0.5657015590200446,
+        "nextScore": 0.5685693106004448,
+        "scoreDelta": 0.002867751580400202
+      },
+      {
+        "iteration": 31,
+        "out": "tk-shu-guanping",
+        "in": "bk-holstaur-milkmaid",
+        "role": "threats",
+        "priorScore": 0.5685693106004448,
+        "nextScore": 0.5753526354862658,
+        "scoreDelta": 0.006783324885821007
+      },
+      {
+        "iteration": 40,
+        "out": "cf-oak-shield-vow",
+        "in": "gm-midnight-bite",
+        "role": "interaction",
+        "priorScore": 0.5753526354862658,
+        "nextScore": 0.5928677563150074,
+        "scoreDelta": 0.017515120828741626
+      },
+      {
+        "iteration": 44,
+        "out": "gm-hunters-writ",
+        "in": "gm-wolfbane-shot",
+        "role": "removal",
+        "priorScore": 0.5928677563150074,
+        "nextScore": 0.6221232368225686,
+        "scoreDelta": 0.029255480507561216
+      },
+      {
+        "iteration": 47,
+        "out": "tk-wei-caocao",
+        "in": "ar-training-dummy",
+        "role": "threats",
+        "priorScore": 0.6221232368225686,
+        "nextScore": 0.6228656273199703,
+        "scoreDelta": 0.0007423904974016571
+      },
+      {
+        "iteration": 51,
+        "out": "tk-wei-caocao",
+        "in": "tk-wei-yujin",
+        "role": "threats",
+        "priorScore": 0.6228656273199703,
+        "nextScore": 0.6253709198813057,
+        "scoreDelta": 0.0025052925613353594
+      },
+      {
+        "iteration": 52,
+        "out": "gm-silver-bullet-duelist",
+        "in": "gm-wolfbane-shot",
+        "role": "removal",
+        "priorScore": 0.6253709198813057,
+        "nextScore": 0.6280623608017817,
+        "scoreDelta": 0.002691440920476018
+      },
+      {
+        "iteration": 63,
+        "out": "bk-spiderkin-weaver",
+        "in": "bk-crowkin-shrike",
+        "role": "threats",
+        "priorScore": 0.6280623608017817,
+        "nextScore": 0.6288047512991833,
+        "scoreDelta": 0.0007423904974016571
+      },
+      {
+        "iteration": 69,
+        "out": "ac-fallen-banner",
+        "in": "in-doom-bolt",
+        "role": "removal",
+        "priorScore": 0.6288047512991833,
+        "nextScore": 0.6332590942835932,
+        "scoreDelta": 0.0044543429844098315
+      },
+      {
+        "iteration": 77,
+        "out": "ar-training-dummy",
+        "in": "bk-bunny-vanguard",
+        "role": "threats",
+        "priorScore": 0.6332590942835932,
+        "nextScore": 0.637240356083086,
+        "scoreDelta": 0.0039812617994928745
+      }
+    ],
+    "rejectedSwaps": 58,
+    "unproposedIterations": 0
+  },
+  "quotaShortfalls": [],
+  "honesty": {
+    "greedyBeatsFinal": false,
+    "nonMonotonicClimb": false
+  }
+}

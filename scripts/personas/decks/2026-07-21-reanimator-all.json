@@ -1,0 +1,557 @@
+{
+  "schemaVersion": 1,
+  "persona": {
+    "id": "reanimator",
+    "name": "The Reanimator"
+  },
+  "pool": "all",
+  "field": "prefabs",
+  "seed": 20260720,
+  "seeds": 150,
+  "iterations": 80,
+  "templateVersion": "persona-v1.0.0",
+  "selectedColors": [
+    "U",
+    "B"
+  ],
+  "referenceField": [
+    {
+      "id": "starter-crimson",
+      "name": "Crimson Muster"
+    },
+    {
+      "id": "starter-wild",
+      "name": "Wild Communion"
+    },
+    {
+      "id": "starter-tides",
+      "name": "Burning Tides"
+    },
+    {
+      "id": "starter-mandate",
+      "name": "Shadow Mandate"
+    },
+    {
+      "id": "starter-harvest",
+      "name": "Grave Harvest"
+    },
+    {
+      "id": "theme-ragnarok",
+      "name": "Valhalla's Muster"
+    },
+    {
+      "id": "theme-celtic-fae",
+      "name": "Glimmer Bargain"
+    },
+    {
+      "id": "theme-arthurian-court",
+      "name": "Questing Table"
+    },
+    {
+      "id": "theme-gothic-monsters",
+      "name": "Bloodmoon Masquerade"
+    }
+  ],
+  "deck": [
+    "gm-bride-storm-crowned",
+    "tk-wu-zhugeke",
+    "gm-bride-storm-crowned",
+    "gm-stormtower-resurrection",
+    "rg-hel",
+    "tk-wu-zhugeke",
+    "cf-fae-ring-initiate",
+    "cf-silver-branch-oracle",
+    "tk-shu-zhugeliang",
+    "cf-badb-cathas-warning",
+    "cf-omen-raven",
+    "so-strategic-planning",
+    "gm-blood-candle",
+    "in-undertow",
+    "in-undertow",
+    "gm-blood-candle",
+    "tk-wu-luxun",
+    "tk-wu-luxun",
+    "tk-wu-luxun",
+    "tk-wu-luxun",
+    "in-read-the-ruse",
+    "bk-kitsune-dreamweaver",
+    "tk-wu-xiaoqiao",
+    "cf-bog-lantern-witch",
+    "tk-wei-guojia",
+    "ar-training-dummy",
+    "cf-omen-raven",
+    "cf-omen-raven",
+    "gm-black-veil-matron",
+    "gm-stormglass-golem",
+    "ac-oathbroken-knight",
+    "tk-wei-zhenji",
+    "tk-wei-chenqun",
+    "bk-mermaid-chartsinger",
+    "gm-ravenloft-heiress",
+    "ar-siege-juggernaut",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp",
+    "land-swamp"
+  ],
+  "counts": {
+    "ac-oathbroken-knight": 1,
+    "ar-siege-juggernaut": 1,
+    "ar-training-dummy": 1,
+    "bk-kitsune-dreamweaver": 1,
+    "bk-mermaid-chartsinger": 1,
+    "cf-badb-cathas-warning": 1,
+    "cf-bog-lantern-witch": 1,
+    "cf-fae-ring-initiate": 1,
+    "cf-omen-raven": 3,
+    "cf-silver-branch-oracle": 1,
+    "gm-black-veil-matron": 1,
+    "gm-blood-candle": 2,
+    "gm-bride-storm-crowned": 2,
+    "gm-ravenloft-heiress": 1,
+    "gm-stormglass-golem": 1,
+    "gm-stormtower-resurrection": 1,
+    "in-read-the-ruse": 1,
+    "in-undertow": 2,
+    "land-island": 15,
+    "land-swamp": 9,
+    "rg-hel": 1,
+    "so-strategic-planning": 1,
+    "tk-shu-zhugeliang": 1,
+    "tk-wei-chenqun": 1,
+    "tk-wei-guojia": 1,
+    "tk-wei-zhenji": 1,
+    "tk-wu-luxun": 4,
+    "tk-wu-xiaoqiao": 1,
+    "tk-wu-zhugeke": 2
+  },
+  "measured": {
+    "field": "prefabs",
+    "seeds": 150,
+    "matchups": [
+      {
+        "referenceId": "starter-crimson",
+        "referenceName": "Crimson Muster",
+        "rowWins": 91,
+        "colWins": 59,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6066666666666667
+      },
+      {
+        "referenceId": "starter-wild",
+        "referenceName": "Wild Communion",
+        "rowWins": 112,
+        "colWins": 38,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7466666666666667
+      },
+      {
+        "referenceId": "starter-tides",
+        "referenceName": "Burning Tides",
+        "rowWins": 79,
+        "colWins": 71,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.5266666666666666
+      },
+      {
+        "referenceId": "starter-mandate",
+        "referenceName": "Shadow Mandate",
+        "rowWins": 95,
+        "colWins": 55,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6333333333333333
+      },
+      {
+        "referenceId": "starter-harvest",
+        "referenceName": "Grave Harvest",
+        "rowWins": 86,
+        "colWins": 64,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.5733333333333334
+      },
+      {
+        "referenceId": "theme-ragnarok",
+        "referenceName": "Valhalla's Muster",
+        "rowWins": 94,
+        "colWins": 56,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6266666666666667
+      },
+      {
+        "referenceId": "theme-celtic-fae",
+        "referenceName": "Glimmer Bargain",
+        "rowWins": 112,
+        "colWins": 38,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7466666666666667
+      },
+      {
+        "referenceId": "theme-arthurian-court",
+        "referenceName": "Questing Table",
+        "rowWins": 107,
+        "colWins": 43,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7133333333333334
+      },
+      {
+        "referenceId": "theme-gothic-monsters",
+        "referenceName": "Bloodmoon Masquerade",
+        "rowWins": 88,
+        "colWins": 62,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.5866666666666667
+      }
+    ],
+    "rowWins": 864,
+    "losses": 486,
+    "draws": 0,
+    "games": 1350,
+    "score": 0.64
+  },
+  "hillClimb": {
+    "initialList": [
+      "gm-bride-storm-crowned",
+      "gm-bride-storm-crowned",
+      "gm-bride-storm-crowned",
+      "gm-bride-storm-crowned",
+      "rg-hel",
+      "rg-hel",
+      "cf-fae-ring-initiate",
+      "cf-fae-ring-initiate",
+      "cf-fae-ring-initiate",
+      "cf-fae-ring-initiate",
+      "cf-omen-raven",
+      "cf-omen-raven",
+      "gm-blood-candle",
+      "gm-blood-candle",
+      "gm-blood-candle",
+      "gm-blood-candle",
+      "tk-wu-luxun",
+      "tk-wu-luxun",
+      "tk-wu-luxun",
+      "tk-wu-luxun",
+      "bk-kitsune-dreamweaver",
+      "bk-kitsune-dreamweaver",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "cf-omen-raven",
+      "cf-omen-raven",
+      "rg-hel",
+      "rg-hel",
+      "tk-wei-chenqun",
+      "tk-wei-chenqun",
+      "tk-wei-chenqun",
+      "tk-wei-chenqun",
+      "ar-siege-juggernaut",
+      "ar-siege-juggernaut",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp",
+      "land-swamp"
+    ],
+    "initialScore": 0.2866666666666667,
+    "acceptedSwaps": [
+      {
+        "iteration": 3,
+        "out": "cf-fae-ring-initiate",
+        "in": "tk-shu-zhugeliang",
+        "role": "draw",
+        "priorScore": 0.2866666666666667,
+        "nextScore": 0.31333333333333335,
+        "scoreDelta": 0.026666666666666672
+      },
+      {
+        "iteration": 4,
+        "out": "ar-training-dummy",
+        "in": "cf-bog-lantern-witch",
+        "role": "threats",
+        "priorScore": 0.31333333333333335,
+        "nextScore": 0.3362962962962963,
+        "scoreDelta": 0.022962962962962963
+      },
+      {
+        "iteration": 5,
+        "out": "ar-siege-juggernaut",
+        "in": "gm-ravenloft-heiress",
+        "role": "threats",
+        "priorScore": 0.3362962962962963,
+        "nextScore": 0.3496296296296296,
+        "scoreDelta": 0.013333333333333308
+      },
+      {
+        "iteration": 6,
+        "out": "gm-blood-candle",
+        "in": "in-undertow",
+        "role": "removal",
+        "priorScore": 0.3496296296296296,
+        "nextScore": 0.36814814814814817,
+        "scoreDelta": 0.018518518518518545
+      },
+      {
+        "iteration": 9,
+        "out": "cf-fae-ring-initiate",
+        "in": "cf-moon-pool-selkie",
+        "role": "draw",
+        "priorScore": 0.36814814814814817,
+        "nextScore": 0.37777777777777777,
+        "scoreDelta": 0.009629629629629599
+      },
+      {
+        "iteration": 10,
+        "out": "cf-moon-pool-selkie",
+        "in": "cf-queen-mab-midnight",
+        "role": "draw",
+        "priorScore": 0.37777777777777777,
+        "nextScore": 0.3933333333333333,
+        "scoreDelta": 0.015555555555555545
+      },
+      {
+        "iteration": 13,
+        "out": "tk-wei-chenqun",
+        "in": "ac-morgan-thorn-crown",
+        "role": "threats",
+        "priorScore": 0.3933333333333333,
+        "nextScore": 0.40814814814814815,
+        "scoreDelta": 0.014814814814814836
+      },
+      {
+        "iteration": 14,
+        "out": "tk-wei-chenqun",
+        "in": "bk-mermaid-chartsinger",
+        "role": "threats",
+        "priorScore": 0.40814814814814815,
+        "nextScore": 0.4140740740740741,
+        "scoreDelta": 0.005925925925925946
+      },
+      {
+        "iteration": 16,
+        "out": "rg-hel",
+        "in": "gm-stormglass-golem",
+        "role": "threats",
+        "priorScore": 0.4140740740740741,
+        "nextScore": 0.422962962962963,
+        "scoreDelta": 0.00888888888888889
+      },
+      {
+        "iteration": 20,
+        "out": "bk-kitsune-dreamweaver",
+        "in": "in-grave-chill",
+        "role": "interaction",
+        "priorScore": 0.422962962962963,
+        "nextScore": 0.4318518518518519,
+        "scoreDelta": 0.00888888888888889
+      },
+      {
+        "iteration": 21,
+        "out": "gm-blood-candle",
+        "in": "ac-fallen-banner",
+        "role": "removal",
+        "priorScore": 0.4318518518518519,
+        "nextScore": 0.4437037037037037,
+        "scoreDelta": 0.011851851851851836
+      },
+      {
+        "iteration": 22,
+        "out": "tk-wei-chenqun",
+        "in": "tk-wei-zhenji",
+        "role": "threats",
+        "priorScore": 0.4437037037037037,
+        "nextScore": 0.49407407407407405,
+        "scoreDelta": 0.05037037037037034
+      },
+      {
+        "iteration": 25,
+        "out": "rg-hel",
+        "in": "tk-wu-zhugeke",
+        "role": "finishers",
+        "priorScore": 0.49407407407407405,
+        "nextScore": 0.5044444444444445,
+        "scoreDelta": 0.010370370370370419
+      },
+      {
+        "iteration": 26,
+        "out": "ac-morgan-thorn-crown",
+        "in": "ac-oathbroken-knight",
+        "role": "threats",
+        "priorScore": 0.5044444444444445,
+        "nextScore": 0.5325925925925926,
+        "scoreDelta": 0.028148148148148144
+      },
+      {
+        "iteration": 36,
+        "out": "gm-bride-storm-crowned",
+        "in": "tk-wei-wanglang",
+        "role": "finishers",
+        "priorScore": 0.5325925925925926,
+        "nextScore": 0.5348148148148149,
+        "scoreDelta": 0.0022222222222222365
+      },
+      {
+        "iteration": 37,
+        "out": "gm-bride-storm-crowned",
+        "in": "ar-bronze-colossus",
+        "role": "finishers",
+        "priorScore": 0.5348148148148149,
+        "nextScore": 0.5385185185185185,
+        "scoreDelta": 0.0037037037037036535
+      },
+      {
+        "iteration": 39,
+        "out": "tk-wei-wanglang",
+        "in": "tk-wu-zhugeke",
+        "role": "finishers",
+        "priorScore": 0.5385185185185185,
+        "nextScore": 0.557037037037037,
+        "scoreDelta": 0.01851851851851849
+      },
+      {
+        "iteration": 42,
+        "out": "cf-fae-ring-initiate",
+        "in": "cf-badb-cathas-warning",
+        "role": "draw",
+        "priorScore": 0.557037037037037,
+        "nextScore": 0.5577777777777778,
+        "scoreDelta": 0.0007407407407408195
+      },
+      {
+        "iteration": 49,
+        "out": "ac-fallen-banner",
+        "in": "in-undertow",
+        "role": "removal",
+        "priorScore": 0.5577777777777778,
+        "nextScore": 0.5585185185185185,
+        "scoreDelta": 0.0007407407407407085
+      },
+      {
+        "iteration": 51,
+        "out": "ar-training-dummy",
+        "in": "tk-wu-xiaoqiao",
+        "role": "threats",
+        "priorScore": 0.5585185185185185,
+        "nextScore": 0.5762962962962963,
+        "scoreDelta": 0.01777777777777778
+      },
+      {
+        "iteration": 55,
+        "out": "cf-queen-mab-midnight",
+        "in": "gm-moon-doll-orchestra",
+        "role": "draw",
+        "priorScore": 0.5762962962962963,
+        "nextScore": 0.577037037037037,
+        "scoreDelta": 0.0007407407407407085
+      },
+      {
+        "iteration": 61,
+        "out": "rg-hel",
+        "in": "gm-black-veil-matron",
+        "role": "threats",
+        "priorScore": 0.577037037037037,
+        "nextScore": 0.5881481481481482,
+        "scoreDelta": 0.011111111111111183
+      },
+      {
+        "iteration": 62,
+        "out": "ar-bronze-colossus",
+        "in": "gm-stormtower-resurrection",
+        "role": "finishers",
+        "priorScore": 0.5881481481481482,
+        "nextScore": 0.5955555555555555,
+        "scoreDelta": 0.007407407407407307
+      },
+      {
+        "iteration": 67,
+        "out": "gm-moon-doll-orchestra",
+        "in": "cf-silver-branch-oracle",
+        "role": "draw",
+        "priorScore": 0.5955555555555555,
+        "nextScore": 0.6022222222222222,
+        "scoreDelta": 0.00666666666666671
+      },
+      {
+        "iteration": 71,
+        "out": "cf-omen-raven",
+        "in": "so-strategic-planning",
+        "role": "draw",
+        "priorScore": 0.6022222222222222,
+        "nextScore": 0.6081481481481481,
+        "scoreDelta": 0.00592592592592589
+      },
+      {
+        "iteration": 72,
+        "out": "ar-training-dummy",
+        "in": "tk-wei-guojia",
+        "role": "threats",
+        "priorScore": 0.6081481481481481,
+        "nextScore": 0.6377777777777778,
+        "scoreDelta": 0.029629629629629672
+      },
+      {
+        "iteration": 74,
+        "out": "in-grave-chill",
+        "in": "in-read-the-ruse",
+        "role": "interaction",
+        "priorScore": 0.6377777777777778,
+        "nextScore": 0.64,
+        "scoreDelta": 0.0022222222222222365
+      }
+    ],
+    "rejectedSwaps": 53,
+    "unproposedIterations": 0
+  },
+  "quotaShortfalls": [],
+  "honesty": {
+    "greedyBeatsFinal": false,
+    "nonMonotonicClimb": false
+  }
+}

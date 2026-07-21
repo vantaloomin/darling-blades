@@ -1,0 +1,571 @@
+{
+  "schemaVersion": 1,
+  "persona": {
+    "id": "draw-go",
+    "name": "The Draw-Go Player"
+  },
+  "pool": "all",
+  "field": "prefabs",
+  "seed": 20260720,
+  "seeds": 150,
+  "iterations": 80,
+  "templateVersion": "persona-v1.0.0",
+  "selectedColors": [
+    "W",
+    "U"
+  ],
+  "referenceField": [
+    {
+      "id": "starter-crimson",
+      "name": "Crimson Muster"
+    },
+    {
+      "id": "starter-wild",
+      "name": "Wild Communion"
+    },
+    {
+      "id": "starter-tides",
+      "name": "Burning Tides"
+    },
+    {
+      "id": "starter-mandate",
+      "name": "Shadow Mandate"
+    },
+    {
+      "id": "starter-harvest",
+      "name": "Grave Harvest"
+    },
+    {
+      "id": "theme-ragnarok",
+      "name": "Valhalla's Muster"
+    },
+    {
+      "id": "theme-celtic-fae",
+      "name": "Glimmer Bargain"
+    },
+    {
+      "id": "theme-arthurian-court",
+      "name": "Questing Table"
+    },
+    {
+      "id": "theme-gothic-monsters",
+      "name": "Bloodmoon Masquerade"
+    }
+  ],
+  "deck": [
+    "ac-rallying-horn",
+    "tk-wu-zhugeke",
+    "ac-artoria-once-future",
+    "rg-valkyrie-captain",
+    "tk-other-yuanshao",
+    "tk-wu-zhugeke",
+    "cf-fae-ring-initiate",
+    "cf-nimue-before-the-lake",
+    "tk-shu-zhugeliang",
+    "cf-fae-ring-initiate",
+    "ac-lakeblade-initiate",
+    "ac-lakeblade-initiate",
+    "ac-lakeblade-initiate",
+    "ac-lakeblade-initiate",
+    "gm-silver-bullet-duelist",
+    "gm-silver-bullet-duelist",
+    "gm-silver-bullet-duelist",
+    "gm-silver-bullet-duelist",
+    "cf-glamour-of-the-hill",
+    "cf-bargain-unwound",
+    "in-dream-fracture",
+    "ac-squire-to-champion",
+    "tk-wu-luxun",
+    "in-sudden-insight",
+    "in-stand-as-one",
+    "ac-round-table-vow",
+    "cf-clouded-memory",
+    "in-stand-as-one",
+    "tk-wu-luxun",
+    "tk-wu-luxun",
+    "rg-valkyrie-vanguard",
+    "tk-wei-zhenji",
+    "ac-camelot-banneret",
+    "tk-wei-caoren",
+    "ac-camelot-banneret",
+    "ac-artoria-once-future",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island",
+    "land-island"
+  ],
+  "counts": {
+    "ac-artoria-once-future": 2,
+    "ac-camelot-banneret": 2,
+    "ac-lakeblade-initiate": 4,
+    "ac-rallying-horn": 1,
+    "ac-round-table-vow": 1,
+    "ac-squire-to-champion": 1,
+    "cf-bargain-unwound": 1,
+    "cf-clouded-memory": 1,
+    "cf-fae-ring-initiate": 2,
+    "cf-glamour-of-the-hill": 1,
+    "cf-nimue-before-the-lake": 1,
+    "gm-silver-bullet-duelist": 4,
+    "in-dream-fracture": 1,
+    "in-stand-as-one": 2,
+    "in-sudden-insight": 1,
+    "land-island": 13,
+    "land-plains": 11,
+    "rg-valkyrie-captain": 1,
+    "rg-valkyrie-vanguard": 1,
+    "tk-other-yuanshao": 1,
+    "tk-shu-zhugeliang": 1,
+    "tk-wei-caoren": 1,
+    "tk-wei-zhenji": 1,
+    "tk-wu-luxun": 3,
+    "tk-wu-zhugeke": 2
+  },
+  "measured": {
+    "field": "prefabs",
+    "seeds": 150,
+    "matchups": [
+      {
+        "referenceId": "starter-crimson",
+        "referenceName": "Crimson Muster",
+        "rowWins": 87,
+        "colWins": 63,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.58
+      },
+      {
+        "referenceId": "starter-wild",
+        "referenceName": "Wild Communion",
+        "rowWins": 99,
+        "colWins": 51,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.66
+      },
+      {
+        "referenceId": "starter-tides",
+        "referenceName": "Burning Tides",
+        "rowWins": 96,
+        "colWins": 54,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.64
+      },
+      {
+        "referenceId": "starter-mandate",
+        "referenceName": "Shadow Mandate",
+        "rowWins": 102,
+        "colWins": 48,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.68
+      },
+      {
+        "referenceId": "starter-harvest",
+        "referenceName": "Grave Harvest",
+        "rowWins": 105,
+        "colWins": 45,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7
+      },
+      {
+        "referenceId": "theme-ragnarok",
+        "referenceName": "Valhalla's Muster",
+        "rowWins": 100,
+        "colWins": 50,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6666666666666666
+      },
+      {
+        "referenceId": "theme-celtic-fae",
+        "referenceName": "Glimmer Bargain",
+        "rowWins": 100,
+        "colWins": 50,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.6666666666666666
+      },
+      {
+        "referenceId": "theme-arthurian-court",
+        "referenceName": "Questing Table",
+        "rowWins": 88,
+        "colWins": 62,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.5866666666666667
+      },
+      {
+        "referenceId": "theme-gothic-monsters",
+        "referenceName": "Bloodmoon Masquerade",
+        "rowWins": 83,
+        "colWins": 67,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.5533333333333333
+      }
+    ],
+    "rowWins": 860,
+    "losses": 490,
+    "draws": 0,
+    "games": 1350,
+    "score": 0.6370370370370371
+  },
+  "hillClimb": {
+    "initialList": [
+      "ac-artoria-once-future",
+      "ac-artoria-once-future",
+      "ac-artoria-once-future",
+      "ac-artoria-once-future",
+      "cf-nimue-before-the-lake",
+      "cf-nimue-before-the-lake",
+      "cf-fae-ring-initiate",
+      "cf-fae-ring-initiate",
+      "cf-fae-ring-initiate",
+      "cf-fae-ring-initiate",
+      "ac-lakeblade-initiate",
+      "ac-lakeblade-initiate",
+      "ac-lakeblade-initiate",
+      "ac-lakeblade-initiate",
+      "gm-silver-bullet-duelist",
+      "gm-silver-bullet-duelist",
+      "gm-silver-bullet-duelist",
+      "gm-silver-bullet-duelist",
+      "cf-glimmerdust-trick",
+      "cf-glimmerdust-trick",
+      "bk-kitsune-dreamweaver",
+      "bk-kitsune-dreamweaver",
+      "bk-kitsune-dreamweaver",
+      "bk-kitsune-dreamweaver",
+      "cf-oak-shield-vow",
+      "cf-oak-shield-vow",
+      "cf-oak-shield-vow",
+      "cf-oak-shield-vow",
+      "tk-wu-luxun",
+      "tk-wu-luxun",
+      "tk-wei-chenqun",
+      "tk-wei-chenqun",
+      "ac-camelot-banneret",
+      "ac-camelot-banneret",
+      "ac-camelot-banneret",
+      "ac-camelot-banneret",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island",
+      "land-island"
+    ],
+    "initialScore": 0.314540059347181,
+    "acceptedSwaps": [
+      {
+        "iteration": 2,
+        "out": "cf-oak-shield-vow",
+        "in": "in-sudden-insight",
+        "role": "interaction",
+        "priorScore": 0.314540059347181,
+        "nextScore": 0.31777777777777777,
+        "scoreDelta": 0.003237718430596781
+      },
+      {
+        "iteration": 3,
+        "out": "cf-fae-ring-initiate",
+        "in": "tk-shu-zhugeliang",
+        "role": "draw",
+        "priorScore": 0.31777777777777777,
+        "nextScore": 0.3377777777777778,
+        "scoreDelta": 0.020000000000000018
+      },
+      {
+        "iteration": 4,
+        "out": "bk-kitsune-dreamweaver",
+        "in": "ac-squire-to-champion",
+        "role": "interaction",
+        "priorScore": 0.3377777777777778,
+        "nextScore": 0.36592592592592593,
+        "scoreDelta": 0.028148148148148144
+      },
+      {
+        "iteration": 10,
+        "out": "cf-fae-ring-initiate",
+        "in": "cf-nimue-before-the-lake",
+        "role": "draw",
+        "priorScore": 0.36592592592592593,
+        "nextScore": 0.3748148148148148,
+        "scoreDelta": 0.00888888888888889
+      },
+      {
+        "iteration": 11,
+        "out": "ac-artoria-once-future",
+        "in": "ac-rallying-horn",
+        "role": "finishers",
+        "priorScore": 0.3748148148148148,
+        "nextScore": 0.37851851851851853,
+        "scoreDelta": 0.003703703703703709
+      },
+      {
+        "iteration": 15,
+        "out": "cf-oak-shield-vow",
+        "in": "cf-clouded-memory",
+        "role": "interaction",
+        "priorScore": 0.37851851851851853,
+        "nextScore": 0.38074074074074077,
+        "scoreDelta": 0.0022222222222222365
+      },
+      {
+        "iteration": 19,
+        "out": "bk-kitsune-dreamweaver",
+        "in": "ac-squire-to-champion",
+        "role": "interaction",
+        "priorScore": 0.38074074074074077,
+        "nextScore": 0.39185185185185184,
+        "scoreDelta": 0.011111111111111072
+      },
+      {
+        "iteration": 20,
+        "out": "bk-kitsune-dreamweaver",
+        "in": "in-dream-fracture",
+        "role": "interaction",
+        "priorScore": 0.39185185185185184,
+        "nextScore": 0.3925925925925926,
+        "scoreDelta": 0.000740740740740764
+      },
+      {
+        "iteration": 22,
+        "out": "tk-wei-chenqun",
+        "in": "tk-wei-zhenji",
+        "role": "threats",
+        "priorScore": 0.3925925925925926,
+        "nextScore": 0.43037037037037035,
+        "scoreDelta": 0.037777777777777743
+      },
+      {
+        "iteration": 25,
+        "out": "cf-nimue-before-the-lake",
+        "in": "tk-wu-zhugeke",
+        "role": "finishers",
+        "priorScore": 0.43037037037037035,
+        "nextScore": 0.4585185185185185,
+        "scoreDelta": 0.028148148148148144
+      },
+      {
+        "iteration": 26,
+        "out": "tk-wei-chenqun",
+        "in": "ac-guinevere-court-sun",
+        "role": "threats",
+        "priorScore": 0.4585185185185185,
+        "nextScore": 0.4740740740740741,
+        "scoreDelta": 0.0155555555555556
+      },
+      {
+        "iteration": 29,
+        "out": "in-sudden-insight",
+        "in": "in-stand-as-one",
+        "role": "interaction",
+        "priorScore": 0.4740740740740741,
+        "nextScore": 0.4792592592592593,
+        "scoreDelta": 0.005185185185185182
+      },
+      {
+        "iteration": 30,
+        "out": "ac-guinevere-court-sun",
+        "in": "tk-wei-caopi",
+        "role": "threats",
+        "priorScore": 0.4792592592592593,
+        "nextScore": 0.4925925925925926,
+        "scoreDelta": 0.013333333333333308
+      },
+      {
+        "iteration": 31,
+        "out": "tk-wei-caopi",
+        "in": "bk-foxfire-priestess",
+        "role": "threats",
+        "priorScore": 0.4925925925925926,
+        "nextScore": 0.49703703703703705,
+        "scoreDelta": 0.004444444444444473
+      },
+      {
+        "iteration": 33,
+        "out": "cf-glimmerdust-trick",
+        "in": "gm-lightning-rod-spire",
+        "role": "removal",
+        "priorScore": 0.49703703703703705,
+        "nextScore": 0.5148148148148148,
+        "scoreDelta": 0.01777777777777778
+      },
+      {
+        "iteration": 34,
+        "out": "bk-foxfire-priestess",
+        "in": "rg-valkyrie-vanguard",
+        "role": "threats",
+        "priorScore": 0.5148148148148148,
+        "nextScore": 0.5296296296296297,
+        "scoreDelta": 0.014814814814814836
+      },
+      {
+        "iteration": 36,
+        "out": "ac-artoria-once-future",
+        "in": "tk-wu-luxun",
+        "role": "finishers",
+        "priorScore": 0.5296296296296297,
+        "nextScore": 0.542962962962963,
+        "scoreDelta": 0.013333333333333308
+      },
+      {
+        "iteration": 37,
+        "out": "ac-artoria-once-future",
+        "in": "ac-round-table-vow",
+        "role": "finishers",
+        "priorScore": 0.542962962962963,
+        "nextScore": 0.5503703703703704,
+        "scoreDelta": 0.007407407407407418
+      },
+      {
+        "iteration": 38,
+        "out": "ac-round-table-vow",
+        "in": "rg-valkyrie-captain",
+        "role": "finishers",
+        "priorScore": 0.5503703703703704,
+        "nextScore": 0.5659259259259259,
+        "scoreDelta": 0.015555555555555545
+      },
+      {
+        "iteration": 39,
+        "out": "tk-wu-luxun",
+        "in": "tk-wu-zhugeke",
+        "role": "finishers",
+        "priorScore": 0.5659259259259259,
+        "nextScore": 0.5762962962962963,
+        "scoreDelta": 0.010370370370370363
+      },
+      {
+        "iteration": 40,
+        "out": "gm-lightning-rod-spire",
+        "in": "cf-glamour-of-the-hill",
+        "role": "removal",
+        "priorScore": 0.5762962962962963,
+        "nextScore": 0.5851851851851851,
+        "scoreDelta": 0.008888888888888835
+      },
+      {
+        "iteration": 47,
+        "out": "cf-oak-shield-vow",
+        "in": "ac-round-table-vow",
+        "role": "interaction",
+        "priorScore": 0.5851851851851851,
+        "nextScore": 0.5955555555555555,
+        "scoreDelta": 0.010370370370370363
+      },
+      {
+        "iteration": 48,
+        "out": "ac-camelot-banneret",
+        "in": "tk-wei-caoren",
+        "role": "threats",
+        "priorScore": 0.5955555555555555,
+        "nextScore": 0.6,
+        "scoreDelta": 0.004444444444444473
+      },
+      {
+        "iteration": 51,
+        "out": "bk-kitsune-dreamweaver",
+        "in": "tk-wu-luxun",
+        "role": "interaction",
+        "priorScore": 0.6,
+        "nextScore": 0.62,
+        "scoreDelta": 0.020000000000000018
+      },
+      {
+        "iteration": 53,
+        "out": "ac-squire-to-champion",
+        "in": "in-sudden-insight",
+        "role": "interaction",
+        "priorScore": 0.62,
+        "nextScore": 0.6222222222222222,
+        "scoreDelta": 0.0022222222222222365
+      },
+      {
+        "iteration": 54,
+        "out": "ac-camelot-banneret",
+        "in": "ac-artoria-once-future",
+        "role": "threats",
+        "priorScore": 0.6222222222222222,
+        "nextScore": 0.6229629629629629,
+        "scoreDelta": 0.0007407407407407085
+      },
+      {
+        "iteration": 57,
+        "out": "cf-nimue-before-the-lake",
+        "in": "tk-other-yuanshao",
+        "role": "finishers",
+        "priorScore": 0.6229629629629629,
+        "nextScore": 0.6259259259259259,
+        "scoreDelta": 0.002962962962962945
+      },
+      {
+        "iteration": 72,
+        "out": "cf-oak-shield-vow",
+        "in": "in-stand-as-one",
+        "role": "interaction",
+        "priorScore": 0.6259259259259259,
+        "nextScore": 0.6303703703703704,
+        "scoreDelta": 0.004444444444444473
+      },
+      {
+        "iteration": 76,
+        "out": "cf-glimmerdust-trick",
+        "in": "cf-bargain-unwound",
+        "role": "removal",
+        "priorScore": 0.6303703703703704,
+        "nextScore": 0.6370370370370371,
+        "scoreDelta": 0.00666666666666671
+      }
+    ],
+    "rejectedSwaps": 51,
+    "unproposedIterations": 0
+  },
+  "quotaShortfalls": [],
+  "honesty": {
+    "greedyBeatsFinal": false,
+    "nonMonotonicClimb": false
+  }
+}

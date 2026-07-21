@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.3.md, scripts/balance-matrix.ts, src/meta/DeckStorage.ts, src/meta/deckColorIdentity.ts, src/ai/value.ts, src/ai/evaluate.ts, src/engine/rng.ts · last-verified: 2026-07-20 · concretion of Pillar 3 — flags ANSWERED 2026-07-20 (six personas incl. Midrange control, committed JSON, 80x150 default budget, prefab field, no CI gates); build in progress -->
+<!-- source-of-truth: docs/plan-1.3.md, scripts/balance-matrix.ts, src/meta/DeckStorage.ts, src/meta/deckColorIdentity.ts, src/ai/value.ts, src/ai/evaluate.ts, src/engine/rng.ts · last-verified: 2026-07-20 · concretion of Pillar 3 — flags ANSWERED 2026-07-20; harness BUILT and the INAUGURAL SWEEP COMPLETE 2026-07-21 (section 8) -->
 
 # 1.3 Pillar 3 concretion - persona deck-crafting harness (dev-only)
 
@@ -122,3 +122,36 @@ quota-shortfall report), not silently produce a bad deck.
    proposed) or starters (the tower's measurement currency)?
 5. **No CI gates in v1** (proposed): the harness is a standing probe
    run by hand / by session, results reviewed like balance matrices.
+
+## 8. Inaugural sweep findings (2026-07-21, seed 20260720, tuned field)
+
+All six personas crafted legal decks with ZERO quota shortfalls and
+clean honesty flags (monotonic climbs, final beats greedy everywhere) -
+the 518 pool supports every modeled archetype, including graveyard
+combo. Aggregates vs the nine tuned prefabs, 150 seeds per matchup:
+
+| Persona | Aggregate | Best matchup | Worst matchup |
+| --- | --- | --- | --- |
+| Weenie (W/G go-wide) | **77.6%** | Wild Communion 82% | Bloodmoon Masquerade 73% |
+| Midrange control group | 67.3% | Wild Communion 77% | Burning Tides 59% |
+| Burn (R/B) | 67.1% | Burning Tides 74% | Crimson Muster 62% |
+| Reanimator (U/B) | 64.0% | Wild Communion 75% | Burning Tides 53% |
+| Attrition (B/W) | 63.7% | Questing Table 77% | Shadow Mandate 51% |
+| Draw-Go (U/W) | 63.7% | Grave Harvest 70% | Bloodmoon Masquerade 55% |
+
+Reads:
+
+1. Crafted decks beat every prefab (63.7-77.6 vs the prefabs' internal
+   42-60 spread) - the expected healthy gap; precons are not optimal.
+2. Five of six land in a tight 63.7-67.3 band around the Midrange
+   control, so the archetype templates cost little power vs
+   unconstrained goodstuff - the scorer and quotas are calibrated.
+3. **Weenie at 77.6% with NO matchup below 73% is the outlier and the
+   pool's first structural finding: the field cannot punish go-wide.**
+   The likely gap is answer density - board sweepers and go-wide
+   punishment are scarce in the pool relative to spot removal (the
+   removal-answer cycle shipped single-target tools). A 1.4 candidate:
+   sweeper-class effects, or anthem-hate, measured through this same
+   harness before shipping.
+4. The hill-climb earns its budget: greedy control lists underperform
+   badly (draw-go 31.5 greedy) and iteration recovers them fully.
