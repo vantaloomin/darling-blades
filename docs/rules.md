@@ -255,7 +255,7 @@ order:
    keyed on `${controller}:${name}`.
 
 (Effective defense/attack for these checks is always computed on read by
-`getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` counters +
+`getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` marks (engine field: counters) +
 until-EOT mods + static layers; nothing is cached.)
 
 ## Endings

@@ -77,6 +77,21 @@ export class Dropdown<T extends string> {
     return `${this.opts.label}: ${sel ? sel.label : '\u2014'} \u25be`;
   }
 
+  /** Hit-rect bounds relative to the trigger container, for row reflow. */
+  hitBounds(): { x: number; width: number } {
+    const m = this.trigger.getMeasuredBounds();
+    return { x: m.hit.x, width: m.hit.width };
+  }
+
+  get containerX(): number {
+    return this.trigger.container.x;
+  }
+
+  /** Reflow support: the popover derives from live bounds, so moving is safe. */
+  setX(x: number): void {
+    this.trigger.container.x = x;
+  }
+
   get isOpen(): boolean {
     return this.panel !== null;
   }

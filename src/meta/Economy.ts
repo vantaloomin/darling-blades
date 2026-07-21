@@ -166,8 +166,7 @@ export function applyLimitedMatchResult(
     // rewards and are intentionally handled above/by Quests.
     const rewardGold = run.premium ? 0 : ECONOMY.limitedRunGold[run.wins] ?? 0;
     gold += rewardGold;
-    if (run.mode === 'sealed') save.limited.bestSealedWins = Math.max(save.limited.bestSealedWins, run.wins);
-    else save.limited.bestDraftWins = Math.max(save.limited.bestDraftWins, run.wins);
+    save.limited.bestDraftWins = Math.max(save.limited.bestDraftWins, run.wins);
     save.limited.history.unshift({
       id: run.id,
       mode: run.mode,

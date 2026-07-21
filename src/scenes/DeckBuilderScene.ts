@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { Art } from '../art/ArtResolver';
+import { SET_ICON_PATHS } from '../art/setIcons';
+import { SET_TITLES } from '../data/setTitles';
 import { RULES } from '../config/rules';
 import { heroById } from '../data/heroes';
 import { ALL_CARDS, CARD_DB, byId } from '../data/catalog';
@@ -19,7 +21,13 @@ import {
 import { decodeDeck, deckCodeErrorMessage, encodeDeck } from '../meta/DeckCode';
 import { faceCardFor } from '../meta/deckFace';
 import { copyDeck, deleteDeck, generateDeckId, renameDeck, saveDeck, validateDeck } from '../meta/DeckStorage';
-import type { SavedDeck } from '../meta/SaveManager';
+import {
+  BASIC_LAND_IDS,
+  LAND_STYLE_IDS,
+  type BasicLandId,
+  type LandStyleId,
+  type SavedDeck,
+} from '../meta/SaveManager';
 import { Services } from '../meta/services';
 import { TIER_LABEL } from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
@@ -36,7 +44,6 @@ import { backButton, modalShell, pager, panel as themedPanel, themedButton, type
 const GRID_COLS = 4;
 const GRID_ROWS = 3;
 const GRID_SIZE = GRID_COLS * GRID_ROWS;
-const BASICS = ['land-plains', 'land-island', 'land-swamp', 'land-mountain', 'land-forest'];
 const DECK_CODE_CARD_IDS = ALL_CARDS.map((card) => card.id);
 const POOL_CARD_SCALE = 0.43;
 const POOL_X0 = 190;
@@ -48,12 +55,18 @@ const POOL_BADGE_OFFSET_Y = -84;
 const TOUCH_DECK_ROWS = 5;
 const TOUCH_DECK_PITCH = 44;
 /** Desktop profile: denser tap-to-remove rows, same paging model (no hard clip). */
-const DESKTOP_DECK_ROWS = 11;
+const DESKTOP_DECK_ROWS = 6;
 const DESKTOP_DECK_PITCH = 22;
-const DESKTOP_DECK_Y0 = 240;
+/**
+ * Inline basics end at y=296; their 44px hit target ends at 318. The list
+ * starts at 326, preserving the 8px group gap. Six 12px rows at 22px pitch
+ * end near 448, before the pager target begins at 492 - 22 = 470. A seventh
+ * would end near 470, so six is the maximum without consuming that clearance.
+ */
+const DESKTOP_DECK_Y0 = 326;
 /** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
-const DECK_PAGER_Y = 480;
-const DECK_STATS_Y = 506;
+const DECK_PAGER_Y = 492;
+const DECK_STATS_Y = 528;
 /** Right-panel inner gutter: panel spans x 880–1280, content sits at 900–1260. */
 const PANEL_RIGHT_X = 1260;
 const DECK_NAME_MAX_LENGTH = 24;
@@ -288,11 +301,11 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters'>[] = [
       { value: 'all', label: 'All Sets' },
-      { value: 'base', label: 'Core Set' },
-      { value: 'ragnarok', label: 'Ragnarök' },
-      { value: 'celtic-fae', label: 'Celtic Fae' },
-      { value: 'arthurian-court', label: 'Arthurian Court' },
-      { value: 'gothic-monsters', label: 'Gothic Monsters' },
+      { value: 'base', label: SET_TITLES.base },
+      { value: 'ragnarok', label: SET_TITLES.ragnarok },
+      { value: 'celtic-fae', label: SET_TITLES['celtic-fae'] },
+      { value: 'arthurian-court', label: SET_TITLES['arthurian-court'] },
+      { value: 'gothic-monsters', label: SET_TITLES['gothic-monsters'] },
     ];
     mk(158, 'Set', setOpts, () => this.filterState.set, (v) => (this.filterState.set = v));
 
@@ -512,6 +525,143 @@ export class DeckBuilderScene extends Phaser.Scene {
     Services.save.flush();
     Sfx.play('shimmer');
     this.renderDeck();
+  }
+
+  private cycleLandStyle(basicId: BasicLandId, rerenderDeck = true): LandStyleId | null {
+    const deck = this.activeSavedDeck();
+    if (!deck) return null;
+    const current = deck.landStyle?.[basicId] ?? null;
+    const cycle: readonly (LandStyleId | null)[] = [null, ...LAND_STYLE_IDS];
+    const next = cycle[(cycle.indexOf(current) + 1) % cycle.length];
+    const styles = { ...(deck.landStyle ?? {}) };
+    if (next) styles[basicId] = next;
+    else delete styles[basicId];
+    deck.landStyle = Object.keys(styles).length > 0 ? styles : null;
+    Services.save.flush();
+    if (rerenderDeck) this.renderDeck();
+    return next;
+  }
+
+  private landStyleControl(
+    x: number,
+    y: number,
+    basicId: BasicLandId,
+    style: LandStyleId | null,
+    onCycle: () => void = () => {
+      this.cycleLandStyle(basicId);
+    },
+  ): Phaser.GameObjects.Container {
+    const container = this.add.container(x, y);
+    const background = this.add.graphics();
+    const icon = style && SET_ICON_PATHS[style]
+      ? this.add.image(0, 0, `seticon-${style}-sr`).setDisplaySize(24, 24)
+      : null;
+    const zone = this.add.zone(0, 0, 44, 44).setInteractive({ useHandCursor: true });
+    let hovered = false;
+    const redraw = (): void => {
+      background.clear();
+      background.fillStyle(theme.graphics.rowFill, 1);
+      background.fillRoundedRect(-20, -15, 40, 30, theme.radius.control);
+      background.lineStyle(
+        theme.control.borderWidth,
+        hovered ? colorInt(theme.colors.goldHover) : theme.graphics.panelStroke,
+        hovered ? 1 : theme.alpha.chrome,
+      );
+      background.strokeRoundedRect(-20, -15, 40, 30, theme.radius.control);
+    };
+    bindTapButton(this, zone, onCycle);
+    zone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.wasTouch) {
+        hovered = true;
+        redraw();
+      }
+    });
+    zone.on('pointerout', () => {
+      hovered = false;
+      redraw();
+    });
+    container.add(icon ? [background, icon, zone] : [background, zone]);
+    redraw();
+    return container;
+  }
+
+  private showLandStylesModal(): void {
+    this.closeFilterPanel();
+    this.setSearchInputVisible(false);
+    this.zoom.setSuppressed(true);
+
+    const shell = modalShell(this, {
+      width: 620,
+      height: 520,
+      dimAlpha: 0.52,
+      depth: theme.depth.inspect,
+      tapDimToClose: false,
+      escToClose: true,
+      onClose: () => {
+        this.setSearchInputVisible(true);
+        this.zoom.setSuppressed(false);
+        this.renderDeck();
+      },
+    });
+    const overlay = shell.container;
+    const titleTrack = shell.tracks.titleTrack;
+    overlay.add(
+      this.add
+        .text(titleTrack.x, titleTrack.y + titleTrack.height / 2, 'Land styles', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: theme.colors.heading,
+        })
+        .setOrigin(0, 0.5),
+    );
+
+    const bounds = shell.contentBounds;
+    const rowPitch = 60;
+    const rowY0 = bounds.y + 26;
+    BASIC_LAND_IDS.forEach((id, i) => {
+      const d = byId(id);
+      const y = rowY0 + i * rowPitch;
+      const rowBg = themedPanel(this, bounds.x, y - 26, bounds.width, 52, {
+        alpha: theme.alpha.panel,
+        radius: theme.radius.control,
+      });
+      const name = this.add.text(bounds.x + 92, y, d.name, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.body}px`,
+        color: theme.colors.body,
+      }).setOrigin(0, 0.5);
+      overlay.add([rowBg, name]);
+
+      let dynamic: Phaser.GameObjects.Container | null = null;
+      const renderRow = (): void => {
+        dynamic?.destroy();
+        const style = this.activeSavedDeck()?.landStyle?.[id] ?? null;
+        const preview = makeCardThumb(this, bounds.x + 48, y, d, 0.095, style ?? undefined);
+        const cycler = this.landStyleControl(
+          bounds.x + bounds.width - 36,
+          y,
+          id,
+          style,
+          () => {
+            this.cycleLandStyle(id, false);
+            renderRow();
+          },
+        );
+        dynamic = this.add.container(0, 0, [preview, cycler]);
+        overlay.add(dynamic);
+      };
+      renderRow();
+    });
+
+    const footer = shell.tracks.footerTrack;
+    const close = themedButton(
+      this,
+      footer.x + footer.width / 2,
+      footer.y + footer.height / 2,
+      'Close',
+      { variant: 'primary', minWidth: 120, onTap: shell.close },
+    );
+    overlay.add(close.container);
   }
 
   /** ‹ N/M › deck-list pager, shared by both profiles; sits below the list. */
@@ -1027,8 +1177,17 @@ export class DeckBuilderScene extends Phaser.Scene {
         color: this.deck.length === RULES.deckSize ? theme.colors.success : theme.colors.gold,
       })
       .setOrigin(0, 0.5);
-    this.fitTextToWidth(title, 250);
+    this.fitTextToWidth(title, this.touch ? 130 : 250);
     this.rightPane.push(title);
+    if (this.touch) {
+      const landStylesBtn = themedButton(this, x0 + 200, 32, 'Land styles', {
+        variant: 'emphasis',
+        size: 'sm',
+        minWidth: 110,
+        onTap: () => this.showLandStylesModal(),
+      });
+      this.rightPane.push(landStylesBtn.container);
+    }
     // F15: deck picker (switch / new / copy / rename / delete).
     const decksBtn = themedButton(this, PANEL_RIGHT_X - 45, 32, '☰ Decks', {
       variant: 'emphasis',
@@ -1038,28 +1197,29 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     this.rightPane.push(decksBtn.container);
 
-    // basics steppers. The ± pair was an audited adjacent-target mis-tap
-    // (centers 40px apart) — respaced to ≥90px centers with hit boxes that
-    // fill the row pitch (30px, widened to 40 on touch — plan §1.4).
-    const basicsPitch = this.touch ? 40 : 30;
-    BASICS.forEach((id, i) => {
+    // Touch restores the pre-feature five-row block. Desktop keeps the inline
+    // preview and selector at a 52px pitch, leaving 8px between 44px targets.
+    const basicsPitch = this.touch ? 40 : 52;
+    BASIC_LAND_IDS.forEach((id, i) => {
       const d = byId(id);
-      const y = 70 + i * basicsPitch;
+      const y = (this.touch ? 78 : 88) + i * basicsPitch;
       const n = this.countIn(this.deck, id);
+      const landStyle = active?.landStyle?.[id] ?? null;
       const row = this.add
-        .text(x0, y + 8, `${d.name}: ${n}`, {
+        .text(x0, y, `${d.name}: ${n}`, {
           fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
+          fontSize: `${this.touch ? theme.type.label : theme.type.caption}px`,
           color: theme.colors.body,
         })
         .setOrigin(0, 0.5);
-      const minus = themedButton(this, PANEL_RIGHT_X - 145, y + 8, '−', {
+      if (!this.touch) this.fitTextToWidth(row, 76);
+      const minus = themedButton(this, PANEL_RIGHT_X - (this.touch ? 145 : 149), y, '−', {
         variant: 'danger',
         size: 'sm',
         minWidth: 90,
         onTap: () => this.removeCard(id),
       });
-      const plus = themedButton(this, PANEL_RIGHT_X - 45, y + 8, '+', {
+      const plus = themedButton(this, PANEL_RIGHT_X - 45, y, '+', {
         variant: 'emphasis',
         size: 'sm',
         minWidth: 90,
@@ -1069,7 +1229,13 @@ export class DeckBuilderScene extends Phaser.Scene {
           this.renderDeck();
         },
       });
-      this.rightPane.push(row, minus.container, plus.container);
+      this.rightPane.push(row);
+      if (!this.touch) {
+        const preview = makeCardThumb(this, x0 + 94, y, d, 0.095, landStyle ?? undefined);
+        const style = this.landStyleControl(x0 + 132, y, id, landStyle);
+        this.rightPane.push(preview, style);
+      }
+      this.rightPane.push(minus.container, plus.container);
     });
 
     // nonbasic list grouped with counts

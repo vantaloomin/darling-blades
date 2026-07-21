@@ -17,13 +17,12 @@ import { packPool } from './PackOpener';
 import type { SaveData } from './SaveManager';
 import { PLAIN_VARIANT, rollFrame, rollHolo, rollTier, TIER_RANK, type CardVariant } from './variants';
 
-export type LimitedMode = 'sealed' | 'draft';
+export type LimitedMode = 'draft';
 export type LimitedRunStatus = 'draft' | 'build' | 'matches';
 export type LimitedDeckStyle = 'mono' | 'dual' | 'other';
 export type LimitedDifficulty = 'easy' | 'medium' | 'hard';
 
 export const LIMITED_MATCHES = 3;
-export const LIMITED_SEALED_PACKS = 6;
 export const DRAFT_SEATS = 8;
 export const DRAFT_PACKS = 3;
 
@@ -36,12 +35,6 @@ const LIMITED_TIER_FALLBACK: Record<Rarity, Rarity | null> = {
   r: 'c',
   c: null,
 };
-
-export interface LimitedPool {
-  seed: number;
-  packs: string[][];
-  cards: string[];
-}
 
 export interface DraftState {
   seed: number;
@@ -88,7 +81,8 @@ export interface LimitedDuelData {
 
 export interface LimitedHistoryEntry {
   id: string;
-  mode: LimitedMode;
+  /** Legacy sealed entries remain inert so loading and re-saving old blobs is lossless. */
+  mode: LimitedMode | 'sealed';
   seed: number;
   wins: number;
   losses: number;
@@ -101,7 +95,8 @@ export interface LimitedHistoryEntry {
 export interface LimitedState {
   activeRun: LimitedRun | null;
   history: LimitedHistoryEntry[];
-  bestSealedWins: number;
+  /** Legacy sealed record retained only when an old save already contains it. */
+  bestSealedWins?: number;
   bestDraftWins: number;
   /**
    * Familiarity: how many drafts the player has COMPLETED (all 45 picks) with
@@ -113,7 +108,7 @@ export interface LimitedState {
 }
 
 export function freshLimitedState(): LimitedState {
-  return { activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {} };
+  return { activeRun: null, history: [], bestDraftWins: 0, personaSeen: {} };
 }
 
 /**
@@ -131,7 +126,7 @@ export function personaRevealTier(state: Pick<LimitedState, 'personaSeen'>, pers
 
 /** Count a completed draft for every persona seated in the run (idempotence is the caller's job — call exactly once, when the draft completes). */
 export function recordDraftEncounters(state: Pick<LimitedState, 'personaSeen'>, run: LimitedRun): void {
-  if (run.mode !== 'draft' || !run.draft) return;
+  if (!run.draft) return;
   for (const id of run.draft.personaIds) {
     if (!id) continue;
     state.personaSeen[id] = (state.personaSeen[id] ?? 0) + 1;
@@ -162,7 +157,7 @@ export function limitedDuelData(run: LimitedRun): LimitedDuelData {
       runId: run.id,
       mode: run.mode,
       matchIndex: run.matchIndex,
-      opponentPersonaId: run.mode === 'draft' ? run.draft?.personaIds[run.matchIndex + 1] : undefined,
+      opponentPersonaId: run.draft?.personaIds[run.matchIndex + 1],
     },
   };
 }
@@ -183,39 +178,6 @@ export function rollLimitedPack(
   return rollLimitedPackWithRng(db, createRngState(clampLimitedSeed(seed)), set);
 }
 
-export function rollSealedPool(
-  db: CardDb,
-  seed: number,
-  packCount = LIMITED_SEALED_PACKS,
-  set?: CardDef['set'],
-): LimitedPool {
-  const rng = createRngState(clampLimitedSeed(seed));
-  const packs: string[][] = [];
-  for (let i = 0; i < packCount; i++) packs.push(rollLimitedPackWithRng(db, rng, set));
-  return { seed: clampLimitedSeed(seed), packs, cards: packs.flat() };
-}
-
-export function startSealedRun(db: CardDb, seed: number, now: number): LimitedRun {
-  const runSeed = clampLimitedSeed(seed);
-  const pool = rollSealedPool(db, runSeed);
-  const opponentSeeds = [0, 1, 2].map((i) => clampLimitedSeed((runSeed ^ Math.imul(i + 3, 0x45d9f3b)) >>> 0));
-  const opponentDecks = opponentSeeds.map((oppSeed) => buildLimitedDeck(db, rollSealedPool(db, oppSeed).cards));
-  return {
-    id: limitedRunId('sealed', runSeed, now),
-    mode: 'sealed',
-    seed: runSeed,
-    startedAt: now,
-    status: 'build',
-    pool: pool.cards,
-    deck: [],
-    wins: 0,
-    losses: 0,
-    matchIndex: 0,
-    opponentSeeds,
-    opponentDecks,
-  };
-}
-
 export function startDraftRun(
   db: CardDb,
   seed: number,
@@ -224,7 +186,7 @@ export function startDraftRun(
 ): LimitedRun {
   const runSeed = clampLimitedSeed(seed);
   return {
-    id: limitedRunId('draft', runSeed, now),
+    id: limitedRunId(runSeed, now),
     mode: 'draft',
     seed: runSeed,
     startedAt: now,
@@ -352,14 +314,14 @@ export function pickDraftCard(db: CardDb, state: DraftState, cardId: string, car
 
 /** Grant the 45 human-picked premium cards exactly while the draft->build once-guard is open. */
 export function grantPremiumDraftPool(save: SaveData, db: CardDb, run: LimitedRun): AddResult[] {
-  if (!run.premium || run.mode !== 'draft' || run.status !== 'draft' || !run.draft?.completed) return [];
+  if (!run.premium || run.status !== 'draft' || !run.draft?.completed) return [];
   return run.draft.picks[0].map((id, index) =>
     addCard(save, db, id, run.draft!.pickVariants?.[index] ?? PLAIN_VARIANT),
   );
 }
 
 export function completeDraftRun(db: CardDb, run: LimitedRun): LimitedRun {
-  if (run.mode !== 'draft' || !run.draft?.completed) return run;
+  if (!run.draft?.completed) return run;
   const opponentDecks = [1, 2, 3].map((seat) => buildLimitedDeck(db, run.draft!.picks[seat] ?? []));
   return {
     ...run,
@@ -402,8 +364,8 @@ export function countCards(cards: readonly string[]): Map<string, number> {
   return counts;
 }
 
-function limitedRunId(mode: LimitedMode, seed: number, now: number): string {
-  return `limited-${mode}-${seed}-${Math.trunc(now)}`;
+function limitedRunId(seed: number, now: number): string {
+  return `limited-draft-${seed}-${Math.trunc(now)}`;
 }
 
 function rollLimitedPackWithRng(db: CardDb, rng: RngState, set?: CardDef['set']): string[] {

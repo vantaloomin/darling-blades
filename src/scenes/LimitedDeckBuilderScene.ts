@@ -372,7 +372,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   private startMatch(run: LimitedRun): void {
     if (validateLimitedDeck(CARD_DB, run.pool, this.deck).some((issue) => issue.kind === 'error'))
       return;
-    const updated = run.mode === 'draft' ? completeDraftRun(CARD_DB, run) : run;
+    const updated = completeDraftRun(CARD_DB, run);
     updated.deck = [...this.deck];
     updated.status = 'matches';
     Services.save.data.limited.activeRun = updated;

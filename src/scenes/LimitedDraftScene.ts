@@ -152,7 +152,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     Music.setMood('menu');
 
     const run = Services.save.data.limited.activeRun;
-    if (!run || run.mode !== 'draft' || !run.draft) {
+    if (!run || !run.draft) {
       this.scene.start('Limited');
       return;
     }

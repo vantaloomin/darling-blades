@@ -60,9 +60,22 @@ export interface SavedDeck {
   cards: string[];
   /** Per-deck hero card art for the commander portrait. `null` = auto/default. v15 addition. */
   heroCardId: string | null;
-  /** Per-deck basic-land art style. `null` = default land art. v22 addition. */
-  landStyle: string | null;
+  /** Per-basic land art styles. `null` or a missing key = default art. v22 addition. */
+  landStyle: LandStyleMap | null;
 }
+
+export const BASIC_LAND_IDS = [
+  'land-plains',
+  'land-island',
+  'land-swamp',
+  'land-mountain',
+  'land-forest',
+] as const;
+export type BasicLandId = (typeof BASIC_LAND_IDS)[number];
+
+export const LAND_STYLE_IDS = ['base', 'ragnarok', 'celtic-fae'] as const;
+export type LandStyleId = (typeof LAND_STYLE_IDS)[number];
+export type LandStyleMap = Partial<Record<BasicLandId, LandStyleId>>;
 
 export interface PremiumWeekState {
   week: number;
@@ -537,6 +550,12 @@ export class SaveManager {
       };
     }
     if (cur.version === 22) {
+      const decks = Array.isArray(cur.decks)
+        ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
+            ...deck,
+            landStyle: typeof deck.landStyle === 'string' ? null : normalizeLandStyleMap(deck.landStyle),
+          }))
+        : [];
       const gauntlet = (cur.gauntlet ?? freshGauntlet()) as GauntletState;
       const activeRun = gauntlet.run;
       const hasRosterIdentity =
@@ -549,6 +568,10 @@ export class SaveManager {
       const limited = (cur.limited ?? freshLimitedState()) as LimitedState & {
         premiumWeek?: Partial<PremiumWeekState>;
       };
+      // Sealed was cancelled after v14 saves could persist it. Preserve legacy
+      // history and bestSealedWins via the spread below, but an in-flight sealed
+      // run cannot resume now that its meta and scene paths are gone.
+      const limitedActiveRun = limited.activeRun?.mode === 'draft' ? limited.activeRun : null;
       const premiumWeek = limited.premiumWeek;
       const week = typeof premiumWeek?.week === 'number' && Number.isInteger(premiumWeek.week)
         ? premiumWeek.week
@@ -562,8 +585,9 @@ export class SaveManager {
       return {
         ...cur,
         version: 22,
+        decks,
         gauntlet: { ...gauntlet, run },
-        limited: { ...limited, premiumWeek: { week, entries } },
+        limited: { ...limited, activeRun: limitedActiveRun, premiumWeek: { week, entries } },
         replays,
       } as unknown as SaveData;
     }
@@ -606,12 +630,29 @@ export class SaveManager {
   }
 }
 
+function normalizeLandStyleMap(value: unknown): LandStyleMap | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const normalized: LandStyleMap = {};
+  for (const basicId of BASIC_LAND_IDS) {
+    const style = raw[basicId];
+    if (LAND_STYLE_IDS.some((candidate) => candidate === style)) normalized[basicId] = style as LandStyleId;
+  }
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
 function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): SavedDeck[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((raw): SavedDeck | null => {
       if (!raw || typeof raw !== 'object') return null;
-      const deck = raw as { id?: unknown; name?: unknown; cards?: unknown; heroCardId?: unknown };
+      const deck = raw as {
+        id?: unknown;
+        name?: unknown;
+        cards?: unknown;
+        heroCardId?: unknown;
+        landStyle?: unknown;
+      };
       if (typeof deck.id !== 'string' || typeof deck.name !== 'string' || !Array.isArray(deck.cards)) return null;
       const cards = deck.cards.filter((id): id is string => typeof id === 'string');
       const explicitHero = typeof deck.heroCardId === 'string' ? deck.heroCardId : null;
@@ -621,7 +662,7 @@ function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): 
         name: deck.name,
         cards,
         heroCardId: migratedHero && cards.includes(migratedHero) ? migratedHero : null,
-        landStyle: null,
+        landStyle: normalizeLandStyleMap(deck.landStyle),
       };
     })
     .filter((deck): deck is SavedDeck => deck !== null);

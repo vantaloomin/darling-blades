@@ -16,13 +16,25 @@ function saveWithDecks(): SaveData {
 describe('deck storage', () => {
   it('preserves land style when saving or copying an existing deck', () => {
     const save = saveWithDecks();
-    save.decks[0].landStyle = 'forest';
+    save.decks[0].landStyle = {
+      'land-plains': 'base',
+      'land-forest': 'celtic-fae',
+    };
 
     saveDeck(save, { id: 'deck-1', name: 'Aggro revised', cards: ['a', 'b'] });
     const copyId = copyDeck(save, 'deck-1');
 
-    expect(save.decks.find((deck) => deck.id === 'deck-1')?.landStyle).toBe('forest');
-    expect(save.decks.find((deck) => deck.id === copyId)?.landStyle).toBe('forest');
+    expect(save.decks.find((deck) => deck.id === 'deck-1')?.landStyle).toEqual({
+      'land-plains': 'base',
+      'land-forest': 'celtic-fae',
+    });
+    expect(save.decks.find((deck) => deck.id === copyId)?.landStyle).toEqual({
+      'land-plains': 'base',
+      'land-forest': 'celtic-fae',
+    });
+    expect(save.decks.find((deck) => deck.id === copyId)?.landStyle).not.toBe(
+      save.decks.find((deck) => deck.id === 'deck-1')?.landStyle,
+    );
   });
 
   it('generateDeckId skips existing ids', () => {

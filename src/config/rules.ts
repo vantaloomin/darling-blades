@@ -19,12 +19,12 @@ export const RULES = {
 export const ECONOMY = {
   startingGold: 250, // granted with the starter deck — one booster to crack
   packPrice: 450,
-  ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 69-card chase)
+  ragnarokPackPrice: 525, // expansion booster — only pulls set:'ragnarok' cards (denser 70-card chase)
   celticFaePackPrice: 525, // expansion booster — only pulls set:'celtic-fae' cards (81-card chase density)
   arthurianCourtPackPrice: 525, // expansion booster — only pulls set:'arthurian-court' cards (81-card chase density)
   gothicMonstersPackPrice: 525, // expansion booster - only pulls set:'gothic-monsters' cards (81-card chase density)
   boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo + full art independently (DROPS)
-  limitedPackSize: 15, // Limited packs stay MTG-sized for Sealed/Draft pool depth.
+  limitedPackSize: 15, // Draft packs stay MTG-sized for pick and pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
   lossGold: 20,
   // Practice loss gold requires a real game: engine turns are per-player

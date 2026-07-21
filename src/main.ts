@@ -18,7 +18,6 @@ import { GauntletScene } from './scenes/GauntletScene';
 import { GlossaryScene } from './scenes/GlossaryScene';
 import { LimitedDeckBuilderScene } from './scenes/LimitedDeckBuilderScene';
 import { LimitedDraftScene } from './scenes/LimitedDraftScene';
-import { LimitedRevealScene } from './scenes/LimitedRevealScene';
 import { LimitedScene } from './scenes/LimitedScene';
 import { PackOpeningScene } from './scenes/PackOpeningScene';
 import { PlayScene } from './scenes/PlayScene';
@@ -113,7 +112,6 @@ const game = new Phaser.Game({
     ...(IS_DEV ? [CardShowcaseScene] : []),
     GauntletScene,
     LimitedScene,
-    LimitedRevealScene,
     LimitedDraftScene,
     LimitedDeckBuilderScene,
     ProfileScene,
