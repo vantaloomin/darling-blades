@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-17 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-20 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
 
 # MTG keyword map — Darling Blades terms (shipped + future)
 
@@ -77,6 +77,7 @@ an `EffectOp` (`src/engine/types.ts`) or an engine mechanism.
 | Mill | *(grind)* | `grind` | Shipped | "Put the top N cards of your deck into your graveyard." Internal op id `grind`; oracle text says the effect, never the word "mill". |
 | Exile | **Sever** | `sever` / `severGrave` / `severTop` | Shipped | Creature→severed, top-N grave→severed, top-N deck→severed. Themed Tier-3 (#66) — the zone is `severed` ("severed cards never return"); a named Mechanic in the Glossary. |
 | Counter (a spell) | *(cancel)* | `cancel` | Shipped | "Cancel target spell." |
+| +1/+1 counter | **Mark** | `addCounters` | Shipped | "Put N +1/+1 marks on target creature." Player copy only (rulesText, glossary, rules.md); the engine op id and state field are unchanged. A named Mechanic in the Glossary. |
 | Sacrifice | Sacrifice *(kept)* | — | Planned | "Sacrifice" kept as-is (generic enough). "Put a permanent you control into its owner's graveyard." No op exists yet. |
 | Fight | Fight *(kept)* | — | Planned | "Fight" kept as-is (generic enough). "Each creature deals damage equal to its Attack to the other." No op exists yet. |
 | Attach | *(aura attach)* | `scope:'attached'` statics | Kept | Internal — auras attach to a creature; not a player-facing keyword. |
