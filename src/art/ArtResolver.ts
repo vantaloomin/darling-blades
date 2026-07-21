@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import manifest from '../data/art-manifest.json';
 import type { CardDb } from '../engine/types';
+import { isBasic } from '../meta/Collection';
 import { qualityTier } from '../platform/quality';
 import { ArtAtlas } from './ArtAtlas';
 import { drawPlaceholderArt } from './PlaceholderArtGenerator';
@@ -45,9 +46,11 @@ export class ArtResolver {
     }
   }
 
-  getArt(cardId: string): { textureKey: string; frameName?: string } {
+  getArt(cardId: string, landStyle?: string): { textureKey: string; frameName?: string } {
     const d = this.db[cardId];
     const artKey = d?.artRef ?? cardId;
+    const styledKey = landStyle && d && isBasic(this.db, cardId) ? `${artKey}--${landStyle}` : null;
+    if (styledKey && this.real.has(styledKey)) return { textureKey: `artfile-${styledKey}` };
     if (this.real.has(artKey)) return { textureKey: `artfile-${artKey}` };
     const slot = this.atlas.get(artKey);
     if (!slot) throw new Error(`ArtResolver: no art generated for ${artKey}`);

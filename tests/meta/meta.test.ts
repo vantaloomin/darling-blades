@@ -17,7 +17,7 @@ import {
 import { validateDeck } from '../../src/meta/DeckStorage';
 import { applyGauntletResult, applyMatchResult, buyThemeDeck, previewDeckGrant, spendGold } from '../../src/meta/Economy';
 import { assignDraftPersonas } from '../../src/meta/draftPicker';
-import { startDraftRun, startSealedRun } from '../../src/meta/Limited';
+import { startDraftRun } from '../../src/meta/Limited';
 import { openPack, packPool } from '../../src/meta/PackOpener';
 import { freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, shardValue, TIER_RANK, variantKey, variantRank } from '../../src/meta/variants';
@@ -72,7 +72,7 @@ describe('SaveManager', () => {
     storage.raw.set('darlingblades.save.v1', '{not json');
     const m = new SaveManager(storage);
     expect(m.data.gold).toBe(0);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
   });
 
   it('starts fresh saves with auto-skip off', () => {
@@ -92,7 +92,7 @@ describe('SaveManager', () => {
     storage.raw.set('waifutcg.save.v1', blob);
 
     const b = new SaveManager(storage);
-    expect(b.data.version).toBe(21);
+    expect(b.data.version).toBe(22);
     expect(b.data.gold).toBe(512);
     expect(b.data.collection['bear']).toBe(2);
     // The new key takes precedence when both exist.
@@ -106,7 +106,7 @@ describe('SaveManager', () => {
     const m = new SaveManager(storage);
     m.data.gold = 4200;
     m.data.collection['bear'] = 3;
-    m.data.decks.push({ id: 'd1', name: 'Mine', cards: ['bear'], heroCardId: null });
+    m.data.decks.push({ id: 'd1', name: 'Mine', cards: ['bear'], heroCardId: null, landStyle: null });
     m.data.starterChosen = 'so-crimson';
     m.data.stats.wins = 9;
     m.flush();
@@ -124,7 +124,7 @@ describe('SaveManager', () => {
     expect(m.data.decks).toEqual([]);
     expect(m.data.starterChosen).toBeNull();
     expect(m.data.stats.wins).toBe(0);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.createdAt).toBe(1234);
     // A subsequent boot from the same storage is also fresh.
     expect(new SaveManager(storage).data.gold).toBe(0);
@@ -372,6 +372,21 @@ describe('PackOpener', () => {
     }
   });
 
+  it('a Gothic Monsters booster charges its SKU price and pulls only gm- cards', () => {
+    const save = freshSave(0);
+    save.gold = ECONOMY.gothicMonstersPackPrice;
+
+    expect(spendGold(save, ECONOMY.gothicMonstersPackPrice)).toBe(true);
+    const result = openPack(save, CARD_DB, createRngState(20260717), 'gothic-monsters');
+
+    expect(save.gold).toBe(0);
+    expect(result.cards).toHaveLength(ECONOMY.boosterPackSize);
+    for (const card of result.cards) {
+      expect(card.cardId.startsWith('gm-'), `${card.cardId} must be Gothic Monsters`).toBe(true);
+      expect(CARD_DB[card.cardId].set).toBe('gothic-monsters');
+    }
+  });
+
   it('dupe-protects the sr/ssr/ur slots (prefers sub-playset cards)', () => {
     // own a playset of every sr except dt_rhino â†’ every sr slot must roll it
     const srs = packPool(TEST_DB, 'sr');
@@ -466,10 +481,12 @@ describe('save migration old blobs â†’ current schema', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v1blob));
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.gold).toBe(640);
     expect(m.data.collection['bk-wolfqueen']).toBe(2);
-    expect(m.data.decks).toEqual([{ id: 'd1', name: 'Mine', cards: ['land-forest'], heroCardId: null }]);
+    expect(m.data.decks).toEqual([
+      { id: 'd1', name: 'Mine', cards: ['land-forest'], heroCardId: null, landStyle: null },
+    ]);
     expect(m.data.activeDeckId).toBe('d1');
     expect(m.data.starterChosen).toBe('starter-wild');
     expect(m.data.stats.wins).toBe(5);
@@ -487,7 +504,7 @@ describe('save migration old blobs â†’ current schema', () => {
     expect(m.data.achievements).toEqual({ unlocked: [], claimed: [] }); // v11
     expect(m.data.daily.quests).toHaveLength(ECONOMY.dailyQuestCount); // v13
     expect(m.data.daily.rerollsUsed).toBe(0);
-    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } }); // v14/v19
+    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } }); // v14/v19
     // v4: pre-variant copies become PLAIN; zero-count entries are not seeded
     expect(m.data.collectionVariants['bk-wolfqueen']).toEqual({ [variantKey(PLAIN_VARIANT)]: 2 });
     expect(m.data.collectionVariants['land-forest']).toBeUndefined();
@@ -529,12 +546,12 @@ describe('save migration old blobs â†’ current schema', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v2blob));
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.gold).toBe(320);
-    // v2 data survives, and v6 stamps the in-progress run with a reproducible
-    // seed derived from its startedAt (400 & 0x7fffffff = 400).
+    // v2 data survives. v6 derives the seed from startedAt; v22 stamps the
+    // legacy fixed-roster sentinel.
     expect(m.data.gauntlet).toEqual({
-      run: { rung: 5, startedAt: 400, seed: 400 },
+      run: { rung: 5, startedAt: 400, seed: 400, rosterDay: 0, rosterSeed: 0 },
       bestRung: 6,
       completions: 1,
       clearStyles: { monoColor: 0, dualColor: 0 },
@@ -569,7 +586,7 @@ describe('save migration old blobs â†’ current schema', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v3blob));
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.collection).toEqual({ 'bk-wolfqueen': 4, 'oly-hera': 1 });
     expect(m.data.collectionVariants).toEqual({
       'bk-wolfqueen': { [variantKey(PLAIN_VARIANT)]: 4 },
@@ -596,7 +613,7 @@ describe('save migration old blobs â†’ current schema', () => {
     const v4blob = { ...base, version: 4, settings: { ...base.settings, renderScale: 2 } };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v4blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.settings.renderScale).toBe(2); // 1440p choice survives
   });
 
@@ -611,7 +628,7 @@ describe('save migration old blobs â†’ current schema', () => {
     };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v4blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.settings.renderScale).toBe(2);
   });
 
@@ -627,10 +644,10 @@ describe('save migration old blobs â†’ current schema', () => {
     delete (v5blob as { heroCardId?: unknown }).heroCardId;
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v5blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.heroCardId).toBe(null);
-    // The seedless run is stamped deterministically from startedAt (900).
-    expect(m.data.gauntlet.run).toEqual({ rung: 3, startedAt: 900, seed: 900 });
+    // v6 derives the seed from startedAt; v22 stamps the legacy fixed-roster sentinel.
+    expect(m.data.gauntlet.run).toEqual({ rung: 3, startedAt: 900, seed: 900, rosterDay: 0, rosterSeed: 0 });
     expect(m.data.gauntlet.bestRung).toBe(3);
   });
 
@@ -640,7 +657,7 @@ describe('save migration old blobs â†’ current schema', () => {
     const v5blob = { ...base, version: 5, heroCardId: 'oly-zeus', gauntlet: { run: null, bestRung: 5, completions: 2 } };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v5blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.heroCardId).toBe('oly-zeus'); // a pre-set hero survives
     expect(m.data.gauntlet).toEqual({
       run: null,
@@ -659,7 +676,7 @@ describe('save migration old blobs â†’ current schema', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...base, version: 6, settings: v6settings }));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.settings.confirmDestructive).toBe(true); // default on
     expect(m.data.settings.renderScale).toBe(base.settings.renderScale); // rest of settings intact
 
@@ -670,7 +687,7 @@ describe('save migration old blobs â†’ current schema', () => {
       JSON.stringify({ ...base, version: 6, settings: { ...v6settings, confirmDestructive: false } }),
     );
     const m2 = new SaveManager(s2);
-    expect(m2.data.version).toBe(21);
+    expect(m2.data.version).toBe(22);
     expect(m2.data.settings.confirmDestructive).toBe(false);
   });
 
@@ -683,7 +700,7 @@ describe('save migration old blobs â†’ current schema', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...base, version: 7, settings: v7settings }));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.settings.keywordReminders).toBe(true); // default on
     expect(m.data.settings.confirmDestructive).toBe(base.settings.confirmDestructive); // v7 field intact
 
@@ -694,7 +711,7 @@ describe('save migration old blobs â†’ current schema', () => {
       JSON.stringify({ ...base, version: 7, settings: { ...v7settings, keywordReminders: false } }),
     );
     const m2 = new SaveManager(s2);
-    expect(m2.data.version).toBe(21);
+    expect(m2.data.version).toBe(22);
     expect(m2.data.settings.keywordReminders).toBe(false);
   });
 
@@ -707,7 +724,7 @@ describe('save migration old blobs â†’ current schema', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v8blob));
     const m = new SaveManager(storage);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.heroPortraitId).toBe(null); // default
     expect(m.data.heroCardId).toBe(base.heroCardId); // the rest is intact
 
@@ -718,7 +735,7 @@ describe('save migration old blobs â†’ current schema', () => {
       JSON.stringify({ ...base, version: 8, heroPortraitId: 'hero-valhalla' }),
     );
     const m2 = new SaveManager(s2);
-    expect(m2.data.version).toBe(21);
+    expect(m2.data.version).toBe(22);
     expect(m2.data.heroPortraitId).toBe('hero-valhalla');
   });
 
@@ -734,7 +751,7 @@ describe('save migration old blobs â†’ current schema', () => {
     const fresh = fakeStorage();
     fresh.raw.set('darlingblades.save.v1', JSON.stringify(v9({})));
     const mFresh = new SaveManager(fresh);
-    expect(mFresh.data.version).toBe(21);
+    expect(mFresh.data.version).toBe(22);
     expect(mFresh.data.tutorialDone).toBe(false);
 
     // A player with any win/loss record is a veteran â†’ tutorial already done.
@@ -765,7 +782,7 @@ describe('save migration old blobs â†’ current schema', () => {
 
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.achievements).toEqual({ unlocked: [], claimed: [] });
     expect(m.data.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 0 });
     expect(m.data.tutorialDone).toBe(base.tutorialDone);
@@ -782,7 +799,7 @@ describe('save migration old blobs â†’ current schema', () => {
 
     const m = new SaveManager(storage);
 
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.gauntlet).toEqual({
       run: null,
       bestRung: 10,
@@ -790,7 +807,7 @@ describe('save migration old blobs â†’ current schema', () => {
       clearStyles: { monoColor: 0, dualColor: 0 },
     });
     expect(m.data.daily.quests).toHaveLength(ECONOMY.dailyQuestCount);
-    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
+    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
   });
 
   it('migrates a v12 blob forward: daily quests, streaks, and limited default', () => {
@@ -802,13 +819,13 @@ describe('save migration old blobs â†’ current schema', () => {
 
     const m = new SaveManager(storage, new Date(2026, 6, 8).getTime());
 
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.daily.day).toBe('2026-07-08');
     expect(m.data.daily.quests).toHaveLength(ECONOMY.dailyQuestCount);
     expect(new Set(m.data.daily.quests.map((q) => q.id)).size).toBe(ECONOMY.dailyQuestCount);
     expect(m.data.daily.rerollsUsed).toBe(0);
     expect(m.data.daily.streak).toEqual({ count: 0, lastWinDay: null });
-    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
+    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
   });
 
   it('migrates a v13 blob forward: limited defaults empty', () => {
@@ -820,9 +837,9 @@ describe('save migration old blobs â†’ current schema', () => {
 
     const m = new SaveManager(storage, new Date(2026, 6, 8).getTime());
 
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.daily.day).toBe('2026-07-08');
-    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestSealedWins: 0, bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
+    expect(m.data.limited).toEqual({ activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } });
   });
 
   it('migrates a v14 blob forward: saved decks gain per-deck hero selections', () => {
@@ -843,16 +860,22 @@ describe('save migration old blobs â†’ current schema', () => {
 
     const m = new SaveManager(storage, new Date(2026, 6, 8).getTime());
 
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.decks).toEqual([
-      { id: 'with-default', name: 'With Default', cards: ['hero-card', 'other-card'], heroCardId: 'hero-card' },
-      { id: 'without-default', name: 'Without Default', cards: ['other-card'], heroCardId: null },
-      { id: 'explicit', name: 'Explicit', cards: ['alpha', 'beta'], heroCardId: 'beta' },
-      { id: 'stale', name: 'Stale', cards: ['alpha'], heroCardId: null },
+      {
+        id: 'with-default',
+        name: 'With Default',
+        cards: ['hero-card', 'other-card'],
+        heroCardId: 'hero-card',
+        landStyle: null,
+      },
+      { id: 'without-default', name: 'Without Default', cards: ['other-card'], heroCardId: null, landStyle: null },
+      { id: 'explicit', name: 'Explicit', cards: ['alpha', 'beta'], heroCardId: 'beta', landStyle: null },
+      { id: 'stale', name: 'Stale', cards: ['alpha'], heroCardId: null, landStyle: null },
     ]);
   });
 
-  it('migrates a v15 blob forward: backfills in-flight draft personas and leaves sealed runs intact', () => {
+  it('migrates a v15 blob forward: backfills draft personas and safely drops an active sealed run', () => {
     const now = new Date(2026, 6, 8).getTime();
     const seed = 4815;
     const rosterIds = DRAFT_PERSONAS.map((persona) => persona.id);
@@ -873,23 +896,46 @@ describe('save migration old blobs â†’ current schema', () => {
     );
 
     const migratedDraft = new SaveManager(draftStorage, now);
-    expect(migratedDraft.data.version).toBe(21);
+    expect(migratedDraft.data.version).toBe(22);
     expect(migratedDraft.data.limited.activeRun?.draft?.personaIds).toEqual(assignDraftPersonas(seed, rosterIds));
 
-    const sealedRun = startSealedRun(CARD_DB, seed, now);
+    const sealedHistory = {
+      id: 'limited-sealed-4815-1000',
+      mode: 'sealed',
+      seed,
+      wins: 3,
+      losses: 0,
+      deckStyle: 'dual',
+      completedAt: now,
+      rewardGold: 300,
+    };
+    const sealedRun = {
+      ...draftRun,
+      id: 'limited-sealed-4815-1000',
+      mode: 'sealed',
+      status: 'build',
+      draft: undefined,
+    };
     const sealedStorage = fakeStorage();
     sealedStorage.raw.set(
       'darlingblades.save.v1',
       JSON.stringify({
         ...freshSave(now),
         version: 15,
-        limited: { ...freshSave(now).limited, activeRun: sealedRun },
+        limited: {
+          ...freshSave(now).limited,
+          activeRun: sealedRun,
+          history: [sealedHistory],
+          bestSealedWins: 3,
+        },
       }),
     );
 
     const migratedSealed = new SaveManager(sealedStorage, now);
-    expect(migratedSealed.data.version).toBe(21);
-    expect(migratedSealed.data.limited.activeRun).toEqual(sealedRun);
+    expect(migratedSealed.data.version).toBe(22);
+    expect(migratedSealed.data.limited.activeRun).toBeNull();
+    expect(migratedSealed.data.limited.history).toEqual([sealedHistory]);
+    expect(migratedSealed.data.limited.bestSealedWins).toBe(3);
   });
 
   it('migrates a v16 blob forward: persona familiarity counters default empty, everything else intact', () => {
@@ -903,7 +949,7 @@ describe('save migration old blobs â†’ current schema', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(v16Save));
 
     const m = new SaveManager(storage, now);
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.limited.personaSeen).toEqual({});
     expect(m.data.gold).toBe(321);
   });
@@ -922,7 +968,7 @@ describe('save migration old blobs â†’ current schema', () => {
 
     const m = new SaveManager(storage, now);
 
-    expect(m.data.version).toBe(21);
+    expect(m.data.version).toBe(22);
     expect(m.data.gold).toBe(1718);
     expect(m.data.limited.activeRun).toEqual(activeRun);
   });
@@ -938,7 +984,7 @@ describe('save migration old blobs â†’ current schema', () => {
     a.data.settings.renderScale = 1.5;
     a.flush();
     const b = new SaveManager(storage);
-    expect(b.data.version).toBe(21);
+    expect(b.data.version).toBe(22);
     expect(b.data.gold).toBe(99);
     expect(b.data.gauntlet.bestRung).toBe(4);
     expect(b.data.settings.musicOn).toBe(false);
@@ -951,7 +997,13 @@ describe('save migration old blobs â†’ current schema', () => {
 describe('applyGauntletResult', () => {
   it('a win pays the rung gold and advances to the next rung', () => {
     const save = freshSave(0);
-    save.gauntlet.run = { rung: 1, startedAt: 10, seed: 777 };
+    save.gauntlet.run = {
+      rung: 1,
+      startedAt: 10,
+      seed: 777,
+      rosterDay: 20260720,
+      rosterSeed: 12345,
+    };
     const r = applyGauntletResult(save, 1, 'easy', true, '2026-07-02');
     // rung 1 gold 50 + first-win-of-day 100
     expect(r.gold).toBe(ECONOMY.gauntletRungGold[0] + ECONOMY.firstWinOfDayBonus);
@@ -959,8 +1011,14 @@ describe('applyGauntletResult', () => {
     expect(r.completed).toBe(false);
     expect(r.runOver).toBe(false);
     expect(r.nextRung).toBe(2);
-    // The run climbs but its seed is carried forward (reproducible run).
-    expect(save.gauntlet.run).toEqual({ rung: 2, startedAt: 10, seed: 777 });
+    // The run climbs with both duel and roster identity carried forward.
+    expect(save.gauntlet.run).toEqual({
+      rung: 2,
+      startedAt: 10,
+      seed: 777,
+      rosterDay: 20260720,
+      rosterSeed: 12345,
+    });
     expect(save.gauntlet.bestRung).toBe(1);
     expect(save.stats.byDifficulty.easy.w).toBe(1);
   });
@@ -975,7 +1033,7 @@ describe('applyGauntletResult', () => {
   });
 
   it('clearing the final rung pays the completion bonus and ends the run', () => {
-    const finalRung = ECONOMY.gauntletRungGold.length; // 12 since the Celtic Fae summit
+    const finalRung = ECONOMY.gauntletRungGold.length; // 16 since the Gothic Monsters summit
     const save = freshSave(0);
     save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
     save.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
@@ -1005,7 +1063,7 @@ describe('applyGauntletResult', () => {
     expect(dual.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 1 });
   });
 
-  it('a full 14-rung run pays exactly 2770 gold plus the daily bonus once', () => {
+  it('a full 16-rung run pays exactly 3450 gold plus the daily bonus once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
@@ -1014,9 +1072,9 @@ describe('applyGauntletResult', () => {
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(2520); // 50+70+…+310 across 14 rungs (1.2 added 13-14)
+    expect(rungSum).toBe(3200); // 50+70+…+350 across 16 rungs (1.3 added 15-16)
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(2870); // 2520 + 250 + 100 (daily bonus once)
+    expect(total).toBe(3550); // 3200 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 

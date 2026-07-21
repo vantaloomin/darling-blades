@@ -13,7 +13,14 @@ export interface GauntletState {
    * is fully reproducible and two runs with different seeds diverge — "every
    * playthrough is different". The seed is chosen once, when the run begins.
    */
-  run: { rung: number; startedAt: number; seed: number } | null;
+  run: {
+    rung: number;
+    startedAt: number;
+    seed: number;
+    /** v22 migration stamps legacy runs 0/0; the later tower UI stamps new runs. */
+    rosterDay?: number;
+    rosterSeed?: number;
+  } | null;
   bestRung: number; // highest rung ever cleared
   completions: number; // full gauntlet clears
   clearStyles: GauntletClearStyles;
@@ -53,7 +60,22 @@ export interface SavedDeck {
   cards: string[];
   /** Per-deck hero card art for the commander portrait. `null` = auto/default. v15 addition. */
   heroCardId: string | null;
+  /** Per-basic land art styles. `null` or a missing key = default art. v22 addition. */
+  landStyle: LandStyleMap | null;
 }
+
+export const BASIC_LAND_IDS = [
+  'land-plains',
+  'land-island',
+  'land-swamp',
+  'land-mountain',
+  'land-forest',
+] as const;
+export type BasicLandId = (typeof BASIC_LAND_IDS)[number];
+
+export const LAND_STYLE_IDS = ['base', 'ragnarok', 'celtic-fae'] as const;
+export type LandStyleId = (typeof LAND_STYLE_IDS)[number];
+export type LandStyleMap = Partial<Record<BasicLandId, LandStyleId>>;
 
 export interface PremiumWeekState {
   week: number;
@@ -61,7 +83,7 @@ export interface PremiumWeekState {
 }
 
 export interface SaveData {
-  version: 21;
+  version: 22;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -168,7 +190,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 21,
+    version: 22,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -265,7 +287,8 @@ export class SaveManager {
    * v18 -> v19 adds the Premium Draft weekly allowance, defaulting old saves
    * to zero entries so nobody inherits a partially spent week; v19 -> v20 adds
    * deterministic replays; v20 -> v21 canonicalizes two-part variant keys as
-   * explicitly non-full-art three-part keys.
+   * explicitly non-full-art three-part keys; v21 -> v22 stamps tower roster
+   * identity and adds per-deck land-art selection.
    * An unknown/garbage version starts fresh rather than crash.
    */
   private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
@@ -507,9 +530,48 @@ export class SaveManager {
       cur = { ...cur, version: 21, collectionVariants };
     }
     if (cur.version === 21) {
+      const decks = Array.isArray(cur.decks)
+        ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({ ...deck, landStyle: null }))
+        : [];
+      const gauntlet = (cur.gauntlet ?? freshGauntlet()) as GauntletState & {
+        run: (Omit<NonNullable<GauntletState['run']>, 'rosterDay' | 'rosterSeed'> & {
+          rosterDay?: number;
+          rosterSeed?: number;
+        }) | null;
+      };
+      // The 0/0 sentinel keeps an in-flight legacy run on the fixed AVATARS-by-tier
+      // roster so it finishes exactly as it started.
+      const run = gauntlet.run ? { ...gauntlet.run, rosterDay: 0, rosterSeed: 0 } : null;
+      cur = {
+        ...cur,
+        version: 22,
+        decks,
+        gauntlet: { ...gauntlet, run },
+      };
+    }
+    if (cur.version === 22) {
+      const decks = Array.isArray(cur.decks)
+        ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
+            ...deck,
+            landStyle: typeof deck.landStyle === 'string' ? null : normalizeLandStyleMap(deck.landStyle),
+          }))
+        : [];
+      const gauntlet = (cur.gauntlet ?? freshGauntlet()) as GauntletState;
+      const activeRun = gauntlet.run;
+      const hasRosterIdentity =
+        typeof activeRun?.rosterDay === 'number' && typeof activeRun.rosterSeed === 'number';
+      // Runs created during the headless-core/UI staging gap use the same fixed
+      // roster sentinel as migrated v21 runs. Later UI-stamped runs pass through.
+      const run = activeRun && !hasRosterIdentity
+        ? { ...activeRun, rosterDay: 0, rosterSeed: 0 }
+        : activeRun;
       const limited = (cur.limited ?? freshLimitedState()) as LimitedState & {
         premiumWeek?: Partial<PremiumWeekState>;
       };
+      // Sealed was cancelled after v14 saves could persist it. Preserve legacy
+      // history and bestSealedWins via the spread below, but an in-flight sealed
+      // run cannot resume now that its meta and scene paths are gone.
+      const limitedActiveRun = limited.activeRun?.mode === 'draft' ? limited.activeRun : null;
       const premiumWeek = limited.premiumWeek;
       const week = typeof premiumWeek?.week === 'number' && Number.isInteger(premiumWeek.week)
         ? premiumWeek.week
@@ -522,8 +584,10 @@ export class SaveManager {
         : [];
       return {
         ...cur,
-        version: 21,
-        limited: { ...limited, premiumWeek: { week, entries } },
+        version: 22,
+        decks,
+        gauntlet: { ...gauntlet, run },
+        limited: { ...limited, activeRun: limitedActiveRun, premiumWeek: { week, entries } },
         replays,
       } as unknown as SaveData;
     }
@@ -566,12 +630,29 @@ export class SaveManager {
   }
 }
 
+function normalizeLandStyleMap(value: unknown): LandStyleMap | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const normalized: LandStyleMap = {};
+  for (const basicId of BASIC_LAND_IDS) {
+    const style = raw[basicId];
+    if (LAND_STYLE_IDS.some((candidate) => candidate === style)) normalized[basicId] = style as LandStyleId;
+  }
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
 function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): SavedDeck[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((raw): SavedDeck | null => {
       if (!raw || typeof raw !== 'object') return null;
-      const deck = raw as { id?: unknown; name?: unknown; cards?: unknown; heroCardId?: unknown };
+      const deck = raw as {
+        id?: unknown;
+        name?: unknown;
+        cards?: unknown;
+        heroCardId?: unknown;
+        landStyle?: unknown;
+      };
       if (typeof deck.id !== 'string' || typeof deck.name !== 'string' || !Array.isArray(deck.cards)) return null;
       const cards = deck.cards.filter((id): id is string => typeof id === 'string');
       const explicitHero = typeof deck.heroCardId === 'string' ? deck.heroCardId : null;
@@ -581,6 +662,7 @@ function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): 
         name: deck.name,
         cards,
         heroCardId: migratedHero && cards.includes(migratedHero) ? migratedHero : null,
+        landStyle: normalizeLandStyleMap(deck.landStyle),
       };
     })
     .filter((deck): deck is SavedDeck => deck !== null);

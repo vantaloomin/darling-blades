@@ -22,8 +22,8 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     colors: 'G/W',
     archetype: 'Beastkin tribal',
     plays:
-      'Curve out with efficient Beastkin and win through big, straightforward combat, with Wild Surge to ambush attackers mid-fight. Few tricks beyond the creatures themselves.',
-    featured: ['gk-athena', 'bk-packmother', 'in-wild-surge'],
+      'Curve out with efficient Beastkin and win through big, straightforward combat, with Liu Bei rallying the warband wide. No tricks beyond the creatures themselves.',
+    featured: ['gk-athena', 'bk-packmother', 'tk-shu-liubei'],
   },
   'starter-tides': {
     colors: 'U/R',
@@ -55,16 +55,23 @@ export const DECK_INFO: Record<string, DeckInfo> = {
   },
   'theme-celtic-fae': {
     colors: 'U/B/G',
-    archetype: 'Celtic Fae tempo-control',
+    archetype: 'Silver Veil tempo-control',
     plays:
       'Evasive fae chip in while Foresee smooths your draws and bounce effects hold the board back. Every turn is a tempo decision; this is the highest-skill deck in the shop.',
     featured: ['cf-morrigan-black-wing', 'cf-selkie-tide-queen', 'cf-bargain-for-time'],
   },
   'theme-arthurian-court': {
-    colors: 'W/U/R',
+    colors: 'W/U',
     archetype: 'Heroic Quest midrange',
     plays:
-      'Build a court of Knights, keep a Quest active, and let chapter payoffs turn a disciplined board into awakened champions. Combat tricks and Squire support make the deck strongest when it attacks with a plan.',
-    featured: ['ac-artoria-once-future', 'ac-quest-for-the-grail', 'ac-lancelot-moonlit-shame'],
+      'Build a court of Knights, keep a Quest active, and let chapter payoffs turn a disciplined board into awakened champions. Undertow and Shieldwall protect the tempo so the court attacks with a plan.',
+    featured: ['ac-artoria-once-future', 'ac-quest-for-the-grail', 'ac-galahad-silver-oath'],
+  },
+  'theme-gothic-monsters': {
+    colors: 'B/R',
+    archetype: 'Vampire pressure',
+    plays:
+      'Start with Dreaded attackers and evasive vampires, then make every exchange hurt. Damage spells clear the path while Empower turns the late game into a velvet drain. Carmilla, Crimson Host closes the curtain when the night runs long.',
+    featured: ['gm-carmilla-crimson-host', 'gm-black-veil-matron', 'gm-dracula-ball-invite'],
   },
 };

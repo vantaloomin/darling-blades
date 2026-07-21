@@ -1,10 +1,16 @@
 import Phaser from 'phaser';
+import { floorBrain, floorDifficultyPips } from '../ai/tiers';
 import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
-import { avatarForRung, type Avatar } from '../data/opponents';
-import { clampSeed } from '../meta/gauntletSeed';
+import { AVATARS, type Avatar } from '../data/opponents';
+import {
+  clampSeed,
+  localDateKey,
+  resolveGauntletRoster,
+  type ResolvedGauntletRoster,
+} from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -12,7 +18,7 @@ import { colorInt, theme } from '../ui/theme';
 import { backButton, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
- * The Avatar Gauntlet tower. A right-rail ladder of twelve rungs (cleared ✓ /
+ * The Avatar Gauntlet tower. A count-aware right-rail ladder (cleared ✓ /
  * current highlighted / future dimmed) and a left panel showing the selected
  * avatar — portrait, name/title/blurb, theme chip, difficulty pips, and the
  * rung's reward. Fight launches the duel; a loss resets the run, a full clear
@@ -31,6 +37,8 @@ export class GauntletScene extends Phaser.Scene {
   /** Seed the NEXT run will use (rerollable / player-settable until it begins). */
   private pendingSeed = 1;
   private seedBar: Phaser.GameObjects.Container | null = null;
+  /** One create-time roster resolution, shared by the rail and detail pane. */
+  private roster!: ResolvedGauntletRoster;
 
   constructor() {
     super('Gauntlet');
@@ -68,6 +76,8 @@ export class GauntletScene extends Phaser.Scene {
     const g = Services.save.data.gauntlet;
     this.currentRung = g.run?.rung ?? 1;
     this.selectedRung = this.currentRung;
+    const todayDay = localDateKey(Date.now());
+    this.roster = resolveGauntletRoster(g.run, todayDay, AVATARS.length);
     // A run in progress keeps its locked seed; otherwise pick a fresh one the
     // player may reroll or set before beginning (src/meta/gauntletSeed.ts).
     this.pendingSeed = g.run?.seed ?? clampSeed(Math.floor(Math.random() * 2 ** 31));
@@ -115,18 +125,25 @@ export class GauntletScene extends Phaser.Scene {
     const rowH = Math.min(52, 500 / Math.max(1, rungs - 1));
 
     this.add
-        .text(railX, topY - 34, `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : '—'}   ·   Clears: ${g.completions}`, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
-      })
+      .text(
+        railX,
+        topY - 34,
+        `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : 'None'}   ·   Clears: ${g.completions}\n${this.rosterHeading(!!g.run)}`,
+        {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.muted,
+          align: 'center',
+          lineSpacing: 2,
+        },
+      )
       .setOrigin(0.5);
 
     // Rungs render bottom-up: rung 1 at the bottom, the top rung at the top.
     for (let rung = rungs; rung >= 1; rung--) {
       const rowIndex = rungs - rung; // 0 at top
       const y = topY + rowIndex * rowH;
-      const av = avatarForRung(rung);
+      const av = this.avatarForFloor(rung);
       const cleared = rung < this.currentRung; // rungs below the current one are done this run
       const isCurrent = rung === this.currentRung;
 
@@ -143,7 +160,7 @@ export class GauntletScene extends Phaser.Scene {
         })
         .setOrigin(0, 0.5);
       const stars = this.add
-        .text(railX + 195, y, '★'.repeat(this.difficultyPips(av)), {
+        .text(railX + 195, y, '★'.repeat(floorDifficultyPips(rung)), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.gold,
@@ -192,16 +209,26 @@ export class GauntletScene extends Phaser.Scene {
     return theme.colors.muted;
   }
 
-  private difficultyPips(av: Avatar): number {
-    // 1..3 pips scaling with tier: easy 1, medium 2, hard 3.
-    return av.difficulty === 'easy' ? 1 : av.difficulty === 'medium' ? 2 : 3;
+  private avatarForFloor(floor: number): Avatar {
+    const index = this.roster.order[floor - 1];
+    const avatar = index === undefined ? undefined : AVATARS[index];
+    if (!avatar) throw new Error(`No avatar assigned to Tower floor ${floor}`);
+    return avatar;
+  }
+
+  private rosterHeading(active: boolean): string {
+    if (this.roster.fixed) return 'Run lineup · fixed order';
+    const day = String(this.roster.rosterDay).padStart(8, '0');
+    const date = `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}`;
+    return `${active ? 'Run lineup' : "Today's lineup"} · ${date}`;
   }
 
   // ---------------------------------------------------------------------
   private buildPanel(): void {
     this.panel?.destroy();
     this.abandonArmed = false;
-    const av = avatarForRung(this.selectedRung);
+    const floor = this.selectedRung;
+    const av = this.avatarForFloor(floor);
     const c = this.add.container(0, 0);
 
     const px = 300; // panel center x
@@ -255,7 +282,7 @@ export class GauntletScene extends Phaser.Scene {
     // difficulty pips + rung
     c.add(
       this.add
-        .text(textX, 232, `Rung ${av.tier}   ${'★'.repeat(this.difficultyPips(av))}   (${av.difficulty})`, {
+        .text(textX, 232, `Rung ${floor}   ${'★'.repeat(floorDifficultyPips(floor))}   (${floorBrain(floor)})`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.gold,
@@ -277,9 +304,9 @@ export class GauntletScene extends Phaser.Scene {
     );
 
     // reward line
-    const reward = ECONOMY.gauntletRungGold[av.tier - 1];
+    const reward = ECONOMY.gauntletRungGold[floor - 1];
     const rewardLine =
-      av.tier === ECONOMY.gauntletRungGold.length
+      floor === ECONOMY.gauntletRungGold.length
         ? `Reward: 🪙 ${reward}  +  🪙 ${ECONOMY.gauntletCompletionBonus} completion bonus`
         : `Reward: 🪙 ${reward}`;
     c.add(
@@ -297,17 +324,17 @@ export class GauntletScene extends Phaser.Scene {
     );
 
     // Fight / locked
-    const fightable = av.tier === this.currentRung;
+    const fightable = floor === this.currentRung;
     if (fightable) {
       const fight = themedButton(this, textX + 104, 478, Services.save.data.gauntlet.run ? 'Fight' : 'Begin Run', {
         variant: 'primary',
         minWidth: 208,
-        onTap: () => this.startFight(av),
+        onTap: () => this.startFight(av, floor),
       });
       c.add(fight.container);
     } else {
       const locked =
-        av.tier < this.currentRung ? 'Already cleared this run' : 'Clear the rungs below first';
+        floor < this.currentRung ? 'Already cleared this run' : 'Clear the rungs below first';
       c.add(
         this.add
           .text(textX, 462, `🔒 ${locked}`, {
@@ -352,13 +379,21 @@ export class GauntletScene extends Phaser.Scene {
     this.scene.restart();
   }
 
-  private startFight(av: Avatar): void {
+  private startFight(av: Avatar, floor: number): void {
     // Begin (or resume) the run at this rung. A fresh run locks in the chosen
     // seed (every rung derives its duel seed from it — reproducible playthrough).
     const g = Services.save.data.gauntlet;
-    if (!g.run) g.run = { rung: av.tier, startedAt: Date.now(), seed: this.pendingSeed };
+    if (!g.run) {
+      g.run = {
+        rung: floor,
+        startedAt: Date.now(),
+        seed: this.pendingSeed,
+        rosterDay: this.roster.rosterDay,
+        rosterSeed: this.roster.rosterSeed,
+      };
+    }
     Services.save.flush();
-    this.scene.start('Duel', { opponentId: av.id, gauntletRung: av.tier });
+    this.scene.start('Duel', { opponentId: av.id, gauntletRung: floor });
   }
 
   /**

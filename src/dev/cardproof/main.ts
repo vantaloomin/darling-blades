@@ -115,3 +115,6 @@ const game = new Phaser.Game({
   scene: [CardProofPreloadScene, CardProofScene],
 });
 game.registry.set('cardproof-store', store);
+// Dev-only probe handle, same as the main game: lets a hidden-tab QA driver
+// pump game.loop.step manually (RAF stalls in hidden tabs).
+(window as unknown as { __game: Phaser.Game }).__game = game;

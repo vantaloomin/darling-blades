@@ -8,7 +8,13 @@ import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { choosePlayDraw } from './playDraw';
-import { cardValue, permValue } from './value';
+import {
+  cardValue,
+  empowerValue,
+  permValue,
+  removalKind,
+  removalValueForCast,
+} from './value';
 
 type Cast = Extract<Action, { type: 'castSpell' }>;
 
@@ -189,6 +195,13 @@ export class MediumAI implements AIPlayer {
     return v;
   }
 
+  /** Prefer a payable Empower rider when its deterministic value is positive. */
+  private castScore(view: PlayerView, cast: Cast): number {
+    const cardId = view.you.hand[cast.handIndex];
+    return this.developScore(cardId) + (cast.x ?? 0) +
+      (cast.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+  }
+
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
   private gainsLife(cardId: string): boolean {
     const d = def(this.db, cardId);
@@ -204,12 +217,8 @@ export class MediumAI implements AIPlayer {
       .flatMap((ab) => ab.ops ?? []);
   }
 
-  private isRemoval(cardId: string): 'destroy' | 'damage' | null {
-    for (const op of this.opBodies(cardId)) {
-      if (op.op === 'destroy') return 'destroy';
-      if (op.op === 'damage' && op.to === 'target') return 'damage';
-    }
-    return null;
+  private isRemoval(cardId: string): ReturnType<typeof removalKind> {
+    return removalKind(this.db, cardId);
   }
 
   private targetPerm(view: PlayerView, ref: TargetRef | undefined): Permanent | undefined {
@@ -223,12 +232,38 @@ export class MediumAI implements AIPlayer {
     if (!perm) return false;
     const kind = this.isRemoval(view.you.hand[cast.handIndex]);
     if (kind === 'destroy') return true;
+    if (kind && kind !== 'damage') {
+      return removalValueForCast(
+        view.battlefield,
+        this.db,
+        view.myId,
+        view.you.hand[cast.handIndex],
+        perm,
+      ) > 0;
+    }
+    if (kind !== 'damage') return false;
     const stats = getEffectiveStats(view.battlefield, this.db, perm.iid);
     const dmg = this.opBodies(view.you.hand[cast.handIndex]).find(
       (o) => o.op === 'damage' && o.to === 'target',
     );
     const n = dmg && dmg.op === 'damage' ? (dmg.n === 'X' ? (cast.x ?? 0) : dmg.n) : 0;
     return n >= stats.defense - perm.damage;
+  }
+
+  private removalWorth(view: PlayerView, cast: Cast): number {
+    const perm = this.targetPerm(view, cast.targets?.[0]);
+    if (!perm) return 0;
+    const d = def(this.db, perm.cardId);
+    if (isType(d, 'artifact') || isType(d, 'enchantment')) {
+      return removalValueForCast(
+        view.battlefield,
+        this.db,
+        view.myId,
+        view.you.hand[cast.handIndex],
+        perm,
+      );
+    }
+    return permValue(view.battlefield, this.db, perm.iid);
   }
 
   private main(view: PlayerView, legal: Action[]): Action {
@@ -264,13 +299,37 @@ export class MediumAI implements AIPlayer {
       });
       if (removals.length > 0) {
         const best = removals.reduce((a, b) =>
-          permValue(view.battlefield, this.db, this.targetPerm(view, a.targets?.[0])!.iid) >=
-          permValue(view.battlefield, this.db, this.targetPerm(view, b.targets?.[0])!.iid)
+          this.removalWorth(view, a) >= this.removalWorth(view, b)
             ? a
             : b,
         );
-        const target = this.targetPerm(view, best.targets?.[0])!;
-        const worth = permValue(view.battlefield, this.db, target.iid);
+        const worth = this.removalWorth(view, best);
+        const cost = manaValue(def(this.db, view.you.hand[best.handIndex]).cost) + (best.x ?? 0);
+        if (worth >= cost * 0.8 && worth >= 2.5 + this.pers.removalBias) return best;
+      }
+
+      // Targetless removal still needs a public opposing permanent. In
+      // particular, do not cast an all-enchantments sweep with no target.
+      const globalRemovals = casts.filter((c) => {
+        const kind = this.isRemoval(view.you.hand[c.handIndex]);
+        return (
+          (kind === 'massDestroy' || kind === 'destroyNewest') &&
+          removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[c.handIndex]) > 0
+        );
+      });
+      if (globalRemovals.length > 0) {
+        const best = globalRemovals.reduce((a, b) =>
+          removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[a.handIndex]) >=
+          removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[b.handIndex])
+            ? a
+            : b,
+        );
+        const worth = removalValueForCast(
+          view.battlefield,
+          this.db,
+          view.myId,
+          view.you.hand[best.handIndex],
+        );
         const cost = manaValue(def(this.db, view.you.hand[best.handIndex]).cost) + (best.x ?? 0);
         if (worth >= cost * 0.8 && worth >= 2.5 + this.pers.removalBias) return best;
       }
@@ -310,8 +369,7 @@ export class MediumAI implements AIPlayer {
       });
       if (developable.length > 0) {
         const best = developable.reduce((a, b) =>
-          this.developScore(view.you.hand[a.handIndex]) + (a.x ?? 0) >=
-          this.developScore(view.you.hand[b.handIndex]) + (b.x ?? 0)
+          this.castScore(view, a) >= this.castScore(view, b)
             ? a
             : b,
         );
@@ -361,14 +419,34 @@ export class MediumAI implements AIPlayer {
       });
       if (removals.length > 0) {
         const best = removals.reduce((a, b) =>
-          permValue(view.battlefield, this.db, this.targetPerm(view, a.targets?.[0])!.iid) >=
-          permValue(view.battlefield, this.db, this.targetPerm(view, b.targets?.[0])!.iid)
+          this.removalWorth(view, a) >= this.removalWorth(view, b)
             ? a
             : b,
         );
-        const v = permValue(view.battlefield, this.db, this.targetPerm(view, best.targets?.[0])!.iid);
+        const v = this.removalWorth(view, best);
         if (v >= 3.5 + this.pers.removalBias) return best;
       }
+    }
+
+    const globalRemovals = casts.filter((c) => {
+      const kind = this.isRemoval(view.you.hand[c.handIndex]);
+      return (
+        (kind === 'massDestroy' || kind === 'destroyNewest') &&
+        removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[c.handIndex]) > 0
+      );
+    });
+    if (globalRemovals.length > 0) {
+      const best = globalRemovals.reduce((a, b) =>
+        removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[a.handIndex]) >=
+        removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[b.handIndex])
+          ? a
+          : b,
+      );
+      if (
+        removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[best.handIndex]) >=
+        3.5 + this.pers.removalBias
+      )
+        return best;
     }
 
     // 3. Pump my creature when it helps combat.
@@ -422,13 +500,32 @@ export class MediumAI implements AIPlayer {
     });
     if (removals.length > 0) {
       const best = removals.reduce((a, b) =>
-        permValue(view.battlefield, this.db, this.targetPerm(view, a.targets?.[0])!.iid) >=
-        permValue(view.battlefield, this.db, this.targetPerm(view, b.targets?.[0])!.iid)
+        this.removalWorth(view, a) >= this.removalWorth(view, b)
           ? a
           : b,
       );
       if (
-        permValue(view.battlefield, this.db, this.targetPerm(view, best.targets?.[0])!.iid) >=
+        this.removalWorth(view, best) >=
+        3.5 + this.pers.removalBias
+      )
+        return best;
+    }
+    const globalRemovals = casts.filter((c) => {
+      const kind = this.isRemoval(view.you.hand[c.handIndex]);
+      return (
+        (kind === 'massDestroy' || kind === 'destroyNewest') &&
+        removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[c.handIndex]) > 0
+      );
+    });
+    if (globalRemovals.length > 0) {
+      const best = globalRemovals.reduce((a, b) =>
+        removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[a.handIndex]) >=
+        removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[b.handIndex])
+          ? a
+          : b,
+      );
+      if (
+        removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[best.handIndex]) >=
         3.5 + this.pers.removalBias
       )
         return best;

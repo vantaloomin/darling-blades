@@ -2,14 +2,15 @@ import { RULES } from '../config/rules';
 import {
   blockOptions,
   eligibleAttackers,
+  minimumBlockersForAttacker,
   validateAttackers,
   validateBlocks,
 } from './combat/legality';
 import { enumerateTargets, isLegalTarget } from './effects/targeting';
-import { canPay, manaSources, maxPayableX, solveMana } from './mana';
+import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
 import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from './types';
-import { def, isType, opponentOf } from './types';
+import { def, isType, manaValue, opponentOf } from './types';
 
 export type Action =
   | { type: 'choosePlayDraw'; play: boolean }
@@ -23,6 +24,8 @@ export type Action =
       handIndex: number;
       targets?: TargetRef[];
       x?: number;
+      /** Omitted means the ordinary cast. X cards cannot be empowered. */
+      empowered?: boolean;
       manaPlan?: number[]; // explicit source iids; omitted = auto-solve
     }
   | { type: 'declareAttackers'; attackers: number[] }
@@ -74,22 +77,39 @@ function pushCastActions(
   if (xs.length === 0) return;
 
   const specs = castTargetSpecs(d);
-  if (specs.length === 0) {
-    for (const x of xs) {
-      out.push(x === undefined ? { type: 'castSpell', handIndex } : { type: 'castSpell', handIndex, x });
+  // Single-target v1: one action per (empower option × legal target × X).
+  const targetLists: (TargetRef[] | undefined)[] =
+    specs.length === 0
+      ? [undefined]
+      : enumerateTargets(state, db, player, specs[0]).map((t) => [t]);
+  for (const empowered of canEmpower(d) ? [false, true] : [false]) {
+    const cost = castCost(d, empowered);
+    if (!cost) continue;
+    // Payability depends only on (empowered, x) — hoisted out of the target loop.
+    const payableXs = xs.filter((x) => canPay(state, db, player, cost, d.x && !empowered ? x ?? 0 : 0));
+    for (const targets of targetLists) {
+      for (const x of payableXs) {
+        out.push({
+          type: 'castSpell',
+          handIndex,
+          ...(targets ? { targets } : {}),
+          ...(x === undefined ? {} : { x }),
+          ...(empowered ? { empowered: true } : {}),
+        });
+      }
     }
-    return;
   }
-  // Single-target v1: one action per (legal target × X).
-  for (const target of enumerateTargets(state, db, player, specs[0])) {
-    for (const x of xs) {
-      out.push(
-        x === undefined
-          ? { type: 'castSpell', handIndex, targets: [target] }
-          : { type: 'castSpell', handIndex, targets: [target], x },
-      );
-    }
-  }
+}
+
+/** Empower eligibility, stated once: an optional extra cost X cards cannot carry. */
+function canEmpower(d: CardDef): boolean {
+  return d.empower !== undefined && !d.x;
+}
+
+function castCost(d: CardDef, empowered: boolean): CardDef['cost'] {
+  if (!d.cost) return undefined;
+  if (!empowered) return d.cost;
+  return canEmpower(d) ? combineManaCosts(d.cost, d.empower!.cost) : undefined;
 }
 
 function creatureCount(state: GameState, db: CardDb, player: PlayerId): number {
@@ -131,6 +151,8 @@ function castBlockers(
   db: CardDb,
   player: PlayerId,
   d: CardDef,
+  empowered = false,
+  x = d.x ? d.x.min : 0,
 ): string | null {
   if (!d.cost) return 'card has no mana cost';
   if (isType(d, 'creature') && creatureCount(state, db, player) >= RULES.maxCreatures)
@@ -143,7 +165,8 @@ function castBlockers(
     noncreaturePermCount(state, db, player) >= RULES.maxNoncreaturePermanents
   )
     return 'noncreature permanent cap reached';
-  if (!canPay(state, db, player, d.cost, d.x ? d.x.min : 0)) return 'cannot pay cost';
+  const cost = castCost(d, empowered);
+  if (!cost || !canPay(state, db, player, cost, d.x && !empowered ? x : 0)) return 'cannot pay cost';
   return null;
 }
 
@@ -218,17 +241,39 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
     }
 
     case 'declareBlockers': {
-      // Relaxed enumeration: [] plus every single-block assignment. Composite
-      // assignments are constructed via blockOptions() and validated through
-      // the same combat/legality module.
+      // [] is always a complete assignment. Non-Dreaded attackers retain the
+      // old one-block candidates. Dreaded attackers get only complete pairs or
+      // triples here; blockOptions remains permissive for incremental UI/AI
+      // construction, with validateBlocks as the final arbiter.
       out.push({ type: 'declareBlockers', blocks: [] });
       if (state.combat) {
-        for (const opt of blockOptions(state.battlefield, db, player, state.combat)) {
+        const opts = blockOptions(state.battlefield, db, player, state.combat);
+        const liveAttackers = state.combat.attackers.filter((a) =>
+          state.battlefield.some((perm) => perm.iid === a),
+        );
+        const minBlockers = new Map(
+          liveAttackers.map((a) => [a, minimumBlockersForAttacker(state.battlefield, db, a)]),
+        );
+        for (const opt of opts) {
           for (const attacker of opt.canBlock) {
-            out.push({
-              type: 'declareBlockers',
-              blocks: [{ blocker: opt.blocker, attacker }],
-            });
+            if (minBlockers.get(attacker) === 1) {
+              out.push({ type: 'declareBlockers', blocks: [{ blocker: opt.blocker, attacker }] });
+            }
+          }
+        }
+        for (const attacker of liveAttackers) {
+          const minimum = minBlockers.get(attacker)!;
+          if (minimum < 2) continue;
+          const eligible = opts
+            .filter((o) => o.canBlock.includes(attacker))
+            .map((o) => o.blocker);
+          for (let size = minimum; size <= RULES.maxBlockersPerAttacker; size++) {
+            for (const combo of combinations(eligible.length, size)) {
+              out.push({
+                type: 'declareBlockers',
+                blocks: combo.map((i) => ({ blocker: eligible[i], attacker })),
+              });
+            }
           }
         }
       }
@@ -323,16 +368,21 @@ export function validateAction(
       if (cardId === undefined) return 'bad hand index';
       const d = def(db, cardId);
       if (!castableNow(state, player, d)) return 'cannot cast this now';
-      const blocked = castBlockers(state, db, player, d);
+      if (action.empowered && !d.empower) return 'card has no Empower option';
+      if (action.empowered && d.x) return 'X spells cannot be empowered';
+      const blocked = castBlockers(state, db, player, d, action.empowered === true, action.x ?? 0);
       if (blocked) return blocked;
       if (d.x && (action.x === undefined || action.x < d.x.min)) return 'bad X';
       if (!d.x && action.x !== undefined) return 'card has no X';
       const extra = action.x ?? 0;
       if (action.manaPlan) {
-        const err = validateManaPlan(state, db, player, d, extra, action.manaPlan);
+        const err = validateManaPlan(state, db, player, d, extra, action.manaPlan, action.empowered === true);
         if (err) return err;
-      } else if (solveMana(state, db, player, d.cost!, extra) === null) {
-        return 'cannot pay cost';
+      } else {
+        const cost = castCost(d, action.empowered === true);
+        if (!cost || solveMana(state, db, player, cost, d.x && !action.empowered ? extra : 0) === null) {
+          return 'cannot pay cost';
+        }
       }
       const specs = castTargetSpecs(d);
       const targets = action.targets ?? [];
@@ -393,6 +443,7 @@ function validateManaPlan(
   d: CardDef,
   extraGeneric: number,
   plan: number[],
+  empowered: boolean,
 ): string | null {
   const available = new Map(manaSources(state, db, player).map((s) => [s.iid, s]));
   const seen = new Set<number>();
@@ -405,10 +456,11 @@ function validateManaPlan(
   const others = manaSources(state, db, player)
     .filter((s) => !plan.includes(s.iid))
     .map((s) => s.iid);
-  const solved = solveMana(state, db, player, d.cost!, extraGeneric, others);
+  const cost = castCost(d, empowered);
+  if (!cost) return 'invalid Empower cost';
+  const solved = solveMana(state, db, player, cost, d.x && !empowered ? extraGeneric : 0, others);
   if (!solved) return 'mana plan cannot pay the cost';
-  let needed = extraGeneric + d.cost!.generic;
-  for (const v of Object.values(d.cost!.pips)) needed += v;
+  const needed = (d.x && !empowered ? extraGeneric : 0) + manaValue(cost);
   if (plan.length !== needed) return 'mana plan has wrong source count';
   return null;
 }
@@ -519,13 +571,19 @@ export function forcedAction(
       return eligibleAttackers(state.battlefield, db, player).length === 0
         ? { type: 'declareAttackers', attackers: [] }
         : null;
-    case 'declareBlockers':
-      // combat is always set while awaiting blockers; bail safely if not
-      // (validateBlocks would reject any submission in that state).
+    case 'declareBlockers': {
+      // blockOptions includes partial Dreaded pairs, so a lone individually
+      // legal blocker is not proof a usable assignment exists. Answer the
+      // existence question directly instead of materializing every combo.
       if (!state.combat) return null;
-      return blockOptions(state.battlefield, db, player, state.combat).length === 0
-        ? { type: 'declareBlockers', blocks: [] }
-        : null;
+      const opts = blockOptions(state.battlefield, db, player, state.combat);
+      const hasCompleteAssignment = state.combat.attackers.some((attacker) => {
+        if (!state.battlefield.some((perm) => perm.iid === attacker)) return false;
+        const minimum = minimumBlockersForAttacker(state.battlefield, db, attacker);
+        return opts.filter((o) => o.canBlock.includes(attacker)).length >= minimum;
+      });
+      return hasCompleteAssignment ? null : { type: 'declareBlockers', blocks: [] };
+    }
     default:
       return null;
   }

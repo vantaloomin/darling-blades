@@ -5,6 +5,7 @@ import { BEASTKIN } from './cards/beastkin';
 import { CELTIC_FAE } from './cards/celtic-fae';
 import { DUALS } from './cards/duals';
 import { ENCHANTMENTS } from './cards/enchantments';
+import { GOTHIC_MONSTERS } from './cards/gothic-monsters';
 import { GREEK } from './cards/greek';
 import { INSTANTS } from './cards/instants';
 import { LANDS } from './cards/lands';
@@ -42,6 +43,7 @@ const SET_GROUPS: readonly { set: SetKey; cards: readonly CardDef[] }[] = [
   { set: 'ragnarok', cards: RAGNAROK },
   { set: 'celtic-fae', cards: CELTIC_FAE },
   { set: 'arthurian-court', cards: ARTHURIAN_COURT },
+  { set: 'gothic-monsters', cards: GOTHIC_MONSTERS },
 ];
 
 function buildDb(): CardDb {

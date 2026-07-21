@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FLOOR_BANDS,
   RUNG_BANDS,
   runAvatarMatrix,
   runDifficultyMatrix,
+  runFloorMatrix,
   runStarterMatrix,
 } from '../../scripts/balance-matrix';
 
@@ -37,7 +39,7 @@ describe.skip('gauntlet balance matrices (manual tool)', () => {
     if (report.flags.length > 0) {
       console.log('FLAGS:\n' + report.flags.map((f) => `  ! ${f}`).join('\n'));
     }
-    expect(report.rows).toHaveLength(14);
+    expect(report.rows).toHaveLength(16);
     // The plan's hard floors/ceilings, with a small allowance beyond the
     // in-harness bands so a marginal cell reads as a flag before a failure.
     for (const row of report.rows) {
@@ -66,6 +68,26 @@ describe.skip('gauntlet balance matrices (manual tool)', () => {
       }
     }
   }, 900_000);
+
+  it('rotating-tower floor matrix stays inside FLOOR_BANDS (80 seeds/cell)', () => {
+    // 80 seeds, not 40: tier boundaries sit within 40-seed sampling noise
+    // (measured 2026-07-20 - a 4pp gap flip-flopped between 40-seed runs).
+    const report = runFloorMatrix(80);
+    console.log('\n' + report.table);
+    if (report.flags.length > 0) {
+      console.log('FLAGS:\n' + report.flags.map((f) => `  ! ${f}`).join('\n'));
+    }
+    expect(report.rows).toHaveLength(16);
+    for (const row of report.rows) {
+      const band = FLOOR_BANDS[row.floor] ?? {};
+      if (band.maxAvg !== undefined) {
+        expect(row.avg, `floor ${row.floor} (T${row.tier}) too strong`).toBeLessThanOrEqual(band.maxAvg + 0.05);
+      }
+      if (band.minAvg !== undefined) {
+        expect(row.avg, `floor ${row.floor} (T${row.tier}) too weak`).toBeGreaterThanOrEqual(band.minAvg - 0.05);
+      }
+    }
+  }, 1_800_000);
 
   it('difficulty round-robin escalates on a fixed starter pair (40 seeds/cell)', () => {
     const report = runDifficultyMatrix(40);

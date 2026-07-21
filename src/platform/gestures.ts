@@ -161,7 +161,7 @@ export function inflateHitArea(
  * preview; structural so platform never imports src/ui.
  */
 export interface StickyPreviewHost {
-  showSticky(card: CardDef, worldX: number, variant?: CardVariant): void;
+  showSticky(card: CardDef, worldX: number, variant?: CardVariant, landStyle?: string): void;
   dismissSticky(): void;
   isSticky(): boolean;
 }
@@ -176,6 +176,8 @@ export interface GestureOptions {
   card?: CardDef;
   /** Optional owned treatment rendered by the sticky CardView preview. */
   variant?: CardVariant;
+  /** Optional basic-land art style rendered by the sticky preview. */
+  landStyle?: string;
   /** Custom long-press behavior (overrides the sticky-preview default). */
   onLongPress?: () => void;
   /** Pressed-state lift in px (hand cards), applied on top of the dim. */
@@ -324,7 +326,7 @@ class SceneGestureLayer {
     }
     if (a.opts.card && this.stickyHost && a.obj.active) {
       const wx = a.obj.getWorldTransformMatrix?.().tx ?? (a.obj.x as number) ?? 0;
-      this.stickyHost.showSticky(a.opts.card, wx, a.opts.variant);
+      this.stickyHost.showSticky(a.opts.card, wx, a.opts.variant, a.opts.landStyle);
     }
   }
 

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-16
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-17
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -181,7 +181,7 @@ all at once (modern simultaneous damage):
 
 ## Keywords
 
-All eleven keywords and their exact implemented semantics (`Keyword` in
+All twelve keywords and their exact implemented semantics (`Keyword` in
 `src/engine/types.ts`; effects across `statics.ts`, `combat/legality.ts`,
 `combat/damage.ts`, `effects/targeting.ts`):
 
@@ -198,12 +198,22 @@ All eleven keywords and their exact implemented semantics (`Keyword` in
 | **deathblade** · Deathblade | Any amount of its combat damage is lethal (1 counts). Sets `deathtouched`, which SBAs check. |
 | **bloodoath** · Blood Oath | Its controller gains life equal to damage it deals (combat and, where relevant, spell damage paths that flag it). |
 | **untouchable** · Untouchable | **Blocks only the OPPONENT'S targeting.** Your own untouchable creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
+| **dreaded** · Dreaded | Can be blocked only by two or more creatures. The minimum lives in `minimumBlockersForAttacker` (`combat/legality.ts`); `validateBlocks` enforces it on the final assignment, while `blockOptions` stays permissive so partial assignments can be built incrementally. |
 
 Keyword rules text is generated (`KEYWORD_NAMES` in `src/ui/rulesText.ts`) — see
 [docs/adding-cards.md](adding-cards.md). For the full Magic-evergreen → Darling
-Blades mapping (these 11 plus not-yet-implemented candidates like Menace,
+Blades mapping (these 12 plus not-yet-implemented candidates like
 Indestructible, and the Fight/Sacrifice actions), see
 [docs/keyword-map.md](keyword-map.md).
+
+### Empower (optional cast cost)
+
+A card with an `empower` block (`CardDef.empower`, 1.3) may be cast for its
+normal cost, or for the combined cost (`combineManaCosts`) with the empowered
+flag set on the cast action. On resolution the empower ops run after the
+card's normal effect (for permanents, after its arrival triggers); empower ops
+are trigger-safe and never target. X spells cannot be empowered
+(`validateAction` rejects the combination).
 
 ## Board caps
 
@@ -245,7 +255,7 @@ order:
    keyed on `${controller}:${name}`.
 
 (Effective defense/attack for these checks is always computed on read by
-`getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` counters +
+`getEffectiveStats` in `src/engine/statics.ts` — base stats + `+1/+1` marks (engine field: counters) +
 until-EOT mods + static layers; nothing is cached.)
 
 ## Endings

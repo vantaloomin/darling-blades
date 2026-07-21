@@ -1,4 +1,13 @@
-import type { AbilityDef, CardDef, CardType, EffectOp, Keyword } from '../engine/types';
+import type {
+  AbilityDef,
+  CardDef,
+  CardType,
+  Color,
+  EffectOp,
+  Keyword,
+  ManaCost,
+  TargetSpec,
+} from '../engine/types';
 import { CARD_DB } from '../data/catalog';
 
 export const KEYWORD_NAMES: Record<Keyword, string> = {
@@ -13,6 +22,7 @@ export const KEYWORD_NAMES: Record<Keyword, string> = {
   deathblade: 'Deathblade',
   bloodoath: 'Blood Oath',
   untouchable: 'Untouchable',
+  dreaded: 'Dreaded',
 };
 
 /** One-line, player-facing reminder for each evergreen keyword (F9 glossary). */
@@ -28,14 +38,20 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
   deathblade: 'any amount of damage it deals to a creature is lethal',
   bloodoath: 'damage it deals also gains you that much life',
   untouchable: 'cannot be targeted by spells or abilities your opponents control',
+  dreaded: 'cannot be blocked except by two or more creatures',
 };
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
-export const MECHANIC_DEFINITIONS: Record<'sever' | 'foresee' | 'quest' | 'championAwakening', string> = {
+export const MECHANIC_DEFINITIONS: Record<
+  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower',
+  string
+> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
+  mark: 'a lasting +1/+1 increase to a creature\'s Attack and Defense',
   quest: 'advances a chapter at each of your dawns; leaves after the last',
   championAwakening: 'a one-way upgrade granting the listed stats and keywords',
+  empower: 'pay the extra cost as you cast this for the listed bonus effect',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -48,7 +64,20 @@ export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
   land: 'Play one each turn to tap for mana.',
 };
 
-function opText(op: EffectOp): string {
+function targetNoun(spec: TargetSpec | undefined): string {
+  switch (spec?.what) {
+    case 'artifact':
+      return 'artifact';
+    case 'enchantment':
+      return 'enchantment';
+    case 'artifactOrEnchantment':
+      return 'artifact or enchantment';
+    default:
+      return 'creature';
+  }
+}
+
+function opText(op: EffectOp, target?: TargetSpec): string {
   switch (op.op) {
     case 'damage': {
       const n = op.n === 'X' ? 'X' : op.n;
@@ -65,9 +94,9 @@ function opText(op: EffectOp): string {
     case 'discardRandom':
       return `your opponent discards ${op.n === 1 ? 'a card' : `${op.n} cards`} at random`;
     case 'destroy':
-      return 'destroy target creature';
+      return `destroy target ${targetNoun(target)}`;
     case 'sever':
-      return 'Sever target creature';
+      return `Sever target ${targetNoun(target)}`;
     case 'severGrave': {
       const cards = op.n === 1 ? 'the top card' : `the top ${op.n} cards`;
       return op.who === 'self'
@@ -77,7 +106,9 @@ function opText(op: EffectOp): string {
     case 'severTop':
       return `Sever ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
     case 'recall':
-      return "return target creature to its owner's hand";
+      return `return target ${targetNoun(target)} to its owner's hand`;
+    case 'destroyArtifactOrSeverEnchantment':
+      return 'destroy target artifact if it is an artifact; otherwise, Sever it if it is an enchantment';
     case 'cancel':
       return 'cancel target spell';
     case 'boost': {
@@ -91,8 +122,8 @@ function opText(op: EffectOp): string {
     }
     case 'addCounters':
       return op.to === 'self'
-        ? `put ${op.n} +1/+1 counter${op.n === 1 ? '' : 's'} on this`
-        : `put ${op.n} +1/+1 counter${op.n === 1 ? '' : 's'} on target creature`;
+        ? `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on this`
+        : `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on target creature`;
     case 'tap':
       return 'tap target creature';
     case 'fetchLand':
@@ -111,7 +142,10 @@ function opText(op: EffectOp): string {
       return `create ${op.count} ${stats}${tok.name} ${plural}${kw}`;
     }
     case 'massDestroy':
+      if (op.filter === 'allEnchantments') return 'destroy all enchantments';
       return op.filter === 'allCreatures' ? 'destroy all creatures' : 'destroy all creatures with Skyborne';
+    case 'destroyNewestOpponentArtifactOrEnchantment':
+      return "destroy your opponent's newest artifact or enchantment";
     case 'preventCombat':
       return 'prevent all combat damage that would be dealt this turn';
     case 'reclaim':
@@ -131,6 +165,22 @@ function opText(op: EffectOp): string {
         ? 'return the top creature card of your graveyard to play'
         : 'return target creature card from your graveyard to play';
   }
+}
+
+export function manaCostText(cost: ManaCost): string {
+  const parts: string[] = [];
+  if (cost.generic > 0) parts.push(`{${cost.generic}}`);
+  for (const color of ['W', 'U', 'B', 'R', 'G'] as Color[]) {
+    for (let i = 0; i < (cost.pips[color] ?? 0); i++) parts.push(`{${color}}`);
+  }
+  return parts.join('') || '{0}';
+}
+
+export function empowerText(d: CardDef): string | undefined {
+  if (!d.empower) return undefined;
+  const body = d.empower.ops.map((op) => opText(op)).join(', then ');
+  const cap = body.charAt(0).toUpperCase() + body.slice(1);
+  return `Empower ${manaCostText(d.empower.cost)}: ${cap}.`;
 }
 
 function abilityText(ab: AbilityDef): string {
@@ -159,7 +209,7 @@ function abilityText(ab: AbilityDef): string {
     return `${prefix}${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`;
   }
 
-  const body = (ab.ops ?? []).map(opText).join(', then ');
+  const body = (ab.ops ?? []).map((op) => opText(op, ab.targets?.[0])).join(', then ');
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   let sentence: string;
   switch (ab.when) {
@@ -208,7 +258,7 @@ export function romanNumeral(n: number): string {
 }
 
 function chapterText(ops: EffectOp[], index: number): string {
-  const body = ops.map(opText).join(', then ');
+  const body = ops.map((op) => opText(op)).join(', then ');
   if (!body) return `Chapter ${romanNumeral(index + 1)}.`;
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   return `Chapter ${romanNumeral(index + 1)}: ${cap}.`;
@@ -242,6 +292,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
     lines.push('Arrives tapped.');
   }
   if (d.awakening) lines.push(awakeningText(d));
+  const empower = empowerText(d);
+  if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
     lines.push(chapterText(chapter, index));
   }
@@ -280,8 +332,10 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   }
   if (/\bforesee\b/.test(text)) push('Foresee', MECHANIC_DEFINITIONS.foresee);
   if (/\bsever(s|ed)?\b/.test(text)) push('Sever', MECHANIC_DEFINITIONS.sever);
+  if (/\bmarks?\b/.test(text)) push('Mark', MECHANIC_DEFINITIONS.mark);
   if (d.chapters) push('Quest', MECHANIC_DEFINITIONS.quest);
   if (d.awakening) push('Champion Awakening', MECHANIC_DEFINITIONS.championAwakening);
+  if (d.empower) push('Empower', MECHANIC_DEFINITIONS.empower);
   return entries;
 }
 

@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-16 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-21 · review monthly -->
 
 # Roadmap
 
@@ -13,7 +13,7 @@ _Dated 2026-07-04. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch offers an optional **tutorial**; a new
   player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (14 themed opponents on a ladder) or Practice duels → rewards → shop →
+  Gauntlet** (16 themed opponents on a daily-reshuffled ladder) or Practice duels → rewards → shop →
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** **Every
@@ -24,7 +24,7 @@ _Dated 2026-07-04. Review monthly._
   effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
   human polish: a real-device pass (gesture feel, iOS audio) and a
   by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **825 tests green** (+3 skipped balance-tool assertions; count refreshed with the 1.2.0 release cut 2026-07-17) across 85 files
+- **993 tests green** (+4 skipped balance-tool assertions; count refreshed with the 1.3.0 release cut 2026-07-21) across 103 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -41,25 +41,67 @@ _Dated 2026-07-04. Review monthly._
   v12→v13 daily quest/streak migration,
   unlock/claim idempotency, completion tallies, themed archetype and expansion
   goals, deck-color identity). The whole suite runs in ~25–30 s.
-- **210 cards** in the base pool (`CARD_DB`), across the five colors and three
-  factions, bucketed into **five rarity tiers** (C 103 / R 65 / SR 13 /
-  SSR 11 / UR 8 booster-eligible) — plus the **69-card Ragnarök**,
-  **80-card Celtic Fae**, and **80-card Arthurian Court** expansions in
-  their own set-scoped boosters (429 collectible cards total).
+- **215 cards** in the base pool (`CARD_DB`), across the five colors and three
+  factions, bucketed into **five rarity tiers** (C 107 / R 66 / SR 13 /
+  SSR 11 / UR 8 booster-eligible) — plus the **70-card Ragnarök**,
+  **81-card Celtic Fae**, **81-card Arthurian Court**, and **81-card
+  Gothic Monsters** expansions in their own set-scoped boosters
+  (518 collectible cards total).
 - **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
   each color in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
   (`src/audio/`, 15 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v21** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v22** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
   familiarity, v17→v18 Premium Draft, v18→v19 premium weekly allowance,
   v19→v20 deterministic replays, v20→v21 Full Art three-segment variant
-  keys — see Recently shipped and the Full Art entry under Planned). By-ear
-  tuning remains open (see Planned).
+  keys, v21→v22 tower roster stamp + per-basic land styles — see Recently
+  shipped and the Full Art entry under Planned). By-ear tuning remains open
+  (see Planned).
+
+## Recently shipped (2026-07-21 · the 1.3 close-out)
+
+- **The full 1.3 program, built as a release train** (long-lived `release/1.3`
+  integration branch; each pillar a feature branch merged back by PR, with the
+  CI ladder gating every PR). Four pillars plus riders and UX fixes:
+  - **Pillar 0 (PR #92): Gothic Monsters, Nocturne Manor.** 81 cards (`gm-`,
+    B/R/W vampire-gothic), the **Dreaded** (menace) and **Empower** (kicker)
+    engine mechanics landed headless-first and AI-aware at all three
+    difficulties, the `gothic-monsters` booster (525g), the **Bloodmoon
+    Masquerade** precon, eight achievements, bosses **Carmilla** (rung 15) and
+    **The Bride** (rung 16), full user-accepted art, and a nine-card removal
+    answer cycle across five sets (pool to 518).
+  - **Pillar 1 (PR #94): daily tower rotation with floor-scaled AI.** A seeded
+    `NoisyAI` decision-noise decorator turns the three brains into a measured
+    monotonic six-tier ladder (`src/ai/tiers.ts`, stamped 18/23/31/48/60/76 at
+    80 seeds/cell); `daySeed` + Fisher-Yates shuffle the 16-avatar roster daily;
+    the floor sets the tier, the avatar brings deck + personality; the whole
+    16-floor tower re-baselined (`--floors` matrix + `FLOOR_BANDS`) folding in a
+    300-seed prefab retune (Questing Table 24→45, Bloodmoon 70→57, spread inside
+    42-60).
+  - **Pillar 2 (PR #95): per-basic land-art selector.** 15 curated vaulted
+    variants, a per-basic `landStyle` map on `SavedDeck` (shared `SaveData` v22
+    bump with Pillar 1's tower roster stamp), a manifest-gated resolver
+    fallback, human-side-only duel rendering, plus the shop odds pool captions,
+    the set theme-title pass, and the collection filter-row reflow.
+  - **Pillar 3 (PR #100): a dev-only persona deck-crafting harness.**
+    `scripts/personas/` builds and seeded-hill-climbs six archetype decks from
+    the pool against the field, retaining committed JSON artifacts. Inaugural
+    sweep: weenie 77.6 / midrange 67.3 / burn 67.1 / reanimator 64.0 / attrition
+    63.7 / draw-go 63.7, zero quota shortfalls, flagging go-wide as the field's
+    open answer gap.
+  - **Riders and UX.** Sealed dead-code removal (PR #96, saves untouched), the
+    "+1/+1 mark" retheme (PR #97), the phase-CTA isolation hotfix (PR #93),
+    pack-open inspect hotkeys (PR #98), and inline mana pips in card text and
+    the Empower chooser (PR #99). A new `docs/ui-components.md` catalogs the
+    reusable UI layer.
+- **1.3.0 release cut**: version bump + tag `v1.3.0`, README rewritten
+  (condensed 1.2 notes, full 1.3 "Nocturne Manor" notes, 518-card /
+  16-rung / 993-test numbers swept).
 
 ## Recently shipped (2026-07-17 · the 1.2 close-out)
 
@@ -1141,28 +1183,17 @@ _Dated 2026-07-04. Review monthly._
   across the 10 fixed gate seeds, re-opening the exploit the 1.1
   economy pass closed; with the exclusion the gate passes at 966.5g
   mean. Full Art is a booster-only pull.
-- **"Mark" counter retheme (decided 2026-07-13).** Player-facing copy
-  only, same treatment as the Sever/Foresee retheme: "+1/+1 counter"
-  becomes "+1/+1 mark" in generated rules text, glossary, rules.md, and
-  any log/recap copy; engine op ids (`addCounters`) unchanged;
-  [keyword-map.md](keyword-map.md) documents the MTG mapping. The
-  counterspell verb collision was already solved ("cancel"). Unblocked
-  as of 2026-07-13 (the card-data work it queued behind has landed);
-  ready to implement any time.
-- **Basic-land art variants — wiring decision pending (user).** Thirty
-  themed variants (5 basics × base/Ragnarök/Celtic-Fae × 2, all QA'd)
-  sit in the out-of-repo art vault; prompts and staging are recorded in
-  [land-art.md §3](land-art.md). The game supports one art file per land
-  id, so shipping them needs one of: **(A) per-set basic-land card ids**
-  (e.g. `rg-forest`) — real catalog entries sharing rules text, giving
-  lands collectible/booster presence but touching catalog, drops, deck-
-  builder basics UI, and deck codes; or **(B) an art-variant axis on the
-  existing five ids** — cosmetic-only, fits the established variant
-  system (or a lighter per-deck "land style" selector), no catalog
-  surface. B is the smaller, save-schema-bounded change; A makes lands a
-  collectible product. **Decided 2026-07-17: a deck-builder land-style
-  selector (B-lite) — cosmetic only, not collectible; scheduled into 1.3
-  ([plan-1.3.md](plan-1.3.md) Pillar 2).**
+- **"Mark" counter retheme. SHIPPED 1.3 (PR #97, 2026-07-21).** Player-facing
+  copy only, same treatment as the Sever/Foresee retheme: "+1/+1 counter"
+  became "+1/+1 mark" in generated rules text, the glossary, rules.md, and
+  the keyword-map MTG mapping row; engine op ids (`addCounters`) unchanged;
+  the counterspell verb stays "cancel".
+- **Basic-land art variants. SHIPPED 1.3 (PR #95, 2026-07-21).** Decided
+  2026-07-17 as a deck-builder land-style selector (B-lite): cosmetic only,
+  not collectible. Shipped as a per-basic `landStyle` map on `SavedDeck`
+  (15 curated variants from the vault, base/Ragnarök/Celtic-Fae art sets,
+  one style per basic type), a manifest-gated `ArtResolver` fallback, and
+  human-side-only duel rendering. No catalog, drops, or deck-code surface.
 - **Core design-system alignment.** The shipped theme foundation is now
   formalized in [design-system.md](design-system.md); the repository-wide audit
   and dependency-ordered implementation program live in
@@ -1198,18 +1229,20 @@ _Dated 2026-07-04. Review monthly._
   (engineering shipped 2026-07-16, PR #85 + the v1.2.0 cut closed it
   out 2026-07-17 — see Recently shipped · the 1.2 close-out); the
   standing validation passes remain;
-  **1.3** = the **Gothic Monsters: Nocturne Manor** expansion (80 cards,
-  Menace + Kicker engine mechanics, rungs 15-16 — concept in
-  [expansions/gothic-monsters.md](expansions/gothic-monsters.md), needs
-  the AC-style concretion pass; added by user decision 2026-07-17),
-  the seeded daily tower rotation (full-shuffle roster with
-  floor-scaled AI tiers, plus its balance re-baseline, measured once
-  AFTER the set lands), the deck-builder land-style selector, and the
-  "Hardcore MTG Fan" balance personas — user decisions 2026-07-17,
-  spec in [plan-1.3.md](plan-1.3.md);
+  **1.3** = SHIPPED 2026-07-21 (v1.3.0 cut — see Recently shipped · the 1.3
+  close-out): the **Gothic Monsters: Nocturne Manor** expansion (81 cards,
+  Dreaded + Empower mechanics, rungs 15-16), the seeded daily tower rotation
+  with a floor-scaled six-tier AI ladder and its 16-floor re-baseline, the
+  deck-builder land-style selector, and the dev-only "Hardcore MTG Fan"
+  deck-crafting persona harness (rescoped from a player-facing picker to a
+  balance instrument);
+  **next expansion** = **Dark Tales: The Cursed Storybook** (Expansion 5,
+  concept in [expansions/dark-tales.md](expansions/dark-tales.md), unscheduled);
   **1.5** = Commander mode, renamed **"Darlings"**;
-  **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) —
-  the hub offers only Draft; its dormant code is cleanup-eligible.
+  **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) and
+  its dormant code was removed 2026-07-20; the hub offers only Draft. Legacy
+  save history and records remain inert, and an active legacy Sealed run loads
+  safely as no active run.
   **Placements locked (2026-07-14 handoff):** the base-facet relabel shipped
   in 1.1 as **"Core Set"** (see Recently shipped); **mixed-set packs are the
   decided, shipped Limited set choice** (single-set drafts shelved
@@ -1219,13 +1252,12 @@ _Dated 2026-07-04. Review monthly._
   **The Bot Draft half is now public**: re-implemented around 20 AI draft
   personas and reachable via the Play submenu (user decision 2026-07-14 —
   see Recently shipped; supersedes the PR #54 hide for draft). **Sealed was
-  removed from the hub UI entirely** (user decision later the same day; the
-  meta core/reveal scene/tests remain in the codebase, unoffered — restoring
-  it is one button plus its polish pass). Remaining blockers, now partially
+  removed from the hub UI and its dormant implementation was deleted
+  2026-07-20.** Remaining blockers, now partially
   player-facing:
   Limited balance/economy (auto-build texture via the balance harness,
   run-reward tuning — draft runs are free to enter and pay
-  `limitedRunGold` on completion) and the Sealed polish pass. Blocker
+  `limitedRunGold` on completion). Blocker
   detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —

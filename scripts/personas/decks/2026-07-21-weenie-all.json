@@ -1,0 +1,471 @@
+{
+  "schemaVersion": 1,
+  "persona": {
+    "id": "weenie",
+    "name": "The Weenie Player"
+  },
+  "pool": "all",
+  "field": "prefabs",
+  "seed": 20260720,
+  "seeds": 150,
+  "iterations": 80,
+  "templateVersion": "persona-v1.0.0",
+  "selectedColors": [
+    "W",
+    "G"
+  ],
+  "referenceField": [
+    {
+      "id": "starter-crimson",
+      "name": "Crimson Muster"
+    },
+    {
+      "id": "starter-wild",
+      "name": "Wild Communion"
+    },
+    {
+      "id": "starter-tides",
+      "name": "Burning Tides"
+    },
+    {
+      "id": "starter-mandate",
+      "name": "Shadow Mandate"
+    },
+    {
+      "id": "starter-harvest",
+      "name": "Grave Harvest"
+    },
+    {
+      "id": "theme-ragnarok",
+      "name": "Valhalla's Muster"
+    },
+    {
+      "id": "theme-celtic-fae",
+      "name": "Glimmer Bargain"
+    },
+    {
+      "id": "theme-arthurian-court",
+      "name": "Questing Table"
+    },
+    {
+      "id": "theme-gothic-monsters",
+      "name": "Bloodmoon Masquerade"
+    }
+  ],
+  "deck": [
+    "cf-aine-sunlit-bargain",
+    "cf-aine-sunlit-bargain",
+    "tk-shu-weiyan",
+    "tk-shu-weiyan",
+    "cf-thornmaze-patrol",
+    "cf-blackthorn-duelist",
+    "gm-silver-bullet-duelist",
+    "gm-silver-bullet-duelist",
+    "gm-silver-bullet-duelist",
+    "gm-silver-bullet-duelist",
+    "bk-boarkin-rootbreaker",
+    "so-stampede-season",
+    "bk-boarkin-rootbreaker",
+    "so-stampede-season",
+    "ac-chapel-questant",
+    "ac-camelot-banneret",
+    "rg-zhaoyun",
+    "cf-blackthorn-duelist",
+    "gk-nike",
+    "cf-thorn-sprite",
+    "rg-valkyrie-captain",
+    "bk-holstaur-milkmaid",
+    "ac-camelot-banneret",
+    "tk-shu-liubei",
+    "cf-heatherblade-scout",
+    "cf-heatherblade-scout",
+    "cf-heatherblade-scout",
+    "tk-shu-liubei",
+    "tk-shu-zhaoyun",
+    "gk-hoplite",
+    "ac-galahad-silver-oath",
+    "gk-eos",
+    "cf-moorland-guide",
+    "cf-moorland-guide",
+    "gk-demeter",
+    "cf-moorland-guide",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-plains",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest",
+    "land-forest"
+  ],
+  "counts": {
+    "ac-camelot-banneret": 2,
+    "ac-chapel-questant": 1,
+    "ac-galahad-silver-oath": 1,
+    "bk-boarkin-rootbreaker": 2,
+    "bk-holstaur-milkmaid": 1,
+    "cf-aine-sunlit-bargain": 2,
+    "cf-blackthorn-duelist": 2,
+    "cf-heatherblade-scout": 3,
+    "cf-moorland-guide": 3,
+    "cf-thorn-sprite": 1,
+    "cf-thornmaze-patrol": 1,
+    "gk-demeter": 1,
+    "gk-eos": 1,
+    "gk-hoplite": 1,
+    "gk-nike": 1,
+    "gm-silver-bullet-duelist": 4,
+    "land-forest": 12,
+    "land-plains": 12,
+    "rg-valkyrie-captain": 1,
+    "rg-zhaoyun": 1,
+    "so-stampede-season": 2,
+    "tk-shu-liubei": 2,
+    "tk-shu-weiyan": 2,
+    "tk-shu-zhaoyun": 1
+  },
+  "measured": {
+    "field": "prefabs",
+    "seeds": 150,
+    "matchups": [
+      {
+        "referenceId": "starter-crimson",
+        "referenceName": "Crimson Muster",
+        "rowWins": 119,
+        "colWins": 31,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7933333333333333
+      },
+      {
+        "referenceId": "starter-wild",
+        "referenceName": "Wild Communion",
+        "rowWins": 123,
+        "colWins": 27,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.82
+      },
+      {
+        "referenceId": "starter-tides",
+        "referenceName": "Burning Tides",
+        "rowWins": 117,
+        "colWins": 33,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.78
+      },
+      {
+        "referenceId": "starter-mandate",
+        "referenceName": "Shadow Mandate",
+        "rowWins": 116,
+        "colWins": 34,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7733333333333333
+      },
+      {
+        "referenceId": "starter-harvest",
+        "referenceName": "Grave Harvest",
+        "rowWins": 117,
+        "colWins": 33,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.78
+      },
+      {
+        "referenceId": "theme-ragnarok",
+        "referenceName": "Valhalla's Muster",
+        "rowWins": 118,
+        "colWins": 32,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7866666666666666
+      },
+      {
+        "referenceId": "theme-celtic-fae",
+        "referenceName": "Glimmer Bargain",
+        "rowWins": 117,
+        "colWins": 33,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.78
+      },
+      {
+        "referenceId": "theme-arthurian-court",
+        "referenceName": "Questing Table",
+        "rowWins": 111,
+        "colWins": 39,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.74
+      },
+      {
+        "referenceId": "theme-gothic-monsters",
+        "referenceName": "Bloodmoon Masquerade",
+        "rowWins": 110,
+        "colWins": 40,
+        "draws": 0,
+        "games": 150,
+        "rate": 0.7333333333333333
+      }
+    ],
+    "rowWins": 1048,
+    "losses": 302,
+    "draws": 0,
+    "games": 1350,
+    "score": 0.7762962962962963
+  },
+  "hillClimb": {
+    "initialList": [
+      "cf-aine-sunlit-bargain",
+      "cf-aine-sunlit-bargain",
+      "tk-shu-weiyan",
+      "tk-shu-weiyan",
+      "cf-blackthorn-duelist",
+      "cf-blackthorn-duelist",
+      "gm-silver-bullet-duelist",
+      "gm-silver-bullet-duelist",
+      "gm-silver-bullet-duelist",
+      "gm-silver-bullet-duelist",
+      "bk-boarkin-rootbreaker",
+      "bk-boarkin-rootbreaker",
+      "bk-boarkin-rootbreaker",
+      "bk-boarkin-rootbreaker",
+      "ac-camelot-banneret",
+      "ac-camelot-banneret",
+      "cf-blackthorn-duelist",
+      "cf-blackthorn-duelist",
+      "cf-thorn-sprite",
+      "cf-thorn-sprite",
+      "cf-thorn-sprite",
+      "cf-thorn-sprite",
+      "ac-camelot-banneret",
+      "ac-camelot-banneret",
+      "cf-heatherblade-scout",
+      "cf-heatherblade-scout",
+      "cf-heatherblade-scout",
+      "cf-heatherblade-scout",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "ar-training-dummy",
+      "cf-moorland-guide",
+      "cf-moorland-guide",
+      "cf-moorland-guide",
+      "cf-moorland-guide",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-plains",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest",
+      "land-forest"
+    ],
+    "initialScore": 0.45627376425855515,
+    "acceptedSwaps": [
+      {
+        "iteration": 2,
+        "out": "cf-heatherblade-scout",
+        "in": "tk-shu-liubei",
+        "role": "threats",
+        "priorScore": 0.45627376425855515,
+        "nextScore": 0.47480916030534354,
+        "scoreDelta": 0.018535396046788388
+      },
+      {
+        "iteration": 4,
+        "out": "ac-camelot-banneret",
+        "in": "bk-holstaur-milkmaid",
+        "role": "threats",
+        "priorScore": 0.47480916030534354,
+        "nextScore": 0.4753846153846154,
+        "scoreDelta": 0.0005754550792718693
+      },
+      {
+        "iteration": 5,
+        "out": "cf-moorland-guide",
+        "in": "gk-demeter",
+        "role": "threats",
+        "priorScore": 0.4753846153846154,
+        "nextScore": 0.4877675840978593,
+        "scoreDelta": 0.012382968713243903
+      },
+      {
+        "iteration": 6,
+        "out": "bk-boarkin-rootbreaker",
+        "in": "so-stampede-season",
+        "role": "interaction",
+        "priorScore": 0.4877675840978593,
+        "nextScore": 0.5444277108433735,
+        "scoreDelta": 0.05666012674551418
+      },
+      {
+        "iteration": 13,
+        "out": "ar-training-dummy",
+        "in": "ac-court-archer",
+        "role": "threats",
+        "priorScore": 0.5444277108433735,
+        "nextScore": 0.5519044062733384,
+        "scoreDelta": 0.007476695429964875
+      },
+      {
+        "iteration": 16,
+        "out": "ar-training-dummy",
+        "in": "gk-hoplite",
+        "role": "threats",
+        "priorScore": 0.5519044062733384,
+        "nextScore": 0.5892457057505601,
+        "scoreDelta": 0.03734129947722176
+      },
+      {
+        "iteration": 19,
+        "out": "cf-thorn-sprite",
+        "in": "bk-holstaur-milkmaid",
+        "role": "threats",
+        "priorScore": 0.5892457057505601,
+        "nextScore": 0.5920658682634731,
+        "scoreDelta": 0.0028201625129129493
+      },
+      {
+        "iteration": 20,
+        "out": "cf-thorn-sprite",
+        "in": "rg-valkyrie-captain",
+        "role": "threats",
+        "priorScore": 0.5920658682634731,
+        "nextScore": 0.6415235250186706,
+        "scoreDelta": 0.04945765675519753
+      },
+      {
+        "iteration": 21,
+        "out": "ac-camelot-banneret",
+        "in": "ac-chapel-questant",
+        "role": "threats",
+        "priorScore": 0.6415235250186706,
+        "nextScore": 0.6492926284437825,
+        "scoreDelta": 0.007769103425111945
+      },
+      {
+        "iteration": 22,
+        "out": "ar-training-dummy",
+        "in": "tk-shu-xingcai",
+        "role": "threats",
+        "priorScore": 0.6492926284437825,
+        "nextScore": 0.6706231454005934,
+        "scoreDelta": 0.021330516956810874
+      },
+      {
+        "iteration": 24,
+        "out": "ar-training-dummy",
+        "in": "tk-shu-zhaoyun",
+        "role": "threats",
+        "priorScore": 0.6706231454005934,
+        "nextScore": 0.6812778603268945,
+        "scoreDelta": 0.010654714926301101
+      },
+      {
+        "iteration": 26,
+        "out": "ac-court-archer",
+        "in": "ac-galahad-silver-oath",
+        "role": "threats",
+        "priorScore": 0.6812778603268945,
+        "nextScore": 0.7010385756676558,
+        "scoreDelta": 0.019760715340761292
+      },
+      {
+        "iteration": 27,
+        "out": "bk-boarkin-rootbreaker",
+        "in": "so-stampede-season",
+        "role": "interaction",
+        "priorScore": 0.7010385756676558,
+        "nextScore": 0.7214814814814815,
+        "scoreDelta": 0.020442905813825685
+      },
+      {
+        "iteration": 40,
+        "out": "cf-thorn-sprite",
+        "in": "gk-nike",
+        "role": "threats",
+        "priorScore": 0.7214814814814815,
+        "nextScore": 0.7244444444444444,
+        "scoreDelta": 0.002962962962962945
+      },
+      {
+        "iteration": 41,
+        "out": "tk-shu-xingcai",
+        "in": "gk-eos",
+        "role": "threats",
+        "priorScore": 0.7244444444444444,
+        "nextScore": 0.7437037037037038,
+        "scoreDelta": 0.01925925925925931
+      },
+      {
+        "iteration": 53,
+        "out": "bk-holstaur-milkmaid",
+        "in": "tk-shu-liubei",
+        "role": "threats",
+        "priorScore": 0.7437037037037038,
+        "nextScore": 0.7637037037037037,
+        "scoreDelta": 0.019999999999999907
+      },
+      {
+        "iteration": 57,
+        "out": "cf-blackthorn-duelist",
+        "in": "cf-thornmaze-patrol",
+        "role": "draw",
+        "priorScore": 0.7637037037037037,
+        "nextScore": 0.765752409191994,
+        "scoreDelta": 0.002048705488290392
+      },
+      {
+        "iteration": 73,
+        "out": "cf-blackthorn-duelist",
+        "in": "rg-zhaoyun",
+        "role": "threats",
+        "priorScore": 0.765752409191994,
+        "nextScore": 0.7762962962962963,
+        "scoreDelta": 0.010543887104302208
+      }
+    ],
+    "rejectedSwaps": 62,
+    "unproposedIterations": 0
+  },
+  "quotaShortfalls": [],
+  "honesty": {
+    "greedyBeatsFinal": false,
+    "nonMonotonicClimb": false
+  }
+}

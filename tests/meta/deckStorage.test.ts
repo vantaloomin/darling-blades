@@ -5,8 +5,8 @@ import { freshSave, type SaveData } from '../../src/meta/SaveManager';
 function saveWithDecks(): SaveData {
   const save = freshSave(0);
   save.decks = [
-    { id: 'deck-1', name: 'Aggro', cards: ['a', 'b'], heroCardId: 'b' },
-    { id: 'deck-2', name: 'Control', cards: ['c'], heroCardId: null },
+    { id: 'deck-1', name: 'Aggro', cards: ['a', 'b'], heroCardId: 'b', landStyle: null },
+    { id: 'deck-2', name: 'Control', cards: ['c'], heroCardId: null, landStyle: null },
   ];
   save.activeDeckId = 'deck-1';
   return save;
@@ -14,10 +14,33 @@ function saveWithDecks(): SaveData {
 
 /** F15: multiple saved decks — the pure DeckStorage operations behind the picker. */
 describe('deck storage', () => {
+  it('preserves land style when saving or copying an existing deck', () => {
+    const save = saveWithDecks();
+    save.decks[0].landStyle = {
+      'land-plains': 'base',
+      'land-forest': 'celtic-fae',
+    };
+
+    saveDeck(save, { id: 'deck-1', name: 'Aggro revised', cards: ['a', 'b'] });
+    const copyId = copyDeck(save, 'deck-1');
+
+    expect(save.decks.find((deck) => deck.id === 'deck-1')?.landStyle).toEqual({
+      'land-plains': 'base',
+      'land-forest': 'celtic-fae',
+    });
+    expect(save.decks.find((deck) => deck.id === copyId)?.landStyle).toEqual({
+      'land-plains': 'base',
+      'land-forest': 'celtic-fae',
+    });
+    expect(save.decks.find((deck) => deck.id === copyId)?.landStyle).not.toBe(
+      save.decks.find((deck) => deck.id === 'deck-1')?.landStyle,
+    );
+  });
+
   it('generateDeckId skips existing ids', () => {
     const save = saveWithDecks();
     expect(generateDeckId(save)).toBe('deck-3');
-    save.decks.push({ id: 'deck-3', name: 'x', cards: [], heroCardId: null });
+    save.decks.push({ id: 'deck-3', name: 'x', cards: [], heroCardId: null, landStyle: null });
     expect(generateDeckId(save)).toBe('deck-4');
   });
 

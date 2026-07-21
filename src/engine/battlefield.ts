@@ -46,6 +46,12 @@ export function enterBattlefield(
   return perm;
 }
 
+function detachFromHost(state: GameState, perm: Permanent): void {
+  if (perm.attachedTo === undefined) return;
+  const host = state.battlefield.find((p) => p.iid === perm.attachedTo);
+  if (host) host.attachments = host.attachments.filter((iid) => iid !== perm.iid);
+}
+
 /** Battlefield → owner's graveyard (tokens evaporate). Returns true if it died. */
 export function destroyPermanent(
   state: GameState,
@@ -56,6 +62,7 @@ export function destroyPermanent(
   const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
   if (idx < 0) return false;
   state.battlefield.splice(idx, 1);
+  detachFromHost(state, perm);
   const d = def(db, perm.cardId);
   if (!d.token) state.players[perm.owner].graveyard.push(perm.cardId);
   emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
@@ -72,6 +79,7 @@ export function severPermanent(
   const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
   if (idx < 0) return false;
   state.battlefield.splice(idx, 1);
+  detachFromHost(state, perm);
   const d = def(db, perm.cardId);
   if (!d.token) state.players[perm.owner].severed.push(perm.cardId);
   emit({
@@ -81,5 +89,25 @@ export function severPermanent(
     from: 'battlefield',
     iid: perm.iid,
   });
+  return true;
+}
+
+/** Battlefield → owner's hand (tokens evaporate). This is a recall, not a death trigger. */
+export function recallPermanent(
+  state: GameState,
+  db: CardDb,
+  perm: Permanent,
+  emit: Emit,
+): boolean {
+  const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
+  if (idx < 0) return false;
+  state.battlefield.splice(idx, 1);
+  detachFromHost(state, perm);
+  const d = def(db, perm.cardId);
+  if (!d.token) {
+    state.players[perm.owner].hand.push(perm.cardId);
+    emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
+  }
+  emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
   return true;
 }

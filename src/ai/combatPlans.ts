@@ -18,6 +18,7 @@ interface Combatant {
   firstStrike: boolean;
   trample: boolean;
   lifelink: boolean;
+  dreaded: boolean;
 }
 
 function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff = 0): Combatant {
@@ -31,6 +32,7 @@ function combatant(bf: readonly Permanent[], db: CardDb, iid: number, trickBuff 
     firstStrike: stats.keywords.has('firstBlade'),
     trample: stats.keywords.has('overrun'),
     lifelink: stats.keywords.has('bloodoath'),
+    dreaded: stats.keywords.has('dreaded'),
   };
 }
 
@@ -167,11 +169,16 @@ export function chooseAttackers(
   const defenders = untappedBlockers(bf, db, opp);
 
   // Lethal check: assume each defender absorbs the biggest remaining attacker.
-  const powers = eligible
-    .map((iid) => combatant(bf, db, iid).attack)
-    .sort((a, b) => b - a);
-  const absorbed = powers.slice(0, defenders.length).reduce((s, p) => s + p, 0);
-  const through = powers.reduce((s, p) => s + p, 0) - absorbed;
+  const combatants = eligible.map((iid) => combatant(bf, db, iid));
+  let blockersLeft = defenders.length;
+  let absorbed = 0;
+  for (const c of [...combatants].sort((a, b) => b.attack - a.attack)) {
+    const needed = c.dreaded ? 2 : 1;
+    if (blockersLeft < needed) continue;
+    absorbed += c.attack;
+    blockersLeft -= needed;
+  }
+  const through = combatants.reduce((s, c) => s + c.attack, 0) - absorbed;
   if (through >= oppLife) return eligible; // all-in for the kill
 
   // Greedy descent: start from all-in, drop the attacker whose removal most
@@ -278,6 +285,7 @@ export function chooseBlocks(
   const blockedAttackers = new Set<number>();
   for (const pair of pairs) {
     if (usedBlockers.has(pair.blocker) || blockedAttackers.has(pair.attacker)) continue;
+    if (combatant(bf, db, pair.attacker).dreaded) continue;
     // `blockThreshold` replaces the `pair.score > 0` gate (default 0).
     if (pair.score > pers.blockThreshold || lethalMode) {
       blocks.push({ blocker: pair.blocker, attacker: pair.attacker });
@@ -286,11 +294,11 @@ export function chooseBlocks(
     }
   }
 
-  // Double-block search on high-value unblocked attackers.
+  // Double-block search on high-value attackers and every Dreaded attacker.
   for (const aIid of attackers) {
     if (blockedAttackers.has(aIid)) continue;
-    if (permValue(bf, db, aIid) < 4) continue;
     const A = combatant(bf, db, aIid, trickBuff);
+    if (!A.dreaded && permValue(bf, db, aIid) < 4) continue;
     const free = myCreatures.filter(
       (B) => !usedBlockers.has(B.iid) && canBlock(bf, db, me, B.iid, aIid),
     );
@@ -299,10 +307,11 @@ export function chooseBlocks(
         const b1 = combatant(bf, db, free[i].iid);
         const b2 = combatant(bf, db, free[j].iid);
         const killsIt = b1.attack + b2.attack >= A.defense || b1.deathtouch || b2.deathtouch;
-        if (!killsIt) continue;
+        // A Dreaded attacker may also be double-chumped to survive lethal.
+        if (!killsIt && !(A.dreaded && lethalMode)) continue;
         // attacker kills at most one of them (cheapest-kill-first auto-assign)
         const cheaper = Math.min(permValue(bf, db, free[i].iid), permValue(bf, db, free[j].iid));
-        if (permValue(bf, db, aIid) - cheaper > 1) {
+        if (A.dreaded || permValue(bf, db, aIid) - cheaper > 1) {
           blocks.push(
             { blocker: free[i].iid, attacker: aIid },
             { blocker: free[j].iid, attacker: aIid },

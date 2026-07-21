@@ -99,6 +99,12 @@ const ARTHURIAN_CROWN_JEWELS = [
   'ac-nimue-lake-sovereign',
   'ac-grail-radiant-secret',
 ] as const;
+const GOTHIC_MONSTERS_HEADLINERS = [
+  'gm-carmilla-crimson-host',
+  'gm-bride-storm-crowned',
+  'gm-luna-wolf-matriarch',
+  'gm-lenore-velvet-saint',
+] as const;
 
 function themeIds(ids: readonly string[], db: CardDb): string[] {
   return ids.filter((id) => Boolean(db[id]));
@@ -158,6 +164,7 @@ const isRainbowBorder = (variant: ReturnType<typeof parseVariantKey>): boolean =
 const isRagnarok = (card: CardDef): boolean => card.set === 'ragnarok';
 const isCelticFae = (card: CardDef): boolean => card.set === 'celtic-fae';
 const isArthurianCourt = (card: CardDef): boolean => card.set === 'arthurian-court';
+const isGothicMonsters = (card: CardDef): boolean => card.set === 'gothic-monsters';
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
@@ -417,7 +424,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-celtic-fae-25',
     bucket: 'theme',
     title: 'Veil Beachhead',
-    description: 'Own 25% of Celtic Fae cards.',
+    description: 'Own 25% of Silver Veil cards.',
     reward: { gold: 200 },
     progress: (save, db) => themedCollectionProgress(save, db, isCelticFae, 0.25),
   },
@@ -425,7 +432,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-celtic-fae-50',
     bucket: 'theme',
     title: 'Silver Binder',
-    description: 'Own 50% of Celtic Fae cards.',
+    description: 'Own 50% of Silver Veil cards.',
     reward: { gold: 400 },
     progress: (save, db) => themedCollectionProgress(save, db, isCelticFae, 0.5),
   },
@@ -433,7 +440,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-celtic-fae-complete',
     bucket: 'theme',
     title: 'Silver Veil Complete',
-    description: 'Own every Celtic Fae card.',
+    description: 'Own every Silver Veil card.',
     reward: { gold: 1200 },
     progress: (save, db) => themedCollectionProgress(save, db, isCelticFae),
   },
@@ -449,7 +456,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-celtic-fae-ssr-court',
     bucket: 'theme',
     title: 'Inner Court',
-    description: 'Own every Celtic Fae SSR court card.',
+    description: 'Own every Silver Veil SSR court card.',
     reward: { gold: 500 },
     progress: (save, db) => themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.rarity === 'ssr'),
   },
@@ -457,7 +464,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-celtic-fae-selkies',
     bucket: 'theme',
     title: 'Tidebound Court',
-    description: 'Own every Celtic Fae Selkie.',
+    description: 'Own every Silver Veil Selkie.',
     reward: { gold: 350 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Selkie')),
@@ -466,7 +473,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-celtic-fae-ravens',
     bucket: 'theme',
     title: 'Omen Wing',
-    description: 'Own every Celtic Fae Raven.',
+    description: 'Own every Silver Veil Raven.',
     reward: { gold: 350 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Raven')),
@@ -475,7 +482,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-celtic-fae-redcaps',
     bucket: 'theme',
     title: 'Redcap Warband',
-    description: 'Own every Celtic Fae Redcap.',
+    description: 'Own every Silver Veil Redcap.',
     reward: { gold: 350 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isCelticFae(card) && card.subtypes.includes('Redcap')),
@@ -485,7 +492,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-arthurian-25',
     bucket: 'theme',
     title: "Squire's Oath",
-    description: 'Own 25% of Arthurian Court cards.',
+    description: 'Own 25% of Grail Oath cards.',
     reward: { gold: 200 },
     progress: (save, db) => themedCollectionProgress(save, db, isArthurianCourt, 0.25),
   },
@@ -493,7 +500,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-arthurian-50',
     bucket: 'theme',
     title: 'Half the Table',
-    description: 'Own 50% of Arthurian Court cards.',
+    description: 'Own 50% of Grail Oath cards.',
     reward: { gold: 400 },
     progress: (save, db) => themedCollectionProgress(save, db, isArthurianCourt, 0.5),
   },
@@ -501,7 +508,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-arthurian-complete',
     bucket: 'theme',
     title: 'Grail Oath Complete',
-    description: 'Own every Arthurian Court card.',
+    description: 'Own every Grail Oath card.',
     reward: { gold: 1200 },
     progress: (save, db) => themedCollectionProgress(save, db, isArthurianCourt),
   },
@@ -525,7 +532,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-arthurian-knights',
     bucket: 'theme',
     title: 'Full Muster',
-    description: 'Own every Arthurian Court Knight.',
+    description: 'Own every Grail Oath Knight.',
     reward: { gold: 400 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.subtypes.includes('Knight')),
@@ -534,7 +541,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-arthurian-quests',
     bucket: 'theme',
     title: 'Seven Vows',
-    description: 'Own every Arthurian Court Quest.',
+    description: 'Own every Grail Oath Quest.',
     reward: { gold: 350 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.subtypes.includes('Quest')),
@@ -543,10 +550,78 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     id: 'theme-arthurian-champions',
     bucket: 'theme',
     title: 'Champions in Waiting',
-    description: 'Own every Arthurian Court card with Champion Awakening.',
+    description: 'Own every Grail Oath card with Champion Awakening.',
     reward: { gold: 350 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isArthurianCourt(card) && card.awakening !== undefined),
+  },
+  // Gothic Monsters (1.3), schema-free and derived from the live 80-card pool.
+  {
+    id: 'theme-gothic-monsters-25',
+    bucket: 'theme',
+    title: 'First Candle',
+    description: 'Own 25% of Nocturne Manor cards.',
+    reward: { gold: 200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isGothicMonsters, 0.25),
+  },
+  {
+    id: 'theme-gothic-monsters-50',
+    bucket: 'theme',
+    title: 'Half the Manor',
+    description: 'Own 50% of Nocturne Manor cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, isGothicMonsters, 0.5),
+  },
+  {
+    id: 'theme-gothic-monsters-complete',
+    bucket: 'theme',
+    title: 'Manor Without End',
+    description: 'Own every Nocturne Manor card.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isGothicMonsters),
+  },
+  {
+    id: 'theme-gothic-monsters-headliners',
+    bucket: 'theme',
+    title: 'The Bloodmoon Court',
+    description: 'Own Carmilla, The Bride, Luna, and Lenore.',
+    reward: { gold: 600 },
+    progress: (save, db) => themeProgress(save, GOTHIC_MONSTERS_HEADLINERS, db),
+  },
+  {
+    id: 'theme-gothic-monsters-headliners-special',
+    bucket: 'theme',
+    title: 'Velvet Regalia',
+    description: 'Own all four Gothic Monsters headliners as special variants.',
+    reward: { gold: 900 },
+    progress: (save, db) => themeVariantProgress(save, GOTHIC_MONSTERS_HEADLINERS, db, isSpecialVariant),
+  },
+  {
+    id: 'theme-gothic-monsters-dreaded',
+    bucket: 'theme',
+    title: 'No Single Blocker',
+    description: 'Own every Nocturne Manor card with Dreaded.',
+    reward: { gold: 400 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.keywords?.includes('dreaded') === true),
+  },
+  {
+    id: 'theme-gothic-monsters-empowered',
+    bucket: 'theme',
+    title: 'Paid in Blood',
+    description: 'Own every Nocturne Manor card with Empower.',
+    reward: { gold: 450 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.empower !== undefined),
+  },
+  {
+    id: 'theme-gothic-monsters-vampires',
+    bucket: 'theme',
+    title: 'The Masquerade Bloodline',
+    description: 'Own every Gothic Monsters Vampire.',
+    reward: { gold: 350 },
+    progress: (save, db) =>
+      themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.subtypes.includes('Vampire')),
   },
   {
     id: 'first-win',
