@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/data/cards/gothic-monsters.ts, src/ui/CardView.ts · last-verified: 2026-07-17 -->
+<!-- source-of-truth: src/data/cards/lands.ts, src/data/cards/duals.ts, src/data/cards/gothic-monsters.ts, src/meta/SaveManager.ts, src/art/ArtResolver.ts, src/ui/CardView.ts · last-verified: 2026-07-23 -->
 
 # Land Art — Direction + Generation Contract
 
@@ -146,19 +146,32 @@ canon anchor.
 
 ---
 
-## 3. Proposed expansion land variants (not yet wired)
+## 3. Basic-land style variants
 
-**Status: PROPOSAL ONLY — none of these are wired into the game.** The game
-supports exactly one art file per land id, so these themed basic-land variants
-(base / ragnarok / celtic-fae, 2 per land per set) were generated ahead of a
-wiring decision and live **only in the art vault**
-(`WaifuTCG-Art-Pilots/raws/lands-variants/`, deliverables named
-`<land-id>-<set>-v<N>.png`) — **never** in `public/assets/`. The entries below
-are kept inside a fenced block deliberately: `scripts/gen-land-art.ts` skips
-fenced code blocks when parsing, so these can never masquerade as live land
-entries and be generated into the shipping art directory by a routine run.
-They follow the same environment-first contract as section 1 and were produced
-at 1024×1536 → smartcrop **environment** mode → 640×800.
+**Status: WIRED AND MANIFEST-GATED.** The deck builder cycles each basic
+through the default art plus `base`, `ragnarok`, `celtic-fae`, and `dark-tales`.
+Styled files use the exact convention
+`public/assets/art/cards/<basic-id>--<style>.png`, for example
+`public/assets/art/cards/land-plains--dark-tales.png`. `ArtResolver` requests a
+styled key only when that stem is present in `src/data/art-manifest.json`; until
+the five Dark Tales files are staged and the manifest is regenerated, the
+selector remains usable and the resolver returns the default land art.
+
+The existing base, Ragnarok, and Celtic Fae art is documented below as the
+historical two-variant vault. The entries remain inside a fenced block
+deliberately: `scripts/gen-land-art.ts` skips fenced code blocks when parsing,
+so they cannot masquerade as live land entries or be generated into the
+shipping art directory by a routine run. Dark Tales art is being generated and
+curated in parallel, with these reserved output paths:
+
+- `public/assets/art/cards/land-plains--dark-tales.png`
+- `public/assets/art/cards/land-island--dark-tales.png`
+- `public/assets/art/cards/land-swamp--dark-tales.png`
+- `public/assets/art/cards/land-mountain--dark-tales.png`
+- `public/assets/art/cards/land-forest--dark-tales.png`
+
+All variants follow the same environment-first contract as section 1 and are
+produced at 1024×1536 → smartcrop **environment** mode → 640×800.
 
 ```markdown
 ### Plains (base) — `land-plains-base-v1`

@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
 import { activeRenderScale } from '../platform/renderScale';
 import { CARD_H, CARD_W, CardView } from './CardView';
+import { cardThumbKey } from './cardThumbKey';
 
 /**
  * Rendered-thumbnail cache for grid scenes (Collection / DeckBuilder).
@@ -38,13 +39,9 @@ const BLEED_Y = 8;
  * scales k² — but the lite tier resolves k=1 (renderScale.ts), so mobile is
  * unchanged, and the ~210-card desktop pool stays well within budget.
  */
-function thumbKey(cardId: string, landStyle?: string): string {
-  return `card-thumb-${cardId}${landStyle ? `--${landStyle}` : ''}`;
-}
-
 /** Bake (or reuse) the thumbnail texture for a card; returns its texture key. */
 export function ensureCardThumb(scene: Phaser.Scene, card: CardDef, landStyle?: string): string {
-  const key = thumbKey(card.id, landStyle);
+  const key = cardThumbKey(card.id, landStyle);
   if (scene.textures.exists(key)) return key;
 
   // Render one throwaway CardView into the texture. Created and destroyed
