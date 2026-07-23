@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-16
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-23
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -89,14 +89,14 @@ To replace a card's placeholder with a real illustration:
    changes; no 404s (the file is in the manifest, so it's requested; unlisted
    files are never requested).
 
-Current status: **every card in the pool has real art on disk** — all **537**
-entries (`public/assets/art/cards/`, every one listed in
-`src/data/art-manifest.json` with a matching half-res variant in `cards-half/`),
-so no card renders a procedural placeholder anymore — the placeholder path
-remains as the fallback for future cards. The original 152-entry base-set run
-completed 2026-07-03 (see the run status at the end of the next section); the
-Ragnarök expansion (69 collectibles + 3 tokens) was generated afterward via the
-`ragnarok` art-bible faction plus `gen-spell-art` coverage.
+Current inventory: the live catalog has **537 cards** (518 collectibles, the 5
+basic lands, and 14 tokens). `public/assets/art/cards/` has **552 PNGs**: art for all 537 catalog
+IDs plus 15 set-specific basic-land variants. The checked-in manifest currently
+lists **443** card entries, all with matching PNGs, and its half-res list has
+**362** entries. The other 94 catalog card IDs remain absent from the manifest,
+so they use the procedural placeholder until `npm run gen-art-manifest` is run.
+The original base-set run completed 2026-07-03 (see the historical run status at
+the end of the next section); later expansion art used the same generators.
 
 ### Subject-aware generation crop: `scripts/smartcrop.py`
 
@@ -169,8 +169,9 @@ game picks the new files up.
 
 ### Land art: `scripts/gen-land-art.ts`
 
-The 15 **land cards** (5 basic + 10 dual taplands) have their own art program,
-separate from the creature art bible — they are **landscape, not character**.
+The 22 **land cards covered by the land-art generator** (5 basic, 10 dual
+taplands, and 7 Gothic Monsters lands) have their own art program, separate
+from the creature art bible — they are **landscape, not character**.
 Direction lives in `docs/land-art.md` (the binding contract + one Prompt line
 per land) and the driver is `npm run gen-land-art` (`scripts/gen-land-art.ts`),
 a sibling of `gen-card-art.ts` with the same hardened machinery
@@ -191,9 +192,10 @@ procedural placeholder.
 
 ### Spell art: `scripts/gen-spell-art.ts`
 
-The 43 **non-creature spell cards** (18 instants, 14 sorceries, 10
-enchantments, 1 artifact) likewise sit outside the creature art bible and get
-their own program. Direction lives in `docs/spell-art.md` and the driver is
+The 91 **non-creature spell cards covered by the spell-art generator** (43
+base, 9 Ragnarök, 31 Gothic Monsters, and 8 removal-cycle spells) likewise sit
+outside the creature art bible and get their own program. Direction lives in
+`docs/spell-art.md` and the driver is
 `npm run gen-spell-art` (`scripts/gen-spell-art.ts`), a sibling of the card and
 land drivers with the identical hardened machinery and flags; it uses
 `scripts/smartcrop.py` in **environment** mode, so the post-process stays the
@@ -212,20 +214,18 @@ outside the doc-driven pipeline during the Celtic Fae expansion) — when adding
 a record after the fact, note that the roster contracts are rigid:
 `check-art-bible` enforces creatures-only faction files with exact
 count/order, and `gen-spell-art.ts` **hard-fails on any id outside its fixed
-52-id roster**. Worse, the drivers' entry parsers treat any top-level
+91-id roster**. Worse, the drivers' entry parsers treat any top-level
 `- **Prompt:**` line as the current entry's prompt, so a casually appended
 block **silently overwrites the previous entry's prompt**. The safe pattern is
 the parser-proof addendum convention at the end of `docs/spell-art.md`
 ("Celtic Fae non-creature addendum"): `####` headings + indented field
-bullets, invisible to the parsers, verified with `--dry-run` after editing. Together with the land program this closed the base set:
-**all 210 base-set cards** (147 creatures + 15 lands + 43 spells) got real
-illustrations, and the later Ragnarök run extended the same drivers over the
-expansion — so **every one of the 537 cards** now has real art; only
-pre-generation does a card fall back to its type-palette procedural placeholder.
+bullets, invisible to the parsers, verified with `--dry-run` after editing. The
+current non-creature generator rosters are 91 spell entries and 22 land entries;
+the live catalog and manifest inventory is recorded above.
 
-**Base-set run status (2026-07-03): COMPLETE — 152/152 on disk** (plus 152
-half-res variants and the 11 scene assets); the Ragnarök expansion art was
-generated in a later run, bringing the on-disk total to **282** (+282 half-res); the Gothic Monsters + removal-cycle runs (2026-07-18/19) brought it to **537** (+537 half-res, 15 scene assets).
+**Historical base-set run status (2026-07-03): COMPLETE — 152/152 on disk**
+(plus 152 half-res variants and 11 scene assets). Later expansion runs are
+summarized by the current-inventory figures above.
 The base run paused twice on the same root
 cause: four concurrent lanes raced the CLI's OAuth token refresh at expiry
 and invalidated the credential. **Concurrency across a token refresh is a
