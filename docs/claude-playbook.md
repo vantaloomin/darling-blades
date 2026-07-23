@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-07-13 · process doc — re-verify when the workflow itself changes -->
+<!-- source-of-truth: package.json, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-07-23 · process doc — re-verify when the workflow itself changes -->
 
 # Claude Orchestration Playbook
 
@@ -107,6 +107,25 @@ the executor half of the [[orchestration-workflow]] split:
 - **Launch anything longer than ~8 minutes detached** (`task --background`),
   and monitor for the dead-pid zombie state — see the Codex timeout trap in
   §11 for the full recipe and recovery drill.
+
+**Codex stream dashboard (standard setup for every session running Codex
+tasks).** `npm run codex-dash` serves `http://localhost:5179/` (the
+`codex-dash` launch.json entry opens it in the preview pane): a live board of
+every Codex job across every workspace/worktree, read directly from the
+runtime's per-workspace state
+(`~/.claude/plugins/data/codex-inline/state/<ws>-<hash>/` — registry
+`state.json` + `jobs/*.log`; the registry is per-workspace-root, which is why
+`status` run from the wrong cwd shows an empty list). The board shows
+status/phase/model/log-tail per stream, flags a 15-minutes-silent running task
+as a possible wedge, and a narrator loop turns every meaningful transition
+(discovery, status change, stall) into a timestamped plain-language feed entry
+by calling headless Claude (`claude -p … --model claude-sonnet-5`); set
+`CODEX_DASH_NO_AI=1` to fall back to mechanical feed lines, and
+`CODEX_DASH_PORT`/`CODEX_DASH_STATE_ROOT`/`CODEX_DASH_MODEL` to override
+defaults. Read-only over Codex state; its cache lives in
+`scripts/codex-dash/.cache/` (gitignored). Standing practice: start it at the
+top of any session that launches Codex work and point the user at it instead
+of ad-hoc status relays.
 
 ## 5. Iron invariants (quote these into prompts)
 

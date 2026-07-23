@@ -2,6 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "codex-dash",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "codex-dash"],
+      "port": 5179
+    },
+    {
+      "name": "dt-art-review",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5178", "--directory", "Z:/Coding Projects/WaifuTCG-Art-Pilots"],
+      "port": 5178
+    },
+    {
       "name": "darlingblades-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],

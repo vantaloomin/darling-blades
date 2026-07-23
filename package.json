@@ -27,7 +27,8 @@
     "check-docs": "tsx scripts/check-docs.ts",
     "check-art-bible": "tsx scripts/check-art-bible.ts",
     "gen-docs-tables": "tsx scripts/gen-docs-tables.ts",
-    "balance-matrix": "tsx scripts/balance-matrix.ts"
+    "balance-matrix": "tsx scripts/balance-matrix.ts",
+    "codex-dash": "node scripts/codex-dash/run.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
