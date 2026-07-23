@@ -89,7 +89,9 @@ describe('persona metagame loop', () => {
     expect(JSON.stringify(round0.selectedColors)).toBe(JSON.stringify(single.selectedColors));
     expect(JSON.stringify(round0.measured)).toBe(JSON.stringify(single.measured));
     expect(JSON.stringify(round0.hillClimb)).toBe(JSON.stringify(single.hillClimb));
-  }, 15000);
+    // Real games through the real measure path: CI runners measured >15s (timed
+    // out PR #104's first verify run); the cap only bounds the failure case.
+  }, 120000);
 
   it('records the other retained lists and is byte-deterministic', () => {
     const options = {
