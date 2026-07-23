@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-20 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-23 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
 
 # MTG keyword map — Darling Blades terms (shipped + future)
 
@@ -99,6 +99,8 @@ text swap.
 | **Momentum** | Prowess | "Whenever you cast a noncreature spell, this gets +1/+1 until end of turn." | A cast-trigger + until-end-of-turn buff plumbing; AI sequencing value. |
 | **Fight** | Fight | "Each creature deals damage equal to its Attack to the other." | A `fight` `EffectOp` reusing the damage pipeline; targeting for two creatures. |
 | **Sacrifice** | Sacrifice | "Put a permanent you control into its owner's graveyard." | A `sacrifice` `EffectOp` (as cost and as effect); death triggers already exist. |
+| **Skim** | Cycling | "{cost}, discard this card: draw a card." | **Planned (1.4, Dark Tales — name locked 2026-07-23):** a hand-side activated discard-to-draw — a non-cast action from hand, mana payment outside a cast, AI smoothing valuation at every difficulty. Like Empower, kept in this table although Cycling is not evergreen. |
+| **Retell** | Flashback | "Retell {cost}: you may cast this from your graveyard, then sever it." | **Planned (1.4, Dark Tales — name locked 2026-07-23):** cast-from-graveyard legality + an alternative-cost path + a post-resolve sever into the existing one-way `severed` zone; AI valuation of graveyard spells. Not evergreen; recorded like Empower. |
 | **Empower** | Kicker | "You may pay an additional {cost} as you cast this. If you do, [the empowered effect]." | **SHIPPED (1.3, engine + duel-UI chooser):** `CardDef.empower {cost, ops}`, empowered flag on the cast action, combined-cost pricing in `validateAction`/the mana solver, trigger-safe riders in `resolve.ts`, AI pricing at every difficulty, and a cast-time chooser shown only when the extra cost is payable (user decision 2026-07-17). Kept in this table because Kicker is not evergreen; listed as shipped for the record. |
 
 ## Naming rules (collision guard)
@@ -121,6 +123,10 @@ text swap.
   it describes the mechanic rather than the set, and unlike Surge, Escalate,
   Overload, or Entwine it is not a Magic keyword (the distinctiveness rule
   that retired "saga").
+- **Skim** (Cycling) and **Retell** (Flashback), decided 2026-07-23 for Dark
+  Tales: both replace Magic-distinctive keywords under the same rule.
+  Rejected for collision: Encore, Echo, and Rebound are all real Magic
+  keywords; Skim/Retell shadow nothing in the shipped label set.
 
 ## Cross-references
 
