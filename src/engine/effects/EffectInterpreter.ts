@@ -190,7 +190,12 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const idx = state.stack.findIndex((s) => s.sid === ref.sid);
       if (idx >= 0) {
         const [item] = state.stack.splice(idx, 1);
-        state.players[item.controller].graveyard.push(item.cardId);
+        if (item.retell) {
+          state.players[item.controller].severed.push(item.cardId);
+          emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
+        } else {
+          state.players[item.controller].graveyard.push(item.cardId);
+        }
         emit({ e: 'spellCountered', sid: item.sid });
       }
       return;

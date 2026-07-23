@@ -178,18 +178,24 @@ export class HardAI implements AIPlayer {
    */
   private searchMain(view: PlayerView, legal: Action[]): Action {
     const baseline = this.medium.chooseAction(view, legal);
-    const empowered = legal.filter(
-      (a): a is Extract<Action, { type: 'castSpell' }> =>
-        a.type === 'castSpell' && a.empowered === true,
+    // Keep the narrow candidate set for now. It still compares Skim, Retell,
+    // and Empower only against Medium's baseline; making passStep a candidate
+    // is future work. Skim must not be offered as a lookahead line when its
+    // draw would deck out the player.
+    const candidates = legal.filter(
+      (a) =>
+        (a.type === 'skim' && view.you.deckCount > 0) ||
+        (a.type === 'castSpell' && (a.empowered === true || a.retell === true)),
     );
-    if (empowered.length === 0) return baseline;
+    if (candidates.length === 0) return baseline;
 
     const base = this.aggregateOutcome(view, [baseline]);
     if (!base) return baseline; // own line illegal in the sim; trust Medium
     let best = baseline;
     let bestScore = base.score;
-    // Cap the sim fanout: empowered variants scale with target count.
-    for (const candidate of empowered.slice(0, 8)) {
+    // Cap the sim fanout: cast variants scale with target count, while Skim
+    // and Retell remain ordinary legal-menu candidates.
+    for (const candidate of candidates.slice(0, 8)) {
       const outcome = this.aggregateOutcome(view, [candidate]);
       if (outcome && outcome.score > bestScore) {
         best = candidate;
@@ -398,18 +404,20 @@ export class HardAI implements AIPlayer {
    * or a dodged loss clears any margin). */
   private searchResponse(view: PlayerView, legal: Action[]): Action {
     const mediumChoice = this.medium.chooseAction(view, legal);
-    const casts = legal.filter((l) => l.type === 'castSpell').slice(0, 10);
-    if (casts.length === 0) return mediumChoice;
+    const candidates = legal
+      .filter((l) => l.type === 'castSpell' || l.type === 'skim')
+      .slice(0, 10);
+    if (candidates.length === 0) return mediumChoice;
     const base = this.aggregateOutcome(view, [mediumChoice]);
     if (!base || base.wonAll) return mediumChoice;
     let best = mediumChoice;
     let bestScore = base.lostAny ? base.score : base.score + 1.5;
-    for (const cast of casts) {
-      if (JSON.stringify(cast) === JSON.stringify(mediumChoice)) continue;
-      const out = this.aggregateOutcome(view, [cast]);
+    for (const candidate of candidates) {
+      if (JSON.stringify(candidate) === JSON.stringify(mediumChoice)) continue;
+      const out = this.aggregateOutcome(view, [candidate]);
       if (out && out.score > bestScore) {
         bestScore = out.score;
-        best = cast;
+        best = candidate;
       }
     }
     return best;
