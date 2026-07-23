@@ -1,15 +1,24 @@
 import Phaser from 'phaser';
-import type { CardDef } from '../engine/types';
+import type { CardDef, ManaCost } from '../engine/types';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { makeCardThumb } from './CardThumbCache';
 import { CARD_H, CARD_W } from './CardView';
+import { manaCostText } from './rulesText';
+import { renderManaText } from './ManaText';
 import { colorInt, theme } from './theme';
 import { modalShell, pager, type ModalShellOptions } from './themeWidgets';
+
+export interface ZoneContentsAction {
+  label: string;
+  cost: ManaCost;
+  onSelect: () => void;
+}
 
 export interface ZoneContentsEntry {
   card: CardDef;
   count: number;
   landStyle?: string;
+  action?: ZoneContentsAction;
 }
 
 export interface ZoneContentsModalOptions
@@ -39,6 +48,8 @@ const ROW_GAP = 120;
 const GRID_CX = 640;
 const GRID_TOP_Y = 176;
 const BADGE_H = 18;
+const ACTION_Y_OFFSET = 52;
+const ACTION_H = 28;
 
 export function showZoneContents(
   scene: Phaser.Scene,
@@ -106,6 +117,36 @@ export function showZoneContents(
     addGridItem(label);
   };
 
+  const addActionChip = (x: number, y: number, action: ZoneContentsAction): void => {
+    const chip = scene.add.container(x, y);
+    const rendered = renderManaText(scene, chip, 0, 0, `${action.label} ${manaCostText(action.cost)}`, {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.micro}px`,
+      fontStyle: theme.weight.w700,
+      color: theme.colors.gold,
+      resolution: 2,
+    });
+    rendered.text.setOrigin(0.5);
+    rendered.reflow();
+    const width = Math.max(76, rendered.text.width + 18);
+    const background = scene.add.graphics();
+    background
+      .fillStyle(colorInt(theme.colors.btnEmphasisBg), 1)
+      .fillRoundedRect(-width / 2, -ACTION_H / 2, width, ACTION_H, theme.radius.control)
+      .lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome)
+      .strokeRoundedRect(-width / 2, -ACTION_H / 2, width, ACTION_H, theme.radius.control);
+    chip.addAt(background, 0);
+    const zone = scene.add.zone(0, 0, width, ACTION_H).setInteractive({ useHandCursor: true });
+    chip.add(zone);
+    bindTapButton(scene, zone, (pointer) => {
+      if (pointer.rightButtonReleased()) return;
+      shell.close();
+      action.onSelect();
+    });
+    inflateHitArea(zone, Math.max(90, width), 44);
+    addGridItem(chip);
+  };
+
   const renderPage = (nextPage: number): void => {
     page = Phaser.Math.Clamp(nextPage, 0, pageCount - 1);
     clearGrid();
@@ -144,6 +185,7 @@ export function showZoneContents(
       thumb.on('pointerout', () => thumb.clearTint());
       addGridItem(thumb);
       addCountBadge(x, y, entry.count);
+      if (entry.action) addActionChip(x, y + ACTION_Y_OFFSET, entry.action);
     }
     pageControl?.refresh(page, pageCount);
   };
