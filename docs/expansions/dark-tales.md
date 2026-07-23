@@ -162,7 +162,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-desert-rooftop | Desert Rooftop | C | Land | Land | Palace city rooftop | Jasmine | entersTapped, manaAbility R | Common land |
 | dt-reflection-sword | Reflection Sword | C | W | Artifact | Family blade reflected in water | Mulan | arrives: boost allYours +1/+0 with firstBlade (until end of turn) | Combat relic |
 | dt-training-yard-dawn | Training-Yard Dawn | C | W | Charm | Martial training yard | Mulan | boost target +1/+1, foresee 1 | White combat trick |
-| dt-ancestor-smoke | Ancestor Smoke | C | W | Charm | Ancestral spirit smoke | Mulan | foresee 2; Retell {cost} | Hybrid support trick |
+| dt-ancestor-smoke | Ancestor's Smoke | C | W | Charm | Ancestral spirit smoke | Mulan | foresee 2; Retell {cost} | Hybrid support trick |
 | dt-bayou-lantern | Bayou Lantern | C | G | Artifact | Firefly-lit bayou lamp | Tiana | Skim {cost}; dawn: gainLife 1 | Green stabilizer |
 | dt-crescent-cookpot | Crescent Cookpot | C | C | Artifact | Silver kitchen charm | Tiana | arrives: gainLife 1 + foresee 1 | Utility artifact |
 | dt-riverboat-kitchen | Riverboat Kitchen | C | Land | Land | Bayou riverboat galley | Tiana | entersTapped, manaAbility G/B | Common dual land |
@@ -173,7 +173,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-riverbend-trail | Riverbend Trail | C | Land | Land | Forest river bend | Pocahontas | entersTapped, manaAbility G | Common land |
 | dt-plaid-arrow | Plaid Arrow | C | G | Charm | Highland tournament shot | Merida | boost target +1/+1 with wardingGaze | Combat trick |
 | dt-casita-door-charm | Casita Door Charm | C | W | Artifact | Enchanted house door token | Mirabel | arrives: createToken Hearth Spirit + foresee 1 | Token setup |
-| dt-jade-dragon-scale | Jade Dragon Scale | C | G | Artifact | Broken dragon gem scale | Raya | Skim {cost}; arrives: foresee 1 | Green utility |
+| dt-jade-dragon-scale | Jade Dragon Egg | C | G | Artifact | Sleeping jade dragon egg (retitled from scale 2026-07-23, art-led) | Raya | Skim {cost}; arrives: foresee 1 | Green utility |
 
 ## Precon Identity
 
