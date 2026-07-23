@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Codex streams</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0e1118; color: #dde2ee; font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  header { position: sticky; top: 0; background: #151927; border-bottom: 1px solid #262d45;
+           padding: 10px 18px; display: flex; align-items: baseline; gap: 14px; }
+  h1 { font-size: 16px; margin: 0; color: #b9c4ff; }
+  #meta { color: #8a93b5; font-size: 12px; }
+  main { display: grid; grid-template-columns: minmax(340px, 1.1fr) minmax(300px, .9fr); gap: 0; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { padding: 14px 18px; }
+  h2 { font-size: 13px; color: #8fa0e8; margin: 4px 0 10px; text-transform: uppercase; letter-spacing: .06em; }
+  .task { background: #151927; border: 1px solid #262d45; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+  .task .top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .title { font-weight: 600; }
+  .ws { color: #8a93b5; font-size: 12px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .running .dot { background: #ffcf5c; animation: pulse 1.4s infinite; }
+  .completed .dot { background: #4fd08a; }
+  .stalled .dot { background: #ff6d84; animation: pulse .7s infinite; }
+  .unknown .dot { background: #667; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .sum { color: #aeb6d4; font-size: 12.5px; margin-top: 4px; }
+  pre { background: #0b0e15; border: 1px solid #20263c; border-radius: 6px; padding: 8px;
+        font-size: 11px; overflow-x: auto; margin: 8px 0 0; max-height: 130px; overflow-y: auto; color: #93a0c5; }
+  .feed-item { border-left: 3px solid #3c477a; padding: 6px 10px; margin-bottom: 10px; background: #131726; border-radius: 0 8px 8px 0; }
+  .feed-item time { color: #8a93b5; font-size: 11.5px; display: block; }
+  .badge { font-size: 10.5px; background: #232a44; border-radius: 999px; padding: 1px 8px; color: #9fb0e8; }
+</style>
+</head>
+<body>
+<header><h1>Codex streams</h1><span id="meta">loading…</span></header>
+<main>
+  <section><h2>Streams</h2><div id="tasks"></div></section>
+  <section><h2>Narrated feed</h2><div id="feed"></div></section>
+</main>
+<script>
+const fmt = (iso) => iso ? new Date(iso).toLocaleTimeString() : '?';
+async function tick() {
+  try {
+    const [status, feed] = await Promise.all([
+      fetch('/status.json?t=' + Date.now()).then((r) => r.json()),
+      fetch('/feed.json?t=' + Date.now()).then((r) => r.json()).catch(() => []),
+    ]);
+    document.getElementById('meta').textContent =
+      `${status.tasks.length} task(s) · updated ${fmt(status.generated)} · ${status.stateRoot}`;
+    document.getElementById('tasks').innerHTML = status.tasks.map((t) => {
+      const cls = t.stalled ? 'stalled' : (t.status === 'running' ? 'running' : (t.status === 'completed' ? 'completed' : 'unknown'));
+      return `<div class="task ${cls}">
+        <div class="top"><span class="dot"></span><span class="title">${t.title}</span>
+          <span class="badge">${t.kind}</span>${t.model ? `<span class="badge">${t.model}</span>` : ''}
+          <span class="ws">${t.workspace} · ${t.id}</span></div>
+        <div class="sum">${t.stalled ? '⚠ log silent 15+ min (possible wedge) · ' : ''}${t.status}/${t.phase}
+          · started ${fmt(t.createdAt)} · last log write ${fmt(t.logMtime)}${t.summary ? ' · ' + t.summary : ''}</div>
+        <pre>${(t.tail || []).join('\n').replace(/</g, '&lt;')}</pre>
+      </div>`;
+    }).join('') || '<div class="sum">No Codex tasks found in the state root.</div>';
+    document.getElementById('feed').innerHTML = feed.map((f) =>
+      `<div class="feed-item"><time>${new Date(f.ts).toLocaleString()} · ${f.title}</time>${f.text.replace(/</g, '&lt;')}</div>`
+    ).join('') || '<div class="sum">No narrated events yet.</div>';
+  } catch (e) {
+    document.getElementById('meta').textContent = 'fetch failed: ' + e;
+  }
+}
+tick();
+setInterval(tick, 10000);
+</script>
+</body>
+</html>

@@ -33,3 +33,4 @@ scripts/card-reference.ts
 .claude/settings.local.json
 
 # (src-tauri/target and src-tauri/gen/schemas are ignored by src-tauri/.gitignore)
+scripts/codex-dash/.cache/
