@@ -21,6 +21,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const CACHE = join(HERE, '.cache');
 const STATE_ROOT = process.env.CODEX_DASH_STATE_ROOT
   ?? join(homedir(), '.claude', 'plugins', 'data', 'codex-inline', 'state');
+// Art-generation lanes (image-gen runners) have no registry, but their wave
+// dirs are self-describing: prompts jsonl = expected, raw/*.png = done,
+// newest mtime = liveness. Point this at the vault to surface them.
+const ART_ROOT = process.env.CODEX_DASH_ART_ROOT
+  ?? 'Z:/Coding Projects/WaifuTCG-Art-Pilots';
 const PORT = Number(process.env.CODEX_DASH_PORT ?? 5179);
 const POLL_MS = 15_000;
 const NARRATE = process.env.CODEX_DASH_NO_AI !== '1';
@@ -41,6 +46,55 @@ function readLog(path, n) {
       failed: /task failed|fatal/i.test(text),
     };
   } catch { return { tail: [], finished: false, failed: false }; }
+}
+
+/** Art lanes: one card per wave dir that contains a raw/ subdir. */
+export function collectArtLanes() {
+  const tasks = [];
+  if (!existsSync(ART_ROOT)) return tasks;
+  for (const dir of readdirSync(ART_ROOT)) {
+    const rawDir = join(ART_ROOT, dir, 'raw');
+    if (!existsSync(rawDir)) continue;
+    let pngs = [];
+    try {
+      pngs = readdirSync(rawDir).filter((f) => f.endsWith('.png'))
+        .map((f) => ({ f, m: statSync(join(rawDir, f)).mtime }))
+        .sort((a, b) => a.m - b.m);
+    } catch { continue; }
+    // Expected count: the summary json's `expected` beats counting jsonl lines
+    // (fix rounds append rows without growing the wave).
+    let expected = null;
+    for (const f of readdirSync(join(ART_ROOT, dir))) {
+      if (f.endsWith('summary.json')) {
+        expected = readJsonSafe(join(ART_ROOT, dir, f))?.expected ?? expected;
+      } else if (expected === null && f.endsWith('prompts.jsonl')) {
+        try {
+          expected = readFileSync(join(ART_ROOT, dir, f), 'utf8').split(/\r?\n/).filter(Boolean).length;
+        } catch { /* leave null */ }
+      }
+    }
+    const newest = pngs.at(-1)?.m ?? statSync(join(ART_ROOT, dir)).mtime;
+    const silentMin = (Date.now() - newest.getTime()) / 60_000;
+    const done = expected !== null && pngs.length >= expected;
+    tasks.push({
+      id: `art:${dir}`,
+      workspace: 'art-vault',
+      title: dir.replace(/-/g, ' '),
+      kind: 'art-lane',
+      status: done ? 'completed' : silentMin > 24 * 60 ? 'archived' : silentMin > 10 ? 'unknown' : 'running',
+      phase: done ? 'done' : `generating ${pngs.length}/${expected ?? '?'}`,
+      summary: `${pngs.length}${expected ? ` of ${expected}` : ''} raws on disk`,
+      pid: null,
+      model: 'chatgpt-imagegen',
+      createdAt: pngs[0]?.m.toISOString() ?? null,
+      logMtime: newest.toISOString(),
+      logBytes: pngs.length,
+      // 10 min without a new file mid-run is a stall at ~2-3 min/card.
+      stalled: !done && silentMin > 10 && silentMin <= 24 * 60,
+      tail: pngs.slice(-6).map((p) => `${p.m.toISOString().slice(11, 19)}  ${p.f}`),
+    });
+  }
+  return tasks;
 }
 
 /** One pass over every workspace's registry + job logs. */
@@ -89,6 +143,7 @@ export function collect() {
       }
     }
   }
+  tasks.push(...collectArtLanes());
   tasks.sort((a, b) => (b.logMtime > a.logMtime ? 1 : -1));
   return { generated: new Date().toISOString(), stateRoot: STATE_ROOT, tasks };
 }
@@ -97,7 +152,7 @@ export function collect() {
 function narrate(task, changeKind) {
   return new Promise((resolve) => {
     const prompt = [
-      `You narrate a developer dashboard of coding-agent tasks. In one or two plain sentences,`,
+      `You narrate a developer dashboard of coding and art-generation agent tasks. In one or two plain sentences,`,
       `present tense, describe this update for a human skimming a feed. No preamble, no markdown,`,
       `no em-dashes (house voice).`,
       `Task "${task.title}" (${task.kind}) in workspace "${task.workspace}", model ${task.model ?? 'unknown'}.`,
