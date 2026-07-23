@@ -3,9 +3,9 @@
 exports[`greedy persona builder: 'attrition' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 15,
+    "early": 14,
     "late": 4,
-    "mid": 17,
+    "mid": 18,
   },
   "lands": 24,
   "maxNonbasicCopies": 4,
@@ -19,7 +19,7 @@ exports[`greedy persona builder: 'attrition' > is deterministic for a fixed seed
     "threats": 14,
   },
   "total": 60,
-  "uniqueCards": 13,
+  "uniqueCards": 14,
 }
 `;
 
