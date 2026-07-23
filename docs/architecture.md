@@ -102,6 +102,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `cardsBottomed`        | `player`, `count`                               | `player` put `count` cards on the bottom (London mulligan). Also emitted with `count: 0` by `recall` as a UI resync nudge. |
 | `landPlayed`           | `player`, `iid`, `cardId`                       | A land entered under `player`.                                                                                             |
 | `manaTapped`           | `player`, `iids`                                | These sources tapped to pay for a spell.                                                                                   |
+| `skimmed`              | `player`, `cardId`                              | (describe me)                                                                                                              |
 | `spellCast`            | `sid`, `cardId`, `controller`, `targets`        | A spell went on the stack.                                                                                                 |
 | `responseWindowOpened` | `player`                                        | A response window opened for `player` (they hold an instant).                                                              |
 | `spellResolved`        | `sid`                                           | A stack item resolved.                                                                                                     |

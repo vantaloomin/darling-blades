@@ -31,6 +31,11 @@ import type { PlayerView } from '../engine/view';
  * an inert hidden-card model keeps that signal clean. The category/prior
  * machinery stays as the tuning surface for future pools where real decks
  * punish attacks more often than these gates' Medium does.
+ *
+ * Accepted Dark Tales negative space (A1): graveyards are copied exactly, so
+ * Retell lookahead is sound, but opponent-hand stand-ins never carry Skim.
+ * Hard therefore under-models the opponent's hidden hand smoothing. This is a
+ * deliberate v1 blind spot until measurements show that it changes outcomes.
  */
 
 // --- stand-in pool ---------------------------------------------------------

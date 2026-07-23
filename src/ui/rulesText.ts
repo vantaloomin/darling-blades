@@ -43,7 +43,7 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
 export const MECHANIC_DEFINITIONS: Record<
-  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower',
+  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower' | 'skim' | 'retell',
   string
 > = {
   sever: 'severed from the game; severed cards never return',
@@ -52,6 +52,8 @@ export const MECHANIC_DEFINITIONS: Record<
   quest: 'advances a chapter at each of your dawns; leaves after the last',
   championAwakening: 'a one-way upgrade granting the listed stats and keywords',
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
+  skim: 'pay the listed cost, discard this card, then draw a card',
+  retell: 'cast this from your graveyard for the listed cost, then sever it',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -183,6 +185,16 @@ export function empowerText(d: CardDef): string | undefined {
   return `Empower ${manaCostText(d.empower.cost)}: ${cap}.`;
 }
 
+export function skimText(d: CardDef): string | undefined {
+  if (!d.skim) return undefined;
+  return `Skim ${manaCostText(d.skim.cost)}: Discard this card, then draw a card.`;
+}
+
+export function retellText(d: CardDef): string | undefined {
+  if (!d.retell) return undefined;
+  return `Retell ${manaCostText(d.retell.cost)}: You may cast this from your graveyard, then sever it.`;
+}
+
 function abilityText(ab: AbilityDef): string {
   const prefix =
     (ab.condition ?? ab.static?.condition) === 'questActive'
@@ -292,6 +304,10 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
     lines.push('Arrives tapped.');
   }
   if (d.awakening) lines.push(awakeningText(d));
+  const skim = skimText(d);
+  if (skim) lines.push(skim);
+  const retell = retellText(d);
+  if (retell) lines.push(retell);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
@@ -336,6 +352,8 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   if (d.chapters) push('Quest', MECHANIC_DEFINITIONS.quest);
   if (d.awakening) push('Champion Awakening', MECHANIC_DEFINITIONS.championAwakening);
   if (d.empower) push('Empower', MECHANIC_DEFINITIONS.empower);
+  if (d.skim) push('Skim', MECHANIC_DEFINITIONS.skim);
+  if (d.retell) push('Retell', MECHANIC_DEFINITIONS.retell);
   return entries;
 }
 

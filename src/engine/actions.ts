@@ -22,12 +22,17 @@ export type Action =
   | {
       type: 'castSpell';
       handIndex: number;
+      /** Retell casts use graveIndex as their authoritative source index. */
+      graveIndex?: number;
       targets?: TargetRef[];
       x?: number;
       /** Omitted means the ordinary cast. X cards cannot be empowered. */
       empowered?: boolean;
+      /** Cast this card from its controller's graveyard for retell.cost. */
+      retell?: boolean;
       manaPlan?: number[]; // explicit source iids; omitted = auto-solve
     }
+  | { type: 'skim'; handIndex: number; manaPlan?: number[] }
   | { type: 'declareAttackers'; attackers: number[] }
   | { type: 'declareBlockers'; blocks: { blocker: number; attacker: number }[] }
   | { type: 'passResponse' }
@@ -65,33 +70,42 @@ function pushCastActions(
   state: GameState,
   db: CardDb,
   player: PlayerId,
-  handIndex: number,
+  sourceIndex: number,
   d: CardDef,
+  retell = false,
 ): void {
   const xs: (number | undefined)[] = d.x
-    ? Array.from(
-        { length: Math.max(0, maxPayableX(state, db, player, d.cost!) - d.x.min + 1) },
-        (_, i) => d.x!.min + i,
-      )
+    ? retell
+      ? []
+      : Array.from(
+          { length: Math.max(0, maxPayableX(state, db, player, d.cost!) - d.x.min + 1) },
+          (_, i) => d.x!.min + i,
+        )
     : [undefined];
   if (xs.length === 0) return;
 
-  const specs = castTargetSpecs(d);
+  const specs = castTargetSpecsFor(d, retell);
   // Single-target v1: one action per (empower option × legal target × X).
   const targetLists: (TargetRef[] | undefined)[] =
     specs.length === 0
       ? [undefined]
       : enumerateTargets(state, db, player, specs[0]).map((t) => [t]);
-  for (const empowered of canEmpower(d) ? [false, true] : [false]) {
-    const cost = castCost(d, empowered);
+  for (const empowered of !retell && canEmpower(d) ? [false, true] : [false]) {
+    const cost = castCost(d, empowered, retell);
     if (!cost) continue;
     // Payability depends only on (empowered, x) — hoisted out of the target loop.
-    const payableXs = xs.filter((x) => canPay(state, db, player, cost, d.x && !empowered ? x ?? 0 : 0));
+    const payableXs = xs.filter((x) =>
+      canPay(state, db, player, cost, d.x && !empowered && !retell ? x ?? 0 : 0),
+    );
     for (const targets of targetLists) {
       for (const x of payableXs) {
         out.push({
           type: 'castSpell',
-          handIndex,
+          // The legacy handIndex mirrors the source number until the later
+          // graveyard UI workstream can consume graveIndex directly. The
+          // engine treats graveIndex as authoritative for Retell.
+          handIndex: sourceIndex,
+          ...(retell ? { graveIndex: sourceIndex, retell: true } : {}),
           ...(targets ? { targets } : {}),
           ...(x === undefined ? {} : { x }),
           ...(empowered ? { empowered: true } : {}),
@@ -106,10 +120,39 @@ function canEmpower(d: CardDef): boolean {
   return d.empower !== undefined && !d.x;
 }
 
-function castCost(d: CardDef, empowered: boolean): CardDef['cost'] {
+function castCost(d: CardDef, empowered: boolean, retell = false): CardDef['cost'] {
+  if (retell) return d.retell?.cost;
   if (!d.cost) return undefined;
   if (!empowered) return d.cost;
   return canEmpower(d) ? combineManaCosts(d.cost, d.empower!.cost) : undefined;
+}
+
+function castTargetSpecsFor(d: CardDef, retell: boolean): ReturnType<typeof castTargetSpecs> {
+  // R4 Retell ops are trigger-safe and target-free. An override therefore
+  // replaces the printed body's target requirements for that cast.
+  return retell && d.retell?.ops ? [] : castTargetSpecs(d);
+}
+
+function retellable(d: CardDef): boolean {
+  return d.retell !== undefined && !d.x && (isType(d, 'ritual') || isType(d, 'charm'));
+}
+
+function skimWindow(state: GameState, player: PlayerId): boolean {
+  const a = state.awaiting;
+  if (!('player' in a) || a.player !== player) return false;
+  return a.kind === 'main' || a.kind === 'respond' || a.kind === 'endStepWindow';
+}
+
+function skimBlockers(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+): string | null {
+  if (!skimWindow(state, player)) return 'Skim is not available right now';
+  if (!d.skim) return 'card has no Skim option';
+  if (!canPay(state, db, player, d.skim.cost)) return 'cannot pay cost';
+  return null;
 }
 
 function creatureCount(state: GameState, db: CardDb, player: PlayerId): number {
@@ -153,8 +196,10 @@ function castBlockers(
   d: CardDef,
   empowered = false,
   x = d.x ? d.x.min : 0,
+  retell = false,
 ): string | null {
-  if (!d.cost) return 'card has no mana cost';
+  if (!retell && !d.cost) return 'card has no mana cost';
+  if (retell && !retellable(d)) return 'card cannot be Retold';
   if (isType(d, 'creature') && creatureCount(state, db, player) >= RULES.maxCreatures)
     return 'creature battlefield cap reached';
   if (
@@ -165,8 +210,10 @@ function castBlockers(
     noncreaturePermCount(state, db, player) >= RULES.maxNoncreaturePermanents
   )
     return 'noncreature permanent cap reached';
-  const cost = castCost(d, empowered);
-  if (!cost || !canPay(state, db, player, cost, d.x && !empowered ? x : 0)) return 'cannot pay cost';
+  const cost = castCost(d, empowered, retell);
+  if (!cost || !canPay(state, db, player, cost, d.x && !empowered && !retell ? x : 0)) {
+    return 'cannot pay cost';
+  }
   return null;
 }
 
@@ -217,6 +264,9 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         if (seen.has(cardId)) return; // dedupe identical copies
         seen.add(cardId);
         const d = def(db, cardId);
+        if (d.skim && skimBlockers(state, db, player, d) === null) {
+          out.push({ type: 'skim', handIndex });
+        }
         if (isType(d, 'land')) {
           if (!me.landPlayedThisTurn) out.push({ type: 'playLand', handIndex });
           return;
@@ -224,6 +274,12 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         if (!castableNow(state, player, d)) return;
         if (castBlockers(state, db, player, d) !== null) return;
         pushCastActions(out, state, db, player, handIndex, d);
+      });
+      me.graveyard.forEach((cardId, graveIndex) => {
+        const d = def(db, cardId);
+        if (!retellable(d) || !castableNow(state, player, d)) return;
+        if (castBlockers(state, db, player, d, false, 0, true) !== null) return;
+        pushCastActions(out, state, db, player, graveIndex, d, true);
       });
       break;
     }
@@ -288,10 +344,19 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         if (seen.has(cardId)) return;
         seen.add(cardId);
         const d = def(db, cardId);
+        if (d.skim && skimBlockers(state, db, player, d) === null) {
+          out.push({ type: 'skim', handIndex });
+        }
         if (!isType(d, 'charm')) return;
         if (!castableNow(state, player, d)) return;
         if (castBlockers(state, db, player, d) !== null) return;
         pushCastActions(out, state, db, player, handIndex, d);
+      });
+      me.graveyard.forEach((cardId, graveIndex) => {
+        const d = def(db, cardId);
+        if (!retellable(d) || !isType(d, 'charm') || !castableNow(state, player, d)) return;
+        if (castBlockers(state, db, player, d, false, 0, true) !== null) return;
+        pushCastActions(out, state, db, player, graveIndex, d, true);
       });
       break;
     }
@@ -363,28 +428,65 @@ export function validateAction(
       return null;
     }
 
-    case 'castSpell': {
+    case 'skim': {
       const cardId = me.hand[action.handIndex];
       if (cardId === undefined) return 'bad hand index';
       const d = def(db, cardId);
+      const blocked = skimBlockers(state, db, player, d);
+      if (blocked) return blocked;
+      if (action.manaPlan) {
+        const err = validateManaPlanForCost(state, db, player, d.skim!.cost, action.manaPlan);
+        if (err) return err;
+      }
+      return null;
+    }
+
+    case 'castSpell': {
+      const isRetell = action.retell === true;
+      if (isRetell && action.empowered) return 'Retell and Empower cannot be combined';
+      if (isRetell && action.graveIndex === undefined) return 'Retell needs a graveyard index';
+      if (!isRetell && action.graveIndex !== undefined) return 'graveyard index requires Retell';
+      const sourceIndex = isRetell ? action.graveIndex! : action.handIndex;
+      const cardId = isRetell ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
+      if (cardId === undefined) return 'bad hand index';
+      const d = def(db, cardId);
       if (!castableNow(state, player, d)) return 'cannot cast this now';
+      if (isRetell && !retellable(d)) return 'card cannot be Retold';
+      if (isRetell && d.x) return 'X spells cannot be Retold';
       if (action.empowered && !d.empower) return 'card has no Empower option';
       if (action.empowered && d.x) return 'X spells cannot be empowered';
-      const blocked = castBlockers(state, db, player, d, action.empowered === true, action.x ?? 0);
+      const blocked = castBlockers(
+        state,
+        db,
+        player,
+        d,
+        action.empowered === true,
+        action.x ?? 0,
+        isRetell,
+      );
       if (blocked) return blocked;
       if (d.x && (action.x === undefined || action.x < d.x.min)) return 'bad X';
       if (!d.x && action.x !== undefined) return 'card has no X';
       const extra = action.x ?? 0;
       if (action.manaPlan) {
-        const err = validateManaPlan(state, db, player, d, extra, action.manaPlan, action.empowered === true);
+        const err = validateManaPlan(
+          state,
+          db,
+          player,
+          d,
+          extra,
+          action.manaPlan,
+          action.empowered === true,
+          isRetell,
+        );
         if (err) return err;
       } else {
-        const cost = castCost(d, action.empowered === true);
-        if (!cost || solveMana(state, db, player, cost, d.x && !action.empowered ? extra : 0) === null) {
+        const cost = castCost(d, action.empowered === true, isRetell);
+        if (!cost || solveMana(state, db, player, cost, d.x && !action.empowered && !isRetell ? extra : 0) === null) {
           return 'cannot pay cost';
         }
       }
-      const specs = castTargetSpecs(d);
+      const specs = castTargetSpecsFor(d, isRetell);
       const targets = action.targets ?? [];
       if (targets.length !== specs.length) return 'wrong number of targets';
       for (let i = 0; i < specs.length; i++) {
@@ -444,6 +546,7 @@ function validateManaPlan(
   extraGeneric: number,
   plan: number[],
   empowered: boolean,
+  retell: boolean,
 ): string | null {
   const available = new Map(manaSources(state, db, player).map((s) => [s.iid, s]));
   const seen = new Set<number>();
@@ -456,12 +559,42 @@ function validateManaPlan(
   const others = manaSources(state, db, player)
     .filter((s) => !plan.includes(s.iid))
     .map((s) => s.iid);
-  const cost = castCost(d, empowered);
-  if (!cost) return 'invalid Empower cost';
-  const solved = solveMana(state, db, player, cost, d.x && !empowered ? extraGeneric : 0, others);
+  const cost = castCost(d, empowered, retell);
+  if (!cost) return 'invalid cast cost';
+  const solved = solveMana(
+    state,
+    db,
+    player,
+    cost,
+    d.x && !empowered && !retell ? extraGeneric : 0,
+    others,
+  );
   if (!solved) return 'mana plan cannot pay the cost';
-  const needed = (d.x && !empowered ? extraGeneric : 0) + manaValue(cost);
+  const needed = (d.x && !empowered && !retell ? extraGeneric : 0) + manaValue(cost);
   if (plan.length !== needed) return 'mana plan has wrong source count';
+  return null;
+}
+
+function validateManaPlanForCost(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  cost: CardDef['cost'],
+  plan: number[],
+): string | null {
+  if (!cost) return 'card has no mana cost';
+  const available = new Map(manaSources(state, db, player).map((s) => [s.iid, s]));
+  const seen = new Set<number>();
+  for (const iid of plan) {
+    if (!available.has(iid)) return `source ${iid} is not an untapped mana source`;
+    if (seen.has(iid)) return 'duplicate source in mana plan';
+    seen.add(iid);
+  }
+  const others = manaSources(state, db, player)
+    .filter((s) => !plan.includes(s.iid))
+    .map((s) => s.iid);
+  if (!solveMana(state, db, player, cost, 0, others)) return 'mana plan cannot pay the cost';
+  if (plan.length !== manaValue(cost)) return 'mana plan has wrong source count';
   return null;
 }
 
@@ -498,6 +631,10 @@ export function reasonUncastable(
   if (!('player' in a) || a.player !== player) return "It isn't your turn to act.";
   const d = def(db, cardId);
 
+  // Skim is a legal alternative even when the card is not castable, including
+  // non-Charms in a response or end-step window.
+  if (d.skim && skimBlockers(state, db, player, d) === null) return null;
+
   if (isType(d, 'land')) {
     if (a.kind !== 'main') return 'Lands can only be played during your main phase.';
     if (me.landPlayedThisTurn) return 'You have already played a land this turn.';
@@ -521,16 +658,30 @@ export function reasonUncastable(
   return null; // castable
 }
 
-/** Any instant in hand that `player` could pay AND target right now? (window auto-pass check) */
+/** Any instant in hand or Retell Charm in the graveyard that `player` could pay AND target right now? (window auto-pass check) */
 export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerId): boolean {
   const me = state.players[player];
-  return me.hand.some((cardId) => {
+  for (const cardId of me.hand) {
     const d = def(db, cardId);
-    if (!isType(d, 'charm')) return false;
-    if (castBlockers(state, db, player, d) !== null) return false;
+    // Skim is full instant speed and does not care what card type carries it.
+    // This check is also used before the response await state is installed.
+    if (d.skim && canPay(state, db, player, d.skim.cost)) return true;
+    if (!isType(d, 'charm')) continue;
+    if (castBlockers(state, db, player, d) !== null) continue;
     const specs = castTargetSpecs(d);
-    return specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0;
-  });
+    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+  }
+
+  // A Retell Charm is also an instant for both window gates. Use the Retell
+  // cost and target-free R4 override here, while keeping the scan early-exit.
+  for (const cardId of me.graveyard) {
+    const d = def(db, cardId);
+    if (!isType(d, 'charm') || !retellable(d)) continue;
+    if (castBlockers(state, db, player, d, false, 0, true) !== null) continue;
+    const specs = castTargetSpecsFor(d, true);
+    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+  }
+  return false;
 }
 
 /**

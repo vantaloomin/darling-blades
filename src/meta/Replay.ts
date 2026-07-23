@@ -17,7 +17,9 @@ import type { CardDb, PlayerId } from '../engine/types';
  * worse than an honest "recorded on an older version" notice).
  */
 
-export const REPLAY_LOG_VERSION = 1 as const;
+// Skim is a new observable action and Retell changes cast source/cost/exit
+// semantics. Old logs must fail closed instead of replaying under new rules.
+export const REPLAY_LOG_VERSION = 2 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 
@@ -132,6 +134,9 @@ export function canReplay(log: ReplayLog, db: CardDb): boolean {
  */
 export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: GameEvent[] } {
   if (!canReplay(log, db)) {
+    if (log.v !== REPLAY_LOG_VERSION) {
+      throw new Error('This replay was recorded with an older replay version and cannot be replayed.');
+    }
     throw new Error('This replay was recorded on a different card database and cannot be replayed.');
   }
   const game = new Game({ decks: [log.decks[0].slice(), log.decks[1].slice()], seed: log.seed, db });

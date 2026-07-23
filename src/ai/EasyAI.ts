@@ -9,7 +9,7 @@ import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { choosePlayDraw } from './playDraw';
-import { empowerValue, removalKind, removalValueForCast } from './value';
+import { empowerValue, removalKind, removalValueForCast, retellValue, skimValue } from './value';
 
 /**
  * Easy: plays lands, curves out roughly, and swings — but loses by tactics.
@@ -60,6 +60,12 @@ export class EasyAI implements AIPlayer {
     return view.you.hand.filter((c) => isType(def(this.db, c), 'land')).length;
   }
 
+  private cardIdFor(view: PlayerView, cast: Extract<Action, { type: 'castSpell' }>): string {
+    return cast.retell && cast.graveIndex !== undefined
+      ? view.you.graveyard[cast.graveIndex]
+      : view.you.hand[cast.handIndex];
+  }
+
   private mulligan(view: PlayerView): Action {
     if (view.you.mulligans >= 2) return { type: 'keepHand' };
     const lands = this.landsInHand(view);
@@ -99,33 +105,46 @@ export class EasyAI implements AIPlayer {
     if (land) return land;
 
     const casts = nonConcede.filter((l) => l.type === 'castSpell');
+    const skimPool = nonConcede.filter((action) => action.type === 'skim');
+    if (casts.length === 0 && skimPool.length > 0) {
+      return skimPool[0];
+    }
     if (casts.length > 0) {
       const usefulCasts = casts.filter((cast) => {
-        const kind = removalKind(this.db, view.you.hand[cast.handIndex]);
+        if (cast.type !== 'castSpell') return false;
+        const cardId = this.cardIdFor(view, cast);
+        const kind = removalKind(this.db, cardId);
         if (kind !== 'massDestroy' && kind !== 'destroyNewest') return true;
         return removalValueForCast(
           view.battlefield,
           this.db,
           view.myId,
-          view.you.hand[cast.handIndex],
+          cardId,
         ) > 0;
       });
       if (usefulCasts.length === 0 && usefulCasts.length !== casts.length) {
         const nonRemoval = casts.filter(
-          (cast) => removalKind(this.db, view.you.hand[cast.handIndex]) === null,
+          (cast) => cast.type === 'castSpell' && removalKind(this.db, this.cardIdFor(view, cast)) === null,
         );
         if (nonRemoval.length === 0) return nonConcede.find((l) => l.type === 'passStep') ?? nonConcede[0];
       }
       const castPool = usefulCasts.length > 0 ? usefulCasts : casts;
+      const pool = [...castPool, ...skimPool];
       // Cast the biggest thing it can afford.
-      castPool.sort((x, y) => {
-        const mv = (c: Extract<Action, { type: 'castSpell' }>): number =>
-          manaValue(def(this.db, view.you.hand[c.handIndex]).cost) +
-          (c.x ?? 0) +
-          (c.empowered ? empowerValue(this.db, view.you.hand[c.handIndex]) + 0.01 : 0);
-        return mv(y as Extract<Action, { type: 'castSpell' }>) - mv(x as Extract<Action, { type: 'castSpell' }>);
+      pool.sort((x, y) => {
+        const score = (action: Action): number => {
+          if (action.type === 'skim') return skimValue(this.db, view.you.hand[action.handIndex]);
+          if (action.type !== 'castSpell') return -Infinity;
+          const cardId = this.cardIdFor(view, action);
+          return action.retell
+            ? retellValue(this.db, cardId) + 0.01
+            : manaValue(def(this.db, cardId).cost) +
+                (action.x ?? 0) +
+                (action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+        };
+        return score(y) - score(x);
       });
-      return castPool[0];
+      return pool[0];
     }
     return nonConcede.find((l) => l.type === 'passStep') ?? nonConcede[0];
   }
@@ -221,11 +240,13 @@ export class EasyAI implements AIPlayer {
     const pass = legal.find((l) => l.type === 'passResponse')!;
     if (rngFloat(this.rng) < this.pers.easyPassRate) return pass;
     const casts = legal.filter((l) => l.type === 'castSpell');
-    if (casts.length === 0) return pass;
+    const skims = legal.filter((l) => l.type === 'skim');
+    if (casts.length === 0) return skims[0] ?? pass;
     const useful = casts.filter((cast) => {
-      const kind = removalKind(this.db, view.you.hand[cast.handIndex]);
+      const cardId = this.cardIdFor(view, cast);
+      const kind = removalKind(this.db, cardId);
       if (kind !== 'massDestroy' && kind !== 'destroyNewest') return true;
-      return removalValueForCast(view.battlefield, this.db, view.myId, view.you.hand[cast.handIndex]) > 0;
+      return removalValueForCast(view.battlefield, this.db, view.myId, cardId) > 0;
     });
     if (useful.length === 0) return pass;
     return useful[rngInt(this.rng, useful.length)];

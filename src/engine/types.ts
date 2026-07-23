@@ -120,6 +120,21 @@ export interface EmpowerDef {
   ops: EffectOp[];
 }
 
+/** Hand-side activated discard-to-draw action. Skim never uses the stack. */
+export interface SkimDef {
+  cost: ManaCost;
+}
+
+/**
+ * Optional alternative-cost graveyard cast. Retell ops, when present, are
+ * trigger-safe and target-free, just like Empower ops: they replace the
+ * printed spell body for that Retell cast and must not introduce a decision.
+ */
+export interface RetellDef {
+  cost: ManaCost;
+  ops?: EffectOp[];
+}
+
 // ---------------------------------------------------------------------------
 // Card definitions (static data). The engine receives a CardDb via the Game
 // constructor — it never imports the catalog, so tests can inject tiny pools.
@@ -144,6 +159,10 @@ export interface CardDef {
   awakening?: { p?: number; t?: number; keywords?: Keyword[] };
   /** Optional additional cast cost and trigger-safe resolution rider. */
   empower?: EmpowerDef;
+  /** Optional instant-speed hand action that discards this and draws one. */
+  skim?: SkimDef;
+  /** Optional alternative-cost cast from this card's graveyard. */
+  retell?: RetellDef;
   manaAbility?: Color[]; // lands & mana creatures
   entersTapped?: boolean; // dual taplands
   rarity: Rarity;
@@ -210,6 +229,8 @@ export interface StackItem {
   x?: number;
   /** Omitted means the ordinary, unempowered cast. */
   empowered?: boolean;
+  /** Omitted means the card was cast from hand. */
+  retell?: boolean;
 }
 
 export type TargetRef =

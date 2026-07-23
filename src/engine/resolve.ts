@@ -18,6 +18,21 @@ export function castTargetSpecs(d: CardDef): readonly TargetSpec[] {
   return targetSpecsOf(d.abilities);
 }
 
+/** R4 override casts use their target-free Retell ops instead of printed body. */
+export function castTargetSpecsFor(d: CardDef, retell: boolean): readonly TargetSpec[] {
+  return retell && d.retell?.ops ? [] : castTargetSpecs(d);
+}
+
+function moveSpellOnExit(state: GameState, item: StackItem, emit: Emit): void {
+  if (item.retell) {
+    state.players[item.controller].severed.push(item.cardId);
+    // Deferred: the event union has no `from: 'stack'`; the UI workstream owns that decision.
+    emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
+  } else {
+    state.players[item.controller].graveyard.push(item.cardId);
+  }
+}
+
 /**
  * Resolve one stack item (already popped by the flush loop). If every target
  * has become illegal, the spell fizzles to the graveyard doing nothing.
@@ -30,13 +45,13 @@ export function resolveStackItem(
 ): void {
   const d = def(db, item.cardId);
 
-  const specs = castTargetSpecs(d);
+  const specs = castTargetSpecsFor(d, item.retell === true);
   if (specs.length > 0) {
     const anyLegal = item.targets.some(
       (ref, i) => specs[i] && isLegalTarget(state, db, item.controller, specs[i], ref),
     );
     if (!anyLegal) {
-      state.players[item.controller].graveyard.push(item.cardId);
+      moveSpellOnExit(state, item, emit);
       emit({ e: 'targetsFizzled', sid: item.sid });
       return;
     }
@@ -54,28 +69,39 @@ export function resolveStackItem(
   }
 
   if (isType(d, 'charm') || isType(d, 'ritual')) {
-    for (const ab of d.abilities ?? []) {
-      if (
-        ab.when === 'spell' &&
-        ab.ops &&
-        conditionSatisfied(state, db, item.controller, ab.condition)
-      ) {
-        runOps(
-          state,
-          db,
-          emit,
-          {
-            controller: item.controller,
-            sourceCardId: item.cardId,
-            targets: item.targets,
-            x: item.x,
-          },
-          ab.ops,
-        );
+    if (item.retell && d.retell?.ops) {
+      // R4 contract: Retell override ops are trigger-safe and target-free.
+      runOps(
+        state,
+        db,
+        emit,
+        { controller: item.controller, sourceCardId: item.cardId, targets: [], x: item.x },
+        d.retell.ops,
+      );
+    } else {
+      for (const ab of d.abilities ?? []) {
+        if (
+          ab.when === 'spell' &&
+          ab.ops &&
+          conditionSatisfied(state, db, item.controller, ab.condition)
+        ) {
+          runOps(
+            state,
+            db,
+            emit,
+            {
+              controller: item.controller,
+              sourceCardId: item.cardId,
+              targets: item.targets,
+              x: item.x,
+            },
+            ab.ops,
+          );
+        }
       }
     }
     runEmpowerRider(state, db, item, d, emit);
-    state.players[item.controller].graveyard.push(item.cardId);
+    moveSpellOnExit(state, item, emit);
     return;
   }
 
