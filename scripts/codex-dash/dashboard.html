@@ -34,27 +34,72 @@
 </style>
 </head>
 <body>
-<header><h1>Codex streams</h1><span id="meta">loading…</span></header>
+<header>
+  <h1>Codex streams</h1>
+  <select id="filter">
+    <option value="active-recent">Active + recent (24h)</option>
+    <option value="active">Active only</option>
+    <option value="completed">Completed</option>
+    <option value="all">Everything</option>
+    <option value="dismissed">Dismissed (restore here)</option>
+  </select>
+  <button id="clear-dismissed" title="Restore all dismissed streams">Restore all</button>
+  <span id="meta">loading…</span>
+</header>
+<style>
+  select, header button { background: #232a44; color: #dde2ee; border: 1px solid #3c477a; border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  .dismiss { margin-left: auto; background: none; border: none; color: #667; cursor: pointer; font-size: 14px; }
+  .dismiss:hover { color: #ff9fb3; }
+</style>
 <main>
   <section><h2>Streams</h2><div id="tasks"></div></section>
   <section><h2>Narrated feed</h2><div id="feed"></div></section>
 </main>
 <script>
 const fmt = (iso) => iso ? new Date(iso).toLocaleTimeString() : '?';
+const DKEY = 'codex-dash-dismissed';
+const dismissed = () => new Set(JSON.parse(localStorage.getItem(DKEY) || '[]'));
+window.dismiss = (id) => {
+  const d = dismissed(); d.add(id);
+  localStorage.setItem(DKEY, JSON.stringify([...d])); tick();
+};
+window.restore = (id) => {
+  const d = dismissed(); d.delete(id);
+  localStorage.setItem(DKEY, JSON.stringify([...d])); tick();
+};
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('filter').onchange = tick;
+  document.getElementById('clear-dismissed').onclick = () => { localStorage.removeItem(DKEY); tick(); };
+});
+function visible(t, mode, dset) {
+  const active = t.status === 'running' || t.status === 'queued' || t.stalled;
+  if (mode === 'dismissed') return dset.has(t.id);
+  if (dset.has(t.id)) return false;
+  if (mode === 'active') return active;
+  if (mode === 'completed') return !active;
+  if (mode === 'all') return true;
+  // active-recent: everything live plus anything with log activity in 24h
+  return active || (Date.now() - new Date(t.logMtime).getTime()) < 24 * 3600_000;
+}
 async function tick() {
   try {
     const [status, feed] = await Promise.all([
       fetch('/status.json?t=' + Date.now()).then((r) => r.json()),
       fetch('/feed.json?t=' + Date.now()).then((r) => r.json()).catch(() => []),
     ]);
+    const mode = document.getElementById('filter').value;
+    const dset = dismissed();
+    const shown = status.tasks.filter((t) => visible(t, mode, dset));
     document.getElementById('meta').textContent =
-      `${status.tasks.length} task(s) · updated ${fmt(status.generated)} · ${status.stateRoot}`;
-    document.getElementById('tasks').innerHTML = status.tasks.map((t) => {
+      `${shown.length} shown of ${status.tasks.length} · updated ${fmt(status.generated)} · ${status.stateRoot}`;
+    document.getElementById('tasks').innerHTML = shown.map((t) => {
       const cls = t.stalled ? 'stalled' : (t.status === 'running' ? 'running' : (t.status === 'completed' ? 'completed' : 'unknown'));
       return `<div class="task ${cls}">
         <div class="top"><span class="dot"></span><span class="title">${t.title}</span>
           <span class="badge">${t.kind}</span>${t.model ? `<span class="badge">${t.model}</span>` : ''}
-          <span class="ws">${t.workspace} · ${t.id}</span></div>
+          <span class="ws">${t.workspace} · ${t.id}</span>
+          <button class="dismiss" title="${mode === 'dismissed' ? 'Restore' : 'Dismiss from view'}"
+            onclick="${mode === 'dismissed' ? 'restore' : 'dismiss'}('${t.id}')">${mode === 'dismissed' ? '↩' : '✕'}</button></div>
         <div class="sum">${t.stalled ? '⚠ log silent 15+ min (possible wedge) · ' : ''}${t.status}/${t.phase}
           · started ${fmt(t.createdAt)} · last log write ${fmt(t.logMtime)}${t.summary ? ' · ' + t.summary : ''}</div>
         <pre>${(t.tail || []).join('\n').replace(/</g, '&lt;')}</pre>
