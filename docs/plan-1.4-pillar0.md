@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.4.md, docs/expansions/dark-tales.md, src/engine/types.ts, src/engine/actions.ts, src/engine/mana.ts, src/engine/resolve.ts, src/engine/EffectInterpreter.ts, src/ai/value.ts, src/ai/determinize.ts, src/meta/Replay.ts, src/ui/rulesText.ts, src/data/opponents.ts, src/ai/tiers.ts, src/config/rules.ts · last-verified: 2026-07-23 · concretion doc — DRAFT, awaiting user approval; engine work does not start until the flagged decisions are answered -->
+<!-- source-of-truth: docs/plan-1.4.md, docs/expansions/dark-tales.md, src/engine/types.ts, src/engine/actions.ts, src/engine/mana.ts, src/engine/resolve.ts, src/engine/effects/EffectInterpreter.ts, src/ai/value.ts, src/ai/determinize.ts, src/meta/Replay.ts, src/ui/rulesText.ts, src/data/opponents.ts, src/ai/tiers.ts, src/config/rules.ts · last-verified: 2026-07-23 · concretion doc — DRAFT, awaiting user approval; engine work does not start until the flagged decisions are answered -->
 
 # 1.4 Pillar 0 concretion — Skim & Retell + Dark Tales integration
 

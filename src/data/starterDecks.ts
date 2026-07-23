@@ -137,6 +137,8 @@ export const STARTER_DECKS: DeckList[] = [
  * foresee and recall effects keep the next draw and opposing board constrained.
  * Questing Table — W/U Arthurian heroic midrange: build a knight court,
  * advance Quests, then turn awakened champions into the closing pressure.
+ * Midnight Storybook — U/B/W Dark Tales value-control: Skim early, fill the
+ * graveyard, and Retell efficient Rituals and Charms after stabilizing.
  */
 export const THEME_DECKS: DeckList[] = [
   {
@@ -232,6 +234,29 @@ export const THEME_DECKS: DeckList[] = [
       ['gm-dracula-ball-invite', 3],
       ['gm-black-lace-pact', 2],
       ['gm-funeral-bell', 2],
+    ]),
+  },
+  {
+    id: 'theme-dark-tales',
+    name: 'Midnight Storybook',
+    cards: expand([
+      ['land-island', 7],
+      ['land-swamp', 7],
+      ['land-plains', 6],
+      ['dt-tide-cavern', 2],
+      ['dt-palace-steps', 2],
+      ['dt-seafoam-messenger', 4],
+      ['dt-tower-window-seer', 4],
+      ['dt-snowcourt-attendant', 4],
+      ['dt-poisoned-courtier', 3],
+      ['dt-castle-scullery', 3],
+      ['dt-poison-mirror-regent', 2],
+      ['dt-beast-library', 2],
+      ['dt-rose-cage-ballad', 2],
+      ['dt-page-torn-free', 4],
+      ['dt-lullaby-refrain', 3],
+      ['dt-sea-glass-knife', 3],
+      ['dt-rose-petal-shield', 2],
     ]),
   },
 ];

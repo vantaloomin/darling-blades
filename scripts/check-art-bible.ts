@@ -15,6 +15,7 @@ import { ARTHURIAN_COURT } from '../src/data/cards/arthurian-court';
 import { BEASTKIN } from '../src/data/cards/beastkin';
 import { CELTIC_FAE } from '../src/data/cards/celtic-fae';
 import { GOTHIC_MONSTERS } from '../src/data/cards/gothic-monsters';
+import { DARK_TALES } from '../src/data/cards/dark-tales';
 import { GREEK } from '../src/data/cards/greek';
 import { RAGNAROK } from '../src/data/cards/ragnarok';
 import { TK_JIN } from '../src/data/cards/tk-jin';
@@ -32,6 +33,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const bibleDir = process.argv[2] ? resolve(process.argv[2]) : join(root, 'docs', 'art-bible');
 
 const isCreature = (c: CardDef) => c.types.includes('creature');
+const DARK_TALES_TOKEN_IDS = new Set(['tok-shadow-miner', 'tok-firefly', 'tok-masked-guest', 'tok-hearth-spirit']);
+const DARK_TALES_TOKENS = TOKENS.filter((card) => DARK_TALES_TOKEN_IDS.has(card.id));
+const BASE_TOKENS = TOKENS.filter((card) => !DARK_TALES_TOKEN_IDS.has(card.id));
 
 /** Which faction file covers which set file(s), in entry order. */
 const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
@@ -46,7 +50,8 @@ const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
   { file: 'celtic-fae.md', sets: [CELTIC_FAE] },
   { file: 'arthurian-court.md', sets: [ARTHURIAN_COURT] },
   { file: 'gothic-monsters.md', sets: [GOTHIC_MONSTERS] },
-  { file: 'constructs-and-tokens.md', sets: [ARTIFACTS, TOKENS] },
+  { file: 'dark-tales.md', sets: [DARK_TALES, DARK_TALES_TOKENS] },
+  { file: 'constructs-and-tokens.md', sets: [ARTIFACTS, BASE_TOKENS] },
 ];
 
 /** The 13 template fields from index.md §8, exact labels, exact order. */
