@@ -550,7 +550,7 @@ blank or decorative, and reserve a clear top third for crop-safe headroom.
 - **Prompt:** Pumpkin Attendant, an adult-coded Dark Tales figure representing Pumpkin Attendant, based on the pre-acceptance Subject draft "Coach attendant"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Glass Mouse — `dt-glass-mouse`
-- **Card facts:** {2} · W · 1/2 · sentinel · c
+- **Card facts:** {1}{W} · W · 1/2 · sentinel · c
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Enchanted helper. an adult-coded Dark Tales figure representing Glass Mouse; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
