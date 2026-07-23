@@ -55,7 +55,7 @@ export function collectArtLanes() {
   for (const dir of readdirSync(ART_ROOT)) {
     const rawDir = join(ART_ROOT, dir, 'raw');
     if (!existsSync(rawDir)) continue;
-    let pngs = [];
+    let pngs;
     try {
       pngs = readdirSync(rawDir).filter((f) => f.endsWith('.png'))
         .map((f) => ({ f, m: statSync(join(rawDir, f)).mtime }))
