@@ -1,5 +1,5 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -9,6 +9,7 @@ import {
   runCli,
   runHillClimb,
   type MeasuredRecord,
+  type MeasureOptions,
 } from '../../scripts/personas/craft';
 import { personaTemplate } from '../../scripts/personas/templates';
 
@@ -26,6 +27,11 @@ const measured = (score: number): MeasuredRecord => ({
   draws: 0,
   games: score === 0.75 ? 4 : 2,
   score,
+});
+
+const measuredForField = (field: MeasuredRecord['field'], score = 0.5): MeasuredRecord => ({
+  ...measured(score),
+  field,
 });
 
 describe('--check artifact round trip', () => {
@@ -66,6 +72,42 @@ describe('--check artifact round trip', () => {
       'Drift: 25.0 percentage points',
     ]);
     expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual(artifact);
+  });
+
+  it('checks a metagame artifact with its retained field composition at zero drift', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-persona-check-metagame-'));
+    tempDirs.push(dir);
+    const common = ['--metagame', '--personas', 'burn,weenie', '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '0', '--rounds', '1', '--seed', '424242', '--out', dir];
+    expect(runCli(common, {
+      today: () => '2026-07-23',
+      measure: (_deck, options) => measuredForField(options.field),
+      log: () => undefined,
+    })).toBe(0);
+    const path = join(dir, '2026-07-23-metagame-burn-all.json');
+    const artifact = JSON.parse(readFileSync(path, 'utf8'));
+    const output: string[] = [];
+    let checkedOptions: MeasureOptions | undefined;
+    expect(runCli(['--check', path], {
+      measure: (_deck, options) => {
+        checkedOptions = options;
+        return measuredForField(options.field);
+      },
+      log: (line) => output.push(line),
+    })).toBe(0);
+    expect(checkedOptions?.fieldComposition).toEqual(artifact.metagame.rounds.at(-1).fieldComposition);
+    expect(output).toContain('Drift: 0.0 percentage points');
+  });
+
+  it('checks an existing committed v1 artifact that predates the mode field', () => {
+    const path = resolve('scripts/personas/decks/2026-07-20-burn-all.json');
+    const artifact = JSON.parse(readFileSync(path, 'utf8'));
+    expect(artifact.mode).toBeUndefined();
+    const output: string[] = [];
+    expect(runCli(['--check', path], {
+      measure: (_deck, options) => measuredForField(options.field),
+      log: (line) => output.push(line),
+    })).toBe(0);
+    expect(output[0]).toBe('Checked 2026-07-20-burn-all.json (burn)');
   });
 
   it('rejects a malformed artifact without measuring it', () => {

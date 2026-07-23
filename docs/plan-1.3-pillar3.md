@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.3.md, scripts/balance-matrix.ts, src/meta/DeckStorage.ts, src/meta/deckColorIdentity.ts, src/ai/value.ts, src/ai/evaluate.ts, src/engine/rng.ts · last-verified: 2026-07-20 · concretion of Pillar 3 — flags ANSWERED 2026-07-20; harness BUILT and the INAUGURAL SWEEP COMPLETE 2026-07-21 (section 8) -->
+<!-- source-of-truth: docs/plan-1.3.md, scripts/balance-matrix.ts, src/meta/DeckStorage.ts, src/meta/deckColorIdentity.ts, src/ai/value.ts, src/ai/evaluate.ts, src/engine/rng.ts · last-verified: 2026-07-23 · concretion of Pillar 3 — flags ANSWERED 2026-07-20; harness BUILT and the INAUGURAL SWEEP COMPLETE 2026-07-21 (section 8) -->
 
 # 1.3 Pillar 3 concretion - persona deck-crafting harness (dev-only)
 
@@ -33,10 +33,11 @@ A pro does three things we can model headlessly, and one we cannot:
    reference gauntlet, then N swap-iterations: propose a quota-legal
    swap from the pool, re-measure, keep on improvement. Every step
    seeded and logged so a run is reproducible bit-for-bit.
-4. **Metagame reading** (not modeled v1): pros tune against an evolving
-   field. Our field is fixed per run (flag 4 chooses it). A later
-   version can iterate personas against EACH OTHER'S retained lists -
-   a real metagame loop - once v1 lands.
+4. **Metagame reading** (shipped in 1.4): pros tune against an evolving
+   field. The metagame mode starts from the static field, then iterates
+   every persona against the other personas' retained lists. It stops on
+   all-deck stability, reports a repeated non-stable deck as oscillation,
+   or reports the fixed round cap. Scores are never averaged away.
 
 ## 2. The personas (proposed roster, 5)
 
@@ -60,12 +61,19 @@ quota-shortfall report), not silently produce a bad deck.
   under `src/` - the shipped bundle never sees personas (lint layer
   rules keep it out of the game; scripts/ is already dev-land).
 - **Retained lists: COMMITTED, not gitignored** (proposed - flag 2):
-  `scripts/personas/decks/<date>-<persona>-<pool>.json`, each with the
+  `scripts/personas/decks/<date>-<persona>-<pool>.json` for single-round
+  artifacts and `<date>-metagame-<persona>-<pool>.json` for metagame
+  artifacts, each with the
   full 60-card list, the generator seed + template version, the
   measured record vs the reference field, and the hill-climb log
   (initial list, every accepted swap, score deltas). Committed lists
   make findings reviewable in PRs and reproducible on any machine; the
   gitignored `balance/` workbench stays for scratch runs.
+- Metagame artifacts add a `metagame` object without changing schema v1.
+  Every recorded round carries its craft seed, template version, field
+  composition including full opponent deck lists, measured record, and
+  hill-climb log. Existing v1 artifacts remain valid single-round inputs
+  to `--check`.
 - CLI: `npx tsx scripts/personas/craft.ts --persona burn --pool all
   --seeds 100 --iterations 40 --seed 12345` and a `--all` sweep mode;
   `--check <deck.json>` re-measures a retained list against the
@@ -155,3 +163,17 @@ Reads:
    harness before shipping.
 4. The hill-climb earns its budget: greedy control lists underperform
    badly (draw-go 31.5 greedy) and iteration recovers them fully.
+
+## 9. 1.4 metagame loop concretion (2026-07-23)
+
+The loop policy is deterministic and informational: round 0 is byte-identical
+to the v1 static-field craft, then up to four best-response rounds run by
+default. Round 0 uses the v1 seed directly; later rounds use a distinct
+persona-and-round-derived craft seed.
+Each round updates all selected personas simultaneously from the prior
+round's retained lists. Stability means every deck is byte-for-byte unchanged
+from the prior round. A non-adjacent repeated deck is an oscillation finding;
+the loop stops immediately and records the persona, its first-ever occurrence
+round, repeat round, and the period since its most recent occurrence. If
+neither condition occurs, the artifact reports the round-cap finding.
+`--rounds` changes only the deterministic cap.
