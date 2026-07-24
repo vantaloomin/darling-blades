@@ -59,7 +59,7 @@ export const CELTIC_FAE = [
   }),
   {
     id: 'cf-balor-evil-eye', name: "Balor's Evil Eye", types: ['ritual'], subtypes: [],
-    supertypes: ['legendary'], cost: cost(2, 'BR'), colors: ['B', 'R'],
+    supertypes: ['legendary'], cost: cost(1, 'BR'), colors: ['B', 'R'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 5, to: 'target' }, { op: 'severGrave', n: 1, who: 'opponent' }] }],
     rarity: 'ssr', flavor: 'Do not meet its gaze. Do not survive its attention.',
   },
@@ -70,7 +70,7 @@ export const CELTIC_FAE = [
   }),
   {
     id: 'cf-cauldron-of-dagda', name: 'Cauldron of the Dagda', types: ['artifact'], subtypes: [],
-    cost: cost(2, 'G'), colors: ['G'],
+    cost: cost(1, 'G'), colors: ['G'],
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 2 }, { op: 'foresee', n: 2 }] }],
     rarity: 'ssr', flavor: 'It never runs empty. Neither does the debt.',
   },
@@ -203,7 +203,7 @@ export const CELTIC_FAE = [
   },
   {
     id: 'cf-lake-mirror-vow', name: 'Lake-Mirror Vow', types: ['enchantment'], subtypes: [],
-    cost: cost(1, 'U'), colors: ['U'],
+    cost: cost(0, 'U'), colors: ['U'],
     abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'r', flavor: 'Swear to your reflection. It has a better memory than you do.',
   },

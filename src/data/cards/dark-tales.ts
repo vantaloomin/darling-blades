@@ -116,7 +116,7 @@ const SSR: CardDef[] = [
     rarity: 'ssr', flavor: "She read the manor's history and stayed for the footnotes.",
   }),
   ritual('dt-sleeping-curse', 'The Sleeping Curse', {
-    cost: cost(5, 'B'), colors: ['B'],
+    cost: cost(4, 'B'), colors: ['B'],
     abilities: [spell([{ op: 'massDestroy', filter: 'allCreatures' }])],
     retell: { cost: cost(6, 'B'), ops: [{ op: 'preventCombat' }] },
     rarity: 'ssr', flavor: 'The first telling fells the court. The echo only dims the candles.',
