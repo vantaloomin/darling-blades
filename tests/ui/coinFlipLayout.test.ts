@@ -14,7 +14,7 @@ describe('coin flip action layout', () => {
     expect(new Set(COIN_FLIP_SIDES.map((side) => COIN_FLIP_FACE_TEXTURES[side])).size).toBe(2);
     expect(new Set(COIN_FLIP_SIDES.map((side) => COIN_FLIP_FACE_ASSETS[side])).size).toBe(2);
     for (const side of COIN_FLIP_SIDES) {
-      expect(COIN_FLIP_FACE_ASSETS[side]).toBe(`assets/art/ui/coin-${side}.png`);
+      expect(COIN_FLIP_FACE_ASSETS[side]).toBe(`assets/art/ui/coin-${side}.webp`);
       expect(COIN_FLIP_FACE_ASSETS[side]).not.toContain('half');
     }
   });

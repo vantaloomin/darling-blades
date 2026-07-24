@@ -12,8 +12,8 @@ export const COIN_FLIP_FACE_TEXTURES: Record<CoinFlipSide, string> = {
 };
 
 export const COIN_FLIP_FACE_ASSETS: Record<CoinFlipSide, string> = {
-  heads: 'assets/art/ui/coin-heads.png',
-  tails: 'assets/art/ui/coin-tails.png',
+  heads: 'assets/art/ui/coin-heads.webp',
+  tails: 'assets/art/ui/coin-tails.webp',
 };
 
 /** Pure visual rectangles for the two-button coin-flip action row. */

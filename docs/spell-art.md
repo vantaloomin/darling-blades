@@ -16,7 +16,7 @@ and the card data disagree, the card data wins.
 `- **Prompt:**` line of each entry below, assembles
 `[SPELL/EFFECT PREAMBLE] + [entry Prompt] + [NEGATIVES]`, generates at 1024×1536, and
 center cover-crops to the **640×800** deliverable at
-`public/assets/art/cards/<id>.png` — the same directory and dimensions as every other
+`public/assets/art/cards/<id>.webp` — the same directory and dimensions as every other
 card, so the manifest and `ArtResolver` pick these up with no code change.
 
 ---
@@ -457,10 +457,10 @@ CLI invocation (or temporary driver wiring), not a routine gen-spell-art run.
   - **Card facts:** {1} · C · Artifact (court trinket, tap: gain life) · c
   - **User feedback driving the shipped render:** "more room above head" — the regen buys a tall band of clear dawn sky above the figure so nothing clips at the card-window ceiling.
   - **Shipped direction (2026-07-13 15:40):** an adult fae courtier at first light holding the Dawn Torc — a glowing pale-gold woven-knotwork torc ring — at chest height as the hero object, its warm light washing over her leaf-and-silver court dress; blackthorn scrub, white blossoms, and standing stones fading into a misted sunrise valley behind her; warm ivory-and-gold W-support palette (`#f2e8cf`, `#c9a84c`, `#fffef2`) over silver fae accents; the entire top third clear empty dawn sky above her head; knotwork strictly abstract, no readable ogham, runes, letters, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
-  - **Verified:** shipped PNG satisfies the feedback (head top ≈ y 205 with generous sky; torc hero-object centered in the visible band; text-free).
+  - **Verified:** shipped WebP satisfies the feedback (head top ≈ y 205 with generous sky; torc hero-object centered in the visible band; text-free).
 
 #### Silver Thread — cf-silver-thread
   - **Card facts:** {2} · C · Enchantment — Aura (attached gets +0/+2, scry) · c
   - **User feedback driving the shipped render:** "zoom out, show more of the character, more room above her head" — the regen pulls the camera back to a full-figure view with clear moonlit sky above.
   - **Shipped direction (2026-07-13 15:43):** an adult fae fate-weaver seen full-figure from further back, a single luminous silver thread of fate spiraling loosely around her whole body and trailing off-frame, a small silver key-charm dangling from one raised hand; she stands among mossy standing stones on a night moor beneath a full moon; cold moonlit silver-and-blue-black palette with thorn-silver gown detail; the entire top third clear empty moonlit sky above her head; no readable ogham, runes, letters, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
-  - **Verified:** shipped PNG satisfies the feedback (full figure head-to-ankles in frame; head top ≈ y 255 under open sky and moon; thread reads clearly at card scale; text-free).
+  - **Verified:** shipped WebP satisfies the feedback (full figure head-to-ankles in frame; head top ≈ y 255 under open sky and moon; thread reads clearly at card scale; text-free).

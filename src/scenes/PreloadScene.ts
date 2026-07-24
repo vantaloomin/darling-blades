@@ -13,7 +13,7 @@ import {
 } from '../ui/coinFlipLayout';
 import { applySceneSettings, sceneTextureKey } from '../ui/SceneBackdrop';
 
-/** Scene/menu art keys from the manifest (empty until scene PNGs generate). */
+/** Scene/menu art keys from the manifest (empty until scene WebPs generate). */
 const SCENE_KEYS: string[] = (manifest as { scenes?: string[] }).scenes ?? [];
 
 /**
@@ -67,14 +67,14 @@ export class PreloadScene extends Phaser.Scene {
     // own load screen, so BootScene queues it before us; skip it here.
     for (const key of SCENE_KEYS) {
       if (key === 'scene-preload') continue;
-      this.load.image(sceneTextureKey(key), `assets/art/scenes/${key}.png`);
+      this.load.image(sceneTextureKey(key), `assets/art/scenes/${key}.webp`);
     }
 
-    // Premium hero portraits (bespoke PNGs). A missing file logs a load error
+    // Premium hero portraits (bespoke WebPs). A missing file logs a load error
     // and is skipped — resolveHeroPortrait checks textures.exists and falls back
     // to the card-based hero/face, so the duel never breaks.
     for (const h of PREMIUM_HEROES) {
-      this.load.image(h.textureKey, `assets/art/heroes/${h.textureKey}.png`);
+      this.load.image(h.textureKey, `assets/art/heroes/${h.textureKey}.webp`);
     }
 
     for (const side of COIN_FLIP_SIDES) {

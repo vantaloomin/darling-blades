@@ -236,7 +236,7 @@ export function packPriceForSku(sku: BoosterSku): number {
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
- * art when the `sceneArtKey` PNG is on disk, else the procedural pack. The
+ * art when the `sceneArtKey` WebP is on disk, else the procedural pack. The
  * crimp bands are re-stamped over BOTH so the pack reads as sealed product,
  * but the face stays text-free. Parameterized so expansion SKUs can bake their
  * own texture treatment.

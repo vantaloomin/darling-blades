@@ -256,7 +256,7 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     }
   }
 
-  // Card back — real art when the scene-art PNG is on disk (docs/scene-art.md
+  // Card back — real art when the scene-art WebP is on disk (docs/scene-art.md
   // `card-back`), else the procedural dark-violet/gold-sigil back. Both bake
   // into the same 600×840 `cardback` canvas; CardView needs no change.
   if (!scene.textures.exists('cardback')) {

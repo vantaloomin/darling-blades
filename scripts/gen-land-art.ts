@@ -2,10 +2,10 @@
  * Generates real land-card art from the docs/land-art.md prompts via the
  * chatgpt-imagegen CLI (backed by the user's ChatGPT subscription — see the
  * `anthropic-skills:chatgpt-imagegen` skill), then post-processes each image to
- * the exact 640×800 PNG deliverable (docs/land-art.md §1) at
- * `public/assets/art/cards/<land-id>.png` — the SAME directory and dimensions
+ * the exact 640×800 WebP deliverable (docs/land-art.md §1) at
+ * `public/assets/art/cards/<land-id>.webp` — the SAME directory and dimensions
  * as the creature card faces, so `scripts/gen-art-manifest.ts` + `ArtResolver`
- * pick the files up automatically. Existing PNGs are skipped, so the run is
+ * pick the files up automatically. Existing WebPs are skipped, so the run is
  * idempotent and resumable. After a generating batch it re-runs
  * `npm run gen-art-manifest` so the game picks the files up.
  *
@@ -28,7 +28,7 @@
  *   --dry-run         list what would generate, touch nothing
  *   --show-prompt     print the fully assembled prompt (preamble + entry +
  *                     negatives) for every matched entry, touch nothing
- *   --force           regenerate ids whose PNG already exists
+ *   --force           regenerate ids whose WebP already exists
  *   --cli <path>      path to the chatgpt-imagegen python script (otherwise
  *                     $CHATGPT_IMAGEGEN_CLI, then a search of the local
  *                     skills-plugin install, then `chatgpt-imagegen` on PATH)
@@ -41,7 +41,8 @@
  * in <tmp>/gen-land-art/ for inspection and reused on rerun.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { convertPngToWebp } from './convert-art-webp';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -244,8 +245,8 @@ function generateOne(
   force: boolean,
 ): { ok: boolean; error?: string; reusedRaw?: boolean } {
   const rawPath = join(rawDir, `${entry.id}.raw.png`);
-  const outPath = join(outDir, `${entry.id}.png`);
-  const tmpPath = `${outPath}.tmp`;
+  const outPath = join(outDir, `${entry.id}.webp`);
+  const tmpPath = `${outPath}.tmp.png`;
   const prompt = assemblePrompt(entry);
 
   // A raw original left by a previous run (its post-process failed or the
@@ -279,7 +280,7 @@ function generateOne(
   }
 
   // Write via temp + rename: an interrupted write must never leave a truncated
-  // <id>.png that skip-existing would forever treat as done (the manifest and
+  // <id>.webp that skip-existing would forever treat as done (the manifest and
   // resolver trust file presence).
   const post = spawnSync(
     PYTHON,
@@ -290,7 +291,13 @@ function generateOne(
     rmSync(tmpPath, { force: true });
     return { ok: false, error: `post-process failed: ${(post.stderr ?? '').trim().split('\n').pop()}` };
   }
-  renameSync(tmpPath, outPath);
+  try {
+    convertPngToWebp(tmpPath, outPath);
+  } catch (error) {
+    rmSync(tmpPath, { force: true });
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+  rmSync(tmpPath, { force: true });
   return { ok: true, reusedRaw };
 }
 
@@ -320,7 +327,7 @@ function main(): void {
     return;
   }
 
-  const exists = (e: Entry): boolean => existsSync(join(outDir, `${e.id}.png`));
+  const exists = (e: Entry): boolean => existsSync(join(outDir, `${e.id}.webp`));
   const skipped = args.force ? [] : entries.filter(exists);
   let todo = args.force ? entries : entries.filter((e) => !exists(e));
   if (args.limit !== undefined) todo = todo.slice(0, args.limit);

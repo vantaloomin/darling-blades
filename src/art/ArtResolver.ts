@@ -36,7 +36,7 @@ export class ArtResolver {
     const preferHalf = qualityTier() === 'lite';
     for (const id of this.real) {
       const dir = preferHalf && this.half.has(id) ? 'cards-half' : 'cards';
-      this.scene.load.image(`artfile-${id}`, `assets/art/${dir}/${id}.png`);
+      this.scene.load.image(`artfile-${id}`, `assets/art/${dir}/${id}.webp`);
     }
   }
 
