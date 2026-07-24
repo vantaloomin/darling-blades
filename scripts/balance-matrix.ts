@@ -699,13 +699,14 @@ export interface FloorMatrixReport {
  * identical by construction (same tier, same roster marginal); bands gate the
  * TIER plateaus and are wide on purpose - regressions, not tuning jitter.
  *
- * MEASURED BASELINE - 2026-07-20, `npx tsx scripts/balance-matrix.ts --floors
- * --seeds 80` (18 floors x 5 starters, roster round-robin, 7,200 games):
- *   T1 floors 1-3: 23.5 / 21.7 / 21.0   T2 floors 4-6: 28.0 / 33.1 / 29.7
- *   T3 floors 7-9: 33.0 / 30.8 / 35.8   T4 floors 10-12: 50.3 / 48.0 / 54.7
- *   T5 floors 13-15: 59.9 / 60.3 / 58.4 T6 floors 16-18: provisional
- *   (re-measured 2026-07-20 after the prefab tuning pass touched the
- *   Wild Communion reference starter; every floor moved < 3pp.)
+ * MEASURED BASELINE - 2026-07-24, `npx tsx scripts/balance-matrix.ts --floors
+ * --seeds 80` (18 floors x 5 starters, roster round-robin, 7,200 games,
+ * first measurement with the 18-avatar Dark Tales roster at pool 638):
+ *   T1 floors 1-3: 26.3 / 20.8 / 22.7   T2 floors 4-6: 26.4 / 33.9 / 28.0
+ *   T3 floors 7-9: 32.5 / 34.5 / 34.3   T4 floors 10-12: 47.3 / 52.5 / 51.8
+ *   T5 floors 13-15: 59.5 / 60.2 / 62.5 T6 floors 16-18: 75.7 / 73.1 / 72.5
+ *   (prior 16-floor baseline 2026-07-20; every carried floor moved < 4pp
+ *   with the two new roster members in the round-robin.)
  * Clean tier plateaus, no flags; ~2.4pp SE per row avg (400 games). Bands
  * leave ~7pp margin beyond the measured plateau edges.
  */
@@ -726,8 +727,8 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   14: { minAvg: 0.5, maxAvg: 0.72 },
   15: { minAvg: 0.5, maxAvg: 0.72 },
   16: { minAvg: 0.68 },
-  // Provisional until the requested 18-floor re-baseline. Mirror the T6
-  // shape for both new Dark Tales summit floors without claiming measurements.
+  // Measured 2026-07-24 at 80 seeds: F17 73.1 / F18 72.5 - the T6 plateau
+  // holds across the Dark Tales summit floors with 4.5pp+ margin over 68.
   17: { minAvg: 0.68 },
   18: { minAvg: 0.68 },
 });
