@@ -8,7 +8,7 @@ import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { CARD_TYPE_DEFINITIONS, KEYWORD_NAMES, KEYWORD_REMINDER, MECHANIC_DEFINITIONS } from '../ui/rulesText';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, panel } from '../ui/themeWidgets';
+import { backButton, pager, panel } from '../ui/themeWidgets';
 
 const DESIGN_W = 1280;
 const DESIGN_H = 720;
@@ -59,6 +59,9 @@ const GLOSSARY_SECTIONS: GlossarySection[] = [
       { name: 'Foresee', description: MECHANIC_DEFINITIONS.foresee, icon: { kind: 'none' } },
       { name: 'Quest', description: MECHANIC_DEFINITIONS.quest, icon: { kind: 'none' } },
       { name: 'Champion Awakening', description: MECHANIC_DEFINITIONS.championAwakening, icon: { kind: 'none' } },
+      { name: 'Empower', description: MECHANIC_DEFINITIONS.empower, icon: { kind: 'none' } },
+      { name: 'Skim', description: MECHANIC_DEFINITIONS.skim, icon: { kind: 'none' } },
+      { name: 'Retell', description: MECHANIC_DEFINITIONS.retell, icon: { kind: 'none' } },
     ],
   },
   {
@@ -166,16 +169,15 @@ export class GlossaryScene extends Phaser.Scene {
     this.sectionTitle(LEFT_X + 20, 142, combat.title);
     const splitAt = Math.ceil(combat.entries.length / 2);
     const columns = [combat.entries.slice(0, splitAt), combat.entries.slice(splitAt)];
-    // 62px pitch / 56px plates (was 74/66): the recut buys the room the
-    // four-entry Mechanics grid below needs inside the same panel (1.2 added
-    // Quest + Champion Awakening). Reminder copy is one to two micro lines,
-    // which the shorter plate still holds; flagged for the by-eye pass.
+    // 62px pitch / 56px plates (was 74/66): the recut leaves the mechanics
+    // pages room inside the same panel. Reminder copy is one to two micro
+    // lines, which the shorter plate still holds; flagged for the by-eye pass.
     columns.forEach((entries, column) => {
       const x = LEFT_X + (column === 0 ? 16 : 298);
       entries.forEach((entry, row) => this.drawCombatRow(entry, x, 164 + row * 62, 254, 56));
     });
-    // Rides the section header's right edge; its old bottom-line home (y 650)
-    // now belongs to the four-entry Mechanics grid.
+    // Rides the section header's right edge; the mechanics pager owns the
+    // right side of its own heading row.
     this.add
       .text(LEFT_X + PANEL_W - 20, 142, 'Traits appear in a creature’s rules text.', {
         fontFamily: theme.fonts.ui,
@@ -185,22 +187,28 @@ export class GlossaryScene extends Phaser.Scene {
       .setOrigin(1, 0.5);
   }
 
-  private drawCombatRow(entry: GlossaryEntry, x: number, y: number, width: number, height = 66): void {
-    this.rowPlate(x, y, width, height);
+  private drawCombatRow(
+    entry: GlossaryEntry,
+    x: number,
+    y: number,
+    width: number,
+    height = 66,
+  ): Phaser.GameObjects.GameObject[] {
+    const items: Phaser.GameObjects.GameObject[] = [this.rowPlate(x, y, width, height)];
     let textX = x + 14;
     if (entry.icon.kind === 'keyword') {
-      this.add.image(x + 22, y + height / 2, KEYWORD_ICON_KEY[entry.icon.key]).setDisplaySize(34, 34);
+      items.push(this.add.image(x + 22, y + height / 2, KEYWORD_ICON_KEY[entry.icon.key]).setDisplaySize(34, 34));
       textX = x + 46;
     }
-    this.add
+    items.push(this.add
       .text(textX, y + 15, entry.name, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
         color: theme.colors.heading,
       })
-      .setOrigin(0, 0.5);
-    this.add
+      .setOrigin(0, 0.5));
+    items.push(this.add
       .text(textX, y + 27, entry.description ?? '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
@@ -208,23 +216,33 @@ export class GlossaryScene extends Phaser.Scene {
         lineSpacing: 1,
         wordWrap: { width: width - (textX - x) - 12 },
       })
-      .setOrigin(0, 0);
+      .setOrigin(0, 0));
+    return items;
   }
 
-  /**
-   * Non-keyword mechanics fill the leftover space under the shorter Combat
-   * Traits column; entries are icon-less, like Card Types.
-   */
+  /** Non-keyword mechanics are icon-less, like Card Types, and page in place. */
   private drawMechanics(mechanics: GlossarySection): void {
-    // Two-by-two grid spanning both trait columns (four mechanics since 1.2:
-    // Sever, Foresee, Quest, Champion Awakening). Bottom row ends y=678,
-    // inside the panel's 684 bottom edge.
+    // Keep the established two-column row treatment, but page the seven-entry
+    // section so every reminder stays inside the panel and title-safe frame.
     this.sectionTitle(LEFT_X + 20, 544, mechanics.title);
-    mechanics.entries.forEach((entry, index) => {
-      const x = LEFT_X + (index % 2 === 0 ? 16 : 298);
-      const y = 560 + Math.floor(index / 2) * 62;
-      this.drawCombatRow(entry, x, y, 254, 56);
-    });
+    const pageSize = 4;
+    const pageCount = Math.max(1, Math.ceil(mechanics.entries.length / pageSize));
+    let pageItems: Phaser.GameObjects.GameObject[] = [];
+    let pageControl: ReturnType<typeof pager> | null = null;
+    const renderPage = (page: number): void => {
+      for (const item of pageItems) {
+        if (item.active) item.destroy();
+      }
+      pageItems = [];
+      mechanics.entries.slice(page * pageSize, (page + 1) * pageSize).forEach((entry, index) => {
+        const x = LEFT_X + (index % 2 === 0 ? 16 : 298);
+        const y = 560 + Math.floor(index / 2) * 62;
+        pageItems.push(...this.drawCombatRow(entry, x, y, 254, 56));
+      });
+      pageControl?.refresh(page, pageCount);
+    };
+    pageControl = pager(this, LEFT_X + PANEL_W - 140, 544, 0, pageCount, renderPage);
+    renderPage(0);
   }
 
   private drawCardTypes(types: GlossarySection): void {
@@ -297,8 +315,8 @@ export class GlossaryScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
   }
 
-  private rowPlate(x: number, y: number, width: number, height: number): void {
-    this.add
+  private rowPlate(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics {
+    return this.add
       .graphics()
       .fillStyle(theme.graphics.rowFill, theme.alpha.subtle)
       .fillRoundedRect(x, y, width, height, theme.radius.control)

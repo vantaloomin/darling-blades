@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-20
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-23
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -49,6 +49,9 @@ the pattern to copy for any horizontal chip row whose content resizes.
   across contexts.
 - `CardZoomPreview` is the hold-Z zoom; `gestures.ts`'s sticky-preview
   host is the long-press equivalent on touch.
+- `showZoneContents` is the shared public-zone browser. It owns paged card
+  thumbnails, inspect callbacks, and optional action chips such as a graveyard
+  card's Retell cost; action input lives on a child Zone, never its Container.
 
 ## Input - `src/platform/gestures.ts`, `src/ui/inspectHotkeys.ts`
 

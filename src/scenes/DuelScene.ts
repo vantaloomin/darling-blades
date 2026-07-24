@@ -406,6 +406,9 @@ export class DuelScene extends Phaser.Scene {
   private pendingPlayReveals: PlayReveal[] = [];
   private humanPlayOrigin: { cardId: string; source: { x: number; y: number; scale: number; angle: number } } | null = null;
   private playRevealGhosts = new Set<CardView>();
+  /** Retell action ids stay available until their graveyard exit is narrated. */
+  private retellSpellIds = new Set<number>();
+  private retellCardsInFlight = new Set<string>();
 
   constructor() {
     super('Duel');
@@ -483,6 +486,8 @@ export class DuelScene extends Phaser.Scene {
     this.humanPlayOrigin = null;
     this.humanLandStyle = null;
     this.playRevealGhosts = new Set();
+    this.retellSpellIds = new Set();
+    this.retellCardsInFlight = new Set();
     this.manaPips = [];
     this.manaStripZones = [];
     this.manaPlanMarks = [];
@@ -1030,9 +1035,7 @@ export class DuelScene extends Phaser.Scene {
     // --- Opponent mirror: pile-column hand/grave/deck, portrait, life, mana ---
     this.oppHandPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.handY, 'hand');
     this.oppGravePile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.graveY, 'grave', {
-      onTap: (p) => {
-        if (!p.rightButtonReleased()) this.showZoneModal(AI, 'graveyard');
-      },
+      onTap: () => this.showZoneModal(AI, 'graveyard'),
     });
     this.oppDeckPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.deckY, 'deck');
     this.oppSeveredPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.severedY, 'severed', {
@@ -1054,9 +1057,7 @@ export class DuelScene extends Phaser.Scene {
       },
     });
     this.myGravePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.graveY, 'grave', {
-      onTap: (p) => {
-        if (!p.rightButtonReleased()) this.showZoneModal(HUMAN, 'graveyard');
-      },
+      onTap: () => this.showZoneModal(HUMAN, 'graveyard'),
     });
     // --- Commander portrait (1a): your deck's face card, reacts to the game ---
     this.portrait = new CommanderPortrait(this, LAYOUT.portrait.x, LAYOUT.portrait.y, {
@@ -1421,12 +1422,15 @@ export class DuelScene extends Phaser.Scene {
     this.replayCursor += 1;
     try {
       this.humanPlayOrigin = null;
-      if (step.p === HUMAN && (step.a.type === 'playLand' || step.a.type === 'castSpell')) {
-        const playedCard = def(CARD_DB, this.duel.state.players[HUMAN].hand[step.a.handIndex]);
-        const playedSource = this.handOrigin(step.a.handIndex);
-        if (playedSource) this.humanPlayOrigin = { cardId: playedCard.id, source: playedSource };
+      if (step.p === HUMAN) {
+        const playedCardId = this.actionCardId(step.a);
+        const playedSource = this.actionOrigin(step.a);
+        if (playedCardId && playedSource) {
+          this.humanPlayOrigin = { cardId: playedCardId, source: playedSource };
+        }
       }
       const events = this.duel.submit(step.p, step.a);
+      this.rememberRetellAction(step.a, events);
       this.undoSnapshot = null;
       this.selectedAttackers.clear();
       this.blockAssignments = [];
@@ -1526,15 +1530,11 @@ export class DuelScene extends Phaser.Scene {
     if (this.replayMode || this.ended) return;
     if (this.animatingCombat) return; // swallow input while a combat sequence plays
     try {
-      const playedCard =
-        action.type === 'playLand' || action.type === 'castSpell'
-          ? def(CARD_DB, this.duel.state.players[HUMAN].hand[action.handIndex])
-          : null;
-      const playedSource =
-        action.type === 'playLand' || action.type === 'castSpell'
-          ? this.handOrigin(action.handIndex)
-          : undefined;
-      this.humanPlayOrigin = playedCard && playedSource ? { cardId: playedCard.id, source: playedSource } : null;
+      const playedCardId = this.actionCardId(action);
+      const playedSource = this.actionOrigin(action);
+      this.humanPlayOrigin = playedCardId && playedSource
+        ? { cardId: playedCardId, source: playedSource }
+        : null;
       const snapshot = this.duel.clone(); // pre-action state; kept for Undo iff still local
       // Tutorial: note which taught spell/beat this action is BEFORE it resolves
       // (a cast card leaves the hand on submit), so the guide can advance.
@@ -1544,6 +1544,7 @@ export class DuelScene extends Phaser.Scene {
         if (types.includes('charm')) this.tutCharmCast = true;
       }
       const events = this.duel.submit(HUMAN, action);
+      this.rememberRetellAction(action, events);
       if (this.replayDraft) recordReplayAction(this.replayDraft, HUMAN, action);
       if (this.tutorial && action.type === 'declareBlockers' && action.blocks.length > 0) {
         this.tutBlocked = true;
@@ -1571,6 +1572,42 @@ export class DuelScene extends Phaser.Scene {
     const view = displayIndex < 0 ? undefined : this.handViews[displayIndex];
     if (view?.active) return { x: view.x, y: view.y, scale: view.scaleX, angle: view.angle };
     return this.handPoses.get(handIndex);
+  }
+
+  private graveOrigin(player: PlayerId): { x: number; y: number; scale: number; angle: number } {
+    return player === HUMAN
+      ? { x: LAYOUT.piles.x, y: LAYOUT.piles.graveY, scale: 0.25, angle: 0 }
+      : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.graveY, scale: 0.25, angle: 0 };
+  }
+
+  private actionCardId(action: Action): string | undefined {
+    const player = this.duel.state.players[HUMAN];
+    if (action.type === 'playLand' || action.type === 'skim') return player.hand[action.handIndex];
+    if (action.type === 'castSpell') {
+      return action.retell === true
+        ? player.graveyard[action.graveIndex ?? action.handIndex]
+        : player.hand[action.handIndex];
+    }
+    return undefined;
+  }
+
+  private actionOrigin(action: Action): { x: number; y: number; scale: number; angle: number } | undefined {
+    if (action.type === 'playLand' || action.type === 'skim') return this.handOrigin(action.handIndex);
+    if (action.type === 'castSpell') {
+      return action.retell === true
+        ? this.graveOrigin(HUMAN)
+        : this.handOrigin(action.handIndex);
+    }
+    return undefined;
+  }
+
+  private rememberRetellAction(action: Action, events: readonly GameEvent[]): void {
+    if (action.type !== 'castSpell' || action.retell !== true) return;
+    for (const event of events) {
+      if (event.e !== 'spellCast') continue;
+      this.retellSpellIds.add(event.sid);
+      this.retellCardsInFlight.add(event.cardId);
+    }
   }
 
   /** Restore the pre-action snapshot and reset scene-side selection state. */
@@ -1758,6 +1795,7 @@ export class DuelScene extends Phaser.Scene {
       const action = this.ai.chooseAction(this.duel.viewFor(AI), this.duel.legalActions(AI));
       const events = this.duel.submit(AI, action);
       if (this.replayDraft) recordReplayAction(this.replayDraft, AI, action);
+      this.rememberRetellAction(action, events);
       this.processEvents(events);
       // Deferred through afterEvents so the AI's combat damage animates before
       // its next decision (its declareAttackers still drives your blockers).
@@ -1979,12 +2017,21 @@ export class DuelScene extends Phaser.Scene {
         }
         break;
       }
+      case 'skimmed':
+        this.log(`${e.player === HUMAN ? 'Skimmed' : 'Opponent skimmed'} ${this.cardRef(e.cardId)}`, e.cardId);
+        this.showSkimTravel(e);
+        break;
       case 'spellCast': {
         Sfx.play('cast');
         // Targeted casts name their targets; the row's tappable card stays the
         // CAST card (the target names are informational, not extra links).
         const at = this.spellTargetsText(e.targets, batch);
-        this.log(`${e.controller === HUMAN ? 'You cast' : 'Opponent casts'} ${this.cardRef(e.cardId)}${at}`, e.cardId);
+        const prefix = this.retellSpellIds.has(e.sid)
+          ? 'Retold'
+          : e.controller === HUMAN
+            ? 'You cast'
+            : 'Opponent casts';
+        this.log(`${prefix} ${this.cardRef(e.cardId)}${at}`, e.cardId);
         const entered = batch.find(
           (candidate): candidate is Extract<GameEvent, { e: 'permanentEntered' }> =>
             candidate.e === 'permanentEntered' &&
@@ -2042,7 +2089,11 @@ export class DuelScene extends Phaser.Scene {
         // severed pile), so naming the card is safe for either player. A
         // deck sever reveals the top card by moving it there; say so.
         const whose = e.player === HUMAN ? 'your' : "the opponent's";
-        if (e.from === 'graveyard') {
+        const retold = e.from === 'graveyard' && this.retellCardsInFlight.has(e.cardId);
+        if (retold) {
+          this.retellCardsInFlight.delete(e.cardId);
+          this.log(`Retold ${this.cardRef(e.cardId)} severed from ${whose} graveyard`, e.cardId);
+        } else if (e.from === 'graveyard') {
           this.log(`${this.cardRef(e.cardId)} severed from ${whose} graveyard`, e.cardId);
         } else if (e.from === 'deck') {
           this.log(`${this.cardRef(e.cardId)} severed from the top of ${whose} deck`, e.cardId);
@@ -2405,6 +2456,51 @@ export class DuelScene extends Phaser.Scene {
     return player === HUMAN
       ? { x: LAYOUT.piles.x, y: LAYOUT.piles.severedY }
       : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.severedY };
+  }
+
+  /** Full-motion Skim read: the hand card travels to its new graveyard slot. */
+  private showSkimTravel(e: Extract<GameEvent, { e: 'skimmed' }>): void {
+    const handSource = e.player === HUMAN && this.humanPlayOrigin?.cardId === e.cardId
+      ? this.humanPlayOrigin.source
+      : undefined;
+    if (e.player === HUMAN && handSource) this.humanPlayOrigin = null;
+    if (this.motionLevel() !== 'full') return;
+    const source =
+      handSource
+        ? handSource
+        : e.player === HUMAN
+          ? { x: BOARD_CENTER_X, y: 680, scale: 0.35, angle: 0 }
+          : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.handY, scale: 0.25, angle: 0 };
+    const destination = e.player === HUMAN
+      ? { x: LAYOUT.piles.x, y: LAYOUT.piles.graveY }
+      : { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.graveY };
+    const ghost = new CardView(this, source.x, source.y)
+      .setScale(source.scale)
+      .setAngle(source.angle)
+      .setDepth(theme.depth.floats)
+      .setAlpha(0.9);
+    ghost.setCard(def(CARD_DB, e.cardId), {
+      fx: 'none',
+      landStyle: e.player === HUMAN ? this.humanLandStyleFor(e.cardId) : undefined,
+    });
+    this.playRevealGhosts.add(ghost);
+    const cleanUp = (): void => {
+      this.playRevealGhosts.delete(ghost);
+      if (ghost.active) ghost.destroy();
+    };
+    this.tweens.add({
+      targets: ghost,
+      x: destination.x,
+      y: destination.y,
+      scaleX: 0.18,
+      scaleY: 0.18,
+      angle: 0,
+      alpha: 0,
+      duration: 360,
+      ease: 'Cubic.easeInOut',
+      onComplete: cleanUp,
+      onStop: cleanUp,
+    });
   }
 
   private severSource(e: Extract<GameEvent, { e: 'severed' }>): { x: number; y: number; scale: number } {
@@ -3136,7 +3232,8 @@ export class DuelScene extends Phaser.Scene {
     const legal = this.isHumanTurnDecision() ? this.duel.legalActions(HUMAN) : [];
     const playableIdx = new Set<number>();
     for (const l of legal) {
-      if (l.type === 'playLand' || l.type === 'castSpell') {
+      if (l.type === 'playLand' || l.type === 'castSpell' || l.type === 'skim') {
+        if (l.type === 'castSpell' && l.retell === true) continue;
         // dedupe means only first copy is listed; mark all copies of that card
         const cardId = hand[l.handIndex];
         hand.forEach((c, i) => {
@@ -3583,21 +3680,44 @@ export class DuelScene extends Phaser.Scene {
       .filter(
         (l): l is Extract<Action, { type: 'castSpell' }> =>
           l.type === 'castSpell' &&
+          l.retell !== true &&
           this.duel.state.players[HUMAN].hand[l.handIndex] === cardId,
       )
       .map((c) => ({ ...c, handIndex }));
-    if (casts.length === 0) {
+    const skims = this.duel
+      .legalActions(HUMAN)
+      .filter(
+        (l): l is Extract<Action, { type: 'skim' }> =>
+          l.type === 'skim' && this.duel.state.players[HUMAN].hand[l.handIndex] === cardId,
+      )
+      .map((skim) => ({ ...skim, handIndex }));
+    if (casts.length === 0 && skims.length === 0) {
       // reasonUncastable only checks the first target spec; a rare multi-target
       // spell with a partially-satisfiable target set can still land here.
       this.showSkipNotice("You can't cast this right now.");
       return;
     }
 
+    if (casts.length === 0) {
+      this.act(skims[0]);
+      return;
+    }
+
+    if (skims.length > 0) {
+      this.showCastSkimChooser(d, casts, skims);
+      return;
+    }
+
     // Empower choice comes first: the enumerator only emits the empowered
     // variant when the extra cost is actually payable, so the chooser appears
     // exactly when the option is real (user decision 2026-07-17).
+    this.startCast(casts);
+  }
+
+  private startCast(casts: Extract<Action, { type: 'castSpell' }>[]): void {
     if (casts.some((c) => c.empowered) && casts.some((c) => !c.empowered)) {
-      this.showEmpowerChooser(d, casts);
+      const cardId = this.actionCardId(casts[0]);
+      if (cardId) this.showEmpowerChooser(def(CARD_DB, cardId), casts);
       return;
     }
     this.continueCast(casts);
@@ -3750,9 +3870,10 @@ export class DuelScene extends Phaser.Scene {
     const title = zone === 'deck'
       ? `Your Deck · ${cardIds.length} cards left`
       : `${owner} ${zoneLabel} · ${cardIds.length}`;
+    const retellActions = this.retellActionsByCard(player, zone);
     const modal = showZoneContents(this, {
       title,
-      entries: this.zoneEntries(cardIds, player === HUMAN),
+      entries: this.zoneEntries(cardIds, player === HUMAN, retellActions),
       emptyText: zone === 'deck' ? 'No cards left.' : zone === 'severed' ? 'No cards severed.' : 'No cards here.',
       dimAlpha: 0.62,
       escToClose: true,
@@ -3802,15 +3923,50 @@ export class DuelScene extends Phaser.Scene {
     this.endTurnTick();
   }
 
-  private zoneEntries(cardIds: readonly string[], styled: boolean): ZoneContentsEntry[] {
+  private retellActionsByCard(
+    player: PlayerId,
+    zone: ViewableZone,
+  ): Map<string, Extract<Action, { type: 'castSpell' }>[]> {
+    const actions = new Map<string, Array<Extract<Action, { type: 'castSpell' }>>>();
+    if (player !== HUMAN || zone !== 'graveyard') return actions;
+    const grave = this.duel.state.players[HUMAN].graveyard;
+    for (const action of this.duel.legalActions(HUMAN)) {
+      if (action.type !== 'castSpell' || action.retell !== true || action.graveIndex === undefined) continue;
+      const cardId = grave[action.graveIndex];
+      if (!cardId) continue;
+      const existing = actions.get(cardId);
+      if (existing) existing.push(action);
+      else actions.set(cardId, [action]);
+    }
+    return actions;
+  }
+
+  private zoneEntries(
+    cardIds: readonly string[],
+    styled: boolean,
+    retellActions: ReadonlyMap<string, Extract<Action, { type: 'castSpell' }>[]>,
+  ): ZoneContentsEntry[] {
     const counts = new Map<string, number>();
     for (const cardId of cardIds) counts.set(cardId, (counts.get(cardId) ?? 0) + 1);
     return [...counts]
-      .map(([cardId, count]) => ({
-        card: def(CARD_DB, cardId),
-        count,
-        landStyle: styled ? this.humanLandStyleFor(cardId) : undefined,
-      }))
+      .map(([cardId, count]) => {
+        const card = def(CARD_DB, cardId);
+        const casts = retellActions.get(cardId);
+        return {
+          card,
+          count,
+          landStyle: styled ? this.humanLandStyleFor(cardId) : undefined,
+          ...(casts && card.retell
+            ? {
+                action: {
+                  label: 'Retell',
+                  cost: card.retell.cost,
+                  onSelect: () => this.startCast(casts),
+                },
+              }
+            : {}),
+        };
+      })
       .sort((a, b) => this.compareZoneCards(a.card, b.card));
   }
 
@@ -4186,6 +4342,74 @@ export class DuelScene extends Phaser.Scene {
     this.gravePickerGuard.close();
     this.maybeAutoSkip();
     this.endTurnTick();
+  }
+
+  /** Cast-or-Skim chooser, using the same card and action-chip composition as Empower. */
+  private showCastSkimChooser(
+    d: CardDef,
+    casts: Extract<Action, { type: 'castSpell' }>[],
+    skims: Extract<Action, { type: 'skim' }>[],
+  ): void {
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(105);
+    const dim = this.add
+      .rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .setInteractive();
+    dim.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonReleased()) return;
+      this.closeEmpowerChooser();
+    });
+    c.add(dim);
+    c.add(
+      this.add
+        .text(width / 2, 130, 'Cast, or Skim?', {
+          fontFamily: 'Cinzel, Georgia, serif',
+          fontSize: '28px',
+          color: '#f0e6ff',
+        })
+        .setOrigin(0.5),
+    );
+    const v = new CardView(this, width / 2, 340).setScale(0.62);
+    v.setCard(d, { fx: 'none' });
+    c.add(v);
+    v.enableInput();
+    this.zoom.attach(v, d);
+
+    const button = (
+      x: number,
+      label: string,
+      bg: string,
+      onPick: () => void,
+    ): Phaser.GameObjects.Text => {
+      const rendered = renderManaText(this, c, 0, 0, label, {
+        fontFamily: 'Cinzel, Georgia, serif',
+        fontSize: '22px',
+        color: '#f0e6ff',
+        backgroundColor: bg,
+        padding: { x: 18, y: 10 },
+      });
+      const t = rendered.text
+        .setPosition(x - rendered.text.width / 2, 545 - rendered.text.height / 2)
+        .setInteractive({ useHandCursor: true });
+      rendered.reflow();
+      bindTapButton(this, t, (p) => {
+        if (p.rightButtonReleased()) return;
+        onPick();
+      });
+      inflateHitArea(t, 90, 60);
+      return t;
+    };
+    button(width / 2 - 170, `Cast ${manaCostText(d.cost!)}`, '#20303a', () => {
+      this.closeEmpowerChooser();
+      this.startCast(casts);
+    });
+    button(width / 2 + 170, `Skim ${manaCostText(d.skim!.cost)}`, '#3a2030', () => {
+      this.closeEmpowerChooser();
+      this.act(skims[0]);
+    });
+    this.empowerChooser = c;
+    this.empowerChooserGuard.open(this.overlayGuardTargets());
   }
 
   /**
