@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-12 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-13 · review monthly -->
 
 # Roadmap
 
@@ -396,7 +396,8 @@ _Dated 2026-07-04. Review monthly._
   applied and no freeze (8 turns, no stall); Tower seed bar + reroll; a live
   v5→v6 save migration; and the hero + shard buttons set/shard correctly
   (SSR blue-frame ×2 → 900g). **Four design plans** were also authored for
-  upcoming work: [Commander mode + 8 decks](plan-commander-mode.md),
+  upcoming work: [Commander mode + 8 decks](plan-darling-mode.md) (renamed
+  the **Darling format** and refreshed 2026-07-13),
   [MOD/UGC packs](plan-mod-ugc.md), [MTG-keyword rethemes](plan-keyword-rethemes.md),
   and [road to 1.0 — five features](plan-road-to-1.0.md). (Their proposed
   `SaveData` version numbers are illustrative — this session claimed v6, so each
@@ -787,6 +788,10 @@ _Dated 2026-07-04. Review monthly._
   **MOD/UGC packs** are the 1.1 systems, the tower gets a **seeded daily
   rotation**, and the base facet gets a clarity **relabel** (data stays
   disjoint). Deterministic replays and Tier-2 LAN PvP shelve to 1.2+.
+  *Update 2026-07-13 (user-directed): Commander mode is renamed the
+  **Darling format** — 85-card singleton, one legendary Darling, life scaled
+  up (~35) — and re-scopes out of 1.1 to launch with a future expansion;
+  refreshed spec in [plan-darling-mode.md](plan-darling-mode.md).*
 - **Limited public release (post-1.0, with a future expansion; now part of
   the 1.1 program above).** The full
   Sealed/Bot-Draft implementation (v14 save block, `src/meta/Limited.ts`, four
@@ -801,9 +806,11 @@ _Dated 2026-07-04. Review monthly._
   **Commander mode and MOD/UGC were greenlit into the 1.1 program
   2026-07-10** (see above); the keyword-retheme and road-to-1.0 plans have
   shipped:
-  - [Commander mode + 8 themed decks](plan-commander-mode.md) — a
-    Darling-Blades EDH-lite format (singleton, one legendary commander) layered
-    into `src/data`/`src/meta`/`src/scenes` with no engine change.
+  - [The Darling format](plan-darling-mode.md) *(né "Commander mode + 8 themed
+    decks"; renamed, refreshed, and re-scoped 2026-07-13)* — choose your
+    Darling: one legendary creature leads an 85-card singleton deck in her
+    colors, layered into `src/data`/`src/meta`/`src/scenes` (engine surface:
+    two small pure game-config options). Launches with a future expansion.
   - [MOD / UGC packs](plan-mod-ugc.md) — data-only custom cards (art/name/stats)
     with a validator that enforces **no new mechanics** (whitelist against the
     engine's `Keyword`/effect-op unions), namespaced ids, browser + Tauri loaders.

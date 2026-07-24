@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/binder/FilterBar.ts, src/ui/SearchInput.ts, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/engine/combat/damage.ts · last-verified: 2026-07-11 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-1.0.md, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CollectionScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/MainMenuScene.ts, src/scenes/SettingsScene.ts, src/scenes/GauntletScene.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/collectionFilter.ts, src/meta/Collection.ts, src/meta/Economy.ts, src/meta/PackOpener.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/types.ts, src/engine/statics.ts, src/engine/combat/damage.ts, src/engine/effects/targeting.ts, src/config/rules.ts, src/ui/rulesText.ts, src/ui/CardView.ts, src/ui/CardZoomPreview.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/binder/FilterBar.ts, src/ui/SearchInput.ts, src/meta/DeckStorage.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/engine/combat/damage.ts · last-verified: 2026-07-13 · design/plan doc (SHIPPED — see status banner) · re-verify when the referenced code changes -->
 
 # Quality-of-life plan — closing the daily-friction gap
 
@@ -46,7 +46,7 @@ hover-dwell card zoom + right-click inspect, a History move-log slide-out, a
 settings menu, vector mana icons, a filter/sort collection binder, and a full
 touch-gesture layer. What it is **missing** is a different category from the
 content backlog the other plan docs cover ([daily + sealed + replays, with
-tutorial and achievements now shipped](plan-road-to-1.0.md), [commander](plan-commander-mode.md),
+tutorial and achievements now shipped](plan-road-to-1.0.md), [the Darling format](plan-darling-mode.md),
 [keyword rethemes](plan-keyword-rethemes.md), [mod/UGC](plan-mod-ugc.md)):
 the small, high-frequency **conveniences a player of a modern digital TCG**
 (MTG Arena, Hearthstone, Legends of Runeterra, Marvel Snap, YuGiOh Master Duel)

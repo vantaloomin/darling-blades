@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/plan-v1.1-post-launch.md, docs/plan-commander-mode.md, docs/plan-mod-ugc.md, docs/expansions/celtic-fae.md, docs/art-pipeline.md, src/meta/Limited.ts, src/meta/SaveManager.ts, src/data/opponents.ts, src/meta/gauntletSeed.ts, src/meta/collectionFilter.ts, src/engine/types.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-07-12 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-road-to-1.0.md, docs/plan-v1.1-post-launch.md, docs/plan-darling-mode.md, docs/plan-mod-ugc.md, docs/expansions/celtic-fae.md, docs/art-pipeline.md, src/meta/Limited.ts, src/meta/SaveManager.ts, src/data/opponents.ts, src/meta/gauntletSeed.ts, src/meta/collectionFilter.ts, src/engine/types.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-07-13 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.1 — program plan
 
@@ -6,8 +6,9 @@ _Scoped 2026-07-10, the day of the 1.0 cut. All scope picks below are user
 decisions made that day — do not relitigate._
 
 1.0 shipped the complete solo loop. 1.1 is the **content-and-formats release**:
-a second expansion, the public debut of Limited, and two new ways to play
-(Commander, player-made cards), plus three small deferred features whose
+a second expansion, the public debut of Limited, and a new way to play
+(player-made cards; the Darling format re-scoped out on 2026-07-13 — see
+Pillar 3), plus three small deferred features whose
 blocking product decisions are now made. Deterministic replays and Tier-2 LAN
 PvP are explicitly **not** in 1.1 — they shelve to 1.2+.
 
@@ -17,7 +18,7 @@ PvP are explicitly **not** in 1.1 — they shelve to 1.2+.
 | --- | --- |
 | Next expansion | **Celtic Fae** (Expansion 2; part one of the Celtic/Arthurian block) |
 | Limited public release | Rides the Celtic Fae release (per the 1.0 descope decision) |
-| Big systems in 1.1 | **Commander mode** and **MOD/UGC packs** (replays + PvP shelved to 1.2+) |
+| Big systems in 1.1 | ~~**Commander mode** and~~ **MOD/UGC packs** (replays + PvP shelved to 1.2+; the Commander objective — renamed the **Darling format** 2026-07-13 — re-scoped to ship with a future expansion, see Pillar 3) |
 | Randomized tower | **Seeded daily rotation** (same shuffled tower for everyone each day) |
 | Base-set semantics | **Relabel for clarity** — data stays disjoint, copy-only facet rename |
 
@@ -28,6 +29,11 @@ PvP are explicitly **not** in 1.1 — they shelve to 1.2+.
 > a 50-seed low/mid/high tier matrix — baseline in src/data/opponents.ts);
 > the daily-rotation pool (Pillar 5) gains them for free when it lands.
 > Open: Pillar 2's Limited re-enable.
+>
+> **Status (2026-07-13):** Pillar 3 RE-SCOPED (user-directed) — Commander
+> mode is renamed the **Darling format** (85-card singleton, life scaled up)
+> and moves out of 1.1 to launch with a future expansion. Spec:
+> [plan-darling-mode.md](plan-darling-mode.md).
 
 ## Pillar 1 — Celtic Fae expansion
 
@@ -94,17 +100,19 @@ Feature 5:
 
 Re-enable mechanics: restore the MainMenu entry (one line), probe, ship.
 
-## Pillar 3 — Commander mode
+## Pillar 3 — the Darling format (re-scoped out of 1.1, 2026-07-13)
 
-Per [plan-commander-mode.md](plan-commander-mode.md): an EDH-lite singleton
-format — one legendary commander, singleton deck, layered into
-`src/data`/`src/meta`/`src/scenes` with **no engine change** — plus **8 themed
-commander precons**. The plan predates Ragnarök's legends and the 1.0 UI
-refresh, so its deck lists and scene sketches need a refresh pass against the
-current pool (Celtic Fae's four UR legends are natural commander candidates —
-sequence this pillar after Pillar 1's card data exists, or scope the first
-cut to the base+Ragnarök pool). SaveData: commander decks persist — next free
-version (see the walk below) with a real `migrate()` + test.
+Formerly "Commander mode." User decisions 2026-07-13: the format is named
+**Darling** (choose your Darling — one legendary creature; singleton deck in
+her colors), the deck grows to **85 cards** with life scaled up
+correspondingly (~35, set at the balance pass), and it **launches with a
+future expansion** so the pool can support 85-card singleton — i.e., this
+pillar leaves the 1.1 release and rides the Expansion-3 program. The refreshed
+spec is [plan-darling-mode.md](plan-darling-mode.md) (which also records the
+honest engine surface: a pure `startingLife` game-config option and a
+Darling-starts-in-hand setup pull — deck size stays validator-only). Celtic
+Fae's four UR legends are natural rival-Darling candidates alongside the
+original eight archetype sketches.
 
 ## Pillar 4 — MOD / UGC packs
 
@@ -167,12 +175,12 @@ Dependency-ordered, not size-ordered:
 4. **Small features** (Pillar 5) — independent; interleave anywhere. The
    relabel and picker are afternoon-sized; the tower rotation carries the
    balance re-baseline.
-5. **Commander mode** (Pillar 3) — after 1b so Celtic legends can headline
-   commander decks.
+5. ~~**Commander mode** (Pillar 3)~~ — re-scoped 2026-07-13: the Darling
+   format ships with a future expansion, not in 1.1.
 6. **MOD/UGC** (Pillar 4) — last, once the op whitelist is stable.
 
 **SaveData walk:** starts at the next free version after v15. Likely bumps:
-commander decks, tower-rotation run stamp, and (if Limited set-choice needs
+tower-rotation run stamp, and (if Limited set-choice needs
 persistence) an `activeRun` extension. Every bump ships a real `migrate()` +
 test, per the iron invariant; exact numbers are claimed in build order, not
 reserved here.
@@ -181,7 +189,7 @@ reserved here.
 
 Release-ready when: Celtic Fae is fully illustrated, purchasable, and
 balance-measured; Limited is public with both run types probed and its
-economy sim-checked; Commander mode ships with its precons; a MOD pack can be
+economy sim-checked; a MOD pack can be
 authored, validated, loaded, and played on both browser and desktop; the
 daily tower rotates with green re-measured bands; the facet relabel and
 opponent picker are live; and the whole ladder (tsc / lint / vitest / build /
