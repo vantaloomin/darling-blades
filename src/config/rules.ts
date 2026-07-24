@@ -62,13 +62,15 @@ export const ECONOMY = {
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   shardFullArtMult: 25,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 16-rung clear. Full run = 50+70+…+310 (=2520) + 330 + 350 + 250 = 3450g.
+  // a full 18-rung clear. Full run = 50+70+…+310 (=2520) + 330 + 350 +
+  // 370 + 390 + 250 = 4210g.
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
   // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
   // Celtic Fae bosses (The Morrigan, Titania); 13-14 (290/310) are the
   // Arthurian Court pair (Morgan, Artoria); 15-16 are the Gothic Monsters
-  // summit pair (Carmilla, The Bride).
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350] as const,
+  // pair (Carmilla, The Bride); 17-18 are the Dark Tales summit pair
+  // (Glass-Coffin Queen, Abyssal Songstress).
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390] as const,
   gauntletCompletionBonus: 250,
   // Free Limited runs are free-entry with ephemeral cards and pay the record
   // payout below. Premium Draft pays to keep its picks; the entry fee already
@@ -123,9 +125,9 @@ export const ECONOMY = {
  * Post-Gothic-Monsters baseline 2026-07-19 (same 10 personas x 8 seeds x
  * 60 days; 4,800 daily snapshots) after the nine-card removal cycle: 518
  * collectible cards, with Celtic Fae, Arthurian Court, and Gothic Monsters
- * at 81 collectible cards each. The 525g gothic-monsters booster SKU, 16
- * gauntlet rungs with a 3,450g full-clear payout, and 8 new gold-paying
- * achievements remain in the day-60 results. Day-60 rows are seed means;
+ * at 81 collectible cards each. The 525g gothic-monsters booster SKU, the
+ * prior 16-rung gauntlet baseline with a 3,450g full-clear payout, and 8 new
+ * gold-paying achievements remain in the day-60 results. Day-60 rows are seed means;
  * first Premium is the median first day across the eight seed snapshots. The
  * overall day-60 medians are 68.1467% collection and 1.2115 packs/day; the
  * verdict remains UNEVEN. Premium allowance remains at 18 runs, and the
