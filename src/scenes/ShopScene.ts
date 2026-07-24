@@ -224,6 +224,16 @@ export function packTextureForSku(sku: BoosterSku): string {
   return 'packart';
 }
 
+/** Unit gold price for one booster of the given SKU (shared with PackOpeningScene's re-buy CTAs). */
+export function packPriceForSku(sku: BoosterSku): number {
+  if (sku === 'ragnarok') return ECONOMY.ragnarokPackPrice;
+  if (sku === 'celtic-fae') return ECONOMY.celticFaePackPrice;
+  if (sku === 'arthurian-court') return ECONOMY.arthurianCourtPackPrice;
+  if (sku === 'gothic-monsters') return ECONOMY.gothicMonstersPackPrice;
+  if (sku === 'dark-tales') return ECONOMY.darkTalesPackPrice;
+  return ECONOMY.packPrice;
+}
+
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
  * art when the `sceneArtKey` PNG is on disk, else the procedural pack. The
@@ -504,17 +514,18 @@ export class ShopScene extends Phaser.Scene {
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
     // Six SKUs across the 1280 design width: 208px pitch, centered margins.
-    const skus: ReadonlyArray<{ label: string; textureKey: string; price: number; sku: BoosterSku }> = [
-      { label: SET_TITLES.base, textureKey: 'packart', price: ECONOMY.packPrice, sku: 'base' },
-      { label: SET_TITLES.ragnarok, textureKey: 'packart-ragnarok', price: ECONOMY.ragnarokPackPrice, sku: 'ragnarok' },
-      { label: SET_TITLES['celtic-fae'], textureKey: 'packart-celtic-fae', price: ECONOMY.celticFaePackPrice, sku: 'celtic-fae' },
-      { label: SET_TITLES['arthurian-court'], textureKey: 'packart-arthurian-court', price: ECONOMY.arthurianCourtPackPrice, sku: 'arthurian-court' },
-      { label: SET_TITLES['gothic-monsters'], textureKey: 'packart-gothic-monsters', price: ECONOMY.gothicMonstersPackPrice, sku: 'gothic-monsters' },
-      { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', price: ECONOMY.darkTalesPackPrice, sku: 'dark-tales' },
+    const skus: ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> = [
+      { label: SET_TITLES.base, textureKey: 'packart', sku: 'base' },
+      { label: SET_TITLES.ragnarok, textureKey: 'packart-ragnarok', sku: 'ragnarok' },
+      { label: SET_TITLES['celtic-fae'], textureKey: 'packart-celtic-fae', sku: 'celtic-fae' },
+      { label: SET_TITLES['arthurian-court'], textureKey: 'packart-arthurian-court', sku: 'arthurian-court' },
+      { label: SET_TITLES['gothic-monsters'], textureKey: 'packart-gothic-monsters', sku: 'gothic-monsters' },
+      { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', sku: 'dark-tales' },
     ];
     skus.forEach((def, i) => {
-      this.buildPackSku(group, 120 + i * 208, def.label, def.textureKey, def.price, def.sku, () =>
-        this.buyPacks(def.price, def.sku === 'base' ? undefined : def.sku, def.sku),
+      const price = packPriceForSku(def.sku);
+      this.buildPackSku(group, 120 + i * 208, def.label, def.textureKey, price, def.sku, () =>
+        this.buyPacks(price, def.sku === 'base' ? undefined : def.sku, def.sku),
       );
     });
     this.buildQtySelector(group);
