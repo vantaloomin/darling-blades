@@ -2,6 +2,17 @@
 
 # Darling Blades 1.4 — program plan
 
+**Status 2026-07-23:** Pillar 2 SHIPPED (PR #104, metagame loop).
+Pillar 0 largely SHIPPED (engine #108, card data #110 at pool 638,
+land style #111, duel UI + glossary #112; concretion record in
+[plan-1.4-pillar0.md](plan-1.4-pillar0.md)); remaining: bosses 17-18,
+the art PR (staged + user-audited on claude/1-4-art-staging), land-pick
+staging, and the one end-of-set re-baseline. Pillar 1 (board-answer
+pass) not started by design — it measures against the completed set.
+Riders: doc-sync shipped (#106); the eyes-on checklist rides the user's
+ongoing playtest passes. Tooling grown mid-train: the codex-dash stream
+board (#107, #109).
+
 User decisions locked 2026-07-23 (this doc is their record; do not
 relitigate without the user). Scope: the Dark Tales expansion (the
 headline — the biggest set to date), a board-answer balance pass that

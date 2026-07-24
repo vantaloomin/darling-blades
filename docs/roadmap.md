@@ -1238,11 +1238,14 @@ _Dated 2026-07-04. Review monthly._
   balance instrument);
   **1.4** = the ACTIVE program (scoped 2026-07-23, spec in
   [plan-1.4.md](plan-1.4.md)): the **Dark Tales: The Cursed Storybook**
-  expansion (Expansion 5, 120 cards, concept in
-  [expansions/dark-tales.md](expansions/dark-tales.md); the **Skim**/cycling
-  and **Retell**/flashback engine mechanics, rungs 17-18), the board-answer
-  balance pass (go-wide sweeper gap + the workbench recosts), and the persona
-  metagame loop (informational, dev-only);
+  expansion (Expansion 5, 120 cards + 4 tokens — **card data, the
+  Skim/cycling and Retell/flashback engine mechanics, the duel UI, and the
+  dark-tales land style are ALL MERGED to release/1.4 as of 2026-07-23**,
+  pool at 638; remaining: rungs 17-18 bosses, the staged-art PR, the
+  re-baseline), the board-answer balance pass (go-wide sweeper gap + the
+  workbench recosts, not started), and the persona metagame loop
+  (**shipped**, informational, dev-only), plus the codex-dash stream board
+  tooling;
   **1.5** = Commander mode, renamed **"Darlings"**;
   **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) and
   its dormant code was removed 2026-07-20; the hub offers only Draft. Legacy

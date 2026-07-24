@@ -1,8 +1,14 @@
-<!-- source-of-truth: docs/plan-1.4.md, docs/expansions/dark-tales.md, src/engine/types.ts, src/engine/actions.ts, src/engine/mana.ts, src/engine/resolve.ts, src/engine/effects/EffectInterpreter.ts, src/ai/value.ts, src/ai/determinize.ts, src/meta/Replay.ts, src/ui/rulesText.ts, src/data/opponents.ts, src/ai/tiers.ts, src/config/rules.ts · last-verified: 2026-07-23 · concretion doc — DRAFT, awaiting user approval; engine work does not start until the flagged decisions are answered -->
+<!-- source-of-truth: docs/plan-1.4.md, docs/expansions/dark-tales.md, src/engine/types.ts, src/engine/actions.ts, src/engine/mana.ts, src/engine/resolve.ts, src/engine/effects/EffectInterpreter.ts, src/ai/value.ts, src/ai/determinize.ts, src/meta/Replay.ts, src/ui/rulesText.ts, src/data/opponents.ts, src/ai/tiers.ts, src/config/rules.ts · last-verified: 2026-07-23 · concretion doc — EXECUTED; historical record of the approved semantics, kept for the R4/S-flag contracts the code honors -->
 
 # 1.4 Pillar 0 concretion — Skim & Retell + Dark Tales integration
 
-Status: **APPROVED by the user 2026-07-23** (all six §5 defaults, the
+Status: **BUILT AND MERGED 2026-07-23** — engine (PR #108, adversarial
+review + fix round), card data (PR #110, 638-card pool, spec audit
+124/124), duel UI + glossary recut (PR #112, live-probed), dark-tales
+land style wiring (PR #111, manifest-gated). Remaining from §6:
+bosses at rungs 17-18, the art PR (staged and user-audited on
+claude/1-4-art-staging), and the single end-of-set re-baseline.
+Originally: **APPROVED by the user 2026-07-23** (all six §5 defaults, the
 dual-mode Sleeping Curse with the R4 ops-override, the Storybook dawn
 engine, the four-token slate, and the 34 demotions; the concretized
 card table in expansions/dark-tales.md is the set spec of record).
