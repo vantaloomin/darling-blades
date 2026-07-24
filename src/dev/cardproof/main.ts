@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { setQualityTier } from '../../platform/quality';
 import './style.css';
 import {
-  CARDPROOF_PAGE_SIZE,
+  cardproofPageSize,
   filteredCards,
   visiblePage,
   withFilter,
@@ -81,7 +81,7 @@ previousPage.addEventListener('click', () => movePage(store.getState().page - 1)
 nextPage.addEventListener('click', () => movePage(store.getState().page + 1));
 lastPage.addEventListener('click', () => {
   const total = filteredCards(store.getState()).length;
-  movePage(Math.ceil(total / CARDPROOF_PAGE_SIZE) - 1);
+  movePage(Math.ceil(total / cardproofPageSize(store.getState().scale)) - 1);
 });
 
 store.subscribe(() => {

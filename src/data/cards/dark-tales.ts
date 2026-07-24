@@ -390,7 +390,7 @@ const C: CardDef[] = [
   land('dt-desert-rooftop', 'Desert Rooftop', ['R'], 'c', 'The city roof catches moonlight and runaway wishes.'),
   artifact('dt-reflection-sword', 'Reflection Sword', ['Weapon'], { cost: cost(3, 'W'), colors: ['W'], abilities: [arrives([{ op: 'boost', p: 1, t: 0, keywords: ['firstBlade'], scope: 'allYours' }])], rarity: 'c', flavor: 'The blade reflects the family it expects you to become.' }),
   charm('dt-training-yard-dawn', 'Training-Yard Dawn', { cost: cost(2, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 1, t: 1, scope: 'target' }, { op: 'foresee', n: 1 }], target('creature'))], rarity: 'c', flavor: 'Practice becomes a promise when the sun comes up.' }),
-  charm('dt-ancestor-smoke', 'Ancestor Smoke', { cost: cost(3, 'W'), colors: ['W'], abilities: [spell([{ op: 'foresee', n: 2 }])], retell: { cost: cost(4, 'W') }, rarity: 'c', flavor: 'The smoke curls toward the answer your family avoided.' }),
+  charm('dt-ancestor-smoke', "Ancestor's Smoke", { cost: cost(3, 'W'), colors: ['W'], abilities: [spell([{ op: 'foresee', n: 2 }])], retell: { cost: cost(4, 'W') }, rarity: 'c', flavor: 'The smoke curls toward the answer your family avoided.' }),
   artifact('dt-bayou-lantern', 'Bayou Lantern', ['Relic'], { cost: cost(2, 'G'), colors: ['G'], skim: { cost: cost(1) }, abilities: [dawn([{ op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'The lantern keeps the path visible and the mosquitoes interested.' }),
   artifact('dt-crescent-cookpot', 'Crescent Cookpot', ['Relic'], { cost: cost(3), colors: [], abilities: [arrives([{ op: 'gainLife', n: 1 }, { op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'The recipe is older than the kitchen and twice as patient.' }),
   land('dt-riverboat-kitchen', 'Riverboat Kitchen', ['G', 'B'], 'c', 'The galley drifts while the stew and the story both reduce.'),
@@ -401,7 +401,7 @@ const C: CardDef[] = [
   land('dt-riverbend-trail', 'Riverbend Trail', ['G'], 'c', 'The trail bends around the river and every sensible conclusion.'),
   charm('dt-plaid-arrow', 'Plaid Arrow', { cost: cost(1, 'G'), colors: ['G'], abilities: [spell([{ op: 'boost', p: 1, t: 1, keywords: ['wardingGaze'], scope: 'target' }], target('creature'))], rarity: 'c', flavor: 'The pattern is loud so the shot can be quiet.' }),
   artifact('dt-casita-door-charm', 'Casita Door Charm', ['Relic'], { cost: cost(2, 'W'), colors: ['W'], abilities: [arrives([{ op: 'createToken', token: 'tok-hearth-spirit', count: 1 }, { op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'The door opens for the person the house was waiting to meet.' }),
-  artifact('dt-jade-dragon-scale', 'Jade Dragon Scale', ['Relic'], { cost: cost(2, 'G'), colors: ['G'], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'A broken scale still remembers the shape of the dragon.' }),
+  artifact('dt-jade-dragon-scale', 'Jade Dragon Egg', ['Relic'], { cost: cost(2, 'G'), colors: ['G'], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'The shell sleeps. What curls inside remembers being a storm.' }),
 ];
 
 /** The 120 collectible rows in the spec's rarity order. */
