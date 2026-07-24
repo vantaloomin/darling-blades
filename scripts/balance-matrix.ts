@@ -4,7 +4,7 @@
  * pass"). Pure engine + ai + data; no Phaser.
  *
  * USAGE (via `npm run balance-matrix -- <flags>`):
- *   --avatars            14 gauntlet avatars (own brain + personality + deck)
+ *   --avatars            18 gauntlet avatars (own brain + personality + deck)
  *                        vs the 5 starter decks piloted by a neutral Medium
  *                        proxy standing in for a competent human. DEFAULT.
  *   --starters           5x5 starter-vs-starter mirror matrix, Medium both
@@ -20,7 +20,7 @@
  *                        alternate so no brain owns the better deck).
  *   --tiers              6 tower AI tiers vs the 5 starter decks, each as a
  *                        mirror against a neutral Medium human proxy.
- *   --floors             16 rotating-tower floors (tier brain piloting the
+ *   --floors             18 rotating-tower floors (tier brain piloting the
  *                        avatar roster round-robin) vs the 5 starters.
  *   --cf-bosses          The Morrigan and Titania vs Low/Mid/High CF references
  *                        (Wild Communion / Grave Harvest / Glimmer Bargain).
@@ -141,8 +141,10 @@ export interface RungBand {
  * — they catch regressions, not tuning jitter. Rungs 9-10 are the Ragnarök
  * expansion bosses (Hel mill-reanimator, Brunhild double-strike aggro) and
  * rungs 11-12 are the Celtic Fae bosses (Morrigan sever-control, Titania token
- * court), and rungs 13-14 are the Arthurian Court summit (Morgan Quest-control,
- * Artoria awakened Knights).
+ * court), rungs 13-14 are the Arthurian Court pair (Morgan Quest-control,
+ * Artoria awakened Knights), rungs 15-16 are the Gothic Monsters pair, and
+ * rungs 17-18 are the Dark Tales summit (Glass-Coffin Queen Retell grind,
+ * Abyssal Songstress Skim control).
  */
 export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.45, cellMax: 0.65 },
@@ -174,6 +176,12 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // lands with the 1.3 floor-tier model (plan-1.3.md Pillar 1).
   15: { minAvg: 0.7 },
   16: { minAvg: 0.7 },
+  // 17-18 calibrated 2026-07-24 from the standard full 40-seed avatar
+  // matrix (77% / 87%); floors leave 5pp below each point estimate for CI
+  // variance. R17 clears the fresh R16 row by 2pp and R18 is the highest
+  // sampled row by 1pp; strict statistical monotonicity is not claimed.
+  17: { minAvg: 0.72 },
+  18: { minAvg: 0.82 },
 });
 
 // ---------------------------------------------------------------------------
@@ -692,10 +700,10 @@ export interface FloorMatrixReport {
  * TIER plateaus and are wide on purpose - regressions, not tuning jitter.
  *
  * MEASURED BASELINE - 2026-07-20, `npx tsx scripts/balance-matrix.ts --floors
- * --seeds 80` (16 floors x 5 starters, roster round-robin, 6,400 games):
+ * --seeds 80` (18 floors x 5 starters, roster round-robin, 7,200 games):
  *   T1 floors 1-3: 23.5 / 21.7 / 21.0   T2 floors 4-6: 28.0 / 33.1 / 29.7
  *   T3 floors 7-9: 33.0 / 30.8 / 35.8   T4 floors 10-12: 50.3 / 48.0 / 54.7
- *   T5 floors 13-15: 59.9 / 60.3 / 58.4 T6 floor 16: 77.2
+ *   T5 floors 13-15: 59.9 / 60.3 / 58.4 T6 floors 16-18: provisional
  *   (re-measured 2026-07-20 after the prefab tuning pass touched the
  *   Wild Communion reference starter; every floor moved < 3pp.)
  * Clean tier plateaus, no flags; ~2.4pp SE per row avg (400 games). Bands
@@ -718,6 +726,10 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   14: { minAvg: 0.5, maxAvg: 0.72 },
   15: { minAvg: 0.5, maxAvg: 0.72 },
   16: { minAvg: 0.68 },
+  // Provisional until the requested 18-floor re-baseline. Mirror the T6
+  // shape for both new Dark Tales summit floors without claiming measurements.
+  17: { minAvg: 0.68 },
+  18: { minAvg: 0.68 },
 });
 
 /**

@@ -49,14 +49,14 @@ export function buildTierAI(
   return def.noise > 0 ? new NoisyAI(brain, (seed ^ 0x51d3ba11) >>> 0, def.noise) : brain;
 }
 
-// Provisional until the 16-floor re-baseline.
+// Provisional until the 18-floor re-baseline decides final values.
 const FLOOR_TIERS: readonly TowerTier[] = [
   1, 1, 1,
   2, 2, 2,
   3, 3, 3,
   4, 4, 4,
   5, 5, 5,
-  6,
+  6, 6, 6,
 ];
 
 export function floorTier(floor: number): TowerTier {
