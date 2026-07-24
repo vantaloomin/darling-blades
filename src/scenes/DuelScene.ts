@@ -2692,6 +2692,10 @@ export class DuelScene extends Phaser.Scene {
     this.oppGravePile.setCount(st.players[AI].graveyard.length);
     this.myDeckPile.setCount(st.players[HUMAN].deck.length);
     this.myGravePile.setCount(st.players[HUMAN].graveyard.length);
+    // Retell affordance: pulse the grave pile with the count of distinct
+    // cards castable from it right now (legality already folds in mana, so
+    // the alert clears on its own when you tap out or priority moves on).
+    this.myGravePile.setAlert(this.retellActionsByCard(HUMAN, 'graveyard').size);
     if (SEVER_ENABLED) {
       this.oppSeveredPile.setCount(view.opp.severed.length);
       this.mySeveredPile.setCount(view.you.severed.length);
@@ -3078,6 +3082,35 @@ export class DuelScene extends Phaser.Scene {
       this.showLandsModal(player);
     });
     this.manaStripZones.push(zone);
+  }
+
+  /**
+   * One-line `{W} 2/3`-style untapped/total summary of your mana sources,
+   * grouped exactly like the board strip (mono per color, flexible sources
+   * as their own multi-pip bead). Rendered by ZoneContentsModal's subtitle.
+   */
+  private untappedManaSubtitle(): string {
+    const counts = new Map<string, number>();
+    for (const src of manaSources(this.duel.state, CARD_DB, HUMAN)) {
+      const sig = this.manaSourceSignature(src.colors);
+      counts.set(sig, (counts.get(sig) ?? 0) + 1);
+    }
+    const totals = new Map<string, number>();
+    for (const perm of this.duel.state.battlefield) {
+      if (perm.controller !== HUMAN) continue;
+      const colors = def(CARD_DB, perm.cardId).manaAbility ?? [];
+      if (colors.length === 0) continue;
+      const sig = this.manaSourceSignature(colors);
+      totals.set(sig, (totals.get(sig) ?? 0) + 1);
+    }
+    if (totals.size === 0) return 'Untapped mana · none';
+    const parts = [...totals.keys()]
+      .sort((a, b) => this.compareManaSourceSignatures(a, b))
+      .map((sig) => {
+        const pips = [...sig].map((c) => `{${c}}`).join('');
+        return `${pips} ${counts.get(sig) ?? 0}/${totals.get(sig)}`;
+      });
+    return `Untapped mana · ${parts.join('   ')}`;
   }
 
   private manaSourceSignature(colors: readonly Color[]): string {
@@ -3871,9 +3904,14 @@ export class DuelScene extends Phaser.Scene {
       ? `Your Deck · ${cardIds.length} cards left`
       : `${owner} ${zoneLabel} · ${cardIds.length}`;
     const retellActions = this.retellActionsByCard(player, zone);
+    // Your graveyard is where Retell decisions happen, and the modal covers
+    // the board's mana strip: restate the untapped summary in the header.
+    const subtitle =
+      player === HUMAN && zone === 'graveyard' ? this.untappedManaSubtitle() : undefined;
     const modal = showZoneContents(this, {
       title,
       entries: this.zoneEntries(cardIds, player === HUMAN, retellActions),
+      ...(subtitle ? { subtitle } : {}),
       emptyText: zone === 'deck' ? 'No cards left.' : zone === 'severed' ? 'No cards severed.' : 'No cards here.',
       dimAlpha: 0.62,
       escToClose: true,

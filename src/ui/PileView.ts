@@ -25,12 +25,17 @@ const BADGE_GAP = 4;
 const BADGE_FILL = 0x0d0a18;
 const BADGE_STROKE = 0x3a2f5c;
 const BADGE_TEXT_COLOR = '#cbc2e0';
+const ALERT_COLOR = 0xffd700;
+const ALERT_CHIP_R = 9;
 
 export class PileView extends Phaser.GameObjects.Container {
   readonly kind: PileKind;
   readonly inputZone?: Phaser.GameObjects.Zone;
 
   private readonly countText: Phaser.GameObjects.Text;
+  private readonly alertBounds: { top: number; bottom: number; width: number };
+  private alertNodes: { outline: Phaser.GameObjects.Graphics; chipText: Phaser.GameObjects.Text } | null = null;
+  private alertTween: Phaser.Tweens.Tween | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, kind: PileKind, opts?: PileViewOpts) {
     super(scene, x, y);
@@ -44,6 +49,11 @@ export class PileView extends Phaser.GameObjects.Container {
     const icon = scene.add.image(0, iconCY, PILE_ICON_KEYS[kind]).setDisplaySize(iconSize, iconSize);
     this.add(icon);
     this.countText = this.buildBadge(badgeCY);
+    this.alertBounds = {
+      top: iconCY - iconSize / 2,
+      bottom: badgeCY + BADGE_H / 2,
+      width: Math.max(iconSize, BADGE_W),
+    };
     if (opts?.onTap) {
       this.inputZone = this.buildInputZone(iconSize, iconCY, badgeCY, opts.onTap);
     }
@@ -55,6 +65,65 @@ export class PileView extends Phaser.GameObjects.Container {
   setCount(n: number): this {
     const count = Math.max(0, Math.floor(n));
     this.countText.setText(`${count}`);
+    return this;
+  }
+
+  /**
+   * Castable-from-this-pile affordance: a pulsing gold outline plus a small
+   * chip showing how many casts are legal right now. 0 hides it. The scene
+   * owns WHEN (it knows legality); this owns only the look.
+   */
+  setAlert(n: number): this {
+    const count = Math.max(0, Math.floor(n));
+    if (count === 0) {
+      this.alertTween?.remove();
+      this.alertTween = null;
+      if (this.alertNodes) {
+        this.alertNodes.outline.destroy();
+        this.alertNodes.chipText.destroy();
+        this.alertNodes = null;
+      }
+      return this;
+    }
+    if (!this.alertNodes) {
+      const pad = 5;
+      const { top, bottom, width } = this.alertBounds;
+      const outline = this.scene.add.graphics();
+      outline.lineStyle(2, ALERT_COLOR, 1);
+      outline.strokeRoundedRect(
+        -width / 2 - pad,
+        top - pad,
+        width + pad * 2,
+        bottom - top + pad * 2,
+        6,
+      );
+      const chipX = width / 2 + pad;
+      const chipY = top - pad;
+      outline.fillStyle(ALERT_COLOR, 1);
+      outline.fillCircle(chipX, chipY, ALERT_CHIP_R);
+      const chipText = this.scene.add
+        .text(chipX, chipY, `${count}`, {
+          fontFamily: 'Consolas, "Courier New", monospace',
+          fontSize: '11px',
+          fontStyle: '700',
+          color: '#1a1426',
+          resolution: 2,
+        })
+        .setOrigin(0.5);
+      this.add(outline);
+      this.add(chipText);
+      this.alertNodes = { outline, chipText };
+      this.alertTween = this.scene.tweens.add({
+        targets: outline,
+        alpha: 0.55,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    } else {
+      this.alertNodes.chipText.setText(`${count}`);
+    }
     return this;
   }
 
