@@ -19,7 +19,7 @@ import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, GOTHIC_MONSTERS_PACK_ART, packTextureForSku, type BoosterSku } from './ShopScene';
+import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, GOTHIC_MONSTERS_PACK_ART, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
 const GRID_DY = 216;
@@ -109,6 +109,8 @@ export class PackOpeningScene extends Phaser.Scene {
       bakePackArt(this, ARTHURIAN_COURT_PACK_ART);
     } else if (this.sku === 'gothic-monsters') {
       bakePackArt(this, GOTHIC_MONSTERS_PACK_ART);
+    } else if (this.sku === 'dark-tales') {
+      bakePackArt(this, DARK_TALES_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {
