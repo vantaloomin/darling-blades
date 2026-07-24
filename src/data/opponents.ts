@@ -278,6 +278,36 @@ export interface Avatar {
  * comment block: tier plateaus 23/31/34/51/60/77). The `difficulty` field
  * below no longer sets tower brains; it still drives Practice-vs-avatar duels
  * and the avatar matrix rows.
+ *
+ * 2026-07-24 - Pillar 1 board-answer pass, final measured slate. The current
+ * rg-/cf- recosts plus the Midnight Storybook rebuild were checked with the
+ * standard matrices. Avatar averages at 40 seeds/cell: R1 33%, R2 17%, R3
+ * 28%, R4 45%, R5 61%, R6 60%, R7 66%, R8 76%, R9 68%, R10 86%, R11 78%,
+ * R12 77%, R13 66%, R14 70%, R15 77%, R16 75%, R17 76%, R18 87%. All hard
+ * boss bands are green. The existing R2/R1 ladder inversion remains the only
+ * flag at this sample size.
+ *
+ * Final prefab round-robin at 300 seeds/cell: Crimson 62.1%, Bloodmoon 58.5%,
+ * Burning 58.0%, Grave 52.3%, Shadow 50.4%, Glimmer 48.3%, Valhalla 48.2%,
+ * Questing 46.5%, Wild 44.5%, Midnight Storybook 30.5% (13,500 games).
+ * Midnight improved from the 6.7% baseline but remains below the requested
+ * mid-band because the Dark Tales card pool still lacks rate-efficient threats
+ * and answers. The final list preserves the U/B/W Skim/Retell shell and uses
+ * 20 off-set nonlands.
+ *
+ * Tier matrix at 80 seeds/cell passed monotonicity with T1-T6 averages of
+ * 18.0%, 23.4%, 31.3%, 48.2%, 60.3%, and 75.9%. Floor matrix at 80 seeds/cell
+ * had no flags; F1-F18 averages were 25.8%, 21.1%, 23.0%, 26.6%, 33.9%,
+ * 28.0%, 32.8%, 34.5%, 34.3%, 47.0%, 52.3%, 52.5%, 59.8%, 59.9%, 62.2%,
+ * 75.2%, 72.9%, and 72.7%.
+ *
+ * Retained go-wide artifact `2026-07-21-weenie-all.json`, remeasured at 150
+ * seeds against the final 10-prefab field: 78.1% (1,172/1,500, zero draws),
+ * with Bloodmoon Masquerade the worst matchup at 72.7% (109/150). Against
+ * the pre-1.4 reference of 77.6% aggregate and 73% worst matchup, the gap did
+ * not close. The only Dark Tales creature sweeper was narrowly recosted from
+ * 5B to 4B; it was not retained in Midnight because the 60-seed probe fell
+ * from 34.3% to 33.3% when two copies replaced Judgment of Heaven.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------

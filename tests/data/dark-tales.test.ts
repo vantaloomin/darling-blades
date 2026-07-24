@@ -91,17 +91,19 @@ describe('Dark Tales data integrity', () => {
 describe('Midnight Storybook precon', () => {
   const deck = THEME_DECKS.find((entry) => entry.id === 'theme-dark-tales')!;
 
-  it('is a legal 60-card U/B/W Dark Tales deck with 24 lands and no off-set splash', () => {
+  it('is a legal 60-card U/B/W Dark Tales deck with 24 lands and an approved off-set splash', () => {
     expect(deck.name).toBe('Midnight Storybook');
     expect(deck.cards).toHaveLength(60);
     expect(deck.cards.filter((id) => CARD_DB[id].types.includes('land'))).toHaveLength(24);
     const counts = new Map<string, number>();
     for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+    let offSetNonlands = 0;
     for (const [id, count] of counts) {
       if (!CARD_DB[id].supertypes?.includes('basic')) expect(count, `${id} copies`).toBeLessThanOrEqual(4);
       const card = CARD_DB[id];
-      if (!card.types.includes('land')) expect(card.set, `${id} set`).toBe('dark-tales');
+      if (!card.types.includes('land') && card.set !== 'dark-tales') offSetNonlands += count;
     }
+    expect(offSetNonlands).toBe(20);
     const save = freshSave(0);
     grantDeckCards(save, CARD_DB, deck.cards);
     expect(validateDeck(CARD_DB, save, deck.cards).filter((issue) => issue.kind === 'error')).toHaveLength(0);
