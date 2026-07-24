@@ -1,6 +1,6 @@
 /**
- * Builds the half-res mobile art set: every public/assets/art/cards/<id>.png
- * gets a 320×400 sibling in public/assets/art/cards-half/<id>.png
+ * Builds the half-res mobile art set: every public/assets/art/cards/<id>.webp
+ * gets a q85 320×400 sibling in public/assets/art/cards-half/<id>.webp
  * (mobile-lan-plan §1.6 — the lite quality tier loads these instead of the
  * 640×800 originals, cutting card-art VRAM ~4×).
  *
@@ -8,9 +8,9 @@
  * art run is resumable and may be partial); safely re-runnable after any art
  * drop:
  *   - incremental: an up-to-date half (newer than its source) is skipped
- *   - orphans (halves whose source PNG was removed) are pruned
+ *   - orphans (halves whose source WebP was removed) are pruned
  *   - writes go via tmp + rename, so an interrupted run never leaves a
- *     truncated PNG that later runs would treat as done
+ *     truncated WebP that later runs would treat as done
  *
  * Resizing uses Pillow (the same toolchain as scripts/gen-card-art.ts) in a
  * single python process for the whole batch, with the same center cover-crop
@@ -33,6 +33,7 @@ const outDir = join(root, 'public', 'assets', 'art', 'cards-half');
 
 const OUT_W = 320;
 const OUT_H = 400;
+const QUALITY = 85;
 
 const PYTHON = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
 
@@ -44,7 +45,7 @@ const PYTHON = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 
 const RESIZE_PY = `
 import json, os, sys
 from PIL import Image
-w, h = int(sys.argv[1]), int(sys.argv[2])
+w, h, q = int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3])
 jobs = json.load(sys.stdin)
 ok = 0
 for src, dst in jobs:
@@ -54,7 +55,7 @@ for src, dst in jobs:
         cw, ch = min(im.width, round(w / scale)), min(im.height, round(h / scale))
         left, top = (im.width - cw) // 2, (im.height - ch) // 2
         tmp = dst + '.tmp'
-        im.crop((left, top, left + cw, top + ch)).resize((w, h), Image.LANCZOS).save(tmp, 'PNG', optimize=True)
+        im.crop((left, top, left + cw, top + ch)).resize((w, h), Image.LANCZOS).save(tmp, 'WEBP', quality=q, method=6)
         os.replace(tmp, dst)
         ok += 1
     except Exception as e:
@@ -77,7 +78,7 @@ function main(): void {
   let sources: string[] = [];
   try {
     sources = readdirSync(srcDir)
-      .filter((f) => f.toLowerCase().endsWith('.png'))
+      .filter((f) => f.toLowerCase().endsWith('.webp'))
       .sort();
   } catch {
     // source dir absent — nothing to build, but still prune below
@@ -90,7 +91,8 @@ function main(): void {
   let pruned = 0;
   for (const f of readdirSync(outDir)) {
     const isTmp = f.endsWith('.tmp');
-    const isOrphan = f.toLowerCase().endsWith('.png') && !sourceSet.has(f);
+    const isOrphan =
+      (f.toLowerCase().endsWith('.webp') || f.toLowerCase().endsWith('.png')) && !sourceSet.has(f);
     if (!isTmp && !isOrphan) continue;
     if (!dryRun) rmSync(join(outDir, f), { force: true });
     pruned++;
@@ -116,7 +118,7 @@ function main(): void {
     if (pil.status !== 0) fail('Pillow is required — `pip install pillow` and rerun');
 
     const jobs = todo.map((f) => [join(srcDir, f), join(outDir, f)]);
-    const res = spawnSync(PYTHON, ['-c', RESIZE_PY, String(OUT_W), String(OUT_H)], {
+    const res = spawnSync(PYTHON, ['-c', RESIZE_PY, String(OUT_W), String(OUT_H), String(QUALITY)], {
       input: JSON.stringify(jobs),
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
@@ -126,7 +128,7 @@ function main(): void {
     if (errors) console.error(errors);
     const done = /done (\d+)/.exec(res.stdout ?? '');
     built = done ? Number(done[1]) : 0;
-    console.log(`gen-art-halfres: built ${built}/${todo.length} at ${OUT_W}×${OUT_H}`);
+    console.log(`gen-art-halfres: built ${built}/${todo.length} at ${OUT_W}×${OUT_H}, q${QUALITY}`);
     if (res.status !== 0 || built !== todo.length) {
       process.exitCode = 1;
     }

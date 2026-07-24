@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "lint": "eslint src tests scripts",
     "gen-art-manifest": "tsx scripts/gen-art-manifest.ts",
+    "convert-art-webp": "tsx scripts/convert-art-webp.ts",
     "gen-art-halfres": "tsx scripts/gen-art-halfres.ts",
     "gen-card-art": "tsx scripts/gen-card-art.ts",
     "gen-scene-art": "tsx scripts/gen-scene-art.ts",

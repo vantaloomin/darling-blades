@@ -68,8 +68,8 @@ never contradict them.
   acknowledgment is the howl, not any sign: render **NO text**.)
   `scripts/gen-land-art.ts` rides this rule on every prompt as both a positive
   cue and a negative block, exactly like the card and scene drivers.
-- **Deliverable: 640×800 PNG** (portrait, 4:5 — same dir/dims as the creature
-  card faces, `public/assets/art/cards/<land-id>.png`), so the manifest and
+- **Deliverable: 640×800 WebP** (portrait, 4:5 — same dir/dims as the creature
+  card faces, `public/assets/art/cards/<land-id>.webp`), so the manifest and
   `ArtResolver` pick it up with no code changes.
 
 ---
@@ -151,8 +151,8 @@ canon anchor.
 **Status: WIRED AND MANIFEST-GATED.** The deck builder cycles each basic
 through the default art plus `base`, `ragnarok`, `celtic-fae`, and `dark-tales`.
 Styled files use the exact convention
-`public/assets/art/cards/<basic-id>--<style>.png`, for example
-`public/assets/art/cards/land-plains--dark-tales.png`. `ArtResolver` requests a
+`public/assets/art/cards/<basic-id>--<style>.webp`, for example
+`public/assets/art/cards/land-plains--dark-tales.webp`. `ArtResolver` requests a
 styled key only when that stem is present in `src/data/art-manifest.json`; until
 the five Dark Tales files are staged and the manifest is regenerated, the
 selector remains usable and the resolver returns the default land art.
@@ -164,11 +164,11 @@ so they cannot masquerade as live land entries or be generated into the
 shipping art directory by a routine run. Dark Tales art is being generated and
 curated in parallel, with these reserved output paths:
 
-- `public/assets/art/cards/land-plains--dark-tales.png`
-- `public/assets/art/cards/land-island--dark-tales.png`
-- `public/assets/art/cards/land-swamp--dark-tales.png`
-- `public/assets/art/cards/land-mountain--dark-tales.png`
-- `public/assets/art/cards/land-forest--dark-tales.png`
+- `public/assets/art/cards/land-plains--dark-tales.webp`
+- `public/assets/art/cards/land-island--dark-tales.webp`
+- `public/assets/art/cards/land-swamp--dark-tales.webp`
+- `public/assets/art/cards/land-mountain--dark-tales.webp`
+- `public/assets/art/cards/land-forest--dark-tales.webp`
 
 All variants follow the same environment-first contract as section 1 and are
 produced at 1024×1536 → smartcrop **environment** mode → 640×800.

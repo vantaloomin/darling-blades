@@ -1,5 +1,5 @@
 /**
- * Scans public/assets/art/cards for <cardId>.png drops and writes
+ * Scans public/assets/art/cards for <cardId>.webp drops and writes
  * src/data/art-manifest.json. Cards absent from the manifest get procedural
  * placeholder art; listed cards load the real file. Also lists the half-res
  * 320×400 variants in public/assets/art/cards-half (built by
@@ -24,8 +24,8 @@ const outFile = join(root, 'src', 'data', 'art-manifest.json');
 const scan = (dir: string): string[] => {
   try {
     return readdirSync(dir)
-      .filter((f) => f.toLowerCase().endsWith('.png'))
-      .map((f) => f.replace(/\.png$/i, ''))
+      .filter((f) => f.toLowerCase().endsWith('.webp'))
+      .map((f) => f.replace(/\.webp$/i, ''))
       .sort();
   } catch {
     // dir absent — empty list is fine

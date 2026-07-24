@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-23
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-24
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -14,7 +14,7 @@ never knows which it got.
 `{ textureKey, frameName? }` and hides the real-vs-placeholder decision:
 
 - If the card's **art key** is in the build-time manifest, it returns
-  `{ textureKey: 'artfile-<key>' }` — a real, loaded PNG texture.
+  `{ textureKey: 'artfile-<key>' }` — a real, loaded WebP texture.
 - Otherwise it returns the placeholder's **atlas frame**
   (`{ textureKey: 'art-page-N', frameName: 'art-<key>' }`).
 
@@ -77,31 +77,32 @@ stamped onto the current page.
 
 To replace a card's placeholder with a real illustration:
 
-1. **Author a `640×800` PNG** (the placeholder is 320×400; supply real art at 2×
+1. **Author a `640×800` WebP** (the placeholder is 320×400; supply real art at 2×
    for crispness — both are the same **4:5** aspect the art window expects).
-2. **Drop it at** `public/assets/art/cards/<cardId>.png`. The filename (minus
-   `.png`) is the card id — or the shared `artRef` key if several cards share
+2. **Drop it at** `public/assets/art/cards/<cardId>.webp`. The filename (minus
+   `.webp`) is the card id — or the shared `artRef` key if several cards share
    art.
-3. **Regenerate the manifest:** `npm run gen-art-manifest` scans that folder and
+3. **Convert/manifest:** run `npm run convert-art-webp` for PNG drops, then
+   `npm run gen-art-manifest` scans that folder and
    writes `src/data/art-manifest.json`. `npm run dev` and `npm run build` run it
    for you (see `package.json`).
 4. **Done.** `ArtResolver` now returns `artfile-<key>` for that card. No code
    changes; no 404s (the file is in the manifest, so it's requested; unlisted
    files are never requested).
 
-Current inventory: the live catalog has **537 cards** (518 collectibles, the 5
-basic lands, and 14 tokens). `public/assets/art/cards/` has **552 PNGs**: art for all 537 catalog
-IDs plus 15 set-specific basic-land variants. The checked-in manifest currently
-lists **443** card entries, all with matching PNGs, and its half-res list has
-**362** entries. The other 94 catalog card IDs remain absent from the manifest,
-so they use the procedural placeholder until `npm run gen-art-manifest` is run.
+Current inventory (verified 2026-07-24): `public/assets/art/cards/` has **681
+WebP files**, `public/assets/art/scenes/` has **16**, and the manifest reports
+681 card entries, 681 half-res entries, and 16 scene entries. The full-res card
+and scene tiers are encoded at q90; `cards-half/` is derived at 320x400, q85.
+The converter also covers the standalone hero and coin-face UI art, leaving no
+PNG under `public/assets/art`.
 The original base-set run completed 2026-07-03 (see the historical run status at
 the end of the next section); later expansion art used the same generators.
 
 ### Subject-aware generation crop: `scripts/smartcrop.py`
 
 All generated card, land, and spell raws are post-processed through
-`scripts/smartcrop.py` before they become the shipped 640x800 PNG. Install the
+`scripts/smartcrop.py` before they become the shipped 640x800 WebP. Install the
 dev-only Python dependencies with `python -m pip install -r scripts/requirements.txt`
 (`pillow` plus `dghs-imgutils`; detector models cache outside the repo via the
 normal HuggingFace cache).
@@ -124,7 +125,22 @@ and emits `.artcrop-staging/review.html` with shipped-vs-staged comparisons and
 a face/head/person/center detection breakdown. By default it processes
 character-mode raws only; use `--all` to include lands and spells. The `--apply`
 flag copies staged crops to `public/assets/art/cards/` and rebuilds half-res
-art plus the manifest, but human review should happen first.
+art plus the manifest, but human review should happen first. The staged PNG is
+encoded to WebP before it reaches the shipped directory.
+
+### WebP conversion and regeneration contract
+
+`scripts/convert-art-webp.ts` is the repeatable migration utility for shipped
+runtime art. It scans every PNG below `public/assets/art`, encodes WebP through
+Pillow's libwebp encoder, writes atomically, and removes source PNGs only after
+the full batch succeeds. The default is q90; use `--keep-png` for a
+non-destructive rehearsal or `--dry-run` to inspect the batch.
+
+The card, land, spell, and scene generators keep retained/raw and smart-crop
+staging PNGs outside the shipped tree, then call the same converter before
+writing a runtime file. `gen-art-halfres.ts` reads full-res WebP and writes
+320x400 WebP at q85. Run `npm run gen-art-manifest` after either tier changes;
+`npm run build` does this automatically.
 
 ### Generating real art: `scripts/gen-card-art.ts`
 
@@ -150,9 +166,9 @@ and scenic-background lines mirroring the index contract; the appended
 negatives block carries the NO-TEXT hard rule and the anatomy/style negatives.
 It then generates at **1024×1536** via the chatgpt-imagegen CLI and runs
 `scripts/smartcrop.py` in **character** mode to produce the exact **640×800**
-deliverable. Runs are **idempotent and resumable**: existing PNGs
+deliverable. Runs are **idempotent and resumable**: existing WebPs
 are skipped (`--force` regenerates), files are written temp-then-rename (an
-interrupted write can never leave a truncated PNG that skip-existing would
+interrupted write can never leave a truncated WebP that skip-existing would
 treat as done), a Pillow + dghs-imgutils preflight fails fast *before* any quota is spent, and
 3 consecutive generation failures abort the batch. Raw uncropped originals are
 kept in the temp dir and **reused on rerun** — a leftover raw is re-cropped
@@ -185,9 +201,9 @@ ART_RECT band, NO character/people/figures) rather than the card driver's
 waist-up-portrait prefix, while the appended negatives keep the same NO-TEXT
 hard rule plus a no-people guard. Output lands in the **same
 `public/assets/art/cards/` directory at the same 640×800 dims** as the creature
-faces, so `gen-art-manifest` + `ArtResolver` pick land PNGs up with no code
+faces, so `gen-art-manifest` + `ArtResolver` pick land WebPs up with no code
 changes (it re-runs the manifest after a generating batch, exactly like the
-card driver). Until a land PNG exists, the land keeps its `land`-palette
+card driver). Until a land WebP exists, the land keeps its `land`-palette
 procedural placeholder.
 
 ### Spell art: `scripts/gen-spell-art.ts`
@@ -206,7 +222,7 @@ ART_RECT band, with any figure secondary — and its negatives harden the NO-TEX
 rule specifically against stamped banner-text/seal-glyphs/nameplates (the
 banner, seal, and oath cards invite them). Output goes to the same
 `public/assets/art/cards/` at 640×800, so the manifest and resolver pick spell
-PNGs up automatically.
+WebPs up automatically.
 
 **Entry-coverage traps (learned 2026-07-13):** shipped images can exist with
 NO prompt entry anywhere (cf-dawn-torc and cf-silver-thread were generated
