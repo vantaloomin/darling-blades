@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
+import { variantKey, type CardVariant } from '../meta/variants';
 import { activeRenderScale } from '../platform/renderScale';
 import { CARD_H, CARD_W, CardView } from './CardView';
 import { cardThumbKey } from './cardThumbKey';
@@ -39,9 +40,20 @@ const BLEED_Y = 8;
  * scales k² — but the lite tier resolves k=1 (renderScale.ts), so mobile is
  * unchanged, and the ~210-card desktop pool stays well within budget.
  */
-/** Bake (or reuse) the thumbnail texture for a card; returns its texture key. */
-export function ensureCardThumb(scene: Phaser.Scene, card: CardDef, landStyle?: string): string {
-  const key = cardThumbKey(card.id, landStyle);
+/**
+ * Bake (or reuse) the thumbnail texture for a card; returns its texture key.
+ * `variant` bakes the frame/full-art treatment statically (holo shimmer stays
+ * an inspect-overlay effect) — the Collection binder uses it to show each
+ * card's rarest owned variant. Variant thumbs only bake for owned specials,
+ * so the cache stays bounded by the collection, not the variant space.
+ */
+export function ensureCardThumb(
+  scene: Phaser.Scene,
+  card: CardDef,
+  landStyle?: string,
+  variant?: CardVariant,
+): string {
+  const key = cardThumbKey(card.id, landStyle, variant ? variantKey(variant) : undefined);
   if (scene.textures.exists(key)) return key;
 
   // Render one throwaway CardView into the texture. Created and destroyed
@@ -53,7 +65,7 @@ export function ensureCardThumb(scene: Phaser.Scene, card: CardDef, landStyle?: 
   const w = CARD_W * bakeScale;
   const h = (CARD_H + 2 * BLEED_Y) * bakeScale;
   const view = new CardView(scene, 0, 0);
-  view.setCard(card, { fx: 'none', landStyle });
+  view.setCard(card, { fx: 'none', landStyle, ...(variant ? { variant, fullArt: variant.fullArt } : {}) });
   view.setScale(bakeScale);
   const dt = scene.textures.addDynamicTexture(key, w, h);
   if (dt) dt.draw(view, w / 2, h / 2);
@@ -75,7 +87,8 @@ export function makeCardThumb(
   card: CardDef,
   cardScale: number,
   landStyle?: string,
+  variant?: CardVariant,
 ): Phaser.GameObjects.Image {
   const displayScale = cardScale / (THUMB_SCALE * activeRenderScale());
-  return scene.add.image(x, y, ensureCardThumb(scene, card, landStyle)).setScale(displayScale);
+  return scene.add.image(x, y, ensureCardThumb(scene, card, landStyle, variant)).setScale(displayScale);
 }

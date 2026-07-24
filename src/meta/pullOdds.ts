@@ -23,6 +23,19 @@ export function variantOdds(tier: Rarity, frame: FrameStyle, holo: HoloFinish, f
   );
 }
 
+/**
+ * Finish-only pull odds (frame x holo x full-art), excluding the tier roll:
+ * "how rare is THIS treatment of a card you already pulled" — the Collection
+ * inspect panel's per-variant disclosure.
+ */
+export function finishOdds(frame: FrameStyle, holo: HoloFinish, fullArt: boolean): number {
+  return (
+    weightOdds(DROPS.frame, frame) *
+    weightOdds(DROPS.holo, holo) *
+    weightOdds(DROPS.fullArt, fullArt ? 'full-art' : 'standard')
+  );
+}
+
 function roundToSignificantFigures(value: number, digits: number): number {
   const magnitude = 10 ** (digits - 1 - Math.floor(Math.log10(value)));
   return Math.round(value * magnitude) / magnitude;

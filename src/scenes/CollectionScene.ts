@@ -27,7 +27,8 @@ import {
   type CollectionFilterState,
 } from '../meta/collectionFilter';
 import { Services } from '../meta/services';
-import { TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
+import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
+import { finishOdds, formatOdds } from '../meta/pullOdds';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { FilterBar, TIER_TEXT_COLOR } from '../ui/binder/FilterBar';
 import { makeCardThumb } from '../ui/CardThumbCache';
@@ -395,9 +396,21 @@ export class CollectionScene extends Phaser.Scene {
       const y = ROW0_Y + Math.floor(within / COLS_PER_PAGE) * PITCH_Y;
       const owned = ownedCount(save, d.id);
 
-      // Cached-thumbnail Image (plain bake, tier gem included) — cheap to
-      // churn per spread; live CardViews stay exclusive to the inspect overlay.
-      const thumb = makeCardThumb(this, x, y, d, THUMB_CARD_SCALE);
+      // Cached-thumbnail Image (tier gem included) — cheap to churn per
+      // spread; live CardViews stay exclusive to the inspect overlay. Owned
+      // cards show their RAREST owned variant (frame/full-art bake statically;
+      // holo shimmer stays an inspect effect), so the binder reads as YOUR
+      // binder rather than a plain checklist.
+      const best = owned > 0 ? bestOwnedVariant(save, d.id) : null;
+      const thumb = makeCardThumb(
+        this,
+        x,
+        y,
+        d,
+        THUMB_CARD_SCALE,
+        undefined,
+        best && variantKey(best) !== variantKey(PLAIN_VARIANT) ? best : undefined,
+      );
       if (owned === 0) thumb.setAlpha(0.32); // calibrated against the 0.70 dim
       thumb.setInteractive({ useHandCursor: true });
       bindTapButton(this, thumb, () => {
@@ -502,7 +515,11 @@ export class CollectionScene extends Phaser.Scene {
             .fillRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control)
             .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
             .strokeRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control);
-          r.text.setText(`${sel ? '▸ ' : '   '}${variantLabel(r.variant)}  ×${r.count}`);
+          r.text.setText(
+            `${sel ? '▸ ' : '   '}${variantLabel(r.variant)}  ×${r.count}  ·  ${formatOdds(
+              finishOdds(r.variant.frame, r.variant.holo, r.variant.fullArt),
+            )}`,
+          );
           r.text.setColor(sel ? theme.colors.gold : theme.colors.body);
           // setText/setColor reset the hit bounds — re-inflate, biased right
           // so the rect never reaches back over the card.

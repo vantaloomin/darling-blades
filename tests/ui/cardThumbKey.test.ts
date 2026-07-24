@@ -14,4 +14,11 @@ describe('CardThumbCache style keys', () => {
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys.at(-1)).toBe('card-thumb-land-plains--dark-tales');
   });
+
+  it('keeps variant thumbnails distinct from the plain bake', () => {
+    const plain = cardThumbKey('dt-wayfinder-oar');
+    const red = cardThumbKey('dt-wayfinder-oar', undefined, 'red|none|standard');
+    expect(red).not.toBe(plain);
+    expect(red).toBe('card-thumb-dt-wayfinder-oar--v-red|none|standard');
+  });
 });
