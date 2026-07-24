@@ -30,6 +30,12 @@ export interface ZoneContentsModalOptions
   entries: ZoneContentsEntry[];
   onInspect: (card: CardDef, landStyle?: string) => void;
   emptyText?: string;
+  /**
+   * Optional mana-context line under the title (`{W}`/`{2}` tokens render as
+   * pips). Zone modals cover the board's mana strip, so casting decisions
+   * (e.g. graveyard Retell) need the untapped summary restated here.
+   */
+  subtitle?: string;
 }
 
 export interface ZoneContentsModal {
@@ -84,6 +90,18 @@ export function showZoneContents(
       })
       .setOrigin(0.5),
   );
+  if (opts.subtitle) {
+    const sub = scene.add.container(GRID_CX, 122);
+    const rendered = renderManaText(scene, sub, 0, 0, opts.subtitle, {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.label}px`,
+      color: theme.colors.body,
+      resolution: 2,
+    });
+    rendered.text.setOrigin(0.5);
+    rendered.reflow();
+    container.add(sub);
+  }
 
   const clearGrid = (): void => {
     for (const item of gridItems) {
