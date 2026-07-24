@@ -9,10 +9,10 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..16, unique). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-16 Hard (9-10 are the Ragnarök bosses,
+ * Gauntlet ordering is by `tier` (1..18, unique). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-18 Hard (9-10 are the Ragnarök bosses,
  * 11-12 are the Celtic Fae bosses, 13-14 are the Arthurian Court pair, and
- * 15-16 are the Gothic Monsters summit pair).
+ * 15-16 are the Gothic Monsters pair, and 17-18 are the Dark Tales summit pair).
  */
 export interface Avatar {
   id: string;
@@ -20,7 +20,7 @@ export interface Avatar {
   title: string;
   blurb: string;
   theme: string;
-  tier: number; // 1..16 (unique)
+  tier: number; // 1..18 (unique)
   difficulty: Difficulty;
   deck: string[]; // 60 real cardIds
   personality: Personality;
@@ -232,6 +232,29 @@ export interface Avatar {
  * Undertow, 73% after adding the low-curve vampire bodies, 62% for a Summon the
  * Dead substitution, and 77% after restoring the artifact finisher and adding
  * Divination. The final Black-Veil variant keeps the strongest measured spread.
+ *
+ * Rungs 17-18 — the Dark Tales summit pair, measured 2026-07-24 at 40
+ * seeds/cell with the full `--avatars` matrix. Every cell below had 40 decided
+ * games and zero draws:
+ *
+ *                              Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R17 Glass-Coffin Queen [hard]  85%       83%       73%      68%      78%   | 77%
+ *   R18 Abyssal Songstress [hard]  93%      100%       70%      78%      93%   | 87%
+ *
+ * Calibrated floors are R17 >= 72% and R18 >= 82%, leaving 5pp below each
+ * point estimate for CI variance. R17 clears the current fresh R16 row by 2pp;
+ * R18 is the highest measured row by 1pp. Every new cell had 40 decided games
+ * and zero draws. Strict pairwise monotonicity beyond these sampled point
+ * estimates is not claimed at 40 seeds/cell.
+ *
+ * Tuning history (honest): R17's all-Dark-Tales first list measured 19% avg;
+ * adding proven Doom Bolt/Reaper's Due removal and a low-curve Gothic shell
+ * moved it to 46%, and the final one-of Retell package measured 77%. R18's
+ * all-Dark-Tales list measured 0% avg; a proven Bride-style U/B control shell
+ * measured 64%; a first low-curve Skim/foresee shell with four Undersea Bargains
+ * measured 78%; and the final six-threat shell with an 8/12 basic-land split,
+ * one-of Skim cards, and Undersea Bargain measured 87%. Each result above used
+ * 40 seeds/cell; the final rows are from the standard full `--avatars` protocol.
  *
  * 2026-07-20 - 1.3 prefab tuning pass (user-approved slate) on the 518
  * pool, measured `--prefabs --ai hard --seeds 300` (10,800 games,
@@ -811,6 +834,91 @@ export const AVATARS: readonly Avatar[] = [
       ['gm-stormtower-resurrection', 4],
     ]),
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 17 — Glass-Coffin Queen: W/B Retell bloodoath grind. (Hard · Dark Tales)
+  {
+    id: 'glass-coffin-queen',
+    name: 'Glass-Coffin Queen',
+    title: 'The Court Behind the Glass',
+    blurb: 'The Queen lets every defeat become another telling. Blood oaths keep her court standing, poison mirrors strip away your best creature, and the coffin closes only after the graveyard is empty.',
+    theme: 'White-Black Retell Bloodoath Grind',
+    tier: 17,
+    difficulty: 'hard',
+    portraitCardId: 'dt-glass-coffin-queen',
+    personality: makePersonality({
+      aggression: 1.35,
+      holdback: 0.95,
+      attackThreshold: -0.35,
+      blockLifePressure: 1.1,
+      blockThreshold: -0.3,
+      trickRespect: 1.1,
+      mulliganShift: 1,
+      removalBias: -0.75,
+      subtypeBias: 0.75,
+      preferredSubtypes: ['Human'],
+      lifegainBias: 0.5,
+    }),
+    deck: expand([
+      ['land-plains', 10],
+      ['land-swamp', 10],
+      ['ld-shadowed-court', 4],
+      ['dt-glass-coffin-queen', 4],
+      ['dt-poison-mirror-regent', 4],
+      ['gm-black-cat-familiar', 4],
+      ['gm-chapel-exorcist', 4],
+      ['gm-batcloak-cutthroat', 4],
+      ['gm-ravenloft-heiress', 4],
+      ['in-doom-bolt', 4],
+      ['in-reapers-due', 3],
+      ['dt-sleeping-curse', 1],
+      ['dt-apple-of-endless-sleep', 3],
+      ['dt-once-more-with-magic', 1],
+    ]),
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 18 — Abyssal Songstress: U/B Skim tempo-control. (Hard · Dark Tales summit)
+  {
+    id: 'abyssal-songstress',
+    name: 'Abyssal Songstress',
+    title: 'The Bargain Beneath the Tide',
+    blurb: 'The Songstress turns every stumble into a better hand. Her bargains keep the tide of cards rising, while filtered answers and skyborne hunters leave the opponent fighting a story already decided.',
+    theme: 'Blue-Black Skim Sea-Bargain Control',
+    tier: 18,
+    difficulty: 'hard',
+    portraitCardId: 'dt-abyssal-songstress',
+    personality: makePersonality({
+      aggression: 1.35,
+      holdback: 0.95,
+      attackThreshold: -0.4,
+      blockLifePressure: 1.1,
+      blockThreshold: -0.3,
+      trickRespect: 1.1,
+      mulliganShift: 1,
+      removalBias: -0.75,
+      subtypeBias: 1,
+      preferredSubtypes: ['Construct'],
+    }),
+    deck: expand([
+      ['land-island', 8],
+      ['land-swamp', 12],
+      ['dt-tide-cavern', 4],
+      ['dt-abyssal-songstress', 4],
+      ['gm-black-cat-familiar', 4],
+      ['gm-batcloak-cutthroat', 4],
+      ['gm-blood-opera-soloist', 4],
+      ['gm-ravenloft-heiress', 4],
+      ['gm-black-veil-matron', 4],
+      ['gm-stormglass-golem', 4],
+      ['in-undertow', 1],
+      ['in-grave-chill', 1],
+      ['in-doom-bolt', 3],
+      ['dt-silver-fishbone', 1],
+      ['dt-undersea-bargain', 1],
+      ['dt-mirror-apple-curse', 1],
+    ]),
+  },
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -820,7 +928,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..16). */
+/** The avatar at a 1-based gauntlet rung (1..18). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);
