@@ -80,16 +80,24 @@ export class PracticePickerScene extends Phaser.Scene {
     backButton(this, () => this.scene.start('Play'));
   }
 
-  /** Two calm rows of portrait tiles, summit-first to match the tower roster. */
+  /**
+   * Two calm rows of portrait tiles, summit-first to match the tower roster.
+   * The layout derives from the roster size: columns widen and tiles shrink
+   * proportionally as expansions grow the roster (18 avatars = 9x2), so the
+   * grid always clears the difficulty rail at y 568. If a future roster
+   * shrinks tiles below readability (~24+ avatars), reach for pagination
+   * instead of squeezing further.
+   */
   private buildRoster(): void {
     const roster = [...AVATARS].sort((a, b) => b.tier - a.tier);
-    const columns = 7;
-    const tileW = 152;
-    const tileH = 202;
-    const gapX = 12;
+    const columns = Math.ceil(roster.length / 2);
+    const gapX = 10;
     const gapY = 14;
-    const gridW = columns * tileW + (columns - 1) * gapX;
-    const startX = (1280 - gridW) / 2;
+    const gridW = 1280 - 96; // 48px side margins
+    const tileW = Math.floor((gridW - (columns - 1) * gapX) / columns);
+    const s = tileW / 152; // proportional shrink vs the original 152x202 tile
+    const tileH = Math.round(202 * s);
+    const startX = (1280 - (columns * tileW + (columns - 1) * gapX)) / 2;
     const startY = 118;
 
     roster.forEach((av, index) => {
@@ -102,15 +110,15 @@ export class PracticePickerScene extends Phaser.Scene {
         .rectangle(x, y, tileW, tileH, theme.graphics.rowFill, theme.alpha.panel)
         .setStrokeStyle(2, colorInt(theme.colors.panelStroke))
         .setInteractive({ useHandCursor: true });
-      this.addPortrait(av.portraitCardId, x, y - 20, tileW - 12, 150);
+      this.addPortrait(av.portraitCardId, x, y - Math.round(20 * s), tileW - 12, Math.round(150 * s));
       const name = this.add
-        .text(x, y + 70, av.name, {
+        .text(x, y + Math.round(70 * s), av.name, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
           align: 'center',
           lineSpacing: -2,
-          wordWrap: { width: tileW - 12 },
+          wordWrap: { width: tileW - 8 },
         })
         .setOrigin(0.5, 0);
 
