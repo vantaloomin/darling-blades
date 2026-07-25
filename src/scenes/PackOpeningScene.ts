@@ -212,6 +212,9 @@ export class PackOpeningScene extends Phaser.Scene {
     } else {
       const cols = Math.min(8, notable.length);
       const dx = 150;
+      const policy = fxPolicy(this);
+      let animatedHoloCount = 0;
+      const maxAnimatedHoloCards = 8;
       notable.forEach((c, i) => {
         const row = Math.floor(i / cols);
         const col = i - row * cols;
@@ -219,8 +222,14 @@ export class PackOpeningScene extends Phaser.Scene {
         const x = width / 2 - ((rowLen - 1) * dx) / 2 + col * dx;
         const y = 300 + row * 210;
         const variant: CardVariant = { frame: c.frame, holo: c.holo, fullArt: c.fullArt };
+        const animateHolo =
+          variant.holo !== 'none' && policy.particleScale >= 1 && animatedHoloCount < maxAnimatedHoloCards;
+        if (animateHolo) animatedHoloCount++;
         const view = new CardView(this, x, y).setScale(0.42).setCard(def(CARD_DB, c.cardId), {
-          fx: 'none',
+          // A batch can contain many special pulls. Keep the first eight holo
+          // treatments animated on the full tier; reduced/off policy gets a
+          // static summary so the reveal never exceeds the FX budget.
+          fx: animateHolo ? 'full' : variant.holo !== 'none' ? 'static' : 'none',
           variant: isPlainVariant(variant) ? undefined : variant,
           fullArt: variant.fullArt,
         });

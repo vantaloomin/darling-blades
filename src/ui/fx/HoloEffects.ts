@@ -196,6 +196,7 @@ export function applyHolo(
   art: Phaser.GameObjects.Image,
   finish: HoloFinish,
   artRect: ArtRect,
+  faceRect: ArtRect = artRect,
 ): HoloHandle {
   const cleanups: (() => void)[] = [];
   let pointerFx: IridescencePostFX | null = null;
@@ -221,9 +222,10 @@ export function applyHolo(
     driftX: number,
     driftY: number,
     duration: number,
+    rect: ArtRect = artRect,
   ): void => {
     const tile = scene.add
-      .tileSprite(artRect.x + artRect.w / 2, artRect.y + artRect.h / 2, artRect.w, artRect.h, key)
+      .tileSprite(rect.x + rect.w / 2, rect.y + rect.h / 2, rect.w, rect.h, key)
       .setBlendMode(blend)
       .setAlpha(alpha);
     container.add(tile);
@@ -266,9 +268,18 @@ export function applyHolo(
 
     case 'pearlescent': {
       // Pink/green oil-slick: interference-band shader (mode 3), or a
-      // drifting pink/green blob tile fallback.
+      // drifting pink/green blob tile fallback. The finish is a face treatment,
+      // so keep a low-alpha full-face tile even beside the art-only shader.
       if (policy.iridescence) addShaderFx(3);
-      else addTile('fx-pearl', 0.42, Phaser.BlendModes.SCREEN, 384, 512, 16000);
+      addTile(
+        'fx-pearl',
+        policy.iridescence ? 0.2 : 0.42,
+        Phaser.BlendModes.SCREEN,
+        384,
+        512,
+        16000,
+        faceRect,
+      );
       break;
     }
 
@@ -322,9 +333,10 @@ export function applyHolo(
     (finish === 'rainbow' || finish === 'pearlescent' || finish === 'fractal') &&
     policy.particleScale > 0
   ) {
+    const sparkleRect = finish === 'pearlescent' ? faceRect : artRect;
     const particles = scene.add.particles(0, 0, 'fx-star', {
-      x: { min: artRect.x + 8, max: artRect.x + artRect.w - 8 },
-      y: { min: artRect.y + 8, max: artRect.y + artRect.h - 8 },
+      x: { min: sparkleRect.x + 8, max: sparkleRect.x + sparkleRect.w - 8 },
+      y: { min: sparkleRect.y + 8, max: sparkleRect.y + sparkleRect.h - 8 },
       lifespan: 900,
       frequency: 380,
       scale: { start: 0, end: 0.9, ease: 'Sine.easeOut' },
