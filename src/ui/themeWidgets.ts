@@ -244,10 +244,12 @@ export function roundedTrigger(
   let measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
   const activeStyle = (): { bg: string; fg: string; stroke: string; hoverStroke: string } =>
     selected && variant === 'ghost' ? BUTTON_STYLE.emphasis : style;
-  const place = (): void => {
-    container.setPosition(x + measurement.visual.width / 2, y);
-  };
+  let placed = false;
   const redraw = (): void => {
+    // Keep the trigger's visual left edge fixed when a hover/selection redraw
+    // changes its measured label width. FilterBar reflows by that same edge,
+    // so redraws must not silently move a CTA back to its construction x.
+    const previousLeft = placed ? container.x - measurement.visual.width / 2 : null;
     measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
     const stateStyle = activeStyle();
     background.clear();
@@ -276,7 +278,11 @@ export function roundedTrigger(
     // The Zone is the input surface. Re-apply after every label update so its
     // minimum touch target remains explicit even when Phaser refreshes size.
     inflateHitArea(inputZone, measurement.hitWidth, measurement.hitHeight);
-    place();
+    container.setPosition(
+      previousLeft === null ? x + measurement.visual.width / 2 : previousLeft + measurement.visual.width / 2,
+      y,
+    );
+    placed = true;
   };
   const setEnabled = (next: boolean): void => {
     enabled = next;
