@@ -7,6 +7,7 @@ import type { Keyword } from '../../src/engine/types';
 import { applyFilters, defaultFilterState } from '../../src/meta/collectionFilter';
 import { packPool } from '../../src/meta/PackOpener';
 import { freshSave } from '../../src/meta/SaveManager';
+import { rulesText } from '../../src/ui/rulesText';
 
 const RARITY_COUNTS = { c: 41, r: 24, sr: 7, ssr: 5, ur: 4 } as const;
 const KEYWORDS = new Set<Keyword>([
@@ -181,6 +182,12 @@ describe('Arthurian Court data integrity', () => {
 });
 
 describe('Arthurian Court set plumbing', () => {
+  it('renders Camelot Banneret with the requested conditional arrival copy', () => {
+    expect(rulesText(CARD_DB['ac-camelot-banneret'])).toContain(
+      'If a Quest is active when this arrives, create 1 1/1 Squire token.',
+    );
+  });
+
   it('has a self-contained ac-only pack pool in every rarity tier', () => {
     for (const tier of ['c', 'r', 'sr', 'ssr', 'ur'] as const) {
       const pool = packPool(CARD_DB, tier, 'arthurian-court');

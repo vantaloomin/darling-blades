@@ -1455,9 +1455,10 @@ export class DuelScene extends Phaser.Scene {
       height: message === 'Replay complete' ? 170 : 220,
       dimAlpha: 0.78,
       tapDimToClose: false,
-      escToClose: false,
+      escToClose: true,
       showClose: false,
       depth: theme.depth.results,
+      onClose: () => this.exitReplayViewer(),
     });
     const c = shell.container;
     c.add(
@@ -5109,9 +5110,14 @@ export class DuelScene extends Phaser.Scene {
       height: 330,
       dimAlpha: 0.78,
       tapDimToClose: false,
-      escToClose: false,
+      escToClose: true,
       showClose: false,
       depth: theme.depth.results,
+      onClose: () => {
+        this.guard.close();
+        this.zoom.setSuppressed(false);
+        this.scene.start('MainMenu');
+      },
     });
     const c = shell.container;
     const reasonCopy = resultReasonCopy(won, reason);
@@ -5189,9 +5195,14 @@ export class DuelScene extends Phaser.Scene {
       height: 340,
       dimAlpha: 0.82,
       tapDimToClose: false,
-      escToClose: false,
+      escToClose: true,
       showClose: false,
       depth: theme.depth.results,
+      onClose: () => {
+        this.guard.close();
+        this.zoom.setSuppressed(false);
+        this.scene.start('Limited');
+      },
     });
     const c = shell.container;
     const reasonCopy = resultReasonCopy(won, reason);
@@ -5318,9 +5329,14 @@ export class DuelScene extends Phaser.Scene {
       height: 330,
       dimAlpha: 0.82,
       tapDimToClose: false,
-      escToClose: false,
+      escToClose: true,
       showClose: false,
       depth: theme.depth.results,
+      onClose: () => {
+        this.guard.close();
+        this.zoom.setSuppressed(false);
+        this.scene.start('Gauntlet');
+      },
     });
     const c = shell.container;
     const reasonCopy = resultReasonCopy(won, reason);
@@ -5401,9 +5417,14 @@ export class DuelScene extends Phaser.Scene {
       height: 640,
       dimAlpha: 0.86,
       tapDimToClose: false,
-      escToClose: false,
+      escToClose: true,
       showClose: false,
       depth: theme.depth.results,
+      onClose: () => {
+        this.guard.close();
+        this.zoom.setSuppressed(false);
+        this.scene.start('Gauntlet');
+      },
     });
     const c = shell.container;
 

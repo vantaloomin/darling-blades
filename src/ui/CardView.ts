@@ -21,6 +21,7 @@ const ART_RECT = { x: -132, y: -164, w: 264, h: 192 };
 // Full-art window follows the baked frame face: the 18px (2x texture) inset
 // leaves the card's rounded metal border visible on every edge.
 const FULL_ART_RECT = { x: -141, y: -201, w: 282, h: 402 };
+const FACE_RECT = { x: -150, y: -210, w: 300, h: 420 };
 const TEXT_LEFT = -126;
 const TEXT_WIDTH = 252;
 // Badge-row geometry (user spec 2026-07-13): the cost tray's bottom-left
@@ -623,13 +624,13 @@ export class CardView extends Phaser.GameObjects.Container {
 
     // Holo — a finish is per-copy (variant Axis C): no variant, no holo.
     if (fx === 'full' && variant && variant.holo !== 'none') {
-      this.holo = applyHolo(this.scene, this, this.art, variant.holo, artRect);
+      this.holo = applyHolo(this.scene, this, this.art, variant.holo, artRect, FACE_RECT);
     }
     // Full art: the holo overlay covers the whole frame (not just the art
     // window), and applyHolo appends its objects last — so re-raise every
     // text plate, text, and badge above the finish. Text must stay legible
     // over any holo (user spec 2026-07-13).
-    if (fullArt) this.raiseFullArtChrome();
+    if (fullArt || variant?.holo === 'pearlescent') this.raiseFullArtChrome();
     return this;
   }
 
@@ -653,6 +654,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.gemPlate,
       this.gem,
       this.crown,
+      this.ring,
     ];
     for (const obj of chrome) this.bringToTop(obj);
   }

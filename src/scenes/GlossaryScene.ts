@@ -3,7 +3,7 @@ import type { Color, Keyword, Rarity } from '../engine/types';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { bakeCardFrames } from '../ui/CardFrameFactory';
-import { KEYWORD_ICON_KEY, bakeKeywordIcons } from '../ui/KeywordIcons';
+import { KEYWORD_ICON_KEY, MECHANIC_ICON_KEY, bakeKeywordIcons } from '../ui/KeywordIcons';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { CARD_TYPE_DEFINITIONS, KEYWORD_NAMES, KEYWORD_REMINDER, MECHANIC_DEFINITIONS } from '../ui/rulesText';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -20,6 +20,7 @@ const PANEL_W = 568;
 
 type GlossaryIcon =
   | { kind: 'keyword'; key: Keyword }
+  | { kind: 'mechanic'; key: keyof typeof MECHANIC_ICON_KEY }
   | { kind: 'mana'; key: Color }
   | { kind: 'rarity'; key: Rarity }
   | { kind: 'none' };
@@ -58,7 +59,11 @@ const GLOSSARY_SECTIONS: GlossarySection[] = [
       { name: 'Sever', description: MECHANIC_DEFINITIONS.sever, icon: { kind: 'none' } },
       { name: 'Foresee', description: MECHANIC_DEFINITIONS.foresee, icon: { kind: 'none' } },
       { name: 'Quest', description: MECHANIC_DEFINITIONS.quest, icon: { kind: 'none' } },
-      { name: 'Champion Awakening', description: MECHANIC_DEFINITIONS.championAwakening, icon: { kind: 'none' } },
+      {
+        name: 'Champion Awakening',
+        description: MECHANIC_DEFINITIONS.championAwakening,
+        icon: { kind: 'mechanic', key: 'awakening' },
+      },
       { name: 'Empower', description: MECHANIC_DEFINITIONS.empower, icon: { kind: 'none' } },
       { name: 'Skim', description: MECHANIC_DEFINITIONS.skim, icon: { kind: 'none' } },
       { name: 'Retell', description: MECHANIC_DEFINITIONS.retell, icon: { kind: 'none' } },
@@ -196,8 +201,9 @@ export class GlossaryScene extends Phaser.Scene {
   ): Phaser.GameObjects.GameObject[] {
     const items: Phaser.GameObjects.GameObject[] = [this.rowPlate(x, y, width, height)];
     let textX = x + 14;
-    if (entry.icon.kind === 'keyword') {
-      items.push(this.add.image(x + 22, y + height / 2, KEYWORD_ICON_KEY[entry.icon.key]).setDisplaySize(34, 34));
+    if (entry.icon.kind === 'keyword' || entry.icon.kind === 'mechanic') {
+      const iconKey = entry.icon.kind === 'keyword' ? KEYWORD_ICON_KEY[entry.icon.key] : MECHANIC_ICON_KEY[entry.icon.key];
+      items.push(this.add.image(x + 22, y + height / 2, iconKey).setDisplaySize(34, 34));
       textX = x + 46;
     }
     items.push(this.add
