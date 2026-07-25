@@ -1259,26 +1259,27 @@ _Dated 2026-07-04. Review monthly._
 
   **1.5** = **"Darlings"**, the Commander/EDH-style format (the parked
   commander→darling doc-rename draft on `claude/commander-naming-review-ee50e3`
-  is its spec seed) + **variant deck building** (a deck slot pins a specific
-  owned frame/holo/full-art treatment — `SaveData` bump + builder UI + duel
-  rendering; moved here from the 1.4 feedback batch 2026-07-24) + the
-  **Dark Tales power pass** as the set slot (the two measured 1.4 debts:
+  is its spec seed) + the **Cyberpunk Yokai Nights** expansion (Expansion 6 —
+  moved up from 1.6 by user decision 2026-07-24: it is the only fully-known
+  next set; needs its engine-first concretion pass) + **variant deck
+  building** (a deck slot pins a specific owned frame/holo/full-art
+  treatment — `SaveData` bump + builder UI + duel rendering) + the
+  **Dark Tales power pass** riding the set work (the two measured 1.4 debts:
   Midnight Storybook at 30.5% for want of rate-efficient DT threats, and the
   unclosed go-wide gap at weenie 78.1 / worst 72.7) + **save export/import
   codes** (the first rung of save portability; groundwork for 1.8/1.9) +
   **metagame-loop CI promotion** if the 1.4 release sweep earns trust;
-  **1.6** = the **Cyberpunk Yokai Nights** expansion (Expansion 6 — concept
-  cut from 1.4 scope, needs its engine-first concretion pass) + **suggested
-  decks v1** (the persona hill-climb harness pointed at the player's own
-  collection: "build me a deck from what I own" — the hard half already
-  ships as the dev-only crafting loop) + **player-facing replays v1**
-  (rewatch + share codes over the existing deterministic replay log);
-  **1.7** = **Story Mode** + Expansion 7 (TBD — candidate: themed to carry
+  **1.6** = **suggested decks v1** (the persona hill-climb harness pointed
+  at the player's own collection: "build me a deck from what I own" — the
+  hard half already ships as the dev-only crafting loop) + **player-facing
+  replays v1** (rewatch + share codes over the existing deterministic
+  replay log) + Expansion 7 (from the slate below);
+  **1.7** = **Story Mode** + Expansion 8 (slate — candidate: themed to carry
   the story campaign) + **accessibility wave 1** (colorblind-safe
   mana/rarity cues, text scaling). DECIDE-BY-1.7: **localization** —
   every string is hardcoded English; "English forever" is a valid answer,
   but it must be chosen, because retrofitting i18n after 1.8 is expensive;
-  **1.8** = the **complete mobile UX overhaul** + Expansion 8 (TBD) +
+  **1.8** = the **complete mobile UX overhaul** + Expansion 9 (slate) +
   **cloud save sync** (the full account/portability layer atop 1.5's export
   codes — hard prerequisite for 1.9) + the i18n scaffold if 1.7 decided
   yes. DECIDE-BY-1.8: the **P2P trust model** — the seeded-deterministic
@@ -1287,10 +1288,19 @@ _Dated 2026-07-04. Review monthly._
   relay; honor-system vs cheat-resistant changes the 1.9 architecture;
   **1.9** = **P2P multiplayer** (invite codes / lobby URLs, built to the
   1.8 trust decision) + **spectating** (multiplayer × the replay layer) +
-  Expansion 9 (TBD);
-  **2.0** = **MOD/UGC packs** (the long-standing anchor) + Expansion 10
-  (TBD) + **the persona tutor** (suggested decks v2: a replay-annotating
-  coach — "here is where the line was Doom Bolt, not attack").
+  Expansion 10 (slate);
+  **2.0** = **MOD/UGC packs** (the long-standing anchor) + **Core Set II**
+  as the anniversary set slot (user-picked 2026-07-24: circle back to the
+  Three Kingdoms / Greek base rosters and flesh them out) + **the persona
+  tutor** (suggested decks v2: a replay-annotating coach — "here is where
+  the line was Doom Bolt, not attack").
+
+  **The expansion slate for slots 7-10** (user-curated 2026-07-24, order
+  TBD after the mechanics discussion): **Egyptian underworld** (+ the
+  Bastet catgirl angle — user-liked), **Cosmic Horror**, **sci-fi alien
+  girls**, **prehistoric cavewomen + dinosaurs**, **steampunk** — five
+  concepts for four slots, one falls to post-2.0. Slavic, Mesoamerican,
+  and Hindu-epic lanes were considered and passed on (2026-07-24).
 
   **Sealed is cancelled outright** (2026-07-14) and
   its dormant code was removed 2026-07-20; the hub offers only Draft. Legacy
