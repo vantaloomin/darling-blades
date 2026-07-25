@@ -66,6 +66,25 @@ export class EasyAI implements AIPlayer {
       : view.you.hand[cast.handIndex];
   }
 
+  /** Targeted damage should not default to a friendly permanent or player. */
+  private isSelfDamageTarget(
+    view: PlayerView,
+    cast: Extract<Action, { type: 'castSpell' }>,
+  ): boolean {
+    const cardId = this.cardIdFor(view, cast);
+    const damagesTarget = (def(this.db, cardId).abilities ?? []).some(
+      (ab) =>
+        ab.when === 'spell' &&
+        (ab.ops ?? []).some((op) => op.op === 'damage' && op.to === 'target'),
+    );
+    if (!damagesTarget) return false;
+
+    const target = cast.targets?.[0];
+    if (target?.kind === 'player') return target.player === view.myId;
+    if (target?.kind !== 'permanent') return false;
+    return view.battlefield.find((perm) => perm.iid === target.iid)?.controller === view.myId;
+  }
+
   private mulligan(view: PlayerView): Action {
     if (view.you.mulligans >= 2) return { type: 'keepHand' };
     const lands = this.landsInHand(view);
@@ -128,8 +147,11 @@ export class EasyAI implements AIPlayer {
         );
         if (nonRemoval.length === 0) return nonConcede.find((l) => l.type === 'passStep') ?? nonConcede[0];
       }
-      const castPool = usefulCasts.length > 0 ? usefulCasts : casts;
+      const castPool = (usefulCasts.length > 0 ? usefulCasts : casts).filter(
+        (cast) => !this.isSelfDamageTarget(view, cast),
+      );
       const pool = [...castPool, ...skimPool];
+      if (pool.length === 0) return nonConcede.find((l) => l.type === 'passStep') ?? nonConcede[0];
       // Cast the biggest thing it can afford.
       pool.sort((x, y) => {
         const score = (action: Action): number => {
@@ -247,7 +269,7 @@ export class EasyAI implements AIPlayer {
       const kind = removalKind(this.db, cardId);
       if (kind !== 'massDestroy' && kind !== 'destroyNewest') return true;
       return removalValueForCast(view.battlefield, this.db, view.myId, cardId) > 0;
-    });
+    }).filter((cast) => !this.isSelfDamageTarget(view, cast));
     if (useful.length === 0) return pass;
     return useful[rngInt(this.rng, useful.length)];
   }

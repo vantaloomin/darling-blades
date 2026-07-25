@@ -6,6 +6,7 @@ import { createRngState } from '../../src/engine/rng';
 import { getEffectiveStats } from '../../src/engine/statics';
 import type { CardDb, GameState } from '../../src/engine/types';
 import { cardValue, permValue } from '../../src/ai/value';
+import { CARD_DB } from '../../src/data/catalog';
 import { makeTestState, TEST_DB } from '../helpers';
 
 const DB: CardDb = {
@@ -144,6 +145,46 @@ describe('champion awakening', () => {
     expect(game.state.battlefield.find((perm) => perm.cardId === 'no_block')?.awakened).toBeUndefined();
   });
 
+  it('Camelot Banneret creates its Quest token on arrival but needs an explicit awaken op', () => {
+    const db: CardDb = {
+      ...CARD_DB,
+      awaken_all: {
+        id: 'awaken_all',
+        name: 'Call the Champions',
+        types: ['ritual'],
+        subtypes: [],
+        cost: { generic: 0, pips: {} },
+        colors: [],
+        abilities: [{ when: 'spell', ops: [{ op: 'awaken', scope: 'allYours' }] }],
+        rarity: 'c',
+      },
+    };
+    const game = Game.restore(
+      makeTestState({
+        hands: [['ac-camelot-banneret', 'awaken_all'], []],
+        battlefield: [
+          { iid: 1, cardId: 'ac-quest-for-the-grail', controller: 0 },
+          { iid: 2, cardId: 'land-plains', controller: 0 },
+          { iid: 3, cardId: 'land-plains', controller: 0 },
+          { iid: 4, cardId: 'land-plains', controller: 0 },
+        ],
+        active: 0,
+      }),
+      db,
+    );
+
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    const banneret = game.state.battlefield.find((perm) => perm.cardId === 'ac-camelot-banneret');
+    expect(game.state.battlefield.filter((perm) => perm.cardId === 'tok-squire')).toHaveLength(1);
+    expect(banneret?.awakened).toBeUndefined();
+    expect(getEffectiveStats(game.state.battlefield, db, banneret!.iid).keywords.has('firstBlade')).toBe(false);
+
+    const awakened = game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(awakened).toContainEqual({ e: 'awakened', iid: banneret!.iid, cardId: 'ac-camelot-banneret' });
+    expect(getEffectiveStats(game.state.battlefield, db, banneret!.iid)).toMatchObject({ attack: 4, defense: 4 });
+    expect(getEffectiveStats(game.state.battlefield, db, banneret!.iid).keywords.has('firstBlade')).toBe(true);
+  });
+
   it('prints chapters, awaken ops, awakening blocks, conditional prefixes, and glossary entries', () => {
     const text = rulesText(DB.display_quest);
     expect(text).toContain('Awakening: +1/+2, Skyborne, Untouchable');
@@ -162,7 +203,7 @@ describe('champion awakening', () => {
         },
       ],
     });
-    expect(conditional).toContain('While a Quest is active, This gets +0/+0 and have Untouchable.');
+    expect(conditional).toContain('While a Quest is active, This gets +0/+0, and gains Untouchable.');
     expect(cardGlossaryEntries(DB.display_quest)).toEqual(
       expect.arrayContaining([
         { name: 'Quest', reminder: expect.any(String) },
