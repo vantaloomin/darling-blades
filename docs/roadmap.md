@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-23 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-24 · review monthly -->
 
 # Roadmap
 
@@ -1238,16 +1238,61 @@ _Dated 2026-07-04. Review monthly._
   balance instrument);
   **1.4** = the ACTIVE program (scoped 2026-07-23, spec in
   [plan-1.4.md](plan-1.4.md)): the **Dark Tales: The Cursed Storybook**
-  expansion (Expansion 5, 120 cards + 4 tokens — **card data, the
-  Skim/cycling and Retell/flashback engine mechanics, the duel UI, and the
-  dark-tales land style are ALL MERGED to release/1.4 as of 2026-07-23**,
-  pool at 638; remaining: rungs 17-18 bosses, the staged-art PR, the
-  re-baseline), the board-answer balance pass (go-wide sweeper gap + the
-  workbench recosts, not started), and the persona metagame loop
-  (**shipped**, informational, dev-only), plus the codex-dash stream board
-  tooling;
-  **1.5** = Commander mode, renamed **"Darlings"**;
-  **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) and
+  expansion (Expansion 5, 120 cards + 4 tokens) — **engineering COMPLETE on
+  release/1.4 as of 2026-07-24**: the Skim/Retell engine, card data (pool
+  638), duel UI, all 124 arts + the dark-tales land style, rungs 17-18
+  (Glass-Coffin Queen 77% / Abyssal Songstress 87% at 40 seeds), the
+  18-floor re-baseline, the Pillar 1 board-answer pass (six recosts + the
+  Midnight Storybook rebuild 6.7%→30.5%; the go-wide gap did NOT close —
+  both debts carry to the 1.5 Dark Tales power pass), the persona metagame
+  loop (informational, dev-only), the WebP art conversion (730→134 MiB),
+  and the codex-dash tooling. Remaining before the v1.4.0 cut: the playtest
+  feedback batch, the economy re-date + doc sync, and release-prep with the
+  metagame deep sweep as the final step (user rule 2026-07-24: the
+  multi-hour sweep always runs LAST, against the final field).
+
+  **The 1.5 → 2.0 ladder (user-scoped 2026-07-24).** Standing cadence rule:
+  **every major release ships expansion-scale set work** — 1.5's set slot is
+  deliberately a health pass rather than a new set (120 cards just landed);
+  new expansions resume at 1.6. Expansion 6 is named; 7-10 are TBD pending
+  the expansion-ideation session (the next planning discussion).
+
+  **1.5** = **"Darlings"**, the Commander/EDH-style format (the parked
+  commander→darling doc-rename draft on `claude/commander-naming-review-ee50e3`
+  is its spec seed) + **variant deck building** (a deck slot pins a specific
+  owned frame/holo/full-art treatment — `SaveData` bump + builder UI + duel
+  rendering; moved here from the 1.4 feedback batch 2026-07-24) + the
+  **Dark Tales power pass** as the set slot (the two measured 1.4 debts:
+  Midnight Storybook at 30.5% for want of rate-efficient DT threats, and the
+  unclosed go-wide gap at weenie 78.1 / worst 72.7) + **save export/import
+  codes** (the first rung of save portability; groundwork for 1.8/1.9) +
+  **metagame-loop CI promotion** if the 1.4 release sweep earns trust;
+  **1.6** = the **Cyberpunk Yokai Nights** expansion (Expansion 6 — concept
+  cut from 1.4 scope, needs its engine-first concretion pass) + **suggested
+  decks v1** (the persona hill-climb harness pointed at the player's own
+  collection: "build me a deck from what I own" — the hard half already
+  ships as the dev-only crafting loop) + **player-facing replays v1**
+  (rewatch + share codes over the existing deterministic replay log);
+  **1.7** = **Story Mode** + Expansion 7 (TBD — candidate: themed to carry
+  the story campaign) + **accessibility wave 1** (colorblind-safe
+  mana/rarity cues, text scaling). DECIDE-BY-1.7: **localization** —
+  every string is hardcoded English; "English forever" is a valid answer,
+  but it must be chosen, because retrofitting i18n after 1.8 is expensive;
+  **1.8** = the **complete mobile UX overhaul** + Expansion 8 (TBD) +
+  **cloud save sync** (the full account/portability layer atop 1.5's export
+  codes — hard prerequisite for 1.9) + the i18n scaffold if 1.7 decided
+  yes. DECIDE-BY-1.8: the **P2P trust model** — the seeded-deterministic
+  engine + `PlayerView` redaction is a lockstep-ready foundation, but pure
+  P2P leaks hidden information without commit-reveal shuffles or a thin
+  relay; honor-system vs cheat-resistant changes the 1.9 architecture;
+  **1.9** = **P2P multiplayer** (invite codes / lobby URLs, built to the
+  1.8 trust decision) + **spectating** (multiplayer × the replay layer) +
+  Expansion 9 (TBD);
+  **2.0** = **MOD/UGC packs** (the long-standing anchor) + Expansion 10
+  (TBD) + **the persona tutor** (suggested decks v2: a replay-annotating
+  coach — "here is where the line was Doom Bolt, not attack").
+
+  **Sealed is cancelled outright** (2026-07-14) and
   its dormant code was removed 2026-07-20; the hub offers only Draft. Legacy
   save history and records remain inert, and an active legacy Sealed run loads
   safely as no active run.
