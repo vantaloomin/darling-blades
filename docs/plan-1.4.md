@@ -1,8 +1,12 @@
-<!-- source-of-truth: docs/plan-1.3.md, docs/plan-1.3-pillar3.md, docs/expansions/dark-tales.md, docs/keyword-map.md, src/data/opponents.ts, src/ai/tiers.ts, src/meta/SaveManager.ts, scripts/balance-matrix.ts, scripts/personas/ · last-verified: 2026-07-23 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.3.md, docs/plan-1.3-pillar3.md, docs/expansions/dark-tales.md, docs/keyword-map.md, src/data/opponents.ts, src/ai/tiers.ts, src/meta/SaveManager.ts, scripts/balance-matrix.ts, scripts/personas/ · last-verified: 2026-07-26 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.4 — program plan
 
-**Status 2026-07-23:** Pillar 2 SHIPPED (PR #104, metagame loop).
+**Close-out status 2026-07-26:** SHIPPED; engineering is complete. The
+metagame deep sweep runs at release-prep under the sweep-runs-last rule,
+against the final field.
+
+**Historical status 2026-07-23:** Pillar 2 SHIPPED (PR #104, metagame loop).
 Pillar 0 largely SHIPPED (engine #108, card data #110 at pool 638,
 land style #111, duel UI + glossary #112; concretion record in
 [plan-1.4-pillar0.md](plan-1.4-pillar0.md)); remaining: bosses 17-18,
