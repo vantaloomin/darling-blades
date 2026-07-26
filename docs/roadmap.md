@@ -61,7 +61,7 @@ _Dated 2026-07-26. Review monthly._
 ## Recently shipped (2026-07-26 · the 1.4 close-out)
 
 - **The full 1.4 program, built as a release train** on `release/1.4` (PRs
-  #104 through #123, with CI gating each merge):
+  #104 through #128, with CI gating each merge):
   - **Pillar 0 (PRs #108, #110, #111, #112, #114, and #115): Dark Tales,
     The Cursed Storybook.** The 120-card expansion plus four set-unique
     tokens landed as a 638-collectible-card, six-set pool. Skim and Retell
@@ -104,6 +104,12 @@ _Dated 2026-07-26. Review monthly._
   sweep and the final metagame deep sweep remain release-prep work; the sweep
   runs last against the final field. The `release/1.4` to `main` merge and the
   `v1.4.0` tag remain with the user.
+  - **Release-window riders (PRs #124-#128):** the metagame sweep progress
+    hook + live dashboard (:5185), the v1.4.0 version/README/roadmap doc
+    package, seven overplanned 1.5-to-2.0 expansion concept drafts (~1,400
+    candidates), the sweep turbo harness (worker-pool + memoization,
+    byte-identical by test; 4.61x measured at 14 workers), and the
+    legendary-crown z-order fix caught by the release playtest.
 
 ## Recently shipped (2026-07-21 · the 1.3 close-out)
 
