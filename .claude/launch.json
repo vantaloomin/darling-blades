@@ -8,6 +8,12 @@
       "port": 5179
     },
     {
+      "name": "sweep-dash",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "sweep-dash"],
+      "port": 5185
+    },
+    {
       "name": "dt-art-review",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5178", "--directory", "Z:/Coding Projects/WaifuTCG-Art-Pilots"],

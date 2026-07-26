@@ -44,6 +44,7 @@ Single-round mode (the v1 default):
 Metagame loop mode (informational, deterministic):
   --metagame --all | --personas <id,id,...>
   --rounds <n>               Maximum best-response rounds (default: 4)
+  --status-file <path>       Write live metagame progress JSON (sweep dashboards)
 
 Policy: first craft is round 0 against the static field. Each later round
 crafts every persona simultaneously against that static field plus the other
@@ -228,6 +229,23 @@ export interface MetagameOptions {
   personaIds: readonly string[];
   measure?: MeasureFunction;
   propose?: HillClimbOptions['propose'];
+  /**
+   * Optional per-craft progress hook (sweep dashboards). Called immediately
+   * BEFORE each persona's hill-climb starts: once per persona in the round-0
+   * seed pass and once per persona per best-response round. Pure observer -
+   * it must not touch the options or decks, and determinism is unaffected.
+   */
+  onProgress?: (event: MetagameProgressEvent) => void;
+}
+
+export interface MetagameProgressEvent {
+  phase: 'seed' | 'round';
+  round: number;
+  maxRounds: number;
+  personaId: string;
+  personaName: string;
+  personaIndex: number;
+  personaCount: number;
 }
 
 export interface MetagameResult {
@@ -689,7 +707,12 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
   const retained = new Map<string, MetagameRound>();
   const seen = new Map<string, Map<string, { firstRound: number; lastRound: number }>>();
   const staticComposition = referenceComposition(options.field);
-  for (const template of templates) {
+  for (const [index, template] of templates.entries()) {
+    options.onProgress?.({
+      phase: 'seed', round: 0, maxRounds: options.maxRounds,
+      personaId: template.id, personaName: template.name,
+      personaIndex: index, personaCount: templates.length,
+    });
     const round = craftMetagameRound(template, 0, staticComposition, options);
     history.set(template.id, [round]);
     retained.set(template.id, round);
@@ -701,7 +724,12 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
   for (let roundNumber = 1; roundNumber <= options.maxRounds; roundNumber++) {
     const previous = new Map(retained);
     const next = new Map<string, MetagameRound>();
-    for (const template of templates) {
+    for (const [index, template] of templates.entries()) {
+      options.onProgress?.({
+        phase: 'round', round: roundNumber, maxRounds: options.maxRounds,
+        personaId: template.id, personaName: template.name,
+        personaIndex: index, personaCount: templates.length,
+      });
       const fieldComposition = personaFieldComposition(templates, previous, options.field)
         .filter((entry) => entry.personaId !== template.id);
       next.set(template.id, craftMetagameRound(template, roundNumber, fieldComposition, options));
@@ -972,6 +1000,26 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
 
     if (metagame) {
       const maxRounds = parsePositiveInteger(opt('rounds'), '--rounds', DEFAULT_METAGAME_ROUNDS);
+      // Live progress for the sweep dashboard: one JSON overwrite per crafted
+      // persona (coarse on purpose - the hill-climb itself stays silent). The
+      // wall-clock stamps live only here in the CLI shell, never in the loop.
+      const statusPath = opt('status-file');
+      const sweepStartedAt = new Date().toISOString();
+      const writeStatus = (payload: Record<string, unknown>): void => {
+        if (!statusPath) return;
+        writeFileSync(statusPath, `${JSON.stringify({
+          startedAt: sweepStartedAt,
+          updatedAt: new Date().toISOString(),
+          seeds,
+          iterations,
+          maxRounds,
+          personaCount: selectedPersonaIds!.length,
+          outDir,
+          ...payload,
+        }, null, 2)}
+`, 'utf8');
+      };
+      writeStatus({ state: 'starting' });
       const result = runMetagameLoop({
         poolId,
         pool,
@@ -982,6 +1030,17 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         maxRounds,
         personaIds: selectedPersonaIds!,
         measure: dependencies.measure,
+        onProgress: (event) => writeStatus({ state: 'running', ...event }),
+      });
+      writeStatus({
+        state: 'done',
+        summary: result.summary,
+        artifacts: result.artifacts.map((artifact) => ({
+          personaId: artifact.persona.id,
+          personaName: artifact.persona.name,
+          measuredScore: artifact.measured.score,
+          rounds: artifact.metagame!.rounds.length,
+        })),
       });
       const today = dependencies.today?.() ?? new Date().toISOString().slice(0, 10);
       for (const artifact of result.artifacts) {
