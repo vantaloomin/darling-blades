@@ -105,9 +105,22 @@ describe('persona metagame loop', () => {
       personaIds: ['burn', 'weenie'],
       measure: (_deck: readonly string[], measureOptions: MeasureOptions) => measured(measureOptions.field),
     };
-    const first = runMetagameLoop(options);
+    const progress: Array<{ phase: string; round: number; personaId: string; personaIndex: number }> = [];
+    const first = runMetagameLoop({
+      ...options,
+      onProgress: ({ phase, round, personaId, personaIndex }) =>
+        progress.push({ phase, round, personaId, personaIndex }),
+    });
     const second = runMetagameLoop(options);
 
+    // The dashboard hook is a pure observer: identical results with or
+    // without it, and it fires once per persona per crafted round in order.
+    expect(progress).toEqual([
+      { phase: 'seed', round: 0, personaId: 'burn', personaIndex: 0 },
+      { phase: 'seed', round: 0, personaId: 'weenie', personaIndex: 1 },
+      { phase: 'round', round: 1, personaId: 'burn', personaIndex: 0 },
+      { phase: 'round', round: 1, personaId: 'weenie', personaIndex: 1 },
+    ]);
     expect(JSON.stringify(first.artifacts)).toBe(JSON.stringify(second.artifacts));
     expect(first.summary).toMatchObject({ stoppedReason: 'stable-decks', completedRounds: 1, converged: true });
     const burn = first.artifacts.find((artifact) => artifact.persona.id === 'burn')!;
