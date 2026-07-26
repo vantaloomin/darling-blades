@@ -170,6 +170,33 @@ export const ECONOMY = {
  * Low Skill Casual        44.67%       0.45          0          40.83%       0
  * High Skill Veteran      79.87%       1.96          0          78.19%       0
  * Completionist           95.19%       2.09          0          89.10%    43.5
+ *
+ * Post-Dark-Tales baseline 2026-07-25 (same 10 personas x 8 seeds x 60 days;
+ * 4,800 daily snapshots; balance/econ-baseline-2026-07-25-post-dt.report.json)
+ * after the 1.4 set landed: 638 collectible cards (+120, a 23% larger pool),
+ * the 525g dark-tales booster SKU, rungs 17-18 (18-rung full clear 4,210g
+ * incl. the 250g completion bonus), the Pillar 1 recosts + Midnight Storybook
+ * rebuild, and 8 new Dark Tales achievements. Every persona's 60-day
+ * completion drops another 6-14pp - the expected bigger-chase effect, the
+ * same shape as the Arthurian Court landing (all coarse EV gates stay green;
+ * verdict label unchanged at 'uneven' on the same quest-claim-spread bullet,
+ * now 42-90%). Overall day-60 medians: 60.2665% collection, 1.2167 packs/day.
+ * WATCH ITEM: craftedUniques fell to 0.0 across ALL personas (was up to 11.9
+ * post-GM) - at pool 638 the 6x craft price appears to lose to raw packs for
+ * every scripted policy; whether crafting should scale with pool size is a
+ * 1.5 tuning question, noted for the Dark Tales power pass.
+ *
+ * Persona              Collection  Packs/day  Premium runs  Quest claim  Crafted  Achievements  First Premium
+ * New Casual              33.82%       0.48          0          42.50%       0.0         13.1              -
+ * Daily Grinder            61.38%       1.56          0          73.82%       0.0         24.0              -
+ * Gauntlet Climber         56.97%       1.40          0          68.33%       0.0         22.4              -
+ * Limited Fan              79.21%       0.64      18.00          73.06%       0.0         32.5            2.5
+ * Collector                 50.12%       1.03          0          66.60%       0.0         18.6              -
+ * Theme Deck Buyer          59.15%       0.83          0          59.58%       0.0         22.2              -
+ * Hardcore Optimizer        69.30%       2.31          0          85.83%       0.0         27.6              -
+ * Low Skill Casual          33.91%       0.47          0          41.53%       0.0         13.1              -
+ * High Skill Veteran        66.87%       1.99          0          78.26%       0.0         27.9              -
+ * Completionist             74.55%       2.13          0          89.79%       0.0         34.0              -
  */
 
 /**
