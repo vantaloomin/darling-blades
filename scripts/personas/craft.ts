@@ -1,4 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpus } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAI } from '../../src/ai/personality';
@@ -7,6 +8,7 @@ import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../../src/data/starte
 import { createRngState, rngInt, rngNext, type RngState } from '../../src/engine/rng';
 import { manaValue, type CardDef, type Color } from '../../src/engine/types';
 import { runCell, type CellResult } from '../balance-matrix';
+import { runParallelGames, type MeasureGameJob } from './measure-worker';
 import { cardRoles, curveBand, rateCard, scoreCard, type PersonaDeckState } from './score';
 import {
   PERSONA_TEMPLATES,
@@ -21,6 +23,7 @@ const DEFAULT_SEEDS = 150;
 const DEFAULT_ITERATIONS = 80;
 const DEFAULT_SEED = 13_003;
 const DEFAULT_METAGAME_ROUNDS = 4;
+const DEFAULT_MEASURE_WORKERS = Math.max(1, cpus().length - 2);
 const BASIC_BY_COLOR: Readonly<Record<Color, string>> = {
   W: 'land-plains',
   U: 'land-island',
@@ -38,6 +41,8 @@ Single-round mode (the v1 default):
   --seeds <n>                Games per matchup (default: 150)
   --iterations <n>           Hill-climb swaps (default: 80)
   --seed <n>                 Deterministic craft seed (default: 13003)
+  --workers <n>              Games per measure worker count (default: SWEEP_WORKERS or CPUs-2)
+  --no-memo                  Disable the deterministic measurement cache
   --out <dir>                Artifact directory
   --check <artifact.json>    Remeasure a retained v1 artifact for drift
 
@@ -214,6 +219,8 @@ export interface MeasureOptions {
   seed: number;
   personaId: string;
   fieldComposition?: readonly FieldCompositionEntry[];
+  workers?: number;
+  memoize?: boolean;
 }
 
 export type MeasureFunction = (deck: readonly string[], options: MeasureOptions) => MeasuredRecord;
@@ -251,6 +258,39 @@ export interface MetagameProgressEvent {
 export interface MetagameResult {
   artifacts: PersonaArtifact[];
   summary: MetagameSummary;
+}
+
+export interface MeasureCacheStats {
+  calls: number;
+  hits: number;
+  misses: number;
+  entries: number;
+  simulatedGames: number;
+}
+
+const measuredCache = new Map<string, MeasuredRecord>();
+let measureStats = { calls: 0, hits: 0, misses: 0, simulatedGames: 0 };
+
+export function defaultMeasureWorkers(): number {
+  return DEFAULT_MEASURE_WORKERS;
+}
+
+export function resolveMeasureWorkers(requested?: number): number {
+  const envValue = process.env.SWEEP_WORKERS;
+  const value = requested ?? (envValue === undefined ? DEFAULT_MEASURE_WORKERS : Number(envValue));
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`workers must be a positive integer (got ${value})`);
+  }
+  return value;
+}
+
+export function resetMeasureCache(): void {
+  measuredCache.clear();
+  measureStats = { calls: 0, hits: 0, misses: 0, simulatedGames: 0 };
+}
+
+export function getMeasureCacheStats(): MeasureCacheStats {
+  return { ...measureStats, entries: measuredCache.size };
 }
 
 const emptyRoles = (): Record<DeckRole, number> => ({
@@ -461,22 +501,96 @@ export function measureDeckAgainstField(
   fieldComposition: readonly FieldCompositionEntry[],
 ): MeasuredRecord {
   assertCraftedDeckLegal(deck);
+  const workers = resolveMeasureWorkers(options.workers);
+  measureStats.calls++;
+  const cacheKey = JSON.stringify({
+    deck: [...deck],
+    field: options.field,
+    seeds: options.seeds,
+    seed: options.seed,
+    personaId: options.personaId,
+    fieldComposition: fieldComposition.map((reference) => ({
+      kind: reference.kind,
+      id: reference.id,
+      name: reference.name,
+      personaId: reference.personaId ?? null,
+      deck: [...reference.deck],
+    })),
+  });
+  if (options.memoize !== false) {
+    const cached = measuredCache.get(cacheKey);
+    if (cached) {
+      measureStats.hits++;
+      return cached;
+    }
+  }
+  measureStats.misses++;
   const compositionStamp = options.field === 'personas'
     ? `|${fieldComposition.map((reference) => `${reference.id}:${reference.deck.join(',')}`).join('|')}`
     : '';
   const base = (stableHash(`${options.seed}|${options.personaId}|${options.field}${compositionStamp}`) % 20_000) + 60_000;
+  if (workers === 1) {
+    measureStats.simulatedGames += fieldComposition.length * options.seeds;
+    const matchups = fieldComposition.map((reference, index) => {
+      const cell = runCell(
+        {
+          rowAI: (aiSeed) => buildAI('hard', CARD_DB, aiSeed),
+          colAI: (aiSeed) => buildAI('hard', CARD_DB, aiSeed),
+          decks: () => [[...deck], [...reference.deck]],
+        },
+        options.seeds,
+        base + index,
+      );
+      return { referenceId: reference.id, referenceName: reference.name, ...cell };
+    });
+    const result = summarizeMeasurement(options, matchups);
+    if (options.memoize !== false) measuredCache.set(cacheKey, result);
+    return result;
+  }
+
+  const jobs: MeasureGameJob[] = [];
+  for (const [matchupIndex, reference] of fieldComposition.entries()) {
+    for (let gameIndex = 0; gameIndex < options.seeds; gameIndex++) {
+      const gameSeed = (base + matchupIndex) * 100_000 + gameIndex;
+      jobs.push({
+        resultIndex: jobs.length,
+        matchupIndex,
+        gameIndex,
+        gameSeed,
+        rowIsP0: gameIndex % 2 === 0,
+        rowDeck: [...deck],
+        colDeck: [...reference.deck],
+      });
+    }
+  }
+  measureStats.simulatedGames += jobs.length;
+  const resultCodes = runParallelGames(jobs, workers);
+  const orderedJobs = jobs
+    .map((job, resultIndex) => ({ ...job, resultCode: resultCodes[resultIndex] }))
+    .sort((a, b) => a.matchupIndex - b.matchupIndex || a.gameSeed - b.gameSeed || a.gameIndex - b.gameIndex);
+  const totals = fieldComposition.map(() => ({ rowWins: 0, colWins: 0, draws: 0 }));
+  for (const job of orderedJobs) {
+    if (job.resultCode === 2) totals[job.matchupIndex].draws++;
+    else if ((job.resultCode === 0) === job.rowIsP0) totals[job.matchupIndex].rowWins++;
+    else totals[job.matchupIndex].colWins++;
+  }
   const matchups = fieldComposition.map((reference, index) => {
-    const cell = runCell(
-      {
-        rowAI: (aiSeed) => buildAI('hard', CARD_DB, aiSeed),
-        colAI: (aiSeed) => buildAI('hard', CARD_DB, aiSeed),
-        decks: () => [[...deck], [...reference.deck]],
-      },
-      options.seeds,
-      base + index,
-    );
-    return { referenceId: reference.id, referenceName: reference.name, ...cell };
+    const total = totals[index];
+    const decided = total.rowWins + total.colWins;
+    return {
+      referenceId: reference.id,
+      referenceName: reference.name,
+      ...total,
+      games: options.seeds,
+      rate: decided === 0 ? 0 : total.rowWins / decided,
+    };
   });
+  const result = summarizeMeasurement(options, matchups);
+  if (options.memoize !== false) measuredCache.set(cacheKey, result);
+  return result;
+}
+
+function summarizeMeasurement(options: MeasureOptions, matchups: MatchupRecord[]): MeasuredRecord {
   const rowWins = matchups.reduce((sum, cell) => sum + cell.rowWins, 0);
   const losses = matchups.reduce((sum, cell) => sum + cell.colWins, 0);
   const draws = matchups.reduce((sum, cell) => sum + cell.draws, 0);
@@ -912,9 +1026,9 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
   const log = dependencies.log ?? console.log;
   const error = dependencies.error ?? console.error;
   const measure = dependencies.measure ?? measureDeck;
-  const opt = (name: string): string | undefined => {
-    const index = argv.indexOf(`--${name}`);
-    return index >= 0 ? argv[index + 1] : undefined;
+    const opt = (name: string): string | undefined => {
+      const index = argv.indexOf(`--${name}`);
+      return index >= 0 ? argv[index + 1] : undefined;
   };
   const has = (name: string): boolean => argv.includes(`--${name}`);
 
@@ -923,6 +1037,21 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       log(CLI_HELP);
       return 0;
     }
+
+    const requestedWorkers = opt('workers');
+    const workers = requestedWorkers === undefined
+      ? resolveMeasureWorkers()
+      : parsePositiveInteger(requestedWorkers, '--workers', defaultMeasureWorkers());
+    const memoize = !has('no-memo');
+    const runtimeMeasure: MeasureFunction = (deck, options) => {
+      const configured = { ...options, workers, memoize };
+      if (dependencies.measure) return measure(deck, configured);
+      if (configured.field === 'personas') {
+        if (!configured.fieldComposition) throw new Error('Persona measurement requires a field composition');
+        return measureDeckAgainstField(deck, configured, configured.fieldComposition);
+      }
+      return measureDeck(deck, configured);
+    };
 
     const checkPath = opt('check');
     if (checkPath) {
@@ -936,26 +1065,19 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         }
         const finalRound = artifact.metagame?.rounds[artifact.metagame.rounds.length - 1];
         if (!finalRound) throw new Error(`Invalid metagame artifact: ${checkPath}`);
-        checked = dependencies.measure
-          ? measure(artifact.deck, {
+        checked = runtimeMeasure(artifact.deck, {
             field: 'personas',
             seeds,
             seed: artifact.seed,
             personaId: artifact.persona.id,
             fieldComposition: finalRound.fieldComposition,
-          })
-          : measureDeckAgainstField(artifact.deck, {
-            field: 'personas',
-            seeds,
-            seed: artifact.seed,
-            personaId: artifact.persona.id,
-          }, finalRound.fieldComposition);
+          });
       } else {
         const field = (requestedField ?? artifact.field) as FieldId;
         if (field !== 'prefabs' && field !== 'starters') {
           throw new Error(`--field must be prefabs or starters (got ${field})`);
         }
-        checked = measure(artifact.deck, {
+        checked = runtimeMeasure(artifact.deck, {
           field,
           seeds,
           seed: artifact.seed,
@@ -1029,7 +1151,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         seed,
         maxRounds,
         personaIds: selectedPersonaIds!,
-        measure: dependencies.measure,
+        measure: runtimeMeasure,
         onProgress: (event) => writeStatus({ state: 'running', ...event }),
       });
       writeStatus({
@@ -1070,7 +1192,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         template,
         iterations,
         seed,
-        measure: (deck) => measure(deck, measureOptions),
+        measure: (deck) => runtimeMeasure(deck, measureOptions),
       });
       const artifact = makeArtifact(template, poolId, { ...measureOptions, iterations }, result);
       const today = dependencies.today?.() ?? new Date().toISOString().slice(0, 10);
