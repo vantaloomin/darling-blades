@@ -651,10 +651,15 @@ export class CardView extends Phaser.GameObjects.Container {
       ...this.pips,
       this.ptPlate,
       this.ptText,
+      // The ring rises above the face overlay but MUST stay below the gem
+      // and crown: the 13px ring strip sits exactly where the legendary
+      // crown overhangs the top border, so ring-after-crown hides crowns on
+      // every pearlescent or full-art copy with a non-white frame (user
+      // report 2026-07-26, collection + pack opens).
+      this.ring,
       this.gemPlate,
       this.gem,
       this.crown,
-      this.ring,
     ];
     for (const obj of chrome) this.bringToTop(obj);
   }
