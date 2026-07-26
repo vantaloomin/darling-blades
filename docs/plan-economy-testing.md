@@ -1,4 +1,4 @@
-<!-- source-of-truth: scripts/progression-sim.ts, scripts/balance-matrix.ts, src/config/rules.ts, src/meta/Economy.ts, src/meta/Limited.ts, src/meta/Collection.ts, src/meta/Quests.ts, tests/meta/progressionSim.test.ts · last-verified: 2026-07-19 · design/plan doc — re-verify when the economy code or harnesses change -->
+<!-- source-of-truth: scripts/progression-sim.ts, scripts/balance-matrix.ts, src/config/rules.ts, src/meta/Economy.ts, src/meta/Limited.ts, src/meta/Collection.ts, src/meta/Quests.ts, tests/meta/progressionSim.test.ts · last-verified: 2026-07-25 · design/plan doc — re-verify when the economy code or harnesses change -->
 
 # Economy testing at scale — plan
 
@@ -81,6 +81,17 @@
 > re-centered flag-only fine windows are recorded beside `ECONOMY` in
 > `src/config/rules.ts` and `scripts/progression-sim.ts`; the CI-fast
 > 2-persona × 1-seed × day-7 check passed all four coarse bands.
+
+> **Dark Tales 1.4 re-baseline measured 2026-07-25:** the canonical
+> 10 personas × 8 seeds × 60 days run (4,800 daily snapshots) against the
+> 638-collectible pool (+120 Dark Tales), the 525g dark-tales booster, the
+> 18-rung tower (full clear 4,210g), and 8 new achievements. Day-60 medians
+> are 60.2665% collection and 1.2167 packs/day; verdict stays `UNEVEN` on the
+> quest-claim spread (now 42–90%). Fine flag-only windows re-centered (floors
+> ratchet, so several collection floors sit close under the new values).
+> Watch item: `craftedUniques` fell to 0.0 for every persona at pool 638 —
+> whether the 6× craft price should scale with pool size is queued for the
+> 1.5 Dark Tales power pass.
 
 _Authored 2026-07-15 (user-directed). This is the instrumentation half of the
 1.1 Limited economy tuning pass: build the measurement + regression layer
