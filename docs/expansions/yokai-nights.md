@@ -206,7 +206,7 @@ carried an `(AI-risk)` tag in the overplan.
 | yn-street-shrine-compact | Street-Shrine Compact | C | W | Ritual | {1}{W} | - | Target creature gets +1/+1 until end of turn; Foresee 1. | A paper contract glows once, then seals itself in rain. |
 | yn-paper-ward-signal | Paper-Ward Signal | C | W | Charm | {1}{W} | - | Destroy target artifact or sever target enchantment. [ANSWER: static creature anthems.] | One folded ward can silence the loudest relic on the block. |
 | yn-ghostwire-charm | Ghostwire Charm | C | W | Artifact | {1}{W} | - | Arrives: gain 1 life. Hauntlink {W}. Linked: The linked creature gets +0/+2 and Sentinel. | The charm is warm when the spirit inside approves of its wearer. |
-| yn-west-gate-switch | West-Gate Switch | C | W | Land | none | - | Arrives tapped. Tap: add W. | A security gate opens onto a forgotten prayer garden. |
+| yn-lantern-canal-junction | Lantern Canal Junction | C | W/U | Land | none | - | Arrives tapped. Tap: add W or U. | The shrine's reflection files a flight plan in the flooded street. |
 | yn-ghostline-diviner | Ghostline Diviner | C | U | Creature (Spirit Seer) | {1}{U} | 2/1 | Arrives: Foresee 1. | She reads train delays as prophecies and is rarely wrong. |
 | yn-signal-kitsune | Signal Kitsune | C | U | Creature (Kitsune Hacker) | {2}{U} | 2/2 | Arrives: Foresee 1, then draw 1. | Her tailtips glow blue whenever a secret packet crosses the grid. |
 | yn-data-river-stalker | Data-River Stalker | C | U | Creature (Kappa Scout) | {2}{U} | 2/3 | Skyborne. | It swims through cloud backups and leaves wet footprints on server glass. |
@@ -218,7 +218,7 @@ carried an `(AI-risk)` tag in the overplan.
 | yn-backdoor-recall | Backdoor Recall | C | U | Charm | {1}{U} | - | Recall target creature. | Every locked door has a network address if you know the right spirit. |
 | yn-signal-bridge | Signal Bridge | C | U | Charm | {2}{U} | - | Cancel target spell. | The bridge holds while every camera in the city looks elsewhere. |
 | yn-moonwire-mask | Moonwire Mask | C | U | Artifact | {1}{U} | - | Arrives: Foresee 1. Hauntlink {U}. Linked: The linked creature gets Skyborne. | Its silver fox face only appears in reflections. |
-| yn-east-floodgate | East Floodgate | C | U | Land | none | - | Arrives tapped. Tap: add U. | Rainwater and data both leave the district through this gate. |
+| yn-midnight-data-market | Midnight Data Market | C | U/B | Land | none | - | Arrives tapped. Tap: add U or B. | Everything is for sale here except the exit. |
 | yn-alley-oni-collector | Alley Oni Collector | C | B | Creature (Oni Debt Collector) | {1}{B} | 2/1 | Arrives: opponent loses 1 life. | She invoices the living and lets the dead handle late fees. |
 | yn-black-lantern-cutpurse | Black-Lantern Cutpurse | C | B | Creature (Human Thief) | {2}{B} | 3/2 | Arrives: opponent discards at random 1. | Her lantern goes dark just before every wallet opens. |
 | yn-shrine-debt-enforcer | Shrine-Debt Enforcer | C | B | Creature (Oni Enforcer) | {2}{B} | 2/3 | Deathblade. | She collects favors with a blade that remembers every name. |
@@ -230,7 +230,7 @@ carried an `(AI-risk)` tag in the overplan.
 | yn-alleyway-sever | Alleyway Sever | C | B | Charm | {2}{B} | - | Sever target creature. | A red sigil flares under the target and the rain washes away the outline. |
 | yn-blackout-vigil | Blackout Vigil | C | B | Enchantment | {2}{B} | - | At dawn: opponent loses 1 life; gain 1 life. | The district's lights fail only after the spirits have finished feeding. |
 | yn-parasite-mask | Parasite Mask | C | B | Artifact | {1}{B} | - | Arrives: grind self 1. Hauntlink {B}. Linked: The linked creature gets +1/+0 and Deathblade. | The mask smiles whenever its wearer's pulse becomes someone else's. |
-| yn-undercity-landscape | Undercity Landscape | C | B | Land | none | - | Arrives tapped. Tap: add B. | Every basement has another city beneath it. |
+| yn-burning-toll-bridge | Burning Toll Bridge | C | B/R | Land | none | - | Arrives tapped. Tap: add B or R. | The toll doubles when the river starts to glow. |
 | yn-street-oni-scrapper | Street Oni Scrapper | C | R | Creature (Oni Brawler) | {1}{R} | 2/1 | Warcry. | She fights for the joy of being recognized by the right crowd. |
 | yn-magenta-kitsune-runner | Magenta Kitsune Runner | C | R | Creature (Kitsune Courier) | {2}{R} | 3/2 | Warcry. | Her deliveries arrive hot, loud, and addressed to the city's worst decisions. |
 | yn-rain-soaked-ronin | Rain-Soaked Ronin | C | R | Creature (Human Ronin) | {2}{R} | 2/2 | First Blade. | Her sword is dry because the rain knows better than to touch it. |
@@ -242,7 +242,7 @@ carried an `(AI-risk)` tag in the overplan.
 | yn-riot-lantern | Riot Lantern | C | R | Charm | {2}{R} | - | Target creature gets +2/+0 and Warcry until end of turn. | The lantern's red glow means the night has chosen a side. |
 | yn-sirens-and-sparks | Sirens and Sparks | C | R | Charm | {3}{R} | - | Deal 3 damage to target creature or player. | The city's emergency tones become music when the right yokai conducts them. |
 | yn-ember-mask | Ember Mask | C | R | Artifact | {1}{R} | - | Hauntlink {R}. Linked: The linked creature gets +1/+0 and Warcry. | It smells like hot metal and the last thought of a bad enemy. |
-| yn-eastline-crossing | Eastline Crossing | C | R | Land | none | - | Arrives tapped. Tap: add R. | The crossing is safest when the signal is already red. |
+| yn-overgrown-speedway | Overgrown Speedway | C | R/G | Land | none | - | Arrives tapped. Tap: add R or G. | The vines learned to love the sound of engines. |
 | yn-mosswire-kitsune | Mosswire Kitsune | C | G | Creature (Kitsune Forager) | {1}{G} | 2/2 | Arrives: gain 1 life. | Her green fur catches rainwater that tastes faintly of cedar. |
 | yn-rain-garden-tender | Rain-Garden Tender | C | G | Creature (Human Gardener) | {2}{G} | 2/3 | Arrives: Foresee 1. | She grows medicinal vines over concrete and refuses to apologize for the roots. |
 | yn-concrete-forest-stalker | Concrete-Forest Stalker | C | G | Creature (Yokai Hunter) | {2}{G} | 3/2 | Warding Gaze. | It hunts between towers where sunlight has never reached the pavement. |
@@ -254,7 +254,7 @@ carried an `(AI-risk)` tag in the overplan.
 | yn-ghostwood-growth | Ghostwood Growth | C | G | Ritual | {1}{G} | - | Target creature gets +3/+3 until end of turn. | A ghostwood branch punches through the street to answer a threat. |
 | yn-canal-root-surge | Canal Root Surge | C | G | Charm | {2}{G} | - | Target creature gets +2/+2 until end of turn; Foresee 1. | The canal wall blooms around the person who needs it most. |
 | yn-thorn-spirit-mask | Thorn-Spirit Mask | C | G | Artifact | {1}{G} | - | Hauntlink {G}. Linked: The linked creature gets +1/+1 and Warding Gaze. | The mask grows a new thorn whenever its wearer tells the truth. |
-| yn-greenroof-park | Greenroof Park | C | G | Land | none | - | Arrives tapped. Tap: add G. | A public garden hides three shrines and one very old crime. |
+| yn-rooftop-shrine-garden | Rooftop Shrine Garden | C | G/W | Land | none | - | Arrives tapped. Tap: add G or W. | The oldest tree in the city grows through the newest temple. |
 
 ## Tokens
 
@@ -286,11 +286,17 @@ Both are proposals pending approval and later measurement. The tower grows from
 
 ### Rarity by color
 
-Each collectible card has exactly one color after the five demotions.
+Each collectible card has exactly one color after the five demotions, except
+the five dual lands (D1 amendment 2026-07-28): the ally-pair tapped dual
+cycle (W/U, U/B, B/R, R/G, G/W) replaced the five mono taplands so the
+Battle Box reserve's dual slots have a roster. Dual lands are
+colorless-identity cards producing either listed color; the remaining five
+enemy pairs wait for a future set.
 
 | Rarity | W | U | B | R | G | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| C | 12 | 12 | 12 | 12 | 12 | 60 |
+| C (mono) | 11 | 11 | 11 | 11 | 11 | 55 |
+| C (dual lands) | - | - | - | - | - | 5 |
 | R | 7 | 7 | 7 | 7 | 8 | 36 |
 | SR | 2 | 3 | 2 | 2 | 2 | 11 |
 | SSR | 2 | 2 | 1 | 2 | 1 | 8 |

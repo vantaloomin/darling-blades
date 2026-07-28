@@ -325,7 +325,7 @@ golden replay containing a successful link and a fizzled link.
 
 ## 7. Numbered user flags and recommended defaults
 
-**APPROVED 2026-07-28 (user): all recommended defaults locked (S1-S5, B1, P1, I1, A1). D1 (dual-land roster for the Battle Box reserve) is deferred to the reserve audit and lands as a named amendment if needed.**
+**APPROVED 2026-07-28 (user): all recommended defaults locked (S1-S5, B1, P1, I1, A1). D1 RESOLVED same day: the reserve audit measured ZERO dual lands in the pool, and the user approved swapping the set's five mono taplands for the ally-pair tapped dual cycle (W/U, U/B, B/R, R/G, G/W) — applied to the card table.**
 
 - **S1 - Host gone on resolution:** fizzle to the owner's graveyard with no
   standalone fallback. Recommended because the chosen alternative mode and
