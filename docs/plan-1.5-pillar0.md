@@ -325,6 +325,8 @@ golden replay containing a successful link and a fizzled link.
 
 ## 7. Numbered user flags and recommended defaults
 
+**APPROVED 2026-07-28 (user): all recommended defaults locked (S1-S5, B1, P1, I1, A1). D1 (dual-land roster for the Battle Box reserve) is deferred to the reserve audit and lands as a named amendment if needed.**
+
 - **S1 - Host gone on resolution:** fizzle to the owner's graveyard with no
   standalone fallback. Recommended because the chosen alternative mode and
   target are locked when the spell is cast.
