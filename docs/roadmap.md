@@ -1295,12 +1295,13 @@ _Dated 2026-07-26. Review monthly._
   `release/1.4` to `main` merge and `v1.4.0` tag remain with the user.
 
   **The 1.5 → 2.0 ladder (user-scoped 2026-07-24).** Standing cadence rule:
-  **every major release ships expansion-scale set work** — 1.5's set slot is
-  deliberately a health pass rather than a new set (120 cards just landed);
-  new expansions resume at 1.6. Expansion 6 is named; 7-10 are TBD pending
+  **every major release ships expansion-scale set work** — 1.5 carries both
+  the Yokai Nights set (moved up from 1.6 by user decision 2026-07-24) and
+  the Dark Tales health pass. Expansion 6 is named; 7-10 are TBD pending
   the expansion-ideation session (the next planning discussion).
 
-  **1.5** = **"Darlings"**, the Commander/EDH-style format (the parked
+  **1.5** = **ACTIVE PROGRAM** (decisions locked 2026-07-28; the program
+  plan is [plan-1.5.md](plan-1.5.md)): **"Darlings"**, the Commander/EDH-style format (the parked
   commander→darling doc-rename draft on `claude/commander-naming-review-ee50e3`
   is its spec seed) + the **Cyberpunk Yokai Nights** expansion (Expansion 6 —
   moved up from 1.6 by user decision 2026-07-24: it is the only fully-known
@@ -1311,7 +1312,9 @@ _Dated 2026-07-26. Review monthly._
   Midnight Storybook at 30.5% for want of rate-efficient DT threats, and the
   unclosed go-wide gap at weenie 78.1 / worst 72.7) + **save export/import
   codes** (the first rung of save portability; groundwork for 1.8/1.9) +
-  **metagame-loop CI promotion** if the 1.4 release sweep earns trust;
+  ~~metagame-loop CI promotion~~ (decided 2026-07-28: stays
+  informational-only — the 1.4 release sweep hit max-rounds without
+  convergence; revisit after the 1.5 sweep);
   **1.6** = **suggested decks v1** (the persona hill-climb harness pointed
   at the player's own collection: "build me a deck from what I own" — the
   hard half already ships as the dev-only crafting loop) + **player-facing
