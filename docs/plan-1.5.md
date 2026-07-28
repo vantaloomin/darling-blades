@@ -67,6 +67,16 @@ recommendation, "accepted" means that recommendation ships as written.
   without convergence — precisely the not-yet-trusted signal the
   promotion gate was defined on. Revisit after the 1.5 release sweep,
   ideally with a larger round budget to test for convergence.
+- **Battle Box mana system (SCOPE INCREASE, locked 2026-07-28):** both
+  new formats use a chosen land reserve instead of drawn lands — 50-card
+  all-spell decks, per-deck reserve of 10 lands with max 5 duals, duals
+  enter tapped, asymmetric destruction (duals die to the graveyard,
+  basics return to the reserve), land-fetch cards audited out. Darlings
+  adopts it wholesale (superseding its 60-card basics-unlimited shape
+  and its no-engine-change property, knowingly); a third `battlebox`
+  format ships it with Constructed copy limits. Classic Constructed is
+  untouched and must be proven byte-identical. Spec:
+  [plan-battle-box.md](plan-battle-box.md).
 
 ## Pillar 0 — Cyberpunk Yokai Nights (Expansion 6)
 
@@ -131,15 +141,19 @@ go-wide gap through an independent instrument.
 - Wave 4 (combined regression + publication) as spec'd; patch notes
   name only retained changes, no em-dashes.
 
-## Pillar 2 — Darlings format
+## Pillar 2 — Darlings + Battle Box formats
 
-Spec: [plan-darlings.md](plan-darlings.md), Waves 1–2 committed
-(format model + legality, then builder/launch flow with the dedicated
-practice row); Wave 3 (curated rivals + `--darlings` matrix) explicitly
-NOT promised for 1.5 and lands only if the train has room after the
-legend audit. The parked `claude/commander-naming-review-ee50e3` draft
-is historical rationale only; plan-darlings.md is the authority and the
-draft is never merged.
+Specs: [plan-darlings.md](plan-darlings.md) (as respec'd 2026-07-28) +
+[plan-battle-box.md](plan-battle-box.md) (the shared land-reserve
+system). Committed scope: the pure format validators (Battle Box
+reserve rules shared by both formats), the reserve engine wave
+(sequenced after the card-instance spike merges and serialized against
+the Hauntlink engine build — shared engine files), and the builder +
+duel UI for both formats, each with its own dedicated practice row.
+Curated rivals and any reserve-format matrix remain explicitly NOT
+promised for 1.5. The parked `claude/commander-naming-review-ee50e3`
+draft is historical rationale only; plan-darlings.md is the authority
+and the draft is never merged.
 
 ## Pillar 3 — Variant deck building
 
@@ -167,12 +181,13 @@ measured (`scripts/measure-save-code.ts`) before any QR claim.
 1. **Concretion first:** Yokai concretion package (Hauntlink dossier +
    120-row table) → user approval gate.
 2. **Parallel engineering on disjoint files:** Hauntlink engine build;
-   variant-deck Wave 1 spike; Darlings Wave 1; save-code Wave 1
-   envelope. (Engine vs meta vs SaveCode are disjoint; the spike and
-   Hauntlink both touch `src/engine` — different waves if file sets
-   collide.)
-3. **The atomic v23 migration** (Darlings + variants Wave 2s), then
-   their UI waves; save-code Waves land after v23.
+   variant-deck Wave 1 spike; format validators (Darlings + Battle Box
+   reserve rules); save-code Wave 1 envelope. THREE engine jobs now
+   exist (spike, Hauntlink, reserve engine) and share files — the spike
+   runs first, then Hauntlink and the reserve engine serialize.
+3. **The atomic v23 migration** (format + darlingId + landReserve +
+   the variant fields, one bump), then the UI waves; save-code Waves
+   land after v23.
 4. **Yokai card data + set completion + art**, then Pillar 1 measured
    against the completed pool, then the ONE re-baseline.
 5. **Release prep:** doc package, economy re-date, then the metagame

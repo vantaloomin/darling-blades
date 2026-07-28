@@ -4,7 +4,9 @@
 
 ## Goal
 
-Release 1.5 ships Darlings as a first-class, single-player deckbuilding format. A player chooses one legendary creature as their Darling, builds a 60-card deck with no more than one copy of each non-basic card, and plays that deck through the existing duel systems. The selected Darling is part of the shuffled deck, not a new zone or guaranteed opening card. This document supersedes the implementation direction in `docs/plan-commander-mode.md`; that older document remains useful as historical rationale and must not be copied into a second roster specification.
+Release 1.5 ships Darlings as a first-class, single-player deckbuilding format. A player chooses one legendary creature as their Darling, builds a 50-card all-spell deck with no more than one copy of each card, and plays it with a Battle Box land reserve. The selected Darling is part of the shuffled deck, not a new zone or guaranteed opening card. This document supersedes the implementation direction in `docs/plan-commander-mode.md`; that older document remains useful as historical rationale and must not be copied into a second roster specification.
+
+**RESPEC 2026-07-28 (user decision — increased 1.5 scope):** Darlings adopts the Battle Box mana system specified in [plan-battle-box.md](plan-battle-box.md). The deck is **50 cards including the Darling, with zero in-deck lands**; beside it the player builds a per-deck land reserve (10 lands, max 5 duals, duals tapped, asymmetric destruction). Everything in this document about a 60-card deck, in-deck basic lands, or "basics are unlimited in the deck" is superseded by that shape; basics now live only in the reserve. The "no engine change" property this document claimed as its chief risk control is knowingly traded away — the reserve is engine surface, owned by plan-battle-box.md. All other rules here (Darling eligibility, singleton, strict colorless identity, color containment, portrait lock, dedicated practice row, player-built-only launch) stand as locked.
 
 ## Non-goals
 
@@ -16,13 +18,13 @@ The deck builder gains a format switch with `Constructed` and `Darlings`. Starti
 
 The rules panel uses this copy:
 
-> Choose your Darling. Build a 60-card deck in her colors, with one copy of each non-basic card. Basic lands are unlimited. Your Darling begins in your deck and follows the same rules as every other card.
+> Choose your Darling. Build a 50-card deck in her colors, one copy of each card, and a land reserve of 10. Your Darling begins in your deck and follows the same rules as every other card.
 
 Eligibility and legality are exact:
 
 - The Darling must be an owned `creature` with the `legendary` supertype.
-- The 60 cards include the Darling.
-- Every non-basic card appears at most once. Basic lands remain unlimited and do not require collection ownership.
+- The 50 cards include the Darling and contain no lands (lands live in the reserve; see [plan-battle-box.md](plan-battle-box.md)).
+- Every card appears at most once.
 - Every colored card must use only colors present on the Darling. A colorless Darling permits only colorless non-land cards plus basic lands unless the user selects a different policy in the open decisions below.
 - The selected Darling must still be present when the deck is saved or queued.
 - A defeated or Severed Darling goes to the normal destination. It receives no special return rule.
@@ -33,7 +35,7 @@ Deck rows display a `Darlings` badge and the Darling portrait. Invalid decks rem
 
 ### Engine
 
-No engine change is required for the recommended 1.5 shape. `src/engine/Game.ts` still receives two 60-card ID arrays, shuffles them from the seeded RNG, and applies `src/config/rules.ts` without a format branch. That is the chief risk-control decision: the Darling is ordinary deck data once a duel begins. Engine purity and seeded determinism remain unchanged.
+**Superseded 2026-07-28:** the format now requires the Battle Box reserve engine (zone, play-land path, destruction routing, AI land policy) specified and owned by [plan-battle-box.md](plan-battle-box.md). Within Darlings itself the original claim still holds — the Darling is ordinary deck data once a duel begins, and no Darlings-specific engine branch exists. Engine purity and seeded determinism remain unchanged.
 
 ### Meta, save, and economy
 
@@ -58,9 +60,12 @@ Add pure legality tests beside `src/meta/DeckStorage.test.ts`, migration tests b
 Add these exact fields to every `SavedDeck`:
 
 ```ts
-format: 'constructed' | 'darlings';
+format: 'constructed' | 'darlings' | 'battlebox';
 darlingId: string | null;
+landReserve: string[] | null;
 ```
+
+(`battlebox` and `landReserve` added by the 2026-07-28 respec; see [plan-battle-box.md](plan-battle-box.md).)
 
 A version bump is required. If Darlings and `docs/plan-variant-decks.md` land in the same 1.5 train, make one atomic `v22 -> v23` migration that adds both features' deck fields. Do not create sequential version bumps merely because the work had separate branches. Migration maps every existing deck to `format: 'constructed'` and `darlingId: null`. Normalization coerces an unknown format to `constructed`, clears a Darling that is absent from `cards`, and never guesses a Darling from `heroCardId`. Migration tests cover old saves, malformed new fields, deck copy, deck deletion, and the `activeDeckId` invariant.
 
