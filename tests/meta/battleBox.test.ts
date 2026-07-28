@@ -32,10 +32,15 @@ function card(id: string, over: Partial<CardDef> = {}): CardDef {
 const BASIC = 'basic';
 const DUAL = 'dual';
 const TRIPLE = 'triple';
+const DUAL_THREE = 'dual-three';
+const DUAL_FOUR = 'dual-four';
+const DUAL_FIVE = 'dual-five';
 const SINGLE_LAND = 'single-land';
 const SPELL = 'spell';
 const FETCH = 'fetch';
 const EMPOWER_FETCH = 'empower-fetch';
+const CHAPTERS_FETCH = 'chapters-fetch';
+const RETELL_FETCH = 'retell-fetch';
 const SPELL_IDS = Array.from({ length: 13 }, (_, i) => `spell-${i}`);
 const GENERATED: Record<string, CardDef> = Object.fromEntries(
   SPELL_IDS.map((id) => [id, card(id)]),
@@ -67,6 +72,30 @@ const DB: CardDb = Object.freeze({
     defense: undefined,
     manaAbility: ['W', 'U', 'B'],
   }),
+  [DUAL_THREE]: card(DUAL_THREE, {
+    name: 'Third Crossing',
+    types: ['land'],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['B', 'R'],
+  }),
+  [DUAL_FOUR]: card(DUAL_FOUR, {
+    name: 'Fourth Crossing',
+    types: ['land'],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['R', 'U'],
+  }),
+  [DUAL_FIVE]: card(DUAL_FIVE, {
+    name: 'Fifth Crossing',
+    types: ['land'],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['W', 'B'],
+  }),
   [SINGLE_LAND]: card(SINGLE_LAND, {
     name: 'Grove Road',
     types: ['land'],
@@ -83,6 +112,14 @@ const DB: CardDb = Object.freeze({
   [EMPOWER_FETCH]: card(EMPOWER_FETCH, {
     name: 'Empowered Compass',
     empower: { cost: { generic: 1, pips: {} }, ops: [{ op: 'fetchLand' }] },
+  }),
+  [CHAPTERS_FETCH]: card(CHAPTERS_FETCH, {
+    name: 'Chapter Compass',
+    chapters: [[{ op: 'fetchLand' }]],
+  }),
+  [RETELL_FETCH]: card(RETELL_FETCH, {
+    name: 'Retold Compass',
+    retell: { cost: { generic: 1, pips: {} }, ops: [{ op: 'fetchLand' }] },
   }),
   ...GENERATED,
 });
@@ -150,6 +187,11 @@ describe('Battle Box shared validators', () => {
     );
   });
 
+  it('allows exactly five distinct dual lands at the reserve cap', () => {
+    const ids = [DUAL, TRIPLE, DUAL_THREE, DUAL_FOUR, DUAL_FIVE];
+    expect(validateLandReserve(DB, saveWith(...ids), dualReserve(...ids))).toEqual([]);
+  });
+
   it('allows basics and rejects non-basic, non-dual lands and non-lands', () => {
     expect(validateLandReserve(DB, saveWith(DUAL), basicReserve())).toEqual([]);
     expect(validateLandReserve(DB, saveWith(), dualReserve(SINGLE_LAND)).map((i) => i.message)).toContain(
@@ -163,8 +205,25 @@ describe('Battle Box shared validators', () => {
   it('requires ownership for duals but not basics', () => {
     expect(validateLandReserve(DB, saveWith(), basicReserve())).toEqual([]);
     expect(validateLandReserve(DB, saveWith(), dualReserve(DUAL)).map((i) => i.message)).toContain(
-      'Grove Crossing is not in your collection',
+      'Grove Crossing: 1 in land reserve but only 0 owned',
     );
+  });
+
+  it('enforces per-dual playsets and owned copies once per card id', () => {
+    const oneOwned = saveWith(DUAL);
+    const ownershipIssues = validateLandReserve(DB, oneOwned, dualReserve(DUAL, DUAL, DUAL, DUAL, DUAL));
+    expect(ownershipIssues.map((issue) => issue.message)).toEqual([
+      'Grove Crossing: 5 copies in land reserve (max 4)',
+      'Grove Crossing: 5 in land reserve but only 1 owned',
+    ]);
+
+    const fiveOwned = saveWith(DUAL);
+    fiveOwned.collection[DUAL] = 5;
+    const playsetIssues = validateLandReserve(DB, fiveOwned, dualReserve(DUAL, DUAL, DUAL, DUAL, DUAL));
+    expect(playsetIssues.map((issue) => issue.message)).toEqual([
+      'Grove Crossing: 5 copies in land reserve (max 4)',
+    ]);
+    expect(validateLandReserve(DB, saveWith(), basicReserve())).toEqual([]);
   });
 
   it('shares the 50-card no-land shape', () => {
@@ -214,7 +273,12 @@ describe('Battle Box shared validators', () => {
     expect(hasLandFetchBehavior(DB[FETCH])).toBe(true);
     expect(hasLandFetchBehavior(DB[EMPOWER_FETCH])).toBe(true);
     expect(hasLandFetchBehavior(DB[SPELL])).toBe(false);
-    expect(findLandFetchCards(DB)).toEqual([EMPOWER_FETCH, FETCH]);
+    expect(findLandFetchCards(DB)).toEqual([CHAPTERS_FETCH, EMPOWER_FETCH, FETCH, RETELL_FETCH]);
+  });
+
+  it('detects land fetches in chapters and retell ops', () => {
+    expect(hasLandFetchBehavior(DB[CHAPTERS_FETCH])).toBe(true);
+    expect(hasLandFetchBehavior(DB[RETELL_FETCH])).toBe(true);
   });
 
   it('reports every real land-fetching card in the current pool', () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import {
+  validateBattleBoxDeck,
   darlingsCardError,
   listOwnedLegendaryCreatures,
   normalizeDarlingsFields,
@@ -92,7 +93,12 @@ const DB: CardDb = Object.freeze({
     defense: undefined,
     manaAbility: ['G'],
   }),
-  [TOKEN]: card(TOKEN, { name: 'Saproling Token', token: true, colors: ['G'] }),
+  [TOKEN]: card(TOKEN, {
+    name: 'Saproling Token',
+    token: true,
+    supertypes: ['legendary'],
+    colors: ['G'],
+  }),
   [FETCH_CARD]: card(FETCH_CARD, {
     name: 'Verdant Compass',
     colors: ['G'],
@@ -185,6 +191,14 @@ describe('Darlings format helpers', () => {
     ).toContain('Your Darling must be an owned legendary creature');
   });
 
+  it('rejects a token selected as the Darling even when it is legendary and owned', () => {
+    const tokenDeck = [TOKEN, ...UNIQUE_IDS];
+    const save = saveWith(TOKEN, ...UNIQUE_IDS);
+    expect(messages(validateDarlingsDeck(DB, save, tokenDeck, TOKEN, reserve()))).toContain(
+      'Your Darling must be an owned legendary creature',
+    );
+  });
+
   it('requires the Darling to be present in the card list', () => {
     const cards = [GREEN_CARD, ...UNIQUE_IDS];
     expect(messages(validateDarlingsDeck(DB, legalSave(), cards, DARLING, reserve()))).toContain(
@@ -209,6 +223,14 @@ describe('Darlings format helpers', () => {
   it('rejects tokens', () => {
     const cards = [DARLING, ...UNIQUE_IDS.slice(0, 48), TOKEN];
     expect(messages(validateDarlingsDeck(DB, saveWith(DARLING, ...UNIQUE_IDS, TOKEN), cards, DARLING, reserve()))).toContain(
+      'Saproling Token is a token',
+    );
+  });
+
+  it('rejects a token in a Battle Box deck', () => {
+    const cards = [...legalDeck().slice(0, 49), TOKEN];
+    const save = saveWith(DARLING, ...UNIQUE_IDS, TOKEN);
+    expect(messages(validateBattleBoxDeck(DB, save, cards, reserve()))).toContain(
       'Saproling Token is a token',
     );
   });

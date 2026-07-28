@@ -1,4 +1,5 @@
 import type { CardDb, CardDef, EffectOp } from '../engine/types';
+import { RULES } from '../config/rules';
 import { ownedCount } from './Collection';
 import type { DeckIssue } from './DeckStorage';
 import type { SaveData } from './SaveManager';
@@ -39,6 +40,7 @@ export function validateLandReserve(
   }
 
   let duals = 0;
+  const dualCounts = new Map<string, number>();
   for (const id of landReserve) {
     const card = db[id];
     if (!card) {
@@ -51,9 +53,24 @@ export function validateLandReserve(
     }
     if (isDualLand(card)) {
       duals++;
-      if (ownedCount(save, id) <= 0) {
-        issues.push({ kind: 'error', message: `${card.name} is not in your collection` });
-      }
+      dualCounts.set(id, (dualCounts.get(id) ?? 0) + 1);
+    }
+  }
+
+  for (const [id, count] of dualCounts) {
+    const card = db[id];
+    if (!card) continue;
+    if (count > RULES.maxCopies) {
+      issues.push({
+        kind: 'error',
+        message: `${card.name}: ${count} copies in land reserve (max ${RULES.maxCopies})`,
+      });
+    }
+    if (count > ownedCount(save, id)) {
+      issues.push({
+        kind: 'error',
+        message: `${card.name}: ${count} in land reserve but only ${ownedCount(save, id)} owned`,
+      });
     }
   }
 
