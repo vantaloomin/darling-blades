@@ -7,9 +7,9 @@
 *A trading card game where the officers of the Three Kingdoms, the gods of Olympus, and a forest full of Beastkin all end up in the same 60-card deck.*
 
 <p align="center">
-  <img src="public/assets/art/cards/tk-shu-zhugeliang.png" width="160" alt="Zhuge Liang">
-  <img src="public/assets/art/cards/gk-zeus.png" width="160" alt="Zeus">
-  <img src="public/assets/art/cards/bk-kitsune-matriarch.png" width="160" alt="Kitsune Matriarch">
+  <img src="public/assets/art/cards/tk-shu-zhugeliang.webp" width="160" alt="Zhuge Liang">
+  <img src="public/assets/art/cards/gk-zeus.webp" width="160" alt="Zeus">
+  <img src="public/assets/art/cards/bk-kitsune-matriarch.webp" width="160" alt="Kitsune Matriarch">
 </p>
 
 <p align="center">
