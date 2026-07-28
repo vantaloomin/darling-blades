@@ -41,13 +41,6 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
 - **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built; see Project status below.
 
-## What shipped in 1.2 (The Grail Oath)
-
-- **Arthurian Court: The Grail Oath (Expansion 3).** 81 collectible cards of White/Blue/Red knight tribal, plus two mechanics: **Quests** advance a chapter at each of your dawns and pay off as they go, and **Champion Awakening** transforms a knight permanently once its condition is met. Its own booster, the **Questing Table** precon, eight achievements, and gauntlet rungs 13-14 (**Morgan of the Thorn Crown** and **Artoria, Once and Future Queen**).
-- **Replays.** The game records your last ten duels (seed, decks, and every action) and replays them deterministically from the Profile reel with play, pause, step, and speed controls. A replay is a byte-exact re-simulation, not a video.
-- **The Play menu rebuilt.** A Practice opponent picker (challenge any tower avatar directly or a plain difficulty), and an opening coin flip whose winner chooses to play or draw first.
-- **Shop rework** with a two-column precon grid and per-booster drop-rate tables, plus match-history clarity on what Foresee and Sever did and a mass-simulation balance pass over the precon decks.
-
 ## What's new in 1.4 (Dark Tales)
 
 Version 1.4 adds Dark Tales, The Cursed Storybook, expands the collection to
@@ -74,23 +67,19 @@ land-style wiring, 124 accepted Dark Tales arts, WebP art conversion, the
 informational dev-only persona metagame loop, and the 1.5-to-2.0 expansion
 slate.
 
-## What's new in 1.3 (Nocturne Manor)
+## What shipped in 1.3 (Nocturne Manor)
 
-Version 1.3 adds a fourth expansion with two new mechanics and reworks the Avatar Gauntlet into a daily-rotating climb, alongside deckbuilding cosmetics and a round of reading-clarity fixes.
+- **Gothic Monsters: Nocturne Manor (Expansion 4).** 81 collectible cards of vampire courts and wolf-cursed nobility, mostly Black/Red/White, with two mechanics: **Dreaded** attackers must be blocked by at least two creatures or none, and **Empower** adds an optional extra cost for a bonus effect at cast time. Its own booster, the **Bloodmoon Masquerade** precon, eight achievements, and gauntlet rungs 15-16 (**Carmilla, Crimson Host** and **The Bride, Storm-Crowned**).
+- **The daily-rotating tower.** The Avatar Gauntlet reshuffles its full roster from the calendar date each day; the floor sets the opponent's strength on a measured six-tier ladder while the avatar supplies its deck and personality.
+- **Basic-land art styles.** Pick a cosmetic landscape style per basic land type in the deck builder, saved per deck and shown on your own lands in a duel.
+- **Reading clarity and balance.** Mana costs in card text render as real pips; "+1/+1 counter" reads as "+1/+1 mark" everywhere; pack pulls step with arrow keys and close with Esc. A 10,800-game precon round-robin rebuilt the **Questing Table** from 24% to 45% and trimmed **Bloodmoon Masquerade** from 70% to 57%, settling the nine-deck field inside a rough 42 to 60 percent band. Sealed's dead code was removed, and a dev-only deck-crafting harness began probing set balance (its first run flagged the go-wide answer gap).
 
-**Gothic Monsters: Nocturne Manor (Expansion 4).** 81 collectible cards of vampire courts, stitched brides, and wolf-cursed nobility: primarily Black/Red/White, with a strain of Blue mad science and Green plant horror. Two new mechanics arrive with it. **Dreaded** marks an attacker that has to be blocked by at least two creatures or not at all. **Empower** is an optional extra cost you can pay as you cast a spell to add a bonus effect, and when the extra mana is payable the duel asks which way you want to cast. The set ships with its own 525-gold booster, the buyable **Bloodmoon Masquerade** precon, eight new achievements, and two bosses at the top of the tower: **Carmilla, Crimson Host** at rung 15 and **The Bride, Storm-Crowned** at rung 16.
+## What shipped in 1.2 (The Grail Oath)
 
-**A daily-rotating tower.** The Avatar Gauntlet now reshuffles its full roster every day from the calendar date, so no two days climb the same order. Difficulty no longer rides with the avatar: the floor you reach sets the opponent's strength on a six-tier ladder (a measured, monotonic curve from a light hand up to full Hard), while the avatar you meet there brings its own deck and personality. The tower screen shows the day's lineup before you start a run, and a run you are partway through keeps its roster across reloads.
-
-**Basic-land art styles.** The deck builder lets you pick a landscape style for each of your five basic land types, drawn from the base, Ragnarök, Celtic Fae, and Dark Tales art sets. The choice is cosmetic, saved per deck, and shows only on your own lands in a duel.
-
-**Reading clarity.** Mana costs written into card text and the Empower cast prompt now render as real mana pips instead of `{2}{B}` style tokens. "+1/+1 counter" reads as "+1/+1 mark" everywhere the game writes it, so it never collides with countering a spell (which stays "cancel"). Pack-open pulls now step with the left and right arrow keys and close with Esc, matching every other card inspector. The shop and collection show each set's theme title (Silver Veil, Grail Oath, Nocturne Manor), and each pack tile shows how many of its cards you own. The phase-advance button got the spacing the rest of the layout uses.
-
-**Balance and fixes.**
-
-- A 10,800-game AI-vs-AI round-robin of the precon decks retuned the field on the larger pool: the **Questing Table** precon was rebuilt from a 24% also-ran into a real 45% contender, the new **Bloodmoon Masquerade** was trimmed from 70% to 57%, and the nine-deck spread now sits inside a rough 42 to 60 percent band.
-- The cancelled Sealed limited mode's dead code was removed. Existing saves keep loading, including any that still hold old Sealed history.
-- A dev-only deck-crafting harness now simulates six archetype builders (burn, draw-go, attrition, reanimator, weenie, and a control baseline) assembling and hill-climbing their own decks from the card pool, as a standing probe on set balance. Its first run flagged that the field has no answer to a go-wide board, which is on the list for a future set.
+- **Arthurian Court: The Grail Oath (Expansion 3).** 81 collectible cards of White/Blue/Red knight tribal, plus two mechanics: **Quests** advance a chapter at each of your dawns and pay off as they go, and **Champion Awakening** transforms a knight permanently once its condition is met. Its own booster, the **Questing Table** precon, eight achievements, and gauntlet rungs 13-14 (**Morgan of the Thorn Crown** and **Artoria, Once and Future Queen**).
+- **Replays.** The game records your last ten duels (seed, decks, and every action) and replays them deterministically from the Profile reel with play, pause, step, and speed controls. A replay is a byte-exact re-simulation, not a video.
+- **The Play menu rebuilt.** A Practice opponent picker (challenge any tower avatar directly or a plain difficulty), and an opening coin flip whose winner chooses to play or draw first.
+- **Shop rework** with a two-column precon grid and per-booster drop-rate tables, plus match-history clarity on what Foresee and Sever did and a mass-simulation balance pass over the precon decks.
 
 ## How to play
 
