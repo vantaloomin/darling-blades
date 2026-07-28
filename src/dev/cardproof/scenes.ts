@@ -83,14 +83,15 @@ export class CardProofScene extends Phaser.Scene {
 
     const state = this.store.getState();
     const page = visiblePage(state);
+    const columns = state.scale >= 0.8 ? 3 : GRID_COLUMNS;
     const cardWidth = CARD_W * state.scale;
     const cardHeight = CARD_H * state.scale;
-    const gridWidth = GRID_COLUMNS * cardWidth + (GRID_COLUMNS - 1) * CARD_GAP;
+    const gridWidth = columns * cardWidth + (columns - 1) * CARD_GAP;
     const left = (CANVAS_WIDTH - gridWidth) / 2;
 
     page.matches.forEach((card, index) => {
-      const column = index % GRID_COLUMNS;
-      const row = Math.floor(index / GRID_COLUMNS);
+      const column = index % columns;
+      const row = Math.floor(index / columns);
       const x = left + column * (cardWidth + CARD_GAP) + cardWidth / 2;
       const y = GRID_TOP + row * (cardHeight + CARD_GAP) + cardHeight / 2;
       const view = new CardView(this, x, y).setScale(state.scale);

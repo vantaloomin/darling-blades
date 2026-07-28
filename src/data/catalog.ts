@@ -6,6 +6,7 @@ import { CELTIC_FAE } from './cards/celtic-fae';
 import { DUALS } from './cards/duals';
 import { ENCHANTMENTS } from './cards/enchantments';
 import { GOTHIC_MONSTERS } from './cards/gothic-monsters';
+import { DARK_TALES } from './cards/dark-tales';
 import { GREEK } from './cards/greek';
 import { INSTANTS } from './cards/instants';
 import { LANDS } from './cards/lands';
@@ -44,6 +45,7 @@ const SET_GROUPS: readonly { set: SetKey; cards: readonly CardDef[] }[] = [
   { set: 'celtic-fae', cards: CELTIC_FAE },
   { set: 'arthurian-court', cards: ARTHURIAN_COURT },
   { set: 'gothic-monsters', cards: GOTHIC_MONSTERS },
+  { set: 'dark-tales', cards: DARK_TALES },
 ];
 
 function buildDb(): CardDb {

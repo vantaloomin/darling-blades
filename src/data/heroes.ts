@@ -2,7 +2,7 @@
  * Premium hero portraits — bespoke, non-card illustrations that front the
  * in-duel commander portrait (src/ui/CommanderPortrait.ts). Unlike `heroCardId`
  * (any collected card), a premium hero is UNLOCKED ONLY by owning its theme
- * deck, so it's an exclusive cosmetic reward. The art is a standalone PNG under
+ * deck, so it's an exclusive cosmetic reward. The art is a standalone WebP under
  * public/assets/art/heroes/, preloaded by key in PreloadScene; a missing file
  * degrades gracefully (the portrait falls back to the card-based hero/face).
  */
@@ -10,7 +10,7 @@ export interface PremiumHero {
   /** Save-stored selection id (SaveData.heroPortraitId). */
   id: string;
   name: string;
-  /** Preloaded texture key (matches the PNG basename). */
+  /** Preloaded texture key (matches the WebP basename). */
   textureKey: string;
   /** Owning this deck (by id) unlocks the hero for selection. */
   unlockDeckId: string;

@@ -162,7 +162,7 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
             name: 'Mapped',
             cards: ['land-plains', 'land-forest'],
             heroCardId: null,
-            landStyle: { 'land-plains': 'base', 'land-forest': 'celtic-fae' },
+            landStyle: { 'land-plains': 'dark-tales', 'land-forest': 'celtic-fae' },
           },
         ],
       }),
@@ -173,8 +173,26 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
     expect(manager.data.version).toBe(22);
     expect(manager.data.decks[0].landStyle).toBeNull();
     expect(manager.data.decks[1].landStyle).toEqual({
-      'land-plains': 'base',
+      'land-plains': 'dark-tales',
       'land-forest': 'celtic-fae',
     });
+  });
+
+  it('round-trips a dark-tales selection through the current v22 save shape', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.decks = [{
+      id: 'dark-tales-deck',
+      name: 'Storybook',
+      cards: ['land-plains'],
+      heroCardId: null,
+      landStyle: { 'land-plains': 'dark-tales' },
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const manager = new SaveManager(storage, 456);
+
+    expect(manager.data.version).toBe(22);
+    expect(manager.data.decks[0].landStyle).toEqual({ 'land-plains': 'dark-tales' });
   });
 });

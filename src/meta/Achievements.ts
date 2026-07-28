@@ -105,6 +105,13 @@ const GOTHIC_MONSTERS_HEADLINERS = [
   'gm-luna-wolf-matriarch',
   'gm-lenore-velvet-saint',
 ] as const;
+const DARK_TALES_HEADLINERS = [
+  'dt-glass-coffin-queen',
+  'dt-abyssal-songstress',
+  'dt-thorn-palace-heiress',
+  'dt-midnight-glass-runner',
+  'dt-ice-crown-sovereign',
+] as const;
 
 function themeIds(ids: readonly string[], db: CardDb): string[] {
   return ids.filter((id) => Boolean(db[id]));
@@ -165,6 +172,7 @@ const isRagnarok = (card: CardDef): boolean => card.set === 'ragnarok';
 const isCelticFae = (card: CardDef): boolean => card.set === 'celtic-fae';
 const isArthurianCourt = (card: CardDef): boolean => card.set === 'arthurian-court';
 const isGothicMonsters = (card: CardDef): boolean => card.set === 'gothic-monsters';
+const isDarkTales = (card: CardDef): boolean => card.set === 'dark-tales';
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
@@ -622,6 +630,71 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     reward: { gold: 350 },
     progress: (save, db) =>
       themedCollectionProgress(save, db, (card) => isGothicMonsters(card) && card.subtypes.includes('Vampire')),
+  },
+  // Dark Tales (1.4), schema-free and derived from the live 120-card pool.
+  {
+    id: 'theme-dark-tales-25',
+    bucket: 'theme',
+    title: 'First Midnight Page',
+    description: 'Own 25% of Dark Tales cards.',
+    reward: { gold: 200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isDarkTales, 0.25),
+  },
+  {
+    id: 'theme-dark-tales-50',
+    bucket: 'theme',
+    title: 'Half the Storybook',
+    description: 'Own 50% of Dark Tales cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, isDarkTales, 0.5),
+  },
+  {
+    id: 'theme-dark-tales-complete',
+    bucket: 'theme',
+    title: 'The Last Page',
+    description: 'Own every Dark Tales card.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isDarkTales),
+  },
+  {
+    id: 'theme-dark-tales-headliners',
+    bucket: 'theme',
+    title: 'Queens of Midnight',
+    description: 'Own all five Dark Tales headliner legends.',
+    reward: { gold: 600 },
+    progress: (save, db) => themeProgress(save, DARK_TALES_HEADLINERS, db),
+  },
+  {
+    id: 'theme-dark-tales-skim',
+    bucket: 'theme',
+    title: 'Keep the Thread',
+    description: 'Own every Dark Tales card with Skim.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDarkTales(card) && card.skim !== undefined),
+  },
+  {
+    id: 'theme-dark-tales-retell',
+    bucket: 'theme',
+    title: 'Tell It Again',
+    description: 'Own every Dark Tales card with Retell.',
+    reward: { gold: 450 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDarkTales(card) && card.retell !== undefined),
+  },
+  {
+    id: 'theme-dark-tales-mermaids',
+    bucket: 'theme',
+    title: 'Tidebound Chorus',
+    description: 'Own every Dark Tales Mermaid.',
+    reward: { gold: 350 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDarkTales(card) && card.subtypes.includes('Mermaid')),
+  },
+  {
+    id: 'theme-dark-tales-bloodoath',
+    bucket: 'theme',
+    title: 'Bargains in Blood',
+    description: 'Own every Dark Tales card with Blood Oath.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isDarkTales(card) && card.keywords?.includes('bloodoath') === true),
   },
   {
     id: 'first-win',

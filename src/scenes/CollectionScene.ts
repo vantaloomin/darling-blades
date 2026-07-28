@@ -27,11 +27,18 @@ import {
   type CollectionFilterState,
 } from '../meta/collectionFilter';
 import { Services } from '../meta/services';
-import { TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
+import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
+import { finishOdds, formatOdds } from '../meta/pullOdds';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { FilterBar, TIER_TEXT_COLOR } from '../ui/binder/FilterBar';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardView } from '../ui/CardView';
+import {
+  COLLECTION_SORT_OPTIONS,
+  DEFAULT_COLLECTION_SORT,
+  sortCollectionCards,
+  type CollectionSortSelection,
+} from '../ui/collectionSort';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -103,6 +110,7 @@ export class CollectionScene extends Phaser.Scene {
   // stays neutral so the pure filter + its tests are unaffected.
   private state: CollectionFilterState = { ...defaultFilterState(), ownedOnly: true };
   private page = 0;
+  private sortSelection: CollectionSortSelection = DEFAULT_COLLECTION_SORT;
   /** Interactive thumbs of the current page (ModalGuard targets). */
   private cells: Phaser.GameObjects.GameObject[] = [];
   private guardTargets: Phaser.GameObjects.GameObject[] = [];
@@ -125,6 +133,8 @@ export class CollectionScene extends Phaser.Scene {
   /** The DOM search <input> — hidden while the inspect overlay is open (DOM
    * elements always float above the canvas, so the dim can't cover it). */
   private searchInput: Phaser.GameObjects.DOMElement | null = null;
+  private readonly onPreviousKey = (): void => this.onArrowKey(-1);
+  private readonly onNextKey = (): void => this.onArrowKey(1);
 
   constructor() {
     super('Collection');
@@ -133,6 +143,7 @@ export class CollectionScene extends Phaser.Scene {
   create(): void {
     this.state = { ...defaultFilterState(), ownedOnly: true };
     this.page = 0;
+    this.sortSelection = DEFAULT_COLLECTION_SORT;
     this.cells = [];
     this.guardTargets = [];
     this.guard = new ModalGuard();
@@ -195,6 +206,13 @@ export class CollectionScene extends Phaser.Scene {
 
     this.filterBar = new FilterBar(this, this.state, {
       y: 104,
+      sortControl: {
+        options: COLLECTION_SORT_OPTIONS,
+        get: () => this.sortSelection,
+        set: (value) => {
+          this.sortSelection = value as CollectionSortSelection;
+        },
+      },
       onChange: () => {
         this.page = 0;
         this.renderPage();
@@ -227,8 +245,16 @@ export class CollectionScene extends Phaser.Scene {
     });
     // ←/→ keyboard navigation — like the wheel, keyboard bypasses ModalGuard,
     // so onArrowKey self-gates on the inspect overlay and the search input.
-    this.input.keyboard?.on('keydown-LEFT', () => this.onArrowKey(-1), this);
-    this.input.keyboard?.on('keydown-RIGHT', () => this.onArrowKey(1), this);
+    this.input.keyboard?.on('keydown-LEFT', this.onPreviousKey);
+    this.input.keyboard?.on('keydown-RIGHT', this.onNextKey);
+    this.input.keyboard?.on('keydown-UP', this.onPreviousKey);
+    this.input.keyboard?.on('keydown-DOWN', this.onNextKey);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.off('keydown-LEFT', this.onPreviousKey);
+      this.input.keyboard?.off('keydown-RIGHT', this.onNextKey);
+      this.input.keyboard?.off('keydown-UP', this.onPreviousKey);
+      this.input.keyboard?.off('keydown-DOWN', this.onNextKey);
+    });
 
     this.emptyText = this.add
       .text(DESIGN_W / 2, 390, 'No cards match these filters.', {
@@ -272,7 +298,11 @@ export class CollectionScene extends Phaser.Scene {
   }
 
   private currentPool(): CardDef[] {
-    return applyFilters(collectiblePool(ALL_CARDS), this.state, Services.save.data);
+    return sortCollectionCards(
+      applyFilters(collectiblePool(ALL_CARDS), this.state, Services.save.data),
+      this.sortSelection,
+      Services.save.data,
+    );
   }
 
   /** ←/→: turn the spread in binder view; step the inspected card while the
@@ -324,7 +354,7 @@ export class CollectionScene extends Phaser.Scene {
   private renderPage(dir = 0): void {
     const save = Services.save.data;
     const collectible = collectiblePool(ALL_CARDS);
-    const pool = applyFilters(collectible, this.state, save);
+    const pool = this.currentPool();
     this.page = clampPage(this.page, pool.length, SPREAD_SIZE);
 
     const ownedKinds = collectible.filter((d) => ownedCount(save, d.id) > 0).length;
@@ -395,9 +425,21 @@ export class CollectionScene extends Phaser.Scene {
       const y = ROW0_Y + Math.floor(within / COLS_PER_PAGE) * PITCH_Y;
       const owned = ownedCount(save, d.id);
 
-      // Cached-thumbnail Image (plain bake, tier gem included) — cheap to
-      // churn per spread; live CardViews stay exclusive to the inspect overlay.
-      const thumb = makeCardThumb(this, x, y, d, THUMB_CARD_SCALE);
+      // Cached-thumbnail Image (tier gem included) — cheap to churn per
+      // spread; live CardViews stay exclusive to the inspect overlay. Owned
+      // cards show their RAREST owned variant (frame/full-art bake statically;
+      // holo shimmer stays an inspect effect), so the binder reads as YOUR
+      // binder rather than a plain checklist.
+      const best = owned > 0 ? bestOwnedVariant(save, d.id) : null;
+      const thumb = makeCardThumb(
+        this,
+        x,
+        y,
+        d,
+        THUMB_CARD_SCALE,
+        undefined,
+        best && variantKey(best) !== variantKey(PLAIN_VARIANT) ? best : undefined,
+      );
       if (owned === 0) thumb.setAlpha(0.32); // calibrated against the 0.70 dim
       thumb.setInteractive({ useHandCursor: true });
       bindTapButton(this, thumb, () => {
@@ -449,10 +491,11 @@ export class CollectionScene extends Phaser.Scene {
       width: 1080,
       height: 660,
       dimAlpha: 0.82,
-      escToClose: false,
+      escToClose: true,
       depth: theme.depth.overlay,
       showClose: false,
       tapDimToClose: false,
+      onClose: () => this.closeInspect(),
     });
     const c = shell.container;
     const dim = shell.dim;
@@ -489,10 +532,25 @@ export class CollectionScene extends Phaser.Scene {
         .setOrigin(0, 0.5),
     );
     if (owned > 0) {
-      const entries = ownedVariantEntries(save, d.id);
-      const MAX_ROWS = 9;
+      // Pull odds are the player-facing rarity of a finish. Keep the rarest
+      // owned treatment first, independent of the internal display ranking.
+      const entries = [...ownedVariantEntries(save, d.id)].sort(
+        (a, b) =>
+          finishOdds(a.variant.frame, a.variant.holo, a.variant.fullArt) -
+            finishOdds(b.variant.frame, b.variant.holo, b.variant.fullArt) ||
+          variantKey(a.variant).localeCompare(variantKey(b.variant)),
+      );
+      const VARIANT_ROWS = 7;
+      const VARIANT_ROW_Y = 176;
+      const VARIANT_ROW_PITCH = 48;
+      const variantPageCount = Math.max(1, Math.ceil(entries.length / VARIANT_ROWS));
       let selectedKey = variantKey(shown!);
-      const rows: { background: Phaser.GameObjects.Graphics; text: Phaser.GameObjects.Text; variant: CardVariant; count: number }[] = [];
+      let rows: {
+        background: Phaser.GameObjects.Graphics;
+        text: Phaser.GameObjects.Text;
+        variant: CardVariant;
+        count: number;
+      }[] = [];
       const restyle = (): void => {
         for (const r of rows) {
           const sel = variantKey(r.variant) === selectedKey;
@@ -502,7 +560,11 @@ export class CollectionScene extends Phaser.Scene {
             .fillRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control)
             .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
             .strokeRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control);
-          r.text.setText(`${sel ? '▸ ' : '   '}${variantLabel(r.variant)}  ×${r.count}`);
+          r.text.setText(
+            `${sel ? '▸ ' : '   '}${variantLabel(r.variant)}  ×${r.count}  ·  ${formatOdds(
+              finishOdds(r.variant.frame, r.variant.holo, r.variant.fullArt),
+            )}`,
+          );
           r.text.setColor(sel ? theme.colors.gold : theme.colors.body);
           // setText/setColor reset the hit bounds — re-inflate, biased right
           // so the rect never reaches back over the card.
@@ -511,37 +573,39 @@ export class CollectionScene extends Phaser.Scene {
           });
         }
       };
-      entries.slice(0, MAX_ROWS).forEach((e, i) => {
-        const background = this.add.graphics();
-        const t = this.add
-          .text(panelX, 176 + i * 48, '', {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.label}px`,
-            fontStyle: theme.weight.w600,
-            color: theme.colors.body,
-          })
-          .setOrigin(0, 0.5)
-          .setInteractive({ useHandCursor: true });
-        bindTapButton(this, t, () => {
-          selectedKey = variantKey(e.variant);
-          view.setCard(d, { fx: 'full', variant: e.variant, fullArt: e.variant.fullArt });
-          restyle();
-        });
-        rows.push({ background, text: t, variant: e.variant, count: e.count });
-        c.add([background, t]);
-      });
-      if (entries.length > MAX_ROWS) {
-        c.add(
-          this.add
-            .text(panelX, 176 + MAX_ROWS * 48, `+${entries.length - MAX_ROWS} more…`, {
+      let variantPageControl: Pager | null = null;
+      const renderVariantPage = (page: number): void => {
+        for (const row of rows) {
+          if (row.background.active) row.background.destroy();
+          if (row.text.active) row.text.destroy();
+        }
+        rows = [];
+        const start = page * VARIANT_ROWS;
+        entries.slice(start, start + VARIANT_ROWS).forEach((e, i) => {
+          const background = this.add.graphics();
+          const t = this.add
+            .text(panelX, VARIANT_ROW_Y + i * VARIANT_ROW_PITCH, '', {
               fontFamily: theme.fonts.ui,
-              fontSize: `${theme.type.caption}px`,
-              color: theme.colors.muted,
+              fontSize: `${theme.type.label}px`,
+              fontStyle: theme.weight.w600,
+              color: theme.colors.body,
             })
-            .setOrigin(0, 0.5),
-        );
-      }
-      restyle();
+            .setOrigin(0, 0.5)
+            .setInteractive({ useHandCursor: true });
+          bindTapButton(this, t, () => {
+            selectedKey = variantKey(e.variant);
+            view.setCard(d, { fx: 'full', variant: e.variant, fullArt: e.variant.fullArt });
+            restyle();
+          });
+          rows.push({ background, text: t, variant: e.variant, count: e.count });
+          c.add([background, t]);
+        });
+        variantPageControl?.refresh(page, variantPageCount);
+        restyle();
+      };
+      variantPageControl = pager(this, panelX + 118, 522, 0, variantPageCount, renderVariantPage);
+      c.add(variantPageControl.container);
+      renderVariantPage(0);
     }
 
     // Card actions: owned cards can choose a fallback hero portrait or shard;
@@ -595,7 +659,7 @@ export class CollectionScene extends Phaser.Scene {
       const heroBtn = this.overlayChip(
         c,
         panelX,
-        620,
+        584,
         heroLabel(),
         save.heroCardId === d.id ? 'primary' : 'emphasis',
         () => {
@@ -614,7 +678,7 @@ export class CollectionScene extends Phaser.Scene {
       const costLabel = `-${cost.toLocaleString('en-US')}g`;
       let armed = false;
       const label = (): string => (armed ? `Craft: confirm (${costLabel})` : `Craft (${costLabel})`);
-      const craftBtn = this.overlayChip(c, panelX, 620, label(), 'emphasis', () => {
+      const craftBtn = this.overlayChip(c, panelX, 584, label(), 'emphasis', () => {
         // Shared destructive-confirm policy (matches the Shard chip): two-tap
         // unless the player opted out in Settings.
         if (save.settings.confirmDestructive && !armed) {
@@ -644,7 +708,7 @@ export class CollectionScene extends Phaser.Scene {
       let armed = false;
       const label = (): string =>
         armed ? `Shard ×${excess}: confirm (+${gold}🪙)` : `⛏ Shard ×${excess} extra (+${gold}🪙)`;
-      const shardBtn = this.overlayChip(c, panelX, 684, label(), 'emphasis', () => {
+      const shardBtn = this.overlayChip(c, panelX, 648, label(), 'emphasis', () => {
         // Shared destructive-confirm policy: two-tap unless the player opted out.
         if (save.settings.confirmDestructive && !armed) {
           armed = true;

@@ -135,6 +135,26 @@ const GOTHIC_MONSTERS_GOALS = [
   { id: 'theme-gothic-monsters-empowered', ids: GOTHIC_MONSTERS_EMPOWERED },
   { id: 'theme-gothic-monsters-vampires', ids: GOTHIC_MONSTERS_VAMPIRES },
 ] as const;
+const DARK_TALES_IDS = Object.values(CARD_DB)
+  .filter((entry) => entry.set === 'dark-tales')
+  .map((entry) => entry.id);
+const DARK_TALES_HEADLINERS = [
+  'dt-glass-coffin-queen',
+  'dt-abyssal-songstress',
+  'dt-thorn-palace-heiress',
+  'dt-midnight-glass-runner',
+  'dt-ice-crown-sovereign',
+] as const;
+const DARK_TALES_GOALS = [
+  { id: 'theme-dark-tales-25', ids: DARK_TALES_IDS.slice(0, Math.ceil(DARK_TALES_IDS.length * 0.25)) },
+  { id: 'theme-dark-tales-50', ids: DARK_TALES_IDS.slice(0, Math.ceil(DARK_TALES_IDS.length * 0.5)) },
+  { id: 'theme-dark-tales-complete', ids: DARK_TALES_IDS },
+  { id: 'theme-dark-tales-headliners', ids: DARK_TALES_HEADLINERS },
+  { id: 'theme-dark-tales-skim', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].skim !== undefined) },
+  { id: 'theme-dark-tales-retell', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].retell !== undefined) },
+  { id: 'theme-dark-tales-mermaids', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].subtypes.includes('Mermaid')) },
+  { id: 'theme-dark-tales-bloodoath', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].keywords?.includes('bloodoath')) },
+] as const;
 
 const THEME_DB: CardDb = Object.freeze({
   ...DB,
@@ -478,6 +498,27 @@ describe('gothic monsters achievements (1.3)', () => {
     });
     expect(syncAchievements(save, CARD_DB)).toContain('theme-gothic-monsters-headliners-special');
   });
+});
+
+describe('dark tales achievements (1.4)', () => {
+  it('registers eight live collection, headliner, and mechanic goals', () => {
+    expect(DARK_TALES_IDS).toHaveLength(120);
+    expect(DARK_TALES_GOALS).toHaveLength(8);
+    for (const { id } of DARK_TALES_GOALS) expect(status(id, freshSave(0), CARD_DB).def.id).toBe(id);
+  });
+
+  for (const { id, ids } of DARK_TALES_GOALS) {
+    it(`unlocks ${id} with exactly its qualifying Dark Tales collection`, () => {
+      const complete = freshSave(0);
+      complete.collection = Object.fromEntries(ids.map((cardId) => [cardId, 1]));
+      expect(status(id, complete, CARD_DB)).toMatchObject({ current: ids.length, target: ids.length, unlocked: true });
+      expect(syncAchievements(complete, CARD_DB)).toContain(id);
+
+      const oneShort = freshSave(0);
+      oneShort.collection = Object.fromEntries(ids.slice(0, -1).map((cardId) => [cardId, 1]));
+      expect(status(id, oneShort, CARD_DB)).toMatchObject({ current: ids.length - 1, target: ids.length, unlocked: false });
+    });
+  }
 });
 
 describe('limited run-history achievements (1.2)', () => {

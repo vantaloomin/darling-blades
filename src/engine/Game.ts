@@ -330,22 +330,45 @@ export class Game {
         return;
       }
 
-      case 'castSpell': {
+      case 'skim': {
         const cardId = me.hand[action.handIndex];
         const d = def(this.db, cardId);
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, d.skim!.cost)!;
+        for (const iid of plan) {
+          const src = findPermanent(st, iid)!;
+          src.tapped = true;
+        }
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+        me.hand.splice(action.handIndex, 1);
+        me.graveyard.push(cardId);
+        emit({ e: 'skimmed', player, cardId });
+        drawCards(st, emit, player, 1);
+        return;
+      }
+
+      case 'castSpell': {
+        const isRetell = action.retell === true;
+        const sourceIndex = isRetell ? action.graveIndex! : action.handIndex;
+        const cardId = isRetell ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
+        const d = def(this.db, cardId);
         const extra = action.x ?? 0;
-        // Empower is an additional cast cost (validateAction rejects X+empower,
-        // so `extra` is always 0 on an empowered cast).
+        // Retell replaces the printed cost. Empower is an additional cost on a
+        // normal cast (validateAction rejects X+empower and Retell+Empower).
         const cost =
-          action.empowered && d.empower ? combineManaCosts(d.cost!, d.empower.cost) : d.cost!;
-        const plan = action.manaPlan ?? solveMana(st, this.db, player, cost, extra)!;
+          isRetell
+            ? d.retell!.cost
+            : action.empowered && d.empower
+              ? combineManaCosts(d.cost!, d.empower.cost)
+              : d.cost!;
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, cost, isRetell ? 0 : extra)!;
         for (const iid of plan) {
           const src = findPermanent(st, iid)!;
           src.tapped = true;
         }
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
 
-        me.hand.splice(action.handIndex, 1);
+        if (isRetell) me.graveyard.splice(sourceIndex, 1);
+        else me.hand.splice(sourceIndex, 1);
         const item: StackItem = {
           sid: st.nextSid++,
           cardId,
@@ -353,6 +376,7 @@ export class Game {
           targets: action.targets ?? [],
           x: action.x,
           ...(action.empowered ? { empowered: true } : {}),
+          ...(isRetell ? { retell: true } : {}),
         };
         st.stack.push(item);
         emit({

@@ -1,0 +1,138 @@
+import type { CardDb, Permanent, PlayerId } from '../src/engine/types';
+import { TEST_DB } from './helpers';
+
+// Dark Tales engine fixtures stay outside the shipped catalog. They are small
+// enough to make each legality and resolution assertion isolate one mechanic.
+export const DARK_TALES_DB: CardDb = {
+  ...TEST_DB,
+  skimCard: {
+    ...TEST_DB.bear,
+    id: 'skimCard',
+    name: 'Loose Thread',
+    cost: { generic: 5, pips: {} },
+    skim: { cost: { generic: 1, pips: {} } },
+  },
+  castCreature: {
+    ...TEST_DB.bear,
+    id: 'castCreature',
+    name: 'Easy Lesson',
+    cost: { generic: 0, pips: {} },
+  },
+  retellRitual: {
+    id: 'retellRitual',
+    name: 'Echoed Rite',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 3, pips: { R: 1 } },
+    colors: ['R'],
+    abilities: [{ when: 'spell', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
+    retell: { cost: { generic: 0, pips: { U: 1 } } },
+    rarity: 'c',
+  },
+  skimRetellCard: {
+    id: 'skimRetellCard',
+    name: 'Looped Thread',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 5, pips: {} },
+    colors: [],
+    abilities: [{ when: 'spell', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
+    skim: { cost: { generic: 0, pips: {} } },
+    retell: { cost: { generic: 0, pips: {} } },
+    rarity: 'c',
+  },
+  retellTargeted: {
+    id: 'retellTargeted',
+    name: 'Echoed Doom',
+    types: ['charm'],
+    subtypes: [],
+    cost: { generic: 1, pips: { R: 1 } },
+    colors: ['R'],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'destroy', to: 'target' }] }],
+    retell: { cost: { generic: 0, pips: { U: 1 } } },
+    rarity: 'c',
+  },
+  retellCreature: {
+    ...TEST_DB.bear,
+    id: 'retellCreature',
+    name: 'Unrepeatable Beast',
+    retell: { cost: { generic: 0, pips: {} } },
+  },
+  retellArtifact: {
+    id: 'retellArtifact',
+    name: 'Unrepeatable Relic',
+    types: ['artifact'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    retell: { cost: { generic: 0, pips: {} } },
+    rarity: 'c',
+  },
+  targetKill: {
+    id: 'targetKill',
+    name: 'Clean Cut',
+    types: ['charm'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'destroy', to: 'target' }] }],
+    rarity: 'c',
+  },
+  counter: {
+    id: 'counter',
+    name: 'Broken Echo',
+    types: ['charm'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    abilities: [{ when: 'spell', targets: [{ what: 'spell' }], ops: [{ op: 'cancel', to: 'target' }] }],
+    rarity: 'c',
+  },
+  dualMode: {
+    id: 'dualMode',
+    name: 'Sleeping Curse',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: { R: 1 } },
+    colors: ['R'],
+    abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allCreatures' }] }],
+    retell: {
+      cost: { generic: 0, pips: { U: 1 } },
+      // R4 override: trigger-safe and target-free by contract.
+      ops: [{ op: 'preventCombat' }],
+    },
+    rarity: 'c',
+  },
+  xRetell: {
+    id: 'xRetell',
+    name: 'Scalable Echo',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: { R: 1 } },
+    colors: ['R'],
+    x: { min: 1 },
+    abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 'X', to: 'opponent' }] }],
+    retell: { cost: { generic: 0, pips: { U: 1 } } },
+    rarity: 'c',
+  },
+  retellEmpowered: {
+    id: 'retellEmpowered',
+    name: 'Echo with Teeth',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    abilities: [{ when: 'spell', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
+    retell: { cost: { generic: 0, pips: {} } },
+    empower: { cost: { generic: 0, pips: {} }, ops: [{ op: 'gainLife', n: 2 }] },
+    rarity: 'c',
+  },
+};
+
+export function manaPermanent(
+  iid: number,
+  cardId: 'mountain' | 'island' = 'mountain',
+  controller: PlayerId = 0,
+): Partial<Permanent> {
+  return { iid, cardId, controller, owner: controller, tapped: false, enteredThisTurn: false };
+}

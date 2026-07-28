@@ -116,25 +116,38 @@ describe('AI win-rate gates', () => {
     expect(rate).toBeGreaterThanOrEqual(0.7);
   }, 600_000);
 
-  it('Gothic Monsters rungs clear fresh 40-seed floors and terminate', () => {
+  it('Dark Tales summit rungs clear fresh 40-seed floors and terminate', () => {
     const report = runAvatarMatrix(40);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
     const r14 = row('artoria');
     const r15 = row('carmilla');
     const r16 = row('the-bride');
+    const r17 = row('glass-coffin-queen');
+    const r18 = row('abyssal-songstress');
     expect(r14).toBeDefined();
     expect(r15).toBeDefined();
     expect(r16).toBeDefined();
-    if (!r14 || !r15 || !r16) return;
+    expect(r17).toBeDefined();
+    expect(r18).toBeDefined();
+    if (!r14 || !r15 || !r16 || !r17 || !r18) return;
 
-    // Fresh 2026-07-17 full --avatars measurement, 40 seeds/cell:
-    // R14 = 70.8%, R15 = 77.6%, R16 = 76.8%, all 40 games decided per cell.
-    // Floors leave 5.6pp and 3.8pp below the new-rung point estimates.
+    // Fresh 2026-07-24 full --avatars measurement, 40 seeds/cell:
+    // R14 = 70%, R15 = 77%, R16 = 75%, R17 = 77%, R18 = 87%.
+    // Every new-boss cell had 40 games decided and zero draws. The summit
+    // floors leave 5pp below the R17/R18 point estimates.
     expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.72);
     expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.73);
+    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.72);
+    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.82);
     expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
     expect(r16.avg, 'rung 16 must clear rung 14').toBeGreaterThan(r14.avg);
-    for (const cell of [...r15.cells, ...r16.cells]) {
+    expect(r17.avg, 'rung 17 must clear rung 16').toBeGreaterThan(r16.avg);
+    expect(r18.avg, 'rung 18 must be the measured summit').toBeGreaterThan(r17.avg);
+    const otherMax = Math.max(
+      ...report.rows.filter((entry) => entry.avatar.id !== 'abyssal-songstress').map((entry) => entry.avg),
+    );
+    expect(r18.avg, 'rung 18 must be highest in the measured table').toBeGreaterThan(otherMax);
+    for (const cell of [...r17.cells, ...r18.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
   }, 900_000);

@@ -4,7 +4,7 @@
  * the `anthropic-skills:chatgpt-imagegen` skill), then post-processes each
  * image to its per-asset deliverable resolution (docs/scene-art.md §2 —
  * 1280×720 for stage backdrops, 640×800 for card-back/pack-art) at
- * `public/assets/art/scenes/<asset-key>.png`. Existing PNGs are skipped, so
+ * `public/assets/art/scenes/<asset-key>.webp`. Existing WebPs are skipped, so
  * the run is idempotent and resumable.
  *
  * Sibling of scripts/gen-card-art.ts, same architecture: each prompt is
@@ -28,7 +28,7 @@
  *   --dry-run         list what would generate, touch nothing
  *   --show-prompt     print the fully assembled prompt (preamble + entry +
  *                     negatives) for every matched entry, touch nothing
- *   --force           regenerate keys whose PNG already exists
+ *   --force           regenerate keys whose WebP already exists
  *   --cli <path>      path to the chatgpt-imagegen python script (otherwise
  *                     $CHATGPT_IMAGEGEN_CLI, then a search of the local
  *                     skills-plugin install, then `chatgpt-imagegen` on PATH)
@@ -43,10 +43,11 @@
  * regenerates).
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { convertPngToWebp } from './convert-art-webp';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const docPath = join(root, 'docs', 'scene-art.md');
@@ -285,8 +286,8 @@ function generateOne(
   force: boolean,
 ): { ok: boolean; error?: string; reusedRaw?: boolean } {
   const rawPath = join(rawDir, `${entry.key}.raw.png`);
-  const outPath = join(outDir, `${entry.key}.png`);
-  const tmpPath = `${outPath}.tmp`;
+  const outPath = join(outDir, `${entry.key}.webp`);
+  const tmpPath = `${outPath}.tmp.png`;
   const prompt = assemblePrompt(entry);
   const genSize = entry.w > entry.h ? GEN_LANDSCAPE : GEN_PORTRAIT;
 
@@ -321,7 +322,7 @@ function generateOne(
   }
 
   // Write via temp + rename: an interrupted write must never leave a truncated
-  // <key>.png that skip-existing would forever treat as done (the future
+  // <key>.webp that skip-existing would forever treat as done (the future
   // scenes manifest will trust file presence, exactly like the card one).
   const post = spawnSync(
     PYTHON,
@@ -332,7 +333,13 @@ function generateOne(
     rmSync(tmpPath, { force: true });
     return { ok: false, error: `post-process failed: ${(post.stderr ?? '').trim().split('\n').pop()}` };
   }
-  renameSync(tmpPath, outPath);
+  try {
+    convertPngToWebp(tmpPath, outPath);
+  } catch (error) {
+    rmSync(tmpPath, { force: true });
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+  rmSync(tmpPath, { force: true });
   return { ok: true, reusedRaw };
 }
 
@@ -362,7 +369,7 @@ function main(): void {
     return;
   }
 
-  const exists = (e: Entry): boolean => existsSync(join(outDir, `${e.key}.png`));
+  const exists = (e: Entry): boolean => existsSync(join(outDir, `${e.key}.webp`));
   const skipped = args.force ? [] : entries.filter(exists);
   let todo = args.force ? entries : entries.filter((e) => !exists(e));
   if (args.limit !== undefined) todo = todo.slice(0, args.limit);

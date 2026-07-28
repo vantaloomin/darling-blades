@@ -30,7 +30,7 @@ export interface CommanderPortraitOpts {
   cardId: string | null;
   /**
    * Direct texture key for a non-card (premium) hero portrait — preferred over
-   * cardId when set and loaded, so a bespoke hero PNG can front the portrait
+   * cardId when set and loaded, so a bespoke hero WebP can front the portrait
    * without going through the card art resolver.
    */
   textureKey?: string;
@@ -173,7 +173,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Cover-crop a bespoke hero PNG (a plain texture, no card atlas frame) into
+   * Cover-crop a bespoke hero WebP (a plain texture, no card atlas frame) into
    * the window with the same overscan/upward-bias recipe as buildArt. Missing
    * art must degrade to frame + label, never crash the duel.
    */

@@ -22,16 +22,16 @@ Each art-bible entry is the specification an artist (or image model) works from 
 produce one finished card illustration. The pipeline:
 
 1. **Entry** — an author/artist picks a card's entry from the faction file.
-2. **Deliverable** — a **640×800 PNG** (portrait, 4:5 — exactly 2× the 320×400
+2. **Deliverable** — a **640×800 WebP** (portrait, 4:5 — exactly 2× the 320×400
    procedural placeholder canvas, so the same cover-crop math applies).
-3. **Drop** — save as `public/assets/art/cards/<cardId>.png` (filename = the card's
-   `id`, e.g. `tk-other-lubu.png`).
+3. **Drop** — save as `public/assets/art/cards/<cardId>.webp` (filename = the card's
+   `id`, e.g. `tk-other-lubu.webp`).
 4. **Manifest** — run `npm run gen-art-manifest` (it also runs automatically on
    `npm run dev` and `npm run build`). The script scans the drop folder and writes
    `src/data/art-manifest.json`. For mobile, `npm run gen-art-halfres` derives a
-   320×400 half-res sibling in `public/assets/art/cards-half/` for every dropped
-   PNG (the `lite` quality tier loads these); it re-runs the manifest itself.
-5. **In-game** — cards listed in the manifest load the real PNG; absent cards keep
+   320×400 half-res WebP sibling in `public/assets/art/cards-half/` for every dropped
+   WebP (the `lite` quality tier loads these); it re-runs the manifest itself.
+5. **In-game** — cards listed in the manifest load the real WebP; absent cards keep
    their deterministic procedural placeholder. No code changes are ever needed to
    ship art.
 

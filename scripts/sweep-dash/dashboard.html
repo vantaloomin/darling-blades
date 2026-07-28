@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metagame Sweep</title>
+<style>
+  :root {
+    --dim:#0a0812; --panel:#161226; --stroke:#4a3f6e; --heading:#f0e6ff;
+    --body:#c9bde0; --muted:#8f83a8; --gold:#ffd88a; --gold-hot:#ffd700;
+  }
+  body { margin:0; background:var(--dim); color:var(--body);
+    font-family:'Segoe UI',system-ui,sans-serif; display:grid; place-items:center; min-height:100vh; }
+  main { width:min(680px, 92vw); }
+  h1 { font-family:'Palatino Linotype',Georgia,serif; font-variant:small-caps;
+    color:var(--heading); font-weight:600; letter-spacing:0.05em; font-size:1.9rem; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:0.9rem; margin-bottom:22px; }
+  .card { background:var(--panel); border:1px solid var(--stroke); border-radius:12px; padding:20px 22px; }
+  .state { display:inline-block; padding:4px 14px; border-radius:999px; font-size:11px;
+    letter-spacing:0.18em; text-transform:uppercase; border:1px solid var(--stroke); }
+  .state.running { color:var(--gold); border-color:var(--gold); }
+  .state.done { color:#9be6a8; border-color:#9be6a8; }
+  .state.waiting, .state.starting { color:var(--muted); }
+  .rows { margin-top:16px; display:grid; gap:10px; font-variant-numeric:tabular-nums; }
+  .row { display:flex; justify-content:space-between; gap:16px; }
+  .row .k { color:var(--muted); }
+  .row .v { color:var(--heading); }
+  .bar { margin-top:18px; height:10px; border-radius:999px; background:#241d3a; overflow:hidden; }
+  .bar div { height:100%; background:linear-gradient(90deg, var(--gold), var(--gold-hot)); transition:width 0.6s ease; }
+  .personas { margin-top:18px; display:flex; flex-wrap:wrap; gap:8px; }
+  .p { padding:4px 12px; border-radius:999px; border:1px solid var(--stroke); font-size:12px; color:var(--muted); }
+  .p.active { color:var(--gold); border-color:var(--gold); }
+  .p.done { color:#9be6a8; border-color:#3a5c46; }
+  table { width:100%; margin-top:16px; border-collapse:collapse; font-size:0.9rem; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid #241d3a; }
+  th { color:var(--muted); font-weight:600; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; }
+  td { color:var(--body); } td.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .stale { margin-top:14px; color:#f0b0a0; font-size:0.85rem; display:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Metagame Sweep</h1>
+  <div class="sub">The 1.4 release deep sweep · personas iterating against each other's retained lists</div>
+  <div class="card">
+    <span class="state waiting" id="state">waiting</span>
+    <div class="rows" id="rows"></div>
+    <div class="bar"><div id="fill" style="width:0%"></div></div>
+    <div class="personas" id="personas"></div>
+    <div id="results"></div>
+    <div class="stale" id="stale">No status update in over 45 minutes. The crafting rounds are long, but if this persists, check the sweep process.</div>
+  </div>
+</main>
+<script>
+  const fmtAgo = (iso) => {
+    const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    if (s < 90) return Math.round(s) + 's ago';
+    if (s < 5400) return Math.round(s / 60) + 'm ago';
+    return (s / 3600).toFixed(1) + 'h ago';
+  };
+  const fmtDur = (iso) => {
+    const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    return s < 3600 ? Math.round(s / 60) + 'm' : (s / 3600).toFixed(1) + 'h';
+  };
+  let seen = {};
+  async function tick() {
+    let d;
+    try { d = await (await fetch('/status.json', { cache: 'no-store' })).json(); }
+    catch { return; }
+    const st = document.getElementById('state');
+    st.textContent = d.state ?? 'waiting';
+    st.className = 'state ' + (d.state ?? 'waiting');
+    const rows = [];
+    if (d.startedAt) rows.push(['Started', fmtDur(d.startedAt) + ' elapsed']);
+    if (d.updatedAt) rows.push(['Last update', fmtAgo(d.updatedAt)]);
+    if (d.state === 'running') {
+      const phase = d.phase === 'seed' ? 'Seeding round 0' : 'Best-response round ' + d.round + '/' + d.maxRounds;
+      rows.push(['Phase', phase]);
+      rows.push(['Crafting', d.personaName + ' (' + (d.personaIndex + 1) + '/' + d.personaCount + ' this round)']);
+      if (d.personaId) seen[(d.phase === 'seed' ? 0 : d.round) + ':' + d.personaId] = d;
+    }
+    if (d.seeds) rows.push(['Protocol', d.seeds + ' seeds · ' + d.iterations + ' swaps · ≤' + d.maxRounds + ' rounds · ' + d.personaCount + ' personas']);
+    document.getElementById('rows').innerHTML = rows.map(([k, v]) =>
+      '<div class="row"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>').join('');
+    // Coarse progress: personas crafted so far over the worst-case total.
+    if (d.state === 'running' && d.personaCount) {
+      const roundsTotal = d.maxRounds + 1;
+      const craftsDone = (d.phase === 'seed' ? 0 : d.round) * d.personaCount + d.personaIndex;
+      document.getElementById('fill').style.width =
+        Math.round(100 * craftsDone / (roundsTotal * d.personaCount)) + '%';
+    }
+    if (d.state === 'done') document.getElementById('fill').style.width = '100%';
+    if (d.state === 'running' && d.personaCount) {
+      const roundKey = d.phase === 'seed' ? 0 : d.round;
+      const chips = [];
+      for (let i = 0; i < d.personaCount; i++) {
+        const cls = i < d.personaIndex ? 'p done' : i === d.personaIndex ? 'p active' : 'p';
+        chips.push('<span class="' + cls + '">' + (i + 1) + '</span>');
+      }
+      document.getElementById('personas').innerHTML =
+        '<span class="p" style="border:none">round ' + roundKey + ':</span>' + chips.join('');
+    }
+    if (d.state === 'done' && d.artifacts) {
+      document.getElementById('personas').innerHTML = '';
+      document.getElementById('results').innerHTML =
+        '<table><tr><th>Persona</th><th class="n">Score</th><th class="n">Rounds</th></tr>' +
+        d.artifacts.map((a) =>
+          '<tr><td>' + a.personaName + '</td><td class="n">' + (100 * a.measuredScore).toFixed(1) +
+          '%</td><td class="n">' + a.rounds + '</td></tr>').join('') +
+        '</table>' +
+        (d.summary ? '<div class="rows" style="margin-top:12px"><div class="row"><span class="k">Convergence</span><span class="v">' +
+          d.summary.stoppedReason + ' · ' + d.summary.completedRounds + '/' + d.summary.maxRounds + ' rounds</span></div></div>' : '');
+    }
+    document.getElementById('stale').style.display =
+      d.state === 'running' && d.updatedAt && Date.now() - Date.parse(d.updatedAt) > 45 * 60 * 1000 ? 'block' : 'none';
+  }
+  tick();
+  setInterval(tick, 5000);
+</script>
+</body>
+</html>

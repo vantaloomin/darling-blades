@@ -73,7 +73,7 @@ export const BASIC_LAND_IDS = [
 ] as const;
 export type BasicLandId = (typeof BASIC_LAND_IDS)[number];
 
-export const LAND_STYLE_IDS = ['base', 'ragnarok', 'celtic-fae'] as const;
+export const LAND_STYLE_IDS = ['base', 'ragnarok', 'celtic-fae', 'dark-tales'] as const;
 export type LandStyleId = (typeof LAND_STYLE_IDS)[number];
 export type LandStyleMap = Partial<Record<BasicLandId, LandStyleId>>;
 

@@ -9,7 +9,7 @@ import { heroById } from '../data/heroes';
 import { ALL_CARDS, CARD_DB, byId } from '../data/catalog';
 import type { CardDef, CardType, Color, Rarity } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
-import { isBasic, ownedCount } from '../meta/Collection';
+import { bestOwnedVariant, isBasic, ownedCount } from '../meta/Collection';
 import {
   applyFilters,
   collectiblePool,
@@ -29,7 +29,7 @@ import {
   type SavedDeck,
 } from '../meta/SaveManager';
 import { Services } from '../meta/services';
-import { TIER_LABEL } from '../meta/variants';
+import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
@@ -110,6 +110,14 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   constructor() {
     super('DeckBuilder');
+  }
+
+  /** Collection-context previews show the best treatment the player owns. */
+  private ownedVariantFor(cardId: string): CardVariant | undefined {
+    const save = Services.save.data;
+    if (ownedCount(save, cardId) <= 0) return undefined;
+    const variant = bestOwnedVariant(save, cardId);
+    return variantKey(variant) === variantKey(PLAIN_VARIANT) ? undefined : variant;
   }
 
   create(): void {
@@ -299,13 +307,14 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.filterDropdownRefreshers.push(() => dd.setValue(get()));
     };
 
-    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters'>[] = [
+    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales'>[] = [
       { value: 'all', label: 'All Sets' },
       { value: 'base', label: SET_TITLES.base },
       { value: 'ragnarok', label: SET_TITLES.ragnarok },
       { value: 'celtic-fae', label: SET_TITLES['celtic-fae'] },
       { value: 'arthurian-court', label: SET_TITLES['arthurian-court'] },
       { value: 'gothic-monsters', label: SET_TITLES['gothic-monsters'] },
+      { value: 'dark-tales', label: SET_TITLES['dark-tales'] },
     ];
     mk(158, 'Set', setOpts, () => this.filterState.set, (v) => (this.filterState.set = v));
 
@@ -418,9 +427,10 @@ export class DeckBuilderScene extends Phaser.Scene {
       const x = POOL_X0 + col * POOL_PITCH_X;
       const y = POOL_Y0 + row * POOL_PITCH_Y;
       // Cached-thumbnail Image instead of a live CardView — cheap to churn per page.
-      const thumb = makeCardThumb(this, x, y, d, POOL_CARD_SCALE);
+      const variant = this.ownedVariantFor(d.id);
+      const thumb = makeCardThumb(this, x, y, d, POOL_CARD_SCALE, undefined, variant);
       thumb.setInteractive({ useHandCursor: true });
-      this.zoom.attach(thumb, d);
+      this.zoom.attach(thumb, d, variant);
       // Tap-classified on touch so a drag across the grid can't add cards.
       bindTapButton(this, thumb, (p) => this.addCardOrPlayset(d.id, p));
       this.cells.push(thumb);
@@ -1231,7 +1241,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       });
       this.rightPane.push(row);
       if (!this.touch) {
-        const preview = makeCardThumb(this, x0 + 94, y, d, 0.095, landStyle ?? undefined);
+        const preview = makeCardThumb(this, x0 + 94, y, d, 0.095, landStyle ?? undefined, this.ownedVariantFor(d.id));
         const style = this.landStyleControl(x0 + 132, y, id, landStyle);
         this.rightPane.push(preview, style);
       }
@@ -1276,7 +1286,7 @@ export class DeckBuilderScene extends Phaser.Scene {
             color: theme.colors.body,
           })
           .setInteractive({ useHandCursor: true });
-        this.zoom.attach(row, d);
+        this.zoom.attach(row, d, this.ownedVariantFor(d.id));
         row.on('pointerover', () => {
           row.setColor(theme.colors.danger);
           inflateHitArea(row, 90, DESKTOP_DECK_PITCH);
@@ -1433,7 +1443,11 @@ export class DeckBuilderScene extends Phaser.Scene {
       depth: theme.depth.inspect,
       showClose: false,
       tapDimToClose: false,
-      escToClose: false,
+      escToClose: true,
+      onClose: () => {
+        this.deckCodeOverlay = null;
+        this.zoom.setSuppressed(false);
+      },
     });
     const overlay = deckCodeShell.container;
     this.deckCodeOverlay = overlay;

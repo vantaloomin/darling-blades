@@ -35,7 +35,15 @@ export class FilterBar {
   constructor(
     scene: Phaser.Scene,
     state: CollectionFilterState,
-    opts: { y: number; onChange: () => void },
+    opts: {
+      y: number;
+      onChange: () => void;
+      sortControl?: {
+        options: readonly DropdownOption<string>[];
+        get: () => string;
+        set: (value: string) => void;
+      };
+    },
   ) {
     this.state = state;
     const y = opts.y;
@@ -111,7 +119,18 @@ export class FilterBar {
       { value: 'mana', label: SORT_LABEL.mana },
       { value: 'name', label: SORT_LABEL.name },
     ];
-    mk(775, 'Sort', sortOpts, () => state.sort, (v) => (state.sort = v), 92);
+    if (opts.sortControl) {
+      mk(
+        775,
+        'Sort',
+        [...opts.sortControl.options],
+        opts.sortControl.get,
+        opts.sortControl.set,
+        230,
+      );
+    } else {
+      mk(775, 'Sort', sortOpts, () => state.sort, (v) => (state.sort = v), 92);
+    }
     this.reflow();
 
     // Owned toggle - a rounded shared trigger, since it is boolean, not a select.

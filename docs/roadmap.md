@@ -1,8 +1,8 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-21 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-26 · review monthly -->
 
 # Roadmap
 
-_Dated 2026-07-04. Review monthly._
+_Dated 2026-07-26. Review monthly._
 
 ## Status snapshot
 
@@ -13,18 +13,15 @@ _Dated 2026-07-04. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch offers an optional **tutorial**; a new
   player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (16 themed opponents on a daily-reshuffled ladder) or Practice duels → rewards → shop →
+  Gauntlet** (18 themed opponents on a daily-reshuffled ladder) or Practice duels → rewards → shop →
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
-- **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** **Every
-  one of the 210 pool cards now has a real illustration** — 147 creatures +
-  15 lands + 43 spells — plus 5 tokens, 210 half-res variants, and 11
-  scene/menu backdrops, all on disk and in `src/data/art-manifest.json`,
-  rendering in-game (lands are landscapes via `gen-land-art`, spells are
-  effect scenes via `gen-spell-art`; see art-pipeline.md). What remains is
-  human polish: a real-device pass (gesture feel, iOS audio) and a
-  by-ear/by-eye pass (music `MOODS`, holo FX, a few small labels).
-- **993 tests green** (+4 skipped balance-tool assertions; count refreshed with the 1.3.0 release cut 2026-07-21) across 103 files
+- **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
+  638-card collectible pool now spans six sets, with the Dark Tales art run
+  and dark-tales land-style wiring complete. The remaining eyes-on work is
+  the standing real-device pass and by-ear/by-eye polish listed under Planned.
+- **1,072 tests green** (+4 skipped balance-tool assertions; count refreshed
+  for the 1.4.0 release-prep sweep) across 114 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -40,13 +37,11 @@ _Dated 2026-07-04. Review monthly._
   (v10→v11 achievement migration, v11→v12 tower clear-style migration,
   v12→v13 daily quest/streak migration,
   unlock/claim idempotency, completion tallies, themed archetype and expansion
-  goals, deck-color identity). The whole suite runs in ~25–30 s.
-- **215 cards** in the base pool (`CARD_DB`), across the five colors and three
-  factions, bucketed into **five rarity tiers** (C 107 / R 66 / SR 13 /
-  SSR 11 / UR 8 booster-eligible) — plus the **70-card Ragnarök**,
-  **81-card Celtic Fae**, **81-card Arthurian Court**, and **81-card
-  Gothic Monsters** expansions in their own set-scoped boosters
-  (518 collectible cards total).
+  goals, deck-color identity). The whole suite runs in about three minutes on
+  the release-prep Windows host.
+- **638 collectible cards across six sets** (`CARD_DB`), spanning the Core
+  Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, and Dark Tales.
+  Dark Tales adds 120 cards plus four tokens and its own set-scoped booster.
 - **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
   each color in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
@@ -62,6 +57,59 @@ _Dated 2026-07-04. Review monthly._
   keys, v21→v22 tower roster stamp + per-basic land styles — see Recently
   shipped and the Full Art entry under Planned). By-ear tuning remains open
   (see Planned).
+
+## Recently shipped (2026-07-26 · the 1.4 close-out)
+
+- **The full 1.4 program, built as a release train** on `release/1.4` (PRs
+  #104 through #128, with CI gating each merge):
+  - **Pillar 0 (PRs #108, #110, #111, #112, #114, and #115): Dark Tales,
+    The Cursed Storybook.** The 120-card expansion plus four set-unique
+    tokens landed as a 638-collectible-card, six-set pool. Skim and Retell
+    were implemented engine-first with seeded headless tests, then surfaced
+    in the duel UI and the paged seven-entry glossary. The art run accepted
+    124 Dark Tales card/token arts, and the manifest-gated `dark-tales` basic-
+    land style shipped alongside it. The summit pair measured at 40
+    seeds/cell as Glass-Coffin Queen 77% and Abyssal Songstress 87%, with
+    every cell decided and zero draws. After the complete Pillar 1 field
+    pass, the final avatar averages were 76% and 87%; the 18-floor
+    re-baseline at 80 seeds/cell had no flags, with floor averages
+    F1-F18 = 25.8%, 21.1%, 23.0%, 26.6%, 33.9%, 28.0%, 32.8%, 34.5%,
+    34.3%, 47.0%, 52.3%, 52.5%, 59.8%, 59.9%, 62.2%, 75.2%, 72.9%,
+    72.7%.
+  - **Pillar 1 (PR #119): the board-answer balance pass.** Six recosts and
+    the Midnight Storybook rebuild moved its 300-seed-per-cell round-robin
+    result from 6.7% to 30.5% across 13,500 games. That misses the requested
+    40-55% band and remains an honest 1.5 Dark Tales power-pass debt. The
+    retained weenie artifact measured 78.1% aggregate (1,172/1,500, zero
+    draws) and 72.7% in its worst matchup (109/150), versus the 1.3 reference
+    of 77.6% aggregate and 73% worst matchup. The sweeper gap did not close;
+    both debts carry to 1.5.
+  - **Pillar 2 (PR #104): the persona metagame loop.** The deterministic
+    retained-field loop is an informational, dev-only instrument. It reports
+    convergence and oscillation findings without promoting itself to a CI
+    balance gate or a player-facing feature.
+  - **Riders and release tooling.** The doc-sync foundation and codex-dash
+    stream board landed in PRs #106, #107, and #109. The Dark Tales booster,
+    shop odds, and related UI fixes landed in PR #116. Retell graveyard
+    affordances and the glossary/UI interaction pass landed in PR #117.
+    Collection variants and odds disclosure landed in PR #118. The 124-art
+    WebP conversion in PR #120 reduced the measured payload from 729.65 MiB
+    of PNGs to 133.57 MiB of WebPs, a 5.5x reduction. Playtest batch 3 in PR
+    #122 closed 18 items, including the EasyAI self-target fix. PR #121 added
+    the 1.5-to-2.0 roadmap and expansion slate documents. PR #123 recorded
+    the post-Dark-Tales economy baseline: 10 personas x 8 seeds x 60 days,
+    4,800 daily snapshots, day-60 medians of 60.2665% collection and 1.2167
+    packs/day, with `craftedUniques` at 0.0 for every persona as a watch item.
+- **1.4.0 release-prep status:** engineering is complete. The package/doc
+  sweep and the final metagame deep sweep remain release-prep work; the sweep
+  runs last against the final field. The `release/1.4` to `main` merge and the
+  `v1.4.0` tag remain with the user.
+  - **Release-window riders (PRs #124-#128):** the metagame sweep progress
+    hook + live dashboard (:5185), the v1.4.0 version/README/roadmap doc
+    package, seven overplanned 1.5-to-2.0 expansion concept drafts (~1,400
+    candidates), the sweep turbo harness (worker-pool + memoization,
+    byte-identical by test; 4.61x measured at 14 workers), and the
+    legendary-crown z-order fix caught by the release playtest.
 
 ## Recently shipped (2026-07-21 · the 1.3 close-out)
 
@@ -1236,10 +1284,68 @@ _Dated 2026-07-04. Review monthly._
   deck-builder land-style selector, and the dev-only "Hardcore MTG Fan"
   deck-crafting persona harness (rescoped from a player-facing picker to a
   balance instrument);
-  **next expansion** = **Dark Tales: The Cursed Storybook** (Expansion 5,
-  concept in [expansions/dark-tales.md](expansions/dark-tales.md), unscheduled);
-  **1.5** = Commander mode, renamed **"Darlings"**;
-  **2.0** = MOD/UGC packs. **Sealed is cancelled outright** (2026-07-14) and
+  **1.4** = **SHIPPED 2026-07-26** (engineering complete; see Recently
+  shipped · the 1.4 close-out and [plan-1.4.md](plan-1.4.md)): the **Dark
+  Tales: The Cursed Storybook** expansion, Skim/Retell, the 638-card pool,
+  duel UI and glossary recut, 124 accepted Dark Tales arts plus the
+  dark-tales land style, rungs 17-18, the 18-floor re-baseline, the six
+  recosts and Midnight Storybook rebuild, the informational dev-only persona
+  metagame loop, the WebP conversion, and the 1.5-to-2.0 roadmap/slate docs.
+  The release-prep metagame deep sweep runs last against the final field; the
+  `release/1.4` to `main` merge and `v1.4.0` tag remain with the user.
+
+  **The 1.5 → 2.0 ladder (user-scoped 2026-07-24).** Standing cadence rule:
+  **every major release ships expansion-scale set work** — 1.5's set slot is
+  deliberately a health pass rather than a new set (120 cards just landed);
+  new expansions resume at 1.6. Expansion 6 is named; 7-10 are TBD pending
+  the expansion-ideation session (the next planning discussion).
+
+  **1.5** = **"Darlings"**, the Commander/EDH-style format (the parked
+  commander→darling doc-rename draft on `claude/commander-naming-review-ee50e3`
+  is its spec seed) + the **Cyberpunk Yokai Nights** expansion (Expansion 6 —
+  moved up from 1.6 by user decision 2026-07-24: it is the only fully-known
+  next set; needs its engine-first concretion pass) + **variant deck
+  building** (a deck slot pins a specific owned frame/holo/full-art
+  treatment — `SaveData` bump + builder UI + duel rendering) + the
+  **Dark Tales power pass** riding the set work (the two measured 1.4 debts:
+  Midnight Storybook at 30.5% for want of rate-efficient DT threats, and the
+  unclosed go-wide gap at weenie 78.1 / worst 72.7) + **save export/import
+  codes** (the first rung of save portability; groundwork for 1.8/1.9) +
+  **metagame-loop CI promotion** if the 1.4 release sweep earns trust;
+  **1.6** = **suggested decks v1** (the persona hill-climb harness pointed
+  at the player's own collection: "build me a deck from what I own" — the
+  hard half already ships as the dev-only crafting loop) + **player-facing
+  replays v1** (rewatch + share codes over the existing deterministic
+  replay log) + Expansion 7 (from the slate below);
+  **1.7** = **Story Mode** + Expansion 8 (slate — candidate: themed to carry
+  the story campaign) + **accessibility wave 1** (colorblind-safe
+  mana/rarity cues, text scaling). DECIDE-BY-1.7: **localization** —
+  every string is hardcoded English; "English forever" is a valid answer,
+  but it must be chosen, because retrofitting i18n after 1.8 is expensive;
+  **1.8** = the **complete mobile UX overhaul** + Expansion 9 (slate) +
+  **cloud save sync** (the full account/portability layer atop 1.5's export
+  codes — hard prerequisite for 1.9) + the i18n scaffold if 1.7 decided
+  yes. DECIDE-BY-1.8: the **P2P trust model** — the seeded-deterministic
+  engine + `PlayerView` redaction is a lockstep-ready foundation, but pure
+  P2P leaks hidden information without commit-reveal shuffles or a thin
+  relay; honor-system vs cheat-resistant changes the 1.9 architecture;
+  **1.9** = **P2P multiplayer** (invite codes / lobby URLs, built to the
+  1.8 trust decision) + **spectating** (multiplayer × the replay layer) +
+  Expansion 10 (slate);
+  **2.0** = **MOD/UGC packs** (the long-standing anchor) + **Core Set II**
+  as the anniversary set slot (user-picked 2026-07-24: circle back to the
+  Three Kingdoms / Greek base rosters and flesh them out) + **the persona
+  tutor** (suggested decks v2: a replay-annotating coach — "here is where
+  the line was Doom Bolt, not attack").
+
+  **The expansion slate for slots 7-10** (user-curated 2026-07-24, order
+  TBD after the mechanics discussion): **Egyptian underworld** (+ the
+  Bastet catgirl angle — user-liked), **Cosmic Horror**, **sci-fi alien
+  girls**, **prehistoric cavewomen + dinosaurs**, **steampunk** — five
+  concepts for four slots, one falls to post-2.0. Slavic, Mesoamerican,
+  and Hindu-epic lanes were considered and passed on (2026-07-24).
+
+  **Sealed is cancelled outright** (2026-07-14) and
   its dormant code was removed 2026-07-20; the hub offers only Draft. Legacy
   save history and records remain inert, and an active legacy Sealed run loads
   safely as no active run.

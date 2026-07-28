@@ -13,6 +13,11 @@ import type { SaveData } from '../../meta/SaveManager';
 import type { CardVariant, FrameStyle, HoloFinish } from '../../meta/variants';
 
 export const CARDPROOF_PAGE_SIZE = 12;
+/** Large scale (>= 0.8) audits at near-native size: fewer, bigger faces. */
+export const CARDPROOF_PAGE_SIZE_LARGE = 6;
+export function cardproofPageSize(scale: number): number {
+  return scale >= 0.8 ? CARDPROOF_PAGE_SIZE_LARGE : CARDPROOF_PAGE_SIZE;
+}
 
 export type FrameChoice = FrameStyle | 'default';
 export type HoloChoice = HoloFinish | 'default';
@@ -56,10 +61,10 @@ export interface CardProofPage {
 
 export function visiblePage(state: CardProofState, cards: readonly CardDef[] = ALL_CARDS): CardProofPage {
   const matches = filteredCards(state, cards);
-  const pages = pageCount(matches.length, CARDPROOF_PAGE_SIZE);
-  const page = clampPage(state.page, matches.length, CARDPROOF_PAGE_SIZE);
+  const pages = pageCount(matches.length, cardproofPageSize(state.scale));
+  const page = clampPage(state.page, matches.length, cardproofPageSize(state.scale));
   return {
-    matches: pageSlice(matches, page, CARDPROOF_PAGE_SIZE),
+    matches: pageSlice(matches, page, cardproofPageSize(state.scale)),
     page,
     pages,
     total: matches.length,
@@ -79,7 +84,7 @@ export function withFilter<K extends keyof CollectionFilterState>(
 }
 
 export function withPage(state: CardProofState, page: number): CardProofState {
-  return { ...state, page: clampPage(page, filteredCards(state).length, CARDPROOF_PAGE_SIZE) };
+  return { ...state, page: clampPage(page, filteredCards(state).length, cardproofPageSize(state.scale)) };
 }
 
 export function variantForChoices(state: CardProofState): CardVariant | undefined {

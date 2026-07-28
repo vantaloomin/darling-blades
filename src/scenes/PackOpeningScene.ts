@@ -1,13 +1,12 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
-import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { createRngState } from '../engine/rng';
 import { def } from '../engine/types';
 import type { AddResult } from '../meta/Collection';
 import { spendGold } from '../meta/Economy';
-import { openPack, type PackResult } from '../meta/PackOpener';
+import { openPack, openPacks, type PackResult } from '../meta/PackOpener';
 import { formatOdds, variantOdds } from '../meta/pullOdds';
 import { Services } from '../meta/services';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
@@ -19,7 +18,7 @@ import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, GOTHIC_MONSTERS_PACK_ART, packTextureForSku, type BoosterSku } from './ShopScene';
+import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, GOTHIC_MONSTERS_PACK_ART, packPriceForSku, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
 const GRID_DY = 216;
@@ -109,6 +108,8 @@ export class PackOpeningScene extends Phaser.Scene {
       bakePackArt(this, ARTHURIAN_COURT_PACK_ART);
     } else if (this.sku === 'gothic-monsters') {
       bakePackArt(this, GOTHIC_MONSTERS_PACK_ART);
+    } else if (this.sku === 'dark-tales') {
+      bakePackArt(this, DARK_TALES_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {
@@ -211,6 +212,9 @@ export class PackOpeningScene extends Phaser.Scene {
     } else {
       const cols = Math.min(8, notable.length);
       const dx = 150;
+      const policy = fxPolicy(this);
+      let animatedHoloCount = 0;
+      const maxAnimatedHoloCards = 8;
       notable.forEach((c, i) => {
         const row = Math.floor(i / cols);
         const col = i - row * cols;
@@ -218,8 +222,14 @@ export class PackOpeningScene extends Phaser.Scene {
         const x = width / 2 - ((rowLen - 1) * dx) / 2 + col * dx;
         const y = 300 + row * 210;
         const variant: CardVariant = { frame: c.frame, holo: c.holo, fullArt: c.fullArt };
+        const animateHolo =
+          variant.holo !== 'none' && policy.particleScale >= 1 && animatedHoloCount < maxAnimatedHoloCards;
+        if (animateHolo) animatedHoloCount++;
         const view = new CardView(this, x, y).setScale(0.42).setCard(def(CARD_DB, c.cardId), {
-          fx: 'none',
+          // A batch can contain many special pulls. Keep the first eight holo
+          // treatments animated on the full tier; reduced/off policy gets a
+          // static summary so the reveal never exceeds the FX budget.
+          fx: animateHolo ? 'full' : variant.holo !== 'none' ? 'static' : 'none',
           variant: isPlainVariant(variant) ? undefined : variant,
           fullArt: variant.fullArt,
         });
@@ -228,6 +238,50 @@ export class PackOpeningScene extends Phaser.Scene {
     }
 
     backButton(this, () => this.scene.start('Shop'));
+    this.buildBatchButtons(batch.length);
+  }
+
+  /**
+   * Batch-summary CTA rail (mirrors the single-pack rail): re-buy at the
+   * same quantity when affordable, else step down to the largest affordable
+   * bulk size (10 -> 5 -> 1), plus Shop / Menu.
+   */
+  private buildBatchButtons(openedQty: number): void {
+    const width = 1280;
+    const price = packPriceForSku(this.sku);
+    const gold = Services.save.data.gold;
+    const steps = [10, 5, 1].filter((n) => n <= openedQty);
+    const qty = steps.find((n) => gold >= n * price) ?? 1;
+    const label = qty === 1 ? `Open Another (🪙 ${price})` : `Open ×${qty} More (🪙 ${qty * price})`;
+
+    panel(this, width / 2 - 360, BUTTON_Y - 32, 720, 72, { alpha: 0.76 }).setDepth(66);
+    const mk = (x: number, text: string, cb: () => void): void => {
+      const btn = themedButton(this, x, BUTTON_Y, text, {
+        variant: 'primary',
+        minWidth: 130,
+        onTap: cb,
+      });
+      btn.container.setDepth(70);
+      this.buttons.push(btn);
+    };
+    mk(width / 2 - 200, label, () => {
+      const save = Services.save.data;
+      if (!spendGold(save, qty * price)) return;
+      Sfx.play('coin');
+      const set = this.sku === 'base' ? undefined : this.sku;
+      const rng = createRngState(Date.now() & 0x7fffffff);
+      if (qty === 1) {
+        const result = openPack(save, CARD_DB, rng, set);
+        Services.save.flush();
+        this.scene.restart({ ...result, sku: this.sku });
+      } else {
+        const packs = openPacks(save, CARD_DB, rng, qty, set);
+        Services.save.flush();
+        this.scene.restart({ batch: packs, sku: this.sku });
+      }
+    });
+    mk(width / 2 + 60, 'Shop', () => this.scene.start('Shop'));
+    mk(width / 2 + 200, 'Menu', () => this.scene.start('MainMenu'));
   }
 
   // Beat 2: the tear.
@@ -799,16 +853,7 @@ export class PackOpeningScene extends Phaser.Scene {
       btn.container.setDepth(70);
       this.buttons.push(btn);
     };
-    const openPrice =
-      this.sku === 'ragnarok'
-        ? ECONOMY.ragnarokPackPrice
-        : this.sku === 'celtic-fae'
-          ? ECONOMY.celticFaePackPrice
-          : this.sku === 'arthurian-court'
-            ? ECONOMY.arthurianCourtPackPrice
-            : this.sku === 'gothic-monsters'
-              ? ECONOMY.gothicMonstersPackPrice
-              : ECONOMY.packPrice;
+    const openPrice = packPriceForSku(this.sku);
     mk(width / 2 - 200, `Open Another (🪙 ${openPrice})`, () => {
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;

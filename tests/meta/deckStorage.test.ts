@@ -17,7 +17,7 @@ describe('deck storage', () => {
   it('preserves land style when saving or copying an existing deck', () => {
     const save = saveWithDecks();
     save.decks[0].landStyle = {
-      'land-plains': 'base',
+      'land-plains': 'dark-tales',
       'land-forest': 'celtic-fae',
     };
 
@@ -25,11 +25,11 @@ describe('deck storage', () => {
     const copyId = copyDeck(save, 'deck-1');
 
     expect(save.decks.find((deck) => deck.id === 'deck-1')?.landStyle).toEqual({
-      'land-plains': 'base',
+      'land-plains': 'dark-tales',
       'land-forest': 'celtic-fae',
     });
     expect(save.decks.find((deck) => deck.id === copyId)?.landStyle).toEqual({
-      'land-plains': 'base',
+      'land-plains': 'dark-tales',
       'land-forest': 'celtic-fae',
     });
     expect(save.decks.find((deck) => deck.id === copyId)?.landStyle).not.toBe(

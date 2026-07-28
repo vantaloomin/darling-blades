@@ -13,7 +13,7 @@ import { theme } from './theme';
  * above). It is the single choke point for the real-art-or-gradient decision:
  *
  * - If the manifest-loaded texture `scene-<key>` exists, it cover-fits the real
- *   PNG to the 1280×720 design resolution at (640,360) and draws the per-scene
+ *   WebP to the 1280×720 design resolution at (640,360) and draws the per-scene
  *   dim/tint rect over it (from the §3 table) so the existing UI keeps reading.
  * - If it does NOT exist, it invokes the scene's `fallback` — the scene's
  *   procedural gradient. Zero 404s: only manifest-listed files are loaded by

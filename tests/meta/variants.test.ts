@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DROPS, ECONOMY } from '../../src/config/rules';
 import { createRngState } from '../../src/engine/rng';
 import { openPack } from '../../src/meta/PackOpener';
-import { formatOdds, variantOdds } from '../../src/meta/pullOdds';
+import { finishOdds, formatOdds, variantOdds } from '../../src/meta/pullOdds';
 import { freshSave } from '../../src/meta/SaveManager';
 import {
   isPlainVariant,
@@ -84,6 +84,16 @@ describe('pull odds', () => {
     const odds = variantOdds('ur', 'black', 'void', false);
     expect(odds).toBeCloseTo(0.01 * 0.0045 * 0.0045 * 0.9975, 12);
     expect(formatOdds(odds)).toBe('1:4.95M');
+  });
+
+  it('finish-only odds rank Red Frame rarer than Shiny (the Collection disclosure)', () => {
+    const redFrame = finishOdds('red', 'none', false);
+    const shiny = finishOdds('white', 'shiny', false);
+    expect(redFrame).toBeCloseTo(0.15 * 0.6 * 0.9975, 12);
+    expect(shiny).toBeCloseTo(0.5 * 0.2 * 0.9975, 12);
+    expect(redFrame).toBeLessThan(shiny);
+    expect(formatOdds(redFrame)).toBe('1:11.1');
+    expect(formatOdds(shiny)).toBe('1:10');
   });
 
   it('formats the common white none pull as 1:6.7', () => {

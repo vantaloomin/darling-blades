@@ -8,6 +8,7 @@ import { CELTIC_FAE } from '../../src/data/cards/celtic-fae';
 import { DUALS } from '../../src/data/cards/duals';
 import { ENCHANTMENTS } from '../../src/data/cards/enchantments';
 import { GOTHIC_MONSTERS } from '../../src/data/cards/gothic-monsters';
+import { DARK_TALES } from '../../src/data/cards/dark-tales';
 import { GREEK } from '../../src/data/cards/greek';
 import { INSTANTS } from '../../src/data/cards/instants';
 import { LANDS } from '../../src/data/cards/lands';
@@ -42,6 +43,7 @@ describe('catalog integrity', () => {
       [CELTIC_FAE, 'cf-'],
       [ARTHURIAN_COURT, 'ac-'],
       [GOTHIC_MONSTERS, 'gm-'],
+      [DARK_TALES, 'dt-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -154,6 +156,8 @@ describe('catalog integrity', () => {
         expect(card.set, card.id + ' should be set:arthurian-court').toBe('arthurian-court');
       } else if (card.id.startsWith('gm-')) {
         expect(card.set, card.id + ' should be set:gothic-monsters').toBe('gothic-monsters');
+      } else if (card.id.startsWith('dt-')) {
+        expect(card.set, card.id + ' should be set:dark-tales').toBe('dark-tales');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }

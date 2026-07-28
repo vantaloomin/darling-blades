@@ -241,6 +241,25 @@ export function empowerValue(db: CardDb, cardId: string): number {
   return ops.reduce((sum, op) => sum + opValue(op), 0);
 }
 
+/** Cheap deterministic smoothing value for a hand-side Skim action. */
+export function skimValue(db: CardDb, cardId: string): number {
+  const cost = def(db, cardId).skim?.cost;
+  if (!cost) return 0;
+  return Math.max(0.1, 1.25 - manaValue(cost) * 0.15);
+}
+
+/**
+ * Virtual card-advantage value for a Retell cast. Retell consumes a public
+ * graveyard card, so its body is priced as extra access to a spell rather than
+ * as a second copy in hand. R4 override ops are the body being valued.
+ */
+export function retellValue(db: CardDb, cardId: string): number {
+  const d = def(db, cardId);
+  if (!d.retell) return 0;
+  const ops = d.retell.ops ?? spellOps(db, cardId);
+  return 0.75 + ops.reduce((sum, op) => sum + opImpactValue(op), 0);
+}
+
 /**
  * NET life lost per turn to `who`'s own dawn triggers: self-damage (e.g.
  * tk-other's "At the start of your turn, this deals 1 damage to you") minus

@@ -3,7 +3,7 @@ import manifest from '../data/art-manifest.json';
 import { IRIDESCENCE_KEY, IridescencePostFX } from '../ui/fx/IridescencePostFX';
 import { sceneTextureKey } from '../ui/SceneBackdrop';
 
-/** Scene art keys from the build-time manifest (empty until scene PNGs exist). */
+/** Scene art keys from the build-time manifest (empty until scene WebPs exist). */
 const SCENE_KEYS: string[] = (manifest as { scenes?: string[] }).scenes ?? [];
 
 /** Instant scene: renderer/pipeline setup, then straight to Preload. */
@@ -18,7 +18,7 @@ export class BootScene extends Phaser.Scene {
     // decorates. Only loaded when the manifest lists it (zero 404s); the
     // texture persists into PreloadScene via the global TextureManager.
     if (SCENE_KEYS.includes('scene-preload')) {
-      this.load.image(sceneTextureKey('scene-preload'), 'assets/art/scenes/scene-preload.png');
+      this.load.image(sceneTextureKey('scene-preload'), 'assets/art/scenes/scene-preload.webp');
     }
   }
 

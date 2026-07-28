@@ -25,6 +25,7 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { CARD_DB } from '../src/data/catalog';
+import { convertPngToWebp } from './convert-art-webp';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const smartcropPath = join(root, 'scripts', 'smartcrop.py');
@@ -305,7 +306,7 @@ function readResults(outDir: string): ReviewRow[] {
     };
     return {
       job,
-      oldPath: join(shippedCardsDir, `${job.id}.png`),
+      oldPath: join(shippedCardsDir, `${job.id}.webp`),
       newPath: join(outDir, 'cards', `${job.id}.png`),
       result: {
         source: result.source,
@@ -360,7 +361,7 @@ function cardLabel(id: string): { name: string; type: string } {
 function renderArt(path: string, alt: string, exists: boolean): string {
   return exists
     ? `<img src="${escapeHtml(fileHref(path))}" alt="${escapeHtml(alt)}">`
-    : '<div class="missing-art">missing shipped PNG</div>';
+    : '<div class="missing-art">missing shipped WebP</div>';
 }
 
 function renderInGameContext(path: string, status: string, row: ReviewRow, exists: boolean): string {
@@ -477,10 +478,11 @@ function writeReview(rows: ReviewRow[], outDir: string): string {
 function applyStaged(rows: ReviewRow[]): void {
   mkdirSync(shippedCardsDir, { recursive: true });
   for (const row of rows) {
-    const dst = join(shippedCardsDir, `${row.job.id}.png`);
-    const tmp = `${dst}.tmp`;
+    const dst = join(shippedCardsDir, `${row.job.id}.webp`);
+    const tmp = `${dst}.tmp.png`;
     copyFileSync(row.newPath, tmp);
-    renameSync(tmp, dst);
+    convertPngToWebp(tmp, dst);
+    rmSync(tmp, { force: true });
   }
   // shell:true — spawning npm.cmd directly without a shell throws on
   // Node ≥ 20.12 (CVE-2024-27980 hardening); same form as the gen-*art drivers.
@@ -538,7 +540,7 @@ function main(): void {
     const result = runSmartcrop(job, newPath);
     rows.push({
       job,
-      oldPath: join(shippedCardsDir, `${job.id}.png`),
+      oldPath: join(shippedCardsDir, `${job.id}.webp`),
       newPath,
       result,
     });

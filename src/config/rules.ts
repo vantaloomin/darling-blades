@@ -23,6 +23,7 @@ export const ECONOMY = {
   celticFaePackPrice: 525, // expansion booster — only pulls set:'celtic-fae' cards (81-card chase density)
   arthurianCourtPackPrice: 525, // expansion booster — only pulls set:'arthurian-court' cards (81-card chase density)
   gothicMonstersPackPrice: 525, // expansion booster - only pulls set:'gothic-monsters' cards (81-card chase density)
+  darkTalesPackPrice: 525, // expansion booster - only pulls set:'dark-tales' cards (120-card chase density)
   boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo + full art independently (DROPS)
   limitedPackSize: 15, // Draft packs stay MTG-sized for pick and pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
@@ -61,13 +62,15 @@ export const ECONOMY = {
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   shardFullArtMult: 25,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 16-rung clear. Full run = 50+70+…+310 (=2520) + 330 + 350 + 250 = 3450g.
+  // a full 18-rung clear. Full run = 50+70+…+310 (=2520) + 330 + 350 +
+  // 370 + 390 + 250 = 4210g.
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
   // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
   // Celtic Fae bosses (The Morrigan, Titania); 13-14 (290/310) are the
   // Arthurian Court pair (Morgan, Artoria); 15-16 are the Gothic Monsters
-  // summit pair (Carmilla, The Bride).
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350] as const,
+  // pair (Carmilla, The Bride); 17-18 are the Dark Tales summit pair
+  // (Glass-Coffin Queen, Abyssal Songstress).
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390] as const,
   gauntletCompletionBonus: 250,
   // Free Limited runs are free-entry with ephemeral cards and pay the record
   // payout below. Premium Draft pays to keep its picks; the entry fee already
@@ -122,9 +125,9 @@ export const ECONOMY = {
  * Post-Gothic-Monsters baseline 2026-07-19 (same 10 personas x 8 seeds x
  * 60 days; 4,800 daily snapshots) after the nine-card removal cycle: 518
  * collectible cards, with Celtic Fae, Arthurian Court, and Gothic Monsters
- * at 81 collectible cards each. The 525g gothic-monsters booster SKU, 16
- * gauntlet rungs with a 3,450g full-clear payout, and 8 new gold-paying
- * achievements remain in the day-60 results. Day-60 rows are seed means;
+ * at 81 collectible cards each. The 525g gothic-monsters booster SKU, the
+ * prior 16-rung gauntlet baseline with a 3,450g full-clear payout, and 8 new
+ * gold-paying achievements remain in the day-60 results. Day-60 rows are seed means;
  * first Premium is the median first day across the eight seed snapshots. The
  * overall day-60 medians are 68.1467% collection and 1.2115 packs/day; the
  * verdict remains UNEVEN. Premium allowance remains at 18 runs, and the
@@ -167,6 +170,33 @@ export const ECONOMY = {
  * Low Skill Casual        44.67%       0.45          0          40.83%       0
  * High Skill Veteran      79.87%       1.96          0          78.19%       0
  * Completionist           95.19%       2.09          0          89.10%    43.5
+ *
+ * Post-Dark-Tales baseline 2026-07-25 (same 10 personas x 8 seeds x 60 days;
+ * 4,800 daily snapshots; balance/econ-baseline-2026-07-25-post-dt.report.json)
+ * after the 1.4 set landed: 638 collectible cards (+120, a 23% larger pool),
+ * the 525g dark-tales booster SKU, rungs 17-18 (18-rung full clear 4,210g
+ * incl. the 250g completion bonus), the Pillar 1 recosts + Midnight Storybook
+ * rebuild, and 8 new Dark Tales achievements. Every persona's 60-day
+ * completion drops another 6-14pp - the expected bigger-chase effect, the
+ * same shape as the Arthurian Court landing (all coarse EV gates stay green;
+ * verdict label unchanged at 'uneven' on the same quest-claim-spread bullet,
+ * now 42-90%). Overall day-60 medians: 60.2665% collection, 1.2167 packs/day.
+ * WATCH ITEM: craftedUniques fell to 0.0 across ALL personas (was up to 11.9
+ * post-GM) - at pool 638 the 6x craft price appears to lose to raw packs for
+ * every scripted policy; whether crafting should scale with pool size is a
+ * 1.5 tuning question, noted for the Dark Tales power pass.
+ *
+ * Persona              Collection  Packs/day  Premium runs  Quest claim  Crafted  Achievements  First Premium
+ * New Casual              33.82%       0.48          0          42.50%       0.0         13.1              -
+ * Daily Grinder            61.38%       1.56          0          73.82%       0.0         24.0              -
+ * Gauntlet Climber         56.97%       1.40          0          68.33%       0.0         22.4              -
+ * Limited Fan              79.21%       0.64      18.00          73.06%       0.0         32.5            2.5
+ * Collector                 50.12%       1.03          0          66.60%       0.0         18.6              -
+ * Theme Deck Buyer          59.15%       0.83          0          59.58%       0.0         22.2              -
+ * Hardcore Optimizer        69.30%       2.31          0          85.83%       0.0         27.6              -
+ * Low Skill Casual          33.91%       0.47          0          41.53%       0.0         13.1              -
+ * High Skill Veteran        66.87%       1.99          0          78.26%       0.0         27.9              -
+ * Completionist             74.55%       2.13          0          89.79%       0.0         34.0              -
  */
 
 /**

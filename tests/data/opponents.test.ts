@@ -16,16 +16,16 @@ import { ECONOMY, RULES } from '../../src/config/rules';
  */
 
 describe('avatar roster shape', () => {
-  it('has exactly 16 avatars with unique tiers 1..16', () => {
-    expect(AVATARS).toHaveLength(16);
+  it('has exactly 18 avatars with unique tiers 1..18', () => {
+    expect(AVATARS).toHaveLength(18);
     const tiers = AVATARS.map((a) => a.tier).sort((x, y) => x - y);
-    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(16);
-    expect(ECONOMY.gauntletRungGold).toHaveLength(16);
-    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350]);
+    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
+    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(18);
+    expect(ECONOMY.gauntletRungGold).toHaveLength(18);
+    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350, 370, 390]);
   });
 
-  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-16 hard)', () => {
+  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-18 hard)', () => {
     for (const a of AVATARS) {
       const expected = a.tier <= 3 ? 'easy' : a.tier <= 6 ? 'medium' : 'hard';
       expect(a.difficulty).toBe(expected);
@@ -33,7 +33,7 @@ describe('avatar roster shape', () => {
   });
 
   it('avatarForRung / avatarById resolve consistently', () => {
-    for (let rung = 1; rung <= 16; rung++) {
+    for (let rung = 1; rung <= 18; rung++) {
       const a = avatarForRung(rung);
       expect(a.tier).toBe(rung);
       expect(avatarById(a.id)).toBe(a);
@@ -44,7 +44,10 @@ describe('avatar roster shape', () => {
     expect(avatarForRung(14).id).toBe('artoria');
     expect(avatarForRung(15).id).toBe('carmilla');
     expect(avatarForRung(16).id).toBe('the-bride');
-    expect(() => avatarForRung(17)).toThrow();
+    expect(avatarForRung(17).id).toBe('glass-coffin-queen');
+    expect(avatarForRung(18).id).toBe('abyssal-songstress');
+    expect(avatarForRung(18).name).toContain('Abyssal Songstress');
+    expect(() => avatarForRung(19)).toThrow();
     expect(() => avatarById('nope')).toThrow();
   });
 });

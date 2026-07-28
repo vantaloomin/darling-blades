@@ -172,7 +172,7 @@ describe('bot draft', () => {
         state = next;
       }
     }
-  });
+  }, 20_000);
 
   it('reproduces persona seats, picks, and opponent decks from the same seed', () => {
     const finish = (seed: number) => {

@@ -44,7 +44,7 @@ describe('persona CLI defaults', () => {
     expect(artifact.iterations).toBe(80);
     expect(artifact.seeds).toBe(150);
     expect(artifact.field).toBe('prefabs');
-    expect(artifact.referenceField).toHaveLength(9);
+    expect(artifact.referenceField).toHaveLength(10);
   });
 
   it('requires exactly one persona selection mode', () => {

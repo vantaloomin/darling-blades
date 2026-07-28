@@ -97,7 +97,7 @@ describe('localDateKey', () => {
 });
 
 describe('rosterOrder', () => {
-  for (const count of [14, 16]) {
+  for (const count of [14, 16, 18]) {
     it(`returns a deterministic ${count}-entry permutation that varies by seed`, () => {
       const first = rosterOrder(12345, count);
       const repeated = rosterOrder(12345, count);

@@ -44,10 +44,11 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` / `npm run build` | dev server (:5173) / typecheck + production build |
-| `npx vitest run` | full suite (~20–25s; win-rate gates included) |
+| `npx vitest run` | full suite (~3 min at pool 638; win-rate gates included; run on an idle machine, not during sweeps) |
 | `npm run lint` | ESLint over src, tests, scripts (enforces layer purity) |
 | `npm run check-docs` / `check-art-bible` / `gen-docs-tables -- --check` | doc anti-rot checkers (must be green, zero warnings) |
 | `npx tsx scripts/balance-matrix.ts --avatars --seeds 40` | balance matrices (call tsx directly — PowerShell eats `--` via npm run) |
+| `npm run sweep-dash` | live metagame-sweep dashboard (:5185; pairs with craft.ts --status-file) |
 | `npm run app:build` / `npm run app:dev` | Tauri desktop app — NSIS installer / dev window (needs Rust + MSVC; see [docs/desktop-build.md](docs/desktop-build.md)) |
 
 ## Iron invariants
@@ -68,3 +69,26 @@ roadmap, art-bible/, claude-playbook, git-workflow). Balance baseline lives date
 `src/data/opponents.ts`. Negative AI-experiment results live in
 `src/ai/determinize.ts`. Session memory (cross-session state) is in the
 Claude memory directory, indexed by `MEMORY.md`.
+
+**Design reference workbenches — local-only, gitignored, and absent from a
+fresh clone.** Do not assume these exist; check before relying on them, and
+expect to rebuild after cloning to a new machine.
+
+- `balance/` + `scripts/card-reference.ts` — the Darling Blades card workbench
+  (power formula + scores).
+- `mtg-cache/` + `scripts/mtg-db.ts` + `docs/mtg-reference-db.md` — a SQLite
+  copy of the real MTG corpus (~36k cards, ~111k printings) with oracle text,
+  costs, keywords, format legality, EDHREC rank, and Scryfall's curated
+  functional tags (`sweeper`, `removal-destroy`, `ramp`). Use it to check a
+  cost against real precedent, and `like --text "<effect>"` to find the MTG
+  analogs of a card being designed. Rebuild with
+  `npx tsx scripts/mtg-db.ts build --printings --tags`; `mtg-db.ts` carries its
+  own usage header, and two local-only docs sit beside it —
+  `docs/mtg-reference-db.md` (schema, build flags, query recipes) and
+  `docs/mtg-db-playbook.md` (how to cost against precedent, the era filter that
+  keeps modern power creep out of our numbers, and where MTG precedent stops
+  applying here). Sourced from Scryfall bulk by default
+  (magicthegathering.io is supported but frozen at 2024-08).
+
+None of this is ever committed, and corpus rows are never copied into
+`src/data/` — read the MTG corpus to calibrate costs, never to paste text from.

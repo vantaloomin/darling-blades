@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-17 -->
+<!-- source-of-truth: src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/ShopScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/CollectionScene.ts, src/scenes/DeckBuilderScene.ts, src/scenes/CardShowcaseScene.ts, src/scenes/PreloadScene.ts, src/ui/CardView.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, scripts/gen-scene-art.ts · last-verified: 2026-07-24 -->
 
 # Scene & Menu Art — Direction + Integration Contract
 
@@ -37,7 +37,7 @@ never contradict them.
   render blank or patterned, never lettered. (`scripts/gen-scene-art.ts` rides
   this rule on every prompt as both a positive cue and a negative block,
   exactly like the card driver.)
-- **Deliverable: 1280×720 PNG** — the game's design resolution
+- **Deliverable: 1280×720 WebP** — the game's design resolution
   (`src/main.ts`, `Phaser.Scale.FIT`), rendered 1:1 with no bleed — **unless
   the entry's Deliverable field says otherwise** (`card-back` and `pack-art`
   are 640×800 portrait).
@@ -72,7 +72,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Main Menu Key Visual — `scene-mainmenu`
 - **Role:** Title screen stage under `MainMenuScene` (currently bare `#0d0a14` — the only scene with no gradient of its own).
-- **Deliverable:** 1280×720 PNG (landscape stage).
+- **Deliverable:** 1280×720 WebP (landscape stage).
 - **Mood & palette:** The one showpiece backdrop: an Olympian-meets-Three-Kingdoms twilight vista. Deep indigo dusk (`#171222` → `#0b0812`) with a restrained ember-gold horizon (`#c9a84c` desaturated); faint marble cools left, warm lacquer darks right.
 - **Composition & safe zones:** Low horizon (bottom ~fifth). Distant marble colonnades and a mountain sanctuary at the far LEFT edge; sweeping Chinese watchtower rooflines and blank war banners at the far RIGHT edge. The center is sky. Safe zones: the central menu column **x 460–820, y 90–710** (title y 140, subtitle y 205, menu items y 300–692, all centered on x 640) stays a calm, near-flat dark gradient band; top-right corner (gold counter) and bottom-left corner (volume control) stay quiet.
 - **Max luminance:** average ≤ 18 %; peak ≤ 55 % (horizon glow only, below y ≈ 600); central column and corners ≤ 28 %.
@@ -82,7 +82,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Duel Battlefield Stage — `scene-duel`
 - **Role:** The battlefield under `DuelScene.buildZones()` — the opponent strip plate, the two inset zone plates (0.45–0.5 alpha fills), tiles, and 10px zone labels ALL render over it. Since the 1a "Immersive Fan" redesign (2026-07-04) the backdrop shows THROUGH around the inset plates — more of this art is visible than under the old full-width bands.
-- **Deliverable:** 1280×720 PNG (landscape stage).
+- **Deliverable:** 1280×720 WebP (landscape stage).
 - **Mood & palette:** The most subdued asset in the program. Night war plain in near-monochrome indigo (`#131022` → `#0a0812`); mood, not scenery.
 - **Composition & safe zones:** A vast dark field under low mist, viewed from above the battle lines; the faintest suggestions of distant campfires and torn blank banners at the extreme left/right edges only. NO landmark, no horizon feature, no texture busier than mist anywhere — the whole 1280×720 frame is effectively a safe zone (the strip, both zone plates, the phase rail, and the bottom stage cover or border every region, and the exposed margins must stay featureless).
 - **Max luminance:** average ≤ 8 %; peak ≤ 22 % (edge campfire embers only); central 1160px play area ≤ 15 %.
@@ -92,7 +92,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Gauntlet Tower — `scene-gauntlet`
 - **Role:** Backdrop under `GauntletScene` — right-rail ladder (x 820–1240, y 116–646), left portrait panel (x 166–434, y 132–490), and center text block (x 500–970, y 150–480) render over it.
-- **Deliverable:** 1280×720 PNG (landscape stage).
+- **Deliverable:** 1280×720 WebP (landscape stage).
 - **Mood & palette:** Mysterious ascent. Slate-indigo night (`#171222` → `#0b0812`) with one cold teal-aurora accent high up, heavily desaturated.
 - **Composition & safe zones:** A colossal pagoda-tower silhouette rising from bottom-center-left into aurora-lit clouds, faint floating stone rungs spiraling its flank — the climb reads even mostly occluded. Detail concentrates in the bottom third and extreme top; the middle band y 130–500 (where all three UI blocks sit) stays soft silhouette-on-haze.
 - **Max luminance:** average ≤ 12 %; peak ≤ 35 % (aurora crown, above y ≈ 110); middle band ≤ 18 %.
@@ -102,7 +102,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Merchant Bazaar — `scene-shop`
 - **Role:** Backdrop under `ShopScene` — floating pack at (640,360) 238×340, Buy button y 570, title y 70.
-- **Deliverable:** 1280×720 PNG (landscape stage).
+- **Deliverable:** 1280×720 WebP (landscape stage).
 - **Mood & palette:** Lantern-lit merchant hall interior, warmth allowed but banked: ember lantern accents (`#c9a84c` family, desaturated) over the base indigo (`#171222` → `#0b0812`).
 - **Composition & safe zones:** Wooden stalls stacked with scroll cases, card chests, and silk bundles receding into shadow at BOTH side edges; shelf lines converge toward an open, dark center aisle. Safe zone: the central well **x 480–800, y 150–620** (pack + price button) stays open shadow so the shining pack owns it; title band y 40–100 stays quiet.
 - **Max luminance:** average ≤ 15 %; peak ≤ 45 % (lantern cores at the edges only); central well ≤ 22 %.
@@ -112,7 +112,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Pack Ritual Treasury — `scene-packopening`
 - **Role:** Backdrop under `PackOpeningScene` — pack at (640,340), grid rows start at y 184 with 216px spacing, specials row y 526 at 0.54 card scale, and the post-reveal button tray y 674. The rare-reveal spotlight dims it to 0.7 black at the ritual's peak.
-- **Deliverable:** 1280×720 PNG (landscape stage).
+- **Deliverable:** 1280×720 WebP (landscape stage).
 - **Mood & palette:** Dim treasury/altar chamber (`#120e20` → `#080610`), near-black violet with sunken gold glints.
 - **Composition & safe zones:** A low stone altar dais at bottom-center under a faint shaft of dusty light from above; heaps of coins and relics sunk in deep shadow along the walls; ember-dark braziers. The dais light shaft is vertical and soft, centered near x 640 — it flatters the floating pack without outshining it. Everything above y ≈ 150 fades to black (commons grid + reveal beats live there).
 - **Max luminance:** average ≤ 10 %; peak ≤ 30 % (the light shaft core); above y 150 ≤ 12 %.
@@ -122,7 +122,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Collection Archive — `scene-collection`
 - **Role:** Backdrop under `CollectionScene` — 6×3 thumb grid x 220–1020 / y 210–640, filter chips y 88, pagers at x 80 / x 1200.
-- **Deliverable:** 1280×720 PNG (landscape stage).
+- **Deliverable:** 1280×720 WebP (landscape stage).
 - **Mood & palette:** Extremely subdued archive/gallery hall. Cool near-black (`#171222` → `#0b0812`), the flattest asset after `scene-duel`.
 - **Composition & safe zones:** Tall shadowed shelves and glass display cases receding into darkness at the far left/right edges (outside x 200 / beyond x 1080); a broad flat dark wall behind everything else. NO framed rectangles anywhere — framed shapes read as ghost UI behind a card grid. Center field x 150–1130 stays near-flat.
 - **Max luminance:** average ≤ 8 %; peak ≤ 20 % (case-glass glints at the edges); grid region ≤ 12 %.
@@ -132,7 +132,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### War-Room Strategy Table — `scene-deckbuilder`
 - **Role:** Backdrop under `DeckBuilderScene` — pool grid on the left, and the right 400px is covered by the existing deck panel (`0x1c1730` at 0.85).
-- **Deliverable:** 1280×720 PNG (landscape stage).
+- **Deliverable:** 1280×720 WebP (landscape stage).
 - **Mood & palette:** Dim war-room interior, muted slate-violet (`#171222` → `#0b0812`) with lacquered-wood darks.
 - **Composition & safe zones:** A great strategy table edge with an UNMARKED campaign map (blank vellum — the no-text rule bites hardest here), brush stands and a shaded lantern in the lower foreground; blank faction banners hanging in shadow behind. Upper half fades to black. Left/center x 40–880 (pool grid + pager glyphs) stays quiet; the right 400px may carry slightly more detail since the panel covers it.
 - **Max luminance:** average ≤ 10 %; peak ≤ 25 % (lantern shade rim); pool-grid region ≤ 15 %.
@@ -142,7 +142,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Showcase Void — `scene-showcase`
 - **Role:** Backdrop under `CardShowcaseScene` — three FX cards at x 256 / 538 / 922, y ≈ 370, title y 48.
-- **Deliverable:** 1280×720 PNG (landscape stage).
+- **Deliverable:** 1280×720 WebP (landscape stage).
 - **Mood & palette:** Abstract pedestal/spotlight void, deep indigo-black (`#171222` → `#0b0812`) — a jewelry-case nothing that makes holo FX the show.
 - **Composition & safe zones:** A dark polished floor plane catching a faint cool reflection across the bottom quarter; one soft god-ray falling from high center into empty space; drifting dust motes; no architecture, no pedestals (card positions may change — the void must not anchor them). Center band y 150–620 stays quiet so all three cards and their labels pop.
 - **Max luminance:** average ≤ 8 %; peak ≤ 30 % (god-ray core); center band outside the ray ≤ 12 %.
@@ -152,7 +152,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Boot Loading Backdrop — `scene-preload`
 - **Role:** Behind `PreloadScene`'s "Unsheathing Blades… N%" label at (640,360). Special load order: this file is queued by `BootScene` (the manifest JSON is a build-time import, so Boot can check it) since Preload's own queue is what it decorates.
-- **Deliverable:** 1280×720 PNG (landscape stage).
+- **Deliverable:** 1280×720 WebP (landscape stage).
 - **Mood & palette:** The quietest asset: near-black void (`#0d0a14` family) with the faintest indigo nebula haze.
 - **Composition & safe zones:** A handful of dim stars toward the edges, an almost imperceptible horizon glow at the very bottom; the entire center is empty darkness (the label sits dead center).
 - **Max luminance:** average ≤ 6 %; peak ≤ 15 %; center third ≤ 8 %.
@@ -162,7 +162,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Card Back — `card-back`
 - **Role:** The face-down card design. Today `bakeCardFrames` (`src/ui/CardFrameFactory.ts`) paints a procedural 600×840 `cardback` canvas — dark violet radial field (`#3a2a55` → `#171024`) on `#141318`, gold border `#8a6d1f`, inner hairline, and a triple gold diamond sigil with a `#d4af37` core — which `CardView.back` displays at 300×420. **Face-down cards render via `CardView.setCard(null)`, used today only by `PackOpeningScene`** (commons dealt face-down + the specials row); `DuelScene` shows no face-down cards (opponent hand is a HUD count). Any future face-down context inherits this texture automatically.
-- **Deliverable:** 640×800 PNG (portrait, 4:5 — same as card faces).
+- **Deliverable:** 640×800 WebP (portrait, 4:5 — same as card faces).
 - **Mood & palette:** Continuity with the procedural back: deep violet field, radial glow, gold filigree (`#8a6d1f`/`#d4af37`), central diamond sigil motif. Richer than a stage (it IS a card object) but darker than any card face.
 - **Composition & safe zones:** Ornamental and **fully symmetric on both axes**: central golden diamond sigil, concentric filigree frames, mirrored corner flourishes, subtle arcane line engraving. Integration cover-crops 640×800 → the 600×840 (5:7) texture, cutting **≈ 34 px off each side** — all border ornament and any element whose symmetry matters stays inside **x 34–606**; full height survives.
 - **Max luminance:** average ≤ 20 %; peak ≤ 60 % (sigil core only) — it must sit visually *behind* face-up cards in the same shot.
@@ -172,7 +172,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Booster Pack Front — `pack-art`
 - **Role:** The booster pack shown floating in `ShopScene` and torn open in `PackOpeningScene`. Today `bakePackArt` (`src/scenes/ShopScene.ts`, shared) paints a procedural 280×400 canvas displayed at 238×340: violet gradient (`#3a2a63` → `#1c1433` → `#4a1c4a`), gold border `#c9a84c`, dark crimp bands top/bottom (26px each at texture scale), a foil shimmer band, and a triple gold diamond sigil. **The pack face is intentionally text-free.**
-- **Deliverable:** 640×800 PNG (portrait).
+- **Deliverable:** 640×800 WebP (portrait).
 - **Mood & palette:** Product-hero continuity with the procedural pack: dark royal violet deepening toward top and bottom, gold trim, central radiant diamond sigil over a restrained violet-magenta nebula. This is the ONE asset allowed near card-art saturation — it's merchandise, not a stage.
 - **Composition & safe zones:** Integration cover-crops 640×800 → 560×800 (7:10), cutting **≈ 40 px off each side** — keep all trim and the sigil inside **x 40–600**. Keep the top and bottom **~52 px bands plain** because code overlays the crimp zones.
 - **Max luminance:** average ≤ 25 %; peak ≤ 70 % (sigil core / foil glints).
@@ -182,7 +182,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Ragnarök Booster Pack Front — `pack-art-ragnarok`
 - **Role:** The Ragnarök expansion booster in `ShopScene`'s three-pack row and its `PackOpeningScene` tear. Consumed by `bakePackArt` under the `packart-ragnarok` key; until this asset ships the SKU falls back to the procedural tinted pack.
-- **Deliverable:** 640×800 PNG (portrait).
+- **Deliverable:** 640×800 WebP (portrait).
 - **Mood & palette:** The set's twilight-of-the-gods identity as sealed product: ash-grey storm field, ember-orange rim light, raven-black wings, glacier teal accents, gold trim continuity with the base pack. Same product-hero saturation allowance as `pack-art`.
 - **Composition & safe zones:** Identical to `pack-art` — cover-crop cuts ≈40 px per side (keep trim + sigil inside x 40–600); top and bottom ~52 px bands plain for the code-stamped crimps.
 - **Max luminance:** average ≤ 25 %; peak ≤ 70 % (ember glints / sigil core).
@@ -192,7 +192,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Celtic Fae Booster Pack Front — `pack-art-celtic-fae`
 - **Role:** The Celtic Fae expansion booster in `ShopScene`'s three-pack row and its `PackOpeningScene` tear. Consumed by `bakePackArt` via `CELTIC_FAE_PACK_ART`; until this asset ships the SKU falls back to the procedural silver-green tinted pack.
-- **Deliverable:** 640×800 PNG (portrait).
+- **Deliverable:** 640×800 WebP (portrait).
 - **Mood & palette:** The Silver Veil as sealed product: silver moonlight over moss green, blackthorn silhouettes, drifting mist, pale gold torc-like trim, a glassy-pool shimmer. Gold trim continuity with the other packs.
 - **Composition & safe zones:** Identical to `pack-art` — keep trim + sigil inside x 40–600; top and bottom ~52 px bands plain for the code-stamped crimps.
 - **Max luminance:** average ≤ 25 %; peak ≤ 70 % (moon glints / sigil core).
@@ -202,7 +202,7 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Arthurian Court Booster Pack Front — `pack-art-arthurian-court`
 - **Role:** The Arthurian Court expansion booster in `ShopScene`'s pack row and its `PackOpeningScene` tear. Consumed by `bakePackArt` via `ARTHURIAN_COURT_PACK_ART`; until this asset ships the SKU falls back to the procedural white-gold tinted pack.
-- **Deliverable:** 640×800 PNG (portrait).
+- **Deliverable:** 640×800 WebP (portrait).
 - **Mood & palette:** The Grail Oath as sealed product: polished steel and white-gold radiance over deep twilight blue, a grail glow at the sigil's heart, crimson pennant accents, chapel-window glints. Gold trim continuity with the other packs.
 - **Composition & safe zones:** Identical to `pack-art` — keep trim + sigil inside x 40–600; top and bottom ~52 px bands plain for the code-stamped crimps.
 - **Max luminance:** average ≤ 25 %; peak ≤ 70 % (grail glow / steel glints).
@@ -212,13 +212,23 @@ The **Deliverable** field carries the output dimensions (`<W>×<H>`) that
 
 ### Gothic Monsters Booster Pack Front — `pack-art-gothic-monsters`
 - **Role:** The Gothic Monsters expansion booster in `ShopScene`'s pack row and its `PackOpeningScene` tear. Consumed by `bakePackArt` via `GOTHIC_MONSTERS_PACK_ART` (`packart-gothic-monsters` / `scene-pack-art-gothic-monsters`); until this asset ships the SKU falls back to the procedural crimson-tinted pack.
-- **Deliverable:** 640×800 PNG (portrait).
+- **Deliverable:** 640×800 WebP (portrait).
 - **Mood & palette:** Nocturne Manor as sealed product: crimson velvet and black lace over moonlit stone, cathedral-gold trim, candle-warm glow against storm cold, grave roses at the sigil's foot and one thin white-lightning glint. Same product-hero saturation allowance as `pack-art`; luxurious, never grimy.
 - **Composition & safe zones:** Identical to `pack-art` — cover-crop cuts ≈40 px per side (keep trim + sigil inside x 40–600); top and bottom ~52 px bands strictly plain flat dark for the code-stamped crimps: no filigree, trim, lace, roses, glints, or ornament of any kind may enter them (user review 2026-07-18: the prior render ran filigree into the crimp bands). The gold trim frame and all ornament stay fully between the bands.
 - **Max luminance:** average ≤ 25 %; peak ≤ 70 % (candle glints / lightning glint / sigil core).
 - **Integration:** `bakePackArt(scene, GOTHIC_MONSTERS_PACK_ART)` — already wired; the asset landing on disk + manifest is the whole switch.
 - **QA:** Reads as sealed product at 238×340; crimp zones completely plain unornamented flat dark bands per the pack template rule; zero letterforms (invitations, seals, and lace stay blank or patterned, never lettered).
 - **Prompt:** Booster pack front key art, the top and bottom bands solid matte near-black bars, completely empty, zero ornament, zero gold, zero trim, zero filigree, zero pattern, as if masked off, a golden diamond sigil wreathed in black lace and dark crimson grave roses floating over rich crimson velvet drapery and moonlit gothic stone, warm candlelight rising from below against a cold storm-blue upper gloom crossed by one thin white lightning glint, ornate cathedral-gold trim frame confined to the middle of the composition, faint sparkling foil glints only in the central art, all decoration ending well before the top and bottom edges, dramatic sealed-product presentation with no lettering, crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait — the top and bottom bands solid matte near-black bars, completely empty, zero ornament, zero gold, zero trim, zero filigree, zero pattern, as if masked off
+
+### Dark Tales Booster Pack Front — `pack-art-dark-tales`
+- **Role:** The Dark Tales expansion booster in `ShopScene`'s pack row and its `PackOpeningScene` tear. Consumed by `bakePackArt` via `DARK_TALES_PACK_ART` (`packart-dark-tales` / `scene-pack-art-dark-tales`); until this asset ships the SKU falls back to the procedural midnight-violet tinted pack.
+- **Deliverable:** 640×800 WebP (portrait).
+- **Mood & palette:** Dark Tales as sealed product: midnight blue-violet gloom over silver-thorned briar, gold-leaf storybook filigree, pale moonlight, a single glass-slipper glint at the sigil's foot. Distinct from Nocturne Manor's crimson velvet: this pack reads as a cursed fairytale storybook, glamorous and adult, never cute. Same product-hero saturation allowance as `pack-art`.
+- **Composition & safe zones:** Identical to `pack-art` — cover-crop cuts ≈40 px per side (keep trim + sigil inside x 40–600); top and bottom ~52 px bands strictly plain flat dark for the code-stamped crimps: no filigree, trim, thorns, glints, or ornament of any kind may enter them (the Gothic Monsters lesson, user review 2026-07-18). The gold trim frame and all ornament stay fully between the bands.
+- **Max luminance:** average ≤ 25 %; peak ≤ 70 % (moonlight / slipper glint / sigil core).
+- **Integration:** `bakePackArt(scene, DARK_TALES_PACK_ART)` — already wired; the asset landing on disk + manifest is the whole switch.
+- **QA:** Reads as sealed product at 238×340; crimp zones completely plain unornamented flat dark bands per the pack template rule; zero letterforms (the storybook motif stays closed or shows blank decorative pages, never lettered).
+- **Prompt:** Booster pack front key art, the top and bottom bands solid matte near-black bars, completely empty, zero ornament, zero gold, zero trim, zero filigree, zero pattern, as if masked off, a golden diamond sigil wreathed in silver briar thorns and deep violet rose vines floating over a closed gold-leaf storybook and midnight blue-violet gloom, pale moonlight falling from above and one small glass-slipper glint below the sigil, ornate gold trim frame confined to the middle of the composition, faint sparkling foil glints only in the central art, all decoration ending well before the top and bottom edges, dramatic sealed-product presentation with no lettering, crisp cel-shaded gacha anime booster-pack key art, 640×800 portrait — the top and bottom bands solid matte near-black bars, completely empty, zero ornament, zero gold, zero trim, zero filigree, zero pattern, as if masked off
 
 ---
 
@@ -237,14 +247,14 @@ wiring already falls back to the procedural tinted pack until the asset lands.
 
 ### Files & manifest
 
-- Assets land at **`public/assets/art/scenes/<asset-key>.png`** (the filename
-  minus `.png` is the asset key from the section-2 heading). This is where
+- Assets land at **`public/assets/art/scenes/<asset-key>.webp`** (the filename
+  minus `.webp` is the asset key from the section-2 heading). This is where
   `scripts/gen-scene-art.ts` writes.
 - **Mechanism (implemented): `scripts/gen-art-manifest.ts`** scans the scenes
   folder and emits a `scenes` array alongside `cards`/`half` in
   `src/data/art-manifest.json` (additive — `ArtResolver` reads only
   `.cards`/`.half`, so the change is backward-compatible). `PreloadScene` then
-  queues `load.image('scene-<key>', 'assets/art/scenes/<key>.png')` for each
+  queues `load.image('scene-<key>', 'assets/art/scenes/<key>.webp')` for each
   listed key — the card-manifest discipline exactly: only manifest-listed files
   are ever requested, zero runtime 404s.
 - Texture-key convention: **`scene-<asset-key>`** for all entries, including

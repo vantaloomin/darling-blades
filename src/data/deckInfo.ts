@@ -74,4 +74,11 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Start with Dreaded attackers and evasive vampires, then make every exchange hurt. Damage spells clear the path while Empower turns the late game into a velvet drain. Carmilla, Crimson Host closes the curtain when the night runs long.',
     featured: ['gm-carmilla-crimson-host', 'gm-black-veil-matron', 'gm-dracula-ball-invite'],
   },
+  'theme-dark-tales': {
+    colors: 'U/B/W',
+    archetype: 'Retell value-control',
+    plays:
+      'Skim early to smooth awkward hands and stock the graveyard, then Retell efficient Rituals and Charms while lifegain and Foresee keep the board stable. The deck wins by making every small answer matter twice.',
+    featured: ['dt-poison-mirror-regent', 'dt-tower-window-seer', 'dt-page-torn-free'],
+  },
 };

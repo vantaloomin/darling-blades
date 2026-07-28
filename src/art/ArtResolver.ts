@@ -6,6 +6,9 @@ import { qualityTier } from '../platform/quality';
 import { ArtAtlas } from './ArtAtlas';
 import { drawPlaceholderArt } from './PlaceholderArtGenerator';
 
+/** Manifest key convention for a styled basic-land file. */
+export const landStyleArtKey = (artKey: string, landStyle: string): string => `${artKey}--${landStyle}`;
+
 /**
  * Decides real art vs procedural placeholder per card. Only files listed in
  * the build-time manifest are ever requested (zero runtime 404s). Consumers
@@ -33,7 +36,7 @@ export class ArtResolver {
     const preferHalf = qualityTier() === 'lite';
     for (const id of this.real) {
       const dir = preferHalf && this.half.has(id) ? 'cards-half' : 'cards';
-      this.scene.load.image(`artfile-${id}`, `assets/art/${dir}/${id}.png`);
+      this.scene.load.image(`artfile-${id}`, `assets/art/${dir}/${id}.webp`);
     }
   }
 
@@ -49,7 +52,7 @@ export class ArtResolver {
   getArt(cardId: string, landStyle?: string): { textureKey: string; frameName?: string } {
     const d = this.db[cardId];
     const artKey = d?.artRef ?? cardId;
-    const styledKey = landStyle && d && isBasic(this.db, cardId) ? `${artKey}--${landStyle}` : null;
+    const styledKey = landStyle && d && isBasic(this.db, cardId) ? landStyleArtKey(artKey, landStyle) : null;
     if (styledKey && this.real.has(styledKey)) return { textureKey: `artfile-${styledKey}` };
     if (this.real.has(artKey)) return { textureKey: `artfile-${artKey}` };
     const slot = this.atlas.get(artKey);

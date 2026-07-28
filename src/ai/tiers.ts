@@ -49,14 +49,16 @@ export function buildTierAI(
   return def.noise > 0 ? new NoisyAI(brain, (seed ^ 0x51d3ba11) >>> 0, def.noise) : brain;
 }
 
-// Provisional until the 16-floor re-baseline.
+// Floors 17-18 = tier 6, confirmed by the 2026-07-24 18-floor re-baseline
+// (--floors --seeds 80: F16 75.7 / F17 73.1 / F18 72.5, clean T6 plateau;
+// the --tiers ladder re-measured byte-identical to the 2026-07-20 baseline).
 const FLOOR_TIERS: readonly TowerTier[] = [
   1, 1, 1,
   2, 2, 2,
   3, 3, 3,
   4, 4, 4,
   5, 5, 5,
-  6,
+  6, 6, 6,
 ];
 
 export function floorTier(floor: number): TowerTier {

@@ -1,15 +1,24 @@
 import Phaser from 'phaser';
-import type { CardDef } from '../engine/types';
+import type { CardDef, ManaCost } from '../engine/types';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { makeCardThumb } from './CardThumbCache';
 import { CARD_H, CARD_W } from './CardView';
+import { manaCostText } from './rulesText';
+import { renderManaText } from './ManaText';
 import { colorInt, theme } from './theme';
 import { modalShell, pager, type ModalShellOptions } from './themeWidgets';
+
+export interface ZoneContentsAction {
+  label: string;
+  cost: ManaCost;
+  onSelect: () => void;
+}
 
 export interface ZoneContentsEntry {
   card: CardDef;
   count: number;
   landStyle?: string;
+  action?: ZoneContentsAction;
 }
 
 export interface ZoneContentsModalOptions
@@ -21,6 +30,12 @@ export interface ZoneContentsModalOptions
   entries: ZoneContentsEntry[];
   onInspect: (card: CardDef, landStyle?: string) => void;
   emptyText?: string;
+  /**
+   * Optional mana-context line under the title (`{W}`/`{2}` tokens render as
+   * pips). Zone modals cover the board's mana strip, so casting decisions
+   * (e.g. graveyard Retell) need the untapped summary restated here.
+   */
+  subtitle?: string;
 }
 
 export interface ZoneContentsModal {
@@ -39,6 +54,8 @@ const ROW_GAP = 120;
 const GRID_CX = 640;
 const GRID_TOP_Y = 176;
 const BADGE_H = 18;
+const ACTION_Y_OFFSET = 52;
+const ACTION_H = 28;
 
 export function showZoneContents(
   scene: Phaser.Scene,
@@ -73,6 +90,18 @@ export function showZoneContents(
       })
       .setOrigin(0.5),
   );
+  if (opts.subtitle) {
+    const sub = scene.add.container(GRID_CX, 122);
+    const rendered = renderManaText(scene, sub, 0, 0, opts.subtitle, {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.label}px`,
+      color: theme.colors.body,
+      resolution: 2,
+    });
+    rendered.text.setOrigin(0.5);
+    rendered.reflow();
+    container.add(sub);
+  }
 
   const clearGrid = (): void => {
     for (const item of gridItems) {
@@ -104,6 +133,36 @@ export function showZoneContents(
     badge.strokeRoundedRect(label.x - badgeW, label.y - 2, badgeW, BADGE_H, theme.radius.control);
     addGridItem(badge);
     addGridItem(label);
+  };
+
+  const addActionChip = (x: number, y: number, action: ZoneContentsAction): void => {
+    const chip = scene.add.container(x, y);
+    const rendered = renderManaText(scene, chip, 0, 0, `${action.label} ${manaCostText(action.cost)}`, {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.micro}px`,
+      fontStyle: theme.weight.w700,
+      color: theme.colors.gold,
+      resolution: 2,
+    });
+    rendered.text.setOrigin(0.5);
+    rendered.reflow();
+    const width = Math.max(76, rendered.text.width + 18);
+    const background = scene.add.graphics();
+    background
+      .fillStyle(colorInt(theme.colors.btnEmphasisBg), 1)
+      .fillRoundedRect(-width / 2, -ACTION_H / 2, width, ACTION_H, theme.radius.control)
+      .lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome)
+      .strokeRoundedRect(-width / 2, -ACTION_H / 2, width, ACTION_H, theme.radius.control);
+    chip.addAt(background, 0);
+    const zone = scene.add.zone(0, 0, width, ACTION_H).setInteractive({ useHandCursor: true });
+    chip.add(zone);
+    bindTapButton(scene, zone, (pointer) => {
+      if (pointer.rightButtonReleased()) return;
+      shell.close();
+      action.onSelect();
+    });
+    inflateHitArea(zone, Math.max(90, width), 44);
+    addGridItem(chip);
   };
 
   const renderPage = (nextPage: number): void => {
@@ -144,6 +203,7 @@ export function showZoneContents(
       thumb.on('pointerout', () => thumb.clearTint());
       addGridItem(thumb);
       addCountBadge(x, y, entry.count);
+      if (entry.action) addActionChip(x, y + ACTION_Y_OFFSET, entry.action);
     }
     pageControl?.refresh(page, pageCount);
   };

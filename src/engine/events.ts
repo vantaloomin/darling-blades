@@ -18,6 +18,7 @@ export type GameEvent =
   | { e: 'cardsBottomed'; player: PlayerId; count: number }
   | { e: 'landPlayed'; player: PlayerId; iid: number; cardId: string }
   | { e: 'manaTapped'; player: PlayerId; iids: number[] }
+  | { e: 'skimmed'; player: PlayerId; cardId: string }
   | { e: 'spellCast'; sid: number; cardId: string; controller: PlayerId; targets: TargetRef[] }
   | { e: 'responseWindowOpened'; player: PlayerId }
   | { e: 'spellResolved'; sid: number }
