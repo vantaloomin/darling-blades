@@ -1,4 +1,4 @@
-<!-- source-of-truth: .github/workflows/deploy.yml, package.json · last-verified: 2026-07-27 · process doc — re-verify when the CI workflow or branch model changes -->
+<!-- source-of-truth: .github/workflows/deploy.yml, package.json · last-verified: 2026-07-28 · process doc — re-verify when the CI workflow or branch model changes -->
 
 # Git workflow
 
@@ -27,13 +27,16 @@ push is rejected outright (`git push origin main` →
 one-line typo fix — starts on a branch and lands via PR.** There is no
 straight-to-`main` path.
 
-- Cut a short-lived, single-purpose branch off `main`:
+- Cut a short-lived, single-purpose branch off whichever base the work belongs
+  to — `main`, or the active `release/**` train:
   `git switch -c <type>/<slug>` — e.g. `feat/commander-mode`,
   `fix/collection-tap-band`, `ci/node-cache`, `docs/rules-resync`.
 - `<type>` mirrors the commit prefixes below (`feat` / `fix` / `refactor` /
   `perf` / `ci` / `docs` / `test` / `chore`).
-- If `main` moves under you, rebase rather than merge it back in:
-  `git fetch origin && git rebase origin/main`.
+- Whatever you branched from is what the PR must target. Confirm with
+  `git merge-base --is-ancestor origin/<base> HEAD` before opening the PR.
+- If the base moves under you, rebase rather than merge it back in:
+  `git fetch origin && git rebase origin/<base>`.
 
 ## Commits
 
@@ -65,16 +68,23 @@ keeps its last good build until a green squash lands).
 
 ## Pull requests
 
-Branch protection makes the PR the *only* way in, so every change flows through
-these three steps. The GitHub CLI is the standard tool (install once with
+`main` is governed by the **"Simple Protect" ruleset** (blocked deletion, no
+force-push, required status checks), so the PR is the practical way in. The
+GitHub CLI is the standard tool (install once with
 `winget install --id GitHub.cli`, then `gh auth login`; the web UI is the
 fallback):
 
-1. **`gh pr create --fill`** — open the PR into `main`.
+1. **`gh pr create --fill`** — open the PR into `main`, or into a `release/**`
+   branch when the work belongs to a release train. **Check the base**: a branch
+   cut from `release/x` must target `release/x`, or the PR diff will include
+   every commit that release branch has over `main`.
 2. **`gh pr checks <n> --watch`** — block until the required `verify` check goes
-   green. `.github/workflows/deploy.yml` runs `verify` on every PR to `main`; the
-   `deploy` job is `main`-push-only, so nothing ships until the squash lands.
+   green. `.github/workflows/deploy.yml` runs `verify` on pull requests to
+   **`main` and `release/**`**; the `deploy` job is `main`-push-only, so nothing
+   ships until a merge lands on `main`.
 3. **`gh pr merge <n> --squash --delete-branch`** — merge once `verify` is green.
+
+A draft PR cannot be merged. `gh pr ready <n>` first, or step 3 fails.
 
 **Auto-merge is not enabled on this repo** — `gh pr merge --auto` fails with
 `Auto merge is not allowed for this repository`, so you can't queue the merge
@@ -86,9 +96,17 @@ the PR is both the CI gate and the reviewable record.
 ## Merging
 
 - **Squash-merge every PR** with `gh pr merge <n> --squash --delete-branch` —
-  one tidy `main` commit per landed change, keeping history linear and free of
-  noisy merge commits. Branch protection blocks fast-forward/direct pushes, so
-  the squash is the only path in.
+  one tidy commit per landed change, keeping history linear and free of noisy
+  merge commits. This is a *convention*, not something the platform enforces:
+  the repo allows squash, merge, and rebase, and the ruleset only blocks
+  deletion and force-pushes. Nothing stops a web-UI "Create a merge commit", so
+  prefer the CLI, which does what this doc says.
+- **Release branches are not protected at all.** The ruleset targets
+  `~DEFAULT_BRANCH` only, so `release/**` has no required checks and no
+  push restrictions — `verify` still runs on PRs into them, but nothing blocks
+  a direct push or a red merge. Treat the discipline as self-imposed there.
+  (History bears this out: PRs #126-#130 landed on `release/1.4` as merge
+  commits rather than squashes.)
 - `--delete-branch` removes the merged branch (remote, and the local copy when
   you're not sitting on it). Clean up a leftover local branch with
   `git branch -d <name>`.
@@ -97,13 +115,15 @@ the PR is both the CI gate and the reviewable record.
   come back, it can silently leave an orphaned local branch.** Right after any
   squash-merge, run `git branch -d <name>` yourself rather than trusting the
   flag; don't wait for a cleanup pass to accumulate. Periodically (or any time
-  branches feel stale), run `git fetch --prune && git branch --merged main` to
-  spot local branches already merged upstream, and check `git log <branch>
-  --oneline` against `main` for branches that look ahead but were actually
-  squash-merged (their content will already be on `main` even though they show
+  branches feel stale), run `git fetch --prune && git branch --merged <base>` to
+  spot local branches already merged upstream (`<base>` being whatever the
+  branch targeted — `main` or a `release/**`), and check `git log <branch>
+  --oneline` against that base for branches that look ahead but were actually
+  squash-merged (their content will already be on the base even though they show
   as unmerged) before force-deleting with `-D`.
-- The squash lands on `main`, so it deploys — the pre-merge green `verify` is the
-  deploy gate.
+- A squash onto `main` deploys — the pre-merge green `verify` is the deploy
+  gate. A squash onto a `release/**` branch does **not** deploy; nothing ships
+  until that release branch itself lands on `main`.
 
 ## What landing on `main` does
 
