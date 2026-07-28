@@ -1,5 +1,5 @@
-import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
-import { SaveManager, type SaveData } from './SaveManager';
+import { deflateSync, Inflate, strFromU8, strToU8 } from 'fflate';
+import { freshSave, SaveManager, type SaveData } from './SaveManager';
 
 /** The stable text prefix and codec identifier for local save exports. */
 export const SAVE_CODE_MAGIC = 'DBS1' as const;
@@ -68,6 +68,7 @@ export type SaveCodeDecodeResult =
 
 const BASE64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const INFLATE_INPUT_CHUNK_BYTES = 256;
 
 const SHA256_K = new Uint32Array([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -170,8 +171,11 @@ export function decode(code: string): SaveCodeDecodeResult {
 
   let decodedBytes: Uint8Array;
   try {
-    decodedBytes = inflateSync(fromBase64Url(payload));
-  } catch {
+    decodedBytes = inflateBounded(fromBase64Url(payload));
+  } catch (error) {
+    if (error instanceof DecodedPayloadLimitError) {
+      return failure('oversized', 'This save code is too large to import safely.');
+    }
     return failure('invalid', 'This save code contains invalid compressed data.');
   }
   if (decodedBytes.length > MAX_DECODED_SAVE_BYTES) {
@@ -196,9 +200,6 @@ export function decode(code: string): SaveCodeDecodeResult {
   if (rawVersion !== candidate.schemaVersion) {
     return failure('invalid', 'This save code has mismatched schema metadata.');
   }
-  if (rawVersion > CURRENT_SAVE_SCHEMA_VERSION) {
-    return failure('future-version', 'This save code was created by a newer version of Darling Blades.');
-  }
 
   const now = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : 0;
   let save: SaveData;
@@ -210,12 +211,44 @@ export function decode(code: string): SaveCodeDecodeResult {
   if (save.version !== CURRENT_SAVE_SCHEMA_VERSION) {
     return failure('invalid', 'This save code could not be migrated to the current save format.');
   }
+  if (!hasCompleteSaveShape(save)) {
+    return failure('invalid', 'This save code does not contain an importable save profile.');
+  }
 
-  return {
-    ok: true,
-    save,
-    preview: previewFor(save, candidate.schemaVersion),
-  };
+  try {
+    return {
+      ok: true,
+      save,
+      preview: previewFor(save, candidate.schemaVersion),
+    };
+  } catch {
+    return failure('invalid', 'This save code does not contain an importable save profile.');
+  }
+}
+
+class DecodedPayloadLimitError extends Error {}
+
+function inflateBounded(compressed: Uint8Array): Uint8Array {
+  const chunks: Uint8Array[] = [];
+  let decodedBytes = 0;
+  const inflater = new Inflate((chunk) => {
+    decodedBytes += chunk.length;
+    if (decodedBytes > MAX_DECODED_SAVE_BYTES) throw new DecodedPayloadLimitError();
+    chunks.push(chunk);
+  });
+
+  for (let offset = 0; offset < compressed.length; offset += INFLATE_INPUT_CHUNK_BYTES) {
+    const end = Math.min(offset + INFLATE_INPUT_CHUNK_BYTES, compressed.length);
+    inflater.push(compressed.subarray(offset, end), end === compressed.length);
+  }
+
+  const output = new Uint8Array(decodedBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return output;
 }
 
 function normalizeSave(save: SaveData): SaveData {
@@ -231,6 +264,24 @@ function withoutReplays(save: SaveData): Omit<SaveData, 'replays'> {
   const copy: Partial<SaveData> = { ...save };
   delete copy.replays;
   return copy as Omit<SaveData, 'replays'>;
+}
+
+function hasCompleteSaveShape(save: SaveData): boolean {
+  const expected = freshSave(0) as unknown as Record<string, unknown>;
+  const candidate = save as unknown as Record<string, unknown>;
+  for (const key of Object.keys(expected)) {
+    if (!Object.prototype.hasOwnProperty.call(candidate, key) || !matchesSaveField(candidate[key], expected[key])) return false;
+  }
+  return true;
+}
+
+function matchesSaveField(value: unknown, expected: unknown): boolean {
+  if (expected === null) return value === null || typeof value === 'string';
+  if (Array.isArray(expected)) return Array.isArray(value);
+  if (typeof expected === 'number') return typeof value === 'number' && Number.isFinite(value);
+  if (typeof expected === 'boolean') return typeof value === 'boolean';
+  if (typeof expected === 'object') return isPlainObject(value);
+  return typeof value === typeof expected;
 }
 
 function previewFor(save: SaveData, sourceSchemaVersion: number): SaveCodePreview {
@@ -262,14 +313,18 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null;
 }
 
-function hasDangerousKey(value: unknown, seen = new Set<object>()): boolean {
+function hasDangerousKey(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
-  if (seen.has(value)) return false;
-  seen.add(value);
-  if (Array.isArray(value)) return value.some((entry) => hasDangerousKey(entry, seen));
-  for (const key of Object.keys(value)) {
-    if (DANGEROUS_KEYS.has(key)) return true;
-    if (hasDangerousKey((value as Record<string, unknown>)[key], seen)) return true;
+  const seen = new Set<object>();
+  const pending: unknown[] = [value];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current || typeof current !== 'object' || seen.has(current)) continue;
+    seen.add(current);
+    for (const key of Object.keys(current)) {
+      if (DANGEROUS_KEYS.has(key)) return true;
+      pending.push((current as Record<string, unknown>)[key]);
+    }
   }
   return false;
 }

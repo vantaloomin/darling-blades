@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { deflateSync, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { decode, encode, type SaveCodeDecodeResult } from '../../src/meta/SaveCode';
+import { decode, encode, MAX_DECODED_SAVE_BYTES, type SaveCodeDecodeResult } from '../../src/meta/SaveCode';
 import { freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { parseVariantKey, variantKey } from '../../src/meta/variants';
 import { GOLDEN_FRESH_SAVE_CODE } from './saveCode.fixtures';
@@ -198,6 +198,56 @@ describe('SaveCode', () => {
     const result = decode(codeForRaw(raw));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('oversized');
+  });
+
+  it('stops a high-ratio payload at the decoded byte limit', () => {
+    const payloadText = JSON.stringify({ version: 22, padding: 'x'.repeat(MAX_DECODED_SAVE_BYTES) });
+    const code = codeForPayload(payloadText, 22);
+    expect(code.length).toBeLessThan(10_000);
+    const result = decode(code);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('oversized');
+  });
+
+  it('rejects a migrated payload that contains only its version', () => {
+    const result = decode(codeForRaw({ version: 22 }));
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        kind: 'invalid',
+        message: 'This save code does not contain an importable save profile.',
+      },
+    });
+  });
+
+  it('rejects a migrated payload with an incomplete collection profile', () => {
+    const result = decode(codeForRaw({ version: 22, collection: {} }));
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        kind: 'invalid',
+        message: 'This save code does not contain an importable save profile.',
+      },
+    });
+  });
+
+  it('rejects deeply nested payloads without overflowing the stack', () => {
+    const depth = 3000;
+    const nestedJson = `${'{"child":'.repeat(depth)}{}${'}'.repeat(depth)}`;
+    const result = decode(codeForPayload(`{"version":22,"nested":${nestedJson}}`, 22));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid');
+  });
+
+  it('rejects mismatched inner and envelope schema metadata', () => {
+    const result = decode(codeForPayload(JSON.stringify({ version: 22 }), 21));
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        kind: 'invalid',
+        message: 'This save code has mismatched schema metadata.',
+      },
+    });
   });
 
   it('refuses a future schema before accepting its payload', () => {
