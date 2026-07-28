@@ -38,7 +38,12 @@ function testDeck(): string[] {
  * recorder, exactly as DuelScene does. Returns the recorded log plus the
  * original run's final state and full event stream for the golden compare.
  */
-function recordBotGame(seed: number): { log: ReplayLog; finalState: string; events: GameEvent[] } {
+function recordBotGame(seed: number): {
+  log: ReplayLog;
+  finalState: string;
+  instanceFinalState: string;
+  events: GameEvent[];
+} {
   const decks: [string[], string[]] = [testDeck(), testDeck()];
   const game = new Game({ decks: [decks[0].slice(), decks[1].slice()], seed, db: TEST_DB });
   const ais = [new EasyAI(TEST_DB, seed * 2 + 1), new EasyAI(TEST_DB, seed * 2 + 2)];
@@ -53,7 +58,12 @@ function recordBotGame(seed: number): { log: ReplayLog; finalState: string; even
     const awaiting = game.awaiting;
     if (awaiting.kind === 'gameOver') {
       const log = finishReplay(draft, game.state.winner === 0 ? 'win' : 'loss', 1234567890, game.state.turn);
-      return { log, finalState: JSON.stringify(game.state), events };
+      return {
+        log,
+        finalState: JSON.stringify(game.state),
+        instanceFinalState: JSON.stringify(game.instanceState),
+        events,
+      };
     }
     const p: PlayerId = awaiting.player;
     const action: Action = ais[p].chooseAction(game.viewFor(p), game.legalActions(p));
@@ -72,6 +82,25 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
       expect(JSON.stringify(game.state)).toBe(finalState);
       expect(JSON.stringify(eventLog)).toBe(JSON.stringify(events));
     }
+  });
+
+  it('replay v2 round-trips the instance-bearing engine state byte-identically', () => {
+    const { log, instanceFinalState } = recordBotGame(17);
+    const replayed = replayGame(log, TEST_DB);
+    const state = replayed.game.instanceState;
+    const cards = [
+      ...state.players.flatMap((player) => [
+        ...player.deck,
+        ...player.hand,
+        ...player.graveyard,
+        ...player.severed,
+      ]),
+      ...state.battlefield,
+      ...state.stack,
+    ];
+    expect(cards.every((entry) => typeof entry === 'object' && 'instanceId' in entry)).toBe(true);
+    expect(JSON.stringify(state)).toBe(instanceFinalState);
+    expect(log.v).toBe(2);
   });
 
   it('replay logs survive a JSON round-trip (the SaveData persistence path)', () => {

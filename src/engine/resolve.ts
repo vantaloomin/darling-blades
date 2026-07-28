@@ -2,7 +2,7 @@ import type { Emit } from './battlefield';
 import { enterBattlefield } from './battlefield';
 import { conditionSatisfied, fireTriggers, runOps, targetSpecsOf } from './effects/EffectInterpreter';
 import { isLegalTarget } from './effects/targeting';
-import type { CardDb, CardDef, GameState, StackItem, TargetSpec } from './types';
+import type { CardDb, CardDef, CardEntry, GameState, StackItem, TargetSpec } from './types';
 import { def, isType } from './types';
 
 export type { Emit };
@@ -24,12 +24,13 @@ export function castTargetSpecsFor(d: CardDef, retell: boolean): readonly Target
 }
 
 function moveSpellOnExit(state: GameState, item: StackItem, emit: Emit): void {
+  const card = stackCard(state, item);
   if (item.retell) {
-    state.players[item.controller].severed.push(item.cardId);
+    state.players[item.controller].severed.push(card);
     // Deferred: the event union has no `from: 'stack'`; the UI workstream owns that decision.
     emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
   } else {
-    state.players[item.controller].graveyard.push(item.cardId);
+    state.players[item.controller].graveyard.push(card);
   }
 }
 
@@ -62,7 +63,7 @@ export function resolveStackItem(
   if (isType(d, 'creature') || isType(d, 'artifact') || isType(d, 'enchantment')) {
     const attachedTo =
       isAura(d) && item.targets[0]?.kind === 'permanent' ? item.targets[0].iid : undefined;
-    const perm = enterBattlefield(state, db, item.cardId, item.controller, emit, { attachedTo });
+    const perm = enterBattlefield(state, db, stackCard(state, item), item.controller, emit, { attachedTo });
     fireTriggers(state, db, emit, 'arrives', perm);
     runEmpowerRider(state, db, item, d, emit, perm.iid);
     return;
@@ -130,4 +131,13 @@ function runEmpowerRider(
     },
     d.empower.ops,
   );
+}
+
+function stackCard(state: GameState, item: StackItem): CardEntry {
+  if (state.nextInstanceId === undefined) return item.cardId;
+  return {
+    instanceId: item.instanceId ?? state.nextInstanceId++,
+    cardId: item.cardId,
+    variantKey: item.variantKey ?? null,
+  };
 }

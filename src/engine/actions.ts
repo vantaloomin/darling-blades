@@ -10,7 +10,7 @@ import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
 import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from './types';
-import { def, isType, manaValue, opponentOf } from './types';
+import { cardIdOf, def, isType, manaValue, opponentOf } from './types';
 
 export type Action =
   | { type: 'choosePlayDraw'; play: boolean }
@@ -260,10 +260,11 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
     case 'main': {
       out.push({ type: 'passStep' });
       const seen = new Set<string>();
-      me.hand.forEach((cardId, handIndex) => {
+      me.hand.forEach((card, handIndex) => {
+        const cardId = cardIdOf(card);
         if (seen.has(cardId)) return; // dedupe identical copies
         seen.add(cardId);
-        const d = def(db, cardId);
+        const d = def(db, card);
         if (d.skim && skimBlockers(state, db, player, d) === null) {
           out.push({ type: 'skim', handIndex });
         }
@@ -275,7 +276,8 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         if (castBlockers(state, db, player, d) !== null) return;
         pushCastActions(out, state, db, player, handIndex, d);
       });
-      me.graveyard.forEach((cardId, graveIndex) => {
+      me.graveyard.forEach((card, graveIndex) => {
+        const cardId = cardIdOf(card);
         const d = def(db, cardId);
         if (!retellable(d) || !castableNow(state, player, d)) return;
         if (castBlockers(state, db, player, d, false, 0, true) !== null) return;
@@ -340,7 +342,8 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
     case 'endStepWindow': {
       out.push({ type: 'passResponse' });
       const seen = new Set<string>();
-      me.hand.forEach((cardId, handIndex) => {
+      me.hand.forEach((card, handIndex) => {
+        const cardId = cardIdOf(card);
         if (seen.has(cardId)) return;
         seen.add(cardId);
         const d = def(db, cardId);
@@ -352,7 +355,8 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         if (castBlockers(state, db, player, d) !== null) return;
         pushCastActions(out, state, db, player, handIndex, d);
       });
-      me.graveyard.forEach((cardId, graveIndex) => {
+      me.graveyard.forEach((card, graveIndex) => {
+        const cardId = cardIdOf(card);
         const d = def(db, cardId);
         if (!retellable(d) || !isType(d, 'charm') || !castableNow(state, player, d)) return;
         if (castBlockers(state, db, player, d, false, 0, true) !== null) return;
@@ -371,7 +375,8 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
       // One choice per distinct basic land type left in the deck, in a stable
       // (sorted-id) order so `legal[0]` is deterministic across shuffles.
       const seen = new Set<string>();
-      for (const cardId of me.deck) {
+      for (const card of me.deck) {
+        const cardId = cardIdOf(card);
         if (seen.has(cardId)) continue;
         if (def(db, cardId).supertypes?.includes('basic')) seen.add(cardId);
       }
@@ -519,7 +524,7 @@ export function validateAction(
 
     case 'chooseBasicLand': {
       if (a.kind !== 'chooseBasicLand') return 'not choosing a basic land';
-      const inDeck = me.deck.includes(action.cardId);
+      const inDeck = me.deck.some((card) => cardIdOf(card) === action.cardId);
       if (!inDeck) return 'basic not in deck';
       if (!def(db, action.cardId).supertypes?.includes('basic')) return 'not a basic land';
       return null;
