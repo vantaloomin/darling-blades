@@ -132,16 +132,20 @@ function spellOps(db: CardDb, cardId: string): EffectOp[] {
 export function removalKind(db: CardDb, cardId: string): RemovalKind | null {
   for (const ab of def(db, cardId).abilities ?? []) {
     if (ab.when !== 'spell') continue;
-    const nonCreatureTarget = ab.targets?.some(
+    const permanentTarget = ab.targets?.some(
       (target) =>
+        target.what === 'creature' ||
+        target.what === 'yourCreature' ||
+        target.what === 'any' ||
         target.what === 'artifact' ||
         target.what === 'enchantment' ||
         target.what === 'artifactOrEnchantment',
     );
     for (const op of ab.ops ?? []) {
       if (op.op === 'destroy') return 'destroy';
-      if (op.op === 'sever' && nonCreatureTarget) return 'sever';
-      if (op.op === 'recall' && nonCreatureTarget) return 'recall';
+      if ((op.op === 'sever' || op.op === 'recall') && permanentTarget) {
+        return op.op;
+      }
       if (op.op === 'destroyArtifactOrSeverEnchantment') return 'branch';
       if (op.op === 'massDestroy' && op.filter === 'allEnchantments') return 'massDestroy';
       if (op.op === 'destroyNewestOpponentArtifactOrEnchantment') return 'destroyNewest';

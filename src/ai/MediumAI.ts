@@ -493,6 +493,9 @@ export class MediumAI implements AIPlayer {
         if (!perm || perm.controller !== view.myId) continue;
         const pump = this.opBodies(this.cardIdFor(view, c)).find((o) => o.op === 'boost');
         if (!pump || pump.op !== 'boost') continue;
+        // A negative net boost is a debuff/removal effect, not a combat pump.
+        // Never aim that class of spell at our own creature.
+        if (pump.p + pump.t <= 0) continue;
         const isAttacker = view.combat.attackers.includes(perm.iid);
         const inBlocks = view.combat.blocks.some(
           (b) => b.blocker === perm.iid || b.attacker === perm.iid,
