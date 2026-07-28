@@ -30,6 +30,18 @@ gates every PR; the final `release/1.4` → main merge + `v1.4.0` tag is
 held for the user's explicit go; sync main → release/1.4 after any
 hotfix merge. The user authorizes every merge.
 
+> **Release deep sweep measured 2026-07-28** (the final pre-cut step per the
+> sweep-runs-last rule; turbo harness, 150 seeds x 80 swaps, 6 crafting
+> personas, best-response rounds): **max-rounds (4/4) without convergence** -
+> the field kept adapting through the full budget with no oscillation cycle.
+> Final adapted scores: Weenie 74.5% (1,668/2,240, 10 draws), Attrition
+> 70.0%, Reanimator 65.4%, Midrange 60.3%, Draw-Go 59.9%, Burn 55.2% (each
+> 2,250 decided unless noted). The Weenie top slot corroborates the
+> still-open go-wide gap independently of the static-field measurement;
+> both carry to the 1.5 Dark Tales power pass (plan-dt-power-pass.md).
+> Informational only by design; no gates move. Artifacts:
+> balance/sweep-1-4/2026-07-28-metagame-*.json (gitignored, sweep worktree).
+
 ## Pillar 0 — Dark Tales: The Cursed Storybook (Expansion 5)
 
 The concept doc is [expansions/dark-tales.md](expansions/dark-tales.md)
