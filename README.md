@@ -132,7 +132,7 @@ For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the even
 
 ## Project status
 
-**Darling Blades is 1.4.0** (engineering complete 2026-07-26; the release tag and merge remain pending). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 638 collectible cards have finished illustrated art, and the test suite is green.
+**Darling Blades is 1.4.0**, released 2026-07-28 (tag v1.4.0). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 638 collectible cards have finished illustrated art, and the test suite is green.
 
 **Shipped in 1.4** (see *What's new* above): the 120-card Dark Tales expansion and four tokens; the Skim and Retell mechanics; the 18-rung, 18-floor daily tower; the Dark Tales booster, precon, achievements, accepted art, and land style; collection variants and odds disclosure; the informational dev-only persona metagame loop; and the WebP art payload reduction.
 
