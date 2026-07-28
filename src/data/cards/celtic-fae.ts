@@ -279,7 +279,7 @@ export const CELTIC_FAE = [
     cost: cost(1, 'G'), colors: ['G'], attack: 1, defense: 4, keywords: ['bulwark'],
     rarity: 'c', flavor: 'Step inside the ring. Please. We insist.',
   }),
-  fae('cf-willow-wisp-guide', 'Willow-Wisp Guide', 'Wisp', {
+  fae('cf-willow-wisp-guide', 'Willow-Wisp Guide', 'Spirit', {
     cost: cost(2, 'G'), colors: ['G'], attack: 1, defense: 3, manaAbility: ['G'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }], rarity: 'c', flavor: 'It knows the safe road. It prefers the interesting one.',
   }),
