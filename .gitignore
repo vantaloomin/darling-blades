@@ -24,6 +24,17 @@ public/assets/art/cards-half/
 balance/
 scripts/card-reference.ts
 
+# ── Local MTG reference workbench (never committed) ───────────────────────
+# The corpus itself: third-party card data + a derived SQLite file. Large,
+# regenerable, and not ours to redistribute.
+mtg-cache/
+# The tooling that builds and queries it, kept local-only alongside the
+# card-reference workbench above. Rebuild with:
+#   npx tsx scripts/mtg-db.ts build --printings --tags
+scripts/mtg-db.ts
+docs/mtg-reference-db.md
+docs/mtg-db-playbook.md
+
 # ── Logs ──────────────────────────────────────────────────────────────────
 .artcrop-staging/
 
