@@ -4,7 +4,7 @@ import type { Emit } from './battlefield';
 import { fireTriggers } from './effects/EffectInterpreter';
 import { checkStateBased } from './sba';
 import type { CardDb, GameState, PlayerId } from './types';
-import { opponentOf } from './types';
+import { cardIdOf, opponentOf } from './types';
 
 export function endGame(
   state: GameState,
@@ -27,13 +27,13 @@ export function drawCards(
 ): void {
   const p = state.players[player];
   for (let i = 0; i < n; i++) {
-    const cardId = p.deck.pop(); // last element = top
-    if (cardId === undefined) {
+    const card = p.deck.pop(); // last element = top
+    if (card === undefined) {
       endGame(state, emit, opponentOf(player), 'deck');
       return;
     }
-    p.hand.push(cardId);
-    emit({ e: 'drew', player, cardId });
+    p.hand.push(card);
+    emit({ e: 'drew', player, cardId: cardIdOf(card) });
   }
 }
 

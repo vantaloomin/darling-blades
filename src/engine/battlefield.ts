@@ -1,6 +1,6 @@
 import type { GameEvent } from './events';
-import type { CardDb, GameState, Permanent, PlayerId } from './types';
-import { def } from './types';
+import type { CardDb, CardEntry, CardInstance, GameState, Permanent, PlayerId } from './types';
+import { cardIdOf, def, isCardInstance, variantKeyOf } from './types';
 
 export type Emit = (e: GameEvent) => void;
 
@@ -13,15 +13,24 @@ export type Emit = (e: GameEvent) => void;
 export function enterBattlefield(
   state: GameState,
   db: CardDb,
-  cardId: string,
+  card: CardEntry,
   controller: PlayerId,
   emit: Emit,
   opts: { asToken?: boolean; attachedTo?: number } = {},
 ): Permanent {
-  const d = def(db, cardId);
+  const cardId = cardIdOf(card);
+  const d = def(db, card);
+  const iid = state.nextIid++;
+  const instanceId = isCardInstance(card)
+    ? card.instanceId
+    : state.nextInstanceId !== undefined
+      ? state.nextInstanceId++
+      : iid;
   const perm: Permanent = {
-    iid: state.nextIid++,
+    iid,
+    instanceId,
     cardId,
+    variantKey: variantKeyOf(card),
     owner: controller,
     controller,
     tapped: d.entersTapped ?? false,
@@ -64,7 +73,7 @@ export function destroyPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
-  if (!d.token) state.players[perm.owner].graveyard.push(perm.cardId);
+  if (!d.token) pushMovedCard(state, perm, 'graveyard');
   emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
   return true;
 }
@@ -81,7 +90,7 @@ export function severPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
-  if (!d.token) state.players[perm.owner].severed.push(perm.cardId);
+  if (!d.token) pushMovedCard(state, perm, 'severed');
   emit({
     e: 'severed',
     player: perm.owner,
@@ -105,9 +114,26 @@ export function recallPermanent(
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
   if (!d.token) {
-    state.players[perm.owner].hand.push(perm.cardId);
+    pushMovedCard(state, perm, 'hand');
     emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
   }
   emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
   return true;
+}
+
+/** Preserve legacy string fixtures while keeping every Game-created move physical. */
+function pushMovedCard(
+  state: GameState,
+  perm: Permanent,
+  zone: 'hand' | 'graveyard' | 'severed',
+): void {
+  const card: CardEntry =
+    state.nextInstanceId === undefined
+      ? perm.cardId
+      : ({
+          instanceId: perm.instanceId ?? perm.iid,
+          cardId: perm.cardId,
+          variantKey: perm.variantKey ?? null,
+        } satisfies CardInstance);
+  state.players[perm.owner][zone].push(card);
 }

@@ -174,7 +174,34 @@ export interface CardDef {
 
 export type CardDb = Readonly<Record<string, CardDef>>;
 
-export function def(db: CardDb, cardId: string): CardDef {
+/**
+ * Physical identity for one copy of a card. `cardId` is the only rules
+ * identity; `variantKey` is opaque presentation metadata and is never read by
+ * the rules or AI layers.
+ */
+export interface CardInstance {
+  instanceId: number;
+  cardId: string;
+  variantKey: string | null;
+}
+
+/** Compatibility inputs accepted by the engine boundary. */
+export type CardEntry = string | CardInstance;
+
+export function cardIdOf(card: CardEntry): string {
+  return typeof card === 'string' ? card : card.cardId;
+}
+
+export function isCardInstance(card: CardEntry): card is CardInstance {
+  return typeof card !== 'string';
+}
+
+export function variantKeyOf(card: CardEntry): string | null {
+  return typeof card === 'string' ? null : card.variantKey;
+}
+
+export function def(db: CardDb, card: CardEntry): CardDef {
+  const cardId = cardIdOf(card);
   const d = db[cardId];
   if (!d) throw new Error(`Unknown card id: ${cardId}`);
   return d;
@@ -204,7 +231,11 @@ export interface UntilEotMod {
 
 export interface Permanent {
   iid: number;
+  /** Physical card identity; present on all Game-created permanents. */
+  instanceId?: number;
   cardId: string;
+  /** Opaque presentation metadata; never used by rules. */
+  variantKey?: string | null;
   owner: PlayerId;
   controller: PlayerId;
   tapped: boolean;
@@ -223,7 +254,11 @@ export interface Permanent {
 
 export interface StackItem {
   sid: number;
+  /** Physical card identity; present on all Game-created stack items. */
+  instanceId?: number;
   cardId: string;
+  /** Opaque presentation metadata; never used by rules. */
+  variantKey?: string | null;
   controller: PlayerId;
   targets: TargetRef[];
   x?: number;
@@ -262,7 +297,7 @@ export type Awaiting =
   | { player: PlayerId; kind: 'mulligan' }
   | { player: PlayerId; kind: 'bottomCards'; count: number }
   // `cards` are top-first. They are redacted to [] in an opponent PlayerView.
-  | { player: PlayerId; kind: 'foresee'; cards: string[] }
+  | { player: PlayerId; kind: 'foresee'; cards: CardEntry[] }
   | { player: PlayerId; kind: 'main' } // main1 or main2 (see state.step)
   | { player: PlayerId; kind: 'declareAttackers' }
   | { player: PlayerId; kind: 'declareBlockers' }
@@ -281,10 +316,10 @@ export type Awaiting =
 
 export interface PlayerState {
   life: number;
-  deck: string[]; // the draw pile (cardIds; LAST element is the top). Distinct from the meta-layer SaveData.decks (built decklists).
-  hand: string[];
-  graveyard: string[];
-  severed: string[]; // public, one-way in v1
+  deck: CardEntry[]; // CardInstances internally; string[] remains a compatibility input for direct fixtures.
+  hand: CardEntry[];
+  graveyard: CardEntry[];
+  severed: CardEntry[]; // public, one-way in v1
   landPlayedThisTurn: boolean;
   mulligans: number;
   keptHand: boolean;
@@ -313,9 +348,29 @@ export interface GameState {
   // Plain JSON so clone/restore remains exact.
   pendingDecisions: PendingDecision[];
   nextIid: number;
+  /** Next physical-card identity. Optional only for legacy hand-built states. */
+  nextInstanceId?: number;
   nextSid: number;
   winner: PlayerId | 'draw' | null;
   winReason: 'life' | 'deck' | 'concede' | 'turnLimit' | null;
+}
+
+/** The pre-1.5 state projection retained for existing scenes and AI callers. */
+export interface LegacyPlayerState extends Omit<PlayerState, 'deck' | 'hand' | 'graveyard' | 'severed'> {
+  deck: string[];
+  hand: string[];
+  graveyard: string[];
+  severed: string[];
+}
+
+export type LegacyAwaiting = Exclude<Awaiting, { kind: 'foresee' }> |
+  { player: PlayerId; kind: 'foresee'; cards: string[] };
+
+export interface LegacyGameState extends Omit<GameState, 'players' | 'awaiting' | 'battlefield' | 'stack'> {
+  players: [LegacyPlayerState, LegacyPlayerState];
+  battlefield: Permanent[];
+  stack: StackItem[];
+  awaiting: LegacyAwaiting;
 }
 
 export function opponentOf(p: PlayerId): PlayerId {

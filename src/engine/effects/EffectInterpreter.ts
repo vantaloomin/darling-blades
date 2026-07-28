@@ -20,7 +20,7 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../types';
-import { def, isType, opponentOf } from '../types';
+import { cardIdOf, def, isType, opponentOf } from '../types';
 
 export interface EffectContext {
   controller: PlayerId;
@@ -123,9 +123,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const hand = state.players[victim].hand;
       for (let i = 0; i < op.n && hand.length > 0; i++) {
         const idx = rngInt(state.rng, hand.length);
-        const [cardId] = hand.splice(idx, 1);
-        state.players[victim].graveyard.push(cardId);
-        emit({ e: 'discarded', player: victim, cardId });
+        const [card] = hand.splice(idx, 1);
+        state.players[victim].graveyard.push(card);
+        emit({ e: 'discarded', player: victim, cardId: cardIdOf(card) });
       }
       return;
     }
@@ -162,20 +162,20 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const victim = op.who === 'self' ? ctx.controller : opponentOf(ctx.controller);
       const grave = state.players[victim].graveyard;
       for (let i = 0; i < op.n; i++) {
-        const cardId = grave.pop(); // most recent card is the graveyard top
-        if (cardId === undefined) break;
-        state.players[victim].severed.push(cardId);
-        emit({ e: 'severed', player: victim, cardId, from: 'graveyard' });
+        const card = grave.pop(); // most recent card is the graveyard top
+        if (card === undefined) break;
+        state.players[victim].severed.push(card);
+        emit({ e: 'severed', player: victim, cardId: cardIdOf(card), from: 'graveyard' });
       }
       return;
     }
     case 'severTop': {
       const lib = state.players[ctx.controller].deck;
       for (let i = 0; i < op.n; i++) {
-        const cardId = lib.pop(); // top of deck is the last element
-        if (cardId === undefined) break;
-        state.players[ctx.controller].severed.push(cardId);
-        emit({ e: 'severed', player: ctx.controller, cardId, from: 'deck' });
+        const card = lib.pop(); // top of deck is the last element
+        if (card === undefined) break;
+        state.players[ctx.controller].severed.push(card);
+        emit({ e: 'severed', player: ctx.controller, cardId: cardIdOf(card), from: 'deck' });
       }
       return;
     }
@@ -190,11 +190,12 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const idx = state.stack.findIndex((s) => s.sid === ref.sid);
       if (idx >= 0) {
         const [item] = state.stack.splice(idx, 1);
+        const card = stackCard(state, item);
         if (item.retell) {
-          state.players[item.controller].severed.push(item.cardId);
+          state.players[item.controller].severed.push(card);
           emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
         } else {
-          state.players[item.controller].graveyard.push(item.cardId);
+          state.players[item.controller].graveyard.push(card);
         }
         emit({ e: 'spellCountered', sid: item.sid });
       }
@@ -234,8 +235,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const lib = state.players[ctx.controller].deck;
       // Distinct basic land types available to fetch.
       const distinct = new Set<string>();
-      for (const cardId of lib) {
-        if (def(db, cardId).supertypes?.includes('basic')) distinct.add(cardId);
+      for (const card of lib) {
+        const cardId = cardIdOf(card);
+        if (def(db, card).supertypes?.includes('basic')) distinct.add(cardId);
       }
       if (distinct.size >= 2) {
         // >1 type: defer to a player/AI choice, surfaced after the flush (see
@@ -310,8 +312,8 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       if (ref?.kind !== 'grave') return;
       const grave = state.players[ctx.controller].graveyard;
       if (ref.index < grave.length) {
-        const [cardId] = grave.splice(ref.index, 1);
-        state.players[ctx.controller].hand.push(cardId);
+        const [card] = grave.splice(ref.index, 1);
+        state.players[ctx.controller].hand.push(card);
       }
       return;
     }
@@ -319,10 +321,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const victim = op.who === 'self' ? ctx.controller : opponentOf(ctx.controller);
       const lib = state.players[victim].deck;
       for (let i = 0; i < op.n; i++) {
-        const cardId = lib.pop(); // top of deck is the last element
-        if (cardId === undefined) break; // empty deck: deck-out is a DRAW check, not here
-        state.players[victim].graveyard.push(cardId);
-        emit({ e: 'milled', player: victim, cardId });
+        const card = lib.pop(); // top of deck is the last element
+        if (card === undefined) break; // empty deck: deck-out is a DRAW check, not here
+        state.players[victim].graveyard.push(card);
+        emit({ e: 'milled', player: victim, cardId: cardIdOf(card) });
       }
       return;
     }
@@ -459,4 +461,14 @@ export function targetSpecsOf(
     if (ab.when !== 'static' && ab.targets && ab.targets.length > 0) return ab.targets;
   }
   return [];
+}
+
+function stackCard(state: GameState, item: { instanceId?: number; cardId: string; variantKey?: string | null }):
+  string | { instanceId: number; cardId: string; variantKey: string | null } {
+  if (state.nextInstanceId === undefined) return item.cardId;
+  return {
+    instanceId: item.instanceId ?? state.nextInstanceId++,
+    cardId: item.cardId,
+    variantKey: item.variantKey ?? null,
+  };
 }
