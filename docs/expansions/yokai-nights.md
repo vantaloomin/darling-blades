@@ -288,8 +288,11 @@ Both are proposals pending approval and later measurement. The tower grows from
 
 Each collectible card has exactly one color after the five demotions, except
 the five dual lands (D1 amendment 2026-07-28): the ally-pair tapped dual
-cycle (W/U, U/B, B/R, R/G, G/W) replaced the five mono taplands so the
-Battle Box reserve's dual slots have a roster. Dual lands are
+cycle (W/U, U/B, B/R, R/G, G/W) replaced the five mono taplands. Rationale
+corrected 2026-07-28: the wider pool already carries 23 tapped duals across
+all ten pairs; the swap stands (user decision on corrected facts) because
+mono taplands are strictly worse than basics and dual reprints per set are
+healthy precedent. Dual lands are
 colorless-identity cards producing either listed color; the remaining five
 enemy pairs wait for a future set.
 
