@@ -28,7 +28,7 @@ export const GOTHIC_MONSTERS = [
     empower: { cost: cost(2, 'B'), ops: [{ op: 'raise', to: 'top' }] },
     rarity: 'ur', flavor: 'She married the storm and kept the lightning as a dowry.',
   }),
-  creature('gm-luna-wolf-matriarch', 'Luna, Wolf-Matriarch of the Moors', ['Wolf', 'Werewolf', 'Noble'], {
+  creature('gm-luna-wolf-matriarch', 'Luna, Wolf-Matriarch of the Moors', ['Wolf', 'Noble'], {
     supertypes: ['legendary'], cost: cost(4, 'RG'), colors: ['R', 'G'], attack: 6, defense: 5,
     keywords: ['dreaded', 'overrun', 'warcry'],
     rarity: 'ur', flavor: 'Moonrise summons the pack; morning delivers the bill.',
@@ -129,7 +129,7 @@ export const GOTHIC_MONSTERS = [
     empower: { cost: cost(2, 'B'), ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] },
     rarity: 'r', flavor: 'One castle, one curse, and the best balcony in either.',
   }),
-  creature('gm-moonlit-werewolf', 'Moonlit Werewolf', ['Wolf', 'Werewolf'], {
+  creature('gm-moonlit-werewolf', 'Moonlit Werewolf', ['Wolf'], {
     cost: cost(3, 'R'), colors: ['R'], attack: 4, defense: 3, keywords: ['dreaded', 'overrun'],
     rarity: 'r', flavor: 'Moonlight, she maintains, is simply excellent dressing-room lighting.',
   }),
@@ -217,7 +217,7 @@ export const GOTHIC_MONSTERS = [
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }],
     rarity: 'r', flavor: 'Spirits evicted promptly. Postage billed to the chapel.',
   }),
-  creature('gm-widow-of-the-west-wing', 'Widow of the West Wing', ['Revenant', 'Ghost'], {
+  creature('gm-widow-of-the-west-wing', 'Widow of the West Wing', ['Revenant', 'Spirit'], {
     cost: cost(3, 'B'), colors: ['B'], attack: 3, defense: 3, keywords: ['skyborne', 'dreaded'],
     rarity: 'r', flavor: 'West wing, obviously. The east wing has dreadful wallpaper.',
   }),
@@ -240,7 +240,7 @@ export const GOTHIC_MONSTERS = [
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 2, t: 0, keywords: ['overrun'], scope: 'allYours' }] }],
     rarity: 'r', flavor: 'The moon rises red, and everyone suddenly has plans.',
   },
-  creature('gm-choir-of-the-dead', 'Choir of the Dead', ['Revenant', 'Ghost'], {
+  creature('gm-choir-of-the-dead', 'Choir of the Dead', ['Revenant', 'Spirit'], {
     cost: cost(3, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['skyborne', 'bloodoath'],
     rarity: 'r', flavor: 'Admission is free; the harmony comes straight from the grave.',
   }),

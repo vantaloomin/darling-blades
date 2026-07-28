@@ -53,7 +53,7 @@ export const ARTHURIAN_COURT = [
   // =========================================================================
   creature('ac-lancelot-moonlit-shame', 'Lancelot, Moonlit Shame', ['Knight', 'Champion'], {
     supertypes: ['legendary'], cost: cost(4, 'WR'), colors: ['W', 'R'], attack: 5, defense: 4,
-    keywords: ['twinBlades'], awakening: { p: 2, t: 1, keywords: ['firstBlade'] },
+    keywords: ['firstBlade'], awakening: { p: 2, t: 1, keywords: ['twinBlades'] },
     rarity: 'ssr', flavor: 'She rides beneath the moon, carrying a shame no banner can hide.',
   }),
   creature('ac-guinevere-court-sun', 'Guinevere, Court Sun', ['Noble', 'Queen'], {
@@ -107,7 +107,7 @@ export const ARTHURIAN_COURT = [
     }],
     rarity: 'sr', flavor: 'Her purity is not gentleness; it is a blade that refuses to bend.',
   }),
-  creature('ac-merlin-crow-clock', 'Merlin, Crow-Clock Sage', ['Wizard', 'Sage'], {
+  creature('ac-merlin-crow-clock', 'Merlin, Crow-Clock Sage', ['Mage', 'Sage'], {
     cost: cost(3, 'U'), colors: ['U'], attack: 2, defense: 4,
     abilities: [
       { when: 'arrives', ops: [{ op: 'foresee', n: 2 }] },

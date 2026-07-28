@@ -79,13 +79,41 @@ function targetNoun(spec: TargetSpec | undefined): string {
   }
 }
 
-function opText(op: EffectOp, target?: TargetSpec): string {
+function referencesAbilityTarget(op: EffectOp): boolean {
+  switch (op.op) {
+    case 'damage':
+      return op.to === 'target';
+    case 'destroy':
+    case 'sever':
+    case 'recall':
+    case 'cancel':
+    case 'tap':
+      return op.to === 'target';
+    case 'destroyArtifactOrSeverEnchantment':
+      return op.to === 'target';
+    case 'boost':
+      return op.scope === 'target';
+    case 'addCounters':
+      return op.to === 'target';
+    case 'reclaim':
+      return true;
+    case 'raise':
+      return op.to !== 'top';
+    default:
+      return false;
+  }
+}
+
+function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): string {
   switch (op.op) {
     case 'damage': {
       const n = op.n === 'X' ? 'X' : op.n;
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
-      return `deal ${n} damage to any target`;
+      const recipient = target?.what === 'creature'
+        ? targetAlreadyNamed ? 'that creature' : 'target creature'
+        : 'any target';
+      return `deal ${n} damage to ${recipient}`;
     }
     case 'gainLife':
       return `you gain ${op.n} life`;
@@ -127,7 +155,7 @@ function opText(op: EffectOp, target?: TargetSpec): string {
         ? `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on this`
         : `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on target creature`;
     case 'tap':
-      return 'tap target creature';
+      return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
     case 'fetchLand':
       return 'search your deck for a basic land and put it into play tapped';
     case 'createToken': {
@@ -223,7 +251,12 @@ function abilityText(ab: AbilityDef): string {
     return `${prefix}${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`;
   }
 
-  const body = (ab.ops ?? []).map((op) => opText(op, ab.targets?.[0])).join(', then ');
+  let targetAlreadyNamed = false;
+  const body = (ab.ops ?? []).map((op) => {
+    const text = opText(op, ab.targets?.[0], targetAlreadyNamed);
+    targetAlreadyNamed ||= referencesAbilityTarget(op);
+    return text;
+  }).join(', then ');
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   let sentence: string;
   switch (ab.when) {
@@ -302,7 +335,7 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   }
   // Printed only on either/or duals — mono taplands stay bare by design,
   // even though entersTapped still applies mechanically.
-  if (d.entersTapped && (d.manaAbility?.length ?? 0) > 1) {
+  if (d.entersTapped) {
     lines.push('Arrives tapped.');
   }
   if (d.awakening) lines.push(awakeningText(d));
