@@ -290,8 +290,13 @@ export class SaveManager {
    * explicitly non-full-art three-part keys; v21 -> v22 stamps tower roster
    * identity and adds per-deck land-art selection.
    * An unknown/garbage version starts fresh rather than crash.
+   *
+   * Public and this-free by design: SaveCode (the export/import codec) routes
+   * decoded payloads through this exact method so a code import and a normal
+   * load can never disagree. Construct with an in-memory Storage-like stub
+   * when no real storage is involved.
    */
-  private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
+  migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
     if (cur.version === 1) {
       const base = freshSave(now);
