@@ -33,6 +33,7 @@ mtg-cache/
 #   npx tsx scripts/mtg-db.ts build --printings --tags
 scripts/mtg-db.ts
 docs/mtg-reference-db.md
+docs/mtg-db-playbook.md
 
 # ── Logs ──────────────────────────────────────────────────────────────────
 .artcrop-staging/

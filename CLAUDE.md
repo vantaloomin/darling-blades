@@ -83,8 +83,11 @@ expect to rebuild after cloning to a new machine.
   cost against real precedent, and `like --text "<effect>"` to find the MTG
   analogs of a card being designed. Rebuild with
   `npx tsx scripts/mtg-db.ts build --printings --tags`; `mtg-db.ts` carries its
-  own usage header, and `docs/mtg-reference-db.md` (also local-only) has the
-  schema and query recipes. Sourced from Scryfall bulk by default
+  own usage header, and two local-only docs sit beside it —
+  `docs/mtg-reference-db.md` (schema, build flags, query recipes) and
+  `docs/mtg-db-playbook.md` (how to cost against precedent, the era filter that
+  keeps modern power creep out of our numbers, and where MTG precedent stops
+  applying here). Sourced from Scryfall bulk by default
   (magicthegathering.io is supported but frozen at 2024-08).
 
 None of this is ever committed, and corpus rows are never copied into
