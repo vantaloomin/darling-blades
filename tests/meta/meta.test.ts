@@ -1064,7 +1064,7 @@ describe('applyGauntletResult', () => {
   });
 
   it('clearing the final rung pays the completion bonus and ends the run', () => {
-    const finalRung = ECONOMY.gauntletRungGold.length; // 18 since the Dark Tales summit
+    const finalRung = ECONOMY.gauntletRungGold.length; // 20 since the Yokai Nights summit
     const save = freshSave(0);
     save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
     save.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
@@ -1094,7 +1094,7 @@ describe('applyGauntletResult', () => {
     expect(dual.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 1 });
   });
 
-  it('a full 18-rung run pays exactly 4210 gold plus the daily bonus once', () => {
+  it('a full 20-rung run pays exactly 5050 gold plus the daily bonus once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
@@ -1103,9 +1103,9 @@ describe('applyGauntletResult', () => {
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(3960); // 50+70+Ã¢â‚¬Â¦+390 across 18 rungs (1.4 added 17-18)
+    expect(rungSum).toBe(4800); // 20-rung progression through 430g (1.5 added 19-20)
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(4310); // 3960 + 250 + 100 (daily bonus once)
+    expect(total).toBe(5150); // 4800 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 
@@ -1238,4 +1238,3 @@ describe('claimFreeStarter v23 deck defaults', () => {
     });
   });
 });
-
