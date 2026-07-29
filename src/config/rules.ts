@@ -1,5 +1,16 @@
 /** Every ruleset constant lives here — the engine reads only from this file. */
 
+/** `constructed`/`battlebox` are the persisted deck-format spellings. */
+export type ReserveFormat = 'battleBox' | 'battlebox' | 'darlings';
+export type GameFormat = 'classic' | 'constructed' | ReserveFormat;
+
+export function usesLandReserve(format: GameFormat | undefined): boolean {
+  return format === 'battleBox' || format === 'battlebox' || format === 'darlings';
+}
+
+export const LAND_RESERVE_SIZE = 10;
+export const MAX_DUAL_LANDS_IN_RESERVE = 5;
+
 export const RULES = {
   startingLife: 20,
   deckSize: 60,

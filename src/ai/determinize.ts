@@ -131,7 +131,12 @@ export function simDb(db: CardDb): CardDb {
 
 // --- deck-shape priors -------------------------------------------------------
 
-/** Fraction of a deck assumed to be lands (both gate decks run 16/40). */
+/**
+ * Keep this at zero. In reserve views, Game.restore rejects land cards in
+ * hidden hand/deck zones, so a nonzero prior would inject `__unknown_land` and
+ * poison the search. This is part of the conservative negative-results
+ * convention documented in the module header.
+ */
 const LAND_FRACTION = 0.0;
 /** Fraction assumed to be instants/sorceries — removal + tricks. */
 const INTERACTION_FRACTION = 0.0;
@@ -246,11 +251,20 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     view.battlefield.filter((perm) => perm.owner === p).map((perm) => perm.cardId);
 
   // My side: I can see my hand, so only the deck is hidden.
-  const mySeen = countSeen(db, [...owned(me), ...view.you.graveyard, ...view.you.hand]);
+  const mySeen = countSeen(db, [
+    ...owned(me),
+    ...view.you.graveyard,
+    ...view.you.hand,
+    ...(view.you.landReserve ?? []),
+  ]);
   const myFill = fillZones(hiddenCategoryCounts(mySeen, view.you.deckCount), 0, fillRng);
 
   // Their side: hand + deck are hidden; battlefield + graveyard are public.
-  const theirSeen = countSeen(db, [...owned(opp), ...view.opp.graveyard]);
+  const theirSeen = countSeen(db, [
+    ...owned(opp),
+    ...view.opp.graveyard,
+    ...(view.opp.landReserve ?? []),
+  ]);
   const theirHidden = view.opp.handCount + view.opp.deckCount;
   const theirFill = fillZones(
     hiddenCategoryCounts(theirSeen, theirHidden),
@@ -264,6 +278,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     hand: [...view.you.hand],
     graveyard: [...view.you.graveyard],
     severed: [...view.you.severed],
+    ...(view.you.landReserve !== undefined ? { landReserve: [...view.you.landReserve] } : {}),
     landPlayedThisTurn: view.you.landPlayedThisTurn,
     mulligans: view.you.mulligans,
     keptHand: true,
@@ -274,6 +289,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     hand: theirFill.hand,
     graveyard: [...view.opp.graveyard],
     severed: [...view.opp.severed],
+    ...(view.opp.landReserve !== undefined ? { landReserve: [...view.opp.landReserve] } : {}),
     landPlayedThisTurn: view.opp.landPlayedThisTurn,
     mulligans: view.opp.mulligans,
     keptHand: true,
