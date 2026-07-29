@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { manaValue } from '../../src/engine/types';
+import { manaValue, validateHauntlinkDef } from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
 import { ARTHURIAN_COURT } from '../../src/data/cards/arthurian-court';
@@ -22,6 +22,14 @@ import { TK_WU } from '../../src/data/cards/tk-wu';
 import { TOKENS } from '../../src/data/cards/tokens';
 
 describe('catalog integrity', () => {
+  it('has no invalid Hauntlink definitions', () => {
+    for (const card of Object.values(CARD_DB)) {
+      if (!card.hauntlink) continue;
+      const errors = validateHauntlinkDef(card);
+      expect(errors, `${card.id} has invalid Hauntlink: ${errors.join('; ')}`).toEqual([]);
+    }
+  });
+
   it('has no duplicate ids', () => {
     const seen = new Set<string>();
     for (const card of ALL_CARDS) {

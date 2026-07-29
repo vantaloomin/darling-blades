@@ -45,7 +45,8 @@ export function enterBattlefield(
   state.battlefield.push(perm);
   if (opts.attachedTo !== undefined) {
     const host = state.battlefield.find((p) => p.iid === opts.attachedTo);
-    host?.attachments.push(perm.iid);
+    if (!host) throw new Error(`enterBattlefield: missing attachment host ${opts.attachedTo}`);
+    host.attachments.push(perm.iid);
   }
   emit(
     opts.asToken

@@ -88,6 +88,15 @@ export function getEffectiveStats(
         for (const k of st.grantKeywords ?? []) keywords.add(k);
       }
     }
+
+    // Hauntlink's Linked rider is the same attached-static layer as an Aura,
+    // but its authoring surface is explicit on CardDef and the source is
+    // always a noncreature Artifact or Enchantment.
+    if (srcDef.hauntlink && src.attachedTo === iid) {
+      attack += srcDef.hauntlink.linked.p ?? 0;
+      defense += srcDef.hauntlink.linked.t ?? 0;
+      for (const k of srcDef.hauntlink.linked.grantKeywords ?? []) keywords.add(k);
+    }
   }
 
   return { attack, defense, keywords };

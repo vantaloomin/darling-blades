@@ -12,14 +12,19 @@ export function isAura(d: CardDef): boolean {
   return d.subtypes.includes('Aura');
 }
 
-/** Cast-time target specs: auras implicitly target a creature to enchant. */
+/** Cast-time target specs: auras and Hauntlink casts target a creature. */
 export function castTargetSpecs(d: CardDef): readonly TargetSpec[] {
   if (isAura(d)) return [{ what: 'creature' }];
   return targetSpecsOf(d.abilities);
 }
 
 /** R4 override casts use their target-free Retell ops instead of printed body. */
-export function castTargetSpecsFor(d: CardDef, retell: boolean): readonly TargetSpec[] {
+export function castTargetSpecsFor(
+  d: CardDef,
+  retell: boolean,
+  hauntlinked = false,
+): readonly TargetSpec[] {
+  if (hauntlinked) return [{ what: 'yourCreature' }];
   return retell && d.retell?.ops ? [] : castTargetSpecs(d);
 }
 
@@ -46,7 +51,7 @@ export function resolveStackItem(
 ): void {
   const d = def(db, item.cardId);
 
-  const specs = castTargetSpecsFor(d, item.retell === true);
+  const specs = castTargetSpecsFor(d, item.retell === true, item.hauntlinked === true);
   if (specs.length > 0) {
     const anyLegal = item.targets.some(
       (ref, i) => specs[i] && isLegalTarget(state, db, item.controller, specs[i], ref),
@@ -62,8 +67,19 @@ export function resolveStackItem(
 
   if (isType(d, 'creature') || isType(d, 'artifact') || isType(d, 'enchantment')) {
     const attachedTo =
-      isAura(d) && item.targets[0]?.kind === 'permanent' ? item.targets[0].iid : undefined;
+      (isAura(d) || item.hauntlinked === true) && item.targets[0]?.kind === 'permanent'
+        ? item.targets[0].iid
+        : undefined;
     const perm = enterBattlefield(state, db, stackCard(state, item), item.controller, emit, { attachedTo });
+    if (item.hauntlinked && attachedTo !== undefined) {
+      emit({
+        e: 'hauntlinkFormed',
+        linkIid: perm.iid,
+        hostIid: attachedTo,
+        cardId: perm.cardId,
+        controller: perm.controller,
+      });
+    }
     fireTriggers(state, db, emit, 'arrives', perm);
     runEmpowerRider(state, db, item, d, emit, perm.iid);
     return;

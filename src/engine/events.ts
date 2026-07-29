@@ -19,12 +19,22 @@ export type GameEvent =
   | { e: 'landPlayed'; player: PlayerId; iid: number; cardId: string }
   | { e: 'manaTapped'; player: PlayerId; iids: number[] }
   | { e: 'skimmed'; player: PlayerId; cardId: string }
-  | { e: 'spellCast'; sid: number; cardId: string; controller: PlayerId; targets: TargetRef[] }
+  | {
+      e: 'spellCast';
+      sid: number;
+      cardId: string;
+      controller: PlayerId;
+      targets: TargetRef[];
+      /** Present only for the alternate Hauntlink cast; omitted means normal. */
+      hauntlinked?: true;
+    }
   | { e: 'responseWindowOpened'; player: PlayerId }
   | { e: 'spellResolved'; sid: number }
   | { e: 'spellCountered'; sid: number }
   | { e: 'targetsFizzled'; sid: number }
   | { e: 'permanentEntered'; perm: Permanent }
+  | { e: 'hauntlinkFormed'; linkIid: number; hostIid: number; cardId: string; controller: PlayerId }
+  | { e: 'hauntlinkBroken'; linkIid: number; hostIid: number; cardId: string; owner: PlayerId }
   | { e: 'chapterAdvanced'; iid: number; cardId: string; chapter: number }
   | { e: 'awakened'; iid: number; cardId: string }
   | { e: 'attackersDeclared'; iids: number[] }

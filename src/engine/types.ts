@@ -135,6 +135,17 @@ export interface RetellDef {
   ops?: EffectOp[];
 }
 
+/** Alternate linked cast for a noncreature Artifact or Enchantment. */
+export interface HauntlinkDef {
+  cost: ManaCost;
+  /** The printed Linked rider, applied as an attached static to the host. */
+  linked: {
+    p?: number;
+    t?: number;
+    grantKeywords?: Keyword[];
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Card definitions (static data). The engine receives a CardDb via the Game
 // constructor — it never imports the catalog, so tests can inject tiny pools.
@@ -163,6 +174,8 @@ export interface CardDef {
   skim?: SkimDef;
   /** Optional alternative-cost cast from this card's graveyard. */
   retell?: RetellDef;
+  /** Optional alternative-cost cast that enters attached to a friendly creature. */
+  hauntlink?: HauntlinkDef;
   manaAbility?: Color[]; // lands & mana creatures
   entersTapped?: boolean; // dual taplands
   rarity: Rarity;
@@ -211,6 +224,33 @@ export function isType(d: CardDef, t: CardType): boolean {
   return d.types.includes(t);
 }
 
+/** Catalog-facing S4 validation. Invalid carriers are never silently treated as Hauntlink cards. */
+export function validateHauntlinkDef(d: CardDef): string[] {
+  if (!d.hauntlink) return [];
+  const errors: string[] = [];
+  if (!d.cost) errors.push('Hauntlink carrier needs a normal mana cost');
+  if (isType(d, 'creature')) errors.push('Hauntlink carrier cannot be a creature');
+  if (!isType(d, 'artifact') && !isType(d, 'enchantment')) {
+    errors.push('Hauntlink carrier must be an Artifact or Enchantment');
+  }
+  if (d.subtypes.includes('Aura')) errors.push('Hauntlink carrier cannot be an Aura');
+  if (d.x) errors.push('Hauntlink carrier cannot be X');
+  if (d.empower) errors.push('Hauntlink carrier cannot combine with Empower');
+  if (d.skim) errors.push('Hauntlink carrier cannot combine with Skim');
+  if (d.retell) errors.push('Hauntlink carrier cannot combine with Retell');
+  if ((d.abilities ?? []).some((ability) => ability.static?.scope === 'attached')) {
+    errors.push('Hauntlink carrier cannot also carry an attached static');
+  }
+  if (
+    d.hauntlink.linked.p === undefined &&
+    d.hauntlink.linked.t === undefined &&
+    (d.hauntlink.linked.grantKeywords?.length ?? 0) === 0
+  ) {
+    errors.push('Hauntlink carrier needs a Linked rider');
+  }
+  return errors;
+}
+
 export function manaValue(cost: ManaCost | undefined): number {
   if (!cost) return 0;
   let v = cost.generic;
@@ -242,8 +282,8 @@ export interface Permanent {
   enteredThisTurn: boolean; // summoning sickness, checked vs haste on read
   damage: number; // marked damage, cleared at cleanup
   deathtouched: boolean; // took damage from a deathtouch source this turn
-  attachments: number[]; // aura iids attached to me
-  attachedTo?: number; // set if I am an aura
+  attachments: number[]; // aura/Hauntlink iids attached to me
+  attachedTo?: number; // set if I am an attached aura or Hauntlink permanent
   plusOneCounters: number;
   untilEotMods: UntilEotMod[];
   /** Current chapter number. Arrival enters I; each later controller dawn increments it. */
@@ -266,6 +306,8 @@ export interface StackItem {
   empowered?: boolean;
   /** Omitted means the card was cast from hand. */
   retell?: boolean;
+  /** Omitted means the ordinary cast; true means pay Hauntlink and attach. */
+  hauntlinked?: boolean;
 }
 
 export type TargetRef =
