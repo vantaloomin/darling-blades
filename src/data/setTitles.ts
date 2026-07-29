@@ -1,7 +1,7 @@
 /** Set ids as they appear on CardDef.set ('base' when absent). Kept in the
  * data layer so meta/data consumers avoid presentation imports; the identical
  * CardSetId union in src/art/setIcons.ts is presentation-side. */
-export type SetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales';
+export type SetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights';
 
 /**
  * Player-facing set titles (user-directed 2026-07-20): expansions surface
@@ -16,4 +16,5 @@ export const SET_TITLES: Readonly<Record<SetId, string>> = Object.freeze({
   'arthurian-court': 'Grail Oath',
   'gothic-monsters': 'Nocturne Manor',
   'dark-tales': 'Dark Tales',
+  'yokai-nights': 'Yokai Nights',
 });

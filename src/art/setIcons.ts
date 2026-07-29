@@ -11,7 +11,7 @@
  * four-point star ("The Silver Veil"); arthurian-court = a five-point royal
  * crown. Tuned to read at ~21px on the card face and ~40px in the glossary.
  */
-export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales';
+export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights';
 
 export const SET_ICON_PATHS: Record<CardSetId, string> = {
   // Heart pierced by a blade: grip + crossguard above the cleft, a tapered
@@ -47,4 +47,11 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
   'dark-tales':
     'M8 18 C23 12 38 14 50 23 L50 88 C38 78 23 77 8 84 Z ' +
     'M50 23 C62 14 77 12 92 18 L92 84 C77 77 62 78 50 88 Z',
+  // Split kitsune mask with two punched eyes, crossed by one hooked signal cable.
+  'yokai-nights':
+    'M8 26 C20 14 37 12 50 22 L50 78 C37 88 20 86 8 74 Z ' +
+    'M50 22 C63 12 80 14 92 26 L92 74 C80 86 63 88 50 78 Z ' +
+    'M22 50 C22 45 24 40 27 36 C28 41 31 43 33 46 C34 51 31 56 27 58 C24 57 22 54 22 50 Z ' +
+    'M68 38 L82 38 L82 52 L68 52 Z ' +
+    'M48 6 L54 6 L54 16 L63 16 L63 22 L54 22 L54 58 C54 70 66 76 78 70 L88 64 L92 70 L80 78 C62 88 46 76 46 58 L46 22 L37 22 L37 16 L46 16 L46 6 Z',
 };

@@ -60,7 +60,7 @@ export interface CollectionFilterState {
   color: Color | 'all';
   type: CardType | 'all';
   rarity: Rarity | 'all';
-  set: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'all';
+  set: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'all';
   ownedOnly: boolean;
   /** Free-text search over name / type / subtype / keyword (F8); '' = no filter. */
   search: string;

@@ -1,5 +1,5 @@
 import type { Emit } from './battlefield';
-import { destroyPermanent } from './battlefield';
+import { destroyPermanent, firesDiesForDestroy } from './battlefield';
 import { fireTriggers } from './effects/EffectInterpreter';
 import { endGame } from './phases';
 import { getEffectiveStats } from './statics';
@@ -96,7 +96,10 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
           owner: perm.owner,
         });
       }
-      if (destroyPermanent(state, db, perm, emit)) fallen.push(perm);
+      if (destroyPermanent(state, db, perm, emit)) {
+        if (firesDiesForDestroy(state, db, perm)) fallen.push(perm);
+        changed = true;
+      }
     }
     for (const perm of fallen) {
       if (state.winner !== null) return;
