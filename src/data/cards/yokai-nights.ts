@@ -1567,7 +1567,7 @@ function parseCard(row: YokaiSpecRow): CardDef {
     rarity: row.rarity.toLowerCase() as CardDef['rarity'],
     flavor: row.flavor,
   };
-  return { ...card, set: 'yokai-nights' } as unknown as CardDef;
+  return { ...card, set: 'yokai-nights' };
 }
 
 /** Compiled from the exact table rows above. */
