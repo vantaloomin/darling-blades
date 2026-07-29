@@ -465,7 +465,15 @@ export class PracticePickerScene extends Phaser.Scene {
     this.launchNotice.setText(message);
   }
 
-  /** Render an avatar portrait into a stable, masked tile crop. */
+  /**
+   * Render an avatar portrait cropped to the tile window.
+   *
+   * The crop is done in texture space rather than with a geometry mask. A mask
+   * here would be a second stencil nested inside the strip's own masked
+   * content container, and Phaser's WebGL renderer does not nest geometry
+   * masks: once the strip scrolled, every portrait rendered offset from its
+   * tile even though image and mask agreed on their world transforms.
+   */
   private addPortrait(
     cardId: string,
     x: number,
@@ -480,12 +488,20 @@ export class PracticePickerScene extends Phaser.Scene {
       const img = this.add.image(x, y, ref.textureKey, ref.frameName);
       const scale = Math.max(targetW / img.width, targetH / img.height) * 1.1;
       img.setScale(scale);
-      img.y = y - targetH * 0.07;
-      const maskShape = this.add
-        .rectangle(x, y, targetW, targetH, colorInt(theme.colors.heading))
-        .setVisible(false);
-      img.setMask(maskShape.createGeometryMask());
-      parent.add([img, maskShape]);
+      const cropW = Math.min(img.width, targetW / scale);
+      const cropH = Math.min(img.height, targetH / scale);
+      const cropX = (img.width - cropW) / 2;
+      // Bias the window upward so faces sit in frame, the same 7% the masked
+      // version applied by nudging the image instead of the crop.
+      const cropY = Math.max(
+        0,
+        Math.min(img.height - cropH, (img.height - cropH) / 2 - (targetH * 0.07) / scale),
+      );
+      img.setCrop(cropX, cropY, cropW, cropH);
+      // A crop renders where it sits inside the frame, so re-centre the
+      // cropped window on the tile.
+      img.y = y - (cropY + cropH / 2 - img.height / 2) * scale;
+      parent.add(img);
       return img;
     } catch {
       // The tokenized tile and name remain usable if art is unavailable.
