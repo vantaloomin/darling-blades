@@ -2,6 +2,7 @@ import type { Action } from '../engine/actions';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
 import type { CardDb, PlayerId } from '../engine/types';
+import { usesLandReserve, type GameFormat, type ReserveFormat } from '../config/rules';
 
 /**
  * Deterministic replays (1.2, plan-road-to-1.0 Feature 4's deferred slice).
@@ -20,7 +21,7 @@ import type { CardDb, PlayerId } from '../engine/types';
 // Hauntlink adds an observable alternate cast mode, a public host target, and
 // link lifecycle events. Old logs must fail closed instead of replaying under
 // the changed resolution and SBA rules.
-export const REPLAY_LOG_VERSION = 3 as const;
+export const REPLAY_LOG_VERSION = 4 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 
@@ -43,6 +44,10 @@ export interface ReplayLog {
   seed: number;
   /** [human deck, AI deck] card-id lists, exactly as passed to `new Game`. */
   decks: [string[], string[]];
+  /** Present only for reserve-format logs. Classic logs retain their old shape. */
+  format?: ReserveFormat;
+  /** Ordered reserve payload reconstructed before replaying reserve choices. */
+  landReserves?: [string[], string[]];
   context: ReplayContext;
   /** Every successful `Game.submit`, in order, both seats. */
   actions: { p: PlayerId; a: Action }[];
@@ -75,8 +80,10 @@ export function startReplayDraft(init: {
   seed: number;
   decks: [string[], string[]];
   context: ReplayContext;
+  format?: GameFormat;
+  landReserves?: [string[], string[]];
 }): ReplayDraft {
-  return {
+  const draft: ReplayDraft = {
     v: REPLAY_LOG_VERSION,
     dbStamp: init.dbStamp,
     seed: init.seed,
@@ -84,6 +91,12 @@ export function startReplayDraft(init: {
     context: { ...init.context },
     actions: [],
   };
+  if (init.format && usesLandReserve(init.format)) {
+    if (!init.landReserves) throw new Error('Reserve replay drafts require landReserves.');
+    draft.format = init.format as ReserveFormat;
+    draft.landReserves = [init.landReserves[0].slice(), init.landReserves[1].slice()];
+  }
+  return draft;
 }
 
 /** Record one successful submit. The action is deep-copied so later mutation
@@ -141,7 +154,20 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
     }
     throw new Error('This replay was recorded on a different card database and cannot be replayed.');
   }
-  const game = new Game({ decks: [log.decks[0].slice(), log.decks[1].slice()], seed: log.seed, db });
+  if (log.format && !log.landReserves) {
+    throw new Error('This reserve replay is missing its land-reserve payload.');
+  }
+  const game = new Game({
+    decks: [log.decks[0].slice(), log.decks[1].slice()],
+    seed: log.seed,
+    db,
+    ...(log.format
+      ? {
+          format: log.format,
+          landReserves: [log.landReserves?.[0]?.slice() ?? [], log.landReserves?.[1]?.slice() ?? []],
+        }
+      : {}),
+  });
   const eventLog: GameEvent[] = [...game.initialEvents];
   for (const step of log.actions) eventLog.push(...game.submit(step.p, step.a));
   return { game, eventLog };
@@ -156,8 +182,14 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
 export function isReplayLog(value: unknown): value is ReplayLog {
   if (!value || typeof value !== 'object') return false;
   const log = value as Partial<ReplayLog>;
+  const reserveShape =
+    (log.format === undefined && log.landReserves === undefined) ||
+    ((log.format === 'battleBox' || log.format === 'battlebox' || log.format === 'darlings') &&
+      Array.isArray(log.landReserves) &&
+      log.landReserves.length === 2 &&
+      log.landReserves.every((r) => Array.isArray(r) && r.every((id) => typeof id === 'string')));
   return (
-    (log.v === REPLAY_LOG_VERSION || log.v === REPLAY_LOG_VERSION - 1) &&
+    (log.v === REPLAY_LOG_VERSION || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     Array.isArray(log.decks) &&
@@ -172,5 +204,6 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     (log.result === 'win' || log.result === 'loss') &&
     typeof log.endedAt === 'number' &&
     typeof log.turns === 'number'
+    && reserveShape
   );
 }

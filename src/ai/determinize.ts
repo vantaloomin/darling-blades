@@ -246,11 +246,20 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     view.battlefield.filter((perm) => perm.owner === p).map((perm) => perm.cardId);
 
   // My side: I can see my hand, so only the deck is hidden.
-  const mySeen = countSeen(db, [...owned(me), ...view.you.graveyard, ...view.you.hand]);
+  const mySeen = countSeen(db, [
+    ...owned(me),
+    ...view.you.graveyard,
+    ...view.you.hand,
+    ...(view.you.landReserve ?? []),
+  ]);
   const myFill = fillZones(hiddenCategoryCounts(mySeen, view.you.deckCount), 0, fillRng);
 
   // Their side: hand + deck are hidden; battlefield + graveyard are public.
-  const theirSeen = countSeen(db, [...owned(opp), ...view.opp.graveyard]);
+  const theirSeen = countSeen(db, [
+    ...owned(opp),
+    ...view.opp.graveyard,
+    ...(view.opp.landReserve ?? []),
+  ]);
   const theirHidden = view.opp.handCount + view.opp.deckCount;
   const theirFill = fillZones(
     hiddenCategoryCounts(theirSeen, theirHidden),
@@ -264,6 +273,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     hand: [...view.you.hand],
     graveyard: [...view.you.graveyard],
     severed: [...view.you.severed],
+    ...(view.you.landReserve !== undefined ? { landReserve: [...view.you.landReserve] } : {}),
     landPlayedThisTurn: view.you.landPlayedThisTurn,
     mulligans: view.you.mulligans,
     keptHand: true,
@@ -274,6 +284,7 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     hand: theirFill.hand,
     graveyard: [...view.opp.graveyard],
     severed: [...view.opp.severed],
+    ...(view.opp.landReserve !== undefined ? { landReserve: [...view.opp.landReserve] } : {}),
     landPlayedThisTurn: view.opp.landPlayedThisTurn,
     mulligans: view.opp.mulligans,
     keptHand: true,

@@ -4,6 +4,7 @@ import { def, isType, manaValue } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
 import { chooseForesee } from './foresee';
+import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 
 /**
@@ -67,6 +68,8 @@ export class ScriptAI implements AIPlayer {
     }
 
     // Own main phase: build the board — land, then the cheapest creature, then pass.
+    const reserveLand = chooseReserveLand(view, this.db, legal);
+    if (reserveLand) return reserveLand;
     const playLand = legal.find((l) => l.type === 'playLand');
     if (playLand) return playLand;
 

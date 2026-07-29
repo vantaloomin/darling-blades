@@ -1,4 +1,10 @@
-import { RULES } from '../config/rules';
+import {
+  LAND_RESERVE_SIZE,
+  MAX_DUAL_LANDS_IN_RESERVE,
+  RULES,
+  type GameFormat,
+  usesLandReserve,
+} from '../config/rules';
 import type { Action } from './actions';
 import { legalActions, validateAction } from './actions';
 import { hasCastableInstant } from './actions';
@@ -40,8 +46,92 @@ export interface GameConfig {
   decks: [CardEntry[], CardEntry[]];
   seed: number;
   db: CardDb;
+  /** Classic is the default. Battle Box and Darlings use ordered land reserves. */
+  format?: GameFormat;
+  /** One ordered ten-land payload per seat for reserve formats. */
+  landReserves?: [CardEntry[], CardEntry[]];
   /** Opt into the pre-deal coin-flip winner's play/draw decision. */
   playDrawChoice?: boolean;
+}
+
+function isBasicLand(card: CardEntry, db: CardDb): boolean {
+  return db[cardIdOf(card)]?.supertypes?.includes('basic') ?? false;
+}
+
+function isDualLand(card: CardEntry, db: CardDb): boolean {
+  return new Set(db[cardIdOf(card)]?.manaAbility ?? []).size > 1;
+}
+
+function buildReserveInstances(
+  cfg: GameConfig,
+  nextInstanceId: () => number,
+): [CardInstance[], CardInstance[]] {
+  if (!cfg.landReserves || cfg.landReserves.length !== 2) {
+    throw new Error('Reserve formats require one landReserves payload for each player.');
+  }
+
+  const out = cfg.landReserves.map((reserve, player) => {
+    if (reserve.length !== LAND_RESERVE_SIZE) {
+      throw new Error(
+        `Reserve format P${player} needs exactly ${LAND_RESERVE_SIZE} lands (received ${reserve.length}).`,
+      );
+    }
+    let duals = 0;
+    const instances = reserve.map((card) => {
+      const cardId = cardIdOf(card);
+      const d = cfg.db[cardId];
+      if (!d) throw new Error(`Reserve format P${player} contains unknown land id ${cardId}.`);
+      if (!d.types.includes('land')) {
+        throw new Error(`Reserve format P${player} contains non-land card ${cardId}.`);
+      }
+      if (!isBasicLand(card, cfg.db) && !isDualLand(card, cfg.db)) {
+        throw new Error(`Reserve format P${player} contains unsupported land ${cardId}.`);
+      }
+      if (isDualLand(card, cfg.db)) duals++;
+      return {
+        instanceId: nextInstanceId(),
+        cardId,
+        variantKey: isCardInstance(card) ? card.variantKey : null,
+      } satisfies CardInstance;
+    });
+    if (duals > MAX_DUAL_LANDS_IN_RESERVE) {
+      throw new Error(
+        `Reserve format P${player} may contain at most ${MAX_DUAL_LANDS_IN_RESERVE} dual lands (received ${duals}).`,
+      );
+    }
+    return instances;
+  }) as [CardInstance[], CardInstance[]];
+
+  for (const [player, deck] of cfg.decks.entries()) {
+    for (const card of deck) {
+      const cardId = cardIdOf(card);
+      if (cfg.db[cardId]?.types.includes('land')) {
+        throw new Error(
+          `Reserve format P${player} deck contains land ${cardId}; lands must be supplied in landReserves.`,
+        );
+      }
+    }
+  }
+  return out;
+}
+
+function validateRestoredReserveState(state: GameState, db: CardDb): void {
+  for (const [player, data] of state.players.entries()) {
+    if (data.landReserve === undefined) continue;
+    for (const zone of [data.deck, data.hand]) {
+      for (const card of zone) {
+        if (db[cardIdOf(card)]?.types.includes('land')) {
+          throw new Error(`Reserve format P${player} state contains land ${cardIdOf(card)} outside the reserve.`);
+        }
+      }
+    }
+    for (const card of data.landReserve) {
+      const d = db[cardIdOf(card)];
+      if (!d || !d.types.includes('land')) {
+        throw new Error(`Reserve format P${player} state contains a non-land reserve card ${cardIdOf(card)}.`);
+      }
+    }
+  }
 }
 
 /**
@@ -63,6 +153,11 @@ export class Game {
     const rng = createRngState(cfg.seed);
 
     let nextInstanceId = 1;
+
+    const reserveInstances = usesLandReserve(cfg.format)
+      ? buildReserveInstances(cfg, () => nextInstanceId++)
+      : undefined;
+
     const libraries = cfg.decks.map((deck) =>
       rngShuffle(rng, deck.map((card) => ({
         instanceId: nextInstanceId++,
@@ -78,7 +173,10 @@ export class Game {
       startingPlayer,
       activePlayer: startingPlayer,
       step: 'untap',
-      players: [this.freshPlayer(libraries[0]), this.freshPlayer(libraries[1])],
+      players: [
+        this.freshPlayer(libraries[0], reserveInstances?.[0]),
+        this.freshPlayer(libraries[1], reserveInstances?.[1]),
+      ],
       battlefield: [],
       stack: [],
       stackClosed: false,
@@ -111,8 +209,8 @@ export class Game {
     }
   }
 
-  private freshPlayer(deck: CardInstance[]): GameState['players'][0] {
-    return {
+  private freshPlayer(deck: CardInstance[], landReserve?: CardInstance[]): GameState['players'][0] {
+    const player: GameState['players'][0] = {
       life: RULES.startingLife,
       deck,
       hand: [],
@@ -122,6 +220,8 @@ export class Game {
       mulligans: 0,
       keptHand: false,
     };
+    if (landReserve !== undefined) player.landReserve = landReserve;
+    return player;
   }
 
   // -------------------------------------------------------------------------
@@ -159,6 +259,7 @@ export class Game {
   }
 
   static restore(state: GameState, db: CardDb): Game {
+    validateRestoredReserveState(state, db);
     const g = Object.create(Game.prototype) as Game;
     Object.assign(g, { st: normalizeState(state), db, buf: [], initialEvents: [] });
     return g;
@@ -193,6 +294,21 @@ export class Game {
         const current = to[zone];
         if (current.length !== ids.length || current.some((card, i) => cardIdOf(card) !== ids[i])) {
           to[zone] = ids.map((id, i) => {
+            const existing = current[i];
+            if (existing && cardIdOf(existing) === id && isCardInstance(existing)) return existing;
+            return {
+              instanceId: this.st.nextInstanceId!++,
+              cardId: id,
+              variantKey: null,
+            };
+          });
+        }
+      }
+      if (from.landReserve !== undefined && to.landReserve !== undefined) {
+        const ids = from.landReserve;
+        const current = to.landReserve;
+        if (current.length !== ids.length || current.some((card, i) => cardIdOf(card) !== ids[i])) {
+          to.landReserve = ids.map((id, i) => {
             const existing = current[i];
             if (existing && cardIdOf(existing) === id && isCardInstance(existing)) return existing;
             return {
@@ -396,7 +512,9 @@ export class Game {
       }
 
       case 'playLand': {
-        const card = me.hand.splice(action.handIndex, 1)[0];
+        const card = me.landReserve !== undefined
+          ? me.landReserve.splice(action.reserveIndex!, 1)[0]
+          : me.hand.splice(action.handIndex, 1)[0];
         const cardId = cardIdOf(card);
         const perm = enterBattlefield(st, this.db, card, player, () => {});
         me.landPlayedThisTurn = true;
@@ -671,15 +789,22 @@ function normalizeAwaiting(awaiting: LegacyAwaiting, state: GameState): Awaiting
 function legacyState(state: GameState): LegacyGameState {
   const rest = structuredClone(state) as LegacyGameState;
   delete rest.nextInstanceId;
-  return {
-    ...rest,
-    players: state.players.map((player) => ({
+  const players = state.players.map((player) => {
+    const legacy = {
       ...player,
       deck: player.deck.map(cardIdOf),
       hand: player.hand.map(cardIdOf),
       graveyard: player.graveyard.map(cardIdOf),
       severed: player.severed.map(cardIdOf),
-    })) as [LegacyGameState['players'][0], LegacyGameState['players'][1]],
+    } as LegacyGameState['players'][0];
+    if (player.landReserve !== undefined) {
+      legacy.landReserve = player.landReserve.map(cardIdOf);
+    }
+    return legacy;
+  }) as [LegacyGameState['players'][0], LegacyGameState['players'][1]];
+  return {
+    ...rest,
+    players,
     // Battlefield and stack are public zones, so their physical identity is
     // retained in the compatibility projection. Hidden player zones below
     // remain card-id-only.
@@ -695,7 +820,13 @@ function normalizeState(input: GameState): GameState {
   const used = new Set<number>();
   let maxId = 0;
   for (const player of state.players) {
-    for (const zone of [player.deck, player.hand, player.graveyard, player.severed]) {
+    for (const zone of [
+      player.deck,
+      player.hand,
+      player.graveyard,
+      player.severed,
+      ...(player.landReserve === undefined ? [] : [player.landReserve]),
+    ]) {
       for (const card of zone) {
         if (isCardInstance(card)) {
           maxId = Math.max(maxId, card.instanceId);
@@ -739,6 +870,7 @@ function normalizeState(input: GameState): GameState {
     player.hand = player.hand.map(normalizeCard);
     player.graveyard = player.graveyard.map(normalizeCard);
     player.severed = player.severed.map(normalizeCard);
+    if (player.landReserve !== undefined) player.landReserve = player.landReserve.map(normalizeCard);
   }
   for (const perm of state.battlefield) {
     perm.instanceId ??= freshId();

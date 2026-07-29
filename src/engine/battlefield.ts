@@ -62,6 +62,20 @@ function detachFromHost(state: GameState, perm: Permanent): void {
   if (host) host.attachments = host.attachments.filter((iid) => iid !== perm.iid);
 }
 
+function basicReturnsToReserve(state: GameState, db: CardDb, perm: Permanent): boolean {
+  const d = def(db, perm.cardId);
+  return (
+    state.players[perm.owner].landReserve !== undefined &&
+    d.types.includes('land') &&
+    (d.supertypes?.includes('basic') ?? false)
+  );
+}
+
+/** Whether a destroy exit is a real death for triggers and accounting. */
+export function firesDiesForDestroy(state: GameState, db: CardDb, perm: Permanent): boolean {
+  return !basicReturnsToReserve(state, db, perm);
+}
+
 /** Battlefield → owner's graveyard (tokens evaporate). Returns true if it died. */
 export function destroyPermanent(
   state: GameState,
@@ -74,8 +88,12 @@ export function destroyPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
-  if (!d.token) pushMovedCard(state, perm, 'graveyard');
-  emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
+  if (!d.token) {
+    pushMovedCard(state, perm, basicReturnsToReserve(state, db, perm) ? 'landReserve' : 'graveyard');
+  }
+  if (firesDiesForDestroy(state, db, perm)) {
+    emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
+  }
   return true;
 }
 
@@ -115,7 +133,8 @@ export function recallPermanent(
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
   if (!d.token) {
-    pushMovedCard(state, perm, 'hand');
+    const toReserve = state.players[perm.owner].landReserve !== undefined && d.types.includes('land');
+    pushMovedCard(state, perm, toReserve ? 'landReserve' : 'hand');
     emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
   }
   emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
@@ -126,7 +145,7 @@ export function recallPermanent(
 function pushMovedCard(
   state: GameState,
   perm: Permanent,
-  zone: 'hand' | 'graveyard' | 'severed',
+  zone: 'hand' | 'graveyard' | 'severed' | 'landReserve',
 ): void {
   const card: CardEntry =
     state.nextInstanceId === undefined
@@ -136,5 +155,9 @@ function pushMovedCard(
           cardId: perm.cardId,
           variantKey: perm.variantKey ?? null,
         } satisfies CardInstance);
-  state.players[perm.owner][zone].push(card);
+  if (zone === 'landReserve') {
+    (state.players[perm.owner].landReserve ??= []).push(card);
+  } else {
+    state.players[perm.owner][zone].push(card);
+  }
 }
