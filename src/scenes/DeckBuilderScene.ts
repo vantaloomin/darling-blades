@@ -20,7 +20,19 @@ import {
 } from '../meta/collectionFilter';
 import { decodeDeck, deckCodeErrorMessage, encodeDeck } from '../meta/DeckCode';
 import { faceCardFor } from '../meta/deckFace';
-import { copyDeck, deleteDeck, generateDeckId, renameDeck, saveDeck, validateDeck } from '../meta/DeckStorage';
+import {
+  appendDeckSlot,
+  appendDeckSlots,
+  cloneDeckSlots,
+  copyDeck,
+  deleteDeck,
+  generateDeckId,
+  removeAllDeckSlots,
+  removeDeckSlot,
+  renameDeck,
+  saveDeck,
+  validateDeck,
+} from '../meta/DeckStorage';
 import {
   BASIC_LAND_IDS,
   LAND_STYLE_IDS,
@@ -90,6 +102,7 @@ interface DeckHeroDisplay {
  */
 export class DeckBuilderScene extends Phaser.Scene {
   private deck: string[] = [];
+  private variantPins: Array<string | null> = [];
   private page = 0;
   private deckPage = 0;
   private touch = false;
@@ -136,7 +149,9 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const save = Services.save.data;
     const active = save.decks.find((d) => d.id === save.activeDeckId);
-    this.deck = active ? [...active.cards] : [];
+    const slots = active ? cloneDeckSlots(active.cards, active.variantPins) : cloneDeckSlots([]);
+    this.deck = slots.cards;
+    this.variantPins = slots.variantPins;
 
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
@@ -473,7 +488,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     const inDeck = this.countIn(this.deck, id);
     if (inDeck >= Math.min(RULES.maxCopies, ownedCount(save, id))) return;
     this.deckCodeMessage = '';
-    this.deck.push(id);
+    const next = appendDeckSlot({ cards: this.deck, variantPins: this.variantPins }, id);
+    this.deck = next.cards;
+    this.variantPins = next.variantPins;
     this.renderPool();
     this.renderDeck();
   }
@@ -487,7 +504,10 @@ export class DeckBuilderScene extends Phaser.Scene {
   private addPlayset(id: string): void {
     const cap = Math.min(RULES.maxCopies, ownedCount(Services.save.data, id));
     this.deckCodeMessage = '';
-    while (this.countIn(this.deck, id) < cap) this.deck.push(id);
+    const additions = new Array(Math.max(0, cap - this.countIn(this.deck, id))).fill(id);
+    const next = appendDeckSlots({ cards: this.deck, variantPins: this.variantPins }, additions);
+    this.deck = next.cards;
+    this.variantPins = next.variantPins;
     this.renderPool();
     this.renderDeck();
   }
@@ -498,9 +518,10 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private removeAllCopies(id: string): void {
-    const next = this.deck.filter((cardId) => cardId !== id);
-    if (next.length === this.deck.length) return;
-    this.deck = next;
+    const next = removeAllDeckSlots({ cards: this.deck, variantPins: this.variantPins }, id);
+    if (next.cards.length === this.deck.length) return;
+    this.deck = next.cards;
+    this.variantPins = next.variantPins;
     const active = this.activeSavedDeck();
     if (active?.heroCardId === id) active.heroCardId = null;
     this.deckCodeMessage = '';
@@ -510,7 +531,11 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private removeCard(id: string): void {
     const idx = this.deck.indexOf(id);
-    if (idx >= 0) this.deck.splice(idx, 1);
+    if (idx >= 0) {
+      const next = removeDeckSlot({ cards: this.deck, variantPins: this.variantPins }, idx);
+      this.deck = next.cards;
+      this.variantPins = next.variantPins;
+    }
     this.deckCodeMessage = '';
     this.renderPool();
     this.renderDeck();
@@ -692,7 +717,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     // switch/new/copy so unsaved changes aren't lost on the scene restart.
     const activeNow = save.decks.find((d) => d.id === save.activeDeckId);
     if (activeNow) {
-      activeNow.cards = [...this.deck];
+      const slots = cloneDeckSlots(this.deck, this.variantPins);
+      activeNow.cards = slots.cards;
+      activeNow.variantPins = slots.variantPins;
       if (activeNow.heroCardId && !activeNow.cards.includes(activeNow.heroCardId)) activeNow.heroCardId = null;
     }
     const deckPickerShell = modalShell(this, {
@@ -713,7 +740,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     const setActiveDeck = (id: string | null): void => {
       save.activeDeckId = id;
       const activeDeck = save.decks.find((d) => d.id === id);
-      this.deck = activeDeck ? [...activeDeck.cards] : [];
+      const slots = activeDeck ? cloneDeckSlots(activeDeck.cards, activeDeck.variantPins) : cloneDeckSlots([]);
+      this.deck = slots.cards;
+      this.variantPins = slots.variantPins;
       this.deckCodeMessage = '';
       Services.save.flush();
       this.renderPool();
@@ -829,7 +858,9 @@ export class DeckBuilderScene extends Phaser.Scene {
         deleteDeck(save, deck.id);
         if (isActive) {
           const activeDeck = save.decks.find((d) => d.id === save.activeDeckId);
-          this.deck = activeDeck ? [...activeDeck.cards] : [];
+          const slots = activeDeck ? cloneDeckSlots(activeDeck.cards, activeDeck.variantPins) : cloneDeckSlots([]);
+          this.deck = slots.cards;
+          this.variantPins = slots.variantPins;
           this.deckCodeMessage = '';
           this.renderPool();
           this.renderDeck();
@@ -1235,7 +1266,9 @@ export class DeckBuilderScene extends Phaser.Scene {
         minWidth: 90,
         onTap: () => {
           this.deckCodeMessage = '';
-          this.deck.push(id);
+          const next = appendDeckSlot({ cards: this.deck, variantPins: this.variantPins }, id);
+          this.deck = next.cards;
+          this.variantPins = next.variantPins;
           this.renderDeck();
         },
       });
@@ -1372,7 +1405,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         const existing = save.decks.find((d) => d.id === id);
         const name = existing?.name ?? 'Custom Deck';
         const heroCardId = existing?.heroCardId && this.deck.includes(existing.heroCardId) ? existing.heroCardId : null;
-        saveDeck(save, { id, name, cards: [...this.deck], heroCardId });
+        saveDeck(save, { id, name, cards: [...this.deck], heroCardId, variantPins: [...this.variantPins] });
         save.activeDeckId = id;
         Services.save.flush();
         this.deckCodeMessage = '';
@@ -1424,7 +1457,9 @@ export class DeckBuilderScene extends Phaser.Scene {
       return false;
     }
 
-    this.deck = [...decoded.cards];
+    const slots = cloneDeckSlots(decoded.cards);
+    this.deck = slots.cards;
+    this.variantPins = slots.variantPins;
     this.deckPage = 0;
     this.deckCodeMessage = 'Imported deck code. Click Save Deck to keep it.';
     this.renderPool();

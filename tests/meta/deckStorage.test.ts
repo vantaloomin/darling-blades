@@ -1,12 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { copyDeck, deleteDeck, generateDeckId, renameDeck, saveDeck } from '../../src/meta/DeckStorage';
+import {
+  appendDeckSlot,
+  appendDeckSlots,
+  cloneDeckSlots,
+  copyDeck,
+  deleteDeck,
+  generateDeckId,
+  removeAllDeckSlots,
+  removeDeckSlot,
+  renameDeck,
+  saveDeck,
+  sortDeckSlots,
+} from '../../src/meta/DeckStorage';
 import { freshSave, type SaveData } from '../../src/meta/SaveManager';
 
 function saveWithDecks(): SaveData {
   const save = freshSave(0);
   save.decks = [
-    { id: 'deck-1', name: 'Aggro', cards: ['a', 'b'], heroCardId: 'b', landStyle: null },
-    { id: 'deck-2', name: 'Control', cards: ['c'], heroCardId: null, landStyle: null },
+    {
+      id: 'deck-1', name: 'Aggro', cards: ['a', 'b'], heroCardId: 'b', landStyle: null,
+      format: 'constructed', darlingId: null, landReserve: null, variantPins: ['blue|none|standard', null],
+    },
+    {
+      id: 'deck-2', name: 'Control', cards: ['c'], heroCardId: null, landStyle: null,
+      format: 'constructed', darlingId: null, landReserve: null, variantPins: [null],
+    },
   ];
   save.activeDeckId = 'deck-1';
   return save;
@@ -40,7 +58,10 @@ describe('deck storage', () => {
   it('generateDeckId skips existing ids', () => {
     const save = saveWithDecks();
     expect(generateDeckId(save)).toBe('deck-3');
-    save.decks.push({ id: 'deck-3', name: 'x', cards: [], heroCardId: null, landStyle: null });
+    save.decks.push({
+      id: 'deck-3', name: 'x', cards: [], heroCardId: null, landStyle: null,
+      format: 'constructed', darlingId: null, landReserve: null, variantPins: [],
+    });
     expect(generateDeckId(save)).toBe('deck-4');
   });
 
@@ -75,6 +96,8 @@ describe('deck storage', () => {
 
   it('copyDeck makes an independent, deep-cloned copy with a new id', () => {
     const save = saveWithDecks();
+    save.decks[0].format = 'battlebox';
+    save.decks[0].landReserve = ['land-plains'];
     const id = copyDeck(save, 'deck-1');
     expect(id).toBe('deck-3');
     const copy = save.decks.find((d) => d.id === id)!;
@@ -83,7 +106,55 @@ describe('deck storage', () => {
     expect(copy.heroCardId).toBe('b');
     save.decks[0].cards.push('z'); // mutate the original…
     expect(copy.cards).toEqual(['a', 'b']); // …the copy is unaffected
+    expect(copy.variantPins).toEqual(['blue|none|standard', null]);
+    expect(copy.format).toBe('battlebox');
+    expect(copy.landReserve).toEqual(['land-plains']);
     expect(copyDeck(save, 'nope')).toBeNull();
+  });
+
+  it('keeps card and pin positions paired through add, remove, fill, remove-all, and sort', () => {
+    let slots = cloneDeckSlots(['z', 'a'], ['pin-z', 'pin-a']);
+    const original = cloneDeckSlots(slots.cards, slots.variantPins);
+
+    slots = appendDeckSlot(slots, 'b');
+    slots = appendDeckSlots(slots, ['c', 'b']);
+    expect(slots).toEqual({
+      cards: ['z', 'a', 'b', 'c', 'b'],
+      variantPins: ['pin-z', 'pin-a', null, null, null],
+    });
+
+    slots = removeDeckSlot(slots, 1);
+    expect(slots).toEqual({
+      cards: ['z', 'b', 'c', 'b'],
+      variantPins: ['pin-z', null, null, null],
+    });
+    slots = removeAllDeckSlots(slots, 'b');
+    expect(slots).toEqual({ cards: ['z', 'c'], variantPins: ['pin-z', null] });
+
+    const sorted = sortDeckSlots(slots, (left, right) => left.localeCompare(right));
+    expect(sorted).toEqual({ cards: ['c', 'z'], variantPins: [null, 'pin-z'] });
+    expect(original).toEqual({ cards: ['z', 'a'], variantPins: ['pin-z', 'pin-a'] });
+  });
+
+  it('saveDeck preserves format fields and uses aligned pins when syncing a deck', () => {
+    const save = saveWithDecks();
+    save.decks[0].format = 'battlebox';
+    save.decks[0].darlingId = null;
+    save.decks[0].landReserve = ['land-plains'];
+
+    saveDeck(save, {
+      id: 'deck-1',
+      name: 'Battle Box',
+      cards: ['b', 'a', 'new'],
+      variantPins: ['pin-b', null, 'pin-new'],
+    });
+
+    expect(save.decks[0]).toMatchObject({
+      format: 'battlebox',
+      landReserve: ['land-plains'],
+      cards: ['b', 'a', 'new'],
+      variantPins: ['pin-b', null, 'pin-new'],
+    });
   });
 
   it('saveDeck preserves a valid hero and clears one no longer in the deck', () => {

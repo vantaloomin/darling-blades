@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { deflateSync, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { decode, encode, MAX_DECODED_SAVE_BYTES, type SaveCodeDecodeResult } from '../../src/meta/SaveCode';
-import { freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
+import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { parseVariantKey, variantKey } from '../../src/meta/variants';
 import { GOLDEN_FRESH_SAVE_CODE } from './saveCode.fixtures';
 
@@ -22,6 +22,10 @@ function currentFixture(): SaveData {
     cards: ['bk-wolfqueen', 'land-forest'],
     heroCardId: null,
     landStyle: { 'land-forest': 'dark-tales' },
+    format: 'constructed',
+    darlingId: null,
+    landReserve: null,
+    variantPins: [null, null],
   }];
   save.activeDeckId = 'deck-1';
   save.stats.wins = 8;
@@ -83,6 +87,15 @@ function codeForRaw(raw: Record<string, unknown>): string {
 function currentVersionFixture(version: number): Record<string, unknown> {
   const save = currentFixture() as unknown as Record<string, unknown>;
   save.version = version;
+  if (version < 23) {
+    const decks = save.decks as Array<Record<string, unknown>>;
+    for (const deck of decks) {
+      delete deck.format;
+      delete deck.darlingId;
+      delete deck.landReserve;
+      delete deck.variantPins;
+    }
+  }
   if (version < 22) {
     const decks = save.decks as Array<Record<string, unknown>>;
     for (const deck of decks) delete deck.landStyle;
@@ -136,8 +149,9 @@ function expectOk(result: SaveCodeDecodeResult): Extract<SaveCodeDecodeResult, {
 }
 
 describe('SaveCode', () => {
-  it('round-trips a normalized current save with deep equality', () => {
+  it('round-trips a normalized v23 save with deep equality', () => {
     const save = currentFixture();
+    expect(save.version).toBe(CURRENT_SAVE_VERSION);
     const decoded = expectOk(decode(encode(save, { includeReplays: true })));
     expect(decoded.save).toEqual(migrated(save as unknown as Record<string, unknown>));
     expect(decoded.preview).toEqual({
@@ -147,18 +161,18 @@ describe('SaveCode', () => {
       gold: 777,
       deckCount: 1,
       progressSummary: { wins: 8, losses: 3, bestGauntletRung: 6, gauntletCompletions: 1 },
-      sourceSchemaVersion: 22,
+      sourceSchemaVersion: CURRENT_SAVE_VERSION,
       replaysPresent: true,
     });
   });
 
   it('decodes and migrates a fixture for every historical SaveData version', () => {
-    for (let version = 1; version <= 22; version++) {
+    for (let version = 1; version <= CURRENT_SAVE_VERSION; version++) {
       const raw = currentVersionFixture(version);
       const decoded = expectOk(decode(codeForRaw(raw)));
       expect(decoded.preview.sourceSchemaVersion).toBe(version);
       expect(decoded.save).toEqual(migrated(raw));
-      expect(decoded.save.version).toBe(22);
+      expect(decoded.save.version).toBe(CURRENT_SAVE_VERSION);
     }
   });
 
@@ -166,7 +180,7 @@ describe('SaveCode', () => {
     const golden = expectOk(decode(GOLDEN_FRESH_SAVE_CODE));
     const regenerated = expectOk(decode(encode(freshSave(NOW))));
     expect(golden.save).toEqual(regenerated.save);
-    expect(golden.preview).toEqual(regenerated.preview);
+    expect(golden.preview).toEqual({ ...regenerated.preview, sourceSchemaVersion: 22 });
   });
 
   it('rejects a corrupted checksum as a structured checksum error', () => {
@@ -251,7 +265,7 @@ describe('SaveCode', () => {
   });
 
   it('refuses a future schema before accepting its payload', () => {
-    const raw = { ...freshSave(NOW), version: 23 } as unknown as Record<string, unknown>;
+    const raw = { ...freshSave(NOW), version: CURRENT_SAVE_VERSION + 1 } as unknown as Record<string, unknown>;
     const result = decode(codeForRaw(raw));
     expect(result).toEqual({
       ok: false,
