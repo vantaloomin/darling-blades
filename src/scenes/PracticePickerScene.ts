@@ -2,9 +2,11 @@ import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
+import { CARD_DB } from '../data/catalog';
 import { AVATARS } from '../data/opponents';
 import type { Difficulty } from '../meta/Economy';
-import { practiceDuelLaunchData } from '../meta/duelSetup';
+import { firstDuelLaunchIssue, practiceDuelLaunchData } from '../meta/duelSetup';
+import { Services } from '../meta/services';
 import { bindTapButton } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
@@ -24,6 +26,7 @@ export class PracticePickerScene extends Phaser.Scene {
     name: Phaser.GameObjects.Text;
   }[] = [];
   private selectionLabel: Phaser.GameObjects.Text | null = null;
+  private launchNotice: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('PracticePicker');
@@ -33,6 +36,7 @@ export class PracticePickerScene extends Phaser.Scene {
     this.selectedAvatarId = AVATARS[AVATARS.length - 1]?.id ?? '';
     this.tileNodes = [];
     this.selectionLabel = null;
+    this.launchNotice = null;
 
     // Design-space constants, NOT this.scale (see src/platform/renderScale.ts).
     const width = 1280;
@@ -181,7 +185,29 @@ export class PracticePickerScene extends Phaser.Scene {
   private startPractice(difficulty: Difficulty): void {
     const selected = AVATARS.find((av) => av.id === this.selectedAvatarId);
     if (!selected) return;
+    const activeDeck = Services.save.data.decks.find((deck) => deck.id === Services.save.data.activeDeckId) ?? null;
+    const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, activeDeck);
+    if (issue) {
+      this.showLaunchNotice(`Cannot start Practice: ${issue}`);
+      return;
+    }
     this.scene.start('Duel', practiceDuelLaunchData(selected.id, difficulty));
+  }
+
+  private showLaunchNotice(message: string): void {
+    if (!this.launchNotice || !this.launchNotice.active) {
+      this.launchNotice = this.add
+        .text(640, 592, message, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.danger,
+          align: 'center',
+          wordWrap: { width: 900 },
+        })
+        .setOrigin(0.5);
+      return;
+    }
+    this.launchNotice.setText(message);
   }
 
   /** Render an avatar portrait into a stable, masked tile crop. */

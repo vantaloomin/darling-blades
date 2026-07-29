@@ -43,7 +43,7 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
 export const MECHANIC_DEFINITIONS: Record<
-  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower' | 'skim' | 'retell',
+  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower' | 'skim' | 'retell' | 'hauntlink',
   string
 > = {
   sever: 'severed from the game; severed cards never return',
@@ -54,6 +54,7 @@ export const MECHANIC_DEFINITIONS: Record<
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
   skim: 'pay the listed cost, discard this card, then draw a card',
   retell: 'cast this from your graveyard for the listed cost, then sever it',
+  hauntlink: "pay Hauntlink to link this to a creature; host leaving puts it in its owner's graveyard",
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -224,6 +225,25 @@ export function retellText(d: CardDef): string | undefined {
   return `Retell ${manaCostText(d.retell.cost)}: You may cast this from your graveyard, then sever it.`;
 }
 
+export function hauntlinkText(d: CardDef): string | undefined {
+  if (!d.hauntlink) return undefined;
+  const rider = d.hauntlink.linked;
+  const signed = (value: number | undefined): string => {
+    const n = value ?? 0;
+    return `${n >= 0 ? '+' : ''}${n}`;
+  };
+  const stats = rider.p !== undefined || rider.t !== undefined
+    ? `${signed(rider.p)}/${signed(rider.t)}`
+    : null;
+  const keywords = rider.grantKeywords?.map((keyword) => KEYWORD_NAMES[keyword]).join(', ') ?? '';
+  const benefit = stats && keywords
+    ? `gets ${stats} and gains ${keywords}`
+    : stats
+      ? `gets ${stats}`
+      : `gains ${keywords}`;
+  return `Hauntlink ${manaCostText(d.hauntlink.cost)}: You may play this linked to a creature you control. Linked: The linked creature ${benefit}. When the host leaves play, put this into its owner's graveyard.`;
+}
+
 function abilityText(ab: AbilityDef): string {
   const questCondition = (ab.condition ?? ab.static?.condition) === 'questActive';
   const conditionalArrival = questCondition && ab.when === 'arrives';
@@ -344,6 +364,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (skim) lines.push(skim);
   const retell = retellText(d);
   if (retell) lines.push(retell);
+  const hauntlink = hauntlinkText(d);
+  if (hauntlink) lines.push(hauntlink);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
@@ -390,6 +412,7 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   if (d.empower) push('Empower', MECHANIC_DEFINITIONS.empower);
   if (d.skim) push('Skim', MECHANIC_DEFINITIONS.skim);
   if (d.retell) push('Retell', MECHANIC_DEFINITIONS.retell);
+  if (d.hauntlink) push('Hauntlink', MECHANIC_DEFINITIONS.hauntlink);
   return entries;
 }
 
