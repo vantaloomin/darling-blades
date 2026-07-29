@@ -81,4 +81,11 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Skim early to smooth awkward hands and stock the graveyard, then Retell efficient Rituals and Charms while lifegain and Foresee keep the board stable. The deck wins by making every small answer matter twice.',
     featured: ['dt-poison-mirror-regent', 'dt-tower-window-seer', 'dt-page-torn-free'],
   },
+  'theme-yokai-nights': {
+    colors: 'W/U/B',
+    archetype: 'Hauntlink midrange',
+    plays:
+      'Lead with efficient white and blue hosts, then link a compact rider to the safest body. Foresee smooths the curve while recall, cancel, and Sever keep opposing permanents from taking over. TO MEASURE after the set landing.',
+    featured: ['yn-paper-mask-sentinel', 'yn-signal-kitsune', 'yn-ghostwire-charm'],
+  },
 };

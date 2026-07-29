@@ -18,7 +18,7 @@ import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, GOTHIC_MONSTERS_PACK_ART, packPriceForSku, packTextureForSku, type BoosterSku } from './ShopScene';
+import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, GOTHIC_MONSTERS_PACK_ART, YOKAI_NIGHTS_PACK_ART, packPriceForSku, packSetForSku, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
 const GRID_DY = 216;
@@ -110,6 +110,8 @@ export class PackOpeningScene extends Phaser.Scene {
       bakePackArt(this, GOTHIC_MONSTERS_PACK_ART);
     } else if (this.sku === 'dark-tales') {
       bakePackArt(this, DARK_TALES_PACK_ART);
+    } else if (this.sku === 'yokai-nights') {
+      bakePackArt(this, YOKAI_NIGHTS_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {
@@ -268,7 +270,7 @@ export class PackOpeningScene extends Phaser.Scene {
       const save = Services.save.data;
       if (!spendGold(save, qty * price)) return;
       Sfx.play('coin');
-      const set = this.sku === 'base' ? undefined : this.sku;
+      const set = packSetForSku(this.sku);
       const rng = createRngState(Date.now() & 0x7fffffff);
       if (qty === 1) {
         const result = openPack(save, CARD_DB, rng, set);
@@ -858,7 +860,7 @@ export class PackOpeningScene extends Phaser.Scene {
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;
       Sfx.play('coin');
-      const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff), this.sku);
+      const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff), packSetForSku(this.sku));
       Services.save.flush();
       this.tweens.timeScale = 1;
       this.scene.restart({ ...result, sku: this.sku });
