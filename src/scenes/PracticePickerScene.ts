@@ -40,8 +40,12 @@ const PICKER_STRIP_OPTIONS: StripLayoutOptions = {
   peekY: 130,
 };
 
-const PICKER_PORTRAIT_WIDTH = 184;
-const PICKER_PORTRAIT_HEIGHT = 230;
+// The portrait is width-constrained by the tile, so holding the card's 0.8
+// aspect left ~96px of the 360px tile as dead air. addPortrait cover-crops,
+// so a taller target simply shows a taller slice of a figure-centered
+// portrait (~9% off each side) instead of letterboxing it.
+const PICKER_PORTRAIT_WIDTH = 190;
+const PICKER_PORTRAIT_HEIGHT = 288;
 const WHEEL_STEP_THRESHOLD = 60;
 const WHEEL_STEP_COOLDOWN_MS = 250;
 
@@ -191,8 +195,8 @@ export class PracticePickerScene extends Phaser.Scene {
         .setStrokeStyle(2, colorInt(theme.colors.panelStroke));
       // The name is centered in a reserved band rather than hung below a
       // fixed baseline. Three-line names remain inside the tile at this size.
-      const nameBandTop = tileRect.y + 276;
-      const nameBandH = 64;
+      const nameBandTop = tileRect.y + 306;
+      const nameBandH = 46;
       const name = this.add
         .text(0, nameBandTop + nameBandH / 2, av.name, {
           fontFamily: theme.fonts.display,
@@ -210,7 +214,7 @@ export class PracticePickerScene extends Phaser.Scene {
       const portrait = this.addPortrait(
         av.portraitCardId,
         layout.tileCenters[index] ?? layout.firstCenter,
-        tileRect.y + 140,
+        tileRect.y + 156,
         PICKER_PORTRAIT_WIDTH,
         PICKER_PORTRAIT_HEIGHT,
         content,
