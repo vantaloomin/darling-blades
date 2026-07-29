@@ -24,10 +24,22 @@ import {
 import { colorInt, theme } from '../ui/theme';
 import { backButton, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
+/**
+ * The strip scrolls COLUMNS, and each column stacks two rivals. Twenty avatars
+ * in one row meant sixteen snap positions to reach the end; paired into ten
+ * columns it is six, and eight rivals are on screen at once instead of four.
+ * The two rows move as one unit because they are children of one column tile.
+ */
+const PICKER_ROWS = 2;
+const PICKER_COLUMN_TOP = 130;
+const PICKER_COLUMN_HEIGHT = 396;
+const PICKER_ROW_GAP = 14;
+const PICKER_ROW_HEIGHT = (PICKER_COLUMN_HEIGHT - PICKER_ROW_GAP) / PICKER_ROWS;
+
 const PICKER_STRIP_OPTIONS: StripLayoutOptions = {
   visibleCount: 4,
   tileWidth: 206,
-  tileHeight: 360,
+  tileHeight: PICKER_COLUMN_HEIGHT,
   tileStride: 248,
   viewport: {
     x: theme.design.safeLeft,
@@ -35,17 +47,17 @@ const PICKER_STRIP_OPTIONS: StripLayoutOptions = {
     width: theme.design.safeWidth,
     height: 404,
   },
-  verticalBand: { y: 130, height: 360 },
-  tapBand: { y: 130, height: 360 },
-  peekY: 130,
+  verticalBand: { y: PICKER_COLUMN_TOP, height: PICKER_COLUMN_HEIGHT },
+  tapBand: { y: PICKER_COLUMN_TOP, height: PICKER_COLUMN_HEIGHT },
+  peekY: PICKER_COLUMN_TOP,
 };
 
-// The portrait is width-constrained by the tile, so holding the card's 0.8
-// aspect left ~96px of the 360px tile as dead air. addPortrait cover-crops,
-// so a taller target simply shows a taller slice of a figure-centered
-// portrait (~9% off each side) instead of letterboxing it.
+// addPortrait cover-crops, so the window can be any aspect: at two rows the
+// card sits wider than tall and shows a head-and-shoulders band rather than
+// letterboxing a 0.8 portrait into a short cell.
+const PICKER_NAME_BAND = 40;
 const PICKER_PORTRAIT_WIDTH = 190;
-const PICKER_PORTRAIT_HEIGHT = 288;
+const PICKER_PORTRAIT_HEIGHT = PICKER_ROW_HEIGHT - PICKER_NAME_BAND - 10;
 const WHEEL_STEP_THRESHOLD = 60;
 const WHEEL_STEP_COOLDOWN_MS = 250;
 
@@ -59,6 +71,7 @@ export class PracticePickerScene extends Phaser.Scene {
   private selectedAvatarId = AVATARS[AVATARS.length - 1]?.id ?? '';
   private tileNodes: {
     id: string;
+    column: number;
     container: Phaser.GameObjects.Container;
     box: Phaser.GameObjects.Rectangle;
     name: Phaser.GameObjects.Text;
@@ -157,8 +170,11 @@ export class PracticePickerScene extends Phaser.Scene {
    */
   private buildRoster(): void {
     const roster = [...AVATARS].sort((a, b) => b.tier - a.tier);
+    // Column-major: a column holds ranks 2n and 2n+1, so scrolling walks the
+    // tier order continuously instead of jumping a whole row at a time.
+    const columns = Math.ceil(roster.length / PICKER_ROWS);
     const selectedIndex = Math.max(0, roster.findIndex((av) => av.id === this.selectedAvatarId));
-    const layout = boosterStripLayout(roster.length, selectedIndex, PICKER_STRIP_OPTIONS);
+    const layout = boosterStripLayout(columns, Math.floor(selectedIndex / PICKER_ROWS), PICKER_STRIP_OPTIONS);
     this.pickerStripLayout = layout;
 
     const content = this.add.container(0, 0);
@@ -187,18 +203,26 @@ export class PracticePickerScene extends Phaser.Scene {
     content.setMask(maskSource.createGeometryMask());
 
     roster.forEach((av, index) => {
-      const tileRect = layout.fullTileRects[0];
-      const tileY = tileRect.y + tileRect.height / 2;
-      const tile = this.add.container(layout.tileCenters[index] ?? layout.firstCenter, 0);
+      const column = Math.floor(index / PICKER_ROWS);
+      const row = index % PICKER_ROWS;
+      const columnX = layout.tileCenters[column] ?? layout.firstCenter;
+      const rowTop = PICKER_COLUMN_TOP + row * (PICKER_ROW_HEIGHT + PICKER_ROW_GAP);
+      const tile = this.add.container(columnX, 0);
       const box = this.add
-        .rectangle(0, tileY, layout.tileWidth, layout.tileHeight, theme.graphics.rowFill, theme.alpha.panel)
+        .rectangle(
+          0,
+          rowTop + PICKER_ROW_HEIGHT / 2,
+          layout.tileWidth,
+          PICKER_ROW_HEIGHT,
+          theme.graphics.rowFill,
+          theme.alpha.panel,
+        )
         .setStrokeStyle(2, colorInt(theme.colors.panelStroke));
       // The name is centered in a reserved band rather than hung below a
-      // fixed baseline. Three-line names remain inside the tile at this size.
-      const nameBandTop = tileRect.y + 306;
-      const nameBandH = 46;
+      // fixed baseline, so wrapped names cannot escape the cell.
+      const nameBandTop = rowTop + PICKER_ROW_HEIGHT - PICKER_NAME_BAND - 5;
       const name = this.add
-        .text(0, nameBandTop + nameBandH / 2, av.name, {
+        .text(0, nameBandTop + PICKER_NAME_BAND / 2, av.name, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
@@ -207,19 +231,19 @@ export class PracticePickerScene extends Phaser.Scene {
           wordWrap: { width: layout.tileWidth - 16 },
         })
         .setOrigin(0.5, 0.5);
-      if (name.height > nameBandH) name.setScale(nameBandH / name.height);
+      if (name.height > PICKER_NAME_BAND) name.setScale(PICKER_NAME_BAND / name.height);
 
       tile.add([box, name]);
       content.add(tile);
       const portrait = this.addPortrait(
         av.portraitCardId,
-        layout.tileCenters[index] ?? layout.firstCenter,
-        tileRect.y + 156,
+        columnX,
+        rowTop + 5 + PICKER_PORTRAIT_HEIGHT / 2,
         PICKER_PORTRAIT_WIDTH,
         PICKER_PORTRAIT_HEIGHT,
         content,
       );
-      this.tileNodes.push({ id: av.id, container: tile, box, name, portrait });
+      this.tileNodes.push({ id: av.id, column, container: tile, box, name, portrait });
     });
 
     const arrowY = layout.fullTileRects[0].y + layout.fullTileRects[0].height / 2;
@@ -287,7 +311,15 @@ export class PracticePickerScene extends Phaser.Scene {
       return;
     }
     if (decision.kind !== 'buy') return;
-    const tile = this.tileNodes[decision.index];
+    // The shared strip classifies the COLUMN; the row comes from where in the
+    // column the tap landed, and the gap between rows selects nothing.
+    const row = Math.floor(
+      (pointer.worldY - PICKER_COLUMN_TOP) / (PICKER_ROW_HEIGHT + PICKER_ROW_GAP),
+    );
+    if (row < 0 || row >= PICKER_ROWS) return;
+    const rowTop = PICKER_COLUMN_TOP + row * (PICKER_ROW_HEIGHT + PICKER_ROW_GAP);
+    if (pointer.worldY > rowTop + PICKER_ROW_HEIGHT) return;
+    const tile = this.tileNodes[decision.index * PICKER_ROWS + row];
     if (!tile) return;
     this.selectedAvatarId = tile.id;
     this.refreshSelection();
@@ -342,9 +374,10 @@ export class PracticePickerScene extends Phaser.Scene {
     this.pickerStripOffset = clampBoosterStripOffset(this.pickerStripLayout, offset);
     this.pickerStripIndex = boosterStripIndexForOffset(this.pickerStripLayout, this.pickerStripOffset);
     const visibility = boosterStripVisibility(this.pickerStripLayout, this.pickerStripOffset);
-    for (const [index, tile] of this.tileNodes.entries()) {
-      const showTile = boosterStripTileIsVisible(this.pickerStripLayout, index, this.pickerStripOffset);
-      const fullTile = index >= visibility.firstFullIndex && index <= visibility.lastFullIndex;
+    // Visibility is per COLUMN: both rivals in a column appear and hide together.
+    for (const tile of this.tileNodes) {
+      const showTile = boosterStripTileIsVisible(this.pickerStripLayout, tile.column, this.pickerStripOffset);
+      const fullTile = tile.column >= visibility.firstFullIndex && tile.column <= visibility.lastFullIndex;
       tile.container.setVisible(showTile);
       tile.portrait?.setVisible(showTile);
       tile.name.setVisible(fullTile);
