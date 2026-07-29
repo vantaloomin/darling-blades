@@ -150,10 +150,11 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
         ? `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`
         : `creatures you control get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
     }
-    case 'addCounters':
-      return op.to === 'self'
-        ? `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on this`
-        : `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on target creature`;
+    case 'addCounters': {
+      if (op.to === 'self') return `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on this`;
+      const markTarget = target?.what === 'yourCreature' ? 'target creature you control' : 'target creature';
+      return `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on ${markTarget}`;
+    }
     case 'tap':
       return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
     case 'fetchLand':

@@ -477,11 +477,16 @@ export class CardView extends Phaser.GameObjects.Container {
       this.add(tap);
       this.pips.push(tap);
       ix += PIP + 2;
-      const label = this.scene.add.text(ix, rowYc, ': Add', style).setOrigin(0, 0.5);
+      // Five-color producers read as prose ("any color"); a five-pip "or"
+      // chain overflows the line and reads as a puzzle (user call 2026-07-28).
+      const anyColor = abilityMana.length === 5;
+      const label = this.scene.add
+        .text(ix, rowYc, anyColor ? ': Add one mana of any color.' : ': Add', style)
+        .setOrigin(0, 0.5);
       this.add(label);
       this.pips.push(label);
       ix += label.width + 5;
-      abilityMana.forEach((col, i) => {
+      if (!anyColor) abilityMana.forEach((col, i) => {
         if (i > 0) {
           const or = this.scene.add.text(ix, rowYc, 'or', style).setOrigin(0, 0.5);
           this.add(or);

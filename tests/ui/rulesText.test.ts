@@ -63,6 +63,13 @@ describe('target-aware damage and land rules text', () => {
     );
   });
 
+  it('says "you control" when the target spec is yourCreature (mana-rock sign-off riders)', () => {
+    expect(rulesText(CARD_DB['ar-imperial-jade-seal'])).toBe(
+      'When this arrives, put 1 +1/+1 mark on target creature you control.',
+    );
+    expect(rulesText(CARD_DB['so-nurture'])).toBe('Put 2 +1/+1 marks on target creature you control.');
+  });
+
   it('prints the mechanical tapland rider for mono-colored lands', () => {
     expect(rulesText(CARD_DB['cf-mist-road'])).toBe('Arrives tapped.');
     expect(rulesText(CARD_DB['ac-holy-well'])).toContain('Arrives tapped.');

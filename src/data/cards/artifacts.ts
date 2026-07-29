@@ -48,6 +48,13 @@ export const ARTIFACTS = [
     cost: cost(3),
     colors: [],
     manaAbility: ['W', 'U', 'B', 'R', 'G'],
+    abilities: [
+      {
+        when: 'arrives',
+        targets: [{ what: 'yourCreature' }],
+        ops: [{ op: 'addCounters', n: 1, to: 'target' }],
+      },
+    ],
     rarity: 'r',
     flavor: 'Whoever holds it rules the realm, or at least the argument.',
   },
