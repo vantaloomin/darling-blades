@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-29
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-29
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -23,9 +23,10 @@ token already names.
 | `themedButton` | The standard button (primary / emphasis / ghost / danger variants, sm sizing, min-width, enabled state, measured bounds, inflated hit zone). |
 | `roundedTrigger` | Chip-style trigger (the dropdown face): auto-sizes to its label, `setLabel` re-measures, selected/hover states. |
 | `modalShell` | The one modal: dim layer, panel, title/content/footer tracks, optional close button, tap-dim-to-close, `escToClose`, `onClose`, OverlayCoordinator registration, `close()`. Every dialog uses this - OddsModal, deck previews, the pack-pull inspect, the touch land-styles picker. |
+| `registerSceneBackNavigation` | One scene-lifetime ESC route. It dismisses the topmost registered modal, then invokes the screen's back action, and removes its keyboard listener on SHUTDOWN. |
 | `createMultilineInput` | DOM textarea with selectable long text, keyboard/touch input, and OverlayCoordinator suppression support. Use it for save-code or other bounded multiline fields. |
 | `pager` | The ‹ N/M › page control (deck lists, collection pages). |
-| `panel` / `backButton` / `goldBadge` | Framed surface, the standard top-left back control, the gold readout with flash/shake affordance. |
+| `panel` / `backButton` / `goldBadge` | Framed surface, the standard top-left destination-named back control, the gold readout with flash/shake affordance. `backButton` requires the destination label. |
 
 ## Selection - `src/ui/Dropdown.ts`, `src/ui/binder/FilterBar.ts`
 
@@ -73,6 +74,10 @@ the pattern to copy for any horizontal chip row whose content resizes.
 - `OverlayCoordinator` + `Modal.modalGuardTarget`: overlay stacking,
   dismissal precedence, and input guarding for whatever sits beneath.
   Anything that floats registers here or fights the ESC ordering.
+- `modalShell` also participates in the scene-local modal stack used by
+  `registerSceneBackNavigation`, so a modal opened after scene creation still
+  wins the next ESC press. A non-dismissible modal consumes ESC without
+  navigating away.
 - `CoachMark`: tutorial cue ring + info cards; anchors via live
   `getBounds()` so layout changes never orphan it.
 - `KeywordGlossaryPanel`: the tap-a-keyword explainer strip used by
@@ -87,6 +92,11 @@ the pattern to copy for any horizontal chip row whose content resizes.
 - `PileView`, `HistoryPanel`: duel piles and the slide-out log.
 - `deckListPaging.ts`, `deckStats.ts`: pure paging math and deck
   statistics shared by builder/shop previews.
+- `navigation.ts`: pure canonical destination-label mapping for back links.
+- `deckBuilderHelpers.ts`: pure dirty-deck comparison over ordered cards,
+  positional treatment pins, reserve lands, and hero selection. Deck Builder compares its
+  working state with a snapshot of the saved record instead of a mutation
+  flag, so edits made through any path remain detectable.
 
 ## Governance
 

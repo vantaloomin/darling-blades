@@ -34,6 +34,31 @@ export function formatGauntletUnavailableCopy(format: BuilderFormat): string | n
   return null;
 }
 
+export interface DeckBuilderWorkingState {
+  cards: readonly string[];
+  variantPins: readonly (string | null)[];
+  landReserve: readonly string[];
+  heroCardId: string | null;
+}
+
+/** Compare every editable deck slot against the last saved deck record. */
+export function isDeckBuilderDirty(
+  working: DeckBuilderWorkingState,
+  saved: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId'> | null,
+): boolean {
+  if (!saved) return working.cards.length > 0 || working.landReserve.length > 0 || working.heroCardId !== null;
+  const savedPins = saved.cards.map((_, index) => saved.variantPins?.[index] ?? null);
+  const savedReserve = saved.landReserve ?? [];
+  return !sameArray(working.cards, saved.cards)
+    || !sameArray(working.variantPins, savedPins)
+    || !sameArray(working.landReserve, savedReserve)
+    || working.heroCardId !== (saved.heroCardId ?? null);
+}
+
+function sameArray(left: readonly unknown[], right: readonly unknown[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
 export function formatPageCount(total: number, pageSize: number): number {
   return Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
 }

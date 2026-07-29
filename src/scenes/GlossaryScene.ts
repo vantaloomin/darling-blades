@@ -8,7 +8,7 @@ import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { CARD_TYPE_DEFINITIONS, KEYWORD_NAMES, KEYWORD_REMINDER, MECHANIC_DEFINITIONS } from '../ui/rulesText';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, pager, panel } from '../ui/themeWidgets';
+import { backButton, pager, panel, registerSceneBackNavigation } from '../ui/themeWidgets';
 
 const DESIGN_W = 1280;
 const DESIGN_H = 720;
@@ -160,7 +160,8 @@ export class GlossaryScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
-    backButton(this, () => this.scene.start('MainMenu'));
+    backButton(this, 'Menu', () => this.scene.start('MainMenu'));
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
     panel(this, LEFT_X, PANEL_Y, PANEL_W, PANEL_H);
     panel(this, RIGHT_X, PANEL_Y, PANEL_W, PANEL_H);

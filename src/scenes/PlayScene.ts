@@ -12,7 +12,7 @@ import { makeCardThumb } from '../ui/CardThumbCache';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { goldBadge, modalShell, pager, panel, themedButton } from '../ui/themeWidgets';
+import { backButton, goldBadge, modalShell, pager, panel, registerSceneBackNavigation, themedButton } from '../ui/themeWidgets';
 import { formatDeckSize, formatGauntletUnavailableCopy, formatLabel } from '../ui/deckBuilderHelpers';
 
 /**
@@ -28,7 +28,6 @@ const PLAY_ITEMS: { label: string; scene: string; data?: object }[] = [
   // The three difficulty rows collapsed into the opponent picker (1.2): pick
   // any tower avatar (their difficulty applies) or a plain training duel.
   { label: 'Practice', scene: 'PracticePicker' },
-  { label: 'Return', scene: 'MainMenu' },
 ];
 
 /** Deck rows per quick-select page (7 x 48px pitch fits the 520-tall shell). */
@@ -78,6 +77,9 @@ export class PlayScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
+
+    backButton(this, 'Menu', () => this.scene.start('MainMenu'));
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
     goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
 

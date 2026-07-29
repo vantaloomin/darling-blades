@@ -543,7 +543,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildDecksGroup(this.decksGroup);
     this.setTab(this.tab); // honors the initial tab (onboarding routes to 'decks')
 
-    this.shopInteractiveTargets.push(backButton(this, () => this.scene.start('MainMenu')));
+    this.shopInteractiveTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
   }
 
   private readonly onShutdown = (): void => {
@@ -1206,9 +1206,11 @@ export class ShopScene extends Phaser.Scene {
   /** Esc closes the TOP overlay only: inspect, odds, then deck preview. All
    * shells register with escToClose:false so one press can't close two. */
   private readonly onEscKey = (): void => {
+    if (this.coordinator.dispatchEsc().consumed) return;
     if (this.inspect) this.closeInspect();
     else if (this.oddsModal) this.closeOddsModal();
-    else this.overlay?.close();
+    else if (this.overlay) this.overlay.close();
+    else this.scene.start('MainMenu');
   };
 
   private showOddsModal(sku: BoosterSku, pool: PackPoolSummary): void {

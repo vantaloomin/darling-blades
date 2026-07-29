@@ -14,7 +14,7 @@ import { Services } from '../meta/services';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { colorInt, theme } from '../ui/theme';
-import { pager, panel, roundedTrigger, sceneHeaderFooter, themedButton } from '../ui/themeWidgets';
+import { pager, panel, registerSceneBackNavigation, roundedTrigger, sceneHeaderFooter, themedButton } from '../ui/themeWidgets';
 
 const DESIGN_W = 1280;
 const DESIGN_H = 720;
@@ -130,9 +130,11 @@ export class AchievementsScene extends Phaser.Scene {
 
     const chrome = sceneHeaderFooter(this, {
       title: 'Achievements',
+      backLabel: 'Menu',
       onBack: () => this.scene.start('MainMenu'),
       showCurrency: false,
     });
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
     chrome.title.setX(theme.design.centerX);
 
     this.add
