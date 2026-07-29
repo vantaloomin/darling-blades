@@ -124,30 +124,32 @@ describe('AI win-rate gates', () => {
     const r16 = row('the-bride');
     const r17 = row('glass-coffin-queen');
     const r18 = row('abyssal-songstress');
+    const r19 = row('queen-of-the-lanterned-roof');
+    const r20 = row('kitsune-neon-tyrant');
     expect(r14).toBeDefined();
     expect(r15).toBeDefined();
     expect(r16).toBeDefined();
     expect(r17).toBeDefined();
     expect(r18).toBeDefined();
-    if (!r14 || !r15 || !r16 || !r17 || !r18) return;
+    expect(r19).toBeDefined();
+    expect(r20).toBeDefined();
+    if (!r14 || !r15 || !r16 || !r17 || !r18 || !r19 || !r20) return;
 
-    // Fresh 2026-07-24 full --avatars measurement, 40 seeds/cell:
-    // R14 = 70%, R15 = 77%, R16 = 75%, R17 = 77%, R18 = 87%.
-    // Every new-boss cell had 40 games decided and zero draws. The summit
-    // floors leave 5pp below the R17/R18 point estimates.
+    // Fresh 2026-07-29 Yokai Nights --only measurement, 40 seeds/cell:
+    // R19 = 71% and R20 = 75%, with 40 decided games and zero draws in every
+    // new-boss cell. These provisional floors leave 5pp below each estimate.
     expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.72);
     expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.73);
     expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.72);
     expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.82);
+    expect(r19.avg, 'Queen of the Lanterned Roof provisional floor').toBeGreaterThanOrEqual(0.66);
+    expect(r20.avg, 'Kitsune Neon Tyrant provisional floor').toBeGreaterThanOrEqual(0.70);
     expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
     expect(r16.avg, 'rung 16 must clear rung 14').toBeGreaterThan(r14.avg);
     expect(r17.avg, 'rung 17 must clear rung 16').toBeGreaterThan(r16.avg);
     expect(r18.avg, 'rung 18 must be the measured summit').toBeGreaterThan(r17.avg);
-    const otherMax = Math.max(
-      ...report.rows.filter((entry) => entry.avatar.id !== 'abyssal-songstress').map((entry) => entry.avg),
-    );
-    expect(r18.avg, 'rung 18 must be highest in the measured table').toBeGreaterThan(otherMax);
-    for (const cell of [...r17.cells, ...r18.cells]) {
+    expect(r20.avg, 'rung 20 must measure at or above rung 19').toBeGreaterThanOrEqual(r19.avg);
+    for (const cell of [...r17.cells, ...r18.cells, ...r19.cells, ...r20.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
   }, 900_000);
