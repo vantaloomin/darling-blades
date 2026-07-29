@@ -748,7 +748,10 @@ export class DeckBuilderScene extends Phaser.Scene {
       wordWrap: { width: 520 },
     }).setOrigin(0.5);
     c.add(status);
-    const save = themedButton(this, 420, 410, 'Save Deck', {
+    // Three buttons (150 + 190 + 150) with 36px gaps span 562px, centred in
+    // the 620px shell: 359..921 against panel edges at 330 and 950. The prior
+    // 420/640/880 spacing pushed Keep Editing to 955 and off the panel.
+    const save = themedButton(this, 434, 410, 'Save Deck', {
       variant: 'primary',
       minWidth: 150,
       enabled: this.currentIssues().every((issue) => issue.kind !== 'error'),
@@ -771,7 +774,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.scene.start('MainMenu');
       },
     });
-    const cancel = themedButton(this, 880, 410, 'Keep Editing', {
+    const cancel = themedButton(this, 846, 410, 'Keep Editing', {
       variant: 'ghost',
       minWidth: 150,
       onTap: shell.close,
