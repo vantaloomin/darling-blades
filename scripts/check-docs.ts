@@ -108,6 +108,7 @@ function fmt(ms: number): string {
 
 let staleDocs = 0;
 let warnings = 0;
+let boosterArtGuardFailures = 0;
 
 for (const doc of docs) {
   const rel = relative(root, doc).replace(/\\/g, '/');
@@ -144,8 +145,42 @@ for (const doc of docs) {
   for (const line of staleLines) console.log(line);
 }
 
+/**
+ * Every shop booster needs both its art-bible entry and its manifest key.
+ * Base predates the per-expansion naming convention, so its established key
+ * is `pack-art`; all other SKUs use `pack-art-<sku>`.
+ */
+function checkBoosterArtContract(): void {
+  const shopSource = readFileSync(join(root, 'src/scenes/ShopScene.ts'), 'utf8');
+  const skuBlock = shopSource.match(/export const BOOSTER_SKUS[\s\S]*?^\];/m)?.[0];
+  if (!skuBlock) {
+    console.error('ERROR booster art guard: could not find BOOSTER_SKUS in src/scenes/ShopScene.ts');
+    boosterArtGuardFailures++;
+    return;
+  }
+  const skus = [...skuBlock.matchAll(/sku:\s*'([^']+)'/g)].map((match) => match[1]);
+  const sceneArt = readFileSync(join(root, 'docs/scene-art.md'), 'utf8');
+  const manifest = JSON.parse(readFileSync(join(root, 'src/data/art-manifest.json'), 'utf8')) as { scenes?: unknown };
+  const manifestScenes = Array.isArray(manifest.scenes) ? manifest.scenes.filter((key): key is string => typeof key === 'string') : [];
+  for (const sku of skus) {
+    const key = sku === 'base' ? 'pack-art' : `pack-art-${sku}`;
+    const headingPattern = new RegExp('^### [^\\r\\n]*`' + key + '`', 'm');
+    const missingHeading = !headingPattern.test(sceneArt);
+    const missingManifest = !manifestScenes.includes(key);
+    if (!missingHeading && !missingManifest) continue;
+    const details: string[] = [];
+    if (missingHeading) details.push(`missing heading \`${key}\` in docs/scene-art.md`);
+    if (missingManifest) details.push(`missing manifest entry \`${key}\` in src/data/art-manifest.json scenes[]`);
+    console.error(`ERROR booster art guard: SKU \`${sku}\`: ${details.join('; ')}`);
+    boosterArtGuardFailures++;
+  }
+}
+
+checkBoosterArtContract();
+
 console.log(
-  `\ncheck-docs: ${docs.length} doc(s), ${staleDocs} stale, ${warnings} warning(s)` +
+  `\ncheck-docs: ${docs.length} doc(s), ${staleDocs} stale, ${warnings} warning(s), ${boosterArtGuardFailures} booster art guard failure(s)` +
     (staleDocs > 0 ? ' — re-verify the doc(s) and bump last-verified' : ''),
 );
+if (boosterArtGuardFailures > 0) process.exitCode = 1;
 if (strict && staleDocs > 0) process.exit(1);

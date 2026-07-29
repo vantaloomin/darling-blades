@@ -1,12 +1,45 @@
 import { describe, expect, it } from 'vitest';
 import {
   PLAYER_PERSONAS,
+  packChoiceForPreference,
   renderProgressionReport,
   runProgressionSimulation,
 } from '../../scripts/progression-sim';
 import { ECONOMY } from '../../src/config/rules';
 
 describe('progression simulation harness', () => {
+  it('maps every pack preference to a purchasable set SKU', () => {
+    expect(packChoiceForPreference('base', 0)).toEqual({ price: ECONOMY.packPrice, set: 'base' });
+    expect(packChoiceForPreference('mixed', 1, 0.9)).toEqual({ price: ECONOMY.packPrice, set: 'base' });
+    // Every choice names a set: an unscoped choice would buy the pre-1.5
+    // all-sets product that no SKU sells any more.
+    for (const preference of ['base', 'ragnarok', 'arthurian-court', 'mixed'] as const) {
+      for (let day = 0; day < 12; day++) {
+        expect(packChoiceForPreference(preference, day, 0.1)?.set).toBeDefined();
+      }
+    }
+  });
+
+  it('rotates mixed buyers through every released expansion', () => {
+    // A mixed persona that only ever saw one expansion was structurally capped
+    // at (205 + 70) / 758 of the pool once Base Set was scoped to its own
+    // cards, which is what pinned all six mixed personas near 33% on
+    // 2026-07-29 before this rotation existed.
+    const sets = new Set<string>();
+    for (let day = 0; day < 24; day++) {
+      const choice = packChoiceForPreference('mixed', day, 0.1);
+      if (choice?.set && choice.set !== 'base') sets.add(choice.set);
+    }
+    expect([...sets].sort()).toEqual([
+      'arthurian-court',
+      'celtic-fae',
+      'dark-tales',
+      'gothic-monsters',
+      'ragnarok',
+      'yokai-nights',
+    ]);
+  });
+
   it('defines 10 unique named player personas', () => {
     expect(PLAYER_PERSONAS).toHaveLength(10);
     expect(new Set(PLAYER_PERSONAS.map((p) => p.id)).size).toBe(10);

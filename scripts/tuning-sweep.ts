@@ -51,8 +51,9 @@ const PREMIUM_SHARD_FARM_SEEDS = [
   0x6006, 0x7007, 0x8008, 0x9009, 0xa00a,
 ] as const;
 const PACK_TIERS: readonly Rarity[] = ['c', 'r', 'sr', 'ssr', 'ur'];
-const PACK_SETS: readonly ('ragnarok' | 'celtic-fae' | 'arthurian-court' | undefined)[] = [
-  undefined,
+// The shop's cheap booster is explicitly Base Set after the 1.5 SKU cleanup.
+const PACK_SETS: readonly ('base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court')[] = [
+  'base',
   'ragnarok',
   'celtic-fae',
   'arthurian-court',

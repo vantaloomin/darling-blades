@@ -366,6 +366,17 @@ describe('PackOpener', () => {
     for (const c of result.cards) expect(CARD_DB[c.cardId].set).toBe('ragnarok');
   });
 
+  it('a Base Set booster stays inside the base pool at every tier', () => {
+    for (const tier of ['c', 'r', 'sr', 'ssr', 'ur'] as const) {
+      const basePool = packPool(CARD_DB, tier, 'base');
+      expect(basePool.length, `base ${tier} pool`).toBeGreaterThan(0);
+      for (const id of basePool) expect(CARD_DB[id].set).toBe('base');
+    }
+    const result = openPack(freshSave(0), CARD_DB, createRngState(20260729), 'base');
+    expect(result.cards).toHaveLength(ECONOMY.boosterPackSize);
+    for (const c of result.cards) expect(CARD_DB[c.cardId].set).toBe('base');
+  });
+
   it('a Celtic Fae booster charges its SKU price and pulls only cf- cards', () => {
     const save = freshSave(0);
     save.gold = ECONOMY.celticFaePackPrice;

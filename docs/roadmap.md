@@ -17,7 +17,7 @@ _Dated 2026-07-26. Review monthly._
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
-  638-card collectible pool now spans six sets, with the Dark Tales art run
+  758-card collectible pool now spans seven sets, with the Dark Tales art run
   and dark-tales land-style wiring complete. The remaining eyes-on work is
   the standing real-device pass and by-ear/by-eye polish listed under Planned.
 - **1,072 tests green** (+4 skipped balance-tool assertions; count refreshed
@@ -39,9 +39,10 @@ _Dated 2026-07-26. Review monthly._
   unlock/claim idempotency, completion tallies, themed archetype and expansion
   goals, deck-color identity). The whole suite runs in about three minutes on
   the release-prep Windows host.
-- **638 collectible cards across six sets** (`CARD_DB`), spanning the Core
-  Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, and Dark Tales.
-  Dark Tales adds 120 cards plus four tokens and its own set-scoped booster.
+- **758 collectible cards across seven sets** (`CARD_DB`), spanning the Base
+  Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, and
+  Cyberpunk Yokai Nights. Dark Tales adds 120 cards plus four tokens and its own
+  set-scoped booster.
 - **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
   each color in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
@@ -398,17 +399,18 @@ _Dated 2026-07-26. Review monthly._
   Recently shipped 2026-07-15; only item 7 (prev/next deck comparison)
   remains parked.
 
-- **Base facet relabeled "Core Set"** (plan-1.1 Pillar 5.2; placed into 1.1
-  by the 2026-07-14 handoff). The `'base'` set facet's display text is now
-  **Core Set** in the Collection filter dropdown, the deck-builder pool
-  filter, and the Shop booster SKU — so the label can't read as "all cards"
-  now that three sets exist. Copy-only per the locked 2026-07-10 decision
-  (plan-v1.1-post-launch Feature 4 option 2): the `CardDef.set` id `'base'`,
-  pack pools, collection math, achievement definitions, and saves are all
-  untouched. Recorded in the same pass: **mixed-set packs are the decided
-  Limited set choice** (packs intentionally draw from all three sets;
-  single-set drafts shelved unscheduled) and **Limited run-history
-  achievement goals are scheduled to 1.2** with the opponent picker.
+- **Base facet display history: "Core Set" in 1.1, "Base Set" in 1.5**
+  (plan-1.1 Pillar 5.2; placed into 1.1 by the 2026-07-14 handoff). The 1.1
+  relabel shipped as **Core Set**. The 1.5 rename now displays **Base Set** in
+  the Collection filter dropdown, the deck-builder pool filter, and the Shop
+  booster SKU, so the label can't read as "all cards". Copy-only per the
+  locked 2026-07-10 decision (plan-v1.1-post-launch Feature 4 option 2): the
+  `CardDef.set` id `'base'`, pack pools, collection math, achievement
+  definitions, and saves are all untouched. Recorded in the same pass:
+  **mixed-set packs are the decided Limited set choice** (packs intentionally
+  draw from all three sets; single-set drafts shelved unscheduled) and
+  **Limited run-history achievement goals are scheduled to 1.2** with the
+  opponent picker.
 
 - **Limited Draft re-implementation — 20 AI draft personas** (still
   menu-hidden). The Bot Draft's seven bot seats are now **named characters**:
@@ -1353,7 +1355,8 @@ _Dated 2026-07-26. Review monthly._
   save history and records remain inert, and an active legacy Sealed run loads
   safely as no active run.
   **Placements locked (2026-07-14 handoff):** the base-facet relabel shipped
-  in 1.1 as **"Core Set"** (see Recently shipped); **mixed-set packs are the
+  in 1.1 as **"Core Set"**; 1.5 renames the current display to **"Base Set"**
+  (see Recently shipped); **mixed-set packs are the
   decided, shipped Limited set choice** (single-set drafts shelved
   unscheduled); **Limited run-history achievement goals land in 1.2** with
   the practice opponent picker.
