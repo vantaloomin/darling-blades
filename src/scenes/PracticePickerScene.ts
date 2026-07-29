@@ -114,9 +114,18 @@ export class PracticePickerScene extends Phaser.Scene {
         .rectangle(x, y, tileW, tileH, theme.graphics.rowFill, theme.alpha.panel)
         .setStrokeStyle(2, colorInt(theme.colors.panelStroke))
         .setInteractive({ useHandCursor: true });
-      this.addPortrait(av.portraitCardId, x, y - Math.round(20 * s), tileW - 12, Math.round(150 * s));
+      // The name is centered in a reserved band rather than hung below a fixed
+      // baseline: rival names run one to three wrapped lines ("Queen of the
+      // Lanterned Roof"), and the old single-line budget let two lines spill
+      // 4px past the tile and three lines spill 16px, clearing the 14px row
+      // gap and landing on the tile beneath. The portrait gives up 10 s-units
+      // so the band holds three lines, and anything still taller shrinks to
+      // fit instead of escaping.
+      this.addPortrait(av.portraitCardId, x, y - Math.round(25 * s), tileW - 12, Math.round(140 * s));
+      const nameBandTop = y + 48 * s;
+      const nameBandH = 51 * s;
       const name = this.add
-        .text(x, y + Math.round(70 * s), av.name, {
+        .text(x, nameBandTop + nameBandH / 2, av.name, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
@@ -124,7 +133,8 @@ export class PracticePickerScene extends Phaser.Scene {
           lineSpacing: -2,
           wordWrap: { width: tileW - 8 },
         })
-        .setOrigin(0.5, 0);
+        .setOrigin(0.5, 0.5);
+      if (name.height > nameBandH) name.setScale(nameBandH / name.height);
 
       bindTapButton(this, box, () => {
         this.selectedAvatarId = av.id;
