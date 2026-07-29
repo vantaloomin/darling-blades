@@ -403,7 +403,8 @@ export class ShopScene extends Phaser.Scene {
   private coordinator!: OverlayCoordinator;
   /** F10 bulk-buy: quantity + the SKU buy buttons / quantity chips it drives. */
   private qty = 1;
-  private skuButtons: { btn: ThemedButton; price: number; shortfall: Phaser.GameObjects.Text }[] = [];
+  private skuButtons: { btn: ThemedButton; price: number }[] = [];
+  private boosterArrows: { left: ThemedButton; right: ThemedButton } | null = null;
   private qtyChips = new Map<number, ThemedButton>();
   private boosterStripContent: Phaser.GameObjects.Container | null = null;
   private boosterStripZone: Phaser.GameObjects.Zone | null = null;
@@ -453,6 +454,7 @@ export class ShopScene extends Phaser.Scene {
     this.oddsModal = null;
     this.boosterStripTiles = [];
     this.boosterStripEdgePeeks = [];
+    this.boosterArrows = null;
     this.boosterStripContent = null;
     this.boosterStripZone = null;
     this.boosterStripLayout = null;
@@ -567,14 +569,11 @@ export class ShopScene extends Phaser.Scene {
    */
   private refreshSkuAffordability(): void {
     const gold = Services.save.data.gold;
-    for (const { btn, price, shortfall } of this.skuButtons) {
-      const total = price * this.qty;
-      const affordable = gold >= total;
-      btn.setEnabled(affordable);
-      shortfall.setScale(1);
-      shortfall.setText(`Price 🪙 ${total} · Balance 🪙 ${gold} · 🪙 ${Math.max(0, total - gold)} short`);
-      if (shortfall.width > 210) shortfall.setScale(210 / shortfall.width);
-      shortfall.setVisible(!affordable);
+    // A disabled Buy button already reads as "you cannot afford this", so the
+    // per-tile price breakdown was seven copies of the same fact. The one
+    // global line under the quantity chips covers the rest.
+    for (const { btn, price } of this.skuButtons) {
+      btn.setEnabled(gold >= price * this.qty);
     }
     this.refreshQtyChips();
     if (this.boosterQtyStatus) {
@@ -582,7 +581,9 @@ export class ShopScene extends Phaser.Scene {
       const total = cheapest * this.qty;
       const short = Math.max(0, total - gold);
       const anyAffordable = this.skuButtons.some(({ price }) => gold >= price * this.qty);
-      this.boosterQtyStatus.setText(`×${this.qty}: Price 🪙 ${total} · Balance 🪙 ${gold} · 🪙 ${short} short`);
+      this.boosterQtyStatus.setText(
+        `You need 🪙 ${short} more to buy ${this.qty} ${this.qty === 1 ? 'pack' : 'packs'} at a time.`,
+      );
       this.boosterQtyStatus.setVisible(this.skuButtons.length > 0 && !anyAffordable);
     }
   }
@@ -628,6 +629,7 @@ export class ShopScene extends Phaser.Scene {
     this.skuButtons = [];
     this.boosterStripTiles = [];
     this.boosterStripEdgePeeks = [];
+    this.boosterArrows = null;
     // The SKU list owns order and count. The pure helper receives its length,
     // so adding an eighth or tenth set adds a tile without new layout math.
     const skus = BOOSTER_SKUS;
@@ -676,7 +678,8 @@ export class ShopScene extends Phaser.Scene {
     const leftPeek = this.add
       .image(layout.tileCenters[0] - layout.tileStride, 380, packTextureForSku(skus[0]?.sku ?? 'base'))
       .setDisplaySize(layout.tileWidth, 300)
-      .setAlpha(1);
+      .setAlpha(1)
+      .setY(390);
     const rightPeek = this.add
       .image(
         (layout.tileCenters[layout.visibleCount - 1] ?? 0) + layout.tileStride,
@@ -684,19 +687,20 @@ export class ShopScene extends Phaser.Scene {
         packTextureForSku(skus[layout.visibleCount]?.sku ?? 'base'),
       )
       .setDisplaySize(layout.tileWidth, 300)
-      .setAlpha(1);
+      .setAlpha(1)
+      .setY(390);
     leftPeek.setMask(stripMask);
     rightPeek.setMask(stripMask);
     this.boosterStripEdgePeeks = [leftPeek, rightPeek];
     group.add([leftPeek, rightPeek]);
 
-    const leftArrow = themedButton(this, layout.arrowCenters.left, 380, '‹', {
+    const leftArrow = themedButton(this, layout.arrowCenters.left, 390, '‹', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 52,
       onTap: () => this.setBoosterStripIndex(this.boosterStripIndex - 1),
     });
-    const rightArrow = themedButton(this, layout.arrowCenters.right, 380, '›', {
+    const rightArrow = themedButton(this, layout.arrowCenters.right, 390, '›', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 52,
@@ -704,6 +708,7 @@ export class ShopScene extends Phaser.Scene {
     });
     group.add([leftArrow.container, rightArrow.container]);
     this.shopInteractiveTargets.push(leftArrow.inputZone, rightArrow.inputZone);
+    this.boosterArrows = { left: leftArrow, right: rightArrow };
 
     this.buildQtySelector(group);
     this.refreshQtyLabels();
@@ -722,7 +727,7 @@ export class ShopScene extends Phaser.Scene {
     onBuy: () => void,
   ): Phaser.GameObjects.Image {
     const title = this.add
-      .text(x, 178, label, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
+      .text(x, 172, label, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
       .setOrigin(0.5);
     // Glyph widths are font-fallback-dependent on Windows, so measure the
     // rendered width and shrink-to-fit the 210px product tile rather than
@@ -733,7 +738,7 @@ export class ShopScene extends Phaser.Scene {
       .image(x - title.displayWidth / 2 - 18, title.y, `seticon-${sku}-sr`)
       .setDisplaySize(22, 22);
     const blurb = this.add
-      .text(x, 204, SET_BLURBS[sku], {
+      .text(x, 198, SET_BLURBS[sku], {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         color: theme.colors.muted,
@@ -744,25 +749,20 @@ export class ShopScene extends Phaser.Scene {
     // pool is the real decision variable between tiles.
     const pool = packPoolSummary(Services.save.data, CARD_DB, packSetForSku(sku));
     const poolCaption = this.add
-      .text(x, 226, `${pool.ownedDistinct}/${pool.poolSize} Owned`, {
+      .text(x, 220, `${pool.ownedDistinct}/${pool.poolSize} Owned`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
+    // No idle float. Dragging the strip is this screen's motion language now,
+    // and a bobbing pack both fought that and pushed the art up under the
+    // pool caption (the art top and the caption baseline overlapped by 11px).
     const pack = this.add
-      .image(x, 380, textureKey)
+      .image(x, 390, textureKey)
       .setDisplaySize(210, 300);
-    this.tweens.add({
-      targets: pack,
-      y: 372,
-      duration: 1800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
     if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.5, 0.3, 4);
-    const buyBtn = themedButton(this, x, 570, `Buy · 🪙 ${price}`, {
+    const buyBtn = themedButton(this, x, 578, `Buy · 🪙 ${price}`, {
       variant: sku === NEWEST_SKU ? 'emphasis' : 'primary',
       minWidth: 178,
       onTap: () => {
@@ -771,18 +771,11 @@ export class ShopScene extends Phaser.Scene {
         if (!this.boosterStripDragging) onBuy();
       },
     });
-    const shortfall = this.add
-      .text(x, 616, '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.micro}px`,
-        color: theme.colors.muted,
-        align: 'center',
-      })
-      .setOrigin(0.5)
-      .setVisible(false);
     if (sku === NEWEST_SKU) {
+      // Left of the caption: the info bubble rides its right edge, and the
+      // two collided when both sat on the same side.
       const chip = this.add
-        .text(x + 84, 226, 'New', {
+        .text(x - 84, 220, 'New', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
@@ -819,31 +812,25 @@ export class ShopScene extends Phaser.Scene {
     bindTapButton(this, info, () => {
       if (!this.boosterStripDragging) this.showOddsModal(sku, pool);
     });
-    this.skuButtons.push({ btn: buyBtn, price, shortfall });
+    this.skuButtons.push({ btn: buyBtn, price });
     this.shopInteractiveTargets.push(buyBtn.inputZone, info);
-    group.add([title, setIcon, blurb, poolCaption, infoBg, info, pack, buyBtn.container, shortfall]);
+    group.add([title, setIcon, blurb, poolCaption, infoBg, info, pack, buyBtn.container]);
     return pack;
   }
 
   /** F10 bulk-buy quantity selector, right-aligned on the tab-bar line. */
   private buildQtySelector(group: Phaser.GameObjects.Container): void {
+    // Footer rail, centered under the strip. The header rail put this beside
+    // the Decks tab, where it competed with navigation for the eye and had to
+    // be shoved sideways to clear the tab. Down here it sits directly under
+    // the Buy buttons it multiplies and owns its own row.
     const lbl = this.add
-      .text(862, 96, 'Buy quantity', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted })
-      .setOrigin(1, 0.5);
-    // The Decks tab and this caption share the header rail. Measure the actual
-    // fallback-rendered glyph width, then move the caption right if needed so
-    // the two visual bounds retain the ordinary 16px clearance floor.
-    const decks = this.tabButtons.get('decks');
-    if (decks) {
-      const deckBounds = decks.getMeasuredBounds();
-      const deckRight = decks.container.x + deckBounds.visual.x + deckBounds.visual.width;
-      const minimumRight = deckRight + 16 + lbl.width;
-      if (lbl.x < minimumRight) lbl.setX(minimumRight);
-    }
+      .text(640, 632, 'Buy quantity', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted })
+      .setOrigin(0.5);
     group.add(lbl);
-    let x = 958;
+    let x = 536;
     for (const n of [1, 5, 10]) {
-      const chip = themedButton(this, x, 96, `×${n}`, {
+      const chip = themedButton(this, x, 664, `×${n}`, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 70,
@@ -859,13 +846,15 @@ export class ShopScene extends Phaser.Scene {
       group.add(chip.container);
       x += 104;
     }
+    // The one surviving affordability line: it explains a whole row of faded
+    // Buy buttons, which a per-tile breakdown could only repeat seven times.
     const status = this.add
-      .text(theme.design.safeRight, 126, '', {
+      .text(640, 694, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         color: theme.colors.muted,
       })
-      .setOrigin(1, 0.5)
+      .setOrigin(0.5)
       .setVisible(false);
     this.boosterQtyStatus = status;
     group.add(status);
@@ -996,6 +985,16 @@ export class ShopScene extends Phaser.Scene {
       const sku = edgeIndex === null ? undefined : BOOSTER_SKUS[edgeIndex];
       edge?.setVisible(sku !== undefined);
       if (sku) edge?.setTexture(packTextureForSku(sku.sku));
+    }
+    // An arrow pointing at nothing is a promise the strip cannot keep, so
+    // hide it entirely at each end rather than showing a dead control.
+    this.boosterArrows?.left.container.setVisible(this.boosterStripIndex > 0);
+    this.boosterArrows?.left.inputZone.setInteractive({ useHandCursor: true });
+    if (this.boosterStripIndex <= 0) this.boosterArrows?.left.inputZone.disableInteractive();
+    this.boosterArrows?.right.container.setVisible(this.boosterStripIndex < this.boosterStripLayout.maxIndex);
+    this.boosterArrows?.right.inputZone.setInteractive({ useHandCursor: true });
+    if (this.boosterStripIndex >= this.boosterStripLayout.maxIndex) {
+      this.boosterArrows?.right.inputZone.disableInteractive();
     }
   }
 

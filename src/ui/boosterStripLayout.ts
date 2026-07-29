@@ -75,7 +75,7 @@ export function boosterStripLayout(count: number, requestedIndex = 0): BoosterSt
     Math.min(viewport.x + viewport.width, leftPeekCenter + tileWidth / 2) -
       Math.max(viewport.x, leftPeekCenter - tileWidth / 2),
   );
-  const peekY = viewport.y + 70;
+  const peekY = viewport.y + 80;
   const leftPeek: BoosterStripRect = {
     x: viewport.x,
     y: peekY,
@@ -92,7 +92,7 @@ export function boosterStripLayout(count: number, requestedIndex = 0): BoosterSt
     x: viewport.x,
     y: 240,
     width: viewport.width,
-    height: 290,
+    height: 300,
   };
   const arrowHitWidth = theme.control.minHitWidth;
   return {
