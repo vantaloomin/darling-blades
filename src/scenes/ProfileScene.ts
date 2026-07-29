@@ -190,12 +190,25 @@ export class ProfileScene extends Phaser.Scene {
     this.input.keyboard?.off('keydown-ESC', this.onEscKey);
   };
 
+  /**
+   * encode() throws RangeError past MAX_DECODED_SAVE_BYTES. REPLAY_CAP keeps
+   * real profiles far below it, but a throw here would crash a tap handler,
+   * so degrade to a status message instead.
+   */
+  private tryEncode(includeReplays: boolean): string | null {
+    try {
+      return encode(Services.save.data, { includeReplays });
+    } catch {
+      return null;
+    }
+  }
+
   private openExportModal(): void {
     this.importShell?.close();
     this.exportShell?.close();
 
     let includeReplays = false;
-    let code = encode(Services.save.data);
+    let code = this.tryEncode(false) ?? '';
     const shell = modalShell(this, {
       width: 1120,
       height: 620,
@@ -242,6 +255,9 @@ export class ProfileScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     c.add(status);
+    if (code === '') {
+      status.setColor(theme.colors.danger).setText('This profile is too large to export as a code.');
+    }
     c.add(
       this.add
         .text(640, 515, 'Keep this code private. It contains your collection, decks, progress, settings, and match record.', {
@@ -258,11 +274,16 @@ export class ProfileScene extends Phaser.Scene {
       variant: 'ghost',
       minWidth: 210,
       onTap: () => {
+        const next = this.tryEncode(!includeReplays);
+        if (next === null) {
+          status.setColor(theme.colors.danger).setText('Replays make this code too large. Replays stay excluded.');
+          return;
+        }
         includeReplays = !includeReplays;
-        code = encode(Services.save.data, { includeReplays });
+        code = next;
         input.setValue(code);
         includeButton.setLabel(`Include replays: ${includeReplays ? 'On' : 'Off'}`);
-        status.setText(includeReplays ? 'Replays are included in this code.' : 'Replays are excluded from this code.');
+        status.setColor(theme.colors.muted).setText(includeReplays ? 'Replays are included in this code.' : 'Replays are excluded from this code.');
       },
     });
     const copyButton = themedButton(this, 860, 600, 'Copy', {
