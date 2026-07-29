@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-17
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-29
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -214,6 +214,16 @@ flag set on the cast action. On resolution the empower ops run after the
 card's normal effect (for permanents, after its arrival triggers); empower ops
 are trigger-safe and never target. X spells cannot be empowered
 (`validateAction` rejects the combination).
+
+### Hauntlink (alternate linked cast)
+
+An Artifact or Enchantment with a `hauntlink` block may be played for its
+Hauntlink cost instead of its normal cost. The player chooses exactly one
+creature they control as the host. The permanent enters attached to that
+creature, and its Linked rider applies to the host. It cannot be reattached or
+moved. When the host leaves play, the linked permanent goes to its owner's
+graveyard. The engine carries the relationship on `Permanent.attachedTo` and
+emits `hauntlinkFormed` and `hauntlinkBroken` events for presentation.
 
 ## Board caps
 

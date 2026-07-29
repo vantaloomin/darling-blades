@@ -9,10 +9,11 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..18, unique). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-18 Hard (9-10 are the Ragnarök bosses,
+ * Gauntlet ordering is by `tier` (1..20, unique). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-20 Hard (9-10 are the Ragnarök bosses,
  * 11-12 are the Celtic Fae bosses, 13-14 are the Arthurian Court pair, and
- * 15-16 are the Gothic Monsters pair, and 17-18 are the Dark Tales summit pair).
+ * 15-16 are the Gothic Monsters pair, 17-18 are the Dark Tales summit pair,
+ * and 19-20 are the Yokai Nights summit pair).
  */
 export interface Avatar {
   id: string;
@@ -20,7 +21,7 @@ export interface Avatar {
   title: string;
   blurb: string;
   theme: string;
-  tier: number; // 1..18 (unique)
+  tier: number; // 1..20 (unique)
   difficulty: Difficulty;
   deck: string[]; // 60 real cardIds
   personality: Personality;
@@ -255,6 +256,40 @@ export interface Avatar {
  * measured 78%; and the final six-threat shell with an 8/12 basic-land split,
  * one-of Skim cards, and Undersea Bargain measured 87%. Each result above used
  * 40 seeds/cell; the final rows are from the standard full `--avatars` protocol.
+ *
+ * Rungs 19-20 - the Yokai Nights summit pair. These began as the approved B1
+ * starting lists; the dated 40-seed calibration history is recorded below
+ * after each matrix iteration, with failures retained. Iteration 1 (approved
+ * B1 starters, 2026-07-29, 40 seeds/cell): R19 85/60/68/60/73, avg 69%; R20
+ * 65/63/50/70/83, avg 66%. Failure: R19 did not clear the R18 neighborhood
+ * and R20 inverted below R19, so neither list was accepted.
+ * Iteration 2 (low-curve R19 and low-curve R20, 2026-07-29, 40 seeds/cell):
+ * R19 75/45/53/80/78, avg 66%; R20 57/73/55/75/83, avg 69%. Failure: the
+ * R19 control cells fell further and R20 still did not clear R19.
+ * Iteration 3 (anthem/evasion R19 and proven burn-tempo R20, 2026-07-29,
+ * 40 seeds/cell): R19 83/60/53/73/73, avg 68%; R20 75/73/60/75/90, avg 75%.
+ * Partial failure: the pressure climb was restored, but R19 still did not
+ * clear the R18 neighborhood.
+ * Iteration 4 (base Kitsune resilience experiment, 2026-07-29, 40
+ * seeds/cell): R19 73/45/60/75/55, avg 62%; R20 stayed 75%. Failure: the
+ * alternate R19 bodies lost too much board pressure and attrition resilience.
+ * Iteration 5 (broad-target recall and Foresee experiment, 2026-07-29, 40
+ * seeds/cell): R19 60/68/50/73/68, avg 64%; R20 stayed 75%. Failure: the
+ * extra card-selection value did not solve R19's low Tides and Muster cells.
+ * Iteration 6 (expensive counter/draw experiment, 2026-07-29, 40 seeds/cell):
+ * R19 73/50/48/70/63, avg 61%; R20 stayed 75%. Failure: the slower answers
+ * were worse across the tempo cells.
+ * Iteration 7 (efficient-control final candidate, 2026-07-29, 40 seeds/cell):
+ * R19 88/70/68/63/68, avg 71%; R20 75/73/60/75/90, avg 75%. Every cell had
+ * 40 decided games and zero draws. Provisional floors are R19 >= 66% and
+ * R20 >= 70%, five percentage points below these point estimates. R20 clears
+ * R19 as intended; honest residual: R19 remains 16pp below R18's 87% row,
+ * so the requested R18-neighborhood climb is not claimed before the end-of-set
+ * re-baseline.
+ * Iteration 8 (R19 defensive-personality probe, 2026-07-29, 40 seeds/cell):
+ * R19 90/65/68/60/73, avg 71%; R20 stayed 75%. Neutral tie with Iteration 7,
+ * so the extra knobs were reverted and the simpler list-only candidate remains
+ * shipped.
  *
  * 2026-07-20 - 1.3 prefab tuning pass (user-approved slate) on the 518
  * pool, measured `--prefabs --ai hard --seeds 300` (10,800 games,
@@ -949,6 +984,80 @@ export const AVATARS: readonly Avatar[] = [
       ['dt-mirror-apple-curse', 1],
     ]),
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 19 - Queen of the Lanterned Roof: W/U Kitsune Hauntlink tempo-control. (Hard · Yokai Nights summit)
+  {
+    id: 'queen-of-the-lanterned-roof',
+    name: 'Queen of the Lanterned Roof',
+    title: 'The Lanterned Roof',
+    blurb: 'From the highest roof in the city, the Queen turns every return into a delay. Her Kitsune keep the skyline safe while linked lanterns and careful answers make the next turn belong to her.',
+    theme: 'White-Blue Kitsune Hauntlink Tempo-Control',
+    tier: 19,
+    difficulty: 'hard',
+    portraitCardId: 'yn-queen-of-the-lanterned-roof',
+    personality: makePersonality({
+      aggression: 1.25,
+      holdback: 1,
+      attackThreshold: -0.2,
+      removalBias: -0.5,
+      subtypeBias: 1.5,
+      preferredSubtypes: ['Kitsune'],
+    }),
+    deck: expand([
+      ['land-plains', 10],
+      ['land-island', 10],
+      ['ld-misty-palace-terrace', 4],
+      ['yn-queen-of-the-lanterned-roof', 4],
+      ['yn-lantern-court-regent', 4],
+      ['yn-white-lantern-vanguard', 4],
+      ['yn-bluewire-illusionist', 4],
+      ['yn-moonlit-data-duelist', 4],
+      ['yn-hauntlink-signal-lure', 4],
+      ['yn-sanctum-of-many-masks', 2],
+      ['yn-bastion-lantern', 2],
+      ['dt-sea-glass-knife', 4],
+      ['yn-signal-bridge', 2],
+      ['yn-circuit-foretelling', 2],
+    ]),
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 20 - Kitsune Neon Tyrant: U/R Hauntlink pressure. (Hard · Yokai Nights summit)
+  {
+    id: 'kitsune-neon-tyrant',
+    name: 'Kitsune Neon Tyrant',
+    title: 'The Skyline Belongs to Her',
+    blurb: 'The Tyrant does not wait for the city to choose a winner. Warcry runners hit first, linked spirits own the air, and every burn spell turns a narrow lead into a closing siren.',
+    theme: 'Blue-Red Kitsune Hauntlink Pressure',
+    tier: 20,
+    difficulty: 'hard',
+    portraitCardId: 'yn-kitsune-neon-tyrant',
+    personality: makePersonality({
+      aggression: 1.45,
+      holdback: 0.75,
+      attackThreshold: -0.6,
+      removalBias: 0.25,
+      subtypeBias: 1.25,
+      preferredSubtypes: ['Kitsune'],
+    }),
+    deck: expand([
+      ['land-island', 10],
+      ['land-mountain', 10],
+      ['ld-red-cliffs-anchorage', 4],
+      ['yn-kitsune-neon-tyrant', 4],
+      ['yn-redline-queenpin', 4],
+      ['yn-redline-kitsune', 4],
+      ['yn-magenta-kitsune-runner', 4],
+      ['yn-network-sprite', 3],
+      ['bk-harpy-skirmisher', 3],
+      ['yn-hauntlink-apex', 2],
+      ['yn-burning-mask-of-the-void', 2],
+      ['yn-ember-link-chain', 2],
+      ['in-fire-attack', 4],
+      ['in-undertow', 4],
+    ]),
+  },
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -958,7 +1067,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..18). */
+/** The avatar at a 1-based gauntlet rung (1..20). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);

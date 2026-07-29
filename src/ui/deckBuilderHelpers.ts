@@ -27,9 +27,10 @@ export function formatRulesCopy(format: BuilderFormat): string | null {
   return null;
 }
 
-export function formatUnavailableCopy(format: BuilderFormat): string | null {
-  if (format === 'darlings') return 'Darlings duels arrive later in this update.';
-  if (format === 'battlebox') return 'Battle Box duels arrive later in this update.';
+/** Reserve formats are valid in Practice, but the Gauntlet remains classic-only. */
+export function formatGauntletUnavailableCopy(format: BuilderFormat): string | null {
+  if (format === 'darlings') return 'Darlings decks are available in Practice only.';
+  if (format === 'battlebox') return 'Battle Box decks are available in Practice only.';
   return null;
 }
 

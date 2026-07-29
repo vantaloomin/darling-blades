@@ -746,6 +746,11 @@ export class CardView extends Phaser.GameObjects.Container {
     return this;
   }
 
+  /** The interactive Zone child, for modal guards and other input plumbing. */
+  get inputZone(): Phaser.GameObjects.Zone | null {
+    return this.zone;
+  }
+
   /** Feed a pointer position for foil reactivity; card-relative -1..1. */
   setHoloPointer(worldX: number, worldY: number): void {
     if (!this.holo) return;

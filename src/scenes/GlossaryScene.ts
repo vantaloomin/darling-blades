@@ -67,6 +67,7 @@ const GLOSSARY_SECTIONS: GlossarySection[] = [
       { name: 'Empower', description: MECHANIC_DEFINITIONS.empower, icon: { kind: 'none' } },
       { name: 'Skim', description: MECHANIC_DEFINITIONS.skim, icon: { kind: 'none' } },
       { name: 'Retell', description: MECHANIC_DEFINITIONS.retell, icon: { kind: 'none' } },
+      { name: 'Hauntlink', description: MECHANIC_DEFINITIONS.hauntlink, icon: { kind: 'none' } },
     ],
   },
   {
@@ -228,7 +229,7 @@ export class GlossaryScene extends Phaser.Scene {
 
   /** Non-keyword mechanics are icon-less, like Card Types, and page in place. */
   private drawMechanics(mechanics: GlossarySection): void {
-    // Keep the established two-column row treatment, but page the seven-entry
+    // Keep the established two-column row treatment, but page the eight-entry
     // section so every reminder stays inside the panel and title-safe frame.
     this.sectionTitle(LEFT_X + 20, 544, mechanics.title);
     const pageSize = 4;

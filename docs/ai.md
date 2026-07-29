@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-20
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-29
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -240,8 +240,8 @@ be judged on the same 200-game gate.
 
 An **avatar/personality system** (shipped 2026-07-02) layers tunable knobs over these
 three brains — themed opponents with their own aggression/greed dials, without
-rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 10 avatars with decks and tunings live in `src/data/opponents.ts` (the base
-8 plus the two Ragnarök gauntlet bosses, Hel and Brünhild).
+rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 20 avatars with decks and tunings live in `src/data/opponents.ts` (the base
+8 plus twelve expansion gauntlet bosses through the Yokai Nights summit pair).
 
 Balance is measured, not guessed: `scripts/balance-matrix.ts`
 (`npm run balance-matrix`) runs deterministic avatar-vs-starter, starter-mirror,
@@ -249,6 +249,12 @@ and difficulty round-robin matrices, and the dated baseline (all guidance bands
 green as of 2026-07-02) lives in a comment block in `src/data/opponents.ts` —
 re-measure and refresh it after any change to decks, personalities, starters,
 or brains.
+
+The Yokai Nights summit pair is now present at rungs 19-20. The final
+40-seed-per-cell avatar measurement is Queen of the Lanterned Roof 71% average
+and Kitsune Neon Tyrant 75% average, with provisional floors of 66% and 70%.
+The pressure ordering is green; the Queen remains below the R18 point estimate
+and is intentionally left for the end-of-set re-baseline.
 
 ## Tower strength tiers (the decision-noise dial)
 

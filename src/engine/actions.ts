@@ -717,6 +717,7 @@ export function reasonUncastable(
   const blocked = castBlockers(state, db, player, d);
   if (blocked) {
     if (d.hauntlink && castBlockers(state, db, player, d, false, 0, false, true) === null) {
+      // A targeted printed body can mask a legal hauntlink-only cast at this early no-targets return.
       return enumerateTargets(state, db, player, { what: 'yourCreature' }).length > 0
         ? null
         : 'There are no creatures you control to Hauntlink this to.';
