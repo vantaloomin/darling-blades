@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
 import {
+  boosterStripIndexForOffset,
+  boosterStripLayout,
+  boosterStripOffsetForIndex,
+  boosterStripTap,
+  boosterStripTileRect,
+  boosterStripVisibility,
+  clampBoosterStripOffset,
+} from '../../src/ui/boosterStripLayout';
+import {
   COMPACT_TOUCH_GAP_RANGE,
   GAP_FLOORS,
   anchoredControlBounds,
@@ -35,6 +44,77 @@ describe('layout geometry', () => {
     expect(design.safeCenterY).toBe(design.centerY);
     expect(design.headerCenterY).toBe(design.safeTop + theme.control.minHitHeight / 2);
     expect(design.footerCenterY).toBe(design.safeBottom - theme.control.minHitHeight / 2);
+  });
+
+  it.each([7, 8, 10])('keeps the %i-SKU booster strip on the safe rail', (count) => {
+    const layout = boosterStripLayout(count);
+    expect(layout.visibleCount).toBe(4);
+    expect(layout.tileWidth).toBeGreaterThanOrEqual(200);
+    expect(layout.tileHitGap).toBeGreaterThanOrEqual(8);
+    expect(layout.fullTileRects).toHaveLength(4);
+    expect(isInsideTitleSafe(layout.viewport)).toBe(true);
+    for (const rect of layout.fullTileRects) expect(isInsideTitleSafe(rect)).toBe(true);
+    expect(layout.leftPeek.width).toBeGreaterThan(0);
+    expect(layout.leftPeek.width).toBe(layout.rightPeek.width);
+    expect(isInsideTitleSafe(layout.leftPeek)).toBe(true);
+    expect(isInsideTitleSafe(layout.rightPeek)).toBe(true);
+
+    const leftArrow = {
+      x: layout.arrowCenters.left - layout.arrowHitWidth / 2,
+      y: layout.viewport.y,
+      width: layout.arrowHitWidth,
+      height: theme.control.minHitHeight,
+    };
+    const rightArrow = {
+      x: layout.arrowCenters.right - layout.arrowHitWidth / 2,
+      y: layout.viewport.y,
+      width: layout.arrowHitWidth,
+      height: theme.control.minHitHeight,
+    };
+    expect(isInsideTitleSafe(leftArrow)).toBe(true);
+    expect(isInsideTitleSafe(rightArrow)).toBe(true);
+    expect(layout.fullTileRects[0].x - (leftArrow.x + leftArrow.width)).toBeGreaterThanOrEqual(8);
+    expect(rightArrow.x - (layout.fullTileRects[3].x + layout.fullTileRects[3].width)).toBeGreaterThanOrEqual(8);
+
+    const last = boosterStripLayout(count, count - 4);
+    expect(last.fullTileRects).toEqual(layout.fullTileRects);
+    expect(last.leftPeek.width).toBe(last.rightPeek.width);
+  });
+
+  it.each([7, 8, 10])('classifies full tiles and real edge peeks for %i SKUs', (count) => {
+    const layout = boosterStripLayout(count);
+    const first = boosterStripVisibility(layout, 0);
+    expect(first).toEqual({
+      firstFullIndex: 0,
+      lastFullIndex: 3,
+      leftPeekIndex: null,
+      rightPeekIndex: 4,
+    });
+    expect(boosterStripTap(layout, 0, 280, 380)).toEqual({ kind: 'buy', index: 0 });
+    expect(boosterStripTap(layout, 0, 1200, 380)).toEqual({ kind: 'scroll', targetIndex: 1 });
+    // The caption, New chip, and blurb row is intentionally outside the buy band.
+    expect(boosterStripTap(layout, 0, 280, 226)).toEqual({ kind: 'none' });
+
+    const lastOffset = boosterStripOffsetForIndex(layout, layout.maxIndex);
+    expect(clampBoosterStripOffset(layout, 9999)).toBe(0);
+    expect(clampBoosterStripOffset(layout, -9999)).toBe(lastOffset);
+    expect(boosterStripIndexForOffset(layout, lastOffset)).toBe(layout.maxIndex);
+    expect(boosterStripVisibility(layout, lastOffset)).toEqual({
+      firstFullIndex: layout.maxIndex,
+      lastFullIndex: count - 1,
+      leftPeekIndex: layout.maxIndex - 1,
+      rightPeekIndex: null,
+    });
+    // Last snap keeps the last product in the fourth full slot.
+    expect(boosterStripTileRect(layout, count - 1, lastOffset)).toEqual(layout.fullTileRects[3]);
+    expect(boosterStripTap(layout, lastOffset, 80, 380)).toEqual({
+      kind: 'scroll',
+      targetIndex: layout.maxIndex - 1,
+    });
+    expect(boosterStripTap(layout, lastOffset, 1000, 380)).toEqual({
+      kind: 'buy',
+      index: count - 1,
+    });
   });
 
   it('anchors rectangles to safe edges, corners, and centerlines', () => {

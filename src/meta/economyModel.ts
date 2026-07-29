@@ -421,7 +421,9 @@ export function premiumVsBoosters(
   samples = 5_000,
 ): PremiumVsBoostersResult {
   positiveInteger(samples, 'samples');
-  const pools = resolvePools(db);
+  // 1.5 removed the mixed-pool product from the shop. Compare Premium Draft
+  // with three explicitly purchasable Base Set boosters at packPrice.
+  const pools = resolvePools(db, 'base');
   const premiumCards = sampledCardValue(db, ownership, rng, 45, samples, pools, false);
   const boosterCardCount = ECONOMY.boosterPackSize * 3;
   const boosterCards = sampledCardValue(db, ownership, rng, boosterCardCount, samples, pools, true);

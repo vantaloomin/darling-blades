@@ -91,10 +91,16 @@ export class PackOpeningScene extends Phaser.Scene {
   create(
     data: (PackResult & { sku?: BoosterSku }) | { batch: PackResult[]; sku?: BoosterSku },
   ): void {
+    // A repeat opener can re-enter this scene without a fresh Scene instance.
+    // Close any inspect lease and clear every create-owned reference before
+    // rebuilding the reveal so destroyed objects never receive new updates.
+    this.closePackInspect();
     this.sku = data.sku ?? 'base';
     this.revealed = 0;
     this.specials = [];
     this.buttons = [];
+    this.inspectables = [];
+    this.skipBtn = null;
     this.bestSettled = false;
     bakePackArt(this);
     if (this.sku === 'ragnarok') {
@@ -138,7 +144,6 @@ export class PackOpeningScene extends Phaser.Scene {
       },
     });
 
-    this.inspectables = [];
     // F10: a multi-pack buy skips the choreographed single-pack reveal and shows
     // a summary of the whole batch instead.
     if ('batch' in data) {

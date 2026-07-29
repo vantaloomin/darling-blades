@@ -148,7 +148,7 @@ export function createOddsModal(
       content.x,
       poolLine.y + poolLine.height + theme.space(1),
       sku === 'base'
-        ? 'Drop rates are the same in every booster. This pack pulls from every set.'
+        ? 'Drop rates are the same in every booster. This pack pulls only Base Set cards.'
         : `Drop rates are the same in every booster. This pack pulls only ${meta.setName} cards.`,
       {
         fontFamily: theme.fonts.ui,

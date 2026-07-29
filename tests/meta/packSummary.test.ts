@@ -9,7 +9,7 @@ function freshSaveData() {
 }
 
 describe('packPoolSummary', () => {
-  it('counts the full eligible pool for the unfiltered Core pack', () => {
+  it('counts the full eligible pool for the mixed-set fallback', () => {
     const save = freshSaveData();
     const summary = packPoolSummary(save, CARD_DB);
     const expected = (['c', 'r', 'sr', 'ssr', 'ur'] as const).reduce(
@@ -19,6 +19,18 @@ describe('packPoolSummary', () => {
     expect(summary.poolSize).toBe(expected);
     expect(summary.poolSize).toBeGreaterThan(400); // whole-catalog pack
     expect(summary.ownedDistinct).toBe(0); // fresh save owns nothing
+  });
+
+  it('counts the Base Set pool from live cards rather than a hardcoded size', () => {
+    const save = freshSaveData();
+    const summary = packPoolSummary(save, CARD_DB, 'base');
+    const expected = (['c', 'r', 'sr', 'ssr', 'ur'] as const).reduce(
+      (sum, tier) => sum + packPool(CARD_DB, tier, 'base').length,
+      0,
+    );
+    expect(summary.poolSize).toBe(expected);
+    expect(summary.poolSize).toBeLessThan(packPoolSummary(save, CARD_DB).poolSize);
+    expect(summary.ownedDistinct).toBe(0);
   });
 
   it('scopes an expansion pack to its own set and counts owned distinct once', () => {

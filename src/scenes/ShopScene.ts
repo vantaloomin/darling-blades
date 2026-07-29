@@ -4,7 +4,7 @@ import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { DECK_INFO } from '../data/deckInfo';
-import { SET_TITLES } from '../data/setTitles';
+import { SET_BLURBS, SET_TITLES } from '../data/setTitles';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue, type CardDef } from '../engine/types';
@@ -12,7 +12,8 @@ import { buyThemeDeck, claimFreeStarter, previewDeckGrant, spendGold } from '../
 import { openPack, openPacks } from '../meta/PackOpener';
 import { packPoolSummary, type PackPoolSummary } from '../meta/packSummary';
 import { Services } from '../meta/services';
-import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import { attachTouchGestures, bindTapButton, inflateHitArea } from '../platform/gestures';
+import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CARD_H, CardView } from '../ui/CardView';
 import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
@@ -24,9 +25,21 @@ import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, goldBadge, modalShell, pager, panel, themedButton, type GoldBadge, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
+import {
+  boosterStripIndexForOffset,
+  boosterStripLayout,
+  boosterStripOffsetForIndex,
+  boosterStripTap,
+  boosterStripTileIsVisible,
+  boosterStripVisibility,
+  clampBoosterStripOffset,
+  type BoosterStripLayout,
+} from '../ui/boosterStripLayout';
 
 const PACK_W = 280;
 const PACK_H = 400;
+const WHEEL_STEP_THRESHOLD = 60;
+const WHEEL_STEP_COOLDOWN_MS = 250;
 
 export type { BoosterSku } from '../ui/OddsModal';
 
@@ -253,8 +266,24 @@ export function packPriceForSku(sku: BoosterSku): number {
 
 /** Runtime set bridge until the parallel engine type seam adds the new literal. */
 export function packSetForSku(sku: BoosterSku): CardDef['set'] | undefined {
-  return sku === 'base' ? undefined : (sku as unknown as CardDef['set']);
+  // Undefined is still the mixed-set fallback for non-shop callers. The Base
+  // SKU is explicit so its pool, dupe protection, and pity fallback stay set-scoped.
+  return sku === 'base' ? 'base' : (sku as unknown as CardDef['set']);
 }
+
+/** The shop order is the source for strip count, release order, and art guard. */
+export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> = [
+  { label: SET_TITLES.base, textureKey: 'packart', sku: 'base' },
+  { label: SET_TITLES.ragnarok, textureKey: 'packart-ragnarok', sku: 'ragnarok' },
+  { label: SET_TITLES['celtic-fae'], textureKey: 'packart-celtic-fae', sku: 'celtic-fae' },
+  { label: SET_TITLES['arthurian-court'], textureKey: 'packart-arthurian-court', sku: 'arthurian-court' },
+  { label: SET_TITLES['gothic-monsters'], textureKey: 'packart-gothic-monsters', sku: 'gothic-monsters' },
+  { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', sku: 'dark-tales' },
+  { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
+];
+
+/** Only the newest SKU gets launch emphasis. Keep this beside BOOSTER_SKUS. */
+export const NEWEST_SKU: BoosterSku = 'yokai-nights';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
@@ -374,8 +403,22 @@ export class ShopScene extends Phaser.Scene {
   private coordinator!: OverlayCoordinator;
   /** F10 bulk-buy: quantity + the SKU buy buttons / quantity chips it drives. */
   private qty = 1;
-  private skuButtons: { btn: ThemedButton; price: number }[] = [];
+  private skuButtons: { btn: ThemedButton; price: number; shortfall: Phaser.GameObjects.Text }[] = [];
   private qtyChips = new Map<number, ThemedButton>();
+  private boosterStripContent: Phaser.GameObjects.Container | null = null;
+  private boosterStripZone: Phaser.GameObjects.Zone | null = null;
+  private boosterStripLayout: BoosterStripLayout | null = null;
+  private boosterStripTiles: { sku: BoosterSku; price: number; tile: Phaser.GameObjects.Container; pack: Phaser.GameObjects.Image }[] = [];
+  private boosterStripEdgePeeks: Phaser.GameObjects.Image[] = [];
+  private boosterStripIndex = 0;
+  private boosterStripOffset = 0;
+  private boosterStripPointerId: number | null = null;
+  private boosterStripDragStartX = 0;
+  private boosterStripDragStartOffset = 0;
+  private boosterStripDragging = false;
+  private boosterQtyStatus: Phaser.GameObjects.Text | null = null;
+  private boosterWheelAccum = 0;
+  private boosterWheelLastStepAt = Number.NEGATIVE_INFINITY;
 
   constructor() {
     super('Shop');
@@ -408,6 +451,20 @@ export class ShopScene extends Phaser.Scene {
     this.shopInteractiveTargets = [];
     this.deckInteractiveTargets = [];
     this.oddsModal = null;
+    this.boosterStripTiles = [];
+    this.boosterStripEdgePeeks = [];
+    this.boosterStripContent = null;
+    this.boosterStripZone = null;
+    this.boosterStripLayout = null;
+    this.boosterStripIndex = 0;
+    this.boosterStripOffset = 0;
+    this.boosterStripPointerId = null;
+    this.boosterStripDragStartX = 0;
+    this.boosterStripDragStartOffset = 0;
+    this.boosterStripDragging = false;
+    this.boosterQtyStatus = null;
+    this.boosterWheelAccum = 0;
+    this.boosterWheelLastStepAt = Number.NEGATIVE_INFINITY;
     this.coordinator = new OverlayCoordinator();
     // Deck-preview hotkeys. Keyboard bypasses the modal dims, so every handler
     // self-guards on the overlay/inspect state (the LimitedDraftScene pattern);
@@ -415,6 +472,10 @@ export class ShopScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', this.onEscKey);
     this.input.keyboard?.on('keydown-LEFT', this.onInspectPrev);
     this.input.keyboard?.on('keydown-RIGHT', this.onInspectNext);
+    this.input.on('pointermove', this.onBoosterPointerMove, this);
+    this.input.on('pointerup', this.onBoosterPointerUp, this);
+    this.input.on('pointerupoutside', this.onBoosterPointerUp, this);
+    this.input.on('wheel', this.onBoosterWheel, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
@@ -470,6 +531,18 @@ export class ShopScene extends Phaser.Scene {
     this.input.keyboard?.off('keydown-ESC', this.onEscKey);
     this.input.keyboard?.off('keydown-LEFT', this.onInspectPrev);
     this.input.keyboard?.off('keydown-RIGHT', this.onInspectNext);
+    this.input.off('pointermove', this.onBoosterPointerMove, this);
+    this.input.off('pointerup', this.onBoosterPointerUp, this);
+    this.input.off('pointerupoutside', this.onBoosterPointerUp, this);
+    this.input.off('wheel', this.onBoosterWheel, this);
+    this.boosterStripPointerId = null;
+    this.boosterStripDragging = false;
+    this.boosterWheelAccum = 0;
+    this.boosterWheelLastStepAt = Number.NEGATIVE_INFINITY;
+    this.boosterStripContent = null;
+    this.boosterStripZone = null;
+    this.boosterStripLayout = null;
+    this.boosterQtyStatus = null;
   };
 
   private underlyingInteractiveTargets(): Phaser.GameObjects.GameObject[] {
@@ -494,8 +567,23 @@ export class ShopScene extends Phaser.Scene {
    */
   private refreshSkuAffordability(): void {
     const gold = Services.save.data.gold;
-    for (const { btn, price } of this.skuButtons) {
-      btn.setEnabled(gold >= price * this.qty);
+    for (const { btn, price, shortfall } of this.skuButtons) {
+      const total = price * this.qty;
+      const affordable = gold >= total;
+      btn.setEnabled(affordable);
+      shortfall.setScale(1);
+      shortfall.setText(`Price 🪙 ${total} · Balance 🪙 ${gold} · 🪙 ${Math.max(0, total - gold)} short`);
+      if (shortfall.width > 210) shortfall.setScale(210 / shortfall.width);
+      shortfall.setVisible(!affordable);
+    }
+    this.refreshQtyChips();
+    if (this.boosterQtyStatus) {
+      const cheapest = Math.min(...this.skuButtons.map(({ price }) => price));
+      const total = cheapest * this.qty;
+      const short = Math.max(0, total - gold);
+      const anyAffordable = this.skuButtons.some(({ price }) => gold >= price * this.qty);
+      this.boosterQtyStatus.setText(`×${this.qty}: Price 🪙 ${total} · Balance 🪙 ${gold} · 🪙 ${short} short`);
+      this.boosterQtyStatus.setVisible(this.skuButtons.length > 0 && !anyAffordable);
     }
   }
 
@@ -536,28 +624,94 @@ export class ShopScene extends Phaser.Scene {
   // --- Boosters tab ---------------------------------------------------------
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
-    // Seven SKUs across the 1280 design width: 183px pitch, edge-to-edge.
-    const skus: ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> = [
-      { label: SET_TITLES.base, textureKey: 'packart', sku: 'base' },
-      { label: SET_TITLES.ragnarok, textureKey: 'packart-ragnarok', sku: 'ragnarok' },
-      { label: SET_TITLES['celtic-fae'], textureKey: 'packart-celtic-fae', sku: 'celtic-fae' },
-      { label: SET_TITLES['arthurian-court'], textureKey: 'packart-arthurian-court', sku: 'arthurian-court' },
-      { label: SET_TITLES['gothic-monsters'], textureKey: 'packart-gothic-monsters', sku: 'gothic-monsters' },
-      { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', sku: 'dark-tales' },
-      { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
-    ];
+    group.removeAll(true);
+    this.skuButtons = [];
+    this.boosterStripTiles = [];
+    this.boosterStripEdgePeeks = [];
+    // The SKU list owns order and count. The pure helper receives its length,
+    // so adding an eighth or tenth set adds a tile without new layout math.
+    const skus = BOOSTER_SKUS;
+    const layout = boosterStripLayout(skus.length);
+    this.boosterStripLayout = layout;
+    const content = this.add.container(0, 0);
+    this.boosterStripContent = content;
+    const zone = this.add
+      .zone(
+        layout.tapBand.x + layout.tapBand.width / 2,
+        layout.tapBand.y + layout.tapBand.height / 2,
+        layout.tapBand.width,
+        layout.tapBand.height,
+      )
+      .setInteractive({ useHandCursor: true });
+    this.boosterStripZone = zone;
+    zone.on('pointerdown', this.onBoosterStripDown, this);
+    attachTouchGestures(this, zone, { onTap: this.onBoosterStripTap });
+    const maskSource = this.add.graphics();
+    maskSource.fillStyle(0xffffff, 1);
+    maskSource.fillRect(
+      layout.viewport.x,
+      layout.viewport.y,
+      layout.viewport.width,
+      layout.viewport.height,
+    );
+    maskSource.setVisible(false);
+    const stripMask = maskSource.createGeometryMask();
+    content.setMask(stripMask);
+    group.add([zone, content, maskSource]);
+    this.shopInteractiveTargets.push(zone);
+
     skus.forEach((def, i) => {
       const price = packPriceForSku(def.sku);
-      this.buildPackSku(group, 92 + i * 183, def.label, def.textureKey, price, def.sku, () =>
+      const tile = this.add.container(layout.tileCenters[i] ?? 0, 0);
+      const pack = this.buildPackSku(tile, 0, def.label, def.textureKey, price, def.sku, () =>
         this.buyPacks(price, packSetForSku(def.sku), def.sku),
       );
+      content.add(tile);
+      this.boosterStripTiles.push({ sku: def.sku, price, tile, pack });
     });
+
+    // Keep the one real adjacent SKU at a safe edge when it exists. There is
+    // no wraparound art at the first or last snap. The drag zone owns the
+    // tap/drag decision.
+    const leftPeek = this.add
+      .image(layout.tileCenters[0] - layout.tileStride, 380, packTextureForSku(skus[0]?.sku ?? 'base'))
+      .setDisplaySize(layout.tileWidth, 300)
+      .setAlpha(1);
+    const rightPeek = this.add
+      .image(
+        (layout.tileCenters[layout.visibleCount - 1] ?? 0) + layout.tileStride,
+        380,
+        packTextureForSku(skus[layout.visibleCount]?.sku ?? 'base'),
+      )
+      .setDisplaySize(layout.tileWidth, 300)
+      .setAlpha(1);
+    leftPeek.setMask(stripMask);
+    rightPeek.setMask(stripMask);
+    this.boosterStripEdgePeeks = [leftPeek, rightPeek];
+    group.add([leftPeek, rightPeek]);
+
+    const leftArrow = themedButton(this, layout.arrowCenters.left, 380, '‹', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 52,
+      onTap: () => this.setBoosterStripIndex(this.boosterStripIndex - 1),
+    });
+    const rightArrow = themedButton(this, layout.arrowCenters.right, 380, '›', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 52,
+      onTap: () => this.setBoosterStripIndex(this.boosterStripIndex + 1),
+    });
+    group.add([leftArrow.container, rightArrow.container]);
+    this.shopInteractiveTargets.push(leftArrow.inputZone, rightArrow.inputZone);
+
     this.buildQtySelector(group);
     this.refreshQtyLabels();
     this.refreshSkuAffordability();
+    this.setBoosterStripIndex(0, false);
   }
 
-  /** One booster column: label + floating pack + buy button, added to `group`. */
+  /** One booster tile: identity, floating product art, and buy action. */
   private buildPackSku(
     group: Phaser.GameObjects.Container,
     x: number,
@@ -566,43 +720,82 @@ export class ShopScene extends Phaser.Scene {
     price: number,
     sku: BoosterSku,
     onBuy: () => void,
-  ): void {
+  ): Phaser.GameObjects.Image {
     const title = this.add
       .text(x, 178, label, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
       .setOrigin(0.5);
-    // Seven columns share a 183px pitch; long theme titles (Nocturne Manor) can
-    // outgrow it. Glyph widths are font-fallback-dependent on Windows, so
-    // measure the rendered width and shrink-to-fit rather than sizing by eye.
-    const maxTitleWidth = 176;
+    // Glyph widths are font-fallback-dependent on Windows, so measure the
+    // rendered width and shrink-to-fit the 210px product tile rather than
+    // sizing by eye.
+    const maxTitleWidth = 184;
     if (title.width > maxTitleWidth) title.setScale(maxTitleWidth / title.width);
+    const setIcon = this.add
+      .image(x - title.displayWidth / 2 - 18, title.y, `seticon-${sku}-sr`)
+      .setDisplaySize(22, 22);
+    const blurb = this.add
+      .text(x, 204, SET_BLURBS[sku], {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    if (blurb.width > 198) blurb.setScale(198 / blurb.width);
     // Pool-first disclosure: slot odds are identical across boosters, so the
     // pool is the real decision variable between tiles.
     const pool = packPoolSummary(Services.save.data, CARD_DB, packSetForSku(sku));
     const poolCaption = this.add
-      .text(x, 204, `${pool.ownedDistinct}/${pool.poolSize} Owned`, {
+      .text(x, 226, `${pool.ownedDistinct}/${pool.poolSize} Owned`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
     const pack = this.add
-      .image(x, 368, textureKey)
-      .setDisplaySize(184, 263)
-      .setInteractive({ useHandCursor: true });
+      .image(x, 380, textureKey)
+      .setDisplaySize(210, 300);
     this.tweens.add({
       targets: pack,
-      y: 360,
+      y: 372,
       duration: 1800,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
     if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.5, 0.3, 4);
-    const buyBtn = themedButton(this, x, 552, `Buy · 🪙 ${price}`, {
-      variant: 'primary',
-      minWidth: 164,
-      onTap: onBuy,
+    const buyBtn = themedButton(this, x, 570, `Buy · 🪙 ${price}`, {
+      variant: sku === NEWEST_SKU ? 'emphasis' : 'primary',
+      minWidth: 178,
+      onTap: () => {
+        // A mouse pointer can release over a button after dragging from the
+        // art. Do not let that release bypass the strip's drag threshold.
+        if (!this.boosterStripDragging) onBuy();
+      },
     });
+    const shortfall = this.add
+      .text(x, 616, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        color: theme.colors.muted,
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setVisible(false);
+    if (sku === NEWEST_SKU) {
+      const chip = this.add
+        .text(x + 84, 226, 'New', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0.5);
+      const chipBg = this.add.graphics();
+      chipBg.fillStyle(theme.graphics.rowFillActive, theme.alpha.panel);
+      chipBg.fillRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
+      chipBg.lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome);
+      chipBg.strokeRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 2, chip.width + 12, chip.height + 4, theme.radius.control);
+      group.add([chipBg, chip]);
+    }
     // The bubble rides the short pool caption, not the title: wide theme
     // titles (Nocturne Manor) pushed a title-anchored bubble to the screen
     // edge. The caption is data-bounded, so the edge stays clear.
@@ -623,22 +816,34 @@ export class ShopScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     inflateHitArea(info, theme.control.minHitHeight, theme.control.minHitHeight);
-    bindTapButton(this, info, () => this.showOddsModal(sku, pool));
-    bindTapButton(this, pack, onBuy);
-    this.skuButtons.push({ btn: buyBtn, price });
-    this.shopInteractiveTargets.push(pack, buyBtn.inputZone, info);
-    group.add([title, poolCaption, infoBg, info, pack, buyBtn.container]);
+    bindTapButton(this, info, () => {
+      if (!this.boosterStripDragging) this.showOddsModal(sku, pool);
+    });
+    this.skuButtons.push({ btn: buyBtn, price, shortfall });
+    this.shopInteractiveTargets.push(buyBtn.inputZone, info);
+    group.add([title, setIcon, blurb, poolCaption, infoBg, info, pack, buyBtn.container, shortfall]);
+    return pack;
   }
 
-  /** F10 bulk-buy quantity selector (×1 / ×5 / ×10), added to `group`. */
+  /** F10 bulk-buy quantity selector, right-aligned on the tab-bar line. */
   private buildQtySelector(group: Phaser.GameObjects.Container): void {
     const lbl = this.add
-      .text(640, 616, 'Buy quantity', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted })
-      .setOrigin(0.5);
+      .text(862, 96, 'Buy quantity', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px`, color: theme.colors.muted })
+      .setOrigin(1, 0.5);
+    // The Decks tab and this caption share the header rail. Measure the actual
+    // fallback-rendered glyph width, then move the caption right if needed so
+    // the two visual bounds retain the ordinary 16px clearance floor.
+    const decks = this.tabButtons.get('decks');
+    if (decks) {
+      const deckBounds = decks.getMeasuredBounds();
+      const deckRight = decks.container.x + deckBounds.visual.x + deckBounds.visual.width;
+      const minimumRight = deckRight + 16 + lbl.width;
+      if (lbl.x < minimumRight) lbl.setX(minimumRight);
+    }
     group.add(lbl);
-    let x = 560;
+    let x = 958;
     for (const n of [1, 5, 10]) {
-      const chip = themedButton(this, x, 642, `×${n}`, {
+      const chip = themedButton(this, x, 96, `×${n}`, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 70,
@@ -652,14 +857,26 @@ export class ShopScene extends Phaser.Scene {
       this.qtyChips.set(n, chip);
       this.shopInteractiveTargets.push(chip.inputZone);
       group.add(chip.container);
-      x += 80;
+      x += 104;
     }
+    const status = this.add
+      .text(theme.design.safeRight, 126, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(1, 0.5)
+      .setVisible(false);
+    this.boosterQtyStatus = status;
+    group.add(status);
     this.refreshQtyChips();
   }
 
   private refreshQtyChips(): void {
+    const gold = Services.save.data.gold;
     for (const [n, chip] of this.qtyChips) {
       chip.setVariant(n === this.qty ? 'primary' : 'ghost');
+      chip.setEnabled(this.skuButtons.some(({ price }) => gold >= price * n));
     }
   }
 
@@ -667,6 +884,139 @@ export class ShopScene extends Phaser.Scene {
     for (const { btn, price } of this.skuButtons) {
       btn.setLabel(this.qty > 1 ? `Buy ×${this.qty} · 🪙 ${price * this.qty}` : `Buy · 🪙 ${price}`);
     }
+  }
+
+  private readonly onBoosterStripDown = (pointer: Phaser.Input.Pointer): void => {
+    // The drag zone is an input target, but this explicit lease check keeps
+    // scene-level pointer handlers honest if an overlay opens mid-gesture.
+    if (this.tab !== 'boosters' || this.oddsModal || this.overlay || this.inspect || !this.boosterStripContent) return;
+    if (this.boosterStripPointerId !== null) return;
+    this.tweens.killTweensOf(this.boosterStripContent);
+    this.boosterStripPointerId = pointer.id;
+    this.boosterStripDragStartX = pointer.worldX;
+    this.boosterStripDragStartOffset = this.boosterStripContent.x;
+    this.boosterStripDragging = false;
+  };
+
+  private snapBoosterStripToNearest(): void {
+    if (!this.boosterStripContent || !this.boosterStripLayout) return;
+    this.setBoosterStripIndex(boosterStripIndexForOffset(this.boosterStripLayout, this.boosterStripContent.x));
+  }
+
+  private readonly onBoosterPointerMove = (pointer: Phaser.Input.Pointer): void => {
+    if (this.tab !== 'boosters' || this.oddsModal || this.overlay || this.inspect) {
+      if (this.boosterStripPointerId !== null && this.boosterStripDragging) this.snapBoosterStripToNearest();
+      this.boosterStripPointerId = null;
+      this.boosterStripDragging = false;
+      return;
+    }
+    if (this.boosterStripPointerId !== pointer.id || !this.boosterStripContent || !this.boosterStripLayout) return;
+    const delta = pointer.worldX - this.boosterStripDragStartX;
+    if (!this.boosterStripDragging && Math.abs(delta) > TAP_SLOP_PX) this.boosterStripDragging = true;
+    if (!this.boosterStripDragging) return;
+    const offset = clampBoosterStripOffset(this.boosterStripLayout, this.boosterStripDragStartOffset + delta);
+    this.boosterStripContent.x = offset;
+    this.updateBoosterStripState(offset);
+  };
+
+  private readonly onBoosterStripTap = (pointer: Phaser.Input.Pointer): void => {
+    this.handleBoosterStripTap(pointer);
+  };
+
+  private handleBoosterStripTap(pointer: Phaser.Input.Pointer): void {
+    if (!this.boosterStripContent || !this.boosterStripLayout) return;
+    const decision = boosterStripTap(
+      this.boosterStripLayout,
+      this.boosterStripContent.x,
+      pointer.worldX,
+      pointer.worldY,
+    );
+    if (decision.kind === 'scroll') {
+      this.setBoosterStripIndex(decision.targetIndex);
+      return;
+    }
+    if (decision.kind !== 'buy') return;
+    const tile = this.boosterStripTiles[decision.index];
+    if (tile) this.buyPacks(tile.price, packSetForSku(tile.sku), tile.sku);
+  }
+
+  private readonly onBoosterPointerUp = (pointer: Phaser.Input.Pointer): void => {
+    if (this.boosterStripPointerId !== pointer.id) return;
+    const wasDragging = this.boosterStripDragging;
+    this.boosterStripPointerId = null;
+    if (wasDragging) {
+      this.snapBoosterStripToNearest();
+      this.boosterStripDragging = false;
+      return;
+    }
+    this.boosterStripDragging = false;
+    if (this.tab !== 'boosters' || this.oddsModal || this.overlay || this.inspect || pointer.wasTouch) return;
+    this.handleBoosterStripTap(pointer);
+  };
+
+  private readonly onBoosterWheel = (
+    pointer: Phaser.Input.Pointer,
+    _currentlyOver: unknown,
+    deltaX: number,
+    deltaY: number,
+  ): void => {
+    // Scene-plugin wheel events bypass ModalGuard. The odds modal must freeze
+    // the strip, even if Phaser reports the pointer over an underlying tile.
+    if (this.tab !== 'boosters' || this.oddsModal || this.overlay || this.inspect || !this.boosterStripLayout) return;
+    const viewport = this.boosterStripLayout.viewport;
+    if (pointer.worldX < viewport.x || pointer.worldX > viewport.x + viewport.width || pointer.worldY < viewport.y || pointer.worldY > viewport.y + viewport.height) return;
+    const delta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : deltaY;
+    if (delta === 0) return;
+    this.boosterWheelAccum += delta;
+    if (Math.abs(this.boosterWheelAccum) < WHEEL_STEP_THRESHOLD) return;
+    const now = this.time.now;
+    if (now - this.boosterWheelLastStepAt < WHEEL_STEP_COOLDOWN_MS) return;
+    const direction = Math.sign(this.boosterWheelAccum);
+    this.boosterWheelAccum -= direction * WHEEL_STEP_THRESHOLD;
+    this.boosterWheelLastStepAt = now;
+    this.setBoosterStripIndex(this.boosterStripIndex + direction);
+  };
+
+  private updateBoosterStripState(offset: number): void {
+    if (!this.boosterStripLayout) return;
+    this.boosterStripOffset = clampBoosterStripOffset(this.boosterStripLayout, offset);
+    this.boosterStripIndex = boosterStripIndexForOffset(this.boosterStripLayout, this.boosterStripOffset);
+    const visibility = boosterStripVisibility(this.boosterStripLayout, this.boosterStripOffset);
+    for (const [index, tile] of this.boosterStripTiles.entries()) {
+      const packVisible = boosterStripTileIsVisible(this.boosterStripLayout, index, this.boosterStripOffset);
+      const fullTile = index >= visibility.firstFullIndex && index <= visibility.lastFullIndex;
+      for (const child of tile.tile.list) {
+        (child as Phaser.GameObjects.GameObject & { setVisible(visible: boolean): unknown }).setVisible(
+          child === tile.pack ? packVisible : fullTile,
+        );
+      }
+    }
+    for (const [side, edgeIndex] of [visibility.leftPeekIndex, visibility.rightPeekIndex].entries()) {
+      const edge = this.boosterStripEdgePeeks[side];
+      const sku = edgeIndex === null ? undefined : BOOSTER_SKUS[edgeIndex];
+      edge?.setVisible(sku !== undefined);
+      if (sku) edge?.setTexture(packTextureForSku(sku.sku));
+    }
+  }
+
+  private setBoosterStripIndex(index: number, tween = true): void {
+    if (!this.boosterStripContent || !this.boosterStripLayout) return;
+    const targetIndex = Math.min(this.boosterStripLayout.maxIndex, Math.max(0, Math.trunc(index)));
+    const targetOffset = boosterStripOffsetForIndex(this.boosterStripLayout, targetIndex);
+    this.tweens.killTweensOf(this.boosterStripContent);
+    if (!tween) {
+      this.boosterStripContent.x = targetOffset;
+      this.updateBoosterStripState(targetOffset);
+      return;
+    }
+    this.tweens.add({
+      targets: this.boosterStripContent,
+      x: targetOffset,
+      duration: 220,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => this.updateBoosterStripState(this.boosterStripContent?.x ?? targetOffset),
+      onComplete: () => this.updateBoosterStripState(targetOffset),
+    });
   }
 
   /** Buy + open the selected quantity of one SKU (clamped to what you can afford). */
@@ -851,8 +1201,21 @@ export class ShopScene extends Phaser.Scene {
     this.oddsModal = shell;
   }
 
-  private readonly onInspectPrev = (): void => this.stepInspect(-1);
-  private readonly onInspectNext = (): void => this.stepInspect(1);
+  private readonly onInspectPrev = (): void => {
+    if (this.tab === 'boosters' && !this.oddsModal && !this.overlay && !this.inspect) {
+      this.setBoosterStripIndex(this.boosterStripIndex - 1);
+      return;
+    }
+    this.stepInspect(-1);
+  };
+
+  private readonly onInspectNext = (): void => {
+    if (this.tab === 'boosters' && !this.oddsModal && !this.overlay && !this.inspect) {
+      this.setBoosterStripIndex(this.boosterStripIndex + 1);
+      return;
+    }
+    this.stepInspect(1);
+  };
 
   private stepInspect(delta: number): void {
     if (this.inspectIdx === null || this.previewEntries.length === 0) return;

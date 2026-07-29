@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   PLAYER_PERSONAS,
+  packChoiceForPreference,
   renderProgressionReport,
   runProgressionSimulation,
 } from '../../scripts/progression-sim';
 import { ECONOMY } from '../../src/config/rules';
 
 describe('progression simulation harness', () => {
+  it('maps every pack preference to a purchasable set SKU', () => {
+    expect(packChoiceForPreference('base', 0)).toEqual({ price: ECONOMY.packPrice, set: 'base' });
+    expect(packChoiceForPreference('mixed', 1, 0.9)).toEqual({ price: ECONOMY.packPrice, set: 'base' });
+    expect(packChoiceForPreference('mixed', 1, 0.1)).toEqual({
+      price: ECONOMY.ragnarokPackPrice,
+      set: 'ragnarok',
+    });
+  });
+
   it('defines 10 unique named player personas', () => {
     expect(PLAYER_PERSONAS).toHaveLength(10);
     expect(new Set(PLAYER_PERSONAS.map((p) => p.id)).size).toBe(10);

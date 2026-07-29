@@ -76,7 +76,7 @@ export const PACK_OPEN_MINUTES = 1.25;
 export const DECK_BUY_MINUTES = 1.5;
 export const QUEST_REROLL_MINUTES = 0.5;
 
-type PackPreference = 'base' | 'ragnarok' | 'arthurian-court' | 'mixed' | 'none';
+export type PackPreference = 'base' | 'ragnarok' | 'arthurian-court' | 'mixed' | 'none';
 type AchievementPolicy = 'claim' | 'ignore';
 type DailyCount = number | { min: number; max: number };
 
@@ -1308,24 +1308,40 @@ function buyPacks(ctx: SimContext, dayIndex: number): void {
   throw new Error('Pack buying guard tripped; check economy loop assumptions');
 }
 
-function choosePack(
-  ctx: SimContext,
+export function packChoiceForPreference(
+  preference: PackPreference,
   dayIndex: number,
+  expansionRoll = 0,
 ): { price: number; set?: CardDef['set'] } | null {
-  switch (spendingPlan(ctx).packPreference) {
+  switch (preference) {
     case 'none':
       return null;
     case 'base':
-      return { price: ECONOMY.packPrice };
+      return { price: ECONOMY.packPrice, set: 'base' };
     case 'ragnarok':
       return { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' };
     case 'arthurian-court':
       return { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' };
     case 'mixed':
-      return rngFloat(ctx.rng) < (dayIndex % 3 === 0 ? 0.6 : 0.35)
+      // Mixed preference remains a cheap Base Set route with an occasional
+      // purchasable expansion pack. The old omitted-set branch represented a
+      // 758-pool product that no shop SKU sells after 1.5.
+      return expansionRoll < (dayIndex % 3 === 0 ? 0.6 : 0.35)
         ? { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' }
-        : { price: ECONOMY.packPrice };
+        : { price: ECONOMY.packPrice, set: 'base' };
   }
+}
+
+function choosePack(
+  ctx: SimContext,
+  dayIndex: number,
+): { price: number; set?: CardDef['set'] } | null {
+  const preference = spendingPlan(ctx).packPreference;
+  return packChoiceForPreference(
+    preference,
+    dayIndex,
+    preference === 'mixed' ? rngFloat(ctx.rng) : undefined,
+  );
 }
 
 function setupContext(

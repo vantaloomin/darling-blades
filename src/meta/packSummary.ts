@@ -15,7 +15,7 @@ export interface PackPoolSummary {
 /**
  * The shop's pool-first odds disclosure: slot odds are identical across every
  * booster (one global DROPS table), so the decision variable between packs is
- * the PULL POOL. `set` undefined = the Core pack, which pulls from every set.
+ * the PULL POOL. `set` undefined = the mixed-set pool used by non-SKU callers.
  */
 export function packPoolSummary(save: SaveData, db: CardDb, set?: CardDef['set']): PackPoolSummary {
   const ids = TIERS.flatMap((tier) => packPool(db, tier, set));
