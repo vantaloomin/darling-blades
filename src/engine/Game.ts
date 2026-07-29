@@ -125,11 +125,23 @@ function validateRestoredReserveState(state: GameState, db: CardDb): void {
         }
       }
     }
+    if (data.landReserve.length > LAND_RESERVE_SIZE) {
+      throw new Error(
+        `Reserve format P${player} may contain at most ${LAND_RESERVE_SIZE} lands (received ${data.landReserve.length}).`,
+      );
+    }
+    let duals = 0;
     for (const card of data.landReserve) {
       const d = db[cardIdOf(card)];
       if (!d || !d.types.includes('land')) {
         throw new Error(`Reserve format P${player} state contains a non-land reserve card ${cardIdOf(card)}.`);
       }
+      if (isDualLand(card, db)) duals++;
+    }
+    if (duals > MAX_DUAL_LANDS_IN_RESERVE) {
+      throw new Error(
+        `Reserve format P${player} may contain at most ${MAX_DUAL_LANDS_IN_RESERVE} dual lands (received ${duals}).`,
+      );
     }
   }
 }

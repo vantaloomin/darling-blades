@@ -5,6 +5,8 @@ import { Game } from '../../src/engine/Game';
 import type { GameEvent } from '../../src/engine/events';
 import type { CardDb } from '../../src/engine/types';
 import { cardIdOf } from '../../src/engine/types';
+import { validateAction } from '../../src/engine/actions';
+import { CARD_DB } from '../../src/data/catalog';
 import { makeTestState, TEST_DB } from '../helpers';
 
 const DEATH_TEST_DB: CardDb = {
@@ -95,6 +97,65 @@ describe('Battle Box reserve engine', () => {
       format: 'battleBox',
       landReserves: [[...RESERVE.slice(0, 4), 'dual_gw', 'dual_gw', 'dual_gw', 'dual_gw', 'dual_gw', 'dual_gw'], RESERVE],
     })).toThrow('at most 5 dual lands');
+    expect(() => new Game({
+      decks: [Array.from({ length: 50 }, () => 'cf-cold-iron-nail'), Array.from({ length: 50 }, () => 'cf-cold-iron-nail')],
+      seed: 1,
+      db: CARD_DB,
+      format: 'battleBox',
+      landReserves: [
+        [...Array.from({ length: 9 }, () => 'land-forest'), 'cf-mist-road'],
+        Array.from({ length: 10 }, () => 'land-forest'),
+      ],
+    })).toThrow('unsupported land cf-mist-road');
+    expect(() => new Game({
+      decks: [SPELL_DECK, SPELL_DECK],
+      seed: 1,
+      db: TEST_DB,
+      format: 'battleBox',
+      landReserves: [[...RESERVE.slice(0, 9), 'unknown-land'], RESERVE],
+    })).toThrow('unknown land id unknown-land');
+  });
+
+  it('rejects restored reserve states with smuggled lands and malformed caps', () => {
+    const game = reserveGame();
+    for (const zone of ['deck', 'hand'] as const) {
+      const state = structuredClone(game.instanceState);
+      state.players[0][zone].push('forest');
+      expect(() => Game.restore(state, TEST_DB)).toThrow('outside the reserve');
+    }
+
+    const tooManyDuals = structuredClone(game.instanceState);
+    tooManyDuals.players[0].landReserve = [
+      ...Array.from({ length: 6 }, () => 'dual_gw'),
+      ...Array.from({ length: 4 }, () => 'forest'),
+    ];
+    expect(() => Game.restore(tooManyDuals, TEST_DB)).toThrow('at most 5 dual lands');
+
+    const tooManyLands = structuredClone(game.instanceState);
+    tooManyLands.players[0].landReserve!.push('forest');
+    expect(() => Game.restore(tooManyLands, TEST_DB)).toThrow('at most 10 lands');
+
+    keepBoth(game);
+    const player = game.instanceState.activePlayer;
+    game.submit(player, game.legalActions(player).find((action) => action.type === 'playLand')!);
+    expect(() => game.clone()).not.toThrow();
+  });
+
+  it('pins every reserve playLand validation branch', () => {
+    const reserve = makeTestState({});
+    reserve.players[0].landReserve = ['forest'];
+    expect(validateAction(reserve, TEST_DB, 0, { type: 'playLand', handIndex: 0, reserveIndex: 0 }))
+      .toBe('reserve land actions need handIndex -1');
+    expect(validateAction(reserve, TEST_DB, 0, { type: 'playLand', handIndex: -1, reserveIndex: 1 }))
+      .toBe('bad reserve index');
+
+    reserve.players[0].landReserve = ['bear'];
+    expect(validateAction(reserve, TEST_DB, 0, { type: 'playLand', handIndex: -1, reserveIndex: 0 }))
+      .toBe('reserve card is not a land');
+
+    const classic = makeTestState({});
+    expect(validateAction(classic, TEST_DB, 0, { type: 'playLand', handIndex: -1, reserveIndex: 0 }))
+      .toBe('classic games do not have a land reserve');
   });
 
   it('uses data-driven entry states and enforces the empty-reserve cap', () => {
@@ -159,7 +220,14 @@ describe('Battle Box reserve engine', () => {
       expect(state.players[0].hand).toEqual([]);
       expect(state.players[0].graveyard).toEqual([]);
       expect(events.some((event) => event.e === 'cardsBottomed')).toBe(true);
+      expect(events.filter((event) => event.e === 'died')).toHaveLength(cardId === 'forest' ? 0 : 1);
     }
+
+    const classic = makeTestState({ battlefield: [{ iid: 1, cardId: 'forest', controller: 0 }] });
+    const classicEvents: GameEvent[] = [];
+    recallPermanent(classic, TEST_DB, classic.battlefield[0], (event) => classicEvents.push(event));
+    expect(classic.players[0].hand).toEqual(['forest']);
+    expect(classicEvents.filter((event) => event.e === 'died')).toHaveLength(1);
   });
 
   it('handles a mixed mass-destroy batch without counting a returning basic as a death', () => {

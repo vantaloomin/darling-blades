@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { replayGame, replayDbStamp, startReplayDraft, finishReplay, recordReplayAction, type ReplayContext } from '../../src/meta/Replay';
+import {
+  finishReplay,
+  isReplayLog,
+  recordReplayAction,
+  replayDbStamp,
+  replayGame,
+  startReplayDraft,
+  type ReplayContext,
+} from '../../src/meta/Replay';
 import { Game } from '../../src/engine/Game';
 import { botAction, deckOf, TEST_DB } from '../helpers';
 
@@ -52,6 +60,16 @@ describe('reserve replay v4', () => {
     expect(original.log.v).toBe(4);
     expect(original.log.format).toBe('battleBox');
     expect(original.log.landReserves).toEqual([RESERVE, RESERVE]);
+    expect(isReplayLog(original.log)).toBe(true);
+
+    const missingReserve = { ...original.log, landReserves: undefined };
+    expect(isReplayLog(missingReserve)).toBe(false);
+    expect(() => replayGame(missingReserve, TEST_DB)).toThrow(
+      'This reserve replay is missing its land-reserve payload.',
+    );
+
+    const classicWithReserve = { ...original.log, format: undefined };
+    expect(isReplayLog(classicWithReserve)).toBe(false);
 
     const replayed = replayGame(original.log, TEST_DB);
     expect(replayed.eventLog).toEqual(original.eventLog);

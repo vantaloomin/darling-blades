@@ -131,7 +131,12 @@ export function simDb(db: CardDb): CardDb {
 
 // --- deck-shape priors -------------------------------------------------------
 
-/** Fraction of a deck assumed to be lands (both gate decks run 16/40). */
+/**
+ * Keep this at zero. In reserve views, Game.restore rejects land cards in
+ * hidden hand/deck zones, so a nonzero prior would inject `__unknown_land` and
+ * poison the search. This is part of the conservative negative-results
+ * convention documented in the module header.
+ */
 const LAND_FRACTION = 0.0;
 /** Fraction assumed to be instants/sorceries — removal + tricks. */
 const INTERACTION_FRACTION = 0.0;

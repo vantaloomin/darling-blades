@@ -132,12 +132,15 @@ export function recallPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
+  const basicToReserve = basicReturnsToReserve(state, db, perm);
   if (!d.token) {
     const toReserve = state.players[perm.owner].landReserve !== undefined && d.types.includes('land');
     pushMovedCard(state, perm, toReserve ? 'landReserve' : 'hand');
     emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
   }
-  emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
+  if (!basicToReserve) {
+    emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
+  }
   return true;
 }
 

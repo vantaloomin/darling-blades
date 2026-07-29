@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { determinize } from '../../src/ai/determinize';
 import { buildAI } from '../../src/ai/personality';
 import { buildTierAI } from '../../src/ai/tiers';
 import { chooseReserveLand } from '../../src/ai/landPolicy';
 import { Game } from '../../src/engine/Game';
+import { cardIdOf } from '../../src/engine/types';
 import type { PlayerView } from '../../src/engine/view';
 import { TEST_DB } from '../helpers';
 
@@ -48,6 +50,14 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
 
 const legal = RESERVE.map((_, reserveIndex) => ({ type: 'playLand' as const, handIndex: -1, reserveIndex }));
 
+function keepBoth(game: Game): void {
+  while (game.awaiting.kind !== 'main') {
+    const awaiting = game.awaiting;
+    if (!('player' in awaiting)) return;
+    game.submit(awaiting.player, { type: 'keepHand' });
+  }
+}
+
 describe('shared reserve land policy', () => {
   it('is deterministic, fixes missing colors, and preserves basics when mana is idle', () => {
     const missingWhite = view({ you: { ...view().you, hand: ['knight'] } });
@@ -85,6 +95,24 @@ describe('shared reserve land policy', () => {
     }
   });
 
+  it('never injects land stand-ins into reserve-format determinized hidden zones', () => {
+    const game = new Game({
+      decks: [SPELL_DECK, SPELL_DECK],
+      seed: 8128,
+      db: TEST_DB,
+      format: 'battleBox',
+      landReserves: [RESERVE, RESERVE],
+    });
+    keepBoth(game);
+
+    const simulated = determinize(game.viewFor(0), TEST_DB, 4242);
+    const hiddenIds = simulated.instanceState.players.flatMap((player) => [
+      ...player.hand,
+      ...player.deck,
+    ].map(cardIdOf));
+    expect(hiddenIds).not.toContain('__unknown_land');
+  });
+
   it('finishes seeded reserve games on every tower tier', () => {
     for (const tier of [1, 2, 3, 4, 5, 6] as const) {
       const game = new Game({
@@ -108,4 +136,3 @@ describe('shared reserve land policy', () => {
     }
   }, 120000);
 });
-
