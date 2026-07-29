@@ -4,6 +4,7 @@ import { Sfx } from '../audio/sfx';
 import { CARD_DB } from '../data/catalog';
 import { def } from '../engine/types';
 import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
+import { firstDuelLaunchIssue } from '../meta/duelSetup';
 import { Services } from '../meta/services';
 import type { SavedDeck } from '../meta/SaveManager';
 import { bindTapButton } from '../platform/gestures';
@@ -12,7 +13,7 @@ import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { goldBadge, modalShell, pager, panel, themedButton } from '../ui/themeWidgets';
-import { formatDeckSize, formatLabel, formatUnavailableCopy } from '../ui/deckBuilderHelpers';
+import { formatDeckSize, formatGauntletUnavailableCopy, formatLabel } from '../ui/deckBuilderHelpers';
 
 /**
  * The "Play" submenu (user-directed 2026-07-14): MainMenu's game-mode rows
@@ -38,15 +39,17 @@ export class PlayScene extends Phaser.Scene {
   /** Underlying interactive targets deadened while the deck select is open. */
   private menuTargets: Phaser.GameObjects.GameObject[] = [];
   private deckPlate: Phaser.GameObjects.Container | null = null;
+  private launchNotice: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('Play');
   }
 
-  create(): void {
+  create(data: { launchNotice?: string } = {}): void {
     this.guard = new ModalGuard();
     this.menuTargets = [];
     this.deckPlate = null;
+    this.launchNotice = null;
     const width = 1280;
     applyBackdrop(this, 'mainmenu', {
       dim: theme.graphics.dim,
@@ -91,6 +94,7 @@ export class PlayScene extends Phaser.Scene {
     });
 
     this.buildDeckPlate();
+    if (data.launchNotice) this.showLaunchNotice(data.launchNotice);
   }
 
   private activeDeck(): SavedDeck | null {
@@ -99,15 +103,38 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private startPlayEntry(scene: string, data?: object): void {
-    if (scene === 'PracticePicker' || scene === 'Gauntlet') {
+    if (scene === 'Practice') {
+      const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, this.activeDeck());
+      if (issue) {
+        this.showLaunchNotice(`Cannot start Practice: ${issue}`);
+        return;
+      }
+    }
+    if (scene === 'Gauntlet') {
       const deck = this.activeDeck();
       const format = deck?.format === 'darlings' || deck?.format === 'battlebox' ? deck.format : 'constructed';
-      if (formatUnavailableCopy(format)) {
+      if (formatGauntletUnavailableCopy(format)) {
         this.buildDeckPlate();
         return;
       }
     }
     this.scene.start(scene, data);
+  }
+
+  private showLaunchNotice(message: string): void {
+    if (!this.launchNotice || !this.launchNotice.active) {
+      this.launchNotice = this.add
+        .text(640, 500, message, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.danger,
+          align: 'center',
+          wordWrap: { width: 620 },
+        })
+        .setOrigin(0.5);
+      return;
+    }
+    this.launchNotice.setText(message);
   }
 
   /**
@@ -180,7 +207,7 @@ export class PlayScene extends Phaser.Scene {
 
     const faceId = this.deckFaceId(deck);
     const deckFormat = deck.format === 'darlings' || deck.format === 'battlebox' ? deck.format : 'constructed';
-    const unavailable = formatUnavailableCopy(deckFormat);
+    const unavailable = formatGauntletUnavailableCopy(deckFormat);
     let textLeft = left + 24;
     if (faceId) {
       // 300x420 card at 0.18 = 54x76, comfortably inside the 96px plate.
@@ -293,7 +320,7 @@ export class PlayScene extends Phaser.Scene {
           if (!isActive) band.setFillStyle(theme.graphics.rowFill, 0.9);
         });
         const deckFormat = deck.format === 'darlings' || deck.format === 'battlebox' ? deck.format : 'constructed';
-        const unavailable = formatUnavailableCopy(deckFormat);
+        const unavailable = formatGauntletUnavailableCopy(deckFormat);
         const name = this.add
           .text(rowX + 16, y - 7, deck.name, {
             fontFamily: theme.fonts.display,
@@ -317,7 +344,7 @@ export class PlayScene extends Phaser.Scene {
           })
           .setOrigin(1, 0.5);
         const state = this.add
-          .text(rowX + rowW - 16, y, unavailable ? 'Not playable' : isActive ? 'Using' : 'Use', {
+          .text(rowX + rowW - 16, y, unavailable ? 'Practice only' : isActive ? 'Using' : 'Use', {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             fontStyle: theme.weight.w600,

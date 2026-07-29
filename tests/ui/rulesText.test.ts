@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
-import { rulesText, typeLine } from '../../src/ui/rulesText';
+import { MECHANIC_DEFINITIONS, rulesText, typeLine } from '../../src/ui/rulesText';
 
 const AURA_KEYWORD_TEXT = {
   'en-wings-of-dawn': 'Enchanted Creature gets +1/+1, and gains Skyborne.',
@@ -77,5 +77,21 @@ describe('target-aware damage and land rules text', () => {
 
   it('does not emit em-dashes in generated rules text', () => {
     for (const card of ALL_CARDS) expect(rulesText(card)).not.toContain('\u2014');
+  });
+});
+
+describe('Hauntlink rules text', () => {
+  it('keeps the glossary reminder in the two-line mechanics copy band', () => {
+    expect(MECHANIC_DEFINITIONS.hauntlink.length).toBeLessThanOrEqual(90);
+    expect(MECHANIC_DEFINITIONS.hauntlink).not.toContain('\u2014');
+  });
+
+  it('renders the alternate cost, host rider, and host-death cleanup', () => {
+    const text = rulesText(CARD_DB['yn-hauntlink-apex']);
+    expect(text).toContain('Hauntlink {3}{U}:');
+    expect(text).toContain('linked to a creature you control');
+    expect(text).toContain('gets +2/+0 and gains Skyborne, Untouchable');
+    expect(text).toContain("When the host leaves play, put this into its owner's graveyard.");
+    expect(text).not.toContain('\u2014');
   });
 });

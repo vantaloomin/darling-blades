@@ -5,9 +5,9 @@ import {
   BATTLE_BOX_RULES_COPY,
   formatDeckSize,
   formatLabel,
+  formatGauntletUnavailableCopy,
   formatPageCount,
   formatPageSlice,
-  formatUnavailableCopy,
   gridPosition,
   variantPickerChoices,
 } from '../../src/ui/deckBuilderHelpers';
@@ -20,8 +20,8 @@ describe('deck builder helpers', () => {
     expect(formatDeckSize('constructed')).toBe(60);
     expect(formatDeckSize('darlings')).toBe(50);
     expect(formatDeckSize('battlebox')).toBe(50);
-    expect(formatUnavailableCopy('constructed')).toBeNull();
-    expect(formatUnavailableCopy('darlings')).toBe('Darlings duels arrive later in this update.');
+    expect(formatGauntletUnavailableCopy('darlings')).toBe('Darlings decks are available in Practice only.');
+    expect(formatGauntletUnavailableCopy('battlebox')).toBe('Battle Box decks are available in Practice only.');
     expect(BATTLE_BOX_RULES_COPY).not.toContain('\u2014');
   });
 
