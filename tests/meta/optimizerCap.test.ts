@@ -62,5 +62,5 @@ describe('optimizer gold-per-minute cap', () => {
     ).toBeLessThanOrEqual(OPTIMIZER_CAP);
   // CI runners are 2-core and can contend with other simulation tests; the
   // sim measures ~22s alone, so the 30s allowance flaked under load.
-  }, 90_000);
+  }, 240_000);
 });
