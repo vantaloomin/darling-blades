@@ -646,6 +646,57 @@ export class SaveManager {
   }
 
   /**
+   * Replace the profile as one service transaction. Storage is written before
+   * the shared in-memory object changes, and both sides are restored if either
+   * part fails. Keeping `data` in place refreshes every service consumer that
+   * already holds the shared SaveData reference.
+   */
+  replace(next: SaveData): boolean {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+
+    let previousBlob: string;
+    let nextBlob: string;
+    try {
+      previousBlob = JSON.stringify(this.data);
+      nextBlob = JSON.stringify(next);
+    } catch {
+      return false;
+    }
+
+    try {
+      this.storage.setItem(KEY, nextBlob);
+      this.replaceDataInPlace(JSON.parse(nextBlob) as SaveData);
+      return true;
+    } catch {
+      try {
+        this.replaceDataInPlace(JSON.parse(previousBlob) as SaveData);
+      } catch {
+        // The current save is a known JSON object, so this is only a defensive
+        // fallback for an unexpectedly hostile injected SaveData object.
+      }
+      try {
+        this.storage.setItem(KEY, previousBlob);
+      } catch {
+        // A storage adapter that is still failing cannot accept the rollback.
+        // The in-memory profile is nevertheless restored above.
+      }
+      return false;
+    }
+  }
+
+  private replaceDataInPlace(next: SaveData): void {
+    const current = this.data as unknown as Record<string, unknown>;
+    const replacement = next as unknown as Record<string, unknown>;
+    for (const key of Object.keys(current)) {
+      if (!Object.prototype.hasOwnProperty.call(replacement, key)) delete current[key];
+    }
+    Object.assign(current, replacement);
+  }
+
+  /**
    * Wipe the account to a fresh slate: cancel any pending write, clear both
    * storage slots (current + legacy), and reset the in-memory blob in place —
    * the `data` reference is shared with every scene, so it is mutated, not

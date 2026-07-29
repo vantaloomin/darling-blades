@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-23
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-29
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -23,6 +23,7 @@ token already names.
 | `themedButton` | The standard button (primary / emphasis / ghost / danger variants, sm sizing, min-width, enabled state, measured bounds, inflated hit zone). |
 | `roundedTrigger` | Chip-style trigger (the dropdown face): auto-sizes to its label, `setLabel` re-measures, selected/hover states. |
 | `modalShell` | The one modal: dim layer, panel, title/content/footer tracks, optional close button, tap-dim-to-close, `escToClose`, `onClose`, OverlayCoordinator registration, `close()`. Every dialog uses this - OddsModal, deck previews, the pack-pull inspect, the touch land-styles picker. |
+| `createMultilineInput` | DOM textarea with selectable long text, keyboard/touch input, and OverlayCoordinator suppression support. Use it for save-code or other bounded multiline fields. |
 | `pager` | The ‹ N/M › page control (deck lists, collection pages). |
 | `panel` / `backButton` / `goldBadge` | Framed surface, the standard top-left back control, the gold readout with flash/shake affordance. |
 
