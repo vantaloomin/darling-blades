@@ -580,28 +580,40 @@ export const COARSE_PROGRESSION_BANDS = Object.freeze({
   collectionPct: Object.freeze({ min: 0.03, max: 0.7 }),
 });
 
-export const CANONICAL_FINE_BASELINE_DATE = '2026-07-25';
-export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, post-Dark Tales 1.4, 638-card pool';
+export const CANONICAL_FINE_BASELINE_DATE = '2026-07-29';
+export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.5 post-base-scope, 758-card pool';
 
 /**
- * Flag-only bands measured from balance/econ-baseline-2026-07-25-post-dt.report.json.
+ * Flag-only bands measured from balance/econ-baseline-2026-07-29-rotation.report.json.
  * Baseline rows are day-60 aggregates; the wide edges are intentional and do
  * not affect --check's exit code. Measured -> band: collection %, packs/day,
- * premium runs, quest claim rate. Fine windows are re-centered from the prior
- * offsets; lower bounds are ratchet floors and never move downward (which is
- * why several collection floors sit close under the post-Dark-Tales values:
- * the 638-card pool lowered every completion, but floors only ratchet up).
+ * premium runs, quest claim rate. Each window keeps the relative tolerance its
+ * persona already had and is re-centred on the fresh measurement.
  *
- * new-casual 33.82 -> 32..46, 0.48 -> 0.10..1.15, 0 -> 0..1, 42.50 -> 25..64
- * daily-grinder 61.38 -> 53..76, 1.56 -> 0.90..2.38, 0 -> 0..1, 73.82 -> 54..94
- * gauntlet-climber 56.97 -> 50..72, 1.40 -> 0.80..2.20, 0 -> 0..1, 68.33 -> 48..88
- * limited-fan 79.21 -> 77..88, 0.64 -> 0.04..0.94, 18.00 -> 16..20, 73.06 -> 53..92
- * collector 50.12 -> 41..66, 1.03 -> 0.51..1.81, 0 -> 0..1, 66.60 -> 45..85
- * theme-deck-buyer 59.15 -> 54..74, 0.83 -> 0.40..1.53, 0 -> 0..1, 59.58 -> 40..80
- * hardcore-optimizer 69.30 -> 67..81, 2.31 -> 1.50..3.28, 0 -> 0..1, 85.83 -> 70..100
- * low-skill-casual 33.91 -> 24..50, 0.47 -> 0.12..1.02, 0 -> 0..1, 41.53 -> 21..61
- * high-skill-veteran 66.87 -> 59..81, 1.99 -> 1.14..2.84, 0 -> 0..1, 78.26 -> 60..95
- * completionist 74.55 -> 72..86, 2.13 -> 1.42..3.22, 0 -> 0..1, 89.79 -> 70..100
+ * COLLECTION FLOORS MOVED DOWN HERE, which the usual ratchet-up rule forbids.
+ * User-approved 2026-07-29 for two stated reasons, both deliberate product
+ * changes rather than an economy regression:
+ *   1. The pool grew 638 -> 758 (+19%), so identical collecting scores a lower
+ *      percentage. The old 60.27% median rescales to 50.7%; the run measured
+ *      52%, and packs/day held at 1.17. The economy did not get stingier.
+ *   2. The Base Set pack was scoped to base-set cards only, so a persona that
+ *      only ever buys the cheapest pack is capped at 205/758 = 27% of the pool
+ *      by construction. new-casual, low-skill-casual, and theme-deck-buyer sit
+ *      against that ceiling on purpose.
+ * Quest-claim rates are pool-independent and barely moved, which is the check
+ * that this is dilution and not a broken instrument. Holding the old floors
+ * would have left seven permanent flags, and an always-on flag reports nothing.
+ *
+ * new-casual 19.21 -> 18..26, 0.45 -> 0.09..1.08, 0 -> 0..1, 42.50 -> 25..64
+ * daily-grinder 52.95 -> 46..66, 1.49 -> 0.86..2.28, 0 -> 0..1, 73.82 -> 54..94
+ * gauntlet-climber 51.88 -> 46..66, 1.37 -> 0.78..2.15, 0 -> 0..1, 68.33 -> 48..88
+ * limited-fan 73.17 -> 71..81, 0.60 -> 0.04..0.89, 18.00 -> 16..20, 72.43 -> 53..91
+ * collector 42.15 -> 34..56, 0.97 -> 0.48..1.71, 0 -> 0..1, 66.60 -> 45..85
+ * theme-deck-buyer 33.53 -> 31..42, 0.70 -> 0.34..1.29, 0 -> 0..1, 59.58 -> 40..80
+ * hardcore-optimizer 65.27 -> 63..76, 2.26 -> 1.47..3.21, 0 -> 0..1, 85.83 -> 70..100
+ * low-skill-casual 18.49 -> 13..27, 0.44 -> 0.11..0.95, 0 -> 0..1, 41.53 -> 21..61
+ * high-skill-veteran 59.09 -> 52..72, 1.89 -> 1.08..2.70, 0 -> 0..1, 78.26 -> 60..95
+ * completionist 66.36 -> 64..77, 2.04 -> 1.36..3.09, 0 -> 0..1, 90.07 -> 70..100
  */
 export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
   collectionPct: readonly [number, number];
@@ -609,16 +621,16 @@ export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
   premiumDraftRuns: readonly [number, number];
   dailyQuestClaimRate: readonly [number, number];
 }>> = Object.freeze({
-  'new-casual': { collectionPct: [0.32, 0.46], packsPerDay: [0.1, 1.15], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
-  'daily-grinder': { collectionPct: [0.53, 0.76], packsPerDay: [0.9, 2.38], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
-  'gauntlet-climber': { collectionPct: [0.5, 0.72], packsPerDay: [0.8, 2.2], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.48, 0.88] },
-  'limited-fan': { collectionPct: [0.77, 0.88], packsPerDay: [0.04, 0.94], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.53, 0.92] },
-  collector: { collectionPct: [0.41, 0.66], packsPerDay: [0.51, 1.81], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.45, 0.85] },
-  'theme-deck-buyer': { collectionPct: [0.54, 0.74], packsPerDay: [0.4, 1.53], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
-  'hardcore-optimizer': { collectionPct: [0.67, 0.81], packsPerDay: [1.5, 3.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
-  'low-skill-casual': { collectionPct: [0.24, 0.5], packsPerDay: [0.12, 1.02], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
-  'high-skill-veteran': { collectionPct: [0.59, 0.81], packsPerDay: [1.14, 2.84], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.6, 0.95] },
-  completionist: { collectionPct: [0.72, 0.86], packsPerDay: [1.42, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
+  'new-casual': { collectionPct: [0.182, 0.261], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
+  'daily-grinder': { collectionPct: [0.457, 0.656], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
+  'gauntlet-climber': { collectionPct: [0.455, 0.656], packsPerDay: [0.78, 2.15], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.48, 0.88] },
+  'limited-fan': { collectionPct: [0.711, 0.813], packsPerDay: [0.04, 0.89], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.525, 0.912] },
+  collector: { collectionPct: [0.345, 0.555], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.45, 0.85] },
+  'theme-deck-buyer': { collectionPct: [0.306, 0.419], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
+  'hardcore-optimizer': { collectionPct: [0.631, 0.763], packsPerDay: [1.47, 3.21], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
+  'low-skill-casual': { collectionPct: [0.131, 0.273], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
+  'high-skill-veteran': { collectionPct: [0.521, 0.716], packsPerDay: [1.08, 2.7], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.6, 0.95] },
+  completionist: { collectionPct: [0.641, 0.765], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.702, 1] },
 });
 
 const emptyRewards = (): RewardLedger => ({

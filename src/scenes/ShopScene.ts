@@ -454,10 +454,13 @@ export class ShopScene extends Phaser.Scene {
 
   create(data: { tab?: ShopTab } = {}): void {
     // Default tab follows the free-starter claim (user-directed 2026-07-17):
-    // while the claim is unspent the shop opens on the precon decks so a new
-    // player lands on Claim Free; once spent it opens on boosters. An explicit
-    // data.tab (onboarding routes { tab: 'decks' }) always wins.
-    const freeClaimAvailable = Services.save.data.starterChosen === null;
+    // while a Claim Free deck is actually on offer the shop opens on the precon
+    // decks so a new player lands on it; otherwise it opens on card packs. An
+    // explicit data.tab (onboarding routes { tab: 'decks' }) always wins.
+    // This asks isFreeClaim rather than re-deriving it: the button also
+    // requires the deck to be a starter the player does not already own, so an
+    // unspent marker alone opened Decks on a shop with no claim to make.
+    const freeClaimAvailable = STARTER_DECKS.some((deck) => this.isFreeClaim(deck));
     this.tab = data.tab ?? (freeClaimAvailable ? 'decks' : 'boosters');
     this.qty = 1;
     this.skuButtons = [];
@@ -618,7 +621,7 @@ export class ShopScene extends Phaser.Scene {
 
   private buildTabBar(): void {
     const defs: { key: ShopTab; label: string }[] = [
-      { key: 'boosters', label: 'Boosters' },
+      { key: 'boosters', label: 'Card Packs' },
       { key: 'decks', label: 'Decks' },
     ];
     defs.forEach((d, i) => {
