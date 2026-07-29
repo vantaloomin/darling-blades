@@ -43,6 +43,7 @@ import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
+import { clearedPinSummaryCopy } from '../ui/collectionCopy';
 import { colorInt, theme } from '../ui/theme';
 import {
   backButton,
@@ -481,7 +482,7 @@ export class CollectionScene extends Phaser.Scene {
    * the best owned variant, plus a tappable list of every owned variant.
    * Unowned cards render the plain look.
    */
-  private showInspect(d: CardDef): void {
+  private showInspect(d: CardDef, clearedPins: readonly { deckName: string; countCleared: number }[] = []): void {
     this.closeInspect();
     this.filterBar.closeAll(); // a floating dropdown must not sit over the overlay
     this.searchInput?.setVisible(false); // DOM input always floats above the canvas dim
@@ -522,6 +523,19 @@ export class CollectionScene extends Phaser.Scene {
 
     // Variant panel, right of the card (card spans x 247.5..652.5).
     const panelX = 740;
+    if (clearedPins.length > 0) {
+      c.add(
+        this.add
+          .text(panelX, 84, clearedPins.map(clearedPinSummaryCopy).join('\n'), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.success,
+            wordWrap: { width: 470 },
+            lineSpacing: 3,
+          })
+          .setOrigin(0, 0.5),
+      );
+    }
     c.add(
       this.add
         .text(panelX, 130, owned > 0 ? 'Owned variants' : 'Not yet collected', {
@@ -716,11 +730,11 @@ export class CollectionScene extends Phaser.Scene {
           shardBtn.setVariant('primary');
           return;
         }
-        shardExcess(save, CARD_DB, d.id);
+        const result = shardExcess(save, CARD_DB, d.id);
         Services.save.flush();
         Sfx.play('coin');
         this.renderPage(); // refresh the ×N / ✦N badges beneath the overlay
-        this.showInspect(d); // rebuild the overlay with the new counts
+        this.showInspect(d, result.clearedPins); // rebuild the overlay with the new counts and pin result
       });
     }
   }

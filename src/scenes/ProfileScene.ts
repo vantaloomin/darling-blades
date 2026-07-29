@@ -5,10 +5,22 @@ import { CARD_DB } from '../data/catalog';
 import { todayString } from '../meta/Economy';
 import { computeProfile, formatRate, type Difficulty } from '../meta/profileStats';
 import { canReplay, type ReplayLog } from '../meta/Replay';
+import { decode, encode, type SaveCodePreview } from '../meta/SaveCode';
+import type { SaveData } from '../meta/SaveManager';
 import { Services } from '../meta/services';
+import { modalGuardTarget } from '../ui/Modal';
+import { OverlayCoordinator } from '../ui/OverlayCoordinator';
+import { createMultilineInput, type MultilineInputHandle } from '../ui/MultilineInput';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, panel, themedButton } from '../ui/themeWidgets';
+import {
+  backButton,
+  modalShell,
+  panel,
+  themedButton,
+  type ModalShell,
+  type ThemedButton,
+} from '../ui/themeWidgets';
 
 const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
@@ -18,11 +30,33 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy', medium: 'Me
  * Nothing rendered here mutates the save.
  */
 export class ProfileScene extends Phaser.Scene {
+  private coordinator!: OverlayCoordinator;
+  private profileInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
+  private exportShell: ModalShell | null = null;
+  private exportInput: MultilineInputHandle | null = null;
+  private importShell: ModalShell | null = null;
+  private importInput: MultilineInputHandle | null = null;
+  private importStatus: Phaser.GameObjects.Text | null = null;
+  private importInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
+  private confirmationShell: ModalShell | null = null;
+
   constructor() {
     super('Profile');
   }
 
-  create(): void {
+  create(data: { notice?: string } = {}): void {
+    this.coordinator = new OverlayCoordinator();
+    this.profileInteractiveTargets = [];
+    this.exportShell = null;
+    this.exportInput = null;
+    this.importShell = null;
+    this.importInput = null;
+    this.importStatus = null;
+    this.importInteractiveTargets = [];
+    this.confirmationShell = null;
+    this.input.keyboard?.on('keydown-ESC', this.onEscKey);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
+
     applyBackdrop(this, 'mainmenu', {
       dim: colorInt(theme.colors.dim),
       dimAlpha: 0.62,
@@ -61,6 +95,28 @@ export class ProfileScene extends Phaser.Scene {
         { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted },
       )
       .setOrigin(0.5);
+
+    const exportButton = themedButton(this, 900, 112, 'Export save', {
+      variant: 'primary',
+      minWidth: 160,
+      onTap: () => this.openExportModal(),
+    });
+    const importButton = themedButton(this, 1080, 112, 'Import save', {
+      variant: 'emphasis',
+      minWidth: 160,
+      onTap: () => this.openImportModal(),
+    });
+    this.profileInteractiveTargets.push(exportButton.inputZone, importButton.inputZone);
+
+    if (data.notice) {
+      this.add
+        .text(640, 174, data.notice, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.success,
+        })
+        .setOrigin(0.5);
+    }
 
     panel(this, 72, 190, 500, 450);
     panel(this, 600, 190, 608, 450);
@@ -117,7 +173,292 @@ export class ProfileScene extends Phaser.Scene {
       });
     }
 
-    backButton(this, () => this.scene.start('MainMenu'));
+    this.profileInteractiveTargets.push(backButton(this, () => this.scene.start('MainMenu')));
+  }
+
+  private readonly onEscKey = (): void => {
+    this.coordinator.dispatchEsc();
+  };
+
+  private readonly onShutdown = (): void => {
+    this.exportShell?.close();
+    this.importShell?.close();
+    this.confirmationShell?.close();
+    this.exportInput?.destroy();
+    this.importInput?.destroy();
+    this.coordinator.destroy();
+    this.input.keyboard?.off('keydown-ESC', this.onEscKey);
+  };
+
+  private openExportModal(): void {
+    this.importShell?.close();
+    this.exportShell?.close();
+
+    let includeReplays = false;
+    let code = encode(Services.save.data);
+    const shell = modalShell(this, {
+      width: 1120,
+      height: 620,
+      dimAlpha: 0.86,
+      depth: theme.depth.modal,
+      tapDimToClose: true,
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.profileInteractiveTargets.map(modalGuardTarget),
+      },
+      onClose: () => {
+        this.exportInput?.destroy();
+        this.exportInput = null;
+        this.exportShell = null;
+      },
+    });
+    this.exportShell = shell;
+    const c = shell.container;
+    c.add(
+      this.add
+        .text(640, 88, 'Export save', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0.5),
+    );
+
+    const input = createMultilineInput(this, 640, 310, {
+      width: 930,
+      height: 260,
+      accessibleName: 'Save export code',
+      readOnly: true,
+    });
+    this.exportInput = input;
+    input.setValue(code);
+
+    const status = this.add
+      .text(640, 470, 'Replays are excluded by default.', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    c.add(status);
+    c.add(
+      this.add
+        .text(640, 515, 'Keep this code private. It contains your collection, decks, progress, settings, and match record.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
+          wordWrap: { width: 900 },
+          align: 'center',
+        })
+        .setOrigin(0.5),
+    );
+
+    const includeButton = themedButton(this, 420, 600, 'Include replays: Off', {
+      variant: 'ghost',
+      minWidth: 210,
+      onTap: () => {
+        includeReplays = !includeReplays;
+        code = encode(Services.save.data, { includeReplays });
+        input.setValue(code);
+        includeButton.setLabel(`Include replays: ${includeReplays ? 'On' : 'Off'}`);
+        status.setText(includeReplays ? 'Replays are included in this code.' : 'Replays are excluded from this code.');
+      },
+    });
+    const copyButton = themedButton(this, 860, 600, 'Copy', {
+      variant: 'primary',
+      minWidth: 120,
+      onTap: () => void this.copyExportCode(input, code, status),
+    });
+    c.add([includeButton.container, copyButton.container]);
+  }
+
+  private async copyExportCode(
+    input: MultilineInputHandle,
+    code: string,
+    status: Phaser.GameObjects.Text,
+  ): Promise<void> {
+    try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(code);
+      status.setColor(theme.colors.success).setText('Copied to clipboard');
+    } catch {
+      input.focus();
+      input.select();
+      status
+        .setColor(theme.colors.danger)
+        .setText('Copy failed. The code is still selectable. Copy it manually.');
+    }
+  }
+
+  private openImportModal(): void {
+    this.exportShell?.close();
+    this.importShell?.close();
+
+    let decodedSave: SaveData | null = null;
+    let previewText: Phaser.GameObjects.Text | null = null;
+    let previewButton: ThemedButton | null = null;
+    const shell = modalShell(this, {
+      width: 1120,
+      height: 640,
+      dimAlpha: 0.86,
+      depth: theme.depth.modal,
+      tapDimToClose: true,
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.profileInteractiveTargets.map(modalGuardTarget),
+      },
+      onClose: () => {
+        this.importInput?.destroy();
+        this.importInput = null;
+        this.importStatus = null;
+        this.importInteractiveTargets = [];
+        this.importShell = null;
+      },
+    });
+    this.importShell = shell;
+    const c = shell.container;
+    c.add(
+      this.add
+        .text(640, 78, 'Import save', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0.5),
+    );
+    const status = this.add
+      .text(640, 444, 'Paste a save code, then choose Preview save.', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    this.importStatus = status;
+
+    const input = createMultilineInput(this, 640, 270, {
+      width: 930,
+      height: 220,
+      accessibleName: 'Save import code',
+      placeholder: 'DBS1-...',
+      onChange: () => {
+        decodedSave = null;
+        previewText?.destroy();
+        previewText = null;
+        previewButton?.setEnabled(false);
+        status.setColor(theme.colors.muted).setText('Paste a save code, then choose Preview save.');
+      },
+    });
+    this.importInput = input;
+
+    const validateButton = themedButton(this, 410, 590, 'Preview save', {
+      variant: 'primary',
+      minWidth: 170,
+      onTap: () => {
+        const result = decode(input.getValue());
+        if (!result.ok) {
+          decodedSave = null;
+          previewText?.destroy();
+          previewText = null;
+          previewButton?.setEnabled(false);
+          status.setColor(theme.colors.danger).setText(result.error.message);
+          return;
+        }
+        decodedSave = result.save;
+        previewText?.destroy();
+        previewText = this.add
+          .text(105, 468, this.formatSavePreview(result.preview), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.body,
+            lineSpacing: 3,
+          })
+          .setOrigin(0, 0);
+        c.add(previewText);
+        previewButton?.setEnabled(true);
+        status.setColor(theme.colors.success).setText('Save code is valid. Review the profile before replacing it.');
+      },
+    });
+    previewButton = themedButton(this, 850, 590, 'Replace save', {
+      variant: 'danger',
+      minWidth: 180,
+      enabled: false,
+      onTap: () => {
+        if (decodedSave) this.openImportConfirmation(decodedSave);
+      },
+    });
+    c.add([validateButton.container, previewButton.container]);
+    this.importInteractiveTargets = [...shell.interactiveChildren, validateButton.inputZone, previewButton.inputZone];
+    input.focus();
+  }
+
+  private openImportConfirmation(save: SaveData): void {
+    this.confirmationShell?.close();
+    const shell = modalShell(this, {
+      width: 820,
+      height: 300,
+      dimAlpha: 0.9,
+      depth: theme.depth.results,
+      tapDimToClose: false,
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.importInteractiveTargets.map(modalGuardTarget),
+        domHandles: this.importInput ? [this.importInput] : [],
+      },
+      onClose: () => {
+        this.confirmationShell = null;
+      },
+    });
+    this.confirmationShell = shell;
+    const c = shell.container;
+    c.add(
+      this.add
+        .text(640, 120, "Replace this device's save? Your current profile will be overwritten. Export it first if you may want it back.", {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.body,
+          wordWrap: { width: 650 },
+          align: 'center',
+          lineSpacing: 5,
+        })
+        .setOrigin(0.5),
+    );
+    const cancelButton = themedButton(this, 490, 245, 'Cancel', {
+      variant: 'ghost',
+      minWidth: 120,
+      onTap: () => shell.close(),
+    });
+    const confirmButton = themedButton(this, 790, 245, 'Replace save', {
+      variant: 'danger',
+      minWidth: 170,
+      onTap: () => {
+        if (!Services.replaceSave(save)) {
+          shell.close();
+          this.importStatus
+            ?.setColor(theme.colors.danger)
+            .setText('Save import failed. Your current profile was restored because storage failed.');
+          return;
+        }
+        shell.close();
+        this.importShell?.close();
+        this.scene.restart({ notice: 'Save imported' });
+      },
+    });
+    c.add([cancelButton.container, confirmButton.container]);
+  }
+
+  private formatSavePreview(preview: SaveCodePreview): string {
+    return [
+      `Creation date: ${new Date(preview.creationDate).toLocaleString()}`,
+      `Collection: ${preview.collectionCount.toLocaleString('en-US')} copies (${preview.collectionDistinctCount.toLocaleString('en-US')} distinct cards)`,
+      `Gold: ${preview.gold.toLocaleString('en-US')}g`,
+      `Decks: ${preview.deckCount}`,
+      `Progress: ${preview.progressSummary.wins} W / ${preview.progressSummary.losses} L. Best gauntlet rung ${preview.progressSummary.bestGauntletRung}. Full clears ${preview.progressSummary.gauntletCompletions}.`,
+      `Source schema: v${preview.sourceSchemaVersion}`,
+      `Replays present: ${preview.replaysPresent ? 'Yes' : 'No'}`,
+    ].join('\n');
   }
 
   private sectionLabel(y: number, text: string): void {
@@ -187,6 +528,7 @@ export class ProfileScene extends Phaser.Scene {
         },
       });
       row.add(watch.container);
+      this.profileInteractiveTargets.push(watch.inputZone);
     } else {
       row.add(
         this.add
