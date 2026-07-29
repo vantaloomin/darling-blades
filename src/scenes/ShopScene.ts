@@ -188,6 +188,7 @@ function bakeRealPackBase(
   scene: Phaser.Scene,
   ctx: CanvasRenderingContext2D,
   sceneArtKey: string,
+  trimY = 0,
 ): void {
   const img = scene.textures.get(sceneArtKey).getSourceImage() as CanvasImageSource;
   const sw = (img as { width: number }).width;
@@ -197,8 +198,17 @@ function bakeRealPackBase(
   ctx.clip();
   const scale = Math.max(PACK_W / sw, PACK_H / sh);
   const dw = sw * scale;
-  const dh = sh * scale;
-  ctx.drawImage(img, (PACK_W - dw) / 2, (PACK_H - dh) / 2, dw, dh);
+  if (trimY > 0) {
+    // Sources authored after the 2026-07-18 crimp-band review bake their own
+    // plain bars into the art, so the code-stamped crimps landed on top of a
+    // second set and up to 18% of the pack face read as letterboxing. Drop the
+    // baked bars and fill the height with what is left. The vertical stretch
+    // is deliberate: a proportional zoom would crop the ornamental gold frame
+    // that gives each pack its identity.
+    ctx.drawImage(img, 0, trimY, sw, sh - trimY * 2, (PACK_W - dw) / 2, 0, dw, PACK_H);
+  } else {
+    ctx.drawImage(img, (PACK_W - dw) / 2, (PACK_H - sh * scale) / 2, dw, sh * scale);
+  }
   ctx.restore();
   // gold trim over the cropped edge (the procedural path strokes it inline)
   packRR(ctx, 2, 2, PACK_W - 4, PACK_H - 4, 14);
@@ -211,6 +221,12 @@ export interface PackArtOpts {
   key?: string; // texture key (default 'packart')
   sceneArtKey?: string; // real-art source key (default 'scene-pack-art')
   tint?: PackTint; // procedural fallback treatment; real art remains untouched
+  /**
+   * Plain bars baked into the source art, in source pixels per edge, measured
+   * from the shipped webp. Only the three sets authored under the hardened
+   * crimp-band prompt carry them; older sources are 0.
+   */
+  trimY?: number;
 }
 
 export const CELTIC_FAE_PACK_ART: PackArtOpts = {
@@ -229,18 +245,21 @@ export const GOTHIC_MONSTERS_PACK_ART: PackArtOpts = {
   key: 'packart-gothic-monsters',
   sceneArtKey: 'scene-pack-art-gothic-monsters',
   tint: GOTHIC_MONSTERS_PACK_TINT,
+  trimY: 73,
 };
 
 export const DARK_TALES_PACK_ART: PackArtOpts = {
   key: 'packart-dark-tales',
   sceneArtKey: 'scene-pack-art-dark-tales',
   tint: DARK_TALES_PACK_TINT,
+  trimY: 52,
 };
 
 export const YOKAI_NIGHTS_PACK_ART: PackArtOpts = {
   key: 'packart-yokai-nights',
   sceneArtKey: 'scene-pack-art-yokai-nights',
   tint: YOKAI_NIGHTS_PACK_TINT,
+  trimY: 69,
 };
 
 export function packTextureForSku(sku: BoosterSku): string {
@@ -302,7 +321,7 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
   const ctx = tex.getContext();
 
   if (scene.textures.exists(sceneArtKey)) {
-    bakeRealPackBase(scene, ctx, sceneArtKey);
+    bakeRealPackBase(scene, ctx, sceneArtKey, opts.trimY ?? 0);
   } else {
     bakeProceduralPackBase(ctx, opts.tint ?? BASE_PACK_TINT);
   }
