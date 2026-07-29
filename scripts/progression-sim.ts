@@ -1308,6 +1308,19 @@ function buyPacks(ctx: SimContext, dayIndex: number): void {
   throw new Error('Pack buying guard tripped; check economy loop assumptions');
 }
 
+/**
+ * Every expansion booster a 1.5 player can actually buy, in release order. The
+ * rotation is indexed by day, so it stays seed-deterministic.
+ */
+const MIXED_EXPANSION_ROTATION: readonly { price: number; set: CardDef['set'] }[] = [
+  { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' },
+  { price: ECONOMY.celticFaePackPrice, set: 'celtic-fae' },
+  { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' },
+  { price: ECONOMY.gothicMonstersPackPrice, set: 'gothic-monsters' },
+  { price: ECONOMY.darkTalesPackPrice, set: 'dark-tales' },
+  { price: ECONOMY.yokaiNightsPackPrice, set: 'yokai-nights' },
+];
+
 export function packChoiceForPreference(
   preference: PackPreference,
   dayIndex: number,
@@ -1323,11 +1336,15 @@ export function packChoiceForPreference(
     case 'arthurian-court':
       return { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' };
     case 'mixed':
-      // Mixed preference remains a cheap Base Set route with an occasional
-      // purchasable expansion pack. The old omitted-set branch represented a
-      // 758-pool product that no shop SKU sells after 1.5.
+      // Mixed preference is a cheap Base Set route with an occasional
+      // expansion pack, rotating deterministically through every released
+      // expansion. Before 1.5 this branch bought the all-sets product, so one
+      // cheap SKU reached the whole pool; scoping Base Set to its own 205
+      // cards without widening the rotation left a mixed persona structurally
+      // unable to own more than (205 + 70) / 758 = 36% of the pool, and the
+      // 2026-07-29 run duly measured every mixed persona pinned at 32-35%.
       return expansionRoll < (dayIndex % 3 === 0 ? 0.6 : 0.35)
-        ? { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' }
+        ? MIXED_EXPANSION_ROTATION[dayIndex % MIXED_EXPANSION_ROTATION.length]
         : { price: ECONOMY.packPrice, set: 'base' };
   }
 }
