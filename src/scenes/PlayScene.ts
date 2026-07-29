@@ -1,10 +1,9 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
-import { RULES } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { def } from '../engine/types';
-import { faceCardFor } from '../meta/deckFace';
+import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
 import { Services } from '../meta/services';
 import type { SavedDeck } from '../meta/SaveManager';
 import { bindTapButton } from '../platform/gestures';
@@ -13,6 +12,7 @@ import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { goldBadge, modalShell, pager, panel, themedButton } from '../ui/themeWidgets';
+import { formatDeckSize, formatLabel, formatUnavailableCopy } from '../ui/deckBuilderHelpers';
 
 /**
  * The "Play" submenu (user-directed 2026-07-14): MainMenu's game-mode rows
@@ -85,7 +85,7 @@ export class PlayScene extends Phaser.Scene {
         variant: 'ghost',
         size: 'sm',
         minWidth: 300,
-        onTap: () => this.scene.start(entry.scene, entry.data),
+        onTap: () => this.startPlayEntry(entry.scene, entry.data),
       });
       this.menuTargets.push(btn.inputZone);
     });
@@ -98,6 +98,18 @@ export class PlayScene extends Phaser.Scene {
     return save.decks.find((d) => d.id === save.activeDeckId) ?? null;
   }
 
+  private startPlayEntry(scene: string, data?: object): void {
+    if (scene === 'PracticePicker' || scene === 'Gauntlet') {
+      const deck = this.activeDeck();
+      const format = deck?.format === 'darlings' || deck?.format === 'battlebox' ? deck.format : 'constructed';
+      if (formatUnavailableCopy(format)) {
+        this.buildDeckPlate();
+        return;
+      }
+    }
+    this.scene.start(scene, data);
+  }
+
   /**
    * The deck a duel's hero portrait fronts: the starred per-deck hero when it
    * is still in the list, else the deck's face creature (the DuelScene
@@ -105,6 +117,7 @@ export class PlayScene extends Phaser.Scene {
    * approximation is fine here).
    */
   private deckFaceId(deck: SavedDeck): string | null {
+    if (deck.format === 'darlings') return darlingFaceCardFor(deck, CARD_DB);
     if (deck.heroCardId && CARD_DB[deck.heroCardId] && deck.cards.includes(deck.heroCardId)) {
       return deck.heroCardId;
     }
@@ -164,6 +177,8 @@ export class PlayScene extends Phaser.Scene {
     }
 
     const faceId = this.deckFaceId(deck);
+    const deckFormat = deck.format === 'darlings' || deck.format === 'battlebox' ? deck.format : 'constructed';
+    const unavailable = formatUnavailableCopy(deckFormat);
     let textLeft = left + 24;
     if (faceId) {
       // 300x420 card at 0.18 = 54x76, comfortably inside the 96px plate.
@@ -172,7 +187,7 @@ export class PlayScene extends Phaser.Scene {
     }
     c.add(
       this.add
-        .text(textLeft, cy - 26, 'ACTIVE DECK', {
+        .text(textLeft, cy - 26, unavailable ? formatLabel(deckFormat).toUpperCase() + ' DECK' : 'ACTIVE DECK', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
@@ -192,10 +207,11 @@ export class PlayScene extends Phaser.Scene {
     c.add(name);
     c.add(
       this.add
-        .text(textLeft, cy + 25, `${deck.cards.length}/${RULES.deckSize} cards`, {
+        .text(textLeft, cy + 25, unavailable ?? (deck.cards.length + '/' + formatDeckSize(deckFormat) + ' cards'), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
-          color: deck.cards.length === RULES.deckSize ? theme.colors.success : theme.colors.danger,
+          color: unavailable ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
+          wordWrap: { width: w - 190 },
         })
         .setOrigin(0, 0.5),
     );
@@ -274,30 +290,39 @@ export class PlayScene extends Phaser.Scene {
         band.on('pointerout', () => {
           if (!isActive) band.setFillStyle(theme.graphics.rowFill, 0.9);
         });
+        const deckFormat = deck.format === 'darlings' || deck.format === 'battlebox' ? deck.format : 'constructed';
+        const unavailable = formatUnavailableCopy(deckFormat);
         const name = this.add
-          .text(rowX + 16, y, deck.name, {
+          .text(rowX + 16, y - 7, deck.name, {
             fontFamily: theme.fonts.display,
             fontSize: `${theme.type.label}px`,
             color: isActive ? theme.colors.gold : theme.colors.heading,
           })
           .setOrigin(0, 0.5);
         if (name.width > rowW - 200) name.setScale((rowW - 200) / name.width);
+        const badge = this.add
+          .text(rowX + 16, y + 12, formatLabel(deckFormat), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.micro}px`,
+            color: unavailable ? theme.colors.danger : theme.colors.muted,
+          })
+          .setOrigin(0, 0.5);
         const count = this.add
-          .text(rowX + rowW - 84, y, `${deck.cards.length}/${RULES.deckSize}`, {
+          .text(rowX + rowW - 84, y, deck.cards.length + '/' + formatDeckSize(deckFormat), {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
-            color: deck.cards.length === RULES.deckSize ? theme.colors.success : theme.colors.danger,
+            color: unavailable ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
           })
           .setOrigin(1, 0.5);
         const state = this.add
-          .text(rowX + rowW - 16, y, isActive ? 'Using' : 'Use', {
+          .text(rowX + rowW - 16, y, unavailable ? 'Not playable' : isActive ? 'Using' : 'Use', {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             fontStyle: theme.weight.w600,
-            color: isActive ? theme.colors.gold : theme.colors.body,
+            color: unavailable ? theme.colors.danger : isActive ? theme.colors.gold : theme.colors.body,
           })
           .setOrigin(1, 0.5);
-        for (const item of [band, name, count, state]) {
+        for (const item of [band, name, badge, count, state]) {
           rowItems.push(item);
           c.add(item);
         }

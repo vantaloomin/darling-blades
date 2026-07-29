@@ -10,6 +10,7 @@ import {
   removeDeckSlot,
   renameDeck,
   saveDeck,
+  setDeckSlotVariant,
   sortDeckSlots,
 } from '../../src/meta/DeckStorage';
 import { freshSave, type SaveData } from '../../src/meta/SaveManager';
@@ -134,6 +135,15 @@ describe('deck storage', () => {
     const sorted = sortDeckSlots(slots, (left, right) => left.localeCompare(right));
     expect(sorted).toEqual({ cards: ['c', 'z'], variantPins: [null, 'pin-z'] });
     expect(original).toEqual({ cards: ['z', 'a'], variantPins: ['pin-z', 'pin-a'] });
+  });
+
+  it('updates one treatment pin through the pair-preserving helper', () => {
+    const slots = setDeckSlotVariant(
+      { cards: ['a', 'b'], variantPins: ['pin-a', null] },
+      1,
+      'pin-b',
+    );
+    expect(slots).toEqual({ cards: ['a', 'b'], variantPins: ['pin-a', 'pin-b'] });
   });
 
   it('saveDeck preserves format fields and uses aligned pins when syncing a deck', () => {

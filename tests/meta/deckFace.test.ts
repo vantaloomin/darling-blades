@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import { STARTER_DECKS } from '../../src/data/starterDecks';
 import { isType, type CardDb, type CardDef } from '../../src/engine/types';
-import { faceCardFor } from '../../src/meta/deckFace';
+import { darlingFaceCardFor, faceCardFor } from '../../src/meta/deckFace';
 
 // ---------------------------------------------------------------------------
 // Fixtures — tiny synthetic pools for the tiebreak/fallback cases
@@ -134,5 +134,21 @@ describe('faceCardFor ordering and fallback', () => {
     );
     expect(faceCardFor([], db)).toBeNull();
     expect(faceCardFor(deckOf(['bolt', 4], ['field', 20]), db)).toBeNull();
+  });
+});
+
+describe('darlingFaceCardFor precedence', () => {
+  it('locks a valid Darling face for Darlings decks only', () => {
+    const darling = card('darling', { name: 'Darling', supertypes: ['legendary'] });
+    const fallback = card('fallback', { name: 'Fallback', rarity: 'ur', supertypes: ['legendary'] });
+    const db = dbOf(darling, fallback);
+    expect(darlingFaceCardFor({ cards: ['darling', 'fallback'], format: 'darlings', darlingId: 'darling' }, db)).toBe('darling');
+    expect(darlingFaceCardFor({ cards: ['darling', 'fallback'], format: 'constructed', darlingId: 'darling' }, db)).toBe('fallback');
+  });
+
+  it('falls back when the saved Darling is stale or absent', () => {
+    const fallback = card('fallback', { supertypes: ['legendary'] });
+    const db = dbOf(fallback);
+    expect(darlingFaceCardFor({ cards: ['fallback'], format: 'darlings', darlingId: 'missing' }, db)).toBe('fallback');
   });
 });

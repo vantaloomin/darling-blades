@@ -41,6 +41,14 @@ export function appendDeckSlots(slots: DeckSlots, cardIds: readonly string[]): D
   return cardIds.reduce((current, cardId) => appendDeckSlot(current, cardId), cloneDeckSlots(slots.cards, slots.variantPins));
 }
 
+/** Change one treatment pin while preserving the card/pin pair as a unit. */
+export function setDeckSlotVariant(slots: DeckSlots, index: number, variantPin: VariantPin): DeckSlots {
+  const normalized = cloneDeckSlots(slots.cards, slots.variantPins);
+  if (index < 0 || index >= normalized.cards.length) return normalized;
+  normalized.variantPins[index] = variantPin;
+  return normalized;
+}
+
 /** Remove one slot and its pin without mutating the input pair. */
 export function removeDeckSlot(slots: DeckSlots, index: number): DeckSlots {
   const normalized = cloneDeckSlots(slots.cards, slots.variantPins);
