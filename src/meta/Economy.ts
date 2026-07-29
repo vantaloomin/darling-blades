@@ -318,7 +318,17 @@ export function buyThemeDeck(
   if (save.decks.some((d) => d.id === deck.id)) return false;
   if (!spendGold(save, price)) return false;
   grantDeckCards(save, db, deck.cards);
-  save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards], heroCardId: null, landStyle: null });
+  save.decks.push({
+    id: deck.id,
+    name: deck.name,
+    cards: [...deck.cards],
+    heroCardId: null,
+    landStyle: null,
+    format: 'constructed',
+    darlingId: null,
+    landReserve: null,
+    variantPins: new Array(deck.cards.length).fill(null),
+  });
   return true;
 }
 
@@ -333,7 +343,17 @@ export function claimFreeStarter(save: SaveData, db: CardDb, deck: DeckList): bo
   if (save.starterChosen !== null) return false;
   if (save.decks.some((d) => d.id === deck.id)) return false;
   grantDeckCards(save, db, deck.cards);
-  save.decks.push({ id: deck.id, name: deck.name, cards: [...deck.cards], heroCardId: null, landStyle: null });
+  save.decks.push({
+    id: deck.id,
+    name: deck.name,
+    cards: [...deck.cards],
+    heroCardId: null,
+    landStyle: null,
+    format: 'constructed',
+    darlingId: null,
+    landReserve: null,
+    variantPins: new Array(deck.cards.length).fill(null),
+  });
   if (save.activeDeckId === null) save.activeDeckId = deck.id;
   save.starterChosen = deck.id;
   return true;

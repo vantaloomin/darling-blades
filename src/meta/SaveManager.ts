@@ -1,9 +1,13 @@
 import { DRAFT_PERSONAS } from '../data/draftPersonas';
+import { CARD_DB } from '../data/catalog';
 import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
 import { freshLimitedState, type LimitedState } from './Limited';
 import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
+import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
+
+export const CURRENT_SAVE_VERSION = 23 as const;
 
 /** Active gauntlet run state; null when no run is in progress. */
 export interface GauntletState {
@@ -62,6 +66,14 @@ export interface SavedDeck {
   heroCardId: string | null;
   /** Per-basic land art styles. `null` or a missing key = default art. v22 addition. */
   landStyle: LandStyleMap | null;
+  /** Rules format metadata. v23 addition. */
+  format?: 'constructed' | 'darlings' | 'battlebox';
+  /** Selected Darling card, only meaningful for the Darlings format. v23 addition. */
+  darlingId?: string | null;
+  /** Per-deck reserve land list for reserve formats. v23 addition. */
+  landReserve?: string[] | null;
+  /** Positional treatment pins. `variantPins[i]` belongs to `cards[i]`; null = Auto. v23 addition. */
+  variantPins?: Array<string | null>;
 }
 
 export const BASIC_LAND_IDS = [
@@ -83,7 +95,7 @@ export interface PremiumWeekState {
 }
 
 export interface SaveData {
-  version: 22;
+  version: typeof CURRENT_SAVE_VERSION;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -190,7 +202,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 22,
+    version: CURRENT_SAVE_VERSION,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -554,7 +566,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22) {
+    if (cur.version === 22 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -587,13 +599,29 @@ export class SaveManager {
       const replays = Array.isArray(cur.replays)
         ? (cur.replays as unknown[]).filter(isReplayLog).slice(0, REPLAY_CAP)
         : [];
-      return {
+      cur = {
         ...cur,
         version: 22,
         decks,
         gauntlet: { ...gauntlet, run },
         limited: { ...limited, activeRun: limitedActiveRun, premiumWeek: { week, entries } },
         replays,
+      } as unknown as typeof cur;
+    }
+    if (cur.version === 22) {
+      const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
+      cur = {
+        ...cur,
+        version: CURRENT_SAVE_VERSION,
+        decks: normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants),
+      };
+    }
+    if (cur.version === CURRENT_SAVE_VERSION) {
+      const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
+      return {
+        ...cur,
+        version: CURRENT_SAVE_VERSION,
+        decks: normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants),
       } as unknown as SaveData;
     }
     return freshSave(now);
@@ -646,8 +674,19 @@ function normalizeLandStyleMap(value: unknown): LandStyleMap | null {
   return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
-function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): SavedDeck[] {
+const FRAME_STYLES = ['white', 'blue', 'red', 'gold', 'rainbow', 'black'] as const;
+const HOLO_FINISHES = ['none', 'shiny', 'rainbow', 'pearlescent', 'fractal', 'void'] as const;
+const KNOWN_VARIANT_TREATMENTS = new Set(['standard', 'full-art', 'false']);
+
+function normalizeSavedDecks(
+  value: unknown,
+  defaultHeroCardId: string | null,
+  collection: unknown = {},
+  collectionVariants: unknown = {},
+): SavedDeck[] {
   if (!Array.isArray(value)) return [];
+  const aggregate = isRecord(collection) ? collection : {};
+  const variants = isRecord(collectionVariants) ? collectionVariants : {};
   return value
     .map((raw): SavedDeck | null => {
       if (!raw || typeof raw !== 'object') return null;
@@ -657,18 +696,79 @@ function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): 
         cards?: unknown;
         heroCardId?: unknown;
         landStyle?: unknown;
+        format?: unknown;
+        darlingId?: unknown;
+        landReserve?: unknown;
+        variantPins?: unknown;
       };
       if (typeof deck.id !== 'string' || typeof deck.name !== 'string' || !Array.isArray(deck.cards)) return null;
       const cards = deck.cards.filter((id): id is string => typeof id === 'string');
       const explicitHero = typeof deck.heroCardId === 'string' ? deck.heroCardId : null;
       const migratedHero = explicitHero ?? (defaultHeroCardId && cards.includes(defaultHeroCardId) ? defaultHeroCardId : null);
+      const darlings = normalizeDarlingsFields(CARD_DB, deck.format, deck.darlingId, cards, deck.landReserve);
       return {
         id: deck.id,
         name: deck.name,
         cards,
         heroCardId: migratedHero && cards.includes(migratedHero) ? migratedHero : null,
         landStyle: normalizeLandStyleMap(deck.landStyle),
+        ...darlings,
+        variantPins: normalizeVariantPins(cards, deck.variantPins, aggregate, variants),
       };
     })
     .filter((deck): deck is SavedDeck => deck !== null);
+}
+
+function normalizeVariantPins(
+  cards: readonly string[],
+  value: unknown,
+  collection: Record<string, unknown>,
+  collectionVariants: Record<string, unknown>,
+): Array<string | null> {
+  const rawPins = Array.isArray(value) ? value : [];
+  const used = new Map<string, number>();
+  return cards.map((cardId, index) => {
+    const canonical = canonicalVariantPin(rawPins[index]);
+    if (canonical === null) return null;
+    const available = ownedVariantCount(collection, collectionVariants, cardId, canonical);
+    const alreadyPinned = used.get(`${cardId}\u0000${canonical}`) ?? 0;
+    if (alreadyPinned >= available) return null;
+    used.set(`${cardId}\u0000${canonical}`, alreadyPinned + 1);
+    return canonical;
+  });
+}
+
+function canonicalVariantPin(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const segments = value.split('|');
+  if (segments.length > 3) return null;
+  if (segments.length === 3 && !KNOWN_VARIANT_TREATMENTS.has(segments[2])) return null;
+  const parsed = parseVariantKey(value);
+  if (!FRAME_STYLES.includes(parsed.frame as (typeof FRAME_STYLES)[number])) return null;
+  if (!HOLO_FINISHES.includes(parsed.holo as (typeof HOLO_FINISHES)[number])) return null;
+  return variantKey(parsed);
+}
+
+function ownedVariantCount(
+  collection: Record<string, unknown>,
+  collectionVariants: Record<string, unknown>,
+  cardId: string,
+  pin: string,
+): number {
+  const record = collectionVariants[cardId];
+  if (isRecord(record) && Object.keys(record).length > 0) {
+    let total = 0;
+    for (const [rawKey, rawCount] of Object.entries(record)) {
+      if (canonicalVariantPin(rawKey) !== pin) continue;
+      if (typeof rawCount === 'number' && Number.isFinite(rawCount) && rawCount > 0) total += Math.floor(rawCount);
+    }
+    return total;
+  }
+  return pin === variantKey(PLAIN_VARIANT) && typeof collection[cardId] === 'number'
+    ? Math.max(0, Math.floor(collection[cardId] as number))
+    : 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }

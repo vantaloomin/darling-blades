@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { freshSave, SaveManager } from '../../src/meta/SaveManager';
+import { CURRENT_SAVE_VERSION, freshSave, SaveManager } from '../../src/meta/SaveManager';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 
 function fakeStorage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> & { raw: Map<string, string> } {
@@ -21,7 +21,7 @@ describe('SaveData v19 migration', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 18, limited: oldLimited }));
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(22);
+    expect(manager.data.version).toBe(23);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
     expect(manager.data.createdAt).toBe(123);
   });
@@ -36,7 +36,7 @@ describe('SaveData v19 migration', () => {
     );
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(22);
+    expect(manager.data.version).toBe(23);
     expect(manager.data.gold).toBe(777);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
   });
@@ -51,7 +51,7 @@ describe('SaveData v20 migration (deterministic replays)', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 19 }));
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(22);
+    expect(manager.data.version).toBe(23);
     expect(manager.data.replays).toEqual([]);
     expect(manager.data.gold).toBe(555);
     expect(manager.data.createdAt).toBe(123);
@@ -69,7 +69,7 @@ describe('SaveData v20 migration (deterministic replays)', () => {
     );
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(22);
+    expect(manager.data.version).toBe(23);
     expect(manager.data.replays).toEqual([]);
   });
 });
@@ -84,7 +84,7 @@ describe('SaveData v21 migration (Full Art variant axis)', () => {
 
     const manager = new SaveManager(storage, 456);
 
-    expect(manager.data.version).toBe(22);
+    expect(manager.data.version).toBe(23);
     expect(manager.data.collection.bear).toBe(3);
     expect(manager.data.collectionVariants.bear).toEqual({
       [variantKey(PLAIN_VARIANT)]: 2,
@@ -118,14 +118,21 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
 
     const manager = new SaveManager(storage, 456);
 
-    expect(manager.data.version).toBe(22);
+    expect(manager.data.version).toBe(23);
     expect(manager.data.gauntlet.run).toEqual({ ...oldRun, rosterDay: 0, rosterSeed: 0 });
-    expect(manager.data.decks).toEqual(oldDecks.map((deck) => ({ ...deck, landStyle: null })));
+    expect(manager.data.decks).toEqual(oldDecks.map((deck) => ({
+      ...deck,
+      landStyle: null,
+      format: 'constructed',
+      darlingId: null,
+      landReserve: null,
+      variantPins: [null],
+    })));
     expect(manager.data.createdAt).toBe(123);
   });
 
   it('creates fresh saves at v22', () => {
-    expect(freshSave(123).version).toBe(22);
+    expect(freshSave(123).version).toBe(23);
   });
 
   it('stamps an unstamped active v22 run from the UI staging gap', () => {
@@ -170,7 +177,7 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
 
     const manager = new SaveManager(storage, 456);
 
-    expect(manager.data.version).toBe(22);
+    expect(manager.data.version).toBe(23);
     expect(manager.data.decks[0].landStyle).toBeNull();
     expect(manager.data.decks[1].landStyle).toEqual({
       'land-plains': 'dark-tales',
@@ -192,7 +199,84 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
 
     const manager = new SaveManager(storage, 456);
 
-    expect(manager.data.version).toBe(22);
+    expect(manager.data.version).toBe(23);
     expect(manager.data.decks[0].landStyle).toEqual({ 'land-plains': 'dark-tales' });
+  });
+});
+
+describe('SaveData v23 migration (formats, reserves, and positional variant pins)', () => {
+  it('adds v23 defaults without reordering cards and normalizes malformed new fields', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 22;
+    old.collection = { bear: 3 };
+    old.collectionVariants = {
+      bear: {
+        'blue|none|standard': 2,
+        'gold|void|full-art': 1,
+      },
+    };
+    old.decks = [{
+      id: 'mixed',
+      name: 'Mixed',
+      cards: ['bear', 'bear', 'bear', 'wolf'],
+      heroCardId: 'wolf',
+      landStyle: null,
+      format: 'darlings',
+      darlingId: 'missing-from-cards',
+      landReserve: ['land-plains', 'not-a-card', 'bear', 'land-forest'],
+      variantPins: [
+        'blue|none|false',
+        'blue|none|standard',
+        'blue|none|standard',
+        'not-a-variant',
+        'gold|void|full-art',
+      ],
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.decks[0]).toMatchObject({
+      cards: ['bear', 'bear', 'bear', 'wolf'],
+      format: 'darlings',
+      darlingId: null,
+      landReserve: ['land-plains', 'land-forest'],
+      variantPins: [
+        variantKey({ frame: 'blue', holo: 'none', fullArt: false }),
+        variantKey({ frame: 'blue', holo: 'none', fullArt: false }),
+        null,
+        null,
+      ],
+    });
+    expect(migrated.decks[0].heroCardId).toBe('wolf');
+  });
+
+  it('coerces unknown formats, clears non-Darling fields, and pads or trims pins', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    current.version = CURRENT_SAVE_VERSION;
+    current.decks = [{
+      id: 'malformed',
+      name: 'Malformed',
+      cards: ['bear', 'wolf'],
+      heroCardId: null,
+      landStyle: null,
+      format: 'future-format',
+      darlingId: 'bear',
+      landReserve: ['land-plains'],
+      variantPins: ['white|none|standard', 'white|none|standard', 'extra'],
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.decks[0]).toMatchObject({
+      format: 'constructed',
+      darlingId: null,
+      landReserve: null,
+      variantPins: [null, null],
+    });
   });
 });

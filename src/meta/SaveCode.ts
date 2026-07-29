@@ -1,10 +1,10 @@
 import { deflateSync, Inflate, strFromU8, strToU8 } from 'fflate';
-import { freshSave, SaveManager, type SaveData } from './SaveManager';
+import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from './SaveManager';
 
 /** The stable text prefix and codec identifier for local save exports. */
 export const SAVE_CODE_MAGIC = 'DBS1' as const;
 export const SAVE_CODE_CODEC = 'deflate-json-v1' as const;
-export const CURRENT_SAVE_SCHEMA_VERSION = 22 as const;
+export const CURRENT_SAVE_SCHEMA_VERSION = CURRENT_SAVE_VERSION;
 
 /**
  * A deliberately bounded decoded payload. This is a parser-safety limit, not
