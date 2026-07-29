@@ -17,9 +17,10 @@ import type { CardDb, PlayerId } from '../engine/types';
  * worse than an honest "recorded on an older version" notice).
  */
 
-// Skim is a new observable action and Retell changes cast source/cost/exit
-// semantics. Old logs must fail closed instead of replaying under new rules.
-export const REPLAY_LOG_VERSION = 2 as const;
+// Hauntlink adds an observable alternate cast mode, a public host target, and
+// link lifecycle events. Old logs must fail closed instead of replaying under
+// the changed resolution and SBA rules.
+export const REPLAY_LOG_VERSION = 3 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 
@@ -35,7 +36,8 @@ export interface ReplayContext {
 }
 
 export interface ReplayLog {
-  v: typeof REPLAY_LOG_VERSION;
+  /** Numeric for legacy save fixtures; canReplay/replayGame enforce current v. */
+  v: number;
   /** Card-db drift stamp (replayDbStamp) — replays refuse a different db. */
   dbStamp: string;
   seed: number;
@@ -145,12 +147,17 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
   return { game, eventLog };
 }
 
-/** Shallow shape check for migration/normalization of persisted blobs. */
+/**
+ * Shallow shape check for migration/normalization of persisted blobs. v2 logs
+ * remain structurally valid so SaveData/SaveCode can preserve them as an
+ * honest non-replayable history entry; canReplay/replayGame still refuse them
+ * through the version gate below.
+ */
 export function isReplayLog(value: unknown): value is ReplayLog {
   if (!value || typeof value !== 'object') return false;
   const log = value as Partial<ReplayLog>;
   return (
-    log.v === REPLAY_LOG_VERSION &&
+    (log.v === REPLAY_LOG_VERSION || log.v === REPLAY_LOG_VERSION - 1) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     Array.isArray(log.decks) &&

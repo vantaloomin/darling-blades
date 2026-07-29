@@ -10,7 +10,7 @@ import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
 import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from './types';
-import { cardIdOf, def, isType, manaValue, opponentOf } from './types';
+import { cardIdOf, def, isType, manaValue, opponentOf, validateHauntlinkDef } from './types';
 
 export type Action =
   | { type: 'choosePlayDraw'; play: boolean }
@@ -30,6 +30,8 @@ export type Action =
       empowered?: boolean;
       /** Cast this card from its controller's graveyard for retell.cost. */
       retell?: boolean;
+      /** Cast this card for hauntlink.cost and attach it to targets[0]. */
+      hauntlinked?: boolean;
       manaPlan?: number[]; // explicit source iids; omitted = auto-solve
     }
   | { type: 'skim'; handIndex: number; manaPlan?: number[] }
@@ -64,6 +66,10 @@ function isAura(d: CardDef): boolean {
   return d.subtypes.includes('Aura');
 }
 
+function isHauntlinkCarrier(d: CardDef): boolean {
+  return d.hauntlink !== undefined && validateHauntlinkDef(d).length === 0;
+}
+
 /** Enumerate fully-specified cast actions (× target × X) for one hand card. */
 function pushCastActions(
   out: Action[],
@@ -73,9 +79,10 @@ function pushCastActions(
   sourceIndex: number,
   d: CardDef,
   retell = false,
+  hauntlinked = false,
 ): void {
   const xs: (number | undefined)[] = d.x
-    ? retell
+    ? retell || hauntlinked
       ? []
       : Array.from(
           { length: Math.max(0, maxPayableX(state, db, player, d.cost!) - d.x.min + 1) },
@@ -84,14 +91,14 @@ function pushCastActions(
     : [undefined];
   if (xs.length === 0) return;
 
-  const specs = castTargetSpecsFor(d, retell);
+  const specs = castTargetSpecsFor(d, retell, hauntlinked);
   // Single-target v1: one action per (empower option × legal target × X).
   const targetLists: (TargetRef[] | undefined)[] =
     specs.length === 0
       ? [undefined]
       : enumerateTargets(state, db, player, specs[0]).map((t) => [t]);
-  for (const empowered of !retell && canEmpower(d) ? [false, true] : [false]) {
-    const cost = castCost(d, empowered, retell);
+  for (const empowered of !retell && !hauntlinked && canEmpower(d) ? [false, true] : [false]) {
+    const cost = castCost(d, empowered, retell, hauntlinked);
     if (!cost) continue;
     // Payability depends only on (empowered, x) — hoisted out of the target loop.
     const payableXs = xs.filter((x) =>
@@ -106,6 +113,7 @@ function pushCastActions(
           // engine treats graveIndex as authoritative for Retell.
           handIndex: sourceIndex,
           ...(retell ? { graveIndex: sourceIndex, retell: true } : {}),
+          ...(hauntlinked ? { hauntlinked: true } : {}),
           ...(targets ? { targets } : {}),
           ...(x === undefined ? {} : { x }),
           ...(empowered ? { empowered: true } : {}),
@@ -120,14 +128,25 @@ function canEmpower(d: CardDef): boolean {
   return d.empower !== undefined && !d.x;
 }
 
-function castCost(d: CardDef, empowered: boolean, retell = false): CardDef['cost'] {
+function castCost(
+  d: CardDef,
+  empowered: boolean,
+  retell = false,
+  hauntlinked = false,
+): CardDef['cost'] {
+  if (hauntlinked) return d.hauntlink?.cost;
   if (retell) return d.retell?.cost;
   if (!d.cost) return undefined;
   if (!empowered) return d.cost;
   return canEmpower(d) ? combineManaCosts(d.cost, d.empower!.cost) : undefined;
 }
 
-function castTargetSpecsFor(d: CardDef, retell: boolean): ReturnType<typeof castTargetSpecs> {
+function castTargetSpecsFor(
+  d: CardDef,
+  retell: boolean,
+  hauntlinked = false,
+): ReturnType<typeof castTargetSpecs> {
+  if (hauntlinked) return [{ what: 'yourCreature' }];
   // R4 Retell ops are trigger-safe and target-free. An override therefore
   // replaces the printed body's target requirements for that cast.
   return retell && d.retell?.ops ? [] : castTargetSpecs(d);
@@ -163,7 +182,7 @@ function creatureCount(state: GameState, db: CardDb, player: PlayerId): number {
 
 function noncreaturePermCount(state: GameState, db: CardDb, player: PlayerId): number {
   return state.battlefield.filter((p) => {
-    if (p.controller !== player) return false;
+    if (p.controller !== player || p.attachedTo !== undefined) return false;
     const d = def(db, p.cardId);
     return (
       !isType(d, 'creature') && !isType(d, 'land') && !isAura(d)
@@ -197,7 +216,9 @@ function castBlockers(
   empowered = false,
   x = d.x ? d.x.min : 0,
   retell = false,
+  hauntlinked = false,
 ): string | null {
+  if (hauntlinked && !isHauntlinkCarrier(d)) return 'invalid Hauntlink carrier';
   if (!retell && !d.cost) return 'card has no mana cost';
   if (retell && !retellable(d)) return 'card cannot be Retold';
   if (isType(d, 'creature') && creatureCount(state, db, player) >= RULES.maxCreatures)
@@ -207,10 +228,10 @@ function castBlockers(
     !isType(d, 'land') &&
     (isType(d, 'enchantment') || isType(d, 'artifact')) &&
     !isAura(d) &&
-    noncreaturePermCount(state, db, player) >= RULES.maxNoncreaturePermanents
+    !hauntlinked && noncreaturePermCount(state, db, player) >= RULES.maxNoncreaturePermanents
   )
     return 'noncreature permanent cap reached';
-  const cost = castCost(d, empowered, retell);
+  const cost = castCost(d, empowered, retell, hauntlinked);
   if (!cost || !canPay(state, db, player, cost, d.x && !empowered && !retell ? x : 0)) {
     return 'cannot pay cost';
   }
@@ -273,8 +294,12 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
           return;
         }
         if (!castableNow(state, player, d)) return;
-        if (castBlockers(state, db, player, d) !== null) return;
-        pushCastActions(out, state, db, player, handIndex, d);
+        if (castBlockers(state, db, player, d) === null) {
+          pushCastActions(out, state, db, player, handIndex, d);
+        }
+        if (d.hauntlink && castBlockers(state, db, player, d, false, 0, false, true) === null) {
+          pushCastActions(out, state, db, player, handIndex, d, false, true);
+        }
       });
       me.graveyard.forEach((card, graveIndex) => {
         const cardId = cardIdOf(card);
@@ -352,8 +377,12 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         }
         if (!isType(d, 'charm')) return;
         if (!castableNow(state, player, d)) return;
-        if (castBlockers(state, db, player, d) !== null) return;
-        pushCastActions(out, state, db, player, handIndex, d);
+        if (castBlockers(state, db, player, d) === null) {
+          pushCastActions(out, state, db, player, handIndex, d);
+        }
+        if (d.hauntlink && castBlockers(state, db, player, d, false, 0, false, true) === null) {
+          pushCastActions(out, state, db, player, handIndex, d, false, true);
+        }
       });
       me.graveyard.forEach((card, graveIndex) => {
         const cardId = cardIdOf(card);
@@ -448,6 +477,8 @@ export function validateAction(
 
     case 'castSpell': {
       const isRetell = action.retell === true;
+      const isHauntlinked = action.hauntlinked === true;
+      if (isRetell && isHauntlinked) return 'Retell and Hauntlink cannot be combined';
       if (isRetell && action.empowered) return 'Retell and Empower cannot be combined';
       if (isRetell && action.graveIndex === undefined) return 'Retell needs a graveyard index';
       if (!isRetell && action.graveIndex !== undefined) return 'graveyard index requires Retell';
@@ -458,6 +489,10 @@ export function validateAction(
       if (!castableNow(state, player, d)) return 'cannot cast this now';
       if (isRetell && !retellable(d)) return 'card cannot be Retold';
       if (isRetell && d.x) return 'X spells cannot be Retold';
+      if (isHauntlinked && !d.hauntlink) return 'card has no Hauntlink option';
+      if (isHauntlinked && (action.empowered || action.x !== undefined)) {
+        return 'Hauntlink cannot combine with Empower or X';
+      }
       if (action.empowered && !d.empower) return 'card has no Empower option';
       if (action.empowered && d.x) return 'X spells cannot be empowered';
       const blocked = castBlockers(
@@ -468,6 +503,7 @@ export function validateAction(
         action.empowered === true,
         action.x ?? 0,
         isRetell,
+        isHauntlinked,
       );
       if (blocked) return blocked;
       if (d.x && (action.x === undefined || action.x < d.x.min)) return 'bad X';
@@ -483,15 +519,22 @@ export function validateAction(
           action.manaPlan,
           action.empowered === true,
           isRetell,
+          isHauntlinked,
         );
         if (err) return err;
       } else {
-        const cost = castCost(d, action.empowered === true, isRetell);
-        if (!cost || solveMana(state, db, player, cost, d.x && !action.empowered && !isRetell ? extra : 0) === null) {
+        const cost = castCost(d, action.empowered === true, isRetell, isHauntlinked);
+        if (!cost || solveMana(
+          state,
+          db,
+          player,
+          cost,
+          d.x && !action.empowered && !isRetell && !isHauntlinked ? extra : 0,
+        ) === null) {
           return 'cannot pay cost';
         }
       }
-      const specs = castTargetSpecsFor(d, isRetell);
+      const specs = castTargetSpecsFor(d, isRetell, isHauntlinked);
       const targets = action.targets ?? [];
       if (targets.length !== specs.length) return 'wrong number of targets';
       for (let i = 0; i < specs.length; i++) {
@@ -552,6 +595,7 @@ function validateManaPlan(
   plan: number[],
   empowered: boolean,
   retell: boolean,
+  hauntlinked: boolean,
 ): string | null {
   const available = new Map(manaSources(state, db, player).map((s) => [s.iid, s]));
   const seen = new Set<number>();
@@ -564,18 +608,18 @@ function validateManaPlan(
   const others = manaSources(state, db, player)
     .filter((s) => !plan.includes(s.iid))
     .map((s) => s.iid);
-  const cost = castCost(d, empowered, retell);
+  const cost = castCost(d, empowered, retell, hauntlinked);
   if (!cost) return 'invalid cast cost';
   const solved = solveMana(
     state,
     db,
     player,
     cost,
-    d.x && !empowered && !retell ? extraGeneric : 0,
+    d.x && !empowered && !retell && !hauntlinked ? extraGeneric : 0,
     others,
   );
   if (!solved) return 'mana plan cannot pay the cost';
-  const needed = (d.x && !empowered && !retell ? extraGeneric : 0) + manaValue(cost);
+  const needed = (d.x && !empowered && !retell && !hauntlinked ? extraGeneric : 0) + manaValue(cost);
   if (plan.length !== needed) return 'mana plan has wrong source count';
   return null;
 }
@@ -653,7 +697,14 @@ export function reasonUncastable(
   }
 
   const blocked = castBlockers(state, db, player, d);
-  if (blocked) return UNCASTABLE_COPY[blocked] ?? "You can't cast this right now.";
+  if (blocked) {
+    if (d.hauntlink && castBlockers(state, db, player, d, false, 0, false, true) === null) {
+      return enumerateTargets(state, db, player, { what: 'yourCreature' }).length > 0
+        ? null
+        : 'There are no creatures you control to Hauntlink this to.';
+    }
+    return UNCASTABLE_COPY[blocked] ?? "You can't cast this right now.";
+  }
 
   const specs = castTargetSpecs(d);
   if (specs.length > 0 && enumerateTargets(state, db, player, specs[0]).length === 0) {

@@ -11,6 +11,7 @@ import { choosePlayDraw } from './playDraw';
 import {
   cardValue,
   empowerValue,
+  hauntlinkCastValue,
   permValue,
   removalKind,
   removalValueForCast,
@@ -206,6 +207,12 @@ export class MediumAI implements AIPlayer {
   /** Prefer a payable Empower rider when its deterministic value is positive. */
   private castScore(view: PlayerView, cast: Cast): number {
     const cardId = this.cardIdFor(view, cast);
+    if (cast.hauntlinked) {
+      const host = cast.targets?.[0];
+      return host?.kind === 'permanent'
+        ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
+        : -Infinity;
+    }
     return cast.retell
       ? retellValue(this.db, cardId) + 0.01
       : this.developScore(cardId) + (cast.x ?? 0) +

@@ -261,6 +261,54 @@ export function retellValue(db: CardDb, cardId: string): number {
 }
 
 /**
+ * Marginal public-board value of a Hauntlink rider on one proposed host.
+ * Existing effective keywords are excluded so the ranker never prefers a
+ * duplicate grant over a useful new rider.
+ */
+export function linkedRiderValue(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  cardId: string,
+  hostIid: number,
+): number {
+  const rider = def(db, cardId).hauntlink?.linked;
+  const host = battlefield.find((perm) => perm.iid === hostIid);
+  if (!rider || !host) return 0;
+  const current = getEffectiveStats(battlefield, db, hostIid);
+  let value = ((rider.p ?? 0) + (rider.t ?? 0)) / 2;
+  for (const keyword of rider.grantKeywords ?? []) {
+    if (!current.keywords.has(keyword)) value += KEYWORD_BONUS[keyword];
+  }
+  return value;
+}
+
+/**
+ * Total value of casting a Hauntlink carrier on a public host. The base card
+ * value is adjusted for the actual alternate cost; the rider is then reduced
+ * when the host is already damaged near lethal and slightly rewarded for a
+ * healthy Untouchable host. No hidden hand or library information is read.
+ */
+export function hauntlinkCastValue(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  cardId: string,
+  hostIid: number,
+): number {
+  const d = def(db, cardId);
+  const host = battlefield.find((perm) => perm.iid === hostIid);
+  if (!d.hauntlink || !host) return -Infinity;
+  const stats = getEffectiveStats(battlefield, db, hostIid);
+  const remaining = stats.defense - host.damage;
+  const costDelta = manaValue(d.hauntlink.cost) - manaValue(d.cost);
+  let value = cardValue(db, cardId) - costDelta * 0.65;
+  value += linkedRiderValue(battlefield, db, cardId, hostIid);
+  if (remaining <= 1) value -= 2.5;
+  else if (remaining <= 2) value -= 0.75;
+  if (stats.keywords.has('untouchable')) value += 0.3;
+  return value;
+}
+
+/**
  * NET life lost per turn to `who`'s own dawn triggers: self-damage (e.g.
  * tk-other's "At the start of your turn, this deals 1 damage to you") minus
  * dawn lifegain (gk/cf attendants), floored at 0. This is a forced clock the

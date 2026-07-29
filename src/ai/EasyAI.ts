@@ -9,7 +9,14 @@ import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { choosePlayDraw } from './playDraw';
-import { empowerValue, removalKind, removalValueForCast, retellValue, skimValue } from './value';
+import {
+  empowerValue,
+  hauntlinkCastValue,
+  removalKind,
+  removalValueForCast,
+  retellValue,
+  skimValue,
+} from './value';
 
 /**
  * Easy: plays lands, curves out roughly, and swings — but loses by tactics.
@@ -158,6 +165,12 @@ export class EasyAI implements AIPlayer {
           if (action.type === 'skim') return skimValue(this.db, view.you.hand[action.handIndex]);
           if (action.type !== 'castSpell') return -Infinity;
           const cardId = this.cardIdFor(view, action);
+          if (action.hauntlinked) {
+            const host = action.targets?.[0];
+            return host?.kind === 'permanent'
+              ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
+              : -Infinity;
+          }
           return action.retell
             ? retellValue(this.db, cardId) + 0.01
             : manaValue(def(this.db, cardId).cost) +

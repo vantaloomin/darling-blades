@@ -423,6 +423,7 @@ export class Game {
 
       case 'castSpell': {
         const isRetell = action.retell === true;
+        const isHauntlinked = action.hauntlinked === true;
         const sourceIndex = isRetell ? action.graveIndex! : action.handIndex;
         const card = isRetell ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
         const cardId = cardIdOf(card);
@@ -431,12 +432,20 @@ export class Game {
         // Retell replaces the printed cost. Empower is an additional cost on a
         // normal cast (validateAction rejects X+empower and Retell+Empower).
         const cost =
-          isRetell
+          isHauntlinked
+            ? d.hauntlink!.cost
+            : isRetell
             ? d.retell!.cost
             : action.empowered && d.empower
               ? combineManaCosts(d.cost!, d.empower.cost)
               : d.cost!;
-        const plan = action.manaPlan ?? solveMana(st, this.db, player, cost, isRetell ? 0 : extra)!;
+        const plan = action.manaPlan ?? solveMana(
+          st,
+          this.db,
+          player,
+          cost,
+          isRetell || isHauntlinked ? 0 : extra,
+        )!;
         for (const iid of plan) {
           const src = findPermanent(st, iid)!;
           src.tapped = true;
@@ -455,6 +464,7 @@ export class Game {
           x: action.x,
           ...(action.empowered ? { empowered: true } : {}),
           ...(isRetell ? { retell: true } : {}),
+          ...(isHauntlinked ? { hauntlinked: true } : {}),
         };
         st.stack.push(item);
         emit({
@@ -463,6 +473,7 @@ export class Game {
           cardId,
           controller: player,
           targets: item.targets,
+          ...(isHauntlinked ? { hauntlinked: true } : {}),
         });
         this.openResponseWindow(opponentOf(player), { type: 'spell', sid: item.sid }, emit);
         return;

@@ -11,6 +11,7 @@ import { evaluate } from './evaluate';
 import { MediumAI } from './MediumAI';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
+import { cardValue, hauntlinkCastValue } from './value';
 
 /**
  * Hard: Medium's heuristics as candidate generators, then honest simulation
@@ -186,6 +187,8 @@ export class HardAI implements AIPlayer {
       (a) =>
         (a.type === 'skim' && view.you.deckCount > 0) ||
         (a.type === 'castSpell' && (a.empowered === true || a.retell === true)),
+    ).concat(
+      legal.filter((a) => a.type === 'castSpell' && a.hauntlinked === true),
     );
     if (candidates.length === 0) return baseline;
 
@@ -193,9 +196,34 @@ export class HardAI implements AIPlayer {
     if (!base) return baseline; // own line illegal in the sim; trust Medium
     let best = baseline;
     let bestScore = base.score;
-    // Cap the sim fanout: cast variants scale with target count, while Skim
-    // and Retell remain ordinary legal-menu candidates.
-    for (const candidate of candidates.slice(0, 8)) {
+    const candidateScore = (candidate: Action): number => {
+      if (candidate.type !== 'castSpell') return -Infinity;
+      const cardId = candidate.retell && candidate.graveIndex !== undefined
+        ? view.you.graveyard[candidate.graveIndex]
+        : view.you.hand[candidate.handIndex];
+      if (candidate.hauntlinked) {
+        const host = candidate.targets?.[0];
+        return host?.kind === 'permanent'
+          ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
+          : -Infinity;
+      }
+      return cardValue(this.db, cardId) + (candidate.empowered ? 0.01 : 0);
+    };
+    // Cap the sim fanout: variants scale with target count, so rank Hauntlink
+    // hosts by the same public-board score before truncating the menu. Keep
+    // the pre-existing order for every non-Hauntlink candidate so adding the
+    // alternate mode cannot perturb ordinary games.
+    const rankedCandidates = candidates
+      .map((candidate, index) => ({ candidate, index }))
+      .sort((a, b) => {
+        const aLinked = a.candidate.type === 'castSpell' && a.candidate.hauntlinked === true;
+        const bLinked = b.candidate.type === 'castSpell' && b.candidate.hauntlinked === true;
+        if (aLinked !== bLinked) return aLinked ? -1 : 1;
+        if (aLinked && bLinked) return candidateScore(b.candidate) - candidateScore(a.candidate) || a.index - b.index;
+        return a.index - b.index;
+      })
+      .map(({ candidate }) => candidate);
+    for (const candidate of rankedCandidates.slice(0, 8)) {
       const outcome = this.aggregateOutcome(view, [candidate]);
       if (outcome && outcome.score > bestScore) {
         best = candidate;
