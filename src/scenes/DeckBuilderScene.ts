@@ -760,7 +760,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       });
       const name = this.add.text(bounds.x + 92, y, d.name, {
         fontFamily: theme.fonts.ui,
-          fontSize: theme.type.body + 'px',
+        fontSize: theme.type.body + 'px',
         color: theme.colors.body,
       }).setOrigin(0, 0.5);
       overlay.add([rowBg, name]);
@@ -799,7 +799,14 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private selectFormat(format: BuilderFormat): void {
     const active = this.syncDraftToActiveDeck();
-    if (!active || this.activeFormat() === format) {
+    if (!active) {
+      // No saved deck yet: formats live on the saved record, so tell the
+      // player instead of silently ignoring the tap.
+      this.deckCodeMessage = 'Save your deck first, then pick its format.';
+      this.renderDeck();
+      return;
+    }
+    if (this.activeFormat() === format) {
       if (format === 'darlings') this.showDarlingPicker();
       return;
     }
@@ -932,7 +939,9 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private setReserveSlot(index: number, cardId: string | null): void {
     const next = [...this.landReserve];
-    if (cardId) next[index] = cardId;
+    // The reserve is a dense ordered list: filling a slot past the current
+    // end appends, so holes (nulls) can never reach the saved deck.
+    if (cardId) next[Math.min(index, next.length)] = cardId;
     else next.splice(index, 1);
     this.landReserve = next.slice(0, LAND_RESERVE_SIZE);
     const active = this.syncDraftToActiveDeck();
@@ -1053,7 +1062,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const reserveIssues = validateLandReserve(CARD_DB, Services.save.data, this.landReserve);
     panel.add(this.add.text(x0 + 198, 326, reserveIssues[0]?.message ?? 'Reserve ready.', {
       fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
+      fontSize: `${theme.type.micro}px`,
       color: reserveIssues.length > 0 ? theme.colors.danger : theme.colors.success,
       wordWrap: { width: 150 },
     }).setOrigin(0, 0));
@@ -1690,6 +1699,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       });
       if (!this.touch) {
         row.setInteractive({ useHandCursor: true });
+        inflateHitArea(row, 90, DESKTOP_DECK_PITCH);
         this.zoom.attach(row, d, variant);
         row.on('pointerover', () => {
           row.setColor(theme.colors.danger);
@@ -1821,96 +1831,6 @@ export class DeckBuilderScene extends Phaser.Scene {
     }
 
     const heroId = this.deckHeroId();
-    /* Legacy grouped rows retained below as reference while the builder uses
-       one visible row per positional card slot for look pins.
-    // nonbasic list grouped with counts
-    const counts = new Map<string, number>();
-    for (const id of this.deck) {
-      if (!isBasic(CARD_DB, id)) counts.set(id, (counts.get(id) ?? 0) + 1);
-    }
-    const entries = [...counts.entries()].sort((a, b) => {
-      const da = def(CARD_DB, a[0]);
-      const dbb = def(CARD_DB, b[0]);
-      const landDiff = Number(isType(dbb, 'land')) - Number(isType(da, 'land'));
-      return landDiff || manaValue(da.cost) - manaValue(dbb.cost) || da.name.localeCompare(dbb.name);
-    });
-    if (!this.touch) {
-      // Desktop: dense tap-to-remove list — now PAGED so a long, singleton-heavy
-      // deck never silently drops rows past the old y>560 hard clip.
-      const pages = deckPageCount(entries.length, DESKTOP_DECK_ROWS);
-      this.deckPage = clampDeckPage(this.deckPage, entries.length, DESKTOP_DECK_ROWS);
-      deckPageSlice(entries, this.deckPage, DESKTOP_DECK_ROWS).forEach(([id, n], i) => {
-        const d = def(CARD_DB, id);
-        const y = DESKTOP_DECK_Y0 + i * DESKTOP_DECK_PITCH;
-        const star = this.add
-          .text(x0, y, heroId === id ? '★' : '☆', {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.label}px`,
-            fontStyle: '700',
-            color: heroId === id ? theme.colors.goldHover : theme.colors.muted,
-          })
-          .setOrigin(0, 0)
-          .setInteractive({ useHandCursor: true });
-        bindTapButton(this, star, () => this.toggleDeckHero(id));
-        inflateHitArea(star, 34, 36);
-        const row = this.add
-          .text(x0 + 24, y, `${n}× ${d.name}  (${manaValue(d.cost)})`, {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.body,
-          })
-          .setInteractive({ useHandCursor: true });
-        this.zoom.attach(row, d, this.ownedVariantFor(d.id));
-        row.on('pointerover', () => {
-          row.setColor(theme.colors.danger);
-          inflateHitArea(row, 90, DESKTOP_DECK_PITCH);
-        });
-        row.on('pointerout', () => {
-          row.setColor(theme.colors.body);
-          inflateHitArea(row, 90, DESKTOP_DECK_PITCH);
-        });
-        bindTapButton(this, row, (p) => this.removeCardOrAll(id, p));
-        this.rightPane.push(star, row);
-      });
-      if (pages > 1) this.renderDeckPagers(x0, pages);
-    } else {
-      // Touch: rows are read-only; removal happens on an explicit, inflated
-      // − button per row (the audited destructive-row hazard), with paging
-      // instead of the hard clip.
-      const pages = deckPageCount(entries.length, TOUCH_DECK_ROWS);
-      this.deckPage = clampDeckPage(this.deckPage, entries.length, TOUCH_DECK_ROWS);
-      const listY0 = 270;
-      deckPageSlice(entries, this.deckPage, TOUCH_DECK_ROWS).forEach(([id, n], i) => {
-          const d = def(CARD_DB, id);
-          const y = listY0 + i * TOUCH_DECK_PITCH;
-          const star = this.add
-            .text(x0, y, heroId === id ? '★' : '☆', {
-              fontFamily: theme.fonts.ui,
-              fontSize: `${theme.type.label}px`,
-              fontStyle: '700',
-              color: heroId === id ? theme.colors.goldHover : theme.colors.muted,
-            })
-            .setOrigin(0, 0)
-            .setInteractive({ useHandCursor: true });
-          bindTapButton(this, star, () => this.toggleDeckHero(id));
-          inflateHitArea(star, 44, TOUCH_DECK_PITCH);
-          const row = this.add.text(x0 + 26, y, `${n}× ${d.name}  (${manaValue(d.cost)})`, {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.body,
-          });
-          const minus = themedButton(this, PANEL_RIGHT_X - 45, y + 8, '−', {
-            variant: 'danger',
-            size: 'sm',
-            minWidth: 90,
-            onTap: (p) => this.removeCardOrAll(id, p),
-          });
-          this.rightPane.push(star, row, minus.container);
-        });
-      if (pages > 1) this.renderDeckPagers(x0, pages);
-    }
-
-    */
     this.renderDeckRows(format, x0, heroId);
     this.renderDeckStats(x0);
 

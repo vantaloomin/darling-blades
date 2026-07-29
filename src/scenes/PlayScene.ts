@@ -132,9 +132,11 @@ export class PlayScene extends Phaser.Scene {
   private buildDeckPlate(): void {
     const stale = this.deckPlate;
     if (stale) {
-      const staleSet = new Set(stale.list);
-      this.menuTargets = this.menuTargets.filter((t) => !staleSet.has(t));
+      // menuTargets holds button inputZones (grandchildren of the plate), so
+      // membership in stale.list never matches them: destroy first, then drop
+      // whatever the destroy cascade deactivated.
       stale.destroy();
+      this.menuTargets = this.menuTargets.filter((t) => t.active);
     }
     const c = this.add.container(0, 0);
     this.deckPlate = c;
