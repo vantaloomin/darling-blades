@@ -21,6 +21,8 @@ export interface SelfView {
   deckCount: number;
   graveyard: string[];
   severed: string[];
+  /** Public ordered reserve. Omitted for classic games. */
+  landReserve?: string[];
   landPlayedThisTurn: boolean;
   mulligans: number;
 }
@@ -31,6 +33,8 @@ export interface OpponentView {
   deckCount: number;
   graveyard: string[];
   severed: string[];
+  /** Public ordered reserve. Omitted for classic games. */
+  landReserve?: string[];
   landPlayedThisTurn: boolean;
   mulligans: number;
 }
@@ -72,6 +76,7 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
       deckCount: me.deck.length,
       graveyard: me.graveyard.map(cardIdOf),
       severed: me.severed.map(cardIdOf),
+      ...(me.landReserve !== undefined ? { landReserve: me.landReserve.map(cardIdOf) } : {}),
       landPlayedThisTurn: me.landPlayedThisTurn,
       mulligans: me.mulligans,
     },
@@ -81,6 +86,7 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
       deckCount: them.deck.length,
       graveyard: them.graveyard.map(cardIdOf),
       severed: them.severed.map(cardIdOf),
+      ...(them.landReserve !== undefined ? { landReserve: them.landReserve.map(cardIdOf) } : {}),
       landPlayedThisTurn: them.landPlayedThisTurn,
       mulligans: them.mulligans,
     },

@@ -7,6 +7,7 @@ import { DUALS } from './cards/duals';
 import { ENCHANTMENTS } from './cards/enchantments';
 import { GOTHIC_MONSTERS } from './cards/gothic-monsters';
 import { DARK_TALES } from './cards/dark-tales';
+import { YOKAI_NIGHTS } from './cards/yokai-nights';
 import { GREEK } from './cards/greek';
 import { INSTANTS } from './cards/instants';
 import { LANDS } from './cards/lands';
@@ -19,7 +20,10 @@ import { TK_WEI } from './cards/tk-wei';
 import { TK_WU } from './cards/tk-wu';
 import { TOKENS } from './cards/tokens';
 
-type SetKey = NonNullable<CardDef['set']>;
+// The Hauntlink engine sibling owns the CardDef set-union expansion. Keep the
+// catalog's runtime stamp wired in this wave so the data can land independently
+// of that parallel type-only seam.
+type SetKey = NonNullable<CardDef['set']> | 'yokai-nights';
 
 /**
  * Source arrays grouped by their expansion `set`. buildDb stamps every card
@@ -46,6 +50,7 @@ const SET_GROUPS: readonly { set: SetKey; cards: readonly CardDef[] }[] = [
   { set: 'arthurian-court', cards: ARTHURIAN_COURT },
   { set: 'gothic-monsters', cards: GOTHIC_MONSTERS },
   { set: 'dark-tales', cards: DARK_TALES },
+  { set: 'yokai-nights', cards: YOKAI_NIGHTS },
 ];
 
 function buildDb(): CardDb {
@@ -53,7 +58,7 @@ function buildDb(): CardDb {
   for (const group of SET_GROUPS) {
     for (const card of group.cards) {
       if (db[card.id]) throw new Error(`Duplicate card id: ${card.id}`);
-      db[card.id] = { ...card, set: card.set ?? group.set };
+      db[card.id] = { ...card, set: (card.set ?? group.set) as CardDef['set'] };
     }
   }
   return Object.freeze(db);

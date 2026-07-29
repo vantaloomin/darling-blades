@@ -2,6 +2,7 @@ import { RULES } from '../../config/rules';
 import type { Emit } from '../battlefield';
 import {
   destroyPermanent,
+  firesDiesForDestroy,
   enterBattlefield,
   recallPermanent,
   severPermanent,
@@ -131,7 +132,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'destroy': {
       const perm = targetPermanent(state, ctx.targets[0]);
-      if (perm && destroyPermanent(state, db, perm, emit)) {
+      if (perm && destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
         fireTriggers(state, db, emit, 'dies', perm);
       }
       return;
@@ -150,7 +151,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       // Artifact wins for a multi-typed permanent. This keeps the branch
       // deterministic and mirrors the op name's left-to-right contract.
       if (isType(d, 'artifact')) {
-        if (destroyPermanent(state, db, perm, emit)) {
+        if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
           fireTriggers(state, db, emit, 'dies', perm);
         }
       } else if (isType(d, 'enchantment')) {
@@ -280,7 +281,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         if (perm.controller !== opponent) continue;
         const d = def(db, perm.cardId);
         if (!isType(d, 'artifact') && !isType(d, 'enchantment')) continue;
-        if (destroyPermanent(state, db, perm, emit)) {
+        if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
           fireTriggers(state, db, emit, 'dies', perm);
         }
         return;
@@ -298,7 +299,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         return true;
       });
       for (const perm of doomed) {
-        if (destroyPermanent(state, db, perm, emit)) {
+        if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
           fireTriggers(state, db, emit, 'dies', perm);
         }
       }
@@ -445,7 +446,9 @@ function advanceChapter(
     chapters[chapter - 1],
   );
   if (chapter !== chapters.length || state.winner !== null) return;
-  if (destroyPermanent(state, db, perm, emit)) fireTriggers(state, db, emit, 'dies', perm);
+  if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+    fireTriggers(state, db, emit, 'dies', perm);
+  }
 }
 
 /** Does this ability list include a triggered ability of the given kind? */

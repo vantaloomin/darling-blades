@@ -18,7 +18,9 @@ export type Action =
   | { type: 'mulligan' }
   | { type: 'bottomCards'; handIndices: number[] }
   | { type: 'foresee'; bottomIndices: number[] }
-  | { type: 'playLand'; handIndex: number }
+  /** Classic uses handIndex. Reserve formats use reserveIndex and keep -1 as
+   * a compatibility sentinel for the hand-oriented UI action plumbing. */
+  | { type: 'playLand'; handIndex: number; reserveIndex?: number }
   | {
       type: 'castSpell';
       handIndex: number;
@@ -280,6 +282,11 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
 
     case 'main': {
       out.push({ type: 'passStep' });
+      if (me.landReserve !== undefined && !me.landPlayedThisTurn) {
+        for (let reserveIndex = 0; reserveIndex < me.landReserve.length; reserveIndex++) {
+          out.push({ type: 'playLand', handIndex: -1, reserveIndex });
+        }
+      }
       const seen = new Set<string>();
       me.hand.forEach((card, handIndex) => {
         const cardId = cardIdOf(card);
@@ -290,7 +297,9 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
           out.push({ type: 'skim', handIndex });
         }
         if (isType(d, 'land')) {
-          if (!me.landPlayedThisTurn) out.push({ type: 'playLand', handIndex });
+          if (me.landReserve === undefined && !me.landPlayedThisTurn) {
+            out.push({ type: 'playLand', handIndex });
+          }
           return;
         }
         if (!castableNow(state, player, d)) return;
@@ -456,6 +465,15 @@ export function validateAction(
     case 'playLand': {
       if (a.kind !== 'main') return 'not in a main phase';
       if (me.landPlayedThisTurn) return 'already played a land this turn';
+      if (me.landReserve !== undefined) {
+        if (action.reserveIndex === undefined) return 'reserve formats play lands from the reserve';
+        if (!Number.isInteger(action.reserveIndex)) return 'bad reserve index';
+        const card = me.landReserve[action.reserveIndex];
+        if (card === undefined) return 'bad reserve index';
+        if (!isType(def(db, card), 'land')) return 'reserve card is not a land';
+        return action.handIndex === -1 ? null : 'reserve land actions need handIndex -1';
+      }
+      if (action.reserveIndex !== undefined) return 'classic games do not have a land reserve';
       const cardId = me.hand[action.handIndex];
       if (cardId === undefined) return 'bad hand index';
       if (!isType(def(db, cardId), 'land')) return 'not a land';

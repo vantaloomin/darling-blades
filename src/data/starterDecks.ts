@@ -139,6 +139,9 @@ export const STARTER_DECKS: DeckList[] = [
  * advance Quests, then turn awakened champions into the closing pressure.
  * Midnight Storybook — U/B/W Dark Tales value-control: Skim early, fill the
  * graveyard, and Retell efficient Rituals and Charms after stabilizing.
+ * Neon Afterimage — W/U/B Yokai Nights body-first Hauntlink midrange: deploy
+ * cheap hosts, link compact riders, and use Foresee, recall, and Sever to keep
+ * the street manageable. TO MEASURE after the set landing.
  */
 export const THEME_DECKS: DeckList[] = [
   {
@@ -260,6 +263,32 @@ export const THEME_DECKS: DeckList[] = [
       ['in-doom-bolt', 4],
       ['in-undertow', 2],
       ['so-judgment-of-heaven', 2],
+    ]),
+  },
+  {
+    id: 'theme-yokai-nights',
+    name: 'Neon Afterimage',
+    // TO MEASURE after the Yokai Nights set landing. This list is a data
+    // contract, not a balance claim.
+    cards: expand([
+      ['land-plains', 7],
+      ['land-island', 7],
+      ['land-swamp', 6],
+      ['yn-lantern-canal-junction', 2],
+      ['yn-midnight-data-market', 2],
+      ['yn-lantern-court-usher', 4],
+      ['yn-paper-mask-sentinel', 4],
+      ['yn-holo-lantern-adept', 4],
+      ['yn-silver-moon-duelist', 2],
+      ['yn-ghostline-diviner', 4],
+      ['yn-signal-kitsune', 4],
+      ['yn-ghostwire-charm', 2],
+      ['yn-moonwire-mask', 2],
+      ['yn-parasite-mask', 2],
+      ['yn-backdoor-recall', 2],
+      ['yn-signal-bridge', 2],
+      ['yn-sever-the-signal', 2],
+      ['yn-paper-ward-signal', 2],
     ]),
   },
 ];

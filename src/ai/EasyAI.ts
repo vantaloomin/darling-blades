@@ -8,6 +8,7 @@ import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
+import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import {
   empowerValue,
@@ -124,6 +125,8 @@ export class EasyAI implements AIPlayer {
 
   private main(view: PlayerView, legal: Action[]): Action {
     const nonConcede = legal.filter((l) => l.type !== 'concede');
+    const reserveLand = chooseReserveLand(view, this.db, nonConcede);
+    if (reserveLand) return reserveLand;
     if (rngFloat(this.rng) < this.pers.easyNoise) {
       return nonConcede[rngInt(this.rng, nonConcede.length)];
     }

@@ -7,6 +7,7 @@ import type { AIPlayer } from './AIPlayer';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
+import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import {
   cardValue,
@@ -285,6 +286,8 @@ export class MediumAI implements AIPlayer {
   }
 
   private main(view: PlayerView, legal: Action[]): Action {
+    const reserveLand = chooseReserveLand(view, this.db, legal);
+    if (reserveLand) return reserveLand;
     const land = legal.find((l) => l.type === 'playLand');
     if (land) return land;
 

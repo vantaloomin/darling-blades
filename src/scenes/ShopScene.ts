@@ -83,6 +83,15 @@ const DARK_TALES_PACK_TINT: PackTint = {
   mist: theme.colors.panelStroke,
 };
 
+const YOKAI_NIGHTS_PACK_TINT: PackTint = {
+  start: theme.colors.dangerBg,
+  middle: theme.colors.btnEmphasisBg,
+  end: theme.colors.panelFill,
+  trim: theme.colors.heading,
+  foil: theme.colors.success,
+  mist: theme.colors.gold,
+};
+
 const packRR = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -215,12 +224,19 @@ export const DARK_TALES_PACK_ART: PackArtOpts = {
   tint: DARK_TALES_PACK_TINT,
 };
 
+export const YOKAI_NIGHTS_PACK_ART: PackArtOpts = {
+  key: 'packart-yokai-nights',
+  sceneArtKey: 'scene-pack-art-yokai-nights',
+  tint: YOKAI_NIGHTS_PACK_TINT,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
   if (sku === 'arthurian-court') return 'packart-arthurian-court';
   if (sku === 'gothic-monsters') return 'packart-gothic-monsters';
   if (sku === 'dark-tales') return 'packart-dark-tales';
+  if (sku === 'yokai-nights') return 'packart-yokai-nights';
   return 'packart';
 }
 
@@ -231,7 +247,13 @@ export function packPriceForSku(sku: BoosterSku): number {
   if (sku === 'arthurian-court') return ECONOMY.arthurianCourtPackPrice;
   if (sku === 'gothic-monsters') return ECONOMY.gothicMonstersPackPrice;
   if (sku === 'dark-tales') return ECONOMY.darkTalesPackPrice;
+  if (sku === 'yokai-nights') return ECONOMY.yokaiNightsPackPrice;
   return ECONOMY.packPrice;
+}
+
+/** Runtime set bridge until the parallel engine type seam adds the new literal. */
+export function packSetForSku(sku: BoosterSku): CardDef['set'] | undefined {
+  return sku === 'base' ? undefined : (sku as unknown as CardDef['set']);
 }
 
 /**
@@ -417,6 +439,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, ARTHURIAN_COURT_PACK_ART);
     bakePackArt(this, GOTHIC_MONSTERS_PACK_ART);
     bakePackArt(this, DARK_TALES_PACK_ART);
+    bakePackArt(this, YOKAI_NIGHTS_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
@@ -513,7 +536,7 @@ export class ShopScene extends Phaser.Scene {
   // --- Boosters tab ---------------------------------------------------------
 
   private buildBoostersGroup(group: Phaser.GameObjects.Container): void {
-    // Six SKUs across the 1280 design width: 208px pitch, centered margins.
+    // Seven SKUs across the 1280 design width: 183px pitch, edge-to-edge.
     const skus: ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> = [
       { label: SET_TITLES.base, textureKey: 'packart', sku: 'base' },
       { label: SET_TITLES.ragnarok, textureKey: 'packart-ragnarok', sku: 'ragnarok' },
@@ -521,11 +544,12 @@ export class ShopScene extends Phaser.Scene {
       { label: SET_TITLES['arthurian-court'], textureKey: 'packart-arthurian-court', sku: 'arthurian-court' },
       { label: SET_TITLES['gothic-monsters'], textureKey: 'packart-gothic-monsters', sku: 'gothic-monsters' },
       { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', sku: 'dark-tales' },
+      { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
     ];
     skus.forEach((def, i) => {
       const price = packPriceForSku(def.sku);
-      this.buildPackSku(group, 120 + i * 208, def.label, def.textureKey, price, def.sku, () =>
-        this.buyPacks(price, def.sku === 'base' ? undefined : def.sku, def.sku),
+      this.buildPackSku(group, 92 + i * 183, def.label, def.textureKey, price, def.sku, () =>
+        this.buyPacks(price, packSetForSku(def.sku), def.sku),
       );
     });
     this.buildQtySelector(group);
@@ -546,14 +570,14 @@ export class ShopScene extends Phaser.Scene {
     const title = this.add
       .text(x, 178, label, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
       .setOrigin(0.5);
-    // Six columns share a 208px pitch; long theme titles (Nocturne Manor) can
+    // Seven columns share a 183px pitch; long theme titles (Nocturne Manor) can
     // outgrow it. Glyph widths are font-fallback-dependent on Windows, so
     // measure the rendered width and shrink-to-fit rather than sizing by eye.
-    const maxTitleWidth = 200;
+    const maxTitleWidth = 176;
     if (title.width > maxTitleWidth) title.setScale(maxTitleWidth / title.width);
     // Pool-first disclosure: slot odds are identical across boosters, so the
     // pool is the real decision variable between tiles.
-    const pool = packPoolSummary(Services.save.data, CARD_DB, sku === 'base' ? undefined : sku);
+    const pool = packPoolSummary(Services.save.data, CARD_DB, packSetForSku(sku));
     const poolCaption = this.add
       .text(x, 204, `${pool.ownedDistinct}/${pool.poolSize} Owned`, {
         fontFamily: theme.fonts.ui,
@@ -646,7 +670,7 @@ export class ShopScene extends Phaser.Scene {
   }
 
   /** Buy + open the selected quantity of one SKU (clamped to what you can afford). */
-  private buyPacks(unitPrice: number, set: Exclude<BoosterSku, 'base'> | undefined, sku: BoosterSku): void {
+  private buyPacks(unitPrice: number, set: CardDef['set'] | undefined, sku: BoosterSku): void {
     const save = Services.save.data;
     const n = Math.min(this.qty, Math.floor(save.gold / unitPrice));
     if (n < 1) {
