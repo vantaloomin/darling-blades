@@ -59,7 +59,7 @@ import {
   isTouchDevice,
   setStickyHost,
 } from '../platform/gestures';
-import { faceCardFor } from '../meta/deckFace';
+import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
 import { Art } from '../art/ArtResolver';
 import { BoardCardView, TILE_W, TILE_H, type BoardHighlight } from '../ui/BoardCardView';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
@@ -600,10 +600,15 @@ export class DuelScene extends Phaser.Scene {
     // A deck-builder star is this specific deck's hero image. Limited/tutorial
     // deck overrides ignore saved-deck art; otherwise fall back to the old
     // premium/default hero behavior, then the active deck's derived face.
-    const deckHero =
-      !data.deckOverride && myDeckEntry?.heroCardId && CARD_DB[myDeckEntry.heroCardId] && myDeck.includes(myDeckEntry.heroCardId)
-        ? myDeckEntry.heroCardId
+    const darlingHero =
+      !data.deckOverride && myDeckEntry?.format === 'darlings'
+        ? darlingFaceCardFor({ ...myDeckEntry, cards: myDeck }, CARD_DB)
         : null;
+    const deckHero =
+      darlingHero ??
+      (!data.deckOverride && myDeckEntry?.heroCardId && CARD_DB[myDeckEntry.heroCardId] && myDeck.includes(myDeckEntry.heroCardId)
+        ? myDeckEntry.heroCardId
+        : null);
     const defaultHero = !deckHero && save.heroCardId && CARD_DB[save.heroCardId] ? save.heroCardId : null;
     this.myHeroTextureKey = deckHero ? null : this.resolveHeroPortrait(save);
     this.myFaceCardId = deckHero ?? defaultHero ?? faceCardFor(myDeck, CARD_DB);

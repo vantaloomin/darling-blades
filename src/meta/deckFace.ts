@@ -55,3 +55,18 @@ export function faceCardFor(deck: readonly string[], db: CardDb): string | null 
   });
   return pool[0];
 }
+
+/**
+ * Darlings-only face precedence. A malformed or stale Darling falls through
+ * so an old save still gets the ordinary deterministic face card.
+ */
+export function darlingFaceCardFor(
+  deck: { cards: readonly string[]; format?: string; darlingId?: string | null },
+  db: CardDb,
+): string | null {
+  if (deck.format === 'darlings' && deck.darlingId && deck.cards.includes(deck.darlingId)) {
+    const darling = db[deck.darlingId];
+    if (darling && isType(darling, 'creature') && isLegendary(darling)) return deck.darlingId;
+  }
+  return faceCardFor(deck.cards, db);
+}
