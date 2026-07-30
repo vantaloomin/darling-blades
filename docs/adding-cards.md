@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-17
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-30
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -78,6 +78,11 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `flavor`      | `string?`                              | Flavor text (may be suppressed on busy cards — see below).            |
 | `artRef`      | `string?`                              | Share another card's art key (both placeholder and real art).         |
 | `token`       | `boolean?`                             | Non-collectible; evaporates on leaving the battlefield.               |
+| `chapters`    | `EffectOp[][]?`                        | Quest chapters — the source of truth for Quest identity and activation. Arrival enters Chapter I; each later controller dawn advances. |
+| `awakening`   | `{ p?, t?, keywords? }?`               | One-way champion upgrade applied when an `awaken` op flips the permanent's `awakened` state. Computed on read, never cached. |
+| `skim`        | `{ cost: ManaCost }?`                  | Instant-speed **hand** action: pay the cost, discard this card, draw one. Type-agnostic; never touches the battlefield. |
+| `retell`      | `{ cost: ManaCost; ops?: EffectOp[] }?`| Alternative-cost cast from your graveyard; the card is severed after resolving. With `ops` the override resolves instead of the body (trigger-safe, target-free); **without `ops` Retell recasts the printed body** — prefer that unless the override is a genuinely different mode. |
+| `hauntlink`   | `HauntlinkDef?`                        | Alternative-cost cast that enters linked to a friendly creature. Noncreature Artifact/Enchantment only (validated); the linked rider is an attached-static layer; when the host leaves play the card goes to its owner's graveyard. |
 
 ### `cost()` shorthand
 
@@ -195,7 +200,7 @@ Cast-time target specs come from the first non-static ability with `targets`
 (`targetSpecsOf` in `EffectInterpreter.ts`), except **auras**, which implicitly
 target a creature to enchant (`castTargetSpecs` in `src/engine/resolve.ts`).
 
-## The 18 EffectOps
+## The EffectOps
 
 Every `ops` entry is an `EffectOp` (`src/engine/types.ts`), executed by `runOp`
 in `src/engine/effects/EffectInterpreter.ts`. Each op emits

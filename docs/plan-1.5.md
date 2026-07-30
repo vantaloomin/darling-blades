@@ -7,6 +7,38 @@
 v1.4.0 released 2026-07-28 (tag on main `5685bbd`); 1.5 is the active
 program.
 
+**Status 2026-07-30 — engineering complete, balance pass in flight, RELEASE
+SPLIT decided.** Every pillar below is merged on `release/1.5`:
+
+| Pillar | State |
+| --- | --- |
+| 0 · Yokai Nights | SHIPPED (#147: 120 cards, art run approved, Hauntlink engine #145, retail wiring) |
+| 1 · DT power pass | IN FLIGHT as the combined balance pass (W1 Bride repair, Sleeping Curse Retell fix, and the Uninvited Insight rename are committed on `claude/1-5-dt-power-pass`; Midnight, go-wide, two new common sweepers, tapland arrival riders + the playLand-fires-arrives engine rung, Dreamveil Kitsune, tribal Phases 1-2, precon band, and the W7 re-baseline remain) |
+| 2 · Darlings + Battle Box | SHIPPED ENGINE-COMPLETE and **flagged off** (#148/#149/#150/#152; `FEATURES.reserveFormats = false` since #157) |
+| 3 · Variant decks | SHIPPED (#139 positional pins, #149 builder looks/pins) |
+| 4 · Save codes | SHIPPED (#141 envelope + hardening, #150 Profile flow) |
+
+**RELEASE SPLIT (user, 2026-07-29): 1.5.0 ships with Battle Box and Darlings
+hidden; 1.5.5 exposes them** after the reserve-format and Darlings matrices
+(both still `TO MEASURE`) exist and the modes have had play time. 1.5.0 waits
+for the balance pass. **Floor re-calibration (user, 2026-07-30):** the W7
+re-baseline measures every avatar at 200 seeds/cell and re-centres the CI
+floors a full noise band below the measured averages — floors may move DOWN
+under this one-time authorization, because the old summit floors were set
+inside 40-seed noise (The Bride: documented 77%, measured 69% clean at 200).
+
+**1.5.0 release notes, draft (numbers and balance lines pend W7; player copy,
+so no em-dashes when this graduates to the README):**
+
+> Yokai Nights brings 120 neon-lit cards and the new Hauntlink mechanic:
+> play an Artifact or Enchantment linked to a creature you control for a
+> bonus while it survives. The tower climbs to 20 floors against two new
+> bosses. The shop's Card Packs tab, deck picker, and rival picker are
+> rebuilt around draggable strips with bigger art. Every screen now has one
+> consistent back button, and the Collection binder can filter every set.
+> Dozens of card fixes: dead abilities now do things, twin cards are twins
+> no more, and (balance summary pending the measurement pass).
+
 **Release mechanics:** same train as 1.3/1.4 — a fresh long-lived
 `release/1.5` branch off main; feature branches PR back into it; CI
 gates every PR; the final `release/1.5` → main merge + `v1.5.0` tag is
