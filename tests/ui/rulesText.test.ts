@@ -112,6 +112,11 @@ describe('sweeper rules text', () => {
     expect(rulesText(red)).not.toContain('\u2014');
     expect(rulesText(black)).not.toContain('\u2014');
   });
+
+  it('pins the two W3.5b Base Set sweeper bodies', () => {
+    expect(rulesText(CARD_DB['so-ember-squall'])).toBe('Deal 1 damage to each creature.');
+    expect(rulesText(CARD_DB['so-creeping-malaise'])).toBe('All creatures get -1/-1 until end of turn.');
+  });
 });
 
 describe('Hauntlink rules text', () => {

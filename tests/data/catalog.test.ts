@@ -155,6 +155,19 @@ describe('catalog integrity', () => {
     expect(ALL_CARDS.length).toBeGreaterThanOrEqual(180);
   });
 
+  it('has the W3.5b Base Set sweeper pass in the catalog totals', () => {
+    const base = ALL_CARDS.filter(
+      (card) => card.set === 'base' && !card.token && !(card.supertypes ?? []).includes('basic'),
+    );
+    // W3.5b adds Ember Squall and Creeping Malaise: +2 Base Set commons.
+    expect(base).toHaveLength(207);
+    expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
+      rarity,
+      base.filter((card) => card.rarity === rarity).length,
+    ]))).toEqual({ c: 109, r: 66, sr: 13, ssr: 11, ur: 8 });
+    expect(ALL_CARDS).toHaveLength(783);
+  });
+
   it('stamps every expansion card with its set and every other collectible set:base', () => {
     for (const card of ALL_CARDS) {
       if (card.token) continue; // tokens are non-collectible; set is irrelevant

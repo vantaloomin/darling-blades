@@ -128,6 +128,37 @@ function spellOps(db: CardDb, cardId: string): EffectOp[] {
     .flatMap((ab) => ab.ops ?? []);
 }
 
+/**
+ * W3.5b's common all-creature sweepers need public-board asymmetry, not a
+ * generic spell score: an even effect is harmful when it removes more of the
+ * caster's small creatures. Survivors retain a small value for their marked
+ * damage or temporary stat loss, while creatures that die use full board value.
+ */
+function symmetricCreatureSweepValue(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  caster: PlayerId,
+  op: Extract<EffectOp, { op: 'damage' | 'boost' }>,
+): number {
+  const opponent = opponentOf(caster);
+  let value = 0;
+  for (const perm of battlefield) {
+    if (!isType(def(db, perm.cardId), 'creature')) continue;
+    const stats = getEffectiveStats(battlefield, db, perm.iid);
+    const remainingDefense = stats.defense - perm.damage;
+    const dies =
+      (op.op === 'damage' && op.n !== 'X' && op.n >= remainingDefense) ||
+      (op.op === 'boost' && remainingDefense + op.t <= 0);
+    const impact = dies
+      ? removalTargetValue(battlefield, db, perm)
+      : op.op === 'damage'
+        ? op.n === 'X' ? 0 : op.n * 0.5
+        : (Math.abs(op.p) + Math.abs(op.t)) / 2;
+    value += perm.controller === opponent ? impact : -impact;
+  }
+  return value;
+}
+
 /** Classify only cast-time spell bodies. Arrival/dawn removal riders stay ETB value. */
 export function removalKind(db: CardDb, cardId: string): RemovalKind | null {
   for (const ab of def(db, cardId).abilities ?? []) {
@@ -150,6 +181,8 @@ export function removalKind(db: CardDb, cardId: string): RemovalKind | null {
       if (op.op === 'massDestroy' && op.filter === 'allEnchantments') return 'massDestroy';
       if (op.op === 'destroyNewestOpponentArtifactOrEnchantment') return 'destroyNewest';
       if (op.op === 'damage' && op.to === 'target') return 'damage';
+      if (op.op === 'damage' && op.to === 'eachCreature') return 'massDestroy';
+      if (op.op === 'boost' && op.scope === 'all' && (op.p < 0 || op.t < 0)) return 'massDestroy';
     }
   }
   return null;
@@ -183,6 +216,10 @@ export function removalValueForCast(
         return op.filter === 'allCreatures' || getEffectiveStats(battlefield, db, perm.iid).keywords.has('skyborne');
       });
       value += doomed.reduce((sum, perm) => sum + removalTargetValue(battlefield, db, perm), 0);
+    } else if (op.op === 'damage' && op.to === 'eachCreature') {
+      value += symmetricCreatureSweepValue(battlefield, db, caster, op);
+    } else if (op.op === 'boost' && op.scope === 'all' && (op.p < 0 || op.t < 0)) {
+      value += symmetricCreatureSweepValue(battlefield, db, caster, op);
     } else if (op.op === 'destroyNewestOpponentArtifactOrEnchantment') {
       for (let i = battlefield.length - 1; i >= 0; i--) {
         const perm = battlefield[i];

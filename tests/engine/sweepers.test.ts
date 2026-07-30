@@ -5,6 +5,7 @@ import { checkStateBased } from '../../src/engine/sba';
 import { getEffectiveStats } from '../../src/engine/statics';
 import { fireTriggers, runOps } from '../../src/engine/effects/EffectInterpreter';
 import type { CardDb, GameState } from '../../src/engine/types';
+import { removalKind, removalValueForCast } from '../../src/ai/value';
 import { makeTestState } from '../helpers';
 
 const SWEEPER_DB: CardDb = {
@@ -138,5 +139,30 @@ describe('sweeper effect ops', () => {
       [{ p: -1, t: -1, keywords: [] }],
       [{ p: -1, t: -1, keywords: [] }],
     ]);
+  });
+
+  it('values symmetric sweepers by the public small-creature imbalance', () => {
+    const behind = makeTestState({
+      battlefield: [
+        { iid: 1, cardId: 'two_two', controller: 0 },
+        { iid: 2, cardId: 'one_one', controller: 1 },
+        { iid: 3, cardId: 'one_one', controller: 1 },
+        { iid: 4, cardId: 'one_one', controller: 1 },
+      ],
+    }).battlefield;
+    const ahead = makeTestState({
+      battlefield: [
+        { iid: 1, cardId: 'one_one', controller: 0 },
+        { iid: 2, cardId: 'one_one', controller: 0 },
+        { iid: 3, cardId: 'one_one', controller: 0 },
+        { iid: 4, cardId: 'two_two', controller: 1 },
+      ],
+    }).battlefield;
+
+    for (const cardId of ['red_sweeper', 'black_sweeper'] as const) {
+      expect(removalKind(SWEEPER_DB, cardId)).toBe('massDestroy');
+      expect(removalValueForCast(behind, SWEEPER_DB, 0, cardId)).toBeGreaterThan(0);
+      expect(removalValueForCast(ahead, SWEEPER_DB, 0, cardId)).toBeLessThan(0);
+    }
   });
 });
