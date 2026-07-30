@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/SceneBackdrop.ts, src/ui/Dropdown.ts, src/ui/SearchInput.ts, src/ui/binder/FilterBar.ts, src/platform/gestures.ts, src/platform/animPolicy.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, docs/scene-art.md, docs/plan-ui-ux-refresh.md · last-verified: 2026-07-12 · core UI and visual-language contract -->
+<!-- source-of-truth: src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/navigation.ts, src/ui/SceneBackdrop.ts, src/ui/Dropdown.ts, src/ui/SearchInput.ts, src/ui/binder/FilterBar.ts, src/platform/gestures.ts, src/platform/animPolicy.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, docs/scene-art.md, docs/plan-ui-ux-refresh.md · last-verified: 2026-07-29 · core UI and visual-language contract -->
 
 # Darling Blades core design system
 
@@ -349,8 +349,20 @@ clean up keyboard listeners when the container is destroyed.
 
 ### Navigation, currency, and paging
 
-- Use `backButton()` for return-to-menu navigation unless the flow has a
-  specific parent destination.
+- Use one `backButton(scene, destinationLabel, onTap)` at the upper-left of
+  every hub, utility, and flow screen. It renders `← {destinationLabel}` and
+  owns the title-safe anchor plus the 90 x 44 minimum hit region.
+- The canonical destination labels are `Menu` for MainMenu, `Play` for Play,
+  `Draft` for the Limited hub, `Shop` for Shop, and `Profile` for the replay
+  viewer. The root MainMenu is the only screen without a back link.
+- Register one create-time ESC listener for every screen with a back link and
+  tear it down on SHUTDOWN. ESC dismisses the topmost overlay first. A second
+  press invokes the screen back action. Back never depends on hover,
+  right-click, or swipe gestures.
+- Live Duel deliberately has no upper-left link. Its exit remains gear,
+  pause menu, then Concede. Replay mode is the exception to that rule and
+  uses `← Profile` at the standard anchor. Result CTAs such as `Rematch`,
+  `Tower`, `Draft`, and `Menu` remain choices inside the result surface.
 - Use `goldBadge()` for currency display and its optional change flash.
 - Use `pager()` for bounded paging. The current page is one-based in copy and
   zero-based in code; unavailable directions are visibly subdued and must not

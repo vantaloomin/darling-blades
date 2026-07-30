@@ -18,7 +18,7 @@ import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { CardView } from '../ui/CardView';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
-import { modalShell, pager, panel, themedButton } from '../ui/themeWidgets';
+import { backButton, modalShell, pager, panel, registerSceneBackNavigation, themedButton, type ModalShell } from '../ui/themeWidgets';
 
 const ROWS = 13;
 export class LimitedDeckBuilderScene extends Phaser.Scene {
@@ -27,11 +27,13 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   private deckPage = 0;
   private selectedId: string | null = null;
   private cardInspect: Phaser.GameObjects.Container | null = null;
+  private leavePrompt: ModalShell | null = null;
   constructor() {
     super('LimitedDeckBuilder');
   }
   create(): void {
     this.cardInspect = null;
+    this.leavePrompt = null;
     applyBackdrop(this, 'deckbuilder', {
       dim: theme.graphics.dim,
       dimAlpha: 0.6,
@@ -57,6 +59,8 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       this.scene.start('Limited');
       return;
     }
+    backButton(this, 'Draft', () => this.leaveDraft());
+    registerSceneBackNavigation(this, () => this.leaveDraft());
     this.deck = [...run.deck];
     this.draw(run);
   }
@@ -263,11 +267,52 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       minWidth: 140,
       onTap: () => this.startMatch(run),
     });
-    themedButton(this, 1180, 642, 'Hub', {
-      variant: 'ghost',
-      minWidth: 90,
-      onTap: () => this.scene.start('Limited'),
+  }
+
+  private leaveDraft(): void {
+    const run = Services.save.data.limited.activeRun;
+    if (!run) {
+      this.scene.start('Limited');
+      return;
+    }
+    if (this.leavePrompt) return;
+    const shell = modalShell(this, {
+      width: 620,
+      height: 250,
+      dimAlpha: 0.84,
+      tapDimToClose: true,
+      onClose: () => {
+        if (this.leavePrompt === shell) this.leavePrompt = null;
+      },
     });
+    this.leavePrompt = shell;
+    const c = shell.container;
+    c.add(this.add.text(640, 260, 'Leave Draft?', {
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h1}px`,
+      color: theme.colors.heading,
+    }).setOrigin(0.5));
+    c.add(this.add.text(640, 312, 'Your draft run is saved and can be resumed from the Draft hub. Leave now?', {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.body}px`,
+      color: theme.colors.body,
+      align: 'center',
+      wordWrap: { width: 520 },
+    }).setOrigin(0.5));
+    const stay = themedButton(this, 460, 398, 'Keep Building', {
+      variant: 'ghost',
+      minWidth: 160,
+      onTap: shell.close,
+    });
+    const leave = themedButton(this, 820, 398, 'Leave Draft', {
+      variant: 'primary',
+      minWidth: 160,
+      onTap: () => {
+        shell.close();
+        this.scene.start('Limited');
+      },
+    });
+    c.add([stay.container, leave.container]);
   }
   private cardRow(
     x: number,

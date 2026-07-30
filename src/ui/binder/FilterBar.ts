@@ -6,7 +6,7 @@ import {
   type SortMode,
 } from '../../meta/collectionFilter';
 import { TIER_LABEL } from '../../meta/variants';
-import { SET_TITLES } from '../../data/setTitles';
+import { SET_IDS, SET_TITLES } from '../../data/setTitles';
 import { theme } from '../theme';
 import { Dropdown, type DropdownOption } from '../Dropdown';
 import { roundedTrigger, type RoundedTrigger } from '../themeWidgets';
@@ -73,13 +73,9 @@ export class FilterBar {
       this.targets.push(dd.button);
     };
 
-    const setOpts: DropdownOption<'all' | 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters'>[] = [
+    const setOpts: DropdownOption<CollectionFilterState['set']>[] = [
       { value: 'all', label: 'All Sets' },
-      { value: 'base', label: SET_TITLES.base },
-      { value: 'ragnarok', label: SET_TITLES.ragnarok },
-      { value: 'celtic-fae', label: SET_TITLES['celtic-fae'] },
-      { value: 'arthurian-court', label: SET_TITLES['arthurian-court'] },
-      { value: 'gothic-monsters', label: SET_TITLES['gothic-monsters'] },
+      ...SET_IDS.map((id) => ({ value: id, label: SET_TITLES[id] })),
     ];
     mk(55, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
 

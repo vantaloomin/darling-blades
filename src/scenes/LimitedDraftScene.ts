@@ -39,8 +39,10 @@ import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import {
+  backButton,
   modalShell,
   panel,
+  registerSceneBackNavigation,
   themedButton,
   type ModalShell,
   type ThemedButton,
@@ -89,6 +91,7 @@ export class LimitedDraftScene extends Phaser.Scene {
   /** Pack index shown in the card-inspect modal; null when no inspect is open. */
   private inspectIndex: number | null = null;
   private inspectHint: Phaser.GameObjects.Text | null = null;
+  private leavePrompt: ModalShell | null = null;
   /** True while the pass animation plays — re-entry guard for confirmPick. */
   private passing = false;
 
@@ -115,6 +118,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.pickButton = null;
     this.inspectIndex = null;
     this.inspectHint = null;
+    this.leavePrompt = null;
     this.passing = false;
 
     bakeManaSymbols(this);
@@ -156,6 +160,8 @@ export class LimitedDraftScene extends Phaser.Scene {
       this.scene.start('Limited');
       return;
     }
+    backButton(this, 'Draft', () => this.leaveDraft());
+    registerSceneBackNavigation(this, () => this.leaveDraft());
     if (run.draft.completed) {
       // Interrupted-save path (confirmPick normally records before this).
       grantPremiumDraftPool(Services.save.data, CARD_DB, run);
@@ -440,18 +446,59 @@ export class LimitedDraftScene extends Phaser.Scene {
       },
     ).setOrigin(0, 0.5);
 
-    const hub = themedButton(this, 918, 660, 'Hub', {
-      variant: 'ghost',
-      minWidth: 100,
-      onTap: () => this.scene.start('Limited'),
-    });
     this.pickButton = themedButton(this, 1106, 660, 'Pick Selected', {
       variant: 'primary',
       minWidth: 180,
       enabled: false,
       onTap: () => this.confirmPick(run),
     });
-    this.interactiveTargets.push(hub.inputZone, this.pickButton.inputZone);
+    this.interactiveTargets.push(this.pickButton.inputZone);
+  }
+
+  private leaveDraft(): void {
+    const run = Services.save.data.limited.activeRun;
+    if (!run) {
+      this.scene.start('Limited');
+      return;
+    }
+    if (this.leavePrompt) return;
+    const shell = modalShell(this, {
+      width: 620,
+      height: 250,
+      dimAlpha: 0.84,
+      tapDimToClose: true,
+      onClose: () => {
+        if (this.leavePrompt === shell) this.leavePrompt = null;
+      },
+    });
+    this.leavePrompt = shell;
+    const c = shell.container;
+    c.add(this.add.text(640, 260, 'Leave Draft?', {
+      fontFamily: theme.fonts.display,
+      fontSize: `${theme.type.h1}px`,
+      color: theme.colors.heading,
+    }).setOrigin(0.5));
+    c.add(this.add.text(640, 312, 'Your draft run is saved and can be resumed from the Draft hub. Leave now?', {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.body}px`,
+      color: theme.colors.body,
+      align: 'center',
+      wordWrap: { width: 520 },
+    }).setOrigin(0.5));
+    const stay = themedButton(this, 460, 398, 'Keep Drafting', {
+      variant: 'ghost',
+      minWidth: 160,
+      onTap: shell.close,
+    });
+    const leave = themedButton(this, 820, 398, 'Leave Draft', {
+      variant: 'primary',
+      minWidth: 160,
+      onTap: () => {
+        shell.close();
+        this.scene.start('Limited');
+      },
+    });
+    c.add([stay.container, leave.container]);
   }
 
   private selectCard(index: number, id: string): void {
@@ -962,6 +1009,8 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.input.keyboard?.off('keydown-SPACE', this.onInspectSelect);
     this.input.keyboard?.off('keydown-ENTER', this.onInspectSelect);
     this.closeModal();
+    this.leavePrompt?.close();
+    this.leavePrompt = null;
   }
 }
 

@@ -38,7 +38,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-abyssal-songstress | Abyssal Songstress | UR | U/B | Legendary Creature | Mermaid bargain singer | Little Mermaid | skyborne; dawn: foresee 1 + loseLife opponent 1 | Control boss |
 | dt-thorn-palace-heiress | Thorn-Palace Heiress | UR | G/W | Legendary Creature | Sleeping thorn princess | Sleeping Beauty | sentinel; awakening (stats + keywords); dawn: awaken self | Midrange marquee |
 | dt-midnight-glass-runner | Midnight Glass Runner | UR | U/R | Legendary Creature | Cinderella adjacent escapee | Cinderella | warcry; Skim {cost}; arrives: foresee 2 | Tempo marquee |
-| dt-ice-crown-sovereign | Ice-Crown Sovereign | UR | U/W | Legendary Creature | Winter queen with storm-glass coronation magic | Elsa / Frozen Queen | skyborne; arrives: preventCombat; dawn: foresee 1 | Modern control marquee, frost-lock finisher |
+| dt-ice-crown-sovereign | Ice-Crown Sovereign | UR | U/W | Legendary Creature | Winter queen with storm-glass coronation magic | Elsa / Frozen Queen | skyborne; arrives: destroy all enchantments; dawn: foresee 1 | Modern control marquee, enchantment-sweeper finisher |
 
 ### SSR
 
@@ -58,7 +58,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | ID | Name | Rarity | Color | Type | Subject | Princess Adjacent | Keywords / Ops | Role |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | dt-sea-witch-contract | Sea-Witch Contract | SR | B | Ritual | Sea bargain | Little Mermaid / Sea Witch | draw 2, damage controller 2; Retell {cost} | Premium value |
-| dt-glass-slipper-at-midnight | Glass Slipper at Midnight | SR | U | Artifact | Slipper relic | Cinderella | Skim {cost}; arrives: boost allYours +1/+0 with dreaded (until end of turn) | Tempo relic |
+| dt-glass-slipper-at-midnight | Glass Slipper at Midnight | SR | U | Ritual | Slipper relic | Cinderella | Skim {cost}; boost allYours +1/+0 with dreaded (until end of turn) | Tempo relic |
 | dt-red-hood-wolfslayer | Red Hood Wolfslayer | SR | R/G | Legendary Creature | Red riding hood adjacent | Red Riding Hood | firstBlade, overrun | Aggro legend |
 | dt-rose-cage-ballad | Rose-Cage Ballad | SR | B | Enchantment | Beauty curse | Belle / Beauty and the Beast | dawn: loseLife opponent 1 + gainLife 1 | Value engine |
 | dt-tower-braid-escape | Tower-Braid Escape | SR | U | Charm | Tower escape | Rapunzel | recall target; Retell {cost} | Flexible tempo |
@@ -77,7 +77,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-pearl-foam-diver | Pearl-Foam Diver | R | U | Creature | Mermaid scout | Little Mermaid | dreaded; Skim {cost} | Evasive pressure |
 | dt-thorn-castle-warden | Thorn-Castle Warden | R | G | Creature | Briar guard | Sleeping Beauty | bulwark, wardingGaze | Defensive rare |
 | dt-mirror-apple-curse | Mirror-Apple Curse | R | B | Enchantment Aura | Poison mirror | Snow White / Evil Queen | attached: -2/-2; Skim {cost} | Black removal |
-| dt-midnight-coach | Midnight Coach | R | C | Artifact | Pumpkin coach | Cinderella | Skim {cost}; arrives: boost allYours +1/+0 with warcry (until end of turn) | Tempo support |
+| dt-midnight-coach | Midnight Coach | R | C | Ritual | Pumpkin coach | Cinderella | Skim {cost}; boost allYours +1/+0 with warcry (until end of turn) | Tempo support |
 | dt-fairy-godmother-noir | Noir Godmother | R | U | Creature | Fairy godmother adjacent | Cinderella / Fairy Godmother | arrives: foresee 1 + draw 1 | Support creature |
 | dt-beast-library | Beast's Library | R | U | Enchantment | Enchanted library | Belle / Beauty and the Beast | dawn: foresee 1 | Value engine |
 | dt-seven-shadow-miners | Seven Shadow Miners | R | B | Creature | Dwarf/miner adjacent | Snow White / Seven Dwarfs | arrives: createToken Shadow Miner x2 + grind self 2 | Token grave support |
@@ -131,7 +131,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-candle-in-window | Candle in the Window | C | W | Enchantment | Hope charm | Belle / Beauty and the Beast | dawn: gainLife 1 | Stabilizer |
 | dt-ink-black-carriage | Ink-Black Carriage | C | B | Artifact | Dark coach | Cinderella | dawn: grind self 1 | Grave setup |
 | dt-sea-glass-knife | Sea-Glass Knife | C | U | Charm | Sea blade | Little Mermaid | recall target | Tempo common |
-| dt-ash-sweep | Ash Sweep | C | R | Ritual | Hearth magic | Cinderella | damage target 2 | Red removal |
+| dt-ash-sweep | Ash Sweep | C | R | Ritual | Hearth magic | Cinderella | damage target 2; grind self 2 | Red removal |
 | dt-bookmark-charm | Bookmark Charm | C | C | Artifact | Bookmark | Set-wide cursed storybook | Skim {cost}; arrives: foresee 2 | Smoothing |
 | dt-lost-in-library | Lost in the Library | C | U | Ritual | Library maze | Belle / Beauty and the Beast | foresee 2, draw 1 | Blue selection |
 | dt-cursed-rose | Cursed Rose | C | B | Enchantment Aura | Rose curse | Belle / Beauty and the Beast | attached: -1/-1; Skim {cost} | Aura common |
@@ -154,13 +154,13 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-forked-road-choice | Forked-Road Choice | C | G | Ritual | Fairy-tale choice | Red Riding Hood | fetchLand, foresee 1 | Ramp common |
 | dt-lullaby-refrain | Lullaby Refrain | C | U | Charm | Repeated song | Sleeping Beauty | tap target; Retell {cost} | Control trick |
 | dt-apple-basket | Apple Basket | C | G | Artifact | Apple basket | Snow White | Skim {cost}; arrives: gainLife 2 | Green utility |
-| dt-ice-lace-gloves | Ice-Lace Gloves | C | C | Artifact | Frost gloves | Elsa / Frozen Queen | Skim {cost}; arrives: preventCombat | Utility frost cycler |
+| dt-ice-lace-gloves | Ice-Lace Gloves | C | C | Artifact | Frost gloves | Elsa / Frozen Queen | Skim {cost}; dawn: severGrave 1 opponent | Recurring grave answer |
 | dt-snowcourt-attendant | Snowcourt Attendant | C | U | Creature | Adult winter court attendant | Elsa / Frozen Queen | arrives: foresee 1 | Blue setup common |
 | dt-winter-bridge | Winter Bridge | C | Land | Land | Frozen bridge to a palace gate | Elsa / Frozen Queen | entersTapped, manaAbility U | Common land |
 | dt-palace-market-chase | Palace-Market Chase | C | R | Ritual | Desert market escape | Jasmine | damage target 2; Skim {cost} | Red removal/smoothing |
 | dt-brass-lamp-charm | Brass Lamp Charm | C | C | Artifact | Polished magic lamp | Jasmine | Skim {cost}; arrives: foresee 1 | Colorless smoothing |
 | dt-desert-rooftop | Desert Rooftop | C | Land | Land | Palace city rooftop | Jasmine | entersTapped, manaAbility R | Common land |
-| dt-reflection-sword | Reflection Sword | C | W | Artifact | Family blade reflected in water | Mulan | arrives: boost allYours +1/+0 with firstBlade (until end of turn) | Combat relic |
+| dt-reflection-sword | Reflection Sword | C | W | Ritual | Family blade reflected in water | Mulan | boost allYours +1/+0 with firstBlade (until end of turn) | Combat relic |
 | dt-training-yard-dawn | Training-Yard Dawn | C | W | Charm | Martial training yard | Mulan | boost target +1/+1, foresee 1 | White combat trick |
 | dt-ancestor-smoke | Ancestor's Smoke | C | W | Charm | Ancestral spirit smoke | Mulan | foresee 2; Retell {cost} | Hybrid support trick |
 | dt-bayou-lantern | Bayou Lantern | C | G | Artifact | Firefly-lit bayou lamp | Tiana | Skim {cost}; dawn: gainLife 1 | Green stabilizer |

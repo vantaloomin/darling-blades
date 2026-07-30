@@ -6,6 +6,12 @@
 
 Release 1.5 ships Darlings as a first-class, single-player deckbuilding format. A player chooses one legendary creature as their Darling, builds a 50-card all-spell deck with no more than one copy of each card, and plays it with a Battle Box land reserve. The selected Darling is part of the shuffled deck, not a new zone or guaranteed opening card. This document supersedes the implementation direction in `docs/plan-commander-mode.md`; that older document remains useful as historical rationale and must not be copied into a second roster specification.
 
+## Status
+
+Darlings and Battle Box are engine-complete and UI-complete, but their UI is
+flagged off for 1.5.0. They are exposed in 1.5.5 after their `TO MEASURE`
+balance matrices exist.
+
 **RESPEC 2026-07-28 (user decision — increased 1.5 scope):** Darlings adopts the Battle Box mana system specified in [plan-battle-box.md](plan-battle-box.md). The deck is **50 cards including the Darling, with zero in-deck lands**; beside it the player builds a per-deck land reserve (10 lands, max 5 duals, duals tapped, asymmetric destruction). Everything in this document about a 60-card deck, in-deck basic lands, or "basics are unlimited in the deck" is superseded by that shape; basics now live only in the reserve. The "no engine change" property this document claimed as its chief risk control is knowingly traded away — the reserve is engine surface, owned by plan-battle-box.md. All other rules here (Darling eligibility, singleton, strict colorless identity, color containment, portrait lock, dedicated practice row, player-built-only launch) stand as locked.
 
 ## Non-goals

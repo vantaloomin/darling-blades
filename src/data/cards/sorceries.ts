@@ -9,14 +9,14 @@ import { cost } from '../cardTypes';
 export const SORCERIES = [
   {
     id: 'so-divination',
-    name: 'Divination',
+    name: 'Twice-Read Water',
     types: ['ritual'],
     subtypes: [],
     cost: cost(2, 'U'),
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }] }],
     rarity: 'c',
-    flavor: 'Two answers per teacup. Refills extra.',
+    flavor: 'Ask once for the answer. Ask twice for the truth.',
   },
   {
     id: 'so-rampant-growth',
@@ -44,7 +44,7 @@ export const SORCERIES = [
   },
   {
     id: 'so-lava-axe',
-    name: 'Lava Axe',
+    name: 'Molten Cleaver',
     types: ['ritual'],
     subtypes: [],
     cost: cost(4, 'R'),

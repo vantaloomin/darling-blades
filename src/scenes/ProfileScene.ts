@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
+import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
 import { todayString } from '../meta/Economy';
 import { computeProfile, formatRate, type Difficulty } from '../meta/profileStats';
@@ -9,6 +10,7 @@ import { decode, encode, type SaveCodePreview } from '../meta/SaveCode';
 import type { SaveData } from '../meta/SaveManager';
 import { Services } from '../meta/services';
 import { modalGuardTarget } from '../ui/Modal';
+import { isReplayVisible } from '../ui/deckBuilderHelpers';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { createMultilineInput, type MultilineInputHandle } from '../ui/MultilineInput';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -39,12 +41,14 @@ export class ProfileScene extends Phaser.Scene {
   private importStatus: Phaser.GameObjects.Text | null = null;
   private importInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private confirmationShell: ModalShell | null = null;
+  private reserveFormatsEnabled = false;
 
   constructor() {
     super('Profile');
   }
 
   create(data: { notice?: string } = {}): void {
+    this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.coordinator = new OverlayCoordinator();
     this.profileInteractiveTargets = [];
     this.exportShell = null;
@@ -155,7 +159,9 @@ export class ProfileScene extends Phaser.Scene {
         color: theme.colors.gold,
       })
       .setOrigin(0, 0.5);
-    const replays = Services.save.data.replays.slice(0, 10);
+    const replays = Services.save.data.replays
+      .filter((log) => isReplayVisible(log, this.reserveFormatsEnabled))
+      .slice(0, 10);
     if (replays.length === 0) {
       this.add
         .text(632, 290, 'No replays yet. Finish a duel and it will appear here.', {
@@ -173,11 +179,12 @@ export class ProfileScene extends Phaser.Scene {
       });
     }
 
-    this.profileInteractiveTargets.push(backButton(this, () => this.scene.start('MainMenu')));
+    this.profileInteractiveTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
   }
 
   private readonly onEscKey = (): void => {
-    this.coordinator.dispatchEsc();
+    if (this.coordinator.dispatchEsc().consumed) return;
+    this.scene.start('MainMenu');
   };
 
   private readonly onShutdown = (): void => {

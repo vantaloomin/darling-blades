@@ -1,18 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { freshSave } from '../../src/meta/SaveManager';
 import { variantKey } from '../../src/meta/variants';
+import { backLabelFor } from '../../src/ui/navigation';
 import {
+  activeVisibleSavedDeck,
   BATTLE_BOX_RULES_COPY,
+  builderFormatForDeck,
+  isReplayVisible,
+  isSavedDeckVisible,
   formatDeckSize,
   formatLabel,
   formatGauntletUnavailableCopy,
   formatPageCount,
   formatPageSlice,
   gridPosition,
+  isDeckBuilderDirty,
+  offeredBuilderFormats,
   variantPickerChoices,
+  visibleSavedDecks,
 } from '../../src/ui/deckBuilderHelpers';
 
 describe('deck builder helpers', () => {
+  it('maps back destinations to the canonical player-facing nouns', () => {
+    expect(backLabelFor('MainMenu')).toBe('Menu');
+    expect(backLabelFor('Play')).toBe('Play');
+    expect(backLabelFor('Draft')).toBe('Draft');
+    expect(backLabelFor('Shop')).toBe('Shop');
+    expect(backLabelFor('Profile')).toBe('Profile');
+  });
+
   it('keeps format labels, sizes, and launch copy explicit', () => {
     expect(formatLabel('constructed')).toBe('Constructed');
     expect(formatLabel('darlings')).toBe('Darlings');
@@ -23,6 +39,36 @@ describe('deck builder helpers', () => {
     expect(formatGauntletUnavailableCopy('darlings')).toBe('Darlings decks are available in Practice only.');
     expect(formatGauntletUnavailableCopy('battlebox')).toBe('Battle Box decks are available in Practice only.');
     expect(BATTLE_BOX_RULES_COPY).not.toContain('\u2014');
+  });
+
+  it('offers only Constructed and hides saved reserve decks when the flag is off', () => {
+    const save = freshSave(0);
+    const constructed = { ...save.decks[0], id: 'constructed', format: 'constructed' as const };
+    const darlings = { ...save.decks[0], id: 'darlings', format: 'darlings' as const };
+    const battlebox = { ...save.decks[0], id: 'battlebox', format: 'battlebox' as const };
+    const decks = [constructed, darlings, battlebox];
+    const hiddenSnapshot = structuredClone(darlings);
+
+    expect(offeredBuilderFormats(false)).toEqual(['constructed']);
+    expect(visibleSavedDecks(decks, false).map((deck) => deck.id)).toEqual(['constructed']);
+    expect(isSavedDeckVisible(darlings, false)).toBe(false);
+    expect(builderFormatForDeck(darlings, false)).toBe('constructed');
+    expect(activeVisibleSavedDeck(decks, 'darlings', false)?.id).toBe('constructed');
+    expect(darlings).toEqual(hiddenSnapshot);
+    expect(isReplayVisible({ format: 'battleBox' }, false)).toBe(false);
+  });
+
+  it('restores reserve formats, saved decks, and replay visibility when the flag is on', () => {
+    const save = freshSave(0);
+    const constructed = { ...save.decks[0], id: 'constructed', format: 'constructed' as const };
+    const darlings = { ...save.decks[0], id: 'darlings', format: 'darlings' as const };
+    const battlebox = { ...save.decks[0], id: 'battlebox', format: 'battlebox' as const };
+    const decks = [constructed, darlings, battlebox];
+
+    expect(offeredBuilderFormats(true)).toEqual(['constructed', 'darlings', 'battlebox']);
+    expect(visibleSavedDecks(decks, true).map((deck) => deck.id)).toEqual(['constructed', 'darlings', 'battlebox']);
+    expect(activeVisibleSavedDeck(decks, 'battlebox', true)?.id).toBe('battlebox');
+    expect(isReplayVisible({ format: 'darlings' }, true)).toBe(true);
   });
 
   it('clamps empty paging inputs and preserves item order', () => {
@@ -48,5 +94,22 @@ describe('deck builder helpers', () => {
     expect(choices.find((choice) => choice.key === blue)?.remainingCopies).toBe(1);
     expect(choices.find((choice) => choice.key === red)?.remainingCopies).toBe(1);
     expect(choices.find((choice) => choice.key === null)?.remainingCopies).toBe(2);
+  });
+
+  it('detects deck, treatment-pin, reserve, and hero edits against the saved record', () => {
+    const saved = {
+      cards: ['a', 'b'],
+      variantPins: [null, 'blue|none|standard'],
+      landReserve: ['land-plains'],
+      heroCardId: null,
+    };
+    const sameWorking = { cards: ['a', 'b'], variantPins: [null, 'blue|none|standard'], landReserve: [], heroCardId: null };
+    expect(isDeckBuilderDirty({ ...sameWorking, landReserve: ['land-plains'] }, saved)).toBe(false);
+    expect(isDeckBuilderDirty({ ...sameWorking, cards: ['b', 'a'], landReserve: ['land-plains'] }, saved)).toBe(true);
+    expect(isDeckBuilderDirty({ ...sameWorking, variantPins: [null, null], landReserve: ['land-plains'] }, saved)).toBe(true);
+    expect(isDeckBuilderDirty(sameWorking, saved)).toBe(true);
+    expect(isDeckBuilderDirty({ ...sameWorking, heroCardId: 'a', landReserve: ['land-plains'] }, saved)).toBe(true);
+    expect(isDeckBuilderDirty({ cards: [], variantPins: [], landReserve: [], heroCardId: null }, null)).toBe(false);
+    expect(isDeckBuilderDirty({ cards: ['a'], variantPins: [null], landReserve: [], heroCardId: null }, null)).toBe(true);
   });
 });

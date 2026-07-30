@@ -180,7 +180,7 @@ The script appends the shared preamble and negatives; do not restate them per en
 
 ## Rituals
 
-### Divination — `so-divination`
+### Twice-Read Water — `so-divination`
 - **Prompt:** A scrying vision blooming over still water — a blue seer's reflecting pool at frame center flaring with luminous arcane visions and drifting omen-sigils, two ghostly future-images rising from the surface, U insight palette `#4a90d9` and `#16294f` with `#a8d4f7` vision-glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Verdant Invitation — `so-rampant-growth`
@@ -189,7 +189,7 @@ The script appends the shared preamble and negatives; do not restate them per en
 ### Summon the Dead — `so-raise-dead`
 - **Prompt:** A resurrection clawing up from a grave — a violet-black necromantic glow pouring into an open tomb at frame center as a skeletal armored hand thrusts up through the soil, grave-mist and spectral light swirling, B death palette `#5a3a70` and `#140d1c` with `#9b6fc4` raising glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
-### Lava Axe — `so-lava-axe`
+### Molten Cleaver — `so-lava-axe`
 - **Prompt:** A hurled axe of molten lava — a great glowing fire-axe of liquid magma spinning through the air toward a distant fortress at frame center, trailing droplets of flame and smoke, R fire palette `#d95436` and `#5e0f0f` with `#f7b267` molten edge — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Muster the Militia — `so-muster-militia`

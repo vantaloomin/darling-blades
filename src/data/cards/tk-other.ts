@@ -58,6 +58,7 @@ export const TK_OTHER = [
     colors: ['B'],
     attack: 2,
     defense: 1,
+    abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }, { op: 'foresee', n: 1 }] }],
     rarity: 'r',
     flavor: 'The Han sky has fallen; the yellow sky rises with her word.',
   },

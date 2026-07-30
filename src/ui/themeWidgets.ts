@@ -18,6 +18,7 @@ import {
   type OverlayLease,
   type OverlayRegistration,
 } from './OverlayCoordinator';
+import type { BackLabel } from './navigation';
 
 export type ButtonVariant = 'primary' | 'emphasis' | 'ghost' | 'danger';
 export type ButtonSize = ControlSize;
@@ -403,6 +404,7 @@ export type SceneFooterAction = Omit<ThemedButtonOptions, 'onTap'> & {
 
 export interface SceneHeaderFooterOptions {
   title: string;
+  backLabel: BackLabel;
   onBack?: (pointer: Phaser.Input.Pointer) => void;
   currency?: GoldBadgeOptions;
   showCurrency?: boolean;
@@ -428,7 +430,7 @@ export function sceneHeaderFooter(
   scene: Phaser.Scene,
   opts: SceneHeaderFooterOptions,
 ): SceneHeaderFooter {
-  const back = backButton(scene, opts.onBack, { focus: opts.backFocus });
+  const back = backButton(scene, opts.backLabel, opts.onBack, { focus: opts.backFocus });
   const title = scene.add
     .text(0, 0, opts.title, {
       fontFamily: theme.fonts.display,
@@ -507,6 +509,53 @@ export interface ModalShell {
   close(): void;
 }
 
+interface SceneModalEntry {
+  dismissible: boolean;
+  close: () => void;
+}
+
+const SCENE_MODAL_STACKS = new WeakMap<Phaser.Scene, SceneModalEntry[]>();
+
+function registerSceneModal(scene: Phaser.Scene, entry: SceneModalEntry): () => void {
+  const stack = SCENE_MODAL_STACKS.get(scene) ?? [];
+  stack.push(entry);
+  SCENE_MODAL_STACKS.set(scene, stack);
+  return () => {
+    const current = SCENE_MODAL_STACKS.get(scene);
+    if (!current) return;
+    const index = current.indexOf(entry);
+    if (index >= 0) current.splice(index, 1);
+    if (current.length === 0) SCENE_MODAL_STACKS.delete(scene);
+  };
+}
+
+export interface SceneBackNavigationOptions {
+  coordinator?: OverlayCoordinator;
+}
+
+/** Register the one scene-level ESC route for a screen with a back affordance. */
+export function registerSceneBackNavigation(
+  scene: Phaser.Scene,
+  onBack: () => void,
+  opts: SceneBackNavigationOptions = {},
+): void {
+  const onEsc = (): void => {
+    if (opts.coordinator?.dispatchEsc().consumed) return;
+    const stack = SCENE_MODAL_STACKS.get(scene);
+    const top = stack?.[stack.length - 1];
+    if (top) {
+      if (top.dismissible) top.close();
+      return;
+    }
+    onBack();
+  };
+  scene.input.keyboard?.on('keydown-ESC', onEsc);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    scene.input.keyboard?.off('keydown-ESC', onEsc);
+    SCENE_MODAL_STACKS.delete(scene);
+  });
+}
+
 /** Standardized modal chrome; callers retain ownership of ModalGuard lists. */
 export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalShell {
   const x = opts.x ?? theme.design.centerX;
@@ -528,8 +577,10 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   const registrationDismissible = opts.registration?.dismissible ?? escToClose;
   const shellCanDismiss =
     !usesCoordinator || (!registrationMandatory && registrationDismissible);
+  const escDismissible = shellCanDismiss && escToClose;
   let closed = false;
   let overlayLease: OverlayLease | undefined;
+  let unregisterSceneModal: (() => void) | null = null;
   const cleanup = (): void => {
     if (!usesCoordinator && escToClose) scene.input.keyboard?.off('keydown-ESC', close);
   };
@@ -537,6 +588,8 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     if (closed) return;
     closed = true;
     cleanup();
+    unregisterSceneModal?.();
+    unregisterSceneModal = null;
     const lease = overlayLease;
     overlayLease = undefined;
     if (lease) opts.coordinator?.close(lease);
@@ -600,8 +653,11 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     };
     overlayLease = opts.coordinator.open(registration);
   }
+  unregisterSceneModal = registerSceneModal(scene, { dismissible: escDismissible, close });
   container.once('destroy', () => {
     cleanup();
+    unregisterSceneModal?.();
+    unregisterSceneModal = null;
     const lease = overlayLease;
     overlayLease = undefined;
     if (lease) opts.coordinator?.close(lease);
@@ -634,11 +690,12 @@ type FocusableText = Phaser.GameObjects.Text & { focusMetadata?: FocusMetadata }
 
 export function backButton(
   scene: Phaser.Scene,
+  label: BackLabel,
   onTap: (pointer: Phaser.Input.Pointer) => void = () => scene.scene.start('MainMenu'),
   opts: BackButtonOptions = {},
 ): FocusableText {
   const button = scene.add
-    .text(0, 0, '← Menu', {
+    .text(0, 0, `← ${label}`, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.label}px`,
       fontStyle: theme.weight.w600,
