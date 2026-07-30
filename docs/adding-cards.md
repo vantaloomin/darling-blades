@@ -32,6 +32,8 @@ Card definitions live in per-set files under `src/data/cards/`:
 | `celtic-fae.ts`   | Celtic Fae expansion                    | `cf-`       |
 | `arthurian-court.ts` | Arthurian Court expansion            | `ac-`       |
 | `gothic-monsters.ts` | Gothic Monsters expansion            | `gm-`       |
+| `dark-tales.ts`   | Dark Tales expansion                    | `dt-`       |
+| `yokai-nights.ts` | Yokai Nights expansion                  | `yn-`       |
 
 Each file exports a `const` array typed
 `... as const satisfies readonly CardDef[]` and imports the `cost()` shorthand
@@ -136,6 +138,34 @@ hit. Names are not scanned (real surnames like *Zhang He* collide with the
 pronoun list). If a card ever needs a masculine pronoun for a genuine male third
 party ("She dared *him* to try."), register its id in that test's `ALLOW` map
 with the reason.
+
+## Creature stats run a modern curve — a declared policy, not drift
+
+**Declared by the owner 2026-07-30** after the corpus audit measured the gap
+precisely: our common creature p+t runs **+0.24 / +0.53 / +0.91 / +1.57** over
+the 8ED/9ED/10E line at mv1-4, and the mechanism is specific — vanilla commons
+sit at +0.24 (the base body rate matches the era), while french-vanilla commons
+run +0.87 and text-bearing uncommons +1.06. In other words, **we deliberately do
+not discount the body for the text** the way 2004-2009 Magic did. Our mv2
+common average lands on the 2018+ Magic row almost exactly.
+
+What this means when authoring:
+
+- **Calibrate new creature stats against our own measured rows** (the local
+  card workbench's `curve` detector), not against the 8ED-10E line. A 2/2 with
+  a keyword at `{1}{C}` common is on-curve here; in 2005 it would have been a
+  2/1.
+- **The MTG-era corpus stays the anchor for spell rates and effect pricing** —
+  burn, draw, removal, auras, upkeep engines. The modern declaration covers
+  creature bodies only; spell costing still follows the era precedent the
+  reference workbench encodes.
+- Same-cost body-plus-text pairs beating vanilla bodies are **expected
+  background** under this policy, not automatically bugs. Dominance triage
+  should ask for axis differentiation (different effect, different role), not
+  body discounts.
+- Concentrated outliers stay individually reviewable — but as balance calls
+  through the matrix gates, never as blanket "curve corrections" applied from a
+  corpus reading.
 
 ## Abilities and the trigger model
 
