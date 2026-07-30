@@ -1,5 +1,6 @@
 import type { CardDef, CardType, Color, Rarity } from '../engine/types';
 import { manaValue } from '../engine/types';
+import type { SetId } from '../data/setTitles';
 import { ownedCount, ownedVariants } from './Collection';
 import type { SaveData } from './SaveManager';
 import {
@@ -60,7 +61,7 @@ export interface CollectionFilterState {
   color: Color | 'all';
   type: CardType | 'all';
   rarity: Rarity | 'all';
-  set: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'all';
+  set: SetId | 'all';
   ownedOnly: boolean;
   /** Free-text search over name / type / subtype / keyword (F8); '' = no filter. */
   search: string;
