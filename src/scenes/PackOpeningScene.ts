@@ -17,7 +17,7 @@ import { fxPolicy } from '../ui/fx/FXSupport';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, modalShell, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, GOTHIC_MONSTERS_PACK_ART, YOKAI_NIGHTS_PACK_ART, packPriceForSku, packSetForSku, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
@@ -143,6 +143,10 @@ export class PackOpeningScene extends Phaser.Scene {
         bg.fillRect(0, 0, width, height);
       },
     });
+    const back = backButton(this, 'Shop', () => this.scene.start('Shop'));
+    // Keep the persistent escape hatch above the reveal spotlight's dim layer.
+    back.setDepth(theme.depth.reveal);
+    registerSceneBackNavigation(this, () => this.scene.start('Shop'));
 
     // F10: a multi-pack buy skips the choreographed single-pack reveal and shows
     // a summary of the whole batch instead.
@@ -244,7 +248,6 @@ export class PackOpeningScene extends Phaser.Scene {
       });
     }
 
-    backButton(this, () => this.scene.start('Shop'));
     this.buildBatchButtons(batch.length);
   }
 

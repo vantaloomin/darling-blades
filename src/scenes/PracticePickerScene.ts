@@ -24,7 +24,7 @@ import {
   type StripLayoutOptions,
 } from '../ui/boosterStripLayout';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
  * The strip scrolls COLUMNS, and each column stacks two rivals. Twenty avatars
@@ -164,7 +164,8 @@ export class PracticePickerScene extends Phaser.Scene {
     this.buildRoster();
     this.buildDifficultyActions();
 
-    backButton(this, () => this.scene.start('Play'));
+    backButton(this, 'Play', () => this.scene.start('Play'));
+    registerSceneBackNavigation(this, () => this.scene.start('Play'));
   }
 
   /**

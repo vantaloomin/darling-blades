@@ -105,8 +105,11 @@ export class MainMenuScene extends Phaser.Scene {
     // Profile entry: top-left corner, balancing the top-right gold+gear cluster.
     // Like the gear, it lives in the corner because the 8-row menu list is full;
     // joins menuItems so the starter-picker ModalGuard disables it too.
-    const profile = themedButton(this, 90, 30, '👤 Profile', {
-      variant: 'ghost', size: 'sm', minWidth: 120, onTap: () => this.scene.start('Profile'),
+    // The three learning-corner buttons share a centre and a width so the
+    // cluster reads as one column; Profile was 120 wide at x 90 against the
+    // other two at 150 wide and x 100, so it sat narrower and 5px left.
+    const profile = themedButton(this, 100, 30, '👤 Profile', {
+      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.scene.start('Profile'),
     });
     this.menuItems.push(profile.inputZone);
 

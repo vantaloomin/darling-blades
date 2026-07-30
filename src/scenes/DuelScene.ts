@@ -98,7 +98,7 @@ import { packRow, type RowPacking } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
-import { modalShell, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, modalShell, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
 import { showZoneContents, type ZoneContentsEntry, type ZoneContentsModal } from '../ui/ZoneContentsModal';
 
 const HUMAN: PlayerId = 0;
@@ -256,6 +256,7 @@ export class DuelScene extends Phaser.Scene {
   private replaySpeedButton: ThemedButton | null = null;
   private replayOutcome: Phaser.GameObjects.Container | null = null;
   private reserveFormatsEnabled = false;
+  private replayOutcomeShell: ModalShell | null = null;
   private undoBtn!: Phaser.GameObjects.Text;
   /** Live combat-damage forecast shown while you assign blocks (F12). */
   private combatPreviewText!: Phaser.GameObjects.Text;
@@ -468,6 +469,7 @@ export class DuelScene extends Phaser.Scene {
     this.replayPlayButton = null;
     this.replaySpeedButton = null;
     this.replayOutcome = null;
+    this.replayOutcomeShell = null;
     this.replayGuard = new ModalGuard();
     this.opponent = data.replay?.context.opponentId
       ? this.avatarForReplay(data.replay.context.opponentId)
@@ -1425,15 +1427,11 @@ export class DuelScene extends Phaser.Scene {
         if (!p.rightButtonReleased()) this.stepReplayAction();
       },
     });
-    const exit = themedButton(this, 824, 61, 'Exit', {
-      variant: 'ghost',
-      size: 'sm',
-      minWidth: 82,
-      onTap: (p) => {
-        if (!p.rightButtonReleased()) this.exitReplayViewer();
-      },
+    const exit = backButton(this, 'Profile', (p) => {
+      if (!p.rightButtonReleased()) this.exitReplayViewer();
     });
-    bar.add([this.replayPlayButton.container, step.container, this.replaySpeedButton.container, exit.container]);
+    exit.setDepth(theme.depth.results + 10);
+    bar.add([this.replayPlayButton.container, step.container, this.replaySpeedButton.container]);
     this.replayControls = bar;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.replayTimer?.remove(false);
@@ -1531,7 +1529,11 @@ export class DuelScene extends Phaser.Scene {
       escToClose: true,
       showClose: false,
       depth: theme.depth.results,
-      onClose: () => this.exitReplayViewer(),
+      onClose: () => {
+        this.replayOutcome = null;
+        this.replayOutcomeShell = null;
+        this.zoom.setSuppressed(false);
+      },
     });
     const c = shell.container;
     c.add(
@@ -1560,11 +1562,15 @@ export class DuelScene extends Phaser.Scene {
       variant: 'primary',
       minWidth: 140,
       onTap: (p) => {
-        if (!p.rightButtonReleased()) this.exitReplayViewer();
+        if (!p.rightButtonReleased()) {
+          shell.close();
+          this.exitReplayViewer();
+        }
       },
     });
     c.add(exit.container);
     this.replayOutcome = c;
+    this.replayOutcomeShell = shell;
   }
 
   private completeReplayPlayback(): void {
@@ -1586,6 +1592,8 @@ export class DuelScene extends Phaser.Scene {
   private exitReplayViewer(): void {
     if (!this.replayMode) return;
     this.stopReplayPlayback();
+    this.replayOutcomeShell?.close();
+    this.replayOutcomeShell = null;
     this.replayOutcome?.destroy();
     this.replayOutcome = null;
     this.scene.start('Profile');
@@ -3941,7 +3949,10 @@ export class DuelScene extends Phaser.Scene {
 
   private onCancelKey(e: KeyboardEvent): void {
     e.preventDefault();
-    if (this.replayMode) return;
+    if (this.replayOutcomeShell) {
+      this.replayOutcomeShell.close();
+      return;
+    }
     if (this.empowerChooser) {
       this.closeEmpowerChooser();
       return;
@@ -3953,6 +3964,10 @@ export class DuelScene extends Phaser.Scene {
     if (this.pendingCasts) {
       this.pendingCasts = null;
       this.sync(); // mirrors the right-click cancel path
+      return;
+    }
+    if (this.replayMode) {
+      this.exitReplayViewer();
       return;
     }
     // Nothing to cancel: Esc opens the in-game menu (playtest 2026-07-16).
@@ -5634,9 +5649,9 @@ export class DuelScene extends Phaser.Scene {
 
     if (!reward.runOver && save.limited.activeRun) {
       mk(510, 'Next Match', 'primary', () => this.scene.restart(limitedDuelData(save.limited.activeRun!)));
-      mk(770, 'Limited Hub', 'ghost', () => this.scene.start('Limited'));
+      mk(770, 'Draft', 'ghost', () => this.scene.start('Limited'));
     } else {
-      mk(510, 'Limited Hub', 'primary', () => this.scene.start('Limited'));
+      mk(510, 'Draft', 'primary', () => this.scene.start('Limited'));
       mk(770, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
     }
     this.guard.open(this.overlayGuardTargets());
@@ -5883,8 +5898,8 @@ export class DuelScene extends Phaser.Scene {
       });
       c.add(btn.container);
     };
-    mk(510, 'Main Menu', 'ghost', () => this.scene.start('MainMenu'));
-    mk(770, 'Return to Tower', 'primary', () => this.scene.start('Gauntlet'));
+    mk(510, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
+    mk(770, 'Tower', 'primary', () => this.scene.start('Gauntlet'));
     this.guard.open(this.overlayGuardTargets());
   }
 
