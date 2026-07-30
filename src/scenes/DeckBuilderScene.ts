@@ -4,6 +4,7 @@ import { Sfx } from '../audio/sfx';
 import { Art } from '../art/ArtResolver';
 import { SET_ICON_PATHS } from '../art/setIcons';
 import { SET_TITLES } from '../data/setTitles';
+import { FEATURES } from '../config/features';
 import { RULES } from '../config/rules';
 import { heroById } from '../data/heroes';
 import { ALL_CARDS, CARD_DB, byId } from '../data/catalog';
@@ -68,6 +69,8 @@ import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel as themedPanel, registerSceneBackNavigation, themedButton, type ModalShell, type Pager, type ThemedButton } from '../ui/themeWidgets';
 import {
   DARLINGS_RULES_COPY,
+  activeVisibleSavedDeck,
+  builderFormatForDeck,
   formatDeckSize,
   formatLabel,
   formatPageCount,
@@ -75,8 +78,10 @@ import {
   formatRulesCopy,
   gridPosition,
   isDeckBuilderDirty,
+  offeredBuilderFormats,
   variantPickerChoices,
   type BuilderFormat,
+  visibleSavedDecks,
 } from '../ui/deckBuilderHelpers';
 
 const GRID_COLS = 4;
@@ -150,6 +155,10 @@ export class DeckBuilderScene extends Phaser.Scene {
   private filterState: CollectionFilterState = { ...defaultFilterState(), ownedOnly: true };
   private deckCodeMessage = '';
   private landReserve: string[] = [];
+  /** Captured at create() so a local dev flip applies when a scene is reopened. */
+  private reserveFormatsEnabled = false;
+  /** UI working deck. A hidden active deck remains untouched in the save. */
+  private workingDeckId: string | null = null;
   private savedDeckSnapshot: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId'> | null = null;
   private exitPrompt: ModalShell | null = null;
 
@@ -166,6 +175,8 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.reserveFormatsEnabled = FEATURES.reserveFormats;
+    this.workingDeckId = null;
     this.page = 0;
     this.deckPage = 0;
     this.filterState = { ...defaultFilterState(), ownedOnly: true };
@@ -181,7 +192,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.exitPrompt = null;
 
     const save = Services.save.data;
-    const active = save.decks.find((d) => d.id === save.activeDeckId);
+    const active = activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
+    this.workingDeckId = active?.id ?? null;
     const slots = active ? cloneDeckSlots(active.cards, active.variantPins) : cloneDeckSlots([]);
     this.deck = slots.cards;
     this.variantPins = slots.variantPins;
@@ -271,8 +283,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private activeFormat(): BuilderFormat {
-    const format = this.activeSavedDeck()?.format;
-    return format === 'darlings' || format === 'battlebox' ? format : 'constructed';
+    return builderFormatForDeck(this.activeSavedDeck(), this.reserveFormatsEnabled);
   }
 
   private isReserveFormat(): boolean {
@@ -643,7 +654,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private activeSavedDeck(): SavedDeck | null {
     const save = Services.save.data;
-    return save.decks.find((d) => d.id === save.activeDeckId) ?? null;
+    return save.decks.find((d) => d.id === this.workingDeckId) ?? null;
   }
 
   private snapshotSavedDeck(deck: SavedDeck | null | undefined): Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId'> | null {
@@ -688,7 +699,10 @@ export class DeckBuilderScene extends Phaser.Scene {
     const save = Services.save.data;
     const active = this.activeSavedDeck();
     const format = this.activeFormat();
-    const id = save.activeDeckId ?? 'custom-1';
+    // The working deck, never save.activeDeckId: when a hidden reserve deck is
+    // still the save's active deck, writing to that id would overwrite the very
+    // deck the release flag is meant to preserve.
+    const id = this.workingDeckId ?? generateDeckId(save);
     const existing = save.decks.find((d) => d.id === id);
     const name = existing?.name ?? 'Custom Deck';
     const heroCardId = format === 'constructed' && existing?.heroCardId && this.deck.includes(existing.heroCardId)
@@ -705,6 +719,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       variantPins: [...this.variantPins],
     });
     save.activeDeckId = id;
+    this.workingDeckId = id;
     this.savedDeckSnapshot = this.snapshotSavedDeck(save.decks.find((d) => d.id === id) ?? null);
     Services.save.flush();
     this.deckCodeMessage = '';
@@ -940,6 +955,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private selectFormat(format: BuilderFormat): void {
+    if (!this.reserveFormatsEnabled && format !== 'constructed') return;
     const active = this.syncDraftToActiveDeck();
     if (!active) {
       // No saved deck yet: formats live on the saved record, so tell the
@@ -1154,7 +1170,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private renderFormatSwitch(x0: number, format: BuilderFormat): void {
-    (['constructed', 'darlings', 'battlebox'] as const).forEach((choice, index) => {
+    offeredBuilderFormats(this.reserveFormatsEnabled).forEach((choice, index) => {
       const button = themedButton(this, x0 + 50 + index * 82, 64, formatLabel(choice), {
         variant: choice === format ? 'primary' : 'ghost',
         size: 'sm',
@@ -1299,7 +1315,11 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     let renderGrid = (): void => {};
     const setActiveDeck = (id: string | null): void => {
-      const previousId = save.activeDeckId;
+      // Dirty tracking follows the deck actually being edited, which is the
+      // working deck rather than the saved active id (they diverge when a
+      // hidden reserve deck is still the save's active deck).
+      const previousId = this.workingDeckId;
+      this.workingDeckId = id;
       save.activeDeckId = id;
       const activeDeck = save.decks.find((d) => d.id === id);
       const slots = activeDeck ? cloneDeckSlots(activeDeck.cards, activeDeck.variantPins) : cloneDeckSlots([]);
@@ -1335,7 +1355,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     let pickerPage = 0;
 
     const renderDeckTile = (parent: Phaser.GameObjects.Container, deck: SavedDeck, x: number, y: number): void => {
-      const isActive = deck.id === save.activeDeckId;
+      const isActive = deck.id === this.workingDeckId;
       const deckFormat = deck.format === 'darlings' || deck.format === 'battlebox' ? deck.format : 'constructed';
       const left = x - tileW / 2;
       const top = y - tileH / 2;
@@ -1397,9 +1417,9 @@ export class DeckBuilderScene extends Phaser.Scene {
         size: 'sm',
         minWidth: actionW,
         onTap: () => {
-        const id = copyDeck(save, deck.id);
-        if (!id) return;
-        const index = save.decks.findIndex((d) => d.id === id);
+         const id = copyDeck(save, deck.id);
+         if (!id) return;
+         const index = visibleSavedDecks(save.decks, this.reserveFormatsEnabled).findIndex((d) => d.id === id);
         if (index >= 0) pickerPage = Math.floor(index / pageSize);
         Services.save.flush();
         renderGrid();
@@ -1412,7 +1432,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         minWidth: actionW,
         onTap: () => {
         this.promptRename(deck.id, () => {
-          if (deck.id === save.activeDeckId) this.renderDeck();
+          if (deck.id === this.workingDeckId) this.renderDeck();
           renderGrid();
         });
         },
@@ -1432,7 +1452,8 @@ export class DeckBuilderScene extends Phaser.Scene {
         }
         deleteDeck(save, deck.id);
         if (isActive) {
-          const activeDeck = save.decks.find((d) => d.id === save.activeDeckId);
+          const activeDeck = activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
+          this.workingDeckId = activeDeck?.id ?? null;
           const slots = activeDeck ? cloneDeckSlots(activeDeck.cards, activeDeck.variantPins) : cloneDeckSlots([]);
           this.deck = slots.cards;
           this.variantPins = slots.variantPins;
@@ -1453,7 +1474,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       const top = y - tileH / 2;
       const create = (): void => {
         const id = generateDeckId(save);
-        const index = save.decks.length;
+        const index = visibleSavedDecks(save.decks, this.reserveFormatsEnabled).length;
         saveDeck(save, { id, name: `Deck ${save.decks.length + 1}`, cards: [] });
         pickerPage = Math.floor(index / pageSize);
         setActiveDeck(id);
@@ -1495,8 +1516,9 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     renderGrid = (): void => {
       gridLayer.removeAll(true);
+      const decks = visibleSavedDecks(save.decks, this.reserveFormatsEnabled);
       const tiles: Array<{ kind: 'deck'; deck: SavedDeck } | { kind: 'new' }> = [
-        ...save.decks.map((deck) => ({ kind: 'deck' as const, deck })),
+        ...decks.map((deck) => ({ kind: 'deck' as const, deck })),
         { kind: 'new' as const },
       ];
       const pages = Math.max(1, Math.ceil(tiles.length / pageSize));
@@ -1900,7 +1922,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       const portrait = makeCardThumb(this, x0 + 20, 32, CARD_DB[active.darlingId], 0.09);
       this.rightPane.push(portrait);
     }
-    this.renderFormatSwitch(x0, format);
+    if (this.reserveFormatsEnabled) this.renderFormatSwitch(x0, format);
     if (format === 'constructed' && this.touch) {
       const landStylesBtn = themedButton(this, x0 + 200, 32, 'Land styles', {
         variant: 'emphasis',

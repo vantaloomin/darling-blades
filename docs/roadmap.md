@@ -1317,6 +1317,9 @@ _Dated 2026-07-26. Review monthly._
   ~~metagame-loop CI promotion~~ (decided 2026-07-28: stays
   informational-only — the 1.4 release sweep hit max-rounds without
   convergence; revisit after the 1.5 sweep);
+  **Reserve formats status:** Darlings and Battle Box are engine-complete and
+  UI-complete, but flagged off for 1.5.0. They are exposed in 1.5.5 after
+  their `TO MEASURE` balance matrices exist;
   **1.6** = **suggested decks v1** (the persona hill-climb harness pointed
   at the player's own collection: "build me a deck from what I own" — the
   hard half already ships as the dev-only crafting loop) + **player-facing
