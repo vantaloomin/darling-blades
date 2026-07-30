@@ -242,6 +242,18 @@ export const THEME_DECKS: DeckList[] = [
   {
     id: 'theme-dark-tales',
     name: 'Midnight Storybook',
+    // W2 tuning history (2026-07-30, post-W0-AI-fix field). Control at 300
+    // seeds/cell: 35.3% aggregate, but 29.9% like-for-like excluding the free
+    // 84% cell vs the broken Neon Afterimage — unchanged from the 1.4 anchor
+    // (30.5%). Worst cells: Crimson 19, Harvest 24, Tides 25 (the control
+    // deck's aggro hole). REJECTED candidate at a 60-seed probe: -2 Gilded
+    // Stepmother -2 Rose-Petal Knight -2 Foam-Silk Siren, +4 Mirror-Apple
+    // Curse +2 The Sleeping Curse measured 23.7% like-for-like (aggregate
+    // 28.7%), with the target cells WORSE (Tides 25->15, Harvest 24->13) and
+    // Glimmer 36->20: trading six bodies for six answers costs more pressure
+    // than the removal converts. The 1.4-era negative stands too (sweeper
+    // 5B->4B, 34.3%->33.3%). Any future candidate must add interaction
+    // without shrinking the body count this far.
     cards: expand([
       ['land-island', 8],
       ['land-swamp', 7],
