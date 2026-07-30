@@ -186,7 +186,14 @@ export const BEASTKIN = [
     colors: ['U'],
     attack: 2,
     defense: 2,
-    abilities: [{ when: 'arrives', ops: [{ op: 'preventCombat' }] }],
+    // W4.5 (card health pass, 2026-07-30): the arrival was preventCombat, the
+    // engine-dead sorcery-speed fog (a creature resolves in your own main
+    // phase; the fog flag clears before the opponent's combat), so the line
+    // never did anything. Target-free foresee replaces it. NOT the tap op:
+    // {op:'tap'; to:'target'} on a trigger receives targets:[] and is a
+    // silent second no-op the per-set tests would wave through. This is a
+    // 4-of in the rung-7 Yohime deck; her baseline re-stamps in W7.
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r',
     flavor: 'Sleep now. The battle will still be lost in the morning.',
   },
