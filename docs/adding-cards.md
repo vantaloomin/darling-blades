@@ -32,6 +32,8 @@ Card definitions live in per-set files under `src/data/cards/`:
 | `celtic-fae.ts`   | Celtic Fae expansion                    | `cf-`       |
 | `arthurian-court.ts` | Arthurian Court expansion            | `ac-`       |
 | `gothic-monsters.ts` | Gothic Monsters expansion            | `gm-`       |
+| `dark-tales.ts`   | Dark Tales expansion                    | `dt-`       |
+| `yokai-nights.ts` | Yokai Nights expansion                  | `yn-`       |
 
 Each file exports a `const` array typed
 `... as const satisfies readonly CardDef[]` and imports the `cost()` shorthand
