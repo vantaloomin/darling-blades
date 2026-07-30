@@ -13,15 +13,17 @@ _Dated 2026-07-26. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch offers an optional **tutorial**; a new
   player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (18 themed opponents on a daily-reshuffled ladder) or Practice duels → rewards → shop →
+  Gauntlet** (20 themed opponents on a daily-reshuffled ladder, tower extended
+  to 20 floors in the 1.5 train) or Practice duels → rewards → shop →
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
-  758-card collectible pool now spans seven sets, with the Dark Tales art run
-  and dark-tales land-style wiring complete. The remaining eyes-on work is
-  the standing real-device pass and by-ear/by-eye polish listed under Planned.
-- **1,072 tests green** (+4 skipped balance-tool assertions; count refreshed
-  for the 1.4.0 release-prep sweep) across 114 files
+  758-card collectible pool now spans seven sets; the Yokai Nights art run
+  (120/120 QA-passed and user-approved) joined the completed Dark Tales run.
+  The remaining eyes-on work is the standing real-device pass and
+  by-ear/by-eye polish listed under Planned.
+- **1,251 tests green** (+4 skipped balance-tool assertions; count refreshed
+  2026-07-30 mid-1.5-train on the merged release/1.5 head) across 130 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -49,15 +51,72 @@ _Dated 2026-07-26. Review monthly._
   (`src/audio/`, 15 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v22** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v23** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
   familiarity, v17→v18 Premium Draft, v18→v19 premium weekly allowance,
   v19→v20 deterministic replays, v20→v21 Full Art three-segment variant
-  keys, v21→v22 tower roster stamp + per-basic land styles — see Recently
-  shipped and the Full Art entry under Planned). By-ear tuning remains open
-  (see Planned).
+  keys, v21→v22 tower roster stamp + per-basic land styles, v22→v23 one
+  atomic migration for the Darlings fields, the Battle Box land reserve, and
+  variant-deck pins — see Recently shipped and the Full Art entry under
+  Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-07-30 · the 1.5 train, merged to release/1.5; cut pending)
+
+Everything below is merged on `release/1.5` but not yet tagged: the combined
+balance pass (Bride repair landed; Midnight, go-wide, sweepers, tapland
+riders, tribal, precon band, and the 200-seed floor re-calibration in
+flight), the economy re-date, and the final metagame sweep still precede the
+1.5.0 cut. Battle Box and Darlings ship **hidden** in 1.5.0 and are exposed
+in 1.5.5 (user decision 2026-07-29).
+
+- **Cyberpunk Yokai Nights, the sixth expansion (#138, #145, #147).** 120
+  cards (pool 638→758) with the **Hauntlink** headline mechanic (alt play
+  mode on Artifact/Enchantment: one host, linked rider, dies with host),
+  engine-first with 8 dedicated tests; ally-pair tapped dual cycle replacing
+  the set's five mono taplands; full retail wiring (525g set booster, precon,
+  8 achievements, set icon, attack FX); the entire 120-card art run
+  QA-passed and user-approved with art bible coverage 470/470.
+- **Bosses 19-20 + tower to 20 floors (#151).** Queen of the Lanterned Roof
+  and Kitsune Neon Tyrant (R19 71% / R20 75% at 40 seeds, provisional floors
+  pending the 1.5 re-baseline), 410/430g clear rewards.
+- **Battle Box + Darlings formats, engine-complete and flagged off (#139,
+  #140, #141, #144, #148, #149, #150, #152, #157).** Three-format deck
+  model (constructed / darlings / battlebox) with a chosen 10-land reserve
+  (max 5 duals, asymmetric destruction), SaveData **v23** in one atomic
+  migration, replay log v4, card-instance variant pins (positional),
+  SaveCode profile export/import (checksum + zip-bomb hardening), builder
+  format switch + Darlings picker + reserve panel, duel reserve strip and
+  reserve-format launches, and Profile SaveCode flow. All player-facing
+  entry points sit behind `FEATURES.reserveFormats = false` for 1.5.0;
+  saves stay lossless and the dev cheat can flip the flag for playtesting.
+- **Shop Card Packs wave (#153) + Practice picker strip (#154).** Boosters
+  tab renamed Card Packs and made the default landing unless a free deck is
+  genuinely claimable; **Base Set booster scoped to base-set-only cards**
+  (economy bands re-centred with user approval after the 758-pool dilution
+  was separated from a broken measurement model); 4-visible drag strip with
+  set blurbs, New tags, faded quantity chips, Yokai pack art; the Practice
+  rival picker became a two-row drag strip with large portraits.
+- **One back-navigation convention (#155).** Destination-named upper-left
+  back button on every screen (the shared widget's label is now a required
+  parameter, so the compiler forbids the lying-label defect class), ESC =
+  topmost overlay then back, DeckBuilder save prompt, draft leave-confirm.
+- **Collection binder set filter fixed at the root (#156).** The dropdown
+  derived from a new single `SET_IDS` list instead of a hand-written copy
+  that had silently omitted two sets (240 cards unfilterable).
+- **Card health pass Wave 1 (#158, #159, #160).** Two 1:1 Wizards-common
+  reproductions renamed (Divination → Twice-Read Water, Lava Axe → Molten
+  Cleaver); Sudden Insight recost {2}{U}→{3}{U}; five dead sorcery-speed
+  fog lines and byte-duplicate cards fixed across four sets; four one-shot
+  team-pump artifacts retyped Ritual; rules-text templating stops printing
+  "+0/+0" and mid-sentence capitals. Measured: duplicates 65→62, dominance
+  pairs 349→335, inert permanents 37→32. The modern-era creature curve is
+  now **declared policy** in adding-cards.md rather than drift.
+- **Hygiene riders (#142, #143, #146).** Subtype consolidation (tribes
+  9→12, Wolfkin→Wolf, Ghost/Wisp→Spirit and friends), Lancelot keyword
+  flip, honest "any color" mana-rock prose, `optimizerCap` CI timeout
+  raised, plan PR (#137) with the Hauntlink keyword-map row.
 
 ## Recently shipped (2026-07-26 · the 1.4 close-out)
 
