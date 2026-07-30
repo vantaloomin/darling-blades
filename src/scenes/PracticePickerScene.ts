@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
+import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
 import { AVATARS } from '../data/opponents';
 import type { Difficulty } from '../meta/Economy';
@@ -10,6 +11,7 @@ import { Services } from '../meta/services';
 import { attachTouchGestures } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import {
   boosterStripIndexForOffset,
   boosterStripLayout,
@@ -91,12 +93,14 @@ export class PracticePickerScene extends Phaser.Scene {
   private pickerWheelLastStepAt = Number.NEGATIVE_INFINITY;
   private selectionLabel: Phaser.GameObjects.Text | null = null;
   private launchNotice: Phaser.GameObjects.Text | null = null;
+  private reserveFormatsEnabled = false;
 
   constructor() {
     super('PracticePicker');
   }
 
   create(): void {
+    this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.selectedAvatarId = AVATARS[AVATARS.length - 1]?.id ?? '';
     this.tileNodes = [];
     this.pickerStripContent = null;
@@ -473,7 +477,11 @@ export class PracticePickerScene extends Phaser.Scene {
   private startPractice(difficulty: Difficulty): void {
     const selected = AVATARS.find((av) => av.id === this.selectedAvatarId);
     if (!selected) return;
-    const activeDeck = Services.save.data.decks.find((deck) => deck.id === Services.save.data.activeDeckId) ?? null;
+    const activeDeck = activeVisibleSavedDeck(
+      Services.save.data.decks,
+      Services.save.data.activeDeckId,
+      this.reserveFormatsEnabled,
+    );
     const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, activeDeck);
     if (issue) {
       this.showLaunchNotice(`Cannot start Practice: ${issue}`);

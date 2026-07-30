@@ -12,6 +12,12 @@ chooses a land from the reserve. Mana screw and flood do not exist in these
 formats; every draw is action, and the 10-land cap bounds the top of the
 curve by design.
 
+## Status
+
+Battle Box and Darlings are engine-complete and UI-complete, but their UI is
+flagged off for 1.5.0. They are exposed in 1.5.5 after their `TO MEASURE`
+balance matrices exist.
+
 User decisions locked 2026-07-28 (do not relitigate without the user):
 
 - Deck size in reserve formats is **50 cards** (Darlings: including the

@@ -5,6 +5,7 @@ import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { buildAI } from '../ai/personality';
 import { ECONOMY, RULES, type ReserveFormat } from '../config/rules';
+import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
 import { tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
 import { avatarById, avatarForRung, AVATARS, type Avatar } from '../data/opponents';
@@ -86,6 +87,7 @@ import { handDisplayOrder } from '../ui/handSort';
 import { HistoryPanel } from '../ui/HistoryPanel';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
+import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
 import { renderManaText } from '../ui/ManaText';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
@@ -253,6 +255,7 @@ export class DuelScene extends Phaser.Scene {
   private replayPlayButton: ThemedButton | null = null;
   private replaySpeedButton: ThemedButton | null = null;
   private replayOutcome: Phaser.GameObjects.Container | null = null;
+  private reserveFormatsEnabled = false;
   private undoBtn!: Phaser.GameObjects.Text;
   /** Live combat-damage forecast shown while you assign blocks (F12). */
   private combatPreviewText!: Phaser.GameObjects.Text;
@@ -447,6 +450,11 @@ export class DuelScene extends Phaser.Scene {
       replay?: ReplayLog;
     } = {},
   ): void {
+    this.reserveFormatsEnabled = FEATURES.reserveFormats;
+    if (!this.reserveFormatsEnabled && data.replay?.format) {
+      this.scene.start('Profile');
+      return;
+    }
     // When present, an avatar drives the deck and personality. Gauntlet
     // inherits that avatar's tuned difficulty; Practice may explicitly
     // override the brain tier while keeping the real deck and temperament.
@@ -577,7 +585,7 @@ export class DuelScene extends Phaser.Scene {
       (this.gauntletRung != null && save.gauntlet.run
         ? rungSeed(save.gauntlet.run.seed, this.gauntletRung)
         : Math.floor(Math.random() * 2 ** 31));
-    const myDeckEntry = save.decks.find((d) => d.id === save.activeDeckId);
+    const myDeckEntry = activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
     this.humanLandStyle = !this.replayMode && data.deckOverride === undefined && myDeckEntry?.landStyle
       ? { ...myDeckEntry.landStyle }
       : null;
@@ -3110,7 +3118,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private isReserveDuel(): boolean {
-    return this.duel.state.players[HUMAN].landReserve !== undefined;
+    return this.reserveFormatsEnabled && this.duel.state.players[HUMAN].landReserve !== undefined;
   }
 
   private reserveLandAction(index: number): Extract<Action, { type: 'playLand' }> | undefined {

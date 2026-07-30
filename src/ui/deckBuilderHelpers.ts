@@ -5,6 +5,67 @@ import { variantKey, type CardVariant } from '../meta/variants';
 
 export type BuilderFormat = NonNullable<SavedDeck['format']>;
 
+const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'darlings', 'battlebox'];
+
+/** The format choices the builder may expose for this release. */
+export function offeredBuilderFormats(reserveFormatsEnabled: boolean): BuilderFormat[] {
+  return reserveFormatsEnabled ? [...ALL_BUILDER_FORMATS] : ['constructed'];
+}
+
+/** Reserve-format metadata is hidden along with its player-facing UI. */
+export function isReserveFormat(format: string | null | undefined): format is 'darlings' | 'battlebox' | 'battleBox' {
+  return format === 'darlings' || format === 'battlebox' || format === 'battleBox';
+}
+
+export function isSavedDeckVisible(
+  deck: Pick<SavedDeck, 'format'>,
+  reserveFormatsEnabled: boolean,
+): boolean {
+  return reserveFormatsEnabled || !isReserveFormat(deck.format);
+}
+
+export function visibleSavedDecks(
+  decks: readonly SavedDeck[],
+  reserveFormatsEnabled: boolean,
+): SavedDeck[] {
+  return decks.filter((deck) => isSavedDeckVisible(deck, reserveFormatsEnabled));
+}
+
+/**
+ * Keep a stale reserve-format active id lossless while giving UI consumers a
+ * constructed deck, or null when no visible deck exists.
+ */
+export function activeVisibleSavedDeck(
+  decks: readonly SavedDeck[],
+  activeDeckId: string | null,
+  reserveFormatsEnabled: boolean,
+): SavedDeck | null {
+  const active = decks.find((deck) => deck.id === activeDeckId) ?? null;
+  if (active && isSavedDeckVisible(active, reserveFormatsEnabled)) return active;
+  if (active && !reserveFormatsEnabled) {
+    return decks.find((deck) => isSavedDeckVisible(deck, false)) ?? null;
+  }
+  return active;
+}
+
+/** Replays keep their persisted shape, but hidden reserve matches leave the UI list. */
+export function isReplayVisible(
+  replay: { format?: string },
+  reserveFormatsEnabled: boolean,
+): boolean {
+  return reserveFormatsEnabled || !isReserveFormat(replay.format);
+}
+
+/** Normalize a saved format for a scene that only receives visible decks. */
+export function builderFormatForDeck(
+  deck: Pick<SavedDeck, 'format'> | null,
+  reserveFormatsEnabled: boolean,
+): BuilderFormat {
+  return reserveFormatsEnabled && isReserveFormat(deck?.format)
+    ? deck.format
+    : 'constructed';
+}
+
 export const BATTLE_BOX_RULES_COPY =
   'Build your land reserve: 10 lands, up to 5 dual lands. Each turn you choose which land to play. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your reserve.';
 
