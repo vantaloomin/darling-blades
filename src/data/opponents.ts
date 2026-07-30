@@ -249,6 +249,24 @@ export interface Avatar {
  * duplicate Carmilla card ids were excluded from attribution and fully restored.
  * The original list and personality remain shipped; the floor was not lowered.
  *
+ * Revision-4 W1 repair, 2026-07-30, after the W0 AI fixes: clean control was
+ * 67/72/45/87/72 at 60 seeds/cell (avg 68%) and 61/73/48/73/66 at 200
+ * seeds/cell (avg 64%). Replay inspection identified Burning Tides as the
+ * inverted cell: its four Undertow copies were now correctly classified as
+ * recall by the starter's Medium AI, which repeatedly returned Bride bodies.
+ * Candidate 1, replacing four Batcloak Cutthroats with four Broken Mirrors,
+ * measured 48/65/33/50/57 at 60 seeds (avg 51%) and was rejected for gutting
+ * every control cell. Candidate 2, replacing four Batcloaks with four Ravenloft
+ * Heiresses, measured 65/75/48/88/70 at 60 seeds (avg 69%) and 60/73/50/75/66
+ * at 200 seeds (avg 64%); it was rejected in favor of the stronger targeted
+ * swap. Candidate 3, replacing four Black-Veil Matrons with four Ravenloft
+ * Heiresses, measured 63/75/57/92/63 at 60 seeds (avg 70%) and 59/78/56/78/60
+ * at 200 seeds (avg 66%). It is retained: the inverted Tides cell recovered
+ * eight points from control without a new near-hopeless cell, though the old
+ * 73% floor remains unmeetable at this honest sample and is re-centred in W7.
+ * Candidate 4, replacing four Batcloaks with four Blood-Opera Soloists,
+ * measured 58/72/45/75/70 at 60 seeds (avg 64%) and was rejected.
+ *
  * Rungs 17-18 — the Dark Tales summit pair, measured 2026-07-24 at 40
  * seeds/cell with the full `--avatars` matrix. Every cell below had 40 decided
  * games and zero draws:
@@ -907,7 +925,7 @@ export const AVATARS: readonly Avatar[] = [
       ['so-divination', 4],
       ['gm-stitchwork-guardian', 4],
       ['gm-stormglass-golem', 4],
-      ['gm-black-veil-matron', 4],
+      ['gm-ravenloft-heiress', 4],
       ['gm-batcloak-cutthroat', 4],
       ['in-doom-bolt', 4],
       ['in-undertow', 4],
