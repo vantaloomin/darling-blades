@@ -53,6 +53,19 @@ export class StackDisplay {
     const cardWidth = CARD_W * CARD_SCALE;
     const cardHeight = CARD_H * CARD_SCALE;
     const rowWidth = items.length * cardWidth + Math.max(0, items.length - 1) * CARD_GAP;
+    // Scrim behind the whole readout: the stack renders directly over the
+    // opponent's battlefield rows, so without it the title and caster labels
+    // sat raw on card art and were hard to read (user playtest 2026-07-30).
+    // Sized to cover the title above and the tap-to-target hint below.
+    const scrimTop = -cardHeight / 2 - 58;
+    const scrimBottom = cardHeight / 2 + 28;
+    const scrimW = rowWidth + 56;
+    const scrim = this.root.scene.add.graphics();
+    scrim.fillStyle(0x0d0a16, 0.82);
+    scrim.fillRoundedRect(-scrimW / 2, scrimTop, scrimW, scrimBottom - scrimTop, 12);
+    scrim.lineStyle(1.5, colorInt(theme.colors.panelStroke), 0.7);
+    scrim.strokeRoundedRect(-scrimW / 2, scrimTop, scrimW, scrimBottom - scrimTop, 12);
+    this.root.add(scrim);
     // 42, not 25: the per-card caster label sits at -cardHeight/2 - 9 with a
     // bottom origin, so a 25px title offset collided with it on-screen.
     const title = this.root.scene.add
@@ -71,6 +84,11 @@ export class StackDisplay {
     items.forEach((item, index) => {
       const x = -rowWidth / 2 + cardWidth / 2 + index * (cardWidth + CARD_GAP);
       const targetable = this.opts.isTargetable(item.sid);
+      // Offset shadow under the frame lifts the card off the scrim (the "3D"
+      // read the playtest asked for) without any FX pipeline cost.
+      const shadow = this.root.scene.add
+        .rectangle(x + 5, 7, cardWidth + 8, cardHeight + 8, 0x000000, 0.45);
+      this.root.add(shadow);
       const frame = this.root.scene.add
         .rectangle(
           x,
