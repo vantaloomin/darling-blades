@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
+import type { CardDef } from '../../src/engine/types';
 import { MECHANIC_DEFINITIONS, rulesText, typeLine } from '../../src/ui/rulesText';
 
 const AURA_KEYWORD_TEXT = {
@@ -80,6 +81,36 @@ describe('target-aware damage and land rules text', () => {
 
   it('does not emit em-dashes in generated rules text', () => {
     for (const card of ALL_CARDS) expect(rulesText(card)).not.toContain('\u2014');
+  });
+});
+
+describe('sweeper rules text', () => {
+  it('renders symmetric, target-free red damage and black stat reduction honestly', () => {
+    const red = {
+      id: 'red_sweeper',
+      name: 'Red Sweeper',
+      types: ['ritual'],
+      subtypes: [],
+      cost: { generic: 0, pips: {} },
+      colors: ['R'],
+      abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 1, to: 'eachCreature' }] }],
+      rarity: 'c',
+    } as const satisfies CardDef;
+    const black = {
+      id: 'black_sweeper',
+      name: 'Black Sweeper',
+      types: ['ritual'],
+      subtypes: [],
+      cost: { generic: 0, pips: {} },
+      colors: ['B'],
+      abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -1, t: -1, scope: 'all' }] }],
+      rarity: 'c',
+    } as const satisfies CardDef;
+
+    expect(rulesText(red)).toBe('Deal 1 damage to each creature.');
+    expect(rulesText(black)).toBe('All creatures get -1/-1 until end of turn.');
+    expect(rulesText(red)).not.toContain('\u2014');
+    expect(rulesText(black)).not.toContain('\u2014');
   });
 });
 

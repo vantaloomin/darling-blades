@@ -60,7 +60,7 @@ export interface TargetSpec {
 }
 
 export type EffectOp =
-  | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller' }
+  | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller' | 'eachCreature' }
   | { op: 'gainLife'; n: number }
   | { op: 'loseLife'; n: number; who: 'opponent' }
   | { op: 'draw'; n: number }
@@ -75,7 +75,7 @@ export type EffectOp =
       to: 'target';
     } // branch is artifact-first; otherwise an enchantment is severed
   | { op: 'cancel'; to: 'target' } // target is a stack item
-  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
+  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' | 'all' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
   | { op: 'fetchLand' } // a basic land from deck → battlefield tapped
