@@ -140,7 +140,7 @@ export const ARTHURIAN_COURT = [
     chapters: [
       [{ op: 'damage', n: 2, to: 'controller' }],
       [{ op: 'boost', p: 2, t: 2, scope: 'allYours' }],
-      [{ op: 'awaken', scope: 'allYours' }],
+      [{ op: 'boost', p: 3, t: 3, keywords: ['overrun'], scope: 'allYours' }],
     ],
     rarity: 'sr', flavor: 'She offers the axe and waits beneath the greenest branch.',
   },
@@ -364,7 +364,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-training-yard', name: 'Training Yard', types: ['enchantment'], subtypes: [],
-    cost: cost(3, 'R'), colors: ['R'],
+    cost: cost(2, 'R'), colors: ['R'],
     abilities: [{ when: 'dawn', ops: [{ op: 'boost', p: 1, t: 0, scope: 'allYours' }] }],
     rarity: 'c', flavor: 'Every morning begins with bruises and ends with a better stance.',
   },
@@ -413,7 +413,7 @@ export const ARTHURIAN_COURT = [
   {
     id: 'ac-wounded-oath', name: 'Wounded Oath', types: ['enchantment'], subtypes: ['Aura'],
     cost: cost(1, 'B'), colors: ['B'],
-    abilities: [{ when: 'static', static: { scope: 'attached', p: -1, t: -1 } }],
+    abilities: [{ when: 'static', static: { scope: 'attached', p: -3, t: 0 } }],
     rarity: 'c', flavor: 'The promise weakens the arm that made it and the heart that keeps it.',
   },
   {
@@ -455,14 +455,14 @@ export const ARTHURIAN_COURT = [
     rarity: 'c', flavor: 'She looses arrows from the gallery and never disturbs the music.',
   }),
   {
-    id: 'ac-rallying-horn', name: 'Rallying Horn', types: ['artifact'], subtypes: [],
-    cost: cost(2), colors: [],
-    abilities: [{ when: 'arrives', ops: [{ op: 'boost', p: 1, t: 0, scope: 'allYours' }] }],
+    id: 'ac-rallying-horn', name: 'Rallying Horn', types: ['ritual'], subtypes: [],
+    cost: cost(2, 'R'), colors: ['R'],
+    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 2, t: 0, scope: 'allYours' }] }],
     rarity: 'c', flavor: 'One clear note, and every lance in the valley points the same way.',
   },
   creature('ac-prophecy-attendant', "Prophecy Attendant", ['Attendant', 'Seer'], {
     cost: cost(2, 'U'), colors: ['U'], attack: 1, defense: 3,
-    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
+    abilities: [{ when: 'arrives', condition: 'questActive', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'c', flavor: 'She carries tomorrow in a silver bowl and never spills a drop.',
   }),
   {

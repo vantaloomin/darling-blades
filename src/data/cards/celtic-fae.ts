@@ -59,7 +59,7 @@ export const CELTIC_FAE = [
   }),
   {
     id: 'cf-balor-evil-eye', name: "Balor's Evil Eye", types: ['ritual'], subtypes: [],
-    supertypes: ['legendary'], cost: cost(1, 'BR'), colors: ['B', 'R'],
+    supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 5, to: 'target' }, { op: 'severGrave', n: 1, who: 'opponent' }] }],
     rarity: 'ssr', flavor: 'Do not meet its gaze. Do not survive its attention.',
   },
@@ -203,8 +203,8 @@ export const CELTIC_FAE = [
   },
   {
     id: 'cf-lake-mirror-vow', name: 'Lake-Mirror Vow', types: ['enchantment'], subtypes: [],
-    cost: cost(0, 'U'), colors: ['U'],
-    abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 2 }] }],
+    cost: cost(2, 'U'), colors: ['U'],
+    abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'Swear to your reflection. It has a better memory than you do.',
   },
   {
@@ -400,6 +400,14 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'Stand beneath the oak. It has outlasted worse kings.',
   },
   {
+    // Left as a Charm on purpose. The design table wants an Artifact that taps
+    // a creature, which this engine cannot express: artifacts have no activated
+    // or targeted abilities, and a 1-mana blue instant tapper is a 2017 rate.
+    // Every target-free artifact effect cheap enough for {U} collides with a
+    // shipped card (Quest Marker {1} and Moonwire Mask {1}{U} both do
+    // arrives-Foresee-1), and converting it adds an inert permanent, which
+    // works against the Hauntlink substrate plan. Its duplication of
+    // Glimmerdust Trick is a design call, not a mechanical one.
     id: 'cf-fogbell-chime', name: 'Fogbell Chime', types: ['charm'], subtypes: [], cost: cost(0, 'U'), colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'One note, and the road forgets which way is forward.',

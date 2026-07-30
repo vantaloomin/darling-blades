@@ -94,7 +94,7 @@ const UR: CardDef[] = [
   }),
   creature('dt-ice-crown-sovereign', 'Ice-Crown Sovereign', ['Human', 'Queen'], {
     supertypes: ['legendary'], cost: cost(6, 'UW'), colors: ['U', 'W'], attack: 4, defense: 6,
-    keywords: ['skyborne'], abilities: [arrives([{ op: 'preventCombat' }]), dawn([{ op: 'foresee', n: 1 }])],
+    keywords: ['skyborne'], abilities: [arrives([{ op: 'massDestroy', filter: 'allEnchantments' }]), dawn([{ op: 'foresee', n: 1 }])],
     rarity: 'ur', flavor: 'The coronation froze the room, the vows, and every exit.',
   }),
 ];
@@ -148,9 +148,9 @@ const SR: CardDef[] = [
     cost: cost(3, 'B'), colors: ['B'], abilities: [spell([{ op: 'draw', n: 2 }, { op: 'damage', n: 2, to: 'controller' }])],
     retell: { cost: cost(4, 'B') }, rarity: 'sr', flavor: 'The signature dries quickly. The consequences do not.',
   }),
-  artifact('dt-glass-slipper-at-midnight', 'Glass Slipper at Midnight', ['Relic'], {
+  ritual('dt-glass-slipper-at-midnight', 'Glass Slipper at Midnight', {
     cost: cost(2, 'U'), colors: ['U'], skim: { cost: cost(1) },
-    abilities: [arrives([{ op: 'boost', p: 1, t: 0, keywords: ['dreaded'], scope: 'allYours' }])],
+    abilities: [spell([{ op: 'boost', p: 1, t: 0, keywords: ['dreaded'], scope: 'allYours' }])],
     rarity: 'sr', flavor: 'It fits perfectly, which is how the trap gets invited inside.',
   }),
   creature('dt-red-hood-wolfslayer', 'Red Hood Wolfslayer', ['Human', 'Hunter'], {
@@ -213,9 +213,9 @@ const R: CardDef[] = [
     cost: cost(2, 'B'), colors: ['B'], abilities: [attached(-2, -2)], skim: { cost: cost(1) }, rarity: 'r',
     flavor: 'The reflection is flawless. The person wearing it is not.',
   }),
-  artifact('dt-midnight-coach', 'Midnight Coach', ['Vehicle'], {
+  ritual('dt-midnight-coach', 'Midnight Coach', {
     cost: cost(3), colors: [], skim: { cost: cost(1) },
-    abilities: [arrives([{ op: 'boost', p: 1, t: 0, keywords: ['warcry'], scope: 'allYours' }])], rarity: 'r',
+    abilities: [spell([{ op: 'boost', p: 1, t: 0, keywords: ['warcry'], scope: 'allYours' }])], rarity: 'r',
     flavor: 'It runs on punctuality, pumpkin, and a very strict return time.',
   }),
   creature('dt-fairy-godmother-noir', 'Noir Godmother', ['Human', 'Godmother'], {
@@ -359,7 +359,7 @@ const C: CardDef[] = [
   enchantment('dt-candle-in-window', 'Candle in the Window', [], { cost: cost(2, 'W'), colors: ['W'], abilities: [dawn([{ op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'A small light can make a long road possible.' }),
   artifact('dt-ink-black-carriage', 'Ink-Black Carriage', ['Vehicle'], { cost: cost(2, 'B'), colors: ['B'], abilities: [dawn([{ op: 'grind', n: 1, who: 'self' }])], rarity: 'c', flavor: 'It carries stories away from the people who started them.' }),
   charm('dt-sea-glass-knife', 'Sea-Glass Knife', { cost: cost(1, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }], target('any'))], rarity: 'c', flavor: 'Pretty glass, practical edge, no landward warranty.' }),
-  ritual('dt-ash-sweep', 'Ash Sweep', { cost: cost(2, 'R'), colors: ['R'], abilities: [spell([{ op: 'damage', n: 2, to: 'target' }], target('any'))], rarity: 'c', flavor: 'The hearth clears more than dust.' }),
+  ritual('dt-ash-sweep', 'Ash Sweep', { cost: cost(2, 'R'), colors: ['R'], abilities: [spell([{ op: 'damage', n: 2, to: 'target' }, { op: 'grind', n: 2, who: 'self' }], target('any'))], rarity: 'c', flavor: 'The hearth clears more than dust.' }),
   artifact('dt-bookmark-charm', 'Bookmark Charm', ['Relic'], { cost: cost(2), colors: [], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 2 }])], rarity: 'c', flavor: 'A good place to stop is also a good place to look ahead.' }),
   ritual('dt-lost-in-library', 'Lost in the Library', { cost: cost(3, 'U'), colors: ['U'], abilities: [spell([{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }])], rarity: 'c', flavor: 'The shelves are endless. The useful answer is on the next page.' }),
   enchantment('dt-cursed-rose', 'Cursed Rose', ['Aura'], { cost: cost(1, 'B'), colors: ['B'], abilities: [attached(-1, -1)], skim: { cost: cost(1) }, rarity: 'c', flavor: 'The bloom is beautiful until the thorns learn your name.' }),
@@ -382,13 +382,13 @@ const C: CardDef[] = [
   ritual('dt-forked-road-choice', 'Forked-Road Choice', { cost: cost(2, 'G'), colors: ['G'], abilities: [spell([{ op: 'fetchLand' }, { op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'One road is safe. The other is more interesting.' }),
   charm('dt-lullaby-refrain', 'Lullaby Refrain', { cost: cost(1, 'U'), colors: ['U'], abilities: [spell([{ op: 'tap', to: 'target' }], target('creature'))], retell: { cost: cost(2, 'U') }, rarity: 'c', flavor: 'The refrain returns when the sleeper thinks it is over.' }),
   artifact('dt-apple-basket', 'Apple Basket', ['Relic'], { cost: cost(2, 'G'), colors: ['G'], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'gainLife', n: 2 }])], rarity: 'c', flavor: 'The basket is full, the orchard is quiet, and the deal is unclear.' }),
-  artifact('dt-ice-lace-gloves', 'Ice-Lace Gloves', ['Relic'], { cost: cost(2), colors: [], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'preventCombat' }])], rarity: 'c', flavor: 'A cold touch can end a fight before it finds its rhythm.' }),
+  artifact('dt-ice-lace-gloves', 'Ice-Lace Gloves', ['Relic'], { cost: cost(2), colors: [], skim: { cost: cost(1) }, abilities: [dawn([{ op: 'severGrave', n: 1, who: 'opponent' }])], rarity: 'c', flavor: 'Frost keeps what it touches, and gives none of it back.' }),
   creature('dt-snowcourt-attendant', 'Snowcourt Attendant', ['Human', 'Attendant'], { cost: cost(2, 'U'), colors: ['U'], attack: 2, defense: 2, abilities: [arrives([{ op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'The court runs on schedules, frost, and careful glances.' }),
   land('dt-winter-bridge', 'Winter Bridge', ['U'], 'c', 'The bridge is clear until the palace decides otherwise.'),
   ritual('dt-palace-market-chase', 'Palace-Market Chase', { cost: cost(2, 'R'), colors: ['R'], abilities: [spell([{ op: 'damage', n: 2, to: 'target' }], target('any'))], skim: { cost: cost(1) }, rarity: 'c', flavor: 'The market parts for a runner with a good enough story.' }),
   artifact('dt-brass-lamp-charm', 'Brass Lamp Charm', ['Relic'], { cost: cost(2), colors: [], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'Polish the lamp, then decide which wish can survive daylight.' }),
   land('dt-desert-rooftop', 'Desert Rooftop', ['R'], 'c', 'The city roof catches moonlight and runaway wishes.'),
-  artifact('dt-reflection-sword', 'Reflection Sword', ['Weapon'], { cost: cost(3, 'W'), colors: ['W'], abilities: [arrives([{ op: 'boost', p: 1, t: 0, keywords: ['firstBlade'], scope: 'allYours' }])], rarity: 'c', flavor: 'The blade reflects the family it expects you to become.' }),
+  ritual('dt-reflection-sword', 'Reflection Sword', { cost: cost(3, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 1, t: 0, keywords: ['firstBlade'], scope: 'allYours' }])], rarity: 'c', flavor: 'The blade reflects the family it expects you to become.' }),
   charm('dt-training-yard-dawn', 'Training-Yard Dawn', { cost: cost(2, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 1, t: 1, scope: 'target' }, { op: 'foresee', n: 1 }], target('creature'))], rarity: 'c', flavor: 'Practice becomes a promise when the sun comes up.' }),
   charm('dt-ancestor-smoke', "Ancestor's Smoke", { cost: cost(3, 'W'), colors: ['W'], abilities: [spell([{ op: 'foresee', n: 2 }])], retell: { cost: cost(4, 'W') }, rarity: 'c', flavor: 'The smoke curls toward the answer your family avoided.' }),
   artifact('dt-bayou-lantern', 'Bayou Lantern', ['Relic'], { cost: cost(2, 'G'), colors: ['G'], skim: { cost: cost(1) }, abilities: [dawn([{ op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'The lantern keeps the path visible and the mosquitoes interested.' }),
