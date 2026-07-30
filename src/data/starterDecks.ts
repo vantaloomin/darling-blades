@@ -141,7 +141,8 @@ export const STARTER_DECKS: DeckList[] = [
  * graveyard, and Retell efficient Rituals and Charms after stabilizing.
  * Neon Afterimage — W/U Yokai Nights pressure with black support: curve into
  * legendary finishers, link durable evasive hosts, and use black Sever effects
- * to keep the street manageable. TO MEASURE after the rebuild.
+ * to keep the street manageable. Measured 60.4% at 300 seeds/cell 2026-07-30
+ * (the dated block on its list below carries the full record).
  */
 export const THEME_DECKS: DeckList[] = [
   {
@@ -289,10 +290,18 @@ export const THEME_DECKS: DeckList[] = [
   {
     id: 'theme-yokai-nights',
     name: 'Neon Afterimage',
-    // TO MEASURE: a W/U pressure shell builds through the middle turns, then
-    // legendary closers and evasive hosts turn Hauntlink into an attack rather
-    // than a small-body patch. A light black package supplies removal and an
-    // Oni finisher without stressing the W/U core.
+    // 2026-07-30 W6 rebuild, MEASURED: 60.4% aggregate (1811/3000) at 300
+    // seeds/cell hard AI (`balance-matrix --prefabs --ai hard --seeds 300`),
+    // up from the shipped list's 10.5% — the worst prefab ever recorded here
+    // (largest creature 2/3, max attack 2, no top-end). Second in the field,
+    // 0.8pp behind Crimson Muster (61.2%); worst cell a decided 33% vs
+    // Burning Tides. Top-of-band on purpose: the field's true ceiling is
+    // 61.2%, so this is inside the real spread, and W7's combined re-baseline
+    // re-measures it against the sweepers and tapland riders that landed
+    // after this matrix. Shape: a W/U pressure shell builds through the
+    // middle turns, then legendary closers and evasive hosts turn Hauntlink
+    // into an attack rather than a small-body patch. A light black package
+    // supplies removal and an Oni finisher without stressing the W/U core.
     cards: expand([
       ['land-plains', 7],
       ['land-island', 8],
