@@ -1236,6 +1236,12 @@ export class DuelScene extends Phaser.Scene {
           cast.targets?.some((target) => target.kind === 'stackItem' && target.sid === sid),
         ) ?? false,
       onTarget: (sid) => this.tryTarget({ kind: 'stackItem', sid }),
+      attachZoom: (view, card) => this.zoom.attach(view, card),
+      // Same guard as the sticky-tap route: while the player is mid-target
+      // for their own cast, inspect stays blocked (right-click cancels).
+      onInspect: (card) => {
+        if (!this.pendingCasts) this.showInspect(card);
+      },
     });
     // The circular smart button (1a "PASS"): the Arc carries the input, the
     // label Text above it never does — so relabeling via setText can't hit the
