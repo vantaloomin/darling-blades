@@ -50,6 +50,7 @@ import {
   goldBadge,
   modalShell,
   pager,
+  registerSceneBackNavigation,
   themedButton,
   type GoldBadge,
   type Pager,
@@ -201,7 +202,8 @@ export class CollectionScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(1, 0.5);
-    const back = backButton(this, () => this.scene.start('MainMenu'));
+    const back = backButton(this, 'Menu', () => this.scene.start('MainMenu'));
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
     this.drawBinderChrome();
 

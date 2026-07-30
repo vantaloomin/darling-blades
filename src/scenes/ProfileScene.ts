@@ -173,11 +173,12 @@ export class ProfileScene extends Phaser.Scene {
       });
     }
 
-    this.profileInteractiveTargets.push(backButton(this, () => this.scene.start('MainMenu')));
+    this.profileInteractiveTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
   }
 
   private readonly onEscKey = (): void => {
-    this.coordinator.dispatchEsc();
+    if (this.coordinator.dispatchEsc().consumed) return;
+    this.scene.start('MainMenu');
   };
 
   private readonly onShutdown = (): void => {
