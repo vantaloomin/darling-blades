@@ -254,22 +254,44 @@ function abilityText(ab: AbilityDef): string {
       const n = v ?? 0;
       return n >= 0 ? `+${n}` : `${n}`;
     };
-    const kw = st.grantKeywords?.length
-      ? `${st.scope === 'filter' ? ', and gain' : ', and gains'} ${st.grantKeywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
+    // A static with no `p` and no `t` is a pure keyword grant. Both defaulted
+    // to 0 below, so twelve cards printed a literal "+0/+0" clause that Magic
+    // never prints (Galahad, Silver Oath among them, live at deck_count 2).
+    // Omit the stat clause instead of rendering a no-op modifier.
+    const hasStats = st.p !== undefined || st.t !== undefined;
+    const keywordNames = st.grantKeywords?.length
+      ? st.grantKeywords.map((k) => KEYWORD_NAMES[k]).join(', ')
       : '';
+    const kw = keywordNames
+      ? `${st.scope === 'filter' ? ', and gain' : ', and gains'} ${keywordNames}`
+      : '';
+    // Neither stats nor keywords is a meaningless static. Emit nothing and let
+    // the caller drop the line rather than print a bare "gets ." fragment.
+    if (!hasStats && !keywordNames) return '';
+    // These clauses are written to stand alone, so they open with a capital.
+    // Run one in behind a prefix and it reads "While a Quest is active, This
+    // gains Untouchable." Lower-case the opener when a prefix precedes it.
+    const runIn = (clause: string): string =>
+      prefix ? `${prefix}${clause.charAt(0).toLowerCase()}${clause.slice(1)}` : clause;
     if (st.scope === 'attached') {
-      // "Enchanted Creature" capitalized on every aura, not just keyword
-      // grants: the user-approved copy (Wings of Dawn, 2026-07-24) sets the
-      // casing and stat-only auras must not read differently.
-      return `${prefix}Enchanted Creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`;
+      // "Enchanted Creature" stays capitalized even behind a prefix: it is a
+      // game term here, fixed by the user-approved copy (Wings of Dawn,
+      // 2026-07-24), and stat-only auras must not read differently.
+      return hasStats
+        ? `${prefix}Enchanted Creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`
+        : `${prefix}Enchanted Creature gains ${keywordNames}.`;
     }
     if (st.scope === 'self') {
-      return `${prefix}This gets ${sign(st.p)}/${sign(st.t)}${kw}.`;
+      return runIn(hasStats
+        ? `This gets ${sign(st.p)}/${sign(st.t)}${kw}.`
+        : `This gains ${keywordNames}.`);
     }
     const who = st.filter?.subtype
       ? `${st.filter.other ? 'Other ' : ''}${st.filter.subtype} creatures you control`
       : `${st.filter?.other ? 'Other creatures' : 'Creatures'} you control`;
-    return `${prefix}${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`;
+    return runIn(hasStats
+      ? `${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`
+      : `${who} gain ${keywordNames}.`);
   }
 
   let targetAlreadyNamed = false;
@@ -303,7 +325,11 @@ function abilityText(ab: AbilityDef): string {
       sentence = `${cap}.`;
       break;
   }
-  return `${prefix}${sentence}`;
+  // Twelve cards printed a mid-sentence capital: "While a Quest is active, At
+  // the start of your turn, you gain 1 life." The sentence is built to stand
+  // alone, so lower-case its first letter once a prefix runs in front of it.
+  const runOn = prefix ? sentence.charAt(0).toLowerCase() + sentence.slice(1) : sentence;
+  return `${prefix}${runOn}`;
 }
 
 export function romanNumeral(n: number): string {
@@ -374,7 +400,9 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   // Non-land mana abilities are NOT part of the text: CardView composes an
   // icon line ([T]: Add [pip]) at the top of the rules box instead.
   for (const ab of d.abilities ?? []) lines.push(abilityText(ab));
-  return lines.join('\n');
+  // abilityText returns '' for a static carrying neither stats nor keywords;
+  // joining it unfiltered would print a blank line into the rules box.
+  return lines.filter((line) => line.length > 0).join('\n');
 }
 
 export interface GlossaryEntry {

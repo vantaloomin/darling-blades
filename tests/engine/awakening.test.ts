@@ -203,7 +203,11 @@ describe('champion awakening', () => {
         },
       ],
     });
-    expect(conditional).toContain('While a Quest is active, This gets +0/+0, and gains Untouchable.');
+    // This assertion used to pin both templating defects at once: a literal
+    // "+0/+0" for a static carrying no p and no t, and a mid-sentence capital
+    // behind the Quest prefix. A keyword-only static now prints neither.
+    expect(conditional).toContain('While a Quest is active, this gains Untouchable.');
+    expect(conditional).not.toContain('+0/+0');
     expect(cardGlossaryEntries(DB.display_quest)).toEqual(
       expect.arrayContaining([
         { name: 'Quest', reminder: expect.any(String) },
