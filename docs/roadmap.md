@@ -1191,6 +1191,14 @@ _Dated 2026-07-26. Review monthly._
   see above).
 
 ## Planned
+- **Fogbell Chime redesign (deferred to 1.6, decided 2026-07-30).** The card
+  is a deliberate duplicate of Glimmerdust Trick for now: its design-table
+  intent (a common Artifact that taps a creature) is unbuildable in the
+  current engine (artifacts carry no targeted or activated abilities), the
+  1-mana instant-tapper alternative is a modern rate the era pass rejected,
+  and every cheap target-free artifact effect collides with a shipped card.
+  Revisit once Hauntlink makes cheap artifacts interesting as hosts; the full
+  reasoning lives in the card's own comment in `src/data/cards/celtic-fae.ts`.
 - **The 1.1 Limited economy TUNING pass — ✅ SHIPPED 2026-07-16** (see
   Recently shipped; the full measured record lives in
   [plan-economy-testing.md](plan-economy-testing.md)'s tuning-pass note).
