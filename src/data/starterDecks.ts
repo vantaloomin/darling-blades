@@ -253,7 +253,16 @@ export const THEME_DECKS: DeckList[] = [
     // Glimmer 36->20: trading six bodies for six answers costs more pressure
     // than the removal converts. The 1.4-era negative stands too (sweeper
     // 5B->4B, 34.3%->33.3%). Any future candidate must add interaction
-    // without shrinking the body count this far.
+    // without shrinking the body count this far. Round 2 (surgical: Hades x2
+    // -> Aphrodite x2) probed NEUTRAL: 30.6% like-for-like vs 29.9% control,
+    // aggro cells unmoved (Crimson 20, Tides 25, Harvest 22) — rejected
+    // rather than confirmed at 300 seeds, because a +0.7pp delta on 540
+    // games is noise. W2 CLOSED 2026-07-30 as the honest miss the
+    // band-as-direction decision anticipated: published at 29.9%, the deck
+    // unchanged. What a real fix likely needs (documented for the next
+    // pass): either survivable early bodies that this set does not print,
+    // or the common sweepers arriving in W3.5 giving the field cheap
+    // partial resets this deck can splash.
     cards: expand([
       ['land-island', 8],
       ['land-swamp', 7],
