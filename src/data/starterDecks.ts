@@ -83,6 +83,11 @@ export const STARTER_DECKS: DeckList[] = [
   {
     id: 'starter-mandate',
     name: 'Shadow Mandate',
+    // 2026-07-30 W3 answer-density pass: -2 Twice-Read Water, +2 Creeping
+    // Malaise. The attrition shell keeps Doom Bolt, counters, and Night
+    // Extortion, trading redundant slow draw for a turn-two broad reset
+    // against go-wide decks. Risk: Malaise also clips smaller Jin bodies, so
+    // the package stays at two copies rather than reshaping the deck around it.
     cards: expand([
       ['land-island', 10],
       ['land-swamp', 10],
@@ -97,7 +102,8 @@ export const STARTER_DECKS: DeckList[] = [
       ['in-doom-bolt', 4],
       ['in-read-the-ruse', 3],
       ['so-night-extortion', 3],
-      ['so-divination', 3],
+      ['so-divination', 1],
+      ['so-creeping-malaise', 2],
     ]),
   },
   {
@@ -222,6 +228,11 @@ export const THEME_DECKS: DeckList[] = [
     // 2026-07-20 1.3 prefab tune: shaved the over-rate Heiress, Cutthroat, and
     // Kicked Door packages for slower Vampire/Monster/Empower cards. Final
     // hard-AI aggregate: 57.3% at 300 seeds/cell (baseline 69.6%).
+    // 2026-07-30 W3 answer-density pass: -2 Tattered Invitation, +2 Ember
+    // Squall. The B/R pressure shell retains two discard spells while gaining
+    // a cheap reset against go-wide boards. Risk: Squall also damages its
+    // small Vampire starts, so this stays at two copies and does not replace
+    // the list's sturdier midgame creature package.
     cards: expand([
       ['land-swamp', 14],
       ['land-mountain', 10],
@@ -233,11 +244,12 @@ export const THEME_DECKS: DeckList[] = [
       ['gm-blood-opera-soloist', 3],
       ['gm-manor-thrall', 4],
       ['gm-stitched-hound', 2],
-      ['gm-tattered-invitation', 4],
+      ['gm-tattered-invitation', 2],
       ['gm-red-curtain-cut', 1],
       ['gm-dracula-ball-invite', 3],
       ['gm-black-lace-pact', 2],
       ['gm-funeral-bell', 2],
+      ['so-ember-squall', 2],
     ]),
   },
   {
@@ -264,6 +276,12 @@ export const THEME_DECKS: DeckList[] = [
     // pass): either survivable early bodies that this set does not print,
     // or the common sweepers arriving in W3.5 giving the field cheap
     // partial resets this deck can splash.
+    // 2026-07-30 W3 answer-density pass: -2 Judgment of Heaven, +2 Creeping
+    // Malaise. This keeps the W2 body floor and its single-target answers,
+    // exchanging the slow double-white reset for affordable early partial
+    // resets. Malaise has no Skim/Retell synergy; it is here strictly as an
+    // answer. Risk: it can shrink this deck's small bodies and leave larger
+    // opposing boards intact.
     cards: expand([
       ['land-island', 8],
       ['land-swamp', 7],
@@ -284,7 +302,7 @@ export const THEME_DECKS: DeckList[] = [
       ['gk-hades', 2],
       ['in-doom-bolt', 4],
       ['in-undertow', 2],
-      ['so-judgment-of-heaven', 2],
+      ['so-creeping-malaise', 2],
     ]),
   },
   {
