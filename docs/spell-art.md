@@ -163,7 +163,7 @@ The script appends the shared preamble and negatives; do not restate them per en
 ### Stand as One — `in-stand-as-one`
 - **Prompt:** A rallying surge of unity — a golden banner-light washing over a line of soldiers who stand shoulder to shoulder and glow with shared resolve at frame center, uplifted spears catching the radiance, holy W palette `#f2e8cf` and `#c9a84c` with `#fffef2` unifying glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
-### Sudden Insight — `in-sudden-insight`
+### Uninvited Insight — `in-sudden-insight`
 - **Prompt:** A flash of revelation — glowing blue arcane sigils, diagrams, and knowledge-light bursting outward from a strategist's mind at frame center, scattered scrolls lifting in the arcane wind, U mind palette `#4a90d9` and `#16294f` with `#a8d4f7` sparks — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Skysweeper Gale — `in-skysweeper-gale`

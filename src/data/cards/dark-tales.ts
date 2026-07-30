@@ -118,8 +118,14 @@ const SSR: CardDef[] = [
   ritual('dt-sleeping-curse', 'The Sleeping Curse', {
     cost: cost(4, 'B'), colors: ['B'],
     abilities: [spell([{ op: 'massDestroy', filter: 'allCreatures' }])],
-    retell: { cost: cost(6, 'B'), ops: [{ op: 'preventCombat' }] },
-    rarity: 'ssr', flavor: 'The first telling fells the court. The echo only dims the candles.',
+    // No ops override on Retell (user amendment 2026-07-30): the original
+    // override was preventCombat, which is engine-dead on a Ritual (a Ritual
+    // resolves only in your own main phase and the fog flag clears before the
+    // opponent's combat), so Retell resolved nothing at all. With the override
+    // gone, resolve.ts falls through to the printed body: a second wrath for
+    // seven total mana, the flashback pattern.
+    retell: { cost: cost(6, 'B') },
+    rarity: 'ssr', flavor: 'The first telling fells the court. So does the second.',
   }),
   artifact('dt-storybook-of-ashes', 'Storybook of Ashes', ['Book'], {
     supertypes: ['legendary'], cost: cost(4), colors: [],

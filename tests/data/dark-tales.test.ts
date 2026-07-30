@@ -49,6 +49,19 @@ describe('Dark Tales data integrity', () => {
     }
   });
 
+  it('The Sleeping Curse retell recasts the printed body, never a dead override', () => {
+    // The original Retell override was preventCombat, which is engine-dead on
+    // a Ritual (it resolves only in your own main phase and the fog flag
+    // clears before the opponent's combat), so paying seven mana resolved
+    // nothing. User amendment 2026-07-30: no ops override, so resolve.ts
+    // falls through to the printed massDestroy - the flashback pattern. This
+    // pins the dead override against ever returning.
+    const curse = CARD_DB['dt-sleeping-curse'];
+    expect(curse.retell).toBeDefined();
+    expect(curse.retell?.ops).toBeUndefined();
+    expect(curse.abilities?.[0]?.ops).toEqual([{ op: 'massDestroy', filter: 'allCreatures' }]);
+  });
+
   it('keeps the multicolor legend idiom and gives every creature a subtype', () => {
     for (const card of DARK_TALES) {
       if (card.types.includes('creature')) expect(card.subtypes.length, card.id).toBeGreaterThan(0);
