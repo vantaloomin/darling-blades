@@ -14,17 +14,25 @@ export interface StackDisplayOptions {
   casterLabel: (controller: StackItem['controller']) => string;
   isTargetable: (sid: number) => boolean;
   onTarget: (sid: number) => void;
+  /** Hover-zoom hookup, the scene's `zoom.attach` (desktop dwell preview). */
+  attachZoom?: (view: CardView, card: CardDef) => void;
+  /** Full-card inspect; at 0.32 scale the stack card itself is unreadable. */
+  onInspect?: (card: CardDef) => void;
 }
 
 /**
  * Compact public stack presentation for response windows. Cards are ordered
  * bottom-to-top from left to right, so the rightmost card is the top item.
- * Only legal stack-item targets receive input through CardView's child Zone.
+ * Every card is inspectable (hover zoom; tap or right-click opens the full
+ * inspect overlay) — a response decision about an unreadable spell is not a
+ * decision. Legal stack-item targets keep tap = target as the primary
+ * gesture, so their inspect route is hover / right-click only.
  */
 export class StackDisplay {
   private readonly root: Phaser.GameObjects.Container;
   private readonly opts: StackDisplayOptions;
   private targetCards: CardView[] = [];
+  private inspectCards: CardView[] = [];
 
   constructor(scene: Phaser.Scene, opts: StackDisplayOptions) {
     this.opts = opts;
@@ -37,6 +45,7 @@ export class StackDisplay {
   setItems(items: readonly StackItem[], live: boolean): void {
     this.root.removeAll(true);
     this.targetCards = [];
+    this.inspectCards = [];
     const visible = live && items.length > 0;
     this.root.setVisible(visible);
     if (!visible) return;
@@ -44,8 +53,10 @@ export class StackDisplay {
     const cardWidth = CARD_W * CARD_SCALE;
     const cardHeight = CARD_H * CARD_SCALE;
     const rowWidth = items.length * cardWidth + Math.max(0, items.length - 1) * CARD_GAP;
+    // 42, not 25: the per-card caster label sits at -cardHeight/2 - 9 with a
+    // bottom origin, so a 25px title offset collided with it on-screen.
     const title = this.root.scene.add
-      .text(0, -cardHeight / 2 - 25, 'On the stack', {
+      .text(0, -cardHeight / 2 - 42, 'On the stack', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
@@ -76,16 +87,29 @@ export class StackDisplay {
         );
       this.root.add(frame);
 
+      const card = this.opts.cardFor(item.cardId);
       const view = new CardView(this.root.scene, x, 0).setScale(CARD_SCALE);
-      view.setCard(this.opts.cardFor(item.cardId), { fx: 'none' });
+      view.setCard(card, { fx: 'none' });
+      view.enableInput();
       if (targetable) {
-        view.enableInput();
         bindTapButton(this.root.scene, view, (pointer) => {
+          // Right-click keeps its scene-level meaning during targeting
+          // (cancel on desktop); tap stays the targeting gesture.
           if (pointer.rightButtonReleased()) return;
           this.opts.onTarget(item.sid);
         });
         this.targetCards.push(view);
+      } else {
+        // Non-targets were previously inert, which made an opponent's spell
+        // uninspectable exactly when the player must decide whether to
+        // respond to it. Tap and right-click both open the full inspect.
+        bindTapButton(this.root.scene, view, () => {
+          this.opts.onInspect?.(card);
+        });
+        this.inspectCards.push(view);
       }
+      // Desktop hover dwell shows the zoom preview on every stack card.
+      this.opts.attachZoom?.(view, card);
       this.root.add(view);
 
       const order = items.length > 1 ? `${index + 1} of ${items.length}` : 'TOP';
@@ -118,13 +142,18 @@ export class StackDisplay {
     });
   }
 
-  /** CardViews are the only interactive descendants and are ModalGuard-safe. */
+  /**
+   * CardViews are the only interactive descendants and are ModalGuard-safe.
+   * Includes the inspect-only cards: they carry input now, so they must be
+   * deadened under modal overlays like every other interactive object.
+   */
   interactiveTargets(): CardView[] {
-    return [...this.targetCards];
+    return [...this.targetCards, ...this.inspectCards];
   }
 
   destroy(): void {
     this.root.destroy(true);
     this.targetCards = [];
+    this.inspectCards = [];
   }
 }
