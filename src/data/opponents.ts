@@ -234,6 +234,21 @@ export interface Avatar {
  * Dead substitution, and 77% after restoring the artifact finisher and adding
  * Divination. The final Black-Veil variant keeps the strongest measured spread.
  *
+ * Post-AI-fix W1 tuning history, 2026-07-29, retained floor >= 73%:
+ * the restored control list measured 55/78/48/90/80, avg 70%, at 40 seeds/cell.
+ * Scoped probes included Stormglass Golem -> Moon-Doll Orchestra (70/70/55/65/40,
+ * avg 60%, 20 seeds), Stormtower Resurrection -> Midnight Autopsy (55/90/65/65/75,
+ * avg 70%, then 50/83/57/73/73, avg 67%, at 40 seeds), and Black-Veil Matron ->
+ * Velvet Coffin (35/85/55/75/45, avg 59%, 20 seeds). The best scoped candidate,
+ * Black-Veil Matron -> Ravenloft Heiress, measured 55/85/65/95/60, avg 72%, at
+ * 20 seeds and 53/80/60/95/70, avg 72%, at 40 seeds, still below the floor.
+ * The Heiress plus Manor Thrall package measured 64% at 20 seeds; Heiress plus
+ * Blood-Opera Soloist measured 67% at 20 seeds. A removalBias -1.25 probe measured
+ * 68% at 40 seeds; aggression 1.4 on the best list tied 72% at 20 seeds. All
+ * candidates were rejected. Early broad text replacements that could match
+ * duplicate Carmilla card ids were excluded from attribution and fully restored.
+ * The original list and personality remain shipped; the floor was not lowered.
+ *
  * Rungs 17-18 — the Dark Tales summit pair, measured 2026-07-24 at 40
  * seeds/cell with the full `--avatars` matrix. Every cell below had 40 decided
  * games and zero draws:
