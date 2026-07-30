@@ -9,6 +9,7 @@ import {
   boosterStripTileRect,
   boosterStripVisibility,
   clampBoosterStripOffset,
+  type StripLayoutOptions,
 } from '../../src/ui/boosterStripLayout';
 import {
   COMPACT_TOUCH_GAP_RANGE,
@@ -28,6 +29,17 @@ import {
   scrollOffsetByDelta,
   sceneHeaderFooterLayout,
 } from '../../src/ui/layout';
+
+const pickerStripOptions: StripLayoutOptions = {
+  visibleCount: 4,
+  tileWidth: 206,
+  tileHeight: 360,
+  tileStride: 248,
+  viewport: { x: 64, y: 126, width: 1152, height: 404 },
+  verticalBand: { y: 130, height: 360 },
+  tapBand: { y: 130, height: 360 },
+  peekY: 130,
+};
 
 describe('layout geometry', () => {
   it('derives the 90% title-safe frame from the design dimensions', () => {
@@ -115,6 +127,91 @@ describe('layout geometry', () => {
       kind: 'buy',
       index: count - 1,
     });
+  });
+
+  it.each([18, 20, 24])('keeps the %i-avatar picker strip contained and separated', (count) => {
+    const layout = boosterStripLayout(count, 0, pickerStripOptions);
+    expect(layout.visibleCount).toBe(4);
+    expect(layout.tileWidth).toBe(206);
+    expect(layout.tileHeight).toBe(360);
+    expect(layout.tileStride).toBe(248);
+    expect(layout.tileHitGap).toBeGreaterThanOrEqual(8);
+    expect(layout.maxIndex).toBe(count - 4);
+    expect(isInsideTitleSafe(layout.viewport)).toBe(true);
+    expect(layout.viewport.y).toBe(126);
+    expect(layout.viewport.y + layout.viewport.height).toBe(530);
+    for (const rect of layout.fullTileRects) expect(isInsideTitleSafe(rect)).toBe(true);
+    expect(layout.fullTileRects[0].y + layout.fullTileRects[0].height).toBeLessThanOrEqual(530);
+    expect(layout.leftPeek.width).toBeGreaterThan(0);
+    expect(layout.leftPeek.width).toBe(layout.rightPeek.width);
+    expect(isInsideTitleSafe(layout.leftPeek)).toBe(true);
+    expect(isInsideTitleSafe(layout.rightPeek)).toBe(true);
+
+    const leftArrow = {
+      x: layout.arrowCenters.left - layout.arrowHitWidth / 2,
+      y: layout.fullTileRects[0].y,
+      width: layout.arrowHitWidth,
+      height: theme.control.minHitHeight,
+    };
+    const rightArrow = {
+      x: layout.arrowCenters.right - layout.arrowHitWidth / 2,
+      y: layout.fullTileRects[0].y,
+      width: layout.arrowHitWidth,
+      height: theme.control.minHitHeight,
+    };
+    expect(isInsideTitleSafe(leftArrow)).toBe(true);
+    expect(isInsideTitleSafe(rightArrow)).toBe(true);
+    expect(layout.fullTileRects[0].x - (leftArrow.x + leftArrow.width)).toBeGreaterThanOrEqual(8);
+    expect(rightArrow.x - (layout.fullTileRects[3].x + layout.fullTileRects[3].width)).toBeGreaterThanOrEqual(8);
+
+    const first = boosterStripVisibility(layout, 0);
+    expect(first).toEqual({
+      firstFullIndex: 0,
+      lastFullIndex: 3,
+      leftPeekIndex: null,
+      rightPeekIndex: 4,
+    });
+    const tileY = layout.tapBand.y + layout.tapBand.height / 2;
+    const firstTileCenter = layout.fullTileRects[0].x + layout.tileWidth / 2;
+    expect(boosterStripTap(layout, 0, firstTileCenter, tileY)).toEqual({ kind: 'buy', index: 0 });
+    expect(boosterStripTap(layout, 0, layout.rightPeek.x + layout.rightPeek.width - 1, tileY)).toEqual({
+      kind: 'scroll',
+      targetIndex: 1,
+    });
+    const gapX = layout.fullTileRects[0].x + layout.tileWidth + layout.tileHitGap / 2;
+    expect(boosterStripTap(layout, 0, gapX, tileY)).toEqual({ kind: 'none' });
+
+    const lastOffset = boosterStripOffsetForIndex(layout, layout.maxIndex);
+    expect(clampBoosterStripOffset(layout, 9999)).toBe(0);
+    expect(clampBoosterStripOffset(layout, -9999)).toBe(lastOffset);
+    expect(boosterStripIndexForOffset(layout, lastOffset)).toBe(layout.maxIndex);
+    expect(boosterStripVisibility(layout, lastOffset)).toEqual({
+      firstFullIndex: layout.maxIndex,
+      lastFullIndex: count - 1,
+      leftPeekIndex: layout.maxIndex - 1,
+      rightPeekIndex: null,
+    });
+    expect(boosterStripTileRect(layout, count - 1, lastOffset)).toEqual(layout.fullTileRects[3]);
+    expect(boosterStripTap(layout, lastOffset, layout.leftPeek.x + 1, tileY)).toEqual({
+      kind: 'scroll',
+      targetIndex: layout.maxIndex - 1,
+    });
+    expect(boosterStripTap(layout, lastOffset, layout.fullTileRects[3].x + layout.tileWidth / 2, tileY)).toEqual({
+      kind: 'buy',
+      index: count - 1,
+    });
+  });
+
+  it('opens the picker on a requested selected rival and keeps that rival in a full slot', () => {
+    const layout = boosterStripLayout(20, 19, pickerStripOptions);
+    expect(layout.currentIndex).toBe(16);
+    expect(boosterStripVisibility(layout, 0)).toEqual({
+      firstFullIndex: 16,
+      lastFullIndex: 19,
+      leftPeekIndex: 15,
+      rightPeekIndex: null,
+    });
+    expect(boosterStripTileRect(layout, 19, 0)).toEqual(layout.fullTileRects[3]);
   });
 
   it('anchors rectangles to safe edges, corners, and centerlines', () => {

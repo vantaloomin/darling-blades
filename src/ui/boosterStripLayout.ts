@@ -7,13 +7,28 @@ export interface BoosterStripRect {
   height: number;
 }
 
-export interface BoosterStripLayout {
+export interface StripLayoutOptions {
+  visibleCount?: number;
+  tileWidth?: number;
+  tileHeight?: number;
+  tileStride?: number;
+  viewport?: BoosterStripRect;
+  /** The vertical band occupied by a full tile. */
+  verticalBand?: { y: number; height: number };
+  /** The scene-level input band. Defaults to the legacy Shop band. */
+  tapBand?: { y: number; height: number };
+  /** Edge peek art may use a different vertical start than full tiles. */
+  peekY?: number;
+}
+
+export interface StripLayout {
   count: number;
   viewport: BoosterStripRect;
   tileWidth: number;
+  tileHeight: number;
   tileStride: number;
   tileHitGap: number;
-  visibleCount: 4;
+  visibleCount: number;
   currentIndex: number;
   maxIndex: number;
   firstCenter: number;
@@ -25,6 +40,9 @@ export interface BoosterStripLayout {
   arrowCenters: { left: number; right: number };
   arrowHitWidth: number;
 }
+
+/** Compatibility name for the Shop's existing import surface. */
+export type BoosterStripLayout = StripLayout;
 
 export interface BoosterStripVisibility {
   firstFullIndex: number;
@@ -39,22 +57,30 @@ export type BoosterStripTap =
   | { kind: 'none' };
 
 /**
- * Pure design-space geometry for the booster carousel. Four 210px product
- * faces fit on the title-safe rail with 30px between their hit silhouettes;
- * the extra 81px at each edge is intentionally clipped peek art. The scene
- * derives its tile count from the SKU list and only supplies that count here.
+ * Pure design-space geometry for a horizontal strip. The default arguments
+ * are the Shop's existing booster geometry; the picker supplies a larger
+ * portrait geometry through the same math and interaction classifiers.
  */
-export function boosterStripLayout(count: number, requestedIndex = 0): BoosterStripLayout {
-  const visibleCount = 4 as const;
-  const tileWidth = 210;
-  const tileStride = 240;
+export function boosterStripLayout(
+  count: number,
+  requestedIndex = 0,
+  options: StripLayoutOptions = {},
+): StripLayout {
+  const visibleCount = Math.max(1, Math.trunc(options.visibleCount ?? 4));
+  const tileWidth = Math.max(1, options.tileWidth ?? 210);
+  const tileHeight = Math.max(1, options.tileHeight ?? 300);
+  const tileStride = Math.max(tileWidth, options.tileStride ?? 240);
   const tileHitGap = tileStride - tileWidth;
   const safeCount = Math.max(0, Math.trunc(count));
-  const viewport: BoosterStripRect = {
+  const viewport: BoosterStripRect = options.viewport ?? {
     x: theme.design.safeLeft,
     y: 142,
     width: theme.design.safeWidth,
     height: 496,
+  };
+  const verticalBand = options.verticalBand ?? {
+    y: viewport.y + 70,
+    height: tileHeight,
   };
   const maxIndex = Math.max(0, safeCount - visibleCount);
   const currentIndex = Math.min(maxIndex, Math.max(0, Math.trunc(requestedIndex)));
@@ -65,9 +91,9 @@ export function boosterStripLayout(count: number, requestedIndex = 0): BoosterSt
   );
   const fullTileRects = Array.from({ length: visibleCount }, (_, slot) => ({
     x: firstCenter + slot * tileStride - tileWidth / 2,
-    y: viewport.y + 70,
+    y: verticalBand.y,
     width: tileWidth,
-    height: 300,
+    height: verticalBand.height,
   }));
   const leftPeekCenter = firstCenter - tileStride;
   const peekWidth = Math.max(
@@ -75,30 +101,31 @@ export function boosterStripLayout(count: number, requestedIndex = 0): BoosterSt
     Math.min(viewport.x + viewport.width, leftPeekCenter + tileWidth / 2) -
       Math.max(viewport.x, leftPeekCenter - tileWidth / 2),
   );
-  const peekY = viewport.y + 80;
+  const peekY = options.peekY ?? viewport.y + 80;
   const leftPeek: BoosterStripRect = {
     x: viewport.x,
     y: peekY,
     width: peekWidth,
-    height: 300,
+    height: verticalBand.height,
   };
   const rightPeek: BoosterStripRect = {
     x: viewport.x + viewport.width - peekWidth,
     y: peekY,
     width: peekWidth,
-    height: 300,
+    height: verticalBand.height,
   };
   const tapBand: BoosterStripRect = {
     x: viewport.x,
-    y: 240,
+    y: options.tapBand?.y ?? 240,
     width: viewport.width,
-    height: 300,
+    height: options.tapBand?.height ?? 300,
   };
   const arrowHitWidth = theme.control.minHitWidth;
   return {
     count: safeCount,
     viewport,
     tileWidth,
+    tileHeight: verticalBand.height,
     tileStride,
     tileHitGap,
     visibleCount,
@@ -190,8 +217,8 @@ export function boosterStripTileIsVisible(
 }
 
 /**
- * Classify a strip tap. Only the four full tiles buy; a real edge peek moves
- * one snap toward that SKU. The caption row is outside tapBand by design.
+ * Classify a strip tap. Only full tiles activate; a real edge peek moves one
+ * snap toward that item. The caption row is outside tapBand by design.
  */
 export function boosterStripTap(
   layout: BoosterStripLayout,
