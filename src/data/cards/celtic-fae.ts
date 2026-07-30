@@ -226,6 +226,11 @@ export const CELTIC_FAE = [
     cost: cost(2, 'GG'), colors: ['G'], attack: 4, defense: 4,
     keywords: ['sentinel', 'overrun'], rarity: 'r', flavor: 'She guards the hill because the hill once chose her.',
   }),
+  fae('cf-moundlight-midwife', 'Moundlight Midwife', 'Adept', {
+    cost: cost(3, 'G'), colors: ['G'], attack: 2, defense: 3,
+    abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-bloom', count: 2 }] }],
+    rarity: 'r', flavor: "She calls the court's youngest guests from the dark beneath the roots.",
+  }),
   {
     id: 'cf-moonlit-barrow', name: 'Moonlit Barrow', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['U', 'B'], entersTapped: true, rarity: 'r', flavor: 'The dead keep moonlight under the door for callers.',

@@ -124,6 +124,12 @@ export const GOTHIC_MONSTERS = [
   // =========================================================================
   // RARE (24)
   // =========================================================================
+  {
+    id: 'gm-porcelain-governess', name: 'Porcelain Governess', types: ['artifact', 'creature'],
+    subtypes: ['Construct', 'Doll'], cost: cost(2, 'U'), colors: ['U'], attack: 2, defense: 3,
+    abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Construct', other: true }, p: 1, t: 0 } }],
+    rarity: 'r', flavor: 'She keeps the household in order. The dolls remember what disorder costs.',
+  },
   creature('gm-ravenloft-heiress', 'Ravenloft Heiress', ['Vampire', 'Heiress'], {
     cost: cost(2, 'B'), colors: ['B'], attack: 3, defense: 2, keywords: ['skyborne'],
     empower: { cost: cost(2, 'B'), ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] },

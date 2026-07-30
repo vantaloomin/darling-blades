@@ -343,6 +343,21 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Rarity ambition:** Uncommon — a decisive courtly action plus one environmental story beat, without losing the silhouette at battlefield scale.
 - **Prompt:** Green Knoll Champion, an adult fae knight whose armor has grown from hedge, bark, and silver, wearing nature-integrated plate with leaf edges, a long pale cloak, thorn crown under a helm circlet, and a pale gold torc; standing in a ready guard with the weapon held diagonally through the visible band; chivalric, reserved, and wholly committed to a vow that predates the visitor; against a moonlit knoll above a misty court-road, oak roots twisting through old stone; pearl moon key on the armor planes; saturated green rim along cloak and shield; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
+### Moundlight Midwife — `cf-moundlight-midwife`
+- **Card facts:** {3}{G} · G · 2/3 · r · holo: shiny
+- **Character & source:** An adult Fae adept and midwife who summons two Bloomlings from the root-dark beneath a hollow hill. Her arrival is a protective court ritual, with the small Fae guests visibly answering her invitation.
+- **Personality / mood:** "She calls the court's youngest guests from the dark beneath the roots." Gentle, capable, and quietly formidable in the way of someone trusted with the court's newest lives.
+- **Pose & composition:** Waist-up at the mouth of a root-lined mound, one hand cupped over a warm green bloomlight while the other parts hanging roots. Two small Bloomlings climb from the luminous soil at either side of her, their leaf-crowns and round faces visible; face at y 320, eye line at y 345.
+- **Costume & attire:** Moss-green midwife's cloak over layered bark-scale armor, a low silver torc, thorn circlet, soft brown gloves, and a bundle of woven root-cord charms at her belt.
+- **Palette:** G palette (forest green, deep green, and pale green accent) in moss, peat, and luminous verdigris; Celtic Fae silver moonlight, blackthorn, and pale gold torc accents remain visible.
+- **Lighting:** Warm green bloomlight key rising from the open roots; cool silver moon rim along the circlet, cloak, and Bloomlings.
+- **Expression:** Patient reassurance, eyes lowered toward the newborn guests and then lifted with calm authority.
+- **Props / weapon:** A root-woven midwife's satchel, unmarked silver torc, and exactly two emerging Bloomlings as the card's arrival effect.
+- **Background:** A moonlit hollow-hill entrance, blackthorn branches and mushroom-ring lights fading into mist beyond the root chamber.
+- **Holo interaction:** Rolled specials favor shiny; concentrate reflective texture in silver, wet roots, dew, and leaf-crowns while the central face remains calm.
+- **Rarity ambition:** Rare moment: the dark earth opens to return two bright, welcome members of the court.
+- **Prompt:** Moundlight Midwife, an adult fae adept in a moss-green midwife's cloak over layered bark-scale armor with a low silver torc and thorn circlet, waist-up at a root-lined hollow-hill entrance, one hand cupping a warm green bloomlight and the other parting hanging roots while exactly two small Bloomlings climb from luminous soil beside her, their leaf crowns and round faces clearly visible; patient reassuring expression, moonlit blackthorn and mushroom-ring lights beyond the mound; warm green key from the roots, cool silver rim on circlet, cloak, and Bloomlings; generous clear mist above her crown, no readable ogham, runes, letters, banners, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
 ### Fae-Ring Initiate — `cf-fae-ring-initiate`
 - **Card facts:** {U} · U · 1/2 · c · holo: none
 - **Character & source:** an adult fae-ring initiate at the first threshold of a dangerous education; mechanically a reader and arranger of fate.

@@ -338,8 +338,9 @@ describe('achievements', () => {
     expect(syncAchievements(save, THEME_DB)).toContain('theme-ragnarok-twilight-court-rainbow');
   });
 
-  it('uses the 81-card Celtic Fae pool and its intended court sub-archetype ids', () => {
-    expect(CELTIC_FAE_IDS).toHaveLength(81);
+  it('uses the 82-card Celtic Fae pool and its intended court sub-archetype ids', () => {
+    // W5 adds Moundlight Midwife: 81 -> 82.
+    expect(CELTIC_FAE_IDS).toHaveLength(82);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].rarity === 'ssr')).toEqual(CELTIC_FAE_SSR_COURT);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Selkie'))).toEqual(CELTIC_FAE_SELKIES);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Raven'))).toEqual(CELTIC_FAE_RAVENS);
@@ -453,8 +454,9 @@ describe('arthurian court achievements (1.2)', () => {
 });
 
 describe('gothic monsters achievements (1.3)', () => {
-  it('uses the 81-card Gothic Monsters pool and the intended sub-archetypes', () => {
-    expect(GOTHIC_MONSTERS_IDS).toHaveLength(81);
+  it('uses the 82-card Gothic Monsters pool and the intended sub-archetypes', () => {
+    // W5 adds Porcelain Governess: 81 -> 82.
+    expect(GOTHIC_MONSTERS_IDS).toHaveLength(82);
     expect(GOTHIC_MONSTERS_HEADLINERS.every((id) => CARD_DB[id]?.rarity === 'ur')).toBe(true);
     expect(GOTHIC_MONSTERS_DREADED).toHaveLength(10);
     expect(GOTHIC_MONSTERS_EMPOWERED).toHaveLength(20);
