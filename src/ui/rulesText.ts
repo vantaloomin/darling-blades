@@ -380,8 +380,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
       lines.push(d.keywords.map((k) => KEYWORD_NAMES[k]).join(', '));
     }
   }
-  // Printed only on either/or duals — mono taplands stay bare by design,
-  // even though entersTapped still applies mechanically.
+  // Every tapped land prints its universal arrival drawback, including mono
+  // taplands whose arrival rider is listed below.
   if (d.entersTapped) {
     lines.push('Arrives tapped.');
   }

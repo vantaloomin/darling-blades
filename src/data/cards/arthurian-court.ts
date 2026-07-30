@@ -468,26 +468,31 @@ export const ARTHURIAN_COURT = [
   {
     id: 'ac-bramble-chapel', name: 'Bramble Chapel', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['G'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     flavor: 'Thorns frame the altar; the roots keep the old vows.',
   },
   {
     id: 'ac-lowland-fort', name: 'Lowland Fort', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['W'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     flavor: 'The fort is low, the walls are tired, and the watch still stands.',
   },
   {
     id: 'ac-red-tournament-ground', name: 'Red Tournament Ground', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['R'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     flavor: 'Dust rises where champions promise they are not afraid.',
   },
   {
     id: 'ac-court-of-whispers', name: 'Court of Whispers', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['B'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     flavor: 'The court has no throne, only a hundred listeners behind the curtains.',
   },
   {
     id: 'ac-mirror-lake', name: 'Mirror Lake', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['U'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     flavor: 'The water reflects the face you bring and the one you leave behind.',
   },
   {

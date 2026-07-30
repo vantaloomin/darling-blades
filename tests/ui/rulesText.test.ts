@@ -70,8 +70,11 @@ describe('target-aware damage and land rules text', () => {
     expect(rulesText(CARD_DB['so-nurture'])).toBe('Put 2 +1/+1 marks on target creature you control.');
   });
 
-  it('prints the mechanical tapland rider for mono-colored lands', () => {
-    expect(rulesText(CARD_DB['cf-mist-road'])).toBe('Arrives tapped.');
+  it('prints each mono tapland arrival-rider kind beside enters-tapped text', () => {
+    expect(rulesText(CARD_DB['cf-mist-road'])).toBe('Arrives tapped.\nWhen this arrives, Foresee 1.');
+    expect(rulesText(CARD_DB['ac-bramble-chapel'])).toBe('Arrives tapped.\nWhen this arrives, you gain 1 life.');
+    expect(rulesText(CARD_DB['ac-court-of-whispers'])).toBe('Arrives tapped.\nWhen this arrives, put the top card of your deck into your graveyard.');
+    expect(rulesText(CARD_DB['gm-chapel-yard'])).toBe("Arrives tapped.\nWhen this arrives, Sever the top card of your opponent's graveyard.");
     expect(rulesText(CARD_DB['ac-holy-well'])).toContain('Arrives tapped.');
   });
 

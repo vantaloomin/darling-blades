@@ -99,11 +99,11 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-court-archer | Court Archer | C | G | Creature | Archer | wardingGaze | Green common |
 | ac-rallying-horn | Rallying Horn | C | R | Ritual | War horn | boost allYours +2/+0 (until end of turn) | Utility |
 | ac-prophecy-attendant | Prophecy Attendant | C | U | Creature | Merlin's attendant | arrives if questActive: foresee 2 | Blue common |
-| ac-bramble-chapel | Bramble Chapel | C | Land | Land | Ruined chapel | entersTapped, manaAbility G | Common land |
-| ac-lowland-fort | Lowland Fort | C | Land | Land | Border keep | entersTapped, manaAbility W | Common land |
-| ac-red-tournament-ground | Red Tournament Ground | C | Land | Land | Joust field | entersTapped, manaAbility R | Common land |
-| ac-court-of-whispers | Court of Whispers | C | Land | Land | Intrigue court | entersTapped, manaAbility B | Common land |
-| ac-mirror-lake | Mirror Lake | C | Land | Land | Avalon lake | entersTapped, manaAbility U | Common land |
+| ac-bramble-chapel | Bramble Chapel | C | Land | Land | Ruined chapel | entersTapped, manaAbility G, arrives: gainLife 1 | Common land |
+| ac-lowland-fort | Lowland Fort | C | Land | Land | Border keep | entersTapped, manaAbility W, arrives: gainLife 1 | Common land |
+| ac-red-tournament-ground | Red Tournament Ground | C | Land | Land | Joust field | entersTapped, manaAbility R, arrives: foresee 1 | Common land |
+| ac-court-of-whispers | Court of Whispers | C | Land | Land | Intrigue court | entersTapped, manaAbility B, arrives: grind self 1 | Common land |
+| ac-mirror-lake | Mirror Lake | C | Land | Land | Avalon lake | entersTapped, manaAbility U, arrives: foresee 1 | Common land |
 | ac-shieldwall-call | Shieldwall Call | C | W | Charm | Defensive formation | boost allYours +0/+N | Team trick |
 | ac-woodland-errand | Woodland Errand | C | G | Ritual | Quest errand | fetchLand | Ramp |
 | ac-treasonous-glance | Treasonous Glance | C | B | Charm | Betrayal | loseLife opponent, foresee | Black trick |
