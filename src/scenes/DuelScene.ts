@@ -2680,9 +2680,6 @@ export class DuelScene extends Phaser.Scene {
     const accent = isYou ? theme.colors.gold : theme.colors.body;
     const bannerY = 74;
     const banner = this.add.container(BOARD_CENTER_X, bannerY).setDepth(theme.depth.banner).setAlpha(0);
-    const bg = this.add
-      .rectangle(0, 0, 340, 66, colorInt(theme.colors.panelFill), 0.82)
-      .setStrokeStyle(1.5, colorInt(accent));
     const sub = this.add
       .text(0, -16, `TURN ${turn}`, {
         fontFamily: 'Inter, Arial, sans-serif',
@@ -2694,7 +2691,23 @@ export class DuelScene extends Phaser.Scene {
     const title = this.add
       .text(0, 10, who, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '26px', color: accent })
       .setOrigin(0.5);
+    // The frame fits the name, never the reverse: a hardcoded 340 put
+    // "Carmilla, Crimson Host's Turn" outside its own border (user playtest
+    // 2026-07-30). Glyph widths are font-fallback-dependent on Windows, so
+    // measure the rendered Text — grow the frame up to a cap, and only past
+    // the cap shrink the type to fit.
+    const framePad = 28;
+    const frameMaxW = 560;
+    if (title.width + framePad * 2 > frameMaxW) {
+      title.setFontSize(Math.max(17, Math.floor((26 * (frameMaxW - framePad * 2)) / title.width)));
+    }
+    const frameW = Math.max(340, Math.min(frameMaxW, Math.ceil(title.width) + framePad * 2));
+    const bg = this.add
+      .rectangle(0, 0, frameW, 66, colorInt(theme.colors.panelFill), 0.82)
+      .setStrokeStyle(1.5, colorInt(accent));
     banner.add([bg, sub, title]);
+    banner.bringToTop(sub);
+    banner.bringToTop(title);
     this.turnBanner = banner;
     if (this.motionLevel() === 'full') banner.setX(BOARD_CENTER_X + 14).setScale(0.96);
     this.tweens.add({
