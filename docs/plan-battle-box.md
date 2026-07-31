@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.5.md, docs/plan-darlings.md, src/engine/types.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/meta/DeckStorage.ts, src/meta/SaveManager.ts · last-verified: 2026-07-28 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-1.5.md, docs/plan-darlings.md, src/engine/types.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/meta/DeckStorage.ts, src/meta/SaveManager.ts · last-verified: 2026-07-31 · design/plan doc - re-verify when the referenced code changes -->
 
 # Battle Box mana system implementation plan
 
@@ -17,6 +17,15 @@ curve by design.
 Battle Box and Darlings are engine-complete and UI-complete, but their UI is
 flagged off for 1.5.0. They are exposed in 1.5.5 after their `TO MEASURE`
 balance matrices exist.
+
+**Naming (owner-ratified 2026-07-31): the product name is "Warchest".**
+"Battle Box" was a borrowed working title; every player-facing string
+carries Warchest from the 1.5.5 reveal on, and internal
+`'battleBox' | 'battlebox'` ids collapse to `'warchest'`
+([plan-1.5.5.md](plan-1.5.5.md) owns that work). This document keeps its
+historical filename and internal terminology; the reserve *system* it
+specifies is unchanged and is the ratified 2.0 north star
+([plan-1.6-draft.md](plan-1.6-draft.md)).
 
 User decisions locked 2026-07-28 (do not relitigate without the user):
 

@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-commander-mode.md, docs/plan-expansion-slate.md, src/config/rules.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/scenes/DeckBuilderScene.ts, src/scenes/DuelScene.ts, src/engine/view.ts, scripts/balance-matrix.ts · last-verified: 2026-07-26 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-commander-mode.md, docs/plan-expansion-slate.md, src/config/rules.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/scenes/DeckBuilderScene.ts, src/scenes/DuelScene.ts, src/engine/view.ts, scripts/balance-matrix.ts · last-verified: 2026-07-31 · design/plan doc - re-verify when the referenced code changes -->
 
 # Darlings format implementation plan
 
@@ -10,7 +10,9 @@ Release 1.5 ships Darlings as a first-class, single-player deckbuilding format. 
 
 Darlings and Battle Box are engine-complete and UI-complete, but their UI is
 flagged off for 1.5.0. They are exposed in 1.5.5 after their `TO MEASURE`
-balance matrices exist.
+balance matrices exist. The Battle Box system's product name is **Warchest**
+as of 2026-07-31 (see [plan-battle-box.md](plan-battle-box.md)'s naming
+note and [plan-1.5.5.md](plan-1.5.5.md), the active reveal train).
 
 **RESPEC 2026-07-28 (user decision — increased 1.5 scope):** Darlings adopts the Battle Box mana system specified in [plan-battle-box.md](plan-battle-box.md). The deck is **50 cards including the Darling, with zero in-deck lands**; beside it the player builds a per-deck land reserve (10 lands, max 5 duals, duals tapped, asymmetric destruction). Everything in this document about a 60-card deck, in-deck basic lands, or "basics are unlimited in the deck" is superseded by that shape; basics now live only in the reserve. The "no engine change" property this document claimed as its chief risk control is knowingly traded away — the reserve is engine surface, owned by plan-battle-box.md. All other rules here (Darling eligibility, singleton, strict colorless identity, color containment, portrait lock, dedicated practice row, player-built-only launch) stand as locked.
 
