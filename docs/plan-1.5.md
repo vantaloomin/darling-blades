@@ -1,8 +1,17 @@
-<!-- source-of-truth: docs/plan-1.4.md, docs/roadmap.md, docs/plan-darlings.md, docs/plan-variant-decks.md, docs/plan-dt-power-pass.md, docs/plan-save-portability.md, docs/expansions/drafts/yokai-nights-overplan.md, src/data/opponents.ts, src/meta/SaveManager.ts, scripts/balance-matrix.ts, scripts/personas/ · last-verified: 2026-07-28 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.4.md, docs/roadmap.md, docs/plan-darlings.md, docs/plan-variant-decks.md, docs/plan-dt-power-pass.md, docs/plan-save-portability.md, docs/expansions/drafts/yokai-nights-overplan.md, src/data/opponents.ts, src/meta/SaveManager.ts, scripts/balance-matrix.ts, scripts/personas/ · last-verified: 2026-07-31 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.5 — program plan
 
-**Status 2026-07-28:** ACTIVE. Decisions locked by the user this date
+**Close-out status 2026-07-31:** SHIPPED as v1.5.0. Every pillar landed:
+Yokai Nights + Hauntlink, the reserve engine + Darlings + Battle Box
+(hidden behind `FEATURES.reserveFormats` per the release split), variant
+pins, save codes, the DT power pass with its W7 200-seed re-baseline, the
+premium UX Wave A, bosses 19-20 / tower 20, and the economy re-date. The
+metagame deep sweep was waived for this cut (user 2026-07-31; the
+1.5.5/1.6 docket invalidates its field). The 1.5.5 seeds live in the
+session memory and docs/plan-premium-ux.md.
+
+**Historical status 2026-07-28:** ACTIVE. Decisions locked by the user this date
 (this doc is their record; do not relitigate without the user).
 v1.4.0 released 2026-07-28 (tag on main `5685bbd`); 1.5 is the active
 program.
