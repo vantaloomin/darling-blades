@@ -6,6 +6,7 @@ import {
   claimAchievement,
   claimAllAchievements,
   evaluateAchievements,
+  syncAchievements,
   type AchievementStatus,
 } from '../meta/Achievements';
 import { collectionCompletion } from '../meta/collectionFilter';
@@ -115,6 +116,12 @@ export class AchievementsScene extends Phaser.Scene {
     Music.setMood('shop');
 
     const save = Services.save.data;
+    // Recovery sync, deliberately kept ALONGSIDE the mutation checkpoints:
+    // imported save codes, migrations, and dev grants change the save outside
+    // any checkpoint, and claiming validates against the persisted unlocked
+    // list — without this, such saves show satisfied plaques that refuse to
+    // claim. Checkpoints make unlocks immediate; this makes them recoverable.
+    if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const statuses = evaluateAchievements(save, CARD_DB);
     const filter = data.filter ?? 'all';
     const filteredStatuses = filterStatuses(statuses, filter);

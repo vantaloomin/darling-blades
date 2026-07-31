@@ -5,7 +5,7 @@ import { ScriptAI } from '../ai/ScriptAI';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { tutorialLaunchData } from '../data/tutorial';
-import { evaluateAchievements } from '../meta/Achievements';
+import { evaluateAchievements, syncAchievements } from '../meta/Achievements';
 import { todayString } from '../meta/Economy';
 import {
   claimDailyQuest,
@@ -77,6 +77,11 @@ export class MainMenuScene extends Phaser.Scene {
     Music.setMood('menu');
 
     const save = Services.save.data;
+    // Recovery sync, kept alongside the A1 mutation checkpoints: imported
+    // save codes, migrations, and dev grants mutate the save outside any
+    // checkpoint, and claiming validates against the persisted unlocked
+    // list. No toast here — recovered unlocks are old news, not fresh events.
+    if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const today = todayString();
     if (ensureDailyState(save, today)) Services.save.flush();
     const claimableAchievements = evaluateAchievements(save, CARD_DB).filter(
