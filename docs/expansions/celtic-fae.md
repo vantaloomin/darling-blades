@@ -31,7 +31,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-nimue-before-the-lake | Nimue Before the Lake | UR | U/W | Legendary Creature | Proto-Arthurian fae mage | scry, tap, exile | Block bridge legend to Arthurian |
 | cf-badb-cathas-warning | Badb Catha's Warning | SSR | B | Ritual | War crow omen | scry, discardRandom, exile grave | Hand/grave disruption |
 | cf-selkie-tide-queen | Selkie Tide-Queen | SSR | U/G | Legendary Creature | Selkie queen | islandwalk-style evasion via unblockable text, scry | Tempo finisher |
-| cf-balor-evil-eye | Balor's Evil Eye | SSR | B/R | Ritual | Fomorian curse | damage, exile if dies | Premium removal |
+| cf-balor-evil-eye | Balor's Evil Eye | SSR | B/R | Ritual | Fomorian curse | damage 5, sever top card of opponent's graveyard | Premium removal |
 | cf-wild-hunt-matriarch | Wild Hunt Matriarch | SSR | R/G | Legendary Creature | Hunt leader | warcry, overrun, scry on attack | Aggro boss card |
 | cf-cauldron-of-dagda | Cauldron of the Dagda | SSR | G | Artifact | Mythic cauldron | raise-lite from exile? gainLife | Big value relic |
 | cf-bean-sidhe-keening | Bean Sidhe Keening | SR | B | Creature | Banshee | skyborne, grind/exile grave, loseLife | Grave hate threat |
@@ -57,7 +57,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-crowbone-prophet | Crowbone Prophet | R | B | Creature | Death oracle | scry, loseLife | Black selection |
 | cf-dance-under-mound | Dance Under the Mound | R | G | Ritual | Fae revel | createToken, scry | Token setup |
 | cf-ash-and-mistletoe | Ash and Mistletoe | R | G | Enchantment | Sacred grove charm | static +1/+1 to Fae | Tribal anthem |
-| cf-lake-mirror-vow | Lake-Mirror Vow | R | U | Enchantment | Fae oath | scry dawn, tap attacker | Block bridge control |
+| cf-lake-mirror-vow | Lake-Mirror Vow | R | U | Enchantment | Fae oath | foresee 1 at dawn | Block bridge control |
 | cf-cold-iron-taboo | Cold-Iron Taboo | R | C | Artifact | Anti-fae iron | exile enchantment/artifact | Sideboard-style answer |
 | cf-thornmaze-patrol | Thornmaze Patrol | R | G | Creature | Fae ranger | wardingGaze, scry | Anti-flying support |
 | cf-bog-lantern-witch | Bog-Lantern Witch | R | B | Creature | Marsh witch | deathblade, exile grave | Attrition piece |
@@ -87,9 +87,9 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-ember-of-brigid | Ember of Brigid | C | R | Charm | Sacred flame | damage 2 | Red removal |
 | cf-bargain-for-time | Bargain for Time | C | U | Ritual | Time bargain | draw, scry | Blue cantrip |
 | cf-cold-iron-nail | Cold-Iron Nail | C | C | Artifact | Iron charm | exile grave card | Colorless utility |
-| cf-mist-road | Mist Road | C | Land | Veiled path | entersTapped, manaAbility U | Common land |
-| cf-mossy-ring | Mossy Ring | C | Land | Fae circle | entersTapped, manaAbility G | Common land |
-| cf-raven-stone | Raven Stone | C | Land | Omen stone | entersTapped, manaAbility B | Common land |
+| cf-mist-road | Mist Road | C | Land | Veiled path | entersTapped, manaAbility U, arrives: foresee 1 | Common land |
+| cf-mossy-ring | Mossy Ring | C | Land | Fae circle | entersTapped, manaAbility G, arrives: gainLife 1 | Common land |
+| cf-raven-stone | Raven Stone | C | Land | Omen stone | entersTapped, manaAbility B, arrives: foresee 1 | Common land |
 | cf-dawn-torc | Dawn Torc | C | Artifact | Court trinket | tap: gainLife | White support |
 | cf-silver-thread | Silver Thread | C | Enchantment Aura | Fate thread | attached +0/+2, scry | Aura common |
 | cf-night-market-bargain | Night-Market Bargain | C | B | Ritual | Fae market | draw, loseLife | Black draw |
@@ -100,7 +100,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-hill-feast | Hill Feast | C | G | Ritual | Otherworld feast | gainLife, createToken | Green value |
 | cf-silver-apple-shot | Silver Apple Shot | C | R | Ritual | Magic projectile | damage 3 to creature | Red common removal |
 | cf-oak-shield-vow | Oak-Shield Vow | C | W | Charm | Defensive oath | boost Defense, scry | White trick |
-| cf-fogbell-chime | Fogbell Chime | C | U | Artifact | Mist charm | tap creature | Blue utility |
+| cf-fogbell-chime | Fogbell Chime | C | U | Charm | Mist charm | tap creature, foresee 1 | Blue utility (duplicates Glimmerdust Trick; open design call, see the card comment) |
 | cf-moorland-guide | Moorland Guide | C | W | Creature | Border guide | sentinel | Block bridge common |
 | cf-veil-touched-hart | Veil-Touched Hart | C | G | Creature | Otherworld deer | scry arrives | Green setup |
 | cf-cairnlight-adept | Cairnlight Adept | C | B | Creature | Cairn witch | grind self | Grave setup |

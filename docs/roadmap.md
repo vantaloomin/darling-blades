@@ -1,8 +1,8 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-26 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-31 · review monthly -->
 
 # Roadmap
 
-_Dated 2026-07-26. Review monthly._
+_Dated 2026-07-31. Review monthly._
 
 ## Status snapshot
 
@@ -13,15 +13,17 @@ _Dated 2026-07-26. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch offers an optional **tutorial**; a new
   player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (18 themed opponents on a daily-reshuffled ladder) or Practice duels → rewards → shop →
+  Gauntlet** (20 themed opponents on a daily-reshuffled ladder, tower extended
+  to 20 floors in the 1.5 train) or Practice duels → rewards → shop →
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
-  638-card collectible pool now spans six sets, with the Dark Tales art run
-  and dark-tales land-style wiring complete. The remaining eyes-on work is
-  the standing real-device pass and by-ear/by-eye polish listed under Planned.
-- **1,072 tests green** (+4 skipped balance-tool assertions; count refreshed
-  for the 1.4.0 release-prep sweep) across 114 files
+  764-card collectible pool now spans seven sets; the Yokai Nights art run
+  (120/120 QA-passed and user-approved) joined the completed Dark Tales run.
+  The remaining eyes-on work is the standing real-device pass and
+  by-ear/by-eye polish listed under Planned.
+- **1,277 tests green** (+4 skipped balance-tool assertions; count refreshed
+  2026-07-31 at the 1.5.0 cut) across 134 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -37,26 +39,88 @@ _Dated 2026-07-26. Review monthly._
   (v10→v11 achievement migration, v11→v12 tower clear-style migration,
   v12→v13 daily quest/streak migration,
   unlock/claim idempotency, completion tallies, themed archetype and expansion
-  goals, deck-color identity). The whole suite runs in about three minutes on
-  the release-prep Windows host.
-- **638 collectible cards across six sets** (`CARD_DB`), spanning the Core
-  Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, and Dark Tales.
-  Dark Tales adds 120 cards plus four tokens and its own set-scoped booster.
+  goals, deck-color identity). The whole suite runs in about eight minutes on
+  the release-prep Windows host (the 40-seed win-rate gates dominate).
+- **764 collectible cards across seven sets** (`CARD_DB`), spanning the Base
+  Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, and
+  Cyberpunk Yokai Nights. Yokai Nights, the newest set, adds 120 cards around
+  Hauntlink with its own set-scoped booster; the 1.5 balance pass added two
+  Base commons and four tribal leaders.
 - **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
   each color in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
-  (`src/audio/`, 15 recipes) wired into every scene with persisted volume +
+  (`src/audio/`, 18 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v22** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v24** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
   familiarity, v17→v18 Premium Draft, v18→v19 premium weekly allowance,
   v19→v20 deterministic replays, v20→v21 Full Art three-segment variant
-  keys, v21→v22 tower roster stamp + per-basic land styles — see Recently
-  shipped and the Full Art entry under Planned). By-ear tuning remains open
-  (see Planned).
+  keys, v21→v22 tower roster stamp + per-basic land styles, v22→v23 one
+  atomic migration for the Darlings fields, the Battle Box land reserve, and
+  variant-deck pins, v23→v24 the empty-block confirmation preference — see
+  Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-07-31 · the 1.5.0 cut)
+
+The 1.5 train closed 2026-07-31: the combined balance pass (#165, twelve
+waves, W7 200-seed re-baseline, floors re-centred down under user
+authorization), the premium UX Wave A (#166, five waves of duel feel plus
+the owner's live-playtest batch), the shop CTA fix (#167), and the economy
+re-date (#168, canonical baseline vs 769 collectible, all persona bands
+re-centred inside noise) all merged green. The metagame deep sweep was
+explicitly WAIVED for this cut (user 2026-07-31: the 1.5.5/1.6 docket will
+invalidate its field). Battle Box and Darlings ship **hidden** in 1.5.0 and
+are exposed in 1.5.5 (user decision 2026-07-29).
+
+- **Cyberpunk Yokai Nights, the sixth expansion (#138, #145, #147).** 120
+  cards (pool 638→758) with the **Hauntlink** headline mechanic (alt play
+  mode on Artifact/Enchantment: one host, linked rider, dies with host),
+  engine-first with 8 dedicated tests; ally-pair tapped dual cycle replacing
+  the set's five mono taplands; full retail wiring (525g set booster, precon,
+  8 achievements, set icon, attack FX); the entire 120-card art run
+  QA-passed and user-approved with art bible coverage 470/470.
+- **Bosses 19-20 + tower to 20 floors (#151).** Queen of the Lanterned Roof
+  and Kitsune Neon Tyrant (R19 71% / R20 75% at 40 seeds, provisional floors
+  pending the 1.5 re-baseline), 410/430g clear rewards.
+- **Battle Box + Darlings formats, engine-complete and flagged off (#139,
+  #140, #141, #144, #148, #149, #150, #152, #157).** Three-format deck
+  model (constructed / darlings / battlebox) with a chosen 10-land reserve
+  (max 5 duals, asymmetric destruction), SaveData **v23** in one atomic
+  migration, replay log v4, card-instance variant pins (positional),
+  SaveCode profile export/import (checksum + zip-bomb hardening), builder
+  format switch + Darlings picker + reserve panel, duel reserve strip and
+  reserve-format launches, and Profile SaveCode flow. All player-facing
+  entry points sit behind `FEATURES.reserveFormats = false` for 1.5.0;
+  saves stay lossless and the dev cheat can flip the flag for playtesting.
+- **Shop Card Packs wave (#153) + Practice picker strip (#154).** Boosters
+  tab renamed Card Packs and made the default landing unless a free deck is
+  genuinely claimable; **Base Set booster scoped to base-set-only cards**
+  (economy bands re-centred with user approval after the 758-pool dilution
+  was separated from a broken measurement model); 4-visible drag strip with
+  set blurbs, New tags, faded quantity chips, Yokai pack art; the Practice
+  rival picker became a two-row drag strip with large portraits.
+- **One back-navigation convention (#155).** Destination-named upper-left
+  back button on every screen (the shared widget's label is now a required
+  parameter, so the compiler forbids the lying-label defect class), ESC =
+  topmost overlay then back, DeckBuilder save prompt, draft leave-confirm.
+- **Collection binder set filter fixed at the root (#156).** The dropdown
+  derived from a new single `SET_IDS` list instead of a hand-written copy
+  that had silently omitted two sets (240 cards unfilterable).
+- **Card health pass Wave 1 (#158, #159, #160).** Two 1:1 Wizards-common
+  reproductions renamed (Divination → Twice-Read Water, Lava Axe → Molten
+  Cleaver); Sudden Insight recost {2}{U}→{3}{U}; five dead sorcery-speed
+  fog lines and byte-duplicate cards fixed across four sets; four one-shot
+  team-pump artifacts retyped Ritual; rules-text templating stops printing
+  "+0/+0" and mid-sentence capitals. Measured: duplicates 65→62, dominance
+  pairs 349→335, inert permanents 37→32. The modern-era creature curve is
+  now **declared policy** in adding-cards.md rather than drift.
+- **Hygiene riders (#142, #143, #146).** Subtype consolidation (tribes
+  9→12, Wolfkin→Wolf, Ghost/Wisp→Spirit and friends), Lancelot keyword
+  flip, honest "any color" mana-rock prose, `optimizerCap` CI timeout
+  raised, plan PR (#137) with the Hauntlink keyword-map row.
 
 ## Recently shipped (2026-07-26 · the 1.4 close-out)
 
@@ -398,17 +462,18 @@ _Dated 2026-07-26. Review monthly._
   Recently shipped 2026-07-15; only item 7 (prev/next deck comparison)
   remains parked.
 
-- **Base facet relabeled "Core Set"** (plan-1.1 Pillar 5.2; placed into 1.1
-  by the 2026-07-14 handoff). The `'base'` set facet's display text is now
-  **Core Set** in the Collection filter dropdown, the deck-builder pool
-  filter, and the Shop booster SKU — so the label can't read as "all cards"
-  now that three sets exist. Copy-only per the locked 2026-07-10 decision
-  (plan-v1.1-post-launch Feature 4 option 2): the `CardDef.set` id `'base'`,
-  pack pools, collection math, achievement definitions, and saves are all
-  untouched. Recorded in the same pass: **mixed-set packs are the decided
-  Limited set choice** (packs intentionally draw from all three sets;
-  single-set drafts shelved unscheduled) and **Limited run-history
-  achievement goals are scheduled to 1.2** with the opponent picker.
+- **Base facet display history: "Core Set" in 1.1, "Base Set" in 1.5**
+  (plan-1.1 Pillar 5.2; placed into 1.1 by the 2026-07-14 handoff). The 1.1
+  relabel shipped as **Core Set**. The 1.5 rename now displays **Base Set** in
+  the Collection filter dropdown, the deck-builder pool filter, and the Shop
+  booster SKU, so the label can't read as "all cards". Copy-only per the
+  locked 2026-07-10 decision (plan-v1.1-post-launch Feature 4 option 2): the
+  `CardDef.set` id `'base'`, pack pools, collection math, achievement
+  definitions, and saves are all untouched. Recorded in the same pass:
+  **mixed-set packs are the decided Limited set choice** (packs intentionally
+  draw from all three sets; single-set drafts shelved unscheduled) and
+  **Limited run-history achievement goals are scheduled to 1.2** with the
+  opponent picker.
 
 - **Limited Draft re-implementation — 20 AI draft personas** (still
   menu-hidden). The Bot Draft's seven bot seats are now **named characters**:
@@ -1189,6 +1254,14 @@ _Dated 2026-07-26. Review monthly._
   see above).
 
 ## Planned
+- **Fogbell Chime redesign (deferred to 1.6, decided 2026-07-30).** The card
+  is a deliberate duplicate of Glimmerdust Trick for now: its design-table
+  intent (a common Artifact that taps a creature) is unbuildable in the
+  current engine (artifacts carry no targeted or activated abilities), the
+  1-mana instant-tapper alternative is a modern rate the era pass rejected,
+  and every cheap target-free artifact effect collides with a shipped card.
+  Revisit once Hauntlink makes cheap artifacts interesting as hosts; the full
+  reasoning lives in the card's own comment in `src/data/cards/celtic-fae.ts`.
 - **The 1.1 Limited economy TUNING pass — ✅ SHIPPED 2026-07-16** (see
   Recently shipped; the full measured record lives in
   [plan-economy-testing.md](plan-economy-testing.md)'s tuning-pass note).
@@ -1295,12 +1368,13 @@ _Dated 2026-07-26. Review monthly._
   `release/1.4` to `main` merge and `v1.4.0` tag remain with the user.
 
   **The 1.5 → 2.0 ladder (user-scoped 2026-07-24).** Standing cadence rule:
-  **every major release ships expansion-scale set work** — 1.5's set slot is
-  deliberately a health pass rather than a new set (120 cards just landed);
-  new expansions resume at 1.6. Expansion 6 is named; 7-10 are TBD pending
+  **every major release ships expansion-scale set work** — 1.5 carries both
+  the Yokai Nights set (moved up from 1.6 by user decision 2026-07-24) and
+  the Dark Tales health pass. Expansion 6 is named; 7-10 are TBD pending
   the expansion-ideation session (the next planning discussion).
 
-  **1.5** = **"Darlings"**, the Commander/EDH-style format (the parked
+  **1.5** = **ACTIVE PROGRAM** (decisions locked 2026-07-28; the program
+  plan is [plan-1.5.md](plan-1.5.md)): **"Darlings"**, the Commander/EDH-style format (the parked
   commander→darling doc-rename draft on `claude/commander-naming-review-ee50e3`
   is its spec seed) + the **Cyberpunk Yokai Nights** expansion (Expansion 6 —
   moved up from 1.6 by user decision 2026-07-24: it is the only fully-known
@@ -1311,7 +1385,12 @@ _Dated 2026-07-26. Review monthly._
   Midnight Storybook at 30.5% for want of rate-efficient DT threats, and the
   unclosed go-wide gap at weenie 78.1 / worst 72.7) + **save export/import
   codes** (the first rung of save portability; groundwork for 1.8/1.9) +
-  **metagame-loop CI promotion** if the 1.4 release sweep earns trust;
+  ~~metagame-loop CI promotion~~ (decided 2026-07-28: stays
+  informational-only — the 1.4 release sweep hit max-rounds without
+  convergence; revisit after the 1.5 sweep);
+  **Reserve formats status:** Darlings and Battle Box are engine-complete and
+  UI-complete, but flagged off for 1.5.0. They are exposed in 1.5.5 after
+  their `TO MEASURE` balance matrices exist;
   **1.6** = **suggested decks v1** (the persona hill-climb harness pointed
   at the player's own collection: "build me a deck from what I own" — the
   hard half already ships as the dev-only crafting loop) + **player-facing
@@ -1350,7 +1429,8 @@ _Dated 2026-07-26. Review monthly._
   save history and records remain inert, and an active legacy Sealed run loads
   safely as no active run.
   **Placements locked (2026-07-14 handoff):** the base-facet relabel shipped
-  in 1.1 as **"Core Set"** (see Recently shipped); **mixed-set packs are the
+  in 1.1 as **"Core Set"**; 1.5 renames the current display to **"Base Set"**
+  (see Recently shipped); **mixed-set packs are the
   decided, shipped Limited set choice** (single-set drafts shelved
   unscheduled); **Limited run-history achievement goals land in 1.2** with
   the practice opponent picker.

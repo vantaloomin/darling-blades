@@ -1,4 +1,10 @@
-import { RULES } from '../config/rules';
+import {
+  LAND_RESERVE_SIZE,
+  MAX_DUAL_LANDS_IN_RESERVE,
+  RULES,
+  type GameFormat,
+  usesLandReserve,
+} from '../config/rules';
 import type { Action } from './actions';
 import { legalActions, validateAction } from './actions';
 import { hasCastableInstant } from './actions';
@@ -23,21 +29,121 @@ import type { Emit } from './resolve';
 import { enterBattlefield, resolveStackItem } from './resolve';
 import type {
   Awaiting,
+  CardEntry,
+  CardInstance,
   CardDb,
   GameState,
+  LegacyAwaiting,
+  LegacyGameState,
   PlayerId,
   StackItem,
 } from './types';
-import { def, findPermanent, opponentOf } from './types';
+import { cardIdOf, def, findPermanent, isCardInstance, opponentOf } from './types';
 import type { PlayerView } from './view';
 import { viewFor } from './view';
 
 export interface GameConfig {
-  decks: [string[], string[]];
+  decks: [CardEntry[], CardEntry[]];
   seed: number;
   db: CardDb;
+  /** Classic is the default. Battle Box and Darlings use ordered land reserves. */
+  format?: GameFormat;
+  /** One ordered ten-land payload per seat for reserve formats. */
+  landReserves?: [CardEntry[], CardEntry[]];
   /** Opt into the pre-deal coin-flip winner's play/draw decision. */
   playDrawChoice?: boolean;
+}
+
+function isBasicLand(card: CardEntry, db: CardDb): boolean {
+  return db[cardIdOf(card)]?.supertypes?.includes('basic') ?? false;
+}
+
+function isDualLand(card: CardEntry, db: CardDb): boolean {
+  return new Set(db[cardIdOf(card)]?.manaAbility ?? []).size > 1;
+}
+
+function buildReserveInstances(
+  cfg: GameConfig,
+  nextInstanceId: () => number,
+): [CardInstance[], CardInstance[]] {
+  if (!cfg.landReserves || cfg.landReserves.length !== 2) {
+    throw new Error('Reserve formats require one landReserves payload for each player.');
+  }
+
+  const out = cfg.landReserves.map((reserve, player) => {
+    if (reserve.length !== LAND_RESERVE_SIZE) {
+      throw new Error(
+        `Reserve format P${player} needs exactly ${LAND_RESERVE_SIZE} lands (received ${reserve.length}).`,
+      );
+    }
+    let duals = 0;
+    const instances = reserve.map((card) => {
+      const cardId = cardIdOf(card);
+      const d = cfg.db[cardId];
+      if (!d) throw new Error(`Reserve format P${player} contains unknown land id ${cardId}.`);
+      if (!d.types.includes('land')) {
+        throw new Error(`Reserve format P${player} contains non-land card ${cardId}.`);
+      }
+      if (!isBasicLand(card, cfg.db) && !isDualLand(card, cfg.db)) {
+        throw new Error(`Reserve format P${player} contains unsupported land ${cardId}.`);
+      }
+      if (isDualLand(card, cfg.db)) duals++;
+      return {
+        instanceId: nextInstanceId(),
+        cardId,
+        variantKey: isCardInstance(card) ? card.variantKey : null,
+      } satisfies CardInstance;
+    });
+    if (duals > MAX_DUAL_LANDS_IN_RESERVE) {
+      throw new Error(
+        `Reserve format P${player} may contain at most ${MAX_DUAL_LANDS_IN_RESERVE} dual lands (received ${duals}).`,
+      );
+    }
+    return instances;
+  }) as [CardInstance[], CardInstance[]];
+
+  for (const [player, deck] of cfg.decks.entries()) {
+    for (const card of deck) {
+      const cardId = cardIdOf(card);
+      if (cfg.db[cardId]?.types.includes('land')) {
+        throw new Error(
+          `Reserve format P${player} deck contains land ${cardId}; lands must be supplied in landReserves.`,
+        );
+      }
+    }
+  }
+  return out;
+}
+
+function validateRestoredReserveState(state: GameState, db: CardDb): void {
+  for (const [player, data] of state.players.entries()) {
+    if (data.landReserve === undefined) continue;
+    for (const zone of [data.deck, data.hand]) {
+      for (const card of zone) {
+        if (db[cardIdOf(card)]?.types.includes('land')) {
+          throw new Error(`Reserve format P${player} state contains land ${cardIdOf(card)} outside the reserve.`);
+        }
+      }
+    }
+    if (data.landReserve.length > LAND_RESERVE_SIZE) {
+      throw new Error(
+        `Reserve format P${player} may contain at most ${LAND_RESERVE_SIZE} lands (received ${data.landReserve.length}).`,
+      );
+    }
+    let duals = 0;
+    for (const card of data.landReserve) {
+      const d = db[cardIdOf(card)];
+      if (!d || !d.types.includes('land')) {
+        throw new Error(`Reserve format P${player} state contains a non-land reserve card ${cardIdOf(card)}.`);
+      }
+      if (isDualLand(card, db)) duals++;
+    }
+    if (duals > MAX_DUAL_LANDS_IN_RESERVE) {
+      throw new Error(
+        `Reserve format P${player} may contain at most ${MAX_DUAL_LANDS_IN_RESERVE} dual lands (received ${duals}).`,
+      );
+    }
+  }
 }
 
 /**
@@ -49,6 +155,8 @@ export class Game {
   private st: GameState;
   private readonly db: CardDb;
   private buf: GameEvent[] = [];
+  /** Legacy state facade retained so existing callers can make scalar edits before submit. */
+  private publicState?: LegacyGameState;
   /** Events produced during construction; opted-in opening draws occur after the choice. */
   readonly initialEvents: GameEvent[] = [];
 
@@ -56,10 +164,19 @@ export class Game {
     this.db = cfg.db;
     const rng = createRngState(cfg.seed);
 
-    const libraries = cfg.decks.map((deck) => rngShuffle(rng, [...deck])) as [
-      string[],
-      string[],
-    ];
+    let nextInstanceId = 1;
+
+    const reserveInstances = usesLandReserve(cfg.format)
+      ? buildReserveInstances(cfg, () => nextInstanceId++)
+      : undefined;
+
+    const libraries = cfg.decks.map((deck) =>
+      rngShuffle(rng, deck.map((card) => ({
+        instanceId: nextInstanceId++,
+        cardId: cardIdOf(card),
+        variantKey: isCardInstance(card) ? card.variantKey : null,
+      }))),
+    ) as [CardInstance[], CardInstance[]];
     const startingPlayer = rngInt(rng, 2) as PlayerId;
 
     this.st = {
@@ -68,7 +185,10 @@ export class Game {
       startingPlayer,
       activePlayer: startingPlayer,
       step: 'untap',
-      players: [this.freshPlayer(libraries[0]), this.freshPlayer(libraries[1])],
+      players: [
+        this.freshPlayer(libraries[0], reserveInstances?.[0]),
+        this.freshPlayer(libraries[1], reserveInstances?.[1]),
+      ],
       battlefield: [],
       stack: [],
       stackClosed: false,
@@ -81,6 +201,7 @@ export class Game {
         : { player: startingPlayer, kind: 'mulligan' },
       pendingDecisions: [],
       nextIid: 1,
+      nextInstanceId,
       nextSid: 1,
       winner: null,
       winReason: null,
@@ -100,8 +221,8 @@ export class Game {
     }
   }
 
-  private freshPlayer(deck: string[]): GameState['players'][0] {
-    return {
+  private freshPlayer(deck: CardInstance[], landReserve?: CardInstance[]): GameState['players'][0] {
+    const player: GameState['players'][0] = {
       life: RULES.startingLife,
       deck,
       hand: [],
@@ -111,40 +232,54 @@ export class Game {
       mulligans: 0,
       keptHand: false,
     };
+    if (landReserve !== undefined) player.landReserve = landReserve;
+    return player;
   }
 
   // -------------------------------------------------------------------------
   // Public API
   // -------------------------------------------------------------------------
 
-  get state(): Readonly<GameState> {
+  get state(): Readonly<LegacyGameState> {
+    this.publicState ??= legacyState(this.st);
+    return this.publicState;
+  }
+
+  /** Instance-bearing state used by the engine spike and future presentation layers. */
+  get instanceState(): Readonly<GameState> {
+    this.syncLegacyMutations();
     return this.st;
   }
 
-  get awaiting(): Awaiting {
-    return this.st.awaiting;
+  get awaiting(): LegacyAwaiting {
+    return this.state.awaiting;
   }
 
   legalActions(player: PlayerId): Action[] {
+    this.syncLegacyMutations();
     return legalActions(this.st, this.db, player);
   }
 
   viewFor(player: PlayerId): PlayerView {
+    this.syncLegacyMutations();
     return viewFor(this.st, player);
   }
 
   clone(): Game {
+    this.syncLegacyMutations();
     return Game.restore(structuredClone(this.st), this.db);
   }
 
   static restore(state: GameState, db: CardDb): Game {
+    validateRestoredReserveState(state, db);
     const g = Object.create(Game.prototype) as Game;
-    Object.assign(g, { st: state, db, buf: [], initialEvents: [] });
+    Object.assign(g, { st: normalizeState(state), db, buf: [], initialEvents: [] });
     return g;
   }
 
   /** Validate → apply → emit. Throws on illegal actions. */
   submit(player: PlayerId, action: Action): GameEvent[] {
+    this.syncLegacyMutations();
     const err = validateAction(this.st, this.db, player, action);
     if (err) throw new Error(`Illegal action ${action.type} by P${player}: ${err}`);
 
@@ -152,7 +287,62 @@ export class Game {
     const emit: Emit = (e) => this.buf.push(e);
     this.apply(player, action, emit);
     this.maybeRaiseDeferredDecision(emit);
+    this.publicState = legacyState(this.st);
     return this.buf;
+  }
+
+  private syncLegacyMutations(): void {
+    const pub = this.publicState;
+    if (!pub) return;
+    for (const p of [0, 1] as const) {
+      const from = pub.players[p];
+      const to = this.st.players[p];
+      to.life = from.life;
+      to.landPlayedThisTurn = from.landPlayedThisTurn;
+      to.mulligans = from.mulligans;
+      to.keptHand = from.keptHand;
+      for (const zone of ['deck', 'hand', 'graveyard', 'severed'] as const) {
+        const ids = from[zone];
+        const current = to[zone];
+        if (current.length !== ids.length || current.some((card, i) => cardIdOf(card) !== ids[i])) {
+          to[zone] = ids.map((id, i) => {
+            const existing = current[i];
+            if (existing && cardIdOf(existing) === id && isCardInstance(existing)) return existing;
+            return {
+              instanceId: this.st.nextInstanceId!++,
+              cardId: id,
+              variantKey: null,
+            };
+          });
+        }
+      }
+      if (from.landReserve !== undefined && to.landReserve !== undefined) {
+        const ids = from.landReserve;
+        const current = to.landReserve;
+        if (current.length !== ids.length || current.some((card, i) => cardIdOf(card) !== ids[i])) {
+          to.landReserve = ids.map((id, i) => {
+            const existing = current[i];
+            if (existing && cardIdOf(existing) === id && isCardInstance(existing)) return existing;
+            return {
+              instanceId: this.st.nextInstanceId!++,
+              cardId: id,
+              variantKey: null,
+            };
+          });
+        }
+      }
+    }
+    this.st.turn = pub.turn;
+    this.st.startingPlayer = pub.startingPlayer;
+    this.st.activePlayer = pub.activePlayer;
+    this.st.step = pub.step;
+    this.st.stackClosed = pub.stackClosed;
+    this.st.combat = structuredClone(pub.combat);
+    this.st.fogThisTurn = pub.fogThisTurn;
+    this.st.pendingDecisions = structuredClone(pub.pendingDecisions);
+    this.st.awaiting = normalizeAwaiting(pub.awaiting, this.st);
+    this.st.winner = pub.winner;
+    this.st.winReason = pub.winReason;
   }
 
   /**
@@ -207,13 +397,13 @@ export class Game {
   }
 
   private hasFetchableBasic(player: PlayerId): boolean {
-    return this.st.players[player].deck.some((cardId) =>
-      def(this.db, cardId).supertypes?.includes('basic'),
+    return this.st.players[player].deck.some((card) =>
+      def(this.db, card).supertypes?.includes('basic'),
     );
   }
 
   /** Awaiting foresee cards are top-first, matching the player-facing order. */
-  private foreseeCards(player: PlayerId, n: number): string[] {
+  private foreseeCards(player: PlayerId, n: number): CardEntry[] {
     if (n <= 0) return [];
     return this.st.players[player].deck.slice(-n).reverse();
   }
@@ -271,7 +461,7 @@ export class Game {
 
       case 'bottomCards': {
         const sorted = [...action.handIndices].sort((a, b) => b - a);
-        const bottomed: string[] = [];
+        const bottomed: CardEntry[] = [];
         for (const i of sorted) bottomed.push(...me.hand.splice(i, 1));
         // deck index 0 is the bottom
         me.deck.unshift(...bottomed);
@@ -289,10 +479,16 @@ export class Game {
         if (pending?.kind === 'chooseBasicLand') {
           const controller = pending.player;
           const lib = st.players[controller].deck;
-          const idx = lib.lastIndexOf(action.cardId);
+          let idx = -1;
+          for (let i = lib.length - 1; i >= 0; i--) {
+            if (cardIdOf(lib[i]) === action.cardId) {
+              idx = i;
+              break;
+            }
+          }
           if (idx >= 0) {
-            const [cardId] = lib.splice(idx, 1);
-            const perm = enterBattlefield(st, this.db, cardId, controller, emit);
+            const [card] = lib.splice(idx, 1);
+            const perm = enterBattlefield(st, this.db, card, controller, emit);
             perm.tapped = true;
             rngShuffle(st.rng, lib);
           }
@@ -318,21 +514,31 @@ export class Game {
         // Outcome summary for the presentation layer (history log). Carries
         // identities; the presenter redacts the non-local player's cards to
         // counts — see the `foresaw` comment in events.ts.
-        emit({ e: 'foresaw', player, kept, bottomed });
+        emit({
+          e: 'foresaw',
+          player,
+          kept: kept.map(cardIdOf),
+          bottomed: bottomed.map(cardIdOf),
+        });
         return;
       }
 
       case 'playLand': {
-        const cardId = me.hand.splice(action.handIndex, 1)[0];
-        const perm = enterBattlefield(st, this.db, cardId, player, () => {});
+        const card = me.landReserve !== undefined
+          ? me.landReserve.splice(action.reserveIndex!, 1)[0]
+          : me.hand.splice(action.handIndex, 1)[0];
+        const cardId = cardIdOf(card);
+        const perm = enterBattlefield(st, this.db, card, player, () => {});
         me.landPlayedThisTurn = true;
         emit({ e: 'landPlayed', player, iid: perm.iid, cardId });
+        fireTriggers(st, this.db, emit, 'arrives', perm);
         return;
       }
 
       case 'skim': {
-        const cardId = me.hand[action.handIndex];
-        const d = def(this.db, cardId);
+        const card = me.hand[action.handIndex];
+        const cardId = cardIdOf(card);
+        const d = def(this.db, card);
         const plan = action.manaPlan ?? solveMana(st, this.db, player, d.skim!.cost)!;
         for (const iid of plan) {
           const src = findPermanent(st, iid)!;
@@ -340,7 +546,7 @@ export class Game {
         }
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
         me.hand.splice(action.handIndex, 1);
-        me.graveyard.push(cardId);
+        me.graveyard.push(card);
         emit({ e: 'skimmed', player, cardId });
         drawCards(st, emit, player, 1);
         return;
@@ -348,19 +554,29 @@ export class Game {
 
       case 'castSpell': {
         const isRetell = action.retell === true;
+        const isHauntlinked = action.hauntlinked === true;
         const sourceIndex = isRetell ? action.graveIndex! : action.handIndex;
-        const cardId = isRetell ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
-        const d = def(this.db, cardId);
+        const card = isRetell ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
+        const cardId = cardIdOf(card);
+        const d = def(this.db, card);
         const extra = action.x ?? 0;
         // Retell replaces the printed cost. Empower is an additional cost on a
         // normal cast (validateAction rejects X+empower and Retell+Empower).
         const cost =
-          isRetell
+          isHauntlinked
+            ? d.hauntlink!.cost
+            : isRetell
             ? d.retell!.cost
             : action.empowered && d.empower
               ? combineManaCosts(d.cost!, d.empower.cost)
               : d.cost!;
-        const plan = action.manaPlan ?? solveMana(st, this.db, player, cost, isRetell ? 0 : extra)!;
+        const plan = action.manaPlan ?? solveMana(
+          st,
+          this.db,
+          player,
+          cost,
+          isRetell || isHauntlinked ? 0 : extra,
+        )!;
         for (const iid of plan) {
           const src = findPermanent(st, iid)!;
           src.tapped = true;
@@ -371,12 +587,15 @@ export class Game {
         else me.hand.splice(sourceIndex, 1);
         const item: StackItem = {
           sid: st.nextSid++,
+          instanceId: isCardInstance(card) ? card.instanceId : st.nextInstanceId!,
           cardId,
+          variantKey: isCardInstance(card) ? card.variantKey : null,
           controller: player,
           targets: action.targets ?? [],
           x: action.x,
           ...(action.empowered ? { empowered: true } : {}),
           ...(isRetell ? { retell: true } : {}),
+          ...(isHauntlinked ? { hauntlinked: true } : {}),
         };
         st.stack.push(item);
         emit({
@@ -385,6 +604,7 @@ export class Game {
           cardId,
           controller: player,
           targets: item.targets,
+          ...(isHauntlinked ? { hauntlinked: true } : {}),
         });
         this.openResponseWindow(opponentOf(player), { type: 'spell', sid: item.sid }, emit);
         return;
@@ -454,9 +674,9 @@ export class Game {
       case 'discard': {
         const sorted = [...action.handIndices].sort((a, b) => b - a);
         for (const i of sorted) {
-          const [cardId] = me.hand.splice(i, 1);
-          me.graveyard.push(cardId);
-          emit({ e: 'discarded', player, cardId });
+          const [card] = me.hand.splice(i, 1);
+          me.graveyard.push(card);
+          emit({ e: 'discarded', player, cardId: cardIdOf(card) });
         }
         finishCleanup(st, this.db, emit);
         return;
@@ -564,4 +784,122 @@ export class Game {
       startTurn(st, this.db, emit);
     }
   }
+}
+
+function legacyAwaiting(awaiting: Awaiting): LegacyAwaiting {
+  if (awaiting.kind !== 'foresee') return structuredClone(awaiting) as LegacyAwaiting;
+  return { ...awaiting, cards: awaiting.cards.map(cardIdOf) };
+}
+
+function normalizeAwaiting(awaiting: LegacyAwaiting, state: GameState): Awaiting {
+  if (awaiting.kind !== 'foresee') return structuredClone(awaiting);
+  return {
+    ...awaiting,
+    cards: state.players[awaiting.player].deck.slice(-awaiting.cards.length).reverse(),
+  };
+}
+
+function legacyState(state: GameState): LegacyGameState {
+  const rest = structuredClone(state) as LegacyGameState;
+  delete rest.nextInstanceId;
+  const players = state.players.map((player) => {
+    const legacy = {
+      ...player,
+      deck: player.deck.map(cardIdOf),
+      hand: player.hand.map(cardIdOf),
+      graveyard: player.graveyard.map(cardIdOf),
+      severed: player.severed.map(cardIdOf),
+    } as LegacyGameState['players'][0];
+    if (player.landReserve !== undefined) {
+      legacy.landReserve = player.landReserve.map(cardIdOf);
+    }
+    return legacy;
+  }) as [LegacyGameState['players'][0], LegacyGameState['players'][1]];
+  return {
+    ...rest,
+    players,
+    // Battlefield and stack are public zones, so their physical identity is
+    // retained in the compatibility projection. Hidden player zones below
+    // remain card-id-only.
+    battlefield: structuredClone(state.battlefield),
+    stack: structuredClone(state.stack),
+    awaiting: legacyAwaiting(state.awaiting),
+  };
+}
+
+/** Normalize every compatibility string[] boundary into physical instances. */
+function normalizeState(input: GameState): GameState {
+  const state = structuredClone(input) as GameState;
+  const used = new Set<number>();
+  let maxId = 0;
+  for (const player of state.players) {
+    for (const zone of [
+      player.deck,
+      player.hand,
+      player.graveyard,
+      player.severed,
+      ...(player.landReserve === undefined ? [] : [player.landReserve]),
+    ]) {
+      for (const card of zone) {
+        if (isCardInstance(card)) {
+          maxId = Math.max(maxId, card.instanceId);
+        }
+      }
+    }
+  }
+  for (const perm of state.battlefield) {
+    if (perm.instanceId !== undefined) {
+      used.add(perm.instanceId);
+      maxId = Math.max(maxId, perm.instanceId);
+    }
+  }
+  for (const item of state.stack) {
+    if (item.instanceId !== undefined) {
+      used.add(item.instanceId);
+      maxId = Math.max(maxId, item.instanceId);
+    }
+  }
+
+  let next = Math.max(state.nextInstanceId ?? 1, maxId + 1);
+  const freshId = (): number => {
+    while (used.has(next)) next++;
+    const id = next++;
+    used.add(id);
+    return id;
+  };
+  const normalizeCard = (card: CardEntry): CardInstance => {
+    if (isCardInstance(card) && !used.has(card.instanceId)) {
+      used.add(card.instanceId);
+      return { ...card, variantKey: card.variantKey ?? null };
+    }
+    if (isCardInstance(card)) {
+      return { ...card, instanceId: freshId(), variantKey: card.variantKey ?? null };
+    }
+    return { instanceId: freshId(), cardId: card, variantKey: null };
+  };
+
+  for (const player of state.players) {
+    player.deck = player.deck.map(normalizeCard);
+    player.hand = player.hand.map(normalizeCard);
+    player.graveyard = player.graveyard.map(normalizeCard);
+    player.severed = player.severed.map(normalizeCard);
+    if (player.landReserve !== undefined) player.landReserve = player.landReserve.map(normalizeCard);
+  }
+  for (const perm of state.battlefield) {
+    perm.instanceId ??= freshId();
+    perm.variantKey ??= null;
+  }
+  for (const item of state.stack) {
+    item.instanceId ??= freshId();
+    item.variantKey ??= null;
+  }
+  if (state.awaiting.kind === 'foresee') {
+    // A hand-built legacy snapshot has only card IDs here. Rebind it to the
+    // corresponding normalized top-of-deck instances before the choice moves
+    // those cards, preserving identity through the decision snapshot.
+    const deck = state.players[state.awaiting.player].deck;
+    state.awaiting.cards = deck.slice(-state.awaiting.cards.length).reverse();
+  }
+  state.nextInstanceId = next;
+  return state;
 }

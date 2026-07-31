@@ -9,6 +9,7 @@ import { spendGold } from '../meta/Economy';
 import { openPack, openPacks, type PackResult } from '../meta/PackOpener';
 import { formatOdds, variantOdds } from '../meta/pullOdds';
 import { Services } from '../meta/services';
+import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
 import { animTimeScale } from '../platform/animPolicy';
 import { activeRenderScale } from '../platform/renderScale';
@@ -17,8 +18,10 @@ import { fxPolicy } from '../ui/fx/FXSupport';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, GOTHIC_MONSTERS_PACK_ART, packPriceForSku, packTextureForSku, type BoosterSku } from './ShopScene';
+import { queueAchievementUnlockToasts } from '../ui/achievementToast';
+import { Toast } from '../ui/Toast';
+import { backButton, modalShell, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, GOTHIC_MONSTERS_PACK_ART, YOKAI_NIGHTS_PACK_ART, packPriceForSku, packSetForSku, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
 const GRID_DY = 216;
@@ -80,6 +83,8 @@ export class PackOpeningScene extends Phaser.Scene {
   private specials: SpecialEntry[] = [];
   private buttons: ThemedButton[] = [];
   private skipBtn: ThemedButton | null = null;
+  private toasts: Toast | null = null;
+  private packRevealComplete = false;
   /** guards the best-card spotlight settle so tap-to-skip and the wobble's own
    * onComplete can't both run the restore (one-shot per pack). */
   private bestSettled = false;
@@ -91,11 +96,18 @@ export class PackOpeningScene extends Phaser.Scene {
   create(
     data: (PackResult & { sku?: BoosterSku }) | { batch: PackResult[]; sku?: BoosterSku },
   ): void {
+    // A repeat opener can re-enter this scene without a fresh Scene instance.
+    // Close any inspect lease and clear every create-owned reference before
+    // rebuilding the reveal so destroyed objects never receive new updates.
+    this.closePackInspect();
     this.sku = data.sku ?? 'base';
     this.revealed = 0;
     this.specials = [];
     this.buttons = [];
+    this.inspectables = [];
+    this.skipBtn = null;
     this.bestSettled = false;
+    this.packRevealComplete = false;
     bakePackArt(this);
     if (this.sku === 'ragnarok') {
       bakePackArt(this, {
@@ -110,6 +122,8 @@ export class PackOpeningScene extends Phaser.Scene {
       bakePackArt(this, GOTHIC_MONSTERS_PACK_ART);
     } else if (this.sku === 'dark-tales') {
       bakePackArt(this, DARK_TALES_PACK_ART);
+    } else if (this.sku === 'yokai-nights') {
+      bakePackArt(this, YOKAI_NIGHTS_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {
@@ -117,6 +131,8 @@ export class PackOpeningScene extends Phaser.Scene {
       contextMenuDisabled = true;
     }
     Music.setMood('shop'); // continuous with the shop — no-op when arriving from it
+
+    this.toasts = new Toast(this, { held: true, isBlocked: () => this.inspectShell !== null });
 
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
@@ -135,12 +151,16 @@ export class PackOpeningScene extends Phaser.Scene {
         bg.fillRect(0, 0, width, height);
       },
     });
+    const back = backButton(this, 'Shop', () => this.scene.start('Shop'));
+    // Keep the persistent escape hatch above the reveal spotlight's dim layer.
+    back.setDepth(theme.depth.reveal);
+    registerSceneBackNavigation(this, () => this.scene.start('Shop'));
 
-    this.inspectables = [];
     // F10: a multi-pack buy skips the choreographed single-pack reveal and shows
     // a summary of the whole batch instead.
     if ('batch' in data) {
       this.showBatchSummary(data.batch);
+      this.finishAchievementCheckpoint();
       return;
     }
     this.result = data;
@@ -237,7 +257,6 @@ export class PackOpeningScene extends Phaser.Scene {
       });
     }
 
-    backButton(this, () => this.scene.start('Shop'));
     this.buildBatchButtons(batch.length);
   }
 
@@ -268,7 +287,7 @@ export class PackOpeningScene extends Phaser.Scene {
       const save = Services.save.data;
       if (!spendGold(save, qty * price)) return;
       Sfx.play('coin');
-      const set = this.sku === 'base' ? undefined : this.sku;
+      const set = packSetForSku(this.sku);
       const rng = createRngState(Date.now() & 0x7fffffff);
       if (qty === 1) {
         const result = openPack(save, CARD_DB, rng, set);
@@ -838,6 +857,7 @@ export class PackOpeningScene extends Phaser.Scene {
 
   private checkAllRevealed(): void {
     if (!this.specials.every((s) => s.done)) return;
+    this.finishAchievementCheckpoint();
     this.skipBtn?.container.destroy();
     this.skipBtn = null;
     if (this.buttons.length > 0) return;
@@ -858,13 +878,25 @@ export class PackOpeningScene extends Phaser.Scene {
       const save = Services.save.data;
       if (!spendGold(save, openPrice)) return;
       Sfx.play('coin');
-      const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff), this.sku);
+      const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff), packSetForSku(this.sku));
       Services.save.flush();
       this.tweens.timeScale = 1;
       this.scene.restart({ ...result, sku: this.sku });
     });
     mk(width / 2 + 60, 'Shop', () => this.scene.start('Shop'));
     mk(width / 2 + 200, 'Menu', () => this.scene.start('MainMenu'));
+  }
+
+  /** Pack collection changes become visible only after the reveal has settled. */
+  private finishAchievementCheckpoint(): void {
+    if (this.packRevealComplete) return;
+    this.packRevealComplete = true;
+    const checkpoint = checkpointAchievements(Services.save.data, CARD_DB);
+    if (checkpoint.changed) {
+      Services.save.flush();
+      queueAchievementUnlockToasts(checkpoint.ids);
+    }
+    this.toasts?.release();
   }
 
   shutdown(): void {

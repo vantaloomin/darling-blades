@@ -9,14 +9,14 @@ import { cost } from '../cardTypes';
 export const SORCERIES = [
   {
     id: 'so-divination',
-    name: 'Divination',
+    name: 'Twice-Read Water',
     types: ['ritual'],
     subtypes: [],
     cost: cost(2, 'U'),
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }] }],
     rarity: 'c',
-    flavor: 'Two answers per teacup. Refills extra.',
+    flavor: 'Ask once for the answer. Ask twice for the truth.',
   },
   {
     id: 'so-rampant-growth',
@@ -44,7 +44,7 @@ export const SORCERIES = [
   },
   {
     id: 'so-lava-axe',
-    name: 'Lava Axe',
+    name: 'Molten Cleaver',
     types: ['ritual'],
     subtypes: [],
     cost: cost(4, 'R'),
@@ -101,6 +101,17 @@ export const SORCERIES = [
     flavor: 'Your secrets, her ledger. The exchange rate is awful.',
   },
   {
+    id: 'so-creeping-malaise',
+    name: 'Creeping Malaise',
+    types: ['ritual'],
+    subtypes: [],
+    cost: cost(1, 'B'),
+    colors: ['B'],
+    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -1, t: -1, scope: 'all' }] }],
+    rarity: 'c',
+    flavor: 'Even the strongest knees forgot their strength.',
+  },
+  {
     id: 'so-flame-lash',
     name: 'Flame Lash',
     types: ['ritual'],
@@ -116,6 +127,17 @@ export const SORCERIES = [
     ],
     rarity: 'c',
     flavor: 'Ash to ash. Mostly ash.',
+  },
+  {
+    id: 'so-ember-squall',
+    name: 'Ember Squall',
+    types: ['ritual'],
+    subtypes: [],
+    cost: cost(0, 'R'),
+    colors: ['R'],
+    abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 1, to: 'eachCreature' }] }],
+    rarity: 'c',
+    flavor: 'No one kept their footing. The cinders did not care.',
   },
   {
     id: 'so-dirge-of-loss',

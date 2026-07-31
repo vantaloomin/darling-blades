@@ -53,7 +53,7 @@ export const ARTHURIAN_COURT = [
   // =========================================================================
   creature('ac-lancelot-moonlit-shame', 'Lancelot, Moonlit Shame', ['Knight', 'Champion'], {
     supertypes: ['legendary'], cost: cost(4, 'WR'), colors: ['W', 'R'], attack: 5, defense: 4,
-    keywords: ['twinBlades'], awakening: { p: 2, t: 1, keywords: ['firstBlade'] },
+    keywords: ['firstBlade'], awakening: { p: 2, t: 1, keywords: ['twinBlades'] },
     rarity: 'ssr', flavor: 'She rides beneath the moon, carrying a shame no banner can hide.',
   }),
   creature('ac-guinevere-court-sun', 'Guinevere, Court Sun', ['Noble', 'Queen'], {
@@ -107,7 +107,7 @@ export const ARTHURIAN_COURT = [
     }],
     rarity: 'sr', flavor: 'Her purity is not gentleness; it is a blade that refuses to bend.',
   }),
-  creature('ac-merlin-crow-clock', 'Merlin, Crow-Clock Sage', ['Wizard', 'Sage'], {
+  creature('ac-merlin-crow-clock', 'Merlin, Crow-Clock Sage', ['Mage', 'Sage'], {
     cost: cost(3, 'U'), colors: ['U'], attack: 2, defense: 4,
     abilities: [
       { when: 'arrives', ops: [{ op: 'foresee', n: 2 }] },
@@ -140,7 +140,7 @@ export const ARTHURIAN_COURT = [
     chapters: [
       [{ op: 'damage', n: 2, to: 'controller' }],
       [{ op: 'boost', p: 2, t: 2, scope: 'allYours' }],
-      [{ op: 'awaken', scope: 'allYours' }],
+      [{ op: 'boost', p: 3, t: 3, keywords: ['overrun'], scope: 'allYours' }],
     ],
     rarity: 'sr', flavor: 'She offers the axe and waits beneath the greenest branch.',
   },
@@ -364,7 +364,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-training-yard', name: 'Training Yard', types: ['enchantment'], subtypes: [],
-    cost: cost(3, 'R'), colors: ['R'],
+    cost: cost(2, 'R'), colors: ['R'],
     abilities: [{ when: 'dawn', ops: [{ op: 'boost', p: 1, t: 0, scope: 'allYours' }] }],
     rarity: 'c', flavor: 'Every morning begins with bruises and ends with a better stance.',
   },
@@ -413,7 +413,7 @@ export const ARTHURIAN_COURT = [
   {
     id: 'ac-wounded-oath', name: 'Wounded Oath', types: ['enchantment'], subtypes: ['Aura'],
     cost: cost(1, 'B'), colors: ['B'],
-    abilities: [{ when: 'static', static: { scope: 'attached', p: -1, t: -1 } }],
+    abilities: [{ when: 'static', static: { scope: 'attached', p: -3, t: 0 } }],
     rarity: 'c', flavor: 'The promise weakens the arm that made it and the heart that keeps it.',
   },
   {
@@ -455,39 +455,44 @@ export const ARTHURIAN_COURT = [
     rarity: 'c', flavor: 'She looses arrows from the gallery and never disturbs the music.',
   }),
   {
-    id: 'ac-rallying-horn', name: 'Rallying Horn', types: ['artifact'], subtypes: [],
-    cost: cost(2), colors: [],
-    abilities: [{ when: 'arrives', ops: [{ op: 'boost', p: 1, t: 0, scope: 'allYours' }] }],
+    id: 'ac-rallying-horn', name: 'Rallying Horn', types: ['ritual'], subtypes: [],
+    cost: cost(2, 'R'), colors: ['R'],
+    abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 2, t: 0, scope: 'allYours' }] }],
     rarity: 'c', flavor: 'One clear note, and every lance in the valley points the same way.',
   },
   creature('ac-prophecy-attendant', "Prophecy Attendant", ['Attendant', 'Seer'], {
     cost: cost(2, 'U'), colors: ['U'], attack: 1, defense: 3,
-    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
+    abilities: [{ when: 'arrives', condition: 'questActive', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'c', flavor: 'She carries tomorrow in a silver bowl and never spills a drop.',
   }),
   {
     id: 'ac-bramble-chapel', name: 'Bramble Chapel', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['G'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     flavor: 'Thorns frame the altar; the roots keep the old vows.',
   },
   {
     id: 'ac-lowland-fort', name: 'Lowland Fort', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['W'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     flavor: 'The fort is low, the walls are tired, and the watch still stands.',
   },
   {
     id: 'ac-red-tournament-ground', name: 'Red Tournament Ground', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['R'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     flavor: 'Dust rises where champions promise they are not afraid.',
   },
   {
     id: 'ac-court-of-whispers', name: 'Court of Whispers', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['B'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     flavor: 'The court has no throne, only a hundred listeners behind the curtains.',
   },
   {
     id: 'ac-mirror-lake', name: 'Mirror Lake', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['U'], entersTapped: true, rarity: 'c',
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     flavor: 'The water reflects the face you bring and the one you leave behind.',
   },
   {

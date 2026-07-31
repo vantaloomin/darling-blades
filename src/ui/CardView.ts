@@ -271,6 +271,7 @@ export class CardView extends Phaser.GameObjects.Container {
     opts: { fx?: CardFxLevel; variant?: CardVariant; fullArt?: boolean; landStyle?: string } = {},
   ): this {
     this.clearFx();
+    this.art.clearTint().setAlpha(1);
     this.card = card;
 
     const faceDown = card === null;
@@ -477,11 +478,16 @@ export class CardView extends Phaser.GameObjects.Container {
       this.add(tap);
       this.pips.push(tap);
       ix += PIP + 2;
-      const label = this.scene.add.text(ix, rowYc, ': Add', style).setOrigin(0, 0.5);
+      // Five-color producers read as prose ("any color"); a five-pip "or"
+      // chain overflows the line and reads as a puzzle (user call 2026-07-28).
+      const anyColor = abilityMana.length === 5;
+      const label = this.scene.add
+        .text(ix, rowYc, anyColor ? ': Add one mana of any color.' : ': Add', style)
+        .setOrigin(0, 0.5);
       this.add(label);
       this.pips.push(label);
       ix += label.width + 5;
-      abilityMana.forEach((col, i) => {
+      if (!anyColor) abilityMana.forEach((col, i) => {
         if (i > 0) {
           const or = this.scene.add.text(ix, rowYc, 'or', style).setOrigin(0, 0.5);
           this.add(or);
@@ -741,6 +747,11 @@ export class CardView extends Phaser.GameObjects.Container {
     return this;
   }
 
+  /** The interactive Zone child, for modal guards and other input plumbing. */
+  get inputZone(): Phaser.GameObjects.Zone | null {
+    return this.zone;
+  }
+
   /** Feed a pointer position for foil reactivity; card-relative -1..1. */
   setHoloPointer(worldX: number, worldY: number): void {
     if (!this.holo) return;
@@ -749,6 +760,14 @@ export class CardView extends Phaser.GameObjects.Container {
       Phaser.Math.Clamp(local.x / (CARD_W / 2), -1.5, 1.5),
       Phaser.Math.Clamp(local.y / (CARD_H / 2), -1.5, 1.5),
     );
+  }
+
+  /** Grey the art before a Collection release; the card is then removed by its scene ritual. */
+  desaturateArtForRelease(): void {
+    if (!this.art.active) return;
+    // A neutral multiply tint is canvas-safe and keeps the art legible as it
+    // leaves. WebGL's alpha-mask wipe supplies the finer dissolve edge.
+    this.art.setTint(0xaaaaaa).setAlpha(0.78);
   }
 
   setTapped(tapped: boolean, animate = true): void {

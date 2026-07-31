@@ -9,10 +9,11 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..18, unique). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-18 Hard (9-10 are the Ragnarök bosses,
+ * Gauntlet ordering is by `tier` (1..20, unique). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-20 Hard (9-10 are the Ragnarök bosses,
  * 11-12 are the Celtic Fae bosses, 13-14 are the Arthurian Court pair, and
- * 15-16 are the Gothic Monsters pair, and 17-18 are the Dark Tales summit pair).
+ * 15-16 are the Gothic Monsters pair, 17-18 are the Dark Tales summit pair,
+ * and 19-20 are the Yokai Nights summit pair).
  */
 export interface Avatar {
   id: string;
@@ -20,7 +21,7 @@ export interface Avatar {
   title: string;
   blurb: string;
   theme: string;
-  tier: number; // 1..18 (unique)
+  tier: number; // 1..20 (unique)
   difficulty: Difficulty;
   deck: string[]; // 60 real cardIds
   personality: Personality;
@@ -233,6 +234,39 @@ export interface Avatar {
  * Dead substitution, and 77% after restoring the artifact finisher and adding
  * Divination. The final Black-Veil variant keeps the strongest measured spread.
  *
+ * Post-AI-fix W1 tuning history, 2026-07-29, retained floor >= 73%:
+ * the restored control list measured 55/78/48/90/80, avg 70%, at 40 seeds/cell.
+ * Scoped probes included Stormglass Golem -> Moon-Doll Orchestra (70/70/55/65/40,
+ * avg 60%, 20 seeds), Stormtower Resurrection -> Midnight Autopsy (55/90/65/65/75,
+ * avg 70%, then 50/83/57/73/73, avg 67%, at 40 seeds), and Black-Veil Matron ->
+ * Velvet Coffin (35/85/55/75/45, avg 59%, 20 seeds). The best scoped candidate,
+ * Black-Veil Matron -> Ravenloft Heiress, measured 55/85/65/95/60, avg 72%, at
+ * 20 seeds and 53/80/60/95/70, avg 72%, at 40 seeds, still below the floor.
+ * The Heiress plus Manor Thrall package measured 64% at 20 seeds; Heiress plus
+ * Blood-Opera Soloist measured 67% at 20 seeds. A removalBias -1.25 probe measured
+ * 68% at 40 seeds; aggression 1.4 on the best list tied 72% at 20 seeds. All
+ * candidates were rejected. Early broad text replacements that could match
+ * duplicate Carmilla card ids were excluded from attribution and fully restored.
+ * The original list and personality remain shipped; the floor was not lowered.
+ *
+ * Revision-4 W1 repair, 2026-07-30, after the W0 AI fixes: clean control was
+ * 67/72/45/87/72 at 60 seeds/cell (avg 68%) and 61/73/48/73/66 at 200
+ * seeds/cell (avg 64%). Replay inspection identified Burning Tides as the
+ * inverted cell: its four Undertow copies were now correctly classified as
+ * recall by the starter's Medium AI, which repeatedly returned Bride bodies.
+ * Candidate 1, replacing four Batcloak Cutthroats with four Broken Mirrors,
+ * measured 48/65/33/50/57 at 60 seeds (avg 51%) and was rejected for gutting
+ * every control cell. Candidate 2, replacing four Batcloaks with four Ravenloft
+ * Heiresses, measured 65/75/48/88/70 at 60 seeds (avg 69%) and 60/73/50/75/66
+ * at 200 seeds (avg 64%); it was rejected in favor of the stronger targeted
+ * swap. Candidate 3, replacing four Black-Veil Matrons with four Ravenloft
+ * Heiresses, measured 63/75/57/92/63 at 60 seeds (avg 70%) and 59/78/56/78/60
+ * at 200 seeds (avg 66%). It is retained: the inverted Tides cell recovered
+ * eight points from control without a new near-hopeless cell, though the old
+ * 73% floor remains unmeetable at this honest sample and is re-centred in W7.
+ * Candidate 4, replacing four Batcloaks with four Blood-Opera Soloists,
+ * measured 58/72/45/75/70 at 60 seeds (avg 64%) and was rejected.
+ *
  * Rungs 17-18 — the Dark Tales summit pair, measured 2026-07-24 at 40
  * seeds/cell with the full `--avatars` matrix. Every cell below had 40 decided
  * games and zero draws:
@@ -255,6 +289,40 @@ export interface Avatar {
  * measured 78%; and the final six-threat shell with an 8/12 basic-land split,
  * one-of Skim cards, and Undersea Bargain measured 87%. Each result above used
  * 40 seeds/cell; the final rows are from the standard full `--avatars` protocol.
+ *
+ * Rungs 19-20 - the Yokai Nights summit pair. These began as the approved B1
+ * starting lists; the dated 40-seed calibration history is recorded below
+ * after each matrix iteration, with failures retained. Iteration 1 (approved
+ * B1 starters, 2026-07-29, 40 seeds/cell): R19 85/60/68/60/73, avg 69%; R20
+ * 65/63/50/70/83, avg 66%. Failure: R19 did not clear the R18 neighborhood
+ * and R20 inverted below R19, so neither list was accepted.
+ * Iteration 2 (low-curve R19 and low-curve R20, 2026-07-29, 40 seeds/cell):
+ * R19 75/45/53/80/78, avg 66%; R20 57/73/55/75/83, avg 69%. Failure: the
+ * R19 control cells fell further and R20 still did not clear R19.
+ * Iteration 3 (anthem/evasion R19 and proven burn-tempo R20, 2026-07-29,
+ * 40 seeds/cell): R19 83/60/53/73/73, avg 68%; R20 75/73/60/75/90, avg 75%.
+ * Partial failure: the pressure climb was restored, but R19 still did not
+ * clear the R18 neighborhood.
+ * Iteration 4 (base Kitsune resilience experiment, 2026-07-29, 40
+ * seeds/cell): R19 73/45/60/75/55, avg 62%; R20 stayed 75%. Failure: the
+ * alternate R19 bodies lost too much board pressure and attrition resilience.
+ * Iteration 5 (broad-target recall and Foresee experiment, 2026-07-29, 40
+ * seeds/cell): R19 60/68/50/73/68, avg 64%; R20 stayed 75%. Failure: the
+ * extra card-selection value did not solve R19's low Tides and Muster cells.
+ * Iteration 6 (expensive counter/draw experiment, 2026-07-29, 40 seeds/cell):
+ * R19 73/50/48/70/63, avg 61%; R20 stayed 75%. Failure: the slower answers
+ * were worse across the tempo cells.
+ * Iteration 7 (efficient-control final candidate, 2026-07-29, 40 seeds/cell):
+ * R19 88/70/68/63/68, avg 71%; R20 75/73/60/75/90, avg 75%. Every cell had
+ * 40 decided games and zero draws. Provisional floors are R19 >= 66% and
+ * R20 >= 70%, five percentage points below these point estimates. R20 clears
+ * R19 as intended; honest residual: R19 remains 16pp below R18's 87% row,
+ * so the requested R18-neighborhood climb is not claimed before the end-of-set
+ * re-baseline.
+ * Iteration 8 (R19 defensive-personality probe, 2026-07-29, 40 seeds/cell):
+ * R19 90/65/68/60/73, avg 71%; R20 stayed 75%. Neutral tie with Iteration 7,
+ * so the extra knobs were reverted and the simpler list-only candidate remains
+ * shipped.
  *
  * 2026-07-20 - 1.3 prefab tuning pass (user-approved slate) on the 518
  * pool, measured `--prefabs --ai hard --seeds 300` (10,800 games,
@@ -308,6 +376,63 @@ export interface Avatar {
  * not close. The only Dark Tales creature sweeper was narrowly recosted from
  * 5B to 4B; it was not retained in Midnight because the 60-seed probe fell
  * from 34.3% to 33.3% when two copies replaced Judgment of Heaven.
+ *
+ * ========================================================================
+ * 2026-07-31 - W7 COMBINED RE-BASELINE (the 1.5 balance pass's closing
+ * measurement; THE calibration tables until the next pass). Field: pool 787
+ * / Base 209, cap-4 blockers, the two new common sweepers, 21 tapland ETB
+ * riders, tribal lords (W5), the Neon Afterimage rebuild, and the W0 AI
+ * fixes. Full `--avatars` at 200 seeds/cell (5x sample vs every prior
+ * table):
+ *
+ *                              Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R1  Meng Huo      [easy]     41%      28%      26%     28%      30%   | 30%
+ *   R2  Hestia        [easy]     30%      12%      10%     31%      16%   | 19%
+ *   R3  Lupa          [easy]     15%       9%      26%     41%      33%   | 25%
+ *   R4  Hera          [med]      35%      37%      45%     56%      44%   | 43%
+ *   R5  Zhurong       [med]      53%      61%      48%     53%      70%   | 57%
+ *   R6  Sima Yi       [med]      70%      67%      49%     55%      48%   | 58%
+ *   R7  Yohime        [hard]     65%      81%      67%     71%      69%   | 70%
+ *   R8  Cao Cao       [hard]     62%      89%      67%     81%      61%   | 72%
+ *   R9  Hel           [hard]     56%      82%      63%     74%      45%   | 64%
+ *   R10 Brunhild      [hard]     79%      78%      64%     84%      90%   | 79%
+ *   R11 The Morrigan  [hard]     77%      82%      59%     82%      87%   | 77%
+ *   R12 Titania       [hard]     67%      92%      77%     80%      53%   | 74%
+ *   R13 Morgan        [hard]     46%      84%      51%     75%      62%   | 63%
+ *   R14 Artoria       [hard]     56%      84%      57%     60%      61%   | 63%
+ *   R15 Carmilla      [hard]     76%      80%      50%     77%      88%   | 74%
+ *   R16 The Bride     [hard]     59%      78%      56%     81%      60%   | 67%
+ *   R17 Glass-Coffin  [hard]     74%      85%      64%     84%      79%   | 77%
+ *   R18 Songstress    [hard]     84%      91%      67%     88%      92%   | 84%
+ *   R19 Lanterned Roof[hard]     66%      73%      47%     61%      64%   | 62%
+ *   R20 Neon Tyrant   [hard]     68%      73%      55%     77%      84%   | 71%
+ *
+ * Floors re-centred DOWN from this table (user-authorized one-time
+ * override of ratchet-up, same rationale as the economy bands): every
+ * rewritten floor = the 200-seed average minus a 6.5pp 40-seed noise band
+ * (winrate.test.ts + RUNG_BANDS). The Bride's tuning history CLOSES at
+ * 67%: the W1 repair fixed the Tides matchup inversion the AI fixes
+ * caused, and her dead 73% floor (set 4pp under a 40-seed estimate whose
+ * noise band is ~6pp) is re-centred to 60.5%, not chased. Yohime's rung-7
+ * row is re-stamped at 70% (the W4.5 Dreamveil Kitsune buff lifted her
+ * from the 66% 2026-07-17 row). Honest residuals: R19 measures 62%, a
+ * 22pp inversion below R18's 84% summit - the Yokai pair plays a control
+ * shell into a field that now carries answers, and closing it needs
+ * in-color tools from a future set (recorded, not chased); R2 Hestia at
+ * 19% keeps the known easy-rung inversion vs R1.
+ *
+ * Prefab round-robin at 300 seeds/cell (16,500 games, cap-4 field):
+ * Neon 59.8%, Crimson 59.4%, Burning 58.3%, Bloodmoon 58.3%, Grave 49.5%,
+ * Shadow 47.8%, Valhalla 46.9%, Wild 45.7%, Questing 45.6%, Glimmer 45.4%,
+ * Midnight Storybook 33.3%. Ten of eleven inside the rough 45-60 target;
+ * Crimson's reign is broken (cap-4 + sweepers), Neon's rebuild holds at
+ * the top without a runaway, Midnight remains the honest miss (W2 closed
+ * it as such; its 29.9% like-for-like control history lives at its list).
+ *
+ * Floor matrix at 80 seeds/cell, FLAGS none: F1-F20 averages 25.3, 20.5,
+ * 23.5, 29.0, 34.7, 28.9, 34.0, 35.3, 36.0, 46.0, 53.0, 50.3, 61.3, 58.1,
+ * 56.0, 68.5, 70.8, 72.0, 68.2, 70.6 - a clean T6 plateau across F16-F20
+ * confirms floors 19-20 stay tier 6 (stamped in src/ai/tiers.ts).
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------
@@ -857,7 +982,7 @@ export const AVATARS: readonly Avatar[] = [
       ['so-divination', 4],
       ['gm-stitchwork-guardian', 4],
       ['gm-stormglass-golem', 4],
-      ['gm-black-veil-matron', 4],
+      ['gm-ravenloft-heiress', 4],
       ['gm-batcloak-cutthroat', 4],
       ['in-doom-bolt', 4],
       ['in-undertow', 4],
@@ -949,6 +1074,80 @@ export const AVATARS: readonly Avatar[] = [
       ['dt-mirror-apple-curse', 1],
     ]),
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 19 - Queen of the Lanterned Roof: W/U Kitsune Hauntlink tempo-control. (Hard · Yokai Nights summit)
+  {
+    id: 'queen-of-the-lanterned-roof',
+    name: 'Queen of the Lanterned Roof',
+    title: 'The Lanterned Roof',
+    blurb: 'From the highest roof in the city, the Queen turns every return into a delay. Her Kitsune keep the skyline safe while linked lanterns and careful answers make the next turn belong to her.',
+    theme: 'White-Blue Kitsune Hauntlink Tempo-Control',
+    tier: 19,
+    difficulty: 'hard',
+    portraitCardId: 'yn-queen-of-the-lanterned-roof',
+    personality: makePersonality({
+      aggression: 1.25,
+      holdback: 1,
+      attackThreshold: -0.2,
+      removalBias: -0.5,
+      subtypeBias: 1.5,
+      preferredSubtypes: ['Kitsune'],
+    }),
+    deck: expand([
+      ['land-plains', 10],
+      ['land-island', 10],
+      ['ld-misty-palace-terrace', 4],
+      ['yn-queen-of-the-lanterned-roof', 4],
+      ['yn-lantern-court-regent', 4],
+      ['yn-white-lantern-vanguard', 4],
+      ['yn-bluewire-illusionist', 4],
+      ['yn-moonlit-data-duelist', 4],
+      ['yn-hauntlink-signal-lure', 4],
+      ['yn-sanctum-of-many-masks', 2],
+      ['yn-bastion-lantern', 2],
+      ['dt-sea-glass-knife', 4],
+      ['yn-signal-bridge', 2],
+      ['yn-circuit-foretelling', 2],
+    ]),
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 20 - Kitsune Neon Tyrant: U/R Hauntlink pressure. (Hard · Yokai Nights summit)
+  {
+    id: 'kitsune-neon-tyrant',
+    name: 'Kitsune Neon Tyrant',
+    title: 'The Skyline Belongs to Her',
+    blurb: 'The Tyrant does not wait for the city to choose a winner. Warcry runners hit first, linked spirits own the air, and every burn spell turns a narrow lead into a closing siren.',
+    theme: 'Blue-Red Kitsune Hauntlink Pressure',
+    tier: 20,
+    difficulty: 'hard',
+    portraitCardId: 'yn-kitsune-neon-tyrant',
+    personality: makePersonality({
+      aggression: 1.45,
+      holdback: 0.75,
+      attackThreshold: -0.6,
+      removalBias: 0.25,
+      subtypeBias: 1.25,
+      preferredSubtypes: ['Kitsune'],
+    }),
+    deck: expand([
+      ['land-island', 10],
+      ['land-mountain', 10],
+      ['ld-red-cliffs-anchorage', 4],
+      ['yn-kitsune-neon-tyrant', 4],
+      ['yn-redline-queenpin', 4],
+      ['yn-redline-kitsune', 4],
+      ['yn-magenta-kitsune-runner', 4],
+      ['yn-network-sprite', 3],
+      ['bk-harpy-skirmisher', 3],
+      ['yn-hauntlink-apex', 2],
+      ['yn-burning-mask-of-the-void', 2],
+      ['yn-ember-link-chain', 2],
+      ['in-fire-attack', 4],
+      ['in-undertow', 4],
+    ]),
+  },
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -958,7 +1157,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..18). */
+/** The avatar at a 1-based gauntlet rung (1..20). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);

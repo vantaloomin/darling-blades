@@ -23,6 +23,18 @@ public/assets/art/cards-half/
 # ── Local-only balance workbench (card reference + power analysis; never committed) ─
 balance/
 scripts/card-reference.ts
+# The Blades card DB and its health detectors (dupes/dominated/inert/curve/health).
+# Reads our own CardDef data rather than oracle text. Rebuild with:
+#   npx tsx scripts/blades-db.ts build
+scripts/blades-db.ts
+# The card health pass contract, which quotes the gitignored workbench paths above.
+docs/plan-card-health-pass.md
+# Session handoffs and the premium-UX ideation set: local-only working docs that
+# quote worktree paths, Codex task ids, and internal design deliberations.
+docs/handoff-1-5-close.md
+docs/plan-premium-ux.md
+docs/plan-premium-ux-opus-lane.md
+docs/plan-premium-ux-sol-lane.md
 
 # ── Local MTG reference workbench (never committed) ───────────────────────
 # The corpus itself: third-party card data + a derived SQLite file. Large,

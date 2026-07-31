@@ -173,6 +173,14 @@ const isCelticFae = (card: CardDef): boolean => card.set === 'celtic-fae';
 const isArthurianCourt = (card: CardDef): boolean => card.set === 'arthurian-court';
 const isGothicMonsters = (card: CardDef): boolean => card.set === 'gothic-monsters';
 const isDarkTales = (card: CardDef): boolean => card.set === 'dark-tales';
+const isYokaiNights = (card: CardDef): boolean => (card.set as string) === 'yokai-nights';
+const YOKAI_NIGHTS_UR = [
+  'yn-queen-of-the-lanterned-roof',
+  'yn-hauntlink-apex',
+  'yn-oni-of-the-last-exit',
+  'yn-kitsune-neon-tyrant',
+  'yn-rain-circuit-sovereign',
+] as const;
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
@@ -696,6 +704,74 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     reward: { gold: 400 },
     progress: (save, db) => themedCollectionProgress(save, db, (card) => isDarkTales(card) && card.keywords?.includes('bloodoath') === true),
   },
+  // Yokai Nights (1.5), schema-free and derived from the live 120-card pool.
+  {
+    id: 'theme-yokai-nights-first-contact',
+    bucket: 'theme',
+    title: 'First Contact',
+    description: 'Own 1 Yokai Nights card.',
+    reward: { gold: 100 },
+    progress: (save, db) => themedCollectionProgress(save, db, isYokaiNights, 1 / 120),
+  },
+  {
+    id: 'theme-yokai-nights-30',
+    bucket: 'theme',
+    title: 'Neon Regular',
+    description: 'Own 30 unique Yokai Nights cards.',
+    reward: { gold: 200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isYokaiNights, 0.25),
+  },
+  {
+    id: 'theme-yokai-nights-60',
+    bucket: 'theme',
+    title: 'Night Market Insider',
+    description: 'Own 60 unique Yokai Nights cards.',
+    reward: { gold: 400 },
+    progress: (save, db) => themedCollectionProgress(save, db, isYokaiNights, 0.5),
+  },
+  {
+    id: 'theme-yokai-nights-complete',
+    bucket: 'theme',
+    title: 'City Possessed',
+    description: 'Own all 120 unique Yokai Nights cards.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themedCollectionProgress(save, db, isYokaiNights),
+  },
+  {
+    id: 'theme-yokai-nights-hauntlink',
+    bucket: 'theme',
+    title: 'Thirteen Voices',
+    description: 'Own all 13 Hauntlink cards in the set.',
+    reward: { gold: 450 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isYokaiNights(card) && card.hauntlink !== undefined),
+  },
+  {
+    id: 'theme-yokai-nights-ur',
+    bucket: 'theme',
+    title: 'Five Crowns at Dawn',
+    description: 'Own all 5 Yokai Nights UR cards.',
+    reward: { gold: 600 },
+    progress: (save, db) => themeProgress(save, YOKAI_NIGHTS_UR, db),
+  },
+  {
+    id: 'theme-yokai-nights-rainbow',
+    bucket: 'theme',
+    title: 'Prismatic Rain',
+    description: 'Own 10 unique Yokai Nights cards with a rainbow frame.',
+    reward: { gold: 500 },
+    progress: (save, db) => {
+      const ids = themeCards(db, isYokaiNights).map((card) => card.id);
+      return { current: themeVariantCount(save, ids, isRainbowBorder), target: 10 };
+    },
+  },
+  {
+    id: 'theme-yokai-nights-perfect-possession',
+    bucket: 'theme',
+    title: 'Perfect Possession',
+    description: 'Own a void-finish Hauntlink Apex.',
+    reward: { gold: 750 },
+    progress: (save, db) => themeVariantProgress(save, ['yn-hauntlink-apex'], db, (variant) => variant.holo === 'void'),
+  },
   {
     id: 'first-win',
     bucket: 'mastery',
@@ -847,8 +923,8 @@ export function evaluateAchievements(save: SaveData, db: CardDb): AchievementSta
 
 /**
  * Recompute satisfied achievements from durable save + card-db state. This is
- * called by UI entry points rather than persisted as incremental counters, so
- * imported or migrated saves recover their unlocks without drift.
+ * called at durable UI mutation checkpoints rather than persisted as
+ * incremental counters, so every feature evaluates the same saved state.
  */
 export function syncAchievements(save: SaveData, db: CardDb): string[] {
   save.achievements.unlocked = uniqueKnown(save.achievements.unlocked);

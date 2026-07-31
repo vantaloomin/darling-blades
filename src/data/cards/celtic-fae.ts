@@ -59,7 +59,7 @@ export const CELTIC_FAE = [
   }),
   {
     id: 'cf-balor-evil-eye', name: "Balor's Evil Eye", types: ['ritual'], subtypes: [],
-    supertypes: ['legendary'], cost: cost(1, 'BR'), colors: ['B', 'R'],
+    supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 5, to: 'target' }, { op: 'severGrave', n: 1, who: 'opponent' }] }],
     rarity: 'ssr', flavor: 'Do not meet its gaze. Do not survive its attention.',
   },
@@ -203,8 +203,8 @@ export const CELTIC_FAE = [
   },
   {
     id: 'cf-lake-mirror-vow', name: 'Lake-Mirror Vow', types: ['enchantment'], subtypes: [],
-    cost: cost(0, 'U'), colors: ['U'],
-    abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 2 }] }],
+    cost: cost(2, 'U'), colors: ['U'],
+    abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'Swear to your reflection. It has a better memory than you do.',
   },
   {
@@ -225,6 +225,11 @@ export const CELTIC_FAE = [
   fae('cf-green-knoll-champion', 'Green Knoll Champion', 'Knight', {
     cost: cost(2, 'GG'), colors: ['G'], attack: 4, defense: 4,
     keywords: ['sentinel', 'overrun'], rarity: 'r', flavor: 'She guards the hill because the hill once chose her.',
+  }),
+  fae('cf-moundlight-midwife', 'Moundlight Midwife', 'Adept', {
+    cost: cost(3, 'G'), colors: ['G'], attack: 2, defense: 3,
+    abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-bloom', count: 2 }] }],
+    rarity: 'r', flavor: "She calls the court's youngest guests from the dark beneath the roots.",
   }),
   {
     id: 'cf-moonlit-barrow', name: 'Moonlit Barrow', types: ['land'], subtypes: [], colors: [],
@@ -279,7 +284,7 @@ export const CELTIC_FAE = [
     cost: cost(1, 'G'), colors: ['G'], attack: 1, defense: 4, keywords: ['bulwark'],
     rarity: 'c', flavor: 'Step inside the ring. Please. We insist.',
   }),
-  fae('cf-willow-wisp-guide', 'Willow-Wisp Guide', 'Wisp', {
+  fae('cf-willow-wisp-guide', 'Willow-Wisp Guide', 'Spirit', {
     cost: cost(2, 'G'), colors: ['G'], attack: 1, defense: 3, manaAbility: ['G'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }], rarity: 'c', flavor: 'It knows the safe road. It prefers the interesting one.',
   }),
@@ -297,7 +302,14 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'It walks one street ahead of every bad decision.',
   }),
   fae('cf-heatherblade-scout', 'Heatherblade Scout', 'Scout', {
-    cost: cost(1, 'G'), colors: ['G'], attack: 3, defense: 2, keywords: ['overrun'],
+    // W3 minimal trim (2026-07-30): 3/2 -> 2/2. The declared curve policy
+    // (adding-cards.md) keeps modern vanilla bodies but discounts the body
+    // for text; a 1-mana 3/2 WITH Overrun at common was the concentrated
+    // Silver Veil outlier class the audit named, and this card is 3x in the
+    // retained go-wide artifact that survived an answered field at 76.2%.
+    // One lever, measured before and after; the artifact re-check dates the
+    // result in the W3 close-out commit.
+    cost: cost(1, 'G'), colors: ['G'], attack: 2, defense: 2, keywords: ['overrun'],
     rarity: 'c', flavor: 'The heather bends for her. It does not for you.',
   }),
   fae('cf-torclight-envoy', 'Torclight Envoy', 'Diplomat', {
@@ -341,14 +353,17 @@ export const CELTIC_FAE = [
   },
   {
     id: 'cf-mist-road', name: 'Mist Road', types: ['land'], subtypes: [], colors: [], manaAbility: ['U'], entersTapped: true,
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'It appears when you need a shortcut and disappears when you need one home.',
   },
   {
     id: 'cf-mossy-ring', name: 'Mossy Ring', types: ['land'], subtypes: [], colors: [], manaAbility: ['G'], entersTapped: true,
+    abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'c', flavor: 'The moss grows in a circle because the circle asked nicely.',
   },
   {
     id: 'cf-raven-stone', name: 'Raven Stone', types: ['land'], subtypes: [], colors: [], manaAbility: ['B'], entersTapped: true,
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'Leave an offering. The raven will tell you whether it was enough.',
   },
   {
@@ -400,6 +415,14 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'Stand beneath the oak. It has outlasted worse kings.',
   },
   {
+    // Left as a Charm on purpose. The design table wants an Artifact that taps
+    // a creature, which this engine cannot express: artifacts have no activated
+    // or targeted abilities, and a 1-mana blue instant tapper is a 2017 rate.
+    // Every target-free artifact effect cheap enough for {U} collides with a
+    // shipped card (Quest Marker {1} and Moonwire Mask {1}{U} both do
+    // arrives-Foresee-1), and converting it adds an inert permanent, which
+    // works against the Hauntlink substrate plan. Its duplication of
+    // Glimmerdust Trick is a design call, not a mechanical one.
     id: 'cf-fogbell-chime', name: 'Fogbell Chime', types: ['charm'], subtypes: [], cost: cost(0, 'U'), colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'One note, and the road forgets which way is forward.',

@@ -20,6 +20,7 @@ import { IS_DEV } from '../platform/env';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
+import { Toast } from '../ui/Toast';
 import { goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL } from '../version';
 
@@ -46,6 +47,7 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     this.menuItems = [];
     this.guard = new ModalGuard();
+    new Toast(this, { modalGuard: this.guard });
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
@@ -75,6 +77,10 @@ export class MainMenuScene extends Phaser.Scene {
     Music.setMood('menu');
 
     const save = Services.save.data;
+    // Recovery sync, kept alongside the A1 mutation checkpoints: imported
+    // save codes, migrations, and dev grants mutate the save outside any
+    // checkpoint, and claiming validates against the persisted unlocked
+    // list. No toast here — recovered unlocks are old news, not fresh events.
     if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const today = todayString();
     if (ensureDailyState(save, today)) Services.save.flush();
@@ -105,8 +111,11 @@ export class MainMenuScene extends Phaser.Scene {
     // Profile entry: top-left corner, balancing the top-right gold+gear cluster.
     // Like the gear, it lives in the corner because the 8-row menu list is full;
     // joins menuItems so the starter-picker ModalGuard disables it too.
-    const profile = themedButton(this, 90, 30, '👤 Profile', {
-      variant: 'ghost', size: 'sm', minWidth: 120, onTap: () => this.scene.start('Profile'),
+    // The three learning-corner buttons share a centre and a width so the
+    // cluster reads as one column; Profile was 120 wide at x 90 against the
+    // other two at 150 wide and x 100, so it sat narrower and 5px left.
+    const profile = themedButton(this, 100, 30, '👤 Profile', {
+      variant: 'ghost', size: 'sm', minWidth: 150, onTap: () => this.scene.start('Profile'),
     });
     this.menuItems.push(profile.inputZone);
 

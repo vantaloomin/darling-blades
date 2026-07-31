@@ -15,7 +15,8 @@ import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { Toast } from '../ui/Toast';
+import { backButton, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
  * The Avatar Gauntlet tower. A count-aware right-rail ladder (cleared ✓ /
@@ -89,6 +90,7 @@ export class GauntletScene extends Phaser.Scene {
     });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('gauntlet');
+    new Toast(this);
 
     this.add
       .text(width / 2, 46, 'Avatar Gauntlet', {
@@ -109,7 +111,8 @@ export class GauntletScene extends Phaser.Scene {
     this.buildPanel();
     this.buildSeedBar();
 
-    backButton(this, () => this.scene.start('Play'));
+    backButton(this, 'Play', () => this.scene.start('Play'));
+    registerSceneBackNavigation(this, () => this.scene.start('Play'));
   }
 
   // ---------------------------------------------------------------------

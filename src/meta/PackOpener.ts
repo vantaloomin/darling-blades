@@ -14,6 +14,9 @@ export function packPool(db: CardDb, tier: Rarity, set?: CardDef['set']): string
         d.rarity === tier &&
         !d.token &&
         !d.supertypes?.includes('basic') &&
+        // Undefined remains the mixed-set pool for Limited/economy callers.
+        // Shop SKUs pass an explicit set, including 'base', so the Base Set
+        // booster does not silently widen back to the whole catalog.
         (set === undefined || (d.set ?? 'base') === set) &&
         (d.cost !== undefined || isType(d, 'land')), // duals allowed, basics excluded above
     )

@@ -60,7 +60,7 @@ export interface TargetSpec {
 }
 
 export type EffectOp =
-  | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller' }
+  | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller' | 'eachCreature' }
   | { op: 'gainLife'; n: number }
   | { op: 'loseLife'; n: number; who: 'opponent' }
   | { op: 'draw'; n: number }
@@ -75,7 +75,7 @@ export type EffectOp =
       to: 'target';
     } // branch is artifact-first; otherwise an enchantment is severed
   | { op: 'cancel'; to: 'target' } // target is a stack item
-  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' }
+  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' | 'all' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
   | { op: 'fetchLand' } // a basic land from deck → battlefield tapped
@@ -135,6 +135,17 @@ export interface RetellDef {
   ops?: EffectOp[];
 }
 
+/** Alternate linked cast for a noncreature Artifact or Enchantment. */
+export interface HauntlinkDef {
+  cost: ManaCost;
+  /** The printed Linked rider, applied as an attached static to the host. */
+  linked: {
+    p?: number;
+    t?: number;
+    grantKeywords?: Keyword[];
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Card definitions (static data). The engine receives a CardDb via the Game
 // constructor — it never imports the catalog, so tests can inject tiny pools.
@@ -163,18 +174,47 @@ export interface CardDef {
   skim?: SkimDef;
   /** Optional alternative-cost cast from this card's graveyard. */
   retell?: RetellDef;
+  /** Optional alternative-cost cast that enters attached to a friendly creature. */
+  hauntlink?: HauntlinkDef;
   manaAbility?: Color[]; // lands & mana creatures
   entersTapped?: boolean; // dual taplands
   rarity: Rarity;
   flavor?: string;
   artRef?: string;
   token?: boolean; // non-collectible
-  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
+  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
 }
 
 export type CardDb = Readonly<Record<string, CardDef>>;
 
-export function def(db: CardDb, cardId: string): CardDef {
+/**
+ * Physical identity for one copy of a card. `cardId` is the only rules
+ * identity; `variantKey` is opaque presentation metadata and is never read by
+ * the rules or AI layers.
+ */
+export interface CardInstance {
+  instanceId: number;
+  cardId: string;
+  variantKey: string | null;
+}
+
+/** Compatibility inputs accepted by the engine boundary. */
+export type CardEntry = string | CardInstance;
+
+export function cardIdOf(card: CardEntry): string {
+  return typeof card === 'string' ? card : card.cardId;
+}
+
+export function isCardInstance(card: CardEntry): card is CardInstance {
+  return typeof card !== 'string';
+}
+
+export function variantKeyOf(card: CardEntry): string | null {
+  return typeof card === 'string' ? null : card.variantKey;
+}
+
+export function def(db: CardDb, card: CardEntry): CardDef {
+  const cardId = cardIdOf(card);
   const d = db[cardId];
   if (!d) throw new Error(`Unknown card id: ${cardId}`);
   return d;
@@ -182,6 +222,33 @@ export function def(db: CardDb, cardId: string): CardDef {
 
 export function isType(d: CardDef, t: CardType): boolean {
   return d.types.includes(t);
+}
+
+/** Catalog-facing S4 validation. Invalid carriers are never silently treated as Hauntlink cards. */
+export function validateHauntlinkDef(d: CardDef): string[] {
+  if (!d.hauntlink) return [];
+  const errors: string[] = [];
+  if (!d.cost) errors.push('Hauntlink carrier needs a normal mana cost');
+  if (isType(d, 'creature')) errors.push('Hauntlink carrier cannot be a creature');
+  if (!isType(d, 'artifact') && !isType(d, 'enchantment')) {
+    errors.push('Hauntlink carrier must be an Artifact or Enchantment');
+  }
+  if (d.subtypes.includes('Aura')) errors.push('Hauntlink carrier cannot be an Aura');
+  if (d.x) errors.push('Hauntlink carrier cannot be X');
+  if (d.empower) errors.push('Hauntlink carrier cannot combine with Empower');
+  if (d.skim) errors.push('Hauntlink carrier cannot combine with Skim');
+  if (d.retell) errors.push('Hauntlink carrier cannot combine with Retell');
+  if ((d.abilities ?? []).some((ability) => ability.static?.scope === 'attached')) {
+    errors.push('Hauntlink carrier cannot also carry an attached static');
+  }
+  if (
+    d.hauntlink.linked.p === undefined &&
+    d.hauntlink.linked.t === undefined &&
+    (d.hauntlink.linked.grantKeywords?.length ?? 0) === 0
+  ) {
+    errors.push('Hauntlink carrier needs a Linked rider');
+  }
+  return errors;
 }
 
 export function manaValue(cost: ManaCost | undefined): number {
@@ -204,15 +271,19 @@ export interface UntilEotMod {
 
 export interface Permanent {
   iid: number;
+  /** Physical card identity; present on all Game-created permanents. */
+  instanceId?: number;
   cardId: string;
+  /** Opaque presentation metadata; never used by rules. */
+  variantKey?: string | null;
   owner: PlayerId;
   controller: PlayerId;
   tapped: boolean;
   enteredThisTurn: boolean; // summoning sickness, checked vs haste on read
   damage: number; // marked damage, cleared at cleanup
   deathtouched: boolean; // took damage from a deathtouch source this turn
-  attachments: number[]; // aura iids attached to me
-  attachedTo?: number; // set if I am an aura
+  attachments: number[]; // aura/Hauntlink iids attached to me
+  attachedTo?: number; // set if I am an attached aura or Hauntlink permanent
   plusOneCounters: number;
   untilEotMods: UntilEotMod[];
   /** Current chapter number. Arrival enters I; each later controller dawn increments it. */
@@ -223,7 +294,11 @@ export interface Permanent {
 
 export interface StackItem {
   sid: number;
+  /** Physical card identity; present on all Game-created stack items. */
+  instanceId?: number;
   cardId: string;
+  /** Opaque presentation metadata; never used by rules. */
+  variantKey?: string | null;
   controller: PlayerId;
   targets: TargetRef[];
   x?: number;
@@ -231,6 +306,8 @@ export interface StackItem {
   empowered?: boolean;
   /** Omitted means the card was cast from hand. */
   retell?: boolean;
+  /** Omitted means the ordinary cast; true means pay Hauntlink and attach. */
+  hauntlinked?: boolean;
 }
 
 export type TargetRef =
@@ -262,7 +339,7 @@ export type Awaiting =
   | { player: PlayerId; kind: 'mulligan' }
   | { player: PlayerId; kind: 'bottomCards'; count: number }
   // `cards` are top-first. They are redacted to [] in an opponent PlayerView.
-  | { player: PlayerId; kind: 'foresee'; cards: string[] }
+  | { player: PlayerId; kind: 'foresee'; cards: CardEntry[] }
   | { player: PlayerId; kind: 'main' } // main1 or main2 (see state.step)
   | { player: PlayerId; kind: 'declareAttackers' }
   | { player: PlayerId; kind: 'declareBlockers' }
@@ -281,10 +358,12 @@ export type Awaiting =
 
 export interface PlayerState {
   life: number;
-  deck: string[]; // the draw pile (cardIds; LAST element is the top). Distinct from the meta-layer SaveData.decks (built decklists).
-  hand: string[];
-  graveyard: string[];
-  severed: string[]; // public, one-way in v1
+  deck: CardEntry[]; // CardInstances internally; string[] remains a compatibility input for direct fixtures.
+  hand: CardEntry[];
+  graveyard: CardEntry[];
+  severed: CardEntry[]; // public, one-way in v1
+  /** Public ordered reserve. Omitted entirely for classic games. */
+  landReserve?: CardEntry[];
   landPlayedThisTurn: boolean;
   mulligans: number;
   keptHand: boolean;
@@ -313,9 +392,30 @@ export interface GameState {
   // Plain JSON so clone/restore remains exact.
   pendingDecisions: PendingDecision[];
   nextIid: number;
+  /** Next physical-card identity. Optional only for legacy hand-built states. */
+  nextInstanceId?: number;
   nextSid: number;
   winner: PlayerId | 'draw' | null;
   winReason: 'life' | 'deck' | 'concede' | 'turnLimit' | null;
+}
+
+/** The pre-1.5 state projection retained for existing scenes and AI callers. */
+export interface LegacyPlayerState extends Omit<PlayerState, 'deck' | 'hand' | 'graveyard' | 'severed' | 'landReserve'> {
+  deck: string[];
+  hand: string[];
+  graveyard: string[];
+  severed: string[];
+  landReserve?: string[];
+}
+
+export type LegacyAwaiting = Exclude<Awaiting, { kind: 'foresee' }> |
+  { player: PlayerId; kind: 'foresee'; cards: string[] };
+
+export interface LegacyGameState extends Omit<GameState, 'players' | 'awaiting' | 'battlefield' | 'stack'> {
+  players: [LegacyPlayerState, LegacyPlayerState];
+  battlefield: Permanent[];
+  stack: StackItem[];
+  awaiting: LegacyAwaiting;
 }
 
 export function opponentOf(p: PlayerId): PlayerId {

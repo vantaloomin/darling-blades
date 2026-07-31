@@ -43,7 +43,7 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-merlin-crow-clock | Merlin, Crow-Clock Sage | SR | U | Legendary Creature | Merlin analogue | arrives: foresee; dawn if questActive: foresee | Blue setup |
 | ac-excalibur-from-lake | Excalibur From the Lake | SR | C | Legendary Artifact | Sacred sword | static: your Knights +1/+1 and firstBlade | Relic build-around |
 | ac-round-table-vow | Vow of the Round Table | SR | W | Enchantment - Quest | Knightly vow | chapters: createToken Squire / boost allYours / awaken allYours | Tribal Quest |
-| ac-green-knight-challenge | The Green Knight's Challenge | SR | G | Enchantment - Quest | Beheading-game analogue | chapters: damage controller / boost allYours / awaken allYours | Green Quest |
+| ac-green-knight-challenge | The Green Knight's Challenge | SR | G | Enchantment - Quest | Beheading-game analogue | chapters: damage controller / boost allYours / boost allYours +3/+3 with Overrun | Green Quest |
 | ac-mordred-bastard-star | Mordred, Bastard Star | SR | B/R | Legendary Creature | Mordred analogue | overrun, warcry; attacks: damage opponent | Villain midrange |
 | ac-camelot-banneret | Camelot Banneret | R | W | Creature | Court soldier | sentinel; arrives if questActive: createToken Squire | Knight support |
 | ac-lakeblade-initiate | Lakeblade Initiate | R | U | Creature | Lake knight | firstBlade; arrives: foresee | Tempo knight |
@@ -89,7 +89,7 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-tilting-lance | Tilting Lance | C | R | Charm | Joust weapon | boost target (grants firstBlade) | Combat trick |
 | ac-white-horse | White Horse | C | W | Creature | Knight mount | sentinel | Mount-flavored body |
 | ac-riverford-guard | Riverford Guard | C | W | Creature | Border guard | bulwark; arrives: foresee | Control common |
-| ac-wounded-oath | Wounded Oath | C | B | Enchantment - Aura | Cursed vow | attached: -N/-N | Black aura |
+| ac-wounded-oath | Wounded Oath | C | B | Enchantment - Aura | Cursed vow | attached: -3/+0 | Black aura |
 | ac-candlelit-vigil | Candlelit Vigil | C | W | Enchantment | Chapel vigil | dawn: gainLife | Slow value |
 | ac-errant-duelist | Errant Duelist | C | R | Creature | Wandering knight | firstBlade | Red common |
 | ac-grail-glimpse | Grail Glimpse | C | U | Ritual | Vision | foresee 3 | Setup spell |
@@ -97,13 +97,13 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-fallen-banner | Fallen Banner | C | B | Ritual | Battlefield loss | damage target, grind self | Tragedy support |
 | ac-pennant-carrier | Pennant Carrier | C | W | Creature | Banner carrier | static if questActive: your other Knights +1/+0 | Token support |
 | ac-court-archer | Court Archer | C | G | Creature | Archer | wardingGaze | Green common |
-| ac-rallying-horn | Rallying Horn | C | C | Artifact | War horn | arrives: boost allYours +1/+0 (until end of turn) | Utility |
-| ac-prophecy-attendant | Prophecy Attendant | C | U | Creature | Merlin's attendant | arrives: foresee | Blue common |
-| ac-bramble-chapel | Bramble Chapel | C | Land | Land | Ruined chapel | entersTapped, manaAbility G | Common land |
-| ac-lowland-fort | Lowland Fort | C | Land | Land | Border keep | entersTapped, manaAbility W | Common land |
-| ac-red-tournament-ground | Red Tournament Ground | C | Land | Land | Joust field | entersTapped, manaAbility R | Common land |
-| ac-court-of-whispers | Court of Whispers | C | Land | Land | Intrigue court | entersTapped, manaAbility B | Common land |
-| ac-mirror-lake | Mirror Lake | C | Land | Land | Avalon lake | entersTapped, manaAbility U | Common land |
+| ac-rallying-horn | Rallying Horn | C | R | Ritual | War horn | boost allYours +2/+0 (until end of turn) | Utility |
+| ac-prophecy-attendant | Prophecy Attendant | C | U | Creature | Merlin's attendant | arrives if questActive: foresee 2 | Blue common |
+| ac-bramble-chapel | Bramble Chapel | C | Land | Land | Ruined chapel | entersTapped, manaAbility G, arrives: gainLife 1 | Common land |
+| ac-lowland-fort | Lowland Fort | C | Land | Land | Border keep | entersTapped, manaAbility W, arrives: gainLife 1 | Common land |
+| ac-red-tournament-ground | Red Tournament Ground | C | Land | Land | Joust field | entersTapped, manaAbility R, arrives: foresee 1 | Common land |
+| ac-court-of-whispers | Court of Whispers | C | Land | Land | Intrigue court | entersTapped, manaAbility B, arrives: grind self 1 | Common land |
+| ac-mirror-lake | Mirror Lake | C | Land | Land | Avalon lake | entersTapped, manaAbility U, arrives: foresee 1 | Common land |
 | ac-shieldwall-call | Shieldwall Call | C | W | Charm | Defensive formation | boost allYours +0/+N | Team trick |
 | ac-woodland-errand | Woodland Errand | C | G | Ritual | Quest errand | fetchLand | Ramp |
 | ac-treasonous-glance | Treasonous Glance | C | B | Charm | Betrayal | loseLife opponent, foresee | Black trick |

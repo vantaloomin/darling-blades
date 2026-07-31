@@ -133,10 +133,10 @@ function recordCancelledRetell(seed: number): { log: ReplayLog; state: string; e
   return { log, state: JSON.stringify(game.state), events: JSON.stringify(events) };
 }
 
-describe('Dark Tales replay version 2', () => {
+describe('Dark Tales replay version 3', () => {
   it('goldens both Skim and Retell action records through replay', () => {
     const original = recordDarkTales(17);
-    expect(original.log.v).toBe(2);
+    expect(original.log.v).toBe(4);
     expect(original.log.actions.some((step) => step.a.type === 'skim')).toBe(true);
     expect(original.log.actions.some((step) => step.a.type === 'castSpell' && step.a.retell)).toBe(true);
 

@@ -27,12 +27,15 @@ import {
   type CollectionFilterState,
 } from '../meta/collectionFilter';
 import { Services } from '../meta/services';
+import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
 import { finishOdds, formatOdds } from '../meta/pullOdds';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { FilterBar, TIER_TEXT_COLOR } from '../ui/binder/FilterBar';
 import { makeCardThumb } from '../ui/CardThumbCache';
-import { CardView } from '../ui/CardView';
+import { CARD_H, CARD_W, CardView } from '../ui/CardView';
+import { FRAME_TREATMENTS } from '../ui/CardFrameFactory';
+import { fxAvailable, fxPolicy } from '../ui/fx/FXSupport';
 import {
   COLLECTION_SORT_OPTIONS,
   DEFAULT_COLLECTION_SORT,
@@ -43,12 +46,23 @@ import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
+import { clearedPinSummaryCopy } from '../ui/collectionCopy';
+import {
+  SHARD_GOLD_COUNT_UP_MS,
+  shardCountUpValue,
+  shardDissolveDuration,
+  shardHoldDuration,
+  shardMoteCount,
+} from '../ui/shardRitual';
 import { colorInt, theme } from '../ui/theme';
+import { queueAchievementUnlockToasts } from '../ui/achievementToast';
+import { Toast } from '../ui/Toast';
 import {
   backButton,
   goldBadge,
   modalShell,
   pager,
+  registerSceneBackNavigation,
   themedButton,
   type GoldBadge,
   type Pager,
@@ -130,6 +144,8 @@ export class CollectionScene extends Phaser.Scene {
   private inspectDef: CardDef | null = null;
   /** Live holo pointer feed — MUST be unhooked on inspect close. */
   private holoMove: ((p: Phaser.Input.Pointer) => void) | null = null;
+  /** Cancels a release ritual if the inspect card is closed or rebuilt mid-flight. */
+  private inspectRitualCleanup: (() => void) | null = null;
   /** The DOM search <input> — hidden while the inspect overlay is open (DOM
    * elements always float above the canvas, so the dim can't cover it). */
   private searchInput: Phaser.GameObjects.DOMElement | null = null;
@@ -147,12 +163,14 @@ export class CollectionScene extends Phaser.Scene {
     this.cells = [];
     this.guardTargets = [];
     this.guard = new ModalGuard();
+    new Toast(this, { modalGuard: this.guard });
     this.pageContainer = null;
     this.outgoing = [];
     this.turning = false;
     this.inspect = null;
     this.inspectDef = null;
     this.holoMove = null;
+    this.inspectRitualCleanup = null;
 
     // Backdrop first (docs/scene-art.md §3); the gradient is the fallback.
     applyBackdrop(this, 'collection', {
@@ -200,7 +218,8 @@ export class CollectionScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(1, 0.5);
-    const back = backButton(this, () => this.scene.start('MainMenu'));
+    const back = backButton(this, 'Menu', () => this.scene.start('MainMenu'));
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
     this.drawBinderChrome();
 
@@ -254,6 +273,8 @@ export class CollectionScene extends Phaser.Scene {
       this.input.keyboard?.off('keydown-RIGHT', this.onNextKey);
       this.input.keyboard?.off('keydown-UP', this.onPreviousKey);
       this.input.keyboard?.off('keydown-DOWN', this.onNextKey);
+      this.inspectRitualCleanup?.();
+      this.inspectRitualCleanup = null;
     });
 
     this.emptyText = this.add
@@ -481,7 +502,7 @@ export class CollectionScene extends Phaser.Scene {
    * the best owned variant, plus a tappable list of every owned variant.
    * Unowned cards render the plain look.
    */
-  private showInspect(d: CardDef): void {
+  private showInspect(d: CardDef, clearedPins: readonly { deckName: string; countCleared: number }[] = []): void {
     this.closeInspect();
     this.filterBar.closeAll(); // a floating dropdown must not sit over the overlay
     this.searchInput?.setVisible(false); // DOM input always floats above the canvas dim
@@ -505,6 +526,8 @@ export class CollectionScene extends Phaser.Scene {
       this.closeInspect();
     });
     const shown = owned > 0 ? bestOwnedVariant(save, d.id) : null;
+    let displayedVariant: CardVariant | undefined = shown ?? undefined;
+    let ritualInProgress = false;
     const view = new CardView(this, 450, 360);
     view.setScale(1.35).setCard(
       d,
@@ -522,6 +545,19 @@ export class CollectionScene extends Phaser.Scene {
 
     // Variant panel, right of the card (card spans x 247.5..652.5).
     const panelX = 740;
+    if (clearedPins.length > 0) {
+      c.add(
+        this.add
+          .text(panelX, 84, clearedPins.map(clearedPinSummaryCopy).join('\n'), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.success,
+            wordWrap: { width: 470 },
+            lineSpacing: 3,
+          })
+          .setOrigin(0, 0.5),
+      );
+    }
     c.add(
       this.add
         .text(panelX, 130, owned > 0 ? 'Owned variants' : 'Not yet collected', {
@@ -593,7 +629,9 @@ export class CollectionScene extends Phaser.Scene {
             .setOrigin(0, 0.5)
             .setInteractive({ useHandCursor: true });
           bindTapButton(this, t, () => {
+            if (ritualInProgress) return;
             selectedKey = variantKey(e.variant);
+            displayedVariant = e.variant;
             view.setCard(d, { fx: 'full', variant: e.variant, fullArt: e.variant.fullArt });
             restyle();
           });
@@ -610,7 +648,16 @@ export class CollectionScene extends Phaser.Scene {
 
     // Card actions: owned cards can choose a fallback hero portrait or shard;
     // missing collectibles can be crafted.
-    this.addInspectActions(c, d);
+    this.addInspectActions(
+      c,
+      d,
+      view,
+      () => displayedVariant,
+      () => ritualInProgress,
+      () => {
+        ritualInProgress = true;
+      },
+    );
 
     c.add(
       this.add
@@ -647,7 +694,14 @@ export class CollectionScene extends Phaser.Scene {
    * list): pick this card as the fallback hero portrait for decks without their
    * own starred hero. `heroCardId === id` toggles.
    */
-  private addInspectActions(c: Phaser.GameObjects.Container, d: CardDef): void {
+  private addInspectActions(
+    c: Phaser.GameObjects.Container,
+    d: CardDef,
+    view: CardView,
+    displayedVariant: () => CardVariant | undefined,
+    isRitualInProgress: () => boolean,
+    startRitual: () => void,
+  ): void {
     const panelX = 740;
     // Action chips inflate to a 52px-tall tap area, so their row centres must
     // be ≥ 52px apart or the later-added chip steals the seam. Hero or Craft
@@ -663,6 +717,7 @@ export class CollectionScene extends Phaser.Scene {
         heroLabel(),
         save.heroCardId === d.id ? 'primary' : 'emphasis',
         () => {
+          if (isRitualInProgress()) return;
           save.heroCardId = save.heroCardId === d.id ? null : d.id;
           Services.save.flush();
           Sfx.play('shimmer');
@@ -679,6 +734,7 @@ export class CollectionScene extends Phaser.Scene {
       let armed = false;
       const label = (): string => (armed ? `Craft: confirm (${costLabel})` : `Craft (${costLabel})`);
       const craftBtn = this.overlayChip(c, panelX, 584, label(), 'emphasis', () => {
+        if (isRitualInProgress()) return;
         // Shared destructive-confirm policy (matches the Shard chip): two-tap
         // unless the player opted out in Settings.
         if (save.settings.confirmDestructive && !armed) {
@@ -689,7 +745,9 @@ export class CollectionScene extends Phaser.Scene {
         }
         const result = craftCard(save, CARD_DB, d.id);
         if (!result.ok) return;
+        const checkpoint = checkpointAchievements(save, CARD_DB);
         Services.save.flush();
+        if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
         Sfx.play('coin');
         this.renderPage(); // refresh counts, thumb alpha, and the gold badge
         this.showInspect(d); // keep the inspect overlay open on the new copy
@@ -699,33 +757,302 @@ export class CollectionScene extends Phaser.Scene {
       craftBtn.setEnabled(save.gold >= cost);
     }
 
-    // Shard/sell: convert copies past the per-variant playset (4 of each
-    // frame|holo) to gold. Two-tap confirm (destructive); rebuilds the overlay
-    // + page badges afterward. Absent when nothing is over the cap.
+    // Shard: convert copies past the per-variant playset (4 of each frame|holo)
+    // to gold. A deliberate hold replaces the old two-tap arm, while the meta
+    // mutation itself stays the existing one-call path. Absent when nothing is
+    // over the cap.
     const excess = shardableCount(save, d.id);
     if (excess > 0) {
       const gold = shardGold(save, CARD_DB, d.id);
-      let armed = false;
-      const label = (): string =>
-        armed ? `Shard ×${excess}: confirm (+${gold}🪙)` : `⛏ Shard ×${excess} extra (+${gold}🪙)`;
-      const shardBtn = this.overlayChip(c, panelX, 648, label(), 'emphasis', () => {
-        // Shared destructive-confirm policy: two-tap unless the player opted out.
-        if (save.settings.confirmDestructive && !armed) {
-          armed = true;
-          shardBtn.setLabel(label());
-          shardBtn.setVariant('primary');
-          return;
-        }
-        shardExcess(save, CARD_DB, d.id);
-        Services.save.flush();
-        Sfx.play('coin');
-        this.renderPage(); // refresh the ×N / ✦N badges beneath the overlay
-        this.showInspect(d); // rebuild the overlay with the new counts
-      });
+      const shardBtn = this.overlayChip(
+        c,
+        panelX,
+        648,
+        `⛏ Hold to shard ×${excess} extra (+${gold}🪙)`,
+        'emphasis',
+        () => undefined,
+      );
+
+      const holdLabel = `⛏ Hold to shard ×${excess} extra (+${gold}🪙)`;
+      const ring = this.add.graphics();
+      c.add(ring);
+      const bounds = shardBtn.getMeasuredBounds();
+      const ringRadius = Math.max(bounds.visual.width, bounds.visual.height) / 2 + 10;
+      let holding = false;
+      let complete = false;
+      let progress = 0;
+      let holdTimer: Phaser.Time.TimerEvent | null = null;
+      let progressTimer: Phaser.Time.TimerEvent | null = null;
+
+      const drawRing = (next: number): void => {
+        if (!ring.active) return;
+        ring.clear();
+        if (next <= 0) return;
+        ring.lineStyle(3, colorInt(theme.colors.gold), 0.96);
+        ring.beginPath();
+        ring.arc(
+          shardBtn.container.x,
+          shardBtn.container.y,
+          ringRadius,
+          -Math.PI / 2,
+          -Math.PI / 2 + Math.PI * 2 * next,
+          false,
+        );
+        ring.strokePath();
+      };
+      const stopProgress = (): void => {
+        holdTimer?.remove(false);
+        holdTimer = null;
+        progressTimer?.remove(false);
+        progressTimer = null;
+      };
+      const releaseEarly = (): void => {
+        if (!holding || complete) return;
+        holding = false;
+        stopProgress();
+        const from = progress;
+        shardBtn.setLabel(holdLabel);
+        this.tweens.addCounter({
+          from,
+          to: 0,
+          duration: 100,
+          ease: 'Cubic.easeOut',
+          onUpdate: (tween) => drawRing(tween.getValue() ?? 0),
+          onComplete: () => {
+            if (ring.active) ring.clear();
+          },
+        });
+      };
+      const beginHold = (): void => {
+        if (holding || complete || isRitualInProgress()) return;
+        holding = true;
+        progress = 0;
+        drawRing(0);
+        shardBtn.setLabel(`Hold to release (+${gold}🪙)`);
+        const duration = shardHoldDuration(gold);
+        const startedAt = this.time.now;
+        progressTimer = this.time.addEvent({
+          delay: 16,
+          loop: true,
+          callback: () => {
+            if (!holding || !ring.active || !c.active) return;
+            progress = Math.min(1, (this.time.now - startedAt) / duration);
+            drawRing(progress);
+          },
+        });
+        holdTimer = this.time.delayedCall(duration, () => {
+          if (!holding || complete || !c.active || !view.active) return;
+          holding = false;
+          complete = true;
+          stopProgress();
+          drawRing(1);
+          shardBtn.setEnabled(false);
+
+          // Keep the economy seam byte-for-byte identical and invoke it only
+          // when the hold completes.
+          const result = shardExcess(save, CARD_DB, d.id);
+          const checkpoint = checkpointAchievements(save, CARD_DB);
+          Services.save.flush();
+          if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
+          startRitual();
+          shardBtn.setLabel(`Released (+${result.gold}🪙)`);
+          Sfx.play('shatter');
+          this.playShardRitual(c, view, displayedVariant(), save.gold - result.gold, result.gold, () => {
+            this.renderPage(); // refresh the ×N / ✦N badges beneath the overlay
+            this.showInspect(d, result.clearedPins); // rebuild with the new counts and pin result
+          });
+        });
+      };
+
+      // The themed button's input is an unscaled child Zone. Pointer lifetime
+      // owns the action rather than the button's ordinary tap callback.
+      shardBtn.inputZone.on('pointerdown', beginHold);
+      shardBtn.inputZone.on('pointerup', releaseEarly);
+      shardBtn.inputZone.on('pointerupoutside', releaseEarly);
+      shardBtn.inputZone.on('pointerout', releaseEarly);
     }
   }
 
+  /**
+   * Scene-only presentation around the stable Collection mutation. The mask
+   * and timers are owned here because inspect rebuilds destroy their CardView.
+   */
+  private playShardRitual(
+    c: Phaser.GameObjects.Container,
+    view: CardView,
+    variant: CardVariant | undefined,
+    goldBefore: number,
+    gained: number,
+    onComplete: () => void,
+  ): void {
+    const policy = fxPolicy(this);
+    const duration = shardDissolveDuration(variant?.fullArt === true);
+    const timers: Phaser.Time.TimerEvent[] = [];
+    const badge = this.goldBadge.text;
+    const badgeDepth = badge.depth;
+    const isCurrent = (): boolean => c.active && view.active && this.inspect === c;
+    let finished = false;
+    let cleaned = false;
+    let mask: Phaser.GameObjects.RenderTexture | null = null;
+
+    const cleanup = (): void => {
+      if (cleaned) return;
+      cleaned = true;
+      for (const timer of timers) timer.remove(false);
+      if (mask) {
+        if (view.active) view.clearMask(true);
+        if (mask.active) mask.destroy();
+        mask = null;
+      }
+      if (badge.active) {
+        badge.setDepth(badgeDepth);
+        // If the modal was closed early, land the visible currency state even
+        // though the ceremonial counter no longer has an overlay to inhabit.
+        if (!finished) this.goldBadge.refresh(Services.save.data.gold);
+      }
+    };
+    this.inspectRitualCleanup = cleanup;
+
+    view.desaturateArtForRelease();
+    badge.setDepth(theme.depth.overlay + 2);
+    this.goldBadge.refresh(goldBefore);
+
+    const wipeWithRenderTexture = fxAvailable(this) && policy.particleScale > 0;
+    if (wipeWithRenderTexture) {
+      const width = Math.round(CARD_W * view.scaleX);
+      const height = Math.round(CARD_H * view.scaleY);
+      // BitmapMask is WebGL-only. Its unlisted RenderTexture is an alpha mask,
+      // so it does not render a visible white rectangle over the inspect card.
+      mask = this.make.renderTexture({ x: view.x, y: view.y, width, height }, false);
+      mask.setOrigin(0.5);
+      const paintMask = (progress: number): void => {
+        if (!mask?.active) return;
+        const edge = 30;
+        const solidHeight = Math.max(0, height * (1 - progress) - edge);
+        mask.clear();
+        if (solidHeight > 0) mask.fill(0xffffff, 1, 0, 0, width, solidHeight);
+        // A short stepped alpha band keeps this as a dissolve, not a hard crop.
+        for (let step = 0; step < 6; step++) {
+          const alpha = 1 - (step + 1) / 6;
+          const y = solidHeight + (edge * step) / 6;
+          mask.fill(0xffffff, alpha, 0, y, width, edge / 6 + 1);
+        }
+      };
+      paintMask(0);
+      view.setMask(mask.createBitmapMask());
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration,
+        ease: 'Cubic.easeIn',
+        onUpdate: (tween) => {
+          if (!isCurrent()) return;
+          paintMask(tween.getValue() ?? 0);
+        },
+      });
+    }
+
+    // Canvas, lite and animations-off retain the same release result with a
+    // simple graceful rise. WebGL adds the alpha-mask wipe above.
+    this.tweens.add({
+      targets: view,
+      y: view.y - 16,
+      alpha: 0,
+      duration,
+      ease: 'Cubic.easeIn',
+      onComplete: () => {
+        if (!view.active) return;
+        view.setAlpha(0);
+      },
+    });
+
+    const treatment = FRAME_TREATMENTS[variant?.frame ?? 'white'];
+    const moteTint = treatment.rainbow
+      ? colorInt(theme.colors.gold)
+      : treatment.ring ?? treatment.wash ?? colorInt(theme.colors.gold);
+    const moteCount = shardMoteCount(policy.particleScale);
+    for (let i = 0; i < moteCount; i++) {
+      const angle = (Math.PI * 2 * i) / moteCount - Math.PI / 2;
+      const mote = this.add
+        .image(view.x + Math.cos(angle) * 126, view.y + Math.sin(angle) * 174, 'fx-star')
+        .setTint(moteTint)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setScale(0.55);
+      c.add(mote);
+      this.tweens.add({
+        targets: mote,
+        x: view.x + Math.cos(angle + 1.7) * 28,
+        y: view.y + Math.sin(angle + 1.7) * 38,
+        scale: 0.85,
+        duration: 160,
+        ease: 'Sine.easeIn',
+        onComplete: () => {
+          if (!isCurrent() || !mote.active) return;
+          this.tweens.add({
+            targets: mote,
+            x: badge.x,
+            y: badge.y,
+            alpha: 0,
+            scale: 0.18,
+            duration: 300,
+            ease: 'Cubic.easeIn',
+            onComplete: () => {
+              if (mote.active) mote.destroy();
+            },
+          });
+        },
+      });
+    }
+
+    if (
+      policy.iridescence &&
+      (variant?.holo === 'rainbow' || variant?.holo === 'pearlescent')
+    ) {
+      // The existing pointer-reactive iridescence shader gets one final pass.
+      this.tweens.addCounter({
+        from: -1,
+        to: 1,
+        duration: 360,
+        ease: 'Sine.easeInOut',
+        onUpdate: (tween) => {
+          if (!isCurrent()) return;
+          view.setHoloPointer(view.x + (tween.getValue() ?? 0) * CARD_W, view.y);
+        },
+      });
+    }
+
+    const countStartedAt = this.time.now;
+    timers.push(
+      this.time.addEvent({
+        delay: 16,
+        loop: true,
+        callback: () => {
+          if (!isCurrent() || !badge.active) return;
+          this.goldBadge.refresh(shardCountUpValue(goldBefore, gained, this.time.now - countStartedAt));
+        },
+      }),
+    );
+    timers.push(
+      this.time.delayedCall(SHARD_GOLD_COUNT_UP_MS, () => {
+        if (!isCurrent() || !badge.active) return;
+        this.goldBadge.refresh(goldBefore + gained);
+        Sfx.play('coin');
+      }),
+    );
+    timers.push(
+      this.time.delayedCall(duration, () => {
+        if (!isCurrent()) return;
+        finished = true;
+        cleanup();
+        this.inspectRitualCleanup = null;
+        onComplete();
+      }),
+    );
+  }
+
   private closeInspect(): void {
+    this.inspectRitualCleanup?.();
+    this.inspectRitualCleanup = null;
     if (this.holoMove) {
       this.input.off('pointermove', this.holoMove);
       this.holoMove = null;

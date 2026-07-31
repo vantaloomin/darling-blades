@@ -6,6 +6,7 @@ import {
   MOOD_NAMES,
   MOODS,
   plucksForChord,
+  selectDuelMood,
   SCALE,
   stepProgression,
   triadPcs,
@@ -37,8 +38,8 @@ describe('pitch math', () => {
 });
 
 describe('mood presets', () => {
-  it('defines exactly the four moods', () => {
-    expect(MOOD_NAMES.sort()).toEqual(['duel', 'gauntlet', 'menu', 'shop']);
+  it('defines the base moods plus duel tension and lethal variants', () => {
+    expect(MOOD_NAMES.slice().sort()).toEqual(['duel', 'duelLethal', 'duelTense', 'gauntlet', 'menu', 'shop']);
   });
 
   it('keeps every preset well-formed and quiet', () => {
@@ -53,7 +54,7 @@ describe('mood presets', () => {
         expect(c.weight, `${name} weight`).toBeGreaterThan(0);
         expect(c.degree, `${name} degree`).toBeGreaterThanOrEqual(0);
         expect(c.degree, `${name} degree`).toBeLessThan(7);
-        expect(c.degree, `${name} avoids the diminished vii°`).not.toBe(6);
+        if (name !== 'duelTense') expect(c.degree, `${name} avoids the diminished vii°`).not.toBe(6);
       }
       // Ambient discipline: long attacks, longer releases, quiet peaks.
       expect(p.attack, `${name} attack`).toBeGreaterThanOrEqual(1);
@@ -89,6 +90,33 @@ describe('mood presets', () => {
     // Gauntlet is the slowest, darkest bed.
     expect(MOODS.gauntlet.cutoff).toBeLessThan(MOODS.menu.cutoff);
     expect(MOODS.gauntlet.chordDur).toBeGreaterThanOrEqual(MOODS.menu.chordDur);
+  });
+
+  it('makes duel tension brighter, harmonically denser, and more active than the base duel', () => {
+    expect(MOODS.duelTense.cutoff).toBeGreaterThan(MOODS.duel.cutoff);
+    expect(MOODS.duelTense.pool.length).toBeGreaterThan(MOODS.duel.pool.length);
+    expect(MOODS.duelTense.pluckPulse).toBeLessThan(MOODS.duel.pluckPulse);
+  });
+
+  it('keeps the lethal-visible duel variant sparse and lower than the base duel', () => {
+    expect(MOODS.duelLethal.voiceLow).toBeLessThan(MOODS.duel.voiceLow);
+    expect(MOODS.duelLethal.voiceHigh).toBeLessThan(MOODS.duel.voiceHigh);
+    expect(MOODS.duelLethal.bassHigh).toBeLessThan(MOODS.duel.bassHigh);
+    expect(MOODS.duelLethal.pluckDensity).toBeLessThan(MOODS.duel.pluckDensity);
+    expect(MOODS.duelLethal.pluckPulse).toBeGreaterThan(MOODS.duel.pluckPulse);
+  });
+
+  it('enters tension below 30%, holds it through 40%, and lets lethal take priority', () => {
+    expect(selectDuelMood({ humanLife: 6, opponentLife: 20, startingLife: 20, tensionActive: false, lethalVisible: false }))
+      .toEqual({ mood: 'duel', tensionActive: false });
+    expect(selectDuelMood({ humanLife: 5, opponentLife: 20, startingLife: 20, tensionActive: false, lethalVisible: false }))
+      .toEqual({ mood: 'duelTense', tensionActive: true });
+    expect(selectDuelMood({ humanLife: 8, opponentLife: 20, startingLife: 20, tensionActive: true, lethalVisible: false }))
+      .toEqual({ mood: 'duelTense', tensionActive: true });
+    expect(selectDuelMood({ humanLife: 9, opponentLife: 20, startingLife: 20, tensionActive: true, lethalVisible: false }))
+      .toEqual({ mood: 'duel', tensionActive: false });
+    expect(selectDuelMood({ humanLife: 20, opponentLife: 5, startingLife: 20, tensionActive: false, lethalVisible: true }))
+      .toEqual({ mood: 'duelLethal', tensionActive: true });
   });
 });
 

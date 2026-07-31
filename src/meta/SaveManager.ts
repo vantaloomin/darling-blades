@@ -1,9 +1,16 @@
 import { DRAFT_PERSONAS } from '../data/draftPersonas';
+import { CARD_DB } from '../data/catalog';
 import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
 import { freshLimitedState, type LimitedState } from './Limited';
 import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
+import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
+
+export const CURRENT_SAVE_VERSION = 24 as const;
+
+/** When an empty blocking step needs a second confirmation. */
+export type ConfirmNoBlockSetting = 'always' | 'lethal' | 'off';
 
 /** Active gauntlet run state; null when no run is in progress. */
 export interface GauntletState {
@@ -62,6 +69,14 @@ export interface SavedDeck {
   heroCardId: string | null;
   /** Per-basic land art styles. `null` or a missing key = default art. v22 addition. */
   landStyle: LandStyleMap | null;
+  /** Rules format metadata. v23 addition. */
+  format?: 'constructed' | 'darlings' | 'battlebox';
+  /** Selected Darling card, only meaningful for the Darlings format. v23 addition. */
+  darlingId?: string | null;
+  /** Per-deck reserve land list for reserve formats. v23 addition. */
+  landReserve?: string[] | null;
+  /** Positional treatment pins. `variantPins[i]` belongs to `cards[i]`; null = Auto. v23 addition. */
+  variantPins?: Array<string | null>;
 }
 
 export const BASIC_LAND_IDS = [
@@ -83,7 +98,7 @@ export interface PremiumWeekState {
 }
 
 export interface SaveData {
-  version: 22;
+  version: typeof CURRENT_SAVE_VERSION;
   createdAt: number;
   gold: number;
   collection: Record<string, number>; // cardId -> copies owned (aggregate across variants)
@@ -169,6 +184,12 @@ export interface SaveData {
      * veterans who prefer denser cards.
      */
     keywordReminders: boolean;
+    /**
+     * Empty blocks state their incoming damage. This decides whether submitting
+     * one needs a second press: every time, only when lethal, or never.
+     * v24 addition.
+     */
+    confirmNoBlock: ConfirmNoBlockSetting;
   };
 }
 
@@ -190,7 +211,7 @@ export function freshAchievements(): AchievementState {
 
 export function freshSave(now: number): SaveData {
   return {
-    version: 22,
+    version: CURRENT_SAVE_VERSION,
     createdAt: now,
     gold: 0,
     collection: {},
@@ -222,6 +243,7 @@ export function freshSave(now: number): SaveData {
       autoSkip: false,
       confirmDestructive: true,
       keywordReminders: true,
+      confirmNoBlock: 'lethal',
     },
   };
 }
@@ -288,10 +310,17 @@ export class SaveManager {
    * to zero entries so nobody inherits a partially spent week; v19 -> v20 adds
    * deterministic replays; v20 -> v21 canonicalizes two-part variant keys as
    * explicitly non-full-art three-part keys; v21 -> v22 stamps tower roster
-   * identity and adds per-deck land-art selection.
+   * identity and adds per-deck land-art selection; v22 -> v23 adds reserve
+   * formats and positional variant pins; v23 -> v24 adds the empty-block
+   * confirmation preference, defaulting to lethal-only protection.
    * An unknown/garbage version starts fresh rather than crash.
+   *
+   * Public and this-free by design: SaveCode (the export/import codec) routes
+   * decoded payloads through this exact method so a code import and a normal
+   * load can never disagree. Construct with an in-memory Storage-like stub
+   * when no real storage is involved.
    */
-  private migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
+  migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
     if (cur.version === 1) {
       const base = freshSave(now);
@@ -549,7 +578,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -582,13 +611,41 @@ export class SaveManager {
       const replays = Array.isArray(cur.replays)
         ? (cur.replays as unknown[]).filter(isReplayLog).slice(0, REPLAY_CAP)
         : [];
-      return {
+      cur = {
         ...cur,
         version: 22,
         decks,
         gauntlet: { ...gauntlet, run },
         limited: { ...limited, activeRun: limitedActiveRun, premiumWeek: { week, entries } },
         replays,
+      } as unknown as typeof cur;
+    }
+    if (cur.version === 22) {
+      const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
+      cur = {
+        ...cur,
+        version: 23,
+        decks: normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants),
+      };
+    }
+    if (cur.version === 23) {
+      const s = (cur.settings ?? {}) as { confirmNoBlock?: unknown };
+      const confirmNoBlock: ConfirmNoBlockSetting =
+        s.confirmNoBlock === 'always' || s.confirmNoBlock === 'lethal' || s.confirmNoBlock === 'off'
+          ? s.confirmNoBlock
+          : 'lethal';
+      cur = {
+        ...cur,
+        version: CURRENT_SAVE_VERSION,
+        settings: { ...(cur.settings as object), confirmNoBlock },
+      };
+    }
+    if (cur.version === CURRENT_SAVE_VERSION) {
+      const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
+      return {
+        ...cur,
+        version: CURRENT_SAVE_VERSION,
+        decks: normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants),
       } as unknown as SaveData;
     }
     return freshSave(now);
@@ -610,6 +667,57 @@ export class SaveManager {
     } catch {
       // storage full/unavailable — nothing sensible to do in-game
     }
+  }
+
+  /**
+   * Replace the profile as one service transaction. Storage is written before
+   * the shared in-memory object changes, and both sides are restored if either
+   * part fails. Keeping `data` in place refreshes every service consumer that
+   * already holds the shared SaveData reference.
+   */
+  replace(next: SaveData): boolean {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+
+    let previousBlob: string;
+    let nextBlob: string;
+    try {
+      previousBlob = JSON.stringify(this.data);
+      nextBlob = JSON.stringify(next);
+    } catch {
+      return false;
+    }
+
+    try {
+      this.storage.setItem(KEY, nextBlob);
+      this.replaceDataInPlace(JSON.parse(nextBlob) as SaveData);
+      return true;
+    } catch {
+      try {
+        this.replaceDataInPlace(JSON.parse(previousBlob) as SaveData);
+      } catch {
+        // The current save is a known JSON object, so this is only a defensive
+        // fallback for an unexpectedly hostile injected SaveData object.
+      }
+      try {
+        this.storage.setItem(KEY, previousBlob);
+      } catch {
+        // A storage adapter that is still failing cannot accept the rollback.
+        // The in-memory profile is nevertheless restored above.
+      }
+      return false;
+    }
+  }
+
+  private replaceDataInPlace(next: SaveData): void {
+    const current = this.data as unknown as Record<string, unknown>;
+    const replacement = next as unknown as Record<string, unknown>;
+    for (const key of Object.keys(current)) {
+      if (!Object.prototype.hasOwnProperty.call(replacement, key)) delete current[key];
+    }
+    Object.assign(current, replacement);
   }
 
   /**
@@ -641,8 +749,19 @@ function normalizeLandStyleMap(value: unknown): LandStyleMap | null {
   return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
-function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): SavedDeck[] {
+const FRAME_STYLES = ['white', 'blue', 'red', 'gold', 'rainbow', 'black'] as const;
+const HOLO_FINISHES = ['none', 'shiny', 'rainbow', 'pearlescent', 'fractal', 'void'] as const;
+const KNOWN_VARIANT_TREATMENTS = new Set(['standard', 'full-art', 'false']);
+
+function normalizeSavedDecks(
+  value: unknown,
+  defaultHeroCardId: string | null,
+  collection: unknown = {},
+  collectionVariants: unknown = {},
+): SavedDeck[] {
   if (!Array.isArray(value)) return [];
+  const aggregate = isRecord(collection) ? collection : {};
+  const variants = isRecord(collectionVariants) ? collectionVariants : {};
   return value
     .map((raw): SavedDeck | null => {
       if (!raw || typeof raw !== 'object') return null;
@@ -652,18 +771,79 @@ function normalizeSavedDecks(value: unknown, defaultHeroCardId: string | null): 
         cards?: unknown;
         heroCardId?: unknown;
         landStyle?: unknown;
+        format?: unknown;
+        darlingId?: unknown;
+        landReserve?: unknown;
+        variantPins?: unknown;
       };
       if (typeof deck.id !== 'string' || typeof deck.name !== 'string' || !Array.isArray(deck.cards)) return null;
       const cards = deck.cards.filter((id): id is string => typeof id === 'string');
       const explicitHero = typeof deck.heroCardId === 'string' ? deck.heroCardId : null;
       const migratedHero = explicitHero ?? (defaultHeroCardId && cards.includes(defaultHeroCardId) ? defaultHeroCardId : null);
+      const darlings = normalizeDarlingsFields(CARD_DB, deck.format, deck.darlingId, cards, deck.landReserve);
       return {
         id: deck.id,
         name: deck.name,
         cards,
         heroCardId: migratedHero && cards.includes(migratedHero) ? migratedHero : null,
         landStyle: normalizeLandStyleMap(deck.landStyle),
+        ...darlings,
+        variantPins: normalizeVariantPins(cards, deck.variantPins, aggregate, variants),
       };
     })
     .filter((deck): deck is SavedDeck => deck !== null);
+}
+
+function normalizeVariantPins(
+  cards: readonly string[],
+  value: unknown,
+  collection: Record<string, unknown>,
+  collectionVariants: Record<string, unknown>,
+): Array<string | null> {
+  const rawPins = Array.isArray(value) ? value : [];
+  const used = new Map<string, number>();
+  return cards.map((cardId, index) => {
+    const canonical = canonicalVariantPin(rawPins[index]);
+    if (canonical === null) return null;
+    const available = ownedVariantCount(collection, collectionVariants, cardId, canonical);
+    const alreadyPinned = used.get(`${cardId}\u0000${canonical}`) ?? 0;
+    if (alreadyPinned >= available) return null;
+    used.set(`${cardId}\u0000${canonical}`, alreadyPinned + 1);
+    return canonical;
+  });
+}
+
+function canonicalVariantPin(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const segments = value.split('|');
+  if (segments.length > 3) return null;
+  if (segments.length === 3 && !KNOWN_VARIANT_TREATMENTS.has(segments[2])) return null;
+  const parsed = parseVariantKey(value);
+  if (!FRAME_STYLES.includes(parsed.frame as (typeof FRAME_STYLES)[number])) return null;
+  if (!HOLO_FINISHES.includes(parsed.holo as (typeof HOLO_FINISHES)[number])) return null;
+  return variantKey(parsed);
+}
+
+function ownedVariantCount(
+  collection: Record<string, unknown>,
+  collectionVariants: Record<string, unknown>,
+  cardId: string,
+  pin: string,
+): number {
+  const record = collectionVariants[cardId];
+  if (isRecord(record) && Object.keys(record).length > 0) {
+    let total = 0;
+    for (const [rawKey, rawCount] of Object.entries(record)) {
+      if (canonicalVariantPin(rawKey) !== pin) continue;
+      if (typeof rawCount === 'number' && Number.isFinite(rawCount) && rawCount > 0) total += Math.floor(rawCount);
+    }
+    return total;
+  }
+  return pin === variantKey(PLAIN_VARIANT) && typeof collection[cardId] === 'number'
+    ? Math.max(0, Math.floor(collection[cardId] as number))
+    : 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }

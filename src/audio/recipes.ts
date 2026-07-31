@@ -49,10 +49,13 @@ export type SfxName =
   | 'win'
   | 'loss'
   | 'coin'
+  | 'seal'
   | 'flip'
   | 'shimmer'
   | 'yourTurn'
-  | 'rungClear';
+  | 'rungClear'
+  | 'shatter'
+  | 'warn';
 
 const tone = (
   wave: Wave,
@@ -142,6 +145,13 @@ export const SFX: Record<SfxName, Voice[]> = {
     tone('triangle', 2637, 0.1, 0.001, 0.18, { at: 0.07 }),
     tone('sine', 3951, 0.04, 0.001, 0.1, { at: 0.07 }),
   ],
+  // Achievement seal: a warm three-note ascent with a restrained wax-stamp tap.
+  seal: [
+    tone('triangle', 523.25, 0.08, 0.01, 0.28),
+    tone('triangle', 659.25, 0.09, 0.01, 0.32, { at: 0.1 }),
+    tone('sine', 783.99, 0.07, 0.015, 0.48, { at: 0.2 }),
+    noise(0.035, 0.002, 0.08, { filter: { type: 'lowpass', freq: 800 } }),
+  ],
   // Card flip: a cardstock flick — filtered noise snap with a tiny pitch blip.
   flip: [
     noise(0.11, 0.005, 0.07, { filter: { type: 'bandpass', freq: 1800, freqEnd: 3400, q: 1 } }),
@@ -168,6 +178,17 @@ export const SFX: Record<SfxName, Voice[]> = {
     tone('triangle', 1046.5, 0.13, 0.01, 0.5, { at: 0.12 }),
     tone('sine', 523.25, 0.06, 0.02, 0.5, { at: 0.12 }),
     noise(0.035, 0.05, 0.4, { filter: { type: 'highpass', freq: 4000 }, at: 0.12 }),
+  ],
+  // Collection release: a soft upward glass-breath, never a grinding or breakage cue.
+  shatter: [
+    noise(0.055, 0.012, 0.22, { filter: { type: 'bandpass', freq: 1800, freqEnd: 4200, q: 0.9 } }),
+    tone('sine', 523.25, 0.055, 0.015, 0.3, { freqEnd: 1046.5, at: 0.035 }),
+    tone('triangle', 1568, 0.04, 0.008, 0.2, { at: 0.09 }),
+  ],
+  // Empty-block arm: a soft, low two-note caution cue that stays below a UI click.
+  warn: [
+    tone('triangle', 349.23, 0.07, 0.01, 0.16, { freqEnd: 293.66 }),
+    tone('sine', 220, 0.045, 0.015, 0.2, { at: 0.06, freqEnd: 196 }),
   ],
 };
 

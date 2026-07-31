@@ -128,24 +128,61 @@ function spellOps(db: CardDb, cardId: string): EffectOp[] {
     .flatMap((ab) => ab.ops ?? []);
 }
 
+/**
+ * W3.5b's common all-creature sweepers need public-board asymmetry, not a
+ * generic spell score: an even effect is harmful when it removes more of the
+ * caster's small creatures. Survivors retain a small value for their marked
+ * damage or temporary stat loss, while creatures that die use full board value.
+ */
+function symmetricCreatureSweepValue(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  caster: PlayerId,
+  op: Extract<EffectOp, { op: 'damage' | 'boost' }>,
+): number {
+  const opponent = opponentOf(caster);
+  let value = 0;
+  for (const perm of battlefield) {
+    if (!isType(def(db, perm.cardId), 'creature')) continue;
+    const stats = getEffectiveStats(battlefield, db, perm.iid);
+    const remainingDefense = stats.defense - perm.damage;
+    const dies =
+      (op.op === 'damage' && op.n !== 'X' && op.n >= remainingDefense) ||
+      (op.op === 'boost' && remainingDefense + op.t <= 0);
+    const impact = dies
+      ? removalTargetValue(battlefield, db, perm)
+      : op.op === 'damage'
+        ? op.n === 'X' ? 0 : op.n * 0.5
+        : (Math.abs(op.p) + Math.abs(op.t)) / 2;
+    value += perm.controller === opponent ? impact : -impact;
+  }
+  return value;
+}
+
 /** Classify only cast-time spell bodies. Arrival/dawn removal riders stay ETB value. */
 export function removalKind(db: CardDb, cardId: string): RemovalKind | null {
   for (const ab of def(db, cardId).abilities ?? []) {
     if (ab.when !== 'spell') continue;
-    const nonCreatureTarget = ab.targets?.some(
+    const permanentTarget = ab.targets?.some(
       (target) =>
+        target.what === 'creature' ||
+        target.what === 'yourCreature' ||
+        target.what === 'any' ||
         target.what === 'artifact' ||
         target.what === 'enchantment' ||
         target.what === 'artifactOrEnchantment',
     );
     for (const op of ab.ops ?? []) {
       if (op.op === 'destroy') return 'destroy';
-      if (op.op === 'sever' && nonCreatureTarget) return 'sever';
-      if (op.op === 'recall' && nonCreatureTarget) return 'recall';
+      if ((op.op === 'sever' || op.op === 'recall') && permanentTarget) {
+        return op.op;
+      }
       if (op.op === 'destroyArtifactOrSeverEnchantment') return 'branch';
       if (op.op === 'massDestroy' && op.filter === 'allEnchantments') return 'massDestroy';
       if (op.op === 'destroyNewestOpponentArtifactOrEnchantment') return 'destroyNewest';
       if (op.op === 'damage' && op.to === 'target') return 'damage';
+      if (op.op === 'damage' && op.to === 'eachCreature') return 'massDestroy';
+      if (op.op === 'boost' && op.scope === 'all' && (op.p < 0 || op.t < 0)) return 'massDestroy';
     }
   }
   return null;
@@ -179,6 +216,10 @@ export function removalValueForCast(
         return op.filter === 'allCreatures' || getEffectiveStats(battlefield, db, perm.iid).keywords.has('skyborne');
       });
       value += doomed.reduce((sum, perm) => sum + removalTargetValue(battlefield, db, perm), 0);
+    } else if (op.op === 'damage' && op.to === 'eachCreature') {
+      value += symmetricCreatureSweepValue(battlefield, db, caster, op);
+    } else if (op.op === 'boost' && op.scope === 'all' && (op.p < 0 || op.t < 0)) {
+      value += symmetricCreatureSweepValue(battlefield, db, caster, op);
     } else if (op.op === 'destroyNewestOpponentArtifactOrEnchantment') {
       for (let i = battlefield.length - 1; i >= 0; i--) {
         const perm = battlefield[i];
@@ -258,6 +299,54 @@ export function retellValue(db: CardDb, cardId: string): number {
   if (!d.retell) return 0;
   const ops = d.retell.ops ?? spellOps(db, cardId);
   return 0.75 + ops.reduce((sum, op) => sum + opImpactValue(op), 0);
+}
+
+/**
+ * Marginal public-board value of a Hauntlink rider on one proposed host.
+ * Existing effective keywords are excluded so the ranker never prefers a
+ * duplicate grant over a useful new rider.
+ */
+export function linkedRiderValue(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  cardId: string,
+  hostIid: number,
+): number {
+  const rider = def(db, cardId).hauntlink?.linked;
+  const host = battlefield.find((perm) => perm.iid === hostIid);
+  if (!rider || !host) return 0;
+  const current = getEffectiveStats(battlefield, db, hostIid);
+  let value = ((rider.p ?? 0) + (rider.t ?? 0)) / 2;
+  for (const keyword of rider.grantKeywords ?? []) {
+    if (!current.keywords.has(keyword)) value += KEYWORD_BONUS[keyword];
+  }
+  return value;
+}
+
+/**
+ * Total value of casting a Hauntlink carrier on a public host. The base card
+ * value is adjusted for the actual alternate cost; the rider is then reduced
+ * when the host is already damaged near lethal and slightly rewarded for a
+ * healthy Untouchable host. No hidden hand or library information is read.
+ */
+export function hauntlinkCastValue(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  cardId: string,
+  hostIid: number,
+): number {
+  const d = def(db, cardId);
+  const host = battlefield.find((perm) => perm.iid === hostIid);
+  if (!d.hauntlink || !host) return -Infinity;
+  const stats = getEffectiveStats(battlefield, db, hostIid);
+  const remaining = stats.defense - host.damage;
+  const costDelta = manaValue(d.hauntlink.cost) - manaValue(d.cost);
+  let value = cardValue(db, cardId) - costDelta * 0.65;
+  value += linkedRiderValue(battlefield, db, cardId, hostIid);
+  if (remaining <= 1) value -= 2.5;
+  else if (remaining <= 2) value -= 0.75;
+  if (stats.keywords.has('untouchable')) value += 0.3;
+  return value;
 }
 
 /**

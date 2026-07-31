@@ -43,7 +43,7 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
 export const MECHANIC_DEFINITIONS: Record<
-  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower' | 'skim' | 'retell',
+  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower' | 'skim' | 'retell' | 'hauntlink',
   string
 > = {
   sever: 'severed from the game; severed cards never return',
@@ -54,6 +54,7 @@ export const MECHANIC_DEFINITIONS: Record<
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
   skim: 'pay the listed cost, discard this card, then draw a card',
   retell: 'cast this from your graveyard for the listed cost, then sever it',
+  hauntlink: "pay Hauntlink to link this to a creature; host leaving puts it in its owner's graveyard",
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -79,13 +80,42 @@ function targetNoun(spec: TargetSpec | undefined): string {
   }
 }
 
-function opText(op: EffectOp, target?: TargetSpec): string {
+function referencesAbilityTarget(op: EffectOp): boolean {
+  switch (op.op) {
+    case 'damage':
+      return op.to === 'target';
+    case 'destroy':
+    case 'sever':
+    case 'recall':
+    case 'cancel':
+    case 'tap':
+      return op.to === 'target';
+    case 'destroyArtifactOrSeverEnchantment':
+      return op.to === 'target';
+    case 'boost':
+      return op.scope === 'target';
+    case 'addCounters':
+      return op.to === 'target';
+    case 'reclaim':
+      return true;
+    case 'raise':
+      return op.to !== 'top';
+    default:
+      return false;
+  }
+}
+
+function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): string {
   switch (op.op) {
     case 'damage': {
       const n = op.n === 'X' ? 'X' : op.n;
+      if (op.to === 'eachCreature') return `deal ${n} damage to each creature`;
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
-      return `deal ${n} damage to any target`;
+      const recipient = target?.what === 'creature'
+        ? targetAlreadyNamed ? 'that creature' : 'target creature'
+        : 'any target';
+      return `deal ${n} damage to ${recipient}`;
     }
     case 'gainLife':
       return `you gain ${op.n} life`;
@@ -118,16 +148,17 @@ function opText(op: EffectOp, target?: TargetSpec): string {
       const kw = op.keywords?.length
         ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
-      return op.scope === 'target'
-        ? `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`
-        : `creatures you control get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
+      if (op.scope === 'target') return `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
+      const subject = op.scope === 'all' ? 'all creatures' : 'creatures you control';
+      return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
     }
-    case 'addCounters':
-      return op.to === 'self'
-        ? `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on this`
-        : `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on target creature`;
+    case 'addCounters': {
+      if (op.to === 'self') return `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on this`;
+      const markTarget = target?.what === 'yourCreature' ? 'target creature you control' : 'target creature';
+      return `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on ${markTarget}`;
+    }
     case 'tap':
-      return 'tap target creature';
+      return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
     case 'fetchLand':
       return 'search your deck for a basic land and put it into play tapped';
     case 'createToken': {
@@ -195,6 +226,25 @@ export function retellText(d: CardDef): string | undefined {
   return `Retell ${manaCostText(d.retell.cost)}: You may cast this from your graveyard, then sever it.`;
 }
 
+export function hauntlinkText(d: CardDef): string | undefined {
+  if (!d.hauntlink) return undefined;
+  const rider = d.hauntlink.linked;
+  const signed = (value: number | undefined): string => {
+    const n = value ?? 0;
+    return `${n >= 0 ? '+' : ''}${n}`;
+  };
+  const stats = rider.p !== undefined || rider.t !== undefined
+    ? `${signed(rider.p)}/${signed(rider.t)}`
+    : null;
+  const keywords = rider.grantKeywords?.map((keyword) => KEYWORD_NAMES[keyword]).join(', ') ?? '';
+  const benefit = stats && keywords
+    ? `gets ${stats} and gains ${keywords}`
+    : stats
+      ? `gets ${stats}`
+      : `gains ${keywords}`;
+  return `Hauntlink ${manaCostText(d.hauntlink.cost)}: You may play this linked to a creature you control. Linked: The linked creature ${benefit}. When the host leaves play, put this into its owner's graveyard.`;
+}
+
 function abilityText(ab: AbilityDef): string {
   const questCondition = (ab.condition ?? ab.static?.condition) === 'questActive';
   const conditionalArrival = questCondition && ab.when === 'arrives';
@@ -205,25 +255,52 @@ function abilityText(ab: AbilityDef): string {
       const n = v ?? 0;
       return n >= 0 ? `+${n}` : `${n}`;
     };
-    const kw = st.grantKeywords?.length
-      ? `${st.scope === 'filter' ? ', and gain' : ', and gains'} ${st.grantKeywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
+    // A static with no `p` and no `t` is a pure keyword grant. Both defaulted
+    // to 0 below, so twelve cards printed a literal "+0/+0" clause that Magic
+    // never prints (Galahad, Silver Oath among them, live at deck_count 2).
+    // Omit the stat clause instead of rendering a no-op modifier.
+    const hasStats = st.p !== undefined || st.t !== undefined;
+    const keywordNames = st.grantKeywords?.length
+      ? st.grantKeywords.map((k) => KEYWORD_NAMES[k]).join(', ')
       : '';
+    const kw = keywordNames
+      ? `${st.scope === 'filter' ? ', and gain' : ', and gains'} ${keywordNames}`
+      : '';
+    // Neither stats nor keywords is a meaningless static. Emit nothing and let
+    // the caller drop the line rather than print a bare "gets ." fragment.
+    if (!hasStats && !keywordNames) return '';
+    // These clauses are written to stand alone, so they open with a capital.
+    // Run one in behind a prefix and it reads "While a Quest is active, This
+    // gains Untouchable." Lower-case the opener when a prefix precedes it.
+    const runIn = (clause: string): string =>
+      prefix ? `${prefix}${clause.charAt(0).toLowerCase()}${clause.slice(1)}` : clause;
     if (st.scope === 'attached') {
-      // "Enchanted Creature" capitalized on every aura, not just keyword
-      // grants: the user-approved copy (Wings of Dawn, 2026-07-24) sets the
-      // casing and stat-only auras must not read differently.
-      return `${prefix}Enchanted Creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`;
+      // "Enchanted Creature" stays capitalized even behind a prefix: it is a
+      // game term here, fixed by the user-approved copy (Wings of Dawn,
+      // 2026-07-24), and stat-only auras must not read differently.
+      return hasStats
+        ? `${prefix}Enchanted Creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`
+        : `${prefix}Enchanted Creature gains ${keywordNames}.`;
     }
     if (st.scope === 'self') {
-      return `${prefix}This gets ${sign(st.p)}/${sign(st.t)}${kw}.`;
+      return runIn(hasStats
+        ? `This gets ${sign(st.p)}/${sign(st.t)}${kw}.`
+        : `This gains ${keywordNames}.`);
     }
     const who = st.filter?.subtype
       ? `${st.filter.other ? 'Other ' : ''}${st.filter.subtype} creatures you control`
       : `${st.filter?.other ? 'Other creatures' : 'Creatures'} you control`;
-    return `${prefix}${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`;
+    return runIn(hasStats
+      ? `${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`
+      : `${who} gain ${keywordNames}.`);
   }
 
-  const body = (ab.ops ?? []).map((op) => opText(op, ab.targets?.[0])).join(', then ');
+  let targetAlreadyNamed = false;
+  const body = (ab.ops ?? []).map((op) => {
+    const text = opText(op, ab.targets?.[0], targetAlreadyNamed);
+    targetAlreadyNamed ||= referencesAbilityTarget(op);
+    return text;
+  }).join(', then ');
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   let sentence: string;
   switch (ab.when) {
@@ -249,7 +326,11 @@ function abilityText(ab: AbilityDef): string {
       sentence = `${cap}.`;
       break;
   }
-  return `${prefix}${sentence}`;
+  // Twelve cards printed a mid-sentence capital: "While a Quest is active, At
+  // the start of your turn, you gain 1 life." The sentence is built to stand
+  // alone, so lower-case its first letter once a prefix runs in front of it.
+  const runOn = prefix ? sentence.charAt(0).toLowerCase() + sentence.slice(1) : sentence;
+  return `${prefix}${runOn}`;
 }
 
 export function romanNumeral(n: number): string {
@@ -300,9 +381,9 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
       lines.push(d.keywords.map((k) => KEYWORD_NAMES[k]).join(', '));
     }
   }
-  // Printed only on either/or duals — mono taplands stay bare by design,
-  // even though entersTapped still applies mechanically.
-  if (d.entersTapped && (d.manaAbility?.length ?? 0) > 1) {
+  // Every tapped land prints its universal arrival drawback, including mono
+  // taplands whose arrival rider is listed below.
+  if (d.entersTapped) {
     lines.push('Arrives tapped.');
   }
   if (d.awakening) lines.push(awakeningText(d));
@@ -310,6 +391,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (skim) lines.push(skim);
   const retell = retellText(d);
   if (retell) lines.push(retell);
+  const hauntlink = hauntlinkText(d);
+  if (hauntlink) lines.push(hauntlink);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
@@ -318,7 +401,9 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   // Non-land mana abilities are NOT part of the text: CardView composes an
   // icon line ([T]: Add [pip]) at the top of the rules box instead.
   for (const ab of d.abilities ?? []) lines.push(abilityText(ab));
-  return lines.join('\n');
+  // abilityText returns '' for a static carrying neither stats nor keywords;
+  // joining it unfiltered would print a blank line into the rules box.
+  return lines.filter((line) => line.length > 0).join('\n');
 }
 
 export interface GlossaryEntry {
@@ -356,6 +441,7 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   if (d.empower) push('Empower', MECHANIC_DEFINITIONS.empower);
   if (d.skim) push('Skim', MECHANIC_DEFINITIONS.skim);
   if (d.retell) push('Retell', MECHANIC_DEFINITIONS.retell);
+  if (d.hauntlink) push('Hauntlink', MECHANIC_DEFINITIONS.hauntlink);
   return entries;
 }
 

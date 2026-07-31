@@ -1,6 +1,6 @@
 import type { GameEvent } from './events';
-import type { CardDb, GameState, Permanent, PlayerId } from './types';
-import { def } from './types';
+import type { CardDb, CardEntry, CardInstance, GameState, Permanent, PlayerId } from './types';
+import { cardIdOf, def, isCardInstance, variantKeyOf } from './types';
 
 export type Emit = (e: GameEvent) => void;
 
@@ -13,15 +13,24 @@ export type Emit = (e: GameEvent) => void;
 export function enterBattlefield(
   state: GameState,
   db: CardDb,
-  cardId: string,
+  card: CardEntry,
   controller: PlayerId,
   emit: Emit,
   opts: { asToken?: boolean; attachedTo?: number } = {},
 ): Permanent {
-  const d = def(db, cardId);
+  const cardId = cardIdOf(card);
+  const d = def(db, card);
+  const iid = state.nextIid++;
+  const instanceId = isCardInstance(card)
+    ? card.instanceId
+    : state.nextInstanceId !== undefined
+      ? state.nextInstanceId++
+      : iid;
   const perm: Permanent = {
-    iid: state.nextIid++,
+    iid,
+    instanceId,
     cardId,
+    variantKey: variantKeyOf(card),
     owner: controller,
     controller,
     tapped: d.entersTapped ?? false,
@@ -36,7 +45,8 @@ export function enterBattlefield(
   state.battlefield.push(perm);
   if (opts.attachedTo !== undefined) {
     const host = state.battlefield.find((p) => p.iid === opts.attachedTo);
-    host?.attachments.push(perm.iid);
+    if (!host) throw new Error(`enterBattlefield: missing attachment host ${opts.attachedTo}`);
+    host.attachments.push(perm.iid);
   }
   emit(
     opts.asToken
@@ -52,6 +62,20 @@ function detachFromHost(state: GameState, perm: Permanent): void {
   if (host) host.attachments = host.attachments.filter((iid) => iid !== perm.iid);
 }
 
+function basicReturnsToReserve(state: GameState, db: CardDb, perm: Permanent): boolean {
+  const d = def(db, perm.cardId);
+  return (
+    state.players[perm.owner].landReserve !== undefined &&
+    d.types.includes('land') &&
+    (d.supertypes?.includes('basic') ?? false)
+  );
+}
+
+/** Whether a destroy exit is a real death for triggers and accounting. */
+export function firesDiesForDestroy(state: GameState, db: CardDb, perm: Permanent): boolean {
+  return !basicReturnsToReserve(state, db, perm);
+}
+
 /** Battlefield → owner's graveyard (tokens evaporate). Returns true if it died. */
 export function destroyPermanent(
   state: GameState,
@@ -64,8 +88,12 @@ export function destroyPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
-  if (!d.token) state.players[perm.owner].graveyard.push(perm.cardId);
-  emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
+  if (!d.token) {
+    pushMovedCard(state, perm, basicReturnsToReserve(state, db, perm) ? 'landReserve' : 'graveyard');
+  }
+  if (firesDiesForDestroy(state, db, perm)) {
+    emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
+  }
   return true;
 }
 
@@ -81,7 +109,7 @@ export function severPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
-  if (!d.token) state.players[perm.owner].severed.push(perm.cardId);
+  if (!d.token) pushMovedCard(state, perm, 'severed');
   emit({
     e: 'severed',
     player: perm.owner,
@@ -104,10 +132,35 @@ export function recallPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
+  const basicToReserve = basicReturnsToReserve(state, db, perm);
   if (!d.token) {
-    state.players[perm.owner].hand.push(perm.cardId);
+    const toReserve = state.players[perm.owner].landReserve !== undefined && d.types.includes('land');
+    pushMovedCard(state, perm, toReserve ? 'landReserve' : 'hand');
     emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
   }
-  emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
+  if (!basicToReserve) {
+    emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
+  }
   return true;
+}
+
+/** Preserve legacy string fixtures while keeping every Game-created move physical. */
+function pushMovedCard(
+  state: GameState,
+  perm: Permanent,
+  zone: 'hand' | 'graveyard' | 'severed' | 'landReserve',
+): void {
+  const card: CardEntry =
+    state.nextInstanceId === undefined
+      ? perm.cardId
+      : ({
+          instanceId: perm.instanceId ?? perm.iid,
+          cardId: perm.cardId,
+          variantKey: perm.variantKey ?? null,
+        } satisfies CardInstance);
+  if (zone === 'landReserve') {
+    (state.players[perm.owner].landReserve ??= []).push(card);
+  } else {
+    state.players[perm.owner][zone].push(card);
+  }
 }

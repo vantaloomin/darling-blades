@@ -195,10 +195,17 @@ export const INSTANTS = [
   },
   {
     id: 'in-sudden-insight',
-    name: 'Sudden Insight',
+    // Renamed from "Sudden Insight" 2026-07-30: that exact name is a real
+    // Magic card. A collision rather than a reproduction (different cost,
+    // type, and rarity), but the same class of exposure as PR #158.
+    name: 'Uninvited Insight',
     types: ['charm'],
     subtypes: [],
-    cost: cost(2, 'U'),
+    // {3}{U}, not {2}{U}: at equal cost the instant strictly dominates our own
+    // draw-2 Ritual, so the common could never be the right card. Through the
+    // target era the instant costs a full mana more than the sorcery (Counsel
+    // of the Soratami {2}{U} sorcery 2004, Weave Fate {3}{U} instant 2014).
+    cost: cost(3, 'U'),
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }] }],
     rarity: 'r',

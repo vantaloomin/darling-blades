@@ -14,7 +14,7 @@
 
 import type { Wave } from './recipes';
 
-export type MoodName = 'menu' | 'duel' | 'gauntlet' | 'shop';
+export type MoodName = 'menu' | 'duel' | 'duelTense' | 'duelLethal' | 'gauntlet' | 'shop';
 
 /** C-major scale as semitone offsets from C (pitch classes 0..11). */
 export const SCALE = [0, 2, 4, 5, 7, 9, 11] as const;
@@ -68,9 +68,10 @@ export interface MoodPreset {
 }
 
 /**
- * The four mood presets. Degrees are C-major scale degrees:
- * 0=C 1=Dm 2=Em 3=F 4=G 5=Am (6=B° is avoided — its tritone reads harsh
- * against the SFX set). Minor moods just re-center the same pitch family.
+ * The six mood presets. Degrees are C-major scale degrees:
+ * 0=C 1=Dm 2=Em 3=F 4=G 5=Am. The base moods avoid 6=B°, while the
+ * high-tension duel variant admits it sparingly for a diatonic tritone edge.
+ * Minor moods just re-center the same pitch family.
  */
 export const MOODS: Record<MoodName, MoodPreset> = {
   // Calm, major-leaning: home base on C with plagal IV/vi drift.
@@ -135,6 +136,72 @@ export const MOODS: Record<MoodName, MoodPreset> = {
     pluckPulse: 0.62,
     pluckDensity: 0.42,
     level: 0.95,
+  },
+  // Immediate danger: retain the duel's A-minor center but open the filter,
+  // admit the full diatonic pool, and make the pluck grid more active.
+  duelTense: {
+    name: 'duelTense',
+    center: 5,
+    pool: [
+      { degree: 5, weight: 5 },
+      { degree: 2, weight: 4 },
+      { degree: 1, weight: 3 },
+      { degree: 6, weight: 2 },
+      { degree: 3, weight: 3 },
+      { degree: 4, weight: 2 },
+      { degree: 0, weight: 2 },
+    ],
+    chordDur: 4.2,
+    attack: 1.4,
+    release: 2.2,
+    cutoff: 1600,
+    detuneCents: 12,
+    padWave: 'sawtooth',
+    padPeak: 0.047,
+    bassPeak: 0.058,
+    pluckPeak: 0.046,
+    voiceLow: 54,
+    voiceHigh: 79,
+    bassLow: 34,
+    bassHigh: 48,
+    pluckLow: 72,
+    pluckHigh: 89,
+    pluckPulse: 0.42,
+    pluckDensity: 0.55,
+    level: 0.98,
+  },
+  // A visible incoming lethal thins the bed to a slower, lower voicing. This
+  // is a dedicated preset rather than a runtime override, so setMood() can
+  // keep its existing musical crossfade behavior.
+  duelLethal: {
+    name: 'duelLethal',
+    center: 5,
+    pool: [
+      { degree: 5, weight: 4 },
+      { degree: 2, weight: 3 },
+      { degree: 1, weight: 2 },
+      { degree: 3, weight: 1 },
+      { degree: 4, weight: 1 },
+      { degree: 0, weight: 1 },
+    ],
+    chordDur: 6,
+    attack: 1.8,
+    release: 3,
+    cutoff: 650,
+    detuneCents: 5,
+    padWave: 'triangle',
+    padPeak: 0.03,
+    bassPeak: 0.06,
+    pluckPeak: 0.022,
+    voiceLow: 48,
+    voiceHigh: 68,
+    bassLow: 29,
+    bassHigh: 41,
+    pluckLow: 60,
+    pluckHigh: 74,
+    pluckPulse: 1.4,
+    pluckDensity: 0.12,
+    level: 0.75,
   },
   // Mysterious: D-dorian center (still the C family), long dark chords,
   // very sparse plucks in a lower register.
@@ -203,6 +270,47 @@ export const MOODS: Record<MoodName, MoodPreset> = {
 };
 
 export const MOOD_NAMES = Object.keys(MOODS) as MoodName[];
+
+export const DUEL_TENSION = {
+  enterLifeFraction: 0.3,
+  exitLifeFraction: 0.4,
+} as const;
+
+export interface DuelMoodSelectionInput {
+  humanLife: number;
+  opponentLife: number;
+  startingLife: number;
+  tensionActive: boolean;
+  lethalVisible: boolean;
+}
+
+export interface DuelMoodSelection {
+  mood: Extract<MoodName, 'duel' | 'duelTense' | 'duelLethal'>;
+  tensionActive: boolean;
+}
+
+/**
+ * Resolve the reactive duel bed without browser state. Tension enters only
+ * below 30% and holds through exactly 40%, preventing healing loops from
+ * repeatedly crossfading the music. A visible incoming lethal takes priority
+ * over the underlying life mood but preserves its tension state for recovery.
+ */
+export function selectDuelMood({
+  humanLife,
+  opponentLife,
+  startingLife,
+  tensionActive: wasTense,
+  lethalVisible,
+}: DuelMoodSelectionInput): DuelMoodSelection {
+  const lowestLifeFraction = Math.min(humanLife, opponentLife) / startingLife;
+  const tensionActive = wasTense
+    ? lowestLifeFraction <= DUEL_TENSION.exitLifeFraction
+    : lowestLifeFraction < DUEL_TENSION.enterLifeFraction;
+  return {
+    mood: lethalVisible ? 'duelLethal' : tensionActive ? 'duelTense' : 'duel',
+    tensionActive,
+  };
+}
 
 /** Tiny deterministic PRNG (mulberry32) — the progression is seed-driven. */
 export function makeRng(seed: number): () => number {

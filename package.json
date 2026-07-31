@@ -1,7 +1,7 @@
 {
   "name": "darling-blades",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "dev": "npm run gen-art-manifest && vite",
@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
+    "fflate": "0.8.2",
     "phaser": "^3.90.0"
   },
   "devDependencies": {

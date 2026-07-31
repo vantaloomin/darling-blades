@@ -20,7 +20,7 @@ export const BEASTKIN = [
     id: 'bk-wolfkin-raider',
     name: 'Wolfkin Raider',
     types: ['creature'],
-    subtypes: ['Beastkin', 'Wolfkin'],
+    subtypes: ['Beastkin', 'Wolf'],
     cost: cost(1, 'R'),
     colors: ['R'],
     attack: 2,
@@ -46,7 +46,7 @@ export const BEASTKIN = [
     id: 'bk-harpy-skirmisher',
     name: 'Harpy Skirmisher',
     types: ['creature'],
-    subtypes: ['Beastkin', 'Avian'],
+    subtypes: ['Beastkin', 'Bird'],
     cost: cost(1, 'R'),
     colors: ['R'],
     attack: 2,
@@ -110,7 +110,7 @@ export const BEASTKIN = [
     id: 'bk-packmother',
     name: 'Beastkin Packmother',
     types: ['creature'],
-    subtypes: ['Beastkin', 'Wolfkin'],
+    subtypes: ['Beastkin', 'Wolf'],
     cost: cost(1, 'GG'),
     colors: ['G'],
     attack: 2,
@@ -148,7 +148,7 @@ export const BEASTKIN = [
     id: 'bk-wolfqueen',
     name: 'Wolfqueen Lupa',
     types: ['creature'],
-    subtypes: ['Beastkin', 'Wolfkin'],
+    subtypes: ['Beastkin', 'Wolf'],
     supertypes: ['legendary'],
     cost: cost(3, 'RG'),
     colors: ['R', 'G'],
@@ -158,7 +158,7 @@ export const BEASTKIN = [
     abilities: [
       {
         when: 'static',
-        static: { scope: 'filter', filter: { subtype: 'Wolfkin', other: true }, p: 1, t: 1 },
+        static: { scope: 'filter', filter: { subtype: 'Wolf', other: true }, p: 1, t: 1 },
       },
     ],
     rarity: 'ssr',
@@ -186,7 +186,14 @@ export const BEASTKIN = [
     colors: ['U'],
     attack: 2,
     defense: 2,
-    abilities: [{ when: 'arrives', ops: [{ op: 'preventCombat' }] }],
+    // W4.5 (card health pass, 2026-07-30): the arrival was preventCombat, the
+    // engine-dead sorcery-speed fog (a creature resolves in your own main
+    // phase; the fog flag clears before the opponent's combat), so the line
+    // never did anything. Target-free foresee replaces it. NOT the tap op:
+    // {op:'tap'; to:'target'} on a trigger receives targets:[] and is a
+    // silent second no-op the per-set tests would wave through. This is a
+    // 4-of in the rung-7 Yohime deck; her baseline re-stamps in W7.
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r',
     flavor: 'Sleep now. The battle will still be lost in the morning.',
   },
@@ -297,7 +304,7 @@ export const BEASTKIN = [
     id: 'bk-crowkin-shrike',
     name: 'Crowkin Shrike',
     types: ['creature'],
-    subtypes: ['Beastkin', 'Avian'],
+    subtypes: ['Beastkin', 'Bird'],
     cost: cost(2, 'B'),
     colors: ['B'],
     attack: 2,

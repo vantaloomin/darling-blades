@@ -209,3 +209,18 @@ sons echo. Faces stay bright and quiet; the shimmer lives in the silver, never t
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common — one figure, one idea (guarded caution).
 - **Prompt:** Genderbent Xiahou Hui in a fine blue bridal-court robe with dark-teal underlayer and tarnished-silver clasp, half-turned glancing over her shoulder, one hand pausing a raised cup before her lips, wary sidelong eyes, dim two-value banquet interior with one lamp, soft cool key and faint silver rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Yang Huiyu, Patient Regent — `tk-jin-yang-huiyu`
+- **Card facts:** {1}{B}{B} · B · 2/2 · r · holo: auto:sheen
+- **Character & source:** Genderbent Yang Huiyu, an adult Jin regent whose careful record keeping is the source of the faction's unity. Her static anthem means the court advances as one quiet administration.
+- **Personality / mood:** "She keeps every promise in a ledger. Her enemies keep forgetting the ink." Patient, exacting, and impossible to surprise with a debt she has already recorded.
+- **Pose & composition:** Three-quarter, waist-up behind a lacquered ledger table, one hand flattening an open account book while the other sets down a brush. Two Jin officers blur into ordered depth behind her; face at y 320, eye line at y 345, stillness carrying the command.
+- **Costume & attire:** High-collared black and slate-teal regent's robe, broad dark-silk sleeves, tarnished-silver belt tablets, a low silver hair comb, and ink-dark gloves with one fingertip bare for the brush.
+- **Palette:** B palette (dark violet, near-black, and violet accent) held to deep ink-black and violet shadow; Jin slate-teal silk, tarnished silver fittings, and one cool blue ledger reflection.
+- **Lighting:** Cool window key across the account pages and her composed face; narrow silver rim along the collar and brush hand.
+- **Expression:** Measured, faintly kind, and already aware of the answer before anyone asks.
+- **Props / weapon:** An open lacquer-bound ledger, a silver-tipped brush, and orderly sealed tablets; the written record is her weapon.
+- **Background:** A screened Jin archive chamber, stacks of tied records and two waiting officers softened into the shadows.
+- **Holo interaction:** Sheen; let the moving shine travel across textured black silk, lacquer grain, and silver tablets while her face and inked pages stay clear.
+- **Rarity ambition:** Rare moment: a whole faction falling into formation from one quiet notation.
+- **Prompt:** Yang Huiyu, an adult Jin regent in a high-collared black and slate-teal court robe with tarnished-silver belt tablets and low silver hair comb, waist-up at a lacquered ledger table with one hand flattening an open account book and the other setting down a silver-tipped brush, composed eyes meeting the viewer while two Jin officers receive sealed directives in soft focus behind her; screened archive chamber with tied records and cool window light; cool key across face and pages, narrow silver rim on collar and hand; generous clear background above her hair, no readable writing, letters, numbers, seals, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait

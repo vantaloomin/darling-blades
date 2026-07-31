@@ -8,7 +8,7 @@ import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { CARD_TYPE_DEFINITIONS, KEYWORD_NAMES, KEYWORD_REMINDER, MECHANIC_DEFINITIONS } from '../ui/rulesText';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, pager, panel } from '../ui/themeWidgets';
+import { backButton, pager, panel, registerSceneBackNavigation } from '../ui/themeWidgets';
 
 const DESIGN_W = 1280;
 const DESIGN_H = 720;
@@ -67,6 +67,7 @@ const GLOSSARY_SECTIONS: GlossarySection[] = [
       { name: 'Empower', description: MECHANIC_DEFINITIONS.empower, icon: { kind: 'none' } },
       { name: 'Skim', description: MECHANIC_DEFINITIONS.skim, icon: { kind: 'none' } },
       { name: 'Retell', description: MECHANIC_DEFINITIONS.retell, icon: { kind: 'none' } },
+      { name: 'Hauntlink', description: MECHANIC_DEFINITIONS.hauntlink, icon: { kind: 'none' } },
     ],
   },
   {
@@ -159,7 +160,8 @@ export class GlossaryScene extends Phaser.Scene {
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
-    backButton(this, () => this.scene.start('MainMenu'));
+    backButton(this, 'Menu', () => this.scene.start('MainMenu'));
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
     panel(this, LEFT_X, PANEL_Y, PANEL_W, PANEL_H);
     panel(this, RIGHT_X, PANEL_Y, PANEL_W, PANEL_H);
@@ -228,7 +230,7 @@ export class GlossaryScene extends Phaser.Scene {
 
   /** Non-keyword mechanics are icon-less, like Card Types, and page in place. */
   private drawMechanics(mechanics: GlossarySection): void {
-    // Keep the established two-column row treatment, but page the seven-entry
+    // Keep the established two-column row treatment, but page the eight-entry
     // section so every reminder stays inside the panel and title-safe frame.
     this.sectionTitle(LEFT_X + 20, 544, mechanics.title);
     const pageSize = 4;

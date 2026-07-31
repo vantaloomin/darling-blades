@@ -1,5 +1,5 @@
 import type { Emit } from './battlefield';
-import { destroyPermanent } from './battlefield';
+import { destroyPermanent, firesDiesForDestroy } from './battlefield';
 import { fireTriggers } from './effects/EffectInterpreter';
 import { endGame } from './phases';
 import { getEffectiveStats } from './statics';
@@ -52,7 +52,9 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
       }
     }
 
-    // Auras attached to something that no longer exists (or dies this pass) die.
+    // Auras and Hauntlinks attached to something that no longer exists (or dies
+    // this pass) die. A Hauntlink gets its public broken event immediately
+    // before its ordinary graveyard movement below.
     for (const perm of state.battlefield) {
       if (perm.attachedTo === undefined) continue;
       if (
@@ -81,7 +83,23 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
     const doomed = state.battlefield.filter((p) => doomedIids.has(p.iid));
     const fallen: Permanent[] = [];
     for (const perm of doomed) {
-      if (destroyPermanent(state, db, perm, emit)) fallen.push(perm);
+      const hostDeparting =
+        perm.attachedTo !== undefined &&
+        (doomedIids.has(perm.attachedTo) ||
+          !state.battlefield.some((p) => p.iid === perm.attachedTo));
+      if (hostDeparting && def(db, perm.cardId).hauntlink) {
+        emit({
+          e: 'hauntlinkBroken',
+          linkIid: perm.iid,
+          hostIid: perm.attachedTo!,
+          cardId: perm.cardId,
+          owner: perm.owner,
+        });
+      }
+      if (destroyPermanent(state, db, perm, emit)) {
+        if (firesDiesForDestroy(state, db, perm)) fallen.push(perm);
+        changed = true;
+      }
     }
     for (const perm of fallen) {
       if (state.winner !== null) return;

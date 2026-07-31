@@ -7,7 +7,7 @@ import type {
   StackItem,
   Step,
 } from './types';
-import { opponentOf } from './types';
+import { cardIdOf, opponentOf } from './types';
 
 /**
  * Hidden-information redaction. AIs (at every difficulty) receive ONLY this
@@ -21,6 +21,8 @@ export interface SelfView {
   deckCount: number;
   graveyard: string[];
   severed: string[];
+  /** Public ordered reserve. Omitted for classic games. */
+  landReserve?: string[];
   landPlayedThisTurn: boolean;
   mulligans: number;
 }
@@ -31,6 +33,8 @@ export interface OpponentView {
   deckCount: number;
   graveyard: string[];
   severed: string[];
+  /** Public ordered reserve. Omitted for classic games. */
+  landReserve?: string[];
   landPlayedThisTurn: boolean;
   mulligans: number;
 }
@@ -57,7 +61,9 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
   const awaiting =
     state.awaiting.kind === 'foresee' && state.awaiting.player !== player
       ? { ...state.awaiting, cards: [] }
-      : structuredClone(state.awaiting);
+      : state.awaiting.kind === 'foresee'
+        ? { ...state.awaiting, cards: state.awaiting.cards.map(cardIdOf) }
+        : structuredClone(state.awaiting);
   return {
     myId: player,
     turn: state.turn,
@@ -66,10 +72,11 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
     startingPlayer: state.startingPlayer,
     you: {
       life: me.life,
-      hand: [...me.hand],
+      hand: me.hand.map(cardIdOf),
       deckCount: me.deck.length,
-      graveyard: [...me.graveyard],
-      severed: [...me.severed],
+      graveyard: me.graveyard.map(cardIdOf),
+      severed: me.severed.map(cardIdOf),
+      ...(me.landReserve !== undefined ? { landReserve: me.landReserve.map(cardIdOf) } : {}),
       landPlayedThisTurn: me.landPlayedThisTurn,
       mulligans: me.mulligans,
     },
@@ -77,8 +84,9 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
       life: them.life,
       handCount: them.hand.length,
       deckCount: them.deck.length,
-      graveyard: [...them.graveyard],
-      severed: [...them.severed],
+      graveyard: them.graveyard.map(cardIdOf),
+      severed: them.severed.map(cardIdOf),
+      ...(them.landReserve !== undefined ? { landReserve: them.landReserve.map(cardIdOf) } : {}),
       landPlayedThisTurn: them.landPlayedThisTurn,
       mulligans: them.mulligans,
     },

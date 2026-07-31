@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
-import { RULES } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
+import { FEATURES } from '../config/features';
 import { def } from '../engine/types';
-import { faceCardFor } from '../meta/deckFace';
+import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
+import { firstDuelLaunchIssue } from '../meta/duelSetup';
 import { Services } from '../meta/services';
 import type { SavedDeck } from '../meta/SaveManager';
 import { bindTapButton } from '../platform/gestures';
@@ -12,7 +13,15 @@ import { makeCardThumb } from '../ui/CardThumbCache';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
-import { goldBadge, modalShell, pager, panel, themedButton } from '../ui/themeWidgets';
+import { backButton, goldBadge, modalShell, pager, panel, registerSceneBackNavigation, themedButton } from '../ui/themeWidgets';
+import {
+  activeVisibleSavedDeck,
+  builderFormatForDeck,
+  formatDeckSize,
+  formatGauntletUnavailableCopy,
+  formatLabel,
+  visibleSavedDecks,
+} from '../ui/deckBuilderHelpers';
 
 /**
  * The "Play" submenu (user-directed 2026-07-14): MainMenu's game-mode rows
@@ -27,7 +36,6 @@ const PLAY_ITEMS: { label: string; scene: string; data?: object }[] = [
   // The three difficulty rows collapsed into the opponent picker (1.2): pick
   // any tower avatar (their difficulty applies) or a plain training duel.
   { label: 'Practice', scene: 'PracticePicker' },
-  { label: 'Return', scene: 'MainMenu' },
 ];
 
 /** Deck rows per quick-select page (7 x 48px pitch fits the 520-tall shell). */
@@ -38,15 +46,19 @@ export class PlayScene extends Phaser.Scene {
   /** Underlying interactive targets deadened while the deck select is open. */
   private menuTargets: Phaser.GameObjects.GameObject[] = [];
   private deckPlate: Phaser.GameObjects.Container | null = null;
+  private launchNotice: Phaser.GameObjects.Text | null = null;
+  private reserveFormatsEnabled = false;
 
   constructor() {
     super('Play');
   }
 
-  create(): void {
+  create(data: { launchNotice?: string } = {}): void {
+    this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.guard = new ModalGuard();
     this.menuTargets = [];
     this.deckPlate = null;
+    this.launchNotice = null;
     const width = 1280;
     applyBackdrop(this, 'mainmenu', {
       dim: theme.graphics.dim,
@@ -76,6 +88,9 @@ export class PlayScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    backButton(this, 'Menu', () => this.scene.start('MainMenu'));
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
+
     goldBadge(this, width - 30, 30, { getValue: () => Services.save.data.gold });
 
     const firstY = 286;
@@ -85,17 +100,53 @@ export class PlayScene extends Phaser.Scene {
         variant: 'ghost',
         size: 'sm',
         minWidth: 300,
-        onTap: () => this.scene.start(entry.scene, entry.data),
+        onTap: () => this.startPlayEntry(entry.scene, entry.data),
       });
       this.menuTargets.push(btn.inputZone);
     });
 
     this.buildDeckPlate();
+    if (data.launchNotice) this.showLaunchNotice(data.launchNotice);
   }
 
   private activeDeck(): SavedDeck | null {
     const save = Services.save.data;
-    return save.decks.find((d) => d.id === save.activeDeckId) ?? null;
+    return activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
+  }
+
+  private startPlayEntry(scene: string, data?: object): void {
+    if (scene === 'Practice') {
+      const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, this.activeDeck());
+      if (issue) {
+        this.showLaunchNotice(`Cannot start Practice: ${issue}`);
+        return;
+      }
+    }
+    if (scene === 'Gauntlet') {
+      const deck = this.activeDeck();
+      const format = builderFormatForDeck(deck, this.reserveFormatsEnabled);
+      if (formatGauntletUnavailableCopy(format)) {
+        this.buildDeckPlate();
+        return;
+      }
+    }
+    this.scene.start(scene, data);
+  }
+
+  private showLaunchNotice(message: string): void {
+    if (!this.launchNotice || !this.launchNotice.active) {
+      this.launchNotice = this.add
+        .text(640, 500, message, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.danger,
+          align: 'center',
+          wordWrap: { width: 620 },
+        })
+        .setOrigin(0.5);
+      return;
+    }
+    this.launchNotice.setText(message);
   }
 
   /**
@@ -105,6 +156,7 @@ export class PlayScene extends Phaser.Scene {
    * approximation is fine here).
    */
   private deckFaceId(deck: SavedDeck): string | null {
+    if (builderFormatForDeck(deck, this.reserveFormatsEnabled) === 'darlings') return darlingFaceCardFor(deck, CARD_DB);
     if (deck.heroCardId && CARD_DB[deck.heroCardId] && deck.cards.includes(deck.heroCardId)) {
       return deck.heroCardId;
     }
@@ -119,9 +171,11 @@ export class PlayScene extends Phaser.Scene {
   private buildDeckPlate(): void {
     const stale = this.deckPlate;
     if (stale) {
-      const staleSet = new Set(stale.list);
-      this.menuTargets = this.menuTargets.filter((t) => !staleSet.has(t));
+      // menuTargets holds button inputZones (grandchildren of the plate), so
+      // membership in stale.list never matches them: destroy first, then drop
+      // whatever the destroy cascade deactivated.
       stale.destroy();
+      this.menuTargets = this.menuTargets.filter((t) => t.active);
     }
     const c = this.add.container(0, 0);
     this.deckPlate = c;
@@ -164,6 +218,8 @@ export class PlayScene extends Phaser.Scene {
     }
 
     const faceId = this.deckFaceId(deck);
+    const deckFormat = builderFormatForDeck(deck, this.reserveFormatsEnabled);
+    const unavailable = formatGauntletUnavailableCopy(deckFormat);
     let textLeft = left + 24;
     if (faceId) {
       // 300x420 card at 0.18 = 54x76, comfortably inside the 96px plate.
@@ -172,7 +228,7 @@ export class PlayScene extends Phaser.Scene {
     }
     c.add(
       this.add
-        .text(textLeft, cy - 26, 'ACTIVE DECK', {
+        .text(textLeft, cy - 26, unavailable ? formatLabel(deckFormat).toUpperCase() + ' DECK' : 'ACTIVE DECK', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
@@ -192,10 +248,11 @@ export class PlayScene extends Phaser.Scene {
     c.add(name);
     c.add(
       this.add
-        .text(textLeft, cy + 25, `${deck.cards.length}/${RULES.deckSize} cards`, {
+        .text(textLeft, cy + 25, unavailable ?? (deck.cards.length + '/' + formatDeckSize(deckFormat) + ' cards'), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
-          color: deck.cards.length === RULES.deckSize ? theme.colors.success : theme.colors.danger,
+          color: unavailable ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
+          wordWrap: { width: w - 190 },
         })
         .setOrigin(0, 0.5),
     );
@@ -218,7 +275,7 @@ export class PlayScene extends Phaser.Scene {
    */
   private showDeckSelect(): void {
     const save = Services.save.data;
-    const decks = save.decks;
+    const decks = visibleSavedDecks(save.decks, this.reserveFormatsEnabled);
     const shell = modalShell(this, {
       width: 620,
       height: 520,
@@ -258,7 +315,7 @@ export class PlayScene extends Phaser.Scene {
       const visible = decks.slice(page * DECK_PAGE_SIZE, (page + 1) * DECK_PAGE_SIZE);
       visible.forEach((deck, i) => {
         const y = listTop + i * pitch;
-        const isActive = deck.id === save.activeDeckId;
+        const isActive = deck.id === this.activeDeck()?.id;
         const band = this.add
           .rectangle(rowX + rowW / 2, y, rowW, 40, isActive ? theme.graphics.rowFillActive : theme.graphics.rowFill, 0.9)
           .setStrokeStyle(
@@ -274,30 +331,39 @@ export class PlayScene extends Phaser.Scene {
         band.on('pointerout', () => {
           if (!isActive) band.setFillStyle(theme.graphics.rowFill, 0.9);
         });
+        const deckFormat = builderFormatForDeck(deck, this.reserveFormatsEnabled);
+        const unavailable = formatGauntletUnavailableCopy(deckFormat);
         const name = this.add
-          .text(rowX + 16, y, deck.name, {
+          .text(rowX + 16, y - 7, deck.name, {
             fontFamily: theme.fonts.display,
             fontSize: `${theme.type.label}px`,
             color: isActive ? theme.colors.gold : theme.colors.heading,
           })
           .setOrigin(0, 0.5);
         if (name.width > rowW - 200) name.setScale((rowW - 200) / name.width);
+        const badge = this.add
+          .text(rowX + 16, y + 12, formatLabel(deckFormat), {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.micro}px`,
+            color: unavailable ? theme.colors.danger : theme.colors.muted,
+          })
+          .setOrigin(0, 0.5);
         const count = this.add
-          .text(rowX + rowW - 84, y, `${deck.cards.length}/${RULES.deckSize}`, {
+          .text(rowX + rowW - 84, y, deck.cards.length + '/' + formatDeckSize(deckFormat), {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
-            color: deck.cards.length === RULES.deckSize ? theme.colors.success : theme.colors.danger,
+            color: unavailable ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
           })
           .setOrigin(1, 0.5);
         const state = this.add
-          .text(rowX + rowW - 16, y, isActive ? 'Using' : 'Use', {
+          .text(rowX + rowW - 16, y, unavailable ? 'Practice only' : isActive ? 'Using' : 'Use', {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             fontStyle: theme.weight.w600,
-            color: isActive ? theme.colors.gold : theme.colors.body,
+            color: unavailable ? theme.colors.danger : isActive ? theme.colors.gold : theme.colors.body,
           })
           .setOrigin(1, 0.5);
-        for (const item of [band, name, count, state]) {
+        for (const item of [band, name, badge, count, state]) {
           rowItems.push(item);
           c.add(item);
         }

@@ -14,7 +14,7 @@ import { Services } from '../meta/services';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { colorInt, theme } from '../ui/theme';
-import { pager, panel, roundedTrigger, sceneHeaderFooter, themedButton } from '../ui/themeWidgets';
+import { pager, panel, registerSceneBackNavigation, roundedTrigger, sceneHeaderFooter, themedButton } from '../ui/themeWidgets';
 
 const DESIGN_W = 1280;
 const DESIGN_H = 720;
@@ -116,6 +116,11 @@ export class AchievementsScene extends Phaser.Scene {
     Music.setMood('shop');
 
     const save = Services.save.data;
+    // Recovery sync, deliberately kept ALONGSIDE the mutation checkpoints:
+    // imported save codes, migrations, and dev grants change the save outside
+    // any checkpoint, and claiming validates against the persisted unlocked
+    // list — without this, such saves show satisfied plaques that refuse to
+    // claim. Checkpoints make unlocks immediate; this makes them recoverable.
     if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const statuses = evaluateAchievements(save, CARD_DB);
     const filter = data.filter ?? 'all';
@@ -130,9 +135,11 @@ export class AchievementsScene extends Phaser.Scene {
 
     const chrome = sceneHeaderFooter(this, {
       title: 'Achievements',
+      backLabel: 'Menu',
       onBack: () => this.scene.start('MainMenu'),
       showCurrency: false,
     });
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
     chrome.title.setX(theme.design.centerX);
 
     this.add

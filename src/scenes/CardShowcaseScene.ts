@@ -5,7 +5,7 @@ import { TIER_LABEL, type FrameStyle, type HoloFinish } from '../meta/variants';
 import { CardView } from '../ui/CardView';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
-import { backButton, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 const FRAMES: readonly FrameStyle[] = ['white', 'blue', 'red', 'gold', 'rainbow', 'black'];
 const HOLOS: readonly HoloFinish[] = ['none', 'shiny', 'rainbow', 'pearlescent', 'fractal', 'void'];
@@ -128,7 +128,8 @@ export class CardShowcaseScene extends Phaser.Scene {
       this.fullArt = !this.fullArt;
       this.apply();
     });
-    backButton(this, () => this.scene.start('MainMenu'));
+    backButton(this, 'Menu', () => this.scene.start('MainMenu'));
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
     this.apply();
   }
   private addRowLabel(x: number, y: number, text: string): void {

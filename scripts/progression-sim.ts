@@ -76,7 +76,7 @@ export const PACK_OPEN_MINUTES = 1.25;
 export const DECK_BUY_MINUTES = 1.5;
 export const QUEST_REROLL_MINUTES = 0.5;
 
-type PackPreference = 'base' | 'ragnarok' | 'arthurian-court' | 'mixed' | 'none';
+export type PackPreference = 'base' | 'ragnarok' | 'arthurian-court' | 'mixed' | 'none';
 type AchievementPolicy = 'claim' | 'ignore';
 type DailyCount = number | { min: number; max: number };
 
@@ -580,28 +580,44 @@ export const COARSE_PROGRESSION_BANDS = Object.freeze({
   collectionPct: Object.freeze({ min: 0.03, max: 0.7 }),
 });
 
-export const CANONICAL_FINE_BASELINE_DATE = '2026-07-25';
-export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, post-Dark Tales 1.4, 638-card pool';
+export const CANONICAL_FINE_BASELINE_DATE = '2026-07-31';
+export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.5 post-balance-pass, 769 collectible (787 catalog)';
 
 /**
- * Flag-only bands measured from balance/econ-baseline-2026-07-25-post-dt.report.json.
+ * Flag-only bands measured from balance/econ-baseline-2026-07-31-post-pass.report.json
+ * (npx tsx scripts/progression-sim.ts --check --json, 4,800 day snapshots).
  * Baseline rows are day-60 aggregates; the wide edges are intentional and do
  * not affect --check's exit code. Measured -> band: collection %, packs/day,
- * premium runs, quest claim rate. Fine windows are re-centered from the prior
- * offsets; lower bounds are ratchet floors and never move downward (which is
- * why several collection floors sit close under the post-Dark-Tales values:
- * the 638-card pool lowered every completion, but floors only ratchet up).
+ * premium runs, quest claim rate. Each window keeps the relative tolerance its
+ * persona already had and is re-centred on the fresh measurement.
  *
- * new-casual 33.82 -> 32..46, 0.48 -> 0.10..1.15, 0 -> 0..1, 42.50 -> 25..64
- * daily-grinder 61.38 -> 53..76, 1.56 -> 0.90..2.38, 0 -> 0..1, 73.82 -> 54..94
- * gauntlet-climber 56.97 -> 50..72, 1.40 -> 0.80..2.20, 0 -> 0..1, 68.33 -> 48..88
- * limited-fan 79.21 -> 77..88, 0.64 -> 0.04..0.94, 18.00 -> 16..20, 73.06 -> 53..92
- * collector 50.12 -> 41..66, 1.03 -> 0.51..1.81, 0 -> 0..1, 66.60 -> 45..85
- * theme-deck-buyer 59.15 -> 54..74, 0.83 -> 0.40..1.53, 0 -> 0..1, 59.58 -> 40..80
- * hardcore-optimizer 69.30 -> 67..81, 2.31 -> 1.50..3.28, 0 -> 0..1, 85.83 -> 70..100
- * low-skill-casual 33.91 -> 24..50, 0.47 -> 0.12..1.02, 0 -> 0..1, 41.53 -> 21..61
- * high-skill-veteran 66.87 -> 59..81, 1.99 -> 1.14..2.84, 0 -> 0..1, 78.26 -> 60..95
- * completionist 74.55 -> 72..86, 2.13 -> 1.42..3.22, 0 -> 0..1, 89.79 -> 70..100
+ * 2026-07-31 re-centre: the balance pass grew the pool 758 -> 769 collectible
+ * (+1.5%; two Base commons, two Base tribal leaders, one Celtic Fae, one
+ * Gothic Monsters), so unlike the 2026-07-29 re-centre the dilution shift is
+ * inside noise: every persona measured INSIDE its previous band (zero flags)
+ * and the cohort medians held at 1.17 packs/day and 52% collection.
+ * craftedUniques stayed 0.0 for every persona (intended: crafting is the
+ * endgame sink, user decision 2026-07-28). Windows re-centred anyway per the
+ * per-release convention.
+ *
+ * Retained history: the 2026-07-29 re-centre moved collection floors DOWN
+ * (user-approved override of ratchet-up) for two deliberate product reasons -
+ * pool dilution 638 -> 758 (+19%) and the Base pack scoped to base-set cards,
+ * which caps cheapest-pack-only personas at 209/769 = 27% of the pool by
+ * construction (new-casual, low-skill-casual, theme-deck-buyer sit against
+ * that ceiling on purpose). Quest-claim rates are pool-independent and were
+ * the instrument check both times.
+ *
+ * new-casual 18.77 -> 18..26, 0.45 -> 0.09..1.08, 0 -> 0..1, 42.50 -> 25..64
+ * daily-grinder 52.88 -> 46..66, 1.49 -> 0.86..2.28, 0 -> 0..1, 73.82 -> 54..94
+ * gauntlet-climber 50.62 -> 44..64, 1.36 -> 0.77..2.14, 0 -> 0..1, 68.89 -> 49..89
+ * limited-fan 74.10 -> 72..82, 0.63 -> 0.07..0.92, 18.00 -> 16..20, 73.47 -> 54..92
+ * collector 41.84 -> 34..55, 0.97 -> 0.48..1.71, 0 -> 0..1, 65.21 -> 44..84
+ * theme-deck-buyer 33.93 -> 31..42, 0.70 -> 0.34..1.29, 0 -> 0..1, 59.58 -> 40..80
+ * hardcore-optimizer 67.23 -> 65..78, 2.27 -> 1.48..3.22, 0 -> 0..1, 85.83 -> 70..100
+ * low-skill-casual 18.70 -> 13..28, 0.44 -> 0.11..0.95, 0 -> 0..1, 41.53 -> 21..61
+ * high-skill-veteran 60.32 -> 53..73, 1.90 -> 1.09..2.71, 0 -> 0..1, 77.78 -> 60..95
+ * completionist 67.96 -> 66..78, 2.04 -> 1.36..3.09, 0 -> 0..1, 89.86 -> 70..100
  */
 export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
   collectionPct: readonly [number, number];
@@ -609,16 +625,16 @@ export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
   premiumDraftRuns: readonly [number, number];
   dailyQuestClaimRate: readonly [number, number];
 }>> = Object.freeze({
-  'new-casual': { collectionPct: [0.32, 0.46], packsPerDay: [0.1, 1.15], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
-  'daily-grinder': { collectionPct: [0.53, 0.76], packsPerDay: [0.9, 2.38], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
-  'gauntlet-climber': { collectionPct: [0.5, 0.72], packsPerDay: [0.8, 2.2], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.48, 0.88] },
-  'limited-fan': { collectionPct: [0.77, 0.88], packsPerDay: [0.04, 0.94], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.53, 0.92] },
-  collector: { collectionPct: [0.41, 0.66], packsPerDay: [0.51, 1.81], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.45, 0.85] },
-  'theme-deck-buyer': { collectionPct: [0.54, 0.74], packsPerDay: [0.4, 1.53], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
-  'hardcore-optimizer': { collectionPct: [0.67, 0.81], packsPerDay: [1.5, 3.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
-  'low-skill-casual': { collectionPct: [0.24, 0.5], packsPerDay: [0.12, 1.02], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
-  'high-skill-veteran': { collectionPct: [0.59, 0.81], packsPerDay: [1.14, 2.84], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.6, 0.95] },
-  completionist: { collectionPct: [0.72, 0.86], packsPerDay: [1.42, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
+  'new-casual': { collectionPct: [0.178, 0.257], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
+  'daily-grinder': { collectionPct: [0.456, 0.655], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
+  'gauntlet-climber': { collectionPct: [0.442, 0.643], packsPerDay: [0.77, 2.14], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.486, 0.886] },
+  'limited-fan': { collectionPct: [0.72, 0.822], packsPerDay: [0.07, 0.92], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.535, 0.922] },
+  collector: { collectionPct: [0.342, 0.552], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.436, 0.836] },
+  'theme-deck-buyer': { collectionPct: [0.31, 0.423], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
+  'hardcore-optimizer': { collectionPct: [0.651, 0.783], packsPerDay: [1.48, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
+  'low-skill-casual': { collectionPct: [0.133, 0.275], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
+  'high-skill-veteran': { collectionPct: [0.533, 0.728], packsPerDay: [1.09, 2.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.595, 0.945] },
+  completionist: { collectionPct: [0.657, 0.781], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.698, 1] },
 });
 
 const emptyRewards = (): RewardLedger => ({
@@ -1308,24 +1324,59 @@ function buyPacks(ctx: SimContext, dayIndex: number): void {
   throw new Error('Pack buying guard tripped; check economy loop assumptions');
 }
 
-function choosePack(
-  ctx: SimContext,
+/**
+ * Every expansion booster a 1.5 player can actually buy, in release order. The
+ * rotation is indexed by day, so it stays seed-deterministic.
+ */
+const MIXED_EXPANSION_ROTATION: readonly { price: number; set: CardDef['set'] }[] = [
+  { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' },
+  { price: ECONOMY.celticFaePackPrice, set: 'celtic-fae' },
+  { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' },
+  { price: ECONOMY.gothicMonstersPackPrice, set: 'gothic-monsters' },
+  { price: ECONOMY.darkTalesPackPrice, set: 'dark-tales' },
+  { price: ECONOMY.yokaiNightsPackPrice, set: 'yokai-nights' },
+];
+
+export function packChoiceForPreference(
+  preference: PackPreference,
   dayIndex: number,
+  expansionRoll = 0,
 ): { price: number; set?: CardDef['set'] } | null {
-  switch (spendingPlan(ctx).packPreference) {
+  switch (preference) {
     case 'none':
       return null;
     case 'base':
-      return { price: ECONOMY.packPrice };
+      return { price: ECONOMY.packPrice, set: 'base' };
     case 'ragnarok':
       return { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' };
     case 'arthurian-court':
       return { price: ECONOMY.arthurianCourtPackPrice, set: 'arthurian-court' };
     case 'mixed':
-      return rngFloat(ctx.rng) < (dayIndex % 3 === 0 ? 0.6 : 0.35)
-        ? { price: ECONOMY.ragnarokPackPrice, set: 'ragnarok' }
-        : { price: ECONOMY.packPrice };
+      // Mixed preference is a cheap Base Set route with an occasional
+      // expansion pack, rotating deterministically through every released
+      // expansion. Before 1.5 this branch bought the all-sets product, so one
+      // cheap SKU reached the whole pool; scoping Base Set to its own 205
+      // cards without widening the rotation left a mixed persona structurally
+      // unable to own more than (205 + 70) / 758 = 36% of the pool, and the
+      // 2026-07-29 run duly measured every mixed persona pinned at 32-35%.
+      // (Those are that era's figures; post-balance-pass the same base-only
+      // ceiling is 209/769 = 27% and the ratios re-derive each re-baseline.)
+      return expansionRoll < (dayIndex % 3 === 0 ? 0.6 : 0.35)
+        ? MIXED_EXPANSION_ROTATION[dayIndex % MIXED_EXPANSION_ROTATION.length]
+        : { price: ECONOMY.packPrice, set: 'base' };
   }
+}
+
+function choosePack(
+  ctx: SimContext,
+  dayIndex: number,
+): { price: number; set?: CardDef['set'] } | null {
+  const preference = spendingPlan(ctx).packPreference;
+  return packChoiceForPreference(
+    preference,
+    dayIndex,
+    preference === 'mixed' ? rngFloat(ctx.rng) : undefined,
+  );
 }
 
 function setupContext(

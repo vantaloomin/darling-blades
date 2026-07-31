@@ -181,6 +181,21 @@ above the tallest silhouette for smart-crop headroom on every card.
 - **Rarity ambition:** Super-rare moment — an ascension scene where mourning becomes menace.
 - **Prompt:** Black-Veil Matron, an adult widowed vampire in a high-collared black mourning gown of layered lace and velvet, cascading black veil pinned with jet and pearls lifted only past her smiling mouth, black gloves and a folded ebony fan, rising weightless up a spiraling candlelit manor stairwell as three bat-winged shadows peel off her train at different aggressive angles; guttering sconces and blank-plaqued portraits; warm sconce key on the wall, cold violet rim on the veil; reserve the entire top third as clear, empty night sky, candle haze, or storm air above the head, hair, crown, or wings so the full silhouette survives smart-crop; no readable letters, numerals, gravestone inscriptions, sheet music, book or label text, lettered invitations, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
+### Porcelain Governess — `gm-porcelain-governess`
+- **Card facts:** {2}{U} · U · 2/3 · r · holo: sheen
+- **Character & source:** An adult porcelain doll governess who coordinates the manor's Construct household with flawless, fearsome domestic discipline. Her static anthem means the other Constructs visibly straighten and advance at her instruction.
+- **Personality / mood:** "She keeps the household in order. The dolls remember what disorder costs." Immaculate, unsmiling, and more frightening for never raising her voice.
+- **Pose & composition:** Waist-up, angled slightly down from a staircase landing, one white-gloved hand holding a brass household bell without ringing it. Two doll Constructs and one stitched Construct below align themselves under her gaze; face at y 315, eye line at y 340, a single pale glaze crack at her temple.
+- **Costume & attire:** Powder-blue governess dress with a high white collar, stiff dark-navy apron, porcelain cameo at the throat, pale gloves, and lacquered black hair gathered into a severe low bun.
+- **Palette:** U palette (bright blue, deep navy, and cool pale-blue accent) in moonlit powder blue, deep navy, porcelain white, and restrained brass; Gothic lacquer and velvet frame the household scene.
+- **Lighting:** Cool tall-window key across the porcelain face and bell; warm gaslamp rim tracing the collar, hair, and waiting dolls.
+- **Expression:** Perfectly courteous, perfectly still, and visibly certain that every object in the room belongs where she put it.
+- **Props / weapon:** A silent brass bell, a folded blank household inventory sheet, and the ordered Construct attendants.
+- **Background:** A moonlit manor service stair with velvet runner, glass-fronted doll cabinets, and unlettered brass labels.
+- **Holo interaction:** Sheen; keep glaze craquelure, brass, stiff cloth, and cabinet glass finely textured so the moving highlight reads as polished order rather than a flat flash.
+- **Rarity ambition:** Rare moment: the manor's living household snaps into formation before the bell has sounded.
+- **Prompt:** Porcelain Governess, an adult porcelain doll woman in a powder-blue governess dress with high white collar, dark-navy apron, pale gloves, porcelain cameo, and lacquered black hair in a severe low bun, standing waist-up on a manor service-stair landing holding an unrung brass bell while two doll Constructs and one stitched Construct align below her; one fine glaze crack at her temple, calm exacting gaze; moonlit stair with velvet runner and glass-fronted doll cabinets; cool tall-window key across face and bell, warm gaslamp rim on collar and attendants; generous clear background above her hair, no readable letters, inventory text, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
 ### Ravenloft Heiress — `gm-ravenloft-heiress`
 - **Card facts:** {2}{B} · B · 3/2 · skyborne · r · holo: sheen
 - **Character & source:** an adult young vampire heiress on the best balcony of the castle she inherited — a cheap evasive rare whose empowered arrival drains the party below. Skyborne: she belongs to the air above the courtyard.

@@ -81,4 +81,15 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Skim early to smooth awkward hands and stock the graveyard, then Retell efficient Rituals and Charms while lifegain and Foresee keep the board stable. The deck wins by making every small answer matter twice.',
     featured: ['dt-poison-mirror-regent', 'dt-tower-window-seer', 'dt-page-torn-free'],
   },
+  'theme-yokai-nights': {
+    colors: 'W/U/B',
+    archetype: 'Hauntlink pressure',
+    // No balance markers in this string: `plays` renders in the Shop's deck
+    // detail, and the previous text leaked "TO MEASURE after the set landing"
+    // to players from the day the set shipped. Internal status lives on the
+    // deck list's comment in starterDecks.ts.
+    plays:
+      'Build a W/U Kitsune and aerial pressure shell, then link a powerful rider to its best attacker. Legendary finishers and black Sever effects turn one stable attack into a close.',
+    featured: ['yn-queen-of-the-lanterned-roof', 'yn-ghost-net-archon', 'yn-hauntlink-apex'],
+  },
 };

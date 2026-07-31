@@ -158,7 +158,14 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   9: { minAvg: 0.55 },
   10: { minAvg: 0.6 },
   11: { minAvg: 0.65 },
-  12: { minAvg: 0.7 },
+  // 12-20 re-centred 2026-07-31 from the W7 combined re-baseline (200
+  // seeds/cell on the post-balance-pass field): each min is the 200-seed
+  // average minus a 6.5pp 40-seed noise band, rounded down to the half
+  // point. Measured: R12 74 / R13 63 / R14 63 / R15 74 / R16 67 / R17 77 /
+  // R18 84 / R19 62 / R20 71. User-authorized one-time downward re-centre
+  // (same pattern as the economy bands): the old margins sat INSIDE 40-seed
+  // noise (R14's was 1pp). The R19 dip below R18 is a documented inversion.
+  12: { minAvg: 0.675 },
   // 13-14 calibrated 2026-07-16 from fresh 40-seed tower measurements (66%/66%
   // after two card-buff rounds + six deck iterations; CI margin ~4pp at 40
   // seeds). The AC rungs are quest/attrition gates, not stat walls; Brunhild's
@@ -166,22 +173,24 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // measured 76%), so a non-monotonic summit continues the accepted pattern.
   // Closing the residual 10pp vs R11/12 needs in-color W/U removal (a future
   // set) or heavier cross-set splash - recorded in opponents.ts's baseline.
-  13: { minAvg: 0.6 },
-  14: { minAvg: 0.62 },
+  13: { minAvg: 0.565 },
+  14: { minAvg: 0.565 },
   // 15-16 calibrated 2026-07-17 from fresh 40-seed tower measurements (77.6% /
   // 76.8%; CI margin ~4pp at 40 seeds). The Gothic Monsters summit pair sits
   // clearly above Artoria's 70.8%; the pair itself measured a statistical tie
-  // (0.8pp, inside noise), with the ordering expectation (16 >= 15) encoded in
-  // the win-rate test floors (72% / 73%), not here. Full tower re-baseline
-  // lands with the 1.3 floor-tier model (plan-1.3.md Pillar 1).
-  15: { minAvg: 0.7 },
-  16: { minAvg: 0.7 },
-  // 17-18 calibrated 2026-07-24 from the standard full 40-seed avatar
-  // matrix (77% / 87%); floors leave 5pp below each point estimate for CI
-  // variance. R17 clears the fresh R16 row by 2pp and R18 is the highest
-  // sampled row by 1pp; strict statistical monotonicity is not claimed.
-  17: { minAvg: 0.72 },
-  18: { minAvg: 0.82 },
+  // (0.8pp, inside noise); ordering expectations live in the win-rate test,
+  // not here. Values below superseded by the 2026-07-31 re-centre above
+  // (the balance pass reshaped both decks' fields; The Bride now measures
+  // 67% at 200 seeds after the AI-fix repair).
+  15: { minAvg: 0.675 },
+  16: { minAvg: 0.605 },
+  // 17-18 first calibrated 2026-07-24 at 40 seeds (77% / 87%, floors 5pp
+  // under); values below superseded by the 2026-07-31 re-centre above.
+  // R18 remains the measured summit; strict monotonicity is not claimed.
+  17: { minAvg: 0.705 },
+  18: { minAvg: 0.775 },
+  19: { minAvg: 0.555 },
+  20: { minAvg: 0.645 },
 });
 
 // ---------------------------------------------------------------------------

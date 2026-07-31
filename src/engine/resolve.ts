@@ -2,7 +2,7 @@ import type { Emit } from './battlefield';
 import { enterBattlefield } from './battlefield';
 import { conditionSatisfied, fireTriggers, runOps, targetSpecsOf } from './effects/EffectInterpreter';
 import { isLegalTarget } from './effects/targeting';
-import type { CardDb, CardDef, GameState, StackItem, TargetSpec } from './types';
+import type { CardDb, CardDef, CardEntry, GameState, StackItem, TargetSpec } from './types';
 import { def, isType } from './types';
 
 export type { Emit };
@@ -12,24 +12,30 @@ export function isAura(d: CardDef): boolean {
   return d.subtypes.includes('Aura');
 }
 
-/** Cast-time target specs: auras implicitly target a creature to enchant. */
+/** Cast-time target specs: auras and Hauntlink casts target a creature. */
 export function castTargetSpecs(d: CardDef): readonly TargetSpec[] {
   if (isAura(d)) return [{ what: 'creature' }];
   return targetSpecsOf(d.abilities);
 }
 
 /** R4 override casts use their target-free Retell ops instead of printed body. */
-export function castTargetSpecsFor(d: CardDef, retell: boolean): readonly TargetSpec[] {
+export function castTargetSpecsFor(
+  d: CardDef,
+  retell: boolean,
+  hauntlinked = false,
+): readonly TargetSpec[] {
+  if (hauntlinked) return [{ what: 'yourCreature' }];
   return retell && d.retell?.ops ? [] : castTargetSpecs(d);
 }
 
 function moveSpellOnExit(state: GameState, item: StackItem, emit: Emit): void {
+  const card = stackCard(state, item);
   if (item.retell) {
-    state.players[item.controller].severed.push(item.cardId);
+    state.players[item.controller].severed.push(card);
     // Deferred: the event union has no `from: 'stack'`; the UI workstream owns that decision.
     emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
   } else {
-    state.players[item.controller].graveyard.push(item.cardId);
+    state.players[item.controller].graveyard.push(card);
   }
 }
 
@@ -45,7 +51,7 @@ export function resolveStackItem(
 ): void {
   const d = def(db, item.cardId);
 
-  const specs = castTargetSpecsFor(d, item.retell === true);
+  const specs = castTargetSpecsFor(d, item.retell === true, item.hauntlinked === true);
   if (specs.length > 0) {
     const anyLegal = item.targets.some(
       (ref, i) => specs[i] && isLegalTarget(state, db, item.controller, specs[i], ref),
@@ -61,8 +67,19 @@ export function resolveStackItem(
 
   if (isType(d, 'creature') || isType(d, 'artifact') || isType(d, 'enchantment')) {
     const attachedTo =
-      isAura(d) && item.targets[0]?.kind === 'permanent' ? item.targets[0].iid : undefined;
-    const perm = enterBattlefield(state, db, item.cardId, item.controller, emit, { attachedTo });
+      (isAura(d) || item.hauntlinked === true) && item.targets[0]?.kind === 'permanent'
+        ? item.targets[0].iid
+        : undefined;
+    const perm = enterBattlefield(state, db, stackCard(state, item), item.controller, emit, { attachedTo });
+    if (item.hauntlinked && attachedTo !== undefined) {
+      emit({
+        e: 'hauntlinkFormed',
+        linkIid: perm.iid,
+        hostIid: attachedTo,
+        cardId: perm.cardId,
+        controller: perm.controller,
+      });
+    }
     fireTriggers(state, db, emit, 'arrives', perm);
     runEmpowerRider(state, db, item, d, emit, perm.iid);
     return;
@@ -130,4 +147,13 @@ function runEmpowerRider(
     },
     d.empower.ops,
   );
+}
+
+function stackCard(state: GameState, item: StackItem): CardEntry {
+  if (state.nextInstanceId === undefined) return item.cardId;
+  return {
+    instanceId: item.instanceId ?? state.nextInstanceId++,
+    cardId: item.cardId,
+    variantKey: item.variantKey ?? null,
+  };
 }

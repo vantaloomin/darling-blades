@@ -7,7 +7,7 @@ import { measuredRowsLayout } from './layout';
 import { theme } from './theme';
 import { modalShell, themedButton, type ModalShell } from './themeWidgets';
 
-export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales';
+export type BoosterSku = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights';
 
 interface PackOddsMeta {
   packName: string;
@@ -28,6 +28,7 @@ const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
   'arthurian-court': { packName: SET_TITLES['arthurian-court'], setName: SET_TITLES['arthurian-court'] },
   'gothic-monsters': { packName: SET_TITLES['gothic-monsters'], setName: SET_TITLES['gothic-monsters'] },
   'dark-tales': { packName: SET_TITLES['dark-tales'], setName: SET_TITLES['dark-tales'] },
+  'yokai-nights': { packName: SET_TITLES['yokai-nights'], setName: SET_TITLES['yokai-nights'] },
 };
 
 const TIER_LABELS: Record<string, string> = { c: 'C', r: 'R', sr: 'SR', ssr: 'SSR', ur: 'UR' };
@@ -147,7 +148,7 @@ export function createOddsModal(
       content.x,
       poolLine.y + poolLine.height + theme.space(1),
       sku === 'base'
-        ? 'Drop rates are the same in every booster. This pack pulls from every set.'
+        ? 'Drop rates are the same in every booster. This pack pulls only Base Set cards.'
         : `Drop rates are the same in every booster. This pack pulls only ${meta.setName} cards.`,
       {
         fontFamily: theme.fonts.ui,

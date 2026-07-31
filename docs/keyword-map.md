@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-23 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-29 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
 
 # MTG keyword map — Darling Blades terms (shipped + future)
 
@@ -99,6 +99,7 @@ text swap.
 | **Momentum** | Prowess | "Whenever you cast a noncreature spell, this gets +1/+1 until end of turn." | A cast-trigger + until-end-of-turn buff plumbing; AI sequencing value. |
 | **Fight** | Fight | "Each creature deals damage equal to its Attack to the other." | A `fight` `EffectOp` reusing the damage pipeline; targeting for two creatures. |
 | **Sacrifice** | Sacrifice | "Put a permanent you control into its owner's graveyard." | A `sacrifice` `EffectOp` (as cost and as effect); death triggers already exist. |
+| **Hauntlink** | Bestow *(approx.)* | "Hauntlink {cost}: You may play this linked to a creature you control. The linked creature gains [the Linked rider]. When it leaves play, put this into its owner's graveyard." | **SHIPPED (1.5, 2026-07-29):** alternate play mode on Artifacts/Enchantments, with the established Cast/Skim chooser composition, one host pointer, state-driven linked battlefield underlays, and host-leave cleanup. AI host-selection value is engine-backed at all difficulties. |
 | **Skim** | Cycling | "Skim {cost}: Discard this card, then draw a card." | **SHIPPED (1.4, engine PR #108 + UI PR #112):** `CardDef.skim {cost}` — the engine's first non-cast mana-paying action, full instant speed, off-stack by design (S1), opens response windows via `hasCastableInstant`; AI smoothing gates with a deck-out guard at all difficulties; Cast/Skim chooser in DuelScene. Kept in this table although Cycling is not evergreen. |
 | **Retell** | Flashback | "Retell {cost}: You may cast this from your graveyard, then sever it." | **SHIPPED (1.4, engine PR #108 + UI PR #112):** `CardDef.retell {cost, ops?}` — the first alternative cost, Rituals/Charms from your own graveyard only, severed on every exit incl. the cancel op; the optional `ops` override powers dual-mode cards (The Sleeping Curse). Graveyard-modal Retell chips in DuelScene. Not evergreen; recorded like Empower. |
 | **Empower** | Kicker | "You may pay an additional {cost} as you cast this. If you do, [the empowered effect]." | **SHIPPED (1.3, engine + duel-UI chooser):** `CardDef.empower {cost, ops}`, empowered flag on the cast action, combined-cost pricing in `validateAction`/the mana solver, trigger-safe riders in `resolve.ts`, AI pricing at every difficulty, and a cast-time chooser shown only when the extra cost is payable (user decision 2026-07-17). Kept in this table because Kicker is not evergreen; listed as shipped for the record. |
@@ -127,6 +128,9 @@ text swap.
   Tales: both replace Magic-distinctive keywords under the same rule.
   Rejected for collision: Encore, Echo, and Rebound are all real Magic
   keywords; Skim/Retell shadow nothing in the shipped label set.
+- **Hauntlink** (≈Bestow), confirmed 2026-07-28 for Yokai Nights: not a Magic
+  keyword (Bestow/Reconfigure are the nearest analogs and neither word is
+  reused), and it shadows nothing in the shipped label set.
 
 ## Cross-references
 

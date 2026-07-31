@@ -6,7 +6,7 @@ import type {
   TargetRef,
   TargetSpec,
 } from '../types';
-import { def, isType, opponentOf } from '../types';
+import { cardIdOf, def, isType, opponentOf } from '../types';
 
 /**
  * Target legality — one place. Untouchable applies only to creature-targeting
@@ -133,7 +133,8 @@ export function enumerateTargets(
       break;
     case 'yourGraveCreature': {
       const seen = new Set<string>();
-      state.players[caster].graveyard.forEach((cardId, index) => {
+      state.players[caster].graveyard.forEach((card, index) => {
+        const cardId = cardIdOf(card);
         if (seen.has(cardId)) return;
         if (isType(def(db, cardId), 'creature')) {
           seen.add(cardId);
