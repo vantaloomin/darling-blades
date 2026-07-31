@@ -788,8 +788,12 @@ export class ShopScene extends Phaser.Scene {
       .image(x, 390, textureKey)
       .setDisplaySize(210, 300);
     if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.5, 0.3, 4);
+    // Every pack CTA is gold primary. The newest pack once used 'emphasis'
+    // (dark bg, gold text) to stand out, but beside a rail of gold primaries
+    // it read as LESS clickable (owner catch, 2026-07-31); the New chip
+    // already carries the differentiation.
     const buyBtn = themedButton(this, x, 578, `Buy · 🪙 ${price}`, {
-      variant: sku === NEWEST_SKU ? 'emphasis' : 'primary',
+      variant: 'primary',
       minWidth: 178,
       onTap: () => {
         // A mouse pointer can release over a button after dragging from the
