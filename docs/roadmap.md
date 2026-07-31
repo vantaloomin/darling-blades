@@ -1,8 +1,8 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-26 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-31 · review monthly -->
 
 # Roadmap
 
-_Dated 2026-07-26. Review monthly._
+_Dated 2026-07-31. Review monthly._
 
 ## Status snapshot
 
@@ -18,12 +18,12 @@ _Dated 2026-07-26. Review monthly._
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
-  758-card collectible pool now spans seven sets; the Yokai Nights art run
+  764-card collectible pool now spans seven sets; the Yokai Nights art run
   (120/120 QA-passed and user-approved) joined the completed Dark Tales run.
   The remaining eyes-on work is the standing real-device pass and
   by-ear/by-eye polish listed under Planned.
-- **1,251 tests green** (+4 skipped balance-tool assertions; count refreshed
-  2026-07-30 mid-1.5-train on the merged release/1.5 head) across 130 files
+- **1,277 tests green** (+4 skipped balance-tool assertions; count refreshed
+  2026-07-31 at the 1.5.0 cut) across 134 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -39,19 +39,20 @@ _Dated 2026-07-26. Review monthly._
   (v10→v11 achievement migration, v11→v12 tower clear-style migration,
   v12→v13 daily quest/streak migration,
   unlock/claim idempotency, completion tallies, themed archetype and expansion
-  goals, deck-color identity). The whole suite runs in about three minutes on
-  the release-prep Windows host.
-- **758 collectible cards across seven sets** (`CARD_DB`), spanning the Base
+  goals, deck-color identity). The whole suite runs in about eight minutes on
+  the release-prep Windows host (the 40-seed win-rate gates dominate).
+- **764 collectible cards across seven sets** (`CARD_DB`), spanning the Base
   Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, and
-  Cyberpunk Yokai Nights. Dark Tales adds 120 cards plus four tokens and its own
-  set-scoped booster.
+  Cyberpunk Yokai Nights. Yokai Nights, the newest set, adds 120 cards around
+  Hauntlink with its own set-scoped booster; the 1.5 balance pass added two
+  Base commons and four tribal leaders.
 - **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
   each color in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer
-  (`src/audio/`, 15 recipes) wired into every scene with persisted volume +
+  (`src/audio/`, 18 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v23** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v24** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
@@ -59,17 +60,20 @@ _Dated 2026-07-26. Review monthly._
   v19→v20 deterministic replays, v20→v21 Full Art three-segment variant
   keys, v21→v22 tower roster stamp + per-basic land styles, v22→v23 one
   atomic migration for the Darlings fields, the Battle Box land reserve, and
-  variant-deck pins — see Recently shipped and the Full Art entry under
-  Planned). By-ear tuning remains open (see Planned).
+  variant-deck pins, v23→v24 the empty-block confirmation preference — see
+  Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
 
-## Recently shipped (2026-07-30 · the 1.5 train, merged to release/1.5; cut pending)
+## Recently shipped (2026-07-31 · the 1.5.0 cut)
 
-Everything below is merged on `release/1.5` but not yet tagged: the combined
-balance pass (Bride repair landed; Midnight, go-wide, sweepers, tapland
-riders, tribal, precon band, and the 200-seed floor re-calibration in
-flight), the economy re-date, and the final metagame sweep still precede the
-1.5.0 cut. Battle Box and Darlings ship **hidden** in 1.5.0 and are exposed
-in 1.5.5 (user decision 2026-07-29).
+The 1.5 train closed 2026-07-31: the combined balance pass (#165, twelve
+waves, W7 200-seed re-baseline, floors re-centred down under user
+authorization), the premium UX Wave A (#166, five waves of duel feel plus
+the owner's live-playtest batch), the shop CTA fix (#167), and the economy
+re-date (#168, canonical baseline vs 769 collectible, all persona bands
+re-centred inside noise) all merged green. The metagame deep sweep was
+explicitly WAIVED for this cut (user 2026-07-31: the 1.5.5/1.6 docket will
+invalidate its field). Battle Box and Darlings ship **hidden** in 1.5.0 and
+are exposed in 1.5.5 (user decision 2026-07-29).
 
 - **Cyberpunk Yokai Nights, the sixth expansion (#138, #145, #147).** 120
   cards (pool 638→758) with the **Hauntlink** headline mechanic (alt play
