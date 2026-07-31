@@ -23,7 +23,7 @@ explicitly in the appendix. All the numbers below come from `RULES` in
 | Max hand size (cleanup)   | 7         | `RULES.maxHandSize`              |
 | Creature battlefield cap  | 8         | `RULES.maxCreatures`             |
 | Noncreature-nonland cap   | 4         | `RULES.maxNoncreaturePermanents` |
-| Max blockers per attacker | 3         | `RULES.maxBlockersPerAttacker`   |
+| Max blockers per attacker | 4         | `RULES.maxBlockersPerAttacker`   |
 | Turn limit (draw)         | 100       | `RULES.turnLimit`                |
 | Max mulligans per player  | 3         | `RULES.maxMulligans`             |
 

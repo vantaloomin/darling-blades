@@ -74,7 +74,8 @@ describe('block legality', () => {
     expect(game.state.step).toBe('main2');
   });
 
-  it('enforces the 3-blockers-per-attacker cap and no double duty', () => {
+  it('enforces the 4-blockers-per-attacker cap and no double duty', () => {
+    // Cap raised 3 -> 4 (user decision 2026-07-31); a fifth bear now trips it.
     const { game, iid } = combatSetup(
       [{ key: 'giant', cardId: 'giant' }],
       [
@@ -82,6 +83,7 @@ describe('block legality', () => {
         { key: 'b2', cardId: 'bear' },
         { key: 'b3', cardId: 'bear' },
         { key: 'b4', cardId: 'bear' },
+        { key: 'b5', cardId: 'bear' },
       ],
     );
     game.submit(0, { type: 'declareAttackers', attackers: [iid.giant] });
@@ -93,9 +95,10 @@ describe('block legality', () => {
           { blocker: iid.b2, attacker: iid.giant },
           { blocker: iid.b3, attacker: iid.giant },
           { blocker: iid.b4, attacker: iid.giant },
+          { blocker: iid.b5, attacker: iid.giant },
         ],
       }),
-    ).toThrow(/more than 3 blockers/);
+    ).toThrow(/more than 4 blockers/);
     expect(() =>
       game.submit(1, {
         type: 'declareBlockers',

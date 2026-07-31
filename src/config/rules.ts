@@ -23,7 +23,13 @@ export const RULES = {
   maxMulligans: 3,
   maxCreatures: 8, // battlefield cap per player
   maxNoncreaturePermanents: 4, // noncreature-nonland cap per player
-  maxBlockersPerAttacker: 3,
+  // Raised 3 -> 4 (user decision 2026-07-31) with the cap now surfaced in the
+  // duel UI (DuelScene shows a running count on gang-blocks and a decline
+  // notice at the cap — before this it was enforced silently, which read as a
+  // bug in playtest). AI-safe: the brains build blocks incrementally against
+  // validateBlocks; only the legalActions Dreaded enumeration widens, bounded
+  // by the 8-creature battlefield cap.
+  maxBlockersPerAttacker: 4,
   turnLimit: 100, // game is a draw at turn 100 (anti-stall)
 } as const;
 
