@@ -271,6 +271,7 @@ export class CardView extends Phaser.GameObjects.Container {
     opts: { fx?: CardFxLevel; variant?: CardVariant; fullArt?: boolean; landStyle?: string } = {},
   ): this {
     this.clearFx();
+    this.art.clearTint().setAlpha(1);
     this.card = card;
 
     const faceDown = card === null;
@@ -759,6 +760,14 @@ export class CardView extends Phaser.GameObjects.Container {
       Phaser.Math.Clamp(local.x / (CARD_W / 2), -1.5, 1.5),
       Phaser.Math.Clamp(local.y / (CARD_H / 2), -1.5, 1.5),
     );
+  }
+
+  /** Grey the art before a Collection release; the card is then removed by its scene ritual. */
+  desaturateArtForRelease(): void {
+    if (!this.art.active) return;
+    // A neutral multiply tint is canvas-safe and keeps the art legible as it
+    // leaves. WebGL's alpha-mask wipe supplies the finer dissolve edge.
+    this.art.setTint(0xaaaaaa).setAlpha(0.78);
   }
 
   setTapped(tapped: boolean, animate = true): void {
