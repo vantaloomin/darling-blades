@@ -580,40 +580,44 @@ export const COARSE_PROGRESSION_BANDS = Object.freeze({
   collectionPct: Object.freeze({ min: 0.03, max: 0.7 }),
 });
 
-export const CANONICAL_FINE_BASELINE_DATE = '2026-07-29';
-export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.5 post-base-scope, 758-card pool';
+export const CANONICAL_FINE_BASELINE_DATE = '2026-07-31';
+export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.5 post-balance-pass, 769 collectible (787 catalog)';
 
 /**
- * Flag-only bands measured from balance/econ-baseline-2026-07-29-rotation.report.json.
+ * Flag-only bands measured from balance/econ-baseline-2026-07-31-post-pass.report.json
+ * (npx tsx scripts/progression-sim.ts --check --json, 4,800 day snapshots).
  * Baseline rows are day-60 aggregates; the wide edges are intentional and do
  * not affect --check's exit code. Measured -> band: collection %, packs/day,
  * premium runs, quest claim rate. Each window keeps the relative tolerance its
  * persona already had and is re-centred on the fresh measurement.
  *
- * COLLECTION FLOORS MOVED DOWN HERE, which the usual ratchet-up rule forbids.
- * User-approved 2026-07-29 for two stated reasons, both deliberate product
- * changes rather than an economy regression:
- *   1. The pool grew 638 -> 758 (+19%), so identical collecting scores a lower
- *      percentage. The old 60.27% median rescales to 50.7%; the run measured
- *      52%, and packs/day held at 1.17. The economy did not get stingier.
- *   2. The Base Set pack was scoped to base-set cards only, so a persona that
- *      only ever buys the cheapest pack is capped at 205/758 = 27% of the pool
- *      by construction. new-casual, low-skill-casual, and theme-deck-buyer sit
- *      against that ceiling on purpose.
- * Quest-claim rates are pool-independent and barely moved, which is the check
- * that this is dilution and not a broken instrument. Holding the old floors
- * would have left seven permanent flags, and an always-on flag reports nothing.
+ * 2026-07-31 re-centre: the balance pass grew the pool 758 -> 769 collectible
+ * (+1.5%; two Base commons, two Base tribal leaders, one Celtic Fae, one
+ * Gothic Monsters), so unlike the 2026-07-29 re-centre the dilution shift is
+ * inside noise: every persona measured INSIDE its previous band (zero flags)
+ * and the cohort medians held at 1.17 packs/day and 52% collection.
+ * craftedUniques stayed 0.0 for every persona (intended: crafting is the
+ * endgame sink, user decision 2026-07-28). Windows re-centred anyway per the
+ * per-release convention.
  *
- * new-casual 19.21 -> 18..26, 0.45 -> 0.09..1.08, 0 -> 0..1, 42.50 -> 25..64
- * daily-grinder 52.95 -> 46..66, 1.49 -> 0.86..2.28, 0 -> 0..1, 73.82 -> 54..94
- * gauntlet-climber 51.88 -> 46..66, 1.37 -> 0.78..2.15, 0 -> 0..1, 68.33 -> 48..88
- * limited-fan 73.17 -> 71..81, 0.60 -> 0.04..0.89, 18.00 -> 16..20, 72.43 -> 53..91
- * collector 42.15 -> 34..56, 0.97 -> 0.48..1.71, 0 -> 0..1, 66.60 -> 45..85
- * theme-deck-buyer 33.53 -> 31..42, 0.70 -> 0.34..1.29, 0 -> 0..1, 59.58 -> 40..80
- * hardcore-optimizer 65.27 -> 63..76, 2.26 -> 1.47..3.21, 0 -> 0..1, 85.83 -> 70..100
- * low-skill-casual 18.49 -> 13..27, 0.44 -> 0.11..0.95, 0 -> 0..1, 41.53 -> 21..61
- * high-skill-veteran 59.09 -> 52..72, 1.89 -> 1.08..2.70, 0 -> 0..1, 78.26 -> 60..95
- * completionist 66.36 -> 64..77, 2.04 -> 1.36..3.09, 0 -> 0..1, 90.07 -> 70..100
+ * Retained history: the 2026-07-29 re-centre moved collection floors DOWN
+ * (user-approved override of ratchet-up) for two deliberate product reasons -
+ * pool dilution 638 -> 758 (+19%) and the Base pack scoped to base-set cards,
+ * which caps cheapest-pack-only personas at 209/769 = 27% of the pool by
+ * construction (new-casual, low-skill-casual, theme-deck-buyer sit against
+ * that ceiling on purpose). Quest-claim rates are pool-independent and were
+ * the instrument check both times.
+ *
+ * new-casual 18.77 -> 18..26, 0.45 -> 0.09..1.08, 0 -> 0..1, 42.50 -> 25..64
+ * daily-grinder 52.88 -> 46..66, 1.49 -> 0.86..2.28, 0 -> 0..1, 73.82 -> 54..94
+ * gauntlet-climber 50.62 -> 44..64, 1.36 -> 0.77..2.14, 0 -> 0..1, 68.89 -> 49..89
+ * limited-fan 74.10 -> 72..82, 0.63 -> 0.07..0.92, 18.00 -> 16..20, 73.47 -> 54..92
+ * collector 41.84 -> 34..55, 0.97 -> 0.48..1.71, 0 -> 0..1, 65.21 -> 44..84
+ * theme-deck-buyer 33.93 -> 31..42, 0.70 -> 0.34..1.29, 0 -> 0..1, 59.58 -> 40..80
+ * hardcore-optimizer 67.23 -> 65..78, 2.27 -> 1.48..3.22, 0 -> 0..1, 85.83 -> 70..100
+ * low-skill-casual 18.70 -> 13..28, 0.44 -> 0.11..0.95, 0 -> 0..1, 41.53 -> 21..61
+ * high-skill-veteran 60.32 -> 53..73, 1.90 -> 1.09..2.71, 0 -> 0..1, 77.78 -> 60..95
+ * completionist 67.96 -> 66..78, 2.04 -> 1.36..3.09, 0 -> 0..1, 89.86 -> 70..100
  */
 export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
   collectionPct: readonly [number, number];
@@ -621,16 +625,16 @@ export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
   premiumDraftRuns: readonly [number, number];
   dailyQuestClaimRate: readonly [number, number];
 }>> = Object.freeze({
-  'new-casual': { collectionPct: [0.182, 0.261], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
-  'daily-grinder': { collectionPct: [0.457, 0.656], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
-  'gauntlet-climber': { collectionPct: [0.455, 0.656], packsPerDay: [0.78, 2.15], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.48, 0.88] },
-  'limited-fan': { collectionPct: [0.711, 0.813], packsPerDay: [0.04, 0.89], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.525, 0.912] },
-  collector: { collectionPct: [0.345, 0.555], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.45, 0.85] },
-  'theme-deck-buyer': { collectionPct: [0.306, 0.419], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
-  'hardcore-optimizer': { collectionPct: [0.631, 0.763], packsPerDay: [1.47, 3.21], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
-  'low-skill-casual': { collectionPct: [0.131, 0.273], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
-  'high-skill-veteran': { collectionPct: [0.521, 0.716], packsPerDay: [1.08, 2.7], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.6, 0.95] },
-  completionist: { collectionPct: [0.641, 0.765], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.702, 1] },
+  'new-casual': { collectionPct: [0.178, 0.257], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
+  'daily-grinder': { collectionPct: [0.456, 0.655], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
+  'gauntlet-climber': { collectionPct: [0.442, 0.643], packsPerDay: [0.77, 2.14], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.486, 0.886] },
+  'limited-fan': { collectionPct: [0.72, 0.822], packsPerDay: [0.07, 0.92], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.535, 0.922] },
+  collector: { collectionPct: [0.342, 0.552], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.436, 0.836] },
+  'theme-deck-buyer': { collectionPct: [0.31, 0.423], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
+  'hardcore-optimizer': { collectionPct: [0.651, 0.783], packsPerDay: [1.48, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
+  'low-skill-casual': { collectionPct: [0.133, 0.275], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
+  'high-skill-veteran': { collectionPct: [0.533, 0.728], packsPerDay: [1.09, 2.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.595, 0.945] },
+  completionist: { collectionPct: [0.657, 0.781], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.698, 1] },
 });
 
 const emptyRewards = (): RewardLedger => ({
@@ -1355,6 +1359,8 @@ export function packChoiceForPreference(
       // cards without widening the rotation left a mixed persona structurally
       // unable to own more than (205 + 70) / 758 = 36% of the pool, and the
       // 2026-07-29 run duly measured every mixed persona pinned at 32-35%.
+      // (Those are that era's figures; post-balance-pass the same base-only
+      // ceiling is 209/769 = 27% and the ratios re-derive each re-baseline.)
       return expansionRoll < (dayIndex % 3 === 0 ? 0.6 : 0.35)
         ? MIXED_EXPANSION_ROTATION[dayIndex % MIXED_EXPANSION_ROTATION.length]
         : { price: ECONOMY.packPrice, set: 'base' };
