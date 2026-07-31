@@ -13,8 +13,13 @@
  *                        the same neutral brain both sides (--ai, default
  *                        hard). Upper triangle simmed, mirrored below; prints
  *                        a per-deck aggregate ranking to surface outliers.
- *   --ai <difficulty>    Brain for --prefabs: easy | medium | hard (default
- *                        hard). Neutral (no avatar personality).
+ *   --warchest           5x5 Warchest round-robin over starter-derived legal
+ *                        reserve decks. Neutral --ai brain on both sides.
+ *   --darlings           6x6 Darlings round-robin over a deterministic
+ *                        color-spread legendary fleet. Neutral --ai brain.
+ *   --ai <difficulty>    Brain for --prefabs, --warchest, and --darlings:
+ *                        easy | medium | hard (default hard). Neutral (no
+ *                        avatar personality).
  *   --difficulty         Easy/Medium/Hard round-robin on a fixed deck pair
  *                        (Crimson Muster vs Wild Communion, sides + decks
  *                        alternate so no brain owns the better deck).
@@ -47,8 +52,10 @@ import { buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../src/ai/tie
 import { CARD_DB } from '../src/data/catalog';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
+import type { GameFormat } from '../src/config/rules';
 import { Game } from '../src/engine/Game';
 import type { Difficulty } from '../src/meta/Economy';
+import { buildReserveMatrixFleets, type ReserveMatrixDeck } from './reserveMatrixDecks';
 
 // ---------------------------------------------------------------------------
 // Core sim
@@ -73,6 +80,17 @@ export interface CellSpec {
   colAI: (seed: number) => AIPlayer;
   /** Deck assignment for game i as [rowDeck, colDeck] (lets mirrors alternate). */
   decks: (i: number) => [string[], string[]];
+  /** Absent preserves the original classic Game construction path. */
+  format?: GameFormat;
+  /** Reserve assignment for game i, in the same row/column order as decks. */
+  reserves?: (i: number) => [string[], string[]];
+}
+
+export interface LosslessnessCounters {
+  gamesPlayed: number;
+  gamesDecided: number;
+  draws: number;
+  engineExceptions: number;
 }
 
 /** The test-suite game-loop idiom: submit legal actions until gameOver. */
@@ -81,13 +99,37 @@ export function playOut(
   p0: AIPlayer,
   p1: AIPlayer,
   decks: [string[], string[]],
+  format?: GameFormat,
+  landReserves?: [string[], string[]],
+  onEngineException?: () => void,
 ): 0 | 1 | 'draw' {
-  const game = new Game({ decks, seed, db: CARD_DB });
+  const engineCall = <T>(run: () => T): T => {
+    try {
+      return run();
+    } catch (error) {
+      onEngineException?.();
+      throw error;
+    }
+  };
+  // Keep the original classic constructor object byte-for-byte intact.
+  const game =
+    format === undefined && landReserves === undefined
+      ? engineCall(() => new Game({ decks, seed, db: CARD_DB }))
+      : engineCall(() => new Game({
+        decks,
+        seed,
+        db: CARD_DB,
+        format,
+        ...(landReserves ? { landReserves } : {}),
+      }));
   const ais = [p0, p1];
   for (let i = 0; i < 40_000; i++) {
-    const a = game.awaiting;
-    if (a.kind === 'gameOver') return game.state.winner!;
-    game.submit(a.player, ais[a.player].chooseAction(game.viewFor(a.player), game.legalActions(a.player)));
+    const a = engineCall(() => game.awaiting);
+    if (a.kind === 'gameOver') return engineCall(() => game.state.winner!);
+    const view = engineCall(() => game.viewFor(a.player));
+    const legal = engineCall(() => game.legalActions(a.player));
+    const action = ais[a.player].chooseAction(view, legal);
+    engineCall(() => game.submit(a.player, action));
   }
   throw new Error(`balance game (seed ${seed}) did not terminate`);
 }
@@ -97,7 +139,12 @@ export function playOut(
  * is offset by the cell index so every cell samples distinct, reproducible
  * shuffles.
  */
-export function runCell(spec: CellSpec, seeds: number, cellIndex: number): CellResult {
+export function runCell(
+  spec: CellSpec,
+  seeds: number,
+  cellIndex: number,
+  losslessness?: LosslessnessCounters,
+): CellResult {
   let rowWins = 0;
   let colWins = 0;
   let draws = 0;
@@ -107,15 +154,41 @@ export function runCell(spec: CellSpec, seeds: number, cellIndex: number): CellR
     const row = spec.rowAI(gameSeed * 7 + 1, i);
     const col = spec.colAI(gameSeed * 13 + 5);
     const [rowDeck, colDeck] = spec.decks(i);
-    const winner = playOut(
-      gameSeed,
-      rowIsP0 ? row : col,
-      rowIsP0 ? col : row,
-      rowIsP0 ? [rowDeck, colDeck] : [colDeck, rowDeck],
-    );
-    if (winner === 'draw') draws++;
-    else if ((winner === 0) === rowIsP0) rowWins++;
-    else colWins++;
+    const reserves = spec.reserves?.(i);
+    const seats: [string[], string[]] = rowIsP0 ? [rowDeck, colDeck] : [colDeck, rowDeck];
+    const seatReserves = reserves
+      ? (rowIsP0 ? [reserves[0], reserves[1]] : [reserves[1], reserves[0]]) as [string[], string[]]
+      : undefined;
+    if (losslessness) losslessness.gamesPlayed++;
+    try {
+      const winner = playOut(
+        gameSeed,
+        rowIsP0 ? row : col,
+        rowIsP0 ? col : row,
+        seats,
+        spec.format,
+        seatReserves,
+        () => {
+          if (losslessness) losslessness.engineExceptions++;
+        },
+      );
+      if (winner === 'draw') {
+        draws++;
+        if (losslessness) losslessness.draws++;
+      } else if ((winner === 0) === rowIsP0) {
+        rowWins++;
+        if (losslessness) losslessness.gamesDecided++;
+      } else {
+        colWins++;
+        if (losslessness) losslessness.gamesDecided++;
+      }
+    } catch (error) {
+      if (losslessness) {
+        const detail = error instanceof Error ? error.message : String(error);
+        throw new Error(`reserve matrix cell ${cellIndex} game ${i} failed: ${detail}`, { cause: error });
+      }
+      throw error;
+    }
   }
   const decided = rowWins + colWins;
   return { rowWins, colWins, draws, games: seeds, rate: decided === 0 ? 0 : rowWins / decided };
@@ -567,6 +640,124 @@ export function runPrefabMatrix(seedsPerCell: number, ai: Difficulty): PrefabMat
   return { cells, summary, totalGames, table: lines.join('\n') };
 }
 
+export interface ReserveMatrixReport {
+  /** Full grid; lower triangle mirrors the simulated upper triangle. */
+  cells: (CellResult | null)[][];
+  summary: { name: string; wins: number; decided: number; draws: number; rate: number }[];
+  totalGames: number;
+  losslessness: LosslessnessCounters;
+  table: string;
+}
+
+function newLosslessnessCounters(): LosslessnessCounters {
+  return { gamesPlayed: 0, gamesDecided: 0, draws: 0, engineExceptions: 0 };
+}
+
+/** Shared reserve-format round-robin with mandatory completion accounting. */
+function runReserveMatrix(
+  title: 'WARCHEST' | 'DARLINGS',
+  format: 'battleBox' | 'darlings',
+  decks: readonly ReserveMatrixDeck[],
+  seedsPerCell: number,
+  ai: Difficulty,
+  cellBase: number,
+): ReserveMatrixReport {
+  const n = decks.length;
+  const cells: (CellResult | null)[][] = decks.map(() => decks.map(() => null));
+  const losslessness = newLosslessnessCounters();
+  for (let r = 0; r < n; r++) {
+    for (let c = r + 1; c < n; c++) {
+      process.stderr.write(`  cell ${decks[r].name} vs ${decks[c].name} (${seedsPerCell} games)...\n`);
+      const cell = runCell(
+        {
+          rowAI: (seed) => buildAI(ai, CARD_DB, seed),
+          colAI: (seed) => buildAI(ai, CARD_DB, seed),
+          decks: () => [decks[r].cards, decks[c].cards],
+          format,
+          reserves: () => [decks[r].landReserve, decks[c].landReserve],
+        },
+        seedsPerCell,
+        cellBase + r * 100 + c,
+        losslessness,
+      );
+      cells[r][c] = cell;
+      const decidedMirror = cell.rowWins + cell.colWins;
+      cells[c][r] = {
+        rowWins: cell.colWins,
+        colWins: cell.rowWins,
+        draws: cell.draws,
+        games: cell.games,
+        rate: decidedMirror === 0 ? 0 : cell.colWins / decidedMirror,
+      };
+    }
+  }
+
+  const totalGames = (n * (n - 1) / 2) * seedsPerCell;
+  if (
+    losslessness.gamesPlayed !== totalGames ||
+    losslessness.gamesDecided + losslessness.draws !== losslessness.gamesPlayed ||
+    losslessness.engineExceptions !== 0
+  ) {
+    throw new Error(
+      `${title} losslessness accounting failed: played ${losslessness.gamesPlayed}/${totalGames}, decided ${losslessness.gamesDecided}, draws ${losslessness.draws}, engine exceptions ${losslessness.engineExceptions}`,
+    );
+  }
+
+  const summary = decks
+    .map((deck, i) => {
+      let wins = 0;
+      let decided = 0;
+      let draws = 0;
+      for (let j = 0; j < n; j++) {
+        const cell = cells[i][j];
+        if (!cell) continue;
+        wins += cell.rowWins;
+        decided += cell.rowWins + cell.colWins;
+        draws += cell.draws;
+      }
+      return { name: deck.name, wins, decided, draws, rate: decided === 0 ? 0 : wins / decided };
+    })
+    .sort((a, b) => b.rate - a.rate || a.name.localeCompare(b.name));
+
+  // Full names stay in the aggregate below; compact first words keep the
+  // fixed-width cell grid readable in a terminal.
+  const labels = decks.map((deck) => deck.name.split(' ')[0]);
+  const labelW = Math.max(...labels.map((label) => label.length)) + 2;
+  const lines: string[] = [
+    `=== ${title} ROUND-ROBIN - row-deck win %, neutral ${ai} piloting both sides · ${seedsPerCell} seeds/cell ===\n` +
+      '    cell = row win % of decided games (decided count, +draws); diagonal skipped',
+  ];
+  lines.push(''.padEnd(labelW) + labels.map((label) => label.padEnd(CELL_W)).join(' '));
+  cells.forEach((row, r) => {
+    lines.push(
+      labels[r].padEnd(labelW) +
+        row.map((cell) => (cell ? pctCell(cell) : '--'.padStart(4).padEnd(CELL_W))).join(' '),
+    );
+  });
+  lines.push('');
+  lines.push('PER-DECK AGGREGATE (wins / decided across all matchups):');
+  for (const entry of summary) {
+    lines.push(
+      `  ${entry.name.padEnd(labelW + 8)} ${(entry.rate * 100).toFixed(1).padStart(5)}%  (${entry.wins}/${entry.decided}${entry.draws > 0 ? ` +${entry.draws}d` : ''})`,
+    );
+  }
+  lines.push(`NOTE: ${totalGames} total games across ${n * (n - 1) / 2} cells.`);
+  lines.push(
+    `LOSSLESSNESS: games played ${losslessness.gamesPlayed}; games decided ${losslessness.gamesDecided}; draws (turn-limit hits) ${losslessness.draws}; engine exceptions ${losslessness.engineExceptions}.`,
+  );
+  return { cells, summary, totalGames, losslessness, table: lines.join('\n') };
+}
+
+/** Starter-derived Warchest field, passed through real reserve validation before play. */
+export function runWarchestMatrix(seedsPerCell: number, ai: Difficulty): ReserveMatrixReport {
+  return runReserveMatrix('WARCHEST', 'battleBox', buildReserveMatrixFleets().warchest, seedsPerCell, ai, 80_000);
+}
+
+/** Deterministic color-spread Darlings field, passed through real reserve validation before play. */
+export function runDarlingsMatrix(seedsPerCell: number, ai: Difficulty): ReserveMatrixReport {
+  return runReserveMatrix('DARLINGS', 'darlings', buildReserveMatrixFleets().darlings, seedsPerCell, ai, 90_000);
+}
+
 export interface DifficultyMatrixReport {
   cells: CellResult[][]; // [row difficulty][col difficulty]
   flags: string[];
@@ -826,6 +1017,8 @@ function main(): void {
   const wantCelticFaeBosses = flag('cf-bosses');
   const wantPrefabs = flag('prefabs');
   const wantArthurianCourtBosses = flag('ac-bosses');
+  const wantWarchest = flag('warchest');
+  const wantDarlings = flag('darlings');
   const wantAvatars =
     flag('avatars') ||
     (!wantStarters &&
@@ -834,7 +1027,9 @@ function main(): void {
       !wantFloors &&
       !wantCelticFaeBosses &&
       !wantArthurianCourtBosses &&
-      !wantPrefabs);
+      !wantPrefabs &&
+      !wantWarchest &&
+      !wantDarlings);
   const ai = (opt('ai') ?? 'hard') as Difficulty;
   if (!DIFFS.includes(ai)) {
     console.error(`--ai must be one of ${DIFFS.join(' | ')} (got ${opt('ai')})`);
@@ -852,6 +1047,8 @@ function main(): void {
   if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds));
   if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds));
   if (wantPrefabs) reports.push(runPrefabMatrix(seeds, ai));
+  if (wantWarchest) reports.push(runWarchestMatrix(seeds, ai));
+  if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai));
 
   for (const r of reports) {
     console.log('\n' + r.table);
