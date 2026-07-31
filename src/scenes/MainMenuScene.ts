@@ -5,7 +5,7 @@ import { ScriptAI } from '../ai/ScriptAI';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { tutorialLaunchData } from '../data/tutorial';
-import { evaluateAchievements, syncAchievements } from '../meta/Achievements';
+import { evaluateAchievements } from '../meta/Achievements';
 import { todayString } from '../meta/Economy';
 import {
   claimDailyQuest,
@@ -20,6 +20,7 @@ import { IS_DEV } from '../platform/env';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
+import { Toast } from '../ui/Toast';
 import { goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL } from '../version';
 
@@ -46,6 +47,7 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     this.menuItems = [];
     this.guard = new ModalGuard();
+    new Toast(this, { modalGuard: this.guard });
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
@@ -75,7 +77,6 @@ export class MainMenuScene extends Phaser.Scene {
     Music.setMood('menu');
 
     const save = Services.save.data;
-    if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const today = todayString();
     if (ensureDailyState(save, today)) Services.save.flush();
     const claimableAchievements = evaluateAchievements(save, CARD_DB).filter(

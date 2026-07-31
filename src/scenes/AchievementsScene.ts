@@ -6,7 +6,6 @@ import {
   claimAchievement,
   claimAllAchievements,
   evaluateAchievements,
-  syncAchievements,
   type AchievementStatus,
 } from '../meta/Achievements';
 import { collectionCompletion } from '../meta/collectionFilter';
@@ -116,7 +115,6 @@ export class AchievementsScene extends Phaser.Scene {
     Music.setMood('shop');
 
     const save = Services.save.data;
-    if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const statuses = evaluateAchievements(save, CARD_DB);
     const filter = data.filter ?? 'all';
     const filteredStatuses = filterStatuses(statuses, filter);

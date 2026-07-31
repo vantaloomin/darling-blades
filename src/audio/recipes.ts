@@ -49,6 +49,7 @@ export type SfxName =
   | 'win'
   | 'loss'
   | 'coin'
+  | 'seal'
   | 'flip'
   | 'shimmer'
   | 'yourTurn'
@@ -143,6 +144,13 @@ export const SFX: Record<SfxName, Voice[]> = {
     tone('triangle', 2093, 0.12, 0.001, 0.12),
     tone('triangle', 2637, 0.1, 0.001, 0.18, { at: 0.07 }),
     tone('sine', 3951, 0.04, 0.001, 0.1, { at: 0.07 }),
+  ],
+  // Achievement seal: a warm three-note ascent with a restrained wax-stamp tap.
+  seal: [
+    tone('triangle', 523.25, 0.08, 0.01, 0.28),
+    tone('triangle', 659.25, 0.09, 0.01, 0.32, { at: 0.1 }),
+    tone('sine', 783.99, 0.07, 0.015, 0.48, { at: 0.2 }),
+    noise(0.035, 0.002, 0.08, { filter: { type: 'lowpass', freq: 800 } }),
   ],
   // Card flip: a cardstock flick — filtered noise snap with a tiny pitch blip.
   flip: [

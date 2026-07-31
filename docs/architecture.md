@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, docs/design-system.md, docs/plan-design-system-alignment.md, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-20
+<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/achievementCheckpoint.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/Toast.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, docs/design-system.md, docs/plan-design-system-alignment.md, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-30
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -569,9 +569,9 @@ The art window, crop math, and holo details are owned by
 own sound system is switched off entirely (`audio: { noAudio: true }` in
 `src/main.ts`, which stops Phaser creating a second, pre-gesture AudioContext).
 
-- **`recipes.ts`** — pure-data SFX recipes: 14 named cues (`click`, `hover`,
+- **`recipes.ts`** — pure-data SFX recipes: 18 named cues (`click`, `hover`,
   `cast`, `land`, `attack`, `hit`, `death`, `lifeLoss`, `win`, `loss`, `coin`,
-  `flip`, `shimmer`, `rungClear`), each a handful of oscillator/noise "voices"
+  `seal`, `flip`, `shimmer`, `yourTurn`, `rungClear`, `shatter`, `warn`), each a handful of oscillator/noise "voices"
   as plain numbers. No browser APIs, so the recipes are lint-testable headless.
 - **`AudioManager.ts`** — schedules recipes on one shared WebAudio
   `AudioContext`. The context is created only inside the first user gesture

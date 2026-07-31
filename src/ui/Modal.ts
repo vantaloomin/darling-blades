@@ -25,6 +25,10 @@ export class ModalGuard {
     for (const lease of this.leases) GUARDED_OBJECTS.release(lease, enableObject);
     this.leases = [];
   }
+
+  get isOpen(): boolean {
+    return this.leases.length > 0;
+  }
 }
 
 type GuardSnapshot = { kind: 'card' } | { kind: 'input'; input: InteractiveInputSnapshot };

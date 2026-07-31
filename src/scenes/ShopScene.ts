@@ -12,6 +12,7 @@ import { buyThemeDeck, claimFreeStarter, previewDeckGrant, spendGold } from '../
 import { openPack, openPacks } from '../meta/PackOpener';
 import { packPoolSummary, type PackPoolSummary } from '../meta/packSummary';
 import { Services } from '../meta/services';
+import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { attachTouchGestures, bindTapButton, inflateHitArea } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { makeCardThumb } from '../ui/CardThumbCache';
@@ -24,6 +25,8 @@ import { createOddsModal, type BoosterSku } from '../ui/OddsModal';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
+import { queueAchievementUnlockToasts } from '../ui/achievementToast';
+import { Toast } from '../ui/Toast';
 import { backButton, goldBadge, modalShell, pager, panel, themedButton, type GoldBadge, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
 import {
   boosterStripIndexForOffset,
@@ -490,6 +493,7 @@ export class ShopScene extends Phaser.Scene {
     this.boosterWheelAccum = 0;
     this.boosterWheelLastStepAt = Number.NEGATIVE_INFINITY;
     this.coordinator = new OverlayCoordinator();
+    new Toast(this, { isBlocked: () => this.overlay !== null || this.inspect !== null || this.oddsModal !== null });
     // Deck-preview hotkeys. Keyboard bypasses the modal dims, so every handler
     // self-guards on the overlay/inspect state (the LimitedDraftScene pattern);
     // the KeyboardPlugin is scene-scoped, so shutdown clears these listeners.
@@ -1040,6 +1044,10 @@ export class ShopScene extends Phaser.Scene {
     });
   }
 
+  private checkpointAchievementUnlocks(): string[] {
+    return checkpointAchievements(Services.save.data, CARD_DB).ids;
+  }
+
   /** Buy + open the selected quantity of one SKU (clamped to what you can afford). */
   private buyPacks(unitPrice: number, set: CardDef['set'] | undefined, sku: BoosterSku): void {
     const save = Services.save.data;
@@ -1054,11 +1062,15 @@ export class ShopScene extends Phaser.Scene {
     const rng = createRngState(Date.now() & 0x7fffffff);
     if (n === 1) {
       const result = openPack(save, CARD_DB, rng, set);
+      const achievementIds = this.checkpointAchievementUnlocks();
       Services.save.flush();
+      queueAchievementUnlockToasts(achievementIds);
       this.scene.start('PackOpening', sku === 'base' ? result : { ...result, sku });
     } else {
       const packs = openPacks(save, CARD_DB, rng, n, set);
+      const achievementIds = this.checkpointAchievementUnlocks();
       Services.save.flush();
+      queueAchievementUnlockToasts(achievementIds);
       this.scene.start('PackOpening', { batch: packs, sku });
     }
   }
@@ -1198,7 +1210,9 @@ export class ShopScene extends Phaser.Scene {
       return false;
     }
     Sfx.play('coin');
+    const achievementIds = this.checkpointAchievementUnlocks();
     Services.save.flush();
+    queueAchievementUnlockToasts(achievementIds);
     this.refreshGold();
     this.buildDecksGroup(this.decksGroup); // the claimed/bought row now reads "Owned ✓"
     return true;

@@ -13,7 +13,7 @@ const allVoices: [string, Voice][] = SFX_NAMES.flatMap((name) =>
 
 describe('SFX recipes', () => {
   it('defines at least one voice for every sound', () => {
-    expect(SFX_NAMES).toHaveLength(17);
+    expect(SFX_NAMES).toHaveLength(18);
     for (const name of SFX_NAMES) expect(SFX[name].length, name).toBeGreaterThan(0);
   });
 
@@ -53,6 +53,7 @@ describe('SFX recipes', () => {
   it('gives win and loss clearly distinct recipes', () => {
     expect(SFX.win).not.toEqual(SFX.loss);
     expect(SFX.shimmer).not.toEqual(SFX.flip);
+    expect(SFX.seal).not.toEqual(SFX.coin);
   });
 
   it('keeps the your-turn handoff gentle and brief', () => {

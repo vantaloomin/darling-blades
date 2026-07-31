@@ -48,6 +48,7 @@ import {
   type ReplayLog,
 } from '../meta/Replay';
 import { Services } from '../meta/services';
+import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
 import { previewCombat } from '../engine/combat/damage';
@@ -87,6 +88,8 @@ import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
 import { HistoryPanel } from '../ui/HistoryPanel';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
+import { queueAchievementUnlockToasts } from '../ui/achievementToast';
+import { Toast } from '../ui/Toast';
 import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
@@ -327,6 +330,8 @@ export class DuelScene extends Phaser.Scene {
   private arrows!: Phaser.GameObjects.Graphics;
   private overlay: Phaser.GameObjects.Container | null = null;
   private guard = new ModalGuard();
+  private toasts: Toast | null = null;
+  private toastHeldForTurnBoundary = false;
   private inspect: Phaser.GameObjects.Container | null = null;
   private inspectGuard = new ModalGuard();
   private inspectMove: ((p: Phaser.Input.Pointer) => void) | null = null;
@@ -552,6 +557,19 @@ export class DuelScene extends Phaser.Scene {
     this.aiTimer = null;
     this.overlay = null;
     this.guard = new ModalGuard();
+    this.toastHeldForTurnBoundary = !this.replayMode;
+    this.toasts = this.replayMode
+      ? null
+      : new Toast(this, {
+          modalGuard: this.guard,
+          isBlocked: () =>
+            this.overlay !== null ||
+            this.inspect !== null ||
+            this.pauseOverlay !== null ||
+            this.zoneModal !== null ||
+            this.isHumanTurnDecision(),
+          held: true,
+        });
     this.inspect = null;
     this.inspectGuard = new ModalGuard();
     this.inspectMove = null;
@@ -2275,6 +2293,10 @@ export class DuelScene extends Phaser.Scene {
       case 'turnBegan':
         this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
+        if (this.toastHeldForTurnBoundary && !this.replayMode) {
+          this.toastHeldForTurnBoundary = false;
+          this.toasts?.release();
+        }
         // A human who starts is already looking at their opening board while it
         // settles on turn 1. Skip that redundant cue; turn 2+ handoffs chime.
         if (!this.replayMode && e.player === HUMAN && e.turn > 1) Sfx.play('yourTurn');
@@ -5593,7 +5615,9 @@ export class DuelScene extends Phaser.Scene {
     const today = todayString();
     const reward = applyMatchResult(save, this.difficulty, won, today, this.duel.state.turn);
     const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
+    const checkpoint = checkpointAchievements(save, CARD_DB);
     Services.save.flush();
+    if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
     Music.duck(1.8); // let the sting read clearly over the bed
     Sfx.play(won ? 'win' : 'loss');
 
@@ -5678,7 +5702,9 @@ export class DuelScene extends Phaser.Scene {
     const today = todayString();
     const reward = applyLimitedMatchResult(save, this.difficulty, won, today, this.myDeckColorStyle);
     const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
+    const checkpoint = checkpointAchievements(save, CARD_DB);
     Services.save.flush();
+    if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
     Music.duck(1.8);
     Sfx.play(won ? (reward.runOver && reward.wins === 3 ? 'win' : 'rungClear') : 'loss');
 
@@ -5800,7 +5826,9 @@ export class DuelScene extends Phaser.Scene {
       this.myDeckColorStyle === 'mono' ? 'monoColor' : this.myDeckColorStyle === 'dual' ? 'dualColor' : undefined,
     );
     const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
+    const checkpoint = checkpointAchievements(save, CARD_DB);
     Services.save.flush();
+    if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
     // Full clear earns the fanfare; an ordinary rung gets its own short motif.
     Music.duck(1.8);
     Sfx.play(reward.completed ? 'win' : won ? 'rungClear' : 'loss');

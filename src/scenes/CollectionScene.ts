@@ -27,6 +27,7 @@ import {
   type CollectionFilterState,
 } from '../meta/collectionFilter';
 import { Services } from '../meta/services';
+import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
 import { finishOdds, formatOdds } from '../meta/pullOdds';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
@@ -54,6 +55,8 @@ import {
   shardMoteCount,
 } from '../ui/shardRitual';
 import { colorInt, theme } from '../ui/theme';
+import { queueAchievementUnlockToasts } from '../ui/achievementToast';
+import { Toast } from '../ui/Toast';
 import {
   backButton,
   goldBadge,
@@ -160,6 +163,7 @@ export class CollectionScene extends Phaser.Scene {
     this.cells = [];
     this.guardTargets = [];
     this.guard = new ModalGuard();
+    new Toast(this, { modalGuard: this.guard });
     this.pageContainer = null;
     this.outgoing = [];
     this.turning = false;
@@ -741,7 +745,9 @@ export class CollectionScene extends Phaser.Scene {
         }
         const result = craftCard(save, CARD_DB, d.id);
         if (!result.ok) return;
+        const checkpoint = checkpointAchievements(save, CARD_DB);
         Services.save.flush();
+        if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
         Sfx.play('coin');
         this.renderPage(); // refresh counts, thumb alpha, and the gold badge
         this.showInspect(d); // keep the inspect overlay open on the new copy
@@ -845,7 +851,9 @@ export class CollectionScene extends Phaser.Scene {
           // Keep the economy seam byte-for-byte identical and invoke it only
           // when the hold completes.
           const result = shardExcess(save, CARD_DB, d.id);
+          const checkpoint = checkpointAchievements(save, CARD_DB);
           Services.save.flush();
+          if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
           startRitual();
           shardBtn.setLabel(`Released (+${result.gold}🪙)`);
           Sfx.play('shatter');
