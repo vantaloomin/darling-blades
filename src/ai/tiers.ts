@@ -52,9 +52,10 @@ export function buildTierAI(
 // Floors 17-18 = tier 6, confirmed by the 2026-07-24 18-floor re-baseline
 // (--floors --seeds 80: F16 75.7 / F17 73.1 / F18 72.5, clean T6 plateau;
 // the --tiers ladder re-measured byte-identical to the 2026-07-20 baseline).
-// Floors 19-20 = tier 6 PROVISIONAL (2026-07-29 40-seed spot-checks: F19
-// 71.4 / F20 74.5, FLAGS none) pending the end-of-set 80-plus-seed
-// `--floors` re-baseline; the fallback below keeps tier 6 for later floors.
+// Floors 19-20 = tier 6 CONFIRMED by the 2026-07-31 W7 end-of-set
+// re-baseline (--floors --seeds 80 on the post-balance-pass field: F16
+// 68.5 / F17 70.8 / F18 72.0 / F19 68.2 / F20 70.6, FLAGS none — a clean
+// T6 plateau); the fallback below keeps tier 6 for later floors.
 const FLOOR_TIERS: readonly TowerTier[] = [
   1, 1, 1,
   2, 2, 2,

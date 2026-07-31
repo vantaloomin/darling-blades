@@ -554,7 +554,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Black Dog of the Lane, a regal Otherworld hound, lean and ancient rather than cute, with moonlit eyes and a fae-court bearing, wearing a narrow pale-gold collar, blackthorn charms, and mossy spectral fur that integrates with the surrounding roots; in full side profile, body stretched long and low mid-stride, running through deep lane shadows, head and eyes held squarely in the central band; silent, inexorable, and already on the scent of a broken promise; against a shadowed mist road passing between standing stones and the open mouth of a hollow hill; cold moon key on the muzzle and shoulders; sickly green hill-light rim along the fur; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Heatherblade Scout — `cf-heatherblade-scout`
-- **Card facts:** {1}{G} · G · 3/2 · overrun · c · holo: none
+- **Card facts:** {1}{G} · G · 2/2 · overrun · c · holo: none
 - **Character & source:** an adult highland fae scout, swift and sharply self-possessed; mechanically an aggressive hunt leader.
 - **Personality / mood:** “The heather bends for her. It does not for you.” — quick, observant, and pleased to have found the better route first.
 - **Pose & composition:** running across a ridge in a three-quarter turn, blade low and face turned back toward the viewer; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.

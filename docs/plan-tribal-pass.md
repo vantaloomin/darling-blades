@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/engine/statics.ts, src/engine/types.ts · last-verified: 2026-07-28
+<!-- source-of-truth: src/data/cards/*.ts, src/engine/statics.ts, src/engine/types.ts · last-verified: 2026-07-31
      If you change those files, update this doc or re-verify the date. -->
 
 # Tribal pass — audit and plan
@@ -146,9 +146,10 @@ Two shapes are available today and unused:
   feature with a completely different feel, at zero implementation cost.
 - **Tribal token generation.** `createToken` already works, and tokens already
   exist with `Wolf`, `Fae`, `Beastkin`, `Kitsune`, `Valkyrie`, `Draugr`,
-  `Construct` and `Spirit` types - but no tribal card makes them. "Create two
-  1/1 Fae" in a Fae deck is a tribal payoff that is *not* a lord, buildable
-  right now.
+  `Construct` and `Spirit` types. (Correction 2026-07-31: this doc's original
+  "no tribal card makes them" claim was stale when written - Fae, Yohime, and
+  Ragnarok lord-adjacent cards already made typed tokens, and the W5 balance
+  wave added more. The shape remains under-used rather than unused.)
 
 This tier is where the fastest "fun" wins are, because it needs no engine change.
 
@@ -213,6 +214,15 @@ later depends on a card from an earlier phase surviving the gates.
 
 Phases 1 and 2 are **data-only** and need no engine change, so they can land
 while the engine phases are still being designed.
+
+**Status 2026-07-31: Phases 1-2 SHIPPED as W5 of the 1.5 balance pass**
+(Yang Huiyu, Patient Regent - Jin lord; Porcelain Governess - Construct
+overseer; Sable, Warband Captain - Warrior keyword lord, nonlegendary per file
+precedent; Moundlight Midwife - token payoff). Pool 758 -> 787 with the W3.5
+sweepers; CORE 209; measurements in the W7 tables (`src/data/opponents.ts`,
+2026-07-31 block). Tier 0's five subtype edits + Lupa filter had already
+shipped in PR #142. E1/E2 engine tiers remain out of 1.5 scope per the user's
+2026-07-29 call.
 
 ## Risks
 

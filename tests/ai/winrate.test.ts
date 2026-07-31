@@ -135,17 +135,25 @@ describe('AI win-rate gates', () => {
     expect(r20).toBeDefined();
     if (!r14 || !r15 || !r16 || !r17 || !r18 || !r19 || !r20) return;
 
-    // Fresh 2026-07-29 Yokai Nights --only measurement, 40 seeds/cell:
-    // R19 = 71% and R20 = 75%, with 40 decided games and zero draws in every
-    // new-boss cell. These provisional floors leave 5pp below each estimate.
-    expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.72);
-    expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.73);
-    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.72);
-    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.82);
-    expect(r19.avg, 'Queen of the Lanterned Roof provisional floor').toBeGreaterThanOrEqual(0.66);
-    expect(r20.avg, 'Kitsune Neon Tyrant provisional floor').toBeGreaterThanOrEqual(0.70);
+    // Floors re-centred 2026-07-31 from the W7 combined re-baseline at
+    // 200 seeds/cell (w7 chain, post-balance-pass field: cap-4 blockers,
+    // sweepers, tapland riders, tribal lords, Neon rebuild). Each floor is
+    // the 200-seed average minus a full 40-seed noise band (6.5pp), per the
+    // user-authorized one-time downward re-centre — CI stays 40 seeds with
+    // margins that now sit OUTSIDE the noise instead of inside it.
+    // 200-seed averages: R14 63% / R15 74% / R16 67% / R17 77% / R18 84% /
+    // R19 62% / R20 71%. R18 is the measured summit; the R19 dip below R18
+    // is a documented ladder inversion, accepted pending future set answers.
+    expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.675);
+    expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.605);
+    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.705);
+    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.775);
+    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.555);
+    expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.645);
     expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
-    expect(r16.avg, 'rung 16 must clear rung 14').toBeGreaterThan(r14.avg);
+    // R16 vs R14 measured 67% vs 63% at 200 seeds — real but only 4pp, inside
+    // 40-seed noise, so strict ordering would flake in CI. Tolerance gate.
+    expect(r16.avg, 'rung 16 must not fall behind rung 14').toBeGreaterThanOrEqual(r14.avg - 0.05);
     expect(r17.avg, 'rung 17 must clear rung 16').toBeGreaterThan(r16.avg);
     expect(r18.avg, 'rung 18 must be the measured summit').toBeGreaterThan(r17.avg);
     expect(r20.avg, 'rung 20 must measure at or above rung 19').toBeGreaterThanOrEqual(r19.avg);

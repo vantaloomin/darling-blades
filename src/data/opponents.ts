@@ -376,6 +376,63 @@ export interface Avatar {
  * not close. The only Dark Tales creature sweeper was narrowly recosted from
  * 5B to 4B; it was not retained in Midnight because the 60-seed probe fell
  * from 34.3% to 33.3% when two copies replaced Judgment of Heaven.
+ *
+ * ========================================================================
+ * 2026-07-31 - W7 COMBINED RE-BASELINE (the 1.5 balance pass's closing
+ * measurement; THE calibration tables until the next pass). Field: pool 787
+ * / Base 209, cap-4 blockers, the two new common sweepers, 21 tapland ETB
+ * riders, tribal lords (W5), the Neon Afterimage rebuild, and the W0 AI
+ * fixes. Full `--avatars` at 200 seeds/cell (5x sample vs every prior
+ * table):
+ *
+ *                              Muster  Communion  Tides  Mandate  Harvest | avg
+ *   R1  Meng Huo      [easy]     41%      28%      26%     28%      30%   | 30%
+ *   R2  Hestia        [easy]     30%      12%      10%     31%      16%   | 19%
+ *   R3  Lupa          [easy]     15%       9%      26%     41%      33%   | 25%
+ *   R4  Hera          [med]      35%      37%      45%     56%      44%   | 43%
+ *   R5  Zhurong       [med]      53%      61%      48%     53%      70%   | 57%
+ *   R6  Sima Yi       [med]      70%      67%      49%     55%      48%   | 58%
+ *   R7  Yohime        [hard]     65%      81%      67%     71%      69%   | 70%
+ *   R8  Cao Cao       [hard]     62%      89%      67%     81%      61%   | 72%
+ *   R9  Hel           [hard]     56%      82%      63%     74%      45%   | 64%
+ *   R10 Brunhild      [hard]     79%      78%      64%     84%      90%   | 79%
+ *   R11 The Morrigan  [hard]     77%      82%      59%     82%      87%   | 77%
+ *   R12 Titania       [hard]     67%      92%      77%     80%      53%   | 74%
+ *   R13 Morgan        [hard]     46%      84%      51%     75%      62%   | 63%
+ *   R14 Artoria       [hard]     56%      84%      57%     60%      61%   | 63%
+ *   R15 Carmilla      [hard]     76%      80%      50%     77%      88%   | 74%
+ *   R16 The Bride     [hard]     59%      78%      56%     81%      60%   | 67%
+ *   R17 Glass-Coffin  [hard]     74%      85%      64%     84%      79%   | 77%
+ *   R18 Songstress    [hard]     84%      91%      67%     88%      92%   | 84%
+ *   R19 Lanterned Roof[hard]     66%      73%      47%     61%      64%   | 62%
+ *   R20 Neon Tyrant   [hard]     68%      73%      55%     77%      84%   | 71%
+ *
+ * Floors re-centred DOWN from this table (user-authorized one-time
+ * override of ratchet-up, same rationale as the economy bands): every
+ * rewritten floor = the 200-seed average minus a 6.5pp 40-seed noise band
+ * (winrate.test.ts + RUNG_BANDS). The Bride's tuning history CLOSES at
+ * 67%: the W1 repair fixed the Tides matchup inversion the AI fixes
+ * caused, and her dead 73% floor (set 4pp under a 40-seed estimate whose
+ * noise band is ~6pp) is re-centred to 60.5%, not chased. Yohime's rung-7
+ * row is re-stamped at 70% (the W4.5 Dreamveil Kitsune buff lifted her
+ * from the 66% 2026-07-17 row). Honest residuals: R19 measures 62%, a
+ * 22pp inversion below R18's 84% summit - the Yokai pair plays a control
+ * shell into a field that now carries answers, and closing it needs
+ * in-color tools from a future set (recorded, not chased); R2 Hestia at
+ * 19% keeps the known easy-rung inversion vs R1.
+ *
+ * Prefab round-robin at 300 seeds/cell (16,500 games, cap-4 field):
+ * Neon 59.8%, Crimson 59.4%, Burning 58.3%, Bloodmoon 58.3%, Grave 49.5%,
+ * Shadow 47.8%, Valhalla 46.9%, Wild 45.7%, Questing 45.6%, Glimmer 45.4%,
+ * Midnight Storybook 33.3%. Ten of eleven inside the rough 45-60 target;
+ * Crimson's reign is broken (cap-4 + sweepers), Neon's rebuild holds at
+ * the top without a runaway, Midnight remains the honest miss (W2 closed
+ * it as such; its 29.9% like-for-like control history lives at its list).
+ *
+ * Floor matrix at 80 seeds/cell, FLAGS none: F1-F20 averages 25.3, 20.5,
+ * 23.5, 29.0, 34.7, 28.9, 34.0, 35.3, 36.0, 46.0, 53.0, 50.3, 61.3, 58.1,
+ * 56.0, 68.5, 70.8, 72.0, 68.2, 70.6 - a clean T6 plateau across F16-F20
+ * confirms floors 19-20 stay tier 6 (stamped in src/ai/tiers.ts).
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------
