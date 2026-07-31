@@ -1373,8 +1373,8 @@ are exposed in 1.5.5 (user decision 2026-07-29).
   the Dark Tales health pass. Expansion 6 is named; 7-10 are TBD pending
   the expansion-ideation session (the next planning discussion).
 
-  **1.5** = **ACTIVE PROGRAM** (decisions locked 2026-07-28; the program
-  plan is [plan-1.5.md](plan-1.5.md)): **"Darlings"**, the Commander/EDH-style format (the parked
+  **1.5** = **SHIPPED 2026-07-31** (v1.5.0 cut — see Recently shipped; the
+  program plan is [plan-1.5.md](plan-1.5.md)): **"Darlings"**, the Commander/EDH-style format (the parked
   commander→darling doc-rename draft on `claude/commander-naming-review-ee50e3`
   is its spec seed) + the **Cyberpunk Yokai Nights** expansion (Expansion 6 —
   moved up from 1.6 by user decision 2026-07-24: it is the only fully-known
@@ -1388,14 +1388,23 @@ are exposed in 1.5.5 (user decision 2026-07-29).
   ~~metagame-loop CI promotion~~ (decided 2026-07-28: stays
   informational-only — the 1.4 release sweep hit max-rounds without
   convergence; revisit after the 1.5 sweep);
-  **Reserve formats status:** Darlings and Battle Box are engine-complete and
-  UI-complete, but flagged off for 1.5.0. They are exposed in 1.5.5 after
-  their `TO MEASURE` balance matrices exist;
-  **1.6** = **suggested decks v1** (the persona hill-climb harness pointed
-  at the player's own collection: "build me a deck from what I own" — the
-  hard half already ships as the dev-only crafting loop) + **player-facing
-  replays v1** (rewatch + share codes over the existing deterministic
-  replay log) + Expansion 7 (from the slate below);
+  **1.5.5** = **ACTIVE PROGRAM** (opened 2026-07-31; the train spec is
+  [plan-1.5.5.md](plan-1.5.5.md)): the **Warchest + Darlings reveal**
+  (Warchest is the product name for the land-reserve mana system, replacing
+  the "Battle Box" working title; both formats are engine- and UI-complete
+  but flagged off, and are exposed only after their `TO MEASURE` matrices
+  and the losslessness probe exist) + the **collectionPct metric rework**
+  (must land before any future set ships) + the sweeper/tribal **art
+  riders**;
+  **1.6** = **the Warchest launch train** (north star ratified 2026-07-31,
+  draft program in [plan-1.6-draft.md](plan-1.6-draft.md)): Warchest
+  becomes the game-wide mana system and classic constructed retires (decks
+  preserved and flagged for a Deck Builder fix flow, never deleted), with
+  the priority-window reopening, Premium UX Wave B, the returning-mechanics
+  sprinkle, the cosmetics layer, and the first large (~240-250 card)
+  reserve-native expansion; the previously sketched 1.6 items (**suggested
+  decks v1**, **player-facing replays v1**) re-slot at the 1.6 planning
+  session once 1.5.5's measurements exist;
   **1.7** = **Story Mode** + Expansion 8 (slate — candidate: themed to carry
   the story campaign) + **accessibility wave 1** (colorblind-safe
   mana/rarity cues, text scaling). DECIDE-BY-1.7: **localization** —

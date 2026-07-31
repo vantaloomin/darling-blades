@@ -345,7 +345,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 
 ### Moundlight Midwife — `cf-moundlight-midwife`
 - **Card facts:** {3}{G} · G · 2/3 · r · holo: shiny
-- **Character & source:** An adult Fae adept and midwife who summons two Bloomlings from the root-dark beneath a hollow hill. Her arrival is a protective court ritual, with the small Fae guests visibly answering her invitation.
+- **Character & source:** Approved-art record: the taste-approved vault raw `celtic-fae/cf-moundlight-midwife.raw.png` shipped 2026-07-31 via character smart-crop (head detection, full-width crop, no zoom fallback). An adult Fae adept and midwife who summons two Bloomlings from the root-dark beneath a hollow hill. Her arrival is a protective court ritual, with the small Fae guests visibly answering her invitation.
 - **Personality / mood:** "She calls the court's youngest guests from the dark beneath the roots." Gentle, capable, and quietly formidable in the way of someone trusted with the court's newest lives.
 - **Pose & composition:** Waist-up at the mouth of a root-lined mound, one hand cupped over a warm green bloomlight while the other parts hanging roots. Two small Bloomlings climb from the luminous soil at either side of her, their leaf-crowns and round faces visible; face at y 320, eye line at y 345.
 - **Costume & attire:** Moss-green midwife's cloak over layered bark-scale armor, a low silver torc, thorn circlet, soft brown gloves, and a bundle of woven root-cord charms at her belt.

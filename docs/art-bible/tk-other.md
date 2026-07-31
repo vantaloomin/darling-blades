@@ -195,7 +195,7 @@ kings, because for one violent season each of them held the world by the throat.
 
 ### Sable, Warband Captain — `tk-other-warband-captain`
 - **Card facts:** {2}{R} · R · 2/2 · sr · holo: foil
-- **Character & source:** Sable is an adult woman and a captain who gives the warband its first motion. Her static grant gives every other Warrior Warcry, so the charge must feel synchronized before she says a word.
+- **Character & source:** Approved-art record: the taste-approved vault raw `tk-other/tk-other-warband-captain.raw.png` shipped 2026-07-31 via character smart-crop (head detection, full-width crop, no zoom fallback). Sable is an adult woman and a captain who gives the warband its first motion. Her static grant gives every other Warrior Warcry, so the charge must feel synchronized before she says a word.
 - **Personality / mood:** "She does not call the charge. Her warband is already moving." Focused, magnetic, and so trusted that her smallest gesture becomes an order.
 - **Pose & composition:** Low three-quarter view, Sable braced at the front of a red-clay ridge with one black-iron saber pointed forward at a downward angle. Three adult women Warriors surge past her into the foreground and middle distance; face at y 315, eye line at y 340, her free hand held low in the final signal that set them moving.
 - **Costume & attire:** Practical crimson lamellar over a charcoal riding coat, black-iron shoulder plates, ember-red sash, worn leather gloves, and dark hair bound in a short battle braid with a single copper ring.
