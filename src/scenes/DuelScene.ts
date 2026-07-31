@@ -4391,12 +4391,28 @@ export class DuelScene extends Phaser.Scene {
       } else if (this.pendingBlocker !== null) {
         const opt = opts.find((o) => o.blocker === this.pendingBlocker);
         if (opt && opt.canBlock.includes(iid)) {
+          // The per-attacker cap used to be enforced only at validation, so a
+          // tap past it was silently swallowed and read as a bug in playtest
+          // (2026-07-30). Refuse at the tap, with the rule named.
+          const already = this.blockAssignments.filter((b) => b.attacker === iid).length;
+          if (already >= RULES.maxBlockersPerAttacker) {
+            this.showSkipNotice(
+              `At most ${RULES.maxBlockersPerAttacker} creatures can block one attacker.`,
+            );
+            this.sync();
+            return;
+          }
           this.blockAssignments.push({ blocker: this.pendingBlocker, attacker: iid });
           this.pendingBlocker = null;
-          // First blocker onto a Dreaded attacker: nudge for the second.
           const assigned = this.blockAssignments.filter((b) => b.attacker === iid).length;
           if (assigned === 1 && minimumBlockersForAttacker(st.battlefield, CARD_DB, iid) === 2) {
+            // First blocker onto a Dreaded attacker: nudge for the second.
             this.showSkipNotice(`${def(CARD_DB, perm.cardId).name} is Dreaded. Add a second blocker.`);
+          } else if (assigned >= 2) {
+            // Gang-blocks surface the cap as a running count.
+            this.showSkipNotice(
+              `${assigned}/${RULES.maxBlockersPerAttacker} blockers on ${def(CARD_DB, perm.cardId).name}.`,
+            );
           }
         }
       }

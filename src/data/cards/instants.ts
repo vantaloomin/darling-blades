@@ -195,7 +195,10 @@ export const INSTANTS = [
   },
   {
     id: 'in-sudden-insight',
-    name: 'Sudden Insight',
+    // Renamed from "Sudden Insight" 2026-07-30: that exact name is a real
+    // Magic card. A collision rather than a reproduction (different cost,
+    // type, and rarity), but the same class of exposure as PR #158.
+    name: 'Uninvited Insight',
     types: ['charm'],
     subtypes: [],
     // {3}{U}, not {2}{U}: at equal cost the instant strictly dominates our own

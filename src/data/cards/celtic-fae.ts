@@ -226,6 +226,11 @@ export const CELTIC_FAE = [
     cost: cost(2, 'GG'), colors: ['G'], attack: 4, defense: 4,
     keywords: ['sentinel', 'overrun'], rarity: 'r', flavor: 'She guards the hill because the hill once chose her.',
   }),
+  fae('cf-moundlight-midwife', 'Moundlight Midwife', 'Adept', {
+    cost: cost(3, 'G'), colors: ['G'], attack: 2, defense: 3,
+    abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-bloom', count: 2 }] }],
+    rarity: 'r', flavor: "She calls the court's youngest guests from the dark beneath the roots.",
+  }),
   {
     id: 'cf-moonlit-barrow', name: 'Moonlit Barrow', types: ['land'], subtypes: [], colors: [],
     manaAbility: ['U', 'B'], entersTapped: true, rarity: 'r', flavor: 'The dead keep moonlight under the door for callers.',
@@ -297,7 +302,14 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'It walks one street ahead of every bad decision.',
   }),
   fae('cf-heatherblade-scout', 'Heatherblade Scout', 'Scout', {
-    cost: cost(1, 'G'), colors: ['G'], attack: 3, defense: 2, keywords: ['overrun'],
+    // W3 minimal trim (2026-07-30): 3/2 -> 2/2. The declared curve policy
+    // (adding-cards.md) keeps modern vanilla bodies but discounts the body
+    // for text; a 1-mana 3/2 WITH Overrun at common was the concentrated
+    // Silver Veil outlier class the audit named, and this card is 3x in the
+    // retained go-wide artifact that survived an answered field at 76.2%.
+    // One lever, measured before and after; the artifact re-check dates the
+    // result in the W3 close-out commit.
+    cost: cost(1, 'G'), colors: ['G'], attack: 2, defense: 2, keywords: ['overrun'],
     rarity: 'c', flavor: 'The heather bends for her. It does not for you.',
   }),
   fae('cf-torclight-envoy', 'Torclight Envoy', 'Diplomat', {
@@ -341,14 +353,17 @@ export const CELTIC_FAE = [
   },
   {
     id: 'cf-mist-road', name: 'Mist Road', types: ['land'], subtypes: [], colors: [], manaAbility: ['U'], entersTapped: true,
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'It appears when you need a shortcut and disappears when you need one home.',
   },
   {
     id: 'cf-mossy-ring', name: 'Mossy Ring', types: ['land'], subtypes: [], colors: [], manaAbility: ['G'], entersTapped: true,
+    abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'c', flavor: 'The moss grows in a circle because the circle asked nicely.',
   },
   {
     id: 'cf-raven-stone', name: 'Raven Stone', types: ['land'], subtypes: [], colors: [], manaAbility: ['B'], entersTapped: true,
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'Leave an offering. The raven will tell you whether it was enough.',
   },
   {

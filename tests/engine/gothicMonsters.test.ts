@@ -151,7 +151,9 @@ describe('Gothic Monsters Dreaded', () => {
     expect(validateBlocks(staticState.battlefield, DB, 1, combat, [{ blocker: 3, attacker: 1 }])).toContain('at least 2');
   });
 
-  it('requires two sky-capable blockers and still honors the three-blocker cap', () => {
+  it('requires two sky-capable blockers and still honors the four-blocker cap', () => {
+    // Cap raised 3 -> 4 (user decision 2026-07-31): four blockers on one
+    // attacker is now legal; a fifth trips the cap.
     const game = combatGame(
       [{ iid: 1, cardId: 'dreadedFlyer', controller: 0 }],
       [
@@ -159,6 +161,7 @@ describe('Gothic Monsters Dreaded', () => {
         { iid: 3, cardId: 'archer', controller: 1 },
         { iid: 4, cardId: 'flyer', controller: 1 },
         { iid: 5, cardId: 'flyer', controller: 1 },
+        { iid: 6, cardId: 'flyer', controller: 1 },
       ],
     );
     game.submit(0, { type: 'declareAttackers', attackers: [1] });
@@ -172,13 +175,15 @@ describe('Gothic Monsters Dreaded', () => {
       { blocker: 2, attacker: 1 },
       { blocker: 3, attacker: 1 },
       { blocker: 4, attacker: 1 },
+      { blocker: 5, attacker: 1 },
     ])).toBeNull();
     expect(validateBlocks(game.state.battlefield, DB, 1, combat, [
       { blocker: 2, attacker: 1 },
       { blocker: 3, attacker: 1 },
       { blocker: 4, attacker: 1 },
       { blocker: 5, attacker: 1 },
-    ])).toContain('more than 3 blockers');
+      { blocker: 6, attacker: 1 },
+    ])).toContain('more than 4 blockers');
   });
 });
 

@@ -1,8 +1,9 @@
 /**
- * Generates real card art for the 83 non-creature SPELL cards (18 instants, 14
- * sorceries, 10 enchantments, 1 artifact, + 9 Ragnarök spells/runes, + 31 Gothic
- * Monsters charms/rituals/enchantments/artifacts) from the prompts in
- * docs/spell-art.md, via the chatgpt-imagegen CLI (backed by the user's ChatGPT
+ * Generates real card art for the 93 non-creature SPELL prompt entries: the 85
+ * primary entries (18 instants, 16 sorceries, 10 enchantments, 1 artifact, + 9
+ * Ragnarök spells/runes, + 31 Gothic Monsters charms/rituals/enchantments/artifacts)
+ * plus eight removal-answer records. Prompts live in docs/spell-art.md; the
+ * chatgpt-imagegen CLI is backed by the user's ChatGPT
  * subscription — see the `anthropic-skills:chatgpt-imagegen` skill), then
  * post-processes each image to the exact 640×800 WebP deliverable
  * (docs/art-bible/index.md §1) at `public/assets/art/cards/<card-id>.webp` — the
@@ -61,7 +62,7 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 91 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * The 93 spell ids docs/spell-art.md must cover, in the authored order (instants
  * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters →
  * the removal answer cycle).
  * Parsing cross-checks against this
@@ -76,9 +77,10 @@ const EXPECTED_IDS = [
   'in-undertow', 'in-blessed-respite', 'in-grave-chill', 'in-boar-rush', 'in-tidal-slip',
   'in-doom-bolt', 'in-char', 'in-stand-as-one', 'in-sudden-insight', 'in-skysweeper-gale',
   'in-comet-blast', 'in-reapers-due', 'in-dream-fracture',
-  // sorceries (14)
+  // sorceries (16, including W3.5b's Base Set common sweepers)
   'so-divination', 'so-rampant-growth', 'so-raise-dead', 'so-lava-axe', 'so-muster-militia',
-  'so-nurture', 'so-night-extortion', 'so-flame-lash', 'so-dirge-of-loss', 'so-parade-of-heroes',
+  'so-nurture', 'so-night-extortion', 'so-creeping-malaise', 'so-flame-lash', 'so-ember-squall',
+  'so-dirge-of-loss', 'so-parade-of-heroes',
   'so-strategic-planning', 'so-warcry', 'so-stampede-season', 'so-judgment-of-heaven',
   // enchantments (10)
   'en-vow-of-peace', 'en-wild-blessing', 'en-withering-curse', 'en-clouded-mind', 'en-wings-of-dawn',

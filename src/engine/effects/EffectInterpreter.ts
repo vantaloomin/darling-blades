@@ -86,7 +86,13 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'damage': {
       const n = op.n === 'X' ? (ctx.x ?? 0) : op.n;
-      if (op.to === 'controller') {
+      if (op.to === 'eachCreature') {
+        for (const perm of state.battlefield) {
+          if (!isType(def(db, perm.cardId), 'creature') || n <= 0) continue;
+          perm.damage += n;
+          emit({ e: 'damageMarked', iid: perm.iid, amount: n });
+        }
+      } else if (op.to === 'controller') {
         dealPlayerDamage(state, emit, ctx.controller, n);
       } else if (op.to === 'opponent') {
         dealPlayerDamage(state, emit, opponentOf(ctx.controller), n);
@@ -210,7 +216,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       } else {
         for (const perm of state.battlefield) {
           if (
-            perm.controller === ctx.controller &&
+            (op.scope === 'all' || perm.controller === ctx.controller) &&
             isType(def(db, perm.cardId), 'creature')
           ) {
             perm.untilEotMods.push({ ...mod, keywords: [...mod.keywords] });

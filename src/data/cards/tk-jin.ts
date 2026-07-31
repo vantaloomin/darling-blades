@@ -186,4 +186,17 @@ export const TK_JIN = [
     rarity: 'c',
     flavor: 'Married into the Simas. Tastes her own soup first.',
   },
+  {
+    id: 'tk-jin-yang-huiyu',
+    name: 'Yang Huiyu, Patient Regent',
+    types: ['creature'],
+    subtypes: ['Jin', 'Strategist'],
+    cost: cost(1, 'BB'),
+    colors: ['B'],
+    attack: 2,
+    defense: 2,
+    abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Jin', other: true }, p: 1, t: 1 } }],
+    rarity: 'r',
+    flavor: 'She keeps every promise in a ledger. Her enemies keep forgetting the ink.',
+  },
 ] as const satisfies readonly CardDef[];
