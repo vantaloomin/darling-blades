@@ -9,7 +9,7 @@
  *                        proxy standing in for a competent human. DEFAULT.
  *   --starters           5x5 starter-vs-starter mirror matrix, Medium both
  *                        sides (deck strength, skill held constant).
- *   --prefabs            7x7 prefab round-robin (5 starters + 2 theme decks),
+ *   --prefabs            Full prefab round-robin (every starter + theme deck),
  *                        the same neutral brain both sides (--ai, default
  *                        hard). Upper triangle simmed, mirrored below; prints
  *                        a per-deck aggregate ranking to surface outliers.
@@ -34,6 +34,12 @@
  *
  * DETERMINISM: every cell has a stable index; game seed = cellIndex * 100_000
  * + gameIdx, and AI seeds derive from the game seed. Same flags => same table.
+ * Cell-index base registry (keep bases disjoint across every runCell caller):
+ *   10_000 starters · 20_000 difficulty · 30_000 cf-bosses · 40_000 ac-bosses
+ *   50_000 tiers · 60_000..79_999 personas/craft.ts (hash-derived) · 70_000
+ *   floors (predates craft.ts; different decks/AIs, left as-is) · 100_000
+ *   prefabs. 80_000/90_000 are reserved for the planned warchest/darlings
+ *   matrices.
  *
  * The skipped-by-default suite tests/ai/balance.test.ts imports the run*
  * helpers below, so the manual vitest tool and this CLI share one code path.
@@ -490,11 +496,14 @@ export interface PrefabMatrixReport {
 }
 
 /**
- * All 7 prefab decks (5 starters + 2 theme decks) in a round-robin, the SAME
+ * Every prefab deck (all starters + theme decks) in a round-robin, the SAME
  * neutral brain piloting both sides so only deck strength varies. Only the
  * upper triangle is simulated (sides alternate per game, so cell (r,c) already
  * contains the (c,r) information); the lower triangle is its mirror and the
- * diagonal is skipped. Cell seeds are stable at 40_000 + r * 10 + c.
+ * diagonal is skipped. Cell seeds are stable at 100_000 + r * 100 + c (moved
+ * off 40_000 + r * 10 + c on 2026-07-31: the base collided with the AC-boss
+ * matrix, and the 10-stride would alias upper-triangle cells at 13+ decks;
+ * prefab numbers measured since then come from fresh seed streams).
  */
 export function runPrefabMatrix(seedsPerCell: number, ai: Difficulty): PrefabMatrixReport {
   const decks = [...STARTER_DECKS, ...THEME_DECKS];
@@ -510,7 +519,7 @@ export function runPrefabMatrix(seedsPerCell: number, ai: Difficulty): PrefabMat
           decks: () => [decks[r].cards, decks[c].cards],
         },
         seedsPerCell,
-        40_000 + r * 10 + c,
+        100_000 + r * 100 + c,
       );
       cells[r][c] = cell;
       const decidedMirror = cell.rowWins + cell.colWins;
