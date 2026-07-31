@@ -96,7 +96,12 @@ check(hauntlinkErrors.length === 0, `Hauntlink validation: ${hauntlinkErrors.joi
 check(tokens.length === 0, `Yokai tokens ${tokens.length}, expected 0 per set doc`);
 check(dualLands.length === 5, `dual lands ${dualLands.length}, expected 5`);
 check(humanSpecies.length === 0, `Human cards with yokai species subtype: ${humanSpecies.map((card) => card.id).join(', ')}`);
-check(collectible.length === 758, `collectible pool ${collectible.length}, expected 758 (638 + 120)`);
+// Re-dated 2026-07-31 post balance pass: 758 at Yokai launch plus exactly the
+// pass's 6 additions (Ember Squall + Creeping Malaise + Yang Huiyu + Sable
+// into base, Moundlight Midwife into celtic-fae, Porcelain Governess into
+// gothic-monsters) = 764 under this script's collectible definition, which
+// excludes tokens AND the 5 basic lands.
+check(collectible.length === 764, `collectible pool ${collectible.length}, expected 764`);
 
 console.table([
   { check: 'Rows transcribed', result: `${sourceRows.length}/${specRows.length}`, status: sourceRows.length === specRows.length && failures.every((failure) => !failure.includes('drift')) ? 'PASS' : 'FAIL' },
@@ -105,7 +110,7 @@ console.table([
   { check: 'ANSWER slots', result: `${answerRows}/7`, status: answerRows === 7 ? 'PASS' : 'FAIL' },
   { check: 'Hauntlink carriers', result: `${hauntlink.length}/13, ${hauntlinkErrors.length} S4 errors`, status: hauntlink.length === 13 && hauntlinkErrors.length === 0 ? 'PASS' : 'FAIL' },
   { check: 'Set-unique tokens', result: `${tokens.length} (doc says none)`, status: tokens.length === 0 ? 'PASS' : 'FAIL' },
-  { check: 'Collectible pool', result: `638 -> ${collectible.length} (+${collectible.length - 638})`, status: collectible.length === 758 ? 'PASS' : 'FAIL' },
+  { check: 'Collectible pool', result: `638 -> ${collectible.length} (+${collectible.length - 638})`, status: collectible.length === 764 ? 'PASS' : 'FAIL' },
 ]);
 
 if (failures.length) {
