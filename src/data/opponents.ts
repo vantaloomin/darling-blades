@@ -433,6 +433,30 @@ export interface Avatar {
  * 23.5, 29.0, 34.7, 28.9, 34.0, 35.3, 36.0, 46.0, 53.0, 50.3, 61.3, 58.1,
  * 56.0, 68.5, 70.8, 72.0, 68.2, 70.6 - a clean T6 plateau across F16-F20
  * confirms floors 19-20 stay tier 6 (stamped in src/ai/tiers.ts).
+ *
+ * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
+ * matrices the 1.5.0 release split left TO MEASURE). Fixture fleets from
+ * scripts/reserveMatrixDecks.ts (deterministic, validator-gated; they
+ * measure the FORMAT, not tuned decks - no product balance claim, and no
+ * classic-pool change may be justified by these numbers per
+ * docs/plan-battle-box.md).
+ *
+ * LOSSLESSNESS (the reveal gate's primary result): across both formats
+ * 5,000 of 5,000 games decided, 0 turn-limit draws, 0 engine exceptions.
+ * No seed produced a stuck or dead game state.
+ *
+ * Warchest (--warchest, 200 seeds/cell, 2,000 games, neutral hard,
+ * starter-derived playset fleet): Crimson 63.9, Burning 60.0, Grave 44.1,
+ * Shadow 43.3, Wild 38.8. Aggro-topped 25pp spread, worst cell 78
+ * (Burning vs Shadow); coherent field, no degenerate matchup.
+ *
+ * Darlings (--darlings, 200 seeds/cell, 3,000 games, neutral hard,
+ * curve-greedy singleton fleet per color spread): Ares [R] 76.1,
+ * Gaia [G] 72.1, Dian Wei [B] 58.2, Athena [W] 48.0, Ghost-Net
+ * Archon [U] 23.5, Aphrodite [WU] 22.1. The wide spread is a property
+ * of the greedy cheapest-first fixtures (mono-R aggro naturally tops
+ * it), not a roster claim - the curated rival ladder stays unpromised
+ * and would need its own measured baseline.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------

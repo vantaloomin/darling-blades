@@ -86,7 +86,7 @@ npx tsx scripts/balance-matrix.ts --avatars --seeds 40
 npx tsx scripts/balance-matrix.ts --floors --seeds 80
 ```
 
-The first command protects avatar behavior across the current field; the second protects the existing floor gates. A Darlings-specific matrix is required before a rival roster can be called balanced. Its exact seed count and acceptable band are `TO MEASURE` after the roster exists; add a script mode such as `npx tsx scripts/balance-matrix.ts --darlings --seeds <N>` and promote floors only from dated retained results. Run the progression simulator only if rewards, products, or collection access change. Run the metagame sweep as an informational diversity probe after Darlings deck-construction constraints are added to the shared craft core; the measured 4.61x speedup at 14 workers is a tooling baseline, not a balance result.
+The first command protects avatar behavior across the current field; the second protects the existing floor gates. **MEASURED 2026-07-31 (1.5.5):** the `--darlings` matrix mode exists and its dated 200-seed fixture baseline lives in `src/data/opponents.ts` (3,000/3,000 games decided, 0 draws, 0 engine exceptions; fixture fleet, not a roster claim). A curated rival roster still requires its own measured baseline with an acceptable band before it can be called balanced; promote floors only from dated retained results. Run the progression simulator only if rewards, products, or collection access change. Run the metagame sweep as an informational diversity probe after Darlings deck-construction constraints are added to the shared craft core; the measured 4.61x speedup at 14 workers is a tooling baseline, not a balance result.
 
 ## Phased implementation plan
 

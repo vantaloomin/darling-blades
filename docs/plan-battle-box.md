@@ -159,9 +159,14 @@ npx tsx scripts/balance-matrix.ts --avatars --seeds 40
 npx tsx scripts/balance-matrix.ts --floors --seeds 80
 ```
 
-A reserve-format matrix mode is `TO MEASURE` future work alongside any
-curated roster. Consistency is a large power-level change by construction;
-no classic-pool card changes may be justified by reserve-format results.
+**MEASURED 2026-07-31 (1.5.5):** the reserve matrix modes exist
+(`--warchest` / `--darlings` in `scripts/balance-matrix.ts`, deterministic
+validator-gated fixture fleets in `scripts/reserveMatrixDecks.ts`) and the
+dated 200-seed baselines live in `src/data/opponents.ts`. Losslessness:
+5,000/5,000 games decided, 0 draws, 0 engine exceptions across both
+formats. A curated-roster matrix remains future work. Consistency is a
+large power-level change by construction; no classic-pool card changes may
+be justified by reserve-format results.
 
 ## Phased implementation plan
 
