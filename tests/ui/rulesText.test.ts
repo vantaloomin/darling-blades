@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
+import type { CardDef } from '../../src/engine/types';
 import { MECHANIC_DEFINITIONS, rulesText, typeLine } from '../../src/ui/rulesText';
 
 const AURA_KEYWORD_TEXT = {
@@ -70,13 +71,51 @@ describe('target-aware damage and land rules text', () => {
     expect(rulesText(CARD_DB['so-nurture'])).toBe('Put 2 +1/+1 marks on target creature you control.');
   });
 
-  it('prints the mechanical tapland rider for mono-colored lands', () => {
-    expect(rulesText(CARD_DB['cf-mist-road'])).toBe('Arrives tapped.');
+  it('prints each mono tapland arrival-rider kind beside enters-tapped text', () => {
+    expect(rulesText(CARD_DB['cf-mist-road'])).toBe('Arrives tapped.\nWhen this arrives, Foresee 1.');
+    expect(rulesText(CARD_DB['ac-bramble-chapel'])).toBe('Arrives tapped.\nWhen this arrives, you gain 1 life.');
+    expect(rulesText(CARD_DB['ac-court-of-whispers'])).toBe('Arrives tapped.\nWhen this arrives, put the top card of your deck into your graveyard.');
+    expect(rulesText(CARD_DB['gm-chapel-yard'])).toBe("Arrives tapped.\nWhen this arrives, Sever the top card of your opponent's graveyard.");
     expect(rulesText(CARD_DB['ac-holy-well'])).toContain('Arrives tapped.');
   });
 
   it('does not emit em-dashes in generated rules text', () => {
     for (const card of ALL_CARDS) expect(rulesText(card)).not.toContain('\u2014');
+  });
+});
+
+describe('sweeper rules text', () => {
+  it('renders symmetric, target-free red damage and black stat reduction honestly', () => {
+    const red = {
+      id: 'red_sweeper',
+      name: 'Red Sweeper',
+      types: ['ritual'],
+      subtypes: [],
+      cost: { generic: 0, pips: {} },
+      colors: ['R'],
+      abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 1, to: 'eachCreature' }] }],
+      rarity: 'c',
+    } as const satisfies CardDef;
+    const black = {
+      id: 'black_sweeper',
+      name: 'Black Sweeper',
+      types: ['ritual'],
+      subtypes: [],
+      cost: { generic: 0, pips: {} },
+      colors: ['B'],
+      abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -1, t: -1, scope: 'all' }] }],
+      rarity: 'c',
+    } as const satisfies CardDef;
+
+    expect(rulesText(red)).toBe('Deal 1 damage to each creature.');
+    expect(rulesText(black)).toBe('All creatures get -1/-1 until end of turn.');
+    expect(rulesText(red)).not.toContain('\u2014');
+    expect(rulesText(black)).not.toContain('\u2014');
+  });
+
+  it('pins the two W3.5b Base Set sweeper bodies', () => {
+    expect(rulesText(CARD_DB['so-ember-squall'])).toBe('Deal 1 damage to each creature.');
+    expect(rulesText(CARD_DB['so-creeping-malaise'])).toBe('All creatures get -1/-1 until end of turn.');
   });
 });
 

@@ -8,7 +8,8 @@ import { applyFilters, defaultFilterState } from '../../src/meta/collectionFilte
 import { packPool } from '../../src/meta/PackOpener';
 import { freshSave } from '../../src/meta/SaveManager';
 
-const RARITY_COUNTS = { c: 41, r: 24, sr: 7, ssr: 5, ur: 4 } as const;
+// W5 adds the rare Moundlight Midwife: 81 -> 82 cards and r 24 -> 25.
+const RARITY_COUNTS = { c: 41, r: 25, sr: 7, ssr: 5, ur: 4 } as const;
 const KEYWORDS = new Set<Keyword>([
   'skyborne',
   'wardingGaze',
@@ -88,8 +89,9 @@ const COURT_DECK = cfDeck([
 ]);
 
 describe('Celtic Fae data integrity', () => {
-  it('contains the complete 81-card booster set with the target rarity histogram', () => {
-    expect(CELTIC_FAE).toHaveLength(81);
+  it('contains the complete 82-card booster set with the target rarity histogram', () => {
+    // W5 adds the rare Moundlight Midwife: 81 -> 82.
+    expect(CELTIC_FAE).toHaveLength(82);
     const actual = Object.fromEntries(
       Object.keys(RARITY_COUNTS).map((rarity) => [
         rarity,

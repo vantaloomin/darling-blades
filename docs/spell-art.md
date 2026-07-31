@@ -163,7 +163,7 @@ The script appends the shared preamble and negatives; do not restate them per en
 ### Stand as One — `in-stand-as-one`
 - **Prompt:** A rallying surge of unity — a golden banner-light washing over a line of soldiers who stand shoulder to shoulder and glow with shared resolve at frame center, uplifted spears catching the radiance, holy W palette `#f2e8cf` and `#c9a84c` with `#fffef2` unifying glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
-### Sudden Insight — `in-sudden-insight`
+### Uninvited Insight — `in-sudden-insight`
 - **Prompt:** A flash of revelation — glowing blue arcane sigils, diagrams, and knowledge-light bursting outward from a strategist's mind at frame center, scattered scrolls lifting in the arcane wind, U mind palette `#4a90d9` and `#16294f` with `#a8d4f7` sparks — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Skysweeper Gale — `in-skysweeper-gale`
@@ -201,8 +201,14 @@ The script appends the shared preamble and negatives; do not restate them per en
 ### Night Extortion — `so-night-extortion`
 - **Prompt:** A midnight coercion — a shadowy black-cloaked extortionist at frame center pulling a glowing secret from a victim's mind into her ledger of shadow, a stolen thought-wisp trailing violet light, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` shadow-glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
+### Creeping Malaise — `so-creeping-malaise`
+- **Prompt:** A suffocating hush falling across a battlefield, a low violet-black miasma pouring from a cracked stone brazier at frame center and coiling around warriors as their silhouettes weaken and sink to one knee, dim candles and bare thorn trees fading behind the haze, no readable text anywhere, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` malaise-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
 ### Flame Lash — `so-flame-lash`
 - **Prompt:** A whip of living fire cracking across a target — a coiling lash of orange flame snapping around a creature at frame center, ash and sparks scattering from the strike, R fire palette `#d95436` and `#5e0f0f` with `#f7b267` fiery lash — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Ember Squall — `so-ember-squall`
+- **Prompt:** A sudden ember storm breaking across a skirmish, a circular blast of red cinders and orange shockwaves exploding from cracked ground at frame center and staggering every silhouette around it, scorched stones, sparks, and smoke filling a twilight battlefield, no readable text anywhere, R palette `#d95436` and `#5e0f0f` with `#f7b267` impact-glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ### Dirge of Loss — `so-dirge-of-loss`
 - **Prompt:** A funeral dirge draining an enemy's hope — mournful violet-black sound-waves and grief-mist radiating from a shadowed singer at frame center, ghostly notes tearing memories loose from a huddled foe, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` sorrow-glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait

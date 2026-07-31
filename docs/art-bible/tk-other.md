@@ -192,3 +192,18 @@ kings, because for one violent season each of them held the world by the throat.
 - **Holo interaction:** none — common.
 - **Rarity ambition:** Common — single figure, one idea (small, gilded, lethal), reads at 119×86.
 - **Prompt:** Genderbent Dong Bai, spoiled tyrant's heir in overfine black silk with excessive gold trim and a jeweled hairpin, examining a single slender poisoned needle-blade between two fingers with a cold poisonous smile, dim gilded palace corner, cold lantern key light with faint warm brazier rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Sable, Warband Captain — `tk-other-warband-captain`
+- **Card facts:** {2}{R} · R · 2/2 · sr · holo: foil
+- **Character & source:** Sable is an adult woman and a captain who gives the warband its first motion. Her static grant gives every other Warrior Warcry, so the charge must feel synchronized before she says a word.
+- **Personality / mood:** "She does not call the charge. Her warband is already moving." Focused, magnetic, and so trusted that her smallest gesture becomes an order.
+- **Pose & composition:** Low three-quarter view, Sable braced at the front of a red-clay ridge with one black-iron saber pointed forward at a downward angle. Three adult women Warriors surge past her into the foreground and middle distance; face at y 315, eye line at y 340, her free hand held low in the final signal that set them moving.
+- **Costume & attire:** Practical crimson lamellar over a charcoal riding coat, black-iron shoulder plates, ember-red sash, worn leather gloves, and dark hair bound in a short battle braid with a single copper ring.
+- **Palette:** R palette (ember red, deep red, and warm orange accent) in dusty red, ember orange, and black iron; Other-faction accents are charred steel and campfire gold.
+- **Lighting:** Hot sunrise key breaking over the ridge and catching the saber edge; cool smoke-blue rim separating the captain and her moving formation.
+- **Expression:** Calm concentration with a brief hard smile, watching the opening she has already made.
+- **Props / weapon:** A black-iron saber in a correct forward grip, a plain red war pennant without lettering, and the moving Warrior formation.
+- **Background:** A dawn battlefield approach with dust, low fires, and a distant enemy line dissolving behind the charge.
+- **Holo interaction:** Foil; place texture in lamellar scales, black-iron plates, dust, and the plain pennant so the rainbow reads as heat on a moving warband.
+- **Rarity ambition:** Super-rare moment: the exact breath when a disciplined formation becomes a charge.
+- **Prompt:** Sable, an adult woman warband captain in practical crimson lamellar over a charcoal riding coat with black-iron shoulder plates, ember-red sash, and dark battle braid, braced on a red-clay ridge with one black-iron saber held in a natural forward grip while her free hand gives a low final signal; three adult women Warriors surge forward through dust around her, a plain unlettered red pennant snapping behind them; dawn battlefield approach with low fires and a distant enemy line; hot sunrise key on the saber, cool smoke-blue rim on the captain and charge; generous clear sky above the head, no readable letters, numbers, banners, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait

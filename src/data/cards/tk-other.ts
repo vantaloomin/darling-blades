@@ -163,4 +163,17 @@ export const TK_OTHER = [
     rarity: 'c',
     flavor: 'Granted a fief before losing her baby teeth. Kept the teeth.',
   },
+  {
+    id: 'tk-other-warband-captain',
+    name: 'Sable, Warband Captain',
+    types: ['creature'],
+    subtypes: ['Warrior'],
+    cost: cost(2, 'R'),
+    colors: ['R'],
+    attack: 2,
+    defense: 2,
+    abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Warrior', other: true }, grantKeywords: ['warcry'] } }],
+    rarity: 'sr',
+    flavor: 'She does not call the charge. Her warband is already moving.',
+  },
 ] as const satisfies readonly CardDef[];

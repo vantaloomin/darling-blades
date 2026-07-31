@@ -183,13 +183,22 @@ export class HardAI implements AIPlayer {
     // and Empower only against Medium's baseline; making passStep a candidate
     // is future work. Skim must not be offered as a lookahead line when its
     // draw would deck out the player.
-    const candidates = legal.filter(
-      (a) =>
-        (a.type === 'skim' && view.you.deckCount > 0) ||
-        (a.type === 'castSpell' && (a.empowered === true || a.retell === true)),
-    ).concat(
-      legal.filter((a) => a.type === 'castSpell' && a.hauntlinked === true),
-    );
+    const candidates = legal
+      .filter(
+        (a) =>
+          (a.type === 'skim' && view.you.deckCount > 0) ||
+          (a.type === 'castSpell' && (a.empowered === true || a.retell === true)),
+      )
+      // evaluate() deliberately strips until-EOT mods. When positive target
+      // variants therefore tie, keep the deterministic tie-break on our side.
+      // This ordering is what rankedCandidates below preserves as the
+      // "pre-existing order" for every non-Hauntlink candidate.
+      .sort(
+        (a, b) =>
+          Number(this.ownPositiveTargetBoost(view, b)) -
+          Number(this.ownPositiveTargetBoost(view, a)),
+      )
+      .concat(legal.filter((a) => a.type === 'castSpell' && a.hauntlinked === true));
     if (candidates.length === 0) return baseline;
 
     const base = this.aggregateOutcome(view, [baseline]);
@@ -231,6 +240,23 @@ export class HardAI implements AIPlayer {
       }
     }
     return best;
+  }
+
+  private ownPositiveTargetBoost(view: PlayerView, action: Action): boolean {
+    if (action.type !== 'castSpell') return false;
+    const targetRef = action.targets?.[0];
+    if (!targetRef || targetRef.kind !== 'permanent') return false;
+    const target = view.battlefield.find((p) => p.iid === targetRef.iid);
+    if (!target || target.controller !== view.myId) return false;
+    const cardId = action.retell && action.graveIndex !== undefined
+      ? view.you.graveyard[action.graveIndex]
+      : view.you.hand[action.handIndex];
+    return (this.db[cardId]?.abilities ?? []).some((ab) =>
+      ab.when === 'spell' &&
+      (ab.ops ?? []).some(
+        (op) => op.op === 'boost' && op.scope === 'target' && op.p + op.t > 0,
+      ),
+    );
   }
 
   // -------------------------------------------------------------------

@@ -83,6 +83,11 @@ export const STARTER_DECKS: DeckList[] = [
   {
     id: 'starter-mandate',
     name: 'Shadow Mandate',
+    // 2026-07-30 W3 answer-density pass: -2 Twice-Read Water, +2 Creeping
+    // Malaise. The attrition shell keeps Doom Bolt, counters, and Night
+    // Extortion, trading redundant slow draw for a turn-two broad reset
+    // against go-wide decks. Risk: Malaise also clips smaller Jin bodies, so
+    // the package stays at two copies rather than reshaping the deck around it.
     cards: expand([
       ['land-island', 10],
       ['land-swamp', 10],
@@ -97,7 +102,8 @@ export const STARTER_DECKS: DeckList[] = [
       ['in-doom-bolt', 4],
       ['in-read-the-ruse', 3],
       ['so-night-extortion', 3],
-      ['so-divination', 3],
+      ['so-divination', 1],
+      ['so-creeping-malaise', 2],
     ]),
   },
   {
@@ -139,9 +145,10 @@ export const STARTER_DECKS: DeckList[] = [
  * advance Quests, then turn awakened champions into the closing pressure.
  * Midnight Storybook — U/B/W Dark Tales value-control: Skim early, fill the
  * graveyard, and Retell efficient Rituals and Charms after stabilizing.
- * Neon Afterimage — W/U/B Yokai Nights body-first Hauntlink midrange: deploy
- * cheap hosts, link compact riders, and use Foresee, recall, and Sever to keep
- * the street manageable. TO MEASURE after the set landing.
+ * Neon Afterimage — W/U Yokai Nights pressure with black support: curve into
+ * legendary finishers, link durable evasive hosts, and use black Sever effects
+ * to keep the street manageable. Measured 60.4% at 300 seeds/cell 2026-07-30
+ * (the dated block on its list below carries the full record).
  */
 export const THEME_DECKS: DeckList[] = [
   {
@@ -221,6 +228,11 @@ export const THEME_DECKS: DeckList[] = [
     // 2026-07-20 1.3 prefab tune: shaved the over-rate Heiress, Cutthroat, and
     // Kicked Door packages for slower Vampire/Monster/Empower cards. Final
     // hard-AI aggregate: 57.3% at 300 seeds/cell (baseline 69.6%).
+    // 2026-07-30 W3 answer-density pass: -2 Tattered Invitation, +2 Ember
+    // Squall. The B/R pressure shell retains two discard spells while gaining
+    // a cheap reset against go-wide boards. Risk: Squall also damages its
+    // small Vampire starts, so this stays at two copies and does not replace
+    // the list's sturdier midgame creature package.
     cards: expand([
       ['land-swamp', 14],
       ['land-mountain', 10],
@@ -232,16 +244,44 @@ export const THEME_DECKS: DeckList[] = [
       ['gm-blood-opera-soloist', 3],
       ['gm-manor-thrall', 4],
       ['gm-stitched-hound', 2],
-      ['gm-tattered-invitation', 4],
+      ['gm-tattered-invitation', 2],
       ['gm-red-curtain-cut', 1],
       ['gm-dracula-ball-invite', 3],
       ['gm-black-lace-pact', 2],
       ['gm-funeral-bell', 2],
+      ['so-ember-squall', 2],
     ]),
   },
   {
     id: 'theme-dark-tales',
     name: 'Midnight Storybook',
+    // W2 tuning history (2026-07-30, post-W0-AI-fix field). Control at 300
+    // seeds/cell: 35.3% aggregate, but 29.9% like-for-like excluding the free
+    // 84% cell vs the broken Neon Afterimage — unchanged from the 1.4 anchor
+    // (30.5%). Worst cells: Crimson 19, Harvest 24, Tides 25 (the control
+    // deck's aggro hole). REJECTED candidate at a 60-seed probe: -2 Gilded
+    // Stepmother -2 Rose-Petal Knight -2 Foam-Silk Siren, +4 Mirror-Apple
+    // Curse +2 The Sleeping Curse measured 23.7% like-for-like (aggregate
+    // 28.7%), with the target cells WORSE (Tides 25->15, Harvest 24->13) and
+    // Glimmer 36->20: trading six bodies for six answers costs more pressure
+    // than the removal converts. The 1.4-era negative stands too (sweeper
+    // 5B->4B, 34.3%->33.3%). Any future candidate must add interaction
+    // without shrinking the body count this far. Round 2 (surgical: Hades x2
+    // -> Aphrodite x2) probed NEUTRAL: 30.6% like-for-like vs 29.9% control,
+    // aggro cells unmoved (Crimson 20, Tides 25, Harvest 22) — rejected
+    // rather than confirmed at 300 seeds, because a +0.7pp delta on 540
+    // games is noise. W2 CLOSED 2026-07-30 as the honest miss the
+    // band-as-direction decision anticipated: published at 29.9%, the deck
+    // unchanged. What a real fix likely needs (documented for the next
+    // pass): either survivable early bodies that this set does not print,
+    // or the common sweepers arriving in W3.5 giving the field cheap
+    // partial resets this deck can splash.
+    // 2026-07-30 W3 answer-density pass: -2 Judgment of Heaven, +2 Creeping
+    // Malaise. This keeps the W2 body floor and its single-target answers,
+    // exchanging the slow double-white reset for affordable early partial
+    // resets. Malaise has no Skim/Retell synergy; it is here strictly as an
+    // answer. Risk: it can shrink this deck's small bodies and leave larger
+    // opposing boards intact.
     cards: expand([
       ['land-island', 8],
       ['land-swamp', 7],
@@ -262,33 +302,43 @@ export const THEME_DECKS: DeckList[] = [
       ['gk-hades', 2],
       ['in-doom-bolt', 4],
       ['in-undertow', 2],
-      ['so-judgment-of-heaven', 2],
+      ['so-creeping-malaise', 2],
     ]),
   },
   {
     id: 'theme-yokai-nights',
     name: 'Neon Afterimage',
-    // TO MEASURE after the Yokai Nights set landing. This list is a data
-    // contract, not a balance claim.
+    // 2026-07-30 W6 rebuild, MEASURED: 60.4% aggregate (1811/3000) at 300
+    // seeds/cell hard AI (`balance-matrix --prefabs --ai hard --seeds 300`),
+    // up from the shipped list's 10.5% — the worst prefab ever recorded here
+    // (largest creature 2/3, max attack 2, no top-end). Second in the field,
+    // 0.8pp behind Crimson Muster (61.2%); worst cell a decided 33% vs
+    // Burning Tides. Top-of-band on purpose: the field's true ceiling is
+    // 61.2%, so this is inside the real spread, and W7's combined re-baseline
+    // re-measures it against the sweepers and tapland riders that landed
+    // after this matrix. Shape: a W/U pressure shell builds through the
+    // middle turns, then legendary closers and evasive hosts turn Hauntlink
+    // into an attack rather than a small-body patch. A light black package
+    // supplies removal and an Oni finisher without stressing the W/U core.
     cards: expand([
       ['land-plains', 7],
-      ['land-island', 7],
-      ['land-swamp', 6],
+      ['land-island', 8],
+      ['land-swamp', 5],
       ['yn-lantern-canal-junction', 2],
       ['yn-midnight-data-market', 2],
-      ['yn-lantern-court-usher', 4],
-      ['yn-paper-mask-sentinel', 4],
-      ['yn-holo-lantern-adept', 4],
-      ['yn-silver-moon-duelist', 2],
-      ['yn-ghostline-diviner', 4],
-      ['yn-signal-kitsune', 4],
-      ['yn-ghostwire-charm', 2],
-      ['yn-moonwire-mask', 2],
-      ['yn-parasite-mask', 2],
-      ['yn-backdoor-recall', 2],
-      ['yn-signal-bridge', 2],
+      ['yn-queen-of-the-lanterned-roof', 2],
+      ['yn-ghost-net-archon', 2],
+      ['yn-oni-underboss-of-rain', 2],
+      ['yn-white-lantern-vanguard', 4],
+      ['yn-moonlit-data-duelist', 4],
+      ['yn-skyline-yokai', 4],
+      ['yn-echo-fox-informant', 4],
+      ['yn-lantern-fixer', 4],
+      ['yn-hauntlink-apex', 2],
+      ['yn-unanswered-signal', 2],
+      ['yn-hauntlink-signal-lure', 2],
+      ['yn-alleyway-sever', 2],
       ['yn-sever-the-signal', 2],
-      ['yn-paper-ward-signal', 2],
     ]),
   },
 ];

@@ -155,6 +155,20 @@ describe('catalog integrity', () => {
     expect(ALL_CARDS.length).toBeGreaterThanOrEqual(180);
   });
 
+  it('has the W3.5b Base Set sweeper pass in the catalog totals', () => {
+    const base = ALL_CARDS.filter(
+      (card) => card.set === 'base' && !card.token && !(card.supertypes ?? []).includes('basic'),
+    );
+    // W5 adds Yang Huiyu (r) and Sable (sr): 207 -> 209; r 66 -> 67; sr 13 -> 14.
+    expect(base).toHaveLength(209);
+    expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
+      rarity,
+      base.filter((card) => card.rarity === rarity).length,
+    ]))).toEqual({ c: 109, r: 67, sr: 14, ssr: 11, ur: 8 });
+    // W5's four tribal cards move the collectible catalog 783 -> 787.
+    expect(ALL_CARDS).toHaveLength(787);
+  });
+
   it('stamps every expansion card with its set and every other collectible set:base', () => {
     for (const card of ALL_CARDS) {
       if (card.token) continue; // tokens are non-collectible; set is irrelevant
@@ -184,14 +198,15 @@ describe('catalog integrity', () => {
     expect(count('sr')).toBeGreaterThanOrEqual(1);
   });
 
-  it('the Gothic Monsters set has its specified 81-card rarity mix', () => {
+  it('the Gothic Monsters set has its specified 82-card rarity mix', () => {
     const gm = ALL_CARDS.filter(
       (c) => c.set === 'gothic-monsters' && !c.token && !(c.supertypes ?? []).includes('basic'),
     );
-    expect(gm.length).toBe(81);
+    // W5 adds the rare Porcelain Governess: 81 -> 82 and r 24 -> 25.
+    expect(gm.length).toBe(82);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((r) => [r, gm.filter((c) => c.rarity === r).length]))).toEqual({
       c: 41,
-      r: 24,
+      r: 25,
       sr: 7,
       ssr: 5,
       ur: 4,

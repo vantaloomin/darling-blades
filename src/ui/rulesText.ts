@@ -109,6 +109,7 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
   switch (op.op) {
     case 'damage': {
       const n = op.n === 'X' ? 'X' : op.n;
+      if (op.to === 'eachCreature') return `deal ${n} damage to each creature`;
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
       const recipient = target?.what === 'creature'
@@ -147,9 +148,9 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
       const kw = op.keywords?.length
         ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
-      return op.scope === 'target'
-        ? `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`
-        : `creatures you control get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
+      if (op.scope === 'target') return `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
+      const subject = op.scope === 'all' ? 'all creatures' : 'creatures you control';
+      return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
     }
     case 'addCounters': {
       if (op.to === 'self') return `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on this`;
@@ -380,8 +381,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
       lines.push(d.keywords.map((k) => KEYWORD_NAMES[k]).join(', '));
     }
   }
-  // Printed only on either/or duals — mono taplands stay bare by design,
-  // even though entersTapped still applies mechanically.
+  // Every tapped land prints its universal arrival drawback, including mono
+  // taplands whose arrival rider is listed below.
   if (d.entersTapped) {
     lines.push('Arrives tapped.');
   }

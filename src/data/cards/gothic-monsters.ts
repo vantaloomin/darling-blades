@@ -124,6 +124,12 @@ export const GOTHIC_MONSTERS = [
   // =========================================================================
   // RARE (24)
   // =========================================================================
+  {
+    id: 'gm-porcelain-governess', name: 'Porcelain Governess', types: ['artifact', 'creature'],
+    subtypes: ['Construct', 'Doll'], cost: cost(2, 'U'), colors: ['U'], attack: 2, defense: 3,
+    abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Construct', other: true }, p: 1, t: 0 } }],
+    rarity: 'r', flavor: 'She keeps the household in order. The dolls remember what disorder costs.',
+  },
   creature('gm-ravenloft-heiress', 'Ravenloft Heiress', ['Vampire', 'Heiress'], {
     cost: cost(2, 'B'), colors: ['B'], attack: 3, defense: 2, keywords: ['skyborne'],
     empower: { cost: cost(2, 'B'), ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] },
@@ -415,23 +421,28 @@ export const GOTHIC_MONSTERS = [
   },
   {
     id: 'gm-moor-path', name: 'Moor Path', types: ['land'], subtypes: [], colors: [],
-    entersTapped: true, manaAbility: ['B'], rarity: 'c', flavor: 'The path is damp, dark, and technically a shortcut.',
+    entersTapped: true, manaAbility: ['B'], abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
+    rarity: 'c', flavor: 'The path is damp, dark, and technically a shortcut.',
   },
   {
     id: 'gm-chapel-yard', name: 'Chapel Yard', types: ['land'], subtypes: [], colors: [],
-    entersTapped: true, manaAbility: ['W'], rarity: 'c', flavor: 'The graves are tidy and the roses have opinions.',
+    entersTapped: true, manaAbility: ['W'], abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }] }],
+    rarity: 'c', flavor: 'The graves are tidy and the roses have opinions.',
   },
   {
     id: 'gm-lab-annex', name: 'Lab Annex', types: ['land'], subtypes: [], colors: [],
-    entersTapped: true, manaAbility: ['U'], rarity: 'c', flavor: 'The main lab exploded, so this one is the responsible branch.',
+    entersTapped: true, manaAbility: ['U'], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
+    rarity: 'c', flavor: 'The main lab exploded, so this one is the responsible branch.',
   },
   {
     id: 'gm-red-roof-village', name: 'Red-Roof Village', types: ['land'], subtypes: [], colors: [],
-    entersTapped: true, manaAbility: ['R'], rarity: 'c', flavor: 'The roofs are red from paint, weather, and one regrettable festival.',
+    entersTapped: true, manaAbility: ['R'], abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 1 }] }],
+    rarity: 'c', flavor: 'The roofs are red from paint, weather, and one regrettable festival.',
   },
   {
     id: 'gm-thorned-cemetery', name: 'Thorned Cemetery', types: ['land'], subtypes: [], colors: [],
-    entersTapped: true, manaAbility: ['G'], rarity: 'c', flavor: 'The vines keep visitors from leaving with the wrong memories.',
+    entersTapped: true, manaAbility: ['G'], abilities: [{ when: 'arrives', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
+    rarity: 'c', flavor: 'The vines keep visitors from leaving with the wrong memories.',
   },
   {
     id: 'gm-midnight-bite', name: 'Midnight Bite', types: ['charm'], subtypes: [],

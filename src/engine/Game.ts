@@ -531,6 +531,7 @@ export class Game {
         const perm = enterBattlefield(st, this.db, card, player, () => {});
         me.landPlayedThisTurn = true;
         emit({ e: 'landPlayed', player, iid: perm.iid, cardId });
+        fireTriggers(st, this.db, emit, 'arrives', perm);
         return;
       }
 

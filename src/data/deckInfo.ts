@@ -83,9 +83,13 @@ export const DECK_INFO: Record<string, DeckInfo> = {
   },
   'theme-yokai-nights': {
     colors: 'W/U/B',
-    archetype: 'Hauntlink midrange',
+    archetype: 'Hauntlink pressure',
+    // No balance markers in this string: `plays` renders in the Shop's deck
+    // detail, and the previous text leaked "TO MEASURE after the set landing"
+    // to players from the day the set shipped. Internal status lives on the
+    // deck list's comment in starterDecks.ts.
     plays:
-      'Lead with efficient white and blue hosts, then link a compact rider to the safest body. Foresee smooths the curve while recall, cancel, and Sever keep opposing permanents from taking over. TO MEASURE after the set landing.',
-    featured: ['yn-paper-mask-sentinel', 'yn-signal-kitsune', 'yn-ghostwire-charm'],
+      'Build a W/U Kitsune and aerial pressure shell, then link a powerful rider to its best attacker. Legendary finishers and black Sever effects turn one stable attack into a close.',
+    featured: ['yn-queen-of-the-lanterned-roof', 'yn-ghost-net-archon', 'yn-hauntlink-apex'],
   },
 };

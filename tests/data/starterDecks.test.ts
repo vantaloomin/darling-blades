@@ -184,6 +184,9 @@ describe('Glimmer Bargain composition', () => {
 
 describe('Bloodmoon Masquerade composition', () => {
   const deck = THEME_DECKS.find((d) => d.id === 'theme-gothic-monsters')!;
+  // W3 answer-density pass permits the two Base Set Ember Squalls in the
+  // otherwise exact Gothic Monsters list.
+  const w3AnswerIds = new Set(['so-ember-squall']);
   const expectedCounts = {
     'land-swamp': 14,
     'land-mountain': 10,
@@ -195,14 +198,15 @@ describe('Bloodmoon Masquerade composition', () => {
     'gm-blood-opera-soloist': 3,
     'gm-manor-thrall': 4,
     'gm-stitched-hound': 2,
-    'gm-tattered-invitation': 4,
+    'gm-tattered-invitation': 2,
     'gm-red-curtain-cut': 1,
     'gm-dracula-ball-invite': 3,
     'gm-black-lace-pact': 2,
     'gm-funeral-bell': 2,
+    'so-ember-squall': 2,
   };
 
-  it('uses exactly the approved B/R Gothic Monsters card pool', () => {
+  it('uses exactly the approved B/R Gothic Monsters pool plus its W3 answers', () => {
     const actualCounts = Object.fromEntries(
       [...new Set(deck.cards)].map((id) => [id, deck.cards.filter((cardId) => cardId === id).length]),
     );
@@ -214,6 +218,9 @@ describe('Bloodmoon Masquerade composition', () => {
       expect(card, `${id} must exist`).toBeDefined();
       if (card.supertypes?.includes('basic')) {
         expect(['land-swamp', 'land-mountain']).toContain(id);
+      } else if (w3AnswerIds.has(id)) {
+        expect(card.set, `${id} must be Base Set`).toBe('base');
+        expect(card.colors, `${id} color identity`).toEqual(['R']);
       } else {
         expect(id.startsWith('gm-'), `${id} must be a Gothic Monsters card`).toBe(true);
         expect(card.set, `${id} must be Gothic Monsters`).toBe('gothic-monsters');
