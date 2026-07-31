@@ -69,7 +69,7 @@ The 1.5 train closed 2026-07-31: the combined balance pass (#165, twelve
 waves, W7 200-seed re-baseline, floors re-centred down under user
 authorization), the premium UX Wave A (#166, five waves of duel feel plus
 the owner's live-playtest batch), the shop CTA fix (#167), and the economy
-re-date (#168, canonical baseline vs 769 collectible, all persona bands
+re-date (#168, canonical baseline vs 764 collectible, all persona bands
 re-centred inside noise) all merged green. The metagame deep sweep was
 explicitly WAIVED for this cut (user 2026-07-31: the 1.5.5/1.6 docket will
 invalidate its field). Battle Box and Darlings ship **hidden** in 1.5.0 and
