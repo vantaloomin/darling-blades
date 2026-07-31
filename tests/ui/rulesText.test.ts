@@ -66,9 +66,9 @@ describe('target-aware damage and land rules text', () => {
 
   it('says "you control" when the target spec is yourCreature (mana-rock sign-off riders)', () => {
     expect(rulesText(CARD_DB['ar-imperial-jade-seal'])).toBe(
-      'When this arrives, put 1 +1/+1 mark on target creature you control.',
+      'When this arrives, put one +1/+1 mark on target creature you control.',
     );
-    expect(rulesText(CARD_DB['so-nurture'])).toBe('Put 2 +1/+1 marks on target creature you control.');
+    expect(rulesText(CARD_DB['so-nurture'])).toBe('Put two +1/+1 marks on target creature you control.');
   });
 
   it('prints each mono tapland arrival-rider kind beside enters-tapped text', () => {

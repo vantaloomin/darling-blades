@@ -67,6 +67,14 @@ export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
   land: 'Play one each turn to tap for mana.',
 };
 
+// Token and mark counts read as words ("create two 1/1 tokens", "put one
+// +1/+1 mark") per the printed-card convention; other numerics (damage,
+// draw, life) deliberately keep digits — user-scoped 2026-07-31.
+const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'] as const;
+function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
+
 function targetNoun(spec: TargetSpec | undefined): string {
   switch (spec?.what) {
     case 'artifact':
@@ -153,9 +161,9 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
       return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
     }
     case 'addCounters': {
-      if (op.to === 'self') return `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on this`;
+      if (op.to === 'self') return `put ${countWord(op.n)} +1/+1 mark${op.n === 1 ? '' : 's'} on this`;
       const markTarget = target?.what === 'yourCreature' ? 'target creature you control' : 'target creature';
-      return `put ${op.n} +1/+1 mark${op.n === 1 ? '' : 's'} on ${markTarget}`;
+      return `put ${countWord(op.n)} +1/+1 mark${op.n === 1 ? '' : 's'} on ${markTarget}`;
     }
     case 'tap':
       return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
@@ -167,12 +175,12 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
       // included) is the lookup, with the old wording as the fallback.
       const tok: CardDef | undefined = CARD_DB[op.token];
       const plural = op.count === 1 ? 'token' : 'tokens';
-      if (!tok) return `create ${op.count} ${plural}`;
+      if (!tok) return `create ${countWord(op.count)} ${plural}`;
       const stats = tok.attack !== undefined && tok.defense !== undefined ? `${tok.attack}/${tok.defense} ` : '';
       const kw = tok.keywords?.length
         ? ` with ${tok.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
-      return `create ${op.count} ${stats}${tok.name} ${plural}${kw}`;
+      return `create ${countWord(op.count)} ${stats}${tok.name} ${plural}${kw}`;
     }
     case 'massDestroy':
       if (op.filter === 'allEnchantments') return 'destroy all enchantments';
@@ -389,8 +397,6 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (d.awakening) lines.push(awakeningText(d));
   const skim = skimText(d);
   if (skim) lines.push(skim);
-  const retell = retellText(d);
-  if (retell) lines.push(retell);
   const hauntlink = hauntlinkText(d);
   if (hauntlink) lines.push(hauntlink);
   const empower = empowerText(d);
@@ -401,6 +407,11 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   // Non-land mana abilities are NOT part of the text: CardView composes an
   // icon line ([T]: Add [pip]) at the top of the rules box instead.
   for (const ab of d.abilities ?? []) lines.push(abilityText(ab));
+  // Retell prints LAST, below the effect it recasts (the printed-card
+  // convention for graveyard recast lines; user-reported 2026-07-31 that
+  // leading with Retell read backwards).
+  const retell = retellText(d);
+  if (retell) lines.push(retell);
   // abilityText returns '' for a static carrying neither stats nor keywords;
   // joining it unfiltered would print a blank line into the rules box.
   return lines.filter((line) => line.length > 0).join('\n');
