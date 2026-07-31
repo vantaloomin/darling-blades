@@ -433,6 +433,38 @@ export interface Avatar {
  * 23.5, 29.0, 34.7, 28.9, 34.0, 35.3, 36.0, 46.0, 53.0, 50.3, 61.3, 58.1,
  * 56.0, 68.5, 70.8, 72.0, 68.2, 70.6 - a clean T6 plateau across F16-F20
  * confirms floors 19-20 stay tier 6 (stamped in src/ai/tiers.ts).
+ *
+ * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
+ * matrices the 1.5.0 release split left TO MEASURE). Fixture fleets from
+ * scripts/reserveMatrixDecks.ts (deterministic, validator-gated; they
+ * measure the FORMAT, not tuned decks - no product balance claim, and no
+ * classic-pool change may be justified by these numbers per
+ * docs/plan-battle-box.md).
+ *
+ * LOSSLESSNESS (the reveal gate's primary result): 0 engine exceptions
+ * across all 5,000 games - no seed produced a stuck or dead game state.
+ * Warchest decided 2,000/2,000 with 0 draws. Darlings at the 80-card
+ * size decided 2,972/3,000 with 28 turn-limit draws (0.93%),
+ * concentrated in Athena's grindiest cells (+23d) - a property of
+ * 80-card singleton attrition games, worth watching at reveal, not an
+ * engine fault.
+ *
+ * Warchest (--warchest, 200 seeds/cell, 2,000 games, neutral hard,
+ * starter-derived playset fleet): Crimson 63.9, Burning 60.0, Grave 44.1,
+ * Shadow 43.3, Wild 38.8. Aggro-topped 25pp spread, worst cell 78
+ * (Burning vs Shadow); coherent field, no degenerate matchup.
+ *
+ * Darlings (--darlings, 200 seeds/cell, 3,000 games, neutral hard,
+ * curve-greedy singleton fleet per color spread, AT THE OWNER-LOCKED
+ * 80-CARD SIZE): Gaia [G] 74.4, Ares [R] 69.1, Dian Wei [B] 57.0,
+ * Athena [W] 50.5, Ghost-Net Archon [U] 29.3, Aphrodite [WU] 19.7.
+ * The wide spread is a property of the greedy cheapest-first fixtures,
+ * not a roster claim - the curated rival ladder stays unpromised and
+ * would need its own measured baseline. (History: the same fleets at
+ * the superseded 50-card size measured Ares 76.1 / Gaia 72.1 /
+ * Dian Wei 58.2 / Athena 48.0 / Ghost-Net 23.5 / Aphrodite 22.1 with
+ * 3,000/3,000 decided - the size change flipped the top two: bigger
+ * singleton decks reward Gaia's attrition over Ares' cheap aggro.)
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------

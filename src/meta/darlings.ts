@@ -5,6 +5,7 @@ import type { DeckIssue } from './DeckStorage';
 import type { SaveData } from './SaveManager';
 import {
   BATTLE_BOX_DECK_SIZE,
+  DARLINGS_DECK_SIZE,
   isBasicLand,
   isDualLand,
   landFetchExclusionError,
@@ -134,7 +135,7 @@ export function validateDarlingsDeck(
   landReserve: readonly string[],
 ): DeckIssue[] {
   const issues: DeckIssue[] = [
-    ...validateBattleBoxDeckShape(db, cards),
+    ...validateBattleBoxDeckShape(db, cards, DARLINGS_DECK_SIZE),
     ...validateLandReserve(db, save, landReserve),
   ];
 
@@ -222,4 +223,4 @@ export function validateBattleBoxDeck(
   return issues;
 }
 
-export { BATTLE_BOX_DECK_SIZE };
+export { BATTLE_BOX_DECK_SIZE, DARLINGS_DECK_SIZE };

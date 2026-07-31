@@ -4,7 +4,7 @@
 
 ## Goal
 
-Release 1.5 ships Darlings as a first-class, single-player deckbuilding format. A player chooses one legendary creature as their Darling, builds a 50-card all-spell deck with no more than one copy of each card, and plays it with a Battle Box land reserve. The selected Darling is part of the shuffled deck, not a new zone or guaranteed opening card. This document supersedes the implementation direction in `docs/plan-commander-mode.md`; that older document remains useful as historical rationale and must not be copied into a second roster specification.
+Release 1.5 ships Darlings as a first-class, single-player deckbuilding format. A player chooses one legendary creature as their Darling, builds an 80-card all-spell deck with no more than one copy of each card, and plays it with a Battle Box land reserve. The selected Darling is part of the shuffled deck, not a new zone or guaranteed opening card. This document supersedes the implementation direction in `docs/plan-commander-mode.md`; that older document remains useful as historical rationale and must not be copied into a second roster specification.
 
 ## Status
 
@@ -13,6 +13,8 @@ flagged off for 1.5.0. They are exposed in 1.5.5 after their `TO MEASURE`
 balance matrices exist. The Battle Box system's product name is **Warchest**
 as of 2026-07-31 (see [plan-battle-box.md](plan-battle-box.md)'s naming
 note and [plan-1.5.5.md](plan-1.5.5.md), the active reveal train).
+
+**OWNER-LOCKED 2026-07-31 size change:** Darlings is exactly **80 cards including the Darling** (79 singletons plus the Darling). After the 1.6 migration, normal decks are 50 spells plus a 10-land Warchest; Darlings retains its EDH-versus-Standard size identity at 80 + 10 = 90 versus 60. Pool feasibility is verified: every colored identity has at least 135 legal singletons (mono-red is tightest at 135). Strict colorless has only 29, so colorless Darlings remains unbuildable until a purpose-built colorless roster ships; that is future work.
 
 **RESPEC 2026-07-28 (user decision — increased 1.5 scope):** Darlings adopts the Battle Box mana system specified in [plan-battle-box.md](plan-battle-box.md). The deck is **50 cards including the Darling, with zero in-deck lands**; beside it the player builds a per-deck land reserve (10 lands, max 5 duals, duals tapped, asymmetric destruction). Everything in this document about a 60-card deck, in-deck basic lands, or "basics are unlimited in the deck" is superseded by that shape; basics now live only in the reserve. The "no engine change" property this document claimed as its chief risk control is knowingly traded away — the reserve is engine surface, owned by plan-battle-box.md. All other rules here (Darling eligibility, singleton, strict colorless identity, color containment, portrait lock, dedicated practice row, player-built-only launch) stand as locked.
 
@@ -26,12 +28,12 @@ The deck builder gains a format switch with `Constructed` and `Darlings`. Starti
 
 The rules panel uses this copy:
 
-> Choose your Darling. Build a 50-card deck in her colors, one copy of each card, and a land reserve of 10. Your Darling begins in your deck and follows the same rules as every other card.
+> Choose your Darling. Build an 80-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Your Darling begins in your deck and follows the same rules as every other card.
 
 Eligibility and legality are exact:
 
 - The Darling must be an owned `creature` with the `legendary` supertype.
-- The 50 cards include the Darling and contain no lands (lands live in the reserve; see [plan-battle-box.md](plan-battle-box.md)).
+- The 80 cards include the Darling and contain no lands (lands live in the reserve; see [plan-battle-box.md](plan-battle-box.md)).
 - Every card appears at most once.
 - Every colored card must use only colors present on the Darling. A colorless Darling permits only colorless non-land cards plus basic lands unless the user selects a different policy in the open decisions below.
 - The selected Darling must still be present when the deck is saved or queued.
@@ -86,7 +88,7 @@ npx tsx scripts/balance-matrix.ts --avatars --seeds 40
 npx tsx scripts/balance-matrix.ts --floors --seeds 80
 ```
 
-The first command protects avatar behavior across the current field; the second protects the existing floor gates. A Darlings-specific matrix is required before a rival roster can be called balanced. Its exact seed count and acceptable band are `TO MEASURE` after the roster exists; add a script mode such as `npx tsx scripts/balance-matrix.ts --darlings --seeds <N>` and promote floors only from dated retained results. Run the progression simulator only if rewards, products, or collection access change. Run the metagame sweep as an informational diversity probe after Darlings deck-construction constraints are added to the shared craft core; the measured 4.61x speedup at 14 workers is a tooling baseline, not a balance result.
+The first command protects avatar behavior across the current field; the second protects the existing floor gates. **MEASURED 2026-07-31 (1.5.5):** the `--darlings` matrix mode exists and its dated 200-seed fixture baseline lives in `src/data/opponents.ts` (at the 80-card size: 2,972/3,000 games decided, 28 turn-limit draws at 0.93%, 0 engine exceptions; fixture fleet, not a roster claim). A curated rival roster still requires its own measured baseline with an acceptable band before it can be called balanced; promote floors only from dated retained results. Run the progression simulator only if rewards, products, or collection access change. Run the metagame sweep as an informational diversity probe after Darlings deck-construction constraints are added to the shared craft core; the measured 4.61x speedup at 14 workers is a tooling baseline, not a balance result.
 
 ## Phased implementation plan
 
@@ -116,7 +118,7 @@ The largest product risk is promising the old document's roster before the live 
 ## Acceptance criteria
 
 - Every existing v22 deck migrates to a legal-to-edit Constructed deck with no card, art, or active-deck loss.
-- A Darlings deck is accepted if and only if it has exactly 60 cards, contains its owned legendary-creature Darling, respects color containment, owns every non-basic copy, contains no tokens, and has at most one of each non-basic card.
+- A Darlings deck is accepted if and only if it has exactly 80 cards, contains its owned legendary-creature Darling, respects color containment, owns every non-basic copy, contains no tokens, and has at most one of each non-basic card.
 - The same deck list and seed produce the same engine result regardless of `SavedDeck.format` metadata.
 - Save, copy, rename, delete, select, export, and replay entry preserve `format` and `darlingId` correctly.
 - AI still receives only `PlayerView`, and no engine or meta purity boundary changes.
