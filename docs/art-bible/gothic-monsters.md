@@ -183,7 +183,7 @@ above the tallest silhouette for smart-crop headroom on every card.
 
 ### Porcelain Governess — `gm-porcelain-governess`
 - **Card facts:** {2}{U} · U · 2/3 · r · holo: sheen
-- **Character & source:** An adult porcelain doll governess who coordinates the manor's Construct household with flawless, fearsome domestic discipline. Her static anthem means the other Constructs visibly straighten and advance at her instruction.
+- **Character & source:** Approved-art record: the taste-approved vault raw `gothic-monsters/gm-porcelain-governess.raw.png` shipped 2026-07-31 via character smart-crop (head detection, full-width crop, no zoom fallback). An adult porcelain doll governess who coordinates the manor's Construct household with flawless, fearsome domestic discipline. Her static anthem means the other Constructs visibly straighten and advance at her instruction.
 - **Personality / mood:** "She keeps the household in order. The dolls remember what disorder costs." Immaculate, unsmiling, and more frightening for never raising her voice.
 - **Pose & composition:** Waist-up, angled slightly down from a staircase landing, one white-gloved hand holding a brass household bell without ringing it. Two doll Constructs and one stitched Construct below align themselves under her gaze; face at y 315, eye line at y 340, a single pale glaze crack at her temple.
 - **Costume & attire:** Powder-blue governess dress with a high white collar, stiff dark-navy apron, porcelain cameo at the throat, pale gloves, and lacquered black hair gathered into a severe low bun.
