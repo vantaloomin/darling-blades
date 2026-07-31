@@ -67,6 +67,7 @@ const RARITY_BORDER: Record<Rarity, number> = {
 export type BoardHighlight =
   | 'none'
   | 'legalTarget'
+  | 'legalTargetOpponent'
   | 'selectedAttacker'
   | 'attacking'
   | 'blocking'
@@ -76,6 +77,7 @@ export type BoardHighlight =
 /** Bright border color per state (art tints below keep today's softer hues). */
 const BORDER_COLORS: Record<Exclude<BoardHighlight, 'none'>, number> = {
   legalTarget: 0x6ee87d,
+  legalTargetOpponent: colorInt(theme.colors.dangerArmed),
   selectedAttacker: 0xff8a6a,
   attacking: 0xffb09a,
   blocking: 0x7fb0ff,
@@ -86,6 +88,7 @@ const BORDER_COLORS: Record<Exclude<BoardHighlight, 'none'>, number> = {
 /** Same tint values the old full-card battlefield rendering used. */
 const ART_TINTS: Record<Exclude<BoardHighlight, 'none'>, number> = {
   legalTarget: 0xa8f0b0,
+  legalTargetOpponent: colorInt(theme.colors.danger),
   selectedAttacker: 0xffb0a0,
   attacking: 0xffc0b0,
   blocking: 0xa0c8ff,
@@ -161,6 +164,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private sickIcon: Phaser.GameObjects.Image;
   private chapterBadge: Phaser.GameObjects.Text;
   private awakenedRect: Phaser.GameObjects.Rectangle;
+  private hauntlinkBrokenMark: Phaser.GameObjects.Graphics;
   private chapterLabel: string | null = null;
   private awakenedState = false;
   private holo: HoloHandle | null = null;
@@ -289,6 +293,13 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .setStrokeStyle(2, colorInt(theme.colors.gold), 0.95)
       .setVisible(false);
 
+    // A brief, distinct severed-link mark. DuelScene holds this state between
+    // the hauntlinkBroken and died events, then fades the departing card.
+    this.hauntlinkBrokenMark = scene.add.graphics().setVisible(false);
+    this.hauntlinkBrokenMark.lineStyle(3, colorInt(theme.colors.dangerArmed), 0.95);
+    this.hauntlinkBrokenMark.lineBetween(-TILE_W / 2 + 8, -TILE_H / 2 + 8, TILE_W / 2 - 8, TILE_H / 2 - 8);
+    this.hauntlinkBrokenMark.lineBetween(TILE_W / 2 - 8, -TILE_H / 2 + 8, -TILE_W / 2 + 8, TILE_H / 2 - 8);
+
     this.highlightRect = scene.add
       .rectangle(0, 0, TILE_W + 6, TILE_H + 6, 0x000000, 0)
       .setStrokeStyle(3, 0xffffff, 1)
@@ -306,6 +317,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.chapterBadge,
       this.sickIcon,
       this.awakenedRect,
+      this.hauntlinkBrokenMark,
       this.highlightRect,
     ]);
     this.setSize(TILE_W, TILE_H);
@@ -346,6 +358,12 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     if (this.awakenedState === awakened) return this;
     this.awakenedState = awakened;
     this.awakenedRect.setVisible(awakened);
+    return this;
+  }
+
+  /** Hauntlink-only break cue; normal board cards keep this hidden. */
+  setHauntlinkBroken(broken: boolean): this {
+    this.hauntlinkBrokenMark.setVisible(broken);
     return this;
   }
 

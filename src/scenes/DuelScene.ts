@@ -91,6 +91,7 @@ import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
 import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
+import { CARD_TRAVEL_MOTION, hauntlinkOverlap, targetRingTone } from '../ui/duelPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
 import { renderManaText } from '../ui/ManaText';
@@ -171,8 +172,8 @@ const LAYOUT = {
   myLife: { x: 40, y: 566 },
   /** Mirrored commander frame and its targetable life badge. */
   oppPortrait: { x: 1056, y: 8, w: 200, h: 180 },
-  /** Foe targetable life badge: inside the portrait's bottom-right corner. */
-  oppLife: { x: 1230, y: 162 },
+  /** Foe targetable life badge: upper-right, clear of the portrait name plate. */
+  oppLife: { x: 1230, y: 42 },
   /** Turn chip atop the phase track — all turn info lives in one column. */
   turnPill: { x: 1113, y: 292 },
   /** Display-only phase track in the right sidebar above End Turn. */
@@ -328,6 +329,8 @@ export class DuelScene extends Phaser.Scene {
   private pendingBlocker: number | null = null;
   private pendingCasts: Extract<Action, { type: 'castSpell' }>[] | null = null;
   private arrows!: Phaser.GameObjects.Graphics;
+  /** Per-face legal-target outlines; portrait rings live on CommanderPortrait itself. */
+  private lifeTargetRings!: { my: Phaser.GameObjects.Graphics; opp: Phaser.GameObjects.Graphics };
   private overlay: Phaser.GameObjects.Container | null = null;
   private guard = new ModalGuard();
   private toasts: Toast | null = null;
@@ -1137,6 +1140,45 @@ export class DuelScene extends Phaser.Scene {
       .setDepth(theme.depth.hud);
   }
 
+  /** Legal face targeting follows the same first-target contract as tryTarget(). */
+  private isPlayerTargetable(player: PlayerId): boolean {
+    return this.pendingCasts?.some(
+      (cast) => cast.targets?.[0]?.kind === 'player' && cast.targets[0].player === player,
+    ) ?? false;
+  }
+
+  /** Legal target rings describe the target controller, never the spell's colour or class. */
+  private targetRingColor(player: PlayerId): string {
+    return targetRingTone(player === HUMAN ? 'you' : 'opponent') === 'hostile'
+      ? theme.colors.dangerArmed
+      : theme.colors.success;
+  }
+
+  private drawLifeTargetRing(
+    ring: Phaser.GameObjects.Graphics,
+    pos: { x: number; y: number },
+    targetable: boolean,
+    color: string,
+  ): void {
+    ring.clear();
+    if (!targetable) return;
+    const half = LIFE_BADGE_SIZE / 2 + 3;
+    ring.lineStyle(3, colorInt(color), 0.98);
+    ring.strokeRoundedRect(pos.x - half, pos.y - half, half * 2, half * 2, theme.radius.control + 2);
+  }
+
+  /** While a face is legal, its badge and whole portrait resolve to the same target. */
+  private syncFaceTargeting(): void {
+    const myTargetable = this.isPlayerTargetable(HUMAN);
+    const oppTargetable = this.isPlayerTargetable(AI);
+    const myColor = this.targetRingColor(HUMAN);
+    const oppColor = this.targetRingColor(AI);
+    this.portrait.setFaceTargetable(myTargetable, myColor);
+    this.oppPortrait.setFaceTargetable(oppTargetable, oppColor);
+    this.drawLifeTargetRing(this.lifeTargetRings.my, LAYOUT.myLife, myTargetable, myColor);
+    this.drawLifeTargetRing(this.lifeTargetRings.opp, LAYOUT.oppLife, oppTargetable, oppColor);
+  }
+
   private buildHud(): void {
     // --- Opponent mirror: pile-column hand/grave/deck, portrait, life, mana ---
     this.oppHandPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.handY, 'hand');
@@ -1182,6 +1224,10 @@ export class DuelScene extends Phaser.Scene {
     });
     this.addLifeBadgePlate(LAYOUT.myLife.x, LAYOUT.myLife.y);
     this.addLifeBadgePlate(LAYOUT.oppLife.x, LAYOUT.oppLife.y);
+    this.lifeTargetRings = {
+      my: this.add.graphics().setDepth(theme.depth.hudLabel),
+      opp: this.add.graphics().setDepth(theme.depth.hudLabel),
+    };
 
     const phaseRows = PHASE_TRACK_ROWS.map((row, i) => {
       const y = LAYOUT.phaseTrack.firstRowY + i * LAYOUT.phaseTrack.rowStep;
@@ -1303,12 +1349,24 @@ export class DuelScene extends Phaser.Scene {
       text.setInteractive({ useHandCursor: true });
       bindTapButton(this, text, () => this.tryTarget({ kind: 'player', player }));
     }
+    // Face targeting is deliberately a child Zone on the whole portrait, not
+    // an interactive Container. The zone sleeps outside an active targeting
+    // flow, preserving all ordinary portrait interactions.
+    for (const [portrait, player] of [
+      [this.portrait, HUMAN],
+      [this.oppPortrait, AI],
+    ] as const) {
+      bindTapButton(this, portrait.targetZone, (p) => {
+        if (!p.rightButtonReleased()) this.tryTarget({ kind: 'player', player });
+      });
+    }
     // Hit inflation (mobile-lan-plan §1.4). Life totals meet the 44px floor; the
     // Stack cards use CardView's child Zone and never make a scaled Container
     // interactive. Life totals use inflated text hit areas. The smart button
     // needs none: the Arc's hit rect is static.
     inflateHitArea(this.hud.myLife, 44, 44);
     inflateHitArea(this.hud.oppLife, 44, 44);
+    this.syncFaceTargeting();
     // Right-click cancels targeting. Test the INITIATING button (p.button),
     // not rightButtonDown() — that's a live bitmask, true for a chorded LEFT
     // press while the right button happens to be held.
@@ -2169,7 +2227,10 @@ export class DuelScene extends Phaser.Scene {
         Sfx.play('death');
         const v = this.views.get(e.iid);
         const who = e.owner === HUMAN ? 'Your' : 'Enemy';
-        if (this.brokenHauntlinks.delete(e.iid)) {
+        if (this.brokenHauntlinks.has(e.iid)) {
+          // Keep the flag through the immediate post-event sync so the
+          // departing underlap can visibly sever instead of using the normal
+          // generic board-card fade.
           this.log(`${who} ${this.cardRef(e.cardId)} lost its host and went to its owner's graveyard`, e.cardId);
         } else if (v) this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
         break;
@@ -2179,6 +2240,7 @@ export class DuelScene extends Phaser.Scene {
         // event. Hold the relationship here so the later line describes the
         // actual graveyard exit instead of guessing from cast history.
         this.brokenHauntlinks.add(e.linkIid);
+        this.views.get(e.linkIid)?.setHauntlinkBroken(true);
         break;
       case 'skimmed':
         this.log(`${e.player === HUMAN ? 'Skimmed' : 'Opponent skimmed'} ${this.cardRef(e.cardId)}`, e.cardId);
@@ -2491,16 +2553,28 @@ export class DuelScene extends Phaser.Scene {
   /** Start every reveal after the state has rendered its real tile/land stack underneath it. */
   private flushPlayReveals(): void {
     const reveals = this.pendingPlayReveals.splice(0);
-    for (const reveal of reveals) {
-      if (this.motionLevel() === 'off') {
-        if (reveal.controller === AI) this.showOpponentCast(reveal.cardId);
-        continue;
+    const motion = this.motionLevel();
+    if (motion === 'off') {
+      for (const reveal of reveals) if (reveal.controller === AI) this.showOpponentCast(reveal.cardId);
+      return;
+    }
+    if (motion === 'reduced') {
+      for (const reveal of reveals) if (reveal.controller === AI) this.showReducedOpponentReveal(reveal.cardId);
+      return;
+    }
+    // A spell storm must not turn the longer visual journey into a longer
+    // turn. Cap the simultaneous ghosts at three and start them a beat apart;
+    // every real state change is already synced and remains actionable.
+    for (const [index, reveal] of reveals
+      .slice(0, CARD_TRAVEL_MOTION.batch.maxAnimatedCards)
+      .entries()) {
+      const delay = index * CARD_TRAVEL_MOTION.batch.staggerMs;
+      if (delay === 0) this.showPlayReveal(reveal);
+      else {
+        this.time.delayedCall(delay, () => {
+          if (this.sys.isActive()) this.showPlayReveal(reveal);
+        });
       }
-      if (this.motionLevel() === 'reduced') {
-        if (reveal.controller === AI) this.showReducedOpponentReveal(reveal.cardId);
-        continue;
-      }
-      this.showPlayReveal(reveal);
     }
   }
 
@@ -2526,8 +2600,8 @@ export class DuelScene extends Phaser.Scene {
         ? { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.handY, scale: 0.25, angle: 0 }
         : { x: BOARD_CENTER_X, y: 24, scale: 0.35, angle: 0 });
     const station = opponent
-      ? { x: BOARD_CENTER_X, y: 250, scale: 0.72, pause: 500 }
-      : { x: BOARD_CENTER_X, y: 430, scale: 0.6, pause: 200 };
+      ? { x: BOARD_CENTER_X, y: 250, scale: 0.72, pause: CARD_TRAVEL_MOTION.opponentStationHold }
+      : { x: BOARD_CENTER_X, y: 430, scale: 0.6, pause: CARD_TRAVEL_MOTION.playerStationHold };
     const destination = this.revealDestination(reveal);
     const ghost = new CardView(this, source.x, source.y)
       .setScale(source.scale)
@@ -2548,8 +2622,8 @@ export class DuelScene extends Phaser.Scene {
       this.tweens.add({
         targets: ghost,
         alpha: 0,
-        duration: 80,
-        ease: 'Quad.easeIn',
+        duration: CARD_TRAVEL_MOTION.arrivalFade.duration,
+        ease: CARD_TRAVEL_MOTION.arrivalFade.ease,
         onComplete: () => { if (ghost.active) cleanUp(); },
         onStop: () => { if (ghost.active) cleanUp(); },
       });
@@ -2563,8 +2637,8 @@ export class DuelScene extends Phaser.Scene {
         scaleX: destination.scale,
         scaleY: destination.scale,
         angle: 0,
-        duration: 240,
-        ease: 'Cubic.easeInOut',
+        duration: CARD_TRAVEL_MOTION.stationToBattlefield.duration,
+        ease: CARD_TRAVEL_MOTION.stationToBattlefield.ease,
         onComplete: () => { if (ghost.active) fadeOut(); },
         onStop: () => { if (ghost.active) cleanUp(); },
       });
@@ -2586,8 +2660,8 @@ export class DuelScene extends Phaser.Scene {
       scaleX: station.scale,
       scaleY: station.scale,
       angle: 0,
-      duration: 240,
-      ease: 'Cubic.easeOut',
+      duration: CARD_TRAVEL_MOTION.playToStation.duration,
+      ease: CARD_TRAVEL_MOTION.playToStation.ease,
       onComplete: () => { if (ghost.active) hold(); },
       onStop: () => { if (ghost.active) cleanUp(); },
     });
@@ -2670,8 +2744,8 @@ export class DuelScene extends Phaser.Scene {
       scaleY: 0.18,
       angle: 0,
       alpha: 0,
-      duration: 360,
-      ease: 'Cubic.easeInOut',
+      duration: CARD_TRAVEL_MOTION.skimToGraveyard.duration,
+      ease: CARD_TRAVEL_MOTION.skimToGraveyard.ease,
       onComplete: cleanUp,
       onStop: cleanUp,
     });
@@ -2717,8 +2791,8 @@ export class DuelScene extends Phaser.Scene {
       scaleX: 0.18,
       scaleY: 0.18,
       alpha: 0,
-      duration: 360,
-      ease: 'Cubic.easeInOut',
+      duration: CARD_TRAVEL_MOTION.severToPile.duration,
+      ease: CARD_TRAVEL_MOTION.severToPile.ease,
       onComplete: cleanUp,
       onStop: cleanUp,
     });
@@ -2957,10 +3031,13 @@ export class DuelScene extends Phaser.Scene {
     for (const [iid, view] of [...this.views]) {
       if (!seen.has(iid)) {
         this.views.delete(iid);
+        const brokenHauntlink = this.brokenHauntlinks.delete(iid);
+        if (brokenHauntlink) view.setHauntlinkBroken(true);
         this.tweens.add({
           targets: view,
           alpha: 0,
-          scale: 0.2,
+          scale: brokenHauntlink ? view.scaleX * 0.82 : 0.2,
+          y: brokenHauntlink ? view.y - 18 : view.y,
           duration: 260,
           onComplete: () => {
             if (view.active) view.destroy();
@@ -3066,7 +3143,7 @@ export class DuelScene extends Phaser.Scene {
     });
   }
 
-  /** Render Hauntlink permanents as state-driven underlays on their hosts. */
+  /** Render Hauntlink permanents as physical card underlaps with exposed headers. */
   private syncLinkedPermanents(seen: Set<number>): void {
     const links = this.duel.state.battlefield.filter((perm) => {
       return perm.attachedTo !== undefined && def(CARD_DB, perm.cardId).hauntlink !== undefined;
@@ -3091,9 +3168,10 @@ export class DuelScene extends Phaser.Scene {
       hostLinks.sort((a, b) => a.iid - b.iid);
       hostLinks.forEach((link, slot) => {
         const d = def(CARD_DB, link.cardId);
-        const scale = target.scale * 0.46;
-        const x = target.x + (link.controller === HUMAN ? -34 : 34) + slot * 9;
-        const y = target.y + 18 + slot * 9;
+        const overlap = hauntlinkOverlap(link.controller === HUMAN ? 'you' : 'opponent', slot);
+        const scale = target.scale * overlap.scale;
+        const x = target.x + overlap.x;
+        const y = target.y + overlap.y;
         seen.add(link.iid);
         let view = this.views.get(link.iid);
         if (!view) {
@@ -3131,6 +3209,7 @@ export class DuelScene extends Phaser.Scene {
           this.tweens.add({ targets: view, x, y, scale, duration: 200, ease: 'Cubic.easeOut' });
           view.setTapped(link.tapped);
         }
+        view.setHauntlinkBroken(this.brokenHauntlinks.has(link.iid));
         view.setHighlight(this.highlightFor(link));
       });
     }
@@ -3167,7 +3246,9 @@ export class DuelScene extends Phaser.Scene {
         (c) => c.targets?.[0]?.kind === 'permanent' && c.targets[0].iid === perm.iid,
       )
     )
-      return 'legalTarget';
+      return targetRingTone(perm.controller === HUMAN ? 'you' : 'opponent') === 'hostile'
+        ? 'legalTargetOpponent'
+        : 'legalTarget';
     if (this.selectedAttackers.has(perm.iid)) return 'selectedAttacker';
     if (combat?.attackers.includes(perm.iid)) return 'attacking';
     if (this.blockAssignments.some((b) => b.blocker === perm.iid)) return 'blocking';
@@ -3607,7 +3688,11 @@ export class DuelScene extends Phaser.Scene {
         if (this.motionLevel() === 'full' && view.active) {
           this.tweens.killTweensOf(view);
           this.tweens.add({
-            targets: view, y: view.y - 18, alpha: 0, duration: 150, ease: 'Quad.easeIn',
+            targets: view,
+            y: view.y - 18,
+            alpha: 0,
+            duration: CARD_TRAVEL_MOTION.handExit.duration,
+            ease: CARD_TRAVEL_MOTION.handExit.ease,
             onComplete: () => { if (view.active) view.destroy(); },
             onStop: () => { if (view.active) view.destroy(); },
           });
@@ -3763,30 +3848,64 @@ export class DuelScene extends Phaser.Scene {
       this.renderedHand.push({ cardId, view });
       this.handPoses.set(handIdx, { x, y, scale, angle: slot.angleDeg });
       if (entered && this.motionLevel() === 'full') {
-        view.setPosition(LAYOUT.piles.x, LAYOUT.piles.deckY).setAlpha(0);
-        if (dot) dot.setAlpha(0);
-        // Input OFF until the card arrives: it spawns under the End Turn
-        // corner, and a pointerover there killed this tween mid-flight while
-        // the hover handlers only re-tween y/scale/angle — the card stranded
-        // under the right CTAs (user-reported 2026-07-10).
-        view.disableInput();
-        const arrive = (): void => {
-          if (view.active) {
-            view.setPosition(x, y).setScale(scale).setAngle(slot.angleDeg);
-            view.setAlpha(playable ? 1 : 0.75);
-            view.enableInput();
-          }
+        view.setAlpha(CARD_TRAVEL_MOTION.drawToHand.destinationPreviewAlpha);
+        if (dot) dot.setAlpha(CARD_TRAVEL_MOTION.drawToHand.destinationPreviewAlpha);
+        // The destination card stays interactive while a non-interactive
+        // ghost carries the longer deck-to-hand motion across the field.
+        const flight = new CardView(this, LAYOUT.piles.x, LAYOUT.piles.deckY)
+          .setScale(scale)
+          .setAngle(slot.angleDeg)
+          .setDepth(theme.depth.floats)
+          .setAlpha(0.96);
+        flight.setCard(d, {
+          fx: 'none',
+          variant: ownedVariant,
+          fullArt: ownedVariant?.fullArt === true,
+          landStyle,
+        });
+        this.playRevealGhosts.add(flight);
+        const cleanUpFlight = (): void => {
+          this.playRevealGhosts.delete(flight);
+          if (flight.active) flight.destroy();
         };
         this.tweens.add({
           // End at the playability alpha — a hardcoded 1 here lit unaffordable
           // draws as castable until the next sync (user-reported 2026-07-10).
-          targets: view, x, y, scaleX: scale, scaleY: scale, angle: slot.angleDeg,
+          targets: view,
           alpha: playable ? 1 : 0.75,
-          duration: 160, ease: 'Quad.easeOut',
-          onComplete: arrive,
-          onStop: arrive,
+          duration: CARD_TRAVEL_MOTION.drawToHand.duration,
+          ease: CARD_TRAVEL_MOTION.drawToHand.ease,
         });
-        if (dot) this.tweens.add({ targets: dot, alpha: 1, duration: 160, ease: 'Quad.easeOut' });
+        this.tweens.add({
+          targets: flight,
+          x,
+          y,
+          scaleX: scale,
+          scaleY: scale,
+          angle: slot.angleDeg,
+          duration: CARD_TRAVEL_MOTION.drawToHand.duration,
+          ease: CARD_TRAVEL_MOTION.drawToHand.ease,
+          onComplete: () => {
+            if (!flight.active) return;
+            this.tweens.add({
+              targets: flight,
+              alpha: 0,
+              duration: CARD_TRAVEL_MOTION.arrivalFade.duration,
+              ease: CARD_TRAVEL_MOTION.arrivalFade.ease,
+              onComplete: cleanUpFlight,
+              onStop: cleanUpFlight,
+            });
+          },
+          onStop: cleanUpFlight,
+        });
+        if (dot) {
+          this.tweens.add({
+            targets: dot,
+            alpha: 1,
+            duration: CARD_TRAVEL_MOTION.drawToHand.duration,
+            ease: CARD_TRAVEL_MOTION.drawToHand.ease,
+          });
+        }
       }
     });
     this.previousHand = [...hand];
@@ -3950,6 +4069,7 @@ export class DuelScene extends Phaser.Scene {
         }
       }
     }
+    this.drawStackTargetArrows();
     // Cast-targeting arrow (desktop hover): from the hand-rest anchor to the
     // pointer, snapping to the closest legal target so burn-face vs burn-creature
     // intent is unmistakable. Touch resolves targets by direct tap — no hover.
@@ -3959,6 +4079,23 @@ export class DuelScene extends Phaser.Scene {
       const { x: sx, y: sy } = TARGET_ARROW_SRC;
       this.drawCurvedArrow(sx, sy, tip.x, tip.y, TARGET_ARROW_COLOR, 0.95);
       // Arrowhead — two short strokes back from the tip along the shaft angle.
+    }
+  }
+
+  /** Stack targets reuse the arrow shaft but key their colour to the target controller. */
+  private drawStackTargetArrows(): void {
+    for (const item of this.duel.state.stack) {
+      const from = this.stackDisplay.itemCenter(item.sid);
+      if (!from) continue;
+      for (const target of item.targets) {
+        if (target.kind !== 'permanent' && target.kind !== 'player') continue;
+        const controller = target.kind === 'player'
+          ? target.player
+          : this.duel.state.battlefield.find((perm) => perm.iid === target.iid)?.controller;
+        if (controller === undefined) continue;
+        const to = this.hitTargetPos(target);
+        this.drawCurvedArrow(from.x, from.y, to.x, to.y, colorInt(this.targetRingColor(controller)), 0.82);
+      }
     }
   }
 

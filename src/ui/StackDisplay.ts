@@ -33,6 +33,7 @@ export class StackDisplay {
   private readonly opts: StackDisplayOptions;
   private targetCards: CardView[] = [];
   private inspectCards: CardView[] = [];
+  private itemCenters = new Map<number, { x: number; y: number }>();
 
   constructor(scene: Phaser.Scene, opts: StackDisplayOptions) {
     this.opts = opts;
@@ -46,6 +47,7 @@ export class StackDisplay {
     this.root.removeAll(true);
     this.targetCards = [];
     this.inspectCards = [];
+    this.itemCenters.clear();
     const visible = live && items.length > 0;
     this.root.setVisible(visible);
     if (!visible) return;
@@ -83,6 +85,7 @@ export class StackDisplay {
 
     items.forEach((item, index) => {
       const x = -rowWidth / 2 + cardWidth / 2 + index * (cardWidth + CARD_GAP);
+      this.itemCenters.set(item.sid, { x: this.root.x + x, y: this.root.y });
       const targetable = this.opts.isTargetable(item.sid);
       // Offset shadow under the frame lifts the card off the scrim (the "3D"
       // read the playtest asked for) without any FX pipeline cost.
@@ -169,9 +172,15 @@ export class StackDisplay {
     return [...this.targetCards, ...this.inspectCards];
   }
 
+  /** Current world-space card centre, refreshed every time the readout reflows. */
+  itemCenter(sid: number): { x: number; y: number } | undefined {
+    return this.itemCenters.get(sid);
+  }
+
   destroy(): void {
     this.root.destroy(true);
     this.targetCards = [];
     this.inspectCards = [];
+    this.itemCenters.clear();
   }
 }
