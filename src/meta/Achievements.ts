@@ -923,8 +923,8 @@ export function evaluateAchievements(save: SaveData, db: CardDb): AchievementSta
 
 /**
  * Recompute satisfied achievements from durable save + card-db state. This is
- * called by UI entry points rather than persisted as incremental counters, so
- * imported or migrated saves recover their unlocks without drift.
+ * called at durable UI mutation checkpoints rather than persisted as
+ * incremental counters, so every feature evaluates the same saved state.
  */
 export function syncAchievements(save: SaveData, db: CardDb): string[] {
   save.achievements.unlocked = uniqueKnown(save.achievements.unlocked);

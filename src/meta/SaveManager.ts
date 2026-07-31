@@ -7,7 +7,10 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 
-export const CURRENT_SAVE_VERSION = 23 as const;
+export const CURRENT_SAVE_VERSION = 24 as const;
+
+/** When an empty blocking step needs a second confirmation. */
+export type ConfirmNoBlockSetting = 'always' | 'lethal' | 'off';
 
 /** Active gauntlet run state; null when no run is in progress. */
 export interface GauntletState {
@@ -181,6 +184,12 @@ export interface SaveData {
      * veterans who prefer denser cards.
      */
     keywordReminders: boolean;
+    /**
+     * Empty blocks state their incoming damage. This decides whether submitting
+     * one needs a second press: every time, only when lethal, or never.
+     * v24 addition.
+     */
+    confirmNoBlock: ConfirmNoBlockSetting;
   };
 }
 
@@ -234,6 +243,7 @@ export function freshSave(now: number): SaveData {
       autoSkip: false,
       confirmDestructive: true,
       keywordReminders: true,
+      confirmNoBlock: 'lethal',
     },
   };
 }
@@ -300,7 +310,9 @@ export class SaveManager {
    * to zero entries so nobody inherits a partially spent week; v19 -> v20 adds
    * deterministic replays; v20 -> v21 canonicalizes two-part variant keys as
    * explicitly non-full-art three-part keys; v21 -> v22 stamps tower roster
-   * identity and adds per-deck land-art selection.
+   * identity and adds per-deck land-art selection; v22 -> v23 adds reserve
+   * formats and positional variant pins; v23 -> v24 adds the empty-block
+   * confirmation preference, defaulting to lethal-only protection.
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -566,7 +578,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -612,8 +624,20 @@ export class SaveManager {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
       cur = {
         ...cur,
-        version: CURRENT_SAVE_VERSION,
+        version: 23,
         decks: normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants),
+      };
+    }
+    if (cur.version === 23) {
+      const s = (cur.settings ?? {}) as { confirmNoBlock?: unknown };
+      const confirmNoBlock: ConfirmNoBlockSetting =
+        s.confirmNoBlock === 'always' || s.confirmNoBlock === 'lethal' || s.confirmNoBlock === 'off'
+          ? s.confirmNoBlock
+          : 'lethal';
+      cur = {
+        ...cur,
+        version: CURRENT_SAVE_VERSION,
+        settings: { ...(cur.settings as object), confirmNoBlock },
       };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {

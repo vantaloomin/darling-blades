@@ -17,6 +17,7 @@ import { payPremiumDraftEntry, premiumEntryStatus, todayString } from '../meta/E
 import { Services } from '../meta/services';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
+import { Toast } from '../ui/Toast';
 import { backButton, goldBadge, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
@@ -49,6 +50,7 @@ export class LimitedScene extends Phaser.Scene {
     });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
+    new Toast(this);
     const save = Services.save.data;
     if (
       save.limited.activeRun?.status === 'draft' &&

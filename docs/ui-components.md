@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-29
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-07-30
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -74,6 +74,11 @@ the pattern to copy for any horizontal chip row whose content resizes.
 - `OverlayCoordinator` + `Modal.modalGuardTarget`: overlay stacking,
   dismissal precedence, and input guarding for whatever sits beneath.
   Anything that floats registers here or fights the ESC ordering.
+- `Toast`: the shared right-rail engraved-plaque host. It enters with a gold
+  shine sweep, stacks up to three notices, collapses larger bursts to a
+  caller-supplied summary, and pauses behind a `ModalGuard` or an owner-supplied
+  blocking predicate. Notices persist across scene handoffs until a host can
+  present them at a safe boundary.
 - `modalShell` also participates in the scene-local modal stack used by
   `registerSceneBackNavigation`, so a modal opened after scene creation still
   wins the next ESC press. A non-dismissible modal consumes ESC without

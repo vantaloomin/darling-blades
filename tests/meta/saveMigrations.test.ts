@@ -21,7 +21,7 @@ describe('SaveData v19 migration', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 18, limited: oldLimited }));
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(23);
+    expect(manager.data.version).toBe(CURRENT_SAVE_VERSION);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
     expect(manager.data.createdAt).toBe(123);
   });
@@ -36,7 +36,7 @@ describe('SaveData v19 migration', () => {
     );
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(23);
+    expect(manager.data.version).toBe(CURRENT_SAVE_VERSION);
     expect(manager.data.gold).toBe(777);
     expect(manager.data.limited.premiumWeek).toEqual({ week: 0, entries: 0 });
   });
@@ -51,7 +51,7 @@ describe('SaveData v20 migration (deterministic replays)', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...old, version: 19 }));
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(23);
+    expect(manager.data.version).toBe(CURRENT_SAVE_VERSION);
     expect(manager.data.replays).toEqual([]);
     expect(manager.data.gold).toBe(555);
     expect(manager.data.createdAt).toBe(123);
@@ -69,7 +69,7 @@ describe('SaveData v20 migration (deterministic replays)', () => {
     );
 
     const manager = new SaveManager(storage, 456);
-    expect(manager.data.version).toBe(23);
+    expect(manager.data.version).toBe(CURRENT_SAVE_VERSION);
     expect(manager.data.replays).toEqual([]);
   });
 });
@@ -84,7 +84,7 @@ describe('SaveData v21 migration (Full Art variant axis)', () => {
 
     const manager = new SaveManager(storage, 456);
 
-    expect(manager.data.version).toBe(23);
+    expect(manager.data.version).toBe(CURRENT_SAVE_VERSION);
     expect(manager.data.collection.bear).toBe(3);
     expect(manager.data.collectionVariants.bear).toEqual({
       [variantKey(PLAIN_VARIANT)]: 2,
@@ -118,7 +118,7 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
 
     const manager = new SaveManager(storage, 456);
 
-    expect(manager.data.version).toBe(23);
+    expect(manager.data.version).toBe(CURRENT_SAVE_VERSION);
     expect(manager.data.gauntlet.run).toEqual({ ...oldRun, rosterDay: 0, rosterSeed: 0 });
     expect(manager.data.decks).toEqual(oldDecks.map((deck) => ({
       ...deck,
@@ -131,8 +131,8 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
     expect(manager.data.createdAt).toBe(123);
   });
 
-  it('creates fresh saves at v22', () => {
-    expect(freshSave(123).version).toBe(23);
+  it('creates fresh saves at the current version', () => {
+    expect(freshSave(123).version).toBe(CURRENT_SAVE_VERSION);
   });
 
   it('stamps an unstamped active v22 run from the UI staging gap', () => {
@@ -177,7 +177,7 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
 
     const manager = new SaveManager(storage, 456);
 
-    expect(manager.data.version).toBe(23);
+    expect(manager.data.version).toBe(CURRENT_SAVE_VERSION);
     expect(manager.data.decks[0].landStyle).toBeNull();
     expect(manager.data.decks[1].landStyle).toEqual({
       'land-plains': 'dark-tales',
@@ -199,7 +199,7 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
 
     const manager = new SaveManager(storage, 456);
 
-    expect(manager.data.version).toBe(23);
+    expect(manager.data.version).toBe(CURRENT_SAVE_VERSION);
     expect(manager.data.decks[0].landStyle).toEqual({ 'land-plains': 'dark-tales' });
   });
 });

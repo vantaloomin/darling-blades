@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
+import type { ConfirmNoBlockSetting } from '../meta/SaveManager';
 import { Services } from '../meta/services';
 import { qualityTier } from '../platform/quality';
 import type { AnimationLevel } from '../platform/animPolicy';
@@ -43,6 +44,11 @@ const RENDER_CHIPS: { value: RenderScaleSetting; label: string; heavy: boolean }
   { value: 1.5, label: '1920×1080', heavy: true },
   { value: 2, label: '2560×1440', heavy: true },
 ];
+const NO_BLOCK_CHIPS: { value: ConfirmNoBlockSetting; label: string; minWidth: number; x: number }[] = [
+  { value: 'always', label: 'Always', minWidth: 80, x: 880 },
+  { value: 'lethal', label: 'Only when lethal', minWidth: 120, x: 1010 },
+  { value: 'off', label: 'Off', minWidth: 70, x: 1160 },
+];
 
 /** Settings are split into audio and gameplay columns to retain touch-safe row pitch. */
 export class SettingsScene extends Phaser.Scene {
@@ -54,6 +60,7 @@ export class SettingsScene extends Phaser.Scene {
   private volumeBar!: Phaser.GameObjects.Text;
   private animChips = new Map<AnimationLevel, ThemedButton>();
   private renderChips = new Map<RenderScaleSetting, ThemedButton>();
+  private noBlockChips = new Map<ConfirmNoBlockSetting, ThemedButton>();
 
   constructor() {
     super('Settings');
@@ -62,6 +69,7 @@ export class SettingsScene extends Phaser.Scene {
   create(): void {
     this.animChips.clear();
     this.renderChips.clear();
+    this.noBlockChips.clear();
     applyBackdrop(this, 'mainmenu', {
       dim: theme.graphics.dim,
       dimAlpha: 0.62,
@@ -83,14 +91,14 @@ export class SettingsScene extends Phaser.Scene {
     backButton(this, 'Menu', () => this.scene.start('MainMenu'));
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
-    panel(this, 70, 124, 540, 420);
-    panel(this, 670, 124, 540, 420);
+    panel(this, 70, 124, 540, 470);
+    panel(this, 670, 124, 540, 470);
     this.sectionTitle(110, 150, 'Audio');
     this.sectionTitle(710, 150, 'Gameplay');
     // Audio: Sound effects · Master volume (note) · Music.
     // Gameplay: Animations (note) · Render size (note) · Auto-skip · Confirm · Keyword reminders.
     const leftRows = rowYs([false, true, false]);
-    const rightRows = rowYs([true, true, false, false, false]);
+    const rightRows = rowYs([true, true, false, false, false, false]);
     const leftY = (row: number): number => leftRows[row];
     const rightY = (row: number): number => rightRows[row];
 
@@ -192,6 +200,20 @@ export class SettingsScene extends Phaser.Scene {
       Services.save.touch();
       this.refreshToggles();
     });
+    this.rowLabel(RIGHT_LABEL_X, rightY(5), 'Confirm no-block');
+    for (const { value, label, minWidth, x } of NO_BLOCK_CHIPS) {
+      const button = themedButton(this, x, rightY(5), label, {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth,
+        onTap: () => {
+          Services.save.data.settings.confirmNoBlock = value;
+          Services.save.touch();
+          this.refreshChipGroups();
+        },
+      });
+      this.noBlockChips.set(value, button);
+    }
 
     this.buildReset();
     this.buildVersionFooter();
@@ -232,13 +254,13 @@ export class SettingsScene extends Phaser.Scene {
   }
   private buildReset(): void {
     this.add
-      .text(110, 570, 'Reset save', {
+      .text(110, 620, 'Reset save', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.body}px`,
         color: theme.colors.danger,
       })
       .setOrigin(0, 0.5);
-    const reset = themedButton(this, 360, 570, 'Reset save', {
+    const reset = themedButton(this, 360, 620, 'Reset save', {
       variant: 'danger',
       minWidth: 170,
       onTap: () => {
@@ -257,7 +279,7 @@ export class SettingsScene extends Phaser.Scene {
     });
     this.add.text(
       110,
-      600,
+      650,
       'Erases your collection, decks, gold, and progress. Cannot be undone.',
       {
         fontFamily: theme.fonts.ui,
@@ -333,6 +355,8 @@ export class SettingsScene extends Phaser.Scene {
     const effectiveRender = qualityTier() === 'lite' ? 1 : settings.renderScale;
     for (const [value, button] of this.renderChips)
       button.setVariant(value === effectiveRender ? 'primary' : 'ghost');
+    for (const [value, button] of this.noBlockChips)
+      button.setVariant(value === settings.confirmNoBlock ? 'primary' : 'ghost');
   }
   private pickRenderScale(value: RenderScaleSetting): void {
     if (Services.save.data.settings.renderScale === value) return;

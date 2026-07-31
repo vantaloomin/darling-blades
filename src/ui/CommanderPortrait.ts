@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
+import { colorInt } from './theme';
 
 /**
  * "Reactive waifu on stage" panel for the duel board (wireframe 1a): a
@@ -10,7 +11,8 @@ import { Art } from '../art/ArtResolver';
  *
  * Deliberately generic and dumb: it receives a cardId + label and knows
  * nothing about decks or avatars. DuelScene owns position, depth and
- * lifetime; there is no input handling anywhere. Reactions are
+ * lifetime; its optional child zone is enabled only for face-targeting flows.
+ * Reactions are
  * fire-and-forget tweens that never gate game flow — they resolve through
  * onComplete (so tweens.timeScale = 20 fast-forward just ends them sooner)
  * and rapid re-triggers kill-and-restart cleanly.
@@ -44,6 +46,9 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
   private readonly flashRect: Phaser.GameObjects.Rectangle;
   private readonly glowRect: Phaser.GameObjects.Rectangle;
   private readonly labelText: Phaser.GameObjects.Text;
+  /** Whole-frame targeting treatment; disabled outside face-targeting flows. */
+  readonly targetZone: Phaser.GameObjects.Zone;
+  private readonly targetRing: Phaser.GameObjects.Graphics;
   private maskGfx: Phaser.GameObjects.Graphics | null = null;
   private geoMask: Phaser.Display.Masks.GeometryMask | null = null;
   private readonly frameW: number;
@@ -134,9 +139,15 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       .setOrigin(0.5);
     this.fitLabel();
 
+    this.targetRing = scene.add.graphics().setVisible(false);
+    // Never make the Container itself interactive: its child Zone tracks the
+    // complete portrait frame without relying on scaled-container hit testing.
+    this.targetZone = scene.add.zone(w / 2, h / 2, w, h);
+    this.targetZone.setInteractive({ useHandCursor: true }).disableInteractive();
+
     const children: Phaser.GameObjects.GameObject[] = [plate];
     if (this.art) children.push(this.art);
-    children.push(this.flashRect, this.glowRect, labelPlate, this.labelText);
+    children.push(this.flashRect, this.glowRect, labelPlate, this.labelText, this.targetRing, this.targetZone);
     this.add(children);
     this.setSize(w, h);
     scene.add.existing(this);
@@ -205,6 +216,19 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     if (!this.labelText.active) return this;
     this.labelText.setText(text);
     this.fitLabel();
+    return this;
+  }
+
+  /** Enable the full frame as a face target and ring it in the caller's semantic colour. */
+  setFaceTargetable(targetable: boolean, color: string): this {
+    this.targetRing.clear().setVisible(targetable);
+    if (targetable) {
+      this.targetRing.lineStyle(3, colorInt(color), 0.98);
+      this.targetRing.strokeRoundedRect(2, 2, this.frameW - 4, this.height - 4, CORNER_R);
+      this.targetZone.setInteractive({ useHandCursor: true });
+    } else {
+      this.targetZone.disableInteractive();
+    }
     return this;
   }
 

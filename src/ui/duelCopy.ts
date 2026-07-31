@@ -1,28 +1,21 @@
 /** Pure player-facing copy shared by DuelScene and headless UI tests. */
 
 export interface CombatForecastCopyInput {
+  attackers: number;
   damage: number;
-  enemyDeaths: number;
-  yourDeaths: number;
+  lifeBefore: number;
+  lifeAfter: number;
   lethal: boolean;
 }
 
-function deathClause(count: number, owner: 'enemy' | 'yours'): string | null {
-  if (count === 0) return null;
-  if (owner === 'enemy') return count === 1 ? '1 enemy dies' : `${count} enemies die`;
-  return count === 1 ? '1 of yours dies' : `${count} of yours die`;
-}
-
-/** Count-aware combat forecast with zero-count death clauses omitted. */
+/** Thin live combat ledger, compact enough to stay in the battlefield gap. */
 export function combatForecastCopy(input: CombatForecastCopyInput): string {
-  const parts = [input.damage > 0 ? `you take ${input.damage}` : 'no damage to you'];
-  const enemy = deathClause(input.enemyDeaths, 'enemy');
-  const yours = deathClause(input.yourDeaths, 'yours');
-  if (enemy) parts.push(enemy);
-  if (yours) parts.push(yours);
-  return input.lethal
-    ? `⚠ LETHAL: ${parts.join(' · ')}`
-    : `⚔ Forecast: ${parts.join(' · ')}`;
+  const parts = [
+    `${input.attackers} ${input.attackers === 1 ? 'attacker' : 'attackers'}`,
+    `Incoming ${input.damage}`,
+    `Life ${input.lifeBefore} → ${input.lifeAfter}`,
+  ];
+  return input.lethal ? `⚠ LETHAL · ${parts.join(' · ')}` : `⚔ ${parts.join(' · ')}`;
 }
 
 type EngineEndReason = 'life' | 'deck' | 'concede' | 'turnLimit';

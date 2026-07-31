@@ -20,6 +20,7 @@ import { IS_DEV } from '../platform/env';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
+import { Toast } from '../ui/Toast';
 import { goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL } from '../version';
 
@@ -46,6 +47,7 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     this.menuItems = [];
     this.guard = new ModalGuard();
+    new Toast(this, { modalGuard: this.guard });
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
@@ -75,6 +77,10 @@ export class MainMenuScene extends Phaser.Scene {
     Music.setMood('menu');
 
     const save = Services.save.data;
+    // Recovery sync, kept alongside the A1 mutation checkpoints: imported
+    // save codes, migrations, and dev grants mutate the save outside any
+    // checkpoint, and claiming validates against the persisted unlocked
+    // list. No toast here — recovered unlocks are old news, not fresh events.
     if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const today = todayString();
     if (ensureDailyState(save, today)) Services.save.flush();

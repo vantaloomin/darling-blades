@@ -15,6 +15,7 @@ import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
+import { Toast } from '../ui/Toast';
 import { backButton, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
 /**
@@ -89,6 +90,7 @@ export class GauntletScene extends Phaser.Scene {
     });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('gauntlet');
+    new Toast(this);
 
     this.add
       .text(width / 2, 46, 'Avatar Gauntlet', {

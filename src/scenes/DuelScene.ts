@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { AIPlayer } from '../ai/AIPlayer';
 import { buildTierAI, floorTier } from '../ai/tiers';
 import { Music } from '../audio/music';
+import { selectDuelMood } from '../audio/musicPatterns';
 import { Sfx } from '../audio/sfx';
 import { buildAI } from '../ai/personality';
 import { ECONOMY, RULES, type ReserveFormat } from '../config/rules';
@@ -47,6 +48,7 @@ import {
   type ReplayLog,
 } from '../meta/Replay';
 import { Services } from '../meta/services';
+import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
 import { previewCombat } from '../engine/combat/damage';
@@ -86,7 +88,10 @@ import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
 import { HistoryPanel } from '../ui/HistoryPanel';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
+import { queueAchievementUnlockToasts } from '../ui/achievementToast';
+import { Toast } from '../ui/Toast';
 import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
+import { CARD_TRAVEL_MOTION, hauntlinkOverlap, targetRingTone } from '../ui/duelPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
 import { renderManaText } from '../ui/ManaText';
@@ -167,8 +172,8 @@ const LAYOUT = {
   myLife: { x: 40, y: 566 },
   /** Mirrored commander frame and its targetable life badge. */
   oppPortrait: { x: 1056, y: 8, w: 200, h: 180 },
-  /** Foe targetable life badge: inside the portrait's bottom-right corner. */
-  oppLife: { x: 1230, y: 162 },
+  /** Foe targetable life badge: upper-right, clear of the portrait name plate. */
+  oppLife: { x: 1230, y: 42 },
   /** Turn chip atop the phase track — all turn info lives in one column. */
   turnPill: { x: 1113, y: 292 },
   /** Display-only phase track in the right sidebar above End Turn. */
@@ -258,7 +263,7 @@ export class DuelScene extends Phaser.Scene {
   private reserveFormatsEnabled = false;
   private replayOutcomeShell: ModalShell | null = null;
   private undoBtn!: Phaser.GameObjects.Text;
-  /** Live combat-damage forecast shown while you assign blocks (F12). */
+  /** Always-on combat ledger shown while you assign blocks. */
   private combatPreviewText!: Phaser.GameObjects.Text;
   private ai!: AIPlayer;
   private difficulty: Difficulty = 'easy';
@@ -324,8 +329,12 @@ export class DuelScene extends Phaser.Scene {
   private pendingBlocker: number | null = null;
   private pendingCasts: Extract<Action, { type: 'castSpell' }>[] | null = null;
   private arrows!: Phaser.GameObjects.Graphics;
+  /** Per-face legal-target outlines; portrait rings live on CommanderPortrait itself. */
+  private lifeTargetRings!: { my: Phaser.GameObjects.Graphics; opp: Phaser.GameObjects.Graphics };
   private overlay: Phaser.GameObjects.Container | null = null;
   private guard = new ModalGuard();
+  private toasts: Toast | null = null;
+  private toastHeldForTurnBoundary = false;
   private inspect: Phaser.GameObjects.Container | null = null;
   private inspectGuard = new ModalGuard();
   private inspectMove: ((p: Phaser.Input.Pointer) => void) | null = null;
@@ -420,6 +429,13 @@ export class DuelScene extends Phaser.Scene {
   private previousLife: [number, number] | null = null;
   private previousPhaseRow: PhaseTrackRow | null = null;
   private forecastWasLethal = false;
+  /** Underlying life-driven tension survives a temporary lethal-visible bed. */
+  private duelTensionActive = false;
+  /** Empty-block confirmation is scene-local and never changes the submitted action. */
+  private noBlockArmed = false;
+  private noBlockArmTimer: Phaser.Time.TimerEvent | null = null;
+  /** Clear the no-block arm when a decision kind changes, before stale input can land. */
+  private lastAwaitingKind: string | null = null;
   /** The off-motion fallback still briefly reveals opponent casts. */
   private oppCastReveal?: Phaser.GameObjects.Container;
   private pendingPlayReveals: PlayReveal[] = [];
@@ -527,6 +543,11 @@ export class DuelScene extends Phaser.Scene {
     this.previousLife = null;
     this.previousPhaseRow = null;
     this.forecastWasLethal = false;
+    this.duelTensionActive = false;
+    this.noBlockArmTimer?.remove();
+    this.noBlockArmTimer = null;
+    this.noBlockArmed = false;
+    this.lastAwaitingKind = null;
     this.selectedAttackers = new Set();
     this.blockAssignments = [];
     this.pendingBlocker = null;
@@ -539,6 +560,19 @@ export class DuelScene extends Phaser.Scene {
     this.aiTimer = null;
     this.overlay = null;
     this.guard = new ModalGuard();
+    this.toastHeldForTurnBoundary = !this.replayMode;
+    this.toasts = this.replayMode
+      ? null
+      : new Toast(this, {
+          modalGuard: this.guard,
+          isBlocked: () =>
+            this.overlay !== null ||
+            this.inspect !== null ||
+            this.pauseOverlay !== null ||
+            this.zoneModal !== null ||
+            this.isHumanTurnDecision(),
+          held: true,
+        });
     this.inspect = null;
     this.inspectGuard = new ModalGuard();
     this.inspectMove = null;
@@ -1106,6 +1140,45 @@ export class DuelScene extends Phaser.Scene {
       .setDepth(theme.depth.hud);
   }
 
+  /** Legal face targeting follows the same first-target contract as tryTarget(). */
+  private isPlayerTargetable(player: PlayerId): boolean {
+    return this.pendingCasts?.some(
+      (cast) => cast.targets?.[0]?.kind === 'player' && cast.targets[0].player === player,
+    ) ?? false;
+  }
+
+  /** Legal target rings describe the target controller, never the spell's colour or class. */
+  private targetRingColor(player: PlayerId): string {
+    return targetRingTone(player === HUMAN ? 'you' : 'opponent') === 'hostile'
+      ? theme.colors.dangerArmed
+      : theme.colors.success;
+  }
+
+  private drawLifeTargetRing(
+    ring: Phaser.GameObjects.Graphics,
+    pos: { x: number; y: number },
+    targetable: boolean,
+    color: string,
+  ): void {
+    ring.clear();
+    if (!targetable) return;
+    const half = LIFE_BADGE_SIZE / 2 + 3;
+    ring.lineStyle(3, colorInt(color), 0.98);
+    ring.strokeRoundedRect(pos.x - half, pos.y - half, half * 2, half * 2, theme.radius.control + 2);
+  }
+
+  /** While a face is legal, its badge and whole portrait resolve to the same target. */
+  private syncFaceTargeting(): void {
+    const myTargetable = this.isPlayerTargetable(HUMAN);
+    const oppTargetable = this.isPlayerTargetable(AI);
+    const myColor = this.targetRingColor(HUMAN);
+    const oppColor = this.targetRingColor(AI);
+    this.portrait.setFaceTargetable(myTargetable, myColor);
+    this.oppPortrait.setFaceTargetable(oppTargetable, oppColor);
+    this.drawLifeTargetRing(this.lifeTargetRings.my, LAYOUT.myLife, myTargetable, myColor);
+    this.drawLifeTargetRing(this.lifeTargetRings.opp, LAYOUT.oppLife, oppTargetable, oppColor);
+  }
+
   private buildHud(): void {
     // --- Opponent mirror: pile-column hand/grave/deck, portrait, life, mana ---
     this.oppHandPile = new PileView(this, LAYOUT.oppPiles.x, LAYOUT.oppPiles.handY, 'hand');
@@ -1151,6 +1224,10 @@ export class DuelScene extends Phaser.Scene {
     });
     this.addLifeBadgePlate(LAYOUT.myLife.x, LAYOUT.myLife.y);
     this.addLifeBadgePlate(LAYOUT.oppLife.x, LAYOUT.oppLife.y);
+    this.lifeTargetRings = {
+      my: this.add.graphics().setDepth(theme.depth.hudLabel),
+      opp: this.add.graphics().setDepth(theme.depth.hudLabel),
+    };
 
     const phaseRows = PHASE_TRACK_ROWS.map((row, i) => {
       const y = LAYOUT.phaseTrack.firstRowY + i * LAYOUT.phaseTrack.rowStep;
@@ -1272,12 +1349,24 @@ export class DuelScene extends Phaser.Scene {
       text.setInteractive({ useHandCursor: true });
       bindTapButton(this, text, () => this.tryTarget({ kind: 'player', player }));
     }
+    // Face targeting is deliberately a child Zone on the whole portrait, not
+    // an interactive Container. The zone sleeps outside an active targeting
+    // flow, preserving all ordinary portrait interactions.
+    for (const [portrait, player] of [
+      [this.portrait, HUMAN],
+      [this.oppPortrait, AI],
+    ] as const) {
+      bindTapButton(this, portrait.targetZone, (p) => {
+        if (!p.rightButtonReleased()) this.tryTarget({ kind: 'player', player });
+      });
+    }
     // Hit inflation (mobile-lan-plan §1.4). Life totals meet the 44px floor; the
     // Stack cards use CardView's child Zone and never make a scaled Container
     // interactive. Life totals use inflated text hit areas. The smart button
     // needs none: the Arc's hit rect is static.
     inflateHitArea(this.hud.myLife, 44, 44);
     inflateHitArea(this.hud.oppLife, 44, 44);
+    this.syncFaceTargeting();
     // Right-click cancels targeting. Test the INITIATING button (p.button),
     // not rightButtonDown() — that's a live bitmask, true for a chorded LEFT
     // press while the right button happens to be held.
@@ -1367,7 +1456,7 @@ export class DuelScene extends Phaser.Scene {
     });
     inflateHitArea(this.undoBtn, 90, 90);
 
-    // Combat forecast (F12): the 12px caption plus 4px total vertical
+    // Always-on combat ledger: the 12px caption plus 4px total vertical
     // padding is centered in the 34px gap between the creature tile bounds.
     // Even the 1.1x lethal pulse stays between opponent y=285 and player y=319.
     this.combatPreviewText = this.add
@@ -1735,24 +1824,27 @@ export class DuelScene extends Phaser.Scene {
     );
   }
 
-  /** F12: live combat-damage forecast while you assign blocks (you are defending). */
+  /** Live combat ledger while you assign blocks (you are defending). */
   private syncCombatPreview(): void {
     const st = this.duel.state;
     const a = this.duel.awaiting;
     if (a.kind !== 'declareBlockers' || !('player' in a) || a.player !== HUMAN || !st.combat) {
       this.combatPreviewText.setVisible(false);
       this.forecastWasLethal = false;
+      this.syncDuelMusicMood(false);
       return;
     }
     const preview = previewCombat(st, CARD_DB, this.blockAssignments);
     const dmg = -preview.lifeDelta[HUMAN];
-    const yoursDie = preview.deaths.filter(
-      (iid) => st.battlefield.find((p) => p.iid === iid)?.controller === HUMAN,
-    ).length;
-    const theirsDie = preview.deaths.length - yoursDie;
     const lethal = preview.defenderLethal;
     this.combatPreviewText
-      .setText(combatForecastCopy({ damage: dmg, enemyDeaths: theirsDie, yourDeaths: yoursDie, lethal }))
+      .setText(combatForecastCopy({
+        attackers: st.combat.attackers.length,
+        damage: dmg,
+        lifeBefore: st.players[HUMAN].life,
+        lifeAfter: st.players[HUMAN].life - dmg,
+        lethal,
+      }))
       .setColor(lethal ? theme.colors.dangerArmed : theme.colors.body)
       .setVisible(true);
     if (lethal && !this.forecastWasLethal && this.motionLevel() !== 'off') {
@@ -1771,6 +1863,26 @@ export class DuelScene extends Phaser.Scene {
       });
     }
     this.forecastWasLethal = lethal;
+    this.syncDuelMusicMood(lethal);
+  }
+
+  /**
+   * The existing declarative board sync is the music trigger seam: no polling
+   * loop, and no engine state change. The forecast's lethal result overrides
+   * the life mood only while declareBlockers exposes it.
+   */
+  private syncDuelMusicMood(lethalVisible: boolean): void {
+    if (this.ended) return;
+    const st = this.duel.state;
+    const selection = selectDuelMood({
+      humanLife: st.players[HUMAN].life,
+      opponentLife: st.players[AI].life,
+      startingLife: RULES.startingLife,
+      tensionActive: this.duelTensionActive,
+      lethalVisible,
+    });
+    this.duelTensionActive = selection.tensionActive;
+    Music.setMood(selection.mood);
   }
 
   private pulseLife(text: Phaser.GameObjects.Text, delta: number, baseColor: string): void {
@@ -1942,6 +2054,7 @@ export class DuelScene extends Phaser.Scene {
       // flight for the pre-hop decision) is swallowed rather than applied to
       // the decision this skip is about to advance into.
       this.lastAutoSkipAt = this.time.now;
+      this.clearNoBlockArm();
       this.act(forced); // act() re-runs maybeAutoSkip: chains continue hop by hop
     });
   }
@@ -2114,7 +2227,10 @@ export class DuelScene extends Phaser.Scene {
         Sfx.play('death');
         const v = this.views.get(e.iid);
         const who = e.owner === HUMAN ? 'Your' : 'Enemy';
-        if (this.brokenHauntlinks.delete(e.iid)) {
+        if (this.brokenHauntlinks.has(e.iid)) {
+          // Keep the flag through the immediate post-event sync so the
+          // departing underlap can visibly sever instead of using the normal
+          // generic board-card fade.
           this.log(`${who} ${this.cardRef(e.cardId)} lost its host and went to its owner's graveyard`, e.cardId);
         } else if (v) this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
         break;
@@ -2124,6 +2240,7 @@ export class DuelScene extends Phaser.Scene {
         // event. Hold the relationship here so the later line describes the
         // actual graveyard exit instead of guessing from cast history.
         this.brokenHauntlinks.add(e.linkIid);
+        this.views.get(e.linkIid)?.setHauntlinkBroken(true);
         break;
       case 'skimmed':
         this.log(`${e.player === HUMAN ? 'Skimmed' : 'Opponent skimmed'} ${this.cardRef(e.cardId)}`, e.cardId);
@@ -2238,9 +2355,13 @@ export class DuelScene extends Phaser.Scene {
       case 'turnBegan':
         this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
+        if (this.toastHeldForTurnBoundary && !this.replayMode) {
+          this.toastHeldForTurnBoundary = false;
+          this.toasts?.release();
+        }
         // A human who starts is already looking at their opening board while it
         // settles on turn 1. Skip that redundant cue; turn 2+ handoffs chime.
-        if (e.player === HUMAN && e.turn > 1) Sfx.play('yourTurn');
+        if (!this.replayMode && e.player === HUMAN && e.turn > 1) Sfx.play('yourTurn');
         break;
       case 'mulliganTaken':
         if (e.player === AI) this.log('Opponent takes a mulligan');
@@ -2432,16 +2553,28 @@ export class DuelScene extends Phaser.Scene {
   /** Start every reveal after the state has rendered its real tile/land stack underneath it. */
   private flushPlayReveals(): void {
     const reveals = this.pendingPlayReveals.splice(0);
-    for (const reveal of reveals) {
-      if (this.motionLevel() === 'off') {
-        if (reveal.controller === AI) this.showOpponentCast(reveal.cardId);
-        continue;
+    const motion = this.motionLevel();
+    if (motion === 'off') {
+      for (const reveal of reveals) if (reveal.controller === AI) this.showOpponentCast(reveal.cardId);
+      return;
+    }
+    if (motion === 'reduced') {
+      for (const reveal of reveals) if (reveal.controller === AI) this.showReducedOpponentReveal(reveal.cardId);
+      return;
+    }
+    // A spell storm must not turn the longer visual journey into a longer
+    // turn. Cap the simultaneous ghosts at three and start them a beat apart;
+    // every real state change is already synced and remains actionable.
+    for (const [index, reveal] of reveals
+      .slice(0, CARD_TRAVEL_MOTION.batch.maxAnimatedCards)
+      .entries()) {
+      const delay = index * CARD_TRAVEL_MOTION.batch.staggerMs;
+      if (delay === 0) this.showPlayReveal(reveal);
+      else {
+        this.time.delayedCall(delay, () => {
+          if (this.sys.isActive()) this.showPlayReveal(reveal);
+        });
       }
-      if (this.motionLevel() === 'reduced') {
-        if (reveal.controller === AI) this.showReducedOpponentReveal(reveal.cardId);
-        continue;
-      }
-      this.showPlayReveal(reveal);
     }
   }
 
@@ -2467,8 +2600,8 @@ export class DuelScene extends Phaser.Scene {
         ? { x: LAYOUT.oppPiles.x, y: LAYOUT.oppPiles.handY, scale: 0.25, angle: 0 }
         : { x: BOARD_CENTER_X, y: 24, scale: 0.35, angle: 0 });
     const station = opponent
-      ? { x: BOARD_CENTER_X, y: 250, scale: 0.72, pause: 500 }
-      : { x: BOARD_CENTER_X, y: 430, scale: 0.6, pause: 200 };
+      ? { x: BOARD_CENTER_X, y: 250, scale: 0.72, pause: CARD_TRAVEL_MOTION.opponentStationHold }
+      : { x: BOARD_CENTER_X, y: 430, scale: 0.6, pause: CARD_TRAVEL_MOTION.playerStationHold };
     const destination = this.revealDestination(reveal);
     const ghost = new CardView(this, source.x, source.y)
       .setScale(source.scale)
@@ -2489,8 +2622,8 @@ export class DuelScene extends Phaser.Scene {
       this.tweens.add({
         targets: ghost,
         alpha: 0,
-        duration: 80,
-        ease: 'Quad.easeIn',
+        duration: CARD_TRAVEL_MOTION.arrivalFade.duration,
+        ease: CARD_TRAVEL_MOTION.arrivalFade.ease,
         onComplete: () => { if (ghost.active) cleanUp(); },
         onStop: () => { if (ghost.active) cleanUp(); },
       });
@@ -2504,8 +2637,8 @@ export class DuelScene extends Phaser.Scene {
         scaleX: destination.scale,
         scaleY: destination.scale,
         angle: 0,
-        duration: 240,
-        ease: 'Cubic.easeInOut',
+        duration: CARD_TRAVEL_MOTION.stationToBattlefield.duration,
+        ease: CARD_TRAVEL_MOTION.stationToBattlefield.ease,
         onComplete: () => { if (ghost.active) fadeOut(); },
         onStop: () => { if (ghost.active) cleanUp(); },
       });
@@ -2527,8 +2660,8 @@ export class DuelScene extends Phaser.Scene {
       scaleX: station.scale,
       scaleY: station.scale,
       angle: 0,
-      duration: 240,
-      ease: 'Cubic.easeOut',
+      duration: CARD_TRAVEL_MOTION.playToStation.duration,
+      ease: CARD_TRAVEL_MOTION.playToStation.ease,
       onComplete: () => { if (ghost.active) hold(); },
       onStop: () => { if (ghost.active) cleanUp(); },
     });
@@ -2611,8 +2744,8 @@ export class DuelScene extends Phaser.Scene {
       scaleY: 0.18,
       angle: 0,
       alpha: 0,
-      duration: 360,
-      ease: 'Cubic.easeInOut',
+      duration: CARD_TRAVEL_MOTION.skimToGraveyard.duration,
+      ease: CARD_TRAVEL_MOTION.skimToGraveyard.ease,
       onComplete: cleanUp,
       onStop: cleanUp,
     });
@@ -2658,8 +2791,8 @@ export class DuelScene extends Phaser.Scene {
       scaleX: 0.18,
       scaleY: 0.18,
       alpha: 0,
-      duration: 360,
-      ease: 'Cubic.easeInOut',
+      duration: CARD_TRAVEL_MOTION.severToPile.duration,
+      ease: CARD_TRAVEL_MOTION.severToPile.ease,
       onComplete: cleanUp,
       onStop: cleanUp,
     });
@@ -2802,6 +2935,9 @@ export class DuelScene extends Phaser.Scene {
 
   private sync(): void {
     if (this.replayMode) this.replayGuard.close();
+    const awaitingKind = this.duel.awaiting.kind;
+    if (this.lastAwaitingKind !== null && this.lastAwaitingKind !== awaitingKind) this.clearNoBlockArm();
+    this.lastAwaitingKind = awaitingKind;
     // A board rebuild invalidates every source position from a hover plan.
     this.clearManaPlanPreview();
     const st = this.duel.state;
@@ -2895,10 +3031,13 @@ export class DuelScene extends Phaser.Scene {
     for (const [iid, view] of [...this.views]) {
       if (!seen.has(iid)) {
         this.views.delete(iid);
+        const brokenHauntlink = this.brokenHauntlinks.delete(iid);
+        if (brokenHauntlink) view.setHauntlinkBroken(true);
         this.tweens.add({
           targets: view,
           alpha: 0,
-          scale: 0.2,
+          scale: brokenHauntlink ? view.scaleX * 0.82 : 0.2,
+          y: brokenHauntlink ? view.y - 18 : view.y,
           duration: 260,
           onComplete: () => {
             if (view.active) view.destroy();
@@ -3004,7 +3143,7 @@ export class DuelScene extends Phaser.Scene {
     });
   }
 
-  /** Render Hauntlink permanents as state-driven underlays on their hosts. */
+  /** Render Hauntlink permanents as physical card underlaps with exposed headers. */
   private syncLinkedPermanents(seen: Set<number>): void {
     const links = this.duel.state.battlefield.filter((perm) => {
       return perm.attachedTo !== undefined && def(CARD_DB, perm.cardId).hauntlink !== undefined;
@@ -3029,9 +3168,10 @@ export class DuelScene extends Phaser.Scene {
       hostLinks.sort((a, b) => a.iid - b.iid);
       hostLinks.forEach((link, slot) => {
         const d = def(CARD_DB, link.cardId);
-        const scale = target.scale * 0.46;
-        const x = target.x + (link.controller === HUMAN ? -34 : 34) + slot * 9;
-        const y = target.y + 18 + slot * 9;
+        const overlap = hauntlinkOverlap(link.controller === HUMAN ? 'you' : 'opponent', slot);
+        const scale = target.scale * overlap.scale;
+        const x = target.x + overlap.x;
+        const y = target.y + overlap.y;
         seen.add(link.iid);
         let view = this.views.get(link.iid);
         if (!view) {
@@ -3069,6 +3209,7 @@ export class DuelScene extends Phaser.Scene {
           this.tweens.add({ targets: view, x, y, scale, duration: 200, ease: 'Cubic.easeOut' });
           view.setTapped(link.tapped);
         }
+        view.setHauntlinkBroken(this.brokenHauntlinks.has(link.iid));
         view.setHighlight(this.highlightFor(link));
       });
     }
@@ -3105,7 +3246,9 @@ export class DuelScene extends Phaser.Scene {
         (c) => c.targets?.[0]?.kind === 'permanent' && c.targets[0].iid === perm.iid,
       )
     )
-      return 'legalTarget';
+      return targetRingTone(perm.controller === HUMAN ? 'you' : 'opponent') === 'hostile'
+        ? 'legalTargetOpponent'
+        : 'legalTarget';
     if (this.selectedAttackers.has(perm.iid)) return 'selectedAttacker';
     if (combat?.attackers.includes(perm.iid)) return 'attacking';
     if (this.blockAssignments.some((b) => b.blocker === perm.iid)) return 'blocking';
@@ -3545,7 +3688,11 @@ export class DuelScene extends Phaser.Scene {
         if (this.motionLevel() === 'full' && view.active) {
           this.tweens.killTweensOf(view);
           this.tweens.add({
-            targets: view, y: view.y - 18, alpha: 0, duration: 150, ease: 'Quad.easeIn',
+            targets: view,
+            y: view.y - 18,
+            alpha: 0,
+            duration: CARD_TRAVEL_MOTION.handExit.duration,
+            ease: CARD_TRAVEL_MOTION.handExit.ease,
             onComplete: () => { if (view.active) view.destroy(); },
             onStop: () => { if (view.active) view.destroy(); },
           });
@@ -3701,30 +3848,64 @@ export class DuelScene extends Phaser.Scene {
       this.renderedHand.push({ cardId, view });
       this.handPoses.set(handIdx, { x, y, scale, angle: slot.angleDeg });
       if (entered && this.motionLevel() === 'full') {
-        view.setPosition(LAYOUT.piles.x, LAYOUT.piles.deckY).setAlpha(0);
-        if (dot) dot.setAlpha(0);
-        // Input OFF until the card arrives: it spawns under the End Turn
-        // corner, and a pointerover there killed this tween mid-flight while
-        // the hover handlers only re-tween y/scale/angle — the card stranded
-        // under the right CTAs (user-reported 2026-07-10).
-        view.disableInput();
-        const arrive = (): void => {
-          if (view.active) {
-            view.setPosition(x, y).setScale(scale).setAngle(slot.angleDeg);
-            view.setAlpha(playable ? 1 : 0.75);
-            view.enableInput();
-          }
+        view.setAlpha(CARD_TRAVEL_MOTION.drawToHand.destinationPreviewAlpha);
+        if (dot) dot.setAlpha(CARD_TRAVEL_MOTION.drawToHand.destinationPreviewAlpha);
+        // The destination card stays interactive while a non-interactive
+        // ghost carries the longer deck-to-hand motion across the field.
+        const flight = new CardView(this, LAYOUT.piles.x, LAYOUT.piles.deckY)
+          .setScale(scale)
+          .setAngle(slot.angleDeg)
+          .setDepth(theme.depth.floats)
+          .setAlpha(0.96);
+        flight.setCard(d, {
+          fx: 'none',
+          variant: ownedVariant,
+          fullArt: ownedVariant?.fullArt === true,
+          landStyle,
+        });
+        this.playRevealGhosts.add(flight);
+        const cleanUpFlight = (): void => {
+          this.playRevealGhosts.delete(flight);
+          if (flight.active) flight.destroy();
         };
         this.tweens.add({
           // End at the playability alpha — a hardcoded 1 here lit unaffordable
           // draws as castable until the next sync (user-reported 2026-07-10).
-          targets: view, x, y, scaleX: scale, scaleY: scale, angle: slot.angleDeg,
+          targets: view,
           alpha: playable ? 1 : 0.75,
-          duration: 160, ease: 'Quad.easeOut',
-          onComplete: arrive,
-          onStop: arrive,
+          duration: CARD_TRAVEL_MOTION.drawToHand.duration,
+          ease: CARD_TRAVEL_MOTION.drawToHand.ease,
         });
-        if (dot) this.tweens.add({ targets: dot, alpha: 1, duration: 160, ease: 'Quad.easeOut' });
+        this.tweens.add({
+          targets: flight,
+          x,
+          y,
+          scaleX: scale,
+          scaleY: scale,
+          angle: slot.angleDeg,
+          duration: CARD_TRAVEL_MOTION.drawToHand.duration,
+          ease: CARD_TRAVEL_MOTION.drawToHand.ease,
+          onComplete: () => {
+            if (!flight.active) return;
+            this.tweens.add({
+              targets: flight,
+              alpha: 0,
+              duration: CARD_TRAVEL_MOTION.arrivalFade.duration,
+              ease: CARD_TRAVEL_MOTION.arrivalFade.ease,
+              onComplete: cleanUpFlight,
+              onStop: cleanUpFlight,
+            });
+          },
+          onStop: cleanUpFlight,
+        });
+        if (dot) {
+          this.tweens.add({
+            targets: dot,
+            alpha: 1,
+            duration: CARD_TRAVEL_MOTION.drawToHand.duration,
+            ease: CARD_TRAVEL_MOTION.drawToHand.ease,
+          });
+        }
       }
     });
     this.previousHand = [...hand];
@@ -3757,6 +3938,8 @@ export class DuelScene extends Phaser.Scene {
       this.setSmartAffordance('pass', true);
       return;
     }
+    let danger = false;
+    let armed = false;
     switch (a.kind) {
       case 'main':
         showButton(this.duel.state.step === 'main1' ? 'To Combat' : 'Pass ▶');
@@ -3771,9 +3954,29 @@ export class DuelScene extends Phaser.Scene {
       case 'declareAttackers':
         showButton(this.selectedAttackers.size > 0 ? `Attack (${this.selectedAttackers.size})` : 'Skip Combat');
         break;
-      case 'declareBlockers':
-        showButton(`Confirm Blocks (${this.blockAssignments.length})`);
+      case 'declareBlockers': {
+        if (this.blockAssignments.length > 0) {
+          this.clearNoBlockArm();
+          showButton(`Confirm Blocks (${this.blockAssignments.length})`);
+          break;
+        }
+        const emptyBlock = this.emptyBlockSummary();
+        if (!emptyBlock) {
+          this.clearNoBlockArm();
+          showButton('Confirm Blocks (0)');
+          break;
+        }
+        const requiresConfirmation = this.shouldArmNoBlock(emptyBlock.lethal);
+        if (!requiresConfirmation) this.clearNoBlockArm();
+        armed = requiresConfirmation && this.noBlockArmed;
+        danger = true;
+        showButton(
+          armed
+            ? emptyBlock.lethal ? 'Confirm: lethal' : 'Confirm: no blocks'
+            : `No Blocks - Take ${emptyBlock.damage}`,
+        );
         break;
+      }
       case 'respond':
       case 'endStepWindow':
         showButton('Pass');
@@ -3784,15 +3987,24 @@ export class DuelScene extends Phaser.Scene {
     this.setSmartAffordance(
       a.kind === 'declareAttackers' || a.kind === 'declareBlockers' ? 'confirm' : 'pass',
       true,
+      danger,
+      armed,
     );
   }
 
-  private setSmartAffordance(kind: 'confirm' | 'pass', actionable: boolean): void {
+  private setSmartAffordance(
+    kind: 'confirm' | 'pass',
+    actionable: boolean,
+    danger = false,
+    armed = false,
+  ): void {
     this.tweens.killTweensOf(this.passArc);
     const locked = this.time.now - this.lastAutoSkipAt < AUTOSKIP_INPUT_LOCK_MS;
-    const breathing = actionable && !locked && kind === 'confirm' && this.motionLevel() === 'full';
-    const color = breathing ? colorInt(theme.colors.gold) : colorInt(theme.colors.muted);
-    this.passArc.setStrokeStyle(2.5, color, breathing ? 0.92 : 0.55);
+    const breathing = actionable && !locked && kind === 'confirm' && !danger && this.motionLevel() === 'full';
+    const color = danger
+      ? colorInt(theme.colors.dangerArmed)
+      : breathing ? colorInt(theme.colors.gold) : colorInt(theme.colors.muted);
+    this.passArc.setStrokeStyle(armed ? 4 : 2.5, color, danger ? 0.92 : breathing ? 0.92 : 0.55);
     if (breathing) {
       this.tweens.add({
         targets: this.passArc,
@@ -3803,6 +4015,38 @@ export class DuelScene extends Phaser.Scene {
         ease: 'Sine.easeInOut',
       });
     }
+  }
+
+  /** Empty blocking is only special when the player could legally block. */
+  private emptyBlockSummary(): { damage: number; lethal: boolean } | null {
+    const a = this.duel.awaiting;
+    const st = this.duel.state;
+    if (a.kind !== 'declareBlockers' || !st.combat || this.blockAssignments.length > 0) return null;
+    if (blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat).length === 0) return null;
+    const preview = previewCombat(st, CARD_DB, []);
+    return { damage: -preview.lifeDelta[HUMAN], lethal: preview.defenderLethal };
+  }
+
+  private shouldArmNoBlock(lethal: boolean): boolean {
+    const setting = Services.save.data.settings.confirmNoBlock;
+    return setting === 'always' || (setting === 'lethal' && lethal);
+  }
+
+  private clearNoBlockArm(): void {
+    this.noBlockArmTimer?.remove();
+    this.noBlockArmTimer = null;
+    this.noBlockArmed = false;
+  }
+
+  private armNoBlock(): void {
+    this.clearNoBlockArm();
+    this.noBlockArmed = true;
+    Sfx.play('warn');
+    this.noBlockArmTimer = this.time.delayedCall(2500, () => {
+      this.noBlockArmTimer = null;
+      this.noBlockArmed = false;
+      if (this.passArc.active && !this.ended) this.syncButton();
+    });
   }
 
   private drawArrows(): void {
@@ -3825,6 +4069,7 @@ export class DuelScene extends Phaser.Scene {
         }
       }
     }
+    this.drawStackTargetArrows();
     // Cast-targeting arrow (desktop hover): from the hand-rest anchor to the
     // pointer, snapping to the closest legal target so burn-face vs burn-creature
     // intent is unmistakable. Touch resolves targets by direct tap — no hover.
@@ -3834,6 +4079,23 @@ export class DuelScene extends Phaser.Scene {
       const { x: sx, y: sy } = TARGET_ARROW_SRC;
       this.drawCurvedArrow(sx, sy, tip.x, tip.y, TARGET_ARROW_COLOR, 0.95);
       // Arrowhead — two short strokes back from the tip along the shaft angle.
+    }
+  }
+
+  /** Stack targets reuse the arrow shaft but key their colour to the target controller. */
+  private drawStackTargetArrows(): void {
+    for (const item of this.duel.state.stack) {
+      const from = this.stackDisplay.itemCenter(item.sid);
+      if (!from) continue;
+      for (const target of item.targets) {
+        if (target.kind !== 'permanent' && target.kind !== 'player') continue;
+        const controller = target.kind === 'player'
+          ? target.player
+          : this.duel.state.battlefield.find((perm) => perm.iid === target.iid)?.controller;
+        if (controller === undefined) continue;
+        const to = this.hitTargetPos(target);
+        this.drawCurvedArrow(from.x, from.y, to.x, to.y, colorInt(this.targetRingColor(controller)), 0.82);
+      }
     }
   }
 
@@ -3895,6 +4157,13 @@ export class DuelScene extends Phaser.Scene {
           this.showSkipNotice(`${short} can only be blocked by two or more creatures.`);
           break;
         }
+        const emptyBlock = this.emptyBlockSummary();
+        if (emptyBlock && this.shouldArmNoBlock(emptyBlock.lethal) && !this.noBlockArmed) {
+          this.armNoBlock();
+          this.syncButton();
+          break;
+        }
+        this.clearNoBlockArm();
         this.act({ type: 'declareBlockers', blocks: [...this.blockAssignments] });
         break;
       }
@@ -5499,7 +5768,9 @@ export class DuelScene extends Phaser.Scene {
     const today = todayString();
     const reward = applyMatchResult(save, this.difficulty, won, today, this.duel.state.turn);
     const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
+    const checkpoint = checkpointAchievements(save, CARD_DB);
     Services.save.flush();
+    if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
     Music.duck(1.8); // let the sting read clearly over the bed
     Sfx.play(won ? 'win' : 'loss');
 
@@ -5584,7 +5855,9 @@ export class DuelScene extends Phaser.Scene {
     const today = todayString();
     const reward = applyLimitedMatchResult(save, this.difficulty, won, today, this.myDeckColorStyle);
     const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
+    const checkpoint = checkpointAchievements(save, CARD_DB);
     Services.save.flush();
+    if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
     Music.duck(1.8);
     Sfx.play(won ? (reward.runOver && reward.wins === 3 ? 'win' : 'rungClear') : 'loss');
 
@@ -5706,7 +5979,9 @@ export class DuelScene extends Phaser.Scene {
       this.myDeckColorStyle === 'mono' ? 'monoColor' : this.myDeckColorStyle === 'dual' ? 'dualColor' : undefined,
     );
     const streak = won ? recordDailyWin(save, today) : { advanced: false, count: save.daily.streak.count, gold: 0 };
+    const checkpoint = checkpointAchievements(save, CARD_DB);
     Services.save.flush();
+    if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
     // Full clear earns the fanfare; an ordinary rung gets its own short motif.
     Music.duck(1.8);
     Sfx.play(reward.completed ? 'win' : won ? 'rungClear' : 'loss');
