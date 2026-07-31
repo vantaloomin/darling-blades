@@ -21,6 +21,16 @@
 > a 9-config finalist sweep at 6 seeds × 75 days; harness committed as
 > `scripts/tuning-sweep.ts`, experiment knobs in the sim) and picked by the
 > user (2026-07-16, locked):
+
+> **Band metric change (2026-07-31):** Persona collection bands now use
+> absolute owned-unique card counts. Whole-pool percentages decayed whenever
+> a set shipped, forcing economically meaningless re-centres; a
+> reachable-relative denominator would still be the whole pool for seven of
+> ten mixed-buying personas. Fine edges were converted once as
+> `round(original percentage edge × 764 collectible cards)`; the CI-fast
+> coarse edge was re-derived from one foreground measurement. Fine bands stay
+> flag-only, the coarse band remains exit-affecting, and percent completion
+> remains a policy/display input only.
 >
 > 1. **Premium weekly allowance — 2 entries per UTC week**
 >    (`ECONOMY.premiumWeeklyCap`, `premiumEntryStatus` /
