@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { AIPlayer } from '../ai/AIPlayer';
 import { buildTierAI, floorTier } from '../ai/tiers';
 import { Music } from '../audio/music';
+import { selectDuelMood } from '../audio/musicPatterns';
 import { Sfx } from '../audio/sfx';
 import { buildAI } from '../ai/personality';
 import { ECONOMY, RULES, type ReserveFormat } from '../config/rules';
@@ -420,6 +421,8 @@ export class DuelScene extends Phaser.Scene {
   private previousLife: [number, number] | null = null;
   private previousPhaseRow: PhaseTrackRow | null = null;
   private forecastWasLethal = false;
+  /** Underlying life-driven tension survives a temporary lethal-visible bed. */
+  private duelTensionActive = false;
   /** Empty-block confirmation is scene-local and never changes the submitted action. */
   private noBlockArmed = false;
   private noBlockArmTimer: Phaser.Time.TimerEvent | null = null;
@@ -532,6 +535,7 @@ export class DuelScene extends Phaser.Scene {
     this.previousLife = null;
     this.previousPhaseRow = null;
     this.forecastWasLethal = false;
+    this.duelTensionActive = false;
     this.noBlockArmTimer?.remove();
     this.noBlockArmTimer = null;
     this.noBlockArmed = false;
@@ -1751,6 +1755,7 @@ export class DuelScene extends Phaser.Scene {
     if (a.kind !== 'declareBlockers' || !('player' in a) || a.player !== HUMAN || !st.combat) {
       this.combatPreviewText.setVisible(false);
       this.forecastWasLethal = false;
+      this.syncDuelMusicMood(false);
       return;
     }
     const preview = previewCombat(st, CARD_DB, this.blockAssignments);
@@ -1782,6 +1787,26 @@ export class DuelScene extends Phaser.Scene {
       });
     }
     this.forecastWasLethal = lethal;
+    this.syncDuelMusicMood(lethal);
+  }
+
+  /**
+   * The existing declarative board sync is the music trigger seam: no polling
+   * loop, and no engine state change. The forecast's lethal result overrides
+   * the life mood only while declareBlockers exposes it.
+   */
+  private syncDuelMusicMood(lethalVisible: boolean): void {
+    if (this.ended) return;
+    const st = this.duel.state;
+    const selection = selectDuelMood({
+      humanLife: st.players[HUMAN].life,
+      opponentLife: st.players[AI].life,
+      startingLife: RULES.startingLife,
+      tensionActive: this.duelTensionActive,
+      lethalVisible,
+    });
+    this.duelTensionActive = selection.tensionActive;
+    Music.setMood(selection.mood);
   }
 
   private pulseLife(text: Phaser.GameObjects.Text, delta: number, baseColor: string): void {
@@ -2252,7 +2277,7 @@ export class DuelScene extends Phaser.Scene {
         this.showTurnBanner(e.turn, e.player === HUMAN);
         // A human who starts is already looking at their opening board while it
         // settles on turn 1. Skip that redundant cue; turn 2+ handoffs chime.
-        if (e.player === HUMAN && e.turn > 1) Sfx.play('yourTurn');
+        if (!this.replayMode && e.player === HUMAN && e.turn > 1) Sfx.play('yourTurn');
         break;
       case 'mulliganTaken':
         if (e.player === AI) this.log('Opponent takes a mulligan');
