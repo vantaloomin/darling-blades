@@ -441,9 +441,13 @@ export interface Avatar {
  * classic-pool change may be justified by these numbers per
  * docs/plan-battle-box.md).
  *
- * LOSSLESSNESS (the reveal gate's primary result): across both formats
- * 5,000 of 5,000 games decided, 0 turn-limit draws, 0 engine exceptions.
- * No seed produced a stuck or dead game state.
+ * LOSSLESSNESS (the reveal gate's primary result): 0 engine exceptions
+ * across all 5,000 games - no seed produced a stuck or dead game state.
+ * Warchest decided 2,000/2,000 with 0 draws. Darlings at the 80-card
+ * size decided 2,972/3,000 with 28 turn-limit draws (0.93%),
+ * concentrated in Athena's grindiest cells (+23d) - a property of
+ * 80-card singleton attrition games, worth watching at reveal, not an
+ * engine fault.
  *
  * Warchest (--warchest, 200 seeds/cell, 2,000 games, neutral hard,
  * starter-derived playset fleet): Crimson 63.9, Burning 60.0, Grave 44.1,
@@ -451,12 +455,16 @@ export interface Avatar {
  * (Burning vs Shadow); coherent field, no degenerate matchup.
  *
  * Darlings (--darlings, 200 seeds/cell, 3,000 games, neutral hard,
- * curve-greedy singleton fleet per color spread): Ares [R] 76.1,
- * Gaia [G] 72.1, Dian Wei [B] 58.2, Athena [W] 48.0, Ghost-Net
- * Archon [U] 23.5, Aphrodite [WU] 22.1. The wide spread is a property
- * of the greedy cheapest-first fixtures (mono-R aggro naturally tops
- * it), not a roster claim - the curated rival ladder stays unpromised
- * and would need its own measured baseline.
+ * curve-greedy singleton fleet per color spread, AT THE OWNER-LOCKED
+ * 80-CARD SIZE): Gaia [G] 74.4, Ares [R] 69.1, Dian Wei [B] 57.0,
+ * Athena [W] 50.5, Ghost-Net Archon [U] 29.3, Aphrodite [WU] 19.7.
+ * The wide spread is a property of the greedy cheapest-first fixtures,
+ * not a roster claim - the curated rival ladder stays unpromised and
+ * would need its own measured baseline. (History: the same fleets at
+ * the superseded 50-card size measured Ares 76.1 / Gaia 72.1 /
+ * Dian Wei 58.2 / Athena 48.0 / Ghost-Net 23.5 / Aphrodite 22.1 with
+ * 3,000/3,000 decided - the size change flipped the top two: bigger
+ * singleton decks reward Gaia's attrition over Ares' cheap aggro.)
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------

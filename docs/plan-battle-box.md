@@ -166,8 +166,10 @@ npx tsx scripts/balance-matrix.ts --floors --seeds 80
 (`--warchest` / `--darlings` in `scripts/balance-matrix.ts`, deterministic
 validator-gated fixture fleets in `scripts/reserveMatrixDecks.ts`) and the
 dated 200-seed baselines live in `src/data/opponents.ts`. Losslessness:
-5,000/5,000 games decided, 0 draws, 0 engine exceptions across both
-formats. A curated-roster matrix remains future work. Consistency is a
+0 engine exceptions across all 5,000 games; Warchest decided 2,000/2,000
+with 0 draws; Darlings at the 80-card size decided 2,972/3,000 with 28
+turn-limit draws (0.93%, concentrated in the grindiest control cells; a
+property of 80-card singleton attrition, watched at reveal). A curated-roster matrix remains future work. Consistency is a
 large power-level change by construction; no classic-pool card changes may
 be justified by reserve-format results.
 
