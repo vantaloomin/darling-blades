@@ -258,7 +258,7 @@ export class DuelScene extends Phaser.Scene {
   private reserveFormatsEnabled = false;
   private replayOutcomeShell: ModalShell | null = null;
   private undoBtn!: Phaser.GameObjects.Text;
-  /** Live combat-damage forecast shown while you assign blocks (F12). */
+  /** Always-on combat ledger shown while you assign blocks. */
   private combatPreviewText!: Phaser.GameObjects.Text;
   private ai!: AIPlayer;
   private difficulty: Difficulty = 'easy';
@@ -420,6 +420,11 @@ export class DuelScene extends Phaser.Scene {
   private previousLife: [number, number] | null = null;
   private previousPhaseRow: PhaseTrackRow | null = null;
   private forecastWasLethal = false;
+  /** Empty-block confirmation is scene-local and never changes the submitted action. */
+  private noBlockArmed = false;
+  private noBlockArmTimer: Phaser.Time.TimerEvent | null = null;
+  /** Clear the no-block arm when a decision kind changes, before stale input can land. */
+  private lastAwaitingKind: string | null = null;
   /** The off-motion fallback still briefly reveals opponent casts. */
   private oppCastReveal?: Phaser.GameObjects.Container;
   private pendingPlayReveals: PlayReveal[] = [];
@@ -527,6 +532,10 @@ export class DuelScene extends Phaser.Scene {
     this.previousLife = null;
     this.previousPhaseRow = null;
     this.forecastWasLethal = false;
+    this.noBlockArmTimer?.remove();
+    this.noBlockArmTimer = null;
+    this.noBlockArmed = false;
+    this.lastAwaitingKind = null;
     this.selectedAttackers = new Set();
     this.blockAssignments = [];
     this.pendingBlocker = null;
@@ -1367,7 +1376,7 @@ export class DuelScene extends Phaser.Scene {
     });
     inflateHitArea(this.undoBtn, 90, 90);
 
-    // Combat forecast (F12): the 12px caption plus 4px total vertical
+    // Always-on combat ledger: the 12px caption plus 4px total vertical
     // padding is centered in the 34px gap between the creature tile bounds.
     // Even the 1.1x lethal pulse stays between opponent y=285 and player y=319.
     this.combatPreviewText = this.add
@@ -1735,7 +1744,7 @@ export class DuelScene extends Phaser.Scene {
     );
   }
 
-  /** F12: live combat-damage forecast while you assign blocks (you are defending). */
+  /** Live combat ledger while you assign blocks (you are defending). */
   private syncCombatPreview(): void {
     const st = this.duel.state;
     const a = this.duel.awaiting;
@@ -1746,13 +1755,15 @@ export class DuelScene extends Phaser.Scene {
     }
     const preview = previewCombat(st, CARD_DB, this.blockAssignments);
     const dmg = -preview.lifeDelta[HUMAN];
-    const yoursDie = preview.deaths.filter(
-      (iid) => st.battlefield.find((p) => p.iid === iid)?.controller === HUMAN,
-    ).length;
-    const theirsDie = preview.deaths.length - yoursDie;
     const lethal = preview.defenderLethal;
     this.combatPreviewText
-      .setText(combatForecastCopy({ damage: dmg, enemyDeaths: theirsDie, yourDeaths: yoursDie, lethal }))
+      .setText(combatForecastCopy({
+        attackers: st.combat.attackers.length,
+        damage: dmg,
+        lifeBefore: st.players[HUMAN].life,
+        lifeAfter: st.players[HUMAN].life - dmg,
+        lethal,
+      }))
       .setColor(lethal ? theme.colors.dangerArmed : theme.colors.body)
       .setVisible(true);
     if (lethal && !this.forecastWasLethal && this.motionLevel() !== 'off') {
@@ -1942,6 +1953,7 @@ export class DuelScene extends Phaser.Scene {
       // flight for the pre-hop decision) is swallowed rather than applied to
       // the decision this skip is about to advance into.
       this.lastAutoSkipAt = this.time.now;
+      this.clearNoBlockArm();
       this.act(forced); // act() re-runs maybeAutoSkip: chains continue hop by hop
     });
   }
@@ -2802,6 +2814,9 @@ export class DuelScene extends Phaser.Scene {
 
   private sync(): void {
     if (this.replayMode) this.replayGuard.close();
+    const awaitingKind = this.duel.awaiting.kind;
+    if (this.lastAwaitingKind !== null && this.lastAwaitingKind !== awaitingKind) this.clearNoBlockArm();
+    this.lastAwaitingKind = awaitingKind;
     // A board rebuild invalidates every source position from a hover plan.
     this.clearManaPlanPreview();
     const st = this.duel.state;
@@ -3757,6 +3772,8 @@ export class DuelScene extends Phaser.Scene {
       this.setSmartAffordance('pass', true);
       return;
     }
+    let danger = false;
+    let armed = false;
     switch (a.kind) {
       case 'main':
         showButton(this.duel.state.step === 'main1' ? 'To Combat' : 'Pass ▶');
@@ -3771,9 +3788,29 @@ export class DuelScene extends Phaser.Scene {
       case 'declareAttackers':
         showButton(this.selectedAttackers.size > 0 ? `Attack (${this.selectedAttackers.size})` : 'Skip Combat');
         break;
-      case 'declareBlockers':
-        showButton(`Confirm Blocks (${this.blockAssignments.length})`);
+      case 'declareBlockers': {
+        if (this.blockAssignments.length > 0) {
+          this.clearNoBlockArm();
+          showButton(`Confirm Blocks (${this.blockAssignments.length})`);
+          break;
+        }
+        const emptyBlock = this.emptyBlockSummary();
+        if (!emptyBlock) {
+          this.clearNoBlockArm();
+          showButton('Confirm Blocks (0)');
+          break;
+        }
+        const requiresConfirmation = this.shouldArmNoBlock(emptyBlock.lethal);
+        if (!requiresConfirmation) this.clearNoBlockArm();
+        armed = requiresConfirmation && this.noBlockArmed;
+        danger = true;
+        showButton(
+          armed
+            ? emptyBlock.lethal ? 'Confirm: lethal' : 'Confirm: no blocks'
+            : `No Blocks - Take ${emptyBlock.damage}`,
+        );
         break;
+      }
       case 'respond':
       case 'endStepWindow':
         showButton('Pass');
@@ -3784,15 +3821,24 @@ export class DuelScene extends Phaser.Scene {
     this.setSmartAffordance(
       a.kind === 'declareAttackers' || a.kind === 'declareBlockers' ? 'confirm' : 'pass',
       true,
+      danger,
+      armed,
     );
   }
 
-  private setSmartAffordance(kind: 'confirm' | 'pass', actionable: boolean): void {
+  private setSmartAffordance(
+    kind: 'confirm' | 'pass',
+    actionable: boolean,
+    danger = false,
+    armed = false,
+  ): void {
     this.tweens.killTweensOf(this.passArc);
     const locked = this.time.now - this.lastAutoSkipAt < AUTOSKIP_INPUT_LOCK_MS;
-    const breathing = actionable && !locked && kind === 'confirm' && this.motionLevel() === 'full';
-    const color = breathing ? colorInt(theme.colors.gold) : colorInt(theme.colors.muted);
-    this.passArc.setStrokeStyle(2.5, color, breathing ? 0.92 : 0.55);
+    const breathing = actionable && !locked && kind === 'confirm' && !danger && this.motionLevel() === 'full';
+    const color = danger
+      ? colorInt(theme.colors.dangerArmed)
+      : breathing ? colorInt(theme.colors.gold) : colorInt(theme.colors.muted);
+    this.passArc.setStrokeStyle(armed ? 4 : 2.5, color, danger ? 0.92 : breathing ? 0.92 : 0.55);
     if (breathing) {
       this.tweens.add({
         targets: this.passArc,
@@ -3803,6 +3849,38 @@ export class DuelScene extends Phaser.Scene {
         ease: 'Sine.easeInOut',
       });
     }
+  }
+
+  /** Empty blocking is only special when the player could legally block. */
+  private emptyBlockSummary(): { damage: number; lethal: boolean } | null {
+    const a = this.duel.awaiting;
+    const st = this.duel.state;
+    if (a.kind !== 'declareBlockers' || !st.combat || this.blockAssignments.length > 0) return null;
+    if (blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat).length === 0) return null;
+    const preview = previewCombat(st, CARD_DB, []);
+    return { damage: -preview.lifeDelta[HUMAN], lethal: preview.defenderLethal };
+  }
+
+  private shouldArmNoBlock(lethal: boolean): boolean {
+    const setting = Services.save.data.settings.confirmNoBlock;
+    return setting === 'always' || (setting === 'lethal' && lethal);
+  }
+
+  private clearNoBlockArm(): void {
+    this.noBlockArmTimer?.remove();
+    this.noBlockArmTimer = null;
+    this.noBlockArmed = false;
+  }
+
+  private armNoBlock(): void {
+    this.clearNoBlockArm();
+    this.noBlockArmed = true;
+    Sfx.play('warn');
+    this.noBlockArmTimer = this.time.delayedCall(2500, () => {
+      this.noBlockArmTimer = null;
+      this.noBlockArmed = false;
+      if (this.passArc.active && !this.ended) this.syncButton();
+    });
   }
 
   private drawArrows(): void {
@@ -3895,6 +3973,13 @@ export class DuelScene extends Phaser.Scene {
           this.showSkipNotice(`${short} can only be blocked by two or more creatures.`);
           break;
         }
+        const emptyBlock = this.emptyBlockSummary();
+        if (emptyBlock && this.shouldArmNoBlock(emptyBlock.lethal) && !this.noBlockArmed) {
+          this.armNoBlock();
+          this.syncButton();
+          break;
+        }
+        this.clearNoBlockArm();
         this.act({ type: 'declareBlockers', blocks: [...this.blockAssignments] });
         break;
       }

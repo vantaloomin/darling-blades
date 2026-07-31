@@ -4,7 +4,7 @@ import type { GameState } from '../../src/engine/types';
 import { makeTestState, TEST_DB } from '../helpers';
 
 /**
- * F12 combat forecast: previewCombat runs the real resolveCombatDamage on a
+ * Combat forecast: previewCombat runs the real resolveCombatDamage on a
  * clone, so these golden outcomes double as a check that first-strike ordering,
  * deathtouch, trample, and lethal auto-assignment predict the true result.
  * Player 0 is the (active) attacker; player 1 defends.

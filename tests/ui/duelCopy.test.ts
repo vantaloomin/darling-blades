@@ -7,14 +7,10 @@ import {
 
 describe('Duel player-facing copy', () => {
   it.each([
-    [{ damage: 0, enemyDeaths: 0, yourDeaths: 0, lethal: false }, '⚔ Forecast: no damage to you'],
-    [{ damage: 0, enemyDeaths: 1, yourDeaths: 0, lethal: false }, '⚔ Forecast: no damage to you · 1 enemy dies'],
-    [{ damage: 0, enemyDeaths: 2, yourDeaths: 0, lethal: false }, '⚔ Forecast: no damage to you · 2 enemies die'],
-    [{ damage: 0, enemyDeaths: 0, yourDeaths: 1, lethal: false }, '⚔ Forecast: no damage to you · 1 of yours dies'],
-    [{ damage: 0, enemyDeaths: 0, yourDeaths: 2, lethal: false }, '⚔ Forecast: no damage to you · 2 of yours die'],
-    [{ damage: 3, enemyDeaths: 1, yourDeaths: 2, lethal: false }, '⚔ Forecast: you take 3 · 1 enemy dies · 2 of yours die'],
-    [{ damage: 5, enemyDeaths: 1, yourDeaths: 1, lethal: true }, '⚠ LETHAL: you take 5 · 1 enemy dies · 1 of yours dies'],
-  ])('formats forecast counts %#', (input, expected) => {
+    [{ attackers: 1, damage: 0, lifeBefore: 8, lifeAfter: 8, lethal: false }, '⚔ 1 attacker · Incoming 0 · Life 8 → 8'],
+    [{ attackers: 2, damage: 3, lifeBefore: 8, lifeAfter: 5, lethal: false }, '⚔ 2 attackers · Incoming 3 · Life 8 → 5'],
+    [{ attackers: 3, damage: 5, lifeBefore: 5, lifeAfter: 0, lethal: true }, '⚠ LETHAL · 3 attackers · Incoming 5 · Life 5 → 0'],
+  ])('formats the live combat ledger %#', (input, expected) => {
     expect(combatForecastCopy(input)).toBe(expected);
   });
 
@@ -33,7 +29,7 @@ describe('Duel player-facing copy', () => {
 
   it('never uses em-dashes in mapped player copy', () => {
     const copy = [
-      combatForecastCopy({ damage: 2, enemyDeaths: 2, yourDeaths: 1, lethal: true }),
+      combatForecastCopy({ attackers: 2, damage: 2, lifeBefore: 4, lifeAfter: 2, lethal: false }),
       ...['life', 'deck', 'concede', 'turnLimit'].flatMap((reason) => [
         resultReasonCopy(true, reason),
         resultReasonCopy(false, reason),

@@ -87,6 +87,7 @@ function codeForRaw(raw: Record<string, unknown>): string {
 function currentVersionFixture(version: number): Record<string, unknown> {
   const save = currentFixture() as unknown as Record<string, unknown>;
   save.version = version;
+  if (version < 24) delete (save.settings as Record<string, unknown>).confirmNoBlock;
   if (version < 23) {
     const decks = save.decks as Array<Record<string, unknown>>;
     for (const deck of decks) {
@@ -149,7 +150,7 @@ function expectOk(result: SaveCodeDecodeResult): Extract<SaveCodeDecodeResult, {
 }
 
 describe('SaveCode', () => {
-  it('round-trips a normalized v23 save with deep equality', () => {
+  it('round-trips a normalized current save with deep equality', () => {
     const save = currentFixture();
     expect(save.version).toBe(CURRENT_SAVE_VERSION);
     const decoded = expectOk(decode(encode(save, { includeReplays: true })));
