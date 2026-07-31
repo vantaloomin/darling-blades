@@ -120,17 +120,20 @@ function fillToPlayset(
       .filter((card) => isEligibleSpell(card) && containsOnlyColors(card, colors))
       .map((card) => card.id),
   ).filter((id) => !sourceOrder.includes(id));
-  const fillOrder = [...sourceOrder, ...catalogOrder];
-
-  while (cards.length < 50) {
-    let added = false;
-    for (const id of fillOrder) {
-      if (cards.length === 50) break;
-      added = add(id) || added;
-    }
-    if (!added) {
-      throw new Error(`Reserve matrix could not derive 50 Warchest spells for colors ${colors.join('')}`);
-    }
+  // Depth-first: raise every source card to a full playset in source order,
+  // so the deck keeps the starter's shape. Only then top off with catalog
+  // SINGLETONS in curve-then-id order (singletons spread the fill instead of
+  // stacking four copies of the cheapest catalog card).
+  for (const id of sourceOrder) {
+    while (cards.length < 50 && add(id)) { /* raise to playset */ }
+    if (cards.length === 50) break;
+  }
+  for (const id of catalogOrder) {
+    if (cards.length === 50) break;
+    add(id);
+  }
+  if (cards.length < 50) {
+    throw new Error(`Reserve matrix could not derive 50 Warchest spells for colors ${colors.join('')}`);
   }
   return cards;
 }
@@ -175,8 +178,9 @@ function assertLegal(name: string, issues: readonly { message: string }[]): void
  * Build the compact matrix fields.
  *
  * Warchest uses the five starter decks as source material: retain their legal
- * nonlands, then raise them to playsets in source order before taking
- * curve-and-id catalog fills inside the source colors. Darlings picks the
+ * nonlands, raise each retained card to a full playset in source order
+ * (depth-first), and only then top off with catalog singletons in
+ * curve-then-id order inside the source colors. Darlings picks the
  * alphabetically first owned legendary creature for W, U, B, R, G, and W/U,
  * then takes the first 49 legal singleton spells in curve-and-id order.
  */
