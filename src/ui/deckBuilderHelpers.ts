@@ -1,4 +1,5 @@
 import { ownedCount, ownedVariants } from '../meta/Collection';
+import { BATTLE_BOX_DECK_SIZE, DARLINGS_DECK_SIZE } from '../meta/battleBox';
 import { ownedVariantEntries, variantLabel } from '../meta/collectionFilter';
 import type { SavedDeck } from '../meta/SaveManager';
 import { variantKey, type CardVariant } from '../meta/variants';
@@ -70,7 +71,7 @@ export const BATTLE_BOX_RULES_COPY =
   'Build your land reserve: 10 lands, up to 5 dual lands. Each turn you choose which land to play. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your reserve.';
 
 export const DARLINGS_RULES_COPY =
-  'Choose your Darling. Build a 50-card deck in her colors, one copy of each card, and a land reserve of 10. Your Darling begins in your deck and follows the same rules as every other card.';
+  'Choose your Darling. Build an 80-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Your Darling begins in your deck and follows the same rules as every other card.';
 
 export function formatLabel(format: BuilderFormat): string {
   if (format === 'darlings') return 'Darlings';
@@ -79,7 +80,9 @@ export function formatLabel(format: BuilderFormat): string {
 }
 
 export function formatDeckSize(format: BuilderFormat): number {
-  return format === 'constructed' ? 60 : 50;
+  if (format === 'darlings') return DARLINGS_DECK_SIZE;
+  if (format === 'battlebox') return BATTLE_BOX_DECK_SIZE;
+  return 60;
 }
 
 export function formatRulesCopy(format: BuilderFormat): string | null {

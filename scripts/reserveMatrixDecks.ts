@@ -9,7 +9,7 @@
 import { CARD_DB } from '../src/data/catalog';
 import { STARTER_DECKS, type DeckList } from '../src/data/starterDecks';
 import type { CardDb, CardDef, Color } from '../src/engine/types';
-import { hasLandFetchBehavior, isBasicLand, isDualLand } from '../src/meta/battleBox';
+import { DARLINGS_DECK_SIZE, hasLandFetchBehavior, isBasicLand, isDualLand } from '../src/meta/battleBox';
 import { validateBattleBoxDeck, validateDarlingsDeck } from '../src/meta/darlings';
 import { freshSave, type SaveData } from '../src/meta/SaveManager';
 
@@ -162,10 +162,10 @@ function darlingsDeck(darling: CardDef, db: CardDb): string[] {
       .filter((card) => card.id !== darling.id && isEligibleSpell(card) && containsOnlyColors(card, darling.colors))
       .map((card) => card.id),
   );
-  if (candidates.length < 49) {
-    throw new Error(`Reserve matrix could not derive 49 singleton spells for ${darling.name}`);
+  if (candidates.length < DARLINGS_DECK_SIZE - 1) {
+    throw new Error(`Reserve matrix could not derive ${DARLINGS_DECK_SIZE - 1} singleton spells for ${darling.name}`);
   }
-  return [darling.id, ...candidates.slice(0, 49)];
+  return [darling.id, ...candidates.slice(0, DARLINGS_DECK_SIZE - 1)];
 }
 
 function assertLegal(name: string, issues: readonly { message: string }[]): void {
@@ -182,7 +182,7 @@ function assertLegal(name: string, issues: readonly { message: string }[]): void
  * (depth-first), and only then top off with catalog singletons in
  * curve-then-id order inside the source colors. Darlings picks the
  * alphabetically first owned legendary creature for W, U, B, R, G, and W/U,
- * then takes the first 49 legal singleton spells in curve-and-id order.
+ * then takes the first 79 legal singleton spells in curve-and-id order.
  */
 export function buildReserveMatrixFleets(db: CardDb = CARD_DB): ReserveMatrixFleets {
   const save = buildReserveMatrixFullOwnershipSave(db);

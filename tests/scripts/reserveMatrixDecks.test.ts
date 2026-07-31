@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
-import { isDualLand } from '../../src/meta/battleBox';
+import { BATTLE_BOX_DECK_SIZE, DARLINGS_DECK_SIZE, isDualLand } from '../../src/meta/battleBox';
 import { validateBattleBoxDeck, validateDarlingsDeck } from '../../src/meta/darlings';
 import {
   buildReserveMatrixFleets,
@@ -31,15 +31,15 @@ describe('reserve matrix deck derivation', () => {
     ]);
 
     for (const deck of first.warchest) {
-      expect(deck.cards).toHaveLength(50);
+      expect(deck.cards).toHaveLength(BATTLE_BOX_DECK_SIZE);
       expect(deck.landReserve).toHaveLength(10);
       expect(deck.landReserve.filter((id) => isDualLand(CARD_DB[id])).length).toBeLessThanOrEqual(5);
       expect(validateBattleBoxDeck(CARD_DB, save, deck.cards, deck.landReserve)).toEqual([]);
     }
 
     for (const deck of first.darlings) {
-      expect(deck.cards).toHaveLength(50);
-      expect(new Set(deck.cards)).toHaveLength(50);
+      expect(deck.cards).toHaveLength(DARLINGS_DECK_SIZE);
+      expect(new Set(deck.cards)).toHaveLength(DARLINGS_DECK_SIZE);
       expect(deck.landReserve).toHaveLength(10);
       expect(deck.landReserve.filter((id) => isDualLand(CARD_DB[id])).length).toBeLessThanOrEqual(5);
       expect(validateDarlingsDeck(CARD_DB, save, deck.cards, deck.darlingId, deck.landReserve)).toEqual([]);

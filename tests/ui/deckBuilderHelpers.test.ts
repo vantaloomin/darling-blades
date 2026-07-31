@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { freshSave } from '../../src/meta/SaveManager';
+import { BATTLE_BOX_DECK_SIZE, DARLINGS_DECK_SIZE } from '../../src/meta/battleBox';
 import { variantKey } from '../../src/meta/variants';
 import { backLabelFor } from '../../src/ui/navigation';
 import {
   activeVisibleSavedDeck,
   BATTLE_BOX_RULES_COPY,
+  DARLINGS_RULES_COPY,
   builderFormatForDeck,
   isReplayVisible,
   isSavedDeckVisible,
@@ -34,11 +36,15 @@ describe('deck builder helpers', () => {
     expect(formatLabel('darlings')).toBe('Darlings');
     expect(formatLabel('battlebox')).toBe('Battle Box');
     expect(formatDeckSize('constructed')).toBe(60);
-    expect(formatDeckSize('darlings')).toBe(50);
-    expect(formatDeckSize('battlebox')).toBe(50);
+    expect(formatDeckSize('darlings')).toBe(DARLINGS_DECK_SIZE);
+    expect(formatDeckSize('battlebox')).toBe(BATTLE_BOX_DECK_SIZE);
     expect(formatGauntletUnavailableCopy('darlings')).toBe('Darlings decks are available in Practice only.');
     expect(formatGauntletUnavailableCopy('battlebox')).toBe('Battle Box decks are available in Practice only.');
     expect(BATTLE_BOX_RULES_COPY).not.toContain('\u2014');
+    expect(DARLINGS_RULES_COPY).toBe(
+      'Choose your Darling. Build an 80-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Your Darling begins in your deck and follows the same rules as every other card.',
+    );
+    expect(DARLINGS_RULES_COPY).not.toContain('\u2014');
   });
 
   it('offers only Constructed and hides saved reserve decks when the flag is off', () => {
