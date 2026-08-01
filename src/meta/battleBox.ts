@@ -5,6 +5,7 @@ import type { DeckIssue } from './DeckStorage';
 import type { SaveData } from './SaveManager';
 
 export const BATTLE_BOX_DECK_SIZE = 50;
+export const DARLINGS_DECK_SIZE = 80;
 export const LAND_RESERVE_SIZE = 10;
 export const MAX_DUAL_LANDS = 5;
 
@@ -83,13 +84,17 @@ export function validateLandReserve(
   return issues;
 }
 
-/** Validate the shared 50-card, all-spell shape used by reserve formats. */
-export function validateBattleBoxDeckShape(db: CardDb, cards: readonly string[]): DeckIssue[] {
+/** Validate an all-spell reserve-format deck shape at its format's required size. */
+export function validateBattleBoxDeckShape(
+  db: CardDb,
+  cards: readonly string[],
+  deckSize = BATTLE_BOX_DECK_SIZE,
+): DeckIssue[] {
   const issues: DeckIssue[] = [];
-  if (cards.length !== BATTLE_BOX_DECK_SIZE) {
+  if (cards.length !== deckSize) {
     issues.push({
       kind: 'error',
-      message: `Reserve-format decks need exactly ${BATTLE_BOX_DECK_SIZE} cards (currently ${cards.length})`,
+      message: `Reserve-format decks need exactly ${deckSize} cards (currently ${cards.length})`,
     });
   }
   if (cards.some((id) => db[id]?.types.includes('land'))) {

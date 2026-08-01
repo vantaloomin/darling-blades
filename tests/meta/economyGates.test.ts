@@ -118,6 +118,13 @@ describe('locked Layer-1 economy gates', () => {
     const bands = evaluateProgressionBands(report);
     expect(bands.violations).toEqual([]);
     expect(bands.coarse.every((band) => band.passed)).toBe(true);
+    expect(bands.coarse).toContainEqual(expect.objectContaining({
+      name: 'median day-7 owned uniques',
+      measured: 73.5,
+      min: 51,
+      max: 96,
+      passed: true,
+    }));
   // CI runners are 2-core and can contend with other simulation tests.
   }, 30_000);
 });

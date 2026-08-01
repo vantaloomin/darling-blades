@@ -67,17 +67,23 @@ reserve matrices, and the classic gates must stay green.
 - The curated Darlings rival ladder stays **explicitly not promised**
   (standing decision; player-built duels only).
 
-### 3 · collectionPct metric rework
+### 3 · Progression bands: absolute owned-unique cards
 
-Must land before any future set ships. Today `collectionPct` measures
-against the whole pool, so every persona decays mechanically with each
-set and the economy bands need re-centring every release for no economic
-reason (the 1.5 re-centre documented this; see the 2026-07-29 decision
-record). Rework to a **pool-relative (reachable-pool) or absolute-cards
-metric** — the concrete proposal is made against the simulator data and
-put to the owner before implementation. Bands are re-expressed once
-under the new metric with the standard flag-only semantics;
-`scripts/progression-sim.ts` and the checkers gate the landing.
+Must land before any future set ships. The owner selected **absolute
+owned-unique card counts on 2026-07-31**. The old whole-pool percentage
+decayed mechanically with every new set and forced economically meaningless
+band re-centres (including the 2026-07-29 re-centre). A reachable-relative
+percentage would not solve that problem: seven of ten personas are mixed
+buyers whose reachable pool is the whole pool.
+
+Fine bands convert once as `round(original percentage edge × 764
+collectible cards)`, preserving their historical tolerance to whole-card
+precision. The CI-fast coarse band is separately re-derived from its
+measurement. Fine bands remain flag-only and the coarse band remains the
+only exit-affecting band. `collectionPct` remains percent-based for policy
+inputs and informational completion display; it no longer decides persona
+band outcomes. Future sets leave the count bands untouched unless a measured
+flag or deliberate economy change warrants a re-centre.
 
 ### 4 · Riders
 
@@ -124,7 +130,8 @@ under the new metric with the standard flag-only semantics;
   em-dash; the owner approved the copy.
 - No internal id spells `battleBox` or `battlebox` after the collapse;
   v24 saves round-trip through v25 with formats intact.
-- collectionPct no longer decays mechanically with pool growth;
-  progression-sim and all checkers are green under the new metric.
+- Persona progression bands use absolute owned-unique counts and no longer
+  decay mechanically with pool growth; progression-sim and all checkers are
+  green under the new metric.
 - The six cards have approved art, smart-crops, and art-bible entries.
 - Classic constructed is untouched: avatar/floor gates green throughout.

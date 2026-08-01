@@ -5,8 +5,9 @@
 ## Goal
 
 Release 1.5 replaces drawn lands with a chosen land reserve in its two new
-formats. A deck in the Darlings or Battle Box format is 50 spells with zero
-in-deck lands; beside it the player builds a land reserve of exactly 10
+formats. A Warchest deck is 50 spells with zero in-deck lands; a Darlings
+deck is 80 cards including its Darling, also with zero in-deck lands. Beside
+each deck the player builds a land reserve of exactly 10
 lands with at most 5 dual lands. Each turn the ordinary land play instead
 chooses a land from the reserve. Mana screw and flood do not exist in these
 formats; every draw is action, and the 10-land cap bounds the top of the
@@ -29,9 +30,10 @@ specifies is unchanged and is the ratified 2.0 north star
 
 User decisions locked 2026-07-28 (do not relitigate without the user):
 
-- Deck size in reserve formats is **50 cards** (Darlings: including the
-  Darling; singleton for non-basics per plan-darlings.md. Battle Box:
-  ordinary Constructed copy limits).
+- Warchest deck size is **50 cards** with ordinary Constructed copy limits.
+- Darlings deck size is **80 cards including the Darling**, with singleton
+  non-basics per plan-darlings.md (re-locked 2026-07-31 at 80; the
+  2026-07-28 lock was 50).
 - The reserve is **per-deck and player-built** (not a fixed standard case).
 - **Destruction is asymmetric**: a destroyed dual land goes to the
   graveyard and is gone for the game; a destroyed basic land re-enters the
@@ -62,7 +64,8 @@ to the deck list:
 
 Legality is exact:
 
-- The deck is exactly 50 cards and contains no lands.
+- A Warchest deck is exactly 50 cards and contains no lands. A Darlings deck
+  is exactly 80 cards including the Darling and contains no lands.
 - The reserve is exactly 10 lands: basic lands and dual lands only, with
   at most 5 duals. Basics are ownership-free as everywhere; dual lands
   must be owned.
@@ -159,16 +162,23 @@ npx tsx scripts/balance-matrix.ts --avatars --seeds 40
 npx tsx scripts/balance-matrix.ts --floors --seeds 80
 ```
 
-A reserve-format matrix mode is `TO MEASURE` future work alongside any
-curated roster. Consistency is a large power-level change by construction;
-no classic-pool card changes may be justified by reserve-format results.
+**MEASURED 2026-07-31 (1.5.5):** the reserve matrix modes exist
+(`--warchest` / `--darlings` in `scripts/balance-matrix.ts`, deterministic
+validator-gated fixture fleets in `scripts/reserveMatrixDecks.ts`) and the
+dated 200-seed baselines live in `src/data/opponents.ts`. Losslessness:
+0 engine exceptions across all 5,000 games; Warchest decided 2,000/2,000
+with 0 draws; Darlings at the 80-card size decided 2,972/3,000 with 28
+turn-limit draws (0.93%, concentrated in the grindiest control cells; a
+property of 80-card singleton attrition, watched at reveal). A curated-roster matrix remains future work. Consistency is a
+large power-level change by construction; no classic-pool card changes may
+be justified by reserve-format results.
 
 ## Phased implementation plan
 
 ### Wave 1: pure validators and audit list
 
 `src/meta/battleBox.ts` (reserve validator + land-interaction audit data)
-and the darlings.ts respec to the 50-card no-lands shape. No engine, no
+and the darlings.ts respec to the 80-card no-lands shape. No engine, no
 UI. Verification: focused meta tests, then the full ladder.
 
 ### Wave 2: reserve engine
@@ -211,8 +221,9 @@ recommending lists in these formats.
 
 - A classic Constructed game is byte-identical to pre-feature behavior
   (matrices reproduce; replays of old logs unaffected).
-- Reserve legality is enforced exactly (50/0-lands/10/5-dual/ownership/
-  format-specific color rules), with direct plain-language errors.
+- Reserve legality is enforced exactly (Warchest 50/0-lands, Darlings
+  80/0-lands, 10/5-dual/ownership/format-specific color rules), with direct
+  plain-language errors.
 - Duals enter tapped; destroyed duals reach the graveyard; destroyed
   basics re-enter the reserve and are replayable; severed lands never
   return; bounced lands return to the reserve.
