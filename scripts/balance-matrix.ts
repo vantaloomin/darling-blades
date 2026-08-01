@@ -90,6 +90,8 @@ export interface CellSpec {
   format?: GameFormat;
   /** Reserve assignment for game i, in the same row/column order as decks. */
   reserves?: (i: number) => [string[], string[]];
+  /** Darling assignment for game i, in the same row/column order as decks. */
+  darlings?: (i: number) => [string | null, string | null];
 }
 
 export interface LosslessnessCounters {
@@ -108,6 +110,7 @@ export function playOut(
   format?: GameFormat,
   landReserves?: [string[], string[]],
   onEngineException?: () => void,
+  darlings?: [string | null, string | null],
 ): 0 | 1 | 'draw' {
   const engineCall = <T>(run: () => T): T => {
     try {
@@ -119,7 +122,7 @@ export function playOut(
   };
   // Keep the original classic constructor object byte-for-byte intact.
   const game =
-    format === undefined && landReserves === undefined
+    format === undefined && landReserves === undefined && darlings === undefined
       ? engineCall(() => new Game({ decks, seed, db: CARD_DB }))
       : engineCall(() => new Game({
         decks,
@@ -127,6 +130,7 @@ export function playOut(
         db: CARD_DB,
         format,
         ...(landReserves ? { landReserves } : {}),
+        ...(darlings ? { darlings } : {}),
       }));
   const ais = [p0, p1];
   for (let i = 0; i < 40_000; i++) {
@@ -161,9 +165,13 @@ export function runCell(
     const col = spec.colAI(gameSeed * 13 + 5);
     const [rowDeck, colDeck] = spec.decks(i);
     const reserves = spec.reserves?.(i);
+    const darlings = spec.darlings?.(i);
     const seats: [string[], string[]] = rowIsP0 ? [rowDeck, colDeck] : [colDeck, rowDeck];
     const seatReserves = reserves
       ? (rowIsP0 ? [reserves[0], reserves[1]] : [reserves[1], reserves[0]]) as [string[], string[]]
+      : undefined;
+    const seatDarlings = darlings
+      ? (rowIsP0 ? [darlings[0], darlings[1]] : [darlings[1], darlings[0]]) as [string | null, string | null]
       : undefined;
     if (losslessness) losslessness.gamesPlayed++;
     try {
@@ -177,6 +185,7 @@ export function runCell(
         () => {
           if (losslessness) losslessness.engineExceptions++;
         },
+        seatDarlings,
       );
       if (winner === 'draw') {
         draws++;
@@ -684,6 +693,9 @@ function runReserveMatrix(
           decks: () => [decks[r].cards, decks[c].cards],
           format,
           reserves: () => [decks[r].landReserve, decks[c].landReserve],
+          ...(format === 'darlings'
+            ? { darlings: () => [decks[r].darlingId, decks[c].darlingId] as [string | null, string | null] }
+            : {}),
         },
         seedsPerCell,
         cellBase + r * 100 + c,

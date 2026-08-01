@@ -657,6 +657,11 @@ export class DuelScene extends Phaser.Scene {
             : buildAiLandReserve(aiDeck, CARD_DB),
         ]
       : undefined;
+    const darlings: [string | null, string | null] | undefined = reserveFormat === 'darlings'
+      ? this.replayMode
+        ? [this.replayDarlingAt(data.replay?.darlings, 0), this.replayDarlingAt(data.replay?.darlings, 1)]
+        : [myDeckEntry?.darlingId ?? null, myDeckEntry?.darlingId ?? null]
+      : undefined;
     const launchIssue = reserveFormat
       ? (this.replayMode ? null : firstDuelLaunchIssue(CARD_DB, save, myDeckEntry ?? null)) ??
         firstReserveConfigIssue(CARD_DB, landReserves)
@@ -714,8 +719,10 @@ export class DuelScene extends Phaser.Scene {
       decks: [myDeck, aiDeck],
       seed,
       db: CARD_DB,
-      ...(reserveFormat && landReserves
-        ? { format: reserveFormat, landReserves }
+      ...(reserveFormat === 'darlings' && landReserves && darlings
+        ? { format: reserveFormat, landReserves, darlings }
+        : reserveFormat === 'warchest' && landReserves
+          ? { format: reserveFormat, landReserves }
         : {}),
       // The fixed tutorial scripts its opening and auto-keeps both hands.
       // Every normal duel path, including Limited and gauntlet, opts in.
@@ -743,7 +750,11 @@ export class DuelScene extends Phaser.Scene {
             opponentName: this.opponent?.name ?? this.limitedPersona?.name ?? `Practice AI (${this.difficulty})`,
             gauntletRung: this.gauntletRung,
           },
-          ...(reserveFormat && landReserves ? { format: reserveFormat, landReserves } : {}),
+          ...(reserveFormat === 'darlings' && landReserves && darlings
+            ? { format: reserveFormat, landReserves, darlings }
+            : reserveFormat === 'warchest' && landReserves
+              ? { format: reserveFormat, landReserves }
+              : {}),
         });
 
     this.buildHud();
@@ -784,6 +795,12 @@ export class DuelScene extends Phaser.Scene {
     if (!Array.isArray(payload) || !Array.isArray(payload[player])) return [];
     const reserve = payload[player];
     return reserve.every((id): id is string => typeof id === 'string') ? reserve.slice() : [];
+  }
+
+  private replayDarlingAt(payload: unknown, player: 0 | 1): string | null {
+    if (!Array.isArray(payload)) return null;
+    const darling = payload[player];
+    return typeof darling === 'string' ? darling : null;
   }
 
   private humanLandStyleFor(cardId: string): LandStyleId | undefined {

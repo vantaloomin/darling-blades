@@ -23,6 +23,11 @@ export interface SelfView {
   severed: string[];
   /** Public ordered reserve. Omitted for classic games. */
   landReserve?: string[];
+  /** Public command zone. Present only in Darlings games. */
+  darlingZone?: string | null;
+  darlingTax?: number;
+  darlingInstanceId?: number;
+  darlingCastable?: boolean;
   landPlayedThisTurn: boolean;
   mulligans: number;
 }
@@ -35,6 +40,11 @@ export interface OpponentView {
   severed: string[];
   /** Public ordered reserve. Omitted for classic games. */
   landReserve?: string[];
+  /** Public command zone. Present only in Darlings games. */
+  darlingZone?: string | null;
+  darlingTax?: number;
+  darlingInstanceId?: number;
+  darlingCastable?: boolean;
   landPlayedThisTurn: boolean;
   mulligans: number;
 }
@@ -55,7 +65,11 @@ export interface PlayerView {
   winner: PlayerId | 'draw' | null;
 }
 
-export function viewFor(state: GameState, player: PlayerId): PlayerView {
+export function viewFor(
+  state: GameState,
+  player: PlayerId,
+  darlingCastable?: [boolean, boolean],
+): PlayerView {
   const me = state.players[player];
   const them = state.players[opponentOf(player)];
   const awaiting =
@@ -77,6 +91,14 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
       graveyard: me.graveyard.map(cardIdOf),
       severed: me.severed.map(cardIdOf),
       ...(me.landReserve !== undefined ? { landReserve: me.landReserve.map(cardIdOf) } : {}),
+      ...(me.darlingZone !== undefined
+        ? {
+            darlingZone: me.darlingZone === null ? null : cardIdOf(me.darlingZone),
+            darlingTax: me.darlingTax ?? 0,
+            ...(me.darlingInstanceId === undefined ? {} : { darlingInstanceId: me.darlingInstanceId }),
+            darlingCastable: darlingCastable?.[player] ?? false,
+          }
+        : {}),
       landPlayedThisTurn: me.landPlayedThisTurn,
       mulligans: me.mulligans,
     },
@@ -87,6 +109,14 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
       graveyard: them.graveyard.map(cardIdOf),
       severed: them.severed.map(cardIdOf),
       ...(them.landReserve !== undefined ? { landReserve: them.landReserve.map(cardIdOf) } : {}),
+      ...(them.darlingZone !== undefined
+        ? {
+            darlingZone: them.darlingZone === null ? null : cardIdOf(them.darlingZone),
+            darlingTax: them.darlingTax ?? 0,
+            ...(them.darlingInstanceId === undefined ? {} : { darlingInstanceId: them.darlingInstanceId }),
+            darlingCastable: darlingCastable?.[opponentOf(player)] ?? false,
+          }
+        : {}),
       landPlayedThisTurn: them.landPlayedThisTurn,
       mulligans: them.mulligans,
     },

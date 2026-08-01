@@ -1,4 +1,4 @@
-import { RULES } from '../config/rules';
+import { DARLING_PAYDOWN_COST, DARLING_PAYDOWN_REDUCTION, RULES } from '../config/rules';
 import {
   blockOptions,
   eligibleAttackers,
@@ -9,7 +9,7 @@ import {
 import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
-import type { CardDb, CardDef, GameState, PlayerId, TargetRef } from './types';
+import type { CardDb, CardDef, GameState, ManaCost, PlayerId, TargetRef } from './types';
 import { cardIdOf, def, isType, manaValue, opponentOf, validateHauntlinkDef } from './types';
 
 export type Action =
@@ -36,6 +36,10 @@ export type Action =
       hauntlinked?: boolean;
       manaPlan?: number[]; // explicit source iids; omitted = auto-solve
     }
+  /** Normal creature-timing cast from a public Darling zone. */
+  | { type: 'castDarling'; targets?: TargetRef[]; x?: number; manaPlan?: number[] }
+  /** Main-phase action: pay four mana to remove one two-mana Darling tax step. */
+  | { type: 'payDownDarlingTax'; manaPlan?: number[] }
   | { type: 'skim'; handIndex: number; manaPlan?: number[] }
   | { type: 'declareAttackers'; attackers: number[] }
   | { type: 'declareBlockers'; blocks: { blocker: number; attacker: number }[] }
@@ -143,6 +147,14 @@ function castCost(
   return canEmpower(d) ? combineManaCosts(d.cost, d.empower!.cost) : undefined;
 }
 
+/** Printed Darling cost plus its accumulated generic command-zone tax. */
+export function darlingCastCost(d: CardDef, tax: number): ManaCost | undefined {
+  if (!d.cost) return undefined;
+  return { generic: d.cost.generic + tax, pips: { ...d.cost.pips } };
+}
+
+const DARLING_PAYDOWN_MANA: ManaCost = { generic: DARLING_PAYDOWN_COST, pips: {} };
+
 function castTargetSpecsFor(
   d: CardDef,
   retell: boolean,
@@ -206,6 +218,54 @@ function castableNow(state: GameState, player: PlayerId, d: CardDef): boolean {
       return instant;
     default:
       return false;
+  }
+}
+
+/** Darlings deliberately retain ordinary creature (sorcery) timing. */
+function darlingCastableNow(state: GameState, player: PlayerId, d: CardDef): boolean {
+  const a = state.awaiting;
+  return isType(d, 'creature') && a.kind === 'main' && a.player === player && state.activePlayer === player;
+}
+
+function darlingCastBlockers(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+  tax: number,
+  x = d.x ? d.x.min : 0,
+): string | null {
+  if (!isType(d, 'creature') || !d.cost) return 'Darling has no creature mana cost';
+  if (creatureCount(state, db, player) >= RULES.maxCreatures) return 'creature battlefield cap reached';
+  const cost = darlingCastCost(d, tax)!;
+  return canPay(state, db, player, cost, d.x ? x : 0) ? null : 'cannot pay cost';
+}
+
+function pushDarlingCastActions(
+  out: Action[],
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+  tax: number,
+): void {
+  const cost = darlingCastCost(d, tax);
+  if (!cost) return;
+  const xs: (number | undefined)[] = d.x
+    ? Array.from(
+        { length: Math.max(0, maxPayableX(state, db, player, cost) - d.x.min + 1) },
+        (_, i) => d.x!.min + i,
+      )
+    : [undefined];
+  const specs = castTargetSpecs(d);
+  const targetLists: (TargetRef[] | undefined)[] = specs.length === 0
+    ? [undefined]
+    : enumerateTargets(state, db, player, specs[0]).map((target) => [target]);
+  for (const targets of targetLists) {
+    for (const x of xs) {
+      if (darlingCastBlockers(state, db, player, d, tax, x ?? 0) !== null) continue;
+      out.push({ type: 'castDarling', ...(targets ? { targets } : {}), ...(x === undefined ? {} : { x }) });
+    }
   }
 }
 
@@ -315,8 +375,24 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         const d = def(db, cardId);
         if (!retellable(d) || !castableNow(state, player, d)) return;
         if (castBlockers(state, db, player, d, false, 0, true) !== null) return;
-        pushCastActions(out, state, db, player, graveIndex, d, true);
+          pushCastActions(out, state, db, player, graveIndex, d, true);
       });
+      if (me.darlingZone !== undefined) {
+        const darling = me.darlingZone;
+        if (darling !== null) {
+          const d = def(db, darling);
+          const tax = me.darlingTax ?? 0;
+          if (darlingCastableNow(state, player, d)) {
+            pushDarlingCastActions(out, state, db, player, d, tax);
+          }
+        }
+        if (
+          (me.darlingTax ?? 0) >= DARLING_PAYDOWN_REDUCTION &&
+          canPay(state, db, player, DARLING_PAYDOWN_MANA)
+        ) {
+          out.push({ type: 'payDownDarlingTax' });
+        }
+      }
       break;
     }
 
@@ -561,6 +637,39 @@ export function validateAction(
       return null;
     }
 
+    case 'castDarling': {
+      if (a.kind !== 'main' || state.activePlayer !== player) return 'Darling casts need your main phase';
+      if (me.darlingZone === undefined) return 'this game has no Darling zone';
+      if (me.darlingZone === null) return 'Darling zone is empty';
+      const d = def(db, me.darlingZone);
+      if (!darlingCastableNow(state, player, d)) return 'cannot cast Darling now';
+      if (d.x && (action.x === undefined || action.x < d.x.min)) return 'bad X';
+      if (!d.x && action.x !== undefined) return 'Darling has no X';
+      const blocked = darlingCastBlockers(state, db, player, d, me.darlingTax ?? 0, action.x ?? 0);
+      if (blocked) return blocked;
+      const cost = darlingCastCost(d, me.darlingTax ?? 0)!;
+      if (action.manaPlan) {
+        const err = validateManaPlanForCost(state, db, player, cost, action.manaPlan, action.x ?? 0);
+        if (err) return err;
+        if (action.manaPlan.length !== manaValue(cost) + (action.x ?? 0)) return 'mana plan has wrong source count';
+      }
+      const specs = castTargetSpecs(d);
+      const targets = action.targets ?? [];
+      if (targets.length !== specs.length) return 'wrong number of targets';
+      for (let i = 0; i < specs.length; i++) {
+        if (!isLegalTarget(state, db, player, specs[i], targets[i])) return 'illegal target';
+      }
+      return null;
+    }
+
+    case 'payDownDarlingTax': {
+      if (a.kind !== 'main' || state.activePlayer !== player) return 'Darling tax can only be paid down in your main phase';
+      if (me.darlingZone === undefined) return 'this game has no Darling zone';
+      if ((me.darlingTax ?? 0) < DARLING_PAYDOWN_REDUCTION) return 'Darling tax is already zero';
+      if (action.manaPlan) return validateManaPlanForCost(state, db, player, DARLING_PAYDOWN_MANA, action.manaPlan);
+      return canPay(state, db, player, DARLING_PAYDOWN_MANA) ? null : 'cannot pay cost';
+    }
+
     case 'declareAttackers':
       if (a.kind !== 'declareAttackers') return 'not declaring attackers';
       return validateAttackers(state.battlefield, db, player, action.attackers);
@@ -648,6 +757,7 @@ function validateManaPlanForCost(
   player: PlayerId,
   cost: CardDef['cost'],
   plan: number[],
+  extraGeneric = 0,
 ): string | null {
   if (!cost) return 'card has no mana cost';
   const available = new Map(manaSources(state, db, player).map((s) => [s.iid, s]));
@@ -660,8 +770,8 @@ function validateManaPlanForCost(
   const others = manaSources(state, db, player)
     .filter((s) => !plan.includes(s.iid))
     .map((s) => s.iid);
-  if (!solveMana(state, db, player, cost, 0, others)) return 'mana plan cannot pay the cost';
-  if (plan.length !== manaValue(cost)) return 'mana plan has wrong source count';
+  if (!solveMana(state, db, player, cost, extraGeneric, others)) return 'mana plan cannot pay the cost';
+  if (plan.length !== manaValue(cost) + extraGeneric) return 'mana plan has wrong source count';
   return null;
 }
 

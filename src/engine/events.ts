@@ -18,6 +18,8 @@ export type GameEvent =
   | { e: 'cardsBottomed'; player: PlayerId; count: number }
   | { e: 'landPlayed'; player: PlayerId; iid: number; cardId: string }
   | { e: 'manaTapped'; player: PlayerId; iids: number[] }
+  | { e: 'darlingTaxPaidDown'; player: PlayerId; tax: number }
+  | { e: 'darlingReturned'; player: PlayerId; cardId: string; tax: number; reason: 'died' | 'severed' | 'recalled' }
   | { e: 'skimmed'; player: PlayerId; cardId: string }
   | {
       e: 'spellCast';
@@ -27,6 +29,8 @@ export type GameEvent =
       targets: TargetRef[];
       /** Present only for the alternate Hauntlink cast; omitted means normal. */
       hauntlinked?: true;
+      /** Present only for a normal-cost creature cast from a Darling zone. */
+      fromDarlingZone?: true;
     }
   | { e: 'responseWindowOpened'; player: PlayerId }
   | { e: 'spellResolved'; sid: number }

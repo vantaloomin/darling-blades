@@ -7,6 +7,7 @@ import type { AIPlayer } from './AIPlayer';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
+import { chooseDarlingPaydown } from './darlingPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import {
@@ -20,7 +21,8 @@ import {
   skimValue,
 } from './value';
 
-type Cast = Extract<Action, { type: 'castSpell' }>;
+type SpellCast = Extract<Action, { type: 'castSpell' }>;
+type Cast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 
 /**
  * Medium: rule-based priorities with one-step trade math. Plays a fair game
@@ -200,6 +202,7 @@ export class MediumAI implements AIPlayer {
   }
 
   private cardIdFor(view: PlayerView, cast: Cast): string {
+    if (cast.type === 'castDarling') return view.you.darlingZone ?? '';
     return cast.retell && cast.graveIndex !== undefined
       ? view.you.graveyard[cast.graveIndex]
       : view.you.hand[cast.handIndex];
@@ -208,6 +211,7 @@ export class MediumAI implements AIPlayer {
   /** Prefer a payable Empower rider when its deterministic value is positive. */
   private castScore(view: PlayerView, cast: Cast): number {
     const cardId = this.cardIdFor(view, cast);
+    if (cast.type === 'castDarling') return this.developScore(cardId);
     if (cast.hauntlinked) {
       const host = cast.targets?.[0];
       return host?.kind === 'permanent'
@@ -265,7 +269,8 @@ export class MediumAI implements AIPlayer {
     const dmg = this.opBodies(cardId).find(
       (o) => o.op === 'damage' && o.to === 'target',
     );
-    const n = dmg && dmg.op === 'damage' ? (dmg.n === 'X' ? (cast.x ?? 0) : dmg.n) : 0;
+    const x = cast.type === 'castSpell' ? (cast.x ?? 0) : 0;
+    const n = dmg && dmg.op === 'damage' ? (dmg.n === 'X' ? x : dmg.n) : 0;
     return n >= stats.defense - perm.damage;
   }
 
@@ -286,12 +291,14 @@ export class MediumAI implements AIPlayer {
   }
 
   private main(view: PlayerView, legal: Action[]): Action {
+    const paydown = chooseDarlingPaydown(view, legal);
+    if (paydown) return paydown;
     const reserveLand = chooseReserveLand(view, this.db, legal);
     if (reserveLand) return reserveLand;
     const land = legal.find((l) => l.type === 'playLand');
     if (land) return land;
 
-    const casts = legal.filter((l): l is Cast => l.type === 'castSpell');
+    const casts = legal.filter((l): l is Cast => l.type === 'castSpell' || l.type === 'castDarling');
     const skims = legal.filter((l) => l.type === 'skim');
     // Smoothing gate: only spend a Skim when no cast line, including Retell,
     // exists.
@@ -314,7 +321,7 @@ export class MediumAI implements AIPlayer {
         if (t?.kind === 'player' && t.player === opp) {
           for (const op of this.opBodies(this.cardIdFor(view, c))) {
             if (op.op === 'damage' && op.to === 'target') {
-              const n = op.n === 'X' ? (c.x ?? 0) : op.n;
+              const n = op.n === 'X' ? (c.type === 'castSpell' ? (c.x ?? 0) : 0) : op.n;
               if (n >= view.opp.life) return c;
             }
           }
@@ -338,7 +345,8 @@ export class MediumAI implements AIPlayer {
             : b,
         );
         const worth = this.removalWorth(view, best);
-        const cost = manaValue(def(this.db, this.cardIdFor(view, best)).cost) + (best.x ?? 0);
+        const cost = manaValue(def(this.db, this.cardIdFor(view, best)).cost) +
+          (best.type === 'castSpell' ? (best.x ?? 0) : 0);
         if (worth >= cost * 0.8 && worth >= 2.5 + this.pers.removalBias) return best;
       }
 
@@ -365,7 +373,8 @@ export class MediumAI implements AIPlayer {
           view.myId,
           this.cardIdFor(view, best),
         );
-        const cost = manaValue(def(this.db, this.cardIdFor(view, best)).cost) + (best.x ?? 0);
+        const cost = manaValue(def(this.db, this.cardIdFor(view, best)).cost) +
+          (best.type === 'castSpell' ? (best.x ?? 0) : 0);
         if (worth >= cost * 0.8 && worth >= 2.5 + this.pers.removalBias) return best;
       }
 
@@ -418,7 +427,7 @@ export class MediumAI implements AIPlayer {
   // -------------------------------------------------------------------
   private respond(view: PlayerView, legal: Action[]): Action {
     const pass = legal.find((l) => l.type === 'passResponse')!;
-    const casts = legal.filter((l): l is Cast => l.type === 'castSpell');
+    const casts = legal.filter((l): l is SpellCast => l.type === 'castSpell');
     if (casts.length === 0) return pass;
     const opp = opponentOf(view.myId);
 
@@ -532,7 +541,7 @@ export class MediumAI implements AIPlayer {
   /** End of the opponent's turn: spend spare removal / value instants freely. */
   private endStep(view: PlayerView, legal: Action[]): Action {
     const pass = legal.find((l) => l.type === 'passResponse')!;
-    const casts = legal.filter((l): l is Cast => l.type === 'castSpell');
+    const casts = legal.filter((l): l is SpellCast => l.type === 'castSpell');
     const opp = opponentOf(view.myId);
     const removals = casts.filter((c) => {
       const perm = this.targetPerm(view, c.targets?.[0]);

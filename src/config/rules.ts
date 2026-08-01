@@ -11,6 +11,11 @@ export function usesLandReserve(format: GameFormat | undefined): boolean {
 export const LAND_RESERVE_SIZE = 10;
 export const MAX_DUAL_LANDS_IN_RESERVE = 5;
 
+/** Darlings' command-zone tax and its deliberately inefficient pay-down valve. */
+export const DARLING_TAX_STEP = 2;
+export const DARLING_PAYDOWN_COST = 4;
+export const DARLING_PAYDOWN_REDUCTION = 2;
+
 export const RULES = {
   startingLife: 20,
   deckSize: 60,
