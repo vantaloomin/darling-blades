@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { freshSave } from '../../src/meta/SaveManager';
 import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
-import { variantKey } from '../../src/meta/variants';
 import { backLabelFor } from '../../src/ui/navigation';
 import {
   activeVisibleSavedDeck,
   WARCHEST_RULES_COPY,
   DARLINGS_RULES_COPY,
   builderFormatForDeck,
+  collapseDeckRows,
   isReplayVisible,
   isSavedDeckVisible,
   formatDeckSize,
@@ -18,7 +18,6 @@ import {
   gridPosition,
   isDeckBuilderDirty,
   offeredBuilderFormats,
-  variantPickerChoices,
   visibleSavedDecks,
 } from '../../src/ui/deckBuilderHelpers';
 
@@ -92,17 +91,14 @@ describe('deck builder helpers', () => {
     expect(gridPosition(4, 3, 10, 20, 100, 40)).toEqual({ x: 110, y: 60 });
   });
 
-  it('reports owned treatment choices and remaining positional copies', () => {
-    const save = freshSave(0);
-    const blue = variantKey({ frame: 'blue', holo: 'none', fullArt: false });
-    const red = variantKey({ frame: 'red', holo: 'none', fullArt: false });
-    save.collection.bear = 3;
-    save.collectionVariants.bear = { [blue]: 2, [red]: 1 };
-    const choices = variantPickerChoices(save, ['bear', 'bear'], [blue, null], 1, 'bear');
-    expect(choices.map((choice) => choice.label)).toEqual(['Auto', 'Red Frame', 'Blue Frame']);
-    expect(choices.find((choice) => choice.key === blue)?.remainingCopies).toBe(1);
-    expect(choices.find((choice) => choice.key === red)?.remainingCopies).toBe(1);
-    expect(choices.find((choice) => choice.key === null)?.remainingCopies).toBe(2);
+  it('collapses every deck format to one row per card and retains a legacy-pin marker', () => {
+    expect(collapseDeckRows(['bear', 'elf', 'bear', 'bear', 'elf'], [null, 'blue|none|standard', null, 'red|none|standard', null])).toEqual([
+      { cardId: 'bear', quantity: 3, firstIndex: 0, hasLegacyVariantPin: true },
+      { cardId: 'elf', quantity: 2, firstIndex: 1, hasLegacyVariantPin: true },
+    ]);
+    expect(collapseDeckRows(['darling'], [null])).toEqual([
+      { cardId: 'darling', quantity: 1, firstIndex: 0, hasLegacyVariantPin: false },
+    ]);
   });
 
   it('detects deck, treatment-pin, reserve, and hero edits against the saved record', () => {

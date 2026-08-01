@@ -26,7 +26,7 @@ import {
   todayString,
   type Difficulty,
 } from '../meta/Economy';
-import { ownedVariantEntries } from '../meta/collectionFilter';
+import { displayVariantFor } from '../meta/Collection';
 import {
   buildAiLandReserve,
   firstDuelLaunchIssue,
@@ -2596,6 +2596,7 @@ export class DuelScene extends Phaser.Scene {
   /** Full motion: hand origin → readable station → the already-rendered destination footprint. */
   private showPlayReveal(reveal: PlayReveal): void {
     const opponent = reveal.controller === AI;
+    const variant = reveal.controller === HUMAN ? displayVariantFor(Services.save.data, reveal.cardId) : undefined;
     const source =
       reveal.source ??
       (opponent
@@ -2612,6 +2613,8 @@ export class DuelScene extends Phaser.Scene {
       .setAlpha(0.96);
     ghost.setCard(def(CARD_DB, reveal.cardId), {
       fx: 'none',
+      variant,
+      fullArt: variant?.fullArt === true,
       landStyle: reveal.controller === HUMAN ? this.humanLandStyleFor(reveal.cardId) : undefined,
     });
     this.playRevealGhosts.add(ghost);
@@ -2710,6 +2713,7 @@ export class DuelScene extends Phaser.Scene {
 
   /** Full-motion Skim read: the hand card travels to its new graveyard slot. */
   private showSkimTravel(e: Extract<GameEvent, { e: 'skimmed' }>): void {
+    const variant = e.player === HUMAN ? displayVariantFor(Services.save.data, e.cardId) : undefined;
     const handSource = e.player === HUMAN && this.humanPlayOrigin?.cardId === e.cardId
       ? this.humanPlayOrigin.source
       : undefined;
@@ -2731,6 +2735,8 @@ export class DuelScene extends Phaser.Scene {
       .setAlpha(0.9);
     ghost.setCard(def(CARD_DB, e.cardId), {
       fx: 'none',
+      variant,
+      fullArt: variant?.fullArt === true,
       landStyle: e.player === HUMAN ? this.humanLandStyleFor(e.cardId) : undefined,
     });
     this.playRevealGhosts.add(ghost);
@@ -2771,6 +2777,7 @@ export class DuelScene extends Phaser.Scene {
   /** Full-motion sever read: source pile/tile to the public severed pile; reduced/off stay instant. */
   private showSeverTravel(e: Extract<GameEvent, { e: 'severed' }>): void {
     if (this.motionLevel() !== 'full') return;
+    const variant = e.player === HUMAN ? displayVariantFor(Services.save.data, e.cardId) : undefined;
     const source = this.severSource(e);
     const destination = this.severedPilePos(e.player);
     const ghost = new CardView(this, source.x, source.y)
@@ -2779,6 +2786,8 @@ export class DuelScene extends Phaser.Scene {
       .setAlpha(0.9);
     ghost.setCard(def(CARD_DB, e.cardId), {
       fx: 'none',
+      variant,
+      fullArt: variant?.fullArt === true,
       landStyle: e.player === HUMAN ? this.humanLandStyleFor(e.cardId) : undefined,
     });
     this.playRevealGhosts.add(ghost);
@@ -3081,10 +3090,9 @@ export class DuelScene extends Phaser.Scene {
         // (the board doesn't track per-copy cosmetics, so use your best owned
         // variant of the card; opponents stay plain). Applied once at create;
         // a no-op for plain finishes, fxPolicy-gated inside setVariant.
-        const best = perm.controller === HUMAN
-          ? ownedVariantEntries(Services.save.data, perm.cardId)[0]
+        const ownedVariant = perm.controller === HUMAN
+          ? displayVariantFor(Services.save.data, perm.cardId)
           : undefined;
-        const ownedVariant = best?.variant;
         if (perm.controller === HUMAN) view.setVariant(ownedVariant ?? null);
         view.enableInput();
         const iid = perm.iid;
@@ -3180,10 +3188,9 @@ export class DuelScene extends Phaser.Scene {
           view = new BoardCardView(this, x, y, d);
           view.setDepth(3).setScale(scale);
           view.setTapped(link.tapped, false);
-          const best = link.controller === HUMAN
-            ? ownedVariantEntries(Services.save.data, link.cardId)[0]
+          const ownedVariant = link.controller === HUMAN
+            ? displayVariantFor(Services.save.data, link.cardId)
             : undefined;
-          const ownedVariant = best?.variant;
           if (ownedVariant) view.setVariant(ownedVariant);
           view.enableInput();
           view.on('pointerup', (p: Phaser.Input.Pointer) => {
@@ -3343,7 +3350,7 @@ export class DuelScene extends Phaser.Scene {
         const x = layout.x0 + index * layout.step;
         const d = def(CARD_DB, cardId);
         const landStyle = player === HUMAN ? this.humanLandStyleFor(cardId) : undefined;
-        const variant = player === HUMAN ? ownedVariantEntries(Services.save.data, cardId)[0]?.variant : undefined;
+        const variant = player === HUMAN ? displayVariantFor(Services.save.data, cardId) : undefined;
         const playable = player === HUMAN && this.reserveLandAction(index) !== undefined;
         const view = new CardView(this, x, layout.cy)
           .setScale(scale)
@@ -3772,7 +3779,7 @@ export class DuelScene extends Phaser.Scene {
       const y = restY + slot.dy;
       const d = def(CARD_DB, cardId);
       const landStyle = this.humanLandStyleFor(cardId);
-      const ownedVariant = ownedVariantEntries(Services.save.data, cardId)[0]?.variant;
+      const ownedVariant = displayVariantFor(Services.save.data, cardId);
       const view = new CardView(this, x, y);
       view.setScale(scale);
       view.setAngle(slot.angleDeg);
@@ -4539,9 +4546,9 @@ export class DuelScene extends Phaser.Scene {
       showClose: false,
       depth: theme.depth.inspect,
       onClose: () => this.closeZoneModal(),
-      onInspect: (card, landStyle) => {
+      onInspect: (card, variant, landStyle) => {
         this.zoneModalReturn = () => this.showZoneModal(player, zone);
-        this.showInspect(card, undefined, landStyle);
+        this.showInspect(card, variant, landStyle);
       },
     });
     this.zoneModal = modal;
@@ -4567,9 +4574,9 @@ export class DuelScene extends Phaser.Scene {
       showClose: false,
       depth: theme.depth.inspect,
       onClose: () => this.closeZoneModal(),
-      onInspect: (card, landStyle) => {
+      onInspect: (card, variant, landStyle) => {
         this.zoneModalReturn = () => this.showLandsModal(player);
-        this.showInspect(card, undefined, landStyle);
+        this.showInspect(card, variant, landStyle);
       },
     });
     this.zoneModal = modal;
@@ -4617,6 +4624,7 @@ export class DuelScene extends Phaser.Scene {
           card,
           count,
           landStyle: styled ? this.humanLandStyleFor(cardId) : undefined,
+          variant: styled ? displayVariantFor(Services.save.data, cardId) : undefined,
           ...(casts && card.retell
             ? {
                 action: {
@@ -4639,6 +4647,7 @@ export class DuelScene extends Phaser.Scene {
         card: def(CARD_DB, cardId),
         count,
         landStyle: styled ? this.humanLandStyleFor(cardId) : undefined,
+        variant: styled ? displayVariantFor(Services.save.data, cardId) : undefined,
       }))
       .sort((a, b) => this.compareLandZoneCards(a.card, b.card));
   }
@@ -4960,11 +4969,12 @@ export class DuelScene extends Phaser.Scene {
       const x = width / 2 - ((n - 1) * spacing) / 2 + i * spacing;
       const v = new CardView(this, x, 370).setScale(0.62);
       const d = def(CARD_DB, cardId);
-      v.setCard(d, { fx: 'none' });
+      const variant = displayVariantFor(Services.save.data, cardId);
+      v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt });
       c.add(v);
       // Same read affordances as the mulligan cards: hover/long-press zoom.
       v.enableInput();
-      this.zoom.attach(v, d);
+      this.zoom.attach(v, d, variant);
       const pick = (): void => {
         this.closeGravePicker();
         this.act(cast);
@@ -5032,10 +5042,11 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
     const v = new CardView(this, width / 2, 340).setScale(0.62);
-    v.setCard(d, { fx: 'none' });
+    const variant = displayVariantFor(Services.save.data, d.id);
+    v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt });
     c.add(v);
     v.enableInput();
-    this.zoom.attach(v, d);
+    this.zoom.attach(v, d, variant);
 
     const button = (
       x: number,
@@ -5100,10 +5111,11 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
     const v = new CardView(this, width / 2, 340).setScale(0.62);
-    v.setCard(d, { fx: 'none' });
+    const variant = displayVariantFor(Services.save.data, d.id);
+    v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt });
     c.add(v);
     v.enableInput();
-    this.zoom.attach(v, d);
+    this.zoom.attach(v, d, variant);
 
     const button = (
       x: number,
@@ -5170,10 +5182,11 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
     const v = new CardView(this, width / 2, 340).setScale(0.62);
-    v.setCard(d, { fx: 'none' });
+    const variant = displayVariantFor(Services.save.data, d.id);
+    v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt });
     c.add(v);
     v.enableInput();
-    this.zoom.attach(v, d);
+    this.zoom.attach(v, d, variant);
 
     const pick = (empowered: boolean): void => {
       const subset = casts.filter((cast) => (cast.empowered ?? false) === empowered);
@@ -5535,7 +5548,8 @@ export class DuelScene extends Phaser.Scene {
       const v = new CardView(this, x, cardY).setScale(scale);
       const d = def(CARD_DB, cardId);
       const landStyle = this.humanLandStyleFor(cardId);
-      v.setCard(d, { fx: 'none', landStyle });
+      const variant = displayVariantFor(Services.save.data, cardId);
+      v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt, landStyle });
       const badge = this.add
         .text(x, cardY + (CARD_H * scale) / 2 + 18, 'Bottom', {
           fontFamily: theme.fonts.ui,
@@ -5550,7 +5564,7 @@ export class DuelScene extends Phaser.Scene {
         .setVisible(false);
       c.add([posLabel, v, badge]);
       v.enableInput();
-      this.zoom.attach(v, d, undefined, landStyle);
+      this.zoom.attach(v, d, variant, landStyle);
       const toggle = (): void => {
         const picked = !this.foreseeBottomPicks.has(index);
         if (picked) this.foreseeBottomPicks.add(index);
@@ -5564,7 +5578,7 @@ export class DuelScene extends Phaser.Scene {
         if (p.rightButtonReleased()) return;
         toggle();
       });
-      attachTouchGestures(this, v, { card: d, landStyle, onTap: toggle });
+      attachTouchGestures(this, v, { card: d, variant, landStyle, onTap: toggle });
     });
 
     for (const v of this.handViews) v.setVisible(false);
@@ -5621,17 +5635,18 @@ export class DuelScene extends Phaser.Scene {
       const v = new CardView(this, x, 370).setScale(0.62);
       const d = def(CARD_DB, opt.cardId);
       const landStyle = this.humanLandStyleFor(opt.cardId);
-      v.setCard(d, { fx: 'none', landStyle });
+      const variant = displayVariantFor(Services.save.data, opt.cardId);
+      v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt, landStyle });
       c.add(v);
       v.enableInput();
-      this.zoom.attach(v, d, undefined, landStyle);
+      this.zoom.attach(v, d, variant, landStyle);
       const pick = (): void => this.act(opt);
       v.on('pointerup', (p: Phaser.Input.Pointer) => {
         if (p.wasTouch) return;
         if (p.rightButtonReleased()) return;
         pick();
       });
-      attachTouchGestures(this, v, { card: d, landStyle, onTap: pick });
+      attachTouchGestures(this, v, { card: d, variant, landStyle, onTap: pick });
     });
     this.overlay = c;
     this.guard.open(this.overlayGuardTargets());
@@ -5662,13 +5677,14 @@ export class DuelScene extends Phaser.Scene {
       v.setScale(0.62);
       const d = def(CARD_DB, cardId);
       const landStyle = this.humanLandStyleFor(cardId);
-      v.setCard(d, { fx: 'none', landStyle });
+      const variant = displayVariantFor(Services.save.data, cardId);
+      v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt, landStyle });
       c.add(v);
       // Hover-zoom works during hand decisions too — that's when reading
       // the cards matters most (mulligan cards are otherwise interaction-free);
       // on touch the same reading comes from long-press → sticky preview.
       v.enableInput();
-      this.zoom.attach(v, d, undefined, landStyle);
+      this.zoom.attach(v, d, variant, landStyle);
       const togglePick = (): void => {
         if (this.discardPicks.has(handIdx)) {
           this.discardPicks.delete(handIdx);
@@ -5689,6 +5705,7 @@ export class DuelScene extends Phaser.Scene {
       }
       attachTouchGestures(this, v, {
         card: d,
+        variant,
         landStyle,
         ...(picks > 0 ? { onTap: togglePick } : {}),
       });

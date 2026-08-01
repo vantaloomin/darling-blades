@@ -1,8 +1,5 @@
-import { ownedCount, ownedVariants } from '../meta/Collection';
 import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../meta/warchest';
-import { ownedVariantEntries, variantLabel } from '../meta/collectionFilter';
 import type { SavedDeck } from '../meta/SaveManager';
-import { variantKey, type CardVariant } from '../meta/variants';
 
 export type BuilderFormat = NonNullable<SavedDeck['format']>;
 
@@ -132,6 +129,38 @@ export function formatPageSlice<T>(items: readonly T[], page: number, pageSize: 
   return items.slice(Math.max(0, page) * size, (Math.max(0, page) + 1) * size);
 }
 
+/** One visible deck-list row, preserving the first slot for one-copy removal. */
+export interface CollapsedDeckRow {
+  cardId: string;
+  quantity: number;
+  firstIndex: number;
+  /** Legacy positional pins remain visible but never choose a card's display. */
+  hasLegacyVariantPin: boolean;
+}
+
+/** Collapse positional deck storage into exactly one row per card id. */
+export function collapseDeckRows(
+  cards: readonly string[],
+  variantPins: readonly (string | null)[],
+): CollapsedDeckRow[] {
+  const rows = new Map<string, CollapsedDeckRow>();
+  cards.forEach((cardId, index) => {
+    const existing = rows.get(cardId);
+    if (existing) {
+      existing.quantity++;
+      existing.hasLegacyVariantPin ||= variantPins[index] !== null;
+      return;
+    }
+    rows.set(cardId, {
+      cardId,
+      quantity: 1,
+      firstIndex: index,
+      hasLegacyVariantPin: variantPins[index] !== null,
+    });
+  });
+  return [...rows.values()];
+}
+
 export interface GridPosition {
   x: number;
   y: number;
@@ -151,68 +180,4 @@ export function gridPosition(
     x: originX + (safeIndex % safeColumns) * gapX,
     y: originY + Math.floor(safeIndex / safeColumns) * gapY,
   };
-}
-
-export interface VariantPickerChoice {
-  key: string | null;
-  label: string;
-  remainingCopies: number;
-  variant: CardVariant | null;
-}
-
-/** Remaining owned copies for a slot, excluding pins on the slot itself. */
-export function remainingVariantCopies(
-  save: Parameters<typeof ownedVariants>['0'],
-  cards: readonly string[],
-  variantPins: readonly (string | null)[],
-  slotIndex: number,
-  cardId: string,
-  variant: CardVariant,
-): number {
-  const key = variantKey(variant);
-  const usedByOtherSlots = cards.reduce(
-    (count, id, index) =>
-      id === cardId && index !== slotIndex && variantPins[index] === key ? count + 1 : count,
-    0,
-  );
-  return Math.max(0, (ownedVariants(save, cardId)[key] ?? 0) - usedByOtherSlots);
-}
-
-export function autoVariantRemainingCopies(
-  save: Parameters<typeof ownedVariants>['0'],
-  cards: readonly string[],
-  variantPins: readonly (string | null)[],
-  slotIndex: number,
-  cardId: string,
-): number {
-  const pinnedByOtherSlots = cards.reduce(
-    (count, id, index) =>
-      id === cardId && index !== slotIndex && variantPins[index] !== null ? count + 1 : count,
-    0,
-  );
-  return Math.max(0, ownedCount(save, cardId) - pinnedByOtherSlots);
-}
-
-/** Auto plus every owned treatment, with counts available to this slot. */
-export function variantPickerChoices(
-  save: Parameters<typeof ownedVariants>['0'],
-  cards: readonly string[],
-  variantPins: readonly (string | null)[],
-  slotIndex: number,
-  cardId: string,
-): VariantPickerChoice[] {
-  return [
-    {
-      key: null,
-      label: 'Auto',
-      remainingCopies: autoVariantRemainingCopies(save, cards, variantPins, slotIndex, cardId),
-      variant: null,
-    },
-    ...ownedVariantEntries(save, cardId).map(({ variant }) => ({
-      key: variantKey(variant),
-      label: variantLabel(variant),
-      remainingCopies: remainingVariantCopies(save, cards, variantPins, slotIndex, cardId, variant),
-      variant,
-    })),
-  ];
 }

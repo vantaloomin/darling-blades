@@ -310,13 +310,16 @@ describe('SaveData v25 migration (Warchest and collection display pins)', () => 
     expect(migrated.pinnedVariants).toEqual({});
   });
 
-  it('drops malformed or unknown collection display pins while retaining canonical known pins', () => {
+  it('drops malformed, unknown, or unowned collection display pins while retaining owned canonical pins', () => {
     const storage = fakeStorage();
     const current = freshSave(123);
+    current.collection = { 'land-plains': 1 };
+    current.collectionVariants = { 'land-plains': { [variantKey(PLAIN_VARIANT)]: 1 } };
     current.pinnedVariants = {
       'land-plains': 'white|none|standard',
       'land-forest': 'purple|none|standard',
       'land-island': 'white|none|invalid-treatment',
+      'land-swamp': 'white|none|standard',
       'not-a-card': 'white|none|standard',
     };
     storage.raw.set('darlingblades.save.v1', JSON.stringify(current));

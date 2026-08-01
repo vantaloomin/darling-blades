@@ -4,6 +4,7 @@ import { Sfx } from '../audio/sfx';
 import { CARD_DB } from '../data/catalog';
 import { FEATURES } from '../config/features';
 import { def } from '../engine/types';
+import { displayVariantFor } from '../meta/Collection';
 import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
 import { firstDuelLaunchIssue } from '../meta/duelSetup';
 import { Services } from '../meta/services';
@@ -223,7 +224,7 @@ export class PlayScene extends Phaser.Scene {
     let textLeft = left + 24;
     if (faceId) {
       // 300x420 card at 0.18 = 54x76, comfortably inside the 96px plate.
-      c.add(makeCardThumb(this, left + 46, cy, def(CARD_DB, faceId), 0.18));
+      c.add(makeCardThumb(this, left + 46, cy, def(CARD_DB, faceId), 0.18, undefined, displayVariantFor(save, faceId)));
       textLeft = left + 86;
     }
     c.add(
