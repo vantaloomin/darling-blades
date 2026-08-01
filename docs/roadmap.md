@@ -59,8 +59,9 @@ _Dated 2026-07-31. Review monthly._
   familiarity, v17→v18 Premium Draft, v18→v19 premium weekly allowance,
   v19→v20 deterministic replays, v20→v21 Full Art three-segment variant
   keys, v21→v22 tower roster stamp + per-basic land styles, v22→v23 one
-  atomic migration for the Darlings fields, the Battle Box land reserve, and
-  variant-deck pins, v23→v24 the empty-block confirmation preference — see
+  atomic migration for the Darlings fields, the Warchest Reserves, and
+  variant-deck pins, v23→v24 the empty-block confirmation preference, and
+  v24→v25 the Warchest id reveal plus collection-level display pins — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
 
 ## Recently shipped (2026-07-31 · the 1.5.0 cut)
@@ -72,8 +73,8 @@ the owner's live-playtest batch), the shop CTA fix (#167), and the economy
 re-date (#168, canonical baseline vs 764 collectible, all persona bands
 re-centred inside noise) all merged green. The metagame deep sweep was
 explicitly WAIVED for this cut (user 2026-07-31: the 1.5.5/1.6 docket will
-invalidate its field). Battle Box and Darlings ship **hidden** in 1.5.0 and
-are exposed in 1.5.5 (user decision 2026-07-29).
+invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
+(user decision 2026-07-31).
 
 - **Cyberpunk Yokai Nights, the sixth expansion (#138, #145, #147).** 120
   cards (pool 638→758) with the **Hauntlink** headline mechanic (alt play
@@ -85,16 +86,16 @@ are exposed in 1.5.5 (user decision 2026-07-29).
 - **Bosses 19-20 + tower to 20 floors (#151).** Queen of the Lanterned Roof
   and Kitsune Neon Tyrant (R19 71% / R20 75% at 40 seeds, provisional floors
   pending the 1.5 re-baseline), 410/430g clear rewards.
-- **Battle Box + Darlings formats, engine-complete and flagged off (#139,
+- **Warchest + Darlings formats, revealed in 1.5.5 (#139,
   #140, #141, #144, #148, #149, #150, #152, #157).** Three-format deck
-  model (constructed / darlings / battlebox) with a chosen 10-land reserve
-  (max 5 duals, asymmetric destruction), SaveData **v23** in one atomic
+  model (constructed / darlings / warchest) with a chosen 10-land Warchest
+  (max 5 duals, asymmetric destruction), SaveData **v25** through atomic
   migration, replay log v4, card-instance variant pins (positional),
   SaveCode profile export/import (checksum + zip-bomb hardening), builder
-  format switch + Darlings picker + reserve panel, duel reserve strip and
-  reserve-format launches, and Profile SaveCode flow. All player-facing
-  entry points sit behind `FEATURES.reserveFormats = false` for 1.5.0;
-  saves stay lossless and the dev cheat can flip the flag for playtesting.
+  format switch + Darlings picker + Warchest Reserves panel, duel reserve strip
+  and reserve-format launches, and Profile SaveCode flow. All player-facing
+  entry points ship behind `FEATURES.reserveFormats = true`; saves and legacy
+  replays stay lossless.
 - **Shop Card Packs wave (#153) + Practice picker strip (#154).** Boosters
   tab renamed Card Packs and made the default landing unless a free deck is
   genuinely claimable; **Base Set booster scoped to base-set-only cards**
@@ -1390,10 +1391,10 @@ are exposed in 1.5.5 (user decision 2026-07-29).
   convergence; revisit after the 1.5 sweep);
   **1.5.5** = **ACTIVE PROGRAM** (opened 2026-07-31; the train spec is
   [plan-1.5.5.md](plan-1.5.5.md)): the **Warchest + Darlings reveal**
-  (Warchest is the product name for the land-reserve mana system, replacing
-  the "Battle Box" working title; both formats are engine- and UI-complete
-  but flagged off, and are exposed only after their `TO MEASURE` matrices
-  and the losslessness probe exist) + the **collectionPct metric rework**
+  (Warchest is the product name for the Warchest mana system, replacing
+  the historical working title; both formats are engine- and UI-complete,
+  revealed after their dated matrices and the losslessness probe) + the
+  **collectionPct metric rework**
   (must land before any future set ships) + the sweeper/tribal **art
   riders**;
   **1.6** = **the Warchest launch train** (north star ratified 2026-07-31,

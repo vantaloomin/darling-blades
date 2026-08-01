@@ -284,6 +284,7 @@ export class DuelScene extends Phaser.Scene {
   private boardTargets = new Map<number, { x: number; y: number; scale: number }>();
   private reservePositions = new Map<string, { x: number; y: number; scale: number; angle: number }>();
   private reserveViews: CardView[] = [];
+  private reserveLabels: Phaser.GameObjects.Text[] = [];
   private manaPips: (Phaser.GameObjects.Image | Phaser.GameObjects.Text)[] = [];
   private manaStripZones: Phaser.GameObjects.Zone[] = [];
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
@@ -528,6 +529,7 @@ export class DuelScene extends Phaser.Scene {
     this.boardTargets = new Map();
     this.reservePositions = new Map();
     this.reserveViews = [];
+    this.reserveLabels = [];
     this.pendingPlayReveals = [];
     this.humanPlayOrigin = null;
     this.humanLandStyle = null;
@@ -631,7 +633,7 @@ export class DuelScene extends Phaser.Scene {
     // starter the player is NOT using (or the second one). Tutorial: a fixed deck.
     const savedReserveFormat: ReserveFormat | undefined =
       !this.replayMode && this.gauntletRung === null && !this.tutorial && !this.limited && data.deckOverride === undefined &&
-      (myDeckEntry?.format === 'darlings' || myDeckEntry?.format === 'battlebox')
+      (myDeckEntry?.format === 'darlings' || myDeckEntry?.format === 'warchest')
         ? myDeckEntry.format
         : undefined;
     const reserveFormat: ReserveFormat | undefined = data.replay?.format ?? savedReserveFormat;
@@ -3312,12 +3314,31 @@ export class DuelScene extends Phaser.Scene {
       view.disableInput();
       if (view.active) view.destroy();
     }
+    for (const label of this.reserveLabels) {
+      if (label.active) label.destroy();
+    }
     this.reserveViews = [];
+    this.reserveLabels = [];
     this.reservePositions = new Map();
     const scale = LAYOUT.reserveStrip.scale;
     for (const player of [HUMAN, AI] as const) {
       const reserve = reserves[player];
       const layout = player === HUMAN ? LAYOUT.reserveStrip.human : LAYOUT.reserveStrip.opponent;
+      const label = this.add
+        .text(
+          layout.x0,
+          player === HUMAN ? layout.cy - 47 : layout.cy + 47,
+          player === HUMAN ? 'Warchest Reserves' : "Foe's Warchest Reserves",
+          {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.micro}px`,
+            fontStyle: theme.weight.w700,
+            color: theme.colors.muted,
+          },
+        )
+        .setOrigin(0, 0.5)
+        .setDepth(6);
+      this.reserveLabels.push(label);
       reserve.forEach((cardId, index) => {
         const x = layout.x0 + index * layout.step;
         const d = def(CARD_DB, cardId);
@@ -4533,10 +4554,13 @@ export class DuelScene extends Phaser.Scene {
     const lands = this.battlefieldLands(player);
     const untapped = lands.filter((land) => !land.tapped).length;
     const owner = player === HUMAN ? 'Your' : "Foe's";
+    const activeWarchest = this.isReserveDuel();
     const modal = showZoneContents(this, {
-      title: `${owner} Lands · ${lands.length} (${untapped} untapped)`,
+      title: activeWarchest
+        ? `${owner} Active Warchest · ${lands.length} (${untapped} untapped)`
+        : `${owner} Lands · ${lands.length} (${untapped} untapped)`,
       entries: this.landZoneEntries(lands, player === HUMAN),
-      emptyText: 'No lands on the battlefield.',
+      emptyText: activeWarchest ? 'No lands in the Active Warchest.' : 'No lands on the battlefield.',
       dimAlpha: 0.62,
       escToClose: true,
       tapDimToClose: true,

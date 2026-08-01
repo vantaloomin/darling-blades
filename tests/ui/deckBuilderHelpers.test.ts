@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { freshSave } from '../../src/meta/SaveManager';
-import { BATTLE_BOX_DECK_SIZE, DARLINGS_DECK_SIZE } from '../../src/meta/battleBox';
+import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import { variantKey } from '../../src/meta/variants';
 import { backLabelFor } from '../../src/ui/navigation';
 import {
   activeVisibleSavedDeck,
-  BATTLE_BOX_RULES_COPY,
+  WARCHEST_RULES_COPY,
   DARLINGS_RULES_COPY,
   builderFormatForDeck,
   isReplayVisible,
@@ -34,13 +34,16 @@ describe('deck builder helpers', () => {
   it('keeps format labels, sizes, and launch copy explicit', () => {
     expect(formatLabel('constructed')).toBe('Constructed');
     expect(formatLabel('darlings')).toBe('Darlings');
-    expect(formatLabel('battlebox')).toBe('Battle Box');
+    expect(formatLabel('warchest')).toBe('Warchest');
     expect(formatDeckSize('constructed')).toBe(60);
     expect(formatDeckSize('darlings')).toBe(DARLINGS_DECK_SIZE);
-    expect(formatDeckSize('battlebox')).toBe(BATTLE_BOX_DECK_SIZE);
+    expect(formatDeckSize('warchest')).toBe(WARCHEST_DECK_SIZE);
     expect(formatGauntletUnavailableCopy('darlings')).toBe('Darlings decks are available in Practice only.');
-    expect(formatGauntletUnavailableCopy('battlebox')).toBe('Battle Box decks are available in Practice only.');
-    expect(BATTLE_BOX_RULES_COPY).not.toContain('\u2014');
+    expect(formatGauntletUnavailableCopy('warchest')).toBe('Warchest decks are available in Practice only.');
+    expect(WARCHEST_RULES_COPY).toBe(
+      'Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.',
+    );
+    expect(WARCHEST_RULES_COPY).not.toContain('\u2014');
     expect(DARLINGS_RULES_COPY).toBe(
       'Choose your Darling. Build an 80-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Your Darling begins in your deck and follows the same rules as every other card.',
     );
@@ -51,8 +54,8 @@ describe('deck builder helpers', () => {
     const save = freshSave(0);
     const constructed = { ...save.decks[0], id: 'constructed', format: 'constructed' as const };
     const darlings = { ...save.decks[0], id: 'darlings', format: 'darlings' as const };
-    const battlebox = { ...save.decks[0], id: 'battlebox', format: 'battlebox' as const };
-    const decks = [constructed, darlings, battlebox];
+    const warchest = { ...save.decks[0], id: 'warchest', format: 'warchest' as const };
+    const decks = [constructed, darlings, warchest];
     const hiddenSnapshot = structuredClone(darlings);
 
     expect(offeredBuilderFormats(false)).toEqual(['constructed']);
@@ -61,19 +64,19 @@ describe('deck builder helpers', () => {
     expect(builderFormatForDeck(darlings, false)).toBe('constructed');
     expect(activeVisibleSavedDeck(decks, 'darlings', false)?.id).toBe('constructed');
     expect(darlings).toEqual(hiddenSnapshot);
-    expect(isReplayVisible({ format: 'battleBox' }, false)).toBe(false);
+    expect(isReplayVisible({ format: 'warchest' }, false)).toBe(false);
   });
 
   it('restores reserve formats, saved decks, and replay visibility when the flag is on', () => {
     const save = freshSave(0);
     const constructed = { ...save.decks[0], id: 'constructed', format: 'constructed' as const };
     const darlings = { ...save.decks[0], id: 'darlings', format: 'darlings' as const };
-    const battlebox = { ...save.decks[0], id: 'battlebox', format: 'battlebox' as const };
-    const decks = [constructed, darlings, battlebox];
+    const warchest = { ...save.decks[0], id: 'warchest', format: 'warchest' as const };
+    const decks = [constructed, darlings, warchest];
 
-    expect(offeredBuilderFormats(true)).toEqual(['constructed', 'darlings', 'battlebox']);
-    expect(visibleSavedDecks(decks, true).map((deck) => deck.id)).toEqual(['constructed', 'darlings', 'battlebox']);
-    expect(activeVisibleSavedDeck(decks, 'battlebox', true)?.id).toBe('battlebox');
+    expect(offeredBuilderFormats(true)).toEqual(['constructed', 'darlings', 'warchest']);
+    expect(visibleSavedDecks(decks, true).map((deck) => deck.id)).toEqual(['constructed', 'darlings', 'warchest']);
+    expect(activeVisibleSavedDeck(decks, 'warchest', true)?.id).toBe('warchest');
     expect(isReplayVisible({ format: 'darlings' }, true)).toBe(true);
   });
 

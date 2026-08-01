@@ -1,12 +1,12 @@
 import { ownedCount, ownedVariants } from '../meta/Collection';
-import { BATTLE_BOX_DECK_SIZE, DARLINGS_DECK_SIZE } from '../meta/battleBox';
+import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../meta/warchest';
 import { ownedVariantEntries, variantLabel } from '../meta/collectionFilter';
 import type { SavedDeck } from '../meta/SaveManager';
 import { variantKey, type CardVariant } from '../meta/variants';
 
 export type BuilderFormat = NonNullable<SavedDeck['format']>;
 
-const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'darlings', 'battlebox'];
+const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'darlings', 'warchest'];
 
 /** The format choices the builder may expose for this release. */
 export function offeredBuilderFormats(reserveFormatsEnabled: boolean): BuilderFormat[] {
@@ -14,8 +14,8 @@ export function offeredBuilderFormats(reserveFormatsEnabled: boolean): BuilderFo
 }
 
 /** Reserve-format metadata is hidden along with its player-facing UI. */
-export function isReserveFormat(format: string | null | undefined): format is 'darlings' | 'battlebox' | 'battleBox' {
-  return format === 'darlings' || format === 'battlebox' || format === 'battleBox';
+export function isReserveFormat(format: string | null | undefined): format is 'darlings' | 'warchest' {
+  return format === 'darlings' || format === 'warchest';
 }
 
 export function isSavedDeckVisible(
@@ -67,34 +67,34 @@ export function builderFormatForDeck(
     : 'constructed';
 }
 
-export const BATTLE_BOX_RULES_COPY =
-  'Build your land reserve: 10 lands, up to 5 dual lands. Each turn you choose which land to play. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your reserve.';
+export const WARCHEST_RULES_COPY =
+  'Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.';
 
 export const DARLINGS_RULES_COPY =
   'Choose your Darling. Build an 80-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Your Darling begins in your deck and follows the same rules as every other card.';
 
 export function formatLabel(format: BuilderFormat): string {
   if (format === 'darlings') return 'Darlings';
-  if (format === 'battlebox') return 'Battle Box';
+  if (format === 'warchest') return 'Warchest';
   return 'Constructed';
 }
 
 export function formatDeckSize(format: BuilderFormat): number {
   if (format === 'darlings') return DARLINGS_DECK_SIZE;
-  if (format === 'battlebox') return BATTLE_BOX_DECK_SIZE;
+  if (format === 'warchest') return WARCHEST_DECK_SIZE;
   return 60;
 }
 
 export function formatRulesCopy(format: BuilderFormat): string | null {
   if (format === 'darlings') return DARLINGS_RULES_COPY;
-  if (format === 'battlebox') return BATTLE_BOX_RULES_COPY;
+  if (format === 'warchest') return WARCHEST_RULES_COPY;
   return null;
 }
 
 /** Reserve formats are valid in Practice, but the Gauntlet remains classic-only. */
 export function formatGauntletUnavailableCopy(format: BuilderFormat): string | null {
   if (format === 'darlings') return 'Darlings decks are available in Practice only.';
-  if (format === 'battlebox') return 'Battle Box decks are available in Practice only.';
+  if (format === 'warchest') return 'Warchest decks are available in Practice only.';
   return null;
 }
 

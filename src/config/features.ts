@@ -1,4 +1,4 @@
-/** Release feature switches. Flip reserveFormats to true for the 1.5.5 release. */
+/** Release feature switches. Warchest and Darlings ship in 1.5.5. */
 export const FEATURES = {
-  reserveFormats: false,
+  reserveFormats: true,
 };

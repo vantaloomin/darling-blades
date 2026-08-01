@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/features.ts, src/meta/battleBox.ts, src/meta/SaveManager.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-07-31 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/features.ts, src/meta/warchest.ts, src/meta/SaveManager.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-07-31 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.5.5 — program plan
 
@@ -31,7 +31,7 @@ balance-measured (the reason they shipped hidden). Before any flag flip:
   mode. Add reserve-format matrix modes (Warchest and Darlings) that
   drive legitimately built 50-card all-spell decks + 10-land reserves
   through the real engine reserve path. Decks are built legally through
-  the validators (`src/meta/battleBox.ts` / `darlings.ts`), never
+  the validators (`src/meta/warchest.ts` / `darlings.ts`), never
   planted: the boot path PRUNES invalid decks from a save, and a matrix
   that bypasses validation measures decks a player cannot hold.
 - **Warchest matrix** and **Darlings matrix**: dated baselines at a

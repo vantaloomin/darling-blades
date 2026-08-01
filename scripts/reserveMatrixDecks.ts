@@ -9,8 +9,8 @@
 import { CARD_DB } from '../src/data/catalog';
 import { STARTER_DECKS, type DeckList } from '../src/data/starterDecks';
 import type { CardDb, CardDef, Color } from '../src/engine/types';
-import { DARLINGS_DECK_SIZE, hasLandFetchBehavior, isBasicLand, isDualLand } from '../src/meta/battleBox';
-import { validateBattleBoxDeck, validateDarlingsDeck } from '../src/meta/darlings';
+import { DARLINGS_DECK_SIZE, hasLandFetchBehavior, isBasicLand, isDualLand } from '../src/meta/warchest';
+import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
 import { freshSave, type SaveData } from '../src/meta/SaveManager';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const satisfies readonly Color[];
@@ -191,7 +191,7 @@ export function buildReserveMatrixFleets(db: CardDb = CARD_DB): ReserveMatrixFle
     const cards = fillToPlayset(source.cards, colors, db);
     const reserve = landReserve(colors, db);
     const name = `${source.name} Warchest`;
-    assertLegal(name, validateBattleBoxDeck(db, save, cards, reserve));
+    assertLegal(name, validateWarchestDeck(db, save, cards, reserve));
     return {
       id: `${source.id}-warchest`,
       name,

@@ -1,11 +1,11 @@
 /** Every ruleset constant lives here — the engine reads only from this file. */
 
-/** `constructed`/`battlebox` are the persisted deck-format spellings. */
-export type ReserveFormat = 'battleBox' | 'battlebox' | 'darlings';
+/** `constructed`/`warchest` are the persisted deck-format spellings. */
+export type ReserveFormat = 'warchest' | 'darlings';
 export type GameFormat = 'classic' | 'constructed' | ReserveFormat;
 
 export function usesLandReserve(format: GameFormat | undefined): boolean {
-  return format === 'battleBox' || format === 'battlebox' || format === 'darlings';
+  return format === 'warchest' || format === 'darlings';
 }
 
 export const LAND_RESERVE_SIZE = 10;

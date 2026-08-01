@@ -100,7 +100,7 @@ describe('shared reserve land policy', () => {
       decks: [SPELL_DECK, SPELL_DECK],
       seed: 8128,
       db: TEST_DB,
-      format: 'battleBox',
+      format: 'warchest',
       landReserves: [RESERVE, RESERVE],
     });
     keepBoth(game);
@@ -119,7 +119,7 @@ describe('shared reserve land policy', () => {
         decks: [SPELL_DECK, SPELL_DECK],
         seed: 9000 + tier,
         db: TEST_DB,
-        format: 'battleBox',
+        format: 'warchest',
         landReserves: [Array(10).fill('forest'), Array(10).fill('forest')],
       });
       const brains = [
