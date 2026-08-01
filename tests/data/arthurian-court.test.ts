@@ -184,7 +184,7 @@ describe('Arthurian Court data integrity', () => {
 describe('Arthurian Court set plumbing', () => {
   it('renders Camelot Banneret with the requested conditional arrival copy', () => {
     expect(rulesText(CARD_DB['ac-camelot-banneret'])).toContain(
-      'If a Quest is active when this arrives, create 1 1/1 Squire token.',
+      'If a Quest is active when this arrives, create one 1/1 Squire token.',
     );
   });
 
