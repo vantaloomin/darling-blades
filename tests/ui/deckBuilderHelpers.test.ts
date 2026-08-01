@@ -44,7 +44,7 @@ describe('deck builder helpers', () => {
     );
     expect(WARCHEST_RULES_COPY).not.toContain('\u2014');
     expect(DARLINGS_RULES_COPY).toBe(
-      'Choose your Darling. Build an 80-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Your Darling begins in your deck and follows the same rules as every other card.',
+      'Choose your Darling. She waits in her own zone, ready when you call. Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Each time she falls, her next call costs 2 more.',
     );
     expect(DARLINGS_RULES_COPY).not.toContain('\u2014');
   });

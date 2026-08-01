@@ -58,6 +58,7 @@ import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
+import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, PIE_COLORS } from '../ui/deckStats';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -156,7 +157,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private reserveFormatsEnabled = false;
   /** UI working deck. A hidden active deck remains untouched in the save. */
   private workingDeckId: string | null = null;
-  private savedDeckSnapshot: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId'> | null = null;
+  private savedDeckSnapshot: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null = null;
   private exitPrompt: ModalShell | null = null;
 
   constructor() {
@@ -282,6 +283,11 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.renderPool();
     this.renderDeck();
     this.syncFilterButton();
+    if (this.activeFormat() === 'darlings') {
+      showDarlingsTutorial(this, {
+        onReadMore: () => this.scene.start('Glossary', { focus: 'Darlings' }),
+      });
+    }
   }
 
   private activeFormat(): BuilderFormat {
@@ -659,13 +665,14 @@ export class DeckBuilderScene extends Phaser.Scene {
     return save.decks.find((d) => d.id === this.workingDeckId) ?? null;
   }
 
-  private snapshotSavedDeck(deck: SavedDeck | null | undefined): Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId'> | null {
+  private snapshotSavedDeck(deck: SavedDeck | null | undefined): Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null {
     if (!deck) return null;
     return {
       cards: [...deck.cards],
       variantPins: deck.cards.map((_, index) => deck.variantPins?.[index] ?? null),
       landReserve: deck.landReserve ? [...deck.landReserve] : null,
       heroCardId: deck.heroCardId,
+      darlingId: deck.darlingId ?? null,
     };
   }
 
@@ -677,6 +684,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     active.variantPins = [...(snapshot.variantPins ?? [])];
     active.landReserve = snapshot.landReserve ? [...snapshot.landReserve] : null;
     active.heroCardId = snapshot.heroCardId;
+    active.darlingId = snapshot.darlingId ?? null;
   }
 
   private hasUnsavedDeckEdits(): boolean {
@@ -686,6 +694,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         variantPins: this.variantPins,
         landReserve: this.landReserve,
         heroCardId: this.activeSavedDeck()?.heroCardId ?? null,
+        darlingId: this.activeSavedDeck()?.darlingId ?? null,
       },
       this.savedDeckSnapshot,
     );
@@ -967,7 +976,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       return;
     }
     if (this.activeFormat() === format) {
-      if (format === 'darlings') this.showDarlingPicker();
+      if (format === 'darlings') this.openDarlingsFormat();
       return;
     }
     active.format = format;
@@ -984,7 +993,15 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.deckPage = 0;
     this.renderPool();
     this.renderDeck();
-    if (format === 'darlings') this.showDarlingPicker();
+    if (format === 'darlings') this.openDarlingsFormat();
+  }
+
+  private openDarlingsFormat(): void {
+    const tutorial = showDarlingsTutorial(this, {
+      onDismiss: () => this.showDarlingPicker(),
+      onReadMore: () => this.scene.start('Glossary', { focus: 'Darlings' }),
+    });
+    if (!tutorial) this.showDarlingPicker();
   }
 
   private showDarlingPicker(): void {
@@ -1033,11 +1050,12 @@ export class DeckBuilderScene extends Phaser.Scene {
     const choose = (id: string): void => {
       const active = this.syncDraftToActiveDeck();
       if (!active || active.format !== 'darlings') return;
-      if (!this.deck.includes(id)) {
-        const next = appendDeckSlot({ cards: this.deck, variantPins: this.variantPins }, id);
-        this.deck = next.cards;
-        this.variantPins = next.variantPins;
-      }
+      const withoutPrevious = active.darlingId
+        ? removeAllDeckSlots({ cards: this.deck, variantPins: this.variantPins }, active.darlingId)
+        : { cards: this.deck, variantPins: this.variantPins };
+      const next = removeAllDeckSlots(withoutPrevious, id);
+      this.deck = next.cards;
+      this.variantPins = next.variantPins;
       active.darlingId = id;
       active.cards = [...this.deck];
       active.variantPins = [...this.variantPins];
@@ -1898,6 +1916,18 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.ownedVariantFor(active.darlingId),
       );
       this.rightPane.push(portrait);
+      const darlingSlot = this.add
+        .text(x0 + 46, 62, 'Darling', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0, 0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, darlingSlot, () => this.openDarlingsFormat());
+      inflateHitArea(darlingSlot, 74, 34);
+      this.rightPane.push(darlingSlot);
     }
     if (this.reserveFormatsEnabled) this.renderFormatSwitch(x0, format);
     if (format === 'constructed' && this.touch) {

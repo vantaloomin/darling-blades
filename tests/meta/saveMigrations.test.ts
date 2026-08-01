@@ -331,3 +331,68 @@ describe('SaveData v25 migration (Warchest and collection display pins)', () => 
     });
   });
 });
+
+describe('SaveData v26 migration (Darlings command zone tutorial)', () => {
+  it('pulls a legacy in-deck Darling and its positional pin into the external identity', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 25;
+    old.decks = [{
+      id: 'legacy-darlings',
+      name: 'Legacy Darlings',
+      cards: ['gk-athena', 'land-plains'],
+      heroCardId: null,
+      landStyle: null,
+      format: 'darlings',
+      darlingId: 'gk-athena',
+      landReserve: Array.from({ length: 10 }, () => 'land-plains'),
+      variantPins: ['gold|void|standard', 'white|none|standard'],
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.darlingsTutorialSeen).toBe(false);
+    expect(migrated.decks[0]).toMatchObject({
+      cards: ['land-plains'],
+      darlingId: 'gk-athena',
+      variantPins: [null],
+    });
+  });
+
+  it('keeps v26 normalization strict about the tutorial flag and external Darling card list', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    current.darlingsTutorialSeen = 'yes';
+    current.decks = [{
+      id: 'current-darlings',
+      name: 'Current Darlings',
+      cards: ['gk-athena', 'land-plains'],
+      heroCardId: null,
+      landStyle: null,
+      format: 'darlings',
+      darlingId: 'gk-athena',
+      landReserve: Array.from({ length: 10 }, () => 'land-plains'),
+      variantPins: [null, null],
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.darlingsTutorialSeen).toBe(false);
+    expect(migrated.decks[0].cards).toEqual(['land-plains']);
+    expect(migrated.decks[0].variantPins).toEqual([null]);
+  });
+
+  it('preserves the Darlings tutorial acknowledgement on a current save', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.darlingsTutorialSeen = true;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.darlingsTutorialSeen).toBe(true);
+  });
+});

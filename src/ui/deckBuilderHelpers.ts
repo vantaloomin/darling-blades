@@ -68,7 +68,7 @@ export const WARCHEST_RULES_COPY =
   'Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.';
 
 export const DARLINGS_RULES_COPY =
-  'Choose your Darling. Build an 80-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Your Darling begins in your deck and follows the same rules as every other card.';
+  'Choose your Darling. She waits in her own zone, ready when you call. Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Each time she falls, her next call costs 2 more.';
 
 export function formatLabel(format: BuilderFormat): string {
   if (format === 'darlings') return 'Darlings';
@@ -100,20 +100,22 @@ export interface DeckBuilderWorkingState {
   variantPins: readonly (string | null)[];
   landReserve: readonly string[];
   heroCardId: string | null;
+  darlingId?: string | null;
 }
 
 /** Compare every editable deck slot against the last saved deck record. */
 export function isDeckBuilderDirty(
   working: DeckBuilderWorkingState,
-  saved: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId'> | null,
+  saved: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null,
 ): boolean {
-  if (!saved) return working.cards.length > 0 || working.landReserve.length > 0 || working.heroCardId !== null;
+  if (!saved) return working.cards.length > 0 || working.landReserve.length > 0 || working.heroCardId !== null || working.darlingId != null;
   const savedPins = saved.cards.map((_, index) => saved.variantPins?.[index] ?? null);
   const savedReserve = saved.landReserve ?? [];
   return !sameArray(working.cards, saved.cards)
     || !sameArray(working.variantPins, savedPins)
     || !sameArray(working.landReserve, savedReserve)
-    || working.heroCardId !== (saved.heroCardId ?? null);
+    || working.heroCardId !== (saved.heroCardId ?? null)
+    || (working.darlingId ?? null) !== (saved.darlingId ?? null);
 }
 
 function sameArray(left: readonly unknown[], right: readonly unknown[]): boolean {

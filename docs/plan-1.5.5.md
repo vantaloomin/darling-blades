@@ -66,6 +66,13 @@ reserve matrices, and the classic gates must stay green.
   metadata that recorded the old format id must keep loading.
 - The curated Darlings rival ladder stays **explicitly not promised**
   (standing decision; player-built duels only).
+- **Darlings command-zone respec:** each 79-spell Darlings deck carries its
+  legendary Darling outside the list, with public cast, tax, pay-down, replay,
+  builder, migration, tutorial, and glossary presentation as specified in
+  [plan-darlings.md](plan-darlings.md)'s 2026-08-01 section.
+- **Next wave, not this scope:** five dual-legend Darlings precons, with Zhou
+  Yu free. They require their own card-list and balance approval before data
+  work begins.
 
 ### 3 · Progression bands: absolute owned-unique cards
 

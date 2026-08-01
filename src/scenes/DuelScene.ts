@@ -199,6 +199,8 @@ const PERMANENT_BAND_SCALE = 0.55;
 const PERMANENT_BAND_TILE_W = TILE_W * PERMANENT_BAND_SCALE;
 const PERMANENT_BAND_MAX_SPACING = 98;
 type ViewableZone = 'deck' | 'graveyard' | 'severed';
+type DarlingCastAction = Extract<Action, { type: 'castDarling' }>;
+type PendingCastAction = Extract<Action, { type: 'castSpell' }> | DarlingCastAction;
 type PermanentRowLayoutBase = {
   cy: number;
   usable: number;
@@ -285,12 +287,18 @@ export class DuelScene extends Phaser.Scene {
   private reservePositions = new Map<string, { x: number; y: number; scale: number; angle: number }>();
   private reserveViews: CardView[] = [];
   private reserveLabels: Phaser.GameObjects.Text[] = [];
+  /** Public Darlings command-zone cards, rebuilt from the redacted public view. */
+  private darlingZoneViews: CardView[] = [];
+  private darlingZoneDecor: Phaser.GameObjects.GameObject[] = [];
+  private darlingZoneControls: Phaser.GameObjects.GameObject[] = [];
+  private darlingZonePositions = new Map<PlayerId, { x: number; y: number; scale: number; angle: number }>();
   private manaPips: (Phaser.GameObjects.Image | Phaser.GameObjects.Text)[] = [];
   private manaStripZones: Phaser.GameObjects.Zone[] = [];
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
   private previousManaSignature: string | null = null;
   private previousReserveSignature: string | null = null;
+  private previousDarlingZoneSignature: string | null = null;
   private hud!: {
     myLife: Phaser.GameObjects.Text;
     oppLife: Phaser.GameObjects.Text;
@@ -328,7 +336,7 @@ export class DuelScene extends Phaser.Scene {
   private selectedAttackers = new Set<number>();
   private blockAssignments: { blocker: number; attacker: number }[] = [];
   private pendingBlocker: number | null = null;
-  private pendingCasts: Extract<Action, { type: 'castSpell' }>[] | null = null;
+  private pendingCasts: PendingCastAction[] | null = null;
   private arrows!: Phaser.GameObjects.Graphics;
   /** Per-face legal-target outlines; portrait rings live on CommanderPortrait itself. */
   private lifeTargetRings!: { my: Phaser.GameObjects.Graphics; opp: Phaser.GameObjects.Graphics };
@@ -583,6 +591,11 @@ export class DuelScene extends Phaser.Scene {
     this.zoneModal = null;
     this.zoneGuard = new ModalGuard();
     this.zoneModalReturn = null;
+    this.darlingZoneViews = [];
+    this.darlingZoneDecor = [];
+    this.darlingZoneControls = [];
+    this.darlingZonePositions = new Map();
+    this.previousDarlingZoneSignature = null;
     this.discardPicks = new Set();
     this.foreseeBottomPicks = new Set();
     // Stale on gauntlet/rematch restarts: the scene clock died with the old
@@ -1794,6 +1807,10 @@ export class DuelScene extends Phaser.Scene {
         : player.hand[action.handIndex];
       return entry === undefined ? undefined : cardIdOf(entry);
     }
+    if (action.type === 'castDarling') {
+      const entry = player.darlingZone;
+      return entry === undefined || entry === null ? undefined : cardIdOf(entry);
+    }
     return undefined;
   }
 
@@ -1808,6 +1825,7 @@ export class DuelScene extends Phaser.Scene {
         ? this.graveOrigin(HUMAN)
         : this.handOrigin(action.handIndex);
     }
+    if (action.type === 'castDarling') return this.darlingZonePositions.get(HUMAN);
     return undefined;
   }
 
@@ -3077,6 +3095,7 @@ export class DuelScene extends Phaser.Scene {
     this.syncLandPositions(st.battlefield);
     this.syncManaPips();
     if (this.isReserveDuel()) this.syncReserveStrip();
+    this.syncDarlingZones();
     this.syncHand();
     this.syncButton();
     this.drawArrows();
@@ -3423,6 +3442,129 @@ export class DuelScene extends Phaser.Scene {
     }
   }
 
+  /** Public command-zone cards live beside their owners' portraits. */
+  private syncDarlingZones(): void {
+    const publicView = this.duel.viewFor(HUMAN);
+    const castActions = this.darlingCastActions();
+    const payDownAction = !this.pendingCasts ? this.duel.legalActions(HUMAN).find(
+      (action): action is Extract<Action, { type: 'payDownDarlingTax' }> => action.type === 'payDownDarlingTax',
+    ) : undefined;
+    const zones: [string | null | undefined, string | null | undefined] = [
+      publicView.you.darlingZone,
+      publicView.opp.darlingZone,
+    ];
+    const taxes = [publicView.you.darlingTax ?? 0, publicView.opp.darlingTax ?? 0] as const;
+    const signature = [
+      zones[HUMAN] ?? '', taxes[HUMAN], publicView.you.darlingCastable === true, castActions.length,
+      payDownAction ? 'pay' : '', this.pendingCasts ? 'targeting' : '', zones[AI] ?? '', taxes[AI],
+    ].join('\u0001');
+    if (this.previousDarlingZoneSignature === signature) return;
+    this.previousDarlingZoneSignature = signature;
+    for (const view of this.darlingZoneViews) {
+      view.disableInput();
+      if (view.active) view.destroy();
+    }
+    for (const object of this.darlingZoneDecor) if (object.active) object.destroy();
+    this.darlingZoneViews = [];
+    this.darlingZoneDecor = [];
+    this.darlingZoneControls = [];
+    this.darlingZonePositions = new Map();
+
+    const layouts = {
+      [HUMAN]: { x: 226, y: 596, labelY: 526, label: 'Darling Zone' },
+      [AI]: { x: 1034, y: 116, labelY: 188, label: "Foe's Darling Zone" },
+    } as const;
+    for (const player of [HUMAN, AI] as const) {
+      const cardId = zones[player];
+      if (!cardId || !CARD_DB[cardId]) continue;
+      const layout = layouts[player];
+      const d = def(CARD_DB, cardId);
+      const tax = taxes[player];
+      const variant = player === HUMAN ? displayVariantFor(Services.save.data, cardId) : undefined;
+      const castable = player === HUMAN && castActions.length > 0 && !this.pendingCasts;
+      const view = new CardView(this, layout.x, layout.y)
+        .setScale(0.2)
+        .setDepth(8)
+        .setAlpha(player === AI ? 0.82 : castable ? 1 : 0.72);
+      view.setCard(d, { fx: 'none', variant, fullArt: variant?.fullArt === true });
+      this.darlingZoneViews.push(view);
+      this.darlingZonePositions.set(player, { x: layout.x, y: layout.y, scale: 0.2, angle: 0 });
+      const label = this.add.text(layout.x, layout.labelY, layout.label, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: player === HUMAN ? theme.colors.gold : theme.colors.muted,
+      }).setOrigin(0.5).setDepth(9);
+      this.darlingZoneDecor.push(label);
+      if (tax > 0) {
+        const chip = this.add.text(layout.x + 36, layout.y - 54, `+${tax}`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+          backgroundColor: theme.colors.panelFill,
+          padding: { x: 5, y: 2 },
+        }).setOrigin(0.5).setDepth(10);
+        this.darlingZoneDecor.push(chip);
+      }
+      if (player !== HUMAN) continue;
+
+      const totalCost = d.cost ? { ...d.cost, generic: d.cost.generic + tax } : null;
+      if (castable && totalCost) {
+        const castCopy = this.add.text(layout.x, layout.y + 64, `Cast ${manaCostText(totalCost)}`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+          backgroundColor: theme.colors.panelFill,
+          padding: { x: 4, y: 1 },
+        }).setOrigin(0.5).setDepth(10);
+        this.darlingZoneDecor.push(castCopy);
+      }
+      view.enableInput();
+      this.zoom.attach(view, d, variant);
+      view.on('pointerover', (pointer: Phaser.Input.Pointer) => {
+        if (!pointer.wasTouch && castable) this.previewDarlingManaPlan(castActions);
+      });
+      view.on('pointerout', () => this.clearManaPlanPreview());
+      view.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.wasTouch || pointer.rightButtonReleased() || this.pendingCasts) return;
+        if (castable) this.startDarlingCast(castActions);
+        else this.showInspect(d, variant);
+      });
+      view.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.button === 2 && !this.pendingCasts) this.showInspect(d, variant);
+      });
+      attachTouchGestures(this, view, {
+        card: d,
+        variant,
+        onTap: () => {
+          if (this.pendingCasts) return;
+          if (castable) this.startDarlingCast(castActions);
+          else this.showInspect(d, variant);
+        },
+      });
+      if (payDownAction) {
+        const payDown = themedButton(this, layout.x + 56, layout.y + 72, 'Ease tax 4', {
+          variant: 'emphasis',
+          size: 'sm',
+          minWidth: 106,
+          onTap: () => this.act(payDownAction),
+        });
+        payDown.container.setDepth(10);
+        this.darlingZoneDecor.push(payDown.container);
+        this.darlingZoneControls.push(payDown.inputZone);
+      }
+    }
+  }
+
+  private darlingCastActions(): DarlingCastAction[] {
+    if (!this.isHumanTurnDecision()) return [];
+    return this.duel.legalActions(HUMAN).filter(
+      (action): action is DarlingCastAction => action.type === 'castDarling',
+    );
+  }
+
   /**
    * "What can I cast" pips: for each color, how many of a player's untapped
    * mana sources could produce it right now (engine manaSources — public
@@ -3625,9 +3767,6 @@ export class DuelScene extends Phaser.Scene {
    * inspect directly. X spells mirror onHandClick by previewing their max X.
    */
   private previewManaPlan(handIndex: number): void {
-    this.clearManaPlanPreview();
-    if (this.touch || this.ended || this.pendingCasts) return;
-
     const hand = this.duel.state.players[HUMAN].hand;
     const cardId = hand[handIndex];
     if (!cardId) return;
@@ -3643,7 +3782,24 @@ export class DuelScene extends Phaser.Scene {
       );
     if (casts.length === 0) return;
     const extraGeneric = casts.reduce((best, cast) => Math.max(best, cast.x ?? 0), 0);
-    const plan = solveMana(this.duel.state, CARD_DB, HUMAN, card.cost, extraGeneric);
+    this.previewManaPlanForCost(card.cost, extraGeneric);
+  }
+
+  /** Darling hover uses this same auto-tap marker path with tax folded into generic cost. */
+  private previewDarlingManaPlan(casts: readonly DarlingCastAction[]): void {
+    const cardId = this.duel.viewFor(HUMAN).you.darlingZone;
+    if (!cardId) return;
+    const card = def(CARD_DB, cardId);
+    if (!card.cost) return;
+    const tax = this.duel.viewFor(HUMAN).you.darlingTax ?? 0;
+    const extraGeneric = casts.reduce((best, cast) => Math.max(best, cast.x ?? 0), 0);
+    this.previewManaPlanForCost({ ...card.cost, generic: card.cost.generic + tax }, extraGeneric);
+  }
+
+  private previewManaPlanForCost(cost: NonNullable<CardDef['cost']>, extraGeneric = 0): void {
+    this.clearManaPlanPreview();
+    if (this.touch || this.ended || this.pendingCasts) return;
+    const plan = solveMana(this.duel.state, CARD_DB, HUMAN, cost, extraGeneric);
     if (!plan) return;
 
     const landSignatures = [
@@ -4121,7 +4277,10 @@ export class DuelScene extends Phaser.Scene {
     if (this.pendingCasts && !this.touch) {
       const p = this.input.activePointer;
       const tip = this.snapTargetTip(p.worldX, p.worldY);
-      const { x: sx, y: sy } = TARGET_ARROW_SRC;
+      const origin = this.pendingCasts[0]?.type === 'castDarling'
+        ? this.darlingZonePositions.get(HUMAN) ?? TARGET_ARROW_SRC
+        : TARGET_ARROW_SRC;
+      const { x: sx, y: sy } = origin;
       this.drawCurvedArrow(sx, sy, tip.x, tip.y, TARGET_ARROW_COLOR, 0.95);
       // Arrowhead — two short strokes back from the tip along the shaft angle.
     }
@@ -4382,6 +4541,19 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     this.continueCast(casts);
+  }
+
+  /** Darling casts share the hand-cast target selection and auto-mana submission path. */
+  private startDarlingCast(casts: DarlingCastAction[]): void {
+    if (casts.length === 0) return;
+    const targeted = casts[0].targets !== undefined && casts[0].targets.length > 0;
+    if (!targeted) {
+      const best = casts.reduce((left, right) => ((left.x ?? 0) >= (right.x ?? 0) ? left : right));
+      this.act(best);
+      return;
+    }
+    this.pendingCasts = this.pendingCasts ? null : casts;
+    this.sync();
   }
 
   /** The cast flow after any Empower choice: act, grave-pick, or target. */
@@ -5275,6 +5447,8 @@ export class DuelScene extends Phaser.Scene {
     return [
       ...tileZones,
       ...this.reserveViews.map((view) => view.inputZone).filter((zone): zone is Phaser.GameObjects.Zone => !!zone),
+      ...this.darlingZoneViews.map((view) => view.inputZone).filter((zone): zone is Phaser.GameObjects.Zone => !!zone),
+      ...this.darlingZoneControls,
       ...this.manaStripZones,
       ...this.handViews,
       ...[
