@@ -97,7 +97,7 @@ describe('deck storage', () => {
 
   it('copyDeck makes an independent, deep-cloned copy with a new id', () => {
     const save = saveWithDecks();
-    save.decks[0].format = 'battlebox';
+    save.decks[0].format = 'warchest';
     save.decks[0].landReserve = ['land-plains'];
     const id = copyDeck(save, 'deck-1');
     expect(id).toBe('deck-3');
@@ -108,7 +108,7 @@ describe('deck storage', () => {
     save.decks[0].cards.push('z'); // mutate the original…
     expect(copy.cards).toEqual(['a', 'b']); // …the copy is unaffected
     expect(copy.variantPins).toEqual(['blue|none|standard', null]);
-    expect(copy.format).toBe('battlebox');
+    expect(copy.format).toBe('warchest');
     expect(copy.landReserve).toEqual(['land-plains']);
     expect(copyDeck(save, 'nope')).toBeNull();
   });
@@ -148,19 +148,19 @@ describe('deck storage', () => {
 
   it('saveDeck preserves format fields and uses aligned pins when syncing a deck', () => {
     const save = saveWithDecks();
-    save.decks[0].format = 'battlebox';
+    save.decks[0].format = 'warchest';
     save.decks[0].darlingId = null;
     save.decks[0].landReserve = ['land-plains'];
 
     saveDeck(save, {
       id: 'deck-1',
-      name: 'Battle Box',
+      name: 'Warchest',
       cards: ['b', 'a', 'new'],
       variantPins: ['pin-b', null, 'pin-new'],
     });
 
     expect(save.decks[0]).toMatchObject({
-      format: 'battlebox',
+      format: 'warchest',
       landReserve: ['land-plains'],
       cards: ['b', 'a', 'new'],
       variantPins: ['pin-b', null, 'pin-new'],

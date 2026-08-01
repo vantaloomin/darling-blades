@@ -44,6 +44,19 @@ dealt during construction. Headless callers also default to that legacy direct
 starting-player roll unless they opt in, preserving existing seeded simulations
 and tests.
 
+## Warchest and Darlings formats
+
+Warchest decks have 50 nonland cards and a Warchest of 10 lands, with up to 5
+dual lands. Warchest Reserves are the lands not yet in play. Once deployed,
+they are your Active Warchest. Each turn, move one land from your Warchest
+Reserves into your Active Warchest. Dual lands arrive tapped. Destroyed dual
+lands are gone; destroyed basic lands return to your Reserves.
+
+Darlings follows the same Warchest land rules. Choose your Darling. Build an
+80-card deck in her colors, one copy of each card, and a Warchest of 10 lands.
+Your Darling begins in your deck and follows the same rules as every other
+card.
+
 ## Mulligans
 
 The mulligan is **London-style with the first mulligan free**, sequenced by

@@ -77,7 +77,7 @@ describe('duel setup', () => {
       cards,
       heroCardId: null,
       landStyle: null,
-      format: 'battlebox',
+      format: 'warchest',
       landReserve: reserve,
       ...over,
     });

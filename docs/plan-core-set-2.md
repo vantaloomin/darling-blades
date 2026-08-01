@@ -24,7 +24,7 @@ Recommended Oath reminder:
 
 > Oath is active while you control a legendary creature.
 
-Oath abilities use existing trigger/static wording plus that public condition, for example `Oath: At your dawn, put a mark on another creature you control.` A Darlings deck always includes a selected legendary creature in its shuffled 60 cards, so Oath has a clear build-around anchor without changing what happens when that card is drawn, defeated, returned, or Severed. Ordinary Constructed can enable Oath with any legendary creature.
+Oath abilities use existing trigger/static wording plus that public condition, for example `Oath: At your dawn, put a mark on another creature you control.` A Darlings deck always includes a selected legendary creature in its shuffled 80 cards and uses a 10-land Warchest, so Oath has a clear build-around anchor without changing what happens when that card is drawn, defeated, returned, or Severed. Ordinary Constructed can enable Oath with any legendary creature. Updated for the Warchest reveal 2026-07-31.
 
 Pack, collection, deck-builder, rules glossary, and card-detail surfaces explain both hooks before purchase or deck entry. The Mandate marker never covers life, priority, stack, or a Darling portrait. Oath cards show whether the condition is currently active through icon plus text, not color alone.
 
@@ -154,4 +154,3 @@ This plan explicitly depends on Darlings semantics in `docs/plan-darlings.md`, T
 - Set size, products, odds, rewards, and balance/economy targets replace all `TO MEASURE`/open values with dated commands and artifacts.
 - Existing avatar/floor gates pass without lowering; new retained floors only ratchet upward.
 - Save, replay, Darlings, Tutor, mobile, accessibility, mod validation, and multiplayer compatibility are verified before the 2.0 lock.
-

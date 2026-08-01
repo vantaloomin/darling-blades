@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_SAVE_VERSION, freshSave, SaveManager } from '../../src/meta/SaveManager';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 
+const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
+
 function fakeStorage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> & { raw: Map<string, string> } {
   const raw = new Map<string, string>();
   return {
@@ -277,6 +279,52 @@ describe('SaveData v23 migration (formats, reserves, and positional variant pins
       darlingId: null,
       landReserve: null,
       variantPins: [null, null],
+    });
+  });
+});
+
+describe('SaveData v25 migration (Warchest and collection display pins)', () => {
+  it('migrates a v24 Warchest deck, keeps its active deck id, and starts collection pins empty', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 24;
+    old.activeDeckId = 'legacy-warchest';
+    old.decks = [{
+      id: 'legacy-warchest',
+      name: 'Legacy Warchest',
+      cards: ['bear'],
+      heroCardId: null,
+      landStyle: null,
+      format: LEGACY_WARCHEST_FORMAT,
+      darlingId: null,
+      landReserve: Array.from({ length: 10 }, () => 'land-plains'),
+      variantPins: [null],
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.decks[0].format).toBe('warchest');
+    expect(migrated.activeDeckId).toBe('legacy-warchest');
+    expect(migrated.pinnedVariants).toEqual({});
+  });
+
+  it('drops malformed or unknown collection display pins while retaining canonical known pins', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.pinnedVariants = {
+      'land-plains': 'white|none|standard',
+      'land-forest': 'purple|none|standard',
+      'land-island': 'white|none|invalid-treatment',
+      'not-a-card': 'white|none|standard',
+    };
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.pinnedVariants).toEqual({
+      'land-plains': variantKey(PLAIN_VARIANT),
     });
   });
 });

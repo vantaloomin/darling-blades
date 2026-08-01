@@ -7,7 +7,8 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 
-export const CURRENT_SAVE_VERSION = 24 as const;
+export const CURRENT_SAVE_VERSION = 25 as const;
+const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /** When an empty blocking step needs a second confirmation. */
 export type ConfirmNoBlockSetting = 'always' | 'lethal' | 'off';
@@ -70,7 +71,7 @@ export interface SavedDeck {
   /** Per-basic land art styles. `null` or a missing key = default art. v22 addition. */
   landStyle: LandStyleMap | null;
   /** Rules format metadata. v23 addition. */
-  format?: 'constructed' | 'darlings' | 'battlebox';
+  format?: 'constructed' | 'darlings' | 'warchest';
   /** Selected Darling card, only meaningful for the Darlings format. v23 addition. */
   darlingId?: string | null;
   /** Per-deck reserve land list for reserve formats. v23 addition. */
@@ -107,6 +108,8 @@ export interface SaveData {
    * Invariant: per-card variant counts sum to `collection[cardId]`.
    */
   collectionVariants: Record<string, Record<string, number>>;
+  /** Player-chosen collection display treatment by card id. v25 addition. */
+  pinnedVariants: Record<string, string>;
   decks: SavedDeck[];
   activeDeckId: string | null;
   starterChosen: string | null;
@@ -216,6 +219,7 @@ export function freshSave(now: number): SaveData {
     gold: 0,
     collection: {},
     collectionVariants: {},
+    pinnedVariants: {},
     decks: [],
     activeDeckId: null,
     starterChosen: null,
@@ -312,7 +316,8 @@ export class SaveManager {
    * explicitly non-full-art three-part keys; v21 -> v22 stamps tower roster
    * identity and adds per-deck land-art selection; v22 -> v23 adds reserve
    * formats and positional variant pins; v23 -> v24 adds the empty-block
-   * confirmation preference, defaulting to lethal-only protection.
+   * confirmation preference, defaulting to lethal-only protection; v24 -> v25
+   * renames the Warchest format and adds collection-level variant display pins.
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -322,6 +327,7 @@ export class SaveManager {
    */
   migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
+    const beganAtCurrentVersion = cur.version === CURRENT_SAVE_VERSION;
     if (cur.version === 1) {
       const base = freshSave(now);
       // Spread the v1 fields over a fresh shell, then force the v2 additions.
@@ -578,7 +584,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -636,8 +642,18 @@ export class SaveManager {
           : 'lethal';
       cur = {
         ...cur,
-        version: CURRENT_SAVE_VERSION,
+        version: 24,
         settings: { ...(cur.settings as object), confirmNoBlock },
+      };
+    }
+    if (cur.version === 24) {
+      cur = {
+        ...cur,
+        version: CURRENT_SAVE_VERSION,
+        // A migrated v24 save did not have collection display pins. A current
+        // v25 blob takes the normalization route above, so retain its raw map
+        // for the final canonicalizer below.
+        pinnedVariants: beganAtCurrentVersion ? cur.pinnedVariants : {},
       };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
@@ -646,6 +662,7 @@ export class SaveManager {
         ...cur,
         version: CURRENT_SAVE_VERSION,
         decks: normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants),
+        pinnedVariants: normalizePinnedVariants(cur.pinnedVariants),
       } as unknown as SaveData;
     }
     return freshSave(now);
@@ -780,7 +797,8 @@ function normalizeSavedDecks(
       const cards = deck.cards.filter((id): id is string => typeof id === 'string');
       const explicitHero = typeof deck.heroCardId === 'string' ? deck.heroCardId : null;
       const migratedHero = explicitHero ?? (defaultHeroCardId && cards.includes(defaultHeroCardId) ? defaultHeroCardId : null);
-      const darlings = normalizeDarlingsFields(CARD_DB, deck.format, deck.darlingId, cards, deck.landReserve);
+      const format = deck.format === LEGACY_WARCHEST_FORMAT ? 'warchest' : deck.format;
+      const darlings = normalizeDarlingsFields(CARD_DB, format, deck.darlingId, cards, deck.landReserve);
       return {
         id: deck.id,
         name: deck.name,
@@ -792,6 +810,17 @@ function normalizeSavedDecks(
       };
     })
     .filter((deck): deck is SavedDeck => deck !== null);
+}
+
+function normalizePinnedVariants(value: unknown): Record<string, string> {
+  if (!isRecord(value)) return {};
+  const pins: Record<string, string> = {};
+  for (const [cardId, rawKey] of Object.entries(value)) {
+    if (!CARD_DB[cardId]) continue;
+    const key = canonicalVariantPin(rawKey);
+    if (key !== null) pins[cardId] = key;
+  }
+  return pins;
 }
 
 function normalizeVariantPins(

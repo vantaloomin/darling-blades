@@ -4,7 +4,7 @@ import { ownedCount } from './Collection';
 import type { DeckIssue } from './DeckStorage';
 import type { SaveData } from './SaveManager';
 
-export const BATTLE_BOX_DECK_SIZE = 50;
+export const WARCHEST_DECK_SIZE = 50;
 export const DARLINGS_DECK_SIZE = 80;
 export const LAND_RESERVE_SIZE = 10;
 export const MAX_DUAL_LANDS = 5;
@@ -26,7 +26,7 @@ function isAllowedReserveLand(card: CardDef): boolean {
   return isBasicLand(card) || isDualLand(card);
 }
 
-/** Validate the shared 10-card land reserve contract. */
+/** Validate the shared 10-card Warchest Reserves contract. */
 export function validateLandReserve(
   db: CardDb,
   save: SaveData,
@@ -36,7 +36,7 @@ export function validateLandReserve(
   if (landReserve.length !== LAND_RESERVE_SIZE) {
     issues.push({
       kind: 'error',
-      message: `Land reserves need exactly ${LAND_RESERVE_SIZE} lands (currently ${landReserve.length})`,
+      message: `Warchest Reserves need exactly ${LAND_RESERVE_SIZE} lands (currently ${landReserve.length})`,
     });
   }
 
@@ -64,13 +64,13 @@ export function validateLandReserve(
     if (count > RULES.maxCopies) {
       issues.push({
         kind: 'error',
-        message: `${card.name}: ${count} copies in land reserve (max ${RULES.maxCopies})`,
+        message: `${card.name}: ${count} copies in Warchest Reserves (max ${RULES.maxCopies})`,
       });
     }
     if (count > ownedCount(save, id)) {
       issues.push({
         kind: 'error',
-        message: `${card.name}: ${count} in land reserve but only ${ownedCount(save, id)} owned`,
+        message: `${card.name}: ${count} in Warchest Reserves but only ${ownedCount(save, id)} owned`,
       });
     }
   }
@@ -78,17 +78,17 @@ export function validateLandReserve(
   if (duals > MAX_DUAL_LANDS) {
     issues.push({
       kind: 'error',
-      message: `Land reserves may contain at most ${MAX_DUAL_LANDS} dual lands (currently ${duals})`,
+      message: `Warchest Reserves may contain at most ${MAX_DUAL_LANDS} dual lands (currently ${duals})`,
     });
   }
   return issues;
 }
 
-/** Validate an all-spell reserve-format deck shape at its format's required size. */
-export function validateBattleBoxDeckShape(
+/** Validate an all-spell Warchest-format deck shape at its required size. */
+export function validateWarchestDeckShape(
   db: CardDb,
   cards: readonly string[],
-  deckSize = BATTLE_BOX_DECK_SIZE,
+  deckSize = WARCHEST_DECK_SIZE,
 ): DeckIssue[] {
   const issues: DeckIssue[] = [];
   if (cards.length !== deckSize) {
@@ -100,7 +100,7 @@ export function validateBattleBoxDeckShape(
   if (cards.some((id) => db[id]?.types.includes('land'))) {
     issues.push({
       kind: 'error',
-      message: 'Decks in this format hold no lands; build your land reserve instead',
+      message: 'Decks in this format hold no lands; build your Warchest instead',
     });
   }
   return issues;
@@ -132,7 +132,7 @@ export function auditLandFetchCards(db: CardDb): string[] {
 export function landFetchExclusionError(db: CardDb, cardId: string): string | null {
   const card = db[cardId];
   return card && hasLandFetchBehavior(card)
-    ? `${card.name} cannot find lands here; your lands live in your reserve.`
+    ? `${card.name} cannot find lands here; your lands live in your Warchest.`
     : null;
 }
 

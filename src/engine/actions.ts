@@ -473,7 +473,7 @@ export function validateAction(
         if (!isType(def(db, card), 'land')) return 'reserve card is not a land';
         return action.handIndex === -1 ? null : 'reserve land actions need handIndex -1';
       }
-      if (action.reserveIndex !== undefined) return 'classic games do not have a land reserve';
+      if (action.reserveIndex !== undefined) return 'Classic games do not have a Warchest.';
       const cardId = me.hand[action.handIndex];
       if (cardId === undefined) return 'bad hand index';
       if (!isType(def(db, cardId), 'land')) return 'not a land';

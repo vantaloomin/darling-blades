@@ -4,16 +4,16 @@ import { ownedCount } from './Collection';
 import type { DeckIssue } from './DeckStorage';
 import type { SaveData } from './SaveManager';
 import {
-  BATTLE_BOX_DECK_SIZE,
   DARLINGS_DECK_SIZE,
+  WARCHEST_DECK_SIZE,
   isBasicLand,
   isDualLand,
   landFetchExclusionError,
-  validateBattleBoxDeckShape,
+  validateWarchestDeckShape,
   validateLandReserve,
-} from './battleBox';
+} from './warchest';
 
-export type DarlingsFormat = 'constructed' | 'darlings' | 'battlebox';
+export type DarlingsFormat = 'constructed' | 'darlings' | 'warchest';
 export type DeckFormat = DarlingsFormat;
 
 export interface DarlingsDeckFields {
@@ -42,7 +42,7 @@ function normalizeLandReserve(db: CardDb, format: DarlingsFormat, raw: unknown):
   return reserve;
 }
 
-/** Normalize the v23 format fields without changing the save schema in this wave. */
+/** Normalize the v25 format fields without changing the save schema in this wave. */
 export function normalizeDarlingsFields(
   db: CardDb,
   format: unknown,
@@ -51,7 +51,7 @@ export function normalizeDarlingsFields(
   landReserve: unknown,
 ): DarlingsDeckFields {
   const normalizedFormat: DarlingsFormat =
-    format === 'darlings' || format === 'battlebox' ? format : 'constructed';
+    format === 'darlings' || format === 'warchest' ? format : 'constructed';
   const normalizedDarling =
     normalizedFormat === 'darlings' && typeof darlingId === 'string' && cards.includes(darlingId)
       ? darlingId
@@ -135,7 +135,7 @@ export function validateDarlingsDeck(
   landReserve: readonly string[],
 ): DeckIssue[] {
   const issues: DeckIssue[] = [
-    ...validateBattleBoxDeckShape(db, cards, DARLINGS_DECK_SIZE),
+    ...validateWarchestDeckShape(db, cards, DARLINGS_DECK_SIZE),
     ...validateLandReserve(db, save, landReserve),
   ];
 
@@ -187,15 +187,15 @@ export function validateDarlingsDeck(
   return issues;
 }
 
-/** Validate a Battle Box deck with Constructed copy and ownership limits. */
-export function validateBattleBoxDeck(
+/** Validate a Warchest deck with Constructed copy and ownership limits. */
+export function validateWarchestDeck(
   db: CardDb,
   save: SaveData,
   cards: readonly string[],
   landReserve: readonly string[],
 ): DeckIssue[] {
   const issues: DeckIssue[] = [
-    ...validateBattleBoxDeckShape(db, cards),
+    ...validateWarchestDeckShape(db, cards),
     ...validateLandReserve(db, save, landReserve),
   ];
   const counts = new Map<string, number>();
@@ -223,4 +223,4 @@ export function validateBattleBoxDeck(
   return issues;
 }
 
-export { BATTLE_BOX_DECK_SIZE, DARLINGS_DECK_SIZE };
+export { WARCHEST_DECK_SIZE, DARLINGS_DECK_SIZE };

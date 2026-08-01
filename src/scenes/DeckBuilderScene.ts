@@ -42,11 +42,11 @@ import {
   LAND_RESERVE_SIZE,
   MAX_DUAL_LANDS,
   validateLandReserve,
-} from '../meta/battleBox';
+} from '../meta/warchest';
 import {
   darlingsCardError,
   listOwnedLegendaryCreatures,
-  validateBattleBoxDeck,
+  validateWarchestDeck,
   validateDarlingsDeck,
 } from '../meta/darlings';
 import {
@@ -316,8 +316,8 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.landReserve,
       );
     }
-    if (format === 'battlebox') {
-      return validateBattleBoxDeck(CARD_DB, Services.save.data, cards, this.landReserve);
+    if (format === 'warchest') {
+      return validateWarchestDeck(CARD_DB, Services.save.data, cards, this.landReserve);
     }
     return validateDeck(CARD_DB, Services.save.data, cards);
   }
@@ -1119,7 +1119,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     const overlay = shell.container;
     overlay.add(
-      this.add.text(640, 72, 'Choose a land for reserve slot ' + (index + 1), {
+      this.add.text(640, 72, 'Choose a land for Warchest Reserves slot ' + (index + 1), {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
@@ -1188,7 +1188,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       radius: theme.radius.control,
     }));
     this.rightPane.push(panel);
-    panel.add(this.add.text(x0 + 198, 162, 'Land reserve', {
+    panel.add(this.add.text(x0 + 198, 162, 'Warchest Reserves', {
       fontFamily: theme.fonts.display,
       fontSize: `${theme.type.label}px`,
       color: theme.colors.heading,
@@ -1218,7 +1218,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       panel.add(button.container);
     }
     const reserveIssues = validateLandReserve(CARD_DB, Services.save.data, this.landReserve);
-    panel.add(this.add.text(x0 + 198, 326, reserveIssues[0]?.message ?? 'Reserve ready.', {
+    panel.add(this.add.text(x0 + 198, 326, reserveIssues[0]?.message ?? 'Warchest ready.', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       color: reserveIssues.length > 0 ? theme.colors.danger : theme.colors.success,
@@ -1356,7 +1356,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const renderDeckTile = (parent: Phaser.GameObjects.Container, deck: SavedDeck, x: number, y: number): void => {
       const isActive = deck.id === this.workingDeckId;
-      const deckFormat = deck.format === 'darlings' || deck.format === 'battlebox' ? deck.format : 'constructed';
+      const deckFormat = deck.format === 'darlings' || deck.format === 'warchest' ? deck.format : 'constructed';
       const left = x - tileW / 2;
       const top = y - tileH / 2;
       const rightGuideX = left + tileW - 13;

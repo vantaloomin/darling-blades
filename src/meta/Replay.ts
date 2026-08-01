@@ -24,6 +24,7 @@ import { usesLandReserve, type GameFormat, type ReserveFormat } from '../config/
 export const REPLAY_LOG_VERSION = 4 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
+const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
 
 export interface ReplayContext {
   mode: 'practice' | 'gauntlet' | 'limited';
@@ -154,16 +155,18 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
     }
     throw new Error('This replay was recorded on a different card database and cannot be replayed.');
   }
-  if (log.format && !log.landReserves) {
+  const format = normalizeReplayFormat(log.format);
+  if (log.format && !format) throw new Error('This replay uses an unsupported format.');
+  if (format && !log.landReserves) {
     throw new Error('This reserve replay is missing its land-reserve payload.');
   }
   const game = new Game({
     decks: [log.decks[0].slice(), log.decks[1].slice()],
     seed: log.seed,
     db,
-    ...(log.format
+    ...(format
       ? {
-          format: log.format,
+          format,
           landReserves: [log.landReserves?.[0]?.slice() ?? [], log.landReserves?.[1]?.slice() ?? []],
         }
       : {}),
@@ -182,13 +185,15 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
 export function isReplayLog(value: unknown): value is ReplayLog {
   if (!value || typeof value !== 'object') return false;
   const log = value as Partial<ReplayLog>;
+  const rawFormat = (log as { format?: unknown }).format;
+  const format = normalizeReplayFormat(rawFormat);
   const reserveShape =
-    (log.format === undefined && log.landReserves === undefined) ||
-    ((log.format === 'battleBox' || log.format === 'battlebox' || log.format === 'darlings') &&
+    (rawFormat === undefined && log.landReserves === undefined) ||
+    (format !== undefined &&
       Array.isArray(log.landReserves) &&
       log.landReserves.length === 2 &&
       log.landReserves.every((r) => Array.isArray(r) && r.every((id) => typeof id === 'string')));
-  return (
+  const valid =
     (log.v === REPLAY_LOG_VERSION || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
@@ -204,6 +209,12 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     (log.result === 'win' || log.result === 'loss') &&
     typeof log.endedAt === 'number' &&
     typeof log.turns === 'number'
-    && reserveShape
-  );
+    && reserveShape;
+  if (valid && format && rawFormat !== format) (log as { format?: ReserveFormat }).format = format;
+  return valid;
+}
+
+function normalizeReplayFormat(value: unknown): ReserveFormat | undefined {
+  if (value === 'warchest' || value === 'darlings') return value;
+  return typeof value === 'string' && LEGACY_WARCHEST_FORMATS.has(value) ? 'warchest' : undefined;
 }

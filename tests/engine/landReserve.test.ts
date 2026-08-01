@@ -38,7 +38,7 @@ function reserveGame(db: CardDb = TEST_DB): Game {
     decks: [SPELL_DECK, SPELL_DECK],
     seed: 8128,
     db,
-    format: 'battleBox',
+    format: 'warchest',
     landReserves: [RESERVE, RESERVE],
   });
 }
@@ -58,7 +58,7 @@ function opEvents(state: ReturnType<typeof makeTestState>, db: CardDb, ops: Para
   return events;
 }
 
-describe('Battle Box reserve engine', () => {
+describe('Warchest reserve engine', () => {
   it('constructs ordered instance-carrying reserves and enumerates ten choices', () => {
     const game = reserveGame();
     keepBoth(game);
@@ -80,28 +80,28 @@ describe('Battle Box reserve engine', () => {
       decks: [[...SPELL_DECK.slice(0, 49), 'forest'], SPELL_DECK],
       seed: 1,
       db: TEST_DB,
-      format: 'battleBox',
+      format: 'warchest',
       landReserves: [RESERVE, RESERVE],
     })).toThrow('deck contains land forest');
     expect(() => new Game({
       decks: [SPELL_DECK, SPELL_DECK],
       seed: 1,
       db: TEST_DB,
-      format: 'battleBox',
+      format: 'warchest',
       landReserves: [RESERVE.slice(0, 9), RESERVE],
     })).toThrow('exactly 10 lands');
     expect(() => new Game({
       decks: [SPELL_DECK, SPELL_DECK],
       seed: 1,
       db: TEST_DB,
-      format: 'battleBox',
+      format: 'warchest',
       landReserves: [[...RESERVE.slice(0, 4), 'dual_gw', 'dual_gw', 'dual_gw', 'dual_gw', 'dual_gw', 'dual_gw'], RESERVE],
     })).toThrow('at most 5 dual lands');
     expect(() => new Game({
       decks: [Array.from({ length: 50 }, () => 'cf-cold-iron-nail'), Array.from({ length: 50 }, () => 'cf-cold-iron-nail')],
       seed: 1,
       db: CARD_DB,
-      format: 'battleBox',
+      format: 'warchest',
       landReserves: [
         [...Array.from({ length: 9 }, () => 'land-forest'), 'cf-mist-road'],
         Array.from({ length: 10 }, () => 'land-forest'),
@@ -111,7 +111,7 @@ describe('Battle Box reserve engine', () => {
       decks: [SPELL_DECK, SPELL_DECK],
       seed: 1,
       db: TEST_DB,
-      format: 'battleBox',
+      format: 'warchest',
       landReserves: [[...RESERVE.slice(0, 9), 'unknown-land'], RESERVE],
     })).toThrow('unknown land id unknown-land');
   });
@@ -155,7 +155,7 @@ describe('Battle Box reserve engine', () => {
 
     const classic = makeTestState({});
     expect(validateAction(classic, TEST_DB, 0, { type: 'playLand', handIndex: -1, reserveIndex: 0 }))
-      .toBe('classic games do not have a land reserve');
+      .toBe('Classic games do not have a Warchest.');
   });
 
   it('uses data-driven entry states and enforces the empty-reserve cap', () => {

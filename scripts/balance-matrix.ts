@@ -665,7 +665,7 @@ function newLosslessnessCounters(): LosslessnessCounters {
 /** Shared reserve-format round-robin with mandatory completion accounting. */
 function runReserveMatrix(
   title: 'WARCHEST' | 'DARLINGS',
-  format: 'battleBox' | 'darlings',
+  format: 'warchest' | 'darlings',
   decks: readonly ReserveMatrixDeck[],
   seedsPerCell: number,
   ai: Difficulty,
@@ -759,7 +759,7 @@ function runReserveMatrix(
 
 /** Starter-derived Warchest field, passed through real reserve validation before play. */
 export function runWarchestMatrix(seedsPerCell: number, ai: Difficulty): ReserveMatrixReport {
-  return runReserveMatrix('WARCHEST', 'battleBox', buildReserveMatrixFleets().warchest, seedsPerCell, ai, 80_000);
+  return runReserveMatrix('WARCHEST', 'warchest', buildReserveMatrixFleets().warchest, seedsPerCell, ai, 80_000);
 }
 
 /** Deterministic color-spread Darlings field, passed through real reserve validation before play. */

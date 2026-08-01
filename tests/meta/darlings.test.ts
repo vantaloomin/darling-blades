@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import {
-  validateBattleBoxDeck,
+  validateWarchestDeck,
   darlingsCardError,
   listOwnedLegendaryCreatures,
   normalizeDarlingsFields,
   validateDarlingsDeck,
 } from '../../src/meta/darlings';
-import { BATTLE_BOX_DECK_SIZE, DARLINGS_DECK_SIZE } from '../../src/meta/battleBox';
+import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import { freshSave, type SaveData } from '../../src/meta/SaveManager';
 
 function card(id: string, over: Partial<CardDef> = {}): CardDef {
@@ -163,7 +163,7 @@ describe('Darlings format helpers', () => {
   it('rejects a land in the 80-card deck', () => {
     const cards = [...legalDeck().slice(0, DARLINGS_DECK_SIZE - 1), BASIC];
     expect(messages(validateDarlingsDeck(DB, legalSave(), cards, DARLING, reserve()))).toContain(
-      'Decks in this format hold no lands; build your land reserve instead',
+      'Decks in this format hold no lands; build your Warchest instead',
     );
   });
 
@@ -228,10 +228,10 @@ describe('Darlings format helpers', () => {
     );
   });
 
-  it('rejects a token in a Battle Box deck', () => {
-    const cards = [...legalDeck().slice(0, BATTLE_BOX_DECK_SIZE - 1), TOKEN];
+  it('rejects a token in a Warchest deck', () => {
+    const cards = [...legalDeck().slice(0, WARCHEST_DECK_SIZE - 1), TOKEN];
     const save = saveWith(DARLING, ...UNIQUE_IDS, TOKEN);
-    expect(messages(validateBattleBoxDeck(DB, save, cards, reserve()))).toContain(
+    expect(messages(validateWarchestDeck(DB, save, cards, reserve()))).toContain(
       'Saproling Token is a token',
     );
   });
@@ -264,7 +264,7 @@ describe('Darlings format helpers', () => {
     const cards = [DARLING, ...UNIQUE_IDS.slice(0, -1), FETCH_CARD];
     const save = saveWith(DARLING, ...UNIQUE_IDS, FETCH_CARD);
     expect(messages(validateDarlingsDeck(DB, save, cards, DARLING, reserve()))).toContain(
-      'Verdant Compass cannot find lands here; your lands live in your reserve.',
+      'Verdant Compass cannot find lands here; your lands live in your Warchest.',
     );
   });
 
@@ -293,9 +293,9 @@ describe('Darlings format helpers', () => {
       landReserve: [BASIC, DUAL],
     });
     expect(
-      normalizeDarlingsFields(DB, 'battlebox', DARLING, legalDeck(), [BASIC, ...Array.from({ length: 6 }, () => DUAL)]),
+      normalizeDarlingsFields(DB, 'warchest', DARLING, legalDeck(), [BASIC, ...Array.from({ length: 6 }, () => DUAL)]),
     ).toEqual({
-      format: 'battlebox',
+      format: 'warchest',
       darlingId: null,
       landReserve: [BASIC, ...Array.from({ length: 5 }, () => DUAL)],
     });

@@ -46,7 +46,7 @@ export interface GameConfig {
   decks: [CardEntry[], CardEntry[]];
   seed: number;
   db: CardDb;
-  /** Classic is the default. Battle Box and Darlings use ordered land reserves. */
+  /** Classic is the default. Warchest and Darlings use ordered land reserves. */
   format?: GameFormat;
   /** One ordered ten-land payload per seat for reserve formats. */
   landReserves?: [CardEntry[], CardEntry[]];
