@@ -1,6 +1,12 @@
-<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, src/meta/variants.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/Collection.ts, src/engine/types.ts, src/engine/Game.ts, src/engine/view.ts, src/scenes/DeckBuilderScene.ts, src/scenes/DuelScene.ts, src/ui/CardView.ts · last-verified: 2026-07-26 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/architecture.md, src/meta/variants.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/Collection.ts, src/engine/types.ts, src/engine/Game.ts, src/engine/view.ts, src/scenes/DeckBuilderScene.ts, src/scenes/DuelScene.ts, src/scenes/CollectionScene.ts, src/ui/CardView.ts · last-verified: 2026-07-31 · historical design/plan doc - re-verify when the referenced code changes -->
 
-# Per-slot variant deck implementation plan
+# Historical per-slot variant deck implementation plan
+
+> Superseded by the 2026-07-31 collection-level display-pin rework. SaveData
+> v25 retains positional `variantPins` for compatibility, but they no longer
+> choose any rendered treatment. One collection pin per card now resolves every
+> display, otherwise the existing best-owned resolver picks the rarest owned
+> treatment. Deck lists collapse to one row per card.
 
 ## Goal
 

@@ -8,6 +8,7 @@ import {
   addCard,
   addCards,
   bestOwnedVariant,
+  displayVariantFor,
   ownedVariants,
   PLAYSET,
   shardableCount,
@@ -219,7 +220,7 @@ describe('collection and economy', () => {
     expect(shardGold(save, TEST_DB, 'bear')).toBe(expectGold);
 
     const res = shardExcess(save, TEST_DB, 'bear');
-    expect(res).toEqual({ gold: expectGold, copies: 3, clearedPins: [] });
+    expect(res).toEqual({ gold: expectGold, copies: 3, clearedDisplayPin: false });
     expect(save.gold).toBe(expectGold);
     // Each over-cap variant is reduced to exactly the playset; plainless card gone.
     expect(save.collectionVariants['bear']).toEqual({
@@ -229,7 +230,7 @@ describe('collection and economy', () => {
     expect(save.collection['bear']).toBe(8);
     expectVariantSumInvariant(save);
     // A second shard is a no-op                    nothing is over the cap now.
-    expect(shardExcess(save, TEST_DB, 'bear')).toEqual({ gold: 0, copies: 0, clearedPins: [] });
+    expect(shardExcess(save, TEST_DB, 'bear')).toEqual({ gold: 0, copies: 0, clearedDisplayPin: false });
   });
 
   it('shardValue: a plain copy shards for exactly dupeGold; specials pay more', () => {
@@ -273,6 +274,21 @@ describe('collection and economy', () => {
     expect(bestOwnedVariant(save, 'bear')).toEqual({ frame: 'white', holo: 'none', fullArt: true });
     // (no sum-invariant check here: the 'elf' entry above deliberately
     // simulates a legacy aggregate with no variant record)
+  });
+
+  it('displayVariantFor honors an owned collection pin, then falls back to bestOwnedVariant', () => {
+    const save = freshSave(0);
+    const blue = { frame: 'blue', holo: 'none', fullArt: false } as const;
+    const red = { frame: 'red', holo: 'none', fullArt: false } as const;
+    addCard(save, TEST_DB, 'bear', blue);
+    addCard(save, TEST_DB, 'bear', red);
+    save.pinnedVariants.bear = variantKey(blue);
+
+    expect(displayVariantFor(save, 'bear')).toEqual(blue);
+
+    delete save.collectionVariants.bear[variantKey(blue)];
+    save.collection.bear = 1;
+    expect(displayVariantFor(save, 'bear')).toEqual(red);
   });
 
   it('addCards grants PLAIN copies and seeds collectionVariants (starter grant path)', () => {

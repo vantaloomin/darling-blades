@@ -4,9 +4,9 @@ import { Sfx } from '../audio/sfx';
 import { ALL_CARDS, CARD_DB } from '../data/catalog';
 import type { CardDef } from '../engine/types';
 import {
-  bestOwnedVariant,
   craftCard,
   craftCost,
+  displayVariantFor,
   ownedCount,
   PLAYSET,
   shardableCount,
@@ -46,7 +46,6 @@ import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
-import { clearedPinSummaryCopy } from '../ui/collectionCopy';
 import {
   SHARD_GOLD_COUNT_UP_MS,
   shardCountUpValue,
@@ -451,7 +450,7 @@ export class CollectionScene extends Phaser.Scene {
       // cards show their RAREST owned variant (frame/full-art bake statically;
       // holo shimmer stays an inspect effect), so the binder reads as YOUR
       // binder rather than a plain checklist.
-      const best = owned > 0 ? bestOwnedVariant(save, d.id) : null;
+      const best = owned > 0 ? displayVariantFor(save, d.id) : null;
       const thumb = makeCardThumb(
         this,
         x,
@@ -502,7 +501,7 @@ export class CollectionScene extends Phaser.Scene {
    * the best owned variant, plus a tappable list of every owned variant.
    * Unowned cards render the plain look.
    */
-  private showInspect(d: CardDef, clearedPins: readonly { deckName: string; countCleared: number }[] = []): void {
+  private showInspect(d: CardDef, clearedDisplayPin = false): void {
     this.closeInspect();
     this.filterBar.closeAll(); // a floating dropdown must not sit over the overlay
     this.searchInput?.setVisible(false); // DOM input always floats above the canvas dim
@@ -525,7 +524,7 @@ export class CollectionScene extends Phaser.Scene {
       if (this.time.now - openedAt < INSPECT_CLOSE_LOCK_MS) return; // swallow double-click flash
       this.closeInspect();
     });
-    const shown = owned > 0 ? bestOwnedVariant(save, d.id) : null;
+    const shown = owned > 0 ? displayVariantFor(save, d.id) : null;
     let displayedVariant: CardVariant | undefined = shown ?? undefined;
     let ritualInProgress = false;
     const view = new CardView(this, 450, 360);
@@ -545,10 +544,10 @@ export class CollectionScene extends Phaser.Scene {
 
     // Variant panel, right of the card (card spans x 247.5..652.5).
     const panelX = 740;
-    if (clearedPins.length > 0) {
+    if (clearedDisplayPin) {
       c.add(
         this.add
-          .text(panelX, 84, clearedPins.map(clearedPinSummaryCopy).join('\n'), {
+          .text(panelX, 84, 'Pinned display cleared. Showing your rarest owned look.', {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             color: theme.colors.success,
@@ -581,9 +580,11 @@ export class CollectionScene extends Phaser.Scene {
       const VARIANT_ROW_PITCH = 48;
       const variantPageCount = Math.max(1, Math.ceil(entries.length / VARIANT_ROWS));
       let selectedKey = variantKey(shown!);
+      let pinnedKey: string | null = save.pinnedVariants[d.id] ?? null;
       let rows: {
         background: Phaser.GameObjects.Graphics;
         text: Phaser.GameObjects.Text;
+        pin: ThemedButton;
         variant: CardVariant;
         count: number;
       }[] = [];
@@ -602,10 +603,11 @@ export class CollectionScene extends Phaser.Scene {
             )}`,
           );
           r.text.setColor(sel ? theme.colors.gold : theme.colors.body);
+          r.pin.setVariant(pinnedKey === variantKey(r.variant) ? 'primary' : 'ghost');
           // setText/setColor reset the hit bounds — re-inflate, biased right
           // so the rect never reaches back over the card.
-          inflateHitArea(r.text, 380, 44, {
-            biasX: Math.max(0, (380 - r.text.width) / 2),
+          inflateHitArea(r.text, 300, 44, {
+            biasX: Math.max(0, (300 - r.text.width) / 2),
           });
         }
       };
@@ -635,8 +637,35 @@ export class CollectionScene extends Phaser.Scene {
             view.setCard(d, { fx: 'full', variant: e.variant, fullArt: e.variant.fullArt });
             restyle();
           });
-          rows.push({ background, text: t, variant: e.variant, count: e.count });
-          c.add([background, t]);
+          const pin = themedButton(this, panelX + 320, VARIANT_ROW_Y + i * VARIANT_ROW_PITCH, '📌', {
+            variant: pinnedKey === variantKey(e.variant) ? 'primary' : 'ghost',
+            size: 'sm',
+            minWidth: 36,
+            onTap: () => {
+              if (ritualInProgress) return;
+              const key = variantKey(e.variant);
+              if (pinnedKey === key) {
+                delete save.pinnedVariants[d.id];
+                pinnedKey = null;
+                displayedVariant = displayVariantFor(save, d.id);
+              } else {
+                save.pinnedVariants[d.id] = key;
+                pinnedKey = key;
+                displayedVariant = e.variant;
+              }
+              selectedKey = variantKey(displayedVariant);
+              view.setCard(d, {
+                fx: 'full',
+                variant: displayedVariant,
+                fullArt: displayedVariant.fullArt,
+              });
+              Services.save.flush();
+              Sfx.play('shimmer');
+              restyle();
+            },
+          });
+          rows.push({ background, text: t, pin, variant: e.variant, count: e.count });
+          c.add([background, t, pin.container]);
         });
         variantPageControl?.refresh(page, variantPageCount);
         restyle();
@@ -859,7 +888,7 @@ export class CollectionScene extends Phaser.Scene {
           Sfx.play('shatter');
           this.playShardRitual(c, view, displayedVariant(), save.gold - result.gold, result.gold, () => {
             this.renderPage(); // refresh the ×N / ✦N badges beneath the overlay
-            this.showInspect(d, result.clearedPins); // rebuild with the new counts and pin result
+            this.showInspect(d, result.clearedDisplayPin); // rebuild with the new counts and pin result
           });
         });
       };
