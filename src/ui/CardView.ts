@@ -4,6 +4,7 @@ import { CARD_DB } from '../data/catalog';
 import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
 import { isBasic } from '../meta/Collection';
+import { bakeRetellTombstone, RETELL_ICON_KEY } from './pileIcons';
 import type { CardVariant, FrameStyle } from '../meta/variants';
 import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
@@ -126,6 +127,7 @@ export class CardView extends Phaser.GameObjects.Container {
   private costPlate: Phaser.GameObjects.Image;
   private gem: Phaser.GameObjects.Image;
   private crown: Phaser.GameObjects.Image;
+  private retellIcon: Phaser.GameObjects.Image;
   private back: Phaser.GameObjects.Image;
   private pips: Phaser.GameObjects.GameObject[] = [];
   private holo: HoloHandle | null = null;
@@ -238,6 +240,8 @@ export class CardView extends Phaser.GameObjects.Container {
       .image(0, BOTTOM_BADGE_Y, 'pt-plate')
       .setDisplaySize(GEM_PLATE_W, BADGE_H);
     this.gem = scene.add.image(0, BOTTOM_BADGE_Y, 'seticon-base-c').setDisplaySize(SET_ICON_SIZE, SET_ICON_SIZE);
+    bakeRetellTombstone(scene);
+    this.retellIcon = scene.add.image(132, -182, RETELL_ICON_KEY).setDisplaySize(20, 20).setVisible(false);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
     this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
 
@@ -250,6 +254,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.textPlate,
       this.ring,
       this.nameText,
+      this.retellIcon,
       this.typeText,
       this.rulesTextObj,
       this.flavorRule,
@@ -335,12 +340,18 @@ export class CardView extends Phaser.GameObjects.Container {
     // trap — glyph metrics aren't known before the glyph run).
     this.nameText.setScale(1).setText(card.name);
     const nameW = Math.max(1, this.nameText.width);
+    // A card with Retell carries the graveyard tombstone at the name bar's
+    // right end (x=132, user pick 2026-07-31), so the name's budget shrinks
+    // to clear it.
+    const hasRetell = !!card.retell;
+    this.retellIcon.setVisible(hasRetell);
     // Prefer a 244px fit with a 0.7 readability floor, but never render wider
     // than the card contains (the name starts at x=-126; keep its right edge
-    // ≤ +144). For an extreme name the containment clamp wins over the floor so
-    // it can never spill past the card border.
-    const nameFit = Math.max(0.7, Math.min(1, 244 / nameW));
-    this.nameText.setScale(Math.min(nameFit, 270 / nameW));
+    // ≤ +144, or ≤ +118 when the Retell tombstone occupies the bar's end).
+    // For an extreme name the containment clamp wins over the floor so it can
+    // never spill past the card border.
+    const nameFit = Math.max(0.7, Math.min(1, (hasRetell ? 220 : 244) / nameW));
+    this.nameText.setScale(Math.min(nameFit, (hasRetell ? 244 : 270) / nameW));
     this.typeText.setScale(1).setText(typeLine(card));
     const typeW = Math.max(1, this.typeText.width);
     this.typeText.setScale(Math.min(1, TEXT_WIDTH / typeW));
@@ -415,6 +426,7 @@ export class CardView extends Phaser.GameObjects.Container {
     // normal-text floor (light art only raises it).
     const textAlpha = fullArt ? 0.9 : 1;
     this.nameText.setAlpha(textAlpha);
+    this.retellIcon.setAlpha(textAlpha);
     this.typeText.setAlpha(textAlpha);
     this.rulesTextObj.setAlpha(textAlpha);
     this.manaRules?.setAlpha(textAlpha);
@@ -647,6 +659,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.typePlate,
       this.textPlate,
       this.nameText,
+      this.retellIcon,
       this.typeText,
       this.rulesTextObj,
       ...(this.manaRules?.pips ?? []),

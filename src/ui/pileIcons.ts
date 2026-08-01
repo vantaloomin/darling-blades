@@ -141,6 +141,21 @@ function drawSevered(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.stroke();
 }
 
+export const RETELL_ICON_KEY = 'retell-icon-tombstone';
+
+/**
+ * The graveyard tombstone alone, plate-free, for the card name bar: cards
+ * with Retell carry it so they read as graveyard-active at a glance (same
+ * tombstone as the graveyard pile for consistency; user pick 2026-07-31).
+ */
+export function bakeRetellTombstone(scene: Phaser.Scene): void {
+  if (scene.textures.exists(RETELL_ICON_KEY)) return;
+  const tex = scene.textures.createCanvas(RETELL_ICON_KEY, PILE_ICON_SIZE, PILE_ICON_SIZE)!;
+  const ctx = tex.getContext();
+  drawTombstone(ctx, PILE_ICON_SIZE);
+  tex.refresh();
+}
+
 const DRAW_ICON: Record<PileIconKind, IconDraw> = {
   hand: drawHand,
   grave: drawTombstone,
