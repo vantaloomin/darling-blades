@@ -52,6 +52,21 @@ export function bestOwnedVariant(save: SaveData, cardId: string): CardVariant {
   return best;
 }
 
+/**
+ * The player-facing treatment for a card everywhere it is rendered. A valid
+ * collection pin wins; otherwise this deliberately delegates to the existing
+ * best-owned resolver so the canonical variantRank ordering stays singular.
+ */
+export function displayVariantFor(save: SaveData, cardId: string): CardVariant {
+  const pinnedKey = save.pinnedVariants[cardId];
+  if (typeof pinnedKey === 'string') {
+    const pinned = parseVariantKey(pinnedKey);
+    const canonical = variantKey(pinned);
+    if (ownedVariants(save, cardId)[canonical] > 0) return pinned;
+  }
+  return bestOwnedVariant(save, cardId);
+}
+
 export interface AddResult {
   cardId: string;
   isNew: boolean; // first copy of this card, any variant
@@ -133,8 +148,8 @@ export function craftCard(
 export interface ShardResult {
   gold: number; // total gold gained
   copies: number; // total copies sharded away
-  /** Saved-deck pins cleared because the shard made them over-owned. */
-  clearedPins: Array<{ deckName: string; countCleared: number }>;
+  /** Collection display pin cleared because its treatment is no longer owned. */
+  clearedDisplayPin: boolean;
 }
 
 /** Copies of `cardId` past the per-variant playset — what `shardExcess` sells. */
@@ -178,45 +193,28 @@ export function shardExcess(save: SaveData, db: CardDb, cardId: string): ShardRe
     }
     if (keep > 0) kept[keyStr] = keep;
   }
-  if (copies === 0) return { gold: 0, copies: 0, clearedPins: [] };
+  if (copies === 0) return { gold: 0, copies: 0, clearedDisplayPin: false };
   save.gold += gold;
   save.collectionVariants[cardId] = kept;
   save.collection[cardId] = Object.values(kept).reduce((s, n) => s + n, 0);
-  return { gold, copies, clearedPins: clearOverOwnedPins(save, cardId, kept) };
+  return { gold, copies, clearedDisplayPin: clearUnownedDisplayPin(save, cardId, kept) };
 }
 
-function clearOverOwnedPins(
+/** Keep the collection-level display choice honest after a collection mutation. */
+function clearUnownedDisplayPin(
   save: SaveData,
   cardId: string,
   remaining: Record<string, number>,
-): Array<{ deckName: string; countCleared: number }> {
-  const available = new Map<string, number>();
-  for (const [rawKey, count] of Object.entries(remaining)) {
-    available.set(variantKey(parseVariantKey(rawKey)), count);
-  }
-
-  const pinned = new Map<string, number>();
-  const summaries: Array<{ deckName: string; countCleared: number }> = [];
-  for (const deck of save.decks) {
-    const pins = Array.from({ length: deck.cards.length }, (_, index) => deck.variantPins?.[index] ?? null);
-    let countCleared = 0;
-    for (let index = 0; index < deck.cards.length; index++) {
-      const pin = pins[index];
-      if (deck.cards[index] !== cardId || pin === null) continue;
-      const canonical = variantKey(parseVariantKey(pin));
-      const limit = available.get(canonical) ?? 0;
-      const alreadyPinned = pinned.get(canonical) ?? 0;
-      if (alreadyPinned >= limit) {
-        pins[index] = null;
-        countCleared++;
-      } else {
-        pinned.set(canonical, alreadyPinned + 1);
-      }
-    }
-    deck.variantPins = pins;
-    if (countCleared > 0) summaries.push({ deckName: deck.name, countCleared });
-  }
-  return summaries;
+): boolean {
+  const pinned = save.pinnedVariants[cardId];
+  if (typeof pinned !== 'string') return false;
+  const canonical = variantKey(parseVariantKey(pinned));
+  const stillOwned = Object.entries(remaining).some(
+    ([rawKey, count]) => variantKey(parseVariantKey(rawKey)) === canonical && count > 0,
+  );
+  if (stillOwned) return false;
+  delete save.pinnedVariants[cardId];
+  return true;
 }
 
 /** Add several PLAIN copies (starter grants and the like). */

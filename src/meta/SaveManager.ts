@@ -662,7 +662,7 @@ export class SaveManager {
         ...cur,
         version: CURRENT_SAVE_VERSION,
         decks: normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants),
-        pinnedVariants: normalizePinnedVariants(cur.pinnedVariants),
+        pinnedVariants: normalizePinnedVariants(cur.pinnedVariants, cur.collection, cur.collectionVariants),
       } as unknown as SaveData;
     }
     return freshSave(now);
@@ -812,13 +812,19 @@ function normalizeSavedDecks(
     .filter((deck): deck is SavedDeck => deck !== null);
 }
 
-function normalizePinnedVariants(value: unknown): Record<string, string> {
+function normalizePinnedVariants(
+  value: unknown,
+  collection: unknown,
+  collectionVariants: unknown,
+): Record<string, string> {
   if (!isRecord(value)) return {};
+  const aggregate = isRecord(collection) ? collection : {};
+  const variants = isRecord(collectionVariants) ? collectionVariants : {};
   const pins: Record<string, string> = {};
   for (const [cardId, rawKey] of Object.entries(value)) {
     if (!CARD_DB[cardId]) continue;
     const key = canonicalVariantPin(rawKey);
-    if (key !== null) pins[cardId] = key;
+    if (key !== null && ownedVariantCount(aggregate, variants, cardId, key) > 0) pins[cardId] = key;
   }
   return pins;
 }

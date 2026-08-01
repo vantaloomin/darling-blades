@@ -7,8 +7,8 @@ import { TEST_DB } from '../helpers';
 const BLUE = variantKey({ frame: 'blue', holo: 'none', fullArt: false });
 const RED = variantKey({ frame: 'red', holo: 'none', fullArt: false });
 
-describe('v23 variant-pin shard revalidation', () => {
-  it('clears the minimum over-owned pins and reports deck summaries', () => {
+describe('v25 collection-pin shard revalidation', () => {
+  it('preserves legacy slot pins and retains an owned collection display pin', () => {
     const save = freshSave(0);
     for (let i = 0; i < 5; i++) addCard(save, TEST_DB, 'bear', { frame: 'blue', holo: 'none', fullArt: false });
     for (let i = 0; i < 6; i++) addCard(save, TEST_DB, 'bear', { frame: 'red', holo: 'none', fullArt: false });
@@ -36,13 +36,15 @@ describe('v23 variant-pin shard revalidation', () => {
         variantPins: [BLUE, BLUE, BLUE, BLUE, RED, RED, RED, RED, null],
       },
     ];
+    save.pinnedVariants.bear = RED;
 
     const result = shardExcess(save, TEST_DB, 'bear');
 
     expect(result.copies).toBe(3);
-    expect(result.clearedPins).toEqual([{ deckName: 'Second', countCleared: 3 }]);
+    expect(result.clearedDisplayPin).toBe(false);
     expect(save.decks[0].variantPins).toEqual([BLUE, RED, RED]);
-    expect(save.decks[1].variantPins).toEqual([BLUE, BLUE, BLUE, null, RED, RED, null, null, null]);
+    expect(save.decks[1].variantPins).toEqual([BLUE, BLUE, BLUE, BLUE, RED, RED, RED, RED, null]);
+    expect(save.pinnedVariants.bear).toBe(RED);
     expect(save.collectionVariants.bear).toEqual({ [BLUE]: 4, [RED]: 4 });
   });
 });
