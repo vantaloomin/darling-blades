@@ -442,12 +442,12 @@ export interface Avatar {
  * docs/plan-battle-box.md).
  *
  * LOSSLESSNESS (the reveal gate's primary result): 0 engine exceptions
- * across all 5,000 games - no seed produced a stuck or dead game state.
- * Warchest decided 2,000/2,000 with 0 draws. Darlings at the 80-card
- * size decided 2,972/3,000 with 28 turn-limit draws (0.93%),
- * concentrated in Athena's grindiest cells (+23d) - a property of
- * 80-card singleton attrition games, worth watching at reveal, not an
- * engine fault.
+ * in every measured configuration - no seed produced a stuck or dead
+ * game state. Warchest decided 2,000/2,000 with 0 draws. Darlings under
+ * the current command-zone rules decided 2,982/3,000 with 18 turn-limit
+ * draws (0.6%, grindy control cells; down from 0.93% at the in-deck
+ * shape - guaranteed threat access shortens attrition games) - worth
+ * watching at reveal, not an engine fault.
  *
  * Warchest (--warchest, 200 seeds/cell, 2,000 games, neutral hard,
  * starter-derived playset fleet): Crimson 63.9, Burning 60.0, Grave 44.1,
@@ -455,16 +455,23 @@ export interface Avatar {
  * (Burning vs Shadow); coherent field, no degenerate matchup.
  *
  * Darlings (--darlings, 200 seeds/cell, 3,000 games, neutral hard,
- * curve-greedy singleton fleet per color spread, AT THE OWNER-LOCKED
- * 80-CARD SIZE): Gaia [G] 74.4, Ares [R] 69.1, Dian Wei [B] 57.0,
- * Athena [W] 50.5, Ghost-Net Archon [U] 29.3, Aphrodite [WU] 19.7.
- * The wide spread is a property of the greedy cheapest-first fixtures,
- * not a roster claim - the curated rival ladder stays unpromised and
- * would need its own measured baseline. (History: the same fleets at
- * the superseded 50-card size measured Ares 76.1 / Gaia 72.1 /
- * Dian Wei 58.2 / Athena 48.0 / Ghost-Net 23.5 / Aphrodite 22.1 with
- * 3,000/3,000 decided - the size change flipped the top two: bigger
- * singleton decks reward Gaia's attrition over Ares' cheap aggro.)
+ * curve-greedy singleton fleet per color spread, 2026-08-01 UNDER THE
+ * COMMAND-ZONE RULES - external Darling, +2 tax per return, 4-pays-2
+ * valve): Gaia [G] 79.7, Dian Wei [B] 69.1, Ares [R] 57.7, Ghost-Net
+ * Archon [U] 37.2, Athena [W] 34.0, Aphrodite [WU] 21.6; 2,982/3,000
+ * decided, 18 turn-limit draws (0.6%), 0 engine exceptions. Guaranteed
+ * Darling access widened the fixture spread (Gaia's attrition engine
+ * profits most; Athena's defensive fixture collapsed 50.5 -> 34.0 -
+ * her greedy list leaned on drawing her early, which the zone now
+ * gives every deck). The wide spread is a property of the greedy
+ * cheapest-first fixtures, not a roster claim - the curated rival
+ * ladder stays unpromised and the shipped precons carry their own
+ * measured baseline before any product balance claim.
+ * (History, superseded shapes: 80-card IN-DECK Darling measured
+ * Gaia 74.4 / Ares 69.1 / Dian Wei 57.0 / Athena 50.5 / Ghost-Net
+ * 29.3 / Aphrodite 19.7 with 28 draws at 0.93%; 50-card in-deck
+ * measured Ares 76.1 / Gaia 72.1 / Dian Wei 58.2 / Athena 48.0 /
+ * Ghost-Net 23.5 / Aphrodite 22.1 with 3,000/3,000 decided.)
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------
