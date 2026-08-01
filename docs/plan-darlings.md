@@ -16,6 +16,23 @@ note and [plan-1.5.5.md](plan-1.5.5.md), the active reveal train).
 
 **Historical 2026-07-31 and 2026-07-28 shapes:** Earlier planning described an 80-card in-deck Darling and, before that, a 50-card in-deck version. Both are superseded by the 2026-08-01 command-zone respec below. The Warchest remains a 10-land reserve; strict colorless remains future work until a purpose-built roster exists.
 
+## Curated precon slate (in progress)
+
+The Shop's Darlings section carries five reviewed 79-spell singleton decks,
+each with its legend in the command zone and a 10-land Warchest. Red Cliffs
+Refrain is Zhou Yu's U/R spellslinger burn list and is a free, one-time claim.
+The claim sets `darlingsFreeDeckClaimed` in the existing v26 save shape, costs
+no gold, grants the 79 spells plus Zhou Yu and any nonbasic reserve lands, and
+is idempotent.
+
+Queen Below (Hel, B/U reanimator), Sunwell Ledger (Aine, G/W lifegain value),
+Mirror-Blood Rush (Elizabeth, B/R Dreaded aggro), and Sable Warballad
+(Warrior-Ballad Captain, R/W Warrior tribal) sell for 750g each. This is
+deliberately above `ECONOMY.preconPrice` at 500g because singleton density
+grants roughly 80 unique cards; progression impact is re-measured before
+release promotion. The paid path shares normal precon purchase idempotence:
+it grants no strange duplicate payload and never recreates an owned deck.
+
 ## Owner-locked 2026-08-01 command-zone respec
 
 This section supersedes every earlier in-deck Darling statement in this plan.

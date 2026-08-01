@@ -65,6 +65,10 @@ export const ECONOMY = {
   // consecutive-day count.
   dailyStreakGold: [25, 40, 55, 70, 85, 100, 125] as const,
   preconPrice: 500,
+  // Darlings precons carry ~80 unique cards at singleton density, not a 60-card
+  // repeatable theme shell. Keep this distinct from the 500g theme-deck price;
+  // the progression re-measure is the follow-up before the reveal is promoted.
+  darlingsPreconPrice: 750,
   // The four starter precons you did NOT pick for free are buyable in the shop's
   // Decks tab (the free-chosen one reads "Owned"). Cheaper than a theme deck —
   // they're the intro lists, a soft catch-up sink rather than a chase product.

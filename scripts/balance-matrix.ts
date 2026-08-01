@@ -17,6 +17,8 @@
  *                        reserve decks. Neutral --ai brain on both sides.
  *   --darlings           6x6 Darlings round-robin over a deterministic
  *                        color-spread legendary fleet. Neutral --ai brain.
+ *   --darlings-precons   5x5 Darlings round-robin over the curated shop
+ *                        precons. Neutral --ai brain on both sides.
  *   --ai <difficulty>    Brain for --prefabs, --warchest, and --darlings:
  *                        easy | medium | hard (default hard). Neutral (no
  *                        avatar personality).
@@ -44,7 +46,7 @@
  *   50_000 tiers · 60_000..79_999 personas/craft.ts (hash-derived) · 70_000
  *   floors (predates craft.ts; different decks/AIs, left as-is) · 100_000
  *   prefabs. 80_000/90_000 are reserved for the planned warchest/darlings
- *   matrices.
+ *   matrices. 110_000 is reserved for Darlings precons.
  *
  * The skipped-by-default suite tests/ai/balance.test.ts imports the run*
  * helpers below, so the manual vitest tool and this CLI share one code path.
@@ -56,6 +58,7 @@ import { MediumAI } from '../src/ai/MediumAI';
 import { buildAI, DEFAULT_PERSONALITY } from '../src/ai/personality';
 import { buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
 import { CARD_DB } from '../src/data/catalog';
+import { DARLINGS_PRECON_MATRIX_FLEET } from '../src/data/darlingsPrecons';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
 import type { GameFormat } from '../src/config/rules';
@@ -673,7 +676,7 @@ function newLosslessnessCounters(): LosslessnessCounters {
 
 /** Shared reserve-format round-robin with mandatory completion accounting. */
 function runReserveMatrix(
-  title: 'WARCHEST' | 'DARLINGS',
+  title: string,
   format: 'warchest' | 'darlings',
   decks: readonly ReserveMatrixDeck[],
   seedsPerCell: number,
@@ -777,6 +780,11 @@ export function runWarchestMatrix(seedsPerCell: number, ai: Difficulty): Reserve
 /** Deterministic color-spread Darlings field, passed through real reserve validation before play. */
 export function runDarlingsMatrix(seedsPerCell: number, ai: Difficulty): ReserveMatrixReport {
   return runReserveMatrix('DARLINGS', 'darlings', buildReserveMatrixFleets().darlings, seedsPerCell, ai, 90_000);
+}
+
+/** Curated five-Darling shop field, retaining the reviewed singleton deck identities. */
+export function runDarlingsPreconMatrix(seedsPerCell: number, ai: Difficulty): ReserveMatrixReport {
+  return runReserveMatrix('DARLINGS PRECONS', 'darlings', DARLINGS_PRECON_MATRIX_FLEET, seedsPerCell, ai, 110_000);
 }
 
 export interface DifficultyMatrixReport {
@@ -1040,6 +1048,7 @@ function main(): void {
   const wantArthurianCourtBosses = flag('ac-bosses');
   const wantWarchest = flag('warchest');
   const wantDarlings = flag('darlings');
+  const wantDarlingsPrecons = flag('darlings-precons');
   const wantAvatars =
     flag('avatars') ||
     (!wantStarters &&
@@ -1050,7 +1059,8 @@ function main(): void {
       !wantArthurianCourtBosses &&
       !wantPrefabs &&
       !wantWarchest &&
-      !wantDarlings);
+      !wantDarlings &&
+      !wantDarlingsPrecons);
   const ai = (opt('ai') ?? 'hard') as Difficulty;
   if (!DIFFS.includes(ai)) {
     console.error(`--ai must be one of ${DIFFS.join(' | ')} (got ${opt('ai')})`);
@@ -1070,6 +1080,7 @@ function main(): void {
   if (wantPrefabs) reports.push(runPrefabMatrix(seeds, ai));
   if (wantWarchest) reports.push(runWarchestMatrix(seeds, ai));
   if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai));
+  if (wantDarlingsPrecons) reports.push(runDarlingsPreconMatrix(seeds, ai));
 
   for (const r of reports) {
     console.log('\n' + r.table);

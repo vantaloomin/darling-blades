@@ -136,6 +136,8 @@ export interface SaveData {
   tutorialDone: boolean;
   /** Darlings command-zone format explainer dismissed by this profile. v26 addition. */
   darlingsTutorialSeen: boolean;
+  /** The one-time free Zhou Yu Darlings precon has been claimed. v26 extension. */
+  darlingsFreeDeckClaimed: boolean;
   /**
    * Road-to-1.0 achievements. Unlocks are recomputed from durable save/card-db
    * state by src/meta/Achievements.ts; claimed is separate so migrated/imported
@@ -229,6 +231,7 @@ export function freshSave(now: number): SaveData {
     heroPortraitId: null,
     tutorialDone: false,
     darlingsTutorialSeen: false,
+    darlingsFreeDeckClaimed: false,
     achievements: freshAchievements(),
     daily: freshDailyState(dayStringFromTimestamp(now)),
     limited: { ...freshLimitedState(), premiumWeek: { week: 0, entries: 0 } },
@@ -322,7 +325,8 @@ export class SaveManager {
    * confirmation preference, defaulting to lethal-only protection; v24 -> v25
    * renames the Warchest format and adds collection-level variant display pins;
    * v25 -> v26 moves legacy in-deck Darlings into their command-zone identity
-   * and adds the Darlings format explainer flag.
+   * and adds the Darlings format explainer flag plus the free-Zhou-Yu claim
+   * state.
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -669,6 +673,7 @@ export class SaveManager {
         // retain their durable acknowledgement while every real v25 migration
         // starts the new tutorial unseen.
         darlingsTutorialSeen: beganAtCurrentVersion && cur.darlingsTutorialSeen === true,
+        darlingsFreeDeckClaimed: beganAtCurrentVersion && cur.darlingsFreeDeckClaimed === true,
       };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
@@ -679,6 +684,7 @@ export class SaveManager {
         decks: normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants),
         pinnedVariants: normalizePinnedVariants(cur.pinnedVariants, cur.collection, cur.collectionVariants),
         darlingsTutorialSeen: cur.darlingsTutorialSeen === true,
+        darlingsFreeDeckClaimed: cur.darlingsFreeDeckClaimed === true,
       } as unknown as SaveData;
     }
     return freshSave(now);

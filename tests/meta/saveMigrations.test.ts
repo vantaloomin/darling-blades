@@ -354,6 +354,7 @@ describe('SaveData v26 migration (Darlings command zone tutorial)', () => {
 
     expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
     expect(migrated.darlingsTutorialSeen).toBe(false);
+    expect(migrated.darlingsFreeDeckClaimed).toBe(false);
     expect(migrated.decks[0]).toMatchObject({
       cards: ['land-plains'],
       darlingId: 'gk-athena',
@@ -365,6 +366,7 @@ describe('SaveData v26 migration (Darlings command zone tutorial)', () => {
     const storage = fakeStorage();
     const current = freshSave(123) as unknown as Record<string, unknown>;
     current.darlingsTutorialSeen = 'yes';
+    current.darlingsFreeDeckClaimed = 'yes';
     current.decks = [{
       id: 'current-darlings',
       name: 'Current Darlings',
@@ -381,18 +383,21 @@ describe('SaveData v26 migration (Darlings command zone tutorial)', () => {
     const migrated = new SaveManager(storage, 456).data;
 
     expect(migrated.darlingsTutorialSeen).toBe(false);
+    expect(migrated.darlingsFreeDeckClaimed).toBe(false);
     expect(migrated.decks[0].cards).toEqual(['land-plains']);
     expect(migrated.decks[0].variantPins).toEqual([null]);
   });
 
-  it('preserves the Darlings tutorial acknowledgement on a current save', () => {
+  it('preserves the Darlings tutorial acknowledgement and Zhou Yu claim on a current save', () => {
     const storage = fakeStorage();
     const current = freshSave(123);
     current.darlingsTutorialSeen = true;
+    current.darlingsFreeDeckClaimed = true;
     storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
 
     const migrated = new SaveManager(storage, 456).data;
 
     expect(migrated.darlingsTutorialSeen).toBe(true);
+    expect(migrated.darlingsFreeDeckClaimed).toBe(true);
   });
 });
