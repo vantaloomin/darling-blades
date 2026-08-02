@@ -19,6 +19,7 @@ import { ECONOMY } from '../src/config/rules';
 import { CARD_DB } from '../src/data/catalog';
 import { draftPersonaById } from '../src/data/draftPersonas';
 import { avatarForRung } from '../src/data/opponents';
+import { DARLINGS_PRECONS, FREE_DARLINGS_PRECON_ID } from '../src/data/darlingsPrecons';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../src/data/starterDecks';
 import type { GameEvent } from '../src/engine/events';
 import { Game } from '../src/engine/Game';
@@ -33,6 +34,7 @@ import {
   applyLimitedMatchResult,
   applyMatchResult,
   buyThemeDeck,
+  claimFreeDarlingsDeck,
   claimFreeStarter,
   payPremiumDraftEntry,
   premiumWeekKey,
@@ -570,16 +572,24 @@ export interface ProgressionBandReport {
  * Limited Fan) x 1 seed x day 7; packs/day median 0.4286, minimum quest claim
  * rate 0.2857, max-gold/game ÷ cohort-median 1.0484, and median owned uniques
  * 73.5 (9.62% of the 764-card pool). Limited Fan completed 2 Premium runs,
- * matching the weekly cap. The integer count band [51, 96] is the one-time
+ * matching the weekly cap. The integer count band [51, 96] was the one-time
  * floor/ceiling rounding of ±30% around that measurement (30.6% headroom in
  * each direction), deliberately broad enough to catch only macro drift. The
  * direct simulation took 4.756s wall-clock.
+ *
+ * RE-DERIVED 2026-08-01 (endowment change, not an economy change): every
+ * persona now claims the FREE Darlings precon (Red Cliffs Refrain, ~80
+ * uniques) on day 0, per the 1.5.5 product decision. Measured median
+ * day-7 owned uniques moved 73.5 -> 154.625; the band re-rounds the same
+ * ±30% rule around the new measurement: floor(154.625 x 0.7) = 108,
+ * ceil(154.625 x 1.3) = 202. Packs/day, quest-claim, and gold bands were
+ * re-measured within their existing edges and stand unchanged.
  */
 export const COARSE_PROGRESSION_BANDS = Object.freeze({
   packsPerDay: Object.freeze({ min: 0.15, max: 2.5 }),
   minQuestClaimRate: 0.2,
   maxGoldPerGameMultiple: 4,
-  uniqueCards: Object.freeze({ min: 51, max: 96 }),
+  uniqueCards: Object.freeze({ min: 108, max: 202 }),
 });
 
 export const CANONICAL_FINE_BASELINE_DATE = '2026-07-31';
@@ -631,8 +641,14 @@ export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
   premiumDraftRuns: readonly [number, number];
   dailyQuestClaimRate: readonly [number, number];
 }>> = Object.freeze({
-  // 17.8%-25.7% of 764 = 135.992-196.348, rounded to [136, 196].
-  'new-casual': { uniqueCards: [136, 196], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
+  // 17.8%-25.7% of 764 = 135.992-196.348, rounded to [136, 196]. RE-CENTRED
+  // 2026-08-01 for the free Darlings precon endowment (the least-collecting
+  // persona keeps nearly all ~80 granted uniques; measured 198.5 at
+  // 10x8x60): same +/-18.2% relative tolerance around the fresh
+  // measurement = [162, 235]. The other nine personas measured inside
+  // their existing windows (pack/set overlap absorbs the grant) and are
+  // deliberately not re-centred.
+  'new-casual': { uniqueCards: [162, 235], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
   // 45.6%-65.5% of 764 = 348.384-500.420, rounded to [348, 500].
   'daily-grinder': { uniqueCards: [348, 500], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
   // 44.2%-64.3% of 764 = 337.688-491.252, rounded to [338, 491].
@@ -1404,6 +1420,14 @@ function setupContext(
   const save = freshSave(START_DAY_MS);
   const starter = starterById(persona.starterId);
   if (!claimFreeStarter(save, CARD_DB, starter)) throw new Error(`Failed to claim starter for ${persona.id}`);
+  // Every persona also claims the free Darlings precon on day 0 (1.5.5:
+  // Red Cliffs Refrain, ~80 uniques). Free and advertised means claimed;
+  // modeling it keeps the owned-unique bands honest for real players. The
+  // one-time band re-expression this caused is dated 2026-08-01 below.
+  const freePrecon = DARLINGS_PRECONS.find((p) => p.id === FREE_DARLINGS_PRECON_ID);
+  if (!freePrecon || !claimFreeDarlingsDeck(save, CARD_DB, freePrecon)) {
+    throw new Error(`Failed to claim the free Darlings precon for ${persona.id}`);
+  }
   save.tutorialDone = true;
   save.gold += ECONOMY.startingGold;
   save.activeDeckId = starter.id;

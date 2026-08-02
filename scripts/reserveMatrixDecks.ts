@@ -162,10 +162,10 @@ function darlingsDeck(darling: CardDef, db: CardDb): string[] {
       .filter((card) => card.id !== darling.id && isEligibleSpell(card) && containsOnlyColors(card, darling.colors))
       .map((card) => card.id),
   );
-  if (candidates.length < DARLINGS_DECK_SIZE - 1) {
-    throw new Error(`Reserve matrix could not derive ${DARLINGS_DECK_SIZE - 1} singleton spells for ${darling.name}`);
+  if (candidates.length < DARLINGS_DECK_SIZE) {
+    throw new Error(`Reserve matrix could not derive ${DARLINGS_DECK_SIZE} singleton spells for ${darling.name}`);
   }
-  return [darling.id, ...candidates.slice(0, DARLINGS_DECK_SIZE - 1)];
+  return candidates.slice(0, DARLINGS_DECK_SIZE);
 }
 
 function assertLegal(name: string, issues: readonly { message: string }[]): void {

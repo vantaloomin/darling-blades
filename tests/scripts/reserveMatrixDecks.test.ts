@@ -40,6 +40,7 @@ describe('reserve matrix deck derivation', () => {
     for (const deck of first.darlings) {
       expect(deck.cards).toHaveLength(DARLINGS_DECK_SIZE);
       expect(new Set(deck.cards)).toHaveLength(DARLINGS_DECK_SIZE);
+      expect(deck.cards).not.toContain(deck.darlingId);
       expect(deck.landReserve).toHaveLength(10);
       expect(deck.landReserve.filter((id) => isDualLand(CARD_DB[id])).length).toBeLessThanOrEqual(5);
       expect(validateDarlingsDeck(CARD_DB, save, deck.cards, deck.darlingId, deck.landReserve)).toEqual([]);

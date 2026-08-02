@@ -70,7 +70,12 @@ const GLOSSARY_SECTIONS: GlossarySection[] = [
       { name: 'Hauntlink', description: MECHANIC_DEFINITIONS.hauntlink, icon: { kind: 'none' } },
       {
         name: 'Warchest',
-        description: 'Warchest Reserves hold lands not yet in play. Active Warchest holds your deployed lands.',
+        description: 'Warchest Reserves hold lands not yet in play. Active Warchest holds your deployed lands. Your Darling waits in her own zone, and each return adds 2 to her next call.',
+        icon: { kind: 'none' },
+      },
+      {
+        name: 'Darlings',
+        description: 'Your Darling waits in her own zone; each time she falls, her next call costs 2 more.',
         icon: { kind: 'none' },
       },
     ],
@@ -119,8 +124,14 @@ function section(id: GlossarySection['id']): GlossarySection {
 
 /** A permanent, read-only reference that players can open from the Main Menu. */
 export class GlossaryScene extends Phaser.Scene {
+  private focus: string | null = null;
+
   constructor() {
     super('Glossary');
+  }
+
+  init(data: { focus?: string } = {}): void {
+    this.focus = data.focus ?? null;
   }
 
   create(): void {
@@ -255,7 +266,10 @@ export class GlossaryScene extends Phaser.Scene {
       pageControl?.refresh(page, pageCount);
     };
     pageControl = pager(this, LEFT_X + PANEL_W - 140, 544, 0, pageCount, renderPage);
-    renderPage(0);
+    const focusedIndex = this.focus
+      ? mechanics.entries.findIndex((entry) => entry.name === this.focus)
+      : -1;
+    renderPage(focusedIndex < 0 ? 0 : Math.floor(focusedIndex / pageSize));
   }
 
   private drawCardTypes(types: GlossarySection): void {

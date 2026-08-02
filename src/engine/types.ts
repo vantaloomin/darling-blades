@@ -364,6 +364,9 @@ export interface PlayerState {
   severed: CardEntry[]; // public, one-way in v1
   /** Public ordered reserve. Omitted entirely for classic games. */
   landReserve?: CardEntry[];
+  darlingZone?: CardEntry | null;
+  darlingInstanceId?: number;
+  darlingTax?: number;
   landPlayedThisTurn: boolean;
   mulligans: number;
   keptHand: boolean;
@@ -400,12 +403,13 @@ export interface GameState {
 }
 
 /** The pre-1.5 state projection retained for existing scenes and AI callers. */
-export interface LegacyPlayerState extends Omit<PlayerState, 'deck' | 'hand' | 'graveyard' | 'severed' | 'landReserve'> {
+export interface LegacyPlayerState extends Omit<PlayerState, 'deck' | 'hand' | 'graveyard' | 'severed' | 'landReserve' | 'darlingZone'> {
   deck: string[];
   hand: string[];
   graveyard: string[];
   severed: string[];
   landReserve?: string[];
+  darlingZone?: string | null;
 }
 
 export type LegacyAwaiting = Exclude<Awaiting, { kind: 'foresee' }> |

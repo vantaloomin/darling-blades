@@ -8,6 +8,7 @@ import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
+import { chooseDarlingPaydown } from './darlingPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import {
@@ -68,7 +69,11 @@ export class EasyAI implements AIPlayer {
     return view.you.hand.filter((c) => isType(def(this.db, c), 'land')).length;
   }
 
-  private cardIdFor(view: PlayerView, cast: Extract<Action, { type: 'castSpell' }>): string {
+  private cardIdFor(
+    view: PlayerView,
+    cast: Extract<Action, { type: 'castSpell' | 'castDarling' }>,
+  ): string {
+    if (cast.type === 'castDarling') return view.you.darlingZone ?? '';
     return cast.retell && cast.graveIndex !== undefined
       ? view.you.graveyard[cast.graveIndex]
       : view.you.hand[cast.handIndex];
@@ -77,7 +82,7 @@ export class EasyAI implements AIPlayer {
   /** Targeted damage should not default to a friendly permanent or player. */
   private isSelfDamageTarget(
     view: PlayerView,
-    cast: Extract<Action, { type: 'castSpell' }>,
+    cast: Extract<Action, { type: 'castSpell' | 'castDarling' }>,
   ): boolean {
     const cardId = this.cardIdFor(view, cast);
     const damagesTarget = (def(this.db, cardId).abilities ?? []).some(
@@ -125,6 +130,8 @@ export class EasyAI implements AIPlayer {
 
   private main(view: PlayerView, legal: Action[]): Action {
     const nonConcede = legal.filter((l) => l.type !== 'concede');
+    const paydown = chooseDarlingPaydown(view, nonConcede);
+    if (paydown) return paydown;
     const reserveLand = chooseReserveLand(view, this.db, nonConcede);
     if (reserveLand) return reserveLand;
     if (rngFloat(this.rng) < this.pers.easyNoise) {
@@ -133,7 +140,7 @@ export class EasyAI implements AIPlayer {
     const land = nonConcede.find((l) => l.type === 'playLand');
     if (land) return land;
 
-    const casts = nonConcede.filter((l) => l.type === 'castSpell');
+    const casts = nonConcede.filter((l) => l.type === 'castSpell' || l.type === 'castDarling');
     const skimPool = nonConcede.filter((action) => action.type === 'skim');
     if (casts.length === 0 && skimPool.length > 0) {
       return skimPool[0];
@@ -168,17 +175,17 @@ export class EasyAI implements AIPlayer {
           if (action.type === 'skim') return skimValue(this.db, view.you.hand[action.handIndex]);
           if (action.type !== 'castSpell') return -Infinity;
           const cardId = this.cardIdFor(view, action);
-          if (action.hauntlinked) {
+          if (action.type === 'castSpell' && action.hauntlinked) {
             const host = action.targets?.[0];
             return host?.kind === 'permanent'
               ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
               : -Infinity;
           }
-          return action.retell
+          return action.type === 'castSpell' && action.retell
             ? retellValue(this.db, cardId) + 0.01
             : manaValue(def(this.db, cardId).cost) +
-                (action.x ?? 0) +
-                (action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+                (action.type === 'castSpell' ? (action.x ?? 0) : 0) +
+                (action.type === 'castSpell' && action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
         };
         return score(y) - score(x);
       });

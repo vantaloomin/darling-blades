@@ -66,6 +66,23 @@ reserve matrices, and the classic gates must stay green.
   metadata that recorded the old format id must keep loading.
 - The curated Darlings rival ladder stays **explicitly not promised**
   (standing decision; player-built duels only).
+- **Darlings command-zone respec:** each 79-spell Darlings deck carries its
+  legendary Darling outside the list, with public cast, tax, pay-down, replay,
+  builder, migration, tutorial, and glossary presentation as specified in
+  [plan-darlings.md](plan-darlings.md)'s 2026-08-01 section.
+- **In progress: Darlings precon slate.** Five dual-legend singleton products
+  ship with a 79-spell deck, a 10-land Warchest, and the external Darling.
+  Zhou Yu is a one-time free shop claim. The other four cost 750g, deliberately
+  above the 500g theme-deck price because they grant roughly 80 unique cards at
+  singleton density. Progression re-measure remains the main-session follow-up.
+
+  | Deck | Darling | Pair | Table identity | Shop |
+  | --- | --- | --- | --- | --- |
+  | Red Cliffs Refrain | Zhou Yu, Flame of Red Cliffs | U/R | spellslinger burn | Free one-time claim |
+  | Queen Below | Hel, Queen of the Dishonored Dead | B/U | reanimator | 750g |
+  | Sunwell Ledger | Aine, Sunlit Bargain | G/W | lifegain value | 750g |
+  | Mirror-Blood Rush | Elizabeth of the Blood Mirror | B/R | Dreaded aggro | 750g |
+  | Sable Warballad | Warrior-Ballad Captain | R/W | Warrior tribal | 750g |
 
 ### 3 · Progression bands: absolute owned-unique cards
 

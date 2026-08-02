@@ -64,7 +64,7 @@ export function darlingFaceCardFor(
   deck: { cards: readonly string[]; format?: string; darlingId?: string | null },
   db: CardDb,
 ): string | null {
-  if (deck.format === 'darlings' && deck.darlingId && deck.cards.includes(deck.darlingId)) {
+  if (deck.format === 'darlings' && deck.darlingId) {
     const darling = db[deck.darlingId];
     if (darling && isType(darling, 'creature') && isLegendary(darling)) return deck.darlingId;
   }

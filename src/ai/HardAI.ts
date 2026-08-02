@@ -187,7 +187,8 @@ export class HardAI implements AIPlayer {
       .filter(
         (a) =>
           (a.type === 'skim' && view.you.deckCount > 0) ||
-          (a.type === 'castSpell' && (a.empowered === true || a.retell === true)),
+          (a.type === 'castSpell' && (a.empowered === true || a.retell === true)) ||
+          a.type === 'castDarling',
       )
       // evaluate() deliberately strips until-EOT mods. When positive target
       // variants therefore tie, keep the deterministic tie-break on our side.
@@ -206,6 +207,11 @@ export class HardAI implements AIPlayer {
     let best = baseline;
     let bestScore = base.score;
     const candidateScore = (candidate: Action): number => {
+      if (candidate.type === 'castDarling') {
+        return view.you.darlingZone === null || view.you.darlingZone === undefined
+          ? -Infinity
+          : cardValue(this.db, view.you.darlingZone);
+      }
       if (candidate.type !== 'castSpell') return -Infinity;
       const cardId = candidate.retell && candidate.graveIndex !== undefined
         ? view.you.graveyard[candidate.graveIndex]

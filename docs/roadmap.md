@@ -93,7 +93,8 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   migration, replay log v4, card-instance variant pins (positional),
   SaveCode profile export/import (checksum + zip-bomb hardening), builder
   format switch + Darlings picker + Warchest Reserves panel, duel reserve strip
-  and reserve-format launches, and Profile SaveCode flow. All player-facing
+  and reserve-format launches, Profile SaveCode flow, and the Darlings command-zone
+  respec (79 spells plus an external Darling). All player-facing
   entry points ship behind `FEATURES.reserveFormats = true`; saves and legacy
   replays stay lossless.
 - **Shop Card Packs wave (#153) + Practice picker strip (#154).** Boosters

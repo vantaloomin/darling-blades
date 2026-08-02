@@ -39,7 +39,7 @@ const COLORLESS_CARD = 'colorless-card';
 const PLAIN_CREATURE = 'plain-creature';
 const LEGENDARY_ARTIFACT = 'legendary-artifact';
 const UNOWNED_DARLING = 'unowned-darling';
-const UNIQUE_IDS = Array.from({ length: DARLINGS_DECK_SIZE - 1 }, (_, i) => `unique-${i}`);
+const UNIQUE_IDS = Array.from({ length: DARLINGS_DECK_SIZE }, (_, i) => `unique-${i}`);
 const GENERATED: Record<string, CardDef> = Object.fromEntries(
   UNIQUE_IDS.map((id) => [id, card(id)]),
 );
@@ -134,7 +134,7 @@ function reserve(...ids: string[]): string[] {
 }
 
 function legalDeck(): string[] {
-  return [DARLING, ...UNIQUE_IDS];
+  return [...UNIQUE_IDS];
 }
 
 function legalSave(): SaveData {
@@ -146,11 +146,11 @@ function messages(issues: ReturnType<typeof validateDarlingsDeck>): string[] {
 }
 
 describe('Darlings format helpers', () => {
-  it('accepts a legal 80-card singleton deck with a 10-basic reserve', () => {
+  it('accepts a legal 79-card singleton spell deck with a 10-basic Warchest', () => {
     expect(validateDarlingsDeck(DB, legalSave(), legalDeck(), DARLING, reserve())).toEqual([]);
   });
 
-  it('requires exactly 80 cards at both boundaries', () => {
+  it('requires exactly 79 spell cards at both boundaries', () => {
     const save = legalSave();
     expect(messages(validateDarlingsDeck(DB, save, legalDeck().slice(0, DARLINGS_DECK_SIZE - 1), DARLING, reserve()))).toContain(
       `Reserve-format decks need exactly ${DARLINGS_DECK_SIZE} cards (currently ${DARLINGS_DECK_SIZE - 1})`,
@@ -160,7 +160,7 @@ describe('Darlings format helpers', () => {
     ).toContain(`Reserve-format decks need exactly ${DARLINGS_DECK_SIZE} cards (currently ${DARLINGS_DECK_SIZE + 1})`);
   });
 
-  it('rejects a land in the 80-card deck', () => {
+  it('rejects a land in the 79-card spell deck', () => {
     const cards = [...legalDeck().slice(0, DARLINGS_DECK_SIZE - 1), BASIC];
     expect(messages(validateDarlingsDeck(DB, legalSave(), cards, DARLING, reserve()))).toContain(
       'Decks in this format hold no lands; build your Warchest instead',
@@ -200,29 +200,29 @@ describe('Darlings format helpers', () => {
     );
   });
 
-  it('requires the Darling to be present in the card list', () => {
-    const cards = [GREEN_CARD, ...UNIQUE_IDS];
+  it('requires the Darling to stay outside the card list', () => {
+    const cards = [DARLING, ...UNIQUE_IDS.slice(0, -1)];
     expect(messages(validateDarlingsDeck(DB, legalSave(), cards, DARLING, reserve()))).toContain(
-      'Your Darling must be in the deck',
+      'Your Darling must stay outside the deck',
     );
   });
 
   it('rejects a second copy of any card', () => {
-    const cards = [DARLING, ...UNIQUE_IDS.slice(0, -1), UNIQUE_IDS[0]];
+    const cards = [...UNIQUE_IDS.slice(0, -1), UNIQUE_IDS[0]];
     expect(messages(validateDarlingsDeck(DB, legalSave(), cards, DARLING, reserve()))).toContain(
       'unique-0 may appear only once in a Darlings deck',
     );
   });
 
   it('rejects every unowned card copy', () => {
-    const cards = [DARLING, ...UNIQUE_IDS.slice(0, -1), GREEN_CARD];
+    const cards = [...UNIQUE_IDS.slice(0, -1), GREEN_CARD];
     expect(messages(validateDarlingsDeck(DB, legalSave(), cards, DARLING, reserve()))).toContain(
       'Grove Sentinel is not in your collection',
     );
   });
 
   it('rejects tokens', () => {
-    const cards = [DARLING, ...UNIQUE_IDS.slice(0, -1), TOKEN];
+    const cards = [...UNIQUE_IDS.slice(0, -1), TOKEN];
     expect(messages(validateDarlingsDeck(DB, saveWith(DARLING, ...UNIQUE_IDS, TOKEN), cards, DARLING, reserve()))).toContain(
       'Saproling Token is a token',
     );
@@ -237,7 +237,7 @@ describe('Darlings format helpers', () => {
   });
 
   it('rejects cards outside a colored Darling identity', () => {
-    const cards = [DARLING, ...UNIQUE_IDS.slice(0, -1), OUTSIDE_CARD];
+    const cards = [...UNIQUE_IDS.slice(0, -1), OUTSIDE_CARD];
     const save = saveWith(DARLING, ...UNIQUE_IDS, OUTSIDE_CARD);
     expect(messages(validateDarlingsDeck(DB, save, cards, DARLING, reserve()))).toContain(
       "Moonlit Envoy is outside your Darling's colors",
@@ -245,7 +245,7 @@ describe('Darlings format helpers', () => {
   });
 
   it('enforces strict colorless identity for deck cards and reserve lands', () => {
-    const cards = [COLORLESS_DARLING, ...UNIQUE_IDS];
+    const cards = [...UNIQUE_IDS];
     const save = saveWith(COLORLESS_DARLING, ...UNIQUE_IDS, OUTSIDE_DUAL);
     expect(messages(validateDarlingsDeck(DB, save, cards, COLORLESS_DARLING, reserve(OUTSIDE_DUAL)))).toContain(
       'Moonlit Crossing is not allowed with a colorless Darling',
@@ -261,10 +261,24 @@ describe('Darlings format helpers', () => {
   });
 
   it('excludes land-fetch cards from the deck', () => {
-    const cards = [DARLING, ...UNIQUE_IDS.slice(0, -1), FETCH_CARD];
+    const cards = [...UNIQUE_IDS.slice(0, -1), FETCH_CARD];
     const save = saveWith(DARLING, ...UNIQUE_IDS, FETCH_CARD);
     expect(messages(validateDarlingsDeck(DB, save, cards, DARLING, reserve()))).toContain(
       'Verdant Compass cannot find lands here; your lands live in your Warchest.',
+    );
+  });
+
+  it('applies the fetch audit to the external Darling too', () => {
+    const fetchDarling = card('fetch-darling', {
+      name: 'Compass Queen',
+      supertypes: ['legendary'],
+      colors: ['G'],
+      abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
+    });
+    const db = { ...DB, [fetchDarling.id]: fetchDarling };
+    const save = saveWith(fetchDarling.id, ...UNIQUE_IDS);
+    expect(messages(validateDarlingsDeck(db, save, legalDeck(), fetchDarling.id, reserve()))).toContain(
+      'Compass Queen cannot find lands here; your lands live in your Warchest.',
     );
   });
 
@@ -306,7 +320,7 @@ describe('Darlings format helpers', () => {
     });
     expect(normalizeDarlingsFields(DB, 'darlings', DARLING, [BASIC], null)).toEqual({
       format: 'darlings',
-      darlingId: null,
+      darlingId: DARLING,
       landReserve: [],
     });
   });

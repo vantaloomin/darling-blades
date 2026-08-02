@@ -118,11 +118,15 @@ describe('locked Layer-1 economy gates', () => {
     const bands = evaluateProgressionBands(report);
     expect(bands.violations).toEqual([]);
     expect(bands.coarse.every((band) => band.passed)).toBe(true);
+    // measured re-pinned 2026-08-01: every persona claims the free Darlings
+    // precon on day 0 (~80 uniques). The band [108, 202] derives from the
+    // 8-seed full-check median (154.625); this 1-seed CI-fast config
+    // measures 151, inside the same band.
     expect(bands.coarse).toContainEqual(expect.objectContaining({
       name: 'median day-7 owned uniques',
-      measured: 73.5,
-      min: 51,
-      max: 96,
+      measured: 151,
+      min: 108,
+      max: 202,
       passed: true,
     }));
   // CI runners are 2-core and can contend with other simulation tests.

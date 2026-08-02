@@ -5,7 +5,8 @@ import type { DeckIssue } from './DeckStorage';
 import type { SaveData } from './SaveManager';
 
 export const WARCHEST_DECK_SIZE = 50;
-export const DARLINGS_DECK_SIZE = 80;
+/** Darlings carries its selected legendary creature outside this spell list. */
+export const DARLINGS_DECK_SIZE = 79;
 export const LAND_RESERVE_SIZE = 10;
 export const MAX_DUAL_LANDS = 5;
 

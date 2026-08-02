@@ -1,4 +1,5 @@
 import type { GameEvent } from './events';
+import { DARLING_TAX_STEP } from '../config/rules';
 import type { CardDb, CardEntry, CardInstance, GameState, Permanent, PlayerId } from './types';
 import { cardIdOf, def, isCardInstance, variantKeyOf } from './types';
 
@@ -8,6 +9,13 @@ export type Emit = (e: GameEvent) => void;
  * Zone-change primitives, deliberately trigger-free: callers (resolve, sba,
  * the effect interpreter) fire arrives/dies triggers themselves so this module
  * sits at the bottom of the import graph.
+ *
+ * Darlings replace only battlefield exits. A matching physical Darling returns
+ * to its public zone after a destroy or sever and gains one tax step; destroy
+ * still reports `died`, so its dies triggers fire normally. Battlefield recall
+ * also returns it to the zone but adds no tax and is not a death. Moves from
+ * non-battlefield zones (countered spells, discard, mill, graveyard sever, and
+ * reclaim) use their ordinary destination and never pull a matching card back.
  */
 
 export function enterBattlefield(
@@ -71,6 +79,23 @@ function basicReturnsToReserve(state: GameState, db: CardDb, perm: Permanent): b
   );
 }
 
+function isDarlingPermanent(state: GameState, perm: Permanent): boolean {
+  const owner = state.players[perm.owner];
+  return owner.darlingZone !== undefined && owner.darlingInstanceId === perm.instanceId;
+}
+
+function returnDarlingToZone(
+  state: GameState,
+  perm: Permanent,
+  emit: Emit,
+  reason: 'died' | 'severed' | 'recalled',
+): void {
+  pushMovedCard(state, perm, 'darlingZone');
+  const owner = state.players[perm.owner];
+  if (reason !== 'recalled') owner.darlingTax = (owner.darlingTax ?? 0) + DARLING_TAX_STEP;
+  emit({ e: 'darlingReturned', player: perm.owner, cardId: perm.cardId, tax: owner.darlingTax ?? 0, reason });
+}
+
 /** Whether a destroy exit is a real death for triggers and accounting. */
 export function firesDiesForDestroy(state: GameState, db: CardDb, perm: Permanent): boolean {
   return !basicReturnsToReserve(state, db, perm);
@@ -88,9 +113,8 @@ export function destroyPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
-  if (!d.token) {
-    pushMovedCard(state, perm, basicReturnsToReserve(state, db, perm) ? 'landReserve' : 'graveyard');
-  }
+  if (!d.token && isDarlingPermanent(state, perm)) returnDarlingToZone(state, perm, emit, 'died');
+  else if (!d.token) pushMovedCard(state, perm, basicReturnsToReserve(state, db, perm) ? 'landReserve' : 'graveyard');
   if (firesDiesForDestroy(state, db, perm)) {
     emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
   }
@@ -109,7 +133,8 @@ export function severPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
-  if (!d.token) pushMovedCard(state, perm, 'severed');
+  if (!d.token && isDarlingPermanent(state, perm)) returnDarlingToZone(state, perm, emit, 'severed');
+  else if (!d.token) pushMovedCard(state, perm, 'severed');
   emit({
     e: 'severed',
     player: perm.owner,
@@ -133,12 +158,16 @@ export function recallPermanent(
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
   const basicToReserve = basicReturnsToReserve(state, db, perm);
-  if (!d.token) {
+  const darlingToZone = isDarlingPermanent(state, perm);
+  if (!d.token && darlingToZone) {
+    returnDarlingToZone(state, perm, emit, 'recalled');
+    emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
+  } else if (!d.token) {
     const toReserve = state.players[perm.owner].landReserve !== undefined && d.types.includes('land');
     pushMovedCard(state, perm, toReserve ? 'landReserve' : 'hand');
     emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
   }
-  if (!basicToReserve) {
+  if (!basicToReserve && !darlingToZone) {
     emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
   }
   return true;
@@ -148,7 +177,7 @@ export function recallPermanent(
 function pushMovedCard(
   state: GameState,
   perm: Permanent,
-  zone: 'hand' | 'graveyard' | 'severed' | 'landReserve',
+  zone: 'hand' | 'graveyard' | 'severed' | 'landReserve' | 'darlingZone',
 ): void {
   const card: CardEntry =
     state.nextInstanceId === undefined
@@ -160,6 +189,8 @@ function pushMovedCard(
         } satisfies CardInstance);
   if (zone === 'landReserve') {
     (state.players[perm.owner].landReserve ??= []).push(card);
+  } else if (zone === 'darlingZone') {
+    state.players[perm.owner].darlingZone = card;
   } else {
     state.players[perm.owner][zone].push(card);
   }
