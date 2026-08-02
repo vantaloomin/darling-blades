@@ -472,6 +472,16 @@ export interface Avatar {
  * 29.3 / Aphrodite 19.7 with 28 draws at 0.93%; 50-card in-deck
  * measured Ares 76.1 / Gaia 72.1 / Dian Wei 58.2 / Athena 48.0 /
  * Ghost-Net 23.5 / Aphrodite 22.1 with 3,000/3,000 decided.)
+ *
+ * Darlings PRECONS (--darlings-precons, 200 seeds/cell, 2,000 games,
+ * neutral hard, 2026-08-01, the five shipped product decks under the
+ * command-zone rules): Queen Below 58.8, Sable Warballad 58.1,
+ * Mirror-Blood Rush 46.8, Sunwell Ledger 44.1, Red Cliffs Refrain
+ * 42.3. A 16.5pp product spread (vs the fixture fleet's 58pp) with
+ * 1,990/2,000 decided, 10 turn-limit draws (0.5%), 0 engine
+ * exceptions; worst cell 71 (Sunwell over Red Cliffs). The FREE deck
+ * (Red Cliffs Refrain) sitting mildly bottom is deliberate product
+ * posture, not an accident - it onboards, the paid decks aspire.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------
