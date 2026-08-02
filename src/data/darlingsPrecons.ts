@@ -164,7 +164,7 @@ export const DARLINGS_PRECONS: readonly DarlingsPrecon[] = [
     name: 'Sable Warballad',
     darlingId: 'dt-warrior-ballad-captain',
     colors: ['R', 'W'],
-    blurb: "Warriors curve into Sable's command-zone anthem and attack as one warband.",
+    blurb: "Warriors curve into their lords' anthems and attack as one warband.",
     cards: [
       // The broad Warrior roster gives the Captain a real tribal deck to lead
       'tk-other-huaxiong', 'tk-other-lulingqi', 'tk-other-warband-captain', 'tk-other-lubu', 'tk-other-zhurong',
