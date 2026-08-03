@@ -4,6 +4,7 @@ import { EasyAI } from '../../src/ai/EasyAI';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
 import { ScriptAI } from '../../src/ai/ScriptAI';
+import { CARD_DB } from '../../src/data/catalog';
 import type { GameEvent } from '../../src/engine/events';
 import { runOps } from '../../src/engine/effects/EffectInterpreter';
 import { Game } from '../../src/engine/Game';
@@ -13,6 +14,7 @@ import { makeTestState, TEST_DB } from '../helpers';
 
 const DB: CardDb = {
   ...TEST_DB,
+  'cf-barrow-whisper': CARD_DB['cf-barrow-whisper']!,
   dies_bear: {
     ...TEST_DB.bear,
     id: 'dies_bear',
@@ -58,6 +60,39 @@ const DB: CardDb = {
     colors: [],
     rarity: 'c',
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }] }],
+  },
+  foresee_draw: {
+    id: 'foresee_draw',
+    name: 'Foresee Then Draw',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    rarity: 'c',
+    abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 1 }, { op: 'draw', n: 1 }] }],
+  },
+  chained_foresee_draw: {
+    id: 'chained_foresee_draw',
+    name: 'Chained Foresee Then Draw',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    rarity: 'c',
+    abilities: [{
+      when: 'spell',
+      ops: [{ op: 'foresee', n: 1 }, { op: 'foresee', n: 1 }, { op: 'draw', n: 1 }],
+    }],
+  },
+  foresee_last: {
+    id: 'foresee_last',
+    name: 'Life Then Foresee',
+    types: ['ritual'],
+    subtypes: [],
+    cost: { generic: 0, pips: {} },
+    colors: [],
+    rarity: 'c',
+    abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 2 }, { op: 'foresee', n: 1 }] }],
   },
   draw_one: {
     id: 'draw_one',
@@ -352,6 +387,99 @@ describe('foresee', () => {
   });
 });
 
+describe('foresee continuations', () => {
+  function begin(cardId: string, deck: string[]): Game {
+    const state = makeTestState({ hands: [[cardId], []], active: 0 });
+    state.players[0].deck = [...deck];
+    const game = Game.restore(state, DB);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    return game;
+  }
+
+  it('shows the pre-trigger top without mutating the deck, then draws the kept or next card', () => {
+    const kept = begin('foresee_draw', ['bottom', 'top']);
+    expect(kept.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['top'] });
+    expect(kept.state.players[0].deck).toEqual(['bottom', 'top']);
+    expect(kept.state.pendingDecisions).toEqual([
+      { kind: 'foresee', player: 0, n: 1, thenOps: [{ op: 'draw', n: 1 }] },
+    ]);
+
+    const keepEvents = kept.submit(0, { type: 'foresee', bottomIndices: [] });
+    expect(kept.state.players[0].hand).toEqual(['top']);
+    expect(kept.state.players[0].deck).toEqual(['bottom']);
+    expect(keepEvents.map((event) => event.e)).toEqual(['foresaw', 'effectApplied', 'drew']);
+
+    const bottomed = begin('foresee_draw', ['bottom', 'top']);
+    const bottomEvents = bottomed.submit(0, { type: 'foresee', bottomIndices: [0] });
+    expect(bottomed.state.players[0].hand).toEqual(['bottom']);
+    expect(bottomed.state.players[0].deck).toEqual(['top']);
+    expect(bottomEvents.map((event) => event.e)).toEqual(['foresaw', 'effectApplied', 'drew']);
+  });
+
+  it("runs Barrow Whisper's grind after arranging the viewed cards", () => {
+    const state = makeTestState({
+      hands: [['cf-barrow-whisper'], []],
+      active: 0,
+      battlefield: [{ iid: 1, cardId: 'swamp', controller: 0 }],
+    });
+    state.players[0].deck = ['bottom', 'middle', 'top'];
+    const game = Game.restore(state, DB);
+    game.submit(0, { type: 'castSpell', handIndex: 0, manaPlan: [1] });
+    expect(game.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['top', 'middle'] });
+    expect(game.state.players[0].deck).toEqual(['bottom', 'middle', 'top']);
+    expect(game.state.players[0].graveyard).toEqual(['cf-barrow-whisper']);
+
+    const events = game.submit(0, { type: 'foresee', bottomIndices: [0] });
+    expect(game.state.players[0].deck).toEqual(['top']);
+    expect(game.state.players[0].graveyard).toEqual(['cf-barrow-whisper', 'middle', 'bottom']);
+    expect(events.map((event) => event.e)).toEqual(['foresaw', 'effectApplied', 'milled', 'milled']);
+  });
+
+  it('suspends again when a continuation reaches a second foresee', () => {
+    const game = begin('chained_foresee_draw', ['bottom', 'second', 'first']);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['first'] });
+
+    game.submit(0, { type: 'foresee', bottomIndices: [0] });
+    expect(game.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['second'] });
+    expect(game.state.players[0].hand).toEqual([]);
+    expect(game.state.pendingDecisions).toEqual([
+      { kind: 'foresee', player: 0, n: 1, thenOps: [{ op: 'draw', n: 1 }] },
+    ]);
+
+    game.submit(0, { type: 'foresee', bottomIndices: [] });
+    expect(game.state.players[0].hand).toEqual(['second']);
+    expect(game.state.players[0].deck).toEqual(['first', 'bottom']);
+  });
+
+  it('keeps foresee-last and pure-foresee decision shapes byte-identical', () => {
+    const last = begin('foresee_last', ['bottom', 'top']);
+    expect(last.state.players[0].life).toBe(22);
+    expect(last.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['top'] });
+    expect(last.state.pendingDecisions).toEqual([{ kind: 'foresee', player: 0, n: 1 }]);
+    expect(last.state.players[0].deck).toEqual(['bottom', 'top']);
+    expect(last.submit(0, { type: 'foresee', bottomIndices: [] }).map((event) => event.e)).toEqual(['foresaw']);
+
+    const pure = begin('foresee2', ['bottom', 'middle', 'top']);
+    expect(pure.awaiting).toEqual({ player: 0, kind: 'foresee', cards: ['top', 'middle'] });
+    expect(pure.state.pendingDecisions).toEqual([{ kind: 'foresee', player: 0, n: 2 }]);
+    expect(pure.state.players[0].deck).toEqual(['bottom', 'middle', 'top']);
+    expect(pure.submit(0, { type: 'foresee', bottomIndices: [0] }).map((event) => event.e)).toEqual(['foresaw']);
+    expect(pure.state.players[0].deck).toEqual(['top', 'bottom', 'middle']);
+  });
+
+  it('rejects a targeted op after foresee instead of dropping its target context', () => {
+    const state = makeTestState({ active: 0 });
+    state.players[0].deck = ['bear'];
+    expect(() => runOps(
+      state,
+      DB,
+      () => {},
+      ctx,
+      [{ op: 'foresee', n: 1 }, { op: 'destroy', to: 'target' }],
+    )).toThrow('cannot follow foresee');
+  });
+});
+
 /**
  * Playtest pin (2026-07-16): "when I foresee 2 and bottom 1, I should draw the
  * card I kept on top." Each test resolves foresee through the real action flow
@@ -464,6 +592,25 @@ function runAiGame(seed: number): { events: GameEvent[]; state: string } {
   throw new Error('AI game did not terminate');
 }
 
+function runAiContinuationGame(brain: (seed: number) => AIPlayer, seed: number): GameEvent[] {
+  const deck = [
+    ...Array.from({ length: 8 }, () => 'forest'),
+    ...Array.from({ length: 6 }, () => 'bear'),
+    ...Array.from({ length: 5 }, () => 'foresee_draw'),
+    ...Array.from({ length: 5 }, () => 'banish'),
+  ];
+  const game = new Game({ decks: [deck, deck], seed, db: DB });
+  const ais: [AIPlayer, AIPlayer] = [brain(seed * 2 + 1), brain(seed * 2 + 2)];
+  const events = [...game.initialEvents];
+  for (let guard = 0; guard < 20_000; guard++) {
+    if (game.awaiting.kind === 'gameOver') return events;
+    const player = game.awaiting.player;
+    const action = ais[player].chooseAction(game.viewFor(player), game.legalActions(player));
+    events.push(...game.submit(player, action));
+  }
+  throw new Error('AI continuation game did not terminate');
+}
+
 describe('AI foresee decisions', () => {
   it('gives every brain a deterministic, legal foresee response', () => {
     const brains: AIPlayer[] = [
@@ -489,5 +636,15 @@ describe('AI foresee decisions', () => {
     expect(a.events.some((event) => event.e === 'severed')).toBe(true);
     expect(JSON.stringify(a.events)).toBe(JSON.stringify(b.events));
     expect(a.state).toBe(b.state);
+  });
+
+  it.each([
+    ['easy', (seed: number): AIPlayer => new EasyAI(DB, seed)],
+    ['medium', (): AIPlayer => new MediumAI(DB)],
+    ['hard', (): AIPlayer => new HardAI(DB)],
+  ])('lets %s complete a seeded foresee-then-draw game through ai/foresee unchanged', (_difficulty, brain) => {
+    const events = runAiContinuationGame(brain, 9127);
+    expect(events.filter((event) => event.e === 'effectApplied' && event.op === 'foresee')).not.toHaveLength(0);
+    expect(events.filter((event) => event.e === 'effectApplied' && event.op === 'draw')).not.toHaveLength(0);
   });
 });

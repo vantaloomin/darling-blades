@@ -11,7 +11,7 @@ import type { Action } from './actions';
 import { darlingCastCost, legalActions, validateAction } from './actions';
 import { hasCastableInstant } from './actions';
 import { resolveCombatDamage } from './combat/damage';
-import { fireTriggers } from './effects/EffectInterpreter';
+import { fireTriggers, runOps } from './effects/EffectInterpreter';
 import type { GameEvent } from './events';
 import { combineManaCosts, solveMana } from './mana';
 import { checkStateBased } from './sba';
@@ -457,7 +457,10 @@ export class Game {
     );
   }
 
-  /** Awaiting foresee cards are top-first, matching the player-facing order. */
+  /**
+   * Awaiting Foresee cards are top-first, matching the player-facing order.
+   * A Foresee continuation suspends before its trailing ops mutate this deck.
+   */
   private foreseeCards(player: PlayerId, n: number): CardEntry[] {
     if (n <= 0) return [];
     return this.st.players[player].deck.slice(-n).reverse();
@@ -575,6 +578,18 @@ export class Game {
           kept: kept.map(cardIdOf),
           bottomed: bottomed.map(cardIdOf),
         });
+        if (pending.thenOps) {
+          // The deferred entry stores only the controller. Tail ops were
+          // asserted target-free when stashed, so they cannot need cast-time
+          // targets or a source permanent while this action resumes them.
+          runOps(
+            st,
+            this.db,
+            emit,
+            { controller: pending.player, sourceCardId: 'foresee-continuation', targets: [] },
+            pending.thenOps,
+          );
+        }
         return;
       }
 
