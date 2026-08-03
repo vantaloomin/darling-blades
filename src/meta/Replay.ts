@@ -18,9 +18,9 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
  * worse than an honest "recorded on an older version" notice).
  */
 
-// Darlings adds public command-zone state plus cast/pay-down actions. Old logs
-// must fail closed instead of replaying under the changed action menu.
-export const REPLAY_LOG_VERSION = 5 as const;
+// Foresee continuations change observable action/event ordering. Old logs must
+// fail closed instead of replaying under the new resolution semantics.
+export const REPLAY_LOG_VERSION = 6 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
@@ -210,21 +210,23 @@ export function isReplayLog(value: unknown): value is ReplayLog {
   const darlingShape = Array.isArray(log.darlings) &&
     log.darlings.length === 2 &&
     log.darlings.every((id) => id === null || typeof id === 'string');
-  // v4 Darlings games used only Warchest reserves. Keep those blobs structurally
-  // valid for save preservation, while v5 requires both the reserve and the
-  // command-zone payload. canReplay still refuses every older version.
-  const payloadShape = log.v === REPLAY_LOG_VERSION
-    ? (rawFormat === undefined
-        ? log.landReserves === undefined && log.darlings === undefined
-        : format === 'warchest'
-          ? reserveShape && log.darlings === undefined
-          : format === 'darlings'
-            ? reserveShape && darlingShape
-            : false)
-    : ((rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
-      (format !== undefined && reserveShape && log.darlings === undefined));
+  // v5 added the Darlings command-zone payload. Keep v5 and older blobs
+  // structurally valid for save preservation, while canReplay still refuses
+  // every older version through its execution gate.
+  const currentPayloadShape = rawFormat === undefined
+    ? log.landReserves === undefined && log.darlings === undefined
+    : format === 'warchest'
+      ? reserveShape && log.darlings === undefined
+      : format === 'darlings'
+        ? reserveShape && darlingShape
+        : false;
+  const legacyPayloadShape = (rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
+    (format !== undefined && reserveShape && log.darlings === undefined);
+  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 5
+    ? currentPayloadShape
+    : legacyPayloadShape;
   const valid =
-    (log.v === REPLAY_LOG_VERSION || log.v === 4 || log.v === 3 || log.v === 2) &&
+    (log.v === REPLAY_LOG_VERSION || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     Array.isArray(log.decks) &&
