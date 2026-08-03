@@ -59,7 +59,8 @@ export const CELTIC_FAE = [
   }),
   {
     id: 'cf-balor-evil-eye', name: "Balor's Evil Eye", types: ['ritual'], subtypes: [],
-    supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'],
+    // {3}{B}{R} -> {2}{B}{R} user recost 2026-08-01 from 1.5.5 play.
+    supertypes: ['legendary'], cost: cost(2, 'BR'), colors: ['B', 'R'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 5, to: 'target' }, { op: 'severGrave', n: 1, who: 'opponent' }] }],
     rarity: 'ssr', flavor: 'Do not meet its gaze. Do not survive its attention.',
   },
