@@ -34,6 +34,7 @@ import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestur
 import { FilterBar, TIER_TEXT_COLOR } from '../ui/binder/FilterBar';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CARD_H, CARD_W, CardView } from '../ui/CardView';
+import { SHARD_HOLD_BUTTON_PROGRESS } from '../ui/duelPresentation';
 import { FRAME_TREATMENTS } from '../ui/CardFrameFactory';
 import { fxAvailable, fxPolicy } from '../ui/fx/FXSupport';
 import {
@@ -447,9 +448,9 @@ export class CollectionScene extends Phaser.Scene {
 
       // Cached-thumbnail Image (tier gem included) — cheap to churn per
       // spread; live CardViews stay exclusive to the inspect overlay. Owned
-      // cards show their RAREST owned variant (frame/full-art bake statically;
-      // holo shimmer stays an inspect effect), so the binder reads as YOUR
-      // binder rather than a plain checklist.
+      // cards show their selected display variant (frame/full-art bake
+      // statically; holo shimmer stays an inspect effect), so the binder reads
+      // as YOUR binder rather than a plain checklist.
       const best = owned > 0 ? displayVariantFor(save, d.id) : null;
       const thumb = makeCardThumb(
         this,
@@ -498,7 +499,7 @@ export class CollectionScene extends Phaser.Scene {
 
   /**
    * Inspect overlay: live fx:'full' CardView (the only one alive) rendering
-   * the best owned variant, plus a tappable list of every owned variant.
+   * the selected owned display variant, plus a tappable list of every owned variant.
    * Unowned cards render the plain look.
    */
   private showInspect(d: CardDef, clearedDisplayPin = false): void {
@@ -803,31 +804,39 @@ export class CollectionScene extends Phaser.Scene {
       );
 
       const holdLabel = `⛏ Hold to shard ×${excess} extra (+${gold}🪙)`;
-      const ring = this.add.graphics();
-      c.add(ring);
-      const bounds = shardBtn.getMeasuredBounds();
-      const ringRadius = Math.max(bounds.visual.width, bounds.visual.height) / 2 + 10;
+      const progressFill = this.add.graphics();
+      // The progress visual belongs inside the CTA instead of around the
+      // cursor. Insert it above the button surface and below its label.
+      shardBtn.container.addAt(progressFill, 1);
       let holding = false;
       let complete = false;
       let progress = 0;
       let holdTimer: Phaser.Time.TimerEvent | null = null;
       let progressTimer: Phaser.Time.TimerEvent | null = null;
 
-      const drawRing = (next: number): void => {
-        if (!ring.active) return;
-        ring.clear();
+      const drawProgress = (next: number): void => {
+        if (!progressFill.active) return;
+        progressFill.clear();
         if (next <= 0) return;
-        ring.lineStyle(3, colorInt(theme.colors.gold), 0.96);
-        ring.beginPath();
-        ring.arc(
-          shardBtn.container.x,
-          shardBtn.container.y,
-          ringRadius,
-          -Math.PI / 2,
-          -Math.PI / 2 + Math.PI * 2 * next,
-          false,
+        // The label changes while holding, so remeasure instead of letting a
+        // long gold/count string leave the fill behind the CTA's true edge.
+        const bounds = shardBtn.getMeasuredBounds();
+        const inset = SHARD_HOLD_BUTTON_PROGRESS.inset;
+        const x = bounds.visual.x + inset;
+        const y = bounds.visual.y + inset;
+        const height = bounds.visual.height - inset * 2;
+        const width = Math.max(0, (bounds.visual.width - inset * 2) * next);
+        const radius = Math.min(SHARD_HOLD_BUTTON_PROGRESS.cornerRadius, width / 2, height / 2);
+        progressFill.fillStyle(colorInt(theme.colors.gold), SHARD_HOLD_BUTTON_PROGRESS.fillAlpha);
+        progressFill.fillRoundedRect(x, y, width, height, radius);
+        progressFill.lineStyle(SHARD_HOLD_BUTTON_PROGRESS.ringWidth, colorInt(theme.colors.gold), 0.96);
+        progressFill.strokeRoundedRect(
+          bounds.visual.x + SHARD_HOLD_BUTTON_PROGRESS.ringWidth / 2,
+          bounds.visual.y + SHARD_HOLD_BUTTON_PROGRESS.ringWidth / 2,
+          bounds.visual.width - SHARD_HOLD_BUTTON_PROGRESS.ringWidth,
+          bounds.visual.height - SHARD_HOLD_BUTTON_PROGRESS.ringWidth,
+          theme.radius.control,
         );
-        ring.strokePath();
       };
       const stopProgress = (): void => {
         holdTimer?.remove(false);
@@ -846,9 +855,9 @@ export class CollectionScene extends Phaser.Scene {
           to: 0,
           duration: 100,
           ease: 'Cubic.easeOut',
-          onUpdate: (tween) => drawRing(tween.getValue() ?? 0),
+          onUpdate: (tween) => drawProgress(tween.getValue() ?? 0),
           onComplete: () => {
-            if (ring.active) ring.clear();
+            if (progressFill.active) progressFill.clear();
           },
         });
       };
@@ -856,7 +865,7 @@ export class CollectionScene extends Phaser.Scene {
         if (holding || complete || isRitualInProgress()) return;
         holding = true;
         progress = 0;
-        drawRing(0);
+        drawProgress(0);
         shardBtn.setLabel(`Hold to release (+${gold}🪙)`);
         const duration = shardHoldDuration(gold);
         const startedAt = this.time.now;
@@ -864,9 +873,9 @@ export class CollectionScene extends Phaser.Scene {
           delay: 16,
           loop: true,
           callback: () => {
-            if (!holding || !ring.active || !c.active) return;
+            if (!holding || !progressFill.active || !c.active) return;
             progress = Math.min(1, (this.time.now - startedAt) / duration);
-            drawRing(progress);
+            drawProgress(progress);
           },
         });
         holdTimer = this.time.delayedCall(duration, () => {
@@ -874,7 +883,7 @@ export class CollectionScene extends Phaser.Scene {
           holding = false;
           complete = true;
           stopProgress();
-          drawRing(1);
+          drawProgress(1);
           shardBtn.setEnabled(false);
 
           // Keep the economy seam byte-for-byte identical and invoke it only
