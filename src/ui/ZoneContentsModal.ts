@@ -11,7 +11,8 @@ import { modalShell, pager, type ModalShellOptions } from './themeWidgets';
 
 export interface ZoneContentsAction {
   label: string;
-  cost: ManaCost;
+  /** Omit for zero-cost actions such as playing a reserve land. */
+  cost?: ManaCost;
   onSelect: () => void;
 }
 
@@ -139,7 +140,8 @@ export function showZoneContents(
 
   const addActionChip = (x: number, y: number, action: ZoneContentsAction): void => {
     const chip = scene.add.container(x, y);
-    const rendered = renderManaText(scene, chip, 0, 0, `${action.label} ${manaCostText(action.cost)}`, {
+    const cost = action.cost ? ` ${manaCostText(action.cost)}` : '';
+    const rendered = renderManaText(scene, chip, 0, 0, `${action.label}${cost}`, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       fontStyle: theme.weight.w700,

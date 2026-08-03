@@ -375,7 +375,9 @@ export interface PlayerState {
 /** Resolution-time choices deferred until the current synchronous batch ends. */
 export type PendingDecision =
   | { kind: 'chooseBasicLand'; player: PlayerId }
-  | { kind: 'foresee'; player: PlayerId; n: number };
+  // `player` is the continuation controller. thenOps is present only when
+  // Foresee interrupted a printed op list and contains target-free tail ops.
+  | { kind: 'foresee'; player: PlayerId; n: number; thenOps?: EffectOp[] };
 
 export interface GameState {
   rng: RngState;

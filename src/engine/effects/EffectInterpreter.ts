@@ -385,15 +385,59 @@ export function runOps(
   ctx: EffectContext,
   ops: readonly EffectOp[],
 ): void {
-  for (const op of ops) {
+  for (let index = 0; index < ops.length; index++) {
+    const op = ops[index];
     if (state.winner !== null) return;
+    const pendingCount = state.pendingDecisions.length;
     runOp(state, db, emit, ctx, op);
+    if (op.op !== 'foresee' || state.pendingDecisions.length === pendingCount) continue;
+
+    const thenOps = ops.slice(index + 1);
+    if (thenOps.length > 0) {
+      for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
+      const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
+      if (pending?.kind !== 'foresee') {
+        throw new Error('Foresee queued an unexpected deferred decision.');
+      }
+      pending.thenOps = thenOps;
+    }
+    return;
+  }
+}
+
+/**
+ * A Foresee continuation retains only its controller, never the spell's
+ * cast-time targets or source permanent. Reject an incompatible card loudly
+ * instead of resolving it with missing context.
+ */
+function assertTargetFreeForeseeContinuation(op: EffectOp): void {
+  const targetFree =
+    op.op === 'gainLife' ||
+    op.op === 'loseLife' ||
+    op.op === 'draw' ||
+    op.op === 'discardRandom' ||
+    op.op === 'severGrave' ||
+    op.op === 'severTop' ||
+    op.op === 'fetchLand' ||
+    op.op === 'createToken' ||
+    op.op === 'destroyNewestOpponentArtifactOrEnchantment' ||
+    op.op === 'massDestroy' ||
+    op.op === 'preventCombat' ||
+    op.op === 'grind' ||
+    op.op === 'foresee' ||
+    (op.op === 'damage' && op.to !== 'target') ||
+    (op.op === 'boost' && op.scope !== 'target') ||
+    (op.op === 'addCounters' && op.to === 'self') ||
+    (op.op === 'raise' && op.to === 'top') ||
+    (op.op === 'awaken' && op.scope === 'allYours');
+  if (!targetFree) {
+    throw new Error(`A target-dependent op cannot follow foresee: ${op.op}.`);
   }
 }
 
 /**
  * Fire a permanent's triggered abilities of the given kind. Triggers never
- * target in v1, so they auto-resolve immediately — no decision points.
+ * target in v1, so they auto-resolve unless an op defers a resolution-time choice.
  */
 export function fireTriggers(
   state: GameState,

@@ -101,7 +101,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     ];
     expect(cards.every((entry) => typeof entry === 'object' && 'instanceId' in entry)).toBe(true);
     expect(JSON.stringify(state)).toBe(instanceFinalState);
-    expect(log.v).toBe(5);
+    expect(log.v).toBe(6);
   });
 
   it('replays a successful linked cast with its public host and instance state', () => {
@@ -150,7 +150,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     }
     expect(linked).toBeDefined();
     const log = finishReplay(draft, 'win', 1234567890, game.state.turn);
-    expect(log.v).toBe(5);
+    expect(log.v).toBe(6);
     expect(log.actions.some((step) => step.a.type === 'castSpell' && step.a.hauntlinked)).toBe(true);
     const replayed = replayGame(log, HAUNTLINK_DB);
     expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(game.instanceState));

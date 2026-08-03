@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
+import { DECK_SHOP_LAYOUT, deckShopLayout } from '../../src/ui/deckShopLayout';
 import {
   boosterStripIndexForOffset,
   boosterStripLayout,
@@ -349,51 +350,34 @@ describe('layout geometry', () => {
     );
   });
 
-  it('keeps the deck shop grid inside the design frame for 8 and 12 decks', () => {
-    // Mirrors ShopScene's deckGridLayout (two-column, count-aware plate grid
-    // for the Decks tab); if the scene formula changes, update this in
-    // lockstep. The grid must clear the intro line at y=152 above and keep the
-    // last plate's bottom above y=700 below as the precon roster grows.
-    const grid = (count: number) => {
-      const cols = 2;
-      const top = 186;
-      const bottom = 696;
-      const rows = Math.max(1, Math.ceil(count / cols));
-      const band = bottom - top;
-      const rowPitch = Math.min(118, band / rows);
-      const plateH = Math.min(100, rowPitch - 8);
-      const y0 = top + (band - rows * rowPitch) / 2 + rowPitch / 2;
-      const plateW = 560;
-      const totalW = cols * plateW + (cols - 1) * 16;
-      const x0 = (theme.design.width - totalW) / 2;
-      return { rows, rowPitch, plateH, y0, x0, totalW, plateW };
-    };
+  it('keeps labelled Standard and Darling deck sections inside the design frame', () => {
+    // Current roster: six theme decks plus five starters, then five Darlings.
+    const grid = deckShopLayout([11, 5]);
+    const standard = grid.sections[0];
+    const darlings = grid.sections[1];
+    const lastRowCenter = darlings.rowCenter(darlings.rows - 1);
+    expect(lastRowCenter + grid.plateH / 2).toBeLessThan(700);
+    expect(standard.headingY).toBeGreaterThan(152);
+    expect(darlings.headingY).toBeGreaterThan(standard.rowCenter(standard.rows - 1));
+    expect(darlings.rowCenter(0) - theme.control.minHitHeight / 2 - darlings.headingY).toBeGreaterThanOrEqual(
+      GAP_FLOORS.ordinary,
+    );
+    expect(grid.rowPitch - theme.control.minHitHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
+    expect(grid.plateH).toBeGreaterThanOrEqual(theme.control.heightSm);
+    const totalW = DECK_SHOP_LAYOUT.cols * DECK_SHOP_LAYOUT.plateW + (DECK_SHOP_LAYOUT.cols - 1) * DECK_SHOP_LAYOUT.gapX;
+    expect(grid.colLefts[0]).toBeGreaterThanOrEqual(theme.design.safeLeft);
+    expect(grid.colLefts[0] + totalW).toBeLessThanOrEqual(theme.design.safeRight);
 
-    for (const count of [8, 12]) {
-      const g = grid(count);
-      const lastRowCenter = g.y0 + (g.rows - 1) * g.rowPitch;
-      expect(lastRowCenter + g.plateH / 2).toBeLessThan(700);
-      expect(g.y0 - g.plateH / 2).toBeGreaterThan(160);
-      // Both columns stay inside the title-safe width.
-      expect(g.x0).toBeGreaterThanOrEqual(theme.design.safeLeft);
-      expect(g.x0 + g.totalW).toBeLessThanOrEqual(theme.design.safeRight);
-      // The 44px-tall button hit rows keep at least the ordinary gap floor
-      // between vertically adjacent plates, and plates host the sm controls.
-      expect(g.rowPitch - theme.control.minHitHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
-      expect(g.plateH).toBeGreaterThanOrEqual(60);
-
-      // Within a plate: Buy (130 hit, 12px inset) and Preview (90 hit) keep
-      // the ordinary floor between their inflated hit rects and stay inside
-      // the plate. Label widths are below both minWidths, so hits equal them.
-      const buyHit = measureThemedButton(80, 'sm', 130).hit;
-      const previewHit = measureThemedButton(48, 'sm', 90).hit;
-      const buyX = g.plateW - 77;
-      const previewX = buyX - 120;
-      expect(buyX + buyHit.x + buyHit.width).toBeLessThanOrEqual(g.plateW);
-      expect((buyX + buyHit.x) - (previewX + previewHit.x + previewHit.width)).toBeGreaterThanOrEqual(
-        GAP_FLOORS.ordinary,
-      );
-    }
+    // Within a plate: Buy (130 hit, 12px inset) and Preview (90 hit) retain
+    // the ordinary floor. Label widths are below both minWidths here.
+    const buyHit = measureThemedButton(80, 'sm', 130).hit;
+    const previewHit = measureThemedButton(48, 'sm', 90).hit;
+    const buyX = DECK_SHOP_LAYOUT.plateW - 77;
+    const previewX = buyX - 120;
+    expect(buyX + buyHit.x + buyHit.width).toBeLessThanOrEqual(DECK_SHOP_LAYOUT.plateW);
+    expect((buyX + buyHit.x) - (previewX + previewHit.x + previewHit.width)).toBeGreaterThanOrEqual(
+      GAP_FLOORS.ordinary,
+    );
   });
 
   it('reports signed axis gaps and the 82px-pitch overlap', () => {

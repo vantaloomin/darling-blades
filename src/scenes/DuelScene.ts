@@ -154,11 +154,10 @@ const LAYOUT = {
   myCreatures: { cy: 404, x: 577, usable: 860 },
   /** Your mana strip takes the old land-stack anchor and steps rightward. */
   myManaStrip: { cy: 500, x0: 210, step: 54, pipSize: 22 },
-  /** Reserve cards sit just above the pip row and stay inside both zone plates. */
-  reserveStrip: {
-    human: { cy: 455, x0: 220, step: 34 },
-    opponent: { cy: 56, x0: 526, step: 34 },
-    scale: 0.14,
+  /** Reserve piles sit immediately outside their mirrored mana strips. */
+  reservePiles: {
+    human: { x: 170, y: 500, cardScale: 0.12 },
+    opponent: { x: 1052, y: 56, cardScale: 0.12 },
   },
   /** Non-creature permanent band shares the lower lane, opposite mana. */
   myPermanentBand: { cy: 500, x1: 1006, usable: 380 },
@@ -174,6 +173,17 @@ const LAYOUT = {
   oppPortrait: { x: 1056, y: 8, w: 200, h: 180 },
   /** Foe targetable life badge: upper-right, clear of the portrait name plate. */
   oppLife: { x: 1230, y: 42 },
+  /** Command-zone cards sit in the portrait's board-facing gap, with attached controls. */
+  darlingZone: {
+    human: {
+      x: 114, y: 476, labelX: 114, labelY: 420, taxX: 152, taxY: 422,
+      castX: 114, castY: 528, payDownX: 200, payDownY: 452,
+    },
+    opponent: {
+      x: 1156, y: 242, labelX: 1156, labelY: 194, taxX: 1220, taxY: 194,
+      castX: 1156, castY: 0, payDownX: 0, payDownY: 0,
+    },
+  },
   /** Turn chip atop the phase track — all turn info lives in one column. */
   turnPill: { x: 1113, y: 292 },
   /** Display-only phase track in the right sidebar above End Turn. */
@@ -285,8 +295,6 @@ export class DuelScene extends Phaser.Scene {
   private landPositions = new Map<string, { x: number; y: number }>();
   private boardTargets = new Map<number, { x: number; y: number; scale: number }>();
   private reservePositions = new Map<string, { x: number; y: number; scale: number; angle: number }>();
-  private reserveViews: CardView[] = [];
-  private reserveLabels: Phaser.GameObjects.Text[] = [];
   /** Public Darlings command-zone cards, rebuilt from the redacted public view. */
   private darlingZoneViews: CardView[] = [];
   private darlingZoneDecor: Phaser.GameObjects.GameObject[] = [];
@@ -297,7 +305,6 @@ export class DuelScene extends Phaser.Scene {
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
   private previousManaSignature: string | null = null;
-  private previousReserveSignature: string | null = null;
   private previousDarlingZoneSignature: string | null = null;
   private hud!: {
     myLife: Phaser.GameObjects.Text;
@@ -317,9 +324,11 @@ export class DuelScene extends Phaser.Scene {
   private oppGravePile!: PileView;
   private oppHandPile!: PileView;
   private oppSeveredPile!: PileView;
+  private oppReservePile!: PileView;
   private myDeckPile!: PileView;
   private myGravePile!: PileView;
   private mySeveredPile!: PileView;
+  private myReservePile!: PileView;
   /** Bottom-left commander portrait — the player's deck face card, reactive. */
   private portrait!: CommanderPortrait;
   /** Top-right mirror of the player portrait — the opponent's deck face, reactive. */
@@ -536,8 +545,6 @@ export class DuelScene extends Phaser.Scene {
     this.landPositions = new Map();
     this.boardTargets = new Map();
     this.reservePositions = new Map();
-    this.reserveViews = [];
-    this.reserveLabels = [];
     this.pendingPlayReveals = [];
     this.humanPlayOrigin = null;
     this.humanLandStyle = null;
@@ -549,7 +556,6 @@ export class DuelScene extends Phaser.Scene {
     this.manaStripZones = [];
     this.manaPlanMarks = [];
     this.previousManaSignature = null;
-    this.previousReserveSignature = null;
     this.previousLife = null;
     this.previousPhaseRow = null;
     this.forecastWasLethal = false;
@@ -1224,6 +1230,14 @@ export class DuelScene extends Phaser.Scene {
       },
     }).setVisible(SEVER_ENABLED);
     if (this.oppSeveredPile.inputZone) inflateHitArea(this.oppSeveredPile.inputZone, 90, 90);
+    this.oppReservePile = new PileView(
+      this,
+      LAYOUT.reservePiles.opponent.x,
+      LAYOUT.reservePiles.opponent.y,
+      'reserve',
+      { iconSize: 36, onTap: () => this.showReserveModal(AI) },
+    ).setVisible(false);
+    if (this.oppReservePile.inputZone) inflateHitArea(this.oppReservePile.inputZone, 64, 64);
     // --- Your piles: right column above Concede ---
     this.mySeveredPile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.severedY, 'severed', {
       onTap: (p) => {
@@ -1239,6 +1253,14 @@ export class DuelScene extends Phaser.Scene {
     this.myGravePile = new PileView(this, LAYOUT.piles.x, LAYOUT.piles.graveY, 'grave', {
       onTap: () => this.showZoneModal(HUMAN, 'graveyard'),
     });
+    this.myReservePile = new PileView(
+      this,
+      LAYOUT.reservePiles.human.x,
+      LAYOUT.reservePiles.human.y,
+      'reserve',
+      { iconSize: 36, onTap: () => this.showReserveModal(HUMAN) },
+    ).setVisible(false);
+    if (this.myReservePile.inputZone) inflateHitArea(this.myReservePile.inputZone, 64, 64);
     // --- Commander portrait (1a): your deck's face card, reacts to the game ---
     this.portrait = new CommanderPortrait(this, LAYOUT.portrait.x, LAYOUT.portrait.y, {
       width: LAYOUT.portrait.w,
@@ -3105,7 +3127,7 @@ export class DuelScene extends Phaser.Scene {
 
     this.syncLandPositions(st.battlefield);
     this.syncManaPips();
-    if (this.isReserveDuel()) this.syncReserveStrip();
+    if (this.isReserveDuel()) this.syncReservePiles();
     this.syncDarlingZones();
     this.syncHand();
     this.syncButton();
@@ -3354,106 +3376,31 @@ export class DuelScene extends Phaser.Scene {
     );
   }
 
-  /** Compact public reserve strip. Player cards are the play controls. */
-  private syncReserveStrip(): void {
+  /** Compact public reserve piles. The existing modal remains the land chooser. */
+  private syncReservePiles(): void {
     const publicView = this.duel.viewFor(HUMAN);
     const reserves: [readonly string[], readonly string[]] = [
       publicView.you.landReserve ?? [],
       publicView.opp.landReserve ?? [],
     ];
-    const signature = reserves.map((reserve) => reserve.join('\u0001')).join('\u0002');
-    if (this.previousReserveSignature === signature) return;
-    this.previousReserveSignature = signature;
-    for (const view of this.reserveViews) {
-      view.disableInput();
-      if (view.active) view.destroy();
-    }
-    for (const label of this.reserveLabels) {
-      if (label.active) label.destroy();
-    }
-    this.reserveViews = [];
-    this.reserveLabels = [];
     this.reservePositions = new Map();
-    const scale = LAYOUT.reserveStrip.scale;
     for (const player of [HUMAN, AI] as const) {
       const reserve = reserves[player];
-      const layout = player === HUMAN ? LAYOUT.reserveStrip.human : LAYOUT.reserveStrip.opponent;
-      const label = this.add
-        .text(
-          layout.x0,
-          player === HUMAN ? layout.cy - 47 : layout.cy + 47,
-          player === HUMAN ? 'Warchest Reserves' : "Foe's Warchest Reserves",
-          {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.micro}px`,
-            fontStyle: theme.weight.w700,
-            color: theme.colors.muted,
-          },
-        )
-        .setOrigin(0, 0.5)
-        .setDepth(6);
-      this.reserveLabels.push(label);
-      reserve.forEach((cardId, index) => {
-        const x = layout.x0 + index * layout.step;
-        const d = def(CARD_DB, cardId);
-        const landStyle = player === HUMAN ? this.humanLandStyleFor(cardId) : undefined;
-        const variant = player === HUMAN ? displayVariantFor(Services.save.data, cardId) : undefined;
-        const playable = player === HUMAN && this.reserveLandAction(index) !== undefined;
-        const view = new CardView(this, x, layout.cy)
-          .setScale(scale)
-          .setDepth(6)
-          .setAlpha(player === AI ? 0.82 : playable ? 1 : 0.62);
-        view.setCard(d, {
-          fx: 'none',
-          variant,
-          fullArt: variant?.fullArt === true,
-          landStyle,
+      const layout = player === HUMAN ? LAYOUT.reservePiles.human : LAYOUT.reservePiles.opponent;
+      const pile = player === HUMAN ? this.myReservePile : this.oppReservePile;
+      pile.setVisible(true).setCount(reserve.length);
+      reserve.forEach((_, index) => {
+        this.reservePositions.set(`${player}:${index}`, {
+          x: layout.x,
+          y: layout.y,
+          scale: layout.cardScale,
+          angle: 0,
         });
-        view.enableInput();
-        this.zoom.attach(view, d, variant, landStyle);
-        if (player === HUMAN) {
-          view.on('pointerup', (p: Phaser.Input.Pointer) => {
-            if (p.wasTouch || p.rightButtonReleased() || this.pendingCasts) return;
-            const action = this.reserveLandAction(index);
-            if (action) this.act(action);
-            else this.showInspect(d, variant, landStyle);
-          });
-          view.on('pointerdown', (p: Phaser.Input.Pointer) => {
-            if (p.button === 2 && !this.pendingCasts) this.showInspect(d, variant, landStyle);
-          });
-          attachTouchGestures(this, view, {
-            card: d,
-            variant,
-            landStyle,
-            onTap: () => {
-              if (this.pendingCasts) return;
-              const action = this.reserveLandAction(index);
-              if (action) this.act(action);
-              else this.showInspect(d, variant, landStyle);
-            },
-          });
-        } else {
-          view.on('pointerup', (p: Phaser.Input.Pointer) => {
-            if (p.wasTouch || p.rightButtonReleased() || this.pendingCasts) return;
-            this.showInspect(d);
-          });
-          view.on('pointerdown', (p: Phaser.Input.Pointer) => {
-            if (p.button === 2 && !this.pendingCasts) this.showInspect(d);
-          });
-          attachTouchGestures(this, view, {
-            card: d,
-            onTap: () => {
-              if (!this.pendingCasts) this.showInspect(d);
-            },
-          });
-        }
-        this.reserveViews.push(view);
-        this.reservePositions.set(`${player}:${index}`, { x, y: layout.cy, scale, angle: 0 });
       });
     }
   }
 
-  /** Public command-zone cards live beside their owners' portraits. */
+  /** Public command-zone cards live in their owners' portrait-facing gaps. */
   private syncDarlingZones(): void {
     const publicView = this.duel.viewFor(HUMAN);
     const castActions = this.darlingCastActions();
@@ -3481,14 +3428,10 @@ export class DuelScene extends Phaser.Scene {
     this.darlingZoneControls = [];
     this.darlingZonePositions = new Map();
 
-    const layouts = {
-      [HUMAN]: { x: 226, y: 596, labelY: 526, label: 'Darling Zone' },
-      [AI]: { x: 1034, y: 116, labelY: 188, label: "Foe's Darling Zone" },
-    } as const;
     for (const player of [HUMAN, AI] as const) {
       const cardId = zones[player];
       if (!cardId || !CARD_DB[cardId]) continue;
-      const layout = layouts[player];
+      const layout = player === HUMAN ? LAYOUT.darlingZone.human : LAYOUT.darlingZone.opponent;
       const d = def(CARD_DB, cardId);
       const tax = taxes[player];
       const variant = player === HUMAN ? displayVariantFor(Services.save.data, cardId) : undefined;
@@ -3500,7 +3443,7 @@ export class DuelScene extends Phaser.Scene {
       view.setCard(d, { fx: 'none', variant, fullArt: variant?.fullArt === true });
       this.darlingZoneViews.push(view);
       this.darlingZonePositions.set(player, { x: layout.x, y: layout.y, scale: 0.2, angle: 0 });
-      const label = this.add.text(layout.x, layout.labelY, layout.label, {
+      const label = this.add.text(layout.labelX, layout.labelY, player === HUMAN ? 'Darling' : "Foe's Darling", {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
@@ -3508,7 +3451,7 @@ export class DuelScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(9);
       this.darlingZoneDecor.push(label);
       if (tax > 0) {
-        const chip = this.add.text(layout.x + 36, layout.y - 54, `+${tax}`, {
+        const chip = this.add.text(layout.taxX, layout.taxY, `+${tax}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
@@ -3522,14 +3465,25 @@ export class DuelScene extends Phaser.Scene {
 
       const totalCost = d.cost ? { ...d.cost, generic: d.cost.generic + tax } : null;
       if (castable && totalCost) {
-        const castCopy = this.add.text(layout.x, layout.y + 64, `Cast ${manaCostText(totalCost)}`, {
+        const castCopy = this.add.container(layout.castX, layout.castY).setDepth(10);
+        const rendered = renderManaText(this, castCopy, 0, 0, `Cast ${manaCostText(totalCost)}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
           color: theme.colors.gold,
-          backgroundColor: theme.colors.panelFill,
-          padding: { x: 4, y: 1 },
-        }).setOrigin(0.5).setDepth(10);
+          resolution: 2,
+        });
+        rendered.text.setOrigin(0.5);
+        rendered.reflow();
+        const background = this.add.graphics();
+        const width = rendered.text.width + 8;
+        const height = rendered.text.height + 2;
+        background
+          .fillStyle(colorInt(theme.colors.panelFill), 0.94)
+          .fillRoundedRect(-width / 2, -height / 2, width, height, theme.radius.control)
+          .lineStyle(1, colorInt(theme.colors.panelStroke), theme.alpha.chrome)
+          .strokeRoundedRect(-width / 2, -height / 2, width, height, theme.radius.control);
+        castCopy.addAt(background, 0);
         this.darlingZoneDecor.push(castCopy);
       }
       view.enableInput();
@@ -3556,7 +3510,7 @@ export class DuelScene extends Phaser.Scene {
         },
       });
       if (payDownAction) {
-        const payDown = themedButton(this, layout.x + 56, layout.y + 72, 'Ease tax 4', {
+        const payDown = themedButton(this, layout.payDownX, layout.payDownY, 'Ease tax 4', {
           variant: 'emphasis',
           size: 'sm',
           minWidth: 106,
@@ -4762,6 +4716,31 @@ export class DuelScene extends Phaser.Scene {
     this.zoneGuard.open(this.overlayGuardTargets());
   }
 
+  /** Public reserve contents, with the existing land-play action moved off the always-on strip. */
+  private showReserveModal(player: PlayerId): void {
+    if (!this.canOpenZoneModal()) return;
+    const view = this.duel.viewFor(HUMAN);
+    const cardIds = player === HUMAN ? view.you.landReserve ?? [] : view.opp.landReserve ?? [];
+    const owner = player === HUMAN ? 'Your' : "Foe's";
+    const modal = showZoneContents(this, {
+      title: `${owner} Warchest Reserves · ${cardIds.length}`,
+      entries: this.reserveZoneEntries(cardIds, player),
+      emptyText: 'No lands in the Warchest Reserves.',
+      dimAlpha: 0.62,
+      escToClose: true,
+      tapDimToClose: true,
+      showClose: false,
+      depth: theme.depth.inspect,
+      onClose: () => this.closeZoneModal(),
+      onInspect: (card, variant, landStyle) => {
+        this.zoneModalReturn = () => this.showReserveModal(player);
+        this.showInspect(card, variant, landStyle);
+      },
+    });
+    this.zoneModal = modal;
+    this.zoneGuard.open(this.overlayGuardTargets());
+  }
+
   private showLandsModal(player: PlayerId): void {
     if (!this.canOpenZoneModal()) return;
 
@@ -4857,6 +4836,26 @@ export class DuelScene extends Phaser.Scene {
         variant: styled ? displayVariantFor(Services.save.data, cardId) : undefined,
       }))
       .sort((a, b) => this.compareLandZoneCards(a.card, b.card));
+  }
+
+  private reserveZoneEntries(cardIds: readonly string[], player: PlayerId): ZoneContentsEntry[] {
+    return cardIds.map((cardId, index) => {
+      const action = player === HUMAN ? this.reserveLandAction(index) : undefined;
+      return {
+        card: def(CARD_DB, cardId),
+        count: 1,
+        landStyle: player === HUMAN ? this.humanLandStyleFor(cardId) : undefined,
+        variant: player === HUMAN ? displayVariantFor(Services.save.data, cardId) : undefined,
+        ...(action
+          ? {
+              action: {
+                label: 'Play land',
+                onSelect: () => this.act(action),
+              },
+            }
+          : {}),
+      };
+    });
   }
 
   private compareZoneCards(a: CardDef, b: CardDef): number {
@@ -5464,14 +5463,15 @@ export class DuelScene extends Phaser.Scene {
     }
     return [
       ...tileZones,
-      ...this.reserveViews.map((view) => view.inputZone).filter((zone): zone is Phaser.GameObjects.Zone => !!zone),
       ...this.darlingZoneViews.map((view) => view.inputZone).filter((zone): zone is Phaser.GameObjects.Zone => !!zone),
       ...this.darlingZoneControls,
       ...this.manaStripZones,
       ...this.handViews,
       ...[
+        this.oppReservePile.inputZone,
         this.oppGravePile.inputZone,
         this.oppSeveredPile.inputZone,
+        this.myReservePile.inputZone,
         this.mySeveredPile.inputZone,
         this.myDeckPile.inputZone,
         this.myGravePile.inputZone,
