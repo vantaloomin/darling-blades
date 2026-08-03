@@ -36,6 +36,10 @@ const BOTTOM_BADGE_Y = FRAME_INNER.bottom - BADGE_H / 2; // 185.5
 const GEM_PLATE_W = 44;
 const BOTTOM_PIP_SIZE = 21;
 const SET_ICON_SIZE = 24; // set symbols are leaner silhouettes than the old diamond gem
+const LAND_MANA_ROW = {
+  mono: { pip: 48, gap: 10, arrowW: 24, orW: 26, arrowFont: 24, orFont: 20 },
+  multi: { pip: 36, gap: 8, arrowW: 20, orW: 20, arrowFont: 20, orFont: 16 },
+} as const;
 
 /**
  * Shrink-to-fit with RE-WRAP: when a text block must scale down by s to fit
@@ -514,12 +518,14 @@ export class CardView extends Phaser.GameObjects.Container {
     }
     if (manaRow.length > 0) {
       // [T] → [G]; duals read [T] → [W] or [G] — bare side-by-side pips read
-      // as "provides both" (user-reported 2026-07-12). Sized generously — this
-      // row is the land's whole rules box, so it should read from the hand.
-      const PIP = 48;
-      const GAP = 10;
-      const ARROW_W = 24;
-      const OR_W = 26; // the "or" separator between adjacent color pips
+      // as "provides both" (user-reported 2026-07-12). Multi-output rows use
+      // smaller marks so their two pips carry the same visual weight as one
+      // mono-land row in both the face and zoom preview.
+      const size = manaRow.length > 1 ? LAND_MANA_ROW.multi : LAND_MANA_ROW.mono;
+      const PIP = size.pip;
+      const GAP = size.gap;
+      const ARROW_W = size.arrowW;
+      const OR_W = size.orW; // the "or" separator between adjacent color pips
       const SEP = GAP + OR_W + GAP; // one constant shared by width, label x, and advance
       // Centered in the free box when bare; nudged down past the rules line
       // (one line ending ~81) when the land prints one, e.g. taplands.
@@ -533,7 +539,7 @@ export class CardView extends Phaser.GameObjects.Container {
       const arrow = this.scene.add
         .text(ix, rowY, '→', {
           fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '24px',
+          fontSize: `${size.arrowFont}px`,
           fontStyle: '700',
           color: '#4a3b28',
           resolution: 2,
@@ -547,7 +553,7 @@ export class CardView extends Phaser.GameObjects.Container {
           const or = this.scene.add
             .text(ix - PIP / 2 - SEP / 2, rowY, 'or', {
               fontFamily: 'Inter, Arial, sans-serif',
-              fontSize: '20px',
+              fontSize: `${size.orFont}px`,
               fontStyle: '600',
               color: '#4a3b28',
               resolution: 2,

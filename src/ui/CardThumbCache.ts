@@ -44,7 +44,7 @@ const BLEED_Y = 8;
  * Bake (or reuse) the thumbnail texture for a card; returns its texture key.
  * `variant` bakes the frame/full-art treatment statically (holo shimmer stays
  * an inspect-overlay effect) — the Collection binder uses it to show each
- * card's rarest owned variant. Variant thumbs only bake for owned specials,
+ * card's selected owned display variant. Variant thumbs only bake for owned specials,
  * so the cache stays bounded by the collection, not the variant space.
  */
 export function ensureCardThumb(

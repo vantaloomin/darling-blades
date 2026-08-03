@@ -28,6 +28,7 @@ import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { attachTouchGestures, bindTapButton, inflateHitArea } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { makeCardThumb } from '../ui/CardThumbCache';
+import { DECK_SHOP_LAYOUT, deckShopLayout } from '../ui/deckShopLayout';
 import { CARD_H, CardView } from '../ui/CardView';
 import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
@@ -372,51 +373,6 @@ interface PreviewEntry {
   n: number;
 }
 
-// --- Decks-tab grid ---------------------------------------------------------
-// Two-column, count-aware plate grid: the row pitch is derived from the deck
-// count so the roster keeps fitting as sets add precons (comfortable through
-// at least 14 decks). tests/ui/layout.test.ts mirrors this math ("deck shop
-// grid") — update the test in lockstep with any change here.
-const DECK_GRID = {
-  cols: 2,
-  top: 186, // below the intro line at y=152
-  bottom: 696, // last plate bottom must stay above y=700
-  plateW: 560,
-  gapX: 16,
-  maxPitch: 118,
-  maxPlateH: 100,
-  plateGapY: 8,
-} as const;
-
-interface DeckGridLayout {
-  rows: number;
-  rowPitch: number;
-  plateH: number;
-  colLefts: number[];
-  rowCenter(row: number): number;
-}
-
-function deckGridLayout(count: number): DeckGridLayout {
-  const rows = Math.max(1, Math.ceil(count / DECK_GRID.cols));
-  const band = DECK_GRID.bottom - DECK_GRID.top;
-  const rowPitch = Math.min(DECK_GRID.maxPitch, band / rows);
-  const plateH = Math.min(DECK_GRID.maxPlateH, rowPitch - DECK_GRID.plateGapY);
-  const y0 = DECK_GRID.top + (band - rows * rowPitch) / 2 + rowPitch / 2;
-  const totalW = DECK_GRID.cols * DECK_GRID.plateW + (DECK_GRID.cols - 1) * DECK_GRID.gapX;
-  const x0 = (theme.design.width - totalW) / 2;
-  const colLefts = Array.from(
-    { length: DECK_GRID.cols },
-    (_, c) => x0 + c * (DECK_GRID.plateW + DECK_GRID.gapX),
-  );
-  return {
-    rows,
-    rowPitch,
-    plateH,
-    colLefts,
-    rowCenter: (row) => Math.round(y0 + row * rowPitch),
-  };
-}
-
 const PREVIEW_ROWS_PER_COLUMN = 9;
 const PREVIEW_PAGE_SIZE = PREVIEW_ROWS_PER_COLUMN * 2;
 const FEATURED_THUMB_SCALE = 0.21;
@@ -463,12 +419,20 @@ export class ShopScene extends Phaser.Scene {
     super('Shop');
   }
 
-  /** All buyable decks: the theme/precon(s) first, then the starter precons. */
-  private deckSkus(): DeckSku[] {
+  /** The Decks tab separates ordinary constructed products from Darlings. */
+  private deckSections(): { label: string; skus: DeckSku[] }[] {
     return [
-      ...THEME_DECKS.map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
-      ...DARLINGS_PRECONS.map((deck) => ({ deck, price: ECONOMY.darlingsPreconPrice, theme: true })),
-      ...STARTER_DECKS.map((deck) => ({ deck, price: ECONOMY.starterDeckPrice, theme: false })),
+      {
+        label: 'Standard Decks',
+        skus: [
+          ...THEME_DECKS.map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
+          ...STARTER_DECKS.map((deck) => ({ deck, price: ECONOMY.starterDeckPrice, theme: false })),
+        ],
+      },
+      {
+        label: 'Darling Decks',
+        skus: DARLINGS_PRECONS.map((deck) => ({ deck, price: ECONOMY.darlingsPreconPrice, theme: true })),
+      },
     ];
   }
 
@@ -1101,12 +1065,25 @@ export class ShopScene extends Phaser.Scene {
   private buildDecksGroup(group: Phaser.GameObjects.Container): void {
     group.removeAll(true); // rebuildable after a purchase
     this.deckInteractiveTargets = [];
-    const skus = this.deckSkus();
-    const grid = deckGridLayout(skus.length);
-    skus.forEach((sku, i) => {
-      const left = grid.colLefts[i % DECK_GRID.cols];
-      const cy = grid.rowCenter(Math.floor(i / DECK_GRID.cols));
-      this.buildDeckPlate(group, sku, left, cy, grid.plateH);
+    const sections = this.deckSections();
+    const layout = deckShopLayout(sections.map((section) => section.skus.length));
+    sections.forEach((section, sectionIndex) => {
+      if (section.skus.length === 0) return;
+      const sectionLayout = layout.sections[sectionIndex];
+      group.add(
+        this.add
+          .text(layout.colLefts[0], sectionLayout.headingY, section.label, {
+            fontFamily: theme.fonts.display,
+            fontSize: `${theme.type.label}px`,
+            color: theme.colors.gold,
+          })
+          .setOrigin(0, 0.5),
+      );
+      section.skus.forEach((sku, i) => {
+        const left = layout.colLefts[i % DECK_SHOP_LAYOUT.cols];
+        const cy = sectionLayout.rowCenter(Math.floor(i / DECK_SHOP_LAYOUT.cols));
+        this.buildDeckPlate(group, sku, left, cy, layout.plateH);
+      });
     });
   }
 
@@ -1140,12 +1117,12 @@ export class ShopScene extends Phaser.Scene {
 
     // Controls hug the plate's right edge: Buy/Claim (130-wide hit) inset 12px,
     // Preview (90-wide hit) to its left with a 10px hit gap (>= the 8px floor).
-    const buyX = left + DECK_GRID.plateW - 77;
+    const buyX = left + DECK_SHOP_LAYOUT.plateW - 77;
     const previewX = buyX - 120;
     const textLeft = left + 16;
     const textMaxW = previewX - 45 - 10 - textLeft; // stop short of the Preview hit rect
 
-    const plate = panel(this, left, cy - plateH / 2, DECK_GRID.plateW, plateH, { alpha: 0.7 });
+    const plate = panel(this, left, cy - plateH / 2, DECK_SHOP_LAYOUT.plateW, plateH, { alpha: 0.7 });
     // Long name/blurb lines shrink toward their left anchor instead of running
     // under the Preview button (plain Text scaling — no scaled-Container input).
     const fit = (t: Phaser.GameObjects.Text): Phaser.GameObjects.Text => {

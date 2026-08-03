@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CARD_TRAVEL_MOTION,
   HAUNTLINK_OVERLAP,
+  SHARD_HOLD_BUTTON_PROGRESS,
   hauntlinkOverlap,
   targetRingTone,
 } from '../../src/ui/duelPresentation';
@@ -27,5 +28,10 @@ describe('duel presentation rules', () => {
     expect(CARD_TRAVEL_MOTION.drawToHand.duration).toBe(280);
     expect(CARD_TRAVEL_MOTION.playToStation.duration).toBe(420);
     expect(CARD_TRAVEL_MOTION.stationToBattlefield.duration).toBe(420);
+  });
+
+  it('keeps hold progress inside the action button instead of using a cursor halo', () => {
+    expect(SHARD_HOLD_BUTTON_PROGRESS.inset).toBe(3);
+    expect(SHARD_HOLD_BUTTON_PROGRESS.fillAlpha).toBeGreaterThan(0);
   });
 });

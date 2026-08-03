@@ -51,3 +51,11 @@ export const CARD_TRAVEL_MOTION = {
   severToPile: { duration: 540, ease: 'Cubic.easeInOut' },
   batch: { maxAnimatedCards: 3, staggerMs: 70 },
 } as const;
+
+/** Hold-to-confirm progress stays inside the action that owns the choice. */
+export const SHARD_HOLD_BUTTON_PROGRESS = {
+  inset: 3,
+  cornerRadius: 4,
+  fillAlpha: 0.3,
+  ringWidth: 2,
+} as const;
