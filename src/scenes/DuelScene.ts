@@ -2287,7 +2287,7 @@ export class DuelScene extends Phaser.Scene {
         Sfx.play('cast');
         // Targeted casts name their targets; the row's tappable card stays the
         // CAST card (the target names are informational, not extra links).
-        const at = this.spellTargetsText(e.targets, batch);
+        const at = this.spellTargetsText(e.targets, batch, e.controller);
         const prefix = this.retellSpellIds.has(e.sid)
           ? 'Retold'
           : e.controller === HUMAN
@@ -2538,11 +2538,22 @@ export class DuelScene extends Phaser.Scene {
    * names only. Stack/graveyard targets carry no reliable identity here, so
    * they are omitted too.
    */
-  private spellTargetsText(targets: readonly TargetRef[], batch: readonly GameEvent[]): string {
+  private spellTargetsText(
+    targets: readonly TargetRef[],
+    batch: readonly GameEvent[],
+    caster?: PlayerId,
+  ): string {
     const parts: string[] = [];
     for (const t of targets) {
       if (t.kind === 'player') {
-        parts.push(t.player === HUMAN ? 'you' : 'the opponent');
+        // A caster hitting their own seat reads reflexively; "Opponent casts
+        // X at the opponent" is technically true and terrible (user report
+        // 2026-08-01).
+        if (caster !== undefined && t.player === caster) {
+          parts.push(caster === HUMAN ? 'yourself' : 'themselves');
+        } else {
+          parts.push(t.player === HUMAN ? 'you' : 'the opponent');
+        }
       } else if (t.kind === 'permanent') {
         const cardId =
           this.duel.state.battlefield.find((p) => p.iid === t.iid)?.cardId ??
@@ -3996,6 +4007,10 @@ export class DuelScene extends Phaser.Scene {
         // Straighten + gentle lift — the resting card is already readable,
         // and the full-detail read is the CardZoomPreview.
         this.tweens.killTweensOf(view);
+        // killTweensOf can murder the draw fly-in's ALPHA tween mid-flight,
+        // freezing the copy at an arbitrary fade (user report 2026-08-01:
+        // identical copies at different opacities). Re-assert the truth.
+        view.setAlpha(playable ? 1 : 0.75);
         view.setDepth(theme.depth.handHover);
         if (this.motionLevel() !== 'full') {
           view.setScale(scale * 1.15).setAngle(0).setY(hoverY);
@@ -4012,6 +4027,9 @@ export class DuelScene extends Phaser.Scene {
         if (p.wasTouch) return;
         this.clearManaPlanPreview();
         this.tweens.killTweensOf(view);
+        // Same alpha re-assert as pointerover: the kill may have orphaned
+        // the draw fly-in's fade.
+        view.setAlpha(playable ? 1 : 0.75);
         view.setDepth(theme.depth.hand + pos);
         if (this.motionLevel() !== 'full') {
           view.setScale(scale).setAngle(slot.angleDeg).setY(y);

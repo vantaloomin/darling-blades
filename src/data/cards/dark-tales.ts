@@ -176,7 +176,7 @@ const SR: CardDef[] = [
     rarity: 'sr', flavor: 'The chorus is beautiful. The final verse is locked.',
   }),
   charm('dt-tower-braid-escape', 'Tower-Braid Escape', {
-    cost: cost(3, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }], target('any'))],
+    cost: cost(3, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }], target('creature'))],
     retell: { cost: cost(4, 'U') }, rarity: 'sr', flavor: 'The braid reaches the ground before the guard notices the window.',
   }),
   ritual('dt-apple-of-endless-sleep', 'Apple of Endless Sleep', {
@@ -275,7 +275,7 @@ const R: CardDef[] = [
     flavor: 'The thirteenth turn is when the curse stops pretending to be an accident.',
   }),
   charm('dt-mirror-hall-illusion', 'Mirror-Hall Illusion', {
-    cost: cost(2, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }, { op: 'foresee', n: 1 }], target('any'))],
+    cost: cost(2, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }, { op: 'foresee', n: 1 }], target('creature'))],
     skim: { cost: cost(1) }, rarity: 'r', flavor: 'The door is real. The room behind it is negotiable.',
   }),
   enchantment('dt-gilded-cage', 'Gilded Cage', ['Aura'], {
@@ -372,7 +372,7 @@ const C: CardDef[] = [
   charm('dt-rose-vine-snare', 'Rose-Vine Snare', { cost: cost(2, 'G'), colors: ['G'], abilities: [spell([{ op: 'boost', p: 2, t: 2, scope: 'target' }], target('creature'))], rarity: 'c', flavor: 'The vine catches, then decides it likes the shape.' }),
   enchantment('dt-candle-in-window', 'Candle in the Window', [], { cost: cost(2, 'W'), colors: ['W'], abilities: [dawn([{ op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'A small light can make a long road possible.' }),
   artifact('dt-ink-black-carriage', 'Ink-Black Carriage', ['Vehicle'], { cost: cost(2, 'B'), colors: ['B'], abilities: [dawn([{ op: 'grind', n: 1, who: 'self' }])], rarity: 'c', flavor: 'It carries stories away from the people who started them.' }),
-  charm('dt-sea-glass-knife', 'Sea-Glass Knife', { cost: cost(1, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }], target('any'))], rarity: 'c', flavor: 'Pretty glass, practical edge, no landward warranty.' }),
+  charm('dt-sea-glass-knife', 'Sea-Glass Knife', { cost: cost(1, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }], target('creature'))], rarity: 'c', flavor: 'Pretty glass, practical edge, no landward warranty.' }),
   ritual('dt-ash-sweep', 'Ash Sweep', { cost: cost(2, 'R'), colors: ['R'], abilities: [spell([{ op: 'damage', n: 2, to: 'target' }, { op: 'grind', n: 2, who: 'self' }], target('any'))], rarity: 'c', flavor: 'The hearth clears more than dust.' }),
   artifact('dt-bookmark-charm', 'Bookmark Charm', ['Relic'], { cost: cost(2), colors: [], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 2 }])], rarity: 'c', flavor: 'A good place to stop is also a good place to look ahead.' }),
   ritual('dt-lost-in-library', 'Lost in the Library', { cost: cost(3, 'U'), colors: ['U'], abilities: [spell([{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }])], rarity: 'c', flavor: 'The shelves are endless. The useful answer is on the next page.' }),
@@ -409,7 +409,7 @@ const C: CardDef[] = [
   artifact('dt-crescent-cookpot', 'Crescent Cookpot', ['Relic'], { cost: cost(3), colors: [], abilities: [arrives([{ op: 'gainLife', n: 1 }, { op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'The recipe is older than the kitchen and twice as patient.' }),
   land('dt-riverboat-kitchen', 'Riverboat Kitchen', ['G', 'B'], 'c', 'The galley drifts while the stew and the story both reduce.'),
   artifact('dt-wayfinder-oar', 'Wayfinder Oar', ['Relic'], { cost: cost(2, 'U'), colors: ['U'], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 2 }])], rarity: 'c', flavor: 'The oar points where the water wants to go next.' }),
-  charm('dt-lagoon-current', 'Lagoon Current', { cost: cost(2, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }, { op: 'foresee', n: 1 }], target('any'))], rarity: 'c', flavor: 'The current nudges every problem toward another shore.' }),
+  charm('dt-lagoon-current', 'Lagoon Current', { cost: cost(2, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }, { op: 'foresee', n: 1 }], target('creature'))], rarity: 'c', flavor: 'The current nudges every problem toward another shore.' }),
   land('dt-oceanic-islet', 'Oceanic Islet', ['U', 'G'], 'c', 'A green island rises from water bright enough to mislead a star.'),
   ritual('dt-windblown-leaf-paint', 'Windblown Leaf-Paint', { cost: cost(3, 'G'), colors: ['G'], abilities: [spell([{ op: 'foresee', n: 2 }, { op: 'gainLife', n: 2 }])], rarity: 'c', flavor: 'The wind edits the painting into a map.' }),
   land('dt-riverbend-trail', 'Riverbend Trail', ['G'], 'c', 'The trail bends around the river and every sensible conclusion.', [arrives([{ op: 'grind', n: 1, who: 'self' }])]),
