@@ -28,11 +28,18 @@ export default defineConfig({
   // loaded from Tauri's custom protocol in the desktop bundle.
   base: './',
   // Tauri desktop wrapper (src-tauri/): keep Vite's output visible while the
-  // Rust side compiles, and pin the dev port so `tauri dev`'s devUrl matches.
+  // Rust side compiles.
   clearScreen: false,
   server: {
+    // 5173 is the preferred port because the browser save is PER-ORIGIN: the
+    // long-lived dev save lives on localhost:5173. strictPort was flipped off
+    // 2026-08-01 (user call) so a squatted 5173 walks forward to 5174+ instead
+    // of erroring - vite prints the chosen port; a non-5173 port starts a
+    // FRESH save (re-seed via the ?cards=/?gold= URL cheats or a save code).
+    // Caveat: `tauri dev` still expects exactly 5173 (devUrl match) - keep
+    // 5173 free when running the desktop shell.
     port: 5173,
-    strictPort: true,
+    strictPort: false,
   },
   build: {
     chunkSizeWarningLimit: 2000,
