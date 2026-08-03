@@ -582,9 +582,24 @@ export class CollectionScene extends Phaser.Scene {
       const variantPageCount = Math.max(1, Math.ceil(entries.length / VARIANT_ROWS));
       let selectedKey = variantKey(shown!);
       let pinnedKey: string | null = save.pinnedVariants[d.id] ?? null;
+      const previewOdds = this.add
+        .text(450, 660, '', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.muted,
+        })
+        .setOrigin(0.5);
+      c.add(previewOdds);
+      const refreshPreviewOdds = (variant: CardVariant): void => {
+        previewOdds.setText(
+          `Pull odds: ${formatOdds(finishOdds(variant.frame, variant.holo, variant.fullArt))}`,
+        );
+      };
+      refreshPreviewOdds(shown!);
       let rows: {
         background: Phaser.GameObjects.Graphics;
         text: Phaser.GameObjects.Text;
+        odds: Phaser.GameObjects.Text;
         pin: ThemedButton;
         variant: CardVariant;
         count: number;
@@ -598,11 +613,7 @@ export class CollectionScene extends Phaser.Scene {
             .fillRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control)
             .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
             .strokeRoundedRect(panelX - 14, r.text.y - 20, 370, 40, theme.radius.control);
-          r.text.setText(
-            `${sel ? '▸ ' : '   '}${variantLabel(r.variant)}  ×${r.count}  ·  ${formatOdds(
-              finishOdds(r.variant.frame, r.variant.holo, r.variant.fullArt),
-            )}`,
-          );
+          r.text.setText(`${sel ? '▸ ' : '   '}${variantLabel(r.variant)}  ×${r.count}`);
           r.text.setColor(sel ? theme.colors.gold : theme.colors.body);
           r.pin.setVariant(pinnedKey === variantKey(r.variant) ? 'primary' : 'ghost');
           // setText/setColor reset the hit bounds — re-inflate, biased right
@@ -617,6 +628,7 @@ export class CollectionScene extends Phaser.Scene {
         for (const row of rows) {
           if (row.background.active) row.background.destroy();
           if (row.text.active) row.text.destroy();
+          if (row.odds.active) row.odds.destroy();
         }
         rows = [];
         const start = page * VARIANT_ROWS;
@@ -631,13 +643,28 @@ export class CollectionScene extends Phaser.Scene {
             })
             .setOrigin(0, 0.5)
             .setInteractive({ useHandCursor: true });
+          const odds = this.add
+            .text(panelX + 360, VARIANT_ROW_Y + i * VARIANT_ROW_PITCH, formatOdds(
+              finishOdds(e.variant.frame, e.variant.holo, e.variant.fullArt),
+            ), {
+              fontFamily: theme.fonts.ui,
+              fontSize: `${theme.type.caption}px`,
+              color: theme.colors.muted,
+            })
+            .setOrigin(0, 0.5)
+            .setVisible(false);
           bindTapButton(this, t, () => {
             if (ritualInProgress) return;
             selectedKey = variantKey(e.variant);
             displayedVariant = e.variant;
             view.setCard(d, { fx: 'full', variant: e.variant, fullArt: e.variant.fullArt });
+            refreshPreviewOdds(e.variant);
             restyle();
           });
+          t.on('pointerover', (pointer: Phaser.Input.Pointer) => {
+            if (!pointer.wasTouch) odds.setVisible(true);
+          });
+          t.on('pointerout', () => odds.setVisible(false));
           const pin = themedButton(this, panelX + 320, VARIANT_ROW_Y + i * VARIANT_ROW_PITCH, '📌', {
             variant: pinnedKey === variantKey(e.variant) ? 'primary' : 'ghost',
             size: 'sm',
@@ -660,13 +687,14 @@ export class CollectionScene extends Phaser.Scene {
                 variant: displayedVariant,
                 fullArt: displayedVariant.fullArt,
               });
+              refreshPreviewOdds(displayedVariant);
               Services.save.flush();
               Sfx.play('shimmer');
               restyle();
             },
           });
-          rows.push({ background, text: t, pin, variant: e.variant, count: e.count });
-          c.add([background, t, pin.container]);
+          rows.push({ background, text: t, odds, pin, variant: e.variant, count: e.count });
+          c.add([background, t, odds, pin.container]);
         });
         variantPageControl?.refresh(page, variantPageCount);
         restyle();
