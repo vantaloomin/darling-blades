@@ -118,13 +118,14 @@ describe('locked Layer-1 economy gates', () => {
     const bands = evaluateProgressionBands(report);
     expect(bands.violations).toEqual([]);
     expect(bands.coarse.every((band) => band.passed)).toBe(true);
-    // measured re-pinned 2026-08-01: every persona claims the free Darlings
-    // precon on day 0 (~80 uniques). The band [108, 202] derives from the
-    // 8-seed full-check median (154.625); this 1-seed CI-fast config
-    // measures 151, inside the same band.
+    // Band re-derived 2026-08-01: every persona claims the free Darlings
+    // precon on day 0 (~80 uniques); [108, 202] comes from the 8-seed
+    // full-check median (154.625). The point measurement is deliberately
+    // NOT pinned: the sim plays real duels, so any card change moves it a
+    // hair (Balor recost 2026-08-01: 151 -> 150.5) - the band containment
+    // IS the gate.
     expect(bands.coarse).toContainEqual(expect.objectContaining({
       name: 'median day-7 owned uniques',
-      measured: 151,
       min: 108,
       max: 202,
       passed: true,
