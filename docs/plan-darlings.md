@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-commander-mode.md, docs/plan-expansion-slate.md, src/config/rules.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/scenes/DeckBuilderScene.ts, src/scenes/DuelScene.ts, src/engine/view.ts, scripts/balance-matrix.ts · last-verified: 2026-07-31 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-commander-mode.md, docs/plan-expansion-slate.md, src/config/rules.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/darlingsPrecons.ts, src/meta/SaveManager.ts, src/meta/DeckStorage.ts, src/meta/deckFace.ts, src/meta/warchest.ts, src/scenes/DeckBuilderScene.ts, src/scenes/DuelScene.ts, src/engine/view.ts, scripts/balance-matrix.ts · last-verified: 2026-08-04 · design/plan doc - re-verify when the referenced code changes -->
 
 # Darlings format implementation plan
 
@@ -8,15 +8,16 @@ Release 1.5.5 ships Darlings as a first-class, single-player deckbuilding format
 
 ## Status
 
-Darlings and Battle Box are engine-complete and UI-complete, but their UI is
-flagged off for 1.5.0. They are exposed in 1.5.5 after their `TO MEASURE`
-balance matrices exist. The Battle Box system's product name is **Warchest**
-as of 2026-07-31 (see [plan-battle-box.md](plan-battle-box.md)'s naming
-note and [plan-1.5.5.md](plan-1.5.5.md), the active reveal train).
+Darlings shipped in 1.5.5 after the dated reserve, Darlings, and precon
+matrices plus the losslessness checks. The Warchest system is live alongside
+the public command zone, five curated precons, and the Darlings tutorial. The
+historical Battle Box product name is now **Warchest** (see
+[plan-battle-box.md](plan-battle-box.md) and the 1.5.5 close-out in
+[plan-1.5.5.md](plan-1.5.5.md)).
 
 **Historical 2026-07-31 and 2026-07-28 shapes:** Earlier planning described an 80-card in-deck Darling and, before that, a 50-card in-deck version. Both are superseded by the 2026-08-01 command-zone respec below. The Warchest remains a 10-land reserve; strict colorless remains future work until a purpose-built roster exists.
 
-## Curated precon slate (in progress)
+## Curated precon slate (shipped)
 
 The Shop's Darlings section carries five reviewed 79-spell singleton decks,
 each with its legend in the command zone and a 10-land Warchest. Red Cliffs

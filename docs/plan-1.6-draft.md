@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/data/opponents.ts · last-verified: 2026-07-31 · DRAFT program doc — seeds the 1.6 planning session; re-verify when the referenced plans change. The premium-UX wave details cite docs/plan-premium-ux.md, a LOCAL-ONLY gitignored ideation doc (copy it forward between worktrees). -->
+<!-- source-of-truth: docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/data/opponents.ts · last-verified: 2026-08-04 · DRAFT program doc — seeds the 1.6 planning session; re-verify when the referenced plans change. The premium-UX wave details cite docs/plan-premium-ux.md, a LOCAL-ONLY gitignored ideation doc (copy it forward between worktrees). -->
 
 # Darling Blades 1.5.5 and 1.6 — draft program plan
 
@@ -7,8 +7,8 @@ planning session (sources: the session decision record, plan-premium-ux.md,
 plan-battle-box.md, plan-darlings.md, the 2026-07-31 mechanic audit below,
 and the W7/econ baselines). Owner decisions recorded at the 1.5.0 close;
 scope details and wave contracts are for the 1.6 planning session. The
-1.5.5 portion graduated into [plan-1.5.5.md](plan-1.5.5.md), which is the
-active train spec.
+1.5.5 portion graduated into [plan-1.5.5.md](plan-1.5.5.md) and shipped on
+2026-08-04. That document is the close-out record for the completed train.
 
 ## The north star (owner-ratified 2026-07-31)
 
@@ -18,9 +18,9 @@ mana system of Darling Blades. There is deliberately **no dual-balance era**:
 the owner rejected balancing every patch around both drawn lands and the
 reserve.
 
-- **1.5.5 ships Warchest with Darlings** — the format reveal as planned,
-  both formats on the reserve system, after their `TO MEASURE` matrices and
-  the losslessness probe exist.
+- **1.5.5 shipped Warchest with Darlings** on 2026-08-04. Both formats use
+  the reserve system, with their dated matrices and losslessness checks
+  complete before the reveal.
 - **1.6 launches Warchest everywhere and classic retires.** Every
   player-made deck is invalidated by the migration with a warning flow that
   routes to the Deck Builder to fix it. Decks are preserved and flagged,
@@ -36,11 +36,10 @@ reserve land plays, so the 21 tapland ETB riders survive the migration.
 
 Small on purpose. Spec: [plan-1.5.5.md](plan-1.5.5.md). Contents:
 
-1. **The Warchest + Darlings reveal.** Reserve-format and Darlings matrices
-   (both still `TO MEASURE`), the losslessness probe for a legitimately
-   built 50-card all-spell deck, flip `FEATURES.reserveFormats`, reveal
-   copy carrying the Warchest name. The curated Darlings rival ladder stays
-   explicitly not promised.
+1. **The Warchest + Darlings reveal.** Shipped 2026-08-04 with completed
+   reserve-format and Darlings matrices, losslessness checks, the
+   `FEATURES.reserveFormats` reveal, and player-facing Warchest copy. The
+   curated Darlings rival ladder remains explicitly not promised.
 2. **collectionPct metric rework** — pool-relative or absolute-cards, so
    set growth stops forcing economically meaningless band re-centres.
    Must land before any set ships.

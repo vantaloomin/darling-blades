@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.5.md, docs/plan-darlings.md, src/engine/types.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/meta/DeckStorage.ts, src/meta/SaveManager.ts · last-verified: 2026-07-31 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-1.5.md, docs/plan-darlings.md, src/engine/types.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/meta/DeckStorage.ts, src/meta/SaveManager.ts, src/meta/warchest.ts, src/data/opponents.ts · last-verified: 2026-08-04 · design/plan doc - re-verify when the referenced code changes -->
 
 # Warchest mana system implementation plan
 
@@ -6,7 +6,8 @@
 
 Release 1.5.5 ships a chosen Warchest in its two new
 formats. A Warchest deck is 50 spells with zero in-deck lands; a Darlings
-deck is 80 cards including its Darling, also with zero in-deck lands. Beside
+deck is 79 singleton spells with its Darling in a separate command zone, also
+with zero in-deck lands. Beside
 each deck the player builds Warchest Reserves of exactly 10
 lands with at most 5 dual lands. Each turn the ordinary land play instead
 chooses a land from the reserve. Mana screw and flood do not exist in these
@@ -15,8 +16,9 @@ curve by design.
 
 ## Status
 
-Warchest and Darlings are engine-complete and UI-complete. They ship in 1.5.5
-after their dated balance matrices and losslessness checks passed.
+Warchest and Darlings shipped in 1.5.5 after their dated balance matrices and
+losslessness checks passed. The public release includes the Darlings
+command-zone respec, five curated precons, and the format tutorial.
 
 **Naming (owner-ratified 2026-07-31): the product name is "Warchest".**
 "Battle Box" was a borrowed working title; every player-facing string
@@ -30,9 +32,9 @@ specifies is unchanged and is the ratified 2.0 north star
 User decisions locked 2026-07-28 (do not relitigate without the user):
 
 - Warchest deck size is **50 cards** with ordinary Constructed copy limits.
-- Darlings deck size is **80 cards including the Darling**, with singleton
-  non-basics per plan-darlings.md (re-locked 2026-07-31 at 80; the
-  2026-07-28 lock was 50).
+- Darlings deck size is **79 singleton spells plus an external Darling**,
+  per plan-darlings.md's shipped command-zone respec (the earlier 80-card and
+  50-card in-deck shapes are historical).
 - The reserve is **per-deck and player-built** (not a fixed standard case).
 - **Destruction is asymmetric**: a destroyed dual land goes to the
   graveyard and is gone for the game; a destroyed basic land re-enters the
@@ -62,7 +64,7 @@ to the deck list:
 Legality is exact:
 
 - A Warchest deck is exactly 50 cards and contains no lands. A Darlings deck
-  is exactly 80 cards including the Darling and contains no lands.
+  is exactly 79 singleton spells plus an external Darling and contains no lands.
 - The reserve is exactly 10 lands: basic lands and dual lands only, with
   at most 5 duals. Basics are ownership-free as everywhere; dual lands
   must be owned.
@@ -164,9 +166,10 @@ npx tsx scripts/balance-matrix.ts --floors --seeds 80
 validator-gated fixture fleets in `scripts/reserveMatrixDecks.ts`) and the
 dated 200-seed baselines live in `src/data/opponents.ts`. Losslessness:
 0 engine exceptions across all 5,000 games; Warchest decided 2,000/2,000
-with 0 draws; Darlings at the 80-card size decided 2,972/3,000 with 28
-turn-limit draws (0.93%, concentrated in the grindiest control cells; a
-property of 80-card singleton attrition, watched at reveal). A curated-roster matrix remains future work. Consistency is a
+with 0 draws; Darlings under the shipped command-zone rules decided 2,982/3,000
+with 18 turn-limit draws (0.6%, concentrated in the grindiest control cells).
+The five curated precons also have their own dated baseline; a rival ladder
+remains future work. Consistency is a
 large power-level change by construction; no classic-pool card changes may
 be justified by reserve-format results.
 
