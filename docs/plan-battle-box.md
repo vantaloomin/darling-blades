@@ -1,12 +1,14 @@
-<!-- source-of-truth: docs/plan-1.5.md, docs/plan-darlings.md, src/engine/types.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/meta/DeckStorage.ts, src/meta/SaveManager.ts · last-verified: 2026-07-28 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-1.5.md, docs/plan-darlings.md, src/engine/types.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/meta/DeckStorage.ts, src/meta/SaveManager.ts, src/meta/warchest.ts, src/data/opponents.ts · last-verified: 2026-08-04 · design/plan doc - re-verify when the referenced code changes -->
 
-# Battle Box mana system implementation plan
+# Warchest mana system implementation plan
 
 ## Goal
 
-Release 1.5 replaces drawn lands with a chosen land reserve in its two new
-formats. A deck in the Darlings or Battle Box format is 50 spells with zero
-in-deck lands; beside it the player builds a land reserve of exactly 10
+Release 1.5.5 ships a chosen Warchest in its two new
+formats. A Warchest deck is 50 spells with zero in-deck lands; a Darlings
+deck is 79 singleton spells with its Darling in a separate command zone, also
+with zero in-deck lands. Beside
+each deck the player builds Warchest Reserves of exactly 10
 lands with at most 5 dual lands. Each turn the ordinary land play instead
 chooses a land from the reserve. Mana screw and flood do not exist in these
 formats; every draw is action, and the 10-land cap bounds the top of the
@@ -14,15 +16,25 @@ curve by design.
 
 ## Status
 
-Battle Box and Darlings are engine-complete and UI-complete, but their UI is
-flagged off for 1.5.0. They are exposed in 1.5.5 after their `TO MEASURE`
-balance matrices exist.
+Warchest and Darlings shipped in 1.5.5 after their dated balance matrices and
+losslessness checks passed. The public release includes the Darlings
+command-zone respec, five curated precons, and the format tutorial.
+
+**Naming (owner-ratified 2026-07-31): the product name is "Warchest".**
+"Battle Box" was a borrowed working title; every player-facing string
+carries Warchest from the 1.5.5 reveal on, and internal
+`'battleBox' | 'battlebox'` ids collapse to `'warchest'`
+([plan-1.5.5.md](plan-1.5.5.md) owns that work). This document keeps its
+historical filename and internal terminology; the reserve *system* it
+specifies is unchanged and is the ratified 2.0 north star
+([plan-1.6-draft.md](plan-1.6-draft.md)).
 
 User decisions locked 2026-07-28 (do not relitigate without the user):
 
-- Deck size in reserve formats is **50 cards** (Darlings: including the
-  Darling; singleton for non-basics per plan-darlings.md. Battle Box:
-  ordinary Constructed copy limits).
+- Warchest deck size is **50 cards** with ordinary Constructed copy limits.
+- Darlings deck size is **79 singleton spells plus an external Darling**,
+  per plan-darlings.md's shipped command-zone respec (the earlier 80-card and
+  50-card in-deck shapes are historical).
 - The reserve is **per-deck and player-built** (not a fixed standard case).
 - **Destruction is asymmetric**: a destroyed dual land goes to the
   graveyard and is gone for the game; a destroyed basic land re-enters the
@@ -43,17 +55,16 @@ is not a hidden resource and holds no gameplay randomness.
 
 ## Player-facing spec
 
-The deck builder's format switch gains `Battle Box` beside `Constructed`
-and `Darlings`. Selecting a reserve format shows a land reserve panel next
+The deck builder's format switch gains `Warchest` beside `Constructed`
+and `Darlings`. Selecting a reserve format shows a Warchest Reserves panel next
 to the deck list:
 
-> Build your land reserve: 10 lands, up to 5 dual lands. Each turn you
-> choose which land to play. Dual lands arrive tapped. If a dual land is
-> destroyed it is gone; destroyed basic lands return to your reserve.
+> Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.
 
 Legality is exact:
 
-- The deck is exactly 50 cards and contains no lands.
+- A Warchest deck is exactly 50 cards and contains no lands. A Darlings deck
+  is exactly 79 singleton spells plus an external Darling and contains no lands.
 - The reserve is exactly 10 lands: basic lands and dual lands only, with
   at most 5 duals. Basics are ownership-free as everywhere; dual lands
   must be owned.
@@ -62,7 +73,7 @@ Legality is exact:
   and the reserve must sit inside the Darling's colors. A colorless
   Darling's reserve is basics-only unless the colorless roster design
   says otherwise.
-- Battle Box decks obey Constructed copy limits (playsets) and ownership;
+- Warchest decks obey Constructed copy limits (playsets) and ownership;
   reserve colors are unrestricted.
 - Cards whose rules fetch a land from the deck are illegal in reserve
   formats, named directly: `Verdant Compass cannot find lands here; your
@@ -105,7 +116,7 @@ property recorded in plan-darlings.md; that trade was accepted 2026-07-28):
 
 ### Meta, save, and economy
 
-`src/meta/battleBox.ts` (pure) owns the shared reserve validator
+`src/meta/warchest.ts` (pure) owns the shared reserve validator
 (count/duals cap/allowed land types/ownership) and the land-interaction
 audit list; `src/meta/darlings.ts` composes it with the singleton rules.
 `SavedDeck` gains `landReserve: string[] | null` inside the same atomic
@@ -150,16 +161,24 @@ npx tsx scripts/balance-matrix.ts --avatars --seeds 40
 npx tsx scripts/balance-matrix.ts --floors --seeds 80
 ```
 
-A reserve-format matrix mode is `TO MEASURE` future work alongside any
-curated roster. Consistency is a large power-level change by construction;
-no classic-pool card changes may be justified by reserve-format results.
+**MEASURED 2026-07-31 (1.5.5):** the reserve matrix modes exist
+(`--warchest` / `--darlings` in `scripts/balance-matrix.ts`, deterministic
+validator-gated fixture fleets in `scripts/reserveMatrixDecks.ts`) and the
+dated 200-seed baselines live in `src/data/opponents.ts`. Losslessness:
+0 engine exceptions across all 5,000 games; Warchest decided 2,000/2,000
+with 0 draws; Darlings under the shipped command-zone rules decided 2,982/3,000
+with 18 turn-limit draws (0.6%, concentrated in the grindiest control cells).
+The five curated precons also have their own dated baseline; a rival ladder
+remains future work. Consistency is a
+large power-level change by construction; no classic-pool card changes may
+be justified by reserve-format results.
 
 ## Phased implementation plan
 
 ### Wave 1: pure validators and audit list
 
-`src/meta/battleBox.ts` (reserve validator + land-interaction audit data)
-and the darlings.ts respec to the 50-card no-lands shape. No engine, no
+`src/meta/warchest.ts` (reserve validator + land-interaction audit data)
+and the darlings.ts respec to the 80-card no-lands shape. No engine, no
 UI. Verification: focused meta tests, then the full ladder.
 
 ### Wave 2: reserve engine
@@ -202,8 +221,9 @@ recommending lists in these formats.
 
 - A classic Constructed game is byte-identical to pre-feature behavior
   (matrices reproduce; replays of old logs unaffected).
-- Reserve legality is enforced exactly (50/0-lands/10/5-dual/ownership/
-  format-specific color rules), with direct plain-language errors.
+- Reserve legality is enforced exactly (Warchest 50/0-lands, Darlings
+  80/0-lands, 10/5-dual/ownership/format-specific color rules), with direct
+  plain-language errors.
 - Duals enter tapped; destroyed duals reach the graveyard; destroyed
   basics re-enter the reserve and are replayable; severed lands never
   return; bounced lands return to the reserve.

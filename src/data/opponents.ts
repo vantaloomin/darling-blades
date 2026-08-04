@@ -433,6 +433,55 @@ export interface Avatar {
  * 23.5, 29.0, 34.7, 28.9, 34.0, 35.3, 36.0, 46.0, 53.0, 50.3, 61.3, 58.1,
  * 56.0, 68.5, 70.8, 72.0, 68.2, 70.6 - a clean T6 plateau across F16-F20
  * confirms floors 19-20 stay tier 6 (stamped in src/ai/tiers.ts).
+ *
+ * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
+ * matrices the 1.5.0 release split left TO MEASURE). Fixture fleets from
+ * scripts/reserveMatrixDecks.ts (deterministic, validator-gated; they
+ * measure the FORMAT, not tuned decks - no product balance claim, and no
+ * classic-pool change may be justified by these numbers per
+ * docs/plan-battle-box.md).
+ *
+ * LOSSLESSNESS (the reveal gate's primary result): 0 engine exceptions
+ * in every measured configuration - no seed produced a stuck or dead
+ * game state. Warchest decided 2,000/2,000 with 0 draws. Darlings under
+ * the current command-zone rules decided 2,982/3,000 with 18 turn-limit
+ * draws (0.6%, grindy control cells; down from 0.93% at the in-deck
+ * shape - guaranteed threat access shortens attrition games) - worth
+ * watching at reveal, not an engine fault.
+ *
+ * Warchest (--warchest, 200 seeds/cell, 2,000 games, neutral hard,
+ * starter-derived playset fleet): Crimson 63.9, Burning 60.0, Grave 44.1,
+ * Shadow 43.3, Wild 38.8. Aggro-topped 25pp spread, worst cell 78
+ * (Burning vs Shadow); coherent field, no degenerate matchup.
+ *
+ * Darlings (--darlings, 200 seeds/cell, 3,000 games, neutral hard,
+ * curve-greedy singleton fleet per color spread, 2026-08-01 UNDER THE
+ * COMMAND-ZONE RULES - external Darling, +2 tax per return, 4-pays-2
+ * valve): Gaia [G] 79.7, Dian Wei [B] 69.1, Ares [R] 57.7, Ghost-Net
+ * Archon [U] 37.2, Athena [W] 34.0, Aphrodite [WU] 21.6; 2,982/3,000
+ * decided, 18 turn-limit draws (0.6%), 0 engine exceptions. Guaranteed
+ * Darling access widened the fixture spread (Gaia's attrition engine
+ * profits most; Athena's defensive fixture collapsed 50.5 -> 34.0 -
+ * her greedy list leaned on drawing her early, which the zone now
+ * gives every deck). The wide spread is a property of the greedy
+ * cheapest-first fixtures, not a roster claim - the curated rival
+ * ladder stays unpromised and the shipped precons carry their own
+ * measured baseline before any product balance claim.
+ * (History, superseded shapes: 80-card IN-DECK Darling measured
+ * Gaia 74.4 / Ares 69.1 / Dian Wei 57.0 / Athena 50.5 / Ghost-Net
+ * 29.3 / Aphrodite 19.7 with 28 draws at 0.93%; 50-card in-deck
+ * measured Ares 76.1 / Gaia 72.1 / Dian Wei 58.2 / Athena 48.0 /
+ * Ghost-Net 23.5 / Aphrodite 22.1 with 3,000/3,000 decided.)
+ *
+ * Darlings PRECONS (--darlings-precons, 200 seeds/cell, 2,000 games,
+ * neutral hard, 2026-08-01, the five shipped product decks under the
+ * command-zone rules): Queen Below 58.8, Sable Warballad 58.1,
+ * Mirror-Blood Rush 46.8, Sunwell Ledger 44.1, Red Cliffs Refrain
+ * 42.3. A 16.5pp product spread (vs the fixture fleet's 58pp) with
+ * 1,990/2,000 decided, 10 turn-limit draws (0.5%), 0 engine
+ * exceptions; worst cell 71 (Sunwell over Red Cliffs). The FREE deck
+ * (Red Cliffs Refrain) sitting mildly bottom is deliberate product
+ * posture, not an accident - it onboards, the paid decks aspire.
  */
 export const AVATARS: readonly Avatar[] = [
   // ---------------------------------------------------------------------

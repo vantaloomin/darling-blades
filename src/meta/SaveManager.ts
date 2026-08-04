@@ -7,7 +7,8 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 
-export const CURRENT_SAVE_VERSION = 24 as const;
+export const CURRENT_SAVE_VERSION = 26 as const;
+const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /** When an empty blocking step needs a second confirmation. */
 export type ConfirmNoBlockSetting = 'always' | 'lethal' | 'off';
@@ -70,7 +71,7 @@ export interface SavedDeck {
   /** Per-basic land art styles. `null` or a missing key = default art. v22 addition. */
   landStyle: LandStyleMap | null;
   /** Rules format metadata. v23 addition. */
-  format?: 'constructed' | 'darlings' | 'battlebox';
+  format?: 'constructed' | 'darlings' | 'warchest';
   /** Selected Darling card, only meaningful for the Darlings format. v23 addition. */
   darlingId?: string | null;
   /** Per-deck reserve land list for reserve formats. v23 addition. */
@@ -107,6 +108,8 @@ export interface SaveData {
    * Invariant: per-card variant counts sum to `collection[cardId]`.
    */
   collectionVariants: Record<string, Record<string, number>>;
+  /** Player-chosen collection display treatment by card id. v25 addition. */
+  pinnedVariants: Record<string, string>;
   decks: SavedDeck[];
   activeDeckId: string | null;
   starterChosen: string | null;
@@ -131,6 +134,10 @@ export interface SaveData {
    * `true` on migration so genre veterans never see it.
   */
   tutorialDone: boolean;
+  /** Darlings command-zone format explainer dismissed by this profile. v26 addition. */
+  darlingsTutorialSeen: boolean;
+  /** The one-time free Zhou Yu Darlings precon has been claimed. v26 extension. */
+  darlingsFreeDeckClaimed: boolean;
   /**
    * Road-to-1.0 achievements. Unlocks are recomputed from durable save/card-db
    * state by src/meta/Achievements.ts; claimed is separate so migrated/imported
@@ -216,12 +223,15 @@ export function freshSave(now: number): SaveData {
     gold: 0,
     collection: {},
     collectionVariants: {},
+    pinnedVariants: {},
     decks: [],
     activeDeckId: null,
     starterChosen: null,
     heroCardId: null,
     heroPortraitId: null,
     tutorialDone: false,
+    darlingsTutorialSeen: false,
+    darlingsFreeDeckClaimed: false,
     achievements: freshAchievements(),
     daily: freshDailyState(dayStringFromTimestamp(now)),
     limited: { ...freshLimitedState(), premiumWeek: { week: 0, entries: 0 } },
@@ -312,7 +322,11 @@ export class SaveManager {
    * explicitly non-full-art three-part keys; v21 -> v22 stamps tower roster
    * identity and adds per-deck land-art selection; v22 -> v23 adds reserve
    * formats and positional variant pins; v23 -> v24 adds the empty-block
-   * confirmation preference, defaulting to lethal-only protection.
+   * confirmation preference, defaulting to lethal-only protection; v24 -> v25
+   * renames the Warchest format and adds collection-level variant display pins;
+   * v25 -> v26 moves legacy in-deck Darlings into their command-zone identity
+   * and adds the Darlings format explainer flag plus the free-Zhou-Yu claim
+   * state.
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -322,6 +336,7 @@ export class SaveManager {
    */
   migrate(old: { version?: number } & Record<string, unknown>, now: number): SaveData {
     let cur = old;
+    const beganAtCurrentVersion = cur.version === CURRENT_SAVE_VERSION;
     if (cur.version === 1) {
       const base = freshSave(now);
       // Spread the v1 fields over a fresh shell, then force the v2 additions.
@@ -578,7 +593,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -636,8 +651,29 @@ export class SaveManager {
           : 'lethal';
       cur = {
         ...cur,
-        version: CURRENT_SAVE_VERSION,
+        version: 24,
         settings: { ...(cur.settings as object), confirmNoBlock },
+      };
+    }
+    if (cur.version === 24) {
+      cur = {
+        ...cur,
+        version: 25,
+        // A migrated v24 save did not have collection display pins. A current
+        // v25 blob takes the normalization route above, so retain its raw map
+        // for the final canonicalizer below.
+        pinnedVariants: beganAtCurrentVersion ? cur.pinnedVariants : {},
+      };
+    }
+    if (cur.version === 25) {
+      cur = {
+        ...cur,
+        version: 26,
+        // Current v26 blobs are re-run through the shared canonicalizer above;
+        // retain their durable acknowledgement while every real v25 migration
+        // starts the new tutorial unseen.
+        darlingsTutorialSeen: beganAtCurrentVersion && cur.darlingsTutorialSeen === true,
+        darlingsFreeDeckClaimed: beganAtCurrentVersion && cur.darlingsFreeDeckClaimed === true,
       };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
@@ -646,6 +682,9 @@ export class SaveManager {
         ...cur,
         version: CURRENT_SAVE_VERSION,
         decks: normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants),
+        pinnedVariants: normalizePinnedVariants(cur.pinnedVariants, cur.collection, cur.collectionVariants),
+        darlingsTutorialSeen: cur.darlingsTutorialSeen === true,
+        darlingsFreeDeckClaimed: cur.darlingsFreeDeckClaimed === true,
       } as unknown as SaveData;
     }
     return freshSave(now);
@@ -777,10 +816,21 @@ function normalizeSavedDecks(
         variantPins?: unknown;
       };
       if (typeof deck.id !== 'string' || typeof deck.name !== 'string' || !Array.isArray(deck.cards)) return null;
-      const cards = deck.cards.filter((id): id is string => typeof id === 'string');
+      const rawCards = deck.cards.filter((id): id is string => typeof id === 'string');
+      const format = deck.format === LEGACY_WARCHEST_FORMAT ? 'warchest' : deck.format;
+      const rawDarlingId = typeof deck.darlingId === 'string' ? deck.darlingId : null;
+      // v25 stored the Darling in `cards`. Strip every legacy copy together
+      // with its positional treatment pin so the remaining spell slots stay
+      // aligned. New v26 decks already pass through unchanged.
+      const strippedSlots = format === 'darlings' && rawDarlingId
+        ? rawCards
+            .map((cardId, index) => ({ cardId, pin: Array.isArray(deck.variantPins) ? deck.variantPins[index] : null }))
+            .filter((slot) => slot.cardId !== rawDarlingId)
+        : rawCards.map((cardId, index) => ({ cardId, pin: Array.isArray(deck.variantPins) ? deck.variantPins[index] : null }));
+      const cards = strippedSlots.map((slot) => slot.cardId);
       const explicitHero = typeof deck.heroCardId === 'string' ? deck.heroCardId : null;
       const migratedHero = explicitHero ?? (defaultHeroCardId && cards.includes(defaultHeroCardId) ? defaultHeroCardId : null);
-      const darlings = normalizeDarlingsFields(CARD_DB, deck.format, deck.darlingId, cards, deck.landReserve);
+      const darlings = normalizeDarlingsFields(CARD_DB, format, deck.darlingId, cards, deck.landReserve);
       return {
         id: deck.id,
         name: deck.name,
@@ -788,10 +838,27 @@ function normalizeSavedDecks(
         heroCardId: migratedHero && cards.includes(migratedHero) ? migratedHero : null,
         landStyle: normalizeLandStyleMap(deck.landStyle),
         ...darlings,
-        variantPins: normalizeVariantPins(cards, deck.variantPins, aggregate, variants),
+        variantPins: normalizeVariantPins(cards, strippedSlots.map((slot) => slot.pin), aggregate, variants),
       };
     })
     .filter((deck): deck is SavedDeck => deck !== null);
+}
+
+function normalizePinnedVariants(
+  value: unknown,
+  collection: unknown,
+  collectionVariants: unknown,
+): Record<string, string> {
+  if (!isRecord(value)) return {};
+  const aggregate = isRecord(collection) ? collection : {};
+  const variants = isRecord(collectionVariants) ? collectionVariants : {};
+  const pins: Record<string, string> = {};
+  for (const [cardId, rawKey] of Object.entries(value)) {
+    if (!CARD_DB[cardId]) continue;
+    const key = canonicalVariantPin(rawKey);
+    if (key !== null && ownedVariantCount(aggregate, variants, cardId, key) > 0) pins[cardId] = key;
+  }
+  return pins;
 }
 
 function normalizeVariantPins(

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_SAVE_VERSION, freshSave, SaveManager } from '../../src/meta/SaveManager';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 
+const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
+
 function fakeStorage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> & { raw: Map<string, string> } {
   const raw = new Map<string, string>();
   return {
@@ -278,5 +280,124 @@ describe('SaveData v23 migration (formats, reserves, and positional variant pins
       landReserve: null,
       variantPins: [null, null],
     });
+  });
+});
+
+describe('SaveData v25 migration (Warchest and collection display pins)', () => {
+  it('migrates a v24 Warchest deck, keeps its active deck id, and starts collection pins empty', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 24;
+    old.activeDeckId = 'legacy-warchest';
+    old.decks = [{
+      id: 'legacy-warchest',
+      name: 'Legacy Warchest',
+      cards: ['bear'],
+      heroCardId: null,
+      landStyle: null,
+      format: LEGACY_WARCHEST_FORMAT,
+      darlingId: null,
+      landReserve: Array.from({ length: 10 }, () => 'land-plains'),
+      variantPins: [null],
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.decks[0].format).toBe('warchest');
+    expect(migrated.activeDeckId).toBe('legacy-warchest');
+    expect(migrated.pinnedVariants).toEqual({});
+  });
+
+  it('drops malformed, unknown, or unowned collection display pins while retaining owned canonical pins', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.collection = { 'land-plains': 1 };
+    current.collectionVariants = { 'land-plains': { [variantKey(PLAIN_VARIANT)]: 1 } };
+    current.pinnedVariants = {
+      'land-plains': 'white|none|standard',
+      'land-forest': 'purple|none|standard',
+      'land-island': 'white|none|invalid-treatment',
+      'land-swamp': 'white|none|standard',
+      'not-a-card': 'white|none|standard',
+    };
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.pinnedVariants).toEqual({
+      'land-plains': variantKey(PLAIN_VARIANT),
+    });
+  });
+});
+
+describe('SaveData v26 migration (Darlings command zone tutorial)', () => {
+  it('pulls a legacy in-deck Darling and its positional pin into the external identity', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 25;
+    old.decks = [{
+      id: 'legacy-darlings',
+      name: 'Legacy Darlings',
+      cards: ['gk-athena', 'land-plains'],
+      heroCardId: null,
+      landStyle: null,
+      format: 'darlings',
+      darlingId: 'gk-athena',
+      landReserve: Array.from({ length: 10 }, () => 'land-plains'),
+      variantPins: ['gold|void|standard', 'white|none|standard'],
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.darlingsTutorialSeen).toBe(false);
+    expect(migrated.darlingsFreeDeckClaimed).toBe(false);
+    expect(migrated.decks[0]).toMatchObject({
+      cards: ['land-plains'],
+      darlingId: 'gk-athena',
+      variantPins: [null],
+    });
+  });
+
+  it('keeps v26 normalization strict about the tutorial flag and external Darling card list', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    current.darlingsTutorialSeen = 'yes';
+    current.darlingsFreeDeckClaimed = 'yes';
+    current.decks = [{
+      id: 'current-darlings',
+      name: 'Current Darlings',
+      cards: ['gk-athena', 'land-plains'],
+      heroCardId: null,
+      landStyle: null,
+      format: 'darlings',
+      darlingId: 'gk-athena',
+      landReserve: Array.from({ length: 10 }, () => 'land-plains'),
+      variantPins: [null, null],
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.darlingsTutorialSeen).toBe(false);
+    expect(migrated.darlingsFreeDeckClaimed).toBe(false);
+    expect(migrated.decks[0].cards).toEqual(['land-plains']);
+    expect(migrated.decks[0].variantPins).toEqual([null]);
+  });
+
+  it('preserves the Darlings tutorial acknowledgement and Zhou Yu claim on a current save', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.darlingsTutorialSeen = true;
+    current.darlingsFreeDeckClaimed = true;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.darlingsTutorialSeen).toBe(true);
+    expect(migrated.darlingsFreeDeckClaimed).toBe(true);
   });
 });

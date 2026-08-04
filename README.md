@@ -16,6 +16,8 @@
   <a href="https://vantaloomin.github.io/darling-blades/"><b>Play Darling Blades in your browser</b></a>
 </p>
 
+**Desktop:** Starting with 1.5.5, every GitHub Release includes a Windows installer.
+
 ## What is Darling Blades?
 
 Darling Blades is a single-player trading card game in the style of Magic: the Gathering, specifically the 8th/9th/10th-edition era: five colors of mana, creatures and combat, instants and sorceries resolving off a stack, and the familiar rhythm of curving out and then racing or grinding to a win. If you played that era of Magic, you already know most of the rules.
@@ -42,46 +44,33 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
 - **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built; see Project status below.
 
-## What's new in 1.5 (Yokai Nights)
+## What's new in 1.5.5
 
-Version 1.5 adds Cyberpunk Yokai Nights, expands the collection to 764
-collectible cards across seven sets, extends the daily tower to 20 floors,
-and ships the largest balance and game-feel pass the project has had.
+**Warchest and Darlings.** Warchest is the named mana system: build your
+**Warchest Reserves** with ten lands, then move one into your **Active
+Warchest** each turn. **Darlings** is the EDH-style format. Your Darling waits
+in her own zone while you build a 79-card singleton spell deck and a ten-land
+Warchest. Each fall adds 2 to her next call; pay 4 to ease that tax by 2.
 
-**Cyberpunk Yokai Nights (Expansion 6).** 120 cards of neon spirits, fox
-courts, and haunted city grids, built around **Hauntlink**: many Yokai
-artifacts and enchantments can be played linked to a creature you control,
-granting their bonus while the host lives and falling to the graveyard when
-it dies. The set brings its own booster and the **Neon Afterimage** precon,
-five allied dual lands, eight achievements, and the tower's new summit pair,
-**Queen of the Lanterned Roof** and **Kitsune Neon Tyrant**, at rungs 19-20.
+**Five ready-to-play Darlings decks.** Red Cliffs Refrain, Queen Below,
+Sunwell Ledger, Mirror-Blood Rush, and Sable Warballad are available from the
+Shop. Red Cliffs Refrain is a free, one-time Zhou Yu claim, and the Darlings
+tutorial teaches the format before your first match.
 
-**Save codes.** The Profile page can now export your entire profile as a
-compact code and import one on another machine or browser. Replays are left
-out by default and can be included; imports replace the whole profile after
-an explicit confirmation.
+**A cleaner collection and deck builder.** Repeated cards collapse into one
+deck row. Collection display pins let you choose the owned frame and finish
+shown for a card, and hovering a variant row reveals its pull odds. The
+single-tab guard keeps a second browser tab from opening the same save at
+once.
 
-**The balance pass.** Combat now allows up to four blockers on one attacker,
-and the game says so when a tapped creature cannot answer the call. Two new
-common sweepers join the Base Set (**Ember Squall** and **Creeping
-Malaise**), several rival decks learned to carry answers, every tapland now
-gives a small bonus when it arrives, and four new tribal leaders anchor Jin,
-Construct, Warrior, and Fae decks. Neon Afterimage was rebuilt from the
-ground up, The Bride's worst matchup was repaired, and every tower floor was
-re-measured at five times the previous sample size. Midnight Storybook
-remains a deliberate uphill battle while the Dark Tales pool waits for
-sharper tools.
+**Clearer card play.** Foresee now completes its choices in printed order.
+Count labels use number words where a quick board read matters, Retell cards
+have more room for their rules text, and a tombstone icon marks graveyard
+casting at a glance.
 
-**Game feel.** Skipping blocks now states its price on the button and asks
-twice only when the hit would be lethal, with an always-on combat forecast
-during blocking. Sharding a card is a hold-to-confirm ritual instead of a
-click. The duel score tightens when either side drops low and thins out when
-lethal is on the board. Achievements announce themselves the moment you earn
-them. Hauntlinked cards physically overlap their host, hostile targets ring
-red while your own ring green, stack spells draw an arrow to their target,
-and cards travel the board slowly enough to follow. Screens navigate with a
-consistent back button, the shop's Card Packs tab scrolls a draggable strip
-with set blurbs, and the collection binder filters by every set.
+**Art polish across the collection.** Seventeen Yokai Nights cards wear
+refreshed crops, five masks were fully recomposed so their whole faces
+show, and six cards from the 1.5 balance pass received their finished art.
 
 ## How to play
 
@@ -123,9 +112,9 @@ For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the even
 
 ## Project status
 
-**Darling Blades is 1.5.0**, released 2026-07-31 (tag v1.5.0). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 764 collectible cards have finished illustrated art, and the test suite is green.
+**Darling Blades is 1.5.5**, released 2026-08-04 (tag v1.5.5). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 764 collectible cards have finished illustrated art, and the test suite is green.
 
-**Coming after 1.5:** the reveal of two built-but-hidden formats, the **"Darlings"** commander-style singleton format and the land-reserve **Battle Box** constructed format, once each has been balance-measured; a premium game-feel program (a physical cast-and-carry hand, a redesigned pack-opening runway, a trophy hall, card-back and playmat cosmetics, and per-set collection Courts); a rules upgrade that re-offers response windows after a stack resolves mid-combat; and a Limited economy retune. Suggested decks, a cinematic replay director, Story Mode, later expansions, and player-made card packs follow on the longer slate. Real head-to-head LAN multiplayer is designed but remains further out.
+**Coming after 1.5.5:** the 1.6 Warchest launch moves the reserve mana system across the game and retires classic constructed through a deck-fix flow. The train also carries reopened response windows, Premium UX Wave B, returning-mechanics support, cosmetics, and the first large reserve-native expansion. Suggested decks, a cinematic replay director, Story Mode, later expansions, player-made card packs, and real head-to-head LAN multiplayer remain further out.
 
 ## About this project
 

@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
-import { Art } from '../art/ArtResolver';
 import { SET_ICON_PATHS } from '../art/setIcons';
 import { SET_TITLES } from '../data/setTitles';
 import { FEATURES } from '../config/features';
@@ -10,12 +9,11 @@ import { heroById } from '../data/heroes';
 import { ALL_CARDS, CARD_DB, byId } from '../data/catalog';
 import type { CardDef, CardType, Color, Rarity } from '../engine/types';
 import { def, isType, manaValue } from '../engine/types';
-import { bestOwnedVariant, isBasic, ownedCount } from '../meta/Collection';
+import { displayVariantFor, isBasic, ownedCount } from '../meta/Collection';
 import {
   applyFilters,
   collectiblePool,
   defaultFilterState,
-  ownedVariantEntries,
   SORT_LABEL,
   type CollectionFilterState,
   type SortMode,
@@ -33,7 +31,6 @@ import {
   removeDeckSlot,
   renameDeck,
   saveDeck,
-  setDeckSlotVariant,
   validateDeck,
 } from '../meta/DeckStorage';
 import {
@@ -42,11 +39,11 @@ import {
   LAND_RESERVE_SIZE,
   MAX_DUAL_LANDS,
   validateLandReserve,
-} from '../meta/battleBox';
+} from '../meta/warchest';
 import {
   darlingsCardError,
   listOwnedLegendaryCreatures,
-  validateBattleBoxDeck,
+  validateWarchestDeck,
   validateDarlingsDeck,
 } from '../meta/darlings';
 import {
@@ -57,10 +54,11 @@ import {
   type SavedDeck,
 } from '../meta/SaveManager';
 import { Services } from '../meta/services';
-import { PLAIN_VARIANT, TIER_LABEL, parseVariantKey, variantKey, type CardVariant } from '../meta/variants';
+import { PLAIN_VARIANT, TIER_LABEL, variantKey, type CardVariant } from '../meta/variants';
 import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestures';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
+import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, PIE_COLORS } from '../ui/deckStats';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -71,6 +69,7 @@ import {
   DARLINGS_RULES_COPY,
   activeVisibleSavedDeck,
   builderFormatForDeck,
+  collapseDeckRows,
   formatDeckSize,
   formatLabel,
   formatPageCount,
@@ -79,7 +78,6 @@ import {
   gridPosition,
   isDeckBuilderDirty,
   offeredBuilderFormats,
-  variantPickerChoices,
   type BuilderFormat,
   visibleSavedDecks,
 } from '../ui/deckBuilderHelpers';
@@ -159,19 +157,24 @@ export class DeckBuilderScene extends Phaser.Scene {
   private reserveFormatsEnabled = false;
   /** UI working deck. A hidden active deck remains untouched in the save. */
   private workingDeckId: string | null = null;
-  private savedDeckSnapshot: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId'> | null = null;
+  private savedDeckSnapshot: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null = null;
   private exitPrompt: ModalShell | null = null;
 
   constructor() {
     super('DeckBuilder');
   }
 
-  /** Collection-context previews show the best treatment the player owns. */
+  /** Collection-context previews use the player's shared display treatment. */
   private ownedVariantFor(cardId: string): CardVariant | undefined {
     const save = Services.save.data;
     if (ownedCount(save, cardId) <= 0) return undefined;
-    const variant = bestOwnedVariant(save, cardId);
+    const variant = displayVariantFor(save, cardId);
     return variantKey(variant) === variantKey(PLAIN_VARIANT) ? undefined : variant;
+  }
+
+  /** A collection pin or retained legacy slot pin keeps a collapsed row legible. */
+  private hasPinnedDisplay(cardId: string, hasLegacyVariantPin = false): boolean {
+    return hasLegacyVariantPin || typeof Services.save.data.pinnedVariants[cardId] === 'string';
   }
 
   create(): void {
@@ -280,6 +283,11 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.renderPool();
     this.renderDeck();
     this.syncFilterButton();
+    if (this.activeFormat() === 'darlings') {
+      showDarlingsTutorial(this, {
+        onReadMore: () => this.scene.start('Glossary', { focus: 'Darlings' }),
+      });
+    }
   }
 
   private activeFormat(): BuilderFormat {
@@ -316,8 +324,8 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.landReserve,
       );
     }
-    if (format === 'battlebox') {
-      return validateBattleBoxDeck(CARD_DB, Services.save.data, cards, this.landReserve);
+    if (format === 'warchest') {
+      return validateWarchestDeck(CARD_DB, Services.save.data, cards, this.landReserve);
     }
     return validateDeck(CARD_DB, Services.save.data, cards);
   }
@@ -657,13 +665,14 @@ export class DeckBuilderScene extends Phaser.Scene {
     return save.decks.find((d) => d.id === this.workingDeckId) ?? null;
   }
 
-  private snapshotSavedDeck(deck: SavedDeck | null | undefined): Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId'> | null {
+  private snapshotSavedDeck(deck: SavedDeck | null | undefined): Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null {
     if (!deck) return null;
     return {
       cards: [...deck.cards],
       variantPins: deck.cards.map((_, index) => deck.variantPins?.[index] ?? null),
       landReserve: deck.landReserve ? [...deck.landReserve] : null,
       heroCardId: deck.heroCardId,
+      darlingId: deck.darlingId ?? null,
     };
   }
 
@@ -675,6 +684,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     active.variantPins = [...(snapshot.variantPins ?? [])];
     active.landReserve = snapshot.landReserve ? [...snapshot.landReserve] : null;
     active.heroCardId = snapshot.heroCardId;
+    active.darlingId = snapshot.darlingId ?? null;
   }
 
   private hasUnsavedDeckEdits(): boolean {
@@ -684,6 +694,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         variantPins: this.variantPins,
         landReserve: this.landReserve,
         heroCardId: this.activeSavedDeck()?.heroCardId ?? null,
+        darlingId: this.activeSavedDeck()?.darlingId ?? null,
       },
       this.savedDeckSnapshot,
     );
@@ -926,7 +937,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       const renderRow = (): void => {
         dynamic?.destroy();
         const style = this.activeSavedDeck()?.landStyle?.[id] ?? null;
-        const preview = makeCardThumb(this, bounds.x + 48, y, d, 0.095, style ?? undefined);
+        const preview = makeCardThumb(this, bounds.x + 48, y, d, 0.095, style ?? undefined, this.ownedVariantFor(d.id));
         const cycler = this.landStyleControl(
           bounds.x + bounds.width - 36,
           y,
@@ -965,7 +976,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       return;
     }
     if (this.activeFormat() === format) {
-      if (format === 'darlings') this.showDarlingPicker();
+      if (format === 'darlings') this.openDarlingsFormat();
       return;
     }
     active.format = format;
@@ -982,7 +993,15 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.deckPage = 0;
     this.renderPool();
     this.renderDeck();
-    if (format === 'darlings') this.showDarlingPicker();
+    if (format === 'darlings') this.openDarlingsFormat();
+  }
+
+  private openDarlingsFormat(): void {
+    const tutorial = showDarlingsTutorial(this, {
+      onDismiss: () => this.showDarlingPicker(),
+      onReadMore: () => this.scene.start('Glossary', { focus: 'Darlings' }),
+    });
+    if (!tutorial) this.showDarlingPicker();
   }
 
   private showDarlingPicker(): void {
@@ -1031,11 +1050,12 @@ export class DeckBuilderScene extends Phaser.Scene {
     const choose = (id: string): void => {
       const active = this.syncDraftToActiveDeck();
       if (!active || active.format !== 'darlings') return;
-      if (!this.deck.includes(id)) {
-        const next = appendDeckSlot({ cards: this.deck, variantPins: this.variantPins }, id);
-        this.deck = next.cards;
-        this.variantPins = next.variantPins;
-      }
+      const withoutPrevious = active.darlingId
+        ? removeAllDeckSlots({ cards: this.deck, variantPins: this.variantPins }, active.darlingId)
+        : { cards: this.deck, variantPins: this.variantPins };
+      const next = removeAllDeckSlots(withoutPrevious, id);
+      this.deck = next.cards;
+      this.variantPins = next.variantPins;
       active.darlingId = id;
       active.cards = [...this.deck];
       active.variantPins = [...this.variantPins];
@@ -1062,7 +1082,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       }
       visible.forEach((candidate, index) => {
         const position = gridPosition(index, 3, 355, 208, 190, 150);
-        const thumb = makeCardThumb(this, position.x, position.y, candidate, 0.22);
+        const thumb = makeCardThumb(this, position.x, position.y, candidate, 0.22, undefined, this.ownedVariantFor(candidate.id));
         const name = this.add.text(position.x, position.y + 72, candidate.name, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
@@ -1119,7 +1139,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     const overlay = shell.container;
     overlay.add(
-      this.add.text(640, 72, 'Choose a land for reserve slot ' + (index + 1), {
+      this.add.text(640, 72, 'Choose a land for Warchest Reserves slot ' + (index + 1), {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
@@ -1188,7 +1208,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       radius: theme.radius.control,
     }));
     this.rightPane.push(panel);
-    panel.add(this.add.text(x0 + 198, 162, 'Land reserve', {
+    panel.add(this.add.text(x0 + 198, 162, 'Warchest Reserves', {
       fontFamily: theme.fonts.display,
       fontSize: `${theme.type.label}px`,
       color: theme.colors.heading,
@@ -1218,68 +1238,12 @@ export class DeckBuilderScene extends Phaser.Scene {
       panel.add(button.container);
     }
     const reserveIssues = validateLandReserve(CARD_DB, Services.save.data, this.landReserve);
-    panel.add(this.add.text(x0 + 198, 326, reserveIssues[0]?.message ?? 'Reserve ready.', {
+    panel.add(this.add.text(x0 + 198, 326, reserveIssues[0]?.message ?? 'Warchest ready.', {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       color: reserveIssues.length > 0 ? theme.colors.danger : theme.colors.success,
       wordWrap: { width: 150 },
     }).setOrigin(0, 0));
-  }
-
-  private slotVariant(slotIndex: number, cardId: string): CardVariant | undefined {
-    const pin = this.variantPins[slotIndex];
-    if (pin) return parseVariantKey(pin);
-    return this.ownedVariantFor(cardId);
-  }
-
-  private showVariantPicker(slotIndex: number): void {
-    const cardId = this.deck[slotIndex];
-    const card = cardId ? CARD_DB[cardId] : undefined;
-    if (!card) return;
-    const choices = variantPickerChoices(Services.save.data, this.deck, this.variantPins, slotIndex, cardId);
-    const shell = modalShell(this, {
-      width: 660,
-      height: 500,
-      dimAlpha: 0.56,
-      depth: theme.depth.inspect,
-      tapDimToClose: true,
-      escToClose: true,
-    });
-    const overlay = shell.container;
-    overlay.add(this.add.text(640, 70, 'Choose look for ' + card.name, {
-      fontFamily: theme.fonts.display,
-      fontSize: `${theme.type.h1}px`,
-      color: theme.colors.heading,
-    }).setOrigin(0.5));
-    overlay.add(this.add.text(640, 110, 'Choose the exact look for this copy. Auto uses your best available treatment when the duel begins.', {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.caption}px`,
-      color: theme.colors.body,
-      align: 'center',
-      wordWrap: { width: 520 },
-    }).setOrigin(0.5));
-    const current = this.variantPins[slotIndex] ?? null;
-    choices.forEach((choice, index) => {
-      const variant = choice.variant ?? this.ownedVariantFor(cardId);
-      const preview = makeCardThumb(this, 462, 170 + index * 42, card, 0.08, undefined, variant);
-      const button = themedButton(this, 640, 170 + index * 42, choice.label + ' · ' + choice.remainingCopies + ' left', {
-        variant: choice.key === current ? 'primary' : 'ghost',
-        size: 'sm',
-        minWidth: 270,
-        enabled: choice.remainingCopies > 0 || choice.key === current || choice.key === null,
-        onTap: () => {
-          const next = setDeckSlotVariant({ cards: this.deck, variantPins: this.variantPins }, slotIndex, choice.key);
-          this.deck = next.cards;
-          this.variantPins = next.variantPins;
-          this.syncDraftToActiveDeck();
-          Services.save.flush();
-          shell.close();
-          this.renderPool();
-          this.renderDeck();
-        },
-      });
-      overlay.add([preview, button.container]);
-    });
   }
 
   /** ‹ N/M › deck-list pager, shared by both profiles; sits below the list. */
@@ -1356,7 +1320,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const renderDeckTile = (parent: Phaser.GameObjects.Container, deck: SavedDeck, x: number, y: number): void => {
       const isActive = deck.id === this.workingDeckId;
-      const deckFormat = deck.format === 'darlings' || deck.format === 'battlebox' ? deck.format : 'constructed';
+      const deckFormat = deck.format === 'darlings' || deck.format === 'warchest' ? deck.format : 'constructed';
       const left = x - tileW / 2;
       const top = y - tileH / 2;
       const rightGuideX = left + tileW - 13;
@@ -1619,13 +1583,25 @@ export class DeckBuilderScene extends Phaser.Scene {
     const artW = width - 6;
     const artH = height - 6;
 
+    if (hero.cardId && CARD_DB[hero.cardId]) {
+      const thumb = makeCardThumb(
+        this,
+        x,
+        y,
+        CARD_DB[hero.cardId],
+        Math.min(artW / 300, artH / 420),
+        undefined,
+        this.ownedVariantFor(hero.cardId),
+      );
+      parent.add(thumb);
+      parent.add(this.add.rectangle(x, y, width, height, theme.graphics.dim, 0).setStrokeStyle(1, colorInt(theme.colors.gold), theme.alpha.ghost));
+      return;
+    }
+
     let img: Phaser.GameObjects.Image | null = null;
     try {
       if (hero.textureKey && this.textures.exists(hero.textureKey)) {
         img = this.add.image(x, y, hero.textureKey);
-      } else if (hero.cardId) {
-        const ref = Art.resolver?.getArt(hero.cardId);
-        if (ref) img = ref.frameName ? this.add.image(x, y, ref.textureKey, ref.frameName) : this.add.image(x, y, ref.textureKey);
       }
     } catch {
       img = null;
@@ -1824,18 +1800,17 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private renderDeckRows(format: BuilderFormat, x0: number, heroId: string | null): void {
-    const entries = this.deck
-      .map((id, index) => ({ id, index }))
-      .filter(({ id }) => !isBasic(CARD_DB, id))
+    const entries = collapseDeckRows(this.deck, this.variantPins)
+      .filter(({ cardId }) => !isBasic(CARD_DB, cardId))
       .sort((a, b) => {
-        const da = CARD_DB[a.id];
-        const dbb = CARD_DB[b.id];
-        if (!da || !dbb) return a.index - b.index;
+        const da = CARD_DB[a.cardId];
+        const dbb = CARD_DB[b.cardId];
+        if (!da || !dbb) return a.firstIndex - b.firstIndex;
         return (
           Number(isType(dbb, 'land')) - Number(isType(da, 'land')) ||
           manaValue(da.cost) - manaValue(dbb.cost) ||
           da.name.localeCompare(dbb.name) ||
-          a.index - b.index
+          a.firstIndex - b.firstIndex
         );
       });
     const rows = this.touch ? TOUCH_DECK_ROWS : DESKTOP_DECK_ROWS;
@@ -1843,56 +1818,68 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.deckPage = Phaser.Math.Clamp(this.deckPage, 0, pages - 1);
     const listY0 = this.touch ? 270 : format === 'constructed' ? DESKTOP_DECK_Y0 : 270;
     formatPageSlice(entries, this.deckPage, rows).forEach((entry, i) => {
-      const d = CARD_DB[entry.id];
+      const d = CARD_DB[entry.cardId];
       if (!d) return;
       const y = listY0 + i * (this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH);
       const star = this.add
-        .text(x0, y, heroId === entry.id ? '★' : '☆', {
+        .text(x0, y, heroId === entry.cardId ? '★' : '☆', {
           fontFamily: theme.fonts.ui,
           fontSize: theme.type.label + 'px',
           fontStyle: '700',
-          color: heroId === entry.id ? theme.colors.goldHover : theme.colors.muted,
+          color: heroId === entry.cardId ? theme.colors.goldHover : theme.colors.muted,
         })
         .setOrigin(0, 0)
         .setInteractive({ useHandCursor: true });
-      bindTapButton(this, star, () => this.toggleDeckHero(entry.id));
+      bindTapButton(this, star, () => this.toggleDeckHero(entry.cardId));
       inflateHitArea(star, this.touch ? 44 : 34, this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH);
-      const variant = this.slotVariant(entry.index, entry.id);
-      const row = this.add.text(x0 + (this.touch ? 26 : 24), y, entry.index + 1 + ' · ' + d.name + ' (' + manaValue(d.cost) + ')', {
+      const hasPinnedDisplay = this.hasPinnedDisplay(entry.cardId, entry.hasLegacyVariantPin);
+      const marker = this.add
+        .text(x0 + (this.touch ? 27 : 24), y, hasPinnedDisplay ? '📌' : '', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0, 0);
+      const variant = this.ownedVariantFor(entry.cardId);
+      const row = this.add.text(x0 + (this.touch ? 44 : 40), y, d.name + ' (' + manaValue(d.cost) + ')', {
         fontFamily: theme.fonts.ui,
         fontSize: theme.type.caption + 'px',
         color: theme.colors.body,
       });
+      const quantity = entry.quantity > 1
+        ? this.add
+          .text(x0 + (this.touch ? 210 : 230), y, `×${entry.quantity}`, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.micro}px`,
+            fontStyle: theme.weight.w700,
+            color: theme.colors.gold,
+            backgroundColor: theme.colors.panelFill,
+            padding: { x: 5, y: 1 },
+          })
+          .setOrigin(0, 0)
+        : null;
       if (!this.touch) {
         row.setInteractive({ useHandCursor: true });
-        inflateHitArea(row, 90, DESKTOP_DECK_PITCH);
+        inflateHitArea(row, 190, DESKTOP_DECK_PITCH);
         this.zoom.attach(row, d, variant);
         row.on('pointerover', () => {
           row.setColor(theme.colors.danger);
-          inflateHitArea(row, 90, DESKTOP_DECK_PITCH);
+          inflateHitArea(row, 190, DESKTOP_DECK_PITCH);
         });
         row.on('pointerout', () => {
           row.setColor(theme.colors.body);
-          inflateHitArea(row, 90, DESKTOP_DECK_PITCH);
+          inflateHitArea(row, 190, DESKTOP_DECK_PITCH);
         });
-        bindTapButton(this, row, (p) => this.removeCardAt(entry.index, p));
+        bindTapButton(this, row, (p) => this.removeCardAt(entry.firstIndex, p));
       }
-      this.rightPane.push(star, row);
-      if (ownedVariantEntries(Services.save.data, entry.id).length > 1) {
-        const look = themedButton(this, x0 + (this.touch ? 214 : 246), y + (this.touch ? 8 : 0), 'Choose look', {
-          variant: this.variantPins[entry.index] ? 'primary' : 'ghost',
-          size: 'sm',
-          minWidth: 92,
-          onTap: () => this.showVariantPicker(entry.index),
-        });
-        this.rightPane.push(look.container);
-      }
+      this.rightPane.push(star, marker, row);
+      if (quantity) this.rightPane.push(quantity);
       if (this.touch) {
         const minus = themedButton(this, PANEL_RIGHT_X - 45, y + 8, '−', {
           variant: 'danger',
           size: 'sm',
           minWidth: 90,
-          onTap: (p) => this.removeCardAt(entry.index, p),
+          onTap: (p) => this.removeCardAt(entry.firstIndex, p),
         });
         this.rightPane.push(minus.container);
       }
@@ -1919,8 +1906,28 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.fitTextToWidth(title, this.touch ? 130 : format === 'constructed' ? 250 : 190);
     this.rightPane.push(title);
     if (format === 'darlings' && active?.darlingId && CARD_DB[active.darlingId]) {
-      const portrait = makeCardThumb(this, x0 + 20, 32, CARD_DB[active.darlingId], 0.09);
+      const portrait = makeCardThumb(
+        this,
+        x0 + 20,
+        32,
+        CARD_DB[active.darlingId],
+        0.09,
+        undefined,
+        this.ownedVariantFor(active.darlingId),
+      );
       this.rightPane.push(portrait);
+      const darlingSlot = this.add
+        .text(x0 + 46, 62, 'Darling', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0, 0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, darlingSlot, () => this.openDarlingsFormat());
+      inflateHitArea(darlingSlot, 74, 34);
+      this.rightPane.push(darlingSlot);
     }
     if (this.reserveFormatsEnabled) this.renderFormatSwitch(x0, format);
     if (format === 'constructed' && this.touch) {
@@ -1961,7 +1968,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       const n = this.countIn(this.deck, id);
       const landStyle = active?.landStyle?.[id] ?? null;
       const row = this.add
-        .text(x0, y, `${d.name}: ${n}`, {
+        .text(x0, y, `${d.name}: ${n}${this.hasPinnedDisplay(id) ? '  📌' : ''}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${this.touch ? theme.type.label : theme.type.caption}px`,
           color: theme.colors.body,

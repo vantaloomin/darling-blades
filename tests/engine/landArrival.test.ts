@@ -67,12 +67,12 @@ describe('land arrival triggers', () => {
     expect(events[2]).toEqual({ e: 'effectApplied', op: 'gainLife' });
   });
 
-  it('fires the same arrives rider when played from a Battle Box reserve', () => {
+  it('fires the same arrives rider when played from a Warchest reserve', () => {
     const game = new Game({
       decks: [SPELL_DECK, SPELL_DECK],
       seed: 17,
       db: LAND_DB,
-      format: 'battleBox',
+      format: 'warchest',
       landReserves: [RESERVE, RESERVE],
     });
     keepBoth(game);

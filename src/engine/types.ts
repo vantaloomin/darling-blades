@@ -364,6 +364,9 @@ export interface PlayerState {
   severed: CardEntry[]; // public, one-way in v1
   /** Public ordered reserve. Omitted entirely for classic games. */
   landReserve?: CardEntry[];
+  darlingZone?: CardEntry | null;
+  darlingInstanceId?: number;
+  darlingTax?: number;
   landPlayedThisTurn: boolean;
   mulligans: number;
   keptHand: boolean;
@@ -372,7 +375,9 @@ export interface PlayerState {
 /** Resolution-time choices deferred until the current synchronous batch ends. */
 export type PendingDecision =
   | { kind: 'chooseBasicLand'; player: PlayerId }
-  | { kind: 'foresee'; player: PlayerId; n: number };
+  // `player` is the continuation controller. thenOps is present only when
+  // Foresee interrupted a printed op list and contains target-free tail ops.
+  | { kind: 'foresee'; player: PlayerId; n: number; thenOps?: EffectOp[] };
 
 export interface GameState {
   rng: RngState;
@@ -400,12 +405,13 @@ export interface GameState {
 }
 
 /** The pre-1.5 state projection retained for existing scenes and AI callers. */
-export interface LegacyPlayerState extends Omit<PlayerState, 'deck' | 'hand' | 'graveyard' | 'severed' | 'landReserve'> {
+export interface LegacyPlayerState extends Omit<PlayerState, 'deck' | 'hand' | 'graveyard' | 'severed' | 'landReserve' | 'darlingZone'> {
   deck: string[];
   hand: string[];
   graveyard: string[];
   severed: string[];
   landReserve?: string[];
+  darlingZone?: string | null;
 }
 
 export type LegacyAwaiting = Exclude<Awaiting, { kind: 'foresee' }> |

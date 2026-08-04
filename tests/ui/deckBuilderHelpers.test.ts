@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { freshSave } from '../../src/meta/SaveManager';
-import { variantKey } from '../../src/meta/variants';
+import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import { backLabelFor } from '../../src/ui/navigation';
 import {
   activeVisibleSavedDeck,
-  BATTLE_BOX_RULES_COPY,
+  WARCHEST_RULES_COPY,
+  DARLINGS_RULES_COPY,
   builderFormatForDeck,
+  collapseDeckRows,
   isReplayVisible,
   isSavedDeckVisible,
   formatDeckSize,
@@ -16,7 +18,6 @@ import {
   gridPosition,
   isDeckBuilderDirty,
   offeredBuilderFormats,
-  variantPickerChoices,
   visibleSavedDecks,
 } from '../../src/ui/deckBuilderHelpers';
 
@@ -32,21 +33,28 @@ describe('deck builder helpers', () => {
   it('keeps format labels, sizes, and launch copy explicit', () => {
     expect(formatLabel('constructed')).toBe('Constructed');
     expect(formatLabel('darlings')).toBe('Darlings');
-    expect(formatLabel('battlebox')).toBe('Battle Box');
+    expect(formatLabel('warchest')).toBe('Warchest');
     expect(formatDeckSize('constructed')).toBe(60);
-    expect(formatDeckSize('darlings')).toBe(50);
-    expect(formatDeckSize('battlebox')).toBe(50);
+    expect(formatDeckSize('darlings')).toBe(DARLINGS_DECK_SIZE);
+    expect(formatDeckSize('warchest')).toBe(WARCHEST_DECK_SIZE);
     expect(formatGauntletUnavailableCopy('darlings')).toBe('Darlings decks are available in Practice only.');
-    expect(formatGauntletUnavailableCopy('battlebox')).toBe('Battle Box decks are available in Practice only.');
-    expect(BATTLE_BOX_RULES_COPY).not.toContain('\u2014');
+    expect(formatGauntletUnavailableCopy('warchest')).toBe('Warchest decks are available in Practice only.');
+    expect(WARCHEST_RULES_COPY).toBe(
+      'Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.',
+    );
+    expect(WARCHEST_RULES_COPY).not.toContain('\u2014');
+    expect(DARLINGS_RULES_COPY).toBe(
+      'Choose your Darling. She waits in her own zone, ready when you call. Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Each time she falls, her next call costs 2 more.',
+    );
+    expect(DARLINGS_RULES_COPY).not.toContain('\u2014');
   });
 
   it('offers only Constructed and hides saved reserve decks when the flag is off', () => {
     const save = freshSave(0);
     const constructed = { ...save.decks[0], id: 'constructed', format: 'constructed' as const };
     const darlings = { ...save.decks[0], id: 'darlings', format: 'darlings' as const };
-    const battlebox = { ...save.decks[0], id: 'battlebox', format: 'battlebox' as const };
-    const decks = [constructed, darlings, battlebox];
+    const warchest = { ...save.decks[0], id: 'warchest', format: 'warchest' as const };
+    const decks = [constructed, darlings, warchest];
     const hiddenSnapshot = structuredClone(darlings);
 
     expect(offeredBuilderFormats(false)).toEqual(['constructed']);
@@ -55,19 +63,19 @@ describe('deck builder helpers', () => {
     expect(builderFormatForDeck(darlings, false)).toBe('constructed');
     expect(activeVisibleSavedDeck(decks, 'darlings', false)?.id).toBe('constructed');
     expect(darlings).toEqual(hiddenSnapshot);
-    expect(isReplayVisible({ format: 'battleBox' }, false)).toBe(false);
+    expect(isReplayVisible({ format: 'warchest' }, false)).toBe(false);
   });
 
   it('restores reserve formats, saved decks, and replay visibility when the flag is on', () => {
     const save = freshSave(0);
     const constructed = { ...save.decks[0], id: 'constructed', format: 'constructed' as const };
     const darlings = { ...save.decks[0], id: 'darlings', format: 'darlings' as const };
-    const battlebox = { ...save.decks[0], id: 'battlebox', format: 'battlebox' as const };
-    const decks = [constructed, darlings, battlebox];
+    const warchest = { ...save.decks[0], id: 'warchest', format: 'warchest' as const };
+    const decks = [constructed, darlings, warchest];
 
-    expect(offeredBuilderFormats(true)).toEqual(['constructed', 'darlings', 'battlebox']);
-    expect(visibleSavedDecks(decks, true).map((deck) => deck.id)).toEqual(['constructed', 'darlings', 'battlebox']);
-    expect(activeVisibleSavedDeck(decks, 'battlebox', true)?.id).toBe('battlebox');
+    expect(offeredBuilderFormats(true)).toEqual(['constructed', 'darlings', 'warchest']);
+    expect(visibleSavedDecks(decks, true).map((deck) => deck.id)).toEqual(['constructed', 'darlings', 'warchest']);
+    expect(activeVisibleSavedDeck(decks, 'warchest', true)?.id).toBe('warchest');
     expect(isReplayVisible({ format: 'darlings' }, true)).toBe(true);
   });
 
@@ -83,17 +91,14 @@ describe('deck builder helpers', () => {
     expect(gridPosition(4, 3, 10, 20, 100, 40)).toEqual({ x: 110, y: 60 });
   });
 
-  it('reports owned treatment choices and remaining positional copies', () => {
-    const save = freshSave(0);
-    const blue = variantKey({ frame: 'blue', holo: 'none', fullArt: false });
-    const red = variantKey({ frame: 'red', holo: 'none', fullArt: false });
-    save.collection.bear = 3;
-    save.collectionVariants.bear = { [blue]: 2, [red]: 1 };
-    const choices = variantPickerChoices(save, ['bear', 'bear'], [blue, null], 1, 'bear');
-    expect(choices.map((choice) => choice.label)).toEqual(['Auto', 'Red Frame', 'Blue Frame']);
-    expect(choices.find((choice) => choice.key === blue)?.remainingCopies).toBe(1);
-    expect(choices.find((choice) => choice.key === red)?.remainingCopies).toBe(1);
-    expect(choices.find((choice) => choice.key === null)?.remainingCopies).toBe(2);
+  it('collapses every deck format to one row per card and retains a legacy-pin marker', () => {
+    expect(collapseDeckRows(['bear', 'elf', 'bear', 'bear', 'elf'], [null, 'blue|none|standard', null, 'red|none|standard', null])).toEqual([
+      { cardId: 'bear', quantity: 3, firstIndex: 0, hasLegacyVariantPin: true },
+      { cardId: 'elf', quantity: 2, firstIndex: 1, hasLegacyVariantPin: true },
+    ]);
+    expect(collapseDeckRows(['darling'], [null])).toEqual([
+      { cardId: 'darling', quantity: 1, firstIndex: 0, hasLegacyVariantPin: false },
+    ]);
   });
 
   it('detects deck, treatment-pin, reserve, and hero edits against the saved record', () => {

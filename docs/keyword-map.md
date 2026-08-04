@@ -104,6 +104,15 @@ text swap.
 | **Retell** | Flashback | "Retell {cost}: You may cast this from your graveyard, then sever it." | **SHIPPED (1.4, engine PR #108 + UI PR #112):** `CardDef.retell {cost, ops?}` — the first alternative cost, Rituals/Charms from your own graveyard only, severed on every exit incl. the cancel op; the optional `ops` override powers dual-mode cards (The Sleeping Curse). Graveyard-modal Retell chips in DuelScene. Not evergreen; recorded like Empower. |
 | **Empower** | Kicker | "You may pay an additional {cost} as you cast this. If you do, [the empowered effect]." | **SHIPPED (1.3, engine + duel-UI chooser):** `CardDef.empower {cost, ops}`, empowered flag on the cast action, combined-cost pricing in `validateAction`/the mana solver, trigger-safe riders in `resolve.ts`, AI pricing at every difficulty, and a cast-time chooser shown only when the extra cost is payable (user decision 2026-07-17). Kept in this table because Kicker is not evergreen; listed as shipped for the record. |
 
+## Shipped format terms
+
+| Term | Status | Rule |
+| --- | --- | --- |
+| **Warchest** | Shipped | A 50-card all-spell deck with a 10-land Warchest. Up to 5 lands may be dual lands. |
+| **Warchest Reserves** | Shipped | The lands in your Warchest that are not yet in play. Each turn, move one of them into your Active Warchest. |
+| **Active Warchest** | Shipped | Your deployed Warchest lands. Dual lands arrive tapped; destroyed basic lands return to your Reserves. |
+| **Darlings** | Shipped | An 80-card singleton deck in its Darling's colors with a 10-land Warchest. |
+
 ## Naming rules (collision guard)
 
 - **Skyborne / Warding Gaze** pair by name (flier + the sentinel that watches the

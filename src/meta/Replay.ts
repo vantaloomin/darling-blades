@@ -2,7 +2,7 @@ import type { Action } from '../engine/actions';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
 import type { CardDb, PlayerId } from '../engine/types';
-import { usesLandReserve, type GameFormat, type ReserveFormat } from '../config/rules';
+import type { GameFormat, ReserveFormat } from '../config/rules';
 
 /**
  * Deterministic replays (1.2, plan-road-to-1.0 Feature 4's deferred slice).
@@ -18,12 +18,12 @@ import { usesLandReserve, type GameFormat, type ReserveFormat } from '../config/
  * worse than an honest "recorded on an older version" notice).
  */
 
-// Hauntlink adds an observable alternate cast mode, a public host target, and
-// link lifecycle events. Old logs must fail closed instead of replaying under
-// the changed resolution and SBA rules.
-export const REPLAY_LOG_VERSION = 4 as const;
+// Foresee continuations change observable action/event ordering. Old logs must
+// fail closed instead of replaying under the new resolution semantics.
+export const REPLAY_LOG_VERSION = 6 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
+const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
 
 export interface ReplayContext {
   mode: 'practice' | 'gauntlet' | 'limited';
@@ -48,6 +48,8 @@ export interface ReplayLog {
   format?: ReserveFormat;
   /** Ordered reserve payload reconstructed before replaying reserve choices. */
   landReserves?: [string[], string[]];
+  /** Public command-zone assignment reconstructed before replaying Darling actions. */
+  darlings?: [string | null, string | null];
   context: ReplayContext;
   /** Every successful `Game.submit`, in order, both seats. */
   actions: { p: PlayerId; a: Action }[];
@@ -82,6 +84,7 @@ export function startReplayDraft(init: {
   context: ReplayContext;
   format?: GameFormat;
   landReserves?: [string[], string[]];
+  darlings?: [string | null, string | null];
 }): ReplayDraft {
   const draft: ReplayDraft = {
     v: REPLAY_LOG_VERSION,
@@ -91,10 +94,16 @@ export function startReplayDraft(init: {
     context: { ...init.context },
     actions: [],
   };
-  if (init.format && usesLandReserve(init.format)) {
+  if (init.format === 'warchest') {
     if (!init.landReserves) throw new Error('Reserve replay drafts require landReserves.');
-    draft.format = init.format as ReserveFormat;
+    draft.format = 'warchest';
     draft.landReserves = [init.landReserves[0].slice(), init.landReserves[1].slice()];
+  } else if (init.format === 'darlings') {
+    if (!init.landReserves) throw new Error('Darlings replay drafts require landReserves.');
+    if (!init.darlings) throw new Error('Darlings replay drafts require darlings.');
+    draft.format = 'darlings';
+    draft.landReserves = [init.landReserves[0].slice(), init.landReserves[1].slice()];
+    draft.darlings = [init.darlings[0], init.darlings[1]];
   }
   return draft;
 }
@@ -154,19 +163,30 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
     }
     throw new Error('This replay was recorded on a different card database and cannot be replayed.');
   }
-  if (log.format && !log.landReserves) {
+  const format = normalizeReplayFormat(log.format);
+  if (log.format && !format) throw new Error('This replay uses an unsupported format.');
+  if (format && !log.landReserves) {
     throw new Error('This reserve replay is missing its land-reserve payload.');
+  }
+  if (format === 'darlings' && !log.darlings) {
+    throw new Error('This Darlings replay is missing its Darling payload.');
   }
   const game = new Game({
     decks: [log.decks[0].slice(), log.decks[1].slice()],
     seed: log.seed,
     db,
-    ...(log.format
+    ...(format === 'warchest'
       ? {
-          format: log.format,
+          format,
           landReserves: [log.landReserves?.[0]?.slice() ?? [], log.landReserves?.[1]?.slice() ?? []],
         }
-      : {}),
+      : format === 'darlings'
+        ? {
+            format,
+            landReserves: [log.landReserves?.[0]?.slice() ?? [], log.landReserves?.[1]?.slice() ?? []],
+            darlings: [log.darlings?.[0] ?? null, log.darlings?.[1] ?? null],
+          }
+        : {}),
   });
   const eventLog: GameEvent[] = [...game.initialEvents];
   for (const step of log.actions) eventLog.push(...game.submit(step.p, step.a));
@@ -182,14 +202,31 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
 export function isReplayLog(value: unknown): value is ReplayLog {
   if (!value || typeof value !== 'object') return false;
   const log = value as Partial<ReplayLog>;
-  const reserveShape =
-    (log.format === undefined && log.landReserves === undefined) ||
-    ((log.format === 'battleBox' || log.format === 'battlebox' || log.format === 'darlings') &&
-      Array.isArray(log.landReserves) &&
-      log.landReserves.length === 2 &&
-      log.landReserves.every((r) => Array.isArray(r) && r.every((id) => typeof id === 'string')));
-  return (
-    (log.v === REPLAY_LOG_VERSION || log.v === 3 || log.v === 2) &&
+  const rawFormat = (log as { format?: unknown }).format;
+  const format = normalizeReplayFormat(rawFormat);
+  const reserveShape = Array.isArray(log.landReserves) &&
+    log.landReserves.length === 2 &&
+    log.landReserves.every((r) => Array.isArray(r) && r.every((id) => typeof id === 'string'));
+  const darlingShape = Array.isArray(log.darlings) &&
+    log.darlings.length === 2 &&
+    log.darlings.every((id) => id === null || typeof id === 'string');
+  // v5 added the Darlings command-zone payload. Keep v5 and older blobs
+  // structurally valid for save preservation, while canReplay still refuses
+  // every older version through its execution gate.
+  const currentPayloadShape = rawFormat === undefined
+    ? log.landReserves === undefined && log.darlings === undefined
+    : format === 'warchest'
+      ? reserveShape && log.darlings === undefined
+      : format === 'darlings'
+        ? reserveShape && darlingShape
+        : false;
+  const legacyPayloadShape = (rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
+    (format !== undefined && reserveShape && log.darlings === undefined);
+  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 5
+    ? currentPayloadShape
+    : legacyPayloadShape;
+  const valid =
+    (log.v === REPLAY_LOG_VERSION || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     Array.isArray(log.decks) &&
@@ -204,6 +241,12 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     (log.result === 'win' || log.result === 'loss') &&
     typeof log.endedAt === 'number' &&
     typeof log.turns === 'number'
-    && reserveShape
-  );
+    && payloadShape;
+  if (valid && format && rawFormat !== format) (log as { format?: ReserveFormat }).format = format;
+  return valid;
+}
+
+function normalizeReplayFormat(value: unknown): ReserveFormat | undefined {
+  if (value === 'warchest' || value === 'darlings') return value;
+  return typeof value === 'string' && LEGACY_WARCHEST_FORMATS.has(value) ? 'warchest' : undefined;
 }

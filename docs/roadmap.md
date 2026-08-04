@@ -52,16 +52,29 @@ _Dated 2026-07-31. Review monthly._
   (`src/audio/`, 18 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v24** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v26** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
   familiarity, v17→v18 Premium Draft, v18→v19 premium weekly allowance,
   v19→v20 deterministic replays, v20→v21 Full Art three-segment variant
   keys, v21→v22 tower roster stamp + per-basic land styles, v22→v23 one
-  atomic migration for the Darlings fields, the Battle Box land reserve, and
-  variant-deck pins, v23→v24 the empty-block confirmation preference — see
+  atomic migration for the Darlings fields, the Warchest Reserves, and
+  variant-deck pins, v23→v24 the empty-block confirmation preference, and
+  v24→v25 the Warchest id reveal plus collection-level display pins, and
+  v25→v26 the Darlings command zone, Darlings tutorial, and free Zhou Yu
+  claim — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-08-04 · the 1.5.5 cut)
+
+**The 1.5.5 release train (PRs #172-#190).** The measurement-gated Warchest
+and Darlings reveal closed with reserve and precon baselines, the Darlings
+command-zone respec, five shop precons and their tutorial, collection display
+pins and collapsed deck rows, the single-tab save guard, the Foresee ordering
+repair, player-feedback batches, and the Yokai art round. The original
+collection metric rework and art riders landed alongside this wider release
+scope; 1.6 remains the Warchest launch train.
 
 ## Recently shipped (2026-07-31 · the 1.5.0 cut)
 
@@ -69,11 +82,11 @@ The 1.5 train closed 2026-07-31: the combined balance pass (#165, twelve
 waves, W7 200-seed re-baseline, floors re-centred down under user
 authorization), the premium UX Wave A (#166, five waves of duel feel plus
 the owner's live-playtest batch), the shop CTA fix (#167), and the economy
-re-date (#168, canonical baseline vs 769 collectible, all persona bands
+re-date (#168, canonical baseline vs 764 collectible, all persona bands
 re-centred inside noise) all merged green. The metagame deep sweep was
 explicitly WAIVED for this cut (user 2026-07-31: the 1.5.5/1.6 docket will
-invalidate its field). Battle Box and Darlings ship **hidden** in 1.5.0 and
-are exposed in 1.5.5 (user decision 2026-07-29).
+invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
+(user decision 2026-07-31).
 
 - **Cyberpunk Yokai Nights, the sixth expansion (#138, #145, #147).** 120
   cards (pool 638→758) with the **Hauntlink** headline mechanic (alt play
@@ -85,16 +98,17 @@ are exposed in 1.5.5 (user decision 2026-07-29).
 - **Bosses 19-20 + tower to 20 floors (#151).** Queen of the Lanterned Roof
   and Kitsune Neon Tyrant (R19 71% / R20 75% at 40 seeds, provisional floors
   pending the 1.5 re-baseline), 410/430g clear rewards.
-- **Battle Box + Darlings formats, engine-complete and flagged off (#139,
+- **Warchest + Darlings formats, revealed in 1.5.5 (#139,
   #140, #141, #144, #148, #149, #150, #152, #157).** Three-format deck
-  model (constructed / darlings / battlebox) with a chosen 10-land reserve
-  (max 5 duals, asymmetric destruction), SaveData **v23** in one atomic
+  model (constructed / darlings / warchest) with a chosen 10-land Warchest
+  (max 5 duals, asymmetric destruction), SaveData **v25** through atomic
   migration, replay log v4, card-instance variant pins (positional),
   SaveCode profile export/import (checksum + zip-bomb hardening), builder
-  format switch + Darlings picker + reserve panel, duel reserve strip and
-  reserve-format launches, and Profile SaveCode flow. All player-facing
-  entry points sit behind `FEATURES.reserveFormats = false` for 1.5.0;
-  saves stay lossless and the dev cheat can flip the flag for playtesting.
+  format switch + Darlings picker + Warchest Reserves panel, duel reserve strip
+  and reserve-format launches, Profile SaveCode flow, and the Darlings command-zone
+  respec (79 spells plus an external Darling). All player-facing
+  entry points ship behind `FEATURES.reserveFormats = true`; saves and legacy
+  replays stay lossless.
 - **Shop Card Packs wave (#153) + Practice picker strip (#154).** Boosters
   tab renamed Card Packs and made the default landing unless a free deck is
   genuinely claimable; **Base Set booster scoped to base-set-only cards**
@@ -1373,8 +1387,8 @@ are exposed in 1.5.5 (user decision 2026-07-29).
   the Dark Tales health pass. Expansion 6 is named; 7-10 are TBD pending
   the expansion-ideation session (the next planning discussion).
 
-  **1.5** = **ACTIVE PROGRAM** (decisions locked 2026-07-28; the program
-  plan is [plan-1.5.md](plan-1.5.md)): **"Darlings"**, the Commander/EDH-style format (the parked
+  **1.5** = **SHIPPED 2026-07-31** (v1.5.0 cut — see Recently shipped; the
+  program plan is [plan-1.5.md](plan-1.5.md)): **"Darlings"**, the Commander/EDH-style format (the parked
   commander→darling doc-rename draft on `claude/commander-naming-review-ee50e3`
   is its spec seed) + the **Cyberpunk Yokai Nights** expansion (Expansion 6 —
   moved up from 1.6 by user decision 2026-07-24: it is the only fully-known
@@ -1388,14 +1402,19 @@ are exposed in 1.5.5 (user decision 2026-07-29).
   ~~metagame-loop CI promotion~~ (decided 2026-07-28: stays
   informational-only — the 1.4 release sweep hit max-rounds without
   convergence; revisit after the 1.5 sweep);
-  **Reserve formats status:** Darlings and Battle Box are engine-complete and
-  UI-complete, but flagged off for 1.5.0. They are exposed in 1.5.5 after
-  their `TO MEASURE` balance matrices exist;
-  **1.6** = **suggested decks v1** (the persona hill-climb harness pointed
-  at the player's own collection: "build me a deck from what I own" — the
-  hard half already ships as the dev-only crafting loop) + **player-facing
-  replays v1** (rewatch + share codes over the existing deterministic
-  replay log) + Expansion 7 (from the slate below);
+  **1.5.5** = **SHIPPED 2026-08-04** (v1.5.5 cut; the close-out record is
+  [plan-1.5.5.md](plan-1.5.5.md)): the measurement-gated **Warchest +
+  Darlings reveal**, **collectionPct metric rework**, sweeper/tribal **art
+  riders**, and the release-scope additions recorded in Recently shipped;
+  **1.6** = **the Warchest launch train** (north star ratified 2026-07-31,
+  draft program in [plan-1.6-draft.md](plan-1.6-draft.md)): Warchest
+  becomes the game-wide mana system and classic constructed retires (decks
+  preserved and flagged for a Deck Builder fix flow, never deleted), with
+  the priority-window reopening, Premium UX Wave B, the returning-mechanics
+  sprinkle, the cosmetics layer, and the first large (~240-250 card)
+  reserve-native expansion; the previously sketched 1.6 items (**suggested
+  decks v1**, **player-facing replays v1**) re-slot at the 1.6 planning
+  session once 1.5.5's measurements exist;
   **1.7** = **Story Mode** + Expansion 8 (slate — candidate: themed to carry
   the story campaign) + **accessibility wave 1** (colorblind-safe
   mana/rarity cues, text scaling). DECIDE-BY-1.7: **localization** —

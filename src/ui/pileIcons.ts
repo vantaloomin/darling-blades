@@ -7,6 +7,7 @@ export const PILE_ICON_KEYS = {
   hand: 'pile-icon-hand',
   grave: 'pile-icon-tombstone',
   deck: 'pile-icon-card-back-mini',
+  reserve: 'pile-icon-warchest-reserve',
   severed: 'pile-icon-severed',
 } as const;
 
@@ -116,6 +117,29 @@ function drawCardBack(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.stroke();
 }
 
+/** Card-back pile marked with a small land bead so Reserves read distinctly. */
+function drawReserve(ctx: CanvasRenderingContext2D, s: number): void {
+  drawCardBack(ctx, s);
+  const cx = s / 2 + 6;
+  const cy = s / 2 + 7;
+  ctx.fillStyle = theme.colors.success;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = theme.colors.gold;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = theme.colors.panelFill;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 2.5, cy + 1.5);
+  ctx.lineTo(cx, cy - 2.5);
+  ctx.lineTo(cx + 2.5, cy + 1.5);
+  ctx.stroke();
+}
+
 function drawSevered(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.strokeStyle = theme.colors.body;
   ctx.lineWidth = 2;
@@ -141,10 +165,26 @@ function drawSevered(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.stroke();
 }
 
+export const RETELL_ICON_KEY = 'retell-icon-tombstone';
+
+/**
+ * The graveyard tombstone alone, plate-free, for the card name bar: cards
+ * with Retell carry it so they read as graveyard-active at a glance (same
+ * tombstone as the graveyard pile for consistency; user pick 2026-07-31).
+ */
+export function bakeRetellTombstone(scene: Phaser.Scene): void {
+  if (scene.textures.exists(RETELL_ICON_KEY)) return;
+  const tex = scene.textures.createCanvas(RETELL_ICON_KEY, PILE_ICON_SIZE, PILE_ICON_SIZE)!;
+  const ctx = tex.getContext();
+  drawTombstone(ctx, PILE_ICON_SIZE);
+  tex.refresh();
+}
+
 const DRAW_ICON: Record<PileIconKind, IconDraw> = {
   hand: drawHand,
   grave: drawTombstone,
   deck: drawCardBack,
+  reserve: drawReserve,
   severed: drawSevered,
 };
 

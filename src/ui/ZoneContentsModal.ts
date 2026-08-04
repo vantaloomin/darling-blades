@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { CardDef, ManaCost } from '../engine/types';
+import type { CardVariant } from '../meta/variants';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { makeCardThumb } from './CardThumbCache';
 import { CARD_H, CARD_W } from './CardView';
@@ -10,7 +11,8 @@ import { modalShell, pager, type ModalShellOptions } from './themeWidgets';
 
 export interface ZoneContentsAction {
   label: string;
-  cost: ManaCost;
+  /** Omit for zero-cost actions such as playing a reserve land. */
+  cost?: ManaCost;
   onSelect: () => void;
 }
 
@@ -18,6 +20,7 @@ export interface ZoneContentsEntry {
   card: CardDef;
   count: number;
   landStyle?: string;
+  variant?: CardVariant;
   action?: ZoneContentsAction;
 }
 
@@ -28,7 +31,7 @@ export interface ZoneContentsModalOptions
   > {
   title: string;
   entries: ZoneContentsEntry[];
-  onInspect: (card: CardDef, landStyle?: string) => void;
+  onInspect: (card: CardDef, variant?: CardVariant, landStyle?: string) => void;
   emptyText?: string;
   /**
    * Optional mana-context line under the title (`{W}`/`{2}` tokens render as
@@ -137,7 +140,8 @@ export function showZoneContents(
 
   const addActionChip = (x: number, y: number, action: ZoneContentsAction): void => {
     const chip = scene.add.container(x, y);
-    const rendered = renderManaText(scene, chip, 0, 0, `${action.label} ${manaCostText(action.cost)}`, {
+    const cost = action.cost ? ` ${manaCostText(action.cost)}` : '';
+    const rendered = renderManaText(scene, chip, 0, 0, `${action.label}${cost}`, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.micro}px`,
       fontStyle: theme.weight.w700,
@@ -189,12 +193,12 @@ export function showZoneContents(
       const row = Math.floor(i / GRID_COLS);
       const x = GRID_CX - ((GRID_COLS - 1) * COL_GAP) / 2 + col * COL_GAP;
       const y = GRID_TOP_Y + row * ROW_GAP;
-      const thumb = makeCardThumb(scene, x, y, entry.card, THUMB_SCALE, entry.landStyle);
+      const thumb = makeCardThumb(scene, x, y, entry.card, THUMB_SCALE, entry.landStyle, entry.variant);
       thumb.setInteractive({ useHandCursor: true });
       bindTapButton(scene, thumb, (pointer) => {
         if (pointer.rightButtonReleased()) return;
         shell.close();
-        opts.onInspect(entry.card, entry.landStyle);
+        opts.onInspect(entry.card, entry.variant, entry.landStyle);
       });
       inflateHitArea(thumb, 44, 44);
       thumb.on('pointerover', (pointer: Phaser.Input.Pointer) => {

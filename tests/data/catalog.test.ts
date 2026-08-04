@@ -222,4 +222,23 @@ describe('catalog integrity', () => {
       ).toBe(true);
     }
   });
+  it('recall spells never target a player seat (a seat recall is a silent no-op)', () => {
+    // Sea-Glass Knife class, user-reported 2026-08-01: four Dark Tales
+    // recalls used what:'any', so noise-tier AIs could legally cast a bounce
+    // at a face and the spell did nothing. Printed text says creature;
+    // legality must match. Self-CREATURE bounce stays legal by design.
+    for (const card of ALL_CARDS) {
+      for (const ab of card.abilities ?? []) {
+        if (!(ab.ops ?? []).some((op) => op.op === 'recall' && op.to === 'target')) continue;
+        const specs = ab.targets ?? [];
+        expect(specs.length, `${card.id} has a targeted recall with no target spec`).toBeGreaterThan(0);
+        for (const spec of specs) {
+          expect(
+            spec.what !== 'any' && spec.what !== 'player',
+            `${card.id} recall targets '${spec.what}' - a player seat recall no-ops`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
 });

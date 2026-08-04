@@ -3,15 +3,15 @@ import { CARD_DB } from '../../src/data/catalog';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import {
   auditLandFetchCards,
-  BATTLE_BOX_DECK_SIZE,
+  WARCHEST_DECK_SIZE,
   findLandFetchCards,
   hasLandFetchBehavior,
   isDualLand,
   landFetchExclusionError,
-  validateBattleBoxDeckShape,
+  validateWarchestDeckShape,
   validateLandReserve,
-} from '../../src/meta/battleBox';
-import { validateBattleBoxDeck } from '../../src/meta/darlings';
+} from '../../src/meta/warchest';
+import { validateWarchestDeck } from '../../src/meta/darlings';
 import { freshSave, type SaveData } from '../../src/meta/SaveManager';
 
 function card(id: string, over: Partial<CardDef> = {}): CardDef {
@@ -157,11 +157,11 @@ function legalDeck(): string[] {
   ];
 }
 
-function messages(issues: ReturnType<typeof validateBattleBoxDeck>): string[] {
+function messages(issues: ReturnType<typeof validateWarchestDeck>): string[] {
   return issues.map((issue) => issue.message);
 }
 
-describe('Battle Box shared validators', () => {
+describe('Warchest shared validators', () => {
   it('classifies duals from their mana ability shape, including three-color lands', () => {
     expect(isDualLand(DB[DUAL])).toBe(true);
     expect(isDualLand(DB[TRIPLE])).toBe(true);
@@ -173,17 +173,17 @@ describe('Battle Box shared validators', () => {
   it('requires exactly 10 reserve lands at both boundaries', () => {
     const save = saveWith(DUAL);
     expect(validateLandReserve(DB, save, basicReserve().slice(0, 9)).map((i) => i.message)).toContain(
-      'Land reserves need exactly 10 lands (currently 9)',
+      'Warchest Reserves need exactly 10 lands (currently 9)',
     );
     expect(
       validateLandReserve(DB, save, [...basicReserve(), BASIC]).map((i) => i.message),
-    ).toContain('Land reserves need exactly 10 lands (currently 11)');
+    ).toContain('Warchest Reserves need exactly 10 lands (currently 11)');
   });
 
   it('rejects more than five dual lands', () => {
     const reserve = dualReserve(DUAL, DUAL, DUAL, DUAL, DUAL, DUAL);
     expect(validateLandReserve(DB, saveWith(DUAL), reserve).map((i) => i.message)).toContain(
-      'Land reserves may contain at most 5 dual lands (currently 6)',
+      'Warchest Reserves may contain at most 5 dual lands (currently 6)',
     );
   });
 
@@ -205,7 +205,7 @@ describe('Battle Box shared validators', () => {
   it('requires ownership for duals but not basics', () => {
     expect(validateLandReserve(DB, saveWith(), basicReserve())).toEqual([]);
     expect(validateLandReserve(DB, saveWith(), dualReserve(DUAL)).map((i) => i.message)).toContain(
-      'Grove Crossing: 1 in land reserve but only 0 owned',
+      'Grove Crossing: 1 in Warchest Reserves but only 0 owned',
     );
   });
 
@@ -213,58 +213,58 @@ describe('Battle Box shared validators', () => {
     const oneOwned = saveWith(DUAL);
     const ownershipIssues = validateLandReserve(DB, oneOwned, dualReserve(DUAL, DUAL, DUAL, DUAL, DUAL));
     expect(ownershipIssues.map((issue) => issue.message)).toEqual([
-      'Grove Crossing: 5 copies in land reserve (max 4)',
-      'Grove Crossing: 5 in land reserve but only 1 owned',
+      'Grove Crossing: 5 copies in Warchest Reserves (max 4)',
+      'Grove Crossing: 5 in Warchest Reserves but only 1 owned',
     ]);
 
     const fiveOwned = saveWith(DUAL);
     fiveOwned.collection[DUAL] = 5;
     const playsetIssues = validateLandReserve(DB, fiveOwned, dualReserve(DUAL, DUAL, DUAL, DUAL, DUAL));
     expect(playsetIssues.map((issue) => issue.message)).toEqual([
-      'Grove Crossing: 5 copies in land reserve (max 4)',
+      'Grove Crossing: 5 copies in Warchest Reserves (max 4)',
     ]);
     expect(validateLandReserve(DB, saveWith(), basicReserve())).toEqual([]);
   });
 
   it('shares the 50-card no-land shape', () => {
-    expect(validateBattleBoxDeckShape(DB, legalDeck())).toEqual([]);
-    expect(validateBattleBoxDeckShape(DB, legalDeck().slice(0, BATTLE_BOX_DECK_SIZE - 1)).map((i) => i.message)).toContain(
+    expect(validateWarchestDeckShape(DB, legalDeck())).toEqual([]);
+    expect(validateWarchestDeckShape(DB, legalDeck().slice(0, WARCHEST_DECK_SIZE - 1)).map((i) => i.message)).toContain(
       'Reserve-format decks need exactly 50 cards (currently 49)',
     );
-    expect(validateBattleBoxDeckShape(DB, [...legalDeck(), SPELL]).map((i) => i.message)).toContain(
+    expect(validateWarchestDeckShape(DB, [...legalDeck(), SPELL]).map((i) => i.message)).toContain(
       'Reserve-format decks need exactly 50 cards (currently 51)',
     );
-    expect(validateBattleBoxDeckShape(DB, [...legalDeck().slice(0, 49), BASIC]).map((i) => i.message)).toContain(
-      'Decks in this format hold no lands; build your land reserve instead',
+    expect(validateWarchestDeckShape(DB, [...legalDeck().slice(0, 49), BASIC]).map((i) => i.message)).toContain(
+      'Decks in this format hold no lands; build your Warchest instead',
     );
   });
 
-  it('enforces Constructed playset limits and ownership in Battle Box decks', () => {
+  it('enforces Constructed playset limits and ownership in Warchest decks', () => {
     const legalSave = saveWith(...SPELL_IDS);
     for (const id of SPELL_IDS) legalSave.collection[id] = 4;
-    expect(validateBattleBoxDeck(DB, legalSave, legalDeck(), basicReserve())).toEqual([]);
+    expect(validateWarchestDeck(DB, legalSave, legalDeck(), basicReserve())).toEqual([]);
 
     const overCopies = [
       ...Array.from({ length: 5 }, () => SPELL_IDS[0]),
       ...legalDeck().slice(5),
     ];
-    expect(messages(validateBattleBoxDeck(DB, saveWith(...SPELL_IDS), overCopies, basicReserve()))).toContain(
+    expect(messages(validateWarchestDeck(DB, saveWith(...SPELL_IDS), overCopies, basicReserve()))).toContain(
       'spell-0: 5 copies (max 4)',
     );
 
     const unowned = legalDeck();
-    expect(messages(validateBattleBoxDeck(DB, saveWith(...SPELL_IDS.slice(1)), unowned, basicReserve()))).toContain(
+    expect(messages(validateWarchestDeck(DB, saveWith(...SPELL_IDS.slice(1)), unowned, basicReserve()))).toContain(
       'spell-0: 4 in deck but only 0 owned',
     );
   });
 
   it('excludes land-fetch cards with a direct builder message', () => {
     const cards = [...legalDeck().slice(0, 49), FETCH];
-    expect(messages(validateBattleBoxDeck(DB, saveWith(...SPELL_IDS, FETCH), cards, basicReserve()))).toContain(
-      'Verdant Compass cannot find lands here; your lands live in your reserve.',
+    expect(messages(validateWarchestDeck(DB, saveWith(...SPELL_IDS, FETCH), cards, basicReserve()))).toContain(
+      'Verdant Compass cannot find lands here; your lands live in your Warchest.',
     );
     expect(landFetchExclusionError(DB, FETCH)).toBe(
-      'Verdant Compass cannot find lands here; your lands live in your reserve.',
+      'Verdant Compass cannot find lands here; your lands live in your Warchest.',
     );
     expect(landFetchExclusionError(DB, SPELL)).toBeNull();
   });

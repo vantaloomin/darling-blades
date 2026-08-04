@@ -4,11 +4,23 @@ import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { DECK_INFO } from '../data/deckInfo';
+import {
+  DARLINGS_PRECONS,
+  FREE_DARLINGS_PRECON_ID,
+  type DarlingsPrecon,
+} from '../data/darlingsPrecons';
 import { SET_BLURBS, SET_TITLES } from '../data/setTitles';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue, type CardDef } from '../engine/types';
-import { buyThemeDeck, claimFreeStarter, previewDeckGrant, spendGold } from '../meta/Economy';
+import {
+  buyThemeDeck,
+  claimFreeDarlingsDeck,
+  claimFreeStarter,
+  deckProductCardIds,
+  previewDeckGrant,
+  spendGold,
+} from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
 import { packPoolSummary, type PackPoolSummary } from '../meta/packSummary';
 import { Services } from '../meta/services';
@@ -16,6 +28,7 @@ import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { attachTouchGestures, bindTapButton, inflateHitArea } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { makeCardThumb } from '../ui/CardThumbCache';
+import { DECK_SHOP_LAYOUT, deckShopLayout } from '../ui/deckShopLayout';
 import { CARD_H, CardView } from '../ui/CardView';
 import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
@@ -346,59 +359,18 @@ type ShopTab = 'boosters' | 'decks';
 
 /** A buyable deck SKU: the list, its price, and whether it's a theme/precon. */
 interface DeckSku {
-  deck: DeckList;
+  deck: DeckList | DarlingsPrecon;
   price: number;
   theme: boolean;
+}
+
+function isDarlingsPrecon(deck: DeckList | DarlingsPrecon): deck is DarlingsPrecon {
+  return 'darlingId' in deck;
 }
 
 interface PreviewEntry {
   d: CardDef;
   n: number;
-}
-
-// --- Decks-tab grid ---------------------------------------------------------
-// Two-column, count-aware plate grid: the row pitch is derived from the deck
-// count so the roster keeps fitting as sets add precons (comfortable through
-// at least 14 decks). tests/ui/layout.test.ts mirrors this math ("deck shop
-// grid") — update the test in lockstep with any change here.
-const DECK_GRID = {
-  cols: 2,
-  top: 186, // below the intro line at y=152
-  bottom: 696, // last plate bottom must stay above y=700
-  plateW: 560,
-  gapX: 16,
-  maxPitch: 118,
-  maxPlateH: 100,
-  plateGapY: 8,
-} as const;
-
-interface DeckGridLayout {
-  rows: number;
-  rowPitch: number;
-  plateH: number;
-  colLefts: number[];
-  rowCenter(row: number): number;
-}
-
-function deckGridLayout(count: number): DeckGridLayout {
-  const rows = Math.max(1, Math.ceil(count / DECK_GRID.cols));
-  const band = DECK_GRID.bottom - DECK_GRID.top;
-  const rowPitch = Math.min(DECK_GRID.maxPitch, band / rows);
-  const plateH = Math.min(DECK_GRID.maxPlateH, rowPitch - DECK_GRID.plateGapY);
-  const y0 = DECK_GRID.top + (band - rows * rowPitch) / 2 + rowPitch / 2;
-  const totalW = DECK_GRID.cols * DECK_GRID.plateW + (DECK_GRID.cols - 1) * DECK_GRID.gapX;
-  const x0 = (theme.design.width - totalW) / 2;
-  const colLefts = Array.from(
-    { length: DECK_GRID.cols },
-    (_, c) => x0 + c * (DECK_GRID.plateW + DECK_GRID.gapX),
-  );
-  return {
-    rows,
-    rowPitch,
-    plateH,
-    colLefts,
-    rowCenter: (row) => Math.round(y0 + row * rowPitch),
-  };
 }
 
 const PREVIEW_ROWS_PER_COLUMN = 9;
@@ -447,11 +419,20 @@ export class ShopScene extends Phaser.Scene {
     super('Shop');
   }
 
-  /** All buyable decks: the theme/precon(s) first, then the starter precons. */
-  private deckSkus(): DeckSku[] {
+  /** The Decks tab separates ordinary constructed products from Darlings. */
+  private deckSections(): { label: string; skus: DeckSku[] }[] {
     return [
-      ...THEME_DECKS.map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
-      ...STARTER_DECKS.map((deck) => ({ deck, price: ECONOMY.starterDeckPrice, theme: false })),
+      {
+        label: 'Standard Decks',
+        skus: [
+          ...THEME_DECKS.map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
+          ...STARTER_DECKS.map((deck) => ({ deck, price: ECONOMY.starterDeckPrice, theme: false })),
+        ],
+      },
+      {
+        label: 'Darling Decks',
+        skus: DARLINGS_PRECONS.map((deck) => ({ deck, price: ECONOMY.darlingsPreconPrice, theme: true })),
+      },
     ];
   }
 
@@ -463,7 +444,7 @@ export class ShopScene extends Phaser.Scene {
     // This asks isFreeClaim rather than re-deriving it: the button also
     // requires the deck to be a starter the player does not already own, so an
     // unspent marker alone opened Decks on a shop with no claim to make.
-    const freeClaimAvailable = STARTER_DECKS.some((deck) => this.isFreeClaim(deck));
+    const freeClaimAvailable = [...STARTER_DECKS, ...DARLINGS_PRECONS].some((deck) => this.isFreeClaim(deck));
     this.tab = data.tab ?? (freeClaimAvailable ? 'decks' : 'boosters');
     this.qty = 1;
     this.skuButtons = [];
@@ -1084,18 +1065,38 @@ export class ShopScene extends Phaser.Scene {
   private buildDecksGroup(group: Phaser.GameObjects.Container): void {
     group.removeAll(true); // rebuildable after a purchase
     this.deckInteractiveTargets = [];
-    const skus = this.deckSkus();
-    const grid = deckGridLayout(skus.length);
-    skus.forEach((sku, i) => {
-      const left = grid.colLefts[i % DECK_GRID.cols];
-      const cy = grid.rowCenter(Math.floor(i / DECK_GRID.cols));
-      this.buildDeckPlate(group, sku, left, cy, grid.plateH);
+    const sections = this.deckSections();
+    const layout = deckShopLayout(sections.map((section) => section.skus.length));
+    sections.forEach((section, sectionIndex) => {
+      if (section.skus.length === 0) return;
+      const sectionLayout = layout.sections[sectionIndex];
+      group.add(
+        this.add
+          .text(layout.colLefts[0], sectionLayout.headingY, section.label, {
+            fontFamily: theme.fonts.display,
+            fontSize: `${theme.type.label}px`,
+            color: theme.colors.gold,
+          })
+          .setOrigin(0, 0.5),
+      );
+      section.skus.forEach((sku, i) => {
+        const left = layout.colLefts[i % DECK_SHOP_LAYOUT.cols];
+        const cy = sectionLayout.rowCenter(Math.floor(i / DECK_SHOP_LAYOUT.cols));
+        this.buildDeckPlate(group, sku, left, cy, layout.plateH);
+      });
     });
   }
 
-  /** A starter is a one-time FREE claim while the player hasn't taken their free deck yet. */
-  private isFreeClaim(deck: DeckList): boolean {
+  /** Starter and Zhou Yu grants are independent, one-time FREE claims. */
+  private isFreeClaim(deck: DeckList | DarlingsPrecon): boolean {
     const save = Services.save.data;
+    if (isDarlingsPrecon(deck)) {
+      return (
+        deck.id === FREE_DARLINGS_PRECON_ID &&
+        !save.darlingsFreeDeckClaimed &&
+        !save.decks.some((d) => d.id === deck.id)
+      );
+    }
     return (
       save.starterChosen === null &&
       STARTER_DECKS.some((s) => s.id === deck.id) &&
@@ -1116,12 +1117,12 @@ export class ShopScene extends Phaser.Scene {
 
     // Controls hug the plate's right edge: Buy/Claim (130-wide hit) inset 12px,
     // Preview (90-wide hit) to its left with a 10px hit gap (>= the 8px floor).
-    const buyX = left + DECK_GRID.plateW - 77;
+    const buyX = left + DECK_SHOP_LAYOUT.plateW - 77;
     const previewX = buyX - 120;
     const textLeft = left + 16;
     const textMaxW = previewX - 45 - 10 - textLeft; // stop short of the Preview hit rect
 
-    const plate = panel(this, left, cy - plateH / 2, DECK_GRID.plateW, plateH, { alpha: 0.7 });
+    const plate = panel(this, left, cy - plateH / 2, DECK_SHOP_LAYOUT.plateW, plateH, { alpha: 0.7 });
     // Long name/blurb lines shrink toward their left anchor instead of running
     // under the Preview button (plain Text scaling — no scaled-Container input).
     const fit = (t: Phaser.GameObjects.Text): Phaser.GameObjects.Text => {
@@ -1140,7 +1141,7 @@ export class ShopScene extends Phaser.Scene {
     // Color identity renders as mana pips, never letter codes (design-system
     // "Color identity" rule); the archetype line starts after the pip run.
     const info = DECK_INFO[deck.id];
-    const pipKeys = info ? info.colors.split('/') : [];
+    const pipKeys = info ? info.colors.split('/') : (isDarlingsPrecon(deck) ? [...deck.colors] : []);
     const PIP = 16;
     const pipStep = PIP + 4;
     for (let i = 0; i < pipKeys.length; i++) {
@@ -1153,7 +1154,7 @@ export class ShopScene extends Phaser.Scene {
     const blurbLeft = textLeft + (pipKeys.length > 0 ? pipKeys.length * pipStep + 2 : 0);
     // No free-starter marker here: the Claim Free button already carries that
     // state (user-directed 2026-07-17).
-    const blurbText = (info?.archetype ?? '') + (owned ? '  ·  Owned' : '');
+    const blurbText = (isDarlingsPrecon(deck) ? deck.blurb : (info?.archetype ?? '')) + (owned ? '  ·  Owned' : '');
     const blurb = this.add
       .text(blurbLeft, cy + 11, blurbText, {
         fontFamily: theme.fonts.ui,
@@ -1207,9 +1208,13 @@ export class ShopScene extends Phaser.Scene {
   /** Claim/buy a deck. Returns true only when the purchase actually happened. */
   private onBuyDeck(sku: DeckSku): boolean {
     const save = Services.save.data;
-    if (this.isFreeClaim(sku.deck)) {
-      claimFreeStarter(save, CARD_DB, sku.deck); // free — sets starterChosen + activeDeckId
-    } else if (!buyThemeDeck(save, CARD_DB, sku.deck, sku.price)) {
+    const freeClaim = this.isFreeClaim(sku.deck);
+    const purchased = freeClaim
+      ? (isDarlingsPrecon(sku.deck)
+        ? claimFreeDarlingsDeck(save, CARD_DB, sku.deck)
+        : claimFreeStarter(save, CARD_DB, sku.deck))
+      : buyThemeDeck(save, CARD_DB, sku.deck, sku.price);
+    if (!purchased) {
       this.insufficientFunds();
       return false;
     }
@@ -1320,14 +1325,15 @@ export class ShopScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
     const idY = content.y + 8;
+    const darlings = isDarlingsPrecon(deck);
     const archText = this.add
-      .text(0, idY, `${info?.archetype ?? ''} · ${deck.cards.length} cards`, {
+      .text(0, idY, `${darlings ? deck.blurb : (info?.archetype ?? '')} · ${darlings ? '79 spells / 10 Warchest' : `${deck.cards.length} cards`}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0, 0.5);
-    const pipKeys = (info?.colors ?? '').split('/').filter(Boolean);
+    const pipKeys = (info?.colors ?? (darlings ? deck.colors.join('/') : '')).split('/').filter(Boolean);
     const pipSize = 22;
     const pipPitch = pipSize + 4;
     const clusterW = pipKeys.length * pipPitch + 8 + archText.width;
@@ -1338,10 +1344,11 @@ export class ShopScene extends Phaser.Scene {
     }
     archText.setPosition(px + 8, idY);
     c.add(archText);
-    if (info?.plays) {
+    const plays = info?.plays ?? (darlings ? `Your Darling begins in the command zone. ${deck.blurb}` : '');
+    if (plays) {
       c.add(
         this.add
-          .text(contentCenterX, content.y + 24, info.plays, {
+          .text(contentCenterX, content.y + 24, plays, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             color: theme.colors.body,
@@ -1464,7 +1471,7 @@ export class ShopScene extends Phaser.Scene {
 
     // What the purchase actually adds (mirrors grantDeckCards — see Economy).
     c.add(sectionLabel(statsX, content.y + 346, 'WHAT YOU GET'));
-    const grant = previewDeckGrant(save, CARD_DB, deck.cards);
+    const grant = previewDeckGrant(save, CARD_DB, deckProductCardIds(deck));
     const grantText =
       grant.grantedCopies > 0
         ? `Adds ${grant.grantedCopies} new card copies to your collection; you already own ${grant.ownedCopies} of its ${grant.nonBasicCopies} non-basic copies. Basics are always free.`

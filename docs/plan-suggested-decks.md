@@ -21,7 +21,7 @@ In 1.6, the deck builder adds `Suggest a deck`. The player chooses a style in Da
 - `Go wide`
 - `Balanced`
 
-They may optionally choose colors and, for a Darlings deck, a Darling. The result screen shows a legal 60-card proposal using only owned non-basic copies, with basic lands supplied freely. It explains the broad shape with compact facts such as `24 lands`, `18 early plays`, `6 ways to draw`, and `Built from 47 cards you own`. Exact explanation metrics must come from deterministic classifiers, not generated prose.
+They may optionally choose colors and, for a Darlings deck, a Darling. A Constructed result shows a legal 60-card proposal using only owned non-basic copies, with basic lands supplied freely. A Darlings result shows a legal 80-card singleton proposal in the Darling's colors plus a 10-land Warchest. It explains the broad shape with format-appropriate compact facts such as `24 lands`, `18 early plays`, `6 ways to draw`, and `Built from 47 cards you own`. Exact explanation metrics must come from deterministic classifiers, not generated prose. Updated for the Warchest reveal 2026-07-31.
 
 The actions are `Save as new deck`, `Replace current deck`, `Try another seed`, and `Cancel`. Replacement uses the normal destructive-confirmation setting. A progress view can say `Building`, `Testing changes`, and `Finishing your list`; it must not show fake percentages. If the device budget expires, return the best legal candidate found so far and label it `Quick suggestion`.
 

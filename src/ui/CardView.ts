@@ -4,6 +4,7 @@ import { CARD_DB } from '../data/catalog';
 import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
 import { isBasic } from '../meta/Collection';
+import { bakeRetellTombstone, RETELL_ICON_KEY } from './pileIcons';
 import type { CardVariant, FrameStyle } from '../meta/variants';
 import { FRAME_TREATMENTS, frameKeyFor } from './CardFrameFactory';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
@@ -35,6 +36,10 @@ const BOTTOM_BADGE_Y = FRAME_INNER.bottom - BADGE_H / 2; // 185.5
 const GEM_PLATE_W = 44;
 const BOTTOM_PIP_SIZE = 21;
 const SET_ICON_SIZE = 24; // set symbols are leaner silhouettes than the old diamond gem
+const LAND_MANA_ROW = {
+  mono: { pip: 48, gap: 10, arrowW: 24, orW: 26, arrowFont: 24, orFont: 20 },
+  multi: { pip: 36, gap: 8, arrowW: 20, orW: 20, arrowFont: 20, orFont: 16 },
+} as const;
 
 /**
  * Shrink-to-fit with RE-WRAP: when a text block must scale down by s to fit
@@ -126,6 +131,7 @@ export class CardView extends Phaser.GameObjects.Container {
   private costPlate: Phaser.GameObjects.Image;
   private gem: Phaser.GameObjects.Image;
   private crown: Phaser.GameObjects.Image;
+  private retellIcon: Phaser.GameObjects.Image;
   private back: Phaser.GameObjects.Image;
   private pips: Phaser.GameObjects.GameObject[] = [];
   private holo: HoloHandle | null = null;
@@ -238,6 +244,8 @@ export class CardView extends Phaser.GameObjects.Container {
       .image(0, BOTTOM_BADGE_Y, 'pt-plate')
       .setDisplaySize(GEM_PLATE_W, BADGE_H);
     this.gem = scene.add.image(0, BOTTOM_BADGE_Y, 'seticon-base-c').setDisplaySize(SET_ICON_SIZE, SET_ICON_SIZE);
+    bakeRetellTombstone(scene);
+    this.retellIcon = scene.add.image(132, -182, RETELL_ICON_KEY).setDisplaySize(20, 20).setVisible(false);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
     this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
 
@@ -250,6 +258,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.textPlate,
       this.ring,
       this.nameText,
+      this.retellIcon,
       this.typeText,
       this.rulesTextObj,
       this.flavorRule,
@@ -335,12 +344,18 @@ export class CardView extends Phaser.GameObjects.Container {
     // trap — glyph metrics aren't known before the glyph run).
     this.nameText.setScale(1).setText(card.name);
     const nameW = Math.max(1, this.nameText.width);
+    // A card with Retell carries the graveyard tombstone at the name bar's
+    // right end (x=132, user pick 2026-07-31), so the name's budget shrinks
+    // to clear it.
+    const hasRetell = !!card.retell;
+    this.retellIcon.setVisible(hasRetell);
     // Prefer a 244px fit with a 0.7 readability floor, but never render wider
     // than the card contains (the name starts at x=-126; keep its right edge
-    // ≤ +144). For an extreme name the containment clamp wins over the floor so
-    // it can never spill past the card border.
-    const nameFit = Math.max(0.7, Math.min(1, 244 / nameW));
-    this.nameText.setScale(Math.min(nameFit, 270 / nameW));
+    // ≤ +144, or ≤ +118 when the Retell tombstone occupies the bar's end).
+    // For an extreme name the containment clamp wins over the floor so it can
+    // never spill past the card border.
+    const nameFit = Math.max(0.7, Math.min(1, (hasRetell ? 220 : 244) / nameW));
+    this.nameText.setScale(Math.min(nameFit, (hasRetell ? 244 : 270) / nameW));
     this.typeText.setScale(1).setText(typeLine(card));
     const typeW = Math.max(1, this.typeText.width);
     this.typeText.setScale(Math.min(1, TEXT_WIDTH / typeW));
@@ -415,6 +430,7 @@ export class CardView extends Phaser.GameObjects.Container {
     // normal-text floor (light art only raises it).
     const textAlpha = fullArt ? 0.9 : 1;
     this.nameText.setAlpha(textAlpha);
+    this.retellIcon.setAlpha(textAlpha);
     this.typeText.setAlpha(textAlpha);
     this.rulesTextObj.setAlpha(textAlpha);
     this.manaRules?.setAlpha(textAlpha);
@@ -502,12 +518,14 @@ export class CardView extends Phaser.GameObjects.Container {
     }
     if (manaRow.length > 0) {
       // [T] → [G]; duals read [T] → [W] or [G] — bare side-by-side pips read
-      // as "provides both" (user-reported 2026-07-12). Sized generously — this
-      // row is the land's whole rules box, so it should read from the hand.
-      const PIP = 48;
-      const GAP = 10;
-      const ARROW_W = 24;
-      const OR_W = 26; // the "or" separator between adjacent color pips
+      // as "provides both" (user-reported 2026-07-12). Multi-output rows use
+      // smaller marks so their two pips carry the same visual weight as one
+      // mono-land row in both the face and zoom preview.
+      const size = manaRow.length > 1 ? LAND_MANA_ROW.multi : LAND_MANA_ROW.mono;
+      const PIP = size.pip;
+      const GAP = size.gap;
+      const ARROW_W = size.arrowW;
+      const OR_W = size.orW; // the "or" separator between adjacent color pips
       const SEP = GAP + OR_W + GAP; // one constant shared by width, label x, and advance
       // Centered in the free box when bare; nudged down past the rules line
       // (one line ending ~81) when the land prints one, e.g. taplands.
@@ -521,7 +539,7 @@ export class CardView extends Phaser.GameObjects.Container {
       const arrow = this.scene.add
         .text(ix, rowY, '→', {
           fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '24px',
+          fontSize: `${size.arrowFont}px`,
           fontStyle: '700',
           color: '#4a3b28',
           resolution: 2,
@@ -535,7 +553,7 @@ export class CardView extends Phaser.GameObjects.Container {
           const or = this.scene.add
             .text(ix - PIP / 2 - SEP / 2, rowY, 'or', {
               fontFamily: 'Inter, Arial, sans-serif',
-              fontSize: '20px',
+              fontSize: `${size.orFont}px`,
               fontStyle: '600',
               color: '#4a3b28',
               resolution: 2,
@@ -647,6 +665,7 @@ export class CardView extends Phaser.GameObjects.Container {
       this.typePlate,
       this.textPlate,
       this.nameText,
+      this.retellIcon,
       this.typeText,
       this.rulesTextObj,
       ...(this.manaRules?.pips ?? []),

@@ -561,6 +561,8 @@ export function botAction(actions: Action[]): Action {
     'playLand',
     'chooseBasicLand', // a deferred fetch — take the first offered basic
     'castSpell',
+    'castDarling',
+    'payDownDarlingTax',
     'declareAttackers',
     'declareBlockers',
     'passStep',

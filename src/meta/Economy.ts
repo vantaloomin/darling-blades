@@ -1,4 +1,5 @@
 import { ECONOMY } from '../config/rules';
+import { FREE_DARLINGS_PRECON_ID, type DarlingsPrecon } from '../data/darlingsPrecons';
 import type { DeckList } from '../data/starterDecks';
 import type { CardDb } from '../engine/types';
 import { def } from '../engine/types';
@@ -301,6 +302,34 @@ export function previewDeckGrant(
   return { nonBasicCopies, ownedCopies, grantedCopies: nonBasicCopies - ownedCopies };
 }
 
+type PurchasableDeck = DeckList | DarlingsPrecon;
+
+function isDarlingsPrecon(deck: PurchasableDeck): deck is DarlingsPrecon {
+  return 'darlingId' in deck;
+}
+
+/** Every owned card a product requires, including a Darlings command-zone legend and reserve duals. */
+export function deckProductCardIds(deck: PurchasableDeck): string[] {
+  return isDarlingsPrecon(deck)
+    ? [...deck.cards, deck.darlingId, ...deck.landReserve]
+    : [...deck.cards];
+}
+
+function addPurchasedDeck(save: SaveData, deck: PurchasableDeck): void {
+  const darlings = isDarlingsPrecon(deck);
+  save.decks.push({
+    id: deck.id,
+    name: deck.name,
+    cards: [...deck.cards],
+    heroCardId: null,
+    landStyle: null,
+    format: darlings ? 'darlings' : 'constructed',
+    darlingId: darlings ? deck.darlingId : null,
+    landReserve: darlings ? [...deck.landReserve] : null,
+    variantPins: new Array(deck.cards.length).fill(null),
+  });
+}
+
 /**
  * Buy a precon/starter deck: spend `price` (defaults to preconPrice for theme
  * decks; the shop passes starterDeckPrice for the buyable starters), grant its
@@ -312,23 +341,13 @@ export function previewDeckGrant(
 export function buyThemeDeck(
   save: SaveData,
   db: CardDb,
-  deck: DeckList,
+  deck: PurchasableDeck,
   price: number = ECONOMY.preconPrice,
 ): boolean {
   if (save.decks.some((d) => d.id === deck.id)) return false;
   if (!spendGold(save, price)) return false;
-  grantDeckCards(save, db, deck.cards);
-  save.decks.push({
-    id: deck.id,
-    name: deck.name,
-    cards: [...deck.cards],
-    heroCardId: null,
-    landStyle: null,
-    format: 'constructed',
-    darlingId: null,
-    landReserve: null,
-    variantPins: new Array(deck.cards.length).fill(null),
-  });
+  grantDeckCards(save, db, deckProductCardIds(deck));
+  addPurchasedDeck(save, deck);
   return true;
 }
 
@@ -356,5 +375,21 @@ export function claimFreeStarter(save: SaveData, db: CardDb, deck: DeckList): bo
   });
   if (save.activeDeckId === null) save.activeDeckId = deck.id;
   save.starterChosen = deck.id;
+  return true;
+}
+
+/**
+ * Claim the one free Zhou Yu Darlings precon. The persisted flag makes it
+ * idempotent independently of starterChosen; ownership is a second guard for
+ * imported or manually edited saves. Like the starter claim, it activates the
+ * deck only when the player has no current deck.
+ */
+export function claimFreeDarlingsDeck(save: SaveData, db: CardDb, deck: DarlingsPrecon): boolean {
+  if (deck.id !== FREE_DARLINGS_PRECON_ID) return false;
+  if (save.darlingsFreeDeckClaimed || save.decks.some((d) => d.id === deck.id)) return false;
+  grantDeckCards(save, db, deckProductCardIds(deck));
+  addPurchasedDeck(save, deck);
+  if (save.activeDeckId === null) save.activeDeckId = deck.id;
+  save.darlingsFreeDeckClaimed = true;
   return true;
 }

@@ -11,6 +11,7 @@ import { Services } from '../meta/services';
 import { attachTouchGestures } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import {
   boosterStripIndexForOffset,
@@ -163,6 +164,17 @@ export class PracticePickerScene extends Phaser.Scene {
 
     this.buildRoster();
     this.buildDifficultyActions();
+
+    const activeDeck = activeVisibleSavedDeck(
+      Services.save.data.decks,
+      Services.save.data.activeDeckId,
+      this.reserveFormatsEnabled,
+    );
+    if (activeDeck?.format === 'darlings') {
+      showDarlingsTutorial(this, {
+        onReadMore: () => this.scene.start('Glossary', { focus: 'Darlings' }),
+      });
+    }
 
     backButton(this, 'Play', () => this.scene.start('Play'));
     registerSceneBackNavigation(this, () => this.scene.start('Play'));

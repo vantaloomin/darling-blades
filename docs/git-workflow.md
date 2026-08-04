@@ -1,4 +1,4 @@
-<!-- source-of-truth: .github/workflows/deploy.yml, package.json · last-verified: 2026-07-28 · process doc — re-verify when the CI workflow or branch model changes -->
+<!-- source-of-truth: .github/workflows/deploy.yml, .github/workflows/release.yml, package.json · last-verified: 2026-08-04 · process doc — re-verify when the CI workflow or branch model changes -->
 
 # Git workflow
 
@@ -133,6 +133,14 @@ GitHub Pages`. A failed `verify` skips `deploy` (live site unchanged) but leaves
 red run — fix forward promptly. Pages was enabled once by hand
 (Settings → Pages → Source: GitHub Actions) and stays on; the workflow token can
 deploy to it but can't create it.
+
+## Desktop release tags
+
+From 1.5.5 onward, pushing a `v*` tag runs the separate
+`.github/workflows/release.yml` workflow. It builds the Windows NSIS installer
+and creates or updates the matching GitHub Release with that installer
+attached. The local `npm run app:build` command remains the manual path; this
+tag workflow does not change the `main`-push Pages deployment.
 
 ## Invariants that intersect git
 

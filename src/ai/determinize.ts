@@ -279,6 +279,13 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     graveyard: [...view.you.graveyard],
     severed: [...view.you.severed],
     ...(view.you.landReserve !== undefined ? { landReserve: [...view.you.landReserve] } : {}),
+    ...(view.you.darlingZone !== undefined
+      ? {
+          darlingZone: view.you.darlingZone,
+          darlingTax: view.you.darlingTax ?? 0,
+          ...(view.you.darlingInstanceId === undefined ? {} : { darlingInstanceId: view.you.darlingInstanceId }),
+        }
+      : {}),
     landPlayedThisTurn: view.you.landPlayedThisTurn,
     mulligans: view.you.mulligans,
     keptHand: true,
@@ -290,6 +297,13 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     graveyard: [...view.opp.graveyard],
     severed: [...view.opp.severed],
     ...(view.opp.landReserve !== undefined ? { landReserve: [...view.opp.landReserve] } : {}),
+    ...(view.opp.darlingZone !== undefined
+      ? {
+          darlingZone: view.opp.darlingZone,
+          darlingTax: view.opp.darlingTax ?? 0,
+          ...(view.opp.darlingInstanceId === undefined ? {} : { darlingInstanceId: view.opp.darlingInstanceId }),
+        }
+      : {}),
     landPlayedThisTurn: view.opp.landPlayedThisTurn,
     mulligans: view.opp.mulligans,
     keptHand: true,

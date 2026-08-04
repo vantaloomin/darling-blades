@@ -19,6 +19,7 @@ import { ECONOMY } from '../src/config/rules';
 import { CARD_DB } from '../src/data/catalog';
 import { draftPersonaById } from '../src/data/draftPersonas';
 import { avatarForRung } from '../src/data/opponents';
+import { DARLINGS_PRECONS, FREE_DARLINGS_PRECON_ID } from '../src/data/darlingsPrecons';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../src/data/starterDecks';
 import type { GameEvent } from '../src/engine/events';
 import { Game } from '../src/engine/Game';
@@ -33,6 +34,7 @@ import {
   applyLimitedMatchResult,
   applyMatchResult,
   buyThemeDeck,
+  claimFreeDarlingsDeck,
   claimFreeStarter,
   payPremiumDraftEntry,
   premiumWeekKey,
@@ -68,6 +70,7 @@ import { freshSave, type SaveData } from '../src/meta/SaveManager';
 const START_DAY_MS = Date.UTC(2026, 6, 9);
 const MAX_STEPS = 40_000;
 const HUMAN = 0;
+const COLLECTIBLE_POOL_SIZE = collectiblePool(Object.values(CARD_DB)).length;
 export const PRACTICE_MATCH_MINUTES = 10;
 export const GAUNTLET_MATCH_MINUTES = 12;
 export const LIMITED_MATCH_MINUTES = 14;
@@ -565,45 +568,58 @@ export interface ProgressionBandReport {
  * the rationale for these edges are updated from the CI-fast run, never tuned
  * to make an unrelated change pass.
  *
- * CI-fast measurement on 2026-07-19: 2 persona aggregates (New Casual and
- * Limited Fan) x 1 seed x day 7; packs/day median 0.5000, minimum quest claim
- * rate 0.2857, max-gold/game ÷ cohort-median 1.0730, and median collection
- * 0.1486. Limited Fan completed 2 Premium runs, matching the weekly cap. The
- * bands [0.15, 2.5], >=0.20, <=4.0, and [0.03, 0.70] leave at least 30%
- * downward headroom on the floor metrics and are deliberately broad enough to
- * catch only large macro drift. The direct simulation took 5.3s.
+ * CI-fast measurement on 2026-07-31: 2 persona aggregates (New Casual and
+ * Limited Fan) x 1 seed x day 7; packs/day median 0.4286, minimum quest claim
+ * rate 0.2857, max-gold/game ÷ cohort-median 1.0484, and median owned uniques
+ * 73.5 (9.62% of the 764-card pool). Limited Fan completed 2 Premium runs,
+ * matching the weekly cap. The integer count band [51, 96] was the one-time
+ * floor/ceiling rounding of ±30% around that measurement (30.6% headroom in
+ * each direction), deliberately broad enough to catch only macro drift. The
+ * direct simulation took 4.756s wall-clock.
+ *
+ * RE-DERIVED 2026-08-01 (endowment change, not an economy change): every
+ * persona now claims the FREE Darlings precon (Red Cliffs Refrain, ~80
+ * uniques) on day 0, per the 1.5.5 product decision. Measured median
+ * day-7 owned uniques moved 73.5 -> 154.625; the band re-rounds the same
+ * ±30% rule around the new measurement: floor(154.625 x 0.7) = 108,
+ * ceil(154.625 x 1.3) = 202. Packs/day, quest-claim, and gold bands were
+ * re-measured within their existing edges and stand unchanged.
  */
 export const COARSE_PROGRESSION_BANDS = Object.freeze({
   packsPerDay: Object.freeze({ min: 0.15, max: 2.5 }),
   minQuestClaimRate: 0.2,
   maxGoldPerGameMultiple: 4,
-  collectionPct: Object.freeze({ min: 0.03, max: 0.7 }),
+  uniqueCards: Object.freeze({ min: 108, max: 202 }),
 });
 
 export const CANONICAL_FINE_BASELINE_DATE = '2026-07-31';
-export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.5 post-balance-pass, 769 collectible (787 catalog)';
+export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 1.5 post-balance-pass, 764 collectible (787 catalog)';
 
 /**
  * Flag-only bands measured from balance/econ-baseline-2026-07-31-post-pass.report.json
  * (npx tsx scripts/progression-sim.ts --check --json, 4,800 day snapshots).
  * Baseline rows are day-60 aggregates; the wide edges are intentional and do
- * not affect --check's exit code. Measured -> band: collection %, packs/day,
- * premium runs, quest claim rate. Each window keeps the relative tolerance its
- * persona already had and is re-centred on the fresh measurement.
+ * not affect --check's exit code. Measured -> band: owned uniques, packs/day,
+ * premium runs, quest claim rate. The 2026-07-31 owner decision replaces the
+ * percentage band metric with denominator-free owned-unique counts: a new set
+ * cannot mechanically dilute a band. Fine count edges are the one-time
+ * conversion round(original percentage edge x 764 collectible cards), which
+ * preserves the original tolerance windows exactly to whole-card precision.
  *
- * 2026-07-31 re-centre: the balance pass grew the pool 758 -> 769 collectible
- * (+1.5%; two Base commons, two Base tribal leaders, one Celtic Fae, one
+ * 2026-07-31 re-centre: the balance pass grew the pool 758 -> 764 collectible
+ * (+0.8%; two Base commons, two Base tribal leaders, one Celtic Fae, one
  * Gothic Monsters), so unlike the 2026-07-29 re-centre the dilution shift is
  * inside noise: every persona measured INSIDE its previous band (zero flags)
  * and the cohort medians held at 1.17 packs/day and 52% collection.
  * craftedUniques stayed 0.0 for every persona (intended: crafting is the
- * endgame sink, user decision 2026-07-28). Windows re-centred anyway per the
- * per-release convention.
+ * endgame sink, user decision 2026-07-28). The count conversion supersedes
+ * the per-release re-centre convention: re-centre only for a measured flag or
+ * a deliberate economy change.
  *
  * Retained history: the 2026-07-29 re-centre moved collection floors DOWN
  * (user-approved override of ratchet-up) for two deliberate product reasons -
  * pool dilution 638 -> 758 (+19%) and the Base pack scoped to base-set cards,
- * which caps cheapest-pack-only personas at 209/769 = 27% of the pool by
+ * which caps cheapest-pack-only personas at 209/764 = 27% of the pool by
  * construction (new-casual, low-skill-casual, theme-deck-buyer sit against
  * that ceiling on purpose). Quest-claim rates are pool-independent and were
  * the instrument check both times.
@@ -620,21 +636,37 @@ export const CANONICAL_FINE_BASELINE_SAMPLE = '10 personas x 8 seeds x 60 days, 
  * completionist 67.96 -> 66..78, 2.04 -> 1.36..3.09, 0 -> 0..1, 89.86 -> 70..100
  */
 export const CANONICAL_FINE_BANDS: Readonly<Record<string, {
-  collectionPct: readonly [number, number];
+  uniqueCards: readonly [number, number];
   packsPerDay: readonly [number, number];
   premiumDraftRuns: readonly [number, number];
   dailyQuestClaimRate: readonly [number, number];
 }>> = Object.freeze({
-  'new-casual': { collectionPct: [0.178, 0.257], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
-  'daily-grinder': { collectionPct: [0.456, 0.655], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
-  'gauntlet-climber': { collectionPct: [0.442, 0.643], packsPerDay: [0.77, 2.14], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.486, 0.886] },
-  'limited-fan': { collectionPct: [0.72, 0.822], packsPerDay: [0.07, 0.92], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.535, 0.922] },
-  collector: { collectionPct: [0.342, 0.552], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.436, 0.836] },
-  'theme-deck-buyer': { collectionPct: [0.31, 0.423], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
-  'hardcore-optimizer': { collectionPct: [0.651, 0.783], packsPerDay: [1.48, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
-  'low-skill-casual': { collectionPct: [0.133, 0.275], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
-  'high-skill-veteran': { collectionPct: [0.533, 0.728], packsPerDay: [1.09, 2.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.595, 0.945] },
-  completionist: { collectionPct: [0.657, 0.781], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.698, 1] },
+  // 17.8%-25.7% of 764 = 135.992-196.348, rounded to [136, 196]. RE-CENTRED
+  // 2026-08-01 for the free Darlings precon endowment (the least-collecting
+  // persona keeps nearly all ~80 granted uniques; measured 198.5 at
+  // 10x8x60): same +/-18.2% relative tolerance around the fresh
+  // measurement = [162, 235]. The other nine personas measured inside
+  // their existing windows (pack/set overlap absorbs the grant) and are
+  // deliberately not re-centred.
+  'new-casual': { uniqueCards: [162, 235], packsPerDay: [0.09, 1.08], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.25, 0.64] },
+  // 45.6%-65.5% of 764 = 348.384-500.420, rounded to [348, 500].
+  'daily-grinder': { uniqueCards: [348, 500], packsPerDay: [0.86, 2.28], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.54, 0.94] },
+  // 44.2%-64.3% of 764 = 337.688-491.252, rounded to [338, 491].
+  'gauntlet-climber': { uniqueCards: [338, 491], packsPerDay: [0.77, 2.14], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.486, 0.886] },
+  // 72.0%-82.2% of 764 = 550.080-628.008, rounded to [550, 628].
+  'limited-fan': { uniqueCards: [550, 628], packsPerDay: [0.07, 0.92], premiumDraftRuns: [16, 20], dailyQuestClaimRate: [0.535, 0.922] },
+  // 34.2%-55.2% of 764 = 261.288-421.728, rounded to [261, 422].
+  collector: { uniqueCards: [261, 422], packsPerDay: [0.48, 1.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.436, 0.836] },
+  // 31.0%-42.3% of 764 = 236.840-323.172, rounded to [237, 323].
+  'theme-deck-buyer': { uniqueCards: [237, 323], packsPerDay: [0.34, 1.29], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.4, 0.8] },
+  // 65.1%-78.3% of 764 = 497.364-598.212, rounded to [497, 598].
+  'hardcore-optimizer': { uniqueCards: [497, 598], packsPerDay: [1.48, 3.22], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.7, 1] },
+  // 13.3%-27.5% of 764 = 101.612-210.100, rounded to [102, 210].
+  'low-skill-casual': { uniqueCards: [102, 210], packsPerDay: [0.11, 0.95], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.21, 0.61] },
+  // 53.3%-72.8% of 764 = 407.212-556.192, rounded to [407, 556].
+  'high-skill-veteran': { uniqueCards: [407, 556], packsPerDay: [1.09, 2.71], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.595, 0.945] },
+  // 65.7%-78.1% of 764 = 501.948-596.684, rounded to [502, 597].
+  completionist: { uniqueCards: [502, 597], packsPerDay: [1.36, 3.09], premiumDraftRuns: [0, 1], dailyQuestClaimRate: [0.698, 1] },
 });
 
 const emptyRewards = (): RewardLedger => ({
@@ -1360,7 +1392,7 @@ export function packChoiceForPreference(
       // unable to own more than (205 + 70) / 758 = 36% of the pool, and the
       // 2026-07-29 run duly measured every mixed persona pinned at 32-35%.
       // (Those are that era's figures; post-balance-pass the same base-only
-      // ceiling is 209/769 = 27% and the ratios re-derive each re-baseline.)
+      // ceiling is 209/764 = 27% and the ratios re-derive each re-baseline.)
       return expansionRoll < (dayIndex % 3 === 0 ? 0.6 : 0.35)
         ? MIXED_EXPANSION_ROTATION[dayIndex % MIXED_EXPANSION_ROTATION.length]
         : { price: ECONOMY.packPrice, set: 'base' };
@@ -1388,6 +1420,14 @@ function setupContext(
   const save = freshSave(START_DAY_MS);
   const starter = starterById(persona.starterId);
   if (!claimFreeStarter(save, CARD_DB, starter)) throw new Error(`Failed to claim starter for ${persona.id}`);
+  // Every persona also claims the free Darlings precon on day 0 (1.5.5:
+  // Red Cliffs Refrain, ~80 uniques). Free and advertised means claimed;
+  // modeling it keeps the owned-unique bands honest for real players. The
+  // one-time band re-expression this caused is dated 2026-08-01 below.
+  const freePrecon = DARLINGS_PRECONS.find((p) => p.id === FREE_DARLINGS_PRECON_ID);
+  if (!freePrecon || !claimFreeDarlingsDeck(save, CARD_DB, freePrecon)) {
+    throw new Error(`Failed to claim the free Darlings precon for ${persona.id}`);
+  }
   save.tutorialDone = true;
   save.gold += ECONOMY.startingGold;
   save.activeDeckId = starter.id;
@@ -1707,7 +1747,7 @@ export function evaluateProgressionBands(report: ProgressionReport): Progression
   const maxGoldPerGameMultiple = medianGoldPerGame <= 0
     ? 0
     : Math.max(...goldPerGame) / medianGoldPerGame;
-  const collectionPct = median(coarseRows.map((row) => row.collectionPct));
+  const uniqueCards = median(coarseRows.map((row) => row.uniqueCards));
   const coarse = [
     checkBand(
       'cohort packs/day',
@@ -1731,10 +1771,10 @@ export function evaluateProgressionBands(report: ProgressionReport): Progression
       sample,
     ),
     checkBand(
-      `median day-${coarseDay} collection`,
-      collectionPct,
-      COARSE_PROGRESSION_BANDS.collectionPct.min,
-      COARSE_PROGRESSION_BANDS.collectionPct.max,
+      `median day-${coarseDay} owned uniques`,
+      uniqueCards,
+      COARSE_PROGRESSION_BANDS.uniqueCards.min,
+      COARSE_PROGRESSION_BANDS.uniqueCards.max,
       sample,
     ),
   ];
@@ -1757,7 +1797,7 @@ function evaluateFineProgressionFlags(report: ProgressionReport): string[] {
       const row = final.find((candidate) => candidate.personaId === personaId);
       if (!row) continue;
       const checks: [string, number, readonly [number, number]][] = [
-        ['collectionPct', row.collectionPct, bands.collectionPct],
+        ['uniqueCards', row.uniqueCards, bands.uniqueCards],
         ['packsPerDay', row.packsPerDay, bands.packsPerDay],
         ['premiumDraftRuns', row.premiumDraftRuns, bands.premiumDraftRuns],
         ['dailyQuestClaimRate', row.dailyQuestClaimRate, bands.dailyQuestClaimRate],
@@ -1781,7 +1821,8 @@ export function analyzeRewardTuning(aggregates: readonly ProgressAggregate[], da
   if (final.length === 0) return { label: 'reasonable', bullets: ['No final checkpoint rows were produced.'] };
 
   const medianPacksPerDay = median(final.map((r) => r.packsPerDay));
-  const medianCollection = median(final.map((r) => r.collectionPct));
+  const medianUniqueCards = median(final.map((r) => r.uniqueCards));
+  const medianCollectionPct = median(final.map((r) => r.collectionPct));
   const byGoldPerGame = final
     .filter((r) => r.games > 0)
     .map((r) => ({ row: r, value: r.goldEarned / r.games }))
@@ -1790,17 +1831,17 @@ export function analyzeRewardTuning(aggregates: readonly ProgressAggregate[], da
   const high = byGoldPerGame[byGoldPerGame.length - 1];
   const spread = low && high && low.value > 0 ? high.value / low.value : 1;
 
-  if (medianPacksPerDay < 0.75 || medianCollection < 0.18) {
+  if (medianPacksPerDay < 0.75 || medianUniqueCards < 138) {
     bullets.push(
-      `Median ${finalDay}-day progress is low: ${medianPacksPerDay.toFixed(2)} packs/day and ${pct(medianCollection)} collection.`,
+      `Median ${finalDay}-day progress is low: ${medianPacksPerDay.toFixed(2)} packs/day and ${medianUniqueCards.toFixed(1)} owned uniques (${pct(medianCollectionPct)} of the ${COLLECTIBLE_POOL_SIZE}-card pool).`,
     );
-  } else if (medianPacksPerDay > 2.5 || medianCollection > 0.65) {
+  } else if (medianPacksPerDay > 2.5 || medianUniqueCards > 497) {
     bullets.push(
-      `Median ${finalDay}-day progress is high: ${medianPacksPerDay.toFixed(2)} packs/day and ${pct(medianCollection)} collection.`,
+      `Median ${finalDay}-day progress is high: ${medianPacksPerDay.toFixed(2)} packs/day and ${medianUniqueCards.toFixed(1)} owned uniques (${pct(medianCollectionPct)} of the ${COLLECTIBLE_POOL_SIZE}-card pool).`,
     );
   } else {
     bullets.push(
-      `Median ${finalDay}-day progress sits in the target band: ${medianPacksPerDay.toFixed(2)} packs/day and ${pct(medianCollection)} collection.`,
+      `Median ${finalDay}-day progress sits in the target band: ${medianPacksPerDay.toFixed(2)} packs/day and ${medianUniqueCards.toFixed(1)} owned uniques (${pct(medianCollectionPct)} of the ${COLLECTIBLE_POOL_SIZE}-card pool).`,
     );
   }
 
@@ -1897,11 +1938,11 @@ export function renderProgressionReport(report: ProgressionReport): string {
     lines.push('');
     lines.push(`--- Day ${day} collection and claims ---`);
     lines.push(
-      `${pad('Persona', 20)} ${pad('Copies', 7)} ${pad('Unique', 7)} ${pad('Coll', 6)} ${pad('Variants', 9)} ${pad('PremKeep', 9)} ${pad('Daily C/K', 10)} ${pad('Streak', 7)} ${pad('Ach U/C', 8)}`,
+      `${pad('Persona', 20)} ${pad('Copies', 7)} ${pad('Uniques', 7)} ${pad(`Coll%/${COLLECTIBLE_POOL_SIZE}`, 9)} ${pad('Variants', 9)} ${pad('PremKeep', 9)} ${pad('Daily C/K', 10)} ${pad('Streak', 7)} ${pad('Ach U/C', 8)}`,
     );
     for (const r of rows) {
       lines.push(
-        `${pad(r.personaName, 20)} ${pad(fixed(r.collectionSize, 1), 7)} ${pad(fixed(r.uniqueCards, 1), 7)} ${pad(pct(r.collectionPct), 6)} ${pad(fixed(r.specialVariants, 1), 9)} ${pad(fixed(r.premiumDraftCardsKept, 1), 9)} ${pad(dailyText(r), 10)} ${pad(fixed(r.streakLength, 1), 7)} ${pad(achievementText(r), 8)}`,
+        `${pad(r.personaName, 20)} ${pad(fixed(r.collectionSize, 1), 7)} ${pad(fixed(r.uniqueCards, 1), 7)} ${pad(pct(r.collectionPct), 9)} ${pad(fixed(r.specialVariants, 1), 9)} ${pad(fixed(r.premiumDraftCardsKept, 1), 9)} ${pad(dailyText(r), 10)} ${pad(fixed(r.streakLength, 1), 7)} ${pad(achievementText(r), 8)}`,
       );
     }
     lines.push('');

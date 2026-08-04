@@ -470,3 +470,20 @@ CLI invocation (or temporary driver wiring), not a routine gen-spell-art run.
   - **User feedback driving the shipped render:** "zoom out, show more of the character, more room above her head" — the regen pulls the camera back to a full-figure view with clear moonlit sky above.
   - **Shipped direction (2026-07-13 15:43):** an adult fae fate-weaver seen full-figure from further back, a single luminous silver thread of fate spiraling loosely around her whole body and trailing off-frame, a small silver key-charm dangling from one raised hand; she stands among mossy standing stones on a night moor beneath a full moon; cold moonlit silver-and-blue-black palette with thorn-silver gown detail; the entire top third clear empty moonlit sky above her head; no readable ogham, runes, letters, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
   - **Verified:** shipped WebP satisfies the feedback (full figure head-to-ankles in frame; head top ≈ y 255 under open sky and moon; thread reads clearly at card scale; text-free).
+
+## 1.5.5 sweeper art-rider shipped record (NOT parsed by gen-spell-art)
+
+The two base-set sweepers below shipped on 2026-07-31 from taste-approved
+vault raws (`WaifuTCG-Art-Pilots/raws/base/`), cropped through
+`scripts/smartcrop.py` in **environment** mode (the standard spell center
+cover-crop) and encoded to WebP at q90. Their roster entries above stay the
+generation source of truth; these are shipped-status records only, using the
+same parser-proof `####` + indented-bullet formatting as the addendum above.
+
+#### Ember Squall — so-ember-squall
+  - **Shipped (2026-07-31):** vault raw `base/so-ember-squall.raw.png`, environment center crop (1024×1536 → middle 1024×1280 band → 640×800).
+  - **Verified:** shipped WebP matches the entry — circular ember blast exploding from cracked ground at frame center, staggered warrior silhouettes around the ring, twilight sky and smoke; effect hero centered in the visible band; text-free.
+
+#### Creeping Malaise — so-creeping-malaise
+  - **Shipped (2026-07-31):** vault raw `base/so-creeping-malaise.raw.png`, environment center crop (1024×1536 → middle 1024×1280 band → 640×800).
+  - **Verified:** shipped WebP matches the entry — violet-black miasma pouring from a cracked stone brazier at frame center, warriors sinking to one knee in the haze, candles and bare trees behind; effect hero centered in the visible band; text-free.

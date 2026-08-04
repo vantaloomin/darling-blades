@@ -10,6 +10,7 @@ import { TEST_DB } from '../helpers';
 
 const RESERVE = ['forest', 'plains', 'mountain', 'island', 'swamp', 'dual_gw', 'forest', 'plains', 'forest', 'swamp'];
 const SPELL_DECK = Array.from({ length: 50 }, () => 'bear');
+const DARLINGS_DECK = Array.from({ length: 79 }, () => 'bear');
 
 function view(overrides: Partial<PlayerView> = {}): PlayerView {
   return {
@@ -95,12 +96,35 @@ describe('shared reserve land policy', () => {
     }
   });
 
+  it('chooses reserve lands in Darlings games at every difficulty', () => {
+    const game = new Game({
+      decks: [DARLINGS_DECK, DARLINGS_DECK],
+      darlings: ['bear', 'bear'],
+      format: 'darlings',
+      landReserves: [RESERVE, RESERVE],
+      seed: 8130,
+      db: TEST_DB,
+    });
+    keepBoth(game);
+    const source = structuredClone(game.instanceState);
+    source.players[0].hand = [];
+    const darlings = Game.restore(source, TEST_DB);
+    const reserveView = darlings.viewFor(0);
+    const reserveLegal = darlings.legalActions(0);
+    expect(reserveView.you.landReserve).toEqual(RESERVE);
+    expect(reserveView.you.darlingZone).toBe('bear');
+    for (const difficulty of ['easy', 'medium', 'hard'] as const) {
+      const ai = buildAI(difficulty, TEST_DB, 200 + difficulty.length);
+      expect(ai.chooseAction(reserveView, reserveLegal)).toEqual({ type: 'playLand', handIndex: -1, reserveIndex: 5 });
+    }
+  });
+
   it('never injects land stand-ins into reserve-format determinized hidden zones', () => {
     const game = new Game({
       decks: [SPELL_DECK, SPELL_DECK],
       seed: 8128,
       db: TEST_DB,
-      format: 'battleBox',
+      format: 'warchest',
       landReserves: [RESERVE, RESERVE],
     });
     keepBoth(game);
@@ -113,13 +137,33 @@ describe('shared reserve land policy', () => {
     expect(hiddenIds).not.toContain('__unknown_land');
   });
 
+  it('preserves both Darlings public zones through determinization', () => {
+    const game = new Game({
+      decks: [DARLINGS_DECK, DARLINGS_DECK],
+      darlings: ['bear', 'bear'],
+      seed: 8131,
+      db: TEST_DB,
+      format: 'darlings',
+      landReserves: [RESERVE, RESERVE],
+    });
+    keepBoth(game);
+    const state = structuredClone(game.instanceState);
+    state.players[0].darlingTax = 2;
+    const simulated = determinize(Game.restore(state, TEST_DB).viewFor(0), TEST_DB, 4243);
+    const restored = simulated.viewFor(0);
+    expect(restored.you.landReserve).toEqual(RESERVE);
+    expect(restored.opp.landReserve).toEqual(RESERVE);
+    expect(restored.you).toMatchObject({ darlingZone: 'bear', darlingTax: 2 });
+    expect(restored.opp).toMatchObject({ darlingZone: 'bear', darlingTax: 0 });
+  });
+
   it('finishes seeded reserve games on every tower tier', () => {
     for (const tier of [1, 2, 3, 4, 5, 6] as const) {
       const game = new Game({
         decks: [SPELL_DECK, SPELL_DECK],
         seed: 9000 + tier,
         db: TEST_DB,
-        format: 'battleBox',
+        format: 'warchest',
         landReserves: [Array(10).fill('forest'), Array(10).fill('forest')],
       });
       const brains = [

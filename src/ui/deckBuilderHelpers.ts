@@ -1,11 +1,9 @@
-import { ownedCount, ownedVariants } from '../meta/Collection';
-import { ownedVariantEntries, variantLabel } from '../meta/collectionFilter';
+import { DARLINGS_DECK_SIZE, WARCHEST_DECK_SIZE } from '../meta/warchest';
 import type { SavedDeck } from '../meta/SaveManager';
-import { variantKey, type CardVariant } from '../meta/variants';
 
 export type BuilderFormat = NonNullable<SavedDeck['format']>;
 
-const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'darlings', 'battlebox'];
+const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'darlings', 'warchest'];
 
 /** The format choices the builder may expose for this release. */
 export function offeredBuilderFormats(reserveFormatsEnabled: boolean): BuilderFormat[] {
@@ -13,8 +11,8 @@ export function offeredBuilderFormats(reserveFormatsEnabled: boolean): BuilderFo
 }
 
 /** Reserve-format metadata is hidden along with its player-facing UI. */
-export function isReserveFormat(format: string | null | undefined): format is 'darlings' | 'battlebox' | 'battleBox' {
-  return format === 'darlings' || format === 'battlebox' || format === 'battleBox';
+export function isReserveFormat(format: string | null | undefined): format is 'darlings' | 'warchest' {
+  return format === 'darlings' || format === 'warchest';
 }
 
 export function isSavedDeckVisible(
@@ -66,32 +64,34 @@ export function builderFormatForDeck(
     : 'constructed';
 }
 
-export const BATTLE_BOX_RULES_COPY =
-  'Build your land reserve: 10 lands, up to 5 dual lands. Each turn you choose which land to play. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your reserve.';
+export const WARCHEST_RULES_COPY =
+  'Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.';
 
 export const DARLINGS_RULES_COPY =
-  'Choose your Darling. Build a 50-card deck in her colors, one copy of each card, and a land reserve of 10. Your Darling begins in your deck and follows the same rules as every other card.';
+  'Choose your Darling. She waits in her own zone, ready when you call. Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Each time she falls, her next call costs 2 more.';
 
 export function formatLabel(format: BuilderFormat): string {
   if (format === 'darlings') return 'Darlings';
-  if (format === 'battlebox') return 'Battle Box';
+  if (format === 'warchest') return 'Warchest';
   return 'Constructed';
 }
 
 export function formatDeckSize(format: BuilderFormat): number {
-  return format === 'constructed' ? 60 : 50;
+  if (format === 'darlings') return DARLINGS_DECK_SIZE;
+  if (format === 'warchest') return WARCHEST_DECK_SIZE;
+  return 60;
 }
 
 export function formatRulesCopy(format: BuilderFormat): string | null {
   if (format === 'darlings') return DARLINGS_RULES_COPY;
-  if (format === 'battlebox') return BATTLE_BOX_RULES_COPY;
+  if (format === 'warchest') return WARCHEST_RULES_COPY;
   return null;
 }
 
 /** Reserve formats are valid in Practice, but the Gauntlet remains classic-only. */
 export function formatGauntletUnavailableCopy(format: BuilderFormat): string | null {
   if (format === 'darlings') return 'Darlings decks are available in Practice only.';
-  if (format === 'battlebox') return 'Battle Box decks are available in Practice only.';
+  if (format === 'warchest') return 'Warchest decks are available in Practice only.';
   return null;
 }
 
@@ -100,20 +100,22 @@ export interface DeckBuilderWorkingState {
   variantPins: readonly (string | null)[];
   landReserve: readonly string[];
   heroCardId: string | null;
+  darlingId?: string | null;
 }
 
 /** Compare every editable deck slot against the last saved deck record. */
 export function isDeckBuilderDirty(
   working: DeckBuilderWorkingState,
-  saved: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId'> | null,
+  saved: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null,
 ): boolean {
-  if (!saved) return working.cards.length > 0 || working.landReserve.length > 0 || working.heroCardId !== null;
+  if (!saved) return working.cards.length > 0 || working.landReserve.length > 0 || working.heroCardId !== null || working.darlingId != null;
   const savedPins = saved.cards.map((_, index) => saved.variantPins?.[index] ?? null);
   const savedReserve = saved.landReserve ?? [];
   return !sameArray(working.cards, saved.cards)
     || !sameArray(working.variantPins, savedPins)
     || !sameArray(working.landReserve, savedReserve)
-    || working.heroCardId !== (saved.heroCardId ?? null);
+    || working.heroCardId !== (saved.heroCardId ?? null)
+    || (working.darlingId ?? null) !== (saved.darlingId ?? null);
 }
 
 function sameArray(left: readonly unknown[], right: readonly unknown[]): boolean {
@@ -127,6 +129,38 @@ export function formatPageCount(total: number, pageSize: number): number {
 export function formatPageSlice<T>(items: readonly T[], page: number, pageSize: number): T[] {
   const size = Math.max(1, pageSize);
   return items.slice(Math.max(0, page) * size, (Math.max(0, page) + 1) * size);
+}
+
+/** One visible deck-list row, preserving the first slot for one-copy removal. */
+export interface CollapsedDeckRow {
+  cardId: string;
+  quantity: number;
+  firstIndex: number;
+  /** Legacy positional pins remain visible but never choose a card's display. */
+  hasLegacyVariantPin: boolean;
+}
+
+/** Collapse positional deck storage into exactly one row per card id. */
+export function collapseDeckRows(
+  cards: readonly string[],
+  variantPins: readonly (string | null)[],
+): CollapsedDeckRow[] {
+  const rows = new Map<string, CollapsedDeckRow>();
+  cards.forEach((cardId, index) => {
+    const existing = rows.get(cardId);
+    if (existing) {
+      existing.quantity++;
+      existing.hasLegacyVariantPin ||= variantPins[index] !== null;
+      return;
+    }
+    rows.set(cardId, {
+      cardId,
+      quantity: 1,
+      firstIndex: index,
+      hasLegacyVariantPin: variantPins[index] !== null,
+    });
+  });
+  return [...rows.values()];
 }
 
 export interface GridPosition {
@@ -148,68 +182,4 @@ export function gridPosition(
     x: originX + (safeIndex % safeColumns) * gapX,
     y: originY + Math.floor(safeIndex / safeColumns) * gapY,
   };
-}
-
-export interface VariantPickerChoice {
-  key: string | null;
-  label: string;
-  remainingCopies: number;
-  variant: CardVariant | null;
-}
-
-/** Remaining owned copies for a slot, excluding pins on the slot itself. */
-export function remainingVariantCopies(
-  save: Parameters<typeof ownedVariants>['0'],
-  cards: readonly string[],
-  variantPins: readonly (string | null)[],
-  slotIndex: number,
-  cardId: string,
-  variant: CardVariant,
-): number {
-  const key = variantKey(variant);
-  const usedByOtherSlots = cards.reduce(
-    (count, id, index) =>
-      id === cardId && index !== slotIndex && variantPins[index] === key ? count + 1 : count,
-    0,
-  );
-  return Math.max(0, (ownedVariants(save, cardId)[key] ?? 0) - usedByOtherSlots);
-}
-
-export function autoVariantRemainingCopies(
-  save: Parameters<typeof ownedVariants>['0'],
-  cards: readonly string[],
-  variantPins: readonly (string | null)[],
-  slotIndex: number,
-  cardId: string,
-): number {
-  const pinnedByOtherSlots = cards.reduce(
-    (count, id, index) =>
-      id === cardId && index !== slotIndex && variantPins[index] !== null ? count + 1 : count,
-    0,
-  );
-  return Math.max(0, ownedCount(save, cardId) - pinnedByOtherSlots);
-}
-
-/** Auto plus every owned treatment, with counts available to this slot. */
-export function variantPickerChoices(
-  save: Parameters<typeof ownedVariants>['0'],
-  cards: readonly string[],
-  variantPins: readonly (string | null)[],
-  slotIndex: number,
-  cardId: string,
-): VariantPickerChoice[] {
-  return [
-    {
-      key: null,
-      label: 'Auto',
-      remainingCopies: autoVariantRemainingCopies(save, cards, variantPins, slotIndex, cardId),
-      variant: null,
-    },
-    ...ownedVariantEntries(save, cardId).map(({ variant }) => ({
-      key: variantKey(variant),
-      label: variantLabel(variant),
-      remainingCopies: remainingVariantCopies(save, cards, variantPins, slotIndex, cardId, variant),
-      variant,
-    })),
-  ];
 }

@@ -1,4 +1,6 @@
 import {
+  DARLING_PAYDOWN_COST,
+  DARLING_PAYDOWN_REDUCTION,
   LAND_RESERVE_SIZE,
   MAX_DUAL_LANDS_IN_RESERVE,
   RULES,
@@ -6,10 +8,10 @@ import {
   usesLandReserve,
 } from '../config/rules';
 import type { Action } from './actions';
-import { legalActions, validateAction } from './actions';
+import { darlingCastCost, legalActions, validateAction } from './actions';
 import { hasCastableInstant } from './actions';
 import { resolveCombatDamage } from './combat/damage';
-import { fireTriggers } from './effects/EffectInterpreter';
+import { fireTriggers, runOps } from './effects/EffectInterpreter';
 import type { GameEvent } from './events';
 import { combineManaCosts, solveMana } from './mana';
 import { checkStateBased } from './sba';
@@ -46,12 +48,32 @@ export interface GameConfig {
   decks: [CardEntry[], CardEntry[]];
   seed: number;
   db: CardDb;
-  /** Classic is the default. Battle Box and Darlings use ordered land reserves. */
+  /** Classic is the default. Warchest and Darlings use ordered land reserves. */
   format?: GameFormat;
   /** One ordered ten-land payload per seat for reserve formats. */
   landReserves?: [CardEntry[], CardEntry[]];
+  /** One public command-zone Darling per seat (or null for no assigned Darling). */
+  darlings?: [string | null, string | null];
   /** Opt into the pre-deal coin-flip winner's play/draw decision. */
   playDrawChoice?: boolean;
+}
+
+function buildDarlingInstances(
+  cfg: GameConfig,
+  nextInstanceId: () => number,
+): [CardInstance | null, CardInstance | null] {
+  if (!cfg.darlings || cfg.darlings.length !== 2) {
+    throw new Error('Darlings games require one darlings payload for each player.');
+  }
+  return cfg.darlings.map((cardId, player) => {
+    if (cardId === null) return null;
+    const d = cfg.db[cardId];
+    if (!d) throw new Error(`Darlings format P${player} contains unknown Darling id ${cardId}.`);
+    if (!d.types.includes('creature') || !d.cost) {
+      throw new Error(`Darlings format P${player} Darling ${cardId} must be a creature with a mana cost.`);
+    }
+    return { instanceId: nextInstanceId(), cardId, variantKey: null } satisfies CardInstance;
+  }) as [CardInstance | null, CardInstance | null];
 }
 
 function isBasicLand(card: CardEntry, db: CardDb): boolean {
@@ -169,6 +191,9 @@ export class Game {
     const reserveInstances = usesLandReserve(cfg.format)
       ? buildReserveInstances(cfg, () => nextInstanceId++)
       : undefined;
+    const darlingInstances = cfg.format === 'darlings'
+      ? buildDarlingInstances(cfg, () => nextInstanceId++)
+      : undefined;
 
     const libraries = cfg.decks.map((deck) =>
       rngShuffle(rng, deck.map((card) => ({
@@ -186,8 +211,8 @@ export class Game {
       activePlayer: startingPlayer,
       step: 'untap',
       players: [
-        this.freshPlayer(libraries[0], reserveInstances?.[0]),
-        this.freshPlayer(libraries[1], reserveInstances?.[1]),
+        this.freshPlayer(libraries[0], reserveInstances?.[0], darlingInstances?.[0]),
+        this.freshPlayer(libraries[1], reserveInstances?.[1], darlingInstances?.[1]),
       ],
       battlefield: [],
       stack: [],
@@ -221,7 +246,11 @@ export class Game {
     }
   }
 
-  private freshPlayer(deck: CardInstance[], landReserve?: CardInstance[]): GameState['players'][0] {
+  private freshPlayer(
+    deck: CardInstance[],
+    landReserve?: CardInstance[],
+    darlingZone?: CardInstance | null,
+  ): GameState['players'][0] {
     const player: GameState['players'][0] = {
       life: RULES.startingLife,
       deck,
@@ -233,6 +262,11 @@ export class Game {
       keptHand: false,
     };
     if (landReserve !== undefined) player.landReserve = landReserve;
+    if (darlingZone !== undefined) {
+      player.darlingZone = darlingZone;
+      player.darlingTax = 0;
+      if (darlingZone !== null) player.darlingInstanceId = darlingZone.instanceId;
+    }
     return player;
   }
 
@@ -262,7 +296,10 @@ export class Game {
 
   viewFor(player: PlayerId): PlayerView {
     this.syncLegacyMutations();
-    return viewFor(this.st, player);
+    const castable = [0, 1].map((seat) =>
+      legalActions(this.st, this.db, seat as PlayerId).some((action) => action.type === 'castDarling'),
+    ) as [boolean, boolean];
+    return viewFor(this.st, player, castable);
   }
 
   clone(): Game {
@@ -329,6 +366,24 @@ export class Game {
               variantKey: null,
             };
           });
+        }
+      }
+      if (from.darlingZone !== undefined && to.darlingZone !== undefined) {
+        to.darlingTax = from.darlingTax ?? 0;
+        if (from.darlingZone === null) {
+          to.darlingZone = null;
+        } else if (
+          to.darlingZone === null ||
+          cardIdOf(to.darlingZone) !== from.darlingZone ||
+          !isCardInstance(to.darlingZone)
+        ) {
+          const card = {
+            instanceId: this.st.nextInstanceId!++,
+            cardId: from.darlingZone,
+            variantKey: null,
+          } satisfies CardInstance;
+          to.darlingZone = card;
+          to.darlingInstanceId = card.instanceId;
         }
       }
     }
@@ -402,7 +457,10 @@ export class Game {
     );
   }
 
-  /** Awaiting foresee cards are top-first, matching the player-facing order. */
+  /**
+   * Awaiting Foresee cards are top-first, matching the player-facing order.
+   * A Foresee continuation suspends before its trailing ops mutate this deck.
+   */
   private foreseeCards(player: PlayerId, n: number): CardEntry[] {
     if (n <= 0) return [];
     return this.st.players[player].deck.slice(-n).reverse();
@@ -520,6 +578,18 @@ export class Game {
           kept: kept.map(cardIdOf),
           bottomed: bottomed.map(cardIdOf),
         });
+        if (pending.thenOps) {
+          // The deferred entry stores only the controller. Tail ops were
+          // asserted target-free when stashed, so they cannot need cast-time
+          // targets or a source permanent while this action resumes them.
+          runOps(
+            st,
+            this.db,
+            emit,
+            { controller: pending.player, sourceCardId: 'foresee-continuation', targets: [] },
+            pending.thenOps,
+          );
+        }
         return;
       }
 
@@ -607,6 +677,46 @@ export class Game {
           ...(isHauntlinked ? { hauntlinked: true } : {}),
         });
         this.openResponseWindow(opponentOf(player), { type: 'spell', sid: item.sid }, emit);
+        return;
+      }
+
+      case 'castDarling': {
+        const card = me.darlingZone!;
+        const cardId = cardIdOf(card);
+        const d = def(this.db, card);
+        const extra = action.x ?? 0;
+        const cost = darlingCastCost(d, me.darlingTax ?? 0)!;
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, cost, extra)!;
+        for (const iid of plan) {
+          findPermanent(st, iid)!.tapped = true;
+        }
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+
+        me.darlingZone = null;
+        const item: StackItem = {
+          sid: st.nextSid++,
+          instanceId: isCardInstance(card) ? card.instanceId : st.nextInstanceId!++,
+          cardId,
+          variantKey: isCardInstance(card) ? card.variantKey : null,
+          controller: player,
+          targets: action.targets ?? [],
+          ...(action.x === undefined ? {} : { x: action.x }),
+        };
+        st.stack.push(item);
+        emit({ e: 'spellCast', sid: item.sid, cardId, controller: player, targets: item.targets, fromDarlingZone: true });
+        this.openResponseWindow(opponentOf(player), { type: 'spell', sid: item.sid }, emit);
+        return;
+      }
+
+      case 'payDownDarlingTax': {
+        const cost = { generic: DARLING_PAYDOWN_COST, pips: {} };
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, cost)!;
+        for (const iid of plan) {
+          findPermanent(st, iid)!.tapped = true;
+        }
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+        me.darlingTax = Math.max(0, (me.darlingTax ?? 0) - DARLING_PAYDOWN_REDUCTION);
+        emit({ e: 'darlingTaxPaidDown', player, tax: me.darlingTax });
         return;
       }
 
@@ -813,6 +923,9 @@ function legacyState(state: GameState): LegacyGameState {
     if (player.landReserve !== undefined) {
       legacy.landReserve = player.landReserve.map(cardIdOf);
     }
+    if (player.darlingZone !== undefined) {
+      legacy.darlingZone = player.darlingZone === null ? null : cardIdOf(player.darlingZone);
+    }
     return legacy;
   }) as [LegacyGameState['players'][0], LegacyGameState['players'][1]];
   return {
@@ -839,6 +952,7 @@ function normalizeState(input: GameState): GameState {
       player.graveyard,
       player.severed,
       ...(player.landReserve === undefined ? [] : [player.landReserve]),
+      ...(player.darlingZone === undefined || player.darlingZone === null ? [] : [[player.darlingZone]]),
     ]) {
       for (const card of zone) {
         if (isCardInstance(card)) {
@@ -884,6 +998,11 @@ function normalizeState(input: GameState): GameState {
     player.graveyard = player.graveyard.map(normalizeCard);
     player.severed = player.severed.map(normalizeCard);
     if (player.landReserve !== undefined) player.landReserve = player.landReserve.map(normalizeCard);
+    if (player.darlingZone !== undefined) {
+      player.darlingZone = player.darlingZone === null ? null : normalizeCard(player.darlingZone);
+      player.darlingTax ??= 0;
+      if (player.darlingZone !== null) player.darlingInstanceId = player.darlingZone.instanceId;
+    }
   }
   for (const perm of state.battlefield) {
     perm.instanceId ??= freshId();

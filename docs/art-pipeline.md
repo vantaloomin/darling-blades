@@ -90,9 +90,10 @@ To replace a card's placeholder with a real illustration:
    changes; no 404s (the file is in the manifest, so it's requested; unlisted
    files are never requested).
 
-Current inventory (verified 2026-07-24): `public/assets/art/cards/` has **681
-WebP files**, `public/assets/art/scenes/` has **16**, and the manifest reports
-681 card entries, 681 half-res entries, and 16 scene entries. The full-res card
+Current inventory (verified 2026-07-31): `public/assets/art/cards/` has **807
+WebP files**, `public/assets/art/scenes/` has **17**, and the manifest reports
+807 card entries and 17 scene entries (half-res entries appear after a
+`gen-art-halfres` run; a fresh checkout reports 0). The full-res card
 and scene tiers are encoded at q90; `cards-half/` is derived at 320x400, q85.
 The converter also covers the standalone hero and coin-face UI art, leaving no
 PNG under `public/assets/art`.

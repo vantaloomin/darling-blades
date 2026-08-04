@@ -13,6 +13,7 @@ import { botAction, deckOf, TEST_DB } from '../helpers';
 
 const RESERVE = ['forest', 'plains', 'mountain', 'island', 'swamp', 'dual_gw', 'forest', 'plains', 'forest', 'swamp'];
 const SPELL_DECK = Array.from({ length: 50 }, () => 'bear');
+const LEGACY_WARCHEST_FORMAT = 'battle' + 'Box';
 const CONTEXT: ReplayContext = {
   mode: 'practice',
   difficulty: 'medium',
@@ -32,7 +33,7 @@ function recordToEnd(
     seed,
     decks,
     context: CONTEXT,
-    ...(reserve ? { format: 'battleBox' as const, landReserves: [RESERVE, RESERVE] as [string[], string[]] } : {}),
+    ...(reserve ? { format: 'warchest' as const, landReserves: [RESERVE, RESERVE] as [string[], string[]] } : {}),
   });
   const eventLog = [...game.initialEvents];
   for (let i = 0; i < 2000 && game.instanceState.winner === null; i++) {
@@ -47,18 +48,18 @@ function recordToEnd(
   return { log: finishReplay(draft, 'win', 123, game.instanceState.turn), eventLog, state: game.instanceState };
 }
 
-describe('reserve replay v4', () => {
+describe('Warchest replay v6', () => {
   it('reconstructs ordered reserves and reproduces a reserve game byte-identically', () => {
     const game = new Game({
       decks: [SPELL_DECK, SPELL_DECK],
       seed: 4411,
       db: TEST_DB,
-      format: 'battleBox',
+      format: 'warchest',
       landReserves: [RESERVE, RESERVE],
     });
     const original = recordToEnd(game, true);
-    expect(original.log.v).toBe(4);
-    expect(original.log.format).toBe('battleBox');
+    expect(original.log.v).toBe(6);
+    expect(original.log.format).toBe('warchest');
     expect(original.log.landReserves).toEqual([RESERVE, RESERVE]);
     expect(isReplayLog(original.log)).toBe(true);
 
@@ -83,6 +84,26 @@ describe('reserve replay v4', () => {
     expect(() => replayGame(oldLog, TEST_DB)).toThrow(
       'This replay was recorded with an older replay version and cannot be replayed.',
     );
+  });
+
+  it('canonicalizes a fixture log recorded with the legacy Warchest format spelling', () => {
+    const game = new Game({
+      decks: [SPELL_DECK, SPELL_DECK],
+      seed: 4411,
+      db: TEST_DB,
+      format: 'warchest',
+      landReserves: [RESERVE, RESERVE],
+    });
+    const original = recordToEnd(game, true);
+    const legacyLog: unknown = { ...original.log, format: LEGACY_WARCHEST_FORMAT };
+
+    expect(isReplayLog(legacyLog)).toBe(true);
+    if (!isReplayLog(legacyLog)) throw new Error('Legacy replay fixture did not validate.');
+    expect(legacyLog.format).toBe('warchest');
+
+    const replayed = replayGame(legacyLog, TEST_DB);
+    expect(replayed.eventLog).toEqual(original.eventLog);
+    expect(replayed.game.instanceState).toEqual(original.state);
   });
 
   it('keeps a fixed classic replay free of reserve fields and byte-identical', () => {

@@ -38,6 +38,11 @@ interface GlossarySection {
   entries: GlossaryEntry[];
 }
 
+interface DrawnGlossaryRow {
+  items: Phaser.GameObjects.GameObject[];
+  height: number;
+}
+
 /**
  * The scene is deliberately data-driven: adding the next rules term is a
  * single entry here (or, for card types and traits, in its shared copy table).
@@ -68,6 +73,16 @@ const GLOSSARY_SECTIONS: GlossarySection[] = [
       { name: 'Skim', description: MECHANIC_DEFINITIONS.skim, icon: { kind: 'none' } },
       { name: 'Retell', description: MECHANIC_DEFINITIONS.retell, icon: { kind: 'none' } },
       { name: 'Hauntlink', description: MECHANIC_DEFINITIONS.hauntlink, icon: { kind: 'none' } },
+      {
+        name: 'Warchest',
+        description: 'Warchest Reserves hold lands not yet in play. Active Warchest holds your deployed lands. Your Darling waits in her own zone, and each return adds 2 to her next call.',
+        icon: { kind: 'none' },
+      },
+      {
+        name: 'Darlings',
+        description: 'Your Darling waits in her own zone; each time she falls, her next call costs 2 more.',
+        icon: { kind: 'none' },
+      },
     ],
   },
   {
@@ -114,8 +129,14 @@ function section(id: GlossarySection['id']): GlossarySection {
 
 /** A permanent, read-only reference that players can open from the Main Menu. */
 export class GlossaryScene extends Phaser.Scene {
+  private focus: string | null = null;
+
   constructor() {
     super('Glossary');
+  }
+
+  init(data: { focus?: string } = {}): void {
+    this.focus = data.focus ?? null;
   }
 
   create(): void {
@@ -176,12 +197,16 @@ export class GlossaryScene extends Phaser.Scene {
     this.sectionTitle(LEFT_X + 20, 142, combat.title);
     const splitAt = Math.ceil(combat.entries.length / 2);
     const columns = [combat.entries.slice(0, splitAt), combat.entries.slice(splitAt)];
-    // 62px pitch / 56px plates (was 74/66): the recut leaves the mechanics
-    // pages room inside the same panel. Reminder copy is one to two micro
-    // lines, which the shorter plate still holds; flagged for the by-eye pass.
+    // Rows grow from their wrapped reminder copy. The columns remain compact
+    // for ordinary one- and two-line entries, but no longer rely on a fixed
+    // plate height when an entry needs more lines.
     columns.forEach((entries, column) => {
       const x = LEFT_X + (column === 0 ? 16 : 298);
-      entries.forEach((entry, row) => this.drawCombatRow(entry, x, 164 + row * 62, 254, 56));
+      let y = 164;
+      for (const entry of entries) {
+        const row = this.drawCombatRow(entry, x, y, 254, 56);
+        y += row.height + 6;
+      }
     });
     // Rides the section header's right edge; the mechanics pager owns the
     // right side of its own heading row.
@@ -200,23 +225,24 @@ export class GlossaryScene extends Phaser.Scene {
     y: number,
     width: number,
     height = 66,
-  ): Phaser.GameObjects.GameObject[] {
-    const items: Phaser.GameObjects.GameObject[] = [this.rowPlate(x, y, width, height)];
+  ): DrawnGlossaryRow {
+    const plate = this.rowPlate(x, y, width, height);
+    const items: Phaser.GameObjects.GameObject[] = [plate];
     let textX = x + 14;
     if (entry.icon.kind === 'keyword' || entry.icon.kind === 'mechanic') {
       const iconKey = entry.icon.kind === 'keyword' ? KEYWORD_ICON_KEY[entry.icon.key] : MECHANIC_ICON_KEY[entry.icon.key];
       items.push(this.add.image(x + 22, y + height / 2, iconKey).setDisplaySize(34, 34));
       textX = x + 46;
     }
-    items.push(this.add
+    const name = this.add
       .text(textX, y + 15, entry.name, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
         color: theme.colors.heading,
       })
-      .setOrigin(0, 0.5));
-    items.push(this.add
+      .setOrigin(0, 0.5);
+    const description = this.add
       .text(textX, y + 27, entry.description ?? '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
@@ -224,16 +250,24 @@ export class GlossaryScene extends Phaser.Scene {
         lineSpacing: 1,
         wordWrap: { width: width - (textX - x) - 12 },
       })
-      .setOrigin(0, 0));
-    return items;
+      .setOrigin(0, 0);
+    const requiredHeight = Math.max(
+      height,
+      Math.ceil(27 + description.height + 8),
+      Math.ceil(15 + name.height / 2 + 8),
+    );
+    if (requiredHeight !== height) this.redrawRowPlate(plate, x, y, width, requiredHeight);
+    items.push(name, description);
+    return { items, height: requiredHeight };
   }
 
   /** Non-keyword mechanics are icon-less, like Card Types, and page in place. */
   private drawMechanics(mechanics: GlossarySection): void {
-    // Keep the established two-column row treatment, but page the eight-entry
-    // section so every reminder stays inside the panel and title-safe frame.
+    // Keep the two-column treatment while paging one row at a time. This
+    // gives the longest current reminder enough vertical room to grow with its
+    // wrapped text instead of spilling below the plate.
     this.sectionTitle(LEFT_X + 20, 544, mechanics.title);
-    const pageSize = 4;
+    const pageSize = 2;
     const pageCount = Math.max(1, Math.ceil(mechanics.entries.length / pageSize));
     let pageItems: Phaser.GameObjects.GameObject[] = [];
     let pageControl: ReturnType<typeof pager> | null = null;
@@ -244,21 +278,24 @@ export class GlossaryScene extends Phaser.Scene {
       pageItems = [];
       mechanics.entries.slice(page * pageSize, (page + 1) * pageSize).forEach((entry, index) => {
         const x = LEFT_X + (index % 2 === 0 ? 16 : 298);
-        const y = 560 + Math.floor(index / 2) * 62;
-        pageItems.push(...this.drawCombatRow(entry, x, y, 254, 56));
+        const row = this.drawCombatRow(entry, x, 560, 254, 56);
+        pageItems.push(...row.items);
       });
       pageControl?.refresh(page, pageCount);
     };
     pageControl = pager(this, LEFT_X + PANEL_W - 140, 544, 0, pageCount, renderPage);
-    renderPage(0);
+    const focusedIndex = this.focus
+      ? mechanics.entries.findIndex((entry) => entry.name === this.focus)
+      : -1;
+    renderPage(focusedIndex < 0 ? 0 : Math.floor(focusedIndex / pageSize));
   }
 
   private drawCardTypes(types: GlossarySection): void {
     this.sectionTitle(RIGHT_X + 20, 142, types.title);
-    types.entries.forEach((entry, index) => {
-      const y = 166 + index * 42;
-      this.rowPlate(RIGHT_X + 16, y, PANEL_W - 32, 36);
-      this.add
+    let y = 166;
+    types.entries.forEach((entry) => {
+      const plate = this.rowPlate(RIGHT_X + 16, y, PANEL_W - 32, 36);
+      const name = this.add
         .text(RIGHT_X + 30, y + 18, entry.name, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
@@ -266,18 +303,24 @@ export class GlossaryScene extends Phaser.Scene {
           color: theme.colors.heading,
         })
         .setOrigin(0, 0.5);
-      this.add
+      const description = this.add
         .text(RIGHT_X + 142, y + 18, entry.description ?? '', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.body,
+          wordWrap: { width: PANEL_W - 184 },
         })
         .setOrigin(0, 0.5);
+      const height = Math.max(36, Math.ceil(Math.max(name.height, description.height) + 12));
+      if (height !== 36) this.redrawRowPlate(plate, RIGHT_X + 16, y, PANEL_W - 32, height);
+      name.setY(y + height / 2);
+      description.setY(y + height / 2);
+      y += height + 6;
     });
     this.add
       .graphics()
       .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
-      .lineBetween(RIGHT_X + 20, 438, RIGHT_X + PANEL_W - 20, 438);
+      .lineBetween(RIGHT_X + 20, Math.max(438, y + 8), RIGHT_X + PANEL_W - 20, Math.max(438, y + 8));
   }
 
   private drawCompactReference(sectionData: GlossarySection, x: number, y: number, width: number): void {
@@ -324,8 +367,20 @@ export class GlossaryScene extends Phaser.Scene {
   }
 
   private rowPlate(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics {
-    return this.add
-      .graphics()
+    const plate = this.add.graphics();
+    this.redrawRowPlate(plate, x, y, width, height);
+    return plate;
+  }
+
+  private redrawRowPlate(
+    plate: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): void {
+    plate
+      .clear()
       .fillStyle(theme.graphics.rowFill, theme.alpha.subtle)
       .fillRoundedRect(x, y, width, height, theme.radius.control)
       .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
