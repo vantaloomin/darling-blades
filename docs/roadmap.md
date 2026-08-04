@@ -52,7 +52,7 @@ _Dated 2026-07-31. Review monthly._
   (`src/audio/`, 18 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v24** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. `SaveData` is **v26** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
@@ -61,8 +61,20 @@ _Dated 2026-07-31. Review monthly._
   keys, v21→v22 tower roster stamp + per-basic land styles, v22→v23 one
   atomic migration for the Darlings fields, the Warchest Reserves, and
   variant-deck pins, v23→v24 the empty-block confirmation preference, and
-  v24→v25 the Warchest id reveal plus collection-level display pins — see
+  v24→v25 the Warchest id reveal plus collection-level display pins, and
+  v25→v26 the Darlings command zone, Darlings tutorial, and free Zhou Yu
+  claim — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-08-04 · the 1.5.5 cut)
+
+**The 1.5.5 release train (PRs #172-#190).** The measurement-gated Warchest
+and Darlings reveal closed with reserve and precon baselines, the Darlings
+command-zone respec, five shop precons and their tutorial, collection display
+pins and collapsed deck rows, the single-tab save guard, the Foresee ordering
+repair, player-feedback batches, and the Yokai art round. The original
+collection metric rework and art riders landed alongside this wider release
+scope; 1.6 remains the Warchest launch train.
 
 ## Recently shipped (2026-07-31 · the 1.5.0 cut)
 
@@ -1390,14 +1402,10 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   ~~metagame-loop CI promotion~~ (decided 2026-07-28: stays
   informational-only — the 1.4 release sweep hit max-rounds without
   convergence; revisit after the 1.5 sweep);
-  **1.5.5** = **ACTIVE PROGRAM** (opened 2026-07-31; the train spec is
-  [plan-1.5.5.md](plan-1.5.5.md)): the **Warchest + Darlings reveal**
-  (Warchest is the product name for the Warchest mana system, replacing
-  the historical working title; both formats are engine- and UI-complete,
-  revealed after their dated matrices and the losslessness probe) + the
-  **collectionPct metric rework**
-  (must land before any future set ships) + the sweeper/tribal **art
-  riders**;
+  **1.5.5** = **SHIPPED 2026-08-04** (v1.5.5 cut; the close-out record is
+  [plan-1.5.5.md](plan-1.5.5.md)): the measurement-gated **Warchest +
+  Darlings reveal**, **collectionPct metric rework**, sweeper/tribal **art
+  riders**, and the release-scope additions recorded in Recently shipped;
   **1.6** = **the Warchest launch train** (north star ratified 2026-07-31,
   draft program in [plan-1.6-draft.md](plan-1.6-draft.md)): Warchest
   becomes the game-wide mana system and classic constructed retires (decks

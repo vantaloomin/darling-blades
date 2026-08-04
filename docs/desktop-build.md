@@ -1,4 +1,4 @@
-<!-- source-of-truth: src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/src/lib.rs, src-tauri/capabilities/default.json, src/platform/desktopWindow.ts, package.json, vite.config.ts · last-verified: 2026-07-27 · re-verify when the Tauri config or build scripts change -->
+<!-- source-of-truth: src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/src/lib.rs, src-tauri/capabilities/default.json, src/platform/desktopWindow.ts, package.json, vite.config.ts, .github/workflows/release.yml · last-verified: 2026-08-04 · re-verify when the Tauri config or build scripts change -->
 
 # Desktop build (Tauri)
 
@@ -60,6 +60,13 @@ Output of `app:build`:
 > tooling — expect 10–20 minutes and a multi-GB `src-tauri/target/`. Subsequent
 > builds are incremental (seconds to a couple of minutes). `src-tauri/target/` is
 > build cache — safe to delete, never edit.
+
+## Tagged releases
+
+From 1.5.5 onward, pushing a `v*` tag runs
+`.github/workflows/release.yml`, which builds the Windows NSIS installer and
+attaches `src-tauri/target/release/bundle/nsis/*.exe` to the matching GitHub
+Release. `npm run app:build` remains the manual local build path.
 
 ## Configuration (`src-tauri/`)
 

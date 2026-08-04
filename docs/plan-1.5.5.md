@@ -1,14 +1,16 @@
-<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/features.ts, src/meta/warchest.ts, src/meta/SaveManager.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-07-31 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/features.ts, src/meta/warchest.ts, src/meta/SaveManager.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-08-04 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.5.5 — program plan
 
-**Status 2026-07-31: ACTIVE.** The train opened the day of the 1.5.0 cut
-(`release/1.5.5` off main `0d363b5`). Owner framing: *"the missing
-features, after we test them"* — small on purpose. The larger docket
-(priority-window reopening, the Warchest migration, Premium UX Waves B–D,
-the large set) belongs to 1.6; its draft program is
-[plan-1.6-draft.md](plan-1.6-draft.md), which also records the ratified
-north star this train serves.
+**Status 2026-08-04: SHIPPED.** The train closed as the 1.5.5 release.
+Its original scope landed: measurement-gated Warchest and Darlings reveal,
+the collectionPct metric rework, and the sweeper/tribal art riders. The scope
+grew honestly during the train: Darlings was respecified around its own
+command zone, five Darlings precons and their tutorial shipped, the single-tab
+guard and player-feedback batches landed, and the Yokai art round completed.
+The larger docket (priority-window reopening, the game-wide Warchest
+migration, Premium UX Waves B–D, and the large set) remains 1.6 work; see
+[plan-1.6-draft.md](plan-1.6-draft.md).
 
 ## The north star (owner-ratified 2026-07-31)
 

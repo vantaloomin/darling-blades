@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.0"
+version = "1.5.5"
 description = "Darling Blades — a single-player MTG-style collectible card game"
 authors = ["Loominvanta"]
 license = ""
