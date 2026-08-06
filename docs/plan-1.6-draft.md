@@ -2,6 +2,11 @@
 
 # Darling Blades 1.5.5 and 1.6 — draft program plan
 
+**Status 2026-08-06: GRADUATED.** The 1.6 portion graduated into
+[plan-1.6.md](plan-1.6.md) when the train opened (gated) on 2026-08-06;
+this document remains the fuller reference for wave details, the
+mechanic-reuse audit, and the set-size policy. Original status follows.
+
 **Status 2026-07-31: DRAFT.** Authored at the 1.5.0 close from the owner's
 planning session (sources: the session decision record, plan-premium-ux.md,
 plan-battle-box.md, plan-darlings.md, the 2026-07-31 mechanic audit below,
