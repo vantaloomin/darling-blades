@@ -21,6 +21,8 @@ function newTutorialGame(): Game {
     decks: [[...TUTORIAL_PLAYER_DECK], [...TUTORIAL_AI_DECK]],
     seed: TUTORIAL_SEED,
     db: CARD_DB,
+    // The scripted lesson assumes classic single-window timing.
+    rulesRev: 1,
   });
 }
 

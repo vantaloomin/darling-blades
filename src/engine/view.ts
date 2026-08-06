@@ -50,6 +50,8 @@ export interface OpponentView {
 }
 
 export interface PlayerView {
+  /** Absent means revision 1, matching GameState's compatibility contract. */
+  rulesRev?: number;
   myId: PlayerId;
   turn: number;
   step: Step;
@@ -79,6 +81,7 @@ export function viewFor(
         ? { ...state.awaiting, cards: state.awaiting.cards.map(cardIdOf) }
         : structuredClone(state.awaiting);
   return {
+    ...(state.rulesRev === undefined ? {} : { rulesRev: state.rulesRev }),
     myId: player,
     turn: state.turn,
     step: state.step,

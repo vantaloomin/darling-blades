@@ -870,6 +870,30 @@ export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerI
 }
 
 /**
+ * Any castable, targetable Charm in hand or via Retell? Unlike the first-window
+ * gate above, this deliberately excludes Skim so a constant hand size cannot
+ * fuel an unbounded chain of reopened windows.
+ */
+export function hasCastableCharm(state: GameState, db: CardDb, player: PlayerId): boolean {
+  const me = state.players[player];
+  for (const cardId of me.hand) {
+    const d = def(db, cardId);
+    if (!isType(d, 'charm')) continue;
+    if (castBlockers(state, db, player, d) !== null) continue;
+    const specs = castTargetSpecs(d);
+    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+  }
+  for (const cardId of me.graveyard) {
+    const d = def(db, cardId);
+    if (!isType(d, 'charm') || !retellable(d)) continue;
+    if (castBlockers(state, db, player, d, false, 0, true) !== null) continue;
+    const specs = castTargetSpecsFor(d, true);
+    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+  }
+  return false;
+}
+
+/**
  * The single action `player` is forced into when the current decision offers
  * no meaningful choice — or null when a real choice exists (or it isn't this
  * player's decision at all). Pure and read-only; never touches the RNG. The

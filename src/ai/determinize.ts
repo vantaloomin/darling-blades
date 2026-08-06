@@ -314,6 +314,9 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
   const maxSid = Math.max(0, ...view.stack.map((s) => s.sid));
 
   const state: GameState = {
+    ...((view.rulesRev ?? 1) >= 2
+      ? { rulesRev: view.rulesRev, episode: { resolvedSinceOffer: 0, reopensThisStep: 0 } }
+      : {}),
     rng: createRngState(seed),
     turn: view.turn,
     startingPlayer: view.startingPlayer,

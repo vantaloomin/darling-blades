@@ -3,7 +3,7 @@ import { hasCastableInstant } from './actions';
 import type { Emit } from './battlefield';
 import { fireTriggers } from './effects/EffectInterpreter';
 import { checkStateBased } from './sba';
-import type { CardDb, GameState, PlayerId } from './types';
+import type { CardDb, GameState, PlayerId, Step } from './types';
 import { cardIdOf, opponentOf } from './types';
 
 export function endGame(
@@ -37,14 +37,21 @@ export function drawCards(
   }
 }
 
+/** Change steps and clear the revision-2 per-step reopen backstop. */
+export function setStep(state: GameState, step: Step, emit?: Emit): void {
+  const changed = state.step !== step;
+  state.step = step;
+  if (changed && (state.rulesRev ?? 1) >= 2 && state.episode) state.episode.reopensThisStep = 0;
+  emit?.({ e: 'stepChanged', step });
+}
+
 /** Untap → dawn → draw, then hand control to Main 1. */
 export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   const active = state.activePlayer;
   emit({ e: 'turnBegan', player: active, turn: state.turn });
 
   // Untap
-  state.step = 'untap';
-  emit({ e: 'stepChanged', step: 'untap' });
+  setStep(state, 'untap', emit);
   const untapped: number[] = [];
   for (const perm of state.battlefield) {
     if (perm.controller !== active) continue;
@@ -60,8 +67,7 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   // Dawn: battlefield order is preserved. For each permanent, ordinary dawn
   // abilities resolve first, then a Quest advances and resolves its chapter.
   // Chapter ops are trigger-safe and can queue FIFO pending decisions.
-  state.step = 'dawn';
-  emit({ e: 'stepChanged', step: 'dawn' });
+  setStep(state, 'dawn', emit);
   for (const perm of [...state.battlefield]) {
     if (perm.controller !== active) continue;
     if (!state.battlefield.some((p) => p.iid === perm.iid)) continue;
@@ -81,25 +87,23 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
 export function finishDawn(state: GameState, emit: Emit): void {
   const active = state.activePlayer;
   // Draw
-  state.step = 'draw';
-  emit({ e: 'stepChanged', step: 'draw' });
+  setStep(state, 'draw', emit);
   const skipsDraw = state.turn === 1 && active === state.startingPlayer;
   if (!skipsDraw) {
     drawCards(state, emit, active, 1);
     if (state.winner !== null) return;
   }
 
-  state.step = 'main1';
-  emit({ e: 'stepChanged', step: 'main1' });
+  setStep(state, 'main1', emit);
   state.awaiting = { player: active, kind: 'main' };
 }
 
-/** Main 2 passed: end step. The non-active player gets one instant window. */
+/** Main 2 passed: end step. The non-active player gets the first instant window. */
 export function enterEndStep(state: GameState, db: CardDb, emit: Emit): void {
-  state.step = 'end';
-  emit({ e: 'stepChanged', step: 'end' });
+  setStep(state, 'end', emit);
   const nonActive = opponentOf(state.activePlayer);
   if (hasCastableInstant(state, db, nonActive)) {
+    if ((state.rulesRev ?? 1) >= 2 && state.episode) state.episode.resolvedSinceOffer = 0;
     state.awaiting = { player: nonActive, kind: 'endStepWindow' };
     emit({ e: 'responseWindowOpened', player: nonActive });
   } else {
@@ -108,8 +112,7 @@ export function enterEndStep(state: GameState, db: CardDb, emit: Emit): void {
 }
 
 export function enterCleanup(state: GameState, db: CardDb, emit: Emit): void {
-  state.step = 'cleanup';
-  emit({ e: 'stepChanged', step: 'cleanup' });
+  setStep(state, 'cleanup', emit);
   resumeCleanup(state, db, emit);
 }
 

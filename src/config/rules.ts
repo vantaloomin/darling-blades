@@ -1,5 +1,8 @@
 /** Every ruleset constant lives here — the engine reads only from this file. */
 
+/** Current observable engine-rules revision for newly constructed games. */
+export const CURRENT_RULES_REV = 2 as const;
+
 /** `constructed`/`warchest` are the persisted deck-format spellings. */
 export type ReserveFormat = 'warchest' | 'darlings';
 export type GameFormat = 'classic' | 'constructed' | ReserveFormat;
@@ -35,6 +38,7 @@ export const RULES = {
   // validateBlocks; only the legalActions Dreaded enumeration widens, bounded
   // by the 8-creature battlefield cap.
   maxBlockersPerAttacker: 4,
+  maxWindowReopensPerStep: 8,
   turnLimit: 100, // game is a draw at turn 100 (anti-stall)
 } as const;
 

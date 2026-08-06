@@ -66,10 +66,10 @@ function recordDarlings(seed: number): { log: ReplayLog; state: string; events: 
   throw new Error('Darlings replay fixture did not finish');
 }
 
-describe('Darlings replay v6', () => {
+describe('Darlings replay v7', () => {
   it('round-trips command-zone state and actions byte-identically', () => {
     const original = recordDarlings(9801);
-    expect(original.log.v).toBe(6);
+    expect(original.log.v).toBe(7); // Current logs opt into priority-window reopening.
     expect(original.log.format).toBe('darlings');
     expect(original.log.darlings).toEqual(['bear', 'bear']);
     expect(original.log.landReserves).toEqual([RESERVE, RESERVE]);
@@ -87,7 +87,7 @@ describe('Darlings replay v6', () => {
     expect(JSON.stringify(replayed.eventLog)).toBe(original.events);
   });
 
-  it('preserves the v5 Darlings shape but refuses it through the v6 execution gate', () => {
+  it('preserves the v5 Darlings shape but refuses it through the v7 execution gate', () => {
     const { log } = recordDarlings(9802);
     const legacy: ReplayLog = {
       ...log,
@@ -99,7 +99,7 @@ describe('Darlings replay v6', () => {
     expect(() => replayGame(legacy, REPLAY_DB)).toThrow('older replay version');
   });
 
-  it('preserves the v4 Darlings reserve-only shape but refuses it through the v6 execution gate', () => {
+  it('preserves the v4 Darlings reserve-only shape but refuses it through the v7 execution gate', () => {
     const { log } = recordDarlings(9803);
     const legacy: ReplayLog = {
       ...log,

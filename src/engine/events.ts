@@ -32,7 +32,7 @@ export type GameEvent =
       /** Present only for a normal-cost creature cast from a Darling zone. */
       fromDarlingZone?: true;
     }
-  | { e: 'responseWindowOpened'; player: PlayerId }
+  | { e: 'responseWindowOpened'; player: PlayerId; /** Revision-2 reopen only. */ reopened?: true }
   | { e: 'spellResolved'; sid: number }
   | { e: 'spellCountered'; sid: number }
   | { e: 'targetsFizzled'; sid: number }
