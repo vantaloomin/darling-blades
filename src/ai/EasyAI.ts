@@ -100,6 +100,8 @@ export class EasyAI implements AIPlayer {
 
   private mulligan(view: PlayerView): Action {
     if (view.you.mulligans >= 2) return { type: 'keepHand' };
+    // Reserve formats deal landless hands; the land band would mull every one.
+    if (view.you.landReserve !== undefined) return { type: 'keepHand' };
     const lands = this.landsInHand(view);
     // Wide keep band [1,6] — Easy keeps bad hands.
     return lands >= 1 && lands <= 6 ? { type: 'keepHand' } : { type: 'mulligan' };

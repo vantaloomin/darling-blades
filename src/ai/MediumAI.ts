@@ -147,11 +147,17 @@ export class MediumAI implements AIPlayer {
 
   private mulligan(view: PlayerView): Action {
     const hand = view.you.hand;
-    const lands = this.landsIn(hand);
     const mulls = view.you.mulligans;
     if (mulls >= 2) return { type: 'keepHand' };
-    // `mulliganShift` moves the keep-band lower bounds (default 0).
+    // `mulliganShift` moves the keep thresholds (default 0).
     const shift = this.pers.mulliganShift;
+    if (view.you.landReserve !== undefined) {
+      // Reserve formats deal landless hands, so judge curve instead of lands:
+      // keep when enough spells are castable by turn 3 off the public reserve.
+      const early = hand.filter((c) => manaValue(def(this.db, c).cost) <= 3).length;
+      return early >= (mulls === 0 ? 2 : 1) + shift ? { type: 'keepHand' } : { type: 'mulligan' };
+    }
+    const lands = this.landsIn(hand);
     if (mulls === 0) {
       return lands >= 2 + shift && lands <= 5 ? { type: 'keepHand' } : { type: 'mulligan' };
     }

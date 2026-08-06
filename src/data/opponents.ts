@@ -435,7 +435,11 @@ export interface Avatar {
  * confirms floors 19-20 stay tier 6 (stamped in src/ai/tiers.ts).
  *
  * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
- * matrices the 1.5.0 release split left TO MEASURE). Fixture fleets from
+ * matrices the 1.5.0 release split left TO MEASURE). STALE 2026-08-06:
+ * these numbers were measured while the land-count mulligan bands made
+ * every AI mulligan exactly twice in reserve formats (fixed in
+ * EasyAI/MediumAI with reserve-aware keep rules); re-measure and re-date
+ * both matrices before citing them. Fixture fleets from
  * scripts/reserveMatrixDecks.ts (deterministic, validator-gated; they
  * measure the FORMAT, not tuned decks - no product balance claim, and no
  * classic-pool change may be justified by these numbers per
