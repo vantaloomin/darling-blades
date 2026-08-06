@@ -34,6 +34,8 @@
  *   --ac-bosses          Morgan and Artoria vs Low/Mid/High AC references
  *                        (Crimson Muster / Shadow Mandate / Questing Table).
  *   --seeds <n>          Games per cell (default 20).
+ *   --telemetry          Collect read-only per-game Warchest diagnostic data.
+ *   --telemetry-out <p>  Also write full per-deck/per-cell telemetry JSON.
  *   --only <id,id,...>   Avatar-matrix row filter for fast tuning iteration
  *                        (e.g. --only simayi,menghuo). Cell seeds are keyed by
  *                        (rung, starter) so filtered runs reproduce the exact
@@ -51,7 +53,8 @@
  * The skipped-by-default suite tests/ai/balance.test.ts imports the run*
  * helpers below, so the manual vitest tool and this CLI share one code path.
  */
-import { resolve } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AIPlayer } from '../src/ai/AIPlayer';
 import { MediumAI } from '../src/ai/MediumAI';
@@ -63,7 +66,16 @@ import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
 import type { GameFormat } from '../src/config/rules';
 import { Game } from '../src/engine/Game';
+import type { PlayerId } from '../src/engine/types';
 import type { Difficulty } from '../src/meta/Economy';
+import {
+  aggregatePlayerTelemetry,
+  GameTelemetry,
+  populationStandardDeviation,
+  type GameTelemetryRecord,
+  type PlayerTelemetryAggregate,
+  type PlayerTelemetrySample,
+} from '../src/meta/telemetry';
 import { buildReserveMatrixFleets, type ReserveMatrixDeck } from './reserveMatrixDecks';
 
 // ---------------------------------------------------------------------------
@@ -77,6 +89,100 @@ export interface CellResult {
   games: number;
   /** Row-side win rate over DECIDED games (0 if every game drew). */
   rate: number;
+  /** Present only when telemetry was requested. Population SD over decided seed outcomes. */
+  winRateStdDev?: number;
+}
+
+export interface TelemetryCellGame {
+  seed: number;
+  rowIsP0: boolean;
+  record: GameTelemetryRecord;
+}
+
+export interface TelemetryCellDetail {
+  matrix: string;
+  cellIndex: number;
+  rowDeck: string;
+  colDeck: string;
+  games: TelemetryCellGame[];
+  row: PlayerTelemetryAggregate;
+  col: PlayerTelemetryAggregate;
+  rowWinRateStdDev: number;
+}
+
+export interface BalanceTelemetryJson {
+  decks: PlayerTelemetryAggregate[];
+  cells: TelemetryCellDetail[];
+}
+
+/** One opt-in sink shared across whichever matrix modes the CLI selected. */
+export class BalanceTelemetryCollector {
+  private readonly details: TelemetryCellDetail[] = [];
+
+  add(detail: TelemetryCellDetail): void {
+    this.details.push(detail);
+  }
+
+  toJSON(): BalanceTelemetryJson {
+    const samples = new Map<string, PlayerTelemetrySample[]>();
+    for (const cell of this.details) {
+      for (const game of cell.games) {
+        for (const player of [0, 1] as const) {
+          const name = game.record.players[player].deckName;
+          const rows = samples.get(name) ?? [];
+          rows.push({ game: game.record, player });
+          samples.set(name, rows);
+        }
+      }
+    }
+    const decks = [...samples.values()]
+      .map((rows) => aggregatePlayerTelemetry(rows))
+      .sort((a, b) => a.deckName.localeCompare(b.deckName));
+    return { decks, cells: structuredClone(this.details) };
+  }
+
+  render(): string {
+    const report = this.toJSON();
+    const lines = [
+      'MATCHUP WIN-RATE STANDARD DEVIATION (decided seed outcomes):',
+      ...report.cells.map((cell) =>
+        `  [${cell.matrix}] ${cell.rowDeck} vs ${cell.colDeck}: ${(cell.rowWinRateStdDev * 100).toFixed(1)}pp`
+      ),
+      '',
+      'TELEMETRY PER-DECK AGGREGATE:',
+      '  deck                              games cleanup clog turns gravecasts cleanup-fuel deadweight stranded mulligan',
+    ];
+    for (const deck of report.decks) {
+      lines.push(
+        `  ${deck.deckName.slice(0, 32).padEnd(32)} ${String(deck.games).padStart(5)} ` +
+        `${deck.meanCleanupDiscards.toFixed(2).padStart(7)} ` +
+        `${deck.meanHandCloggedTurns.toFixed(2).padStart(4)} ` +
+        `${deck.meanTurns.toFixed(1).padStart(5)} ` +
+        `${deck.meanGraveyardCasts.toFixed(2).padStart(10)} ` +
+        `${(deck.graveyardFuelFromCleanupShare * 100).toFixed(1).padStart(9)}% ` +
+        `${deck.meanDeadWeightAtEnd.toFixed(2).padStart(10)} ` +
+        `${(deck.colorStrandedTurnsRate * 100).toFixed(1).padStart(7)}% ` +
+        `${(deck.mulliganRate * 100).toFixed(1).padStart(7)}%`,
+      );
+    }
+    return lines.join('\n');
+  }
+}
+
+interface CellTelemetryOptions {
+  collector: BalanceTelemetryCollector;
+  matrix: string;
+  rowDeck: string;
+  colDeck: string;
+}
+
+function cellTelemetry(
+  collector: BalanceTelemetryCollector | undefined,
+  matrix: string,
+  rowDeck: string,
+  colDeck: string,
+): CellTelemetryOptions | undefined {
+  return collector ? { collector, matrix, rowDeck, colDeck } : undefined;
 }
 
 export interface CellSpec {
@@ -114,6 +220,8 @@ export function playOut(
   landReserves?: [string[], string[]],
   onEngineException?: () => void,
   darlings?: [string | null, string | null],
+  telemetryDeckNames?: [string, string],
+  onTelemetry?: (record: GameTelemetryRecord) => void,
 ): 0 | 1 | 'draw' {
   const engineCall = <T>(run: () => T): T => {
     try {
@@ -124,8 +232,9 @@ export function playOut(
     }
   };
   // Keep the original classic constructor object byte-for-byte intact.
+  const telemetry = telemetryDeckNames ? new GameTelemetry(CARD_DB, telemetryDeckNames) : undefined;
   const game =
-    format === undefined && landReserves === undefined && darlings === undefined
+    format === undefined && landReserves === undefined && darlings === undefined && telemetry === undefined
       ? engineCall(() => new Game({ decks, seed, db: CARD_DB }))
       : engineCall(() => new Game({
         decks,
@@ -134,11 +243,18 @@ export function playOut(
         format,
         ...(landReserves ? { landReserves } : {}),
         ...(darlings ? { darlings } : {}),
+        ...(telemetry ? { eventObserver: telemetry.onEvent.bind(telemetry) } : {}),
       }));
   const ais = [p0, p1];
   for (let i = 0; i < 40_000; i++) {
     const a = engineCall(() => game.awaiting);
-    if (a.kind === 'gameOver') return engineCall(() => game.state.winner!);
+    if (a.kind === 'gameOver') {
+      const winner = engineCall(() => game.instanceState.winner!);
+      if (telemetry && onTelemetry) {
+        onTelemetry(telemetry.finish(game.instanceState, winner));
+      }
+      return winner;
+    }
     const view = engineCall(() => game.viewFor(a.player));
     const legal = engineCall(() => game.legalActions(a.player));
     const action = ais[a.player].chooseAction(view, legal);
@@ -157,10 +273,13 @@ export function runCell(
   seeds: number,
   cellIndex: number,
   losslessness?: LosslessnessCounters,
+  telemetry?: CellTelemetryOptions,
 ): CellResult {
   let rowWins = 0;
   let colWins = 0;
   let draws = 0;
+  const telemetryGames: TelemetryCellGame[] = [];
+  const seedOutcomes: number[] = [];
   for (let i = 0; i < seeds; i++) {
     const gameSeed = cellIndex * 100_000 + i;
     const rowIsP0 = i % 2 === 0;
@@ -189,15 +308,25 @@ export function runCell(
           if (losslessness) losslessness.engineExceptions++;
         },
         seatDarlings,
+        telemetry
+          ? (rowIsP0
+              ? [telemetry.rowDeck, telemetry.colDeck]
+              : [telemetry.colDeck, telemetry.rowDeck])
+          : undefined,
+        telemetry
+          ? (record) => telemetryGames.push({ seed: gameSeed, rowIsP0, record })
+          : undefined,
       );
       if (winner === 'draw') {
         draws++;
         if (losslessness) losslessness.draws++;
       } else if ((winner === 0) === rowIsP0) {
         rowWins++;
+        if (telemetry) seedOutcomes.push(1);
         if (losslessness) losslessness.gamesDecided++;
       } else {
         colWins++;
+        if (telemetry) seedOutcomes.push(0);
         if (losslessness) losslessness.gamesDecided++;
       }
     } catch (error) {
@@ -209,7 +338,28 @@ export function runCell(
     }
   }
   const decided = rowWins + colWins;
-  return { rowWins, colWins, draws, games: seeds, rate: decided === 0 ? 0 : rowWins / decided };
+  const rate = decided === 0 ? 0 : rowWins / decided;
+  if (!telemetry) return { rowWins, colWins, draws, games: seeds, rate };
+  const rowSamples = telemetryGames.map((game) => ({
+    game: game.record,
+    player: (game.rowIsP0 ? 0 : 1) as PlayerId,
+  }));
+  const colSamples = telemetryGames.map((game) => ({
+    game: game.record,
+    player: (game.rowIsP0 ? 1 : 0) as PlayerId,
+  }));
+  const winRateStdDev = populationStandardDeviation(seedOutcomes);
+  telemetry.collector.add({
+    matrix: telemetry.matrix,
+    cellIndex,
+    rowDeck: telemetry.rowDeck,
+    colDeck: telemetry.colDeck,
+    games: telemetryGames,
+    row: aggregatePlayerTelemetry(rowSamples),
+    col: aggregatePlayerTelemetry(colSamples),
+    rowWinRateStdDev: winRateStdDev,
+  });
+  return { rowWins, colWins, draws, games: seeds, rate, winRateStdDev };
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +489,11 @@ export interface AvatarMatrixReport {
 }
 
 /** Avatars (own brain + personality) vs Medium-proxied starters. */
-export function runAvatarMatrix(seedsPerCell: number, onlyIds?: string[]): AvatarMatrixReport {
+export function runAvatarMatrix(
+  seedsPerCell: number,
+  onlyIds?: string[],
+  telemetry?: BalanceTelemetryCollector,
+): AvatarMatrixReport {
   const roster = [...AVATARS]
     .sort((a, b) => a.tier - b.tier)
     .filter((a) => !onlyIds || onlyIds.includes(a.id));
@@ -353,6 +507,8 @@ export function runAvatarMatrix(seedsPerCell: number, onlyIds?: string[]): Avata
         },
         seedsPerCell,
         av.tier * 100 + sIdx, // stable per (rung, starter) even under --only
+        undefined,
+        cellTelemetry(telemetry, 'avatars', `Avatar ${av.name}`, starter.name),
       ),
     );
     return { avatar: av, cells, avg: mean(cells.map((c) => c.rate)) };
@@ -418,7 +574,10 @@ export interface CelticFaeBossMatrixReport {
  * the reference deck. Cell seeds are stable at 30_000 + row*10 + column so a
  * filtered or repeated run samples the same games.
  */
-export function runCelticFaeBossMatrix(seedsPerCell: number): CelticFaeBossMatrixReport {
+export function runCelticFaeBossMatrix(
+  seedsPerCell: number,
+  telemetry?: BalanceTelemetryCollector,
+): CelticFaeBossMatrixReport {
   const wild = STARTER_DECKS.find((deck) => deck.id === 'starter-wild');
   const harvest = STARTER_DECKS.find((deck) => deck.id === 'starter-harvest');
   const glimmer = THEME_DECKS.find((deck) => deck.id === 'theme-celtic-fae');
@@ -439,6 +598,8 @@ export function runCelticFaeBossMatrix(seedsPerCell: number): CelticFaeBossMatri
         },
         seedsPerCell,
         30_000 + rowIndex * 10 + refIndex,
+        undefined,
+        cellTelemetry(telemetry, 'cf-bosses', `Avatar ${avatar.name}`, ref.label),
       ),
     );
     return { avatar, cells, avg: mean(cells.map((cell) => cell.rate)) };
@@ -483,7 +644,10 @@ export interface ArthurianCourtBossMatrixReport {
  * Medium proxy on the reference deck. Its seed range is separate from the
  * Celtic Fae pass so the two harnesses never share sampled games.
  */
-export function runArthurianCourtBossMatrix(seedsPerCell: number): ArthurianCourtBossMatrixReport {
+export function runArthurianCourtBossMatrix(
+  seedsPerCell: number,
+  telemetry?: BalanceTelemetryCollector,
+): ArthurianCourtBossMatrixReport {
   const low = STARTER_DECKS.find((deck) => deck.id === 'starter-crimson');
   const mid = STARTER_DECKS.find((deck) => deck.id === 'starter-mandate');
   const questingTable = THEME_DECKS.find((deck) => deck.id === 'theme-arthurian-court');
@@ -504,6 +668,8 @@ export function runArthurianCourtBossMatrix(seedsPerCell: number): ArthurianCour
         },
         seedsPerCell,
         40_000 + rowIndex * 10 + refIndex,
+        undefined,
+        cellTelemetry(telemetry, 'ac-bosses', `Avatar ${avatar.name}`, ref.label),
       ),
     );
     return { avatar, cells, avg: mean(cells.map((cell) => cell.rate)) };
@@ -537,7 +703,10 @@ export interface StarterMatrixReport {
 }
 
 /** Starter-vs-starter mirror matrix, neutral Medium piloting both sides. */
-export function runStarterMatrix(seedsPerCell: number): StarterMatrixReport {
+export function runStarterMatrix(
+  seedsPerCell: number,
+  telemetry?: BalanceTelemetryCollector,
+): StarterMatrixReport {
   const cells = STARTER_DECKS.map((rowDeck, r) =>
     STARTER_DECKS.map((colDeck, c) =>
       runCell(
@@ -548,6 +717,8 @@ export function runStarterMatrix(seedsPerCell: number): StarterMatrixReport {
         },
         seedsPerCell,
         10_000 + r * 10 + c,
+        undefined,
+        cellTelemetry(telemetry, 'starters', rowDeck.name, colDeck.name),
       ),
     ),
   );
@@ -590,7 +761,11 @@ export interface PrefabMatrixReport {
  * matrix, and the 10-stride would alias upper-triangle cells at 13+ decks;
  * prefab numbers measured since then come from fresh seed streams).
  */
-export function runPrefabMatrix(seedsPerCell: number, ai: Difficulty): PrefabMatrixReport {
+export function runPrefabMatrix(
+  seedsPerCell: number,
+  ai: Difficulty,
+  telemetry?: BalanceTelemetryCollector,
+): PrefabMatrixReport {
   const decks = [...STARTER_DECKS, ...THEME_DECKS];
   const n = decks.length;
   const cells: (CellResult | null)[][] = decks.map(() => decks.map(() => null));
@@ -605,6 +780,8 @@ export function runPrefabMatrix(seedsPerCell: number, ai: Difficulty): PrefabMat
         },
         seedsPerCell,
         100_000 + r * 100 + c,
+        undefined,
+        cellTelemetry(telemetry, 'prefabs', decks[r].name, decks[c].name),
       );
       cells[r][c] = cell;
       const decidedMirror = cell.rowWins + cell.colWins;
@@ -682,6 +859,7 @@ function runReserveMatrix(
   seedsPerCell: number,
   ai: Difficulty,
   cellBase: number,
+  telemetry?: BalanceTelemetryCollector,
 ): ReserveMatrixReport {
   const n = decks.length;
   const cells: (CellResult | null)[][] = decks.map(() => decks.map(() => null));
@@ -703,6 +881,7 @@ function runReserveMatrix(
         seedsPerCell,
         cellBase + r * 100 + c,
         losslessness,
+        cellTelemetry(telemetry, format, decks[r].name, decks[c].name),
       );
       cells[r][c] = cell;
       const decidedMirror = cell.rowWins + cell.colWins;
@@ -773,18 +952,30 @@ function runReserveMatrix(
 }
 
 /** Starter-derived Warchest field, passed through real reserve validation before play. */
-export function runWarchestMatrix(seedsPerCell: number, ai: Difficulty): ReserveMatrixReport {
-  return runReserveMatrix('WARCHEST', 'warchest', buildReserveMatrixFleets().warchest, seedsPerCell, ai, 80_000);
+export function runWarchestMatrix(
+  seedsPerCell: number,
+  ai: Difficulty,
+  telemetry?: BalanceTelemetryCollector,
+): ReserveMatrixReport {
+  return runReserveMatrix('WARCHEST', 'warchest', buildReserveMatrixFleets().warchest, seedsPerCell, ai, 80_000, telemetry);
 }
 
 /** Deterministic color-spread Darlings field, passed through real reserve validation before play. */
-export function runDarlingsMatrix(seedsPerCell: number, ai: Difficulty): ReserveMatrixReport {
-  return runReserveMatrix('DARLINGS', 'darlings', buildReserveMatrixFleets().darlings, seedsPerCell, ai, 90_000);
+export function runDarlingsMatrix(
+  seedsPerCell: number,
+  ai: Difficulty,
+  telemetry?: BalanceTelemetryCollector,
+): ReserveMatrixReport {
+  return runReserveMatrix('DARLINGS', 'darlings', buildReserveMatrixFleets().darlings, seedsPerCell, ai, 90_000, telemetry);
 }
 
 /** Curated five-Darling shop field, retaining the reviewed singleton deck identities. */
-export function runDarlingsPreconMatrix(seedsPerCell: number, ai: Difficulty): ReserveMatrixReport {
-  return runReserveMatrix('DARLINGS PRECONS', 'darlings', DARLINGS_PRECON_MATRIX_FLEET, seedsPerCell, ai, 110_000);
+export function runDarlingsPreconMatrix(
+  seedsPerCell: number,
+  ai: Difficulty,
+  telemetry?: BalanceTelemetryCollector,
+): ReserveMatrixReport {
+  return runReserveMatrix('DARLINGS PRECONS', 'darlings', DARLINGS_PRECON_MATRIX_FLEET, seedsPerCell, ai, 110_000, telemetry);
 }
 
 export interface DifficultyMatrixReport {
@@ -800,7 +991,10 @@ const DIFFS: readonly Difficulty[] = ['easy', 'medium', 'hard'];
  * across seeds (the winrate.test.ts idiom) so neither brain owns the better
  * deck.
  */
-export function runDifficultyMatrix(seedsPerCell: number): DifficultyMatrixReport {
+export function runDifficultyMatrix(
+  seedsPerCell: number,
+  telemetry?: BalanceTelemetryCollector,
+): DifficultyMatrixReport {
   const deckA = STARTER_DECKS[0].cards; // Crimson Muster
   const deckB = STARTER_DECKS[1].cards; // Wild Communion
   const cells = DIFFS.map((rowDiff, r) =>
@@ -813,6 +1007,13 @@ export function runDifficultyMatrix(seedsPerCell: number): DifficultyMatrixRepor
         },
         seedsPerCell,
         20_000 + r * 10 + c,
+        undefined,
+        cellTelemetry(
+          telemetry,
+          'difficulty',
+          `${rowDiff} (alternating starters)`,
+          `${colDiff} (alternating starters)`,
+        ),
       ),
     ),
   );
@@ -872,7 +1073,10 @@ export function tierMonotonicityFlags(
  * Same-deck mirrors isolate the strength dial from prefab deck power; runCell
  * alternates sides and supplies stable per-cell seeds.
  */
-export function runTierMatrix(seedsPerCell: number): TierMatrixReport {
+export function runTierMatrix(
+  seedsPerCell: number,
+  telemetry?: BalanceTelemetryCollector,
+): TierMatrixReport {
   const rows = TOWER_TIERS.map((tier) => {
     const cells = STARTER_DECKS.map((starter, starterIndex) =>
       runCell(
@@ -883,6 +1087,8 @@ export function runTierMatrix(seedsPerCell: number): TierMatrixReport {
         },
         seedsPerCell,
         50_000 + tier * 10 + starterIndex,
+        undefined,
+        cellTelemetry(telemetry, 'tiers', `Tier ${tier}: ${starter.name}`, starter.name),
       ),
     );
     return { tier, cells, avg: mean(cells.map((cell) => cell.rate)) };
@@ -969,7 +1175,10 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
  * it: floor strength from the tier dial, deck/personality flavor averaged
  * over the daily shuffle's distribution.
  */
-export function runFloorMatrix(seedsPerCell: number): FloorMatrixReport {
+export function runFloorMatrix(
+  seedsPerCell: number,
+  telemetry?: BalanceTelemetryCollector,
+): FloorMatrixReport {
   const roster = [...AVATARS].sort((a, b) => a.tier - b.tier);
   const floors = Array.from({ length: roster.length }, (_, i) => i + 1);
   const rows: FloorRow[] = floors.map((floor) => {
@@ -984,6 +1193,8 @@ export function runFloorMatrix(seedsPerCell: number): FloorMatrixReport {
         },
         seedsPerCell,
         70_000 + floor * 100 + sIdx,
+        undefined,
+        cellTelemetry(telemetry, 'floors', `Floor ${floor} rotating avatar`, starter.name),
       ),
     );
     return { floor, tier, cells, avg: mean(cells.map((c) => c.rate)) };
@@ -1039,6 +1250,14 @@ function main(): void {
     return;
   }
   const only = opt('only')?.split(',').map((s) => s.trim()).filter(Boolean);
+  const telemetryOut = opt('telemetry-out');
+  if (flag('telemetry-out') && telemetryOut === undefined) {
+    console.error('--telemetry-out requires a path');
+    process.exitCode = 1;
+    return;
+  }
+  const wantTelemetry = flag('telemetry') || telemetryOut !== undefined;
+  const telemetry = wantTelemetry ? new BalanceTelemetryCollector() : undefined;
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
   const wantTiers = flag('tiers');
@@ -1070,17 +1289,17 @@ function main(): void {
 
   const t0 = Date.now();
   const reports: { table: string; flags?: string[] }[] = [];
-  if (wantAvatars) reports.push(runAvatarMatrix(seeds, only));
-  if (wantStarters) reports.push(runStarterMatrix(seeds));
-  if (wantDifficulty) reports.push(runDifficultyMatrix(seeds));
-  if (wantTiers) reports.push(runTierMatrix(seeds));
-  if (wantFloors) reports.push(runFloorMatrix(seeds));
-  if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds));
-  if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds));
-  if (wantPrefabs) reports.push(runPrefabMatrix(seeds, ai));
-  if (wantWarchest) reports.push(runWarchestMatrix(seeds, ai));
-  if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai));
-  if (wantDarlingsPrecons) reports.push(runDarlingsPreconMatrix(seeds, ai));
+  if (wantAvatars) reports.push(runAvatarMatrix(seeds, only, telemetry));
+  if (wantStarters) reports.push(runStarterMatrix(seeds, telemetry));
+  if (wantDifficulty) reports.push(runDifficultyMatrix(seeds, telemetry));
+  if (wantTiers) reports.push(runTierMatrix(seeds, telemetry));
+  if (wantFloors) reports.push(runFloorMatrix(seeds, telemetry));
+  if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds, telemetry));
+  if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds, telemetry));
+  if (wantPrefabs) reports.push(runPrefabMatrix(seeds, ai, telemetry));
+  if (wantWarchest) reports.push(runWarchestMatrix(seeds, ai, telemetry));
+  if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai, telemetry));
+  if (wantDarlingsPrecons) reports.push(runDarlingsPreconMatrix(seeds, ai, telemetry));
 
   for (const r of reports) {
     console.log('\n' + r.table);
@@ -1090,6 +1309,13 @@ function main(): void {
       console.log('FLAGS:');
       for (const f of r.flags) console.log(`  ! ${f}`);
     }
+  }
+  if (telemetry) console.log('\n' + telemetry.render());
+  if (telemetry && telemetryOut) {
+    const outputPath = resolve(telemetryOut);
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, JSON.stringify(telemetry.toJSON(), null, 2) + '\n', 'utf8');
+    console.log(`Telemetry JSON: ${outputPath}`);
   }
   console.log(`\n(${((Date.now() - t0) / 1000).toFixed(1)}s)`);
 }
