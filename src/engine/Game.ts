@@ -56,6 +56,8 @@ export interface GameConfig {
   darlings?: [string | null, string | null];
   /** Opt into the pre-deal coin-flip winner's play/draw decision. */
   playDrawChoice?: boolean;
+  /** Optional synchronous read-only observer for headless instrumentation. */
+  eventObserver?: (event: Readonly<GameEvent>, state: Readonly<GameState>) => void;
 }
 
 function buildDarlingInstances(
@@ -176,6 +178,7 @@ function validateRestoredReserveState(state: GameState, db: CardDb): void {
 export class Game {
   private st: GameState;
   private readonly db: CardDb;
+  private readonly eventObserver?: GameConfig['eventObserver'];
   private buf: GameEvent[] = [];
   /** Legacy state facade retained so existing callers can make scalar edits before submit. */
   private publicState?: LegacyGameState;
@@ -184,6 +187,7 @@ export class Game {
 
   constructor(cfg: GameConfig) {
     this.db = cfg.db;
+    this.eventObserver = cfg.eventObserver;
     const rng = createRngState(cfg.seed);
 
     let nextInstanceId = 1;
@@ -232,7 +236,10 @@ export class Game {
       winReason: null,
     };
 
-    const emit: Emit = (e) => this.initialEvents.push(e);
+    const emit: Emit = (e) => {
+      this.initialEvents.push(e);
+      this.eventObserver?.(e, this.st);
+    };
     if (cfg.playDrawChoice) {
       // The call/reveal happens before either player sees an opening hand.
       // Dealing moves to choosePlayDraw below; drawCards consumes no RNG, so
@@ -310,7 +317,13 @@ export class Game {
   static restore(state: GameState, db: CardDb): Game {
     validateRestoredReserveState(state, db);
     const g = Object.create(Game.prototype) as Game;
-    Object.assign(g, { st: normalizeState(state), db, buf: [], initialEvents: [] });
+    Object.assign(g, {
+      st: normalizeState(state),
+      db,
+      eventObserver: undefined,
+      buf: [],
+      initialEvents: [],
+    });
     return g;
   }
 
@@ -321,7 +334,10 @@ export class Game {
     if (err) throw new Error(`Illegal action ${action.type} by P${player}: ${err}`);
 
     this.buf = [];
-    const emit: Emit = (e) => this.buf.push(e);
+    const emit: Emit = (e) => {
+      this.buf.push(e);
+      this.eventObserver?.(e, this.st);
+    };
     this.apply(player, action, emit);
     this.maybeRaiseDeferredDecision(emit);
     this.publicState = legacyState(this.st);
