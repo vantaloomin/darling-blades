@@ -15,6 +15,11 @@
  *                        a per-deck aggregate ranking to surface outliers.
  *   --warchest           5x5 Warchest round-robin over starter-derived legal
  *                        reserve decks. Neutral --ai brain on both sides.
+ *   --warchest-tuning    Six sim-only Warchest deck/hand/color-cap configs;
+ *                        telemetry is mandatory and one JSON writes per config.
+ *   --config <key>       In tuning mode, run exactly one config.
+ *   --out <dir>          Tuning JSON directory (default balance/warchest-tuning).
+ *   --date <YYYY-MM-DD>  Reproducible tuning artifact date (defaults to today).
  *   --darlings           6x6 Darlings round-robin over a deterministic
  *                        color-spread legendary fleet. Neutral --ai brain.
  *   --darlings-precons   5x5 Darlings round-robin over the curated shop
@@ -48,7 +53,8 @@
  *   50_000 tiers · 60_000..79_999 personas/craft.ts (hash-derived) · 70_000
  *   floors (predates craft.ts; different decks/AIs, left as-is) · 100_000
  *   prefabs. 80_000/90_000 are reserved for the planned warchest/darlings
- *   matrices. 110_000 is reserved for Darlings precons.
+ *   matrices. 110_000 is reserved for Darlings precons. Warchest tuning uses
+ *   120_000..170_000 in 10_000-wide per-config bands.
  *
  * The skipped-by-default suite tests/ai/balance.test.ts imports the run*
  * helpers below, so the manual vitest tool and this CLI share one code path.
@@ -76,7 +82,12 @@ import {
   type PlayerTelemetryAggregate,
   type PlayerTelemetrySample,
 } from '../src/meta/telemetry';
-import { buildReserveMatrixFleets, type ReserveMatrixDeck } from './reserveMatrixDecks';
+import {
+  buildReserveMatrixFleets,
+  buildWarchestTuningField,
+  type ReserveMatrixDeck,
+  type WarchestTuningField,
+} from './reserveMatrixDecks';
 
 // ---------------------------------------------------------------------------
 // Core sim
@@ -201,6 +212,8 @@ export interface CellSpec {
   reserves?: (i: number) => [string[], string[]];
   /** Darling assignment for game i, in the same row/column order as decks. */
   darlings?: (i: number) => [string | null, string | null];
+  /** Sim-only opening deal and full-mulligan redraw size. */
+  startingHandSize?: number;
 }
 
 export interface LosslessnessCounters {
@@ -222,6 +235,7 @@ export function playOut(
   darlings?: [string | null, string | null],
   telemetryDeckNames?: [string, string],
   onTelemetry?: (record: GameTelemetryRecord) => void,
+  startingHandSize?: number,
 ): 0 | 1 | 'draw' {
   const engineCall = <T>(run: () => T): T => {
     try {
@@ -234,7 +248,8 @@ export function playOut(
   // Keep the original classic constructor object byte-for-byte intact.
   const telemetry = telemetryDeckNames ? new GameTelemetry(CARD_DB, telemetryDeckNames) : undefined;
   const game =
-    format === undefined && landReserves === undefined && darlings === undefined && telemetry === undefined
+    format === undefined && landReserves === undefined && darlings === undefined && telemetry === undefined &&
+      startingHandSize === undefined
       ? engineCall(() => new Game({ decks, seed, db: CARD_DB }))
       : engineCall(() => new Game({
         decks,
@@ -244,6 +259,7 @@ export function playOut(
         ...(landReserves ? { landReserves } : {}),
         ...(darlings ? { darlings } : {}),
         ...(telemetry ? { eventObserver: telemetry.onEvent.bind(telemetry) } : {}),
+        ...(startingHandSize === undefined ? {} : { startingHandSize }),
       }));
   const ais = [p0, p1];
   for (let i = 0; i < 40_000; i++) {
@@ -316,6 +332,7 @@ export function runCell(
         telemetry
           ? (record) => telemetryGames.push({ seed: gameSeed, rowIsP0, record })
           : undefined,
+        spec.startingHandSize,
       );
       if (winner === 'draw') {
         draws++;
@@ -860,6 +877,7 @@ function runReserveMatrix(
   ai: Difficulty,
   cellBase: number,
   telemetry?: BalanceTelemetryCollector,
+  options?: { startingHandSize?: number; telemetryMatrix?: string },
 ): ReserveMatrixReport {
   const n = decks.length;
   const cells: (CellResult | null)[][] = decks.map(() => decks.map(() => null));
@@ -877,11 +895,14 @@ function runReserveMatrix(
           ...(format === 'darlings'
             ? { darlings: () => [decks[r].darlingId, decks[c].darlingId] as [string | null, string | null] }
             : {}),
+          ...(options?.startingHandSize === undefined
+            ? {}
+            : { startingHandSize: options.startingHandSize }),
         },
         seedsPerCell,
         cellBase + r * 100 + c,
         losslessness,
-        cellTelemetry(telemetry, format, decks[r].name, decks[c].name),
+        cellTelemetry(telemetry, options?.telemetryMatrix ?? format, decks[r].name, decks[c].name),
       );
       cells[r][c] = cell;
       const decidedMirror = cell.rowWins + cell.colWins;
@@ -958,6 +979,144 @@ export function runWarchestMatrix(
   telemetry?: BalanceTelemetryCollector,
 ): ReserveMatrixReport {
   return runReserveMatrix('WARCHEST', 'warchest', buildReserveMatrixFleets().warchest, seedsPerCell, ai, 80_000, telemetry);
+}
+
+export type WarchestTuningConfigKey =
+  | '50-7-nocap'
+  | '50-7-cap2'
+  | '40-5-nocap'
+  | '40-5-cap2'
+  | '40-4-nocap'
+  | '40-4-cap2';
+
+export interface WarchestTuningConfig {
+  key: WarchestTuningConfigKey;
+  deckSize: 40 | 50;
+  startingHandSize: 4 | 5 | 7;
+  maxReserveColors?: 2;
+  cellBase: number;
+}
+
+export const WARCHEST_TUNING_CONFIGS: readonly WarchestTuningConfig[] = [
+  { key: '50-7-nocap', deckSize: 50, startingHandSize: 7, cellBase: 120_000 },
+  { key: '50-7-cap2', deckSize: 50, startingHandSize: 7, maxReserveColors: 2, cellBase: 130_000 },
+  { key: '40-5-nocap', deckSize: 40, startingHandSize: 5, cellBase: 140_000 },
+  { key: '40-5-cap2', deckSize: 40, startingHandSize: 5, maxReserveColors: 2, cellBase: 150_000 },
+  { key: '40-4-nocap', deckSize: 40, startingHandSize: 4, cellBase: 160_000 },
+  { key: '40-4-cap2', deckSize: 40, startingHandSize: 4, maxReserveColors: 2, cellBase: 170_000 },
+];
+
+export interface WarchestTuningArtifact {
+  schemaVersion: 1;
+  mode: 'warchest-tuning';
+  date: string;
+  config: WarchestTuningConfig;
+  seedsPerCell: number;
+  ai: Difficulty;
+  field: {
+    included: {
+      id: string;
+      name: string;
+      kind: 'roster' | 'probe';
+      colors: readonly string[];
+      cards: string[];
+      landReserve: string[];
+    }[];
+    excluded: WarchestTuningField['excluded'];
+    trims: WarchestTuningField['trimmed'];
+  };
+  results: Pick<ReserveMatrixReport, 'summary' | 'totalGames' | 'losslessness'>;
+  telemetry: BalanceTelemetryJson;
+}
+
+export interface WarchestTuningRun {
+  config: WarchestTuningConfig;
+  field: WarchestTuningField;
+  report: ReserveMatrixReport;
+  artifact: WarchestTuningArtifact;
+  table: string;
+}
+
+function renderWarchestTuningHeadlines(
+  report: ReserveMatrixReport,
+  telemetry: BalanceTelemetryJson,
+): string {
+  const byName = new Map(telemetry.decks.map((deck) => [deck.deckName, deck]));
+  const lines = [
+    'TUNING HEADLINES (per-deck means):',
+    '  deck                              win% games cleanup clog turns cleanup-fuel stranded mulligans',
+  ];
+  for (const result of report.summary) {
+    const deck = byName.get(result.name);
+    if (!deck) throw new Error(`Missing tuning telemetry for ${result.name}`);
+    lines.push(
+      `  ${result.name.slice(0, 32).padEnd(32)} ` +
+      `${(result.rate * 100).toFixed(1).padStart(5)} ` +
+      `${String(deck.games).padStart(5)} ` +
+      `${deck.meanCleanupDiscards.toFixed(2).padStart(7)} ` +
+      `${deck.meanHandCloggedTurns.toFixed(2).padStart(4)} ` +
+      `${deck.meanTurns.toFixed(1).padStart(5)} ` +
+      `${(deck.graveyardFuelFromCleanupShare * 100).toFixed(1).padStart(11)}% ` +
+      `${(deck.colorStrandedTurnsRate * 100).toFixed(1).padStart(7)}% ` +
+      `${deck.meanMulligans.toFixed(2).padStart(9)}`,
+    );
+  }
+  return lines.join('\n');
+}
+
+/** Run one single-threaded, telemetry-mandatory tuning config. */
+export function runWarchestTuningConfig(
+  config: WarchestTuningConfig,
+  seedsPerCell: number,
+  ai: Difficulty,
+  date: string,
+): WarchestTuningRun {
+  const field = buildWarchestTuningField(config.deckSize, config.maxReserveColors);
+  const telemetry = new BalanceTelemetryCollector();
+  const report = runReserveMatrix(
+    `WARCHEST TUNING ${config.key}`,
+    'warchest',
+    field.decks,
+    seedsPerCell,
+    ai,
+    config.cellBase,
+    telemetry,
+    { startingHandSize: config.startingHandSize, telemetryMatrix: config.key },
+  );
+  const telemetryJson = telemetry.toJSON();
+  const artifact: WarchestTuningArtifact = {
+    schemaVersion: 1,
+    mode: 'warchest-tuning',
+    date,
+    config: { ...config },
+    seedsPerCell,
+    ai,
+    field: {
+      included: field.decks.map((deck) => ({
+        id: deck.id,
+        name: deck.name,
+        kind: deck.id.startsWith('warchest-probe-') ? 'probe' : 'roster',
+        colors: [...deck.colors],
+        cards: deck.cards.slice(),
+        landReserve: deck.landReserve.slice(),
+      })),
+      excluded: structuredClone(field.excluded),
+      trims: structuredClone(field.trimmed),
+    },
+    results: {
+      summary: structuredClone(report.summary),
+      totalGames: report.totalGames,
+      losslessness: { ...report.losslessness },
+    },
+    telemetry: telemetryJson,
+  };
+  return {
+    config,
+    field,
+    report,
+    artifact,
+    table: `${report.table}\n\n${renderWarchestTuningHeadlines(report, telemetryJson)}`,
+  };
 }
 
 /** Deterministic color-spread Darlings field, passed through real reserve validation before play. */
@@ -1266,6 +1425,7 @@ function main(): void {
   const wantPrefabs = flag('prefabs');
   const wantArthurianCourtBosses = flag('ac-bosses');
   const wantWarchest = flag('warchest');
+  const wantWarchestTuning = flag('warchest-tuning');
   const wantDarlings = flag('darlings');
   const wantDarlingsPrecons = flag('darlings-precons');
   const wantAvatars =
@@ -1278,12 +1438,70 @@ function main(): void {
       !wantArthurianCourtBosses &&
       !wantPrefabs &&
       !wantWarchest &&
+      !wantWarchestTuning &&
       !wantDarlings &&
       !wantDarlingsPrecons);
   const ai = (opt('ai') ?? 'hard') as Difficulty;
   if (!DIFFS.includes(ai)) {
     console.error(`--ai must be one of ${DIFFS.join(' | ')} (got ${opt('ai')})`);
     process.exitCode = 1;
+    return;
+  }
+
+  if (wantWarchestTuning) {
+    const configKey = opt('config');
+    const outputArg = opt('out');
+    const dateArg = opt('date');
+    if (flag('config') && configKey === undefined) {
+      console.error('--config requires a key');
+      process.exitCode = 1;
+      return;
+    }
+    if (flag('out') && outputArg === undefined) {
+      console.error('--out requires a directory');
+      process.exitCode = 1;
+      return;
+    }
+    if (flag('date') && dateArg === undefined) {
+      console.error('--date requires YYYY-MM-DD');
+      process.exitCode = 1;
+      return;
+    }
+    const date = dateArg ?? new Date().toISOString().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(`${date}T00:00:00.000Z`).toISOString().slice(0, 10) !== date) {
+      console.error(`--date must be a real YYYY-MM-DD date (got ${date})`);
+      process.exitCode = 1;
+      return;
+    }
+    const selected = configKey === undefined
+      ? [...WARCHEST_TUNING_CONFIGS]
+      : WARCHEST_TUNING_CONFIGS.filter((config) => config.key === configKey);
+    if (selected.length === 0) {
+      console.error(`--config must be one of ${WARCHEST_TUNING_CONFIGS.map((config) => config.key).join(' | ')} (got ${configKey})`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const outputDir = resolve(outputArg ?? 'balance/warchest-tuning');
+    const tuningStarted = Date.now();
+    mkdirSync(outputDir, { recursive: true });
+    for (const config of selected) {
+      const run = runWarchestTuningConfig(config, seeds, ai, date);
+      for (const trim of run.field.trimmed) {
+        const cards = trim.removed
+          .map((entry) => `${entry.cardName} [${entry.cardId}] x${entry.count}`)
+          .join(', ');
+        process.stderr.write(`  trim ${trim.deckName}: ${cards}\n`);
+      }
+      for (const excluded of run.field.excluded) {
+        process.stderr.write(`  excluded ${excluded.deckName} [${excluded.colors.join('')}]: ${excluded.reason}\n`);
+      }
+      console.log(`\n${run.table}`);
+      const outputPath = resolve(outputDir, `${date}-${config.key}.json`);
+      writeFileSync(outputPath, JSON.stringify(run.artifact, null, 2) + '\n', 'utf8');
+      console.log(`Tuning JSON: ${outputPath}`);
+    }
+    console.log(`\n(${((Date.now() - tuningStarted) / 1000).toFixed(1)}s)`);
     return;
   }
 

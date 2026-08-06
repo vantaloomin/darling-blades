@@ -44,6 +44,8 @@ export interface ReplayLog {
   seed: number;
   /** [human deck, AI deck] card-id lists, exactly as passed to `new Game`. */
   decks: [string[], string[]];
+  /** Optional simulation override; absent logs reconstruct the shipped seven-card deal. */
+  startingHandSize?: number;
   /** Present only for reserve-format logs. Classic logs retain their old shape. */
   format?: ReserveFormat;
   /** Ordered reserve payload reconstructed before replaying reserve choices. */
@@ -81,6 +83,7 @@ export function startReplayDraft(init: {
   dbStamp: string;
   seed: number;
   decks: [string[], string[]];
+  startingHandSize?: number;
   context: ReplayContext;
   format?: GameFormat;
   landReserves?: [string[], string[]];
@@ -94,6 +97,7 @@ export function startReplayDraft(init: {
     context: { ...init.context },
     actions: [],
   };
+  if (init.startingHandSize !== undefined) draft.startingHandSize = init.startingHandSize;
   if (init.format === 'warchest') {
     if (!init.landReserves) throw new Error('Reserve replay drafts require landReserves.');
     draft.format = 'warchest';
@@ -174,6 +178,7 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
     seed: log.seed,
     db,
     rulesRev: log.v >= 7 ? 2 : 1,
+    ...(log.startingHandSize === undefined ? {} : { startingHandSize: log.startingHandSize }),
     ...(format === 'warchest'
       ? {
           format,
@@ -209,6 +214,8 @@ export function isReplayLog(value: unknown): value is ReplayLog {
   const darlingShape = Array.isArray(log.darlings) &&
     log.darlings.length === 2 &&
     log.darlings.every((id) => id === null || typeof id === 'string');
+  const startingHandSizeShape = log.startingHandSize === undefined ||
+    (Number.isSafeInteger(log.startingHandSize) && log.startingHandSize > 0);
   // v5 added the Darlings command-zone payload. Keep v6 and older blobs
   // structurally valid for save preservation; only v6 also remains executable.
   const currentPayloadShape = rawFormat === undefined
@@ -227,6 +234,7 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     (log.v === REPLAY_LOG_VERSION || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
+    startingHandSizeShape &&
     Array.isArray(log.decks) &&
     log.decks.length === 2 &&
     log.decks.every((d) => Array.isArray(d) && d.every((id) => typeof id === 'string')) &&

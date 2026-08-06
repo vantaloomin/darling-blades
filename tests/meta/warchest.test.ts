@@ -8,9 +8,11 @@ import {
   hasLandFetchBehavior,
   isDualLand,
   landFetchExclusionError,
+  reserveColorIdentity,
   validateWarchestDeckShape,
   validateLandReserve,
 } from '../../src/meta/warchest';
+import type { LandReserveValidationOptions } from '../../src/meta/warchest';
 import { validateWarchestDeck } from '../../src/meta/darlings';
 import { freshSave, type SaveData } from '../../src/meta/SaveManager';
 
@@ -36,7 +38,12 @@ const DUAL_THREE = 'dual-three';
 const DUAL_FOUR = 'dual-four';
 const DUAL_FIVE = 'dual-five';
 const SINGLE_LAND = 'single-land';
+const WHITE_BASIC = 'white-basic';
+const BLUE_BASIC = 'blue-basic';
 const SPELL = 'spell';
+const GREEN_SPELL = 'green-spell';
+const WHITE_SPELL = 'white-spell';
+const BLUE_COST_SPELL = 'blue-cost-spell';
 const FETCH = 'fetch';
 const EMPOWER_FETCH = 'empower-fetch';
 const CHAPTERS_FETCH = 'chapters-fetch';
@@ -104,7 +111,41 @@ const DB: CardDb = Object.freeze({
     defense: undefined,
     manaAbility: ['G'],
   }),
+  [WHITE_BASIC]: card(WHITE_BASIC, {
+    name: 'Plains',
+    types: ['land'],
+    supertypes: ['basic'],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['W'],
+  }),
+  [BLUE_BASIC]: card(BLUE_BASIC, {
+    name: 'Island',
+    types: ['land'],
+    supertypes: ['basic'],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['U'],
+  }),
   [SPELL]: card(SPELL, { name: 'Ordinary Spell' }),
+  [GREEN_SPELL]: card(GREEN_SPELL, {
+    name: 'Grove Adept',
+    colors: ['G'],
+    cost: { generic: 0, pips: { G: 1 } },
+  }),
+  [WHITE_SPELL]: card(WHITE_SPELL, {
+    name: 'Dawn Adept',
+    colors: ['W'],
+    cost: { generic: 0, pips: { W: 1 } },
+  }),
+  [BLUE_COST_SPELL]: card(BLUE_COST_SPELL, {
+    name: 'Mist Adept',
+    // Deliberately differs from the cost to prove the tuning rule reads pips.
+    colors: ['G'],
+    cost: { generic: 0, pips: { U: 1 } },
+  }),
   [FETCH]: card(FETCH, {
     name: 'Verdant Compass',
     abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
@@ -226,6 +267,59 @@ describe('Warchest shared validators', () => {
     expect(validateLandReserve(DB, saveWith(), basicReserve())).toEqual([]);
   });
 
+  it('enforces an explicit reserve color cap and accepts a deck inside the cap', () => {
+    const twoColorReserve = [
+      ...Array.from({ length: 5 }, () => BASIC),
+      ...Array.from({ length: 5 }, () => WHITE_BASIC),
+    ];
+    expect(reserveColorIdentity(DB, twoColorReserve)).toEqual(['W', 'G']);
+    expect(validateLandReserve(DB, saveWith(), twoColorReserve, {
+      maxReserveColors: 2,
+      deck: [GREEN_SPELL, WHITE_SPELL],
+    })).toEqual([]);
+
+    const threeColorReserve = [
+      ...Array.from({ length: 4 }, () => BASIC),
+      ...Array.from({ length: 3 }, () => WHITE_BASIC),
+      ...Array.from({ length: 3 }, () => BLUE_BASIC),
+    ];
+    expect(validateLandReserve(DB, saveWith(), threeColorReserve, {
+      maxReserveColors: 2,
+      deck: [GREEN_SPELL, WHITE_SPELL],
+    }).map((issue) => issue.message)).toContain(
+      'Warchest Reserves may contain at most 2 colors (currently 3)',
+    );
+  });
+
+  it('requires every deck cost color to appear in a capped reserve', () => {
+    const twoColorReserve = [
+      ...Array.from({ length: 5 }, () => BASIC),
+      ...Array.from({ length: 5 }, () => WHITE_BASIC),
+    ];
+    expect(validateLandReserve(DB, saveWith(), twoColorReserve, {
+      maxReserveColors: 2,
+      deck: [GREEN_SPELL, BLUE_COST_SPELL, BLUE_COST_SPELL],
+    }).map((issue) => issue.message)).toEqual([
+      'Mist Adept has cost colors absent from its Warchest Reserves: U',
+    ]);
+  });
+
+  it('preserves uncapped behavior when tuning options are absent', () => {
+    const threeColorReserve = [
+      ...Array.from({ length: 4 }, () => BASIC),
+      ...Array.from({ length: 3 }, () => WHITE_BASIC),
+      ...Array.from({ length: 3 }, () => BLUE_BASIC),
+    ];
+    const baseline = validateLandReserve(DB, saveWith(), threeColorReserve);
+    expect(baseline).toEqual([]);
+    expect(validateLandReserve(DB, saveWith(), threeColorReserve, {})).toEqual(baseline);
+
+    const malformed = { maxReserveColors: 2 } as unknown as LandReserveValidationOptions;
+    expect(validateLandReserve(DB, saveWith(), basicReserve(), malformed).map((issue) => issue.message)).toContain(
+      'Capped Warchest validation requires the deck cards',
+    );
+  });
+
   it('shares the 50-card no-land shape', () => {
     expect(validateWarchestDeckShape(DB, legalDeck())).toEqual([]);
     expect(validateWarchestDeckShape(DB, legalDeck().slice(0, WARCHEST_DECK_SIZE - 1)).map((i) => i.message)).toContain(
@@ -256,6 +350,25 @@ describe('Warchest shared validators', () => {
     expect(messages(validateWarchestDeck(DB, saveWith(...SPELL_IDS.slice(1)), unowned, basicReserve()))).toContain(
       'spell-0: 4 in deck but only 0 owned',
     );
+  });
+
+  it('parameterizes Warchest deck size and capped reserve validation only when requested', () => {
+    const legalSave = saveWith(...SPELL_IDS);
+    for (const id of SPELL_IDS) legalSave.collection[id] = 4;
+    const twoColorReserve = [
+      ...Array.from({ length: 5 }, () => BASIC),
+      ...Array.from({ length: 5 }, () => WHITE_BASIC),
+    ];
+    expect(validateWarchestDeck(
+      DB,
+      legalSave,
+      legalDeck().slice(0, 40),
+      twoColorReserve,
+      { deckSize: 40, maxReserveColors: 2 },
+    )).toEqual([]);
+
+    const baseline = validateWarchestDeck(DB, legalSave, legalDeck(), basicReserve());
+    expect(validateWarchestDeck(DB, legalSave, legalDeck(), basicReserve(), {})).toEqual(baseline);
   });
 
   it('excludes land-fetch cards with a direct builder message', () => {
