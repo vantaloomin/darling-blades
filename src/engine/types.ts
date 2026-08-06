@@ -380,6 +380,10 @@ export type PendingDecision =
   | { kind: 'foresee'; player: PlayerId; n: number; thenOps?: EffectOp[] };
 
 export interface GameState {
+  /** Absent means revision 1 (classic single-window behavior). */
+  rulesRev?: number;
+  /** Revision-2 stack-episode bookkeeping; absent from revision-1 JSON. */
+  episode?: { resolvedSinceOffer: number; reopensThisStep: number };
   rng: RngState;
   turn: number;
   startingPlayer: PlayerId; // skips their turn-1 draw

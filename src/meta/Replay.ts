@@ -18,9 +18,9 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
  * worse than an honest "recorded on an older version" notice).
  */
 
-// Foresee continuations change observable action/event ordering. Old logs must
-// fail closed instead of replaying under the new resolution semantics.
-export const REPLAY_LOG_VERSION = 6 as const;
+// Priority-window reopening changes observable action/event ordering. Version
+// 6 remains executable only through the verbatim revision-1 rules path.
+export const REPLAY_LOG_VERSION = 7 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
@@ -140,25 +140,23 @@ export function pushReplay(replays: ReplayLog[], log: ReplayLog): ReplayLog[] {
 }
 
 export function canReplay(log: ReplayLog, db: CardDb): boolean {
-  return log.v === REPLAY_LOG_VERSION && log.dbStamp === replayDbStamp(db);
+  return (log.v === REPLAY_LOG_VERSION || log.v === 6) && log.dbStamp === replayDbStamp(db);
 }
 
 /**
  * Re-run a recorded game to completion. Throws on db drift (see canReplay for
  * a graceful pre-check) and on any illegal recorded action.
  *
- * HONEST LIMIT (adversarial review 2026-07-16): the stamp guards CARD-DATA
- * drift only. A change to engine CODE (combat ordering, resolution rules, …)
- * alters replay behavior without changing the stamp — old logs would then
- * diverge or throw. The discipline: any engine change that alters observable
- * game behavior must bump REPLAY_LOG_VERSION so persisted logs fail closed
- * via the `v` check instead of replaying wrong. The engine determinism suite
- * (tests/engine/determinism + the golden test in tests/meta/replay.test.ts)
- * catches unintentional drift at CI time, not in shipped saves.
+ * HONEST LIMIT: the stamp guards card-data drift, not engine-code drift. A
+ * gated behavior change may keep an old replay version executable only when
+ * its old code path is preserved verbatim behind a rules-revision flag. That
+ * exception applies to v6 under revision 1. Ungated observable engine changes
+ * still bump REPLAY_LOG_VERSION and fail closed. Determinism and replay golden
+ * tests catch accidental drift in CI, not in shipped saves.
  */
 export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: GameEvent[] } {
   if (!canReplay(log, db)) {
-    if (log.v !== REPLAY_LOG_VERSION) {
+    if (log.v !== REPLAY_LOG_VERSION && log.v !== 6) {
       throw new Error('This replay was recorded with an older replay version and cannot be replayed.');
     }
     throw new Error('This replay was recorded on a different card database and cannot be replayed.');
@@ -175,6 +173,7 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
     decks: [log.decks[0].slice(), log.decks[1].slice()],
     seed: log.seed,
     db,
+    rulesRev: log.v >= 7 ? 2 : 1,
     ...(format === 'warchest'
       ? {
           format,
@@ -210,9 +209,8 @@ export function isReplayLog(value: unknown): value is ReplayLog {
   const darlingShape = Array.isArray(log.darlings) &&
     log.darlings.length === 2 &&
     log.darlings.every((id) => id === null || typeof id === 'string');
-  // v5 added the Darlings command-zone payload. Keep v5 and older blobs
-  // structurally valid for save preservation, while canReplay still refuses
-  // every older version through its execution gate.
+  // v5 added the Darlings command-zone payload. Keep v6 and older blobs
+  // structurally valid for save preservation; only v6 also remains executable.
   const currentPayloadShape = rawFormat === undefined
     ? log.landReserves === undefined && log.darlings === undefined
     : format === 'warchest'
@@ -222,11 +220,11 @@ export function isReplayLog(value: unknown): value is ReplayLog {
         : false;
   const legacyPayloadShape = (rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
     (format !== undefined && reserveShape && log.darlings === undefined);
-  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 5
+  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 6 || log.v === 5
     ? currentPayloadShape
     : legacyPayloadShape;
   const valid =
-    (log.v === REPLAY_LOG_VERSION || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
+    (log.v === REPLAY_LOG_VERSION || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     Array.isArray(log.decks) &&

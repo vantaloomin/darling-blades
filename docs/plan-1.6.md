@@ -64,12 +64,11 @@ Gate output: three ratified numbers/rules recorded here and in
 
 ## Lanes open now (parameter-independent)
 
-1. **Priority-window reopening** (committed docket item; the riskiest
-   engine work, front-loaded on purpose): re-offer a response window
-   after a stack flush while combat/end-step is open and a castable
-   Charm is held. Engine episode model, `REPLAY_LOG_VERSION` bump with
-   rules gating, AI decision points. Must land before the migration
-   re-baseline so both ride the same measurement.
+1. **Priority-window reopening - IMPLEMENTED 2026-08-06.** Current rules
+   revision 2 re-offers bounded response windows after paid combat/end-step
+   flushes when the non-active player has a castable Charm. Replay v7 selects
+   the new path; v6 remains stream-exact under preserved revision 1. AI
+   determinization carries the revision, and the tutorial is pinned to rev 1.
 2. **Deck-invalidation flag-and-fix flow**: the current boot path PRUNES
    invalid decks and resets `activeDeckId`; replace it with a
    flag-and-fix flow (decks preserved and flagged, never deleted; a

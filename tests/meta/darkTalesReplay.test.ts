@@ -136,7 +136,7 @@ function recordCancelledRetell(seed: number): { log: ReplayLog; state: string; e
 describe('Dark Tales replay version 3', () => {
   it('goldens both Skim and Retell action records through replay', () => {
     const original = recordDarkTales(17);
-    expect(original.log.v).toBe(6);
+    expect(original.log.v).toBe(7); // Current logs opt into priority-window reopening.
     expect(original.log.actions.some((step) => step.a.type === 'skim')).toBe(true);
     expect(original.log.actions.some((step) => step.a.type === 'castSpell' && step.a.retell)).toBe(true);
 

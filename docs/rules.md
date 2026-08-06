@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-29
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-06
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -26,6 +26,7 @@ explicitly in the appendix. All the numbers below come from `RULES` in
 | Max blockers per attacker | 4         | `RULES.maxBlockersPerAttacker`   |
 | Turn limit (draw)         | 100       | `RULES.turnLimit`                |
 | Max mulligans per player  | 3         | `RULES.maxMulligans`             |
+| Max window reopens/step   | 8         | `RULES.maxWindowReopensPerStep`  |
 
 <!-- END GENERATED -->
 
@@ -91,7 +92,7 @@ drives the rest via `passStep` and combat actions.
 | **Main 1**  | Active player's main phase: play a land, cast anything, or `passStep` to combat.                    |
 | **Combat**  | Declare attackers → (window) → declare blockers → (window) → damage. See below.                     |
 | **Main 2**  | A second main phase.                                                                                |
-| **End**     | The **non-active** player gets **one** response window (`endStepWindow`). Passing it → cleanup.     |
+| **End**     | The **non-active** player gets the first response window, plus earned post-flush reopens in current rules revision 2. Revision 1 gets exactly one. |
 | **Cleanup** | Discard to max hand size (7); marked damage and until-end-of-turn effects clear; the turn flips.    |
 
 Notes grounded in `phases.ts`:
@@ -107,8 +108,10 @@ Notes grounded in `phases.ts`:
 
 ## The stack: episodes and windows
 
-Darling Blades uses a simplified, Arena-flavored stack. Casting a spell opens **one**
-response window for the opponent; the whole thing resolves in one flush.
+Darling Blades uses a simplified, Arena-flavored stack. Casting a spell opens
+one response window for the opponent, and the first pass still resolves the
+whole stack in one uninterrupted flush. Current games use **rules revision 2**;
+an absent `GameState.rulesRev` means revision 1 for legacy states and v6 replays.
 
 Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
 `resumeAfterFlush` in `src/engine/Game.ts`:
@@ -122,17 +125,26 @@ Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
 3. **Responding re-opens LIFO.** If the opponent *does* cast into the window,
    that new spell opens **one** window back to the original caster (last-in
    first-out). Each cast can open exactly one window over itself.
-4. **The first pass closes the episode.** As soon as *anyone* passes a window
+4. **The first pass closes the stack episode.** As soon as *anyone* passes a window
    (`passResponse`), `closeAndFlush` sets `stackClosed` and **resolves the entire
    stack top-down with no further windows**. There is no priority ping-pong after
    the first pass.
-5. **Resume.** After the flush, `resumeAfterFlush` decides where play continues
-   from `state.step` (+ combat sub-state): back to `main`, into cleanup at the
-   end step, to `declareBlockers` if attackers are on the stack-resolved combat,
-   or on to combat damage.
+5. **Revision-2 reopen.** After the flush, combat and the end step may offer the
+   non-active player another window before advancing. The flush must have
+   resolved at least one stack item since the last offer, the player must hold a
+   payable and targetable Charm (including a payable Retell Charm), and the step
+   must remain below `RULES.maxWindowReopensPerStep` (8). Skim alone never earns
+   a reopen because its constant hand size is loop fuel. The reopen event carries
+   `reopened: true`; first-window events retain their old shape.
+6. **Resume.** Passing a reopened empty window advances immediately. Otherwise,
+   `resumeAfterFlush` continues from `state.step` and combat sub-state: back to
+   `main`, into cleanup, to `declareBlockers`, or to combat damage. A step change
+   resets the reopen cap. Deferred Foresee choices keep the resolved-item credit
+   until the choice drains, so they return to the correct still-open window.
 
-The end-step window is handled slightly separately: passing it calls
-`enterCleanup` rather than flushing a stack.
+Revision 1 preserves the classic behavior verbatim: no post-flush reopen in
+combat or at end. The end-step window is handled slightly separately in both
+revisions: passing it calls `enterCleanup` rather than flushing an empty stack.
 
 ## Combat
 
@@ -303,9 +315,9 @@ Magic:
 
 | Area              | Darling Blades                                                                                 | Magic (for reference)                                   |
 | ----------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Priority / stack  | One response window per cast; the first pass flushes the whole stack with no more windows.     | Full priority passing after every object resolves.      |
+| Priority / stack  | The first pass flushes the whole stack. Current rev 2 may reopen afterward in combat/end when a resolved item and castable Charm pay for it; rev 1 never reopens. | Full priority passing after every object resolves.      |
 | Dawn triggers     | Resolve immediately, no window.                                                                | Go on the stack, players get priority.                  |
-| End-step window   | Exactly one window, for the non-active player only.                                            | Priority in the end step for both players.              |
+| End-step window   | Non-active player only. Rev 2 starts with one window and may earn bounded post-flush reopens; rev 1 has exactly one. | Priority in the end step for both players.              |
 | Triggers          | **Never target** (v1 law); auto-resolve with no decision point.                                | Triggers may target and use the stack.                  |
 | Targeted effects  | **Single-target only** (`targets[0]`).                                                          | Arbitrary target counts.                                |
 | Twin Blades (double strike) | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.        | Exists.                                                 |

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/achievementCheckpoint.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/Toast.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, docs/design-system.md, docs/plan-design-system-alignment.md, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-07-30
+<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/achievementCheckpoint.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/Toast.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, docs/design-system.md, docs/plan-design-system-alignment.md, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts · last-verified: 2026-08-06
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -106,7 +106,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `darlingReturned`      | `player`, `cardId`, `tax`, `reason`             | (describe me)                                                                                                              |
 | `skimmed`              | `player`, `cardId`                              | (describe me)                                                                                                              |
 | `spellCast`            | `sid`, `cardId`, `controller`, `targets`        | A spell went on the stack.                                                                                                 |
-| `responseWindowOpened` | `player`                                        | A response window opened for `player` (they hold an instant).                                                              |
+| `responseWindowOpened` | `player`, `reopened?`                           | A response window opened for `player`; `reopened: true` marks a revision-2 post-flush offer.                               |
 | `spellResolved`        | `sid`                                           | A stack item resolved.                                                                                                     |
 | `spellCountered`       | `sid`                                           | A stack item was countered off the stack.                                                                                  |
 | `targetsFizzled`       | `sid`                                           | Every target became illegal; the spell fizzled to the graveyard.                                                           |
@@ -132,6 +132,18 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `gameEnded`            | `winner`, `reason`                              | The game ended (`reason`: `life`/`deck`/`concede`/`turnLimit`).                                                            |
 
 <!-- END GENERATED -->
+
+### Replay discipline and rules revisions
+
+`ReplayLog.v` selects observable engine behavior as well as validating the log
+shape. New v7 logs run under current rules revision 2. Version 6 remains
+replayable under revision 1 because the classic single-window path is preserved
+verbatim behind `GameConfig.rulesRev`; legacy `GameState` JSON omits both
+`rulesRev` and revision-2 episode bookkeeping. This is the only sanctioned
+fail-open case. A gated behavior change may keep an older replay version
+executable only while its complete old path remains intact. Ungated observable
+changes still bump `REPLAY_LOG_VERSION` and fail closed, and database-stamp
+drift always fails closed.
 
 ## Hidden information: `viewFor` redaction
 

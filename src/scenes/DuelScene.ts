@@ -746,6 +746,7 @@ export class DuelScene extends Phaser.Scene {
       // The fixed tutorial scripts its opening and auto-keeps both hands.
       // Every normal duel path, including Limited and gauntlet, opts in.
       playDrawChoice: !this.tutorial,
+      ...(this.tutorial ? { rulesRev: 1 as const } : {}),
     });
     const aiSeed = seed ^ 0x5eed;
     const personality = this.opponent?.personality ?? this.limitedPersona?.personality;
@@ -2329,6 +2330,9 @@ export class DuelScene extends Phaser.Scene {
       }
       case 'spellCountered':
         this.log('Spell cancelled!');
+        break;
+      case 'responseWindowOpened':
+        if (e.reopened && e.player === HUMAN) this.showSkipNotice('Respond again');
         break;
       case 'targetsFizzled':
         this.log('Spell fizzled (no legal targets)');

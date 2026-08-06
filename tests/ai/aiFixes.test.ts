@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
+import { determinize } from '../../src/ai/determinize';
 import { removalKind } from '../../src/ai/value';
 import { CARD_DB } from '../../src/data/catalog';
 import { Game } from '../../src/engine/Game';
@@ -14,6 +15,18 @@ function gameFromState(state: ReturnType<typeof makeTestState>): Game {
 }
 
 describe('AI defect regressions from the 1.5 instrumented probe', () => {
+  it('HardAI determinization carries the live rules revision into its sim state', () => {
+    const state = makeTestState({ hands: [['shock'], []], active: 0 });
+    state.rulesRev = 2;
+    state.episode = { resolvedSinceOffer: 0, reopensThisStep: 0 };
+    const view = gameFromState(state).viewFor(0);
+    const simulated = determinize(view, DB, 4242);
+
+    expect(view.rulesRev).toBe(2);
+    expect(simulated.instanceState.rulesRev).toBe(2);
+    expect(simulated.instanceState.episode).toEqual({ resolvedSinceOffer: 0, reopensThisStep: 0 });
+  });
+
   it('DEFECT 1: seed 1600026 turn 27, Medium sends Apple of Endless Sleep at the opposing creature', () => {
     const state = makeTestState({
       battlefield: [

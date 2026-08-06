@@ -39,14 +39,14 @@ function testDeck(): string[] {
  * recorder, exactly as DuelScene does. Returns the recorded log plus the
  * original run's final state and full event stream for the golden compare.
  */
-function recordBotGame(seed: number): {
+function recordBotGame(seed: number, rulesRev: 1 | 2 = 2, replayVersion = 7): {
   log: ReplayLog;
   finalState: string;
   instanceFinalState: string;
   events: GameEvent[];
 } {
   const decks: [string[], string[]] = [testDeck(), testDeck()];
-  const game = new Game({ decks: [decks[0].slice(), decks[1].slice()], seed, db: TEST_DB });
+  const game = new Game({ decks: [decks[0].slice(), decks[1].slice()], seed, db: TEST_DB, rulesRev });
   const ais = [new EasyAI(TEST_DB, seed * 2 + 1), new EasyAI(TEST_DB, seed * 2 + 2)];
   const draft = startReplayDraft({
     dbStamp: replayDbStamp(TEST_DB),
@@ -54,6 +54,7 @@ function recordBotGame(seed: number): {
     decks,
     context: { mode: 'practice', difficulty: 'easy', opponentId: null, opponentName: 'Bot', gauntletRung: null },
   });
+  draft.v = replayVersion;
   const events: GameEvent[] = [...game.initialEvents];
   for (let i = 0; i < 20000; i++) {
     const awaiting = game.awaiting;
@@ -85,7 +86,19 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     }
   });
 
-  it('replay v2 round-trips the instance-bearing engine state byte-identically', () => {
+  it('replays a v6 fixture stream-exactly through the preserved revision-1 path', () => {
+    const original = recordBotGame(23, 1, 6);
+
+    expect(original.log.v).toBe(6);
+    expect(isReplayLog(original.log)).toBe(true);
+    expect(canReplay(original.log, TEST_DB)).toBe(true);
+    const replayed = replayGame(original.log, TEST_DB);
+    expect('rulesRev' in replayed.game.state).toBe(false);
+    expect(JSON.stringify(replayed.game.state)).toBe(original.finalState);
+    expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(original.events));
+  });
+
+  it('the current replay round-trips the instance-bearing engine state byte-identically', () => {
     const { log, instanceFinalState } = recordBotGame(17);
     const replayed = replayGame(log, TEST_DB);
     const state = replayed.game.instanceState;
@@ -101,7 +114,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     ];
     expect(cards.every((entry) => typeof entry === 'object' && 'instanceId' in entry)).toBe(true);
     expect(JSON.stringify(state)).toBe(instanceFinalState);
-    expect(log.v).toBe(6);
+    expect(log.v).toBe(7);
   });
 
   it('replays a successful linked cast with its public host and instance state', () => {
@@ -150,7 +163,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     }
     expect(linked).toBeDefined();
     const log = finishReplay(draft, 'win', 1234567890, game.state.turn);
-    expect(log.v).toBe(6);
+    expect(log.v).toBe(7);
     expect(log.actions.some((step) => step.a.type === 'castSpell' && step.a.hauntlinked)).toBe(true);
     const replayed = replayGame(log, HAUNTLINK_DB);
     expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(game.instanceState));

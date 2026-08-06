@@ -1,4 +1,5 @@
 import {
+  CURRENT_RULES_REV,
   DARLING_PAYDOWN_COST,
   DARLING_PAYDOWN_REDUCTION,
   LAND_RESERVE_SIZE,
@@ -9,7 +10,7 @@ import {
 } from '../config/rules';
 import type { Action } from './actions';
 import { darlingCastCost, legalActions, validateAction } from './actions';
-import { hasCastableInstant } from './actions';
+import { hasCastableCharm, hasCastableInstant } from './actions';
 import { resolveCombatDamage } from './combat/damage';
 import { fireTriggers, runOps } from './effects/EffectInterpreter';
 import type { GameEvent } from './events';
@@ -24,6 +25,7 @@ import {
   finishDawn,
   finishCleanup,
   resumeCleanup,
+  setStep,
   startTurn,
 } from './phases';
 import { createRngState, rngInt, rngShuffle } from './rng';
@@ -58,6 +60,8 @@ export interface GameConfig {
   playDrawChoice?: boolean;
   /** Optional synchronous read-only observer for headless instrumentation. */
   eventObserver?: (event: Readonly<GameEvent>, state: Readonly<GameState>) => void;
+  /** Observable engine behavior revision. New games default to current. */
+  rulesRev?: 1 | 2;
 }
 
 function buildDarlingInstances(
@@ -189,6 +193,7 @@ export class Game {
     this.db = cfg.db;
     this.eventObserver = cfg.eventObserver;
     const rng = createRngState(cfg.seed);
+    const rulesRev = cfg.rulesRev ?? CURRENT_RULES_REV;
 
     let nextInstanceId = 1;
 
@@ -209,6 +214,9 @@ export class Game {
     const startingPlayer = rngInt(rng, 2) as PlayerId;
 
     this.st = {
+      ...(rulesRev >= 2
+        ? { rulesRev, episode: { resolvedSinceOffer: 0, reopensThisStep: 0 } }
+        : {}),
       rng,
       turn: 0, // becomes 1 when the game actually starts (after mulligans)
       startingPlayer,
@@ -406,7 +414,10 @@ export class Game {
     this.st.turn = pub.turn;
     this.st.startingPlayer = pub.startingPlayer;
     this.st.activePlayer = pub.activePlayer;
-    this.st.step = pub.step;
+    if ((this.st.rulesRev ?? 1) >= 2) {
+      this.st.episode = structuredClone(pub.episode ?? { resolvedSinceOffer: 0, reopensThisStep: 0 });
+    }
+    setStep(this.st, pub.step);
     this.st.stackClosed = pub.stackClosed;
     this.st.combat = structuredClone(pub.combat);
     this.st.fogThisTurn = pub.fogThisTurn;
@@ -422,12 +433,13 @@ export class Game {
    * override the just-computed awaiting with the choice, or, once the queue
    * drains, resume normal play.
    *
-   * PRECONDITION (currently guaranteed): every fetchLand source is cast at
-   * sorcery speed, so the chooser is always the active player mid-main and
-   * `resumeAfterFlush` lands back on `main`. An instant-speed / flash / attacks-
-   * or dies-triggered fetch would break that and MUST NOT be added without
-   * revisiting the resume path. No-op in determinized sims (stand-in lands
-   * aren't `basic`, so nothing ever queues).
+   * PRECONDITION (still guaranteed): every fetchLand source is sorcery-speed,
+   * so its chooser is the active player in a main phase. Reopened combat and
+   * end-step windows can now queue Foresee, whose continuation safely derives
+   * its return point from the current step. An instant-speed, flash, attacks-,
+   * or dies-triggered fetch would violate the fetchLand invariant and MUST NOT
+   * be added without auditing its legal timing and resume path. No-op in
+   * determinized sims (stand-in lands aren't `basic`, so nothing ever queues).
    */
   private maybeRaiseDeferredDecision(emit: Emit): void {
     const st = this.st;
@@ -740,8 +752,7 @@ export class Game {
         if (action.attackers.length === 0) {
           // [] skips combat entirely — no windows open.
           st.combat = null;
-          st.step = 'main2';
-          emit({ e: 'stepChanged', step: 'main2' });
+          setStep(st, 'main2', emit);
           st.awaiting = { player: st.activePlayer, kind: 'main' };
           return;
         }
@@ -788,8 +799,7 @@ export class Game {
 
       case 'passStep': {
         if (st.step === 'main1') {
-          st.step = 'combat';
-          emit({ e: 'stepChanged', step: 'combat' });
+          setStep(st, 'combat', emit);
           st.awaiting = { player: st.activePlayer, kind: 'declareAttackers' };
         } else {
           enterEndStep(st, this.db, emit);
@@ -824,6 +834,9 @@ export class Game {
     emit: Emit,
   ): void {
     if (hasCastableInstant(this.st, this.db, responder)) {
+      if ((this.st.rulesRev ?? 1) >= 2 && this.st.episode) {
+        this.st.episode.resolvedSinceOffer = 0;
+      }
       this.st.awaiting = { player: responder, kind: 'respond', over };
       emit({ e: 'responseWindowOpened', player: responder });
     } else {
@@ -838,6 +851,7 @@ export class Game {
     while (st.stack.length > 0 && st.winner === null) {
       const item = st.stack.pop()!;
       resolveStackItem(st, this.db, item, emit);
+      if ((st.rulesRev ?? 1) >= 2 && st.episode) st.episode.resolvedSinceOffer++;
       checkStateBased(st, this.db, emit);
     }
     st.stackClosed = false;
@@ -856,7 +870,12 @@ export class Game {
         finishDawn(st, emit);
         return;
       case 'end':
-        // The single end-step window has been used.
+        if ((st.rulesRev ?? 1) >= 2 && st.pendingDecisions.length > 0) return;
+        if (this.maybeReopenWindow(
+          opponentOf(st.activePlayer),
+          { player: opponentOf(st.activePlayer), kind: 'endStepWindow' },
+          emit,
+        )) return;
         enterCleanup(st, this.db, emit);
         return;
       case 'cleanup':
@@ -870,27 +889,55 @@ export class Game {
         const combat = st.combat;
         if (!combat) {
           // Attackers were all removed mid-window; combat dissolves.
-          st.step = 'main2';
-          emit({ e: 'stepChanged', step: 'main2' });
+          setStep(st, 'main2', emit);
           st.awaiting = { player: st.activePlayer, kind: 'main' };
           return;
         }
         if (combat.phase === 'attackersDeclared') {
+          if ((st.rulesRev ?? 1) >= 2 && st.pendingDecisions.length > 0) return;
+          if (this.maybeReopenWindow(
+            opponentOf(st.activePlayer),
+            { player: opponentOf(st.activePlayer), kind: 'respond', over: { type: 'attackers' } },
+            emit,
+          )) return;
           st.awaiting = { player: opponentOf(st.activePlayer), kind: 'declareBlockers' };
           return;
         }
         // blockersDeclared → damage
+        if ((st.rulesRev ?? 1) >= 2 && st.pendingDecisions.length > 0) return;
+        if (this.maybeReopenWindow(
+          opponentOf(st.activePlayer),
+          { player: opponentOf(st.activePlayer), kind: 'respond', over: { type: 'blockers' } },
+          emit,
+        )) return;
         resolveCombatDamage(st, this.db, emit);
         if (st.winner !== null) return;
         st.combat = null;
-        st.step = 'main2';
-        emit({ e: 'stepChanged', step: 'main2' });
+        setStep(st, 'main2', emit);
         st.awaiting = { player: st.activePlayer, kind: 'main' };
         return;
       }
       default:
         throw new Error(`resumeAfterFlush: unexpected step ${st.step}`);
     }
+  }
+
+  /** Offer one paid revision-2 reopen, or return false to continue the step. */
+  private maybeReopenWindow(
+    player: PlayerId,
+    awaiting: Extract<Awaiting, { kind: 'respond' | 'endStepWindow' }>,
+    emit: Emit,
+  ): boolean {
+    const st = this.st;
+    if ((st.rulesRev ?? 1) < 2 || !st.episode) return false;
+    if (st.episode.resolvedSinceOffer <= 0) return false;
+    if (st.episode.reopensThisStep >= RULES.maxWindowReopensPerStep) return false;
+    if (!hasCastableCharm(st, this.db, player)) return false;
+    st.episode.resolvedSinceOffer = 0;
+    st.episode.reopensThisStep++;
+    st.awaiting = awaiting;
+    emit({ e: 'responseWindowOpened', player, reopened: true });
+    return true;
   }
 
   // -------------------------------------------------------------------------
@@ -959,6 +1006,12 @@ function legacyState(state: GameState): LegacyGameState {
 /** Normalize every compatibility string[] boundary into physical instances. */
 function normalizeState(input: GameState): GameState {
   const state = structuredClone(input) as GameState;
+  if ((state.rulesRev ?? 1) >= 2) {
+    state.episode ??= { resolvedSinceOffer: 0, reopensThisStep: 0 };
+  } else {
+    delete state.rulesRev;
+    delete state.episode;
+  }
   const used = new Set<number>();
   let maxId = 0;
   for (const player of state.players) {
