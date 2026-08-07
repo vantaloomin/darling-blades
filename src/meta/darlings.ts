@@ -12,6 +12,10 @@ import {
   validateWarchestDeckShape,
   validateLandReserve,
 } from './warchest';
+import type {
+  LandReserveValidationOptions,
+  WarchestDeckValidationOptions,
+} from './warchest';
 
 export type DarlingsFormat = 'constructed' | 'darlings' | 'warchest';
 export type DeckFormat = DarlingsFormat;
@@ -194,10 +198,14 @@ export function validateWarchestDeck(
   save: SaveData,
   cards: readonly string[],
   landReserve: readonly string[],
+  options: WarchestDeckValidationOptions = {},
 ): DeckIssue[] {
+  const reserveOptions: LandReserveValidationOptions = options.maxReserveColors === undefined
+    ? {}
+    : { maxReserveColors: options.maxReserveColors, deck: cards };
   const issues: DeckIssue[] = [
-    ...validateWarchestDeckShape(db, cards),
-    ...validateLandReserve(db, save, landReserve),
+    ...validateWarchestDeckShape(db, cards, options.deckSize),
+    ...validateLandReserve(db, save, landReserve, reserveOptions),
   ];
   const counts = new Map<string, number>();
   for (const id of cards) counts.set(id, (counts.get(id) ?? 0) + 1);

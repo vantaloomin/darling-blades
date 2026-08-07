@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RULES } from '../../src/config/rules';
 import { Game } from '../../src/engine/Game';
 import { botAction, deckOf, runBotGame, smallGreenDeck, TEST_DB } from '../helpers';
 
@@ -12,6 +13,25 @@ describe('determinism', () => {
     const eventsB = runBotGame(b);
     expect(JSON.stringify(eventsA)).toBe(JSON.stringify(eventsB));
     expect(JSON.stringify(a.state)).toBe(JSON.stringify(b.state));
+  });
+
+  it('keeps an absent hand-size override byte-identical to the shipped default', () => {
+    const baseline = new Game({
+      decks: [smallGreenDeck(), smallGreenDeck()],
+      seed: 9317,
+      db: TEST_DB,
+    });
+    const explicitDefault = new Game({
+      decks: [smallGreenDeck(), smallGreenDeck()],
+      seed: 9317,
+      db: TEST_DB,
+      startingHandSize: RULES.startingHandSize,
+    });
+    const baselineEvents = runBotGame(baseline);
+    const explicitEvents = runBotGame(explicitDefault);
+
+    expect(JSON.stringify(baselineEvents)).toBe(JSON.stringify(explicitEvents));
+    expect(JSON.stringify(baseline.state)).toBe(JSON.stringify(explicitDefault.state));
   });
 
   it('clone() diverges from the original without affecting it', () => {

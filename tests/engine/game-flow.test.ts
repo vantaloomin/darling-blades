@@ -43,6 +43,36 @@ describe('setup and mulligans', () => {
     expect(g.awaiting).toMatchObject({ kind: 'mulligan', player: p === 0 ? 1 : 0 });
   });
 
+  it.each([5, 4])('deals and fully redraws configured %i-card hands', (startingHandSize) => {
+    const direct = new Game({
+      decks: [smallGreenDeck(), smallGreenDeck()],
+      seed: 17,
+      db: TEST_DB,
+      startingHandSize,
+    });
+    expect(direct.state.players[0].hand).toHaveLength(startingHandSize);
+    expect(direct.state.players[1].hand).toHaveLength(startingHandSize);
+    const directAwaiting = direct.awaiting;
+    if (directAwaiting.kind !== 'mulligan') throw new Error('expected mulligan');
+    const directPlayer = directAwaiting.player;
+    direct.submit(directPlayer, { type: 'mulligan' });
+    expect(direct.state.players[directPlayer].hand).toHaveLength(startingHandSize);
+
+    const choice = new Game({
+      decks: [smallGreenDeck(), smallGreenDeck()],
+      seed: 17,
+      db: TEST_DB,
+      playDrawChoice: true,
+      startingHandSize,
+    });
+    const choiceAwaiting = choice.awaiting;
+    if (choiceAwaiting.kind !== 'choosePlayDraw') throw new Error('expected choosePlayDraw');
+    const flipWinner = choiceAwaiting.player;
+    choice.submit(flipWinner, { type: 'choosePlayDraw', play: true });
+    expect(choice.state.players[0].hand).toHaveLength(startingHandSize);
+    expect(choice.state.players[1].hand).toHaveLength(startingHandSize);
+  });
+
   it('caps mulligans at RULES.maxMulligans — keep/concede only at the cap', () => {
     const g = newGame();
     const p = g.state.startingPlayer;
@@ -69,6 +99,29 @@ describe('setup and mulligans', () => {
       handIndices: Array.from({ length: a.count }, (_, i) => i),
     });
     expect(g.state.players[p].hand).toHaveLength(RULES.startingHandSize - (RULES.maxMulligans - 1));
+  });
+
+  it('keeps the third-mulligan bottom choice satisfiable with a four-card hand', () => {
+    const g = new Game({
+      decks: [smallGreenDeck(), smallGreenDeck()],
+      seed: 29,
+      db: TEST_DB,
+      startingHandSize: 4,
+    });
+    const p = g.state.startingPlayer;
+    for (let i = 0; i < RULES.maxMulligans; i++) g.submit(p, { type: 'mulligan' });
+
+    expect(g.state.players[p].hand).toHaveLength(4);
+    g.submit(p, { type: 'keepHand' });
+    const awaiting = g.awaiting;
+    if (awaiting.kind !== 'bottomCards') throw new Error('expected bottomCards');
+    expect(awaiting.count).toBe(RULES.maxMulligans - 1);
+    expect(awaiting.count).toBeLessThanOrEqual(g.state.players[p].hand.length);
+    g.submit(p, {
+      type: 'bottomCards',
+      handIndices: Array.from({ length: awaiting.count }, (_, i) => i),
+    });
+    expect(g.state.players[p].hand).toHaveLength(2);
   });
 
   it('starting player skips the turn-1 draw', () => {

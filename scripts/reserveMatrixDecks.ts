@@ -9,7 +9,13 @@
 import { CARD_DB } from '../src/data/catalog';
 import { STARTER_DECKS, type DeckList } from '../src/data/starterDecks';
 import type { CardDb, CardDef, Color } from '../src/engine/types';
-import { DARLINGS_DECK_SIZE, hasLandFetchBehavior, isBasicLand, isDualLand } from '../src/meta/warchest';
+import {
+  DARLINGS_DECK_SIZE,
+  WARCHEST_DECK_SIZE,
+  hasLandFetchBehavior,
+  isBasicLand,
+  isDualLand,
+} from '../src/meta/warchest';
 import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
 import { freshSave, type SaveData } from '../src/meta/SaveManager';
 
@@ -35,6 +41,25 @@ export interface ReserveMatrixDeck {
 export interface ReserveMatrixFleets {
   warchest: ReserveMatrixDeck[];
   darlings: ReserveMatrixDeck[];
+}
+
+export interface WarchestTrimmedCards {
+  deckId: string;
+  deckName: string;
+  removed: { cardId: string; cardName: string; count: number }[];
+}
+
+export interface WarchestTuningExclusion {
+  deckId: string;
+  deckName: string;
+  colors: readonly Color[];
+  reason: string;
+}
+
+export interface WarchestTuningField {
+  decks: ReserveMatrixDeck[];
+  trimmed: WarchestTrimmedCards[];
+  excluded: WarchestTuningExclusion[];
 }
 
 /** A synthetic collection that owns a Constructed playset of every catalog card. */
@@ -74,7 +99,7 @@ function containsOnlyColors(card: CardDef, colors: readonly Color[]): boolean {
   return card.colors.every((color) => colors.includes(color));
 }
 
-function landReserve(colors: readonly Color[], db: CardDb): string[] {
+export function buildLandReserve(colors: readonly Color[], db: CardDb = CARD_DB): string[] {
   const duals = Object.values(db)
     .filter((card) =>
       isDualLand(card) &&
@@ -93,6 +118,179 @@ function landReserve(colors: readonly Color[], db: CardDb): string[] {
   });
   const palette = basics.length > 0 ? basics : ['land-plains'];
   return [...duals, ...Array.from({ length: 10 - duals.length }, (_, i) => palette[i % palette.length])];
+}
+
+function costColors(card: CardDef): Color[] {
+  return COLOR_ORDER.filter((color) => (card.cost?.pips[color] ?? 0) > 0);
+}
+
+function colorCombinations(size: number): Color[][] {
+  const out: Color[][] = [];
+  const visit = (start: number, chosen: Color[]): void => {
+    if (chosen.length === size) {
+      out.push(chosen.slice());
+      return;
+    }
+    for (let i = start; i < COLOR_ORDER.length; i++) {
+      chosen.push(COLOR_ORDER[i]);
+      visit(i + 1, chosen);
+      chosen.pop();
+    }
+  };
+  visit(0, []);
+  return out;
+}
+
+function rosterFrequencies(decks: readonly ReserveMatrixDeck[]): Map<string, number> {
+  const frequencies = new Map<string, number>();
+  for (const deck of decks) {
+    for (const id of deck.cards) frequencies.set(id, (frequencies.get(id) ?? 0) + 1);
+  }
+  return frequencies;
+}
+
+function probeCandidates(
+  colors: readonly Color[],
+  frequencies: ReadonlyMap<string, number>,
+  db: CardDb,
+): string[] {
+  return [...frequencies.keys()]
+    .filter((id) => {
+      const card = db[id];
+      const identity = card ? costColors(card) : [];
+      return isEligibleSpell(card) && identity.length > 0 && identity.every((color) => colors.includes(color));
+    })
+    .sort((a, b) =>
+      (frequencies.get(b) ?? 0) - (frequencies.get(a) ?? 0) ||
+      cardManaValue(db[a]) - cardManaValue(db[b]) ||
+      a.localeCompare(b),
+    );
+}
+
+function chooseProbeColors(
+  colorCount: number,
+  deckSize: number,
+  frequencies: ReadonlyMap<string, number>,
+  db: CardDb,
+): Color[] {
+  const choices = colorCombinations(colorCount)
+    .map((colors) => {
+      const candidates = probeCandidates(colors, frequencies, db);
+      const coversEveryColor = colors.every((color) =>
+        candidates.some((id) => costColors(db[id]).includes(color)),
+      );
+      const score = candidates.reduce((total, id) => total + (frequencies.get(id) ?? 0), 0);
+      return { colors, candidates, coversEveryColor, score };
+    })
+    .filter((choice) => choice.coversEveryColor && choice.candidates.length * 4 >= deckSize)
+    .sort((a, b) => b.score - a.score || a.colors.join('').localeCompare(b.colors.join('')));
+  const best = choices[0];
+  if (!best) {
+    throw new Error(`Reserve matrix could not derive a ${colorCount}-color ${deckSize}-card probe`);
+  }
+  return best.colors;
+}
+
+/**
+ * Build one color-count goodstuff probe from cards already played by the five
+ * Warchest matrix decks. The identity is the WUBRG-ordered color combination
+ * with the largest total source-roster frequency (lexical identity breaks
+ * ties). Filling cycles its color buckets in WUBRG order; each bucket greedily
+ * takes the most-played compatible card, then lower mana value, then card id,
+ * with the normal four-copy ceiling.
+ */
+export function buildWarchestColorProbe(
+  colorCount: 1 | 2 | 3 | 5,
+  deckSize: number,
+  sourceDecks: readonly ReserveMatrixDeck[],
+  db: CardDb = CARD_DB,
+): ReserveMatrixDeck {
+  const frequencies = rosterFrequencies(sourceDecks);
+  const colors = chooseProbeColors(colorCount, deckSize, frequencies, db);
+  const candidates = probeCandidates(colors, frequencies, db);
+  const byColor = new Map<Color, string[]>();
+  for (const color of colors) {
+    byColor.set(color, candidates.filter((id) => costColors(db[id]).includes(color)));
+  }
+
+  const cards: string[] = [];
+  const counts = new Map<string, number>();
+  while (cards.length < deckSize) {
+    let progressed = false;
+    for (const color of colors) {
+      if (cards.length === deckSize) break;
+      const id = byColor.get(color)?.find((candidate) => (counts.get(candidate) ?? 0) < 4);
+      if (!id) continue;
+      cards.push(id);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+      progressed = true;
+    }
+    if (!progressed) break;
+  }
+  for (const id of candidates) {
+    while (cards.length < deckSize && (counts.get(id) ?? 0) < 4) {
+      cards.push(id);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+  }
+  if (cards.length !== deckSize) {
+    throw new Error(`Reserve matrix probe [${colors.join('')}] stopped at ${cards.length}/${deckSize} cards`);
+  }
+
+  return {
+    id: `warchest-probe-${colorCount}c-${colors.join('').toLowerCase()}-${deckSize}`,
+    name: `${colorCount}-color goodstuff [${colors.join('')}]`,
+    colors,
+    cards,
+    landReserve: buildLandReserve(colors, db),
+    darlingId: null,
+  };
+}
+
+/**
+ * Deterministically shorten one baseline list without changing its unique-card
+ * set or color identity. Each removal pass considers only duplicated ids and
+ * removes one copy from highest mana value downward; ties prefer the current
+ * larger playset, then card id. Because no id is reduced below one copy, every
+ * original curve point and colored spell represented in the 50-card list is
+ * still represented in the 40-card list.
+ */
+export function trimWarchestDeck(
+  deck: ReserveMatrixDeck,
+  targetSize: number,
+  db: CardDb = CARD_DB,
+): { deck: ReserveMatrixDeck; trimmed: WarchestTrimmedCards } {
+  if (!Number.isInteger(targetSize) || targetSize <= 0 || targetSize > deck.cards.length) {
+    throw new Error(`Cannot trim ${deck.name} from ${deck.cards.length} to ${targetSize} cards`);
+  }
+  const cards = deck.cards.slice();
+  const removed = new Map<string, number>();
+  while (cards.length > targetSize) {
+    const counts = new Map<string, number>();
+    for (const id of cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+    const candidate = [...counts.entries()]
+      .filter(([, count]) => count > 1)
+      .sort(([a, aCount], [b, bCount]) =>
+        cardManaValue(db[b]) - cardManaValue(db[a]) ||
+        bCount - aCount ||
+        a.localeCompare(b),
+      )[0]?.[0];
+    if (!candidate) {
+      throw new Error(`${deck.name} has no duplicate left while trimming to ${targetSize}`);
+    }
+    cards.splice(cards.lastIndexOf(candidate), 1);
+    removed.set(candidate, (removed.get(candidate) ?? 0) + 1);
+  }
+  return {
+    deck: { ...deck, cards },
+    trimmed: {
+      deckId: deck.id,
+      deckName: deck.name,
+      removed: [...removed.entries()]
+        .map(([cardId, count]) => ({ cardId, cardName: db[cardId]?.name ?? cardId, count }))
+        .sort((a, b) => a.cardId.localeCompare(b.cardId)),
+    },
+  };
 }
 
 function fillToPlayset(
@@ -189,7 +387,7 @@ export function buildReserveMatrixFleets(db: CardDb = CARD_DB): ReserveMatrixFle
   const warchest = STARTER_DECKS.map((source) => {
     const colors = colorsOfSource(source, db);
     const cards = fillToPlayset(source.cards, colors, db);
-    const reserve = landReserve(colors, db);
+    const reserve = buildLandReserve(colors, db);
     const name = `${source.name} Warchest`;
     assertLegal(name, validateWarchestDeck(db, save, cards, reserve));
     return {
@@ -205,7 +403,7 @@ export function buildReserveMatrixFleets(db: CardDb = CARD_DB): ReserveMatrixFle
   const darlings = DARLING_IDENTITIES.map((colors) => {
     const darling = selectDarling(colors, db);
     const cards = darlingsDeck(darling, db);
-    const reserve = landReserve(darling.colors, db);
+    const reserve = buildLandReserve(darling.colors, db);
     const name = `${darling.name} [${darling.colors.join('') || 'C'}]`;
     assertLegal(name, validateDarlingsDeck(db, save, cards, darling.id, reserve));
     return {
@@ -219,4 +417,54 @@ export function buildReserveMatrixFleets(db: CardDb = CARD_DB): ReserveMatrixFle
   });
 
   return { warchest, darlings };
+}
+
+/**
+ * Build one validator-gated tuning field. The four probes are first authored as
+ * canonical 50-card lists from the same source roster; 40-card configs pass
+ * both roster and probes through the identical duplicate-only trim rule. A
+ * capped-incompatible deck is returned as an explicit exclusion, while every
+ * other validation issue fails loudly.
+ */
+export function buildWarchestTuningField(
+  deckSize: 40 | 50,
+  maxReserveColors?: number,
+  db: CardDb = CARD_DB,
+): WarchestTuningField {
+  const save = buildReserveMatrixFullOwnershipSave(db);
+  const roster = buildReserveMatrixFleets(db).warchest;
+  const probes = ([1, 2, 3, 5] as const).map((colorCount) =>
+    buildWarchestColorProbe(colorCount, WARCHEST_DECK_SIZE, roster, db),
+  );
+  const trimmed: WarchestTrimmedCards[] = [];
+  const candidates = [...roster, ...probes].map((deck) => {
+    if (deckSize === WARCHEST_DECK_SIZE) return deck;
+    const result = trimWarchestDeck(deck, deckSize, db);
+    trimmed.push(result.trimmed);
+    return result.deck;
+  });
+
+  const decks: ReserveMatrixDeck[] = [];
+  const excluded: WarchestTuningExclusion[] = [];
+  for (const deck of candidates) {
+    const issues = validateWarchestDeck(db, save, deck.cards, deck.landReserve, {
+      deckSize,
+      ...(maxReserveColors === undefined ? {} : { maxReserveColors }),
+    });
+    if (maxReserveColors !== undefined && deck.colors.length > maxReserveColors) {
+      if (issues.length === 0) {
+        throw new Error(`${deck.name} exceeded cap ${maxReserveColors} without a validator issue`);
+      }
+      excluded.push({
+        deckId: deck.id,
+        deckName: deck.name,
+        colors: deck.colors,
+        reason: issues.map((issue) => issue.message).join(' | '),
+      });
+      continue;
+    }
+    assertLegal(deck.name, issues);
+    decks.push(deck);
+  }
+  return { decks, trimmed, excluded };
 }

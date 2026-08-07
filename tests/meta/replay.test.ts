@@ -39,19 +39,31 @@ function testDeck(): string[] {
  * recorder, exactly as DuelScene does. Returns the recorded log plus the
  * original run's final state and full event stream for the golden compare.
  */
-function recordBotGame(seed: number, rulesRev: 1 | 2 = 2, replayVersion = 7): {
+function recordBotGame(
+  seed: number,
+  rulesRev: 1 | 2 = 2,
+  replayVersion = 7,
+  startingHandSize?: number,
+): {
   log: ReplayLog;
   finalState: string;
   instanceFinalState: string;
   events: GameEvent[];
 } {
   const decks: [string[], string[]] = [testDeck(), testDeck()];
-  const game = new Game({ decks: [decks[0].slice(), decks[1].slice()], seed, db: TEST_DB, rulesRev });
+  const game = new Game({
+    decks: [decks[0].slice(), decks[1].slice()],
+    seed,
+    db: TEST_DB,
+    rulesRev,
+    ...(startingHandSize === undefined ? {} : { startingHandSize }),
+  });
   const ais = [new EasyAI(TEST_DB, seed * 2 + 1), new EasyAI(TEST_DB, seed * 2 + 2)];
   const draft = startReplayDraft({
     dbStamp: replayDbStamp(TEST_DB),
     seed,
     decks,
+    ...(startingHandSize === undefined ? {} : { startingHandSize }),
     context: { mode: 'practice', difficulty: 'easy', opponentId: null, opponentName: 'Bot', gauntletRung: null },
   });
   draft.v = replayVersion;
@@ -84,6 +96,20 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
       expect(JSON.stringify(game.state)).toBe(finalState);
       expect(JSON.stringify(eventLog)).toBe(JSON.stringify(events));
     }
+  });
+
+  it('round-trips an optional nonstandard opening-hand size without a version bump', () => {
+    const original = recordBotGame(37, 2, 7, 4);
+    expect(original.log.v).toBe(7);
+    expect(original.log.startingHandSize).toBe(4);
+    expect(isReplayLog(original.log)).toBe(true);
+
+    const replayed = replayGame(original.log, TEST_DB);
+    expect(JSON.stringify(replayed.game.state)).toBe(original.finalState);
+    expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(original.events));
+
+    const defaultLog = recordBotGame(37).log;
+    expect('startingHandSize' in defaultLog).toBe(false);
   });
 
   it('replays a v6 fixture stream-exactly through the preserved revision-1 path', () => {
@@ -313,6 +339,9 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     expect(isReplayLog(log)).toBe(true);
     expect(isReplayLog({ ...log, decks: [log.decks[0]] })).toBe(false);
     expect(isReplayLog({ ...log, actions: [{ p: 2, a: { type: 'passStep' } }] })).toBe(false);
+    expect(isReplayLog({ ...log, startingHandSize: 0 })).toBe(false);
+    expect(isReplayLog({ ...log, startingHandSize: 4.5 })).toBe(false);
+    expect(isReplayLog({ ...log, startingHandSize: '4' })).toBe(false);
   });
 
   it('accepts a v2 log shape but refuses to replay it', () => {

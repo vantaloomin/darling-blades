@@ -50,6 +50,8 @@ export interface GameConfig {
   decks: [CardEntry[], CardEntry[]];
   seed: number;
   db: CardDb;
+  /** Simulation override for opening deals and full mulligan redraws. */
+  startingHandSize?: number;
   /** Classic is the default. Warchest and Darlings use ordered land reserves. */
   format?: GameFormat;
   /** One ordered ten-land payload per seat for reserve formats. */
@@ -182,6 +184,7 @@ function validateRestoredReserveState(state: GameState, db: CardDb): void {
 export class Game {
   private st: GameState;
   private readonly db: CardDb;
+  private readonly startingHandSize: number;
   private readonly eventObserver?: GameConfig['eventObserver'];
   private buf: GameEvent[] = [];
   /** Legacy state facade retained so existing callers can make scalar edits before submit. */
@@ -191,6 +194,10 @@ export class Game {
 
   constructor(cfg: GameConfig) {
     this.db = cfg.db;
+    this.startingHandSize = cfg.startingHandSize ?? RULES.startingHandSize;
+    if (!Number.isSafeInteger(this.startingHandSize) || this.startingHandSize <= 0) {
+      throw new Error('startingHandSize must be a positive integer.');
+    }
     this.eventObserver = cfg.eventObserver;
     const rng = createRngState(cfg.seed);
     const rulesRev = cfg.rulesRev ?? CURRENT_RULES_REV;
@@ -256,7 +263,7 @@ export class Game {
     } else {
       emit({ e: 'firstPlayerChosen', player: startingPlayer });
       for (const p of [0, 1] as const) {
-        drawCards(this.st, emit, p, RULES.startingHandSize);
+        drawCards(this.st, emit, p, this.startingHandSize);
       }
     }
   }
@@ -319,15 +326,20 @@ export class Game {
 
   clone(): Game {
     this.syncLegacyMutations();
-    return Game.restore(structuredClone(this.st), this.db);
+    return Game.restore(structuredClone(this.st), this.db, this.startingHandSize);
   }
 
-  static restore(state: GameState, db: CardDb): Game {
+  static restore(
+    state: GameState,
+    db: CardDb,
+    startingHandSize: number = RULES.startingHandSize,
+  ): Game {
     validateRestoredReserveState(state, db);
     const g = Object.create(Game.prototype) as Game;
     Object.assign(g, {
       st: normalizeState(state),
       db,
+      startingHandSize,
       eventObserver: undefined,
       buf: [],
       initialEvents: [],
@@ -514,7 +526,7 @@ export class Game {
         emit({ e: 'playDrawChosen', player, play: action.play });
         emit({ e: 'firstPlayerChosen', player: startingPlayer });
         for (const p of [0, 1] as const) {
-          drawCards(st, emit, p, RULES.startingHandSize);
+          drawCards(st, emit, p, this.startingHandSize);
         }
         st.awaiting = { player: startingPlayer, kind: 'mulligan' };
         return;
@@ -524,7 +536,7 @@ export class Game {
         me.mulligans++;
         me.deck.push(...me.hand.splice(0));
         rngShuffle(st.rng, me.deck);
-        drawCards(st, emit, player, RULES.startingHandSize);
+        drawCards(st, emit, player, this.startingHandSize);
         emit({ e: 'mulliganTaken', player, count: me.mulligans });
         // stay awaiting the same player's mulligan decision
         return;
