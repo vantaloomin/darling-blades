@@ -212,8 +212,9 @@ export class MainMenuScene extends Phaser.Scene {
     };
     this.guard.open(this.menuItems);
     const content = shell.container;
+    const single = flagged.length === 1;
     content.add(
-      this.add.text(640, 200, 'Decks need repair', {
+      this.add.text(640, 200, single ? 'Your deck needs fixes' : 'Your decks need fixes', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
@@ -223,7 +224,9 @@ export class MainMenuScene extends Phaser.Scene {
       this.add.text(
         640,
         315,
-        `The rules changed with this update. ${flagged.length} of your decks no longer fit the current format. ` +
+        (single
+          ? 'The rules changed with this update. One of your decks no longer fits the current format. '
+          : `The rules changed with this update. ${flagged.length} of your decks no longer fit the current format. `) +
           'Nothing was deleted; every card is still in your collection. Open the Deck Builder to bring them up to date.',
         {
           fontFamily: theme.fonts.ui,
@@ -252,7 +255,18 @@ export class MainMenuScene extends Phaser.Scene {
         shell.close();
       },
     });
-    content.add([fix.container, later.container]);
+    // Corner dismiss: an explicit tap, so it acknowledges exactly like Later.
+    // Pinned to the shell's top-right corner (shell is centered at 640x360).
+    const corner = themedButton(this, 640 + 760 / 2 - 34, 360 - 430 / 2 + 34, '×', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 30,
+      onTap: () => {
+        acknowledge();
+        shell.close();
+      },
+    });
+    content.add([fix.container, later.container, corner.container]);
     return true;
   }
 
