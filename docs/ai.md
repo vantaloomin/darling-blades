@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-07-29
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-08-06
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -35,7 +35,9 @@ loses on tactics. Its deliberate-weakness list, quoted from the class header:
 Concretely in the code:
 
 - **Mulligan:** keeps almost anything — keeps with 1–6 lands, hard-keeps after 2
-  mulligans.
+  mulligans. In reserve formats (Warchest/Darlings, where decks hold no lands and
+  `landReserve` is set on the view) it keeps every hand — the land band would
+  otherwise mulligan everything.
 - **Main:** 20% of the time picks a random non-concede action; otherwise plays a
   land, else casts the biggest affordable spell, else passes.
 - **Attack:** all-in when its untapped-creature count meets or beats the
@@ -55,7 +57,10 @@ profitable trades, removal on the biggest threat, trick-risk respect — but no
 lookahead." Its rules:
 
 - **Mulligan bands** are tighter than Easy's: on a fresh hand keep with 2–5
-  lands; after a mulligan keep with 1–5; hard-keep at 2 mulligans.
+  lands; after a mulligan keep with 1–5; hard-keep at 2 mulligans. In reserve
+  formats the land bands would mulligan every landless hand, so it judges curve
+  instead: keep a fresh hand with ≥ 2 spells castable by turn 3 (mana value ≤ 3),
+  ≥ 1 after a mulligan; `mulliganShift` moves those thresholds the same way.
 - **Main phase priority order** (`main`):
   1. **Lethal burn to the face** — if a face-damage spell deals ≥ the opponent's
      life, cast it.
