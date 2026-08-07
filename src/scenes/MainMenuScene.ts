@@ -199,12 +199,17 @@ export class MainMenuScene extends Phaser.Scene {
       escToClose: false,
       showClose: false,
       onClose: () => {
-        save.deckRepairNoticeAck = deckRepairNoticeFingerprint(flagged);
-        Services.save.flush();
+        // Deliberately no acknowledgement here: only the two buttons stamp it.
+        // A programmatic close (scene teardown, tab-guard takeover) must leave
+        // the notice unacknowledged so it shows again next boot.
         this.guard.close();
         if (repairDeckId) this.scene.start('DeckBuilder', { deckId: repairDeckId });
       },
     });
+    const acknowledge = (): void => {
+      save.deckRepairNoticeAck = deckRepairNoticeFingerprint(flagged);
+      Services.save.flush();
+    };
     this.guard.open(this.menuItems);
     const content = shell.container;
     content.add(
@@ -234,6 +239,7 @@ export class MainMenuScene extends Phaser.Scene {
       variant: 'primary',
       minWidth: 160,
       onTap: () => {
+        acknowledge();
         repairDeckId = flagged[0]?.deckId ?? null;
         shell.close();
       },
@@ -241,7 +247,10 @@ export class MainMenuScene extends Phaser.Scene {
     const later = themedButton(this, 760, 485, 'Later', {
       variant: 'ghost',
       minWidth: 160,
-      onTap: shell.close,
+      onTap: () => {
+        acknowledge();
+        shell.close();
+      },
     });
     content.add([fix.container, later.container]);
     return true;
