@@ -8,6 +8,11 @@ import { tutorialLaunchData } from '../data/tutorial';
 import { evaluateAchievements, syncAchievements } from '../meta/Achievements';
 import { todayString } from '../meta/Economy';
 import {
+  deckRepairNoticeFingerprint,
+  deckRepairNoticeState,
+  flaggedDecks,
+} from '../meta/deckRepair';
+import {
   claimDailyQuest,
   dailyQuestStatuses,
   dailyRerollsRemaining,
@@ -21,7 +26,7 @@ import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
-import { goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL } from '../version';
 
 const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
@@ -172,7 +177,74 @@ export class MainMenuScene extends Phaser.Scene {
       color: theme.colors.muted,
     });
 
-    if (!Services.save.data.tutorialDone) this.promptTutorial();
+    if (!this.showDeckRepairNotice() && !Services.save.data.tutorialDone) this.promptTutorial();
+  }
+
+  private showDeckRepairNotice(): boolean {
+    const save = Services.save.data;
+    const flagged = flaggedDecks(CARD_DB, save);
+    const noticeState = deckRepairNoticeState(flagged, save.deckRepairNoticeAck);
+    if (save.deckRepairNoticeAck !== noticeState.acknowledgedFingerprint) {
+      save.deckRepairNoticeAck = noticeState.acknowledgedFingerprint;
+      Services.save.flush();
+    }
+    if (!noticeState.needsNotice) return false;
+
+    let repairDeckId: string | null = null;
+    const shell = modalShell(this, {
+      width: 760,
+      height: 430,
+      dimAlpha: 0.68,
+      tapDimToClose: false,
+      escToClose: false,
+      showClose: false,
+      onClose: () => {
+        save.deckRepairNoticeAck = deckRepairNoticeFingerprint(flagged);
+        Services.save.flush();
+        this.guard.close();
+        if (repairDeckId) this.scene.start('DeckBuilder', { deckId: repairDeckId });
+      },
+    });
+    this.guard.open(this.menuItems);
+    const content = shell.container;
+    content.add(
+      this.add.text(640, 200, 'Decks need repair', {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h1}px`,
+        color: theme.colors.heading,
+      }).setOrigin(0.5),
+    );
+    content.add(
+      this.add.text(
+        640,
+        315,
+        `The rules changed with this update. ${flagged.length} of your decks no longer fit the current format. ` +
+          'Nothing was deleted; every card is still in your collection. Open the Deck Builder to bring them up to date.',
+        {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.body,
+          align: 'center',
+          wordWrap: { width: 640 },
+          lineSpacing: 5,
+        },
+      ).setOrigin(0.5),
+    );
+    const fix = themedButton(this, 520, 485, 'Fix Now', {
+      variant: 'primary',
+      minWidth: 160,
+      onTap: () => {
+        repairDeckId = flagged[0]?.deckId ?? null;
+        shell.close();
+      },
+    });
+    const later = themedButton(this, 760, 485, 'Later', {
+      variant: 'ghost',
+      minWidth: 160,
+      onTap: shell.close,
+    });
+    content.add([fix.container, later.container]);
+    return true;
   }
 
   /**

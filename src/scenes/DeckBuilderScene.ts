@@ -20,6 +20,7 @@ import {
 } from '../meta/collectionFilter';
 import { decodeDeck, deckCodeErrorMessage, encodeDeck } from '../meta/DeckCode';
 import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
+import { deckHealth } from '../meta/deckRepair';
 import {
   appendDeckSlot,
   appendDeckSlots,
@@ -177,7 +178,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     return hasLegacyVariantPin || typeof Services.save.data.pinnedVariants[cardId] === 'string';
   }
 
-  create(): void {
+  create(data: { deckId?: string } = {}): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     this.workingDeckId = null;
     this.page = 0;
@@ -195,7 +196,10 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.exitPrompt = null;
 
     const save = Services.save.data;
-    const active = activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
+    const requested = typeof data.deckId === 'string'
+      ? save.decks.find((deck) => deck.id === data.deckId) ?? null
+      : null;
+    const active = requested ?? activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
     this.workingDeckId = active?.id ?? null;
     const slots = active ? cloneDeckSlots(active.cards, active.variantPins) : cloneDeckSlots([]);
     this.deck = slots.cards;
@@ -1321,6 +1325,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     const renderDeckTile = (parent: Phaser.GameObjects.Container, deck: SavedDeck, x: number, y: number): void => {
       const isActive = deck.id === this.workingDeckId;
       const deckFormat = deck.format === 'darlings' || deck.format === 'warchest' ? deck.format : 'constructed';
+      const repair = deckHealth(CARD_DB, save, deck);
       const left = x - tileW / 2;
       const top = y - tileH / 2;
       const rightGuideX = left + tileW - 13;
@@ -1342,11 +1347,11 @@ export class DeckBuilderScene extends Phaser.Scene {
       parent.add(title);
       parent.add(
         this.add
-          .text(left + 18, top + 47, formatLabel(deckFormat), {
+          .text(left + 18, top + 47, repair.blocked ? `${formatLabel(deckFormat)} · Needs repair` : formatLabel(deckFormat), {
             fontFamily: theme.fonts.ui,
             fontSize: theme.type.micro + 'px',
             fontStyle: theme.weight.w700,
-            color: isActive ? theme.colors.gold : theme.colors.muted,
+            color: repair.blocked ? theme.colors.danger : isActive ? theme.colors.gold : theme.colors.muted,
           })
           .setOrigin(0, 0.5),
       );
@@ -1360,7 +1365,7 @@ export class DeckBuilderScene extends Phaser.Scene {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.body}px`,
             fontStyle: '700',
-            color: deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
+            color: repair.blocked ? theme.colors.danger : deck.cards.length === formatDeckSize(deckFormat) ? theme.colors.success : theme.colors.danger,
           })
           .setOrigin(1, 0.5),
       );
@@ -1801,7 +1806,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private renderDeckRows(format: BuilderFormat, x0: number, heroId: string | null): void {
     const entries = collapseDeckRows(this.deck, this.variantPins)
-      .filter(({ cardId }) => !isBasic(CARD_DB, cardId))
+      .filter(({ cardId }) => !CARD_DB[cardId] || !isBasic(CARD_DB, cardId))
       .sort((a, b) => {
         const da = CARD_DB[a.cardId];
         const dbb = CARD_DB[b.cardId];
@@ -1819,20 +1824,21 @@ export class DeckBuilderScene extends Phaser.Scene {
     const listY0 = this.touch ? 270 : format === 'constructed' ? DESKTOP_DECK_Y0 : 270;
     formatPageSlice(entries, this.deckPage, rows).forEach((entry, i) => {
       const d = CARD_DB[entry.cardId];
-      if (!d) return;
       const y = listY0 + i * (this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH);
       const star = this.add
-        .text(x0, y, heroId === entry.cardId ? '★' : '☆', {
+        .text(x0, y, d ? heroId === entry.cardId ? '★' : '☆' : '!', {
           fontFamily: theme.fonts.ui,
           fontSize: theme.type.label + 'px',
           fontStyle: '700',
-          color: heroId === entry.cardId ? theme.colors.goldHover : theme.colors.muted,
+          color: d ? heroId === entry.cardId ? theme.colors.goldHover : theme.colors.muted : theme.colors.danger,
         })
-        .setOrigin(0, 0)
-        .setInteractive({ useHandCursor: true });
-      bindTapButton(this, star, () => this.toggleDeckHero(entry.cardId));
-      inflateHitArea(star, this.touch ? 44 : 34, this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH);
-      const hasPinnedDisplay = this.hasPinnedDisplay(entry.cardId, entry.hasLegacyVariantPin);
+        .setOrigin(0, 0);
+      if (d) {
+        star.setInteractive({ useHandCursor: true });
+        bindTapButton(this, star, () => this.toggleDeckHero(entry.cardId));
+        inflateHitArea(star, this.touch ? 44 : 34, this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH);
+      }
+      const hasPinnedDisplay = d && this.hasPinnedDisplay(entry.cardId, entry.hasLegacyVariantPin);
       const marker = this.add
         .text(x0 + (this.touch ? 27 : 24), y, hasPinnedDisplay ? '📌' : '', {
           fontFamily: theme.fonts.ui,
@@ -1840,12 +1846,17 @@ export class DeckBuilderScene extends Phaser.Scene {
           color: theme.colors.gold,
         })
         .setOrigin(0, 0);
-      const variant = this.ownedVariantFor(entry.cardId);
-      const row = this.add.text(x0 + (this.touch ? 44 : 40), y, d.name + ' (' + manaValue(d.cost) + ')', {
+      const variant = d ? this.ownedVariantFor(entry.cardId) : undefined;
+      const row = this.add.text(
+        x0 + (this.touch ? 44 : 40),
+        y,
+        d ? d.name + ' (' + manaValue(d.cost) + ')' : `Unavailable card: ${entry.cardId}`,
+        {
         fontFamily: theme.fonts.ui,
         fontSize: theme.type.caption + 'px',
-        color: theme.colors.body,
-      });
+        color: d ? theme.colors.body : theme.colors.danger,
+        },
+      );
       const quantity = entry.quantity > 1
         ? this.add
           .text(x0 + (this.touch ? 210 : 230), y, `×${entry.quantity}`, {
@@ -1861,13 +1872,13 @@ export class DeckBuilderScene extends Phaser.Scene {
       if (!this.touch) {
         row.setInteractive({ useHandCursor: true });
         inflateHitArea(row, 190, DESKTOP_DECK_PITCH);
-        this.zoom.attach(row, d, variant);
+        if (d) this.zoom.attach(row, d, variant);
         row.on('pointerover', () => {
           row.setColor(theme.colors.danger);
           inflateHitArea(row, 190, DESKTOP_DECK_PITCH);
         });
         row.on('pointerout', () => {
-          row.setColor(theme.colors.body);
+          row.setColor(d ? theme.colors.body : theme.colors.danger);
           inflateHitArea(row, 190, DESKTOP_DECK_PITCH);
         });
         bindTapButton(this, row, (p) => this.removeCardAt(entry.firstIndex, p));
@@ -1887,6 +1898,33 @@ export class DeckBuilderScene extends Phaser.Scene {
     if (pages > 1) this.renderDeckPagers(x0, pages);
   }
 
+  private renderRepairBanner(x0: number, blocking: ReturnType<typeof validateDeck>): void {
+    const first = blocking[0];
+    if (!first) return;
+    const background = themedPanel(this, x0 - 8, 514, 368, 116, {
+      alpha: 0.92,
+      radius: theme.radius.control,
+    });
+    const message = this.add.text(x0 + 8, 530, `This deck needs repair: ${first.message}`, {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.caption}px`,
+      fontStyle: theme.weight.w600,
+      color: theme.colors.danger,
+      wordWrap: { width: 336 },
+    });
+    const count = this.add.text(
+      x0 + 8,
+      606,
+      `${blocking.length} blocking ${blocking.length === 1 ? 'issue' : 'issues'}`,
+      {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        color: theme.colors.muted,
+      },
+    );
+    this.rightPane.push(background, message, count);
+  }
+
   private renderDeck(): void {
     for (const c of this.rightPane) c.destroy();
     this.rightPane = [];
@@ -1895,6 +1933,9 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const active = this.activeSavedDeck();
     const format = this.activeFormat();
+    const issues = this.currentIssues();
+    const blocking = issues.filter((issue) => issue.kind === 'error');
+    const repairingSavedDeck = active !== null && blocking.length > 0;
     const deckTitleX = format === 'darlings' && active?.darlingId ? x0 + 46 : x0;
     const title = this.add
       .text(deckTitleX, 32, (active?.name ?? 'Custom Deck') + ' · ' + this.deck.length + '/' + formatDeckSize(format), {
@@ -2005,11 +2046,11 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const heroId = this.deckHeroId();
     this.renderDeckRows(format, x0, heroId);
-    this.renderDeckStats(x0);
+    if (repairingSavedDeck) this.renderRepairBanner(x0, blocking);
+    else this.renderDeckStats(x0);
 
     // validation + save
-    const issues = this.currentIssues();
-    const issueLines = issues
+    const issueLines = repairingSavedDeck ? [] : issues
       .slice(0, this.deckCodeMessage ? 1 : 2)
       .map((i) => `${i.kind === 'error' ? '✕' : '⚠'} ${i.message}`);
     const statusLines = this.deckCodeMessage ? [this.deckCodeMessage, ...issueLines] : issueLines;

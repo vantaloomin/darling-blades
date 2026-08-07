@@ -7,7 +7,7 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 
-export const CURRENT_SAVE_VERSION = 26 as const;
+export const CURRENT_SAVE_VERSION = 27 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /** When an empty blocking step needs a second confirmation. */
@@ -138,6 +138,8 @@ export interface SaveData {
   darlingsTutorialSeen: boolean;
   /** The one-time free Zhou Yu Darlings precon has been claimed. v26 extension. */
   darlingsFreeDeckClaimed: boolean;
+  /** Canonical JSON snapshot of flagged deck ids acknowledged by the player. v27 addition. */
+  deckRepairNoticeAck: string;
   /**
    * Road-to-1.0 achievements. Unlocks are recomputed from durable save/card-db
    * state by src/meta/Achievements.ts; claimed is separate so migrated/imported
@@ -232,6 +234,7 @@ export function freshSave(now: number): SaveData {
     tutorialDone: false,
     darlingsTutorialSeen: false,
     darlingsFreeDeckClaimed: false,
+    deckRepairNoticeAck: '[]',
     achievements: freshAchievements(),
     daily: freshDailyState(dayStringFromTimestamp(now)),
     limited: { ...freshLimitedState(), premiumWeek: { week: 0, entries: 0 } },
@@ -326,7 +329,7 @@ export class SaveManager {
    * renames the Warchest format and adds collection-level variant display pins;
    * v25 -> v26 moves legacy in-deck Darlings into their command-zone identity
    * and adds the Darlings format explainer flag plus the free-Zhou-Yu claim
-   * state.
+   * state; v26 -> v27 adds the acknowledged deck-repair id-set snapshot.
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -593,7 +596,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -676,6 +679,17 @@ export class SaveManager {
         darlingsFreeDeckClaimed: beganAtCurrentVersion && cur.darlingsFreeDeckClaimed === true,
       };
     }
+    if (cur.version === 26) {
+      cur = {
+        ...cur,
+        version: 27,
+        // A real v26 save has never acknowledged this warning. Current v27
+        // blobs retain their durable snapshot through the canonicalizer.
+        deckRepairNoticeAck: beganAtCurrentVersion
+          ? normalizeDeckRepairNoticeAck(cur.deckRepairNoticeAck)
+          : '[]',
+      };
+    }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
       return {
@@ -685,6 +699,7 @@ export class SaveManager {
         pinnedVariants: normalizePinnedVariants(cur.pinnedVariants, cur.collection, cur.collectionVariants),
         darlingsTutorialSeen: cur.darlingsTutorialSeen === true,
         darlingsFreeDeckClaimed: cur.darlingsFreeDeckClaimed === true,
+        deckRepairNoticeAck: normalizeDeckRepairNoticeAck(cur.deckRepairNoticeAck),
       } as unknown as SaveData;
     }
     return freshSave(now);
@@ -774,6 +789,18 @@ export class SaveManager {
     this.storage.removeItem(KEY);
     this.storage.removeItem(LEGACY_KEY);
     Object.assign(this.data, freshSave(now));
+  }
+}
+
+function normalizeDeckRepairNoticeAck(value: unknown): string {
+  if (typeof value !== 'string') return '[]';
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed) || parsed.some((id) => typeof id !== 'string')) return '[]';
+    const ids = [...new Set(parsed)].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+    return JSON.stringify(ids);
+  } catch {
+    return '[]';
   }
 }
 

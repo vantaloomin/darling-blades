@@ -94,6 +94,7 @@ export class PracticePickerScene extends Phaser.Scene {
   private pickerWheelLastStepAt = Number.NEGATIVE_INFINITY;
   private selectionLabel: Phaser.GameObjects.Text | null = null;
   private launchNotice: Phaser.GameObjects.Text | null = null;
+  private launchNoticeAction: Phaser.GameObjects.Container | null = null;
   private reserveFormatsEnabled = false;
 
   constructor() {
@@ -118,6 +119,7 @@ export class PracticePickerScene extends Phaser.Scene {
     this.pickerWheelLastStepAt = Number.NEGATIVE_INFINITY;
     this.selectionLabel = null;
     this.launchNotice = null;
+    this.launchNoticeAction = null;
 
     // Design-space constants, NOT this.scale (see src/platform/renderScale.ts).
     const width = 1280;
@@ -497,13 +499,19 @@ export class PracticePickerScene extends Phaser.Scene {
     );
     const issue = firstDuelLaunchIssue(CARD_DB, Services.save.data, activeDeck);
     if (issue) {
-      this.showLaunchNotice(`Cannot start Practice: ${issue}`);
+      this.showLaunchNotice(`Cannot start Practice: ${issue}`, {
+        label: 'Open Decks',
+        onTap: () => this.scene.start('DeckBuilder', { deckId: activeDeck?.id }),
+      });
       return;
     }
     this.scene.start('Duel', practiceDuelLaunchData(selected.id, difficulty));
   }
 
-  private showLaunchNotice(message: string): void {
+  private showLaunchNotice(
+    message: string,
+    action?: { label: string; onTap: () => void },
+  ): void {
     if (!this.launchNotice || !this.launchNotice.active) {
       this.launchNotice = this.add
         .text(640, 592, message, {
@@ -514,9 +522,20 @@ export class PracticePickerScene extends Phaser.Scene {
           wordWrap: { width: 900 },
         })
         .setOrigin(0.5);
-      return;
+    } else {
+      this.launchNotice.setText(message);
     }
-    this.launchNotice.setText(message);
+    this.launchNoticeAction?.destroy();
+    this.launchNoticeAction = null;
+    if (action) {
+      const button = themedButton(this, 640, 680, action.label, {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: 132,
+        onTap: action.onTap,
+      });
+      this.launchNoticeAction = button.container;
+    }
   }
 
   /**

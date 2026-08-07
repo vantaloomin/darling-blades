@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, scripts/balance-matrix.ts · last-verified: 2026-08-06 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, src/meta/deckRepair.ts, src/meta/SaveManager.ts, src/scenes/MainMenuScene.ts, scripts/balance-matrix.ts · last-verified: 2026-08-07 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.6 — program plan
 
@@ -69,12 +69,13 @@ Gate output: three ratified numbers/rules recorded here and in
    flushes when the non-active player has a castable Charm. Replay v7 selects
    the new path; v6 remains stream-exact under preserved revision 1. AI
    determinization carries the revision, and the tutorial is pinned to rev 1.
-2. **Deck-invalidation flag-and-fix flow**: the current boot path PRUNES
-   invalid decks and resets `activeDeckId`; replace it with a
-   flag-and-fix flow (decks preserved and flagged, never deleted; a
-   warning routes to the Deck Builder). The 1.6 migration invalidates
-   every player-made classic deck, so this flow is its prerequisite and
-   is correct regardless of the gate's outcome.
+2. **Deck-invalidation flag-and-fix flow - IMPLEMENTED 2026-08-07.** Save v27
+   preserves rule-invalid decks and their `activeDeckId`, reports unknown card
+   ids without throwing, and persists acknowledgement of the flagged deck-id
+   set. Main Menu warns when new decks need repair and routes directly to the
+   opened deck; Play and the Practice picker block invalid Practice/Gauntlet
+   launches with the same fix route. The 1.6 migration invalidates every
+   player-made classic deck, so this flow remains its prerequisite.
 3. **Premium UX Wave B** (presentation-only, parallel with engine work):
    carry-cast phase 1 on the shared CastIntent state, Card Atelier,
    Versus bumpers, Trophy Hall S. Details live in the local-only,

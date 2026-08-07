@@ -401,3 +401,54 @@ describe('SaveData v26 migration (Darlings command zone tutorial)', () => {
     expect(migrated.darlingsFreeDeckClaimed).toBe(true);
   });
 });
+
+describe('SaveData v27 migration (deck repair acknowledgement)', () => {
+  it('preserves invalid decks and their active id while starting the acknowledgement empty', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 26;
+    old.deckRepairNoticeAck = '["should-not-survive"]';
+    old.activeDeckId = 'legacy-warchest';
+    const cards = [...Array.from({ length: 49 }, () => 'gk-athena'), 'unknown-card-id'];
+    const reserve = [
+      'gk-athena',
+      ...Array.from({ length: 6 }, () => 'ld-misty-palace-terrace'),
+      'land-plains',
+      'unknown-reserve-id',
+      42,
+    ];
+    old.decks = [{
+      id: 'legacy-warchest',
+      name: 'Legacy Warchest',
+      cards,
+      heroCardId: null,
+      landStyle: null,
+      format: 'warchest',
+      darlingId: null,
+      landReserve: reserve,
+      variantPins: cards.map(() => null),
+    }];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(27);
+    expect(migrated.activeDeckId).toBe('legacy-warchest');
+    expect(migrated.decks[0].cards).toEqual(cards);
+    expect(migrated.decks[0].landReserve).toEqual([
+      'gk-athena',
+      ...Array.from({ length: 6 }, () => 'ld-misty-palace-terrace'),
+      'land-plains',
+    ]);
+    expect(migrated.deckRepairNoticeAck).toBe('[]');
+  });
+
+  it('retains and canonicalizes a current-version acknowledgement', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123) as unknown as Record<string, unknown>;
+    current.deckRepairNoticeAck = '["deck-z","deck-a","deck-a"]';
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    expect(new SaveManager(storage, 456).data.deckRepairNoticeAck).toBe('["deck-a","deck-z"]');
+  });
+});

@@ -95,7 +95,11 @@ export function validateDeck(
   let lands = 0;
   let creatures = 0;
   for (const [id, n] of counts) {
-    const d = def(db, id);
+    const d = db[id];
+    if (!d) {
+      issues.push({ kind: 'error', message: `That card is not available: ${id}` });
+      continue;
+    }
     if (d.token) issues.push({ kind: 'error', message: `${d.name} is a token` });
     if (!isBasic(db, id)) {
       if (n > RULES.maxCopies)
@@ -205,8 +209,10 @@ export function generateDeckId(save: SaveData): string {
 
 /**
  * Delete a deck by id. If it was the active deck, reassign activeDeckId to a
- * remaining deck (or null when none remain) — the invariant DuelScene/Gauntlet
- * rely on: activeDeckId always points to an existing deck, or is null.
+ * remaining deck (or null when none remain). Explicit deletion is the only
+ * validity-adjacent flow that reassigns this id: an invalid deck stays active
+ * so the player can repair it in place. DuelScene/Gauntlet rely on the narrower
+ * invariant that activeDeckId always points to an existing deck, or is null.
  */
 export function deleteDeck(save: SaveData, deckId: string): void {
   save.decks = save.decks.filter((d) => d.id !== deckId);
