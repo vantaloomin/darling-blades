@@ -105,7 +105,7 @@ const DESKTOP_DECK_PITCH = 22;
  * end near 448, before the pager target begins at 492 - 22 = 470. A seventh
  * would end near 470, so six is the maximum without consuming that clearance.
  */
-const DESKTOP_DECK_Y0 = 326;
+const DESKTOP_DECK_Y0 = 336;
 /** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
 const DECK_PAGER_Y = 492;
 const DECK_STATS_Y = 528;
@@ -1029,20 +1029,22 @@ export class DeckBuilderScene extends Phaser.Scene {
       },
     });
     const overlay = shell.container;
+    // Shell panel spans y 75-645: keep the header inside it, the copy narrow
+    // enough to clear the corner close button, and both above row 1 (top 162).
     overlay.add(
-      this.add.text(640, 72, 'Choose your Darling', {
+      this.add.text(640, 108, 'Choose your Darling', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h1}px`,
         color: theme.colors.heading,
       }).setOrigin(0.5),
     );
     overlay.add(
-      this.add.text(640, 112, DARLINGS_RULES_COPY, {
+      this.add.text(640, 142, DARLINGS_RULES_COPY, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.body,
         align: 'center',
-        wordWrap: { width: 690 },
+        wordWrap: { width: 620 },
       }).setOrigin(0.5),
     );
     const pageSize = DARLING_PAGE_SIZE;
@@ -2027,7 +2029,9 @@ export class DeckBuilderScene extends Phaser.Scene {
       const basicsPitch = this.touch ? 40 : 52;
       BASIC_LAND_IDS.forEach((id, i) => {
       const d = byId(id);
-      const y = (this.touch ? 78 : 88) + i * basicsPitch;
+      // Desktop rows start clear of the format tabs (sm buttons centered at
+      // y=64): the row preview thumb tops at y-20, so 102 keeps daylight.
+      const y = (this.touch ? 78 : 102) + i * basicsPitch;
       const n = this.countIn(this.deck, id);
       const landStyle = active?.landStyle?.[id] ?? null;
       const row = this.add
