@@ -7,7 +7,6 @@ import {
   DARLINGS_DECK_SIZE,
   WARCHEST_DECK_SIZE,
   isBasicLand,
-  isDualLand,
   landFetchExclusionError,
   validateWarchestDeckShape,
   validateLandReserve,
@@ -31,16 +30,9 @@ function normalizeLandReserve(db: CardDb, format: DarlingsFormat, raw: unknown):
   if (!Array.isArray(raw)) return [];
 
   const reserve: string[] = [];
-  let duals = 0;
   for (const value of raw) {
     if (typeof value !== 'string') continue;
-    const card = db[value];
-    if (!card || !card.types.includes('land')) continue;
-    if (!isBasicLand(card) && !isDualLand(card)) continue;
-    if (isDualLand(card)) {
-      if (duals >= 5) continue;
-      duals++;
-    }
+    if (!db[value]) continue;
     reserve.push(value);
   }
   return reserve;

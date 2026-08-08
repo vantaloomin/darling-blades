@@ -87,6 +87,7 @@ function codeForRaw(raw: Record<string, unknown>): string {
 function currentVersionFixture(version: number): Record<string, unknown> {
   const save = currentFixture() as unknown as Record<string, unknown>;
   save.version = version;
+  if (version < 27) delete save.deckRepairNoticeAck;
   if (version < 24) delete (save.settings as Record<string, unknown>).confirmNoBlock;
   if (version < 23) {
     const decks = save.decks as Array<Record<string, unknown>>;
@@ -165,6 +166,29 @@ describe('SaveCode', () => {
       sourceSchemaVersion: CURRENT_SAVE_VERSION,
       replaysPresent: true,
     });
+  });
+
+  it('round-trips a rule-invalid deck without pruning its cards or reserve', () => {
+    const save = currentFixture();
+    const cards = [...Array.from({ length: 49 }, () => 'bk-wolfqueen'), 'unknown-card-id'];
+    const reserve = [
+      'bk-wolfqueen',
+      ...Array.from({ length: 6 }, () => 'ld-misty-palace-terrace'),
+      'land-forest',
+    ];
+    save.decks[0] = {
+      ...save.decks[0],
+      format: 'warchest',
+      cards,
+      landReserve: reserve,
+      variantPins: cards.map(() => null),
+    };
+
+    const decoded = expectOk(decode(encode(save)));
+
+    expect(decoded.save.decks[0].cards).toEqual(cards);
+    expect(decoded.save.decks[0].landReserve).toEqual(reserve);
+    expect(decoded.save.activeDeckId).toBe('deck-1');
   });
 
   it('decodes and migrates a fixture for every historical SaveData version', () => {

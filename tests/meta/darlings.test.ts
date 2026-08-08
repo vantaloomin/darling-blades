@@ -304,14 +304,14 @@ describe('Darlings format helpers', () => {
     expect(normalizeDarlingsFields(DB, 'darlings', DARLING, legalDeck(), [BASIC, DUAL, 'missing', GREEN_CARD])).toEqual({
       format: 'darlings',
       darlingId: DARLING,
-      landReserve: [BASIC, DUAL],
+      landReserve: [BASIC, DUAL, GREEN_CARD],
     });
     expect(
       normalizeDarlingsFields(DB, 'warchest', DARLING, legalDeck(), [BASIC, ...Array.from({ length: 6 }, () => DUAL)]),
     ).toEqual({
       format: 'warchest',
       darlingId: null,
-      landReserve: [BASIC, ...Array.from({ length: 5 }, () => DUAL)],
+      landReserve: [BASIC, ...Array.from({ length: 6 }, () => DUAL)],
     });
     expect(normalizeDarlingsFields(DB, 'constructed', DARLING, legalDeck(), [DUAL])).toEqual({
       format: 'constructed',

@@ -1,8 +1,7 @@
 import type { Difficulty } from './Economy';
 import { floorBrain } from '../ai/tiers';
 import type { CardDb, Color } from '../engine/types';
-import { validateDeck, type DeckIssue } from './DeckStorage';
-import { validateDarlingsDeck, validateWarchestDeck } from './darlings';
+import { deckHealth } from './deckRepair';
 import type { SaveData, SavedDeck } from './SaveManager';
 import { isBasicLand, isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from './warchest';
 
@@ -23,13 +22,7 @@ export function firstDuelLaunchIssue(
   deck: SavedDeck | null,
 ): string | null {
   if (!deck) return null;
-  const format = deck.format === 'darlings' || deck.format === 'warchest' ? deck.format : 'constructed';
-  const reserve = Array.isArray(deck.landReserve) ? deck.landReserve : [];
-  const issues: DeckIssue[] = format === 'darlings'
-    ? validateDarlingsDeck(db, save, deck.cards, deck.darlingId ?? null, reserve)
-    : format === 'warchest'
-      ? validateWarchestDeck(db, save, deck.cards, reserve)
-      : validateDeck(db, save, deck.cards);
+  const { issues } = deckHealth(db, save, deck);
   return issues.find((issue) => issue.kind === 'error')?.message ?? null;
 }
 
