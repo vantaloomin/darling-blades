@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CardDb, CardDef } from '../../src/engine/types';
-import { validateDeck } from '../../src/meta/DeckStorage';
+import { saveDeck, switchDeckFormat, validateDeck } from '../../src/meta/DeckStorage';
 import {
   deckHealth,
   deckRepairNoticeFingerprint,
@@ -23,7 +23,8 @@ function card(id: string, over: Partial<CardDef> = {}): CardDef {
 }
 
 const BASIC = 'basic';
-const SPELL = 'spell';
+const SPELL_IDS = Array.from({ length: 25 }, (_, index) => `spell-${index + 1}`);
+const SPELL = SPELL_IDS[0];
 const DB: CardDb = {
   [BASIC]: card(BASIC, {
     types: ['land'],
@@ -31,8 +32,16 @@ const DB: CardDb = {
     cost: undefined,
     manaAbility: ['G'],
   }),
-  [SPELL]: card(SPELL),
+  ...Object.fromEntries(SPELL_IDS.map((id) => [id, card(id)])),
 };
+
+function ownSpells(save: ReturnType<typeof freshSave>): void {
+  for (const id of SPELL_IDS) save.collection[id] = 4;
+}
+
+function warchestCards(): string[] {
+  return SPELL_IDS.flatMap((id) => [id, id]);
+}
 
 function deck(id: string, cards: string[], over: Partial<SavedDeck> = {}): SavedDeck {
   return {
@@ -75,6 +84,74 @@ describe('deck repair health', () => {
     expect(deckHealth(DB, save, classic).blocked).toBe(false);
     expect(deckHealth(DB, save, warchest).issues[0]?.message).toContain('exactly 50 cards');
     expect(deckHealth(DB, save, darlings).issues.some((issue) => issue.message === 'Choose a Darling before playing')).toBe(true);
+  });
+
+  it.each([
+    ['constructed', 'Deck has 0/60 cards'],
+    ['warchest', 'Reserve-format decks need exactly 50 cards (currently 0)'],
+    ['darlings', 'Reserve-format decks need exactly 79 cards (currently 0)'],
+  ] as const)('prices a newly created empty %s deck at that format size', (format, sizeIssue) => {
+    const save = freshSave(0);
+    save.decks = [];
+    saveDeck(save, {
+      id: 'new-deck',
+      name: 'New Deck',
+      cards: [],
+      format,
+      darlingId: null,
+      landReserve: format === 'constructed' ? null : [],
+    });
+
+    const created = save.decks[0];
+    expect(created?.format).toBe(format);
+    expect(deckHealth(DB, save, created).issues).toContainEqual({ kind: 'error', message: sizeIssue });
+  });
+
+  it('reports Warchest oversize and land issues after a constructed format switch', () => {
+    const save = freshSave(0);
+    const constructed = deck('constructed', Array.from({ length: 60 }, () => BASIC));
+
+    const reserve = switchDeckFormat(constructed, 'warchest');
+    const messages = deckHealth(DB, save, constructed).issues.map((issue) => issue.message);
+
+    expect(reserve).toEqual([]);
+    expect(constructed.landReserve).toEqual([]);
+    expect(messages).toContain('Reserve-format decks need exactly 50 cards (currently 60)');
+    expect(messages).toContain('Decks in this format hold no lands; build your Warchest instead');
+  });
+
+  it('reports constructed undersize after a Warchest format switch', () => {
+    const save = freshSave(0);
+    ownSpells(save);
+    const warchest = deck('warchest', warchestCards(), {
+      format: 'warchest',
+      landReserve: Array.from({ length: 10 }, () => BASIC),
+    });
+
+    const reserve = switchDeckFormat(warchest, 'constructed');
+
+    expect(reserve).toEqual([]);
+    expect(warchest.landReserve).toBeNull();
+    expect(deckHealth(DB, save, warchest).issues).toContainEqual({
+      kind: 'error',
+      message: 'Deck has 50/60 cards',
+    });
+  });
+
+  it('reports singleton and Darling issues after a Darlings format switch', () => {
+    const save = freshSave(0);
+    ownSpells(save);
+    const warchest = deck('warchest', warchestCards(), {
+      format: 'warchest',
+      darlingId: null,
+      landReserve: Array.from({ length: 10 }, () => BASIC),
+    });
+
+    switchDeckFormat(warchest, 'darlings');
+    const messages = deckHealth(DB, save, warchest).issues.map((issue) => issue.message);
+
+    expect(messages).toContain(`${SPELL} may appear only once in a Darlings deck`);
+    expect(messages).toContain('Choose a Darling before playing');
   });
 
   it('summarizes only blocked decks in save order', () => {
