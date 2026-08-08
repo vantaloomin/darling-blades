@@ -32,6 +32,7 @@ import {
   removeDeckSlot,
   renameDeck,
   saveDeck,
+  switchDeckFormat,
   validateDeck,
 } from '../meta/DeckStorage';
 import {
@@ -985,16 +986,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       if (format === 'darlings') this.openDarlingsFormat();
       return;
     }
-    active.format = format;
-    active.darlingId = format === 'darlings' ? active.darlingId ?? null : null;
-    if (format === 'darlings') active.heroCardId = null;
-    if (format === 'constructed') {
-      this.landReserve = [];
-      active.landReserve = null;
-    } else {
-      this.landReserve = active.landReserve ? [...active.landReserve] : [];
-      active.landReserve = [...this.landReserve];
-    }
+    this.landReserve = switchDeckFormat(active, format);
     Services.save.flush();
     this.deckPage = 0;
     this.renderPool();
@@ -1451,18 +1443,27 @@ export class DeckBuilderScene extends Phaser.Scene {
     const renderNewTile = (parent: Phaser.GameObjects.Container, x: number, y: number): void => {
       const left = x - tileW / 2;
       const top = y - tileH / 2;
-      const create = (): void => {
+      const create = (format: BuilderFormat): void => {
         const id = generateDeckId(save);
         const index = visibleSavedDecks(save.decks, this.reserveFormatsEnabled).length;
-        saveDeck(save, { id, name: `Deck ${save.decks.length + 1}`, cards: [] });
+        saveDeck(save, {
+          id,
+          name: `Deck ${save.decks.length + 1}`,
+          cards: [],
+          format,
+          darlingId: null,
+          landReserve: format === 'constructed' ? null : [],
+        });
         pickerPage = Math.floor(index / pageSize);
         setActiveDeck(id);
+        closeOverlay();
       };
+      const chooseFormat = (): void => this.showNewDeckFormatPrompt(create);
       const bg = this.add
         .rectangle(x, y, tileW, tileH, theme.graphics.panelFill, theme.alpha.panel)
         .setStrokeStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
         .setInteractive({ useHandCursor: true });
-      bindTapButton(this, bg, create);
+      bindTapButton(this, bg, chooseFormat);
       parent.add(bg);
       parent.add(
         this.add
@@ -1488,7 +1489,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         variant: 'emphasis',
         size: 'sm',
         minWidth: 160,
-        onTap: create,
+        onTap: chooseFormat,
       });
       parent.add(btn.container);
     };
@@ -1526,6 +1527,63 @@ export class DeckBuilderScene extends Phaser.Scene {
       onTap: closeOverlay,
     });
     overlay.add(closeBtn.container);
+  }
+
+  private showNewDeckFormatPrompt(onChoose: (format: BuilderFormat) => void): void {
+    const formats = offeredBuilderFormats(this.reserveFormatsEnabled);
+    const shell = modalShell(this, {
+      width: 520,
+      height: 340,
+      dimAlpha: 0.72,
+      depth: theme.depth.inspect,
+      tapDimToClose: false,
+      escToClose: true,
+    });
+    const overlay = shell.container;
+    const titleTrack = shell.tracks.titleTrack;
+    overlay.add(
+      this.add.text(
+        titleTrack.x + titleTrack.width / 2,
+        titleTrack.y + titleTrack.height / 2,
+        'Choose a format',
+        {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.heading,
+        },
+      ).setOrigin(0.5),
+    );
+
+    const content = shell.contentBounds;
+    const pitch = 56;
+    const firstY = content.y + content.height / 2 - ((formats.length - 1) * pitch) / 2;
+    formats.forEach((format, index) => {
+      const button = themedButton(
+        this,
+        content.x + content.width / 2,
+        firstY + index * pitch,
+        formatLabel(format),
+        {
+          variant: 'emphasis',
+          minWidth: 360,
+          onTap: () => {
+            shell.close();
+            onChoose(format);
+          },
+        },
+      );
+      overlay.add(button.container);
+    });
+
+    const footer = shell.tracks.footerTrack;
+    const cancel = themedButton(
+      this,
+      footer.x + footer.width / 2,
+      footer.y + footer.height / 2,
+      'Cancel',
+      { variant: 'ghost', minWidth: 120, onTap: shell.close },
+    );
+    overlay.add(cancel.container);
   }
 
   private fitTextToWidth(text: Phaser.GameObjects.Text, maxWidth: number): void {

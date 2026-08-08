@@ -199,6 +199,26 @@ export function saveDeck(
   else save.decks.push(saved);
 }
 
+/**
+ * Apply the builder's existing format-tab transition rules to a saved deck.
+ * Returns the reserve working copy the scene should edit after the switch.
+ */
+export function switchDeckFormat(
+  deck: SavedDeck,
+  format: NonNullable<SavedDeck['format']>,
+): string[] {
+  deck.format = format;
+  deck.darlingId = format === 'darlings' ? deck.darlingId ?? null : null;
+  if (format === 'darlings') deck.heroCardId = null;
+  if (format === 'constructed') {
+    deck.landReserve = null;
+    return [];
+  }
+  const landReserve = deck.landReserve ? [...deck.landReserve] : [];
+  deck.landReserve = [...landReserve];
+  return landReserve;
+}
+
 /** A deck id not already used in save.decks (deck-1, deck-2, … skipping collisions). */
 export function generateDeckId(save: SaveData): string {
   const taken = new Set(save.decks.map((d) => d.id));
