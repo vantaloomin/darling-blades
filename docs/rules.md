@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-06
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-07
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -48,7 +48,16 @@ and tests.
 ## Warchest and Darlings formats
 
 Warchest decks have 50 nonland cards and a Warchest of 10 lands, with up to 5
-dual lands. Warchest Reserves are the lands not yet in play. Once deployed,
+dual lands.
+
+> **Ratified for 1.6 (owner decision 2026-08-07, measurement-gated):**
+> Warchest constructed moves to **40-card decks** with a **5-card opening
+> hand**; reserve colors stay unrestricted. The current build still plays
+> 50 cards and a 7-card hand; the new parameters ship with the 1.6
+> Warchest migration ([plan-1.6.md](plan-1.6.md) records the evidence).
+> This section is rewritten when that lands.
+
+Warchest Reserves are the lands not yet in play. Once deployed,
 they are your Active Warchest. Each turn, move one land from your Warchest
 Reserves into your Active Warchest. Dual lands arrive tapped. Destroyed dual
 lands are gone; destroyed basic lands return to your Reserves.

@@ -2,15 +2,14 @@
 
 # Darling Blades 1.6 — program plan
 
-**Status 2026-08-06: OPEN, gated.** The train opened by owner decision
-2026-08-06 in gated form: the parameter-independent lanes (priority-window
-reopening, the deck-invalidation flag-and-fix flow, Premium UX Wave B)
-start immediately; every lane that does balance work on the reserve field
-(the migration deck redesigns, the sprinkle wave, the large set) is
-blocked behind the **Warchest format-parameter gate** below. Scope and
-sequencing graduate from [plan-1.6-draft.md](plan-1.6-draft.md), which
-remains the fuller reference for wave details and the mechanic-reuse
-audit.
+**Status 2026-08-07: OPEN, gate resolved.** The train opened gated on
+2026-08-06; the **Warchest format-parameter gate** below RESOLVED on
+2026-08-07 with owner ratification of **40-card decks, a 5-card opening
+hand, and no reserve color cap**. All lanes are now open, including the
+migration and every reserve-field balance lane, which build to the
+ratified parameters. Scope and sequencing graduate from
+[plan-1.6-draft.md](plan-1.6-draft.md), which remains the fuller
+reference for wave details and the mechanic-reuse audit.
 
 ## The north star (owner-ratified 2026-07-31, unchanged)
 
@@ -41,7 +40,25 @@ with the shipped Warchest constructed format:
    preference order: a reserve color cap (deck must fit the reserve's
    colors), a lower dual cap, or embracing the pile identity.
 
-The gate resolves in three steps:
+**RESOLVED 2026-08-07 (owner-ratified): Warchest constructed moves to
+40-card decks with a 5-card opening hand; reserve colors stay
+unrestricted (no cap).** Evidence: two dated six-config tuning-matrix
+runs (2026-08-06 with the land-based mulligan confound, 2026-08-07 clean
+after the reserve-mulligan fix in PR #197; JSONs in the local
+`balance/warchest-tuning/` workbench). The clean run confirmed claim 1
+decisively (50/7 clogs 2.8-5.4 turns/game with up to 1.95 cleanup
+discards and an 11.3% reanimator fuel subsidy, all collapsing to ~0 at
+40/5), softened claim 2's cost (40-card games run 2-4 turns longer but
+all-action), and refuted claim 3 (five-color piles win 13-19% everywhere
+with ~21% color-stranded turns; the measured gradient is mono > 2c > 3c
+> 5c, and the 2-color cap merely banned 3+ color decks). Hand 5 beat
+hand 4 on migration disruption: 40/4 reshuffles archetype standings
+hardest. The open balance question the gate surfaced — mono goodstuff at
+~73% in every config — is a card-pool problem for the migration balance
+pass, not a format parameter. The shipped build still plays 50/7 until
+the migration lands; `rules.md` carries the same note.
+
+The gate resolved in three steps (all complete):
 
 - **Telemetry instrumentation** (in flight on `feat/warchest-telemetry`):
   a pure `GameTelemetry` event-stream collector plus a
@@ -59,8 +76,15 @@ The gate resolves in three steps:
   re-baseline happens once, on the ratified parameters, together with the
   priority-window re-baseline.
 
-Gate output: three ratified numbers/rules recorded here and in
-[rules.md](rules.md), and the migration lane unblocked.
+Gate output (delivered): the three ratified rules above, recorded here
+and in [rules.md](rules.md); the migration lane is unblocked and builds
+to 40 cards / hand 5 / uncapped reserve colors. The migration
+implementation order starts with the deck-invalidation flag-and-fix flow
+(lane 2, the prerequisite), then the parameter flip itself
+(`WARCHEST_DECK_SIZE` 50→40 plus the per-format 5-card opening hand on
+the shipped formats), then the deck redesigns and the single
+re-baseline. The stale-stamped 1.5.5 reserve baselines and the mono-
+goodstuff dominance question both resolve in that re-baseline.
 
 ## Lanes open now (parameter-independent)
 
@@ -81,7 +105,7 @@ Gate output: three ratified numbers/rules recorded here and in
    Versus bumpers, Trophy Hall S. Details live in the local-only,
    gitignored `plan-premium-ux.md` (copy it forward between worktrees).
 
-## Lanes gated behind the parameter gate
+## Lanes opened by the gate resolution (2026-08-07)
 
 4. **The migration**: starters, all 20 avatar decks, and Draft redesigned
    reserve-native; the land-fetch card class redesigned; land cards'
@@ -101,8 +125,6 @@ Gate output: three ratified numbers/rules recorded here and in
 
 ## Open decisions
 
-- The format-parameter gate itself (deck size, hand size, color rule) —
-  owner ratifies after the tuning matrices.
 - Draft's reserve-native design (the hardest migration sub-problem).
 - Land cards' economy/collection treatment post-migration.
 - Whether starters auto-convert at migration or use the fix-it flow.
