@@ -28,7 +28,8 @@ export function resolveDuelStartingHandSize(
   replay: { startingHandSize?: number } | null,
 ): number | undefined {
   if (replay) return replay.startingHandSize;
-  return format === 'warchest' ? WARCHEST_HAND_SIZE : undefined;
+  // Both reserve formats deal the 5-card opener; classic keeps the default 7.
+  return format === 'warchest' || format === 'darlings' ? WARCHEST_HAND_SIZE : undefined;
 }
 
 /** Return the first blocking issue before a saved deck enters a duel. */

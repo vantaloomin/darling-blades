@@ -1127,12 +1127,12 @@ export function runDarlingsMatrix(
   seedsPerCell: number,
   ai: Difficulty,
   telemetry?: BalanceTelemetryCollector,
-  // Darlings keeps the 7-card opener pending its own dated measurement; the
-  // --hand-size override exists exactly to produce that measurement.
-  startingHandSize?: number,
+  // Ratified 2026-08-08 from the 5-vs-7 measurement: Darlings deals the same
+  // 5-card reserve opener as Warchest. --hand-size still overrides for sims.
+  startingHandSize: number = WARCHEST_HAND_SIZE,
 ): ReserveMatrixReport {
   return runReserveMatrix('DARLINGS', 'darlings', buildReserveMatrixFleets().darlings, seedsPerCell, ai, 90_000, telemetry, {
-    ...(startingHandSize === undefined ? {} : { startingHandSize }),
+    startingHandSize,
   });
 }
 
@@ -1533,7 +1533,7 @@ function main(): void {
   if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds, telemetry));
   if (wantPrefabs) reports.push(runPrefabMatrix(seeds, ai, telemetry));
   if (wantWarchest) reports.push(runWarchestMatrix(seeds, ai, telemetry, handSize ?? WARCHEST_HAND_SIZE));
-  if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai, telemetry, handSize));
+  if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai, telemetry, handSize ?? WARCHEST_HAND_SIZE));
   if (wantDarlingsPrecons) reports.push(runDarlingsPreconMatrix(seeds, ai, telemetry));
 
   for (const r of reports) {

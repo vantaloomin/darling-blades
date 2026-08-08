@@ -5,7 +5,11 @@ import type { DeckIssue } from './DeckStorage';
 import type { SaveData } from './SaveManager';
 
 export const WARCHEST_DECK_SIZE = 40;
-/** Warchest only: classic keeps RULES.startingHandSize=7, and Darlings keeps 7 pending its own measurement. */
+/**
+ * The reserve-format opener: Warchest (ratified 2026-08-07) and Darlings
+ * (ratified 2026-08-08 from its own 5-vs-7 measurement) both deal 5. Classic
+ * keeps RULES.startingHandSize = 7.
+ */
 export const WARCHEST_HAND_SIZE = 5;
 /** Darlings carries its selected legendary creature outside this spell list. */
 export const DARLINGS_DECK_SIZE = 79;

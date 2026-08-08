@@ -96,9 +96,9 @@ describe('duel setup', () => {
   });
 
   it('deals the ratified 5-card Warchest opener; classic and Darlings keep their defaults', () => {
-    // Live duels: warchest 5, darlings and classic default (engine deals 7).
+    // Live duels: both reserve formats deal 5; classic defaults (engine deals 7).
     expect(resolveDuelStartingHandSize('warchest', null)).toBe(WARCHEST_HAND_SIZE);
-    expect(resolveDuelStartingHandSize('darlings', null)).toBeUndefined();
+    expect(resolveDuelStartingHandSize('darlings', null)).toBe(WARCHEST_HAND_SIZE);
     expect(resolveDuelStartingHandSize(undefined, null)).toBeUndefined();
     // Replays always defer to the recorded value; an absent field means the
     // log predates the flip and must reconstruct its original 7-card deal.

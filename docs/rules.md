@@ -61,8 +61,8 @@ lands are gone; destroyed basic lands return to your Reserves.
 Darlings follows the same Warchest land rules. Choose your Darling. Build a
 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands.
 Your Darling waits in her own zone, ready when you call; each time she falls,
-her next call costs 2 more. Darlings keeps the 7-card opening hand pending its
-own measurement.
+her next call costs 2 more. Darlings also deals the **5-card opening hand**
+(ratified 2026-08-08 from its own 5-vs-7 measurement).
 
 ## Mulligans
 
@@ -72,7 +72,7 @@ The mulligan is **London-style with the first mulligan free**, sequenced by
 - The **starting player decides first**; when they have kept, the other player
   decides.
 - A `mulligan` action shuffles the hand back, redraws a full hand at the
-  format's opening-hand size (7 in classic and Darlings, 5 in Warchest), and
+  format's opening-hand size (7 in classic, 5 in the reserve formats), and
   increments that player's mulligan count. You may keep on any decision.
 - You may mulligan at most **`RULES.maxMulligans` (3)** times; at the cap the
   `mulligan` action is no longer legal, so you must **keep or concede**. This

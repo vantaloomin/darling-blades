@@ -82,9 +82,9 @@ to 40 cards / hand 5 / uncapped reserve colors. The migration
 implementation order: the deck-invalidation flag-and-fix flow (landed
 2026-08-07, #199), then the parameter flip itself — **landed 2026-08-08**
 (`WARCHEST_DECK_SIZE` 50→40, `WARCHEST_HAND_SIZE` 5 wired into real
-duels and replays; Darlings measures its own hand size before deciding;
-the 50-card tuning configs retired) — then the deck redesigns and the
-single re-baseline. The stale-stamped 1.5.5 reserve baselines and the mono-
+duels and replays; Darlings ratified to the same 5-card opener on
+2026-08-08 from its own 5-vs-7 measurement; the 50-card tuning configs
+retired) — then the deck redesigns and the single re-baseline. The stale-stamped 1.5.5 reserve baselines and the mono-
 goodstuff dominance question both resolve in that re-baseline.
 
 ## Lanes open now (parameter-independent)
