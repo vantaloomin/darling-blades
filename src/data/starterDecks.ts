@@ -1,7 +1,21 @@
 export interface DeckList {
   id: string;
   name: string;
-  cards: string[]; // 60 cardIds
+  cards: string[]; // 60 cardIds — classic
+  /*
+   * Reserve-native starter build (1.6 migration, scripted first cut
+   * 2026-08-08 via scripts/avatarReserveDecks.ts, same deterministic rule as
+   * the avatar decks). Present on STARTER_DECKS only; theme decks stay
+   * classic. These are the real columns the dated reserve re-baseline
+   * measures against, replacing the derived proxy fleets.
+   *
+   * NOTE: whether a granted starter hands the player the classic or the
+   * reserve build at migration is still an open decision (plan-1.6.md,
+   * "starters auto-convert vs the fix-it flow"). This data does not decide
+   * it; it only makes the reserve build exist.
+   */
+  reserveCards?: string[]; // exactly WARCHEST_DECK_SIZE no-land cards
+  landReserve?: string[]; // exactly 10 lands, ≤5 duals
 }
 
 /** Expand [id, count] pairs into a flat cardId list. Shared with opponents.ts. */
@@ -38,6 +52,22 @@ export const STARTER_DECKS: DeckList[] = [
       ['gk-nike', 4],
       ['gk-hestia', 4],
     ]),
+    reserveCards: expand([
+      ['tk-other-huaxiong', 4],
+      ['tk-other-lulingqi', 4],
+      ['bk-wolfkin-raider', 4],
+      ['bk-harpy-skirmisher', 4],
+      ['gk-hoplite', 4],
+      ['bk-dragonmaid', 4],
+      ['gk-ares', 4],
+      ['tk-other-lubu', 4],
+      ['gk-nike', 4],
+      ['gk-hestia', 4],
+    ]),
+    landReserve: expand([
+      ['land-mountain', 6],
+      ['land-plains', 4],
+    ]),
   },
   {
     id: 'starter-wild',
@@ -60,6 +90,22 @@ export const STARTER_DECKS: DeckList[] = [
       ['gk-hoplite', 4],
       ['tk-shu-liubei', 2],
     ]),
+    reserveCards: expand([
+      ['bk-nekomata-scout', 4],
+      ['bk-bearkin-guardian', 4],
+      ['bk-bunny-vanguard', 4],
+      ['gk-artemis', 4],
+      ['bk-rhinokin-charger', 4],
+      ['bk-packmother', 4],
+      ['gk-hestia', 4],
+      ['gk-athena', 4],
+      ['gk-hoplite', 4],
+      ['tk-shu-liubei', 4],
+    ]),
+    landReserve: expand([
+      ['land-forest', 6],
+      ['land-plains', 4],
+    ]),
   },
   {
     id: 'starter-tides',
@@ -78,6 +124,23 @@ export const STARTER_DECKS: DeckList[] = [
       ['tk-wu-luxun', 3],
       ['in-fire-attack', 4],
       ['in-undertow', 4],
+    ]),
+    reserveCards: expand([
+      ['tk-wu-sunquan', 4],
+      ['tk-wu-zhouyu', 4],
+      ['tk-wu-lumeng', 4],
+      ['tk-wu-sunce', 4],
+      ['tk-wu-ganning', 4],
+      ['tk-wu-huanggai', 4],
+      ['tk-wu-taishici', 4],
+      ['tk-wu-luxun', 4],
+      ['in-fire-attack', 4],
+      ['in-undertow', 4],
+    ]),
+    landReserve: expand([
+      ['ld-red-cliffs-anchorage', 4],
+      ['land-island', 3],
+      ['land-mountain', 3],
     ]),
   },
   {
@@ -105,6 +168,25 @@ export const STARTER_DECKS: DeckList[] = [
       ['so-divination', 1],
       ['so-creeping-malaise', 2],
     ]),
+    reserveCards: expand([
+      ['tk-jin-simayi', 4],
+      ['tk-jin-wangyuanji', 4],
+      ['tk-jin-zhangchunhua', 4],
+      ['tk-jin-simashi', 4],
+      ['tk-jin-zhonghui', 3],
+      ['tk-jin-jiachong', 4],
+      ['tk-jin-xinxianying', 4],
+      ['in-doom-bolt', 4],
+      ['in-read-the-ruse', 3],
+      ['so-night-extortion', 3],
+      ['so-divination', 1],
+      ['so-creeping-malaise', 2],
+    ]),
+    landReserve: expand([
+      ['ld-moonlit-marsh', 4],
+      ['land-island', 3],
+      ['land-swamp', 3],
+    ]),
   },
   {
     id: 'starter-harvest',
@@ -127,6 +209,26 @@ export const STARTER_DECKS: DeckList[] = [
       ['so-raise-dead', 3],
       ['in-doom-bolt', 2],
       ['in-grave-chill', 1],
+    ]),
+    reserveCards: expand([
+      ['gk-persephone', 4],
+      ['gk-hades', 4],
+      ['gk-pan', 4],
+      ['gk-thanatos', 4],
+      ['bk-turtlekin-bulwark', 1],
+      ['bk-lamia-nightblade', 4],
+      ['bk-spiderkin-weaver', 4],
+      ['bk-crowkin-shrike', 4],
+      ['bk-batkin-duskwing', 4],
+      ['bk-sheepkin-dreamherd', 1],
+      ['so-raise-dead', 3],
+      ['in-doom-bolt', 2],
+      ['in-grave-chill', 1],
+    ]),
+    landReserve: expand([
+      ['ld-asphodel-meadow', 4],
+      ['land-swamp', 3],
+      ['land-forest', 3],
     ]),
   },
 ];

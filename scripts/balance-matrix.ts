@@ -580,13 +580,24 @@ export interface AvatarReserveMatrixReport {
   flags: string[];
 }
 
+interface ReserveColumn {
+  name: string;
+  cards: string[];
+  landReserve: string[];
+  darlingId: string | null;
+}
+
 /**
- * Reserve-native avatar ladder (1.6 migration stage 2): each avatar pilots its
- * scripted-first-cut reserveDeck (or darlingsDeck) with its own brain and
- * personality against PROXY columns from buildReserveMatrixFleets — real
- * reserve starters do not exist yet, so the columns are stand-ins and the
- * classic RUNG_BANDS deliberately do not apply. Losslessness counters run
- * because reserve formats must never produce dead states.
+ * Reserve-native avatar ladder (1.6 migration): each avatar pilots its own
+ * reserveDeck (or darlingsDeck) with its brain and personality.
+ *
+ * Warchest columns are the REAL shipped reserve starters (STARTER_DECKS'
+ * reserveCards/landReserve, 2026-08-08) — the field a player actually faces,
+ * so this mode is what the dated re-baseline measures. Darlings columns stay
+ * the derived PROXY fleet: starters have no Darlings build, and the curated
+ * Darlings rival ladder is explicitly unpromised. Classic RUNG_BANDS do not
+ * apply to either. Losslessness counts because reserve formats must never
+ * produce dead states.
  */
 export function runAvatarReserveMatrix(
   format: 'warchest' | 'darlings',
@@ -594,8 +605,20 @@ export function runAvatarReserveMatrix(
   onlyIds?: string[],
   telemetry?: BalanceTelemetryCollector,
 ): AvatarReserveMatrixReport {
-  const fleets = buildReserveMatrixFleets();
-  const columns = format === 'warchest' ? fleets.warchest : fleets.darlings;
+  const columns: ReserveColumn[] =
+    format === 'warchest'
+      ? STARTER_DECKS.map((starter) => {
+          if (!starter.reserveCards || !starter.landReserve) {
+            throw new Error(`Starter ${starter.id} has no reserve build; regenerate src/data/starterDecks.ts`);
+          }
+          return {
+            name: starter.name,
+            cards: starter.reserveCards,
+            landReserve: starter.landReserve,
+            darlingId: null,
+          };
+        })
+      : buildReserveMatrixFleets().darlings;
   const losslessness = newLosslessnessCounters();
   const roster = [...AVATARS]
     .sort((a, b) => a.tier - b.tier)
@@ -627,8 +650,12 @@ export function runAvatarReserveMatrix(
   });
   const table =
     renderTable(
-      `=== AVATAR ${format.toUpperCase()} — avatar win % vs Medium-piloted PROXY fleet · ${seedsPerCell} seeds/cell ===\n` +
-        '    PROXY columns: starter-derived fleet decks stand in until real reserve starters exist; classic rung bands do not apply',
+      `=== AVATAR ${format.toUpperCase()} — avatar win % vs Medium-piloted ${
+        format === 'warchest' ? 'reserve starters' : 'PROXY fleet'
+      } · ${seedsPerCell} seeds/cell ===\n` +
+        (format === 'warchest'
+          ? '    columns: the shipped reserve starter builds; classic rung bands do not apply'
+          : '    PROXY columns: derived Darlings fleet (starters have no Darlings build); classic rung bands do not apply'),
       rows.map((r) => `R${r.avatar.tier} ${r.avatar.name} [${r.avatar.difficulty}]`),
       columns.map((c) => shortName(c.name)),
       rows.map((r) => r.cells),

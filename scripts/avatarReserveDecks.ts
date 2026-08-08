@@ -93,7 +93,19 @@ function isLegendaryCreature(card: CardDef | undefined): card is CardDef {
 }
 
 /** Avatar colors are the WUBRG-ordered union printed by the source lands. */
-export function avatarPrintedColors(avatar: Avatar, db: CardDb = CARD_DB): Color[] {
+/**
+ * Any classic 60-card list this converter can make reserve-native. Avatars
+ * satisfy it structurally; starters map their `cards` onto `deck`.
+ */
+export interface ConvertibleDeck {
+  id: string;
+  name: string;
+  deck: readonly string[];
+  /** Avatars keep their portrait card in the Warchest list; starters have none. */
+  portraitCardId?: string;
+}
+
+export function avatarPrintedColors(avatar: ConvertibleDeck, db: CardDb = CARD_DB): Color[] {
   const colors = new Set<Color>();
   for (const id of avatar.deck) {
     const card = db[id];
@@ -104,7 +116,7 @@ export function avatarPrintedColors(avatar: Avatar, db: CardDb = CARD_DB): Color
 }
 
 /** Convert one classic avatar list to the scripted 40-card Warchest first cut. */
-export function convertAvatarWarchest(avatar: Avatar, db: CardDb = CARD_DB): string[] {
+export function convertAvatarWarchest(avatar: ConvertibleDeck, db: CardDb = CARD_DB): string[] {
   const colors = avatarPrintedColors(avatar, db);
   const cards: string[] = [];
   const counts = new Map<string, number>();
@@ -161,7 +173,7 @@ interface LandCount {
   firstIndex: number;
 }
 
-function printedLandCounts(avatar: Avatar, db: CardDb): LandCount[] {
+function printedLandCounts(avatar: ConvertibleDeck, db: CardDb): LandCount[] {
   const counts = new Map<string, LandCount>();
   avatar.deck.forEach((id, index) => {
     const card = db[id];
@@ -174,7 +186,7 @@ function printedLandCounts(avatar: Avatar, db: CardDb): LandCount[] {
 }
 
 /** Build the avatar's designed ten-land reserve from its printed land mix. */
-export function deriveLandReserve(avatar: Avatar, db: CardDb = CARD_DB): string[] {
+export function deriveLandReserve(avatar: ConvertibleDeck, db: CardDb = CARD_DB): string[] {
   const printed = printedLandCounts(avatar, db);
   const reserve: string[] = [];
   for (const entry of printed) {
@@ -213,8 +225,8 @@ export function deriveLandReserve(avatar: Avatar, db: CardDb = CARD_DB): string[
   return reserve;
 }
 
-function chooseDarling(avatar: Avatar, colors: readonly Color[], db: CardDb): CardDef {
-  const portrait = db[avatar.portraitCardId];
+function chooseDarling(avatar: ConvertibleDeck, colors: readonly Color[], db: CardDb): CardDef {
+  const portrait = avatar.portraitCardId ? db[avatar.portraitCardId] : undefined;
   if (isLegendaryCreature(portrait) && sameColors(portrait.colors, colors)) return portrait;
 
   const sourceIds = [...new Set(avatar.deck)];
@@ -232,7 +244,7 @@ function chooseDarling(avatar: Avatar, colors: readonly Color[], db: CardDb): Ca
 
 /** Convert one avatar to a 79-singleton spell list plus an external Darling. */
 export function convertAvatarDarlings(
-  avatar: Avatar,
+  avatar: ConvertibleDeck,
   db: CardDb = CARD_DB,
 ): AvatarDarlingsConversion {
   const colors = avatarPrintedColors(avatar, db);
@@ -271,7 +283,7 @@ function assertLegal(name: string, issues: readonly { message: string }[]): void
 
 /** Build and validator-gate every new field for one avatar. */
 export function convertAvatarReserveDecks(
-  avatar: Avatar,
+  avatar: ConvertibleDeck,
   db: CardDb = CARD_DB,
 ): AvatarReserveConversion {
   const reserveDeck = convertAvatarWarchest(avatar, db);
