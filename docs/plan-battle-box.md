@@ -150,8 +150,13 @@ and null means "not a reserve format". No independent bump.
 
 ## AI and balance impact
 
-Reserve formats have no measured baseline yet and ship without one (the
-Darlings Wave 3 stance extends to both): player-built duels only. The
+Reserve formats shipped in 1.5.5 without a rival ladder (the Darlings
+Wave 3 stance extended to both): player-built duels only, with reserve
+Practice mirroring the player's own list. **Superseded 2026-08-08 by the
+1.6 stage-3 migration:** every avatar now carries designed reserveDeck /
+landReserve / darlingsDeck fields (src/data/opponents.ts) and reserve
+Practice fields the selected avatar's own deck in both formats; the
+mirror survives only for avatar-less dev overrides. The
 classic gates are unaffected but must be proven unaffected — after the
 engine lands, the avatar and floor matrices must be byte-identical for
 classic games:

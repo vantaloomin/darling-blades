@@ -4,6 +4,7 @@ import { freshSave, type SavedDeck } from '../../src/meta/SaveManager';
 import {
   buildAiLandReserve,
   firstDuelLaunchIssue,
+  practiceAiReserveSide,
   practiceDuelLaunchData,
   resolveDuelDifficulty,
   resolveDuelStartingHandSize,
@@ -105,5 +106,41 @@ describe('duel setup', () => {
     expect(resolveDuelStartingHandSize('warchest', {})).toBeUndefined();
     expect(resolveDuelStartingHandSize('warchest', { startingHandSize: 7 })).toBe(7);
     expect(resolveDuelStartingHandSize(undefined, { startingHandSize: 5 })).toBe(5);
+  });
+});
+
+describe('practice AI reserve side (stage 3: the mirror dies)', () => {
+  const avatar = {
+    reserveDeck: ['w1', 'w2'],
+    landReserve: ['land-plains'],
+    darlingsDeck: ['d1', 'd2'],
+    darlingId: 'darling-x',
+  };
+  const playerDeck = ['p1', 'p2'];
+
+  it('fields the avatar warchest deck with its designed reserve and no darling', () => {
+    expect(practiceAiReserveSide(avatar, 'warchest', playerDeck, null, {} as CardDb)).toEqual({
+      deck: ['w1', 'w2'],
+      reserve: ['land-plains'],
+      darlingId: null,
+    });
+  });
+
+  it('fields the avatar darlings variant led by its own darling', () => {
+    expect(practiceAiReserveSide(avatar, 'darlings', playerDeck, 'my-darling', {} as CardDb)).toEqual({
+      deck: ['d1', 'd2'],
+      reserve: ['land-plains'],
+      darlingId: 'darling-x',
+    });
+  });
+
+  it('keeps the old mirror only when no avatar is supplied', () => {
+    const db = {
+      p1: { id: 'p1', name: 'p1', types: ['creature'], subtypes: [], colors: ['G'], rarity: 'c' },
+    } as unknown as CardDb;
+    const side = practiceAiReserveSide(null, 'darlings', playerDeck, 'my-darling', db);
+    expect(side.deck).toEqual(playerDeck);
+    expect(side.reserve).toHaveLength(10);
+    expect(side.darlingId).toBe('my-darling');
   });
 });

@@ -22,6 +22,40 @@ export function practiceDuelLaunchData(opponentId: string, difficulty: Difficult
   return { opponentId, difficulty };
 }
 
+export interface PracticeAiReserveSide {
+  deck: string[];
+  reserve: string[];
+  darlingId: string | null;
+}
+
+/**
+ * The AI seat for a reserve-format Practice duel. Since the 1.6 stage-3
+ * migration the selected avatar fields its own designed reserve deck
+ * (Warchest) or Darlings variant; the old player-deck mirror survives only
+ * for callers that supply no avatar (dev overrides). A synthetic reserve is
+ * built only for that mirror fallback.
+ */
+export function practiceAiReserveSide(
+  avatar: {
+    reserveDeck: readonly string[];
+    landReserve: readonly string[];
+    darlingsDeck: readonly string[];
+    darlingId: string;
+  } | null,
+  format: 'warchest' | 'darlings',
+  playerDeck: readonly string[],
+  playerDarlingId: string | null,
+  db: CardDb,
+): PracticeAiReserveSide {
+  if (avatar) {
+    return format === 'darlings'
+      ? { deck: [...avatar.darlingsDeck], reserve: [...avatar.landReserve], darlingId: avatar.darlingId }
+      : { deck: [...avatar.reserveDeck], reserve: [...avatar.landReserve], darlingId: null };
+  }
+  const deck = [...playerDeck];
+  return { deck, reserve: buildAiLandReserve(deck, db), darlingId: playerDarlingId };
+}
+
 /** Resolve the optional engine override without changing absent-field replay behavior. */
 export function resolveDuelStartingHandSize(
   format: GameFormat | undefined,
@@ -79,14 +113,14 @@ const BASIC_FOR_COLOR: Record<Color, string> = {
 };
 
 /**
- * Build the AI side's reserve for a reserve-format Practice duel.
+ * Synthesize a reserve for an AI deck that carries none of its own.
  *
- * Reserve Practice is player-built-only per plan-battle-box.md, so the AI
- * pilots the same all-spell list as the active player. Its reserve is
- * ten basics cycling through the deck's printed colors in WUBRG order. This
- * is deliberately conservative and deterministic: it uses no duals, so the
- * five-dual cap is always satisfied, and colorless lists use Plains as the
- * legal basics-only fallback.
+ * Since the 1.6 stage-3 migration, Practice avatars field their designed
+ * landReserve; this synthetic fallback serves only deck-override edge paths
+ * (dev tools, tests) where a bare list arrives without a reserve. Ten basics
+ * cycle through the deck's printed colors in WUBRG order: deliberately
+ * conservative and deterministic, no duals so the five-dual cap always
+ * holds, and colorless lists use Plains as the legal basics-only fallback.
  */
 export function buildAiLandReserve(deck: readonly string[], db: CardDb): string[] {
   const colors = new Set<Color>();
