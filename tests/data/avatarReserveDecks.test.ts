@@ -48,21 +48,34 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     });
   }
 
-  it('the committed data IS the deterministic converter output', () => {
+  /*
+   * Avatars whose reserve data has been hand-tuned away from the scripted
+   * first cut, with the dated reason. Each entry is a deliberate divergence;
+   * the legality tests above still cover them in full.
+   *   hel — 2026-08-08, tuning pass 1: flattened a 15/40 mv≤3 curve to 23/40
+   *   after she mulliganed 80% of games and won 8%. See opponents.ts.
+   */
+  const HAND_TUNED_WARCHEST = new Set(['hel']);
+
+  it('untuned committed data IS the deterministic converter output', () => {
     // Card-content identity, order-insensitive: the committed literals group
     // duplicates via expand() while the converter emits raw append order, and
-    // list order only feeds the seeded shuffle. Hand-tuning edits will break
-    // this identity deliberately; when that happens, replace this test with a
-    // dated divergence note per the opponents.ts balance-record convention.
+    // list order only feeds the seeded shuffle.
     const sorted = (cards: readonly string[]): string[] => [...cards].sort();
     for (const avatar of AVATARS) {
       const first = convertAvatarReserveDecks(avatar);
       const second = convertAvatarReserveDecks(avatar);
-      expect(first).toEqual(second);
-      expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
+      expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
       expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
       expect(first.darlingId).toEqual(avatar.darlingId);
+      if (HAND_TUNED_WARCHEST.has(avatar.id)) {
+        // A tuned deck must actually differ, or the exception is stale.
+        expect(sorted(first.reserveDeck), `${avatar.id} is listed as hand-tuned but matches the first cut`)
+          .not.toEqual(sorted(avatar.reserveDeck));
+        continue;
+      }
+      expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
     }
   });
 
