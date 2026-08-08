@@ -526,9 +526,13 @@ export class MediumAI implements AIPlayer {
         }
         if (!inBlocks) continue;
         // 3b. Flip a losing fight (save it, win it, or both).
+        // A reopened window (rules rev 2) arrives after the flush that earned
+        // it resolved; that flush may have killed a combatant, leaving stale
+        // iids in combat.blocks. Evaluate only foes still on the battlefield.
         const foes = view.combat.blocks
           .filter((b) => b.blocker === perm.iid || b.attacker === perm.iid)
-          .map((b) => (b.blocker === perm.iid ? b.attacker : b.blocker));
+          .map((b) => (b.blocker === perm.iid ? b.attacker : b.blocker))
+          .filter((iid) => view.battlefield.some((p) => p.iid === iid));
         for (const foe of foes) {
           const mine = getEffectiveStats(view.battlefield, this.db, perm.iid);
           const theirs = getEffectiveStats(view.battlefield, this.db, foe);
