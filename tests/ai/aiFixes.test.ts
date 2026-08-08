@@ -101,3 +101,31 @@ describe('AI defect regressions from the 1.5 instrumented probe', () => {
     });
   });
 });
+
+  it('DEFECT 5: Medium survives a reopened combat window whose blocks reference a dead combatant', () => {
+    // Rules rev 2 reopens the blockers window after a paid flush; that flush
+    // can kill a combatant, leaving a stale iid in combat.blocks. Discovered
+    // by the 2026-08-08 Darlings hand-size run (getEffectiveStats: no
+    // permanent N through HardAI.searchResponse -> MediumAI.respond).
+    const state = makeTestState({
+      battlefield: [
+        { iid: 1, cardId: 'forest', controller: 0 },
+        { iid: 2, cardId: 'bear', controller: 0 },
+      ],
+      hands: [['growth'], []],
+      active: 0,
+    });
+    state.step = 'combat';
+    state.combat = {
+      attackers: [2],
+      // Blocker iid 99 died mid-window; no permanent 99 exists.
+      blocks: [{ blocker: 99, attacker: 2 }],
+      phase: 'blockersDeclared',
+      damagePrevented: false,
+    };
+    state.awaiting = { player: 0, kind: 'respond', over: { type: 'blockers' } };
+    const game = gameFromState(state);
+
+    const action = new MediumAI(DB).chooseAction(game.viewFor(0), game.legalActions(0));
+    expect(action).toHaveProperty('type');
+  });

@@ -71,6 +71,7 @@ import { DARLINGS_PRECON_MATRIX_FLEET } from '../src/data/darlingsPrecons';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
 import type { GameFormat } from '../src/config/rules';
+import { WARCHEST_HAND_SIZE } from '../src/meta/warchest';
 import { Game } from '../src/engine/Game';
 import type { PlayerId } from '../src/engine/types';
 import type { Difficulty } from '../src/meta/Economy';
@@ -977,13 +978,17 @@ export function runWarchestMatrix(
   seedsPerCell: number,
   ai: Difficulty,
   telemetry?: BalanceTelemetryCollector,
+  startingHandSize: number = WARCHEST_HAND_SIZE,
 ): ReserveMatrixReport {
-  return runReserveMatrix('WARCHEST', 'warchest', buildReserveMatrixFleets().warchest, seedsPerCell, ai, 80_000, telemetry);
+  return runReserveMatrix('WARCHEST', 'warchest', buildReserveMatrixFleets().warchest, seedsPerCell, ai, 80_000, telemetry, {
+    startingHandSize,
+  });
 }
 
+// The 50-card configs retired at the 2026-08-07 parameter flip: canonical
+// lists now author at WARCHEST_DECK_SIZE=40, so a 50-card target is no longer
+// buildable. The gate's 50-vs-40 evidence lives in the dated workbench JSONs.
 export type WarchestTuningConfigKey =
-  | '50-7-nocap'
-  | '50-7-cap2'
   | '40-5-nocap'
   | '40-5-cap2'
   | '40-4-nocap'
@@ -991,15 +996,13 @@ export type WarchestTuningConfigKey =
 
 export interface WarchestTuningConfig {
   key: WarchestTuningConfigKey;
-  deckSize: 40 | 50;
-  startingHandSize: 4 | 5 | 7;
+  deckSize: 40;
+  startingHandSize: 4 | 5;
   maxReserveColors?: 2;
   cellBase: number;
 }
 
 export const WARCHEST_TUNING_CONFIGS: readonly WarchestTuningConfig[] = [
-  { key: '50-7-nocap', deckSize: 50, startingHandSize: 7, cellBase: 120_000 },
-  { key: '50-7-cap2', deckSize: 50, startingHandSize: 7, maxReserveColors: 2, cellBase: 130_000 },
   { key: '40-5-nocap', deckSize: 40, startingHandSize: 5, cellBase: 140_000 },
   { key: '40-5-cap2', deckSize: 40, startingHandSize: 5, maxReserveColors: 2, cellBase: 150_000 },
   { key: '40-4-nocap', deckSize: 40, startingHandSize: 4, cellBase: 160_000 },
@@ -1124,8 +1127,13 @@ export function runDarlingsMatrix(
   seedsPerCell: number,
   ai: Difficulty,
   telemetry?: BalanceTelemetryCollector,
+  // Ratified 2026-08-08 from the 5-vs-7 measurement: Darlings deals the same
+  // 5-card reserve opener as Warchest. --hand-size still overrides for sims.
+  startingHandSize: number = WARCHEST_HAND_SIZE,
 ): ReserveMatrixReport {
-  return runReserveMatrix('DARLINGS', 'darlings', buildReserveMatrixFleets().darlings, seedsPerCell, ai, 90_000, telemetry);
+  return runReserveMatrix('DARLINGS', 'darlings', buildReserveMatrixFleets().darlings, seedsPerCell, ai, 90_000, telemetry, {
+    startingHandSize,
+  });
 }
 
 /** Curated five-Darling shop field, retaining the reviewed singleton deck identities. */
@@ -1409,6 +1417,15 @@ function main(): void {
     return;
   }
   const only = opt('only')?.split(',').map((s) => s.trim()).filter(Boolean);
+  // Sim-only opener override for --warchest / --darlings (e.g. the Darlings
+  // 5-vs-7 measurement). Defaults: warchest WARCHEST_HAND_SIZE, darlings 7.
+  const handSizeRaw = opt('hand-size');
+  const handSize = handSizeRaw === undefined ? undefined : Number(handSizeRaw);
+  if (handSize !== undefined && (!Number.isInteger(handSize) || handSize <= 0 || handSize > 7)) {
+    console.error(`--hand-size must be an integer between 1 and 7 (got ${handSizeRaw})`);
+    process.exitCode = 1;
+    return;
+  }
   const telemetryOut = opt('telemetry-out');
   if (flag('telemetry-out') && telemetryOut === undefined) {
     console.error('--telemetry-out requires a path');
@@ -1515,8 +1532,8 @@ function main(): void {
   if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds, telemetry));
   if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds, telemetry));
   if (wantPrefabs) reports.push(runPrefabMatrix(seeds, ai, telemetry));
-  if (wantWarchest) reports.push(runWarchestMatrix(seeds, ai, telemetry));
-  if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai, telemetry));
+  if (wantWarchest) reports.push(runWarchestMatrix(seeds, ai, telemetry, handSize ?? WARCHEST_HAND_SIZE));
+  if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai, telemetry, handSize ?? WARCHEST_HAND_SIZE));
   if (wantDarlingsPrecons) reports.push(runDarlingsPreconMatrix(seeds, ai, telemetry));
 
   for (const r of reports) {

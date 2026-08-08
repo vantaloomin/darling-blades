@@ -1,9 +1,16 @@
 import type { Difficulty } from './Economy';
 import { floorBrain } from '../ai/tiers';
+import type { GameFormat } from '../config/rules';
 import type { CardDb, Color } from '../engine/types';
 import { deckHealth } from './deckRepair';
 import type { SaveData, SavedDeck } from './SaveManager';
-import { isBasicLand, isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from './warchest';
+import {
+  isBasicLand,
+  isDualLand,
+  LAND_RESERVE_SIZE,
+  MAX_DUAL_LANDS,
+  WARCHEST_HAND_SIZE,
+} from './warchest';
 
 export interface PracticeDuelLaunchData {
   opponentId: string;
@@ -13,6 +20,16 @@ export interface PracticeDuelLaunchData {
 /** Keep the selected practice rival and AI strength in one launch payload. */
 export function practiceDuelLaunchData(opponentId: string, difficulty: Difficulty): PracticeDuelLaunchData {
   return { opponentId, difficulty };
+}
+
+/** Resolve the optional engine override without changing absent-field replay behavior. */
+export function resolveDuelStartingHandSize(
+  format: GameFormat | undefined,
+  replay: { startingHandSize?: number } | null,
+): number | undefined {
+  if (replay) return replay.startingHandSize;
+  // Both reserve formats deal the 5-card opener; classic keeps the default 7.
+  return format === 'warchest' || format === 'darlings' ? WARCHEST_HAND_SIZE : undefined;
 }
 
 /** Return the first blocking issue before a saved deck enters a duel. */
@@ -65,7 +82,7 @@ const BASIC_FOR_COLOR: Record<Color, string> = {
  * Build the AI side's reserve for a reserve-format Practice duel.
  *
  * Reserve Practice is player-built-only per plan-battle-box.md, so the AI
- * pilots the same 50-card all-spell list as the active player. Its reserve is
+ * pilots the same all-spell list as the active player. Its reserve is
  * ten basics cycling through the deck's printed colors in WUBRG order. This
  * is deliberately conservative and deterministic: it uses no duals, so the
  * five-dual cap is always satisfied, and colorless lists use Plains as the
