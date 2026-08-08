@@ -109,6 +109,8 @@ const DESKTOP_DECK_Y0 = 326;
 /** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
 const DECK_PAGER_Y = 492;
 const DECK_STATS_Y = 528;
+/** Last safe bottom for a row before the repair/stats region starts at y=514. */
+const DECK_ROW_TRACK_BOTTOM = 506;
 /** Right-panel inner gutter: panel spans x 880–1280, content sits at 900–1260. */
 const PANEL_RIGHT_X = 1260;
 const DECK_NAME_MAX_LENGTH = 24;
@@ -1205,22 +1207,33 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
   }
 
-  private renderReservePanel(x0: number): void {
+  /** Render the reserve block below the measured rules copy and return its bottom edge. */
+  private renderReservePanel(x0: number, topY: number): number {
     const panel = this.add.container(0, 0);
-    panel.add(themedPanel(this, x0 + 188, 148, 172, 220, {
+    const panelX = x0 + 188;
+    const errorY = topY + 190;
+    const reserveIssues = validateLandReserve(CARD_DB, Services.save.data, this.landReserve);
+    const error = this.add.text(panelX + 10, errorY, reserveIssues[0]?.message ?? 'Warchest ready.', {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.micro}px`,
+      color: reserveIssues.length > 0 ? theme.colors.danger : theme.colors.success,
+      wordWrap: { width: 150 },
+    }).setOrigin(0, 0);
+    const panelHeight = errorY - topY + error.height + 12;
+    panel.add(themedPanel(this, panelX, topY, 172, panelHeight, {
       alpha: theme.alpha.panel,
       radius: theme.radius.control,
     }));
     this.rightPane.push(panel);
-    panel.add(this.add.text(x0 + 198, 162, 'Warchest Reserves', {
+    panel.add(this.add.text(panelX + 10, topY + 14, 'Warchest Reserves', {
       fontFamily: theme.fonts.display,
       fontSize: `${theme.type.label}px`,
       color: theme.colors.heading,
     }).setOrigin(0, 0.5));
     const duals = this.landReserve.filter((id) => CARD_DB[id] && isDualLand(CARD_DB[id])).length;
     panel.add(this.add.text(
-      x0 + 198,
-      183,
+      panelX + 10,
+      topY + 35,
       this.landReserve.length + '/' + LAND_RESERVE_SIZE + ' lands · ' + duals + '/' + MAX_DUAL_LANDS + ' duals',
       {
         fontFamily: theme.fonts.ui,
@@ -1229,7 +1242,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       },
     ).setOrigin(0, 0.5));
     for (let i = 0; i < LAND_RESERVE_SIZE; i++) {
-      const position = gridPosition(i, RESERVE_COLUMNS, x0 + 229, 211, 82, 27);
+      const position = gridPosition(i, RESERVE_COLUMNS, panelX + 41, topY + 63, 82, 27);
       const card = this.landReserve[i] ? CARD_DB[this.landReserve[i]] : undefined;
       const name = card ? card.name : 'Choose land';
       const button = themedButton(this, position.x, position.y, i + 1 + ' ' + name, {
@@ -1241,13 +1254,8 @@ export class DeckBuilderScene extends Phaser.Scene {
       button.container.setScale(0.76);
       panel.add(button.container);
     }
-    const reserveIssues = validateLandReserve(CARD_DB, Services.save.data, this.landReserve);
-    panel.add(this.add.text(x0 + 198, 326, reserveIssues[0]?.message ?? 'Warchest ready.', {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.micro}px`,
-      color: reserveIssues.length > 0 ? theme.colors.danger : theme.colors.success,
-      wordWrap: { width: 150 },
-    }).setOrigin(0, 0));
+    panel.add(error);
+    return topY + panelHeight;
   }
 
   /** ‹ N/M › deck-list pager, shared by both profiles; sits below the list. */
@@ -1804,7 +1812,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.renderDeck();
   }
 
-  private renderDeckRows(format: BuilderFormat, x0: number, heroId: string | null): void {
+  private renderDeckRows(x0: number, heroId: string | null, listY0: number): void {
     const entries = collapseDeckRows(this.deck, this.variantPins)
       .filter(({ cardId }) => !CARD_DB[cardId] || !isBasic(CARD_DB, cardId))
       .sort((a, b) => {
@@ -1818,13 +1826,24 @@ export class DeckBuilderScene extends Phaser.Scene {
           a.firstIndex - b.firstIndex
         );
       });
-    const rows = this.touch ? TOUCH_DECK_ROWS : DESKTOP_DECK_ROWS;
+    const preferredRows = this.touch ? TOUCH_DECK_ROWS : DESKTOP_DECK_ROWS;
+    const rowPitch = this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH;
+    const rowHeight = theme.type.caption + 4;
+    const rowsThatFit = (bottom: number): number => Math.max(
+      1,
+      Math.floor((bottom - rowHeight - listY0) / rowPitch) + 1,
+    );
+    // Short pages can use the whole card-row track. Longer lists reserve the
+    // pager's 44px hit band, shrinking only this already-paged region.
+    const rowsWithoutPager = Math.min(preferredRows, rowsThatFit(DECK_ROW_TRACK_BOTTOM));
+    const rows = entries.length > rowsWithoutPager
+      ? Math.min(preferredRows, rowsThatFit(DECK_PAGER_Y - theme.control.minHitHeight / 2 - 8))
+      : rowsWithoutPager;
     const pages = formatPageCount(entries.length, rows);
     this.deckPage = Phaser.Math.Clamp(this.deckPage, 0, pages - 1);
-    const listY0 = this.touch ? 270 : format === 'constructed' ? DESKTOP_DECK_Y0 : 270;
     formatPageSlice(entries, this.deckPage, rows).forEach((entry, i) => {
       const d = CARD_DB[entry.cardId];
-      const y = listY0 + i * (this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH);
+      const y = listY0 + i * rowPitch;
       const star = this.add
         .text(x0, y, d ? heroId === entry.cardId ? '★' : '☆' : '!', {
           fontFamily: theme.fonts.ui,
@@ -1989,6 +2008,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
     this.rightPane.push(decksBtn.container);
 
+    let deckListY0 = this.touch ? 270 : DESKTOP_DECK_Y0;
     if (format !== 'constructed') {
       const rules = this.add.text(x0, 98, formatRulesCopy(format) ?? '', {
         fontFamily: theme.fonts.ui,
@@ -1998,7 +2018,9 @@ export class DeckBuilderScene extends Phaser.Scene {
         lineSpacing: 2,
       }).setOrigin(0, 0);
       this.rightPane.push(rules);
-      this.renderReservePanel(x0);
+      const reserveTop = Math.ceil(rules.getBounds().bottom) + 8;
+      const reserveBottom = this.renderReservePanel(x0, reserveTop);
+      deckListY0 = Math.ceil(reserveBottom) + 8;
     } else {
       // Touch restores the pre-feature five-row block. Desktop keeps the inline
       // preview and selector at a 52px pitch, leaving 8px between 44px targets.
@@ -2045,7 +2067,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     }
 
     const heroId = this.deckHeroId();
-    this.renderDeckRows(format, x0, heroId);
+    this.renderDeckRows(x0, heroId, deckListY0);
     if (repairingSavedDeck) this.renderRepairBanner(x0, blocking);
     else this.renderDeckStats(x0);
 
