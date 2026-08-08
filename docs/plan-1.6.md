@@ -79,11 +79,12 @@ The gate resolved in three steps (all complete):
 Gate output (delivered): the three ratified rules above, recorded here
 and in [rules.md](rules.md); the migration lane is unblocked and builds
 to 40 cards / hand 5 / uncapped reserve colors. The migration
-implementation order starts with the deck-invalidation flag-and-fix flow
-(lane 2, the prerequisite), then the parameter flip itself
-(`WARCHEST_DECK_SIZE` 50→40 plus the per-format 5-card opening hand on
-the shipped formats), then the deck redesigns and the single
-re-baseline. The stale-stamped 1.5.5 reserve baselines and the mono-
+implementation order: the deck-invalidation flag-and-fix flow (landed
+2026-08-07, #199), then the parameter flip itself — **landed 2026-08-08**
+(`WARCHEST_DECK_SIZE` 50→40, `WARCHEST_HAND_SIZE` 5 wired into real
+duels and replays; Darlings measures its own hand size before deciding;
+the 50-card tuning configs retired) — then the deck redesigns and the
+single re-baseline. The stale-stamped 1.5.5 reserve baselines and the mono-
 goodstuff dominance question both resolve in that re-baseline.
 
 ## Lanes open now (parameter-independent)

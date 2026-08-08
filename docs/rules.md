@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-07
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-08
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -47,25 +47,22 @@ and tests.
 
 ## Warchest and Darlings formats
 
-Warchest decks have 50 nonland cards and a Warchest of 10 lands, with up to 5
-dual lands.
-
-> **Ratified for 1.6 (owner decision 2026-08-07, measurement-gated):**
-> Warchest constructed moves to **40-card decks** with a **5-card opening
-> hand**; reserve colors stay unrestricted. The current build still plays
-> 50 cards and a 7-card hand; the new parameters ship with the 1.6
-> Warchest migration ([plan-1.6.md](plan-1.6.md) records the evidence).
-> This section is rewritten when that lands.
+Warchest decks have **40 nonland cards** and a Warchest of 10 lands, with up
+to 5 dual lands; reserve colors are unrestricted. Warchest games deal a
+**5-card opening hand** (`WARCHEST_HAND_SIZE` in `src/meta/warchest.ts`;
+classic keeps 7). Both numbers were ratified 2026-08-07 from the
+format-parameter measurement recorded in [plan-1.6.md](plan-1.6.md).
 
 Warchest Reserves are the lands not yet in play. Once deployed,
 they are your Active Warchest. Each turn, move one land from your Warchest
 Reserves into your Active Warchest. Dual lands arrive tapped. Destroyed dual
 lands are gone; destroyed basic lands return to your Reserves.
 
-Darlings follows the same Warchest land rules. Choose your Darling. Build an
-80-card deck in her colors, one copy of each card, and a Warchest of 10 lands.
-Your Darling begins in your deck and follows the same rules as every other
-card.
+Darlings follows the same Warchest land rules. Choose your Darling. Build a
+79-card deck in her colors, one copy of each card, and a Warchest of 10 lands.
+Your Darling waits in her own zone, ready when you call; each time she falls,
+her next call costs 2 more. Darlings keeps the 7-card opening hand pending its
+own measurement.
 
 ## Mulligans
 
@@ -74,8 +71,9 @@ The mulligan is **London-style with the first mulligan free**, sequenced by
 
 - The **starting player decides first**; when they have kept, the other player
   decides.
-- A `mulligan` action shuffles the hand back, redraws a full 7, and increments
-  that player's mulligan count. You may keep on any decision.
+- A `mulligan` action shuffles the hand back, redraws a full hand at the
+  format's opening-hand size (7 in classic and Darlings, 5 in Warchest), and
+  increments that player's mulligan count. You may keep on any decision.
 - You may mulligan at most **`RULES.maxMulligans` (3)** times; at the cap the
   `mulligan` action is no longer legal, so you must **keep or concede**. This
   bounds the bottom count below and is what prevents the old unsatisfiable-pick

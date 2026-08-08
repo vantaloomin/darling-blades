@@ -40,7 +40,7 @@ describe('deck builder helpers', () => {
     expect(formatGauntletUnavailableCopy('darlings')).toBe('Darlings decks are available in Practice only.');
     expect(formatGauntletUnavailableCopy('warchest')).toBe('Warchest decks are available in Practice only.');
     expect(WARCHEST_RULES_COPY).toBe(
-      'Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.',
+      'Your deck is 40 spells and you open with 5 cards. Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.',
     );
     expect(WARCHEST_RULES_COPY).not.toContain('\u2014');
     expect(DARLINGS_RULES_COPY).toBe(

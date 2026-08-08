@@ -32,6 +32,7 @@ import {
   firstDuelLaunchIssue,
   firstReserveConfigIssue,
   resolveDuelDifficulty,
+  resolveDuelStartingHandSize,
 } from '../meta/duelSetup';
 import type { CardVariant } from '../meta/variants';
 import { localDateKey, resolveGauntletRoster, rungSeed } from '../meta/gauntletSeed';
@@ -734,10 +735,18 @@ export class DuelScene extends Phaser.Scene {
     this.myFaceCardId = deckHero ?? defaultHero ?? faceCardFor(myDeck, CARD_DB);
     this.oppFaceCardId =
       this.opponent?.portraitCardId ?? this.limitedPersona?.portraitCardId ?? faceCardFor(aiDeck, CARD_DB);
+    // Warchest deals a 5-card opener (2026-08-07 ratification); classic and
+    // Darlings keep 7. Replays always defer to their recorded value, so
+    // pre-flip logs (absent field) reconstruct their original 7-card deals.
+    const startingHandSize = resolveDuelStartingHandSize(
+      reserveFormat,
+      this.replayMode ? data.replay ?? null : null,
+    );
     this.duel = new Game({
       decks: [myDeck, aiDeck],
       seed,
       db: CARD_DB,
+      ...(startingHandSize === undefined ? {} : { startingHandSize }),
       ...(reserveFormat === 'darlings' && landReserves && darlings
         ? { format: reserveFormat, landReserves, darlings }
         : reserveFormat === 'warchest' && landReserves
@@ -763,6 +772,7 @@ export class DuelScene extends Phaser.Scene {
           dbStamp: replayDbStamp(CARD_DB),
           seed,
           decks: [myDeck.slice(), aiDeck.slice()],
+          ...(startingHandSize === undefined ? {} : { startingHandSize }),
           context: {
             mode: this.limited ? 'limited' : this.gauntletRung != null ? 'gauntlet' : 'practice',
             difficulty: this.difficulty,

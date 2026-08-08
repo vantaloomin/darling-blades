@@ -180,21 +180,14 @@ function dualReserve(...ids: string[]): string[] {
 }
 
 function legalDeck(): string[] {
+  // Exactly WARCHEST_DECK_SIZE cards from 4-of playsets plus a remainder.
+  const fullPlaysets = Math.floor(WARCHEST_DECK_SIZE / 4);
+  const remainder = WARCHEST_DECK_SIZE - fullPlaysets * 4;
   return [
-    ...Array.from({ length: 4 }, () => SPELL_IDS[0]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[1]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[2]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[3]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[4]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[5]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[6]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[7]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[8]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[9]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[10]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[11]),
-    SPELL_IDS[12],
-    SPELL_IDS[12],
+    ...Array.from({ length: fullPlaysets }, (_, index) =>
+      Array.from({ length: 4 }, () => SPELL_IDS[index]),
+    ).flat(),
+    ...Array.from({ length: remainder }, () => SPELL_IDS[fullPlaysets]),
   ];
 }
 
@@ -320,17 +313,17 @@ describe('Warchest shared validators', () => {
     );
   });
 
-  it('shares the 50-card no-land shape', () => {
+  it('shares the WARCHEST_DECK_SIZE no-land shape', () => {
     expect(validateWarchestDeckShape(DB, legalDeck())).toEqual([]);
     expect(validateWarchestDeckShape(DB, legalDeck().slice(0, WARCHEST_DECK_SIZE - 1)).map((i) => i.message)).toContain(
-      'Reserve-format decks need exactly 50 cards (currently 49)',
+      `Reserve-format decks need exactly ${WARCHEST_DECK_SIZE} cards (currently ${WARCHEST_DECK_SIZE - 1})`,
     );
     expect(validateWarchestDeckShape(DB, [...legalDeck(), SPELL]).map((i) => i.message)).toContain(
-      'Reserve-format decks need exactly 50 cards (currently 51)',
+      `Reserve-format decks need exactly ${WARCHEST_DECK_SIZE} cards (currently ${WARCHEST_DECK_SIZE + 1})`,
     );
-    expect(validateWarchestDeckShape(DB, [...legalDeck().slice(0, 49), BASIC]).map((i) => i.message)).toContain(
-      'Decks in this format hold no lands; build your Warchest instead',
-    );
+    expect(
+      validateWarchestDeckShape(DB, [...legalDeck().slice(0, WARCHEST_DECK_SIZE - 1), BASIC]).map((i) => i.message),
+    ).toContain('Decks in this format hold no lands; build your Warchest instead');
   });
 
   it('enforces Constructed playset limits and ownership in Warchest decks', () => {

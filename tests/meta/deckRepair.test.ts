@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import { saveDeck, switchDeckFormat, validateDeck } from '../../src/meta/DeckStorage';
+import { WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import {
   deckHealth,
   deckRepairNoticeFingerprint,
@@ -82,13 +83,13 @@ describe('deck repair health', () => {
     });
 
     expect(deckHealth(DB, save, classic).blocked).toBe(false);
-    expect(deckHealth(DB, save, warchest).issues[0]?.message).toContain('exactly 50 cards');
+    expect(deckHealth(DB, save, warchest).issues[0]?.message).toContain(`exactly ${WARCHEST_DECK_SIZE} cards`);
     expect(deckHealth(DB, save, darlings).issues.some((issue) => issue.message === 'Choose a Darling before playing')).toBe(true);
   });
 
   it.each([
     ['constructed', 'Deck has 0/60 cards'],
-    ['warchest', 'Reserve-format decks need exactly 50 cards (currently 0)'],
+    ['warchest', `Reserve-format decks need exactly ${WARCHEST_DECK_SIZE} cards (currently 0)`],
     ['darlings', 'Reserve-format decks need exactly 79 cards (currently 0)'],
   ] as const)('prices a newly created empty %s deck at that format size', (format, sizeIssue) => {
     const save = freshSave(0);
@@ -116,7 +117,7 @@ describe('deck repair health', () => {
 
     expect(reserve).toEqual([]);
     expect(constructed.landReserve).toEqual([]);
-    expect(messages).toContain('Reserve-format decks need exactly 50 cards (currently 60)');
+    expect(messages).toContain(`Reserve-format decks need exactly ${WARCHEST_DECK_SIZE} cards (currently 60)`);
     expect(messages).toContain('Decks in this format hold no lands; build your Warchest instead');
   });
 

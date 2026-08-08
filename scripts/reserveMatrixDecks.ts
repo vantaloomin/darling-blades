@@ -252,8 +252,8 @@ export function buildWarchestColorProbe(
  * set or color identity. Each removal pass considers only duplicated ids and
  * removes one copy from highest mana value downward; ties prefer the current
  * larger playset, then card id. Because no id is reduced below one copy, every
- * original curve point and colored spell represented in the 50-card list is
- * still represented in the 40-card list.
+ * original curve point and colored spell represented in the source list is
+ * still represented in the trimmed list.
  */
 export function trimWarchestDeck(
   deck: ReserveMatrixDeck,
@@ -323,15 +323,17 @@ function fillToPlayset(
   // SINGLETONS in curve-then-id order (singletons spread the fill instead of
   // stacking four copies of the cheapest catalog card).
   for (const id of sourceOrder) {
-    while (cards.length < 50 && add(id)) { /* raise to playset */ }
-    if (cards.length === 50) break;
+    while (cards.length < WARCHEST_DECK_SIZE && add(id)) { /* raise to playset */ }
+    if (cards.length === WARCHEST_DECK_SIZE) break;
   }
   for (const id of catalogOrder) {
-    if (cards.length === 50) break;
+    if (cards.length === WARCHEST_DECK_SIZE) break;
     add(id);
   }
-  if (cards.length < 50) {
-    throw new Error(`Reserve matrix could not derive 50 Warchest spells for colors ${colors.join('')}`);
+  if (cards.length < WARCHEST_DECK_SIZE) {
+    throw new Error(
+      `Reserve matrix could not derive ${WARCHEST_DECK_SIZE} Warchest spells for colors ${colors.join('')}`,
+    );
   }
   return cards;
 }
@@ -420,14 +422,14 @@ export function buildReserveMatrixFleets(db: CardDb = CARD_DB): ReserveMatrixFle
 }
 
 /**
- * Build one validator-gated tuning field. The four probes are first authored as
- * canonical 50-card lists from the same source roster; 40-card configs pass
- * both roster and probes through the identical duplicate-only trim rule. A
- * capped-incompatible deck is returned as an explicit exclusion, while every
- * other validation issue fails loudly.
+ * Build one validator-gated tuning field. Roster and probes are authored as
+ * canonical WARCHEST_DECK_SIZE lists; a smaller requested size passes both
+ * through the identical duplicate-only trim rule (a no-op since the 2026-08-07
+ * flip retired the 50-card configs). A capped-incompatible deck is returned as
+ * an explicit exclusion, while every other validation issue fails loudly.
  */
 export function buildWarchestTuningField(
-  deckSize: 40 | 50,
+  deckSize: 40,
   maxReserveColors?: number,
   db: CardDb = CARD_DB,
 ): WarchestTuningField {

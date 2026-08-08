@@ -4,7 +4,9 @@ import { ownedCount } from './Collection';
 import type { DeckIssue } from './DeckStorage';
 import type { SaveData } from './SaveManager';
 
-export const WARCHEST_DECK_SIZE = 50;
+export const WARCHEST_DECK_SIZE = 40;
+/** Warchest only: classic keeps RULES.startingHandSize=7, and Darlings keeps 7 pending its own measurement. */
+export const WARCHEST_HAND_SIZE = 5;
 /** Darlings carries its selected legendary creature outside this spell list. */
 export const DARLINGS_DECK_SIZE = 79;
 export const LAND_RESERVE_SIZE = 10;

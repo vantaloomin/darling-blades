@@ -6,7 +6,9 @@ import {
   firstDuelLaunchIssue,
   practiceDuelLaunchData,
   resolveDuelDifficulty,
+  resolveDuelStartingHandSize,
 } from '../../src/meta/duelSetup';
+import { WARCHEST_DECK_SIZE, WARCHEST_HAND_SIZE } from '../../src/meta/warchest';
 
 function card(id: string, over: Partial<CardDef> = {}): CardDef {
   return {
@@ -55,7 +57,8 @@ describe('duel setup', () => {
   });
 
   it('refuses incomplete reserve launches and accepts a valid reserve deck', () => {
-    const spellIds = Array.from({ length: 13 }, (_, index) => `spell-${index}`);
+    // Enough distinct ids to reach WARCHEST_DECK_SIZE at 4-of playsets.
+    const spellIds = Array.from({ length: Math.ceil(WARCHEST_DECK_SIZE / 4) }, (_, index) => `spell-${index}`);
     const basic = 'basic';
     const db = Object.fromEntries([
       ...spellIds.map((id) => [id, card(id)]),
@@ -69,7 +72,10 @@ describe('duel setup', () => {
     ]) as CardDb;
     const save = freshSave(0);
     for (const id of spellIds) save.collection[id] = 4;
-    const cards = spellIds.flatMap((id, index) => Array.from({ length: index === 12 ? 2 : 4 }, () => id));
+    const remainder = WARCHEST_DECK_SIZE - (spellIds.length - 1) * 4;
+    const cards = spellIds.flatMap((id, index) =>
+      Array.from({ length: index === spellIds.length - 1 ? remainder : 4 }, () => id),
+    );
     const reserve = Array.from({ length: 10 }, () => basic);
     const deck = (over: Partial<SavedDeck> = {}): SavedDeck => ({
       id: 'box',
@@ -83,7 +89,21 @@ describe('duel setup', () => {
     });
 
     expect(firstDuelLaunchIssue(db, save, deck({ landReserve: [] }))).toContain('exactly 10 lands');
-    expect(firstDuelLaunchIssue(db, save, deck({ cards: [...cards.slice(0, 49), basic] }))).toContain('hold no lands');
+    expect(
+      firstDuelLaunchIssue(db, save, deck({ cards: [...cards.slice(0, WARCHEST_DECK_SIZE - 1), basic] })),
+    ).toContain('hold no lands');
     expect(firstDuelLaunchIssue(db, save, deck())).toBeNull();
+  });
+
+  it('deals the ratified 5-card Warchest opener; classic and Darlings keep their defaults', () => {
+    // Live duels: warchest 5, darlings and classic default (engine deals 7).
+    expect(resolveDuelStartingHandSize('warchest', null)).toBe(WARCHEST_HAND_SIZE);
+    expect(resolveDuelStartingHandSize('darlings', null)).toBeUndefined();
+    expect(resolveDuelStartingHandSize(undefined, null)).toBeUndefined();
+    // Replays always defer to the recorded value; an absent field means the
+    // log predates the flip and must reconstruct its original 7-card deal.
+    expect(resolveDuelStartingHandSize('warchest', {})).toBeUndefined();
+    expect(resolveDuelStartingHandSize('warchest', { startingHandSize: 7 })).toBe(7);
+    expect(resolveDuelStartingHandSize(undefined, { startingHandSize: 5 })).toBe(5);
   });
 });
