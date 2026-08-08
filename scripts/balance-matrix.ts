@@ -574,6 +574,70 @@ export function runAvatarMatrix(
   return { rows, flags, table };
 }
 
+export interface AvatarReserveMatrixReport {
+  rows: AvatarRow[];
+  table: string;
+  flags: string[];
+}
+
+/**
+ * Reserve-native avatar ladder (1.6 migration stage 2): each avatar pilots its
+ * scripted-first-cut reserveDeck (or darlingsDeck) with its own brain and
+ * personality against PROXY columns from buildReserveMatrixFleets — real
+ * reserve starters do not exist yet, so the columns are stand-ins and the
+ * classic RUNG_BANDS deliberately do not apply. Losslessness counters run
+ * because reserve formats must never produce dead states.
+ */
+export function runAvatarReserveMatrix(
+  format: 'warchest' | 'darlings',
+  seedsPerCell: number,
+  onlyIds?: string[],
+  telemetry?: BalanceTelemetryCollector,
+): AvatarReserveMatrixReport {
+  const fleets = buildReserveMatrixFleets();
+  const columns = format === 'warchest' ? fleets.warchest : fleets.darlings;
+  const losslessness = newLosslessnessCounters();
+  const roster = [...AVATARS]
+    .sort((a, b) => a.tier - b.tier)
+    .filter((a) => !onlyIds || onlyIds.includes(a.id));
+  const rows: AvatarRow[] = roster.map((av) => {
+    const avatarDeck = format === 'warchest' ? av.reserveDeck : av.darlingsDeck;
+    const cells = columns.map((proxy, cIdx) =>
+      runCell(
+        {
+          rowAI: (seed) => buildAI(av.difficulty, CARD_DB, seed, av.personality),
+          colAI: () => new MediumAI(CARD_DB),
+          decks: () => [avatarDeck, proxy.cards],
+          format,
+          reserves: () => [av.landReserve, proxy.landReserve],
+          ...(format === 'darlings'
+            ? { darlings: () => [av.darlingId, proxy.darlingId] as [string | null, string | null] }
+            : {}),
+          startingHandSize: WARCHEST_HAND_SIZE,
+        },
+        seedsPerCell,
+        // Distinct from the classic avatar block (tier*100) and both reserve
+        // fleet blocks (80k/90k); darlings offsets a further 10k.
+        200_000 + (format === 'darlings' ? 10_000 : 0) + av.tier * 100 + cIdx,
+        losslessness,
+        cellTelemetry(telemetry, `avatars-${format}`, `Avatar ${av.name}`, proxy.name),
+      ),
+    );
+    return { avatar: av, cells, avg: mean(cells.map((c) => c.rate)) };
+  });
+  const table =
+    renderTable(
+      `=== AVATAR ${format.toUpperCase()} — avatar win % vs Medium-piloted PROXY fleet · ${seedsPerCell} seeds/cell ===\n` +
+        '    PROXY columns: starter-derived fleet decks stand in until real reserve starters exist; classic rung bands do not apply',
+      rows.map((r) => `R${r.avatar.tier} ${r.avatar.name} [${r.avatar.difficulty}]`),
+      columns.map((c) => shortName(c.name)),
+      rows.map((r) => r.cells),
+      (r) => `| avg ${(rows[r].avg * 100).toFixed(0).padStart(3)}%`,
+    ) +
+    `\nLOSSLESSNESS: games played ${losslessness.gamesPlayed}; games decided ${losslessness.gamesDecided}; draws (turn-limit hits) ${losslessness.draws}; engine exceptions ${losslessness.engineExceptions}.`;
+  return { rows, table, flags: [] };
+}
+
 export interface CelticFaeBossRow {
   avatar: Avatar;
   cells: CellResult[]; // low, mid, high reference decks
@@ -1445,8 +1509,12 @@ function main(): void {
   const wantWarchestTuning = flag('warchest-tuning');
   const wantDarlings = flag('darlings');
   const wantDarlingsPrecons = flag('darlings-precons');
+  // Reserve avatar ladders (migration stage 2): --avatars-reserve (or the
+  // spelled-out --avatars --reserve) and --avatars-darlings.
+  const wantAvatarsReserve = flag('avatars-reserve') || (flag('avatars') && flag('reserve'));
+  const wantAvatarsDarlings = flag('avatars-darlings');
   const wantAvatars =
-    flag('avatars') ||
+    (flag('avatars') && !flag('reserve')) ||
     (!wantStarters &&
       !wantDifficulty &&
       !wantTiers &&
@@ -1457,7 +1525,9 @@ function main(): void {
       !wantWarchest &&
       !wantWarchestTuning &&
       !wantDarlings &&
-      !wantDarlingsPrecons);
+      !wantDarlingsPrecons &&
+      !wantAvatarsReserve &&
+      !wantAvatarsDarlings);
   const ai = (opt('ai') ?? 'hard') as Difficulty;
   if (!DIFFS.includes(ai)) {
     console.error(`--ai must be one of ${DIFFS.join(' | ')} (got ${opt('ai')})`);
@@ -1525,6 +1595,8 @@ function main(): void {
   const t0 = Date.now();
   const reports: { table: string; flags?: string[] }[] = [];
   if (wantAvatars) reports.push(runAvatarMatrix(seeds, only, telemetry));
+  if (wantAvatarsReserve) reports.push(runAvatarReserveMatrix('warchest', seeds, only, telemetry));
+  if (wantAvatarsDarlings) reports.push(runAvatarReserveMatrix('darlings', seeds, only, telemetry));
   if (wantStarters) reports.push(runStarterMatrix(seeds, telemetry));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds, telemetry));
   if (wantTiers) reports.push(runTierMatrix(seeds, telemetry));
