@@ -31,6 +31,7 @@ import {
   buildAiLandReserve,
   firstDuelLaunchIssue,
   firstReserveConfigIssue,
+  practiceAiReserveSide,
   resolveDuelDifficulty,
   resolveDuelStartingHandSize,
 } from '../meta/duelSetup';
@@ -657,11 +658,25 @@ export class DuelScene extends Phaser.Scene {
         ? myDeckEntry.format
         : undefined;
     const reserveFormat: ReserveFormat | undefined = data.replay?.format ?? savedReserveFormat;
+    // Stage 3 of the 1.6 migration: reserve-format Practice fields the
+    // selected avatar's own designed deck (Warchest) or Darlings variant.
+    // The old player-deck mirror survives only when no avatar is selected
+    // (dev overrides); replays keep their recorded seats.
+    const aiReserveSide =
+      reserveFormat && !this.replayMode && !data.oppDeckOverride
+        ? practiceAiReserveSide(
+            this.opponent ?? null,
+            reserveFormat,
+            myDeck,
+            myDeckEntry?.darlingId ?? null,
+            CARD_DB,
+          )
+        : null;
     const aiDeck =
       data.replay?.decks[1].slice() ??
       data.oppDeckOverride ??
-      (reserveFormat
-        ? myDeck.slice()
+      (aiReserveSide
+        ? aiReserveSide.deck
         : this.opponent
         ? this.opponent.deck
         : (STARTER_DECKS.find((d) => d.id !== save.activeDeckId)?.cards ?? STARTER_DECKS[1].cards));
@@ -674,13 +689,13 @@ export class DuelScene extends Phaser.Scene {
               : [],
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 1)
-            : buildAiLandReserve(aiDeck, CARD_DB),
+            : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
         ]
       : undefined;
     const darlings: [string | null, string | null] | undefined = reserveFormat === 'darlings'
       ? this.replayMode
         ? [this.replayDarlingAt(data.replay?.darlings, 0), this.replayDarlingAt(data.replay?.darlings, 1)]
-        : [myDeckEntry?.darlingId ?? null, myDeckEntry?.darlingId ?? null]
+        : [myDeckEntry?.darlingId ?? null, aiReserveSide?.darlingId ?? myDeckEntry?.darlingId ?? null]
       : undefined;
     const launchIssue = reserveFormat
       ? (this.replayMode ? null : firstDuelLaunchIssue(CARD_DB, save, myDeckEntry ?? null)) ??
