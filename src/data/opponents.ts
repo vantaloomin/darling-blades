@@ -1587,18 +1587,31 @@ export const AVATARS: readonly Avatar[] = [
       ['rg-call-the-einherjar', 3],
       ['in-doom-bolt', 4],
     ]),
+    /*
+     * HAND-TUNED 2026-08-08 (first tuning-loop pass; diverges from the
+     * scripted first cut). The cut shipped 15/40 cards at mv≤3, so a 5-card
+     * opener averaged 1.9 early-castable spells against a keep rule wanting
+     * 2: measured at 12 seeds/cell she mulliganed 80% of games (every other
+     * avatar 0-20%), clogged 4.32 turns, ended with 6.57 dead cards, and won
+     * 8%. This pass trims the top (thanatos out, jarl/norns to 2, one each
+     * off wight/handmaiden) for 8 one-mana on-theme spells, taking mv≤3 to
+     * 23/40 (expected 2.9 early spells per opener). Reanimation and grave
+     * removal keep the Blue-Black Mill Reanimator identity intact.
+     */
     reserveDeck: expand([
       ['rg-hel', 4],
-      ['rg-norns', 4],
+      ['rg-norns', 2],
       ['rg-mist-seer', 4],
-      ['rg-hels-handmaiden', 4],
+      ['rg-hels-handmaiden', 3],
       ['rg-corpse-taker', 4],
-      ['rg-barrow-wight', 4],
-      ['rg-draugr-jarl', 4],
+      ['rg-barrow-wight', 3],
+      ['rg-draugr-jarl', 2],
       ['rg-plaguebearer-draugr', 3],
-      ['rg-thanatos', 2],
       ['rg-call-the-einherjar', 3],
       ['in-doom-bolt', 4],
+      ['so-raise-dead', 3],
+      ['in-grave-chill', 3],
+      ['rg-rune-of-insight', 2],
     ]),
     landReserve: expand([
       ['ld-moonlit-marsh', 4],
