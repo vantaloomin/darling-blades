@@ -70,7 +70,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     const only = [AVATARS[0].id];
     const warchest = runAvatarReserveMatrix('warchest', 1, only);
     expect(warchest.rows).toHaveLength(1);
-    expect(warchest.table).toContain('PROXY');
+    expect(warchest.table).toContain('reserve starters');
     const darlings = runAvatarReserveMatrix('darlings', 1, only);
     expect(darlings.rows).toHaveLength(1);
   });
