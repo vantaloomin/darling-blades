@@ -2150,18 +2150,30 @@ export const AVATARS: readonly Avatar[] = [
       ['in-doom-bolt', 4],
       ['in-reapers-due', 3],
     ]),
+    /*
+     * HAND-TUNED 2026-08-08 (tuning-loop pass 2). The first cut measured 32%
+     * with no mulligan problem (1.7%), so this is a shape fault rather than
+     * Hel's keep-rule fault: 33 of 40 cards sat at mv≤3 but only 2 below
+     * mv3, a flat pile of threes topped by four 6-drops. Rung 7 Yohime wins
+     * 88% on a textbook 8/8/16/8 curve, so the fix gives Morgan real turn-one
+     * and turn-two plays: Thorn Crown to 2 (still her signature), Reaper's
+     * Due to 1, one each off the knight and blackguard, for a full Undertow
+     * playset plus court and raven cheapies in her Arthurian colors.
+     */
     reserveDeck: expand([
-      ['ac-morgan-thorn-crown', 4],
+      ['ac-morgan-thorn-crown', 2],
       ['ac-black-chapel-curse', 4],
       ['ac-raven-of-camlann', 4],
       ['ac-velvet-court-spy', 4],
       ['ac-merlin-crow-clock', 3],
       ['ac-lakeblade-initiate', 4],
-      ['ac-oathbroken-knight', 4],
-      ['ac-castle-blackguard', 4],
-      ['in-undertow', 2],
+      ['ac-oathbroken-knight', 3],
+      ['ac-castle-blackguard', 3],
+      ['ac-lantern-in-fog', 2],
+      ['cf-omen-raven', 2],
+      ['in-undertow', 4],
       ['in-doom-bolt', 4],
-      ['in-reapers-due', 3],
+      ['in-reapers-due', 1],
     ]),
     landReserve: expand([
       ['ld-moonlit-marsh', 4],

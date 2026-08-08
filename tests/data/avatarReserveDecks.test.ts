@@ -54,8 +54,10 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
    * the legality tests above still cover them in full.
    *   hel — 2026-08-08, tuning pass 1: flattened a 15/40 mv≤3 curve to 23/40
    *   after she mulliganed 80% of games and won 8%. See opponents.ts.
+   *   morgan — 2026-08-08, tuning pass 2: reshaped a flat mv3 pile (only 2
+   *   cards below mv3, four 6-drops) into a real curve; 32% -> 48%.
    */
-  const HAND_TUNED_WARCHEST = new Set(['hel']);
+  const HAND_TUNED_WARCHEST = new Set(['hel', 'morgan']);
 
   it('untuned committed data IS the deterministic converter output', () => {
     // Card-content identity, order-insensitive: the committed literals group
