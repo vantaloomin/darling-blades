@@ -139,22 +139,48 @@ export interface DarlingsBuild {
   curve: Record<number, number>;
 }
 
+/** Designed power level. Rarity is the cheapest honest proxy we have: the
+ *  card was costed to be this strong on purpose. */
+const RARITY_SCORE: Record<string, number> = { c: 0, r: 1.0, sr: 1.6, ur: 2.0, ssr: 2.4 };
+
 /**
- * Priority tiers. Earlier tiers are exhausted before later ones, but every
- * pick still has to fit the role skeleton and the curve budget, so a deck
- * never takes six five-drops just because they share a set.
+ * How strong a card is on its own, independent of theme.
+ *
+ * Avatars are NOT tied to their home expansion (owner, 2026-08-09), so set
+ * affinity must never outrank quality: a strong generic card beats a weak
+ * on-set one. This is the term that makes that true.
+ *
+ * Body rate (attack+defense per mana) is the backbone for creatures, with
+ * credit for keywords and for having an effect at all, plus the rarity the
+ * card was designed at. Non-creatures lean on rarity and effect count, since
+ * a removal spell has no stats to rate.
  */
-function priorityTier(card: CardDef, avatar: Avatar, darling: CardDef, ownIds: Set<string>): number {
-  if (ownIds.has(card.id)) return 0;
-  if (setOf(card.id) === setOf(darling.id)) return 1;
-  const tribes = new Set(
-    [...ownIds]
-      .map((id) => CARD_DB[id])
-      .filter((c): c is CardDef => Boolean(c?.types.includes('creature')))
-      .flatMap((c) => c.subtypes),
-  );
-  if (card.types.includes('creature') && card.subtypes.some((s) => tribes.has(s))) return 2;
-  return 3;
+export function qualityScore(card: CardDef): number {
+  const mv = Math.max(1, manaValueOf(card));
+  const rarity = RARITY_SCORE[card.rarity] ?? 0;
+  const keywords = (card.keywords ?? []).length;
+  const opCount = opsOf(card).length;
+  if (card.types.includes('creature')) {
+    const rate = ((card.attack ?? 0) + (card.defense ?? 0)) / mv;
+    return rate + keywords * 0.6 + Math.min(opCount, 3) * 0.4 + rarity;
+  }
+  // Cheap interaction is disproportionately good in a format that rewards
+  // turn-one and turn-two plays, so spells get a mild low-cost premium.
+  return Math.min(opCount, 3) * 0.8 + rarity + Math.max(0, 4 - mv) * 0.25;
+}
+
+/**
+ * Theme affinity, added to quality rather than gating it. The avatar's own
+ * cards get enough of a bump to survive against strong generics (they ARE the
+ * identity), while home-set and tribal cards get a nudge that only decides
+ * ties between comparable cards.
+ */
+export function themeBonus(card: CardDef, darling: CardDef, ownIds: Set<string>, tribes: Set<string>): number {
+  if (ownIds.has(card.id)) return 3.0;
+  let bonus = 0;
+  if (setOf(card.id) === setOf(darling.id)) bonus += 0.8;
+  if (card.types.includes('creature') && card.subtypes.some((s) => tribes.has(s))) bonus += 1.0;
+  return bonus;
 }
 
 export function buildDarlingsDeck(avatar: Avatar, db: CardDb = CARD_DB): DarlingsBuild {
@@ -163,15 +189,34 @@ export function buildDarlingsDeck(avatar: Avatar, db: CardDb = CARD_DB): Darling
   const colors = darling.colors.length > 0 ? darling.colors : (['W', 'U', 'B', 'R', 'G'] as Color[]);
   const ownIds = new Set(avatar.deck.filter((id) => eligible(db[id], colors) && id !== darling.id));
 
+  const tribes = new Set(
+    [...ownIds]
+      .map((id) => db[id])
+      .filter((c): c is CardDef => Boolean(c?.types.includes('creature')))
+      .flatMap((c) => c.subtypes),
+  );
+
+  // One ranking, quality-led: strength decides, theme adjusts. Ties break on
+  // cheapness then id so the build stays deterministic.
   const pool = Object.values(db)
     .filter((card) => card.id !== darling.id && eligible(card, colors))
-    .map((card) => ({
-      card,
-      role: classifyRole(card),
-      mv: manaValueOf(card),
-      tier: priorityTier(card, avatar, darling, ownIds),
-    }))
-    .sort((a, b) => a.tier - b.tier || a.mv - b.mv || a.card.id.localeCompare(b.card.id));
+    .map((card) => {
+      const quality = qualityScore(card);
+      const theme = themeBonus(card, darling, ownIds, tribes);
+      return {
+        card,
+        role: classifyRole(card),
+        mv: manaValueOf(card),
+        score: quality + theme,
+        own: ownIds.has(card.id),
+        homeSet: !ownIds.has(card.id) && setOf(card.id) === setOf(darling.id),
+        tribal:
+          !ownIds.has(card.id) &&
+          card.types.includes('creature') &&
+          card.subtypes.some((s) => tribes.has(s)),
+      };
+    })
+    .sort((a, b) => b.score - a.score || a.mv - b.mv || a.card.id.localeCompare(b.card.id));
 
   const roleBudget: Record<string, number> = { ...DARLINGS_SKELETON };
   const curveBudget: Record<number, number> = { ...DARLINGS_CURVE };
@@ -219,9 +264,9 @@ export function buildDarlingsDeck(avatar: Avatar, db: CardDb = CARD_DB): Darling
   const roleCounts: Record<string, number> = {};
   const curve: Record<number, number> = {};
   for (const entry of chosen) {
-    if (entry.tier === 0) provenance.own++;
-    else if (entry.tier === 1) provenance.homeSet++;
-    else if (entry.tier === 2) provenance.tribal++;
+    if (entry.own) provenance.own++;
+    else if (entry.homeSet) provenance.homeSet++;
+    else if (entry.tribal) provenance.tribal++;
     else provenance.generic++;
     roleCounts[entry.role] = (roleCounts[entry.role] ?? 0) + 1;
     curve[entry.mv] = (curve[entry.mv] ?? 0) + 1;
