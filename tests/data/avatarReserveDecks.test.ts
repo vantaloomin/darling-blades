@@ -12,6 +12,7 @@ import {
   DARLINGS_DECK_SIZE,
 } from '../../src/meta/warchest';
 import { convertAvatarReserveDecks } from '../../scripts/avatarReserveDecks';
+import { buildDarlingsDeck } from '../../scripts/darlingsDeckBuilder';
 import { buildReserveMatrixFullOwnershipSave } from '../../scripts/reserveMatrixDecks';
 import { runAvatarReserveMatrix } from '../../scripts/balance-matrix';
 
@@ -69,7 +70,10 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       const second = convertAvatarReserveDecks(avatar);
       expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
-      expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
+      // darlingsDeck is now authored by the themed builder, not the stage-2
+      // converter: the converter's colour-and-curve fill left 67-71 of 79
+      // cards as generic filler and measured 26-31% against the shop precons.
+      expect(sorted(buildDarlingsDeck(avatar).cards)).toEqual(sorted(avatar.darlingsDeck));
       expect(first.darlingId).toEqual(avatar.darlingId);
       if (HAND_TUNED_WARCHEST.has(avatar.id)) {
         // A tuned deck must actually differ, or the exception is stale.
