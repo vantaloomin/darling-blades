@@ -53,12 +53,15 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
    * Avatars whose reserve data has been hand-tuned away from the scripted
    * first cut, with the dated reason. Each entry is a deliberate divergence;
    * the legality tests above still cover them in full.
-   *   hel — 2026-08-08, tuning pass 1: flattened a 15/40 mv≤3 curve to 23/40
-   *   after she mulliganed 80% of games and won 8%. See opponents.ts.
-   *   morgan — 2026-08-08, tuning pass 2: reshaped a flat mv3 pile (only 2
-   *   cards below mv3, four 6-drops) into a real curve; 32% -> 48%.
+   *   morgan — 2026-08-08 pass 2, RETAINED 2026-08-09: reshaped a flat mv3
+   *   pile (only 2 cards below mv3, four 6-drops) into a real curve, 32% ->
+   *   48%. Re-measured against the quality-led builder and kept, 52% to 46%.
+   *
+   * hel was hand-tuned on 2026-08-08 and DROPPED on 2026-08-09: the
+   * quality-led builder beat that hand build 33% to 21%, so she is generated
+   * again. Hand tuning only earns an exception while it still measures better.
    */
-  const HAND_TUNED_WARCHEST = new Set(['hel', 'morgan']);
+  const HAND_TUNED_WARCHEST = new Set(['morgan']);
 
   it('untuned committed data IS the deterministic converter output', () => {
     // Card-content identity, order-insensitive: the committed literals group
