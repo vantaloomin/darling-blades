@@ -1598,25 +1598,44 @@ export const AVATARS: readonly Avatar[] = [
      * 23/40 (expected 2.9 early spells per opener). Reanimation and grave
      * removal keep the Blue-Black Mill Reanimator identity intact.
      */
+    /*
+     * HAND-BUILT 2026-08-09 — ARCHETYPE REPAIR, not a curve tune.
+     *
+     * Hel is the Blue-Black Mill Reanimator, and in Warchest her engine had
+     * simply stopped existing: measured graveyard-cast rate 0.00 across every
+     * run, and 21-33% no matter what curve or quality pass was applied. The
+     * reason is that reanimation only pays when it cheats out something you
+     * could not otherwise cast, and her best target was a 4/3 Barrow Wight.
+     * She was paying a strategy's full setup cost for none of its reward. The
+     * generated builder made this worse, not better: its curve cap (mv5 x4,
+     * mv6 x2) deletes exactly the expensive payoffs a reanimator exists to
+     * abuse, so the builder is archetype-blind here and Hel is exempt.
+     *
+     * This build gives the engine real targets. Siege Juggernaut (7/7
+     * overrun) and Bronze Colossus (6/6) are colorless artifacts, so they are
+     * legal beside her U/B and worth every point of the three mana Call the
+     * Einherjar pays to raise one. Self-mill is kept as her identity and is
+     * now also her tutor: grinding a Juggernaut into the yard is the setup,
+     * not a cost. Opponent-mill was considered and rejected - `raise` reads
+     * only the controller's own graveyard (EffectInterpreter case 'raise'),
+     * so milling the opponent would fuel nothing and would be a second,
+     * half-built win condition competing for the same 40 slots.
+     */
     reserveDeck: expand([
-      ['rg-hel', 3],
-      ['rg-norns', 1],
-      ['rg-mist-seer', 4],
-      ['rg-hels-handmaiden', 4],
+      ['in-undertow', 3],
+      ['in-grave-chill', 2],
       ['rg-corpse-taker', 4],
-      ['rg-barrow-wight', 3],
-      ['rg-plaguebearer-draugr', 3],
-      ['rg-thanatos', 2],
+      ['rg-mist-seer', 4],
       ['rg-call-the-einherjar', 4],
       ['in-doom-bolt', 4],
-      ['cf-badb-cathas-warning', 1],
-      ['gk-hermes', 1],
       ['rg-norn-seeress', 1],
-      ['cf-hollow-hill-gatekeeper', 1],
-      ['tk-jin-wangyuanji', 1],
-      ['gm-madame-macabre', 1],
-      ['gm-ravenloft-heiress', 1],
-      ['ac-lakeblade-initiate', 1],
+      ['rg-hels-handmaiden', 4],
+      ['rg-plaguebearer-draugr', 2],
+      ['rg-barrow-wight', 1],
+      ['rg-hel', 3],
+      ['ar-siege-juggernaut', 4],
+      ['ar-bronze-colossus', 2],
+      ['rg-thanatos', 2],
     ]),
     landReserve: expand([
       ['ld-moonlit-marsh', 4],

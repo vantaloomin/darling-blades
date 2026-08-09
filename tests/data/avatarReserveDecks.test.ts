@@ -56,12 +56,16 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
    *   morgan — 2026-08-08 pass 2, RETAINED 2026-08-09: reshaped a flat mv3
    *   pile (only 2 cards below mv3, four 6-drops) into a real curve, 32% ->
    *   48%. Re-measured against the quality-led builder and kept, 52% to 46%.
+   *   hel — 2026-08-09 ARCHETYPE REPAIR. Her first hand-tune was dropped when
+   *   the builder beat it 33% to 21%, but the builder cannot fix her: its
+   *   curve cap deletes the expensive payoffs a reanimator exists to cheat
+   *   into play, so it is archetype-blind here. This build gives the engine
+   *   real targets (Siege Juggernaut, Bronze Colossus). See opponents.ts.
    *
-   * hel was hand-tuned on 2026-08-08 and DROPPED on 2026-08-09: the
-   * quality-led builder beat that hand build 33% to 21%, so she is generated
-   * again. Hand tuning only earns an exception while it still measures better.
+   * Hand tuning only earns an exception while it still measures better than
+   * the builder; both entries above were re-tested under that rule.
    */
-  const HAND_TUNED_WARCHEST = new Set(['morgan']);
+  const HAND_TUNED_WARCHEST = new Set(['morgan', 'hel']);
 
   it('untuned committed data IS the deterministic converter output', () => {
     // Card-content identity, order-insensitive: the committed literals group
