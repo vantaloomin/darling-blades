@@ -5,7 +5,7 @@ import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
 import type { CardDb, CardDef, Color } from '../../src/engine/types';
 import { def, isType, manaValue } from '../../src/engine/types';
 import { isBasic } from '../../src/meta/Collection';
-import { validateLimitedDeck } from '../../src/meta/DeckStorage';
+import { LIMITED_DECK_SIZE, validateLimitedDeck } from '../../src/meta/DeckStorage';
 import { applyLimitedMatchResult, payPremiumDraftEntry } from '../../src/meta/Economy';
 import {
   completeDraftRun,
@@ -50,19 +50,35 @@ describe('limited deck validation and auto-build', () => {
       ['giant', 1],
       ['shock', 1],
     ]);
-    const legal = deckOf([
-      ['forest', 36],
-      ['bear', 2],
+    // Reserve-native Limited (2026-08-09): LIMITED_DECK_SIZE spells, no lands.
+    // The pool must therefore supply enough spell copies to fill the deck.
+    const bigPool = deckOf([
+      ['bear', LIMITED_DECK_SIZE],
       ['giant', 1],
       ['shock', 1],
     ]);
+    const legal = deckOf([['bear', LIMITED_DECK_SIZE]]);
 
-    expect(validateLimitedDeck(TEST_DB, pool, legal).filter((i) => i.kind === 'error')).toHaveLength(0);
-    expect(validateLimitedDeck(TEST_DB, pool, legal.slice(1)).some((i) => i.message.includes('39/40'))).toBe(true);
-    expect(validateLimitedDeck(TEST_DB, pool, [...legal, 'forest']).some((i) => i.message.includes('41/40'))).toBe(true);
-    expect(validateLimitedDeck(TEST_DB, pool, [...legal.slice(0, 39), 'elf']).some((i) => i.message.includes('pool'))).toBe(true);
-    expect(validateLimitedDeck(TEST_DB, pool, [...legal.slice(0, 39), 'tok_fox']).some((i) => i.message.includes('token'))).toBe(true);
-    expect(validateLimitedDeck(TEST_DB, pool, [...legal.slice(0, 39), 'bear']).some((i) => i.message.includes('pool'))).toBe(true);
+    expect(validateLimitedDeck(TEST_DB, bigPool, legal).filter((i) => i.kind === 'error')).toHaveLength(0);
+    expect(
+      validateLimitedDeck(TEST_DB, bigPool, legal.slice(1)).some((i) =>
+        i.message.includes(`${LIMITED_DECK_SIZE - 1}/${LIMITED_DECK_SIZE}`)),
+    ).toBe(true);
+    expect(
+      validateLimitedDeck(TEST_DB, bigPool, [...legal, 'bear']).some((i) =>
+        i.message.includes(`${LIMITED_DECK_SIZE + 1}/${LIMITED_DECK_SIZE}`)),
+    ).toBe(true);
+    expect(
+      validateLimitedDeck(TEST_DB, bigPool, [...legal.slice(0, LIMITED_DECK_SIZE - 1), 'elf'])
+        .some((i) => i.message.includes('pool')),
+    ).toBe(true);
+    // Lands are illegal in the deck now; the reserve is granted.
+    expect(
+      validateLimitedDeck(TEST_DB, bigPool, [...legal.slice(0, LIMITED_DECK_SIZE - 1), 'forest'])
+        .some((i) => i.message.includes('hold no lands')),
+    ).toBe(true);
+    expect(validateLimitedDeck(TEST_DB, bigPool, [...legal.slice(0, LIMITED_DECK_SIZE - 1), 'tok_fox']).some((i) => i.message.includes('token'))).toBe(true);
+    expect(validateLimitedDeck(TEST_DB, pool, legal).some((i) => i.message.includes('pool'))).toBe(true);
   });
 });
 
@@ -142,7 +158,7 @@ describe('bot draft', () => {
     expect(completed.pool).toHaveLength(3 * ECONOMY.limitedPackSize);
     expect(completed.opponentDecks).toHaveLength(3);
     completed.opponentDecks.forEach((deck, i) => {
-      expect(deck).toHaveLength(40);
+      expect(deck).toHaveLength(LIMITED_DECK_SIZE);
       expect(validateLimitedDeck(CARD_DB, completed.draft!.picks[i + 1], deck).filter((issue) => issue.kind === 'error')).toHaveLength(0);
     });
   });
@@ -209,7 +225,7 @@ describe('bot draft', () => {
 
       const completed = completeDraftRun(CARD_DB, run);
       completed.opponentDecks.forEach((deck, i) => {
-        expect(deck, `seed ${seed}, seat ${i + 1}`).toHaveLength(40);
+        expect(deck, `seed ${seed}, seat ${i + 1}`).toHaveLength(LIMITED_DECK_SIZE);
         expect(
           validateLimitedDeck(CARD_DB, completed.draft!.picks[i + 1], deck).filter((issue) => issue.kind === 'error'),
           `seed ${seed}, seat ${i + 1}`,

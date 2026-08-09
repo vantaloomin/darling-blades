@@ -85,3 +85,41 @@ export function deckRepairNoticeState(
 function compareIds(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+/**
+ * Classic retirement: convert a granted starter or theme deck to its shipped
+ * reserve build, but ONLY if the player never edited it.
+ *
+ * Owner decision 2026-08-09. A player who never touched their free Crimson
+ * Muster should find a working Crimson Muster after the migration, not a
+ * repair prompt for a deck they did not build. A player who DID edit theirs
+ * made choices, and those deserve the flag-and-fix flow rather than a silent
+ * overwrite - so an edited deck returns false and stays invalid on purpose.
+ *
+ * NOT WIRED YET: classic has not retired (the Tower still pilots classic
+ * decks and Draft's design is open), so calling this today would convert
+ * decks that still work. Call it from the retirement migration.
+ */
+export function convertUnmodifiedStarter(
+  deck: SavedDeck,
+  shipped: { id: string; cards: readonly string[]; reserveCards?: string[]; landReserve?: string[] }[],
+): boolean {
+  const source = shipped.find((entry) => entry.id === deck.id);
+  if (!source?.reserveCards || !source.landReserve) return false;
+  if (deck.format !== 'constructed' && deck.format !== undefined) return false;
+
+  const sorted = (cards: readonly string[]): string[] => [...cards].sort();
+  const untouched =
+    deck.cards.length === source.cards.length &&
+    sorted(deck.cards).every((id, index) => id === sorted(source.cards)[index]);
+  if (!untouched) return false;
+
+  deck.cards = [...source.reserveCards];
+  deck.format = 'warchest';
+  deck.landReserve = [...source.landReserve];
+  deck.darlingId = null;
+  // Positional treatment pins are index-aligned to `cards`, so a resized list
+  // must drop them rather than leave pins pointing at different cards.
+  deck.variantPins = new Array(source.reserveCards.length).fill(null);
+  return true;
+}
