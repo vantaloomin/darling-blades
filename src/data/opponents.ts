@@ -450,8 +450,54 @@ export interface Avatar {
  * 56.0, 68.5, 70.8, 72.0, 68.2, 70.6 - a clean T6 plateau across F16-F20
  * confirms floors 19-20 stay tier 6 (stamped in src/ai/tiers.ts).
  *
+ * ===========================================================================
+ * 2026-08-09 - THE DATED 1.6 RESERVE BASELINE (Stage 4 re-baseline).
+ * ===========================================================================
+ * 51,400 games, 126 turn-limit draws (0.2%), 0 engine exceptions, measured
+ * after the parameter flip (40 cards / 5-card opener, both reserve formats),
+ * priority-window rules revision 2, the reserve-aware mulligan fix, and the
+ * quality-led deck rebuilds. Run with three lanes under the owner's 65% CPU
+ * cap; see the scripts' headers for the shard math.
+ *
+ * SCOPE NOTE - this does NOT supersede the W7 classic table above. The 1.6
+ * plan assumed the re-baseline would replace it, but classic has not retired:
+ * the Tower still pilots avatar.deck and Draft's reserve-native design is
+ * still an open decision, so W7 remains the live authority for the classic
+ * ladder and its floors. This table is the authority for the RESERVE field.
+ *
+ * AVATAR LADDER - WARCHEST (--avatars-reserve, 200 seeds/cell, avatars vs
+ * all 11 shipped player decks): R1-R20 averages 23, 14, 34, 51, 53, 53, 85,
+ * 68, 64, 81, 78, 75, 54, 57, 66, 50, 75, 86, 56, 86. Easy 14-34, medium
+ * 51-53, hard 50-86 with a 70.1 mean - the tier bands separate cleanly and
+ * the hard band is honest variety rather than the 60-point sprawl the
+ * scripted first cut produced.
+ *
+ * AVATAR LADDER - DARLINGS (--avatars-darlings, 200 seeds/cell, avatars vs
+ * the five curated shop precons): R1-R20 averages 26, 9, 29, 67, 53, 44, 84,
+ * 62, 78, 82, 72, 83, 61, 62, 72, 58, 78, 64, 65, 62. Hard mean 70.2, which
+ * lands within a point of the Warchest ladder - the two formats now present
+ * comparable difficulty, which was never true before.
+ *
+ * PLAYER DECKS HEAD TO HEAD (--player-decks, 200 seeds/cell, 11,000 games):
+ * Burning Tides 62.6, Questing Table 57.3, Wild Communion 57.0, Midnight
+ * Storybook 56.9, Neon Afterimage 54.0, Crimson Muster 53.7, Bloodmoon
+ * 50.7, Valhalla's Muster 44.0, Grave Harvest 40.9, Glimmer Bargain 36.5,
+ * Shadow Mandate 36.3. A 26.3-point spread, down from 41.3 at the first
+ * cut; nothing is broken, and the two floors are soft rather than dead.
+ *
+ * FLEET BASELINES (re-dating the STALE 1.5.5 numbers below). These measure
+ * the FORMAT via deterministic fixtures, not shipped product, and carry no
+ * balance claim. Warchest (--warchest, 200 seeds): Burning 72.4, Crimson
+ * 58.0, Grave 48.3, Shadow 36.9, Wild 34.5. Darlings (--darlings, 200
+ * seeds): Gaia 79.8, Dian Wei 69.3, Ares 55.4, Ghost-Net 37.4, Athena 33.8,
+ * Aphrodite 23.3 - the fixture spread stays wide (56pp) because these are
+ * greedy cheapest-first fleets, and it is markedly wider than the 26pp
+ * spread of the real shipped decks. Read the player-deck table above for
+ * anything product-facing.
+ *
  * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
- * matrices the 1.5.0 release split left TO MEASURE). STALE 2026-08-06:
+ * matrices the 1.5.0 release split left TO MEASURE). SUPERSEDED 2026-08-09
+ * by the dated table above; retained as history. STALE 2026-08-06:
  * these numbers were measured while the land-count mulligan bands made
  * every AI mulligan exactly twice in reserve formats (fixed in
  * EasyAI/MediumAI with reserve-aware keep rules); re-measure and re-date
