@@ -57,9 +57,10 @@ describe('reserve-native starter builds (1.6 migration)', () => {
     }
   });
 
-  it('leaves theme decks classic-only', () => {
+  it('gives theme decks reserve builds too (2026-08-08: they are the extra ladder columns)', () => {
     for (const theme of THEME_DECKS) {
-      expect(theme.reserveCards, `${theme.id} should not carry a reserve build yet`).toBeUndefined();
+      expect(theme.reserveCards, `${theme.id} has no reserve build`).toHaveLength(WARCHEST_DECK_SIZE);
+      expect(validateWarchestDeck(CARD_DB, save, theme.reserveCards!, theme.landReserve!)).toEqual([]);
     }
   });
 });

@@ -36,6 +36,9 @@ import {
   isDualLand,
 } from '../src/meta/warchest';
 import { buildReserveMatrixFullOwnershipSave } from './reserveMatrixDecks';
+// qualityScore lives with the Darlings builder (no cycle: that module does not
+// import this one). Both fills rank by the same notion of designed power.
+import { qualityScore } from './darlingsDeckBuilder';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const satisfies readonly Color[];
 const PLAINS_ID = 'land-plains';
@@ -127,16 +130,44 @@ export function convertAvatarWarchest(avatar: ConvertibleDeck, db: CardDb = CARD
     return true;
   };
 
+  /*
+   * CURVE BUDGET (added 2026-08-09). Retaining every nonland from a classic
+   * list keeps a top-heavy deck top-heavy, and reserve formats punish that
+   * hard: Valhalla's Muster measured 26.4% head-to-head while mulliganing
+   * 79.3% of its games, and Hel needed the same fix by hand. A classic deck
+   * spends ~24 slots on lands it no longer needs, so it can afford to be
+   * choosy. Expensive copies past the budget are dropped and the freed slots
+   * go to cheap spells, exactly the hand-tuning that lifted Hel and Morgan.
+   */
+  const CURVE_CAP: Record<number, number> = { 1: 99, 2: 99, 3: 99, 4: 10, 5: 4, 6: 2 };
+  const curveKey = (mv: number): number => Math.min(Math.max(mv, 1), 6);
+  const curveUsed: Record<number, number> = {};
+  const withinCurve = (id: string): boolean => {
+    const key = curveKey(cardManaValue(db[id]));
+    return (curveUsed[key] ?? 0) < CURVE_CAP[key];
+  };
+  const addCurved = (id: string): boolean => {
+    if (!withinCurve(id)) return false;
+    if (!add(id)) return false;
+    const key = curveKey(cardManaValue(db[id]));
+    curveUsed[key] = (curveUsed[key] ?? 0) + 1;
+    return true;
+  };
+
   for (const id of avatar.deck) {
-    if (isEligibleSpell(db[id])) add(id);
+    if (isEligibleSpell(db[id])) addCurved(id);
   }
   if (cards.length > WARCHEST_DECK_SIZE) {
     throw new Error(`${avatar.name} retained ${cards.length} Warchest spells, over the ${WARCHEST_DECK_SIZE}-card target`);
   }
 
-  const sourceOrder = [...new Set(cards)];
+  // Raise retained ids to playsets cheapest-first, so the freed expensive
+  // slots refill at the bottom of the curve rather than the top.
+  const sourceOrder = [...new Set(cards)].sort(
+    (a, b) => cardManaValue(db[a]) - cardManaValue(db[b]) || a.localeCompare(b),
+  );
   for (const id of sourceOrder) {
-    while (cards.length < WARCHEST_DECK_SIZE && add(id)) { /* raise retained id to its playset */ }
+    while (cards.length < WARCHEST_DECK_SIZE && addCurved(id)) { /* raise to playset */ }
     if (cards.length === WARCHEST_DECK_SIZE) return cards;
   }
 
@@ -153,13 +184,32 @@ export function convertAvatarWarchest(avatar: ConvertibleDeck, db: CardDb = CARD
   );
   const sharesSourceSubtype = (card: CardDef): boolean =>
     card.types.includes('creature') && card.subtypes.some((subtype) => sourceSubtypes.has(subtype));
-  const catalogOrder = [
-    ...catalog.filter(sharesSourceSubtype),
-    ...catalog.filter((card) => !sharesSourceSubtype(card)),
-  ];
+  /*
+   * QUALITY-LED FILL (2026-08-09). Curve-then-id order took whatever was
+   * cheapest alphabetically, and a subtype match jumped the queue regardless
+   * of strength. The same quality-over-theme correction that lifted the
+   * Darlings hard band from 61% to 70% applies here: rank by designed power
+   * (rate per mana, keywords, effects, rarity), let a shared subtype nudge
+   * ties, and let the curve budget above decide what fits.
+   */
+  const catalogOrder = [...catalog].sort((a, b) => {
+    const scoreA = qualityScore(a) + (sharesSourceSubtype(a) ? 1.0 : 0);
+    const scoreB = qualityScore(b) + (sharesSourceSubtype(b) ? 1.0 : 0);
+    return scoreB - scoreA || cardManaValue(a) - cardManaValue(b) || a.id.localeCompare(b.id);
+  });
+  // Catalog fill is singleton-first, matching reserveMatrixDecks, and is
+  // curve-bounded too: a tribal five-drop must not jump the queue ahead of a
+  // two-drop just because it shares a subtype, which is how Valhalla's Muster
+  // ended up with seven cheap cards out of forty.
   for (const card of catalogOrder) {
     if (cards.length === WARCHEST_DECK_SIZE) break;
-    add(card.id); // Catalog fill is singleton-first, matching reserveMatrixDecks.
+    addCurved(card.id);
+  }
+  // Last resort so the deck always reaches its size, even in a colour whose
+  // cheap catalog is thin. Only reached if the curve budget cannot be met.
+  for (const card of catalogOrder) {
+    if (cards.length === WARCHEST_DECK_SIZE) break;
+    add(card.id);
   }
   if (cards.length !== WARCHEST_DECK_SIZE) {
     throw new Error(`${avatar.name} stopped at ${cards.length}/${WARCHEST_DECK_SIZE} Warchest spells`);

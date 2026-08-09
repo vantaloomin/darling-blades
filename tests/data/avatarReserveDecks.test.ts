@@ -12,6 +12,7 @@ import {
   DARLINGS_DECK_SIZE,
 } from '../../src/meta/warchest';
 import { convertAvatarReserveDecks } from '../../scripts/avatarReserveDecks';
+import { buildDarlingsDeck } from '../../scripts/darlingsDeckBuilder';
 import { buildReserveMatrixFullOwnershipSave } from '../../scripts/reserveMatrixDecks';
 import { runAvatarReserveMatrix } from '../../scripts/balance-matrix';
 
@@ -52,10 +53,19 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
    * Avatars whose reserve data has been hand-tuned away from the scripted
    * first cut, with the dated reason. Each entry is a deliberate divergence;
    * the legality tests above still cover them in full.
-   *   hel — 2026-08-08, tuning pass 1: flattened a 15/40 mv≤3 curve to 23/40
-   *   after she mulliganed 80% of games and won 8%. See opponents.ts.
+   *   morgan — 2026-08-08 pass 2, RETAINED 2026-08-09: reshaped a flat mv3
+   *   pile (only 2 cards below mv3, four 6-drops) into a real curve, 32% ->
+   *   48%. Re-measured against the quality-led builder and kept, 52% to 46%.
+   *   hel — 2026-08-09 ARCHETYPE REPAIR. Her first hand-tune was dropped when
+   *   the builder beat it 33% to 21%, but the builder cannot fix her: its
+   *   curve cap deletes the expensive payoffs a reanimator exists to cheat
+   *   into play, so it is archetype-blind here. This build gives the engine
+   *   real targets (Siege Juggernaut, Bronze Colossus). See opponents.ts.
+   *
+   * Hand tuning only earns an exception while it still measures better than
+   * the builder; both entries above were re-tested under that rule.
    */
-  const HAND_TUNED_WARCHEST = new Set(['hel']);
+  const HAND_TUNED_WARCHEST = new Set(['morgan', 'hel']);
 
   it('untuned committed data IS the deterministic converter output', () => {
     // Card-content identity, order-insensitive: the committed literals group
@@ -67,7 +77,10 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       const second = convertAvatarReserveDecks(avatar);
       expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
-      expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
+      // darlingsDeck is now authored by the themed builder, not the stage-2
+      // converter: the converter's colour-and-curve fill left 67-71 of 79
+      // cards as generic filler and measured 26-31% against the shop precons.
+      expect(sorted(buildDarlingsDeck(avatar).cards)).toEqual(sorted(avatar.darlingsDeck));
       expect(first.darlingId).toEqual(avatar.darlingId);
       if (HAND_TUNED_WARCHEST.has(avatar.id)) {
         // A tuned deck must actually differ, or the exception is stale.

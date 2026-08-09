@@ -591,13 +591,11 @@ interface ReserveColumn {
  * Reserve-native avatar ladder (1.6 migration): each avatar pilots its own
  * reserveDeck (or darlingsDeck) with its brain and personality.
  *
- * Warchest columns are the REAL shipped reserve starters (STARTER_DECKS'
- * reserveCards/landReserve, 2026-08-08) — the field a player actually faces,
- * so this mode is what the dated re-baseline measures. Darlings columns stay
- * the derived PROXY fleet: starters have no Darlings build, and the curated
- * Darlings rival ladder is explicitly unpromised. Classic RUNG_BANDS do not
- * apply to either. Losslessness counts because reserve formats must never
- * produce dead states.
+ * Both formats now measure against the REAL decks a player can own
+ * (2026-08-08): Warchest columns are the shipped starter and theme-precon
+ * reserve builds; Darlings columns are the five curated Darlings precons
+ * from the shop. Classic RUNG_BANDS do not apply to either. Losslessness
+ * counts because reserve formats must never produce dead states.
  */
 export function runAvatarReserveMatrix(
   format: 'warchest' | 'darlings',
@@ -605,20 +603,20 @@ export function runAvatarReserveMatrix(
   onlyIds?: string[],
   telemetry?: BalanceTelemetryCollector,
 ): AvatarReserveMatrixReport {
-  const columns: ReserveColumn[] =
+  const columns: readonly ReserveColumn[] =
     format === 'warchest'
-      ? STARTER_DECKS.map((starter) => {
-          if (!starter.reserveCards || !starter.landReserve) {
-            throw new Error(`Starter ${starter.id} has no reserve build; regenerate src/data/starterDecks.ts`);
+      ? [...STARTER_DECKS, ...THEME_DECKS].map((deck) => {
+          if (!deck.reserveCards || !deck.landReserve) {
+            throw new Error(`Deck ${deck.id} has no reserve build; regenerate src/data/starterDecks.ts`);
           }
           return {
-            name: starter.name,
-            cards: starter.reserveCards,
-            landReserve: starter.landReserve,
+            name: deck.name,
+            cards: deck.reserveCards,
+            landReserve: deck.landReserve,
             darlingId: null,
           };
         })
-      : buildReserveMatrixFleets().darlings;
+      : DARLINGS_PRECON_MATRIX_FLEET;
   const losslessness = newLosslessnessCounters();
   const roster = [...AVATARS]
     .sort((a, b) => a.tier - b.tier)
@@ -654,8 +652,8 @@ export function runAvatarReserveMatrix(
         format === 'warchest' ? 'reserve starters' : 'PROXY fleet'
       } · ${seedsPerCell} seeds/cell ===\n` +
         (format === 'warchest'
-          ? '    columns: the shipped reserve starter builds; classic rung bands do not apply'
-          : '    PROXY columns: derived Darlings fleet (starters have no Darlings build); classic rung bands do not apply'),
+          ? '    columns: the shipped starter and theme-precon reserve builds; classic rung bands do not apply'
+          : '    columns: the five curated Darlings shop precons; classic rung bands do not apply'),
       rows.map((r) => `R${r.avatar.tier} ${r.avatar.name} [${r.avatar.difficulty}]`),
       columns.map((c) => shortName(c.name)),
       rows.map((r) => r.cells),
@@ -1228,6 +1226,38 @@ export function runDarlingsMatrix(
 }
 
 /** Curated five-Darling shop field, retaining the reviewed singleton deck identities. */
+/**
+ * Every deck a player can own, head to head in Warchest (5 starters + 6 theme
+ * precons, reserve builds). The avatar ladder's per-column averages conflate
+ * deck power with avatar power; this isolates deck power so the migration's
+ * card-quality work targets the right lists.
+ */
+export function runPlayerDeckMatrix(
+  seedsPerCell: number,
+  ai: Difficulty,
+  telemetry?: BalanceTelemetryCollector,
+): ReserveMatrixReport {
+  const decks: ReserveMatrixDeck[] = [...STARTER_DECKS, ...THEME_DECKS].map((deck) => {
+    if (!deck.reserveCards || !deck.landReserve) {
+      throw new Error(`Deck ${deck.id} has no reserve build; regenerate src/data/starterDecks.ts`);
+    }
+    const colors = (['W', 'U', 'B', 'R', 'G'] as const).filter((color) =>
+      deck.reserveCards!.some((id) => CARD_DB[id]?.colors.includes(color)),
+    );
+    return {
+      id: deck.id,
+      name: deck.name,
+      colors,
+      cards: deck.reserveCards,
+      landReserve: deck.landReserve,
+      darlingId: null,
+    };
+  });
+  return runReserveMatrix('PLAYER DECKS (WARCHEST)', 'warchest', decks, seedsPerCell, ai, 210_000, telemetry, {
+    startingHandSize: WARCHEST_HAND_SIZE,
+  });
+}
+
 export function runDarlingsPreconMatrix(
   seedsPerCell: number,
   ai: Difficulty,
@@ -1536,6 +1566,7 @@ function main(): void {
   const wantWarchestTuning = flag('warchest-tuning');
   const wantDarlings = flag('darlings');
   const wantDarlingsPrecons = flag('darlings-precons');
+  const wantPlayerDecks = flag('player-decks');
   // Reserve avatar ladders (migration stage 2): --avatars-reserve (or the
   // spelled-out --avatars --reserve) and --avatars-darlings.
   const wantAvatarsReserve = flag('avatars-reserve') || (flag('avatars') && flag('reserve'));
@@ -1553,6 +1584,7 @@ function main(): void {
       !wantWarchestTuning &&
       !wantDarlings &&
       !wantDarlingsPrecons &&
+      !wantPlayerDecks &&
       !wantAvatarsReserve &&
       !wantAvatarsDarlings);
   const ai = (opt('ai') ?? 'hard') as Difficulty;
@@ -1634,6 +1666,7 @@ function main(): void {
   if (wantWarchest) reports.push(runWarchestMatrix(seeds, ai, telemetry, handSize ?? WARCHEST_HAND_SIZE));
   if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai, telemetry, handSize ?? WARCHEST_HAND_SIZE));
   if (wantDarlingsPrecons) reports.push(runDarlingsPreconMatrix(seeds, ai, telemetry));
+  if (wantPlayerDecks) reports.push(runPlayerDeckMatrix(seeds, ai, telemetry));
 
   for (const r of reports) {
     console.log('\n' + r.table);
