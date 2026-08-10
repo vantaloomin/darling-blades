@@ -18,8 +18,10 @@ import {
   claimFreeDarlingsDeck,
   claimFreeStarter,
   deckProductCardIds,
+  grantedDeckBuild,
   previewDeckGrant,
   spendGold,
+  type GrantedDeckBuild,
 } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
 import { packPoolSummary, type PackPoolSummary } from '../meta/packSummary';
@@ -362,6 +364,17 @@ interface DeckSku {
   deck: DeckList | DarlingsPrecon;
   price: number;
   theme: boolean;
+}
+
+/**
+ * "40 spells / 10 Warchest" for a reserve build, "60 cards" for classic. Reads
+ * the granted build rather than a hardcoded size so the line stays true when a
+ * deck's format changes under it.
+ */
+function buildSizeCopy(build: GrantedDeckBuild): string {
+  return build.format === 'constructed'
+    ? `${build.cards.length} cards`
+    : `${build.cards.length} spells / ${build.landReserve?.length ?? 0} Warchest`;
 }
 
 function isDarlingsPrecon(deck: DeckList | DarlingsPrecon): deck is DarlingsPrecon {
@@ -1282,8 +1295,12 @@ export class ShopScene extends Phaser.Scene {
     const owned = save.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
     const info = DECK_INFO[deck.id];
+    // Preview the build the purchase actually grants, not the DeckList's
+    // classic list: after classic retirement those differ for every starter
+    // and theme deck, and the shop must never advertise a deck it will not hand over.
+    const build = grantedDeckBuild(deck);
     const counts = new Map<string, number>();
-    for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+    for (const id of build.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
     const entries = [...counts.entries()].map(([id, n]) => ({ d: def(CARD_DB, id), n }));
     const sortFn = (a: PreviewEntry, b: PreviewEntry): number =>
       manaValue(a.d.cost) - manaValue(b.d.cost) || a.d.name.localeCompare(b.d.name);
@@ -1327,7 +1344,7 @@ export class ShopScene extends Phaser.Scene {
     const idY = content.y + 8;
     const darlings = isDarlingsPrecon(deck);
     const archText = this.add
-      .text(0, idY, `${darlings ? deck.blurb : (info?.archetype ?? '')} · ${darlings ? '79 spells / 10 Warchest' : `${deck.cards.length} cards`}`, {
+      .text(0, idY, `${darlings ? deck.blurb : (info?.archetype ?? '')} · ${buildSizeCopy(build)}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -1361,7 +1378,7 @@ export class ShopScene extends Phaser.Scene {
     }
 
     // Left column: signature cards, mana curve, composition, and grant preview.
-    const stats = computeDeckStats(deck.cards, CARD_DB);
+    const stats = computeDeckStats(build.cards, CARD_DB);
     const statsX = content.x + 16;
     const sectionLabel = (x: number, y: number, label: string): Phaser.GameObjects.Text =>
       this.add

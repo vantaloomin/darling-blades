@@ -22,20 +22,21 @@ export function practiceDuelLaunchData(opponentId: string, difficulty: Difficult
   return { opponentId, difficulty };
 }
 
-export interface PracticeAiReserveSide {
+export interface AvatarReserveSide {
   deck: string[];
   reserve: string[];
   darlingId: string | null;
 }
 
 /**
- * The AI seat for a reserve-format Practice duel. Since the 1.6 stage-3
- * migration the selected avatar fields its own designed reserve deck
- * (Warchest) or Darlings variant; the old player-deck mirror survives only
- * for callers that supply no avatar (dev overrides). A synthetic reserve is
- * built only for that mirror fallback.
+ * The AI seat for a reserve-format duel. Since the 1.6 stage-3 migration the
+ * selected avatar fields its own designed reserve deck (Warchest) or Darlings
+ * variant; classic retirement extended that from Practice to the Tower, which
+ * is why this is no longer named for Practice. The old player-deck mirror
+ * survives only for callers that supply no avatar (dev overrides), and a
+ * synthetic reserve is built only for that mirror fallback.
  */
-export function practiceAiReserveSide(
+export function avatarReserveSide(
   avatar: {
     reserveDeck: readonly string[];
     landReserve: readonly string[];
@@ -46,7 +47,7 @@ export function practiceAiReserveSide(
   playerDeck: readonly string[],
   playerDarlingId: string | null,
   db: CardDb,
-): PracticeAiReserveSide {
+): AvatarReserveSide {
   if (avatar) {
     return format === 'darlings'
       ? { deck: [...avatar.darlingsDeck], reserve: [...avatar.landReserve], darlingId: avatar.darlingId }

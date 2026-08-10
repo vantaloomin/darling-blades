@@ -1,3 +1,4 @@
+import { FEATURES } from '../config/features';
 import type { CardDb } from '../engine/types';
 import { validateDeck, type DeckIssue } from './DeckStorage';
 import { validateDarlingsDeck, validateWarchestDeck } from './darlings';
@@ -15,12 +16,32 @@ export interface FlaggedDeckSummary {
   firstIssue: string;
 }
 
-/** Validate one saved deck against its own persisted format without throwing. */
-export function deckHealth(db: CardDb, save: SaveData, deck: SavedDeck): DeckHealth {
+/** The one player-facing sentence a retired classic deck reports. */
+export const CLASSIC_RETIRED_ISSUE = 'Constructed has retired. Switch this deck to Warchest to play it.';
+
+/**
+ * Validate one saved deck against its own persisted format without throwing.
+ *
+ * After classic retirement a constructed deck is invalid no matter how legal
+ * its 60 cards are: it has no Warchest, so no duel can seat it. Reporting that
+ * as an ordinary blocking issue is what routes it into the flag-and-fix flow
+ * rather than deleting or silently rewriting the player's build. `classicRetired`
+ * defaults to the shipped switch so callers stay unchanged, and is explicit so
+ * tests can pin either side of the migration.
+ */
+export function deckHealth(
+  db: CardDb,
+  save: SaveData,
+  deck: SavedDeck,
+  classicRetired: boolean = FEATURES.classicRetired,
+): DeckHealth {
   try {
     const format = deck.format === 'darlings' || deck.format === 'warchest'
       ? deck.format
       : 'constructed';
+    if (format === 'constructed' && classicRetired) {
+      return { issues: [{ kind: 'error', message: CLASSIC_RETIRED_ISSUE }], blocked: true };
+    }
     const reserve = Array.isArray(deck.landReserve) ? deck.landReserve : [];
     const issues = format === 'darlings'
       ? validateDarlingsDeck(db, save, deck.cards, deck.darlingId ?? null, reserve)
@@ -35,9 +56,13 @@ export function deckHealth(db: CardDb, save: SaveData, deck: SavedDeck): DeckHea
 }
 
 /** Summaries for every blocked saved deck, retaining save order for routing. */
-export function flaggedDecks(db: CardDb, save: SaveData): FlaggedDeckSummary[] {
+export function flaggedDecks(
+  db: CardDb,
+  save: SaveData,
+  classicRetired: boolean = FEATURES.classicRetired,
+): FlaggedDeckSummary[] {
   return save.decks.flatMap((deck) => {
-    const health = deckHealth(db, save, deck);
+    const health = deckHealth(db, save, deck, classicRetired);
     if (!health.blocked) return [];
     return [{
       deckId: deck.id,
@@ -96,9 +121,9 @@ function compareIds(a: string, b: string): number {
  * made choices, and those deserve the flag-and-fix flow rather than a silent
  * overwrite - so an edited deck returns false and stays invalid on purpose.
  *
- * NOT WIRED YET: classic has not retired (the Tower still pilots classic
- * decks and Draft's design is open), so calling this today would convert
- * decks that still work. Call it from the retirement migration.
+ * Wired 2026-08-10 into the save v28 retirement migration. It is safe to
+ * re-run: a converted deck is already `warchest`, so the format guard below
+ * returns false on every later load.
  */
 export function convertUnmodifiedStarter(
   deck: SavedDeck,

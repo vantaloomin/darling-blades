@@ -31,7 +31,7 @@ import {
   buildAiLandReserve,
   firstDuelLaunchIssue,
   firstReserveConfigIssue,
-  practiceAiReserveSide,
+  avatarReserveSide,
   resolveDuelDifficulty,
   resolveDuelStartingHandSize,
 } from '../meta/duelSetup';
@@ -650,10 +650,12 @@ export class DuelScene extends Phaser.Scene {
       : null;
     const myDeck = data.replay?.decks[0].slice() ?? data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
     this.myDeckColorStyle = deckColorStyle(myDeck, CARD_DB);
-    // Gauntlet: the avatar pilots its themed deck. Practice: the AI pilots a
-    // starter the player is NOT using (or the second one). Tutorial: a fixed deck.
+    // Gauntlet and Practice: the avatar pilots its themed deck. Tutorial: a
+    // fixed deck. Since classic retired (1.6) the Tower is a reserve field
+    // too, so the gauntlet rung no longer excludes itself here; PlayScene is
+    // the gate that decides WHICH reserve format may enter the Tower.
     const savedReserveFormat: ReserveFormat | undefined =
-      !this.replayMode && this.gauntletRung === null && !this.tutorial && !this.limited && data.deckOverride === undefined &&
+      !this.replayMode && !this.tutorial && !this.limited && data.deckOverride === undefined &&
       (myDeckEntry?.format === 'darlings' || myDeckEntry?.format === 'warchest')
         ? myDeckEntry.format
         : undefined;
@@ -665,13 +667,14 @@ export class DuelScene extends Phaser.Scene {
       this.limited && !this.replayMode ? 'warchest' : undefined;
     const reserveFormat: ReserveFormat | undefined =
       data.replay?.format ?? savedReserveFormat ?? limitedReserveFormat;
-    // Stage 3 of the 1.6 migration: reserve-format Practice fields the
-    // selected avatar's own designed deck (Warchest) or Darlings variant.
-    // The old player-deck mirror survives only when no avatar is selected
-    // (dev overrides); replays keep their recorded seats.
+    // Stage 3 of the 1.6 migration, extended to the Tower by classic
+    // retirement: a reserve-format duel fields the selected avatar's own
+    // designed deck (Warchest) or Darlings variant. The old player-deck
+    // mirror survives only when no avatar is selected (dev overrides);
+    // replays keep their recorded seats.
     const aiReserveSide =
       reserveFormat && !this.replayMode && !data.oppDeckOverride
-        ? practiceAiReserveSide(
+        ? avatarReserveSide(
             this.opponent ?? null,
             reserveFormat,
             myDeck,

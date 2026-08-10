@@ -1,13 +1,16 @@
-<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, src/meta/deckRepair.ts, src/meta/SaveManager.ts, src/scenes/MainMenuScene.ts, scripts/balance-matrix.ts · last-verified: 2026-08-08 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, src/meta/deckRepair.ts, src/meta/SaveManager.ts, src/scenes/MainMenuScene.ts, src/config/features.ts, src/meta/Economy.ts, src/scenes/DuelScene.ts, scripts/balance-matrix.ts · last-verified: 2026-08-10 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.6 — program plan
 
-**Status 2026-08-07: OPEN, gate resolved.** The train opened gated on
+**Status 2026-08-10: OPEN, migration complete.** The train opened gated on
 2026-08-06; the **Warchest format-parameter gate** below RESOLVED on
 2026-08-07 with owner ratification of **40-card decks, a 5-card opening
 hand, and no reserve color cap**. All lanes are now open, including the
 migration and every reserve-field balance lane, which build to the
-ratified parameters. Scope and sequencing graduate from
+ratified parameters. **Classic constructed retired 2026-08-10** (see the
+retirement section below); the dated 2026-08-09 reserve table in
+`opponents.ts` is now the only live baseline, which is what makes the
+floor re-centre real work. Scope and sequencing graduate from
 [plan-1.6-draft.md](plan-1.6-draft.md), which remains the fuller
 reference for wave details and the mechanic-reuse audit.
 
@@ -136,16 +139,93 @@ re-baseline.
    Wolfsbane Ward watchlist, metagame deep sweep once the reserve field
    stabilizes).
 
+## Classic retirement — LANDED 2026-08-10
+
+Warchest is now THE constructed format. The switch is
+`FEATURES.classicRetired`, and it moves four coupled things:
+
+1. **The Tower fields reserve decks.** `DuelScene`'s `savedReserveFormat` no
+   longer excludes `gauntletRung`, so a gauntlet duel seats the avatar's
+   designed `reserveDeck` + `landReserve` through the renamed
+   `avatarReserveSide` (was `practiceAiReserveSide` — it is no longer
+   Practice-only). `PlayScene` is the gate that decides which reserve format
+   may enter: Warchest yes, Darlings still Practice-only, because the curated
+   Darlings rival ladder stays a non-goal.
+2. **Granted decks arrive reserve-native.** `Economy.grantedDeckBuild` is the
+   single source for what a purchase or free claim hands over, so the shop
+   preview and the saved deck can never disagree. Save **v28** applies the
+   same decision to decks already granted via `convertUnmodifiedStarter`:
+   untouched decks convert silently, edited ones keep the player's choices.
+3. **The builder stops offering Constructed.** `offeredBuilderFormats` drops
+   it, which also stops a deck being switched back to it.
+4. **Classic decks become invalid, not deleted.** `deckHealth` reports
+   `CLASSIC_RETIRED_ISSUE` for any constructed deck however legal its 60
+   cards are, which is what routes leftover player-built decks into the
+   shipped flag-and-fix flow. They stay saved, visible, and active.
+
+The progression/economy sim was migrated with the game: it played
+`deck.cards` with no reserve, which after retirement meant landless decks.
+The locked Layer-1 economy gates caught it (packs/day 0.07 against a 0.15
+floor). Fixing the sim to play the reserve field restored every band with
+**no band re-derivation**. The same fix repaired a pre-existing defect from
+the reserve-native Limited change: the sim's Limited matches had been playing
+25 spells with no granted Warchest.
+
+## Facts a fresh session will otherwise get wrong
+
+- **The Tower shuffles its roster daily** (`resolveGauntletRoster`) and takes
+  brain strength from the FLOOR, not the avatar (`floorBrain`). Avatar `tier`
+  therefore does not decide who a player meets at rung N. Re-tiering was
+  **dropped from 1.6** for exactly this reason; do not re-open it as a fix for
+  ladder spread.
+- **`raise` reads only the controller's own graveyard**
+  (`EffectInterpreter` case `'raise'`). Opponent-mill cannot fuel reanimation.
+  This is why Hel is a self-mill reanimator and not a mill-you deck.
+- **The deck builders are archetype-blind.** The Warchest converter's curve cap
+  `{4:10, 5:4, 6:2}` deletes the expensive payoffs a reanimator exists to cheat
+  into play. Hel is exempt and hand-built for that reason. Any future combo,
+  reanimator or ramp deck needs the same exemption.
+- **Hand tuning only earns an exception while it still measures better than the
+  builder.** Both exceptions were re-tested under that rule: Hel's first hand
+  tune LOST (21 vs 33) and was dropped; Morgan's WON (52 vs 46) and was kept.
+  The rule and both numbers live in `tests/data/avatarReserveDecks.test.ts`.
+- **Premium Draft's entry fee buys the 45 kept cards, not the deck.** Deck size
+  does not change what is kept, so the fee did not move when Limited went to 25
+  spells. Shard EV is 966.5g against the 1000g entry — a 3.4% cushion pinned by
+  `economyGates`. Do not cut it without re-running those gates.
+- **`gravecasts` telemetry counts Retell casts, not `raise`.** It reads 0.00 for
+  Hel by design; that is not a broken engine.
+
+## Known, deliberately not done
+
+- **The tutorial is still a scripted classic duel** pinned to rules revision 1.
+  It uses fixed deck overrides, so retirement does not break it, but it now
+  teaches a mana system the rest of the game no longer uses. Converting it is a
+  scripted-beat redesign, not a flag flip.
+- **6.2% of draft picks are nonbasic lands** (measured over 200 packs) that
+  reserve-native Limited cannot play. They still enter the collection and the
+  pool list marks them "kept, not playable here". Removing them from packs is a
+  design call that changes Premium's kept-card value, so it needs the economy
+  gates re-run.
+- **Soft player decks:** Glimmer Bargain 36.5 and Shadow Mandate 36.3 in the
+  head-to-head table. Playable, not broken; tune only if the owner wants a
+  tighter spread than 26.3 points.
+- **Sima Yi** sits at 53-54 on the Warchest ladder and 44 on Darlings, low for a
+  medium rung but not an outlier.
+
 ## Open decisions
 
 - Draft's reserve-native design (the hardest migration sub-problem).
 - Land cards' economy/collection treatment post-migration.
-- Whether starters auto-convert at migration or use the fix-it flow.
+- ~~Whether starters auto-convert at migration or use the fix-it flow.~~
+  **RESOLVED 2026-08-10**: untouched granted decks auto-convert (at the grant
+  source and in the save v28 migration); edited decks use the fix-it flow.
 - The large set's theme and concretion gate.
 
 ## Non-goals
 
-Until the migration lane opens, classic constructed is untouched: same
-decks, same in-deck lands, same balance baselines. No classic-pool card
-changes are justified by reserve-format measurements. The curated
-Darlings rival ladder remains explicitly not promised.
+The curated Darlings rival ladder remains explicitly not promised: the Tower
+accepts Warchest only, and Darlings stays a Practice format.
+
+(Superseded 2026-08-10: the pre-migration non-goal "classic constructed is
+untouched" held until the migration lane opened. Classic has now retired.)

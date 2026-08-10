@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { CARD_DB } from '../../src/data/catalog';
 import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
-import { THEME_DECKS } from '../../src/data/starterDecks';
+import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
 import { createRngState } from '../../src/engine/rng';
 import {
   addCard,
@@ -16,11 +16,14 @@ import {
   shardGold,
 } from '../../src/meta/Collection';
 import { validateDeck } from '../../src/meta/DeckStorage';
+import { deckHealth } from '../../src/meta/deckRepair';
 import {
   applyGauntletResult,
   applyMatchResult,
   buyThemeDeck,
   claimFreeStarter,
+  deckProductCardIds,
+  grantedDeckBuild,
   previewDeckGrant,
   spendGold,
 } from '../../src/meta/Economy';
@@ -1220,12 +1223,17 @@ describe('previewDeckGrant (the shop preview\'s "what you get" math)', () => {
     const save = freshSave(0);
     // Partial ownership: two copies of one of the deck's non-basics via the
     // real addCard path (keeps the variant-sum invariant intact).
-    const aNonBasic = deck.cards.find((id) => !CARD_DB[id].supertypes?.includes('basic'))!;
+    // Price the build the purchase actually grants, exactly as ShopScene does:
+    // after classic retirement that is the reserve build, not `deck.cards`.
+    const product = deckProductCardIds(deck);
+    const aNonBasic = product.find(
+      (id) => !CARD_DB[id].supertypes?.includes('basic') && product.filter((other) => other === id).length >= 2,
+    )!;
     addCard(save, CARD_DB, aNonBasic, PLAIN_VARIANT);
     addCard(save, CARD_DB, aNonBasic, PLAIN_VARIANT);
     const before = { ...save.collection };
 
-    const p = previewDeckGrant(save, CARD_DB, deck.cards);
+    const p = previewDeckGrant(save, CARD_DB, product);
     expect(p.ownedCopies).toBe(2);
     expect(p.nonBasicCopies).toBe(p.ownedCopies + p.grantedCopies);
 
@@ -1243,12 +1251,18 @@ describe('previewDeckGrant (the shop preview\'s "what you get" math)', () => {
     const save = freshSave(0);
     save.gold = ECONOMY.preconPrice;
     expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
-    // Overshoot a card the deck runs at 2 (below the playset cap, so the extra
-    // plain copy sticks instead of auto-melting)          the preview caps at need.
-    addCard(save, CARD_DB, 'rg-jotun-warleader', PLAIN_VARIANT);
-    expect(save.collection['rg-jotun-warleader']).toBe(3);
+    const product = deckProductCardIds(deck);
+    // Overshoot a card the deck runs below the playset cap, so the extra plain
+    // copy sticks instead of auto-melting, and the preview still caps at need.
+    const overshoot = product.find((id) => {
+      if (CARD_DB[id].supertypes?.includes('basic')) return false;
+      return product.filter((other) => other === id).length < 4;
+    })!;
+    const owned = save.collection[overshoot];
+    addCard(save, CARD_DB, overshoot, PLAIN_VARIANT);
+    expect(save.collection[overshoot]).toBe(owned + 1);
 
-    const p = previewDeckGrant(save, CARD_DB, deck.cards);
+    const p = previewDeckGrant(save, CARD_DB, product);
     expect(p.grantedCopies).toBe(0);
     expect(p.ownedCopies).toBe(p.nonBasicCopies);
   });
@@ -1257,39 +1271,65 @@ describe('previewDeckGrant (the shop preview\'s "what you get" math)', () => {
 describe('buyThemeDeck (Glimmer Bargain precon)', () => {
   const deck = THEME_DECKS.find((d) => d.id === 'theme-celtic-fae')!;
 
-  it('spends preconPrice, grants every non-basic card, and adds the full deck', () => {
+  it('spends preconPrice, grants every non-basic card, and adds the deck as granted', () => {
     const save = freshSave(0);
     save.gold = ECONOMY.preconPrice + 50;
+    // The build the shop advertises and the build the save receives are one
+    // decision (Economy.grantedDeckBuild), so the test reads it rather than
+    // restating a format that classic retirement moved.
+    const build = grantedDeckBuild(deck);
 
     expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
     expect(save.gold).toBe(50);
     expect(save.decks.find((saved) => saved.id === deck.id)).toMatchObject({
       name: 'Glimmer Bargain',
-      cards: deck.cards,
-      format: 'constructed',
-      darlingId: null,
-      landReserve: null,
-      variantPins: new Array(deck.cards.length).fill(null),
+      cards: build.cards,
+      format: build.format,
+      darlingId: build.darlingId,
+      landReserve: build.landReserve,
+      variantPins: new Array(build.cards.length).fill(null),
     });
 
     const counts = new Map<string, number>();
-    for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+    for (const id of deckProductCardIds(deck)) counts.set(id, (counts.get(id) ?? 0) + 1);
     for (const [id, count] of counts) {
       if (!CARD_DB[id].supertypes?.includes('basic')) expect(save.collection[id]).toBe(count);
     }
   });
+
+  it('grants the reserve build once classic has retired, and classic while it has not', () => {
+    expect(grantedDeckBuild(deck, true)).toMatchObject({
+      cards: deck.reserveCards,
+      format: 'warchest',
+      landReserve: deck.landReserve,
+    });
+    expect(grantedDeckBuild(deck, false)).toMatchObject({
+      cards: deck.cards,
+      format: 'constructed',
+      landReserve: null,
+    });
+  });
 });
 
 describe('claimFreeStarter v23 deck defaults', () => {
-  it('creates a constructed deck with aligned Auto pins', () => {
+  it('creates the granted build with aligned Auto pins', () => {
     const save = freshSave(0);
     const deck = THEME_DECKS[0];
+    const build = grantedDeckBuild(deck);
     expect(claimFreeStarter(save, CARD_DB, deck)).toBe(true);
     expect(save.decks[0]).toMatchObject({
-      format: 'constructed',
-      darlingId: null,
-      landReserve: null,
-      variantPins: new Array(deck.cards.length).fill(null),
+      format: build.format,
+      darlingId: build.darlingId,
+      landReserve: build.landReserve,
+      variantPins: new Array(build.cards.length).fill(null),
     });
+  });
+
+  it('grants a free starter the player can actually play after retirement', () => {
+    const save = freshSave(0);
+    expect(claimFreeStarter(save, CARD_DB, STARTER_DECKS[0])).toBe(true);
+    // The whole point of granting the reserve build at the source: a brand new
+    // player must not receive a deck the format has already retired.
+    expect(deckHealth(CARD_DB, save, save.decks[0]).blocked).toBe(false);
   });
 });

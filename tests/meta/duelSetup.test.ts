@@ -4,7 +4,7 @@ import { freshSave, type SavedDeck } from '../../src/meta/SaveManager';
 import {
   buildAiLandReserve,
   firstDuelLaunchIssue,
-  practiceAiReserveSide,
+  avatarReserveSide,
   practiceDuelLaunchData,
   resolveDuelDifficulty,
   resolveDuelStartingHandSize,
@@ -109,7 +109,7 @@ describe('duel setup', () => {
   });
 });
 
-describe('practice AI reserve side (stage 3: the mirror dies)', () => {
+describe('avatar reserve side (Practice and, since retirement, the Tower)', () => {
   const avatar = {
     reserveDeck: ['w1', 'w2'],
     landReserve: ['land-plains'],
@@ -119,7 +119,7 @@ describe('practice AI reserve side (stage 3: the mirror dies)', () => {
   const playerDeck = ['p1', 'p2'];
 
   it('fields the avatar warchest deck with its designed reserve and no darling', () => {
-    expect(practiceAiReserveSide(avatar, 'warchest', playerDeck, null, {} as CardDb)).toEqual({
+    expect(avatarReserveSide(avatar, 'warchest', playerDeck, null, {} as CardDb)).toEqual({
       deck: ['w1', 'w2'],
       reserve: ['land-plains'],
       darlingId: null,
@@ -127,7 +127,7 @@ describe('practice AI reserve side (stage 3: the mirror dies)', () => {
   });
 
   it('fields the avatar darlings variant led by its own darling', () => {
-    expect(practiceAiReserveSide(avatar, 'darlings', playerDeck, 'my-darling', {} as CardDb)).toEqual({
+    expect(avatarReserveSide(avatar, 'darlings', playerDeck, 'my-darling', {} as CardDb)).toEqual({
       deck: ['d1', 'd2'],
       reserve: ['land-plains'],
       darlingId: 'darling-x',
@@ -138,7 +138,7 @@ describe('practice AI reserve side (stage 3: the mirror dies)', () => {
     const db = {
       p1: { id: 'p1', name: 'p1', types: ['creature'], subtypes: [], colors: ['G'], rarity: 'c' },
     } as unknown as CardDb;
-    const side = practiceAiReserveSide(null, 'darlings', playerDeck, 'my-darling', db);
+    const side = avatarReserveSide(null, 'darlings', playerDeck, 'my-darling', db);
     expect(side.deck).toEqual(playerDeck);
     expect(side.reserve).toHaveLength(10);
     expect(side.darlingId).toBe('my-darling');

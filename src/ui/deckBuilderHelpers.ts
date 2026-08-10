@@ -5,9 +5,22 @@ export type BuilderFormat = NonNullable<SavedDeck['format']>;
 
 const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'darlings', 'warchest'];
 
-/** The format choices the builder may expose for this release. */
-export function offeredBuilderFormats(reserveFormatsEnabled: boolean): BuilderFormat[] {
-  return reserveFormatsEnabled ? [...ALL_BUILDER_FORMATS] : ['constructed'];
+/**
+ * The format choices the builder may expose for this release.
+ *
+ * After classic retirement Constructed leaves this list, so no NEW deck can be
+ * built classic and no deck can be switched back to it. An existing classic
+ * deck keeps its persisted format and stays openable; the two remaining
+ * buttons are its conversion affordance.
+ */
+export function offeredBuilderFormats(
+  reserveFormatsEnabled: boolean,
+  classicRetired: boolean,
+): BuilderFormat[] {
+  if (!reserveFormatsEnabled) return ['constructed'];
+  return classicRetired
+    ? ALL_BUILDER_FORMATS.filter((format) => format !== 'constructed')
+    : [...ALL_BUILDER_FORMATS];
 }
 
 /** Reserve-format metadata is hidden along with its player-facing UI. */
@@ -88,10 +101,19 @@ export function formatRulesCopy(format: BuilderFormat): string | null {
   return null;
 }
 
-/** Reserve formats are valid in Practice, but the Gauntlet remains classic-only. */
-export function formatGauntletUnavailableCopy(format: BuilderFormat): string | null {
+/**
+ * Which formats the Tower accepts. Before classic retirement the Gauntlet was
+ * classic-only and both reserve formats were Practice-only. Retirement makes
+ * Warchest the Tower's format (every avatar fields a validated `reserveDeck`);
+ * Darlings stays Practice-only, because the curated Darlings rival ladder is
+ * explicitly not promised for 1.6 (plan-1.6.md non-goals).
+ */
+export function formatGauntletUnavailableCopy(
+  format: BuilderFormat,
+  classicRetired: boolean,
+): string | null {
   if (format === 'darlings') return 'Darlings decks are available in Practice only.';
-  if (format === 'warchest') return 'Warchest decks are available in Practice only.';
+  if (format === 'warchest') return classicRetired ? null : 'Warchest decks are available in Practice only.';
   return null;
 }
 
