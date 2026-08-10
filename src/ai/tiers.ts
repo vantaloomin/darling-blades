@@ -56,6 +56,15 @@ export function buildTierAI(
 // re-baseline (--floors --seeds 80 on the post-balance-pass field: F16
 // 68.5 / F17 70.8 / F18 72.0 / F19 68.2 / F20 70.6, FLAGS none — a clean
 // T6 plateau); the fallback below keeps tier 6 for later floors.
+//
+// RE-CONFIRMED RESERVE-NATIVE 2026-08-10, the day classic retired
+// (--floors --seeds 80, 8,000 games: T6 F16-20 72.0 / 75.8 / 74.5 / 73.8 /
+// 71.0, FLAGS none). This map is UNCHANGED by the format switch: every tier
+// plateau moved under 3.5pp (T1 -2.9, T2 -3.2, T3 +0.0, T4 +2.8, T5 -1.1,
+// T6 +3.4) and the ladder stayed monotonic with every gap >= 4pp. The
+// owner's standing pre-authorization for a downward floor re-centre was
+// deliberately NOT spent: the measurement says there is nothing to re-centre.
+// The full dated table lives beside FLOOR_BANDS in scripts/balance-matrix.ts.
 const FLOOR_TIERS: readonly TowerTier[] = [
   1, 1, 1,
   2, 2, 2,

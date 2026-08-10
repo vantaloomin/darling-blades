@@ -1422,16 +1422,33 @@ export interface FloorMatrixReport {
  * identical by construction (same tier, same roster marginal); bands gate the
  * TIER plateaus and are wide on purpose - regressions, not tuning jitter.
  *
- * MEASURED BASELINE - 2026-07-24, `npx tsx scripts/balance-matrix.ts --floors
- * --seeds 80` (18 floors x 5 starters, roster round-robin, 7,200 games,
- * first measurement with the 18-avatar Dark Tales roster at pool 638):
- *   T1 floors 1-3: 26.3 / 20.8 / 22.7   T2 floors 4-6: 26.4 / 33.9 / 28.0
- *   T3 floors 7-9: 32.5 / 34.5 / 34.3   T4 floors 10-12: 47.3 / 52.5 / 51.8
- *   T5 floors 13-15: 59.5 / 60.2 / 62.5 T6 floors 16-18: 75.7 / 73.1 / 72.5
- *   (prior 16-floor baseline 2026-07-20; every carried floor moved < 4pp
- *   with the two new roster members in the round-robin.)
- * Clean tier plateaus, no flags; ~2.4pp SE per row avg (400 games). Bands
- * leave ~7pp margin beyond the measured plateau edges.
+ * MEASURED BASELINE - 2026-08-10, `npx tsx scripts/balance-matrix.ts --floors
+ * --seeds 80` (20 floors x 5 starters, roster round-robin, 8,000 games), the
+ * FIRST reserve-native floor measurement, taken the day classic retired:
+ *   T1 floors 1-3:   17.8 / 21.3 / 22.0        avg 20.4
+ *   T2 floors 4-6:   27.8 / 26.5 / 24.5        avg 26.3
+ *   T3 floors 7-9:   35.5 / 34.0 / 31.8        avg 33.8
+ *   T4 floors 10-12: 52.8 / 52.3 / 55.0        avg 53.4
+ *   T5 floors 13-15: 61.5 / 59.0 / 58.5        avg 59.7
+ *   T6 floors 16-20: 72.0 / 75.8 / 74.5 / 73.8 / 71.0   avg 73.4
+ * FLAGS none. Clean tier plateaus, monotonic, every adjacent gap >= 4pp
+ * (smallest T1->T2 +5.9pp); ~2.4pp SE per row avg (400 games).
+ *
+ * THE TOWER SURVIVED THE FORMAT CHANGE. Against the prior classic baselines
+ * (2026-07-24 for T1-T5, the 2026-07-31 W7 re-baseline for T6) every tier
+ * moved less than 3.5pp: T1 -2.9, T2 -3.2, T3 +0.0, T4 +2.8, T5 -1.1,
+ * T6 +3.4. The owner's standing pre-authorization for a DOWNWARD floor
+ * re-centre was therefore NOT spent - re-centring a ladder this stable would
+ * have moved numbers nothing measured. Two shape observations that are not
+ * band violations and remain open: the T3->T4 step is a +19.6pp cliff at
+ * floors 9->10 (medium/0.32 -> medium/0, the widest gap on the ladder), and
+ * Shadow Mandate is the weakest player column throughout (66-90% against
+ * T4+), consistent with its 36.3 in the head-to-head table.
+ *
+ * Bands are unchanged and still hold with margin; they gate regressions, not
+ * tuning jitter. Floors 19-20 gained bands here - the roster reached 20
+ * avatars, so runFloorMatrix generates 20 floors, but FLOOR_BANDS stopped at
+ * 18 and left the two summit floors ungated.
  */
 export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.33, cellMax: 0.5 },
@@ -1454,6 +1471,11 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // holds across the Dark Tales summit floors with 4.5pp+ margin over 68.
   17: { minAvg: 0.68 },
   18: { minAvg: 0.68 },
+  // Floors 19-20 were ungated until 2026-08-10 simply because the roster grew
+  // to 20 after these bands were written. Reserve-native measurement at 80
+  // seeds: F19 73.8 / F20 71.0, so the same T6 floor keeps 3.0pp+ margin.
+  19: { minAvg: 0.68 },
+  20: { minAvg: 0.68 },
 });
 
 /**

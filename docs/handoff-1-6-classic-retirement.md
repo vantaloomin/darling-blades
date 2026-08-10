@@ -1,6 +1,6 @@
-<!-- source-of-truth: docs/plan-1.6.md, src/data/opponents.ts, src/config/features.ts, src/ai/tiers.ts · last-verified: 2026-08-10 · handoff doc — delete once the floor re-centre ships -->
+<!-- source-of-truth: docs/plan-1.6.md, src/data/opponents.ts, src/config/features.ts, src/ai/tiers.ts, scripts/balance-matrix.ts · last-verified: 2026-08-10 · handoff doc — delete once 1.6 closes -->
 
-# 1.6 handoff: the floor re-centre is the remaining work
+# 1.6 handoff: classic retired, floors measured and left alone
 
 Updated 2026-08-10, after classic retirement landed. Everything below is
 measured or read from the code, not remembered.
@@ -22,23 +22,54 @@ described all landed together, plus two the build turned up on the way:
    arrival. `Economy.grantedDeckBuild` now grants the reserve build at the
    source, and the shop preview reads the same function.
 
+6. **(found by driving the real SaveManager in a browser)** The migration had
+   to GRANT the converted deck's cards. A reserve build is not a subset of its
+   classic build, so every converted deck came out blocked on ownership — the
+   exact repair prompt the auto-convert exists to avoid.
+
 Mechanism, decisions, and the durable "facts a fresh session gets wrong" list
-now live in [plan-1.6.md](plan-1.6.md). This doc is only the re-centre handoff.
+now live in [plan-1.6.md](plan-1.6.md).
 
-## The one job left: re-centre the floors
+## The floor re-centre: MEASURED, and deliberately not spent
 
-The owner's pre-authorization for a **downward** re-centre is standing and
-unused. It was correctly not spent before now: re-centring classic floors while
-classic still ran would have moved numbers nothing measured.
+The `--floors` matrix was itself still classic (it played `avatar.deck` against
+`starter.cards`), so it would have priced a format the game no longer plays. It
+is now reserve-native, and the first measurement is dated 2026-08-10:
+`--floors --seeds 80`, 20 floors x 5 starters, 8,000 games, **FLAGS none**.
 
-- **Measure against** the dated 2026-08-09 reserve table in `opponents.ts`.
-  That is now the only live baseline; W7 stopped being the classic authority
-  the moment retirement landed.
+| tier | reserve | classic | delta | gap |
+| --- | --- | --- | --- | --- |
+| T1 (F1-3)   | 20.4 | 23.3 | -2.9 | |
+| T2 (F4-6)   | 26.3 | 29.4 | -3.2 | +5.9 |
+| T3 (F7-9)   | 33.8 | 33.8 | +0.0 | +7.5 |
+| T4 (F10-12) | 53.4 | 50.5 | +2.8 | +19.6 |
+| T5 (F13-15) | 59.7 | 60.7 | -1.1 | +6.3 |
+| T6 (F16-20) | 73.4 | 70.0 | +3.4 | +13.8 |
+
+**The Tower survived the format change.** Every tier moved under 3.5pp, the
+ladder stayed monotonic, and every adjacent gap is >= 4pp. So the owner's
+standing pre-authorization for a downward re-centre was **not spent** — there
+is nothing to re-centre, and moving floors here would change numbers nothing
+measured. It remains available if a later card or deck change moves the ladder.
+
+Two shape observations, neither a band violation, both left open for the owner:
+
+- **The T3 -> T4 step is a +19.6pp cliff** at floors 9 -> 10 (medium/0.32 ->
+  medium/0), by far the widest gap on the ladder. A player cruising floors 7-9
+  around 34% meets ~53% at floor 10.
+- **Shadow Mandate is the weakest player column throughout** (66-90% against
+  T4+), consistent with its 36.3 in the head-to-head table.
+
+Also fixed here: floors 19-20 had no bands at all. The roster grew to 20 after
+`FLOOR_BANDS` was written, so `runFloorMatrix` generated two summit floors that
+nothing gated. They now carry the same T6 `minAvg` 0.68, measured 73.8 / 71.0.
+
 - **Do not re-open re-tiering.** The Tower shuffles its roster daily
   (`resolveGauntletRoster`) and takes brain strength from the FLOOR
   (`floorBrain`), not the avatar, so avatar `tier` does not decide who a player
   meets at rung N. Re-tiering was dropped from 1.6 for exactly this reason.
-- The measured tier ladder and its plateaus are stamped in `src/ai/tiers.ts`.
+- The measured tier ladder and its plateaus are stamped in `src/ai/tiers.ts`;
+  the dated floor table lives beside `FLOOR_BANDS` in `scripts/balance-matrix.ts`.
 
 ## What measurement corrected during the retirement build
 
