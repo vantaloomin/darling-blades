@@ -37,7 +37,7 @@ import {
 } from '../meta/duelSetup';
 import type { CardVariant } from '../meta/variants';
 import { localDateKey, resolveGauntletRoster, rungSeed } from '../meta/gauntletSeed';
-import { LIMITED_MATCHES, limitedDuelData, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
+import { LIMITED_MATCHES, limitedDuelData, limitedLandReserve, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
 import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
 import {
   finishReplay,
@@ -657,7 +657,14 @@ export class DuelScene extends Phaser.Scene {
       (myDeckEntry?.format === 'darlings' || myDeckEntry?.format === 'warchest')
         ? myDeckEntry.format
         : undefined;
-    const reserveFormat: ReserveFormat | undefined = data.replay?.format ?? savedReserveFormat;
+    // Limited is reserve-native since 2026-08-09: a drafted deck is 25 spells
+    // and both seats receive a granted ten-land Warchest derived from their
+    // own colours. Nothing is drafted into the reserve, so no run state
+    // changes and old replays keep their recorded format.
+    const limitedReserveFormat: ReserveFormat | undefined =
+      this.limited && !this.replayMode ? 'warchest' : undefined;
+    const reserveFormat: ReserveFormat | undefined =
+      data.replay?.format ?? savedReserveFormat ?? limitedReserveFormat;
     // Stage 3 of the 1.6 migration: reserve-format Practice fields the
     // selected avatar's own designed deck (Warchest) or Darlings variant.
     // The old player-deck mirror survives only when no avatar is selected
@@ -684,9 +691,12 @@ export class DuelScene extends Phaser.Scene {
       ? [
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 0)
-            : Array.isArray(myDeckEntry?.landReserve)
-              ? myDeckEntry.landReserve.slice()
-              : [],
+            // Limited grants its reserve from the drafted deck's own colours.
+            : limitedReserveFormat
+              ? limitedLandReserve(CARD_DB, myDeck)
+              : Array.isArray(myDeckEntry?.landReserve)
+                ? myDeckEntry.landReserve.slice()
+                : [],
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 1)
             : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
@@ -697,8 +707,12 @@ export class DuelScene extends Phaser.Scene {
         ? [this.replayDarlingAt(data.replay?.darlings, 0), this.replayDarlingAt(data.replay?.darlings, 1)]
         : [myDeckEntry?.darlingId ?? null, aiReserveSide?.darlingId ?? myDeckEntry?.darlingId ?? null]
       : undefined;
+    // Limited plays a drafted list, not a SavedDeck, so the saved-deck legality
+    // gate does not apply to it; the reserve payload is still validated.
     const launchIssue = reserveFormat
-      ? (this.replayMode ? null : firstDuelLaunchIssue(CARD_DB, save, myDeckEntry ?? null)) ??
+      ? (this.replayMode || limitedReserveFormat
+          ? null
+          : firstDuelLaunchIssue(CARD_DB, save, myDeckEntry ?? null)) ??
         firstReserveConfigIssue(CARD_DB, landReserves)
       : null;
     if (launchIssue) {

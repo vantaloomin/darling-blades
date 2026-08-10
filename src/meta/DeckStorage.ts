@@ -9,7 +9,15 @@ export interface DeckIssue {
   message: string;
 }
 
-export const LIMITED_DECK_SIZE = 40;
+/**
+ * Reserve-native Limited (1.6 migration, owner-ratified 2026-08-09): a drafted
+ * deck is 25 SPELLS and no lands. The ten-land reserve is granted, not
+ * drafted, so three 15-card packs still leave real choices - requiring 40
+ * spells from a 45-card pool would mean playing almost everything opened,
+ * which is not drafting. Packs and the Premium entry fee are unchanged: the
+ * fee buys the 45 kept cards, and deck size does not change what is kept.
+ */
+export const LIMITED_DECK_SIZE = 25;
 
 export type VariantPin = string | null;
 
@@ -137,7 +145,6 @@ export function validateLimitedDeck(
   const deckCounts = new Map<string, number>();
   for (const id of cards) deckCounts.set(id, (deckCounts.get(id) ?? 0) + 1);
 
-  let lands = 0;
   let creatures = 0;
   for (const [id, n] of deckCounts) {
     const d = def(db, id);
@@ -148,12 +155,15 @@ export function validateLimitedDeck(
         message: `${d.name}: ${n} in deck but only ${poolCounts.get(id) ?? 0} in pool`,
       });
     }
-    if (d.types.includes('land')) lands += n;
+    // Reserve-native Limited: lands live in the granted reserve, never the
+    // deck, exactly as in Warchest.
+    if (d.types.includes('land')) {
+      issues.push({ kind: 'error', message: 'Decks in this format hold no lands; your Warchest is provided' });
+    }
     if (d.types.includes('creature')) creatures += n;
   }
-  if (cards.length === LIMITED_DECK_SIZE) {
-    if (lands < 14 || lands > 20) issues.push({ kind: 'warning', message: `${lands} lands - 16-18 is typical` });
-    if (creatures < 10) issues.push({ kind: 'warning', message: `${creatures} creatures - combat wins games` });
+  if (cards.length === LIMITED_DECK_SIZE && creatures < 8) {
+    issues.push({ kind: 'warning', message: `${creatures} creatures - combat wins games` });
   }
   return issues;
 }

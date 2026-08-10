@@ -7,6 +7,7 @@ import {
   deckRepairNoticeFingerprint,
   deckRepairNoticeState,
   flaggedDecks,
+  convertUnmodifiedStarter,
 } from '../../src/meta/deckRepair';
 import { freshSave, type SavedDeck } from '../../src/meta/SaveManager';
 
@@ -184,5 +185,48 @@ describe('deck repair health', () => {
       acknowledgedFingerprint: '["a"]',
       needsNotice: true,
     });
+  });
+});
+
+describe('classic-retirement starter conversion (2026-08-09)', () => {
+  const shipped = [{
+    id: 'starter-x',
+    cards: ['a', 'a', 'b'],
+    reserveCards: ['a', 'a', 'c'],
+    landReserve: Array.from({ length: 10 }, () => 'land-plains'),
+  }];
+  const savedDeck = (over: Partial<SavedDeck> = {}): SavedDeck => ({
+    id: 'starter-x',
+    name: 'Starter X',
+    cards: ['a', 'a', 'b'],
+    heroCardId: null,
+    landStyle: null,
+    format: 'constructed',
+    darlingId: null,
+    landReserve: null,
+    variantPins: [null, null, null],
+    ...over,
+  });
+
+  it('converts an untouched starter to its reserve build', () => {
+    const deck = savedDeck();
+    expect(convertUnmodifiedStarter(deck, shipped)).toBe(true);
+    expect(deck.format).toBe('warchest');
+    expect(deck.cards).toEqual(['a', 'a', 'c']);
+    expect(deck.landReserve).toHaveLength(10);
+    // Pins are index-aligned, so a resized list must not keep stale ones.
+    expect(deck.variantPins).toEqual([null, null, null]);
+  });
+
+  it('leaves an edited starter alone so it routes to fix-it', () => {
+    const deck = savedDeck({ cards: ['a', 'b', 'b'] });
+    expect(convertUnmodifiedStarter(deck, shipped)).toBe(false);
+    expect(deck.format).toBe('constructed');
+    expect(deck.cards).toEqual(['a', 'b', 'b']);
+  });
+
+  it('ignores decks with no shipped reserve build and non-classic decks', () => {
+    expect(convertUnmodifiedStarter(savedDeck({ id: 'custom' }), shipped)).toBe(false);
+    expect(convertUnmodifiedStarter(savedDeck({ format: 'darlings' }), shipped)).toBe(false);
   });
 });
