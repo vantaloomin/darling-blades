@@ -159,6 +159,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private landReserve: string[] = [];
   /** Captured at create() so a local dev flip applies when a scene is reopened. */
   private reserveFormatsEnabled = false;
+  private classicRetired = false;
   /** UI working deck. A hidden active deck remains untouched in the save. */
   private workingDeckId: string | null = null;
   private savedDeckSnapshot: Pick<SavedDeck, 'cards' | 'variantPins' | 'landReserve' | 'heroCardId' | 'darlingId'> | null = null;
@@ -183,6 +184,7 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   create(data: { deckId?: string } = {}): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
+    this.classicRetired = FEATURES.classicRetired;
     this.workingDeckId = null;
     this.page = 0;
     this.deckPage = 0;
@@ -973,7 +975,10 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private selectFormat(format: BuilderFormat): void {
-    if (!this.reserveFormatsEnabled && format !== 'constructed') return;
+    // The single format-mutation point, so it re-checks the offered list
+    // rather than trusting the buttons: after classic retirement this is also
+    // what stops a deck from being switched BACK to constructed.
+    if (!offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired).includes(format)) return;
     const active = this.syncDraftToActiveDeck();
     if (!active) {
       // No saved deck yet: formats live on the saved record, so tell the
@@ -1190,7 +1195,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private renderFormatSwitch(x0: number, format: BuilderFormat): void {
-    offeredBuilderFormats(this.reserveFormatsEnabled).forEach((choice, index) => {
+    offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired).forEach((choice, index) => {
       const button = themedButton(this, x0 + 50 + index * 82, 64, formatLabel(choice), {
         variant: choice === format ? 'primary' : 'ghost',
         size: 'sm',
@@ -1530,7 +1535,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private showNewDeckFormatPrompt(onChoose: (format: BuilderFormat) => void): void {
-    const formats = offeredBuilderFormats(this.reserveFormatsEnabled);
+    const formats = offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired);
     const shell = modalShell(this, {
       width: 520,
       height: 340,

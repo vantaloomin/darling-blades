@@ -36,6 +36,7 @@ import {
   buyThemeDeck,
   claimFreeDarlingsDeck,
   claimFreeStarter,
+  grantedDeckBuild,
   payPremiumDraftEntry,
   premiumWeekKey,
   spendGold,
@@ -48,6 +49,7 @@ import {
   currentDraftPack,
   grantPremiumDraftPool,
   limitedDuelData,
+  limitedLandReserve,
   pickDraftCard,
   startDraftRun,
   type LimitedRun,
@@ -66,6 +68,7 @@ import {
   rerollDailyQuest,
 } from '../src/meta/Quests';
 import { freshSave, type SaveData } from '../src/meta/SaveManager';
+import { WARCHEST_HAND_SIZE } from '../src/meta/warchest';
 
 const START_DAY_MS = Date.UTC(2026, 6, 9);
 const MAX_STEPS = 40_000;
@@ -809,12 +812,39 @@ function starterById(id: string): DeckList {
   return deck;
 }
 
-function activeDeck(save: SaveData): string[] {
-  return save.decks.find((d) => d.id === save.activeDeckId)?.cards ?? STARTER_DECKS[0].cards;
+/**
+ * One seat's playable payload. Since classic retirement the sim plays the same
+ * field the game does: a deck of spells plus the ten-land Warchest it draws
+ * its mana from. `reserve` is null only for a classic seat, which is what
+ * `format` being undefined means downstream.
+ */
+interface SimSeat {
+  cards: string[];
+  reserve: string[] | null;
 }
 
-function practiceOpponentDeck(save: SaveData): string[] {
-  return STARTER_DECKS.find((d) => d.id !== save.activeDeckId)?.cards ?? STARTER_DECKS[1].cards;
+function seatFor(cards: readonly string[], reserve: readonly string[] | null | undefined): SimSeat {
+  return { cards: [...cards], reserve: reserve ? [...reserve] : null };
+}
+
+/** The shipped build of a DeckList, matching what the shop actually grants. */
+function deckListSeat(deck: DeckList): SimSeat {
+  const build = grantedDeckBuild(deck);
+  return seatFor(build.cards, build.landReserve);
+}
+
+function activeSeat(save: SaveData): SimSeat {
+  const deck = save.decks.find((d) => d.id === save.activeDeckId);
+  if (!deck) return deckListSeat(STARTER_DECKS[0]);
+  return seatFor(deck.cards, deck.landReserve);
+}
+
+function activeDeck(save: SaveData): string[] {
+  return activeSeat(save).cards;
+}
+
+function practiceOpponentSeat(save: SaveData): SimSeat {
+  return deckListSeat(STARTER_DECKS.find((d) => d.id !== save.activeDeckId) ?? STARTER_DECKS[1]);
 }
 
 function deckColors(cards: readonly string[], db: CardDb): Set<Color> {
@@ -943,13 +973,35 @@ function dailyCount(count: DailyCount | undefined, ctx: SimContext, dayIndex: nu
   return min + (roll % (max - min + 1));
 }
 
+/**
+ * Play one headless match.
+ *
+ * A seat carrying a reserve puts the whole game on the Warchest field: both
+ * seats need one, so a mixed pair is a construction error rather than a
+ * silently classic game. Classic games keep the original constructor object
+ * byte-for-byte so pre-retirement seeds stay reproducible.
+ */
 function playHeadlessMatch(
   seed: number,
   p0: AIPlayer,
   p1: AIPlayer,
-  decks: [string[], string[]],
+  seats: [SimSeat, SimSeat],
 ): MatchResult {
-  const game = new Game({ decks, seed, db: CARD_DB });
+  const decks: [string[], string[]] = [seats[0].cards, seats[1].cards];
+  const reserved = seats[0].reserve !== null;
+  if (reserved !== (seats[1].reserve !== null)) {
+    throw new Error('progression sim seats disagree on format: one carries a Warchest, the other does not');
+  }
+  const game = reserved
+    ? new Game({
+      decks,
+      seed,
+      db: CARD_DB,
+      format: 'warchest',
+      landReserves: [seats[0].reserve as string[], seats[1].reserve as string[]],
+      startingHandSize: WARCHEST_HAND_SIZE,
+    })
+    : new Game({ decks, seed, db: CARD_DB });
   const ais = [p0, p1];
   const events = [...game.initialEvents];
   for (let i = 0; i < MAX_STEPS; i++) {
@@ -1013,7 +1065,7 @@ function runPractice(ctx: SimContext, difficulty: Difficulty, today: string): vo
   const seed = nextSeed(ctx, `practice-${difficulty}`);
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
   const opp = buildAI(difficulty, CARD_DB, seed ^ 0x5eed);
-  const match = playHeadlessMatch(seed, player, opp, [activeDeck(ctx.save), practiceOpponentDeck(ctx.save)]);
+  const match = playHeadlessMatch(seed, player, opp, [activeSeat(ctx.save), practiceOpponentSeat(ctx.save)]);
   addMinutes(ctx, PRACTICE_MATCH_MINUTES);
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);
@@ -1039,7 +1091,12 @@ function runGauntlet(ctx: SimContext, today: string, now: number): boolean {
   const seed = rungSeed(run.seed, rung);
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
   const opp = buildAI(avatar.difficulty, CARD_DB, seed ^ 0x5eed, avatar.personality);
-  const match = playHeadlessMatch(seed, player, opp, [activeDeck(ctx.save), avatar.deck]);
+  // The Tower fields the avatar's designed reserve deck since classic retired,
+  // mirroring DuelScene's gauntlet path.
+  const match = playHeadlessMatch(seed, player, opp, [
+    activeSeat(ctx.save),
+    seatFor(avatar.reserveDeck, avatar.landReserve),
+  ]);
   addMinutes(ctx, GAUNTLET_MATCH_MINUTES);
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);
@@ -1082,7 +1139,13 @@ function runLimitedMatch(ctx: SimContext, today: string, now: number, day: numbe
   const player = buildAI(ctx.persona.pilotSkill, CARD_DB, seed ^ 0x13579);
   const opponentPersonality = draftPersonaById(duel.limited.opponentPersonaId ?? '')?.personality;
   const opp = buildAI(duel.difficulty, CARD_DB, seed ^ 0x5eed, opponentPersonality);
-  const match = playHeadlessMatch(seed, player, opp, [duel.deckOverride, duel.oppDeckOverride]);
+  // Limited is reserve-native since 2026-08-09: a drafted deck is 25 spells and
+  // each seat is granted a ten-land Warchest built from its own colours, the
+  // same way DuelScene seats a Limited duel.
+  const match = playHeadlessMatch(seed, player, opp, [
+    seatFor(duel.deckOverride, limitedLandReserve(CARD_DB, duel.deckOverride)),
+    seatFor(duel.oppDeckOverride, limitedLandReserve(CARD_DB, duel.oppDeckOverride)),
+  ]);
   addMinutes(ctx, LIMITED_MATCH_MINUTES);
   applyDailyQuestProgressToSave(ctx, match.events, today);
   const won = recordOutcome(ctx, match.winner);

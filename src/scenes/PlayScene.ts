@@ -50,6 +50,7 @@ export class PlayScene extends Phaser.Scene {
   private deckPlate: Phaser.GameObjects.Container | null = null;
   private launchNotice: Phaser.GameObjects.Container | null = null;
   private reserveFormatsEnabled = false;
+  private classicRetired = false;
 
   constructor() {
     super('Play');
@@ -57,6 +58,7 @@ export class PlayScene extends Phaser.Scene {
 
   create(data: { launchNotice?: string } = {}): void {
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
+    this.classicRetired = FEATURES.classicRetired;
     this.guard = new ModalGuard();
     this.menuTargets = [];
     this.deckPlate = null;
@@ -138,7 +140,7 @@ export class PlayScene extends Phaser.Scene {
         return;
       }
       const format = builderFormatForDeck(deck, this.reserveFormatsEnabled);
-      if (formatGauntletUnavailableCopy(format)) {
+      if (formatGauntletUnavailableCopy(format, this.classicRetired)) {
         this.buildDeckPlate();
         return;
       }
@@ -247,7 +249,7 @@ export class PlayScene extends Phaser.Scene {
 
     const faceId = this.deckFaceId(deck);
     const deckFormat = builderFormatForDeck(deck, this.reserveFormatsEnabled);
-    const unavailable = formatGauntletUnavailableCopy(deckFormat);
+    const unavailable = formatGauntletUnavailableCopy(deckFormat, this.classicRetired);
     const repair = deckHealth(CARD_DB, save, deck);
     let textLeft = left + 24;
     if (faceId) {
@@ -371,7 +373,7 @@ export class PlayScene extends Phaser.Scene {
           if (!isActive) band.setFillStyle(theme.graphics.rowFill, 0.9);
         });
         const deckFormat = builderFormatForDeck(deck, this.reserveFormatsEnabled);
-        const unavailable = formatGauntletUnavailableCopy(deckFormat);
+        const unavailable = formatGauntletUnavailableCopy(deckFormat, this.classicRetired);
         const repair = deckHealth(CARD_DB, save, deck);
         const name = this.add
           .text(rowX + 16, y - 7, deck.name, {

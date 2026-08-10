@@ -3,16 +3,17 @@ export interface DeckList {
   name: string;
   cards: string[]; // 60 cardIds — classic
   /*
-   * Reserve-native starter build (1.6 migration, scripted first cut
-   * 2026-08-08 via scripts/avatarReserveDecks.ts, same deterministic rule as
-   * the avatar decks). Present on STARTER_DECKS only; theme decks stay
-   * classic. These are the real columns the dated reserve re-baseline
-   * measures against, replacing the derived proxy fleets.
+   * Reserve-native build (1.6 migration, scripted first cut 2026-08-08 via
+   * scripts/avatarReserveDecks.ts, same deterministic rule as the avatar
+   * decks). Carried by every granted deck, STARTER_DECKS and THEME_DECKS
+   * alike. These are the real columns the dated reserve re-baseline measures
+   * against, replacing the derived proxy fleets.
    *
-   * NOTE: whether a granted starter hands the player the classic or the
-   * reserve build at migration is still an open decision (plan-1.6.md,
-   * "starters auto-convert vs the fix-it flow"). This data does not decide
-   * it; it only makes the reserve build exist.
+   * DECIDED 2026-08-10 (classic retirement): this IS what a granted deck
+   * hands the player. `Economy.grantedDeckBuild` grants it at the shop, and
+   * the save v28 migration converts decks already granted when the player
+   * never edited them. An edited deck keeps the player's choices and routes
+   * to the flag-and-fix flow instead.
    */
   reserveCards?: string[]; // exactly WARCHEST_DECK_SIZE no-land cards
   landReserve?: string[]; // exactly 10 lands, ≤5 duals

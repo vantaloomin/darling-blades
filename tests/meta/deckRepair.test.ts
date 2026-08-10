@@ -7,6 +7,7 @@ import {
   deckRepairNoticeFingerprint,
   deckRepairNoticeState,
   flaggedDecks,
+  CLASSIC_RETIRED_ISSUE,
   convertUnmodifiedStarter,
 } from '../../src/meta/deckRepair';
 import { freshSave, type SavedDeck } from '../../src/meta/SaveManager';
@@ -83,9 +84,9 @@ describe('deck repair health', () => {
       landReserve: Array.from({ length: 10 }, () => BASIC),
     });
 
-    expect(deckHealth(DB, save, classic).blocked).toBe(false);
-    expect(deckHealth(DB, save, warchest).issues[0]?.message).toContain(`exactly ${WARCHEST_DECK_SIZE} cards`);
-    expect(deckHealth(DB, save, darlings).issues.some((issue) => issue.message === 'Choose a Darling before playing')).toBe(true);
+    expect(deckHealth(DB, save, classic, false).blocked).toBe(false);
+    expect(deckHealth(DB, save, warchest, false).issues[0]?.message).toContain(`exactly ${WARCHEST_DECK_SIZE} cards`);
+    expect(deckHealth(DB, save, darlings, false).issues.some((issue) => issue.message === 'Choose a Darling before playing')).toBe(true);
   });
 
   it.each([
@@ -106,7 +107,7 @@ describe('deck repair health', () => {
 
     const created = save.decks[0];
     expect(created?.format).toBe(format);
-    expect(deckHealth(DB, save, created).issues).toContainEqual({ kind: 'error', message: sizeIssue });
+    expect(deckHealth(DB, save, created, false).issues).toContainEqual({ kind: 'error', message: sizeIssue });
   });
 
   it('reports Warchest oversize and land issues after a constructed format switch', () => {
@@ -114,7 +115,7 @@ describe('deck repair health', () => {
     const constructed = deck('constructed', Array.from({ length: 60 }, () => BASIC));
 
     const reserve = switchDeckFormat(constructed, 'warchest');
-    const messages = deckHealth(DB, save, constructed).issues.map((issue) => issue.message);
+    const messages = deckHealth(DB, save, constructed, false).issues.map((issue) => issue.message);
 
     expect(reserve).toEqual([]);
     expect(constructed.landReserve).toEqual([]);
@@ -134,7 +135,7 @@ describe('deck repair health', () => {
 
     expect(reserve).toEqual([]);
     expect(warchest.landReserve).toBeNull();
-    expect(deckHealth(DB, save, warchest).issues).toContainEqual({
+    expect(deckHealth(DB, save, warchest, false).issues).toContainEqual({
       kind: 'error',
       message: 'Deck has 50/60 cards',
     });
@@ -150,7 +151,7 @@ describe('deck repair health', () => {
     });
 
     switchDeckFormat(warchest, 'darlings');
-    const messages = deckHealth(DB, save, warchest).issues.map((issue) => issue.message);
+    const messages = deckHealth(DB, save, warchest, false).issues.map((issue) => issue.message);
 
     expect(messages).toContain(`${SPELL} may appear only once in a Darlings deck`);
     expect(messages).toContain('Choose a Darling before playing');
@@ -164,13 +165,39 @@ describe('deck repair health', () => {
       deck('unknown', [...Array.from({ length: 59 }, () => BASIC), 'missing-card']),
     ];
 
-    expect(flaggedDecks(DB, save).map((summary) => ({
+    expect(flaggedDecks(DB, save, false).map((summary) => ({
       id: summary.deckId,
       firstIssue: summary.firstIssue,
     }))).toEqual([
       { id: 'short', firstIssue: 'Deck has 1/60 cards' },
       { id: 'unknown', firstIssue: 'That card is not available: missing-card' },
     ]);
+  });
+
+  it('blocks every constructed deck once classic retires, however legal its 60 cards are', () => {
+    const save = freshSave(0);
+    save.collection[SPELL] = 50;
+    const legal = deck('legal', Array.from({ length: 60 }, () => BASIC));
+    const warchest = deck('warchest', Array.from({ length: WARCHEST_DECK_SIZE }, () => SPELL), {
+      format: 'warchest',
+      landReserve: Array.from({ length: 10 }, () => BASIC),
+    });
+    save.decks = [legal, warchest];
+
+    const health = deckHealth(DB, save, legal, true);
+    expect(health.blocked).toBe(true);
+    expect(health.issues).toEqual([{ kind: 'error', message: CLASSIC_RETIRED_ISSUE }]);
+    // Retirement touches constructed only: a Warchest deck is still judged on
+    // its own rules and never picks up the retirement issue.
+    const migrated = deckHealth(DB, save, warchest, true).issues.map((issue) => issue.message);
+    expect(migrated).not.toContain(CLASSIC_RETIRED_ISSUE);
+    expect(
+      flaggedDecks(DB, save, true).find((summary) => summary.deckId === 'legal')?.firstIssue,
+    ).toBe(CLASSIC_RETIRED_ISSUE);
+  });
+
+  it('states the retirement issue without an em-dash, per the player-copy rule', () => {
+    expect(CLASSIC_RETIRED_ISSUE).not.toContain('—');
   });
 
   it('acknowledges a stable sorted id set, forgets repaired ids, and detects new ids', () => {

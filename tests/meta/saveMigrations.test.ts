@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_SAVE_VERSION, freshSave, SaveManager } from '../../src/meta/SaveManager';
+import { CARD_DB } from '../../src/data/catalog';
+import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
+import { deckHealth } from '../../src/meta/deckRepair';
+import { grantDeckCards } from '../../src/meta/Economy';
+import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
@@ -432,7 +436,7 @@ describe('SaveData v27 migration (deck repair acknowledgement)', () => {
 
     const migrated = new SaveManager(storage, 456).data;
 
-    expect(migrated.version).toBe(27);
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
     expect(migrated.activeDeckId).toBe('legacy-warchest');
     expect(migrated.decks[0].cards).toEqual(cards);
     expect(migrated.decks[0].landReserve).toEqual([
@@ -450,5 +454,126 @@ describe('SaveData v27 migration (deck repair acknowledgement)', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
 
     expect(new SaveManager(storage, 456).data.deckRepairNoticeAck).toBe('["deck-a","deck-z"]');
+  });
+});
+
+describe('SaveData v28 migration (classic retirement)', () => {
+  const starter = STARTER_DECKS[0];
+  const theme = THEME_DECKS[0];
+
+  function grantedDeck(source: { id: string; name: string; cards: string[] }, cards = source.cards) {
+    return {
+      id: source.id,
+      name: source.name,
+      cards: [...cards],
+      heroCardId: null,
+      landStyle: null,
+      format: 'constructed',
+      darlingId: null,
+      landReserve: null,
+      variantPins: cards.map(() => null),
+    };
+  }
+
+  function migrateWithDecks(
+    decks: unknown[],
+    activeDeckId: string,
+    base?: Record<string, unknown>,
+  ) {
+    const storage = fakeStorage();
+    const old = base ?? (freshSave(123) as unknown as Record<string, unknown>);
+    old.version = 27;
+    old.decks = decks;
+    old.activeDeckId = activeDeckId;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+    return new SaveManager(storage, 456).data;
+  }
+
+  it('converts an untouched granted starter and theme deck to their shipped reserve builds', () => {
+    const migrated = migrateWithDecks(
+      [grantedDeck(starter), grantedDeck(theme)],
+      starter.id,
+    );
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.activeDeckId).toBe(starter.id);
+    const [converted, convertedTheme] = migrated.decks;
+    expect(converted.format).toBe('warchest');
+    expect(converted.cards).toEqual(starter.reserveCards);
+    expect(converted.landReserve).toEqual(starter.landReserve);
+    // Pins are index-aligned to `cards`, so the resized list must carry a
+    // fresh null pin per slot rather than the old 60-slot array.
+    expect(converted.variantPins).toHaveLength(starter.reserveCards?.length ?? 0);
+    expect(convertedTheme.format).toBe('warchest');
+    expect(convertedTheme.cards).toEqual(theme.reserveCards);
+  });
+
+  it('leaves an edited granted deck and a player-built deck classic for the fix-it flow', () => {
+    const edited = [...starter.cards];
+    edited[0] = 'gk-athena';
+    const homebrew = {
+      ...grantedDeck({ id: 'deck-1', name: 'Homebrew', cards: [...starter.cards] }),
+    };
+
+    const migrated = migrateWithDecks([grantedDeck(starter, edited), homebrew], 'deck-1');
+
+    expect(migrated.decks[0].format).toBe('constructed');
+    expect(migrated.decks[0].cards).toEqual(edited);
+    // Same 60 cards as the shipped starter, but under a player-created id, so
+    // there is no shipped source to convert it to.
+    expect(migrated.decks[1].format).toBe('constructed');
+    expect(migrated.decks[1].cards).toEqual(starter.cards);
+    expect(migrated.activeDeckId).toBe('deck-1');
+  });
+
+  it.each([STARTER_DECKS[0], STARTER_DECKS[3], THEME_DECKS[0], THEME_DECKS[4]])(
+    'leaves $id playable after conversion, not merely converted',
+    (source) => {
+      // The bug this pins: converting alone is not enough. A pre-retirement
+      // player owns the CLASSIC build's cards, and the reserve build needs
+      // cards classic never granted - higher counts of the same card, and for
+      // theme decks whole cards from other sets. Measured 2026-08-10: without
+      // the migration's grant every converted deck came out blocked on
+      // ownership, which is the exact repair prompt the auto-convert exists to
+      // avoid.
+      const fresh = freshSave(123) as unknown as Record<string, unknown>;
+      const granted = fresh as unknown as SaveData;
+      grantDeckCards(granted, CARD_DB, source.cards);
+      const migrated = migrateWithDecks([grantedDeck(source)], source.id, fresh);
+
+      const deck = migrated.decks[0];
+      expect(deck.format).toBe('warchest');
+      const health = deckHealth(CARD_DB, migrated, deck);
+      expect(health.issues.filter((issue) => issue.kind === 'error')).toEqual([]);
+      expect(health.blocked).toBe(false);
+    },
+  );
+
+  it('tops the collection up to the deck requirement without overshooting it', () => {
+    const source = STARTER_DECKS[0];
+    const fresh = freshSave(123) as unknown as Record<string, unknown>;
+    grantDeckCards(fresh as unknown as SaveData, CARD_DB, source.cards);
+    const migrated = migrateWithDecks([grantedDeck(source)], source.id, fresh);
+
+    // The grant is a top-up, so no card ends up above what the deck runs.
+    const need = new Map<string, number>();
+    for (const id of [...migrated.decks[0].cards, ...(migrated.decks[0].landReserve ?? [])]) {
+      need.set(id, (need.get(id) ?? 0) + 1);
+    }
+    for (const [id, count] of need) {
+      if (CARD_DB[id].supertypes?.includes('basic')) continue;
+      expect(migrated.collection[id]).toBe(count);
+    }
+  });
+
+  it('is idempotent, so reloading a converted save never re-converts or drifts', () => {
+    const first = migrateWithDecks([grantedDeck(starter)], starter.id);
+
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(first));
+    const second = new SaveManager(storage, 789).data;
+
+    expect(second.decks[0]).toEqual(first.decks[0]);
+    expect(second.version).toBe(CURRENT_SAVE_VERSION);
   });
 });

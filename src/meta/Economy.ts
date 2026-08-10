@@ -1,10 +1,11 @@
+import { FEATURES } from '../config/features';
 import { ECONOMY } from '../config/rules';
 import { FREE_DARLINGS_PRECON_ID, type DarlingsPrecon } from '../data/darlingsPrecons';
 import type { DeckList } from '../data/starterDecks';
 import type { CardDb } from '../engine/types';
 import { def } from '../engine/types';
 import { addCard } from './Collection';
-import type { SaveData } from './SaveManager';
+import type { SaveData, SavedDeck } from './SaveManager';
 import type { LimitedDeckStyle } from './Limited';
 import { PLAIN_VARIANT } from './variants';
 
@@ -308,25 +309,72 @@ function isDarlingsPrecon(deck: PurchasableDeck): deck is DarlingsPrecon {
   return 'darlingId' in deck;
 }
 
+export interface GrantedDeckBuild {
+  cards: string[];
+  format: NonNullable<SavedDeck['format']>;
+  darlingId: string | null;
+  landReserve: string[] | null;
+}
+
+/**
+ * The build a granted deck actually hands the player.
+ *
+ * Classic retirement (1.6): a DeckList that ships a reserve build grants THAT
+ * rather than its 60-card classic list, so a player claiming a free starter
+ * the day after the migration never receives a deck the format has retired.
+ * This is the same decision the save v28 migration applies to decks already
+ * granted, applied at the source instead. Darlings precons were always
+ * reserve-native and pass through unchanged, and a DeckList with no shipped
+ * reserve build still grants classic.
+ */
+export function grantedDeckBuild(
+  deck: PurchasableDeck,
+  classicRetired: boolean = FEATURES.classicRetired,
+): GrantedDeckBuild {
+  if (isDarlingsPrecon(deck)) {
+    return {
+      cards: [...deck.cards],
+      format: 'darlings',
+      darlingId: deck.darlingId,
+      landReserve: [...deck.landReserve],
+    };
+  }
+  if (classicRetired && deck.reserveCards && deck.landReserve) {
+    return {
+      cards: [...deck.reserveCards],
+      format: 'warchest',
+      darlingId: null,
+      landReserve: [...deck.landReserve],
+    };
+  }
+  return { cards: [...deck.cards], format: 'constructed', darlingId: null, landReserve: null };
+}
+
 /** Every owned card a product requires, including a Darlings command-zone legend and reserve duals. */
-export function deckProductCardIds(deck: PurchasableDeck): string[] {
-  return isDarlingsPrecon(deck)
-    ? [...deck.cards, deck.darlingId, ...deck.landReserve]
-    : [...deck.cards];
+export function deckProductCardIds(
+  deck: PurchasableDeck,
+  classicRetired: boolean = FEATURES.classicRetired,
+): string[] {
+  const build = grantedDeckBuild(deck, classicRetired);
+  return [
+    ...build.cards,
+    ...(build.darlingId ? [build.darlingId] : []),
+    ...(build.landReserve ?? []),
+  ];
 }
 
 function addPurchasedDeck(save: SaveData, deck: PurchasableDeck): void {
-  const darlings = isDarlingsPrecon(deck);
+  const build = grantedDeckBuild(deck);
   save.decks.push({
     id: deck.id,
     name: deck.name,
-    cards: [...deck.cards],
+    cards: build.cards,
     heroCardId: null,
     landStyle: null,
-    format: darlings ? 'darlings' : 'constructed',
-    darlingId: darlings ? deck.darlingId : null,
-    landReserve: darlings ? [...deck.landReserve] : null,
-    variantPins: new Array(deck.cards.length).fill(null),
+    format: build.format,
+    darlingId: build.darlingId,
+    landReserve: build.landReserve,
+    variantPins: new Array(build.cards.length).fill(null),
   });
 }
 
@@ -361,18 +409,8 @@ export function buyThemeDeck(
 export function claimFreeStarter(save: SaveData, db: CardDb, deck: DeckList): boolean {
   if (save.starterChosen !== null) return false;
   if (save.decks.some((d) => d.id === deck.id)) return false;
-  grantDeckCards(save, db, deck.cards);
-  save.decks.push({
-    id: deck.id,
-    name: deck.name,
-    cards: [...deck.cards],
-    heroCardId: null,
-    landStyle: null,
-    format: 'constructed',
-    darlingId: null,
-    landReserve: null,
-    variantPins: new Array(deck.cards.length).fill(null),
-  });
+  grantDeckCards(save, db, deckProductCardIds(deck));
+  addPurchasedDeck(save, deck);
   if (save.activeDeckId === null) save.activeDeckId = deck.id;
   save.starterChosen = deck.id;
   return true;

@@ -1,5 +1,8 @@
 import { DRAFT_PERSONAS } from '../data/draftPersonas';
 import { CARD_DB } from '../data/catalog';
+import { STARTER_DECKS, THEME_DECKS } from '../data/starterDecks';
+import { convertUnmodifiedStarter } from './deckRepair';
+import { grantDeckCards } from './Economy';
 import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
 import { freshLimitedState, type LimitedState } from './Limited';
@@ -7,8 +10,15 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 
-export const CURRENT_SAVE_VERSION = 27 as const;
+export const CURRENT_SAVE_VERSION = 28 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
+
+/**
+ * Every deck the game can GRANT, and therefore every deck the retirement
+ * migration may auto-convert. Both lists carry `reserveCards` + `landReserve`;
+ * a player-created deck has no shipped source, so it never matches.
+ */
+const GRANTED_DECKS = [...STARTER_DECKS, ...THEME_DECKS];
 
 /** When an empty blocking step needs a second confirmation. */
 export type ConfirmNoBlockSetting = 'always' | 'lethal' | 'off';
@@ -596,7 +606,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -689,6 +699,31 @@ export class SaveManager {
           ? normalizeDeckRepairNoticeAck(cur.deckRepairNoticeAck)
           : '[]',
       };
+    }
+    if (cur.version === 27) {
+      // Classic retirement (1.6). A granted starter or theme deck the player
+      // never edited becomes its shipped reserve build, so a free Crimson
+      // Muster still works the morning after the migration. An edited deck
+      // keeps every choice the player made and routes to the flag-and-fix
+      // flow instead of being silently overwritten. Normalize first so the
+      // converter always sees canonical decks; the final canonicalizer below
+      // re-runs harmlessly, and the conversion itself is idempotent because a
+      // converted deck is no longer `constructed`.
+      const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
+      const decks = normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants);
+      const converted = { ...cur, decks } as unknown as SaveData;
+      for (const deck of decks) {
+        if (!convertUnmodifiedStarter(deck, GRANTED_DECKS)) continue;
+        // Grant what the reserve build needs but the classic grant never gave.
+        // Without this the auto-convert delivers exactly the repair prompt the
+        // owner's decision forbids: the reserve builds run cards at higher
+        // counts than classic did (Crimson Muster wants 4 Ares where classic
+        // ran 2) and theme reserve builds pull in cards from other sets
+        // entirely. Measured on a real granted save 2026-08-10 - every
+        // converted deck came out blocked on ownership before this.
+        grantDeckCards(converted, CARD_DB, [...deck.cards, ...(deck.landReserve ?? [])]);
+      }
+      cur = { ...converted, version: 28 } as unknown as typeof cur;
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
