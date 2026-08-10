@@ -1469,15 +1469,28 @@ export function runFloorMatrix(
 ): FloorMatrixReport {
   const roster = [...AVATARS].sort((a, b) => a.tier - b.tier);
   const floors = Array.from({ length: roster.length }, (_, i) => i + 1);
+  // Reserve-native since classic retired (2026-08-10): the Tower fields each
+  // avatar's designed reserveDeck against the shipped starter reserve builds,
+  // which is exactly what DuelScene's gauntlet path now seats. Measuring the
+  // classic decks here would price a format the game no longer plays.
+  const columns = STARTER_DECKS.map((starter) => {
+    if (!starter.reserveCards || !starter.landReserve) {
+      throw new Error(`Starter ${starter.id} has no reserve build; regenerate src/data/starterDecks.ts`);
+    }
+    return { name: starter.name, cards: starter.reserveCards, landReserve: starter.landReserve };
+  });
   const rows: FloorRow[] = floors.map((floor) => {
     const tier = floorTier(floor);
-    const cells = STARTER_DECKS.map((starter, sIdx) =>
+    const cells = columns.map((starter, sIdx) =>
       runCell(
         {
           rowAI: (seed, gameIndex) =>
             buildTierAI(tier, CARD_DB, seed, roster[gameIndex % roster.length].personality),
           colAI: () => new MediumAI(CARD_DB),
-          decks: (i) => [roster[i % roster.length].deck, starter.cards],
+          decks: (i) => [roster[i % roster.length].reserveDeck, starter.cards],
+          format: 'warchest',
+          reserves: (i) => [roster[i % roster.length].landReserve, starter.landReserve],
+          startingHandSize: WARCHEST_HAND_SIZE,
         },
         seedsPerCell,
         70_000 + floor * 100 + sIdx,

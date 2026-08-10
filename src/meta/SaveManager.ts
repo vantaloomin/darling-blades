@@ -2,6 +2,7 @@ import { DRAFT_PERSONAS } from '../data/draftPersonas';
 import { CARD_DB } from '../data/catalog';
 import { STARTER_DECKS, THEME_DECKS } from '../data/starterDecks';
 import { convertUnmodifiedStarter } from './deckRepair';
+import { grantDeckCards } from './Economy';
 import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
 import { freshLimitedState, type LimitedState } from './Limited';
@@ -710,8 +711,19 @@ export class SaveManager {
       // converted deck is no longer `constructed`.
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
       const decks = normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants);
-      for (const deck of decks) convertUnmodifiedStarter(deck, GRANTED_DECKS);
-      cur = { ...cur, version: 28, decks };
+      const converted = { ...cur, decks } as unknown as SaveData;
+      for (const deck of decks) {
+        if (!convertUnmodifiedStarter(deck, GRANTED_DECKS)) continue;
+        // Grant what the reserve build needs but the classic grant never gave.
+        // Without this the auto-convert delivers exactly the repair prompt the
+        // owner's decision forbids: the reserve builds run cards at higher
+        // counts than classic did (Crimson Muster wants 4 Ares where classic
+        // ran 2) and theme reserve builds pull in cards from other sets
+        // entirely. Measured on a real granted save 2026-08-10 - every
+        // converted deck came out blocked on ownership before this.
+        grantDeckCards(converted, CARD_DB, [...deck.cards, ...(deck.landReserve ?? [])]);
+      }
+      cur = { ...converted, version: 28 } as unknown as typeof cur;
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;

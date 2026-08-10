@@ -156,6 +156,12 @@ Warchest is now THE constructed format. The switch is
    preview and the saved deck can never disagree. Save **v28** applies the
    same decision to decks already granted via `convertUnmodifiedStarter`:
    untouched decks convert silently, edited ones keep the player's choices.
+   **The migration must also GRANT the converted deck's cards.** A reserve
+   build is not a subset of its classic build: it runs cards at higher counts
+   (Crimson Muster wants 4 Ares where classic ran 2) and theme reserve builds
+   pull in cards from other sets entirely. Converting without granting left
+   every measured deck blocked on ownership, which is precisely the repair
+   prompt the auto-convert exists to avoid.
 3. **The builder stops offering Constructed.** `offeredBuilderFormats` drops
    it, which also stops a deck being switched back to it.
 4. **Classic decks become invalid, not deleted.** `deckHealth` reports
@@ -195,6 +201,11 @@ the reserve-native Limited change: the sim's Limited matches had been playing
   `economyGates`. Do not cut it without re-running those gates.
 - **`gravecasts` telemetry counts Retell casts, not `raise`.** It reads 0.00 for
   Hel by design; that is not a broken engine.
+- **A reserve build is not a subset of its classic build.** The deterministic
+  converter re-picks from the whole pool, so `reserveCards` routinely contains
+  cards, and higher counts of cards, that the classic list never had. Anything
+  that hands a player a reserve build must grant against the RESERVE list, not
+  assume the classic grant already covered it.
 
 ## Known, deliberately not done
 

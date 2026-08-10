@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { CARD_DB } from '../../src/data/catalog';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
-import { CURRENT_SAVE_VERSION, freshSave, SaveManager } from '../../src/meta/SaveManager';
+import { deckHealth } from '../../src/meta/deckRepair';
+import { grantDeckCards } from '../../src/meta/Economy';
+import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
@@ -472,9 +475,13 @@ describe('SaveData v28 migration (classic retirement)', () => {
     };
   }
 
-  function migrateWithDecks(decks: unknown[], activeDeckId: string) {
+  function migrateWithDecks(
+    decks: unknown[],
+    activeDeckId: string,
+    base?: Record<string, unknown>,
+  ) {
     const storage = fakeStorage();
-    const old = freshSave(123) as unknown as Record<string, unknown>;
+    const old = base ?? (freshSave(123) as unknown as Record<string, unknown>);
     old.version = 27;
     old.decks = decks;
     old.activeDeckId = activeDeckId;
@@ -517,6 +524,46 @@ describe('SaveData v28 migration (classic retirement)', () => {
     expect(migrated.decks[1].format).toBe('constructed');
     expect(migrated.decks[1].cards).toEqual(starter.cards);
     expect(migrated.activeDeckId).toBe('deck-1');
+  });
+
+  it.each([STARTER_DECKS[0], STARTER_DECKS[3], THEME_DECKS[0], THEME_DECKS[4]])(
+    'leaves $id playable after conversion, not merely converted',
+    (source) => {
+      // The bug this pins: converting alone is not enough. A pre-retirement
+      // player owns the CLASSIC build's cards, and the reserve build needs
+      // cards classic never granted - higher counts of the same card, and for
+      // theme decks whole cards from other sets. Measured 2026-08-10: without
+      // the migration's grant every converted deck came out blocked on
+      // ownership, which is the exact repair prompt the auto-convert exists to
+      // avoid.
+      const fresh = freshSave(123) as unknown as Record<string, unknown>;
+      const granted = fresh as unknown as SaveData;
+      grantDeckCards(granted, CARD_DB, source.cards);
+      const migrated = migrateWithDecks([grantedDeck(source)], source.id, fresh);
+
+      const deck = migrated.decks[0];
+      expect(deck.format).toBe('warchest');
+      const health = deckHealth(CARD_DB, migrated, deck);
+      expect(health.issues.filter((issue) => issue.kind === 'error')).toEqual([]);
+      expect(health.blocked).toBe(false);
+    },
+  );
+
+  it('tops the collection up to the deck requirement without overshooting it', () => {
+    const source = STARTER_DECKS[0];
+    const fresh = freshSave(123) as unknown as Record<string, unknown>;
+    grantDeckCards(fresh as unknown as SaveData, CARD_DB, source.cards);
+    const migrated = migrateWithDecks([grantedDeck(source)], source.id, fresh);
+
+    // The grant is a top-up, so no card ends up above what the deck runs.
+    const need = new Map<string, number>();
+    for (const id of [...migrated.decks[0].cards, ...(migrated.decks[0].landReserve ?? [])]) {
+      need.set(id, (need.get(id) ?? 0) + 1);
+    }
+    for (const [id, count] of need) {
+      if (CARD_DB[id].supertypes?.includes('basic')) continue;
+      expect(migrated.collection[id]).toBe(count);
+    }
   });
 
   it('is idempotent, so reloading a converted save never re-converts or drifts', () => {
