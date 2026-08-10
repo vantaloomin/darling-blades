@@ -92,7 +92,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       .text(
         640,
         76,
-        `Exactly ${LIMITED_DECK_SIZE} cards · pool ${run.pool.length} · record ${run.wins}-${run.losses}`,
+        `Exactly ${LIMITED_DECK_SIZE} spells, no lands · Warchest provided · pool ${run.pool.length} · record ${run.wins}-${run.losses}`,
         {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
@@ -454,22 +454,25 @@ function sortCards(a: string, b: string): number {
 }
 function cardLine(id: string): string {
   const card = def(CARD_DB, id);
-  return `${isType(card, 'land') ? 'L' : `MV${manaValue(card.cost)}`} ${short(card.name, 25)}`;
+  // About 6% of draft picks are nonbasic lands, which this format cannot play
+  // (the Warchest is granted). They still enter the collection, so they are
+  // shown rather than hidden, but marked so nobody hunts for the Add button.
+  if (isType(card, 'land')) return `- ${short(card.name, 22)} (kept, not playable here)`;
+  return `MV${manaValue(card.cost)} ${short(card.name, 25)}`;
 }
 function detailLine(card: CardDef): string {
   return `${card.rarity.toUpperCase()} · ${card.types.join(' ')} · MV ${manaValue(card.cost)}${isType(card, 'creature') ? ` · ${card.attack}/${card.defense}` : ''}`;
 }
 function deckSummary(deck: readonly string[]): string {
-  let lands = 0;
+  // Reserve-native Limited holds no lands, so the old land count would read
+  // zero forever. Report the shape that matters and name the granted reserve.
   let creatures = 0;
   let spells = 0;
   for (const id of deck) {
-    const card = def(CARD_DB, id);
-    if (isType(card, 'land')) lands++;
-    else if (isType(card, 'creature')) creatures++;
+    if (isType(def(CARD_DB, id), 'creature')) creatures++;
     else spells++;
   }
-  return `${lands} lands   ${creatures} creatures   ${spells} other spells`;
+  return `${creatures} creatures   ${spells} other spells   Warchest provided`;
 }
 function short(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, Math.max(0, max - 3))}...`;
