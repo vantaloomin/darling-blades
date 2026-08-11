@@ -209,10 +209,12 @@ the reserve-native Limited change: the sim's Limited matches had been playing
 
 ## Known, deliberately not done
 
-- **The tutorial is still a scripted classic duel** pinned to rules revision 1.
-  It uses fixed deck overrides, so retirement does not break it, but it now
-  teaches a mana system the rest of the game no longer uses. Converting it is a
-  scripted-beat redesign, not a flag flip.
+- ~~The tutorial is still a scripted classic duel.~~ **DONE 2026-08-10**: the
+  tutorial is Warchest-native. Both teaching decks are spell-only, both seats
+  field a ten-Plains Warchest, and the opening lesson is the Warchest itself
+  ("your lands are not in your deck") followed by taking a land from Reserves.
+  It stays pinned to rules revision 1, and seed 2 still holds the whole
+  scripted line, so no beat after the land drop changed.
 - **6.2% of draft picks are nonbasic lands** (measured over 200 packs) that
   reserve-native Limited cannot play. They still enter the collection and the
   pool list marks them "kept, not playable here". Removing them from packs is a

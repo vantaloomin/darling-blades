@@ -26,6 +26,8 @@ described all landed together, plus two the build turned up on the way:
    to GRANT the converted deck's cards. A reserve build is not a subset of its
    classic build, so every converted deck came out blocked on ownership — the
    exact repair prompt the auto-convert exists to avoid.
+7. **(follow-up, 2026-08-10)** The tutorial is now Warchest-native too. It was
+   the last thing in the game still teaching "play a land from your hand".
 
 Mechanism, decisions, and the durable "facts a fresh session gets wrong" list
 now live in [plan-1.6.md](plan-1.6.md).
@@ -101,4 +103,6 @@ lane, and the measured totals are 2 lanes 47%, **3 lanes ~39-43%**, 4 lanes 63%
 avg but 72% peak (now over the cap), 10 lanes 98% (pinned). Use **3 lanes max**
 (2 with `--telemetry`), set them `BelowNormal`, and MEASURE with
 `Get-Counter '\Processor(_Total)\% Processor Time'` rather than counting
-processes. Full suite: `npx vitest run --maxWorkers=10` (~7 min, 1,411 tests).
+processes. Full suite: `npx vitest run --maxWorkers=10` (~7 min, 1,418 tests) — but drop to
+`--maxWorkers=4` when idle CPU is already high, or 5s-timeout tests (notably
+`tests/personas/metagame.test.ts`) fail on starvation rather than on a real defect.
