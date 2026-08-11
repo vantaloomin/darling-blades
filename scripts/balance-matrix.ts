@@ -1446,26 +1446,27 @@ export function runTierMatrix(
 }
 
 /**
- * Candidate dials probed for a NEW tier, deliberately outside `TIER_DEFS` so
- * nobody has to temporarily edit the shipped ladder to measure one.
+ * A SCRATCH PAD of candidate (brain, noise) dials, deliberately outside
+ * `TIER_DEFS` so nobody has to temporarily edit the shipped ladder to measure
+ * one. Findings graduate into `src/ai/tiers.ts`; this list is expected to be
+ * rewritten for whatever question is open.
  *
- * WHY THESE: the T3 -> T4 step is the widest gap on the ladder (+19.6pp on the
- * 2026-08-10 reserve floors, against 5.9-13.8 elsewhere), and both ends are the
- * SAME brain — medium — separated only by noise. The 2026-07-20 classic tuning
- * log recorded a flat shelf: medium noise 0.02..0.28 all landed 38-43%, which
- * is almost exactly the midpoint of today's T3 (33.8) and T4 (53.4). If that
- * shelf survives the move to the reserve field, a tier sits on it and the cliff
- * halves. These three points sample the shelf's middle and both approaches.
+ * ANSWERED (2026-08-10). The dials below were the last question: after the T3
+ * retune the widest floor gap was T2 -> T3, and T2 is `easy/0.10`. Result:
+ * easy/0 26.3, easy/0.05 26.7, medium/0.25 25.3. The easy brain's whole top
+ * end spans 0.4pp, so T2 has NO headroom, and noising medium drops it below
+ * easy rather than between. The gap is the easy->medium brain boundary and no
+ * noise value closes it. Full reasoning in src/ai/tiers.ts.
  *
- * The classic log also recorded 0.20 measuring ABOVE 0.05 (43.0 vs 40.1 at 40
- * seeds) — an inversion, i.e. the shelf is flat enough that sampling noise
- * outweighs the dial. So read these three as one plateau estimate, not as a
- * ranking, and do not pick between them on a sub-3pp difference.
+ * READ THESE AS A PLATEAU ESTIMATE, NOT A RANKING. The 2026-07-20 classic log
+ * recorded medium 0.20 measuring ABOVE 0.05 (43.0 vs 40.1 at 40 seeds), an
+ * inversion from sampling noise. Do not pick between dials on a sub-3pp
+ * difference; ~2.4pp per-row SE at 80 seeds means a 3pp split is one sigma.
  */
 const TIER_PROBE_DIALS: readonly { label: string; brain: Difficulty; noise: number }[] = [
-  { label: 'medium/0.10', brain: 'medium', noise: 0.10 },
-  { label: 'medium/0.15', brain: 'medium', noise: 0.15 },
-  { label: 'medium/0.20', brain: 'medium', noise: 0.20 },
+  { label: 'easy/0', brain: 'easy', noise: 0 },
+  { label: 'easy/0.05', brain: 'easy', noise: 0.05 },
+  { label: 'medium/0.25', brain: 'medium', noise: 0.25 },
 ];
 
 export interface TierProbeReport {
@@ -1531,10 +1532,27 @@ export interface FloorMatrixReport {
  * FIRST reserve-native floor measurement, taken the day classic retired:
  *   T1 floors 1-3:   17.8 / 21.3 / 22.0        avg 20.4
  *   T2 floors 4-6:   27.8 / 26.5 / 24.5        avg 26.3
- *   T3 floors 7-9:   35.5 / 34.0 / 31.8        avg 33.8
+ *   T3 floors 7-9:   35.5 / 34.0 / 31.8        avg 33.8   <- superseded below
  *   T4 floors 10-12: 52.8 / 52.3 / 55.0        avg 53.4
  *   T5 floors 13-15: 61.5 / 59.0 / 58.5        avg 59.7
  *   T6 floors 16-20: 72.0 / 75.8 / 74.5 / 73.8 / 71.0   avg 73.4
+ *
+ * RE-MEASURED 2026-08-10 after the T3 retune (medium/0.32 -> 0.15, applied to
+ * fix a monotonicity FAILURE where T3 had collapsed onto T2 - see
+ * src/ai/tiers.ts). Same command, FLAGS none. Only the T3 rows moved:
+ *   T3 floors 7-9:   44.3 / 43.5 / 44.8        avg 44.2
+ *
+ * HONEST READ: the retune fixed the collapse but did NOT fix the cliff, it
+ * RELOCATED it. Floor-plateau gaps went
+ *   before  +5.9 / +7.5 / +19.6 / +6.3 / +13.7   (widest at T3->T4)
+ *   after   +5.9 / +17.9 / +9.2 / +6.3 / +13.7   (widest now at T2->T3)
+ * so the widest step only improved 19.6 -> 17.9 and moved from floors 9->10 to
+ * floors 6->7. The tier ladder itself is now even (tiers harness: 14.0 / 26.5 /
+ * 35.8 / 49.5 / 64.3 / 77.8, gaps 9.3-14.8, MONOTONICITY PASS); the remaining
+ * lumpiness is specific to the FLOORS harness, where T1 and T2 compress
+ * (tiers 14.0/26.5 vs floors 20.4/26.3) because the rotating avatar decks lift
+ * the easy-brain floors more than the starter mirrors do. The next lever is
+ * therefore T2, not T3.
  * FLAGS none. Clean tier plateaus, monotonic, every adjacent gap >= 4pp
  * (smallest T1->T2 +5.9pp); ~2.4pp SE per row avg (400 games).
  *
@@ -1561,9 +1579,14 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   4: { minAvg: 0.2, maxAvg: 0.42 },
   5: { minAvg: 0.2, maxAvg: 0.42 },
   6: { minAvg: 0.2, maxAvg: 0.42 },
-  7: { minAvg: 0.24, maxAvg: 0.45 },
-  8: { minAvg: 0.24, maxAvg: 0.45 },
-  9: { minAvg: 0.24, maxAvg: 0.45 },
+  // Re-derived 2026-08-10 with the T3 retune (medium/0.32 -> 0.15), which
+  // moved this plateau from 33.8 to 44.2 by design. The old 0.24..0.45 band
+  // still passed, but with 0.2pp of headroom against a ~2.4pp per-row SE, so
+  // it would have flagged on sampling noise alone. Re-centred on the new
+  // measurement at the same width its sibling bands use.
+  7: { minAvg: 0.34, maxAvg: 0.53 },
+  8: { minAvg: 0.34, maxAvg: 0.53 },
+  9: { minAvg: 0.34, maxAvg: 0.53 },
   10: { minAvg: 0.4, maxAvg: 0.62 },
   11: { minAvg: 0.4, maxAvg: 0.62 },
   12: { minAvg: 0.4, maxAvg: 0.62 },
