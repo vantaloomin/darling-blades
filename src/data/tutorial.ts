@@ -7,6 +7,12 @@ import type { AIPlayer } from '../ai/AIPlayer';
  * guide. Everything here is pure/Phaser-free so the line is deterministic and
  * the guide logic is unit-testable.
  *
+ * WARCHEST-NATIVE since classic retired (1.6, 2026-08-10). The very first
+ * thing a new player learns has to be the mana system the rest of the game
+ * uses: lands are NOT in the deck, they wait in the Warchest Reserves and you
+ * move one into play each turn. Teaching "play a land from hand" here would
+ * teach a format that no longer exists.
+ *
  * The decks are mono-White so mana is trivial. `bk-mousekin-pantry-guard` (1/1)
  * is the turn-one creature (teaches casting + summoning sickness) and the human's
  * attacker; `so-muster-militia` (a Ritual = sorcery-speed) makes two Militia
@@ -19,24 +25,39 @@ const MOUSE = 'bk-mousekin-pantry-guard'; // 1/1 W — turn-1 creature + attacke
 const RITUAL = 'so-muster-militia'; // ritual (sorcery): create 2 Militia tokens (blockers)
 const CHARM = 'in-blessed-respite'; // charm (instant): gain 4 life — the in-response lesson
 
-/** Human's fixed teaching deck (16 cards). */
+/**
+ * Human's fixed teaching deck: spells only, no lands. Sized so the 5-card
+ * Warchest opener plus one draw per turn never decks the player out before the
+ * scripted line finishes.
+ */
 export const TUTORIAL_PLAYER_DECK: readonly string[] = [
-  PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS,
-  MOUSE, MOUSE, MOUSE,
-  RITUAL, RITUAL, RITUAL,
-  CHARM, CHARM, CHARM,
+  MOUSE, MOUSE, MOUSE, MOUSE, MOUSE,
+  RITUAL, RITUAL, RITUAL, RITUAL, RITUAL,
+  CHARM, CHARM, CHARM, CHARM, CHARM,
 ];
 
-/** The teaching opponent's fixed deck (12 cards) — just lands + small attackers. */
+/** The teaching opponent's fixed deck — small attackers, no lands. */
 export const TUTORIAL_AI_DECK: readonly string[] = [
-  PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS, PLAINS,
+  MOUSE, MOUSE, MOUSE, MOUSE, MOUSE,
   MOUSE, MOUSE, MOUSE, MOUSE, MOUSE,
 ];
 
 /**
+ * Both Warchests are ten Plains. The reserve payload is validated like any
+ * other duel (`firstReserveConfigIssue`: exactly LAND_RESERVE_SIZE lands, at
+ * most MAX_DUAL_LANDS duals), and all-basic keeps the teaching duel free of
+ * the enters-tapped dual rule, which is not one of this lesson's beats.
+ */
+export const TUTORIAL_LAND_RESERVE: readonly string[] = [
+  PLAINS, PLAINS, PLAINS, PLAINS, PLAINS,
+  PLAINS, PLAINS, PLAINS, PLAINS, PLAINS,
+];
+
+/**
  * Fixed seed for the tutorial `Game`. Chosen (pinned by tests/data/tutorial.test.ts)
- * so the human is on the play and the scripted line is reproducible: opens with a
- * Plains + the 1-drop, and draws the Ritual and Charm in time for their lessons.
+ * so the human is on the play and the scripted line is reproducible: the 5-card
+ * Warchest opener holds the 1-drop, and the Ritual and Charm arrive in time for
+ * their lessons.
  */
 export const TUTORIAL_SEED = 2;
 
@@ -44,6 +65,7 @@ export const TUTORIAL_SEED = 2;
 export function tutorialLaunchData(ai: AIPlayer): {
   deckOverride: string[];
   oppDeckOverride: string[];
+  landReserveOverride: [string[], string[]];
   seedOverride: number;
   aiOverride: AIPlayer;
   tutorial: true;
@@ -51,6 +73,7 @@ export function tutorialLaunchData(ai: AIPlayer): {
   return {
     deckOverride: [...TUTORIAL_PLAYER_DECK],
     oppDeckOverride: [...TUTORIAL_AI_DECK],
+    landReserveOverride: [[...TUTORIAL_LAND_RESERVE], [...TUTORIAL_LAND_RESERVE]],
     seedOverride: TUTORIAL_SEED,
     aiOverride: ai,
     tutorial: true,
@@ -66,7 +89,8 @@ export function tutorialLaunchData(ai: AIPlayer): {
 
 export type TutorialCueKind =
   | 'goal' // info card: the win condition
-  | 'playLand' // spotlight a land in hand
+  | 'warchestInfo' // info card: lands live in the Warchest, one per turn
+  | 'playLand' // spotlight the Warchest Reserves pile (lands are never in hand)
   | 'playCreature' // spotlight a castable creature in hand
   | 'sickness' // info card: summoning sickness
   | 'inspectInfo' // info card: right-click / long-press inspect + keyword reminders
@@ -89,7 +113,12 @@ export interface TutorialCueInput {
   awaitingKind: string;
   step: string;
   landPlayedThisTurn: boolean;
-  handHasLand: boolean;
+  /**
+   * A land drop is legally available right now. Derived from the legal-action
+   * list rather than from the hand, so it reads the Warchest Reserves (the
+   * `playLand` action carries a reserveIndex in reserve formats).
+   */
+  canPlayLand: boolean;
   hasCastableCreature: boolean;
   hasCastableRitual: boolean;
   hasCastableCharm: boolean;
@@ -103,6 +132,7 @@ export interface TutorialCueInput {
   /** Instruction copy uses "Click" on desktop, "Tap" on touch. */
   isTouch: boolean;
   goalShown: boolean;
+  warchestInfoShown: boolean;
   sicknessShown: boolean;
   inspectShown: boolean;
   healInfoShown: boolean;
@@ -138,8 +168,17 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
 
   switch (i.awaitingKind) {
     case 'main':
-      if (!i.landPlayedThisTurn && i.handHasLand)
-        return { kind: 'playLand', text: 'Play a land. It makes your mana.' };
+      // The Warchest lesson comes first because it is the format's spine: the
+      // player has no lands in hand and nothing else makes sense until they
+      // know where mana comes from.
+      if (!i.landPlayedThisTurn && i.canPlayLand) {
+        if (!i.warchestInfoShown)
+          return {
+            kind: 'warchestInfo',
+            text: 'Your lands are not in your deck. They wait in your Warchest, and you take one every turn.',
+          };
+        return { kind: 'playLand', text: `${use} your Warchest, then take a land.` };
+      }
       if (i.myCreatureCount === 0 && i.hasCastableCreature)
         return { kind: 'playCreature', text: 'Spend mana to play a creature.' };
       if (i.myCreatureCount >= 1 && !i.sicknessShown)

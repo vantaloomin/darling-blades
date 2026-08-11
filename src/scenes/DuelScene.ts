@@ -401,6 +401,7 @@ export class DuelScene extends Phaser.Scene {
    */
   private tutorialGuard = new ModalGuard();
   private tutGoalShown = false;
+  private tutWarchestInfoShown = false;
   private tutSicknessShown = false;
   private tutInspectShown = false;
   private tutHealInfoShown = false;
@@ -480,6 +481,8 @@ export class DuelScene extends Phaser.Scene {
       // fields fall back to the normal save-/gauntlet-derived resolution.
       deckOverride?: string[];
       oppDeckOverride?: string[];
+      /** Both seats' Warchests: the tutorial is reserve-native since classic retired. */
+      landReserveOverride?: [string[], string[]];
       seedOverride?: number;
       aiOverride?: AIPlayer;
       tutorial?: boolean;
@@ -526,6 +529,7 @@ export class DuelScene extends Phaser.Scene {
       ? draftPersonaById(this.limited.opponentPersonaId)
       : null;
     this.tutGoalShown = false;
+    this.tutWarchestInfoShown = false;
     this.tutSicknessShown = false;
     this.tutInspectShown = false;
     this.tutHealInfoShown = false;
@@ -665,8 +669,13 @@ export class DuelScene extends Phaser.Scene {
     // changes and old replays keep their recorded format.
     const limitedReserveFormat: ReserveFormat | undefined =
       this.limited && !this.replayMode ? 'warchest' : undefined;
+    // The tutorial teaches the format the game actually plays (1.6). It carries
+    // deckOverride, which excludes it from savedReserveFormat above, so it
+    // names its own format and brings its own two Warchests.
+    const tutorialReserveFormat: ReserveFormat | undefined =
+      this.tutorial && !this.replayMode && data.landReserveOverride ? 'warchest' : undefined;
     const reserveFormat: ReserveFormat | undefined =
-      data.replay?.format ?? savedReserveFormat ?? limitedReserveFormat;
+      data.replay?.format ?? savedReserveFormat ?? limitedReserveFormat ?? tutorialReserveFormat;
     // Stage 3 of the 1.6 migration, extended to the Tower by classic
     // retirement: a reserve-format duel fields the selected avatar's own
     // designed deck (Warchest) or Darlings variant. The old player-deck
@@ -697,12 +706,16 @@ export class DuelScene extends Phaser.Scene {
             // Limited grants its reserve from the drafted deck's own colours.
             : limitedReserveFormat
               ? limitedLandReserve(CARD_DB, myDeck)
-              : Array.isArray(myDeckEntry?.landReserve)
-                ? myDeckEntry.landReserve.slice()
-                : [],
+              : tutorialReserveFormat
+                ? data.landReserveOverride![0].slice()
+                : Array.isArray(myDeckEntry?.landReserve)
+                  ? myDeckEntry.landReserve.slice()
+                  : [],
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 1)
-            : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
+            : tutorialReserveFormat
+              ? data.landReserveOverride![1].slice()
+              : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
         ]
       : undefined;
     const darlings: [string | null, string | null] | undefined = reserveFormat === 'darlings'
@@ -710,10 +723,11 @@ export class DuelScene extends Phaser.Scene {
         ? [this.replayDarlingAt(data.replay?.darlings, 0), this.replayDarlingAt(data.replay?.darlings, 1)]
         : [myDeckEntry?.darlingId ?? null, aiReserveSide?.darlingId ?? myDeckEntry?.darlingId ?? null]
       : undefined;
-    // Limited plays a drafted list, not a SavedDeck, so the saved-deck legality
-    // gate does not apply to it; the reserve payload is still validated.
+    // Limited and the tutorial play fixed lists, not a SavedDeck, so the
+    // saved-deck legality gate does not apply to them; both reserve payloads
+    // are still validated.
     const launchIssue = reserveFormat
-      ? (this.replayMode || limitedReserveFormat
+      ? (this.replayMode || limitedReserveFormat || tutorialReserveFormat
           ? null
           : firstDuelLaunchIssue(CARD_DB, save, myDeckEntry ?? null)) ??
         firstReserveConfigIssue(CARD_DB, landReserves)
@@ -906,6 +920,7 @@ export class DuelScene extends Phaser.Scene {
         this.lockTutorialInput(null); // opponent acting — nothing is tappable
         return;
       case 'goal':
+      case 'warchestInfo':
       case 'sickness':
       case 'inspectInfo':
       case 'healInfo':
@@ -918,6 +933,7 @@ export class DuelScene extends Phaser.Scene {
         this.coach.showInfoCard(cue.text, () => {
           this.coachInfoActive = false;
           if (kind === 'goal') this.tutGoalShown = true;
+          else if (kind === 'warchestInfo') this.tutWarchestInfoShown = true;
           else if (kind === 'sickness') this.tutSicknessShown = true;
           else if (kind === 'inspectInfo') this.tutInspectShown = true;
           else if (kind === 'healInfo') this.tutHealInfoShown = true;
@@ -959,7 +975,9 @@ export class DuelScene extends Phaser.Scene {
     const isHumanTurn = 'player' in a && a.player === HUMAN;
     const you = st.players[HUMAN];
     const legal = isHumanTurn ? this.duel.legalActions(HUMAN) : [];
-    const handHasLand = you.hand.some((id) => isType(def(CARD_DB, id), 'land'));
+    // Reserve formats never hold lands in hand, so read the legal-action list:
+    // it covers the classic hand drop and the Warchest reserve drop alike.
+    const canPlayLand = legal.some((l) => l.type === 'playLand');
     const castableOfType = (t: import('../engine/types').CardType): boolean =>
       legal.some((l) => l.type === 'castSpell' && isType(def(CARD_DB, you.hand[l.handIndex]), t));
     const hasCastableCreature = castableOfType('creature');
@@ -982,7 +1000,7 @@ export class DuelScene extends Phaser.Scene {
       awaitingKind: a.kind,
       step: st.step,
       landPlayedThisTurn: you.landPlayedThisTurn,
-      handHasLand,
+      canPlayLand,
       hasCastableCreature,
       myCreatureCount,
       eligibleAttackerCount,
@@ -995,6 +1013,7 @@ export class DuelScene extends Phaser.Scene {
       hasCastableCharm,
       handHasCharm,
       goalShown: this.tutGoalShown,
+      warchestInfoShown: this.tutWarchestInfoShown,
       sicknessShown: this.tutSicknessShown,
       inspectShown: this.tutInspectShown,
       healInfoShown: this.tutHealInfoShown,
@@ -1014,7 +1033,10 @@ export class DuelScene extends Phaser.Scene {
     const st = this.duel.state;
     switch (kind) {
       case 'playLand':
-        return this.handTarget((d) => isType(d, 'land'));
+        // Warchest: the land drop starts at the Reserves pile, which opens the
+        // picker. Its inflated inputZone is both the spotlight bounds and the
+        // one control lockTutorialInput leaves live.
+        return this.myReservePile.inputZone ?? this.handTarget((d) => isType(d, 'land'));
       case 'playCreature':
         return this.castableHandTarget('creature');
       case 'castRitual':
