@@ -32,6 +32,8 @@
  *                        alternate so no brain owns the better deck).
  *   --tiers              6 tower AI tiers vs the 5 starter decks, each as a
  *                        mirror against a neutral Medium human proxy.
+ *   --tier-probe         candidate (brain, noise) dials on the same harness,
+ *                        for pricing a NEW tier without editing TIER_DEFS.
  *   --floors             18 rotating-tower floors (tier brain piloting the
  *                        avatar roster round-robin) vs the 5 starters.
  *   --cf-bosses          The Morrigan and Titania vs Low/Mid/High CF references
@@ -65,7 +67,7 @@ import { fileURLToPath } from 'node:url';
 import type { AIPlayer } from '../src/ai/AIPlayer';
 import { MediumAI } from '../src/ai/MediumAI';
 import { buildAI, DEFAULT_PERSONALITY } from '../src/ai/personality';
-import { buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
+import { buildDialAI, buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
 import { CARD_DB } from '../src/data/catalog';
 import { DARLINGS_PRECON_MATRIX_FLEET } from '../src/data/darlingsPrecons';
 import { AVATARS, type Avatar } from '../src/data/opponents';
@@ -1357,27 +1359,69 @@ export function tierMonotonicityFlags(
 }
 
 /**
- * Tower tiers vs a neutral Medium proxy across all five reference starters.
- * Same-deck mirrors isolate the strength dial from prefab deck power; runCell
- * alternates sides and supplies stable per-cell seeds.
+ * The reserve mirror columns the tier and probe ladders both measure against:
+ * each reference starter's shipped Warchest build, piloted by both seats.
  */
+function tierMirrorColumns(): { name: string; cards: string[]; landReserve: string[] }[] {
+  return STARTER_DECKS.map((starter) => {
+    if (!starter.reserveCards || !starter.landReserve) {
+      throw new Error(`Starter ${starter.id} has no reserve build; regenerate src/data/starterDecks.ts`);
+    }
+    return { name: starter.name, cards: starter.reserveCards, landReserve: starter.landReserve };
+  });
+}
+
+/**
+ * One row of the ladder: a (brain, noise) dial vs a neutral Medium proxy
+ * across all five reference starters. Same-deck mirrors isolate the strength
+ * dial from prefab deck power; runCell alternates sides and supplies stable
+ * per-cell seeds.
+ *
+ * Reserve-native since classic retired (2026-08-10) — the same defect the
+ * floor matrix had. Pricing a tier on decks the game no longer plays would
+ * calibrate the whole tower against a dead format.
+ */
+function runDialRow(
+  brain: Difficulty,
+  noise: number,
+  seedsPerCell: number,
+  seedBase: number,
+  label: string,
+  telemetry: BalanceTelemetryCollector | undefined,
+  telemetryMatrix: string,
+): CellResult[] {
+  return tierMirrorColumns().map((starter, starterIndex) =>
+    runCell(
+      {
+        rowAI: (seed) => buildDialAI(brain, noise, CARD_DB, seed, DEFAULT_PERSONALITY),
+        colAI: () => new MediumAI(CARD_DB, DEFAULT_PERSONALITY),
+        decks: () => [starter.cards, starter.cards],
+        format: 'warchest',
+        reserves: () => [starter.landReserve, starter.landReserve],
+        startingHandSize: WARCHEST_HAND_SIZE,
+      },
+      seedsPerCell,
+      seedBase + starterIndex,
+      undefined,
+      cellTelemetry(telemetry, telemetryMatrix, `${label}: ${starter.name}`, starter.name),
+    ),
+  );
+}
+
 export function runTierMatrix(
   seedsPerCell: number,
   telemetry?: BalanceTelemetryCollector,
 ): TierMatrixReport {
   const rows = TOWER_TIERS.map((tier) => {
-    const cells = STARTER_DECKS.map((starter, starterIndex) =>
-      runCell(
-        {
-          rowAI: (seed) => buildTierAI(tier, CARD_DB, seed, DEFAULT_PERSONALITY),
-          colAI: () => new MediumAI(CARD_DB, DEFAULT_PERSONALITY),
-          decks: () => [starter.cards, starter.cards],
-        },
-        seedsPerCell,
-        50_000 + tier * 10 + starterIndex,
-        undefined,
-        cellTelemetry(telemetry, 'tiers', `Tier ${tier}: ${starter.name}`, starter.name),
-      ),
+    const def = TIER_DEFS[tier];
+    const cells = runDialRow(
+      def.brain,
+      def.noise,
+      seedsPerCell,
+      50_000 + tier * 10,
+      `Tier ${tier}`,
+      telemetry,
+      'tiers',
     );
     return { tier, cells, avg: mean(cells.map((cell) => cell.rate)) };
   });
@@ -1399,6 +1443,66 @@ export function runTierMatrix(
     matrix +
     `\n\nMONOTONICITY: ${flags.length === 0 ? 'PASS (every adjacent tier gains at least 4pp)' : `FAIL (${flags.length} adjacent separation${flags.length === 1 ? '' : 's'} below 4pp)`}`;
   return { rows, flags, table };
+}
+
+/**
+ * Candidate dials probed for a NEW tier, deliberately outside `TIER_DEFS` so
+ * nobody has to temporarily edit the shipped ladder to measure one.
+ *
+ * WHY THESE: the T3 -> T4 step is the widest gap on the ladder (+19.6pp on the
+ * 2026-08-10 reserve floors, against 5.9-13.8 elsewhere), and both ends are the
+ * SAME brain — medium — separated only by noise. The 2026-07-20 classic tuning
+ * log recorded a flat shelf: medium noise 0.02..0.28 all landed 38-43%, which
+ * is almost exactly the midpoint of today's T3 (33.8) and T4 (53.4). If that
+ * shelf survives the move to the reserve field, a tier sits on it and the cliff
+ * halves. These three points sample the shelf's middle and both approaches.
+ *
+ * The classic log also recorded 0.20 measuring ABOVE 0.05 (43.0 vs 40.1 at 40
+ * seeds) — an inversion, i.e. the shelf is flat enough that sampling noise
+ * outweighs the dial. So read these three as one plateau estimate, not as a
+ * ranking, and do not pick between them on a sub-3pp difference.
+ */
+const TIER_PROBE_DIALS: readonly { label: string; brain: Difficulty; noise: number }[] = [
+  { label: 'medium/0.10', brain: 'medium', noise: 0.10 },
+  { label: 'medium/0.15', brain: 'medium', noise: 0.15 },
+  { label: 'medium/0.20', brain: 'medium', noise: 0.20 },
+];
+
+export interface TierProbeReport {
+  rows: { label: string; cells: CellResult[]; avg: number }[];
+  flags: string[];
+  table: string;
+}
+
+/**
+ * Price candidate tier dials on the same harness the shipped ladder uses, so
+ * a probe row and a `--tiers` row are directly comparable.
+ */
+export function runTierProbeMatrix(
+  seedsPerCell: number,
+  telemetry?: BalanceTelemetryCollector,
+): TierProbeReport {
+  const rows = TIER_PROBE_DIALS.map((dial, index) => {
+    const cells = runDialRow(
+      dial.brain,
+      dial.noise,
+      seedsPerCell,
+      60_000 + index * 10,
+      dial.label,
+      telemetry,
+      'tier-probe',
+    );
+    return { label: dial.label, cells, avg: mean(cells.map((cell) => cell.rate)) };
+  });
+  const table = renderTable(
+    `=== TIER PROBE - candidate dial win % vs neutral Medium mirror · ${seedsPerCell} seeds/cell ===\n` +
+      '    reserve-native same-deck mirrors; candidates are NOT shipped tiers',
+    rows.map((row) => row.label.padEnd(11)),
+    STARTER_DECKS.map((starter) => shortName(starter.name)),
+    rows.map((row) => row.cells),
+    (index) => `| avg ${(rows[index].avg * 100).toFixed(1).padStart(5)}%`,
+  );
+  return { rows, flags: [], table };
 }
 
 export interface FloorRow {
@@ -1593,6 +1697,7 @@ function main(): void {
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
   const wantTiers = flag('tiers');
+  const wantTierProbe = flag('tier-probe');
   const wantFloors = flag('floors');
   const wantCelticFaeBosses = flag('cf-bosses');
   const wantPrefabs = flag('prefabs');
@@ -1611,6 +1716,7 @@ function main(): void {
     (!wantStarters &&
       !wantDifficulty &&
       !wantTiers &&
+      !wantTierProbe &&
       !wantFloors &&
       !wantCelticFaeBosses &&
       !wantArthurianCourtBosses &&
@@ -1694,6 +1800,7 @@ function main(): void {
   if (wantStarters) reports.push(runStarterMatrix(seeds, telemetry));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds, telemetry));
   if (wantTiers) reports.push(runTierMatrix(seeds, telemetry));
+  if (wantTierProbe) reports.push(runTierProbeMatrix(seeds, telemetry));
   if (wantFloors) reports.push(runFloorMatrix(seeds, telemetry));
   if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds, telemetry));
   if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds, telemetry));

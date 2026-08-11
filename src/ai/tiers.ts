@@ -24,6 +24,40 @@ export type TowerTier = 1 | 2 | 3 | 4 | 5 | 6;
  * 38-43%) and a heavily noised medium converges on lightly noised easy
  * (0.40 -> 26.0% vs easy/0.10 23.6%), so T3 needs the 0.30-0.35 window.
  * T4 medium/0 and T6 hard/0 are byte-identical to today's Medium/Hard.
+ *
+ * ---------------------------------------------------------------------------
+ * STALE ON THE RESERVE FIELD - re-measured 2026-08-10, reserve-native
+ * `--tiers --seeds 80` (the harness itself was still classic until that date):
+ *
+ *   T1 14.0 -> T2 26.5 -> T3 26.3 -> T4 49.5 -> T5 64.3 -> T6 77.8
+ *
+ * **MONOTONICITY FAILS: T3 (26.3) is 0.2pp BELOW T2 (26.5).** The tower ships
+ * six dials but plays as five: floors 4-9 are one difficulty. This was not
+ * caught by CI because tests/ai/tiers.test.ts exercises
+ * `tierMonotonicityFlags` on synthetic rows only, never on a real matrix run.
+ *
+ * CAUSE: the medium noise SHELF above is a classic artifact. Warchest
+ * guarantees a land drop every turn, so noise no longer spends itself on mana
+ * decisions that were already forced, and every noised choice is now a real
+ * play decision. Reserve-native, medium noise is steep and MONOTONIC
+ * (`--tier-probe --seeds 80`, same run):
+ *
+ *   medium/0.10 47.8 · medium/0.15 37.5 · medium/0.20 32.8 · medium/0.32 26.3
+ *
+ * That is roughly -1.5pp per 0.01 noise, so a tier can now be placed at will -
+ * the opposite of the classic shelf, where it could not be placed at all.
+ *
+ * PROPOSED, NOT APPLIED (needs owner sign-off: it moves floors 7-9 UP, while
+ * the standing pre-authorization is for a downward re-centre):
+ * **T3 medium/0.32 -> medium/0.15**, already measured at 37.5%, which fixes
+ * the collapse and the T3->T4 cliff with one value:
+ *
+ *   T1 14.0 -> T2 26.5 -> T3 37.5 -> T4 49.5 -> T5 64.3 -> T6 77.8
+ *   gaps +12.5 / +11.0 / +12.0 / +14.8 / +13.5 (spread of only 3.8pp)
+ *
+ * No seventh tier is needed; the cliff and the collapse were the same defect,
+ * a mis-placed T3. Applying it requires re-running `--floors --seeds 80` and
+ * re-deriving the floors 7-9 band, which today reads maxAvg 0.45.
  */
 export const TIER_DEFS: Readonly<
   Record<TowerTier, { brain: Difficulty; noise: number }>
@@ -36,6 +70,23 @@ export const TIER_DEFS: Readonly<
   6: { brain: 'hard', noise: 0 },
 };
 
+/**
+ * Build an AI from a raw (brain, noise) dial. Exported so the balance harness
+ * can price CANDIDATE dials that are not shipped tiers (`--tier-probe`)
+ * without anyone having to temporarily edit `TIER_DEFS` to measure one.
+ */
+export function buildDialAI(
+  brain: Difficulty,
+  noise: number,
+  db: CardDb,
+  seed: number,
+  personality: Personality = DEFAULT_PERSONALITY,
+): AIPlayer {
+  const ai = buildAI(brain, db, seed, personality);
+  // Decorrelate the noise stream from EasyAI's own rng (both are seeded).
+  return noise > 0 ? new NoisyAI(ai, (seed ^ 0x51d3ba11) >>> 0, noise) : ai;
+}
+
 /** Build a tower-only tier without changing the shared difficulty factory. */
 export function buildTierAI(
   tier: TowerTier,
@@ -44,9 +95,7 @@ export function buildTierAI(
   personality: Personality = DEFAULT_PERSONALITY,
 ): AIPlayer {
   const def = TIER_DEFS[tier];
-  const brain = buildAI(def.brain, db, seed, personality);
-  // Decorrelate the noise stream from EasyAI's own rng (both are seeded).
-  return def.noise > 0 ? new NoisyAI(brain, (seed ^ 0x51d3ba11) >>> 0, def.noise) : brain;
+  return buildDialAI(def.brain, def.noise, db, seed, personality);
 }
 
 // Floors 17-18 = tier 6, confirmed by the 2026-07-24 18-floor re-baseline
