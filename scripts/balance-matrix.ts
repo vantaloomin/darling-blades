@@ -32,6 +32,8 @@
  *                        alternate so no brain owns the better deck).
  *   --tiers              6 tower AI tiers vs the 5 starter decks, each as a
  *                        mirror against a neutral Medium human proxy.
+ *   --tier-probe         candidate (brain, noise) dials on the same harness,
+ *                        for pricing a NEW tier without editing TIER_DEFS.
  *   --floors             18 rotating-tower floors (tier brain piloting the
  *                        avatar roster round-robin) vs the 5 starters.
  *   --cf-bosses          The Morrigan and Titania vs Low/Mid/High CF references
@@ -65,7 +67,7 @@ import { fileURLToPath } from 'node:url';
 import type { AIPlayer } from '../src/ai/AIPlayer';
 import { MediumAI } from '../src/ai/MediumAI';
 import { buildAI, DEFAULT_PERSONALITY } from '../src/ai/personality';
-import { buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
+import { buildDialAI, buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
 import { CARD_DB } from '../src/data/catalog';
 import { DARLINGS_PRECON_MATRIX_FLEET } from '../src/data/darlingsPrecons';
 import { AVATARS, type Avatar } from '../src/data/opponents';
@@ -1357,27 +1359,69 @@ export function tierMonotonicityFlags(
 }
 
 /**
- * Tower tiers vs a neutral Medium proxy across all five reference starters.
- * Same-deck mirrors isolate the strength dial from prefab deck power; runCell
- * alternates sides and supplies stable per-cell seeds.
+ * The reserve mirror columns the tier and probe ladders both measure against:
+ * each reference starter's shipped Warchest build, piloted by both seats.
  */
+function tierMirrorColumns(): { name: string; cards: string[]; landReserve: string[] }[] {
+  return STARTER_DECKS.map((starter) => {
+    if (!starter.reserveCards || !starter.landReserve) {
+      throw new Error(`Starter ${starter.id} has no reserve build; regenerate src/data/starterDecks.ts`);
+    }
+    return { name: starter.name, cards: starter.reserveCards, landReserve: starter.landReserve };
+  });
+}
+
+/**
+ * One row of the ladder: a (brain, noise) dial vs a neutral Medium proxy
+ * across all five reference starters. Same-deck mirrors isolate the strength
+ * dial from prefab deck power; runCell alternates sides and supplies stable
+ * per-cell seeds.
+ *
+ * Reserve-native since classic retired (2026-08-10) — the same defect the
+ * floor matrix had. Pricing a tier on decks the game no longer plays would
+ * calibrate the whole tower against a dead format.
+ */
+function runDialRow(
+  brain: Difficulty,
+  noise: number,
+  seedsPerCell: number,
+  seedBase: number,
+  label: string,
+  telemetry: BalanceTelemetryCollector | undefined,
+  telemetryMatrix: string,
+): CellResult[] {
+  return tierMirrorColumns().map((starter, starterIndex) =>
+    runCell(
+      {
+        rowAI: (seed) => buildDialAI(brain, noise, CARD_DB, seed, DEFAULT_PERSONALITY),
+        colAI: () => new MediumAI(CARD_DB, DEFAULT_PERSONALITY),
+        decks: () => [starter.cards, starter.cards],
+        format: 'warchest',
+        reserves: () => [starter.landReserve, starter.landReserve],
+        startingHandSize: WARCHEST_HAND_SIZE,
+      },
+      seedsPerCell,
+      seedBase + starterIndex,
+      undefined,
+      cellTelemetry(telemetry, telemetryMatrix, `${label}: ${starter.name}`, starter.name),
+    ),
+  );
+}
+
 export function runTierMatrix(
   seedsPerCell: number,
   telemetry?: BalanceTelemetryCollector,
 ): TierMatrixReport {
   const rows = TOWER_TIERS.map((tier) => {
-    const cells = STARTER_DECKS.map((starter, starterIndex) =>
-      runCell(
-        {
-          rowAI: (seed) => buildTierAI(tier, CARD_DB, seed, DEFAULT_PERSONALITY),
-          colAI: () => new MediumAI(CARD_DB, DEFAULT_PERSONALITY),
-          decks: () => [starter.cards, starter.cards],
-        },
-        seedsPerCell,
-        50_000 + tier * 10 + starterIndex,
-        undefined,
-        cellTelemetry(telemetry, 'tiers', `Tier ${tier}: ${starter.name}`, starter.name),
-      ),
+    const def = TIER_DEFS[tier];
+    const cells = runDialRow(
+      def.brain,
+      def.noise,
+      seedsPerCell,
+      50_000 + tier * 10,
+      `Tier ${tier}`,
+      telemetry,
+      'tiers',
     );
     return { tier, cells, avg: mean(cells.map((cell) => cell.rate)) };
   });
@@ -1399,6 +1443,67 @@ export function runTierMatrix(
     matrix +
     `\n\nMONOTONICITY: ${flags.length === 0 ? 'PASS (every adjacent tier gains at least 4pp)' : `FAIL (${flags.length} adjacent separation${flags.length === 1 ? '' : 's'} below 4pp)`}`;
   return { rows, flags, table };
+}
+
+/**
+ * A SCRATCH PAD of candidate (brain, noise) dials, deliberately outside
+ * `TIER_DEFS` so nobody has to temporarily edit the shipped ladder to measure
+ * one. Findings graduate into `src/ai/tiers.ts`; this list is expected to be
+ * rewritten for whatever question is open.
+ *
+ * ANSWERED (2026-08-10). The dials below were the last question: after the T3
+ * retune the widest floor gap was T2 -> T3, and T2 is `easy/0.10`. Result:
+ * easy/0 26.3, easy/0.05 26.7, medium/0.25 25.3. The easy brain's whole top
+ * end spans 0.4pp, so T2 has NO headroom, and noising medium drops it below
+ * easy rather than between. The gap is the easy->medium brain boundary and no
+ * noise value closes it. Full reasoning in src/ai/tiers.ts.
+ *
+ * READ THESE AS A PLATEAU ESTIMATE, NOT A RANKING. The 2026-07-20 classic log
+ * recorded medium 0.20 measuring ABOVE 0.05 (43.0 vs 40.1 at 40 seeds), an
+ * inversion from sampling noise. Do not pick between dials on a sub-3pp
+ * difference; ~2.4pp per-row SE at 80 seeds means a 3pp split is one sigma.
+ */
+const TIER_PROBE_DIALS: readonly { label: string; brain: Difficulty; noise: number }[] = [
+  { label: 'easy/0', brain: 'easy', noise: 0 },
+  { label: 'easy/0.05', brain: 'easy', noise: 0.05 },
+  { label: 'medium/0.25', brain: 'medium', noise: 0.25 },
+];
+
+export interface TierProbeReport {
+  rows: { label: string; cells: CellResult[]; avg: number }[];
+  flags: string[];
+  table: string;
+}
+
+/**
+ * Price candidate tier dials on the same harness the shipped ladder uses, so
+ * a probe row and a `--tiers` row are directly comparable.
+ */
+export function runTierProbeMatrix(
+  seedsPerCell: number,
+  telemetry?: BalanceTelemetryCollector,
+): TierProbeReport {
+  const rows = TIER_PROBE_DIALS.map((dial, index) => {
+    const cells = runDialRow(
+      dial.brain,
+      dial.noise,
+      seedsPerCell,
+      60_000 + index * 10,
+      dial.label,
+      telemetry,
+      'tier-probe',
+    );
+    return { label: dial.label, cells, avg: mean(cells.map((cell) => cell.rate)) };
+  });
+  const table = renderTable(
+    `=== TIER PROBE - candidate dial win % vs neutral Medium mirror · ${seedsPerCell} seeds/cell ===\n` +
+      '    reserve-native same-deck mirrors; candidates are NOT shipped tiers',
+    rows.map((row) => row.label.padEnd(11)),
+    STARTER_DECKS.map((starter) => shortName(starter.name)),
+    rows.map((row) => row.cells),
+    (index) => `| avg ${(rows[index].avg * 100).toFixed(1).padStart(5)}%`,
+  );
+  return { rows, flags: [], table };
 }
 
 export interface FloorRow {
@@ -1427,10 +1532,27 @@ export interface FloorMatrixReport {
  * FIRST reserve-native floor measurement, taken the day classic retired:
  *   T1 floors 1-3:   17.8 / 21.3 / 22.0        avg 20.4
  *   T2 floors 4-6:   27.8 / 26.5 / 24.5        avg 26.3
- *   T3 floors 7-9:   35.5 / 34.0 / 31.8        avg 33.8
+ *   T3 floors 7-9:   35.5 / 34.0 / 31.8        avg 33.8   <- superseded below
  *   T4 floors 10-12: 52.8 / 52.3 / 55.0        avg 53.4
  *   T5 floors 13-15: 61.5 / 59.0 / 58.5        avg 59.7
  *   T6 floors 16-20: 72.0 / 75.8 / 74.5 / 73.8 / 71.0   avg 73.4
+ *
+ * RE-MEASURED 2026-08-10 after the T3 retune (medium/0.32 -> 0.15, applied to
+ * fix a monotonicity FAILURE where T3 had collapsed onto T2 - see
+ * src/ai/tiers.ts). Same command, FLAGS none. Only the T3 rows moved:
+ *   T3 floors 7-9:   44.3 / 43.5 / 44.8        avg 44.2
+ *
+ * HONEST READ: the retune fixed the collapse but did NOT fix the cliff, it
+ * RELOCATED it. Floor-plateau gaps went
+ *   before  +5.9 / +7.5 / +19.6 / +6.3 / +13.7   (widest at T3->T4)
+ *   after   +5.9 / +17.9 / +9.2 / +6.3 / +13.7   (widest now at T2->T3)
+ * so the widest step only improved 19.6 -> 17.9 and moved from floors 9->10 to
+ * floors 6->7. The tier ladder itself is now even (tiers harness: 14.0 / 26.5 /
+ * 35.8 / 49.5 / 64.3 / 77.8, gaps 9.3-14.8, MONOTONICITY PASS); the remaining
+ * lumpiness is specific to the FLOORS harness, where T1 and T2 compress
+ * (tiers 14.0/26.5 vs floors 20.4/26.3) because the rotating avatar decks lift
+ * the easy-brain floors more than the starter mirrors do. The next lever is
+ * therefore T2, not T3.
  * FLAGS none. Clean tier plateaus, monotonic, every adjacent gap >= 4pp
  * (smallest T1->T2 +5.9pp); ~2.4pp SE per row avg (400 games).
  *
@@ -1457,9 +1579,14 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   4: { minAvg: 0.2, maxAvg: 0.42 },
   5: { minAvg: 0.2, maxAvg: 0.42 },
   6: { minAvg: 0.2, maxAvg: 0.42 },
-  7: { minAvg: 0.24, maxAvg: 0.45 },
-  8: { minAvg: 0.24, maxAvg: 0.45 },
-  9: { minAvg: 0.24, maxAvg: 0.45 },
+  // Re-derived 2026-08-10 with the T3 retune (medium/0.32 -> 0.15), which
+  // moved this plateau from 33.8 to 44.2 by design. The old 0.24..0.45 band
+  // still passed, but with 0.2pp of headroom against a ~2.4pp per-row SE, so
+  // it would have flagged on sampling noise alone. Re-centred on the new
+  // measurement at the same width its sibling bands use.
+  7: { minAvg: 0.34, maxAvg: 0.53 },
+  8: { minAvg: 0.34, maxAvg: 0.53 },
+  9: { minAvg: 0.34, maxAvg: 0.53 },
   10: { minAvg: 0.4, maxAvg: 0.62 },
   11: { minAvg: 0.4, maxAvg: 0.62 },
   12: { minAvg: 0.4, maxAvg: 0.62 },
@@ -1593,6 +1720,7 @@ function main(): void {
   const wantStarters = flag('starters');
   const wantDifficulty = flag('difficulty');
   const wantTiers = flag('tiers');
+  const wantTierProbe = flag('tier-probe');
   const wantFloors = flag('floors');
   const wantCelticFaeBosses = flag('cf-bosses');
   const wantPrefabs = flag('prefabs');
@@ -1611,6 +1739,7 @@ function main(): void {
     (!wantStarters &&
       !wantDifficulty &&
       !wantTiers &&
+      !wantTierProbe &&
       !wantFloors &&
       !wantCelticFaeBosses &&
       !wantArthurianCourtBosses &&
@@ -1694,6 +1823,7 @@ function main(): void {
   if (wantStarters) reports.push(runStarterMatrix(seeds, telemetry));
   if (wantDifficulty) reports.push(runDifficultyMatrix(seeds, telemetry));
   if (wantTiers) reports.push(runTierMatrix(seeds, telemetry));
+  if (wantTierProbe) reports.push(runTierProbeMatrix(seeds, telemetry));
   if (wantFloors) reports.push(runFloorMatrix(seeds, telemetry));
   if (wantCelticFaeBosses) reports.push(runCelticFaeBossMatrix(seeds, telemetry));
   if (wantArthurianCourtBosses) reports.push(runArthurianCourtBossMatrix(seeds, telemetry));
