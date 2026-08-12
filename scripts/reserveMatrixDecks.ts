@@ -12,7 +12,6 @@ import type { CardDb, CardDef, Color } from '../src/engine/types';
 import {
   DARLINGS_DECK_SIZE,
   WARCHEST_DECK_SIZE,
-  hasLandFetchBehavior,
   isBasicLand,
   isDualLand,
 } from '../src/meta/warchest';
@@ -82,7 +81,7 @@ function byCurveThenId(db: CardDb, ids: readonly string[]): string[] {
 }
 
 function isEligibleSpell(card: CardDef | undefined): card is CardDef {
-  return Boolean(card && !card.token && !card.types.includes('land') && !hasLandFetchBehavior(card));
+  return Boolean(card && !card.token && !card.types.includes('land'));
 }
 
 function colorsOfSource(deck: DeckList, db: CardDb): Color[] {

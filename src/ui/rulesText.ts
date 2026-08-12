@@ -167,8 +167,6 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
     }
     case 'tap':
       return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
-    case 'fetchLand':
-      return 'search your deck for a basic land and put it into play tapped';
     case 'extraLandDrop': {
       const n = op.n ?? 1;
       return n === 1

@@ -441,34 +441,13 @@ export class Game {
     this.st.winReason = pub.winReason;
   }
 
-  /**
-   * After an action fully resolves, drive any fetchLand basic-land choices that
-   * were deferred (>1 distinct type — see EffectInterpreter `fetchLand`):
-   * override the just-computed awaiting with the choice, or, once the queue
-   * drains, resume normal play.
-   *
-   * PRECONDITION (still guaranteed): every fetchLand source is sorcery-speed,
-   * so its chooser is the active player in a main phase. Reopened combat and
-   * end-step windows can now queue Foresee, whose continuation safely derives
-   * its return point from the current step. An instant-speed, flash, attacks-,
-   * or dies-triggered fetch would violate the fetchLand invariant and MUST NOT
-   * be added without auditing its legal timing and resume path. No-op in
-   * determinized sims (stand-in lands aren't `basic`, so nothing ever queues).
-   */
+  /** After an action fully resolves, surface any queued resolution-time choice. */
   private maybeRaiseDeferredDecision(emit: Emit): void {
     const st = this.st;
     if (st.winner !== null) return;
-    // Skip any queued fetch whose deck no longer holds a basic (a whiff — same
-    // as the interpreter's no-basic no-op). Guarantees a raised choice always
-    // has ≥1 legal option, so the AI is never handed only `concede` and the
-    // human never gets a zero-option overlay.
     const hadPending = st.pendingDecisions.length > 0;
     while (st.pendingDecisions.length > 0) {
       const next = st.pendingDecisions[0];
-      if (next.kind === 'chooseBasicLand' && !this.hasFetchableBasic(next.player)) {
-        st.pendingDecisions.shift();
-        continue;
-      }
       if (next.kind === 'foresee' && this.foreseeCards(next.player, next.n).length === 0) {
         st.pendingDecisions.shift();
         continue;
@@ -476,11 +455,9 @@ export class Game {
       break;
     }
     const next = st.pendingDecisions[0];
-    if (next?.kind === 'chooseBasicLand') {
-      st.awaiting = { player: next.player, kind: 'chooseBasicLand' };
-    } else if (next?.kind === 'foresee') {
+    if (next?.kind === 'foresee') {
       st.awaiting = { player: next.player, kind: 'foresee', cards: this.foreseeCards(next.player, next.n) };
-    } else if (hadPending || st.awaiting.kind === 'chooseBasicLand' || st.awaiting.kind === 'foresee') {
+    } else if (hadPending || st.awaiting.kind === 'foresee') {
       // The queue is empty: either the last queued choice just resolved (the
       // apply leaves the awaiting stale), or every queued decision whiffed in
       // the drain above (adversarial review 2026-07-16: the dawn path never
@@ -491,12 +468,6 @@ export class Game {
       // already resumed, e.g. closeAndFlush.
       this.resumeAfterFlush(emit);
     }
-  }
-
-  private hasFetchableBasic(player: PlayerId): boolean {
-    return this.st.players[player].deck.some((card) =>
-      def(this.db, card).supertypes?.includes('basic'),
-    );
   }
 
   /**
@@ -567,34 +538,6 @@ export class Game {
         me.deck.unshift(...bottomed);
         emit({ e: 'cardsBottomed', player, count: bottomed.length });
         this.nextMulliganOrStart(emit);
-        return;
-      }
-
-      case 'chooseBasicLand': {
-        // Perform the fetch the interpreter deferred: pull the chosen basic from
-        // the controller's deck, put it onto the battlefield tapped, reshuffle —
-        // same net effect + RNG use as the inline single-type path, just after a
-        // player decision. See EffectInterpreter `fetchLand` + pendingDecisions.
-        const pending = st.pendingDecisions.shift();
-        if (pending?.kind === 'chooseBasicLand') {
-          const controller = pending.player;
-          const lib = st.players[controller].deck;
-          let idx = -1;
-          for (let i = lib.length - 1; i >= 0; i--) {
-            if (cardIdOf(lib[i]) === action.cardId) {
-              idx = i;
-              break;
-            }
-          }
-          if (idx >= 0) {
-            const [card] = lib.splice(idx, 1);
-            const perm = enterBattlefield(st, this.db, card, controller, emit);
-            perm.tapped = true;
-            rngShuffle(st.rng, lib);
-          }
-        }
-        // maybeRaiseDeferredDecision (post-apply) raises the next queued choice, or
-        // resumes normal play once the queue drains — including whiffs.
         return;
       }
 

@@ -1,4 +1,4 @@
-import type { CardDb, CardDef, Color, EffectOp } from '../engine/types';
+import type { CardDb, CardDef, Color } from '../engine/types';
 import { RULES } from '../config/rules';
 import { ownedCount } from './Collection';
 import type { DeckIssue } from './DeckStorage';
@@ -183,38 +183,3 @@ export function validateWarchestDeckShape(
   }
   return issues;
 }
-
-function opsFetchLand(ops: readonly EffectOp[] | undefined): boolean {
-  return ops?.some((op) => op.op === 'fetchLand') ?? false;
-}
-
-/** Whether any data-authored effect on this card fetches a land. */
-export function hasLandFetchBehavior(card: CardDef): boolean {
-  return (
-    card.abilities?.some((ability) => opsFetchLand(ability.ops)) === true ||
-    card.chapters?.some((chapter) => opsFetchLand(chapter)) === true ||
-    opsFetchLand(card.empower?.ops) ||
-    opsFetchLand(card.retell?.ops)
-  );
-}
-
-/** The current card-pool audit, returned as deterministic card ids. */
-export function auditLandFetchCards(db: CardDb): string[] {
-  return Object.values(db)
-    .filter(hasLandFetchBehavior)
-    .map((card) => card.id)
-    .sort((a, b) => a.localeCompare(b));
-}
-
-/** Builder-facing error for a card excluded because its land fetch is dead. */
-export function landFetchExclusionError(db: CardDb, cardId: string): string | null {
-  const card = db[cardId];
-  return card && hasLandFetchBehavior(card)
-    ? `${card.name} cannot find lands here; your lands live in your Warchest.`
-    : null;
-}
-
-// Descriptive aliases keep the audit seam easy to discover from either term.
-export const isLandFetchCard = hasLandFetchBehavior;
-export const findLandFetchCards = auditLandFetchCards;
-export const landInteractionError = landFetchExclusionError;

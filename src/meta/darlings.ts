@@ -7,7 +7,6 @@ import {
   DARLINGS_DECK_SIZE,
   WARCHEST_DECK_SIZE,
   isBasicLand,
-  landFetchExclusionError,
   validateWarchestDeckShape,
   validateLandReserve,
 } from './warchest';
@@ -101,11 +100,6 @@ export function darlingsCardError(
   return null;
 }
 
-function addCardAuditIssue(issues: DeckIssue[], db: CardDb, id: string): void {
-  const error = landFetchExclusionError(db, id);
-  if (error) issues.push({ kind: 'error', message: error });
-}
-
 function addReserveIdentityIssues(
   issues: DeckIssue[],
   db: CardDb,
@@ -152,8 +146,6 @@ export function validateDarlingsDeck(
     issues.push({ kind: 'error', message: 'Your Darling must stay outside the deck' });
   }
 
-  if (darlingId) addCardAuditIssue(issues, db, darlingId);
-
   const counts = new Map<string, number>();
   for (const id of cards) counts.set(id, (counts.get(id) ?? 0) + 1);
 
@@ -172,8 +164,6 @@ export function validateDarlingsDeck(
     if (count > ownedCount(save, id)) {
       issues.push({ kind: 'error', message: `${card.name} is not in your collection` });
     }
-    addCardAuditIssue(issues, db, id);
-
     if (darlingId && darling) {
       const identityError = darlingsCardError(db, darlingId, id);
       if (identityError) issues.push({ kind: 'error', message: identityError });
@@ -219,7 +209,6 @@ export function validateWarchestDeck(
         message: `${card.name}: ${count} in deck but only ${ownedCount(save, id)} owned`,
       });
     }
-    addCardAuditIssue(issues, db, id);
   }
   return issues;
 }

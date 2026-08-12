@@ -560,7 +560,6 @@ export function botAction(actions: Action[]): Action {
     'bottomCards',
     'foresee',
     'playLand',
-    'chooseBasicLand', // a deferred fetch — take the first offered basic
     'castSpell',
     'castDarling',
     'payDownDarlingTax',

@@ -503,7 +503,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-woodland-errand', name: 'Woodland Errand', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'G'), colors: ['G'], abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
+    cost: cost(2, 'G'), colors: ['G'], abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c', flavor: 'The forest sends a messenger and asks for no explanation.',
   },
   {

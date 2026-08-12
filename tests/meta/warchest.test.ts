@@ -2,13 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import {
-  auditLandFetchCards,
   WARCHEST_DECK_SIZE,
-  findLandFetchCards,
-  hasLandFetchBehavior,
   isDualLand,
   isUtilityTapland,
-  landFetchExclusionError,
   reserveColorIdentity,
   validateWarchestDeckShape,
   validateLandReserve,
@@ -45,10 +41,6 @@ const SPELL = 'spell';
 const GREEN_SPELL = 'green-spell';
 const WHITE_SPELL = 'white-spell';
 const BLUE_COST_SPELL = 'blue-cost-spell';
-const FETCH = 'fetch';
-const EMPOWER_FETCH = 'empower-fetch';
-const CHAPTERS_FETCH = 'chapters-fetch';
-const RETELL_FETCH = 'retell-fetch';
 const SPELL_IDS = Array.from({ length: 13 }, (_, i) => `spell-${i}`);
 const GENERATED: Record<string, CardDef> = Object.fromEntries(
   SPELL_IDS.map((id) => [id, card(id)]),
@@ -146,22 +138,6 @@ const DB: CardDb = Object.freeze({
     // Deliberately differs from the cost to prove the tuning rule reads pips.
     colors: ['G'],
     cost: { generic: 0, pips: { U: 1 } },
-  }),
-  [FETCH]: card(FETCH, {
-    name: 'Verdant Compass',
-    abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
-  }),
-  [EMPOWER_FETCH]: card(EMPOWER_FETCH, {
-    name: 'Empowered Compass',
-    empower: { cost: { generic: 1, pips: {} }, ops: [{ op: 'fetchLand' }] },
-  }),
-  [CHAPTERS_FETCH]: card(CHAPTERS_FETCH, {
-    name: 'Chapter Compass',
-    chapters: [[{ op: 'fetchLand' }]],
-  }),
-  [RETELL_FETCH]: card(RETELL_FETCH, {
-    name: 'Retold Compass',
-    retell: { cost: { generic: 1, pips: {} }, ops: [{ op: 'fetchLand' }] },
   }),
   ...GENERATED,
 });
@@ -395,46 +371,4 @@ describe('Warchest shared validators', () => {
     expect(validateWarchestDeck(DB, legalSave, legalDeck(), basicReserve(), {})).toEqual(baseline);
   });
 
-  it('excludes land-fetch cards with a direct builder message', () => {
-    const cards = [...legalDeck().slice(0, 49), FETCH];
-    expect(messages(validateWarchestDeck(DB, saveWith(...SPELL_IDS, FETCH), cards, basicReserve()))).toContain(
-      'Verdant Compass cannot find lands here; your lands live in your Warchest.',
-    );
-    expect(landFetchExclusionError(DB, FETCH)).toBe(
-      'Verdant Compass cannot find lands here; your lands live in your Warchest.',
-    );
-    expect(landFetchExclusionError(DB, SPELL)).toBeNull();
-  });
-
-  it('audits all effect-bearing card fields and returns deterministic ids', () => {
-    expect(hasLandFetchBehavior(DB[FETCH])).toBe(true);
-    expect(hasLandFetchBehavior(DB[EMPOWER_FETCH])).toBe(true);
-    expect(hasLandFetchBehavior(DB[SPELL])).toBe(false);
-    expect(findLandFetchCards(DB)).toEqual([CHAPTERS_FETCH, EMPOWER_FETCH, FETCH, RETELL_FETCH]);
-  });
-
-  it('detects land fetches in chapters and retell ops', () => {
-    expect(hasLandFetchBehavior(DB[CHAPTERS_FETCH])).toBe(true);
-    expect(hasLandFetchBehavior(DB[RETELL_FETCH])).toBe(true);
-  });
-
-  it('reports every real land-fetching card in the current pool', () => {
-    const expected = [
-      'ac-woodland-errand',
-      'bk-deerkin-grovekeeper',
-      'dt-forked-road-choice',
-      'dt-ocean-wayfinder',
-      'dt-verdant-heart-voyage',
-      'gk-demeter',
-      'rg-verdant-seidr',
-      'rg-worldroot-tender',
-      'so-rampant-growth',
-      'tk-jin-dengai',
-    ];
-    expect(auditLandFetchCards(CARD_DB)).toEqual(expected);
-  });
-
-  it('keeps audit issue strings free of em dashes', () => {
-    expect(landFetchExclusionError(CARD_DB, 'so-rampant-growth')).not.toContain('\u2014');
-  });
 });

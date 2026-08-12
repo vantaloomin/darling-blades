@@ -20,7 +20,7 @@ const KEYWORDS = new Set<Keyword>([
 const OPS = new Set([
   'damage', 'gainLife', 'loseLife', 'draw', 'discardRandom', 'destroy', 'sever',
   'severGrave', 'severTop', 'recall', 'destroyArtifactOrSeverEnchantment', 'cancel',
-  'boost', 'addCounters', 'tap', 'fetchLand', 'createToken', 'massDestroy',
+  'boost', 'addCounters', 'tap', 'extraLandDrop', 'createToken', 'massDestroy',
   'preventCombat', 'reclaim', 'grind', 'foresee', 'awaken', 'raise',
 ]);
 

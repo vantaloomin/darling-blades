@@ -34,7 +34,6 @@ const DUAL = 'dual';
 const OUTSIDE_DUAL = 'outside-dual';
 const SINGLE_LAND = 'single-land';
 const TOKEN = 'token';
-const FETCH_CARD = 'fetch-card';
 const COLORLESS_CARD = 'colorless-card';
 const PLAIN_CREATURE = 'plain-creature';
 const LEGENDARY_ARTIFACT = 'legendary-artifact';
@@ -99,11 +98,6 @@ const DB: CardDb = Object.freeze({
     token: true,
     supertypes: ['legendary'],
     colors: ['G'],
-  }),
-  [FETCH_CARD]: card(FETCH_CARD, {
-    name: 'Verdant Compass',
-    colors: ['G'],
-    abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
   }),
   [COLORLESS_CARD]: card(COLORLESS_CARD, {
     name: 'Relic of Quiet Stars',
@@ -258,28 +252,6 @@ describe('Darlings format helpers', () => {
     expect(
       messages(validateDarlingsDeck(DB, save, legalDeck(), DARLING, reserve(OUTSIDE_DUAL))),
     ).toContain("Moonlit Crossing is outside your Darling's colors");
-  });
-
-  it('excludes land-fetch cards from the deck', () => {
-    const cards = [...UNIQUE_IDS.slice(0, -1), FETCH_CARD];
-    const save = saveWith(DARLING, ...UNIQUE_IDS, FETCH_CARD);
-    expect(messages(validateDarlingsDeck(DB, save, cards, DARLING, reserve()))).toContain(
-      'Verdant Compass cannot find lands here; your lands live in your Warchest.',
-    );
-  });
-
-  it('applies the fetch audit to the external Darling too', () => {
-    const fetchDarling = card('fetch-darling', {
-      name: 'Compass Queen',
-      supertypes: ['legendary'],
-      colors: ['G'],
-      abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
-    });
-    const db = { ...DB, [fetchDarling.id]: fetchDarling };
-    const save = saveWith(fetchDarling.id, ...UNIQUE_IDS);
-    expect(messages(validateDarlingsDeck(db, save, legalDeck(), fetchDarling.id, reserve()))).toContain(
-      'Compass Queen cannot find lands here; your lands live in your Warchest.',
-    );
   });
 
   it('checks one card for inline identity errors', () => {

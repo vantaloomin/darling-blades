@@ -31,7 +31,6 @@ import {
   LAND_RESERVE_SIZE,
   MAX_DUAL_LANDS,
   WARCHEST_DECK_SIZE,
-  hasLandFetchBehavior,
   isBasicLand,
   isDualLand,
 } from '../src/meta/warchest';
@@ -82,7 +81,7 @@ function containsOnlyColors(card: CardDef, colors: readonly Color[]): boolean {
 }
 
 function isEligibleSpell(card: CardDef | undefined): card is CardDef {
-  return Boolean(card && !card.token && !card.types.includes('land') && !hasLandFetchBehavior(card));
+  return Boolean(card && !card.token && !card.types.includes('land'));
 }
 
 function isLegendaryCreature(card: CardDef | undefined): card is CardDef {
@@ -90,8 +89,7 @@ function isLegendaryCreature(card: CardDef | undefined): card is CardDef {
     card &&
     !card.token &&
     card.types.includes('creature') &&
-    (card.supertypes?.includes('legendary') ?? false) &&
-    !hasLandFetchBehavior(card),
+    (card.supertypes?.includes('legendary') ?? false),
   );
 }
 
