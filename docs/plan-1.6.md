@@ -121,6 +121,23 @@ re-baseline.
    Versus bumpers, Trophy Hall S. Details live in the local-only,
    gitignored `plan-premium-ux.md` (copy it forward between worktrees).
 
+   **Wave A shipped (#166).** `Toast`, `confirmNoBlock` and the always-on
+   `previewCombat` forecast are all in the code; `CastIntent`, `Atelier`,
+   `bumper` and `TrophyHall` are not.
+
+   **CARRY-CAST PHASE 1 HAS A HOLE THAT CLASSIC RETIREMENT PUT THERE.** The
+   premium slate was adjudicated 2026-07-31, before the migration, and says
+   phase 1 "ships lands + untargeted spells". There are no lands in hand any
+   more: a land drop is now tap the Warchest Reserves pile -> modal -> "Play
+   land" per slot (`reserveLandAction`, `showReserveModal` in DuelScene). So
+   the cheapest half of phase 1 has no surface to carry FROM.
+   Owner-agreed order 2026-08-12: do the three INDEPENDENT Wave B items first
+   (Card Atelier, Versus bumpers, Trophy Hall S — none touch CastIntent or the
+   migration), and treat "carry a land out of the Warchest" as its own scoped
+   design decision rather than inheriting a pre-migration one-liner. That
+   surface is now the single most repeated interaction in the game — every
+   player, every turn — which is exactly why it earns a deliberate pass.
+
 ## Lanes opened by the gate resolution (2026-08-07)
 
 4. **The migration**: starters, all 20 avatar decks, and Draft redesigned
