@@ -10,6 +10,7 @@ import {
   variantRank,
   type CardVariant,
 } from './variants';
+import { isUtilityTapland } from './warchest';
 
 /**
  * Pure, headless filter / sort / paging helpers behind the Collection binder
@@ -90,9 +91,23 @@ export function matchesSearch(d: CardDef, query: string): boolean {
   );
 }
 
-/** The collectible pool: no tokens, no basic lands (matches the pack pools). */
+function isActiveCollectible(d: CardDef): boolean {
+  return !d.token && !d.supertypes?.includes('basic') && !isUtilityTapland(d);
+}
+
+/** The collectible pool: no tokens, basics, or retired utility taplands. */
 export function collectiblePool(cards: readonly CardDef[]): CardDef[] {
-  return cards.filter((d) => !d.token && !d.supertypes?.includes('basic'));
+  return cards.filter(isActiveCollectible);
+}
+
+/** Collection binder pool, retaining retired cards only when already owned. */
+export function collectionDisplayPool(cards: readonly CardDef[], save: SaveData): CardDef[] {
+  return cards.filter(
+    (d) =>
+      !d.token &&
+      !d.supertypes?.includes('basic') &&
+      (!isUtilityTapland(d) || ownedCount(save, d.id) >= 1),
+  );
 }
 
 export const COLOR_ORDER: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];

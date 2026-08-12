@@ -7,6 +7,7 @@ import {
   findLandFetchCards,
   hasLandFetchBehavior,
   isDualLand,
+  isUtilityTapland,
   landFetchExclusionError,
   reserveColorIdentity,
   validateWarchestDeckShape,
@@ -196,6 +197,36 @@ function messages(issues: ReturnType<typeof validateWarchestDeck>): string[] {
 }
 
 describe('Warchest shared validators', () => {
+  it('derives the current retired utility tapland set from land shape', () => {
+    const retiredIds = Object.values(CARD_DB)
+      .filter(isUtilityTapland)
+      .map((card) => card.id)
+      .sort();
+    expect(retiredIds).toEqual([
+      'ac-bramble-chapel',
+      'ac-court-of-whispers',
+      'ac-lowland-fort',
+      'ac-mirror-lake',
+      'ac-red-tournament-ground',
+      'cf-mist-road',
+      'cf-mossy-ring',
+      'cf-raven-stone',
+      'dt-desert-rooftop',
+      'dt-hearth-cinders',
+      'dt-midnight-road',
+      'dt-palace-steps',
+      'dt-riverbend-trail',
+      'dt-sea-cave',
+      'dt-winter-bridge',
+      'dt-wolf-path',
+      'gm-chapel-yard',
+      'gm-lab-annex',
+      'gm-moor-path',
+      'gm-red-roof-village',
+      'gm-thorned-cemetery',
+    ]);
+  });
+
   it('classifies duals from their mana ability shape, including three-color lands', () => {
     expect(isDualLand(DB[DUAL])).toBe(true);
     expect(isDualLand(DB[TRIPLE])).toBe(true);

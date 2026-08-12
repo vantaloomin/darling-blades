@@ -26,7 +26,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
       graveyard: [],
       severed: [],
       landReserve: RESERVE,
-      landPlayedThisTurn: false,
+      landDropsRemaining: 1,
       mulligans: 0,
     },
     opp: {
@@ -36,7 +36,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
       graveyard: [],
       severed: [],
       landReserve: RESERVE,
-      landPlayedThisTurn: false,
+      landDropsRemaining: 1,
       mulligans: 0,
     },
     battlefield: [],

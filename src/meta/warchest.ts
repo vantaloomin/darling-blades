@@ -46,6 +46,11 @@ export function isDualLand(card: CardDef): boolean {
   return isLand(card) && new Set(card.manaAbility ?? []).size > 1;
 }
 
+/** Non-token lands outside the basic/dual reserve vocabulary. */
+export function isUtilityTapland(card: CardDef): boolean {
+  return !card.token && isLand(card) && !isBasicLand(card) && !isDualLand(card);
+}
+
 function isAllowedReserveLand(card: CardDef): boolean {
   return isBasicLand(card) || isDualLand(card);
 }

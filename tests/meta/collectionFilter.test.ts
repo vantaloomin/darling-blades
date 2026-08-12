@@ -44,7 +44,16 @@ const POOL: CardDef[] = [
   card('u_bolt', { name: 'Bolt', types: ['charm'], colors: ['U'], cost: { generic: 0, pips: { U: 1 } }, attack: undefined, defense: undefined, rarity: 'sr' }), // mv1
   card('b_rite', { name: 'Rite', types: ['ritual'], colors: ['B'], cost: { generic: 2, pips: { B: 1 } }, attack: undefined, defense: undefined, rarity: 'ur' }), // mv3
   card('gw_aura', { name: 'Aura', types: ['enchantment'], colors: ['G', 'W'], cost: { generic: 0, pips: { G: 1, W: 1 } }, attack: undefined, defense: undefined, rarity: 'ssr' }), // mv2
-  card('dual_land', { name: 'Grove', types: ['land'], colors: [], cost: undefined, attack: undefined, defense: undefined, rarity: 'r' }), // mv0
+  card('dual_land', {
+    name: 'Grove',
+    types: ['land'],
+    colors: [],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['G', 'W'],
+    rarity: 'r',
+  }), // mv0
 ];
 
 function saveWith(collection: Record<string, number>): SaveData {

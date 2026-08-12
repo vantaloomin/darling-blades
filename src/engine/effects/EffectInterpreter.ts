@@ -267,6 +267,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
+    case 'extraLandDrop':
+      state.players[ctx.controller].extraLandDrops += op.n ?? 1;
+      return;
     case 'createToken': {
       for (let i = 0; i < op.count; i++) {
         const count = state.battlefield.filter(
@@ -419,6 +422,7 @@ function assertTargetFreeForeseeContinuation(op: EffectOp): void {
     op.op === 'severGrave' ||
     op.op === 'severTop' ||
     op.op === 'fetchLand' ||
+    op.op === 'extraLandDrop' ||
     op.op === 'createToken' ||
     op.op === 'destroyNewestOpponentArtifactOrEnchantment' ||
     op.op === 'massDestroy' ||

@@ -5,6 +5,7 @@ import { isType } from '../engine/types';
 import { addCard, ownedCount, PLAYSET, type AddResult } from './Collection';
 import type { SaveData } from './SaveManager';
 import { rollFrame, rollFullArt, rollHolo, rollTier, TIER_RANK, variantRank } from './variants';
+import { isUtilityTapland } from './warchest';
 
 /** Cards that can appear in boosters: no basics, no tokens. */
 export function packPool(db: CardDb, tier: Rarity, set?: CardDef['set']): string[] {
@@ -14,6 +15,7 @@ export function packPool(db: CardDb, tier: Rarity, set?: CardDef['set']): string
         d.rarity === tier &&
         !d.token &&
         !d.supertypes?.includes('basic') &&
+        !isUtilityTapland(d) &&
         // Undefined remains the mixed-set pool for Limited/economy callers.
         // Shop SKUs pass an explicit set, including 'base', so the Base Set
         // booster does not silently widen back to the whole catalog.

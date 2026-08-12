@@ -279,7 +279,8 @@ export class Game {
       hand: [],
       graveyard: [],
       severed: [],
-      landPlayedThisTurn: false,
+      landDropsUsed: 0,
+      extraLandDrops: 0,
       mulligans: 0,
       keptHand: false,
     };
@@ -371,7 +372,8 @@ export class Game {
       const from = pub.players[p];
       const to = this.st.players[p];
       to.life = from.life;
-      to.landPlayedThisTurn = from.landPlayedThisTurn;
+      to.landDropsUsed = from.landDropsUsed;
+      to.extraLandDrops = from.extraLandDrops;
       to.mulligans = from.mulligans;
       to.keptHand = from.keptHand;
       for (const zone of ['deck', 'hand', 'graveyard', 'severed'] as const) {
@@ -638,8 +640,10 @@ export class Game {
           ? me.landReserve.splice(action.reserveIndex!, 1)[0]
           : me.hand.splice(action.handIndex, 1)[0];
         const cardId = cardIdOf(card);
-        const perm = enterBattlefield(st, this.db, card, player, () => {});
-        me.landPlayedThisTurn = true;
+        const perm = enterBattlefield(st, this.db, card, player, () => {}, {
+          tapped: me.landDropsUsed >= 1 ? true : undefined,
+        });
+        me.landDropsUsed++;
         emit({ e: 'landPlayed', player, iid: perm.iid, cardId });
         fireTriggers(st, this.db, emit, 'arrives', perm);
         return;

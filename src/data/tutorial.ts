@@ -112,11 +112,13 @@ export interface TutorialCueInput {
   isHumanTurn: boolean;
   awaitingKind: string;
   step: string;
-  landPlayedThisTurn: boolean;
   /**
    * A land drop is legally available right now. Derived from the legal-action
    * list rather than from the hand, so it reads the Warchest Reserves (the
-   * `playLand` action carries a reserveIndex in reserve formats).
+   * `playLand` action carries a reserveIndex in reserve formats) AND the
+   * per-turn drop allowance including any extra drops. It is deliberately the
+   * only land signal here: a separate "drops remaining" field would let a
+   * fixture express a state the engine cannot produce.
    */
   canPlayLand: boolean;
   hasCastableCreature: boolean;
@@ -171,7 +173,7 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
       // The Warchest lesson comes first because it is the format's spine: the
       // player has no lands in hand and nothing else makes sense until they
       // know where mana comes from.
-      if (!i.landPlayedThisTurn && i.canPlayLand) {
+      if (i.canPlayLand) {
         if (!i.warchestInfoShown)
           return {
             kind: 'warchestInfo',

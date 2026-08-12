@@ -523,7 +523,8 @@ export function makeTestState(opts: {
     hand,
     graveyard: [] as string[],
     severed: [] as string[],
-    landPlayedThisTurn: false,
+    landDropsUsed: 0,
+    extraLandDrops: 0,
     mulligans: 0,
     keptHand: true,
   });

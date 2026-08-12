@@ -441,7 +441,7 @@ export class GameTelemetry {
     if (
       exhaustedTurn !== null &&
       state.turn > exhaustedTurn &&
-      !state.players[player].landPlayedThisTurn
+      state.players[player].landDropsUsed < 1 + state.players[player].extraLandDrops
     ) {
       out.missedLandDropsAfterExhaustion++;
     }

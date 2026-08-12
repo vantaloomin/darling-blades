@@ -999,7 +999,6 @@ export class DuelScene extends Phaser.Scene {
       isHumanTurn,
       awaitingKind: a.kind,
       step: st.step,
-      landPlayedThisTurn: you.landPlayedThisTurn,
       canPlayLand,
       hasCastableCreature,
       myCreatureCount,

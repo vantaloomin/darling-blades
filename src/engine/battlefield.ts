@@ -24,7 +24,7 @@ export function enterBattlefield(
   card: CardEntry,
   controller: PlayerId,
   emit: Emit,
-  opts: { asToken?: boolean; attachedTo?: number } = {},
+  opts: { asToken?: boolean; attachedTo?: number; tapped?: boolean } = {},
 ): Permanent {
   const cardId = cardIdOf(card);
   const d = def(db, card);
@@ -41,7 +41,7 @@ export function enterBattlefield(
     variantKey: variantKeyOf(card),
     owner: controller,
     controller,
-    tapped: d.entersTapped ?? false,
+    tapped: opts.tapped ?? d.entersTapped ?? false,
     enteredThisTurn: true,
     damage: 0,
     deathtouched: false,

@@ -342,7 +342,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
 
     case 'main': {
       out.push({ type: 'passStep' });
-      if (me.landReserve !== undefined && !me.landPlayedThisTurn) {
+      if (me.landReserve !== undefined && me.landDropsUsed < 1 + me.extraLandDrops) {
         for (let reserveIndex = 0; reserveIndex < me.landReserve.length; reserveIndex++) {
           out.push({ type: 'playLand', handIndex: -1, reserveIndex });
         }
@@ -357,7 +357,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
           out.push({ type: 'skim', handIndex });
         }
         if (isType(d, 'land')) {
-          if (me.landReserve === undefined && !me.landPlayedThisTurn) {
+          if (me.landReserve === undefined && me.landDropsUsed < 1 + me.extraLandDrops) {
             out.push({ type: 'playLand', handIndex });
           }
           return;
@@ -540,7 +540,7 @@ export function validateAction(
 
     case 'playLand': {
       if (a.kind !== 'main') return 'not in a main phase';
-      if (me.landPlayedThisTurn) return 'already played a land this turn';
+      if (me.landDropsUsed >= 1 + me.extraLandDrops) return 'no land drops remaining this turn';
       if (me.landReserve !== undefined) {
         if (action.reserveIndex === undefined) return 'reserve formats play lands from the reserve';
         if (!Number.isInteger(action.reserveIndex)) return 'bad reserve index';
@@ -814,7 +814,7 @@ export function reasonUncastable(
 
   if (isType(d, 'land')) {
     if (a.kind !== 'main') return 'Lands can only be played during your main phase.';
-    if (me.landPlayedThisTurn) return 'You have already played a land this turn.';
+    if (me.landDropsUsed >= 1 + me.extraLandDrops) return 'You have no land drops left this turn.';
     return null;
   }
 

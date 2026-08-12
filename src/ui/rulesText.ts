@@ -169,6 +169,12 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
       return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
     case 'fetchLand':
       return 'search your deck for a basic land and put it into play tapped';
+    case 'extraLandDrop': {
+      const n = op.n ?? 1;
+      return n === 1
+        ? 'you may play an additional land this turn'
+        : `you may play ${n} additional lands this turn`;
+    }
     case 'createToken': {
       // Say WHAT gets created — "create 2 tokens" left players guessing
       // (user-reported 2026-07-12). The full catalog (expansion tokens

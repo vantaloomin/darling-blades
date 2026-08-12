@@ -61,7 +61,8 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
     }
     perm.enteredThisTurn = false; // sickness wears off on your own untap
   }
-  state.players[active].landPlayedThisTurn = false;
+  state.players[active].landDropsUsed = 0;
+  state.players[active].extraLandDrops = 0;
   if (untapped.length > 0) emit({ e: 'untapped', iids: untapped });
 
   // Dawn: battlefield order is preserved. For each permanent, ordinary dawn

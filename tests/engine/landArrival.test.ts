@@ -55,7 +55,7 @@ describe('land arrival triggers', () => {
 
     const events = game.submit(0, { type: 'playLand', handIndex: 0 });
 
-    expect(game.state.players[0].landPlayedThisTurn).toBe(true);
+    expect(game.state.players[0].landDropsUsed).toBe(1);
     expect(game.state.players[0].life).toBe(22);
     expect(events.map((event) => event.e)).toEqual([
       'landPlayed',

@@ -36,6 +36,7 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   addCounters: 0.8,
   tap: 0.7,
   fetchLand: 0.7,
+  extraLandDrop: 0.7,
   createToken: 1.15,
   destroyNewestOpponentArtifactOrEnchantment: 1.15,
   massDestroy: 3,

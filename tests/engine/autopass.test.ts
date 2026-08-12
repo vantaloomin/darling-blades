@@ -37,7 +37,7 @@ describe('forcedAction: main phase', () => {
 
   it('land in hand but the drop is used → forced passStep', () => {
     const state = makeTestState({ hands: [['forest'], []], active: 0 });
-    state.players[0].landPlayedThisTurn = true;
+    state.players[0].landDropsUsed = 1;
     expect(forcedAction(state, TEST_DB, 0)).toEqual({ type: 'passStep' });
   });
 

@@ -79,6 +79,7 @@ export type EffectOp =
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
   | { op: 'fetchLand' } // a basic land from deck → battlefield tapped
+  | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
   | { op: 'createToken'; token: string; count: number }
   | { op: 'destroyNewestOpponentArtifactOrEnchantment' } // trigger-safe, no target
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' | 'allEnchantments' }
@@ -367,7 +368,8 @@ export interface PlayerState {
   darlingZone?: CardEntry | null;
   darlingInstanceId?: number;
   darlingTax?: number;
-  landPlayedThisTurn: boolean;
+  landDropsUsed: number;
+  extraLandDrops: number;
   mulligans: number;
   keptHand: boolean;
 }
