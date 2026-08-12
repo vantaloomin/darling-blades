@@ -9,11 +9,14 @@ import { LIMITED_DECK_SIZE, validateLimitedDeck } from '../../src/meta/DeckStora
 import { applyLimitedMatchResult, payPremiumDraftEntry } from '../../src/meta/Economy';
 import {
   completeDraftRun,
+  buildLimitedDeck,
   currentDraftPack,
   DRAFT_SEATS,
   freshLimitedState,
   grantPremiumDraftPool,
+  limitedDraftDuals,
   limitedDuelData,
+  limitedLandReserve,
   personaRevealTier,
   pickDraftCard,
   recordDraftEncounters,
@@ -22,8 +25,10 @@ import {
   startDraftRun,
 } from '../../src/meta/Limited';
 import { DEFAULT_PICKER, scoreBasePick } from '../../src/meta/draftPicker';
+import { firstReserveConfigIssue } from '../../src/meta/duelSetup';
 import { freshSave } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, TIER_RANK, variantKey, type CardVariant } from '../../src/meta/variants';
+import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../../src/meta/warchest';
 import { deckOf, TEST_DB } from '../helpers';
 
 describe('limited pack rolling', () => {
@@ -44,6 +49,22 @@ describe('limited pack rolling', () => {
 });
 
 describe('limited deck validation and auto-build', () => {
+  it('assigns drafted duals into the granted Warchest and tops up with basics', () => {
+    const duals = Object.values(CARD_DB).filter(isDualLand).slice(0, 3).map((card) => card.id);
+    const spell = Object.values(CARD_DB).find((card) => !isDualLand(card) && !card.types.includes('land') && card.colors.length > 0)!;
+    const pool = [duals[0], duals[1], duals[0]];
+    const selected = limitedLandReserve(CARD_DB, [spell.id], pool);
+    const basicsOnly = limitedLandReserve(CARD_DB, [spell.id], pool, []);
+
+    expect(limitedDraftDuals(CARD_DB, pool)).toEqual(pool);
+    expect(selected).toHaveLength(LAND_RESERVE_SIZE);
+    expect(selected.slice(0, 2)).toEqual([duals[0], duals[1]]);
+    expect(selected.filter((id) => isDualLand(CARD_DB[id]))).toHaveLength(3);
+    expect(basicsOnly.filter((id) => isDualLand(CARD_DB[id]))).toHaveLength(0);
+    expect(firstReserveConfigIssue(CARD_DB, [selected, basicsOnly])).toBeNull();
+    expect(selected.filter((id) => isDualLand(CARD_DB[id])).length).toBeLessThanOrEqual(MAX_DUAL_LANDS);
+  });
+
   it('enforces exact size, pool counts, tokens, and unlimited basics', () => {
     const pool = deckOf([
       ['bear', 2],
@@ -157,9 +178,24 @@ describe('bot draft', () => {
     expect(completed.status).toBe('build');
     expect(completed.pool).toHaveLength(3 * ECONOMY.limitedPackSize);
     expect(completed.opponentDecks).toHaveLength(3);
+    expect(completed.opponentLandReserves).toHaveLength(3);
+    expect(completed.landReserve).toHaveLength(LAND_RESERVE_SIZE);
+    completed.opponentLandReserves!.forEach((reserve) => {
+      expect(firstReserveConfigIssue(CARD_DB, [completed.landReserve!, reserve])).toBeNull();
+    });
+    const matchRun = {
+      ...completed,
+      deck: buildLimitedDeck(CARD_DB, completed.pool),
+      status: 'matches' as const,
+    };
+    expect(limitedDuelData(matchRun).landReserveOverride).toEqual([
+      completed.landReserve,
+      completed.opponentLandReserves![0],
+    ]);
     completed.opponentDecks.forEach((deck, i) => {
       expect(deck).toHaveLength(LIMITED_DECK_SIZE);
       expect(validateLimitedDeck(CARD_DB, completed.draft!.picks[i + 1], deck).filter((issue) => issue.kind === 'error')).toHaveLength(0);
+      expect(completed.opponentLandReserves![i]).toEqual(limitedLandReserve(CARD_DB, deck, completed.draft!.picks[i + 1]));
     });
   });
 

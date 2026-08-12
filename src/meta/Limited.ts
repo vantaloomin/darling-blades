@@ -17,6 +17,7 @@ import {
 import { packPool } from './PackOpener';
 import type { SaveData } from './SaveManager';
 import { PLAIN_VARIANT, rollFrame, rollHolo, rollTier, TIER_RANK, type CardVariant } from './variants';
+import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from './warchest';
 
 export type LimitedMode = 'draft';
 export type LimitedRunStatus = 'draft' | 'build' | 'matches';
@@ -67,6 +68,10 @@ export interface LimitedRun {
   matchIndex: number;
   opponentSeeds: number[];
   opponentDecks: string[][];
+  /** The player's full ten-card Warchest, including any drafted duals. */
+  landReserve?: string[];
+  /** Full ten-card Warchests built from each drafted opponent's own pool. */
+  opponentLandReserves?: string[][];
   /** Absent/false is the unchanged free draft. */
   premium?: boolean;
   draft?: DraftState;
@@ -77,6 +82,7 @@ export interface LimitedDuelData {
   deckOverride: string[];
   oppDeckOverride: string[];
   seedOverride: number;
+  landReserveOverride?: [string[], string[]];
   limited: { runId: string; mode: LimitedMode; matchIndex: number; opponentPersonaId?: string };
 }
 
@@ -149,11 +155,15 @@ export function limitedMatchSeed(run: Pick<LimitedRun, 'seed' | 'matchIndex' | '
 }
 
 export function limitedDuelData(run: LimitedRun): LimitedDuelData {
+  const opponentReserve = run.opponentLandReserves?.[run.matchIndex] ?? run.opponentLandReserves?.[0];
   return {
     difficulty: limitedDifficultyForMatch(run.matchIndex),
     deckOverride: [...run.deck],
     oppDeckOverride: [...(run.opponentDecks[run.matchIndex] ?? run.opponentDecks[0] ?? [])],
     seedOverride: limitedMatchSeed(run),
+    ...(run.landReserve && opponentReserve
+      ? { landReserveOverride: [[...run.landReserve], [...opponentReserve]] as [string[], string[]] }
+      : {}),
     limited: {
       runId: run.id,
       mode: run.mode,
@@ -323,19 +333,28 @@ export function grantPremiumDraftPool(save: SaveData, db: CardDb, run: LimitedRu
 
 export function completeDraftRun(db: CardDb, run: LimitedRun): LimitedRun {
   if (!run.draft?.completed) return run;
+  const pool = [...run.draft.picks[0]];
+  const playerDeck = run.deck.length > 0 ? run.deck : buildLimitedDeck(db, pool);
+  const playerDuals = run.landReserve?.filter((id) => db[id] && isDualLand(db[id]));
   const opponentDecks = [1, 2, 3].map((seat) => buildLimitedDeck(db, run.draft!.picks[seat] ?? []));
+  const opponentLandReserves = opponentDecks.map((deck, index) =>
+    limitedLandReserve(db, deck, run.draft!.picks[index + 1] ?? []),
+  );
   return {
     ...run,
     status: 'build',
-    pool: [...run.draft.picks[0]],
+    pool,
+    landReserve: limitedLandReserve(db, playerDeck, pool, run.landReserve ? playerDuals : undefined),
     opponentDecks,
+    opponentLandReserves,
   };
 }
 
 /**
  * Reserve-native Limited deck: LIMITED_DECK_SIZE spells, no lands. The ten
- * land reserve is granted at duel time from the deck's own colours
- * (`limitedLandReserve`), so drafting stays about spells.
+ * land reserve is granted from the deck's own colours, with drafted duals
+ * assigned into it by the build step, so drafting stays about spells while
+ * dual picks remain playable.
  *
  * A pool short of that many playable spells is padded with the best remaining
  * pool cards rather than failing the run: a bad draft should be a bad deck,
@@ -366,12 +385,27 @@ export function buildLimitedDeck(db: CardDb, pool: readonly string[]): string[] 
 }
 
 /**
- * The granted ten-land Warchest for a Limited deck. Deterministic and
- * basics-only, so it always satisfies the dual cap and never depends on what
- * the player happened to open.
+ * The Limited Warchest: selected drafted duals first, then ten lands total
+ * with basics derived from the spell deck's colours. An omitted selection
+ * defaults to the first five drafted dual occurrences; an explicit empty
+ * selection means the player chose basics only.
  */
-export function limitedLandReserve(db: CardDb, deck: readonly string[]): string[] {
-  return buildAiLandReserve(deck, db);
+export function limitedLandReserve(
+  db: CardDb,
+  deck: readonly string[],
+  pool: readonly string[] = [],
+  selectedDuals?: readonly string[],
+): string[] {
+  const availableDuals = limitedDraftDuals(db, pool);
+  const requested = selectedDuals === undefined ? availableDuals.slice(0, MAX_DUAL_LANDS) : selectedDuals;
+  const duals = takeDraftedDuals(availableDuals, requested);
+  const basics = buildAiLandReserve(deck, db);
+  return [...duals, ...basics.slice(0, LAND_RESERVE_SIZE - duals.length)];
+}
+
+/** Return drafted dual occurrences in pool order for the Limited builder. */
+export function limitedDraftDuals(db: CardDb, pool: readonly string[]): string[] {
+  return pool.filter((id) => db[id] !== undefined && isDualLand(db[id]));
 }
 
 export function countCards(cards: readonly string[]): Map<string, number> {
@@ -508,4 +542,18 @@ function compareCardNames(db: CardDb, a: string, b: string): number {
   const da = def(db, a);
   const dbb = def(db, b);
   return da.name.localeCompare(dbb.name) || a.localeCompare(b);
+}
+
+function takeDraftedDuals(available: readonly string[], requested: readonly string[]): string[] {
+  const availableCounts = countCards(available);
+  const used = new Map<string, number>();
+  const result: string[] = [];
+  for (const id of requested) {
+    if (result.length >= MAX_DUAL_LANDS) break;
+    const count = used.get(id) ?? 0;
+    if (count >= (availableCounts.get(id) ?? 0)) continue;
+    result.push(id);
+    used.set(id, count + 1);
+  }
+  return result;
 }

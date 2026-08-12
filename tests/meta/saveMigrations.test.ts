@@ -3,6 +3,7 @@ import { CARD_DB } from '../../src/data/catalog';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
 import { deckHealth } from '../../src/meta/deckRepair';
 import { grantDeckCards } from '../../src/meta/Economy';
+import { startDraftRun } from '../../src/meta/Limited';
 import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
 
@@ -575,5 +576,22 @@ describe('SaveData v28 migration (classic retirement)', () => {
 
     expect(second.decks[0]).toEqual(first.decks[0]);
     expect(second.version).toBe(CURRENT_SAVE_VERSION);
+  });
+});
+
+describe('SaveData v29 migration (Limited Warchest assignments)', () => {
+  it('preserves an active Limited run while adding the new optional reserve fields', () => {
+    const storage = fakeStorage();
+    const now = 123;
+    const activeRun = startDraftRun(CARD_DB, 2901, now);
+    const old = freshSave(now) as unknown as Record<string, unknown>;
+    old.version = 28;
+    old.limited = { ...freshSave(now).limited, activeRun };
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.limited.activeRun).toEqual(activeRun);
   });
 });

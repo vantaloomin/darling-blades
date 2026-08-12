@@ -663,10 +663,9 @@ export class DuelScene extends Phaser.Scene {
       (myDeckEntry?.format === 'darlings' || myDeckEntry?.format === 'warchest')
         ? myDeckEntry.format
         : undefined;
-    // Limited is reserve-native since 2026-08-09: a drafted deck is 25 spells
-    // and both seats receive a granted ten-land Warchest derived from their
-    // own colours. Nothing is drafted into the reserve, so no run state
-    // changes and old replays keep their recorded format.
+    // Limited is reserve-native: a drafted deck is 25 spells and both seats
+    // receive a ten-land Warchest. The draft run supplies the chosen player
+    // reserve and the matching opponent reserve when available.
     const limitedReserveFormat: ReserveFormat | undefined =
       this.limited && !this.replayMode ? 'warchest' : undefined;
     // The tutorial teaches the format the game actually plays (1.6). It carries
@@ -703,9 +702,8 @@ export class DuelScene extends Phaser.Scene {
       ? [
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 0)
-            // Limited grants its reserve from the drafted deck's own colours.
             : limitedReserveFormat
-              ? limitedLandReserve(CARD_DB, myDeck)
+              ? data.landReserveOverride?.[0]?.slice() ?? limitedLandReserve(CARD_DB, myDeck)
               : tutorialReserveFormat
                 ? data.landReserveOverride![0].slice()
                 : Array.isArray(myDeckEntry?.landReserve)
@@ -713,9 +711,11 @@ export class DuelScene extends Phaser.Scene {
                   : [],
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 1)
-            : tutorialReserveFormat
-              ? data.landReserveOverride![1].slice()
-              : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
+            : limitedReserveFormat
+              ? data.landReserveOverride?.[1]?.slice() ?? buildAiLandReserve(aiDeck, CARD_DB)
+              : tutorialReserveFormat
+                ? data.landReserveOverride![1].slice()
+                : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
         ]
       : undefined;
     const darlings: [string | null, string | null] | undefined = reserveFormat === 'darlings'
