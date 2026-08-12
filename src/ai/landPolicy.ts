@@ -52,7 +52,7 @@ export function chooseReserveLand(
   db: CardDb,
   legal: readonly Action[],
 ): LandAction | null {
-  if (view.you.landReserve === undefined || view.you.landPlayedThisTurn) return null;
+  if (view.you.landReserve === undefined || view.you.landDropsRemaining <= 0) return null;
   const candidates = legal.filter(
     (action): action is LandAction => action.type === 'playLand' && action.reserveIndex !== undefined,
   );
@@ -93,4 +93,3 @@ export function chooseReserveLand(
   }
   return best;
 }
-

@@ -105,7 +105,7 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-court-of-whispers | Court of Whispers | C | Land | Land | Intrigue court | entersTapped, manaAbility B, arrives: grind self 1 | Common land |
 | ac-mirror-lake | Mirror Lake | C | Land | Land | Avalon lake | entersTapped, manaAbility U, arrives: foresee 1 | Common land |
 | ac-shieldwall-call | Shieldwall Call | C | W | Charm | Defensive formation | boost allYours +0/+N | Team trick |
-| ac-woodland-errand | Woodland Errand | C | G | Ritual | Quest errand | fetchLand | Ramp |
+| ac-woodland-errand | Woodland Errand | C | G | Ritual | Quest errand | extraLandDrop | Ramp |
 | ac-treasonous-glance | Treasonous Glance | C | B | Charm | Betrayal | loseLife opponent, foresee | Black trick |
 | ac-campfire-tale | Campfire Tale | C | R | Ritual | Knight tale | grind self, draw | Red rummage |
 | ac-questing-map | Questing Map | C | C | Artifact | Map relic | arrives: foresee 2 | Quest support |

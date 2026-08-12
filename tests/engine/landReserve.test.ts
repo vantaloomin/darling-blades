@@ -166,19 +166,19 @@ describe('Warchest reserve engine', () => {
     game.submit(player, first);
     expect(game.instanceState.battlefield.at(-1)?.tapped).toBe(false);
 
-    game.state.players[player].landPlayedThisTurn = false;
+    game.state.players[player].extraLandDrops = 1;
     const second = game.legalActions(player).find((action) => action.type === 'playLand' && action.reserveIndex === 0)!;
     game.submit(player, second);
     expect(game.instanceState.battlefield.at(-1)?.cardId).toBe('plains');
-    expect(game.instanceState.battlefield.at(-1)?.tapped).toBe(false);
+    expect(game.instanceState.battlefield.at(-1)?.tapped).toBe(true);
 
     const capGame = reserveGame();
     keepBoth(capGame);
     const capPlayer = capGame.instanceState.activePlayer;
+    capGame.state.players[capPlayer].extraLandDrops = 9;
     for (let i = 0; i < 10; i++) {
       const action = capGame.legalActions(capPlayer).find((candidate) => candidate.type === 'playLand')!;
       capGame.submit(capPlayer, action);
-      capGame.state.players[capPlayer].landPlayedThisTurn = false;
     }
     expect(capGame.state.players[capPlayer].landReserve).toEqual([]);
     expect(capGame.legalActions(capPlayer).some((action) => action.type === 'playLand')).toBe(false);

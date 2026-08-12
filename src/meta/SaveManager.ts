@@ -10,7 +10,7 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 
-export const CURRENT_SAVE_VERSION = 28 as const;
+export const CURRENT_SAVE_VERSION = 29 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /**
@@ -339,7 +339,11 @@ export class SaveManager {
    * renames the Warchest format and adds collection-level variant display pins;
    * v25 -> v26 moves legacy in-deck Darlings into their command-zone identity
    * and adds the Darlings format explainer flag plus the free-Zhou-Yu claim
-   * state; v26 -> v27 adds the acknowledged deck-repair id-set snapshot.
+   * state; v26 -> v27 adds the acknowledged deck-repair id-set snapshot;
+   * v27 -> v28 retires classic into Warchest; v28 -> v29 persists Limited
+   * player and opponent Warchests. An older Limited run leaves those optional
+   * fields absent and reconstructs its basics-only reserve until the builder
+   * is opened.
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -606,7 +610,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -724,6 +728,12 @@ export class SaveManager {
         grantDeckCards(converted, CARD_DB, [...deck.cards, ...(deck.landReserve ?? [])]);
       }
       cur = { ...converted, version: 28 } as unknown as typeof cur;
+    }
+    if (cur.version === 28) {
+      // v28 -> v29: Limited Warchest assignments are optional on the run so
+      // old in-flight runs retain their old basics-only fallback until the
+      // build step normalizes and persists the new reserve shape.
+      cur = { ...cur, version: 29 };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;

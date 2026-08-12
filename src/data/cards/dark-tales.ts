@@ -190,7 +190,7 @@ const SR: CardDef[] = [
   }),
   creature('dt-ocean-wayfinder', 'Ocean Wayfinder', ['Human', 'Wayfinder'], {
     supertypes: ['legendary'], cost: cost(4, 'UG'), colors: ['U', 'G'], attack: 3, defense: 4,
-    abilities: [arrives([{ op: 'fetchLand' }, { op: 'foresee', n: 1 }])], skim: { cost: cost(2) }, rarity: 'sr',
+    abilities: [arrives([{ op: 'extraLandDrop' }, { op: 'foresee', n: 1 }])], skim: { cost: cost(2) }, rarity: 'sr',
     flavor: 'The stars are a map if you know which promises they kept.',
   }),
   creature('dt-forest-colors-diplomat', 'Forest-Colors Diplomat', ['Human', 'Diplomat'], {
@@ -338,7 +338,7 @@ const R: CardDef[] = [
     flavor: 'The kiss is optional. The contract is not.',
   }),
   artifact('dt-verdant-heart-voyage', 'Verdant-Heart Voyage', ['Relic'], {
-    cost: cost(3, 'G'), colors: ['G'], abilities: [arrives([{ op: 'fetchLand' }])], skim: { cost: cost(1) }, rarity: 'r',
+    cost: cost(3, 'G'), colors: ['G'], abilities: [arrives([{ op: 'extraLandDrop' }])], skim: { cost: cost(1) }, rarity: 'r',
     flavor: 'The relic points home, even when home is still being built.',
   }),
   creature('dt-wave-skiff-runner', 'Wave-Skiff Runner', ['Human', 'Sailor'], {
@@ -393,7 +393,7 @@ const C: CardDef[] = [
   creature('dt-gilded-stepmother', 'Gilded Stepmother', ['Human', 'Courtier'], { cost: cost(2, 'B'), colors: ['B'], attack: 2, defense: 2, abilities: [arrives([{ op: 'loseLife', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'She polishes the family silver and the family alibis.' }),
   ritual('dt-palace-masquerade', 'Palace Masquerade', { cost: cost(3, 'W'), colors: ['W'], abilities: [spell([{ op: 'createToken', token: 'tok-masked-guest', count: 2 }, { op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'The guest list is a spell with excellent manners.' }),
   artifact('dt-ragged-ballgown', 'Ragged Ballgown', ['Relic'], { cost: cost(2), colors: [], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'gainLife', n: 2 }])], rarity: 'c', flavor: 'The hem is torn, but the entrance is still worth making.' }),
-  ritual('dt-forked-road-choice', 'Forked-Road Choice', { cost: cost(2, 'G'), colors: ['G'], abilities: [spell([{ op: 'fetchLand' }, { op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'One road is safe. The other is more interesting.' }),
+  ritual('dt-forked-road-choice', 'Forked-Road Choice', { cost: cost(2, 'G'), colors: ['G'], abilities: [spell([{ op: 'extraLandDrop' }, { op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'One road is safe. The other is more interesting.' }),
   charm('dt-lullaby-refrain', 'Lullaby Refrain', { cost: cost(1, 'U'), colors: ['U'], abilities: [spell([{ op: 'tap', to: 'target' }], target('creature'))], retell: { cost: cost(2, 'U') }, rarity: 'c', flavor: 'The refrain returns when the sleeper thinks it is over.' }),
   artifact('dt-apple-basket', 'Apple Basket', ['Relic'], { cost: cost(2, 'G'), colors: ['G'], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'gainLife', n: 2 }])], rarity: 'c', flavor: 'The basket is full, the orchard is quiet, and the deal is unclear.' }),
   artifact('dt-ice-lace-gloves', 'Ice-Lace Gloves', ['Relic'], { cost: cost(2), colors: [], skim: { cost: cost(1) }, abilities: [dawn([{ op: 'severGrave', n: 1, who: 'opponent' }])], rarity: 'c', flavor: 'Frost keeps what it touches, and gives none of it back.' }),

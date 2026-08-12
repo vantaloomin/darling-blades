@@ -149,7 +149,7 @@ describe('turn flow', () => {
     const secondIdx = g.state.players[p].hand.findIndex((c) => c === 'forest');
     if (secondIdx >= 0) {
       expect(() => g.submit(p, { type: 'playLand', handIndex: secondIdx })).toThrow(
-        /already played a land/,
+        /no land drops remaining/,
       );
     }
     expect(g.legalActions(p).some((a) => a.type === 'playLand')).toBe(false);
@@ -163,7 +163,7 @@ describe('turn flow', () => {
     const passTurn = (): void => {
       const p = g.state.activePlayer;
       const landIdx = g.state.players[p].hand.findIndex((c) => c === 'forest');
-      if (landIdx >= 0 && !g.state.players[p].landPlayedThisTurn) {
+      if (landIdx >= 0 && g.state.players[p].landDropsUsed < 1 + g.state.players[p].extraLandDrops) {
         g.submit(p, { type: 'playLand', handIndex: landIdx });
       }
       g.submit(p, { type: 'passStep' });

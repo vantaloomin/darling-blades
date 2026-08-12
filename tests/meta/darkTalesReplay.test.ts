@@ -51,7 +51,6 @@ function recordDarkTales(seed: number): { log: ReplayLog; state: string; events:
       case 'discardToHandSize':
         action = { type: 'discard', handIndices: Array.from({ length: a.count }, (_, i) => i) };
         break;
-      case 'chooseBasicLand': action = game.legalActions(p).find((x) => x.type === 'chooseBasicLand')!; break;
       case 'foresee': action = { type: 'foresee', bottomIndices: [] }; break;
       default: throw new Error('unhandled replay setup window');
     }
@@ -107,7 +106,6 @@ function recordCancelledRetell(seed: number): { log: ReplayLog; state: string; e
       case 'discardToHandSize':
         action = { type: 'discard', handIndices: Array.from({ length: a.count }, (_, i) => i) };
         break;
-      case 'chooseBasicLand': action = game.legalActions(p).find((x) => x.type === 'chooseBasicLand')!; break;
       case 'foresee': action = { type: 'foresee', bottomIndices: [] }; break;
       default: throw new Error('unhandled cancelled Retell setup window');
     }

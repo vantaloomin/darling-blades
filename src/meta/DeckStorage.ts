@@ -11,11 +11,10 @@ export interface DeckIssue {
 
 /**
  * Reserve-native Limited (1.6 migration, owner-ratified 2026-08-09): a drafted
- * deck is 25 SPELLS and no lands. The ten-land reserve is granted, not
- * drafted, so three 15-card packs still leave real choices - requiring 40
- * spells from a 45-card pool would mean playing almost everything opened,
- * which is not drafting. Packs and the Premium entry fee are unchanged: the
- * fee buys the 45 kept cards, and deck size does not change what is kept.
+ * deck is 25 SPELLS and no lands. The ten-land reserve is granted, with up to
+ * five drafted duals assignable during build, so three 15-card packs still
+ * leave real choices. Packs and the Premium entry fee are unchanged: the fee
+ * buys the 45 kept cards, and deck size does not change what is kept.
  */
 export const LIMITED_DECK_SIZE = 25;
 

@@ -31,8 +31,8 @@ describe('reasonUncastable', () => {
 
   it('reports the one-land-per-turn limit', () => {
     const s = makeTestState({ hands: [['forest'], []], active: 0 });
-    s.players[0].landPlayedThisTurn = true;
-    expect(reasonUncastable(s, TEST_DB, 0, 0)).toBe('You have already played a land this turn.');
+    s.players[0].landDropsUsed = 1;
+    expect(reasonUncastable(s, TEST_DB, 0, 0)).toBe('You have no land drops left this turn.');
   });
 
   it('explains ritual-speed: a non-Charm in a response window', () => {

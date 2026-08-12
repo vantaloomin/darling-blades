@@ -25,7 +25,7 @@ export const SORCERIES = [
     subtypes: [],
     cost: cost(1, 'G'),
     colors: ['G'],
-    abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',
     flavor: 'The land was always coming. She just sent an invitation.',
   },

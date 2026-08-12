@@ -663,10 +663,9 @@ export class DuelScene extends Phaser.Scene {
       (myDeckEntry?.format === 'darlings' || myDeckEntry?.format === 'warchest')
         ? myDeckEntry.format
         : undefined;
-    // Limited is reserve-native since 2026-08-09: a drafted deck is 25 spells
-    // and both seats receive a granted ten-land Warchest derived from their
-    // own colours. Nothing is drafted into the reserve, so no run state
-    // changes and old replays keep their recorded format.
+    // Limited is reserve-native: a drafted deck is 25 spells and both seats
+    // receive a ten-land Warchest. The draft run supplies the chosen player
+    // reserve and the matching opponent reserve when available.
     const limitedReserveFormat: ReserveFormat | undefined =
       this.limited && !this.replayMode ? 'warchest' : undefined;
     // The tutorial teaches the format the game actually plays (1.6). It carries
@@ -703,9 +702,8 @@ export class DuelScene extends Phaser.Scene {
       ? [
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 0)
-            // Limited grants its reserve from the drafted deck's own colours.
             : limitedReserveFormat
-              ? limitedLandReserve(CARD_DB, myDeck)
+              ? data.landReserveOverride?.[0]?.slice() ?? limitedLandReserve(CARD_DB, myDeck)
               : tutorialReserveFormat
                 ? data.landReserveOverride![0].slice()
                 : Array.isArray(myDeckEntry?.landReserve)
@@ -713,9 +711,11 @@ export class DuelScene extends Phaser.Scene {
                   : [],
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 1)
-            : tutorialReserveFormat
-              ? data.landReserveOverride![1].slice()
-              : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
+            : limitedReserveFormat
+              ? data.landReserveOverride?.[1]?.slice() ?? buildAiLandReserve(aiDeck, CARD_DB)
+              : tutorialReserveFormat
+                ? data.landReserveOverride![1].slice()
+                : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
         ]
       : undefined;
     const darlings: [string | null, string | null] | undefined = reserveFormat === 'darlings'
@@ -999,7 +999,6 @@ export class DuelScene extends Phaser.Scene {
       isHumanTurn,
       awaitingKind: a.kind,
       step: st.step,
-      landPlayedThisTurn: you.landPlayedThisTurn,
       canPlayLand,
       hasCastableCreature,
       myCreatureCount,
@@ -5604,8 +5603,6 @@ export class DuelScene extends Phaser.Scene {
       this.buildForeseeOverlay(a.cards);
     } else if (a.kind === 'discardToHandSize') {
       this.buildPickOverlay(`Discard ${a.count} card(s)`, a.count, ['Confirm']);
-    } else if (a.kind === 'chooseBasicLand') {
-      this.showBasicLandOverlay();
     }
   }
 
@@ -5880,53 +5877,6 @@ export class DuelScene extends Phaser.Scene {
     c.add(confirm);
     this.guard.open(this.overlayGuardTargets());
     this.overlay = c;
-  }
-
-  /**
-   * Mandatory chooser for a deferred fetchLand (Demeter etc.): tap the basic
-   * land type to fetch. One CardView per legal option (deduped basic types);
-   * no Cancel — the fetch is resolving. Stored in `this.overlay`, so the next
-   * syncOverlay tears it down once the choice resolves back to `main`.
-   */
-  private showBasicLandOverlay(): void {
-    const width = 1280;
-    const height = 720;
-    const options = this.duel
-      .legalActions(HUMAN)
-      .filter((l): l is Extract<Action, { type: 'chooseBasicLand' }> => l.type === 'chooseBasicLand');
-    const c = this.add.container(0, 0).setDepth(100);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive());
-    c.add(
-      this.add
-        .text(width / 2, 150, 'Search your deck for a basic land', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '28px',
-          color: '#f0e6ff',
-        })
-        .setOrigin(0.5),
-    );
-    const n = options.length;
-    const spacing = Math.min(160, (width - 240) / Math.max(1, n));
-    options.forEach((opt, i) => {
-      const x = width / 2 - ((n - 1) * spacing) / 2 + i * spacing;
-      const v = new CardView(this, x, 370).setScale(0.62);
-      const d = def(CARD_DB, opt.cardId);
-      const landStyle = this.humanLandStyleFor(opt.cardId);
-      const variant = displayVariantFor(Services.save.data, opt.cardId);
-      v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt, landStyle });
-      c.add(v);
-      v.enableInput();
-      this.zoom.attach(v, d, variant, landStyle);
-      const pick = (): void => this.act(opt);
-      v.on('pointerup', (p: Phaser.Input.Pointer) => {
-        if (p.wasTouch) return;
-        if (p.rightButtonReleased()) return;
-        pick();
-      });
-      attachTouchGestures(this, v, { card: d, variant, landStyle, onTap: pick });
-    });
-    this.overlay = c;
-    this.guard.open(this.overlayGuardTargets());
   }
 
   private buildPickOverlay(title: string, picks: number, buttons: string[]): void {

@@ -59,6 +59,12 @@ export type TowerTier = 1 | 2 | 3 | 4 | 5 | 6;
  * No seventh tier was needed - the collapse and the T3->T4 cliff were one
  * defect, a mis-placed T3.
  *
+ * RE-MEASURED 2026-08-12 after the land-fetch redesign (ramp cards became
+ * legal again and entered the avatar decks): tiers 16.3 / 26.3 / 37.5 / 50.5 /
+ * 67.0 / 82.8, MONOTONICITY PASS, FLAGS none. The retune HOLDS - T3 still sits
+ * cleanly between T2 and T4. Note T5/T6 gained (64.3->67.0, 77.8->82.8): the
+ * hard brain converts extra land drops better than the Medium proxy does.
+ *
  * WHAT THIS DID NOT FIX. On the FLOORS harness, which is what a player
  * actually climbs, the retune RELOCATED the cliff rather than removing it:
  * plateau gaps went +5.9/+7.5/+19.6/+6.3/+13.7 to +5.9/+17.9/+9.2/+6.3/+13.7,

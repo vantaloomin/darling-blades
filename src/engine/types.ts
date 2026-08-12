@@ -78,7 +78,7 @@ export type EffectOp =
   | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' | 'all' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
-  | { op: 'fetchLand' } // a basic land from deck → battlefield tapped
+  | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
   | { op: 'createToken'; token: string; count: number }
   | { op: 'destroyNewestOpponentArtifactOrEnchantment' } // trigger-safe, no target
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' | 'allEnchantments' }
@@ -350,10 +350,6 @@ export type Awaiting =
     }
   | { player: PlayerId; kind: 'endStepWindow' }
   | { player: PlayerId; kind: 'discardToHandSize'; count: number }
-  // Resolution-time choice: which basic land a `fetchLand` effect grabs when the
-  // deck holds >1 distinct basic type. Deferred through pendingDecisions so the
-  // synchronous interpreter never has to suspend mid-flush.
-  | { player: PlayerId; kind: 'chooseBasicLand' }
   | { kind: 'gameOver' };
 
 export interface PlayerState {
@@ -367,14 +363,14 @@ export interface PlayerState {
   darlingZone?: CardEntry | null;
   darlingInstanceId?: number;
   darlingTax?: number;
-  landPlayedThisTurn: boolean;
+  landDropsUsed: number;
+  extraLandDrops: number;
   mulligans: number;
   keptHand: boolean;
 }
 
 /** Resolution-time choices deferred until the current synchronous batch ends. */
 export type PendingDecision =
-  | { kind: 'chooseBasicLand'; player: PlayerId }
   // `player` is the continuation controller. thenOps is present only when
   // Foresee interrupted a printed op list and contains target-free tail ops.
   | { kind: 'foresee'; player: PlayerId; n: number; thenOps?: EffectOp[] };

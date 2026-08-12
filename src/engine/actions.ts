@@ -46,7 +46,6 @@ export type Action =
   | { type: 'passResponse' }
   | { type: 'passStep' }
   | { type: 'discard'; handIndices: number[] }
-  | { type: 'chooseBasicLand'; cardId: string } // which basic a deferred fetchLand grabs
   | { type: 'concede' };
 
 /** All k-subsets of [0, n). Bounded small everywhere it's used. */
@@ -342,7 +341,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
 
     case 'main': {
       out.push({ type: 'passStep' });
-      if (me.landReserve !== undefined && !me.landPlayedThisTurn) {
+      if (me.landReserve !== undefined && me.landDropsUsed < 1 + me.extraLandDrops) {
         for (let reserveIndex = 0; reserveIndex < me.landReserve.length; reserveIndex++) {
           out.push({ type: 'playLand', handIndex: -1, reserveIndex });
         }
@@ -357,7 +356,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
           out.push({ type: 'skim', handIndex });
         }
         if (isType(d, 'land')) {
-          if (me.landReserve === undefined && !me.landPlayedThisTurn) {
+          if (me.landReserve === undefined && me.landDropsUsed < 1 + me.extraLandDrops) {
             out.push({ type: 'playLand', handIndex });
           }
           return;
@@ -485,20 +484,6 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
       }
       break;
 
-    case 'chooseBasicLand': {
-      // One choice per distinct basic land type left in the deck, in a stable
-      // (sorted-id) order so `legal[0]` is deterministic across shuffles.
-      const seen = new Set<string>();
-      for (const card of me.deck) {
-        const cardId = cardIdOf(card);
-        if (seen.has(cardId)) continue;
-        if (def(db, cardId).supertypes?.includes('basic')) seen.add(cardId);
-      }
-      for (const cardId of [...seen].sort()) {
-        out.push({ type: 'chooseBasicLand', cardId });
-      }
-      break;
-    }
   }
 
   out.push({ type: 'concede' });
@@ -540,7 +525,7 @@ export function validateAction(
 
     case 'playLand': {
       if (a.kind !== 'main') return 'not in a main phase';
-      if (me.landPlayedThisTurn) return 'already played a land this turn';
+      if (me.landDropsUsed >= 1 + me.extraLandDrops) return 'no land drops remaining this turn';
       if (me.landReserve !== undefined) {
         if (action.reserveIndex === undefined) return 'reserve formats play lands from the reserve';
         if (!Number.isInteger(action.reserveIndex)) return 'bad reserve index';
@@ -692,13 +677,6 @@ export function validateAction(
       return validIndexSet(action.handIndices, me.hand.length);
     }
 
-    case 'chooseBasicLand': {
-      if (a.kind !== 'chooseBasicLand') return 'not choosing a basic land';
-      const inDeck = me.deck.some((card) => cardIdOf(card) === action.cardId);
-      if (!inDeck) return 'basic not in deck';
-      if (!def(db, action.cardId).supertypes?.includes('basic')) return 'not a basic land';
-      return null;
-    }
   }
 }
 
@@ -814,7 +792,7 @@ export function reasonUncastable(
 
   if (isType(d, 'land')) {
     if (a.kind !== 'main') return 'Lands can only be played during your main phase.';
-    if (me.landPlayedThisTurn) return 'You have already played a land this turn.';
+    if (me.landDropsUsed >= 1 + me.extraLandDrops) return 'You have no land drops left this turn.';
     return null;
   }
 

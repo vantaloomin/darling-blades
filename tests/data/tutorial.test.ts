@@ -202,7 +202,6 @@ describe('tutorialCue (pure guide)', () => {
     isHumanTurn: true,
     awaitingKind: 'main',
     step: 'main1',
-    landPlayedThisTurn: false,
     canPlayLand: true,
     hasCastableCreature: false,
     hasCastableRitual: false,
@@ -249,7 +248,7 @@ describe('tutorialCue (pure guide)', () => {
     expect(land.kind).toBe('playLand');
     expect(land.text).toBe('Click your Warchest, then take a land.');
     expect(tutorialCue({ ...afterWarchest, isTouch: true }).text).toBe('Tap your Warchest, then take a land.');
-    const landDown = { ...afterWarchest, landPlayedThisTurn: true, hasCastableCreature: true };
+    const landDown = { ...afterWarchest, canPlayLand: false, hasCastableCreature: true };
     expect(tutorialCue(landDown).kind).toBe('playCreature');
     const creatureDown = { ...landDown, myCreatureCount: 1, hasCastableCreature: false };
     expect(tutorialCue(creatureDown).kind).toBe('sickness');
@@ -303,15 +302,15 @@ describe('tutorialCue (pure guide)', () => {
     const states: Partial<TutorialCueInput>[] = [
       {},
       { goalShown: true },
-      { goalShown: true, landPlayedThisTurn: true, hasCastableCreature: true },
-      { goalShown: true, landPlayedThisTurn: true, myCreatureCount: 1 },
-      { goalShown: true, landPlayedThisTurn: true, myCreatureCount: 1, sicknessShown: true },
-      { goalShown: true, isTouch: true, landPlayedThisTurn: true, myCreatureCount: 1, sicknessShown: true },
+      { goalShown: true, canPlayLand: false, hasCastableCreature: true },
+      { goalShown: true, canPlayLand: false, myCreatureCount: 1 },
+      { goalShown: true, canPlayLand: false, myCreatureCount: 1, sicknessShown: true },
+      { goalShown: true, isTouch: true, canPlayLand: false, myCreatureCount: 1, sicknessShown: true },
       { goalShown: true, sicknessShown: true, inspectShown: true, hasCastableRitual: true },
       { goalShown: true, ritualCast: true },
       { goalShown: true, blocked: true },
       { goalShown: true, blocked: true, healInfoShown: true, charmCast: true },
-      { goalShown: true, blocked: true, healInfoShown: true, handHasCharm: true, landPlayedThisTurn: true, myCreatureCount: 1, sicknessShown: true, inspectShown: true, ritualCast: true, ritualInfoShown: true },
+      { goalShown: true, blocked: true, healInfoShown: true, handHasCharm: true, canPlayLand: false, myCreatureCount: 1, sicknessShown: true, inspectShown: true, ritualCast: true, ritualInfoShown: true },
       { goalShown: true, awaitingKind: 'declareAttackers', eligibleAttackerCount: 1 },
       { goalShown: true, awaitingKind: 'declareBlockers', hasLegalBlocker: true },
       { goalShown: true, awaitingKind: 'endStepWindow', hasCastableCharm: true },

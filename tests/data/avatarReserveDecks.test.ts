@@ -3,7 +3,6 @@ import { CARD_DB } from '../../src/data/catalog';
 import { AVATARS } from '../../src/data/opponents';
 import { validateDarlingsDeck, validateWarchestDeck } from '../../src/meta/darlings';
 import {
-  hasLandFetchBehavior,
   isBasicLand,
   isDualLand,
   LAND_RESERVE_SIZE,
@@ -23,10 +22,6 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     it(`${avatar.id}: reserveDeck, landReserve, and darlingsDeck are shipping-legal`, () => {
       expect(avatar.reserveDeck).toHaveLength(WARCHEST_DECK_SIZE);
       expect(validateWarchestDeck(CARD_DB, save, avatar.reserveDeck, avatar.landReserve)).toEqual([]);
-      for (const id of avatar.reserveDeck) {
-        expect(hasLandFetchBehavior(CARD_DB[id]), `${id} fetches lands`).toBe(false);
-      }
-
       expect(avatar.landReserve).toHaveLength(LAND_RESERVE_SIZE);
       const duals = avatar.landReserve.filter((id) => isDualLand(CARD_DB[id]));
       expect(duals.length).toBeLessThanOrEqual(MAX_DUAL_LANDS);

@@ -10,9 +10,12 @@ import {
   buildLimitedDeck,
   completeDraftRun,
   countCards,
+  limitedDraftDuals,
   limitedDuelData,
+  limitedLandReserve,
   type LimitedRun,
 } from '../meta/Limited';
+import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../meta/warchest';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { CardView } from '../ui/CardView';
@@ -23,6 +26,7 @@ import { backButton, modalShell, pager, panel, registerSceneBackNavigation, them
 const ROWS = 13;
 export class LimitedDeckBuilderScene extends Phaser.Scene {
   private deck: string[] = [];
+  private selectedDuals: string[] = [];
   private poolPage = 0;
   private deckPage = 0;
   private selectedId: string | null = null;
@@ -62,6 +66,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     backButton(this, 'Draft', () => this.leaveDraft());
     registerSceneBackNavigation(this, () => this.leaveDraft());
     this.deck = [...run.deck];
+    this.selectedDuals = run.landReserve?.filter((id) => CARD_DB[id] && isDualLand(CARD_DB[id])) ?? [];
     this.draw(run);
   }
   private draw(run: LimitedRun): void {
@@ -121,21 +126,32 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     this.heading(x + 18, y + 16, 'Pool');
     const poolCounts = countCards(run.pool);
     const deckCounts = countCards(this.deck);
+    const reserveCounts = countCards(this.selectedDuals);
     const ids = [...poolCounts.keys()].filter((id) => !isBasic(CARD_DB, id)).sort(sortCards);
     const maxPage = Math.max(0, Math.ceil(ids.length / ROWS) - 1);
     this.poolPage = Math.min(this.poolPage, maxPage);
     ids.slice(this.poolPage * ROWS, this.poolPage * ROWS + ROWS).forEach((id, i) => {
       const owned = poolCounts.get(id) ?? 0;
       const used = deckCounts.get(id) ?? 0;
+      const dual = isDualLand(CARD_DB[id]);
+      const reserveUsed = reserveCounts.get(id) ?? 0;
       this.cardRow(
         x + 18,
         y + 56 + i * 31,
-        `${used}/${owned} ${cardLine(id)}`,
+        `${dual ? reserveUsed : used}/${owned} ${cardLine(id)}`,
         id,
-        '+',
-        used < owned,
+        dual && reserveUsed > 0 ? '−' : '+',
+        dual ? reserveUsed > 0 || this.selectedDuals.length < MAX_DUAL_LANDS : !isType(CARD_DB[id], 'land') && used < owned,
         () => {
-          if (this.deck.length < LIMITED_DECK_SIZE && used < owned) {
+          if (dual) {
+            if (reserveUsed > 0) {
+              this.removeOne(id, this.selectedDuals);
+              this.persistAndRedraw(run);
+            } else if (this.selectedDuals.length < MAX_DUAL_LANDS) {
+              this.selectedDuals.push(id);
+              this.persistAndRedraw(run);
+            }
+          } else if (this.deck.length < LIMITED_DECK_SIZE && used < owned) {
             this.deck.push(id);
             this.selectedId = id;
             this.persistAndRedraw(run);
@@ -187,6 +203,8 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     const y = 116;
     const issues = validateLimitedDeck(CARD_DB, run.pool, this.deck);
     const errors = issues.filter((issue) => issue.kind === 'error');
+    const reserve = limitedLandReserve(CARD_DB, this.deck, run.pool, this.selectedDuals);
+    const reserveDuals = reserve.filter((id) => isDualLand(CARD_DB[id]));
     panel(this, x, y, 382, 500);
     this.heading(
       x + 18,
@@ -195,6 +213,20 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       errors.length ? theme.colors.danger : theme.colors.gold,
     );
     this.text(x + 18, y + 52, deckSummary(this.deck), theme.type.label, theme.colors.body);
+    this.text(
+      x + 18,
+      y + 76,
+      `Warchest ${reserve.length}/${LAND_RESERVE_SIZE} · ${reserveDuals.length}/${MAX_DUAL_LANDS} duals`,
+      theme.type.label,
+      theme.colors.gold,
+    );
+    this.text(
+      x + 18,
+      y + 100,
+      reserveDuals.length > 0 ? reserveDuals.map((id) => def(CARD_DB, id).name).join(', ') : 'Basics fill the Warchest automatically',
+      theme.type.caption,
+      theme.colors.muted,
+    );
     if (this.selectedId) {
       const card = def(CARD_DB, this.selectedId);
       this.add.text(x + 18, y + 92, card.name, {
@@ -250,7 +282,16 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       minWidth: 120,
       onTap: () => {
         this.deck = buildLimitedDeck(CARD_DB, run.pool);
+        this.selectedDuals = limitedDraftDuals(CARD_DB, run.pool).slice(0, MAX_DUAL_LANDS);
         this.selectedId = this.deck[0] ?? null;
+        this.persistAndRedraw(run);
+      },
+    });
+    themedButton(this, 760, 680, 'Clear Warchest', {
+      variant: 'ghost',
+      minWidth: 120,
+      onTap: () => {
+        this.selectedDuals = [];
         this.persistAndRedraw(run);
       },
     });
@@ -259,7 +300,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       minWidth: 100,
       onTap: () => {
         this.deck = [];
-        this.persistAndRedraw(run);
+    this.persistAndRedraw(run);
       },
     });
     themedButton(this, 1050, 642, 'Start Match', {
@@ -419,6 +460,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       return;
     const updated = completeDraftRun(CARD_DB, run);
     updated.deck = [...this.deck];
+    updated.landReserve = limitedLandReserve(CARD_DB, updated.deck, updated.pool, this.selectedDuals);
     updated.status = 'matches';
     Services.save.data.limited.activeRun = updated;
     Services.save.flush();
@@ -426,13 +468,14 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   }
   private persistAndRedraw(run: LimitedRun): void {
     run.deck = [...this.deck];
+    run.landReserve = limitedLandReserve(CARD_DB, this.deck, run.pool, this.selectedDuals);
     Services.save.data.limited.activeRun = run;
     Services.save.flush();
     this.draw(run);
   }
-  private removeOne(id: string): void {
-    const index = this.deck.indexOf(id);
-    if (index >= 0) this.deck.splice(index, 1);
+  private removeOne(id: string, from: string[] = this.deck): void {
+    const index = from.indexOf(id);
+    if (index >= 0) from.splice(index, 1);
   }
   private heading(x: number, y: number, label: string, color: string = theme.colors.gold): void {
     this.add.text(x, y, label, {
@@ -454,10 +497,9 @@ function sortCards(a: string, b: string): number {
 }
 function cardLine(id: string): string {
   const card = def(CARD_DB, id);
-  // About 6% of draft picks are nonbasic lands, which this format cannot play
-  // (the Warchest is granted). They still enter the collection, so they are
-  // shown rather than hidden, but marked so nobody hunts for the Add button.
-  if (isType(card, 'land')) return `- ${short(card.name, 22)} (kept, not playable here)`;
+  // Duals are playable in the Warchest. Any retired utility land remains in
+  // the pool and collection, but cannot be assigned to the spell deck.
+  if (isType(card, 'land')) return `${isDualLand(card) ? 'W' : '-'} ${short(card.name, 22)}${isDualLand(card) ? ' (Warchest)' : ' (kept)'}`;
   return `MV${manaValue(card.cost)} ${short(card.name, 25)}`;
 }
 function detailLine(card: CardDef): string {

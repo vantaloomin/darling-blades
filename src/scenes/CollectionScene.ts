@@ -17,6 +17,7 @@ import {
   applyFilters,
   clampPage,
   collectionCompletion,
+  collectionDisplayPool,
   collectiblePool,
   defaultFilterState,
   ownedVariantEntries,
@@ -320,7 +321,7 @@ export class CollectionScene extends Phaser.Scene {
 
   private currentPool(): CardDef[] {
     return sortCollectionCards(
-      applyFilters(collectiblePool(ALL_CARDS), this.state, Services.save.data),
+      applyFilters(collectionDisplayPool(ALL_CARDS, Services.save.data), this.state, Services.save.data),
       this.sortSelection,
       Services.save.data,
     );

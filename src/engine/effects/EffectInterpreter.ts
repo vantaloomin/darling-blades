@@ -8,7 +8,7 @@ import {
   severPermanent,
 } from '../battlefield';
 import { drawCards } from '../phases';
-import { rngInt, rngShuffle } from '../rng';
+import { rngInt } from '../rng';
 import { getEffectiveStats, isQuestActive } from '../statics';
 import type {
   AbilityDef,
@@ -238,35 +238,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       if (perm) perm.tapped = true;
       return;
     }
-    case 'fetchLand': {
-      const lib = state.players[ctx.controller].deck;
-      // Distinct basic land types available to fetch.
-      const distinct = new Set<string>();
-      for (const card of lib) {
-        const cardId = cardIdOf(card);
-        if (def(db, card).supertypes?.includes('basic')) distinct.add(cardId);
-      }
-      if (distinct.size >= 2) {
-        // >1 type: defer to a player/AI choice, surfaced after the flush (see
-        // Game.maybeRaiseDeferredDecision / apply 'chooseBasicLand'). Do NOT fetch or
-        // shuffle here — both happen when the choice resolves — so the ≤1-type
-        // path below stays byte-identical (determinism.test relies on it).
-        state.pendingDecisions.push({ kind: 'chooseBasicLand', player: ctx.controller });
-        return;
-      }
-      // 0 or 1 distinct type: unchanged — grab the topmost basic, enter tapped,
-      // reshuffle. (No choice to make, so no reason to interrupt.)
-      for (let i = lib.length - 1; i >= 0; i--) {
-        if (def(db, lib[i]).supertypes?.includes('basic')) {
-          const [cardId] = lib.splice(i, 1);
-          const perm = enterBattlefield(state, db, cardId, ctx.controller, emit);
-          perm.tapped = true;
-          rngShuffle(state.rng, lib);
-          return;
-        }
-      }
+    case 'extraLandDrop':
+      state.players[ctx.controller].extraLandDrops += op.n ?? 1;
       return;
-    }
     case 'createToken': {
       for (let i = 0; i < op.count; i++) {
         const count = state.battlefield.filter(
@@ -418,7 +392,7 @@ function assertTargetFreeForeseeContinuation(op: EffectOp): void {
     op.op === 'discardRandom' ||
     op.op === 'severGrave' ||
     op.op === 'severTop' ||
-    op.op === 'fetchLand' ||
+    op.op === 'extraLandDrop' ||
     op.op === 'createToken' ||
     op.op === 'destroyNewestOpponentArtifactOrEnchantment' ||
     op.op === 'massDestroy' ||

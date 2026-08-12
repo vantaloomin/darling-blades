@@ -38,7 +38,7 @@ const OPS = new Set([
   'boost',
   'addCounters',
   'tap',
-  'fetchLand',
+  'extraLandDrop',
   'createToken',
   'massDestroy',
   'preventCombat',

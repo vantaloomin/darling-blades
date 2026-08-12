@@ -3,7 +3,6 @@ import { CARD_DB } from '../../src/data/catalog';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
 import { validateWarchestDeck } from '../../src/meta/darlings';
 import {
-  hasLandFetchBehavior,
   isBasicLand,
   isDualLand,
   LAND_RESERVE_SIZE,
@@ -23,10 +22,6 @@ describe('reserve-native starter builds (1.6 migration)', () => {
       expect(landReserve, `${starter.id} has no land reserve`).toBeDefined();
       expect(reserveCards).toHaveLength(WARCHEST_DECK_SIZE);
       expect(validateWarchestDeck(CARD_DB, save, reserveCards!, landReserve!)).toEqual([]);
-      for (const id of reserveCards!) {
-        expect(hasLandFetchBehavior(CARD_DB[id]), `${id} fetches lands`).toBe(false);
-      }
-
       expect(landReserve).toHaveLength(LAND_RESERVE_SIZE);
       expect(landReserve!.filter((id) => isDualLand(CARD_DB[id])).length).toBeLessThanOrEqual(MAX_DUAL_LANDS);
       for (const id of landReserve!) {

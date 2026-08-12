@@ -1542,6 +1542,20 @@ export interface FloorMatrixReport {
  * src/ai/tiers.ts). Same command, FLAGS none. Only the T3 rows moved:
  *   T3 floors 7-9:   44.3 / 43.5 / 44.8        avg 44.2
  *
+ * RE-MEASURED AGAIN 2026-08-12, after the land-fetch redesign put ramp cards
+ * (extraLandDrop) back into legal decks and the deterministic converter pulled
+ * four of them into the avatar builds. Same command, FLAGS none:
+ *   T1 18.0 · T2 24.9 · T3 45.2 · T4 53.9 · T5 62.9 · T6 72.0
+ *   gaps +6.9 / +20.3 / +8.7 / +9.0 / +9.1
+ *
+ * THE RAMP WIDENED THE WALL. The T2->T3 step went 17.9 -> 20.3pp, worse than
+ * the 19.6 this whole investigation started from - because the EASY brain does
+ * not exploit an extra land drop while medium and hard do. Every OTHER gap
+ * tightened to 6.9-9.1, so the ladder is now "flat easy stretch, one wall,
+ * then a smooth climb". This is more evidence for the structural finding in
+ * src/ai/tiers.ts: the easy->medium boundary is the discontinuity, and any
+ * mechanic that rewards good play will widen it rather than close it.
+ *
  * HONEST READ: the retune fixed the collapse but did NOT fix the cliff, it
  * RELOCATED it. Floor-plateau gaps went
  *   before  +5.9 / +7.5 / +19.6 / +6.3 / +13.7   (widest at T3->T4)

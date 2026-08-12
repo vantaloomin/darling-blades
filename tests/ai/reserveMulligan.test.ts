@@ -21,7 +21,7 @@ function mulliganView(hand: string[], overrides: { mulligans?: number; reserve?:
       graveyard: [],
       severed: [],
       ...(reserve ? { landReserve: RESERVE } : {}),
-      landPlayedThisTurn: false,
+      landDropsRemaining: 1,
       mulligans: overrides.mulligans ?? 0,
     },
     opp: {
@@ -31,7 +31,7 @@ function mulliganView(hand: string[], overrides: { mulligans?: number; reserve?:
       graveyard: [],
       severed: [],
       ...(reserve ? { landReserve: RESERVE } : {}),
-      landPlayedThisTurn: false,
+      landDropsRemaining: 1,
       mulligans: 0,
     },
     battlefield: [],
