@@ -92,8 +92,10 @@ import { HistoryPanel } from '../ui/HistoryPanel';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
+import { VersusBumper } from '../ui/VersusBumper';
 import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
 import { CARD_TRAVEL_MOTION, hauntlinkOverlap, targetRingTone } from '../ui/duelPresentation';
+import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
 import { renderManaText } from '../ui/ManaText';
@@ -344,6 +346,10 @@ export class DuelScene extends Phaser.Scene {
   /** Premium hero portrait texture (a bought theme deck's exclusive art), or null. */
   private myHeroTextureKey: string | null = null;
   private oppFaceCardId: string | null = null;
+  /** Entry-only overlay. Internal scene restarts consume the one-shot skip marker. */
+  private versusBumper: VersusBumper | null = null;
+  private versusBumperActive = false;
+  private internalRestartPending = false;
   private selectedAttackers = new Set<number>();
   private blockAssignments: { blocker: number; attacker: number }[] = [];
   private pendingBlocker: number | null = null;
@@ -490,6 +496,11 @@ export class DuelScene extends Phaser.Scene {
       replay?: ReplayLog;
     } = {},
   ): void {
+    const internalRestart = this.internalRestartPending;
+    this.internalRestartPending = false;
+    this.versusBumper?.destroy();
+    this.versusBumper = null;
+    this.versusBumperActive = false;
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     if (!this.reserveFormatsEnabled && data.replay?.format) {
       this.scene.start('Profile');
@@ -853,12 +864,49 @@ export class DuelScene extends Phaser.Scene {
         if (ghost.active) ghost.destroy();
       }
       this.playRevealGhosts.clear();
+      this.versusBumper?.destroy();
+      this.versusBumper = null;
+      this.versusBumperActive = false;
     });
     if (this.tutorial) {
       // The coach-mark guide layer is display-only until its scripted beat
       // opens each target; the HUD no longer exposes an auto-skip control.
       this.coach = new CoachMark(this);
     }
+    const showVersusBumper = shouldPlayVersusBumper({
+      animations: this.motionLevel(),
+      tutorial: this.tutorial,
+      replay: this.replayMode,
+      internalRestart,
+    });
+    if (showVersusBumper) {
+      const opponentName = this.opponent?.name ?? this.limitedPersona?.name ?? `${this.difficulty} AI`;
+      this.versusBumperActive = true;
+      Sfx.play('versus', {
+        pitch: versusLeitmotifPitch(this.opponent?.id ?? this.oppFaceCardId ?? opponentName),
+      });
+      this.versusBumper = new VersusBumper(this, {
+        animations: this.motionLevel() === 'reduced' ? 'reduced' : 'full',
+        player: {
+          cardId: this.myFaceCardId,
+          ...(this.myHeroTextureKey ? { textureKey: this.myHeroTextureKey } : {}),
+          label: this.myDeckName,
+        },
+        opponent: { cardId: this.oppFaceCardId, label: opponentName },
+        onComplete: () => {
+          if (!this.sys.isActive()) return;
+          this.versusBumper = null;
+          this.versusBumperActive = false;
+          this.beginDuel();
+        },
+      });
+      return;
+    }
+    this.beginDuel();
+  }
+
+  /** Keep the deterministic game idle until the entry presentation releases it. */
+  private beginDuel(): void {
     this.processEvents(this.duel.initialEvents);
     if (this.tutorial) this.autoKeepTutorialMulligans();
     this.sync();
@@ -1822,7 +1870,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private act(action: Action): void {
-    if (this.replayMode || this.ended) return;
+    if (this.versusBumperActive || this.replayMode || this.ended) return;
     if (this.animatingCombat) return; // swallow input while a combat sequence plays
     try {
       const playedCardId = this.actionCardId(action);
@@ -4372,6 +4420,7 @@ export class DuelScene extends Phaser.Scene {
   // ---------------------------------------------------------------------
 
   private onButton(): void {
+    if (this.versusBumperActive) return;
     if (this.pendingCasts) {
       this.pendingCasts = null;
       this.sync();
@@ -4471,6 +4520,7 @@ export class DuelScene extends Phaser.Scene {
 
   private onConfirmKey(e: KeyboardEvent): void {
     e.preventDefault(); // Space would otherwise scroll the page in the browser
+    if (this.versusBumperActive) return;
     if (this.replayMode) return;
     if (this.empowerChooser) return;
     if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
@@ -4480,6 +4530,7 @@ export class DuelScene extends Phaser.Scene {
 
   private onCancelKey(e: KeyboardEvent): void {
     e.preventDefault();
+    if (this.versusBumperActive) return;
     if (this.replayOutcomeShell) {
       this.replayOutcomeShell.close();
       return;
@@ -6112,7 +6163,7 @@ export class DuelScene extends Phaser.Scene {
       });
       c.add(btn.container);
     };
-    mk(520, 'Rematch', 'primary', () => this.scene.restart());
+    mk(520, 'Rematch', 'primary', () => this.restartDuel());
     mk(760, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
     this.guard.open(this.overlayGuardTargets());
   }
@@ -6224,7 +6275,7 @@ export class DuelScene extends Phaser.Scene {
     };
 
     if (!reward.runOver && save.limited.activeRun) {
-      mk(510, 'Next Match', 'primary', () => this.scene.restart(limitedDuelData(save.limited.activeRun!)));
+      mk(510, 'Next Match', 'primary', () => this.restartDuel(limitedDuelData(save.limited.activeRun!)));
       mk(770, 'Draft', 'ghost', () => this.scene.start('Limited'));
     } else {
       mk(510, 'Draft', 'primary', () => this.scene.start('Limited'));
@@ -6340,11 +6391,17 @@ export class DuelScene extends Phaser.Scene {
     if (reward.nextRung !== null) {
       const next = reward.nextRung;
       mk(520, 'Next Foe', 'primary', () =>
-        this.scene.restart({ opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next }),
+        this.restartDuel({ opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next }),
       );
       mk(760, 'Tower', 'ghost', () => this.scene.start('Gauntlet'));
     }
     this.guard.open(this.overlayGuardTargets());
+  }
+
+  /** Scene reuse is continuation, not a fresh duel entry, so consume one bumper skip. */
+  private restartDuel(data?: object): void {
+    this.internalRestartPending = true;
+    this.scene.restart(data);
   }
 
   private showGauntletRunRecap(
