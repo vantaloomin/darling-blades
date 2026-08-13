@@ -11,10 +11,25 @@ import {
 } from '../meta/Achievements';
 import { collectionCompletion } from '../meta/collectionFilter';
 import { Services } from '../meta/services';
+import type { AnimationLevel } from '../platform/animPolicy';
+import {
+  achievementCascadeDelay,
+  achievementCascadeDuration,
+  achievementClaimMotion,
+  achievementClaimPitch,
+} from '../ui/achievementPresentation';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { colorInt, theme } from '../ui/theme';
-import { pager, panel, registerSceneBackNavigation, roundedTrigger, sceneHeaderFooter, themedButton } from '../ui/themeWidgets';
+import {
+  pager,
+  panel,
+  registerSceneBackNavigation,
+  roundedTrigger,
+  sceneHeaderFooter,
+  themedButton,
+  type ThemedButton,
+} from '../ui/themeWidgets';
 
 const DESIGN_W = 1280;
 const DESIGN_H = 720;
@@ -28,10 +43,13 @@ const ROW_W = (CONTENT_W - COLUMN_GAP) / 2;
 const ROW_Y = 196;
 const ROW_H = 50;
 const ROW_PITCH = 56;
-const COPY_MAX_W = 300;
-const PROGRESS_RIGHT = 420;
+const COPY_MAX_W = 286;
+const GAUGE_CENTER = 326;
+const PROGRESS_LEFT = 350;
 const REWARD_RIGHT = 538;
-const CLAIM_CENTER = 375;
+const CLAIM_CENTER = 396;
+const CLAIM_SEAL_W = 84;
+const CLAIM_SEAL_H = 30;
 
 const SUMMARY_Y = 106;
 const SUMMARY_H = 40;
@@ -52,6 +70,11 @@ const BUCKET_LABEL: Record<AchievementStatus['def']['bucket'], string> = {
 const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
 
 type AchievementFilter = 'all' | 'ready' | 'in-progress' | 'claimed';
+
+interface ClaimSealTarget {
+  x: number;
+  y: number;
+}
 
 const FILTERS: readonly { key: AchievementFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -132,6 +155,14 @@ export class AchievementsScene extends Phaser.Scene {
     const claimed = statuses.filter((s) => s.claimed).length;
     const claimable = statuses.filter((s) => s.unlocked && !s.claimed);
     const claimableGold = claimable.reduce((sum, s) => sum + s.def.reward.gold, 0);
+    const animationLevel = save.settings.animations;
+    const visibleClaimTargets = new Map<string, ClaimSealTarget>();
+    const claimButtons: ThemedButton[] = [];
+    let claimAllButton: ThemedButton | null = null;
+    const disableClaimControls = (): void => {
+      claimAllButton?.setEnabled(false);
+      claimButtons.forEach((button) => button.setEnabled(false));
+    };
 
     const chrome = sceneHeaderFooter(this, {
       title: 'Achievements',
@@ -156,20 +187,40 @@ export class AchievementsScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     if (claimable.length > 0) {
-      const claimAll = themedButton(this, 0, theme.design.headerCenterY, `Claim All +${claimableGold} Gold`, {
+      claimAllButton = themedButton(this, 0, theme.design.headerCenterY, `Claim All +${claimableGold} Gold`, {
         variant: 'primary',
         minWidth: 220,
         onTap: () => {
+          disableClaimControls();
           const result = claimAllAchievements(save);
           if (result.gold > 0) {
             Services.save.flush();
-            Sfx.play('coin');
+            const claimedIds = new Set(result.ids);
+            const targets = visibleStatuses
+              .filter((status) => claimedIds.has(status.def.id))
+              .flatMap((status) => {
+                const target = visibleClaimTargets.get(status.def.id);
+                return target ? [target] : [];
+              });
+            const fallbackTarget = {
+              x: claimAllButton?.container.x ?? theme.design.safeRight,
+              y: theme.design.headerCenterY,
+            };
+            this.playClaimCascade(
+              targets.length > 0 ? targets : [fallbackTarget],
+              animationLevel,
+              () => {
+                Sfx.play('coin');
+                this.scene.restart({ page, filter });
+              },
+            );
+            return;
           }
           this.scene.restart({ page, filter });
         },
       });
-      const claimAllWidth = claimAll.getMeasuredSize().visual.width;
-      claimAll.container
+      const claimAllWidth = claimAllButton.getMeasuredSize().visual.width;
+      claimAllButton.container
         .setX(theme.design.safeRight - claimAllWidth / 2)
         .setDepth(theme.depth.hud);
     }
@@ -181,13 +232,21 @@ export class AchievementsScene extends Phaser.Scene {
     visibleStatuses.forEach((status, index) => {
       const col = index < ROWS_PER_COLUMN ? 0 : 1;
       const row = index % ROWS_PER_COLUMN;
-      this.drawAchievementRow(
+      const x = CONTENT_X + col * (ROW_W + COLUMN_GAP);
+      const y = ROW_Y + row * ROW_PITCH;
+      if (status.unlocked && !status.claimed) {
+        visibleClaimTargets.set(status.def.id, { x: x + CLAIM_CENTER, y: y + ROW_H / 2 });
+      }
+      const claimButton = this.drawAchievementRow(
         status,
-        CONTENT_X + col * (ROW_W + COLUMN_GAP),
-        ROW_Y + row * ROW_PITCH,
+        x,
+        y,
         page,
         filter,
+        animationLevel,
+        disableClaimControls,
       );
+      if (claimButton) claimButtons.push(claimButton);
     });
     if (visibleStatuses.length === 0) {
       this.add
@@ -278,7 +337,9 @@ export class AchievementsScene extends Phaser.Scene {
     y: number,
     page: number,
     filter: AchievementFilter,
-  ): void {
+    animationLevel: AnimationLevel,
+    disableClaimControls: () => void,
+  ): ThemedButton | null {
     const claimable = status.unlocked && !status.claimed;
     const claimed = status.claimed;
     const centerY = y + ROW_H / 2;
@@ -294,6 +355,7 @@ export class AchievementsScene extends Phaser.Scene {
       claimed ? theme.alpha.subtle : theme.alpha.chrome,
     );
     g.strokeRoundedRect(x, y, ROW_W, ROW_H, theme.radius.control);
+    this.drawProgressGauge(status, x + GAUGE_CENTER, centerY);
 
     const title = this.add
       .text(x + 14, y + 14, '', {
@@ -334,28 +396,133 @@ export class AchievementsScene extends Phaser.Scene {
     if (!claimable) {
       const progress = `${Math.min(status.current, status.target)}/${status.target} · ${pct(status.percent)}`;
       this.add
-        .text(x + PROGRESS_RIGHT, centerY, progress, {
+        .text(x + PROGRESS_LEFT, centerY, progress, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           fontStyle: theme.weight.w600,
           color: claimed ? theme.colors.muted : theme.colors.body,
         })
-        .setOrigin(1, 0.5);
+        .setOrigin(0, 0.5);
     } else {
-      themedButton(this, x + CLAIM_CENTER, centerY, 'Claim', {
+      const claimButton = themedButton(this, x + CLAIM_CENTER, centerY, 'Claim', {
         variant: 'emphasis',
         size: 'sm',
         minWidth: 90,
         onTap: () => {
+          disableClaimControls();
           const result = claimAchievement(Services.save.data, status.def.id);
           if (result.ok) {
             Services.save.flush();
-            Sfx.play('coin');
+            this.playClaimCascade([{ x: x + CLAIM_CENTER, y: centerY }], animationLevel, () => {
+              Sfx.play('coin');
+              this.scene.restart({ page, filter });
+            });
+            return;
           }
           this.scene.restart({ page, filter });
         },
       });
+      return claimButton;
     }
+    return null;
+  }
+
+  private drawProgressGauge(status: AchievementStatus, x: number, y: number): void {
+    const progress = Math.min(1, Math.max(0, status.percent));
+    const accent = colorInt(status.claimed ? theme.colors.success : theme.colors.gold);
+    const gauge = this.add.graphics();
+    gauge.lineStyle(3, theme.graphics.panelStroke, theme.alpha.subtle);
+    gauge.strokeCircle(x, y, 14);
+    if (progress <= 0) return;
+
+    gauge.lineStyle(3, accent, status.claimed ? theme.alpha.chrome : 1);
+    if (progress >= 1) {
+      gauge.strokeCircle(x, y, 14);
+    } else {
+      gauge.beginPath();
+      gauge.arc(x, y, 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress, false);
+      gauge.strokePath();
+    }
+    gauge.fillStyle(accent, 0.12);
+    gauge.fillCircle(x, y, 9);
+  }
+
+  private createClaimSeal(target: ClaimSealTarget): Phaser.GameObjects.Container {
+    const seal = this.add.container(target.x, target.y).setDepth(theme.depth.reveal);
+    const plate = this.add.graphics();
+    plate.fillStyle(theme.graphics.panelFill, 0.96);
+    plate.fillRoundedRect(-CLAIM_SEAL_W / 2, -CLAIM_SEAL_H / 2, CLAIM_SEAL_W, CLAIM_SEAL_H, theme.radius.control);
+    plate.lineStyle(2, colorInt(theme.colors.success), 0.98);
+    plate.strokeRoundedRect(-CLAIM_SEAL_W / 2, -CLAIM_SEAL_H / 2, CLAIM_SEAL_W, CLAIM_SEAL_H, theme.radius.control);
+    plate.lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome);
+    plate.strokeRoundedRect(
+      -CLAIM_SEAL_W / 2 + 4,
+      -CLAIM_SEAL_H / 2 + 4,
+      CLAIM_SEAL_W - 8,
+      CLAIM_SEAL_H - 8,
+      theme.radius.control - 2,
+    );
+    const label = this.add
+      .text(0, 0, 'CLAIMED', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.success,
+      })
+      .setOrigin(0.5);
+    seal.add([plate, label]);
+    return seal;
+  }
+
+  private playClaimCascade(
+    targets: readonly ClaimSealTarget[],
+    animationLevel: AnimationLevel,
+    onComplete: () => void,
+  ): void {
+    if (targets.length === 0) {
+      onComplete();
+      return;
+    }
+    if (animationLevel === 'off') {
+      Sfx.play('seal');
+      onComplete();
+      return;
+    }
+
+    // The mutation is already durable. Hold navigation briefly so the scene
+    // cannot be torn down halfway through its confirmation choreography.
+    const inputShield = this.add
+      .zone(DESIGN_W / 2, DESIGN_H / 2, DESIGN_W, DESIGN_H)
+      .setInteractive()
+      .setDepth(theme.depth.reveal - 1);
+    targets.forEach((target, index) => {
+      this.time.delayedCall(achievementCascadeDelay(index, animationLevel), () => {
+        if (!this.sys.isActive()) return;
+        this.playClaimStamp(target, animationLevel, achievementClaimPitch(index, targets.length));
+      });
+    });
+    this.time.delayedCall(achievementCascadeDuration(targets.length, animationLevel), () => {
+      if (!this.sys.isActive()) return;
+      inputShield.destroy();
+      onComplete();
+    });
+  }
+
+  private playClaimStamp(target: ClaimSealTarget, animationLevel: AnimationLevel, pitch: number): void {
+    const motion = achievementClaimMotion(animationLevel);
+    const seal = this.createClaimSeal(target)
+      .setAlpha(0)
+      .setScale(motion.scaleFrom)
+      .setAngle(motion.angleFrom);
+    Sfx.play('seal', { pitch });
+    this.tweens.add({
+      targets: seal,
+      alpha: 1,
+      scale: 1,
+      angle: motion.angleTo,
+      duration: motion.stampMs,
+      ease: theme.motion.easeOut,
+    });
   }
 
   private drawPagingControls(page: number, pageCount: number, filter: AchievementFilter): void {

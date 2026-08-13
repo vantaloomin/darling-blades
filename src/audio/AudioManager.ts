@@ -12,6 +12,16 @@ export interface VolumeStore {
  */
 const RETRIGGER_MS = 45;
 
+export interface SfxPlayOptions {
+  /** Playback pitch multiplier. Kept bounded so procedural voices stay usable. */
+  pitch?: number;
+}
+
+export function normalizeSfxPitch(pitch: number | undefined): number {
+  if (pitch === undefined || !Number.isFinite(pitch)) return 1;
+  return Math.min(2, Math.max(0.5, pitch));
+}
+
 /**
  * Procedural WebAudio SFX player. No assets: every sound is a recipe of
  * oscillator/noise voices from recipes.ts, scheduled on one AudioContext.
@@ -140,7 +150,7 @@ export class AudioManager {
     return this.muted;
   }
 
-  play(name: SfxName): void {
+  play(name: SfxName, options: SfxPlayOptions = {}): void {
     if (!this.ctx || !this.master) return;
     if (this.ctx.state !== 'running') {
       // Self-heal: an iOS interruption that ends while the page stays visible
@@ -161,7 +171,8 @@ export class AudioManager {
     this.playCount++;
     this.lastPlayed = name;
     const t0 = this.ctx.currentTime + 0.005;
-    for (const v of SFX[name]) this.spawnVoice(v, t0);
+    const pitch = normalizeSfxPitch(options.pitch);
+    for (const v of SFX[name]) this.spawnVoice(v, t0, pitch);
   }
 
   // -----------------------------------------------------------------------
@@ -192,7 +203,7 @@ export class AudioManager {
     this.master.gain.setTargetAtTime(target, this.ctx.currentTime, 0.015);
   }
 
-  private spawnVoice(v: Voice, t0: number): void {
+  private spawnVoice(v: Voice, t0: number, pitch: number): void {
     const ctx = this.ctx!;
     const start = t0 + (v.at ?? 0);
     const end = start + v.attack + v.decay;
@@ -209,8 +220,9 @@ export class AudioManager {
     if (v.kind === 'tone') {
       const osc = ctx.createOscillator();
       osc.type = v.wave;
-      osc.frequency.setValueAtTime(v.freq, start);
-      if (v.freqEnd !== undefined) osc.frequency.exponentialRampToValueAtTime(v.freqEnd, end);
+      osc.frequency.setValueAtTime(v.freq * pitch, start);
+      if (v.freqEnd !== undefined)
+        osc.frequency.exponentialRampToValueAtTime(v.freqEnd * pitch, end);
       osc.connect(env);
       src = osc;
     } else {
@@ -221,9 +233,9 @@ export class AudioManager {
       if (v.filter) {
         const biq = ctx.createBiquadFilter();
         biq.type = v.filter.type;
-        biq.frequency.setValueAtTime(v.filter.freq, start);
+        biq.frequency.setValueAtTime(v.filter.freq * pitch, start);
         if (v.filter.freqEnd !== undefined)
-          biq.frequency.exponentialRampToValueAtTime(v.filter.freqEnd, end);
+          biq.frequency.exponentialRampToValueAtTime(v.filter.freqEnd * pitch, end);
         if (v.filter.q !== undefined) biq.Q.value = v.filter.q;
         out.connect(biq);
         out = biq;

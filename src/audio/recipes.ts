@@ -55,7 +55,8 @@ export type SfxName =
   | 'yourTurn'
   | 'rungClear'
   | 'shatter'
-  | 'warn';
+  | 'warn'
+  | 'versus';
 
 const tone = (
   wave: Wave,
@@ -189,6 +190,12 @@ export const SFX: Record<SfxName, Voice[]> = {
   warn: [
     tone('triangle', 349.23, 0.07, 0.01, 0.16, { freqEnd: 293.66 }),
     tone('sine', 220, 0.045, 0.015, 0.2, { at: 0.06, freqEnd: 196 }),
+  ],
+  // Duel entry: exactly two interlocking lines. The upper triangle rises from
+  // A3 to E4 while the delayed sine answer falls from E4 to C4.
+  versus: [
+    tone('triangle', 220, 0.08, 0.025, 0.84, { freqEnd: 329.63 }),
+    tone('sine', 329.63, 0.065, 0.04, 0.96, { at: 0.12, freqEnd: 261.63 }),
   ],
 };
 

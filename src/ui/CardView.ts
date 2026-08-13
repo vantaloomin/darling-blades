@@ -82,6 +82,13 @@ function fitWrappedText(obj: Phaser.GameObjects.Text, boxH: number): void {
 
 export type CardFxLevel = 'full' | 'static' | 'none';
 
+export interface CardPointerPosition {
+  /** Card-relative position, where each face edge is -1 or 1. */
+  x: number;
+  y: number;
+  inside: boolean;
+}
+
 /**
  * Solid metallic rarity-ring tints for the mid/high tiers, echoing each tier's
  * gem (sr champagne-gold, ssr violet, ur crimson). `c` gets no ring; `r` keeps
@@ -771,14 +778,21 @@ export class CardView extends Phaser.GameObjects.Container {
     return this.zone;
   }
 
-  /** Feed a pointer position for foil reactivity; card-relative -1..1. */
-  setHoloPointer(worldX: number, worldY: number): void {
-    if (!this.holo) return;
+  /**
+   * Feed a pointer position through the shared foil tracker and expose that
+   * same normalized result to presentation consumers such as Card Atelier.
+   */
+  setHoloPointer(worldX: number, worldY: number): CardPointerPosition {
     const local = this.getLocalPoint(worldX, worldY);
-    this.holo.setPointer(
-      Phaser.Math.Clamp(local.x / (CARD_W / 2), -1.5, 1.5),
-      Phaser.Math.Clamp(local.y / (CARD_H / 2), -1.5, 1.5),
-    );
+    const rawX = local.x / (CARD_W / 2);
+    const rawY = local.y / (CARD_H / 2);
+    const position = {
+      x: Phaser.Math.Clamp(rawX, -1.5, 1.5),
+      y: Phaser.Math.Clamp(rawY, -1.5, 1.5),
+      inside: Math.abs(rawX) <= 1 && Math.abs(rawY) <= 1,
+    };
+    this.holo?.setPointer(position.x, position.y);
+    return position;
   }
 
   /** Grey the art before a Collection release; the card is then removed by its scene ritual. */
