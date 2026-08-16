@@ -10,7 +10,7 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 
-export const CURRENT_SAVE_VERSION = 29 as const;
+export const CURRENT_SAVE_VERSION = 30 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /**
@@ -209,6 +209,12 @@ export interface SaveData {
      * v24 addition.
      */
     confirmNoBlock: ConfirmNoBlockSetting;
+    /**
+     * Restore the pre-carry click-to-cast: an untargeted spell resolves on
+     * the click instead of lifting a carried card. v30 addition; defaults
+     * off so carry-cast is the shipped feel.
+     */
+    instantCast: boolean;
   };
 }
 
@@ -267,6 +273,7 @@ export function freshSave(now: number): SaveData {
       confirmDestructive: true,
       keywordReminders: true,
       confirmNoBlock: 'lethal',
+      instantCast: false,
     },
   };
 }
@@ -343,7 +350,8 @@ export class SaveManager {
    * v27 -> v28 retires classic into Warchest; v28 -> v29 persists Limited
    * player and opponent Warchests. An older Limited run leaves those optional
    * fields absent and reconstructs its basics-only reserve until the builder
-   * is opened.
+   * is opened. v29 -> v30 adds `settings.instantCast` (default off — carry-cast
+   * is the shipped cast interaction; the toggle restores click-to-cast).
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -610,7 +618,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -734,6 +742,17 @@ export class SaveManager {
       // old in-flight runs retain their old basics-only fallback until the
       // build step normalizes and persists the new reserve shape.
       cur = { ...cur, version: 29 };
+    }
+    if (cur.version === 29) {
+      // Current v30 blobs walk this chain again via the shared canonicalizer
+      // above, so an explicit choice must survive; only a truly absent field
+      // takes the carry-cast default.
+      const s = (cur.settings ?? {}) as { instantCast?: unknown };
+      cur = {
+        ...cur,
+        version: 30,
+        settings: { ...(cur.settings as object), instantCast: s.instantCast === true },
+      };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;

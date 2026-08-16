@@ -103,6 +103,14 @@ import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../u
 import { empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
+import {
+  carryCastEligible,
+  carryDropAccepted,
+  carryTiltDeg,
+  stepCarryFollow,
+  type CarryFollowPose,
+} from '../ui/castIntentPresentation';
+import { groupReserveSlots } from '../ui/reserveModalPresentation';
 import { packRow, type RowPacking } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { StackDisplay } from '../ui/StackDisplay';
@@ -206,6 +214,8 @@ const BOARD_CENTER_X = 640;
 const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
 const TARGET_SNAP_R = 60;
 const TARGET_ARROW_COLOR = 0xffd166;
+/** Releasing a carried cast below this line returns it to the hand instead of casting. */
+const CARRY_HAND_TOP_Y = 560;
 const LIFE_BADGE_SIZE = 40;
 const COLOR_SORT: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
 const ROW_GUTTER = 6;
@@ -354,6 +364,16 @@ export class DuelScene extends Phaser.Scene {
   private blockAssignments: { blocker: number; attacker: number }[] = [];
   private pendingBlocker: number | null = null;
   private pendingCasts: PendingCastAction[] | null = null;
+  /** Carry-cast phase 1 (CastIntent): a lifted untargeted spell awaiting its placing click. */
+  private carry: {
+    action: Extract<Action, { type: 'castSpell' }>;
+    proxy: CardView;
+    ghost: BoardCardView | null;
+    curtain: Phaser.GameObjects.Rectangle;
+    pose: CarryFollowPose;
+    home: { x: number; y: number; scale: number; angle: number };
+    handView: CardView;
+  } | null = null;
   private arrows!: Phaser.GameObjects.Graphics;
   /** Per-face legal-target outlines; portrait rings live on CommanderPortrait itself. */
   private lifeTargetRings!: { my: Phaser.GameObjects.Graphics; opp: Phaser.GameObjects.Graphics };
@@ -501,6 +521,8 @@ export class DuelScene extends Phaser.Scene {
     this.versusBumper?.destroy();
     this.versusBumper = null;
     this.versusBumperActive = false;
+    // A restart already destroyed the display objects; only the state survives.
+    this.carry = null;
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     if (!this.reserveFormatsEnabled && data.replay?.format) {
       this.scene.start('Profile');
@@ -2204,7 +2226,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.ended) return;
     if (this.animatingCombat) return; // hold until the combat sequence finishes
     if (this.autoSkipTimer) return; // a hop is already scheduled
-    if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.pauseOverlay || this.zoneModal) return;
     const a = this.duel.awaiting;
     if (!('player' in a) || a.player !== HUMAN) return;
     if (a.kind === 'foresee') return; // mandatory revealed-card pick; never auto-skip
@@ -2212,7 +2234,7 @@ export class DuelScene extends Phaser.Scene {
     this.autoSkipTimer = this.time.delayedCall(300, () => {
       this.autoSkipTimer = null;
       if (this.ended) return;
-      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.pauseOverlay || this.zoneModal) return;
       const awaiting = this.duel.awaiting;
       if (!('player' in awaiting) || awaiting.player !== HUMAN) return;
       if (awaiting.kind === 'foresee') return; // re-check after the delay
@@ -2260,7 +2282,7 @@ export class DuelScene extends Phaser.Scene {
   /** Enter end-turn mode: fast-forward the rest of your turn (see endTurnTick). */
   private startEndTurn(): void {
     if (this.ended || !this.isHumanTurnDecision()) return;
-    if (this.pendingCasts || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
+    if (this.pendingCasts || this.carry || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
     this.endingTurn = true;
     this.log('Ending turn…');
     this.endTurnTick();
@@ -2289,7 +2311,7 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     // Overlays / targeting / an opponent sub-decision: wait, stay armed, resume.
-    if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.pauseOverlay || this.zoneModal) return;
     if (!this.isHumanTurnDecision()) return;
     if (!this.endTurnPassAction()) return; // pause at a decision needing real input
     this.endTurnTimer = this.time.delayedCall(180, () => {
@@ -2299,7 +2321,7 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       // Re-check fresh — the player may have opened an overlay during the wait.
-      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.pauseOverlay || this.zoneModal) return;
       if (!this.isHumanTurnDecision()) return;
       const action = this.endTurnPassAction();
       if (!action) return;
@@ -3128,6 +3150,10 @@ export class DuelScene extends Phaser.Scene {
   // ---------------------------------------------------------------------
 
   private sync(): void {
+    // Engine state moved underneath a lifted card (never our own drop — that
+    // path tears down first). The rebuild below invalidates every carried
+    // reference, so the carry ends instantly rather than dangling.
+    if (this.carry) this.teardownCarry();
     if (this.replayMode) this.replayGuard.close();
     const awaitingKind = this.duel.awaiting.kind;
     if (this.lastAwaitingKind !== null && this.lastAwaitingKind !== awaitingKind) this.clearNoBlockArm();
@@ -3878,7 +3904,7 @@ export class DuelScene extends Phaser.Scene {
 
   private previewManaPlanForCost(cost: NonNullable<CardDef['cost']>, extraGeneric = 0): void {
     this.clearManaPlanPreview();
-    if (this.touch || this.ended || this.pendingCasts) return;
+    if (this.touch || this.ended || this.pendingCasts || this.carry) return;
     const plan = solveMana(this.duel.state, CARD_DB, HUMAN, cost, extraGeneric);
     if (!plan) return;
 
@@ -4523,6 +4549,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.versusBumperActive) return;
     if (this.replayMode) return;
     if (this.empowerChooser) return;
+    if (this.carry) return; // a lifted card decides by drop or cancel, never Space
     if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
     if (this.overlay && this.confirmForeseeOverlay()) return;
     this.onButton(); // self-guards: auto-skip input lock + not-your-decision
@@ -4541,6 +4568,10 @@ export class DuelScene extends Phaser.Scene {
     }
     if (this.inspect) {
       this.closeInspect();
+      return;
+    }
+    if (this.carry) {
+      this.cancelCarry();
       return;
     }
     if (this.pendingCasts) {
@@ -4652,7 +4683,8 @@ export class DuelScene extends Phaser.Scene {
     if (!targeted) {
       // untargeted; for X spells default to the biggest X
       const best = casts.reduce((x, y) => ((x.x ?? 0) >= (y.x ?? 0) ? x : y));
-      this.act(best);
+      if (this.carryEligibleFor(best)) this.beginCarry(best);
+      else this.act(best);
       return;
     }
     if (casts[0].targets![0].kind === 'grave') {
@@ -4663,6 +4695,203 @@ export class DuelScene extends Phaser.Scene {
     }
     this.pendingCasts = this.pendingCasts ? null : casts; // click again cancels
     this.sync();
+  }
+
+  /**
+   * Carry-cast phase 1 (CastIntent): the resolving click lifts the card
+   * instead of casting it; a second click on the field submits the SAME
+   * action instant cast would have, so replays stay byte-identical. Hand
+   * casts only — Retell keeps its zone-modal flow, the tutorial keeps its
+   * scripted single-click beats, and the Settings escape hatch restores
+   * click-to-cast wholesale.
+   */
+  private carryEligibleFor(action: Extract<Action, { type: 'castSpell' }>): boolean {
+    return (
+      !this.tutorial &&
+      !this.replayMode &&
+      action.retell !== true &&
+      this.handViews[action.handIndex] !== undefined &&
+      this.handPoses.get(action.handIndex) !== undefined &&
+      carryCastEligible({
+        targeted: false,
+        touch: this.touch,
+        instantCast: Services.save.data.settings.instantCast,
+      })
+    );
+  }
+
+  private beginCarry(action: Extract<Action, { type: 'castSpell' }>): void {
+    const handIndex = action.handIndex;
+    const view = this.handViews[handIndex];
+    const home = this.handPoses.get(handIndex);
+    const cardId = this.duel.state.players[HUMAN].hand[handIndex];
+    if (!view || !home || !cardId) {
+      this.act(action);
+      return;
+    }
+    const d = def(CARD_DB, cardId);
+    const variant = displayVariantFor(Services.save.data, cardId);
+    this.clearManaPlanPreview();
+    this.zoom.dismissSticky();
+    this.tweens.killTweensOf(view);
+    // Lift from wherever the hover left the card, not its rest pose.
+    const proxy = new CardView(this, view.x, view.y)
+      .setScale(home.scale * 1.12)
+      .setDepth(theme.depth.floats + 2)
+      .setAlpha(0.98);
+    view.setVisible(false);
+    proxy.setCard(d, {
+      fx: 'none',
+      variant,
+      fullArt: variant?.fullArt === true,
+      landStyle: this.humanLandStyleFor(cardId),
+    });
+    // The curtain owns every pointer while the card is up: other controls go
+    // inert without per-widget guards, and the next click is the drop/cancel.
+    const curtain = this.add
+      .rectangle(BOARD_CENTER_X, theme.design.height / 2, theme.design.width, theme.design.height, 0x000000, 0.001)
+      .setDepth(theme.depth.floats + 1)
+      .setInteractive({ useHandCursor: true });
+    curtain.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (p.button === 2) this.cancelCarry();
+    });
+    curtain.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonReleased()) return;
+      this.settleCarry(p);
+    });
+    this.carry = {
+      action,
+      proxy,
+      ghost: this.buildCarryGhost(d),
+      curtain,
+      pose: { x: view.x, y: view.y, vx: 0, vy: 0 },
+      home,
+      handView: view,
+    };
+  }
+
+  /** Ghost tile at the exact slot the cast permanent will pack into. */
+  private buildCarryGhost(d: CardDef): BoardCardView | null {
+    const creature = isType(d, 'creature');
+    if (!creature && !isType(d, 'artifact') && !isType(d, 'enchantment')) return null;
+    const row = this.duel.state.battlefield.filter(
+      (perm) =>
+        perm.controller === HUMAN &&
+        perm.attachedTo === undefined &&
+        !isType(def(CARD_DB, perm.cardId), 'land') &&
+        isType(def(CARD_DB, perm.cardId), 'creature') === creature,
+    );
+    const layout: PermanentRowLayout = creature
+      ? {
+        align: 'center',
+        x: LAYOUT.myCreatures.x,
+        cy: LAYOUT.myCreatures.cy,
+        usable: LAYOUT.myCreatures.usable,
+        tileWidth: TILE_W,
+        maxSpacing: TILE_H + 4,
+        baseScale: 1,
+        depth: 5,
+        liftSelected: true,
+      }
+      : {
+        align: 'right',
+        x1: LAYOUT.myPermanentBand.x1,
+        cy: LAYOUT.myPermanentBand.cy,
+        usable: LAYOUT.myPermanentBand.usable,
+        tileWidth: PERMANENT_BAND_TILE_W,
+        maxSpacing: PERMANENT_BAND_MAX_SPACING,
+        baseScale: PERMANENT_BAND_SCALE,
+        depth: 4,
+        liftSelected: false,
+      };
+    const count = row.length + 1;
+    const packed = packRow(count, layout.usable, layout.tileWidth, layout.maxSpacing, ROW_GUTTER);
+    const scale = layout.baseScale * packed.scale;
+    const x = this.permanentRowX(layout, packed, row.length, count, scale);
+    const ghost = new BoardCardView(this, x, layout.cy, d);
+    ghost.setScale(scale).setAlpha(0.3).setDepth(layout.depth - 1);
+    return ghost;
+  }
+
+  private settleCarry(p: Phaser.Input.Pointer): void {
+    const carry = this.carry;
+    if (!carry) return;
+    if (!carryDropAccepted(p.worldY, CARRY_HAND_TOP_Y)) {
+      this.cancelCarry();
+      return;
+    }
+    const action = carry.action;
+    this.teardownCarry();
+    this.act(action);
+  }
+
+  /** Immediate cleanup; the hand card returns to its rest pose in place. */
+  private teardownCarry(): void {
+    const carry = this.carry;
+    if (!carry) return;
+    this.carry = null;
+    carry.curtain.destroy();
+    carry.ghost?.destroy();
+    if (carry.proxy.active) carry.proxy.destroy();
+    this.restoreCarriedHandView(carry);
+  }
+
+  private restoreCarriedHandView(carry: { handView: CardView; home: { x: number; y: number; scale: number; angle: number } }): void {
+    if (!carry.handView.active) return;
+    carry.handView
+      .setVisible(true)
+      .setAlpha(1)
+      .setScale(carry.home.scale)
+      .setAngle(carry.home.angle)
+      .setPosition(carry.home.x, carry.home.y);
+  }
+
+  private cancelCarry(): void {
+    const carry = this.carry;
+    if (!carry) return;
+    // Mirrors the pendingCasts cancel: end on a sync so the hand (playability
+    // dots included) rebuilds from state rather than hand-restored poses.
+    const finish = (): void => {
+      if (carry.proxy.active) carry.proxy.destroy();
+      this.restoreCarriedHandView(carry);
+      this.sync();
+      this.maybeAutoSkip();
+      this.endTurnTick();
+    };
+    if (this.motionLevel() !== 'full') {
+      this.teardownCarry();
+      finish();
+      return;
+    }
+    this.carry = null;
+    carry.curtain.destroy();
+    carry.ghost?.destroy();
+    this.tweens.add({
+      targets: carry.proxy,
+      x: carry.home.x,
+      y: carry.home.y,
+      scaleX: carry.home.scale,
+      scaleY: carry.home.scale,
+      angle: carry.home.angle,
+      duration: theme.motion.fast,
+      ease: 'Back.easeOut',
+      onComplete: finish,
+    });
+  }
+
+  /** Per-frame carry follow: the proxy springs after the cursor with a velocity lean. */
+  update(_time: number, delta: number): void {
+    const carry = this.carry;
+    if (!carry) return;
+    const pointer = this.input.activePointer;
+    carry.pose = stepCarryFollow(
+      carry.pose,
+      { x: pointer.worldX, y: pointer.worldY },
+      delta,
+      this.motionLevel(),
+    );
+    carry.proxy.setPosition(carry.pose.x, carry.pose.y);
+    carry.proxy.setAngle(carryTiltDeg(carry.pose.vx, this.motionLevel()));
   }
 
   private onBattlefieldClick(iid: number): void {
@@ -4783,6 +5012,7 @@ export class DuelScene extends Phaser.Scene {
       this.overlay ||
       this.inspect ||
       this.pendingCasts ||
+      this.carry ||
       this.pauseOverlay ||
       this.gravePicker ||
       this.animatingCombat ||
@@ -4957,11 +5187,15 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private reserveZoneEntries(cardIds: readonly string[], player: PlayerId): ZoneContentsEntry[] {
-    return cardIds.map((cardId, index) => {
-      const action = player === HUMAN ? this.reserveLandAction(index) : undefined;
+    const groups = groupReserveSlots(
+      cardIds,
+      (index) => player === HUMAN && this.reserveLandAction(index) !== undefined,
+    );
+    return groups.map(({ cardId, count, playableIndex }) => {
+      const action = playableIndex !== undefined ? this.reserveLandAction(playableIndex) : undefined;
       return {
         card: def(CARD_DB, cardId),
-        count: 1,
+        count,
         landStyle: player === HUMAN ? this.humanLandStyleFor(cardId) : undefined,
         variant: player === HUMAN ? displayVariantFor(Services.save.data, cardId) : undefined,
         ...(action

@@ -595,3 +595,32 @@ describe('SaveData v29 migration (Limited Warchest assignments)', () => {
     expect(migrated.limited.activeRun).toEqual(activeRun);
   });
 });
+
+describe('SaveData v30 migration (instant-cast preference)', () => {
+  it('defaults instantCast off while preserving the rest of settings', () => {
+    const storage = fakeStorage();
+    const now = 123;
+    const old = freshSave(now) as unknown as Record<string, unknown>;
+    old.version = 29;
+    old.settings = { ...freshSave(now).settings, autoSkip: true, confirmNoBlock: 'always' };
+    delete (old.settings as Record<string, unknown>).instantCast;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.settings.instantCast).toBe(false);
+    expect(migrated.settings.autoSkip).toBe(true);
+    expect(migrated.settings.confirmNoBlock).toBe('always');
+  });
+
+  it('keeps an explicit instantCast choice on a current-version save', () => {
+    const storage = fakeStorage();
+    const now = 123;
+    const current = freshSave(now);
+    current.settings.instantCast = true;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    expect(new SaveManager(storage, 456).data.settings.instantCast).toBe(true);
+  });
+});

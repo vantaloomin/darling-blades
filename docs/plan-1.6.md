@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, src/meta/deckRepair.ts, src/meta/SaveManager.ts, src/scenes/MainMenuScene.ts, src/config/features.ts, src/meta/Economy.ts, src/scenes/DuelScene.ts, scripts/balance-matrix.ts · last-verified: 2026-08-10 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, src/meta/deckRepair.ts, src/meta/SaveManager.ts, src/scenes/MainMenuScene.ts, src/config/features.ts, src/meta/Economy.ts, src/scenes/DuelScene.ts, scripts/balance-matrix.ts · last-verified: 2026-08-16 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.6 — program plan
 
@@ -125,18 +125,25 @@ re-baseline.
    `previewCombat` forecast are all in the code; `CastIntent`, `Atelier`,
    `bumper` and `TrophyHall` are not.
 
-   **CARRY-CAST PHASE 1 HAS A HOLE THAT CLASSIC RETIREMENT PUT THERE.** The
-   premium slate was adjudicated 2026-07-31, before the migration, and says
-   phase 1 "ships lands + untargeted spells". There are no lands in hand any
-   more: a land drop is now tap the Warchest Reserves pile -> modal -> "Play
-   land" per slot (`reserveLandAction`, `showReserveModal` in DuelScene). So
-   the cheapest half of phase 1 has no surface to carry FROM.
-   Owner-agreed order 2026-08-12: do the three INDEPENDENT Wave B items first
-   (Card Atelier, Versus bumpers, Trophy Hall S — none touch CastIntent or the
-   migration), and treat "carry a land out of the Warchest" as its own scoped
-   design decision rather than inheriting a pre-migration one-liner. That
-   surface is now the single most repeated interaction in the game — every
-   player, every turn — which is exactly why it earns a deliberate pass.
+   **CARRY-CAST PHASE 1: RESOLVED 2026-08-16 (owner-picked scope) and
+   SHIPPED.** The hole classic retirement put here (the slate predated the
+   migration and said phase 1 ships "lands + untargeted spells", but lands
+   are no longer in hand) went to the owner as priced readings; the pick:
+   phase 1 = **untargeted spells on the shared CastIntent state, plus the
+   reserve-modal ergonomic fix** (the Reserves modal now groups identical
+   lands per kind with one-tap play, where it used to render one tile per
+   slot — up to 10 tiles for a 2-3 way choice), and **"carry a land OUT of
+   the Reserves pile" becomes its own early-Wave-C design item** once
+   CastIntent has matured on spells, with the tutorial re-author costed in.
+   As shipped: the resolving click lifts a proxy card that spring-follows
+   the cursor with a velocity lean, a ghost tile marks the exact packed slot
+   the permanent will land in, a second click on the field submits the SAME
+   action instant cast did (replays byte-identical), and right-click / Esc /
+   dropping on the hand cancels. Hand casts only; touch and the tutorial
+   keep single-click; `settings.instantCast` (SaveData v30) restores
+   click-to-cast. Pure maths and gating live in
+   `src/ui/castIntentPresentation.ts` + `reserveModalPresentation.ts` with
+   unit tests, per the Wave B presentation-module convention.
 
 ## Lanes opened by the gate resolution (2026-08-07)
 
