@@ -564,6 +564,7 @@ describe('save migration old blobs ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ cur
       confirmDestructive: true, // v7 default
       keywordReminders: true, // v8 default
       confirmNoBlock: 'lethal', // v24 default
+      instantCast: false, // v30 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
   });
@@ -649,6 +650,7 @@ describe('save migration old blobs ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ cur
       confirmDestructive: true, // v7 default
       keywordReminders: true, // v8 default
       confirmNoBlock: 'lethal', // v24 default
+      instantCast: false, // v30 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
     expect(m.data.gauntlet.bestRung).toBe(2);

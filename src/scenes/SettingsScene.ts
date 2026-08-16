@@ -57,6 +57,7 @@ export class SettingsScene extends Phaser.Scene {
   private skipToggle!: ThemedButton;
   private confirmToggle!: ThemedButton;
   private keywordToggle!: ThemedButton;
+  private instantToggle!: ThemedButton;
   private volumeBar!: Phaser.GameObjects.Text;
   private animChips = new Map<AnimationLevel, ThemedButton>();
   private renderChips = new Map<RenderScaleSetting, ThemedButton>();
@@ -95,7 +96,7 @@ export class SettingsScene extends Phaser.Scene {
     panel(this, 670, 124, 540, 470);
     this.sectionTitle(110, 150, 'Audio');
     this.sectionTitle(710, 150, 'Gameplay');
-    // Audio: Sound effects · Master volume (note) · Music.
+    // Audio: Sound effects · Master volume (note) · Music, then Casting: Instant cast (note).
     // Gameplay: Animations (note) · Render size (note) · Auto-skip · Confirm · Keyword reminders.
     const leftRows = rowYs([false, true, false]);
     const rightRows = rowYs([true, true, false, false, false, false]);
@@ -138,6 +139,21 @@ export class SettingsScene extends Phaser.Scene {
       Music.setEnabled(!Music.enabled);
       this.refreshToggles();
     });
+
+    // The Audio column has spare rows; Gameplay's six already fill its panel.
+    this.sectionTitle(110, 414, 'Casting');
+    this.rowLabel(LEFT_LABEL_X, leftY(2) + 110, 'Instant cast');
+    this.instantToggle = this.toggle(LEFT_CONTROL_X, leftY(2) + 110, () => {
+      const settings = Services.save.data.settings;
+      settings.instantCast = !settings.instantCast;
+      Services.save.touch();
+      this.refreshToggles();
+    });
+    this.note(
+      LEFT_LABEL_X,
+      leftY(2) + 138,
+      'Casts spells on a single click instead of picking the card up.',
+    );
 
     this.rowLabel(RIGHT_LABEL_X, rightY(0), 'Animations');
     let ax = RIGHT_CONTROL_X - 130;
@@ -343,6 +359,7 @@ export class SettingsScene extends Phaser.Scene {
       [this.skipToggle, settings.autoSkip],
       [this.confirmToggle, settings.confirmDestructive],
       [this.keywordToggle, settings.keywordReminders],
+      [this.instantToggle, settings.instantCast],
     ] as const) {
       button.setLabel(on ? 'On' : 'Off');
       button.setVariant(on ? 'primary' : 'ghost');
