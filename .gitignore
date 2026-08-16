@@ -27,6 +27,7 @@ scripts/card-reference.ts
 # Reads our own CardDef data rather than oracle text. Rebuild with:
 #   npx tsx scripts/blades-db.ts build
 scripts/blades-db.ts
+docs/blades-card-db.md
 # The card health pass contract, which quotes the gitignored workbench paths above.
 docs/plan-card-health-pass.md
 # Session handoffs and the premium-UX ideation set: local-only working docs that
@@ -35,6 +36,22 @@ docs/handoff-1-5-close.md
 docs/plan-premium-ux.md
 docs/plan-premium-ux-opus-lane.md
 docs/plan-premium-ux-sol-lane.md
+
+# ── Local MTG deck corpus (never committed) ───────────────────────────────
+# Real tournament decklists (a git clone of a third-party cache + an mtgtop8
+# crawl), linked to mtg-cache. Third-party data, large, and regenerable.
+# `deck-cache/` also holds the MTGOFormatData rules clone (MIT, actively
+# maintained) once the archetype-labelling work lands. Rebuild with:
+#   npx tsx scripts/decks-db.ts pull
+#   npx tsx scripts/decks-db.ts scrape --format ST --events 25
+deck-cache/
+scripts/decks-db.ts
+docs/deck-corpus.md
+# Planning + handoff docs for the workbenches above. They quote gitignored
+# paths and link to gitignored docs, so committing them would leave dead links
+# in a fresh clone.
+docs/handoff-land-variance.md
+docs/plan-persona-corpus-priors.md
 
 # ── Local MTG reference workbench (never committed) ───────────────────────
 # The corpus itself: third-party card data + a derived SQLite file. Large,
