@@ -157,7 +157,11 @@ re-baseline.
 6. **Cosmetics layer** (card backs, playmats) — sequenced before Courts.
 7. **The first large set (~240-250 cards), reserve-native from
    concretion**, candidate rider: the Dark Tales companion wave (~60).
-8. **Premium UX Wave C + Courts**, then the **small-debts batch** (Limited
+8. **Premium UX Wave C + Courts** — Wave C OPENED 2026-08-16 with the
+   mulligan ritual (library stack + riffle-on-mulligan + drag-to-bottom
+   staging, actions byte-identical; the "1 card(s)" copy fixed). Remaining:
+   Pack Runway, Trophy Hall full, the land-carry design pass. Then the
+   **small-debts batch** (Limited
    retune, modalShell dismiss consolidation, scoreLand rider credit, the
    1.6 dup-audit adjudication, Fogbell Chime redesign, Laughing Pooka /
    Wolfsbane Ward watchlist, metagame deep sweep once the reserve field
