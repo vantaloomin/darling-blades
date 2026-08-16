@@ -15,6 +15,24 @@ import { animTimeScale } from '../platform/animPolicy';
 import { activeRenderScale } from '../platform/renderScale';
 import { CARD_H, CARD_W, CardView, type CardFxLevel } from '../ui/CardView';
 import { fxPolicy } from '../ui/fx/FXSupport';
+import { dragMoved } from '../ui/mulliganRitualPresentation';
+import {
+  cardDwellMs,
+  cardRailX,
+  flipPitchJitter,
+  gateProgress,
+  indexAtGate,
+  inertiaStep,
+  minimapSegments,
+  railOffsetForIndex,
+  runwayOrder,
+  RUNWAY_CARD_Y,
+  RUNWAY_FLIP_SFX_MIN_GAP_MS,
+  RUNWAY_GATE_X,
+  RUNWAY_PITCH,
+  RUNWAY_RESUME_DELAY_MS,
+  virtualRange,
+} from '../ui/packRunwayPresentation';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
 import { colorInt, theme } from '../ui/theme';
@@ -85,6 +103,30 @@ export class PackOpeningScene extends Phaser.Scene {
   private skipBtn: ThemedButton | null = null;
   private toasts: Toast | null = null;
   private packRevealComplete = false;
+  /** Pack Runway (batch opens): one masked rail through a fixed reveal gate. */
+  private runway: {
+    batch: PackResult[];
+    cards: AddResult[];
+    root: Phaser.GameObjects.Container;
+    offset: number;
+    minOffset: number;
+    maxOffset: number;
+    velocity: number;
+    revealedMax: number;
+    mode: 'auto' | 'scrub' | 'inertia' | 'idle' | 'stopped' | 'done';
+    views: Map<number, CardView>;
+    lastFlipSfxAt: number;
+    idleSince: number | null;
+    resumeChip: ThemedButton | null;
+    needle: Phaser.GameObjects.Rectangle;
+    tint: Phaser.GameObjects.Rectangle;
+    tintColor: string;
+    minimap: { x: number; w: number };
+    autoTween: Phaser.Tweens.Tween | null;
+    drag: { startX: number; startOffset: number; lastX: number; lastAt: number; velocity: number; moved: boolean } | null;
+    spotlight: { dim: Phaser.GameObjects.Rectangle; hint: Phaser.GameObjects.Text } | null;
+    finishScheduled: boolean;
+  } | null = null;
   /** guards the best-card spotlight settle so tap-to-skip and the wobble's own
    * onComplete can't both run the restore (one-shot per pack). */
   private bestSettled = false;
@@ -108,6 +150,8 @@ export class PackOpeningScene extends Phaser.Scene {
     this.skipBtn = null;
     this.bestSettled = false;
     this.packRevealComplete = false;
+    // A restart already destroyed the display objects; only the state survives.
+    this.runway = null;
     bakePackArt(this);
     if (this.sku === 'ragnarok') {
       bakePackArt(this, {
@@ -156,11 +200,15 @@ export class PackOpeningScene extends Phaser.Scene {
     back.setDepth(theme.depth.reveal);
     registerSceneBackNavigation(this, () => this.scene.start('Shop'));
 
-    // F10: a multi-pack buy skips the choreographed single-pack reveal and shows
-    // a summary of the whole batch instead.
+    // A multi-pack buy rides the Pack Runway: every pull on one rail through
+    // the reveal gate. Animations off keeps the at-a-glance summary.
     if ('batch' in data) {
-      this.showBatchSummary(data.batch);
-      this.finishAchievementCheckpoint();
+      if (Services.save.data.settings.animations === 'off') {
+        this.showBatchSummary(data.batch);
+        this.finishAchievementCheckpoint();
+      } else {
+        this.showPackRunway(data.batch);
+      }
       return;
     }
     this.result = data;
@@ -301,6 +349,489 @@ export class PackOpeningScene extends Phaser.Scene {
     });
     mk(width / 2 + 60, 'Shop', () => this.scene.start('Shop'));
     mk(width / 2 + 200, 'Menu', () => this.scene.start('MainMenu'));
+  }
+
+  /**
+   * Pack Runway: the batch's every pull on ONE rail in ascending rarity,
+   * moving right-to-left through the fixed reveal gate. Auto-advance runs a
+   * per-tier cadence (commons accelerando, ritardando into the specials, UR
+   * full stop + spotlight); dragging scrubs with capped inertia and a Resume
+   * Reveal chip after idle; a card flips exactly when it crosses the gate.
+   */
+  private showPackRunway(batch: PackResult[]): void {
+    const width = 1280;
+    const cards = runwayOrder(batch.flatMap((p) => p.cards));
+    const root = this.add.container(0, 0);
+    // Boundary lighting: a low wash retinted as the gate crosses tier runs.
+    const tint = this.add.rectangle(width / 2, 360, width, 720, colorInt(theme.rarity.c), 0.08);
+    root.add(tint);
+    root.add(
+      this.add
+        .text(width / 2, 60, `Opened ${batch.length} packs`, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.display}px`,
+          color: theme.colors.heading,
+        })
+        .setOrigin(0.5),
+    );
+    root.add(
+      this.add
+        .text(width / 2, 102, 'Drag to scrub · tap a revealed card to inspect', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.muted,
+        })
+        .setOrigin(0.5),
+    );
+    // Gate notches: where cards turn over.
+    const gate = this.add.graphics();
+    gate.lineStyle(2, colorInt(theme.colors.gold), 0.55);
+    gate.lineBetween(RUNWAY_GATE_X, RUNWAY_CARD_Y - 152, RUNWAY_GATE_X, RUNWAY_CARD_Y - 126);
+    gate.lineBetween(RUNWAY_GATE_X, RUNWAY_CARD_Y + 126, RUNWAY_GATE_X, RUNWAY_CARD_Y + 152);
+    root.add(gate);
+    // Tier-colored ribbon minimap with a progress needle — the no-scrollbar rule.
+    const minimap = { x: width / 2 - 300, w: 600 };
+    const mmY = 140;
+    const mm = this.add.graphics();
+    for (const seg of minimapSegments(cards)) {
+      mm.fillStyle(colorInt(theme.rarity[seg.tier]), 0.85);
+      mm.fillRect(minimap.x + seg.from * minimap.w, mmY, Math.max(1, (seg.to - seg.from) * minimap.w), 8);
+    }
+    root.add(mm);
+    const needle = this.add.rectangle(minimap.x, mmY + 4, 3, 18, 0xffffff, 0.95);
+    root.add(needle);
+    // Scrub band beneath the cards: dragging anywhere on the rail moves it.
+    const band = this.add.zone(width / 2, RUNWAY_CARD_Y, width, 420).setInteractive();
+    root.add(band);
+    // Edge vignettes above the cards instead of a scrollbar.
+    const vignettes = this.add.graphics().setDepth(5);
+    vignettes.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.75, 0, 0.75, 0);
+    vignettes.fillRect(0, RUNWAY_CARD_Y - 210, 130, 420);
+    vignettes.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0.75, 0, 0.75);
+    vignettes.fillRect(width - 130, RUNWAY_CARD_Y - 210, 130, 420);
+    root.add(vignettes);
+
+    const startOffset = railOffsetForIndex(0) + 2 * RUNWAY_PITCH;
+    this.runway = {
+      batch,
+      cards,
+      root,
+      offset: startOffset,
+      minOffset: railOffsetForIndex(Math.max(0, cards.length - 1)),
+      maxOffset: startOffset,
+      velocity: 0,
+      revealedMax: -1,
+      mode: 'auto',
+      views: new Map(),
+      lastFlipSfxAt: -Infinity,
+      idleSince: null,
+      resumeChip: null,
+      needle,
+      tint,
+      tintColor: theme.rarity.c,
+      minimap,
+      autoTween: null,
+      drag: null,
+      spotlight: null,
+      finishScheduled: false,
+    };
+    band.on('pointerdown', (p: Phaser.Input.Pointer) => this.runwayScrubStart(p));
+    const onMove = (p: Phaser.Input.Pointer): void => this.runwayScrubMove(p);
+    const onUp = (): void => this.runwayScrubEnd();
+    this.input.on('pointermove', onMove);
+    this.input.on('pointerup', onUp);
+    root.once('destroy', () => {
+      this.input.off('pointermove', onMove);
+      this.input.off('pointerup', onUp);
+    });
+    this.skipBtn = themedButton(this, width - 80, 30, 'Skip ≫', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 100,
+      onTap: () => this.runwaySkip(),
+    });
+    this.runwayApplyOffset(startOffset);
+    this.runwayAdvance();
+  }
+
+  /** One shared sink for every offset change: clamp, virtualize, place, reveal. */
+  private runwayApplyOffset(offset: number): void {
+    const rw = this.runway;
+    if (!rw) return;
+    rw.offset = Math.max(rw.minOffset, Math.min(rw.maxOffset, offset));
+    const range = virtualRange(rw.offset, rw.cards.length);
+    for (const [i, view] of [...rw.views]) {
+      if (i < range.first || i > range.last) {
+        view.destroy();
+        rw.views.delete(i);
+      }
+    }
+    for (let i = range.first; i <= range.last; i++) {
+      let view = rw.views.get(i);
+      if (!view) {
+        view = this.buildRunwayCard(i);
+        rw.views.set(i, view);
+      }
+      view.x = cardRailX(i, rw.offset);
+    }
+    const gateIdx = indexAtGate(rw.offset, rw.cards.length);
+    if (gateIdx > rw.revealedMax) this.runwayRevealTo(gateIdx);
+    rw.needle.x = rw.minimap.x + gateProgress(rw.revealedMax, rw.cards.length) * rw.minimap.w;
+  }
+
+  /** A rail card. Face-down until its index crosses the gate; input arms the scrub. */
+  private buildRunwayCard(index: number): CardView {
+    const rw = this.runway!;
+    const card = rw.cards[index];
+    const view = new CardView(this, cardRailX(index, rw.offset), RUNWAY_CARD_Y);
+    view.setScale(0.46);
+    rw.root.add(view);
+    if (index <= rw.revealedMax) this.runwayShowFace(view, card, index, true);
+    else {
+      view.setCard(null); // face down
+      view.setData('packInspectBlocked', true);
+    }
+    view.enableInput();
+    view.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (p.button === 2) return;
+      this.runwayScrubStart(p);
+    });
+    view.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.button === 2) return;
+      if (this.runway?.drag?.moved) return; // a finished scrub is not a tap
+      if (view.getData('packInspectBlocked')) return;
+      this.showPackInspect(card);
+    });
+    return view;
+  }
+
+  /** Render a rail card face-up with its rolled variant (no flip motion). */
+  private runwayShowFace(view: CardView, card: AddResult, index: number, instant: boolean): void {
+    const d = def(CARD_DB, card.cardId);
+    const variant: CardVariant = { frame: card.frame, holo: card.holo, fullArt: card.fullArt };
+    const plain = isPlainVariant(variant);
+    // Holo wakes only near the gate: the virtual window bounds concurrent
+    // fx:'full' cards to the visible strip, inside the ≤15 doctrine cap.
+    const fx: CardFxLevel =
+      card.holo !== 'none' ? (fxPolicy(this).particleScale >= 1 ? 'full' : 'static') : plain ? 'none' : 'static';
+    view.setCard(d, { fx, variant: plain ? undefined : variant, fullArt: variant.fullArt });
+    if (card.dupeGold > 0) view.setAlpha(0.5);
+    view.setData('packInspectBlocked', false);
+    this.addNewMarker(view, card);
+    if (!instant) {
+      view.setScale(0.52, 0.46);
+      this.tweens.add({ targets: view, scaleX: 0.46, duration: 160, ease: 'Back.easeOut' });
+    }
+  }
+
+  /** Reveal every card up to and including `target` (gate crossings). */
+  private runwayRevealTo(target: number): void {
+    const rw = this.runway;
+    if (!rw) return;
+    for (let i = rw.revealedMax + 1; i <= target && i < rw.cards.length; i++) {
+      rw.revealedMax = i;
+      const card = rw.cards[i];
+      const view = rw.views.get(i);
+      if (view) {
+        const now = this.time.now;
+        // Grouped flip audio: a fast scrub reveals many cards on one sound.
+        if (now - rw.lastFlipSfxAt >= RUNWAY_FLIP_SFX_MIN_GAP_MS) {
+          rw.lastFlipSfxAt = now;
+          Sfx.play('flip', { pitch: flipPitchJitter(i) });
+        }
+        this.runwayShowFace(view, card, i, false);
+        this.inspectables.push({ card, view });
+      }
+      const color = theme.rarity[card.tier];
+      if (color !== rw.tintColor) {
+        rw.tintColor = color;
+        rw.tint.setFillStyle(colorInt(color), 0.08);
+        this.tweens.add({ targets: rw.tint, fillAlpha: 0.16, duration: 220, yoyo: true });
+      }
+    }
+    if (rw.revealedMax >= rw.cards.length - 1 && !rw.finishScheduled) {
+      rw.finishScheduled = true;
+      this.time.delayedCall(650, () => this.runwayFinish());
+    }
+  }
+
+  /** Auto-advance one gate crossing at the tier's cadence, then chain. */
+  private runwayAdvance(): void {
+    const rw = this.runway;
+    if (!rw || rw.mode === 'done') return;
+    rw.mode = 'auto';
+    rw.idleSince = null;
+    rw.resumeChip?.container.destroy();
+    rw.resumeChip = null;
+    const next = rw.revealedMax + 1;
+    if (next >= rw.cards.length) {
+      this.runwayFinish();
+      return;
+    }
+    const target = railOffsetForIndex(next);
+    const distance = rw.offset - target;
+    // Scrubbed back into revealed territory: fast-travel to the frontier first.
+    if (distance > RUNWAY_PITCH * 1.5) {
+      rw.autoTween = this.tweens.add({
+        targets: rw,
+        offset: railOffsetForIndex(rw.revealedMax) ,
+        duration: Math.min(900, distance / 2),
+        ease: 'Sine.easeInOut',
+        onUpdate: () => this.runwayApplyOffset(rw.offset),
+        onComplete: () => {
+          rw.autoTween = null;
+          if (rw.mode === 'auto') this.runwayAdvance();
+        },
+      });
+      return;
+    }
+    const tier = rw.cards[next].tier;
+    let runIndex = 0;
+    for (let j = next - 1; j >= 0 && rw.cards[j].tier === tier; j--) runIndex++;
+    const level = Services.save.data.settings.animations === 'reduced' ? 'reduced' : 'full';
+    const dwell = cardDwellMs(tier, runIndex, level);
+    rw.autoTween = this.tweens.add({
+      targets: rw,
+      offset: target,
+      duration: Math.max(60, dwell * Math.max(0.4, Math.abs(distance) / RUNWAY_PITCH)),
+      ease: tier === 'c' || tier === 'r' ? 'Linear' : 'Sine.easeOut',
+      onUpdate: () => this.runwayApplyOffset(rw.offset),
+      onComplete: () => {
+        rw.autoTween = null;
+        if (rw.mode !== 'auto') return;
+        if (tier === 'ur') this.runwayUrStop(next);
+        else this.runwayAdvance();
+      },
+    });
+  }
+
+  /** UR full stop: dim, zoom, burst — the ride waits for the tap. */
+  private runwayUrStop(index: number): void {
+    const rw = this.runway;
+    if (!rw) return;
+    const view = rw.views.get(index);
+    if (!view) {
+      this.runwayAdvance();
+      return;
+    }
+    rw.mode = 'stopped';
+    const esc = ESCALATION.ur;
+    const width = 1280;
+    const height = 720;
+    Sfx.play('shimmer');
+    this.cameras.main.flash(260, ...esc.flash);
+    const dim = this.add
+      .rectangle(width / 2, height / 2, width, height, theme.graphics.dim, 0)
+      .setDepth(40)
+      .setInteractive();
+    this.tweens.add({ targets: dim, fillAlpha: esc.dimAlpha, duration: 300 });
+    // Lift the card out of the rail container so it renders above the dim.
+    rw.root.remove(view);
+    this.add.existing(view);
+    view.setDepth(50);
+    this.cameras.main.zoomTo(esc.zoom * activeRenderScale(), 380);
+    this.tweens.add({ targets: view, scale: 0.85, x: width / 2, y: height / 2 + 20, duration: 320, ease: 'Cubic.easeOut' });
+    const burst = this.add.particles(RUNWAY_GATE_X, RUNWAY_CARD_Y, 'fx-star', {
+      speed: { min: 220, max: 640 },
+      lifespan: 1100,
+      scale: { start: 1.6, end: 0 },
+      emitting: false,
+      tint: esc.tint,
+      blendMode: Phaser.BlendModes.ADD,
+    });
+    burst.setDepth(60);
+    burst.explode(Math.max(1, Math.round(esc.particles * fxPolicy(this).particleScale)), RUNWAY_GATE_X, RUNWAY_CARD_Y);
+    const hint = this.add
+      .text(width / 2, height - 38, 'tap to continue', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5)
+      .setDepth(41)
+      .setAlpha(0);
+    this.tweens.add({ targets: hint, alpha: 1, duration: 400 });
+    rw.spotlight = { dim, hint };
+    let settled = false;
+    const settle = (): void => {
+      if (settled) return;
+      settled = true;
+      this.runwayUrSettle(view, index);
+    };
+    dim.once('pointerup', settle);
+    view.once('pointerup', settle);
+  }
+
+  /** End the UR stop: restore zoom, tuck the card back into the rail, ride on. */
+  private runwayUrSettle(view: CardView, index: number): void {
+    const rw = this.runway;
+    if (!rw) return;
+    // A tap during the zoom-in leaves that effect running, and zoomTo is a
+    // no-op while one is active — the restore would be silently dropped and
+    // the camera stuck zoomed. Stop the in-flight effect first.
+    this.cameras.main.zoomEffect.reset();
+    this.cameras.main.zoomTo(activeRenderScale(), 300);
+    const spot = rw.spotlight;
+    rw.spotlight = null;
+    if (spot) {
+      spot.hint.destroy();
+      this.tweens.add({
+        targets: spot.dim,
+        fillAlpha: 0,
+        duration: 300,
+        onComplete: () => {
+          if (spot.dim.active) spot.dim.destroy();
+        },
+      });
+    }
+    if (view.active) {
+      this.tweens.killTweensOf(view);
+      view.setDepth(0);
+      rw.root.add(view);
+      this.tweens.add({
+        targets: view,
+        x: cardRailX(index, rw.offset),
+        y: RUNWAY_CARD_Y,
+        scale: 0.46,
+        duration: 280,
+        onComplete: () => {
+          if (rw.mode === 'stopped') this.runwayAdvance();
+        },
+      });
+    } else if (rw.mode === 'stopped') {
+      this.runwayAdvance();
+    }
+  }
+
+  private runwayScrubStart(p: Phaser.Input.Pointer): void {
+    const rw = this.runway;
+    if (!rw || rw.mode === 'stopped' || rw.mode === 'done') {
+      // After the ride, dragging the rail for review is still allowed.
+      if (rw && rw.mode === 'done') {
+        rw.drag = { startX: p.worldX, startOffset: rw.offset, lastX: p.worldX, lastAt: this.time.now, velocity: 0, moved: false };
+      }
+      return;
+    }
+    rw.autoTween?.remove();
+    rw.autoTween = null;
+    rw.mode = 'scrub';
+    rw.drag = { startX: p.worldX, startOffset: rw.offset, lastX: p.worldX, lastAt: this.time.now, velocity: 0, moved: false };
+  }
+
+  private runwayScrubMove(p: Phaser.Input.Pointer): void {
+    const rw = this.runway;
+    if (!rw?.drag) return;
+    const drag = rw.drag;
+    if (!drag.moved && !dragMoved(drag.startX, 0, p.worldX, 0, 8)) return;
+    drag.moved = true;
+    const now = this.time.now;
+    const dt = Math.max(1, now - drag.lastAt);
+    drag.velocity = drag.velocity * 0.75 + (((p.worldX - drag.lastX) * 1000) / dt) * 0.25;
+    drag.lastX = p.worldX;
+    drag.lastAt = now;
+    this.runwayApplyOffset(drag.startOffset + (p.worldX - drag.startX));
+  }
+
+  private runwayScrubEnd(): void {
+    const rw = this.runway;
+    if (!rw?.drag) return;
+    const drag = rw.drag;
+    rw.drag = null;
+    if (rw.mode === 'done') return;
+    if (drag.moved) {
+      rw.velocity = drag.velocity;
+      rw.mode = 'inertia';
+    } else {
+      rw.mode = 'idle';
+      rw.idleSince = this.time.now;
+    }
+  }
+
+  /** Per-frame: inertia decay and the Resume Reveal chip after idle. */
+  update(time: number, delta: number): void {
+    const rw = this.runway;
+    if (!rw) return;
+    if (rw.mode === 'inertia') {
+      rw.velocity = inertiaStep(rw.velocity, delta);
+      const before = rw.offset;
+      if (rw.velocity !== 0) this.runwayApplyOffset(rw.offset + (rw.velocity * delta) / 1000);
+      if (rw.velocity === 0 || rw.offset === before) {
+        rw.velocity = 0;
+        rw.mode = 'idle';
+        rw.idleSince = time;
+      }
+    }
+    if (
+      rw.mode === 'idle' &&
+      rw.idleSince !== null &&
+      time - rw.idleSince >= RUNWAY_RESUME_DELAY_MS &&
+      !rw.resumeChip &&
+      rw.revealedMax < rw.cards.length - 1
+    ) {
+      rw.resumeChip = themedButton(this, RUNWAY_GATE_X, 578, 'Resume Reveal ▸', {
+        variant: 'primary',
+        minWidth: 170,
+        onTap: () => this.runwayAdvance(),
+      });
+      rw.resumeChip.container.setDepth(30);
+    }
+  }
+
+  /** The ride is over: totals + the batch CTA rail; the rail stays scrubable. */
+  private runwayFinish(): void {
+    const rw = this.runway;
+    if (!rw || rw.mode === 'done') return;
+    if (rw.mode === 'stopped') {
+      // A last-card UR: the spotlight owns the moment. Its settle advances
+      // into this finish; re-arm the scheduled path instead of stomping it.
+      rw.finishScheduled = false;
+      return;
+    }
+    rw.mode = 'done';
+    rw.autoTween?.remove();
+    rw.autoTween = null;
+    rw.resumeChip?.container.destroy();
+    rw.resumeChip = null;
+    this.skipBtn?.container.destroy();
+    this.skipBtn = null;
+    const width = 1280;
+    const all = rw.cards;
+    const newCards = all.filter((c) => c.isNew).length;
+    const specials = all.filter((c) => c.tier !== 'c' && c.tier !== 'r').length;
+    const dupeGold = all.reduce((sum, c) => sum + c.dupeGold, 0);
+    const stats = this.add
+      .text(
+        width / 2,
+        600,
+        `${all.length} cards · ${newCards} new · ${specials} Super Rare+` +
+          (dupeGold > 0 ? ` · +🪙 ${dupeGold} from duplicates` : ''),
+        { fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body },
+      )
+      .setOrigin(0.5)
+      .setDepth(30)
+      .setAlpha(0);
+    this.tweens.add({ targets: stats, alpha: 1, duration: 300 });
+    this.finishAchievementCheckpoint();
+    this.buildBatchButtons(rw.batch.length);
+  }
+
+  /** Skip ≫ mid-ride: tear the runway down and fall back to the summary grid. */
+  private runwaySkip(): void {
+    const rw = this.runway;
+    if (!rw) return;
+    rw.autoTween?.remove();
+    rw.spotlight?.hint.destroy();
+    rw.spotlight?.dim.destroy();
+    this.cameras.main.zoomEffect.reset(); // a live effect would keep re-zooming past setZoom
+    this.cameras.main.setZoom(activeRenderScale());
+    this.skipBtn?.container.destroy();
+    this.skipBtn = null;
+    rw.resumeChip?.container.destroy();
+    rw.root.destroy(); // also unhooks the scene-level scrub listeners
+    this.runway = null;
+    this.inspectables = [];
+    this.showBatchSummary(rw.batch);
+    this.finishAchievementCheckpoint();
   }
 
   // Beat 2: the tear.

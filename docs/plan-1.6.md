@@ -159,9 +159,16 @@ re-baseline.
    concretion**, candidate rider: the Dark Tales companion wave (~60).
 8. **Premium UX Wave C + Courts** — Wave C OPENED 2026-08-16 with the
    mulligan ritual (library stack + riffle-on-mulligan + drag-to-bottom
-   staging, actions byte-identical; the "1 card(s)" copy fixed). Remaining:
-   Pack Runway, Trophy Hall full, the land-carry design pass. Then the
-   **small-debts batch** (Limited
+   staging, actions byte-identical; the "1 card(s)" copy fixed), and the
+   **Pack Runway shipped the same day**: a multi-pack open is one rail of
+   every pull in ascending rarity through a fixed reveal gate — per-tier
+   cadence (commons accelerando, ritardando into specials), UR full stop +
+   spotlight, drag scrub with capped inertia, Resume Reveal after 1.3s
+   idle, tier-ribbon minimap, edge vignettes, grouped flip audio, and
+   virtualization (live CardViews only near the gate). Animations-off and
+   Skip keep the at-a-glance summary grid. This closes the
+   16-of-150-cards batch-summary gap. Remaining: Trophy Hall full, the
+   land-carry design pass. Then the **small-debts batch** (Limited
    retune, modalShell dismiss consolidation, scoreLand rider credit, the
    1.6 dup-audit adjudication, Fogbell Chime redesign, Laughing Pooka /
    Wolfsbane Ward watchlist, metagame deep sweep once the reserve field
