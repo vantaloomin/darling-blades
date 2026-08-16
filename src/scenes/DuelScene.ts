@@ -110,6 +110,17 @@ import {
   stepCarryFollow,
   type CarryFollowPose,
 } from '../ui/castIntentPresentation';
+import {
+  bottomingTitle,
+  discardTitle,
+  dragMoved,
+  libraryStackPlates,
+  mulliganTitle,
+  riffleShuffleMotion,
+  stagedDropAccepted,
+  stagedSlots,
+  type StackRect,
+} from '../ui/mulliganRitualPresentation';
 import { groupReserveSlots } from '../ui/reserveModalPresentation';
 import { packRow, type RowPacking } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -216,6 +227,10 @@ const TARGET_SNAP_R = 60;
 const TARGET_ARROW_COLOR = 0xffd166;
 /** Releasing a carried cast below this line returns it to the hand instead of casting. */
 const CARRY_HAND_TOP_Y = 560;
+/** Mulligan-ritual library stack anchor and its forgiving drop zone. */
+const STACK_X = 1085;
+const STACK_Y = 372;
+const STACK_DROP: StackRect = { x: STACK_X, y: STACK_Y, halfW: 95, halfH: 125 };
 const LIFE_BADGE_SIZE = 40;
 const COLOR_SORT: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
 const ROW_GUTTER = 6;
@@ -5876,18 +5891,14 @@ export class DuelScene extends Phaser.Scene {
       // player's only escape while an opening-hand decision is up.
       const mulls = this.duel.state.players[HUMAN].mulligans;
       const left = RULES.maxMulligans - mulls;
-      const title =
-        left > 0
-          ? `Keep this hand?  ·  ${left} mulligan${left === 1 ? '' : 's'} left`
-          : 'Keep this hand?  ·  no mulligans left';
       const buttons = left > 0 ? ['Keep', 'Mulligan', 'Concede'] : ['Keep', 'Concede'];
-      this.buildPickOverlay(title, 0, buttons);
+      this.buildPickOverlay(mulliganTitle(left), 0, buttons, true);
     } else if (a.kind === 'bottomCards') {
-      this.buildPickOverlay(`Put ${a.count} card(s) on the bottom`, a.count, ['Confirm', 'Concede']);
+      this.buildBottomingOverlay(a.count);
     } else if (a.kind === 'foresee') {
       this.buildForeseeOverlay(a.cards);
     } else if (a.kind === 'discardToHandSize') {
-      this.buildPickOverlay(`Discard ${a.count} card(s)`, a.count, ['Confirm']);
+      this.buildPickOverlay(discardTitle(a.count), a.count, ['Confirm']);
     }
   }
 
@@ -6164,7 +6175,7 @@ export class DuelScene extends Phaser.Scene {
     this.overlay = c;
   }
 
-  private buildPickOverlay(title: string, picks: number, buttons: string[]): void {
+  private buildPickOverlay(title: string, picks: number, buttons: string[], withStack = false): void {
     const width = 1280; // design-space constants (see buildZones)
     const height = 720;
     const c = this.add.container(0, 0).setDepth(100);
@@ -6175,17 +6186,22 @@ export class DuelScene extends Phaser.Scene {
         .text(width / 2, 150, title, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '30px', color: '#f0e6ff' })
         .setOrigin(0.5),
     );
+    // The library stack the mulligan riffles; the hand row cedes it the right edge.
+    const stackPlates = withStack ? this.buildLibraryStack(c, STACK_X, STACK_Y) : [];
+    const overlayCards: CardView[] = [];
+    const rowCenter = withStack ? 560 : width / 2;
     this.discardPicks.clear();
     const hand = this.duel.state.players[HUMAN].hand;
-    const spacing = Math.min(150, (width - 200) / Math.max(1, hand.length));
+    const spacing = Math.min(150, (width - (withStack ? 420 : 200)) / Math.max(1, hand.length));
     // Organize the opening/pick hand the same way as the play fan (handSort):
     // `pos` is the visual slot, `handIdx` the true engine index that picks and
     // the bottomCards/discard actions address.
     const order = handDisplayOrder(hand, CARD_DB);
     order.forEach((handIdx, pos) => {
       const cardId = hand[handIdx];
-      const x = width / 2 - ((hand.length - 1) * spacing) / 2 + pos * spacing;
+      const x = rowCenter - ((hand.length - 1) * spacing) / 2 + pos * spacing;
       const v = new CardView(this, x, 360);
+      overlayCards.push(v);
       v.setScale(0.62);
       const d = def(CARD_DB, cardId);
       const landStyle = this.humanLandStyleFor(cardId);
@@ -6232,6 +6248,9 @@ export class DuelScene extends Phaser.Scene {
     // pause-menu Concede's `concedeArmed` state — the overlay is rebuilt each
     // syncOverlay, so a fresh flag per overlay is exactly the right lifetime).
     let overlayConcedeArmed = false;
+    // While the riffle plays, every button is dead: the mulligan is already
+    // decided, and a second press would double-submit.
+    let shuffling = false;
     buttons.forEach((label, bi) => {
       // 220px centers: the armed Concede label ("Tap to confirm") auto-grows
       // its text plate to ~246px, which overlapped the neighbor at the old
@@ -6247,6 +6266,7 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, btn, () => {
+        if (shuffling) return;
         if (concede) {
           // Escape hatch (e.g. an unkeepable hand at the mulligan cap). Shares
           // the confirmDestructive two-tap policy with the corner Concede.
@@ -6262,7 +6282,15 @@ export class DuelScene extends Phaser.Scene {
         const a = this.duel.awaiting;
         if (!('player' in a) || a.player !== HUMAN) return;
         if (a.kind === 'mulligan') {
-          this.act(label === 'Keep' ? { type: 'keepHand' } : { type: 'mulligan' });
+          if (label === 'Keep') {
+            this.act({ type: 'keepHand' });
+            return;
+          }
+          // Taking a mulligan was an instant screen swap; now the hand
+          // gathers into the library and the stack riffles before the new
+          // hand appears. The submitted action is unchanged.
+          shuffling = true;
+          this.playMulliganShuffle(overlayCards, stackPlates, () => this.act({ type: 'mulligan' }));
         } else if (a.kind === 'bottomCards') {
           if (this.discardPicks.size === a.count)
             this.act({ type: 'bottomCards', handIndices: [...this.discardPicks] });
@@ -6274,6 +6302,280 @@ export class DuelScene extends Phaser.Scene {
       inflateHitArea(btn, 90, 90);
       c.add(btn);
     });
+    this.guard.open(this.overlayGuardTargets());
+    this.overlay = c;
+  }
+
+  /** Painted plates standing in for the library; the top plate is returned last. */
+  private buildLibraryStack(
+    c: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Graphics[] {
+    const deckSize = this.duel.state.players[HUMAN].deck.length;
+    const plates: Phaser.GameObjects.Graphics[] = [];
+    for (const { dx, dy } of libraryStackPlates(deckSize)) {
+      const g = this.add.graphics();
+      g.fillStyle(colorInt(theme.colors.panelFill), 1);
+      g.lineStyle(2, colorInt(theme.colors.gold), 0.85);
+      g.fillRoundedRect(x - 62 + dx, y - 86 + dy, 124, 172, 10);
+      g.strokeRoundedRect(x - 62 + dx, y - 86 + dy, 124, 172, 10);
+      c.add(g);
+      plates.push(g);
+    }
+    const label = this.add
+      .text(x, y + 108, `Library · ${deckSize}`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    c.add(label);
+    return plates;
+  }
+
+  /** Gather the hand into the stack, riffle it, then hand control back. */
+  private playMulliganShuffle(
+    cards: readonly CardView[],
+    plates: readonly Phaser.GameObjects.Graphics[],
+    onDone: () => void,
+  ): void {
+    const motion = riffleShuffleMotion(this.motionLevel());
+    if (motion.totalMs === 0 || plates.length === 0) {
+      onDone();
+      return;
+    }
+    cards.forEach((v, i) => {
+      this.tweens.add({
+        targets: v,
+        x: STACK_X,
+        y: STACK_Y,
+        scaleX: 0.3,
+        scaleY: 0.3,
+        alpha: 0.9,
+        delay: i * 25,
+        duration: 150,
+        ease: 'Quad.easeIn',
+        onComplete: () => v.setVisible(false),
+      });
+    });
+    const halves = [plates.filter((_, i) => i % 2 === 0), plates.filter((_, i) => i % 2 === 1)];
+    const doCut = (cut: number): void => {
+      if (cut >= motion.cuts) {
+        this.time.delayedCall(motion.gatherMs, onDone);
+        return;
+      }
+      Sfx.play('flip', { pitch: 0.92 + cut * 0.08 });
+      halves.forEach((half, hi) => {
+        for (const plate of half) {
+          this.tweens.add({
+            targets: plate,
+            x: hi === 0 ? -motion.splitDx : motion.splitDx,
+            duration: motion.cutMs / 2,
+            yoyo: true,
+            ease: 'Quad.easeInOut',
+          });
+        }
+      });
+      this.time.delayedCall(motion.cutMs, () => doCut(cut + 1));
+    };
+    this.time.delayedCall(150 + cards.length * 25, () => doCut(0));
+  }
+
+  /**
+   * The bottoming half of the mulligan ritual: drag a card onto the library
+   * stack (or tap it anywhere) to stage it; staged cards tuck under the top
+   * plate and peek out as a retrievable tab. Confirm submits the
+   * byte-identical `bottomCards` action once the count is met.
+   */
+  private buildBottomingOverlay(count: number): void {
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(100);
+    const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive();
+    c.add(dim);
+    c.add(
+      this.add
+        .text(width / 2, 150, bottomingTitle(count), { fontFamily: 'Cinzel, Georgia, serif', fontSize: '30px', color: '#f0e6ff' })
+        .setOrigin(0.5),
+    );
+    const plates = this.buildLibraryStack(c, STACK_X, STACK_Y);
+    const topPlate = plates[plates.length - 1];
+    this.discardPicks.clear();
+    const full = this.motionLevel() === 'full';
+    const hand = this.duel.state.players[HUMAN].hand;
+    const spacing = Math.min(150, (width - 420) / Math.max(1, hand.length));
+    const homes = new Map<number, { x: number; y: number }>();
+    const stagedOrder: number[] = [];
+    const stagedViews = new Map<number, CardView>();
+    let refreshConfirm: () => void = () => undefined;
+    const layoutStaged = (): void => {
+      const xs = stagedSlots(stagedOrder.length, STACK_X - 20, 46);
+      stagedOrder.forEach((idx, i) => {
+        const v = stagedViews.get(idx);
+        if (!v) return;
+        this.tweens.add({ targets: v, x: xs[i], y: STACK_Y + 118, duration: full ? 120 : 0, ease: 'Quad.easeOut' });
+      });
+    };
+    const stage = (idx: number, v: CardView): void => {
+      if (this.discardPicks.has(idx) || this.discardPicks.size >= count) return;
+      this.discardPicks.add(idx);
+      stagedOrder.push(idx);
+      stagedViews.set(idx, v);
+      c.moveBelow<Phaser.GameObjects.GameObject>(v, topPlate); // tuck under the top plate on the way down
+      this.tweens.add({
+        targets: v,
+        x: stagedSlots(stagedOrder.length, STACK_X - 20, 46)[stagedOrder.length - 1],
+        y: STACK_Y + 118,
+        scaleX: 0.3,
+        scaleY: 0.3,
+        alpha: 0.95,
+        duration: full ? 200 : 0,
+        ease: 'Quad.easeIn',
+      });
+      layoutStaged();
+      refreshConfirm();
+    };
+    const unstage = (idx: number): void => {
+      const v = stagedViews.get(idx);
+      if (!v) return;
+      this.discardPicks.delete(idx);
+      stagedViews.delete(idx);
+      stagedOrder.splice(stagedOrder.indexOf(idx), 1);
+      c.bringToTop(v);
+      const home = homes.get(idx);
+      this.tweens.add({
+        targets: v,
+        x: home?.x ?? v.x,
+        y: home?.y ?? 360,
+        scaleX: 0.62,
+        scaleY: 0.62,
+        alpha: 1,
+        duration: full ? 200 : 0,
+        ease: 'Back.easeOut',
+      });
+      layoutStaged();
+      refreshConfirm();
+    };
+    const toggleStage = (idx: number, v: CardView): void => {
+      if (this.discardPicks.has(idx)) unstage(idx);
+      else stage(idx, v);
+    };
+    // Manual mouse drag (the codebase's first drag surface): pointerdown on a
+    // card arms it, overlay-scoped move/up listeners carry and drop it. Taps
+    // keep working everywhere — an unmoved press falls through to the toggle.
+    let drag: { idx: number; view: CardView; startX: number; startY: number; moved: boolean } | null = null;
+    const onDragMove = (p: Phaser.Input.Pointer): void => {
+      if (!drag) return;
+      if (!drag.moved && !dragMoved(drag.startX, drag.startY, p.worldX, p.worldY)) return;
+      drag.moved = true;
+      c.bringToTop(drag.view);
+      drag.view.setPosition(p.worldX, p.worldY).setScale(0.66);
+    };
+    const onDragUp = (p: Phaser.Input.Pointer): void => {
+      const d = drag;
+      drag = null;
+      if (!d?.moved) return; // an unmoved press is the card's own tap toggle
+      if (!this.discardPicks.has(d.idx) && this.discardPicks.size < count && stagedDropAccepted(p.worldX, p.worldY, STACK_DROP)) {
+        stage(d.idx, d.view);
+        return;
+      }
+      if (this.discardPicks.has(d.idx)) {
+        // A staged card was dragged back out; unstage springs it home.
+        unstage(d.idx);
+        return;
+      }
+      const home = homes.get(d.idx);
+      this.tweens.add({
+        targets: d.view,
+        x: home?.x ?? d.view.x,
+        y: home?.y ?? 360,
+        scaleX: 0.62,
+        scaleY: 0.62,
+        duration: full ? 180 : 0,
+        ease: 'Back.easeOut',
+      });
+    };
+    this.input.on('pointermove', onDragMove);
+    this.input.on('pointerup', onDragUp);
+    c.once('destroy', () => {
+      this.input.off('pointermove', onDragMove);
+      this.input.off('pointerup', onDragUp);
+    });
+    const order = handDisplayOrder(hand, CARD_DB);
+    order.forEach((handIdx, pos) => {
+      const cardId = hand[handIdx];
+      const x = 560 - ((hand.length - 1) * spacing) / 2 + pos * spacing;
+      const v = new CardView(this, x, 360);
+      v.setScale(0.62);
+      const d = def(CARD_DB, cardId);
+      const landStyle = this.humanLandStyleFor(cardId);
+      const variant = displayVariantFor(Services.save.data, cardId);
+      v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt, landStyle });
+      c.add(v);
+      homes.set(handIdx, { x, y: 360 });
+      v.enableInput();
+      this.zoom.attach(v, d, variant, landStyle);
+      v.on('pointerdown', (p: Phaser.Input.Pointer) => {
+        if (p.wasTouch || p.button !== 0) return;
+        drag = { idx: handIdx, view: v, startX: p.worldX, startY: p.worldY, moved: false };
+      });
+      v.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.wasTouch) return; // touch stages via the tap classifier below
+        if (p.rightButtonReleased()) return;
+        if (drag?.moved) return; // a finished drag is not a tap
+        toggleStage(handIdx, v);
+      });
+      attachTouchGestures(this, v, {
+        card: d,
+        variant,
+        landStyle,
+        onTap: () => toggleStage(handIdx, v),
+      });
+    });
+    let overlayConcedeArmed = false;
+    const buttons = ['Confirm', 'Concede'];
+    const buttonRefs = new Map<string, Phaser.GameObjects.Text>();
+    buttons.forEach((label, bi) => {
+      const bx = width / 2 - ((buttons.length - 1) * 220) / 2 + bi * 220;
+      const concede = label === 'Concede';
+      const btn = this.add
+        .text(bx, 580, label, {
+          fontFamily: 'Cinzel, Georgia, serif', fontSize: '22px',
+          color: concede ? '#e0a0a0' : '#ffd88a',
+          backgroundColor: concede ? '#3a2030' : '#2c2344', padding: { x: 18, y: 10 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, btn, () => {
+        if (concede) {
+          // Shares the confirmDestructive two-tap policy with the corner Concede.
+          if (Services.save.data.settings.confirmDestructive && !overlayConcedeArmed) {
+            overlayConcedeArmed = true;
+            btn.setText('Tap to confirm').setColor('#f08a8a');
+            inflateHitArea(btn, 90, 90);
+            return;
+          }
+          this.act({ type: 'concede' });
+          return;
+        }
+        const a = this.duel.awaiting;
+        if (!('player' in a) || a.player !== HUMAN || a.kind !== 'bottomCards') return;
+        if (this.discardPicks.size === a.count)
+          this.act({ type: 'bottomCards', handIndices: [...this.discardPicks] });
+      });
+      inflateHitArea(btn, 90, 90);
+      buttonRefs.set(label, btn);
+      c.add(btn);
+    });
+    refreshConfirm = (): void => {
+      const ready = this.discardPicks.size === count;
+      buttonRefs.get('Confirm')?.setAlpha(ready ? 1 : 0.5);
+    };
+    refreshConfirm();
+    // Same fan-hiding rule as buildPickOverlay: one unambiguous copy to read.
+    for (const v of this.handViews) v.setVisible(false);
+    for (const o of this.handDecor) (o as Phaser.GameObjects.Arc).setVisible(false);
     this.guard.open(this.overlayGuardTargets());
     this.overlay = c;
   }
