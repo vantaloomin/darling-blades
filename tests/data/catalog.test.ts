@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { manaValue, validateHauntlinkDef, validateRiteDef } from '../../src/engine/types';
+import {
+  manaValue,
+  validateHauntlinkDef,
+  validateNineLivesDef,
+  validatePreserveDef,
+  validateRiteDef,
+} from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
+import { AXES } from '../../src/data/axes';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
 import { ARTHURIAN_COURT } from '../../src/data/cards/arthurian-court';
 import { BEASTKIN } from '../../src/data/cards/beastkin';
@@ -36,6 +43,29 @@ describe('catalog integrity', () => {
       if (!card.rite) continue;
       const errors = validateRiteDef(card);
       expect(errors, `${card.id} has invalid Rite: ${errors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('has no invalid Nine Lives or Preserve definitions', () => {
+    for (const card of Object.values(CARD_DB)) {
+      const nineLivesErrors = validateNineLivesDef(card);
+      expect(nineLivesErrors, `${card.id}: ${nineLivesErrors.join('; ')}`).toEqual([]);
+      const preserveErrors = validatePreserveDef(card);
+      expect(preserveErrors, `${card.id}: ${preserveErrors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('statics only filter on declared tribal Axes', () => {
+    // Governance rule from docs/plan-tribal-pass.md: a static's filter.subtype
+    // may only name an Axis (src/data/axes.ts).
+    for (const card of Object.values(CARD_DB)) {
+      for (const ability of card.abilities ?? []) {
+        const subtype = ability.static?.filter?.subtype;
+        if (subtype === undefined) continue;
+        expect(AXES, `${card.id} static filters on non-Axis subtype '${subtype}'`).toContain(
+          subtype,
+        );
+      }
     }
   });
 

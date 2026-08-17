@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-08
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-17
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -264,6 +264,55 @@ for presentation.
 
 Rules revisions 1 and 2 preserve the former alternate-cost `castSpell` mode and
 the same host-death cleanup for old replays. Revision 3 alone uses `linkHaunt`.
+
+### Rite (additional sacrifice cost)
+
+A card with a `rite` block (`CardDef.rite`, 1.6) can be cast only by also
+sacrificing that many creatures its caster controls, chosen in the cast action
+itself (`castSpell.sacrifices`). The sacrifices leave the battlefield and their
+dies triggers fire, batched in battlefield order exactly like an SBA death
+batch, **before the spell reaches the stack** — the engine has no
+"whenever another creature dies" observer trigger, so Rite value lives on the
+fodder's own dies triggers by design. The sacrifice is a cost: a cancelled Rite
+spell does not refund it. The creature cap counts the slots the sacrifice
+frees, so a full board can still cast a Rite creature. Legal-action
+enumeration offers one canonical sacrifice set (first N in battlefield order);
+`validateAction` accepts any legal set of exactly the right size. Rite never
+combines with X, Retell, Skim, or Hauntlink, and v1 Rite cards carry no cast
+targets (`validateRiteDef`); Rite plus Empower is legal.
+
+### Nine Lives (marked return)
+
+A creature with `nineLives` (1.6) that dies while carrying **zero marks**
+returns to the battlefield under its owner's control after its dies triggers
+fire, as a fresh summoning-sick permanent carrying one mark — which is what
+makes the return once-only, and why any other mark placed on the body switches
+Nine Lives off (an intended anti-synergy with mark support). The engine locates
+the card in the owner's graveyard by card instance, so the mechanic follows the
+physical card, not its name. Batched deaths (a sweeper) fire the whole dies
+batch first, then return the marked bodies in battlefield order. A full
+creature board blocks the return and the card simply stays in the graveyard
+with no memory spent (the `raise` precedent). Tokens and Darlings never return
+this way — neither ever reaches the graveyard. Dies riders on a Nine Lives
+body fire on both deaths.
+
+### Preserve (graveyard token copy)
+
+A creature card with a `preserve` block (`CardDef.preserve`, 1.6) grants a
+main-phase action while it sits in your graveyard: pay the Preserve cost and
+**Sever** the card to create a token copy of it. The action (`preserveCard`)
+is sorcery-speed — the active player's own main phase only — and stack-free,
+like `linkHaunt` and the Darling tax paydown. The physical card moves to the
+severed zone one-way; the copy enters as a fresh token permanent keeping the
+card's `cardId` and cosmetic `variantKey`, and its arrival triggers fire (a
+Preserve card's ETB value is deliberately priced twice). Token-ness lives on
+the **permanent** (`Permanent.isToken`), not the card definition, so a
+preserved copy evaporates when it dies, is severed, or is recalled — it is
+never re-buried to a graveyard, bounced to a hand, or returned to a reserve —
+and a preserved copy of a Nine Lives body cannot return. A full creature
+board makes the action illegal (the player is choosing to pay, unlike Nine
+Lives' silent no-op). Recording the new action bumped the replay log to v9;
+the rules revision stays 3.
 
 ## Board caps
 
