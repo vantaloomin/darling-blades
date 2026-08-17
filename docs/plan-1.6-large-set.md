@@ -113,14 +113,19 @@ frame, the precedent costing bands, and 45 mechanical exemplar slots;
 137-name bank, and art direction (mythic-weight register ruled
 2026-08-17; six taste questions remain open there).
 
-1. The three new ops merged engine-first with tests + AI heuristics.
-   (Design note from the mechanical pass: the engine has NO observer-dies
-   trigger — Rite payoffs live on the fodder's own dies-triggers by
-   design; adding an observer trigger is a separate decision only if the
-   archetype measures weak.)
+1. ~~The three new ops merged engine-first with tests + AI heuristics.~~
+   **DONE 2026-08-17: Rite (#223), Nine Lives (#224), Preserve (#225), each
+   with tests + an AI heuristic, suite 1,553 green.** (The design note held:
+   no observer-dies trigger was added — Rite payoffs live on the fodder's own
+   dies-triggers; adding an observer trigger remains a separate decision only
+   if the archetype measures weak. Owed to the card-data wave: the Rite
+   sacrifice-picker and Preserve graveyard-chip UI.)
 2. ~~Mechanic names locked~~ RATIFIED: Rite / Nine Lives / Preserve.
 3. ~~Set name locked~~ RATIFIED: Sands of the Duat (prefix sd-).
-4. Bastet Axis added under tribal governance.
+4. ~~Bastet Axis added under tribal governance.~~ **DONE 2026-08-17: `AXES`
+   export in `src/data/axes.ts` (19 incl. Bastet) with a catalog test
+   enforcing the governance rule for the first time (its first run caught
+   Mermaid as an unlisted de-facto Axis).**
 5. ~~Rarity/color skeleton~~ DERIVED: 245 = 122c/74r/23sr/16ssr/10ur,
    40 per mono color, 19 multicolor legends, 21 artifacts, 5 enemy-pair
    duals inside the common count, 34 Bastet creatures + 3 lords.

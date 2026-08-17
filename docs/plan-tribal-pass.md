@@ -65,7 +65,17 @@ than Wolf/Wolfkin, and neither carries a payoff. The Norse gods do not use
 
 Three tiers, with one governing rule that prevents this recurring:
 
-- **Axis** (14 after Tier 0) - the only types a `filter.subtype` may name.
+- **Axis** - the only types a `filter.subtype` may name. The live list is the
+  code's `AXES` export (`src/data/axes.ts`, enforced by a catalog test since
+  2026-08-17): the audit table's 13 plus Wolf (Tier 0), plus the set-headline
+  Axes later sets added mechanically (Hunter 1.3, Mermaid 1.4, Kitsune 1.5,
+  Valkyrie CORE), plus **Bastet** (owner-ratified 2026-08-17 for Sands of the
+  Duat, concretion gate item 4; enters at 0 cards until the `sd-` waves land,
+  planned density 34 creatures + 3 typal payoffs per
+  plan-duat-cards-mechanical §1.2) - 19 declared Axes in all. This doc's
+  "(14 after Tier 0)" count predates those set additions; the code list is
+  the truth now. (Mermaid was caught by the enforcement test's first run:
+  dt-seafoam-dagger's static filtered on it while no audit listed it.)
 - **Sub-type** - >=90% contained in an Axis. Prints on the face for flavour,
   never referenced mechanically.
 - **Flavour** - everything else. Free to print, mechanically inert.
