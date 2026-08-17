@@ -12,6 +12,22 @@ export interface ReserveModalGroup {
  * a count badge plus one Play land per kind is the whole real choice. Kinds
  * keep the reserve's own order.
  */
+/**
+ * Land-carry fan: the playable kinds arc up-right of the Reserves pile,
+ * middle card lifted highest so two or three read as a held hand.
+ */
+export function landFanSlots(
+  count: number,
+  pileX: number,
+  pileY: number,
+): { x: number; y: number }[] {
+  const mid = (count - 1) / 2;
+  return Array.from({ length: count }, (_, i) => ({
+    x: pileX + 26 + i * 96,
+    y: pileY - 118 - (count > 1 ? Math.round(14 * (1 - Math.abs(i - mid) / Math.max(1, mid))) : 0),
+  }));
+}
+
 export function groupReserveSlots(
   cardIds: readonly string[],
   playable: (index: number) => boolean,

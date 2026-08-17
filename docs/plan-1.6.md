@@ -167,15 +167,21 @@ re-baseline.
    idle, tier-ribbon minimap, edge vignettes, grouped flip audio, and
    virtualization (live CardViews only near the gate). Animations-off and
    Skip keep the at-a-glance summary grid. This closes the
-   16-of-150-cards batch-summary gap. **Trophy Hall full landed
-   2026-08-16**: the Achievements screen defaults to a five-wing hall
-   (one per bucket - ring gauge, featured plinth, owned-card
-   furnishings, click-through to the bucket-scoped list), the dense list
-   survives as a toggle, claimed rows carry a showcase pin (SaveData v31
-   `achievements.pinned`, cap 3, oldest evicted) rendered as tilted seal
-   plaques on the Profile header. With the land-carry pass and the
-   frame-shed rider (their own PRs), **Wave C is COMPLETE pending the
-   owner's device pass**. Then the **small-debts batch** (Limited
+   16-of-150-cards batch-summary gap. **Land-carry R2 landed 2026-08-16**:
+   with a legal drop, a mouse tap on the Reserves pile fans the playable
+   kinds (grouped, count-badged) instead of opening the modal; picking one
+   lifts it into the shared CastIntent carry with an incoming-bead ghost
+   at the mana row's end, and the drop submits the same `playLand`. Touch,
+   the tutorial, replays, and `instantCast` keep the modal; right-click
+   always reads the full reserve. The full-art frame-shed rider landed the
+   same day. **Trophy Hall full landed 2026-08-16, closing the wave**: the
+   Achievements screen defaults to a five-wing hall (one per bucket - ring
+   gauge, featured plinth, owned-card furnishings, click-through to the
+   bucket-scoped list), the dense list survives as a toggle, claimed rows
+   carry a showcase pin (SaveData v31 `achievements.pinned`, cap 3, oldest
+   evicted) rendered as tilted seal plaques on the Profile header. **Wave C
+   is COMPLETE pending the owner's device pass.** Then the **small-debts
+   batch** (Limited
    retune, modalShell dismiss consolidation, scoreLand rider credit, the
    1.6 dup-audit adjudication, Fogbell Chime redesign, Laughing Pooka /
    Wolfsbane Ward watchlist, metagame deep sweep once the reserve field
