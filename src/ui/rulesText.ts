@@ -43,7 +43,17 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
 export const MECHANIC_DEFINITIONS: Record<
-  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower' | 'skim' | 'retell' | 'hauntlink' | 'rite',
+  | 'sever'
+  | 'foresee'
+  | 'mark'
+  | 'quest'
+  | 'championAwakening'
+  | 'empower'
+  | 'skim'
+  | 'retell'
+  | 'hauntlink'
+  | 'rite'
+  | 'nineLives',
   string
 > = {
   sever: 'severed from the game; severed cards never return',
@@ -56,6 +66,7 @@ export const MECHANIC_DEFINITIONS: Record<
   retell: 'cast this from your graveyard for the listed cost, then sever it',
   hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
   rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
+  nineLives: 'when this dies with no marks on it, it returns to the battlefield with a mark on it',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -235,6 +246,11 @@ export function riteText(d: CardDef): string | undefined {
   return `Rite ${d.rite.n}: As an additional cost to cast this, sacrifice ${d.rite.n} ${creatures}.`;
 }
 
+export function nineLivesText(d: CardDef): string | undefined {
+  if (!d.nineLives) return undefined;
+  return 'When this dies with no marks on it, return it to the battlefield with a mark on it.';
+}
+
 export function skimText(d: CardDef): string | undefined {
   if (!d.skim) return undefined;
   return `Skim ${manaCostText(d.skim.cost)}: Discard this card, then draw a card.`;
@@ -412,6 +428,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (hauntlink) lines.push(hauntlink);
   const rite = riteText(d);
   if (rite) lines.push(rite);
+  const nineLives = nineLivesText(d);
+  if (nineLives) lines.push(nineLives);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
@@ -467,6 +485,7 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   if (d.retell) push('Retell', MECHANIC_DEFINITIONS.retell);
   if (d.hauntlink) push('Hauntlink', MECHANIC_DEFINITIONS.hauntlink);
   if (d.rite) push('Rite', MECHANIC_DEFINITIONS.rite);
+  if (d.nineLives) push('Nine Lives', MECHANIC_DEFINITIONS.nineLives);
   return entries;
 }
 

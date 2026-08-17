@@ -16,6 +16,7 @@ import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import {
   empowerValue,
   hauntlinkCastValue,
+  nineLivesValue,
   removalKind,
   removalValueForCast,
   retellValue,
@@ -188,9 +189,10 @@ export class EasyAI implements AIPlayer {
               ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
               : -Infinity;
           }
+          const d = def(this.db, cardId);
           const castValue = action.type === 'castSpell' && action.retell
             ? retellValue(this.db, cardId) + 0.01
-            : manaValue(def(this.db, cardId).cost) +
+            : manaValue(d.cost) + nineLivesValue(d) +
                 (action.type === 'castSpell' ? (action.x ?? 0) : 0) +
                 (action.type === 'castSpell' && action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
           return castValue - riteSacrificeValue(view, this.db, action);
