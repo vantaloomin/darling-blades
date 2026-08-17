@@ -10,7 +10,15 @@ import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
 import type { CardDb, CardDef, GameState, ManaCost, PlayerId, TargetRef } from './types';
-import { cardIdOf, def, isType, manaValue, opponentOf, validateHauntlinkDef } from './types';
+import {
+  cardIdOf,
+  def,
+  isType,
+  manaValue,
+  opponentOf,
+  validateHauntlinkDef,
+  validatePreserveDef,
+} from './types';
 
 export type Action =
   | { type: 'choosePlayDraw'; play: boolean }
@@ -40,6 +48,8 @@ export type Action =
     }
   /** Revision-3 Charm-speed action: pay Hauntlink to link or move a permanent. */
   | { type: 'linkHaunt'; iid: number; hostIid: number; manaPlan?: number[] }
+  /** Main-phase graveyard action: pay Preserve, sever the card, and create a token copy. */
+  | { type: 'preserveCard'; graveIndex: number; manaPlan?: number[] }
   /** Normal creature-timing cast from a public Darling zone. */
   | { type: 'castDarling'; targets?: TargetRef[]; x?: number; manaPlan?: number[] }
   /** Main-phase action: pay four mana to remove one two-mana Darling tax step. */
@@ -214,6 +224,20 @@ function castTargetSpecsFor(
 
 function retellable(d: CardDef): boolean {
   return d.retell !== undefined && !d.x && (isType(d, 'ritual') || isType(d, 'charm'));
+}
+
+function preserveBlockers(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+): string | null {
+  if (!d.preserve) return 'card has no Preserve option';
+  if (validatePreserveDef(d).length > 0) return 'card has no valid Preserve option';
+  if (creatureCount(state, db, player) >= RULES.maxCreatures) {
+    return 'creature battlefield cap reached';
+  }
+  return canPay(state, db, player, d.preserve.cost) ? null : 'cannot pay cost';
 }
 
 function skimWindow(state: GameState, player: PlayerId): boolean {
@@ -426,11 +450,17 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         }
       });
       me.graveyard.forEach((card, graveIndex) => {
-        const cardId = cardIdOf(card);
-        const d = def(db, cardId);
-        if (!retellable(d) || !castableNow(state, player, d)) return;
-        if (castBlockers(state, db, player, d, false, 0, true) !== null) return;
+        const d = def(db, card);
+        if (
+          retellable(d) &&
+          castableNow(state, player, d) &&
+          castBlockers(state, db, player, d, false, 0, true) === null
+        ) {
           pushCastActions(out, state, db, player, graveIndex, d, true);
+        }
+        if (state.activePlayer === player && preserveBlockers(state, db, player, d) === null) {
+          out.push({ type: 'preserveCard', graveIndex });
+        }
       });
       if (me.darlingZone !== undefined) {
         const darling = me.darlingZone;
@@ -612,6 +642,22 @@ export function validateAction(
       if (action.manaPlan) {
         const err = validateManaPlanForCost(state, db, player, d.skim!.cost, action.manaPlan);
         if (err) return err;
+      }
+      return null;
+    }
+
+    case 'preserveCard': {
+      if (a.kind !== 'main' || state.activePlayer !== player) {
+        return 'Preserve can only be used during your main phase';
+      }
+      if (!Number.isInteger(action.graveIndex)) return 'bad graveyard index';
+      const card = me.graveyard[action.graveIndex];
+      if (card === undefined) return 'bad graveyard index';
+      const d = def(db, card);
+      const blocked = preserveBlockers(state, db, player, d);
+      if (blocked) return blocked;
+      if (action.manaPlan) {
+        return validateManaPlanForCost(state, db, player, d.preserve!.cost, action.manaPlan);
       }
       return null;
     }

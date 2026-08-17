@@ -140,6 +140,11 @@ export interface RiteDef {
   n: number;
 }
 
+/** Main-phase graveyard activation that creates a token copy of this creature. */
+export interface PreserveDef {
+  cost: ManaCost;
+}
+
 /** Alternate linked cast for a noncreature Artifact or Enchantment. */
 export interface HauntlinkDef {
   cost: ManaCost;
@@ -183,6 +188,8 @@ export interface CardDef {
   rite?: RiteDef;
   /** Returns once after dying without a +1/+1 mark. */
   nineLives?: true;
+  /** Optional main-phase activation from this card's graveyard. */
+  preserve?: PreserveDef;
   /** Optional alternative-cost cast that enters attached to a friendly creature. */
   hauntlink?: HauntlinkDef;
   manaAbility?: Color[]; // lands & mana creatures
@@ -291,6 +298,25 @@ export function validateNineLivesDef(d: CardDef): string[] {
   return errors;
 }
 
+/** Catalog-facing validation for the creature-only v1 Preserve contract. */
+export function validatePreserveDef(d: CardDef): string[] {
+  if (!d.preserve) return [];
+  const errors: string[] = [];
+  if (!isType(d, 'creature')) errors.push('Preserve carrier must be a creature');
+  const cost = d.preserve.cost;
+  if (!cost) {
+    errors.push('Preserve needs a mana cost');
+  } else if (
+    !Number.isInteger(cost.generic) ||
+    cost.generic < 0 ||
+    Object.values(cost.pips).some((pip) => !Number.isInteger(pip) || pip < 0)
+  ) {
+    errors.push('Preserve cost must be non-negative');
+  }
+  if (d.hauntlink) errors.push('Preserve card cannot combine with Hauntlink');
+  return errors;
+}
+
 export function manaValue(cost: ManaCost | undefined): number {
   if (!cost) return 0;
   let v = cost.generic;
@@ -316,6 +342,8 @@ export interface Permanent {
   cardId: string;
   /** Opaque presentation metadata; never used by rules. */
   variantKey?: string | null;
+  /** Runtime token identity. Present as true on tokens, including copies of collectible cards. */
+  isToken?: true;
   owner: PlayerId;
   controller: PlayerId;
   tapped: boolean;

@@ -12,6 +12,7 @@ import { chooseDarlingPaydown } from './darlingPolicy';
 import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
+import { choosePreserve, type MainCast } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import {
   empowerValue,
@@ -83,6 +84,23 @@ export class EasyAI implements AIPlayer {
       : view.you.hand[cast.handIndex];
   }
 
+  private castScore(view: PlayerView, action: MainCast): number {
+    const cardId = this.cardIdFor(view, action);
+    const d = def(this.db, cardId);
+    if (action.type === 'castDarling') return manaValue(d.cost) + nineLivesValue(d);
+    if (action.hauntlinked) {
+      const host = action.targets?.[0];
+      return host?.kind === 'permanent'
+        ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
+        : -Infinity;
+    }
+    const castValue = action.retell
+      ? retellValue(this.db, cardId) + 0.01
+      : manaValue(d.cost) + nineLivesValue(d) + (action.x ?? 0) +
+          (action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+    return castValue - riteSacrificeValue(view, this.db, action);
+  }
+
   /** Targeted damage should not default to a friendly permanent or player. */
   private isSelfDamageTarget(
     view: PlayerView,
@@ -150,6 +168,13 @@ export class EasyAI implements AIPlayer {
 
     const casts = nonConcede.filter((l) => l.type === 'castSpell' || l.type === 'castDarling');
     const skimPool = nonConcede.filter((action) => action.type === 'skim');
+    const preserve = choosePreserve(
+      view,
+      this.db,
+      nonConcede,
+      (cast) => this.castScore(view, cast),
+    );
+    if (preserve) return preserve;
     if (casts.length === 0 && skimPool.length > 0) {
       return skimPool[0];
     }
@@ -181,21 +206,8 @@ export class EasyAI implements AIPlayer {
       pool.sort((x, y) => {
         const score = (action: Action): number => {
           if (action.type === 'skim') return skimValue(this.db, view.you.hand[action.handIndex]);
-          if (action.type !== 'castSpell') return -Infinity;
-          const cardId = this.cardIdFor(view, action);
-          if (action.type === 'castSpell' && action.hauntlinked) {
-            const host = action.targets?.[0];
-            return host?.kind === 'permanent'
-              ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
-              : -Infinity;
-          }
-          const d = def(this.db, cardId);
-          const castValue = action.type === 'castSpell' && action.retell
-            ? retellValue(this.db, cardId) + 0.01
-            : manaValue(d.cost) + nineLivesValue(d) +
-                (action.type === 'castSpell' ? (action.x ?? 0) : 0) +
-                (action.type === 'castSpell' && action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
-          return castValue - riteSacrificeValue(view, this.db, action);
+          if (action.type !== 'castSpell' && action.type !== 'castDarling') return -Infinity;
+          return this.castScore(view, action);
         };
         return score(y) - score(x);
       });

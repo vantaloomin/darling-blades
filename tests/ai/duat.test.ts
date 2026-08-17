@@ -15,6 +15,7 @@ import { makeTestState } from '../helpers';
 function gameWith(opts: {
   hands: [string[], string[]];
   battlefield: ReturnType<typeof duatPermanent>[];
+  graveyards?: [string[], string[]];
   decks?: [string[], string[]];
 }): Game {
   const state: GameState = makeTestState({
@@ -24,6 +25,8 @@ function gameWith(opts: {
   });
   state.players[0].deck = [...(opts.decks?.[0] ?? [])];
   state.players[1].deck = [...(opts.decks?.[1] ?? [])];
+  state.players[0].graveyard = [...(opts.graveyards?.[0] ?? [])];
+  state.players[1].graveyard = [...(opts.graveyards?.[1] ?? [])];
   return Game.restore(state, DUAT_DB);
 }
 
@@ -175,6 +178,53 @@ describe('Sands of the Duat Nine Lives AI', () => {
     for (const brain of brains()) {
       expect(castChoice(brain, createGame())).toMatchObject({
         type: 'castSpell', handIndex: 1,
+      });
+    }
+  });
+});
+
+describe('Sands of the Duat Preserve AI', () => {
+  it('activates Preserve from an otherwise idle constructed main phase for every brain', () => {
+    const createGame = (): Game => gameWith({
+      hands: [[], []],
+      graveyards: [['du-preserve-small'], []],
+      battlefield: [duatPermanent(1, 'forest')],
+    });
+    for (const brain of brains()) {
+      expect(castChoice(brain, createGame())).toEqual({
+        type: 'preserveCard', graveIndex: 0,
+      });
+    }
+  });
+
+  it('prefers the biggest affordable Preserve body using public card value', () => {
+    expect(cardValue(DUAT_DB, 'du-preserve-small')).toBe(2.75);
+    expect(cardValue(DUAT_DB, 'du-preserve-big')).toBe(9);
+    const createGame = (): Game => gameWith({
+      hands: [[], []],
+      graveyards: [['du-preserve-small', 'du-preserve-big'], []],
+      battlefield: [duatPermanent(1, 'forest'), duatPermanent(2, 'forest')],
+    });
+    for (const brain of brains()) {
+      expect(castChoice(brain, createGame())).toEqual({
+        type: 'preserveCard', graveIndex: 1,
+      });
+    }
+  });
+
+  it('declines Preserve while behind when a clearly higher-value cast is available', () => {
+    expect(cardValue(DUAT_DB, 'du-best-body')).toBe(12);
+    const createGame = (): Game => gameWith({
+      hands: [['du-best-body'], []],
+      graveyards: [['du-preserve-small'], []],
+      battlefield: [
+        ...Array.from({ length: 6 }, (_, index) => duatPermanent(1 + index, 'forest')),
+        duatPermanent(20, 'du-mid-body', 1),
+      ],
+    });
+    for (const brain of brains()) {
+      expect(castChoice(brain, createGame())).toMatchObject({
+        type: 'castSpell', handIndex: 0,
       });
     }
   });

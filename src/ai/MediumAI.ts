@@ -11,6 +11,7 @@ import { chooseDarlingPaydown } from './darlingPolicy';
 import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
+import { choosePreserve } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import {
   cardValue,
@@ -286,6 +287,13 @@ export class MediumAI implements AIPlayer {
 
     const casts = legal.filter((l): l is Cast => l.type === 'castSpell' || l.type === 'castDarling');
     const skims = legal.filter((l) => l.type === 'skim');
+    const preserve = choosePreserve(
+      view,
+      this.db,
+      legal,
+      (cast) => this.castScore(view, cast),
+    );
+    if (casts.length === 0 && preserve) return preserve;
     // Smoothing gate: only spend a Skim when no cast line, including Retell,
     // exists.
     if (casts.length === 0 && view.you.deckCount > 0) {
@@ -380,6 +388,8 @@ export class MediumAI implements AIPlayer {
           return burns.reduce((a, b) => ((a.x ?? 0) >= (b.x ?? 0) ? a : b));
         }
       }
+
+      if (preserve) return preserve;
 
       // 3. Develop: cast the highest-value creature / permanent. Creatures
       //    without haste in main1 wait for main2 only if we plan to attack;

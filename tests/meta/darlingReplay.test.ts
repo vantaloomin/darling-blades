@@ -69,7 +69,7 @@ function recordDarlings(seed: number): { log: ReplayLog; state: string; events: 
 describe('Darlings replay v8', () => {
   it('round-trips command-zone state and actions byte-identically', () => {
     const original = recordDarlings(9801);
-    expect(original.log.v).toBe(8); // Current logs opt into revision-3 Hauntlink actions.
+    expect(original.log.v).toBe(9); // Current logs include Preserve actions under revision 3.
     expect(original.log.format).toBe('darlings');
     expect(original.log.darlings).toEqual(['bear', 'bear']);
     expect(original.log.landReserves).toEqual([RESERVE, RESERVE]);

@@ -11,6 +11,7 @@ import { evaluate } from './evaluate';
 import { MediumAI } from './MediumAI';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
+import { preserveActionValue } from './preservePolicy';
 import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
 import { cardValue, hauntlinkCastValue } from './value';
 
@@ -192,6 +193,7 @@ export class HardAI implements AIPlayer {
           (a.type === 'skim' && view.you.deckCount > 0) ||
           (a.type === 'castSpell' &&
             (a.empowered === true || a.retell === true || isRiteCast(view, this.db, a))) ||
+          a.type === 'preserveCard' ||
           a.type === 'castDarling',
       )
       // evaluate() deliberately strips until-EOT mods. When positive target
@@ -216,6 +218,9 @@ export class HardAI implements AIPlayer {
           ? -Infinity
           : cardValue(this.db, view.you.darlingZone);
       }
+      if (candidate.type === 'preserveCard') {
+        return preserveActionValue(view, this.db, candidate);
+      }
       if (candidate.type !== 'castSpell') return -Infinity;
       const cardId = candidate.retell && candidate.graveIndex !== undefined
         ? view.you.graveyard[candidate.graveIndex]
@@ -230,9 +235,9 @@ export class HardAI implements AIPlayer {
         riteSacrificeValue(view, this.db, candidate);
     };
     // Cap the sim fanout: variants scale with target count, so rank Hauntlink
-    // hosts by the same public-board score before truncating the menu. Rite is
-    // target-free by contract and goes ahead of the cap so an ordinary Rite
-    // cast is always searched. With no Rite, pre-existing order is unchanged.
+    // hosts and Preserve bodies by public value before truncating the menu.
+    // Rite stays ahead of the cap, and the single best Preserve action is
+    // always searched.
     const rankedCandidates = candidates
       .map((candidate, index) => ({ candidate, index }))
       .sort((a, b) => {
@@ -240,16 +245,29 @@ export class HardAI implements AIPlayer {
         const bLinked = b.candidate.type === 'castSpell' && b.candidate.hauntlinked === true;
         if (aLinked !== bLinked) return aLinked ? -1 : 1;
         if (aLinked && bLinked) return candidateScore(b.candidate) - candidateScore(a.candidate) || a.index - b.index;
+        const aPreserve = a.candidate.type === 'preserveCard';
+        const bPreserve = b.candidate.type === 'preserveCard';
+        if (aPreserve !== bPreserve) return aPreserve ? -1 : 1;
+        if (aPreserve && bPreserve) {
+          return candidateScore(b.candidate) - candidateScore(a.candidate) || a.index - b.index;
+        }
         return a.index - b.index;
       })
       .map(({ candidate }) => candidate);
     const riteCandidates = rankedCandidates.filter((candidate) =>
       isRiteCast(view, this.db, candidate),
     );
+    const preserveCandidates = rankedCandidates.filter(
+      (candidate) => candidate.type === 'preserveCard',
+    ).slice(0, 1);
     const cappedCandidates = [
       ...riteCandidates,
+      ...preserveCandidates,
       ...rankedCandidates
-        .filter((candidate) => !isRiteCast(view, this.db, candidate))
+        .filter(
+          (candidate) =>
+            !isRiteCast(view, this.db, candidate) && candidate.type !== 'preserveCard',
+        )
         .slice(0, 8),
     ];
     for (const candidate of cappedCandidates) {
