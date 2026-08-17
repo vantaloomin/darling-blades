@@ -135,6 +135,11 @@ export interface RetellDef {
   ops?: EffectOp[];
 }
 
+/** Additional creature-sacrifice cost paid while casting the card. */
+export interface RiteDef {
+  n: number;
+}
+
 /** Alternate linked cast for a noncreature Artifact or Enchantment. */
 export interface HauntlinkDef {
   cost: ManaCost;
@@ -174,6 +179,8 @@ export interface CardDef {
   skim?: SkimDef;
   /** Optional alternative-cost cast from this card's graveyard. */
   retell?: RetellDef;
+  /** Optional additional cast cost that sacrifices controlled creatures. */
+  rite?: RiteDef;
   /** Optional alternative-cost cast that enters attached to a friendly creature. */
   hauntlink?: HauntlinkDef;
   manaAbility?: Color[]; // lands & mana creatures
@@ -247,6 +254,28 @@ export function validateHauntlinkDef(d: CardDef): string[] {
     (d.hauntlink.linked.grantKeywords?.length ?? 0) === 0
   ) {
     errors.push('Hauntlink carrier needs a Linked rider');
+  }
+  return errors;
+}
+
+/** Catalog-facing validation for the target-free v1 Rite authoring contract. */
+export function validateRiteDef(d: CardDef): string[] {
+  if (!d.rite) return [];
+  const errors: string[] = [];
+  if (!Number.isInteger(d.rite.n) || d.rite.n < 1) {
+    errors.push('Rite count must be an integer of at least 1');
+  }
+  if (d.x) errors.push('Rite card cannot be X');
+  if (d.retell) errors.push('Rite card cannot combine with Retell');
+  if (d.hauntlink) errors.push('Rite card cannot combine with Hauntlink');
+  if (d.skim) errors.push('Rite card cannot combine with Skim');
+  if (
+    d.subtypes.includes('Aura') ||
+    (d.abilities ?? []).some(
+      (ability) => ability.when !== 'static' && (ability.targets?.length ?? 0) > 0,
+    )
+  ) {
+    errors.push('Rite card cannot have cast targets');
   }
   return errors;
 }

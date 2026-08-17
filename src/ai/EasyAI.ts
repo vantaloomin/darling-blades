@@ -12,6 +12,7 @@ import { chooseDarlingPaydown } from './darlingPolicy';
 import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
+import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import {
   empowerValue,
   hauntlinkCastValue,
@@ -40,6 +41,7 @@ export class EasyAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyRitePolicy(view, this.db, legal);
     const a = view.awaiting;
     switch (a.kind) {
       case 'choosePlayDraw':
@@ -186,11 +188,12 @@ export class EasyAI implements AIPlayer {
               ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
               : -Infinity;
           }
-          return action.type === 'castSpell' && action.retell
+          const castValue = action.type === 'castSpell' && action.retell
             ? retellValue(this.db, cardId) + 0.01
             : manaValue(def(this.db, cardId).cost) +
                 (action.type === 'castSpell' ? (action.x ?? 0) : 0) +
                 (action.type === 'castSpell' && action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+          return castValue - riteSacrificeValue(view, this.db, action);
         };
         return score(y) - score(x);
       });

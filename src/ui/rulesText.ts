@@ -43,7 +43,7 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
 export const MECHANIC_DEFINITIONS: Record<
-  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower' | 'skim' | 'retell' | 'hauntlink',
+  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower' | 'skim' | 'retell' | 'hauntlink' | 'rite',
   string
 > = {
   sever: 'severed from the game; severed cards never return',
@@ -55,6 +55,7 @@ export const MECHANIC_DEFINITIONS: Record<
   skim: 'pay the listed cost, discard this card, then draw a card',
   retell: 'cast this from your graveyard for the listed cost, then sever it',
   hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
+  rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -226,6 +227,12 @@ export function empowerText(d: CardDef): string | undefined {
   const body = d.empower.ops.map((op) => opText(op)).join(', then ');
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   return `Empower ${manaCostText(d.empower.cost)}: ${cap}.`;
+}
+
+export function riteText(d: CardDef): string | undefined {
+  if (!d.rite) return undefined;
+  const creatures = d.rite.n === 1 ? 'creature' : 'creatures';
+  return `Rite ${d.rite.n}: As an additional cost to cast this, sacrifice ${d.rite.n} ${creatures}.`;
 }
 
 export function skimText(d: CardDef): string | undefined {
@@ -403,6 +410,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (skim) lines.push(skim);
   const hauntlink = hauntlinkText(d);
   if (hauntlink) lines.push(hauntlink);
+  const rite = riteText(d);
+  if (rite) lines.push(rite);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
@@ -457,6 +466,7 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   if (d.skim) push('Skim', MECHANIC_DEFINITIONS.skim);
   if (d.retell) push('Retell', MECHANIC_DEFINITIONS.retell);
   if (d.hauntlink) push('Hauntlink', MECHANIC_DEFINITIONS.hauntlink);
+  if (d.rite) push('Rite', MECHANIC_DEFINITIONS.rite);
   return entries;
 }
 

@@ -15,7 +15,7 @@ import { resolveCombatDamage } from './combat/damage';
 import { fireTriggers, runOps } from './effects/EffectInterpreter';
 import type { GameEvent } from './events';
 import { combineManaCosts, solveMana } from './mana';
-import { attachPermanent } from './battlefield';
+import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
 import { checkStateBased } from './sba';
 import { getEffectiveStats } from './statics';
 import {
@@ -643,6 +643,26 @@ export class Game {
 
         if (isRetell) me.graveyard.splice(sourceIndex, 1);
         else me.hand.splice(sourceIndex, 1);
+
+        // Rite is paid before the spell reaches the stack. Snapshot in
+        // battlefield order, remove every sacrifice, then fire their dies
+        // triggers in that same order so no trigger observes a half-paid cost.
+        if (d.rite) {
+          const sacrificeIids = new Set(action.sacrifices!);
+          const sacrifices = st.battlefield.filter((perm) => sacrificeIids.has(perm.iid));
+          const fallen: typeof sacrifices = [];
+          for (const perm of sacrifices) {
+            if (destroyPermanent(st, this.db, perm, emit) && firesDiesForDestroy(st, this.db, perm)) {
+              fallen.push(perm);
+            }
+          }
+          for (const perm of fallen) {
+            if (st.winner !== null) return;
+            fireTriggers(st, this.db, emit, 'dies', perm);
+          }
+          if (st.winner !== null) return;
+        }
+
         const item: StackItem = {
           sid: st.nextSid++,
           instanceId: isCardInstance(card) ? card.instanceId : st.nextInstanceId!,

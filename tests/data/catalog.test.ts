@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { manaValue, validateHauntlinkDef } from '../../src/engine/types';
+import { manaValue, validateHauntlinkDef, validateRiteDef } from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
 import { ARTHURIAN_COURT } from '../../src/data/cards/arthurian-court';
@@ -28,6 +28,14 @@ describe('catalog integrity', () => {
       if (!card.hauntlink) continue;
       const errors = validateHauntlinkDef(card);
       expect(errors, `${card.id} has invalid Hauntlink: ${errors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('has no invalid Rite definitions', () => {
+    for (const card of Object.values(CARD_DB)) {
+      if (!card.rite) continue;
+      const errors = validateRiteDef(card);
+      expect(errors, `${card.id} has invalid Rite: ${errors.join('; ')}`).toEqual([]);
     }
   });
 

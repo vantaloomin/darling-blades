@@ -11,6 +11,7 @@ import { chooseDarlingPaydown } from './darlingPolicy';
 import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
+import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import {
   cardValue,
   empowerValue,
@@ -38,6 +39,7 @@ export class MediumAI implements AIPlayer {
   ) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyRitePolicy(view, this.db, legal);
     switch (view.awaiting.kind) {
       case 'choosePlayDraw':
         return choosePlayDraw(legal);
@@ -199,10 +201,11 @@ export class MediumAI implements AIPlayer {
         ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
         : -Infinity;
     }
-    return cast.retell
+    const value = cast.retell
       ? retellValue(this.db, cardId) + 0.01
       : this.developScore(cardId) + (cast.x ?? 0) +
           (cast.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+    return value - riteSacrificeValue(view, this.db, cast);
   }
 
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
