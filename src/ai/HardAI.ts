@@ -179,6 +179,7 @@ export class HardAI implements AIPlayer {
    */
   private searchMain(view: PlayerView, legal: Action[]): Action {
     const baseline = this.medium.chooseAction(view, legal);
+    if (baseline.type === 'linkHaunt') return baseline;
     // Keep the narrow candidate set for now. It still compares Skim, Retell,
     // and Empower only against Medium's baseline; making passStep a candidate
     // is future work. Skim must not be offered as a lookahead line when its
@@ -204,7 +205,7 @@ export class HardAI implements AIPlayer {
 
     const base = this.aggregateOutcome(view, [baseline]);
     if (!base) return baseline; // own line illegal in the sim; trust Medium
-    let best = baseline;
+    let best: Action = baseline;
     let bestScore = base.score;
     const candidateScore = (candidate: Action): number => {
       if (candidate.type === 'castDarling') {

@@ -94,7 +94,15 @@ import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
 import { VersusBumper } from '../ui/VersusBumper';
 import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
-import { CARD_TRAVEL_MOTION, hauntlinkOverlap, targetRingTone } from '../ui/duelPresentation';
+import {
+  CARD_TRAVEL_MOTION,
+  OPPONENT_RESERVE_PILE_LAYOUT,
+  TARGET_ARROW_HEAD_LENGTH,
+  hauntlinkActionLabel,
+  hauntlinkOverlap,
+  targetArrowShaftEnd,
+  targetRingTone,
+} from '../ui/duelPresentation';
 import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
@@ -180,7 +188,7 @@ const LAYOUT = {
   /** Reserve piles sit immediately outside their mirrored mana strips. */
   reservePiles: {
     human: { x: 170, y: 500, cardScale: 0.12 },
-    opponent: { x: 1052, y: 56, cardScale: 0.12 },
+    opponent: OPPONENT_RESERVE_PILE_LAYOUT,
   },
   /** Non-creature permanent band shares the lower lane, opposite mana. */
   myPermanentBand: { cy: 500, x1: 1006, usable: 380 },
@@ -221,7 +229,7 @@ const LAYOUT = {
 
 const SEVER_ENABLED = true;
 const BOARD_CENTER_X = 640;
-/** Cast-targeting arrow: source anchor (hand-rest, bottom-center), snap radius, color. */
+/** Last-resort targeting origin when a live source view has already disappeared. */
 const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
 const TARGET_SNAP_R = 60;
 const TARGET_ARROW_COLOR = 0xffd166;
@@ -240,6 +248,8 @@ const PERMANENT_BAND_MAX_SPACING = 98;
 type ViewableZone = 'deck' | 'graveyard' | 'severed';
 type DarlingCastAction = Extract<Action, { type: 'castDarling' }>;
 type PendingCastAction = Extract<Action, { type: 'castSpell' }> | DarlingCastAction;
+type LinkHauntAction = Extract<Action, { type: 'linkHaunt' }>;
+type PendingTargetAction = PendingCastAction | LinkHauntAction;
 type PermanentRowLayoutBase = {
   cy: number;
   usable: number;
@@ -378,7 +388,7 @@ export class DuelScene extends Phaser.Scene {
   private selectedAttackers = new Set<number>();
   private blockAssignments: { blocker: number; attacker: number }[] = [];
   private pendingBlocker: number | null = null;
-  private pendingCasts: PendingCastAction[] | null = null;
+  private pendingCasts: PendingTargetAction[] | null = null;
   /** CastIntent carry: a lifted untargeted spell or Reserves land awaiting its placing click. */
   private carry: {
     action: Extract<Action, { type: 'castSpell' | 'playLand' }>;
@@ -1336,9 +1346,10 @@ export class DuelScene extends Phaser.Scene {
 
   /** Legal face targeting follows the same first-target contract as tryTarget(). */
   private isPlayerTargetable(player: PlayerId): boolean {
-    return this.pendingCasts?.some(
-      (cast) => cast.targets?.[0]?.kind === 'player' && cast.targets[0].player === player,
-    ) ?? false;
+    return this.pendingCasts?.some((action) => {
+      const target = this.pendingActionTarget(action);
+      return target?.kind === 'player' && target.player === player;
+    }) ?? false;
   }
 
   /** Legal target rings describe the target controller, never the spell's colour or class. */
@@ -1525,9 +1536,10 @@ export class DuelScene extends Phaser.Scene {
       cardFor: (cardId) => def(CARD_DB, cardId),
       casterLabel: (controller) => (controller === HUMAN ? 'You' : 'Opponent'),
       isTargetable: (sid) =>
-        this.pendingCasts?.some((cast) =>
-          cast.targets?.some((target) => target.kind === 'stackItem' && target.sid === sid),
-        ) ?? false,
+        this.pendingCasts?.some((action) => {
+          const target = this.pendingActionTarget(action);
+          return target?.kind === 'stackItem' && target.sid === sid;
+        }) ?? false,
       onTarget: (sid) => this.tryTarget({ kind: 'stackItem', sid }),
       attachZoom: (view, card) => this.zoom.attach(view, card),
       // Same guard as the sticky-tap route: while the player is mid-target
@@ -2010,7 +2022,19 @@ export class DuelScene extends Phaser.Scene {
         : this.handOrigin(action.handIndex);
     }
     if (action.type === 'castDarling') return this.darlingZonePositions.get(HUMAN);
+    if (action.type === 'linkHaunt') {
+      const view = this.views.get(action.iid);
+      if (view) return { x: view.x, y: view.y, scale: view.scaleX, angle: view.angle };
+      const target = this.boardTargets.get(action.iid);
+      return target ? { ...target, angle: 0 } : undefined;
+    }
     return undefined;
+  }
+
+  private pendingActionTarget(action: PendingTargetAction): TargetRef | undefined {
+    return action.type === 'linkHaunt'
+      ? { kind: 'permanent', iid: action.hostIid }
+      : action.targets?.[0];
   }
 
   private rememberRetellAction(action: Action, events: readonly GameEvent[]): void {
@@ -2196,7 +2220,7 @@ export class DuelScene extends Phaser.Scene {
   private tryTarget(ref: import('../engine/types').TargetRef): void {
     if (!this.pendingCasts) return;
     const matches = this.pendingCasts.filter((c) => {
-      const t = c.targets?.[0];
+      const t = this.pendingActionTarget(c);
       if (!t) return false;
       if (t.kind !== ref.kind) return false;
       if (t.kind === 'permanent' && ref.kind === 'permanent') return t.iid === ref.iid;
@@ -2208,7 +2232,13 @@ export class DuelScene extends Phaser.Scene {
     });
     if (matches.length === 0) return;
     // For X spells pick the biggest X the mana allows.
-    const best = matches.reduce((a, b) => ((a.x ?? 0) >= (b.x ?? 0) ? a : b));
+    const best = matches[0].type === 'linkHaunt'
+      ? matches[0]
+      : matches.reduce((a, b) => {
+        const ax = a.type === 'linkHaunt' ? 0 : a.x ?? 0;
+        const bx = b.type === 'linkHaunt' ? 0 : b.x ?? 0;
+        return ax >= bx ? a : b;
+      });
     this.act(best);
   }
 
@@ -2456,7 +2486,31 @@ export class DuelScene extends Phaser.Scene {
         } else if (v) this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
         break;
       }
+      case 'hauntlinkFormed': {
+        const host = this.duel.state.battlefield.find((perm) => perm.iid === e.hostIid);
+        const hostName = host ? def(CARD_DB, host.cardId).name : 'a creature';
+        this.log(
+          `${e.controller === HUMAN ? 'Your' : 'Enemy'} ${this.cardRef(e.cardId)} linked to ${hostName}`,
+          e.cardId,
+        );
+        break;
+      }
       case 'hauntlinkBroken':
+        if (e.unlinked) {
+          const moved = batch.some(
+            (candidate) => candidate.e === 'hauntlinkFormed' && candidate.linkIid === e.linkIid,
+          );
+          if (!moved) {
+            this.log(
+              `${e.owner === HUMAN ? 'Your' : 'Enemy'} ${this.cardRef(e.cardId)} became unlinked`,
+              e.cardId,
+            );
+          }
+          const view = this.views.get(e.linkIid);
+          view?.setHauntlinkBroken(true);
+          this.time.delayedCall(240, () => this.views.get(e.linkIid)?.setHauntlinkBroken(false));
+          break;
+        }
         // The engine emits this before the linked permanent's ordinary died
         // event. Hold the relationship here so the later line describes the
         // actual graveyard exit instead of guessing from cast history.
@@ -3378,6 +3432,8 @@ export class DuelScene extends Phaser.Scene {
       }
       view.setKeywords(stats.keywords);
       view.setAuraCount(perm.attachments.length);
+      const linkActions = this.hauntlinkActionsFor(perm.iid);
+      view.setActionLabel(hauntlinkActionLabel(linkActions.length > 0, perm.attachedTo !== undefined));
       view.setHighlight(this.highlightFor(perm));
       // Summoning-sickness affordance (engine is source of truth: entered
       // this turn + no haste). Only creatures can be sick; the call resets
@@ -3435,7 +3491,7 @@ export class DuelScene extends Phaser.Scene {
           view.on('pointerup', (p: Phaser.Input.Pointer) => {
             if (p.wasTouch || p.rightButtonReleased()) return;
             if (this.pendingCasts) this.onBattlefieldClick(link.iid);
-            else this.showInspect(d, ownedVariant);
+            else if (!this.beginHauntlinkTargeting(link.iid)) this.showInspect(d, ownedVariant);
           });
           view.on('pointerdown', (p: Phaser.Input.Pointer) => {
             if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant);
@@ -3445,7 +3501,7 @@ export class DuelScene extends Phaser.Scene {
             variant: ownedVariant,
             onTap: () => {
               if (this.pendingCasts) this.onBattlefieldClick(link.iid);
-              else this.showInspect(d, ownedVariant);
+              else if (!this.beginHauntlinkTargeting(link.iid)) this.showInspect(d, ownedVariant);
             },
           });
           this.zoom.attach(view, d, ownedVariant);
@@ -3458,6 +3514,8 @@ export class DuelScene extends Phaser.Scene {
           view.setTapped(link.tapped);
         }
         view.setHauntlinkBroken(this.brokenHauntlinks.has(link.iid));
+        const linkActions = this.hauntlinkActionsFor(link.iid);
+        view.setActionLabel(hauntlinkActionLabel(linkActions.length > 0, true));
         view.setHighlight(this.highlightFor(link));
       });
     }
@@ -3490,9 +3548,10 @@ export class DuelScene extends Phaser.Scene {
     const a = this.duel.awaiting;
     const combat = this.duel.state.combat;
     if (
-      this.pendingCasts?.some(
-        (c) => c.targets?.[0]?.kind === 'permanent' && c.targets[0].iid === perm.iid,
-      )
+      this.pendingCasts?.some((action) => {
+        const target = this.pendingActionTarget(action);
+        return target?.kind === 'permanent' && target.iid === perm.iid;
+      })
     )
       return targetRingTone(perm.controller === HUMAN ? 'you' : 'opponent') === 'hostile'
         ? 'legalTargetOpponent'
@@ -3501,6 +3560,7 @@ export class DuelScene extends Phaser.Scene {
     if (combat?.attackers.includes(perm.iid)) return 'attacking';
     if (this.blockAssignments.some((b) => b.blocker === perm.iid)) return 'blocking';
     if (this.pendingBlocker === perm.iid) return 'pendingBlocker';
+    if (this.hauntlinkActionsFor(perm.iid).length > 0) return 'eligible';
     if (
       a.kind === 'declareAttackers' &&
       this.isHumanTurnDecision() &&
@@ -3508,6 +3568,21 @@ export class DuelScene extends Phaser.Scene {
     )
       return 'eligible';
     return 'none';
+  }
+
+  private hauntlinkActionsFor(iid: number): LinkHauntAction[] {
+    if (this.pendingCasts || this.ended || this.replayMode) return [];
+    return this.duel.legalActions(HUMAN).filter(
+      (action): action is LinkHauntAction => action.type === 'linkHaunt' && action.iid === iid,
+    );
+  }
+
+  private beginHauntlinkTargeting(iid: number): boolean {
+    const actions = this.hauntlinkActionsFor(iid);
+    if (actions.length === 0) return false;
+    this.pendingCasts = actions;
+    this.sync();
+    return true;
   }
 
   /** Land cards no longer render individually; this preserves reveal destinations. */
@@ -4414,15 +4489,13 @@ export class DuelScene extends Phaser.Scene {
       }
     }
     this.drawStackTargetArrows();
-    // Cast-targeting arrow (desktop hover): from the hand-rest anchor to the
+    // Cast-targeting arrow (desktop hover): from the live source card to the
     // pointer, snapping to the closest legal target so burn-face vs burn-creature
     // intent is unmistakable. Touch resolves targets by direct tap — no hover.
     if (this.pendingCasts && !this.touch) {
       const p = this.input.activePointer;
       const tip = this.snapTargetTip(p.worldX, p.worldY);
-      const origin = this.pendingCasts[0]?.type === 'castDarling'
-        ? this.darlingZonePositions.get(HUMAN) ?? TARGET_ARROW_SRC
-        : TARGET_ARROW_SRC;
+      const origin = this.actionOrigin(this.pendingCasts[0]) ?? TARGET_ARROW_SRC;
       const { x: sx, y: sy } = origin;
       this.drawCurvedArrow(sx, sy, tip.x, tip.y, TARGET_ARROW_COLOR, 0.95);
       // Arrowhead — two short strokes back from the tip along the shaft angle.
@@ -4455,13 +4528,14 @@ export class DuelScene extends Phaser.Scene {
       (sx + tx) / 2 - Math.sin(angle) * offset,
       (sy + ty) / 2 + Math.cos(angle) * offset,
     );
+    const headAngle = Math.atan2(ty - control.y, tx - control.x);
+    const head = TARGET_ARROW_HEAD_LENGTH;
+    const shaftEnd = targetArrowShaftEnd(control, { x: tx, y: ty }, head);
     const curve = new Phaser.Curves.QuadraticBezier(
-      new Phaser.Math.Vector2(sx, sy), control, new Phaser.Math.Vector2(tx, ty),
+      new Phaser.Math.Vector2(sx, sy), control, new Phaser.Math.Vector2(shaftEnd.x, shaftEnd.y),
     );
     this.arrows.lineStyle(4, color, alpha);
     curve.draw(this.arrows, 20);
-    const headAngle = Math.atan2(ty - control.y, tx - control.x);
-    const head = 16;
     const spread = 0.56;
     this.arrows.fillStyle(color, alpha);
     this.arrows.fillTriangle(
@@ -4562,13 +4636,13 @@ export class DuelScene extends Phaser.Scene {
     let best: { x: number; y: number } | null = null;
     let bestDist = TARGET_SNAP_R;
     for (const c of this.pendingCasts ?? []) {
-      for (const t of c.targets ?? []) {
-        const pos = this.hitTargetPos(t);
-        const dist = Phaser.Math.Distance.Between(px, py, pos.x, pos.y);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = pos;
-        }
+      const target = this.pendingActionTarget(c);
+      if (!target) continue;
+      const pos = this.hitTargetPos(target);
+      const dist = Phaser.Math.Distance.Between(px, py, pos.x, pos.y);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = pos;
       }
     }
     return best ?? { x: px, y: py };
@@ -5099,6 +5173,8 @@ export class DuelScene extends Phaser.Scene {
     const st = this.duel.state;
     const perm = st.battlefield.find((p) => p.iid === iid);
     if (!perm) return;
+
+    if (a.kind === 'main' && this.beginHauntlinkTargeting(iid)) return;
 
     if (a.kind === 'declareAttackers') {
       if (!eligibleAttackers(st.battlefield, CARD_DB, HUMAN).includes(iid)) return;

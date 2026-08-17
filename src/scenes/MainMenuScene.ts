@@ -21,25 +21,16 @@ import {
   rerollDailyQuest,
 } from '../meta/Quests';
 import { Services } from '../meta/services';
-import { IS_DEV } from '../platform/env';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { MAIN_MENU_ITEMS, MAIN_MENU_X, mainMenuButtonY } from '../ui/mainMenuPresentation';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL } from '../version';
 
-const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
-  // Game modes live one level down (PlayScene): Gauntlet, Draft, Practice ×3.
-  { label: 'Play', scene: 'Play' },
-  { label: 'Shop', scene: 'Shop' },
-  { label: 'Collection', scene: 'Collection' },
-  { label: 'Achievements', scene: 'Achievements' },
-  // "Decks" (not "Deck Builder"): the scene is where you pick your active
-  // deck as well as build them (user-directed 2026-07-17). Scene key unchanged.
-  { label: 'Decks', scene: 'DeckBuilder' },
-  { label: 'Card Showcase', scene: 'Showcase' },
-];
+// Game modes live one level down. "Decks" remains the saved-deck picker and builder.
+const MENU_ITEMS = MAIN_MENU_ITEMS;
 
 export class MainMenuScene extends Phaser.Scene {
   private menuItems: Phaser.GameObjects.GameObject[] = [];
@@ -143,25 +134,20 @@ export class MainMenuScene extends Phaser.Scene {
 
     this.drawDailyPanel(today);
 
-    // Card Showcase is a variant-QA surface — dev/local builds only (IS_DEV);
-    // filtering (not hiding) keeps the row layout gap-free on the public build.
-    const items = MENU_ITEMS.filter((entry) => entry.scene !== 'Showcase' || IS_DEV);
-    const menuX = 360;
-    const firstY = items.length > 8 ? 268 : 286;
-    const pitchY = items.length > 8 ? 42 : 50;
-    items.forEach((entry, i) => {
-      const item = themedButton(this, menuX, firstY + i * pitchY, entry.label, {
+    MENU_ITEMS.forEach((entry, i) => {
+      const itemY = mainMenuButtonY(i);
+      const item = themedButton(this, MAIN_MENU_X, itemY, entry.label, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 300,
-        onTap: () => entry.scene && this.scene.start(entry.scene, entry.data),
+        onTap: () => this.scene.start(entry.scene, entry.data),
       });
       // Unlocked-but-unclaimed achievements get a small gold claim-count badge
       // at the row's right edge (replaces the old "(N)" label suffix). The
       // count recomputes on scene create, which re-runs after every duel/shop
       // visit. Pulse only at animations 'full'; reduced/off show it static.
       if (entry.scene === 'Achievements' && claimableAchievements > 0) {
-        this.addClaimBadge(menuX + 172, firstY + i * pitchY, claimableAchievements);
+        this.addClaimBadge(MAIN_MENU_X + 172, itemY, claimableAchievements);
       }
 
       // Hit boxes fill the full 56px row pitch (the audited 15px dead gaps

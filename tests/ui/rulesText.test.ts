@@ -125,12 +125,23 @@ describe('Hauntlink rules text', () => {
     expect(MECHANIC_DEFINITIONS.hauntlink).not.toContain('\u2014');
   });
 
-  it('renders the alternate cost, host rider, and host-death cleanup', () => {
+  it('renders the battlefield link cost, Charm-speed move rule, rider, and host death', () => {
     const text = rulesText(CARD_DB['yn-hauntlink-apex']);
     expect(text).toContain('Hauntlink {3}{U}:');
-    expect(text).toContain('linked to a creature you control');
+    expect(text).toContain('At Charm speed, link this to a creature you control or move it to another.');
     expect(text).toContain('gets +2/+0 and gains Skyborne, Untouchable');
-    expect(text).toContain("When the host leaves play, put this into its owner's graveyard.");
+    expect(text).toContain('This dies with its host.');
     expect(text).not.toContain('\u2014');
+  });
+
+  it('prints the corrected reminder on all 13 Hauntlink cards', () => {
+    const cards = Object.values(CARD_DB).filter((card) => card.hauntlink !== undefined);
+    expect(cards).toHaveLength(13);
+    for (const card of cards) {
+      const text = rulesText(card);
+      expect(text).toContain('At Charm speed');
+      expect(text).toContain('This dies with its host.');
+      expect(text).not.toContain('\u2014');
+    }
   });
 });

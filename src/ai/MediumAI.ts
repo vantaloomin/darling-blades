@@ -8,6 +8,7 @@ import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { chooseDarlingPaydown } from './darlingPolicy';
+import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import {
@@ -277,6 +278,8 @@ export class MediumAI implements AIPlayer {
     if (reserveLand) return reserveLand;
     const land = legal.find((l) => l.type === 'playLand');
     if (land) return land;
+    const link = chooseUnlinkedHauntlink(view, this.db, legal);
+    if (link) return link;
 
     const casts = legal.filter((l): l is Cast => l.type === 'castSpell' || l.type === 'castDarling');
     const skims = legal.filter((l) => l.type === 'skim');

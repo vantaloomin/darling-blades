@@ -22,13 +22,12 @@ juvenile presentation.
   handoff live in [plan-1.5-pillar0.md](../plan-1.5-pillar0.md).
 - Every table row uses the exact compact template: `Hauntlink {cost}. Linked:
   The linked creature gets [printed rider].`
-- A normal-cost cast enters standalone. A Hauntlink cast uses ordinary Artifact
-  or Enchantment timing, chooses one creature the caster controls, and enters
-  linked to it. The mode and host are locked on cast.
-- If the chosen host is illegal at resolution, the spell fizzles to its owner's
-  graveyard with no standalone fallback. A link never moves or reattaches and
-  goes to its owner's graveyard when its host leaves play.
-- Ordinary text outside the Linked line works in both modes. Linked mode alone
+- A normal-cost cast enters standalone. Whenever its controller could cast a
+  Charm, its Hauntlink cost may be paid to link it to a friendly creature
+  without using the stack. Paying again moves the link immediately.
+- When a linked host leaves play, the Hauntlink permanent dies too. Moving it
+  to another creature before removal resolves saves it.
+- Ordinary text outside the Linked line works while standalone or linked. Linked state alone
   turns on the printed `scope: 'attached'` static rider.
 - The supporting vocabulary is the shipped game vocabulary: Foresee, Sever,
   Dreaded, Skim, Retell, Empower, marks, Charm, Ritual, cancel, and the twelve
@@ -101,10 +100,9 @@ design claim, not evidence that the go-wide gap is closed.
 
 ### AI-risk pilotability
 
-- **Hauntlink Apex:** every mode and host is a fully specified legal action.
-  Easy and Medium can rank its one static rider from public host value, while
-  Hard simulates the best preordered host candidates. It has no link movement,
-  second host, opponent-hand dependency, or conditional linked payoff.
+- **Hauntlink Apex:** every legal host is a fully specified `linkHaunt` action.
+  All AI tiers link an unlinked carrier to their strongest public creature when
+  the cost is affordable. They do not attempt movement heuristics yet.
 
 Ghostlight Network and Yokai Network Empress were cut. No other surviving row
 carried an `(AI-risk)` tag in the overplan.

@@ -9,30 +9,58 @@ export interface VersusBumperGate {
 }
 
 export interface VersusBumperMotion {
-  totalMs: number;
   entranceMs: number;
+  holdMs: number;
   exitMs: number;
-  exitAtMs: number;
   panelSlidePx: number;
   versusScaleFrom: number;
 }
 
-const TOTAL_MS = 1_400;
+export type VersusBumperSide = 'left' | 'right';
+export interface VersusBumperPoint { x: number; y: number }
+
+export const VERSUS_BUMPER_LAYOUT = {
+  width: theme.design.width,
+  height: theme.design.height,
+  splitTopX: 704,
+  splitBottomX: 576,
+} as const;
+
+/** Design-space polygons shared by the cover plates and portrait masks. */
+export function versusBumperMaskPoints(side: VersusBumperSide): VersusBumperPoint[] {
+  const { width, height, splitTopX, splitBottomX } = VERSUS_BUMPER_LAYOUT;
+  return side === 'left'
+    ? [{ x: 0, y: 0 }, { x: splitTopX, y: 0 }, { x: splitBottomX, y: height }, { x: 0, y: height }]
+    : [
+      { x: splitTopX, y: 0 },
+      { x: width, y: 0 },
+      { x: width, y: height },
+      { x: splitBottomX, y: height },
+    ];
+}
+
+/** The camera applies this exact design-to-backing-store transform. */
+export function versusBumperCanvasMaskPoints(
+  side: VersusBumperSide,
+  renderScale: 1 | 1.5 | 2,
+): VersusBumperPoint[] {
+  return versusBumperMaskPoints(side).map(({ x, y }) => ({ x: x * renderScale, y: y * renderScale }));
+}
+
+const HOLD_MS = 10_000;
 
 const MOTION: Record<Exclude<AnimationLevel, 'off'>, VersusBumperMotion> = {
   full: {
-    totalMs: TOTAL_MS,
     entranceMs: theme.motion.slow,
+    holdMs: HOLD_MS,
     exitMs: theme.motion.slow,
-    exitAtMs: TOTAL_MS - theme.motion.slow,
     panelSlidePx: 88,
     versusScaleFrom: 0.96,
   },
   reduced: {
-    totalMs: TOTAL_MS,
     entranceMs: theme.motion.base,
+    holdMs: HOLD_MS,
     exitMs: theme.motion.base,
-    exitAtMs: TOTAL_MS - theme.motion.base,
     panelSlidePx: 0,
     versusScaleFrom: 1,
   },

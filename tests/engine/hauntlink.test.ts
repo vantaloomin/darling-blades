@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { hasCastableCharm, hasCastableInstant } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import { destroyPermanent } from '../../src/engine/battlefield';
 import { runOps } from '../../src/engine/effects/EffectInterpreter';
@@ -32,7 +33,226 @@ function castAction(game: Game, hauntlinked: boolean): Extract<ReturnType<Game['
   return action as Extract<ReturnType<Game['legalActions']>[number], { type: 'castSpell' }>;
 }
 
-describe('Hauntlink catalog contract and cast modes', () => {
+describe('Hauntlink revision 3 battlefield activation', () => {
+  it('casts only for the printed cost, enters unlinked, then offers a stack-free link action', () => {
+    const state = makeTestState({
+      battlefield: [{ iid: 1, cardId: 'bear', controller: 0 }],
+      hands: [['hauntlink_artifact'], []],
+      active: 0,
+    });
+    state.rulesRev = 3;
+    state.players[0].deck = ['bear'];
+    const game = Game.restore(state, HAUNTLINK_DB);
+    const casts = game.legalActions(0).filter((action) => action.type === 'castSpell');
+    expect(casts).toHaveLength(1);
+    expect(casts[0]).not.toHaveProperty('hauntlinked');
+    expect(casts[0]).not.toHaveProperty('targets');
+
+    game.submit(0, casts[0]);
+    const link = game.instanceState.battlefield.find((perm) => perm.cardId === 'hauntlink_artifact')!;
+    expect(link.attachedTo).toBeUndefined();
+    const action = game.legalActions(0).find(
+      (candidate) => candidate.type === 'linkHaunt' && candidate.iid === link.iid,
+    );
+    expect(action).toEqual({ type: 'linkHaunt', iid: link.iid, hostIid: 1 });
+    const events = game.submit(0, action!);
+    expect(game.awaiting).toEqual({ player: 0, kind: 'main' });
+    expect(game.instanceState.stack).toEqual([]);
+    expect(events).toContainEqual({
+      e: 'hauntlinkFormed',
+      linkIid: link.iid,
+      hostIid: 1,
+      cardId: 'hauntlink_artifact',
+      controller: 0,
+    });
+    expect(getEffectiveStats(game.instanceState.battlefield, HAUNTLINK_DB, 1)).toMatchObject({
+      attack: 3,
+      defense: 3,
+    });
+  });
+
+  it('pays the Hauntlink cost and can pay again to move the link', () => {
+    const state = makeTestState({
+      battlefield: [
+        { iid: 1, cardId: 'bear', controller: 0 },
+        { iid: 2, cardId: 'giant', controller: 0 },
+        { iid: 3, cardId: 'priced_hauntlink_artifact', controller: 0 },
+        { iid: 10, cardId: 'forest', controller: 0 },
+        { iid: 11, cardId: 'forest', controller: 0 },
+        { iid: 12, cardId: 'forest', controller: 0 },
+        { iid: 13, cardId: 'forest', controller: 0 },
+      ],
+      active: 0,
+    });
+    state.rulesRev = 3;
+    const game = Game.restore(state, HAUNTLINK_DB);
+    const first = game.legalActions(0).find(
+      (action): action is Extract<ReturnType<Game['legalActions']>[number], { type: 'linkHaunt' }> =>
+        action.type === 'linkHaunt' && action.iid === 3 && action.hostIid === 1,
+    );
+    expect(first).toBeDefined();
+    expect(game.submit(0, { ...first!, manaPlan: [10, 11] })).toContainEqual({
+      e: 'manaTapped', player: 0, iids: [10, 11],
+    });
+    expect(game.instanceState.battlefield.find((perm) => perm.iid === 1)?.attachments).toEqual([3]);
+
+    const second = game.legalActions(0).find(
+      (action): action is Extract<ReturnType<Game['legalActions']>[number], { type: 'linkHaunt' }> =>
+        action.type === 'linkHaunt' && action.iid === 3 && action.hostIid === 2,
+    );
+    expect(second).toBeDefined();
+    const events = game.submit(0, { ...second!, manaPlan: [12, 13] });
+    expect(events).toContainEqual(expect.objectContaining({
+      e: 'hauntlinkBroken', linkIid: 3, hostIid: 1, unlinked: true,
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      e: 'hauntlinkFormed', linkIid: 3, hostIid: 2,
+    }));
+    expect(game.instanceState.battlefield.find((perm) => perm.iid === 1)?.attachments).toEqual([]);
+    expect(game.instanceState.battlefield.find((perm) => perm.iid === 2)?.attachments).toEqual([3]);
+    expect(game.instanceState.battlefield.find((perm) => perm.iid === 3)?.attachedTo).toBe(2);
+  });
+
+  for (const { name, op, zone } of [
+    { name: 'destroyed', op: { op: 'destroy', to: 'target' } as const, zone: 'graveyard' as const },
+    { name: 'recalled', op: { op: 'recall', to: 'target' } as const, zone: 'hand' as const },
+    { name: 'severed', op: { op: 'sever', to: 'target' } as const, zone: 'severed' as const },
+  ]) {
+    it(`dies when its linked host is ${name}`, () => {
+      const state = attachedState();
+      state.rulesRev = 3;
+      const events: Array<{ e: string; [key: string]: unknown }> = [];
+      runOps(state, HAUNTLINK_DB, (event) => events.push(event), {
+        controller: 0,
+        sourceCardId: 'test',
+        targets: [target(1)],
+      }, [op]);
+      checkStateBased(state, HAUNTLINK_DB, (event) => events.push(event));
+      expect(state.players[0][zone]).toContain('bear');
+      expect(state.players[0].graveyard).toContain('hauntlink_artifact');
+      expect(state.battlefield).toHaveLength(0);
+      expect(events).toContainEqual(expect.objectContaining({
+        e: 'hauntlinkBroken', linkIid: 2, hostIid: 1,
+      }));
+    });
+  }
+
+  it('keeps an unlinked Hauntlink permanent when another creature leaves play', () => {
+    const state = attachedState();
+    state.rulesRev = 3;
+    state.battlefield[0].attachments = [];
+    delete state.battlefield[1].attachedTo;
+    runOps(state, HAUNTLINK_DB, () => {}, {
+      controller: 0,
+      sourceCardId: 'test',
+      targets: [target(1)],
+    }, [{ op: 'destroy', to: 'target' }]);
+    checkStateBased(state, HAUNTLINK_DB, () => {});
+    expect(state.battlefield).toEqual([
+      expect.objectContaining({ iid: 2, cardId: 'hauntlink_artifact' }),
+    ]);
+    expect(state.battlefield[0].attachedTo).toBeUndefined();
+    expect(state.players[0].graveyard).toEqual(['bear']);
+  });
+
+  it('moves a link immediately in response so removal kills only the old host', () => {
+    const state = makeTestState({
+      battlefield: [
+        { iid: 1, cardId: 'bear', controller: 0, attachments: [2] },
+        { iid: 2, cardId: 'hauntlink_artifact', controller: 0, attachedTo: 1 },
+        { iid: 3, cardId: 'giant', controller: 0 },
+      ],
+      hands: [[], ['destroy_creature']],
+      active: 1,
+    });
+    state.rulesRev = 3;
+    const game = Game.restore(state, HAUNTLINK_DB);
+    const removal = game.legalActions(1).find(
+      (action) =>
+        action.type === 'castSpell' &&
+        action.targets?.[0]?.kind === 'permanent' &&
+        action.targets[0].iid === 1,
+    );
+    expect(removal).toBeDefined();
+    game.submit(1, removal!);
+    expect(game.awaiting).toMatchObject({ player: 0, kind: 'respond' });
+
+    const move = game.legalActions(0).find(
+      (action) => action.type === 'linkHaunt' && action.iid === 2 && action.hostIid === 3,
+    );
+    expect(move).toEqual({ type: 'linkHaunt', iid: 2, hostIid: 3 });
+    expect(game.legalActions(1)).toEqual([]);
+    expect(() => game.submit(1, move!)).toThrow(/not your decision/);
+    game.submit(0, move!);
+    expect(game.awaiting).toMatchObject({ player: 0, kind: 'respond' });
+    game.submit(0, { type: 'passResponse' });
+
+    expect(game.instanceState.battlefield.some((perm) => perm.iid === 1)).toBe(false);
+    expect(game.instanceState.battlefield.find((perm) => perm.iid === 2)).toMatchObject({
+      attachedTo: 3,
+    });
+    expect(game.instanceState.battlefield.find((perm) => perm.iid === 3)?.attachments).toEqual([2]);
+    const graveyardIds = game.instanceState.players[0].graveyard.map((card) =>
+      typeof card === 'string' ? card : card.cardId,
+    );
+    expect(graveyardIds).toContain('bear');
+    expect(graveyardIds).not.toContain('hauntlink_artifact');
+  });
+
+  it('offers link actions in end-step and revision-2-style reopened window gates', () => {
+    const state = makeTestState({
+      battlefield: [
+        { iid: 1, cardId: 'bear', controller: 0 },
+        { iid: 2, cardId: 'hauntlink_artifact', controller: 0 },
+      ],
+      active: 1,
+    });
+    state.rulesRev = 3;
+    state.step = 'end';
+    state.episode = { resolvedSinceOffer: 1, reopensThisStep: 0 };
+    state.awaiting = { player: 0, kind: 'endStepWindow' };
+    expect(hasCastableInstant(state, HAUNTLINK_DB, 0)).toBe(true);
+    expect(hasCastableCharm(state, HAUNTLINK_DB, 0)).toBe(true);
+    const game = Game.restore(state, HAUNTLINK_DB);
+    expect(game.legalActions(0)).toContainEqual({ type: 'linkHaunt', iid: 2, hostIid: 1 });
+
+    const responseState = structuredClone(state);
+    responseState.awaiting = { player: 0, kind: 'respond', over: { type: 'attackers' } };
+    const responseGame = Game.restore(responseState, HAUNTLINK_DB);
+    expect(responseGame.legalActions(0)).toContainEqual({ type: 'linkHaunt', iid: 2, hostIid: 1 });
+  });
+
+  it('rejects the preserved alternate-cast shape under revision 3', () => {
+    const state = makeTestState({
+      battlefield: [{ iid: 1, cardId: 'bear', controller: 0 }],
+      hands: [['hauntlink_artifact'], []],
+      active: 0,
+    });
+    state.rulesRev = 3;
+    const game = Game.restore(state, HAUNTLINK_DB);
+    expect(() => game.submit(0, {
+      type: 'castSpell',
+      handIndex: 0,
+      hauntlinked: true,
+      targets: [target(1)],
+    })).toThrow(/activated from the battlefield/);
+  });
+});
+
+describe('preserved revision-1 Hauntlink cast mode', () => {
+  it('keeps the alternate cast action available under revision 2 for v7 replays', () => {
+    const state = makeTestState({
+      battlefield: [{ iid: 1, cardId: 'bear', controller: 0 }],
+      hands: [['hauntlink_artifact'], []],
+      active: 0,
+    });
+    state.rulesRev = 2;
+    const game = Game.restore(state, HAUNTLINK_DB);
+    expect(game.legalActions(0)).toContainEqual(expect.objectContaining({
+      type: 'castSpell', hauntlinked: true, targets: [target(1)],
+    }));
+  });
+
   it('validates the narrow S4 carrier catalog instead of silently accepting bad combinations', () => {
     expect(validateHauntlinkDef(HAUNTLINK_DB.hauntlink_artifact)).toEqual([]);
     const base = HAUNTLINK_DB.hauntlink_artifact;
@@ -217,7 +437,7 @@ describe('Hauntlink catalog contract and cast modes', () => {
   });
 });
 
-describe('Hauntlink lifecycle and SBA cleanup', () => {
+describe('preserved revision-1 Hauntlink lifecycle and SBA cleanup', () => {
   const hostRemovalCases = [
     { name: 'destroy', op: { op: 'destroy', to: 'target' } as const, zone: 'graveyard' as const },
     { name: 'recall', op: { op: 'recall', to: 'target' } as const, zone: 'hand' as const },

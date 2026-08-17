@@ -10,9 +10,15 @@ import {
   minimapSegments,
   railOffsetForIndex,
   runwayOrder,
+  RUNWAY_CARD_DESIGN_WIDTH,
+  RUNWAY_CARD_HALF_HEIGHT,
+  RUNWAY_CARD_SCALE,
   RUNWAY_GATE_X,
   RUNWAY_INERTIA,
+  RUNWAY_MINIMAP,
   RUNWAY_PITCH,
+  RUNWAY_SKIP,
+  RUNWAY_VIRTUAL_MARGIN,
   virtualRange,
 } from '../../src/ui/packRunwayPresentation';
 
@@ -26,6 +32,15 @@ describe('runwayOrder', () => {
 });
 
 describe('rail geometry', () => {
+  it('uses one larger non-overlapping row between the ribbon and summary rail', () => {
+    expect(RUNWAY_CARD_SCALE).toBe(0.6);
+    expect(RUNWAY_PITCH).toBe(190);
+    expect(RUNWAY_CARD_DESIGN_WIDTH * RUNWAY_CARD_SCALE).toBe(180);
+    expect(RUNWAY_PITCH).toBeGreaterThan(RUNWAY_CARD_DESIGN_WIDTH * RUNWAY_CARD_SCALE);
+    expect(RUNWAY_CARD_HALF_HEIGHT).toBe(126);
+    expect(RUNWAY_VIRTUAL_MARGIN).toBe(280);
+  });
+
   it('parks the indexed card exactly on the gate', () => {
     for (const index of [0, 1, 17, 149]) {
       expect(cardRailX(index, railOffsetForIndex(index))).toBe(RUNWAY_GATE_X);
@@ -47,6 +62,15 @@ describe('rail geometry', () => {
     expect(clampRailOffset(-1e9, total)).toBe(railOffsetForIndex(149));
     const mid = railOffsetForIndex(60);
     expect(clampRailOffset(mid, total)).toBe(mid);
+  });
+});
+
+describe('minimap CTA geometry', () => {
+  it('places Skip immediately to the right of the ribbon', () => {
+    const ribbonRight = RUNWAY_MINIMAP.x + RUNWAY_MINIMAP.width;
+    expect(RUNWAY_SKIP.x - 50).toBeGreaterThan(ribbonRight);
+    expect(RUNWAY_SKIP.x).toBeLessThan(1280);
+    expect(RUNWAY_SKIP.y).toBeCloseTo(RUNWAY_MINIMAP.y + 4);
   });
 });
 

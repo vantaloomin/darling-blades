@@ -159,6 +159,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private ptPlate: Phaser.GameObjects.Image;
   private ptText: Phaser.GameObjects.Text;
   private auraBadge: Phaser.GameObjects.Text;
+  private actionBadge: Phaser.GameObjects.Text;
   private keywordIcons: Phaser.GameObjects.Image[] = [];
   private keywordOverflow: Phaser.GameObjects.Text | null = null;
   private sickIcon: Phaser.GameObjects.Image;
@@ -262,6 +263,19 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .setOrigin(0, 1)
       .setVisible(false);
 
+    this.actionBadge = scene.add
+      .text(TILE_W / 2 - 3, -TILE_H / 2 + 3, '', {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#241d10',
+        backgroundColor: theme.colors.gold,
+        padding: { x: 4, y: 2 },
+        resolution: 2,
+      })
+      .setOrigin(1, 0)
+      .setVisible(false);
+
     // Summoning-sickness badge: top-right corner of the art window, opposite
     // the trait column. Hidden until set.
     ensureSickTexture(scene);
@@ -314,6 +328,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.ptPlate,
       this.ptText,
       this.auraBadge,
+      this.actionBadge,
       this.chapterBadge,
       this.sickIcon,
       this.awakenedRect,
@@ -335,6 +350,13 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   setAuraCount(n: number): this {
     this.auraBadge.setVisible(n > 0);
     if (n > 0) this.auraBadge.setText(`✦${n}`);
+    return this;
+  }
+
+  /** Small top-edge action label, used by battlefield activated abilities. */
+  setActionLabel(label: string | null): this {
+    this.actionBadge.setVisible(label !== null);
+    if (label !== null) this.actionBadge.setText(label);
     return this;
   }
 

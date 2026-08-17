@@ -23,6 +23,31 @@ export function offeredBuilderFormats(
     : [...ALL_BUILDER_FORMATS];
 }
 
+/** Darlings is an identity tab, not a conversion offer for other deck formats. */
+export function visibleBuilderFormatTabs(
+  offered: readonly BuilderFormat[],
+  savedFormat: SavedDeck['format'] | null | undefined,
+): BuilderFormat[] {
+  return offered.filter((format) => format !== 'darlings' || savedFormat === 'darlings');
+}
+
+/** Warchest dedicates the right-panel body to its ten land selectors. */
+export function showsSpellListInDeckPanel(format: BuilderFormat): boolean {
+  return format !== 'warchest';
+}
+
+/** Compact deterministic copy; the picker shows the full land name on tap. */
+export function reserveLandChipLabel(slot: number, name: string, maxCharacters = 10): string {
+  const prefix = `${slot} `;
+  const available = Math.max(1, maxCharacters - prefix.length);
+  const compactName = name.length <= available
+    ? name
+    : available === 1
+      ? '…'
+      : `${name.slice(0, available - 1).trimEnd()}…`;
+  return prefix + compactName;
+}
+
 /** Reserve-format metadata is hidden along with its player-facing UI. */
 export function isReserveFormat(format: string | null | undefined): format is 'darlings' | 'warchest' {
   return format === 'darlings' || format === 'warchest';
