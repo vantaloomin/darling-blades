@@ -23,6 +23,16 @@ function keywordScore(keywords: Iterable<Keyword>): number {
   return s;
 }
 
+/** Modest free-value premium while a Nine Lives body still has no marks. */
+export const NINE_LIVES_BONUS = 1;
+
+export function nineLivesValue(
+  d: ReturnType<typeof def>,
+  plusOneCounters = 0,
+): number {
+  return d.nineLives && plusOneCounters === 0 ? NINE_LIVES_BONUS : 0;
+}
+
 function isLordOrLegendary(db: CardDb, cardId: string): boolean {
   const d = def(db, cardId);
   if (d.supertypes?.includes('legendary')) return true;
@@ -244,6 +254,7 @@ export function cardValue(db: CardDb, cardId: string): number {
   if (isType(d, 'creature')) {
     v += ((d.attack ?? 0) + (d.defense ?? 0)) / 2;
     v += keywordScore(d.keywords ?? []);
+    v += nineLivesValue(d);
   }
   if (isLordOrLegendary(db, cardId)) v += 1;
   if (hasTriggeredAbility(db, cardId)) v += 0.75;
@@ -392,6 +403,7 @@ export function permValue(
     const stats = getEffectiveStats(battlefield, db, iid);
     v += (stats.attack + Math.max(0, stats.defense - perm.damage)) / 2;
     v += keywordScore(stats.keywords);
+    v += nineLivesValue(d, perm.plusOneCounters);
   }
   if (isLordOrLegendary(db, perm.cardId)) v += 1;
   if (d.chapters) {

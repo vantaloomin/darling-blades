@@ -181,6 +181,8 @@ export interface CardDef {
   retell?: RetellDef;
   /** Optional additional cast cost that sacrifices controlled creatures. */
   rite?: RiteDef;
+  /** Returns once after dying without a +1/+1 mark. */
+  nineLives?: true;
   /** Optional alternative-cost cast that enters attached to a friendly creature. */
   hauntlink?: HauntlinkDef;
   manaAbility?: Color[]; // lands & mana creatures
@@ -277,6 +279,15 @@ export function validateRiteDef(d: CardDef): string[] {
   ) {
     errors.push('Rite card cannot have cast targets');
   }
+  return errors;
+}
+
+/** Catalog-facing validation for the v1 Nine Lives authoring contract. */
+export function validateNineLivesDef(d: CardDef): string[] {
+  if (!d.nineLives) return [];
+  const errors: string[] = [];
+  if (!isType(d, 'creature')) errors.push('Nine Lives carrier must be a creature');
+  if (d.hauntlink) errors.push('Nine Lives card cannot combine with Hauntlink');
   return errors;
 }
 

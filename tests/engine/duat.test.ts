@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { RULES } from '../../src/config/rules';
 import { Game } from '../../src/engine/Game';
 import type { Action } from '../../src/engine/actions';
+import { resolveCombatDamage } from '../../src/engine/combat/damage';
+import { fireTriggers, runOps } from '../../src/engine/effects/EffectInterpreter';
 import type { GameEvent } from '../../src/engine/events';
-import type { CardDef, GameState, PlayerId } from '../../src/engine/types';
-import { validateRiteDef } from '../../src/engine/types';
+import { checkStateBased } from '../../src/engine/sba';
+import { isSummoningSick } from '../../src/engine/statics';
+import type { CardDef, CardInstance, GameState, PlayerId } from '../../src/engine/types';
+import { validateNineLivesDef, validateRiteDef } from '../../src/engine/types';
 import {
   cardGlossaryEntries,
   MECHANIC_DEFINITIONS,
+  nineLivesText,
   riteText,
   rulesText,
 } from '../../src/ui/rulesText';
@@ -48,6 +53,20 @@ function eventIndex(events: GameEvent[], kind: GameEvent['e']): number {
   return events.findIndex((event) => event.e === kind);
 }
 
+function mutableState(game: Game): GameState {
+  return game.instanceState as GameState;
+}
+
+function runDestroy(state: GameState, iid: number, events: GameEvent[] = []): void {
+  runOps(
+    state,
+    DUAT_DB,
+    (event) => events.push(event),
+    { controller: 0, sourceCardId: 'du-relic', targets: [{ kind: 'permanent', iid }] },
+    [{ op: 'destroy', to: 'target' }],
+  );
+}
+
 describe('Sands of the Duat Rite validation', () => {
   const invalid = (overrides: Partial<CardDef>): string[] =>
     validateRiteDef({ ...DUAT_DB['du-rite-one'], ...overrides });
@@ -70,6 +89,20 @@ describe('Sands of the Duat Rite validation', () => {
     expect(invalid({
       abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [] }],
     })).toContain('Rite card cannot have cast targets');
+  });
+});
+
+describe('Sands of the Duat Nine Lives validation', () => {
+  const invalid = (overrides: Partial<CardDef>): string[] =>
+    validateNineLivesDef({ ...DUAT_DB['du-nine-lives'], ...overrides });
+
+  it('allows creature and Rite carriers while rejecting noncreatures and Hauntlink', () => {
+    expect(validateNineLivesDef(DUAT_DB['du-nine-lives'])).toEqual([]);
+    expect(invalid({ rite: { n: 1 } })).toEqual([]);
+    expect(invalid({ types: ['ritual'] })).toContain('Nine Lives carrier must be a creature');
+    expect(invalid({
+      hauntlink: { cost: { generic: 1, pips: {} }, linked: { p: 1 } },
+    })).toContain('Nine Lives card cannot combine with Hauntlink');
   });
 });
 
@@ -218,6 +251,260 @@ describe('Sands of the Duat Rite engine', () => {
   });
 });
 
+describe('Sands of the Duat Nine Lives engine', () => {
+  it('returns once through destroy with one mark as a fresh summoning-sick permanent', () => {
+    const game = gameWith({ battlefield: [duatPermanent(10, 'du-nine-rider')] });
+    const state = mutableState(game);
+    const original = state.battlefield[0];
+    const originalInstanceId = original.instanceId;
+    const events: GameEvent[] = [];
+
+    runDestroy(state, original.iid, events);
+    const returned = state.battlefield.find((perm) => perm.cardId === 'du-nine-rider');
+    expect(returned).toMatchObject({
+      instanceId: originalInstanceId,
+      plusOneCounters: 1,
+      enteredThisTurn: true,
+      owner: 0,
+      controller: 0,
+    });
+    expect(returned?.iid).not.toBe(original.iid);
+    expect(returned && isSummoningSick(state.battlefield, DUAT_DB, returned)).toBe(true);
+    expect(state.players[0].life).toBe(21);
+    expect(state.players[1].life).toBe(19);
+    expect(events.findIndex(
+      (event) => event.e === 'triggerFired' && event.when === 'dies',
+    )).toBeLessThan(eventIndex(events, 'permanentEntered'));
+    expect(events).toContainEqual(expect.objectContaining({
+      e: 'permanentEntered',
+      perm: expect.objectContaining({ plusOneCounters: 1 }),
+    }));
+
+    runDestroy(state, returned!.iid, events);
+    expect(state.battlefield.some((perm) => perm.cardId === 'du-nine-rider')).toBe(false);
+    expect(state.players[0].life).toBe(21);
+    expect(state.players[1].life).toBe(18);
+    expect(events.filter(
+      (event) => event.e === 'triggerFired' && event.when === 'dies',
+    )).toHaveLength(2);
+    expect(state.players[0].graveyard).toContainEqual(
+      expect.objectContaining({ instanceId: originalInstanceId, cardId: 'du-nine-rider' }),
+    );
+  });
+
+  it('does not return when the dying permanent already carries a mark', () => {
+    const game = gameWith({
+      battlefield: [{ ...duatPermanent(10, 'du-nine-lives'), plusOneCounters: 1 }],
+    });
+    const state = mutableState(game);
+    runDestroy(state, state.battlefield[0].iid);
+    expect(state.battlefield).toEqual([]);
+    expect(state.players[0].graveyard).toHaveLength(1);
+  });
+
+  it('finds the dying physical card by instance identity instead of card id', () => {
+    const game = gameWith({ battlefield: [duatPermanent(10, 'du-nine-lives')] });
+    const state = mutableState(game);
+    const dyingInstanceId = state.battlefield[0].instanceId;
+    state.players[0].graveyard.push({
+      instanceId: 999,
+      cardId: 'du-nine-lives',
+      variantKey: null,
+    } satisfies CardInstance);
+
+    runDestroy(state, state.battlefield[0].iid);
+    expect(state.battlefield[0]).toMatchObject({
+      instanceId: dyingInstanceId,
+      plusOneCounters: 1,
+    });
+    expect(state.players[0].graveyard).toEqual([
+      expect.objectContaining({ instanceId: 999, cardId: 'du-nine-lives' }),
+    ]);
+  });
+
+  it('returns a stolen body from its owner graveyard under its owner control', () => {
+    const game = gameWith({
+      battlefield: [{ ...duatPermanent(10, 'du-nine-lives', 1), owner: 0 }],
+    });
+    const state = mutableState(game);
+    const stolen = state.battlefield[0];
+    runDestroy(state, stolen.iid);
+    expect(state.battlefield[0]).toMatchObject({
+      instanceId: stolen.instanceId,
+      owner: 0,
+      controller: 0,
+      plusOneCounters: 1,
+    });
+    expect(state.players[1].graveyard).toEqual([]);
+  });
+
+  it('finishes an SBA dies-trigger batch before returning bodies in battlefield order', () => {
+    const game = gameWith({
+      battlefield: [
+        { ...duatPermanent(20, 'du-nine-rider'), damage: 2 },
+        { ...duatPermanent(10, 'du-nine-rider'), damage: 2 },
+      ],
+    });
+    const state = mutableState(game);
+    const originalOrder = state.battlefield.map((perm) => perm.instanceId);
+    const events: GameEvent[] = [];
+    checkStateBased(state, DUAT_DB, (event) => events.push(event));
+
+    const diesTriggerIndexes = events.flatMap((event, index) =>
+      event.e === 'triggerFired' && event.when === 'dies' ? [index] : [],
+    );
+    const enteredIndexes = events.flatMap((event, index) =>
+      event.e === 'permanentEntered' ? [index] : [],
+    );
+    expect(Math.max(...diesTriggerIndexes)).toBeLessThan(Math.min(...enteredIndexes));
+    expect(state.battlefield.map((perm) => perm.instanceId)).toEqual(originalOrder);
+    expect(state.battlefield.every((perm) => perm.plusOneCounters === 1)).toBe(true);
+  });
+
+  it('returns every mass-destroyed body marked and in battlefield order', () => {
+    const game = gameWith({
+      battlefield: [
+        duatPermanent(20, 'du-nine-lives'),
+        duatPermanent(10, 'du-nine-lives'),
+      ],
+    });
+    const state = mutableState(game);
+    const originalOrder = state.battlefield.map((perm) => perm.instanceId);
+    runOps(
+      state,
+      DUAT_DB,
+      () => {},
+      { controller: 0, sourceCardId: 'du-relic', targets: [] },
+      [{ op: 'massDestroy', filter: 'allCreatures' }],
+    );
+    expect(state.battlefield.map((perm) => perm.instanceId)).toEqual(originalOrder);
+    expect(state.battlefield.every((perm) => perm.plusOneCounters === 1)).toBe(true);
+  });
+
+  it('leaves the card in the graveyard when its dies rider refills a full board', () => {
+    const companions = Array.from(
+      { length: RULES.maxCreatures - 1 },
+      (_, index) => duatPermanent(30 + index, 'du-cheap-fodder'),
+    );
+    const game = gameWith({
+      battlefield: [duatPermanent(10, 'du-nine-full'), ...companions],
+    });
+    const state = mutableState(game);
+    const instanceId = state.battlefield[0].instanceId;
+    runDestroy(state, state.battlefield[0].iid);
+
+    expect(state.battlefield).toHaveLength(RULES.maxCreatures);
+    expect(state.battlefield.some((perm) => perm.cardId === 'du-nine-full')).toBe(false);
+    expect(state.players[0].graveyard).toContainEqual(
+      expect.objectContaining({ instanceId, cardId: 'du-nine-full' }),
+    );
+  });
+
+  it('does not return a token or a Darling diverted from the graveyard', () => {
+    const tokenGame = gameWith({ battlefield: [duatPermanent(10, 'du-nine-token')] });
+    const tokenState = mutableState(tokenGame);
+    runDestroy(tokenState, tokenState.battlefield[0].iid);
+    expect(tokenState.battlefield).toEqual([]);
+    expect(tokenState.players[0].graveyard).toEqual([]);
+
+    const darlingGame = gameWith({ battlefield: [duatPermanent(20, 'du-nine-lives')] });
+    const darlingState = mutableState(darlingGame);
+    const darling = darlingState.battlefield[0];
+    darlingState.players[0].darlingZone = null;
+    darlingState.players[0].darlingInstanceId = darling.instanceId;
+    darlingState.players[0].darlingTax = 0;
+    runDestroy(darlingState, darling.iid);
+    expect(darlingState.battlefield).toEqual([]);
+    expect(darlingState.players[0].graveyard).toEqual([]);
+    expect(darlingState.players[0].darlingZone).toEqual(
+      expect.objectContaining({ instanceId: darling.instanceId, cardId: 'du-nine-lives' }),
+    );
+  });
+
+  it('returns after lethal combat damage through the SBA route', () => {
+    const game = gameWith({
+      battlefield: [
+        duatPermanent(1, 'giant'),
+        duatPermanent(2, 'du-nine-lives', 1),
+      ],
+    });
+    const state = mutableState(game);
+    state.combat = {
+      attackers: [1],
+      blocks: [{ blocker: 2, attacker: 1 }],
+      phase: 'blockersDeclared',
+      damagePrevented: false,
+    };
+    resolveCombatDamage(state, DUAT_DB, () => {});
+    const returned = state.battlefield.find((perm) => perm.cardId === 'du-nine-lives');
+    expect(returned).toMatchObject({ controller: 1, owner: 1, plusOneCounters: 1 });
+    expect(returned?.iid).not.toBe(2);
+  });
+
+  it('treats addCounters before death as the intended Nine Lives anti-synergy', () => {
+    const game = gameWith({ battlefield: [duatPermanent(10, 'du-nine-lives')] });
+    const state = mutableState(game);
+    const target = state.battlefield[0];
+    runOps(
+      state,
+      DUAT_DB,
+      () => {},
+      { controller: 0, sourceCardId: 'du-relic', sourceIid: target.iid, targets: [] },
+      [{ op: 'addCounters', n: 1, to: 'self' }],
+    );
+    expect(target.plusOneCounters).toBe(1);
+    runDestroy(state, target.iid);
+    expect(state.battlefield).toEqual([]);
+    expect(state.players[0].graveyard).toHaveLength(1);
+  });
+
+  it('returns a Nine Lives creature sacrificed to pay Rite', () => {
+    const game = gameWith({
+      hands: [['du-rite-one'], []],
+      battlefield: [duatPermanent(1, 'forest'), duatPermanent(2, 'du-nine-lives')],
+    });
+    const before = mutableState(game).battlefield.find((perm) => perm.iid === 2)!;
+    const cast = riteAction(game);
+    expect(cast.sacrifices).toEqual([2]);
+    game.submit(0, { ...cast, manaPlan: [1] });
+    const returned = mutableState(game).battlefield.find(
+      (perm) => perm.cardId === 'du-nine-lives',
+    );
+    expect(returned).toMatchObject({ instanceId: before.instanceId, plusOneCounters: 1 });
+    expect(returned?.iid).not.toBe(before.iid);
+  });
+
+  it('uses the shared aftermath for branch destruction and a final Quest chapter', () => {
+    const branchGame = gameWith({ battlefield: [duatPermanent(10, 'du-nine-artifact')] });
+    const branchState = mutableState(branchGame);
+    runOps(
+      branchState,
+      DUAT_DB,
+      () => {},
+      {
+        controller: 0,
+        sourceCardId: 'du-relic',
+        targets: [{ kind: 'permanent', iid: branchState.battlefield[0].iid }],
+      },
+      [{ op: 'destroyArtifactOrSeverEnchantment', to: 'target' }],
+    );
+    expect(branchState.battlefield[0]).toMatchObject({
+      cardId: 'du-nine-artifact', plusOneCounters: 1,
+    });
+
+    const questGame = gameWith({
+      battlefield: [{ ...duatPermanent(20, 'du-nine-quest'), chapter: 1 }],
+    });
+    const questState = mutableState(questGame);
+    const quest = questState.battlefield[0];
+    fireTriggers(questState, DUAT_DB, () => {}, 'dawn', quest);
+    expect(questState.battlefield[0]).toMatchObject({
+      cardId: 'du-nine-quest', plusOneCounters: 1, chapter: 1,
+    });
+    expect(questState.battlefield[0].iid).not.toBe(quest.iid);
+  });
+});
+
 describe('Sands of the Duat Rite rules text', () => {
   it('renders exact singular and plural reminders with a glossary entry and no em dash', () => {
     expect(riteText(DUAT_DB['du-rite-one'])).toBe(
@@ -230,6 +517,20 @@ describe('Sands of the Duat Rite rules text', () => {
     expect(cardGlossaryEntries(DUAT_DB['du-rite-one'])).toContainEqual({
       name: 'Rite',
       reminder: MECHANIC_DEFINITIONS.rite,
+    });
+  });
+});
+
+describe('Sands of the Duat Nine Lives rules text', () => {
+  it('renders the exact reminder and glossary entry without an em dash', () => {
+    const reminder =
+      'When this dies with no marks on it, return it to the battlefield with a mark on it.';
+    expect(nineLivesText(DUAT_DB['du-nine-lives'])).toBe(reminder);
+    expect(rulesText(DUAT_DB['du-nine-lives'])).toBe(reminder);
+    expect(rulesText(DUAT_DB['du-nine-lives'])).not.toContain('\u2014');
+    expect(cardGlossaryEntries(DUAT_DB['du-nine-lives'])).toContainEqual({
+      name: 'Nine Lives',
+      reminder: MECHANIC_DEFINITIONS.nineLives,
     });
   });
 });

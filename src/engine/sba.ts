@@ -1,6 +1,6 @@
 import type { Emit } from './battlefield';
 import { destroyPermanent, firesDiesForDestroy } from './battlefield';
-import { fireTriggers } from './effects/EffectInterpreter';
+import { fireBatchedDies } from './effects/EffectInterpreter';
 import { endGame } from './phases';
 import { getEffectiveStats } from './statics';
 import type { CardDb, GameState, Permanent } from './types';
@@ -98,10 +98,7 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
         changed = true;
       }
     }
-    for (const perm of fallen) {
-      if (state.winner !== null) return;
-      fireTriggers(state, db, emit, 'dies', perm);
-    }
+    fireBatchedDies(state, db, emit, fallen);
     if (fallen.length > 0) changed = true;
 
     if (!changed) return;

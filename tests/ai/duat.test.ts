@@ -5,6 +5,7 @@ import { MediumAI } from '../../src/ai/MediumAI';
 import type { AIPlayer } from '../../src/ai/AIPlayer';
 import { DEFAULT_PERSONALITY } from '../../src/ai/personality';
 import { chooseRiteSacrifices } from '../../src/ai/ritePolicy';
+import { cardValue, NINE_LIVES_BONUS, permValue } from '../../src/ai/value';
 import { Game } from '../../src/engine/Game';
 import type { Action } from '../../src/engine/actions';
 import type { GameState } from '../../src/engine/types';
@@ -144,5 +145,37 @@ describe('Sands of the Duat Rite AI', () => {
       );
     }
     expect(castRite).toBe(true);
+  });
+});
+
+describe('Sands of the Duat Nine Lives AI', () => {
+  it('adds a one-point free-value bonus that disappears once the body is marked', () => {
+    expect(NINE_LIVES_BONUS).toBe(1);
+    expect(
+      cardValue(DUAT_DB, 'du-nine-lives') - cardValue(DUAT_DB, 'du-nine-vanilla'),
+    ).toBe(NINE_LIVES_BONUS);
+
+    const unmarked = [
+      duatPermanent(1, 'du-nine-lives'),
+      duatPermanent(2, 'du-nine-vanilla'),
+    ];
+    expect(
+      permValue(unmarked, DUAT_DB, 1) - permValue(unmarked, DUAT_DB, 2),
+    ).toBe(NINE_LIVES_BONUS);
+
+    const marked = unmarked.map((perm) => ({ ...perm, plusOneCounters: 1 }));
+    expect(permValue(marked, DUAT_DB, 1)).toBe(permValue(marked, DUAT_DB, 2));
+  });
+
+  it('makes every brain prefer the otherwise identical Nine Lives body', () => {
+    const createGame = (): Game => gameWith({
+      hands: [['du-nine-vanilla', 'du-nine-lives'], []],
+      battlefield: [],
+    });
+    for (const brain of brains()) {
+      expect(castChoice(brain, createGame())).toMatchObject({
+        type: 'castSpell', handIndex: 1,
+      });
+    }
   });
 });

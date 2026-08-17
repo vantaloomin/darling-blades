@@ -21,7 +21,7 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../types';
-import { cardIdOf, def, isType, opponentOf } from '../types';
+import { cardIdOf, def, isCardInstance, isType, opponentOf } from '../types';
 
 export interface EffectContext {
   controller: PlayerId;
@@ -278,11 +278,13 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         }
         return true;
       });
+      const fallen: Permanent[] = [];
       for (const perm of doomed) {
         if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
-          fireTriggers(state, db, emit, 'dies', perm);
+          fallen.push(perm);
         }
       }
+      fireBatchedDies(state, db, emit, fallen);
       return;
     }
     case 'preventCombat':
@@ -419,6 +421,7 @@ export function fireTriggers(
   emit: Emit,
   when: Exclude<TriggerWhen, 'spell' | 'static'>,
   perm: Permanent,
+  options: { deferPostDies?: boolean } = {},
 ): void {
   const d = def(db, perm.cardId);
   for (const ab of d.abilities ?? []) {
@@ -442,6 +445,61 @@ export function fireTriggers(
   } else if (when === 'dawn' && d.chapters && d.chapters.length > 0) {
     advanceChapter(state, db, emit, perm, false);
   }
+
+  if (when === 'dies' && !options.deferPostDies && state.winner === null) {
+    returnWithNineLives(state, db, emit, perm);
+  }
+}
+
+/**
+ * Fire a complete battlefield-order dies batch before any Nine Lives returns.
+ * SBA and mass-destroy callers use this so every corpse leaves and every dies
+ * rider resolves before the marked bodies re-enter in the same order.
+ */
+export function fireBatchedDies(
+  state: GameState,
+  db: CardDb,
+  emit: Emit,
+  fallen: readonly Permanent[],
+): void {
+  for (const perm of fallen) {
+    if (state.winner !== null) return;
+    fireTriggers(state, db, emit, 'dies', perm, { deferPostDies: true });
+  }
+  for (const perm of fallen) {
+    if (state.winner !== null) return;
+    returnWithNineLives(state, db, emit, perm);
+  }
+}
+
+/** Shared post-dies hook for every death path, including Rite's Game-owned path. */
+function returnWithNineLives(
+  state: GameState,
+  db: CardDb,
+  emit: Emit,
+  fallen: Permanent,
+): void {
+  const d = def(db, fallen.cardId);
+  if (!d.nineLives || fallen.plusOneCounters !== 0 || fallen.instanceId === undefined) return;
+
+  const grave = state.players[fallen.owner].graveyard;
+  const graveIndex = grave.findIndex(
+    (card) => isCardInstance(card) && card.instanceId === fallen.instanceId,
+  );
+  if (graveIndex < 0) return;
+
+  // Match raise: check the cap before splicing, so a blocked return leaves the
+  // physical card in the graveyard and records no separate "used" state.
+  const creatureCount = state.battlefield.filter(
+    (perm) => perm.controller === fallen.owner && isType(def(db, perm.cardId), 'creature'),
+  ).length;
+  if (creatureCount >= RULES.maxCreatures) return;
+
+  const [card] = grave.splice(graveIndex, 1);
+  const returned = enterBattlefield(state, db, card, fallen.owner, emit, {
+    plusOneCounters: 1,
+  });
+  fireTriggers(state, db, emit, 'arrives', returned);
 }
 
 /**

@@ -24,7 +24,12 @@ export function enterBattlefield(
   card: CardEntry,
   controller: PlayerId,
   emit: Emit,
-  opts: { asToken?: boolean; attachedTo?: number; tapped?: boolean } = {},
+  opts: {
+    asToken?: boolean;
+    attachedTo?: number;
+    tapped?: boolean;
+    plusOneCounters?: number;
+  } = {},
 ): Permanent {
   const cardId = cardIdOf(card);
   const d = def(db, card);
@@ -47,7 +52,7 @@ export function enterBattlefield(
     deathtouched: false,
     attachments: [],
     attachedTo: opts.attachedTo,
-    plusOneCounters: 0,
+    plusOneCounters: opts.plusOneCounters ?? 0,
     untilEotMods: [],
   };
   state.battlefield.push(perm);
