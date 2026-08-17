@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  VERSUS_BUMPER_LAYOUT,
   shouldPlayVersusBumper,
+  versusBumperCanvasMaskPoints,
   versusBumperMotion,
   versusLeitmotifPitch,
 } from '../../src/ui/versusBumperPresentation';
@@ -30,12 +32,11 @@ describe('versus bumper presentation', () => {
     expect(shouldPlayVersusBumper(gate)).toBe(false);
   });
 
-  it('keeps the full sequence at 1.4 seconds', () => {
+  it('holds for ten seconds after the entrance before running the exit', () => {
     expect(versusBumperMotion('full')).toEqual({
-      totalMs: 1_400,
       entranceMs: 220,
+      holdMs: 10_000,
       exitMs: 220,
-      exitAtMs: 1_180,
       panelSlidePx: 88,
       versusScaleFrom: 0.96,
     });
@@ -43,9 +44,23 @@ describe('versus bumper presentation', () => {
 
   it('removes translation and scale from the reduced-motion sequence', () => {
     const motion = versusBumperMotion('reduced');
-    expect(motion.totalMs).toBe(1_400);
+    expect(motion.holdMs).toBe(10_000);
     expect(motion.panelSlidePx).toBe(0);
     expect(motion.versusScaleFrom).toBe(1);
+  });
+
+  it.each([1, 1.5, 2] as const)('keeps both split masks aligned to the %sx backing store', (renderScale) => {
+    const left = versusBumperCanvasMaskPoints('left', renderScale);
+    const right = versusBumperCanvasMaskPoints('right', renderScale);
+    expect(left[0]).toEqual({ x: 0, y: 0 });
+    expect(left[1].x).toBe(VERSUS_BUMPER_LAYOUT.splitTopX * renderScale);
+    expect(left[2].x).toBe(VERSUS_BUMPER_LAYOUT.splitBottomX * renderScale);
+    expect(right[1].x).toBe(VERSUS_BUMPER_LAYOUT.width * renderScale);
+    expect(right[2]).toEqual({
+      x: VERSUS_BUMPER_LAYOUT.width * renderScale,
+      y: VERSUS_BUMPER_LAYOUT.height * renderScale,
+    });
+    expect(right[3]).toEqual(left[2]);
   });
 
   it('returns a stable nearby transposition for the opponent identity', () => {

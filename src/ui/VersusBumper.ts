@@ -2,12 +2,17 @@ import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
 import type { AnimationLevel } from '../platform/animPolicy';
 import { colorInt, theme } from './theme';
-import { versusBumperMotion } from './versusBumperPresentation';
+import {
+  VERSUS_BUMPER_LAYOUT,
+  versusBumperMaskPoints,
+  versusBumperMotion,
+  type VersusBumperPoint,
+} from './versusBumperPresentation';
 
-const WIDTH = theme.design.width;
-const HEIGHT = theme.design.height;
-const SPLIT_TOP_X = 704;
-const SPLIT_BOTTOM_X = 576;
+const WIDTH = VERSUS_BUMPER_LAYOUT.width;
+const HEIGHT = VERSUS_BUMPER_LAYOUT.height;
+const SPLIT_TOP_X = VERSUS_BUMPER_LAYOUT.splitTopX;
+const SPLIT_BOTTOM_X = VERSUS_BUMPER_LAYOUT.splitBottomX;
 const PORTRAIT_COVER_W = 790;
 
 interface VersusIdentity {
@@ -35,7 +40,8 @@ export class VersusBumper {
   private readonly centerLockup: Phaser.GameObjects.Container;
   private readonly maskGraphics: Phaser.GameObjects.Graphics[] = [];
   private readonly masks: Phaser.Display.Masks.GeometryMask[] = [];
-  private exitTimer: Phaser.Time.TimerEvent | null = null;
+  private continueTimer: Phaser.Time.TimerEvent | null = null;
+  private exiting = false;
   private finished = false;
 
   constructor(
@@ -43,7 +49,10 @@ export class VersusBumper {
     private readonly options: VersusBumperOptions,
   ) {
     const motion = versusBumperMotion(options.animations);
-    this.root = scene.add.container(0, 0).setDepth(theme.depth.results + 10).setScrollFactor(0);
+    // Keep the overlay in the same camera coordinate space as its GeometryMasks.
+    // A fixed-scroll Container diverges from mask coordinates once the camera's
+    // render-scale zoom is above 1, producing clipped slivers and short plates.
+    this.root = scene.add.container(0, 0).setDepth(theme.depth.results + 10);
 
     const inputCurtain = scene.add
       .rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, theme.graphics.dim, 1)
@@ -51,23 +60,15 @@ export class VersusBumper {
     inputCurtain.on('pointerdown', this.finish, this);
     this.root.add(inputCurtain);
 
-    const leftMask = this.makeMask([
-      { x: 0, y: 0 },
-      { x: SPLIT_TOP_X, y: 0 },
-      { x: SPLIT_BOTTOM_X, y: HEIGHT },
-      { x: 0, y: HEIGHT },
-    ]);
-    const rightMask = this.makeMask([
-      { x: SPLIT_TOP_X, y: 0 },
-      { x: WIDTH, y: 0 },
-      { x: WIDTH, y: HEIGHT },
-      { x: SPLIT_BOTTOM_X, y: HEIGHT },
-    ]);
+    const leftPoints = versusBumperMaskPoints('left');
+    const rightPoints = versusBumperMaskPoints('right');
+    const leftMask = this.makeMask(leftPoints);
+    const rightMask = this.makeMask(rightPoints);
 
     this.leftPanel = scene.add.container(-motion.panelSlidePx, 0).setAlpha(0);
     this.rightPanel = scene.add.container(motion.panelSlidePx, 0).setAlpha(0);
-    this.buildPanel(this.leftPanel, options.player, 'YOUR DECK', 302, leftMask, false);
-    this.buildPanel(this.rightPanel, options.opponent, 'CHALLENGER', 978, rightMask, true);
+    this.buildPanel(this.leftPanel, options.player, 'YOUR DECK', 302, leftPoints, leftMask, false);
+    this.buildPanel(this.rightPanel, options.opponent, 'CHALLENGER', 978, rightPoints, rightMask, true);
     this.root.add([this.leftPanel, this.rightPanel]);
 
     const seam = scene.add.graphics();
@@ -95,8 +96,8 @@ export class VersusBumper {
       .setScale(motion.versusScaleFrom);
     this.root.add(this.centerLockup);
 
-    const skip = scene.add
-      .text(WIDTH / 2, theme.design.safeBottom - 8, 'Any input to skip', {
+    const hint = scene.add
+      .text(WIDTH / 2, theme.design.safeBottom - 8, 'Tap to continue', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w600,
@@ -105,7 +106,7 @@ export class VersusBumper {
       })
       .setOrigin(0.5, 1)
       .setAlpha(0);
-    this.root.add(skip);
+    this.root.add(hint);
 
     const ease = theme.motion.easeOut;
     scene.tweens.add({
@@ -132,23 +133,14 @@ export class VersusBumper {
       ease,
     });
     scene.tweens.add({
-      targets: skip,
+      targets: hint,
       alpha: theme.alpha.subtle,
-      delay: 140,
-      duration: motion.entranceMs,
+      delay: motion.entranceMs,
+      duration: theme.motion.base,
       ease,
     });
 
-    this.exitTimer = scene.time.delayedCall(motion.exitAtMs, () => {
-      if (this.finished || !this.root.active) return;
-      scene.tweens.add({
-        targets: this.root,
-        alpha: 0,
-        duration: motion.exitMs,
-        ease,
-        onComplete: () => this.finish(),
-      });
-    });
+    this.continueTimer = scene.time.delayedCall(motion.entranceMs + motion.holdMs, this.finish, [], this);
     scene.input.keyboard?.on('keydown', this.onAnyKey, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
   }
@@ -167,21 +159,20 @@ export class VersusBumper {
     identity: VersusIdentity,
     role: string,
     centerX: number,
+    points: VersusBumperPoint[],
     mask: Phaser.Display.Masks.GeometryMask,
     mirror: boolean,
   ): void {
     const shape = this.scene.add.graphics();
     shape.fillStyle(mirror ? 0x241d3a : 0x161226, 1);
-    shape.fillRect(0, 0, WIDTH, HEIGHT);
-    shape.setMask(mask);
+    shape.fillPoints(points, true);
     panel.add(shape);
 
     const portrait = this.addPortrait(identity, centerX, mask, mirror);
     if (portrait) panel.add(portrait);
 
     const shade = this.scene.add.graphics();
-    shade.fillStyle(theme.graphics.dim, 0.46).fillRect(0, 0, WIDTH, HEIGHT);
-    shade.setMask(mask);
+    shade.fillStyle(theme.graphics.dim, 0.46).fillPoints(points, true);
     panel.add(shade);
 
     const roleText = this.scene.add
@@ -240,6 +231,20 @@ export class VersusBumper {
   }
 
   private finish(): void {
+    if (this.finished || this.exiting || !this.root.active) return;
+    this.exiting = true;
+    this.continueTimer?.remove();
+    this.continueTimer = null;
+    this.scene.tweens.add({
+      targets: this.root,
+      alpha: 0,
+      duration: versusBumperMotion(this.options.animations).exitMs,
+      ease: theme.motion.easeOut,
+      onComplete: () => this.complete(),
+    });
+  }
+
+  private complete(): void {
     if (this.finished) return;
     this.finished = true;
     const complete = this.options.onComplete;
@@ -257,8 +262,8 @@ export class VersusBumper {
   private teardown(): void {
     this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
     this.scene.input.keyboard?.off('keydown', this.onAnyKey, this);
-    this.exitTimer?.remove();
-    this.exitTimer = null;
+    this.continueTimer?.remove();
+    this.continueTimer = null;
     this.scene.tweens.killTweensOf([
       this.root,
       this.leftPanel,

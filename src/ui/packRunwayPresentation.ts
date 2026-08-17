@@ -17,8 +17,15 @@ export interface RunwayCardLite {
 /** Reveal gate x: right-of-center so revealed cards read left, arrivals right. */
 export const RUNWAY_GATE_X = 800;
 /** Card center pitch along the rail. */
-export const RUNWAY_PITCH = 150;
+export const RUNWAY_PITCH = 190;
+export const RUNWAY_CARD_SCALE = 0.6;
+export const RUNWAY_CARD_DESIGN_WIDTH = 300;
+export const RUNWAY_CARD_DESIGN_HEIGHT = 420;
 export const RUNWAY_CARD_Y = 384;
+export const RUNWAY_CARD_HALF_HEIGHT = RUNWAY_CARD_DESIGN_HEIGHT * RUNWAY_CARD_SCALE / 2;
+export const RUNWAY_VIRTUAL_MARGIN = 280;
+export const RUNWAY_MINIMAP = { x: 340, y: 140, width: 600 } as const;
+export const RUNWAY_SKIP = { x: 1008, y: 144 } as const;
 /** Idle this long after a scrub and the Resume Reveal chip offers the wheel back. */
 export const RUNWAY_RESUME_DELAY_MS = 1300;
 /** Grouped flip audio: at most one flip sound per this window. */
@@ -93,7 +100,7 @@ export function inertiaStep(velocity: number, dtMs: number): number {
 export function virtualRange(
   offset: number,
   total: number,
-  margin = 260,
+  margin = RUNWAY_VIRTUAL_MARGIN,
 ): { first: number; last: number } {
   const first = Math.max(0, Math.ceil((-margin - offset) / RUNWAY_PITCH));
   const last = Math.min(total - 1, Math.floor((1280 + margin - offset) / RUNWAY_PITCH));

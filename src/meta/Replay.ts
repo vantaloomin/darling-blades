@@ -18,9 +18,9 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
  * worse than an honest "recorded on an older version" notice).
  */
 
-// Priority-window reopening changes observable action/event ordering. Version
-// 6 remains executable only through the verbatim revision-1 rules path.
-export const REPLAY_LOG_VERSION = 7 as const;
+// Hauntlink activation adds a recorded action shape in v8. Versions 7 and 6
+// remain executable through their preserved revision-2 and revision-1 paths.
+export const REPLAY_LOG_VERSION = 8 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
@@ -144,7 +144,10 @@ export function pushReplay(replays: ReplayLog[], log: ReplayLog): ReplayLog[] {
 }
 
 export function canReplay(log: ReplayLog, db: CardDb): boolean {
-  return (log.v === REPLAY_LOG_VERSION || log.v === 6) && log.dbStamp === replayDbStamp(db);
+  return (
+    (log.v === REPLAY_LOG_VERSION || log.v === 7 || log.v === 6) &&
+    log.dbStamp === replayDbStamp(db)
+  );
 }
 
 /**
@@ -154,13 +157,13 @@ export function canReplay(log: ReplayLog, db: CardDb): boolean {
  * HONEST LIMIT: the stamp guards card-data drift, not engine-code drift. A
  * gated behavior change may keep an old replay version executable only when
  * its old code path is preserved verbatim behind a rules-revision flag. That
- * exception applies to v6 under revision 1. Ungated observable engine changes
+   * exceptions apply to v7 under revision 2 and v6 under revision 1. Ungated observable engine changes
  * still bump REPLAY_LOG_VERSION and fail closed. Determinism and replay golden
  * tests catch accidental drift in CI, not in shipped saves.
  */
 export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: GameEvent[] } {
   if (!canReplay(log, db)) {
-    if (log.v !== REPLAY_LOG_VERSION && log.v !== 6) {
+    if (log.v !== REPLAY_LOG_VERSION && log.v !== 7 && log.v !== 6) {
       throw new Error('This replay was recorded with an older replay version and cannot be replayed.');
     }
     throw new Error('This replay was recorded on a different card database and cannot be replayed.');
@@ -177,7 +180,7 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
     decks: [log.decks[0].slice(), log.decks[1].slice()],
     seed: log.seed,
     db,
-    rulesRev: log.v >= 7 ? 2 : 1,
+    rulesRev: log.v >= 8 ? 3 : log.v >= 7 ? 2 : 1,
     ...(log.startingHandSize === undefined ? {} : { startingHandSize: log.startingHandSize }),
     ...(format === 'warchest'
       ? {
@@ -216,8 +219,8 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     log.darlings.every((id) => id === null || typeof id === 'string');
   const startingHandSizeShape = log.startingHandSize === undefined ||
     (Number.isSafeInteger(log.startingHandSize) && log.startingHandSize > 0);
-  // v5 added the Darlings command-zone payload. Keep v6 and older blobs
-  // structurally valid for save preservation; only v6 also remains executable.
+  // v5 added the Darlings command-zone payload. Keep v7 and older blobs
+  // structurally valid for save preservation; v7 and v6 remain executable.
   const currentPayloadShape = rawFormat === undefined
     ? log.landReserves === undefined && log.darlings === undefined
     : format === 'warchest'
@@ -227,11 +230,11 @@ export function isReplayLog(value: unknown): value is ReplayLog {
         : false;
   const legacyPayloadShape = (rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
     (format !== undefined && reserveShape && log.darlings === undefined);
-  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 6 || log.v === 5
+  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 7 || log.v === 6 || log.v === 5
     ? currentPayloadShape
     : legacyPayloadShape;
   const valid =
-    (log.v === REPLAY_LOG_VERSION || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
+    (log.v === REPLAY_LOG_VERSION || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     startingHandSizeShape &&

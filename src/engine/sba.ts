@@ -52,17 +52,14 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
       }
     }
 
-    // Auras and Hauntlinks attached to something that no longer exists (or dies
-    // this pass) die. A Hauntlink gets its public broken event immediately
-    // before its ordinary graveyard movement below.
+    // Orphaned Auras and linked Hauntlinks die with their departing host.
     for (const perm of state.battlefield) {
       if (perm.attachedTo === undefined) continue;
-      if (
+      const hostDeparting =
         doomedIids.has(perm.attachedTo) ||
-        !state.battlefield.some((p) => p.iid === perm.attachedTo)
-      ) {
-        doomedIids.add(perm.iid);
-      }
+        !state.battlefield.some((p) => p.iid === perm.attachedTo);
+      if (!hostDeparting) continue;
+      doomedIids.add(perm.iid);
     }
 
     // Legend rule (simple per-player form): among same-name legendaries you

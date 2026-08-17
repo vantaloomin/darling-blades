@@ -38,7 +38,15 @@ export type GameEvent =
   | { e: 'targetsFizzled'; sid: number }
   | { e: 'permanentEntered'; perm: Permanent }
   | { e: 'hauntlinkFormed'; linkIid: number; hostIid: number; cardId: string; controller: PlayerId }
-  | { e: 'hauntlinkBroken'; linkIid: number; hostIid: number; cardId: string; owner: PlayerId }
+  | {
+      e: 'hauntlinkBroken';
+      linkIid: number;
+      hostIid: number;
+      cardId: string;
+      owner: PlayerId;
+      /** Present when the link moved immediately instead of leaving play. */
+      unlinked?: true;
+    }
   | { e: 'chapterAdvanced'; iid: number; cardId: string; chapter: number }
   | { e: 'awakened'; iid: number; cardId: string }
   | { e: 'attackersDeclared'; iids: number[] }

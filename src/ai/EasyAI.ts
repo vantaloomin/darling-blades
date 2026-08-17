@@ -9,6 +9,7 @@ import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { chooseDarlingPaydown } from './darlingPolicy';
+import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import {
@@ -141,6 +142,8 @@ export class EasyAI implements AIPlayer {
     }
     const land = nonConcede.find((l) => l.type === 'playLand');
     if (land) return land;
+    const link = chooseUnlinkedHauntlink(view, this.db, nonConcede);
+    if (link) return link;
 
     const casts = nonConcede.filter((l) => l.type === 'castSpell' || l.type === 'castDarling');
     const skimPool = nonConcede.filter((action) => action.type === 'skim');

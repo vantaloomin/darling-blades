@@ -99,7 +99,7 @@ drives the rest via `passStep` and combat actions.
 | **Main 1**  | Active player's main phase: play a land, cast anything, or `passStep` to combat.                    |
 | **Combat**  | Declare attackers → (window) → declare blockers → (window) → damage. See below.                     |
 | **Main 2**  | A second main phase.                                                                                |
-| **End**     | The **non-active** player gets the first response window, plus earned post-flush reopens in current rules revision 2. Revision 1 gets exactly one. |
+| **End**     | The **non-active** player gets the first response window, plus earned post-flush reopens in rules revisions 2-3. Revision 1 gets exactly one. |
 | **Cleanup** | Discard to max hand size (7); marked damage and until-end-of-turn effects clear; the turn flips.    |
 
 Notes grounded in `phases.ts`:
@@ -117,8 +117,9 @@ Notes grounded in `phases.ts`:
 
 Darling Blades uses a simplified, Arena-flavored stack. Casting a spell opens
 one response window for the opponent, and the first pass still resolves the
-whole stack in one uninterrupted flush. Current games use **rules revision 2**;
+whole stack in one uninterrupted flush. Current games use **rules revision 3**;
 an absent `GameState.rulesRev` means revision 1 for legacy states and v6 replays.
+Version 7 replays select revision 2, while version 8 selects revision 3.
 
 Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
 `resumeAfterFlush` in `src/engine/Game.ts`:
@@ -247,15 +248,22 @@ card's normal effect (for permanents, after its arrival triggers); empower ops
 are trigger-safe and never target. X spells cannot be empowered
 (`validateAction` rejects the combination).
 
-### Hauntlink (alternate linked cast)
+### Hauntlink (Charm-speed battlefield link action)
 
-An Artifact or Enchantment with a `hauntlink` block may be played for its
-Hauntlink cost instead of its normal cost. The player chooses exactly one
-creature they control as the host. The permanent enters attached to that
-creature, and its Linked rider applies to the host. It cannot be reattached or
-moved. When the host leaves play, the linked permanent goes to its owner's
-graveyard. The engine carries the relationship on `Permanent.attachedTo` and
-emits `hauntlinkFormed` and `hauntlinkBroken` events for presentation.
+An Artifact or Enchantment with a `hauntlink` block is cast only for its printed
+cost and enters the battlefield unlinked. Whenever its controller could cast a
+Charm, the controller may pay the Hauntlink cost as a stack-free `linkHaunt`
+action and choose one creature they control as the host. Paying again moves an
+existing link to another friendly creature immediately, including during a
+response window. The Linked rider applies only while the relationship exists.
+When the linked host leaves play, the Hauntlink permanent goes to its owner's
+graveyard too. Moving the link before a removal spell resolves saves it because
+the old creature is no longer its host. The engine carries the relationship on
+`Permanent.attachedTo` and emits `hauntlinkFormed` and `hauntlinkBroken` events
+for presentation.
+
+Rules revisions 1 and 2 preserve the former alternate-cost `castSpell` mode and
+the same host-death cleanup for old replays. Revision 3 alone uses `linkHaunt`.
 
 ## Board caps
 
@@ -265,8 +273,8 @@ Two per-player caps are enforced at **cast legality** (`castBlockers` in
 - **8 creatures** (`RULES.maxCreatures`). A creature spell is not castable while
   you already control 8 creatures.
 - **4 noncreature, nonland permanents** (`RULES.maxNoncreaturePermanents`) —
-  counts enchantments and artifacts, but **auras are exempt** (they attach to a
-  creature and don't occupy a board slot).
+  counts enchantments and artifacts, but **attached permanents are exempt**
+  (Auras and linked Hauntlinks do not occupy a board slot while attached).
 
 Token creation also respects the creature cap: `createToken` in
 `src/engine/effects/EffectInterpreter.ts` re-checks `RULES.maxCreatures` before

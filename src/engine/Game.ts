@@ -15,6 +15,7 @@ import { resolveCombatDamage } from './combat/damage';
 import { fireTriggers, runOps } from './effects/EffectInterpreter';
 import type { GameEvent } from './events';
 import { combineManaCosts, solveMana } from './mana';
+import { attachPermanent } from './battlefield';
 import { checkStateBased } from './sba';
 import { getEffectiveStats } from './statics';
 import {
@@ -63,7 +64,7 @@ export interface GameConfig {
   /** Optional synchronous read-only observer for headless instrumentation. */
   eventObserver?: (event: Readonly<GameEvent>, state: Readonly<GameState>) => void;
   /** Observable engine behavior revision. New games default to current. */
-  rulesRev?: 1 | 2;
+  rulesRev?: 1 | 2 | 3;
 }
 
 function buildDarlingInstances(
@@ -664,6 +665,34 @@ export class Game {
           ...(isHauntlinked ? { hauntlinked: true } : {}),
         });
         this.openResponseWindow(opponentOf(player), { type: 'spell', sid: item.sid }, emit);
+        return;
+      }
+
+      case 'linkHaunt': {
+        const link = findPermanent(st, action.iid)!;
+        const host = findPermanent(st, action.hostIid)!;
+        const d = def(this.db, link.cardId);
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, d.hauntlink!.cost)!;
+        for (const iid of plan) findPermanent(st, iid)!.tapped = true;
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+        const previousHost = attachPermanent(st, link, host);
+        if (previousHost !== undefined) {
+          emit({
+            e: 'hauntlinkBroken',
+            linkIid: link.iid,
+            hostIid: previousHost,
+            cardId: link.cardId,
+            owner: link.owner,
+            unlinked: true,
+          });
+        }
+        emit({
+          e: 'hauntlinkFormed',
+          linkIid: link.iid,
+          hostIid: host.iid,
+          cardId: link.cardId,
+          controller: link.controller,
+        });
         return;
       }
 

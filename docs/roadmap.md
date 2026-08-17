@@ -89,9 +89,10 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 (user decision 2026-07-31).
 
 - **Cyberpunk Yokai Nights, the sixth expansion (#138, #145, #147).** 120
-  cards (pool 638→758) with the **Hauntlink** headline mechanic (alt play
-  mode on Artifact/Enchantment: one host, linked rider, dies with host),
-  engine-first with 8 dedicated tests; ally-pair tapped dual cycle replacing
+  cards (pool 638→758) with the **Hauntlink** headline mechanic (revised for
+  1.6 to cast normally, then pay a repeatable Charm-speed battlefield link
+  cost; a linked carrier dies with its host), engine-first with dedicated tests;
+  ally-pair tapped dual cycle replacing
   the set's five mono taplands; full retail wiring (525g set booster, precon,
   8 achievements, set icon, attack FX); the entire 120-card art run
   QA-passed and user-approved with art bible coverage 470/470.

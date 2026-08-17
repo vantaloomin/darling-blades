@@ -82,7 +82,7 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `awakening`   | `{ p?, t?, keywords? }?`               | One-way champion upgrade applied when an `awaken` op flips the permanent's `awakened` state. Computed on read, never cached. |
 | `skim`        | `{ cost: ManaCost }?`                  | Instant-speed **hand** action: pay the cost, discard this card, draw one. Type-agnostic; never touches the battlefield. |
 | `retell`      | `{ cost: ManaCost; ops?: EffectOp[] }?`| Alternative-cost cast from your graveyard; the card is severed after resolving. With `ops` the override resolves instead of the body (trigger-safe, target-free); **without `ops` Retell recasts the printed body** — prefer that unless the override is a genuinely different mode. |
-| `hauntlink`   | `HauntlinkDef?`                        | Alternative-cost cast that enters linked to a friendly creature. Noncreature Artifact/Enchantment only (validated); the linked rider is an attached-static layer; when the host leaves play the card goes to its owner's graveyard. |
+| `hauntlink`   | `HauntlinkDef?`                        | Charm-speed, stack-free battlefield link action with its own cost. Noncreature Artifact/Enchantment only (validated); the linked rider is an attached-static layer, the cost may be paid again to move it immediately, and a linked carrier dies when its host leaves play. |
 
 ### `cost()` shorthand
 

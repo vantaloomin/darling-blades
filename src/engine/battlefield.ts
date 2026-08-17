@@ -70,6 +70,23 @@ function detachFromHost(state: GameState, perm: Permanent): void {
   if (host) host.attachments = host.attachments.filter((iid) => iid !== perm.iid);
 }
 
+/** Remove a permanent's attachment pointer while keeping it on the battlefield. */
+export function unlinkPermanent(state: GameState, perm: Permanent): number | undefined {
+  const previousHost = perm.attachedTo;
+  if (previousHost === undefined) return undefined;
+  detachFromHost(state, perm);
+  delete perm.attachedTo;
+  return previousHost;
+}
+
+/** Move a live attachment to a live host. Validation remains the caller's job. */
+export function attachPermanent(state: GameState, perm: Permanent, host: Permanent): number | undefined {
+  const previousHost = unlinkPermanent(state, perm);
+  perm.attachedTo = host.iid;
+  if (!host.attachments.includes(perm.iid)) host.attachments.push(perm.iid);
+  return previousHost;
+}
+
 function basicReturnsToReserve(state: GameState, db: CardDb, perm: Permanent): boolean {
   const d = def(db, perm.cardId);
   return (

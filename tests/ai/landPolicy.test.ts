@@ -141,7 +141,7 @@ describe('shared reserve land policy', () => {
     const current = new Game({ decks: [SPELL_DECK, SPELL_DECK], seed: 8129, db: TEST_DB });
     keepBoth(current);
     const currentSim = determinize(current.viewFor(0), TEST_DB, 4244);
-    expect(currentSim.instanceState.rulesRev).toBe(2);
+    expect(currentSim.instanceState.rulesRev).toBe(3);
     expect(currentSim.instanceState.episode).toEqual({ resolvedSinceOffer: 0, reopensThisStep: 0 });
 
     const classic = new Game({

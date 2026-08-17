@@ -7,6 +7,7 @@ import { qualityTier } from '../platform/quality';
 import type { AnimationLevel } from '../platform/animPolicy';
 import type { RenderScaleSetting } from '../platform/renderScale';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { NO_BLOCK_CHIPS } from '../ui/settingsPresentation';
 import { theme } from '../ui/theme';
 import { backButton, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL, checkForUpdate } from '../version';
@@ -44,12 +45,6 @@ const RENDER_CHIPS: { value: RenderScaleSetting; label: string; heavy: boolean }
   { value: 1.5, label: '1920×1080', heavy: true },
   { value: 2, label: '2560×1440', heavy: true },
 ];
-const NO_BLOCK_CHIPS: { value: ConfirmNoBlockSetting; label: string; minWidth: number; x: number }[] = [
-  { value: 'always', label: 'Always', minWidth: 80, x: 880 },
-  { value: 'lethal', label: 'Only when lethal', minWidth: 120, x: 1010 },
-  { value: 'off', label: 'Off', minWidth: 70, x: 1160 },
-];
-
 /** Settings are split into audio and gameplay columns to retain touch-safe row pitch. */
 export class SettingsScene extends Phaser.Scene {
   private sfxToggle!: ThemedButton;

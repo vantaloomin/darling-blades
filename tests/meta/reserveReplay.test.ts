@@ -48,7 +48,7 @@ function recordToEnd(
   return { log: finishReplay(draft, 'win', 123, game.instanceState.turn), eventLog, state: game.instanceState };
 }
 
-describe('Warchest replay v7', () => {
+describe('Warchest replay v8', () => {
   it('reconstructs ordered reserves and reproduces a reserve game byte-identically', () => {
     const game = new Game({
       decks: [SPELL_DECK, SPELL_DECK],
@@ -58,7 +58,7 @@ describe('Warchest replay v7', () => {
       landReserves: [RESERVE, RESERVE],
     });
     const original = recordToEnd(game, true);
-    expect(original.log.v).toBe(7); // Current logs opt into priority-window reopening.
+    expect(original.log.v).toBe(8); // Current logs opt into revision-3 Hauntlink actions.
     expect(original.log.format).toBe('warchest');
     expect(original.log.landReserves).toEqual([RESERVE, RESERVE]);
     expect(isReplayLog(original.log)).toBe(true);

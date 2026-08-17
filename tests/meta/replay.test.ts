@@ -41,8 +41,8 @@ function testDeck(): string[] {
  */
 function recordBotGame(
   seed: number,
-  rulesRev: 1 | 2 = 2,
-  replayVersion = 7,
+  rulesRev: 1 | 2 | 3 = 3,
+  replayVersion = 8,
   startingHandSize?: number,
 ): {
   log: ReplayLog;
@@ -99,8 +99,8 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
   });
 
   it('round-trips an optional nonstandard opening-hand size without a version bump', () => {
-    const original = recordBotGame(37, 2, 7, 4);
-    expect(original.log.v).toBe(7);
+    const original = recordBotGame(37, 3, 8, 4);
+    expect(original.log.v).toBe(8);
     expect(original.log.startingHandSize).toBe(4);
     expect(isReplayLog(original.log)).toBe(true);
 
@@ -140,21 +140,84 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     ];
     expect(cards.every((entry) => typeof entry === 'object' && 'instanceId' in entry)).toBe(true);
     expect(JSON.stringify(state)).toBe(instanceFinalState);
-    expect(log.v).toBe(7);
+    expect(log.v).toBe(8);
   });
 
-  it('replays a successful linked cast with its public host and instance state', () => {
+  it('replays a v8 battlefield Hauntlink action and its public relationship stream-exactly', () => {
+    const deck = Array.from({ length: 30 }, () => 'free_host').concat(
+      Array.from({ length: 30 }, () => 'hauntlink_artifact'),
+    );
+    const seed = 317;
+    const game = new Game({ decks: [deck.slice(), deck.slice()], seed, db: HAUNTLINK_DB });
+    const draft = startReplayDraft({
+      dbStamp: replayDbStamp(HAUNTLINK_DB),
+      seed,
+      decks: [deck.slice(), deck.slice()],
+      context: {
+        mode: 'practice',
+        difficulty: 'easy',
+        opponentId: null,
+        opponentName: 'Hauntlink Bot',
+        gauntletRung: null,
+      },
+    });
+    const events: GameEvent[] = [...game.initialEvents];
+    const record = (p: PlayerId, action: Action): void => {
+      events.push(...game.submit(p, action));
+      recordReplayAction(draft, p, action);
+    };
+    let linked: Extract<Action, { type: 'linkHaunt' }> | undefined;
+    for (let guard = 0; guard < 400 && !linked; guard++) {
+      const awaiting = game.awaiting;
+      if (awaiting.kind === 'gameOver') break;
+      const p = awaiting.player as PlayerId;
+      const legal = game.legalActions(p);
+      if (awaiting.kind === 'choosePlayDraw') record(p, { type: 'choosePlayDraw', play: true });
+      else if (awaiting.kind === 'mulligan') record(p, { type: 'keepHand' });
+      else if (awaiting.kind === 'bottomCards') record(p, { type: 'bottomCards', handIndices: [] });
+      else if (awaiting.kind === 'main') {
+        linked = legal.find((action): action is Extract<Action, { type: 'linkHaunt' }> => action.type === 'linkHaunt');
+        if (linked) record(p, linked);
+        else {
+          const hasHost = game.instanceState.battlefield.some(
+            (perm) => perm.controller === p && perm.cardId === 'free_host',
+          );
+          const hand = game.viewFor(p).you.hand;
+          const wanted = hasHost ? 'hauntlink_artifact' : 'free_host';
+          const cast = legal.find(
+            (action) => action.type === 'castSpell' && hand[action.handIndex] === wanted,
+          );
+          record(p, cast ?? { type: 'passStep' });
+        }
+      } else if (awaiting.kind === 'declareAttackers') record(p, { type: 'declareAttackers', attackers: [] });
+      else if (awaiting.kind === 'declareBlockers') record(p, { type: 'declareBlockers', blocks: [] });
+      else if (awaiting.kind === 'respond' || awaiting.kind === 'endStepWindow') record(p, { type: 'passResponse' });
+      else if (awaiting.kind === 'discardToHandSize') {
+        record(p, { type: 'discard', handIndices: Array.from({ length: awaiting.count }, (_, i) => i) });
+      } else throw new Error(`unexpected replay setup window ${awaiting.kind}`);
+    }
+    expect(linked).toBeDefined();
+    const log = finishReplay(draft, 'win', 1234567890, game.state.turn);
+    expect(log.v).toBe(8);
+    expect(log.actions.some((step) => step.a.type === 'linkHaunt')).toBe(true);
+    const replayed = replayGame(log, HAUNTLINK_DB);
+    expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(game.instanceState));
+    expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(events));
+  });
+
+  it('replays a v7 alternate Hauntlink cast through preserved revision 2', () => {
     const deck = Array.from({ length: 30 }, () => 'free_host').concat(
       Array.from({ length: 30 }, () => 'hauntlink_artifact'),
     );
     const seed = 271;
-    const game = new Game({ decks: [deck.slice(), deck.slice()], seed, db: HAUNTLINK_DB });
+    const game = new Game({ decks: [deck.slice(), deck.slice()], seed, db: HAUNTLINK_DB, rulesRev: 2 });
     const draft = startReplayDraft({
       dbStamp: replayDbStamp(HAUNTLINK_DB),
       seed,
       decks: [deck.slice(), deck.slice()],
       context: { mode: 'practice', difficulty: 'easy', opponentId: null, opponentName: 'Hauntlink Bot', gauntletRung: null },
     });
+    draft.v = 7;
     const events: GameEvent[] = [...game.initialEvents];
     const record = (p: PlayerId, action: Action): void => {
       events.push(...game.submit(p, action));
@@ -205,13 +268,19 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
       Array.from({ length: 60 }, () => 'destroy_creature'),
     ];
     const seed = 419;
-    const game = new Game({ decks: [decks[0].slice(), decks[1].slice()], seed, db: HAUNTLINK_DB });
+    const game = new Game({
+      decks: [decks[0].slice(), decks[1].slice()],
+      seed,
+      db: HAUNTLINK_DB,
+      rulesRev: 2,
+    });
     const draft = startReplayDraft({
       dbStamp: replayDbStamp(HAUNTLINK_DB),
       seed,
       decks,
       context: { mode: 'practice', difficulty: 'easy', opponentId: null, opponentName: 'Hauntlink Fizzle Bot', gauntletRung: null },
     });
+    draft.v = 7;
     const events: GameEvent[] = [...game.initialEvents];
     let fizzled = false;
     let linkHostIid: number | undefined;

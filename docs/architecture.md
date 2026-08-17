@@ -136,11 +136,12 @@ The full `GameEvent` union (`src/engine/events.ts`):
 ### Replay discipline and rules revisions
 
 `ReplayLog.v` selects observable engine behavior as well as validating the log
-shape. New v7 logs run under current rules revision 2. Version 6 remains
-replayable under revision 1 because the classic single-window path is preserved
-verbatim behind `GameConfig.rulesRev`; legacy `GameState` JSON omits both
-`rulesRev` and revision-2 episode bookkeeping. This is the only sanctioned
-fail-open case. A gated behavior change may keep an older replay version
+shape. New v8 logs run under current rules revision 3. Version 7 remains
+replayable under revision 2 with the former Hauntlink cast mode, and version 6
+remains replayable under revision 1 with the classic single-window path. Both
+older paths are preserved behind `GameConfig.rulesRev`; legacy `GameState` JSON
+omits both `rulesRev` and revision-2 episode bookkeeping. These are the only
+sanctioned fail-open cases. A gated behavior change may keep an older replay version
 executable only while its complete old path remains intact. Ungated observable
 changes still bump `REPLAY_LOG_VERSION` and fail closed, and database-stamp
 drift always fails closed.

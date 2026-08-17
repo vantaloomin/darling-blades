@@ -18,6 +18,9 @@ import {
   gridPosition,
   isDeckBuilderDirty,
   offeredBuilderFormats,
+  reserveLandChipLabel,
+  showsSpellListInDeckPanel,
+  visibleBuilderFormatTabs,
   visibleSavedDecks,
 } from '../../src/ui/deckBuilderHelpers';
 
@@ -97,6 +100,22 @@ describe('deck builder helpers', () => {
     expect(formatGauntletUnavailableCopy('warchest', true)).toBeNull();
     expect(formatGauntletUnavailableCopy('darlings', true)).toBe('Darlings decks are available in Practice only.');
     expect(formatGauntletUnavailableCopy('constructed', true)).toBeNull();
+  });
+
+  it('shows the Darlings tab only for a persisted Darlings deck', () => {
+    const offered = offeredBuilderFormats(true, false);
+    expect(visibleBuilderFormatTabs(offered, 'warchest')).toEqual(['constructed', 'warchest']);
+    expect(visibleBuilderFormatTabs(offered, 'constructed')).toEqual(['constructed', 'warchest']);
+    expect(visibleBuilderFormatTabs(offered, 'darlings')).toEqual(['constructed', 'darlings', 'warchest']);
+  });
+
+  it('gives Warchest the land-only panel body and compacts long reserve names', () => {
+    expect(showsSpellListInDeckPanel('warchest')).toBe(false);
+    expect(showsSpellListInDeckPanel('darlings')).toBe(true);
+    expect(showsSpellListInDeckPanel('constructed')).toBe(true);
+    expect(reserveLandChipLabel(1, 'Red Cliffs Anchorage')).toBe('1 Red Cli…');
+    expect(reserveLandChipLabel(10, 'Red Cliffs Anchorage')).toBe('10 Red Cl…');
+    expect(reserveLandChipLabel(10, 'Red Cliffs Anchorage')).toHaveLength(10);
   });
 
   it('clamps empty paging inputs and preserves item order', () => {

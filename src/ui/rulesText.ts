@@ -54,7 +54,7 @@ export const MECHANIC_DEFINITIONS: Record<
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
   skim: 'pay the listed cost, discard this card, then draw a card',
   retell: 'cast this from your graveyard for the listed cost, then sever it',
-  hauntlink: "pay Hauntlink to link this to a creature; host leaving puts it in its owner's graveyard",
+  hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -254,7 +254,7 @@ export function hauntlinkText(d: CardDef): string | undefined {
     : stats
       ? `gets ${stats}`
       : `gains ${keywords}`;
-  return `Hauntlink ${manaCostText(d.hauntlink.cost)}: You may play this linked to a creature you control. Linked: The linked creature ${benefit}. When the host leaves play, put this into its owner's graveyard.`;
+  return `Hauntlink ${manaCostText(d.hauntlink.cost)}: At Charm speed, link this to a creature you control or move it to another. Linked: The linked creature ${benefit}. This dies with its host.`;
 }
 
 function abilityText(ab: AbilityDef): string {

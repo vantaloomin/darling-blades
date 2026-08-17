@@ -26,11 +26,15 @@ import {
   minimapSegments,
   railOffsetForIndex,
   runwayOrder,
+  RUNWAY_CARD_HALF_HEIGHT,
+  RUNWAY_CARD_SCALE,
   RUNWAY_CARD_Y,
   RUNWAY_FLIP_SFX_MIN_GAP_MS,
   RUNWAY_GATE_X,
+  RUNWAY_MINIMAP,
   RUNWAY_PITCH,
   RUNWAY_RESUME_DELAY_MS,
+  RUNWAY_SKIP,
   virtualRange,
 } from '../ui/packRunwayPresentation';
 import { applyBackdrop } from '../ui/SceneBackdrop';
@@ -124,7 +128,8 @@ export class PackOpeningScene extends Phaser.Scene {
     minimap: { x: number; w: number };
     autoTween: Phaser.Tweens.Tween | null;
     drag: { startX: number; startOffset: number; lastX: number; lastAt: number; velocity: number; moved: boolean } | null;
-    spotlight: { dim: Phaser.GameObjects.Rectangle; hint: Phaser.GameObjects.Text } | null;
+    spotlight: { dim: Phaser.GameObjects.Rectangle; hint: Phaser.GameObjects.Text; finale: boolean } | null;
+    finaleStarted: boolean;
     finishScheduled: boolean;
   } | null = null;
   /** guards the best-card spotlight settle so tap-to-skip and the wobble's own
@@ -386,12 +391,22 @@ export class PackOpeningScene extends Phaser.Scene {
     // Gate notches: where cards turn over.
     const gate = this.add.graphics();
     gate.lineStyle(2, colorInt(theme.colors.gold), 0.55);
-    gate.lineBetween(RUNWAY_GATE_X, RUNWAY_CARD_Y - 152, RUNWAY_GATE_X, RUNWAY_CARD_Y - 126);
-    gate.lineBetween(RUNWAY_GATE_X, RUNWAY_CARD_Y + 126, RUNWAY_GATE_X, RUNWAY_CARD_Y + 152);
+    gate.lineBetween(
+      RUNWAY_GATE_X,
+      RUNWAY_CARD_Y - RUNWAY_CARD_HALF_HEIGHT - 26,
+      RUNWAY_GATE_X,
+      RUNWAY_CARD_Y - RUNWAY_CARD_HALF_HEIGHT,
+    );
+    gate.lineBetween(
+      RUNWAY_GATE_X,
+      RUNWAY_CARD_Y + RUNWAY_CARD_HALF_HEIGHT,
+      RUNWAY_GATE_X,
+      RUNWAY_CARD_Y + RUNWAY_CARD_HALF_HEIGHT + 26,
+    );
     root.add(gate);
     // Tier-colored ribbon minimap with a progress needle — the no-scrollbar rule.
-    const minimap = { x: width / 2 - 300, w: 600 };
-    const mmY = 140;
+    const minimap = { x: RUNWAY_MINIMAP.x, w: RUNWAY_MINIMAP.width };
+    const mmY = RUNWAY_MINIMAP.y;
     const mm = this.add.graphics();
     for (const seg of minimapSegments(cards)) {
       mm.fillStyle(colorInt(theme.rarity[seg.tier]), 0.85);
@@ -433,6 +448,7 @@ export class PackOpeningScene extends Phaser.Scene {
       autoTween: null,
       drag: null,
       spotlight: null,
+      finaleStarted: false,
       finishScheduled: false,
     };
     band.on('pointerdown', (p: Phaser.Input.Pointer) => this.runwayScrubStart(p));
@@ -444,7 +460,7 @@ export class PackOpeningScene extends Phaser.Scene {
       this.input.off('pointermove', onMove);
       this.input.off('pointerup', onUp);
     });
-    this.skipBtn = themedButton(this, width - 80, 30, 'Skip ≫', {
+    this.skipBtn = themedButton(this, RUNWAY_SKIP.x, RUNWAY_SKIP.y, 'Skip ≫', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 100,
@@ -484,7 +500,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const rw = this.runway!;
     const card = rw.cards[index];
     const view = new CardView(this, cardRailX(index, rw.offset), RUNWAY_CARD_Y);
-    view.setScale(0.46);
+    view.setScale(RUNWAY_CARD_SCALE);
     rw.root.add(view);
     if (index <= rw.revealedMax) this.runwayShowFace(view, card, index, true);
     else {
@@ -519,8 +535,8 @@ export class PackOpeningScene extends Phaser.Scene {
     view.setData('packInspectBlocked', false);
     this.addNewMarker(view, card);
     if (!instant) {
-      view.setScale(0.52, 0.46);
-      this.tweens.add({ targets: view, scaleX: 0.46, duration: 160, ease: 'Back.easeOut' });
+      view.setScale(RUNWAY_CARD_SCALE + 0.06, RUNWAY_CARD_SCALE);
+      this.tweens.add({ targets: view, scaleX: RUNWAY_CARD_SCALE, duration: 160, ease: 'Back.easeOut' });
       if (card.fullArt) this.shedFullArtFrame(view, card);
     }
   }
@@ -629,23 +645,40 @@ export class PackOpeningScene extends Phaser.Scene {
       onComplete: () => {
         rw.autoTween = null;
         if (rw.mode !== 'auto') return;
-        if (tier === 'ur') this.runwayUrStop(next);
+        if (next === rw.cards.length - 1) this.runwaySpotlightStop(next, true);
+        else if (tier === 'ur') this.runwaySpotlightStop(next, false);
         else this.runwayAdvance();
       },
     });
   }
 
-  /** UR full stop: dim, zoom, burst — the ride waits for the tap. */
-  private runwayUrStop(index: number): void {
+  /** Tier-scaled full stop. Mid-ride URs and the final card wait for a tap. */
+  private runwaySpotlightStop(index: number, finale: boolean): void {
     const rw = this.runway;
     if (!rw) return;
-    const view = rw.views.get(index);
+    if (finale && rw.finaleStarted) return;
+    let view = rw.views.get(index);
     if (!view) {
-      this.runwayAdvance();
+      this.runwayApplyOffset(railOffsetForIndex(index));
+      view = rw.views.get(index);
+    }
+    if (!view) {
+      if (finale) {
+        rw.finaleStarted = true;
+        rw.mode = 'idle';
+        this.runwayFinish();
+      } else this.runwayAdvance();
       return;
     }
+    if (finale) rw.finaleStarted = true;
     rw.mode = 'stopped';
-    const esc = ESCALATION.ur;
+    rw.drag = null;
+    const tier = rw.cards[index].tier;
+    const escalationTier = tier === 'c' || tier === 'r' ? 'sr' : tier;
+    const baseEsc = ESCALATION[escalationTier];
+    const esc = tier === 'c' || tier === 'r'
+      ? { ...baseEsc, flash: [255, 216, 138] as [number, number, number], tint: colorInt(theme.colors.gold) }
+      : baseEsc;
     const width = 1280;
     const height = 720;
     Sfx.play('shimmer');
@@ -681,19 +714,19 @@ export class PackOpeningScene extends Phaser.Scene {
       .setDepth(41)
       .setAlpha(0);
     this.tweens.add({ targets: hint, alpha: 1, duration: 400 });
-    rw.spotlight = { dim, hint };
+    rw.spotlight = { dim, hint, finale };
     let settled = false;
     const settle = (): void => {
       if (settled) return;
       settled = true;
-      this.runwayUrSettle(view, index);
+      this.runwaySpotlightSettle(view, index, finale);
     };
     dim.once('pointerup', settle);
     view.once('pointerup', settle);
   }
 
-  /** End the UR stop: restore zoom, tuck the card back into the rail, ride on. */
-  private runwayUrSettle(view: CardView, index: number): void {
+  /** Restore zoom, tuck the card back into the rail, then continue or summarize. */
+  private runwaySpotlightSettle(view: CardView, index: number, finale: boolean): void {
     const rw = this.runway;
     if (!rw) return;
     // A tap during the zoom-in leaves that effect running, and zoomTo is a
@@ -722,14 +755,21 @@ export class PackOpeningScene extends Phaser.Scene {
         targets: view,
         x: cardRailX(index, rw.offset),
         y: RUNWAY_CARD_Y,
-        scale: 0.46,
+        scale: RUNWAY_CARD_SCALE,
         duration: 280,
         onComplete: () => {
-          if (rw.mode === 'stopped') this.runwayAdvance();
+          if (rw.mode !== 'stopped') return;
+          if (finale) {
+            rw.mode = 'idle';
+            this.runwayFinish();
+          } else this.runwayAdvance();
         },
       });
     } else if (rw.mode === 'stopped') {
-      this.runwayAdvance();
+      if (finale) {
+        rw.mode = 'idle';
+        this.runwayFinish();
+      } else this.runwayAdvance();
     }
   }
 
@@ -815,6 +855,10 @@ export class PackOpeningScene extends Phaser.Scene {
       // A last-card UR: the spotlight owns the moment. Its settle advances
       // into this finish; re-arm the scheduled path instead of stomping it.
       rw.finishScheduled = false;
+      return;
+    }
+    if (!rw.finaleStarted && rw.cards.length > 0) {
+      this.runwaySpotlightStop(rw.cards.length - 1, true);
       return;
     }
     rw.mode = 'done';

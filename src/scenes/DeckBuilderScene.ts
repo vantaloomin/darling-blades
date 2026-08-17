@@ -80,7 +80,10 @@ import {
   gridPosition,
   isDeckBuilderDirty,
   offeredBuilderFormats,
+  reserveLandChipLabel,
+  showsSpellListInDeckPanel,
   type BuilderFormat,
+  visibleBuilderFormatTabs,
   visibleSavedDecks,
 } from '../ui/deckBuilderHelpers';
 
@@ -1195,7 +1198,8 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private renderFormatSwitch(x0: number, format: BuilderFormat): void {
-    offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired).forEach((choice, index) => {
+    const offered = offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired);
+    visibleBuilderFormatTabs(offered, this.activeSavedDeck()?.format).forEach((choice, index) => {
       const button = themedButton(this, x0 + 50 + index * 82, 64, formatLabel(choice), {
         variant: choice === format ? 'primary' : 'ghost',
         size: 'sm',
@@ -1244,13 +1248,14 @@ export class DeckBuilderScene extends Phaser.Scene {
       const position = gridPosition(i, RESERVE_COLUMNS, panelX + 41, topY + 63, 82, 27);
       const card = this.landReserve[i] ? CARD_DB[this.landReserve[i]] : undefined;
       const name = card ? card.name : 'Choose land';
-      const button = themedButton(this, position.x, position.y, i + 1 + ' ' + name, {
+      const button = themedButton(this, position.x, position.y, '', {
         variant: card ? 'ghost' : 'emphasis',
         size: 'sm',
         minWidth: 78,
         onTap: () => this.showReserveLandPicker(i),
       });
-      button.container.setScale(0.76);
+      button.label.setText(reserveLandChipLabel(i + 1, name));
+      this.fitTextToWidth(button.label, 62);
       panel.add(button.container);
     }
     panel.add(error);
@@ -2133,10 +2138,12 @@ export class DeckBuilderScene extends Phaser.Scene {
       });
     }
 
-    const heroId = this.deckHeroId();
-    this.renderDeckRows(x0, heroId, deckListY0);
-    if (repairingSavedDeck) this.renderRepairBanner(x0, blocking);
-    else this.renderDeckStats(x0);
+    if (showsSpellListInDeckPanel(format)) {
+      const heroId = this.deckHeroId();
+      this.renderDeckRows(x0, heroId, deckListY0);
+      if (repairingSavedDeck) this.renderRepairBanner(x0, blocking);
+      else this.renderDeckStats(x0);
+    }
 
     // validation + save
     const issueLines = repairingSavedDeck ? [] : issues
