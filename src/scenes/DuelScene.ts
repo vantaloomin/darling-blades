@@ -121,7 +121,7 @@ import {
   stagedSlots,
   type StackRect,
 } from '../ui/mulliganRitualPresentation';
-import { groupReserveSlots } from '../ui/reserveModalPresentation';
+import { groupReserveSlots, landFanSlots } from '../ui/reserveModalPresentation';
 import { packRow, type RowPacking } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { StackDisplay } from '../ui/StackDisplay';
@@ -379,16 +379,21 @@ export class DuelScene extends Phaser.Scene {
   private blockAssignments: { blocker: number; attacker: number }[] = [];
   private pendingBlocker: number | null = null;
   private pendingCasts: PendingCastAction[] | null = null;
-  /** Carry-cast phase 1 (CastIntent): a lifted untargeted spell awaiting its placing click. */
+  /** CastIntent carry: a lifted untargeted spell or Reserves land awaiting its placing click. */
   private carry: {
-    action: Extract<Action, { type: 'castSpell' }>;
+    action: Extract<Action, { type: 'castSpell' | 'playLand' }>;
     proxy: CardView;
-    ghost: BoardCardView | null;
+    ghost: Phaser.GameObjects.GameObject | null;
     curtain: Phaser.GameObjects.Rectangle;
     pose: CarryFollowPose;
     home: { x: number; y: number; scale: number; angle: number };
-    handView: CardView;
+    /** Hand casts hide their fan card while carried; a land carry has none. */
+    handView: CardView | null;
   } | null = null;
+  /** Land-carry R2: the playable reserve kinds fanned above the pile. */
+  private landFan: { root: Phaser.GameObjects.Container; curtain: Phaser.GameObjects.Rectangle } | null = null;
+  /** Right edge of your mana bead row — where the land-carry ghost bead sits. */
+  private myManaRowEndX: number | null = null;
   private arrows!: Phaser.GameObjects.Graphics;
   /** Per-face legal-target outlines; portrait rings live on CommanderPortrait itself. */
   private lifeTargetRings!: { my: Phaser.GameObjects.Graphics; opp: Phaser.GameObjects.Graphics };
@@ -538,6 +543,8 @@ export class DuelScene extends Phaser.Scene {
     this.versusBumperActive = false;
     // A restart already destroyed the display objects; only the state survives.
     this.carry = null;
+    this.landFan = null;
+    this.myManaRowEndX = null;
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     if (!this.reserveFormatsEnabled && data.replay?.format) {
       this.scene.start('Profile');
@@ -1407,9 +1414,15 @@ export class DuelScene extends Phaser.Scene {
       LAYOUT.reservePiles.human.x,
       LAYOUT.reservePiles.human.y,
       'reserve',
-      { iconSize: 36, onTap: () => this.showReserveModal(HUMAN) },
+      { iconSize: 36, onTap: () => this.onReservePileTap() },
     ).setVisible(false);
-    if (this.myReservePile.inputZone) inflateHitArea(this.myReservePile.inputZone, 64, 64);
+    if (this.myReservePile.inputZone) {
+      inflateHitArea(this.myReservePile.inputZone, 64, 64);
+      // Right-click always reads the full reserve, fan or no fan.
+      this.myReservePile.inputZone.on('pointerdown', (p: Phaser.Input.Pointer) => {
+        if (p.button === 2 && !this.carry && !this.landFan) this.showReserveModal(HUMAN);
+      });
+    }
     // --- Commander portrait (1a): your deck's face card, reacts to the game ---
     this.portrait = new CommanderPortrait(this, LAYOUT.portrait.x, LAYOUT.portrait.y, {
       width: LAYOUT.portrait.w,
@@ -2241,7 +2254,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.ended) return;
     if (this.animatingCombat) return; // hold until the combat sequence finishes
     if (this.autoSkipTimer) return; // a hop is already scheduled
-    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.pauseOverlay || this.zoneModal) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
     const a = this.duel.awaiting;
     if (!('player' in a) || a.player !== HUMAN) return;
     if (a.kind === 'foresee') return; // mandatory revealed-card pick; never auto-skip
@@ -2249,7 +2262,7 @@ export class DuelScene extends Phaser.Scene {
     this.autoSkipTimer = this.time.delayedCall(300, () => {
       this.autoSkipTimer = null;
       if (this.ended) return;
-      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.pauseOverlay || this.zoneModal) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
       const awaiting = this.duel.awaiting;
       if (!('player' in awaiting) || awaiting.player !== HUMAN) return;
       if (awaiting.kind === 'foresee') return; // re-check after the delay
@@ -2297,7 +2310,7 @@ export class DuelScene extends Phaser.Scene {
   /** Enter end-turn mode: fast-forward the rest of your turn (see endTurnTick). */
   private startEndTurn(): void {
     if (this.ended || !this.isHumanTurnDecision()) return;
-    if (this.pendingCasts || this.carry || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
+    if (this.pendingCasts || this.carry || this.landFan || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
     this.endingTurn = true;
     this.log('Ending turn…');
     this.endTurnTick();
@@ -2326,7 +2339,7 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     // Overlays / targeting / an opponent sub-decision: wait, stay armed, resume.
-    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.pauseOverlay || this.zoneModal) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
     if (!this.isHumanTurnDecision()) return;
     if (!this.endTurnPassAction()) return; // pause at a decision needing real input
     this.endTurnTimer = this.time.delayedCall(180, () => {
@@ -2336,7 +2349,7 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       // Re-check fresh — the player may have opened an overlay during the wait.
-      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.pauseOverlay || this.zoneModal) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
       if (!this.isHumanTurnDecision()) return;
       const action = this.endTurnPassAction();
       if (!action) return;
@@ -3169,6 +3182,7 @@ export class DuelScene extends Phaser.Scene {
     // path tears down first). The rebuild below invalidates every carried
     // reference, so the carry ends instantly rather than dangling.
     if (this.carry) this.teardownCarry();
+    this.closeLandFan();
     if (this.replayMode) this.replayGuard.close();
     const awaitingKind = this.duel.awaiting.kind;
     if (this.lastAwaitingKind !== null && this.lastAwaitingKind !== awaitingKind) this.clearNoBlockArm();
@@ -3817,6 +3831,7 @@ export class DuelScene extends Phaser.Scene {
       this.manaPips.push(pip);
       this.manaPips.push(countText);
     });
+    if (player === HUMAN) this.myManaRowEndX = xAnchor + slots.length * step;
     const width = Math.max(44, maxX - minX);
     const zone = this.add
       .zone((minX + maxX) / 2, cy, width, 44)
@@ -4589,6 +4604,10 @@ export class DuelScene extends Phaser.Scene {
       this.cancelCarry();
       return;
     }
+    if (this.landFan) {
+      this.closeLandFan();
+      return;
+    }
     if (this.pendingCasts) {
       this.pendingCasts = null;
       this.sync(); // mirrors the right-click cancel path
@@ -4761,19 +4780,7 @@ export class DuelScene extends Phaser.Scene {
       fullArt: variant?.fullArt === true,
       landStyle: this.humanLandStyleFor(cardId),
     });
-    // The curtain owns every pointer while the card is up: other controls go
-    // inert without per-widget guards, and the next click is the drop/cancel.
-    const curtain = this.add
-      .rectangle(BOARD_CENTER_X, theme.design.height / 2, theme.design.width, theme.design.height, 0x000000, 0.001)
-      .setDepth(theme.depth.floats + 1)
-      .setInteractive({ useHandCursor: true });
-    curtain.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (p.button === 2) this.cancelCarry();
-    });
-    curtain.on('pointerup', (p: Phaser.Input.Pointer) => {
-      if (p.rightButtonReleased()) return;
-      this.settleCarry(p);
-    });
+    const curtain = this.makeCarryCurtain();
     this.carry = {
       action,
       proxy,
@@ -4851,14 +4858,187 @@ export class DuelScene extends Phaser.Scene {
     this.restoreCarriedHandView(carry);
   }
 
-  private restoreCarriedHandView(carry: { handView: CardView; home: { x: number; y: number; scale: number; angle: number } }): void {
-    if (!carry.handView.active) return;
+  private restoreCarriedHandView(carry: { handView: CardView | null; home: { x: number; y: number; scale: number; angle: number } }): void {
+    if (!carry.handView?.active) return;
     carry.handView
       .setVisible(true)
       .setAlpha(1)
       .setScale(carry.home.scale)
       .setAngle(carry.home.angle)
       .setPosition(carry.home.x, carry.home.y);
+  }
+
+  /**
+   * The curtain owns every pointer while a card is up: other controls go
+   * inert without per-widget guards, and the next click is the drop/cancel.
+   */
+  private makeCarryCurtain(): Phaser.GameObjects.Rectangle {
+    const curtain = this.add
+      .rectangle(BOARD_CENTER_X, theme.design.height / 2, theme.design.width, theme.design.height, 0x000000, 0.001)
+      .setDepth(theme.depth.floats + 1)
+      .setInteractive({ useHandCursor: true });
+    curtain.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (p.button === 2) this.cancelCarry();
+    });
+    curtain.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonReleased()) return;
+      this.settleCarry(p);
+    });
+    return curtain;
+  }
+
+  /**
+   * Land-carry (the R2 design pass): with a legal drop, a mouse tap on the
+   * Reserves pile fans the playable kinds instead of opening the modal;
+   * picking one lifts it into the shared carry, ghosted by an incoming bead
+   * at the end of your mana row. Touch, the tutorial, replays, and the
+   * instantCast escape hatch all keep the modal; right-click always reads it.
+   */
+  private onReservePileTap(): void {
+    if (this.landFan) {
+      this.closeLandFan();
+      return;
+    }
+    if (this.landFanEligible()) this.openLandFan();
+    else this.showReserveModal(HUMAN);
+  }
+
+  private landFanEligible(): boolean {
+    return (
+      !this.touch &&
+      !this.tutorial &&
+      !this.replayMode &&
+      !this.carry &&
+      !Services.save.data.settings.instantCast &&
+      this.duel
+        .legalActions(HUMAN)
+        .some((action) => action.type === 'playLand' && action.reserveIndex !== undefined)
+    );
+  }
+
+  private openLandFan(): void {
+    const view = this.duel.viewFor(HUMAN);
+    const cardIds = view.you.landReserve ?? [];
+    const groups = groupReserveSlots(cardIds, (index) => this.reserveLandAction(index) !== undefined)
+      .filter((group) => group.playableIndex !== undefined);
+    if (groups.length === 0) {
+      this.showReserveModal(HUMAN);
+      return;
+    }
+    const root = this.add.container(0, 0).setDepth(theme.depth.floats);
+    // A transparent click-away layer beneath the fan closes it.
+    const curtain = this.add
+      .rectangle(BOARD_CENTER_X, theme.design.height / 2, theme.design.width, theme.design.height, 0x000000, 0.001)
+      .setDepth(theme.depth.floats - 1)
+      .setInteractive();
+    curtain.on('pointerdown', () => this.closeLandFan());
+    const pile = LAYOUT.reservePiles.human;
+    const slots = landFanSlots(groups.length, pile.x, pile.y);
+    const full = this.motionLevel() === 'full';
+    groups.forEach((group, i) => {
+      const d = def(CARD_DB, group.cardId);
+      const landStyle = this.humanLandStyleFor(group.cardId);
+      const variant = displayVariantFor(Services.save.data, group.cardId);
+      const v = new CardView(this, pile.x, pile.y).setScale(full ? 0.12 : 0.34);
+      v.setCard(d, { fx: 'none', variant, fullArt: variant?.fullArt === true, landStyle });
+      root.add(v);
+      if (full) {
+        this.tweens.add({
+          targets: v,
+          x: slots[i].x,
+          y: slots[i].y,
+          scale: 0.34,
+          delay: i * 40,
+          duration: 170,
+          ease: 'Back.easeOut',
+        });
+      } else {
+        v.setPosition(slots[i].x, slots[i].y);
+      }
+      if (group.count > 1) {
+        const badge = this.add
+          .text(slots[i].x + 40, slots[i].y - 62, `×${group.count}`, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            fontStyle: '700',
+            color: theme.colors.body,
+            backgroundColor: theme.colors.panelFill,
+            padding: { x: 6, y: 2 },
+          })
+          .setOrigin(0.5)
+          .setAlpha(full ? 0 : 1);
+        root.add(badge);
+        if (full) this.tweens.add({ targets: badge, alpha: 1, delay: i * 40 + 120, duration: 120 });
+      }
+      v.enableInput();
+      v.on('pointerdown', (p: Phaser.Input.Pointer) => {
+        if (p.button === 2) this.closeLandFan();
+      });
+      v.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.rightButtonReleased()) return;
+        const action =
+          group.playableIndex !== undefined ? this.reserveLandAction(group.playableIndex) : undefined;
+        if (!action) {
+          this.closeLandFan();
+          return;
+        }
+        const origin = { x: v.x, y: v.y };
+        this.closeLandFan();
+        this.beginLandCarry(action, d, variant, landStyle, origin);
+      });
+    });
+    this.landFan = { root, curtain };
+  }
+
+  private closeLandFan(): void {
+    const fan = this.landFan;
+    if (!fan) return;
+    this.landFan = null;
+    fan.curtain.destroy();
+    fan.root.destroy();
+  }
+
+  private beginLandCarry(
+    action: Extract<Action, { type: 'playLand' }>,
+    d: CardDef,
+    variant: CardVariant | undefined,
+    landStyle: string | undefined,
+    origin: { x: number; y: number },
+  ): void {
+    const proxy = new CardView(this, origin.x, origin.y)
+      .setScale(0.4)
+      .setDepth(theme.depth.floats + 2)
+      .setAlpha(0.98);
+    proxy.setCard(d, { fx: 'none', variant, fullArt: variant?.fullArt === true, landStyle });
+    this.carry = {
+      action,
+      proxy,
+      ghost: this.buildLandStripGhost(),
+      curtain: this.makeCarryCurtain(),
+      pose: { x: origin.x, y: origin.y, vx: 0, vy: 0 },
+      // Cancel shrinks the card back into the pile it came from.
+      home: {
+        x: LAYOUT.reservePiles.human.x,
+        y: LAYOUT.reservePiles.human.y,
+        scale: LAYOUT.reservePiles.human.cardScale,
+        angle: 0,
+      },
+      handView: null,
+    };
+  }
+
+  /** The land's destination: a pulsing incoming bead at your mana row's end. */
+  private buildLandStripGhost(): Phaser.GameObjects.GameObject {
+    const x = this.myManaRowEndX ?? LAYOUT.myManaStrip.x0;
+    const ghost = this.add
+      .circle(x, LAYOUT.myManaStrip.cy, LAYOUT.myManaStrip.pipSize / 2 + 4)
+      .setStrokeStyle(2, colorInt(theme.colors.gold), 0.85)
+      .setFillStyle(colorInt(theme.colors.gold), 0.12)
+      .setDepth(theme.depth.floats);
+    if (this.motionLevel() === 'full') {
+      this.tweens.add({ targets: ghost, alpha: 0.45, duration: 420, yoyo: true, repeat: -1 });
+    }
+    return ghost;
   }
 
   private cancelCarry(): void {

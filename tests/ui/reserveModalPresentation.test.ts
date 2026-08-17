@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { groupReserveSlots } from '../../src/ui/reserveModalPresentation';
+import { groupReserveSlots, landFanSlots } from '../../src/ui/reserveModalPresentation';
+
+describe('landFanSlots', () => {
+  it('arcs up-right of the pile with the middle card highest', () => {
+    const three = landFanSlots(3, 170, 500);
+    expect(three.map((s) => s.x)).toEqual([196, 292, 388]);
+    expect(three[1].y).toBeLessThan(three[0].y);
+    expect(three[0].y).toBe(three[2].y);
+    const two = landFanSlots(2, 170, 500);
+    expect(two[0].y).toBe(two[1].y);
+    expect(landFanSlots(1, 170, 500)).toEqual([{ x: 196, y: 382 }]);
+  });
+});
 
 describe('groupReserveSlots', () => {
   it('groups identical kinds with counts, keeping reserve order', () => {

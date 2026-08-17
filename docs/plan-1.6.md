@@ -167,8 +167,14 @@ re-baseline.
    idle, tier-ribbon minimap, edge vignettes, grouped flip audio, and
    virtualization (live CardViews only near the gate). Animations-off and
    Skip keep the at-a-glance summary grid. This closes the
-   16-of-150-cards batch-summary gap. Remaining: Trophy Hall full, the
-   land-carry design pass. Then the **small-debts batch** (Limited
+   16-of-150-cards batch-summary gap. **Land-carry R2 landed 2026-08-16**:
+   with a legal drop, a mouse tap on the Reserves pile fans the playable
+   kinds (grouped, count-badged) instead of opening the modal; picking one
+   lifts it into the shared CastIntent carry with an incoming-bead ghost
+   at the mana row's end, and the drop submits the same `playLand`. Touch,
+   the tutorial, replays, and `instantCast` keep the modal; right-click
+   always reads the full reserve. Remaining: Trophy Hall full and the
+   full-art frame-shed rider. Then the **small-debts batch** (Limited
    retune, modalShell dismiss consolidation, scoreLand rider credit, the
    1.6 dup-audit adjudication, Fogbell Chime redesign, Laughing Pooka /
    Wolfsbane Ward watchlist, metagame deep sweep once the reserve field
