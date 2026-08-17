@@ -27,6 +27,8 @@ export type Action =
       /** Retell casts use graveIndex as their authoritative source index. */
       graveIndex?: number;
       targets?: TargetRef[];
+      /** Battlefield iids sacrificed as a Rite additional cost. */
+      sacrifices?: number[];
       x?: number;
       /** Omitted means the ordinary cast. X cards cannot be empowered. */
       empowered?: boolean;
@@ -132,6 +134,15 @@ function pushCastActions(
   if (xs.length === 0) return;
 
   const specs = castTargetSpecsFor(d, retell, hauntlinked);
+  const sacrifices = d.rite
+    ? state.battlefield
+        .filter(
+          (perm) =>
+            perm.controller === player && isType(def(db, perm.cardId), 'creature'),
+        )
+        .slice(0, d.rite.n)
+        .map((perm) => perm.iid)
+    : undefined;
   // Single-target v1: one action per (empower option × legal target × X).
   const targetLists: (TargetRef[] | undefined)[] =
     specs.length === 0
@@ -155,6 +166,7 @@ function pushCastActions(
           ...(retell ? { graveIndex: sourceIndex, retell: true } : {}),
           ...(hauntlinked ? { hauntlinked: true } : {}),
           ...(targets ? { targets } : {}),
+          ...(sacrifices ? { sacrifices } : {}),
           ...(x === undefined ? {} : { x }),
           ...(empowered ? { empowered: true } : {}),
         });
@@ -317,7 +329,12 @@ function castBlockers(
   if (hauntlinked && !isHauntlinkCarrier(d)) return 'invalid Hauntlink carrier';
   if (!retell && !d.cost) return 'card has no mana cost';
   if (retell && !retellable(d)) return 'card cannot be Retold';
-  if (isType(d, 'creature') && creatureCount(state, db, player) >= RULES.maxCreatures)
+  const creatures = creatureCount(state, db, player);
+  if (d.rite && creatures < d.rite.n) return 'not enough creatures for Rite';
+  if (
+    isType(d, 'creature') &&
+    creatures - (d.rite?.n ?? 0) >= RULES.maxCreatures
+  )
     return 'creature battlefield cap reached';
   if (
     !isType(d, 'creature') &&
@@ -622,6 +639,26 @@ export function validateAction(
       }
       if (action.empowered && !d.empower) return 'card has no Empower option';
       if (action.empowered && d.x) return 'X spells cannot be empowered';
+      if (!d.rite && action.sacrifices !== undefined) return 'card has no Rite cost';
+      if (d.rite) {
+        if (!action.sacrifices || action.sacrifices.length !== d.rite.n) {
+          return `Rite requires exactly ${d.rite.n} sacrifice${d.rite.n === 1 ? '' : 's'}`;
+        }
+        const seen = new Set<number>();
+        for (const iid of action.sacrifices) {
+          if (!Number.isInteger(iid)) return 'bad Rite sacrifice iid';
+          if (seen.has(iid)) return 'duplicate Rite sacrifice';
+          seen.add(iid);
+          const perm = state.battlefield.find((candidate) => candidate.iid === iid);
+          if (
+            !perm ||
+            perm.controller !== player ||
+            !isType(def(db, perm.cardId), 'creature')
+          ) {
+            return 'Rite sacrifices must be creatures you control';
+          }
+        }
+      }
       const blocked = castBlockers(
         state,
         db,
@@ -836,6 +873,7 @@ function validateManaPlanForCost(
  */
 const UNCASTABLE_COPY: Record<string, string> = {
   'cannot pay cost': 'Not enough mana to cast this.',
+  'not enough creatures for Rite': 'You do not control enough creatures to pay Rite.',
   'creature battlefield cap reached': 'Your side of the battlefield is full of creatures.',
   'noncreature permanent cap reached': 'You have too many noncreature permanents in play.',
   'card has no mana cost': "This card can't be cast.",

@@ -11,6 +11,7 @@ import { evaluate } from './evaluate';
 import { MediumAI } from './MediumAI';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
+import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
 import { cardValue, hauntlinkCastValue } from './value';
 
 /**
@@ -41,6 +42,7 @@ export class HardAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyRitePolicy(view, this.db, legal);
     switch (view.awaiting.kind) {
       case 'choosePlayDraw':
         return choosePlayDraw(legal);
@@ -180,15 +182,16 @@ export class HardAI implements AIPlayer {
   private searchMain(view: PlayerView, legal: Action[]): Action {
     const baseline = this.medium.chooseAction(view, legal);
     if (baseline.type === 'linkHaunt') return baseline;
-    // Keep the narrow candidate set for now. It still compares Skim, Retell,
-    // and Empower only against Medium's baseline; making passStep a candidate
+    // Keep the narrow candidate set for now. It compares Skim, Retell,
+    // Empower, Rite, and Darling casts against Medium's baseline; making passStep a candidate
     // is future work. Skim must not be offered as a lookahead line when its
     // draw would deck out the player.
     const candidates = legal
       .filter(
         (a) =>
           (a.type === 'skim' && view.you.deckCount > 0) ||
-          (a.type === 'castSpell' && (a.empowered === true || a.retell === true)) ||
+          (a.type === 'castSpell' &&
+            (a.empowered === true || a.retell === true || isRiteCast(view, this.db, a))) ||
           a.type === 'castDarling',
       )
       // evaluate() deliberately strips until-EOT mods. When positive target
@@ -223,12 +226,13 @@ export class HardAI implements AIPlayer {
           ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
           : -Infinity;
       }
-      return cardValue(this.db, cardId) + (candidate.empowered ? 0.01 : 0);
+      return cardValue(this.db, cardId) + (candidate.empowered ? 0.01 : 0) -
+        riteSacrificeValue(view, this.db, candidate);
     };
     // Cap the sim fanout: variants scale with target count, so rank Hauntlink
-    // hosts by the same public-board score before truncating the menu. Keep
-    // the pre-existing order for every non-Hauntlink candidate so adding the
-    // alternate mode cannot perturb ordinary games.
+    // hosts by the same public-board score before truncating the menu. Rite is
+    // target-free by contract and goes ahead of the cap so an ordinary Rite
+    // cast is always searched. With no Rite, pre-existing order is unchanged.
     const rankedCandidates = candidates
       .map((candidate, index) => ({ candidate, index }))
       .sort((a, b) => {
@@ -239,7 +243,16 @@ export class HardAI implements AIPlayer {
         return a.index - b.index;
       })
       .map(({ candidate }) => candidate);
-    for (const candidate of rankedCandidates.slice(0, 8)) {
+    const riteCandidates = rankedCandidates.filter((candidate) =>
+      isRiteCast(view, this.db, candidate),
+    );
+    const cappedCandidates = [
+      ...riteCandidates,
+      ...rankedCandidates
+        .filter((candidate) => !isRiteCast(view, this.db, candidate))
+        .slice(0, 8),
+    ];
+    for (const candidate of cappedCandidates) {
       const outcome = this.aggregateOutcome(view, [candidate]);
       if (outcome && outcome.score > bestScore) {
         best = candidate;
