@@ -521,7 +521,37 @@ export class PackOpeningScene extends Phaser.Scene {
     if (!instant) {
       view.setScale(0.52, 0.46);
       this.tweens.add({ targets: view, scaleX: 0.46, duration: 160, ease: 'Back.easeOut' });
+      if (card.fullArt) this.shedFullArtFrame(view, card);
     }
+  }
+
+  /**
+   * A full-art pull first flashes its framed standard treatment, then the
+   * frame lifts away to the full-bleed art — a framed ghost child fades and
+   * grows over the real render, so the rail can keep moving beneath it.
+   */
+  private shedFullArtFrame(view: CardView, card: AddResult): void {
+    if (Services.save.data.settings.animations !== 'full') return;
+    const framedVariant: CardVariant = { frame: card.frame, holo: 'none', fullArt: false };
+    const framed = new CardView(this, 0, 0);
+    framed.setCard(def(CARD_DB, card.cardId), {
+      fx: 'none',
+      variant: isPlainVariant(framedVariant) ? undefined : framedVariant,
+      fullArt: false,
+    });
+    view.add(framed);
+    this.tweens.add({
+      targets: framed,
+      alpha: 0,
+      scaleX: 1.06,
+      scaleY: 1.06,
+      delay: 150,
+      duration: 320,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        if (framed.active) framed.destroy();
+      },
+    });
   }
 
   /** Reveal every card up to and including `target` (gate crossings). */
@@ -1017,6 +1047,8 @@ export class PackOpeningScene extends Phaser.Scene {
           ease: 'Back.easeOut',
         });
         this.enablePackInspect(view, card);
+        // Same shed as the runway: full art reveals framed, then unframes.
+        if (card.fullArt && !fast) this.shedFullArtFrame(view, card);
       },
     });
   }
