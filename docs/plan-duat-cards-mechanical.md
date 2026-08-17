@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.6-large-set.md, src/data/cards/*.ts, src/engine/types.ts, balance/cards.sqlite (built 2026-08-16), mtg-cache/cards.sqlite · last-verified: 2026-08-17 · design/plan doc — mechanical skeleton, nothing here is implemented -->
+<!-- source-of-truth: docs/plan-1.6-large-set.md, src/data/cards/*.ts, src/engine/types.ts, scripts/blades-db.ts, mtg-cache/cards.sqlite · last-verified: 2026-08-17 · design/plan doc — mechanical skeleton, nothing here is implemented -->
 
 # Sands of the Duat — mechanical skeleton and costing bands
 

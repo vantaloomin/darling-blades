@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-expansion-slate.md, docs/plan-1.6-draft.md, docs/tribal-pass audit, src/data/cards/*.ts, src/engine/types.ts · last-verified: 2026-08-17 · design/plan doc — DRAFT, nothing here is implemented -->
+<!-- source-of-truth: docs/plan-expansion-slate.md, docs/plan-1.6-draft.md, docs/plan-tribal-pass.md, src/data/cards/*.ts, src/engine/types.ts · last-verified: 2026-08-17 · design/plan doc — DRAFT, nothing here is implemented -->
 
 # Sands of the Duat — the 1.6 large set (concretion draft)
 
