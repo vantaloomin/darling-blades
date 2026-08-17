@@ -11,13 +11,21 @@ import {
 } from '../meta/Achievements';
 import { collectionCompletion } from '../meta/collectionFilter';
 import { Services } from '../meta/services';
+import { def } from '../engine/types';
 import type { AnimationLevel } from '../platform/animPolicy';
 import {
   achievementCascadeDelay,
   achievementCascadeDuration,
   achievementClaimMotion,
   achievementClaimPitch,
+  hallWingFrames,
+  togglePin,
+  wingFurnishings,
+  wingSummaries,
+  type HallBucket,
+  type WingSummary,
 } from '../ui/achievementPresentation';
+import { CardView } from '../ui/CardView';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { colorInt, theme } from '../ui/theme';
@@ -70,6 +78,13 @@ const BUCKET_LABEL: Record<AchievementStatus['def']['bucket'], string> = {
 const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
 
 type AchievementFilter = 'all' | 'ready' | 'in-progress' | 'claimed';
+type HallView = 'hall' | 'list';
+interface AchievementsRoute {
+  page: number;
+  filter: AchievementFilter;
+  view: HallView;
+  bucket: HallBucket | 'all';
+}
 
 interface ClaimSealTarget {
   x: number;
@@ -111,11 +126,16 @@ function ellipsize(text: Phaser.GameObjects.Text, value: string, maxWidth: numbe
 
 /** Goal grid and collection completion summary for Road-to-1.0 Feature 5. */
 export class AchievementsScene extends Phaser.Scene {
+  /** The current hall/list position; every restart re-enters through it. */
+  private route: AchievementsRoute = { page: 0, filter: 'all', view: 'hall', bucket: 'all' };
+
   constructor() {
     super('Achievements');
   }
 
-  create(data: { page?: number; filter?: AchievementFilter } = {}): void {
+  create(
+    data: { page?: number; filter?: AchievementFilter; view?: HallView; bucket?: HallBucket | 'all' } = {},
+  ): void {
     applyBackdrop(this, 'collection', {
       dim: colorInt(theme.colors.dim),
       dimAlpha: 0.74,
@@ -147,9 +167,14 @@ export class AchievementsScene extends Phaser.Scene {
     if (syncAchievements(save, CARD_DB).length > 0) Services.save.flush();
     const statuses = evaluateAchievements(save, CARD_DB);
     const filter = data.filter ?? 'all';
-    const filteredStatuses = filterStatuses(statuses, filter);
+    const view: HallView = data.view ?? 'hall';
+    const bucket = data.bucket ?? 'all';
+    const bucketStatuses =
+      bucket === 'all' ? statuses : statuses.filter((status) => status.def.bucket === bucket);
+    const filteredStatuses = filterStatuses(bucketStatuses, filter);
     const pageCount = Math.max(1, Math.ceil(filteredStatuses.length / PER_PAGE));
     const page = Math.min(Math.max(0, data.page ?? 0), pageCount - 1);
+    this.route = { page, filter, view, bucket };
     const visibleStatuses = filteredStatuses.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
     const unlocked = statuses.filter((s) => s.unlocked).length;
     const claimed = statuses.filter((s) => s.claimed).length;
@@ -211,12 +236,12 @@ export class AchievementsScene extends Phaser.Scene {
               animationLevel,
               () => {
                 Sfx.play('coin');
-                this.scene.restart({ page, filter });
+                this.scene.restart(this.route);
               },
             );
             return;
           }
-          this.scene.restart({ page, filter });
+          this.scene.restart(this.route);
         },
       });
       const claimAllWidth = claimAllButton.getMeasuredSize().visual.width;
@@ -228,6 +253,11 @@ export class AchievementsScene extends Phaser.Scene {
     // Shop (user decision 2026-07-12); Claim All still names its payout.
 
     this.drawCompletionPanel();
+    this.drawViewToggle();
+    if (view === 'hall') {
+      this.drawHall(statuses);
+      return;
+    }
     this.drawFilters(filter);
     visibleStatuses.forEach((status, index) => {
       const col = index < ROWS_PER_COLUMN ? 0 : 1;
@@ -257,7 +287,7 @@ export class AchievementsScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
     }
-    this.drawPagingControls(page, pageCount, filter);
+    this.drawPagingControls(page, pageCount);
   }
 
   private drawCompletionPanel(): void {
@@ -318,6 +348,160 @@ export class AchievementsScene extends Phaser.Scene {
       .setOrigin(originX, 0.5);
   }
 
+  /** Hall ⇄ List chips at the content's left edge; a bucket chip clears the wing scope. */
+  private drawViewToggle(): void {
+    (['hall', 'list'] as const).forEach((key, index) => {
+      roundedTrigger(this, CONTENT_X + 52 + index * 120, FILTER_Y, key === 'hall' ? 'Hall' : 'List', {
+        size: 'sm',
+        minWidth: 104,
+        selected: this.route.view === key,
+        onTap: () => this.scene.restart({ ...this.route, page: 0, view: key }),
+      });
+    });
+    if (this.route.view === 'list' && this.route.bucket !== 'all') {
+      roundedTrigger(
+        this,
+        CONTENT_X + CONTENT_W - 88,
+        FILTER_Y,
+        `${BUCKET_LABEL[this.route.bucket]} ✕`,
+        {
+          size: 'sm',
+          minWidth: 150,
+          selected: true,
+          onTap: () => this.scene.restart({ ...this.route, page: 0, bucket: 'all' }),
+        },
+      );
+    }
+  }
+
+  /** The Trophy Hall: five wings, one per bucket, each a plinth into its list. */
+  private drawHall(statuses: AchievementStatus[]): void {
+    const save = Services.save.data;
+    const owned = Object.keys(save.collection);
+    const byId = new Map(statuses.map((status) => [status.def.id, status]));
+    const frames = hallWingFrames();
+    wingSummaries(statuses).forEach((wing, index) => {
+      const f = frames[index];
+      panel(this, f.x, f.y, f.w, f.h, { alpha: theme.alpha.panel });
+      // Card art furnishes the room: two owned thumbs lean behind the plinth.
+      wingFurnishings(wing.bucket, owned).forEach((cardId, t) => {
+        const thumb = new CardView(this, f.x + f.w - 54 - t * 42, f.y + f.h - 96);
+        thumb.setScale(0.15).setAngle(t === 0 ? 5 : -6).setAlpha(0.45);
+        thumb.setCard(def(CARD_DB, cardId), { fx: 'none' });
+      });
+      this.add
+        .text(f.x + 18, f.y + 28, BUCKET_LABEL[wing.bucket], {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.heading,
+        })
+        .setOrigin(0, 0.5);
+      this.add
+        .text(
+          f.x + 18,
+          f.y + 56,
+          `${wing.claimed}/${wing.total} claimed${wing.ready > 0 ? ` · ${wing.ready} ready` : ''}`,
+          {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: wing.ready > 0 ? theme.colors.gold : theme.colors.muted,
+          },
+        )
+        .setOrigin(0, 0.5);
+      this.drawWingGauge(f.x + f.w - 46, f.y + 44, wing);
+      const featured = wing.featuredId ? byId.get(wing.featuredId) : undefined;
+      if (featured) {
+        const py = f.y + f.h - 70;
+        const pw = f.w - 130;
+        const plinth = this.add.graphics();
+        const ready = featured.unlocked && !featured.claimed;
+        plinth.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
+        plinth.fillRoundedRect(f.x + 14, py, pw, 54, theme.radius.control);
+        plinth.lineStyle(
+          theme.control.borderWidth,
+          colorInt(ready ? theme.colors.gold : theme.colors.success),
+          theme.alpha.chrome,
+        );
+        plinth.strokeRoundedRect(f.x + 14, py, pw, 54, theme.radius.control);
+        const title = this.add
+          .text(f.x + 26, py + 18, '', {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            fontStyle: theme.weight.w700,
+            color: ready ? theme.colors.heading : theme.colors.success,
+          })
+          .setOrigin(0, 0.5);
+        ellipsize(title, featured.def.title, pw - 24);
+        this.add
+          .text(f.x + 26, py + 39, ready ? 'Ready to claim' : 'Claimed', {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.micro}px`,
+            fontStyle: theme.weight.w700,
+            color: ready ? theme.colors.gold : theme.colors.success,
+          })
+          .setOrigin(0, 0.5);
+      } else {
+        this.add
+          .text(f.x + 18, f.y + f.h - 44, 'No trophies here yet.', {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.muted,
+          })
+          .setOrigin(0, 0.5);
+      }
+      const zone = this.add
+        .zone(f.x + f.w / 2, f.y + f.h / 2, f.w, f.h)
+        .setInteractive({ useHandCursor: true });
+      zone.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.rightButtonReleased()) return;
+        this.scene.restart({ page: 0, filter: 'all', view: 'list', bucket: wing.bucket });
+      });
+    });
+  }
+
+  /** Wing-sized claim ring: the bucket's claimed fraction with a center count. */
+  private drawWingGauge(x: number, y: number, wing: WingSummary): void {
+    const gauge = this.add.graphics();
+    gauge.lineStyle(4, theme.graphics.panelStroke, theme.alpha.subtle);
+    gauge.strokeCircle(x, y, 22);
+    if (wing.percent > 0) {
+      const accent = colorInt(wing.percent >= 1 ? theme.colors.success : theme.colors.gold);
+      gauge.lineStyle(4, accent, 1);
+      if (wing.percent >= 1) gauge.strokeCircle(x, y, 22);
+      else {
+        gauge.beginPath();
+        gauge.arc(x, y, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * wing.percent, false);
+        gauge.strokePath();
+      }
+    }
+    this.add
+      .text(x, y, `${Math.round(wing.percent * 100)}%`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.body,
+      })
+      .setOrigin(0.5);
+  }
+
+  /** 📌 on a claimed row: pin to (or unpin from) the Profile showcase. */
+  private drawPinToggle(id: string, x: number, y: number): void {
+    const save = Services.save.data;
+    const pinned = save.achievements.pinned.includes(id);
+    this.add
+      .text(x, y, '📌', { fontSize: '18px' })
+      .setOrigin(0.5)
+      .setAlpha(pinned ? 1 : 0.3);
+    const zone = this.add.zone(x, y, 44, 44).setInteractive({ useHandCursor: true });
+    zone.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonReleased()) return;
+      save.achievements.pinned = togglePin(save.achievements.pinned, id);
+      Services.save.touch();
+      this.scene.restart(this.route);
+    });
+  }
+
   private drawFilters(selected: AchievementFilter): void {
     const totalWidth = FILTERS.length * FILTER_W + (FILTERS.length - 1) * FILTER_GAP;
     const startX = theme.design.centerX - totalWidth / 2;
@@ -326,7 +510,7 @@ export class AchievementsScene extends Phaser.Scene {
         size: 'sm',
         minWidth: FILTER_W,
         selected: filter.key === selected,
-        onTap: () => this.scene.restart({ page: 0, filter: filter.key }),
+        onTap: () => this.scene.restart({ ...this.route, page: 0, filter: filter.key }),
       });
     });
   }
@@ -355,7 +539,10 @@ export class AchievementsScene extends Phaser.Scene {
       claimed ? theme.alpha.subtle : theme.alpha.chrome,
     );
     g.strokeRoundedRect(x, y, ROW_W, ROW_H, theme.radius.control);
-    this.drawProgressGauge(status, x + GAUGE_CENTER, centerY);
+    // A claimed row's gauge is a full circle saying nothing; the slot becomes
+    // the showcase pin toggle instead.
+    if (claimed) this.drawPinToggle(status.def.id, x + GAUGE_CENTER, centerY);
+    else this.drawProgressGauge(status, x + GAUGE_CENTER, centerY);
 
     const title = this.add
       .text(x + 14, y + 14, '', {
@@ -415,11 +602,11 @@ export class AchievementsScene extends Phaser.Scene {
             Services.save.flush();
             this.playClaimCascade([{ x: x + CLAIM_CENTER, y: centerY }], animationLevel, () => {
               Sfx.play('coin');
-              this.scene.restart({ page, filter });
+              this.scene.restart(this.route);
             });
             return;
           }
-          this.scene.restart({ page, filter });
+          this.scene.restart(this.route);
         },
       });
       return claimButton;
@@ -525,10 +712,10 @@ export class AchievementsScene extends Phaser.Scene {
     });
   }
 
-  private drawPagingControls(page: number, pageCount: number, filter: AchievementFilter): void {
+  private drawPagingControls(page: number, pageCount: number): void {
     if (pageCount <= 1) return;
     pager(this, DESIGN_W / 2 - 44, theme.design.footerCenterY, page, pageCount, (nextPage) =>
-      this.scene.restart({ page: nextPage, filter }),
+      this.scene.restart({ ...this.route, page: nextPage }),
     );
   }
 }

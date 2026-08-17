@@ -167,8 +167,15 @@ re-baseline.
    idle, tier-ribbon minimap, edge vignettes, grouped flip audio, and
    virtualization (live CardViews only near the gate). Animations-off and
    Skip keep the at-a-glance summary grid. This closes the
-   16-of-150-cards batch-summary gap. Remaining: Trophy Hall full, the
-   land-carry design pass. Then the **small-debts batch** (Limited
+   16-of-150-cards batch-summary gap. **Trophy Hall full landed
+   2026-08-16**: the Achievements screen defaults to a five-wing hall
+   (one per bucket - ring gauge, featured plinth, owned-card
+   furnishings, click-through to the bucket-scoped list), the dense list
+   survives as a toggle, claimed rows carry a showcase pin (SaveData v31
+   `achievements.pinned`, cap 3, oldest evicted) rendered as tilted seal
+   plaques on the Profile header. With the land-carry pass and the
+   frame-shed rider (their own PRs), **Wave C is COMPLETE pending the
+   owner's device pass**. Then the **small-debts batch** (Limited
    retune, modalShell dismiss consolidation, scoreLand rider credit, the
    1.6 dup-audit adjudication, Fogbell Chime redesign, Laughing Pooka /
    Wolfsbane Ward watchlist, metagame deep sweep once the reserve field

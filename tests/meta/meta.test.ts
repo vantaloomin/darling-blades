@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { CARD_DB } from '../../src/data/catalog';
 import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
@@ -339,7 +339,7 @@ describe('collection and economy', () => {
   });
 });
 describe('PackOpener', () => {
-  it('boosters contain boosterPackSize cards ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no basics, no tokens ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â sorted worstÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢best', () => {
+  it('boosters contain boosterPackSize cards ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â no basics, no tokens ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â sorted worstÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢best', () => {
     const save = freshSave(0);
     const rng = createRngState(42);
     const result = openPack(save, TEST_DB, rng);
@@ -374,7 +374,7 @@ describe('PackOpener', () => {
     expect(a).not.toEqual(c); // sanity: a different seed actually differs
   });
 
-  it('a set-scoped RagnarÃƒÆ’Ã‚Â¶k booster pulls only ragnarok cards, self-sufficient at every tier', () => {
+  it('a set-scoped RagnarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶k booster pulls only ragnarok cards, self-sufficient at every tier', () => {
     for (const tier of ['c', 'r', 'sr', 'ssr', 'ur'] as const) {
       const rgPool = packPool(CARD_DB, tier, 'ragnarok');
       expect(rgPool.length, `ragnarok ${tier} pool`).toBeGreaterThan(0);
@@ -498,7 +498,7 @@ describe('deck validation', () => {
 });
 
 /** Save migration: every old version walks the whole chain to the current schema. */
-describe('save migration old blobs ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ current schema', () => {
+describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ current schema', () => {
   it('walks a v1 blob up the whole chain, preserving everything it had', () => {
     const v1blob = {
       version: 1,
@@ -545,7 +545,7 @@ describe('save migration old blobs ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ cur
     expect(m.data.heroCardId).toBe(null); // v6 addition: auto face until chosen
     expect(m.data.heroPortraitId).toBe(null); // v9 addition: no premium hero until chosen
     expect(m.data.tutorialDone).toBe(true); // v10: a veteran (5 wins) skips the tutorial
-    expect(m.data.achievements).toEqual({ unlocked: [], claimed: [] }); // v11
+    expect(m.data.achievements).toEqual({ unlocked: [], claimed: [], pinned: [] }); // v11
     expect(m.data.daily.quests).toHaveLength(ECONOMY.dailyQuestCount); // v13
     expect(m.data.daily.rerollsUsed).toBe(0);
     expect(m.data.limited).toEqual({ activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, premiumWeek: { week: 0, entries: 0 } }); // v14/v19
@@ -859,7 +859,7 @@ describe('save migration old blobs ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ cur
     const m = new SaveManager(storage);
 
     expect(m.data.version).toBe(CURRENT_SAVE_VERSION);
-    expect(m.data.achievements).toEqual({ unlocked: [], claimed: [] });
+    expect(m.data.achievements).toEqual({ unlocked: [], claimed: [], pinned: [] });
     expect(m.data.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 0 });
     expect(m.data.tutorialDone).toBe(base.tutorialDone);
   });
@@ -1183,7 +1183,7 @@ describe('applyGauntletResult', () => {
   });
 });
 
-describe('buyThemeDeck (RagnarÃƒÆ’Ã‚Â¶k precon)', () => {
+describe('buyThemeDeck (RagnarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶k precon)', () => {
   const deck = THEME_DECKS[0];
 
   it('spends preconPrice, grants the cards, and adds the deck without touching starterChosen', () => {
@@ -1199,7 +1199,7 @@ describe('buyThemeDeck (RagnarÃƒÆ’Ã‚Â¶k precon)', () => {
     expect(save.collection[aNonBasic] ?? 0).toBeGreaterThan(0);
   });
 
-  it('is idempotent ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a second buy is a no-op that does not spend gold', () => {
+  it('is idempotent ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â a second buy is a no-op that does not spend gold', () => {
     const save = freshSave(0);
     save.gold = ECONOMY.preconPrice * 3;
     expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);

@@ -3,6 +3,7 @@ import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
+import { ACHIEVEMENTS, type AchievementDef } from '../meta/Achievements';
 import { todayString } from '../meta/Economy';
 import { computeProfile, formatRate, type Difficulty } from '../meta/profileStats';
 import { canReplay, type ReplayLog } from '../meta/Replay';
@@ -121,6 +122,8 @@ export class ProfileScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
     }
+
+    this.drawShowcase();
 
     panel(this, 72, 190, 500, 450);
     panel(this, 600, 190, 608, 450);
@@ -487,6 +490,61 @@ export class ProfileScene extends Phaser.Scene {
       `Source schema: v${preview.sourceSchemaVersion}`,
       `Replays present: ${preview.replaysPresent ? 'Yes' : 'No'}`,
     ].join('\n');
+  }
+
+  /**
+   * Trophy Hall showcase: up to three pinned, claimed achievements as tilted
+   * seal plaques in the header's left void. Renders nothing when nothing is
+   * pinned, so the header stays clean for new players.
+   */
+  private drawShowcase(): void {
+    const achievements = Services.save.data.achievements;
+    const pins = achievements.pinned
+      .map((id) => ACHIEVEMENTS.find((achievement) => achievement.id === id))
+      .filter((achievement): achievement is AchievementDef =>
+        !!achievement && achievements.claimed.includes(achievement.id),
+      )
+      .slice(0, 3);
+    if (pins.length === 0) return;
+    this.add
+      .text(100, 78, 'Showcase', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0, 0.5);
+    pins.forEach((achievement, index) => {
+      const seal = this.add.container(172 + index * 160, 120).setAngle(-3);
+      const plate = this.add.graphics();
+      plate.fillStyle(theme.graphics.panelFill, 0.96);
+      plate.fillRoundedRect(-74, -24, 148, 48, theme.radius.control);
+      plate.lineStyle(2, colorInt(theme.colors.success), 0.95);
+      plate.strokeRoundedRect(-74, -24, 148, 48, theme.radius.control);
+      plate.lineStyle(1, colorInt(theme.colors.gold), theme.alpha.chrome);
+      plate.strokeRoundedRect(-70, -20, 140, 40, theme.radius.control - 2);
+      const title = this.add
+        .text(0, -8, '', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.heading,
+        })
+        .setOrigin(0.5);
+      title.setText(achievement.title);
+      while (title.width > 132 && title.text.length > 1) {
+        title.setText(`${title.text.slice(0, -2).trimEnd()}…`);
+      }
+      const label = this.add
+        .text(0, 12, 'CLAIMED', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.success,
+        })
+        .setOrigin(0.5);
+      seal.add([plate, title, label]);
+    });
   }
 
   private sectionLabel(y: number, text: string): void {
