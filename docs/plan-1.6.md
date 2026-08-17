@@ -173,8 +173,15 @@ re-baseline.
    lifts it into the shared CastIntent carry with an incoming-bead ghost
    at the mana row's end, and the drop submits the same `playLand`. Touch,
    the tutorial, replays, and `instantCast` keep the modal; right-click
-   always reads the full reserve. Remaining: Trophy Hall full and the
-   full-art frame-shed rider. Then the **small-debts batch** (Limited
+   always reads the full reserve. The full-art frame-shed rider landed the
+   same day. **Trophy Hall full landed 2026-08-16, closing the wave**: the
+   Achievements screen defaults to a five-wing hall (one per bucket - ring
+   gauge, featured plinth, owned-card furnishings, click-through to the
+   bucket-scoped list), the dense list survives as a toggle, claimed rows
+   carry a showcase pin (SaveData v31 `achievements.pinned`, cap 3, oldest
+   evicted) rendered as tilted seal plaques on the Profile header. **Wave C
+   is COMPLETE pending the owner's device pass.** Then the **small-debts
+   batch** (Limited
    retune, modalShell dismiss consolidation, scoreLand rider credit, the
    1.6 dup-audit adjudication, Fogbell Chime redesign, Laughing Pooka /
    Wolfsbane Ward watchlist, metagame deep sweep once the reserve field

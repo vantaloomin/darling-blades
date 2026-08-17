@@ -2,7 +2,8 @@ import { ACHIEVEMENTS } from '../meta/Achievements';
 import { queueToast } from './Toast';
 import type { ToastSummary } from './toastQueue';
 
-const ACHIEVEMENTS_ROUTE = { scene: 'Achievements', data: { page: 0, filter: 'ready' } } as const;
+// The toast's intent is "show me the claimable" — land on the list, not the hall.
+const ACHIEVEMENTS_ROUTE = { scene: 'Achievements', data: { page: 0, filter: 'ready', view: 'list' } } as const;
 
 /** Queue presentation-only notices. Claiming remains owned by AchievementsScene. */
 export function queueAchievementUnlockToasts(ids: readonly string[]): void {

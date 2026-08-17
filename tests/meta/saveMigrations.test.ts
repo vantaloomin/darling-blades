@@ -624,3 +624,31 @@ describe('SaveData v30 migration (instant-cast preference)', () => {
     expect(new SaveManager(storage, 456).data.settings.instantCast).toBe(true);
   });
 });
+
+describe('SaveData v31 migration (Trophy Hall showcase pins)', () => {
+  it('adds an empty pinned list while preserving unlocked and claimed', () => {
+    const storage = fakeStorage();
+    const now = 123;
+    const old = freshSave(now) as unknown as Record<string, unknown>;
+    old.version = 30;
+    old.achievements = { unlocked: ['collection-25'], claimed: ['collection-25'] };
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.achievements.unlocked).toEqual(['collection-25']);
+    expect(migrated.achievements.claimed).toEqual(['collection-25']);
+    expect(migrated.achievements.pinned).toEqual([]);
+  });
+
+  it('keeps explicit pins on a current-version save, capped at three', () => {
+    const storage = fakeStorage();
+    const now = 123;
+    const current = freshSave(now);
+    current.achievements.pinned = ['a', 'b', 'c', 'd'];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    expect(new SaveManager(storage, 456).data.achievements.pinned).toEqual(['a', 'b', 'c']);
+  });
+});

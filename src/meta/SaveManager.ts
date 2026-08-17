@@ -10,7 +10,7 @@ import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 
-export const CURRENT_SAVE_VERSION = 30 as const;
+export const CURRENT_SAVE_VERSION = 31 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /**
@@ -52,6 +52,11 @@ export interface GauntletClearStyles {
 export interface AchievementState {
   unlocked: string[];
   claimed: string[];
+  /**
+   * Trophy Hall showcase: claimed achievement ids pinned to the Profile, in
+   * pin order, capped at three (pinning a fourth evicts the oldest). v31.
+   */
+  pinned: string[];
 }
 
 export interface DailyQuestSave {
@@ -231,7 +236,7 @@ export function freshGauntletClearStyles(): GauntletClearStyles {
 }
 
 export function freshAchievements(): AchievementState {
-  return { unlocked: [], claimed: [] };
+  return { unlocked: [], claimed: [], pinned: [] };
 }
 
 export function freshSave(now: number): SaveData {
@@ -351,7 +356,9 @@ export class SaveManager {
    * player and opponent Warchests. An older Limited run leaves those optional
    * fields absent and reconstructs its basics-only reserve until the builder
    * is opened. v29 -> v30 adds `settings.instantCast` (default off — carry-cast
-   * is the shipped cast interaction; the toggle restores click-to-cast).
+   * is the shipped cast interaction; the toggle restores click-to-cast);
+   * v30 -> v31 adds `achievements.pinned` (the Trophy Hall showcase, empty
+   * for older saves, explicit pins preserved on current blobs).
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -618,7 +625,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -752,6 +759,18 @@ export class SaveManager {
         ...cur,
         version: 30,
         settings: { ...(cur.settings as object), instantCast: s.instantCast === true },
+      };
+    }
+    if (cur.version === 30) {
+      // Same preservation rule: a current v31 blob keeps its explicit pins.
+      const a = (cur.achievements ?? freshAchievements()) as AchievementState & { pinned?: unknown };
+      const pinned = Array.isArray(a.pinned)
+        ? a.pinned.filter((id): id is string => typeof id === 'string').slice(0, 3)
+        : [];
+      cur = {
+        ...cur,
+        version: 31,
+        achievements: { ...a, pinned },
       };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
