@@ -53,7 +53,8 @@ export const MECHANIC_DEFINITIONS: Record<
   | 'retell'
   | 'hauntlink'
   | 'rite'
-  | 'nineLives',
+  | 'nineLives'
+  | 'preserve',
   string
 > = {
   sever: 'severed from the game; severed cards never return',
@@ -67,6 +68,7 @@ export const MECHANIC_DEFINITIONS: Record<
   hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
   rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
   nineLives: 'when this dies with no marks on it, it returns to the battlefield with a mark on it',
+  preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during your main phase',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -251,6 +253,12 @@ export function nineLivesText(d: CardDef): string | undefined {
   return 'When this dies with no marks on it, return it to the battlefield with a mark on it.';
 }
 
+export function preserveText(d: CardDef): string | undefined {
+  if (!d.preserve) return undefined;
+  const cost = manaCostText(d.preserve.cost);
+  return `Preserve ${cost}: Pay ${cost} and Sever this card from your graveyard: create a token copy of it. Use only during your main phase.`;
+}
+
 export function skimText(d: CardDef): string | undefined {
   if (!d.skim) return undefined;
   return `Skim ${manaCostText(d.skim.cost)}: Discard this card, then draw a card.`;
@@ -430,6 +438,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (rite) lines.push(rite);
   const nineLives = nineLivesText(d);
   if (nineLives) lines.push(nineLives);
+  const preserve = preserveText(d);
+  if (preserve) lines.push(preserve);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
@@ -486,6 +496,7 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   if (d.hauntlink) push('Hauntlink', MECHANIC_DEFINITIONS.hauntlink);
   if (d.rite) push('Rite', MECHANIC_DEFINITIONS.rite);
   if (d.nineLives) push('Nine Lives', MECHANIC_DEFINITIONS.nineLives);
+  if (d.preserve) push('Preserve', MECHANIC_DEFINITIONS.preserve);
   return entries;
 }
 

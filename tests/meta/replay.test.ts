@@ -42,7 +42,7 @@ function testDeck(): string[] {
 function recordBotGame(
   seed: number,
   rulesRev: 1 | 2 | 3 = 3,
-  replayVersion = 8,
+  replayVersion = 9,
   startingHandSize?: number,
 ): {
   log: ReplayLog;
@@ -98,13 +98,14 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     }
   });
 
-  it('round-trips an optional nonstandard opening-hand size without a version bump', () => {
+  it('replays v8 through the preserved revision-3 mapping with an optional opening-hand size', () => {
     const original = recordBotGame(37, 3, 8, 4);
     expect(original.log.v).toBe(8);
     expect(original.log.startingHandSize).toBe(4);
     expect(isReplayLog(original.log)).toBe(true);
 
     const replayed = replayGame(original.log, TEST_DB);
+    expect(replayed.game.instanceState.rulesRev).toBe(3);
     expect(JSON.stringify(replayed.game.state)).toBe(original.finalState);
     expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(original.events));
 
@@ -140,7 +141,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     ];
     expect(cards.every((entry) => typeof entry === 'object' && 'instanceId' in entry)).toBe(true);
     expect(JSON.stringify(state)).toBe(instanceFinalState);
-    expect(log.v).toBe(8);
+    expect(log.v).toBe(9);
   });
 
   it('replays a v8 battlefield Hauntlink action and its public relationship stream-exactly', () => {
@@ -161,6 +162,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
         gauntletRung: null,
       },
     });
+    draft.v = 8;
     const events: GameEvent[] = [...game.initialEvents];
     const record = (p: PlayerId, action: Action): void => {
       events.push(...game.submit(p, action));

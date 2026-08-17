@@ -43,7 +43,7 @@ import type {
   PlayerId,
   StackItem,
 } from './types';
-import { cardIdOf, def, findPermanent, isCardInstance, opponentOf } from './types';
+import { cardIdOf, def, findPermanent, isCardInstance, opponentOf, variantKeyOf } from './types';
 import type { PlayerView } from './view';
 import { viewFor } from './view';
 
@@ -607,6 +607,29 @@ export class Game {
         me.graveyard.push(card);
         emit({ e: 'skimmed', player, cardId });
         drawCards(st, emit, player, 1);
+        return;
+      }
+
+      case 'preserveCard': {
+        const card = me.graveyard[action.graveIndex];
+        const cardId = cardIdOf(card);
+        const d = def(this.db, card);
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, d.preserve!.cost)!;
+        for (const iid of plan) findPermanent(st, iid)!.tapped = true;
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+
+        me.graveyard.splice(action.graveIndex, 1);
+        me.severed.push(card);
+        emit({ e: 'severed', player, cardId, from: 'graveyard' });
+
+        // The severed physical card keeps its instance identity. Its token
+        // copy gets a fresh identity while retaining the collectible's visual
+        // variant and full CardDef, including arrival triggers.
+        const perm = enterBattlefield(st, this.db, cardId, player, emit, {
+          asToken: true,
+          variantKey: variantKeyOf(card),
+        });
+        fireTriggers(st, this.db, emit, 'arrives', perm);
         return;
       }
 

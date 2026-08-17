@@ -58,7 +58,7 @@ describe('Warchest replay v8', () => {
       landReserves: [RESERVE, RESERVE],
     });
     const original = recordToEnd(game, true);
-    expect(original.log.v).toBe(8); // Current logs opt into revision-3 Hauntlink actions.
+    expect(original.log.v).toBe(9); // Current logs include Preserve actions under revision 3.
     expect(original.log.format).toBe('warchest');
     expect(original.log.landReserves).toEqual([RESERVE, RESERVE]);
     expect(isReplayLog(original.log)).toBe(true);

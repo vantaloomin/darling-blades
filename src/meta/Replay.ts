@@ -18,9 +18,9 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
  * worse than an honest "recorded on an older version" notice).
  */
 
-// Hauntlink activation adds a recorded action shape in v8. Versions 7 and 6
-// remain executable through their preserved revision-2 and revision-1 paths.
-export const REPLAY_LOG_VERSION = 8 as const;
+// Preserve adds a recorded action shape in v9. Version 8 shares revision 3;
+// versions 7 and 6 retain their preserved revision-2 and revision-1 paths.
+export const REPLAY_LOG_VERSION = 9 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
@@ -145,7 +145,7 @@ export function pushReplay(replays: ReplayLog[], log: ReplayLog): ReplayLog[] {
 
 export function canReplay(log: ReplayLog, db: CardDb): boolean {
   return (
-    (log.v === REPLAY_LOG_VERSION || log.v === 7 || log.v === 6) &&
+    (log.v === REPLAY_LOG_VERSION || log.v === 8 || log.v === 7 || log.v === 6) &&
     log.dbStamp === replayDbStamp(db)
   );
 }
@@ -157,13 +157,14 @@ export function canReplay(log: ReplayLog, db: CardDb): boolean {
  * HONEST LIMIT: the stamp guards card-data drift, not engine-code drift. A
  * gated behavior change may keep an old replay version executable only when
  * its old code path is preserved verbatim behind a rules-revision flag. That
-   * exceptions apply to v7 under revision 2 and v6 under revision 1. Ungated observable engine changes
+ * exceptions apply to v8 under revision 3, v7 under revision 2, and v6 under
+ * revision 1. Ungated observable engine changes
  * still bump REPLAY_LOG_VERSION and fail closed. Determinism and replay golden
  * tests catch accidental drift in CI, not in shipped saves.
  */
 export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: GameEvent[] } {
   if (!canReplay(log, db)) {
-    if (log.v !== REPLAY_LOG_VERSION && log.v !== 7 && log.v !== 6) {
+    if (log.v !== REPLAY_LOG_VERSION && log.v !== 8 && log.v !== 7 && log.v !== 6) {
       throw new Error('This replay was recorded with an older replay version and cannot be replayed.');
     }
     throw new Error('This replay was recorded on a different card database and cannot be replayed.');
@@ -219,8 +220,8 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     log.darlings.every((id) => id === null || typeof id === 'string');
   const startingHandSizeShape = log.startingHandSize === undefined ||
     (Number.isSafeInteger(log.startingHandSize) && log.startingHandSize > 0);
-  // v5 added the Darlings command-zone payload. Keep v7 and older blobs
-  // structurally valid for save preservation; v7 and v6 remain executable.
+  // v5 added the Darlings command-zone payload. Keep v8 and older blobs
+  // structurally valid for save preservation; v8, v7, and v6 remain executable.
   const currentPayloadShape = rawFormat === undefined
     ? log.landReserves === undefined && log.darlings === undefined
     : format === 'warchest'
@@ -230,11 +231,11 @@ export function isReplayLog(value: unknown): value is ReplayLog {
         : false;
   const legacyPayloadShape = (rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
     (format !== undefined && reserveShape && log.darlings === undefined);
-  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 7 || log.v === 6 || log.v === 5
+  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5
     ? currentPayloadShape
     : legacyPayloadShape;
   const valid =
-    (log.v === REPLAY_LOG_VERSION || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
+    (log.v === REPLAY_LOG_VERSION || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     startingHandSizeShape &&

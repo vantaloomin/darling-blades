@@ -7,12 +7,13 @@ import { fireTriggers, runOps } from '../../src/engine/effects/EffectInterpreter
 import type { GameEvent } from '../../src/engine/events';
 import { checkStateBased } from '../../src/engine/sba';
 import { isSummoningSick } from '../../src/engine/statics';
-import type { CardDef, CardInstance, GameState, PlayerId } from '../../src/engine/types';
-import { validateNineLivesDef, validateRiteDef } from '../../src/engine/types';
+import type { CardDef, CardEntry, CardInstance, GameState, PlayerId } from '../../src/engine/types';
+import { validateNineLivesDef, validatePreserveDef, validateRiteDef } from '../../src/engine/types';
 import {
   cardGlossaryEntries,
   MECHANIC_DEFINITIONS,
   nineLivesText,
+  preserveText,
   riteText,
   rulesText,
 } from '../../src/ui/rulesText';
@@ -28,6 +29,7 @@ import { botAction, makeTestState } from '../helpers';
 
 function gameWith(opts: {
   hands?: [string[], string[]];
+  graveyards?: [CardEntry[], CardEntry[]];
   battlefield?: ReturnType<typeof duatPermanent>[];
   configure?: (state: GameState) => void;
 }): Game {
@@ -36,6 +38,10 @@ function gameWith(opts: {
     battlefield: opts.battlefield ?? [],
     active: 0,
   });
+  if (opts.graveyards) {
+    state.players[0].graveyard = [...opts.graveyards[0]];
+    state.players[1].graveyard = [...opts.graveyards[1]];
+  }
   opts.configure?.(state);
   return Game.restore(state, DUAT_DB);
 }
@@ -46,6 +52,15 @@ function riteAction(game: Game, player: PlayerId = 0): Extract<Action, { type: '
       candidate.type === 'castSpell' && candidate.sacrifices !== undefined,
   );
   if (!action) throw new Error('Rite cast was not legal');
+  return action;
+}
+
+function preserveAction(game: Game, player: PlayerId = 0): Extract<Action, { type: 'preserveCard' }> {
+  const action = game.legalActions(player).find(
+    (candidate): candidate is Extract<Action, { type: 'preserveCard' }> =>
+      candidate.type === 'preserveCard',
+  );
+  if (!action) throw new Error('Preserve action was not legal');
   return action;
 }
 
@@ -103,6 +118,27 @@ describe('Sands of the Duat Nine Lives validation', () => {
     expect(invalid({
       hauntlink: { cost: { generic: 1, pips: {} }, linked: { p: 1 } },
     })).toContain('Nine Lives card cannot combine with Hauntlink');
+  });
+});
+
+describe('Sands of the Duat Preserve validation', () => {
+  const invalid = (overrides: Partial<CardDef>): string[] =>
+    validatePreserveDef({ ...DUAT_DB['du-preserve-small'], ...overrides });
+
+  it('requires a non-negative creature cost, allows Rite and Nine Lives, and rejects Hauntlink', () => {
+    expect(validatePreserveDef(DUAT_DB['du-preserve-small'])).toEqual([]);
+    expect(invalid({ rite: { n: 1 }, nineLives: true })).toEqual([]);
+    expect(invalid({ types: ['artifact'] })).toContain('Preserve carrier must be a creature');
+    expect(invalid({ preserve: { cost: undefined } as never })).toContain('Preserve needs a mana cost');
+    expect(invalid({ preserve: { cost: { generic: -1, pips: {} } } })).toContain(
+      'Preserve cost must be non-negative',
+    );
+    expect(invalid({ preserve: { cost: { generic: 0, pips: { U: -1 } } } })).toContain(
+      'Preserve cost must be non-negative',
+    );
+    expect(invalid({
+      hauntlink: { cost: { generic: 1, pips: {} }, linked: { p: 1 } },
+    })).toContain('Preserve card cannot combine with Hauntlink');
   });
 });
 
@@ -248,6 +284,133 @@ describe('Sands of the Duat Rite engine', () => {
     expect(game.state.battlefield.some((perm) => perm.cardId === 'du-rite-one')).toBe(false);
     expect(game.state.players[0].graveyard).toContain('du-fodder-spawn');
     expect(game.state.battlefield.some((perm) => perm.cardId === 'du-scarab-token')).toBe(true);
+  });
+});
+
+describe('Sands of the Duat Preserve engine', () => {
+  it('pays, severs the physical card, copies its variant, fires arrival, and lets the token evaporate', () => {
+    const original = {
+      instanceId: 777,
+      cardId: 'du-preserve-small',
+      variantKey: 'etched-blue',
+    } satisfies CardInstance;
+    const game = gameWith({
+      graveyards: [[original], []],
+      battlefield: [duatPermanent(1, 'forest')],
+    });
+    const action = preserveAction(game);
+    expect(action).toEqual({ type: 'preserveCard', graveIndex: 0 });
+
+    const events = game.submit(0, { ...action, manaPlan: [1] });
+    const state = mutableState(game);
+    const copy = state.battlefield.find((perm) => perm.cardId === 'du-preserve-small');
+    expect(copy).toMatchObject({
+      cardId: 'du-preserve-small',
+      variantKey: 'etched-blue',
+      isToken: true,
+      controller: 0,
+      owner: 0,
+      enteredThisTurn: true,
+    });
+    expect(copy?.instanceId).not.toBe(original.instanceId);
+    expect(state.players[0].graveyard).toEqual([]);
+    expect(state.players[0].severed).toContainEqual(original);
+    expect(state.players[0].life).toBe(21);
+    expect(eventIndex(events, 'severed')).toBeLessThan(eventIndex(events, 'tokenCreated'));
+    expect(eventIndex(events, 'tokenCreated')).toBeLessThan(eventIndex(events, 'triggerFired'));
+    expect(events).toContainEqual(expect.objectContaining({
+      e: 'tokenCreated',
+      perm: expect.objectContaining({ cardId: 'du-preserve-small', isToken: true }),
+    }));
+
+    runDestroy(state, copy!.iid, events);
+    expect(state.battlefield.some((perm) => perm.cardId === 'du-preserve-small')).toBe(false);
+    expect(state.players[0].graveyard).toEqual([]);
+    expect(state.players[0].severed).toContainEqual(original);
+  });
+
+  it('enumerates one action per eligible card and blocks full boards and unpaid costs', () => {
+    const choices = gameWith({
+      graveyards: [['du-preserve-small', 'du-preserve-big', 'bear'], []],
+      battlefield: [duatPermanent(1, 'forest'), duatPermanent(2, 'forest')],
+    }).legalActions(0).filter(
+      (action): action is Extract<Action, { type: 'preserveCard' }> =>
+        action.type === 'preserveCard',
+    );
+    expect(choices.map((action) => action.graveIndex)).toEqual([0, 1]);
+
+    const fullBoard = gameWith({
+      graveyards: [['du-preserve-small'], []],
+      battlefield: [
+        duatPermanent(1, 'forest'),
+        ...Array.from(
+          { length: RULES.maxCreatures },
+          (_, index) => duatPermanent(10 + index, 'du-cheap-fodder'),
+        ),
+      ],
+    });
+    expect(fullBoard.legalActions(0).some((action) => action.type === 'preserveCard')).toBe(false);
+    expect(() => fullBoard.submit(0, { type: 'preserveCard', graveIndex: 0 })).toThrow(
+      /creature battlefield cap reached/,
+    );
+
+    const unpaid = gameWith({ graveyards: [['du-preserve-small'], []], battlefield: [] });
+    expect(unpaid.legalActions(0).some((action) => action.type === 'preserveCard')).toBe(false);
+    expect(() => unpaid.submit(0, { type: 'preserveCard', graveIndex: 0 })).toThrow(
+      /cannot pay cost/,
+    );
+  });
+
+  it('rejects the wrong phase, an inactive player, bad indices, and non-Preserve cards', () => {
+    const wrongPhase = gameWith({
+      graveyards: [['du-preserve-small'], []],
+      battlefield: [duatPermanent(1, 'forest')],
+      configure: (state) => {
+        state.step = 'combat';
+        state.awaiting = { player: 0, kind: 'declareAttackers' };
+      },
+    });
+    expect(() => wrongPhase.submit(0, { type: 'preserveCard', graveIndex: 0 })).toThrow(
+      /during your main phase/,
+    );
+
+    const inactive = gameWith({
+      graveyards: [['du-preserve-small'], []],
+      battlefield: [duatPermanent(1, 'forest')],
+      configure: (state) => {
+        state.activePlayer = 1;
+        state.awaiting = { player: 0, kind: 'main' };
+      },
+    });
+    expect(inactive.legalActions(0).some((action) => action.type === 'preserveCard')).toBe(false);
+    expect(() => inactive.submit(0, { type: 'preserveCard', graveIndex: 0 })).toThrow(
+      /during your main phase/,
+    );
+    expect(() => gameWith({ graveyards: [[], []] }).submit(
+      0,
+      { type: 'preserveCard', graveIndex: 0 },
+    )).toThrow(/bad graveyard index/);
+
+    const ordinary = gameWith({
+      graveyards: [['bear'], []],
+      battlefield: [duatPermanent(1, 'forest')],
+    });
+    expect(() => ordinary.submit(0, { type: 'preserveCard', graveIndex: 0 })).toThrow(
+      /card has no Preserve option/,
+    );
+  });
+
+  it('does not let a preserved Nine Lives token return after it dies', () => {
+    const game = gameWith({ graveyards: [['du-preserve-nine'], []] });
+    game.submit(0, preserveAction(game));
+    const state = mutableState(game);
+    const copy = state.battlefield.find((perm) => perm.cardId === 'du-preserve-nine')!;
+    expect(copy.isToken).toBe(true);
+
+    runDestroy(state, copy.iid);
+    expect(state.battlefield).toEqual([]);
+    expect(state.players[0].graveyard).toEqual([]);
+    expect(state.players[0].severed).toHaveLength(1);
   });
 });
 
@@ -535,6 +698,20 @@ describe('Sands of the Duat Nine Lives rules text', () => {
   });
 });
 
+describe('Sands of the Duat Preserve rules text', () => {
+  it('renders the real cost in the exact reminder and adds a glossary entry without an em dash', () => {
+    const reminder =
+      'Preserve {1}: Pay {1} and Sever this card from your graveyard: create a token copy of it. Use only during your main phase.';
+    expect(preserveText(DUAT_DB['du-preserve-small'])).toBe(reminder);
+    expect(rulesText(DUAT_DB['du-preserve-small'])).toContain(reminder);
+    expect(rulesText(DUAT_DB['du-preserve-small'])).not.toContain('\u2014');
+    expect(cardGlossaryEntries(DUAT_DB['du-preserve-small'])).toContainEqual({
+      name: 'Preserve',
+      reminder: MECHANIC_DEFINITIONS.preserve,
+    });
+  });
+});
+
 describe('Sands of the Duat Rite replay', () => {
   it('round-trips a logged sacrifices field to byte-identical state and events', () => {
     const seed = 7717;
@@ -576,6 +753,53 @@ describe('Sands of the Duat Rite replay', () => {
       (step) => step.a.type === 'castSpell' && step.a.sacrifices !== undefined,
     );
     expect(riteStep?.a).toMatchObject({ type: 'castSpell', sacrifices: expect.any(Array) });
+    const revived = JSON.parse(JSON.stringify(log));
+    const replayed = replayGame(revived, DUAT_DB);
+    expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(game.instanceState));
+    expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(events));
+  });
+});
+
+describe('Sands of the Duat Preserve replay', () => {
+  it('round-trips a logged preserveCard action to byte-identical state and events', () => {
+    const seed = 9183;
+    const deck = [
+      ...Array.from({ length: 8 }, () => 'forest'),
+      ...Array.from({ length: 8 }, () => 'du-preserve-small'),
+      ...Array.from({ length: 8 }, () => 'du-rite-one'),
+    ];
+    const decks: [string[], string[]] = [[...deck], [...deck]];
+    const game = new Game({ decks, seed, db: DUAT_DB });
+    const draft = startReplayDraft({
+      dbStamp: replayDbStamp(DUAT_DB),
+      seed,
+      decks,
+      context: {
+        mode: 'practice', difficulty: 'medium', opponentId: null,
+        opponentName: 'Duat Preserve Bot', gauntletRung: null,
+      },
+    });
+    const events = [...game.initialEvents];
+    let recordedPreserve = false;
+    for (let guard = 0; guard < 500 && !recordedPreserve; guard++) {
+      const awaiting = game.awaiting;
+      if (awaiting.kind === 'gameOver') throw new Error('Preserve replay fixture ended early');
+      const player = awaiting.player as PlayerId;
+      const legal = game.legalActions(player);
+      const preserve = legal.find((action) => action.type === 'preserveCard');
+      const rite = legal.find(
+        (action) => action.type === 'castSpell' && action.sacrifices !== undefined,
+      );
+      const action = preserve ?? rite ?? botAction(legal);
+      events.push(...game.submit(player, action));
+      recordReplayAction(draft, player, action);
+      recordedPreserve = action.type === 'preserveCard';
+    }
+    expect(recordedPreserve).toBe(true);
+
+    const log = finishReplay(draft, 'win', 0, game.state.turn);
+    expect(log.v).toBe(9);
+    expect(log.actions.some((step) => step.a.type === 'preserveCard')).toBe(true);
     const revived = JSON.parse(JSON.stringify(log));
     const replayed = replayGame(revived, DUAT_DB);
     expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(game.instanceState));
