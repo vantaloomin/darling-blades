@@ -3,7 +3,9 @@ import type { SavedDeck } from '../meta/SaveManager';
 
 export type BuilderFormat = NonNullable<SavedDeck['format']>;
 
-const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'darlings', 'warchest'];
+// Standard (the warchest format id) leads every format offer; Darlings is the
+// specialty format (owner order, 2026-08-18).
+const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'warchest', 'darlings'];
 
 /**
  * The format choices the builder may expose for this release.
@@ -111,9 +113,15 @@ export const WARCHEST_RULES_COPY =
 export const DARLINGS_RULES_COPY =
   'Choose your Darling. She waits in her own zone, ready when you call. Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands. You open with 5 cards. Each time she falls, her next call costs 2 more.';
 
+/**
+ * Player-facing format names. The warchest FORMAT reads as "Standard" (owner,
+ * 2026-08-18): it is the normal way to build a deck now, and "Warchest" stays
+ * the name of the land system every deck carries (Reserves, the builder's
+ * Warchest view), so the two words stop competing.
+ */
 export function formatLabel(format: BuilderFormat): string {
   if (format === 'darlings') return 'Darlings';
-  if (format === 'warchest') return 'Warchest';
+  if (format === 'warchest') return 'Standard';
   return 'Constructed';
 }
 

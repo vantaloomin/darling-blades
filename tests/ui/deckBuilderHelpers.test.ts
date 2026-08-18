@@ -35,7 +35,9 @@ describe('deck builder helpers', () => {
   it('keeps format labels, sizes, and launch copy explicit', () => {
     expect(formatLabel('constructed')).toBe('Constructed');
     expect(formatLabel('darlings')).toBe('Darlings');
-    expect(formatLabel('warchest')).toBe('Warchest');
+    // The warchest FORMAT reads as Standard (owner 2026-08-18); "Warchest"
+    // stays the land system's name.
+    expect(formatLabel('warchest')).toBe('Standard');
     expect(formatDeckSize('constructed')).toBe(60);
     expect(formatDeckSize('darlings')).toBe(DARLINGS_DECK_SIZE);
     expect(formatDeckSize('warchest')).toBe(WARCHEST_DECK_SIZE);
@@ -75,7 +77,7 @@ describe('deck builder helpers', () => {
     const warchest = { ...save.decks[0], id: 'warchest', format: 'warchest' as const };
     const decks = [constructed, darlings, warchest];
 
-    expect(offeredBuilderFormats(true, false)).toEqual(['constructed', 'darlings', 'warchest']);
+    expect(offeredBuilderFormats(true, false)).toEqual(['constructed', 'warchest', 'darlings']);
     expect(visibleSavedDecks(decks, true).map((deck) => deck.id)).toEqual(['constructed', 'darlings', 'warchest']);
     expect(activeVisibleSavedDeck(decks, 'warchest', true)?.id).toBe('warchest');
     expect(isReplayVisible({ format: 'darlings' }, true)).toBe(true);
@@ -87,7 +89,8 @@ describe('deck builder helpers', () => {
     const darlings = { ...save.decks[0], id: 'darlings', format: 'darlings' as const };
     const decks = [constructed, darlings];
 
-    expect(offeredBuilderFormats(true, true)).toEqual(['darlings', 'warchest']);
+    // Standard (warchest) leads; Darlings is the specialty format.
+    expect(offeredBuilderFormats(true, true)).toEqual(['warchest', 'darlings']);
     // A retired classic deck is never hidden or reassigned: it stays listed and
     // stays the active deck so the flag-and-fix flow can route the player to it.
     expect(visibleSavedDecks(decks, true).map((deck) => deck.id)).toEqual(['constructed', 'darlings']);
