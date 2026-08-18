@@ -1971,10 +1971,20 @@ export class DuelScene extends Phaser.Scene {
     return Services.save.data.settings.animations;
   }
 
+  /**
+   * The fan view for an ENGINE hand index. handViews is pushed in DISPLAY
+   * order (handDisplayOrder's readability sort), so indexing it with an
+   * engine index silently grabs whichever card sits at that fan position -
+   * the carry-cast bug that lifted the wrong card (owner finding 2026-08-18).
+   */
+  private handViewFor(handIndex: number): CardView | undefined {
+    const displayIndex = handDisplayOrder(this.duel.state.players[HUMAN].hand, CARD_DB).indexOf(handIndex);
+    return displayIndex < 0 ? undefined : this.handViews[displayIndex];
+  }
+
   /** Capture the displayed fan card before syncHand destroys it; hover transforms count. */
   private handOrigin(handIndex: number): { x: number; y: number; scale: number; angle: number } | undefined {
-    const displayIndex = handDisplayOrder(this.duel.state.players[HUMAN].hand, CARD_DB).indexOf(handIndex);
-    const view = displayIndex < 0 ? undefined : this.handViews[displayIndex];
+    const view = this.handViewFor(handIndex);
     if (view?.active) return { x: view.x, y: view.y, scale: view.scaleX, angle: view.angle };
     return this.handPoses.get(handIndex);
   }
@@ -4821,7 +4831,7 @@ export class DuelScene extends Phaser.Scene {
       !this.tutorial &&
       !this.replayMode &&
       action.retell !== true &&
-      this.handViews[action.handIndex] !== undefined &&
+      this.handViewFor(action.handIndex) !== undefined &&
       this.handPoses.get(action.handIndex) !== undefined &&
       carryCastEligible({
         targeted: false,
@@ -4833,7 +4843,7 @@ export class DuelScene extends Phaser.Scene {
 
   private beginCarry(action: Extract<Action, { type: 'castSpell' }>): void {
     const handIndex = action.handIndex;
-    const view = this.handViews[handIndex];
+    const view = this.handViewFor(handIndex);
     const home = this.handPoses.get(handIndex);
     const cardId = this.duel.state.players[HUMAN].hand[handIndex];
     if (!view || !home || !cardId) {
