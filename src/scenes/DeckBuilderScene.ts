@@ -76,7 +76,7 @@ import { Dropdown, type DropdownOption } from '../ui/Dropdown';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, modalShell, pager, panel as themedPanel, registerSceneBackNavigation, themedButton, type ModalShell, type Pager, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, modalShell, pager, panel as themedPanel, registerSceneBackNavigation, sceneHasOpenModal, themedButton, type ModalShell, type Pager, type ThemedButton } from '../ui/themeWidgets';
 import {
   DARLINGS_RULES_COPY,
   activeVisibleSavedDeck,
@@ -282,6 +282,45 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.renderPool();
     });
     this.poolPager.container.setVisible(false);
+
+    // Wheel + arrow-key pagination (owner request 2026-08-18). Scene-level
+    // wheel and keyboard bypass ModalGuard (playbook trap), so both self-gate
+    // on open shells, the filter panel, and focused DOM inputs (search,
+    // rename). The wheel pages the surface under the pointer: pool grid on
+    // the left, the Cards view's deck rows on the right. Arrows page the pool.
+    const pagingBlocked = (): boolean => {
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return true;
+      return sceneHasOpenModal(this) || this.filterPanel !== null;
+    };
+    this.input.on('wheel', (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
+      // Horizontal trackpad pans emit dy === 0 — never read those as paging.
+      if (dy === 0 || pagingBlocked()) return;
+      const dir = dy > 0 ? 1 : -1;
+      if (p.x >= DECK_PANE_LAYOUT.left) {
+        if (this.deckPaneMode !== 'cards') return;
+        this.deckPage += dir; // renderDeckRows clamps to the real page count
+        this.renderDeck();
+        return;
+      }
+      this.turnPage(dir);
+    });
+    const onPagePrevious = (): void => {
+      if (!pagingBlocked()) this.turnPage(-1);
+    };
+    const onPageNext = (): void => {
+      if (!pagingBlocked()) this.turnPage(1);
+    };
+    this.input.keyboard?.on('keydown-LEFT', onPagePrevious);
+    this.input.keyboard?.on('keydown-RIGHT', onPageNext);
+    this.input.keyboard?.on('keydown-UP', onPagePrevious);
+    this.input.keyboard?.on('keydown-DOWN', onPageNext);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.off('keydown-LEFT', onPagePrevious);
+      this.input.keyboard?.off('keydown-RIGHT', onPageNext);
+      this.input.keyboard?.off('keydown-UP', onPagePrevious);
+      this.input.keyboard?.off('keydown-DOWN', onPageNext);
+    });
 
     this.status = this.add
       .text(width - 380, DECK_PANE_LAYOUT.summary.statusBottomY, '', {
