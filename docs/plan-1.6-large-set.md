@@ -129,9 +129,14 @@ frame, the precedent costing bands, and 45 mechanical exemplar slots;
 5. ~~Rarity/color skeleton~~ DERIVED: 245 = 122c/74r/23sr/16ssr/10ur,
    40 per mono color, 19 multicolor legends, 21 artifacts, 5 enemy-pair
    duals inside the common count, 34 Bastet creatures + 3 lords.
-6. Art-bible section drafted for the gold/lapis register (the creative
-   doc's art direction is the source; the art-bible entry itself is
-   still owed).
+6. ~~Art-bible section drafted for the gold/lapis register.~~ **DONE
+   2026-08-18: binding set register in art-bible/index.md §4a** (palette
+   with reserved heart-red, value floor, lighting doctrine,
+   blank-cartouche rule, per-mechanic composition, Bastet tells; the
+   three art-binding taste questions carried as OWNER-PENDING flags).
+   Companion drafts in art-bible/sands-of-the-duat-drafts.md (12 cast
+   entries + 5 dual landscapes + pack face, checker-excluded until the
+   card-data wave lands).
 7. ~~The Dark Tales companion-wave rider decided~~ **RATIFIED 2026-08-17:
    the ~60-card companion wave RIDES THIS TRAIN** — it answers its two
    documented balance debts (Midnight Storybook thin pool, R19 inversion
