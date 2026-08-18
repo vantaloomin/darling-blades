@@ -1,8 +1,9 @@
 /**
- * Generates real card art for the 93 non-creature SPELL prompt entries: the 85
+ * Generates real card art for the 100 non-creature SPELL prompt entries: the 85
  * primary entries (18 instants, 16 sorceries, 10 enchantments, 1 artifact, + 9
  * Ragnarök spells/runes, + 31 Gothic Monsters charms/rituals/enchantments/artifacts)
- * plus eight removal-answer records. Prompts live in docs/spell-art.md; the
+ * plus eight removal-answer records and the seven 1.6 returning-mechanics
+ * sprinkle spells. Prompts live in docs/spell-art.md; the
  * chatgpt-imagegen CLI is backed by the user's ChatGPT
  * subscription — see the `anthropic-skills:chatgpt-imagegen` skill), then
  * post-processes each image to the exact 640×800 WebP deliverable
@@ -110,6 +111,11 @@ const EXPECTED_IDS = [
   'in-cleanse-the-shrine', 'in-ram-the-gates', 'in-empty-fort-stratagem',
   'so-the-wilds-take-it-back', 'rg-yggdrasils-verdict', 'cf-bargain-unwound',
   'ac-recant-the-vow', 'gm-hunters-writ',
+  // 1.6 returning-mechanics sprinkle (7), added 2026-08-18: the wave's seven
+  // non-creature cards (its three creatures live in the per-set art bibles)
+  'cf-tithe-of-seasons', 'cf-salt-the-barrow', 'ac-second-muster',
+  'gm-retold-by-candlelight', 'so-echos-refrain', 'so-roadside-shrine',
+  'en-persephones-return',
 ] as const;
 
 /**

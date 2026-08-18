@@ -5,8 +5,8 @@
 This file is the **binding contract** for the art of the base set's **43 non-creature
 spell cards** — the 18 charms, 14 rituals, 10 enchantments, and the single
 non-creature artifact (`ar-imperial-jade-seal`) — plus the 9-card Ragnarök addendum,
-the 31-card Gothic Monsters section, and the 8-card removal answer cycle below, for
-91 entries in all. The creature art-bible
+the 31-card Gothic Monsters section, the 8-card removal answer cycle, and the 7-card
+1.6 returning-mechanics sprinkle below, for 98 entries in all. The creature art-bible
 (`docs/art-bible/`) covers creatures, tokens, and the Construct creatures; it does
 **not** cover these cards, which otherwise render procedural placeholders. Every rule
 below is grounded in the source files named in the header comment. When this document
@@ -443,6 +443,37 @@ the standard suffix instead of a dash.
 
 ### Hunter's Writ — `gm-hunters-writ`
 - **Prompt:** A hunter's writ served by candlelight, a wax-sealed lodge writ held out at frame center flaring with a ring of white banishing light that unravels a cursed amulet into departing motes while warm restoring radiance settles over the hunter's silver-trimmed gauntlet, trophy-lined gothic lodge gloom behind, the writ and its seal utterly blank with no readable text anywhere, W palette `#f2e8cf` and `#c9a84c` with `#fffef2` sanction glow, crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+---
+
+## 1.6 returning-mechanics sprinkle (7)
+
+The sprinkle wave's seven non-creature cards (its three creatures live in the
+per-set creature bibles). Each shows the mechanic's moment per the binding
+rules above; the two Retell cards make the retelling visible, the two Skim
+cards keep the traded moment light, and the Empower pair shows the paid-more
+version of the effect.
+
+### Tithe of Seasons — `cf-tithe-of-seasons`
+- **Prompt:** A tithe of seasons paid in bloom, a fae orchard tree at frame center rushing through two springs at once, gold-green growth-light spiralling up its trunk as two glowing blossom-sprites unfurl from the lower branches, silver mist and a mushroom ring at the roots, G palette `#4fa06a` and `#123a22` with `#a9dcae` bloom glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Salt the Barrow — `cf-salt-the-barrow`
+- **Prompt:** A barrow mouth sown with salt, a gauntleted hand casting a crescent of white salt across a moonlit barrow threshold at frame center, the pale grave-lights beyond guttering out as cold blue wards seal over the stone, thorn hedges and silver mist crowding the edges, B palette `#5a3a70` and `#140d1c` with salt-white `#f4efe2` flare — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Second Muster — `ac-second-muster`
+- **Prompt:** The second muster answering her call, a chapel courtyard at dawn where two squire-spirits take armored form out of rising golden banner-light at frame center, a horn's echo rendered as rings of white radiance passing over the assembling line, every banner and pennant blank with no readable text anywhere, W holy palette `#f2e8cf` and `#c9a84c` with `#fffef2` rallying glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Retold by Candlelight — `gm-retold-by-candlelight`
+- **Prompt:** A ghost story retold by candlelight, a ring of guttering candles around an open storybook at frame center, violet-black story-smoke rising off the pages toward a listener's fading reflection in a dark parlor mirror, life-light draining down the smoke into the book, the pages and mirror utterly blank with no readable text anywhere, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` candle-edged gloom — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Echo's Refrain — `so-echos-refrain`
+- **Prompt:** An echo answering twice, a moonlit marble colonnade where a spoken question crosses the air as silver ripple-rings at frame center, the returning refrain arriving as a brighter second ring that parts a curtain of mist to reveal a glimpse of the road ahead, U palette `#4a90d9` and `#16294f` with `#a8d4f7` echo-light — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Roadside Shrine — `so-roadside-shrine`
+- **Prompt:** A roadside shrine repaying a traveler's coin, a small stone wayside shrine at frame center in morning light, one laid coin kindling a soft column of white blessing-light that settles over a resting traveler's shoulders like falling petals, the road bending away into hills behind, the shrine stones blank with no readable text anywhere, W palette `#f2e8cf` and `#c9a84c` with `#fffef2` blessing glow — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+### Persephone's Return — `en-persephones-return`
+- **Prompt:** The long return climbing into spring, a dark underworld stair at frame center rising from resin-dark depths toward a crown of blooming meadow light, six pomegranate seeds glowing faintly on the lowest step while barley and asphodel burst open along the upper stones, a queenly silhouette ascending mid-stair wrapped in violet-black and new green, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` underworld glow breaking into fresh spring green — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
 
 ---
 
