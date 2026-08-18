@@ -284,7 +284,18 @@ export class CardView extends Phaser.GameObjects.Container {
 
   setCard(
     card: CardDef | null,
-    opts: { fx?: CardFxLevel; variant?: CardVariant; fullArt?: boolean; landStyle?: string } = {},
+    opts: {
+      fx?: CardFxLevel;
+      variant?: CardVariant;
+      fullArt?: boolean;
+      landStyle?: string;
+      /**
+       * Render under a GeometryMask (the Atelier compare wipe): preFX and
+       * PostFX passes composite outside the stencil and paint black, so every
+       * shader treatment takes its TileSprite fallback instead.
+       */
+      maskSafe?: boolean;
+    } = {},
   ): this {
     this.clearFx();
     this.art.clearTint().setAlpha(1);
@@ -634,10 +645,10 @@ export class CardView extends Phaser.GameObjects.Container {
 
     const variant = opts.variant;
     if (variant && variant.frame !== 'white') {
-      this.applyFrameStyle(variant.frame, fx);
+      this.applyFrameStyle(variant.frame, fx, opts.maskSafe === true);
     } else if (card.rarity === 'r') {
       this.ring.setVisible(true).setTint(0xcdd7e8).setAlpha(0.9);
-      if (fx === 'full' && fxPolicy(this.scene).shine && this.ring.preFX) {
+      if (fx === 'full' && !opts.maskSafe && fxPolicy(this.scene).shine && this.ring.preFX) {
         this.shineFx = this.ring.preFX.addShine(0.35, 0.2, 5);
       }
       this.ring.resetPostPipeline();
@@ -648,14 +659,16 @@ export class CardView extends Phaser.GameObjects.Container {
       // never reads as a rainbow pull.
       this.ring.setVisible(true).setTint(RARITY_RING[card.rarity]).setAlpha(1);
       this.ring.resetPostPipeline();
-      if (fx === 'full' && fxPolicy(this.scene).shine && this.ring.preFX) {
+      if (fx === 'full' && !opts.maskSafe && fxPolicy(this.scene).shine && this.ring.preFX) {
         this.shineFx = this.ring.preFX.addShine(0.5, 0.25, 4);
       }
     }
 
     // Holo — a finish is per-copy (variant Axis C): no variant, no holo.
     if (fx === 'full' && variant && variant.holo !== 'none') {
-      this.holo = applyHolo(this.scene, this, this.art, variant.holo, artRect, FACE_RECT);
+      this.holo = applyHolo(this.scene, this, this.art, variant.holo, artRect, FACE_RECT, {
+        maskSafe: opts.maskSafe,
+      });
     }
     // Full art: the holo overlay covers the whole frame (not just the art
     // window), and applyHolo appends its objects last — so re-raise every
@@ -701,14 +714,16 @@ export class CardView extends Phaser.GameObjects.Container {
    * Reads at pack-reveal scale (~0.5) via the 13px ring and the face wash;
    * the wash texture has the art window cut out and sits below all texts.
    */
-  private applyFrameStyle(frame: Exclude<FrameStyle, 'white'>, fx: CardFxLevel): void {
+  private applyFrameStyle(frame: Exclude<FrameStyle, 'white'>, fx: CardFxLevel, maskSafe = false): void {
     const t = FRAME_TREATMENTS[frame];
     if (t.wash !== null) {
       this.frameTint.setVisible(true).setTint(t.wash).setAlpha(t.washAlpha);
     }
     this.ring.setVisible(true).setAlpha(1);
     if (t.rainbow) {
-      if (fx !== 'none' && fxPolicy(this.scene).iridescence) {
+      // maskSafe: the mode-0 ring shader is a PostFX pass and paints black
+      // under a GeometryMask; the hue-cycle re-tint below is mask-compatible.
+      if (fx !== 'none' && !maskSafe && fxPolicy(this.scene).iridescence) {
         // animated RGB cycle — the existing mode-0 border ring shader
         this.ring.setTint(0xffffff);
         this.ring.setPostPipeline(IridescencePostFX);
@@ -734,7 +749,7 @@ export class CardView extends Phaser.GameObjects.Container {
     } else if (t.ring !== null) {
       this.ring.setTint(t.ring);
       // gold's metallic luster: a shine sweep along the ring
-      if (t.luster && fx === 'full' && fxPolicy(this.scene).shine && this.ring.preFX) {
+      if (t.luster && fx === 'full' && !maskSafe && fxPolicy(this.scene).shine && this.ring.preFX) {
         this.shineFx = this.ring.preFX.addShine(0.5, 0.25, 4);
       }
     }

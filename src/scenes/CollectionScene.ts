@@ -815,7 +815,15 @@ export class CollectionScene extends Phaser.Scene {
         comparisonVariant = previous;
         comparisonActive = true;
         compareView
-          .setCard(d, { fx: 'full', variant: previous, fullArt: previous.fullArt })
+          .setCard(d, {
+            fx: 'full',
+            variant: previous,
+            fullArt: previous.fullArt,
+            // Under the wipe's GeometryMask, preFX/PostFX passes paint black
+            // (owner repro 2026-08-18); tile fallbacks render identically
+            // enough for a side-by-side and survive the stencil.
+            maskSafe: true,
+          })
           .setVisible(true);
         compareLeftLabel.setText(`A · ${variantLabel(previous)}`).setVisible(true);
         compareRightLabel.setText(`B · ${variantLabel(next)}`).setVisible(true);
