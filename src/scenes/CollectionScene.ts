@@ -537,7 +537,17 @@ export class CollectionScene extends Phaser.Scene {
     const c = shell.container;
     const dim = shell.dim;
     const openedAt = this.time.now;
+    // A shard/craft hold rebuilds this overlay while the pointer is still
+    // physically down; the eventual release would land on the fresh dim and
+    // close the menu the player just acted in (owner finding 2026-08-18).
+    // That release belongs to the hold, so the dim swallows exactly one
+    // pointerup when it was built under an already-held pointer.
+    let swallowHeldRelease = this.input.activePointer?.isDown === true;
     dim.on('pointerup', () => {
+      if (swallowHeldRelease) {
+        swallowHeldRelease = false;
+        return;
+      }
       if (this.time.now - openedAt < INSPECT_CLOSE_LOCK_MS) return; // swallow double-click flash
       this.closeInspect();
     });
