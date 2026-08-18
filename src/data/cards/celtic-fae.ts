@@ -246,7 +246,7 @@ export const CELTIC_FAE = [
   },
 
   // =========================================================================
-  // COMMON (40)
+  // COMMON (42)
   // =========================================================================
   fae('cf-fae-ring-initiate', 'Fae-Ring Initiate', 'Adept', {
     cost: cost(0, 'U'), colors: ['U'], attack: 1, defense: 2, abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
@@ -449,5 +449,22 @@ export const CELTIC_FAE = [
     id: 'cf-bargain-unwound', name: 'Bargain Unwound', types: ['charm'], subtypes: [], cost: cost(1, 'U'), colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'recall', to: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'The fae read the fine print, then return the whole contract with edits.',
+  },
+  // Returning-mechanics sprinkle (1.6): Empower and Skim visit the Silver
+  // Veil. Base rates sit a notch above Nurture/Cold-Iron Nail on purpose so
+  // neither shipped card is dominated; the mechanic is the payoff.
+  {
+    id: 'cf-tithe-of-seasons', name: 'Tithe of Seasons', types: ['ritual'], subtypes: [],
+    cost: cost(2, 'G'), colors: ['G'],
+    abilities: [{ when: 'spell', targets: [{ what: 'yourCreature' }], ops: [{ op: 'addCounters', n: 2, to: 'target' }] }],
+    empower: { cost: cost(2, 'G'), ops: [{ op: 'createToken', token: 'tok-bloom', count: 2 }] },
+    rarity: 'c', flavor: 'The court advances spring twice, then bills the orchard for both.',
+  },
+  {
+    id: 'cf-salt-the-barrow', name: 'Salt the Barrow', types: ['charm'], subtypes: [],
+    cost: cost(0, 'B'), colors: ['B'],
+    abilities: [{ when: 'spell', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }],
+    skim: { cost: cost(1) },
+    rarity: 'c', flavor: 'Salted ground remembers nothing, which is exactly the point.',
   },
 ] satisfies readonly CardDef[];

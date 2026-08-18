@@ -169,6 +169,21 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Rarity ambition:** Uncommon — one figure with charge motion and a single breaking element.
 - **Prompt:** Genderbent Wei Yan mid-charge in dark green brigandine with ivory bone-plate shoulders and torn jade sash, glaive lowered to gore through a splintering palisade, snarling forward grin, low warm dust key with cool glaive rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
+### Twin-Willow Sword Dancer — `tk-shu-sword-dancer`
+- **Card facts:** {2}{G} · G · 2/3 · twinBlades · r · holo: auto:sheen
+- **Character & source:** An original Shu sword dancer drilled in the paired-willow form; mechanically a twin-strike duelist who lands the second cut before the guard resets.
+- **Personality / mood:** "Two willow blades, one lesson: the second cut arrives unannounced." Composed, precise, faintly amused.
+- **Pose & composition:** Mid-turn between the first cut and the second, both slim blades visible on one flowing arc; face ≈ y 320, eye-line ≈ y 300–360. One environmental element: willow fronds tracing the same arc as the blades.
+- **Costume & attire:** Layered jade-green dancer's silks over light lamellar, willow-leaf sash, hair in a low ribboned tail.
+- **Palette:** G palette (`#4fa06a` → `#123a22`, accent `#a9dcae`) kept airy; pale jade silks against deep grove greens.
+- **Lighting:** Soft grove-filtered key; a thin steel glint rim on both blades — one key, one rim.
+- **Expression:** Calm half-smile, eyes already on where the guard will not be.
+- **Props / weapon:** Two slim willow-leaf sabers, one high one low, on the same arc.
+- **Background:** A willow courtyard at drill hour, petals mid-air, one story element.
+- **Holo interaction:** Sheen — let the sweep travel the silk and the twin blades so the finish reads as the second cut's light.
+- **Rarity ambition:** Uncommon — one figure with clear paired-blade motion and a single environmental echo.
+- **Prompt:** An original Shu sword dancer mid-turn in jade-green dancer's silks over light lamellar, two slim willow-leaf sabers tracing one flowing arc, calm half-smile, willow courtyard with petals mid-air, soft grove-filtered key with thin steel rim on both blades — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
 ### Ma Chao, Splendid Justicar — `tk-shu-machao`
 - **Card facts:** {2}{W}{W} · W · 4/3 · c · holo: none
 - **Character & source:** Genderbent Ma Chao, the "Splendid" northwestern cavalry star; a clean 4/3 beater. Justice at a gallop.

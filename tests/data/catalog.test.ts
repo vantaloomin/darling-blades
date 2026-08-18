@@ -198,13 +198,17 @@ describe('catalog integrity', () => {
       (card) => card.set === 'base' && !card.token && !(card.supertypes ?? []).includes('basic'),
     );
     // W5 adds Yang Huiyu (r) and Sable (sr): 207 -> 209; r 66 -> 67; sr 13 -> 14.
-    expect(base).toHaveLength(209);
+    // The 1.6 returning-mechanics sprinkle adds Echo's Refrain (c, Retell),
+    // Roadside Shrine (c, Skim), Twin-Willow Sword Dancer (r, twinBlades),
+    // and Persephone's Return (r, Quest): 209 -> 213; c 109 -> 111; r 67 -> 69.
+    expect(base).toHaveLength(213);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
       rarity,
       base.filter((card) => card.rarity === rarity).length,
-    ]))).toEqual({ c: 109, r: 67, sr: 14, ssr: 11, ur: 8 });
-    // W5's four tribal cards move the collectible catalog 783 -> 787.
-    expect(ALL_CARDS).toHaveLength(787);
+    ]))).toEqual({ c: 111, r: 69, sr: 14, ssr: 11, ur: 8 });
+    // W5's four tribal cards move the collectible catalog 783 -> 787; the
+    // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797.
+    expect(ALL_CARDS).toHaveLength(797);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -236,14 +240,15 @@ describe('catalog integrity', () => {
     expect(count('sr')).toBeGreaterThanOrEqual(1);
   });
 
-  it('the Gothic Monsters set has its specified 82-card rarity mix', () => {
+  it('the Gothic Monsters set has its specified 83-card rarity mix', () => {
     const gm = ALL_CARDS.filter(
       (c) => c.set === 'gothic-monsters' && !c.token && !(c.supertypes ?? []).includes('basic'),
     );
-    // W5 adds the rare Porcelain Governess: 81 -> 82 and r 24 -> 25.
-    expect(gm.length).toBe(82);
+    // W5 adds the rare Porcelain Governess: 81 -> 82 and r 24 -> 25; the 1.6
+    // sprinkle adds the common Retold by Candlelight (Retell): 82 -> 83.
+    expect(gm.length).toBe(83);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((r) => [r, gm.filter((c) => c.rarity === r).length]))).toEqual({
-      c: 41,
+      c: 42,
       r: 25,
       sr: 7,
       ssr: 5,

@@ -152,7 +152,7 @@ export const ARTHURIAN_COURT = [
   }),
 
   // =========================================================================
-  // RARE (24)
+  // RARE (25)
   // =========================================================================
   creature('ac-camelot-banneret', 'Camelot Banneret', ['Knight', 'Soldier'], {
     cost: cost(2, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['sentinel'],
@@ -304,8 +304,15 @@ export const ARTHURIAN_COURT = [
     flavor: 'The shore appears only for those willing to leave it.',
   },
 
+  // Returning-mechanics sprinkle (1.6): twinBlades visits the court. Band
+  // per the shipped Ragnarök carriers: attack stays at printed mv minus one.
+  creature('ac-paired-blade-errant', 'Paired-Blade Errant', ['Knight', 'Errant'], {
+    cost: cost(3, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['twinBlades'],
+    rarity: 'r', flavor: 'One blade for the vow, one for the road home.',
+  }),
+
   // =========================================================================
-  // COMMON (40)
+  // COMMON (41)
   // =========================================================================
   creature('ac-novice-squire', 'Novice Squire', ['Squire'], {
     cost: cost(1, 'W'), colors: ['W'], attack: 2, defense: 2, keywords: ['sentinel'],
@@ -528,5 +535,15 @@ export const ARTHURIAN_COURT = [
     cost: cost(2, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'enchantment' }], ops: [{ op: 'sever', to: 'target' }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'She withdrew the vow, kept the moral high ground, and drew a card.',
+  },
+  // Returning-mechanics sprinkle (1.6): Empower visits the court. The base
+  // sits one mana above Muster the Militia so the shipped common stays the
+  // efficient pick; Empower is the late-game option.
+  {
+    id: 'ac-second-muster', name: 'Second Muster', types: ['ritual'], subtypes: [],
+    cost: cost(2, 'W'), colors: ['W'],
+    abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-squire', count: 2 }] }],
+    empower: { cost: cost(2, 'W'), ops: [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }] },
+    rarity: 'c', flavor: 'The first muster answers the horn. The second answers her.',
   },
 ] satisfies readonly CardDef[];

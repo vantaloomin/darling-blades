@@ -482,6 +482,28 @@ the same card id inside a pack while the tier's pool allows it. This is why the
 catalog test requires every tier's booster-eligible pool to be non-empty and
 the `ur` pool to hold at least 4 cards.
 
+## Returning named mechanics — every set reprises a few
+
+**Owner policy (2026-07-31):** every future set carries **2-3 returning named
+mechanics at low rarity** (c/r), the way real expansions reprint returning
+keywords. A named mechanic that lives in exactly one set reads as a gimmick;
+a couple of low-rarity carriers in later sets keep it circulating in draft
+pools and collections without diluting the new set's identity.
+
+The **1.6 returning-mechanics sprinkle** (2026-08-18) applied this
+retroactively as a one-time data-only wave: ten low-rarity cards spread
+Empower, twinBlades, Skim, Retell, Quests, and Champion Awakening into sets
+beyond their home set (base, Ragnarök, Silver Veil, Grail Oath, Nocturne
+Manor). Yokai Nights was left out (newest set, and its spec-row grammar has
+no field syntax for the visiting mechanics); Dark Tales was left out because
+its ~60-card companion wave is the designated retrofit pilot.
+
+When adding a returning-mechanic card, cost it against the mechanic's home-set
+band (see the shipped carriers), and check `blades-db dupes`/`dominated`
+against same-effect cards in other sets — the sprinkle deliberately prices
+base effects a notch above the shipped efficient version so no shipped card
+is dominated; the mechanic is the payoff.
+
 ## Expansion achievement pass
 
 When a new expansion launches, it should also ship with achievements sized to
