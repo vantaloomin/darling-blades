@@ -23,18 +23,21 @@ export function offeredBuilderFormats(
     : [...ALL_BUILDER_FORMATS];
 }
 
-/** Darlings is an identity tab, not a conversion offer for other deck formats. */
-export function visibleBuilderFormatTabs(
-  offered: readonly BuilderFormat[],
-  savedFormat: SavedDeck['format'] | null | undefined,
-): BuilderFormat[] {
-  return offered.filter((format) => format !== 'darlings' || savedFormat === 'darlings');
+/**
+ * Every offered format is a live conversion tab. The former identity-tab rule
+ * (Darlings visible only on Darlings decks, 2026-08-17) made conversion
+ * one-way: switching a Darlings deck to Warchest deleted the only way back.
+ * Owner reversal 2026-08-18: the Format row offers both directions, and the
+ * highlighted tab doubles as the deck's format indicator while editing.
+ */
+export function visibleBuilderFormatTabs(offered: readonly BuilderFormat[]): BuilderFormat[] {
+  return [...offered];
 }
 
-/** Warchest dedicates the right-panel body to its ten land selectors. */
-export function showsSpellListInDeckPanel(format: BuilderFormat): boolean {
-  return format !== 'warchest';
-}
+// showsSpellListInDeckPanel was deleted 2026-08-18: Warchest's land-only rule
+// (owner, 2026-08-17) moved into the pane's Warchest view when the
+// Cards / Warchest toggle landed, so every format's Cards view now shows the
+// editable spell list and the gate is the pane mode alone.
 
 /** Compact deterministic copy; the picker shows the full land name on tap. */
 export function reserveLandChipLabel(slot: number, name: string, maxCharacters = 10): string {

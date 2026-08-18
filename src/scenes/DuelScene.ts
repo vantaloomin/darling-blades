@@ -3354,6 +3354,9 @@ export class DuelScene extends Phaser.Scene {
     if (this.isReserveDuel()) this.syncReservePiles();
     this.syncDarlingZones();
     this.syncHand();
+    // Target legality is reactive state. Re-arm both portrait Zones after the
+    // later-created board/hand input surfaces so a legal face wins hit tests.
+    this.syncFaceTargeting();
     this.syncButton();
     this.drawArrows();
     this.syncOverlay();
