@@ -1,0 +1,80 @@
+/** Phaser-free state and geometry for the Deck Builder's right-pane views. */
+
+export type DeckPaneMode = 'cards' | 'warchest';
+
+export interface DeckPaneToggleState {
+  mode: DeckPaneMode;
+  cardsSelected: boolean;
+  warchestSelected: boolean;
+  warchestWarning: boolean;
+  warchestLabel: 'Warchest' | 'Warchest ⚠';
+}
+
+export const DECK_PANE_LAYOUT = {
+  left: 900,
+  right: 1260,
+  toggle: {
+    labelX: 900,
+    cardsX: 1052,
+    warchestX: 1182,
+    y: 112,
+    minWidth: 116,
+  },
+  content: {
+    top: 148,
+    bottom: 616,
+  },
+  warchest: {
+    headingY: 170,
+    countY: 194,
+    validationY: 218,
+    slotFirstX: 992,
+    slotFirstY: 266,
+    slotPitchX: 176,
+    slotPitchY: 47,
+    slotColumns: 2,
+    slotWidth: 168,
+    slotLabelWidth: 150,
+    rulesTop: 506,
+    rulesWidth: 336,
+  },
+} as const;
+
+export function defaultDeckPaneMode(): DeckPaneMode {
+  return 'cards';
+}
+
+export function toggleDeckPaneMode(mode: DeckPaneMode): DeckPaneMode {
+  return mode === 'cards' ? 'warchest' : 'cards';
+}
+
+/** Constructed has no Warchest view, so stale state is coerced safely. */
+export function resolveDeckPaneMode(mode: DeckPaneMode, hasWarchest: boolean): DeckPaneMode {
+  return hasWarchest ? mode : 'cards';
+}
+
+export function deckPaneToggleState(
+  mode: DeckPaneMode,
+  reserveIssueCount: number,
+): DeckPaneToggleState {
+  const warchestWarning = reserveIssueCount > 0;
+  return {
+    mode,
+    cardsSelected: mode === 'cards',
+    warchestSelected: mode === 'warchest',
+    warchestWarning,
+    warchestLabel: warchestWarning ? 'Warchest ⚠' : 'Warchest',
+  };
+}
+
+export function warchestSlotPosition(index: number): { x: number; y: number } {
+  const slot = DECK_PANE_LAYOUT.warchest;
+  return {
+    x: slot.slotFirstX + (index % slot.slotColumns) * slot.slotPitchX,
+    y: slot.slotFirstY + Math.floor(index / slot.slotColumns) * slot.slotPitchY,
+  };
+}
+
+export function warchestSlotLabel(index: number, name: string): string {
+  return `${index + 1}. ${name}`;
+}

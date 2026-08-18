@@ -62,6 +62,15 @@ import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, PIE_COLORS } from '../ui/deckStats';
+import {
+  DECK_PANE_LAYOUT,
+  deckPaneToggleState,
+  defaultDeckPaneMode,
+  resolveDeckPaneMode,
+  warchestSlotLabel,
+  warchestSlotPosition,
+  type DeckPaneMode,
+} from '../ui/deckPanePresentation';
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
@@ -80,7 +89,6 @@ import {
   gridPosition,
   isDeckBuilderDirty,
   offeredBuilderFormats,
-  reserveLandChipLabel,
   showsSpellListInDeckPanel,
   type BuilderFormat,
   visibleBuilderFormatTabs,
@@ -120,7 +128,6 @@ const PANEL_RIGHT_X = 1260;
 const DECK_NAME_MAX_LENGTH = 24;
 const YOKAI_NIGHTS_SET = 'yokai-nights' as const;
 const DARLING_PAGE_SIZE = 6;
-const RESERVE_COLUMNS = 2;
 
 interface DeckHeroDisplay {
   name: string;
@@ -160,6 +167,7 @@ export class DeckBuilderScene extends Phaser.Scene {
   private filterState: CollectionFilterState = { ...defaultFilterState(), ownedOnly: true };
   private deckCodeMessage = '';
   private landReserve: string[] = [];
+  private deckPaneMode: DeckPaneMode = defaultDeckPaneMode();
   /** Captured at create() so a local dev flip applies when a scene is reopened. */
   private reserveFormatsEnabled = false;
   private classicRetired = false;
@@ -191,6 +199,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.workingDeckId = null;
     this.page = 0;
     this.deckPage = 0;
+    this.deckPaneMode = defaultDeckPaneMode();
     this.filterState = { ...defaultFilterState(), ownedOnly: true };
     this.deckCodeMessage = '';
     this.touch = isTouchDevice();
@@ -997,6 +1006,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.landReserve = switchDeckFormat(active, format);
     Services.save.flush();
     this.deckPage = 0;
+    this.deckPaneMode = defaultDeckPaneMode();
     this.renderPool();
     this.renderDeck();
     if (format === 'darlings') this.openDarlingsFormat();
@@ -1210,56 +1220,95 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
   }
 
-  /** Render the reserve block below the measured rules copy and return its bottom edge. */
-  private renderReservePanel(x0: number, topY: number): number {
+  private renderDeckPaneToggle(reserveIssueCount: number): void {
+    const layout = DECK_PANE_LAYOUT.toggle;
+    const state = deckPaneToggleState(this.deckPaneMode, reserveIssueCount);
+    this.rightPane.push(
+      this.add.text(layout.labelX, layout.y, 'View', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.muted,
+      }).setOrigin(0, 0.5),
+    );
+    const cards = themedButton(this, layout.cardsX, layout.y, 'Cards', {
+      variant: state.cardsSelected ? 'primary' : 'ghost',
+      size: 'sm',
+      minWidth: layout.minWidth,
+      onTap: () => {
+        this.deckPaneMode = 'cards';
+        this.renderDeck();
+      },
+    });
+    const warchest = themedButton(this, layout.warchestX, layout.y, state.warchestLabel, {
+      variant: state.warchestSelected ? 'primary' : state.warchestWarning ? 'danger' : 'ghost',
+      size: 'sm',
+      minWidth: layout.minWidth,
+      onTap: () => {
+        this.deckPaneMode = 'warchest';
+        this.renderDeck();
+      },
+    });
+    this.rightPane.push(cards.container, warchest.container);
+  }
+
+  /** Full-width reserve workspace below the Cards / Warchest toggle. */
+  private renderReservePanel(format: BuilderFormat): void {
+    const layout = DECK_PANE_LAYOUT;
+    const reserve = layout.warchest;
     const panel = this.add.container(0, 0);
-    const panelX = x0 + 188;
-    const errorY = topY + 190;
     const reserveIssues = validateLandReserve(CARD_DB, Services.save.data, this.landReserve);
-    const error = this.add.text(panelX + 10, errorY, reserveIssues[0]?.message ?? 'Warchest ready.', {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.micro}px`,
-      color: reserveIssues.length > 0 ? theme.colors.danger : theme.colors.success,
-      wordWrap: { width: 150 },
-    }).setOrigin(0, 0);
-    const panelHeight = errorY - topY + error.height + 12;
-    panel.add(themedPanel(this, panelX, topY, 172, panelHeight, {
-      alpha: theme.alpha.panel,
-      radius: theme.radius.control,
-    }));
-    this.rightPane.push(panel);
-    panel.add(this.add.text(panelX + 10, topY + 14, 'Warchest Reserves', {
+    panel.add(themedPanel(
+      this,
+      layout.left,
+      layout.content.top,
+      layout.right - layout.left,
+      layout.content.bottom - layout.content.top,
+      { alpha: theme.alpha.panel, radius: theme.radius.control },
+    ));
+    panel.add(this.add.text(layout.left + 16, reserve.headingY, 'Warchest Reserves', {
       fontFamily: theme.fonts.display,
       fontSize: `${theme.type.label}px`,
       color: theme.colors.heading,
     }).setOrigin(0, 0.5));
     const duals = this.landReserve.filter((id) => CARD_DB[id] && isDualLand(CARD_DB[id])).length;
     panel.add(this.add.text(
-      panelX + 10,
-      topY + 35,
+      layout.left + 16,
+      reserve.countY,
       this.landReserve.length + '/' + LAND_RESERVE_SIZE + ' lands · ' + duals + '/' + MAX_DUAL_LANDS + ' duals',
       {
         fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.micro}px`,
+        fontSize: `${theme.type.caption}px`,
         color: duals > MAX_DUAL_LANDS ? theme.colors.danger : theme.colors.body,
       },
     ).setOrigin(0, 0.5));
+    panel.add(this.add.text(layout.left + 16, reserve.validationY, reserveIssues[0]?.message ?? 'Warchest ready.', {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.micro}px`,
+      color: reserveIssues.length > 0 ? theme.colors.danger : theme.colors.success,
+      wordWrap: { width: reserve.rulesWidth },
+    }).setOrigin(0, 0));
     for (let i = 0; i < LAND_RESERVE_SIZE; i++) {
-      const position = gridPosition(i, RESERVE_COLUMNS, panelX + 41, topY + 63, 82, 27);
+      const position = warchestSlotPosition(i);
       const card = this.landReserve[i] ? CARD_DB[this.landReserve[i]] : undefined;
       const name = card ? card.name : 'Choose land';
-      const button = themedButton(this, position.x, position.y, '', {
+      const button = themedButton(this, position.x, position.y, warchestSlotLabel(i, name), {
         variant: card ? 'ghost' : 'emphasis',
         size: 'sm',
-        minWidth: 78,
+        minWidth: reserve.slotWidth,
         onTap: () => this.showReserveLandPicker(i),
       });
-      button.label.setText(reserveLandChipLabel(i + 1, name));
-      this.fitTextToWidth(button.label, 62);
+      this.fitTextToWidth(button.label, reserve.slotLabelWidth);
       panel.add(button.container);
     }
-    panel.add(error);
-    return topY + panelHeight;
+    panel.add(this.add.text(layout.left + 12, reserve.rulesTop, formatRulesCopy(format) ?? '', {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.micro}px`,
+      color: theme.colors.body,
+      wordWrap: { width: reserve.rulesWidth },
+      lineSpacing: 2,
+    }).setOrigin(0, 0));
+    this.rightPane.push(panel);
   }
 
   /** ‹ N/M › deck-list pager, shared by both profiles; sits below the list. */
@@ -1306,6 +1355,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.deck = slots.cards;
       this.variantPins = slots.variantPins;
       this.landReserve = activeDeck?.landReserve ? [...activeDeck.landReserve] : [];
+      this.deckPaneMode = defaultDeckPaneMode();
       if (id !== previousId) this.savedDeckSnapshot = this.snapshotSavedDeck(activeDeck);
       this.deckCodeMessage = '';
       Services.save.flush();
@@ -2022,6 +2072,11 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const active = this.activeSavedDeck();
     const format = this.activeFormat();
+    const hasWarchest = format !== 'constructed';
+    this.deckPaneMode = resolveDeckPaneMode(this.deckPaneMode, hasWarchest);
+    const reserveIssues = hasWarchest
+      ? validateLandReserve(CARD_DB, Services.save.data, this.landReserve)
+      : [];
     const issues = this.currentIssues();
     const blocking = issues.filter((issue) => issue.kind === 'error');
     const repairingSavedDeck = active !== null && blocking.length > 0;
@@ -2060,6 +2115,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.rightPane.push(darlingSlot);
     }
     if (this.reserveFormatsEnabled) this.renderFormatSwitch(x0, format);
+    if (hasWarchest) this.renderDeckPaneToggle(reserveIssues.length);
     if (format === 'constructed' && this.touch) {
       const landStylesBtn = themedButton(this, x0 + 200, 32, 'Land styles', {
         variant: 'emphasis',
@@ -2079,18 +2135,9 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.rightPane.push(decksBtn.container);
 
     let deckListY0 = this.touch ? 270 : DESKTOP_DECK_Y0;
-    if (format !== 'constructed') {
-      const rules = this.add.text(x0, 98, formatRulesCopy(format) ?? '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: theme.type.micro + 'px',
-        color: theme.colors.body,
-        wordWrap: { width: 360 },
-        lineSpacing: 2,
-      }).setOrigin(0, 0);
-      this.rightPane.push(rules);
-      const reserveTop = Math.ceil(rules.getBounds().bottom) + 8;
-      const reserveBottom = this.renderReservePanel(x0, reserveTop);
-      deckListY0 = Math.ceil(reserveBottom) + 8;
+    if (hasWarchest) {
+      deckListY0 = DECK_PANE_LAYOUT.content.top + 8;
+      if (this.deckPaneMode === 'warchest') this.renderReservePanel(format);
     } else {
       // Touch restores the pre-feature five-row block. Desktop keeps the inline
       // preview and selector at a 52px pitch, leaving 8px between 44px targets.
@@ -2138,7 +2185,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       });
     }
 
-    if (showsSpellListInDeckPanel(format)) {
+    if (showsSpellListInDeckPanel(format) && this.deckPaneMode === 'cards') {
       const heroId = this.deckHeroId();
       this.renderDeckRows(x0, heroId, deckListY0);
       if (repairingSavedDeck) this.renderRepairBanner(x0, blocking);
