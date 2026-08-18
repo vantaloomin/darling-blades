@@ -38,6 +38,21 @@ export const DECK_PANE_LAYOUT = {
     rulesTop: 506,
     rulesWidth: 336,
   },
+  /**
+   * Desktop card rows. The name column ends clear of the right-aligned count
+   * chip (countRightX is the chip's RIGHT edge; countReserve is the widest
+   * chip plus its gap), so a long legend name ellipsizes instead of running
+   * under the count - the enforced-isolation test pins that clearance.
+   */
+  cards: {
+    rowPitch: 28,
+    starX: 900,
+    pinX: 924,
+    nameX: 944,
+    nameWidth: 250,
+    countRightX: 1244,
+    countReserve: 46,
+  },
 } as const;
 
 /**

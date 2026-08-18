@@ -19,6 +19,18 @@ describe('deck pane presentation', () => {
     expect(resolveDeckPaneMode('warchest', true)).toBe('warchest');
   });
 
+  it('keeps the name column clear of the right-aligned count chip', () => {
+    const cards = DECK_PANE_LAYOUT.cards;
+    // The widest chip and its gap live in countReserve; a full-width name
+    // must end before the chip's left edge so long legend names ellipsize
+    // instead of running under the count (owner finding 2026-08-18).
+    expect(cards.nameX + cards.nameWidth).toBeLessThanOrEqual(cards.countRightX - cards.countReserve);
+    // The chip's right edge respects the panel gutter.
+    expect(cards.countRightX).toBeLessThanOrEqual(DECK_PANE_LAYOUT.right - 16);
+    // Breathing room: the pitch clears the caption line height with margin.
+    expect(cards.rowPitch).toBeGreaterThanOrEqual(26);
+  });
+
   it('lifts the View row into the hidden format switch band and never above it', () => {
     // With the switch visible the toggle keeps its own band below it.
     expect(deckPaneOffsetY(true)).toBe(0);

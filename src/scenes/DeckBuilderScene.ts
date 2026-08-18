@@ -110,7 +110,7 @@ const TOUCH_DECK_ROWS = 5;
 const TOUCH_DECK_PITCH = 44;
 /** Desktop profile: denser tap-to-remove rows, same paging model (no hard clip). */
 const DESKTOP_DECK_ROWS = 6;
-const DESKTOP_DECK_PITCH = 22;
+const DESKTOP_DECK_PITCH = DECK_PANE_LAYOUT.cards.rowPitch;
 /**
  * Inline basics end at y=296; their 44px hit target ends at 318. The list
  * starts at 326, preserving the 8px group gap. Six 12px rows at 22px pitch
@@ -1994,19 +1994,23 @@ export class DeckBuilderScene extends Phaser.Scene {
         })
         .setOrigin(0, 0);
       const variant = d ? this.ownedVariantFor(entry.cardId) : undefined;
+      const cardsLayout = DECK_PANE_LAYOUT.cards;
+      // Names carry no mana-value suffix (owner, 2026-08-18): the curve chart
+      // owns costs, and the column stays clear of the right-aligned count.
       const row = this.add.text(
-        x0 + (this.touch ? 44 : 40),
+        this.touch ? x0 + 44 : cardsLayout.nameX,
         y,
-        d ? d.name + ' (' + manaValue(d.cost) + ')' : `Unavailable card: ${entry.cardId}`,
+        d ? d.name : `Unavailable card: ${entry.cardId}`,
         {
         fontFamily: theme.fonts.ui,
         fontSize: theme.type.caption + 'px',
         color: d ? theme.colors.body : theme.colors.danger,
         },
       );
+      if (!this.touch) this.fitTextToWidth(row, cardsLayout.nameWidth);
       const quantity = entry.quantity > 1
         ? this.add
-          .text(x0 + (this.touch ? 210 : 230), y, `×${entry.quantity}`, {
+          .text(this.touch ? x0 + 210 : cardsLayout.countRightX, y, `×${entry.quantity}`, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             fontStyle: theme.weight.w700,
@@ -2014,19 +2018,19 @@ export class DeckBuilderScene extends Phaser.Scene {
             backgroundColor: theme.colors.panelFill,
             padding: { x: 5, y: 1 },
           })
-          .setOrigin(0, 0)
+          .setOrigin(this.touch ? 0 : 1, 0)
         : null;
       if (!this.touch) {
         row.setInteractive({ useHandCursor: true });
-        inflateHitArea(row, 190, DESKTOP_DECK_PITCH);
+        inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH);
         if (d) this.zoom.attach(row, d, variant);
         row.on('pointerover', () => {
           row.setColor(theme.colors.danger);
-          inflateHitArea(row, 190, DESKTOP_DECK_PITCH);
+          inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH);
         });
         row.on('pointerout', () => {
           row.setColor(d ? theme.colors.body : theme.colors.danger);
-          inflateHitArea(row, 190, DESKTOP_DECK_PITCH);
+          inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH);
         });
         bindTapButton(this, row, (p) => this.removeCardAt(entry.firstIndex, p));
       }
