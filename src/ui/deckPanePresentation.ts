@@ -40,6 +40,15 @@ export const DECK_PANE_LAYOUT = {
   },
 } as const;
 
+/**
+ * The View row inherits the format switch's band (y 64) when that switch is
+ * hidden (single-format decks render no dead tab), and everything below rides
+ * the same shift so the pane has no empty band above the toggle.
+ */
+export function deckPaneOffsetY(formatSwitchVisible: boolean): number {
+  return formatSwitchVisible ? 0 : DECK_PANE_LAYOUT.toggle.y - 64;
+}
+
 export function defaultDeckPaneMode(): DeckPaneMode {
   return 'cards';
 }

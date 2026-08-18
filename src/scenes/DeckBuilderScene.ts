@@ -64,6 +64,7 @@ import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { computeDeckStats, PIE_COLORS } from '../ui/deckStats';
 import {
   DECK_PANE_LAYOUT,
+  deckPaneOffsetY,
   deckPaneToggleState,
   defaultDeckPaneMode,
   resolveDeckPaneMode,
@@ -1224,18 +1225,19 @@ export class DeckBuilderScene extends Phaser.Scene {
     });
   }
 
-  private renderDeckPaneToggle(reserveIssueCount: number): void {
+  private renderDeckPaneToggle(reserveIssueCount: number, lift = 0): void {
     const layout = DECK_PANE_LAYOUT.toggle;
+    const y = layout.y - lift;
     const state = deckPaneToggleState(this.deckPaneMode, reserveIssueCount);
     this.rightPane.push(
-      this.add.text(layout.labelX, layout.y, 'View', {
+      this.add.text(layout.labelX, y, 'View', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
         color: theme.colors.muted,
       }).setOrigin(0, 0.5),
     );
-    const cards = themedButton(this, layout.cardsX, layout.y, 'Cards', {
+    const cards = themedButton(this, layout.cardsX, y, 'Cards', {
       variant: state.cardsSelected ? 'primary' : 'ghost',
       size: 'sm',
       minWidth: layout.minWidth,
@@ -1244,7 +1246,7 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.renderDeck();
       },
     });
-    const warchest = themedButton(this, layout.warchestX, layout.y, state.warchestLabel, {
+    const warchest = themedButton(this, layout.warchestX, y, state.warchestLabel, {
       variant: state.warchestSelected ? 'primary' : state.warchestWarning ? 'danger' : 'ghost',
       size: 'sm',
       minWidth: layout.minWidth,
@@ -1257,17 +1259,19 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   /** Full-width reserve workspace below the Cards / Warchest toggle. */
-  private renderReservePanel(format: BuilderFormat): void {
+  private renderReservePanel(format: BuilderFormat, lift = 0): void {
     const layout = DECK_PANE_LAYOUT;
     const reserve = layout.warchest;
-    const panel = this.add.container(0, 0);
+    // The whole workspace rides up by `lift` when the format switch above it
+    // is hidden; the backing panel grows so its bottom edge stays pinned.
+    const panel = this.add.container(0, -lift);
     const reserveIssues = validateLandReserve(CARD_DB, Services.save.data, this.landReserve);
     panel.add(themedPanel(
       this,
       layout.left,
       layout.content.top,
       layout.right - layout.left,
-      layout.content.bottom - layout.content.top,
+      layout.content.bottom - layout.content.top + lift,
       { alpha: theme.alpha.panel, radius: theme.radius.control },
     ));
     panel.add(this.add.text(layout.left + 16, reserve.headingY, 'Warchest Reserves', {
@@ -2118,8 +2122,14 @@ export class DeckBuilderScene extends Phaser.Scene {
       inflateHitArea(darlingSlot, 74, 34);
       this.rightPane.push(darlingSlot);
     }
-    if (this.reserveFormatsEnabled) this.renderFormatSwitch(x0, format);
-    if (hasWarchest) this.renderDeckPaneToggle(reserveIssues.length);
+    const formatSwitchVisible = this.reserveFormatsEnabled &&
+      visibleBuilderFormatTabs(
+        offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired),
+        active?.format,
+      ).length >= 2;
+    if (formatSwitchVisible) this.renderFormatSwitch(x0, format);
+    const paneLift = hasWarchest ? deckPaneOffsetY(formatSwitchVisible) : 0;
+    if (hasWarchest) this.renderDeckPaneToggle(reserveIssues.length, paneLift);
     if (format === 'constructed' && this.touch) {
       const landStylesBtn = themedButton(this, x0 + 200, 32, 'Land styles', {
         variant: 'emphasis',
@@ -2140,8 +2150,8 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     let deckListY0 = this.touch ? 270 : DESKTOP_DECK_Y0;
     if (hasWarchest) {
-      deckListY0 = DECK_PANE_LAYOUT.content.top + 8;
-      if (this.deckPaneMode === 'warchest') this.renderReservePanel(format);
+      deckListY0 = DECK_PANE_LAYOUT.content.top + 8 - paneLift;
+      if (this.deckPaneMode === 'warchest') this.renderReservePanel(format, paneLift);
     } else {
       // Touch restores the pre-feature five-row block. Desktop keeps the inline
       // preview and selector at a 52px pitch, leaving 8px between 44px targets.

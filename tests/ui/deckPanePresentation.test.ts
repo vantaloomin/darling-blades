@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DECK_PANE_LAYOUT,
+  deckPaneOffsetY,
   deckPaneToggleState,
   defaultDeckPaneMode,
   resolveDeckPaneMode,
@@ -16,6 +17,15 @@ describe('deck pane presentation', () => {
     expect(toggleDeckPaneMode('warchest')).toBe('cards');
     expect(resolveDeckPaneMode('warchest', false)).toBe('cards');
     expect(resolveDeckPaneMode('warchest', true)).toBe('warchest');
+  });
+
+  it('lifts the View row into the hidden format switch band and never above it', () => {
+    // With the switch visible the toggle keeps its own band below it.
+    expect(deckPaneOffsetY(true)).toBe(0);
+    // Without it, the toggle inherits the switch's y 64 exactly: no dead band
+    // above the View row, and no collision with the y 32 title row.
+    expect(DECK_PANE_LAYOUT.toggle.y - deckPaneOffsetY(false)).toBe(64);
+    expect(DECK_PANE_LAYOUT.toggle.y - deckPaneOffsetY(false)).toBeGreaterThan(32 + 16);
   });
 
   it('propagates reserve warnings to the Warchest toggle', () => {
