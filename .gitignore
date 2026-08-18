@@ -74,3 +74,4 @@ docs/mtg-db-playbook.md
 
 # (src-tauri/target and src-tauri/gen/schemas are ignored by src-tauri/.gitignore)
 scripts/codex-dash/.cache/
+.venv-art/
