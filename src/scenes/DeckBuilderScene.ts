@@ -119,10 +119,11 @@ const DESKTOP_DECK_PITCH = DECK_PANE_LAYOUT.cards.rowPitch;
  */
 const DESKTOP_DECK_Y0 = 336;
 /** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
-const DECK_PAGER_Y = 492;
-const DECK_STATS_Y = 528;
+const DECK_PAGER_Y = DECK_PANE_LAYOUT.summary.pagerY;
+const DECK_STATS_Y = DECK_PANE_LAYOUT.summary.statsHeadingY;
 /** Last safe bottom for a row before the repair/stats region starts at y=514. */
-const DECK_ROW_TRACK_BOTTOM = 506;
+// Rows stop clear of the stats heading band (isolation pass 2026-08-18).
+const DECK_ROW_TRACK_BOTTOM = 502;
 /** Right-panel inner gutter: panel spans x 880–1280, content sits at 900–1260. */
 const PANEL_RIGHT_X = 1260;
 const DECK_NAME_MAX_LENGTH = 24;
@@ -283,7 +284,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.poolPager.container.setVisible(false);
 
     this.status = this.add
-      .text(width - 380, height - 64, '', {
+      .text(width - 380, DECK_PANE_LAYOUT.summary.statusBottomY, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.danger,
@@ -1871,11 +1872,13 @@ export class DeckBuilderScene extends Phaser.Scene {
         .setOrigin(0, 0.5),
     );
 
-    const baseY = DECK_STATS_Y + 50; // bar baseline (bars grow upward)
+    const baseY = DECK_PANE_LAYOUT.summary.barBaseY; // bar baseline (bars grow upward)
     const maxCount = Math.max(1, ...s.curve);
     s.curve.forEach((count, mv) => {
       const bx = x0 + 16 + mv * 22;
-      const h = count > 0 ? Math.max(3, Math.round((count / maxCount) * 30)) : 2;
+      const h = count > 0
+        ? Math.max(3, Math.round((count / maxCount) * DECK_PANE_LAYOUT.summary.barMaxHeight))
+        : 2;
       push(this.add.rectangle(bx, baseY, 15, h, count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
       if (count > 0) {
         push(
@@ -1899,26 +1902,24 @@ export class DeckBuilderScene extends Phaser.Scene {
       );
     });
 
+    // One merged summary line (counts + pips): the old second line is what
+    // used to collide with the status band below (isolation pass 2026-08-18).
     const other = s.nonlands - s.typeCounts.creature;
-    push(
-      this.add
-        .text(x0, baseY + 34, `${s.typeCounts.creature} creatures · ${s.lands} lands · ${other} other`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.body,
-        })
-        .setOrigin(0, 0.5),
-    );
     const pips = PIE_COLORS.filter((c) => s.colorPips[c] > 0)
       .map((c) => `${c}·${s.colorPips[c]}`)
-      .join('   ');
+      .join(' ');
     push(
       this.add
-        .text(x0, baseY + 56, pips || 'colorless', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.muted,
-        })
+        .text(
+          x0,
+          DECK_PANE_LAYOUT.summary.summaryLineY,
+          `${s.typeCounts.creature} creatures · ${s.lands} lands · ${other} other   ${pips || 'colorless'}`,
+          {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.body,
+          },
+        )
         .setOrigin(0, 0.5),
     );
   }
@@ -1973,9 +1974,9 @@ export class DeckBuilderScene extends Phaser.Scene {
       const d = CARD_DB[entry.cardId];
       const y = listY0 + i * rowPitch;
       const star = this.add
-        .text(x0, y, d ? heroId === entry.cardId ? '★' : '☆' : '!', {
+        .text(x0, y - 2, d ? heroId === entry.cardId ? '★' : '☆' : '!', {
           fontFamily: theme.fonts.ui,
-          fontSize: theme.type.label + 'px',
+          fontSize: DECK_PANE_LAYOUT.cards.starSize + 'px',
           fontStyle: '700',
           color: d ? heroId === entry.cardId ? theme.colors.goldHover : theme.colors.muted : theme.colors.danger,
         })
@@ -1989,7 +1990,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       const marker = this.add
         .text(x0 + (this.touch ? 27 : 24), y, hasPinnedDisplay ? '📌' : '', {
           fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
+          fontSize: `${DECK_PANE_LAYOUT.cards.pinSize}px`,
           color: theme.colors.gold,
         })
         .setOrigin(0, 0);
@@ -2219,6 +2220,10 @@ export class DeckBuilderScene extends Phaser.Scene {
       .slice(0, this.deckCodeMessage ? 1 : 2)
       .map((i) => `${i.kind === 'error' ? '✕' : '⚠'} ${i.message}`);
     const statusLines = this.deckCodeMessage ? [this.deckCodeMessage, ...issueLines] : issueLines;
+    // The stats block above the status band leaves room for exactly one
+    // status line; states without stats (repair, Warchest view) keep two.
+    const statsShown = this.deckPaneMode === 'cards' && !repairingSavedDeck;
+    this.status.setMaxLines(statsShown ? DECK_PANE_LAYOUT.summary.statusMaxLinesWithStats : 2);
     this.status.setColor(issues.some((i) => i.kind === 'error') ? theme.colors.danger : this.deckCodeMessage ? theme.colors.success : theme.colors.danger);
     this.status.setText(statusLines.join('\n'));
     const canSave = issues.every((i) => i.kind !== 'error');

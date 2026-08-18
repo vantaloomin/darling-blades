@@ -19,6 +19,26 @@ describe('deck pane presentation', () => {
     expect(resolveDeckPaneMode('warchest', true)).toBe('warchest');
   });
 
+  it('respects the isolation tiers through the bottom summary stack', () => {
+    const s = DECK_PANE_LAYOUT.summary;
+    const pagerBandBottom = s.pagerY + 22; // 44px hit band
+    const headingTop = s.statsHeadingY - 8;
+    // pager -> stats block: at least the within-super-group 12.
+    expect(headingTop - pagerBandBottom).toBeGreaterThanOrEqual(12);
+    // heading clears the tallest bar's count label (center barBaseY-h-8).
+    expect(s.barBaseY - s.barMaxHeight - 8 - 7).toBeGreaterThanOrEqual(s.statsHeadingY + 8);
+    // merged summary line sits below the mv labels (barBaseY+9) with margin.
+    expect(s.summaryLineY - 8).toBeGreaterThanOrEqual(s.barBaseY + 9 + 7);
+    // stats block -> one-line status band: a real between-groups gap.
+    const statusTop = s.statusBottomY - 16;
+    expect(statusTop - (s.summaryLineY + 8)).toBeGreaterThanOrEqual(16);
+    // status -> CTA row: within the action group.
+    expect(s.ctaY - 14 - s.statusBottomY).toBeGreaterThanOrEqual(8);
+    // icons sized for the row pitch without overflowing it.
+    expect(DECK_PANE_LAYOUT.cards.starSize).toBeLessThanOrEqual(DECK_PANE_LAYOUT.cards.rowPitch - 6);
+    expect(DECK_PANE_LAYOUT.cards.pinSize).toBeLessThanOrEqual(DECK_PANE_LAYOUT.cards.starSize);
+  });
+
   it('keeps the name column clear of the right-aligned count chip', () => {
     const cards = DECK_PANE_LAYOUT.cards;
     // The widest chip and its gap live in countReserve; a full-width name
