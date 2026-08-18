@@ -89,7 +89,6 @@ import {
   gridPosition,
   isDeckBuilderDirty,
   offeredBuilderFormats,
-  showsSpellListInDeckPanel,
   type BuilderFormat,
   visibleBuilderFormatTabs,
   visibleSavedDecks,
@@ -1209,7 +1208,12 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private renderFormatSwitch(x0: number, format: BuilderFormat): void {
     const offered = offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired);
-    visibleBuilderFormatTabs(offered, this.activeSavedDeck()?.format).forEach((choice, index) => {
+    const tabs = visibleBuilderFormatTabs(offered, this.activeSavedDeck()?.format);
+    // A one-option switch is dead UI and reads as a duplicate of the pane
+    // toggle's Warchest label (owner finding, 2026-08-18). Render only a
+    // genuine choice.
+    if (tabs.length < 2) return;
+    tabs.forEach((choice, index) => {
       const button = themedButton(this, x0 + 50 + index * 82, 64, formatLabel(choice), {
         variant: choice === format ? 'primary' : 'ghost',
         size: 'sm',
@@ -2185,7 +2189,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       });
     }
 
-    if (showsSpellListInDeckPanel(format) && this.deckPaneMode === 'cards') {
+    if (this.deckPaneMode === 'cards') {
       const heroId = this.deckHeroId();
       this.renderDeckRows(x0, heroId, deckListY0);
       if (repairingSavedDeck) this.renderRepairBanner(x0, blocking);

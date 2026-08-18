@@ -31,10 +31,10 @@ export function visibleBuilderFormatTabs(
   return offered.filter((format) => format !== 'darlings' || savedFormat === 'darlings');
 }
 
-/** Warchest dedicates the right-panel body to its ten land selectors. */
-export function showsSpellListInDeckPanel(format: BuilderFormat): boolean {
-  return format !== 'warchest';
-}
+// showsSpellListInDeckPanel was deleted 2026-08-18: Warchest's land-only rule
+// (owner, 2026-08-17) moved into the pane's Warchest view when the
+// Cards / Warchest toggle landed, so every format's Cards view now shows the
+// editable spell list and the gate is the pane mode alone.
 
 /** Compact deterministic copy; the picker shows the full land name on tap. */
 export function reserveLandChipLabel(slot: number, name: string, maxCharacters = 10): string {

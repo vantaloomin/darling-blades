@@ -19,7 +19,6 @@ import {
   isDeckBuilderDirty,
   offeredBuilderFormats,
   reserveLandChipLabel,
-  showsSpellListInDeckPanel,
   visibleBuilderFormatTabs,
   visibleSavedDecks,
 } from '../../src/ui/deckBuilderHelpers';
@@ -109,10 +108,7 @@ describe('deck builder helpers', () => {
     expect(visibleBuilderFormatTabs(offered, 'darlings')).toEqual(['constructed', 'darlings', 'warchest']);
   });
 
-  it('gives Warchest the land-only panel body and compacts long reserve names', () => {
-    expect(showsSpellListInDeckPanel('warchest')).toBe(false);
-    expect(showsSpellListInDeckPanel('darlings')).toBe(true);
-    expect(showsSpellListInDeckPanel('constructed')).toBe(true);
+  it('compacts long reserve names for the legacy chip label', () => {
     expect(reserveLandChipLabel(1, 'Red Cliffs Anchorage')).toBe('1 Red Cli…');
     expect(reserveLandChipLabel(10, 'Red Cliffs Anchorage')).toBe('10 Red Cl…');
     expect(reserveLandChipLabel(10, 'Red Cliffs Anchorage')).toHaveLength(10);
