@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/Game.ts, src/engine/types.ts, src/engine/events.ts, src/engine/view.ts, src/engine/resolve.ts, src/engine/phases.ts, src/engine/rng.ts, src/main.ts, src/scenes/DuelScene.ts, src/scenes/GauntletScene.ts, src/scenes/AchievementsScene.ts, src/meta/services.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/achievementCheckpoint.ts, src/meta/Limited.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/meta/deckRepair.ts, src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/Toast.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/CardZoomPreview.ts, src/ui/HistoryPanel.ts, src/ui/CombatFx.ts, src/ui/CommanderPortrait.ts, src/ui/PileView.ts, src/ui/handFan.ts, src/ui/handSort.ts, src/meta/deckFace.ts, src/data/attackFx.ts, src/ui/CardThumbCache.ts, docs/design-system.md, docs/plan-design-system-alignment.md, src/audio/, tests/helpers.ts, tests/meta/quests.test.ts, tests/meta/deckCode.test.ts, tests/meta/deckRepair.test.ts · last-verified: 2026-08-07
+<!-- source-of-truth: src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/DuelScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/ui/CardFrameFactory.ts, src/ui/CardView.ts, docs/design-system.md · last-verified: 2026-08-18 -->
      If you change those files, update this doc or re-verify the date. -->
 
 # Architecture
@@ -450,13 +450,13 @@ anywhere:
   Phaser registry or event bus. It holds a single `SaveManager`. Tests construct
   their own `SaveManager` with a fake storage instead.
 - **`SaveManager`** (`SaveManager.ts`) — one versioned JSON blob
-  (`SaveData`, `version: 29`) in `localStorage` under the key `darlingblades.save.v1`.
+  (`SaveData`, `version: 32`) in `localStorage` under the key `darlingblades.save.v1`.
   The key is a storage slot name, not the schema version — the version lives
   inside the blob, and the key deliberately never changes so older builds and
   newer builds read the same slot (the legacy `waifutcg.save.v1` key is still
   read once for save migration — see `src/meta/SaveManager.ts`). Writes are debounced (`touch()` → 250 ms →
   `flush()`); corrupt or missing data falls back to a fresh save. Any blob that
-  isn't `version: 29` routes through `migrate()`, which forward-migrates
+  isn't `version: 32` routes through `migrate()`, which forward-migrates
   **stepwise** so a v1 save walks the whole chain: v1 → v2 (gold / collection /
   decks / stats / settings preserved, `gauntlet` defaults spread in), then
   v2 → v3 (grows `settings.musicOn`, defaulting on), then v3 → v4 (seeds
@@ -482,7 +482,9 @@ anywhere:
   collection display pins), v25 → v26 (external Darlings plus tutorial/claim
   state), and v26 → v27 (`deckRepairNoticeAck`, a canonical flagged-deck-id
   acknowledgement snapshot), v27 -> v28 retires classic into Warchest, and
-  v28 -> v29 adds Limited Warchest assignments. Invalid decks and their `activeDeckId` are
+  v28 -> v29 adds Limited Warchest assignments, v29 -> v30 adds the
+  `settings.instantCast` preference, v30 -> v31 adds Trophy Hall pins, and
+  v31 -> v32 adds account cosmetics. Invalid decks and their `activeDeckId` are
   preserved for the Deck Builder repair flow; an unknown or garbage version
   starts fresh rather than crash. Storage is injected, so
   tests pass a plain object.
@@ -522,6 +524,16 @@ anywhere:
   Unlocks are recomputed from the save, while claiming is explicit and
   idempotent. `collectionFilter.ts` owns the shared completion math used by
   both achievements and the Collection header.
+- **Cosmetics** (`src/meta/cosmetics.ts`) — pure account-style catalog for
+  card backs and playmats. `CARD_BACKS` and `PLAYMATS` carry stable ids,
+  player-facing names and blurbs, unlock metadata, and playmat recolor data.
+  `SaveData.cosmetics` stores nullable equipped ids plus granted non-default
+  ids; v1 defaults are always owned without being listed. `Achievements` can
+  grant a known `cosmeticId` through the same idempotent claim path, which is
+  the Courts unlock seam. Card backs bake once per id as `cardback-<id>` while
+  the violet default retains the legacy `cardback` texture. Profile owns the
+  picker, PackOpening snapshots the equipped back, and DuelScene snapshots the
+  equipped playmat. These choices never enter economy, engine, or replay data.
 - **`deckColorIdentity`** (`deckColorIdentity.ts`) — pure nonland deck-color
   classifier used by tower-clear achievements. Mana-fixing lands are ignored so
   a mono-color spell suite remains mono-color even with dual lands.

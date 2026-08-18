@@ -4,11 +4,14 @@ import { ownedCount, ownedVariants } from './Collection';
 import { LIMITED_MATCHES } from './Limited';
 import type { SaveData } from './SaveManager';
 import { isPlainVariant, parseVariantKey } from './variants';
+import { cosmeticById } from './cosmetics';
 
 export type AchievementBucket = 'collection' | 'variants' | 'theme' | 'mastery' | 'economy';
 
 export interface AchievementReward {
   gold: number;
+  /** Future Courts rewards can grant one account-level cosmetic. */
+  cosmeticId?: string;
 }
 
 export interface AchievementProgress {
@@ -946,10 +949,20 @@ export function syncAchievements(save: SaveData, db: CardDb): string[] {
 export function claimAchievement(save: SaveData, id: string): ClaimResult {
   const def = DEFS_BY_ID.get(id);
   if (!def) return { ok: false, gold: 0, reason: 'unknown' };
-  if (!save.achievements.unlocked.includes(id)) return { ok: false, gold: 0, reason: 'locked' };
-  if (save.achievements.claimed.includes(id)) return { ok: false, gold: 0, reason: 'claimed' };
-  save.achievements.claimed.push(id);
+  return claimAchievementDefinition(save, def);
+}
+
+/** Definition-level seam keeps reward plumbing directly testable without
+ * adding a synthetic achievement to the shipped catalog. */
+export function claimAchievementDefinition(save: SaveData, def: AchievementDef): ClaimResult {
+  if (!save.achievements.unlocked.includes(def.id)) return { ok: false, gold: 0, reason: 'locked' };
+  if (save.achievements.claimed.includes(def.id)) return { ok: false, gold: 0, reason: 'claimed' };
+  save.achievements.claimed.push(def.id);
   save.gold += def.reward.gold;
+  const cosmeticId = def.reward.cosmeticId;
+  if (cosmeticId && cosmeticById(cosmeticId) && !save.cosmetics.owned.includes(cosmeticId)) {
+    save.cosmetics.owned.push(cosmeticId);
+  }
   return { ok: true, gold: def.reward.gold };
 }
 

@@ -6,6 +6,7 @@ import { grantDeckCards } from '../../src/meta/Economy';
 import { startDraftRun } from '../../src/meta/Limited';
 import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
+import { CARD_BACKS, PLAYMATS } from '../../src/meta/cosmetics';
 
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
@@ -650,5 +651,37 @@ describe('SaveData v31 migration (Trophy Hall showcase pins)', () => {
     storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
 
     expect(new SaveManager(storage, 456).data.achievements.pinned).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('SaveData v32 migration (account cosmetics)', () => {
+  it('old blob gets the default cosmetics and filters junk', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 31;
+    old.cosmetics = { cardBack: 'not-a-back', playmat: 'not-a-mat', owned: ['not-real'] };
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.cosmetics).toEqual({ cardBack: null, playmat: null, owned: [] });
+  });
+
+  it('current blob keeps its explicit cosmetic choices', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.cosmetics = {
+      cardBack: CARD_BACKS[1].id,
+      playmat: PLAYMATS[1].id,
+      owned: ['not-real'],
+    };
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    expect(new SaveManager(storage, 456).data.cosmetics).toEqual({
+      cardBack: CARD_BACKS[1].id,
+      playmat: PLAYMATS[1].id,
+      owned: [],
+    });
   });
 });
