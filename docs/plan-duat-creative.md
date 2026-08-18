@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.6-large-set.md, docs/plan-expansion-slate.md, docs/art-bible/index.md, docs/land-art.md, src/data/cards/yokai-nights.ts, src/data/cards/dark-tales.ts, src/data/cards/greek.ts, src/data/cards/duals.ts, src/data/setTitles.ts · last-verified: 2026-08-17 · creative doc - DRAFT, nothing here is implemented -->
+<!-- source-of-truth: docs/plan-1.6-large-set.md, docs/plan-expansion-slate.md, docs/art-bible/index.md, docs/land-art.md, src/data/cards/yokai-nights.ts, src/data/cards/dark-tales.ts, src/data/cards/greek.ts, src/data/cards/duals.ts, src/data/setTitles.ts · last-verified: 2026-08-18 · creative doc - DRAFT, nothing here is implemented -->
 
 # Sands of the Duat - creative foundation
 
@@ -78,10 +78,11 @@ Register notes for anyone writing copy in this set:
 
 ## 2. The cast
 
-Twelve named legends form the spine: seven real-myth deity names (Greek-set
-precedent), four Bastet warriors carrying original given names in the gacha
-register, one judge, one sun-barge helm, and two crossover hooks into shipped
-sets. Every character is an adult woman, per the global art rule.
+Thirteen named legends form the spine: eight real-myth deity names (Greek-set
+precedent; Anuket added by owner ruling 2026-08-18), four Bastet warriors
+carrying original given names in the gacha register, one judge, one sun-barge
+helm, and two crossover hooks into shipped sets. Every character is an adult
+woman, per the global art rule.
 
 Mechanic affinity names which mechanic the character HEADLINES, not the only
 one she may carry.
@@ -203,9 +204,10 @@ tells the tale as a scout who wandered off after mushrooms. Kesi has heard the
 Beastkin version and finds it insulting in a way she enjoys.
 
 Crossover target: `bk-nekomata-scout` ("Nine lives, one job: find the good
-mushrooms."). The Bastet and the Beastkin nekomata are the same lineage
-separated by one crossing. Art must keep the Nekomata species sheet's ear,
-tail, and pupil rules so the claim holds up visually.
+mushrooms."). RULED 2026-08-18: the one-lineage claim is a RUMOR, not canon.
+It lives only in the competing stories the two peoples tell about each other,
+and no species sheet asserts it. Art still keeps the Nekomata species sheet's
+ear, tail, and pupil rules on Kesi so the rumor visibly might be true.
 
 Art brief: a lean Bastet duelist mid-turn with both knives already through the
 guard, tail counterweighting the pivot, a Lower City alley of gold-lit
@@ -253,18 +255,33 @@ Art brief: a ferrywoman poling a reed skiff along a seam where warm gold water
 meets cold grey water, gold-lit on one cheek and grey-lit on the other, pale
 asphodel visible on the far bank.
 
+### 13. Anuket, Who Runs the Cataracts
+
+Colors: **U** · Headlines: **Retell** + the Book of the Two Ways ·
+Rarity intent: UR (the mono-U face; added by owner ruling 2026-08-18)
+
+She is the fast water between the gates: every channel the river has ever
+cut is a route she still remembers, and she runs them all at speed. The
+Book of the Two Ways records one river. She has counted more.
+
+Art brief: a dark-skinned river goddess running the white water of a
+cataract as if it were a stair, reed-feather crown swept back, a fanned
+chart case at her hip, spray thrown gold by barge light on one side and
+lapis by deep water on the other.
+
 ### Cast coverage check
 
 | Requirement | Covered by |
 | --- | --- |
-| Underworld deities, real-myth names | Bastet, Anubis, Osiris, Ammit, Neith, Ra, Renenutet (7) |
+| Underworld deities, real-myth names | Bastet, Anubis, Osiris, Ammit, Neith, Ra, Renenutet, Anuket (8) |
 | Bastet warriors, original given names | Nebet, Kesi, Bakhet, Khenut (4) |
 | Judge / weigher | Anubis |
 | Sun-barge figure | Ra |
 | Crossover hooks | Kesi (Beastkin), Sitra (Greek underworld) |
-| Color spread | W 1, U 0, B 1, R 1, G 1 mono; W/R, W/B, B/G, B/R, U/W, R/W, U/B gold |
+| Color spread | W 1, U 1, B 1, R 1, G 1 mono; W/R, W/B, B/G, B/R, U/W, R/W, U/B gold |
 
-Blue carries two legends of twelve. See Open Questions.
+Blue carries three legends of thirteen (Neith U/W, Sitra U/B, Anuket mono-U);
+resolved by the 2026-08-18 ruling that added Anuket.
 
 ---
 
@@ -673,11 +690,11 @@ Costume:
   narrow at the waist, with the tail providing the diagonal that breaks it.
   Bastet read as top-heavy; the necropolis officials read as columnar; the
   gods read as symmetrical. Three shapes, three factions, no overlap.
-- **The collar is the rank badge.** A broad usekh collar in alternating gold
-  and lapis rows, and **the number of lapis rows equals the rarity band**: one
-  row on commons, three on uncommons and rares, five on legends. It is a
-  free, consistent, art-side rarity read that costs no frame real estate and
-  survives the 119x86 battlefield crop.
+- **The collar is the tribe's signature.** A broad usekh collar in
+  alternating gold and lapis rows, sized to read at the 119x86 battlefield
+  crop. The row count is the artist's choice per composition (owner ruling
+  2026-08-18: the earlier lapis-row rarity badge is vetoed; no art-side
+  rarity binding).
 - **Body**: pleated linen shendyt or wrap-kilt over a bound chest wrap, bare
   midriff and forearms, copper or bronze bracers, leather harness for blades.
   Fanservice-forward but heroic per the global rule: the governing read is
@@ -759,26 +776,26 @@ the cards.
    the shop tile does not physically clip the title at the shipped tile width,
    and only revisit if it does.
 
-### Remaining for the owner
+### Resolved 2026-08-18 (the remaining six, all ruled)
 
-1. **Blue's legendary share.** Two of twelve legends are blue (Neith U/W,
-   Sitra U/B). The river is a strong blue identity but thin at the top. Add a
-   third blue legend, or accept blue as the set's quiet color?
-2. **Real geography in flavor.** Is "the Nile" allowed, or does everything
-   stay mythic ("the River", "the flood")? This doc keeps it mythic
-   throughout; one bank name uses "The River Does Not Negotiate".
-3. **Bastet and Beastkin nekomata as one lineage.** Kesi's crossover claims
-   they are the same species split by a crossing. That is a canon commitment
-   across two sets. Approve, soften to a rumor, or cut.
-4. **The reserved heart-red hue** costs the set a saturated red for
-   non-heart subjects, and red-identity cards must live on barge fire instead.
-   Strong call, worth a veto if it feels constraining.
-5. **The lapis-row rank badge** (one row common, three uncommon and rare,
-   five legendary) puts a rarity signal into the illustration itself. It is
-   invisible to players who do not notice it and very satisfying to those who
-   do, but it does bind the art to the rarity table, so a late rarity change
-   means a regen. Confirm before authoring.
-6. **Daylight share.** This doc proposes roughly a third of the set as hard
-   noon exteriors as the deliberate contrast after three night sets. If that
-   reads as too bright for a game whose UI is dark, the dial is the exterior
-   share, not the value floor.
+7. **Blue's legendary share.** RULED: **add one mono-U legend** to fill the
+   mono-U UR slot the 245-frame implies with a named face. She is cast
+   member 13, Anuket, Who Runs the Cataracts (section 2). The cast spine is
+   now thirteen legends.
+8. **Real geography in flavor.** RULED: **everything stays mythic**. "The
+   River", "the flood", "the delta", "the cataracts"; never "the Nile" and
+   never a modern place name. The doc already conforms.
+9. **Bastet and Beastkin nekomata as one lineage.** RULED: **softened to a
+   rumor**. The claim lives only in competing in-world stories; no species
+   sheet or canon document asserts it. Art keeps the Nekomata ear, tail,
+   and pupil match on Kesi so the rumor visibly might be true.
+10. **The reserved heart-red hue.** RULED: **kept as written**. `#c8253a`
+    appears only on the weighed heart, blood, and Ammit's mouth;
+    red-identity cards live on barge fire.
+11. **The lapis-row rank badge.** RULED: **vetoed**. Collars stay the
+    tribe's signature costume piece but the row count is the artist's
+    choice per composition; no rarity binding, no regen coupling to the
+    rarity table. Section 5d is updated accordingly.
+12. **Daylight share.** RULED: **roughly one third stands**. The dark-UI
+    worry is handled by the value floor and the 70 percent luminance band
+    rule, not by the exterior share.
