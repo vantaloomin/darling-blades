@@ -1210,16 +1210,25 @@ export class DeckBuilderScene extends Phaser.Scene {
 
   private renderFormatSwitch(x0: number, format: BuilderFormat): void {
     const offered = offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired);
-    const tabs = visibleBuilderFormatTabs(offered, this.activeSavedDeck()?.format);
+    const tabs = visibleBuilderFormatTabs(offered);
     // A one-option switch is dead UI and reads as a duplicate of the pane
     // toggle's Warchest label (owner finding, 2026-08-18). Render only a
     // genuine choice.
     if (tabs.length < 2) return;
+    const layout = DECK_PANE_LAYOUT.formatRow;
+    this.rightPane.push(
+      this.add.text(layout.labelX, layout.y, 'Format', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.muted,
+      }).setOrigin(0, 0.5),
+    );
     tabs.forEach((choice, index) => {
-      const button = themedButton(this, x0 + 50 + index * 82, 64, formatLabel(choice), {
+      const button = themedButton(this, layout.tabFirstX + index * layout.tabPitch, layout.y, formatLabel(choice), {
         variant: choice === format ? 'primary' : 'ghost',
         size: 'sm',
-        minWidth: 78,
+        minWidth: layout.tabMinWidth,
         onTap: () => this.selectFormat(choice),
       });
       this.rightPane.push(button.container);
@@ -1873,13 +1882,14 @@ export class DeckBuilderScene extends Phaser.Scene {
     );
 
     const baseY = DECK_PANE_LAYOUT.summary.barBaseY; // bar baseline (bars grow upward)
+    const curveLayout = DECK_PANE_LAYOUT.curve;
     const maxCount = Math.max(1, ...s.curve);
     s.curve.forEach((count, mv) => {
-      const bx = x0 + 16 + mv * 22;
+      const bx = curveLayout.firstX + mv * curveLayout.pitch;
       const h = count > 0
         ? Math.max(3, Math.round((count / maxCount) * DECK_PANE_LAYOUT.summary.barMaxHeight))
         : 2;
-      push(this.add.rectangle(bx, baseY, 15, h, count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
+      push(this.add.rectangle(bx, baseY, curveLayout.barWidth, h, count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
       if (count > 0) {
         push(
           this.add
@@ -1972,46 +1982,55 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.deckPage = Phaser.Math.Clamp(this.deckPage, 0, pages - 1);
     formatPageSlice(entries, this.deckPage, rows).forEach((entry, i) => {
       const d = CARD_DB[entry.cardId];
-      const y = listY0 + i * rowPitch;
+      // All row elements center on one line (design-system alignment rule:
+      // icons align to the optical center of the adjacent text).
+      const cy = listY0 + i * rowPitch + Math.round(rowPitch / 2) - 7;
       const star = this.add
-        .text(x0, y - 2, d ? heroId === entry.cardId ? '★' : '☆' : '!', {
+        .text(x0, cy, d ? heroId === entry.cardId ? '★' : '☆' : '!', {
           fontFamily: theme.fonts.ui,
           fontSize: DECK_PANE_LAYOUT.cards.starSize + 'px',
           fontStyle: '700',
           color: d ? heroId === entry.cardId ? theme.colors.goldHover : theme.colors.muted : theme.colors.danger,
         })
-        .setOrigin(0, 0);
+        .setOrigin(0, 0.5);
       if (d) {
         star.setInteractive({ useHandCursor: true });
         bindTapButton(this, star, () => this.toggleDeckHero(entry.cardId));
-        inflateHitArea(star, this.touch ? 44 : 34, this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH);
+        // 44 wide so a near-miss lands on the star (hero toggle), never on
+        // the remove row behind it (owner finding 2026-08-18).
+        inflateHitArea(star, 44, this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH);
       }
       const hasPinnedDisplay = d && this.hasPinnedDisplay(entry.cardId, entry.hasLegacyVariantPin);
       const marker = this.add
-        .text(x0 + (this.touch ? 27 : 24), y, hasPinnedDisplay ? '📌' : '', {
+        .text(x0 + (this.touch ? 27 : 24), cy, hasPinnedDisplay ? '📌' : '', {
           fontFamily: theme.fonts.ui,
           fontSize: `${DECK_PANE_LAYOUT.cards.pinSize}px`,
           color: theme.colors.gold,
         })
-        .setOrigin(0, 0);
+        .setOrigin(0, 0.5);
       const variant = d ? this.ownedVariantFor(entry.cardId) : undefined;
       const cardsLayout = DECK_PANE_LAYOUT.cards;
       // Names carry no mana-value suffix (owner, 2026-08-18): the curve chart
       // owns costs, and the column stays clear of the right-aligned count.
       const row = this.add.text(
         this.touch ? x0 + 44 : cardsLayout.nameX,
-        y,
+        cy,
         d ? d.name : `Unavailable card: ${entry.cardId}`,
         {
         fontFamily: theme.fonts.ui,
         fontSize: theme.type.caption + 'px',
         color: d ? theme.colors.body : theme.colors.danger,
         },
-      );
+      ).setOrigin(0, 0.5);
       if (!this.touch) this.fitTextToWidth(row, cardsLayout.nameWidth);
+      // The remove hit area grows RIGHTWARD from the name's left edge: a
+      // centered inflation on a short name would spread back over the star
+      // and pin columns, which is exactly how cards were removed by accident
+      // (owner finding 2026-08-18).
+      const rowHitBias = Math.max(0, cardsLayout.nameWidth - row.displayWidth) / 2;
       const quantity = entry.quantity > 1
         ? this.add
-          .text(this.touch ? x0 + 210 : cardsLayout.countRightX, y, `×${entry.quantity}`, {
+          .text(this.touch ? x0 + 210 : cardsLayout.countRightX, cy, `×${entry.quantity}`, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             fontStyle: theme.weight.w700,
@@ -2019,26 +2038,26 @@ export class DeckBuilderScene extends Phaser.Scene {
             backgroundColor: theme.colors.panelFill,
             padding: { x: 5, y: 1 },
           })
-          .setOrigin(this.touch ? 0 : 1, 0)
+          .setOrigin(this.touch ? 0 : 1, 0.5)
         : null;
       if (!this.touch) {
         row.setInteractive({ useHandCursor: true });
-        inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH);
+        inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH, { biasX: rowHitBias });
         if (d) this.zoom.attach(row, d, variant);
         row.on('pointerover', () => {
           row.setColor(theme.colors.danger);
-          inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH);
+          inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH, { biasX: rowHitBias });
         });
         row.on('pointerout', () => {
           row.setColor(d ? theme.colors.body : theme.colors.danger);
-          inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH);
+          inflateHitArea(row, cardsLayout.nameWidth, DESKTOP_DECK_PITCH, { biasX: rowHitBias });
         });
         bindTapButton(this, row, (p) => this.removeCardAt(entry.firstIndex, p));
       }
       this.rightPane.push(star, marker, row);
       if (quantity) this.rightPane.push(quantity);
       if (this.touch) {
-        const minus = themedButton(this, PANEL_RIGHT_X - 45, y + 8, '−', {
+        const minus = themedButton(this, PANEL_RIGHT_X - 45, cy + 1, '−', {
           variant: 'danger',
           size: 'sm',
           minWidth: 90,
@@ -2130,7 +2149,6 @@ export class DeckBuilderScene extends Phaser.Scene {
     const formatSwitchVisible = this.reserveFormatsEnabled &&
       visibleBuilderFormatTabs(
         offeredBuilderFormats(this.reserveFormatsEnabled, this.classicRetired),
-        active?.format,
       ).length >= 2;
     if (formatSwitchVisible) this.renderFormatSwitch(x0, format);
     const paneLift = hasWarchest ? deckPaneOffsetY(formatSwitchVisible) : 0;

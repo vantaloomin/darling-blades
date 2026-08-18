@@ -23,12 +23,15 @@ export function offeredBuilderFormats(
     : [...ALL_BUILDER_FORMATS];
 }
 
-/** Darlings is an identity tab, not a conversion offer for other deck formats. */
-export function visibleBuilderFormatTabs(
-  offered: readonly BuilderFormat[],
-  savedFormat: SavedDeck['format'] | null | undefined,
-): BuilderFormat[] {
-  return offered.filter((format) => format !== 'darlings' || savedFormat === 'darlings');
+/**
+ * Every offered format is a live conversion tab. The former identity-tab rule
+ * (Darlings visible only on Darlings decks, 2026-08-17) made conversion
+ * one-way: switching a Darlings deck to Warchest deleted the only way back.
+ * Owner reversal 2026-08-18: the Format row offers both directions, and the
+ * highlighted tab doubles as the deck's format indicator while editing.
+ */
+export function visibleBuilderFormatTabs(offered: readonly BuilderFormat[]): BuilderFormat[] {
+  return [...offered];
 }
 
 // showsSpellListInDeckPanel was deleted 2026-08-18: Warchest's land-only rule

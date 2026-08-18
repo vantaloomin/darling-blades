@@ -57,6 +57,27 @@ export const DECK_PANE_LAYOUT = {
     pinSize: 14,
   },
   /**
+   * The Format conversion row (Warchest / Darlings). Tabs sit left of the
+   * Decks CTA's column: Decks centers at 1215 on the y 32 row, and its
+   * inflated hit band reaches down toward y 54, so nothing interactive may
+   * share both its column and the adjacent band - the tab row keeps every
+   * tab's right edge clear of Decks' hit column (pinned by test).
+   */
+  formatRow: {
+    labelX: 900,
+    y: 64,
+    tabFirstX: 990,
+    tabPitch: 90,
+    tabMinWidth: 78,
+    decksHitLeft: 1160,
+  },
+  /** The mana curve stretches the full pane width (owner, 2026-08-18). */
+  curve: {
+    firstX: 921,
+    pitch: 43,
+    barWidth: 30,
+  },
+  /**
    * The bottom summary stack (design-system "Spacing and grouping" tiers).
    * 192px must hold pager, curve, one merged summary line, a one-line status
    * band, and the CTA row; the ledger the test pins is

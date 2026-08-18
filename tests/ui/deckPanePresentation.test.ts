@@ -19,6 +19,24 @@ describe('deck pane presentation', () => {
     expect(resolveDeckPaneMode('warchest', true)).toBe('warchest');
   });
 
+  it('keeps the Format tabs clear of the Decks CTA hit column', () => {
+    const f = DECK_PANE_LAYOUT.formatRow;
+    // Two tabs; the right edge of the last one stays left of Decks' inflated
+    // hit column with breathing room (interactive isolation rule).
+    const lastTabRight = f.tabFirstX + f.tabPitch + f.tabMinWidth / 2;
+    expect(lastTabRight).toBeLessThanOrEqual(f.decksHitLeft - 8);
+    // The Format label clears the first tab's left edge.
+    expect(f.tabFirstX - f.tabMinWidth / 2).toBeGreaterThanOrEqual(f.labelX + 44);
+  });
+
+  it('stretches the mana curve across the pane width', () => {
+    const c = DECK_PANE_LAYOUT.curve;
+    expect(c.firstX - c.barWidth / 2).toBeGreaterThanOrEqual(DECK_PANE_LAYOUT.left);
+    expect(c.firstX + 7 * c.pitch + c.barWidth / 2).toBeLessThanOrEqual(DECK_PANE_LAYOUT.right - 16);
+    // Genuinely full-width: the eight slots cover at least 90% of the span.
+    expect(7 * c.pitch + c.barWidth).toBeGreaterThanOrEqual((DECK_PANE_LAYOUT.right - 16 - DECK_PANE_LAYOUT.left) * 0.9);
+  });
+
   it('respects the isolation tiers through the bottom summary stack', () => {
     const s = DECK_PANE_LAYOUT.summary;
     const pagerBandBottom = s.pagerY + 22; // 44px hit band

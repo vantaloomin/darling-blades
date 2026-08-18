@@ -101,11 +101,14 @@ describe('deck builder helpers', () => {
     expect(formatGauntletUnavailableCopy('constructed', true)).toBeNull();
   });
 
-  it('shows the Darlings tab only for a persisted Darlings deck', () => {
+  it('offers every format as a live two-way conversion tab', () => {
+    // Owner reversal 2026-08-18: the old identity-tab rule made Darlings
+    // conversion one-way (Darlings -> Warchest deleted the way back).
     const offered = offeredBuilderFormats(true, false);
-    expect(visibleBuilderFormatTabs(offered, 'warchest')).toEqual(['constructed', 'warchest']);
-    expect(visibleBuilderFormatTabs(offered, 'constructed')).toEqual(['constructed', 'warchest']);
-    expect(visibleBuilderFormatTabs(offered, 'darlings')).toEqual(['constructed', 'darlings', 'warchest']);
+    expect(visibleBuilderFormatTabs(offered)).toEqual(offered);
+    expect(visibleBuilderFormatTabs(offeredBuilderFormats(true, true))).toEqual(
+      offeredBuilderFormats(true, true),
+    );
   });
 
   it('compacts long reserve names for the legacy chip label', () => {
