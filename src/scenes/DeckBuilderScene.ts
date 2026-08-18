@@ -2123,6 +2123,10 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.fitTextToWidth(title, this.touch ? 130 : format === 'constructed' ? 250 : 190);
     this.rightPane.push(title);
     if (format === 'darlings' && active?.darlingId && CARD_DB[active.darlingId]) {
+      // The portrait beside the title IS the Darling indicator, and tapping
+      // it (or the active Darlings tab) reopens the chooser. The old
+      // 'Darling' text label under the title collided with the Format row
+      // (owner finding 2026-08-18) and said nothing the tab does not.
       const portrait = makeCardThumb(
         this,
         x0 + 20,
@@ -2132,19 +2136,11 @@ export class DeckBuilderScene extends Phaser.Scene {
         undefined,
         this.ownedVariantFor(active.darlingId),
       );
-      this.rightPane.push(portrait);
-      const darlingSlot = this.add
-        .text(x0 + 46, 62, 'Darling', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
-          fontStyle: theme.weight.w700,
-          color: theme.colors.gold,
-        })
-        .setOrigin(0, 0.5)
+      const portraitHit = this.add
+        .zone(x0 + 20, 32, 34, 46)
         .setInteractive({ useHandCursor: true });
-      bindTapButton(this, darlingSlot, () => this.openDarlingsFormat());
-      inflateHitArea(darlingSlot, 74, 34);
-      this.rightPane.push(darlingSlot);
+      bindTapButton(this, portraitHit, () => this.openDarlingsFormat());
+      this.rightPane.push(portrait, portraitHit);
     }
     const formatSwitchVisible = this.reserveFormatsEnabled &&
       visibleBuilderFormatTabs(
