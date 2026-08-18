@@ -87,6 +87,7 @@ function codeForRaw(raw: Record<string, unknown>): string {
 function currentVersionFixture(version: number): Record<string, unknown> {
   const save = currentFixture() as unknown as Record<string, unknown>;
   save.version = version;
+  if (version < 32) delete save.cosmetics;
   if (version < 27) delete save.deckRepairNoticeAck;
   if (version < 24) delete (save.settings as Record<string, unknown>).confirmNoBlock;
   if (version < 23) {

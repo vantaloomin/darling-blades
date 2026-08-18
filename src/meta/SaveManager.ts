@@ -9,8 +9,9 @@ import { freshLimitedState, type LimitedState } from './Limited';
 import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
+import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
 
-export const CURRENT_SAVE_VERSION = 31 as const;
+export const CURRENT_SAVE_VERSION = 32 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /**
@@ -57,6 +58,15 @@ export interface AchievementState {
    * pin order, capped at three (pinning a fourth evicts the oldest). v31.
    */
   pinned: string[];
+}
+
+export interface CosmeticsSave {
+  /** `null` equips the catalog default. Non-default choices store their id. */
+  cardBack: string | null;
+  /** `null` equips the catalog default. Non-default choices store their id. */
+  playmat: string | null;
+  /** Granted non-default ids only. Default-unlock entries are always owned. */
+  owned: string[];
 }
 
 export interface DailyQuestSave {
@@ -161,6 +171,8 @@ export interface SaveData {
    * saves do not silently consume rewards. v11 addition.
    */
   achievements: AchievementState;
+  /** Account-level presentation choices. v32 addition. */
+  cosmetics: CosmeticsSave;
   /**
    * Road-to-1.0 daily quests and win streaks. Three quests are rolled per local
    * calendar day with three total rerolls; the streak advances only when the
@@ -239,6 +251,10 @@ export function freshAchievements(): AchievementState {
   return { unlocked: [], claimed: [], pinned: [] };
 }
 
+export function freshCosmetics(): CosmeticsSave {
+  return { cardBack: null, playmat: null, owned: [] };
+}
+
 export function freshSave(now: number): SaveData {
   return {
     version: CURRENT_SAVE_VERSION,
@@ -257,6 +273,7 @@ export function freshSave(now: number): SaveData {
     darlingsFreeDeckClaimed: false,
     deckRepairNoticeAck: '[]',
     achievements: freshAchievements(),
+    cosmetics: freshCosmetics(),
     daily: freshDailyState(dayStringFromTimestamp(now)),
     limited: { ...freshLimitedState(), premiumWeek: { week: 0, entries: 0 } },
     replays: [],
@@ -358,7 +375,9 @@ export class SaveManager {
    * is opened. v29 -> v30 adds `settings.instantCast` (default off — carry-cast
    * is the shipped cast interaction; the toggle restores click-to-cast);
    * v30 -> v31 adds `achievements.pinned` (the Trophy Hall showcase, empty
-   * for older saves, explicit pins preserved on current blobs).
+   * for older saves, explicit pins preserved on current blobs); v31 -> v32
+   * adds account-level card-back and playmat choices plus the future Courts
+   * cosmetic ownership list.
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -625,7 +644,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -773,6 +792,13 @@ export class SaveManager {
         achievements: { ...a, pinned },
       };
     }
+    if (cur.version === 31) {
+      cur = {
+        ...cur,
+        version: 32,
+        cosmetics: normalizeCosmetics(cur.cosmetics),
+      };
+    }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
       return {
@@ -783,6 +809,7 @@ export class SaveManager {
         darlingsTutorialSeen: cur.darlingsTutorialSeen === true,
         darlingsFreeDeckClaimed: cur.darlingsFreeDeckClaimed === true,
         deckRepairNoticeAck: normalizeDeckRepairNoticeAck(cur.deckRepairNoticeAck),
+        cosmetics: normalizeCosmetics(cur.cosmetics),
       } as unknown as SaveData;
     }
     return freshSave(now);
@@ -873,6 +900,21 @@ export class SaveManager {
     this.storage.removeItem(LEGACY_KEY);
     Object.assign(this.data, freshSave(now));
   }
+}
+
+function normalizeCosmetics(value: unknown): CosmeticsSave {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const cardBack = typeof raw.cardBack === 'string' && CARD_BACKS.some((entry) => entry.id === raw.cardBack)
+    ? raw.cardBack
+    : null;
+  const playmat = typeof raw.playmat === 'string' && PLAYMATS.some((entry) => entry.id === raw.playmat)
+    ? raw.playmat
+    : null;
+  const owned = Array.isArray(raw.owned)
+    ? [...new Set(raw.owned.filter((id): id is string =>
+        typeof id === 'string' && isKnownCosmeticId(id) && cosmeticById(id)?.unlock !== 'default'))]
+    : [];
+  return { cardBack, playmat, owned };
 }
 
 function normalizeDeckRepairNoticeAck(value: unknown): string {

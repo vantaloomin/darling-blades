@@ -3,10 +3,13 @@ import { CARD_DB } from '../../src/data/catalog';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import {
   claimAchievement,
+  claimAchievementDefinition,
   claimAllAchievements,
   evaluateAchievements,
   syncAchievements,
+  type AchievementDef,
 } from '../../src/meta/Achievements';
+import { CARD_BACKS } from '../../src/meta/cosmetics';
 import { collectiblePool } from '../../src/meta/collectionFilter';
 import { freshSave } from '../../src/meta/SaveManager';
 import { variantKey } from '../../src/meta/variants';
@@ -408,6 +411,28 @@ describe('achievements', () => {
     expect(claimAchievement(save, 'first-win')).toEqual({ ok: false, gold: 0, reason: 'claimed' });
     expect(claimAchievement(save, 'packs-10')).toEqual({ ok: false, gold: 0, reason: 'locked' });
     expect(claimAchievement(save, 'missing')).toEqual({ ok: false, gold: 0, reason: 'unknown' });
+  });
+
+  it('grants a synthetic cosmetic reward once and ignores an unknown id', () => {
+    const save = freshSave(0);
+    const synthetic: AchievementDef = {
+      id: 'synthetic-cosmetic',
+      bucket: 'collection',
+      title: 'Synthetic reward',
+      description: 'Test-only reward plumbing.',
+      reward: { gold: 0, cosmeticId: CARD_BACKS[1].id },
+      progress: () => ({ current: 1, target: 1 }),
+    };
+    save.achievements.unlocked = [synthetic.id];
+
+    expect(claimAchievementDefinition(save, synthetic)).toEqual({ ok: true, gold: 0 });
+    expect(save.cosmetics.owned).toEqual([CARD_BACKS[1].id]);
+    expect(claimAchievementDefinition(save, synthetic)).toEqual({ ok: false, gold: 0, reason: 'claimed' });
+
+    const unknown: AchievementDef = { ...synthetic, id: 'synthetic-unknown', reward: { gold: 0, cosmeticId: 'not-real' } };
+    save.achievements.unlocked.push(unknown.id);
+    expect(claimAchievementDefinition(save, unknown)).toEqual({ ok: true, gold: 0 });
+    expect(save.cosmetics.owned).toEqual([CARD_BACKS[1].id]);
   });
 
   it('claimAll claims every unclaimed unlocked reward and leaves claimed rewards alone', () => {

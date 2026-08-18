@@ -10,6 +10,7 @@ import { openPack, openPacks, type PackResult } from '../meta/PackOpener';
 import { formatOdds, variantOdds } from '../meta/pullOdds';
 import { Services } from '../meta/services';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
+import { CARD_BACKS, cardBackTextureKey } from '../meta/cosmetics';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
 import { animTimeScale } from '../platform/animPolicy';
 import { activeRenderScale } from '../platform/renderScale';
@@ -106,6 +107,8 @@ export class PackOpeningScene extends Phaser.Scene {
   private buttons: ThemedButton[] = [];
   private skipBtn: ThemedButton | null = null;
   private toasts: Toast | null = null;
+  /** Account cosmetic snapshotted once in create(), never read in reveal loops. */
+  private cardBackTextureKey = 'cardback';
   private packRevealComplete = false;
   /** Pack Runway (batch opens): one masked rail through a fixed reveal gate. */
   private runway: {
@@ -155,6 +158,7 @@ export class PackOpeningScene extends Phaser.Scene {
     this.skipBtn = null;
     this.bestSettled = false;
     this.packRevealComplete = false;
+    this.cardBackTextureKey = this.resolveCardBackTexture();
     // A restart already destroyed the display objects; only the state survives.
     this.runway = null;
     bakePackArt(this);
@@ -245,6 +249,14 @@ export class PackOpeningScene extends Phaser.Scene {
       prompt.destroy();
       this.tear(pack);
     });
+  }
+
+  private resolveCardBackTexture(): string {
+    const id = Services.save.data.cosmetics.cardBack;
+    const entry = id ? CARD_BACKS.find((candidate) => candidate.id === id) : undefined;
+    if (!entry) return 'cardback';
+    const key = cardBackTextureKey(entry.id);
+    return key === 'cardback' || this.textures.exists(key) ? key : 'cardback';
   }
 
   /** F10 batch reveal: an at-a-glance summary of a multi-pack open. */
@@ -499,7 +511,9 @@ export class PackOpeningScene extends Phaser.Scene {
   private buildRunwayCard(index: number): CardView {
     const rw = this.runway!;
     const card = rw.cards[index];
-    const view = new CardView(this, cardRailX(index, rw.offset), RUNWAY_CARD_Y);
+    const view = new CardView(this, cardRailX(index, rw.offset), RUNWAY_CARD_Y, {
+      backTextureKey: this.cardBackTextureKey,
+    });
     view.setScale(RUNWAY_CARD_SCALE);
     rw.root.add(view);
     if (index <= rw.revealedMax) this.runwayShowFace(view, card, index, true);
@@ -957,7 +971,7 @@ export class PackOpeningScene extends Phaser.Scene {
       const rowLen = Math.min(cols, gridCards.length - row * cols);
       const x = width / 2 - ((rowLen - 1) * dx) / 2 + col * dx;
       const y = GRID_Y0 + row * GRID_DY;
-      const view = new CardView(this, width / 2, 340);
+      const view = new CardView(this, width / 2, 340, { backTextureKey: this.cardBackTextureKey });
       view.setScale(0.1).setCard(null); // face down
       this.tweens.add({
         targets: view,
@@ -988,7 +1002,7 @@ export class PackOpeningScene extends Phaser.Scene {
       const isBest = i === s - 1;
       const hint = HINT[card.tier as keyof typeof HINT] ?? HINT.sr;
       const x = width / 2 - ((s - 1) * spacing) / 2 + i * spacing;
-      const view = new CardView(this, width / 2, 340);
+      const view = new CardView(this, width / 2, 340, { backTextureKey: this.cardBackTextureKey });
       view.setScale(0.1).setCard(null);
       const entry: SpecialEntry = { view, card, done: false, homeX: x };
       this.specials.push(entry);

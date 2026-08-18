@@ -148,7 +148,7 @@ export class CardView extends Phaser.GameObjects.Container {
 
   card: CardDef | null = null;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, options: { backTextureKey?: string } = {}) {
     super(scene, x, y);
 
     this.frame = scene.add.image(0, 0, 'frame-C').setDisplaySize(CARD_W, CARD_H);
@@ -254,7 +254,10 @@ export class CardView extends Phaser.GameObjects.Container {
     bakeRetellTombstone(scene);
     this.retellIcon = scene.add.image(132, -182, RETELL_ICON_KEY).setDisplaySize(20, 20).setVisible(false);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
-    this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
+    this.back = scene.add
+      .image(0, 0, options.backTextureKey ?? 'cardback')
+      .setDisplaySize(CARD_W, CARD_H)
+      .setVisible(false);
 
     this.add([
       this.frame,

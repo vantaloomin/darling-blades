@@ -10,6 +10,17 @@ import { canReplay, type ReplayLog } from '../meta/Replay';
 import { decode, encode, type SaveCodePreview } from '../meta/SaveCode';
 import type { SaveData } from '../meta/SaveManager';
 import { Services } from '../meta/services';
+import {
+  CARD_BACKS,
+  DEFAULT_CARD_BACK_ID,
+  DEFAULT_PLAYMAT_ID,
+  PLAYMATS,
+  cardBackTextureKey,
+  isCosmeticOwned,
+  playmatForId,
+  type CardBackDefinition,
+  type PlaymatDefinition,
+} from '../meta/cosmetics';
 import { modalGuardTarget } from '../ui/Modal';
 import { isReplayVisible } from '../ui/deckBuilderHelpers';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
@@ -42,6 +53,11 @@ export class ProfileScene extends Phaser.Scene {
   private importStatus: Phaser.GameObjects.Text | null = null;
   private importInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private confirmationShell: ModalShell | null = null;
+  private styleShell: ModalShell | null = null;
+  private cardBackRowName: Phaser.GameObjects.Text | null = null;
+  private cardBackRowPreview: Phaser.GameObjects.Image | null = null;
+  private playmatRowName: Phaser.GameObjects.Text | null = null;
+  private playmatRowSwatch: Phaser.GameObjects.Graphics | null = null;
   private reserveFormatsEnabled = false;
 
   constructor() {
@@ -59,6 +75,11 @@ export class ProfileScene extends Phaser.Scene {
     this.importStatus = null;
     this.importInteractiveTargets = [];
     this.confirmationShell = null;
+    this.styleShell = null;
+    this.cardBackRowName = null;
+    this.cardBackRowPreview = null;
+    this.playmatRowName = null;
+    this.playmatRowSwatch = null;
     this.input.keyboard?.on('keydown-ESC', this.onEscKey);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
 
@@ -154,6 +175,7 @@ export class ProfileScene extends Phaser.Scene {
     this.statRow(432, 'Best rung reached', p.bestRung > 0 ? `Rung ${p.bestRung}` : 'None');
     this.statRow(468, 'Full gauntlet clears', `${p.completions}`);
     this.statRow(504, 'Packs opened', `${p.packsOpened}`);
+    this.drawStyleControls();
 
     this.add
       .text(632, 224, 'Replays', {
@@ -194,6 +216,7 @@ export class ProfileScene extends Phaser.Scene {
     this.exportShell?.close();
     this.importShell?.close();
     this.confirmationShell?.close();
+    this.styleShell?.close();
     this.exportInput?.destroy();
     this.importInput?.destroy();
     this.coordinator.destroy();
@@ -544,6 +567,225 @@ export class ProfileScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
       seal.add([plate, title, label]);
+    });
+  }
+
+  private drawStyleControls(): void {
+    this.sectionLabel(540, 'Style');
+
+    this.rowPanel(568);
+    this.add
+      .text(116, 568, 'Card back', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.body,
+      })
+      .setOrigin(0, 0.5);
+    this.cardBackRowPreview = this.add
+      .image(350, 568, this.safeCardBackTexture(CARD_BACKS[0]))
+      .setDisplaySize(20, 28);
+    this.cardBackRowName = this.add
+      .text(374, 568, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.heading,
+      })
+      .setOrigin(0, 0.5);
+    const cardBackChange = themedButton(this, 492, 568, 'Change', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 78,
+      onTap: () => this.openCosmeticPicker('cardBack'),
+    });
+    this.profileInteractiveTargets.push(cardBackChange.inputZone);
+
+    this.rowPanel(612);
+    this.add
+      .text(116, 612, 'Playmat', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.body,
+      })
+      .setOrigin(0, 0.5);
+    this.playmatRowSwatch = this.add.graphics();
+    this.playmatRowName = this.add
+      .text(374, 612, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.heading,
+      })
+      .setOrigin(0, 0.5);
+    const playmatChange = themedButton(this, 492, 612, 'Change', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 78,
+      onTap: () => this.openCosmeticPicker('playmat'),
+    });
+    this.profileInteractiveTargets.push(playmatChange.inputZone);
+
+    this.refreshStyleRows();
+  }
+
+  private refreshStyleRows(): void {
+    const save = Services.save.data;
+    const cardBack = CARD_BACKS.find((entry) => entry.id === save.cosmetics.cardBack) ?? CARD_BACKS[0];
+    const playmat = playmatForId(save.cosmetics.playmat);
+    this.cardBackRowName?.setText(cardBack.name);
+    this.cardBackRowPreview?.setTexture(this.safeCardBackTexture(cardBack));
+    this.playmatRowName?.setText(playmat.name);
+    if (this.playmatRowSwatch) this.paintPlaymatSwatch(this.playmatRowSwatch, 350, 612, playmat, 28, 20);
+  }
+
+  private safeCardBackTexture(entry: CardBackDefinition): string {
+    const key = cardBackTextureKey(entry.id);
+    return this.textures.exists(key) ? key : 'cardback';
+  }
+
+  private paintPlaymatSwatch(
+    target: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    playmat: PlaymatDefinition,
+    width: number,
+    height: number,
+  ): void {
+    const colors = playmat.colors;
+    target.clear();
+    target.fillStyle(colors.backdrop.tint, 1);
+    target.fillRoundedRect(x - width / 2, y - height / 2, width, height, 4);
+    target.fillStyle(colors.opponentZone.fill, 0.9);
+    target.fillRoundedRect(x - width / 2 + 2, y - height / 2 + 2, width - 4, height / 2 - 2, 2);
+    target.fillStyle(colors.playerZone.fill, 0.95);
+    target.fillRoundedRect(x - width / 2 + 2, y + 1, width - 4, height / 2 - 3, 2);
+    target.fillStyle(colors.stageLight, Math.min(1, colors.stageLightAlpha + 0.22));
+    target.fillEllipse(x, y, width * 0.5, height * 0.7);
+    target.lineStyle(1, colors.zoneStroke, colors.zoneStrokeAlpha);
+    target.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 4);
+  }
+
+  private equipCosmetic(kind: 'cardBack' | 'playmat', id: string): void {
+    const save = Services.save.data;
+    if (!isCosmeticOwned(id, save.cosmetics.owned)) return;
+    if (kind === 'cardBack') save.cosmetics.cardBack = id === DEFAULT_CARD_BACK_ID ? null : id;
+    else save.cosmetics.playmat = id === DEFAULT_PLAYMAT_ID ? null : id;
+    Services.save.touch();
+    this.refreshStyleRows();
+  }
+
+  private openCosmeticPicker(kind: 'cardBack' | 'playmat'): void {
+    this.styleShell?.close();
+    const entries = kind === 'cardBack' ? CARD_BACKS : PLAYMATS;
+    const shell = modalShell(this, {
+      width: 1120,
+      height: 560,
+      dimAlpha: 0.86,
+      depth: theme.depth.modal,
+      tapDimToClose: true,
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.profileInteractiveTargets.map(modalGuardTarget),
+      },
+      onClose: () => {
+        this.styleShell = null;
+      },
+    });
+    this.styleShell = shell;
+    const title = kind === 'cardBack' ? 'Card back' : 'Playmat';
+    shell.container.add([
+      this.add
+        .text(640, 92, title, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0.5),
+      this.add
+        .text(640, 130, 'Choose a style. Courts can add earned rewards later.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.muted,
+        })
+        .setOrigin(0.5),
+    ]);
+
+    entries.forEach((entry, index) => {
+      const x = 132 + index * 220;
+      const plate = this.add.graphics();
+      plate.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
+      plate.fillRoundedRect(x - 98, 170, 196, 385, theme.radius.control);
+      plate.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
+      plate.strokeRoundedRect(x - 98, 170, 196, 385, theme.radius.control);
+      shell.container.add(plate);
+
+      if (kind === 'cardBack') {
+        shell.container.add(
+          this.add
+            .image(x, 254, this.safeCardBackTexture(entry as CardBackDefinition))
+            .setDisplaySize(62, 87),
+        );
+      } else {
+        const swatch = this.add.graphics();
+        this.paintPlaymatSwatch(swatch, x, 254, entry as PlaymatDefinition, 154, 84);
+        shell.container.add(swatch);
+      }
+
+      shell.container.add([
+        this.add
+          .text(x, 322, entry.name, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            fontStyle: theme.weight.w700,
+            color: theme.colors.heading,
+            wordWrap: { width: 180 },
+            align: 'center',
+          })
+          .setOrigin(0.5, 0),
+        this.add
+          .text(x, 360, entry.blurb, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.micro}px`,
+            color: theme.colors.muted,
+            wordWrap: { width: 174 },
+            align: 'center',
+            lineSpacing: 2,
+          })
+          .setOrigin(0.5, 0),
+      ]);
+      const tag = this.add
+        .text(x, 438, '', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.success,
+        })
+        .setOrigin(0.5);
+      shell.container.add(tag);
+
+      const state = { refresh: (): void => undefined };
+      const button = themedButton(this, x, 500, 'Equip', {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: 132,
+        onTap: () => {
+          this.equipCosmetic(kind, entry.id);
+          state.refresh();
+        },
+      });
+      shell.container.add(button.container);
+      state.refresh = (): void => {
+        const save = Services.save.data;
+        const owned = isCosmeticOwned(entry.id, save.cosmetics.owned);
+        const equipped = kind === 'cardBack'
+          ? (save.cosmetics.cardBack ?? DEFAULT_CARD_BACK_ID) === entry.id
+          : (save.cosmetics.playmat ?? DEFAULT_PLAYMAT_ID) === entry.id;
+        tag.setText(equipped ? 'EQUIPPED' : owned ? '' : 'LOCKED');
+        tag.setColor(equipped ? theme.colors.success : theme.colors.danger);
+        button.setVariant(equipped ? 'primary' : 'ghost');
+        button.setLabel(owned ? equipped ? 'Equipped' : 'Equip' : 'Locked');
+        button.setEnabled(owned);
+      };
+      state.refresh();
     });
   }
 

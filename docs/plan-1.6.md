@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, src/meta/deckRepair.ts, src/meta/SaveManager.ts, src/scenes/MainMenuScene.ts, src/config/features.ts, src/meta/Economy.ts, src/scenes/DuelScene.ts, scripts/balance-matrix.ts · last-verified: 2026-08-16 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, src/meta/deckRepair.ts, src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/MainMenuScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/DuelScene.ts, scripts/balance-matrix.ts · last-verified: 2026-08-18 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.6 — program plan
 
@@ -164,6 +164,9 @@ re-baseline.
    must equal builder output); the shared 1.6 balance pass measures the
    result with the set.
 6. **Cosmetics layer** (card backs, playmats) — sequenced before Courts.
+   **SHIPPED 2026-08-18**: account-level catalog, v32 migration, Profile
+   picker, pack-opening back selection, duel playmat recolors, and the
+   economy-free cosmetic reward seam.
 7. **The first large set (~240-250 cards), reserve-native from
    concretion**, candidate rider: the Dark Tales companion wave (~60).
 8. **Premium UX Wave C + Courts** — Wave C OPENED 2026-08-16 with the

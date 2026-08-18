@@ -18,6 +18,7 @@ import type {
   LandStyleMap,
   SaveData,
 } from '../meta/SaveManager';
+import { PLAYMATS, playmatForId, type PlaymatDefinition } from '../meta/cosmetics';
 import { STARTER_DECKS } from '../data/starterDecks';
 import {
   applyGauntletResult,
@@ -377,6 +378,8 @@ export class DuelScene extends Phaser.Scene {
   private myDeckColorStyle: DeckColorStyle = 'other';
   /** Active saved-deck cosmetics for the human side; replay/override decks stay default. */
   private humanLandStyle: LandStyleMap | null = null;
+  /** Account playmat snapshot for this duel instance, including gauntlet restarts. */
+  private playmat: PlaymatDefinition = PLAYMATS[0];
   private myFaceCardId: string | null = null;
   /** Premium hero portrait texture (a bought theme deck's exclusive art), or null. */
   private myHeroTextureKey: string | null = null;
@@ -697,6 +700,7 @@ export class DuelScene extends Phaser.Scene {
     }
     this.touch = isTouchDevice();
     const save = Services.save.data;
+    this.playmat = playmatForId(save.cosmetics.playmat);
     if (!this.replayMode && this.gauntletRung !== null && save.gauntlet.run) {
       this.gauntletRosterOrder = resolveGauntletRoster(
         save.gauntlet.run,
@@ -1261,12 +1265,19 @@ export class DuelScene extends Phaser.Scene {
     // is the fallback; every band plate/hairline/label below draws over the
     // backdrop unchanged. Added before the plate graphics, so display-list
     // order keeps the art under all of them — no setDepth needed.
+    const colors = this.playmat.colors;
     applyBackdrop(this, 'duel', {
-      dim: theme.graphics.dim,
-      dimAlpha: 0.45,
+      dim: colors.backdrop.tint,
+      dimAlpha: colors.backdrop.alpha,
       fallback: () => {
         const base = this.add.graphics();
-        base.fillGradientStyle(0x131022, 0x131022, 0x0a0812, 0x0a0812, 1);
+        base.fillGradientStyle(
+          colors.backdrop.fallbackTop,
+          colors.backdrop.fallbackTop,
+          colors.backdrop.fallbackBottom,
+          colors.backdrop.fallbackBottom,
+          1,
+        );
         base.fillRect(0, 0, width, height);
       },
     });
@@ -1275,7 +1286,7 @@ export class DuelScene extends Phaser.Scene {
     // It is inserted after the backdrop but before the zone plates, so no
     // geometry or display-depth contract changes.
     this.add
-      .ellipse(BOARD_CENTER_X, 300, 760, 430, colorInt(theme.colors.gold), 0.05)
+      .ellipse(BOARD_CENTER_X, 300, 760, 430, colors.stageLight, colors.stageLightAlpha)
       .setBlendMode(Phaser.BlendModes.SCREEN);
 
     const g = this.add.graphics();
@@ -1283,13 +1294,27 @@ export class DuelScene extends Phaser.Scene {
     // Two inset battlefield zone plates: both stop at x1046 to leave a clean
     // right sidebar for phase and command controls. Yours a touch brighter.
     const plate = (x0: number, x1: number, y0: number, y1: number, fill: number, alpha: number): void => {
-      g.fillGradientStyle(colorInt(theme.colors.panelStroke), colorInt(theme.colors.panelStroke), fill, fill, alpha);
+      g.fillGradientStyle(colors.zoneStroke, colors.zoneStroke, fill, fill, alpha);
       g.fillRoundedRect(x0, y0, x1 - x0, y1 - y0, 10);
-      g.lineStyle(1, colorInt(theme.colors.panelStroke), 0.7);
+      g.lineStyle(1, colors.zoneStroke, colors.zoneStrokeAlpha);
       g.strokeRoundedRect(x0, y0, x1 - x0, y1 - y0, 10);
     };
-    plate(LAYOUT.oppZone.x0, LAYOUT.oppZone.x1, LAYOUT.oppZone.y0, LAYOUT.oppZone.y1, 0x1a1530, 0.45);
-    plate(LAYOUT.myZone.x0, LAYOUT.myZone.x1, LAYOUT.myZone.y0, LAYOUT.myZone.y1, 0x1c1734, 0.5);
+    plate(
+      LAYOUT.oppZone.x0,
+      LAYOUT.oppZone.x1,
+      LAYOUT.oppZone.y0,
+      LAYOUT.oppZone.y1,
+      colors.opponentZone.fill,
+      colors.opponentZone.alpha,
+    );
+    plate(
+      LAYOUT.myZone.x0,
+      LAYOUT.myZone.x1,
+      LAYOUT.myZone.y0,
+      LAYOUT.myZone.y1,
+      colors.playerZone.fill,
+      colors.playerZone.alpha,
+    );
   }
 
   /**
