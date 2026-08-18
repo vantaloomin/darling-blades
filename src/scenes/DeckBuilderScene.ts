@@ -1940,7 +1940,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.renderDeck();
   }
 
-  private renderDeckRows(x0: number, heroId: string | null, listY0: number): void {
+  private renderDeckRows(x0: number, heroId: string | null, listY0: number, maxRows?: number): void {
     const entries = collapseDeckRows(this.deck, this.variantPins)
       .filter(({ cardId }) => !CARD_DB[cardId] || !isBasic(CARD_DB, cardId))
       .sort((a, b) => {
@@ -1954,7 +1954,7 @@ export class DeckBuilderScene extends Phaser.Scene {
           a.firstIndex - b.firstIndex
         );
       });
-    const preferredRows = this.touch ? TOUCH_DECK_ROWS : DESKTOP_DECK_ROWS;
+    const preferredRows = maxRows ?? (this.touch ? TOUCH_DECK_ROWS : DESKTOP_DECK_ROWS);
     const rowPitch = this.touch ? TOUCH_DECK_PITCH : DESKTOP_DECK_PITCH;
     const rowHeight = theme.type.caption + 4;
     const rowsThatFit = (bottom: number): number => Math.max(
@@ -2201,7 +2201,11 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     if (this.deckPaneMode === 'cards') {
       const heroId = this.deckHeroId();
-      this.renderDeckRows(x0, heroId, deckListY0);
+      // The reserve-format pane starts its rows near the top (no basics
+      // block), so geometry, not the constructed six-row cap, decides how
+      // many rows a page holds (owner finding 2026-08-18: fill the pane
+      // before paginating).
+      this.renderDeckRows(x0, heroId, deckListY0, hasWarchest ? Number.POSITIVE_INFINITY : undefined);
       if (repairingSavedDeck) this.renderRepairBanner(x0, blocking);
       else this.renderDeckStats(x0);
     }
