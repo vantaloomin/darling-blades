@@ -529,6 +529,15 @@ function registerSceneModal(scene: Phaser.Scene, entry: SceneModalEntry): () => 
   };
 }
 
+/**
+ * Whether any modalShell is open on this scene. Scene-level wheel and
+ * keyboard listeners bypass ModalGuard (playbook trap), so paging shortcuts
+ * gate on this instead of reaching into per-shell state.
+ */
+export function sceneHasOpenModal(scene: Phaser.Scene): boolean {
+  return (SCENE_MODAL_STACKS.get(scene)?.length ?? 0) > 0;
+}
+
 export interface SceneBackNavigationOptions {
   coordinator?: OverlayCoordinator;
 }

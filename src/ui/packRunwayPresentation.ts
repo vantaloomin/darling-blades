@@ -1,4 +1,5 @@
-import { TIER_RANK } from '../meta/variants';
+import { TIER_RANK, variantRank } from '../meta/variants';
+import type { FrameStyle, HoloFinish } from '../meta/variants';
 import type { AnimationLevel } from '../platform/animPolicy';
 
 /**
@@ -12,6 +13,9 @@ export type RunwayTier = keyof typeof TIER_RANK;
 
 export interface RunwayCardLite {
   tier: RunwayTier;
+  frame: FrameStyle;
+  holo: HoloFinish;
+  fullArt: boolean;
 }
 
 /** Reveal gate x: right-of-center so revealed cards read left, arrivals right. */
@@ -33,9 +37,21 @@ export const RUNWAY_FLIP_SFX_MIN_GAP_MS = 70;
 /** Scrub inertia: capped throw, exponential decay, rest below the floor. */
 export const RUNWAY_INERTIA = { maxSpeed: 2400, decayPerSecond: 3.4, restSpeed: 40 } as const;
 
-/** The whole batch in one ascending-rarity ride; stable within a tier. */
+/**
+ * The whole batch in one ascending-rarity ride: tier rank first, then variant
+ * rank inside a tier, so a rainbow secret closes its tier run instead of
+ * sitting wherever its pack happened to land in the batch (owner finding
+ * 2026-08-18 - PackOpener already ordered each pack this way, but the global
+ * re-sort dropped the variant key and stable sort kept PACK order in-tier).
+ * Stable beyond that, so equal pulls keep their roll order.
+ */
 export function runwayOrder<T extends RunwayCardLite>(cards: readonly T[]): T[] {
-  return [...cards].sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier]);
+  return [...cards].sort(
+    (a, b) =>
+      TIER_RANK[a.tier] - TIER_RANK[b.tier] ||
+      variantRank({ frame: a.frame, holo: a.holo, fullArt: a.fullArt }) -
+        variantRank({ frame: b.frame, holo: b.holo, fullArt: b.fullArt }),
+  );
 }
 
 /** Rail offset that parks card `index` exactly on the gate. */

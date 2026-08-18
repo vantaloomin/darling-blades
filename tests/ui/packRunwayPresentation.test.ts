@@ -22,12 +22,39 @@ import {
   virtualRange,
 } from '../../src/ui/packRunwayPresentation';
 
-const t = (tier: 'c' | 'r' | 'sr' | 'ssr' | 'ur', id: number): { tier: typeof tier; id: number } => ({ tier, id });
+type Tier = 'c' | 'r' | 'sr' | 'ssr' | 'ur';
+const t = (
+  tier: Tier,
+  id: number,
+  variant: { frame?: 'white' | 'black' | 'blue'; holo?: 'none' | 'rainbow'; fullArt?: boolean } = {},
+): { tier: Tier; id: number; frame: 'white' | 'black' | 'blue'; holo: 'none' | 'rainbow'; fullArt: boolean } => ({
+  tier,
+  id,
+  frame: variant.frame ?? 'white',
+  holo: variant.holo ?? 'none',
+  fullArt: variant.fullArt ?? false,
+});
 
 describe('runwayOrder', () => {
   it('sorts ascending by rarity, stable within a tier', () => {
     const cards = [t('sr', 1), t('c', 2), t('ur', 3), t('c', 4), t('r', 5), t('ssr', 6)];
     expect(runwayOrder(cards).map((c) => c.id)).toEqual([2, 4, 5, 1, 6, 3]);
+  });
+
+  it('closes each tier run with its most special variant regardless of pack order', () => {
+    // The owner's 10-pack repro: a rainbow secret ssr pulled in an EARLY pack
+    // sat mid-run because the global sort dropped the variant key.
+    const cards = [
+      t('ssr', 1, { frame: 'blue', holo: 'rainbow' }),
+      t('ssr', 2),
+      t('ur', 3, { frame: 'blue' }),
+      t('ssr', 4),
+      t('c', 5),
+    ];
+    expect(runwayOrder(cards).map((c) => c.id)).toEqual([5, 2, 4, 1, 3]);
+    // Full Art outranks every non-full-art treatment inside a tier.
+    const fa = [t('r', 1, { frame: 'black', holo: 'rainbow' }), t('r', 2, { fullArt: true })];
+    expect(runwayOrder(fa).map((c) => c.id)).toEqual([1, 2]);
   });
 });
 

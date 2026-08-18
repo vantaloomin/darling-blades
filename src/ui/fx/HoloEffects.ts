@@ -197,12 +197,18 @@ export function applyHolo(
   finish: HoloFinish,
   artRect: ArtRect,
   faceRect: ArtRect = artRect,
+  opts: { maskSafe?: boolean } = {},
 ): HoloHandle {
   const cleanups: (() => void)[] = [];
   let pointerFx: IridescencePostFX | null = null;
   // Quality-tier gate: on lite/canvas, shader foils degrade to drifting
   // TileSprite overlays (TileSprites + sparse emitters measured trivial).
+  // maskSafe: a view rendered under a GeometryMask (the Atelier compare
+  // wipe) takes the same tile fallbacks unconditionally - a PostFX or preFX
+  // pass composites through its own framebuffer OUTSIDE the stencil, which
+  // rendered the masked art as a black rectangle (owner repro 2026-08-18).
   const policy = fxPolicy(scene);
+  const allowShaderPasses = !opts.maskSafe;
 
   const addShaderFx = (mode: number): void => {
     art.setPostPipeline(IridescencePostFX);
@@ -249,7 +255,7 @@ export function applyHolo(
     case 'shiny': {
       // Diagonal white sheen: preFX sweep on full WebGL, drifting band
       // TileSprite everywhere else — same read on every renderer/tier.
-      if (policy.shine && art.preFX) {
+      if (policy.shine && allowShaderPasses && art.preFX) {
         const shine = art.preFX.addShine(0.6, 0.3, 4);
         cleanups.push(() => art.preFX?.remove(shine));
       } else {
@@ -261,7 +267,7 @@ export function applyHolo(
     case 'rainbow': {
       // Prismatic foil: pointer-reactive rainbow-band shader, or a drifting
       // rainbow tile where shaders are unavailable.
-      if (policy.iridescence) addShaderFx(2);
+      if (policy.iridescence && allowShaderPasses) addShaderFx(2);
       else addTile('fx-prism', 0.38, Phaser.BlendModes.SCREEN, 512, 256, 14000);
       break;
     }
@@ -270,10 +276,10 @@ export function applyHolo(
       // Pink/green oil-slick: interference-band shader (mode 3), or a
       // drifting pink/green blob tile fallback. The finish is a face treatment,
       // so keep a low-alpha full-face tile even beside the art-only shader.
-      if (policy.iridescence) addShaderFx(3);
+      if (policy.iridescence && allowShaderPasses) addShaderFx(3);
       addTile(
         'fx-pearl',
-        policy.iridescence ? 0.2 : 0.42,
+        policy.iridescence && allowShaderPasses ? 0.2 : 0.42,
         Phaser.BlendModes.SCREEN,
         384,
         512,

@@ -111,7 +111,8 @@ text swap.
 
 | Term | Status | Rule |
 | --- | --- | --- |
-| **Warchest** | Shipped | A 50-card all-spell deck with a 10-land Warchest. Up to 5 lands may be dual lands. |
+| **Standard** | Shipped | The constructed format's player-facing name (owner, 2026-08-18): a 40-card all-spell deck with a 10-land Warchest and a 5-card opening hand. The engine format id stays `warchest`. |
+| **Warchest** | Shipped | The land system every deck carries: 10 lands beside the deck, up to 5 of them duals. "Warchest" names the system, never the format (that is Standard). |
 | **Warchest Reserves** | Shipped | The lands in your Warchest that are not yet in play. Each turn, move one of them into your Active Warchest. |
 | **Active Warchest** | Shipped | Your deployed Warchest lands. Dual lands arrive tapped; destroyed basic lands return to your Reserves. |
 | **Darlings** | Shipped | An 80-card singleton deck in its Darling's colors with a 10-land Warchest. |
