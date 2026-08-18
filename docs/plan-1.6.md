@@ -153,7 +153,16 @@ re-baseline.
    existing collections never clawed back); the flag-and-fix flow wired
    to the format switch; classic retires.
 5. **Keyword sprinkle wave + returning-mechanics quota** (rides the 1.6
-   balance pass; audit table in the draft doc).
+   balance pass; audit table in the draft doc). **Sprinkle LANDED
+   2026-08-18**: ten data-only low-rarity cards spread Empower, twinBlades,
+   Skim, Retell, Quests, and Champion Awakening beyond their home sets
+   (base, Ragnarök, Silver Veil, Grail Oath, Nocturne Manor; catalog 787 ->
+   797). The policy is codified in adding-cards.md. The quota half ships
+   with the Duat set (Retell + Empower + twinBlades, per the large-set
+   plan). Balance note: the wave regenerated every avatar's Darlings deck
+   and two reserve decks through the deterministic builders (committed data
+   must equal builder output); the shared 1.6 balance pass measures the
+   result with the set.
 6. **Cosmetics layer** (card backs, playmats) — sequenced before Courts.
 7. **The first large set (~240-250 cards), reserve-native from
    concretion**, candidate rider: the Dark Tales companion wave (~60).

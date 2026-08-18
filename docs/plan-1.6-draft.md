@@ -97,10 +97,13 @@ Small on purpose. Spec: [plan-1.5.5.md](plan-1.5.5.md). Contents:
 | Hauntlink | Yokai (13) | newest; n/a |
 | Base keywords | everywhere | healthy |
 
-**Policy (owner direction 2026-07-31, to codify in adding-cards.md):** every
-future set carries 2-3 returning named mechanics at low rarity, the way real
-expansions reprint returning keywords. A data-only sprinkle wave into
-existing sets rides the 1.6 balance pass.
+**Policy (owner direction 2026-07-31, codified in adding-cards.md
+2026-08-18):** every future set carries 2-3 returning named mechanics at low
+rarity, the way real expansions reprint returning keywords. A data-only
+sprinkle wave into existing sets rides the 1.6 balance pass. **The sprinkle
+landed 2026-08-18** (ten cards; every audited zero-reuse mechanic now has at
+least one carrier outside its home set — see adding-cards.md and
+plan-1.6.md lane 5).
 
 ## Set-size policy (owner direction 2026-07-31)
 

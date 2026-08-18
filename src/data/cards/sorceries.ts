@@ -223,4 +223,33 @@ export const SORCERIES = [
     rarity: 'r',
     flavor: 'The forest reviewed your enchantments and found them insufficiently feral.',
   },
+  // Returning-mechanics sprinkle (1.6): Retell and Skim reach the Base Set.
+  // Echo's Refrain sits a mana above Bargain for Time so the Veil cantrip
+  // stays the efficient pick; the recast is what you pay for. Roadside
+  // Shrine sits a mana above Blessed Respite for the same reason: Skim
+  // turns the narrow lifegain ritual into a card that is never dead.
+  {
+    id: 'so-echos-refrain',
+    name: "Echo's Refrain",
+    types: ['ritual'],
+    subtypes: [],
+    cost: cost(1, 'U'),
+    colors: ['U'],
+    abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }] }],
+    retell: { cost: cost(2, 'U') },
+    rarity: 'c',
+    flavor: 'She answers every question twice, and the second answer is yours.',
+  },
+  {
+    id: 'so-roadside-shrine',
+    name: 'Roadside Shrine',
+    types: ['ritual'],
+    subtypes: [],
+    cost: cost(1, 'W'),
+    colors: ['W'],
+    abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 4 }] }],
+    skim: { cost: cost(1) },
+    rarity: 'c',
+    flavor: 'Leave a coin, take a blessing. The road keeps honest accounts.',
+  },
 ] as const satisfies readonly CardDef[];

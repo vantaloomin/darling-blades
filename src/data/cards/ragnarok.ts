@@ -250,7 +250,7 @@ export const RAGNAROK = [
   },
 
   // =========================================================================
-  // RARE (20)
+  // RARE (21)
   // --- White (3) ---
   {
     id: 'rg-valkyrie-vanguard',
@@ -527,6 +527,24 @@ export const RAGNAROK = [
     ],
     rarity: 'r',
     flavor: 'Valhalla’s doors swing both ways for the worthy.',
+  },
+
+  // Returning-mechanics sprinkle (1.6): Champion Awakening visits Ragnarök.
+  // Self-awakening at dawn (the Dark Tales heiress pattern) so the card
+  // needs no Quest support; the Einherjar ascends on her own schedule.
+  {
+    id: 'rg-twice-chosen-shieldmaiden',
+    name: 'Twice-Chosen Shieldmaiden',
+    types: ['creature'],
+    subtypes: ['Einherjar'],
+    cost: cost(2, 'R'),
+    colors: ['R'],
+    attack: 2,
+    defense: 3,
+    awakening: { p: 2, t: 1 },
+    abilities: [{ when: 'dawn', ops: [{ op: 'awaken', scope: 'self' }] }],
+    rarity: 'r',
+    flavor: 'The choosers passed her over once. She made certain of the second look.',
   },
 
   // =========================================================================

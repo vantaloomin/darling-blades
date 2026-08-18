@@ -268,7 +268,7 @@ export const GOTHIC_MONSTERS = [
   },
 
   // =========================================================================
-  // COMMON (40)
+  // COMMON (41)
   // =========================================================================
   creature('gm-manor-thrall', 'Manor Thrall', ['Vampire', 'Servant'], {
     cost: cost(1, 'B'), colors: ['B'], attack: 2, defense: 2, keywords: ['dreaded'],
@@ -475,5 +475,15 @@ export const GOTHIC_MONSTERS = [
     cost: cost(1, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'sever', to: 'target' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'c', flavor: 'She serves notice in silver and bills the monster for postage.',
+  },
+  // Returning-mechanics sprinkle (1.6): Retell visits the manor. Base drain
+  // sits under Treasonous Glance (no Foresee rider) so the recast is the
+  // whole reason to run it.
+  {
+    id: 'gm-retold-by-candlelight', name: 'Retold by Candlelight', types: ['ritual'], subtypes: [],
+    cost: cost(1, 'B'), colors: ['B'],
+    abilities: [{ when: 'spell', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] }],
+    retell: { cost: cost(2, 'B') },
+    rarity: 'c', flavor: 'The story loses nothing in the retelling. The listeners do.',
   },
 ] satisfies readonly CardDef[];
