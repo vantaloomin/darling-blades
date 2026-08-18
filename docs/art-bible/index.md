@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts · last-verified: 2026-07-13 -->
+<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts, docs/plan-duat-creative.md, docs/land-art.md · last-verified: 2026-08-18 -->
 
 # Darling Blades Art Bible — Index (The Contract)
 
@@ -225,6 +225,133 @@ props (never replacing the color-identity anchor):
 
 The Palette field of every entry names the actual hexes it leans on plus the
 faction accents.
+
+## 4a. Sands of the Duat set register (binding)
+
+This register applies to every future **Sands of the Duat** art-bible entry and
+every set-scoped key-visual brief that quotes this bible. The global rules above
+remain in force. The three notes marked **OWNER-PENDING** are unresolved owner
+taste decisions, not invitations for an artist to reinterpret the rule. Until
+the owner rules on one, use its stated working constraint and do not silently
+relax or extend it.
+
+### Accent palette
+
+Layer these accents over the card's color-identity palette. The listed uses are
+the set-level read, not optional flavor:
+
+| Accent | Hex | Required visual use |
+|---|---|---|
+| **Tomb gold** | `#e8c95a` / `#c9a84c` | collars, leaf, barge fittings, scale beam |
+| **Lapis** | `#1f3f7a` / `#2f5fae` | inlay, water, sky, and the cool rim |
+| **Sandstone** | `#d8b98a` / `#a8834f` | architecture, ground, and dust |
+| **Natron white** | `#f4efe2` | linen, wrappings, and the Preserve copy |
+| **Resin brown** | `#4a2f16` | shadow, embalming vessels, and tomb interiors |
+| **Barge fire** | `#ff8a3d` / `#ffd07a` | sun disc, prow fire, and brazier practicals |
+| **Malachite** | `#2f8f6a` | jewelry inlay only, and Osiris's skin |
+| **Heart-red** | `#c8253a` | reserved hue: weighed heart, blood, and Ammit's mouth only |
+
+**OWNER-PENDING - reserved heart-red.** The working reserved-hue rule is
+binding until the owner rules otherwise: `#c8253a` appears only on the weighed
+heart, blood, and Ammit's mouth. It appears nowhere else in the set, including
+cloth, flowers, sunsets, or generic red accents. Red-color-identity cards use
+barge fire instead. This note remains open for an owner veto; do not resolve it
+by introducing another saturated cool red.
+
+### Value floor and lighting doctrine
+
+- The darkest visible value in the central band is resin brown `#3a2a1c`.
+  Never use true black. Build depth with lapis shadow and the resin-brown
+  family, not black holes.
+- The **Lighting** field names one practical key that is visible or clearly
+  motivated inside the frame: brazier, oil lamp, sun disc, barge fire, or a
+  shaft through a roof slot. Unmotivated ambient light is not a substitute.
+- Pair the warm practical key with a lapis-cool rim from the river, night sky,
+  or an inlaid surface. This warm-key / lapis-rim pair is the Duat signature.
+- Every illustration carries a warm value above roughly 70% luminance inside
+  the central 640x800 band, y 167-633. Use gold on a collar, a lit face, or
+  natron linen so the card cannot collapse into a dark battlefield rectangle.
+- Use the daylight / tomb rhythm: hard-noon exteriors read as white stone,
+  short shadows, and heat shimmer; lamp-lit tomb interiors read as practical
+  fire against lapis shadow. Both modes remain fully rendered environments.
+
+**OWNER-PENDING - daylight share.** Roughly one third of the set is the
+working target for hard-noon exteriors. This contrast is the intended rhythm,
+but the owner has not yet ruled the exterior share. Until that ruling, retain
+the proposed target and do not change the value floor to compensate for a
+darker or brighter mix.
+
+### NO-TEXT and blank-cartouche rule
+
+The global NO-TEXT hard rule is especially strict for Duat visual language.
+Every wall register, cartouche, stela, papyrus, and seal renders as a **blank
+gold or lapis panel with geometric banding**, never glyphs. Carry both phrases
+on every generation prompt:
+
+- **Positive:** `blank gold cartouche panels, geometric banded registers`
+- **Negative:** `no hieroglyphs, no glyphs, no writing, no inscriptions`
+
+QA zooms every wall panel, cartouche, stela, papyrus, and seal. No generated
+Egyptian-looking mark is acceptable as decoration.
+
+### Composition by mechanic family
+
+The illustration shows the mechanic's defining moment, not a generic subject:
+
+- **Rite:** show the payment, never the payoff and never the killing. Include
+  at least two figures, one giving and one taking. Show one specific,
+  identifiable object already out of the giver's reach: a sealed jar, a heart
+  in a dish, a surrendered shield, or a laid-down spear. Make the taker's
+  hands the focal point. The card body is the reward, so it does not appear in
+  the scene. No gore and no on-camera sacrifice or altar blood.
+- **Nine Lives:** show the second landing, never the death. The character is
+  coming up from one knee, flagstones, or a crouch, with weight transferring
+  forward and dust or grit still falling. Show both the life mark and a trace
+  of where she went down: a scorched silhouette, dropped weapon, cracked
+  flagstone, or wet outline. State exactly one canonical life mark per entry:
+  either a thin gold seam across skin or armor where the wound was, or a notch
+  in one ear with a plain gold ring through it. Legends may carry multiple ear
+  rings, one per life spent. No other object in the set uses that ring shape.
+- **Preserve:** show the copy, not the corpse. Use two identical silhouettes
+  in different light: the original low in resin-brown shadow and the token copy
+  standing in natron white and gold in the space where the original knelt.
+  Clean, bright copy linen is the mechanic's focal read. No rot, exposed bone,
+  flies, or green skin, except malachite green on Osiris as an honor. If only
+  one figure is compositionally visible, imply the second with a shadow,
+  reflection, or empty wrapping that still holds its shape.
+
+### Bastet species tells and costume silhouette
+
+Every Bastet prompt states these species tells explicitly. They match the
+Nekomata row of the Beastkin species sheet and are QA checks, not suggestions:
+
+- Two upright, tufted cat ears set high on the skull.
+- Exactly one unforked tail with exactly one tip, emerging from the base of
+  the spine at the tailbone, centered on the lower back, never from the hip,
+  side, or waist. QA checks both the base and the tip.
+- Slit vertical pupils in amber or lapis, with short fangs visible on open
+  expressions.
+- Wrapped ankles and bare soles. Bastet do not wear boots.
+
+The costume silhouette is a hard triangle: broad shoulder and collar, narrow
+waist, and the tail supplying the diagonal break. Bastet are top-heavy; Duat
+necropolis officials are columnar; gods are symmetrical. Use pleated linen
+shendyt or wrap-kilt over a bound chest wrap, bare midriff and forearms,
+copper or bronze bracers, and a leather blade harness. Bastet hair stays low:
+a single weighted braid, skull-hugging beaded net, or short crop. Tall crowns
+belong to deities, not the tribe. State each character's adult build, height
+impression, and warm-brown skin tone rather than defaulting the body.
+
+The broad usekh collar alternates gold and lapis rows and is the tribe's rank
+badge. The working rarity signal is one lapis row on commons, three on
+uncommons and rares, and five on legends. Keep the collar readable at the
+119x86 battlefield scale.
+
+**OWNER-PENDING - lapis-row rarity badge.** The row count above is the
+working art rule, but the owner has not yet confirmed binding art-side rarity
+signaling. If the owner vetoes it, this collar row rule is the part that
+changes; do not substitute a different rarity badge on your own. Until then,
+author Bastet entries with the stated row counts.
 
 ---
 
