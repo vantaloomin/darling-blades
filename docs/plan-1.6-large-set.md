@@ -111,7 +111,7 @@ Companion documents (2026-08-17, both owner-session reviewed):
 frame, the precedent costing bands, and 45 mechanical exemplar slots;
 [plan-duat-creative.md](plan-duat-creative.md) owns voice, cast, the
 137-name bank, and art direction (mythic-weight register ruled
-2026-08-17; six taste questions remain open there).
+2026-08-17; ALL SIX taste questions RULED 2026-08-18: heart-red kept, lapis badge vetoed, daylight ~1/3, Anuket added as the 13th legend/mono-U face, geography stays mythic, Kesi lineage is a rumor).
 
 1. ~~The three new ops merged engine-first with tests + AI heuristics.~~
    **DONE 2026-08-17: Rite (#223), Nine Lives (#224), Preserve (#225), each
@@ -134,7 +134,7 @@ frame, the precedent costing bands, and 45 mechanical exemplar slots;
    with reserved heart-red, value floor, lighting doctrine,
    blank-cartouche rule, per-mechanic composition, Bastet tells; the
    three art-binding taste questions carried as OWNER-PENDING flags).
-   Companion drafts in art-bible/sands-of-the-duat-drafts.md (12 cast
+   Companion drafts in art-bible/sands-of-the-duat-drafts.md (13 cast
    entries + 5 dual landscapes + pack face, checker-excluded until the
    card-data wave lands).
 7. ~~The Dark Tales companion-wave rider decided~~ **RATIFIED 2026-08-17:

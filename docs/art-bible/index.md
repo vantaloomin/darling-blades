@@ -251,12 +251,11 @@ the set-level read, not optional flavor:
 | **Malachite** | `#2f8f6a` | jewelry inlay only, and Osiris's skin |
 | **Heart-red** | `#c8253a` | reserved hue: weighed heart, blood, and Ammit's mouth only |
 
-**OWNER-PENDING - reserved heart-red.** The working reserved-hue rule is
-binding until the owner rules otherwise: `#c8253a` appears only on the weighed
-heart, blood, and Ammit's mouth. It appears nowhere else in the set, including
-cloth, flowers, sunsets, or generic red accents. Red-color-identity cards use
-barge fire instead. This note remains open for an owner veto; do not resolve it
-by introducing another saturated cool red.
+**RULED 2026-08-18 - reserved heart-red is confirmed and binding.**
+`#c8253a` appears only on the weighed heart, blood, and Ammit's mouth. It
+appears nowhere else in the set, including cloth, flowers, sunsets, or
+generic red accents. Red-color-identity cards use barge fire instead. Do not
+introduce another saturated cool red.
 
 ### Value floor and lighting doctrine
 
@@ -275,11 +274,10 @@ by introducing another saturated cool red.
   short shadows, and heat shimmer; lamp-lit tomb interiors read as practical
   fire against lapis shadow. Both modes remain fully rendered environments.
 
-**OWNER-PENDING - daylight share.** Roughly one third of the set is the
-working target for hard-noon exteriors. This contrast is the intended rhythm,
-but the owner has not yet ruled the exterior share. Until that ruling, retain
-the proposed target and do not change the value floor to compensate for a
-darker or brighter mix.
+**RULED 2026-08-18 - daylight share confirmed at roughly one third.**
+Hard-noon exteriors target about a third of the set; the dark-UI readability
+concern is carried by the value floor and the 70% luminance band rule, never
+by reducing the exterior share.
 
 ### NO-TEXT and blank-cartouche rule
 
@@ -342,16 +340,13 @@ a single weighted braid, skull-hugging beaded net, or short crop. Tall crowns
 belong to deities, not the tribe. State each character's adult build, height
 impression, and warm-brown skin tone rather than defaulting the body.
 
-The broad usekh collar alternates gold and lapis rows and is the tribe's rank
-badge. The working rarity signal is one lapis row on commons, three on
-uncommons and rares, and five on legends. Keep the collar readable at the
-119x86 battlefield scale.
+The broad usekh collar alternates gold and lapis rows and is the tribe's
+signature costume piece, kept readable at the 119x86 battlefield scale.
 
-**OWNER-PENDING - lapis-row rarity badge.** The row count above is the
-working art rule, but the owner has not yet confirmed binding art-side rarity
-signaling. If the owner vetoes it, this collar row rule is the part that
-changes; do not substitute a different rarity badge on your own. Until then,
-author Bastet entries with the stated row counts.
+**RULED 2026-08-18 - the lapis-row rarity badge is VETOED.** The row count
+is the artist's choice per composition; there is no art-side rarity
+signaling, and no other rarity badge may be substituted. Collar rows carry
+no meaning beyond the silhouette.
 
 ---
 
