@@ -60,6 +60,60 @@ per the constructs-and-tokens precedent.
    tells on every Bastet card. The vetoed lapis-row rarity badge must NOT
    appear as a rarity rule in any entry; collar rows are free.
 
+### Prompt-authoring rules (learned from the Wave A review, 2026-08-19)
+
+Wave B prompts inherit these four clauses. Carry every clause that applies to
+the subject and scene into the generation-ready Prompt line; the wording is
+deliberately explicit because the generator composes for the full frame, not
+just the card window.
+
+1. **Species tells are an early MUST clause.** Every Bastet prompt opens its
+   species block with: `MUST show: slit vertical pupils, two upright tufted
+   ears, exactly ONE unforked tail with its base VISIBLE emerging at the
+   tailbone center of the lower back`. Pose the tail visibly, curling beside
+   the leg or behind the calf, never occluded. The kit token's early species
+   phrasing is the successful precedent.
+2. **Vertical placement is explicit.** The card window is y167-633 of the
+   640x800 frame, while the generator composes for the full frame. Every
+   load-bearing object, including mechanic evidence, life marks, landing
+   traces, offering objects, scale, feather, and heart, must say: `at
+   mid-height in the center of the frame, fully visible in the upper two
+   thirds, never near the bottom edge`. Every figure must say: `face in the
+   upper third with generous empty air above the head`.
+3. **Distant architecture has a glyph guard.** Alongside the existing
+   positive blank-cartouche phrase and NO-TEXT negatives, every prompt adds:
+   `all distant walls, pylons, columns and background architecture perfectly
+   smooth blank stone with plain flat geometric banding only, no carved relief
+   anywhere`. QA treats any distant architectural glyph leak as a FAIL.
+4. **Value insurance is mandatory for dark scenes.** Every tomb/night prompt
+   adds: `a generous pool of warm light claiming a large part of the frame,
+   rich readable detail in every shadow, no near-black areas anywhere`.
+   Tomb interiors and night crossings must retain readable shadow detail while
+   preserving the resin-brown floor.
+
+Round-2/3 additions (learned when the first fixes did NOT land, 2026-08-19):
+
+5. **Never write "<color> pupils" when you mean irises.** `amber pupils` /
+   `lapis pupils` reads to the model as round colored pupils and silently
+   overrides the slit instruction; three of the round-2 failures were this
+   exact word bug. Write `<color> irises with narrow cat-slit vertical
+   pupils, never round pupils`, and lead the species block with it.
+6. **Anchor the tail at waist height, not by the legs.** `curling beside the
+   leg or behind the calf` posed every tail below the card window (calves
+   live below y633). The working phrase: `her long tail curls UP and around
+   beside her waist with its full arc clearly visible at waist height at
+   mid-frame, never hanging low near the ground`.
+7. **Do not seed light effects you do not want.** `one low sun glint on the
+   water` birthed a centered starburst twice; a `sun disc as practical key`
+   became a crystalline orb. For visible suns write `one small flat
+   pale-gold circle high in a hazy sky, matte and rayless like a coin`; for
+   glints, move the practical key onto a physical object instead. Pair with
+   the full negative set: `no lens flare, no starburst, no radial rays, no
+   glowing orb, no light burst`.
+8. **Count figures absolutely.** `two identical silhouettes` still allowed a
+   third bystander; write `EXACTLY TWO figures in the entire image and not
+   one person more`.
+
 ## 3. Batch order (interleaved with the card-data waves)
 
 1. **Wave A — the 19 already-briefed pieces** the moment their ids lock:
