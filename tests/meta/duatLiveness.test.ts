@@ -41,11 +41,14 @@ describe('Sands of the Duat liveness gate', () => {
       FEATURES.duatLive = true;
       const livePackIds = TIERS.flatMap((tier) => packPool(CARD_DB, tier));
       expect(livePackIds.some(isDuatId)).toBe(true);
-      // Waves A, B, and C live booster counts, including the five common duals.
+      // Waves A through D3 live booster counts, including the five common
+      // duals. D3 appends 58 mono-column cards after the explicit multicolor
+      // tier reconciliation, bringing the live Duat pool to its 245-card
+      // frame.
       const liveDuatByTier = Object.fromEntries(
         TIERS.map((tier) => [tier, packPool(CARD_DB, tier).filter(isDuatId).length]),
       );
-      expect(liveDuatByTier).toEqual({ c: 40, r: 18, sr: 9, ssr: 5, ur: 7 });
+      expect(liveDuatByTier).toEqual({ c: 122, r: 74, sr: 23, ssr: 16, ur: 10 });
       expect(collectionCompletion(ALL_CARDS, save).total).toBe(
         gatedCompletion.total + SANDS_OF_THE_DUAT.length,
       );
