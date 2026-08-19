@@ -130,6 +130,18 @@ Round-2/3 additions (learned when the first fixes did NOT land, 2026-08-19):
 Rule 6 validation note: the waist-height tail wording validated 17/17 in one
 batch; future authors should keep rule 6 verbatim.
 
+### Wave B round-5 amendments (2026-08-19)
+
+11. Write life marks as glowing kintsugi scar lines on bare skin and strip competing jewelry - "gold seam" generates an armlet.
+12. Floor props must be RAISED IN THE SCENE (pedestal, post, step) - placement words alone cannot keep a ground object inside the card window; tail tips pin to CHEST height with a no-metal-cap negative; headroom asks for the top fifth explicitly.
+
+### Wave C additions (2026-08-19)
+
+(13) EVERY figure noun in every prompt reads "adult woman" with "no men, no male figures" in negatives - the correlation was perfect and the omission is a world-rule breach.
+(14) paired compositions place BOTH heads in the middle band explicitly.
+(15) landing traces and floor evidence go on raised surfaces (ledges, wall faces) - the floor is below the card window.
+(16) interior scenes name a large lit surface, not a point source.
+Note the ankh-staff owner ruling as pending.
 ## 3. Batch order (interleaved with the card-data waves)
 
 1. **Wave A — the 19 already-briefed pieces** the moment their ids lock:
