@@ -519,7 +519,7 @@ patterned, never lettered.
 - **Palette:** R palette (`#d95436` → `#5e0f0f`, accent `#f7b267`) — ember and iron; Ragnarök accents — glacier blue-white, aurora green-violet, runic gold, and ash — layered over the color anchor, never replacing it.
 - **Lighting:** a cold aurora key from above with a warm ember rim rising from below — the two lights of her two summons.
 - **Expression:** patient fury sharpened into certainty.
-- **Props / weapon:** a notched axe and the dented round shield, old damage kept on purpose.
+- **Props / weapon:** a straight-bladed sword with a disc pommel and the dented round shield, old damage kept on purpose. (Reconciled 2026-08-19 to the shipped illustration; the original draft said a notched axe but the Prompt line never carried it.)
 - **Background:** a battlefield ridge at dusk with a wing of valkyrie light descending for the second time.
 - **Holo interaction:** Rolled specials favor shiny — concentrate texture variance in the metal, cloth-trim, and any relic so the finish lands there and the face stays quiet.
 - **Rarity ambition:** Uncommon — the figure plus one environmental story beat or a beat of motion.

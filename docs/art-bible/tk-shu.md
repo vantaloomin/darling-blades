@@ -182,7 +182,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Background:** A willow courtyard at drill hour, petals mid-air, one story element.
 - **Holo interaction:** Sheen — let the sweep travel the silk and the twin blades so the finish reads as the second cut's light.
 - **Rarity ambition:** Uncommon — one figure with clear paired-blade motion and a single environmental echo.
-- **Prompt:** An original Shu sword dancer mid-turn in jade-green dancer's silks over light lamellar, two slim willow-leaf sabers tracing one flowing arc, calm half-smile, willow courtyard with petals mid-air, soft grove-filtered key with thin steel rim on both blades — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+- **Prompt:** An original Shu sword dancer mid-turn in jade-green dancer's silks over light lamellar, hair in a low ribboned tail with no tall topknot, TWO separate willow-leaf sabers held wide apart as two thick distinct steel blades with visible width, one high and one low, both hands and both full blades well inside the frame with clear margin from every edge, figure pulled back with generous empty willow-air above her head, calm half-smile, willow courtyard with petals mid-air, soft grove-filtered key with a bright steel gleam along each blade — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Ma Chao, Splendid Justicar — `tk-shu-machao`
 - **Card facts:** {2}{W}{W} · W · 4/3 · c · holo: none
