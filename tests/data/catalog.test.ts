@@ -158,9 +158,9 @@ describe('catalog integrity', () => {
     );
     const share = (rarity: string) =>
       pool.filter((c) => c.rarity === rarity).length / pool.length;
-    // Measured catalog after the nine removal answers and Duat Wave B: 286 c /
-    // 166 r / 43 sr / 32 ssr / 24 ur over a 551-card collectible pool
-    // (51.9 / 30.1 / 7.8 / 5.8 / 4.4 %).
+    // Measured catalog after the nine removal answers and Duat Wave C: 301 c /
+    // 175 r / 46 sr / 32 ssr / 25 ur over a 579-card collectible pool
+    // (52.0 / 30.2 / 7.9 / 5.5 / 4.3 %).
     expect(share('c')).toBeGreaterThanOrEqual(0.45);
     expect(share('c')).toBeLessThanOrEqual(0.6);
     expect(share('r')).toBeGreaterThanOrEqual(0.25);
@@ -210,8 +210,9 @@ describe('catalog integrity', () => {
     ]))).toEqual({ c: 111, r: 69, sr: 14, ssr: 11, ur: 8 });
     // W5's four tribal cards move the collectible catalog 783 -> 787; the
     // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
-    // Wave A adds 18 collectible cards and Wave B adds 33, so ALL_CARDS is 850.
-    expect(ALL_CARDS).toHaveLength(850);
+    // Wave A adds 18 collectible cards, Wave B adds 33, and Wave C adds 28,
+    // so ALL_CARDS is 878 total cards, including tokens and basics.
+    expect(ALL_CARDS).toHaveLength(878);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -237,12 +238,12 @@ describe('catalog integrity', () => {
     }
   });
 
-  it('registers the 51-card Sands of the Duat Waves A and B pool', () => {
-    expect(SANDS_OF_THE_DUAT).toHaveLength(51);
+  it('registers the 79-card Sands of the Duat Waves A, B, and C pool', () => {
+    expect(SANDS_OF_THE_DUAT).toHaveLength(79);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
       rarity,
       SANDS_OF_THE_DUAT.filter((card) => card.rarity === rarity).length,
-    ]))).toEqual({ c: 25, r: 9, sr: 6, ssr: 5, ur: 6 });
+    ]))).toEqual({ c: 40, r: 18, sr: 9, ssr: 5, ur: 7 });
   });
 
   it('the ragnarok set is a self-sufficient booster pool (ur >= 4, sr/ssr present)', () => {

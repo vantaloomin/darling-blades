@@ -119,6 +119,11 @@ const EXPECTED_IDS = [
   // Sands of the Duat Wave A dual lands (5), added 2026-08-19
   'sd-land-the-weighing-hall', 'sd-land-emberwake-channel', 'sd-land-silt-tomb-terrace',
   'sd-land-noon-barge-landing', 'sd-land-reedway-delta',
+  // Sands of the Duat Wave B support (2), added 2026-08-19
+  'sd-pridehall-drillmaster', 'sd-bastet-gate-chorus',
+  // Sands of the Duat Wave C spells (7), added 2026-08-19
+  'sd-salt-and-linen', 'sd-the-debt-is-called', 'sd-noon-judgment', 'sd-two-harvests',
+  'sd-hollow-the-chest', 'sd-sealed-doorway', 'sd-empty-every-jar',
 ] as const;
 
 /**
