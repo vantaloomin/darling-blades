@@ -114,6 +114,22 @@ Round-2/3 additions (learned when the first fixes did NOT land, 2026-08-19):
    third bystander; write `EXACTLY TWO figures in the entire image and not
    one person more`.
 
+### Wave B additions 2026-08-19
+
+9. **The slit-pupil tell leads the prompt and rides the negative block.** Put
+   `Cat-slit narrow vertical pupils.` first, and add `no round pupils` to the
+   negative block. A positive clause alone is ignored ~half the time, worst on
+   blue-eyed cards.
+10. **Absolute in-band placement applies to lights, figures, and tokens.**
+    Named key lights, secondary figures, and tokens get the same absolute
+    placement words as mechanic evidence: `at mid-height inside the central
+    band, never near the top or bottom edge`. The tail rule names the TIP
+    itself: `the tapered tail TIP itself clearly visible at waist height,
+    never below the hips, never leaving the frame`.
+
+Rule 6 validation note: the waist-height tail wording validated 17/17 in one
+batch; future authors should keep rule 6 verbatim.
+
 ## 3. Batch order (interleaved with the card-data waves)
 
 1. **Wave A — the 19 already-briefed pieces** the moment their ids lock:
