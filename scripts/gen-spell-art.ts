@@ -116,6 +116,9 @@ const EXPECTED_IDS = [
   'cf-tithe-of-seasons', 'cf-salt-the-barrow', 'ac-second-muster',
   'gm-retold-by-candlelight', 'so-echos-refrain', 'so-roadside-shrine',
   'en-persephones-return',
+  // Sands of the Duat Wave A dual lands (5), added 2026-08-19
+  'sd-land-the-weighing-hall', 'sd-land-emberwake-channel', 'sd-land-silt-tomb-terrace',
+  'sd-land-noon-barge-landing', 'sd-land-reedway-delta',
 ] as const;
 
 /**

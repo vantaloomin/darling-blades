@@ -59,6 +59,7 @@ const FACTIONS = [
   'celtic-fae',
   'arthurian-court',
   'gothic-monsters',
+  'sands-of-the-duat',
 ] as const;
 
 const OUT_W = 640;

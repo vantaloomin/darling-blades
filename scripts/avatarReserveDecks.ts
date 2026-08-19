@@ -23,6 +23,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RULES } from '../src/config/rules';
 import { CARD_DB } from '../src/data/catalog';
+import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import type { CardDb, CardDef, Color } from '../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
@@ -81,13 +82,13 @@ function containsOnlyColors(card: CardDef, colors: readonly Color[]): boolean {
 }
 
 function isEligibleSpell(card: CardDef | undefined): card is CardDef {
-  return Boolean(card && !card.token && !card.types.includes('land'));
+  return Boolean(card && isLiveCollectible(card) && !card.types.includes('land'));
 }
 
 function isLegendaryCreature(card: CardDef | undefined): card is CardDef {
   return Boolean(
     card &&
-    !card.token &&
+    isLiveCollectible(card) &&
     card.types.includes('creature') &&
     (card.supertypes?.includes('legendary') ?? false),
   );

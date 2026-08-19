@@ -7,6 +7,7 @@
  * produce an illegal matrix game.
  */
 import { CARD_DB } from '../src/data/catalog';
+import { isLiveCollectible } from '../src/data/liveness';
 import { STARTER_DECKS, type DeckList } from '../src/data/starterDecks';
 import type { CardDb, CardDef, Color } from '../src/engine/types';
 import {
@@ -81,7 +82,7 @@ function byCurveThenId(db: CardDb, ids: readonly string[]): string[] {
 }
 
 function isEligibleSpell(card: CardDef | undefined): card is CardDef {
-  return Boolean(card && !card.token && !card.types.includes('land'));
+  return Boolean(card && isLiveCollectible(card) && !card.types.includes('land'));
 }
 
 function colorsOfSource(deck: DeckList, db: CardDb): Color[] {
@@ -102,6 +103,7 @@ export function buildLandReserve(colors: readonly Color[], db: CardDb = CARD_DB)
   const duals = Object.values(db)
     .filter((card) =>
       isDualLand(card) &&
+      isLiveCollectible(card) &&
       (card.manaAbility?.length ?? 0) === 2 &&
       (card.manaAbility ?? []).every((color) => colors.includes(color)),
     )
@@ -345,6 +347,7 @@ function selectDarling(colors: readonly Color[], db: CardDb): CardDef {
   const darling = Object.values(db)
     .filter((card) =>
       !card.token &&
+      isLiveCollectible(card) &&
       card.types.includes('creature') &&
       (card.supertypes?.includes('legendary') ?? false) &&
       sameColors(COLOR_ORDER.filter((color) => card.colors.includes(color)), colors),

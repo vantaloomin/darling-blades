@@ -4,6 +4,7 @@ import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAI } from '../../src/ai/personality';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
+import { isLiveCollectible } from '../../src/data/liveness';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../../src/data/starterDecks';
 import { createRngState, rngInt, rngNext, type RngState } from '../../src/engine/rng';
 import { manaValue, type CardDef, type Color } from '../../src/engine/types';
@@ -321,7 +322,9 @@ export function cardsForPool(pool: string): CardDef[] {
   if (pool !== 'all' && !knownSets.has(pool as NonNullable<CardDef['set']>)) {
     throw new Error(`Unknown pool: ${pool}. Expected all or one of ${[...knownSets].sort().join(', ')}`);
   }
-  return ALL_CARDS.filter((card) => !card.token && (pool === 'all' || card.set === pool || isBasic(card)));
+  return ALL_CARDS.filter((card) =>
+    !card.token && (isBasic(card) || (isLiveCollectible(card) && (pool === 'all' || card.set === pool))),
+  );
 }
 
 function chooseBestTwoColors(pool: readonly CardDef[]): Color[] {

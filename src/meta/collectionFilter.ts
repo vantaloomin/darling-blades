@@ -11,6 +11,7 @@ import {
   type CardVariant,
 } from './variants';
 import { isUtilityTapland } from './warchest';
+import { isLiveCollectible } from '../data/liveness';
 
 /**
  * Pure, headless filter / sort / paging helpers behind the Collection binder
@@ -92,7 +93,7 @@ export function matchesSearch(d: CardDef, query: string): boolean {
 }
 
 function isActiveCollectible(d: CardDef): boolean {
-  return !d.token && !d.supertypes?.includes('basic') && !isUtilityTapland(d);
+  return isLiveCollectible(d) && !isUtilityTapland(d);
 }
 
 /** The collectible pool: no tokens, basics, or retired utility taplands. */
@@ -104,8 +105,7 @@ export function collectiblePool(cards: readonly CardDef[]): CardDef[] {
 export function collectionDisplayPool(cards: readonly CardDef[], save: SaveData): CardDef[] {
   return cards.filter(
     (d) =>
-      !d.token &&
-      !d.supertypes?.includes('basic') &&
+      isLiveCollectible(d) &&
       (!isUtilityTapland(d) || ownedCount(save, d.id) >= 1),
   );
 }

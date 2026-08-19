@@ -18,6 +18,7 @@ import { packPool } from './PackOpener';
 import type { SaveData } from './SaveManager';
 import { PLAIN_VARIANT, rollFrame, rollHolo, rollTier, TIER_RANK, type CardVariant } from './variants';
 import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from './warchest';
+import { isLiveCollectible } from '../data/liveness';
 
 export type LimitedMode = 'draft';
 export type LimitedRunStatus = 'draft' | 'build' | 'matches';
@@ -405,7 +406,10 @@ export function limitedLandReserve(
 
 /** Return drafted dual occurrences in pool order for the Limited builder. */
 export function limitedDraftDuals(db: CardDb, pool: readonly string[]): string[] {
-  return pool.filter((id) => db[id] !== undefined && isDualLand(db[id]));
+  return pool.filter((id) => {
+    const card = db[id];
+    return card !== undefined && isLiveCollectible(card) && isDualLand(card);
+  });
 }
 
 export function countCards(cards: readonly string[]): Map<string, number> {
@@ -530,7 +534,7 @@ function chooseDeckColors(db: CardDb, pool: readonly string[]): Color[] {
 
 function isPlayableSpell(db: CardDb, id: string): boolean {
   const d = def(db, id);
-  return !d.token && !isType(d, 'land') && d.cost !== undefined;
+  return isLiveCollectible(d) && !isType(d, 'land') && d.cost !== undefined;
 }
 
 

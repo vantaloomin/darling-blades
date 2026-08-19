@@ -4,6 +4,32 @@ import { cost } from '../cardTypes';
 /** Tokens — non-collectible cards referenced by createToken effects. */
 export const TOKENS = [
   {
+    id: 'tok-duat-scarab',
+    name: 'Duat Scarab',
+    types: ['creature'],
+    subtypes: ['Scarab'],
+    cost: cost(0),
+    colors: ['B'],
+    attack: 1,
+    defense: 1,
+    token: true,
+    rarity: 'c',
+    flavor: 'She carries the offering through the heat and does not look back.',
+  },
+  {
+    id: 'tok-bastet-kit',
+    name: 'Lion-Gate Kit',
+    types: ['creature'],
+    subtypes: ['Bastet', 'Kit'],
+    cost: cost(0),
+    colors: ['W'],
+    attack: 1,
+    defense: 1,
+    token: true,
+    rarity: 'c',
+    flavor: 'She follows the pawprints and finds the fight.',
+  },
+  {
     id: 'tok-militia',
     name: 'Volunteer Militia',
     types: ['creature'],
