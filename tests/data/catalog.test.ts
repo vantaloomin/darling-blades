@@ -158,9 +158,9 @@ describe('catalog integrity', () => {
     );
     const share = (rarity: string) =>
       pool.filter((c) => c.rarity === rarity).length / pool.length;
-    // Measured catalog after the nine removal answers: 266 c / 157 r / 40 sr /
-    // 31 ssr / 24 ur over a 518-card collectible pool (51.4 / 30.3 / 7.7 /
-    // 6.0 / 4.6 %).
+    // Measured catalog after the nine removal answers and Duat Wave B: 286 c /
+    // 166 r / 43 sr / 32 ssr / 24 ur over a 551-card collectible pool
+    // (51.9 / 30.1 / 7.8 / 5.8 / 4.4 %).
     expect(share('c')).toBeGreaterThanOrEqual(0.45);
     expect(share('c')).toBeLessThanOrEqual(0.6);
     expect(share('r')).toBeGreaterThanOrEqual(0.25);
@@ -209,9 +209,9 @@ describe('catalog integrity', () => {
       base.filter((card) => card.rarity === rarity).length,
     ]))).toEqual({ c: 111, r: 69, sr: 14, ssr: 11, ur: 8 });
     // W5's four tribal cards move the collectible catalog 783 -> 787; the
-    // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Wave A
-    // adds 18 collectible cards and 2 token records, so ALL_CARDS is 817.
-    expect(ALL_CARDS).toHaveLength(817);
+    // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
+    // Wave A adds 18 collectible cards and Wave B adds 33, so ALL_CARDS is 850.
+    expect(ALL_CARDS).toHaveLength(850);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -237,12 +237,12 @@ describe('catalog integrity', () => {
     }
   });
 
-  it('registers the 18-card Sands of the Duat Wave A scaffold', () => {
-    expect(SANDS_OF_THE_DUAT).toHaveLength(18);
+  it('registers the 51-card Sands of the Duat Waves A and B pool', () => {
+    expect(SANDS_OF_THE_DUAT).toHaveLength(51);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
       rarity,
       SANDS_OF_THE_DUAT.filter((card) => card.rarity === rarity).length,
-    ]))).toEqual({ c: 5, r: 0, sr: 3, ssr: 4, ur: 6 });
+    ]))).toEqual({ c: 25, r: 9, sr: 6, ssr: 5, ur: 6 });
   });
 
   it('the ragnarok set is a self-sufficient booster pool (ur >= 4, sr/ssr present)', () => {
