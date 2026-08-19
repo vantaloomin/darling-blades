@@ -1,9 +1,12 @@
 /**
- * Generates real card art for the 100 non-creature SPELL prompt entries: the 85
- * primary entries (18 instants, 16 sorceries, 10 enchantments, 1 artifact, + 9
- * Ragnarök spells/runes, + 31 Gothic Monsters charms/rituals/enchantments/artifacts)
- * plus eight removal-answer records and the seven 1.6 returning-mechanics
- * sprinkle spells. Prompts live in docs/spell-art.md; the
+ * Generates real card art for the 164 non-creature SPELL/ARTIFACT/LAND prompt
+ * entries: the 85 primary entries (18 instants, 16 sorceries, 10 enchantments,
+ * 1 artifact, + 9 Ragnarök spells/runes, + 31 Gothic Monsters
+ * charms/rituals/enchantments/artifacts), plus eight removal-answer records,
+ * seven 1.6 returning-mechanics sprinkle spells, five Duat lands, two Wave B
+ * support spells, seven Wave C spells, 26 Wave D1 non-creatures, and 24 Wave D2
+ * non-creatures. Prompts
+ * live in docs/spell-art.md; the
  * chatgpt-imagegen CLI is backed by the user's ChatGPT
  * subscription — see the `anthropic-skills:chatgpt-imagegen` skill), then
  * post-processes each image to the exact 640×800 WebP deliverable
@@ -63,7 +66,7 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 93 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * The 164 spell ids docs/spell-art.md must cover, in the authored order (instants
  * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters →
  * the removal answer cycle).
  * Parsing cross-checks against this
@@ -124,6 +127,37 @@ const EXPECTED_IDS = [
   // Sands of the Duat Wave C spells (7), added 2026-08-19
   'sd-salt-and-linen', 'sd-the-debt-is-called', 'sd-noon-judgment', 'sd-two-harvests',
   'sd-hollow-the-chest', 'sd-sealed-doorway', 'sd-empty-every-jar',
+  // Sands of the Duat Wave D1 non-creatures (26), added 2026-08-19; one reviewed
+  // river-crossing card was cut and is intentionally absent from this roster.
+  'sd-the-offering-table', 'sd-altar-of-the-fourth-hall', 'sd-resin-archive',
+  'sd-natron-vault', 'sd-scale-weight', 'sd-reed-bound-canopic', 'sd-empty-heart-jar',
+  'sd-tomb-seal', 'sd-lapis-funerary-mask', 'sd-censer-of-the-last-gate',
+  'sd-lion-gate-standard', 'sd-tollgate-of-the-fourth-hall', 'sd-canopic-cartouche',
+  'sd-barge-fire-brazier', 'sd-flood-measure-vessel',
+  'sd-natron-crowned-canopic', 'sd-heart-scale-reliquary',
+  'sd-hena-who-rows-against-the-hour',
+  'sd-name-the-gate', 'sd-procession-halt', 'sd-weigh-the-room', 'sd-strike-the-lintel',
+  'sd-stop-the-procession', 'sd-marked-at-the-gate', 'sd-the-hall-clears',
+  'sd-the-gate-is-closed',
+  // Sands of the Duat Wave D2 non-creatures (24), added 2026-08-19
+  'sd-read-the-two-ways', 'sd-take-the-slow-channel', 'sd-hold-the-crossing',
+  'sd-silt-reading', 'sd-row-against-the-hour', 'sd-channel-turns-back',
+  'sd-book-of-the-two-ways', 'sd-wrong-door', 'sd-sand-through-the-grate',
+  'sd-the-book-opens-twice', 'sd-read-the-sky-over-the-barge',
+  'sd-the-map-argues-back', 'sd-river-returns-the-answer', 'sd-the-last-chart-of-the-duat',
+  'sd-pay-before-the-asking', 'sd-cut-the-wrappings', 'sd-two-jars-one-heart',
+  'sd-wrapped-against-the-season', 'sd-one-clean-cut', 'sd-second-wrapping',
+  'sd-silence-after-the-verdict', 'sd-verdict-under-resin', 'sd-the-long-drying',
+  'sd-the-weight-owed-in-full',
+  // Sands of the Duat Wave D3 non-creatures (20), added 2026-08-19
+  'sd-burn-the-rope', 'sd-flame-beneath-the-pan', 'sd-light-the-wake',
+  'sd-prowfire-volley', 'sd-warcry-at-noon', 'sd-break-the-coil',
+  'sd-ember-signal', 'sd-fire-along-the-barge', 'sd-run-the-deck',
+  'sd-noon-serpent-judgment',
+  'sd-give-the-field-its-due', 'sd-measure-the-silt', 'sd-root-through-the-ruin',
+  'sd-ward-the-floodgate', 'sd-harvest-after-rain', 'sd-flood-before-noon',
+  'sd-warding-of-the-first-furrow', 'sd-deeper-flood-channel',
+  'sd-granary-of-rising-years', 'sd-route-beyond-the-gate',
 ] as const;
 
 /**

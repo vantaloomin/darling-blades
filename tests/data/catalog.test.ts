@@ -158,9 +158,9 @@ describe('catalog integrity', () => {
     );
     const share = (rarity: string) =>
       pool.filter((c) => c.rarity === rarity).length / pool.length;
-    // Measured catalog after the nine removal answers and Duat Wave C: 301 c /
-    // 175 r / 46 sr / 32 ssr / 25 ur over a 579-card collectible pool
-    // (52.0 / 30.2 / 7.9 / 5.5 / 4.3 %).
+    // Measured catalog after Duat Wave D1: 323 c / 198 r / 48 sr / 35 ssr /
+    // 27 ur over a 631-card collectible pool (51.2 / 31.4 / 7.6 / 5.5 /
+    // 4.3 %). D1 adds 22 c / 23 r / 2 sr / 3 ssr / 2 ur.
     expect(share('c')).toBeGreaterThanOrEqual(0.45);
     expect(share('c')).toBeLessThanOrEqual(0.6);
     expect(share('r')).toBeGreaterThanOrEqual(0.25);
@@ -210,9 +210,9 @@ describe('catalog integrity', () => {
     ]))).toEqual({ c: 111, r: 69, sr: 14, ssr: 11, ur: 8 });
     // W5's four tribal cards move the collectible catalog 783 -> 787; the
     // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
-    // Wave A adds 18 collectible cards, Wave B adds 33, and Wave C adds 28,
-    // so ALL_CARDS is 878 total cards, including tokens and basics.
-    expect(ALL_CARDS).toHaveLength(878);
+    // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
+    // cards, so ALL_CARDS is 1,044 total cards, including tokens and basics.
+    expect(ALL_CARDS).toHaveLength(1044);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -238,12 +238,32 @@ describe('catalog integrity', () => {
     }
   });
 
-  it('registers the 79-card Sands of the Duat Waves A, B, and C pool', () => {
-    expect(SANDS_OF_THE_DUAT).toHaveLength(79);
+  it('registers the 245-card Sands of the Duat Waves A through D3 pool', () => {
+    // D1 appends 21 artifacts, 9 multicolor legends, and 22 mono-W cards.
+    // The shipped multicolor slice already has SR3 and UR5 against the frame
+    // column's SR2 and UR4, so the nine-card append was the non-negative
+    // remainder: R8 and SSR1. D3 makes that reconciliation explicit by
+    // moving Ra and War-Priestess to SSR before appending the final 58 cards.
+    expect(SANDS_OF_THE_DUAT).toHaveLength(245);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
       rarity,
       SANDS_OF_THE_DUAT.filter((card) => card.rarity === rarity).length,
-    ]))).toEqual({ c: 40, r: 18, sr: 9, ssr: 5, ur: 7 });
+    ]))).toEqual({ c: 122, r: 74, sr: 23, ssr: 16, ur: 10 });
+
+    const count = (predicate: (card: (typeof SANDS_OF_THE_DUAT)[number]) => boolean) =>
+      Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
+        rarity,
+        SANDS_OF_THE_DUAT.filter((card) => predicate(card) && card.rarity === rarity).length,
+      ]));
+    expect(count((card) => card.types.some((type) => type === 'artifact'))).toEqual({ c: 12, r: 6, sr: 1, ssr: 1, ur: 1 });
+    expect(count((card) => card.colors.length > 1)).toEqual({ c: 0, r: 8, sr: 2, ssr: 5, ur: 4 });
+    const mono = (color: string) => (card: (typeof SANDS_OF_THE_DUAT)[number]) =>
+      !card.types.some((type) => type === 'artifact' || type === 'land') &&
+      card.colors.length === 1 && card.colors[0] === color;
+    for (const color of ['W', 'U', 'B', 'R', 'G']) {
+      expect(SANDS_OF_THE_DUAT.filter(mono(color))).toHaveLength(40);
+      expect(count(mono(color))).toEqual({ c: 21, r: 12, sr: 4, ssr: 2, ur: 1 });
+    }
   });
 
   it('the ragnarok set is a self-sufficient booster pool (ur >= 4, sr/ssr present)', () => {
