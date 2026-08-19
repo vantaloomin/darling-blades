@@ -26,6 +26,7 @@
  * measured with `--avatars-darlings`, not a truth to be trusted.
  */
 import { CARD_DB } from '../src/data/catalog';
+import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { DARLINGS_DECK_SIZE } from '../src/meta/warchest';
 import type { CardDb, CardDef, Color } from '../src/engine/types';
@@ -118,7 +119,7 @@ export function setOf(id: string): string {
 }
 
 function eligible(card: CardDef, colors: readonly Color[]): boolean {
-  if (card.token || card.types.includes('land')) return false;
+  if (!isLiveCollectible(card) || card.types.includes('land')) return false;
   if (card.supertypes?.includes('legendary') && card.types.includes('creature')) {
     // Legendary creatures other than the Darling stay out: they read as rival
     // commanders and muddy the deck's single-leader identity.

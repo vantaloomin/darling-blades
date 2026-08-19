@@ -21,6 +21,7 @@ import { GREEK } from '../../src/data/cards/greek';
 import { INSTANTS } from '../../src/data/cards/instants';
 import { LANDS } from '../../src/data/cards/lands';
 import { RAGNAROK } from '../../src/data/cards/ragnarok';
+import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
 import { SORCERIES } from '../../src/data/cards/sorceries';
 import { TK_JIN } from '../../src/data/cards/tk-jin';
 import { TK_OTHER } from '../../src/data/cards/tk-other';
@@ -92,6 +93,7 @@ describe('catalog integrity', () => {
       [GOTHIC_MONSTERS, 'gm-'],
       [DARK_TALES, 'dt-'],
       [YOKAI_NIGHTS, 'yn-'],
+      [SANDS_OF_THE_DUAT, 'sd-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -207,8 +209,9 @@ describe('catalog integrity', () => {
       base.filter((card) => card.rarity === rarity).length,
     ]))).toEqual({ c: 111, r: 69, sr: 14, ssr: 11, ur: 8 });
     // W5's four tribal cards move the collectible catalog 783 -> 787; the
-    // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797.
-    expect(ALL_CARDS).toHaveLength(797);
+    // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Wave A
+    // adds 18 collectible cards and 2 token records, so ALL_CARDS is 817.
+    expect(ALL_CARDS).toHaveLength(817);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -226,10 +229,20 @@ describe('catalog integrity', () => {
         expect(card.set, card.id + ' should be set:dark-tales').toBe('dark-tales');
       } else if (card.id.startsWith('yn-')) {
         expect(card.set, card.id + ' should be set:yokai-nights').toBe('yokai-nights');
+      } else if (card.id.startsWith('sd-')) {
+        expect(String(card.set), card.id + ' should be set:sands-of-the-duat').toBe('sands-of-the-duat');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }
     }
+  });
+
+  it('registers the 18-card Sands of the Duat Wave A scaffold', () => {
+    expect(SANDS_OF_THE_DUAT).toHaveLength(18);
+    expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
+      rarity,
+      SANDS_OF_THE_DUAT.filter((card) => card.rarity === rarity).length,
+    ]))).toEqual({ c: 5, r: 0, sr: 3, ssr: 4, ur: 6 });
   });
 
   it('the ragnarok set is a self-sufficient booster pool (ur >= 4, sr/ssr present)', () => {

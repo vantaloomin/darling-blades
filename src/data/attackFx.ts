@@ -29,6 +29,21 @@ export interface AttackFxSpec {
 
 /** Explicit per-creature classification (reviewed from the card list). */
 export const ATTACK_FX_MAP: Record<string, AttackFxSpec> = {
+  'tok-duat-scarab': { archetype: 'shadow', heavy: false },
+  'tok-bastet-kit': { archetype: 'claw', heavy: false },
+  'sd-bastet-mistress-of-the-ninth-return': { archetype: 'claw', heavy: true },
+  'sd-anubis-who-holds-the-scale': { archetype: 'shadow', heavy: true },
+  'sd-osiris-green-after-burial': { archetype: 'claw', heavy: true },
+  'sd-ammit-under-the-scale': { archetype: 'claw', heavy: true },
+  'sd-neith-who-weaves-the-shroud': { archetype: 'arcane', heavy: false },
+  'sd-ra-helm-of-the-night-barge': { archetype: 'radiance', heavy: false },
+  'sd-renenutet-who-measures-the-flood': { archetype: 'claw', heavy: true },
+  'sd-nebet-nine-times-risen': { archetype: 'slash', heavy: false },
+  'sd-kesi-of-the-paired-knives': { archetype: 'slash', heavy: false },
+  'sd-bakhet-gate-warden-of-the-lower-city': { archetype: 'radiance', heavy: false },
+  'sd-khenut-who-pays-before-the-asking': { archetype: 'shadow', heavy: true },
+  'sd-sitra-ferrywoman-of-two-rivers': { archetype: 'frost', heavy: false },
+  'sd-anuket-who-runs-the-cataracts': { archetype: 'frost', heavy: false },
   'gk-athena': { archetype: 'radiance', heavy: false },
   'gk-ares': { archetype: 'fire', heavy: false },
   'gk-artemis': { archetype: 'pierce', heavy: false },

@@ -6,6 +6,7 @@ import { addCard, ownedCount, PLAYSET, type AddResult } from './Collection';
 import type { SaveData } from './SaveManager';
 import { rollFrame, rollFullArt, rollHolo, rollTier, TIER_RANK, variantRank } from './variants';
 import { isUtilityTapland } from './warchest';
+import { isLiveCollectible } from '../data/liveness';
 
 /** Cards that can appear in boosters: no basics, no tokens. */
 export function packPool(db: CardDb, tier: Rarity, set?: CardDef['set']): string[] {
@@ -13,6 +14,7 @@ export function packPool(db: CardDb, tier: Rarity, set?: CardDef['set']): string
     .filter(
       (d) =>
         d.rarity === tier &&
+        isLiveCollectible(d) &&
         !d.token &&
         !d.supertypes?.includes('basic') &&
         !isUtilityTapland(d) &&

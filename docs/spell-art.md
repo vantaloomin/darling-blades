@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/data/cards/celtic-fae.ts, src/data/cards/arthurian-court.ts, src/data/cards/gothic-monsters.ts, src/ui/CardView.ts · last-verified: 2026-07-19 -->
+<!-- source-of-truth: src/data/cards/instants.ts, src/data/cards/sorceries.ts, src/data/cards/enchantments.ts, src/data/cards/artifacts.ts, src/data/cards/ragnarok.ts, src/data/cards/celtic-fae.ts, src/data/cards/arthurian-court.ts, src/data/cards/gothic-monsters.ts, src/ui/CardView.ts · last-verified: 2026-08-19 -->
 
 # Darling Blades Art Bible — Spells (Charms · Rituals · Enchantments · the Jade Seal)
 
@@ -6,7 +6,7 @@ This file is the **binding contract** for the art of the base set's **43 non-cre
 spell cards** — the 18 charms, 14 rituals, 10 enchantments, and the single
 non-creature artifact (`ar-imperial-jade-seal`) — plus the 9-card Ragnarök addendum,
 the 31-card Gothic Monsters section, the 8-card removal answer cycle, and the 7-card
-1.6 returning-mechanics sprinkle below, for 98 entries in all. The creature art-bible
+1.6 returning-mechanics sprinkle and the Sands of the Duat dual lands below, for 103 entries in all. The creature art-bible
 (`docs/art-bible/`) covers creatures, tokens, and the Construct creatures; it does
 **not** cover these cards, which otherwise render procedural placeholders. Every rule
 below is grounded in the source files named in the header comment. When this document
@@ -474,6 +474,40 @@ version of the effect.
 
 ### Persephone's Return — `en-persephones-return`
 - **Prompt:** The long return climbing into spring, a dark underworld stair at frame center rising from resin-dark depths toward a crown of blooming meadow light, exactly SIX pomegranate seeds in a loose row glowing faintly on one clearly visible step at the middle of the frame, while barley and asphodel burst open along the upper stones, a queenly silhouette ascending mid-stair wrapped in violet-black and new green, B palette `#5a3a70` and `#140d1c` with `#9b6fc4` underworld glow breaking into fresh spring green — crisp cel-shaded gacha anime spell illustration, dramatic magical effect centered in frame, fully rendered scenic background, 640×800 portrait
+
+---
+
+## Sands of the Duat dual lands (5)
+
+These five Wave A dual landscapes are promoted from
+`docs/art-bible/sands-of-the-duat-drafts.md`. They follow the land-art contract:
+terrain only, no characters or faces, and the Duat blank-cartouche, value-floor,
+practical-key, and lapis-rim rules on every prompt.
+
+### The Weighing Hall — `sd-land-the-weighing-hall`
+- **Palette:** W/B enemy dual: W `#f2e8cf`, `#c9a84c`, `#fffef2` plus B `#5a3a70`, `#140d1c`, `#9b6fc4`, layered with Duat tomb gold, lapis, sandstone, natron white, and resin brown `#3a2a1c` as the darkest visible value.
+- **Composition note:** No characters and no faces. A pale unbroken line of empty natron wrappings recedes through the open door, preserving the procession's visual weight without adding people. The empty gold scale, horizon, door, and resin colonnade sit in the central band.
+- **Prompt:** Alabaster Weighing Hall with a pale unbroken line of empty natron wrappings receding through the open door, one empty gold scale glowing at the far end, resin-brown colonnades closing from both sides, W/B palette with W anchors `#f2e8cf`, `#c9a84c`, `#fffef2` and B anchors `#5a3a70`, `#140d1c`, `#9b6fc4`, plus Duat tomb gold, lapis, sandstone, and natron white, darkest visible value resin brown `#3a2a1c` with no true black, one in-frame gold oil brazier as practical key and one lapis-cool rim from wall inlay, blank gold cartouche panels, geometric banded registers, NO-TEXT, no hieroglyphs, no glyphs, no writing, no inscriptions, no heart-red, no characters, no people, no faces, defining scale and hall centered in the visible band y 167–633, coherent pale ceiling bleed above and sandstone floor bleed below — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Emberwake Channel — `sd-land-emberwake-channel`
+- **Palette:** U/R enemy dual: U `#4a90d9`, `#16294f`, `#a8d4f7` plus R `#d95436`, `#5e0f0f`, `#f7b267`, layered with Duat lapis, sandstone, tomb gold, barge fire, and resin brown `#3a2a1c`; heart-red is absent.
+- **Composition note:** No characters and no faces. Show only the sun barge's burning wake, with the barge absent, so the terrain remains the subject. The narrow channel and orange reflection run through the central band.
+- **Prompt:** Narrow resin-brown water Emberwake Channel carrying the sun barge's burning wake with no barge visible, lapis water throwing barge-fire orange back onto tall sandstone canyon walls, U/R palette with U anchors `#4a90d9`, `#16294f`, `#a8d4f7` and R anchors `#d95436`, `#5e0f0f`, `#f7b267`, plus tomb gold and lapis accents, no heart-red, darkest visible value resin brown `#3a2a1c` with no true black, one visible prow-fire reflection as practical key and one lapis-cool rim along the water, blank gold cartouche panels, geometric banded registers, NO-TEXT, no hieroglyphs, no glyphs, no writing, no inscriptions, no characters, no people, no faces, channel and wake centered in the visible band y 167–633, coherent smoke-free sky bleed above and wet sandstone foreground bleed below — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Silt-Tomb Terrace — `sd-land-silt-tomb-terrace`
+- **Palette:** B/G enemy dual: B `#5a3a70`, `#140d1c`, `#9b6fc4` plus G `#4fa06a`, `#123a22`, `#a9dcae`, layered with Duat malachite `#2f8f6a` only in foliage and jewelry-like inlay, lapis, sandstone, tomb gold, and resin brown `#3a2a1c` as the darkest visible value.
+- **Composition note:** No characters and no faces. Stepped tomb terraces are the defining terrain, half swallowed by green flood silt; palm shoots and cracked blank door seals carry the return register without showing a person.
+- **Prompt:** Stepped Silt-Tomb Terrace half swallowed by green flood silt, cracked blank stone door seals with palm shoots pushing through them, layered tomb stairs and wet terraces centered in the visible band y 167–633, B/G palette with B anchors `#5a3a70`, `#140d1c`, `#9b6fc4` and G anchors `#4fa06a`, `#123a22`, `#a9dcae`, plus malachite `#2f8f6a` only in foliage and jewelry-like inlay, lapis, sandstone, and tomb gold, darkest visible value resin brown `#3a2a1c` with no true black, one low oil lamp glowing at a tomb threshold as practical key and one lapis-cool rim from floodwater, blank gold cartouche panels, geometric banded registers, NO-TEXT, no hieroglyphs, no glyphs, no writing, no inscriptions, no heart-red, no characters, no people, no faces, coherent violet sky bleed above and silt-and-reed foreground bleed below — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Noon Barge Landing — `sd-land-noon-barge-landing`
+- **Palette:** R/W enemy dual: R `#d95436`, `#5e0f0f`, `#f7b267` plus W `#f2e8cf`, `#c9a84c`, `#fffef2`, layered with Duat tomb gold, lapis, sandstone, and barge fire; heart-red is absent.
+- **Composition note:** No characters and no faces. A gilded barge prow just touches the white stone quay, with almost no shadow and heat shimmer centered in the crop. The environment stays bright without lowering the Duat value floor; the hard-noon share remains roughly one third.
+- **Prompt:** White stone Noon Barge Landing under vertical hard noon light with almost no shadow, gilded sun-barge prow just touching the quay, heat shimmer rising from pale stone, R/W palette with R anchors `#d95436`, `#5e0f0f`, `#f7b267` and W anchors `#f2e8cf`, `#c9a84c`, `#fffef2`, plus tomb gold, lapis inlay, sandstone, and barge fire, no heart-red, darkest visible value resin brown `#3a2a1c` with no true black, one visible sun disc above the quay as practical key and one lapis-cool rim from the waterline, blank gold cartouche panels, geometric banded registers, NO-TEXT, no hieroglyphs, no glyphs, no writing, no inscriptions, no characters, no people, no faces, prow and quay centered in the visible band y 167–633, coherent white sky bleed above and sun-warmed stone bleed below — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
+
+### Reedway Delta — `sd-land-reedway-delta`
+- **Palette:** G/U enemy dual: G `#4fa06a`, `#123a22`, `#a9dcae` plus U `#4a90d9`, `#16294f`, `#a8d4f7`, layered with Duat malachite reeds, lapis sky, sandstone bank, tomb gold, and resin brown `#3a2a1c` as the darkest visible value.
+- **Composition note:** No characters and no faces. The braided reed channels are the terrain subject, viewed from the low bank, with one distant empty skiff as the only small object. Keep the horizon and channels in the central band.
+- **Prompt:** Braided Reedway Delta seen from the low bank, malachite-green reeds against a flat lapis sky, clear channels splitting through sandstone silt and one distant empty skiff, G/U palette with G anchors `#4fa06a`, `#123a22`, `#a9dcae` and U anchors `#4a90d9`, `#16294f`, `#a8d4f7`, plus malachite reeds, lapis sky, sandstone bank, and tomb gold, darkest visible value resin brown `#3a2a1c` with no true black, one low sun glint on the water as practical key and one lapis-cool sky rim, blank gold cartouche panels, geometric banded registers, NO-TEXT, no hieroglyphs, no glyphs, no writing, no inscriptions, no heart-red, no characters, no people, no faces, braided channels centered in the visible band y 167–633, coherent sky bleed above and reed-bank foreground bleed below — crisp cel-shaded gacha anime landscape art, fully rendered scenic terrain, 640×800 portrait
 
 ---
 
