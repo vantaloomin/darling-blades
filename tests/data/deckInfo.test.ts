@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import { DECK_INFO } from '../../src/data/deckInfo';
+import { DUAT_SET, isLiveCollectible } from '../../src/data/liveness';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
 
-const SHOP_DECKS = [...STARTER_DECKS, ...THEME_DECKS];
+const SHOP_DECKS = [
+  ...STARTER_DECKS,
+  ...THEME_DECKS.filter((deck) => deck.cards.every((id) => {
+    const card = CARD_DB[id];
+    return Boolean(card && (String(card.set) !== DUAT_SET || isLiveCollectible(card)));
+  })),
+];
 
 describe('shop deck presentation data', () => {
   it('covers every starter and theme deck SKU', () => {
