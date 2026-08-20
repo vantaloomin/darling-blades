@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
+import { FEATURES } from '../config/features';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { DECK_INFO } from '../data/deckInfo';
@@ -121,6 +122,15 @@ const YOKAI_NIGHTS_PACK_TINT: PackTint = {
   trim: theme.colors.heading,
   foil: theme.colors.success,
   mist: theme.colors.gold,
+};
+
+const SANDS_OF_THE_DUAT_PACK_TINT: PackTint = {
+  start: theme.colors.btnEmphasisBg,
+  middle: theme.colors.panelFill,
+  end: theme.colors.muted,
+  trim: theme.colors.gold,
+  foil: theme.colors.gold,
+  mist: theme.colors.heading,
 };
 
 const packRR = (
@@ -280,6 +290,13 @@ export const YOKAI_NIGHTS_PACK_ART: PackArtOpts = {
   trimY: 69,
 };
 
+export const SANDS_OF_THE_DUAT_PACK_ART: PackArtOpts = {
+  key: 'packart-sands-of-the-duat',
+  sceneArtKey: 'scene-pack-art-sands-of-the-duat',
+  tint: SANDS_OF_THE_DUAT_PACK_TINT,
+  trimY: 63,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
@@ -287,6 +304,7 @@ export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'gothic-monsters') return 'packart-gothic-monsters';
   if (sku === 'dark-tales') return 'packart-dark-tales';
   if (sku === 'yokai-nights') return 'packart-yokai-nights';
+  if (sku === 'sands-of-the-duat') return 'packart-sands-of-the-duat';
   return 'packart';
 }
 
@@ -298,6 +316,7 @@ export function packPriceForSku(sku: BoosterSku): number {
   if (sku === 'gothic-monsters') return ECONOMY.gothicMonstersPackPrice;
   if (sku === 'dark-tales') return ECONOMY.darkTalesPackPrice;
   if (sku === 'yokai-nights') return ECONOMY.yokaiNightsPackPrice;
+  if (sku === 'sands-of-the-duat') return ECONOMY.sandsOfTheDuatPackPrice;
   return ECONOMY.packPrice;
 }
 
@@ -317,10 +336,22 @@ export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sk
   { label: SET_TITLES['gothic-monsters'], textureKey: 'packart-gothic-monsters', sku: 'gothic-monsters' },
   { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', sku: 'dark-tales' },
   { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
+  { label: SET_TITLES['sands-of-the-duat'], textureKey: 'packart-sands-of-the-duat', sku: 'sands-of-the-duat' },
 ];
 
+/**
+ * The shop strip shows only released sets: the Sands of the Duat SKU rides
+ * BOOSTER_SKUS (the booster art guard reads that block) but stays hidden until
+ * FEATURES.duatLive flips at the shared balance pass. Every strip consumer
+ * must index into THIS list, never BOOSTER_SKUS, or the peek/layout indexes
+ * disagree with the tiles.
+ */
+export function visibleBoosterSkus(): ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> {
+  return BOOSTER_SKUS.filter((entry) => entry.sku !== 'sands-of-the-duat' || FEATURES.duatLive);
+}
+
 /** Only the newest SKU gets launch emphasis. Keep this beside BOOSTER_SKUS. */
-export const NEWEST_SKU: BoosterSku = 'yokai-nights';
+export const NEWEST_SKU: BoosterSku = FEATURES.duatLive ? 'sands-of-the-duat' : 'yokai-nights';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
@@ -652,7 +683,7 @@ export class ShopScene extends Phaser.Scene {
     this.boosterArrows = null;
     // The SKU list owns order and count. The pure helper receives its length,
     // so adding an eighth or tenth set adds a tile without new layout math.
-    const skus = BOOSTER_SKUS;
+    const skus = visibleBoosterSkus();
     const layout = boosterStripLayout(skus.length);
     this.boosterStripLayout = layout;
     const content = this.add.container(0, 0);
@@ -1006,7 +1037,7 @@ export class ShopScene extends Phaser.Scene {
     }
     for (const [side, edgeIndex] of [visibility.leftPeekIndex, visibility.rightPeekIndex].entries()) {
       const edge = this.boosterStripEdgePeeks[side];
-      const sku = edgeIndex === null ? undefined : BOOSTER_SKUS[edgeIndex];
+      const sku = edgeIndex === null ? undefined : visibleBoosterSkus()[edgeIndex];
       edge?.setVisible(sku !== undefined);
       if (sku) edge?.setTexture(packTextureForSku(sku.sku));
     }

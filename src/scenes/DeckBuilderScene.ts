@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { SET_ICON_PATHS } from '../art/setIcons';
-import { SET_TITLES } from '../data/setTitles';
+import { isLiveSet } from '../data/liveness';
+import { SET_IDS, SET_TITLES } from '../data/setTitles';
 import { FEATURES } from '../config/features';
 import { RULES } from '../config/rules';
 import { heroById } from '../data/heroes';
@@ -127,7 +128,6 @@ const DECK_ROW_TRACK_BOTTOM = 502;
 /** Right-panel inner gutter: panel spans x 880–1280, content sits at 900–1260. */
 const PANEL_RIGHT_X = 1260;
 const DECK_NAME_MAX_LENGTH = 24;
-const YOKAI_NIGHTS_SET = 'yokai-nights' as const;
 const DARLING_PAGE_SIZE = 6;
 
 interface DeckHeroDisplay {
@@ -482,15 +482,12 @@ export class DeckBuilderScene extends Phaser.Scene {
       this.filterDropdownRefreshers.push(() => dd.setValue(get()));
     };
 
+    // Derived from SET_IDS (never a hand-written copy — the binder filter
+    // silently omitted two releases that way) and liveness-gated so an
+    // unreleased set never shows as an empty option.
     const setOpts: DropdownOption<CollectionFilterState['set']>[] = [
       { value: 'all', label: 'All Sets' },
-      { value: 'base', label: SET_TITLES.base },
-      { value: 'ragnarok', label: SET_TITLES.ragnarok },
-      { value: 'celtic-fae', label: SET_TITLES['celtic-fae'] },
-      { value: 'arthurian-court', label: SET_TITLES['arthurian-court'] },
-      { value: 'gothic-monsters', label: SET_TITLES['gothic-monsters'] },
-      { value: 'dark-tales', label: SET_TITLES['dark-tales'] },
-      { value: YOKAI_NIGHTS_SET, label: 'Yokai Nights' },
+      ...SET_IDS.filter(isLiveSet).map((id) => ({ value: id, label: SET_TITLES[id] })),
     ];
     mk(158, 'Set', setOpts, () => this.filterState.set, (v) => (this.filterState.set = v));
 

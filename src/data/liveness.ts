@@ -13,3 +13,12 @@ export function isLiveCollectible(card: CardDef): boolean {
   if (card.token || card.supertypes?.includes('basic')) return false;
   return String(card.set) !== DUAT_SET || FEATURES.duatLive;
 }
+
+/**
+ * Set-level twin of the card gate, for surfaces that list sets rather than
+ * cards (binder/deck-builder set filters, shop strip). An unreleased set must
+ * not appear as an empty filter option before its flip.
+ */
+export function isLiveSet(id: string): boolean {
+  return id !== DUAT_SET || FEATURES.duatLive;
+}
