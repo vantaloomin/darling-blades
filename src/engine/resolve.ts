@@ -1,6 +1,12 @@
 import type { Emit } from './battlefield';
 import { enterBattlefield } from './battlefield';
-import { conditionSatisfied, fireTriggers, runOps, targetSpecsOf } from './effects/EffectInterpreter';
+import {
+  conditionSatisfied,
+  fireGraveyardTriggers,
+  fireTriggers,
+  runOps,
+  targetSpecsOf,
+} from './effects/EffectInterpreter';
 import { isLegalTarget } from './effects/targeting';
 import type { CardDb, CardDef, CardEntry, GameState, StackItem, TargetSpec } from './types';
 import { def, isType } from './types';
@@ -28,7 +34,7 @@ export function castTargetSpecsFor(
   return retell && d.retell?.ops ? [] : castTargetSpecs(d);
 }
 
-function moveSpellOnExit(state: GameState, item: StackItem, emit: Emit): void {
+function moveSpellOnExit(state: GameState, db: CardDb, item: StackItem, emit: Emit): void {
   const card = stackCard(state, item);
   if (item.retell) {
     state.players[item.controller].severed.push(card);
@@ -36,6 +42,7 @@ function moveSpellOnExit(state: GameState, item: StackItem, emit: Emit): void {
     emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
   } else {
     state.players[item.controller].graveyard.push(card);
+    fireGraveyardTriggers(state, db, emit, card, item.controller);
   }
 }
 
@@ -57,7 +64,7 @@ export function resolveStackItem(
       (ref, i) => specs[i] && isLegalTarget(state, db, item.controller, specs[i], ref),
     );
     if (!anyLegal) {
-      moveSpellOnExit(state, item, emit);
+      moveSpellOnExit(state, db, item, emit);
       emit({ e: 'targetsFizzled', sid: item.sid });
       return;
     }
@@ -118,7 +125,7 @@ export function resolveStackItem(
       }
     }
     runEmpowerRider(state, db, item, d, emit);
-    moveSpellOnExit(state, item, emit);
+    moveSpellOnExit(state, db, item, emit);
     return;
   }
 

@@ -67,7 +67,7 @@ export const MECHANIC_DEFINITIONS: Record<
   retell: 'cast this from your graveyard for the listed cost, then sever it',
   hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
   rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
-  nineLives: 'when this dies with no marks on it, it returns to the battlefield with a mark on it',
+  nineLives: 'when this dies with no +1/+1 marks on it, it returns to the battlefield with a +1/+1 mark on it',
   preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during your main phase',
 };
 
@@ -162,7 +162,7 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
     case 'recall':
       return `return target ${targetNoun(target)} to its owner's hand`;
     case 'destroyArtifactOrSeverEnchantment':
-      return 'destroy target artifact if it is an artifact; otherwise, Sever it if it is an enchantment';
+      return 'destroy target artifact or sever target enchantment';
     case 'cancel':
       return 'cancel target spell';
     case 'boost': {
@@ -244,19 +244,18 @@ export function empowerText(d: CardDef): string | undefined {
 
 export function riteText(d: CardDef): string | undefined {
   if (!d.rite) return undefined;
-  const creatures = d.rite.n === 1 ? 'creature' : 'creatures';
-  return `Rite ${d.rite.n}: As an additional cost to cast this, sacrifice ${d.rite.n} ${creatures}.`;
+  return `Rite ${d.rite.n}.`;
 }
 
 export function nineLivesText(d: CardDef): string | undefined {
   if (!d.nineLives) return undefined;
-  return 'When this dies with no marks on it, return it to the battlefield with a mark on it.';
+  return 'Nine Lives.';
 }
 
 export function preserveText(d: CardDef): string | undefined {
   if (!d.preserve) return undefined;
   const cost = manaCostText(d.preserve.cost);
-  return `Preserve ${cost}: Pay ${cost} and Sever this card from your graveyard: create a token copy of it. Use only during your main phase.`;
+  return `Preserve ${cost}.`;
 }
 
 export function skimText(d: CardDef): string | undefined {
@@ -355,6 +354,9 @@ function abilityText(ab: AbilityDef): string {
       break;
     case 'dies':
       sentence = `When this dies, ${body}.`;
+      break;
+    case 'entersGraveyard':
+      sentence = `When this enters your graveyard, ${body}.`;
       break;
     case 'dawn':
       sentence = `At the start of your turn, ${body}.`;

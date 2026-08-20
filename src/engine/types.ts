@@ -35,6 +35,7 @@ export type TriggerWhen =
   | 'spell' // charm/ritual body, runs on resolution
   | 'arrives'
   | 'dies'
+  | 'entersGraveyard'
   | 'dawn'
   | 'combatDamageToPlayer'
   | 'attacks'

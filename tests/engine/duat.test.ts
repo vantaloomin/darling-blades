@@ -7,8 +7,9 @@ import { fireTriggers, runOps } from '../../src/engine/effects/EffectInterpreter
 import type { GameEvent } from '../../src/engine/events';
 import { checkStateBased } from '../../src/engine/sba';
 import { isSummoningSick } from '../../src/engine/statics';
-import type { CardDef, CardEntry, CardInstance, GameState, PlayerId } from '../../src/engine/types';
+import type { CardDb, CardDef, CardEntry, CardInstance, GameState, PlayerId } from '../../src/engine/types';
 import { validateNineLivesDef, validatePreserveDef, validateRiteDef } from '../../src/engine/types';
+import { CARD_DB } from '../../src/data/catalog';
 import {
   cardGlossaryEntries,
   MECHANIC_DEFINITIONS,
@@ -31,6 +32,7 @@ function gameWith(opts: {
   hands?: [string[], string[]];
   graveyards?: [CardEntry[], CardEntry[]];
   battlefield?: ReturnType<typeof duatPermanent>[];
+  db?: CardDb;
   configure?: (state: GameState) => void;
 }): Game {
   const state = makeTestState({
@@ -43,7 +45,7 @@ function gameWith(opts: {
     state.players[1].graveyard = [...opts.graveyards[1]];
   }
   opts.configure?.(state);
-  return Game.restore(state, DUAT_DB);
+  return Game.restore(state, opts.db ?? DUAT_DB);
 }
 
 function riteAction(game: Game, player: PlayerId = 0): Extract<Action, { type: 'castSpell' }> {
@@ -72,10 +74,15 @@ function mutableState(game: Game): GameState {
   return game.instanceState as GameState;
 }
 
-function runDestroy(state: GameState, iid: number, events: GameEvent[] = []): void {
+function runDestroy(
+  state: GameState,
+  iid: number,
+  events: GameEvent[] = [],
+  db: CardDb = DUAT_DB,
+): void {
   runOps(
     state,
-    DUAT_DB,
+    db,
     (event) => events.push(event),
     { controller: 0, sourceCardId: 'du-relic', targets: [{ kind: 'permanent', iid }] },
     [{ op: 'destroy', to: 'target' }],
@@ -104,6 +111,72 @@ describe('Sands of the Duat Rite validation', () => {
     expect(invalid({
       abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [] }],
     })).toContain('Rite card cannot have cast targets');
+  });
+});
+
+describe('Sands of the Duat entersGraveyard trigger', () => {
+  const graveyardTriggers = (events: GameEvent[]): Extract<GameEvent, { e: 'graveyardTriggerFired' }>[] =>
+    events.filter(
+      (event): event is Extract<GameEvent, { e: 'graveyardTriggerFired' }> => event.e === 'graveyardTriggerFired',
+    );
+
+  it('fires on death, discard, mill, and Rite sacrifice exactly once per graveyard entry', () => {
+    const deathGame = gameWith({
+      db: CARD_DB,
+      battlefield: [duatPermanent(10, 'sd-claw-handed-embalmer')],
+    });
+    const deathEvents: GameEvent[] = [];
+    runDestroy(mutableState(deathGame), 10, deathEvents, CARD_DB);
+    expect(graveyardTriggers(deathEvents)).toHaveLength(1);
+    expect(graveyardTriggers(deathEvents)[0]).toMatchObject({
+      cardId: 'sd-claw-handed-embalmer',
+      owner: 0,
+      when: 'entersGraveyard',
+    });
+    expect(deathGame.state.players[1].life).toBe(19);
+
+    const discardGame = gameWith({
+      db: CARD_DB,
+      hands: [[], ['sd-heart-jar-sentinel']],
+    });
+    const discardEvents: GameEvent[] = [];
+    runOps(
+      mutableState(discardGame),
+      CARD_DB,
+      (event) => discardEvents.push(event),
+      { controller: 0, sourceCardId: 'discard-test', targets: [] },
+      [{ op: 'discardRandom', n: 1, who: 'opponent' }],
+    );
+    expect(graveyardTriggers(discardEvents)).toHaveLength(1);
+    expect(discardGame.state.players[0].life).toBe(19);
+
+    const millGame = gameWith({ db: CARD_DB });
+    mutableState(millGame).players[1].deck = ['sd-hollow-jar-attendant'];
+    const millEvents: GameEvent[] = [];
+    runOps(
+      mutableState(millGame),
+      CARD_DB,
+      (event) => millEvents.push(event),
+      { controller: 0, sourceCardId: 'mill-test', targets: [] },
+      [{ op: 'grind', n: 1, who: 'opponent' }],
+    );
+    expect(graveyardTriggers(millEvents)).toHaveLength(1);
+    expect(millEvents.filter((event) => event.e === 'tokenCreated')).toHaveLength(1);
+
+    const sacrificeGame = gameWith({
+      db: CARD_DB,
+      hands: [['sd-sun-rope-hauler'], []],
+      battlefield: [
+        duatPermanent(1, 'land-mountain'),
+        duatPermanent(2, 'land-mountain'),
+        duatPermanent(3, 'land-mountain'),
+        duatPermanent(10, 'sd-priestess-of-the-emptied-jar'),
+      ],
+    });
+    const cast = riteAction(sacrificeGame);
+    const sacrificeEvents = sacrificeGame.submit(0, { ...cast, manaPlan: [1, 2, 3] });
+    expect(graveyardTriggers(sacrificeEvents)).toHaveLength(1);
+    expect(sacrificeEvents.filter((event) => event.e === 'triggerFired' && event.iid === 10)).toHaveLength(0);
   });
 });
 
@@ -671,10 +744,10 @@ describe('Sands of the Duat Nine Lives engine', () => {
 describe('Sands of the Duat Rite rules text', () => {
   it('renders exact singular and plural reminders with a glossary entry and no em dash', () => {
     expect(riteText(DUAT_DB['du-rite-one'])).toBe(
-      'Rite 1: As an additional cost to cast this, sacrifice 1 creature.',
+      'Rite 1.',
     );
     expect(riteText(DUAT_DB['du-rite-two'])).toBe(
-      'Rite 2: As an additional cost to cast this, sacrifice 2 creatures.',
+      'Rite 2.',
     );
     expect(rulesText(DUAT_DB['du-rite-two'])).not.toContain('—');
     expect(cardGlossaryEntries(DUAT_DB['du-rite-one'])).toContainEqual({
@@ -686,8 +759,7 @@ describe('Sands of the Duat Rite rules text', () => {
 
 describe('Sands of the Duat Nine Lives rules text', () => {
   it('renders the exact reminder and glossary entry without an em dash', () => {
-    const reminder =
-      'When this dies with no marks on it, return it to the battlefield with a mark on it.';
+    const reminder = 'Nine Lives.';
     expect(nineLivesText(DUAT_DB['du-nine-lives'])).toBe(reminder);
     expect(rulesText(DUAT_DB['du-nine-lives'])).toBe(reminder);
     expect(rulesText(DUAT_DB['du-nine-lives'])).not.toContain('\u2014');
@@ -700,8 +772,7 @@ describe('Sands of the Duat Nine Lives rules text', () => {
 
 describe('Sands of the Duat Preserve rules text', () => {
   it('renders the real cost in the exact reminder and adds a glossary entry without an em dash', () => {
-    const reminder =
-      'Preserve {1}: Pay {1} and Sever this card from your graveyard: create a token copy of it. Use only during your main phase.';
+    const reminder = 'Preserve {1}.';
     expect(preserveText(DUAT_DB['du-preserve-small'])).toBe(reminder);
     expect(rulesText(DUAT_DB['du-preserve-small'])).toContain(reminder);
     expect(rulesText(DUAT_DB['du-preserve-small'])).not.toContain('\u2014');
@@ -709,6 +780,21 @@ describe('Sands of the Duat Preserve rules text', () => {
       name: 'Preserve',
       reminder: MECHANIC_DEFINITIONS.preserve,
     });
+  });
+});
+
+describe('Sands of the Duat graveyard-entry and lintel rules text', () => {
+  it('renders the new graveyard trigger sentence and the exact lintel branch text', () => {
+    const card: CardDef = {
+      ...DUAT_DB['du-nine-vanilla'],
+      id: 'du-graveyard-entry',
+      name: 'Duat Graveyard Entry',
+      abilities: [{ when: 'entersGraveyard', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
+    };
+    expect(rulesText(card)).toBe('When this enters your graveyard, your opponent loses 1 life.');
+    expect(rulesText(CARD_DB['sd-strike-the-lintel'])).toContain(
+      'Destroy target artifact or sever target enchantment.',
+    );
   });
 });
 

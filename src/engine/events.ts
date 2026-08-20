@@ -63,6 +63,13 @@ export type GameEvent =
   | { e: 'discarded'; player: PlayerId; cardId: string }
   | { e: 'milled'; player: PlayerId; cardId: string }
   | {
+      e: 'graveyardTriggerFired';
+      cardId: string;
+      owner: PlayerId;
+      when: 'entersGraveyard';
+      instanceId?: number;
+    }
+  | {
       e: 'severed';
       player: PlayerId;
       cardId: string;

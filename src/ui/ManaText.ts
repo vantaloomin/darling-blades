@@ -139,6 +139,32 @@ export function renderManaText(
 
   const pips: Phaser.GameObjects.Image[] = [];
   const numbers: Phaser.GameObjects.Text[] = [];
+  // Vertical distance (local units, >0 = below center) between the digit's
+  // ACTUAL ink center and its text-canvas center, one entry per numeral.
+  // origin(0.5) centers the em box, but Cinzel's lining digits sit off the
+  // box's middle (measured +1.5px low on a 25px bead in the collection
+  // modal), so the bead centering scans the rendered glyph itself.
+  const inkOffsets: number[] = [];
+  const scanInkCenterOffset = (t: Phaser.GameObjects.Text): number => {
+    const w = t.canvas.width;
+    const h = t.canvas.height;
+    if (!w || !h) return 0;
+    const data = t.context.getImageData(0, 0, w, h).data;
+    let top = -1;
+    let bottom = -1;
+    for (let yy = 0; yy < h; yy++) {
+      for (let xx = 0; xx < w; xx++) {
+        if (data[(yy * w + xx) * 4 + 3] > 16) {
+          if (top < 0) top = yy;
+          bottom = yy;
+          break;
+        }
+      }
+    }
+    if (top < 0) return 0;
+    const resolution = t.style.resolution || 1;
+    return ((top + bottom + 1) / 2 - h / 2) / resolution;
+  };
   for (const run of padded.runs) {
     for (const spec of run.pips) {
       const pip = scene.add.image(0, 0, spec.texture).setVisible(false);
@@ -157,6 +183,7 @@ export function renderManaText(
           .setVisible(false);
         container.add(number);
         numbers.push(number);
+        inkOffsets.push(scanInkCenterOffset(number));
       }
     }
   }
@@ -221,8 +248,9 @@ export function renderManaText(
           .setAlpha(text.alpha)
           .setVisible(text.visible);
         if (spec.number !== undefined) {
-          numbers[numberIndex++]
-            .setPosition(pip.x, pip.y - text.scaleY * 0.04 * pipSize)
+          const idx = numberIndex++;
+          numbers[idx]
+            .setPosition(pip.x, pip.y - text.scaleY * inkOffsets[idx])
             .setScale(text.scaleX, text.scaleY)
             .setAlpha(text.alpha)
             .setVisible(text.visible);

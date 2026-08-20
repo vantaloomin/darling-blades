@@ -4,6 +4,7 @@ import type { CardDb, CardEntry, CardInstance, GameState, Permanent, PlayerId } 
 import { cardIdOf, def, isCardInstance, variantKeyOf } from './types';
 
 export type Emit = (e: GameEvent) => void;
+export type GraveyardEntry = (card: CardEntry, owner: PlayerId) => void;
 
 /**
  * Zone-change primitives, deliberately trigger-free: callers (resolve, sba,
@@ -137,6 +138,7 @@ export function destroyPermanent(
   db: CardDb,
   perm: Permanent,
   emit: Emit,
+  onGraveyardEntry?: GraveyardEntry,
 ): boolean {
   const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
   if (idx < 0) return false;
@@ -144,7 +146,11 @@ export function destroyPermanent(
   detachFromHost(state, perm);
   const isToken = isTokenPermanent(db, perm);
   if (!isToken && isDarlingPermanent(state, perm)) returnDarlingToZone(state, perm, emit, 'died');
-  else if (!isToken) pushMovedCard(state, perm, basicReturnsToReserve(state, db, perm) ? 'landReserve' : 'graveyard');
+  else if (!isToken) {
+    const zone = basicReturnsToReserve(state, db, perm) ? 'landReserve' : 'graveyard';
+    const card = pushMovedCard(state, perm, zone);
+    if (zone === 'graveyard') onGraveyardEntry?.(card, perm.owner);
+  }
   if (firesDiesForDestroy(state, db, perm)) {
     emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
   }
@@ -209,7 +215,7 @@ function pushMovedCard(
   state: GameState,
   perm: Permanent,
   zone: 'hand' | 'graveyard' | 'severed' | 'landReserve' | 'darlingZone',
-): void {
+): CardEntry {
   const card: CardEntry =
     state.nextInstanceId === undefined
       ? perm.cardId
@@ -225,4 +231,5 @@ function pushMovedCard(
   } else {
     state.players[perm.owner][zone].push(card);
   }
+  return card;
 }

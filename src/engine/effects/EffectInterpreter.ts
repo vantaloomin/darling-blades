@@ -13,6 +13,7 @@ import { getEffectiveStats, isQuestActive } from '../statics';
 import type {
   AbilityDef,
   CardDb,
+  CardEntry,
   EffectOp,
   GameState,
   Permanent,
@@ -132,13 +133,20 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const idx = rngInt(state.rng, hand.length);
         const [card] = hand.splice(idx, 1);
         state.players[victim].graveyard.push(card);
+        fireGraveyardTriggers(state, db, emit, card, victim);
         emit({ e: 'discarded', player: victim, cardId: cardIdOf(card) });
       }
       return;
     }
     case 'destroy': {
       const perm = targetPermanent(state, ctx.targets[0]);
-      if (perm && destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+      if (perm && destroyPermanent(
+        state,
+        db,
+        perm,
+        emit,
+        (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+      ) && firesDiesForDestroy(state, db, perm)) {
         fireTriggers(state, db, emit, 'dies', perm);
       }
       return;
@@ -157,7 +165,13 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       // Artifact wins for a multi-typed permanent. This keeps the branch
       // deterministic and mirrors the op name's left-to-right contract.
       if (isType(d, 'artifact')) {
-        if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+        if (destroyPermanent(
+          state,
+          db,
+          perm,
+          emit,
+          (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+        ) && firesDiesForDestroy(state, db, perm)) {
           fireTriggers(state, db, emit, 'dies', perm);
         }
       } else if (isType(d, 'enchantment')) {
@@ -203,6 +217,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
           emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
         } else {
           state.players[item.controller].graveyard.push(card);
+          fireGraveyardTriggers(state, db, emit, card, item.controller);
         }
         emit({ e: 'spellCountered', sid: item.sid });
       }
@@ -261,7 +276,13 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         if (perm.controller !== opponent) continue;
         const d = def(db, perm.cardId);
         if (!isType(d, 'artifact') && !isType(d, 'enchantment')) continue;
-        if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+        if (destroyPermanent(
+          state,
+          db,
+          perm,
+          emit,
+          (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+        ) && firesDiesForDestroy(state, db, perm)) {
           fireTriggers(state, db, emit, 'dies', perm);
         }
         return;
@@ -279,10 +300,21 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         return true;
       });
       const fallen: Permanent[] = [];
+      const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
       for (const perm of doomed) {
-        if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+        if (destroyPermanent(
+          state,
+          db,
+          perm,
+          emit,
+          (card, owner) => graveyardEntries.push({ card, owner }),
+        ) && firesDiesForDestroy(state, db, perm)) {
           fallen.push(perm);
         }
+      }
+      for (const entry of graveyardEntries) {
+        if (state.winner !== null) return;
+        fireGraveyardTriggers(state, db, emit, entry.card, entry.owner);
       }
       fireBatchedDies(state, db, emit, fallen);
       return;
@@ -307,6 +339,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const card = lib.pop(); // top of deck is the last element
         if (card === undefined) break; // empty deck: deck-out is a DRAW check, not here
         state.players[victim].graveyard.push(card);
+        fireGraveyardTriggers(state, db, emit, card, victim);
         emit({ e: 'milled', player: victim, cardId: cardIdOf(card) });
       }
       return;
@@ -378,6 +411,41 @@ export function runOps(
       pending.thenOps = thenOps;
     }
     return;
+  }
+}
+
+/** Fire a card's graveyard-entry abilities after any zone pushes the card into its owner's graveyard. */
+export function fireGraveyardTriggers(
+  state: GameState,
+  db: CardDb,
+  emit: Emit,
+  card: CardEntry,
+  owner: PlayerId,
+): void {
+  const cardId = cardIdOf(card);
+  const d = db[cardId];
+  if (!d) return;
+  for (const ab of d.abilities ?? []) {
+    if (
+      ab.when !== 'entersGraveyard' ||
+      !ab.ops ||
+      !conditionSatisfied(state, db, owner, ab.condition)
+    ) continue;
+    emit({
+      e: 'graveyardTriggerFired',
+      cardId,
+      owner,
+      when: 'entersGraveyard',
+      ...(isCardInstance(card) ? { instanceId: card.instanceId } : {}),
+    });
+    runOps(
+      state,
+      db,
+      emit,
+      { controller: owner, sourceCardId: cardId, targets: [] },
+      ab.ops,
+    );
+    if (state.winner !== null) return;
   }
 }
 
@@ -529,7 +597,13 @@ function advanceChapter(
     chapters[chapter - 1],
   );
   if (chapter !== chapters.length || state.winner !== null) return;
-  if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+  if (destroyPermanent(
+    state,
+    db,
+    perm,
+    emit,
+    (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+  ) && firesDiesForDestroy(state, db, perm)) {
     fireTriggers(state, db, emit, 'dies', perm);
   }
 }
