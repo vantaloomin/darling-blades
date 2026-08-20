@@ -302,12 +302,19 @@ anchor; Giant/Behemoth scale names require an in-frame comparison object.
 
 The illustration shows the mechanic's defining moment, not a generic subject:
 
-- **Rite:** show the payment, never the payoff and never the killing. Include
-  at least two figures, one giving and one taking. Show one specific,
-  identifiable object already out of the giver's reach: a sealed jar, a heart
-  in a dish, a surrendered shield, or a laid-down spear. Make the taker's
-  hands the focal point. The card body is the reward, so it does not appear in
-  the scene. No gore and no on-camera sacrifice or altar blood.
+**Owner ruling 2026-08-20:** One card = one character. Every creature frame
+contains EXACTLY ONE adult woman. Preserve uses a single translucent natron-white
+after-image of HER OWN silhouette, half-overlapping her, clearly an echo and not
+another person. Rite shows the offering held at chest height, with AT MOST one
+disembodied reaching hand entering from off-frame; no second figure, no other
+person.
+
+- **Rite:** show the payment, never the payoff and never the killing. The sole
+  adult woman holds one specific, identifiable offering at chest height: a
+  sealed jar, a heart in a dish, a surrendered shield, or a laid-down spear.
+  At most one disembodied reaching hand may enter from off-frame. The card body
+  is the reward, so it does not appear in the scene. No second figure, no other
+  person, no gore, and no on-camera sacrifice or altar blood.
 - **Nine Lives:** show the second landing, never the death. The character is
   coming up from one knee, flagstones, or a crouch, with weight transferring
   forward and dust or grit still falling. Show both the life mark and a trace
@@ -316,13 +323,12 @@ The illustration shows the mechanic's defining moment, not a generic subject:
   either a thin gold seam across skin or armor where the wound was, or a notch
   in one ear with a plain gold ring through it. Legends may carry multiple ear
   rings, one per life spent. No other object in the set uses that ring shape.
-- **Preserve:** show the copy, not the corpse. Use two identical silhouettes
-  in different light: the original low in resin-brown shadow and the token copy
-  standing in natron white and gold in the space where the original knelt.
-  Clean, bright copy linen is the mechanic's focal read. No rot, exposed bone,
-  flies, or green skin, except malachite green on Osiris as an honor. If only
-  one figure is compositionally visible, imply the second with a shadow,
-  reflection, or empty wrapping that still holds its shape.
+- **Preserve:** show the copy, not the corpse. Keep EXACTLY ONE adult woman in
+  the frame and use a single translucent natron-white after-image of HER OWN
+  silhouette, half-overlapping her, clearly an echo and not another person. The
+  clean, bright echo linen is the mechanic's focal read. No rot, exposed bone,
+  flies, or green skin, except malachite green on Osiris as an honor. No second
+  figure and no other person.
 
 ### Bastet species tells and costume silhouette
 
