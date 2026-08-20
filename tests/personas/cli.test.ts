@@ -44,7 +44,9 @@ describe('persona CLI defaults', () => {
     expect(artifact.iterations).toBe(80);
     expect(artifact.seeds).toBe(150);
     expect(artifact.field).toBe('prefabs');
-    expect(artifact.referenceField).toHaveLength(11);
+    // 2026-08-19 Duat shop-theme wave: the authored Duat product is a new
+    // player prefab, so the approved reference field grows from 11 to 12.
+    expect(artifact.referenceField).toHaveLength(12);
   });
 
   it('requires exactly one persona selection mode', () => {

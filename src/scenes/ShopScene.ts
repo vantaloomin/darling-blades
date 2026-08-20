@@ -5,6 +5,7 @@ import { FEATURES } from '../config/features';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { DECK_INFO } from '../data/deckInfo';
+import { DUAT_SET, isLiveCollectible } from '../data/liveness';
 import {
   DARLINGS_PRECONS,
   FREE_DARLINGS_PRECON_ID,
@@ -469,7 +470,12 @@ export class ShopScene extends Phaser.Scene {
       {
         label: 'Standard Decks',
         skus: [
-          ...THEME_DECKS.map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
+          ...THEME_DECKS
+            .filter((deck) => deck.cards.every((id) => {
+              const card = CARD_DB[id];
+              return Boolean(card && (String(card.set) !== DUAT_SET || isLiveCollectible(card)));
+            }))
+            .map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
           ...STARTER_DECKS.map((deck) => ({ deck, price: ECONOMY.starterDeckPrice, theme: false })),
         ],
       },

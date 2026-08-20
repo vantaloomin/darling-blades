@@ -70,6 +70,7 @@ import { buildAI, DEFAULT_PERSONALITY } from '../src/ai/personality';
 import { buildDialAI, buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
 import { CARD_DB } from '../src/data/catalog';
 import { DARLINGS_PRECON_MATRIX_FLEET } from '../src/data/darlingsPrecons';
+import { DUAT_ARCHETYPE_DECKS } from '../src/data/duatArchetypeDecks';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../src/data/starterDecks';
 import type { GameFormat } from '../src/config/rules';
@@ -875,7 +876,7 @@ export function runPrefabMatrix(
   ai: Difficulty,
   telemetry?: BalanceTelemetryCollector,
 ): PrefabMatrixReport {
-  const decks = [...STARTER_DECKS, ...THEME_DECKS];
+  const decks = [...STARTER_DECKS, ...THEME_DECKS, ...DUAT_ARCHETYPE_DECKS];
   const n = decks.length;
   const cells: (CellResult | null)[][] = decks.map(() => decks.map(() => null));
   for (let r = 0; r < n; r++) {
