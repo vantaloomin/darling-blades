@@ -292,6 +292,12 @@ on every generation prompt:
 QA zooms every wall panel, cartouche, stela, papyrus, and seal. No generated
 Egyptian-looking mark is acceptable as decoration.
 
+**Wave D prompt guards:** no recessed relief panels or sunken cartouche outlines;
+no European shields/heraldry, Greek key/meander borders, ocean sailing ships, or
+modern containers/screw-lid jars; skyborne and Bastet Kit prompts use their
+explicit open-air and living-kit clauses; value floors use a 70% luminance
+anchor; Giant/Behemoth scale names require an in-frame comparison object.
+
 ### Composition by mechanic family
 
 The illustration shows the mechanic's defining moment, not a generic subject:
