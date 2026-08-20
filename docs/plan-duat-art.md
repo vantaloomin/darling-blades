@@ -107,12 +107,12 @@ Round-2/3 additions (learned when the first fixes did NOT land, 2026-08-19):
    water` birthed a centered starburst twice; a `sun disc as practical key`
    became a crystalline orb. For visible suns write `one small flat
    pale-gold circle high in a hazy sky, matte and rayless like a coin`; for
-   glints, move the practical key onto a physical object instead. Pair with
-   the full negative set: `no lens flare, no starburst, no radial rays, no
-   glowing orb, no light burst`.
-8. **Count figures absolutely.** `two identical silhouettes` still allowed a
-   third bystander; write `EXACTLY TWO figures in the entire image and not
-   one person more`.
+   glints, move the practical key onto a physical object instead. Use the
+   full negative set: `no lens flare, no starburst, no radial rays, no
+   glowing orb, no light burst`. 
+8. **Count figures absolutely.** Positive absolute counts must state
+   `EXACTLY ONE adult woman in the entire image and not one person more` for
+   every creature frame; count all other objects separately.
 
 ### Wave B additions 2026-08-19
 
@@ -138,7 +138,7 @@ batch; future authors should keep rule 6 verbatim.
 ### Wave C additions (2026-08-19)
 
 (13) EVERY figure noun in every prompt reads "adult woman" with "no men, no male figures" in negatives - the correlation was perfect and the omission is a world-rule breach.
-(14) paired compositions place BOTH heads in the middle band explicitly.
+(14) every adult woman's head is inside the middle band explicitly.
 (15) landing traces and floor evidence go on raised surfaces (ledges, wall faces) - the floor is below the card window.
 (16) interior scenes name a large lit surface, not a point source.
 Note the ankh-staff owner ruling as pending.
@@ -156,15 +156,18 @@ Note the ankh-staff owner ruling as pending.
     below her chin". Named practical keys (braziers, lamps) always carry "at
     mid-height inside the central band" - Wave D2 dropped that qualifier and
     measured twice as dark as its neighbors.
-18. **PAIRED-FIGURE STAGING (Preserve).** Standing-plus-kneeling pairs make
-    the generator scale the standing figure to the full frame, decapitating
-    her above y167; and the resin-vs-natron value split shipped 0-for-6 when
-    written as costume color. **Fix phrasing:** both figures the same distance
-    from camera, both entire figures inside the middle 60 percent of the frame
-    height; the value split is a LIGHTING instruction: "the original figure
-    crouched low, her face and body in deep resin-brown shadow; the copy
-    standing beside her at the same distance from camera, lit bright natron
-    white; both heads fully inside the middle band".
+18. **ONE-CHARACTER MECHANIC STAGING (Preserve and Rite; amended 2026-08-20).**
+    EXACTLY ONE adult woman in every creature frame (positive absolute count
+    per rule 21).
+    Preserve is staged as the SAME woman with ONE translucent natron-white
+    after-image - a ghost echo overlapping/directly behind her own silhouette,
+    clearly the same person, never a separate second figure; phrase it as "a
+    single translucent natron-white after-image of HER OWN silhouette,
+    half-overlapping her, clearly an echo and not another person". Rite is
+    staged as the offering itself - jars/tokens held at chest height per rule
+    17, with AT MOST one disembodied reaching hand entering from off-frame (the
+    validated sd-marked-at-the-gate pattern) and "no second figure, no other
+    person" in the negatives. This successor rule governs all new regenerations.
 19. **HEAD PLACEMENT BY BAND, NOT THIRDS.** The clause "face in the upper
     third with generous empty air above her head" aims the face at y0-266 of
     the 640x800 source, ABOVE the y167 window opening - it decapitated six
@@ -184,9 +187,9 @@ Note the ankh-staff owner ruling as pending.
     the load.
 21. **COUNT POSITIVELY.** Counts in the negative block are ignored ("no second
     life mark" produced two marks); positive absolute counts held everywhere
-    used ("EXACTLY TWO figures", "EXACTLY TWO blades"). **Fix:** every count
-    constraint appears in the positive clause in caps: EXACTLY ONE kintsugi life
-    mark, EXACTLY TWO separated blades, etc.
+    used ("EXACTLY ONE adult woman", "EXACTLY TWO blades"). **Fix:** every
+    count constraint appears in the positive clause in caps: EXACTLY ONE adult
+    woman, EXACTLY ONE kintsugi life mark, EXACTLY TWO separated blades, etc.
 
 ### Prompt guard block addenda (2026-08-19)
 
