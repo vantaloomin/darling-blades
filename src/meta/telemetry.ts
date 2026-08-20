@@ -28,6 +28,9 @@ export interface PlayerGameTelemetry {
   turnsSampled: number;
   graveyardCasts: number;
   graveyardReturns: number;
+  riteCasts: Record<string, number>;
+  preserveActivations: number;
+  nineLivesReturns: number;
   graveyardFuel: GraveyardFuelTelemetry;
   deadWeightAtEnd: number;
   unspentManaTurns: number;
@@ -62,6 +65,9 @@ export interface PlayerTelemetryAggregate {
   meanTurns: number;
   meanGraveyardCasts: number;
   meanGraveyardReturns: number;
+  meanRiteCasts: Record<string, number>;
+  meanPreserveActivations: number;
+  meanNineLivesReturns: number;
   meanGraveyardFuel: GraveyardFuelTelemetry;
   graveyardFuelTotals: GraveyardFuelTelemetry;
   graveyardFuelFromCleanupShare: number;
@@ -96,6 +102,9 @@ function freshPlayer(deckName: string): PlayerGameTelemetry {
     turnsSampled: 0,
     graveyardCasts: 0,
     graveyardReturns: 0,
+    riteCasts: {},
+    preserveActivations: 0,
+    nineLivesReturns: 0,
     graveyardFuel: freshFuel(),
     deadWeightAtEnd: 0,
     unspentManaTurns: 0,
@@ -169,6 +178,14 @@ export function aggregatePlayerTelemetry(
     .map((row) => row.player.reserveExhaustedTurn)
     .filter((turn): turn is number => turn !== null);
   const sampledTurns = total((row) => row.player.turnsSampled);
+  const riteSizes = new Set(
+    rows.flatMap((row) => Object.keys(row.player.riteCasts)),
+  );
+  const meanRiteCasts = Object.fromEntries(
+    [...riteSizes]
+      .sort((a, b) => Number(a) - Number(b))
+      .map((size) => [size, avg((row) => row.player.riteCasts[size] ?? 0)]),
+  );
   return {
     deckName,
     games: rows.length,
@@ -180,6 +197,9 @@ export function aggregatePlayerTelemetry(
     meanTurns: avg((row) => row.game.turns),
     meanGraveyardCasts: avg((row) => row.player.graveyardCasts),
     meanGraveyardReturns: avg((row) => row.player.graveyardReturns),
+    meanRiteCasts,
+    meanPreserveActivations: avg((row) => row.player.preserveActivations),
+    meanNineLivesReturns: avg((row) => row.player.nineLivesReturns),
     meanGraveyardFuel,
     graveyardFuelTotals,
     graveyardFuelFromCleanupShare:
@@ -240,6 +260,18 @@ export class GameTelemetry {
     if (event.e === 'stepChanged') this.currentStep = event.step;
     if (event.e === 'turnBegan') this.maxTurn = Math.max(this.maxTurn, event.turn);
     if (event.e === 'mulliganTaken') this.players[event.player].mulligans = event.count;
+    if (event.e === 'spellCast') {
+      const rite = def(this.db, event.cardId).rite;
+      if (rite) {
+        const player = this.players[event.controller];
+        const size = String(rite.n);
+        player.riteCasts[size] = (player.riteCasts[size] ?? 0) + 1;
+      }
+    } else if (event.e === 'preserved') {
+      this.players[event.player].preserveActivations++;
+    } else if (event.e === 'nineLivesReturned') {
+      this.players[event.player].nineLivesReturns++;
+    }
 
     if (event.e === 'discarded') {
       const player = this.players[event.player];

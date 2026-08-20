@@ -499,6 +499,7 @@ function returnWithNineLives(
   const returned = enterBattlefield(state, db, card, fallen.owner, emit, {
     plusOneCounters: 1,
   });
+  emit({ e: 'nineLivesReturned', player: fallen.owner, iid: returned.iid, cardId: returned.cardId });
   fireTriggers(state, db, emit, 'arrives', returned);
 }
 
