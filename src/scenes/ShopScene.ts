@@ -560,6 +560,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, GOTHIC_MONSTERS_PACK_ART);
     bakePackArt(this, DARK_TALES_PACK_ART);
     bakePackArt(this, YOKAI_NIGHTS_PACK_ART);
+    bakePackArt(this, SANDS_OF_THE_DUAT_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 

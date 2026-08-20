@@ -16,6 +16,9 @@ function player(over: Partial<PlayerGameTelemetry> = {}): PlayerGameTelemetry {
     turnsSampled: 0,
     graveyardCasts: 0,
     graveyardReturns: 0,
+    riteCasts: {},
+    preserveActivations: 0,
+    nineLivesReturns: 0,
     graveyardFuel: { cleanupDiscard: 0, died: 0, milled: 0, other: 0 },
     deadWeightAtEnd: 0,
     unspentManaTurns: 0,
@@ -45,6 +48,9 @@ describe('telemetry aggregation math', () => {
       handCloggedTurns: 4,
       turnsSampled: 5,
       graveyardCasts: 2,
+      riteCasts: { '1': 2 },
+      preserveActivations: 2,
+      nineLivesReturns: 1,
       graveyardFuel: { cleanupDiscard: 1, died: 1, milled: 0, other: 0 },
       deadWeightAtEnd: 6,
       colorStrandedTurns: 2,
@@ -55,6 +61,8 @@ describe('telemetry aggregation math', () => {
       handCloggedTurns: 2,
       turnsSampled: 5,
       graveyardCasts: 1,
+      riteCasts: { '2': 1 },
+      nineLivesReturns: 3,
       graveyardFuel: { cleanupDiscard: 1, died: 0, milled: 1, other: 0 },
       deadWeightAtEnd: 4,
       colorStrandedTurns: 1,
@@ -69,6 +77,9 @@ describe('telemetry aggregation math', () => {
     expect(aggregate.meanHandCloggedTurns).toBe(3);
     expect(aggregate.meanTurns).toBe(10);
     expect(aggregate.meanGraveyardCasts).toBe(1.5);
+    expect(aggregate.meanRiteCasts).toEqual({ '1': 1, '2': 0.5 });
+    expect(aggregate.meanPreserveActivations).toBe(1);
+    expect(aggregate.meanNineLivesReturns).toBe(2);
     expect(aggregate.graveyardFuelFromCleanupShare).toBe(0.5);
     expect(aggregate.meanDeadWeightAtEnd).toBe(5);
     expect(aggregate.colorStrandedTurnsRate).toBe(0.3);

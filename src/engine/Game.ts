@@ -621,6 +621,7 @@ export class Game {
         me.graveyard.splice(action.graveIndex, 1);
         me.severed.push(card);
         emit({ e: 'severed', player, cardId, from: 'graveyard' });
+        emit({ e: 'preserved', player, cardId });
 
         // The severed physical card keeps its instance identity. Its token
         // copy gets a fresh identity while retaining the collectible's visual

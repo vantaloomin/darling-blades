@@ -59,6 +59,7 @@ export type GameEvent =
   | { e: 'damageMarked'; iid: number; amount: number }
   | { e: 'lifeChanged'; player: PlayerId; delta: number; now: number }
   | { e: 'died'; iid: number; cardId: string; owner: PlayerId }
+  | { e: 'nineLivesReturned'; player: PlayerId; iid: number; cardId: string }
   | { e: 'discarded'; player: PlayerId; cardId: string }
   | { e: 'milled'; player: PlayerId; cardId: string }
   | {
@@ -68,6 +69,7 @@ export type GameEvent =
       from: 'battlefield' | 'graveyard' | 'deck';
       iid?: number;
     }
+  | { e: 'preserved'; player: PlayerId; cardId: string }
   | {
       // Foresee resolution summary. Redaction mechanism (deliberate): per the
       // contract above, the event carries FULL identities and the presenter
