@@ -78,8 +78,8 @@ just the card window.
    load-bearing object, including mechanic evidence, life marks, landing
    traces, offering objects, scale, feather, and heart, must say: `at
    mid-height in the center of the frame, fully visible in the upper two
-   thirds, never near the bottom edge`. Every figure must say: `face in the
-   upper third with generous empty air above the head`.
+   thirds, never near the bottom edge`. Every figure must say: `her head
+   fully inside the middle band of the frame, clear air above it`.
 3. **Distant architecture has a glyph guard.** Alongside the existing
    positive blank-cartouche phrase and NO-TEXT negatives, every prompt adds:
    `all distant walls, pylons, columns and background architecture perfectly
@@ -142,6 +142,63 @@ batch; future authors should keep rule 6 verbatim.
 (15) landing traces and floor evidence go on raised surfaces (ledges, wall faces) - the floor is below the card window.
 (16) interior scenes name a large lit surface, not a point source.
 Note the ankh-staff owner ruling as pending.
+
+### Wave D additions (2026-08-19)
+
+17. **PROP ANCHORING, BOTH ENDS.** "RAISED" is one-directional and lost:
+    raised surfaces anchor at the frame bottom, and props the figure sets down /
+    reaches down for / hauls / kneels beside land at y650-790, below the y633
+    window line; meanwhile held-high props (fire pans, standards) overshoot
+    ABOVE y167. **Evidence:** 14 of 39 fails. **Fix phrasing:** never write
+    "raised" for a prop; rewrite the verb so the prop is held at chest height
+    ("holding the censer at chest height in both hands", "the token pinched at
+    eye level"), and add "the entire object above the figure's waistline and
+    below her chin". Named practical keys (braziers, lamps) always carry "at
+    mid-height inside the central band" - Wave D2 dropped that qualifier and
+    measured twice as dark as its neighbors.
+18. **PAIRED-FIGURE STAGING (Preserve).** Standing-plus-kneeling pairs make
+    the generator scale the standing figure to the full frame, decapitating
+    her above y167; and the resin-vs-natron value split shipped 0-for-6 when
+    written as costume color. **Fix phrasing:** both figures the same distance
+    from camera, both entire figures inside the middle 60 percent of the frame
+    height; the value split is a LIGHTING instruction: "the original figure
+    crouched low, her face and body in deep resin-brown shadow; the copy
+    standing beside her at the same distance from camera, lit bright natron
+    white; both heads fully inside the middle band".
+19. **HEAD PLACEMENT BY BAND, NOT THIRDS.** The clause "face in the upper
+    third with generous empty air above her head" aims the face at y0-266 of
+    the 640x800 source, ABOVE the y167 window opening - it decapitated six
+    figures, and when it coexists with "head fully inside the middle band" the
+    trailing clause wins. **Fix:** DELETE every occurrence of the upper-third
+    clause set-wide (all waves, not just the 39); the only head-placement
+    language permitted is "her head fully inside the middle band of the frame,
+    clear air above it".
+20. **DIRECTIONAL EFFECTS, NEVER RADIAL.** Undirected expansion or convergence
+    verbs ("a ward expands", "bolts converge into one marker", "an impact
+    strikes") resolve as a symmetric radial starburst at dead centre, defeating
+    the anti-sigil negatives - five S2 fails plus two SSRs. **Fix phrasing:**
+    every spell effect is staged directionally and off-centre: "the effect
+    travels left to right across the frame and exits the edge, never radiating
+    from a point"; convergence targets sit off-centre at a rule-of-thirds
+    intersection; keep the anti-sigil negatives but the positive clause carries
+    the load.
+21. **COUNT POSITIVELY.** Counts in the negative block are ignored ("no second
+    life mark" produced two marks); positive absolute counts held everywhere
+    used ("EXACTLY TWO figures", "EXACTLY TWO blades"). **Fix:** every count
+    constraint appears in the positive clause in caps: EXACTLY ONE kintsugi life
+    mark, EXACTLY TWO separated blades, etc.
+
+### Prompt guard block addenda (2026-08-19)
+
+Carry these guards in every generation-ready Prompt line unless a card-specific
+owner decision below explicitly narrows the scope:
+
+- **Glyph guard extension:** add `no recessed relief panels, no sunken cartouche outlines on any wall` to the distant-architecture guard. A hazy sunset pylon leaked a carved cartouche past the old wording.
+- **Non-Egyptian vocabulary:** every prompt adds `no European shields or heraldry, no Greek key or meander borders, no ocean sailing ships, no modern containers or screw-lid jars`.
+- **Skyborne phrasing:** on regen cards that carry skyborne, use `hovering in open air with clear sky visible beneath her feet, no ground, deck, or terrace under her`. Set-wide backfill is an owner decision.
+- **Bastet Kit tokens:** draw a living kit: `a small cat creature with its own faint gold glow`, never an empty collar on a ledge. Collars proved unreadable at 119x86; the scarab-as-creature token read perfectly.
+- **Value floor phrasing:** replace the resin-brown hex clause in prompts with `one large warm surface brighter than 70 percent luminance inside the central band`.
+- **Scale rule:** `Giant`, `Behemoth`, and `colossal` do nothing alone; monumental scale requires an explicit in-frame comparison object, such as `her shoulder level with the temple lintel`.
 ## 3. Batch order (interleaved with the card-data waves)
 
 1. **Wave A — the 19 already-briefed pieces** the moment their ids lock:
