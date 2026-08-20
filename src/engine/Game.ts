@@ -12,7 +12,7 @@ import type { Action } from './actions';
 import { darlingCastCost, legalActions, validateAction } from './actions';
 import { hasCastableCharm, hasCastableInstant } from './actions';
 import { resolveCombatDamage } from './combat/damage';
-import { fireTriggers, runOps } from './effects/EffectInterpreter';
+import { fireGraveyardTriggers, fireTriggers, runOps } from './effects/EffectInterpreter';
 import type { GameEvent } from './events';
 import { combineManaCosts, solveMana } from './mana';
 import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
@@ -605,6 +605,7 @@ export class Game {
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
         me.hand.splice(action.handIndex, 1);
         me.graveyard.push(card);
+        fireGraveyardTriggers(st, this.db, emit, card, player);
         emit({ e: 'skimmed', player, cardId });
         drawCards(st, emit, player, 1);
         return;
@@ -675,10 +676,21 @@ export class Game {
           const sacrificeIids = new Set(action.sacrifices!);
           const sacrifices = st.battlefield.filter((perm) => sacrificeIids.has(perm.iid));
           const fallen: typeof sacrifices = [];
+          const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
           for (const perm of sacrifices) {
-            if (destroyPermanent(st, this.db, perm, emit) && firesDiesForDestroy(st, this.db, perm)) {
+            if (destroyPermanent(
+              st,
+              this.db,
+              perm,
+              emit,
+              (graveCard, owner) => graveyardEntries.push({ card: graveCard, owner }),
+            ) && firesDiesForDestroy(st, this.db, perm)) {
               fallen.push(perm);
             }
+          }
+          for (const entry of graveyardEntries) {
+            if (st.winner !== null) return;
+            fireGraveyardTriggers(st, this.db, emit, entry.card, entry.owner);
           }
           for (const perm of fallen) {
             if (st.winner !== null) return;
@@ -844,6 +856,7 @@ export class Game {
         for (const i of sorted) {
           const [card] = me.hand.splice(i, 1);
           me.graveyard.push(card);
+          fireGraveyardTriggers(st, this.db, emit, card, player);
           emit({ e: 'discarded', player, cardId: cardIdOf(card) });
         }
         finishCleanup(st, this.db, emit);

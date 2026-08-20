@@ -1,9 +1,9 @@
 import type { Emit } from './battlefield';
 import { destroyPermanent, firesDiesForDestroy } from './battlefield';
-import { fireBatchedDies } from './effects/EffectInterpreter';
+import { fireBatchedDies, fireGraveyardTriggers } from './effects/EffectInterpreter';
 import { endGame } from './phases';
 import { getEffectiveStats } from './statics';
-import type { CardDb, GameState, Permanent } from './types';
+import type { CardDb, CardEntry, GameState, Permanent } from './types';
 import { def, isType } from './types';
 
 export { destroyPermanent };
@@ -79,6 +79,7 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
     // dies triggers — stopping if one of them ends the game.
     const doomed = state.battlefield.filter((p) => doomedIids.has(p.iid));
     const fallen: Permanent[] = [];
+    const graveyardEntries: { card: CardEntry; owner: 0 | 1 }[] = [];
     for (const perm of doomed) {
       const hostDeparting =
         perm.attachedTo !== undefined &&
@@ -93,10 +94,20 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
           owner: perm.owner,
         });
       }
-      if (destroyPermanent(state, db, perm, emit)) {
+      if (destroyPermanent(
+        state,
+        db,
+        perm,
+        emit,
+        (card, owner) => graveyardEntries.push({ card, owner }),
+      )) {
         if (firesDiesForDestroy(state, db, perm)) fallen.push(perm);
         changed = true;
       }
+    }
+    for (const entry of graveyardEntries) {
+      if (state.winner !== null) return;
+      fireGraveyardTriggers(state, db, emit, entry.card, entry.owner);
     }
     fireBatchedDies(state, db, emit, fallen);
     if (fallen.length > 0) changed = true;
