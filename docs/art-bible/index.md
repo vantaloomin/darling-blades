@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts, docs/plan-duat-creative.md, docs/land-art.md · last-verified: 2026-08-18 -->
+<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts, docs/plan-duat-creative.md, docs/land-art.md · last-verified: 2026-08-21 -->
 
 # Darling Blades Art Bible — Index (The Contract)
 
@@ -279,19 +279,22 @@ Hard-noon exteriors target about a third of the set; the dark-UI readability
 concern is carried by the value floor and the 70% luminance band rule, never
 by reducing the exterior share.
 
+**OWNER-RULED 2026-08-21 - ANKH.** An ankh-headed staff held by the figure is allowed only where the entry briefs it. Ankhs never appear as unbriefed props, ornaments, wall or floor inlays, or decoration. Keeper of the Last Mark keeps her held staff. Every touched entry without that brief carries "no ankh-shaped objects, no ankh ornaments, no ankh inlays".
+
+**OWNER-RULED 2026-08-21 - SKYBORNE (lenient).** "no ground under her" is sufficient; visible feet over open air are not required. Grounded skyborne regens use "hovering in open air with clear sky and the lapis channel visible beneath her, no ground, deck, terrace, pier, rail, prow, or marker under her" plus a named support negative. Ra, Helm of the Night Barge remains the recorded skyborne exception.
 ### NO-TEXT and blank-cartouche rule
 
 The global NO-TEXT hard rule is especially strict for Duat visual language.
-Every wall register, cartouche, stela, papyrus, and seal renders as a **blank
-gold or lapis panel with geometric banding**, never glyphs. Carry both phrases
-on every generation prompt:
+Every wall register, cartouche, stela, papyrus, and seal renders as a **blank,
+flat geometric panel** on every generation prompt:
 
-- **Positive:** `blank gold cartouche panels, geometric banded registers`
+- **Positive:** `flush wall inlays of flat lapis-and-gold geometric banding`
 - **Negative:** `no hieroglyphs, no glyphs, no writing, no inscriptions`
 
 QA zooms every wall panel, cartouche, stela, papyrus, and seal. No generated
 Egyptian-looking mark is acceptable as decoration.
 
+**Wave E prompt guards (2026-08-21):** every touched prompt bans signboards, placards, hanging signs, billboards on posts, blank framed rectangles, empty plaques, label plates, and nameplates; Egyptian pictographs, determinative marks, winged sun discs, jackal-headed colossi or statues, and male statues; domes, rotundas, Greco-Roman colonnades/cornices/dentils/entablatures/classical facades, striped awnings, Christian crosses/cross finials, coronets, heraldic escutcheons of any shape, ship's wheels, modern lamps/crystals/salt lamps; and unbriefed ankhs. R costumes use barge-fire orange and tomb-gold linen with red identity in fire only. Creature prompts count exactly one adult woman, and skyborne prompts name the rejected support.
 **Wave D prompt guards:** no recessed relief panels or sunken cartouche outlines;
 no European shields/heraldry, Greek key/meander borders, ocean sailing ships, or
 modern containers/screw-lid jars; skyborne and Bastet Kit prompts use their
