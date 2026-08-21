@@ -126,6 +126,8 @@ describe('AI win-rate gates', () => {
     const r18 = row('abyssal-songstress');
     const r19 = row('queen-of-the-lanterned-roof');
     const r20 = row('kitsune-neon-tyrant');
+    const r21 = row('anubis-who-holds-the-scale');
+    const r22 = row('bastet-mistress-of-the-ninth-return');
     expect(r14).toBeDefined();
     expect(r15).toBeDefined();
     expect(r16).toBeDefined();
@@ -133,7 +135,9 @@ describe('AI win-rate gates', () => {
     expect(r18).toBeDefined();
     expect(r19).toBeDefined();
     expect(r20).toBeDefined();
-    if (!r14 || !r15 || !r16 || !r17 || !r18 || !r19 || !r20) return;
+    expect(r21).toBeDefined();
+    expect(r22).toBeDefined();
+    if (!r14 || !r15 || !r16 || !r17 || !r18 || !r19 || !r20 || !r21 || !r22) return;
 
     // Floors re-centred 2026-07-31 from the W7 combined re-baseline at
     // 200 seeds/cell (w7 chain, post-balance-pass field: cap-4 blockers,
@@ -150,6 +154,11 @@ describe('AI win-rate gates', () => {
     expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.775);
     expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.555);
     expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.645);
+    // Fresh 2026-08-21 Sands of the Duat full-ladder measurement, 40
+    // seeds/cell: R21 Anubis 51.0% and R22 Bastet 77.0% (rung order swapped 2026-08-21; Anubis measured 57.5% at rung 22 before the swap - the per-cell seed stream follows the rung, so her post-swap sample is the canonical one). These floors leave roughly 5pp
+    // below the measured averages after rounding down to the half point.
+    expect(r21.avg, 'Anubis provisional floor').toBeGreaterThanOrEqual(0.46);
+    expect(r22.avg, 'Bastet provisional floor').toBeGreaterThanOrEqual(0.72);
     expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
     // R16 vs R14 measured 67% vs 63% at 200 seeds — real but only 4pp, inside
     // 40-seed noise, so strict ordering would flake in CI. Tolerance gate.
@@ -157,7 +166,7 @@ describe('AI win-rate gates', () => {
     expect(r17.avg, 'rung 17 must clear rung 16').toBeGreaterThan(r16.avg);
     expect(r18.avg, 'rung 18 must be the measured summit').toBeGreaterThan(r17.avg);
     expect(r20.avg, 'rung 20 must measure at or above rung 19').toBeGreaterThanOrEqual(r19.avg);
-    for (const cell of [...r17.cells, ...r18.cells, ...r19.cells, ...r20.cells]) {
+    for (const cell of [...r17.cells, ...r18.cells, ...r19.cells, ...r20.cells, ...r21.cells, ...r22.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
   }, 900_000);
