@@ -171,10 +171,12 @@ describe('Sands of the Duat entersGraveyard trigger', () => {
         duatPermanent(2, 'land-mountain'),
         duatPermanent(3, 'land-mountain'),
         duatPermanent(10, 'sd-priestess-of-the-emptied-jar'),
-      ],
-    });
-    const cast = riteAction(sacrificeGame);
-    const sacrificeEvents = sacrificeGame.submit(0, { ...cast, manaPlan: [1, 2, 3] });
+    ],
+  });
+  const cast = riteAction(sacrificeGame);
+    // Wave D4 (2026-08-20): Sun-Rope Hauler is now {1}{R}; preserve the
+    // exact payment assertion with the reduced two-source mana plan.
+    const sacrificeEvents = sacrificeGame.submit(0, { ...cast, manaPlan: [1, 2] });
     expect(graveyardTriggers(sacrificeEvents)).toHaveLength(1);
     expect(sacrificeEvents.filter((event) => event.e === 'triggerFired' && event.iid === 10)).toHaveLength(0);
   });

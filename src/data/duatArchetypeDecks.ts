@@ -8,6 +8,7 @@ import { expand, type DeckList } from './starterDecks';
 const RITE_ENGINE: DeckList = {
   id: 'duat-archetype-rite',
   name: 'Rite of the Heavier Offering',
+  // MEASURED 2026-08-21 (hard AI, 150 seeds/cell, 17-deck prefab field): 42.2% (1013/2399). Rite fires: Rite-1 2.24 and Rite-2 0.48 casts per game at hard, RISING with AI tier (easy 1.20/0.13) - no hand rot, far clear of the Midnight Storybook 6.7% bar.
   cards: expand([
     ['land-swamp', 12],
     ['land-mountain', 8],
@@ -53,6 +54,7 @@ const RITE_ENGINE: DeckList = {
 const NINE_LIVES_ATTRITION: DeckList = {
   id: 'duat-archetype-nine-lives',
   name: 'Nine Lives at Dusk',
+  // MEASURED 2026-08-21 (hard AI, 150 seeds/cell, 17-deck prefab field): 62.6% (1502/2399). 3.63 Nine Lives returns per game in a marks deck - the feared marks anti-synergy does not materialize at list level.
   cards: expand([
     ['land-plains', 7],
     ['land-swamp', 5],
@@ -95,110 +97,86 @@ const NINE_LIVES_ATTRITION: DeckList = {
 };
 
 /**
- * Preserve value. The balance pass measures Preserve activations together
- * with a twenty-two-card self-mill package, rather than evaluating graveyard
- * payoffs after stripping away their enablers.
+ * Preserve value. This low-curve rebuild keeps a twenty-six-card self-mill
+ * package beside cheap Preserve bodies, so the graveyard payoffs stay live
+ * without asking a ten-land reserve to carry a six-mana curve.
  */
 const PRESERVE_VALUE: DeckList = {
   id: 'duat-archetype-preserve',
   name: 'The Copy Kept in Linen',
+  // MEASURED 2026-08-21 (hard AI, 150 seeds/cell, 17-deck prefab field): 19.7% (473/2400) - ACCEPTED FLOOR, owner-ruled 2026-08-21. The rebuild fixed the deck (clog 2.05 -> 0.26, Preserve 1.49 -> 2.67 activations per game) and the set-wide Preserve rate cut lifted it from 14.8%, but the archetype lacks card-pool depth; a future support wave deepens it. The mechanic itself measures healthy.
   cards: expand([
-    ['land-plains', 8],
-    ['land-island', 6],
-    ['land-swamp', 4],
-    ['land-forest', 2],
-    ['sd-resin-archive', 4],
-    ['sd-keeper-of-the-long-debt', 4],
-    ['sd-resin-handed-embalmer', 4],
+    ['land-swamp', 12],
+    ['land-island', 8],
+    ['sd-empty-heart-jar', 4],
+    ['sd-reed-bound-canopic', 4],
+    ['sd-tomb-seal', 2],
     ['sd-the-debt-is-called', 4],
-    ['sd-two-jars-one-heart', 4],
-    ['sd-the-long-drying', 2],
-    ['sd-waterclock-watcher', 4],
+    ['sd-archivist-of-the-fourth-hall', 4],
+    ['sd-resin-archive', 4],
+    ['sd-resin-handed-embalmer', 4],
     ['sd-the-copy-kept-in-linen', 4],
-    ['sd-twice-wrapped-champion', 2],
-    ['sd-silt-pool-reader', 2],
-    ['sd-flood-fed-colossus', 2],
-    ['sd-keeper-of-the-sealed-jar', 2],
-    ['sd-sealed-doorway', 2],
+    ['sd-two-jars-one-heart', 2],
+    ['sd-keeper-of-the-long-debt', 4],
+    ['sd-waterclock-watcher', 4],
   ]),
   reserveCards: expand([
-    ['sd-resin-archive', 4],
-    ['sd-keeper-of-the-long-debt', 4],
-    ['sd-resin-handed-embalmer', 4],
+    ['sd-empty-heart-jar', 4],
+    ['sd-reed-bound-canopic', 4],
+    ['sd-tomb-seal', 2],
     ['sd-the-debt-is-called', 4],
-    ['sd-two-jars-one-heart', 4],
-    ['sd-the-long-drying', 2],
-    ['sd-waterclock-watcher', 4],
+    ['sd-archivist-of-the-fourth-hall', 4],
+    ['sd-resin-archive', 4],
+    ['sd-resin-handed-embalmer', 4],
     ['sd-the-copy-kept-in-linen', 4],
-    ['sd-twice-wrapped-champion', 2],
-    ['sd-silt-pool-reader', 2],
-    ['sd-flood-fed-colossus', 2],
-    ['sd-keeper-of-the-sealed-jar', 2],
-    ['sd-sealed-doorway', 2],
+    ['sd-two-jars-one-heart', 2],
+    ['sd-keeper-of-the-long-debt', 4],
+    ['sd-waterclock-watcher', 4],
   ]),
   landReserve: expand([
-    ['sd-land-the-weighing-hall', 2],
-    ['sd-land-silt-tomb-terrace', 1],
-    ['sd-land-reedway-delta', 2],
-    ['land-plains', 2],
-    ['land-island', 1],
-    ['land-swamp', 1],
-    ['land-forest', 1],
+    ['land-swamp', 6],
+    ['land-island', 4],
   ]),
 };
 
 /**
- * Empower ramp. The balance pass measures the extraLandDrop class against a
- * real ramp curve, then observes whether Empower turns that mana into a
- * credible late-game payoff without borrowing Nine Lives marks.
+ * Empower ramp. Cheap green ramp bodies keep producing a board after the
+ * land reserve is exhausted; Harvest After Rain supplies the card flow, and
+ * Deep-Flood Behemoth is the only five-mana top-end.
  */
 const EMPOWER_RAMP: DeckList = {
   id: 'duat-archetype-empower',
   name: 'Flood Measures the Sky',
+  // MEASURED 2026-08-21 (hard AI, 150 seeds/cell, 17-deck prefab field): 35.3% (845/2397), lifted from 14.5% by the rebuild (reserve-aware ramp, repriced Harvest After Rain and Behemoth) - a soft floor beside Midnight Storybook, not a dead one.
   cards: expand([
-    ['land-forest', 8],
-    ['land-mountain', 5],
-    ['land-island', 4],
-    ['land-plains', 3],
-    ['sd-give-the-field-its-due', 4],
+    ['land-forest', 20],
+    ['sd-siltfield-forager', 4],
+    ['sd-granary-sentinel', 4],
+    ['sd-levee-foot-scout', 4],
     ['sd-furrow-water-tender', 4],
+    ['sd-flood-gauge-runner', 4],
+    ['sd-palm-root-warden', 4],
+    ['sd-floodgate-warden', 2],
+    ['sd-deep-flood-behemoth', 4],
     ['sd-measure-the-silt', 4],
-    ['sd-flood-before-noon', 4],
-    ['sd-flood-mark-shaman', 4],
-    ['sd-harvest-line-shaman', 4],
-    ['sd-deeper-than-last-year', 2],
-    ['sd-silt-fat-behemoth', 2],
-    ['sd-silt-crowned-harvester', 2],
-    ['sd-renenutet-who-measures-the-flood', 2],
-    ['sd-ra-helm-of-the-night-barge', 2],
-    ['sd-barge-sail-ascendant', 2],
-    ['sd-harvest-after-rain', 2],
+    ['sd-harvest-after-rain', 4],
     ['sd-ward-the-floodgate', 2],
   ]),
   reserveCards: expand([
-    ['sd-give-the-field-its-due', 4],
+    ['sd-siltfield-forager', 4],
+    ['sd-granary-sentinel', 4],
+    ['sd-levee-foot-scout', 4],
     ['sd-furrow-water-tender', 4],
+    ['sd-flood-gauge-runner', 4],
+    ['sd-palm-root-warden', 4],
+    ['sd-floodgate-warden', 2],
+    ['sd-deep-flood-behemoth', 4],
     ['sd-measure-the-silt', 4],
-    ['sd-flood-before-noon', 4],
-    ['sd-flood-mark-shaman', 4],
-    ['sd-harvest-line-shaman', 4],
-    ['sd-deeper-than-last-year', 2],
-    ['sd-silt-fat-behemoth', 2],
-    ['sd-silt-crowned-harvester', 2],
-    ['sd-renenutet-who-measures-the-flood', 2],
-    ['sd-ra-helm-of-the-night-barge', 2],
-    ['sd-barge-sail-ascendant', 2],
-    ['sd-harvest-after-rain', 2],
+    ['sd-harvest-after-rain', 4],
     ['sd-ward-the-floodgate', 2],
   ]),
   landReserve: expand([
-    ['sd-land-reedway-delta', 2],
-    ['sd-land-emberwake-channel', 2],
-    ['sd-land-noon-barge-landing', 1],
-    ['land-forest', 2],
-    ['land-island', 1],
-    ['land-mountain', 1],
-    ['land-plains', 1],
+    ['land-forest', 10],
   ]),
 };
 
@@ -210,6 +188,7 @@ const EMPOWER_RAMP: DeckList = {
 const BASTET_TRIBAL: DeckList = {
   id: 'duat-archetype-bastet',
   name: 'Bastet Under the Red Sun',
+  // MEASURED 2026-08-21 (hard AI, 150 seeds/cell, 17-deck prefab field): 62.5% (1500/2400), down from 66.1% with the War-Priestess trim - the twinBlades anthem stack at the historical top-of-band.
   cards: expand([
     ['land-plains', 10],
     ['land-mountain', 10],

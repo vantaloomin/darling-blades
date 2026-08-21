@@ -609,6 +609,13 @@ export const THEME_DECKS: DeckList[] = [
   {
     id: 'theme-sands-of-the-duat',
     name: 'Pride at the Ninth Gate',
+    // 2026-08-21 Duat balance pass, MEASURED: 64.7% aggregate (1553/2400) at
+    // 150 seeds/cell hard AI across the 17-deck prefab field (`balance-matrix
+    // --prefabs --ai hard --seeds 150`), down from 68.3% at the first cut via
+    // the War-Priestess cost bump ({3}{W}{R} -> {4}{W}{R}) and her anthem going
+    // defensive (+1/+1 -> +0/+1, so twinBlades stops doubling it). Field-best
+    // on purpose as the new set's face; next lever if it must come down is the
+    // four-copy Standard Bearer attack anthem.
     cards: expand([
       ['land-plains', 10],
       ['land-mountain', 10],
