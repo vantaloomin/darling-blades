@@ -9,11 +9,13 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..20, unique). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-20 Hard (9-10 are the Ragnarök bosses,
+ * Gauntlet ordering is by `tier` (1..22, unique). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-22 Hard (9-10 are the Ragnarök bosses,
  * 11-12 are the Celtic Fae bosses, 13-14 are the Arthurian Court pair, and
  * 15-16 are the Gothic Monsters pair, 17-18 are the Dark Tales summit pair,
- * and 19-20 are the Yokai Nights summit pair).
+ * and 19-20 are the Yokai Nights summit pair, and 21-22 are the Sands of the
+ * Duat summit pair: Anubis at 21, Bastet as the final rung 22 - the owner swapped
+ * the order 2026-08-21 so the climb ends on the stronger boss).
  */
 export interface Avatar {
   id: string;
@@ -21,7 +23,7 @@ export interface Avatar {
   title: string;
   blurb: string;
   theme: string;
-  tier: number; // 1..20 (unique)
+  tier: number; // 1..22 (unique)
   difficulty: Difficulty;
   deck: string[]; // 60 real cardIds — classic; the Tower and Draft still pilot this
   personality: Personality;
@@ -333,6 +335,26 @@ export interface Avatar {
  * R19 90/65/68/60/73, avg 71%; R20 stayed 75%. Neutral tie with Iteration 7,
  * so the extra knobs were reverted and the simpler list-only candidate remains
  * shipped.
+ *
+ * Rungs 21-22 - the Sands of the Duat summit pair, measured 2026-08-21 at 40
+ * seeds/cell with the full `--avatars` matrix. Initial deck candidates measured
+ * Bastet 60/80/65/80/90, avg 75%; Anubis 53/75/45/75/53, avg 60%.
+ * Both sat below the R18 neighborhood, so one deck-only tuning pass was
+ * allowed. Bastet exchanged four Whisker-Count Scouts for Barge-Pawed
+ * Spearwomen and two Blade-Dancers for Bakhet; Anubis traded the Keeper of the
+ * Last Mark package for earlier Cut the Wrappings answers and more low-curve
+ * Embalmer bodies. A follow-up 60-card legality correction removed two
+ * redundant nonland slots from each candidate before the final measurement.
+ * Post-swap re-measure 2026-08-21 (Anubis now rung 21, seeds follow the rung): Anubis avg 51.0%, floor 46.0%, band 44.5%.
+ * Final valid rows: Bastet 68/83/73/85/78, avg 77.0%; Anubis 35/73/50/78/53, avg
+ * 57.5%. Every R21/R22 cell had 40 decided games and zero draws. Final 40-seed
+ * win-rate floors are R21 >= 72.0% and R22 >= 52.5%; provisional 6.5pp bands
+ * are R21 >= 70.5% and R22 >= 51.0%. R21 clears R20; R22 remains an honest
+ * summit inversion below R21 and the R18 neighborhood. The pre-correction
+ * exploratory result is retained here as the initial tuning measurement, not
+ * as a shipping pin.
+ * Full-ladder flags are the pre-existing R13 and R19 inversions plus this R22
+ * inversion.
  *
  * 2026-07-20 - 1.3 prefab tuning pass (user-approved slate) on the 518
  * pool, measured `--prefabs --ai hard --seeds 300` (10,800 games,
@@ -3330,6 +3352,289 @@ export const AVATARS: readonly Avatar[] = [
     ],
     darlingId: 'sd-barge-sail-ascendant',
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 21 - Bastet, Mistress of the Ninth Return: R/W Bastet twinBlades pressure. (Hard · Sands of the Duat summit)
+  {
+    id: 'anubis-who-holds-the-scale',
+    name: 'Anubis, Who Holds the Scale',
+    title: 'The Verdict Is Already Weighed',
+    blurb: 'The scale is honest and nothing else in the hall is. She severs what the grave would return, pays Rites with what she has already weighed, and Preserves her best verdicts.',
+    theme: 'White-Black Judgment Control (Sever, Rite, Preserve)',
+    tier: 21,
+    difficulty: 'hard',
+    portraitCardId: 'sd-anubis-who-holds-the-scale',
+    personality: makePersonality({
+      aggression: 0.9,
+      holdback: 1.2,
+      attackThreshold: 0.2,
+      removalBias: 0.8,
+      subtypeBias: 0.5,
+      preferredSubtypes: ['God', 'Keeper'],
+    }),
+    deck: expand([
+      ['land-plains', 10],
+      ['land-swamp', 10],
+      ['sd-land-the-weighing-hall', 4],
+      ['sd-anubis-who-holds-the-scale', 2],
+      ['sd-keeper-of-the-salt-room', 2],
+      ['sd-twice-wrapped-champion', 2],
+      ['sd-copy-kept-in-resin', 4],
+      ['sd-resin-handed-embalmer', 2],
+      ['sd-keeper-of-the-sealed-jar', 2],
+      ['sd-canopic-grave-warden', 2],
+      ['sd-claw-handed-embalmer', 2],
+      ['sd-one-clean-cut', 4],
+      ['sd-cut-the-wrappings', 4],
+      ['sd-strike-the-lintel', 2],
+      ['sd-the-gate-is-closed', 2],
+      ['sd-the-heavier-offering', 2],
+      ['sd-priestess-of-the-emptied-jar', 2],
+      ['sd-give-it-the-better-one', 2],
+    ]),
+    // Deterministic converter output from the classic list, generated 2026-08-21.
+    reserveDeck: expand([
+      ['sd-anubis-who-holds-the-scale', 2],
+      ['sd-resin-handed-embalmer', 4],
+      ['sd-keeper-of-the-sealed-jar', 2],
+      ['sd-canopic-grave-warden', 4],
+      ['sd-claw-handed-embalmer', 4],
+      ['sd-one-clean-cut', 4],
+      ['sd-cut-the-wrappings', 4],
+      ['sd-strike-the-lintel', 4],
+      ['sd-the-gate-is-closed', 2],
+      ['sd-the-heavier-offering', 2],
+      ['sd-priestess-of-the-emptied-jar', 4],
+      ['sd-give-it-the-better-one', 4],
+    ]),
+    landReserve: expand([
+      ['sd-land-the-weighing-hall', 4],
+      ['land-plains', 3],
+      ['land-swamp', 3],
+    ]),
+    darlingsDeck: [
+      'sd-copy-kept-in-resin',
+      'sd-two-for-the-ferrywoman',
+      'sd-crown-bearer-of-the-last-hall',
+      'sd-gatekeeper-judge',
+      'sd-white-gate-adjudicator',
+      'sd-the-gate-is-closed',
+      'sd-white-crown-marshal',
+      'sd-fourth-weighing',
+      'ac-quest-for-the-grail',
+      'sd-one-clean-cut',
+      'sd-natron-censer-bearer',
+      'gm-silver-bullet-duelist',
+      'sd-cut-the-wrappings',
+      'sd-strike-the-lintel',
+      'dt-storybook-of-ashes',
+      'sd-the-weight-owed-in-full',
+      'yn-white-veil-collapse',
+      'sd-stop-the-procession',
+      'en-persephones-return',
+      'dt-honor-blade-captain',
+      'gm-stormglass-golem',
+      'cf-crowbone-prophet',
+      'in-reapers-due',
+      'gm-black-lace-pact',
+      'gm-midnight-autopsy',
+      'sd-the-long-drying',
+      'yn-lantern-fixer',
+      'tk-other-zhangjiao',
+      'dt-glass-stair-duelist',
+      'dt-sea-witch-contract',
+      'dt-sleeping-curse',
+      'gm-stormtower-resurrection',
+      'sd-marked-at-the-gate',
+      'dt-thirteenth-spindle',
+      'yn-sever-the-signal',
+      'in-stand-as-one',
+      'sd-the-heavier-offering',
+      'gm-black-veil-matron',
+      'sd-warden-of-the-kept',
+      'sd-hall-usher-captain',
+      'sd-natron-claw-keeper',
+      'cf-sidhe-silver-lancer',
+      'yn-white-lantern-vanguard',
+      'sd-standard-bearer',
+      'sd-pridewall-runner',
+      'sd-lion-gate-sentry',
+      'ac-oathbroken-knight',
+      'gm-batcloak-cutthroat',
+      'sd-ninth-step-duelist',
+      'sd-whisker-count-scout',
+      'ar-training-dummy',
+      'sd-collar-bound-warden',
+      'sd-alabaster-usher',
+      'sd-claw-thread-lancer',
+      'yn-oni-bounty-agent',
+      'sd-paw-toll-taker',
+      'sd-sand-pawed-guard',
+      'tk-shu-liushan',
+      'gk-nyx',
+      'gm-iron-gate-sentinel',
+      'cf-moorland-guide',
+      'bk-bunny-vanguard',
+      'tk-other-dongbai',
+      'ac-novice-squire',
+      'cf-black-dog-of-lane',
+      'cf-bog-banshee',
+      'cf-cold-moon-archer',
+      'cf-sidhe-page',
+      'gk-hestia',
+      'gk-hoplite',
+      'gm-chapel-guard',
+      'gm-manor-thrall',
+      'bk-mousekin-pantry-guard',
+      'cf-bitter-geas',
+      'rg-rune-of-hunger',
+      'sd-keeper-of-the-salt-room',
+      'sd-warden-of-the-heavy-jar',
+      'sd-canopic-grave-warden',
+      'sd-heart-scale-reliquary',
+    ],
+    darlingId: 'sd-anubis-who-holds-the-scale',
+  },
+  {
+    id: 'bastet-mistress-of-the-ninth-return',
+    name: 'Bastet, Mistress of the Ninth Return',
+    title: 'The Ninth Return Knows Your Name',
+    blurb: 'She has died eight times, and she attacks like someone who knows what the ninth return costs. Bastet runners hit first; twinBlades and the anthem stack turn every opening into two.',
+    theme: 'Red-White Bastet twinBlades Pressure',
+    tier: 22,
+    difficulty: 'hard',
+    portraitCardId: 'sd-bastet-mistress-of-the-ninth-return',
+    personality: makePersonality({
+      aggression: 1.4,
+      holdback: 0.75,
+      attackThreshold: -0.5,
+      removalBias: 0,
+      subtypeBias: 1.5,
+      preferredSubtypes: ['Bastet'],
+    }),
+    deck: expand([
+      ['land-plains', 10],
+      ['land-mountain', 10],
+      ['sd-land-noon-barge-landing', 4],
+      ['sd-barge-pawed-spearwoman', 4],
+      ['sd-lion-gate-sentry', 4],
+      ['sd-claw-thread-lancer', 4],
+      ['sd-pridewall-runner', 4],
+      ['sd-dune-pawed-outrider', 4],
+      ['sd-bakhet-gate-warden-of-the-lower-city', 2],
+      ['sd-standard-bearer', 4],
+      ['sd-war-priestess', 2],
+      ['sd-bastet-gate-chorus', 2],
+      ['sd-bastet-mistress-of-the-ninth-return', 2],
+      ['sd-twinblade-at-the-prow', 2],
+      ['sd-claw-prow-signaler', 2],
+    ]),
+    // Deterministic converter output from the classic list, generated 2026-08-21.
+    reserveDeck: expand([
+      ['sd-barge-pawed-spearwoman', 4],
+      ['sd-lion-gate-sentry', 4],
+      ['sd-claw-thread-lancer', 4],
+      ['sd-pridewall-runner', 4],
+      ['sd-dune-pawed-outrider', 4],
+      ['sd-bakhet-gate-warden-of-the-lower-city', 2],
+      ['sd-standard-bearer', 4],
+      ['sd-war-priestess', 2],
+      ['sd-bastet-gate-chorus', 4],
+      ['sd-bastet-mistress-of-the-ninth-return', 2],
+      ['sd-twinblade-at-the-prow', 2],
+      ['sd-claw-prow-signaler', 4],
+    ]),
+    landReserve: expand([
+      ['sd-land-noon-barge-landing', 4],
+      ['land-plains', 3],
+      ['land-mountain', 3],
+    ]),
+    darlingsDeck: [
+      'sd-crown-bearer-of-the-last-hall',
+      'gm-silver-bullet-duelist',
+      'sd-white-gate-adjudicator',
+      'sd-heart-scale-reliquary',
+      'sd-fourth-weighing',
+      'ac-quest-for-the-grail',
+      'sd-keeper-of-the-salt-room',
+      'sd-lintel-paw-warden',
+      'dt-glass-stair-duelist',
+      'tk-wu-ganning',
+      'cf-fomorian-raider',
+      'dt-storybook-of-ashes',
+      'sd-natron-crowned-canopic',
+      'yn-white-veil-collapse',
+      'sd-stop-the-procession',
+      'sd-natron-censer-bearer',
+      'sd-fire-toll-runner',
+      'sd-ember-spear-caller',
+      'dt-honor-blade-captain',
+      'gm-stormglass-golem',
+      'rg-warband-leader',
+      'sd-noon-serpent-judgment',
+      'dt-sandstorm-carpet-rider',
+      'ac-castle-under-siege',
+      'sd-the-gate-is-closed',
+      'yn-lantern-fixer',
+      'rg-ragnarok',
+      'cf-brigid-ember-blessing',
+      'sd-run-the-deck',
+      'rg-twice-chosen-shieldmaiden',
+      'ac-riverford-guard',
+      'sd-marked-at-the-gate',
+      'sd-noon-judgment',
+      'sd-salt-and-linen',
+      'dt-clock-strikes-twelve',
+      'dt-once-more-with-magic',
+      'sd-twinblade-at-the-prow',
+      'sd-sun-rope-hauler',
+      'sd-barge-fire-warcaller',
+      'sd-ashwake-twinblade',
+      'sd-standard-bearer',
+      'sd-barge-pawed-spearwoman',
+      'sd-pridewall-runner',
+      'sd-sunfire-warcaller',
+      'sd-dune-pawed-outrider',
+      'sd-lion-gate-sentry',
+      'sd-serpent-wake-raider',
+      'tk-shu-xingcai',
+      'sd-blade-dancer',
+      'sd-claw-thread-lancer',
+      'tk-wei-xiahoudun',
+      'tk-wei-caoren',
+      'yn-rainflash-duelist',
+      'ar-siege-juggernaut',
+      'sd-emberwake-runner',
+      'tk-other-zhurong',
+      'tk-wu-taishici',
+      'tk-wu-sunce',
+      'yn-redline-kitsune',
+      'tk-wu-handang',
+      'sd-sun-rope-charger',
+      'bk-dragonmaid',
+      'sd-ninth-step-duelist',
+      'sd-whisker-count-scout',
+      'ar-training-dummy',
+      'bk-harpy-skirmisher',
+      'gk-hoplite',
+      'tk-other-lulingqi',
+      'tk-wei-yuejin',
+      'gm-iron-gate-sentinel',
+      'rg-flamecaller-jotun',
+      'bk-bunny-vanguard',
+      'bk-mousekin-pantry-guard',
+      'en-battle-fervor',
+      'rg-rune-of-fury',
+      'sd-bastet-gate-chorus',
+      'sd-claw-prow-signaler',
+      'sd-white-crown-marshal',
+      'sd-natron-claw-keeper',
+    ],
+    darlingId: 'sd-bastet-mistress-of-the-ninth-return',
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 22 - Anubis, Who Holds the Scale: W/B Judgment control. (Hard · Sands of the Duat summit)
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -3339,7 +3644,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..20). */
+/** The avatar at a 1-based gauntlet rung (1..22). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);

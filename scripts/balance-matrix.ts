@@ -453,6 +453,13 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   18: { minAvg: 0.775 },
   19: { minAvg: 0.555 },
   20: { minAvg: 0.645 },
+  // 21-22 PROVISIONAL, calibrated 2026-08-21 from the fresh full
+  // `--avatars --seeds 40` measurement: R21 Anubis 51.0% and R22 Bastet 77.0% (order swapped 2026-08-21 so the tower ends on the stronger boss; Anubis re-measured at her new rung because the seed stream follows the rung). Each rung
+  // is the measured row average minus the documented 6.5pp noise band.
+  // The floor matrix receives the same provisional values pending its own
+  // end-of-set `--floors` re-baseline.
+  21: { minAvg: 0.445 },
+  22: { minAvg: 0.705 },
 });
 
 // ---------------------------------------------------------------------------
@@ -1618,6 +1625,11 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // seeds: F19 73.8 / F20 71.0, so the same T6 floor keeps 3.0pp+ margin.
   19: { minAvg: 0.68 },
   20: { minAvg: 0.68 },
+  // Floors 21-22 PROVISIONAL, 2026-08-21. Until the end-of-set `--floors`
+  // re-baseline, carry the fresh 40-seed avatar calibration: F21 51.0% and
+  // F22 77.0%, less the 6.5pp noise band, rounded down to the half point.
+  21: { minAvg: 0.445 },
+  22: { minAvg: 0.705 },
 });
 
 /**

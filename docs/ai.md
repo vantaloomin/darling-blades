@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-08-06
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-08-21
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -245,8 +245,8 @@ be judged on the same 200-game gate.
 
 An **avatar/personality system** (shipped 2026-07-02) layers tunable knobs over these
 three brains — themed opponents with their own aggression/greed dials, without
-rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 20 avatars with decks and tunings live in `src/data/opponents.ts` (the base
-8 plus twelve expansion gauntlet bosses through the Yokai Nights summit pair).
+rewriting the cores. The knobs live in `src/ai/personality.ts` (frozen `DEFAULT_PERSONALITY` reproduces the base brains bit-for-bit — enforced by lockstep tests in `tests/ai/personality.test.ts`); the 22 avatars with decks and tunings live in `src/data/opponents.ts` (the base
+8 plus fourteen expansion gauntlet bosses through the Sands of the Duat summit pair).
 
 Balance is measured, not guessed: `scripts/balance-matrix.ts`
 (`npm run balance-matrix`) runs deterministic avatar-vs-starter, starter-mirror,
@@ -260,6 +260,14 @@ The Yokai Nights summit pair is now present at rungs 19-20. The final
 and Kitsune Neon Tyrant 75% average, with provisional floors of 66% and 70%.
 The pressure ordering is green; the Queen remains below the R18 point estimate
 and is intentionally left for the end-of-set re-baseline.
+
+The Sands of the Duat summit pair is now present at rungs 21-22. Anubis, Who
+Holds the Scale, takes rung 21 and measures 51.0% in the fresh 40-seed
+full-ladder matrix; Bastet, Mistress of the Ninth Return, is the final rung 22
+at 77.0% across the five starter cells (the owner swapped the order on
+2026-08-21 so the climb ends on the stronger boss). Their provisional floors
+are 46.0% and 72.0%. The R21 control deck (57.5% when measured at rung 22 before the swap; the per-cell seed stream follows the rung) is the softest hard boss and an honest dip below R20 and R22, first in line for the next tuning pass
+pending the end-of-set re-baseline.
 
 ## Tower strength tiers (the decision-noise dial)
 

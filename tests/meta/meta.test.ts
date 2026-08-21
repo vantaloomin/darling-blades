@@ -1124,7 +1124,7 @@ describe('applyGauntletResult', () => {
   });
 
   it('clearing the final rung pays the completion bonus and ends the run', () => {
-    const finalRung = ECONOMY.gauntletRungGold.length; // 20 since the Yokai Nights summit
+    const finalRung = ECONOMY.gauntletRungGold.length; // 22 since the Sands of the Duat summit
     const save = freshSave(0);
     save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
     save.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
@@ -1154,7 +1154,7 @@ describe('applyGauntletResult', () => {
     expect(dual.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 1 });
   });
 
-  it('a full 20-rung run pays exactly 5050 gold plus the daily bonus once', () => {
+  it('a full 22-rung run pays exactly 5970 gold, plus the daily bonus once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
@@ -1163,9 +1163,9 @@ describe('applyGauntletResult', () => {
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(4800); // 20-rung progression through 430g (1.5 added 19-20)
+    expect(rungSum).toBe(5720); // 22-rung progression through 470g (1.6 added 21-22)
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(5150); // 4800 + 250 + 100 (daily bonus once)
+    expect(total).toBe(6070); // 5720 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 
