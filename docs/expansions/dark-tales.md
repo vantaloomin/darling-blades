@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts · last-verified: 2026-07-10 · concept doc — future expansion, not implemented (planned src/data/cards/dark-tales.ts); anti-rot anchors on the Keyword/EffectOp vocabulary the card tables must stay legal against -->
+<!-- source-of-truth: src/engine/types.ts, src/data/cards/dark-tales.ts, src/data/cards/dark-tales-companion.ts · last-verified: 2026-08-21 · shipped set spec; companion wave is data-landed behind FEATURES.dtCompanionLive -->
 
 # Expansion 5 - Dark Tales: The Cursed Storybook
 
@@ -190,3 +190,95 @@ The list is rarity-banded for counting and implementation planning. The original
 - Modern-princess wave analogues must stay adult-coded and translated through the Dark Tales gothic palette rather than copied as exact costumes.
 - Storybook pages, invitations, mirrors, and labels must be blank or decorative with no readable text.
 - Keep the tone glamorous and adult, not cute or juvenile.
+
+## Companion wave (60, 2026-08-21)
+
+### UR
+
+| ID | Name | Rarity | Color | Type | Subject | Princess Adjacent | Keywords / Ops | Role |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dt-swan-lake-sovereign | Swan-Lake Sovereign | UR | U/W | Legendary Creature | Swan-cursed princess who returns at dawn | Odette / Swan Lake | {4}{U}{W} 4/5; skyborne, sentinel; Nine Lives; dawn: foresee 1 | Frost-control finisher, R19-adoptable |
+| dt-sea-witch-of-the-drowned-bargain | Sea Witch of the Drowned Bargain | UR | U/B | Legendary Creature | Sea witch who buys voices by contract | Ursula / Little Mermaid | {4}{U}{B} 5/5; deathblade; arrives: draw 2 + grind self 2; Skim {2} | Midnight Storybook finisher that refuels |
+
+### SSR
+
+| ID | Name | Rarity | Color | Type | Subject | Princess Adjacent | Keywords / Ops | Role |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dt-thorn-fairy-uninvited | Thorn Fairy, Uninvited | SSR | B | Legendary Creature | The curse-fairy nobody invited to the christening | Maleficent / Sleeping Beauty | {3}{B}{B} 4/4; skyborne, deathblade; arrives: discardRandom opponent 1 | Villain control threat |
+| dt-teller-of-a-thousand-nights | Teller of a Thousand Nights | SSR | U/R | Legendary Creature | Storyteller who survives by the next tale | Scheherazade / Arabian Nights | {3}{U}{R} 3/4; arrives: foresee 2 + draw 1; Skim {1} | Spells-tempo legend, the Retell deck's face |
+| dt-rose-red-of-the-winter-hearth | Rose-Red of the Winter Hearth | SSR | G/W | Legendary Creature | Hearth sister who shelters the bear through winter | Rose-Red / Snow-White and Rose-Red | {3}{G}{W} 3/4; sentinel; arrives: createToken Hearth Spirit x2; dawn: gainLife 1 | W/G token-lifegain legend |
+| dt-bluebeards-last-bride | Bluebeard's Last Bride | SSR | W/B | Legendary Creature | The bride who opened the forbidden door and lived | Bluebeard's wife | {2}{W}{B} 3/3; bloodoath; Nine Lives; dies: loseLife opponent 2 | Attrition legend, R17-adoptable |
+
+### SR
+
+| ID | Name | Rarity | Color | Type | Subject | Princess Adjacent | Keywords / Ops | Role |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dt-twelve-dancing-heiresses | The Twelve Dancing Heiresses | SR | W | Ritual | Sisters who wear through their slippers every night | Twelve Dancing Princesses | {3}{W}: createToken Masked Guest x3; Retell {5}{W} | Go-wide payoff |
+| dt-poisoned-comb | Poisoned Comb | SR | B | Ritual | The queen's second attempt | Snow White / Evil Queen | {3}{B}: destroy target creature; Retell {5}{B} | Premium Retell removal |
+| dt-empress-of-the-mirror-shards | Empress of the Mirror Shards | SR | U | Legendary Creature | Winter empress whose mirror splinters hearts | Snow Queen | {2}{U}{U} 2/4; skyborne, untouchable; arrives: foresee 1; Skim {1} | Frost-control threat, R19-adoptable |
+| dt-tide-reader-of-the-far-reef | Tide-Reader of the Far Reef | SR | U/G | Legendary Creature | Grandmother who reads the tide as a map | Gramma Tala / Moana | {2}{U}{G} 2/4; arrives: extraLandDrop + foresee 1; Skim {1} | Wayfinder ramp legend |
+| dt-bell-tower-dancer | Bell-Tower Dancer | SR | W/R | Legendary Creature | Street dancer who defies the cathedral court | Esmeralda | {1}{W}{R} 2/2; warcry, firstBlade; Skim {1} | W/R heroine tempo legend |
+| dt-duchess-of-the-lost-winter | Duchess of the Lost Winter | SR | U/W | Legendary Creature | Lost grand duchess of a frozen court | Anastasia | {2}{U}{W} 2/4; untouchable; arrives: foresee 2; Skim {1} | Frost-control body, R19-adoptable |
+
+### R
+
+| ID | Name | Rarity | Color | Type | Subject | Princess Adjacent | Keywords / Ops | Role |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dt-glass-mountain-knight | Glass-Mountain Knight | R | W | Creature | Knight who rides the glass mountain for the princess | Princess on the Glass Mountain | {2}{W} 2/2; sentinel; Nine Lives | Survivable W body, blocks twice |
+| dt-ball-before-midnight | Ball Before Midnight | R | W | Ritual | The last dance before the chime | Cinderella | {3}{W}: boost allYours +2/+2; Retell {5}{W} | Go-wide finisher |
+| dt-goose-girl-of-the-wind-meadow | Goose-Girl of the Wind Meadow | R | W | Creature | Princess living disguised as a goose-girl | The Goose Girl | {3}{W} 2/3; skyborne; arrives: gainLife 2; Preserve {4}{W} | Evasive value body |
+| dt-banished-from-the-ball | Banished from the Ball | R | W | Ritual | The guest struck from the list | Cinderella / Stepfamily | {3}{W}: sever target creature; Retell {5}{W} | W removal, R19-adoptable |
+| dt-casita-hearth | Casita Hearth | R | W | Enchantment | Living house that sets one more place each morning | Mirabel | {3}{W}; dawn: createToken Hearth Spirit x1 + gainLife 1 | Token-lifegain engine |
+| dt-swan-feather-scout | Swan-Feather Scout | R | U | Creature | Swan maiden scouting the lake shore | Swan Maiden / Swan Lake | {2}{U} 2/1; skyborne; Skim {1}; Preserve {3}{U} | Evasive recursion body |
+| dt-gerda-of-the-long-road | Gerda of the Long Road | R | U | Creature | The woman who walked to the winter palace (adult-coded) | Gerda / The Snow Queen | {2}{U}{U} 3/4; arrives: foresee 1; Preserve {4}{U} | U rate body |
+| dt-drowned-library | Drowned Library | R | U | Ritual | A library under the tide line | Little Mermaid / Belle | {3}{U}: draw 2; Retell {4}{U} | Card advantage |
+| dt-frost-sleigh-maiden | Frost-Sleigh Maiden | R | U | Creature | Sleigh-driver of the winter court | The Snow Queen | {3}{U} 2/4; skyborne; Skim {1} | Evasive blocker, R19-adoptable |
+| dt-glass-coffin-sleeper | Glass-Coffin Sleeper | R | B | Creature | The sleeper in the glass coffin | Snow White | {2}{B} 2/2; Nine Lives; dies: grind self 2 | Grave-stocking body |
+| dt-laced-too-tight | Laced Too Tight | R | B | Charm | The queen's bodice-lace trick | Snow White / Evil Queen | {2}{B}: boost target -2/-2; Retell {3}{B} | Retell removal |
+| dt-sugar-cottage-witch | Sugar-Cottage Witch | R | B | Creature | Witch of the gingerbread cottage | Hansel and Gretel | {2}{B}{B} 3/4; deathblade; Preserve {4}{B} | Rate-efficient B threat |
+| dt-raven-mother-of-the-mirror | Raven-Mother of the Mirror | R | B | Creature | Keeper of the mirror's ravens | Snow White / Evil Queen | {1}{B} 1/2; Skim {1}; Preserve {3}{B} | Early body, Skim-then-Preserve loop |
+| dt-woodcutters-daughter | Woodcutter's Daughter | R | R | Creature | Axe-bearing daughter who ends the wolf | Red Riding Hood | {2}{R} 3/1; firstBlade; Nine Lives | W/R tempo threat |
+| dt-carpet-escape | Carpet Escape | R | R | Charm | Rooftop escape on a flying carpet | Jasmine | {1}{R}: boost target +2/+0 with skyborne; Empower {1}{R}: damage opponent 2 | W/R tempo trick |
+| dt-briar-hedge-matriarch | Briar-Hedge Matriarch | R | G | Creature | Matriarch of the thorn hedge | Sleeping Beauty | {1}{G}{G} 2/4; wardingGaze; Preserve {3}{G} | Defensive recursion |
+| dt-chart-the-reef-road | Chart the Reef Road | R | G | Ritual | Plotting the course past the reef | Moana | {3}{G}: extraLandDrop + foresee 2 + draw 1; Retell {4}{G} | Wayfinder ramp |
+| dt-clockwork-coachwoman | Clockwork Coachwoman | R | C | Artifact Creature | Clockwork driver of the midnight coach | Cinderella | {3} 2/3; Skim {1} | Any-deck body |
+
+### C
+
+| ID | Name | Rarity | Color | Type | Subject | Princess Adjacent | Keywords / Ops | Role |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dt-pea-mattress-sentry | Pea-Mattress Sentry | C | W | Creature | Sentry of the twenty mattresses | Princess and the Pea | {1}{W} 1/3; Skim {1} | Early blocker |
+| dt-handmaid-who-woke-twice | Handmaid Who Woke Twice | C | W | Creature | Handmaid who woke from the castle sleep | Sleeping Beauty | {1}{W} 1/2; bloodoath; Nine Lives | Early blocker that returns |
+| dt-masquerade-chaperone | Masquerade Chaperone | C | W | Creature | Chaperone who brings her own guests | Cinderella | {2}{W} 1/3; Empower {2}{W}: createToken Masked Guest x2 | Go-wide body |
+| dt-tower-chatelaine | Tower Chatelaine | C | W | Creature | Keeper of the tower keys | Rapunzel / Mother Gothel | {3}{W} 2/5; Skim {1} | Survivable body |
+| dt-rose-thorn-parry | Rose-Thorn Parry | C | W | Charm | A rose held like a blade | Belle | {1}{W}: boost target +2/+0 with firstBlade; Retell {2}{W} | Combat trick |
+| dt-hearth-blessing | Hearth Blessing | C | W | Ritual | Blessing of the household spirit | Mirabel | {2}{W}: createToken Hearth Spirit x1 + gainLife 2; Retell {4}{W} | Token-lifegain |
+| dt-sunrise-over-the-ballroom | Sunrise Over the Ballroom | C | W | Ritual | Dawn after the ball | Cinderella | {1}{W}: gainLife 3 + foresee 1; Empower {2}{W}: createToken Masked Guest x2 | Stabilizer with a late mode |
+| dt-frog-pond-bride | Frog-Pond Bride | C | U | Creature | Bride of the frog bargain | The Frog Prince | {1}{U} 1/2; Nine Lives | Early blocker that returns |
+| dt-tide-sister-of-the-deep | Tide-Sister of the Deep | C | U | Creature (Mermaid) | Mermaid sister of the undersea court | Little Mermaid | {2}{U} 1/3; skyborne; Skim {1} | Evasive blocker, fifth Mermaid |
+| dt-swallow-borne-bride | Swallow-Borne Bride | C | U | Creature | Thumb-sized bride carried south by a swallow | Thumbelina | {2}{U} 3/2; Skim {1} | Tempo body |
+| dt-frozen-heart-sister | Frozen-Heart Sister | C | U | Creature | Sister whose frozen heart thawed | Anna / Frozen | {2}{U} 2/2; Skim {1}; Preserve {4}{U} | Skim-then-Preserve loop |
+| dt-star-chart-navigator | Star-Chart Navigator | C | U | Creature | Navigator who reads the stars from the prow | Moana | {3}{U} 2/5; Skim {1} | Survivable body |
+| dt-drown-the-pages | Drown the Pages | C | U | Ritual | Pages given to the sea | Little Mermaid | {2}{U}: grind self 3 + draw 1; Retell {3}{U} | Engine cantrip |
+| dt-second-verse | Second Verse | C | U | Charm | The lullaby's second verse | Sleeping Beauty | {1}{U}: draw 1 + grind self 1; Retell {2}{U} | Cantrip |
+| dt-frozen-to-the-floor | Frozen to the Floor | C | U | Enchantment Aura | Frost pinning a guest to the ballroom floor | Elsa / Frozen Queen | {1}{U} Aura: attached bulwark and -1/-0; Skim {1} | U pacifism |
+| dt-eel-twin-of-the-sea-witch | Eel-Twin of the Sea Witch | C | B | Creature | Eel-familiar twin of the sea witch | Ursula / Little Mermaid | {1}{B} 1/3; Skim {1} | Early blocker |
+| dt-elder-stepsister | Elder Stepsister | C | B | Creature | Eldest of the cruel stepsisters | Cinderella / Stepfamily | {2}{B} 1/4; Skim {1} | Survivable body |
+| dt-gingerbread-crumb-girl | Gingerbread-Crumb Girl | C | B | Creature | The woman who marked the path with crumbs (adult-coded) | Gretel | {2}{B} 1/3; Nine Lives; Skim {1} | Blocker that returns |
+| dt-ink-contract-clerk | Ink-Contract Clerk | C | B | Creature | Clerk of the sea witch's contracts | Little Mermaid / Sea Witch | {2}{B} 2/2; arrives: draw 1 + damage controller 1 | Value body |
+| dt-huntress-who-spared-her | Huntress Who Spared Her | C | B | Creature | Royal huntress who let the princess go | Snow White / Huntsman | {3}{B} 4/2; Skim {1} | Rate threat |
+| dt-apple-half-exchange | Apple-Half Exchange | C | B | Ritual | Sharing the poisoned apple | Snow White / Evil Queen | {2}{B}: loseLife opponent 2 + gainLife 2; Retell {3}{B} | Drain |
+| dt-shadow-miners-dirge | Shadow-Miner's Dirge | C | B | Ritual | The miners' dirge from below | Snow White / Seven Dwarfs | {2}{B}: createToken Shadow Miner x1 + grind self 2; Retell {3}{B} | Token plus grave |
+| dt-hearth-ember-dancer | Hearth-Ember Dancer | C | R | Creature | Cinder girl dancing in the hearth ash | Cinderella | {1}{R} 2/1; Skim {1} | Tempo body |
+| dt-balcony-leap-runner | Balcony-Leap Runner | C | R | Creature | Princess leaping from the palace balcony | Jasmine | {3}{R} 3/3; warcry; Skim {1} | Tempo threat |
+| dt-ember-lantern-toss | Ember-Lantern Toss | C | R | Charm | A thrown festival lantern | Rapunzel | {2}{R}: damage target 2 (any); Retell {3}{R} | Retell burn |
+| dt-bayou-lamplighter | Bayou Lamplighter | C | G | Creature | Lamplighter whose lamp is a firefly | Tiana | {1}{G} 1/1; arrives: createToken Firefly x1 | Two bodies for two |
+| dt-canoe-carver-of-the-reef | Canoe-Carver of the Reef | C | G | Creature | Island canoe-carver | Moana | {2}{G} 2/4; Skim {1} | Survivable body |
+| dt-grandmothers-remedy | Grandmother's Remedy | C | G | Charm | Grandmother's herbal remedy | Red Riding Hood | {1}{G}: boost target +2/+2 with wardingGaze; Retell {2}{G} | Combat trick |
+| dt-paper-ballerina | Paper Ballerina | C | C | Artifact Creature | Paper dancer who survives the stove | The Tin Soldier's ballerina | {2} 1/2; Nine Lives | Any-deck blocker |
+| dt-pumpkin-shell-lantern | Pumpkin-Shell Lantern | C | C | Artifact | Hollowed pumpkin lantern | Cinderella | {2}; Skim {1}; dawn: grind self 1 + gainLife 1 | Grave setup |
+
+The companion wave is data-landed but remains invisible to player-facing pools behind `FEATURES.dtCompanionLive: false`.
+The wave uses the ratified mechanic trio Nine Lives, Preserve, and Empower, with two UR cards.
+Midnight Storybook remains unchanged, and R17/R18 remain unchanged for a later balance contract.
+The 20 non-creatures join the binding spell-art roster, while the old Dark Tales art-bible generator is retired.

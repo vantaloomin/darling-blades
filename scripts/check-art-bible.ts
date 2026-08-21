@@ -16,6 +16,7 @@ import { BEASTKIN } from '../src/data/cards/beastkin';
 import { CELTIC_FAE } from '../src/data/cards/celtic-fae';
 import { GOTHIC_MONSTERS } from '../src/data/cards/gothic-monsters';
 import { DARK_TALES } from '../src/data/cards/dark-tales';
+import { DARK_TALES_COMPANION } from '../src/data/cards/dark-tales-companion';
 import { YOKAI_NIGHTS } from '../src/data/cards/yokai-nights';
 import { GREEK } from '../src/data/cards/greek';
 import { RAGNAROK } from '../src/data/cards/ragnarok';
@@ -52,7 +53,7 @@ const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
   { file: 'celtic-fae.md', sets: [CELTIC_FAE] },
   { file: 'arthurian-court.md', sets: [ARTHURIAN_COURT] },
   { file: 'gothic-monsters.md', sets: [GOTHIC_MONSTERS] },
-  { file: 'dark-tales.md', sets: [DARK_TALES, DARK_TALES_TOKENS] },
+  { file: 'dark-tales.md', sets: [DARK_TALES, DARK_TALES_COMPANION, DARK_TALES_TOKENS] },
   { file: 'yokai-nights.md', sets: [YOKAI_NIGHTS] },
   { file: 'constructs-and-tokens.md', sets: [ARTIFACTS, BASE_TOKENS] },
   { file: 'sands-of-the-duat.md', sets: [SANDS_OF_THE_DUAT] },
