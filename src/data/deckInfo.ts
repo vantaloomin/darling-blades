@@ -92,4 +92,12 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Build a W/U Kitsune and aerial pressure shell, then link a powerful rider to its best attacker. Legendary finishers and black Sever effects turn one stable attack into a close.',
     featured: ['yn-queen-of-the-lanterned-roof', 'yn-ghost-net-archon', 'yn-hauntlink-apex'],
   },
+  // 2026-08-21: live Duat shop SKU pin.
+  'theme-sands-of-the-duat': {
+    colors: 'W/R',
+    archetype: 'Bastet twinBlades pressure',
+    plays:
+      'Lead with Bastet runners and paired blades, then turn every opening into a fast attack. Rite and Nine Lives keep the pressure coming while Preserve makes the best fallen threat matter again.',
+    featured: ['sd-bastet-mistress-of-the-ninth-return', 'sd-war-priestess', 'sd-standard-bearer'],
+  },
 };

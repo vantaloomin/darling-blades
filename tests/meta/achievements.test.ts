@@ -11,6 +11,7 @@ import {
 } from '../../src/meta/Achievements';
 import { CARD_BACKS } from '../../src/meta/cosmetics';
 import { collectiblePool } from '../../src/meta/collectionFilter';
+import { DUAT_SET } from '../../src/data/liveness';
 import { freshSave } from '../../src/meta/SaveManager';
 import { variantKey } from '../../src/meta/variants';
 
@@ -161,6 +162,18 @@ const DARK_TALES_GOALS = [
   { id: 'theme-dark-tales-retell', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].retell !== undefined) },
   { id: 'theme-dark-tales-mermaids', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].subtypes.includes('Mermaid')) },
   { id: 'theme-dark-tales-bloodoath', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].keywords?.includes('bloodoath')) },
+] as const;
+// 2026-08-21: live Duat roster pins for the schema-free achievement wave.
+const SANDS_OF_THE_DUAT_IDS = Object.values(CARD_DB)
+  .filter((entry) => collectiblePool([entry]).length > 0)
+  .filter((entry) => (entry.set as string) === DUAT_SET)
+  .map((entry) => entry.id);
+const SANDS_OF_THE_DUAT_UR = SANDS_OF_THE_DUAT_IDS.filter((id) => CARD_DB[id].rarity === 'ur');
+const SANDS_OF_THE_DUAT_NINE_LIVES = SANDS_OF_THE_DUAT_IDS.filter((id) => CARD_DB[id].nineLives === true);
+const SANDS_OF_THE_DUAT_GOALS = [
+  { id: 'theme-sands-of-the-duat-complete', ids: SANDS_OF_THE_DUAT_IDS },
+  { id: 'theme-sands-of-the-duat-ur', ids: SANDS_OF_THE_DUAT_UR },
+  { id: 'theme-sands-of-the-duat-nine-lives', ids: SANDS_OF_THE_DUAT_NINE_LIVES },
 ] as const;
 
 const THEME_DB: CardDb = Object.freeze({
@@ -544,6 +557,28 @@ describe('dark tales achievements (1.4)', () => {
 
   for (const { id, ids } of DARK_TALES_GOALS) {
     it(`unlocks ${id} with exactly its qualifying Dark Tales collection`, () => {
+      const complete = freshSave(0);
+      complete.collection = Object.fromEntries(ids.map((cardId) => [cardId, 1]));
+      expect(status(id, complete, CARD_DB)).toMatchObject({ current: ids.length, target: ids.length, unlocked: true });
+      expect(syncAchievements(complete, CARD_DB)).toContain(id);
+
+      const oneShort = freshSave(0);
+      oneShort.collection = Object.fromEntries(ids.slice(0, -1).map((cardId) => [cardId, 1]));
+      expect(status(id, oneShort, CARD_DB)).toMatchObject({ current: ids.length - 1, target: ids.length, unlocked: false });
+    });
+  }
+});
+
+describe('Sands of the Duat achievements (1.6)', () => {
+  it('pins the live 245-card pool, ten UR legends, and Nine Lives carriers', () => {
+    expect(SANDS_OF_THE_DUAT_IDS).toHaveLength(245);
+    expect(SANDS_OF_THE_DUAT_UR).toHaveLength(10);
+    expect(SANDS_OF_THE_DUAT_NINE_LIVES).toHaveLength(21);
+    expect(SANDS_OF_THE_DUAT_GOALS).toHaveLength(3);
+  });
+
+  for (const { id, ids } of SANDS_OF_THE_DUAT_GOALS) {
+    it(`unlocks ${id} with exactly its qualifying Duat collection`, () => {
       const complete = freshSave(0);
       complete.collection = Object.fromEntries(ids.map((cardId) => [cardId, 1]));
       expect(status(id, complete, CARD_DB)).toMatchObject({ current: ids.length, target: ids.length, unlocked: true });

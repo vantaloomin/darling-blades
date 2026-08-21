@@ -28,7 +28,7 @@ the whole 245.**
 | Non-creature spell/artifact illustrations | ~95 | `gen-spell-art` (environment crop) | NEW "Sands of the Duat" section in `docs/spell-art.md` + `EXPECTED_IDS` extension |
 | Dual-land illustrations | 5 | `gen-spell-art` environment path (no faces) | The five landscape briefs, promoted from the drafts file |
 | Booster pack face | 1 | `gen-scene-art` + a `PackArtOpts` config in ShopScene (`pack-art-sands-of-the-duat`) — SHIPPED with the retail wiring | The Sealed Door brief, promoted into docs/scene-art.md |
-| Set icon | 1 | Procedural: one new `SET_ICON_PATHS` SVG path (code, not generation) | Design note: a cartouche outline or scale-beam glyph; blank interior per the NO-TEXT rule |
+| Set icon | 1 | SHIPPED: procedural `SET_ICON_PATHS` SVG path (code, not generation) | Design note: a cartouche outline or scale-beam glyph; blank interior per the NO-TEXT rule |
 | Half-res mobile variants | 1 per card image | `gen-art-halfres` (derived, gitignored) | automatic |
 
 Tokens (`tok-duat-scarab`, `tok-bastet-kit`) get entries in the creature bible

@@ -23,9 +23,10 @@ describe('reserve matrix deck derivation', () => {
       'Shadow Mandate Warchest',
       'Grave Harvest Warchest',
     ]);
+    // 2026-08-21: the live Duat pool re-derives the Wild Communion Darling.
     expect(first.darlings.map((deck) => deck.darlingId)).toEqual([
       'gk-athena',
-      'yn-ghost-net-archon',
+      'sd-anuket-who-runs-the-cataracts',
       'rg-dianwei',
       'gk-ares',
       'gk-gaia',

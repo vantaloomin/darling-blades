@@ -168,7 +168,9 @@ re-baseline.
    picker, pack-opening back selection, duel playmat recolors, and the
    economy-free cosmetic reward seam.
 7. **The first large set (~240-250 cards), reserve-native from
-   concretion**, candidate rider: the Dark Tales companion wave (~60).
+   concretion. SHIPPED 2026-08-21.** Sands of the Duat is live at 245/245
+   QA-passed; the balance pass measured the Pride at the Ninth Gate prefab at
+   64.7% aggregate over 2,400 hard-AI games.
 8. **Premium UX Wave C + Courts** — Wave C OPENED 2026-08-16 with the
    mulligan ritual (library stack + riffle-on-mulligan + drag-to-bottom
    staging, actions byte-identical; the "1 card(s)" copy fixed), and the
