@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DROPS, ECONOMY } from '../../src/config/rules';
 import { DARK_TALES } from '../../src/data/cards/dark-tales';
+import { DARK_TALES_COMPANION } from '../../src/data/cards/dark-tales-companion';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { TOKENS } from '../../src/data/cards/tokens';
 import { THEME_DECKS } from '../../src/data/starterDecks';
+import { FEATURES } from '../../src/config/features';
 import type { Keyword } from '../../src/engine/types';
 import { applyFilters, defaultFilterState } from '../../src/meta/collectionFilter';
 import { grantDeckCards } from '../../src/meta/Economy';
@@ -13,6 +15,7 @@ import { freshSave } from '../../src/meta/SaveManager';
 import { createRngState } from '../../src/engine/rng';
 
 const RARITY_COUNTS = { c: 60, r: 36, sr: 11, ssr: 8, ur: 5 } as const;
+const COMPANION_RARITY_COUNTS = { c: 30, r: 18, sr: 6, ssr: 4, ur: 2 } as const;
 const KEYWORDS = new Set<Keyword>([
   'skyborne', 'wardingGaze', 'firstBlade', 'twinBlades', 'warcry', 'overrun',
   'sentinel', 'bulwark', 'deathblade', 'bloodoath', 'untouchable', 'dreaded',
@@ -36,6 +39,21 @@ describe('Dark Tales data integrity', () => {
       expect(card.set).toBe('dark-tales');
       expect(CARD_DB[card.id].set).toBe('dark-tales');
     }
+  });
+
+  it('contains the 60-card companion wave behind its own liveness flag', () => {
+    expect(DARK_TALES_COMPANION).toHaveLength(60);
+    expect(Object.fromEntries(Object.keys(COMPANION_RARITY_COUNTS).map((rarity) => [
+      rarity,
+      DARK_TALES_COMPANION.filter((card) => card.rarity === rarity).length,
+    ]))).toEqual(COMPANION_RARITY_COUNTS);
+    for (const card of DARK_TALES_COMPANION) {
+      expect(card.id.startsWith('dt-'), `${card.id} should use dt-`).toBe(true);
+      expect(card.set).toBe('dark-tales');
+      expect(CARD_DB[card.id].set).toBe('dark-tales');
+    }
+    expect(DARK_TALES_COMPANION.filter((card) => card.types.includes('creature') && card.subtypes.includes('Mermaid'))).toHaveLength(1);
+    expect(FEATURES.dtCompanionLive).toBe(false);
   });
 
   it('uses only engine keywords and operations, with trigger-safe non-spell abilities', () => {
@@ -88,10 +106,28 @@ describe('Dark Tales data integrity', () => {
   });
 
   it('round-trips the set filter and the 525g set booster', () => {
-    const filtered = applyFilters(ALL_CARDS, { ...defaultFilterState(), set: 'dark-tales' }, freshSave(0));
-    expect(filtered.map((card) => card.id).sort()).toEqual(DARK_TALES.map((card) => card.id).sort());
-    expect(ECONOMY.darkTalesPackPrice).toBe(525);
     const save = freshSave(0);
+    const filtered = applyFilters(
+      ALL_CARDS.filter((card) => !DARK_TALES_COMPANION.some((companion) => companion.id === card.id)),
+      { ...defaultFilterState(), set: 'dark-tales' },
+      save,
+    );
+    expect(filtered.map((card) => card.id).sort()).toEqual(DARK_TALES.map((card) => card.id).sort());
+    const previous = FEATURES.dtCompanionLive;
+    try {
+      FEATURES.dtCompanionLive = true;
+      const liveFiltered = applyFilters(
+        ALL_CARDS,
+        { ...defaultFilterState(), set: 'dark-tales' },
+        save,
+      );
+      expect(liveFiltered.map((card) => card.id).sort()).toEqual(
+        [...DARK_TALES, ...DARK_TALES_COMPANION].map((card) => card.id).sort(),
+      );
+    } finally {
+      FEATURES.dtCompanionLive = previous;
+    }
+    expect(ECONOMY.darkTalesPackPrice).toBe(525);
     const result = openPack(save, CARD_DB, createRngState(20_260_723), 'dark-tales');
     expect(result.cards).toHaveLength(ECONOMY.boosterPackSize);
     expect(result.cards.every((card) => CARD_DB[card.cardId].set === 'dark-tales')).toBe(true);

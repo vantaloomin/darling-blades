@@ -7,6 +7,7 @@ import { DUALS } from './cards/duals';
 import { ENCHANTMENTS } from './cards/enchantments';
 import { GOTHIC_MONSTERS } from './cards/gothic-monsters';
 import { DARK_TALES } from './cards/dark-tales';
+import { DARK_TALES_COMPANION } from './cards/dark-tales-companion';
 import { YOKAI_NIGHTS } from './cards/yokai-nights';
 import { GREEK } from './cards/greek';
 import { INSTANTS } from './cards/instants';
@@ -52,6 +53,7 @@ const SET_GROUPS: readonly { set: SetKey; cards: readonly CardDef[] }[] = [
   { set: 'arthurian-court', cards: ARTHURIAN_COURT },
   { set: 'gothic-monsters', cards: GOTHIC_MONSTERS },
   { set: 'dark-tales', cards: DARK_TALES },
+  { set: 'dark-tales', cards: DARK_TALES_COMPANION },
   { set: 'yokai-nights', cards: YOKAI_NIGHTS },
   { set: DUAT_SET, cards: SANDS_OF_THE_DUAT },
 ];

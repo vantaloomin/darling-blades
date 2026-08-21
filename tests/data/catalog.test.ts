@@ -16,6 +16,7 @@ import { DUALS } from '../../src/data/cards/duals';
 import { ENCHANTMENTS } from '../../src/data/cards/enchantments';
 import { GOTHIC_MONSTERS } from '../../src/data/cards/gothic-monsters';
 import { DARK_TALES } from '../../src/data/cards/dark-tales';
+import { DARK_TALES_COMPANION } from '../../src/data/cards/dark-tales-companion';
 import { YOKAI_NIGHTS } from '../../src/data/cards/yokai-nights';
 import { GREEK } from '../../src/data/cards/greek';
 import { INSTANTS } from '../../src/data/cards/instants';
@@ -92,6 +93,7 @@ describe('catalog integrity', () => {
       [ARTHURIAN_COURT, 'ac-'],
       [GOTHIC_MONSTERS, 'gm-'],
       [DARK_TALES, 'dt-'],
+      [DARK_TALES_COMPANION, 'dt-'],
       [YOKAI_NIGHTS, 'yn-'],
       [SANDS_OF_THE_DUAT, 'sd-'],
       [INSTANTS, 'in-'],
@@ -211,8 +213,9 @@ describe('catalog integrity', () => {
     // W5's four tribal cards move the collectible catalog 783 -> 787; the
     // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
     // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
-    // cards, so ALL_CARDS is 1,044 total cards, including tokens and basics.
-    expect(ALL_CARDS).toHaveLength(1044);
+    // cards, so the companion wave moves ALL_CARDS to 1,104 total cards,
+    // including tokens and basics.
+    expect(ALL_CARDS).toHaveLength(1104);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {

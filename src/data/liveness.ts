@@ -1,8 +1,10 @@
 import { FEATURES } from '../config/features';
 import type { CardDef } from '../engine/types';
+import { DARK_TALES_COMPANION } from './cards/dark-tales-companion';
 
 /** The expansion key is stamped by catalog.ts without widening engine types. */
 export const DUAT_SET = 'sands-of-the-duat' as const;
+const DT_COMPANION_IDS: ReadonlySet<string> = new Set(DARK_TALES_COMPANION.map((card) => card.id));
 
 /**
  * Shared live-pool predicate. Preview and engine callers may still use every
@@ -11,6 +13,7 @@ export const DUAT_SET = 'sands-of-the-duat' as const;
  */
 export function isLiveCollectible(card: CardDef): boolean {
   if (card.token || card.supertypes?.includes('basic')) return false;
+  if (DT_COMPANION_IDS.has(card.id)) return FEATURES.dtCompanionLive;
   return String(card.set) !== DUAT_SET || FEATURES.duatLive;
 }
 

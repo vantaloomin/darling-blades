@@ -1,5 +1,5 @@
 /**
- * Generates real card art for the 164 non-creature SPELL/ARTIFACT/LAND prompt
+ * Generates real card art for the 204 non-creature SPELL/ARTIFACT/LAND prompt
  * entries: the 85 primary entries (18 instants, 16 sorceries, 10 enchantments,
  * 1 artifact, + 9 Ragnarök spells/runes, + 31 Gothic Monsters
  * charms/rituals/enchantments/artifacts), plus eight removal-answer records,
@@ -66,7 +66,7 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 164 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * The 204 spell ids docs/spell-art.md must cover, in the authored order (instants
  * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters →
  * the removal answer cycle).
  * Parsing cross-checks against this
@@ -92,6 +92,14 @@ const EXPECTED_IDS = [
   'en-olympus-ascendant',
   // artifact (1)
   'ar-imperial-jade-seal',
+  // Dark Tales companion wave (20), added 2026-08-21
+  'dt-twelve-dancing-heiresses', 'dt-poisoned-comb', 'dt-ball-before-midnight',
+  'dt-banished-from-the-ball', 'dt-casita-hearth', 'dt-drowned-library',
+  'dt-laced-too-tight', 'dt-carpet-escape', 'dt-chart-the-reef-road',
+  'dt-rose-thorn-parry', 'dt-hearth-blessing', 'dt-sunrise-over-the-ballroom',
+  'dt-drown-the-pages', 'dt-second-verse', 'dt-frozen-to-the-floor',
+  'dt-apple-half-exchange', 'dt-shadow-miners-dirge', 'dt-ember-lantern-toss',
+  'dt-grandmothers-remedy', 'dt-pumpkin-shell-lantern',
   // Ragnarök expansion (9): 4 spells + the 5-rune Aura cycle (src/data/cards/ragnarok.ts)
   'rg-ragnarok', 'rg-read-the-runes', 'rg-berserkers-fury', 'rg-call-the-einherjar',
   'rg-rune-of-fury', 'rg-rune-of-the-hunt', 'rg-rune-of-hunger', 'rg-rune-of-insight',

@@ -59,6 +59,7 @@ const FACTIONS = [
   'celtic-fae',
   'arthurian-court',
   'gothic-monsters',
+  'dark-tales',
   'sands-of-the-duat',
 ] as const;
 

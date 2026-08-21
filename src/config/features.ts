@@ -3,6 +3,8 @@ export const FEATURES = {
   reserveFormats: true,
   /** Sands of the Duat went live 2026-08-21 with the tuning pass; the gate stays as the pattern for the next unreleased set. */
   duatLive: true,
+  /** Dark Tales companion wave; flips with its balance pass. */
+  dtCompanionLive: false,
   /**
    * 1.6 classic retirement (2026-08-10). Warchest is now THE constructed
    * format: the Tower fields each avatar's `reserveDeck` + `landReserve`,
