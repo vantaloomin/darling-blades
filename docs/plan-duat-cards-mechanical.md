@@ -457,6 +457,8 @@ Slot count: 8 + 6 + 7 + 3 + 5 + 8 + 3 + 5 = **45**.
 5. **twinBlades anthem stacking** in the Bastet list specifically, with the
    GLUE answers in the opposing pools.
 
+**MEASURED 2026-08-21 (the balance pass, hard AI, 150 seeds/cell, 20,400 games per run, four runs).** (1) Rite cast rate rises with AI tier: Rite-1 1.20/2.17/2.24 and Rite-2 0.13/0.46/0.48 casts per game at easy/medium/hard - no rot. (2) Nine Lives returns 3.63 per game in the marks list at 62.6%; the anti-synergy does not show at list level. (3) Preserve grinds 2.67 activations per game after the set-wide rate cut (every Preserve cost down one generic), yet the archetype list caps at 19.7%: the mechanic is fair-priced, the pool lacks depth - accepted as a documented floor for a future support wave. (4) The 28-deck layer now carries six Duat lists with MEASURED comments. (5) twinBlades anthem stacking measured 68.3% on the theme product at the first cut; the War-Priestess cost bump plus defensive anthem brought it to 64.7% (archetype twin 62.5%), the set's face at the top of the band. Also landed: the G 6/6 trio restructure, five reprices from precedent, and Reed-Bound Canopic + Tomb Seal as {1} entersGraveyard relics.
+
 After the engine ops land and before card data: add the three mechanics to
 `keyword-map.md` (Rite ≈ tribute family, Nine Lives ≈ undying, Preserve ≈
 embalm), add `TERMS` rows so precedent matching keeps working, run
