@@ -202,6 +202,16 @@ owner decision below explicitly narrows the scope:
 - **Bastet Kit tokens:** draw a living kit: `a small cat creature with its own faint gold glow`, never an empty collar on a ledge. Collars proved unreadable at 119x86; the scarab-as-creature token read perfectly.
 - **Value floor phrasing:** replace the resin-brown hex clause in prompts with `one large warm surface brighter than 70 percent luminance inside the central band`.
 - **Scale rule:** `Giant`, `Behemoth`, and `colossal` do nothing alone; monumental scale requires an explicit in-frame comparison object, such as `her shoulder level with the temple lintel`.
+### Round-2 additions (learned from the 2026-08-21 re-verify: 88 of 115 fixed, every diagnosed defect cleared, 27 NEW defects introduced by the repaint)
+
+30. **BACKGROUNDS NEED THEIR OWN GUARD.** Four of five regressions in one slice were the environment, not the subject: modern glass skylines on a far bank (twice), a domed building with a cross finial, glyph-register friezes. **Fix phrasing:** every prompt with a visible horizon or far bank states positively what is there (`the far bank carries only reed beds, flat-roofed sandstone pylons and mastabas, and plain low stone markers`) and adds `no modern buildings, no towers, no skyline, no glass facades, no domes, no crosses`; distant friezes are `plain flat horizontal banding with no repeating marks`.
+31. **PRACTICAL KEYS ARE OPEN FLAMES.** "Lamp" and "lantern" rendered as a Victorian glazed park lantern, a modern shaded table lamp, and a carriage lamp. **Fix phrasing:** `an open flame in a plain pottery or bronze bowl` / `a low bronze brazier`; negatives `no shaded lamps, no glazed lanterns, no park lamps, no table lamps, no lamp chimneys`.
+32. **SPARKLES ARE ROUND MOTES.** Smoke and magic "sparkles" rendered as thick-armed cross shapes (banned motif). **Fix phrasing:** `round gold motes only`; negatives `no cross-shaped sparkles, no plus-shaped or four-armed glints, no crosses of any kind`.
+33. **HERO PROPS SIT AT CHIN HEIGHT, NOT CHEST.** Chest-height props still landed across the y633 line on five cards (seed bowl, waterclock, writing board, chart, gate door). **Fix phrasing:** `held up at chin height directly beneath her face, the entire object inside the central band with the figure's belt line visible below it`; name the prop as the SECOND read after the face.
+34. **HEADROOM IS STATED AS A FRACTION.** Heads still grazed or clipped y167 on six cards despite the middle-band clause. **Fix phrasing:** add `the top fifth of the frame is empty air above her hair` after the head clause (the Wave B round-5 wording), and for figure-free spells keep every object below the top fifth.
+
+Process rule from the same re-verify: **authored prompts are spliced from per-agent scratch files by heading** (never concurrent edits of one doc), and an agent that rewrites its output after the splice must trigger a re-splice plus a forced repaint of any id painted under the stale prompt.
+
 ## 3. Batch order (interleaved with the card-data waves)
 
 1. **Wave A — the 19 already-briefed pieces** the moment their ids lock:
