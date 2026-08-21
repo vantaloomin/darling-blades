@@ -2,7 +2,7 @@
 
 # Roadmap
 
-_Dated 2026-07-31. Review monthly._
+_Dated 2026-08-21. Review monthly._
 
 ## Status snapshot
 
@@ -18,8 +18,9 @@ _Dated 2026-07-31. Review monthly._
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
-  764-card collectible pool now spans seven sets; the Yokai Nights art run
-  (120/120 QA-passed and user-approved) joined the completed Dark Tales run.
+  1,019-card collectible pool now spans eight sets; the Sands of the Duat art
+  run is complete at 245/245 QA-passed, alongside the Yokai Nights and Dark
+  Tales runs.
   The remaining eyes-on work is the standing real-device pass and
   by-ear/by-eye polish listed under Planned.
 - **1,277 tests green** (+4 skipped balance-tool assertions; count refreshed
@@ -41,11 +42,11 @@ _Dated 2026-07-31. Review monthly._
   unlock/claim idempotency, completion tallies, themed archetype and expansion
   goals, deck-color identity). The whole suite runs in about eight minutes on
   the release-prep Windows host (the 40-seed win-rate gates dominate).
-- **764 collectible cards across seven sets** (`CARD_DB`), spanning the Base
-  Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, and
-  Cyberpunk Yokai Nights. Yokai Nights, the newest set, adds 120 cards around
-  Hauntlink with its own set-scoped booster; the 1.5 balance pass added two
-  Base commons and four tribal leaders.
+- **1,019 collectible cards across eight sets** (`CARD_DB`), spanning the Base
+  Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales,
+  Cyberpunk Yokai Nights, and Sands of the Duat. Yokai Nights adds 120 cards
+  around Hauntlink and Duat adds 245 cards around Rite, Nine Lives, and
+  Preserve, each with its own set-scoped booster.
 - **5 starter precons** (`src/data/starterDecks.ts`) covering all five colors,
   each color in exactly two lists.
 - **Audio complete in structure**: a procedural WebAudio SFX layer

@@ -177,12 +177,25 @@ const isArthurianCourt = (card: CardDef): boolean => card.set === 'arthurian-cou
 const isGothicMonsters = (card: CardDef): boolean => card.set === 'gothic-monsters';
 const isDarkTales = (card: CardDef): boolean => card.set === 'dark-tales';
 const isYokaiNights = (card: CardDef): boolean => (card.set as string) === 'yokai-nights';
+const isSandsOfTheDuat = (card: CardDef): boolean => (card.set as string) === 'sands-of-the-duat';
 const YOKAI_NIGHTS_UR = [
   'yn-queen-of-the-lanterned-roof',
   'yn-hauntlink-apex',
   'yn-oni-of-the-last-exit',
   'yn-kitsune-neon-tyrant',
   'yn-rain-circuit-sovereign',
+] as const;
+const SANDS_OF_THE_DUAT_UR = [
+  'sd-bastet-mistress-of-the-ninth-return',
+  'sd-anubis-who-holds-the-scale',
+  'sd-osiris-green-after-burial',
+  'sd-ammit-under-the-scale',
+  'sd-anuket-who-runs-the-cataracts',
+  'sd-flood-fed-colossus',
+  'sd-heart-scale-reliquary',
+  'sd-queen-of-the-last-procession',
+  'sd-nadira-keeper-of-the-final-toll',
+  'sd-zahira-who-lights-the-prow',
 ] as const;
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
@@ -774,6 +787,31 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     description: 'Own a void-finish Hauntlink Apex.',
     reward: { gold: 750 },
     progress: (save, db) => themeVariantProgress(save, ['yn-hauntlink-apex'], db, (variant) => variant.holo === 'void'),
+  },
+  // Sands of the Duat (1.6), schema-free and derived from the live 245-card pool.
+  {
+    id: 'theme-sands-of-the-duat-complete',
+    bucket: 'theme',
+    title: 'Duat Complete',
+    description: 'Own all 245 unique Sands of the Duat cards.',
+    reward: { gold: 2450 },
+    progress: (save, db) => themedCollectionProgress(save, db, isSandsOfTheDuat),
+  },
+  {
+    id: 'theme-sands-of-the-duat-ur',
+    bucket: 'theme',
+    title: 'Ten Names at the Gate',
+    description: 'Own all 10 Sands of the Duat UR legends.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themeProgress(save, SANDS_OF_THE_DUAT_UR, db),
+  },
+  {
+    id: 'theme-sands-of-the-duat-nine-lives',
+    bucket: 'theme',
+    title: 'Nine Lives Returned',
+    description: 'Own every Sands of the Duat card with Nine Lives.',
+    reward: { gold: 450 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.nineLives === true),
   },
   {
     id: 'first-win',
