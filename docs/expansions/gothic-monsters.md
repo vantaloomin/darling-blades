@@ -47,10 +47,10 @@ _Concretion note (2026-07-17): the 2026-07-10 sketch used vocabulary the engine 
 | gm-moonlit-werewolf | Moonlit Werewolf | R | R | Creature | Werewolf | dreaded, overrun | Monster pressure |
 | gm-stitchwork-guardian | Stitchwork Guardian | R | U | Artifact Creature | Construct | bulwark; empower: arrives draw 1 | Control body |
 | gm-candelabra-of-souls | Candelabra of Souls | R | C | Artifact | Haunted candelabra | manaAbility (any color); arrives: foresee 1 | Utility relic |
-| gm-velvet-coffin | Velvet Coffin | R | B | Artifact | Vampire coffin | arrives: severGrave opponent 3 + gainLife 2 | Grave hate |
+| gm-velvet-coffin | Velvet Coffin | R | B | Artifact | Vampire coffin | dawn: severGrave opponent 1 + gainLife 1 | Grave hate |
 | gm-blood-opera-soloist | Blood-Opera Soloist | R | B | Creature | Vampire performer | dreaded, bloodoath | Aggro lifegain |
 | gm-graveyard-waltz | Graveyard Waltz | R | B | Ritual | Corpse dance | createToken Revenant x2; empower: raise top | Token/grave spell |
-| gm-wolfsbane-ward | Wolfsbane Ward | R | W | Enchantment - Aura | Monster ward | attached: -2/-2 | White removal |
+| gm-wolfsbane-ward | Wolfsbane Ward | R | W | Enchantment - Aura | Monster ward | attached: -1/+0, gains bulwark | White removal |
 | gm-thunder-lab-assistant | Thunder-Lab Assistant | R | U | Creature | Lab assistant | arrives: foresee 2; empower: arrives draw 1 | Blue support |
 | gm-iron-gate-sentinel | Iron-Gate Sentinel | R | W | Artifact Creature | Manor gate | bulwark (high defense) | Defensive rare |
 | gm-batcloak-cutthroat | Batcloak Cutthroat | R | B | Creature | Vampire assassin | skyborne, deathblade | Removal body |
@@ -93,7 +93,7 @@ _Concretion note (2026-07-17): the 2026-07-10 sketch used vocabulary the engine 
 | gm-thunderclap | Thunderclap | C | R | Charm | Storm spell | damage target 1, foresee 1 | Spells common |
 | gm-funeral-bell | Funeral Bell | C | B | Artifact | Chapel bell | arrives: gainLife 2; empower: arrives loseLife opponent 2 | Utility |
 | gm-stitched-hound | Stitched Hound | C | B | Creature | Reanimated hound | dreaded | Aggro common |
-| gm-broken-mirror | Broken Mirror | C | U | Artifact | Haunted mirror | arrives: foresee 2 | Selection |
+| gm-broken-mirror | Broken Mirror | C | U | Artifact | Haunted mirror | dawn: foresee 1 + grind self 1 | Selection engine |
 | gm-raven-courier | Raven Courier | C | U | Creature | Gothic raven | skyborne | Evasive common |
 | gm-wolfbane-shot | Wolfsbane Shot | C | W | Charm | Hunter shot | sever target creature | White removal |
 | gm-blood-candle | Blood Candle | C | B | Enchantment | Ritual candle | dawn: damage controller 1 + draw 1 | Black value |

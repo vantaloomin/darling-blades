@@ -67,7 +67,7 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-raven-of-camlann | Raven of Camlann | R | B | Creature | War omen | skyborne; arrives: severGrave opponent | Grave hate |
 | ac-oathbroken-knight | Oathbroken Knight | R | B | Creature | Fallen knight | deathblade, warcry | Aggro removal body |
 | ac-lance-of-dawn | Lance of Dawn | R | W | Enchantment - Aura | Knight weapon | attached: +2/+0, firstBlade | Weapon aura |
-| ac-queen-regents-command | Queen-Regent's Command | R | U | Charm | Court command | tap target, draw | Flexible control |
+| ac-queen-regents-command | Queen-Regent's Command | R | U | Charm | Court command | tap target, draw; quest-active draw | Flexible control |
 | ac-holy-well | Holy Well | C | Land | Land | Grail spring | entersTapped, manaAbility W/G | Dual land |
 | ac-avalon-shore | Avalon Shore | R | Land | Land | Lake realm | entersTapped, manaAbility U/W | Dual land |
 | ac-novice-squire | Novice Squire | C | W | Creature | Adult novice retainer | sentinel | White common |
@@ -78,7 +78,7 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-borderland-huntress | Borderland Huntress | C | G | Creature | Huntress | wardingGaze | Green common |
 | ac-chapel-mender | Chapel Mender | C | W | Creature | Healer | arrives: gainLife | Lifegain common |
 | ac-castle-blackguard | Castle Blackguard | C | B | Creature | Guard | deathblade | Black common |
-| ac-quest-marker | Quest Marker | C | C | Artifact | Quest token marker | arrives: foresee | Utility artifact |
+| ac-quest-marker | Quest Marker | C | C | Artifact | Quest token marker | arrives: foresee 1; quest-active dawn: foresee 1 | Utility artifact |
 | ac-knights-breakfast | Knight's Breakfast | C | G | Ritual | Court feast | gainLife; if questActive: draw | Green value |
 | ac-steel-prayer | Steel Prayer | C | W | Charm | Knight prayer | boost target +0/+N | White trick |
 | ac-training-yard | Training Yard | C | R | Enchantment | Knight training | dawn: boost allYours +1/+0 (until end of turn) | Red support |
@@ -108,7 +108,7 @@ _Concretion note (2026-07-16): the original sketch used vocabulary the engine do
 | ac-woodland-errand | Woodland Errand | C | G | Ritual | Quest errand | extraLandDrop | Ramp |
 | ac-treasonous-glance | Treasonous Glance | C | B | Charm | Betrayal | loseLife opponent, foresee | Black trick |
 | ac-campfire-tale | Campfire Tale | C | R | Ritual | Knight tale | grind self, draw | Red rummage |
-| ac-questing-map | Questing Map | C | C | Artifact | Map relic | arrives: foresee 2 | Quest support |
+| ac-questing-map | Questing Map | C | C | Artifact | Map relic | arrives: foresee 2; quest-active arrives: draw 1 | Quest support |
 | ac-recant-the-vow | Recant the Vow | C | W | Charm | Withdrawn vow | sever target enchantment, draw | Enchantment answer |
 
 _Removal answer cycle (2026-07-18): added Recant the Vow, the set's common enchantment answer (a targeted sever that replaces itself with a draw, in the vow idiom), lifting the rarity target to 41 C / 81 booster cards._

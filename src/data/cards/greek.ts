@@ -159,7 +159,7 @@ export const GREEK = [
     colors: ['B'],
     attack: 5,
     defense: 4,
-    keywords: ['deathblade'],
+    keywords: ['deathblade', 'untouchable'],
     abilities: [{ when: 'arrives', ops: [{ op: 'loseLife', n: 3, who: 'opponent' }] }],
     rarity: 'ssr',
     flavor: 'Everyone arrives eventually. She just moves up appointments.',

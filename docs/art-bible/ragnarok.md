@@ -151,7 +151,7 @@ patterned, never lettered.
 - **Prompt:** Sigrún, a winged Valkyrie, a chooser of the slain, in gold-chased scale mail over a great feathered cloak, a winged helm; descending mid-flight with wings flared, one boot about to touch the field, against a storm-lit battlefield seen from above the clouds, an aurora banding the sky; serene and judging, already deciding who the day remembers; a cold aurora key with a warm rune-gold rim off the mail — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Barrow-Jarl of the Deep Howe — `rg-draugr-jarl`
-- **Card facts:** {4}{B} · B · 3/3 · sr · holo: radiant foil
+- **Card facts:** {4}{B} · B · 4/4 · sr · holo: radiant foil
 - **Character & source:** a Draugr, a barrow-dead warrior risen from the howe; mechanically she calls the fallen back to the field.
 - **Personality / mood:** "She kept her gold, her sword, and a grudge worth more than both." — hateful and patient, robbed of everything but the grudge.
 - **Pose & composition:** hauling upright out of the grave-earth, blade first; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.

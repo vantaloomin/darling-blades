@@ -152,9 +152,9 @@ export const RAGNAROK = [
     subtypes: [],
     cost: cost(3, 'RR'),
     colors: ['R'],
-    abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allCreatures' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 4, to: 'eachCreature' }, { op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'ssr',
-    flavor: 'The wolf swallows the sun. Everyone, off the board.',
+    flavor: 'The wolf swallows the sun. The big ones get to watch.',
   },
 
   // =========================================================================
@@ -184,8 +184,8 @@ export const RAGNAROK = [
     subtypes: ['Draugr'],
     cost: cost(4, 'B'),
     colors: ['B'],
-    attack: 3,
-    defense: 3,
+    attack: 4,
+    defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'raise', to: 'top' }] }],
     rarity: 'sr',
     flavor: 'She kept her gold, her sword, and a grudge worth more than both.',

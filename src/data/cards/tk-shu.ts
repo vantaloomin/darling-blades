@@ -102,7 +102,7 @@ export const TK_SHU = [
     colors: ['W'],
     attack: 2,
     defense: 3,
-    keywords: ['firstBlade'],
+    keywords: ['firstBlade', 'untouchable'],
     rarity: 'r',
     flavor: 'Zhang Fei’s daughter, somehow the calm one.',
   },

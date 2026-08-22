@@ -108,7 +108,7 @@ export const TK_OTHER = [
     colors: ['G'],
     attack: 5,
     defense: 4,
-    keywords: ['overrun'],
+    keywords: ['overrun', 'warcry'],
     rarity: 'r',
     flavor: 'Captured seven times, released seven times, undefeated in her own retelling.',
   },

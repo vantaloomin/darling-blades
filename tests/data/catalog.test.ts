@@ -205,11 +205,12 @@ describe('catalog integrity', () => {
     // The 1.6 returning-mechanics sprinkle adds Echo's Refrain (c, Retell),
     // Roadside Shrine (c, Skim), Twin-Willow Sword Dancer (r, twinBlades),
     // and Persephone's Return (r, Quest): 209 -> 213; c 109 -> 111; r 67 -> 69.
+    // Battle Fervor's 1.6 demotion moves one base card from rare to common.
     expect(base).toHaveLength(213);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
       rarity,
       base.filter((card) => card.rarity === rarity).length,
-    ]))).toEqual({ c: 111, r: 69, sr: 14, ssr: 11, ur: 8 });
+    ]))).toEqual({ c: 112, r: 68, sr: 14, ssr: 11, ur: 8 });
     // W5's four tribal cards move the collectible catalog 783 -> 787; the
     // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
     // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
