@@ -199,7 +199,11 @@ re-baseline.
    retune, modalShell dismiss consolidation, scoreLand rider credit, the
    1.6 dup-audit adjudication, Fogbell Chime redesign, Laughing Pooka /
    Wolfsbane Ward watchlist, metagame deep sweep once the reserve field
-   stabilizes).
+   stabilizes). **Limited retune: re-measured 2026-08-22, no retune needed.**
+   Composition, the Premium shard-farm guard, and the canonical day-60
+   progression run all measured clean; the one fine flag is a stale band, not a
+   regression (see the collection-dilution note below). No economy constant
+   moved.
 
 ## Classic retirement — LANDED 2026-08-10
 
@@ -259,8 +263,11 @@ the reserve-native Limited change: the sim's Limited matches had been playing
   The rule and both numbers live in `tests/data/avatarReserveDecks.test.ts`.
 - **Premium Draft's entry fee buys the 45 kept cards, not the deck.** Deck size
   does not change what is kept, so the fee did not move when Limited went to 25
-  spells. Shard EV is 966.5g against the 1000g entry — a 3.4% cushion pinned by
-  `economyGates`. Do not cut it without re-running those gates.
+  spells. The finished-collector shard-farm guard (`tests/meta/exploits.test.ts`)
+  was re-measured 2026-08-22 across 50 seeds: 857.5g mean kept-card shard value
+  (1,340g max) against the 1,000g entry, a 142.5g cushion, gate PASS. The
+  separate full-completion Layer-1 valuation in `economyGates` is unchanged at
+  339.14g. Do not cut either without re-running those gates.
 - **`gravecasts` telemetry counts Retell casts, not `raise`.** It reads 0.00 for
   Hel by design; that is not a broken engine.
 - **A reserve build is not a subset of its classic build.** The deterministic
@@ -277,11 +284,39 @@ the reserve-native Limited change: the sim's Limited matches had been playing
   ("your lands are not in your deck") followed by taking a land from Reserves.
   It stays pinned to rules revision 1, and seed 2 still holds the whole
   scripted line, so no beat after the land drop changed.
-- **6.2% of draft picks are nonbasic lands** (measured over 200 packs) that
-  reserve-native Limited cannot play. They still enter the collection and the
-  pool list marks them "kept, not playable here". Removing them from packs is a
-  design call that changes Premium's kept-card value, so it needs the economy
-  gates re-run.
+- **Limited composition re-measured 2026-08-22** with
+  `npx tsx scripts/limited-composition.ts --packs 200 --seed 20260822`:
+  3,000 free picks and 3,000 Premium picks from the live mixed-set pool
+  (`isLiveCollectible`: 1,019 cards; catalog collectible count: 1,079;
+  Duat live at 245 cards; Dark Tales companion gated). Duat was 708/3,000
+  free picks (23.60%) and 758/3,000 Premium picks (25.27%), against 245/1,019
+  (24.04%) of the live pool. Lands were 95/3,000 (3.17%) free and 101/3,000
+  (3.37%) Premium; unplayable reserve-native lands were 0/3,000 in both
+  samples. The script prints the full set, rarity, type, and auto-built-deck
+  breakdown. No Limited retune is indicated by this measurement.
+- **Collection dilution at the 1.6 pool (measured 2026-08-22, DEFERRED to the
+  metagame sweep by owner decision).** The canonical run
+  (`npx tsx scripts/progression-sim.ts --check --seeds 8`, 10 personas x 8
+  seeds x 60 days) passes **all four locked Layer-1 coarse gates**: cohort
+  packs/day 0.4821 [0.15, 2.5], minimum quest claim 0.3274 [0.2, inf], gold/game
+  ratio 1.0548 [-inf, 4], median day-7 uniques 152.9 [108, 202]. It raises one
+  fine flag: `limited-fan uniqueCards 646 outside 550..628`.
+  **That flag is pool growth, not a regression.** Every day-60 fine band is
+  written as a share of the 764-card pool it was derived from on 2026-07-31
+  (the code comments carry the arithmetic, e.g. "72.0%-82.2% of 764"). The
+  packable pool is now 998, so on the bands' own share basis Limited Fan's
+  646 uniques is **64.7%, below the band's 72.0% floor** rather than above its
+  ceiling: the absolute count crept up 3% while the denominator grew 31%.
+  Read that way, **six of ten personas now sit below their band's share floor**
+  (Completionist 54.5% vs 65.7-78.1%, Hardcore Optimizer 55.8% vs 65.1-78.3%,
+  High Skill Veteran 47.5% vs 53.3-72.8%, Limited Fan 64.7% vs 72.0-82.2%,
+  Daily Grinder 45.1% vs 45.5-65.4%, New Casual 20.0% vs 21.2-30.8%); the
+  absolute bands hide it because absolute counts barely moved.
+  **Owner decision 2026-08-22: accept for now and revisit collection pacing
+  after the metagame deep sweep**, with sweep data in hand. The bands are
+  therefore deliberately left stale and the Limited Fan flag deliberately left
+  standing until then; do not silently re-derive them, and do not read the
+  standing flag as an unaddressed regression.
 - **Soft player decks:** Glimmer Bargain 36.5 and Shadow Mandate 36.3 in the
   head-to-head table. Playable, not broken; tune only if the owner wants a
   tighter spread than 26.3 points.
