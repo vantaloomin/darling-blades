@@ -146,12 +146,16 @@ const DARK_TALES_IDS = Object.values(CARD_DB)
   .filter((entry) => collectiblePool([entry]).length > 0)
   .filter((entry) => entry.set === 'dark-tales')
   .map((entry) => entry.id);
+// Mirrors src/meta/Achievements.ts; the companion wave's two UR joined when it
+// went live (2026-08-22), widening the goal from 5 to 7.
 const DARK_TALES_HEADLINERS = [
   'dt-glass-coffin-queen',
   'dt-abyssal-songstress',
   'dt-thorn-palace-heiress',
   'dt-midnight-glass-runner',
   'dt-ice-crown-sovereign',
+  'dt-swan-lake-sovereign',
+  'dt-sea-witch-of-the-drowned-bargain',
 ] as const;
 const DARK_TALES_GOALS = [
   { id: 'theme-dark-tales-25', ids: DARK_TALES_IDS.slice(0, Math.ceil(DARK_TALES_IDS.length * 0.25)) },
@@ -549,8 +553,9 @@ describe('gothic monsters achievements (1.3)', () => {
 
 describe('dark tales achievements (1.4)', () => {
   it('registers eight live collection, headliner, and mechanic goals', () => {
-    // Retiring eight utility taplands leaves 112 acquirable cards.
-    expect(DARK_TALES_IDS).toHaveLength(112);
+    // Retiring eight utility taplands left 112 acquirable cards; the companion
+    // wave went live 2026-08-22 and adds its 60, so the theme goals now scope 172.
+    expect(DARK_TALES_IDS).toHaveLength(172);
     expect(DARK_TALES_GOALS).toHaveLength(8);
     for (const { id } of DARK_TALES_GOALS) expect(status(id, freshSave(0), CARD_DB).def.id).toBe(id);
   });

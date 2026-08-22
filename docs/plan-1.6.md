@@ -288,7 +288,10 @@ the reserve-native Limited change: the sim's Limited matches had been playing
   `npx tsx scripts/limited-composition.ts --packs 200 --seed 20260822`:
   3,000 free picks and 3,000 Premium picks from the live mixed-set pool
   (`isLiveCollectible`: 1,019 cards; catalog collectible count: 1,079;
-  Duat live at 245 cards; Dark Tales companion gated). Duat was 708/3,000
+  Duat live at 245 cards; Dark Tales companion gated). Those pool figures are
+  what the sample was drawn from; the companion wave went live later the same
+  day, taking the live pool to 1,079, so the shares below describe the gated
+  pool and are not restated for the flip. Duat was 708/3,000
   free picks (23.60%) and 758/3,000 Premium picks (25.27%), against 245/1,019
   (24.04%) of the live pool. Lands were 95/3,000 (3.17%) free and 101/3,000
   (3.37%) Premium; unplayable reserve-native lands were 0/3,000 in both
