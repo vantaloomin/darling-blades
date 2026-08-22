@@ -88,6 +88,14 @@ OpenAI's own prompting guidance for Codex**
 ([learn.chatgpt.com/docs/prompting](https://learn.chatgpt.com/docs/prompting)) —
 the executor half of the [[orchestration-workflow]] split:
 
+- **Codex executes CODE only (owner rule, 2026-08-21).** Card text, flavor,
+  names, art prompts, art-bible and spell-art entries, ideation, and design
+  docs are authored by Fable 5 (Opus 5 if Fable is unavailable); Codex
+  transcribes the approved artifact into data, scripts, and tests. Codex-
+  drafted prose reads compliant but lifeless (the Duat "blank framed panel"
+  signboards came from this), so a wave splits into an authoring contract and
+  a coding contract, and any prose field a coding contract touches gets its
+  strings handed in.
 - **Lead with the desired behavior, not the steps.** State the result you
   want and let Codex choose the approach inside the constraints (§5) — don't
   pre-write the diff in prose.
