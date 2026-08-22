@@ -114,5 +114,19 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
 
     if (!changed) return;
   }
-  throw new Error('checkStateBased did not stabilize');
+  throw new Error(
+    'checkStateBased did not stabilize: ' +
+      JSON.stringify({
+        turn: state.turn,
+        battlefield: state.battlefield.map((p) => ({
+          iid: p.iid,
+          cardId: p.cardId,
+          controller: p.controller,
+          damage: p.damage,
+          plusOneCounters: p.plusOneCounters,
+          attachedTo: p.attachedTo,
+          def: getEffectiveStats(state.battlefield, db, p.iid).defense,
+        })),
+      }),
+  );
 }

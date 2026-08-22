@@ -30,6 +30,36 @@ export interface EffectContext {
   sourceIid?: number; // set for permanents' triggered abilities
   targets: TargetRef[];
   x?: number;
+  /**
+   * The source's OWN card in its graveyard, excluded from `raise` (Magic's
+   * "return ANOTHER creature card" templating). Set only on a `dies` trigger,
+   * where the source is already in the yard and would otherwise be the
+   * most-recently-buried creature: a self-raise makes the card unkillable by
+   * damage/destroy, and a second copy loops the legend rule against the return
+   * until `checkStateBased` gives up (measured 2026-08-22, Sitra).
+   */
+  selfGraveExclusion?: { instanceId?: number; cardId: string };
+}
+
+/**
+ * Index of the source's own card in its graveyard, or -1. Matches the physical
+ * instance when the engine created one; otherwise the most-recently-buried
+ * plain entry of that card id, which is the copy that just died.
+ */
+function selfGraveIndex(
+  grave: readonly CardEntry[],
+  exclusion: EffectContext['selfGraveExclusion'],
+): number {
+  if (!exclusion) return -1;
+  for (let i = grave.length - 1; i >= 0; i--) {
+    const entry = grave[i];
+    if (exclusion.instanceId !== undefined) {
+      if (isCardInstance(entry) && entry.instanceId === exclusion.instanceId) return i;
+    } else if (!isCardInstance(entry) && entry === exclusion.cardId) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 function targetPermanent(state: GameState, ref: TargetRef | undefined): Permanent | undefined {
@@ -355,11 +385,15 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'raise': {
       const grave = state.players[ctx.controller].graveyard;
+      // A dies-triggered raise may never return its own source: see
+      // EffectContext.selfGraveExclusion.
+      const excludedIndex = selfGraveIndex(grave, ctx.selfGraveExclusion);
       let index: number;
       if (op.to === 'top') {
         // most-recently-buried creature (trigger-safe: no target decision)
         index = -1;
         for (let i = grave.length - 1; i >= 0; i--) {
+          if (i === excludedIndex) continue;
           if (isType(def(db, grave[i]), 'creature')) {
             index = i;
             break;
@@ -370,6 +404,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const ref = ctx.targets[0];
         if (ref?.kind !== 'grave' || ref.player !== ctx.controller) return;
         if (ref.index < 0 || ref.index >= grave.length) return;
+        if (ref.index === excludedIndex) return;
         if (!isType(def(db, grave[ref.index]), 'creature')) return;
         index = ref.index;
       }
@@ -503,7 +538,20 @@ export function fireTriggers(
       state,
       db,
       emit,
-      { controller: perm.controller, sourceCardId: perm.cardId, sourceIid: perm.iid, targets: [] },
+      {
+        controller: perm.controller,
+        sourceCardId: perm.cardId,
+        sourceIid: perm.iid,
+        targets: [],
+        ...(when === 'dies'
+          ? {
+              selfGraveExclusion: {
+                ...(perm.instanceId === undefined ? {} : { instanceId: perm.instanceId }),
+                cardId: perm.cardId,
+              },
+            }
+          : {}),
+      },
       ab.ops,
     );
   }
