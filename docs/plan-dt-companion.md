@@ -505,6 +505,94 @@ the W7 convention.
 
 ---
 
+## 5.5 Balance touch: the measured record (2026-08-22)
+
+**Executed once, gate closed, on release/1.6 tip `6e724aa`.** Every number is
+40 seeds/cell unless stated. Failures are retained here on purpose: this is the
+evidence that decided what shipped.
+
+**Correction to §5.4's sample description:** the player-decks matrix is now
+**12 decks / 66 cells**, not the 11 / 55 the section states. Pride at the Ninth
+Gate joined the ladder with Sands of the Duat.
+
+### Midnight Storybook
+
+| Build | Aggregate | Worst cell | Verdict |
+| --- | ---: | ---: | --- |
+| Shipped cross-set shell (baseline) | 55.5% (244/440) | 38% | already inside the 45-60 band |
+| §5.1 dt-native rebuild (decision 2A) | **31.4%** (138/440) | **10%** | **REJECTED** |
+| Option B, 8 filler copies swapped (decision 2B) | **58.2%** (256/440) | 40% | **ACCEPTED** |
+| Option B re-confirmed at 200 seeds | **57.5%** (1266/2200) | 40% | **SHIPS** |
+
+The dt-native rebuild missed the band floor by 13.6pp, which is **6.2 standard
+errors** over 440 decided games, so it is not seed noise; it also broke the
+"no cell under 20" rule three times (Pride 10%, Burning Tides 15%, Crimson
+Muster 18%). A 200-seed confirmation was not spent on a result that far out.
+
+Option B swaps exactly eight copies, every one at **identical mana value and
+colour**, leaving the removal spine, the W splash and the curve untouched:
+
+- `dt-foam-silk-siren` x4 (mv4 2/3 U skyborne) to `dt-empress-of-the-mirror-shards` x2 + `dt-frost-sleigh-maiden` x2 (both mv4 2/4 U skyborne, one also untouchable, both Skim)
+- `dt-tower-window-seer` x2 (mv3 1/3 U Skim) to `dt-tide-sister-of-the-deep` x2 (mv3 1/3 U skyborne Skim)
+- `dt-gilded-stepmother` x2 (mv3 2/2 B) to `dt-glass-coffin-sleeper` x2 (mv3 2/2 B, Nine Lives + dies:grind)
+
+The 200-seed confirmation §5.4 reserves for an in-band result was run and
+agrees with the probe (57.5% against 58.2%, same 40% worst cell, 13,200
+games, zero draws, zero engine exceptions).
+
+Mana parity was deliberate. The first draft of this swap moved four mv3 slots to
+mv4, and curve creep is a plausible contributor to the dt-native collapse;
+holding mana value constant makes this a test of card quality, not of curve.
+
+### Rungs 17-19
+
+Builder baseline, then each allowed iteration. The floors are the shipped
+`tests/ai/winrate.test.ts` values.
+
+| Rung | Baseline | Iteration 1 | Iteration 2 | Floor | Verdict |
+| --- | ---: | ---: | ---: | ---: | --- |
+| R17 Glass-Coffin Queen | 76% | - | - | 70.5 | **79%, KEPT** |
+| R18 Abyssal Songstress | 86% | 66% | 73% | 77.5 | **REVERTED** |
+| R19 Queen of the Lanterned Roof | 60% | 55% | 51% | 55.5 | **REVERTED** |
+
+R17's §5.2 list swapped 22 of 40 cards and gained 3pp. R18's swapped **26 of
+40** and lost 25pp: it traded the deck's two best bodies
+(`gm-black-veil-matron` 4/3 skyborne+dreaded, `gm-blood-opera-soloist` 3/3
+dreaded+bloodoath) for a 2/1 skyborne and a 2/2 vanilla, and the loss was
+uniform across all twelve columns and worst against aggro. Iteration 1 restored
+the Matron (+5pp) and iteration 2 the Soloist (+7pp), which was not enough.
+R19 lost its cheap filtering and never recovered; iteration 2 moved it further
+down. Both exhausted the two-iteration allowance, so the standing rule decided
+them: **a hand tune only holds while it still measures better than the
+builder** (the rule that dropped Hel's first tune, 21 vs 33).
+
+`HAND_TUNED_WARCHEST` is therefore `{morgan, hel, glass-coffin-queen}`.
+R20 Kitsune Neon Tyrant measured **89%** as an unchanged control in the same run.
+
+### What this says about the wave
+
+The companion wave's balance premise did not hold. It was slated partly to close
+Midnight Storybook's documented thin-pool debt, and an all-`dt-` Midnight is
+**24pp worse** than the cross-set build. The wave's value is collection, the
+achievement family, draft depth and set identity, not raising the power ceiling;
+a themed pool measuring below a cross-set goodstuff pile is not a defect, but it
+must not be sold as a balance fix. Owner ruling 2026-08-22: **the flip proceeds
+as planned.**
+
+**Owed at the flip (PR B):** the builders cannot reach companion cards while the
+gate is closed, so R17's exemption was measured against the gate-closed builder.
+The flip must re-test R17 against the gate-**open** builder and drop the tune if
+it no longer wins.
+
+**Two latitudes in §5.2/§5.3 that were not exercised**, recorded so they are not
+mistaken for oversights: Empress of the Mirror Shards is named as R18's "natural
+skyborne control threat" with no card to cut, so she was never added there (she
+is in the accepted Midnight list instead); and §5.3's "one Queen slot or one
+Bastion Lantern slot" for Swan-Lake Sovereign was resolved as Bastion Lantern
+4 to 3, in the list that was ultimately reverted.
+
+---
+
 ## 6. Ripples and gating (for the implementation contract)
 
 **Liveness gate, minimal shape (read against `src/data/liveness.ts` and

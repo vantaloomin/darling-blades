@@ -60,7 +60,15 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
    * Hand tuning only earns an exception while it still measures better than
    * the builder; both entries above were re-tested under that rule.
    */
-  const HAND_TUNED_WARCHEST = new Set(['morgan', 'hel']);
+  // 2026-08-22 Dark Tales companion balance touch: only rung 17 kept its
+  // hand-tuned adoption. Measured at 40 seeds/cell over 12 columns, the
+  // builder baseline vs the hand tune: R17 76% -> 79% (floor 70.5, KEPT);
+  // R18 86% -> 61% -> 66% -> 73% over two allowed iterations (floor 77.5,
+  // REVERTED); R19 60% -> 55% -> 55% -> 51% (floor 55.5, REVERTED). The
+  // exemption rule is unchanged: a hand tune only holds while it still
+  // measures better than the builder, and the flip re-tests R17 against the
+  // gate-open builder.
+  const HAND_TUNED_WARCHEST = new Set(['morgan', 'hel', 'glass-coffin-queen']);
 
   it('untuned committed data IS the deterministic converter output', () => {
     // Card-content identity, order-insensitive: the committed literals group
