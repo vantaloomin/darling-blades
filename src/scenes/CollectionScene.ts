@@ -528,10 +528,8 @@ export class CollectionScene extends Phaser.Scene {
       width: 1080,
       height: 660,
       dimAlpha: 0.82,
-      escToClose: true,
+      dismissal: 'esc-only',
       depth: theme.depth.overlay,
-      showClose: false,
-      tapDimToClose: false,
       onClose: () => this.closeInspect(),
     });
     const c = shell.container;

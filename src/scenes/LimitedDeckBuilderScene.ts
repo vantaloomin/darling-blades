@@ -321,7 +321,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       width: 620,
       height: 250,
       dimAlpha: 0.84,
-      tapDimToClose: true,
+      dismissal: 'dismissible',
       onClose: () => {
         if (this.leavePrompt === shell) this.leavePrompt = null;
       },
@@ -406,8 +406,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       height: 560,
       dimAlpha: 0.52,
       depth: theme.depth.inspect,
-      showClose: false,
-      tapDimToClose: true,
+      dismissal: 'esc-and-dim',
       onClose: () => {
         this.cardInspect = null;
       },

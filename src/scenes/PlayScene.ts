@@ -320,7 +320,7 @@ export class PlayScene extends Phaser.Scene {
     const shell = modalShell(this, {
       width: 620,
       height: 520,
-      tapDimToClose: true,
+      dismissal: 'dismissible',
       onClose: () => this.guard.close(),
     });
     this.guard.open(this.menuTargets);

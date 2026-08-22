@@ -247,7 +247,7 @@ export class ProfileScene extends Phaser.Scene {
       height: 620,
       dimAlpha: 0.86,
       depth: theme.depth.modal,
-      tapDimToClose: true,
+      dismissal: 'dismissible',
       coordinator: this.coordinator,
       registration: {
         dismissible: true,
@@ -357,7 +357,7 @@ export class ProfileScene extends Phaser.Scene {
       height: 640,
       dimAlpha: 0.86,
       depth: theme.depth.modal,
-      tapDimToClose: true,
+      dismissal: 'dismissible',
       coordinator: this.coordinator,
       registration: {
         dismissible: true,
@@ -454,7 +454,7 @@ export class ProfileScene extends Phaser.Scene {
       height: 300,
       dimAlpha: 0.9,
       depth: theme.depth.results,
-      tapDimToClose: false,
+      dismissal: 'esc-and-close',
       coordinator: this.coordinator,
       registration: {
         dismissible: true,
@@ -680,7 +680,7 @@ export class ProfileScene extends Phaser.Scene {
       height: 560,
       dimAlpha: 0.86,
       depth: theme.depth.modal,
-      tapDimToClose: true,
+      dismissal: 'dismissible',
       coordinator: this.coordinator,
       registration: {
         dismissible: true,

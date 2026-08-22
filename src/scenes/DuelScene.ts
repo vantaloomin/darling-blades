@@ -1873,9 +1873,7 @@ export class DuelScene extends Phaser.Scene {
       width: 460,
       height: message === 'Replay complete' ? 170 : 220,
       dimAlpha: 0.78,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.replayOutcome = null;
@@ -4731,7 +4729,7 @@ export class DuelScene extends Phaser.Scene {
     }
     // Nothing to cancel: Esc opens the in-game menu (playtest 2026-07-16).
     // Safe to call unconditionally — showPauseMenu's guards no-op while any
-    // overlay/modal is up (the modal's own escToClose closes it; that handler
+    // overlay/modal is up (the modal's own dismissal preset closes it; that handler
     // registered after this one, so this fires first and the guard holds) or
     // outside a human decision window, matching the ⚙ button.
     this.showPauseMenu();
@@ -5669,9 +5667,7 @@ export class DuelScene extends Phaser.Scene {
       width: 420,
       height: 430,
       dimAlpha: 0.82,
-      tapDimToClose: true,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-and-dim',
       depth: theme.depth.modal,
       onClose: () => this.closePauseMenu(),
     });
@@ -6209,9 +6205,7 @@ export class DuelScene extends Phaser.Scene {
     const shell = modalShell(this, {
       width: 560,
       height: 410,
-      tapDimToClose: false,
-      escToClose: false,
-      showClose: false,
+      dismissal: 'mandatory',
       depth: theme.depth.modal,
     });
     const c = shell.container;
@@ -6927,9 +6921,7 @@ export class DuelScene extends Phaser.Scene {
       width: 560,
       height: 330,
       dimAlpha: 0.78,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.guard.close();
@@ -7014,9 +7006,7 @@ export class DuelScene extends Phaser.Scene {
       width: 620,
       height: 340,
       dimAlpha: 0.82,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.guard.close();
@@ -7150,9 +7140,7 @@ export class DuelScene extends Phaser.Scene {
       width: 620,
       height: 330,
       dimAlpha: 0.82,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.guard.close();
@@ -7244,9 +7232,7 @@ export class DuelScene extends Phaser.Scene {
       width: 820,
       height: 640,
       dimAlpha: 0.86,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.guard.close();

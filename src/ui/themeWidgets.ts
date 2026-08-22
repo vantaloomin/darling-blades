@@ -14,6 +14,11 @@ import {
   type ThemedButtonMeasurement,
 } from './layout';
 import {
+  resolveModalDismissPresentation,
+  type LegacyModalDismissOptions,
+  type ModalDismissPreset,
+} from './modalDismissPresentation';
+import {
   OverlayCoordinator,
   type OverlayLease,
   type OverlayRegistration,
@@ -479,9 +484,14 @@ export interface ModalShellOptions {
   x?: number;
   y?: number;
   dimAlpha?: number;
+  /** Named dismissal behavior. Every migrated scene call site sets this. */
+  dismissal?: ModalDismissPreset;
+  /** @deprecated Use `dismissal`; retained for shared helpers outside this wave. */
   escToClose?: boolean;
   depth?: number;
+  /** @deprecated Use `dismissal`; retained for shared helpers outside this wave. */
   showClose?: boolean;
+  /** @deprecated Use `dismissal`; retained for shared helpers outside this wave. */
   tapDimToClose?: boolean;
   onClose?: () => void;
   panelPadding?: number;
@@ -580,18 +590,21 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   const chrome = panel(scene, x - opts.width / 2, y - opts.height / 2, opts.width, opts.height);
   const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
   const interactiveChildren: Phaser.GameObjects.GameObject[] = [];
-  const escToClose = opts.escToClose ?? true;
   const usesCoordinator = opts.coordinator !== undefined;
-  const registrationMandatory = opts.registration?.mandatory ?? false;
-  const registrationDismissible = opts.registration?.dismissible ?? escToClose;
-  const shellCanDismiss =
-    !usesCoordinator || (!registrationMandatory && registrationDismissible);
-  const escDismissible = shellCanDismiss && escToClose;
+  const dismissalInput: ModalDismissPreset | LegacyModalDismissOptions = opts.dismissal ?? {
+    escToClose: opts.escToClose ?? true,
+    tapDimToClose: opts.tapDimToClose ?? false,
+    showClose: opts.showClose ?? true,
+  };
+  const dismissal = resolveModalDismissPresentation(
+    dismissalInput,
+    usesCoordinator ? opts.registration : undefined,
+  );
   let closed = false;
   let overlayLease: OverlayLease | undefined;
   let unregisterSceneModal: (() => void) | null = null;
   const cleanup = (): void => {
-    if (!usesCoordinator && escToClose) scene.input.keyboard?.off('keydown-ESC', close);
+    if (!usesCoordinator && dismissal.escToClose) scene.input.keyboard?.off('keydown-ESC', close);
   };
   const close = (): void => {
     if (closed) return;
@@ -606,7 +619,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     if (container.active) container.destroy();
   };
 
-  if (opts.tapDimToClose && shellCanDismiss) {
+  if (dismissal.tapDimToClose) {
     dim.setInteractive({ useHandCursor: true });
     bindTapButton(scene, dim, (pointer) => {
       if (!pointer.rightButtonReleased()) close();
@@ -616,7 +629,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   }
   interactiveChildren.push(dim);
   let closeButton: ThemedButton | undefined;
-  if ((opts.showClose ?? true) && shellCanDismiss) {
+  if (dismissal.showClose) {
     closeButton = themedButton(scene, 0, 0, '×', {
       variant: 'ghost',
       size: 'sm',
@@ -648,12 +661,13 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
       layout.closeTrack.y + layout.closeTrack.height / 2,
     );
   }
-  if (!usesCoordinator && escToClose) scene.input.keyboard?.on('keydown-ESC', close);
+  if (!usesCoordinator && dismissal.escToClose) scene.input.keyboard?.on('keydown-ESC', close);
   if (opts.coordinator) {
     const registration: OverlayRegistration = {
       ...opts.registration,
       focus: opts.registration?.focus ?? opts.focus,
-      dismissible: registrationDismissible,
+      mandatory: dismissal.mandatory,
+      dismissible: dismissal.coordinatorDismissible,
       onDismiss: () => {
         const callback = opts.registration?.onDismiss;
         close();
@@ -662,7 +676,7 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     };
     overlayLease = opts.coordinator.open(registration);
   }
-  unregisterSceneModal = registerSceneModal(scene, { dismissible: escDismissible, close });
+  unregisterSceneModal = registerSceneModal(scene, { dismissible: dismissal.escToClose, close });
   container.once('destroy', () => {
     cleanup();
     unregisterSceneModal?.();

@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/navigation.ts, src/ui/SceneBackdrop.ts, src/ui/Dropdown.ts, src/ui/SearchInput.ts, src/ui/binder/FilterBar.ts, src/platform/gestures.ts, src/platform/animPolicy.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, docs/scene-art.md, docs/plan-ui-ux-refresh.md · last-verified: 2026-07-29 · core UI and visual-language contract -->
+<!-- source-of-truth: src/ui/theme.ts, src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/navigation.ts, src/ui/SceneBackdrop.ts, src/ui/Dropdown.ts, src/ui/SearchInput.ts, src/ui/binder/FilterBar.ts, src/platform/gestures.ts, src/platform/animPolicy.ts, src/ui/CardFrameFactory.ts, docs/art-bible/index.md, docs/scene-art.md, docs/plan-ui-ux-refresh.md · last-verified: 2026-08-22 · core UI and visual-language contract -->
 
 # Darling Blades core design system
 
@@ -356,8 +356,9 @@ clean up keyboard listeners when the container is destroyed.
   `Draft` for the Limited hub, `Shop` for Shop, and `Profile` for the replay
   viewer. The root MainMenu is the only screen without a back link.
 - Register one create-time ESC listener for every screen with a back link and
-  tear it down on SHUTDOWN. ESC dismisses the topmost overlay first. A second
-  press invokes the screen back action. Back never depends on hover,
+  tear it down on SHUTDOWN. ESC resolves the topmost modal's named dismissal
+  preset first. A non-dismissible modal consumes ESC; otherwise a second press
+  invokes the screen back action. Back never depends on hover,
   right-click, or swipe gestures.
 - Live Duel deliberately has no upper-left link. Its exit remains gear,
   pause menu, then Concede. Replay mode is the exception to that rule and

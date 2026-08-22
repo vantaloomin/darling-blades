@@ -466,7 +466,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       width: 620,
       height: 250,
       dimAlpha: 0.84,
-      tapDimToClose: true,
+      dismissal: 'dismissible',
       onClose: () => {
         if (this.leavePrompt === shell) this.leavePrompt = null;
       },
@@ -576,8 +576,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       height: 420,
       dimAlpha: 0.76,
       depth: theme.depth.modal,
-      showClose: true,
-      tapDimToClose: true,
+      dismissal: 'dismissible',
       onClose: () => this.onModalClosed(shell),
     });
     this.modal = shell;
@@ -670,8 +669,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       height: 610,
       dimAlpha: 0.8,
       depth: theme.depth.inspect,
-      showClose: true,
-      tapDimToClose: true,
+      dismissal: 'dismissible',
       onClose: () => this.onModalClosed(shell),
     });
     this.modal = shell;
