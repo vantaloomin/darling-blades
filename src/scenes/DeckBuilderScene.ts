@@ -805,7 +805,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       width: 620,
       height: 280,
       dimAlpha: 0.82,
-      tapDimToClose: true,
+      dismissal: 'dismissible',
       onClose: () => {
         if (this.exitPrompt === shell) this.exitPrompt = null;
       },
@@ -954,8 +954,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       height: 520,
       dimAlpha: 0.52,
       depth: theme.depth.inspect,
-      tapDimToClose: false,
-      escToClose: true,
+      dismissal: 'esc-and-close',
       onClose: () => {
         this.setSearchInputVisible(true);
         this.zoom.setSuppressed(false);
@@ -1067,8 +1066,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       height: 570,
       dimAlpha: 0.56,
       depth: theme.depth.inspect,
-      tapDimToClose: false,
-      escToClose: true,
+      dismissal: 'esc-and-close',
       onClose: () => {
         this.setSearchInputVisible(true);
         this.zoom.setSuppressed(false);
@@ -1189,8 +1187,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       height: 560,
       dimAlpha: 0.56,
       depth: theme.depth.inspect,
-      tapDimToClose: true,
-      escToClose: true,
+      dismissal: 'dismissible',
     });
     const overlay = shell.container;
     overlay.add(
@@ -1387,9 +1384,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       height: 640,
       dimAlpha: 0.52,
       depth: theme.depth.modal,
-      showClose: false,
-      tapDimToClose: false,
-      escToClose: true,
+      dismissal: 'esc-only',
     });
     const overlay = deckPickerShell.container;
     const closeOverlay = (): void => deckPickerShell.close();
@@ -1650,8 +1645,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       height: 340,
       dimAlpha: 0.72,
       depth: theme.depth.inspect,
-      tapDimToClose: false,
-      escToClose: true,
+      dismissal: 'esc-and-close',
     });
     const overlay = shell.container;
     const titleTrack = shell.tracks.titleTrack;
@@ -1834,9 +1828,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       height: 230,
       dimAlpha: 0.52,
       depth: theme.depth.results,
-      showClose: false,
-      tapDimToClose: false,
-      escToClose: false,
+      dismissal: 'mandatory',
     });
     const modal = renameShell.container;
     modal.add(
@@ -2368,9 +2360,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       height: 330,
       dimAlpha: 0.52,
       depth: theme.depth.inspect,
-      showClose: false,
-      tapDimToClose: false,
-      escToClose: true,
+      dismissal: 'esc-only',
       onClose: () => {
         this.deckCodeOverlay = null;
         this.zoom.setSuppressed(false);

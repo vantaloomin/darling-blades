@@ -209,6 +209,13 @@ background canvas/DOM/scene-level input cannot fire while open; close is
 idempotent; Wave 1 restores logical invoker/state ownership. Actual
 keyboard/controller focus restoration becomes mandatory when DS-06 lands.
 
+**Shipped 2026-08-22:** modal dismissal consolidation is complete for the 30
+scene call sites, behaviour-preserving. `modalDismissPresentation.ts` resolves
+the named preset and coordinator constraints in one Phaser-free function.
+Mandatory shells expose no Esc, tap-dim, or close-button path; the duel result
+screens keep their ESC-takes-the-default-route behaviour (whether they should
+become mandatory is an open owner taste call).
+
 ### DS-04 — Rounded select/toggle and edge-aware popover (P1)
 
 **Problem:** Dropdown and FilterBar's Owned control retain square Text

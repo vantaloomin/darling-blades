@@ -181,9 +181,7 @@ export class MainMenuScene extends Phaser.Scene {
       width: 760,
       height: 430,
       dimAlpha: 0.68,
-      tapDimToClose: false,
-      escToClose: false,
-      showClose: false,
+      dismissal: 'mandatory',
       onClose: () => {
         // Deliberately no acknowledgement here: only the two buttons stamp it.
         // A programmatic close (scene teardown, tab-guard takeover) must leave

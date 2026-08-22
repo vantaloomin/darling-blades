@@ -1156,9 +1156,7 @@ export class PackOpeningScene extends Phaser.Scene {
       height: 680,
       dimAlpha: 0.52,
       depth: theme.depth.inspect,
-      showClose: true, // the shell's standard top-right close (was a hand-placed × at (918,112))
-      tapDimToClose: true,
-      escToClose: false, // ESC arrives via the shared inspect-hotkeys binding below
+      dismissal: 'tap-and-close', // ESC arrives via the shared inspect-hotkeys binding below
       onClose: () => {
         if (this.inspectShell === shell) this.closePackInspect(false);
       },

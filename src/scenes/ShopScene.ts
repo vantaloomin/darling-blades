@@ -1281,7 +1281,7 @@ export class ShopScene extends Phaser.Scene {
   // --- Deck preview overlay -------------------------------------------------
 
   /** Esc closes the TOP overlay only: inspect, odds, then deck preview. All
-   * shells register with escToClose:false so one press can't close two. */
+   * shells use the coordinator stack so one press cannot close two. */
   private readonly onEscKey = (): void => {
     if (this.coordinator.dispatchEsc().consumed) return;
     if (this.inspect) this.closeInspect();
@@ -1351,9 +1351,7 @@ export class ShopScene extends Phaser.Scene {
       height: 600,
       dimAlpha: 0.52,
       depth: theme.depth.modal,
-      showClose: false,
-      tapDimToClose: true,
-      escToClose: false, // Esc is handled scene-side so it closes top-most only
+      dismissal: 'tap-only',
       coordinator: this.coordinator,
       registration: {
         dismissible: true,
@@ -1717,9 +1715,7 @@ export class ShopScene extends Phaser.Scene {
       height: 620,
       dimAlpha: 0.8,
       depth: theme.depth.inspect,
-      showClose: true,
-      tapDimToClose: true,
-      escToClose: false, // scene-side Esc closes the inspect before the preview
+      dismissal: 'tap-and-close',
       coordinator: this.coordinator,
       registration: {
         dismissible: true,
