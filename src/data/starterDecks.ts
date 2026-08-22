@@ -508,10 +508,7 @@ export const THEME_DECKS: DeckList[] = [
       ['so-creeping-malaise', 2],
     ]),
     reserveCards: expand([
-      ['dt-tower-window-seer', 2],
-      ['dt-gilded-stepmother', 2],
       ['dt-glass-stair-duelist', 2],
-      ['dt-foam-silk-siren', 4],
       ['dt-poison-mirror-regent', 2],
       ['dt-rose-petal-knight', 2],
       ['dt-page-torn-free', 2],
@@ -525,6 +522,10 @@ export const THEME_DECKS: DeckList[] = [
       ['so-creeping-malaise', 2],
       ['in-undertow', 2],
       ['dt-page-torn-free', 2],
+      ['dt-tide-sister-of-the-deep', 2],
+      ['dt-glass-coffin-sleeper', 2],
+      ['dt-empress-of-the-mirror-shards', 2],
+      ['dt-frost-sleigh-maiden', 2],
     ]),
     landReserve: expand([
       ['dt-tide-cavern', 2],
