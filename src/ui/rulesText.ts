@@ -220,8 +220,10 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
     case 'raise':
+      // "another" is load-bearing on a dies trigger: a raise never returns its
+      // own source (see EffectContext.selfGraveExclusion).
       return op.to === 'top'
-        ? 'return the top creature card of your graveyard to play'
+        ? 'return another creature card from your graveyard to play'
         : 'return target creature card from your graveyard to play';
   }
 }
