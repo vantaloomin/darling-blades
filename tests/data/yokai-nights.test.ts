@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DROPS, ECONOMY } from '../../src/config/rules';
-import { YOKAI_NIGHTS } from '../../src/data/cards/yokai-nights';
+import { YOKAI_NIGHTS, YOKAI_SPEC_ROWS } from '../../src/data/cards/yokai-nights';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { THEME_DECKS } from '../../src/data/starterDecks';
 import type { CardDef } from '../../src/engine/types';
@@ -28,6 +28,37 @@ const YOKAI_ACHIEVEMENTS = [
 ] as const;
 
 describe('Yokai Nights data integrity', () => {
+  it('keeps every Hauntlink rider in parity with its Linked spec clause', () => {
+    const keywordByName = {
+      Skyborne: 'skyborne',
+      'Warding Gaze': 'wardingGaze',
+      'First Blade': 'firstBlade',
+      'Twin Blades': 'twinBlades',
+      Warcry: 'warcry',
+      Overrun: 'overrun',
+      Sentinel: 'sentinel',
+      Bulwark: 'bulwark',
+      Deathblade: 'deathblade',
+      'Blood Oath': 'bloodoath',
+      Untouchable: 'untouchable',
+      Dreaded: 'dreaded',
+    } as const;
+    for (const row of YOKAI_SPEC_ROWS.filter((entry) => entry.mechanics.includes('Hauntlink'))) {
+      const linked = row.mechanics.match(/Linked: The linked creature gets (.+?)(?:\.|$)/i)?.[1];
+      expect(linked, `${row.id} needs a Linked clause`).toBeDefined();
+      const expected = linked!
+        .replace(/^\+\d+\/\+\d+,?\s*/, '')
+        .replace(/^and /i, '')
+        .replace(/\s+and\s+/g, ', ')
+        .split(',')
+        .map((part) => keywordByName[part.trim() as keyof typeof keywordByName])
+        .filter((keyword) => keyword !== undefined)
+        .sort();
+      expect(YOKAI_NIGHTS.find((card) => card.id === row.id)?.hauntlink?.linked.grantKeywords?.slice().sort(), row.id)
+        .toEqual(expected);
+    }
+  });
+
   it('contains the approved 120-card rarity mix and namespace', () => {
     expect(YOKAI_NIGHTS).toHaveLength(120);
     expect(Object.fromEntries(Object.keys(RARITY_COUNTS).map((rarity) => [

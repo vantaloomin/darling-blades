@@ -164,7 +164,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Persephone standing in a seam-split gown, obsidian underworld silk on one half and green spring vine-cloth on the other, cradling a split pomegranate over a blooming vine, pomegranate-red circlet, background split between cavern asphodel and sunlit meadow, composed dual goddess, cold underglow meeting warm spring key at center — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hades, Unseen Sovereign — `gk-hades`
-- **Card facts:** {3}{B}{B} · B · 5/4 · deathblade · ssr, legendary · holo: sheen (explicit)
+- **Card facts:** {3}{B}{B} · B · 5/4 · deathblade, untouchable · ssr, legendary · holo: sheen (explicit)
 - **Character & source:** Genderbent Hades, ruler of the dead; her ETB drains 3 life from the opponent — a schemer who advances appointments. Deathtouch: one touch settles the account.
 - **Personality / mood:** "Everyone arrives eventually. She just moves up appointments." Cold, patient, administratively inevitable.
 - **Pose & composition:** Enthroned or standing three-quarter, one hand extended palm-up summoning a wisp of a soul (the ETB drain in motion), the bident resting; face ≈ y 305, half-lit, gazing levelly at the viewer. She schemes, she does not lunge.

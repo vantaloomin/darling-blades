@@ -290,7 +290,10 @@ export const ARTHURIAN_COURT = [
   {
     id: 'ac-queen-regents-command', name: "Queen-Regent's Command", types: ['charm'], subtypes: [],
     cost: cost(2, 'U'), colors: ['U'],
-    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'draw', n: 1 }] }],
+    abilities: [
+      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'draw', n: 1 }] },
+      { when: 'spell', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] },
+    ],
     rarity: 'r', flavor: 'The command is courteous; the consequence is not.',
   },
   {
@@ -351,7 +354,7 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-quest-marker', name: 'Quest Marker', types: ['artifact'], subtypes: [],
-    cost: cost(1), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
+    cost: cost(1), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }, { when: 'dawn', condition: 'questActive', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'A small mark on a long road; enough to keep walking.',
   },
   {
@@ -527,7 +530,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-questing-map', name: 'Questing Map', types: ['artifact'], subtypes: [],
-    cost: cost(2), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
+    cost: cost(2), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }, { when: 'arrives', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'The map marks the road in ink that fades after the journey.',
   },
   {

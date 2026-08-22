@@ -70,7 +70,7 @@ export const ENCHANTMENTS = [
     abilities: [
       { when: 'static', static: { scope: 'attached', p: 2, t: 0, grantKeywords: ['warcry'] } },
     ],
-    rarity: 'r',
+    rarity: 'c',
     flavor: 'Patience sold separately. Never restocked.',
   },
   {

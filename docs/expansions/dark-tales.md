@@ -60,7 +60,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-sea-witch-contract | Sea-Witch Contract | SR | B | Ritual | Sea bargain | Little Mermaid / Sea Witch | draw 2, damage controller 2; Retell {cost} | Premium value |
 | dt-glass-slipper-at-midnight | Glass Slipper at Midnight | SR | U | Ritual | Slipper relic | Cinderella | Skim {cost}; boost allYours +1/+0 with dreaded (until end of turn) | Tempo relic |
 | dt-red-hood-wolfslayer | Red Hood Wolfslayer | SR | R/G | Legendary Creature | Red riding hood adjacent | Red Riding Hood | firstBlade, overrun | Aggro legend |
-| dt-rose-cage-ballad | Rose-Cage Ballad | SR | B | Enchantment | Beauty curse | Belle / Beauty and the Beast | dawn: loseLife opponent 1 + gainLife 1 | Value engine |
+| dt-rose-cage-ballad | Rose-Cage Ballad | SR | B | Enchantment | Beauty curse | Belle / Beauty and the Beast | dawn: loseLife opponent 2 + gainLife 2 | Value engine |
 | dt-tower-braid-escape | Tower-Braid Escape | SR | U | Charm | Tower escape | Rapunzel | recall target; Retell {cost} | Flexible tempo |
 | dt-apple-of-endless-sleep | Apple of Endless Sleep | SR | B | Ritual | Poison apple | Snow White | sever target creature; Skim {cost} (retyped from Artifact; targeted removal has no trigger-safe artifact expression) | Removal relic |
 | dt-winter-palace-duchess | Winter-Palace Duchess | SR | U/W | Legendary Creature | Snow queen adjacent | Snow Queen | untouchable; dawn: foresee 1 | Control threat |
@@ -79,7 +79,7 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-mirror-apple-curse | Mirror-Apple Curse | R | B | Enchantment Aura | Poison mirror | Snow White / Evil Queen | attached: -2/-2; Skim {cost} | Black removal |
 | dt-midnight-coach | Midnight Coach | R | C | Ritual | Pumpkin coach | Cinderella | Skim {cost}; boost allYours +1/+0 with warcry (until end of turn) | Tempo support |
 | dt-fairy-godmother-noir | Noir Godmother | R | U | Creature | Fairy godmother adjacent | Cinderella / Fairy Godmother | arrives: foresee 1 + draw 1 | Support creature |
-| dt-beast-library | Beast's Library | R | U | Enchantment | Enchanted library | Belle / Beauty and the Beast | dawn: foresee 1 | Value engine |
+| dt-beast-library | Beast's Library | R | U | Enchantment | Enchanted library | Belle / Beauty and the Beast | arrives: foresee 2; dawn: foresee 1 | Value engine |
 | dt-seven-shadow-miners | Seven Shadow Miners | R | B | Creature | Dwarf/miner adjacent | Snow White / Seven Dwarfs | arrives: createToken Shadow Miner x2 + grind self 2 | Token grave support |
 | dt-seafoam-dagger | Seafoam Dagger | R | B | Artifact | Sea witch weapon | Little Mermaid / Sea Witch | static: your Mermaids +1/+0 and deathblade | Evasive support |
 | dt-briar-rose-lullaby | Briar-Rose Lullaby | R | U | Charm | Sleep song | Sleeping Beauty | tap target, foresee 1; Retell {cost} | Control spell |
@@ -91,9 +91,9 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-mirror-hall-illusion | Mirror-Hall Illusion | R | U | Charm | Mirror trick | Snow White / Evil Queen | recall target, foresee 1; Skim {cost} | Tempo interaction |
 | dt-gilded-cage | Gilded Cage | R | W | Enchantment - Aura | Palace prison | Rapunzel | attached: -2/-0 and bulwark (retyped from Artifact; the prison is an attached debuff) | White removal |
 | dt-rose-petal-knight | Rose-Petal Knight | R | W | Creature | Palace knight | Belle / Beauty and the Beast | sentinel, bloodoath | White midrange |
-| dt-clock-strikes-twelve | Clock Strikes Twelve | R | R | Ritual | Midnight clock | Cinderella | damage target 2; Retell {cost} | Spells payoff |
+| dt-clock-strikes-twelve | Clock Strikes Twelve | R | R | Ritual | Midnight clock | damage target 3; Retell {cost} | Spells payoff |
 | dt-ash-ballroom | Ash Ballroom | R | Land | Land | Midnight ballroom | Cinderella | entersTapped, manaAbility U/R | Dual land |
-| dt-haunted-storybook | Haunted Storybook | R | C | Artifact | Cursed book | Set-wide cursed storybook | Skim {cost}; arrives: foresee 1 + draw 1 | Value relic |
+| dt-haunted-storybook | Haunted Storybook | R | C | Artifact | Cursed book | Set-wide cursed storybook | arrives: foresee 1 + draw 1; Hauntlink {2}: linked +1/+0, dreaded | Value relic |
 | dt-princess-of-thorns | Princess of Thorns | R | G | Creature | Thorn heroine | Sleeping Beauty | sentinel, wardingGaze | Midrange body |
 | dt-black-glass-raven | Black-Glass Raven | R | B | Creature | Mirror raven | Snow White / Evil Queen | skyborne; Skim {cost} | Evasive rare |
 | dt-foam-silk-siren | Foam-Silk Siren | R | U | Creature | Mermaid noble | Little Mermaid | skyborne; arrives: foresee 1 | Control rare |
@@ -133,9 +133,9 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-sea-glass-knife | Sea-Glass Knife | C | U | Charm | Sea blade | Little Mermaid | recall target | Tempo common |
 | dt-ash-sweep | Ash Sweep | C | R | Ritual | Hearth magic | Cinderella | damage target 2; grind self 2 | Red removal |
 | dt-bookmark-charm | Bookmark Charm | C | C | Artifact | Bookmark | Set-wide cursed storybook | Skim {cost}; arrives: foresee 2 | Smoothing |
-| dt-lost-in-library | Lost in the Library | C | U | Ritual | Library maze | Belle / Beauty and the Beast | foresee 2, draw 1 | Blue selection |
+| dt-lost-in-library | Lost in the Library | C | U | Ritual | Library maze | Belle / Beauty and the Beast | draw 2, foresee 2 | Blue selection |
 | dt-cursed-rose | Cursed Rose | C | B | Enchantment Aura | Rose curse | Belle / Beauty and the Beast | attached: -1/-1; Skim {cost} | Aura common |
-| dt-mirror-shard | Mirror Shard | C | U | Artifact | Mirror piece | Snow White / Evil Queen | arrives: foresee 1 | Utility |
+| dt-mirror-shard | Mirror Shard | C | U | Artifact | Mirror piece | Snow White / Evil Queen | arrives: foresee 1; Hauntlink {1}{U}: linked +1/+0, untouchable | Utility |
 | dt-silver-fishbone | Silver Fishbone | C | B | Artifact | Sea relic | Little Mermaid | Skim {cost}; arrives: loseLife opponent 1 + gainLife 1 | Utility |
 | dt-dreaming-castle | Dreaming Castle | C | Land | Land | Thorn castle | Sleeping Beauty | entersTapped, manaAbility G/W | Dual land |
 | dt-tide-cavern | Tide Cavern | C | Land | Land | Sea grotto | Little Mermaid | entersTapped, manaAbility U/B | Dual land |
@@ -146,14 +146,14 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-hearth-cinders | Hearth Cinders | C | Land | Land | Hearth ruin | Cinderella | entersTapped, manaAbility R, arrives: gainLife 1 | Common land |
 | dt-dream-prick | Dream Prick | C | U | Charm | Sleep curse | Sleeping Beauty | tap target, grind self 1 | Control common |
 | dt-rose-petal-shield | Rose-Petal Shield | C | W | Charm | Rose ward | Belle / Beauty and the Beast | boost target +0/+2; Retell {cost} | Defensive trick |
-| dt-singing-shell | Singing Shell | C | U | Artifact | Shell charm | Little Mermaid | Skim {cost}; arrives: foresee 1 | Blue utility |
+| dt-singing-shell | Singing Shell | C | U | Artifact | Shell charm | Little Mermaid | Skim {cost}; arrives: foresee 1 + grind self 1 | Blue utility |
 | dt-forest-grandmother | Forest Grandmother | C | G | Creature | Wise forest elder | Red Riding Hood | arrives: gainLife 2 + foresee 1 | Green support |
 | dt-gilded-stepmother | Gilded Stepmother | C | B | Creature | Cruel courtier | Cinderella / Stepfamily | arrives: loseLife opponent 1 + gainLife 1 | Black body |
 | dt-palace-masquerade | Palace Masquerade | C | W | Ritual | Masked ball | Cinderella | createToken Masked Guest x2, foresee 1 | Token/value |
 | dt-ragged-ballgown | Ragged Ballgown | C | C | Artifact | Gown relic | Cinderella | Skim {cost}; arrives: gainLife 2 | Smoothing |
 | dt-forked-road-choice | Forked-Road Choice | C | G | Ritual | Fairy-tale choice | Red Riding Hood | extraLandDrop, foresee 1 | Ramp common |
 | dt-lullaby-refrain | Lullaby Refrain | C | U | Charm | Repeated song | Sleeping Beauty | tap target; Retell {cost} | Control trick |
-| dt-apple-basket | Apple Basket | C | G | Artifact | Apple basket | Snow White | Skim {cost}; arrives: gainLife 2 | Green utility |
+| dt-apple-basket | Apple Basket | C | G | Artifact | Apple basket | Snow White | Skim {cost}; arrives: gainLife 3 | Green utility |
 | dt-ice-lace-gloves | Ice-Lace Gloves | C | C | Artifact | Frost gloves | Elsa / Frozen Queen | Skim {cost}; dawn: severGrave 1 opponent | Recurring grave answer |
 | dt-snowcourt-attendant | Snowcourt Attendant | C | U | Creature | Adult winter court attendant | Elsa / Frozen Queen | arrives: foresee 1 | Blue setup common |
 | dt-winter-bridge | Winter Bridge | C | Land | Land | Frozen bridge to a palace gate | Elsa / Frozen Queen | entersTapped, manaAbility U, arrives: severGrave opponent 1 | Common land |
@@ -164,9 +164,9 @@ The list is rarity-banded for counting and implementation planning. The original
 | dt-training-yard-dawn | Training-Yard Dawn | C | W | Charm | Martial training yard | Mulan | boost target +1/+1, foresee 1 | White combat trick |
 | dt-ancestor-smoke | Ancestor's Smoke | C | W | Charm | Ancestral spirit smoke | Mulan | foresee 2; Retell {cost} | Hybrid support trick |
 | dt-bayou-lantern | Bayou Lantern | C | G | Artifact | Firefly-lit bayou lamp | Tiana | Skim {cost}; dawn: gainLife 1 | Green stabilizer |
-| dt-crescent-cookpot | Crescent Cookpot | C | C | Artifact | Silver kitchen charm | Tiana | arrives: gainLife 1 + foresee 1 | Utility artifact |
+| dt-crescent-cookpot | Crescent Cookpot | C | C | Artifact | Silver kitchen charm | Tiana | arrives: foresee 1; dawn: gainLife 1 | Utility artifact |
 | dt-riverboat-kitchen | Riverboat Kitchen | C | Land | Land | Bayou riverboat galley | Tiana | entersTapped, manaAbility G/B | Common dual land |
-| dt-wayfinder-oar | Wayfinder Oar | C | U | Artifact | Star-map canoe oar | Moana | Skim {cost}; arrives: foresee 2 | Blue smoothing |
+| dt-wayfinder-oar | Wayfinder Oar | C | U | Artifact | Star-map canoe oar | Skim {cost}; arrives: foresee 2; dawn: grind self 1 | Blue smoothing |
 | dt-lagoon-current | Lagoon Current | C | U | Charm | Tidal push around a reef | Moana | recall target, foresee 1 | Flexible tempo trick |
 | dt-oceanic-islet | Oceanic Islet | C | Land | Land | Reef island passage | Moana | entersTapped, manaAbility U/G | Common dual land |
 | dt-windblown-leaf-paint | Windblown Leaf-Paint | C | G | Ritual | Painted leaves carried by wind | Pocahontas | foresee 2, gainLife 2 | Green selection |

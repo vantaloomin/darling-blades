@@ -172,7 +172,7 @@ export const CELTIC_FAE = [
   }),
   {
     id: 'cf-apple-of-emain', name: 'Apple of Emain', types: ['artifact'], subtypes: [],
-    cost: cost(0, 'G'), colors: ['G'], abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }, { op: 'foresee', n: 1 }] }],
+    cost: cost(0, 'G'), colors: ['G'], abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }, { op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'One bite restores the body. The second restores the obligation.',
   },
   {
@@ -391,7 +391,7 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'Her wand finds water, gold, and the person avoiding you.',
   }),
   {
-    id: 'cf-clouded-memory', name: 'Clouded Memory', types: ['charm'], subtypes: [], cost: cost(1, 'U'), colors: ['U'],
+    id: 'cf-clouded-memory', name: 'Clouded Memory', types: ['charm'], subtypes: [], cost: cost(2, 'U'), colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'recall', to: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'You remember winning. The court remembers the return trip.',
   },
@@ -416,16 +416,9 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'Stand beneath the oak. It has outlasted worse kings.',
   },
   {
-    // Left as a Charm on purpose. The design table wants an Artifact that taps
-    // a creature, which this engine cannot express: artifacts have no activated
-    // or targeted abilities, and a 1-mana blue instant tapper is a 2017 rate.
-    // Every target-free artifact effect cheap enough for {U} collides with a
-    // shipped card (Quest Marker {1} and Moonwire Mask {1}{U} both do
-    // arrives-Foresee-1), and converting it adds an inert permanent, which
-    // works against the Hauntlink substrate plan. Its duplication of
-    // Glimmerdust Trick is a design call, not a mechanical one.
-    id: 'cf-fogbell-chime', name: 'Fogbell Chime', types: ['charm'], subtypes: [], cost: cost(0, 'U'), colors: ['U'],
-    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'foresee', n: 1 }] }],
+    // 1.6: Silver Veil's Hauntlink carrier (owner ruling 2026-08-21). No arrives trigger on purpose: a cheap arrives-Foresee-1 artifact duplicated Quest Marker and Moonwire Mask in 1.5. Dreaded is the one evasion keyword no Yokai rider grants.
+    id: 'cf-fogbell-chime', name: 'Fogbell Chime', types: ['artifact'], subtypes: [], cost: cost(0, 'U'), colors: ['U'],
+    hauntlink: { cost: cost(1), linked: { grantKeywords: ['dreaded'] } },
     rarity: 'c', flavor: 'One note, and the road forgets which way is forward.',
   },
   fae('cf-moorland-guide', 'Moorland Guide', 'Guide', {

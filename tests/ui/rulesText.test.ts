@@ -127,16 +127,18 @@ describe('Hauntlink rules text', () => {
 
   it('renders the battlefield link cost, Charm-speed move rule, rider, and host death', () => {
     const text = rulesText(CARD_DB['yn-hauntlink-apex']);
-    expect(text).toContain('Hauntlink {3}{U}:');
+    expect(text).toContain('Hauntlink {2}{U}:');
     expect(text).toContain('At Charm speed, link this to a creature you control or move it to another.');
-    expect(text).toContain('gets +2/+0 and gains Skyborne, Untouchable');
+    expect(text).toContain('gets +3/+3 and gains Skyborne, Untouchable');
     expect(text).toContain('This dies with its host.');
     expect(text).not.toContain('\u2014');
   });
 
-  it('prints the corrected reminder on all 13 Hauntlink cards', () => {
+  it('prints the corrected reminder on all 16 Hauntlink cards', () => {
     const cards = Object.values(CARD_DB).filter((card) => card.hauntlink !== undefined);
-    expect(cards).toHaveLength(13);
+    // 13 Yokai Nights carriers plus the 1.6 card-health wave's three:
+    // Fogbell Chime (Silver Veil), Mirror Shard and Haunted Storybook (Dark Tales).
+    expect(cards).toHaveLength(16);
     for (const card of cards) {
       const text = rulesText(card);
       expect(text).toContain('At Charm speed');

@@ -187,7 +187,9 @@ An `AbilityDef` (`src/engine/types.ts`) is one of: a **triggered/spell** ability
 | `dawn`                   | at the start of the controller's turn.                    |
 | `combatDamageToPlayer`   | when it deals combat damage to a player.                  |
 | `attacks`                | when it is declared as an attacker.                       |
-| `static`                 | continuous — handled by `statics.ts`, not the interpreter.|
+| `static`                 | continuous — handled by `statics.ts`, not the interpreter.| 
+
+- **Foresee 1 may not be a card's only functional line.** A creature's body counts as a line; Skim does not, because it is a hand ability that never reaches the battlefield. When a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture, and never make "When this arrives, Foresee 1." a new non-creature permanent's whole battlefield text (the five shipped relics that do are grandfathered as Skim cyclers; `blades-db inert` lists them).
 
 **The v1 laws** (stated at the top of `types.ts` and enforced throughout):
 
@@ -521,6 +523,7 @@ recomputed from the save.
 2. **Fill the `CardDef`** — types, subtypes, cost (via `cost()`), colors,
    P/T for creatures, keywords, abilities. Multicolor nonland ⇒ `legendary`.
 3. **Behavior only** — encode triggers/statics/ops; **do not** write rules text.
+   - **Foresee 1 may not be a card's only functional line.** A creature's body counts as a line; Skim does not, because it is a hand ability that never reaches the battlefield. When a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture, and never make "When this arrives, Foresee 1." a new non-creature permanent's whole battlefield text (the five shipped relics that do are grandfathered as Skim cyclers; `blades-db inert` lists them).
 4. **Tokens** referenced by `createToken` must exist in `tokens.ts` with
    `token: true` (a catalog test enforces this).
 5. **Holo/frame** — nothing to author: variants are rolled per pulled copy,

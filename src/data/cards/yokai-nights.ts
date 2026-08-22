@@ -32,9 +32,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "UR",
     "color": "U",
     "type": "Artifact",
-    "cost": "{6}{U}",
+    "cost": "{5}{U}",
     "stats": "-",
-    "mechanics": "At dawn: draw 1. Hauntlink {3}{U}. Linked: The linked creature gets +2/+0, Skyborne, and Untouchable. (AI-risk survivor.)",
+    "mechanics": "At dawn: draw 1. Hauntlink {2}{U}. Linked: The linked creature gets +3/+3, Skyborne, and Untouchable. (AI-risk survivor.)",
     "flavor": "The perfect possession is a partnership until one voice stops answering."
   },
   {
@@ -45,7 +45,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Oni Avatar)",
     "cost": "{6}{B}",
     "stats": "7/6",
-    "mechanics": "Dreaded, Deathblade. Arrives: opponent loses 4 life.",
+    "mechanics": "Dreaded, Deathblade. Arrives: opponent loses 4 life. Dies: opponent loses 4 life.",
     "flavor": "Every road out of the city passes beneath her shadow."
   },
   {
@@ -309,7 +309,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Human Ronin)",
     "cost": "{2}{W}",
     "stats": "2/2",
-    "mechanics": "First Blade.",
+    "mechanics": "Twin Blades.",
     "flavor": "Her sword catches moonlight even under a roof of smog."
   },
   {
@@ -375,7 +375,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai)",
     "cost": "{3}{U}",
     "stats": "3/3",
-    "mechanics": "Skyborne.",
+    "mechanics": "Skyborne, Untouchable.",
     "flavor": "It swims through holograms as if the towers were deep water."
   },
   {
@@ -416,7 +416,7 @@ export const YOKAI_SPEC_ROWS = [
     "name": "Foresee the Fall",
     "rarity": "R",
     "color": "U",
-    "type": "Ritual",
+    "type": "Charm",
     "cost": "{2}{U}",
     "stats": "-",
     "mechanics": "Foresee 3.",
@@ -430,7 +430,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{2}{U}",
     "stats": "-",
-    "mechanics": "Cancel target spell.",
+    "mechanics": "Cancel target spell, then Foresee 1.",
     "flavor": "The message vanishes before the network can decide whether it was sent."
   },
   {
@@ -518,7 +518,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Runner)",
     "cost": "{1}{R}",
     "stats": "2/1",
-    "mechanics": "Warcry.",
+    "mechanics": "Warcry, First Blade.",
     "flavor": "She rides the rail between stations faster than the cameras can focus."
   },
   {
@@ -584,7 +584,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Charm",
     "cost": "{1}{R}",
     "stats": "-",
-    "mechanics": "Deal 2 damage to target creature or player.",
+    "mechanics": "Deal 2 damage to target creature or player, then Foresee 2.",
     "flavor": "The reply is short, bright, and usually delivered through a fuse."
   },
   {
@@ -595,7 +595,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Forager)",
     "cost": "{1}{G}",
     "stats": "2/2",
-    "mechanics": "Arrives: gain 1 life.",
+    "mechanics": "Warding Gaze. Arrives: gain 1 life.",
     "flavor": "She grows edible moss on dead vending machines."
   },
   {
@@ -1296,8 +1296,8 @@ export const YOKAI_SPEC_ROWS = [
     "name": "Ghostwood Growth",
     "rarity": "C",
     "color": "G",
-    "type": "Ritual",
-    "cost": "{1}{G}",
+    "type": "Charm",
+    "cost": "{G}",
     "stats": "-",
     "mechanics": "Target creature gets +3/+3 until end of turn.",
     "flavor": "A ghostwood branch punches through the street to answer a threat."
@@ -1342,6 +1342,7 @@ const KEYWORDS: Readonly<Record<string, Keyword>> = {
   Skyborne: 'skyborne',
   'Warding Gaze': 'wardingGaze',
   'First Blade': 'firstBlade',
+  'Twin Blades': 'twinBlades',
   Warcry: 'warcry',
   Overrun: 'overrun',
   Sentinel: 'sentinel',
@@ -1485,7 +1486,12 @@ function parseAbilityText(text: string, spellMode = false): AbilityDef[] {
   if (linked) {
     const rider = linked[2].replace(/\.$/, '');
     const plus = rider.match(/^\+(\d+)\/\+(\d+),?\s*(.*)$/);
-    const grantKeywords = parseKeywords(rider.replace(/^\+\d+\/\+\d+,?\s*/, '').replace(/ and /g, ', '));
+    const grantKeywords = parseKeywords(
+      rider
+        .replace(/^\+\d+\/\+\d+,?\s*/, '')
+        .replace(/^and /i, '')
+        .replace(/ and /g, ', '),
+    );
     const riderDef: { p?: number; t?: number; grantKeywords?: Keyword[] } = plus
       ? { p: Number(plus[1]), t: Number(plus[2]), ...(grantKeywords.length ? { grantKeywords } : {}) }
       : { ...(grantKeywords.length ? { grantKeywords } : {}) };
@@ -1495,11 +1501,17 @@ function parseAbilityText(text: string, spellMode = false): AbilityDef[] {
   }
 
   if (!ordinary) return abilities;
-  const clauses = ordinary.match(/(?:At dawn|Arrives|When this attacks):[^.]+\.?/gi) ?? [];
+  const clauses = ordinary.match(/(?:At dawn|Arrives|When this attacks|Dies):[^.]+\.?/gi) ?? [];
   for (const clause of clauses) {
-    const split = clause.match(/^(At dawn|Arrives|When this attacks):\s*(.+?)\.?$/i);
+    const split = clause.match(/^(At dawn|Arrives|When this attacks|Dies):\s*(.+?)\.?$/i);
     if (!split) throw new Error('Invalid ability clause: ' + clause);
-    const when = split[1].toLowerCase() === 'at dawn' ? 'dawn' : split[1].toLowerCase() === 'arrives' ? 'arrives' : 'attacks';
+    const when = split[1].toLowerCase() === 'at dawn'
+      ? 'dawn'
+      : split[1].toLowerCase() === 'arrives'
+        ? 'arrives'
+        : split[1].toLowerCase() === 'dies'
+          ? 'dies'
+          : 'attacks';
     const targetWhat = /target artifact or sever target enchantment/i.test(split[2])
       ? 'artifactOrEnchantment'
       : /target spell/i.test(split[2])

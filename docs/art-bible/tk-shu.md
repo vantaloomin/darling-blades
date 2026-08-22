@@ -95,7 +95,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Guan Ping in green war-tunic and ivory undercoat with lacquered green vambraces, shouldering a green-crescent guandao and gesturing allies to form up, a Shu drill banner behind, earnest instructive face, clear daylight key with soft ivory rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Xingcai, Quiet Aegis — `tk-shu-xingcai`
-- **Card facts:** {1}{W}{W} · W · 2/3 · firstBlade · r · holo: auto:sheen
+- **Card facts:** {1}{W}{W} · W · 2/3 · firstBlade, untouchable · r · holo: auto:sheen
 - **Character & source:** Genderbent Xingcai, Zhang Fei's daughter — the calm one; a firstBlade guardian who strikes before the blow lands.
 - **Personality / mood:** "Zhang Fei's daughter, somehow the calm one." Still, watchful, unshakably steady.
 - **Pose & composition:** Braced guard stance, halberd angled forward to intercept, weight settled; face ≈ y 315, eyes level and quiet. FirstStrike reads as pre-emptive readiness, not lunge. One environmental element (uncommon): a defended gateway shadow.

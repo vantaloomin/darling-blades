@@ -154,7 +154,7 @@ export const GOTHIC_MONSTERS = [
   {
     id: 'gm-velvet-coffin', name: 'Velvet Coffin', types: ['artifact'], subtypes: ['Vampire'],
     cost: cost(3, 'B'), colors: ['B'],
-    abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 3, who: 'opponent' }, { op: 'gainLife', n: 2 }] }],
+    abilities: [{ when: 'dawn', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] }],
     rarity: 'r', flavor: 'Silk lining, cedar panels, absolutely no return policy.',
   },
   creature('gm-blood-opera-soloist', 'Blood-Opera Soloist', ['Vampire', 'Performer'], {
@@ -171,7 +171,7 @@ export const GOTHIC_MONSTERS = [
   {
     id: 'gm-wolfsbane-ward', name: 'Wolfsbane Ward', types: ['enchantment'], subtypes: ['Aura'],
     cost: cost(1, 'W'), colors: ['W'],
-    abilities: [{ when: 'static', static: { scope: 'attached', p: -2, t: -2 } }],
+    abilities: [{ when: 'static', static: { scope: 'attached', p: -1, t: 0, grantKeywords: ['bulwark'] } }],
     rarity: 'r', flavor: 'A little herb, a little prayer, a very pointed boundary.',
   },
   creature('gm-thunder-lab-assistant', 'Thunder-Lab Assistant', ['Scientist', 'Assistant'], {
@@ -400,7 +400,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-broken-mirror', name: 'Broken Mirror', types: ['artifact'], subtypes: ['Mirror'],
-    cost: cost(2, 'U'), colors: ['U'], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
+    cost: cost(2, 'U'), colors: ['U'], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }, { op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c', flavor: 'Seven years bad luck, two cards good planning.',
   },
   creature('gm-raven-courier', 'Raven Courier', ['Bird', 'Courier'], {
@@ -409,7 +409,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-wolfbane-shot', name: 'Wolfsbane Shot', types: ['charm'], subtypes: [],
-    cost: cost(2, 'W'), colors: ['W'],
+    cost: cost(3, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'sever', to: 'target' }] }],
     rarity: 'c', flavor: 'The silver is polished; the apology is still pending.',
   },
