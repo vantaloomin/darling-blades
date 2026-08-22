@@ -569,6 +569,33 @@ builder** (the rule that dropped Hel's first tune, 21 vs 33).
 `HAND_TUNED_WARCHEST` is therefore `{morgan, hel, glass-coffin-queen}`.
 R20 Kitsune Neon Tyrant measured **89%** as an unchanged control in the same run.
 
+### The flip (2026-08-22)
+
+`FEATURES.dtCompanionLive` is **true**. What the flip actually moved:
+
+- **Decks.** 16 of 22 avatars' `darlingsDeck` re-ranked and were regenerated
+  through the deterministic builder. Only ONE non-exempt `reserveDeck` moved
+  (Brunhild, a single card: `rg-twice-chosen-shieldmaiden` to
+  `dt-bell-tower-dancer`). No `landReserve` moved anywhere. The reserve
+  builders proved far less sensitive to +60 cards than the Darlings builder.
+- **R17's exemption re-tested at the gate-OPEN builder, and it holds**:
+  hand tune **77%** against the builder's own **74%** (40 seeds/cell, 12
+  columns, floor 70.5). This was the check PR A explicitly owed, because R17's
+  original exemption was measured while the builders could not reach a single
+  companion card.
+- **Achievements.** `DARK_TALES_IDS` grows 112 to 172, so every predicate-based
+  Dark Tales theme goal re-scopes itself. The two companion UR (Swan-Lake
+  Sovereign, Sea Witch of the Drowned Bargain) join `DARK_TALES_HEADLINERS`,
+  widening that goal from 5 to 7. Per ruling 2.17 a claimed achievement never
+  un-claims (`unlocked` is sticky from the persisted array), so only players who
+  have not finished it see the wider target. No `SaveData` bump: card additions
+  never touch the save schema.
+- **Economy.** All four locked Layer-1 coarse gates PASS at the flipped pool
+  (packable 998 to 1,058). The day-60 fine bands remain deliberately stale under
+  the owner's 2026-08-22 collection-dilution deferral; the flip grows the
+  denominator again, which is evidence for that decision after the metagame
+  sweep, not a gate failure.
+
 ### What this says about the wave
 
 The companion wave's balance premise did not hold. It was slated partly to close

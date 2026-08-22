@@ -41,7 +41,7 @@ describe('Dark Tales data integrity', () => {
     }
   });
 
-  it('contains the 60-card companion wave behind its own liveness flag', () => {
+  it('contains the 60-card companion wave, now live', () => {
     expect(DARK_TALES_COMPANION).toHaveLength(60);
     expect(Object.fromEntries(Object.keys(COMPANION_RARITY_COUNTS).map((rarity) => [
       rarity,
@@ -53,7 +53,8 @@ describe('Dark Tales data integrity', () => {
       expect(CARD_DB[card.id].set).toBe('dark-tales');
     }
     expect(DARK_TALES_COMPANION.filter((card) => card.types.includes('creature') && card.subtypes.includes('Mermaid'))).toHaveLength(1);
-    expect(FEATURES.dtCompanionLive).toBe(false);
+    // Flipped 2026-08-22 with the companion wave's balance touch (plan-dt-companion.md 5.5).
+    expect(FEATURES.dtCompanionLive).toBe(true);
   });
 
   it('uses only engine keywords and operations, with trigger-safe non-spell abilities', () => {

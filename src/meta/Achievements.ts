@@ -114,6 +114,10 @@ const DARK_TALES_HEADLINERS = [
   'dt-thorn-palace-heiress',
   'dt-midnight-glass-runner',
   'dt-ice-crown-sovereign',
+  // The companion wave's two UR, added when it went live (2026-08-22). Copy
+  // change only: the goal is predicate-based, so no save bump is needed.
+  'dt-swan-lake-sovereign',
+  'dt-sea-witch-of-the-drowned-bargain',
 ] as const;
 
 function themeIds(ids: readonly string[], db: CardDb): string[] {
