@@ -2,7 +2,7 @@
 
 # Roadmap
 
-_Dated 2026-08-21. Review monthly._
+_Dated 2026-08-23. Review monthly._
 
 ## Status snapshot
 
@@ -66,6 +66,61 @@ _Dated 2026-08-21. Review monthly._
   v25→v26 the Darlings command zone, Darlings tutorial, and free Zhou Yu
   claim — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-08-23 · the 1.6 cut)
+
+**The 1.6 release train.** Warchest became THE mana system of Darling Blades
+and classic constructed retired, so all 1.6 balance work happened once, on the
+reserve field.
+
+- **The Warchest migration and classic retirement (#197-#199, and the
+  `FEATURES.classicRetired` switch).** Format parameters were owner-ratified
+  from measured evidence on 2026-08-07: **40-card decks, a 5-card opening hand,
+  no reserve colour cap**. The gate's own tuning matrices refuted the
+  five-colour-pile concern (measured gradient mono > 2c > 3c > 5c) and confirmed
+  the hand-clog one. The Tower now fields each avatar's designed `reserveDeck`,
+  granted decks arrive reserve-native, the builder stopped offering Constructed,
+  and player-built classic decks are preserved and routed to the flag-and-fix
+  flow rather than deleted. Save **v27/v28** carry it.
+- **Sands of the Duat, the first large set (#243-#250).** 245 cards, QA-passed,
+  reserve-native from concretion, on Rite / Nine Lives / Preserve, with its own
+  booster, precon, achievements and set icon. Live behind `FEATURES.duatLive`,
+  which stays as the pattern for the next unreleased set.
+- **The Duat summit pair and a 22-rung tower (#251).** Anubis, Who Holds the
+  Scale at rung 21 and Bastet, Mistress of the Ninth Return as the final rung
+  22.
+- **The Dark Tales companion wave (#252, #259, #260).** 60 cards reprising Nine
+  Lives, Preserve and Empower, taking the live pool to **1,079 across eight
+  sets**. Recorded honestly: the wave's balance premise did NOT hold. An
+  all-`dt-` Midnight Storybook measured 24pp worse than the cross-set build, so
+  only rung 17 and an 8-copy option-B Midnight adopted it; the wave's value is
+  collection, achievements, draft depth and set identity, not power.
+- **Cosmetics (#SHIPPED 2026-08-18).** Account-level card backs and playmats,
+  save **v32**, with an economy-free reward seam.
+- **Premium UX Waves B and C.** Carry-cast on a shared CastIntent state, the
+  Card Atelier, the Pack Runway (one rail of every pull in ascending rarity with
+  a fixed reveal gate), the mulligan ritual, land-carry out of Reserves, and the
+  five-wing Trophy Hall with Profile showcase pins (save **v30/v31**).
+- **The keyword sprinkle wave (2026-08-18).** Ten data-only low-rarity cards
+  spread Empower, twinBlades, Skim, Retell, Quests and Champion Awakening beyond
+  their home sets; the policy is codified in adding-cards.md.
+- **A Warchest-native tutorial.** The opening lesson is the Warchest itself,
+  followed by taking a land from Reserves. Pinned to rules revision 1.
+- **The card-health triage (#257).** 68 cards adjudicated, two spec-row parser
+  bugs fixed, three detector defects fixed. The parser bug is the durable one:
+  `parseKeywords` silently DISCARDS vocabulary it does not know, which had
+  shipped nine Hauntlink riders with no keyword at all.
+- **The rung floors stopped pricing a retired format (#261).** `runAvatarMatrix`
+  still played the classic lists, so `tests/ai/winrate.test.ts` had gated the
+  tower on a format retired on 2026-08-10. Migrated reserve-native; floors
+  15-22 re-centred from a 9,000-game 200-seed measurement and `FLOOR_BANDS`
+  21-22 re-baselined from `--floors --seeds 80`. It exposed two soft rungs,
+  both then tuned: **Anubis 33% to 57%** (her build retained four cards with no
+  legal targets in the format) and **The Bride 54% to 69%** (the curve cap had
+  halved her mv6 legend, and her reanimation had nothing worth raising).
+
+Measured pool at the cut: **1,079 collectible cards across 8 sets**, all with
+finished art; **22 tower rungs**; suite 1,646 tests green.
 
 ## Recently shipped (2026-08-04 · the 1.5.5 cut)
 
@@ -1270,14 +1325,15 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   see above).
 
 ## Planned
-- **Fogbell Chime redesign (deferred to 1.6, decided 2026-07-30).** The card
-  is a deliberate duplicate of Glimmerdust Trick for now: its design-table
-  intent (a common Artifact that taps a creature) is unbuildable in the
-  current engine (artifacts carry no targeted or activated abilities), the
-  1-mana instant-tapper alternative is a modern rate the era pass rejected,
-  and every cheap target-free artifact effect collides with a shipped card.
-  Revisit once Hauntlink makes cheap artifacts interesting as hosts; the full
-  reasoning lives in the card's own comment in `src/data/cards/celtic-fae.ts`.
+- **Fogbell Chime redesign. SHIPPED in the 1.6 small-debts batch (#257).**
+  The card had been a deliberate duplicate of Glimmerdust Trick since 2026-07-30,
+  parked because its design-table intent (a common Artifact that taps a creature)
+  was unbuildable: artifacts carry no targeted or activated abilities, the
+  1-mana instant-tapper alternative is a modern rate the era pass rejected, and
+  every cheap target-free artifact effect collided with a shipped card. Hauntlink
+  is what unparked it, exactly as the entry predicted: it is now a `{0}U` common
+  artifact whose Hauntlink grants its host `dreaded`, so it is a cheap host that
+  earns its slot without needing an activated ability.
 - **The 1.1 Limited economy TUNING pass — ✅ SHIPPED 2026-07-16** (see
   Recently shipped; the full measured record lives in
   [plan-economy-testing.md](plan-economy-testing.md)'s tuning-pass note).

@@ -4,7 +4,7 @@
 
 # Darling Blades
 
-*A trading card game where the officers of the Three Kingdoms, the gods of Olympus, and a forest full of Beastkin all end up in the same 60-card deck.*
+*A trading card game where the officers of the Three Kingdoms, the gods of Olympus, and a forest full of Beastkin all end up in the same deck.*
 
 <p align="center">
   <img src="public/assets/art/cards/tk-shu-zhugeliang.webp" width="160" alt="Zhuge Liang">
@@ -24,13 +24,14 @@ Darling Blades is a single-player trading card game in the style of Magic: the G
 
 The cast is what's different. The **1,079 collectible cards across eight sets** share characters from the officers of **Wei**, **Wu**, **Shu**, and **Jin**, the **Greek pantheon**, tribal **Beastkin**, Ragnarök's graveyard faction, Celtic Fae courts, Arthurian knights, Gothic Monsters, Dark Tales storybook figures, Cyberpunk Yokai Nights, and Sands of the Duat. Every card carries finished cel-shaded gacha-anime art; nothing in the shipped game is programmer-art or a placeholder.
 
-You play or skip a short optional tutorial, claim a free starter deck, crack booster packs to build out your collection, and assemble a 60-card deck in the deck builder. Then you duel: Practice matches against any tower boss or a plain difficulty, the 22-rung **Avatar Gauntlet** (a ladder of named boss opponents, each running a themed deck, reshuffled daily), or a seat at the **Draft** table to build a fresh 40-card deck from passed packs against seven AI rivals.
+You play or skip a short optional tutorial, claim a free starter deck, crack booster packs to build out your collection, and assemble a 40-spell deck and its ten-land Warchest in the deck builder. Then you duel: Practice matches against any tower boss or a plain difficulty, the 22-rung **Avatar Gauntlet** (a ladder of named boss opponents, each running a themed deck, reshuffled daily), or a seat at the **Draft** table to build a fresh 25-spell deck from passed packs against seven AI rivals.
 
 ## Features
 
 - **A 1,079-card collectible pool across eight sets.** Base Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, Cyberpunk Yokai Nights, and Sands of the Duat cover all five WUBRG colors and the same five rarity tiers. Cyberpunk Yokai Nights adds 120 cards built around Hauntlink, while Sands of the Duat adds 245 cards built around Rite, Nine Lives, and Preserve; both have their own set-scoped booster. Dark Tales carries a 60-card companion wave that reprises Nine Lives, Preserve, and Empower.
-- **Five 60-card starter decks**, one two-color archetype per color pair: **Crimson Muster** (Red/White aggro), **Wild Communion** (Green/White creature tribal), **Burning Tides** (Blue/Red tempo-burn), **Shadow Mandate** (Blue/Black control), and **Grave Harvest** (Black/Green deathblade attrition). Every color shows up in exactly two of the five.
-- **Real MTG-style deckbuilding rules**: 60-card minimum decks built from your own collection, up to 4 copies of any non-basic card (basics unlimited), 20 starting life, 7-card hands, a London-style mulligan with your first mulligan free, and an auto-tap mana solver so you're never manually tapping individual lands to pay generic costs.
+- **Five starter decks**, one two-color archetype per color pair: **Crimson Muster** (Red/White aggro), **Wild Communion** (Green/White creature tribal), **Burning Tides** (Blue/Red tempo-burn), **Shadow Mandate** (Blue/Black control), and **Grave Harvest** (Black/Green deathblade attrition). Every color shows up in exactly two of the five, and each arrives as 40 spells plus its own ten-land Warchest.
+- **Real MTG-style deckbuilding rules**, with one deliberate departure: your lands live in a **Warchest** rather than your deck. A constructed deck is exactly 40 spells built from your own collection plus a ten-land Warchest (at most 5 duals), up to 4 copies of any non-basic card, 20 starting life, a 5-card opening hand, a London-style mulligan with your first mulligan free, and an auto-tap mana solver so you're never manually tapping individual lands to pay generic costs.
+- **Two formats.** **Warchest** is the standard constructed format above. **Darlings** is the EDH-style one: your Darling waits in her own zone while you build a 79-card singleton spell deck and a ten-land Warchest, each fall adds 2 to her next call, and paying 4 eases that tax by 2. Five ready-to-play Darlings decks are in the Shop, one of them a free one-time claim, and a dedicated tutorial teaches the format.
 - **Gacha-style booster packs.** 450 gold buys 9 cards in the Base Set booster; 525 gold buys 9 in the Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, Cyberpunk Yokai Nights, or Sands of the Duat boosters. Every slot independently rolls a rarity tier, a cosmetic frame (white/blue/red/gold/rainbow/black), a holo finish (none/shiny/rainbow/pearlescent/fractal/void), and a 0.25% Full Art chance where the illustration covers the whole card face. The rarest possible pull (Ultra Rare, black frame, void holo, Full Art) lands at roughly 1 in 1.98 billion. Each pack tile shows how many of its set's cards you already own; its info glyph opens a pool summary alongside the rarity, frame, and holo odds, which are identical across every booster.
 - **Every expansion brings its own mechanics.** Ragnarök plays with double strike, mill, and reanimation; Celtic Fae introduced **Sever** (exile-flavored removal) and **Foresee** (top-of-deck smoothing); Arthurian Court added **Quests** that advance a chapter at each of your dawns and **Champion Awakening** transforms; Gothic Monsters brought **Dreaded** attackers that must be blocked by two or none and **Empower** kicker costs; Dark Tales added **Skim** (instant-speed hand smoothing) and **Retell** (recast a Ritual or Charm from the graveyard, then sever it); Yokai Nights brought **Hauntlink**; and Sands of the Duat adds **Rite** (sacrifice as an additional cost), **Nine Lives** (return once with a +1/+1 mark), and **Preserve** (token copy from the graveyard). Everything is engine-first and seeded-deterministic, with player-facing duel affordances.
 - **The Avatar Gauntlet**: a 22-rung, 22-floor ladder of named boss opponents (Meng Huo, Hestia, Lupa the Wolfqueen, Hera, Zhurong, Sima Yi, Yohime the Kitsune Matriarch, Cao Cao, the Ragnarök bosses Hel and Brunhild, the Celtic Fae pair of The Morrigan and Titania, the Arthurian summit of Morgan of the Thorn Crown and Artoria, Once and Future Queen, the Gothic Monsters pair of Carmilla and The Bride, the Dark Tales pair of Glass-Coffin Queen and Abyssal Songstress, the Yokai Nights pair of Queen of the Lanterned Roof and Kitsune Neon Tyrant, and the Sands of the Duat pair of Anubis, Who Holds the Scale and Bastet, Mistress of the Ninth Return), each piloting a themed deck and personality. The roster reshuffles every day from a date seed, and the floor you reach sets the AI's strength on a six-tier ladder while the avatar brings its own deck and personality. Gold pays out per rung cleared plus a bonus for a full run. Practice mode lets you challenge any of the 22 bosses directly, or a plain difficulty, with no ladder attached.
@@ -40,37 +41,44 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Deck sharing, save codes, and multiple saved decks.** Keep as many constructed decks as you like (copy / rename / delete, plus a starrable per-deck hero card that fronts your in-duel portrait), and export any legal deck as a compact `DBD2-…` share code that another player can paste straight into their own Deck Builder; imports validate against their collection and the normal deckbuilding rules. The Profile page can also export your entire profile as a save code and import one on another machine, with replays optional.
 - **Deterministic replays.** The game records your last ten duels (seed, decks, and every action) and replays them from the Profile reel with play, pause, step, and speed controls. A replay is a byte-exact re-simulation, not a video.
 - **AI that never cheats.** Every difficulty (Easy, Medium, Hard) plays through the exact same redacted view of the game state a human opponent would see; none of them can look at your hand or either deck's remaining contents. The difficulty gap is measured rather than assumed: Medium beats Easy at least 80% of the time (measured around 82.5%) and Hard beats Medium at least 70% of the time (measured around 78%) across large seeded AI-vs-AI test batches.
-- **Fully illustrated, nothing placeholder.** All 1,019 collectible cards across eight sets carry finished cel-shaded gacha-anime art, plus painted backdrops for every scene and pack art for every set. The shipped art payload is 133.57 MiB of WebP, down from 729.65 MiB of PNG source art, a 5.5x reduction. Basic lands come in per-set landscape styles you choose in the deck builder. The audio side is entirely procedural: every sound effect and the four-mood generative ambient music score are synthesized live in the browser over WebAudio, with no audio asset files at all.
+- **Fully illustrated, nothing placeholder.** All 1,079 collectible cards across eight sets carry finished cel-shaded gacha-anime art, plus painted backdrops for every scene and pack art for every set. Every card image ships as WebP; the art payload is 200.91 MiB, of which 162.20 MiB is card art. Basic lands come in per-set landscape styles you choose in the deck builder. The audio side is entirely procedural: every sound effect and the four-mood generative ambient music score are synthesized live in the browser over WebAudio, with no audio asset files at all.
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
 - **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built; see Project status below.
 
-## What's new in 1.5.5
+## What's new in 1.6
 
-**Warchest and Darlings.** Warchest is the named mana system: build your
-**Warchest Reserves** with ten lands, then move one into your **Active
-Warchest** each turn. **Darlings** is the EDH-style format. Your Darling waits
-in her own zone while you build a 79-card singleton spell deck and a ten-land
-Warchest. Each fall adds 2 to her next call; pay 4 to ease that tax by 2.
+**Warchest is now the mana system, everywhere.** Your lands no longer sit in
+your deck. Every deck is 40 spells plus a ten-land Warchest, you open on five
+cards, and you move one land from Reserves into your Active Warchest each turn.
+Classic constructed has retired. Decks you already built are kept, marked, and
+routed to a repair flow that fixes them in a couple of clicks, and untouched
+starter decks convert themselves.
 
-**Five ready-to-play Darlings decks.** Red Cliffs Refrain, Queen Below,
-Sunwell Ledger, Mirror-Blood Rush, and Sable Warballad are available from the
-Shop. Red Cliffs Refrain is a free, one-time Zhou Yu claim, and the Darlings
-tutorial teaches the format before your first match.
+**Sands of the Duat, a 245-card expansion.** The largest set yet, built
+reserve-native from the first sketch, on three mechanics: Rite pays a cost from
+what you have already spent, Nine Lives brings a creature back on its own
+terms, and Preserve keeps your best permanent through the sweep. It carries its
+own booster, precon, achievements, and set icon.
 
-**A cleaner collection and deck builder.** Repeated cards collapse into one
-deck row. Collection display pins let you choose the owned frame and finish
-shown for a card, and hovering a variant row reveals its pull odds. The
-single-tab guard keeps a second browser tab from opening the same save at
-once.
+**Two new bosses and a 22-rung tower.** Anubis, Who Holds the Scale, takes rung
+21, and Bastet, Mistress of the Ninth Return, is the final rung 22.
 
-**Clearer card play.** Foresee now completes its choices in printed order.
-Count labels use number words where a quick board read matters, Retell cards
-have more room for their rules text, and a tombstone icon marks graveyard
-casting at a glance.
+**A 60-card Dark Tales companion wave.** Nine Lives, Preserve, and Empower
+return to the storybook set, and two ultra rares join its headliners.
 
-**Art polish across the collection.** Seventeen Yokai Nights cards wear
-refreshed crops, five masks were fully recomposed so their whole faces
-show, and six cards from the 1.5 balance pass received their finished art.
+**Card backs and playmats.** Cosmetics are account-level, unlock outside the
+economy, and follow you into pack opening and the duel table.
+
+**Premium presentation.** A multi-pack open is now one continuous rail of every
+pull in ascending rarity, with a full stop and a spotlight on an ultra rare.
+The mulligan is a real ritual with a riffle and drag-to-bottom staging. Casting
+lifts the card and lets you carry it to the field, and taking a land out of
+Reserves fans the kinds you can play instead of opening a modal. The
+Achievements screen is a five-wing hall, and you can pin three trophies to your
+Profile.
+
+**A tutorial that teaches the game you actually play.** The opening lesson is
+the Warchest itself, followed by taking your first land out of Reserves.
 
 ## How to play
 
@@ -83,7 +91,7 @@ The main menu routes to:
 | **Play → Practice** | A one-off duel with no ladder attached: pick any of the 22 tower bosses (with their deck and personality) or a plain Easy / Medium / Hard opponent. |
 | **Shop** | Buy a 9-card booster (Base Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, Cyberpunk Yokai Nights, or Sands of the Duat) and watch the rarity/frame/holo reveal animate slot by slot, or buy whole decks (the unpicked starters and the expansion precons) from the Decks tab, each with a full-stats preview. Every booster carries an info glyph with that set's exact drop rates. |
 | **Collection** | A binder-style spread of every card you own, filterable by color / type / rarity / set / owned, showing your best-owned print of each plus pool and special-variant completion progress, with a Craft action on any card you're missing. |
-| **Decks** | Pick your active deck, and build or edit your 60-card decks from your owned collection. |
+| **Decks** | Pick your active deck, and build or edit your decks and Warchests from your owned collection. |
 | **Achievements** | Review locked/unlocked/claimed goals and claim gold rewards for collection, variant, themed, mastery, and economy milestones. |
 | **Card Showcase** | A gallery of every frame style and holo finish available on a given card. |
 
@@ -112,9 +120,9 @@ For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the even
 
 ## Project status
 
-**Darling Blades is 1.5.5**, released 2026-08-04 (tag v1.5.5). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,019 collectible cards have finished illustrated art, and the test suite is green.
+**Darling Blades is 1.6.0**, released 2026-08-23 (tag v1.6.0). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,079 collectible cards have finished illustrated art, the 22-rung tower is measured against win-rate floors, and the test suite is green.
 
-**Coming after 1.5.5:** the 1.6 Warchest launch moves the reserve mana system across the game and retires classic constructed through a deck-fix flow. The train also carries reopened response windows, Premium UX Wave B, returning-mechanics support, cosmetics, and the first large reserve-native expansion. Suggested decks, a cinematic replay director, Story Mode, later expansions, player-made card packs, and real head-to-head LAN multiplayer remain further out.
+**Coming after 1.6:** collection pacing gets a second look now that the pool has grown past a thousand cards, and Draft's reserve-native design is the next large open question. Suggested decks, a cinematic replay director, Story Mode, later expansions, player-made card packs, and real head-to-head LAN multiplayer remain further out.
 
 ## About this project
 
