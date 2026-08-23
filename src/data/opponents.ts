@@ -475,11 +475,17 @@ export interface Avatar {
  * quality-led deck rebuilds. Run with three lanes under the owner's 65% CPU
  * cap; see the scripts' headers for the shard math.
  *
- * SCOPE NOTE - this does NOT supersede the W7 classic table above. The 1.6
- * plan assumed the re-baseline would replace it, but classic has not retired:
- * the Tower still pilots avatar.deck and Draft's reserve-native design is
- * still an open decision, so W7 remains the live authority for the classic
- * ladder and its floors. This table is the authority for the RESERVE field.
+ * SCOPE NOTE - SUPERSEDED 2026-08-23. As written on 2026-08-09 this said the
+ * W7 classic table above remained "the live authority for the classic ladder
+ * and its floors", because "classic has not retired: the Tower still pilots
+ * avatar.deck". Classic retired the NEXT DAY (2026-08-10, FEATURES
+ * .classicRetired): DuelScene seats avatarReserveSide for every gauntlet duel,
+ * so nothing pilots avatar.deck any more. runFloorMatrix and the tier dial
+ * rows were both migrated to reserve-native that day; runAvatarMatrix was not,
+ * which left the PUBLIC rung-floor gate in tests/ai/winrate.test.ts pricing a
+ * dead format until 2026-08-23. It is reserve-native now, and the W7 classic
+ * table below is history, not authority. The reserve tables are the only live
+ * baseline; avatar.deck survives only as the converter's SOURCE list.
  *
  * AVATAR LADDER - WARCHEST (--avatars-reserve, 200 seeds/cell, avatars vs
  * all 11 shipped player decks): R1-R20 averages 23, 14, 34, 51, 53, 53, 85,
@@ -3354,7 +3360,7 @@ export const AVATARS: readonly Avatar[] = [
   },
 
   // ---------------------------------------------------------------------
-  // Rung 21 - Bastet, Mistress of the Ninth Return: R/W Bastet twinBlades pressure. (Hard · Sands of the Duat summit)
+  // Rung 21 - Anubis, Who Holds the Scale: W/B Judgment control. (Hard · Sands of the Duat)
   {
     id: 'anubis-who-holds-the-scale',
     name: 'Anubis, Who Holds the Scale',
@@ -3392,20 +3398,46 @@ export const AVATARS: readonly Avatar[] = [
       ['sd-priestess-of-the-emptied-jar', 2],
       ['sd-give-it-the-better-one', 2],
     ]),
-    // Deterministic converter output from the classic list, generated 2026-08-21.
+    // HAND-TUNED 2026-08-23 (rung-21 tuning pass), measured 33% -> 57% at 40
+    // seeds/cell on the reserve-native avatar matrix; 200-seed confirmation
+    // and the re-centred floor live in tests/ai/winrate.test.ts.
+    //
+    // WHY THE CONVERTER BUILD FAILED, in the order the evidence landed:
+    //   1. FOUR DEAD CARDS. It retained sd-strike-the-lintel x4 from her
+    //      classic list because the card is an "eligible spell", but that
+    //      charm targets artifactOrEnchantment and the five starter reserve
+    //      columns contain ZERO artifacts and ZERO enchantments. She was
+    //      playing 36 cards against 40. Swapping those four alone for real
+    //      removal (in-reapers-due) measured 33% -> 41%.
+    //   2. LOW-IMPACT BODIES AT THE SAME COST. sd-canopic-grave-warden is a
+    //      3/3 for {3}B where sd-devourers-retainer is a 5/5 for {3}B, and
+    //      she was capped at 2 copies of a 7/6. Quality-at-equal-mana took
+    //      41% -> 48%.
+    //   3. NO ANSWER TO deathblade. Grave Harvest fields 13 deathblade
+    //      creatures, which blank big bodies (a 1/3 eats a 7/6), and that
+    //      cell sat at 15%. firstBlade beats deathblade, so
+    //      cf-sidhe-silver-lancer (3/3 sentinel/firstBlade) went in: that
+    //      cell 15% -> 38% and the row 48% -> 57%.
+    // MEASURED AND REJECTED: loading the curve with mv6-7 top end (35%, it
+    // is a 10-land format) and so-creeping-malaise x4, the pool's only mass
+    // effect (29% - the symmetric -1/-1 costs her more than the opponent,
+    // because her own board is small utility bodies).
+    // The {4:10, 5:4} curve CAP was never binding here (she used 2 and 2);
+    // the defect is the RETENTION rule, which has no notion of whether a
+    // retained card has legal targets in the format it is being built for.
     reserveDeck: expand([
       ['sd-anubis-who-holds-the-scale', 2],
-      ['sd-resin-handed-embalmer', 4],
+      ['cf-sidhe-silver-lancer', 4],
       ['sd-keeper-of-the-sealed-jar', 2],
-      ['sd-canopic-grave-warden', 4],
-      ['sd-claw-handed-embalmer', 4],
+      ['sd-devourers-retainer', 4],
       ['sd-one-clean-cut', 4],
       ['sd-cut-the-wrappings', 4],
-      ['sd-strike-the-lintel', 4],
+      ['in-reapers-due', 4],
       ['sd-the-gate-is-closed', 2],
-      ['sd-the-heavier-offering', 2],
+      ['sd-the-heavier-offering', 4],
+      ['sd-gatekeeper-judge', 2],
       ['sd-priestess-of-the-emptied-jar', 4],
-      ['sd-give-it-the-better-one', 4],
+      ['cf-moorland-guide', 4],
     ]),
     landReserve: expand([
       ['sd-land-the-weighing-hall', 4],
@@ -3495,6 +3527,9 @@ export const AVATARS: readonly Avatar[] = [
     ],
     darlingId: 'sd-anubis-who-holds-the-scale',
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 22 - Bastet, Mistress of the Ninth Return: R/W Bastet twinBlades pressure. (Hard · Sands of the Duat summit)
   {
     id: 'bastet-mistress-of-the-ninth-return',
     name: 'Bastet, Mistress of the Ninth Return',
@@ -3632,9 +3667,6 @@ export const AVATARS: readonly Avatar[] = [
     ],
     darlingId: 'sd-bastet-mistress-of-the-ninth-return',
   },
-
-  // ---------------------------------------------------------------------
-  // Rung 22 - Anubis, Who Holds the Scale: W/B Judgment control. (Hard · Sands of the Duat summit)
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */

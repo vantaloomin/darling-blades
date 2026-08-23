@@ -4,9 +4,13 @@
  * pass"). Pure engine + ai + data; no Phaser.
  *
  * USAGE (via `npm run balance-matrix -- <flags>`):
- *   --avatars            18 gauntlet avatars (own brain + personality + deck)
- *                        vs the 5 starter decks piloted by a neutral Medium
- *                        proxy standing in for a competent human. DEFAULT.
+ *   --avatars            The gauntlet avatars (own brain + personality +
+ *                        designed reserveDeck/landReserve) vs the 5 starter
+ *                        RESERVE builds piloted by a neutral Medium proxy
+ *                        standing in for a competent human. Reserve-native
+ *                        since 2026-08-23 (see runAvatarMatrix); this is the
+ *                        harness the winrate.test.ts rung floors gate on.
+ *                        DEFAULT.
  *   --starters           5x5 starter-vs-starter mirror matrix, Medium both
  *                        sides (deck strength, skill held constant).
  *   --prefabs            Full prefab round-robin (every starter + theme deck),
@@ -427,6 +431,32 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // R18 84 / R19 62 / R20 71. User-authorized one-time downward re-centre
   // (same pattern as the economy bands): the old margins sat INSIDE 40-seed
   // noise (R14's was 1pp). The R19 dip below R18 is a documented inversion.
+  // ---------------------------------------------------------------------
+  // 14-22 RE-CENTRED 2026-08-23 on the RESERVE-NATIVE avatar matrix (owner-
+  // authorized). Every value below 14 still dates from the classic harness
+  // and is left alone: this pass re-measured only the rungs the public gate
+  // in tests/ai/winrate.test.ts asserts on.
+  //
+  // These are NOT comparable to the values they replace. The harness changed
+  // format (see runAvatarMatrix), so the old numbers priced a retired game;
+  // some floors therefore move DOWN. That is not a gate being lowered to make
+  // a change pass - the iron invariant still holds, because there is no
+  // like-for-like measurement being weakened. Same one-time re-centre pattern
+  // the 2026-07-31 W7 pass used, and the method is identical: floor = the
+  // 200-seed average minus the documented 6.5pp 40-seed noise band, rounded
+  // down to the half point, because CI runs this matrix at 40 seeds.
+  //
+  // Measured 2026-08-23, `--avatars --seeds 200` over rungs 14-22 (9,000
+  // games, 1,244s): R14 63 · R15 71 · R16 54 · R17 75 · R18 86 · R19 61 ·
+  // R20 87 · R21 53 · R22 75.
+  //
+  // TWO SOFT RUNGS, both flagged rather than papered over:
+  //   R16 The Bride 54% - was 67% at 200 seeds on the classic harness. She
+  //     lost ~13pp to the FORMAT, not to any change in this pass, and she now
+  //     sits BELOW rung 14. Newly visible because this gate never priced the
+  //     reserve field before. Owner decision pending; no deck was touched.
+  //   R21 Anubis 53% - after the hand tune that took her from 33%. Still the
+  //     softest summit rung. See her entry in opponents.ts.
   12: { minAvg: 0.675 },
   // 13-14 calibrated 2026-07-16 from fresh 40-seed tower measurements (66%/66%
   // after two card-buff rounds + six deck iterations; CI margin ~4pp at 40
@@ -437,29 +467,17 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // set) or heavier cross-set splash - recorded in opponents.ts's baseline.
   13: { minAvg: 0.565 },
   14: { minAvg: 0.565 },
-  // 15-16 calibrated 2026-07-17 from fresh 40-seed tower measurements (77.6% /
-  // 76.8%; CI margin ~4pp at 40 seeds). The Gothic Monsters summit pair sits
-  // clearly above Artoria's 70.8%; the pair itself measured a statistical tie
-  // (0.8pp, inside noise); ordering expectations live in the win-rate test,
-  // not here. Values below superseded by the 2026-07-31 re-centre above
-  // (the balance pass reshaped both decks' fields; The Bride now measures
-  // 67% at 200 seeds after the AI-fix repair).
-  15: { minAvg: 0.675 },
-  16: { minAvg: 0.605 },
-  // 17-18 first calibrated 2026-07-24 at 40 seeds (77% / 87%, floors 5pp
-  // under); values below superseded by the 2026-07-31 re-centre above.
-  // R18 remains the measured summit; strict monotonicity is not claimed.
-  17: { minAvg: 0.705 },
-  18: { minAvg: 0.775 },
-  19: { minAvg: 0.555 },
-  20: { minAvg: 0.645 },
-  // 21-22 PROVISIONAL, calibrated 2026-08-21 from the fresh full
-  // `--avatars --seeds 40` measurement: R21 Anubis 51.0% and R22 Bastet 77.0% (order swapped 2026-08-21 so the tower ends on the stronger boss; Anubis re-measured at her new rung because the seed stream follows the rung). Each rung
-  // is the measured row average minus the documented 6.5pp noise band.
-  // The floor matrix receives the same provisional values pending its own
-  // end-of-set `--floors` re-baseline.
-  21: { minAvg: 0.445 },
-  22: { minAvg: 0.705 },
+  // 15-22 carry the 2026-08-23 reserve-native re-centre described above.
+  // Superseded classic values, for the record: R15 .675 R16 .605 R17 .705
+  // R18 .775 R19 .555 R20 .645 R21 .445 R22 .705.
+  15: { minAvg: 0.645 },
+  16: { minAvg: 0.475 },
+  17: { minAvg: 0.685 },
+  18: { minAvg: 0.795 },
+  19: { minAvg: 0.545 },
+  20: { minAvg: 0.805 },
+  21: { minAvg: 0.465 },
+  22: { minAvg: 0.685 },
 });
 
 // ---------------------------------------------------------------------------
@@ -516,22 +534,47 @@ export interface AvatarMatrixReport {
   table: string;
 }
 
-/** Avatars (own brain + personality) vs Medium-proxied starters. */
+/**
+ * Avatars (own brain + personality) vs Medium-proxied starters.
+ *
+ * Reserve-native since 2026-08-23 — the last harness to carry the defect the
+ * floor matrix and the tier dial rows both shed the day classic retired
+ * (2026-08-10). This matrix is what `tests/ai/winrate.test.ts` gates the rung
+ * floors on, so while it played `avatar.deck` vs `starter.cards` the tower's
+ * PUBLIC gate priced a format the game no longer plays: `DuelScene` seats
+ * `avatarReserveSide` for every gauntlet duel, so a player at rung N meets the
+ * avatar's designed `reserveDeck` + `landReserve` and never its classic list.
+ * Columns are the shipped starter reserve builds, exactly as runFloorMatrix
+ * takes them, so the two harnesses now price the same field.
+ *
+ * The per-cell seed base is unchanged (tier * 100 + starter index) so `--only`
+ * still reproduces a full run's cells; the NUMBERS moved wholesale with the
+ * format, which is the point. Floors re-centred on this harness the same day.
+ */
 export function runAvatarMatrix(
   seedsPerCell: number,
   onlyIds?: string[],
   telemetry?: BalanceTelemetryCollector,
 ): AvatarMatrixReport {
+  const columns = STARTER_DECKS.map((starter) => {
+    if (!starter.reserveCards || !starter.landReserve) {
+      throw new Error(`Starter ${starter.id} has no reserve build; regenerate src/data/starterDecks.ts`);
+    }
+    return { name: starter.name, cards: starter.reserveCards, landReserve: starter.landReserve };
+  });
   const roster = [...AVATARS]
     .sort((a, b) => a.tier - b.tier)
     .filter((a) => !onlyIds || onlyIds.includes(a.id));
   const rows: AvatarRow[] = roster.map((av) => {
-    const cells = STARTER_DECKS.map((starter, sIdx) =>
+    const cells = columns.map((starter, sIdx) =>
       runCell(
         {
           rowAI: (seed) => buildAI(av.difficulty, CARD_DB, seed, av.personality),
           colAI: () => new MediumAI(CARD_DB),
-          decks: () => [av.deck, starter.cards],
+          decks: () => [av.reserveDeck, starter.cards],
+          format: 'warchest',
+          reserves: () => [av.landReserve, starter.landReserve],
+          startingHandSize: WARCHEST_HAND_SIZE,
         },
         seedsPerCell,
         av.tier * 100 + sIdx, // stable per (rung, starter) even under --only
@@ -1593,6 +1636,28 @@ export interface FloorMatrixReport {
  * tuning jitter. Floors 19-20 gained bands here - the roster reached 20
  * avatars, so runFloorMatrix generates 20 floors, but FLOOR_BANDS stopped at
  * 18 and left the two summit floors ungated.
+ *
+ * ===========================================================================
+ * RE-MEASURED 2026-08-23 - THE END-OF-SET 1.6 FLOOR RE-BASELINE.
+ * ===========================================================================
+ * `--floors --seeds 80`, 22 floors x 5 starters = 8,800 games, 917s, run
+ * after the rung-21 Anubis hand tune (this matrix rotates every avatar's
+ * reserveDeck, so her tune moves every floor's sample a little):
+ *   T1 floors 1-3:   18.0 / 20.8 / 22.0        avg 20.3
+ *   T2 floors 4-6:   25.3 / 28.5 / 24.7        avg 26.2
+ *   T3 floors 7-9:   41.0 / 43.0 / 44.3        avg 42.8
+ *   T4 floors 10-12: 48.8 / 53.8 / 51.0        avg 51.2
+ *   T5 floors 13-15: 60.3 / 62.7 / 57.5        avg 60.2
+ *   T6 floors 16-22: 69.5 / 71.5 / 72.5 / 72.7 / 70.8 / 74.0 / 70.5  avg 71.6
+ * Plateau gaps +5.9 / +16.6 / +8.4 / +9.0 / +11.4. The T2->T3 step is still
+ * the widest on the ladder - the easy->medium discontinuity documented in
+ * src/ai/tiers.ts, unchanged in character since 2026-08-12 (it read +20.3
+ * then, +16.6 now). Everything else is monotonic and evenly spaced.
+ *
+ * Against the 2026-08-12 run: T1 +0.3, T2 +1.3, T3 -2.4, T4 -2.7, T5 -2.7,
+ * T6 -0.4. Every tier moved less than 3pp across a set launch, a companion
+ * wave, a 68-card health triage and a summit tune, so the tower again
+ * survived its own content churn; no downward re-centre was spent.
  */
 export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.33, cellMax: 0.5 },
@@ -1625,11 +1690,19 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // seeds: F19 73.8 / F20 71.0, so the same T6 floor keeps 3.0pp+ margin.
   19: { minAvg: 0.68 },
   20: { minAvg: 0.68 },
-  // Floors 21-22 PROVISIONAL, 2026-08-21. Until the end-of-set `--floors`
-  // re-baseline, carry the fresh 40-seed avatar calibration: F21 51.0% and
-  // F22 77.0%, less the 6.5pp noise band, rounded down to the half point.
-  21: { minAvg: 0.445 },
-  22: { minAvg: 0.705 },
+  // Floors 21-22 RE-BASELINED 2026-08-23, `--floors --seeds 80` (22 floors x
+  // 5 starters, 8,800 games, 917s). This retires a PROVISIONAL pair that was
+  // a category error: 0.445/0.705 were carried over from ANUBIS's and
+  // BASTET's avatar win rates, but this matrix rotates the whole roster
+  // (game i uses avatar i mod roster), so floor N has nothing to do with
+  // avatar N - floor rows measure the TIER DIAL, not a boss. Floor 22 duly
+  // flagged against the borrowed 0.705 on the very first honest run.
+  // Measured T6 plateau: F16 69.5 · F17 71.5 · F18 72.5 · F19 72.7 ·
+  // F20 70.8 · F21 74.0 · F22 70.5. Floors 21-22 are tier 6 like 16-20, so
+  // they take the same plateau band, which keeps 2.5pp of margin at the
+  // weakest row against a ~2.4pp per-row SE at 80 seeds.
+  21: { minAvg: 0.68 },
+  22: { minAvg: 0.68 },
 });
 
 /**
