@@ -276,25 +276,38 @@ retired; this one was missed. It now fields each avatar's designed
 is what `DuelScene` seats for a real gauntlet duel. Numbers from before that
 date are not comparable to numbers after it.
 
-Measured 2026-08-23, `--avatars --seeds 200` over rungs 14-22 (9,000 games):
-R14 63 · R15 71 · R16 54 · R17 75 · R18 86 · R19 61 · R20 87 · R21 53 · R22 75.
-Floors are each average less the documented 6.5pp 40-seed noise band, rounded
-down to the half point, since CI runs the matrix at 40 seeds.
+Measured 2026-08-23, `--avatars --seeds 200` over rungs 14-22 (9,000 games),
+after the two summit tunes below: R14 63 · R15 71 · R16 69 · R17 75 · R18 86 ·
+R19 61 · R20 87 · R21 57 · R22 75, FLAGS none. Floors are each average less the
+documented 6.5pp 40-seed noise band, rounded down to the half point, since CI
+runs the matrix at 40 seeds.
 
-Two rungs are soft on the reserve field and are carried as known, not hidden:
+Two rungs were hand-tuned in the same pass, and they failed for **different**
+converter reasons, which is why both are recorded rather than summarised:
 
-- **Rung 21 Anubis** was hand-tuned in the same pass, from 33% to 53%. Her
-  converter-generated build was retaining four copies of a charm that targets
-  artifacts or enchantments into a format whose five starter columns contain
-  neither, so a tenth of her deck was blank in every game. The other two
-  levers were body quality at equal mana and a `firstBlade` answer to Grave
-  Harvest's thirteen `deathblade` creatures. She is still the softest summit
-  rung; the full evidence chain, including the two measured-and-rejected
-  drafts, lives in her `src/data/opponents.ts` entry.
-- **Rung 16 The Bride** measures 54%, against 67% on the old classic harness,
-  and now sits below rung 14. No deck of hers changed: she lost that ground to
-  the format, and it was invisible while this gate priced classic. Carried as
-  a documented ladder inversion pending an owner call.
+- **Rung 21 Anubis, 33% to 57%.** Her build retained four copies of a charm
+  that targets artifacts or enchantments into a format whose five starter
+  columns contain neither, so a tenth of her deck was blank in every game.
+  Body quality at equal mana and a `firstBlade` answer to Grave Harvest's
+  thirteen `deathblade` creatures followed. The largest single lever was
+  cheapening her curve: four of her ten lands enter tapped while Crimson
+  Muster's ten are all basics, and `landReserve` is pinned to the converter, so
+  tempo has to be bought with cheaper spells rather than better ones.
+- **Rung 16 The Bride, 54% to 69%.** She had dropped below rung 14 on the
+  reserve field with no deck change of her own - she lost that ground to the
+  format on 2026-08-10, and it was invisible while this gate priced classic.
+  Here the curve cap **was** binding: she is mv6 and `CURVE_CAP` allows two, so
+  the build shipped two copies of the legend her classic list runs four of. She
+  was also a reanimator with nothing worth reanimating, the archetype blindness
+  [plan-1.6.md](plan-1.6.md) says needs Hel's exemption.
+
+Both exemptions are registered in `tests/data/avatarReserveDecks.test.ts` and
+hold only while they keep measuring better than the builder. Every rejected
+draft is retained in the avatars' `src/data/opponents.ts` entries, including
+two that look like obvious improvements and measured as losses.
+
+The ladder still dips at R19 (61) and R21 (57) relative to R18 and R20. That is
+the accepted non-monotonic summit shape, not a regression.
 
 ## Tower strength tiers (the decision-noise dial)
 

@@ -83,6 +83,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     'hel',
     'glass-coffin-queen',
     'anubis-who-holds-the-scale',
+    'the-bride',
   ]);
 
   it('untuned committed data IS the deterministic converter output', () => {

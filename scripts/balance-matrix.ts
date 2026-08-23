@@ -447,16 +447,20 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // down to the half point, because CI runs this matrix at 40 seeds.
   //
   // Measured 2026-08-23, `--avatars --seeds 200` over rungs 14-22 (9,000
-  // games, 1,244s): R14 63 · R15 71 · R16 54 · R17 75 · R18 86 · R19 61 ·
-  // R20 87 · R21 53 · R22 75.
+  // games, 1,473s), AFTER both summit tunes: R14 63 · R15 71 · R16 69 ·
+  // R17 75 · R18 86 · R19 61 · R20 87 · R21 57 · R22 75. FLAGS none.
   //
-  // TWO SOFT RUNGS, both flagged rather than papered over:
-  //   R16 The Bride 54% - was 67% at 200 seeds on the classic harness. She
-  //     lost ~13pp to the FORMAT, not to any change in this pass, and she now
-  //     sits BELOW rung 14. Newly visible because this gate never priced the
-  //     reserve field before. Owner decision pending; no deck was touched.
-  //   R21 Anubis 53% - after the hand tune that took her from 33%. Still the
-  //     softest summit rung. See her entry in opponents.ts.
+  // Two rungs were hand-tuned in this pass, each for a DIFFERENT converter
+  // defect (both recorded in full in their opponents.ts entries):
+  //   R16 The Bride 54% -> 69%. The curve cap {6:2} halved her legend from
+  //     the 4 copies her classic list runs, and she is a reanimator whose
+  //     reanimation had no target worth raising. She no longer sits below
+  //     rung 14, so the R16/R14 tolerance gate is a real ordering check again.
+  //   R21 Anubis 33% -> 57%. Four dead cards, then body quality, then a
+  //     firstBlade answer to deathblade, then - the largest single lever -
+  //     cheap removal to offset four taplands she cannot change.
+  // The ladder still dips at R19 (61) and R21 (57) relative to R18/R20; that
+  // shape is the accepted, documented non-monotonic summit, not a regression.
   12: { minAvg: 0.675 },
   // 13-14 calibrated 2026-07-16 from fresh 40-seed tower measurements (66%/66%
   // after two card-buff rounds + six deck iterations; CI margin ~4pp at 40
@@ -471,12 +475,12 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // Superseded classic values, for the record: R15 .675 R16 .605 R17 .705
   // R18 .775 R19 .555 R20 .645 R21 .445 R22 .705.
   15: { minAvg: 0.645 },
-  16: { minAvg: 0.475 },
+  16: { minAvg: 0.625 },
   17: { minAvg: 0.685 },
   18: { minAvg: 0.795 },
   19: { minAvg: 0.545 },
   20: { minAvg: 0.805 },
-  21: { minAvg: 0.465 },
+  21: { minAvg: 0.505 },
   22: { minAvg: 0.685 },
 });
 
@@ -1640,24 +1644,26 @@ export interface FloorMatrixReport {
  * ===========================================================================
  * RE-MEASURED 2026-08-23 - THE END-OF-SET 1.6 FLOOR RE-BASELINE.
  * ===========================================================================
- * `--floors --seeds 80`, 22 floors x 5 starters = 8,800 games, 917s, run
- * after the rung-21 Anubis hand tune (this matrix rotates every avatar's
- * reserveDeck, so her tune moves every floor's sample a little):
- *   T1 floors 1-3:   18.0 / 20.8 / 22.0        avg 20.3
- *   T2 floors 4-6:   25.3 / 28.5 / 24.7        avg 26.2
- *   T3 floors 7-9:   41.0 / 43.0 / 44.3        avg 42.8
- *   T4 floors 10-12: 48.8 / 53.8 / 51.0        avg 51.2
- *   T5 floors 13-15: 60.3 / 62.7 / 57.5        avg 60.2
- *   T6 floors 16-22: 69.5 / 71.5 / 72.5 / 72.7 / 70.8 / 74.0 / 70.5  avg 71.6
- * Plateau gaps +5.9 / +16.6 / +8.4 / +9.0 / +11.4. The T2->T3 step is still
- * the widest on the ladder - the easy->medium discontinuity documented in
- * src/ai/tiers.ts, unchanged in character since 2026-08-12 (it read +20.3
- * then, +16.6 now). Everything else is monotonic and evenly spaced.
+ * `--floors --seeds 80`, 22 floors x 5 starters = 8,800 games, 1,217s, run
+ * after BOTH summit hand tunes (rung 16 The Bride and rung 21 Anubis). This
+ * matrix rotates every avatar's reserveDeck, so both tunes move every floor's
+ * sample - by about a ninth of its games each, which is why the movement is
+ * small and even:
+ *   T1 floors 1-3:   18.3 / 20.8 / 22.0        avg 20.4
+ *   T2 floors 4-6:   25.7 / 29.5 / 25.0        avg 26.7
+ *   T3 floors 7-9:   41.0 / 42.0 / 43.5        avg 42.2
+ *   T4 floors 10-12: 48.3 / 54.0 / 52.0        avg 51.4
+ *   T5 floors 13-15: 60.7 / 61.7 / 57.8        avg 60.1
+ *   T6 floors 16-22: 69.3 / 71.8 / 72.3 / 73.3 / 71.8 / 74.3 / 71.0  avg 72.0
+ * Plateau gaps +6.3 / +15.5 / +9.2 / +8.7 / +11.9. FLAGS none. The T2->T3 step
+ * is still the widest on the ladder - the easy->medium discontinuity recorded
+ * in src/ai/tiers.ts, unchanged in character since 2026-08-12.
  *
- * Against the 2026-08-12 run: T1 +0.3, T2 +1.3, T3 -2.4, T4 -2.7, T5 -2.7,
- * T6 -0.4. Every tier moved less than 3pp across a set launch, a companion
- * wave, a 68-card health triage and a summit tune, so the tower again
- * survived its own content churn; no downward re-centre was spent.
+ * No band moved. Against the pre-tune run earlier the same day every floor
+ * shifted under 1.5pp (largest: F14 -1.0, F20 +1.0), and against 2026-08-12
+ * every TIER moved under 3pp. The tower has now absorbed a set launch, a
+ * companion wave, a 68-card health triage and two summit tunes without a
+ * downward re-centre being spent.
  */
 export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   1: { maxAvg: 0.33, cellMax: 0.5 },
