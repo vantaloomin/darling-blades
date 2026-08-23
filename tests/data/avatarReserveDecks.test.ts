@@ -68,7 +68,23 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
   // exemption rule is unchanged: a hand tune only holds while it still
   // measures better than the builder, and the flip re-tests R17 against the
   // gate-open builder.
-  const HAND_TUNED_WARCHEST = new Set(['morgan', 'hel', 'glass-coffin-queen']);
+  // 2026-08-23 rung-21 tuning pass: anubis-who-holds-the-scale joins on the
+  // same archetype-blindness grounds as hel. Her converter build measured 33%
+  // on the (now reserve-native) avatar matrix with a 10% worst cell; the hand
+  // tune measures 57%, so the exemption is earned under the standing rule.
+  // The headline defect is one the converter can hit for ANY avatar: it
+  // retained sd-strike-the-lintel x4 (targets artifactOrEnchantment) into a
+  // format whose five starter columns contain zero artifacts and zero
+  // enchantments, so 4 of her 40 cards were blank in 100% of games. Retention
+  // eligibility does not check that a card has legal targets. Full evidence
+  // chain in her opponents.ts entry.
+  const HAND_TUNED_WARCHEST = new Set([
+    'morgan',
+    'hel',
+    'glass-coffin-queen',
+    'anubis-who-holds-the-scale',
+    'the-bride',
+  ]);
 
   it('untuned committed data IS the deterministic converter output', () => {
     // Card-content identity, order-insensitive: the committed literals group

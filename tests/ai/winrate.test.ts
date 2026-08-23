@@ -116,7 +116,7 @@ describe('AI win-rate gates', () => {
     expect(rate).toBeGreaterThanOrEqual(0.7);
   }, 600_000);
 
-  it('Dark Tales summit rungs clear fresh 40-seed floors and terminate', () => {
+  it('summit rungs 14-22 clear their reserve-native 40-seed floors and terminate', () => {
     const report = runAvatarMatrix(40);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
     const r14 = row('artoria');
@@ -139,29 +139,51 @@ describe('AI win-rate gates', () => {
     expect(r22).toBeDefined();
     if (!r14 || !r15 || !r16 || !r17 || !r18 || !r19 || !r20 || !r21 || !r22) return;
 
-    // Floors re-centred 2026-07-31 from the W7 combined re-baseline at
-    // 200 seeds/cell (w7 chain, post-balance-pass field: cap-4 blockers,
-    // sweepers, tapland riders, tribal lords, Neon rebuild). Each floor is
-    // the 200-seed average minus a full 40-seed noise band (6.5pp), per the
-    // user-authorized one-time downward re-centre — CI stays 40 seeds with
-    // margins that now sit OUTSIDE the noise instead of inside it.
-    // 200-seed averages: R14 63% / R15 74% / R16 67% / R17 77% / R18 84% /
-    // R19 62% / R20 71%. R18 is the measured summit; the R19 dip below R18
-    // is a documented ladder inversion, accepted pending future set answers.
-    expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.675);
-    expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.605);
-    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.705);
-    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.775);
-    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.555);
-    expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.645);
-    // Fresh 2026-08-21 Sands of the Duat full-ladder measurement, 40
-    // seeds/cell: R21 Anubis 51.0% and R22 Bastet 77.0% (rung order swapped 2026-08-21; Anubis measured 57.5% at rung 22 before the swap - the per-cell seed stream follows the rung, so her post-swap sample is the canonical one). These floors leave roughly 5pp
-    // below the measured averages after rounding down to the half point.
-    expect(r21.avg, 'Anubis provisional floor').toBeGreaterThanOrEqual(0.46);
-    expect(r22.avg, 'Bastet provisional floor').toBeGreaterThanOrEqual(0.72);
+    // FLOORS RE-CENTRED 2026-08-23 on the reserve-native avatar matrix.
+    //
+    // Until this date runAvatarMatrix played `avatar.deck` vs `starter.cards`
+    // - the CLASSIC lists - so this gate, the tower's only public win-rate
+    // gate, priced a format retired on 2026-08-10. runFloorMatrix and the tier
+    // dial rows were migrated the day classic retired; this harness was missed.
+    // It is reserve-native now: each avatar's designed reserveDeck+landReserve
+    // vs the shipped starter reserve builds, which is what DuelScene actually
+    // seats for a gauntlet duel.
+    //
+    // The numbers below are therefore NOT comparable to the ones they replace,
+    // and some floors moved DOWN. Nothing was lowered to make a change pass -
+    // the old values measured a different game. Owner-authorized, same
+    // one-time re-centre pattern as the 2026-07-31 W7 pass.
+    //
+    // Measured `--avatars --seeds 200` over rungs 14-22 (9,000 games), after
+    // the two summit tunes below:
+    //   R14 63 · R15 71 · R16 69 · R17 75 · R18 86 · R19 61 · R20 87 ·
+    //   R21 57 · R22 75          FLAGS none
+    // Each floor is that average minus the documented 6.5pp 40-seed noise
+    // band, rounded down to the half point (CI runs this matrix at 40 seeds).
+    expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.645);
+    // R16 The Bride was HAND-TUNED in this pass, 54% -> 69%. The converter's
+    // curve cap {6:2} had halved her legend from the 4 copies her own classic
+    // list runs, and left her a reanimator with nothing worth reanimating
+    // (4x Stormtower Resurrection raising a 3/2). She had fallen BELOW rung
+    // 14 on the reserve field; she no longer does.
+    expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.625);
+    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.685);
+    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.795);
+    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.545);
+    expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.805);
+    // R21 Anubis HAND-TUNED 33% -> 57%. Her converter build retained four
+    // cards targeting artifactOrEnchantment into a format whose starter
+    // columns hold none, so a tenth of her deck was blank in every game. The
+    // largest single lever afterwards was cheap removal: four of her ten
+    // lands enter tapped and landReserve is pinned to the converter, so she
+    // cannot buy that tempo back any other way. Evidence chain, including
+    // every rejected draft, lives in her opponents.ts entry.
+    expect(r21.avg, 'Anubis floor').toBeGreaterThanOrEqual(0.505);
+    expect(r22.avg, 'Bastet floor').toBeGreaterThanOrEqual(0.685);
     expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
-    // R16 vs R14 measured 67% vs 63% at 200 seeds — real but only 4pp, inside
-    // 40-seed noise, so strict ordering would flake in CI. Tolerance gate.
+    // Restored 2026-08-23 as a genuine ordering check: R16 measures 69% to
+    // R14's 63%, so the tolerance gate below is doing real work again rather
+    // than papering over the format inversion it briefly carried.
     expect(r16.avg, 'rung 16 must not fall behind rung 14').toBeGreaterThanOrEqual(r14.avg - 0.05);
     expect(r17.avg, 'rung 17 must clear rung 16').toBeGreaterThan(r16.avg);
     expect(r18.avg, 'rung 18 must be the measured summit').toBeGreaterThan(r17.avg);

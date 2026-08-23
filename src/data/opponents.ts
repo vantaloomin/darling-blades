@@ -475,11 +475,17 @@ export interface Avatar {
  * quality-led deck rebuilds. Run with three lanes under the owner's 65% CPU
  * cap; see the scripts' headers for the shard math.
  *
- * SCOPE NOTE - this does NOT supersede the W7 classic table above. The 1.6
- * plan assumed the re-baseline would replace it, but classic has not retired:
- * the Tower still pilots avatar.deck and Draft's reserve-native design is
- * still an open decision, so W7 remains the live authority for the classic
- * ladder and its floors. This table is the authority for the RESERVE field.
+ * SCOPE NOTE - SUPERSEDED 2026-08-23. As written on 2026-08-09 this said the
+ * W7 classic table above remained "the live authority for the classic ladder
+ * and its floors", because "classic has not retired: the Tower still pilots
+ * avatar.deck". Classic retired the NEXT DAY (2026-08-10, FEATURES
+ * .classicRetired): DuelScene seats avatarReserveSide for every gauntlet duel,
+ * so nothing pilots avatar.deck any more. runFloorMatrix and the tier dial
+ * rows were both migrated to reserve-native that day; runAvatarMatrix was not,
+ * which left the PUBLIC rung-floor gate in tests/ai/winrate.test.ts pricing a
+ * dead format until 2026-08-23. It is reserve-native now, and the W7 classic
+ * table below is history, not authority. The reserve tables are the only live
+ * baseline; avatar.deck survives only as the converter's SOURCE list.
  *
  * AVATAR LADDER - WARCHEST (--avatars-reserve, 200 seeds/cell, avatars vs
  * all 11 shipped player decks): R1-R20 averages 23, 14, 34, 51, 53, 53, 85,
@@ -2685,22 +2691,42 @@ export const AVATARS: readonly Avatar[] = [
       ['in-undertow', 4],
       ['gm-stormtower-resurrection', 4],
     ]),
+    // HAND-TUNED 2026-08-23 (rung-16 tuning pass): 54% -> 69%, measured at
+    // 200 seeds/cell on the reserve-native avatar matrix. She had fallen BELOW
+    // rung 14 on the reserve field - invisible until the avatar matrix stopped
+    // pricing classic - and no deck of hers had changed; she lost that ground
+    // to the format itself on 2026-08-10.
+    //
+    // Her converter build failed differently from Anubis's, which is why both
+    // are worth keeping on record:
+    //   1. THE CURVE CAP WAS BINDING, and it deleted her win condition. Her
+    //      classic list runs gm-bride-storm-crowned x4; she is mv6, CURVE_CAP
+    //      allows {6:2}, so the reserve build shipped TWO. Restored to 4.
+    //   2. A REANIMATOR WITH NOTHING TO REANIMATE. She runs 4x
+    //      gm-stormtower-resurrection (raise from your own graveyard) over a
+    //      deck whose largest body was that same 2-of legend: five mana to
+    //      raise a 3/2. This is the exact archetype-blindness plan-1.6.md
+    //      says needs Hel's exemption. Trimmed to 2 and given a real target
+    //      (sd-khenut, 6/6 dreaded).
+    //   3. NOTHING TO DO ON TURN 2. Her curve was mv1:5 mv3:19 mv4:10 - a
+    //      19-card clump at mv3 and a hole at mv2 - against a field whose
+    //      aggro column is 28 two-drops. tk-wu-daqiao (1/3 skyborne) fills it
+    //      and blocks the 21 skyborne the columns field.
+    //   4. SIX SINGLETON SLOTS consolidated into playsets.
+    // Cut for cause: gm-stitchwork-guardian x4 and the other bulwark bodies.
+    // bulwark CANNOT ATTACK, and seven such cards left her unable to close.
     reserveDeck: expand([
-      ['gm-bride-storm-crowned', 2],
-      ['so-divination', 4],
-      ['gm-stitchwork-guardian', 4],
+      ['gm-bride-storm-crowned', 4],
+      ['so-divination', 2],
+      ['tk-wu-daqiao', 4],
       ['gm-stormglass-golem', 4],
       ['gm-ravenloft-heiress', 4],
       ['gm-batcloak-cutthroat', 4],
       ['in-doom-bolt', 4],
       ['in-undertow', 4],
-      ['gm-stormtower-resurrection', 4],
-      ['gm-black-veil-matron', 1],
-      ['sd-fourth-weighing', 1],
-      ['gm-madame-macabre', 1],
-      ['cf-badb-cathas-warning', 1],
-      ['ar-training-dummy', 1],
-      ['cf-hollow-hill-gatekeeper', 1],
+      ['gm-stormtower-resurrection', 2],
+      ['gm-black-veil-matron', 4],
+      ['sd-khenut-who-pays-before-the-asking', 4],
     ]),
     landReserve: expand([
       ['ld-moonlit-marsh', 4],
@@ -3354,7 +3380,7 @@ export const AVATARS: readonly Avatar[] = [
   },
 
   // ---------------------------------------------------------------------
-  // Rung 21 - Bastet, Mistress of the Ninth Return: R/W Bastet twinBlades pressure. (Hard · Sands of the Duat summit)
+  // Rung 21 - Anubis, Who Holds the Scale: W/B Judgment control. (Hard · Sands of the Duat)
   {
     id: 'anubis-who-holds-the-scale',
     name: 'Anubis, Who Holds the Scale',
@@ -3392,20 +3418,62 @@ export const AVATARS: readonly Avatar[] = [
       ['sd-priestess-of-the-emptied-jar', 2],
       ['sd-give-it-the-better-one', 2],
     ]),
-    // Deterministic converter output from the classic list, generated 2026-08-21.
+    // HAND-TUNED 2026-08-23 (rung-21 tuning pass): 33% -> 57%, measured at
+    // 200 seeds/cell on the reserve-native avatar matrix. Cells 44/81/57/55/46.
+    //
+    // WHY THE CONVERTER BUILD FAILED, in the order the evidence landed:
+    //   1. FOUR DEAD CARDS. It retained sd-strike-the-lintel x4 because the
+    //      card is an "eligible spell", but that charm targets
+    //      artifactOrEnchantment and the five starter reserve columns hold
+    //      ZERO artifacts and ZERO enchantments. She played 36 cards against
+    //      40. Swapping those four for real removal: 33% -> 41%.
+    //   2. LOW-IMPACT BODIES AT THE SAME COST. sd-canopic-grave-warden is a
+    //      3/3 for {3}B where sd-devourers-retainer is a 5/5 for {3}B. 41 ->
+    //      48%.
+    //   3. NO ANSWER TO deathblade. Grave Harvest fields 13 deathblade
+    //      creatures, which blank big bodies (a 1/3 eats a 7/6); that cell sat
+    //      at 15%. firstBlade beats deathblade, so cf-sidhe-silver-lancer went
+    //      in: cell 15% -> 38%.
+    //   4. THE TAPLAND TAX, and the largest single lever. FOUR of her ten
+    //      lands are sd-land-the-weighing-hall, which is entersTapped, while
+    //      Crimson Muster's ten are all basics - she is structurally a tempo
+    //      behind her worst matchup and landReserve is pinned to the converter,
+    //      so she cannot buy it back. The answer is a cheaper curve, not more
+    //      threats: two weak mv4 3/3s became two {0}B in-grave-chill. +4pp,
+    //      and the worst cell went 30% -> 44%.
+    //
+    // TWO CARDS THAT LOOK CUTTABLE AND ARE NOT, both proved by measurement:
+    //   sd-priestess-of-the-emptied-jar x4 - a 1/2 that leaves a scarab token,
+    //     so it is two chump bodies against Shadow Mandate's creeping-malaise
+    //     and deathblade creatures. Cutting it crashed that cell 70% -> 39%.
+    //   sd-cut-the-wrappings x4 - removal is NOT fungible here: every Shadow
+    //     Mandate creature has 3+ toughness, so -3/-3 kills what -2/-2 cannot.
+    //     She needs both kinds and runs both.
+    //
+    // MEASURED AND REJECTED (kept so they are not retried): loading the curve
+    // with mv6-7 top end (35% - it is a 10-land format); so-creeping-malaise
+    // x4, the pool's only mass effect (29% - symmetric, and her own board is
+    // the smaller one); cutting removal for a second first-striker (52%); and
+    // an aggression-ward personality shift (57%, i.e. no change, so her shared
+    // personality was left alone rather than moved for nothing).
+    //
+    // The {4:10, 5:4} curve CAP was never binding here (she used 2 and 2);
+    // the defect is the RETENTION rule, which has no notion of whether a
+    // retained card has legal targets in the format it is being built for.
     reserveDeck: expand([
       ['sd-anubis-who-holds-the-scale', 2],
-      ['sd-resin-handed-embalmer', 4],
-      ['sd-keeper-of-the-sealed-jar', 2],
-      ['sd-canopic-grave-warden', 4],
-      ['sd-claw-handed-embalmer', 4],
+      ['cf-sidhe-silver-lancer', 4],
+      ['in-grave-chill', 2],
+      ['sd-devourers-retainer', 4],
       ['sd-one-clean-cut', 4],
       ['sd-cut-the-wrappings', 4],
-      ['sd-strike-the-lintel', 4],
+      ['in-reapers-due', 4],
       ['sd-the-gate-is-closed', 2],
-      ['sd-the-heavier-offering', 2],
+      ['sd-the-heavier-offering', 4],
+      ['sd-gatekeeper-judge', 2],
       ['sd-priestess-of-the-emptied-jar', 4],
-      ['sd-give-it-the-better-one', 4],
+      ['cf-moorland-guide', 2],
+      ['cf-cold-moon-archer', 2],
     ]),
     landReserve: expand([
       ['sd-land-the-weighing-hall', 4],
@@ -3495,6 +3563,9 @@ export const AVATARS: readonly Avatar[] = [
     ],
     darlingId: 'sd-anubis-who-holds-the-scale',
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 22 - Bastet, Mistress of the Ninth Return: R/W Bastet twinBlades pressure. (Hard · Sands of the Duat summit)
   {
     id: 'bastet-mistress-of-the-ninth-return',
     name: 'Bastet, Mistress of the Ninth Return',
@@ -3632,9 +3703,6 @@ export const AVATARS: readonly Avatar[] = [
     ],
     darlingId: 'sd-bastet-mistress-of-the-ninth-return',
   },
-
-  // ---------------------------------------------------------------------
-  // Rung 22 - Anubis, Who Holds the Scale: W/B Judgment control. (Hard · Sands of the Duat summit)
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
