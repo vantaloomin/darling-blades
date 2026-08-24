@@ -45,6 +45,18 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
 - **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built; see Project status below.
 
+## What's new in 1.6.2
+
+A patch for four problems reported the day 1.6.1 shipped.
+
+**Search finds every keyword and mechanic now.** Typing "Nine Lives", "Preserve", "Rite", "Retell" or "Hauntlink" into the Collection or the deck builder used to return nothing at all, and "Twin Blades" only worked if you typed half of it. Every rules term a card teaches is searchable, spelled the way the card spells it, including traits a card only grants to others.
+
+**The Glossary has been rebuilt.** It is now searchable, browsable by category, and it scrolls, so it will keep working as the game keeps growing. Four mechanics that had never been listed at all (Mark, Rite, Nine Lives and Preserve) are in it, and every entry has its own icon: twenty new ones, covering every mechanic, both Warchest zones, and all six card types.
+
+**Two cards you could never fully cast have been recosted.** Silt-Crowned Harvester and Ra, Helm of the Night Barge each asked for more mana than a ten-land Warchest can ever produce, so their Empower was unpayable. Both now land inside what a real game reaches.
+
+**An old deck tells you why it looks different.** Opening a deck built before the Warchest change showed you the old land layout with no explanation, and the repair notice complained about the card count instead of the format. It now says the format has retired and points at the two buttons that convert it.
+
 ## What's new in 1.6.1
 
 A patch for two problems a player hit on release day.
@@ -127,13 +139,13 @@ Darling Blades is TypeScript on Vite, rendered with Phaser 3.90 (pinned; never v
 
 The codebase is split into two halves that never touch each other's concerns. `src/engine/` is a pure, Phaser-free, deterministic rules engine: given a set of decklists, a seed, and a sequence of player actions, it produces the exact same game state and event stream on every machine, every time. State is plain JSON, so a `structuredClone` is the entire "save/replay" story, and even the RNG lives inside that state as data. A single facade validates and applies every action and emits events; the Phaser scenes (`src/scenes/`) only ever consume that event stream to animate, and hold no rules logic of their own. The AI (`src/ai/`) plays through that same engine via the identical redacted view a human sees, which is what makes the "no AI reads hidden information" guarantee structural instead of a promise in a comment.
 
-That separation is what makes a real test suite possible: **1,277 tests (4 skipped) across 134 files**, covering engine flow/combat/keywords/mana/RNG/determinism, the stack and effects, catalog integrity, meta systems (collection, economy, save migrations, gauntlet, achievements, daily quests, Limited drafting, deck share codes, deck color identity), the variant/drop-distribution math behind the booster system, economy EV gates and named exploit regressions backed by a 10-persona progression simulator, onboarding tutorial determinism, audio recipes and music patterns, platform/gesture/render-scale behavior, and AI smoke tests plus the win-rate gates above (hundreds of full AI-vs-AI games). The whole suite finishes in about eight minutes on the release-prep Windows host.
+That separation is what makes a real test suite possible: **1,681 tests (4 skipped) across 174 files**, covering engine flow/combat/keywords/mana/RNG/determinism, the stack and effects, catalog integrity, meta systems (collection, economy, save migrations, gauntlet, achievements, daily quests, Limited drafting, deck share codes, deck color identity), the variant/drop-distribution math behind the booster system, economy EV gates and named exploit regressions backed by a 10-persona progression simulator, onboarding tutorial determinism, audio recipes and music patterns, platform/gesture/render-scale behavior, and AI smoke tests plus the win-rate gates above (hundreds of full AI-vs-AI games). The whole suite finishes in about ten minutes on the release-prep Windows host.
 
 For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the event/decision model, determinism), [docs/design-system.md](docs/design-system.md) (visual language, tokens, components, and interaction contracts), [docs/plan-design-system-alignment.md](docs/plan-design-system-alignment.md) (the audited implementation sequence required for full alignment), [docs/rules.md](docs/rules.md) (the full ruleset as implemented), [docs/adding-cards.md](docs/adding-cards.md) (the card schema and how new cards get built), [docs/ai.md](docs/ai.md) (how each difficulty thinks), [docs/art-pipeline.md](docs/art-pipeline.md) (the art resolution and generation pipeline), and [docs/roadmap.md](docs/roadmap.md) (current status in detail).
 
 ## Project status
 
-**Darling Blades is 1.6.1**, released 2026-08-24 (tag v1.6.1). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,079 collectible cards have finished illustrated art, the 22-rung tower is measured against win-rate floors, and the test suite is green.
+**Darling Blades is 1.6.2**, released 2026-08-24 (tag v1.6.2). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,079 collectible cards have finished illustrated art, the 22-rung tower is measured against win-rate floors, and the test suite is green.
 
 **Coming after 1.6:** collection pacing gets a second look now that the pool has grown past a thousand cards, and Draft's reserve-native design is the next large open question. Suggested decks, a cinematic replay director, Story Mode, later expansions, player-made card packs, and real head-to-head LAN multiplayer remain further out.
 

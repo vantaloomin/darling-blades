@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-07-31 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-08-24 · review monthly -->
 
 # Roadmap
 
@@ -66,6 +66,63 @@ _Dated 2026-08-24. Review monthly._
   v25→v26 the Darlings command zone, Darlings tutorial, and free Zhou Yu
   claim — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-08-24 · 1.6.2)
+
+A second same-day patch, from four more player reports. Three of the four were
+one defect wearing different clothes: a term the player could see on a card but
+the software could not find, name, or draw.
+
+- **Search could not find the newer keywords (#268).** `matchesSearch` matched
+  against the raw `Keyword` enum keys, so `twinBlades` answered to "twin" but
+  never to "Twin Blades", and the mechanics that are not keywords at all (Nine
+  Lives, Preserve, Retell, Rite, Hauntlink) had nothing to match against in any
+  spelling. The cause was structural rather than a missed case: search lives in
+  `src/meta`, the layer-purity lint forbids `src/meta` from importing `src/ui`,
+  and the vocabulary lived in `src/ui/rulesText.ts`. It moved to a pure
+  `src/data/glossary.ts` (re-exported by `rulesText.ts`, so no import changed)
+  which now owns `cardMechanics` — structural detection from fields and effect
+  ops, never from generated prose — and `cardTermNames`, the printed-spelling
+  vocabulary including keywords a card only grants. The card-inspect Keyword
+  Guide reads the same detector, so the guide and the search box cannot
+  disagree.
+- **The Glossary collided with itself (#268).** It pinned a Y coordinate per
+  section heading. Combat Traits reached twelve entries, its measured rows ran
+  under the Mechanics heading and that section's two-at-a-time pager, and four
+  mechanics (Mark, Rite, Nine Lives, Preserve) had never been listed at all.
+  Rebuilt as a category rail plus one measured, scrollable, searchable list,
+  with every coordinate from `glossaryFrame` / `glossaryRowsLayout`; adding a
+  keyword now changes how far the list scrolls and nothing else.
+  `tests/ui/layout.test.ts` gates the frame ordering and row non-overlap.
+- **Nineteen of forty-two glossary rows had no icon (#268).** Only Champion
+  Awakening had a mechanic glyph and Card Types had none. Twenty were added and
+  all three icon families made total records over their unions, so a new
+  keyword or mechanic fails the typecheck until it has one. Six were redrawn
+  after baking the whole set onto a single sheet, which is the only way to see
+  the binding constraint: Champion Awakening's eye read as a duplicate of
+  Warding Gaze, Artifact's gem as a shield one row from Bulwark, Enchantment's
+  orb as a crosshair, Warchest as a house, Nine Lives as an owl, and Retell's
+  arrowhead floated across the band instead of capping it.
+- **Two Empower cards were uncastable (#268).** Empower is the only ADDITIVE
+  cost in the game: Retell, Preserve, Hauntlink and Skim are all paid instead
+  of the printed cost, so only Empower can print a card no board can cast.
+  Against a ten-land Warchest, Silt-Crowned Harvester asked 11 and Ra, Helm of
+  the Night Barge asked 12. Both recosted to 9 by owner ruling.
+  `tests/data/empowerCeiling.test.ts` gates a hard ceiling at
+  `LAND_RESERVE_SIZE` plus a design ceiling of 9, with the two cards printed at
+  10 (Renenutet, Silt-Fat Behemoth) on a named allowlist, so a third is a
+  ruling rather than an accident.
+- **A retired classic deck never said what was wrong (#268).** The builder ran
+  the plain 60-card check on it, so the banner reported a card count while the
+  actual blocker was the format; the retirement copy named a "Warchest" button
+  that the 2026-08-18 rename had replaced with "Standard"; and the Format row
+  lit neither tab, which read as broken rather than as a deck sitting on a dead
+  format. The banner leads with the retirement issue now, the copy names the
+  tabs that exist, and the row label reads "Classic". Consequence worth
+  recording: a *legal* 60-card classic deck now shows Save disabled, matching
+  `deckHealth`, which has always treated every classic deck as blocked.
+  Conversion still works because `selectFormat` does not go through the save
+  gate.
 
 ## Recently shipped (2026-08-24 · 1.6.1)
 
