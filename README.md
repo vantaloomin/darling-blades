@@ -43,7 +43,7 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **AI that never cheats.** Every difficulty (Easy, Medium, Hard) plays through the exact same redacted view of the game state a human opponent would see; none of them can look at your hand or either deck's remaining contents. The difficulty gap is measured rather than assumed: Medium beats Easy at least 80% of the time (measured around 82.5%) and Hard beats Medium at least 70% of the time (measured around 78%) across large seeded AI-vs-AI test batches.
 - **Fully illustrated, nothing placeholder.** All 1,079 collectible cards across eight sets carry finished cel-shaded gacha-anime art, plus painted backdrops for every scene and pack art for every set. Every card image ships as WebP; the art payload is 203.71 MiB, of which 162.20 MiB is card art. Basic lands come in per-set landscape styles you choose in the deck builder. The audio side is entirely procedural: every sound effect and the four-mood generative ambient music score are synthesized live in the browser over WebAudio, with no audio asset files at all.
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
-- **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built; see Project status below.
+- **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Darling Blades is single-player by design: head-to-head multiplayer was explored and deliberately dropped.
 
 ## What's new in 1.6
 
@@ -168,11 +168,11 @@ For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the even
 
 **Darling Blades is 1.6.3**, released 2026-08-24 (tag v1.6.3). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,079 collectible cards have finished illustrated art, the 22-rung tower is measured against win-rate floors, and the test suite is green.
 
-**Coming after 1.6:** collection pacing gets a second look now that the pool has grown past a thousand cards, and Draft's reserve-native design is the next large open question. Suggested decks, a cinematic replay director, Story Mode, later expansions, player-made card packs, and real head-to-head LAN multiplayer remain further out.
+**Coming next:** 1.7 pairs a new sci-fi set with the balance and measurement work 1.6 deferred, including collection pacing and Draft's reserve-native design. Beyond it: four more expansions through 2.0, creatures that can tap for more than attacking, a full accessibility pass, a mobile rebuild, deck suggestions built from your own collection, and Story Mode. Multiplayer is not planned; the game is single-player by design.
 
 ## About this project
 
-This is a personal, single-player project built and tuned by one developer; there's no multiplayer server and no public contribution pipeline at the moment. The codebase does hold itself to a few unusual disciplines for a solo project, though: the rules engine is fully headless and seeded-deterministic, every difficulty of AI is held to a measured (not assumed) win-rate floor, and the documentation in `docs/` carries anti-rot tooling (`npm run check-docs`) that flags a doc as stale the moment the code it describes changes without it.
+This is a personal, single-player project built and tuned by one developer; there's no multiplayer server, by design, and no public contribution pipeline at the moment. The codebase does hold itself to a few unusual disciplines for a solo project, though: the rules engine is fully headless and seeded-deterministic, every difficulty of AI is held to a measured (not assumed) win-rate floor, and the documentation in `docs/` carries anti-rot tooling (`npm run check-docs`) that flags a doc as stale the moment the code it describes changes without it.
 
 ## License
 

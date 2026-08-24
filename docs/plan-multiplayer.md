@@ -1,6 +1,14 @@
-<!-- source-of-truth: docs/roadmap.md, docs/mobile-lan-plan.md, docs/architecture.md, docs/ai.md, src/engine/Game.ts, src/engine/types.ts, src/engine/actions.ts, src/engine/events.ts, src/engine/view.ts, src/meta/Replay.ts, src/meta/SaveManager.ts, src/scenes/DuelScene.ts · last-verified: 2026-07-26 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/mobile-lan-plan.md, docs/architecture.md, docs/ai.md, src/engine/Game.ts, src/engine/types.ts, src/engine/actions.ts, src/engine/events.ts, src/engine/view.ts, src/meta/Replay.ts, src/meta/SaveManager.ts, src/scenes/DuelScene.ts · last-verified: 2026-08-24 · design/plan doc - re-verify when the referenced code changes -->
 
 # Multiplayer trust decision and 1.9 implementation plan
+
+> **CANCELLED — owner decision 2026-08-24.** Darling Blades is single-player by
+> design. This document is retained as a design record of the trust model and
+> the redaction work, because the redacted-view thinking here informs replay
+> sharing and spectating-adjacent features. **Nothing should be planned against
+> it, and no release slot is reserved for it.** The README previously promised
+> LAN multiplayer in two places; that copy has been corrected. See
+> [plan-road-to-2.0.md](plan-road-to-2.0.md).
 
 ## Goal
 
