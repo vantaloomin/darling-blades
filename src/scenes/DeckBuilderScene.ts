@@ -1165,7 +1165,15 @@ export class DeckBuilderScene extends Phaser.Scene {
     return Object.values(CARD_DB)
       .filter((card) => isBasicLand(card) || (isDualLand(card) && ownedCount(Services.save.data, card.id) > 0))
       .filter((card) => !darlingId || darlingsCardError(CARD_DB, darlingId, card.id) === null)
-      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+      // Basics first: they are the unlimited, always-legal pick the subtitle
+      // advertises, and a flat alphabetical sort buried them on later pages
+      // behind dozens of duals (player report, 2026-08-24).
+      .sort(
+        (a, b) =>
+          Number(isBasicLand(b)) - Number(isBasicLand(a)) ||
+          a.name.localeCompare(b.name) ||
+          a.id.localeCompare(b.id),
+      );
   }
 
   private setReserveSlot(index: number, cardId: string | null): void {
@@ -1190,23 +1198,40 @@ export class DeckBuilderScene extends Phaser.Scene {
       dismissal: 'dismissible',
     });
     const overlay = shell.container;
+    // Lay out from the shell's own tracks. The title used to sit at y=72,
+    // ABOVE the panel's top edge, at h1 in a 760-wide panel, so it overhung
+    // the chrome and clipped (player report, 2026-08-24).
+    const content = shell.contentBounds;
+    const titleTrack = shell.tracks.titleTrack;
+    const centerX = content.x + content.width / 2;
     overlay.add(
-      this.add.text(640, 72, 'Choose a land for Warchest Reserves slot ' + (index + 1), {
+      this.add.text(centerX, titleTrack.y + titleTrack.height / 2, `Warchest Reserves slot ${index + 1}`, {
         fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
+        fontSize: `${theme.type.h2}px`,
         color: theme.colors.heading,
       }).setOrigin(0.5),
     );
     overlay.add(
-      this.add.text(640, 112, 'Basics are unlimited. Dual lands must be owned.', {
+      this.add.text(centerX, content.y + theme.space(2), 'Basics are unlimited. Dual lands must be owned, and arrive tapped (T).', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.body,
-      }).setOrigin(0.5),
+        wordWrap: { width: content.width - theme.space(4) },
+        align: 'center',
+      }).setOrigin(0.5, 0),
     );
-    const choices: Array<{ id: string | null; label: string }> = [
-      { id: null, label: 'Remove land' },
-      ...this.reserveLandChoices().map((card) => ({ id: card.id, label: card.name })),
+    // A land's whole purpose is the mana it makes, and the picker used to show
+    // nothing but its name: "Ash Ballroom" told a player nothing about what it
+    // taps for or whether it arrives tapped (player report, 2026-08-24). Each
+    // choice now carries its colour pips and a tapped marker.
+    const choices: Array<{ id: string | null; label: string; pips: string[]; tapped: boolean }> = [
+      { id: null, label: 'Remove land', pips: [], tapped: false },
+      ...this.reserveLandChoices().map((card) => ({
+        id: card.id,
+        label: card.name,
+        pips: [...(card.manaAbility ?? [])],
+        tapped: card.entersTapped === true,
+      })),
     ];
     const pageSize = 8;
     const pages = formatPageCount(choices.length, pageSize);
@@ -1219,11 +1244,11 @@ export class DeckBuilderScene extends Phaser.Scene {
     const renderPage = (nextPage: number): void => {
       clear();
       formatPageSlice(choices, Math.max(0, nextPage), pageSize).forEach((choice, choiceIndex) => {
-        const position = gridPosition(choiceIndex, 2, 440, 188, 260, 62);
+        const position = gridPosition(choiceIndex, 2, centerX - 188, content.y + theme.space(11), 301, 62);
         const button = themedButton(this, position.x, position.y, choice.label, {
           variant: choice.id === this.landReserve[index] ? 'primary' : 'ghost',
           size: 'sm',
-          minWidth: 220,
+          minWidth: 196,
           onTap: () => {
             this.setReserveSlot(index, choice.id);
             shell.close();
@@ -1231,11 +1256,33 @@ export class DeckBuilderScene extends Phaser.Scene {
         });
         overlay.add(button.container);
         items.push(button.container);
+        // Pips sit outside the button so they never fight its label for room.
+        let pipX = position.x + 108;
+        for (const pip of choice.pips) {
+          const key = `pip-${pip}`;
+          if (!this.textures.exists(key)) continue;
+          const bead = this.add.image(pipX, position.y, key).setDisplaySize(18, 18);
+          overlay.add(bead);
+          items.push(bead);
+          pipX += 21;
+        }
+        if (choice.tapped) {
+          const marker = this.add
+            .text(pipX + 2, position.y, 'T', {
+              fontFamily: theme.fonts.ui,
+              fontSize: `${theme.type.micro}px`,
+              fontStyle: theme.weight.w700,
+              color: theme.colors.muted,
+            })
+            .setOrigin(0, 0.5);
+          overlay.add(marker);
+          items.push(marker);
+        }
       });
       pageControl?.refresh(Math.max(0, nextPage), pages);
     };
     if (pages > 1) {
-      pageControl = pager(this, 590, 500, 0, pages, renderPage);
+      pageControl = pager(this, centerX, content.y + content.height - theme.space(6), 0, pages, renderPage);
       overlay.add(pageControl.container);
     }
     renderPage(0);
@@ -1980,8 +2027,15 @@ export class DeckBuilderScene extends Phaser.Scene {
   }
 
   private renderDeckRows(x0: number, heroId: string | null, listY0: number, maxRows?: number): void {
+    // Basics are hidden here ONLY in constructed, where the +/- basics block
+    // above owns them. In a reserve format that block is replaced by the
+    // Warchest panel, so hiding basics here left a migrated classic deck's
+    // ~20 basic lands invisible AND unremovable: the repair banner demanded
+    // 40 cards, the deck held 60, and nothing in the UI could reach the
+    // difference. Show them so they can be removed (player report, 2026-08-24).
+    const hideBasics = !this.isReserveFormat();
     const entries = collapseDeckRows(this.deck, this.variantPins)
-      .filter(({ cardId }) => !CARD_DB[cardId] || !isBasic(CARD_DB, cardId))
+      .filter(({ cardId }) => !CARD_DB[cardId] || !hideBasics || !isBasic(CARD_DB, cardId))
       .sort((a, b) => {
         const da = CARD_DB[a.cardId];
         const dbb = CARD_DB[b.cardId];
@@ -2122,6 +2176,38 @@ export class DeckBuilderScene extends Phaser.Scene {
       },
     );
     this.rightPane.push(background, message, count);
+
+    // Every classic deck migrated into a reserve format arrives carrying its
+    // whole mana base, which is exactly the cards the format no longer wants.
+    // Removing them one row at a time is not the "couple of clicks" the repair
+    // flow promises, so offer the bulk action the situation always needs.
+    if (this.isReserveFormat()) {
+      const landCount = this.deck.filter((id) => CARD_DB[id] && isType(CARD_DB[id], 'land')).length;
+      if (landCount > 0) {
+        const strip = themedButton(this, x0 + 268, 606, `Remove ${landCount} land${landCount === 1 ? '' : 's'}`, {
+          variant: 'danger',
+          size: 'sm',
+          minWidth: 168,
+          onTap: () => this.removeAllLands(),
+        });
+        this.rightPane.push(strip.container);
+      }
+    }
+  }
+
+  /** Drop every land from the deck list: the one-tap half of a migration repair. */
+  private removeAllLands(): void {
+    const lands = [...new Set(this.deck.filter((id) => CARD_DB[id] && isType(CARD_DB[id], 'land')))];
+    if (lands.length === 0) return;
+    let next = { cards: this.deck, variantPins: this.variantPins };
+    for (const id of lands) next = removeAllDeckSlots(next, id);
+    this.deck = next.cards;
+    this.variantPins = next.variantPins;
+    const active = this.activeSavedDeck();
+    if (active?.heroCardId && !this.deck.includes(active.heroCardId)) active.heroCardId = null;
+    this.deckCodeMessage = '';
+    this.renderPool();
+    this.renderDeck();
   }
 
   private renderDeck(): void {
