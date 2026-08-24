@@ -13,7 +13,14 @@ import {
 } from '../meta/gauntletSeed';
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
+import {
+  gauntletScrollToRung,
+  gauntletTowerLayout,
+  scrollOffsetByDelta,
+  type GauntletTowerLayout,
+} from '../ui/layout';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { backButton, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
@@ -33,6 +40,13 @@ export class GauntletScene extends Phaser.Scene {
   private currentRung = 1; // the rung you may actually fight
   private panel: Phaser.GameObjects.Container | null = null;
   private rowNodes: { rung: number; box: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }[] = [];
+  /** Scrolling ladder state; the tower outgrew a fixed 500px column at 22 rungs. */
+  private towerLayout: GauntletTowerLayout | null = null;
+  private towerContent: Phaser.GameObjects.Container | null = null;
+  private towerScroll = 0;
+  private towerThumb: Phaser.GameObjects.Graphics | null = null;
+  /** Set once a pointer drag passes the threshold, so the release does not also select a rung. */
+  private towerDragged = false;
   private abandonArmed = false;
   private abandonBtn: ThemedButton | null = null;
   /** Seed the NEXT run will use (rerollable / player-settable until it begins). */
@@ -47,6 +61,11 @@ export class GauntletScene extends Phaser.Scene {
 
   create(): void {
     this.rowNodes = [];
+    this.towerLayout = null;
+    this.towerContent = null;
+    this.towerScroll = 0;
+    this.towerThumb = null;
+    this.towerDragged = false;
     this.panel = null;
     this.abandonArmed = false;
     this.abandonBtn = null;
@@ -120,17 +139,12 @@ export class GauntletScene extends Phaser.Scene {
     const width = 1280; // design-space width (see create())
     const g = Services.save.data.gauntlet;
     const railX = width - 250;
-    const topY = 150;
     const rungs = ECONOMY.gauntletRungGold.length;
-    // Keep the original 52px rhythm when possible, but tighten for future
-    // summit additions so the complete ladder stays inside the 720px design
-    // window. The 12-rung Celtic Fae tower uses ~45px rows.
-    const rowH = Math.min(52, 500 / Math.max(1, rungs - 1));
 
     this.add
       .text(
         railX,
-        topY - 34,
+        122,
         `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : 'None'}   ·   Clears: ${g.completions}\n${this.rosterHeading(!!g.run)}`,
         {
           fontFamily: theme.fonts.ui,
@@ -142,28 +156,38 @@ export class GauntletScene extends Phaser.Scene {
       )
       .setOrigin(0.5);
 
+    // The ladder scrolls instead of compressing. Rows keep a readable pitch at
+    // any tower length, and the layout subtracts the star column from the name
+    // budget so the two can never overlap (they did at 22 rungs).
+    const viewport = { x: railX - 210, y: 156, width: 420, height: 500 };
+    const layout = gauntletTowerLayout(rungs, viewport);
+    this.towerLayout = layout;
+    const content = this.add.container(viewport.x, viewport.y);
+    this.towerContent = content;
+
     // Rungs render bottom-up: rung 1 at the bottom, the top rung at the top.
     for (let rung = rungs; rung >= 1; rung--) {
       const rowIndex = rungs - rung; // 0 at top
-      const y = topY + rowIndex * rowH;
+      const y = rowIndex * layout.rowPitch + layout.rowHeight / 2;
       const av = this.avatarForFloor(rung);
-      const cleared = rung < this.currentRung; // rungs below the current one are done this run
+      const cleared = rung < this.currentRung;
       const isCurrent = rung === this.currentRung;
 
       const box = this.add
-        .rectangle(railX, y, 420, rowH - 12, this.rowColor(rung), theme.alpha.panel)
+        .rectangle(layout.rowWidth / 2, y, layout.rowWidth, layout.rowHeight, this.rowColor(rung), theme.alpha.panel)
         .setStrokeStyle(2, colorInt(isCurrent ? theme.colors.gold : theme.colors.panelStroke))
         .setInteractive({ useHandCursor: true });
       const status = cleared ? '✓' : isCurrent ? '▶' : '·';
       const label = this.add
-        .text(railX - 195, y, `${status}  Rung ${rung} · ${av.name}`, {
+        .text(layout.labelX, y, `${status}  Rung ${rung} · ${av.name}`, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.body}px`,
           color: this.rowTextColor(rung),
         })
         .setOrigin(0, 0.5);
+      ellipsizeText(label, layout.labelWidth);
       const stars = this.add
-        .text(railX + 195, y, '★'.repeat(floorDifficultyPips(rung)), {
+        .text(layout.starRightX, y, '★'.repeat(floorDifficultyPips(rung)), {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.gold,
@@ -171,22 +195,110 @@ export class GauntletScene extends Phaser.Scene {
         .setOrigin(1, 0.5);
 
       bindTapButton(this, box, () => {
+        if (this.towerDragged) return; // a drag must not also pick a rung
         this.selectedRung = rung;
         this.refreshTower();
         this.buildPanel();
       });
-      // Rung rows are 420px wide; hit height fills the row pitch (rowH).
-      inflateHitArea(box, 90, rowH);
+      inflateHitArea(box, 90, layout.rowHeight);
       box.on('pointerover', (p: Phaser.Input.Pointer) => {
         if (!p.wasTouch && rung !== this.selectedRung) box.setStrokeStyle(2, theme.graphics.rowFillActive);
       });
       box.on('pointerout', (p: Phaser.Input.Pointer) => {
         if (!p.wasTouch) this.refreshTower();
       });
-      void stars;
+      content.add([box, label, stars]);
       this.rowNodes.push({ rung, box, label });
     }
+
+    // The mask is a scene-level child on purpose: parenting it to the container
+    // it clips would scroll it along with the rows and clip nothing.
+    const maskShape = this.add
+      .graphics()
+      .fillStyle(theme.graphics.panelFill, 1)
+      .fillRect(viewport.x, viewport.y, viewport.width, viewport.height)
+      .setVisible(false);
+    content.setMask(maskShape.createGeometryMask());
+
+    if (layout.overflow) this.bindTowerScroll(layout);
+    // Open on the rung you are actually climbing, not on the summit.
+    this.setTowerScroll(gauntletScrollToRung(this.currentRung, rungs, layout));
     this.refreshTower();
+  }
+
+  private bindTowerScroll(layout: GauntletTowerLayout): void {
+    const { viewport } = layout;
+    this.towerThumb = this.add.graphics();
+    const zone = this.add
+      .zone(viewport.x + viewport.width / 2, viewport.y + viewport.height / 2, viewport.width, viewport.height)
+      .setInteractive();
+    zone.on('wheel', (_p: Phaser.Input.Pointer, _dx: number, dy: number) => {
+      this.setTowerScroll(this.towerScroll + dy);
+    });
+
+    let dragPointerId: number | null = null;
+    let dragStartY = 0;
+    let dragStartOffset = 0;
+    zone.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      dragPointerId = p.id;
+      dragStartY = p.worldY;
+      dragStartOffset = this.towerScroll;
+      this.towerDragged = false;
+    });
+    const moveDrag = (p: Phaser.Input.Pointer): void => {
+      if (dragPointerId !== p.id) return;
+      const travel = p.worldY - dragStartY;
+      // Past the threshold this is a scroll, not a tap, so the row under the
+      // finger must not select when the pointer comes up.
+      if (Math.abs(travel) > 6) this.towerDragged = true;
+      this.setTowerScroll(dragStartOffset - travel);
+    };
+    const endDrag = (p: Phaser.Input.Pointer): void => {
+      if (dragPointerId === p.id) dragPointerId = null;
+    };
+    this.input.on('pointermove', moveDrag);
+    this.input.on('pointerup', endDrag);
+
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'ArrowDown') this.setTowerScroll(this.towerScroll + layout.rowPitch);
+      else if (event.key === 'ArrowUp') this.setTowerScroll(this.towerScroll - layout.rowPitch);
+      else if (event.key === 'PageDown') this.setTowerScroll(this.towerScroll + viewport.height);
+      else if (event.key === 'PageUp') this.setTowerScroll(this.towerScroll - viewport.height);
+      else return;
+      event.preventDefault();
+    };
+    this.input.keyboard?.on('keydown', onKey);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.off('pointermove', moveDrag);
+      this.input.off('pointerup', endDrag);
+      this.input.keyboard?.off('keydown', onKey);
+    });
+  }
+
+  private setTowerScroll(next: number): void {
+    const layout = this.towerLayout;
+    if (!layout || !this.towerContent) return;
+    this.towerScroll = scrollOffsetByDelta(0, next, layout.maxScroll);
+    this.towerContent.setPosition(layout.viewport.x, layout.viewport.y - this.towerScroll);
+    this.redrawTowerScrollbar();
+  }
+
+  private redrawTowerScrollbar(): void {
+    const layout = this.towerLayout;
+    if (!layout || !this.towerThumb || layout.maxScroll <= 0) return;
+    const { viewport } = layout;
+    const railX = viewport.x + viewport.width + theme.space(2);
+    const thumbHeight = Math.max(
+      theme.space(8),
+      viewport.height * (viewport.height / Math.max(viewport.height, layout.contentHeight)),
+    );
+    const thumbY = viewport.y + (this.towerScroll / layout.maxScroll) * Math.max(0, viewport.height - thumbHeight);
+    this.towerThumb
+      .clear()
+      .fillStyle(theme.graphics.panelStroke, theme.alpha.subtle)
+      .fillRoundedRect(railX, viewport.y, theme.space(0.5), viewport.height, theme.radius.control)
+      .fillStyle(theme.graphics.rowFillActive, theme.alpha.chrome)
+      .fillRoundedRect(railX - theme.space(0.5), thumbY, theme.space(1.5), thumbHeight, theme.radius.control);
   }
 
   private refreshTower(): void {
