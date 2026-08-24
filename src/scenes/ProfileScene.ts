@@ -39,6 +39,30 @@ import {
 const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
 /**
+ * Shared geometry for the left-column list rows. The text insets exist because
+ * the row fill and the row text were both hardcoded to the panel's own edges
+ * (104 and 540), so every label and value sat flush against the border with no
+ * isolation space. Derive both from these instead of repeating the numbers.
+ */
+const ROW_X = 104;
+const ROW_W = 436;
+const ROW_INSET = theme.space(3);
+const ROW_TEXT_LEFT = ROW_X + ROW_INSET;
+const ROW_TEXT_RIGHT = ROW_X + ROW_W - ROW_INSET;
+
+/**
+ * Style-row columns. The name used to sit at a fixed x with no width budget, so
+ * a long cosmetic name ("Violet Standard") ran underneath the Change button.
+ * The button is now pinned to the row's right inset and the name gets the
+ * measured gap between the swatch and the button.
+ */
+const STYLE_BUTTON_W = 78;
+const STYLE_BUTTON_X = ROW_TEXT_RIGHT - STYLE_BUTTON_W / 2;
+const STYLE_SWATCH_X = 300;
+const STYLE_NAME_X = STYLE_SWATCH_X + 22;
+const STYLE_NAME_W = STYLE_BUTTON_X - STYLE_BUTTON_W / 2 - theme.space(2) - STYLE_NAME_X;
+
+/**
  * Read-only career-record screen (Profile button on MainMenu). Surfaces the
  * stats the engine already tracks and the persisted deterministic replay reel.
  * Nothing rendered here mutates the save.
@@ -155,14 +179,14 @@ export class ProfileScene extends Phaser.Scene {
       const y = 268 + i * 36;
       this.rowPanel(y);
       this.add
-        .text(104, y, DIFFICULTY_LABEL[d.key], {
+        .text(ROW_TEXT_LEFT, y, DIFFICULTY_LABEL[d.key], {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.h2}px`,
           color: theme.colors.body,
         })
         .setOrigin(0, 0.5);
       this.add
-        .text(540, y, `${d.w} / ${d.l}      ${formatRate(d.rate)}`, {
+        .text(ROW_TEXT_RIGHT, y, `${d.w} / ${d.l}      ${formatRate(d.rate)}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.h2}px`,
           color: d.rate === null ? theme.colors.muted : theme.colors.heading,
@@ -575,23 +599,24 @@ export class ProfileScene extends Phaser.Scene {
 
     this.rowPanel(568);
     this.add
-      .text(116, 568, 'Card back', {
+      .text(ROW_TEXT_LEFT, 568, 'Card back', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.body,
       })
       .setOrigin(0, 0.5);
     this.cardBackRowPreview = this.add
-      .image(350, 568, this.safeCardBackTexture(CARD_BACKS[0]))
+      .image(STYLE_SWATCH_X, 568, this.safeCardBackTexture(CARD_BACKS[0]))
       .setDisplaySize(20, 28);
     this.cardBackRowName = this.add
-      .text(374, 568, '', {
+      .text(STYLE_NAME_X, 568, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.heading,
+        wordWrap: { width: STYLE_NAME_W },
       })
       .setOrigin(0, 0.5);
-    const cardBackChange = themedButton(this, 492, 568, 'Change', {
+    const cardBackChange = themedButton(this, STYLE_BUTTON_X, 568, 'Change', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 78,
@@ -601,7 +626,7 @@ export class ProfileScene extends Phaser.Scene {
 
     this.rowPanel(612);
     this.add
-      .text(116, 612, 'Playmat', {
+      .text(ROW_TEXT_LEFT, 612, 'Playmat', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.body,
@@ -609,13 +634,14 @@ export class ProfileScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
     this.playmatRowSwatch = this.add.graphics();
     this.playmatRowName = this.add
-      .text(374, 612, '', {
+      .text(STYLE_NAME_X, 612, '', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         color: theme.colors.heading,
+        wordWrap: { width: STYLE_NAME_W },
       })
       .setOrigin(0, 0.5);
-    const playmatChange = themedButton(this, 492, 612, 'Change', {
+    const playmatChange = themedButton(this, STYLE_BUTTON_X, 612, 'Change', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 78,
@@ -633,7 +659,7 @@ export class ProfileScene extends Phaser.Scene {
     this.cardBackRowName?.setText(cardBack.name);
     this.cardBackRowPreview?.setTexture(this.safeCardBackTexture(cardBack));
     this.playmatRowName?.setText(playmat.name);
-    if (this.playmatRowSwatch) this.paintPlaymatSwatch(this.playmatRowSwatch, 350, 612, playmat, 28, 20);
+    if (this.playmatRowSwatch) this.paintPlaymatSwatch(this.playmatRowSwatch, STYLE_SWATCH_X, 612, playmat, 28, 20);
   }
 
   private safeCardBackTexture(entry: CardBackDefinition): string {
@@ -677,7 +703,11 @@ export class ProfileScene extends Phaser.Scene {
     const entries = kind === 'cardBack' ? CARD_BACKS : PLAYMATS;
     const shell = modalShell(this, {
       width: 1120,
-      height: 560,
+      // Sized so contentBounds leaves the plate its natural height:
+      // contentBounds.height == height - 168 (24x2 padding, 44 title, 44
+      // footer, two 16 track gaps), and the grid takes that less the subtitle
+      // band. 596 lands the plate at ~392 and keeps Equip off the floor.
+      height: 596,
       dimAlpha: 0.86,
       depth: theme.depth.modal,
       dismissal: 'dismissible',
@@ -692,68 +722,83 @@ export class ProfileScene extends Phaser.Scene {
     });
     this.styleShell = shell;
     const title = kind === 'cardBack' ? 'Card back' : 'Playmat';
+    // Lay the picker out from the shell's OWN tracks. It used to hardcode the
+    // title at y=92 (above the panel's padded inner edge, so it collided with
+    // the dimmed Profile heading behind it) and the plate grid at
+    // `132 + i * 220`, which centred the five plates on x=572 inside a panel
+    // centred on 640 and pushed the first plate outside the panel's left edge.
+    const content = shell.contentBounds;
+    const titleTrack = shell.tracks.titleTrack;
+    const panelCenterX = content.x + content.width / 2;
     shell.container.add([
       this.add
-        .text(640, 92, title, {
+        .text(panelCenterX, titleTrack.y + titleTrack.height / 2, title, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h1}px`,
           color: theme.colors.gold,
         })
         .setOrigin(0.5),
       this.add
-        .text(640, 130, 'Choose a style. Courts can add earned rewards later.', {
+        .text(panelCenterX, content.y + theme.space(3), 'Choose a style. Courts can add earned rewards later.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.caption}px`,
           color: theme.colors.muted,
         })
-        .setOrigin(0.5),
+        .setOrigin(0.5, 0),
     ]);
 
+    const gridTop = content.y + theme.space(9);
+    const gridHeight = content.y + content.height - gridTop;
+    const gap = theme.space(5);
+    const plateW = Math.floor((content.width - gap * (entries.length - 1)) / entries.length);
+    const step = plateW + gap;
+    const firstCenter = content.x + plateW / 2;
+
     entries.forEach((entry, index) => {
-      const x = 132 + index * 220;
+      const x = firstCenter + index * step;
       const plate = this.add.graphics();
       plate.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
-      plate.fillRoundedRect(x - 98, 170, 196, 385, theme.radius.control);
+      plate.fillRoundedRect(x - plateW / 2, gridTop, plateW, gridHeight, theme.radius.control);
       plate.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
-      plate.strokeRoundedRect(x - 98, 170, 196, 385, theme.radius.control);
+      plate.strokeRoundedRect(x - plateW / 2, gridTop, plateW, gridHeight, theme.radius.control);
       shell.container.add(plate);
 
       if (kind === 'cardBack') {
         shell.container.add(
           this.add
-            .image(x, 254, this.safeCardBackTexture(entry as CardBackDefinition))
+            .image(x, gridTop + theme.space(21), this.safeCardBackTexture(entry as CardBackDefinition))
             .setDisplaySize(62, 87),
         );
       } else {
         const swatch = this.add.graphics();
-        this.paintPlaymatSwatch(swatch, x, 254, entry as PlaymatDefinition, 154, 84);
+        this.paintPlaymatSwatch(swatch, x, gridTop + theme.space(21), entry as PlaymatDefinition, 154, 84);
         shell.container.add(swatch);
       }
 
       shell.container.add([
         this.add
-          .text(x, 322, entry.name, {
+          .text(x, gridTop + theme.space(38), entry.name, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.label}px`,
             fontStyle: theme.weight.w700,
             color: theme.colors.heading,
-            wordWrap: { width: 180 },
+            wordWrap: { width: plateW - theme.space(4) },
             align: 'center',
           })
           .setOrigin(0.5, 0),
         this.add
-          .text(x, 360, entry.blurb, {
+          .text(x, gridTop + theme.space(47.5), entry.blurb, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             color: theme.colors.muted,
-            wordWrap: { width: 174 },
+            wordWrap: { width: plateW - theme.space(6) },
             align: 'center',
             lineSpacing: 2,
           })
           .setOrigin(0.5, 0),
       ]);
       const tag = this.add
-        .text(x, 438, '', {
+        .text(x, gridTop + theme.space(67), '', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.micro}px`,
           fontStyle: theme.weight.w700,
@@ -763,10 +808,10 @@ export class ProfileScene extends Phaser.Scene {
       shell.container.add(tag);
 
       const state = { refresh: (): void => undefined };
-      const button = themedButton(this, x, 500, 'Equip', {
+      const button = themedButton(this, x, gridTop + gridHeight - theme.space(11), 'Equip', {
         variant: 'ghost',
         size: 'sm',
-        minWidth: 132,
+        minWidth: Math.min(132, plateW - theme.space(8)),
         onTap: () => {
           this.equipCosmetic(kind, entry.id);
           state.refresh();
@@ -802,10 +847,10 @@ export class ProfileScene extends Phaser.Scene {
   private statRow(y: number, label: string, value: string): void {
     this.rowPanel(y);
     this.add
-      .text(104, y, label, { fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, color: theme.colors.body })
+      .text(ROW_TEXT_LEFT, y, label, { fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, color: theme.colors.body })
       .setOrigin(0, 0.5);
     this.add
-      .text(540, y, value, { fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
+      .text(ROW_TEXT_RIGHT, y, value, { fontFamily: theme.fonts.ui, fontSize: `${theme.type.h2}px`, color: theme.colors.heading })
       .setOrigin(1, 0.5);
   }
 
@@ -814,9 +859,9 @@ export class ProfileScene extends Phaser.Scene {
     this.add
       .graphics()
       .fillStyle(theme.graphics.rowFill, theme.alpha.subtle)
-      .fillRoundedRect(104, y - 15, 436, 30, theme.radius.control)
+      .fillRoundedRect(ROW_X, y - 15, ROW_W, 30, theme.radius.control)
       .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
-      .strokeRoundedRect(104, y - 15, 436, 30, theme.radius.control);
+      .strokeRoundedRect(ROW_X, y - 15, ROW_W, 30, theme.radius.control);
   }
 
   private replayRow(log: ReplayLog, x: number, y: number, width: number): void {
