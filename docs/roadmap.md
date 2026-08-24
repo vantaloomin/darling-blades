@@ -2,7 +2,7 @@
 
 # Roadmap
 
-_Dated 2026-08-23. Review monthly._
+_Dated 2026-08-24. Review monthly._
 
 ## Status snapshot
 
@@ -66,6 +66,31 @@ _Dated 2026-08-23. Review monthly._
   v25→v26 the Darlings command zone, Darlings tutorial, and free Zhou Yu
   claim — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-08-24 · 1.6.1)
+
+A same-day patch for two player-reported problems, one of them a dead end.
+
+- **Migrated decks could not be repaired at all (#267).** `renderDeckRows`
+  filtered basics out of the deck list unconditionally. That is right in
+  constructed, where the +/- basics block owns them, but in a reserve format
+  that block is replaced by the Warchest panel, so nothing owned them: a deck
+  migrated from classic kept its whole mana base, the banner demanded exactly
+  40 cards, the deck held 60, and the ~20 basics making up the difference were
+  INVISIBLE and UNREMOVABLE. Duals did show, which is why the screen looked
+  partly functional rather than broken. The filter is format-aware now, and the
+  repair banner gained a bulk "Remove N lands" action, because removing twenty
+  rows one tap at a time was never the "couple of clicks" the flow promises.
+  This had made the migration promise in the 1.6 README and release notes false
+  for any deck containing basics.
+- **The land picker never said what a land does (#267).** It rendered only
+  `card.name`, though lands already carry `manaAbility` and `entersTapped`.
+  Each choice now shows its colour pips and a tapped marker, and basics sort
+  first instead of being buried behind dozens of duals.
+- **Profile rows and the cosmetic pickers had no isolation space (#267).** Row
+  text was placed on the panel's own edges, a cosmetic name ran under its own
+  Change button, and both pickers hardcoded coordinates instead of using the
+  `modalShell` tracks, which left the cosmetic grid centred 68px off the panel.
 
 ## Recently shipped (2026-08-23 · the 1.6 cut)
 

@@ -45,6 +45,16 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
 - **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built; see Project status below.
 
+## What's new in 1.6.1
+
+A patch for two problems a player hit on release day.
+
+**Decks migrated from the old format can actually be repaired now.** A deck carried over from classic keeps its old lands, and the deck list was hiding the basic ones, so the builder told you the deck was the wrong size while giving you no way to fix it. The lands are visible again, and the repair notice carries a one tap button that clears all of them at once.
+
+**The Warchest land picker tells you what each land does.** Every land now shows the colours it makes and marks whether it arrives tapped, and the basic lands sort to the front where they belong.
+
+Also: the Profile screen's rows and its card back and playmat pickers were sitting flush against their own borders. They have their spacing back.
+
 ## What's new in 1.6
 
 **Warchest is now the mana system, everywhere.** Your lands no longer sit in
@@ -123,7 +133,7 @@ For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the even
 
 ## Project status
 
-**Darling Blades is 1.6.0**, released 2026-08-23 (tag v1.6.0). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,079 collectible cards have finished illustrated art, the 22-rung tower is measured against win-rate floors, and the test suite is green.
+**Darling Blades is 1.6.1**, released 2026-08-24 (tag v1.6.1). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,079 collectible cards have finished illustrated art, the 22-rung tower is measured against win-rate floors, and the test suite is green.
 
 **Coming after 1.6:** collection pacing gets a second look now that the pool has grown past a thousand cards, and Draft's reserve-native design is the next large open question. Suggested decks, a cinematic replay director, Story Mode, later expansions, player-made card packs, and real head-to-head LAN multiplayer remain further out.
 
