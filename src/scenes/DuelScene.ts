@@ -18,7 +18,14 @@ import type {
   LandStyleMap,
   SaveData,
 } from '../meta/SaveManager';
-import { PLAYMATS, playmatForId, type PlaymatDefinition } from '../meta/cosmetics';
+import {
+  PLAYMATS,
+  cardBackTextureKey,
+  playmatForId,
+  resolveDeckCardBackId,
+  resolveDeckPlaymatId,
+  type PlaymatDefinition,
+} from '../meta/cosmetics';
 import { STARTER_DECKS } from '../data/starterDecks';
 import {
   applyGauntletResult,
@@ -436,6 +443,8 @@ export class DuelScene extends Phaser.Scene {
   private concedeArmed = false;
   private discardPicks = new Set<number>();
   private foreseeBottomPicks = new Set<number>();
+  /** Texture key for the deck's card back; the library renders face-down with it. */
+  private humanCardBackKey = 'cardback';
   /**
    * Optional first-launch tutorial mode (src/data/tutorial.ts). When set, this
    * duel runs a scripted line (fixed decks + seed + `ScriptAI`) under a
@@ -700,7 +709,6 @@ export class DuelScene extends Phaser.Scene {
     }
     this.touch = isTouchDevice();
     const save = Services.save.data;
-    this.playmat = playmatForId(save.cosmetics.playmat);
     if (!this.replayMode && this.gauntletRung !== null && save.gauntlet.run) {
       this.gauntletRosterOrder = resolveGauntletRoster(
         save.gauntlet.run,
@@ -718,6 +726,14 @@ export class DuelScene extends Phaser.Scene {
         ? rungSeed(save.gauntlet.run.seed, this.gauntletRung)
         : Math.floor(Math.random() * 2 ** 31));
     const myDeckEntry = activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
+    // Style follows the deck you brought (v33), falling back to the account
+    // pick for decks that never chose. A replay or an overridden deck is not
+    // "your deck", so those use the account values.
+    const styleDeck = this.replayMode || data.deckOverride !== undefined ? null : myDeckEntry;
+    this.playmat = playmatForId(resolveDeckPlaymatId(styleDeck, save.cosmetics.playmat));
+    this.humanCardBackKey = cardBackTextureKey(
+      resolveDeckCardBackId(styleDeck, save.cosmetics.cardBack),
+    );
     this.humanLandStyle = !this.replayMode && data.deckOverride === undefined && myDeckEntry?.landStyle
       ? { ...myDeckEntry.landStyle }
       : null;
@@ -6594,22 +6610,24 @@ export class DuelScene extends Phaser.Scene {
     this.overlay = c;
   }
 
-  /** Painted plates standing in for the library; the top plate is returned last. */
+  /**
+   * The library, rendered face-down with the deck's own card back. These were
+   * painted rounded-rect plates until 2026-08-24, which meant the card back a
+   * player chose was visible only in Pack Opening and never during play; the
+   * library is the one place a deck IS a stack of face-down cards.
+   */
   private buildLibraryStack(
     c: Phaser.GameObjects.Container,
     x: number,
     y: number,
-  ): Phaser.GameObjects.Graphics[] {
+  ): Phaser.GameObjects.Image[] {
     const deckSize = this.duel.state.players[HUMAN].deck.length;
-    const plates: Phaser.GameObjects.Graphics[] = [];
+    const key = this.textures.exists(this.humanCardBackKey) ? this.humanCardBackKey : 'cardback';
+    const plates: Phaser.GameObjects.Image[] = [];
     for (const { dx, dy } of libraryStackPlates(deckSize)) {
-      const g = this.add.graphics();
-      g.fillStyle(colorInt(theme.colors.panelFill), 1);
-      g.lineStyle(2, colorInt(theme.colors.gold), 0.85);
-      g.fillRoundedRect(x - 62 + dx, y - 86 + dy, 124, 172, 10);
-      g.strokeRoundedRect(x - 62 + dx, y - 86 + dy, 124, 172, 10);
-      c.add(g);
-      plates.push(g);
+      const plate = this.add.image(x + dx, y + dy, key).setDisplaySize(124, 172);
+      c.add(plate);
+      plates.push(plate);
     }
     const label = this.add
       .text(x, y + 108, `Library · ${deckSize}`, {
@@ -6625,7 +6643,7 @@ export class DuelScene extends Phaser.Scene {
   /** Gather the hand into the stack, riffle it, then hand control back. */
   private playMulliganShuffle(
     cards: readonly CardView[],
-    plates: readonly Phaser.GameObjects.Graphics[],
+    plates: readonly Phaser.GameObjects.Image[],
     onDone: () => void,
   ): void {
     const motion = riffleShuffleMotion(this.motionLevel());
@@ -6658,7 +6676,10 @@ export class DuelScene extends Phaser.Scene {
         for (const plate of half) {
           this.tweens.add({
             targets: plate,
-            x: hi === 0 ? -motion.splitDx : motion.splitDx,
+            // RELATIVE: the plates now carry their own stack offset, where the
+            // old painted Graphics all sat at x = 0 and could take an absolute
+            // target. yoyo returns each plate to its own place either way.
+            x: hi === 0 ? `-=${motion.splitDx}` : `+=${motion.splitDx}`,
             duration: motion.cutMs / 2,
             yoyo: true,
             ease: 'Quad.easeInOut',

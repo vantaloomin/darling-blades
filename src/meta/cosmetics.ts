@@ -171,6 +171,27 @@ export function cardBackTextureKey(id: string | null): string {
   return `cardback-${entry.id}`;
 }
 
+/**
+ * Style is a property of the deck you built, with the account pick as the
+ * fallback (v33). A deck that has never chosen keeps `null` and follows the
+ * account, so changing the account pick still moves every unchosen deck.
+ * Deckless contexts (Pack Opening) pass `null` for the deck and get the
+ * account value, which is the only sensible answer when there is no deck.
+ */
+export function resolveDeckCardBackId(
+  deck: { readonly cardBack?: string | null } | null | undefined,
+  accountCardBack: string | null,
+): string | null {
+  return deck?.cardBack ?? accountCardBack;
+}
+
+export function resolveDeckPlaymatId(
+  deck: { readonly playmat?: string | null } | null | undefined,
+  accountPlaymat: string | null,
+): string | null {
+  return deck?.playmat ?? accountPlaymat;
+}
+
 export function playmatForId(id: string | null): PlaymatDefinition {
   return PLAYMATS.find((entry) => entry.id === id) ?? PLAYMATS.find((entry) => entry.id === DEFAULT_PLAYMAT_ID)!;
 }

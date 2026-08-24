@@ -131,6 +131,8 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
     expect(manager.data.decks).toEqual(oldDecks.map((deck) => ({
       ...deck,
       landStyle: null,
+      cardBack: null,
+      playmat: null,
       format: 'constructed',
       darlingId: null,
       landReserve: null,
@@ -683,5 +685,86 @@ describe('SaveData v32 migration (account cosmetics)', () => {
       playmat: PLAYMATS[1].id,
       owned: [],
     });
+  });
+});
+
+/**
+ * v33 moved style from the account onto the deck (owner ruling 2026-08-24), so
+ * a deck can carry the look it was built with. The account values stay as the
+ * fallback for decks that never chose and for deckless contexts like Pack
+ * Opening, which is why this migration SEEDS rather than MOVES: nobody's decks
+ * may change appearance across the upgrade.
+ */
+describe('SaveData v33 migration (per-deck style)', () => {
+  function v32WithDecks(cosmetics: { cardBack: string | null; playmat: string | null }): Record<string, unknown> {
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 32;
+    old.cosmetics = { ...cosmetics, owned: [] };
+    old.decks = [
+      { id: 'a', name: 'Alpha', cards: ['tk-wei-caocao'], heroCardId: null, landStyle: null },
+      { id: 'b', name: 'Beta', cards: ['tk-wei-caocao'], heroCardId: null, landStyle: null },
+    ];
+    return old;
+  }
+
+  it('seeds every existing deck with the account pick so no deck changes look', () => {
+    const storage = fakeStorage();
+    storage.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify(v32WithDecks({ cardBack: CARD_BACKS[1].id, playmat: PLAYMATS[1].id })),
+    );
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    for (const deck of migrated.decks) {
+      expect(deck.cardBack).toBe(CARD_BACKS[1].id);
+      expect(deck.playmat).toBe(PLAYMATS[1].id);
+    }
+    // The account keeps its choice: it is still the fallback and the default
+    // for decks built later.
+    expect(migrated.cosmetics.cardBack).toBe(CARD_BACKS[1].id);
+    expect(migrated.cosmetics.playmat).toBe(PLAYMATS[1].id);
+  });
+
+  it('leaves decks on null when the account was on the catalog defaults', () => {
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(v32WithDecks({ cardBack: null, playmat: null })));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    for (const deck of migrated.decks) {
+      expect(deck.cardBack).toBeNull();
+      expect(deck.playmat).toBeNull();
+    }
+  });
+
+  it('drops an id that is no longer in the catalog rather than persisting it', () => {
+    const storage = fakeStorage();
+    const blob = v32WithDecks({ cardBack: null, playmat: null });
+    (blob.decks as Array<Record<string, unknown>>)[0].cardBack = 'back-retired-long-ago';
+    (blob.decks as Array<Record<string, unknown>>)[0].playmat = 'playmat-retired-long-ago';
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(blob));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.decks[0].cardBack).toBeNull();
+    expect(migrated.decks[0].playmat).toBeNull();
+  });
+
+  it('is idempotent: reloading a v33 save keeps each deck its own choice', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.cosmetics = { cardBack: CARD_BACKS[1].id, playmat: PLAYMATS[1].id, owned: [] };
+    current.decks = [
+      { id: 'a', name: 'Alpha', cards: ['tk-wei-caocao'], heroCardId: null, landStyle: null, cardBack: CARD_BACKS[2].id, playmat: null },
+    ] as SaveData['decks'];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    // A per-deck choice must survive; it must NOT be overwritten by the account.
+    expect(migrated.decks[0].cardBack).toBe(CARD_BACKS[2].id);
+    expect(migrated.decks[0].playmat).toBeNull();
   });
 });

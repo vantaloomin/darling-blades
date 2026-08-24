@@ -11,7 +11,7 @@ import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
 
-export const CURRENT_SAVE_VERSION = 32 as const;
+export const CURRENT_SAVE_VERSION = 33 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /**
@@ -103,6 +103,14 @@ export interface SavedDeck {
   landReserve?: string[] | null;
   /** Positional treatment pins. `variantPins[i]` belongs to `cards[i]`; null = Auto. v23 addition. */
   variantPins?: Array<string | null>;
+  /**
+   * Per-deck card back. `null` falls back to the account-level pick, which is
+   * what deckless contexts (Pack Opening) keep using. v33 addition, alongside
+   * `playmat`: style became a property of the deck you built, not the account.
+   */
+  cardBack?: string | null;
+  /** Per-deck playmat. `null` falls back to the account-level pick. v33 addition. */
+  playmat?: string | null;
 }
 
 export const BASIC_LAND_IDS = [
@@ -644,7 +652,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -799,6 +807,28 @@ export class SaveManager {
         cosmetics: normalizeCosmetics(cur.cosmetics),
       };
     }
+    if (cur.version === 32) {
+      // Style moved from the account onto the deck. Seed every existing deck
+      // with the player's current account pick so nobody's decks change
+      // appearance across the upgrade; the account values stay put as the
+      // fallback for deckless contexts (Pack Opening) and as the default for
+      // decks built later.
+      const account = normalizeCosmetics(cur.cosmetics);
+      const decks = Array.isArray(cur.decks)
+        ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
+            ...deck,
+            // Seed only for a save that predates v33. The block above rewinds
+            // an already-current save to v22 and re-walks the whole chain, so
+            // an unconditional assignment would wipe a player's per-deck style
+            // on every load. "Absent" cannot be detected here either, because
+            // normalizeSavedDecks has already run and stamped null, so the
+            // discriminator is the version the save arrived at.
+            cardBack: beganAtCurrentVersion ? deck.cardBack : account.cardBack,
+            playmat: beganAtCurrentVersion ? deck.playmat : account.playmat,
+          }))
+        : cur.decks;
+      cur = { ...cur, version: 33, decks };
+    }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
       return {
@@ -902,6 +932,19 @@ export class SaveManager {
   }
 }
 
+/**
+ * One id validated against a catalog, or null. Shared by the account-level
+ * cosmetics and the v33 per-deck fields so an id retired from the catalog
+ * degrades to the default in both places rather than persisting as a dangling
+ * reference.
+ */
+function normalizeCosmeticChoice(
+  value: unknown,
+  catalog: readonly { readonly id: string }[],
+): string | null {
+  return typeof value === 'string' && catalog.some((entry) => entry.id === value) ? value : null;
+}
+
 function normalizeCosmetics(value: unknown): CosmeticsSave {
   const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const cardBack = typeof raw.cardBack === 'string' && CARD_BACKS.some((entry) => entry.id === raw.cardBack)
@@ -966,6 +1009,8 @@ function normalizeSavedDecks(
         darlingId?: unknown;
         landReserve?: unknown;
         variantPins?: unknown;
+        cardBack?: unknown;
+        playmat?: unknown;
       };
       if (typeof deck.id !== 'string' || typeof deck.name !== 'string' || !Array.isArray(deck.cards)) return null;
       const rawCards = deck.cards.filter((id): id is string => typeof id === 'string');
@@ -989,6 +1034,8 @@ function normalizeSavedDecks(
         cards,
         heroCardId: migratedHero && cards.includes(migratedHero) ? migratedHero : null,
         landStyle: normalizeLandStyleMap(deck.landStyle),
+        cardBack: normalizeCosmeticChoice(deck.cardBack, CARD_BACKS),
+        playmat: normalizeCosmeticChoice(deck.playmat, PLAYMATS),
         ...darlings,
         variantPins: normalizeVariantPins(cards, strippedSlots.map((slot) => slot.pin), aggregate, variants),
       };
