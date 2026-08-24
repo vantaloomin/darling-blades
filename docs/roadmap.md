@@ -67,6 +67,67 @@ _Dated 2026-08-24. Review monthly._
   claim — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
 
+## Recently shipped (2026-08-24 · 1.6.3)
+
+Four player-reported items, one of which turned out to rest on a false premise
+and reshaped the other three.
+
+- **The Gauntlet tower crushed itself at 22 rungs (#PR).** `rowH` was
+  `min(52, 500 / (rungs - 1))`, so every rung added shrank every row: at 22 the
+  ladder ran ~24px pitch with ~12px plates behind a 16px font. Independently,
+  the row placed its name at a fixed offset with NO width cap while the
+  difficulty stars sat at a fixed right offset in the same 420px box, so long
+  avatar names ran under the stars. Rows now hold a 52px pitch at any tower
+  length, the column scrolls and opens on the rung being climbed, and
+  `gauntletTowerLayout` subtracts the star column from the name budget so the
+  overlap is unrepresentable rather than merely fixed. Verified against real
+  Cinzel metrics: exactly the two reported names ellipsize, worst gap 14px.
+- **Style became a property of the deck, save v32 -> v33 (#PR).** `SavedDeck`
+  gains `cardBack` and `playmat` beside the existing per-deck `landStyle`.
+  Every deck starts on the catalog default rather than inheriting the account
+  pick (owner ruling), and `null` on a deck means the catalog default, full
+  stop. The account-level fields stay in the save and keep migrating; only
+  `owned` is still read, by the unlock plumbing.
+  **The premise that broke first:** the plan assumed a one-line DuelScene fix
+  would make the card back visible in a duel. There was nothing to wire it to.
+  The opponent hand is a `PileView` (icon plus count), and `CardView.back` only
+  shows via `setCard(null)`, whose sole caller was PackOpeningScene. Owner
+  direction moved it to the LIBRARY: the mulligan and bottoming ritual drew the
+  deck as painted rounded-rect plates, and those are now real card backs.
+  **Two migration defects the new tests caught:** the shared re-walk guard
+  enumerates versions explicitly plus CURRENT, so moving CURRENT to 33 silently
+  dropped 32 out of the chain (every future bump must add the previous
+  current); and that block rewinds an already-current save to v22 and re-walks,
+  so an unconditional seed reset per-deck style on every load. The seed keys off
+  `beganAtCurrentVersion` instead, since "field absent" is unusable as a signal
+  once `normalizeSavedDecks` has stamped null.
+- **Deck Options, so the new fields are editable (#PR).** A third deck-pane
+  VIEW (Cards | Warchest | Style) rather than a new chrome row, because the
+  pane spans 900-1260 with the CTA row packed edge to edge and only ~54px free
+  on the View row, under the 90px hit-width floor. The chooser moved out of
+  ProfileScene into `src/ui/CosmeticPicker.ts` and now takes a current id plus
+  an equip callback, so one modal serves an account setting and a per-deck one.
+  Equipping the catalog default persists null, never the id, so a retired
+  cosmetic cannot pin a deck to something the catalog no longer has.
+- **Real art for the four procedural card backs (#PR).** Generated through the
+  house pipeline: four new `docs/scene-art.md` entries carrying the full
+  contract, then `gen-scene-art.ts` -> `gen-art-manifest.ts`, with
+  `bakeCardFrames` falling back to the procedural painting when a WebP is
+  absent. Two generation defects caught by MEASURING rather than looking: Storm
+  Gold returned a pure black image (1 distinct colour, 0% luminance) while the
+  CLI reported success, tell being 972 bytes against ~200 KB; and Moonlit Veil
+  came back at 31.7% average luminance against its own 20% cap. Final set
+  18.6 / 9.2 / 22.2 / 21.5 % against the house back's 20.0 %. The ornament
+  preamble in `gen-scene-art.ts` also hardcoded "a dark royal-violet base with
+  gold accents" and would have washed all four palettes violet; the entry now
+  governs hue.
+- **Profile stat tabs (#PR).** Practice | Gauntlet | Draft | Collection, on the
+  LEFT panel so Replays keep their full 608x450. Draft needed no new tracking:
+  `computeDraftSummary` folds `limited.history` in the pure meta layer, and
+  "record" means COMPLETED runs only, so an abandoned or in-flight draft cannot
+  inflate it and legacy `sealed` rows are excluded. Collection reuses
+  `collectionCompletion`. Style is deleted from this screen rather than moved.
+
 ## Recently shipped (2026-08-24 · 1.6.2)
 
 A second same-day patch, from four more player reports. Three of the four were

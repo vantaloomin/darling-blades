@@ -45,6 +45,18 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
 - **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built; see Project status below.
 
+## What's new in 1.6.3
+
+**Your deck has a look of its own.** Card back and playmat used to be one account-wide setting. They now belong to the deck you built, chosen in the deck builder under Style, so each deck can carry its own. Every deck starts on Violet Standard and moves from there.
+
+**And you can finally see your card back while you play.** Before this it appeared only when you opened a pack. The mulligan now draws your library as a real stack of face-down cards in whatever back that deck uses.
+
+**Four card backs were repainted.** Storm Gold, Moonlit Veil, Cursed Storybook and Neon Yokai were simple painted patterns. They are finished illustrations now, matching the standard of the rest of the game.
+
+**The Avatar Gauntlet tower scrolls.** At 22 rungs the ladder had squeezed itself down to unreadable rows, and the longer boss names ran underneath their difficulty stars. Rows are full size again, the tower scrolls, and it opens on the rung you are climbing.
+
+**The Profile page has tabs.** Practice, Gauntlet, Draft and Collection. Draft is new: best finish, runs completed, match record, gold earned, which deck shape you build most, and how many drafters you have met.
+
 ## What's new in 1.6.2
 
 A patch for four problems reported the day 1.6.1 shipped.
@@ -139,13 +151,13 @@ Darling Blades is TypeScript on Vite, rendered with Phaser 3.90 (pinned; never v
 
 The codebase is split into two halves that never touch each other's concerns. `src/engine/` is a pure, Phaser-free, deterministic rules engine: given a set of decklists, a seed, and a sequence of player actions, it produces the exact same game state and event stream on every machine, every time. State is plain JSON, so a `structuredClone` is the entire "save/replay" story, and even the RNG lives inside that state as data. A single facade validates and applies every action and emits events; the Phaser scenes (`src/scenes/`) only ever consume that event stream to animate, and hold no rules logic of their own. The AI (`src/ai/`) plays through that same engine via the identical redacted view a human sees, which is what makes the "no AI reads hidden information" guarantee structural instead of a promise in a comment.
 
-That separation is what makes a real test suite possible: **1,681 tests (4 skipped) across 174 files**, covering engine flow/combat/keywords/mana/RNG/determinism, the stack and effects, catalog integrity, meta systems (collection, economy, save migrations, gauntlet, achievements, daily quests, Limited drafting, deck share codes, deck color identity), the variant/drop-distribution math behind the booster system, economy EV gates and named exploit regressions backed by a 10-persona progression simulator, onboarding tutorial determinism, audio recipes and music patterns, platform/gesture/render-scale behavior, and AI smoke tests plus the win-rate gates above (hundreds of full AI-vs-AI games). The whole suite finishes in about ten minutes on the release-prep Windows host.
+That separation is what makes a real test suite possible: **1,699 tests (4 skipped) across 174 files**, covering engine flow/combat/keywords/mana/RNG/determinism, the stack and effects, catalog integrity, meta systems (collection, economy, save migrations, gauntlet, achievements, daily quests, Limited drafting, deck share codes, deck color identity), the variant/drop-distribution math behind the booster system, economy EV gates and named exploit regressions backed by a 10-persona progression simulator, onboarding tutorial determinism, audio recipes and music patterns, platform/gesture/render-scale behavior, and AI smoke tests plus the win-rate gates above (hundreds of full AI-vs-AI games). The whole suite finishes in about ten minutes on the release-prep Windows host.
 
 For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the event/decision model, determinism), [docs/design-system.md](docs/design-system.md) (visual language, tokens, components, and interaction contracts), [docs/plan-design-system-alignment.md](docs/plan-design-system-alignment.md) (the audited implementation sequence required for full alignment), [docs/rules.md](docs/rules.md) (the full ruleset as implemented), [docs/adding-cards.md](docs/adding-cards.md) (the card schema and how new cards get built), [docs/ai.md](docs/ai.md) (how each difficulty thinks), [docs/art-pipeline.md](docs/art-pipeline.md) (the art resolution and generation pipeline), and [docs/roadmap.md](docs/roadmap.md) (current status in detail).
 
 ## Project status
 
-**Darling Blades is 1.6.2**, released 2026-08-24 (tag v1.6.2). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,079 collectible cards have finished illustrated art, the 22-rung tower is measured against win-rate floors, and the test suite is green.
+**Darling Blades is 1.6.3**, released 2026-08-24 (tag v1.6.3). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,079 collectible cards have finished illustrated art, the 22-rung tower is measured against win-rate floors, and the test suite is green.
 
 **Coming after 1.6:** collection pacing gets a second look now that the pool has grown past a thousand cards, and Draft's reserve-native design is the next large open question. Suggested decks, a cinematic replay director, Story Mode, later expansions, player-made card packs, and real head-to-head LAN multiplayer remain further out.
 
