@@ -45,40 +45,6 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
 - **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Real head-to-head LAN multiplayer is designed but not yet built; see Project status below.
 
-## What's new in 1.6.3
-
-**Your deck has a look of its own.** Card back and playmat used to be one account-wide setting. They now belong to the deck you built, chosen in the deck builder under Style, so each deck can carry its own. Every deck starts on Violet Standard and moves from there.
-
-**And you can finally see your card back while you play.** Before this it appeared only when you opened a pack. The mulligan now draws your library as a real stack of face-down cards in whatever back that deck uses.
-
-**Four card backs were repainted.** Storm Gold, Moonlit Veil, Cursed Storybook and Neon Yokai were simple painted patterns. They are finished illustrations now, matching the standard of the rest of the game.
-
-**The Avatar Gauntlet tower scrolls.** At 22 rungs the ladder had squeezed itself down to unreadable rows, and the longer boss names ran underneath their difficulty stars. Rows are full size again, the tower scrolls, and it opens on the rung you are climbing.
-
-**The Profile page has tabs.** Practice, Gauntlet, Draft and Collection. Draft is new: best finish, runs completed, match record, gold earned, which deck shape you build most, and how many drafters you have met.
-
-## What's new in 1.6.2
-
-A patch for four problems reported the day 1.6.1 shipped.
-
-**Search finds every keyword and mechanic now.** Typing "Nine Lives", "Preserve", "Rite", "Retell" or "Hauntlink" into the Collection or the deck builder used to return nothing at all, and "Twin Blades" only worked if you typed half of it. Every rules term a card teaches is searchable, spelled the way the card spells it, including traits a card only grants to others.
-
-**The Glossary has been rebuilt.** It is now searchable, browsable by category, and it scrolls, so it will keep working as the game keeps growing. Four mechanics that had never been listed at all (Mark, Rite, Nine Lives and Preserve) are in it, and every entry has its own icon: twenty new ones, covering every mechanic, both Warchest zones, and all six card types.
-
-**Two cards you could never fully cast have been recosted.** Silt-Crowned Harvester and Ra, Helm of the Night Barge each asked for more mana than a ten-land Warchest can ever produce, so their Empower was unpayable. Both now land inside what a real game reaches.
-
-**An old deck tells you why it looks different.** Opening a deck built before the Warchest change showed you the old land layout with no explanation, and the repair notice complained about the card count instead of the format. It now says the format has retired and points at the two buttons that convert it.
-
-## What's new in 1.6.1
-
-A patch for two problems a player hit on release day.
-
-**Decks migrated from the old format can actually be repaired now.** A deck carried over from classic keeps its old lands, and the deck list was hiding the basic ones, so the builder told you the deck was the wrong size while giving you no way to fix it. The lands are visible again, and the repair notice carries a one tap button that clears all of them at once.
-
-**The Warchest land picker tells you what each land does.** Every land now shows the colours it makes and marks whether it arrives tapped, and the basic lands sort to the front where they belong.
-
-Also: the Profile screen's rows and its card back and playmat pickers were sitting flush against their own borders. They have their spacing back.
-
 ## What's new in 1.6
 
 **Warchest is now the mana system, everywhere.** Your lands no longer sit in
@@ -103,8 +69,11 @@ booster, precon, achievements, and set icon.
 **A 60-card Dark Tales companion wave.** Nine Lives, Preserve, and Empower
 return to the storybook set, and two ultra rares join its headliners.
 
-**Card backs and playmats.** Cosmetics are account-level, unlock outside the
-economy, and follow you into pack opening and the duel table.
+**Every deck has a look of its own.** Card back and playmat belong to the deck
+you built, not to your account: pick them in the deck builder under Style and
+each deck can carry its own. Every deck starts on Violet Standard. Your card
+back shows up where it should, too, because the mulligan draws your library as
+a real stack of face-down cards in whatever back that deck uses.
 
 **Premium presentation.** A multi-pack open is now one continuous rail of every
 pull in ascending rarity, with a full stop and a spotlight on an ultra rare.
@@ -116,6 +85,46 @@ Profile.
 
 **A tutorial that teaches the game you actually play.** The opening lesson is
 the Warchest itself, followed by taking your first land out of Reserves.
+
+### Fixed and refined since the 1.6 release
+
+**Old decks can be converted, and they tell you why they need it.** A deck
+carried over from classic kept its old lands while the deck list hid the basic
+ones, so the builder called the deck the wrong size and gave you no way to fix
+it. The lands are visible again, the repair notice clears all of them in one
+tap, and it now names the real problem: the format has retired, and here are
+the two buttons that convert it.
+
+**Search finds every keyword and mechanic.** Typing "Nine Lives", "Preserve",
+"Rite", "Retell" or "Hauntlink" used to return nothing at all, and "Twin
+Blades" only worked if you typed half of it. Every rules term a card teaches is
+searchable now, spelled the way the card spells it, including traits a card
+only grants to others.
+
+**The Glossary was rebuilt.** It is searchable, browsable by category, and it
+scrolls, so it keeps working as the game grows. Four mechanics that had never
+been listed at all are in it, and every entry has its own icon.
+
+**The Avatar Gauntlet tower scrolls.** At 22 rungs the ladder had squeezed
+itself down to unreadable rows, and the longer boss names ran underneath their
+difficulty stars. Rows are full size again and the tower opens on the rung you
+are climbing.
+
+**The Profile page has tabs.** Practice, Gauntlet, Draft and Collection. Draft
+is new: best finish, runs completed, match record, gold earned, which deck
+shape you build most, and how many drafters you have met.
+
+**Four card backs were repainted.** Storm Gold, Moonlit Veil, Cursed Storybook
+and Neon Yokai were simple painted patterns. They are finished illustrations
+now, matching the standard of the rest of the game.
+
+**Two cards nobody could cast were recosted.** Silt-Crowned Harvester and Ra,
+Helm of the Night Barge each asked for more mana than a ten-land Warchest can
+ever produce, so their Empower was unpayable.
+
+**Smaller things.** The Warchest land picker shows what each land does, marking
+the colours it makes and whether it arrives tapped, with basic lands sorted to
+the front. The Profile screen's rows and its pickers have their spacing back.
 
 ## How to play
 
