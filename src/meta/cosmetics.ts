@@ -172,24 +172,22 @@ export function cardBackTextureKey(id: string | null): string {
 }
 
 /**
- * Style is a property of the deck you built, with the account pick as the
- * fallback (v33). A deck that has never chosen keeps `null` and follows the
- * account, so changing the account pick still moves every unchosen deck.
- * Deckless contexts (Pack Opening) pass `null` for the deck and get the
- * account value, which is the only sensible answer when there is no deck.
+ * Style is a property of the deck you built (v33). `null` is the CATALOG
+ * default, not an inherited account value: every deck starts on Violet
+ * Standard and the house playmat until it chooses otherwise (owner ruling
+ * 2026-08-24). There is deliberately no account fallback here, so a deck's
+ * look is answered entirely by the deck.
  */
 export function resolveDeckCardBackId(
   deck: { readonly cardBack?: string | null } | null | undefined,
-  accountCardBack: string | null,
 ): string | null {
-  return deck?.cardBack ?? accountCardBack;
+  return deck?.cardBack ?? null;
 }
 
 export function resolveDeckPlaymatId(
   deck: { readonly playmat?: string | null } | null | undefined,
-  accountPlaymat: string | null,
 ): string | null {
-  return deck?.playmat ?? accountPlaymat;
+  return deck?.playmat ?? null;
 }
 
 export function playmatForId(id: string | null): PlaymatDefinition {

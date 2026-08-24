@@ -6,7 +6,13 @@ import { grantDeckCards } from '../../src/meta/Economy';
 import { startDraftRun } from '../../src/meta/Limited';
 import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
-import { CARD_BACKS, PLAYMATS } from '../../src/meta/cosmetics';
+import {
+  CARD_BACKS,
+  PLAYMATS,
+  cardBackTextureKey,
+  resolveDeckCardBackId,
+  resolveDeckPlaymatId,
+} from '../../src/meta/cosmetics';
 
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
@@ -707,7 +713,7 @@ describe('SaveData v33 migration (per-deck style)', () => {
     return old;
   }
 
-  it('seeds every existing deck with the account pick so no deck changes look', () => {
+  it('starts every deck on the catalog default, NOT on the account pick', () => {
     const storage = fakeStorage();
     storage.raw.set(
       'darlingblades.save.v1',
@@ -717,26 +723,22 @@ describe('SaveData v33 migration (per-deck style)', () => {
     const migrated = new SaveManager(storage, 456).data;
 
     expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
-    for (const deck of migrated.decks) {
-      expect(deck.cardBack).toBe(CARD_BACKS[1].id);
-      expect(deck.playmat).toBe(PLAYMATS[1].id);
-    }
-    // The account keeps its choice: it is still the fallback and the default
-    // for decks built later.
-    expect(migrated.cosmetics.cardBack).toBe(CARD_BACKS[1].id);
-    expect(migrated.cosmetics.playmat).toBe(PLAYMATS[1].id);
-  });
-
-  it('leaves decks on null when the account was on the catalog defaults', () => {
-    const storage = fakeStorage();
-    storage.raw.set('darlingblades.save.v1', JSON.stringify(v32WithDecks({ cardBack: null, playmat: null })));
-
-    const migrated = new SaveManager(storage, 456).data;
-
+    // Owner ruling 2026-08-24: a deck begins on Violet Standard and the house
+    // playmat, so the per-deck choice starts from a known baseline rather than
+    // inheriting whatever the account happened to be set to.
     for (const deck of migrated.decks) {
       expect(deck.cardBack).toBeNull();
       expect(deck.playmat).toBeNull();
     }
+  });
+
+  it('resolves a deck that never chose to the catalog default', () => {
+    expect(resolveDeckCardBackId({ cardBack: null })).toBeNull();
+    expect(resolveDeckCardBackId(null)).toBeNull();
+    expect(cardBackTextureKey(resolveDeckCardBackId(null))).toBe('cardback');
+    expect(resolveDeckPlaymatId({ playmat: null })).toBeNull();
+    // An explicit choice is answered by the deck alone.
+    expect(resolveDeckCardBackId({ cardBack: CARD_BACKS[2].id })).toBe(CARD_BACKS[2].id);
   });
 
   it('drops an id that is no longer in the catalog rather than persisting it', () => {

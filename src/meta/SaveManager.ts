@@ -808,23 +808,22 @@ export class SaveManager {
       };
     }
     if (cur.version === 32) {
-      // Style moved from the account onto the deck. Seed every existing deck
-      // with the player's current account pick so nobody's decks change
-      // appearance across the upgrade; the account values stay put as the
-      // fallback for deckless contexts (Pack Opening) and as the default for
-      // decks built later.
-      const account = normalizeCosmetics(cur.cosmetics);
+      // Style moved from the account onto the deck. Every deck STARTS on the
+      // catalog default (Violet Standard and the house playmat) rather than
+      // inheriting the account pick, so the per-deck choice begins from a
+      // known baseline (owner ruling 2026-08-24).
+      //
+      // The seed must not run again on an already-current save: the shared
+      // block above rewinds one to v22 and re-walks the whole chain, so an
+      // unconditional assignment here would reset a player's per-deck style on
+      // every load. "Field absent" is not usable as the signal either, because
+      // normalizeSavedDecks has already stamped null by now, which is why the
+      // discriminator is the version the save arrived at.
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
-            // Seed only for a save that predates v33. The block above rewinds
-            // an already-current save to v22 and re-walks the whole chain, so
-            // an unconditional assignment would wipe a player's per-deck style
-            // on every load. "Absent" cannot be detected here either, because
-            // normalizeSavedDecks has already run and stamped null, so the
-            // discriminator is the version the save arrived at.
-            cardBack: beganAtCurrentVersion ? deck.cardBack : account.cardBack,
-            playmat: beganAtCurrentVersion ? deck.playmat : account.playmat,
+            cardBack: beganAtCurrentVersion ? deck.cardBack : null,
+            playmat: beganAtCurrentVersion ? deck.playmat : null,
           }))
         : cur.decks;
       cur = { ...cur, version: 33, decks };

@@ -10,7 +10,7 @@ import { openPack, openPacks, type PackResult } from '../meta/PackOpener';
 import { formatOdds, variantOdds } from '../meta/pullOdds';
 import { Services } from '../meta/services';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
-import { CARD_BACKS, cardBackTextureKey } from '../meta/cosmetics';
+import { CARD_BACKS, cardBackTextureKey, resolveDeckCardBackId } from '../meta/cosmetics';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
 import { animTimeScale } from '../platform/animPolicy';
 import { activeRenderScale } from '../platform/renderScale';
@@ -253,8 +253,16 @@ export class PackOpeningScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Packs open with the ACTIVE deck's back (v33). Style stopped being an
+   * account setting when it moved onto the deck, and the Profile picker went
+   * with it, so reading `cosmetics.cardBack` here would pin this screen to a
+   * value nothing can change any more.
+   */
   private resolveCardBackTexture(): string {
-    const id = Services.save.data.cosmetics.cardBack;
+    const save = Services.save.data;
+    const active = save.decks.find((deck) => deck.id === save.activeDeckId) ?? null;
+    const id = resolveDeckCardBackId(active);
     const entry = id ? CARD_BACKS.find((candidate) => candidate.id === id) : undefined;
     if (!entry) return 'cardback';
     const key = cardBackTextureKey(entry.id);

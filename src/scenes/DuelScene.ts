@@ -730,10 +730,8 @@ export class DuelScene extends Phaser.Scene {
     // pick for decks that never chose. A replay or an overridden deck is not
     // "your deck", so those use the account values.
     const styleDeck = this.replayMode || data.deckOverride !== undefined ? null : myDeckEntry;
-    this.playmat = playmatForId(resolveDeckPlaymatId(styleDeck, save.cosmetics.playmat));
-    this.humanCardBackKey = cardBackTextureKey(
-      resolveDeckCardBackId(styleDeck, save.cosmetics.cardBack),
-    );
+    this.playmat = playmatForId(resolveDeckPlaymatId(styleDeck));
+    this.humanCardBackKey = cardBackTextureKey(resolveDeckCardBackId(styleDeck));
     this.humanLandStyle = !this.replayMode && data.deckOverride === undefined && myDeckEntry?.landStyle
       ? { ...myDeckEntry.landStyle }
       : null;
