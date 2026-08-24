@@ -55,10 +55,13 @@ routed to a repair flow that fixes them in a couple of clicks, and untouched
 starter decks convert themselves.
 
 **Sands of the Duat, a 245-card expansion.** The largest set yet, built
-reserve-native from the first sketch, on three mechanics: Rite pays a cost from
-what you have already spent, Nine Lives brings a creature back on its own
-terms, and Preserve keeps your best permanent through the sweep. It carries its
-own booster, precon, achievements, and set icon.
+reserve-native from the first sketch, on three mechanics. **Rite** casts a card
+by sacrificing creatures you control as an extra cost, and the sacrificed
+creatures die first, so their own death triggers still pay you. **Nine Lives**
+returns a creature to the battlefield once, the first time it dies, as a fresh
+body carrying a mark. **Preserve** works from your graveyard: pay the Preserve
+cost to Sever the card and create a token copy of it. The set carries its own
+booster, precon, achievements, and set icon.
 
 **Two new bosses and a 22-rung tower.** Anubis, Who Holds the Scale, takes rung
 21, and Bastet, Mistress of the Ninth Return, is the final rung 22.
