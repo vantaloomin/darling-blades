@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
+import { determinize } from '../../src/ai/determinize';
 import { removalKind } from '../../src/ai/value';
 import { CARD_DB } from '../../src/data/catalog';
 import { Game } from '../../src/engine/Game';
@@ -14,6 +15,18 @@ function gameFromState(state: ReturnType<typeof makeTestState>): Game {
 }
 
 describe('AI defect regressions from the 1.5 instrumented probe', () => {
+  it('HardAI determinization carries the live rules revision into its sim state', () => {
+    const state = makeTestState({ hands: [['shock'], []], active: 0 });
+    state.rulesRev = 2;
+    state.episode = { resolvedSinceOffer: 0, reopensThisStep: 0 };
+    const view = gameFromState(state).viewFor(0);
+    const simulated = determinize(view, DB, 4242);
+
+    expect(view.rulesRev).toBe(2);
+    expect(simulated.instanceState.rulesRev).toBe(2);
+    expect(simulated.instanceState.episode).toEqual({ resolvedSinceOffer: 0, reopensThisStep: 0 });
+  });
+
   it('DEFECT 1: seed 1600026 turn 27, Medium sends Apple of Endless Sleep at the opposing creature', () => {
     const state = makeTestState({
       battlefield: [
@@ -88,3 +101,31 @@ describe('AI defect regressions from the 1.5 instrumented probe', () => {
     });
   });
 });
+
+  it('DEFECT 5: Medium survives a reopened combat window whose blocks reference a dead combatant', () => {
+    // Rules rev 2 reopens the blockers window after a paid flush; that flush
+    // can kill a combatant, leaving a stale iid in combat.blocks. Discovered
+    // by the 2026-08-08 Darlings hand-size run (getEffectiveStats: no
+    // permanent N through HardAI.searchResponse -> MediumAI.respond).
+    const state = makeTestState({
+      battlefield: [
+        { iid: 1, cardId: 'forest', controller: 0 },
+        { iid: 2, cardId: 'bear', controller: 0 },
+      ],
+      hands: [['growth'], []],
+      active: 0,
+    });
+    state.step = 'combat';
+    state.combat = {
+      attackers: [2],
+      // Blocker iid 99 died mid-window; no permanent 99 exists.
+      blocks: [{ blocker: 99, attacker: 2 }],
+      phase: 'blockersDeclared',
+      damagePrevented: false,
+    };
+    state.awaiting = { player: 0, kind: 'respond', over: { type: 'blockers' } };
+    const game = gameFromState(state);
+
+    const action = new MediumAI(DB).chooseAction(game.viewFor(0), game.legalActions(0));
+    expect(action).toHaveProperty('type');
+  });

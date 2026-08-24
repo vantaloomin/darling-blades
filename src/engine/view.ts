@@ -28,7 +28,7 @@ export interface SelfView {
   darlingTax?: number;
   darlingInstanceId?: number;
   darlingCastable?: boolean;
-  landPlayedThisTurn: boolean;
+  landDropsRemaining: number;
   mulligans: number;
 }
 
@@ -45,11 +45,13 @@ export interface OpponentView {
   darlingTax?: number;
   darlingInstanceId?: number;
   darlingCastable?: boolean;
-  landPlayedThisTurn: boolean;
+  landDropsRemaining: number;
   mulligans: number;
 }
 
 export interface PlayerView {
+  /** Absent means revision 1, matching GameState's compatibility contract. */
+  rulesRev?: number;
   myId: PlayerId;
   turn: number;
   step: Step;
@@ -79,6 +81,7 @@ export function viewFor(
         ? { ...state.awaiting, cards: state.awaiting.cards.map(cardIdOf) }
         : structuredClone(state.awaiting);
   return {
+    ...(state.rulesRev === undefined ? {} : { rulesRev: state.rulesRev }),
     myId: player,
     turn: state.turn,
     step: state.step,
@@ -99,7 +102,7 @@ export function viewFor(
             darlingCastable: darlingCastable?.[player] ?? false,
           }
         : {}),
-      landPlayedThisTurn: me.landPlayedThisTurn,
+      landDropsRemaining: Math.max(0, 1 + me.extraLandDrops - me.landDropsUsed),
       mulligans: me.mulligans,
     },
     opp: {
@@ -117,7 +120,7 @@ export function viewFor(
             darlingCastable: darlingCastable?.[opponentOf(player)] ?? false,
           }
         : {}),
-      landPlayedThisTurn: them.landPlayedThisTurn,
+      landDropsRemaining: Math.max(0, 1 + them.extraLandDrops - them.landDropsUsed),
       mulligans: them.mulligans,
     },
     battlefield: structuredClone(state.battlefield),

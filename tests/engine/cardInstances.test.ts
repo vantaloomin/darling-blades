@@ -348,29 +348,6 @@ describe('Wave 1 physical card instances', () => {
     ]);
   });
 
-  it('fetch-land choice and shuffle move the selected physical card exactly once', () => {
-    const state = instanceState();
-    state.players[0].deck = [
-      card(841, 'forest', 'forest-look'),
-      card(842, 'swamp', 'swamp-look'),
-      card(843, 'bear', 'bear-look'),
-    ];
-    state.pendingDecisions = [{ kind: 'chooseBasicLand', player: 0 }];
-    state.awaiting = { player: 0, kind: 'chooseBasicLand' };
-    const game = Game.restore(state, TEST_DB);
-    const snapshot = game.clone();
-    game.submit(0, { type: 'chooseBasicLand', cardId: 'swamp' });
-    const fetched = game.instanceState.battlefield.find((perm) => perm.cardId === 'swamp');
-    expect(fetched).toMatchObject({ instanceId: 842, variantKey: 'swamp-look', tapped: true });
-    expect(instanceIds(game.instanceState.players[0].deck).sort((a, b) => a - b)).toEqual([841, 843]);
-    expect(snapshot.instanceState.pendingDecisions).toEqual([
-      { kind: 'chooseBasicLand', player: 0 },
-    ]);
-    expect(snapshot.instanceState.players[0].deck.map((entry) =>
-      typeof entry === 'string' ? entry : entry.instanceId,
-    )).toEqual([841, 842, 843]);
-  });
-
   it('token creation allocates a fresh null-treatment identity and evaporates cleanly', () => {
     const state = instanceState();
     runOps(state, TEST_DB, () => {}, ctx, [{ op: 'createToken', token: 'tok_fox', count: 2 }]);

@@ -3,11 +3,54 @@ import type { SavedDeck } from '../meta/SaveManager';
 
 export type BuilderFormat = NonNullable<SavedDeck['format']>;
 
-const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'darlings', 'warchest'];
+// Standard (the warchest format id) leads every format offer; Darlings is the
+// specialty format (owner order, 2026-08-18).
+const ALL_BUILDER_FORMATS: readonly BuilderFormat[] = ['constructed', 'warchest', 'darlings'];
 
-/** The format choices the builder may expose for this release. */
-export function offeredBuilderFormats(reserveFormatsEnabled: boolean): BuilderFormat[] {
-  return reserveFormatsEnabled ? [...ALL_BUILDER_FORMATS] : ['constructed'];
+/**
+ * The format choices the builder may expose for this release.
+ *
+ * After classic retirement Constructed leaves this list, so no NEW deck can be
+ * built classic and no deck can be switched back to it. An existing classic
+ * deck keeps its persisted format and stays openable; the two remaining
+ * buttons are its conversion affordance.
+ */
+export function offeredBuilderFormats(
+  reserveFormatsEnabled: boolean,
+  classicRetired: boolean,
+): BuilderFormat[] {
+  if (!reserveFormatsEnabled) return ['constructed'];
+  return classicRetired
+    ? ALL_BUILDER_FORMATS.filter((format) => format !== 'constructed')
+    : [...ALL_BUILDER_FORMATS];
+}
+
+/**
+ * Every offered format is a live conversion tab. The former identity-tab rule
+ * (Darlings visible only on Darlings decks, 2026-08-17) made conversion
+ * one-way: switching a Darlings deck to Warchest deleted the only way back.
+ * Owner reversal 2026-08-18: the Format row offers both directions, and the
+ * highlighted tab doubles as the deck's format indicator while editing.
+ */
+export function visibleBuilderFormatTabs(offered: readonly BuilderFormat[]): BuilderFormat[] {
+  return [...offered];
+}
+
+// showsSpellListInDeckPanel was deleted 2026-08-18: Warchest's land-only rule
+// (owner, 2026-08-17) moved into the pane's Warchest view when the
+// Cards / Warchest toggle landed, so every format's Cards view now shows the
+// editable spell list and the gate is the pane mode alone.
+
+/** Compact deterministic copy; the picker shows the full land name on tap. */
+export function reserveLandChipLabel(slot: number, name: string, maxCharacters = 10): string {
+  const prefix = `${slot} `;
+  const available = Math.max(1, maxCharacters - prefix.length);
+  const compactName = name.length <= available
+    ? name
+    : available === 1
+      ? '…'
+      : `${name.slice(0, available - 1).trimEnd()}…`;
+  return prefix + compactName;
 }
 
 /** Reserve-format metadata is hidden along with its player-facing UI. */
@@ -65,14 +108,20 @@ export function builderFormatForDeck(
 }
 
 export const WARCHEST_RULES_COPY =
-  'Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.';
+  'Your deck is 40 spells and you open with 5 cards. Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.';
 
 export const DARLINGS_RULES_COPY =
-  'Choose your Darling. She waits in her own zone, ready when you call. Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Each time she falls, her next call costs 2 more.';
+  'Choose your Darling. She waits in her own zone, ready when you call. Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands. You open with 5 cards. Each time she falls, her next call costs 2 more.';
 
+/**
+ * Player-facing format names. The warchest FORMAT reads as "Standard" (owner,
+ * 2026-08-18): it is the normal way to build a deck now, and "Warchest" stays
+ * the name of the land system every deck carries (Reserves, the builder's
+ * Warchest view), so the two words stop competing.
+ */
 export function formatLabel(format: BuilderFormat): string {
   if (format === 'darlings') return 'Darlings';
-  if (format === 'warchest') return 'Warchest';
+  if (format === 'warchest') return 'Standard';
   return 'Constructed';
 }
 
@@ -88,10 +137,19 @@ export function formatRulesCopy(format: BuilderFormat): string | null {
   return null;
 }
 
-/** Reserve formats are valid in Practice, but the Gauntlet remains classic-only. */
-export function formatGauntletUnavailableCopy(format: BuilderFormat): string | null {
+/**
+ * Which formats the Tower accepts. Before classic retirement the Gauntlet was
+ * classic-only and both reserve formats were Practice-only. Retirement makes
+ * Warchest the Tower's format (every avatar fields a validated `reserveDeck`);
+ * Darlings stays Practice-only, because the curated Darlings rival ladder is
+ * explicitly not promised for 1.6 (plan-1.6.md non-goals).
+ */
+export function formatGauntletUnavailableCopy(
+  format: BuilderFormat,
+  classicRetired: boolean,
+): string | null {
   if (format === 'darlings') return 'Darlings decks are available in Practice only.';
-  if (format === 'warchest') return 'Warchest decks are available in Practice only.';
+  if (format === 'warchest') return classicRetired ? null : 'Warchest decks are available in Practice only.';
   return null;
 }
 

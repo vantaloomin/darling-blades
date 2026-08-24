@@ -22,13 +22,12 @@ juvenile presentation.
   handoff live in [plan-1.5-pillar0.md](../plan-1.5-pillar0.md).
 - Every table row uses the exact compact template: `Hauntlink {cost}. Linked:
   The linked creature gets [printed rider].`
-- A normal-cost cast enters standalone. A Hauntlink cast uses ordinary Artifact
-  or Enchantment timing, chooses one creature the caster controls, and enters
-  linked to it. The mode and host are locked on cast.
-- If the chosen host is illegal at resolution, the spell fizzles to its owner's
-  graveyard with no standalone fallback. A link never moves or reattaches and
-  goes to its owner's graveyard when its host leaves play.
-- Ordinary text outside the Linked line works in both modes. Linked mode alone
+- A normal-cost cast enters standalone. Whenever its controller could cast a
+  Charm, its Hauntlink cost may be paid to link it to a friendly creature
+  without using the stack. Paying again moves the link immediately.
+- When a linked host leaves play, the Hauntlink permanent dies too. Moving it
+  to another creature before removal resolves saves it.
+- Ordinary text outside the Linked line works while standalone or linked. Linked state alone
   turns on the printed `scope: 'attached'` static rider.
 - The supporting vocabulary is the shipped game vocabulary: Foresee, Sever,
   Dreaded, Skim, Retell, Empower, marks, Charm, Ritual, cancel, and the twelve
@@ -101,10 +100,9 @@ design claim, not evidence that the go-wide gap is closed.
 
 ### AI-risk pilotability
 
-- **Hauntlink Apex:** every mode and host is a fully specified legal action.
-  Easy and Medium can rank its one static rider from public host value, while
-  Hard simulates the best preordered host candidates. It has no link movement,
-  second host, opponent-hand dependency, or conditional linked payoff.
+- **Hauntlink Apex:** every legal host is a fully specified `linkHaunt` action.
+  All AI tiers link an unlinked carrier to their strongest public creature when
+  the cost is affordable. They do not attempt movement heuristics yet.
 
 Ghostlight Network and Yokai Network Empress were cut. No other surviving row
 carried an `(AI-risk)` tag in the overplan.
@@ -116,7 +114,7 @@ carried an `(AI-risk)` tag in the overplan.
 | ID | Name | Rarity | Color | Type | Cost | Stats | Mechanics | Identity hook |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | yn-queen-of-the-lanterned-roof | Queen of the Lanterned Roof | UR | W | Legendary Creature (Kitsune Queen) | {5}{W} | 6/6 | Skyborne, Sentinel. Your other Kitsune get +1/+1. | She rules from a rooftop palace where every lantern is a sworn witness. |
-| yn-hauntlink-apex | Hauntlink Apex | UR | U | Artifact | {6}{U} | - | At dawn: draw 1. Hauntlink {3}{U}. Linked: The linked creature gets +2/+0, Skyborne, and Untouchable. (AI-risk survivor.) | The perfect possession is a partnership until one voice stops answering. |
+| yn-hauntlink-apex | Hauntlink Apex | UR | U | Artifact | {5}{U} | - | At dawn: draw 1. Hauntlink {2}{U}. Linked: The linked creature gets +3/+3, Skyborne, and Untouchable. (AI-risk survivor.) | The perfect possession is a partnership until one voice stops answering. |
 | yn-oni-of-the-last-exit | Oni of the Last Exit | UR | B | Legendary Creature (Oni Avatar) | {6}{B} | 7/6 | Dreaded, Deathblade. Arrives: opponent loses 4 life. | Every road out of the city passes beneath her shadow. |
 | yn-kitsune-neon-tyrant | Kitsune Neon Tyrant | UR | R | Legendary Creature (Kitsune Boss) | {5}{R} | 6/5 | Warcry, Overrun. When this attacks: deal 2 damage to opponent. | Her tailfire turns the skyline into a personal victory lap. |
 | yn-rain-circuit-sovereign | Rain-Circuit Sovereign | UR | G | Legendary Creature (Spirit Sovereign) | {6}{G} | 7/7 | Sentinel, Blood Oath. Arrives: gain 4 life, then Foresee 2. | The old forest wears the city as jewelry and grows stronger under every light. |
@@ -156,18 +154,18 @@ carried an `(AI-risk)` tag in the overplan.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | yn-lantern-fixer | Lantern Fixer | R | W | Creature (Kitsune Fixer) | {1}{W} | 2/2 | Arrives: Foresee 1. | She can find a safe room in any neighborhood and a buyer in every safe room. |
 | yn-oni-precinct-captain | Oni Precinct Captain | R | W | Creature (Oni Enforcer) | {4}{W} | 4/4 | Sentinel. At dawn: gain 1 life. | Her precinct is spotless because every stain has been given a name. |
-| yn-silver-moon-duelist | Silver-Moon Duelist | R | W | Creature (Human Ronin) | {2}{W} | 2/2 | First Blade. | Her sword catches moonlight even under a roof of smog. |
+| yn-silver-moon-duelist | Silver-Moon Duelist | R | W | Creature (Human Ronin) | {2}{W} | 2/2 | Twin Blades. | Her sword catches moonlight even under a roof of smog. |
 | yn-halo-wire-priestess | Halo-Wire Priestess | R | W | Creature (Human Cleric) | {3}{W} | 3/4 | Arrives: gain 3 life. | She cuts the district's violence with a halo made of live cable. |
 | yn-bastion-lantern | Bastion Lantern | R | W | Artifact | {2}{W} | - | Arrives: gain 2 life. Hauntlink {1}{W}. Linked: The linked creature gets +1/+1 and Sentinel. | The lantern's ghost chooses defenders who do not run. |
 | yn-quiet-the-street | Quiet the Street | R | W | Charm | {1}{W} | - | Prevent all combat damage this turn. [ANSWER: one go-wide alpha attack.] | A single command silences engines, drones, and angry spirits. |
 | yn-sanctuary-sweep | Sanctuary Sweep | R | W | Ritual | {5}{W} | - | Destroy all creatures. [ANSWER: low-curve creature swarms and token boards.] | Shrine bells ring once, and the crowded street falls silent. |
 | yn-echo-fox-informant | Echo-Fox Informant | R | U | Creature (Kitsune Spy) | {1}{U} | 2/1 | Arrives: Foresee 2. | She records secrets in the echo between two notification chimes. |
-| yn-skyline-yokai | Skyline Yokai | R | U | Creature (Yokai) | {3}{U} | 3/3 | Skyborne. | It swims through holograms as if the towers were deep water. |
+| yn-skyline-yokai | Skyline Yokai | R | U | Creature (Yokai) | {3}{U} | 3/3 | Skyborne, Untouchable. | It swims through holograms as if the towers were deep water. |
 | yn-subway-oracle | Subway Oracle | R | U | Creature (Kappa Oracle) | {4}{U} | 3/4 | Untouchable. At dawn: Foresee 1. | She knows which train will arrive and who will be waiting on it. |
 | yn-bluewire-illusionist | Bluewire Illusionist | R | U | Creature (Kitsune Illusionist) | {3}{U} | 3/3 | Arrives: Foresee 2. | Her decoys all look more trustworthy than the original. |
 | yn-moonlit-data-duelist | Moonlit Data Duelist | R | U | Creature (Kitsune Ronin) | {3}{U} | 3/3 | Skyborne, First Blade. | Her blade writes a clean line through every false identity. |
-| yn-foresee-the-fall | Foresee the Fall | R | U | Ritual | {2}{U} | - | Foresee 3. | The city warns you three seconds before disaster and charges for the privilege. |
-| yn-null-route | Null Route | R | U | Charm | {2}{U} | - | Cancel target spell. | The message vanishes before the network can decide whether it was sent. |
+| yn-foresee-the-fall | Foresee the Fall | R | U | Charm | {2}{U} | - | Foresee 3. | The city warns you three seconds before disaster and charges for the privilege. |
+| yn-null-route | Null Route | R | U | Charm | {2}{U} | - | Cancel target spell, then Foresee 1. | The message vanishes before the network can decide whether it was sent. |
 | yn-black-market-oni | Black-Market Oni | R | B | Creature (Oni Broker) | {1}{B} | 2/1 | Arrives: opponent loses 1 life; gain 1 life. | She sells counterfeit blessings from a booth behind the shrine. |
 | yn-gravewire-kitsune | Gravewire Kitsune | R | B | Creature (Kitsune Hacker) | {2}{B} | 2/2 | Deathblade. Arrives: grind self 1. | Her foxfire burns violet when it finds a dead account still open. |
 | yn-oni-bounty-agent | Oni Bounty Agent | R | B | Creature (Oni Hunter) | {4}{B} | 4/3 | Dreaded. Arrives: opponent discards at random 1. | She finds fugitives by asking their ghosts where they sleep. |
@@ -175,14 +173,14 @@ carried an `(AI-risk)` tag in the overplan.
 | yn-underpass-reclaimer | Underpass Reclaimer | R | B | Creature (Spirit Salvager) | {3}{B} | 3/3 | Arrives: raise the top creature card from your graveyard. | She retrieves lost memories from puddles beneath the train line. |
 | yn-night-market-price | Night-Market Price | R | B | Ritual | {5}{B} | - | Destroy all creatures; deal 2 damage to you. [ANSWER: low-curve creature swarms outside white.] | Every bargain in the night market has a pulse underneath it. |
 | yn-sever-the-signal | Sever the Signal | R | B | Charm | {3}{B} | - | Destroy target artifact or sever target enchantment; opponent loses 1 life. [ANSWER: static creature anthems and value Enchantments.] | A severed broadcast leaves the target alone with its own fear. |
-| yn-redline-kitsune | Redline Kitsune | R | R | Creature (Kitsune Runner) | {1}{R} | 2/1 | Warcry. | She rides the rail between stations faster than the cameras can focus. |
+| yn-redline-kitsune | Redline Kitsune | R | R | Creature (Kitsune Runner) | {1}{R} | 2/1 | Warcry, First Blade. | She rides the rail between stations faster than the cameras can focus. |
 | yn-neon-oni-brawler | Neon Oni Brawler | R | R | Creature (Oni Brawler) | {2}{R} | 3/2 | Arrives: deal 1 damage to opponent. | The crowd chants her name because it is easier than saying run. |
 | yn-motorbike-ronin | Motorbike Ronin | R | R | Creature (Human Ronin) | {3}{R} | 3/3 | First Blade. | Her motorcycle carries a shrine bell that rings before every duel. |
 | yn-rainflash-duelist | Rainflash Duelist | R | R | Creature (Human Duelist) | {4}{R} | 4/3 | First Blade, Warcry. | Her opening blow is visible only as the rain splitting around it. |
 | yn-oni-neon-marshal | Oni Neon Marshal | R | R | Creature (Oni Enforcer) | {3}{R} | 4/3 | Warcry. When this attacks: opponent loses 1 life. | Her patrol car is a shrine on wheels and a warning in chrome. |
 | yn-burn-the-billboard | Burn the Billboard | R | R | Ritual | {2}{R} | - | Deal 4 damage to target creature or player. | A corporate message becomes a fireball with excellent timing. |
-| yn-hotwire-retort | Hotwire Retort | R | R | Charm | {1}{R} | - | Deal 2 damage to target creature or player. | The reply is short, bright, and usually delivered through a fuse. |
-| yn-jade-kitsune-forager | Jade Kitsune Forager | R | G | Creature (Kitsune Forager) | {1}{G} | 2/2 | Arrives: gain 1 life. | She grows edible moss on dead vending machines. |
+| yn-hotwire-retort | Hotwire Retort | R | R | Charm | {1}{R} | - | Deal 2 damage to target creature or player, then Foresee 2. | The reply is short, bright, and usually delivered through a fuse. |
+| yn-jade-kitsune-forager | Jade Kitsune Forager | R | G | Creature (Kitsune Forager) | {1}{G} | 2/2 | Warding Gaze. Arrives: gain 1 life. | She grows edible moss on dead vending machines. |
 | yn-moss-oni-guardian | Moss Oni Guardian | R | G | Creature (Oni Guardian) | {3}{G} | 3/4 | Sentinel. | Moss softens the horns, but not the temper. |
 | yn-canopy-spirit | Canopy Spirit | R | G | Creature (Spirit) | {4}{G} | 4/4 | Skyborne. | It glides from a rooftop garden on wings of leaves and blue light. |
 | yn-greenline-bruiser | Greenline Bruiser | R | G | Creature (Yokai Brawler) | {3}{G} | 3/3 | Overrun. | The last thing a drone sees is a grin between two leaves. |
@@ -238,7 +236,7 @@ carried an `(AI-risk)` tag in the overplan.
 | yn-chrome-tailed-raider | Chrome-Tailed Raider | C | R | Creature (Kitsune Raider) | {4}{R} | 4/3 | Overrun. | The chrome tail is a stolen antenna that still picks up war songs. |
 | yn-signal-smuggler | Signal Smuggler | C | R | Creature (Human Smuggler) | {3}{R} | 3/3 | Arrives: deal 1 damage to opponent. | She moves contraband prayers through the city in insulated cases. |
 | yn-glitchhorn-enforcer | Glitchhorn Enforcer | C | R | Creature (Yokai Enforcer) | {5}{R} | 5/4 | Overrun. | Its horns broadcast a siren that makes traffic forget which way is forward. |
-| yn-street-rush | Street Rush | C | R | Ritual | {1}{R} | - | Deal 2 damage to target creature or player. | A red flare turns a routine crossing into a public execution of bad luck. |
+| yn-street-rush | Street Rush | C | R | Ritual | {1}{R} | - | Deal 3 damage to target creature. | A red flare turns a routine crossing into a public execution of bad luck. |
 | yn-riot-lantern | Riot Lantern | C | R | Charm | {2}{R} | - | Target creature gets +2/+0 and Warcry until end of turn. | The lantern's red glow means the night has chosen a side. |
 | yn-sirens-and-sparks | Sirens and Sparks | C | R | Charm | {3}{R} | - | Deal 3 damage to target creature or player. | The city's emergency tones become music when the right yokai conducts them. |
 | yn-ember-mask | Ember Mask | C | R | Artifact | {1}{R} | - | Hauntlink {R}. Linked: The linked creature gets +1/+0 and Warcry. | It smells like hot metal and the last thought of a bad enemy. |
@@ -251,7 +249,7 @@ carried an `(AI-risk)` tag in the overplan.
 | yn-rootcode-monk | Rootcode Monk | C | G | Creature (Human Monk) | {3}{G} | 3/3 | Arrives: destroy the newest artifact or enchantment an opponent controls. [ANSWER: static creature anthems.] | She meditates beneath a server rack until the rack begins to dream. |
 | yn-old-growth-gridkeeper | Old-Growth Gridkeeper | C | G | Creature (Dryad Guardian) | {5}{G} | 5/5 | Bulwark. At dawn: gain 2 life. | The oldest tree in the district has a better firewall than city hall. |
 | yn-vineglass-guardian | Vineglass Guardian | C | G | Creature (Yokai Guardian) | {4}{G} | 4/5 | Bulwark, Warding Gaze. | Its transparent bark catches hostile drones before they find the shrine. |
-| yn-ghostwood-growth | Ghostwood Growth | C | G | Ritual | {1}{G} | - | Target creature gets +3/+3 until end of turn. | A ghostwood branch punches through the street to answer a threat. |
+| yn-ghostwood-growth | Ghostwood Growth | C | G | Charm | {G} | - | Target creature gets +3/+3 until end of turn. | A ghostwood branch punches through the street to answer a threat. |
 | yn-canal-root-surge | Canal Root Surge | C | G | Charm | {2}{G} | - | Target creature gets +2/+2 until end of turn; Foresee 1. | The canal wall blooms around the person who needs it most. |
 | yn-thorn-spirit-mask | Thorn-Spirit Mask | C | G | Artifact | {1}{G} | - | Hauntlink {G}. Linked: The linked creature gets +1/+1 and Warding Gaze. | The mask grows a new thorn whenever its wearer tells the truth. |
 | yn-rooftop-shrine-garden | Rooftop Shrine Garden | C | G/W | Land | none | - | Arrives tapped. Tap: add G or W. | The oldest tree in the city grows through the newest temple. |

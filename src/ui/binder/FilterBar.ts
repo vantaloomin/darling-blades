@@ -6,6 +6,7 @@ import {
   type SortMode,
 } from '../../meta/collectionFilter';
 import { TIER_LABEL } from '../../meta/variants';
+import { isLiveSet } from '../../data/liveness';
 import { SET_IDS, SET_TITLES } from '../../data/setTitles';
 import { theme } from '../theme';
 import { Dropdown, type DropdownOption } from '../Dropdown';
@@ -75,7 +76,7 @@ export class FilterBar {
 
     const setOpts: DropdownOption<CollectionFilterState['set']>[] = [
       { value: 'all', label: 'All Sets' },
-      ...SET_IDS.map((id) => ({ value: id, label: SET_TITLES[id] })),
+      ...SET_IDS.filter(isLiveSet).map((id) => ({ value: id, label: SET_TITLES[id] })),
     ];
     mk(55, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);
 

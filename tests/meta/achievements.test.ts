@@ -3,10 +3,15 @@ import { CARD_DB } from '../../src/data/catalog';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import {
   claimAchievement,
+  claimAchievementDefinition,
   claimAllAchievements,
   evaluateAchievements,
   syncAchievements,
+  type AchievementDef,
 } from '../../src/meta/Achievements';
+import { CARD_BACKS } from '../../src/meta/cosmetics';
+import { collectiblePool } from '../../src/meta/collectionFilter';
+import { DUAT_SET } from '../../src/data/liveness';
 import { freshSave } from '../../src/meta/SaveManager';
 import { variantKey } from '../../src/meta/variants';
 
@@ -84,6 +89,7 @@ const RAGNAROK_COURT = [
 ] as const;
 
 const CELTIC_FAE_IDS = Object.values(CARD_DB)
+  .filter((entry) => collectiblePool([entry]).length > 0)
   .filter((entry) => entry.set === 'celtic-fae')
   .map((entry) => entry.id);
 const CELTIC_FAE_SOVEREIGNS = [
@@ -115,6 +121,7 @@ const CELTIC_FAE_GOALS = [
 ] as const;
 
 const GOTHIC_MONSTERS_IDS = Object.values(CARD_DB)
+  .filter((entry) => collectiblePool([entry]).length > 0)
   .filter((entry) => entry.set === 'gothic-monsters')
   .map((entry) => entry.id);
 const GOTHIC_MONSTERS_HEADLINERS = [
@@ -136,14 +143,19 @@ const GOTHIC_MONSTERS_GOALS = [
   { id: 'theme-gothic-monsters-vampires', ids: GOTHIC_MONSTERS_VAMPIRES },
 ] as const;
 const DARK_TALES_IDS = Object.values(CARD_DB)
+  .filter((entry) => collectiblePool([entry]).length > 0)
   .filter((entry) => entry.set === 'dark-tales')
   .map((entry) => entry.id);
+// Mirrors src/meta/Achievements.ts; the companion wave's two UR joined when it
+// went live (2026-08-22), widening the goal from 5 to 7.
 const DARK_TALES_HEADLINERS = [
   'dt-glass-coffin-queen',
   'dt-abyssal-songstress',
   'dt-thorn-palace-heiress',
   'dt-midnight-glass-runner',
   'dt-ice-crown-sovereign',
+  'dt-swan-lake-sovereign',
+  'dt-sea-witch-of-the-drowned-bargain',
 ] as const;
 const DARK_TALES_GOALS = [
   { id: 'theme-dark-tales-25', ids: DARK_TALES_IDS.slice(0, Math.ceil(DARK_TALES_IDS.length * 0.25)) },
@@ -154,6 +166,18 @@ const DARK_TALES_GOALS = [
   { id: 'theme-dark-tales-retell', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].retell !== undefined) },
   { id: 'theme-dark-tales-mermaids', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].subtypes.includes('Mermaid')) },
   { id: 'theme-dark-tales-bloodoath', ids: DARK_TALES_IDS.filter((id) => CARD_DB[id].keywords?.includes('bloodoath')) },
+] as const;
+// 2026-08-21: live Duat roster pins for the schema-free achievement wave.
+const SANDS_OF_THE_DUAT_IDS = Object.values(CARD_DB)
+  .filter((entry) => collectiblePool([entry]).length > 0)
+  .filter((entry) => (entry.set as string) === DUAT_SET)
+  .map((entry) => entry.id);
+const SANDS_OF_THE_DUAT_UR = SANDS_OF_THE_DUAT_IDS.filter((id) => CARD_DB[id].rarity === 'ur');
+const SANDS_OF_THE_DUAT_NINE_LIVES = SANDS_OF_THE_DUAT_IDS.filter((id) => CARD_DB[id].nineLives === true);
+const SANDS_OF_THE_DUAT_GOALS = [
+  { id: 'theme-sands-of-the-duat-complete', ids: SANDS_OF_THE_DUAT_IDS },
+  { id: 'theme-sands-of-the-duat-ur', ids: SANDS_OF_THE_DUAT_UR },
+  { id: 'theme-sands-of-the-duat-nine-lives', ids: SANDS_OF_THE_DUAT_NINE_LIVES },
 ] as const;
 
 const THEME_DB: CardDb = Object.freeze({
@@ -338,9 +362,10 @@ describe('achievements', () => {
     expect(syncAchievements(save, THEME_DB)).toContain('theme-ragnarok-twilight-court-rainbow');
   });
 
-  it('uses the 82-card Celtic Fae pool and its intended court sub-archetype ids', () => {
-    // W5 adds Moundlight Midwife: 81 -> 82.
-    expect(CELTIC_FAE_IDS).toHaveLength(82);
+  it('uses the active Celtic Fae pool and its intended court sub-archetype ids', () => {
+    // Retiring three utility taplands leaves 79 acquirable cards; the 1.6
+    // returning-mechanics sprinkle adds two commons: 79 -> 81.
+    expect(CELTIC_FAE_IDS).toHaveLength(81);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].rarity === 'ssr')).toEqual(CELTIC_FAE_SSR_COURT);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Selkie'))).toEqual(CELTIC_FAE_SELKIES);
     expect(CELTIC_FAE_IDS.filter((id) => CARD_DB[id].subtypes.includes('Raven'))).toEqual(CELTIC_FAE_RAVENS);
@@ -405,6 +430,28 @@ describe('achievements', () => {
     expect(claimAchievement(save, 'missing')).toEqual({ ok: false, gold: 0, reason: 'unknown' });
   });
 
+  it('grants a synthetic cosmetic reward once and ignores an unknown id', () => {
+    const save = freshSave(0);
+    const synthetic: AchievementDef = {
+      id: 'synthetic-cosmetic',
+      bucket: 'collection',
+      title: 'Synthetic reward',
+      description: 'Test-only reward plumbing.',
+      reward: { gold: 0, cosmeticId: CARD_BACKS[1].id },
+      progress: () => ({ current: 1, target: 1 }),
+    };
+    save.achievements.unlocked = [synthetic.id];
+
+    expect(claimAchievementDefinition(save, synthetic)).toEqual({ ok: true, gold: 0 });
+    expect(save.cosmetics.owned).toEqual([CARD_BACKS[1].id]);
+    expect(claimAchievementDefinition(save, synthetic)).toEqual({ ok: false, gold: 0, reason: 'claimed' });
+
+    const unknown: AchievementDef = { ...synthetic, id: 'synthetic-unknown', reward: { gold: 0, cosmeticId: 'not-real' } };
+    save.achievements.unlocked.push(unknown.id);
+    expect(claimAchievementDefinition(save, unknown)).toEqual({ ok: true, gold: 0 });
+    expect(save.cosmetics.owned).toEqual([CARD_BACKS[1].id]);
+  });
+
   it('claimAll claims every unclaimed unlocked reward and leaves claimed rewards alone', () => {
     const save = freshSave(0);
     save.stats.wins = 10;
@@ -449,14 +496,16 @@ describe('arthurian court achievements (1.2)', () => {
     // derive from the catalog, so a future set change moves them honestly.
     expect(status('theme-arthurian-quests', save, CARD_DB).target).toBe(7);
     expect(status('theme-arthurian-champions', save, CARD_DB).target).toBe(5);
-    expect(status('theme-arthurian-complete', save, CARD_DB).target).toBe(81);
+    // The 1.6 returning-mechanics sprinkle adds two cards to the set: 76 -> 78.
+    expect(status('theme-arthurian-complete', save, CARD_DB).target).toBe(78);
   });
 });
 
 describe('gothic monsters achievements (1.3)', () => {
-  it('uses the 82-card Gothic Monsters pool and the intended sub-archetypes', () => {
-    // W5 adds Porcelain Governess: 81 -> 82.
-    expect(GOTHIC_MONSTERS_IDS).toHaveLength(82);
+  it('uses the active Gothic Monsters pool and the intended sub-archetypes', () => {
+    // Retiring five utility taplands leaves 77 acquirable cards; the 1.6
+    // returning-mechanics sprinkle adds one common: 77 -> 78.
+    expect(GOTHIC_MONSTERS_IDS).toHaveLength(78);
     expect(GOTHIC_MONSTERS_HEADLINERS.every((id) => CARD_DB[id]?.rarity === 'ur')).toBe(true);
     expect(GOTHIC_MONSTERS_DREADED).toHaveLength(10);
     expect(GOTHIC_MONSTERS_EMPOWERED).toHaveLength(20);
@@ -504,13 +553,37 @@ describe('gothic monsters achievements (1.3)', () => {
 
 describe('dark tales achievements (1.4)', () => {
   it('registers eight live collection, headliner, and mechanic goals', () => {
-    expect(DARK_TALES_IDS).toHaveLength(120);
+    // Retiring eight utility taplands left 112 acquirable cards; the companion
+    // wave went live 2026-08-22 and adds its 60, so the theme goals now scope 172.
+    expect(DARK_TALES_IDS).toHaveLength(172);
     expect(DARK_TALES_GOALS).toHaveLength(8);
     for (const { id } of DARK_TALES_GOALS) expect(status(id, freshSave(0), CARD_DB).def.id).toBe(id);
   });
 
   for (const { id, ids } of DARK_TALES_GOALS) {
     it(`unlocks ${id} with exactly its qualifying Dark Tales collection`, () => {
+      const complete = freshSave(0);
+      complete.collection = Object.fromEntries(ids.map((cardId) => [cardId, 1]));
+      expect(status(id, complete, CARD_DB)).toMatchObject({ current: ids.length, target: ids.length, unlocked: true });
+      expect(syncAchievements(complete, CARD_DB)).toContain(id);
+
+      const oneShort = freshSave(0);
+      oneShort.collection = Object.fromEntries(ids.slice(0, -1).map((cardId) => [cardId, 1]));
+      expect(status(id, oneShort, CARD_DB)).toMatchObject({ current: ids.length - 1, target: ids.length, unlocked: false });
+    });
+  }
+});
+
+describe('Sands of the Duat achievements (1.6)', () => {
+  it('pins the live 245-card pool, ten UR legends, and Nine Lives carriers', () => {
+    expect(SANDS_OF_THE_DUAT_IDS).toHaveLength(245);
+    expect(SANDS_OF_THE_DUAT_UR).toHaveLength(10);
+    expect(SANDS_OF_THE_DUAT_NINE_LIVES).toHaveLength(21);
+    expect(SANDS_OF_THE_DUAT_GOALS).toHaveLength(3);
+  });
+
+  for (const { id, ids } of SANDS_OF_THE_DUAT_GOALS) {
+    it(`unlocks ${id} with exactly its qualifying Duat collection`, () => {
       const complete = freshSave(0);
       complete.collection = Object.fromEntries(ids.map((cardId) => [cardId, 1]));
       expect(status(id, complete, CARD_DB)).toMatchObject({ current: ids.length, target: ids.length, unlocked: true });

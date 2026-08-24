@@ -102,7 +102,7 @@ export const TK_SHU = [
     colors: ['W'],
     attack: 2,
     defense: 3,
-    keywords: ['firstBlade'],
+    keywords: ['firstBlade', 'untouchable'],
     rarity: 'r',
     flavor: 'Zhang Fei’s daughter, somehow the calm one.',
   },
@@ -157,6 +157,21 @@ export const TK_SHU = [
     keywords: ['overrun'],
     rarity: 'r',
     flavor: 'Her plans are always “attack.” Her backup plans are louder.',
+  },
+  // Returning-mechanics sprinkle (1.6): twinBlades comes home to the Three
+  // Kingdoms. Attack held to printed mv minus one per the Ragnarök band.
+  {
+    id: 'tk-shu-sword-dancer',
+    name: 'Twin-Willow Sword Dancer',
+    types: ['creature'],
+    subtypes: ['Shu', 'Warrior'],
+    cost: cost(2, 'G'),
+    colors: ['G'],
+    attack: 2,
+    defense: 3,
+    keywords: ['twinBlades'],
+    rarity: 'r',
+    flavor: 'Two willow blades, one lesson: the second cut arrives unannounced.',
   },
   {
     id: 'tk-shu-machao',

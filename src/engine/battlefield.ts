@@ -4,6 +4,7 @@ import type { CardDb, CardEntry, CardInstance, GameState, Permanent, PlayerId } 
 import { cardIdOf, def, isCardInstance, variantKeyOf } from './types';
 
 export type Emit = (e: GameEvent) => void;
+export type GraveyardEntry = (card: CardEntry, owner: PlayerId) => void;
 
 /**
  * Zone-change primitives, deliberately trigger-free: callers (resolve, sba,
@@ -24,7 +25,13 @@ export function enterBattlefield(
   card: CardEntry,
   controller: PlayerId,
   emit: Emit,
-  opts: { asToken?: boolean; attachedTo?: number } = {},
+  opts: {
+    asToken?: boolean;
+    attachedTo?: number;
+    tapped?: boolean;
+    plusOneCounters?: number;
+    variantKey?: string | null;
+  } = {},
 ): Permanent {
   const cardId = cardIdOf(card);
   const d = def(db, card);
@@ -34,20 +41,22 @@ export function enterBattlefield(
     : state.nextInstanceId !== undefined
       ? state.nextInstanceId++
       : iid;
+  const isToken = opts.asToken === true || d.token === true;
   const perm: Permanent = {
     iid,
     instanceId,
     cardId,
-    variantKey: variantKeyOf(card),
+    variantKey: opts.variantKey === undefined ? variantKeyOf(card) : opts.variantKey,
+    ...(isToken ? { isToken: true } : {}),
     owner: controller,
     controller,
-    tapped: d.entersTapped ?? false,
+    tapped: opts.tapped ?? d.entersTapped ?? false,
     enteredThisTurn: true,
     damage: 0,
     deathtouched: false,
     attachments: [],
     attachedTo: opts.attachedTo,
-    plusOneCounters: 0,
+    plusOneCounters: opts.plusOneCounters ?? 0,
     untilEotMods: [],
   };
   state.battlefield.push(perm);
@@ -57,7 +66,7 @@ export function enterBattlefield(
     host.attachments.push(perm.iid);
   }
   emit(
-    opts.asToken
+    isToken
       ? { e: 'tokenCreated', perm: structuredClone(perm) }
       : { e: 'permanentEntered', perm: structuredClone(perm) },
   );
@@ -68,6 +77,23 @@ function detachFromHost(state: GameState, perm: Permanent): void {
   if (perm.attachedTo === undefined) return;
   const host = state.battlefield.find((p) => p.iid === perm.attachedTo);
   if (host) host.attachments = host.attachments.filter((iid) => iid !== perm.iid);
+}
+
+/** Remove a permanent's attachment pointer while keeping it on the battlefield. */
+export function unlinkPermanent(state: GameState, perm: Permanent): number | undefined {
+  const previousHost = perm.attachedTo;
+  if (previousHost === undefined) return undefined;
+  detachFromHost(state, perm);
+  delete perm.attachedTo;
+  return previousHost;
+}
+
+/** Move a live attachment to a live host. Validation remains the caller's job. */
+export function attachPermanent(state: GameState, perm: Permanent, host: Permanent): number | undefined {
+  const previousHost = unlinkPermanent(state, perm);
+  perm.attachedTo = host.iid;
+  if (!host.attachments.includes(perm.iid)) host.attachments.push(perm.iid);
+  return previousHost;
 }
 
 function basicReturnsToReserve(state: GameState, db: CardDb, perm: Permanent): boolean {
@@ -82,6 +108,11 @@ function basicReturnsToReserve(state: GameState, db: CardDb, perm: Permanent): b
 function isDarlingPermanent(state: GameState, perm: Permanent): boolean {
   const owner = state.players[perm.owner];
   return owner.darlingZone !== undefined && owner.darlingInstanceId === perm.instanceId;
+}
+
+/** Runtime token identity, with a definition fallback for legacy hand-built snapshots. */
+function isTokenPermanent(db: CardDb, perm: Permanent): boolean {
+  return perm.isToken === true || (perm.isToken === undefined && def(db, perm.cardId).token === true);
 }
 
 function returnDarlingToZone(
@@ -107,14 +138,19 @@ export function destroyPermanent(
   db: CardDb,
   perm: Permanent,
   emit: Emit,
+  onGraveyardEntry?: GraveyardEntry,
 ): boolean {
   const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
   if (idx < 0) return false;
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
-  const d = def(db, perm.cardId);
-  if (!d.token && isDarlingPermanent(state, perm)) returnDarlingToZone(state, perm, emit, 'died');
-  else if (!d.token) pushMovedCard(state, perm, basicReturnsToReserve(state, db, perm) ? 'landReserve' : 'graveyard');
+  const isToken = isTokenPermanent(db, perm);
+  if (!isToken && isDarlingPermanent(state, perm)) returnDarlingToZone(state, perm, emit, 'died');
+  else if (!isToken) {
+    const zone = basicReturnsToReserve(state, db, perm) ? 'landReserve' : 'graveyard';
+    const card = pushMovedCard(state, perm, zone);
+    if (zone === 'graveyard') onGraveyardEntry?.(card, perm.owner);
+  }
   if (firesDiesForDestroy(state, db, perm)) {
     emit({ e: 'died', iid: perm.iid, cardId: perm.cardId, owner: perm.owner });
   }
@@ -132,9 +168,9 @@ export function severPermanent(
   if (idx < 0) return false;
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
-  const d = def(db, perm.cardId);
-  if (!d.token && isDarlingPermanent(state, perm)) returnDarlingToZone(state, perm, emit, 'severed');
-  else if (!d.token) pushMovedCard(state, perm, 'severed');
+  const isToken = isTokenPermanent(db, perm);
+  if (!isToken && isDarlingPermanent(state, perm)) returnDarlingToZone(state, perm, emit, 'severed');
+  else if (!isToken) pushMovedCard(state, perm, 'severed');
   emit({
     e: 'severed',
     player: perm.owner,
@@ -157,12 +193,13 @@ export function recallPermanent(
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const d = def(db, perm.cardId);
+  const isToken = isTokenPermanent(db, perm);
   const basicToReserve = basicReturnsToReserve(state, db, perm);
   const darlingToZone = isDarlingPermanent(state, perm);
-  if (!d.token && darlingToZone) {
+  if (!isToken && darlingToZone) {
     returnDarlingToZone(state, perm, emit, 'recalled');
     emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
-  } else if (!d.token) {
+  } else if (!isToken) {
     const toReserve = state.players[perm.owner].landReserve !== undefined && d.types.includes('land');
     pushMovedCard(state, perm, toReserve ? 'landReserve' : 'hand');
     emit({ e: 'cardsBottomed', player: perm.owner, count: 0 }); // no dedicated event; UI resyncs
@@ -178,7 +215,7 @@ function pushMovedCard(
   state: GameState,
   perm: Permanent,
   zone: 'hand' | 'graveyard' | 'severed' | 'landReserve' | 'darlingZone',
-): void {
+): CardEntry {
   const card: CardEntry =
     state.nextInstanceId === undefined
       ? perm.cardId
@@ -194,4 +231,5 @@ function pushMovedCard(
   } else {
     state.players[perm.owner][zone].push(card);
   }
+  return card;
 }

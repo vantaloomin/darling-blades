@@ -1,9 +1,9 @@
 import type { Emit } from './battlefield';
 import { destroyPermanent, firesDiesForDestroy } from './battlefield';
-import { fireTriggers } from './effects/EffectInterpreter';
+import { fireBatchedDies, fireGraveyardTriggers } from './effects/EffectInterpreter';
 import { endGame } from './phases';
 import { getEffectiveStats } from './statics';
-import type { CardDb, GameState, Permanent } from './types';
+import type { CardDb, CardEntry, GameState, Permanent } from './types';
 import { def, isType } from './types';
 
 export { destroyPermanent };
@@ -52,17 +52,14 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
       }
     }
 
-    // Auras and Hauntlinks attached to something that no longer exists (or dies
-    // this pass) die. A Hauntlink gets its public broken event immediately
-    // before its ordinary graveyard movement below.
+    // Orphaned Auras and linked Hauntlinks die with their departing host.
     for (const perm of state.battlefield) {
       if (perm.attachedTo === undefined) continue;
-      if (
+      const hostDeparting =
         doomedIids.has(perm.attachedTo) ||
-        !state.battlefield.some((p) => p.iid === perm.attachedTo)
-      ) {
-        doomedIids.add(perm.iid);
-      }
+        !state.battlefield.some((p) => p.iid === perm.attachedTo);
+      if (!hostDeparting) continue;
+      doomedIids.add(perm.iid);
     }
 
     // Legend rule (simple per-player form): among same-name legendaries you
@@ -82,6 +79,7 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
     // dies triggers — stopping if one of them ends the game.
     const doomed = state.battlefield.filter((p) => doomedIids.has(p.iid));
     const fallen: Permanent[] = [];
+    const graveyardEntries: { card: CardEntry; owner: 0 | 1 }[] = [];
     for (const perm of doomed) {
       const hostDeparting =
         perm.attachedTo !== undefined &&
@@ -96,18 +94,39 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit): void 
           owner: perm.owner,
         });
       }
-      if (destroyPermanent(state, db, perm, emit)) {
+      if (destroyPermanent(
+        state,
+        db,
+        perm,
+        emit,
+        (card, owner) => graveyardEntries.push({ card, owner }),
+      )) {
         if (firesDiesForDestroy(state, db, perm)) fallen.push(perm);
         changed = true;
       }
     }
-    for (const perm of fallen) {
+    for (const entry of graveyardEntries) {
       if (state.winner !== null) return;
-      fireTriggers(state, db, emit, 'dies', perm);
+      fireGraveyardTriggers(state, db, emit, entry.card, entry.owner);
     }
+    fireBatchedDies(state, db, emit, fallen);
     if (fallen.length > 0) changed = true;
 
     if (!changed) return;
   }
-  throw new Error('checkStateBased did not stabilize');
+  throw new Error(
+    'checkStateBased did not stabilize: ' +
+      JSON.stringify({
+        turn: state.turn,
+        battlefield: state.battlefield.map((p) => ({
+          iid: p.iid,
+          cardId: p.cardId,
+          controller: p.controller,
+          damage: p.damage,
+          plusOneCounters: p.plusOneCounters,
+          attachedTo: p.attachedTo,
+          def: getEffectiveStats(state.battlefield, db, p.iid).defense,
+        })),
+      }),
+  );
 }

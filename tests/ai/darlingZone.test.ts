@@ -51,7 +51,7 @@ function readyDarlingGame(tax = 0, forests = 2): { game: Game; player: PlayerId 
   const state = structuredClone(game.instanceState);
   state.players[player].hand = [];
   state.players[player].darlingTax = tax;
-  state.players[player].landPlayedThisTurn = true;
+  state.players[player].landDropsUsed = 1;
   addForests(state, player, forests);
   return { game: Game.restore(state, TEST_DB), player };
 }

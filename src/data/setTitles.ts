@@ -13,6 +13,7 @@ export const SET_IDS = [
   'gothic-monsters',
   'dark-tales',
   'yokai-nights',
+  'sands-of-the-duat',
 ] as const;
 
 /** Set ids as they appear on CardDef.set ('base' when absent). Kept in the
@@ -34,6 +35,7 @@ export const SET_TITLES: Readonly<Record<SetId, string>> = Object.freeze({
   'gothic-monsters': 'Nocturne Manor',
   'dark-tales': 'Dark Tales',
   'yokai-nights': 'Yokai Nights',
+  'sands-of-the-duat': 'Sands of the Duat',
 });
 
 /** One short identity line per shop tile. Keep these concrete and editable. */
@@ -45,4 +47,5 @@ export const SET_BLURBS: Readonly<Record<SetId, string>> = Object.freeze({
   'gothic-monsters': 'Velvet nights and hungry shadows',
   'dark-tales': 'Curses bloom under storybook moonlight',
   'yokai-nights': 'Neon spirits haunt the city grid',
+  'sands-of-the-duat': 'Flood, judgment, and the second return',
 });

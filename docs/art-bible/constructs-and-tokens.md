@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/artifacts.ts, src/data/cards/tokens.ts · last-verified: 2026-07-17 -->
+<!-- source-of-truth: src/data/cards/artifacts.ts, src/data/cards/tokens.ts · last-verified: 2026-08-19 -->
 
 # Darling Blades Art Bible — Constructs & Tokens
 
@@ -98,6 +98,36 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Prompt:** Warrior-woman siege juggernaut of riveted iron and timber with a great ram-prow shoulder, charging diagonally into a fortress wall that craters on impact, stone shards and dust blasting outward, hot impact-flash light and cool smoke rim, unstoppable grin — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ---
+
+### Duat Scarab — `tok-duat-scarab`
+- **Card facts:** {0} · B · 1/1 · c · holo: none
+- **Character & source:** B creature token (Scarab) from the Sands of the Duat Wave A token sheet, a fist-sized lapis-and-gold scarab beetle designed as the Rite fodder unit. It is a small, readable object-creature, not a humanoid figure.
+- **Personality / mood:** "She carries the offering through the heat and does not look back." Dutiful, tireless, and too small to fear the tomb road; the token reads as a purposeful carrier at a glance.
+- **Pose & composition:** Side-on three-quarter beetle stance with the head, six legs, wing cases, and offering-sized body all separated cleanly; keep the fist-sized scarab large in the central band so the Rite fodder read survives token scale.
+- **Costume & attire:** Lapis wing cases over tomb-gold shell segments, with a compact beetle body, articulated legs, small feelers, and no humanoid clothing. The shell segmentation is the identity cue and must remain crisp rather than decorative noise.
+- **Palette:** B identity anchor `#5a3a70`, `#140d1c`, `#9b6fc4` carried in the shadow planes, layered with Duat lapis `#1f3f7a` / `#2f5fae`, tomb gold `#e8c95a` / `#c9a84c`, sandstone, and resin brown `#3a2a1c` as the darkest visible value. Heart-red is absent.
+- **Lighting:** A small gold brazier just inside the tomb frame is the practical key on the shell ridges and offering path; one lapis-cool rim from the floor inlay separates the legs and wing cases.
+- **Expression:** No human expression; readable compound-eye glints and a forward-set head give the beetle calm purpose without turning it into a mascot face.
+- **Props / weapon:** A tiny sealed offering bead carried under the front legs, with the shell itself acting as the Rite-fodder silhouette; no weapon and no extra creature.
+- **Background:** Two-value resin-brown tomb floor with sandstone threshold, lapis inlay, and distant blank cartouche panels; keep the environment subordinate to the shell's gold-and-lapis read.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear fist-sized scarab, one idea (Rite fodder that carries the offering), readable at battlefield scale.
+- **Prompt:** Fist-sized lapis-and-gold scarab beetle carrying a tiny sealed offering bead through a Duat tomb, the scarab and its small sealed offering bead at the center of the frame, fully visible, at mid-height in the center of the frame, fully visible in the upper two thirds, never near the bottom edge, tomb-gold shell segments and crisp lapis wing cases, six legs and feelers clearly separated in a readable side-on three-quarter stance, resin-brown sandstone floor with lapis inlay, small gold brazier inside the frame as practical key and one lapis-cool floor rim, a generous pool of warm light claiming a large part of the frame, rich readable detail in every shadow, no near-black areas anywhere, blank gold cartouche panels, geometric banded registers, all distant walls, pylons, columns and background architecture perfectly smooth blank stone with plain flat geometric banding only, no carved relief anywhere, NO-TEXT, no hieroglyphs, no glyphs, no writing, no inscriptions, no heart-red, no true black, darkest visible value resin brown `#3a2a1c`, central-band composition with generous surrounding bleed, wholly non-humanoid beetle silhouette — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Lion-Gate Kit — `tok-bastet-kit`
+- **Card facts:** {0} · W · 1/1 · c · holo: none
+- **Character & source:** W creature token (Bastet/Kit) created by Ra's Empower ability, a Bastet child-proportioned cat-kit in miniature wrappings. The shipped child-coded Squire token is the precedent: this is a cub-like support token, not an adult woman.
+- **Personality / mood:** "She follows the pawprints and finds the fight." Brave, eager, and visibly young; the kit's courage is playful determination, never adult glamour or menace.
+- **Pose & composition:** Child-proportioned cub-like kit in a small forward crouch with one paw lifted toward the Lion Gate, short limbs and rounded shoulders kept fully readable; face around y 330 and the whole figure inside the central band with generous headroom.
+- **Costume & attire:** Miniature natron-white wrappings with lapis and tomb-gold trim scaled for a child, soft paw wraps, and no adult-coded exposed anatomy. MUST show two upright tufted ears set high on the skull, exactly ONE unforked tail with one tip emerging from the tailbone, and slit pupils.
+- **Palette:** W identity anchor `#f2e8cf`, `#c9a84c`, `#fffef2` layered with Duat tomb gold `#e8c95a` / `#c9a84c`, lapis `#1f3f7a` / `#2f5fae`, natron white `#f4efe2`, sandstone, and resin brown `#3a2a1c` as the darkest visible value. Heart-red is absent.
+- **Lighting:** A small gold lamp at the Lion Gate is the practical key across the kit's face, wrappings, and lifted paw; one lapis-cool rim from blue gate inlay cleanly separates the single tail and ear tufts.
+- **Expression:** Bright, curious, and cub-like with slit pupils and a small closed-mouth determination; wholly non-sexualized, innocent, and visibly a child-coded kit.
+- **Props / weapon:** One plain lapis-and-gold paw charm at the lifted paw and the miniature wrappings; no weapon, jewelry that suggests adulthood, or extra tail.
+- **Background:** A simplified white sandstone Lion Gate threshold with soft dust, blank gold cartouche panels, and geometric banding; keep the gate quiet so the cat-kit silhouette reads at token scale.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear Bastet kit, one idea (a young Lion-Gate helper), with a wholly non-sexualized cub-like read at battlefield scale.
+- **Prompt:** Child-proportioned cub-like Bastet cat-kit in miniature natron-white wrappings with lapis-and-tomb-gold trim, MUST show: slit vertical pupils, two upright tufted ears, exactly ONE unforked tail with its base VISIBLE emerging at the tailbone center of the lower back; the tail must be posed visible, curling beside the leg or behind the calf, never occluded; rounded child-coded limbs and a curious closed-mouth expression, the kit centered at mid-height with her lifted paw fully visible, fully visible in the upper two thirds, never near the bottom edge, crouched at a white sandstone Lion Gate, wholly non-sexualized and not an adult woman, small gold gate lamp inside the frame as practical key and one lapis-cool inlay rim, a generous pool of warm light claiming a large part of the frame, rich readable detail in every shadow, no near-black areas anywhere, blank gold cartouche panels, geometric banded registers, all distant walls, pylons, columns and background architecture perfectly smooth blank stone with plain flat geometric banding only, no carved relief anywhere, NO-TEXT, no hieroglyphs, no glyphs, no writing, no inscriptions, no heart-red, no extra tail, no true black, darkest visible value resin brown `#3a2a1c`, the head fully inside the middle band of the frame with clear air above it, generous headroom and a clear central-band figure — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Volunteer Militia — `tok-militia`
 - **Card facts:** {0} · W · 1/1 · c · holo: none

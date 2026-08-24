@@ -23,7 +23,8 @@
       "name": "darlingblades-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5173
+      "port": 5173,
+      "autoPort": false
     },
     {
       "name": "darlingblades-vite-only",

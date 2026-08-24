@@ -9,11 +9,15 @@ import type { AIPlayer } from './AIPlayer';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { chooseDarlingPaydown } from './darlingPolicy';
+import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
+import { choosePreserve, type MainCast } from './preservePolicy';
+import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import {
   empowerValue,
   hauntlinkCastValue,
+  nineLivesValue,
   removalKind,
   removalValueForCast,
   retellValue,
@@ -39,6 +43,7 @@ export class EasyAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyRitePolicy(view, this.db, legal);
     const a = view.awaiting;
     switch (a.kind) {
       case 'choosePlayDraw':
@@ -79,6 +84,23 @@ export class EasyAI implements AIPlayer {
       : view.you.hand[cast.handIndex];
   }
 
+  private castScore(view: PlayerView, action: MainCast): number {
+    const cardId = this.cardIdFor(view, action);
+    const d = def(this.db, cardId);
+    if (action.type === 'castDarling') return manaValue(d.cost) + nineLivesValue(d);
+    if (action.hauntlinked) {
+      const host = action.targets?.[0];
+      return host?.kind === 'permanent'
+        ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
+        : -Infinity;
+    }
+    const castValue = action.retell
+      ? retellValue(this.db, cardId) + 0.01
+      : manaValue(d.cost) + nineLivesValue(d) + (action.x ?? 0) +
+          (action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+    return castValue - riteSacrificeValue(view, this.db, action);
+  }
+
   /** Targeted damage should not default to a friendly permanent or player. */
   private isSelfDamageTarget(
     view: PlayerView,
@@ -100,6 +122,8 @@ export class EasyAI implements AIPlayer {
 
   private mulligan(view: PlayerView): Action {
     if (view.you.mulligans >= 2) return { type: 'keepHand' };
+    // Reserve formats deal landless hands; the land band would mull every one.
+    if (view.you.landReserve !== undefined) return { type: 'keepHand' };
     const lands = this.landsInHand(view);
     // Wide keep band [1,6] — Easy keeps bad hands.
     return lands >= 1 && lands <= 6 ? { type: 'keepHand' } : { type: 'mulligan' };
@@ -139,9 +163,18 @@ export class EasyAI implements AIPlayer {
     }
     const land = nonConcede.find((l) => l.type === 'playLand');
     if (land) return land;
+    const link = chooseUnlinkedHauntlink(view, this.db, nonConcede);
+    if (link) return link;
 
     const casts = nonConcede.filter((l) => l.type === 'castSpell' || l.type === 'castDarling');
     const skimPool = nonConcede.filter((action) => action.type === 'skim');
+    const preserve = choosePreserve(
+      view,
+      this.db,
+      nonConcede,
+      (cast) => this.castScore(view, cast),
+    );
+    if (preserve) return preserve;
     if (casts.length === 0 && skimPool.length > 0) {
       return skimPool[0];
     }
@@ -173,19 +206,8 @@ export class EasyAI implements AIPlayer {
       pool.sort((x, y) => {
         const score = (action: Action): number => {
           if (action.type === 'skim') return skimValue(this.db, view.you.hand[action.handIndex]);
-          if (action.type !== 'castSpell') return -Infinity;
-          const cardId = this.cardIdFor(view, action);
-          if (action.type === 'castSpell' && action.hauntlinked) {
-            const host = action.targets?.[0];
-            return host?.kind === 'permanent'
-              ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
-              : -Infinity;
-          }
-          return action.type === 'castSpell' && action.retell
-            ? retellValue(this.db, cardId) + 0.01
-            : manaValue(def(this.db, cardId).cost) +
-                (action.type === 'castSpell' ? (action.x ?? 0) : 0) +
-                (action.type === 'castSpell' && action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+          if (action.type !== 'castSpell' && action.type !== 'castDarling') return -Infinity;
+          return this.castScore(view, action);
         };
         return score(y) - score(x);
       });

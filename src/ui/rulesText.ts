@@ -43,7 +43,18 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
 
 /** One-line, player-facing definitions for non-keyword mechanics (glossary). */
 export const MECHANIC_DEFINITIONS: Record<
-  'sever' | 'foresee' | 'mark' | 'quest' | 'championAwakening' | 'empower' | 'skim' | 'retell' | 'hauntlink',
+  | 'sever'
+  | 'foresee'
+  | 'mark'
+  | 'quest'
+  | 'championAwakening'
+  | 'empower'
+  | 'skim'
+  | 'retell'
+  | 'hauntlink'
+  | 'rite'
+  | 'nineLives'
+  | 'preserve',
   string
 > = {
   sever: 'severed from the game; severed cards never return',
@@ -54,7 +65,10 @@ export const MECHANIC_DEFINITIONS: Record<
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
   skim: 'pay the listed cost, discard this card, then draw a card',
   retell: 'cast this from your graveyard for the listed cost, then sever it',
-  hauntlink: "pay Hauntlink to link this to a creature; host leaving puts it in its owner's graveyard",
+  hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
+  rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
+  nineLives: 'when this dies with no +1/+1 marks on it, it returns to the battlefield with a +1/+1 mark on it',
+  preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during your main phase',
 };
 
 /** One-line player-facing definitions for the card types used in the glossary. */
@@ -148,7 +162,7 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
     case 'recall':
       return `return target ${targetNoun(target)} to its owner's hand`;
     case 'destroyArtifactOrSeverEnchantment':
-      return 'destroy target artifact if it is an artifact; otherwise, Sever it if it is an enchantment';
+      return 'destroy target artifact or sever target enchantment';
     case 'cancel':
       return 'cancel target spell';
     case 'boost': {
@@ -167,8 +181,12 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
     }
     case 'tap':
       return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
-    case 'fetchLand':
-      return 'search your deck for a basic land and put it into play tapped';
+    case 'extraLandDrop': {
+      const n = op.n ?? 1;
+      return n === 1
+        ? 'you may play an additional land this turn'
+        : `you may play ${n} additional lands this turn`;
+    }
     case 'createToken': {
       // Say WHAT gets created — "create 2 tokens" left players guessing
       // (user-reported 2026-07-12). The full catalog (expansion tokens
@@ -202,8 +220,10 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
     case 'raise':
+      // "another" is load-bearing on a dies trigger: a raise never returns its
+      // own source (see EffectContext.selfGraveExclusion).
       return op.to === 'top'
-        ? 'return the top creature card of your graveyard to play'
+        ? 'return another creature card from your graveyard to play'
         : 'return target creature card from your graveyard to play';
   }
 }
@@ -222,6 +242,22 @@ export function empowerText(d: CardDef): string | undefined {
   const body = d.empower.ops.map((op) => opText(op)).join(', then ');
   const cap = body.charAt(0).toUpperCase() + body.slice(1);
   return `Empower ${manaCostText(d.empower.cost)}: ${cap}.`;
+}
+
+export function riteText(d: CardDef): string | undefined {
+  if (!d.rite) return undefined;
+  return `Rite ${d.rite.n}.`;
+}
+
+export function nineLivesText(d: CardDef): string | undefined {
+  if (!d.nineLives) return undefined;
+  return 'Nine Lives.';
+}
+
+export function preserveText(d: CardDef): string | undefined {
+  if (!d.preserve) return undefined;
+  const cost = manaCostText(d.preserve.cost);
+  return `Preserve ${cost}.`;
 }
 
 export function skimText(d: CardDef): string | undefined {
@@ -250,7 +286,7 @@ export function hauntlinkText(d: CardDef): string | undefined {
     : stats
       ? `gets ${stats}`
       : `gains ${keywords}`;
-  return `Hauntlink ${manaCostText(d.hauntlink.cost)}: You may play this linked to a creature you control. Linked: The linked creature ${benefit}. When the host leaves play, put this into its owner's graveyard.`;
+  return `Hauntlink ${manaCostText(d.hauntlink.cost)}: At Charm speed, link this to a creature you control or move it to another. Linked: The linked creature ${benefit}. This dies with its host.`;
 }
 
 function abilityText(ab: AbilityDef): string {
@@ -320,6 +356,9 @@ function abilityText(ab: AbilityDef): string {
       break;
     case 'dies':
       sentence = `When this dies, ${body}.`;
+      break;
+    case 'entersGraveyard':
+      sentence = `When this enters your graveyard, ${body}.`;
       break;
     case 'dawn':
       sentence = `At the start of your turn, ${body}.`;
@@ -399,6 +438,12 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   if (skim) lines.push(skim);
   const hauntlink = hauntlinkText(d);
   if (hauntlink) lines.push(hauntlink);
+  const rite = riteText(d);
+  if (rite) lines.push(rite);
+  const nineLives = nineLivesText(d);
+  if (nineLives) lines.push(nineLives);
+  const preserve = preserveText(d);
+  if (preserve) lines.push(preserve);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
@@ -453,6 +498,9 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   if (d.skim) push('Skim', MECHANIC_DEFINITIONS.skim);
   if (d.retell) push('Retell', MECHANIC_DEFINITIONS.retell);
   if (d.hauntlink) push('Hauntlink', MECHANIC_DEFINITIONS.hauntlink);
+  if (d.rite) push('Rite', MECHANIC_DEFINITIONS.rite);
+  if (d.nineLives) push('Nine Lives', MECHANIC_DEFINITIONS.nineLives);
+  if (d.preserve) push('Preserve', MECHANIC_DEFINITIONS.preserve);
   return entries;
 }
 

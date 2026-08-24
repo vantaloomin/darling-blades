@@ -11,6 +11,8 @@ import { evaluate } from './evaluate';
 import { MediumAI } from './MediumAI';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
+import { preserveActionValue } from './preservePolicy';
+import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
 import { cardValue, hauntlinkCastValue } from './value';
 
 /**
@@ -41,6 +43,7 @@ export class HardAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyRitePolicy(view, this.db, legal);
     switch (view.awaiting.kind) {
       case 'choosePlayDraw':
         return choosePlayDraw(legal);
@@ -179,15 +182,18 @@ export class HardAI implements AIPlayer {
    */
   private searchMain(view: PlayerView, legal: Action[]): Action {
     const baseline = this.medium.chooseAction(view, legal);
-    // Keep the narrow candidate set for now. It still compares Skim, Retell,
-    // and Empower only against Medium's baseline; making passStep a candidate
+    if (baseline.type === 'linkHaunt') return baseline;
+    // Keep the narrow candidate set for now. It compares Skim, Retell,
+    // Empower, Rite, and Darling casts against Medium's baseline; making passStep a candidate
     // is future work. Skim must not be offered as a lookahead line when its
     // draw would deck out the player.
     const candidates = legal
       .filter(
         (a) =>
           (a.type === 'skim' && view.you.deckCount > 0) ||
-          (a.type === 'castSpell' && (a.empowered === true || a.retell === true)) ||
+          (a.type === 'castSpell' &&
+            (a.empowered === true || a.retell === true || isRiteCast(view, this.db, a))) ||
+          a.type === 'preserveCard' ||
           a.type === 'castDarling',
       )
       // evaluate() deliberately strips until-EOT mods. When positive target
@@ -204,13 +210,16 @@ export class HardAI implements AIPlayer {
 
     const base = this.aggregateOutcome(view, [baseline]);
     if (!base) return baseline; // own line illegal in the sim; trust Medium
-    let best = baseline;
+    let best: Action = baseline;
     let bestScore = base.score;
     const candidateScore = (candidate: Action): number => {
       if (candidate.type === 'castDarling') {
         return view.you.darlingZone === null || view.you.darlingZone === undefined
           ? -Infinity
           : cardValue(this.db, view.you.darlingZone);
+      }
+      if (candidate.type === 'preserveCard') {
+        return preserveActionValue(view, this.db, candidate);
       }
       if (candidate.type !== 'castSpell') return -Infinity;
       const cardId = candidate.retell && candidate.graveIndex !== undefined
@@ -222,12 +231,13 @@ export class HardAI implements AIPlayer {
           ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
           : -Infinity;
       }
-      return cardValue(this.db, cardId) + (candidate.empowered ? 0.01 : 0);
+      return cardValue(this.db, cardId) + (candidate.empowered ? 0.01 : 0) -
+        riteSacrificeValue(view, this.db, candidate);
     };
     // Cap the sim fanout: variants scale with target count, so rank Hauntlink
-    // hosts by the same public-board score before truncating the menu. Keep
-    // the pre-existing order for every non-Hauntlink candidate so adding the
-    // alternate mode cannot perturb ordinary games.
+    // hosts and Preserve bodies by public value before truncating the menu.
+    // Rite stays ahead of the cap, and the single best Preserve action is
+    // always searched.
     const rankedCandidates = candidates
       .map((candidate, index) => ({ candidate, index }))
       .sort((a, b) => {
@@ -235,10 +245,32 @@ export class HardAI implements AIPlayer {
         const bLinked = b.candidate.type === 'castSpell' && b.candidate.hauntlinked === true;
         if (aLinked !== bLinked) return aLinked ? -1 : 1;
         if (aLinked && bLinked) return candidateScore(b.candidate) - candidateScore(a.candidate) || a.index - b.index;
+        const aPreserve = a.candidate.type === 'preserveCard';
+        const bPreserve = b.candidate.type === 'preserveCard';
+        if (aPreserve !== bPreserve) return aPreserve ? -1 : 1;
+        if (aPreserve && bPreserve) {
+          return candidateScore(b.candidate) - candidateScore(a.candidate) || a.index - b.index;
+        }
         return a.index - b.index;
       })
       .map(({ candidate }) => candidate);
-    for (const candidate of rankedCandidates.slice(0, 8)) {
+    const riteCandidates = rankedCandidates.filter((candidate) =>
+      isRiteCast(view, this.db, candidate),
+    );
+    const preserveCandidates = rankedCandidates.filter(
+      (candidate) => candidate.type === 'preserveCard',
+    ).slice(0, 1);
+    const cappedCandidates = [
+      ...riteCandidates,
+      ...preserveCandidates,
+      ...rankedCandidates
+        .filter(
+          (candidate) =>
+            !isRiteCast(view, this.db, candidate) && candidate.type !== 'preserveCard',
+        )
+        .slice(0, 8),
+    ];
+    for (const candidate of cappedCandidates) {
       const outcome = this.aggregateOutcome(view, [candidate]);
       if (outcome && outcome.score > bestScore) {
         best = candidate;

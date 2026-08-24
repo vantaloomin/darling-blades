@@ -1,5 +1,5 @@
 import type { CardDb, CardType, Color } from '../engine/types';
-import { def, isType, manaValue } from '../engine/types';
+import { isType, manaValue } from '../engine/types';
 
 /**
  * Pure, Phaser-free deck aggregation for the builder's stats panel — the mana
@@ -36,9 +36,12 @@ export function computeDeckStats(deck: string[], db: CardDb): DeckStats {
     land: 0,
   };
   let lands = 0;
+  let knownCards = 0;
 
   for (const id of deck) {
-    const d = def(db, id);
+    const d = db[id];
+    if (!d) continue;
+    knownCards++;
     // Each card counts once under its primary type (creature-first).
     const primary = TYPE_ORDER.find((t) => isType(d, t)) ?? 'creature';
     typeCounts[primary]++;
@@ -53,5 +56,5 @@ export function computeDeckStats(deck: string[], db: CardDb): DeckStats {
     }
   }
 
-  return { curve, colorPips, typeCounts, lands, nonlands: deck.length - lands };
+  return { curve, colorPips, typeCounts, lands, nonlands: knownCards - lands };
 }

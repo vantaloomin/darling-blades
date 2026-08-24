@@ -151,7 +151,7 @@ patterned, never lettered.
 - **Prompt:** Sigrún, a winged Valkyrie, a chooser of the slain, in gold-chased scale mail over a great feathered cloak, a winged helm; descending mid-flight with wings flared, one boot about to touch the field, against a storm-lit battlefield seen from above the clouds, an aurora banding the sky; serene and judging, already deciding who the day remembers; a cold aurora key with a warm rune-gold rim off the mail — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Barrow-Jarl of the Deep Howe — `rg-draugr-jarl`
-- **Card facts:** {4}{B} · B · 3/3 · sr · holo: radiant foil
+- **Card facts:** {4}{B} · B · 4/4 · sr · holo: radiant foil
 - **Character & source:** a Draugr, a barrow-dead warrior risen from the howe; mechanically she calls the fallen back to the field.
 - **Personality / mood:** "She kept her gold, her sword, and a grudge worth more than both." — hateful and patient, robbed of everything but the grudge.
 - **Pose & composition:** hauling upright out of the grave-earth, blade first; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -509,6 +509,21 @@ patterned, never lettered.
 - **Holo interaction:** Rolled specials favor shiny — concentrate texture variance in the metal, cloth-trim, and any relic so the finish lands there and the face stays quiet.
 - **Rarity ambition:** Uncommon — the figure plus one environmental story beat or a beat of motion.
 - **Prompt:** Dian Wei, a genderbent Three Kingdoms Wei officer, returned deathless, in lapis-and-bronze plate over a scholar-officer’s robe, high collar, cool grave-pallor; a full-body cleaving strike, armor half-shed for speed, against a watchtower and command tents on the disciplined northern plain; ferocious, past caring for her own defense; a hard overcast key with a bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Twice-Chosen Shieldmaiden — `rg-twice-chosen-shieldmaiden`
+- **Card facts:** {2}{R} · R · 2/3 · r · holo: shiny
+- **Character & source:** an Einherjar shieldmaiden the choosers passed over once and came back for; mechanically a dormant champion who awakens at her own dawn.
+- **Personality / mood:** "The choosers passed her over once. She made certain of the second look." — patient fury sharpened into certainty.
+- **Pose & composition:** rising from a knee into a shield-forward guard as a valkyrie's light breaks over her; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
+- **Costume & attire:** battle-worn lamellar with a new gilt torc that does not match the rest, and the dented round shield she refused to replace.
+- **Palette:** R palette (`#d95436` → `#5e0f0f`, accent `#f7b267`) — ember and iron; Ragnarök accents — glacier blue-white, aurora green-violet, runic gold, and ash — layered over the color anchor, never replacing it.
+- **Lighting:** a cold aurora key from above with a warm ember rim rising from below — the two lights of her two summons.
+- **Expression:** patient fury sharpened into certainty.
+- **Props / weapon:** a straight-bladed sword with a disc pommel and the dented round shield, old damage kept on purpose. (Reconciled 2026-08-19 to the shipped illustration; the original draft said a notched axe but the Prompt line never carried it.)
+- **Background:** a battlefield ridge at dusk with a wing of valkyrie light descending for the second time.
+- **Holo interaction:** Rolled specials favor shiny — concentrate texture variance in the metal, cloth-trim, and any relic so the finish lands there and the face stays quiet.
+- **Rarity ambition:** Uncommon — the figure plus one environmental story beat or a beat of motion.
+- **Prompt:** Twice-Chosen Shieldmaiden, an Einherjar shieldmaiden the choosers came back for, in battle-worn lamellar with a mismatched gilt torc and a dented round shield; rising from a knee into a shield-forward guard as valkyrie light breaks over her, against a battlefield ridge at dusk; patient fury sharpened into certainty; a cold aurora key from above with a warm ember rim from below — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Valkyrie Scout — `rg-valkyrie-scout`
 - **Card facts:** {1}{W} · W · 2/1 · skyborne · c · holo: none

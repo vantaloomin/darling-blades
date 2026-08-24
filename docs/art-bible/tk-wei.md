@@ -151,7 +151,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Cao Ren defensive bastion braced behind a bronze-rimmed tower shield, ink-black hair and amber eyes, heavy ivory-and-bronze plate with lapis Wei-crest surcoat, bracing spear, battered rampart with distant siege-fire glow, cool dawn key with warm underfire rim, unshaken resolve — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Cao Pi, Heir of Frost — `tk-wei-caopi`
-- **Card facts:** {2}{U}{U} · U · 3/3 · r · holo: auto:sheen
+- **Card facts:** {2}{U}{U} · U · 3/3 · sentinel · r · holo: auto:sheen
 - **Character & source:** Genderbent Cao Pi, Cao Cao's cold successor who turned conquest into administration; her ETB draws a card — the strategist who makes the empire official. Cao family: ink-black hair, sharp amber eyes, imperious brow.
 - **Personality / mood:** "Mother built the empire. She files the paperwork that makes it real." Icy, precise, quietly resentful ambition.
 - **Pose & composition:** Composed seated-or-standing three-quarter at a desk of edicts, face ≈ y 310 turned coolly to camera, one hand setting down an imperial seal — the "draw" moment as a decree completed. Still and controlled, not martial.
@@ -181,7 +181,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Guo Jia clever young strategist lounging, lightweight lapis scholar's robe worn casually open, wine-gourd at hip, dangling a strategy scroll from two fingers, wide smug grin, warm lantern key with cool blue rim in a tent, loose dark hair — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Jia Xu, Venomous Counsel — `tk-wei-jiaxu`
-- **Card facts:** {2}{B} · B · 2/2 · r · holo: auto:sheen
+- **Card facts:** {2}{B} · B · 2/2 · deathblade · r · holo: auto:sheen
 - **Character & source:** Genderbent Jia Xu, the coldly amoral schemer; her ETB forces the enemy to discard — advice that costs the listener.
 - **Personality / mood:** "Her advice is always right. That is the terrifying part." Detached, unsettling, always three moves ahead.
 - **Pose & composition:** Quiet schemer's half-turn, face ≈ y 310 glancing back over one shoulder at the viewer, one hand extending a small poison-black scroll — the discard as a whispered suggestion. Still, low-energy, ominous rather than active.

@@ -4,11 +4,14 @@ import { ownedCount, ownedVariants } from './Collection';
 import { LIMITED_MATCHES } from './Limited';
 import type { SaveData } from './SaveManager';
 import { isPlainVariant, parseVariantKey } from './variants';
+import { cosmeticById } from './cosmetics';
 
 export type AchievementBucket = 'collection' | 'variants' | 'theme' | 'mastery' | 'economy';
 
 export interface AchievementReward {
   gold: number;
+  /** Future Courts rewards can grant one account-level cosmetic. */
+  cosmeticId?: string;
 }
 
 export interface AchievementProgress {
@@ -111,6 +114,10 @@ const DARK_TALES_HEADLINERS = [
   'dt-thorn-palace-heiress',
   'dt-midnight-glass-runner',
   'dt-ice-crown-sovereign',
+  // The companion wave's two UR, added when it went live (2026-08-22). Copy
+  // change only: the goal is predicate-based, so no save bump is needed.
+  'dt-swan-lake-sovereign',
+  'dt-sea-witch-of-the-drowned-bargain',
 ] as const;
 
 function themeIds(ids: readonly string[], db: CardDb): string[] {
@@ -174,12 +181,25 @@ const isArthurianCourt = (card: CardDef): boolean => card.set === 'arthurian-cou
 const isGothicMonsters = (card: CardDef): boolean => card.set === 'gothic-monsters';
 const isDarkTales = (card: CardDef): boolean => card.set === 'dark-tales';
 const isYokaiNights = (card: CardDef): boolean => (card.set as string) === 'yokai-nights';
+const isSandsOfTheDuat = (card: CardDef): boolean => (card.set as string) === 'sands-of-the-duat';
 const YOKAI_NIGHTS_UR = [
   'yn-queen-of-the-lanterned-roof',
   'yn-hauntlink-apex',
   'yn-oni-of-the-last-exit',
   'yn-kitsune-neon-tyrant',
   'yn-rain-circuit-sovereign',
+] as const;
+const SANDS_OF_THE_DUAT_UR = [
+  'sd-bastet-mistress-of-the-ninth-return',
+  'sd-anubis-who-holds-the-scale',
+  'sd-osiris-green-after-burial',
+  'sd-ammit-under-the-scale',
+  'sd-anuket-who-runs-the-cataracts',
+  'sd-flood-fed-colossus',
+  'sd-heart-scale-reliquary',
+  'sd-queen-of-the-last-procession',
+  'sd-nadira-keeper-of-the-final-toll',
+  'sd-zahira-who-lights-the-prow',
 ] as const;
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
@@ -772,6 +792,31 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     reward: { gold: 750 },
     progress: (save, db) => themeVariantProgress(save, ['yn-hauntlink-apex'], db, (variant) => variant.holo === 'void'),
   },
+  // Sands of the Duat (1.6), schema-free and derived from the live 245-card pool.
+  {
+    id: 'theme-sands-of-the-duat-complete',
+    bucket: 'theme',
+    title: 'Duat Complete',
+    description: 'Own all 245 unique Sands of the Duat cards.',
+    reward: { gold: 2450 },
+    progress: (save, db) => themedCollectionProgress(save, db, isSandsOfTheDuat),
+  },
+  {
+    id: 'theme-sands-of-the-duat-ur',
+    bucket: 'theme',
+    title: 'Ten Names at the Gate',
+    description: 'Own all 10 Sands of the Duat UR legends.',
+    reward: { gold: 1200 },
+    progress: (save, db) => themeProgress(save, SANDS_OF_THE_DUAT_UR, db),
+  },
+  {
+    id: 'theme-sands-of-the-duat-nine-lives',
+    bucket: 'theme',
+    title: 'Nine Lives Returned',
+    description: 'Own every Sands of the Duat card with Nine Lives.',
+    reward: { gold: 450 },
+    progress: (save, db) => themedCollectionProgress(save, db, (card) => isSandsOfTheDuat(card) && card.nineLives === true),
+  },
   {
     id: 'first-win',
     bucket: 'mastery',
@@ -946,10 +991,20 @@ export function syncAchievements(save: SaveData, db: CardDb): string[] {
 export function claimAchievement(save: SaveData, id: string): ClaimResult {
   const def = DEFS_BY_ID.get(id);
   if (!def) return { ok: false, gold: 0, reason: 'unknown' };
-  if (!save.achievements.unlocked.includes(id)) return { ok: false, gold: 0, reason: 'locked' };
-  if (save.achievements.claimed.includes(id)) return { ok: false, gold: 0, reason: 'claimed' };
-  save.achievements.claimed.push(id);
+  return claimAchievementDefinition(save, def);
+}
+
+/** Definition-level seam keeps reward plumbing directly testable without
+ * adding a synthetic achievement to the shipped catalog. */
+export function claimAchievementDefinition(save: SaveData, def: AchievementDef): ClaimResult {
+  if (!save.achievements.unlocked.includes(def.id)) return { ok: false, gold: 0, reason: 'locked' };
+  if (save.achievements.claimed.includes(def.id)) return { ok: false, gold: 0, reason: 'claimed' };
+  save.achievements.claimed.push(def.id);
   save.gold += def.reward.gold;
+  const cosmeticId = def.reward.cosmeticId;
+  if (cosmeticId && cosmeticById(cosmeticId) && !save.cosmetics.owned.includes(cosmeticId)) {
+    save.cosmetics.owned.push(cosmeticId);
+  }
   return { ok: true, gold: def.reward.gold };
 }
 

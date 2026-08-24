@@ -8,7 +8,7 @@
  * real-device behavior still needs a phone (flagged in the plan §1.8).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { AudioManager } from '../../src/audio/AudioManager';
+import { AudioManager, normalizeSfxPitch } from '../../src/audio/AudioManager';
 
 type Listener = (...args: unknown[]) => void;
 
@@ -184,5 +184,15 @@ describe('AudioManager lifecycle resume', () => {
     expect(fakeWindow.count('pointerdown')).toBe(1);
     expect(fakeWindow.count('keydown')).toBe(1);
     expect(mgr.resumeAttempts).toBe(3);
+  });
+});
+
+describe('AudioManager pitch options', () => {
+  it('defaults invalid pitch and bounds valid multipliers', () => {
+    expect(normalizeSfxPitch(undefined)).toBe(1);
+    expect(normalizeSfxPitch(Number.NaN)).toBe(1);
+    expect(normalizeSfxPitch(0.1)).toBe(0.5);
+    expect(normalizeSfxPitch(1.25)).toBe(1.25);
+    expect(normalizeSfxPitch(4)).toBe(2);
   });
 });

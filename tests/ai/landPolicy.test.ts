@@ -26,7 +26,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
       graveyard: [],
       severed: [],
       landReserve: RESERVE,
-      landPlayedThisTurn: false,
+      landDropsRemaining: 1,
       mulligans: 0,
     },
     opp: {
@@ -36,7 +36,7 @@ function view(overrides: Partial<PlayerView> = {}): PlayerView {
       graveyard: [],
       severed: [],
       landReserve: RESERVE,
-      landPlayedThisTurn: false,
+      landDropsRemaining: 1,
       mulligans: 0,
     },
     battlefield: [],
@@ -135,6 +135,25 @@ describe('shared reserve land policy', () => {
       ...player.deck,
     ].map(cardIdOf));
     expect(hiddenIds).not.toContain('__unknown_land');
+  });
+
+  it('carries the live rules revision into HardAI determinized simulations', () => {
+    const current = new Game({ decks: [SPELL_DECK, SPELL_DECK], seed: 8129, db: TEST_DB });
+    keepBoth(current);
+    const currentSim = determinize(current.viewFor(0), TEST_DB, 4244);
+    expect(currentSim.instanceState.rulesRev).toBe(3);
+    expect(currentSim.instanceState.episode).toEqual({ resolvedSinceOffer: 0, reopensThisStep: 0 });
+
+    const classic = new Game({
+      decks: [SPELL_DECK, SPELL_DECK],
+      seed: 8130,
+      db: TEST_DB,
+      rulesRev: 1,
+    });
+    keepBoth(classic);
+    const classicSim = determinize(classic.viewFor(0), TEST_DB, 4245);
+    expect('rulesRev' in classicSim.instanceState).toBe(false);
+    expect('episode' in classicSim.instanceState).toBe(false);
   });
 
   it('preserves both Darlings public zones through determinization', () => {

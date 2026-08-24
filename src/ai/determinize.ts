@@ -286,7 +286,8 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
           ...(view.you.darlingInstanceId === undefined ? {} : { darlingInstanceId: view.you.darlingInstanceId }),
         }
       : {}),
-    landPlayedThisTurn: view.you.landPlayedThisTurn,
+    landDropsUsed: view.you.landDropsRemaining > 0 ? 0 : 1,
+    extraLandDrops: Math.max(0, view.you.landDropsRemaining - 1),
     mulligans: view.you.mulligans,
     keptHand: true,
   };
@@ -304,7 +305,8 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
           ...(view.opp.darlingInstanceId === undefined ? {} : { darlingInstanceId: view.opp.darlingInstanceId }),
         }
       : {}),
-    landPlayedThisTurn: view.opp.landPlayedThisTurn,
+    landDropsUsed: view.opp.landDropsRemaining > 0 ? 0 : 1,
+    extraLandDrops: Math.max(0, view.opp.landDropsRemaining - 1),
     mulligans: view.opp.mulligans,
     keptHand: true,
   };
@@ -314,6 +316,9 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
   const maxSid = Math.max(0, ...view.stack.map((s) => s.sid));
 
   const state: GameState = {
+    ...((view.rulesRev ?? 1) >= 2
+      ? { rulesRev: view.rulesRev, episode: { resolvedSinceOffer: 0, reopensThisStep: 0 } }
+      : {}),
     rng: createRngState(seed),
     turn: view.turn,
     startingPlayer: view.startingPlayer,

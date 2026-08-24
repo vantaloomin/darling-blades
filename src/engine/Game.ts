@@ -1,4 +1,5 @@
 import {
+  CURRENT_RULES_REV,
   DARLING_PAYDOWN_COST,
   DARLING_PAYDOWN_REDUCTION,
   LAND_RESERVE_SIZE,
@@ -9,11 +10,12 @@ import {
 } from '../config/rules';
 import type { Action } from './actions';
 import { darlingCastCost, legalActions, validateAction } from './actions';
-import { hasCastableInstant } from './actions';
+import { hasCastableCharm, hasCastableInstant } from './actions';
 import { resolveCombatDamage } from './combat/damage';
-import { fireTriggers, runOps } from './effects/EffectInterpreter';
+import { fireGraveyardTriggers, fireTriggers, runOps } from './effects/EffectInterpreter';
 import type { GameEvent } from './events';
 import { combineManaCosts, solveMana } from './mana';
+import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
 import { checkStateBased } from './sba';
 import { getEffectiveStats } from './statics';
 import {
@@ -24,6 +26,7 @@ import {
   finishDawn,
   finishCleanup,
   resumeCleanup,
+  setStep,
   startTurn,
 } from './phases';
 import { createRngState, rngInt, rngShuffle } from './rng';
@@ -40,7 +43,7 @@ import type {
   PlayerId,
   StackItem,
 } from './types';
-import { cardIdOf, def, findPermanent, isCardInstance, opponentOf } from './types';
+import { cardIdOf, def, findPermanent, isCardInstance, opponentOf, variantKeyOf } from './types';
 import type { PlayerView } from './view';
 import { viewFor } from './view';
 
@@ -48,6 +51,8 @@ export interface GameConfig {
   decks: [CardEntry[], CardEntry[]];
   seed: number;
   db: CardDb;
+  /** Simulation override for opening deals and full mulligan redraws. */
+  startingHandSize?: number;
   /** Classic is the default. Warchest and Darlings use ordered land reserves. */
   format?: GameFormat;
   /** One ordered ten-land payload per seat for reserve formats. */
@@ -56,6 +61,10 @@ export interface GameConfig {
   darlings?: [string | null, string | null];
   /** Opt into the pre-deal coin-flip winner's play/draw decision. */
   playDrawChoice?: boolean;
+  /** Optional synchronous read-only observer for headless instrumentation. */
+  eventObserver?: (event: Readonly<GameEvent>, state: Readonly<GameState>) => void;
+  /** Observable engine behavior revision. New games default to current. */
+  rulesRev?: 1 | 2 | 3;
 }
 
 function buildDarlingInstances(
@@ -176,6 +185,8 @@ function validateRestoredReserveState(state: GameState, db: CardDb): void {
 export class Game {
   private st: GameState;
   private readonly db: CardDb;
+  private readonly startingHandSize: number;
+  private readonly eventObserver?: GameConfig['eventObserver'];
   private buf: GameEvent[] = [];
   /** Legacy state facade retained so existing callers can make scalar edits before submit. */
   private publicState?: LegacyGameState;
@@ -184,7 +195,13 @@ export class Game {
 
   constructor(cfg: GameConfig) {
     this.db = cfg.db;
+    this.startingHandSize = cfg.startingHandSize ?? RULES.startingHandSize;
+    if (!Number.isSafeInteger(this.startingHandSize) || this.startingHandSize <= 0) {
+      throw new Error('startingHandSize must be a positive integer.');
+    }
+    this.eventObserver = cfg.eventObserver;
     const rng = createRngState(cfg.seed);
+    const rulesRev = cfg.rulesRev ?? CURRENT_RULES_REV;
 
     let nextInstanceId = 1;
 
@@ -205,6 +222,9 @@ export class Game {
     const startingPlayer = rngInt(rng, 2) as PlayerId;
 
     this.st = {
+      ...(rulesRev >= 2
+        ? { rulesRev, episode: { resolvedSinceOffer: 0, reopensThisStep: 0 } }
+        : {}),
       rng,
       turn: 0, // becomes 1 when the game actually starts (after mulligans)
       startingPlayer,
@@ -232,7 +252,10 @@ export class Game {
       winReason: null,
     };
 
-    const emit: Emit = (e) => this.initialEvents.push(e);
+    const emit: Emit = (e) => {
+      this.initialEvents.push(e);
+      this.eventObserver?.(e, this.st);
+    };
     if (cfg.playDrawChoice) {
       // The call/reveal happens before either player sees an opening hand.
       // Dealing moves to choosePlayDraw below; drawCards consumes no RNG, so
@@ -241,7 +264,7 @@ export class Game {
     } else {
       emit({ e: 'firstPlayerChosen', player: startingPlayer });
       for (const p of [0, 1] as const) {
-        drawCards(this.st, emit, p, RULES.startingHandSize);
+        drawCards(this.st, emit, p, this.startingHandSize);
       }
     }
   }
@@ -257,7 +280,8 @@ export class Game {
       hand: [],
       graveyard: [],
       severed: [],
-      landPlayedThisTurn: false,
+      landDropsUsed: 0,
+      extraLandDrops: 0,
       mulligans: 0,
       keptHand: false,
     };
@@ -304,13 +328,24 @@ export class Game {
 
   clone(): Game {
     this.syncLegacyMutations();
-    return Game.restore(structuredClone(this.st), this.db);
+    return Game.restore(structuredClone(this.st), this.db, this.startingHandSize);
   }
 
-  static restore(state: GameState, db: CardDb): Game {
+  static restore(
+    state: GameState,
+    db: CardDb,
+    startingHandSize: number = RULES.startingHandSize,
+  ): Game {
     validateRestoredReserveState(state, db);
     const g = Object.create(Game.prototype) as Game;
-    Object.assign(g, { st: normalizeState(state), db, buf: [], initialEvents: [] });
+    Object.assign(g, {
+      st: normalizeState(state),
+      db,
+      startingHandSize,
+      eventObserver: undefined,
+      buf: [],
+      initialEvents: [],
+    });
     return g;
   }
 
@@ -321,7 +356,10 @@ export class Game {
     if (err) throw new Error(`Illegal action ${action.type} by P${player}: ${err}`);
 
     this.buf = [];
-    const emit: Emit = (e) => this.buf.push(e);
+    const emit: Emit = (e) => {
+      this.buf.push(e);
+      this.eventObserver?.(e, this.st);
+    };
     this.apply(player, action, emit);
     this.maybeRaiseDeferredDecision(emit);
     this.publicState = legacyState(this.st);
@@ -335,7 +373,8 @@ export class Game {
       const from = pub.players[p];
       const to = this.st.players[p];
       to.life = from.life;
-      to.landPlayedThisTurn = from.landPlayedThisTurn;
+      to.landDropsUsed = from.landDropsUsed;
+      to.extraLandDrops = from.extraLandDrops;
       to.mulligans = from.mulligans;
       to.keptHand = from.keptHand;
       for (const zone of ['deck', 'hand', 'graveyard', 'severed'] as const) {
@@ -390,7 +429,10 @@ export class Game {
     this.st.turn = pub.turn;
     this.st.startingPlayer = pub.startingPlayer;
     this.st.activePlayer = pub.activePlayer;
-    this.st.step = pub.step;
+    if ((this.st.rulesRev ?? 1) >= 2) {
+      this.st.episode = structuredClone(pub.episode ?? { resolvedSinceOffer: 0, reopensThisStep: 0 });
+    }
+    setStep(this.st, pub.step);
     this.st.stackClosed = pub.stackClosed;
     this.st.combat = structuredClone(pub.combat);
     this.st.fogThisTurn = pub.fogThisTurn;
@@ -400,33 +442,13 @@ export class Game {
     this.st.winReason = pub.winReason;
   }
 
-  /**
-   * After an action fully resolves, drive any fetchLand basic-land choices that
-   * were deferred (>1 distinct type — see EffectInterpreter `fetchLand`):
-   * override the just-computed awaiting with the choice, or, once the queue
-   * drains, resume normal play.
-   *
-   * PRECONDITION (currently guaranteed): every fetchLand source is cast at
-   * sorcery speed, so the chooser is always the active player mid-main and
-   * `resumeAfterFlush` lands back on `main`. An instant-speed / flash / attacks-
-   * or dies-triggered fetch would break that and MUST NOT be added without
-   * revisiting the resume path. No-op in determinized sims (stand-in lands
-   * aren't `basic`, so nothing ever queues).
-   */
+  /** After an action fully resolves, surface any queued resolution-time choice. */
   private maybeRaiseDeferredDecision(emit: Emit): void {
     const st = this.st;
     if (st.winner !== null) return;
-    // Skip any queued fetch whose deck no longer holds a basic (a whiff — same
-    // as the interpreter's no-basic no-op). Guarantees a raised choice always
-    // has ≥1 legal option, so the AI is never handed only `concede` and the
-    // human never gets a zero-option overlay.
     const hadPending = st.pendingDecisions.length > 0;
     while (st.pendingDecisions.length > 0) {
       const next = st.pendingDecisions[0];
-      if (next.kind === 'chooseBasicLand' && !this.hasFetchableBasic(next.player)) {
-        st.pendingDecisions.shift();
-        continue;
-      }
       if (next.kind === 'foresee' && this.foreseeCards(next.player, next.n).length === 0) {
         st.pendingDecisions.shift();
         continue;
@@ -434,11 +456,9 @@ export class Game {
       break;
     }
     const next = st.pendingDecisions[0];
-    if (next?.kind === 'chooseBasicLand') {
-      st.awaiting = { player: next.player, kind: 'chooseBasicLand' };
-    } else if (next?.kind === 'foresee') {
+    if (next?.kind === 'foresee') {
       st.awaiting = { player: next.player, kind: 'foresee', cards: this.foreseeCards(next.player, next.n) };
-    } else if (hadPending || st.awaiting.kind === 'chooseBasicLand' || st.awaiting.kind === 'foresee') {
+    } else if (hadPending || st.awaiting.kind === 'foresee') {
       // The queue is empty: either the last queued choice just resolved (the
       // apply leaves the awaiting stale), or every queued decision whiffed in
       // the drain above (adversarial review 2026-07-16: the dawn path never
@@ -449,12 +469,6 @@ export class Game {
       // already resumed, e.g. closeAndFlush.
       this.resumeAfterFlush(emit);
     }
-  }
-
-  private hasFetchableBasic(player: PlayerId): boolean {
-    return this.st.players[player].deck.some((card) =>
-      def(this.db, card).supertypes?.includes('basic'),
-    );
   }
 
   /**
@@ -486,7 +500,7 @@ export class Game {
         emit({ e: 'playDrawChosen', player, play: action.play });
         emit({ e: 'firstPlayerChosen', player: startingPlayer });
         for (const p of [0, 1] as const) {
-          drawCards(st, emit, p, RULES.startingHandSize);
+          drawCards(st, emit, p, this.startingHandSize);
         }
         st.awaiting = { player: startingPlayer, kind: 'mulligan' };
         return;
@@ -496,7 +510,7 @@ export class Game {
         me.mulligans++;
         me.deck.push(...me.hand.splice(0));
         rngShuffle(st.rng, me.deck);
-        drawCards(st, emit, player, RULES.startingHandSize);
+        drawCards(st, emit, player, this.startingHandSize);
         emit({ e: 'mulliganTaken', player, count: me.mulligans });
         // stay awaiting the same player's mulligan decision
         return;
@@ -525,34 +539,6 @@ export class Game {
         me.deck.unshift(...bottomed);
         emit({ e: 'cardsBottomed', player, count: bottomed.length });
         this.nextMulliganOrStart(emit);
-        return;
-      }
-
-      case 'chooseBasicLand': {
-        // Perform the fetch the interpreter deferred: pull the chosen basic from
-        // the controller's deck, put it onto the battlefield tapped, reshuffle —
-        // same net effect + RNG use as the inline single-type path, just after a
-        // player decision. See EffectInterpreter `fetchLand` + pendingDecisions.
-        const pending = st.pendingDecisions.shift();
-        if (pending?.kind === 'chooseBasicLand') {
-          const controller = pending.player;
-          const lib = st.players[controller].deck;
-          let idx = -1;
-          for (let i = lib.length - 1; i >= 0; i--) {
-            if (cardIdOf(lib[i]) === action.cardId) {
-              idx = i;
-              break;
-            }
-          }
-          if (idx >= 0) {
-            const [card] = lib.splice(idx, 1);
-            const perm = enterBattlefield(st, this.db, card, controller, emit);
-            perm.tapped = true;
-            rngShuffle(st.rng, lib);
-          }
-        }
-        // maybeRaiseDeferredDecision (post-apply) raises the next queued choice, or
-        // resumes normal play once the queue drains — including whiffs.
         return;
       }
 
@@ -598,8 +584,10 @@ export class Game {
           ? me.landReserve.splice(action.reserveIndex!, 1)[0]
           : me.hand.splice(action.handIndex, 1)[0];
         const cardId = cardIdOf(card);
-        const perm = enterBattlefield(st, this.db, card, player, () => {});
-        me.landPlayedThisTurn = true;
+        const perm = enterBattlefield(st, this.db, card, player, () => {}, {
+          tapped: me.landDropsUsed >= 1 ? true : undefined,
+        });
+        me.landDropsUsed++;
         emit({ e: 'landPlayed', player, iid: perm.iid, cardId });
         fireTriggers(st, this.db, emit, 'arrives', perm);
         return;
@@ -617,8 +605,33 @@ export class Game {
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
         me.hand.splice(action.handIndex, 1);
         me.graveyard.push(card);
+        fireGraveyardTriggers(st, this.db, emit, card, player);
         emit({ e: 'skimmed', player, cardId });
         drawCards(st, emit, player, 1);
+        return;
+      }
+
+      case 'preserveCard': {
+        const card = me.graveyard[action.graveIndex];
+        const cardId = cardIdOf(card);
+        const d = def(this.db, card);
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, d.preserve!.cost)!;
+        for (const iid of plan) findPermanent(st, iid)!.tapped = true;
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+
+        me.graveyard.splice(action.graveIndex, 1);
+        me.severed.push(card);
+        emit({ e: 'severed', player, cardId, from: 'graveyard' });
+        emit({ e: 'preserved', player, cardId });
+
+        // The severed physical card keeps its instance identity. Its token
+        // copy gets a fresh identity while retaining the collectible's visual
+        // variant and full CardDef, including arrival triggers.
+        const perm = enterBattlefield(st, this.db, cardId, player, emit, {
+          asToken: true,
+          variantKey: variantKeyOf(card),
+        });
+        fireTriggers(st, this.db, emit, 'arrives', perm);
         return;
       }
 
@@ -655,6 +668,37 @@ export class Game {
 
         if (isRetell) me.graveyard.splice(sourceIndex, 1);
         else me.hand.splice(sourceIndex, 1);
+
+        // Rite is paid before the spell reaches the stack. Snapshot in
+        // battlefield order, remove every sacrifice, then fire their dies
+        // triggers in that same order so no trigger observes a half-paid cost.
+        if (d.rite) {
+          const sacrificeIids = new Set(action.sacrifices!);
+          const sacrifices = st.battlefield.filter((perm) => sacrificeIids.has(perm.iid));
+          const fallen: typeof sacrifices = [];
+          const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
+          for (const perm of sacrifices) {
+            if (destroyPermanent(
+              st,
+              this.db,
+              perm,
+              emit,
+              (graveCard, owner) => graveyardEntries.push({ card: graveCard, owner }),
+            ) && firesDiesForDestroy(st, this.db, perm)) {
+              fallen.push(perm);
+            }
+          }
+          for (const entry of graveyardEntries) {
+            if (st.winner !== null) return;
+            fireGraveyardTriggers(st, this.db, emit, entry.card, entry.owner);
+          }
+          for (const perm of fallen) {
+            if (st.winner !== null) return;
+            fireTriggers(st, this.db, emit, 'dies', perm);
+          }
+          if (st.winner !== null) return;
+        }
+
         const item: StackItem = {
           sid: st.nextSid++,
           instanceId: isCardInstance(card) ? card.instanceId : st.nextInstanceId!,
@@ -677,6 +721,34 @@ export class Game {
           ...(isHauntlinked ? { hauntlinked: true } : {}),
         });
         this.openResponseWindow(opponentOf(player), { type: 'spell', sid: item.sid }, emit);
+        return;
+      }
+
+      case 'linkHaunt': {
+        const link = findPermanent(st, action.iid)!;
+        const host = findPermanent(st, action.hostIid)!;
+        const d = def(this.db, link.cardId);
+        const plan = action.manaPlan ?? solveMana(st, this.db, player, d.hauntlink!.cost)!;
+        for (const iid of plan) findPermanent(st, iid)!.tapped = true;
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+        const previousHost = attachPermanent(st, link, host);
+        if (previousHost !== undefined) {
+          emit({
+            e: 'hauntlinkBroken',
+            linkIid: link.iid,
+            hostIid: previousHost,
+            cardId: link.cardId,
+            owner: link.owner,
+            unlinked: true,
+          });
+        }
+        emit({
+          e: 'hauntlinkFormed',
+          linkIid: link.iid,
+          hostIid: host.iid,
+          cardId: link.cardId,
+          controller: link.controller,
+        });
         return;
       }
 
@@ -724,8 +796,7 @@ export class Game {
         if (action.attackers.length === 0) {
           // [] skips combat entirely — no windows open.
           st.combat = null;
-          st.step = 'main2';
-          emit({ e: 'stepChanged', step: 'main2' });
+          setStep(st, 'main2', emit);
           st.awaiting = { player: st.activePlayer, kind: 'main' };
           return;
         }
@@ -772,8 +843,7 @@ export class Game {
 
       case 'passStep': {
         if (st.step === 'main1') {
-          st.step = 'combat';
-          emit({ e: 'stepChanged', step: 'combat' });
+          setStep(st, 'combat', emit);
           st.awaiting = { player: st.activePlayer, kind: 'declareAttackers' };
         } else {
           enterEndStep(st, this.db, emit);
@@ -786,6 +856,7 @@ export class Game {
         for (const i of sorted) {
           const [card] = me.hand.splice(i, 1);
           me.graveyard.push(card);
+          fireGraveyardTriggers(st, this.db, emit, card, player);
           emit({ e: 'discarded', player, cardId: cardIdOf(card) });
         }
         finishCleanup(st, this.db, emit);
@@ -808,6 +879,9 @@ export class Game {
     emit: Emit,
   ): void {
     if (hasCastableInstant(this.st, this.db, responder)) {
+      if ((this.st.rulesRev ?? 1) >= 2 && this.st.episode) {
+        this.st.episode.resolvedSinceOffer = 0;
+      }
       this.st.awaiting = { player: responder, kind: 'respond', over };
       emit({ e: 'responseWindowOpened', player: responder });
     } else {
@@ -822,6 +896,7 @@ export class Game {
     while (st.stack.length > 0 && st.winner === null) {
       const item = st.stack.pop()!;
       resolveStackItem(st, this.db, item, emit);
+      if ((st.rulesRev ?? 1) >= 2 && st.episode) st.episode.resolvedSinceOffer++;
       checkStateBased(st, this.db, emit);
     }
     st.stackClosed = false;
@@ -840,7 +915,12 @@ export class Game {
         finishDawn(st, emit);
         return;
       case 'end':
-        // The single end-step window has been used.
+        if ((st.rulesRev ?? 1) >= 2 && st.pendingDecisions.length > 0) return;
+        if (this.maybeReopenWindow(
+          opponentOf(st.activePlayer),
+          { player: opponentOf(st.activePlayer), kind: 'endStepWindow' },
+          emit,
+        )) return;
         enterCleanup(st, this.db, emit);
         return;
       case 'cleanup':
@@ -854,27 +934,55 @@ export class Game {
         const combat = st.combat;
         if (!combat) {
           // Attackers were all removed mid-window; combat dissolves.
-          st.step = 'main2';
-          emit({ e: 'stepChanged', step: 'main2' });
+          setStep(st, 'main2', emit);
           st.awaiting = { player: st.activePlayer, kind: 'main' };
           return;
         }
         if (combat.phase === 'attackersDeclared') {
+          if ((st.rulesRev ?? 1) >= 2 && st.pendingDecisions.length > 0) return;
+          if (this.maybeReopenWindow(
+            opponentOf(st.activePlayer),
+            { player: opponentOf(st.activePlayer), kind: 'respond', over: { type: 'attackers' } },
+            emit,
+          )) return;
           st.awaiting = { player: opponentOf(st.activePlayer), kind: 'declareBlockers' };
           return;
         }
         // blockersDeclared → damage
+        if ((st.rulesRev ?? 1) >= 2 && st.pendingDecisions.length > 0) return;
+        if (this.maybeReopenWindow(
+          opponentOf(st.activePlayer),
+          { player: opponentOf(st.activePlayer), kind: 'respond', over: { type: 'blockers' } },
+          emit,
+        )) return;
         resolveCombatDamage(st, this.db, emit);
         if (st.winner !== null) return;
         st.combat = null;
-        st.step = 'main2';
-        emit({ e: 'stepChanged', step: 'main2' });
+        setStep(st, 'main2', emit);
         st.awaiting = { player: st.activePlayer, kind: 'main' };
         return;
       }
       default:
         throw new Error(`resumeAfterFlush: unexpected step ${st.step}`);
     }
+  }
+
+  /** Offer one paid revision-2 reopen, or return false to continue the step. */
+  private maybeReopenWindow(
+    player: PlayerId,
+    awaiting: Extract<Awaiting, { kind: 'respond' | 'endStepWindow' }>,
+    emit: Emit,
+  ): boolean {
+    const st = this.st;
+    if ((st.rulesRev ?? 1) < 2 || !st.episode) return false;
+    if (st.episode.resolvedSinceOffer <= 0) return false;
+    if (st.episode.reopensThisStep >= RULES.maxWindowReopensPerStep) return false;
+    if (!hasCastableCharm(st, this.db, player)) return false;
+    st.episode.resolvedSinceOffer = 0;
+    st.episode.reopensThisStep++;
+    st.awaiting = awaiting;
+    emit({ e: 'responseWindowOpened', player, reopened: true });
+    return true;
   }
 
   // -------------------------------------------------------------------------
@@ -943,6 +1051,12 @@ function legacyState(state: GameState): LegacyGameState {
 /** Normalize every compatibility string[] boundary into physical instances. */
 function normalizeState(input: GameState): GameState {
   const state = structuredClone(input) as GameState;
+  if ((state.rulesRev ?? 1) >= 2) {
+    state.episode ??= { resolvedSinceOffer: 0, reopensThisStep: 0 };
+  } else {
+    delete state.rulesRev;
+    delete state.episode;
+  }
   const used = new Set<number>();
   let maxId = 0;
   for (const player of state.players) {

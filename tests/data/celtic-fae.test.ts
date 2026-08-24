@@ -9,7 +9,9 @@ import { packPool } from '../../src/meta/PackOpener';
 import { freshSave } from '../../src/meta/SaveManager';
 
 // W5 adds the rare Moundlight Midwife: 81 -> 82 cards and r 24 -> 25.
-const RARITY_COUNTS = { c: 41, r: 25, sr: 7, ssr: 5, ur: 4 } as const;
+// The 1.6 returning-mechanics sprinkle adds the commons Tithe of Seasons
+// (Empower) and Salt the Barrow (Skim): 82 -> 84 and c 41 -> 43.
+const RARITY_COUNTS = { c: 43, r: 25, sr: 7, ssr: 5, ur: 4 } as const;
 const KEYWORDS = new Set<Keyword>([
   'skyborne',
   'wardingGaze',
@@ -38,7 +40,7 @@ const OPS = new Set([
   'boost',
   'addCounters',
   'tap',
-  'fetchLand',
+  'extraLandDrop',
   'createToken',
   'massDestroy',
   'preventCombat',
@@ -89,9 +91,10 @@ const COURT_DECK = cfDeck([
 ]);
 
 describe('Celtic Fae data integrity', () => {
-  it('contains the complete 82-card booster set with the target rarity histogram', () => {
-    // W5 adds the rare Moundlight Midwife: 81 -> 82.
-    expect(CELTIC_FAE).toHaveLength(82);
+  it('contains the complete 84-card booster set with the target rarity histogram', () => {
+    // W5 adds the rare Moundlight Midwife: 81 -> 82; the 1.6 sprinkle adds
+    // two commons: 82 -> 84.
+    expect(CELTIC_FAE).toHaveLength(84);
     const actual = Object.fromEntries(
       Object.keys(RARITY_COUNTS).map((rarity) => [
         rarity,

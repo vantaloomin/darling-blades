@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-07-29
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-17
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -26,6 +26,7 @@ explicitly in the appendix. All the numbers below come from `RULES` in
 | Max blockers per attacker | 4         | `RULES.maxBlockersPerAttacker`   |
 | Turn limit (draw)         | 100       | `RULES.turnLimit`                |
 | Max mulligans per player  | 3         | `RULES.maxMulligans`             |
+| Max window reopens/step   | 8         | `RULES.maxWindowReopensPerStep`  |
 
 <!-- END GENERATED -->
 
@@ -46,16 +47,22 @@ and tests.
 
 ## Warchest and Darlings formats
 
-Warchest decks have 50 nonland cards and a Warchest of 10 lands, with up to 5
-dual lands. Warchest Reserves are the lands not yet in play. Once deployed,
+Warchest decks have **40 nonland cards** and a Warchest of 10 lands, with up
+to 5 dual lands; reserve colors are unrestricted. Warchest games deal a
+**5-card opening hand** (`WARCHEST_HAND_SIZE` in `src/meta/warchest.ts`;
+classic keeps 7). Both numbers were ratified 2026-08-07 from the
+format-parameter measurement recorded in [plan-1.6.md](plan-1.6.md).
+
+Warchest Reserves are the lands not yet in play. Once deployed,
 they are your Active Warchest. Each turn, move one land from your Warchest
 Reserves into your Active Warchest. Dual lands arrive tapped. Destroyed dual
 lands are gone; destroyed basic lands return to your Reserves.
 
-Darlings follows the same Warchest land rules. Choose your Darling. Build an
-80-card deck in her colors, one copy of each card, and a Warchest of 10 lands.
-Your Darling begins in your deck and follows the same rules as every other
-card.
+Darlings follows the same Warchest land rules. Choose your Darling. Build a
+79-card deck in her colors, one copy of each card, and a Warchest of 10 lands.
+Your Darling waits in her own zone, ready when you call; each time she falls,
+her next call costs 2 more. Darlings also deals the **5-card opening hand**
+(ratified 2026-08-08 from its own 5-vs-7 measurement).
 
 ## Mulligans
 
@@ -64,8 +71,9 @@ The mulligan is **London-style with the first mulligan free**, sequenced by
 
 - The **starting player decides first**; when they have kept, the other player
   decides.
-- A `mulligan` action shuffles the hand back, redraws a full 7, and increments
-  that player's mulligan count. You may keep on any decision.
+- A `mulligan` action shuffles the hand back, redraws a full hand at the
+  format's opening-hand size (7 in classic, 5 in the reserve formats), and
+  increments that player's mulligan count. You may keep on any decision.
 - You may mulligan at most **`RULES.maxMulligans` (3)** times; at the cap the
   `mulligan` action is no longer legal, so you must **keep or concede**. This
   bounds the bottom count below and is what prevents the old unsatisfiable-pick
@@ -91,7 +99,7 @@ drives the rest via `passStep` and combat actions.
 | **Main 1**  | Active player's main phase: play a land, cast anything, or `passStep` to combat.                    |
 | **Combat**  | Declare attackers → (window) → declare blockers → (window) → damage. See below.                     |
 | **Main 2**  | A second main phase.                                                                                |
-| **End**     | The **non-active** player gets **one** response window (`endStepWindow`). Passing it → cleanup.     |
+| **End**     | The **non-active** player gets the first response window, plus earned post-flush reopens in rules revisions 2-3. Revision 1 gets exactly one. |
 | **Cleanup** | Discard to max hand size (7); marked damage and until-end-of-turn effects clear; the turn flips.    |
 
 Notes grounded in `phases.ts`:
@@ -107,8 +115,11 @@ Notes grounded in `phases.ts`:
 
 ## The stack: episodes and windows
 
-Darling Blades uses a simplified, Arena-flavored stack. Casting a spell opens **one**
-response window for the opponent; the whole thing resolves in one flush.
+Darling Blades uses a simplified, Arena-flavored stack. Casting a spell opens
+one response window for the opponent, and the first pass still resolves the
+whole stack in one uninterrupted flush. Current games use **rules revision 3**;
+an absent `GameState.rulesRev` means revision 1 for legacy states and v6 replays.
+Version 7 replays select revision 2, while version 8 selects revision 3.
 
 Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
 `resumeAfterFlush` in `src/engine/Game.ts`:
@@ -122,17 +133,26 @@ Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
 3. **Responding re-opens LIFO.** If the opponent *does* cast into the window,
    that new spell opens **one** window back to the original caster (last-in
    first-out). Each cast can open exactly one window over itself.
-4. **The first pass closes the episode.** As soon as *anyone* passes a window
+4. **The first pass closes the stack episode.** As soon as *anyone* passes a window
    (`passResponse`), `closeAndFlush` sets `stackClosed` and **resolves the entire
    stack top-down with no further windows**. There is no priority ping-pong after
    the first pass.
-5. **Resume.** After the flush, `resumeAfterFlush` decides where play continues
-   from `state.step` (+ combat sub-state): back to `main`, into cleanup at the
-   end step, to `declareBlockers` if attackers are on the stack-resolved combat,
-   or on to combat damage.
+5. **Revision-2 reopen.** After the flush, combat and the end step may offer the
+   non-active player another window before advancing. The flush must have
+   resolved at least one stack item since the last offer, the player must hold a
+   payable and targetable Charm (including a payable Retell Charm), and the step
+   must remain below `RULES.maxWindowReopensPerStep` (8). Skim alone never earns
+   a reopen because its constant hand size is loop fuel. The reopen event carries
+   `reopened: true`; first-window events retain their old shape.
+6. **Resume.** Passing a reopened empty window advances immediately. Otherwise,
+   `resumeAfterFlush` continues from `state.step` and combat sub-state: back to
+   `main`, into cleanup, to `declareBlockers`, or to combat damage. A step change
+   resets the reopen cap. Deferred Foresee choices keep the resolved-item credit
+   until the choice drains, so they return to the correct still-open window.
 
-The end-step window is handled slightly separately: passing it calls
-`enterCleanup` rather than flushing a stack.
+Revision 1 preserves the classic behavior verbatim: no post-flush reopen in
+combat or at end. The end-step window is handled slightly separately in both
+revisions: passing it calls `enterCleanup` rather than flushing an empty stack.
 
 ## Combat
 
@@ -228,15 +248,71 @@ card's normal effect (for permanents, after its arrival triggers); empower ops
 are trigger-safe and never target. X spells cannot be empowered
 (`validateAction` rejects the combination).
 
-### Hauntlink (alternate linked cast)
+### Hauntlink (Charm-speed battlefield link action)
 
-An Artifact or Enchantment with a `hauntlink` block may be played for its
-Hauntlink cost instead of its normal cost. The player chooses exactly one
-creature they control as the host. The permanent enters attached to that
-creature, and its Linked rider applies to the host. It cannot be reattached or
-moved. When the host leaves play, the linked permanent goes to its owner's
-graveyard. The engine carries the relationship on `Permanent.attachedTo` and
-emits `hauntlinkFormed` and `hauntlinkBroken` events for presentation.
+An Artifact or Enchantment with a `hauntlink` block is cast only for its printed
+cost and enters the battlefield unlinked. Whenever its controller could cast a
+Charm, the controller may pay the Hauntlink cost as a stack-free `linkHaunt`
+action and choose one creature they control as the host. Paying again moves an
+existing link to another friendly creature immediately, including during a
+response window. The Linked rider applies only while the relationship exists.
+When the linked host leaves play, the Hauntlink permanent goes to its owner's
+graveyard too. Moving the link before a removal spell resolves saves it because
+the old creature is no longer its host. The engine carries the relationship on
+`Permanent.attachedTo` and emits `hauntlinkFormed` and `hauntlinkBroken` events
+for presentation.
+
+Rules revisions 1 and 2 preserve the former alternate-cost `castSpell` mode and
+the same host-death cleanup for old replays. Revision 3 alone uses `linkHaunt`.
+
+### Rite (additional sacrifice cost)
+
+A card with a `rite` block (`CardDef.rite`, 1.6) can be cast only by also
+sacrificing that many creatures its caster controls, chosen in the cast action
+itself (`castSpell.sacrifices`). The sacrifices leave the battlefield and their
+dies triggers fire, batched in battlefield order exactly like an SBA death
+batch, **before the spell reaches the stack** — the engine has no
+"whenever another creature dies" observer trigger, so Rite value lives on the
+fodder's own dies triggers by design. The sacrifice is a cost: a cancelled Rite
+spell does not refund it. The creature cap counts the slots the sacrifice
+frees, so a full board can still cast a Rite creature. Legal-action
+enumeration offers one canonical sacrifice set (first N in battlefield order);
+`validateAction` accepts any legal set of exactly the right size. Rite never
+combines with X, Retell, Skim, or Hauntlink, and v1 Rite cards carry no cast
+targets (`validateRiteDef`); Rite plus Empower is legal.
+
+### Nine Lives (marked return)
+
+A creature with `nineLives` (1.6) that dies while carrying **zero marks**
+returns to the battlefield under its owner's control after its dies triggers
+fire, as a fresh summoning-sick permanent carrying one mark — which is what
+makes the return once-only, and why any other mark placed on the body switches
+Nine Lives off (an intended anti-synergy with mark support). The engine locates
+the card in the owner's graveyard by card instance, so the mechanic follows the
+physical card, not its name. Batched deaths (a sweeper) fire the whole dies
+batch first, then return the marked bodies in battlefield order. A full
+creature board blocks the return and the card simply stays in the graveyard
+with no memory spent (the `raise` precedent). Tokens and Darlings never return
+this way — neither ever reaches the graveyard. Dies riders on a Nine Lives
+body fire on both deaths.
+
+### Preserve (graveyard token copy)
+
+A creature card with a `preserve` block (`CardDef.preserve`, 1.6) grants a
+main-phase action while it sits in your graveyard: pay the Preserve cost and
+**Sever** the card to create a token copy of it. The action (`preserveCard`)
+is sorcery-speed — the active player's own main phase only — and stack-free,
+like `linkHaunt` and the Darling tax paydown. The physical card moves to the
+severed zone one-way; the copy enters as a fresh token permanent keeping the
+card's `cardId` and cosmetic `variantKey`, and its arrival triggers fire (a
+Preserve card's ETB value is deliberately priced twice). Token-ness lives on
+the **permanent** (`Permanent.isToken`), not the card definition, so a
+preserved copy evaporates when it dies, is severed, or is recalled — it is
+never re-buried to a graveyard, bounced to a hand, or returned to a reserve —
+and a preserved copy of a Nine Lives body cannot return. A full creature
+board makes the action illegal (the player is choosing to pay, unlike Nine
+Lives' silent no-op). Recording the new action bumped the replay log to v9;
+the rules revision stays 3.
 
 ## Board caps
 
@@ -246,8 +322,8 @@ Two per-player caps are enforced at **cast legality** (`castBlockers` in
 - **8 creatures** (`RULES.maxCreatures`). A creature spell is not castable while
   you already control 8 creatures.
 - **4 noncreature, nonland permanents** (`RULES.maxNoncreaturePermanents`) —
-  counts enchantments and artifacts, but **auras are exempt** (they attach to a
-  creature and don't occupy a board slot).
+  counts enchantments and artifacts, but **attached permanents are exempt**
+  (Auras and linked Hauntlinks do not occupy a board slot while attached).
 
 Token creation also respects the creature cap: `createToken` in
 `src/engine/effects/EffectInterpreter.ts` re-checks `RULES.maxCreatures` before
@@ -303,9 +379,9 @@ Magic:
 
 | Area              | Darling Blades                                                                                 | Magic (for reference)                                   |
 | ----------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Priority / stack  | One response window per cast; the first pass flushes the whole stack with no more windows.     | Full priority passing after every object resolves.      |
+| Priority / stack  | The first pass flushes the whole stack. Current rev 2 may reopen afterward in combat/end when a resolved item and castable Charm pay for it; rev 1 never reopens. | Full priority passing after every object resolves.      |
 | Dawn triggers     | Resolve immediately, no window.                                                                | Go on the stack, players get priority.                  |
-| End-step window   | Exactly one window, for the non-active player only.                                            | Priority in the end step for both players.              |
+| End-step window   | Non-active player only. Rev 2 starts with one window and may earn bounded post-flush reopens; rev 1 has exactly one. | Priority in the end step for both players.              |
 | Triggers          | **Never target** (v1 law); auto-resolve with no decision point.                                | Triggers may target and use the stack.                  |
 | Targeted effects  | **Single-target only** (`targets[0]`).                                                          | Arbitrary target counts.                                |
 | Twin Blades (double strike) | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.        | Exists.                                                 |

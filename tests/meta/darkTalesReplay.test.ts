@@ -51,7 +51,6 @@ function recordDarkTales(seed: number): { log: ReplayLog; state: string; events:
       case 'discardToHandSize':
         action = { type: 'discard', handIndices: Array.from({ length: a.count }, (_, i) => i) };
         break;
-      case 'chooseBasicLand': action = game.legalActions(p).find((x) => x.type === 'chooseBasicLand')!; break;
       case 'foresee': action = { type: 'foresee', bottomIndices: [] }; break;
       default: throw new Error('unhandled replay setup window');
     }
@@ -107,7 +106,6 @@ function recordCancelledRetell(seed: number): { log: ReplayLog; state: string; e
       case 'discardToHandSize':
         action = { type: 'discard', handIndices: Array.from({ length: a.count }, (_, i) => i) };
         break;
-      case 'chooseBasicLand': action = game.legalActions(p).find((x) => x.type === 'chooseBasicLand')!; break;
       case 'foresee': action = { type: 'foresee', bottomIndices: [] }; break;
       default: throw new Error('unhandled cancelled Retell setup window');
     }
@@ -136,7 +134,7 @@ function recordCancelledRetell(seed: number): { log: ReplayLog; state: string; e
 describe('Dark Tales replay version 3', () => {
   it('goldens both Skim and Retell action records through replay', () => {
     const original = recordDarkTales(17);
-    expect(original.log.v).toBe(6);
+    expect(original.log.v).toBe(9); // Current logs include Preserve actions under revision 3.
     expect(original.log.actions.some((step) => step.a.type === 'skim')).toBe(true);
     expect(original.log.actions.some((step) => step.a.type === 'castSpell' && step.a.retell)).toBe(true);
 

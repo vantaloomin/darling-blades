@@ -7,6 +7,7 @@ import { qualityTier } from '../platform/quality';
 import type { AnimationLevel } from '../platform/animPolicy';
 import type { RenderScaleSetting } from '../platform/renderScale';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { NO_BLOCK_CHIPS } from '../ui/settingsPresentation';
 import { theme } from '../ui/theme';
 import { backButton, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL, checkForUpdate } from '../version';
@@ -44,12 +45,6 @@ const RENDER_CHIPS: { value: RenderScaleSetting; label: string; heavy: boolean }
   { value: 1.5, label: '1920×1080', heavy: true },
   { value: 2, label: '2560×1440', heavy: true },
 ];
-const NO_BLOCK_CHIPS: { value: ConfirmNoBlockSetting; label: string; minWidth: number; x: number }[] = [
-  { value: 'always', label: 'Always', minWidth: 80, x: 880 },
-  { value: 'lethal', label: 'Only when lethal', minWidth: 120, x: 1010 },
-  { value: 'off', label: 'Off', minWidth: 70, x: 1160 },
-];
-
 /** Settings are split into audio and gameplay columns to retain touch-safe row pitch. */
 export class SettingsScene extends Phaser.Scene {
   private sfxToggle!: ThemedButton;
@@ -57,6 +52,7 @@ export class SettingsScene extends Phaser.Scene {
   private skipToggle!: ThemedButton;
   private confirmToggle!: ThemedButton;
   private keywordToggle!: ThemedButton;
+  private instantToggle!: ThemedButton;
   private volumeBar!: Phaser.GameObjects.Text;
   private animChips = new Map<AnimationLevel, ThemedButton>();
   private renderChips = new Map<RenderScaleSetting, ThemedButton>();
@@ -95,7 +91,7 @@ export class SettingsScene extends Phaser.Scene {
     panel(this, 670, 124, 540, 470);
     this.sectionTitle(110, 150, 'Audio');
     this.sectionTitle(710, 150, 'Gameplay');
-    // Audio: Sound effects · Master volume (note) · Music.
+    // Audio: Sound effects · Master volume (note) · Music, then Casting: Instant cast (note).
     // Gameplay: Animations (note) · Render size (note) · Auto-skip · Confirm · Keyword reminders.
     const leftRows = rowYs([false, true, false]);
     const rightRows = rowYs([true, true, false, false, false, false]);
@@ -138,6 +134,21 @@ export class SettingsScene extends Phaser.Scene {
       Music.setEnabled(!Music.enabled);
       this.refreshToggles();
     });
+
+    // The Audio column has spare rows; Gameplay's six already fill its panel.
+    this.sectionTitle(110, 414, 'Casting');
+    this.rowLabel(LEFT_LABEL_X, leftY(2) + 110, 'Instant cast');
+    this.instantToggle = this.toggle(LEFT_CONTROL_X, leftY(2) + 110, () => {
+      const settings = Services.save.data.settings;
+      settings.instantCast = !settings.instantCast;
+      Services.save.touch();
+      this.refreshToggles();
+    });
+    this.note(
+      LEFT_LABEL_X,
+      leftY(2) + 138,
+      'Casts spells on a single click instead of picking the card up.',
+    );
 
     this.rowLabel(RIGHT_LABEL_X, rightY(0), 'Animations');
     let ax = RIGHT_CONTROL_X - 130;
@@ -343,6 +354,7 @@ export class SettingsScene extends Phaser.Scene {
       [this.skipToggle, settings.autoSkip],
       [this.confirmToggle, settings.confirmDestructive],
       [this.keywordToggle, settings.keywordReminders],
+      [this.instantToggle, settings.instantCast],
     ] as const) {
       button.setLabel(on ? 'On' : 'Off');
       button.setVariant(on ? 'primary' : 'ghost');

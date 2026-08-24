@@ -1,7 +1,22 @@
 export interface DeckList {
   id: string;
   name: string;
-  cards: string[]; // 60 cardIds
+  cards: string[]; // 60 cardIds — classic
+  /*
+   * Reserve-native build (1.6 migration, scripted first cut 2026-08-08 via
+   * scripts/avatarReserveDecks.ts, same deterministic rule as the avatar
+   * decks). Carried by every granted deck, STARTER_DECKS and THEME_DECKS
+   * alike. These are the real columns the dated reserve re-baseline measures
+   * against, replacing the derived proxy fleets.
+   *
+   * DECIDED 2026-08-10 (classic retirement): this IS what a granted deck
+   * hands the player. `Economy.grantedDeckBuild` grants it at the shop, and
+   * the save v28 migration converts decks already granted when the player
+   * never edited them. An edited deck keeps the player's choices and routes
+   * to the flag-and-fix flow instead.
+   */
+  reserveCards?: string[]; // exactly WARCHEST_DECK_SIZE no-land cards
+  landReserve?: string[]; // exactly 10 lands, ≤5 duals
 }
 
 /** Expand [id, count] pairs into a flat cardId list. Shared with opponents.ts. */
@@ -38,6 +53,22 @@ export const STARTER_DECKS: DeckList[] = [
       ['gk-nike', 4],
       ['gk-hestia', 4],
     ]),
+    reserveCards: expand([
+      ['tk-other-huaxiong', 4],
+      ['tk-other-lulingqi', 4],
+      ['bk-wolfkin-raider', 4],
+      ['bk-harpy-skirmisher', 4],
+      ['gk-hoplite', 4],
+      ['bk-dragonmaid', 4],
+      ['gk-ares', 4],
+      ['tk-other-lubu', 4],
+      ['gk-nike', 4],
+      ['gk-hestia', 4],
+    ]),
+    landReserve: expand([
+      ['land-mountain', 6],
+      ['land-plains', 4],
+    ]),
   },
   {
     id: 'starter-wild',
@@ -60,6 +91,24 @@ export const STARTER_DECKS: DeckList[] = [
       ['gk-hoplite', 4],
       ['tk-shu-liubei', 2],
     ]),
+    reserveCards: expand([
+      ['bk-nekomata-scout', 4],
+      ['bk-bearkin-guardian', 4],
+      ['bk-bunny-vanguard', 4],
+      ['gk-artemis', 4],
+      ['bk-rhinokin-charger', 4],
+      ['bk-packmother', 4],
+      ['gk-hestia', 4],
+      ['gk-athena', 4],
+      ['gk-hoplite', 4],
+      ['tk-shu-liubei', 2],
+      ['sd-renenutet-who-measures-the-flood', 1],
+      ['gk-gaia', 1],
+    ]),
+    landReserve: expand([
+      ['land-forest', 6],
+      ['land-plains', 4],
+    ]),
   },
   {
     id: 'starter-tides',
@@ -78,6 +127,23 @@ export const STARTER_DECKS: DeckList[] = [
       ['tk-wu-luxun', 3],
       ['in-fire-attack', 4],
       ['in-undertow', 4],
+    ]),
+    reserveCards: expand([
+      ['tk-wu-sunquan', 4],
+      ['tk-wu-zhouyu', 4],
+      ['tk-wu-lumeng', 4],
+      ['tk-wu-sunce', 4],
+      ['tk-wu-ganning', 4],
+      ['tk-wu-huanggai', 4],
+      ['tk-wu-taishici', 4],
+      ['tk-wu-luxun', 4],
+      ['in-fire-attack', 4],
+      ['in-undertow', 4],
+    ]),
+    landReserve: expand([
+      ['ld-red-cliffs-anchorage', 4],
+      ['land-island', 3],
+      ['land-mountain', 3],
     ]),
   },
   {
@@ -105,6 +171,25 @@ export const STARTER_DECKS: DeckList[] = [
       ['so-divination', 1],
       ['so-creeping-malaise', 2],
     ]),
+    reserveCards: expand([
+      ['tk-jin-simayi', 3],
+      ['tk-jin-wangyuanji', 3],
+      ['tk-jin-zhangchunhua', 3],
+      ['tk-jin-simashi', 3],
+      ['tk-jin-zhonghui', 1],
+      ['tk-jin-jiachong', 4],
+      ['tk-jin-xinxianying', 4],
+      ['in-doom-bolt', 4],
+      ['in-read-the-ruse', 4],
+      ['so-night-extortion', 4],
+      ['so-divination', 3],
+      ['so-creeping-malaise', 4],
+    ]),
+    landReserve: expand([
+      ['ld-moonlit-marsh', 4],
+      ['land-island', 3],
+      ['land-swamp', 3],
+    ]),
   },
   {
     id: 'starter-harvest',
@@ -127,6 +212,27 @@ export const STARTER_DECKS: DeckList[] = [
       ['so-raise-dead', 3],
       ['in-doom-bolt', 2],
       ['in-grave-chill', 1],
+    ]),
+    reserveCards: expand([
+      ['gk-persephone', 3],
+      ['gk-hades', 2],
+      ['gk-pan', 1],
+      ['gk-thanatos', 3],
+      ['bk-turtlekin-bulwark', 1],
+      ['gk-demeter', 3],
+      ['bk-lamia-nightblade', 4],
+      ['bk-spiderkin-weaver', 4],
+      ['bk-crowkin-shrike', 4],
+      ['bk-batkin-duskwing', 4],
+      ['bk-sheepkin-dreamherd', 1],
+      ['so-raise-dead', 4],
+      ['in-doom-bolt', 2],
+      ['in-grave-chill', 4],
+    ]),
+    landReserve: expand([
+      ['ld-asphodel-meadow', 4],
+      ['land-swamp', 3],
+      ['land-forest', 3],
     ]),
   },
 ];
@@ -172,6 +278,36 @@ export const THEME_DECKS: DeckList[] = [
       ['rg-thanatos', 2],
       ['rg-call-the-einherjar', 3],
     ]),
+    reserveCards: expand([
+      ['rg-corpse-taker', 4],
+      ['rg-hels-handmaiden', 3],
+      ['rg-verdant-seidr', 3],
+      ['rg-worldroot-tender', 2],
+      ['rg-plaguebearer-draugr', 3],
+      ['rg-barrow-wight', 2],
+      ['rg-draugr-jarl', 3],
+      ['rg-jotun-earthshaker', 1],
+      ['rg-thanatos', 2],
+      ['rg-call-the-einherjar', 4],
+      ['rg-verdant-seidr', 1],
+      ['cf-badb-cathas-warning', 1],
+      ['gk-artemis', 1],
+      ['cf-blackthorn-duelist', 1],
+      ['cf-cauldron-of-dagda', 1],
+      ['cf-hounds-of-annwn', 1],
+      ['cf-thornmaze-patrol', 1],
+      ['gm-madame-macabre', 1],
+      ['gm-ravenloft-heiress', 1],
+      ['ac-ashwood-ranger', 1],
+      ['ac-oathbroken-knight', 1],
+      ['gm-batcloak-cutthroat', 1],
+      ['cf-raven-torc-envoy', 1],
+    ]),
+    landReserve: expand([
+      ['ld-asphodel-meadow', 4],
+      ['land-swamp', 3],
+      ['land-forest', 3],
+    ]),
   },
   {
     id: 'theme-celtic-fae',
@@ -194,6 +330,30 @@ export const THEME_DECKS: DeckList[] = [
       ['cf-raven-torc-envoy', 2],
       ['cf-glimmerdust-trick', 3],
       ['cf-bargain-for-time', 3],
+    ]),
+    reserveCards: expand([
+      ['cf-morrigan-black-wing', 2],
+      ['cf-queen-mab-midnight', 2],
+      ['cf-selkie-tide-queen', 2],
+      ['cf-mistwing-pixie', 4],
+      ['cf-selkie-runner', 4],
+      ['cf-blackthorn-duelist', 4],
+      ['cf-silver-branch-oracle', 4],
+      ['cf-moon-pool-selkie', 3],
+      ['cf-hounds-of-annwn', 3],
+      ['cf-raven-torc-envoy', 2],
+      ['cf-glimmerdust-trick', 3],
+      ['cf-bargain-for-time', 4],
+      ['cf-glimmerdust-trick', 1],
+      ['cf-hounds-of-annwn', 1],
+      ['cf-moon-pool-selkie', 1],
+    ]),
+    landReserve: expand([
+      ['cf-moonlit-barrow', 3],
+      ['cf-blackthorn-crossing', 2],
+      ['land-island', 2],
+      ['land-swamp', 1],
+      ['land-forest', 2],
     ]),
   },
   {
@@ -220,6 +380,28 @@ export const THEME_DECKS: DeckList[] = [
       ['ac-squire-to-champion', 2],
       ['in-undertow', 4],
       ['in-shieldwall', 3],
+    ]),
+    reserveCards: expand([
+      ['ac-artoria-once-future', 2],
+      ['ac-galahad-silver-oath', 2],
+      ['ac-camelot-banneret', 4],
+      ['ac-lakeblade-initiate', 4],
+      ['ac-pennant-carrier', 4],
+      ['ac-novice-squire', 4],
+      ['ac-excalibur-from-lake', 2],
+      ['ac-lion-standard', 1],
+      ['ac-quest-for-the-grail', 2],
+      ['ac-round-table-vow', 2],
+      ['ac-squire-to-champion', 2],
+      ['in-undertow', 4],
+      ['in-shieldwall', 4],
+      ['ac-squire-to-champion', 2],
+      ['ac-excalibur-from-lake', 1],
+    ]),
+    landReserve: expand([
+      ['ac-avalon-shore', 4],
+      ['land-plains', 3],
+      ['land-island', 3],
     ]),
   },
   {
@@ -250,6 +432,27 @@ export const THEME_DECKS: DeckList[] = [
       ['gm-black-lace-pact', 2],
       ['gm-funeral-bell', 2],
       ['so-ember-squall', 2],
+    ]),
+    reserveCards: expand([
+      ['gm-carmilla-crimson-host', 2],
+      ['gm-elizabeth-blood-mirror', 2],
+      ['gm-blood-drop-initiate', 4],
+      ['gm-black-veil-matron', 3],
+      ['gm-stormglass-golem', 4],
+      ['gm-blood-opera-soloist', 3],
+      ['gm-manor-thrall', 4],
+      ['gm-stitched-hound', 2],
+      ['gm-tattered-invitation', 2],
+      ['gm-red-curtain-cut', 1],
+      ['gm-funeral-bell', 2],
+      ['so-ember-squall', 4],
+      ['gm-red-curtain-cut', 3],
+      ['gm-tattered-invitation', 2],
+      ['gm-funeral-bell', 2],
+    ]),
+    landReserve: expand([
+      ['land-swamp', 6],
+      ['land-mountain', 4],
     ]),
   },
   {
@@ -304,6 +507,32 @@ export const THEME_DECKS: DeckList[] = [
       ['in-undertow', 2],
       ['so-creeping-malaise', 2],
     ]),
+    reserveCards: expand([
+      ['dt-glass-stair-duelist', 2],
+      ['dt-poison-mirror-regent', 2],
+      ['dt-rose-petal-knight', 2],
+      ['dt-page-torn-free', 2],
+      ['bk-kitsune-illusionist', 4],
+      ['tk-shu-zhaoyun', 2],
+      ['tk-jin-simayi', 2],
+      ['tk-wei-guojia', 2],
+      ['gk-hades', 2],
+      ['in-doom-bolt', 4],
+      ['in-undertow', 2],
+      ['so-creeping-malaise', 2],
+      ['in-undertow', 2],
+      ['dt-page-torn-free', 2],
+      ['dt-tide-sister-of-the-deep', 2],
+      ['dt-glass-coffin-sleeper', 2],
+      ['dt-empress-of-the-mirror-shards', 2],
+      ['dt-frost-sleigh-maiden', 2],
+    ]),
+    landReserve: expand([
+      ['dt-tide-cavern', 2],
+      ['land-island', 3],
+      ['land-swamp', 3],
+      ['land-plains', 2],
+    ]),
   },
   {
     id: 'theme-yokai-nights',
@@ -339,6 +568,77 @@ export const THEME_DECKS: DeckList[] = [
       ['yn-hauntlink-signal-lure', 2],
       ['yn-alleyway-sever', 2],
       ['yn-sever-the-signal', 2],
+    ]),
+    reserveCards: expand([
+      ['yn-queen-of-the-lanterned-roof', 2],
+      ['yn-oni-underboss-of-rain', 2],
+      ['yn-white-lantern-vanguard', 4],
+      ['yn-moonlit-data-duelist', 4],
+      ['yn-skyline-yokai', 4],
+      ['yn-echo-fox-informant', 4],
+      ['yn-lantern-fixer', 4],
+      ['yn-unanswered-signal', 2],
+      ['yn-hauntlink-signal-lure', 2],
+      ['yn-alleyway-sever', 4],
+      ['yn-hauntlink-signal-lure', 2],
+      ['yn-oni-underboss-of-rain', 2],
+      ['gk-aphrodite', 1],
+      ['ac-quest-for-the-grail', 1],
+      ['cf-badb-cathas-warning', 1],
+      ['gm-silver-bullet-duelist', 1],
+    ]),
+    landReserve: expand([
+      ['yn-lantern-canal-junction', 2],
+      ['yn-midnight-data-market', 2],
+      ['land-plains', 2],
+      ['land-island', 2],
+      ['land-swamp', 2],
+    ]),
+  },
+  {
+    id: 'theme-sands-of-the-duat',
+    name: 'Pride at the Ninth Gate',
+    // 2026-08-21 Duat balance pass, MEASURED: 64.7% aggregate (1553/2400) at
+    // 150 seeds/cell hard AI across the 17-deck prefab field (`balance-matrix
+    // --prefabs --ai hard --seeds 150`), down from 68.3% at the first cut via
+    // the War-Priestess cost bump ({3}{W}{R} -> {4}{W}{R}) and her anthem going
+    // defensive (+1/+1 -> +0/+1, so twinBlades stops doubling it). Field-best
+    // on purpose as the new set's face; next lever if it must come down is the
+    // four-copy Standard Bearer attack anthem.
+    cards: expand([
+      ['land-plains', 10],
+      ['land-mountain', 10],
+      ['sd-land-noon-barge-landing', 4],
+      ['sd-whisker-count-scout', 4],
+      ['sd-lion-gate-sentry', 4],
+      ['sd-claw-thread-lancer', 4],
+      ['sd-pridewall-runner', 4],
+      ['sd-dune-pawed-outrider', 4],
+      ['sd-ember-maned-lioness', 2],
+      ['sd-blade-dancer', 4],
+      ['sd-standard-bearer', 4],
+      ['sd-war-priestess', 2],
+      ['sd-bastet-gate-chorus', 2],
+      ['sd-bastet-mistress-of-the-ninth-return', 2],
+    ]),
+    reserveCards: expand([
+      ['sd-whisker-count-scout', 4],
+      ['sd-lion-gate-sentry', 4],
+      ['sd-claw-thread-lancer', 4],
+      ['sd-pridewall-runner', 4],
+      ['sd-dune-pawed-outrider', 4],
+      ['sd-ember-maned-lioness', 4],
+      ['sd-blade-dancer', 4],
+      ['sd-standard-bearer', 4],
+      ['sd-war-priestess', 2],
+      ['sd-bastet-gate-chorus', 2],
+      ['sd-twinblade-at-the-prow', 2],
+      ['sd-bastet-mistress-of-the-ninth-return', 2],
+    ]),
+    landReserve: expand([
+      ['sd-land-noon-barge-landing', 4],
+      ['land-plains', 3],
+      ['land-mountain', 3],
     ]),
   },
 ];

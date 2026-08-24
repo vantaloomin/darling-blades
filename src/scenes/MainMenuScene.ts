@@ -8,6 +8,11 @@ import { tutorialLaunchData } from '../data/tutorial';
 import { evaluateAchievements, syncAchievements } from '../meta/Achievements';
 import { todayString } from '../meta/Economy';
 import {
+  deckRepairNoticeFingerprint,
+  deckRepairNoticeState,
+  flaggedDecks,
+} from '../meta/deckRepair';
+import {
   claimDailyQuest,
   dailyQuestStatuses,
   dailyRerollsRemaining,
@@ -16,25 +21,16 @@ import {
   rerollDailyQuest,
 } from '../meta/Quests';
 import { Services } from '../meta/services';
-import { IS_DEV } from '../platform/env';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { MAIN_MENU_ITEMS, MAIN_MENU_X, mainMenuButtonY } from '../ui/mainMenuPresentation';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
-import { goldBadge, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL } from '../version';
 
-const MENU_ITEMS: { label: string; scene?: string; data?: object }[] = [
-  // Game modes live one level down (PlayScene): Gauntlet, Draft, Practice ×3.
-  { label: 'Play', scene: 'Play' },
-  { label: 'Shop', scene: 'Shop' },
-  { label: 'Collection', scene: 'Collection' },
-  { label: 'Achievements', scene: 'Achievements' },
-  // "Decks" (not "Deck Builder"): the scene is where you pick your active
-  // deck as well as build them (user-directed 2026-07-17). Scene key unchanged.
-  { label: 'Decks', scene: 'DeckBuilder' },
-  { label: 'Card Showcase', scene: 'Showcase' },
-];
+// Game modes live one level down. "Decks" remains the saved-deck picker and builder.
+const MENU_ITEMS = MAIN_MENU_ITEMS;
 
 export class MainMenuScene extends Phaser.Scene {
   private menuItems: Phaser.GameObjects.GameObject[] = [];
@@ -138,25 +134,20 @@ export class MainMenuScene extends Phaser.Scene {
 
     this.drawDailyPanel(today);
 
-    // Card Showcase is a variant-QA surface — dev/local builds only (IS_DEV);
-    // filtering (not hiding) keeps the row layout gap-free on the public build.
-    const items = MENU_ITEMS.filter((entry) => entry.scene !== 'Showcase' || IS_DEV);
-    const menuX = 360;
-    const firstY = items.length > 8 ? 268 : 286;
-    const pitchY = items.length > 8 ? 42 : 50;
-    items.forEach((entry, i) => {
-      const item = themedButton(this, menuX, firstY + i * pitchY, entry.label, {
+    MENU_ITEMS.forEach((entry, i) => {
+      const itemY = mainMenuButtonY(i);
+      const item = themedButton(this, MAIN_MENU_X, itemY, entry.label, {
         variant: 'ghost',
         size: 'sm',
         minWidth: 300,
-        onTap: () => entry.scene && this.scene.start(entry.scene, entry.data),
+        onTap: () => this.scene.start(entry.scene, entry.data),
       });
       // Unlocked-but-unclaimed achievements get a small gold claim-count badge
       // at the row's right edge (replaces the old "(N)" label suffix). The
       // count recomputes on scene create, which re-runs after every duel/shop
       // visit. Pulse only at animations 'full'; reduced/off show it static.
       if (entry.scene === 'Achievements' && claimableAchievements > 0) {
-        this.addClaimBadge(menuX + 172, firstY + i * pitchY, claimableAchievements);
+        this.addClaimBadge(MAIN_MENU_X + 172, itemY, claimableAchievements);
       }
 
       // Hit boxes fill the full 56px row pitch (the audited 15px dead gaps
@@ -172,7 +163,95 @@ export class MainMenuScene extends Phaser.Scene {
       color: theme.colors.muted,
     });
 
-    if (!Services.save.data.tutorialDone) this.promptTutorial();
+    if (!this.showDeckRepairNotice() && !Services.save.data.tutorialDone) this.promptTutorial();
+  }
+
+  private showDeckRepairNotice(): boolean {
+    const save = Services.save.data;
+    const flagged = flaggedDecks(CARD_DB, save);
+    const noticeState = deckRepairNoticeState(flagged, save.deckRepairNoticeAck);
+    if (save.deckRepairNoticeAck !== noticeState.acknowledgedFingerprint) {
+      save.deckRepairNoticeAck = noticeState.acknowledgedFingerprint;
+      Services.save.flush();
+    }
+    if (!noticeState.needsNotice) return false;
+
+    let repairDeckId: string | null = null;
+    const shell = modalShell(this, {
+      width: 760,
+      height: 430,
+      dimAlpha: 0.68,
+      dismissal: 'mandatory',
+      onClose: () => {
+        // Deliberately no acknowledgement here: only the two buttons stamp it.
+        // A programmatic close (scene teardown, tab-guard takeover) must leave
+        // the notice unacknowledged so it shows again next boot.
+        this.guard.close();
+        if (repairDeckId) this.scene.start('DeckBuilder', { deckId: repairDeckId });
+      },
+    });
+    const acknowledge = (): void => {
+      save.deckRepairNoticeAck = deckRepairNoticeFingerprint(flagged);
+      Services.save.flush();
+    };
+    this.guard.open(this.menuItems);
+    const content = shell.container;
+    const single = flagged.length === 1;
+    content.add(
+      this.add.text(640, 200, single ? 'Your deck needs fixes' : 'Your decks need fixes', {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.h1}px`,
+        color: theme.colors.heading,
+      }).setOrigin(0.5),
+    );
+    content.add(
+      this.add.text(
+        640,
+        315,
+        (single
+          ? 'The rules changed with this update. One of your decks no longer fits the current format. '
+          : `The rules changed with this update. ${flagged.length} of your decks no longer fit the current format. `) +
+          'Nothing was deleted; every card is still in your collection. Open the Deck Builder to bring them up to date.',
+        {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.body,
+          align: 'center',
+          wordWrap: { width: 640 },
+          lineSpacing: 5,
+        },
+      ).setOrigin(0.5),
+    );
+    const fix = themedButton(this, 520, 485, 'Fix Now', {
+      variant: 'primary',
+      minWidth: 160,
+      onTap: () => {
+        acknowledge();
+        repairDeckId = flagged[0]?.deckId ?? null;
+        shell.close();
+      },
+    });
+    const later = themedButton(this, 760, 485, 'Later', {
+      variant: 'ghost',
+      minWidth: 160,
+      onTap: () => {
+        acknowledge();
+        shell.close();
+      },
+    });
+    // Corner dismiss: an explicit tap, so it acknowledges exactly like Later.
+    // Pinned to the shell's top-right corner (shell is centered at 640x360).
+    const corner = themedButton(this, 640 + 760 / 2 - 34, 360 - 430 / 2 + 34, '×', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 30,
+      onTap: () => {
+        acknowledge();
+        shell.close();
+      },
+    });
+    content.add([fix.container, later.container, corner.container]);
+    return true;
   }
 
   /**

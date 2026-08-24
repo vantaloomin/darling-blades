@@ -329,6 +329,21 @@ specific reads, including the literal white horse and raven subjects.
 - **Rarity ambition:** Rare — a decisive chivalric action plus one environmental story beat, with the weapon, creature tell, or court prop readable at battlefield scale.
 - **Prompt:** Oathbroken Knight, an adult fallen knight whose approved art reads pristine and dangerous rather than visibly ruined, wearing clean polished black-and-silver plate, a white cloak with only restrained damage, crimson wound-cloth, and a thorn crown; low stalking three-quarter stance with the blade held away from the body and face unobscured; bitter, precise, and more dangerous because the armor still looks almost immaculate; against a moonlit chapel stair beneath a stone keep, blank pennants lying across the steps; cold moonlight as key on the blade and face; red ember rim through the stair dust; reserve the entire top third as clear, empty sky, lake haze, or chapel air above the head, crown, mane, or wings so the full silhouette survives smart-crop; no readable letters, numerals, runes, heraldic text, banners with writing, cards, mirrors with writing, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
+### Paired-Blade Errant — `ac-paired-blade-errant`
+- **Card facts:** {3}{W} · W · 3/3 · twinBlades · r · holo: none
+- **Character & source:** an adult errant knight sworn to the paired-sword form; mechanically a twin-strike duelist, both oaths landing in one exchange.
+- **Personality / mood:** "One blade for the vow, one for the road home." — serene, road-worn, and exact.
+- **Pose & composition:** mid-exchange with both swords committed on crossing diagonals through the middle band; face ≈ y 320 and eye-line ≈ y 300–360 where humanoid, with the full species anatomy and defining prop in frame. The entire top third stays clear above the head, crown, mane, or wings for crop-safe headroom.
+- **Costume & attire:** fitted silver plate with white cloak panels, twin scabbards crossed at the back, a plain circlet, and a white pennant tabard.
+- **Palette:** W palette (`#f2e8cf` → `#c9a84c`, accent `#fffef2`) — chapel ivory and white-gold; Arthurian accents — polished steel, white-gold sunlight, chapel ivory, crimson pennants, moonlit lake blue, thorn black, and grail radiance — reinforce the card color without becoming Celtic Fae mist/thorn.
+- **Lighting:** white-gold upper-left sunlight as key; cool steel-blue rim along the far blade and cloak.
+- **Expression:** serene, road-worn, and exact.
+- **Props / weapon:** two matched knightly swords held with clean, anatomically correct grips, no shield.
+- **Background:** a chapel-lined tournament road with blank white pennants. Keep scene detail subordinate to the action while preserving the approved court anchor.
+- **Holo interaction:** No signature holo; keep face, steel planes, and central action clean for the rare card read.
+- **Rarity ambition:** Rare — one court figure, two clean blade diagonals, and a single environmental story beat.
+- **Prompt:** Paired-Blade Errant, an adult errant knight sworn to the paired-sword form, wearing fitted silver plate with white cloak panels, twin scabbards crossed at the back, a plain circlet, and a white pennant tabard; mid-exchange with both swords committed on crossing diagonals through the middle band; serene, road-worn, and exact; against a chapel-lined tournament road with blank white pennants; white-gold upper-left sunlight as key; cool steel-blue rim along the far blade and cloak; reserve the entire top third as clear, empty sky, lake haze, or chapel air above the head, crown, mane, or wings so the full silhouette survives smart-crop; no readable letters, numerals, runes, heraldic text, banners with writing, cards, mirrors with writing, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
 ### Novice Squire — `ac-novice-squire`
 - **Card facts:** {1}{W} · W · 2/2 · sentinel · c · holo: none
 - **Character & source:** an adult court squire woman, a retainer learning the weight of service before the title; mechanically a steadfast keeper of a gate, oath, or formation. Approved-art audit: Adult-coded squire is confirmed; face near y 90 is the worst crop candidate, so retain crop-safe headroom.

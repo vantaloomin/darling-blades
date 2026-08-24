@@ -35,6 +35,7 @@ export type TriggerWhen =
   | 'spell' // charm/ritual body, runs on resolution
   | 'arrives'
   | 'dies'
+  | 'entersGraveyard'
   | 'dawn'
   | 'combatDamageToPlayer'
   | 'attacks'
@@ -78,7 +79,7 @@ export type EffectOp =
   | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' | 'all' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'tap'; to: 'target' }
-  | { op: 'fetchLand' } // a basic land from deck → battlefield tapped
+  | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
   | { op: 'createToken'; token: string; count: number }
   | { op: 'destroyNewestOpponentArtifactOrEnchantment' } // trigger-safe, no target
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' | 'allEnchantments' }
@@ -135,6 +136,16 @@ export interface RetellDef {
   ops?: EffectOp[];
 }
 
+/** Additional creature-sacrifice cost paid while casting the card. */
+export interface RiteDef {
+  n: number;
+}
+
+/** Main-phase graveyard activation that creates a token copy of this creature. */
+export interface PreserveDef {
+  cost: ManaCost;
+}
+
 /** Alternate linked cast for a noncreature Artifact or Enchantment. */
 export interface HauntlinkDef {
   cost: ManaCost;
@@ -174,6 +185,12 @@ export interface CardDef {
   skim?: SkimDef;
   /** Optional alternative-cost cast from this card's graveyard. */
   retell?: RetellDef;
+  /** Optional additional cast cost that sacrifices controlled creatures. */
+  rite?: RiteDef;
+  /** Returns once after dying without a +1/+1 mark. */
+  nineLives?: true;
+  /** Optional main-phase activation from this card's graveyard. */
+  preserve?: PreserveDef;
   /** Optional alternative-cost cast that enters attached to a friendly creature. */
   hauntlink?: HauntlinkDef;
   manaAbility?: Color[]; // lands & mana creatures
@@ -251,6 +268,56 @@ export function validateHauntlinkDef(d: CardDef): string[] {
   return errors;
 }
 
+/** Catalog-facing validation for the target-free v1 Rite authoring contract. */
+export function validateRiteDef(d: CardDef): string[] {
+  if (!d.rite) return [];
+  const errors: string[] = [];
+  if (!Number.isInteger(d.rite.n) || d.rite.n < 1) {
+    errors.push('Rite count must be an integer of at least 1');
+  }
+  if (d.x) errors.push('Rite card cannot be X');
+  if (d.retell) errors.push('Rite card cannot combine with Retell');
+  if (d.hauntlink) errors.push('Rite card cannot combine with Hauntlink');
+  if (d.skim) errors.push('Rite card cannot combine with Skim');
+  if (
+    d.subtypes.includes('Aura') ||
+    (d.abilities ?? []).some(
+      (ability) => ability.when !== 'static' && (ability.targets?.length ?? 0) > 0,
+    )
+  ) {
+    errors.push('Rite card cannot have cast targets');
+  }
+  return errors;
+}
+
+/** Catalog-facing validation for the v1 Nine Lives authoring contract. */
+export function validateNineLivesDef(d: CardDef): string[] {
+  if (!d.nineLives) return [];
+  const errors: string[] = [];
+  if (!isType(d, 'creature')) errors.push('Nine Lives carrier must be a creature');
+  if (d.hauntlink) errors.push('Nine Lives card cannot combine with Hauntlink');
+  return errors;
+}
+
+/** Catalog-facing validation for the creature-only v1 Preserve contract. */
+export function validatePreserveDef(d: CardDef): string[] {
+  if (!d.preserve) return [];
+  const errors: string[] = [];
+  if (!isType(d, 'creature')) errors.push('Preserve carrier must be a creature');
+  const cost = d.preserve.cost;
+  if (!cost) {
+    errors.push('Preserve needs a mana cost');
+  } else if (
+    !Number.isInteger(cost.generic) ||
+    cost.generic < 0 ||
+    Object.values(cost.pips).some((pip) => !Number.isInteger(pip) || pip < 0)
+  ) {
+    errors.push('Preserve cost must be non-negative');
+  }
+  if (d.hauntlink) errors.push('Preserve card cannot combine with Hauntlink');
+  return errors;
+}
+
 export function manaValue(cost: ManaCost | undefined): number {
   if (!cost) return 0;
   let v = cost.generic;
@@ -276,6 +343,8 @@ export interface Permanent {
   cardId: string;
   /** Opaque presentation metadata; never used by rules. */
   variantKey?: string | null;
+  /** Runtime token identity. Present as true on tokens, including copies of collectible cards. */
+  isToken?: true;
   owner: PlayerId;
   controller: PlayerId;
   tapped: boolean;
@@ -350,10 +419,6 @@ export type Awaiting =
     }
   | { player: PlayerId; kind: 'endStepWindow' }
   | { player: PlayerId; kind: 'discardToHandSize'; count: number }
-  // Resolution-time choice: which basic land a `fetchLand` effect grabs when the
-  // deck holds >1 distinct basic type. Deferred through pendingDecisions so the
-  // synchronous interpreter never has to suspend mid-flush.
-  | { player: PlayerId; kind: 'chooseBasicLand' }
   | { kind: 'gameOver' };
 
 export interface PlayerState {
@@ -367,19 +432,23 @@ export interface PlayerState {
   darlingZone?: CardEntry | null;
   darlingInstanceId?: number;
   darlingTax?: number;
-  landPlayedThisTurn: boolean;
+  landDropsUsed: number;
+  extraLandDrops: number;
   mulligans: number;
   keptHand: boolean;
 }
 
 /** Resolution-time choices deferred until the current synchronous batch ends. */
 export type PendingDecision =
-  | { kind: 'chooseBasicLand'; player: PlayerId }
   // `player` is the continuation controller. thenOps is present only when
   // Foresee interrupted a printed op list and contains target-free tail ops.
   | { kind: 'foresee'; player: PlayerId; n: number; thenOps?: EffectOp[] };
 
 export interface GameState {
+  /** Absent means revision 1 (classic single-window behavior). */
+  rulesRev?: number;
+  /** Revision-2 stack-episode bookkeeping; absent from revision-1 JSON. */
+  episode?: { resolvedSinceOffer: number; reopensThisStep: number };
   rng: RngState;
   turn: number;
   startingPlayer: PlayerId; // skips their turn-1 draw

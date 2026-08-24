@@ -51,7 +51,7 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-sidhe-silver-lancer | Sidhe Silver-Lancer | R | W | Creature | Fae knight | sentinel, firstBlade | White combat support |
 | cf-mist-over-tara | Mist Over Tara | R | U | Charm | Sacred-site fog | preventCombat, scry | Defensive control |
 | cf-fomorian-raider | Fomorian Raider | R | R | Creature | Fomorian brute | overrun, damage self | Rakdos pressure |
-| cf-apple-of-emain | Apple of Emain | R | G | Artifact | Otherworld fruit | gainLife, scry | Green value relic |
+| cf-apple-of-emain | Apple of Emain | R | G | Artifact | Otherworld fruit | dawn: gainLife 1 + foresee 1 | Green value relic |
 | cf-briar-veil-banishing | Briar-Veil Banishing | R | W | Enchantment | Thorn prison | exile tapped creature until leaves | White removal |
 | cf-otter-familiar | Otter Familiar | R | G | Creature | Fae familiar | scry, manaAbility | Ramp/smoothing |
 | cf-crowbone-prophet | Crowbone Prophet | R | B | Creature | Death oracle | scry, loseLife | Black selection |
@@ -95,12 +95,12 @@ Visual anchors: silver moonlight, moss green, blackthorn, mist, pale gold torcs,
 | cf-night-market-bargain | Night-Market Bargain | C | B | Ritual | Fae market | draw, loseLife | Black draw |
 | cf-laughing-pooka | Laughing Pooka | C | R | Creature | Pooka trickster | warcry | Hybrid pressure |
 | cf-hazelwand-mystic | Hazelwand Mystic | C | G | Creature | Druidic fae | manaAbility G | Ramp common |
-| cf-clouded-memory | Clouded Memory | C | U | Charm | Memory glamour | recall, scry | Tempo spell |
+| cf-clouded-memory | Clouded Memory | C | U | Charm | Memory glamour | recall, foresee 1 | Tempo spell |
 | cf-bitter-geas | Bitter Geas | C | B | Enchantment Aura | Compulsion curse | attached -1/-1 | Black debuff |
 | cf-hill-feast | Hill Feast | C | G | Ritual | Otherworld feast | gainLife, createToken | Green value |
 | cf-silver-apple-shot | Silver Apple Shot | C | R | Ritual | Magic projectile | damage 3 to creature | Red common removal |
 | cf-oak-shield-vow | Oak-Shield Vow | C | W | Charm | Defensive oath | boost Defense, scry | White trick |
-| cf-fogbell-chime | Fogbell Chime | C | U | Charm | Mist charm | tap creature, foresee 1 | Blue utility (duplicates Glimmerdust Trick; open design call, see the card comment) |
+| cf-fogbell-chime | Fogbell Chime | C | U | Artifact | Mist charm | hauntlink {1}: linked gains dreaded | Blue tempo link; first Hauntlink carrier outside Yokai Nights |
 | cf-moorland-guide | Moorland Guide | C | W | Creature | Border guide | sentinel | Block bridge common |
 | cf-veil-touched-hart | Veil-Touched Hart | C | G | Creature | Otherworld deer | scry arrives | Green setup |
 | cf-cairnlight-adept | Cairnlight Adept | C | B | Creature | Cairn witch | grind self | Grave setup |

@@ -152,9 +152,9 @@ export const RAGNAROK = [
     subtypes: [],
     cost: cost(3, 'RR'),
     colors: ['R'],
-    abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allCreatures' }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 4, to: 'eachCreature' }, { op: 'loseLife', n: 2, who: 'opponent' }] }],
     rarity: 'ssr',
-    flavor: 'The wolf swallows the sun. Everyone, off the board.',
+    flavor: 'The wolf swallows the sun. The big ones get to watch.',
   },
 
   // =========================================================================
@@ -184,8 +184,8 @@ export const RAGNAROK = [
     subtypes: ['Draugr'],
     cost: cost(4, 'B'),
     colors: ['B'],
-    attack: 3,
-    defense: 3,
+    attack: 4,
+    defense: 4,
     abilities: [{ when: 'arrives', ops: [{ op: 'raise', to: 'top' }] }],
     rarity: 'sr',
     flavor: 'She kept her gold, her sword, and a grudge worth more than both.',
@@ -250,7 +250,7 @@ export const RAGNAROK = [
   },
 
   // =========================================================================
-  // RARE (20)
+  // RARE (21)
   // --- White (3) ---
   {
     id: 'rg-valkyrie-vanguard',
@@ -480,7 +480,7 @@ export const RAGNAROK = [
     colors: ['G'],
     attack: 2,
     defense: 4,
-    abilities: [{ when: 'arrives', ops: [{ op: 'fetchLand' }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'r',
     flavor: 'She feeds the root that holds up nine worlds. Bring a bigger watering can.',
   },
@@ -527,6 +527,24 @@ export const RAGNAROK = [
     ],
     rarity: 'r',
     flavor: 'Valhalla’s doors swing both ways for the worthy.',
+  },
+
+  // Returning-mechanics sprinkle (1.6): Champion Awakening visits Ragnarök.
+  // Self-awakening at dawn (the Dark Tales heiress pattern) so the card
+  // needs no Quest support; the Einherjar ascends on her own schedule.
+  {
+    id: 'rg-twice-chosen-shieldmaiden',
+    name: 'Twice-Chosen Shieldmaiden',
+    types: ['creature'],
+    subtypes: ['Einherjar'],
+    cost: cost(2, 'R'),
+    colors: ['R'],
+    attack: 2,
+    defense: 3,
+    awakening: { p: 2, t: 1 },
+    abilities: [{ when: 'dawn', ops: [{ op: 'awaken', scope: 'self' }] }],
+    rarity: 'r',
+    flavor: 'The choosers passed her over once. She made certain of the second look.',
   },
 
   // =========================================================================
@@ -837,7 +855,7 @@ export const RAGNAROK = [
     colors: ['G'],
     attack: 1,
     defense: 1,
-    abilities: [{ when: 'arrives', ops: [{ op: 'fetchLand' }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',
     flavor: 'She sings to the soil and the soil pays rent.',
   },

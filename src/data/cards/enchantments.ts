@@ -70,7 +70,7 @@ export const ENCHANTMENTS = [
     abilities: [
       { when: 'static', static: { scope: 'attached', p: 2, t: 0, grantKeywords: ['warcry'] } },
     ],
-    rarity: 'r',
+    rarity: 'c',
     flavor: 'Patience sold separately. Never restocked.',
   },
   {
@@ -124,5 +124,23 @@ export const ENCHANTMENTS = [
     ],
     rarity: 'sr',
     flavor: 'The mountain remembers being a throne.',
+  },
+  // Returning-mechanics sprinkle (1.6): the first Quest outside Grail Oath.
+  // All three chapters are trigger-safe and automatic, so every AI tier
+  // pilots it at full strength.
+  {
+    id: 'en-persephones-return',
+    name: "Persephone's Return",
+    types: ['enchantment'],
+    subtypes: ['Quest'],
+    cost: cost(2, 'B'),
+    colors: ['B'],
+    chapters: [
+      [{ op: 'grind', n: 2, who: 'self' }],
+      [{ op: 'raise', to: 'top' }],
+      [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }],
+    ],
+    rarity: 'r',
+    flavor: 'Six seeds down, one road up. She keeps both appointments.',
   },
 ] as const satisfies readonly CardDef[];

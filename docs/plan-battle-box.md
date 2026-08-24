@@ -1,11 +1,11 @@
-<!-- source-of-truth: docs/plan-1.5.md, docs/plan-darlings.md, src/engine/types.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/meta/DeckStorage.ts, src/meta/SaveManager.ts, src/meta/warchest.ts, src/data/opponents.ts · last-verified: 2026-08-04 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/plan-1.5.md, docs/plan-darlings.md, src/engine/types.ts, src/engine/Game.ts, src/engine/actions.ts, src/engine/view.ts, src/meta/DeckStorage.ts, src/meta/SaveManager.ts, src/meta/warchest.ts, src/data/opponents.ts · last-verified: 2026-08-08 · design/plan doc - re-verify when the referenced code changes -->
 
 # Warchest mana system implementation plan
 
 ## Goal
 
 Release 1.5.5 ships a chosen Warchest in its two new
-formats. A Warchest deck is 50 spells with zero in-deck lands; a Darlings
+formats. A Warchest deck is 40 spells with zero in-deck lands (50 at the 1.5.5 reveal; re-ratified to 40 with a 5-card opening hand on 2026-08-07); a Darlings
 deck is 79 singleton spells with its Darling in a separate command zone, also
 with zero in-deck lands. Beside
 each deck the player builds Warchest Reserves of exactly 10
@@ -31,7 +31,7 @@ specifies is unchanged and is the ratified 2.0 north star
 
 User decisions locked 2026-07-28 (do not relitigate without the user):
 
-- Warchest deck size is **50 cards** with ordinary Constructed copy limits.
+- Warchest deck size is **40 cards** with ordinary Constructed copy limits (originally locked at 50 on 2026-07-28; the owner reopened and re-ratified 40 plus a 5-card opening hand on 2026-08-07 after the measured format-parameter gate, plan-1.6.md).
 - Darlings deck size is **79 singleton spells plus an external Darling**,
   per plan-darlings.md's shipped command-zone respec (the earlier 80-card and
   50-card in-deck shapes are historical).
@@ -63,7 +63,7 @@ to the deck list:
 
 Legality is exact:
 
-- A Warchest deck is exactly 50 cards and contains no lands. A Darlings deck
+- A Warchest deck is exactly 40 cards and contains no lands. A Darlings deck
   is exactly 79 singleton spells plus an external Darling and contains no lands.
 - The reserve is exactly 10 lands: basic lands and dual lands only, with
   at most 5 duals. Basics are ownership-free as everywhere; dual lands
@@ -150,8 +150,13 @@ and null means "not a reserve format". No independent bump.
 
 ## AI and balance impact
 
-Reserve formats have no measured baseline yet and ship without one (the
-Darlings Wave 3 stance extends to both): player-built duels only. The
+Reserve formats shipped in 1.5.5 without a rival ladder (the Darlings
+Wave 3 stance extended to both): player-built duels only, with reserve
+Practice mirroring the player's own list. **Superseded 2026-08-08 by the
+1.6 stage-3 migration:** every avatar now carries designed reserveDeck /
+landReserve / darlingsDeck fields (src/data/opponents.ts) and reserve
+Practice fields the selected avatar's own deck in both formats; the
+mirror survives only for avatar-less dev overrides. The
 classic gates are unaffected but must be proven unaffected — after the
 engine lands, the avatar and floor matrices must be byte-identical for
 classic games:
@@ -221,7 +226,7 @@ recommending lists in these formats.
 
 - A classic Constructed game is byte-identical to pre-feature behavior
   (matrices reproduce; replays of old logs unaffected).
-- Reserve legality is enforced exactly (Warchest 50/0-lands, Darlings
+- Reserve legality is enforced exactly (Warchest 40/0-lands, Darlings
   80/0-lands, 10/5-dual/ownership/format-specific color rules), with direct
   plain-language errors.
 - Duals enter tapped; destroyed duals reach the graveyard; destroyed

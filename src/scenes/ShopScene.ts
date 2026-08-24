@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
+import { FEATURES } from '../config/features';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { DECK_INFO } from '../data/deckInfo';
+import { DUAT_SET, isLiveCollectible } from '../data/liveness';
 import {
   DARLINGS_PRECONS,
   FREE_DARLINGS_PRECON_ID,
@@ -18,8 +20,10 @@ import {
   claimFreeDarlingsDeck,
   claimFreeStarter,
   deckProductCardIds,
+  grantedDeckBuild,
   previewDeckGrant,
   spendGold,
+  type GrantedDeckBuild,
 } from '../meta/Economy';
 import { openPack, openPacks } from '../meta/PackOpener';
 import { packPoolSummary, type PackPoolSummary } from '../meta/packSummary';
@@ -119,6 +123,15 @@ const YOKAI_NIGHTS_PACK_TINT: PackTint = {
   trim: theme.colors.heading,
   foil: theme.colors.success,
   mist: theme.colors.gold,
+};
+
+const SANDS_OF_THE_DUAT_PACK_TINT: PackTint = {
+  start: theme.colors.btnEmphasisBg,
+  middle: theme.colors.panelFill,
+  end: theme.colors.muted,
+  trim: theme.colors.gold,
+  foil: theme.colors.gold,
+  mist: theme.colors.heading,
 };
 
 const packRR = (
@@ -278,6 +291,13 @@ export const YOKAI_NIGHTS_PACK_ART: PackArtOpts = {
   trimY: 69,
 };
 
+export const SANDS_OF_THE_DUAT_PACK_ART: PackArtOpts = {
+  key: 'packart-sands-of-the-duat',
+  sceneArtKey: 'scene-pack-art-sands-of-the-duat',
+  tint: SANDS_OF_THE_DUAT_PACK_TINT,
+  trimY: 63,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
@@ -285,6 +305,7 @@ export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'gothic-monsters') return 'packart-gothic-monsters';
   if (sku === 'dark-tales') return 'packart-dark-tales';
   if (sku === 'yokai-nights') return 'packart-yokai-nights';
+  if (sku === 'sands-of-the-duat') return 'packart-sands-of-the-duat';
   return 'packart';
 }
 
@@ -296,6 +317,7 @@ export function packPriceForSku(sku: BoosterSku): number {
   if (sku === 'gothic-monsters') return ECONOMY.gothicMonstersPackPrice;
   if (sku === 'dark-tales') return ECONOMY.darkTalesPackPrice;
   if (sku === 'yokai-nights') return ECONOMY.yokaiNightsPackPrice;
+  if (sku === 'sands-of-the-duat') return ECONOMY.sandsOfTheDuatPackPrice;
   return ECONOMY.packPrice;
 }
 
@@ -315,10 +337,22 @@ export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sk
   { label: SET_TITLES['gothic-monsters'], textureKey: 'packart-gothic-monsters', sku: 'gothic-monsters' },
   { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', sku: 'dark-tales' },
   { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
+  { label: SET_TITLES['sands-of-the-duat'], textureKey: 'packart-sands-of-the-duat', sku: 'sands-of-the-duat' },
 ];
 
+/**
+ * The shop strip shows only released sets: the Sands of the Duat SKU rides
+ * BOOSTER_SKUS (the booster art guard reads that block) but stays hidden until
+ * FEATURES.duatLive flips at the shared balance pass. Every strip consumer
+ * must index into THIS list, never BOOSTER_SKUS, or the peek/layout indexes
+ * disagree with the tiles.
+ */
+export function visibleBoosterSkus(): ReadonlyArray<{ label: string; textureKey: string; sku: BoosterSku }> {
+  return BOOSTER_SKUS.filter((entry) => entry.sku !== 'sands-of-the-duat' || FEATURES.duatLive);
+}
+
 /** Only the newest SKU gets launch emphasis. Keep this beside BOOSTER_SKUS. */
-export const NEWEST_SKU: BoosterSku = 'yokai-nights';
+export const NEWEST_SKU: BoosterSku = FEATURES.duatLive ? 'sands-of-the-duat' : 'yokai-nights';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
@@ -362,6 +396,17 @@ interface DeckSku {
   deck: DeckList | DarlingsPrecon;
   price: number;
   theme: boolean;
+}
+
+/**
+ * "40 spells / 10 Warchest" for a reserve build, "60 cards" for classic. Reads
+ * the granted build rather than a hardcoded size so the line stays true when a
+ * deck's format changes under it.
+ */
+function buildSizeCopy(build: GrantedDeckBuild): string {
+  return build.format === 'constructed'
+    ? `${build.cards.length} cards`
+    : `${build.cards.length} spells / ${build.landReserve?.length ?? 0} Warchest`;
 }
 
 function isDarlingsPrecon(deck: DeckList | DarlingsPrecon): deck is DarlingsPrecon {
@@ -425,7 +470,12 @@ export class ShopScene extends Phaser.Scene {
       {
         label: 'Standard Decks',
         skus: [
-          ...THEME_DECKS.map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
+          ...THEME_DECKS
+            .filter((deck) => deck.cards.every((id) => {
+              const card = CARD_DB[id];
+              return Boolean(card && (String(card.set) !== DUAT_SET || isLiveCollectible(card)));
+            }))
+            .map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
           ...STARTER_DECKS.map((deck) => ({ deck, price: ECONOMY.starterDeckPrice, theme: false })),
         ],
       },
@@ -510,6 +560,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, GOTHIC_MONSTERS_PACK_ART);
     bakePackArt(this, DARK_TALES_PACK_ART);
     bakePackArt(this, YOKAI_NIGHTS_PACK_ART);
+    bakePackArt(this, SANDS_OF_THE_DUAT_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
@@ -639,7 +690,7 @@ export class ShopScene extends Phaser.Scene {
     this.boosterArrows = null;
     // The SKU list owns order and count. The pure helper receives its length,
     // so adding an eighth or tenth set adds a tile without new layout math.
-    const skus = BOOSTER_SKUS;
+    const skus = visibleBoosterSkus();
     const layout = boosterStripLayout(skus.length);
     this.boosterStripLayout = layout;
     const content = this.add.container(0, 0);
@@ -993,7 +1044,7 @@ export class ShopScene extends Phaser.Scene {
     }
     for (const [side, edgeIndex] of [visibility.leftPeekIndex, visibility.rightPeekIndex].entries()) {
       const edge = this.boosterStripEdgePeeks[side];
-      const sku = edgeIndex === null ? undefined : BOOSTER_SKUS[edgeIndex];
+      const sku = edgeIndex === null ? undefined : visibleBoosterSkus()[edgeIndex];
       edge?.setVisible(sku !== undefined);
       if (sku) edge?.setTexture(packTextureForSku(sku.sku));
     }
@@ -1230,7 +1281,7 @@ export class ShopScene extends Phaser.Scene {
   // --- Deck preview overlay -------------------------------------------------
 
   /** Esc closes the TOP overlay only: inspect, odds, then deck preview. All
-   * shells register with escToClose:false so one press can't close two. */
+   * shells use the coordinator stack so one press cannot close two. */
   private readonly onEscKey = (): void => {
     if (this.coordinator.dispatchEsc().consumed) return;
     if (this.inspect) this.closeInspect();
@@ -1282,8 +1333,12 @@ export class ShopScene extends Phaser.Scene {
     const owned = save.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
     const info = DECK_INFO[deck.id];
+    // Preview the build the purchase actually grants, not the DeckList's
+    // classic list: after classic retirement those differ for every starter
+    // and theme deck, and the shop must never advertise a deck it will not hand over.
+    const build = grantedDeckBuild(deck);
     const counts = new Map<string, number>();
-    for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+    for (const id of build.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
     const entries = [...counts.entries()].map(([id, n]) => ({ d: def(CARD_DB, id), n }));
     const sortFn = (a: PreviewEntry, b: PreviewEntry): number =>
       manaValue(a.d.cost) - manaValue(b.d.cost) || a.d.name.localeCompare(b.d.name);
@@ -1296,9 +1351,7 @@ export class ShopScene extends Phaser.Scene {
       height: 600,
       dimAlpha: 0.52,
       depth: theme.depth.modal,
-      showClose: false,
-      tapDimToClose: true,
-      escToClose: false, // Esc is handled scene-side so it closes top-most only
+      dismissal: 'tap-only',
       coordinator: this.coordinator,
       registration: {
         dismissible: true,
@@ -1327,7 +1380,7 @@ export class ShopScene extends Phaser.Scene {
     const idY = content.y + 8;
     const darlings = isDarlingsPrecon(deck);
     const archText = this.add
-      .text(0, idY, `${darlings ? deck.blurb : (info?.archetype ?? '')} · ${darlings ? '79 spells / 10 Warchest' : `${deck.cards.length} cards`}`, {
+      .text(0, idY, `${darlings ? deck.blurb : (info?.archetype ?? '')} · ${buildSizeCopy(build)}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
@@ -1361,7 +1414,7 @@ export class ShopScene extends Phaser.Scene {
     }
 
     // Left column: signature cards, mana curve, composition, and grant preview.
-    const stats = computeDeckStats(deck.cards, CARD_DB);
+    const stats = computeDeckStats(build.cards, CARD_DB);
     const statsX = content.x + 16;
     const sectionLabel = (x: number, y: number, label: string): Phaser.GameObjects.Text =>
       this.add
@@ -1662,9 +1715,7 @@ export class ShopScene extends Phaser.Scene {
       height: 620,
       dimAlpha: 0.8,
       depth: theme.depth.inspect,
-      showClose: true,
-      tapDimToClose: true,
-      escToClose: false, // scene-side Esc closes the inspect before the preview
+      dismissal: 'tap-and-close',
       coordinator: this.coordinator,
       registration: {
         dismissible: true,

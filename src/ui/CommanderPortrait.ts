@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Art } from '../art/ArtResolver';
+import { faceTargetSurfaceState } from './faceTargetPresentation';
 import { colorInt } from './theme';
 
 /**
@@ -221,8 +222,10 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
 
   /** Enable the full frame as a face target and ring it in the caller's semantic colour. */
   setFaceTargetable(targetable: boolean, color: string): this {
+    const state = faceTargetSurfaceState(targetable);
+    this.setDepth(state.depth);
     this.targetRing.clear().setVisible(targetable);
-    if (targetable) {
+    if (state.targetEnabled) {
       this.targetRing.lineStyle(3, colorInt(color), 0.98);
       this.targetRing.strokeRoundedRect(2, 2, this.frameW - 4, this.height - 4, CORNER_R);
       this.targetZone.setInteractive({ useHandCursor: true });

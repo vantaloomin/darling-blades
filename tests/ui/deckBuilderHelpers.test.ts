@@ -18,6 +18,8 @@ import {
   gridPosition,
   isDeckBuilderDirty,
   offeredBuilderFormats,
+  reserveLandChipLabel,
+  visibleBuilderFormatTabs,
   visibleSavedDecks,
 } from '../../src/ui/deckBuilderHelpers';
 
@@ -33,18 +35,20 @@ describe('deck builder helpers', () => {
   it('keeps format labels, sizes, and launch copy explicit', () => {
     expect(formatLabel('constructed')).toBe('Constructed');
     expect(formatLabel('darlings')).toBe('Darlings');
-    expect(formatLabel('warchest')).toBe('Warchest');
+    // The warchest FORMAT reads as Standard (owner 2026-08-18); "Warchest"
+    // stays the land system's name.
+    expect(formatLabel('warchest')).toBe('Standard');
     expect(formatDeckSize('constructed')).toBe(60);
     expect(formatDeckSize('darlings')).toBe(DARLINGS_DECK_SIZE);
     expect(formatDeckSize('warchest')).toBe(WARCHEST_DECK_SIZE);
-    expect(formatGauntletUnavailableCopy('darlings')).toBe('Darlings decks are available in Practice only.');
-    expect(formatGauntletUnavailableCopy('warchest')).toBe('Warchest decks are available in Practice only.');
+    expect(formatGauntletUnavailableCopy('darlings', false)).toBe('Darlings decks are available in Practice only.');
+    expect(formatGauntletUnavailableCopy('warchest', false)).toBe('Warchest decks are available in Practice only.');
     expect(WARCHEST_RULES_COPY).toBe(
-      'Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.',
+      'Your deck is 40 spells and you open with 5 cards. Build your Warchest: 10 lands, up to 5 dual lands. Each turn you move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped. If a dual land is destroyed it is gone; destroyed basic lands return to your Reserves.',
     );
     expect(WARCHEST_RULES_COPY).not.toContain('\u2014');
     expect(DARLINGS_RULES_COPY).toBe(
-      'Choose your Darling. She waits in her own zone, ready when you call. Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands. Each time she falls, her next call costs 2 more.',
+      'Choose your Darling. She waits in her own zone, ready when you call. Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands. You open with 5 cards. Each time she falls, her next call costs 2 more.',
     );
     expect(DARLINGS_RULES_COPY).not.toContain('\u2014');
   });
@@ -57,7 +61,7 @@ describe('deck builder helpers', () => {
     const decks = [constructed, darlings, warchest];
     const hiddenSnapshot = structuredClone(darlings);
 
-    expect(offeredBuilderFormats(false)).toEqual(['constructed']);
+    expect(offeredBuilderFormats(false, false)).toEqual(['constructed']);
     expect(visibleSavedDecks(decks, false).map((deck) => deck.id)).toEqual(['constructed']);
     expect(isSavedDeckVisible(darlings, false)).toBe(false);
     expect(builderFormatForDeck(darlings, false)).toBe('constructed');
@@ -73,10 +77,47 @@ describe('deck builder helpers', () => {
     const warchest = { ...save.decks[0], id: 'warchest', format: 'warchest' as const };
     const decks = [constructed, darlings, warchest];
 
-    expect(offeredBuilderFormats(true)).toEqual(['constructed', 'darlings', 'warchest']);
+    expect(offeredBuilderFormats(true, false)).toEqual(['constructed', 'warchest', 'darlings']);
     expect(visibleSavedDecks(decks, true).map((deck) => deck.id)).toEqual(['constructed', 'darlings', 'warchest']);
     expect(activeVisibleSavedDeck(decks, 'warchest', true)?.id).toBe('warchest');
     expect(isReplayVisible({ format: 'darlings' }, true)).toBe(true);
+  });
+
+  it('retires Constructed from the offered formats while keeping classic decks visible', () => {
+    const save = freshSave(0);
+    const constructed = { ...save.decks[0], id: 'constructed', format: 'constructed' as const };
+    const darlings = { ...save.decks[0], id: 'darlings', format: 'darlings' as const };
+    const decks = [constructed, darlings];
+
+    // Standard (warchest) leads; Darlings is the specialty format.
+    expect(offeredBuilderFormats(true, true)).toEqual(['warchest', 'darlings']);
+    // A retired classic deck is never hidden or reassigned: it stays listed and
+    // stays the active deck so the flag-and-fix flow can route the player to it.
+    expect(visibleSavedDecks(decks, true).map((deck) => deck.id)).toEqual(['constructed', 'darlings']);
+    expect(activeVisibleSavedDeck(decks, 'constructed', true)?.id).toBe('constructed');
+    expect(builderFormatForDeck(constructed, true)).toBe('constructed');
+  });
+
+  it('opens the Tower to Warchest at retirement and leaves Darlings in Practice', () => {
+    expect(formatGauntletUnavailableCopy('warchest', true)).toBeNull();
+    expect(formatGauntletUnavailableCopy('darlings', true)).toBe('Darlings decks are available in Practice only.');
+    expect(formatGauntletUnavailableCopy('constructed', true)).toBeNull();
+  });
+
+  it('offers every format as a live two-way conversion tab', () => {
+    // Owner reversal 2026-08-18: the old identity-tab rule made Darlings
+    // conversion one-way (Darlings -> Warchest deleted the way back).
+    const offered = offeredBuilderFormats(true, false);
+    expect(visibleBuilderFormatTabs(offered)).toEqual(offered);
+    expect(visibleBuilderFormatTabs(offeredBuilderFormats(true, true))).toEqual(
+      offeredBuilderFormats(true, true),
+    );
+  });
+
+  it('compacts long reserve names for the legacy chip label', () => {
+    expect(reserveLandChipLabel(1, 'Red Cliffs Anchorage')).toBe('1 Red Cli…');
+    expect(reserveLandChipLabel(10, 'Red Cliffs Anchorage')).toBe('10 Red Cl…');
+    expect(reserveLandChipLabel(10, 'Red Cliffs Anchorage')).toHaveLength(10);
   });
 
   it('clamps empty paging inputs and preserves item order', () => {

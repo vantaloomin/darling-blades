@@ -3,8 +3,9 @@ import { DRAFT_PERSONAS, draftPersonaById } from '../data/draftPersonas';
 import { createRngState, rngInt, type RngState } from '../engine/rng';
 import type { CardDb, CardDef, Color, Rarity } from '../engine/types';
 import { def, isType } from '../engine/types';
-import { addCard, isBasic, type AddResult } from './Collection';
-import { LIMITED_DECK_SIZE, validateLimitedDeck } from './DeckStorage';
+import { addCard, type AddResult } from './Collection';
+import { LIMITED_DECK_SIZE } from './DeckStorage';
+import { buildAiLandReserve } from './duelSetup';
 import {
   assignDraftPersonas,
   DEFAULT_PICKER,
@@ -16,6 +17,8 @@ import {
 import { packPool } from './PackOpener';
 import type { SaveData } from './SaveManager';
 import { PLAIN_VARIANT, rollFrame, rollHolo, rollTier, TIER_RANK, type CardVariant } from './variants';
+import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from './warchest';
+import { isLiveCollectible } from '../data/liveness';
 
 export type LimitedMode = 'draft';
 export type LimitedRunStatus = 'draft' | 'build' | 'matches';
@@ -66,6 +69,10 @@ export interface LimitedRun {
   matchIndex: number;
   opponentSeeds: number[];
   opponentDecks: string[][];
+  /** The player's full ten-card Warchest, including any drafted duals. */
+  landReserve?: string[];
+  /** Full ten-card Warchests built from each drafted opponent's own pool. */
+  opponentLandReserves?: string[][];
   /** Absent/false is the unchanged free draft. */
   premium?: boolean;
   draft?: DraftState;
@@ -76,6 +83,7 @@ export interface LimitedDuelData {
   deckOverride: string[];
   oppDeckOverride: string[];
   seedOverride: number;
+  landReserveOverride?: [string[], string[]];
   limited: { runId: string; mode: LimitedMode; matchIndex: number; opponentPersonaId?: string };
 }
 
@@ -148,11 +156,15 @@ export function limitedMatchSeed(run: Pick<LimitedRun, 'seed' | 'matchIndex' | '
 }
 
 export function limitedDuelData(run: LimitedRun): LimitedDuelData {
+  const opponentReserve = run.opponentLandReserves?.[run.matchIndex] ?? run.opponentLandReserves?.[0];
   return {
     difficulty: limitedDifficultyForMatch(run.matchIndex),
     deckOverride: [...run.deck],
     oppDeckOverride: [...(run.opponentDecks[run.matchIndex] ?? run.opponentDecks[0] ?? [])],
     seedOverride: limitedMatchSeed(run),
+    ...(run.landReserve && opponentReserve
+      ? { landReserveOverride: [[...run.landReserve], [...opponentReserve]] as [string[], string[]] }
+      : {}),
     limited: {
       runId: run.id,
       mode: run.mode,
@@ -322,40 +334,82 @@ export function grantPremiumDraftPool(save: SaveData, db: CardDb, run: LimitedRu
 
 export function completeDraftRun(db: CardDb, run: LimitedRun): LimitedRun {
   if (!run.draft?.completed) return run;
+  const pool = [...run.draft.picks[0]];
+  const playerDeck = run.deck.length > 0 ? run.deck : buildLimitedDeck(db, pool);
+  const playerDuals = run.landReserve?.filter((id) => db[id] && isDualLand(db[id]));
   const opponentDecks = [1, 2, 3].map((seat) => buildLimitedDeck(db, run.draft!.picks[seat] ?? []));
+  const opponentLandReserves = opponentDecks.map((deck, index) =>
+    limitedLandReserve(db, deck, run.draft!.picks[index + 1] ?? []),
+  );
   return {
     ...run,
     status: 'build',
-    pool: [...run.draft.picks[0]],
+    pool,
+    landReserve: limitedLandReserve(db, playerDeck, pool, run.landReserve ? playerDuals : undefined),
     opponentDecks,
+    opponentLandReserves,
   };
 }
 
+/**
+ * Reserve-native Limited deck: LIMITED_DECK_SIZE spells, no lands. The ten
+ * land reserve is granted from the deck's own colours, with drafted duals
+ * assigned into it by the build step, so drafting stays about spells while
+ * dual picks remain playable.
+ *
+ * A pool short of that many playable spells is padded with the best remaining
+ * pool cards rather than failing the run: a bad draft should be a bad deck,
+ * never a stuck one.
+ */
 export function buildLimitedDeck(db: CardDb, pool: readonly string[]): string[] {
   const colors = chooseDeckColors(db, pool);
-  const nonbasicLands = pool
-    .filter((id) => isPlayableNonbasicLand(db, id) && landFitsColors(def(db, id), colors))
-    .sort((a, b) => scoreLand(db, b, colors) - scoreLand(db, a, colors) || compareCardNames(db, a, b));
   const spells = pool
     .filter((id) => isPlayableSpell(db, id))
     .sort((a, b) => scoreDeckCard(db, b, colors) - scoreDeckCard(db, a, colors) || compareCardNames(db, a, b));
 
-  const spellSlots = 23;
-  const selectedSpells = spells.slice(0, spellSlots);
-  const landSlots = LIMITED_DECK_SIZE - selectedSpells.length;
-  const selectedNonbasics = nonbasicLands.slice(0, Math.min(4, landSlots));
-  const basics = buildBasicLandBase(db, selectedSpells, colors, landSlots - selectedNonbasics.length);
-  const deck = [...selectedSpells, ...selectedNonbasics, ...basics];
+  const deck = spells.slice(0, LIMITED_DECK_SIZE);
+  if (deck.length === LIMITED_DECK_SIZE) return deck;
 
-  const errors = validateLimitedDeck(db, pool, deck).filter((issue) => issue.kind === 'error');
-  if (errors.length === 0) return deck;
+  // Short pool: top up from any remaining playable spell, off-colour included.
+  const taken = new Map<string, number>();
+  for (const id of deck) taken.set(id, (taken.get(id) ?? 0) + 1);
+  for (const id of pool) {
+    if (deck.length >= LIMITED_DECK_SIZE) break;
+    if (!isPlayableSpell(db, id)) continue;
+    const used = taken.get(id) ?? 0;
+    const available = pool.filter((p) => p === id).length;
+    if (used >= available) continue;
+    deck.push(id);
+    taken.set(id, used + 1);
+  }
+  return deck;
+}
 
-  const fallbackColors: readonly Color[] = colors.length > 0 ? colors : ['G'];
-  const fallbackSpells = spells.slice(0, Math.min(spells.length, spellSlots));
-  return [
-    ...fallbackSpells,
-    ...buildBasicLandBase(db, fallbackSpells, fallbackColors, LIMITED_DECK_SIZE - fallbackSpells.length),
-  ];
+/**
+ * The Limited Warchest: selected drafted duals first, then ten lands total
+ * with basics derived from the spell deck's colours. An omitted selection
+ * defaults to the first five drafted dual occurrences; an explicit empty
+ * selection means the player chose basics only.
+ */
+export function limitedLandReserve(
+  db: CardDb,
+  deck: readonly string[],
+  pool: readonly string[] = [],
+  selectedDuals?: readonly string[],
+): string[] {
+  const availableDuals = limitedDraftDuals(db, pool);
+  const requested = selectedDuals === undefined ? availableDuals.slice(0, MAX_DUAL_LANDS) : selectedDuals;
+  const duals = takeDraftedDuals(availableDuals, requested);
+  const basics = buildAiLandReserve(deck, db);
+  return [...duals, ...basics.slice(0, LAND_RESERVE_SIZE - duals.length)];
+}
+
+/** Return drafted dual occurrences in pool order for the Limited builder. */
+export function limitedDraftDuals(db: CardDb, pool: readonly string[]): string[] {
+  return pool.filter((id) => {
+    const card = db[id];
+    return card !== undefined && isLiveCollectible(card) && isDualLand(card);
+  });
 }
 
 export function countCards(cards: readonly string[]): Map<string, number> {
@@ -463,11 +517,6 @@ function scoreDeckCard(db: CardDb, id: string, colors: readonly Color[]): number
   return score;
 }
 
-function scoreLand(db: CardDb, id: string, colors: readonly Color[]): number {
-  const d = def(db, id);
-  const mana = d.manaAbility ?? [];
-  return mana.filter((c) => colors.includes(c)).length * 3 - (d.entersTapped ? 0.5 : 0);
-}
 
 function chooseDeckColors(db: CardDb, pool: readonly string[]): Color[] {
   const scores = new Map<Color, number>();
@@ -485,69 +534,30 @@ function chooseDeckColors(db: CardDb, pool: readonly string[]): Color[] {
 
 function isPlayableSpell(db: CardDb, id: string): boolean {
   const d = def(db, id);
-  return !d.token && !isType(d, 'land') && d.cost !== undefined;
+  return isLiveCollectible(d) && !isType(d, 'land') && d.cost !== undefined;
 }
 
-function isPlayableNonbasicLand(db: CardDb, id: string): boolean {
-  const d = def(db, id);
-  return !d.token && isType(d, 'land') && !isBasic(db, id);
-}
 
-function landFitsColors(d: CardDef, colors: readonly Color[]): boolean {
-  return (d.manaAbility ?? []).some((color) => colors.includes(color));
-}
 
-function buildBasicLandBase(db: CardDb, spells: readonly string[], colors: readonly Color[], slots: number): string[] {
-  if (slots <= 0) return [];
-  const demand = new Map<Color, number>();
-  for (const color of colors) demand.set(color, 0);
-  for (const id of spells) {
-    const cost = def(db, id).cost;
-    for (const color of colors) demand.set(color, (demand.get(color) ?? 0) + (cost?.pips[color] ?? 0));
-  }
-  const activeColors: readonly Color[] = colors.length > 0 ? colors : ['G'];
-  if ([...demand.values()].every((n) => n <= 0)) {
-    for (const color of activeColors) demand.set(color, 1);
-  }
-  const basicsByColor = basicLandIdsByColor(db);
-  const counts = new Map<Color, number>();
-  const totalDemand = activeColors.reduce((sum, color) => sum + Math.max(1, demand.get(color) ?? 0), 0);
-  const basics: string[] = [];
-  for (let i = 0; i < slots; i++) {
-    const color =
-      activeColors
-      .filter((c) => basicsByColor.get(c))
-      .sort((a, b) => {
-        const targetA = (slots * Math.max(1, demand.get(a) ?? 0)) / totalDemand;
-        const targetB = (slots * Math.max(1, demand.get(b) ?? 0)) / totalDemand;
-        return targetB - (counts.get(b) ?? 0) - (targetA - (counts.get(a) ?? 0));
-      })[0] ?? activeColors[0];
-    const chosen = basicsByColor.get(color) ?? firstBasicLandId(db);
-    basics.push(chosen);
-    counts.set(color, (counts.get(color) ?? 0) + 1);
-  }
-  return basics;
-}
 
-function basicLandIdsByColor(db: CardDb): Map<Color, string> {
-  const basics = new Map<Color, string>();
-  for (const d of Object.values(db)) {
-    if (!isBasic(db, d.id)) continue;
-    for (const color of d.manaAbility ?? []) {
-      if (!basics.has(color)) basics.set(color, d.id);
-    }
-  }
-  return basics;
-}
 
-function firstBasicLandId(db: CardDb): string {
-  const basic = Object.values(db).find((d) => isBasic(db, d.id));
-  if (!basic) throw new Error('No basic lands in card database');
-  return basic.id;
-}
 
 function compareCardNames(db: CardDb, a: string, b: string): number {
   const da = def(db, a);
   const dbb = def(db, b);
   return da.name.localeCompare(dbb.name) || a.localeCompare(b);
+}
+
+function takeDraftedDuals(available: readonly string[], requested: readonly string[]): string[] {
+  const availableCounts = countCards(available);
+  const used = new Map<string, number>();
+  const result: string[] = [];
+  for (const id of requested) {
+    if (result.length >= MAX_DUAL_LANDS) break;
+    const count = used.get(id) ?? 0;
+    if (count >= (availableCounts.get(id) ?? 0)) continue;
+    result.push(id);
+    used.set(id, count + 1);
+  }
+  return result;
 }

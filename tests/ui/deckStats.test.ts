@@ -51,4 +51,10 @@ describe('computeDeckStats', () => {
     expect(lands.typeCounts.land).toBe(7);
     expect(lands.curve.every((n) => n === 0)).toBe(true);
   });
+
+  it('ignores unavailable card ids so a preserved repair deck remains renderable', () => {
+    const stats = computeDeckStats(['missing-card', 'forest'], TEST_DB);
+    expect(stats.lands).toBe(1);
+    expect(stats.nonlands).toBe(0);
+  });
 });

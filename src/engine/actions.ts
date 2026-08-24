@@ -10,7 +10,15 @@ import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
 import type { CardDb, CardDef, GameState, ManaCost, PlayerId, TargetRef } from './types';
-import { cardIdOf, def, isType, manaValue, opponentOf, validateHauntlinkDef } from './types';
+import {
+  cardIdOf,
+  def,
+  isType,
+  manaValue,
+  opponentOf,
+  validateHauntlinkDef,
+  validatePreserveDef,
+} from './types';
 
 export type Action =
   | { type: 'choosePlayDraw'; play: boolean }
@@ -27,6 +35,8 @@ export type Action =
       /** Retell casts use graveIndex as their authoritative source index. */
       graveIndex?: number;
       targets?: TargetRef[];
+      /** Battlefield iids sacrificed as a Rite additional cost. */
+      sacrifices?: number[];
       x?: number;
       /** Omitted means the ordinary cast. X cards cannot be empowered. */
       empowered?: boolean;
@@ -36,6 +46,10 @@ export type Action =
       hauntlinked?: boolean;
       manaPlan?: number[]; // explicit source iids; omitted = auto-solve
     }
+  /** Revision-3 Charm-speed action: pay Hauntlink to link or move a permanent. */
+  | { type: 'linkHaunt'; iid: number; hostIid: number; manaPlan?: number[] }
+  /** Main-phase graveyard action: pay Preserve, sever the card, and create a token copy. */
+  | { type: 'preserveCard'; graveIndex: number; manaPlan?: number[] }
   /** Normal creature-timing cast from a public Darling zone. */
   | { type: 'castDarling'; targets?: TargetRef[]; x?: number; manaPlan?: number[] }
   /** Main-phase action: pay four mana to remove one two-mana Darling tax step. */
@@ -46,7 +60,6 @@ export type Action =
   | { type: 'passResponse' }
   | { type: 'passStep' }
   | { type: 'discard'; handIndices: number[] }
-  | { type: 'chooseBasicLand'; cardId: string } // which basic a deferred fetchLand grabs
   | { type: 'concede' };
 
 /** All k-subsets of [0, n). Bounded small everywhere it's used. */
@@ -76,6 +89,39 @@ function isHauntlinkCarrier(d: CardDef): boolean {
   return d.hauntlink !== undefined && validateHauntlinkDef(d).length === 0;
 }
 
+function usesActivatedHauntlink(state: GameState): boolean {
+  return (state.rulesRev ?? 1) >= 3;
+}
+
+function pushHauntlinkActions(
+  out: Action[],
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+): void {
+  const hosts = state.battlefield.filter(
+    (perm) => perm.controller === player && isType(def(db, perm.cardId), 'creature'),
+  );
+  for (const link of state.battlefield) {
+    if (link.controller !== player) continue;
+    const d = def(db, link.cardId);
+    if (!isHauntlinkCarrier(d) || !canPay(state, db, player, d.hauntlink!.cost)) continue;
+    for (const host of hosts) {
+      if (host.iid !== link.attachedTo) {
+        out.push({ type: 'linkHaunt', iid: link.iid, hostIid: host.iid });
+      }
+    }
+  }
+}
+
+/** Payable revision-3 link or move, used by first-window and reopen gates. */
+function hasPayableHauntlinkAction(state: GameState, db: CardDb, player: PlayerId): boolean {
+  if (!usesActivatedHauntlink(state)) return false;
+  const actions: Action[] = [];
+  pushHauntlinkActions(actions, state, db, player);
+  return actions.length > 0;
+}
+
 /** Enumerate fully-specified cast actions (× target × X) for one hand card. */
 function pushCastActions(
   out: Action[],
@@ -98,6 +144,15 @@ function pushCastActions(
   if (xs.length === 0) return;
 
   const specs = castTargetSpecsFor(d, retell, hauntlinked);
+  const sacrifices = d.rite
+    ? state.battlefield
+        .filter(
+          (perm) =>
+            perm.controller === player && isType(def(db, perm.cardId), 'creature'),
+        )
+        .slice(0, d.rite.n)
+        .map((perm) => perm.iid)
+    : undefined;
   // Single-target v1: one action per (empower option × legal target × X).
   const targetLists: (TargetRef[] | undefined)[] =
     specs.length === 0
@@ -121,6 +176,7 @@ function pushCastActions(
           ...(retell ? { graveIndex: sourceIndex, retell: true } : {}),
           ...(hauntlinked ? { hauntlinked: true } : {}),
           ...(targets ? { targets } : {}),
+          ...(sacrifices ? { sacrifices } : {}),
           ...(x === undefined ? {} : { x }),
           ...(empowered ? { empowered: true } : {}),
         });
@@ -168,6 +224,20 @@ function castTargetSpecsFor(
 
 function retellable(d: CardDef): boolean {
   return d.retell !== undefined && !d.x && (isType(d, 'ritual') || isType(d, 'charm'));
+}
+
+function preserveBlockers(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+): string | null {
+  if (!d.preserve) return 'card has no Preserve option';
+  if (validatePreserveDef(d).length > 0) return 'card has no valid Preserve option';
+  if (creatureCount(state, db, player) >= RULES.maxCreatures) {
+    return 'creature battlefield cap reached';
+  }
+  return canPay(state, db, player, d.preserve.cost) ? null : 'cannot pay cost';
 }
 
 function skimWindow(state: GameState, player: PlayerId): boolean {
@@ -283,7 +353,12 @@ function castBlockers(
   if (hauntlinked && !isHauntlinkCarrier(d)) return 'invalid Hauntlink carrier';
   if (!retell && !d.cost) return 'card has no mana cost';
   if (retell && !retellable(d)) return 'card cannot be Retold';
-  if (isType(d, 'creature') && creatureCount(state, db, player) >= RULES.maxCreatures)
+  const creatures = creatureCount(state, db, player);
+  if (d.rite && creatures < d.rite.n) return 'not enough creatures for Rite';
+  if (
+    isType(d, 'creature') &&
+    creatures - (d.rite?.n ?? 0) >= RULES.maxCreatures
+  )
     return 'creature battlefield cap reached';
   if (
     !isType(d, 'creature') &&
@@ -342,7 +417,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
 
     case 'main': {
       out.push({ type: 'passStep' });
-      if (me.landReserve !== undefined && !me.landPlayedThisTurn) {
+      if (me.landReserve !== undefined && me.landDropsUsed < 1 + me.extraLandDrops) {
         for (let reserveIndex = 0; reserveIndex < me.landReserve.length; reserveIndex++) {
           out.push({ type: 'playLand', handIndex: -1, reserveIndex });
         }
@@ -357,7 +432,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
           out.push({ type: 'skim', handIndex });
         }
         if (isType(d, 'land')) {
-          if (me.landReserve === undefined && !me.landPlayedThisTurn) {
+          if (me.landReserve === undefined && me.landDropsUsed < 1 + me.extraLandDrops) {
             out.push({ type: 'playLand', handIndex });
           }
           return;
@@ -366,16 +441,26 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         if (castBlockers(state, db, player, d) === null) {
           pushCastActions(out, state, db, player, handIndex, d);
         }
-        if (d.hauntlink && castBlockers(state, db, player, d, false, 0, false, true) === null) {
+        if (
+          !usesActivatedHauntlink(state) &&
+          d.hauntlink &&
+          castBlockers(state, db, player, d, false, 0, false, true) === null
+        ) {
           pushCastActions(out, state, db, player, handIndex, d, false, true);
         }
       });
       me.graveyard.forEach((card, graveIndex) => {
-        const cardId = cardIdOf(card);
-        const d = def(db, cardId);
-        if (!retellable(d) || !castableNow(state, player, d)) return;
-        if (castBlockers(state, db, player, d, false, 0, true) !== null) return;
+        const d = def(db, card);
+        if (
+          retellable(d) &&
+          castableNow(state, player, d) &&
+          castBlockers(state, db, player, d, false, 0, true) === null
+        ) {
           pushCastActions(out, state, db, player, graveIndex, d, true);
+        }
+        if (state.activePlayer === player && preserveBlockers(state, db, player, d) === null) {
+          out.push({ type: 'preserveCard', graveIndex });
+        }
       });
       if (me.darlingZone !== undefined) {
         const darling = me.darlingZone;
@@ -393,6 +478,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
           out.push({ type: 'payDownDarlingTax' });
         }
       }
+      if (usesActivatedHauntlink(state)) pushHauntlinkActions(out, state, db, player);
       break;
     }
 
@@ -465,7 +551,11 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         if (castBlockers(state, db, player, d) === null) {
           pushCastActions(out, state, db, player, handIndex, d);
         }
-        if (d.hauntlink && castBlockers(state, db, player, d, false, 0, false, true) === null) {
+        if (
+          !usesActivatedHauntlink(state) &&
+          d.hauntlink &&
+          castBlockers(state, db, player, d, false, 0, false, true) === null
+        ) {
           pushCastActions(out, state, db, player, handIndex, d, false, true);
         }
       });
@@ -476,6 +566,7 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
         if (castBlockers(state, db, player, d, false, 0, true) !== null) return;
         pushCastActions(out, state, db, player, graveIndex, d, true);
       });
+      if (usesActivatedHauntlink(state)) pushHauntlinkActions(out, state, db, player);
       break;
     }
 
@@ -485,20 +576,6 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
       }
       break;
 
-    case 'chooseBasicLand': {
-      // One choice per distinct basic land type left in the deck, in a stable
-      // (sorted-id) order so `legal[0]` is deterministic across shuffles.
-      const seen = new Set<string>();
-      for (const card of me.deck) {
-        const cardId = cardIdOf(card);
-        if (seen.has(cardId)) continue;
-        if (def(db, cardId).supertypes?.includes('basic')) seen.add(cardId);
-      }
-      for (const cardId of [...seen].sort()) {
-        out.push({ type: 'chooseBasicLand', cardId });
-      }
-      break;
-    }
   }
 
   out.push({ type: 'concede' });
@@ -540,7 +617,7 @@ export function validateAction(
 
     case 'playLand': {
       if (a.kind !== 'main') return 'not in a main phase';
-      if (me.landPlayedThisTurn) return 'already played a land this turn';
+      if (me.landDropsUsed >= 1 + me.extraLandDrops) return 'no land drops remaining this turn';
       if (me.landReserve !== undefined) {
         if (action.reserveIndex === undefined) return 'reserve formats play lands from the reserve';
         if (!Number.isInteger(action.reserveIndex)) return 'bad reserve index';
@@ -569,6 +646,22 @@ export function validateAction(
       return null;
     }
 
+    case 'preserveCard': {
+      if (a.kind !== 'main' || state.activePlayer !== player) {
+        return 'Preserve can only be used during your main phase';
+      }
+      if (!Number.isInteger(action.graveIndex)) return 'bad graveyard index';
+      const card = me.graveyard[action.graveIndex];
+      if (card === undefined) return 'bad graveyard index';
+      const d = def(db, card);
+      const blocked = preserveBlockers(state, db, player, d);
+      if (blocked) return blocked;
+      if (action.manaPlan) {
+        return validateManaPlanForCost(state, db, player, d.preserve!.cost, action.manaPlan);
+      }
+      return null;
+    }
+
     case 'castSpell': {
       const isRetell = action.retell === true;
       const isHauntlinked = action.hauntlinked === true;
@@ -580,6 +673,9 @@ export function validateAction(
       const cardId = isRetell ? me.graveyard[sourceIndex] : me.hand[sourceIndex];
       if (cardId === undefined) return 'bad hand index';
       const d = def(db, cardId);
+      if (usesActivatedHauntlink(state) && isHauntlinked) {
+        return 'Hauntlink is activated from the battlefield in this rules revision';
+      }
       if (!castableNow(state, player, d)) return 'cannot cast this now';
       if (isRetell && !retellable(d)) return 'card cannot be Retold';
       if (isRetell && d.x) return 'X spells cannot be Retold';
@@ -589,6 +685,26 @@ export function validateAction(
       }
       if (action.empowered && !d.empower) return 'card has no Empower option';
       if (action.empowered && d.x) return 'X spells cannot be empowered';
+      if (!d.rite && action.sacrifices !== undefined) return 'card has no Rite cost';
+      if (d.rite) {
+        if (!action.sacrifices || action.sacrifices.length !== d.rite.n) {
+          return `Rite requires exactly ${d.rite.n} sacrifice${d.rite.n === 1 ? '' : 's'}`;
+        }
+        const seen = new Set<number>();
+        for (const iid of action.sacrifices) {
+          if (!Number.isInteger(iid)) return 'bad Rite sacrifice iid';
+          if (seen.has(iid)) return 'duplicate Rite sacrifice';
+          seen.add(iid);
+          const perm = state.battlefield.find((candidate) => candidate.iid === iid);
+          if (
+            !perm ||
+            perm.controller !== player ||
+            !isType(def(db, perm.cardId), 'creature')
+          ) {
+            return 'Rite sacrifices must be creatures you control';
+          }
+        }
+      }
       const blocked = castBlockers(
         state,
         db,
@@ -633,6 +749,34 @@ export function validateAction(
       if (targets.length !== specs.length) return 'wrong number of targets';
       for (let i = 0; i < specs.length; i++) {
         if (!isLegalTarget(state, db, player, specs[i], targets[i])) return 'illegal target';
+      }
+      return null;
+    }
+
+    case 'linkHaunt': {
+      if (!usesActivatedHauntlink(state)) return 'Hauntlink activation is unavailable in this rules revision';
+      const charmSpeed =
+        (a.kind === 'main' && state.activePlayer === player) ||
+        a.kind === 'respond' ||
+        a.kind === 'endStepWindow';
+      if (!charmSpeed) return 'Hauntlink needs a Charm-speed window';
+      const link = state.battlefield.find((perm) => perm.iid === action.iid);
+      if (!link || link.controller !== player) return 'Hauntlink permanent is not under your control';
+      const d = def(db, link.cardId);
+      if (!isHauntlinkCarrier(d)) return 'permanent has no valid Hauntlink ability';
+      const host = state.battlefield.find((perm) => perm.iid === action.hostIid);
+      if (
+        !host ||
+        host.controller !== player ||
+        !isType(def(db, host.cardId), 'creature')
+      ) {
+        return 'Hauntlink host must be a creature you control';
+      }
+      if (link.attachedTo === host.iid) return 'Hauntlink is already linked to this creature';
+      if (!canPay(state, db, player, d.hauntlink!.cost)) return 'cannot pay cost';
+      if (action.manaPlan) {
+        const err = validateManaPlanForCost(state, db, player, d.hauntlink!.cost, action.manaPlan);
+        if (err) return err;
       }
       return null;
     }
@@ -692,13 +836,6 @@ export function validateAction(
       return validIndexSet(action.handIndices, me.hand.length);
     }
 
-    case 'chooseBasicLand': {
-      if (a.kind !== 'chooseBasicLand') return 'not choosing a basic land';
-      const inDeck = me.deck.some((card) => cardIdOf(card) === action.cardId);
-      if (!inDeck) return 'basic not in deck';
-      if (!def(db, action.cardId).supertypes?.includes('basic')) return 'not a basic land';
-      return null;
-    }
   }
 }
 
@@ -782,6 +919,7 @@ function validateManaPlanForCost(
  */
 const UNCASTABLE_COPY: Record<string, string> = {
   'cannot pay cost': 'Not enough mana to cast this.',
+  'not enough creatures for Rite': 'You do not control enough creatures to pay Rite.',
   'creature battlefield cap reached': 'Your side of the battlefield is full of creatures.',
   'noncreature permanent cap reached': 'You have too many noncreature permanents in play.',
   'card has no mana cost': "This card can't be cast.",
@@ -814,7 +952,7 @@ export function reasonUncastable(
 
   if (isType(d, 'land')) {
     if (a.kind !== 'main') return 'Lands can only be played during your main phase.';
-    if (me.landPlayedThisTurn) return 'You have already played a land this turn.';
+    if (me.landDropsUsed >= 1 + me.extraLandDrops) return 'You have no land drops left this turn.';
     return null;
   }
 
@@ -826,7 +964,11 @@ export function reasonUncastable(
 
   const blocked = castBlockers(state, db, player, d);
   if (blocked) {
-    if (d.hauntlink && castBlockers(state, db, player, d, false, 0, false, true) === null) {
+    if (
+      !usesActivatedHauntlink(state) &&
+      d.hauntlink &&
+      castBlockers(state, db, player, d, false, 0, false, true) === null
+    ) {
       // A targeted printed body can mask a legal hauntlink-only cast at this early no-targets return.
       return enumerateTargets(state, db, player, { what: 'yourCreature' }).length > 0
         ? null
@@ -845,6 +987,7 @@ export function reasonUncastable(
 
 /** Any instant in hand or Retell Charm in the graveyard that `player` could pay AND target right now? (window auto-pass check) */
 export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerId): boolean {
+  if (hasPayableHauntlinkAction(state, db, player)) return true;
   const me = state.players[player];
   for (const cardId of me.hand) {
     const d = def(db, cardId);
@@ -859,6 +1002,31 @@ export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerI
 
   // A Retell Charm is also an instant for both window gates. Use the Retell
   // cost and target-free R4 override here, while keeping the scan early-exit.
+  for (const cardId of me.graveyard) {
+    const d = def(db, cardId);
+    if (!isType(d, 'charm') || !retellable(d)) continue;
+    if (castBlockers(state, db, player, d, false, 0, true) !== null) continue;
+    const specs = castTargetSpecsFor(d, true);
+    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Any castable, targetable Charm in hand or via Retell? Unlike the first-window
+ * gate above, this deliberately excludes Skim so a constant hand size cannot
+ * fuel an unbounded chain of reopened windows.
+ */
+export function hasCastableCharm(state: GameState, db: CardDb, player: PlayerId): boolean {
+  if (hasPayableHauntlinkAction(state, db, player)) return true;
+  const me = state.players[player];
+  for (const cardId of me.hand) {
+    const d = def(db, cardId);
+    if (!isType(d, 'charm')) continue;
+    if (castBlockers(state, db, player, d) !== null) continue;
+    const specs = castTargetSpecs(d);
+    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+  }
   for (const cardId of me.graveyard) {
     const d = def(db, cardId);
     if (!isType(d, 'charm') || !retellable(d)) continue;

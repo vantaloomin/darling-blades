@@ -11,7 +11,7 @@
  * four-point star ("The Silver Veil"); arthurian-court = a five-point royal
  * crown. Tuned to read at ~21px on the card face and ~40px in the glossary.
  */
-export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights';
+export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat';
 
 export const SET_ICON_PATHS: Record<CardSetId, string> = {
   // Heart pierced by a blade: grip + crossguard above the cleft, a tapered
@@ -54,4 +54,12 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
     'M22 50 C22 45 24 40 27 36 C28 41 31 43 33 46 C34 51 31 56 27 58 C24 57 22 54 22 50 Z ' +
     'M68 38 L82 38 L82 52 L68 52 Z ' +
     'M48 6 L54 6 L54 16 L63 16 L63 22 L54 22 L54 58 C54 70 66 76 78 70 L88 64 L92 70 L80 78 C62 88 46 76 46 58 L46 22 L37 22 L37 16 L46 16 L46 6 Z',
+  // Sealed pylon door: a tapered slab with a punched seal ring whose solid
+  // core reads as the sun disc (evenodd: slab -> hole -> disc), and a punched
+  // threshold band near the base echoing the blank banded registers.
+  'sands-of-the-duat':
+    'M28 4 L72 4 L82 96 L18 96 Z ' +
+    'M33 42 A17 17 0 1 1 67 42 A17 17 0 1 1 33 42 Z ' +
+    'M43 42 A7 7 0 1 1 57 42 A7 7 0 1 1 43 42 Z ' +
+    'M30 76 L70 76 L70 83 L30 83 Z',
 };

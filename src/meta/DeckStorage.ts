@@ -9,7 +9,14 @@ export interface DeckIssue {
   message: string;
 }
 
-export const LIMITED_DECK_SIZE = 40;
+/**
+ * Reserve-native Limited (1.6 migration, owner-ratified 2026-08-09): a drafted
+ * deck is 25 SPELLS and no lands. The ten-land reserve is granted, with up to
+ * five drafted duals assignable during build, so three 15-card packs still
+ * leave real choices. Packs and the Premium entry fee are unchanged: the fee
+ * buys the 45 kept cards, and deck size does not change what is kept.
+ */
+export const LIMITED_DECK_SIZE = 25;
 
 export type VariantPin = string | null;
 
@@ -95,7 +102,11 @@ export function validateDeck(
   let lands = 0;
   let creatures = 0;
   for (const [id, n] of counts) {
-    const d = def(db, id);
+    const d = db[id];
+    if (!d) {
+      issues.push({ kind: 'error', message: `That card is not available: ${id}` });
+      continue;
+    }
     if (d.token) issues.push({ kind: 'error', message: `${d.name} is a token` });
     if (!isBasic(db, id)) {
       if (n > RULES.maxCopies)
@@ -133,7 +144,6 @@ export function validateLimitedDeck(
   const deckCounts = new Map<string, number>();
   for (const id of cards) deckCounts.set(id, (deckCounts.get(id) ?? 0) + 1);
 
-  let lands = 0;
   let creatures = 0;
   for (const [id, n] of deckCounts) {
     const d = def(db, id);
@@ -144,12 +154,15 @@ export function validateLimitedDeck(
         message: `${d.name}: ${n} in deck but only ${poolCounts.get(id) ?? 0} in pool`,
       });
     }
-    if (d.types.includes('land')) lands += n;
+    // Reserve-native Limited: lands live in the granted reserve, never the
+    // deck, exactly as in Warchest.
+    if (d.types.includes('land')) {
+      issues.push({ kind: 'error', message: 'Decks in this format hold no lands; your Warchest is provided' });
+    }
     if (d.types.includes('creature')) creatures += n;
   }
-  if (cards.length === LIMITED_DECK_SIZE) {
-    if (lands < 14 || lands > 20) issues.push({ kind: 'warning', message: `${lands} lands - 16-18 is typical` });
-    if (creatures < 10) issues.push({ kind: 'warning', message: `${creatures} creatures - combat wins games` });
+  if (cards.length === LIMITED_DECK_SIZE && creatures < 8) {
+    issues.push({ kind: 'warning', message: `${creatures} creatures - combat wins games` });
   }
   return issues;
 }
@@ -195,6 +208,26 @@ export function saveDeck(
   else save.decks.push(saved);
 }
 
+/**
+ * Apply the builder's existing format-tab transition rules to a saved deck.
+ * Returns the reserve working copy the scene should edit after the switch.
+ */
+export function switchDeckFormat(
+  deck: SavedDeck,
+  format: NonNullable<SavedDeck['format']>,
+): string[] {
+  deck.format = format;
+  deck.darlingId = format === 'darlings' ? deck.darlingId ?? null : null;
+  if (format === 'darlings') deck.heroCardId = null;
+  if (format === 'constructed') {
+    deck.landReserve = null;
+    return [];
+  }
+  const landReserve = deck.landReserve ? [...deck.landReserve] : [];
+  deck.landReserve = [...landReserve];
+  return landReserve;
+}
+
 /** A deck id not already used in save.decks (deck-1, deck-2, … skipping collisions). */
 export function generateDeckId(save: SaveData): string {
   const taken = new Set(save.decks.map((d) => d.id));
@@ -205,8 +238,10 @@ export function generateDeckId(save: SaveData): string {
 
 /**
  * Delete a deck by id. If it was the active deck, reassign activeDeckId to a
- * remaining deck (or null when none remain) — the invariant DuelScene/Gauntlet
- * rely on: activeDeckId always points to an existing deck, or is null.
+ * remaining deck (or null when none remain). Explicit deletion is the only
+ * validity-adjacent flow that reassigns this id: an invalid deck stays active
+ * so the player can repair it in place. DuelScene/Gauntlet rely on the narrower
+ * invariant that activeDeckId always points to an existing deck, or is null.
  */
 export function deleteDeck(save: SaveData, deckId: string): void {
   save.decks = save.decks.filter((d) => d.id !== deckId);

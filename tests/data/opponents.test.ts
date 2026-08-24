@@ -16,16 +16,16 @@ import { ECONOMY, RULES } from '../../src/config/rules';
  */
 
 describe('avatar roster shape', () => {
-  it('has exactly 20 avatars with unique tiers 1..20', () => {
-    expect(AVATARS).toHaveLength(20);
+  it('has exactly 22 avatars with unique tiers 1..22', () => {
+    expect(AVATARS).toHaveLength(22);
     const tiers = AVATARS.map((a) => a.tier).sort((x, y) => x - y);
-    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
-    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(20);
-    expect(ECONOMY.gauntletRungGold).toHaveLength(20);
-    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350, 370, 390, 410, 430]);
+    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
+    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(22);
+    expect(ECONOMY.gauntletRungGold).toHaveLength(22);
+    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350, 370, 390, 410, 430, 450, 470]);
   });
 
-  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-20 hard)', () => {
+  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-22 hard)', () => {
     for (const a of AVATARS) {
       const expected = a.tier <= 3 ? 'easy' : a.tier <= 6 ? 'medium' : 'hard';
       expect(a.difficulty).toBe(expected);
@@ -33,7 +33,7 @@ describe('avatar roster shape', () => {
   });
 
   it('avatarForRung / avatarById resolve consistently', () => {
-    for (let rung = 1; rung <= 20; rung++) {
+    for (let rung = 1; rung <= 22; rung++) {
       const a = avatarForRung(rung);
       expect(a.tier).toBe(rung);
       expect(avatarById(a.id)).toBe(a);
@@ -49,7 +49,9 @@ describe('avatar roster shape', () => {
     expect(avatarForRung(18).name).toContain('Abyssal Songstress');
     expect(avatarForRung(19).id).toBe('queen-of-the-lanterned-roof');
     expect(avatarForRung(20).id).toBe('kitsune-neon-tyrant');
-    expect(() => avatarForRung(21)).toThrow();
+    expect(avatarForRung(21).id).toBe('anubis-who-holds-the-scale');
+    expect(avatarForRung(22).id).toBe('bastet-mistress-of-the-ninth-return');
+    expect(() => avatarForRung(23)).toThrow();
     expect(() => avatarById('nope')).toThrow();
   });
 });

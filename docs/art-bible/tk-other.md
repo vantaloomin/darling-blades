@@ -119,7 +119,7 @@ kings, because for one violent season each of them held the world by the throat.
 - **Prompt:** Genderbent Yuan Shao, immaculate ivory-and-gold ceremonial court robes with heavy Excellency insignia and tall formal cap, jade girdle, standing tall with a hand half-raised over a war-map in eternal deliberation, furrowed thoughtful expression, plain command-tent interior, even cool daylight with warm gold rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Meng Huo, Sevenfold Sovereign — `tk-other-menghuo`
-- **Card facts:** {3}{G}{G} · G · 5/4 · overrun · r · holo: auto:sheen
+- **Card facts:** {3}{G}{G} · G · 5/4 · overrun, warcry · r · holo: auto:sheen
 - **Character & source:** Genderbent Meng Huo, the Nanman queen captured and freed seven times by Zhuge Liang — unbroken and unbowed, she just keeps coming back.
 - **Personality / mood:** "Captured seven times, released seven times, undefeated in her own retelling." Defiant, prideful, indomitable; trample is the refusal to be stopped.
 - **Pose & composition:** Advancing three-quarter mid-stride, weight forward, breaking through as if nothing could hold her, face ≈ y 330. A 5/5-feeling charge — trample momentum, chin high with pride.

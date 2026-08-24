@@ -12,7 +12,9 @@ import {
   saveDeck,
   setDeckSlotVariant,
   sortDeckSlots,
+  validateDeck,
 } from '../../src/meta/DeckStorage';
+import type { CardDb } from '../../src/engine/types';
 import { freshSave, type SaveData } from '../../src/meta/SaveManager';
 
 function saveWithDecks(): SaveData {
@@ -33,6 +35,14 @@ function saveWithDecks(): SaveData {
 
 /** F15: multiple saved decks — the pure DeckStorage operations behind the picker. */
 describe('deck storage', () => {
+  it('keeps an invalid active deck selected until the player explicitly deletes it', () => {
+    const save = saveWithDecks();
+    const issues = validateDeck({} as CardDb, save, save.decks[0].cards);
+
+    expect(issues.some((issue) => issue.kind === 'error')).toBe(true);
+    expect(save.activeDeckId).toBe('deck-1');
+  });
+
   it('preserves land style when saving or copying an existing deck', () => {
     const save = saveWithDecks();
     save.decks[0].landStyle = {

@@ -4,6 +4,7 @@ import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
 import { CARD_DB } from '../data/catalog';
 import { draftPersonaById } from '../data/draftPersonas';
+import { LIMITED_DECK_SIZE } from '../meta/DeckStorage';
 import {
   clampLimitedSeed,
   completeDraftRun,
@@ -71,7 +72,7 @@ export class LimitedScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(640, 90, 'Draft from packs against seven rivals, build exactly 40 cards, then play three matches.', {
+      .text(640, 90, `Draft from packs against seven rivals, build exactly ${LIMITED_DECK_SIZE} spells, then play three matches. Your Warchest of 10 lands is provided.`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.body}px`,
         color: theme.colors.muted,
@@ -110,7 +111,7 @@ export class LimitedScene extends Phaser.Scene {
       run.status === 'draft'
         ? `Drafting pack ${run.draft ? run.draft.packIndex + 1 : 1}, pick ${run.draft ? run.draft.pickIndex + 1 : 1}`
         : run.status === 'build'
-          ? `Building ${run.deck.length}/40`
+          ? `Building ${run.deck.length}/${LIMITED_DECK_SIZE}`
           : `Match ${run.matchIndex + 1}/3${nextPersona ? ` · vs ${nextPersona.name}` : ''}`;
     this.text(
       x + 24,
@@ -124,7 +125,7 @@ export class LimitedScene extends Phaser.Scene {
     this.text(
       x + 24,
       y + 134,
-      `Pool ${run.pool.length} cards   Deck ${run.deck.length}/40`,
+      `Pool ${run.pool.length} cards   Deck ${run.deck.length}/${LIMITED_DECK_SIZE}`,
       theme.type.label,
       theme.colors.muted,
     );

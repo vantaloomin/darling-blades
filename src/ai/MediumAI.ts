@@ -8,8 +8,11 @@ import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { chooseDarlingPaydown } from './darlingPolicy';
+import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
+import { choosePreserve } from './preservePolicy';
+import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import {
   cardValue,
   empowerValue,
@@ -37,6 +40,7 @@ export class MediumAI implements AIPlayer {
   ) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyRitePolicy(view, this.db, legal);
     switch (view.awaiting.kind) {
       case 'choosePlayDraw':
         return choosePlayDraw(legal);
@@ -78,35 +82,9 @@ export class MediumAI implements AIPlayer {
         return this.respond(view, legal);
       case 'endStepWindow':
         return this.endStep(view, legal);
-      case 'chooseBasicLand':
-        return this.chooseFetchBasic(view, legal);
       default:
         return legal[0];
     }
-  }
-
-  /**
-   * Pick which basic a deferred fetchLand grabs: the type we control the FEWEST
-   * of in play, to fix mana (ties broken by the stable `legal` order). Falls
-   * back to `legal[0]` if the option list is somehow empty.
-   */
-  private chooseFetchBasic(view: PlayerView, legal: Action[]): Action {
-    const opts = legal.filter(
-      (a): a is Extract<Action, { type: 'chooseBasicLand' }> => a.type === 'chooseBasicLand',
-    );
-    if (opts.length === 0) return legal[0];
-    const inPlay = (cardId: string): number =>
-      view.battlefield.filter((p) => p.controller === view.myId && p.cardId === cardId).length;
-    let best = opts[0];
-    let bestCount = inPlay(best.cardId);
-    for (const o of opts) {
-      const c = inPlay(o.cardId);
-      if (c < bestCount) {
-        best = o;
-        bestCount = c;
-      }
-    }
-    return best;
   }
 
   // -------------------------------------------------------------------
@@ -147,11 +125,17 @@ export class MediumAI implements AIPlayer {
 
   private mulligan(view: PlayerView): Action {
     const hand = view.you.hand;
-    const lands = this.landsIn(hand);
     const mulls = view.you.mulligans;
     if (mulls >= 2) return { type: 'keepHand' };
-    // `mulliganShift` moves the keep-band lower bounds (default 0).
+    // `mulliganShift` moves the keep thresholds (default 0).
     const shift = this.pers.mulliganShift;
+    if (view.you.landReserve !== undefined) {
+      // Reserve formats deal landless hands, so judge curve instead of lands:
+      // keep when enough spells are castable by turn 3 off the public reserve.
+      const early = hand.filter((c) => manaValue(def(this.db, c).cost) <= 3).length;
+      return early >= (mulls === 0 ? 2 : 1) + shift ? { type: 'keepHand' } : { type: 'mulligan' };
+    }
+    const lands = this.landsIn(hand);
     if (mulls === 0) {
       return lands >= 2 + shift && lands <= 5 ? { type: 'keepHand' } : { type: 'mulligan' };
     }
@@ -218,10 +202,11 @@ export class MediumAI implements AIPlayer {
         ? hauntlinkCastValue(view.battlefield, this.db, cardId, host.iid)
         : -Infinity;
     }
-    return cast.retell
+    const value = cast.retell
       ? retellValue(this.db, cardId) + 0.01
       : this.developScore(cardId) + (cast.x ?? 0) +
           (cast.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
+    return value - riteSacrificeValue(view, this.db, cast);
   }
 
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
@@ -297,9 +282,18 @@ export class MediumAI implements AIPlayer {
     if (reserveLand) return reserveLand;
     const land = legal.find((l) => l.type === 'playLand');
     if (land) return land;
+    const link = chooseUnlinkedHauntlink(view, this.db, legal);
+    if (link) return link;
 
     const casts = legal.filter((l): l is Cast => l.type === 'castSpell' || l.type === 'castDarling');
     const skims = legal.filter((l) => l.type === 'skim');
+    const preserve = choosePreserve(
+      view,
+      this.db,
+      legal,
+      (cast) => this.castScore(view, cast),
+    );
+    if (casts.length === 0 && preserve) return preserve;
     // Smoothing gate: only spend a Skim when no cast line, including Retell,
     // exists.
     if (casts.length === 0 && view.you.deckCount > 0) {
@@ -394,6 +388,8 @@ export class MediumAI implements AIPlayer {
           return burns.reduce((a, b) => ((a.x ?? 0) >= (b.x ?? 0) ? a : b));
         }
       }
+
+      if (preserve) return preserve;
 
       // 3. Develop: cast the highest-value creature / permanent. Creatures
       //    without haste in main1 wait for main2 only if we plan to attack;
@@ -520,9 +516,13 @@ export class MediumAI implements AIPlayer {
         }
         if (!inBlocks) continue;
         // 3b. Flip a losing fight (save it, win it, or both).
+        // A reopened window (rules rev 2) arrives after the flush that earned
+        // it resolved; that flush may have killed a combatant, leaving stale
+        // iids in combat.blocks. Evaluate only foes still on the battlefield.
         const foes = view.combat.blocks
           .filter((b) => b.blocker === perm.iid || b.attacker === perm.iid)
-          .map((b) => (b.blocker === perm.iid ? b.attacker : b.blocker));
+          .map((b) => (b.blocker === perm.iid ? b.attacker : b.blocker))
+          .filter((iid) => view.battlefield.some((p) => p.iid === iid));
         for (const foe of foes) {
           const mine = getEffectiveStats(view.battlefield, this.db, perm.iid);
           const theirs = getEffectiveStats(view.battlefield, this.db, foe);

@@ -1,5 +1,8 @@
 /** Every ruleset constant lives here — the engine reads only from this file. */
 
+/** Current observable engine-rules revision for newly constructed games. */
+export const CURRENT_RULES_REV = 3 as const;
+
 /** `constructed`/`warchest` are the persisted deck-format spellings. */
 export type ReserveFormat = 'warchest' | 'darlings';
 export type GameFormat = 'classic' | 'constructed' | ReserveFormat;
@@ -35,6 +38,7 @@ export const RULES = {
   // validateBlocks; only the legalActions Dreaded enumeration widens, bounded
   // by the 8-creature battlefield cap.
   maxBlockersPerAttacker: 4,
+  maxWindowReopensPerStep: 8,
   turnLimit: 100, // game is a draw at turn 100 (anti-stall)
 } as const;
 
@@ -47,6 +51,7 @@ export const ECONOMY = {
   gothicMonstersPackPrice: 525, // expansion booster - only pulls set:'gothic-monsters' cards (81-card chase density)
   darkTalesPackPrice: 525, // expansion booster - only pulls set:'dark-tales' cards (120-card chase density)
   yokaiNightsPackPrice: 525, // expansion booster - only pulls set:'yokai-nights' cards (120-card chase density)
+  sandsOfTheDuatPackPrice: 525, // expansion booster - only pulls set:'sands-of-the-duat' cards (245-card chase density); SKU hidden until FEATURES.duatLive
   boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo + full art independently (DROPS)
   limitedPackSize: 15, // Draft packs stay MTG-sized for pick and pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
@@ -89,16 +94,18 @@ export const ECONOMY = {
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   shardFullArtMult: 25,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 20-rung clear. Full run = 50+70+…+310 (=2520) + 330 + 350 +
-  // 370 + 390 + 410 + 430 + 250 = 5050g.
+  // a full 22-rung clear. Full run = 50+70+...+470 (=5720) + 250 bonus =
+  // 5970g.
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
   // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
   // Celtic Fae bosses (The Morrigan, Titania); 13-14 (290/310) are the
   // Arthurian Court pair (Morgan, Artoria); 15-16 are the Gothic Monsters
   // pair (Carmilla, The Bride); 17-18 are the Dark Tales summit pair
   // (Glass-Coffin Queen, Abyssal Songstress); 19-20 are the Yokai Nights
-  // summit pair (Queen of the Lanterned Roof, Kitsune Neon Tyrant).
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390, 410, 430] as const,
+  // summit pair (Queen of the Lanterned Roof, Kitsune Neon Tyrant); 21-22 are
+  // the Sands of the Duat summit pair (Anubis, Who Holds the Scale; Bastet,
+  // Mistress of the Ninth Return as the final rung).
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390, 410, 430, 450, 470] as const,
   gauntletCompletionBonus: 250,
   // Free Limited runs are free-entry with ephemeral cards and pay the record
   // payout below. Premium Draft pays to keep its picks; the entry fee already

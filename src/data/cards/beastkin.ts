@@ -282,7 +282,7 @@ export const BEASTKIN = [
     colors: ['G'],
     attack: 2,
     defense: 2,
-    abilities: [{ when: 'arrives', ops: [{ op: 'fetchLand' }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'r',
     flavor: 'The forest follows her home and stays.',
   },

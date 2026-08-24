@@ -1,8 +1,12 @@
 /**
- * Generates real card art for the 93 non-creature SPELL prompt entries: the 85
- * primary entries (18 instants, 16 sorceries, 10 enchantments, 1 artifact, + 9
- * Ragnarök spells/runes, + 31 Gothic Monsters charms/rituals/enchantments/artifacts)
- * plus eight removal-answer records. Prompts live in docs/spell-art.md; the
+ * Generates real card art for the 204 non-creature SPELL/ARTIFACT/LAND prompt
+ * entries: the 85 primary entries (18 instants, 16 sorceries, 10 enchantments,
+ * 1 artifact, + 9 Ragnarök spells/runes, + 31 Gothic Monsters
+ * charms/rituals/enchantments/artifacts), plus eight removal-answer records,
+ * seven 1.6 returning-mechanics sprinkle spells, five Duat lands, two Wave B
+ * support spells, seven Wave C spells, 26 Wave D1 non-creatures, and 24 Wave D2
+ * non-creatures. Prompts
+ * live in docs/spell-art.md; the
  * chatgpt-imagegen CLI is backed by the user's ChatGPT
  * subscription — see the `anthropic-skills:chatgpt-imagegen` skill), then
  * post-processes each image to the exact 640×800 WebP deliverable
@@ -62,7 +66,7 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 93 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * The 204 spell ids docs/spell-art.md must cover, in the authored order (instants
  * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters →
  * the removal answer cycle).
  * Parsing cross-checks against this
@@ -88,6 +92,14 @@ const EXPECTED_IDS = [
   'en-olympus-ascendant',
   // artifact (1)
   'ar-imperial-jade-seal',
+  // Dark Tales companion wave (20), added 2026-08-21
+  'dt-twelve-dancing-heiresses', 'dt-poisoned-comb', 'dt-ball-before-midnight',
+  'dt-banished-from-the-ball', 'dt-casita-hearth', 'dt-drowned-library',
+  'dt-laced-too-tight', 'dt-carpet-escape', 'dt-chart-the-reef-road',
+  'dt-rose-thorn-parry', 'dt-hearth-blessing', 'dt-sunrise-over-the-ballroom',
+  'dt-drown-the-pages', 'dt-second-verse', 'dt-frozen-to-the-floor',
+  'dt-apple-half-exchange', 'dt-shadow-miners-dirge', 'dt-ember-lantern-toss',
+  'dt-grandmothers-remedy', 'dt-pumpkin-shell-lantern',
   // Ragnarök expansion (9): 4 spells + the 5-rune Aura cycle (src/data/cards/ragnarok.ts)
   'rg-ragnarok', 'rg-read-the-runes', 'rg-berserkers-fury', 'rg-call-the-einherjar',
   'rg-rune-of-fury', 'rg-rune-of-the-hunt', 'rg-rune-of-hunger', 'rg-rune-of-insight',
@@ -110,6 +122,50 @@ const EXPECTED_IDS = [
   'in-cleanse-the-shrine', 'in-ram-the-gates', 'in-empty-fort-stratagem',
   'so-the-wilds-take-it-back', 'rg-yggdrasils-verdict', 'cf-bargain-unwound',
   'ac-recant-the-vow', 'gm-hunters-writ',
+  // 1.6 returning-mechanics sprinkle (7), added 2026-08-18: the wave's seven
+  // non-creature cards (its three creatures live in the per-set art bibles)
+  'cf-tithe-of-seasons', 'cf-salt-the-barrow', 'ac-second-muster',
+  'gm-retold-by-candlelight', 'so-echos-refrain', 'so-roadside-shrine',
+  'en-persephones-return',
+  // Sands of the Duat Wave A dual lands (5), added 2026-08-19
+  'sd-land-the-weighing-hall', 'sd-land-emberwake-channel', 'sd-land-silt-tomb-terrace',
+  'sd-land-noon-barge-landing', 'sd-land-reedway-delta',
+  // Sands of the Duat Wave B support (2), added 2026-08-19
+  'sd-pridehall-drillmaster', 'sd-bastet-gate-chorus',
+  // Sands of the Duat Wave C spells (7), added 2026-08-19
+  'sd-salt-and-linen', 'sd-the-debt-is-called', 'sd-noon-judgment', 'sd-two-harvests',
+  'sd-hollow-the-chest', 'sd-sealed-doorway', 'sd-empty-every-jar',
+  // Sands of the Duat Wave D1 non-creatures (26), added 2026-08-19; one reviewed
+  // river-crossing card was cut and is intentionally absent from this roster.
+  'sd-the-offering-table', 'sd-altar-of-the-fourth-hall', 'sd-resin-archive',
+  'sd-natron-vault', 'sd-scale-weight', 'sd-reed-bound-canopic', 'sd-empty-heart-jar',
+  'sd-tomb-seal', 'sd-lapis-funerary-mask', 'sd-censer-of-the-last-gate',
+  'sd-lion-gate-standard', 'sd-tollgate-of-the-fourth-hall', 'sd-canopic-cartouche',
+  'sd-barge-fire-brazier', 'sd-flood-measure-vessel',
+  'sd-natron-crowned-canopic', 'sd-heart-scale-reliquary',
+  'sd-hena-who-rows-against-the-hour',
+  'sd-name-the-gate', 'sd-procession-halt', 'sd-weigh-the-room', 'sd-strike-the-lintel',
+  'sd-stop-the-procession', 'sd-marked-at-the-gate', 'sd-the-hall-clears',
+  'sd-the-gate-is-closed',
+  // Sands of the Duat Wave D2 non-creatures (24), added 2026-08-19
+  'sd-read-the-two-ways', 'sd-take-the-slow-channel', 'sd-hold-the-crossing',
+  'sd-silt-reading', 'sd-row-against-the-hour', 'sd-channel-turns-back',
+  'sd-book-of-the-two-ways', 'sd-wrong-door', 'sd-sand-through-the-grate',
+  'sd-the-book-opens-twice', 'sd-read-the-sky-over-the-barge',
+  'sd-the-map-argues-back', 'sd-river-returns-the-answer', 'sd-the-last-chart-of-the-duat',
+  'sd-pay-before-the-asking', 'sd-cut-the-wrappings', 'sd-two-jars-one-heart',
+  'sd-wrapped-against-the-season', 'sd-one-clean-cut', 'sd-second-wrapping',
+  'sd-silence-after-the-verdict', 'sd-verdict-under-resin', 'sd-the-long-drying',
+  'sd-the-weight-owed-in-full',
+  // Sands of the Duat Wave D3 non-creatures (20), added 2026-08-19
+  'sd-burn-the-rope', 'sd-flame-beneath-the-pan', 'sd-light-the-wake',
+  'sd-prowfire-volley', 'sd-warcry-at-noon', 'sd-break-the-coil',
+  'sd-ember-signal', 'sd-fire-along-the-barge', 'sd-run-the-deck',
+  'sd-noon-serpent-judgment',
+  'sd-give-the-field-its-due', 'sd-measure-the-silt', 'sd-root-through-the-ruin',
+  'sd-ward-the-floodgate', 'sd-harvest-after-rain', 'sd-flood-before-noon',
+  'sd-warding-of-the-first-furrow', 'sd-deeper-flood-channel',
+  'sd-granary-of-rising-years', 'sd-route-beyond-the-gate',
 ] as const;
 
 /**

@@ -110,7 +110,7 @@ export const TK_JIN = [
     colors: ['G'],
     attack: 2,
     defense: 3,
-    abilities: [{ when: 'arrives', ops: [{ op: 'fetchLand' }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'r',
     flavor: 'Farms in peacetime, farms in wartime. Mountains are just taller fields.',
   },

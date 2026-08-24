@@ -8,11 +8,12 @@ import {
   severPermanent,
 } from '../battlefield';
 import { drawCards } from '../phases';
-import { rngInt, rngShuffle } from '../rng';
+import { rngInt } from '../rng';
 import { getEffectiveStats, isQuestActive } from '../statics';
 import type {
   AbilityDef,
   CardDb,
+  CardEntry,
   EffectOp,
   GameState,
   Permanent,
@@ -21,7 +22,7 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../types';
-import { cardIdOf, def, isType, opponentOf } from '../types';
+import { cardIdOf, def, isCardInstance, isType, opponentOf } from '../types';
 
 export interface EffectContext {
   controller: PlayerId;
@@ -29,6 +30,36 @@ export interface EffectContext {
   sourceIid?: number; // set for permanents' triggered abilities
   targets: TargetRef[];
   x?: number;
+  /**
+   * The source's OWN card in its graveyard, excluded from `raise` (Magic's
+   * "return ANOTHER creature card" templating). Set only on a `dies` trigger,
+   * where the source is already in the yard and would otherwise be the
+   * most-recently-buried creature: a self-raise makes the card unkillable by
+   * damage/destroy, and a second copy loops the legend rule against the return
+   * until `checkStateBased` gives up (measured 2026-08-22, Sitra).
+   */
+  selfGraveExclusion?: { instanceId?: number; cardId: string };
+}
+
+/**
+ * Index of the source's own card in its graveyard, or -1. Matches the physical
+ * instance when the engine created one; otherwise the most-recently-buried
+ * plain entry of that card id, which is the copy that just died.
+ */
+function selfGraveIndex(
+  grave: readonly CardEntry[],
+  exclusion: EffectContext['selfGraveExclusion'],
+): number {
+  if (!exclusion) return -1;
+  for (let i = grave.length - 1; i >= 0; i--) {
+    const entry = grave[i];
+    if (exclusion.instanceId !== undefined) {
+      if (isCardInstance(entry) && entry.instanceId === exclusion.instanceId) return i;
+    } else if (!isCardInstance(entry) && entry === exclusion.cardId) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 function targetPermanent(state: GameState, ref: TargetRef | undefined): Permanent | undefined {
@@ -132,13 +163,20 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const idx = rngInt(state.rng, hand.length);
         const [card] = hand.splice(idx, 1);
         state.players[victim].graveyard.push(card);
+        fireGraveyardTriggers(state, db, emit, card, victim);
         emit({ e: 'discarded', player: victim, cardId: cardIdOf(card) });
       }
       return;
     }
     case 'destroy': {
       const perm = targetPermanent(state, ctx.targets[0]);
-      if (perm && destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+      if (perm && destroyPermanent(
+        state,
+        db,
+        perm,
+        emit,
+        (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+      ) && firesDiesForDestroy(state, db, perm)) {
         fireTriggers(state, db, emit, 'dies', perm);
       }
       return;
@@ -157,7 +195,13 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       // Artifact wins for a multi-typed permanent. This keeps the branch
       // deterministic and mirrors the op name's left-to-right contract.
       if (isType(d, 'artifact')) {
-        if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+        if (destroyPermanent(
+          state,
+          db,
+          perm,
+          emit,
+          (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+        ) && firesDiesForDestroy(state, db, perm)) {
           fireTriggers(state, db, emit, 'dies', perm);
         }
       } else if (isType(d, 'enchantment')) {
@@ -203,6 +247,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
           emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
         } else {
           state.players[item.controller].graveyard.push(card);
+          fireGraveyardTriggers(state, db, emit, card, item.controller);
         }
         emit({ e: 'spellCountered', sid: item.sid });
       }
@@ -238,35 +283,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       if (perm) perm.tapped = true;
       return;
     }
-    case 'fetchLand': {
-      const lib = state.players[ctx.controller].deck;
-      // Distinct basic land types available to fetch.
-      const distinct = new Set<string>();
-      for (const card of lib) {
-        const cardId = cardIdOf(card);
-        if (def(db, card).supertypes?.includes('basic')) distinct.add(cardId);
-      }
-      if (distinct.size >= 2) {
-        // >1 type: defer to a player/AI choice, surfaced after the flush (see
-        // Game.maybeRaiseDeferredDecision / apply 'chooseBasicLand'). Do NOT fetch or
-        // shuffle here — both happen when the choice resolves — so the ≤1-type
-        // path below stays byte-identical (determinism.test relies on it).
-        state.pendingDecisions.push({ kind: 'chooseBasicLand', player: ctx.controller });
-        return;
-      }
-      // 0 or 1 distinct type: unchanged — grab the topmost basic, enter tapped,
-      // reshuffle. (No choice to make, so no reason to interrupt.)
-      for (let i = lib.length - 1; i >= 0; i--) {
-        if (def(db, lib[i]).supertypes?.includes('basic')) {
-          const [cardId] = lib.splice(i, 1);
-          const perm = enterBattlefield(state, db, cardId, ctx.controller, emit);
-          perm.tapped = true;
-          rngShuffle(state.rng, lib);
-          return;
-        }
-      }
+    case 'extraLandDrop':
+      state.players[ctx.controller].extraLandDrops += op.n ?? 1;
       return;
-    }
     case 'createToken': {
       for (let i = 0; i < op.count; i++) {
         const count = state.battlefield.filter(
@@ -287,7 +306,13 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         if (perm.controller !== opponent) continue;
         const d = def(db, perm.cardId);
         if (!isType(d, 'artifact') && !isType(d, 'enchantment')) continue;
-        if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+        if (destroyPermanent(
+          state,
+          db,
+          perm,
+          emit,
+          (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+        ) && firesDiesForDestroy(state, db, perm)) {
           fireTriggers(state, db, emit, 'dies', perm);
         }
         return;
@@ -304,11 +329,24 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         }
         return true;
       });
+      const fallen: Permanent[] = [];
+      const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
       for (const perm of doomed) {
-        if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
-          fireTriggers(state, db, emit, 'dies', perm);
+        if (destroyPermanent(
+          state,
+          db,
+          perm,
+          emit,
+          (card, owner) => graveyardEntries.push({ card, owner }),
+        ) && firesDiesForDestroy(state, db, perm)) {
+          fallen.push(perm);
         }
       }
+      for (const entry of graveyardEntries) {
+        if (state.winner !== null) return;
+        fireGraveyardTriggers(state, db, emit, entry.card, entry.owner);
+      }
+      fireBatchedDies(state, db, emit, fallen);
       return;
     }
     case 'preventCombat':
@@ -331,6 +369,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const card = lib.pop(); // top of deck is the last element
         if (card === undefined) break; // empty deck: deck-out is a DRAW check, not here
         state.players[victim].graveyard.push(card);
+        fireGraveyardTriggers(state, db, emit, card, victim);
         emit({ e: 'milled', player: victim, cardId: cardIdOf(card) });
       }
       return;
@@ -346,11 +385,15 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'raise': {
       const grave = state.players[ctx.controller].graveyard;
+      // A dies-triggered raise may never return its own source: see
+      // EffectContext.selfGraveExclusion.
+      const excludedIndex = selfGraveIndex(grave, ctx.selfGraveExclusion);
       let index: number;
       if (op.to === 'top') {
         // most-recently-buried creature (trigger-safe: no target decision)
         index = -1;
         for (let i = grave.length - 1; i >= 0; i--) {
+          if (i === excludedIndex) continue;
           if (isType(def(db, grave[i]), 'creature')) {
             index = i;
             break;
@@ -361,6 +404,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const ref = ctx.targets[0];
         if (ref?.kind !== 'grave' || ref.player !== ctx.controller) return;
         if (ref.index < 0 || ref.index >= grave.length) return;
+        if (ref.index === excludedIndex) return;
         if (!isType(def(db, grave[ref.index]), 'creature')) return;
         index = ref.index;
       }
@@ -405,6 +449,41 @@ export function runOps(
   }
 }
 
+/** Fire a card's graveyard-entry abilities after any zone pushes the card into its owner's graveyard. */
+export function fireGraveyardTriggers(
+  state: GameState,
+  db: CardDb,
+  emit: Emit,
+  card: CardEntry,
+  owner: PlayerId,
+): void {
+  const cardId = cardIdOf(card);
+  const d = db[cardId];
+  if (!d) return;
+  for (const ab of d.abilities ?? []) {
+    if (
+      ab.when !== 'entersGraveyard' ||
+      !ab.ops ||
+      !conditionSatisfied(state, db, owner, ab.condition)
+    ) continue;
+    emit({
+      e: 'graveyardTriggerFired',
+      cardId,
+      owner,
+      when: 'entersGraveyard',
+      ...(isCardInstance(card) ? { instanceId: card.instanceId } : {}),
+    });
+    runOps(
+      state,
+      db,
+      emit,
+      { controller: owner, sourceCardId: cardId, targets: [] },
+      ab.ops,
+    );
+    if (state.winner !== null) return;
+  }
+}
+
 /**
  * A Foresee continuation retains only its controller, never the spell's
  * cast-time targets or source permanent. Reject an incompatible card loudly
@@ -418,7 +497,7 @@ function assertTargetFreeForeseeContinuation(op: EffectOp): void {
     op.op === 'discardRandom' ||
     op.op === 'severGrave' ||
     op.op === 'severTop' ||
-    op.op === 'fetchLand' ||
+    op.op === 'extraLandDrop' ||
     op.op === 'createToken' ||
     op.op === 'destroyNewestOpponentArtifactOrEnchantment' ||
     op.op === 'massDestroy' ||
@@ -445,6 +524,7 @@ export function fireTriggers(
   emit: Emit,
   when: Exclude<TriggerWhen, 'spell' | 'static'>,
   perm: Permanent,
+  options: { deferPostDies?: boolean } = {},
 ): void {
   const d = def(db, perm.cardId);
   for (const ab of d.abilities ?? []) {
@@ -458,7 +538,20 @@ export function fireTriggers(
       state,
       db,
       emit,
-      { controller: perm.controller, sourceCardId: perm.cardId, sourceIid: perm.iid, targets: [] },
+      {
+        controller: perm.controller,
+        sourceCardId: perm.cardId,
+        sourceIid: perm.iid,
+        targets: [],
+        ...(when === 'dies'
+          ? {
+              selfGraveExclusion: {
+                ...(perm.instanceId === undefined ? {} : { instanceId: perm.instanceId }),
+                cardId: perm.cardId,
+              },
+            }
+          : {}),
+      },
       ab.ops,
     );
   }
@@ -468,6 +561,62 @@ export function fireTriggers(
   } else if (when === 'dawn' && d.chapters && d.chapters.length > 0) {
     advanceChapter(state, db, emit, perm, false);
   }
+
+  if (when === 'dies' && !options.deferPostDies && state.winner === null) {
+    returnWithNineLives(state, db, emit, perm);
+  }
+}
+
+/**
+ * Fire a complete battlefield-order dies batch before any Nine Lives returns.
+ * SBA and mass-destroy callers use this so every corpse leaves and every dies
+ * rider resolves before the marked bodies re-enter in the same order.
+ */
+export function fireBatchedDies(
+  state: GameState,
+  db: CardDb,
+  emit: Emit,
+  fallen: readonly Permanent[],
+): void {
+  for (const perm of fallen) {
+    if (state.winner !== null) return;
+    fireTriggers(state, db, emit, 'dies', perm, { deferPostDies: true });
+  }
+  for (const perm of fallen) {
+    if (state.winner !== null) return;
+    returnWithNineLives(state, db, emit, perm);
+  }
+}
+
+/** Shared post-dies hook for every death path, including Rite's Game-owned path. */
+function returnWithNineLives(
+  state: GameState,
+  db: CardDb,
+  emit: Emit,
+  fallen: Permanent,
+): void {
+  const d = def(db, fallen.cardId);
+  if (!d.nineLives || fallen.plusOneCounters !== 0 || fallen.instanceId === undefined) return;
+
+  const grave = state.players[fallen.owner].graveyard;
+  const graveIndex = grave.findIndex(
+    (card) => isCardInstance(card) && card.instanceId === fallen.instanceId,
+  );
+  if (graveIndex < 0) return;
+
+  // Match raise: check the cap before splicing, so a blocked return leaves the
+  // physical card in the graveyard and records no separate "used" state.
+  const creatureCount = state.battlefield.filter(
+    (perm) => perm.controller === fallen.owner && isType(def(db, perm.cardId), 'creature'),
+  ).length;
+  if (creatureCount >= RULES.maxCreatures) return;
+
+  const [card] = grave.splice(graveIndex, 1);
+  const returned = enterBattlefield(state, db, card, fallen.owner, emit, {
+    plusOneCounters: 1,
+  });
+  emit({ e: 'nineLivesReturned', player: fallen.owner, iid: returned.iid, cardId: returned.cardId });
+  fireTriggers(state, db, emit, 'arrives', returned);
 }
 
 /**
@@ -496,7 +645,13 @@ function advanceChapter(
     chapters[chapter - 1],
   );
   if (chapter !== chapters.length || state.winner !== null) return;
-  if (destroyPermanent(state, db, perm, emit) && firesDiesForDestroy(state, db, perm)) {
+  if (destroyPermanent(
+    state,
+    db,
+    perm,
+    emit,
+    (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+  ) && firesDiesForDestroy(state, db, perm)) {
     fireTriggers(state, db, emit, 'dies', perm);
   }
 }

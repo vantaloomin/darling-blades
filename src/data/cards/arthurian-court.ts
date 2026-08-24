@@ -152,7 +152,7 @@ export const ARTHURIAN_COURT = [
   }),
 
   // =========================================================================
-  // RARE (24)
+  // RARE (25)
   // =========================================================================
   creature('ac-camelot-banneret', 'Camelot Banneret', ['Knight', 'Soldier'], {
     cost: cost(2, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['sentinel'],
@@ -290,7 +290,10 @@ export const ARTHURIAN_COURT = [
   {
     id: 'ac-queen-regents-command', name: "Queen-Regent's Command", types: ['charm'], subtypes: [],
     cost: cost(2, 'U'), colors: ['U'],
-    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'draw', n: 1 }] }],
+    abilities: [
+      { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'draw', n: 1 }] },
+      { when: 'spell', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] },
+    ],
     rarity: 'r', flavor: 'The command is courteous; the consequence is not.',
   },
   {
@@ -304,8 +307,15 @@ export const ARTHURIAN_COURT = [
     flavor: 'The shore appears only for those willing to leave it.',
   },
 
+  // Returning-mechanics sprinkle (1.6): twinBlades visits the court. Band
+  // per the shipped Ragnarök carriers: attack stays at printed mv minus one.
+  creature('ac-paired-blade-errant', 'Paired-Blade Errant', ['Knight', 'Errant'], {
+    cost: cost(3, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['twinBlades'],
+    rarity: 'r', flavor: 'One blade for the vow, one for the road home.',
+  }),
+
   // =========================================================================
-  // COMMON (40)
+  // COMMON (41)
   // =========================================================================
   creature('ac-novice-squire', 'Novice Squire', ['Squire'], {
     cost: cost(1, 'W'), colors: ['W'], attack: 2, defense: 2, keywords: ['sentinel'],
@@ -344,7 +354,7 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-quest-marker', name: 'Quest Marker', types: ['artifact'], subtypes: [],
-    cost: cost(1), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
+    cost: cost(1), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }, { when: 'dawn', condition: 'questActive', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'A small mark on a long road; enough to keep walking.',
   },
   {
@@ -503,7 +513,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-woodland-errand', name: 'Woodland Errand', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'G'), colors: ['G'], abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
+    cost: cost(2, 'G'), colors: ['G'], abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c', flavor: 'The forest sends a messenger and asks for no explanation.',
   },
   {
@@ -520,7 +530,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-questing-map', name: 'Questing Map', types: ['artifact'], subtypes: [],
-    cost: cost(2), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
+    cost: cost(2), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }, { when: 'arrives', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'The map marks the road in ink that fades after the journey.',
   },
   {
@@ -528,5 +538,15 @@ export const ARTHURIAN_COURT = [
     cost: cost(2, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'enchantment' }], ops: [{ op: 'sever', to: 'target' }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'She withdrew the vow, kept the moral high ground, and drew a card.',
+  },
+  // Returning-mechanics sprinkle (1.6): Empower visits the court. The base
+  // sits one mana above Muster the Militia so the shipped common stays the
+  // efficient pick; Empower is the late-game option.
+  {
+    id: 'ac-second-muster', name: 'Second Muster', types: ['ritual'], subtypes: [],
+    cost: cost(2, 'W'), colors: ['W'],
+    abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-squire', count: 2 }] }],
+    empower: { cost: cost(2, 'W'), ops: [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }] },
+    rarity: 'c', flavor: 'The first muster answers the horn. The second answers her.',
   },
 ] satisfies readonly CardDef[];

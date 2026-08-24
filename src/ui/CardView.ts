@@ -82,6 +82,13 @@ function fitWrappedText(obj: Phaser.GameObjects.Text, boxH: number): void {
 
 export type CardFxLevel = 'full' | 'static' | 'none';
 
+export interface CardPointerPosition {
+  /** Card-relative position, where each face edge is -1 or 1. */
+  x: number;
+  y: number;
+  inside: boolean;
+}
+
 /**
  * Solid metallic rarity-ring tints for the mid/high tiers, echoing each tier's
  * gem (sr champagne-gold, ssr violet, ur crimson). `c` gets no ring; `r` keeps
@@ -141,7 +148,7 @@ export class CardView extends Phaser.GameObjects.Container {
 
   card: CardDef | null = null;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, options: { backTextureKey?: string } = {}) {
     super(scene, x, y);
 
     this.frame = scene.add.image(0, 0, 'frame-C').setDisplaySize(CARD_W, CARD_H);
@@ -247,7 +254,10 @@ export class CardView extends Phaser.GameObjects.Container {
     bakeRetellTombstone(scene);
     this.retellIcon = scene.add.image(132, -182, RETELL_ICON_KEY).setDisplaySize(20, 20).setVisible(false);
     this.crown = scene.add.image(0, -204, 'crown').setDisplaySize(56, 20).setVisible(false);
-    this.back = scene.add.image(0, 0, 'cardback').setDisplaySize(CARD_W, CARD_H).setVisible(false);
+    this.back = scene.add
+      .image(0, 0, options.backTextureKey ?? 'cardback')
+      .setDisplaySize(CARD_W, CARD_H)
+      .setVisible(false);
 
     this.add([
       this.frame,
@@ -277,7 +287,18 @@ export class CardView extends Phaser.GameObjects.Container {
 
   setCard(
     card: CardDef | null,
-    opts: { fx?: CardFxLevel; variant?: CardVariant; fullArt?: boolean; landStyle?: string } = {},
+    opts: {
+      fx?: CardFxLevel;
+      variant?: CardVariant;
+      fullArt?: boolean;
+      landStyle?: string;
+      /**
+       * Render under a GeometryMask (the Atelier compare wipe): preFX and
+       * PostFX passes composite outside the stencil and paint black, so every
+       * shader treatment takes its TileSprite fallback instead.
+       */
+      maskSafe?: boolean;
+    } = {},
   ): this {
     this.clearFx();
     this.art.clearTint().setAlpha(1);
@@ -627,10 +648,10 @@ export class CardView extends Phaser.GameObjects.Container {
 
     const variant = opts.variant;
     if (variant && variant.frame !== 'white') {
-      this.applyFrameStyle(variant.frame, fx);
+      this.applyFrameStyle(variant.frame, fx, opts.maskSafe === true);
     } else if (card.rarity === 'r') {
       this.ring.setVisible(true).setTint(0xcdd7e8).setAlpha(0.9);
-      if (fx === 'full' && fxPolicy(this.scene).shine && this.ring.preFX) {
+      if (fx === 'full' && !opts.maskSafe && fxPolicy(this.scene).shine && this.ring.preFX) {
         this.shineFx = this.ring.preFX.addShine(0.35, 0.2, 5);
       }
       this.ring.resetPostPipeline();
@@ -641,14 +662,16 @@ export class CardView extends Phaser.GameObjects.Container {
       // never reads as a rainbow pull.
       this.ring.setVisible(true).setTint(RARITY_RING[card.rarity]).setAlpha(1);
       this.ring.resetPostPipeline();
-      if (fx === 'full' && fxPolicy(this.scene).shine && this.ring.preFX) {
+      if (fx === 'full' && !opts.maskSafe && fxPolicy(this.scene).shine && this.ring.preFX) {
         this.shineFx = this.ring.preFX.addShine(0.5, 0.25, 4);
       }
     }
 
     // Holo — a finish is per-copy (variant Axis C): no variant, no holo.
     if (fx === 'full' && variant && variant.holo !== 'none') {
-      this.holo = applyHolo(this.scene, this, this.art, variant.holo, artRect, FACE_RECT);
+      this.holo = applyHolo(this.scene, this, this.art, variant.holo, artRect, FACE_RECT, {
+        maskSafe: opts.maskSafe,
+      });
     }
     // Full art: the holo overlay covers the whole frame (not just the art
     // window), and applyHolo appends its objects last — so re-raise every
@@ -694,14 +717,16 @@ export class CardView extends Phaser.GameObjects.Container {
    * Reads at pack-reveal scale (~0.5) via the 13px ring and the face wash;
    * the wash texture has the art window cut out and sits below all texts.
    */
-  private applyFrameStyle(frame: Exclude<FrameStyle, 'white'>, fx: CardFxLevel): void {
+  private applyFrameStyle(frame: Exclude<FrameStyle, 'white'>, fx: CardFxLevel, maskSafe = false): void {
     const t = FRAME_TREATMENTS[frame];
     if (t.wash !== null) {
       this.frameTint.setVisible(true).setTint(t.wash).setAlpha(t.washAlpha);
     }
     this.ring.setVisible(true).setAlpha(1);
     if (t.rainbow) {
-      if (fx !== 'none' && fxPolicy(this.scene).iridescence) {
+      // maskSafe: the mode-0 ring shader is a PostFX pass and paints black
+      // under a GeometryMask; the hue-cycle re-tint below is mask-compatible.
+      if (fx !== 'none' && !maskSafe && fxPolicy(this.scene).iridescence) {
         // animated RGB cycle — the existing mode-0 border ring shader
         this.ring.setTint(0xffffff);
         this.ring.setPostPipeline(IridescencePostFX);
@@ -727,7 +752,7 @@ export class CardView extends Phaser.GameObjects.Container {
     } else if (t.ring !== null) {
       this.ring.setTint(t.ring);
       // gold's metallic luster: a shine sweep along the ring
-      if (t.luster && fx === 'full' && fxPolicy(this.scene).shine && this.ring.preFX) {
+      if (t.luster && fx === 'full' && !maskSafe && fxPolicy(this.scene).shine && this.ring.preFX) {
         this.shineFx = this.ring.preFX.addShine(0.5, 0.25, 4);
       }
     }
@@ -771,14 +796,21 @@ export class CardView extends Phaser.GameObjects.Container {
     return this.zone;
   }
 
-  /** Feed a pointer position for foil reactivity; card-relative -1..1. */
-  setHoloPointer(worldX: number, worldY: number): void {
-    if (!this.holo) return;
+  /**
+   * Feed a pointer position through the shared foil tracker and expose that
+   * same normalized result to presentation consumers such as Card Atelier.
+   */
+  setHoloPointer(worldX: number, worldY: number): CardPointerPosition {
     const local = this.getLocalPoint(worldX, worldY);
-    this.holo.setPointer(
-      Phaser.Math.Clamp(local.x / (CARD_W / 2), -1.5, 1.5),
-      Phaser.Math.Clamp(local.y / (CARD_H / 2), -1.5, 1.5),
-    );
+    const rawX = local.x / (CARD_W / 2);
+    const rawY = local.y / (CARD_H / 2);
+    const position = {
+      x: Phaser.Math.Clamp(rawX, -1.5, 1.5),
+      y: Phaser.Math.Clamp(rawY, -1.5, 1.5),
+      inside: Math.abs(rawX) <= 1 && Math.abs(rawY) <= 1,
+    };
+    this.holo?.setPointer(position.x, position.y);
+    return position;
   }
 
   /** Grey the art before a Collection release; the card is then removed by its scene ritual. */

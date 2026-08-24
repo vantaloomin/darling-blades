@@ -18,6 +18,7 @@ import type {
   LandStyleMap,
   SaveData,
 } from '../meta/SaveManager';
+import { PLAYMATS, playmatForId, type PlaymatDefinition } from '../meta/cosmetics';
 import { STARTER_DECKS } from '../data/starterDecks';
 import {
   applyGauntletResult,
@@ -31,11 +32,13 @@ import {
   buildAiLandReserve,
   firstDuelLaunchIssue,
   firstReserveConfigIssue,
+  avatarReserveSide,
   resolveDuelDifficulty,
+  resolveDuelStartingHandSize,
 } from '../meta/duelSetup';
 import type { CardVariant } from '../meta/variants';
 import { localDateKey, resolveGauntletRoster, rungSeed } from '../meta/gauntletSeed';
-import { LIMITED_MATCHES, limitedDuelData, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
+import { LIMITED_MATCHES, limitedDuelData, limitedLandReserve, personaRevealTier, type LimitedDuelData } from '../meta/Limited';
 import { applyDailyQuestProgress, recordDailyWin } from '../meta/Quests';
 import {
   finishReplay,
@@ -90,8 +93,18 @@ import { HistoryPanel } from '../ui/HistoryPanel';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
+import { VersusBumper } from '../ui/VersusBumper';
 import { combatForecastCopy, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
-import { CARD_TRAVEL_MOTION, hauntlinkOverlap, targetRingTone } from '../ui/duelPresentation';
+import {
+  CARD_TRAVEL_MOTION,
+  OPPONENT_RESERVE_PILE_LAYOUT,
+  TARGET_ARROW_HEAD_LENGTH,
+  hauntlinkActionLabel,
+  hauntlinkOverlap,
+  targetArrowShaftEnd,
+  targetRingTone,
+} from '../ui/duelPresentation';
+import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
 import { renderManaText } from '../ui/ManaText';
@@ -99,6 +112,25 @@ import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../u
 import { empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
+import {
+  carryCastEligible,
+  carryDropAccepted,
+  carryTiltDeg,
+  stepCarryFollow,
+  type CarryFollowPose,
+} from '../ui/castIntentPresentation';
+import {
+  bottomingTitle,
+  discardTitle,
+  dragMoved,
+  libraryStackPlates,
+  mulliganTitle,
+  riffleShuffleMotion,
+  stagedDropAccepted,
+  stagedSlots,
+  type StackRect,
+} from '../ui/mulliganRitualPresentation';
+import { groupReserveSlots, landFanSlots } from '../ui/reserveModalPresentation';
 import { packRow, type RowPacking } from '../ui/rowPacking';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { StackDisplay } from '../ui/StackDisplay';
@@ -157,7 +189,7 @@ const LAYOUT = {
   /** Reserve piles sit immediately outside their mirrored mana strips. */
   reservePiles: {
     human: { x: 170, y: 500, cardScale: 0.12 },
-    opponent: { x: 1052, y: 56, cardScale: 0.12 },
+    opponent: OPPONENT_RESERVE_PILE_LAYOUT,
   },
   /** Non-creature permanent band shares the lower lane, opposite mana. */
   myPermanentBand: { cy: 500, x1: 1006, usable: 380 },
@@ -198,10 +230,16 @@ const LAYOUT = {
 
 const SEVER_ENABLED = true;
 const BOARD_CENTER_X = 640;
-/** Cast-targeting arrow: source anchor (hand-rest, bottom-center), snap radius, color. */
+/** Last-resort targeting origin when a live source view has already disappeared. */
 const TARGET_ARROW_SRC = { x: BOARD_CENTER_X, y: 700 };
 const TARGET_SNAP_R = 60;
 const TARGET_ARROW_COLOR = 0xffd166;
+/** Releasing a carried cast below this line returns it to the hand instead of casting. */
+const CARRY_HAND_TOP_Y = 560;
+/** Mulligan-ritual library stack anchor and its forgiving drop zone. */
+const STACK_X = 1085;
+const STACK_Y = 372;
+const STACK_DROP: StackRect = { x: STACK_X, y: STACK_Y, halfW: 95, halfH: 125 };
 const LIFE_BADGE_SIZE = 40;
 const COLOR_SORT: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
 const ROW_GUTTER = 6;
@@ -211,6 +249,8 @@ const PERMANENT_BAND_MAX_SPACING = 98;
 type ViewableZone = 'deck' | 'graveyard' | 'severed';
 type DarlingCastAction = Extract<Action, { type: 'castDarling' }>;
 type PendingCastAction = Extract<Action, { type: 'castSpell' }> | DarlingCastAction;
+type LinkHauntAction = Extract<Action, { type: 'linkHaunt' }>;
+type PendingTargetAction = PendingCastAction | LinkHauntAction;
 type PermanentRowLayoutBase = {
   cy: number;
   usable: number;
@@ -338,14 +378,35 @@ export class DuelScene extends Phaser.Scene {
   private myDeckColorStyle: DeckColorStyle = 'other';
   /** Active saved-deck cosmetics for the human side; replay/override decks stay default. */
   private humanLandStyle: LandStyleMap | null = null;
+  /** Account playmat snapshot for this duel instance, including gauntlet restarts. */
+  private playmat: PlaymatDefinition = PLAYMATS[0];
   private myFaceCardId: string | null = null;
   /** Premium hero portrait texture (a bought theme deck's exclusive art), or null. */
   private myHeroTextureKey: string | null = null;
   private oppFaceCardId: string | null = null;
+  /** Entry-only overlay. Internal scene restarts consume the one-shot skip marker. */
+  private versusBumper: VersusBumper | null = null;
+  private versusBumperActive = false;
+  private internalRestartPending = false;
   private selectedAttackers = new Set<number>();
   private blockAssignments: { blocker: number; attacker: number }[] = [];
   private pendingBlocker: number | null = null;
-  private pendingCasts: PendingCastAction[] | null = null;
+  private pendingCasts: PendingTargetAction[] | null = null;
+  /** CastIntent carry: a lifted untargeted spell or Reserves land awaiting its placing click. */
+  private carry: {
+    action: Extract<Action, { type: 'castSpell' | 'playLand' }>;
+    proxy: CardView;
+    ghost: Phaser.GameObjects.GameObject | null;
+    curtain: Phaser.GameObjects.Rectangle;
+    pose: CarryFollowPose;
+    home: { x: number; y: number; scale: number; angle: number };
+    /** Hand casts hide their fan card while carried; a land carry has none. */
+    handView: CardView | null;
+  } | null = null;
+  /** Land-carry R2: the playable reserve kinds fanned above the pile. */
+  private landFan: { root: Phaser.GameObjects.Container; curtain: Phaser.GameObjects.Rectangle } | null = null;
+  /** Right edge of your mana bead row — where the land-carry ghost bead sits. */
+  private myManaRowEndX: number | null = null;
   private arrows!: Phaser.GameObjects.Graphics;
   /** Per-face legal-target outlines; portrait rings live on CommanderPortrait itself. */
   private lifeTargetRings!: { my: Phaser.GameObjects.Graphics; opp: Phaser.GameObjects.Graphics };
@@ -399,6 +460,7 @@ export class DuelScene extends Phaser.Scene {
    */
   private tutorialGuard = new ModalGuard();
   private tutGoalShown = false;
+  private tutWarchestInfoShown = false;
   private tutSicknessShown = false;
   private tutInspectShown = false;
   private tutHealInfoShown = false;
@@ -478,6 +540,8 @@ export class DuelScene extends Phaser.Scene {
       // fields fall back to the normal save-/gauntlet-derived resolution.
       deckOverride?: string[];
       oppDeckOverride?: string[];
+      /** Both seats' Warchests: the tutorial is reserve-native since classic retired. */
+      landReserveOverride?: [string[], string[]];
       seedOverride?: number;
       aiOverride?: AIPlayer;
       tutorial?: boolean;
@@ -485,6 +549,15 @@ export class DuelScene extends Phaser.Scene {
       replay?: ReplayLog;
     } = {},
   ): void {
+    const internalRestart = this.internalRestartPending;
+    this.internalRestartPending = false;
+    this.versusBumper?.destroy();
+    this.versusBumper = null;
+    this.versusBumperActive = false;
+    // A restart already destroyed the display objects; only the state survives.
+    this.carry = null;
+    this.landFan = null;
+    this.myManaRowEndX = null;
     this.reserveFormatsEnabled = FEATURES.reserveFormats;
     if (!this.reserveFormatsEnabled && data.replay?.format) {
       this.scene.start('Profile');
@@ -524,6 +597,7 @@ export class DuelScene extends Phaser.Scene {
       ? draftPersonaById(this.limited.opponentPersonaId)
       : null;
     this.tutGoalShown = false;
+    this.tutWarchestInfoShown = false;
     this.tutSicknessShown = false;
     this.tutInspectShown = false;
     this.tutHealInfoShown = false;
@@ -626,6 +700,7 @@ export class DuelScene extends Phaser.Scene {
     }
     this.touch = isTouchDevice();
     const save = Services.save.data;
+    this.playmat = playmatForId(save.cosmetics.playmat);
     if (!this.replayMode && this.gauntletRung !== null && save.gauntlet.run) {
       this.gauntletRosterOrder = resolveGauntletRoster(
         save.gauntlet.run,
@@ -648,19 +723,47 @@ export class DuelScene extends Phaser.Scene {
       : null;
     const myDeck = data.replay?.decks[0].slice() ?? data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
     this.myDeckColorStyle = deckColorStyle(myDeck, CARD_DB);
-    // Gauntlet: the avatar pilots its themed deck. Practice: the AI pilots a
-    // starter the player is NOT using (or the second one). Tutorial: a fixed deck.
+    // Gauntlet and Practice: the avatar pilots its themed deck. Tutorial: a
+    // fixed deck. Since classic retired (1.6) the Tower is a reserve field
+    // too, so the gauntlet rung no longer excludes itself here; PlayScene is
+    // the gate that decides WHICH reserve format may enter the Tower.
     const savedReserveFormat: ReserveFormat | undefined =
-      !this.replayMode && this.gauntletRung === null && !this.tutorial && !this.limited && data.deckOverride === undefined &&
+      !this.replayMode && !this.tutorial && !this.limited && data.deckOverride === undefined &&
       (myDeckEntry?.format === 'darlings' || myDeckEntry?.format === 'warchest')
         ? myDeckEntry.format
         : undefined;
-    const reserveFormat: ReserveFormat | undefined = data.replay?.format ?? savedReserveFormat;
+    // Limited is reserve-native: a drafted deck is 25 spells and both seats
+    // receive a ten-land Warchest. The draft run supplies the chosen player
+    // reserve and the matching opponent reserve when available.
+    const limitedReserveFormat: ReserveFormat | undefined =
+      this.limited && !this.replayMode ? 'warchest' : undefined;
+    // The tutorial teaches the format the game actually plays (1.6). It carries
+    // deckOverride, which excludes it from savedReserveFormat above, so it
+    // names its own format and brings its own two Warchests.
+    const tutorialReserveFormat: ReserveFormat | undefined =
+      this.tutorial && !this.replayMode && data.landReserveOverride ? 'warchest' : undefined;
+    const reserveFormat: ReserveFormat | undefined =
+      data.replay?.format ?? savedReserveFormat ?? limitedReserveFormat ?? tutorialReserveFormat;
+    // Stage 3 of the 1.6 migration, extended to the Tower by classic
+    // retirement: a reserve-format duel fields the selected avatar's own
+    // designed deck (Warchest) or Darlings variant. The old player-deck
+    // mirror survives only when no avatar is selected (dev overrides);
+    // replays keep their recorded seats.
+    const aiReserveSide =
+      reserveFormat && !this.replayMode && !data.oppDeckOverride
+        ? avatarReserveSide(
+            this.opponent ?? null,
+            reserveFormat,
+            myDeck,
+            myDeckEntry?.darlingId ?? null,
+            CARD_DB,
+          )
+        : null;
     const aiDeck =
       data.replay?.decks[1].slice() ??
       data.oppDeckOverride ??
-      (reserveFormat
-        ? myDeck.slice()
+      (aiReserveSide
+        ? aiReserveSide.deck
         : this.opponent
         ? this.opponent.deck
         : (STARTER_DECKS.find((d) => d.id !== save.activeDeckId)?.cards ?? STARTER_DECKS[1].cards));
@@ -668,21 +771,34 @@ export class DuelScene extends Phaser.Scene {
       ? [
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 0)
-            : Array.isArray(myDeckEntry?.landReserve)
-              ? myDeckEntry.landReserve.slice()
-              : [],
+            : limitedReserveFormat
+              ? data.landReserveOverride?.[0]?.slice() ?? limitedLandReserve(CARD_DB, myDeck)
+              : tutorialReserveFormat
+                ? data.landReserveOverride![0].slice()
+                : Array.isArray(myDeckEntry?.landReserve)
+                  ? myDeckEntry.landReserve.slice()
+                  : [],
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 1)
-            : buildAiLandReserve(aiDeck, CARD_DB),
+            : limitedReserveFormat
+              ? data.landReserveOverride?.[1]?.slice() ?? buildAiLandReserve(aiDeck, CARD_DB)
+              : tutorialReserveFormat
+                ? data.landReserveOverride![1].slice()
+                : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
         ]
       : undefined;
     const darlings: [string | null, string | null] | undefined = reserveFormat === 'darlings'
       ? this.replayMode
         ? [this.replayDarlingAt(data.replay?.darlings, 0), this.replayDarlingAt(data.replay?.darlings, 1)]
-        : [myDeckEntry?.darlingId ?? null, myDeckEntry?.darlingId ?? null]
+        : [myDeckEntry?.darlingId ?? null, aiReserveSide?.darlingId ?? myDeckEntry?.darlingId ?? null]
       : undefined;
+    // Limited and the tutorial play fixed lists, not a SavedDeck, so the
+    // saved-deck legality gate does not apply to them; both reserve payloads
+    // are still validated.
     const launchIssue = reserveFormat
-      ? (this.replayMode ? null : firstDuelLaunchIssue(CARD_DB, save, myDeckEntry ?? null)) ??
+      ? (this.replayMode || limitedReserveFormat || tutorialReserveFormat
+          ? null
+          : firstDuelLaunchIssue(CARD_DB, save, myDeckEntry ?? null)) ??
         firstReserveConfigIssue(CARD_DB, landReserves)
       : null;
     if (launchIssue) {
@@ -734,10 +850,18 @@ export class DuelScene extends Phaser.Scene {
     this.myFaceCardId = deckHero ?? defaultHero ?? faceCardFor(myDeck, CARD_DB);
     this.oppFaceCardId =
       this.opponent?.portraitCardId ?? this.limitedPersona?.portraitCardId ?? faceCardFor(aiDeck, CARD_DB);
+    // Warchest deals a 5-card opener (2026-08-07 ratification); classic and
+    // Darlings keep 7. Replays always defer to their recorded value, so
+    // pre-flip logs (absent field) reconstruct their original 7-card deals.
+    const startingHandSize = resolveDuelStartingHandSize(
+      reserveFormat,
+      this.replayMode ? data.replay ?? null : null,
+    );
     this.duel = new Game({
       decks: [myDeck, aiDeck],
       seed,
       db: CARD_DB,
+      ...(startingHandSize === undefined ? {} : { startingHandSize }),
       ...(reserveFormat === 'darlings' && landReserves && darlings
         ? { format: reserveFormat, landReserves, darlings }
         : reserveFormat === 'warchest' && landReserves
@@ -746,6 +870,7 @@ export class DuelScene extends Phaser.Scene {
       // The fixed tutorial scripts its opening and auto-keeps both hands.
       // Every normal duel path, including Limited and gauntlet, opts in.
       playDrawChoice: !this.tutorial,
+      ...(this.tutorial ? { rulesRev: 1 as const } : {}),
     });
     const aiSeed = seed ^ 0x5eed;
     const personality = this.opponent?.personality ?? this.limitedPersona?.personality;
@@ -762,6 +887,7 @@ export class DuelScene extends Phaser.Scene {
           dbStamp: replayDbStamp(CARD_DB),
           seed,
           decks: [myDeck.slice(), aiDeck.slice()],
+          ...(startingHandSize === undefined ? {} : { startingHandSize }),
           context: {
             mode: this.limited ? 'limited' : this.gauntletRung != null ? 'gauntlet' : 'practice',
             difficulty: this.difficulty,
@@ -796,12 +922,49 @@ export class DuelScene extends Phaser.Scene {
         if (ghost.active) ghost.destroy();
       }
       this.playRevealGhosts.clear();
+      this.versusBumper?.destroy();
+      this.versusBumper = null;
+      this.versusBumperActive = false;
     });
     if (this.tutorial) {
       // The coach-mark guide layer is display-only until its scripted beat
       // opens each target; the HUD no longer exposes an auto-skip control.
       this.coach = new CoachMark(this);
     }
+    const showVersusBumper = shouldPlayVersusBumper({
+      animations: this.motionLevel(),
+      tutorial: this.tutorial,
+      replay: this.replayMode,
+      internalRestart,
+    });
+    if (showVersusBumper) {
+      const opponentName = this.opponent?.name ?? this.limitedPersona?.name ?? `${this.difficulty} AI`;
+      this.versusBumperActive = true;
+      Sfx.play('versus', {
+        pitch: versusLeitmotifPitch(this.opponent?.id ?? this.oppFaceCardId ?? opponentName),
+      });
+      this.versusBumper = new VersusBumper(this, {
+        animations: this.motionLevel() === 'reduced' ? 'reduced' : 'full',
+        player: {
+          cardId: this.myFaceCardId,
+          ...(this.myHeroTextureKey ? { textureKey: this.myHeroTextureKey } : {}),
+          label: this.myDeckName,
+        },
+        opponent: { cardId: this.oppFaceCardId, label: opponentName },
+        onComplete: () => {
+          if (!this.sys.isActive()) return;
+          this.versusBumper = null;
+          this.versusBumperActive = false;
+          this.beginDuel();
+        },
+      });
+      return;
+    }
+    this.beginDuel();
+  }
+
+  /** Keep the deterministic game idle until the entry presentation releases it. */
+  private beginDuel(): void {
     this.processEvents(this.duel.initialEvents);
     if (this.tutorial) this.autoKeepTutorialMulligans();
     this.sync();
@@ -863,6 +1026,7 @@ export class DuelScene extends Phaser.Scene {
         this.lockTutorialInput(null); // opponent acting — nothing is tappable
         return;
       case 'goal':
+      case 'warchestInfo':
       case 'sickness':
       case 'inspectInfo':
       case 'healInfo':
@@ -875,6 +1039,7 @@ export class DuelScene extends Phaser.Scene {
         this.coach.showInfoCard(cue.text, () => {
           this.coachInfoActive = false;
           if (kind === 'goal') this.tutGoalShown = true;
+          else if (kind === 'warchestInfo') this.tutWarchestInfoShown = true;
           else if (kind === 'sickness') this.tutSicknessShown = true;
           else if (kind === 'inspectInfo') this.tutInspectShown = true;
           else if (kind === 'healInfo') this.tutHealInfoShown = true;
@@ -916,7 +1081,9 @@ export class DuelScene extends Phaser.Scene {
     const isHumanTurn = 'player' in a && a.player === HUMAN;
     const you = st.players[HUMAN];
     const legal = isHumanTurn ? this.duel.legalActions(HUMAN) : [];
-    const handHasLand = you.hand.some((id) => isType(def(CARD_DB, id), 'land'));
+    // Reserve formats never hold lands in hand, so read the legal-action list:
+    // it covers the classic hand drop and the Warchest reserve drop alike.
+    const canPlayLand = legal.some((l) => l.type === 'playLand');
     const castableOfType = (t: import('../engine/types').CardType): boolean =>
       legal.some((l) => l.type === 'castSpell' && isType(def(CARD_DB, you.hand[l.handIndex]), t));
     const hasCastableCreature = castableOfType('creature');
@@ -938,8 +1105,7 @@ export class DuelScene extends Phaser.Scene {
       isHumanTurn,
       awaitingKind: a.kind,
       step: st.step,
-      landPlayedThisTurn: you.landPlayedThisTurn,
-      handHasLand,
+      canPlayLand,
       hasCastableCreature,
       myCreatureCount,
       eligibleAttackerCount,
@@ -952,6 +1118,7 @@ export class DuelScene extends Phaser.Scene {
       hasCastableCharm,
       handHasCharm,
       goalShown: this.tutGoalShown,
+      warchestInfoShown: this.tutWarchestInfoShown,
       sicknessShown: this.tutSicknessShown,
       inspectShown: this.tutInspectShown,
       healInfoShown: this.tutHealInfoShown,
@@ -971,7 +1138,10 @@ export class DuelScene extends Phaser.Scene {
     const st = this.duel.state;
     switch (kind) {
       case 'playLand':
-        return this.handTarget((d) => isType(d, 'land'));
+        // Warchest: the land drop starts at the Reserves pile, which opens the
+        // picker. Its inflated inputZone is both the spotlight bounds and the
+        // one control lockTutorialInput leaves live.
+        return this.myReservePile.inputZone ?? this.handTarget((d) => isType(d, 'land'));
       case 'playCreature':
         return this.castableHandTarget('creature');
       case 'castRitual':
@@ -1095,12 +1265,19 @@ export class DuelScene extends Phaser.Scene {
     // is the fallback; every band plate/hairline/label below draws over the
     // backdrop unchanged. Added before the plate graphics, so display-list
     // order keeps the art under all of them — no setDepth needed.
+    const colors = this.playmat.colors;
     applyBackdrop(this, 'duel', {
-      dim: theme.graphics.dim,
-      dimAlpha: 0.45,
+      dim: colors.backdrop.tint,
+      dimAlpha: colors.backdrop.alpha,
       fallback: () => {
         const base = this.add.graphics();
-        base.fillGradientStyle(0x131022, 0x131022, 0x0a0812, 0x0a0812, 1);
+        base.fillGradientStyle(
+          colors.backdrop.fallbackTop,
+          colors.backdrop.fallbackTop,
+          colors.backdrop.fallbackBottom,
+          colors.backdrop.fallbackBottom,
+          1,
+        );
         base.fillRect(0, 0, width, height);
       },
     });
@@ -1109,7 +1286,7 @@ export class DuelScene extends Phaser.Scene {
     // It is inserted after the backdrop but before the zone plates, so no
     // geometry or display-depth contract changes.
     this.add
-      .ellipse(BOARD_CENTER_X, 300, 760, 430, colorInt(theme.colors.gold), 0.05)
+      .ellipse(BOARD_CENTER_X, 300, 760, 430, colors.stageLight, colors.stageLightAlpha)
       .setBlendMode(Phaser.BlendModes.SCREEN);
 
     const g = this.add.graphics();
@@ -1117,13 +1294,27 @@ export class DuelScene extends Phaser.Scene {
     // Two inset battlefield zone plates: both stop at x1046 to leave a clean
     // right sidebar for phase and command controls. Yours a touch brighter.
     const plate = (x0: number, x1: number, y0: number, y1: number, fill: number, alpha: number): void => {
-      g.fillGradientStyle(colorInt(theme.colors.panelStroke), colorInt(theme.colors.panelStroke), fill, fill, alpha);
+      g.fillGradientStyle(colors.zoneStroke, colors.zoneStroke, fill, fill, alpha);
       g.fillRoundedRect(x0, y0, x1 - x0, y1 - y0, 10);
-      g.lineStyle(1, colorInt(theme.colors.panelStroke), 0.7);
+      g.lineStyle(1, colors.zoneStroke, colors.zoneStrokeAlpha);
       g.strokeRoundedRect(x0, y0, x1 - x0, y1 - y0, 10);
     };
-    plate(LAYOUT.oppZone.x0, LAYOUT.oppZone.x1, LAYOUT.oppZone.y0, LAYOUT.oppZone.y1, 0x1a1530, 0.45);
-    plate(LAYOUT.myZone.x0, LAYOUT.myZone.x1, LAYOUT.myZone.y0, LAYOUT.myZone.y1, 0x1c1734, 0.5);
+    plate(
+      LAYOUT.oppZone.x0,
+      LAYOUT.oppZone.x1,
+      LAYOUT.oppZone.y0,
+      LAYOUT.oppZone.y1,
+      colors.opponentZone.fill,
+      colors.opponentZone.alpha,
+    );
+    plate(
+      LAYOUT.myZone.x0,
+      LAYOUT.myZone.x1,
+      LAYOUT.myZone.y0,
+      LAYOUT.myZone.y1,
+      colors.playerZone.fill,
+      colors.playerZone.alpha,
+    );
   }
 
   /**
@@ -1180,9 +1371,10 @@ export class DuelScene extends Phaser.Scene {
 
   /** Legal face targeting follows the same first-target contract as tryTarget(). */
   private isPlayerTargetable(player: PlayerId): boolean {
-    return this.pendingCasts?.some(
-      (cast) => cast.targets?.[0]?.kind === 'player' && cast.targets[0].player === player,
-    ) ?? false;
+    return this.pendingCasts?.some((action) => {
+      const target = this.pendingActionTarget(action);
+      return target?.kind === 'player' && target.player === player;
+    }) ?? false;
   }
 
   /** Legal target rings describe the target controller, never the spell's colour or class. */
@@ -1258,9 +1450,15 @@ export class DuelScene extends Phaser.Scene {
       LAYOUT.reservePiles.human.x,
       LAYOUT.reservePiles.human.y,
       'reserve',
-      { iconSize: 36, onTap: () => this.showReserveModal(HUMAN) },
+      { iconSize: 36, onTap: () => this.onReservePileTap() },
     ).setVisible(false);
-    if (this.myReservePile.inputZone) inflateHitArea(this.myReservePile.inputZone, 64, 64);
+    if (this.myReservePile.inputZone) {
+      inflateHitArea(this.myReservePile.inputZone, 64, 64);
+      // Right-click always reads the full reserve, fan or no fan.
+      this.myReservePile.inputZone.on('pointerdown', (p: Phaser.Input.Pointer) => {
+        if (p.button === 2 && !this.carry && !this.landFan) this.showReserveModal(HUMAN);
+      });
+    }
     // --- Commander portrait (1a): your deck's face card, reacts to the game ---
     this.portrait = new CommanderPortrait(this, LAYOUT.portrait.x, LAYOUT.portrait.y, {
       width: LAYOUT.portrait.w,
@@ -1363,9 +1561,10 @@ export class DuelScene extends Phaser.Scene {
       cardFor: (cardId) => def(CARD_DB, cardId),
       casterLabel: (controller) => (controller === HUMAN ? 'You' : 'Opponent'),
       isTargetable: (sid) =>
-        this.pendingCasts?.some((cast) =>
-          cast.targets?.some((target) => target.kind === 'stackItem' && target.sid === sid),
-        ) ?? false,
+        this.pendingCasts?.some((action) => {
+          const target = this.pendingActionTarget(action);
+          return target?.kind === 'stackItem' && target.sid === sid;
+        }) ?? false,
       onTarget: (sid) => this.tryTarget({ kind: 'stackItem', sid }),
       attachZoom: (view, card) => this.zoom.attach(view, card),
       // Same guard as the sticky-tap route: while the player is mid-target
@@ -1674,9 +1873,7 @@ export class DuelScene extends Phaser.Scene {
       width: 460,
       height: message === 'Replay complete' ? 170 : 220,
       dimAlpha: 0.78,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.replayOutcome = null;
@@ -1758,7 +1955,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private act(action: Action): void {
-    if (this.replayMode || this.ended) return;
+    if (this.versusBumperActive || this.replayMode || this.ended) return;
     if (this.animatingCombat) return; // swallow input while a combat sequence plays
     try {
       const playedCardId = this.actionCardId(action);
@@ -1797,10 +1994,20 @@ export class DuelScene extends Phaser.Scene {
     return Services.save.data.settings.animations;
   }
 
+  /**
+   * The fan view for an ENGINE hand index. handViews is pushed in DISPLAY
+   * order (handDisplayOrder's readability sort), so indexing it with an
+   * engine index silently grabs whichever card sits at that fan position -
+   * the carry-cast bug that lifted the wrong card (owner finding 2026-08-18).
+   */
+  private handViewFor(handIndex: number): CardView | undefined {
+    const displayIndex = handDisplayOrder(this.duel.state.players[HUMAN].hand, CARD_DB).indexOf(handIndex);
+    return displayIndex < 0 ? undefined : this.handViews[displayIndex];
+  }
+
   /** Capture the displayed fan card before syncHand destroys it; hover transforms count. */
   private handOrigin(handIndex: number): { x: number; y: number; scale: number; angle: number } | undefined {
-    const displayIndex = handDisplayOrder(this.duel.state.players[HUMAN].hand, CARD_DB).indexOf(handIndex);
-    const view = displayIndex < 0 ? undefined : this.handViews[displayIndex];
+    const view = this.handViewFor(handIndex);
     if (view?.active) return { x: view.x, y: view.y, scale: view.scaleX, angle: view.angle };
     return this.handPoses.get(handIndex);
   }
@@ -1848,7 +2055,19 @@ export class DuelScene extends Phaser.Scene {
         : this.handOrigin(action.handIndex);
     }
     if (action.type === 'castDarling') return this.darlingZonePositions.get(HUMAN);
+    if (action.type === 'linkHaunt') {
+      const view = this.views.get(action.iid);
+      if (view) return { x: view.x, y: view.y, scale: view.scaleX, angle: view.angle };
+      const target = this.boardTargets.get(action.iid);
+      return target ? { ...target, angle: 0 } : undefined;
+    }
     return undefined;
+  }
+
+  private pendingActionTarget(action: PendingTargetAction): TargetRef | undefined {
+    return action.type === 'linkHaunt'
+      ? { kind: 'permanent', iid: action.hostIid }
+      : action.targets?.[0];
   }
 
   private rememberRetellAction(action: Action, events: readonly GameEvent[]): void {
@@ -2034,7 +2253,7 @@ export class DuelScene extends Phaser.Scene {
   private tryTarget(ref: import('../engine/types').TargetRef): void {
     if (!this.pendingCasts) return;
     const matches = this.pendingCasts.filter((c) => {
-      const t = c.targets?.[0];
+      const t = this.pendingActionTarget(c);
       if (!t) return false;
       if (t.kind !== ref.kind) return false;
       if (t.kind === 'permanent' && ref.kind === 'permanent') return t.iid === ref.iid;
@@ -2046,7 +2265,13 @@ export class DuelScene extends Phaser.Scene {
     });
     if (matches.length === 0) return;
     // For X spells pick the biggest X the mana allows.
-    const best = matches.reduce((a, b) => ((a.x ?? 0) >= (b.x ?? 0) ? a : b));
+    const best = matches[0].type === 'linkHaunt'
+      ? matches[0]
+      : matches.reduce((a, b) => {
+        const ax = a.type === 'linkHaunt' ? 0 : a.x ?? 0;
+        const bx = b.type === 'linkHaunt' ? 0 : b.x ?? 0;
+        return ax >= bx ? a : b;
+      });
     this.act(best);
   }
 
@@ -2092,7 +2317,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.ended) return;
     if (this.animatingCombat) return; // hold until the combat sequence finishes
     if (this.autoSkipTimer) return; // a hop is already scheduled
-    if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
     const a = this.duel.awaiting;
     if (!('player' in a) || a.player !== HUMAN) return;
     if (a.kind === 'foresee') return; // mandatory revealed-card pick; never auto-skip
@@ -2100,7 +2325,7 @@ export class DuelScene extends Phaser.Scene {
     this.autoSkipTimer = this.time.delayedCall(300, () => {
       this.autoSkipTimer = null;
       if (this.ended) return;
-      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
       const awaiting = this.duel.awaiting;
       if (!('player' in awaiting) || awaiting.player !== HUMAN) return;
       if (awaiting.kind === 'foresee') return; // re-check after the delay
@@ -2148,7 +2373,7 @@ export class DuelScene extends Phaser.Scene {
   /** Enter end-turn mode: fast-forward the rest of your turn (see endTurnTick). */
   private startEndTurn(): void {
     if (this.ended || !this.isHumanTurnDecision()) return;
-    if (this.pendingCasts || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
+    if (this.pendingCasts || this.carry || this.landFan || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
     this.endingTurn = true;
     this.log('Ending turn…');
     this.endTurnTick();
@@ -2177,7 +2402,7 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     // Overlays / targeting / an opponent sub-decision: wait, stay armed, resume.
-    if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
     if (!this.isHumanTurnDecision()) return;
     if (!this.endTurnPassAction()) return; // pause at a decision needing real input
     this.endTurnTimer = this.time.delayedCall(180, () => {
@@ -2187,7 +2412,7 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       // Re-check fresh — the player may have opened an overlay during the wait.
-      if (this.overlay || this.inspect || this.pendingCasts || this.pauseOverlay || this.zoneModal) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
       if (!this.isHumanTurnDecision()) return;
       const action = this.endTurnPassAction();
       if (!action) return;
@@ -2294,7 +2519,31 @@ export class DuelScene extends Phaser.Scene {
         } else if (v) this.log(`${who} ${this.cardRef(e.cardId)} died`, e.cardId);
         break;
       }
+      case 'hauntlinkFormed': {
+        const host = this.duel.state.battlefield.find((perm) => perm.iid === e.hostIid);
+        const hostName = host ? def(CARD_DB, host.cardId).name : 'a creature';
+        this.log(
+          `${e.controller === HUMAN ? 'Your' : 'Enemy'} ${this.cardRef(e.cardId)} linked to ${hostName}`,
+          e.cardId,
+        );
+        break;
+      }
       case 'hauntlinkBroken':
+        if (e.unlinked) {
+          const moved = batch.some(
+            (candidate) => candidate.e === 'hauntlinkFormed' && candidate.linkIid === e.linkIid,
+          );
+          if (!moved) {
+            this.log(
+              `${e.owner === HUMAN ? 'Your' : 'Enemy'} ${this.cardRef(e.cardId)} became unlinked`,
+              e.cardId,
+            );
+          }
+          const view = this.views.get(e.linkIid);
+          view?.setHauntlinkBroken(true);
+          this.time.delayedCall(240, () => this.views.get(e.linkIid)?.setHauntlinkBroken(false));
+          break;
+        }
         // The engine emits this before the linked permanent's ordinary died
         // event. Hold the relationship here so the later line describes the
         // actual graveyard exit instead of guessing from cast history.
@@ -2329,6 +2578,9 @@ export class DuelScene extends Phaser.Scene {
       }
       case 'spellCountered':
         this.log('Spell cancelled!');
+        break;
+      case 'responseWindowOpened':
+        if (e.reopened && e.player === HUMAN) this.showSkipNotice('Respond again');
         break;
       case 'targetsFizzled':
         this.log('Spell fizzled (no legal targets)');
@@ -3013,6 +3265,11 @@ export class DuelScene extends Phaser.Scene {
   // ---------------------------------------------------------------------
 
   private sync(): void {
+    // Engine state moved underneath a lifted card (never our own drop — that
+    // path tears down first). The rebuild below invalidates every carried
+    // reference, so the carry ends instantly rather than dangling.
+    if (this.carry) this.teardownCarry();
+    this.closeLandFan();
     if (this.replayMode) this.replayGuard.close();
     const awaitingKind = this.duel.awaiting.kind;
     if (this.lastAwaitingKind !== null && this.lastAwaitingKind !== awaitingKind) this.clearNoBlockArm();
@@ -3130,6 +3387,9 @@ export class DuelScene extends Phaser.Scene {
     if (this.isReserveDuel()) this.syncReservePiles();
     this.syncDarlingZones();
     this.syncHand();
+    // Target legality is reactive state. Re-arm both portrait Zones after the
+    // later-created board/hand input surfaces so a legal face wins hit tests.
+    this.syncFaceTargeting();
     this.syncButton();
     this.drawArrows();
     this.syncOverlay();
@@ -3208,6 +3468,8 @@ export class DuelScene extends Phaser.Scene {
       }
       view.setKeywords(stats.keywords);
       view.setAuraCount(perm.attachments.length);
+      const linkActions = this.hauntlinkActionsFor(perm.iid);
+      view.setActionLabel(hauntlinkActionLabel(linkActions.length > 0, perm.attachedTo !== undefined));
       view.setHighlight(this.highlightFor(perm));
       // Summoning-sickness affordance (engine is source of truth: entered
       // this turn + no haste). Only creatures can be sick; the call resets
@@ -3265,7 +3527,7 @@ export class DuelScene extends Phaser.Scene {
           view.on('pointerup', (p: Phaser.Input.Pointer) => {
             if (p.wasTouch || p.rightButtonReleased()) return;
             if (this.pendingCasts) this.onBattlefieldClick(link.iid);
-            else this.showInspect(d, ownedVariant);
+            else if (!this.beginHauntlinkTargeting(link.iid)) this.showInspect(d, ownedVariant);
           });
           view.on('pointerdown', (p: Phaser.Input.Pointer) => {
             if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant);
@@ -3275,7 +3537,7 @@ export class DuelScene extends Phaser.Scene {
             variant: ownedVariant,
             onTap: () => {
               if (this.pendingCasts) this.onBattlefieldClick(link.iid);
-              else this.showInspect(d, ownedVariant);
+              else if (!this.beginHauntlinkTargeting(link.iid)) this.showInspect(d, ownedVariant);
             },
           });
           this.zoom.attach(view, d, ownedVariant);
@@ -3288,6 +3550,8 @@ export class DuelScene extends Phaser.Scene {
           view.setTapped(link.tapped);
         }
         view.setHauntlinkBroken(this.brokenHauntlinks.has(link.iid));
+        const linkActions = this.hauntlinkActionsFor(link.iid);
+        view.setActionLabel(hauntlinkActionLabel(linkActions.length > 0, true));
         view.setHighlight(this.highlightFor(link));
       });
     }
@@ -3320,9 +3584,10 @@ export class DuelScene extends Phaser.Scene {
     const a = this.duel.awaiting;
     const combat = this.duel.state.combat;
     if (
-      this.pendingCasts?.some(
-        (c) => c.targets?.[0]?.kind === 'permanent' && c.targets[0].iid === perm.iid,
-      )
+      this.pendingCasts?.some((action) => {
+        const target = this.pendingActionTarget(action);
+        return target?.kind === 'permanent' && target.iid === perm.iid;
+      })
     )
       return targetRingTone(perm.controller === HUMAN ? 'you' : 'opponent') === 'hostile'
         ? 'legalTargetOpponent'
@@ -3331,6 +3596,7 @@ export class DuelScene extends Phaser.Scene {
     if (combat?.attackers.includes(perm.iid)) return 'attacking';
     if (this.blockAssignments.some((b) => b.blocker === perm.iid)) return 'blocking';
     if (this.pendingBlocker === perm.iid) return 'pendingBlocker';
+    if (this.hauntlinkActionsFor(perm.iid).length > 0) return 'eligible';
     if (
       a.kind === 'declareAttackers' &&
       this.isHumanTurnDecision() &&
@@ -3338,6 +3604,21 @@ export class DuelScene extends Phaser.Scene {
     )
       return 'eligible';
     return 'none';
+  }
+
+  private hauntlinkActionsFor(iid: number): LinkHauntAction[] {
+    if (this.pendingCasts || this.ended || this.replayMode) return [];
+    return this.duel.legalActions(HUMAN).filter(
+      (action): action is LinkHauntAction => action.type === 'linkHaunt' && action.iid === iid,
+    );
+  }
+
+  private beginHauntlinkTargeting(iid: number): boolean {
+    const actions = this.hauntlinkActionsFor(iid);
+    if (actions.length === 0) return false;
+    this.pendingCasts = actions;
+    this.sync();
+    return true;
   }
 
   /** Land cards no longer render individually; this preserves reveal destinations. */
@@ -3661,6 +3942,7 @@ export class DuelScene extends Phaser.Scene {
       this.manaPips.push(pip);
       this.manaPips.push(countText);
     });
+    if (player === HUMAN) this.myManaRowEndX = xAnchor + slots.length * step;
     const width = Math.max(44, maxX - minX);
     const zone = this.add
       .zone((minX + maxX) / 2, cy, width, 44)
@@ -3763,7 +4045,7 @@ export class DuelScene extends Phaser.Scene {
 
   private previewManaPlanForCost(cost: NonNullable<CardDef['cost']>, extraGeneric = 0): void {
     this.clearManaPlanPreview();
-    if (this.touch || this.ended || this.pendingCasts) return;
+    if (this.touch || this.ended || this.pendingCasts || this.carry) return;
     const plan = solveMana(this.duel.state, CARD_DB, HUMAN, cost, extraGeneric);
     if (!plan) return;
 
@@ -4243,15 +4525,13 @@ export class DuelScene extends Phaser.Scene {
       }
     }
     this.drawStackTargetArrows();
-    // Cast-targeting arrow (desktop hover): from the hand-rest anchor to the
+    // Cast-targeting arrow (desktop hover): from the live source card to the
     // pointer, snapping to the closest legal target so burn-face vs burn-creature
     // intent is unmistakable. Touch resolves targets by direct tap — no hover.
     if (this.pendingCasts && !this.touch) {
       const p = this.input.activePointer;
       const tip = this.snapTargetTip(p.worldX, p.worldY);
-      const origin = this.pendingCasts[0]?.type === 'castDarling'
-        ? this.darlingZonePositions.get(HUMAN) ?? TARGET_ARROW_SRC
-        : TARGET_ARROW_SRC;
+      const origin = this.actionOrigin(this.pendingCasts[0]) ?? TARGET_ARROW_SRC;
       const { x: sx, y: sy } = origin;
       this.drawCurvedArrow(sx, sy, tip.x, tip.y, TARGET_ARROW_COLOR, 0.95);
       // Arrowhead — two short strokes back from the tip along the shaft angle.
@@ -4284,13 +4564,14 @@ export class DuelScene extends Phaser.Scene {
       (sx + tx) / 2 - Math.sin(angle) * offset,
       (sy + ty) / 2 + Math.cos(angle) * offset,
     );
+    const headAngle = Math.atan2(ty - control.y, tx - control.x);
+    const head = TARGET_ARROW_HEAD_LENGTH;
+    const shaftEnd = targetArrowShaftEnd(control, { x: tx, y: ty }, head);
     const curve = new Phaser.Curves.QuadraticBezier(
-      new Phaser.Math.Vector2(sx, sy), control, new Phaser.Math.Vector2(tx, ty),
+      new Phaser.Math.Vector2(sx, sy), control, new Phaser.Math.Vector2(shaftEnd.x, shaftEnd.y),
     );
     this.arrows.lineStyle(4, color, alpha);
     curve.draw(this.arrows, 20);
-    const headAngle = Math.atan2(ty - control.y, tx - control.x);
-    const head = 16;
     const spread = 0.56;
     this.arrows.fillStyle(color, alpha);
     this.arrows.fillTriangle(
@@ -4305,6 +4586,7 @@ export class DuelScene extends Phaser.Scene {
   // ---------------------------------------------------------------------
 
   private onButton(): void {
+    if (this.versusBumperActive) return;
     if (this.pendingCasts) {
       this.pendingCasts = null;
       this.sync();
@@ -4390,13 +4672,13 @@ export class DuelScene extends Phaser.Scene {
     let best: { x: number; y: number } | null = null;
     let bestDist = TARGET_SNAP_R;
     for (const c of this.pendingCasts ?? []) {
-      for (const t of c.targets ?? []) {
-        const pos = this.hitTargetPos(t);
-        const dist = Phaser.Math.Distance.Between(px, py, pos.x, pos.y);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = pos;
-        }
+      const target = this.pendingActionTarget(c);
+      if (!target) continue;
+      const pos = this.hitTargetPos(target);
+      const dist = Phaser.Math.Distance.Between(px, py, pos.x, pos.y);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = pos;
       }
     }
     return best ?? { x: px, y: py };
@@ -4404,8 +4686,10 @@ export class DuelScene extends Phaser.Scene {
 
   private onConfirmKey(e: KeyboardEvent): void {
     e.preventDefault(); // Space would otherwise scroll the page in the browser
+    if (this.versusBumperActive) return;
     if (this.replayMode) return;
     if (this.empowerChooser) return;
+    if (this.carry) return; // a lifted card decides by drop or cancel, never Space
     if (this.ended || this.inspect || this.zoneModal) return; // modals do not pass under
     if (this.overlay && this.confirmForeseeOverlay()) return;
     this.onButton(); // self-guards: auto-skip input lock + not-your-decision
@@ -4413,6 +4697,7 @@ export class DuelScene extends Phaser.Scene {
 
   private onCancelKey(e: KeyboardEvent): void {
     e.preventDefault();
+    if (this.versusBumperActive) return;
     if (this.replayOutcomeShell) {
       this.replayOutcomeShell.close();
       return;
@@ -4423,6 +4708,14 @@ export class DuelScene extends Phaser.Scene {
     }
     if (this.inspect) {
       this.closeInspect();
+      return;
+    }
+    if (this.carry) {
+      this.cancelCarry();
+      return;
+    }
+    if (this.landFan) {
+      this.closeLandFan();
       return;
     }
     if (this.pendingCasts) {
@@ -4436,7 +4729,7 @@ export class DuelScene extends Phaser.Scene {
     }
     // Nothing to cancel: Esc opens the in-game menu (playtest 2026-07-16).
     // Safe to call unconditionally — showPauseMenu's guards no-op while any
-    // overlay/modal is up (the modal's own escToClose closes it; that handler
+    // overlay/modal is up (the modal's own dismissal preset closes it; that handler
     // registered after this one, so this fires first and the guard holds) or
     // outside a human decision window, matching the ⚙ button.
     this.showPauseMenu();
@@ -4534,7 +4827,8 @@ export class DuelScene extends Phaser.Scene {
     if (!targeted) {
       // untargeted; for X spells default to the biggest X
       const best = casts.reduce((x, y) => ((x.x ?? 0) >= (y.x ?? 0) ? x : y));
-      this.act(best);
+      if (this.carryEligibleFor(best)) this.beginCarry(best);
+      else this.act(best);
       return;
     }
     if (casts[0].targets![0].kind === 'grave') {
@@ -4547,6 +4841,364 @@ export class DuelScene extends Phaser.Scene {
     this.sync();
   }
 
+  /**
+   * Carry-cast phase 1 (CastIntent): the resolving click lifts the card
+   * instead of casting it; a second click on the field submits the SAME
+   * action instant cast would have, so replays stay byte-identical. Hand
+   * casts only — Retell keeps its zone-modal flow, the tutorial keeps its
+   * scripted single-click beats, and the Settings escape hatch restores
+   * click-to-cast wholesale.
+   */
+  private carryEligibleFor(action: Extract<Action, { type: 'castSpell' }>): boolean {
+    return (
+      !this.tutorial &&
+      !this.replayMode &&
+      action.retell !== true &&
+      this.handViewFor(action.handIndex) !== undefined &&
+      this.handPoses.get(action.handIndex) !== undefined &&
+      carryCastEligible({
+        targeted: false,
+        touch: this.touch,
+        instantCast: Services.save.data.settings.instantCast,
+      })
+    );
+  }
+
+  private beginCarry(action: Extract<Action, { type: 'castSpell' }>): void {
+    const handIndex = action.handIndex;
+    const view = this.handViewFor(handIndex);
+    const home = this.handPoses.get(handIndex);
+    const cardId = this.duel.state.players[HUMAN].hand[handIndex];
+    if (!view || !home || !cardId) {
+      this.act(action);
+      return;
+    }
+    const d = def(CARD_DB, cardId);
+    const variant = displayVariantFor(Services.save.data, cardId);
+    this.clearManaPlanPreview();
+    this.zoom.dismissSticky();
+    this.tweens.killTweensOf(view);
+    // Lift from wherever the hover left the card, not its rest pose.
+    const proxy = new CardView(this, view.x, view.y)
+      .setScale(home.scale * 1.12)
+      .setDepth(theme.depth.floats + 2)
+      .setAlpha(0.98);
+    view.setVisible(false);
+    proxy.setCard(d, {
+      fx: 'none',
+      variant,
+      fullArt: variant?.fullArt === true,
+      landStyle: this.humanLandStyleFor(cardId),
+    });
+    const curtain = this.makeCarryCurtain();
+    this.carry = {
+      action,
+      proxy,
+      ghost: this.buildCarryGhost(d),
+      curtain,
+      pose: { x: view.x, y: view.y, vx: 0, vy: 0 },
+      home,
+      handView: view,
+    };
+  }
+
+  /** Ghost tile at the exact slot the cast permanent will pack into. */
+  private buildCarryGhost(d: CardDef): BoardCardView | null {
+    const creature = isType(d, 'creature');
+    if (!creature && !isType(d, 'artifact') && !isType(d, 'enchantment')) return null;
+    const row = this.duel.state.battlefield.filter(
+      (perm) =>
+        perm.controller === HUMAN &&
+        perm.attachedTo === undefined &&
+        !isType(def(CARD_DB, perm.cardId), 'land') &&
+        isType(def(CARD_DB, perm.cardId), 'creature') === creature,
+    );
+    const layout: PermanentRowLayout = creature
+      ? {
+        align: 'center',
+        x: LAYOUT.myCreatures.x,
+        cy: LAYOUT.myCreatures.cy,
+        usable: LAYOUT.myCreatures.usable,
+        tileWidth: TILE_W,
+        maxSpacing: TILE_H + 4,
+        baseScale: 1,
+        depth: 5,
+        liftSelected: true,
+      }
+      : {
+        align: 'right',
+        x1: LAYOUT.myPermanentBand.x1,
+        cy: LAYOUT.myPermanentBand.cy,
+        usable: LAYOUT.myPermanentBand.usable,
+        tileWidth: PERMANENT_BAND_TILE_W,
+        maxSpacing: PERMANENT_BAND_MAX_SPACING,
+        baseScale: PERMANENT_BAND_SCALE,
+        depth: 4,
+        liftSelected: false,
+      };
+    const count = row.length + 1;
+    const packed = packRow(count, layout.usable, layout.tileWidth, layout.maxSpacing, ROW_GUTTER);
+    const scale = layout.baseScale * packed.scale;
+    const x = this.permanentRowX(layout, packed, row.length, count, scale);
+    const ghost = new BoardCardView(this, x, layout.cy, d);
+    ghost.setScale(scale).setAlpha(0.3).setDepth(layout.depth - 1);
+    return ghost;
+  }
+
+  private settleCarry(p: Phaser.Input.Pointer): void {
+    const carry = this.carry;
+    if (!carry) return;
+    if (!carryDropAccepted(p.worldY, CARRY_HAND_TOP_Y)) {
+      this.cancelCarry();
+      return;
+    }
+    const action = carry.action;
+    this.teardownCarry();
+    this.act(action);
+  }
+
+  /** Immediate cleanup; the hand card returns to its rest pose in place. */
+  private teardownCarry(): void {
+    const carry = this.carry;
+    if (!carry) return;
+    this.carry = null;
+    carry.curtain.destroy();
+    carry.ghost?.destroy();
+    if (carry.proxy.active) carry.proxy.destroy();
+    this.restoreCarriedHandView(carry);
+  }
+
+  private restoreCarriedHandView(carry: { handView: CardView | null; home: { x: number; y: number; scale: number; angle: number } }): void {
+    if (!carry.handView?.active) return;
+    carry.handView
+      .setVisible(true)
+      .setAlpha(1)
+      .setScale(carry.home.scale)
+      .setAngle(carry.home.angle)
+      .setPosition(carry.home.x, carry.home.y);
+  }
+
+  /**
+   * The curtain owns every pointer while a card is up: other controls go
+   * inert without per-widget guards, and the next click is the drop/cancel.
+   */
+  private makeCarryCurtain(): Phaser.GameObjects.Rectangle {
+    const curtain = this.add
+      .rectangle(BOARD_CENTER_X, theme.design.height / 2, theme.design.width, theme.design.height, 0x000000, 0.001)
+      .setDepth(theme.depth.floats + 1)
+      .setInteractive({ useHandCursor: true });
+    curtain.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (p.button === 2) this.cancelCarry();
+    });
+    curtain.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonReleased()) return;
+      this.settleCarry(p);
+    });
+    return curtain;
+  }
+
+  /**
+   * Land-carry (the R2 design pass): with a legal drop, a mouse tap on the
+   * Reserves pile fans the playable kinds instead of opening the modal;
+   * picking one lifts it into the shared carry, ghosted by an incoming bead
+   * at the end of your mana row. Touch, the tutorial, replays, and the
+   * instantCast escape hatch all keep the modal; right-click always reads it.
+   */
+  private onReservePileTap(): void {
+    if (this.landFan) {
+      this.closeLandFan();
+      return;
+    }
+    if (this.landFanEligible()) this.openLandFan();
+    else this.showReserveModal(HUMAN);
+  }
+
+  private landFanEligible(): boolean {
+    return (
+      !this.touch &&
+      !this.tutorial &&
+      !this.replayMode &&
+      !this.carry &&
+      !Services.save.data.settings.instantCast &&
+      this.duel
+        .legalActions(HUMAN)
+        .some((action) => action.type === 'playLand' && action.reserveIndex !== undefined)
+    );
+  }
+
+  private openLandFan(): void {
+    const view = this.duel.viewFor(HUMAN);
+    const cardIds = view.you.landReserve ?? [];
+    const groups = groupReserveSlots(cardIds, (index) => this.reserveLandAction(index) !== undefined)
+      .filter((group) => group.playableIndex !== undefined);
+    if (groups.length === 0) {
+      this.showReserveModal(HUMAN);
+      return;
+    }
+    const root = this.add.container(0, 0).setDepth(theme.depth.floats);
+    // A transparent click-away layer beneath the fan closes it.
+    const curtain = this.add
+      .rectangle(BOARD_CENTER_X, theme.design.height / 2, theme.design.width, theme.design.height, 0x000000, 0.001)
+      .setDepth(theme.depth.floats - 1)
+      .setInteractive();
+    curtain.on('pointerdown', () => this.closeLandFan());
+    const pile = LAYOUT.reservePiles.human;
+    const slots = landFanSlots(groups.length, pile.x, pile.y);
+    const full = this.motionLevel() === 'full';
+    groups.forEach((group, i) => {
+      const d = def(CARD_DB, group.cardId);
+      const landStyle = this.humanLandStyleFor(group.cardId);
+      const variant = displayVariantFor(Services.save.data, group.cardId);
+      const v = new CardView(this, pile.x, pile.y).setScale(full ? 0.12 : 0.34);
+      v.setCard(d, { fx: 'none', variant, fullArt: variant?.fullArt === true, landStyle });
+      root.add(v);
+      if (full) {
+        this.tweens.add({
+          targets: v,
+          x: slots[i].x,
+          y: slots[i].y,
+          scale: 0.34,
+          delay: i * 40,
+          duration: 170,
+          ease: 'Back.easeOut',
+        });
+      } else {
+        v.setPosition(slots[i].x, slots[i].y);
+      }
+      if (group.count > 1) {
+        const badge = this.add
+          .text(slots[i].x + 40, slots[i].y - 62, `×${group.count}`, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            fontStyle: '700',
+            color: theme.colors.body,
+            backgroundColor: theme.colors.panelFill,
+            padding: { x: 6, y: 2 },
+          })
+          .setOrigin(0.5)
+          .setAlpha(full ? 0 : 1);
+        root.add(badge);
+        if (full) this.tweens.add({ targets: badge, alpha: 1, delay: i * 40 + 120, duration: 120 });
+      }
+      v.enableInput();
+      v.on('pointerdown', (p: Phaser.Input.Pointer) => {
+        if (p.button === 2) this.closeLandFan();
+      });
+      v.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.rightButtonReleased()) return;
+        const action =
+          group.playableIndex !== undefined ? this.reserveLandAction(group.playableIndex) : undefined;
+        if (!action) {
+          this.closeLandFan();
+          return;
+        }
+        const origin = { x: v.x, y: v.y };
+        this.closeLandFan();
+        this.beginLandCarry(action, d, variant, landStyle, origin);
+      });
+    });
+    this.landFan = { root, curtain };
+  }
+
+  private closeLandFan(): void {
+    const fan = this.landFan;
+    if (!fan) return;
+    this.landFan = null;
+    fan.curtain.destroy();
+    fan.root.destroy();
+  }
+
+  private beginLandCarry(
+    action: Extract<Action, { type: 'playLand' }>,
+    d: CardDef,
+    variant: CardVariant | undefined,
+    landStyle: string | undefined,
+    origin: { x: number; y: number },
+  ): void {
+    const proxy = new CardView(this, origin.x, origin.y)
+      .setScale(0.4)
+      .setDepth(theme.depth.floats + 2)
+      .setAlpha(0.98);
+    proxy.setCard(d, { fx: 'none', variant, fullArt: variant?.fullArt === true, landStyle });
+    this.carry = {
+      action,
+      proxy,
+      ghost: this.buildLandStripGhost(),
+      curtain: this.makeCarryCurtain(),
+      pose: { x: origin.x, y: origin.y, vx: 0, vy: 0 },
+      // Cancel shrinks the card back into the pile it came from.
+      home: {
+        x: LAYOUT.reservePiles.human.x,
+        y: LAYOUT.reservePiles.human.y,
+        scale: LAYOUT.reservePiles.human.cardScale,
+        angle: 0,
+      },
+      handView: null,
+    };
+  }
+
+  /** The land's destination: a pulsing incoming bead at your mana row's end. */
+  private buildLandStripGhost(): Phaser.GameObjects.GameObject {
+    const x = this.myManaRowEndX ?? LAYOUT.myManaStrip.x0;
+    const ghost = this.add
+      .circle(x, LAYOUT.myManaStrip.cy, LAYOUT.myManaStrip.pipSize / 2 + 4)
+      .setStrokeStyle(2, colorInt(theme.colors.gold), 0.85)
+      .setFillStyle(colorInt(theme.colors.gold), 0.12)
+      .setDepth(theme.depth.floats);
+    if (this.motionLevel() === 'full') {
+      this.tweens.add({ targets: ghost, alpha: 0.45, duration: 420, yoyo: true, repeat: -1 });
+    }
+    return ghost;
+  }
+
+  private cancelCarry(): void {
+    const carry = this.carry;
+    if (!carry) return;
+    // Mirrors the pendingCasts cancel: end on a sync so the hand (playability
+    // dots included) rebuilds from state rather than hand-restored poses.
+    const finish = (): void => {
+      if (carry.proxy.active) carry.proxy.destroy();
+      this.restoreCarriedHandView(carry);
+      this.sync();
+      this.maybeAutoSkip();
+      this.endTurnTick();
+    };
+    if (this.motionLevel() !== 'full') {
+      this.teardownCarry();
+      finish();
+      return;
+    }
+    this.carry = null;
+    carry.curtain.destroy();
+    carry.ghost?.destroy();
+    this.tweens.add({
+      targets: carry.proxy,
+      x: carry.home.x,
+      y: carry.home.y,
+      scaleX: carry.home.scale,
+      scaleY: carry.home.scale,
+      angle: carry.home.angle,
+      duration: theme.motion.fast,
+      ease: 'Back.easeOut',
+      onComplete: finish,
+    });
+  }
+
+  /** Per-frame carry follow: the proxy springs after the cursor with a velocity lean. */
+  update(_time: number, delta: number): void {
+    const carry = this.carry;
+    if (!carry) return;
+    const pointer = this.input.activePointer;
+    carry.pose = stepCarryFollow(
+      carry.pose,
+      { x: pointer.worldX, y: pointer.worldY },
+      delta,
+      this.motionLevel(),
+    );
+    carry.proxy.setPosition(carry.pose.x, carry.pose.y);
+    carry.proxy.setAngle(carryTiltDeg(carry.pose.vx, this.motionLevel()));
+  }
+
   private onBattlefieldClick(iid: number): void {
     if (this.pendingCasts) {
       this.tryTarget({ kind: 'permanent', iid });
@@ -4557,6 +5209,8 @@ export class DuelScene extends Phaser.Scene {
     const st = this.duel.state;
     const perm = st.battlefield.find((p) => p.iid === iid);
     if (!perm) return;
+
+    if (a.kind === 'main' && this.beginHauntlinkTargeting(iid)) return;
 
     if (a.kind === 'declareAttackers') {
       if (!eligibleAttackers(st.battlefield, CARD_DB, HUMAN).includes(iid)) return;
@@ -4665,6 +5319,7 @@ export class DuelScene extends Phaser.Scene {
       this.overlay ||
       this.inspect ||
       this.pendingCasts ||
+      this.carry ||
       this.pauseOverlay ||
       this.gravePicker ||
       this.animatingCombat ||
@@ -4839,11 +5494,15 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private reserveZoneEntries(cardIds: readonly string[], player: PlayerId): ZoneContentsEntry[] {
-    return cardIds.map((cardId, index) => {
-      const action = player === HUMAN ? this.reserveLandAction(index) : undefined;
+    const groups = groupReserveSlots(
+      cardIds,
+      (index) => player === HUMAN && this.reserveLandAction(index) !== undefined,
+    );
+    return groups.map(({ cardId, count, playableIndex }) => {
+      const action = playableIndex !== undefined ? this.reserveLandAction(playableIndex) : undefined;
       return {
         card: def(CARD_DB, cardId),
-        count: 1,
+        count,
         landStyle: player === HUMAN ? this.humanLandStyleFor(cardId) : undefined,
         variant: player === HUMAN ? displayVariantFor(Services.save.data, cardId) : undefined,
         ...(action
@@ -5008,9 +5667,7 @@ export class DuelScene extends Phaser.Scene {
       width: 420,
       height: 430,
       dimAlpha: 0.82,
-      tapDimToClose: true,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-and-dim',
       depth: theme.depth.modal,
       onClose: () => this.closePauseMenu(),
     });
@@ -5524,20 +6181,14 @@ export class DuelScene extends Phaser.Scene {
       // player's only escape while an opening-hand decision is up.
       const mulls = this.duel.state.players[HUMAN].mulligans;
       const left = RULES.maxMulligans - mulls;
-      const title =
-        left > 0
-          ? `Keep this hand?  ·  ${left} mulligan${left === 1 ? '' : 's'} left`
-          : 'Keep this hand?  ·  no mulligans left';
       const buttons = left > 0 ? ['Keep', 'Mulligan', 'Concede'] : ['Keep', 'Concede'];
-      this.buildPickOverlay(title, 0, buttons);
+      this.buildPickOverlay(mulliganTitle(left), 0, buttons, true);
     } else if (a.kind === 'bottomCards') {
-      this.buildPickOverlay(`Put ${a.count} card(s) on the bottom`, a.count, ['Confirm', 'Concede']);
+      this.buildBottomingOverlay(a.count);
     } else if (a.kind === 'foresee') {
       this.buildForeseeOverlay(a.cards);
     } else if (a.kind === 'discardToHandSize') {
-      this.buildPickOverlay(`Discard ${a.count} card(s)`, a.count, ['Confirm']);
-    } else if (a.kind === 'chooseBasicLand') {
-      this.showBasicLandOverlay();
+      this.buildPickOverlay(discardTitle(a.count), a.count, ['Confirm']);
     }
   }
 
@@ -5554,9 +6205,7 @@ export class DuelScene extends Phaser.Scene {
     const shell = modalShell(this, {
       width: 560,
       height: 410,
-      tapDimToClose: false,
-      escToClose: false,
-      showClose: false,
+      dismissal: 'mandatory',
       depth: theme.depth.modal,
     });
     const c = shell.container;
@@ -5814,54 +6463,7 @@ export class DuelScene extends Phaser.Scene {
     this.overlay = c;
   }
 
-  /**
-   * Mandatory chooser for a deferred fetchLand (Demeter etc.): tap the basic
-   * land type to fetch. One CardView per legal option (deduped basic types);
-   * no Cancel — the fetch is resolving. Stored in `this.overlay`, so the next
-   * syncOverlay tears it down once the choice resolves back to `main`.
-   */
-  private showBasicLandOverlay(): void {
-    const width = 1280;
-    const height = 720;
-    const options = this.duel
-      .legalActions(HUMAN)
-      .filter((l): l is Extract<Action, { type: 'chooseBasicLand' }> => l.type === 'chooseBasicLand');
-    const c = this.add.container(0, 0).setDepth(100);
-    c.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive());
-    c.add(
-      this.add
-        .text(width / 2, 150, 'Search your deck for a basic land', {
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontSize: '28px',
-          color: '#f0e6ff',
-        })
-        .setOrigin(0.5),
-    );
-    const n = options.length;
-    const spacing = Math.min(160, (width - 240) / Math.max(1, n));
-    options.forEach((opt, i) => {
-      const x = width / 2 - ((n - 1) * spacing) / 2 + i * spacing;
-      const v = new CardView(this, x, 370).setScale(0.62);
-      const d = def(CARD_DB, opt.cardId);
-      const landStyle = this.humanLandStyleFor(opt.cardId);
-      const variant = displayVariantFor(Services.save.data, opt.cardId);
-      v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt, landStyle });
-      c.add(v);
-      v.enableInput();
-      this.zoom.attach(v, d, variant, landStyle);
-      const pick = (): void => this.act(opt);
-      v.on('pointerup', (p: Phaser.Input.Pointer) => {
-        if (p.wasTouch) return;
-        if (p.rightButtonReleased()) return;
-        pick();
-      });
-      attachTouchGestures(this, v, { card: d, variant, landStyle, onTap: pick });
-    });
-    this.overlay = c;
-    this.guard.open(this.overlayGuardTargets());
-  }
-
-  private buildPickOverlay(title: string, picks: number, buttons: string[]): void {
+  private buildPickOverlay(title: string, picks: number, buttons: string[], withStack = false): void {
     const width = 1280; // design-space constants (see buildZones)
     const height = 720;
     const c = this.add.container(0, 0).setDepth(100);
@@ -5872,17 +6474,22 @@ export class DuelScene extends Phaser.Scene {
         .text(width / 2, 150, title, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '30px', color: '#f0e6ff' })
         .setOrigin(0.5),
     );
+    // The library stack the mulligan riffles; the hand row cedes it the right edge.
+    const stackPlates = withStack ? this.buildLibraryStack(c, STACK_X, STACK_Y) : [];
+    const overlayCards: CardView[] = [];
+    const rowCenter = withStack ? 560 : width / 2;
     this.discardPicks.clear();
     const hand = this.duel.state.players[HUMAN].hand;
-    const spacing = Math.min(150, (width - 200) / Math.max(1, hand.length));
+    const spacing = Math.min(150, (width - (withStack ? 420 : 200)) / Math.max(1, hand.length));
     // Organize the opening/pick hand the same way as the play fan (handSort):
     // `pos` is the visual slot, `handIdx` the true engine index that picks and
     // the bottomCards/discard actions address.
     const order = handDisplayOrder(hand, CARD_DB);
     order.forEach((handIdx, pos) => {
       const cardId = hand[handIdx];
-      const x = width / 2 - ((hand.length - 1) * spacing) / 2 + pos * spacing;
+      const x = rowCenter - ((hand.length - 1) * spacing) / 2 + pos * spacing;
       const v = new CardView(this, x, 360);
+      overlayCards.push(v);
       v.setScale(0.62);
       const d = def(CARD_DB, cardId);
       const landStyle = this.humanLandStyleFor(cardId);
@@ -5929,6 +6536,9 @@ export class DuelScene extends Phaser.Scene {
     // pause-menu Concede's `concedeArmed` state — the overlay is rebuilt each
     // syncOverlay, so a fresh flag per overlay is exactly the right lifetime).
     let overlayConcedeArmed = false;
+    // While the riffle plays, every button is dead: the mulligan is already
+    // decided, and a second press would double-submit.
+    let shuffling = false;
     buttons.forEach((label, bi) => {
       // 220px centers: the armed Concede label ("Tap to confirm") auto-grows
       // its text plate to ~246px, which overlapped the neighbor at the old
@@ -5944,6 +6554,7 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
       bindTapButton(this, btn, () => {
+        if (shuffling) return;
         if (concede) {
           // Escape hatch (e.g. an unkeepable hand at the mulligan cap). Shares
           // the confirmDestructive two-tap policy with the corner Concede.
@@ -5959,7 +6570,15 @@ export class DuelScene extends Phaser.Scene {
         const a = this.duel.awaiting;
         if (!('player' in a) || a.player !== HUMAN) return;
         if (a.kind === 'mulligan') {
-          this.act(label === 'Keep' ? { type: 'keepHand' } : { type: 'mulligan' });
+          if (label === 'Keep') {
+            this.act({ type: 'keepHand' });
+            return;
+          }
+          // Taking a mulligan was an instant screen swap; now the hand
+          // gathers into the library and the stack riffles before the new
+          // hand appears. The submitted action is unchanged.
+          shuffling = true;
+          this.playMulliganShuffle(overlayCards, stackPlates, () => this.act({ type: 'mulligan' }));
         } else if (a.kind === 'bottomCards') {
           if (this.discardPicks.size === a.count)
             this.act({ type: 'bottomCards', handIndices: [...this.discardPicks] });
@@ -5971,6 +6590,280 @@ export class DuelScene extends Phaser.Scene {
       inflateHitArea(btn, 90, 90);
       c.add(btn);
     });
+    this.guard.open(this.overlayGuardTargets());
+    this.overlay = c;
+  }
+
+  /** Painted plates standing in for the library; the top plate is returned last. */
+  private buildLibraryStack(
+    c: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+  ): Phaser.GameObjects.Graphics[] {
+    const deckSize = this.duel.state.players[HUMAN].deck.length;
+    const plates: Phaser.GameObjects.Graphics[] = [];
+    for (const { dx, dy } of libraryStackPlates(deckSize)) {
+      const g = this.add.graphics();
+      g.fillStyle(colorInt(theme.colors.panelFill), 1);
+      g.lineStyle(2, colorInt(theme.colors.gold), 0.85);
+      g.fillRoundedRect(x - 62 + dx, y - 86 + dy, 124, 172, 10);
+      g.strokeRoundedRect(x - 62 + dx, y - 86 + dy, 124, 172, 10);
+      c.add(g);
+      plates.push(g);
+    }
+    const label = this.add
+      .text(x, y + 108, `Library · ${deckSize}`, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    c.add(label);
+    return plates;
+  }
+
+  /** Gather the hand into the stack, riffle it, then hand control back. */
+  private playMulliganShuffle(
+    cards: readonly CardView[],
+    plates: readonly Phaser.GameObjects.Graphics[],
+    onDone: () => void,
+  ): void {
+    const motion = riffleShuffleMotion(this.motionLevel());
+    if (motion.totalMs === 0 || plates.length === 0) {
+      onDone();
+      return;
+    }
+    cards.forEach((v, i) => {
+      this.tweens.add({
+        targets: v,
+        x: STACK_X,
+        y: STACK_Y,
+        scaleX: 0.3,
+        scaleY: 0.3,
+        alpha: 0.9,
+        delay: i * 25,
+        duration: 150,
+        ease: 'Quad.easeIn',
+        onComplete: () => v.setVisible(false),
+      });
+    });
+    const halves = [plates.filter((_, i) => i % 2 === 0), plates.filter((_, i) => i % 2 === 1)];
+    const doCut = (cut: number): void => {
+      if (cut >= motion.cuts) {
+        this.time.delayedCall(motion.gatherMs, onDone);
+        return;
+      }
+      Sfx.play('flip', { pitch: 0.92 + cut * 0.08 });
+      halves.forEach((half, hi) => {
+        for (const plate of half) {
+          this.tweens.add({
+            targets: plate,
+            x: hi === 0 ? -motion.splitDx : motion.splitDx,
+            duration: motion.cutMs / 2,
+            yoyo: true,
+            ease: 'Quad.easeInOut',
+          });
+        }
+      });
+      this.time.delayedCall(motion.cutMs, () => doCut(cut + 1));
+    };
+    this.time.delayedCall(150 + cards.length * 25, () => doCut(0));
+  }
+
+  /**
+   * The bottoming half of the mulligan ritual: drag a card onto the library
+   * stack (or tap it anywhere) to stage it; staged cards tuck under the top
+   * plate and peek out as a retrievable tab. Confirm submits the
+   * byte-identical `bottomCards` action once the count is met.
+   */
+  private buildBottomingOverlay(count: number): void {
+    const width = 1280;
+    const height = 720;
+    const c = this.add.container(0, 0).setDepth(100);
+    const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82).setInteractive();
+    c.add(dim);
+    c.add(
+      this.add
+        .text(width / 2, 150, bottomingTitle(count), { fontFamily: 'Cinzel, Georgia, serif', fontSize: '30px', color: '#f0e6ff' })
+        .setOrigin(0.5),
+    );
+    const plates = this.buildLibraryStack(c, STACK_X, STACK_Y);
+    const topPlate = plates[plates.length - 1];
+    this.discardPicks.clear();
+    const full = this.motionLevel() === 'full';
+    const hand = this.duel.state.players[HUMAN].hand;
+    const spacing = Math.min(150, (width - 420) / Math.max(1, hand.length));
+    const homes = new Map<number, { x: number; y: number }>();
+    const stagedOrder: number[] = [];
+    const stagedViews = new Map<number, CardView>();
+    let refreshConfirm: () => void = () => undefined;
+    const layoutStaged = (): void => {
+      const xs = stagedSlots(stagedOrder.length, STACK_X - 20, 46);
+      stagedOrder.forEach((idx, i) => {
+        const v = stagedViews.get(idx);
+        if (!v) return;
+        this.tweens.add({ targets: v, x: xs[i], y: STACK_Y + 118, duration: full ? 120 : 0, ease: 'Quad.easeOut' });
+      });
+    };
+    const stage = (idx: number, v: CardView): void => {
+      if (this.discardPicks.has(idx) || this.discardPicks.size >= count) return;
+      this.discardPicks.add(idx);
+      stagedOrder.push(idx);
+      stagedViews.set(idx, v);
+      c.moveBelow<Phaser.GameObjects.GameObject>(v, topPlate); // tuck under the top plate on the way down
+      this.tweens.add({
+        targets: v,
+        x: stagedSlots(stagedOrder.length, STACK_X - 20, 46)[stagedOrder.length - 1],
+        y: STACK_Y + 118,
+        scaleX: 0.3,
+        scaleY: 0.3,
+        alpha: 0.95,
+        duration: full ? 200 : 0,
+        ease: 'Quad.easeIn',
+      });
+      layoutStaged();
+      refreshConfirm();
+    };
+    const unstage = (idx: number): void => {
+      const v = stagedViews.get(idx);
+      if (!v) return;
+      this.discardPicks.delete(idx);
+      stagedViews.delete(idx);
+      stagedOrder.splice(stagedOrder.indexOf(idx), 1);
+      c.bringToTop(v);
+      const home = homes.get(idx);
+      this.tweens.add({
+        targets: v,
+        x: home?.x ?? v.x,
+        y: home?.y ?? 360,
+        scaleX: 0.62,
+        scaleY: 0.62,
+        alpha: 1,
+        duration: full ? 200 : 0,
+        ease: 'Back.easeOut',
+      });
+      layoutStaged();
+      refreshConfirm();
+    };
+    const toggleStage = (idx: number, v: CardView): void => {
+      if (this.discardPicks.has(idx)) unstage(idx);
+      else stage(idx, v);
+    };
+    // Manual mouse drag (the codebase's first drag surface): pointerdown on a
+    // card arms it, overlay-scoped move/up listeners carry and drop it. Taps
+    // keep working everywhere — an unmoved press falls through to the toggle.
+    let drag: { idx: number; view: CardView; startX: number; startY: number; moved: boolean } | null = null;
+    const onDragMove = (p: Phaser.Input.Pointer): void => {
+      if (!drag) return;
+      if (!drag.moved && !dragMoved(drag.startX, drag.startY, p.worldX, p.worldY)) return;
+      drag.moved = true;
+      c.bringToTop(drag.view);
+      drag.view.setPosition(p.worldX, p.worldY).setScale(0.66);
+    };
+    const onDragUp = (p: Phaser.Input.Pointer): void => {
+      const d = drag;
+      drag = null;
+      if (!d?.moved) return; // an unmoved press is the card's own tap toggle
+      if (!this.discardPicks.has(d.idx) && this.discardPicks.size < count && stagedDropAccepted(p.worldX, p.worldY, STACK_DROP)) {
+        stage(d.idx, d.view);
+        return;
+      }
+      if (this.discardPicks.has(d.idx)) {
+        // A staged card was dragged back out; unstage springs it home.
+        unstage(d.idx);
+        return;
+      }
+      const home = homes.get(d.idx);
+      this.tweens.add({
+        targets: d.view,
+        x: home?.x ?? d.view.x,
+        y: home?.y ?? 360,
+        scaleX: 0.62,
+        scaleY: 0.62,
+        duration: full ? 180 : 0,
+        ease: 'Back.easeOut',
+      });
+    };
+    this.input.on('pointermove', onDragMove);
+    this.input.on('pointerup', onDragUp);
+    c.once('destroy', () => {
+      this.input.off('pointermove', onDragMove);
+      this.input.off('pointerup', onDragUp);
+    });
+    const order = handDisplayOrder(hand, CARD_DB);
+    order.forEach((handIdx, pos) => {
+      const cardId = hand[handIdx];
+      const x = 560 - ((hand.length - 1) * spacing) / 2 + pos * spacing;
+      const v = new CardView(this, x, 360);
+      v.setScale(0.62);
+      const d = def(CARD_DB, cardId);
+      const landStyle = this.humanLandStyleFor(cardId);
+      const variant = displayVariantFor(Services.save.data, cardId);
+      v.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt, landStyle });
+      c.add(v);
+      homes.set(handIdx, { x, y: 360 });
+      v.enableInput();
+      this.zoom.attach(v, d, variant, landStyle);
+      v.on('pointerdown', (p: Phaser.Input.Pointer) => {
+        if (p.wasTouch || p.button !== 0) return;
+        drag = { idx: handIdx, view: v, startX: p.worldX, startY: p.worldY, moved: false };
+      });
+      v.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.wasTouch) return; // touch stages via the tap classifier below
+        if (p.rightButtonReleased()) return;
+        if (drag?.moved) return; // a finished drag is not a tap
+        toggleStage(handIdx, v);
+      });
+      attachTouchGestures(this, v, {
+        card: d,
+        variant,
+        landStyle,
+        onTap: () => toggleStage(handIdx, v),
+      });
+    });
+    let overlayConcedeArmed = false;
+    const buttons = ['Confirm', 'Concede'];
+    const buttonRefs = new Map<string, Phaser.GameObjects.Text>();
+    buttons.forEach((label, bi) => {
+      const bx = width / 2 - ((buttons.length - 1) * 220) / 2 + bi * 220;
+      const concede = label === 'Concede';
+      const btn = this.add
+        .text(bx, 580, label, {
+          fontFamily: 'Cinzel, Georgia, serif', fontSize: '22px',
+          color: concede ? '#e0a0a0' : '#ffd88a',
+          backgroundColor: concede ? '#3a2030' : '#2c2344', padding: { x: 18, y: 10 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, btn, () => {
+        if (concede) {
+          // Shares the confirmDestructive two-tap policy with the corner Concede.
+          if (Services.save.data.settings.confirmDestructive && !overlayConcedeArmed) {
+            overlayConcedeArmed = true;
+            btn.setText('Tap to confirm').setColor('#f08a8a');
+            inflateHitArea(btn, 90, 90);
+            return;
+          }
+          this.act({ type: 'concede' });
+          return;
+        }
+        const a = this.duel.awaiting;
+        if (!('player' in a) || a.player !== HUMAN || a.kind !== 'bottomCards') return;
+        if (this.discardPicks.size === a.count)
+          this.act({ type: 'bottomCards', handIndices: [...this.discardPicks] });
+      });
+      inflateHitArea(btn, 90, 90);
+      buttonRefs.set(label, btn);
+      c.add(btn);
+    });
+    refreshConfirm = (): void => {
+      const ready = this.discardPicks.size === count;
+      buttonRefs.get('Confirm')?.setAlpha(ready ? 1 : 0.5);
+    };
+    refreshConfirm();
+    // Same fan-hiding rule as buildPickOverlay: one unambiguous copy to read.
+    for (const v of this.handViews) v.setVisible(false);
+    for (const o of this.handDecor) (o as Phaser.GameObjects.Arc).setVisible(false);
     this.guard.open(this.overlayGuardTargets());
     this.overlay = c;
   }
@@ -6028,9 +6921,7 @@ export class DuelScene extends Phaser.Scene {
       width: 560,
       height: 330,
       dimAlpha: 0.78,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.guard.close();
@@ -6094,7 +6985,7 @@ export class DuelScene extends Phaser.Scene {
       });
       c.add(btn.container);
     };
-    mk(520, 'Rematch', 'primary', () => this.scene.restart());
+    mk(520, 'Rematch', 'primary', () => this.restartDuel());
     mk(760, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
     this.guard.open(this.overlayGuardTargets());
   }
@@ -6115,9 +7006,7 @@ export class DuelScene extends Phaser.Scene {
       width: 620,
       height: 340,
       dimAlpha: 0.82,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.guard.close();
@@ -6206,7 +7095,7 @@ export class DuelScene extends Phaser.Scene {
     };
 
     if (!reward.runOver && save.limited.activeRun) {
-      mk(510, 'Next Match', 'primary', () => this.scene.restart(limitedDuelData(save.limited.activeRun!)));
+      mk(510, 'Next Match', 'primary', () => this.restartDuel(limitedDuelData(save.limited.activeRun!)));
       mk(770, 'Draft', 'ghost', () => this.scene.start('Limited'));
     } else {
       mk(510, 'Draft', 'primary', () => this.scene.start('Limited'));
@@ -6251,9 +7140,7 @@ export class DuelScene extends Phaser.Scene {
       width: 620,
       height: 330,
       dimAlpha: 0.82,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.guard.close();
@@ -6322,11 +7209,17 @@ export class DuelScene extends Phaser.Scene {
     if (reward.nextRung !== null) {
       const next = reward.nextRung;
       mk(520, 'Next Foe', 'primary', () =>
-        this.scene.restart({ opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next }),
+        this.restartDuel({ opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next }),
       );
       mk(760, 'Tower', 'ghost', () => this.scene.start('Gauntlet'));
     }
     this.guard.open(this.overlayGuardTargets());
+  }
+
+  /** Scene reuse is continuation, not a fresh duel entry, so consume one bumper skip. */
+  private restartDuel(data?: object): void {
+    this.internalRestartPending = true;
+    this.scene.restart(data);
   }
 
   private showGauntletRunRecap(
@@ -6339,9 +7232,7 @@ export class DuelScene extends Phaser.Scene {
       width: 820,
       height: 640,
       dimAlpha: 0.86,
-      tapDimToClose: false,
-      escToClose: true,
-      showClose: false,
+      dismissal: 'esc-only',
       depth: theme.depth.results,
       onClose: () => {
         this.guard.close();

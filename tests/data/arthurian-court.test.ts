@@ -9,7 +9,9 @@ import { packPool } from '../../src/meta/PackOpener';
 import { freshSave } from '../../src/meta/SaveManager';
 import { rulesText } from '../../src/ui/rulesText';
 
-const RARITY_COUNTS = { c: 41, r: 24, sr: 7, ssr: 5, ur: 4 } as const;
+// The 1.6 returning-mechanics sprinkle adds the rare Paired-Blade Errant
+// (twinBlades) and the common Second Muster (Empower): 81 -> 83.
+const RARITY_COUNTS = { c: 42, r: 25, sr: 7, ssr: 5, ur: 4 } as const;
 const KEYWORDS = new Set<Keyword>([
   'skyborne',
   'wardingGaze',
@@ -38,7 +40,7 @@ const OPS = new Set([
   'boost',
   'addCounters',
   'tap',
-  'fetchLand',
+  'extraLandDrop',
   'createToken',
   'massDestroy',
   'preventCombat',
@@ -90,8 +92,8 @@ const LAKE_DECK = acDeck([
 ]);
 
 describe('Arthurian Court data integrity', () => {
-  it('contains the complete 81-card booster set with the target rarity histogram', () => {
-    expect(ARTHURIAN_COURT).toHaveLength(81);
+  it('contains the complete 83-card booster set with the target rarity histogram', () => {
+    expect(ARTHURIAN_COURT).toHaveLength(83);
     const actual = Object.fromEntries(
       Object.keys(RARITY_COUNTS).map((rarity) => [
         rarity,

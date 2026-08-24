@@ -2,15 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import type { CardDb, CardDef } from '../../src/engine/types';
 import {
-  auditLandFetchCards,
   WARCHEST_DECK_SIZE,
-  findLandFetchCards,
-  hasLandFetchBehavior,
   isDualLand,
-  landFetchExclusionError,
+  isUtilityTapland,
+  reserveColorIdentity,
   validateWarchestDeckShape,
   validateLandReserve,
 } from '../../src/meta/warchest';
+import type { LandReserveValidationOptions } from '../../src/meta/warchest';
 import { validateWarchestDeck } from '../../src/meta/darlings';
 import { freshSave, type SaveData } from '../../src/meta/SaveManager';
 
@@ -36,11 +35,12 @@ const DUAL_THREE = 'dual-three';
 const DUAL_FOUR = 'dual-four';
 const DUAL_FIVE = 'dual-five';
 const SINGLE_LAND = 'single-land';
+const WHITE_BASIC = 'white-basic';
+const BLUE_BASIC = 'blue-basic';
 const SPELL = 'spell';
-const FETCH = 'fetch';
-const EMPOWER_FETCH = 'empower-fetch';
-const CHAPTERS_FETCH = 'chapters-fetch';
-const RETELL_FETCH = 'retell-fetch';
+const GREEN_SPELL = 'green-spell';
+const WHITE_SPELL = 'white-spell';
+const BLUE_COST_SPELL = 'blue-cost-spell';
 const SPELL_IDS = Array.from({ length: 13 }, (_, i) => `spell-${i}`);
 const GENERATED: Record<string, CardDef> = Object.fromEntries(
   SPELL_IDS.map((id) => [id, card(id)]),
@@ -104,22 +104,40 @@ const DB: CardDb = Object.freeze({
     defense: undefined,
     manaAbility: ['G'],
   }),
+  [WHITE_BASIC]: card(WHITE_BASIC, {
+    name: 'Plains',
+    types: ['land'],
+    supertypes: ['basic'],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['W'],
+  }),
+  [BLUE_BASIC]: card(BLUE_BASIC, {
+    name: 'Island',
+    types: ['land'],
+    supertypes: ['basic'],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['U'],
+  }),
   [SPELL]: card(SPELL, { name: 'Ordinary Spell' }),
-  [FETCH]: card(FETCH, {
-    name: 'Verdant Compass',
-    abilities: [{ when: 'spell', ops: [{ op: 'fetchLand' }] }],
+  [GREEN_SPELL]: card(GREEN_SPELL, {
+    name: 'Grove Adept',
+    colors: ['G'],
+    cost: { generic: 0, pips: { G: 1 } },
   }),
-  [EMPOWER_FETCH]: card(EMPOWER_FETCH, {
-    name: 'Empowered Compass',
-    empower: { cost: { generic: 1, pips: {} }, ops: [{ op: 'fetchLand' }] },
+  [WHITE_SPELL]: card(WHITE_SPELL, {
+    name: 'Dawn Adept',
+    colors: ['W'],
+    cost: { generic: 0, pips: { W: 1 } },
   }),
-  [CHAPTERS_FETCH]: card(CHAPTERS_FETCH, {
-    name: 'Chapter Compass',
-    chapters: [[{ op: 'fetchLand' }]],
-  }),
-  [RETELL_FETCH]: card(RETELL_FETCH, {
-    name: 'Retold Compass',
-    retell: { cost: { generic: 1, pips: {} }, ops: [{ op: 'fetchLand' }] },
+  [BLUE_COST_SPELL]: card(BLUE_COST_SPELL, {
+    name: 'Mist Adept',
+    // Deliberately differs from the cost to prove the tuning rule reads pips.
+    colors: ['G'],
+    cost: { generic: 0, pips: { U: 1 } },
   }),
   ...GENERATED,
 });
@@ -139,21 +157,14 @@ function dualReserve(...ids: string[]): string[] {
 }
 
 function legalDeck(): string[] {
+  // Exactly WARCHEST_DECK_SIZE cards from 4-of playsets plus a remainder.
+  const fullPlaysets = Math.floor(WARCHEST_DECK_SIZE / 4);
+  const remainder = WARCHEST_DECK_SIZE - fullPlaysets * 4;
   return [
-    ...Array.from({ length: 4 }, () => SPELL_IDS[0]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[1]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[2]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[3]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[4]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[5]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[6]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[7]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[8]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[9]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[10]),
-    ...Array.from({ length: 4 }, () => SPELL_IDS[11]),
-    SPELL_IDS[12],
-    SPELL_IDS[12],
+    ...Array.from({ length: fullPlaysets }, (_, index) =>
+      Array.from({ length: 4 }, () => SPELL_IDS[index]),
+    ).flat(),
+    ...Array.from({ length: remainder }, () => SPELL_IDS[fullPlaysets]),
   ];
 }
 
@@ -162,6 +173,36 @@ function messages(issues: ReturnType<typeof validateWarchestDeck>): string[] {
 }
 
 describe('Warchest shared validators', () => {
+  it('derives the current retired utility tapland set from land shape', () => {
+    const retiredIds = Object.values(CARD_DB)
+      .filter(isUtilityTapland)
+      .map((card) => card.id)
+      .sort();
+    expect(retiredIds).toEqual([
+      'ac-bramble-chapel',
+      'ac-court-of-whispers',
+      'ac-lowland-fort',
+      'ac-mirror-lake',
+      'ac-red-tournament-ground',
+      'cf-mist-road',
+      'cf-mossy-ring',
+      'cf-raven-stone',
+      'dt-desert-rooftop',
+      'dt-hearth-cinders',
+      'dt-midnight-road',
+      'dt-palace-steps',
+      'dt-riverbend-trail',
+      'dt-sea-cave',
+      'dt-winter-bridge',
+      'dt-wolf-path',
+      'gm-chapel-yard',
+      'gm-lab-annex',
+      'gm-moor-path',
+      'gm-red-roof-village',
+      'gm-thorned-cemetery',
+    ]);
+  });
+
   it('classifies duals from their mana ability shape, including three-color lands', () => {
     expect(isDualLand(DB[DUAL])).toBe(true);
     expect(isDualLand(DB[TRIPLE])).toBe(true);
@@ -226,17 +267,70 @@ describe('Warchest shared validators', () => {
     expect(validateLandReserve(DB, saveWith(), basicReserve())).toEqual([]);
   });
 
-  it('shares the 50-card no-land shape', () => {
+  it('enforces an explicit reserve color cap and accepts a deck inside the cap', () => {
+    const twoColorReserve = [
+      ...Array.from({ length: 5 }, () => BASIC),
+      ...Array.from({ length: 5 }, () => WHITE_BASIC),
+    ];
+    expect(reserveColorIdentity(DB, twoColorReserve)).toEqual(['W', 'G']);
+    expect(validateLandReserve(DB, saveWith(), twoColorReserve, {
+      maxReserveColors: 2,
+      deck: [GREEN_SPELL, WHITE_SPELL],
+    })).toEqual([]);
+
+    const threeColorReserve = [
+      ...Array.from({ length: 4 }, () => BASIC),
+      ...Array.from({ length: 3 }, () => WHITE_BASIC),
+      ...Array.from({ length: 3 }, () => BLUE_BASIC),
+    ];
+    expect(validateLandReserve(DB, saveWith(), threeColorReserve, {
+      maxReserveColors: 2,
+      deck: [GREEN_SPELL, WHITE_SPELL],
+    }).map((issue) => issue.message)).toContain(
+      'Warchest Reserves may contain at most 2 colors (currently 3)',
+    );
+  });
+
+  it('requires every deck cost color to appear in a capped reserve', () => {
+    const twoColorReserve = [
+      ...Array.from({ length: 5 }, () => BASIC),
+      ...Array.from({ length: 5 }, () => WHITE_BASIC),
+    ];
+    expect(validateLandReserve(DB, saveWith(), twoColorReserve, {
+      maxReserveColors: 2,
+      deck: [GREEN_SPELL, BLUE_COST_SPELL, BLUE_COST_SPELL],
+    }).map((issue) => issue.message)).toEqual([
+      'Mist Adept has cost colors absent from its Warchest Reserves: U',
+    ]);
+  });
+
+  it('preserves uncapped behavior when tuning options are absent', () => {
+    const threeColorReserve = [
+      ...Array.from({ length: 4 }, () => BASIC),
+      ...Array.from({ length: 3 }, () => WHITE_BASIC),
+      ...Array.from({ length: 3 }, () => BLUE_BASIC),
+    ];
+    const baseline = validateLandReserve(DB, saveWith(), threeColorReserve);
+    expect(baseline).toEqual([]);
+    expect(validateLandReserve(DB, saveWith(), threeColorReserve, {})).toEqual(baseline);
+
+    const malformed = { maxReserveColors: 2 } as unknown as LandReserveValidationOptions;
+    expect(validateLandReserve(DB, saveWith(), basicReserve(), malformed).map((issue) => issue.message)).toContain(
+      'Capped Warchest validation requires the deck cards',
+    );
+  });
+
+  it('shares the WARCHEST_DECK_SIZE no-land shape', () => {
     expect(validateWarchestDeckShape(DB, legalDeck())).toEqual([]);
     expect(validateWarchestDeckShape(DB, legalDeck().slice(0, WARCHEST_DECK_SIZE - 1)).map((i) => i.message)).toContain(
-      'Reserve-format decks need exactly 50 cards (currently 49)',
+      `Reserve-format decks need exactly ${WARCHEST_DECK_SIZE} cards (currently ${WARCHEST_DECK_SIZE - 1})`,
     );
     expect(validateWarchestDeckShape(DB, [...legalDeck(), SPELL]).map((i) => i.message)).toContain(
-      'Reserve-format decks need exactly 50 cards (currently 51)',
+      `Reserve-format decks need exactly ${WARCHEST_DECK_SIZE} cards (currently ${WARCHEST_DECK_SIZE + 1})`,
     );
-    expect(validateWarchestDeckShape(DB, [...legalDeck().slice(0, 49), BASIC]).map((i) => i.message)).toContain(
-      'Decks in this format hold no lands; build your Warchest instead',
-    );
+    expect(
+      validateWarchestDeckShape(DB, [...legalDeck().slice(0, WARCHEST_DECK_SIZE - 1), BASIC]).map((i) => i.message),
+    ).toContain('Decks in this format hold no lands; build your Warchest instead');
   });
 
   it('enforces Constructed playset limits and ownership in Warchest decks', () => {
@@ -258,46 +352,23 @@ describe('Warchest shared validators', () => {
     );
   });
 
-  it('excludes land-fetch cards with a direct builder message', () => {
-    const cards = [...legalDeck().slice(0, 49), FETCH];
-    expect(messages(validateWarchestDeck(DB, saveWith(...SPELL_IDS, FETCH), cards, basicReserve()))).toContain(
-      'Verdant Compass cannot find lands here; your lands live in your Warchest.',
-    );
-    expect(landFetchExclusionError(DB, FETCH)).toBe(
-      'Verdant Compass cannot find lands here; your lands live in your Warchest.',
-    );
-    expect(landFetchExclusionError(DB, SPELL)).toBeNull();
-  });
-
-  it('audits all effect-bearing card fields and returns deterministic ids', () => {
-    expect(hasLandFetchBehavior(DB[FETCH])).toBe(true);
-    expect(hasLandFetchBehavior(DB[EMPOWER_FETCH])).toBe(true);
-    expect(hasLandFetchBehavior(DB[SPELL])).toBe(false);
-    expect(findLandFetchCards(DB)).toEqual([CHAPTERS_FETCH, EMPOWER_FETCH, FETCH, RETELL_FETCH]);
-  });
-
-  it('detects land fetches in chapters and retell ops', () => {
-    expect(hasLandFetchBehavior(DB[CHAPTERS_FETCH])).toBe(true);
-    expect(hasLandFetchBehavior(DB[RETELL_FETCH])).toBe(true);
-  });
-
-  it('reports every real land-fetching card in the current pool', () => {
-    const expected = [
-      'ac-woodland-errand',
-      'bk-deerkin-grovekeeper',
-      'dt-forked-road-choice',
-      'dt-ocean-wayfinder',
-      'dt-verdant-heart-voyage',
-      'gk-demeter',
-      'rg-verdant-seidr',
-      'rg-worldroot-tender',
-      'so-rampant-growth',
-      'tk-jin-dengai',
+  it('parameterizes Warchest deck size and capped reserve validation only when requested', () => {
+    const legalSave = saveWith(...SPELL_IDS);
+    for (const id of SPELL_IDS) legalSave.collection[id] = 4;
+    const twoColorReserve = [
+      ...Array.from({ length: 5 }, () => BASIC),
+      ...Array.from({ length: 5 }, () => WHITE_BASIC),
     ];
-    expect(auditLandFetchCards(CARD_DB)).toEqual(expected);
+    expect(validateWarchestDeck(
+      DB,
+      legalSave,
+      legalDeck().slice(0, 40),
+      twoColorReserve,
+      { deckSize: 40, maxReserveColors: 2 },
+    )).toEqual([]);
+
+    const baseline = validateWarchestDeck(DB, legalSave, legalDeck(), basicReserve());
+    expect(validateWarchestDeck(DB, legalSave, legalDeck(), basicReserve(), {})).toEqual(baseline);
   });
 
-  it('keeps audit issue strings free of em dashes', () => {
-    expect(landFetchExclusionError(CARD_DB, 'so-rampant-growth')).not.toContain('\u2014');
-  });
 });

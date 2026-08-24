@@ -3,9 +3,9 @@
 exports[`greedy persona builder: 'attrition' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 14,
+    "early": 12,
     "late": 4,
-    "mid": 18,
+    "mid": 20,
   },
   "lands": 24,
   "maxNonbasicCopies": 4,
@@ -19,7 +19,7 @@ exports[`greedy persona builder: 'attrition' > is deterministic for a fixed seed
     "threats": 14,
   },
   "total": 60,
-  "uniqueCards": 14,
+  "uniqueCards": 12,
 }
 `;
 
@@ -73,8 +73,8 @@ exports[`greedy persona builder: 'midrange' > is deterministic for a fixed seed 
 {
   "curve": {
     "early": 22,
-    "late": 0,
-    "mid": 16,
+    "late": 10,
+    "mid": 6,
   },
   "lands": 22,
   "maxNonbasicCopies": 4,
@@ -88,16 +88,16 @@ exports[`greedy persona builder: 'midrange' > is deterministic for a fixed seed 
     "threats": 16,
   },
   "total": 60,
-  "uniqueCards": 12,
+  "uniqueCards": 13,
 }
 `;
 
 exports[`greedy persona builder: 'reanimator' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 18,
+    "early": 12,
     "late": 10,
-    "mid": 8,
+    "mid": 14,
   },
   "lands": 24,
   "maxNonbasicCopies": 4,
@@ -119,8 +119,8 @@ exports[`greedy persona builder: 'weenie' > is deterministic for a fixed seed an
 {
   "curve": {
     "early": 24,
-    "late": 2,
-    "mid": 10,
+    "late": 4,
+    "mid": 8,
   },
   "lands": 24,
   "maxNonbasicCopies": 4,
@@ -134,6 +134,6 @@ exports[`greedy persona builder: 'weenie' > is deterministic for a fixed seed an
     "threats": 22,
   },
   "total": 60,
-  "uniqueCards": 12,
+  "uniqueCards": 11,
 }
 `;

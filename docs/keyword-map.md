@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-07-29 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-08-17 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
 
 # MTG keyword map — Darling Blades terms (shipped + future)
 
@@ -78,7 +78,7 @@ an `EffectOp` (`src/engine/types.ts`) or an engine mechanism.
 | Exile | **Sever** | `sever` / `severGrave` / `severTop` | Shipped | Creature→severed, top-N grave→severed, top-N deck→severed. Themed Tier-3 (#66) — the zone is `severed` ("severed cards never return"); a named Mechanic in the Glossary. |
 | Counter (a spell) | *(cancel)* | `cancel` | Shipped | "Cancel target spell." |
 | +1/+1 counter | **Mark** | `addCounters` | Shipped | "Put N +1/+1 marks on target creature." Player copy only (rulesText, glossary, rules.md); the engine op id and state field are unchanged. A named Mechanic in the Glossary. |
-| Sacrifice | Sacrifice *(kept)* | — | Planned | "Sacrifice" kept as-is (generic enough). "Put a permanent you control into its owner's graveyard." No op exists yet. |
+| Sacrifice | Sacrifice *(kept)* | — | Planned | "Sacrifice" kept as-is (generic enough). "Put a permanent you control into its owner's graveyard." Sacrifice **as an additional cast cost** shipped inside Rite (1.6); the standalone `sacrifice` op (as an effect) still does not exist. |
 | Fight | Fight *(kept)* | — | Planned | "Fight" kept as-is (generic enough). "Each creature deals damage equal to its Attack to the other." No op exists yet. |
 | Attach | *(aura attach)* | `scope:'attached'` statics | Kept | Internal — auras attach to a creature; not a player-facing keyword. |
 | Tap / Untap | Tap / Untap | (core action) | **Kept — out of scope** | Generic action vocab, intentionally not re-themed (per user + de-MTG scope table). Listed here only for completeness. |
@@ -99,16 +99,20 @@ text swap.
 | **Momentum** | Prowess | "Whenever you cast a noncreature spell, this gets +1/+1 until end of turn." | A cast-trigger + until-end-of-turn buff plumbing; AI sequencing value. |
 | **Fight** | Fight | "Each creature deals damage equal to its Attack to the other." | A `fight` `EffectOp` reusing the damage pipeline; targeting for two creatures. |
 | **Sacrifice** | Sacrifice | "Put a permanent you control into its owner's graveyard." | A `sacrifice` `EffectOp` (as cost and as effect); death triggers already exist. |
-| **Hauntlink** | Bestow *(approx.)* | "Hauntlink {cost}: You may play this linked to a creature you control. The linked creature gains [the Linked rider]. When it leaves play, put this into its owner's graveyard." | **SHIPPED (1.5, 2026-07-29):** alternate play mode on Artifacts/Enchantments, with the established Cast/Skim chooser composition, one host pointer, state-driven linked battlefield underlays, and host-leave cleanup. AI host-selection value is engine-backed at all difficulties. |
+| **Hauntlink** | Reconfigure *(approx.)* | "Hauntlink {cost}: At Charm speed, link this to a creature you control or move it to another. This dies with its host." | **REVISED (1.6):** Charm-speed, stack-free battlefield action on Artifacts/Enchantments, one host pointer, immediate repeatable movement, state-driven linked battlefield underlays, and linked-carrier death when the host leaves play. The former alternate-cast mode remains only for old replay revisions. |
 | **Skim** | Cycling | "Skim {cost}: Discard this card, then draw a card." | **SHIPPED (1.4, engine PR #108 + UI PR #112):** `CardDef.skim {cost}` — the engine's first non-cast mana-paying action, full instant speed, off-stack by design (S1), opens response windows via `hasCastableInstant`; AI smoothing gates with a deck-out guard at all difficulties; Cast/Skim chooser in DuelScene. Kept in this table although Cycling is not evergreen. |
 | **Retell** | Flashback | "Retell {cost}: You may cast this from your graveyard, then sever it." | **SHIPPED (1.4, engine PR #108 + UI PR #112):** `CardDef.retell {cost, ops?}` — the first alternative cost, Rituals/Charms from your own graveyard only, severed on every exit incl. the cancel op; the optional `ops` override powers dual-mode cards (The Sleeping Curse). Graveyard-modal Retell chips in DuelScene. Not evergreen; recorded like Empower. |
 | **Empower** | Kicker | "You may pay an additional {cost} as you cast this. If you do, [the empowered effect]." | **SHIPPED (1.3, engine + duel-UI chooser):** `CardDef.empower {cost, ops}`, empowered flag on the cast action, combined-cost pricing in `validateAction`/the mana solver, trigger-safe riders in `resolve.ts`, AI pricing at every difficulty, and a cast-time chooser shown only when the extra cost is payable (user decision 2026-07-17). Kept in this table because Kicker is not evergreen; listed as shipped for the record. |
+| **Rite** | Emerge / sacrifice-additional-cost family *(approx.; the truer analog is Yugioh tribute summoning)* | "Rite N: As an additional cost to cast this, sacrifice N creatures." | **SHIPPED (1.6, engine PR #223, Sands of the Duat):** `CardDef.rite {n}` + `castSpell.sacrifices` (additive field, no replay bump), sacrifice paid before the spell reaches the stack with the fodder's dies triggers batched in battlefield order (no observer-dies trigger exists by design), canonical-set enumeration with permissive validation, `ritePolicy` AI (protect the best body, feed the cheapest). Sacrifice-picker UI owed with the first Rite card data. |
+| **Nine Lives** | Undying *(approx.)* | "When this dies with no marks on it, return it to the battlefield with a mark on it." | **SHIPPED (1.6, engine PR #224, Sands of the Duat):** `CardDef.nineLives`, one shared post-dies hook behind `fireTriggers` covering every death path incl. Rite sacrifice; returns once via the mark, in battlefield order after batched deaths; instance-identity graveyard lookup; full board leaves the card buried (raise precedent). Flat AI value bonus while unmarked. |
+| **Preserve** | Embalm *(approx.)* | "Pay {cost} and Sever this card from your graveyard: create a token copy of it. Use only during your main phase." | **SHIPPED (1.6, engine PR #225, Sands of the Duat):** `CardDef.preserve {cost}` + the stack-free main-phase `preserveCard` action (replay log v9; rules revision unchanged), one-way Sever, token copy via the new permanent-level `isToken` flag (evaporates on destroy/sever/recall, never re-buried), `preservePolicy` AI across all brains. Graveyard chip UI owed with the first Preserve card data. |
 
 ## Shipped format terms
 
 | Term | Status | Rule |
 | --- | --- | --- |
-| **Warchest** | Shipped | A 50-card all-spell deck with a 10-land Warchest. Up to 5 lands may be dual lands. |
+| **Standard** | Shipped | The constructed format's player-facing name (owner, 2026-08-18): a 40-card all-spell deck with a 10-land Warchest and a 5-card opening hand. The engine format id stays `warchest`. |
+| **Warchest** | Shipped | The land system every deck carries: 10 lands beside the deck, up to 5 of them duals. "Warchest" names the system, never the format (that is Standard). |
 | **Warchest Reserves** | Shipped | The lands in your Warchest that are not yet in play. Each turn, move one of them into your Active Warchest. |
 | **Active Warchest** | Shipped | Your deployed Warchest lands. Dual lands arrive tapped; destroyed basic lands return to your Reserves. |
 | **Darlings** | Shipped | An 80-card singleton deck in its Darling's colors with a 10-land Warchest. |
@@ -137,9 +141,17 @@ text swap.
   Tales: both replace Magic-distinctive keywords under the same rule.
   Rejected for collision: Encore, Echo, and Rebound are all real Magic
   keywords; Skim/Retell shadow nothing in the shipped label set.
-- **Hauntlink** (≈Bestow), confirmed 2026-07-28 for Yokai Nights: not a Magic
+- **Hauntlink** (approximately Reconfigure), confirmed 2026-07-28 for Yokai Nights: not a Magic
   keyword (Bestow/Reconfigure are the nearest analogs and neither word is
   reused), and it shadows nothing in the shipped label set.
+- **Rite / Nine Lives / Preserve**, ratified 2026-08-17 for Sands of the Duat:
+  the real keywords in each analog family were deliberately avoided — Tribute
+  is a Theros keyword, Embalm and Eternalize are Amonkhet keywords, Ascend is a
+  Rivals keyword. "Nine Lives" IS a printed MTG card name; the owner
+  acknowledged the collision and kept the mechanic name, with the standing
+  consequence that no CARD in the set may be named "Nine Lives"
+  (plan-duat-creative.md, resolved ruling 5). Preserve was picked over Mummify
+  so the mechanic survives outside Egypt.
 
 ## Cross-references
 

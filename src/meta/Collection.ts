@@ -13,6 +13,8 @@ import {
   type FrameStyle,
   type HoloFinish,
 } from './variants';
+import { isUtilityTapland } from './warchest';
+import { isLiveCollectible } from '../data/liveness';
 
 export const PLAYSET = 4;
 
@@ -132,7 +134,9 @@ export function craftCard(
 ): CraftResult {
   const card = db[cardId];
   if (!card) return { ok: false, reason: 'unknown-card' };
-  if (card.token || card.supertypes?.includes('basic')) return { ok: false, reason: 'not-collectible' };
+  if (!isLiveCollectible(card) || isUtilityTapland(card)) {
+    return { ok: false, reason: 'not-collectible' };
+  }
   if (ownedCount(save, cardId) > 0) return { ok: false, reason: 'already-owned' };
 
   const cost = craftCost(db, cardId, costMult);

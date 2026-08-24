@@ -1,14 +1,25 @@
 import { DRAFT_PERSONAS } from '../data/draftPersonas';
 import { CARD_DB } from '../data/catalog';
+import { STARTER_DECKS, THEME_DECKS } from '../data/starterDecks';
+import { convertUnmodifiedStarter } from './deckRepair';
+import { grantDeckCards } from './Economy';
 import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
 import { freshLimitedState, type LimitedState } from './Limited';
 import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
+import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
 
-export const CURRENT_SAVE_VERSION = 26 as const;
+export const CURRENT_SAVE_VERSION = 32 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
+
+/**
+ * Every deck the game can GRANT, and therefore every deck the retirement
+ * migration may auto-convert. Both lists carry `reserveCards` + `landReserve`;
+ * a player-created deck has no shipped source, so it never matches.
+ */
+const GRANTED_DECKS = [...STARTER_DECKS, ...THEME_DECKS];
 
 /** When an empty blocking step needs a second confirmation. */
 export type ConfirmNoBlockSetting = 'always' | 'lethal' | 'off';
@@ -42,6 +53,20 @@ export interface GauntletClearStyles {
 export interface AchievementState {
   unlocked: string[];
   claimed: string[];
+  /**
+   * Trophy Hall showcase: claimed achievement ids pinned to the Profile, in
+   * pin order, capped at three (pinning a fourth evicts the oldest). v31.
+   */
+  pinned: string[];
+}
+
+export interface CosmeticsSave {
+  /** `null` equips the catalog default. Non-default choices store their id. */
+  cardBack: string | null;
+  /** `null` equips the catalog default. Non-default choices store their id. */
+  playmat: string | null;
+  /** Granted non-default ids only. Default-unlock entries are always owned. */
+  owned: string[];
 }
 
 export interface DailyQuestSave {
@@ -138,12 +163,16 @@ export interface SaveData {
   darlingsTutorialSeen: boolean;
   /** The one-time free Zhou Yu Darlings precon has been claimed. v26 extension. */
   darlingsFreeDeckClaimed: boolean;
+  /** Canonical JSON snapshot of flagged deck ids acknowledged by the player. v27 addition. */
+  deckRepairNoticeAck: string;
   /**
    * Road-to-1.0 achievements. Unlocks are recomputed from durable save/card-db
    * state by src/meta/Achievements.ts; claimed is separate so migrated/imported
    * saves do not silently consume rewards. v11 addition.
    */
   achievements: AchievementState;
+  /** Account-level presentation choices. v32 addition. */
+  cosmetics: CosmeticsSave;
   /**
    * Road-to-1.0 daily quests and win streaks. Three quests are rolled per local
    * calendar day with three total rerolls; the streak advances only when the
@@ -197,6 +226,12 @@ export interface SaveData {
      * v24 addition.
      */
     confirmNoBlock: ConfirmNoBlockSetting;
+    /**
+     * Restore the pre-carry click-to-cast: an untargeted spell resolves on
+     * the click instead of lifting a carried card. v30 addition; defaults
+     * off so carry-cast is the shipped feel.
+     */
+    instantCast: boolean;
   };
 }
 
@@ -213,7 +248,11 @@ export function freshGauntletClearStyles(): GauntletClearStyles {
 }
 
 export function freshAchievements(): AchievementState {
-  return { unlocked: [], claimed: [] };
+  return { unlocked: [], claimed: [], pinned: [] };
+}
+
+export function freshCosmetics(): CosmeticsSave {
+  return { cardBack: null, playmat: null, owned: [] };
 }
 
 export function freshSave(now: number): SaveData {
@@ -232,7 +271,9 @@ export function freshSave(now: number): SaveData {
     tutorialDone: false,
     darlingsTutorialSeen: false,
     darlingsFreeDeckClaimed: false,
+    deckRepairNoticeAck: '[]',
     achievements: freshAchievements(),
+    cosmetics: freshCosmetics(),
     daily: freshDailyState(dayStringFromTimestamp(now)),
     limited: { ...freshLimitedState(), premiumWeek: { week: 0, entries: 0 } },
     replays: [],
@@ -254,6 +295,7 @@ export function freshSave(now: number): SaveData {
       confirmDestructive: true,
       keywordReminders: true,
       confirmNoBlock: 'lethal',
+      instantCast: false,
     },
   };
 }
@@ -326,7 +368,16 @@ export class SaveManager {
    * renames the Warchest format and adds collection-level variant display pins;
    * v25 -> v26 moves legacy in-deck Darlings into their command-zone identity
    * and adds the Darlings format explainer flag plus the free-Zhou-Yu claim
-   * state.
+   * state; v26 -> v27 adds the acknowledged deck-repair id-set snapshot;
+   * v27 -> v28 retires classic into Warchest; v28 -> v29 persists Limited
+   * player and opponent Warchests. An older Limited run leaves those optional
+   * fields absent and reconstructs its basics-only reserve until the builder
+   * is opened. v29 -> v30 adds `settings.instantCast` (default off — carry-cast
+   * is the shipped cast interaction; the toggle restores click-to-cast);
+   * v30 -> v31 adds `achievements.pinned` (the Trophy Hall showcase, empty
+   * for older saves, explicit pins preserved on current blobs); v31 -> v32
+   * adds account-level card-back and playmat choices plus the future Courts
+   * cosmetic ownership list.
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -593,7 +644,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -676,6 +727,78 @@ export class SaveManager {
         darlingsFreeDeckClaimed: beganAtCurrentVersion && cur.darlingsFreeDeckClaimed === true,
       };
     }
+    if (cur.version === 26) {
+      cur = {
+        ...cur,
+        version: 27,
+        // A real v26 save has never acknowledged this warning. Current v27
+        // blobs retain their durable snapshot through the canonicalizer.
+        deckRepairNoticeAck: beganAtCurrentVersion
+          ? normalizeDeckRepairNoticeAck(cur.deckRepairNoticeAck)
+          : '[]',
+      };
+    }
+    if (cur.version === 27) {
+      // Classic retirement (1.6). A granted starter or theme deck the player
+      // never edited becomes its shipped reserve build, so a free Crimson
+      // Muster still works the morning after the migration. An edited deck
+      // keeps every choice the player made and routes to the flag-and-fix
+      // flow instead of being silently overwritten. Normalize first so the
+      // converter always sees canonical decks; the final canonicalizer below
+      // re-runs harmlessly, and the conversion itself is idempotent because a
+      // converted deck is no longer `constructed`.
+      const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
+      const decks = normalizeSavedDecks(cur.decks, legacyHero, cur.collection, cur.collectionVariants);
+      const converted = { ...cur, decks } as unknown as SaveData;
+      for (const deck of decks) {
+        if (!convertUnmodifiedStarter(deck, GRANTED_DECKS)) continue;
+        // Grant what the reserve build needs but the classic grant never gave.
+        // Without this the auto-convert delivers exactly the repair prompt the
+        // owner's decision forbids: the reserve builds run cards at higher
+        // counts than classic did (Crimson Muster wants 4 Ares where classic
+        // ran 2) and theme reserve builds pull in cards from other sets
+        // entirely. Measured on a real granted save 2026-08-10 - every
+        // converted deck came out blocked on ownership before this.
+        grantDeckCards(converted, CARD_DB, [...deck.cards, ...(deck.landReserve ?? [])]);
+      }
+      cur = { ...converted, version: 28 } as unknown as typeof cur;
+    }
+    if (cur.version === 28) {
+      // v28 -> v29: Limited Warchest assignments are optional on the run so
+      // old in-flight runs retain their old basics-only fallback until the
+      // build step normalizes and persists the new reserve shape.
+      cur = { ...cur, version: 29 };
+    }
+    if (cur.version === 29) {
+      // Current v30 blobs walk this chain again via the shared canonicalizer
+      // above, so an explicit choice must survive; only a truly absent field
+      // takes the carry-cast default.
+      const s = (cur.settings ?? {}) as { instantCast?: unknown };
+      cur = {
+        ...cur,
+        version: 30,
+        settings: { ...(cur.settings as object), instantCast: s.instantCast === true },
+      };
+    }
+    if (cur.version === 30) {
+      // Same preservation rule: a current v31 blob keeps its explicit pins.
+      const a = (cur.achievements ?? freshAchievements()) as AchievementState & { pinned?: unknown };
+      const pinned = Array.isArray(a.pinned)
+        ? a.pinned.filter((id): id is string => typeof id === 'string').slice(0, 3)
+        : [];
+      cur = {
+        ...cur,
+        version: 31,
+        achievements: { ...a, pinned },
+      };
+    }
+    if (cur.version === 31) {
+      cur = {
+        ...cur,
+        version: 32,
+        cosmetics: normalizeCosmetics(cur.cosmetics),
+      };
+    }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
       return {
@@ -685,6 +808,8 @@ export class SaveManager {
         pinnedVariants: normalizePinnedVariants(cur.pinnedVariants, cur.collection, cur.collectionVariants),
         darlingsTutorialSeen: cur.darlingsTutorialSeen === true,
         darlingsFreeDeckClaimed: cur.darlingsFreeDeckClaimed === true,
+        deckRepairNoticeAck: normalizeDeckRepairNoticeAck(cur.deckRepairNoticeAck),
+        cosmetics: normalizeCosmetics(cur.cosmetics),
       } as unknown as SaveData;
     }
     return freshSave(now);
@@ -774,6 +899,33 @@ export class SaveManager {
     this.storage.removeItem(KEY);
     this.storage.removeItem(LEGACY_KEY);
     Object.assign(this.data, freshSave(now));
+  }
+}
+
+function normalizeCosmetics(value: unknown): CosmeticsSave {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const cardBack = typeof raw.cardBack === 'string' && CARD_BACKS.some((entry) => entry.id === raw.cardBack)
+    ? raw.cardBack
+    : null;
+  const playmat = typeof raw.playmat === 'string' && PLAYMATS.some((entry) => entry.id === raw.playmat)
+    ? raw.playmat
+    : null;
+  const owned = Array.isArray(raw.owned)
+    ? [...new Set(raw.owned.filter((id): id is string =>
+        typeof id === 'string' && isKnownCosmeticId(id) && cosmeticById(id)?.unlock !== 'default'))]
+    : [];
+  return { cardBack, playmat, owned };
+}
+
+function normalizeDeckRepairNoticeAck(value: unknown): string {
+  if (typeof value !== 'string') return '[]';
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed) || parsed.some((id) => typeof id !== 'string')) return '[]';
+    const ids = [...new Set(parsed)].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+    return JSON.stringify(ids);
+  } catch {
+    return '[]';
   }
 }
 

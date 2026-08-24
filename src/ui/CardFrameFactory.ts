@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import type { FrameStyle } from '../meta/variants';
+import { CARD_BACKS, DEFAULT_CARD_BACK_ID, cardBackTextureKey } from '../meta/cosmetics';
 import { SET_ICON_PATHS, type CardSetId } from '../art/setIcons';
 
 /**
@@ -98,6 +99,130 @@ function bakeProceduralCardBack(ctx: CanvasRenderingContext2D): void {
  * source into the 600×840 canvas inside the rounded-rect clip (r 34). Cutting
  * ≈34px off each side — the doc keeps all border ornament inside x 34–606.
  */
+interface CardBackStyle {
+  shell: string;
+  innerTop: string;
+  innerBottom: string;
+  accent: string;
+  softAccent: string;
+  sigil: 'storm' | 'veil' | 'storybook' | 'neon';
+}
+
+const CARD_BACK_STYLES: Record<string, CardBackStyle> = {
+  'back-ragnarok-storm-gold': {
+    shell: '#17120d',
+    innerTop: '#70531f',
+    innerBottom: '#24180d',
+    accent: '#f1c35b',
+    softAccent: 'rgba(241,195,91,0.52)',
+    sigil: 'storm',
+  },
+  'back-silver-veil-moonlit': {
+    shell: '#0d1420',
+    innerTop: '#324b70',
+    innerBottom: '#101b31',
+    accent: '#c4e0ff',
+    softAccent: 'rgba(196,224,255,0.5)',
+    sigil: 'veil',
+  },
+  'back-dark-tales-storybook': {
+    shell: '#1a1018',
+    innerTop: '#6b314f',
+    innerBottom: '#261020',
+    accent: '#e2a2bd',
+    softAccent: 'rgba(226,162,189,0.48)',
+    sigil: 'storybook',
+  },
+  'back-yokai-neon': {
+    shell: '#071516',
+    innerTop: '#0b5554',
+    innerBottom: '#071d27',
+    accent: '#68f3dc',
+    softAccent: 'rgba(104,243,220,0.48)',
+    sigil: 'neon',
+  },
+};
+
+/** Every non-default back keeps the rounded card silhouette and gold border,
+ * then changes its palette and centered sigil treatment. */
+function bakeStyledCardBack(ctx: CanvasRenderingContext2D, style: CardBackStyle): void {
+  rr(ctx, 0, 0, FRAME_W, FRAME_H, 34);
+  ctx.fillStyle = style.shell;
+  ctx.fill();
+  const g = ctx.createLinearGradient(0, 0, 0, FRAME_H);
+  g.addColorStop(0, style.innerTop);
+  g.addColorStop(1, style.innerBottom);
+  rr(ctx, 14, 14, FRAME_W - 28, FRAME_H - 28, 26);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#8a6d1f';
+  ctx.stroke();
+  rr(ctx, 34, 34, FRAME_W - 68, FRAME_H - 68, 20);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = style.softAccent;
+  ctx.stroke();
+
+  ctx.save();
+  ctx.translate(FRAME_W / 2, FRAME_H / 2);
+  ctx.strokeStyle = style.accent;
+  ctx.fillStyle = style.accent;
+  ctx.lineCap = 'round';
+  if (style.sigil === 'storm') {
+    ctx.beginPath();
+    ctx.moveTo(-24, -138);
+    ctx.lineTo(20, -30);
+    ctx.lineTo(-10, -30);
+    ctx.lineTo(34, 138);
+    ctx.lineTo(-20, 26);
+    ctx.lineTo(8, 26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (style.sigil === 'veil') {
+    ctx.beginPath();
+    ctx.arc(0, 0, 116, -0.8, 2.2);
+    ctx.lineWidth = 14;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(38, -26, 88, -0.75, 2.1);
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = style.softAccent;
+    ctx.stroke();
+  } else if (style.sigil === 'storybook') {
+    rr(ctx, -86, -126, 172, 252, 12);
+    ctx.lineWidth = 12;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -112);
+    ctx.lineTo(0, 112);
+    ctx.moveTo(-58, -54);
+    ctx.lineTo(-22, -80);
+    ctx.moveTo(22, 74);
+    ctx.lineTo(60, 48);
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = style.softAccent;
+    ctx.stroke();
+  } else {
+    for (const [x, y, radius] of [[-74, -72, 22], [76, -38, 14], [-52, 82, 15], [62, 72, 24]] as const) {
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.lineWidth = 6;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(-112, 0);
+    ctx.lineTo(112, 0);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = style.softAccent;
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function bakeRealCardBack(scene: Phaser.Scene, ctx: CanvasRenderingContext2D): void {
   const src = scene.textures.get('scene-card-back').getSourceImage() as CanvasImageSource;
   const sw = (src as { width: number }).width;
@@ -259,13 +384,17 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
   // Card back — real art when the scene-art WebP is on disk (docs/scene-art.md
   // `card-back`), else the procedural dark-violet/gold-sigil back. Both bake
   // into the same 600×840 `cardback` canvas; CardView needs no change.
-  if (!scene.textures.exists('cardback')) {
-    const tex = scene.textures.createCanvas('cardback', FRAME_W, FRAME_H)!;
+  for (const entry of CARD_BACKS) {
+    const textureKey = cardBackTextureKey(entry.id);
+    if (scene.textures.exists(textureKey)) continue;
+    const tex = scene.textures.createCanvas(textureKey, FRAME_W, FRAME_H)!;
     const ctx = tex.getContext();
-    if (scene.textures.exists('scene-card-back')) {
+    if (entry.id === DEFAULT_CARD_BACK_ID && scene.textures.exists('scene-card-back')) {
       bakeRealCardBack(scene, ctx);
-    } else {
+    } else if (entry.id === DEFAULT_CARD_BACK_ID) {
       bakeProceduralCardBack(ctx);
+    } else {
+      bakeStyledCardBack(ctx, CARD_BACK_STYLES[entry.id]);
     }
     tex.refresh();
   }

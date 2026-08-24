@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { manaValue, validateHauntlinkDef } from '../../src/engine/types';
+import {
+  manaValue,
+  validateHauntlinkDef,
+  validateNineLivesDef,
+  validatePreserveDef,
+  validateRiteDef,
+} from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
+import { AXES } from '../../src/data/axes';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
 import { ARTHURIAN_COURT } from '../../src/data/cards/arthurian-court';
 import { BEASTKIN } from '../../src/data/cards/beastkin';
@@ -9,11 +16,13 @@ import { DUALS } from '../../src/data/cards/duals';
 import { ENCHANTMENTS } from '../../src/data/cards/enchantments';
 import { GOTHIC_MONSTERS } from '../../src/data/cards/gothic-monsters';
 import { DARK_TALES } from '../../src/data/cards/dark-tales';
+import { DARK_TALES_COMPANION } from '../../src/data/cards/dark-tales-companion';
 import { YOKAI_NIGHTS } from '../../src/data/cards/yokai-nights';
 import { GREEK } from '../../src/data/cards/greek';
 import { INSTANTS } from '../../src/data/cards/instants';
 import { LANDS } from '../../src/data/cards/lands';
 import { RAGNAROK } from '../../src/data/cards/ragnarok';
+import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
 import { SORCERIES } from '../../src/data/cards/sorceries';
 import { TK_JIN } from '../../src/data/cards/tk-jin';
 import { TK_OTHER } from '../../src/data/cards/tk-other';
@@ -28,6 +37,37 @@ describe('catalog integrity', () => {
       if (!card.hauntlink) continue;
       const errors = validateHauntlinkDef(card);
       expect(errors, `${card.id} has invalid Hauntlink: ${errors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('has no invalid Rite definitions', () => {
+    for (const card of Object.values(CARD_DB)) {
+      if (!card.rite) continue;
+      const errors = validateRiteDef(card);
+      expect(errors, `${card.id} has invalid Rite: ${errors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('has no invalid Nine Lives or Preserve definitions', () => {
+    for (const card of Object.values(CARD_DB)) {
+      const nineLivesErrors = validateNineLivesDef(card);
+      expect(nineLivesErrors, `${card.id}: ${nineLivesErrors.join('; ')}`).toEqual([]);
+      const preserveErrors = validatePreserveDef(card);
+      expect(preserveErrors, `${card.id}: ${preserveErrors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('statics only filter on declared tribal Axes', () => {
+    // Governance rule from docs/plan-tribal-pass.md: a static's filter.subtype
+    // may only name an Axis (src/data/axes.ts).
+    for (const card of Object.values(CARD_DB)) {
+      for (const ability of card.abilities ?? []) {
+        const subtype = ability.static?.filter?.subtype;
+        if (subtype === undefined) continue;
+        expect(AXES, `${card.id} static filters on non-Axis subtype '${subtype}'`).toContain(
+          subtype,
+        );
+      }
     }
   });
 
@@ -53,7 +93,9 @@ describe('catalog integrity', () => {
       [ARTHURIAN_COURT, 'ac-'],
       [GOTHIC_MONSTERS, 'gm-'],
       [DARK_TALES, 'dt-'],
+      [DARK_TALES_COMPANION, 'dt-'],
       [YOKAI_NIGHTS, 'yn-'],
+      [SANDS_OF_THE_DUAT, 'sd-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -118,9 +160,9 @@ describe('catalog integrity', () => {
     );
     const share = (rarity: string) =>
       pool.filter((c) => c.rarity === rarity).length / pool.length;
-    // Measured catalog after the nine removal answers: 266 c / 157 r / 40 sr /
-    // 31 ssr / 24 ur over a 518-card collectible pool (51.4 / 30.3 / 7.7 /
-    // 6.0 / 4.6 %).
+    // Measured catalog after Duat Wave D1: 323 c / 198 r / 48 sr / 35 ssr /
+    // 27 ur over a 631-card collectible pool (51.2 / 31.4 / 7.6 / 5.5 /
+    // 4.3 %). D1 adds 22 c / 23 r / 2 sr / 3 ssr / 2 ur.
     expect(share('c')).toBeGreaterThanOrEqual(0.45);
     expect(share('c')).toBeLessThanOrEqual(0.6);
     expect(share('r')).toBeGreaterThanOrEqual(0.25);
@@ -160,13 +202,21 @@ describe('catalog integrity', () => {
       (card) => card.set === 'base' && !card.token && !(card.supertypes ?? []).includes('basic'),
     );
     // W5 adds Yang Huiyu (r) and Sable (sr): 207 -> 209; r 66 -> 67; sr 13 -> 14.
-    expect(base).toHaveLength(209);
+    // The 1.6 returning-mechanics sprinkle adds Echo's Refrain (c, Retell),
+    // Roadside Shrine (c, Skim), Twin-Willow Sword Dancer (r, twinBlades),
+    // and Persephone's Return (r, Quest): 209 -> 213; c 109 -> 111; r 67 -> 69.
+    // Battle Fervor's 1.6 demotion moves one base card from rare to common.
+    expect(base).toHaveLength(213);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
       rarity,
       base.filter((card) => card.rarity === rarity).length,
-    ]))).toEqual({ c: 109, r: 67, sr: 14, ssr: 11, ur: 8 });
-    // W5's four tribal cards move the collectible catalog 783 -> 787.
-    expect(ALL_CARDS).toHaveLength(787);
+    ]))).toEqual({ c: 112, r: 68, sr: 14, ssr: 11, ur: 8 });
+    // W5's four tribal cards move the collectible catalog 783 -> 787; the
+    // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
+    // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
+    // cards, so the companion wave moves ALL_CARDS to 1,104 total cards,
+    // including tokens and basics.
+    expect(ALL_CARDS).toHaveLength(1104);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -184,9 +234,39 @@ describe('catalog integrity', () => {
         expect(card.set, card.id + ' should be set:dark-tales').toBe('dark-tales');
       } else if (card.id.startsWith('yn-')) {
         expect(card.set, card.id + ' should be set:yokai-nights').toBe('yokai-nights');
+      } else if (card.id.startsWith('sd-')) {
+        expect(String(card.set), card.id + ' should be set:sands-of-the-duat').toBe('sands-of-the-duat');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }
+    }
+  });
+
+  it('registers the 245-card Sands of the Duat Waves A through D3 pool', () => {
+    // D1 appends 21 artifacts, 9 multicolor legends, and 22 mono-W cards.
+    // The shipped multicolor slice already has SR3 and UR5 against the frame
+    // column's SR2 and UR4, so the nine-card append was the non-negative
+    // remainder: R8 and SSR1. D3 makes that reconciliation explicit by
+    // moving Ra and War-Priestess to SSR before appending the final 58 cards.
+    expect(SANDS_OF_THE_DUAT).toHaveLength(245);
+    expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
+      rarity,
+      SANDS_OF_THE_DUAT.filter((card) => card.rarity === rarity).length,
+    ]))).toEqual({ c: 122, r: 74, sr: 23, ssr: 16, ur: 10 });
+
+    const count = (predicate: (card: (typeof SANDS_OF_THE_DUAT)[number]) => boolean) =>
+      Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((rarity) => [
+        rarity,
+        SANDS_OF_THE_DUAT.filter((card) => predicate(card) && card.rarity === rarity).length,
+      ]));
+    expect(count((card) => card.types.some((type) => type === 'artifact'))).toEqual({ c: 12, r: 6, sr: 1, ssr: 1, ur: 1 });
+    expect(count((card) => card.colors.length > 1)).toEqual({ c: 0, r: 8, sr: 2, ssr: 5, ur: 4 });
+    const mono = (color: string) => (card: (typeof SANDS_OF_THE_DUAT)[number]) =>
+      !card.types.some((type) => type === 'artifact' || type === 'land') &&
+      card.colors.length === 1 && card.colors[0] === color;
+    for (const color of ['W', 'U', 'B', 'R', 'G']) {
+      expect(SANDS_OF_THE_DUAT.filter(mono(color))).toHaveLength(40);
+      expect(count(mono(color))).toEqual({ c: 21, r: 12, sr: 4, ssr: 2, ur: 1 });
     }
   });
 
@@ -198,14 +278,15 @@ describe('catalog integrity', () => {
     expect(count('sr')).toBeGreaterThanOrEqual(1);
   });
 
-  it('the Gothic Monsters set has its specified 82-card rarity mix', () => {
+  it('the Gothic Monsters set has its specified 83-card rarity mix', () => {
     const gm = ALL_CARDS.filter(
       (c) => c.set === 'gothic-monsters' && !c.token && !(c.supertypes ?? []).includes('basic'),
     );
-    // W5 adds the rare Porcelain Governess: 81 -> 82 and r 24 -> 25.
-    expect(gm.length).toBe(82);
+    // W5 adds the rare Porcelain Governess: 81 -> 82 and r 24 -> 25; the 1.6
+    // sprinkle adds the common Retold by Candlelight (Retell): 82 -> 83.
+    expect(gm.length).toBe(83);
     expect(Object.fromEntries(['c', 'r', 'sr', 'ssr', 'ur'].map((r) => [r, gm.filter((c) => c.rarity === r).length]))).toEqual({
-      c: 41,
+      c: 42,
       r: 25,
       sr: 7,
       ssr: 5,

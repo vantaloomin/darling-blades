@@ -8,10 +8,13 @@ import { ScriptAI } from '../../src/ai/ScriptAI';
 import {
   TUTORIAL_PLAYER_DECK,
   TUTORIAL_AI_DECK,
+  TUTORIAL_LAND_RESERVE,
   TUTORIAL_SEED,
   tutorialCue,
   type TutorialCueInput,
 } from '../../src/data/tutorial';
+import { LAND_RESERVE_SIZE, MAX_DUAL_LANDS, WARCHEST_HAND_SIZE } from '../../src/meta/warchest';
+import { isBasicLand, isDualLand } from '../../src/meta/warchest';
 
 const HUMAN = 0;
 const AI = 1;
@@ -21,6 +24,13 @@ function newTutorialGame(): Game {
     decks: [[...TUTORIAL_PLAYER_DECK], [...TUTORIAL_AI_DECK]],
     seed: TUTORIAL_SEED,
     db: CARD_DB,
+    // Warchest-native since classic retired: the tutorial must teach the mana
+    // system the rest of the game uses. Mirrors DuelScene's tutorial seating.
+    format: 'warchest',
+    landReserves: [[...TUTORIAL_LAND_RESERVE], [...TUTORIAL_LAND_RESERVE]],
+    startingHandSize: WARCHEST_HAND_SIZE,
+    // The scripted lesson assumes classic single-window timing.
+    rulesRev: 1,
   });
 }
 
@@ -116,12 +126,43 @@ function playTutorial(): {
 }
 
 describe('tutorial: fixed seed + decks', () => {
-  it('puts the human on the play with a castable opening hand', () => {
+  it('puts the human on the play with a castable Warchest opening hand', () => {
     const g = newTutorialGame();
     expect(g.state.startingPlayer).toBe(HUMAN);
     const hand = g.viewFor(HUMAN).you.hand;
-    expect(hand.some((id) => isType(def(CARD_DB, id), 'land'))).toBe(true);
+    expect(hand).toHaveLength(WARCHEST_HAND_SIZE);
+    // The lesson's whole point: lands are never in hand, they are in the
+    // Warchest, and the first land drop must be legally available on turn one.
+    expect(hand.some((id) => isType(def(CARD_DB, id), 'land'))).toBe(false);
     expect(hand.some((id) => isType(def(CARD_DB, id), 'creature'))).toBe(true);
+
+    // Past the opening keep windows, the very first coached beat must be
+    // legally available: a land drop sourced from the Warchest, not the hand.
+    for (let guard = 0; guard < 10; guard++) {
+      const a = g.awaiting;
+      if (!('player' in a)) break;
+      const keep = g.legalActions(a.player).find((l) => l.type === 'keepHand');
+      if (!keep) break;
+      g.submit(a.player, keep);
+    }
+    const landDrop = g.legalActions(HUMAN).filter((a) => a.type === 'playLand');
+    expect(landDrop.length).toBeGreaterThan(0);
+    expect(landDrop.every((a) => a.type === 'playLand' && a.handIndex === -1 && a.reserveIndex !== undefined)).toBe(true);
+  });
+
+  it('gives both seats a shipping-legal Warchest of basics', () => {
+    expect(TUTORIAL_LAND_RESERVE).toHaveLength(LAND_RESERVE_SIZE);
+    const duals = TUTORIAL_LAND_RESERVE.filter((id) => isDualLand(def(CARD_DB, id))).length;
+    expect(duals).toBeLessThanOrEqual(MAX_DUAL_LANDS);
+    // All-basic keeps the enters-tapped dual rule out of a lesson that never
+    // teaches it.
+    expect(TUTORIAL_LAND_RESERVE.every((id) => isBasicLand(def(CARD_DB, id)))).toBe(true);
+  });
+
+  it('holds no lands in either teaching deck', () => {
+    for (const id of [...TUTORIAL_PLAYER_DECK, ...TUTORIAL_AI_DECK]) {
+      expect(isType(def(CARD_DB, id), 'land')).toBe(false);
+    }
   });
 
   it('teaching decks are mono-White, use real cards, and include a Ritual + a Charm', () => {
@@ -161,8 +202,7 @@ describe('tutorialCue (pure guide)', () => {
     isHumanTurn: true,
     awaitingKind: 'main',
     step: 'main1',
-    landPlayedThisTurn: false,
-    handHasLand: true,
+    canPlayLand: true,
     hasCastableCreature: false,
     hasCastableRitual: false,
     hasCastableCharm: false,
@@ -175,6 +215,7 @@ describe('tutorialCue (pure guide)', () => {
     blockAssigned: false,
     isTouch: false,
     goalShown: false,
+    warchestInfoShown: false,
     sicknessShown: false,
     inspectShown: false,
     healInfoShown: false,
@@ -195,8 +236,19 @@ describe('tutorialCue (pure guide)', () => {
 
   it('walks land → creature → sickness → inspect tip → Ritual on the main phase', () => {
     const afterGoal = { ...base, goalShown: true };
-    expect(tutorialCue(afterGoal).kind).toBe('playLand');
-    const landDown = { ...afterGoal, landPlayedThisTurn: true, hasCastableCreature: true };
+    // The Warchest is the first thing taught: the player has no lands in hand
+    // and nothing else makes sense until they know where mana comes from.
+    const warchest = tutorialCue(afterGoal);
+    expect(warchest.kind).toBe('warchestInfo');
+    expect(warchest.text).toBe(
+      'Your lands are not in your deck. They wait in your Warchest, and you take one every turn.',
+    );
+    const afterWarchest = { ...afterGoal, warchestInfoShown: true };
+    const land = tutorialCue(afterWarchest);
+    expect(land.kind).toBe('playLand');
+    expect(land.text).toBe('Click your Warchest, then take a land.');
+    expect(tutorialCue({ ...afterWarchest, isTouch: true }).text).toBe('Tap your Warchest, then take a land.');
+    const landDown = { ...afterWarchest, canPlayLand: false, hasCastableCreature: true };
     expect(tutorialCue(landDown).kind).toBe('playCreature');
     const creatureDown = { ...landDown, myCreatureCount: 1, hasCastableCreature: false };
     expect(tutorialCue(creatureDown).kind).toBe('sickness');
@@ -217,7 +269,7 @@ describe('tutorialCue (pure guide)', () => {
   });
 
   it('teaches that combat damage wears off after the block lesson', () => {
-    const blocked = { ...base, goalShown: true, inspectShown: true, sicknessShown: true, blocked: true };
+    const blocked = { ...base, goalShown: true, warchestInfoShown: true, inspectShown: true, sicknessShown: true, blocked: true };
     const heal = tutorialCue(blocked);
     expect(heal.kind).toBe('healInfo');
     expect(heal.text).toBe('Combat wounds are not permanent. Creatures heal back to full at end of turn.');
@@ -229,7 +281,7 @@ describe('tutorialCue (pure guide)', () => {
   });
 
   it('teaches the Charm at the END of your own turn (endStepWindow), passing responses', () => {
-    const g = { ...base, goalShown: true, hasCastableCharm: true, handHasCharm: true };
+    const g = { ...base, goalShown: true, warchestInfoShown: true, hasCastableCharm: true, handHasCharm: true };
     // A response window (even on the opponent turn) is just passed now.
     expect(tutorialCue({ ...g, awaitingKind: 'respond' }).kind).toBe('advance');
     // The end-of-turn window is the Charm lesson.
@@ -241,7 +293,7 @@ describe('tutorialCue (pure guide)', () => {
   });
 
   it('uses "Click" copy on desktop and "Tap" on touch', () => {
-    const g = { ...base, goalShown: true, awaitingKind: 'declareAttackers', step: 'combat', eligibleAttackerCount: 1 };
+    const g = { ...base, goalShown: true, warchestInfoShown: true, awaitingKind: 'declareAttackers', step: 'combat', eligibleAttackerCount: 1 };
     expect(tutorialCue({ ...g, isTouch: false }).text).toBe('Click a creature to attack.');
     expect(tutorialCue({ ...g, isTouch: true }).text).toBe('Tap a creature to attack.');
   });
@@ -250,15 +302,15 @@ describe('tutorialCue (pure guide)', () => {
     const states: Partial<TutorialCueInput>[] = [
       {},
       { goalShown: true },
-      { goalShown: true, landPlayedThisTurn: true, hasCastableCreature: true },
-      { goalShown: true, landPlayedThisTurn: true, myCreatureCount: 1 },
-      { goalShown: true, landPlayedThisTurn: true, myCreatureCount: 1, sicknessShown: true },
-      { goalShown: true, isTouch: true, landPlayedThisTurn: true, myCreatureCount: 1, sicknessShown: true },
+      { goalShown: true, canPlayLand: false, hasCastableCreature: true },
+      { goalShown: true, canPlayLand: false, myCreatureCount: 1 },
+      { goalShown: true, canPlayLand: false, myCreatureCount: 1, sicknessShown: true },
+      { goalShown: true, isTouch: true, canPlayLand: false, myCreatureCount: 1, sicknessShown: true },
       { goalShown: true, sicknessShown: true, inspectShown: true, hasCastableRitual: true },
       { goalShown: true, ritualCast: true },
       { goalShown: true, blocked: true },
       { goalShown: true, blocked: true, healInfoShown: true, charmCast: true },
-      { goalShown: true, blocked: true, healInfoShown: true, handHasCharm: true, landPlayedThisTurn: true, myCreatureCount: 1, sicknessShown: true, inspectShown: true, ritualCast: true, ritualInfoShown: true },
+      { goalShown: true, blocked: true, healInfoShown: true, handHasCharm: true, canPlayLand: false, myCreatureCount: 1, sicknessShown: true, inspectShown: true, ritualCast: true, ritualInfoShown: true },
       { goalShown: true, awaitingKind: 'declareAttackers', eligibleAttackerCount: 1 },
       { goalShown: true, awaitingKind: 'declareBlockers', hasLegalBlocker: true },
       { goalShown: true, awaitingKind: 'endStepWindow', hasCastableCharm: true },

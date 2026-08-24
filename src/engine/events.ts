@@ -32,13 +32,21 @@ export type GameEvent =
       /** Present only for a normal-cost creature cast from a Darling zone. */
       fromDarlingZone?: true;
     }
-  | { e: 'responseWindowOpened'; player: PlayerId }
+  | { e: 'responseWindowOpened'; player: PlayerId; /** Revision-2 reopen only. */ reopened?: true }
   | { e: 'spellResolved'; sid: number }
   | { e: 'spellCountered'; sid: number }
   | { e: 'targetsFizzled'; sid: number }
   | { e: 'permanentEntered'; perm: Permanent }
   | { e: 'hauntlinkFormed'; linkIid: number; hostIid: number; cardId: string; controller: PlayerId }
-  | { e: 'hauntlinkBroken'; linkIid: number; hostIid: number; cardId: string; owner: PlayerId }
+  | {
+      e: 'hauntlinkBroken';
+      linkIid: number;
+      hostIid: number;
+      cardId: string;
+      owner: PlayerId;
+      /** Present when the link moved immediately instead of leaving play. */
+      unlinked?: true;
+    }
   | { e: 'chapterAdvanced'; iid: number; cardId: string; chapter: number }
   | { e: 'awakened'; iid: number; cardId: string }
   | { e: 'attackersDeclared'; iids: number[] }
@@ -51,8 +59,16 @@ export type GameEvent =
   | { e: 'damageMarked'; iid: number; amount: number }
   | { e: 'lifeChanged'; player: PlayerId; delta: number; now: number }
   | { e: 'died'; iid: number; cardId: string; owner: PlayerId }
+  | { e: 'nineLivesReturned'; player: PlayerId; iid: number; cardId: string }
   | { e: 'discarded'; player: PlayerId; cardId: string }
   | { e: 'milled'; player: PlayerId; cardId: string }
+  | {
+      e: 'graveyardTriggerFired';
+      cardId: string;
+      owner: PlayerId;
+      when: 'entersGraveyard';
+      instanceId?: number;
+    }
   | {
       e: 'severed';
       player: PlayerId;
@@ -60,6 +76,7 @@ export type GameEvent =
       from: 'battlefield' | 'graveyard' | 'deck';
       iid?: number;
     }
+  | { e: 'preserved'; player: PlayerId; cardId: string }
   | {
       // Foresee resolution summary. Redaction mechanism (deliberate): per the
       // contract above, the event carries FULL identities and the presenter

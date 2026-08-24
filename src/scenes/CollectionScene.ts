@@ -17,6 +17,7 @@ import {
   applyFilters,
   clampPage,
   collectionCompletion,
+  collectionDisplayPool,
   collectiblePool,
   defaultFilterState,
   ownedVariantEntries,
@@ -34,6 +35,14 @@ import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestur
 import { FilterBar, TIER_TEXT_COLOR } from '../ui/binder/FilterBar';
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CARD_H, CARD_W, CardView } from '../ui/CardView';
+import {
+  cardAtelierProbabilityPlate,
+  cardAtelierTiltPose,
+  cardAtelierWipeDuration,
+  cardAtelierWipeFromPointer,
+  cardAtelierWipeProgress,
+  type CardAtelierTiltPose,
+} from '../ui/cardAtelierPresentation';
 import { SHARD_HOLD_BUTTON_PROGRESS } from '../ui/duelPresentation';
 import { FRAME_TREATMENTS } from '../ui/CardFrameFactory';
 import { fxAvailable, fxPolicy } from '../ui/fx/FXSupport';
@@ -80,6 +89,13 @@ const DESIGN_H = 720;
 // instantly. Ignore dim closes for this long after opening so a double-click
 // doesn't flash the card open-and-shut; a deliberate click a beat later closes.
 const INSPECT_CLOSE_LOCK_MS = 300;
+
+const ATELIER_CARD = {
+  x: 450,
+  y: 320,
+  scale: 1.25,
+  probabilityPlateY: 604,
+} as const;
 
 // ---------------------------------------------------------------------------
 // Binder spread geometry (design px)
@@ -320,7 +336,7 @@ export class CollectionScene extends Phaser.Scene {
 
   private currentPool(): CardDef[] {
     return sortCollectionCards(
-      applyFilters(collectiblePool(ALL_CARDS), this.state, Services.save.data),
+      applyFilters(collectionDisplayPool(ALL_CARDS, Services.save.data), this.state, Services.save.data),
       this.sortSelection,
       Services.save.data,
     );
@@ -512,38 +528,373 @@ export class CollectionScene extends Phaser.Scene {
       width: 1080,
       height: 660,
       dimAlpha: 0.82,
-      escToClose: true,
+      dismissal: 'esc-only',
       depth: theme.depth.overlay,
-      showClose: false,
-      tapDimToClose: false,
       onClose: () => this.closeInspect(),
     });
     const c = shell.container;
     const dim = shell.dim;
     const openedAt = this.time.now;
+    // A shard/craft hold rebuilds this overlay while the pointer is still
+    // physically down; the eventual release would land on the fresh dim and
+    // close the menu the player just acted in (owner finding 2026-08-18).
+    // That release belongs to the hold, so the dim swallows exactly one
+    // pointerup when it was built under an already-held pointer.
+    let swallowHeldRelease = this.input.activePointer?.isDown === true;
     dim.on('pointerup', () => {
+      if (swallowHeldRelease) {
+        swallowHeldRelease = false;
+        return;
+      }
       if (this.time.now - openedAt < INSPECT_CLOSE_LOCK_MS) return; // swallow double-click flash
       this.closeInspect();
     });
     const shown = owned > 0 ? displayVariantFor(save, d.id) : null;
     let displayedVariant: CardVariant | undefined = shown ?? undefined;
     let ritualInProgress = false;
-    const view = new CardView(this, 450, 360);
-    view.setScale(1.35).setCard(
+    let comparisonVariant: CardVariant | undefined;
+    let comparisonActive = false;
+    let touchScrubbing = false;
+    let pointerWasInside = false;
+    const animationLevel = save.settings.animations;
+    const touchProfile = isTouchDevice();
+
+    // Full Art gallery light. It stays centered for reduced/off motion and
+    // follows the same pointer pose as the card only under full motion.
+    const galleryHalo = this.add
+      .ellipse(ATELIER_CARD.x, ATELIER_CARD.y, 470, 560, colorInt(theme.colors.gold), 0.1)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setVisible(false);
+    const galleryFloor = this.add
+      .ellipse(ATELIER_CARD.x, 588, 350, 30, colorInt(theme.colors.gold), 0.2)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setVisible(false);
+    const galleryTitle = this.add
+      .text(ATELIER_CARD.x, 38, 'FULL ART GALLERY LIGHT', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.gold,
+        letterSpacing: 1.4,
+      })
+      .setOrigin(0.5)
+      .setVisible(false);
+    const view = new CardView(this, ATELIER_CARD.x, ATELIER_CARD.y);
+    view.setScale(ATELIER_CARD.scale).setCard(
       d,
       shown ? { fx: 'full', variant: shown, fullArt: shown.fullArt } : { fx: 'full' },
     );
-    c.add(view);
+    const compareView = new CardView(this, ATELIER_CARD.x, ATELIER_CARD.y)
+      .setScale(ATELIER_CARD.scale)
+      .setVisible(false);
+    const compareMaskSource = this.add
+      .graphics()
+      .setPosition(ATELIER_CARD.x, ATELIER_CARD.y)
+      .setScale(ATELIER_CARD.scale)
+      .setVisible(false);
+    const compareMask = compareMaskSource.createGeometryMask();
+    compareView.setMask(compareMask);
+    const wipeOverlay = this.add
+      .container(ATELIER_CARD.x, ATELIER_CARD.y)
+      .setScale(ATELIER_CARD.scale)
+      .setVisible(false);
+    const wipeDivider = this.add.rectangle(0, 0, 2, CARD_H, 0xffffff, 0.92);
+    const wipeHandle = this.add
+      .circle(0, CARD_H / 2 - 14, 7, colorInt(theme.colors.panelFill), 0.96)
+      .setStrokeStyle(2, colorInt(theme.colors.gold), 1);
+    wipeOverlay.add([wipeDivider, wipeHandle]);
+
+    const compareLeftLabel = this.add
+      .text(ATELIER_CARD.x - CARD_W * ATELIER_CARD.scale / 2, 43, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.body,
+      })
+      .setOrigin(0, 0.5)
+      .setVisible(false);
+    const compareRightLabel = this.add
+      .text(ATELIER_CARD.x + CARD_W * ATELIER_CARD.scale / 2, 43, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.gold,
+      })
+      .setOrigin(1, 0.5)
+      .setVisible(false);
+    const compareHint = this.add
+      .text(
+        ATELIER_CARD.x,
+        591,
+        touchProfile ? 'Drag across card to compare' : 'Move across card to compare',
+        {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          color: theme.colors.muted,
+        },
+      )
+      .setOrigin(0.5)
+      .setVisible(false);
+
+    const probabilityPlate = this.add.graphics();
+    probabilityPlate
+      .fillStyle(theme.graphics.panelFill, 0.94)
+      .fillRoundedRect(
+        ATELIER_CARD.x - 225,
+        ATELIER_CARD.probabilityPlateY,
+        450,
+        70,
+        theme.radius.panel,
+      )
+      .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
+      .strokeRoundedRect(
+        ATELIER_CARD.x - 225,
+        ATELIER_CARD.probabilityPlateY,
+        450,
+        70,
+        theme.radius.panel,
+      );
+    const probabilityTitle = this.add
+      .text(ATELIER_CARD.x, ATELIER_CARD.probabilityPlateY + 9, 'EXACT BOOSTER-SLOT ODDS', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        fontStyle: theme.weight.w700,
+        color: theme.colors.muted,
+        letterSpacing: 1,
+      })
+      .setOrigin(0.5, 0);
+    const probabilityHeadline = this.add
+      .text(ATELIER_CARD.x, ATELIER_CARD.probabilityPlateY + 25, '', {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.label}px`,
+        color: theme.colors.gold,
+      })
+      .setOrigin(0.5, 0);
+    const probabilityAxes = this.add
+      .text(ATELIER_CARD.x, ATELIER_CARD.probabilityPlateY + 44, '', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.micro}px`,
+        color: theme.colors.body,
+        align: 'center',
+        wordWrap: { width: 434 },
+      })
+      .setOrigin(0.5, 0);
+
+    c.add([
+      galleryHalo,
+      galleryFloor,
+      view,
+      compareView,
+      compareMaskSource,
+      wipeOverlay,
+      galleryTitle,
+      compareLeftLabel,
+      compareRightLabel,
+      compareHint,
+      probabilityPlate,
+      probabilityTitle,
+      probabilityHeadline,
+      probabilityAxes,
+    ]);
     addKeywordGlossaryPanel(this, c, d, { x: 58, y: 156, width: 170 });
 
-    // Holo pointer feed — stored so closeInspect can unhook it (the
-    // pre-rewrite scene leaked one of these per inspect).
+    let wipe = 0;
+    let wipeTween: Phaser.Tweens.Tween | null = null;
+    let tiltTween: Phaser.Tweens.Tween | null = null;
+    const setWipe = (next: number): void => {
+      wipe = Phaser.Math.Clamp(next, 0, 1);
+      compareMaskSource
+        .clear()
+        .fillStyle(0xffffff, 1)
+        .fillRect(-CARD_W / 2, -CARD_H / 2, CARD_W * wipe, CARD_H);
+      const dividerX = -CARD_W / 2 + CARD_W * wipe;
+      wipeDivider.setX(dividerX);
+      wipeHandle.setX(dividerX);
+    };
+    const animateWipe = (target: number): void => {
+      wipeTween?.remove();
+      wipeTween = null;
+      const duration = cardAtelierWipeDuration(animationLevel);
+      if (duration <= 0) {
+        setWipe(target);
+        return;
+      }
+      const from = wipe;
+      wipeTween = this.tweens.addCounter({
+        from: 0,
+        to: duration,
+        duration,
+        ease: 'Linear',
+        onUpdate: (tween) => {
+          if (!c.active) return;
+          setWipe(cardAtelierWipeProgress(from, target, tween.getValue() ?? duration, duration));
+        },
+        onComplete: () => {
+          wipeTween = null;
+        },
+      });
+    };
+    const applyAtelierPose = (pose: CardAtelierTiltPose): void => {
+      tiltTween?.remove();
+      tiltTween = null;
+      const x = ATELIER_CARD.x + pose.offsetX;
+      const y = ATELIER_CARD.y + pose.offsetY;
+      const scaleX = ATELIER_CARD.scale * pose.scaleX;
+      const scaleY = ATELIER_CARD.scale * pose.scaleY;
+      for (const target of [view, compareView, compareMaskSource, wipeOverlay]) {
+        target.setPosition(x, y).setScale(scaleX, scaleY).setAngle(pose.angleDeg);
+      }
+      galleryHalo.setPosition(
+        ATELIER_CARD.x + pose.lightOffsetX,
+        ATELIER_CARD.y + pose.lightOffsetY,
+      );
+      galleryFloor.setX(ATELIER_CARD.x + pose.lightOffsetX * 0.35);
+    };
+    const settleAtelierPose = (): void => {
+      tiltTween?.remove();
+      tiltTween = null;
+      galleryHalo.setPosition(ATELIER_CARD.x, ATELIER_CARD.y);
+      galleryFloor.setX(ATELIER_CARD.x);
+      if (animationLevel !== 'full') {
+        applyAtelierPose(cardAtelierTiltPose({ x: 0, y: 0, inside: false }, animationLevel, false));
+        return;
+      }
+      tiltTween = this.tweens.add({
+        targets: [view, compareView, compareMaskSource, wipeOverlay],
+        x: ATELIER_CARD.x,
+        y: ATELIER_CARD.y,
+        scaleX: ATELIER_CARD.scale,
+        scaleY: ATELIER_CARD.scale,
+        angle: 0,
+        duration: theme.motion.base,
+        ease: theme.motion.easeOut,
+        onComplete: () => {
+          tiltTween = null;
+        },
+      });
+    };
+    const updateGallery = (): void => {
+      const visible = displayedVariant?.fullArt === true || comparisonVariant?.fullArt === true;
+      galleryHalo.setVisible(visible);
+      galleryFloor.setVisible(visible);
+      galleryTitle.setVisible(visible && !comparisonActive);
+    };
+    const refreshProbability = (variant: CardVariant): void => {
+      const plate = cardAtelierProbabilityPlate(d.rarity, variant);
+      probabilityHeadline.setText(`${plate.oddsText} · ${plate.percentText} per booster slot`);
+      probabilityAxes.setText(plate.axisText);
+    };
+    const bindTouchCompare = (): void => {
+      if (view.inputZone) return;
+      view.enableInput();
+      view.on(
+        'pointerdown',
+        (
+          pointer: Phaser.Input.Pointer,
+          _localX: number,
+          _localY: number,
+          event: Phaser.Types.Input.EventData,
+        ) => {
+          if (!pointer.wasTouch || !comparisonActive) return;
+          touchScrubbing = true;
+          event.stopPropagation();
+        },
+      );
+      view.on(
+        'pointerup',
+        (
+          pointer: Phaser.Input.Pointer,
+          _localX: number,
+          _localY: number,
+          event: Phaser.Types.Input.EventData,
+        ) => {
+          if (!pointer.wasTouch || !comparisonActive) return;
+          touchScrubbing = false;
+          event.stopPropagation();
+        },
+      );
+      view.on('pointerout', () => {
+        touchScrubbing = false;
+      });
+    };
+    const presentVariant = (next: CardVariant): void => {
+      const previous = displayedVariant;
+      if (previous && variantKey(previous) !== variantKey(next)) {
+        comparisonVariant = previous;
+        comparisonActive = true;
+        compareView
+          .setCard(d, {
+            fx: 'full',
+            variant: previous,
+            fullArt: previous.fullArt,
+            // Under the wipe's GeometryMask, preFX/PostFX passes paint black
+            // (owner repro 2026-08-18); tile fallbacks render identically
+            // enough for a side-by-side and survive the stencil.
+            maskSafe: true,
+          })
+          .setVisible(true);
+        compareLeftLabel.setText(`A · ${variantLabel(previous)}`).setVisible(true);
+        compareRightLabel.setText(`B · ${variantLabel(next)}`).setVisible(true);
+        compareHint.setVisible(true);
+        wipeOverlay.setVisible(true);
+        bindTouchCompare();
+        setWipe(0);
+        animateWipe(0.5);
+      }
+      displayedVariant = next;
+      view.setCard(d, { fx: 'full', variant: next, fullArt: next.fullArt });
+      refreshProbability(next);
+      updateGallery();
+    };
+    const suspendAtelierForRitual = (): void => {
+      ritualInProgress = true;
+      comparisonActive = false;
+      comparisonVariant = undefined;
+      compareView.setVisible(false);
+      wipeOverlay.setVisible(false);
+      compareLeftLabel.setVisible(false);
+      compareRightLabel.setVisible(false);
+      compareHint.setVisible(false);
+      wipeTween?.remove();
+      wipeTween = null;
+      applyAtelierPose(cardAtelierTiltPose({ x: 0, y: 0, inside: false }, 'off', false));
+      updateGallery();
+    };
+
+    setWipe(0);
+    refreshProbability(shown ?? PLAIN_VARIANT);
+    updateGallery();
+
+    // One pointer tracker owns foil, perspective, gallery light, and compare.
+    // It is stored so closeInspect can unhook it; touch never receives tilt.
     this.holoMove = (p: Phaser.Input.Pointer) => {
-      if (view.active) view.setHoloPointer(p.worldX, p.worldY);
+      if (!view.active) return;
+      const pointer = view.setHoloPointer(p.worldX, p.worldY);
+      if (comparisonActive && compareView.active) {
+        compareView.setHoloPointer(p.worldX, p.worldY);
+      }
+      if (ritualInProgress) return;
+      if (pointer.inside) {
+        pointerWasInside = true;
+        applyAtelierPose(cardAtelierTiltPose(pointer, animationLevel, p.wasTouch));
+        if (comparisonActive && (!p.wasTouch || touchScrubbing)) {
+          wipeTween?.remove();
+          wipeTween = null;
+          setWipe(cardAtelierWipeFromPointer(pointer.x));
+        }
+      } else if (pointerWasInside) {
+        pointerWasInside = false;
+        settleAtelierPose();
+      }
     };
     this.input.on('pointermove', this.holoMove);
+    c.once(Phaser.GameObjects.Events.DESTROY, () => {
+      wipeTween?.remove();
+      tiltTween?.remove();
+      compareMask.destroy();
+    });
 
-    // Variant panel, right of the card (card spans x 247.5..652.5).
+    // Variant panel, right of the card (card spans x 262.5..637.5 at rest).
     const panelX = 740;
     if (clearedDisplayPin) {
       c.add(
@@ -582,20 +933,6 @@ export class CollectionScene extends Phaser.Scene {
       const variantPageCount = Math.max(1, Math.ceil(entries.length / VARIANT_ROWS));
       let selectedKey = variantKey(shown!);
       let pinnedKey: string | null = save.pinnedVariants[d.id] ?? null;
-      const previewOdds = this.add
-        .text(450, 660, '', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.muted,
-        })
-        .setOrigin(0.5);
-      c.add(previewOdds);
-      const refreshPreviewOdds = (variant: CardVariant): void => {
-        previewOdds.setText(
-          `Pull odds: ${formatOdds(finishOdds(variant.frame, variant.holo, variant.fullArt))}`,
-        );
-      };
-      refreshPreviewOdds(shown!);
       let rows: {
         background: Phaser.GameObjects.Graphics;
         text: Phaser.GameObjects.Text;
@@ -656,9 +993,7 @@ export class CollectionScene extends Phaser.Scene {
           bindTapButton(this, t, () => {
             if (ritualInProgress) return;
             selectedKey = variantKey(e.variant);
-            displayedVariant = e.variant;
-            view.setCard(d, { fx: 'full', variant: e.variant, fullArt: e.variant.fullArt });
-            refreshPreviewOdds(e.variant);
+            presentVariant(e.variant);
             restyle();
           });
           t.on('pointerover', (pointer: Phaser.Input.Pointer) => {
@@ -672,22 +1007,18 @@ export class CollectionScene extends Phaser.Scene {
             onTap: () => {
               if (ritualInProgress) return;
               const key = variantKey(e.variant);
+              let nextVariant: CardVariant;
               if (pinnedKey === key) {
                 delete save.pinnedVariants[d.id];
                 pinnedKey = null;
-                displayedVariant = displayVariantFor(save, d.id);
+                nextVariant = displayVariantFor(save, d.id);
               } else {
                 save.pinnedVariants[d.id] = key;
                 pinnedKey = key;
-                displayedVariant = e.variant;
+                nextVariant = e.variant;
               }
-              selectedKey = variantKey(displayedVariant);
-              view.setCard(d, {
-                fx: 'full',
-                variant: displayedVariant,
-                fullArt: displayedVariant.fullArt,
-              });
-              refreshPreviewOdds(displayedVariant);
+              selectedKey = variantKey(nextVariant);
+              presentVariant(nextVariant);
               Services.save.flush();
               Sfx.play('shimmer');
               restyle();
@@ -712,9 +1043,7 @@ export class CollectionScene extends Phaser.Scene {
       view,
       () => displayedVariant,
       () => ritualInProgress,
-      () => {
-        ritualInProgress = true;
-      },
+      suspendAtelierForRitual,
     );
 
     c.add(
