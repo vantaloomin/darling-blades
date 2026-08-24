@@ -16,8 +16,14 @@ export interface FlaggedDeckSummary {
   firstIssue: string;
 }
 
-/** The one player-facing sentence a retired classic deck reports. */
-export const CLASSIC_RETIRED_ISSUE = 'Constructed has retired. Switch this deck to Warchest to play it.';
+/**
+ * The one player-facing sentence a retired classic deck reports. It names the
+ * Format tabs as the player sees them: the warchest format is labelled
+ * "Standard" in the builder (rename 2026-08-18), so the old "Switch to
+ * Warchest" wording pointed at a button that no longer exists.
+ */
+export const CLASSIC_RETIRED_ISSUE =
+  'Constructed has retired. Switch this deck to Standard or Darlings to play it.';
 
 /**
  * Validate one saved deck against its own persisted format without throwing.

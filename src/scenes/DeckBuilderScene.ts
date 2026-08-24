@@ -21,7 +21,7 @@ import {
 } from '../meta/collectionFilter';
 import { decodeDeck, deckCodeErrorMessage, encodeDeck } from '../meta/DeckCode';
 import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
-import { deckHealth } from '../meta/deckRepair';
+import { CLASSIC_RETIRED_ISSUE, deckHealth } from '../meta/deckRepair';
 import {
   appendDeckSlot,
   appendDeckSlots,
@@ -346,7 +346,10 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.syncFilterButton();
     if (this.activeFormat() === 'darlings') {
       showDarlingsTutorial(this, {
-        onReadMore: () => this.scene.start('Glossary', { focus: 'Darlings' }),
+        onReadMore: () => this.scene.start('Glossary', {
+          focus: 'Darlings',
+          returnTo: { scene: 'DeckBuilder', data: { deckId: this.activeSavedDeck()?.id } },
+        }),
       });
     }
   }
@@ -388,7 +391,17 @@ export class DeckBuilderScene extends Phaser.Scene {
     if (format === 'warchest') {
       return validateWarchestDeck(CARD_DB, Services.save.data, cards, this.landReserve);
     }
-    return validateDeck(CARD_DB, Services.save.data, cards);
+    // A classic deck opened after retirement is blocked by its FORMAT, not by
+    // its card count. Reporting the 60-card check first told the player to add
+    // cards to a deck that no duel can seat either way, and never named the
+    // conversion that actually unblocks it (user report 2026-08-24). deckHealth
+    // is the authority on that; lead with its sentence and keep the ordinary
+    // legality issues behind it so nothing is hidden.
+    const issues = validateDeck(CARD_DB, Services.save.data, cards);
+    if (this.classicRetired) {
+      return [{ kind: 'error', message: CLASSIC_RETIRED_ISSUE }, ...issues];
+    }
+    return issues;
   }
 
   private pool(): CardDef[] {
@@ -1051,7 +1064,10 @@ export class DeckBuilderScene extends Phaser.Scene {
   private openDarlingsFormat(): void {
     const tutorial = showDarlingsTutorial(this, {
       onDismiss: () => this.showDarlingPicker(),
-      onReadMore: () => this.scene.start('Glossary', { focus: 'Darlings' }),
+      onReadMore: () => this.scene.start('Glossary', {
+        focus: 'Darlings',
+        returnTo: { scene: 'DeckBuilder', data: { deckId: this.activeSavedDeck()?.id } },
+      }),
     });
     if (!tutorial) this.showDarlingPicker();
   }
@@ -1296,12 +1312,17 @@ export class DeckBuilderScene extends Phaser.Scene {
     // genuine choice.
     if (tabs.length < 2) return;
     const layout = DECK_PANE_LAYOUT.formatRow;
+    // A retired classic deck matches none of the offered tabs, so the row would
+    // otherwise render with nothing lit and read as a bug rather than as a deck
+    // sitting on a format that is no longer playable (user report 2026-08-24).
+    // The label carries that state so the unlit tabs read as the choice they are.
+    const retired = !offered.includes(format);
     this.rightPane.push(
-      this.add.text(layout.labelX, layout.y, 'Format', {
+      this.add.text(layout.labelX, layout.y, retired ? 'Classic' : 'Format', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
-        color: theme.colors.muted,
+        color: retired ? theme.colors.danger : theme.colors.muted,
       }).setOrigin(0, 0.5),
     );
     tabs.forEach((choice, index) => {

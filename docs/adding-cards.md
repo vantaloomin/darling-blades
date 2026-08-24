@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-30
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-08-24
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -286,6 +286,27 @@ each `AbilityDef` into oracle-style prose. **Do not put rules text in a card
 definition** — there is no such field. Author the *behavior* (keywords + ops +
 statics) and check the generated wording by opening the **Card Showcase** scene
 (`src/scenes/CardShowcaseScene.ts`) or dropping the id into it.
+
+### Adding a keyword or a named mechanic
+
+The player-facing vocabulary lives in ONE file: `src/data/glossary.ts`. It is in
+the pure data layer, not in `src/ui`, because Collection and Deck Builder search
+read it and the layer-purity lint forbids `src/meta` from importing `src/ui`.
+
+A new keyword needs its `Keyword` union member (`src/engine/types.ts`), then in
+`glossary.ts`: `KEYWORD_NAMES` and `KEYWORD_REMINDER`. Both are
+`Record<Keyword, string>`, so the typecheck fails until you fill them in, and
+the Combat Traits glossary section, the card-inspect Keyword Guide, and search
+all pick it up with no further edit. It also needs an icon in `KEYWORD_ICON_KEY`
+/ `KEYWORD_ICON_PATH` (`src/ui/KeywordIcons.ts`, also a total record).
+
+A new non-keyword mechanic needs its `MechanicId` union member plus
+`MECHANIC_NAMES`, `MECHANIC_DEFINITIONS`, and `MECHANIC_ORDER` in the same file,
+and a branch in `cardMechanics()` that detects it from the card's structured
+fields. `cardMechanics` is the single detector: the glossary, the inspect guide,
+and search all read it, so a mechanic can never be on a card yet unfindable.
+`tests/data/glossary.test.ts` pins that every keyword and every mechanic has a
+row, a definition, and no em-dash in its copy.
 
 ## Worked examples (verbatim from the data files)
 

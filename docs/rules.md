@@ -233,7 +233,7 @@ All twelve keywords and their exact implemented semantics (`Keyword` in
 | **untouchable** · Untouchable | **Blocks only the OPPONENT'S targeting.** Your own untouchable creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
 | **dreaded** · Dreaded | Can be blocked only by two or more creatures. The minimum lives in `minimumBlockersForAttacker` (`combat/legality.ts`); `validateBlocks` enforces it on the final assignment, while `blockOptions` stays permissive so partial assignments can be built incrementally. |
 
-Keyword rules text is generated (`KEYWORD_NAMES` in `src/ui/rulesText.ts`) — see
+Keyword rules text is generated (`KEYWORD_NAMES` in `src/data/glossary.ts`) — see
 [docs/adding-cards.md](adding-cards.md). For the full Magic-evergreen → Darling
 Blades mapping (these 12 plus not-yet-implemented candidates like
 Indestructible, and the Fight/Sacrifice actions), see
@@ -247,6 +247,18 @@ flag set on the cast action. On resolution the empower ops run after the
 card's normal effect (for permanents, after its arrival triggers); empower ops
 are trigger-safe and never target. X spells cannot be empowered
 (`validateAction` rejects the combination).
+
+**Empower is the only ADDITIVE cost in the game.** Retell, Preserve, Hauntlink
+and Skim are all paid *instead of* the printed cost, so they can never ask for
+more mana than the card already does; Empower is paid *on top of* it, which
+makes its total the one number that can print a card no board can cast. The
+Warchest holds `LAND_RESERVE_SIZE` (10) lands, so 10 is the hard ceiling from
+lands alone and reaching it means every land untapped on one turn. Owner ruling
+2026-08-24 sets the design ceiling at **printed cost + Empower ≤ 9**, with the
+two cards printed at 10 held on an explicit allowlist.
+`tests/data/empowerCeiling.test.ts` gates both numbers. Silt-Crowned Harvester
+(was 11) and Ra, Helm of the Night Barge (was 12) were recosted to 9 under this
+ruling.
 
 ### Hauntlink (Charm-speed battlefield link action)
 

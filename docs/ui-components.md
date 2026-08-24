@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-08-22
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-08-24
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -86,6 +86,15 @@ the pattern to copy for any horizontal chip row whose content resizes.
   consumes ESC without navigating away.
 - `CoachMark`: tutorial cue ring + info cards; anchors via live
   `getBounds()` so layout changes never orphan it.
+- `GlossaryScene` (`src/scenes/GlossaryScene.ts`): the full rules reference.
+  Category rail plus one measured, scrolling, searchable term list. Every term
+  comes from `src/data/glossary.ts` and every coordinate from `glossaryFrame` /
+  `glossaryRowsLayout` (`src/ui/layout.ts`), so adding a keyword changes how far
+  the list scrolls and nothing else. It replaced a fixed-coordinate two-panel
+  page that pinned a Y per section heading; once Combat Traits reached twelve
+  entries its measured rows ran under the Mechanics heading and that section's
+  two-at-a-time pager (user report 2026-08-24). Growth must never move chrome:
+  `tests/ui/layout.test.ts` gates the frame ordering and row non-overlap.
 - `KeywordGlossaryPanel`: the tap-a-keyword explainer strip used by
   Collection and duels.
 

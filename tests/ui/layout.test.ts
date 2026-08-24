@@ -22,6 +22,8 @@ import {
   inactiveGap,
   isInsideTitleSafe,
   isRectContained,
+  glossaryFrame,
+  glossaryRowsLayout,
   keywordGlossaryViewport,
   measureThemedButton,
   measureControlCluster,
@@ -514,5 +516,110 @@ describe('layout geometry', () => {
     expect(regularLayout.overflow).toBe(true);
     expect(regularLayout.totalHeight).toBe(regular.maxHeight);
     expect(regularLayout.maxScroll).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The old Glossary pinned a Y to every section heading. Combat Traits grew to
+ * twelve entries, its measured rows ran past their band, and the Mechanics
+ * heading and its pager rendered on top of the last trait rows (user report
+ * 2026-08-24). These pin the property that made that impossible to catch: the
+ * frame is fixed chrome, and growth shows up as scroll, never as overlap.
+ */
+describe('glossary frame', () => {
+  const frame = glossaryFrame();
+
+  it('keeps the rail and the content panel inside the design width, without overlapping', () => {
+    expect(frame.rail.x).toBeGreaterThan(0);
+    expect(frame.rail.x + frame.rail.width).toBeLessThanOrEqual(frame.content.x);
+    expect(frame.content.x + frame.content.width).toBeLessThanOrEqual(theme.design.width);
+    expect(frame.rail.y + frame.rail.height).toBeLessThanOrEqual(theme.design.height);
+  });
+
+  it('orders the heading row, the note, the divider, and the list top down', () => {
+    // Regression: the note shared the heading's band and overlapped it at the
+    // left margin (preview probe 2026-08-24).
+    expect(frame.heading.y + theme.type.h2 / 2).toBeLessThanOrEqual(frame.note.y);
+    expect(frame.search.y + frame.search.height).toBeLessThanOrEqual(frame.dividerY);
+    expect(frame.note.y + theme.type.caption).toBeLessThan(frame.dividerY);
+    expect(frame.dividerY).toBeLessThan(frame.list.y);
+    expect(frame.note.x).toBe(frame.heading.x);
+  });
+
+  it('keeps the search field and the heading in the same row without colliding', () => {
+    expect(frame.search.x).toBeGreaterThan(frame.heading.x);
+    expect(frame.search.x + frame.search.width).toBeLessThanOrEqual(frame.content.x + frame.content.width);
+  });
+
+  it('keeps the scroll viewport inside the content panel', () => {
+    expect(frame.list.x).toBeGreaterThanOrEqual(frame.content.x);
+    expect(frame.list.x + frame.list.width).toBeLessThanOrEqual(frame.content.x + frame.content.width);
+    expect(frame.list.y + frame.list.height).toBeLessThanOrEqual(frame.content.y + frame.content.height);
+    expect(frame.list.height).toBeGreaterThan(0);
+  });
+
+  it('gives every rail tab the hit-height floor and a real gap between tabs', () => {
+    expect(frame.railRowHeight).toBeGreaterThanOrEqual(theme.control.minHitHeight);
+    expect(frame.railRowPitch - frame.railRowHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
+    // All Terms plus five sections, all inside the rail.
+    const lastBottom = frame.railFirstRowY + 5 * frame.railRowPitch + frame.railRowHeight;
+    expect(lastBottom).toBeLessThanOrEqual(frame.rail.y + frame.rail.height);
+  });
+});
+
+describe('glossary rows', () => {
+  const frame = glossaryFrame();
+  const rows = (heights: readonly number[], opts = {}) =>
+    glossaryRowsLayout(
+      heights.map((descriptionHeight) => ({ nameHeight: 16, descriptionHeight })),
+      frame.list,
+      opts,
+    );
+
+  it('never lets one row overlap the next, however tall its copy wraps', () => {
+    const layout = rows([12, 96, 12, 140, 12]);
+    for (let i = 1; i < layout.rows.length; i++) {
+      const previous = layout.rows[i - 1];
+      expect(layout.rows[i].y).toBeGreaterThanOrEqual(previous.y + previous.height);
+    }
+  });
+
+  it('grows a row to fit its taller column', () => {
+    const layout = rows([200]);
+    expect(layout.rows[0].height).toBeGreaterThanOrEqual(200);
+  });
+
+  it('turns overflow into scroll rather than into a taller list', () => {
+    const short = rows([12, 12]);
+    expect(short.overflow).toBe(false);
+    expect(short.maxScroll).toBe(0);
+
+    const long = rows(Array.from({ length: 40 }, () => 40));
+    expect(long.overflow).toBe(true);
+    expect(long.maxScroll).toBe(long.contentHeight - frame.list.height);
+  });
+
+  it('keeps every column inside the row width, with the badge clear of the copy', () => {
+    const layout = rows([40], { hasIcons: true, hasBadge: true });
+    const { columns } = layout;
+    expect(columns.iconX).toBeGreaterThan(0);
+    expect(columns.nameX).toBeGreaterThan(columns.iconX);
+    expect(columns.descriptionX).toBeGreaterThanOrEqual(columns.nameX + columns.nameWidth);
+    expect(columns.descriptionWidth).toBeGreaterThan(0);
+    expect(columns.descriptionX + columns.descriptionWidth).toBeLessThanOrEqual(columns.badgeX);
+    expect(columns.badgeX).toBeLessThanOrEqual(frame.list.width);
+  });
+
+  it('reclaims the icon and badge gutters when a section needs neither', () => {
+    const plain = rows([40]).columns;
+    const dressed = rows([40], { hasIcons: true, hasBadge: true }).columns;
+    expect(plain.descriptionWidth).toBeGreaterThan(dressed.descriptionWidth);
+  });
+
+  it('has no rows and no scroll for an empty section', () => {
+    const layout = rows([]);
+    expect(layout.rows).toEqual([]);
+    expect(layout.contentHeight).toBe(0);
+    expect(layout.maxScroll).toBe(0);
   });
 });

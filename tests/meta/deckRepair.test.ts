@@ -200,6 +200,17 @@ describe('deck repair health', () => {
     expect(CLASSIC_RETIRED_ISSUE).not.toContain('—');
   });
 
+  /**
+   * Regression, user report 2026-08-24: the sentence named "Warchest", but the
+   * builder renamed that format tab to "Standard" on 2026-08-18, so the only
+   * instruction a blocked player got pointed at a button with no such label.
+   */
+  it('names the Format tabs the builder actually renders', () => {
+    expect(CLASSIC_RETIRED_ISSUE).toContain('Standard');
+    expect(CLASSIC_RETIRED_ISSUE).toContain('Darlings');
+    expect(CLASSIC_RETIRED_ISSUE).not.toContain('Warchest');
+  });
+
   it('acknowledges a stable sorted id set, forgets repaired ids, and detects new ids', () => {
     const initial = [{ deckId: 'z' }, { deckId: 'a' }, { deckId: 'a' }];
     const fingerprint = deckRepairNoticeFingerprint(initial);

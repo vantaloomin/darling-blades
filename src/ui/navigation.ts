@@ -5,6 +5,8 @@ export const BACK_LABELS = {
   Draft: 'Draft',
   Shop: 'Shop',
   Profile: 'Profile',
+  DeckBuilder: 'Decks',
+  PracticePicker: 'Practice',
 } as const;
 
 export type BackDestination = keyof typeof BACK_LABELS;

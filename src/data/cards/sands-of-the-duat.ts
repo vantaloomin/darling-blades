@@ -87,13 +87,16 @@ export const SANDS_OF_THE_DUAT = [
     types: ['creature'],
     subtypes: ['God'],
     supertypes: ['legendary'],
-    cost: cost(5, 'RW'),
+    // Recost 2026-08-24: was {5}{R}{W} with Empower {3}{R}{W}, a total of 12
+    // against a 10-land ceiling. See the Empower ceiling gate in
+    // tests/data/empowerCeiling.test.ts.
+    cost: cost(4, 'RW'),
     colors: ['R', 'W'],
     attack: 5,
     defense: 5,
     keywords: ['skyborne', 'sentinel'],
     empower: {
-      cost: cost(3, 'RW'),
+      cost: cost(1, 'RW'),
       ops: [
         { op: 'createToken', token: 'tok-bastet-kit', count: 2 },
         { op: 'gainLife', n: 3 },
@@ -3218,12 +3221,15 @@ export const SANDS_OF_THE_DUAT = [
     name: 'Silt-Crowned Harvester',
     types: ['creature'],
     subtypes: ['Harvester', 'Guardian'],
-    cost: cost(5, 'GG'),
+    // Recost 2026-08-24: was {5}{G}{G} with Empower {3}{G}, a total of 11 in a
+    // format that caps the Warchest at 10 lands, so the Empower could never be
+    // paid. {4}{G}{G} for a 6/6 sits inside the analog band (Earthshaker Giant).
+    cost: cost(4, 'GG'),
     colors: ['G'],
     attack: 6,
     defense: 6,
     keywords: ['overrun'],
-    empower: { cost: cost(3, 'G'), ops: [{ op: 'boost', p: 2, t: 2, scope: 'allYours' }] },
+    empower: { cost: cost(2, 'G'), ops: [{ op: 'boost', p: 2, t: 2, scope: 'allYours' }] },
     rarity: 'sr',
     flavor: 'She wears the flood as a crown and the field as a road.',
   },

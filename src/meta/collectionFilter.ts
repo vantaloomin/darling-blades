@@ -12,6 +12,7 @@ import {
 } from './variants';
 import { isUtilityTapland } from './warchest';
 import { isLiveCollectible } from '../data/liveness';
+import { cardTermNames } from '../data/glossary';
 
 /**
  * Pure, headless filter / sort / paging helpers behind the Collection binder
@@ -65,7 +66,7 @@ export interface CollectionFilterState {
   rarity: Rarity | 'all';
   set: SetId | 'all';
   ownedOnly: boolean;
-  /** Free-text search over name / type / subtype / keyword (F8); '' = no filter. */
+  /** Free-text search over name / type / subtype / rules term (F8); '' = no filter. */
   search: string;
   sort: SortMode;
 }
@@ -76,10 +77,14 @@ export function defaultFilterState(): CollectionFilterState {
 
 /**
  * Case-insensitive substring match over a card's structured text: name, card
- * types, subtypes, and keyword enum values (e.g. "fly" hits flying, "beast" hits
- * a Beastkin). CardDef has no stored oracle text — rules text is generated in
- * the Phaser UI layer — so full rules-text search is out of scope for this pure
- * layer; structured-field search covers the common lookups.
+ * types, subtypes, and every rules term the card teaches.
+ *
+ * Terms come from `cardTermNames`, so they match the spelling a player reads on
+ * the card face: "Nine Lives" and "Twin Blades" hit, not just the `nineLives` /
+ * `twinBlades` enum spellings. The raw enum values stay matchable so the older
+ * habit of typing "sky" for Skyborne still works. CardDef has no stored oracle
+ * text (rules text is generated in the Phaser layer), so full rules-text search
+ * remains out of scope for this pure layer.
  */
 export function matchesSearch(d: CardDef, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -88,7 +93,8 @@ export function matchesSearch(d: CardDef, query: string): boolean {
     d.name.toLowerCase().includes(q) ||
     d.types.some((t) => t.includes(q)) ||
     d.subtypes.some((s) => s.toLowerCase().includes(q)) ||
-    (d.keywords?.some((k) => k.toLowerCase().includes(q)) ?? false)
+    (d.keywords?.some((k) => k.toLowerCase().includes(q)) ?? false) ||
+    cardTermNames(d).some((term) => term.toLowerCase().includes(q))
   );
 }
 
