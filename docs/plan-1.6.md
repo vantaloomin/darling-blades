@@ -1,18 +1,48 @@
-<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, src/meta/deckRepair.ts, src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/MainMenuScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/DuelScene.ts, scripts/balance-matrix.ts · last-verified: 2026-08-18 · program doc — re-verify when the referenced code or plans change -->
+<!-- source-of-truth: docs/plan-1.6-draft.md, docs/plan-1.5.5.md, docs/plan-battle-box.md, docs/plan-darlings.md, src/config/rules.ts, src/meta/warchest.ts, src/meta/deckRepair.ts, src/meta/SaveManager.ts, src/meta/cosmetics.ts, src/meta/Achievements.ts, src/scenes/MainMenuScene.ts, src/scenes/ProfileScene.ts, src/scenes/PackOpeningScene.ts, src/scenes/DuelScene.ts, scripts/balance-matrix.ts · last-verified: 2026-08-23 · program doc — re-verify when the referenced code or plans change -->
 
 # Darling Blades 1.6 — program plan
 
-**Status 2026-08-10: OPEN, migration complete.** The train opened gated on
-2026-08-06; the **Warchest format-parameter gate** below RESOLVED on
-2026-08-07 with owner ratification of **40-card decks, a 5-card opening
-hand, and no reserve color cap**. All lanes are now open, including the
-migration and every reserve-field balance lane, which build to the
-ratified parameters. **Classic constructed retired 2026-08-10** (see the
-retirement section below); the dated 2026-08-09 reserve table in
-`opponents.ts` is now the only live baseline, which is what makes the
-floor re-centre real work. Scope and sequencing graduate from
-[plan-1.6-draft.md](plan-1.6-draft.md), which remains the fuller
-reference for wave details and the mechanic-reuse audit.
+**Status 2026-08-23: CLOSED, shipped as 1.6.0.** The train opened gated on
+2026-08-06; the Warchest format-parameter gate RESOLVED on 2026-08-07 with
+owner ratification of **40-card decks, a 5-card opening hand, and no reserve
+color cap**; classic constructed retired 2026-08-10; and the cut landed
+2026-08-23 at **1,079 collectible cards across 8 sets, a 22-rung tower, and a
+1,646-test suite**. History below is retained as written, including the parts
+that did not survive contact with measurement.
+
+**What shipped against what was planned.** The migration, the priority-window
+reopening, the deck-invalidation flow, Sands of the Duat, the summit pair,
+cosmetics, Premium UX Waves B and C, the keyword sprinkle, and the Dark Tales
+companion wave all landed. Two things did not go as the plan assumed, and both
+are recorded honestly rather than quietly closed:
+
+- **The companion wave's balance premise did not hold.** An all-`dt-` Midnight
+  Storybook measured 24pp WORSE than the cross-set build, so only rung 17 and
+  an 8-copy option-B Midnight adopted the wave. Its value is collection,
+  achievements, draft depth and set identity, not power. Full record with every
+  failed iteration in docs/plan-dt-companion.md 5.5.
+- **The rung floors had been gating a retired format.** `runAvatarMatrix` still
+  played the classic lists until 2026-08-23, so the tower's only public
+  win-rate gate priced a game that retired on 2026-08-10. Migrated
+  reserve-native at the cut; it immediately exposed two soft rungs (Anubis 33%,
+  The Bride 54%), both then tuned to 57% and 69%.
+
+**STILL OPEN AT THE CUT, carried to 1.7 rather than closed:**
+
+1. **The mono-goodstuff question below is UNRESOLVED.** The format gate flagged
+   mono goodstuff at ~73% in every config and deferred it to "the migration
+   balance pass"; no measurement in this train closed it. Only the persona
+   metagame sweep would, and that sweep was stopped 3 hours in (2 of 6 personas,
+   round 0) when it projected ~37 hours. It was traded for a fresh 200-seed
+   player-deck head-to-head, which shows a healthy authored-deck field (31.9pp
+   spread, top 65.3, floor 33.4, zero draws, zero engine exceptions across
+   13,200 games) but says NOTHING about what an optimizing player could build.
+2. **Collection dilution** remains deferred by owner decision (2026-08-22): six
+   of ten personas sit below their day-60 fine band's own share floor while all
+   four LOCKED Layer-1 coarse gates PASS. The bands stay deliberately stale and
+   the `limited-fan uniqueCards` flag deliberately standing until the sweep runs.
+3. **Draft's reserve-native design** and **land cards' economy treatment** were
+   never closed; see Open decisions below.
 
 ## The north star (owner-ratified 2026-07-31, unchanged)
 

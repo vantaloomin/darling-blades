@@ -517,6 +517,49 @@ export interface Avatar {
  * spread of the real shipped decks. Read the player-deck table above for
  * anything product-facing.
  *
+ * ===========================================================================
+ * 2026-08-23 - THE 1.6 RELEASE-CUT PLAYER-DECK BASELINE.
+ * ===========================================================================
+ * `--player-decks --seeds 200`, 12 decks round-robin, 66 cells, 13,200 games,
+ * 4,661s. 13,200 decided, 0 turn-limit draws, 0 engine exceptions. This
+ * SUPERSEDES the 2026-08-09 player-deck table above, which predated Duat going
+ * live (+245 cards), the card-health triage (#257), the companion flip (+60),
+ * and both summit tunes - it was the last stale headline number in the cut.
+ *
+ *   Pride at the Ninth Gate 65.3 · Neon Afterimage 63.5 · Burning Tides 60.8 ·
+ *   Midnight Storybook 57.5 · Questing Table 56.4 · Crimson Muster 52.0 ·
+ *   Wild Communion 49.8 · Bloodmoon Masquerade 46.8 · Grave Harvest 42.1 ·
+ *   Valhalla's Muster 36.3 · Glimmer Bargain 36.0 · Shadow Mandate 33.4
+ *
+ * SPREAD 31.9 points, up from 26.3. READ THE DELTAS WITH THIS CAVEAT: the
+ * field grew 11 -> 12 decks and the newcomer is the strongest, so every other
+ * deck now plays 200 extra games against a 65% opponent. That drags each
+ * aggregate down roughly 2-3pp mechanically. Wild Communion's -7.2 is really
+ * about -4.5 and Valhalla's -7.7 about -5.5; Neon's +9.5 is real and if
+ * anything understated.
+ *
+ * NOTHING IS BROKEN: the top is 65.3 (not oppressive), the floor is 33.4 (not
+ * dead), and 13,200 games produced zero draws and zero engine exceptions.
+ * Shipped as the 1.6 cut baseline on that basis. TWO WATCH ITEMS for 1.7,
+ * named rather than left to be rediscovered:
+ *   1. The NEWEST SET'S PRECON LEADS THE FIELD. Pride at the Ninth Gate at
+ *      65.3 is the deck a new player is most likely to buy and the one most
+ *      likely to feel unfair across the table. Common for a fresh set, benign
+ *      at this magnitude, worth watching if the next set repeats it.
+ *   2. NEON AFTERIMAGE MOVED +9.5pp WITH NOBODY TUNING IT, the largest
+ *      unexplained mover here. Most plausibly a second-order effect of the
+ *      #257 recosts, but that is a HYPOTHESIS, not a measurement - it was not
+ *      verified before the cut and should not be cited as if it were.
+ * Shadow Mandate (33.4) and Glimmer Bargain (36.0) remain the soft pair the
+ * owner ruled playable-not-broken; that ruling was made at a 26.3 spread and
+ * was re-surfaced at 31.9 before the cut.
+ *
+ * NOT MEASURED BY THIS TABLE, and deliberately still open: whether an
+ * OPTIMIZING player can craft a degenerate deck from the 1,079-card pool.
+ * Only the persona metagame sweep answers that, and it was stopped 3h in
+ * (2 of 6 personas, round 0) when it projected ~37h. The mono-goodstuff
+ * question the format gate raised (docs/plan-1.6.md) is still open with it.
+ *
  * 2026-07-31 - RESERVE FORMAT BASELINES (1.5.5 reveal gate; the two
  * matrices the 1.5.0 release split left TO MEASURE). SUPERSEDED 2026-08-09
  * by the dated table above; retained as history. STALE 2026-08-06:
