@@ -223,8 +223,16 @@ function bakeStyledCardBack(ctx: CanvasRenderingContext2D, style: CardBackStyle)
   ctx.restore();
 }
 
-function bakeRealCardBack(scene: Phaser.Scene, ctx: CanvasRenderingContext2D): void {
-  const src = scene.textures.get('scene-card-back').getSourceImage() as CanvasImageSource;
+/**
+ * The scene-art key for one card back. The default's asset is `card-back`; the
+ * cosmetics are `card-<entry.id>`, whose ids already start with `back-`.
+ */
+function cardBackArtKey(entryId: string): string {
+  return entryId === DEFAULT_CARD_BACK_ID ? 'scene-card-back' : `scene-card-${entryId}`;
+}
+
+function bakeRealCardBack(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, artKey: string): void {
+  const src = scene.textures.get(artKey).getSourceImage() as CanvasImageSource;
   const sw = (src as { width: number }).width;
   const sh = (src as { height: number }).height;
   ctx.save();
@@ -389,8 +397,12 @@ export function bakeCardFrames(scene: Phaser.Scene): void {
     if (scene.textures.exists(textureKey)) continue;
     const tex = scene.textures.createCanvas(textureKey, FRAME_W, FRAME_H)!;
     const ctx = tex.getContext();
-    if (entry.id === DEFAULT_CARD_BACK_ID && scene.textures.exists('scene-card-back')) {
-      bakeRealCardBack(scene, ctx);
+    // Real art when the scene-art WebP is on disk, else the procedural painting.
+    // Every back got real art on 2026-08-24; the procedural paths stay as the
+    // fallback for a build where the art payload has not loaded.
+    const artKey = cardBackArtKey(entry.id);
+    if (scene.textures.exists(artKey)) {
+      bakeRealCardBack(scene, ctx, artKey);
     } else if (entry.id === DEFAULT_CARD_BACK_ID) {
       bakeProceduralCardBack(ctx);
     } else {
