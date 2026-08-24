@@ -824,3 +824,174 @@ export function measureControlCluster(
       ),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Glossary scene frame
+// ---------------------------------------------------------------------------
+
+/**
+ * The Glossary is a browsable reference that grows every time a set adds a
+ * keyword or a mechanic, so nothing about its frame may be pinned to the
+ * current term count. The old page hard-coded a Y for each section heading and
+ * silently collided once Combat Traits reached twelve entries; this geometry is
+ * a fixed chrome frame plus a measured, scrolling list, so the only thing that
+ * changes when a term is added is how far the list scrolls.
+ */
+export interface GlossaryFrame {
+  rail: Rect;
+  /** Panel holding the search field, the section heading, and the list. */
+  content: Rect;
+  search: Rect;
+  heading: Point;
+  /** Top-left of the section note, on its own band under the heading. */
+  note: Point;
+  /** Divider between the heading block and the scrolling list. */
+  dividerY: number;
+  /** Scroll viewport for the term rows, in design-space coordinates. */
+  list: Rect;
+  /** Vertical pitch of one rail tab, hit floors included. */
+  railRowPitch: number;
+  railRowHeight: number;
+  railFirstRowY: number;
+}
+
+const GLOSSARY_FRAME_PADDING = theme.space(5);
+
+export function glossaryFrame(): GlossaryFrame {
+  const { design } = theme;
+  const outerX = 48;
+  const top = 112;
+  const bottom = design.height - 36;
+  const height = bottom - top;
+  const railWidth = 236;
+  const gutter = theme.space(4);
+  const contentX = outerX + railWidth + gutter;
+  const contentWidth = design.width - outerX - contentX;
+  const pad = GLOSSARY_FRAME_PADDING;
+  const searchHeight = theme.control.heightSm;
+  const searchWidth = 320;
+  const headingRowY = top + pad;
+  // The note gets its own band. Sharing the heading's band overlapped it by a
+  // few pixels at the left margin, which reads as a rendering fault rather than
+  // as tight spacing (preview probe 2026-08-24). The band is reserved whether
+  // or not the active section has a note, so the divider never moves between
+  // tabs.
+  const noteY = headingRowY + Math.max(searchHeight, theme.type.h2) + theme.space(1);
+  const noteHeight = theme.type.caption + theme.space(1);
+  const dividerY = noteY + noteHeight + theme.space(2);
+  const listY = dividerY + theme.space(3);
+  const railRowHeight = theme.control.minHitHeight;
+  return {
+    rail: { x: outerX, y: top, width: railWidth, height },
+    content: { x: contentX, y: top, width: contentWidth, height },
+    search: {
+      x: contentX + contentWidth - pad - searchWidth,
+      y: headingRowY,
+      width: searchWidth,
+      height: searchHeight,
+    },
+    heading: { x: contentX + pad, y: headingRowY + searchHeight / 2 },
+    note: { x: contentX + pad, y: noteY },
+    dividerY,
+    list: {
+      x: contentX + theme.space(4),
+      y: listY,
+      width: contentWidth - theme.space(8),
+      height: top + height - pad - listY,
+    },
+    railRowPitch: railRowHeight + GAP_FLOORS.ordinary,
+    railRowHeight,
+    railFirstRowY: top + pad,
+  };
+}
+
+/** Measured Phaser Text heights for one side-by-side glossary row. */
+export interface GlossaryRowMeasurement {
+  nameHeight: number;
+  descriptionHeight: number;
+}
+
+export interface GlossaryRowRect extends Rect {
+  /** Baseline-free vertical centre of the row, for origin-0.5 text. */
+  centerY: number;
+}
+
+export interface GlossaryRowColumns {
+  iconX: number;
+  nameX: number;
+  nameWidth: number;
+  descriptionX: number;
+  descriptionWidth: number;
+  badgeX: number;
+}
+
+export interface GlossaryRowsLayoutOptions {
+  /** Sections whose terms carry a trait icon reserve an icon gutter. */
+  hasIcons?: boolean;
+  /** The cross-section results view labels each row with its section. */
+  hasBadge?: boolean;
+  rowGap?: number;
+  rowPaddingY?: number;
+  rowPaddingX?: number;
+  minRowHeight?: number;
+}
+
+export interface GlossaryRowsLayout {
+  columns: GlossaryRowColumns;
+  rows: GlossaryRowRect[];
+  contentHeight: number;
+  maxScroll: number;
+  overflow: boolean;
+}
+
+/**
+ * Flow term rows down a fixed-width list from their rendered text heights.
+ * Rows are name-left / description-right, so a row is as tall as its taller
+ * column: long reminder copy grows its own row instead of overrunning the next.
+ */
+export function glossaryRowsLayout(
+  measurements: readonly GlossaryRowMeasurement[],
+  viewport: RectSize,
+  opts: GlossaryRowsLayoutOptions = {},
+): GlossaryRowsLayout {
+  const rowGap = Math.max(0, opts.rowGap ?? theme.space(1.5));
+  const rowPaddingY = Math.max(0, opts.rowPaddingY ?? theme.space(2));
+  const rowPaddingX = Math.max(0, opts.rowPaddingX ?? theme.space(3.5));
+  const minRowHeight = Math.max(0, opts.minRowHeight ?? theme.space(9));
+  const iconWidth = opts.hasIcons ? theme.space(9) : 0;
+  const badgeWidth = opts.hasBadge ? theme.space(24) : 0;
+  // The scroll rail lives inside the row width, so every row reserves it and
+  // the thumb can never sit on top of the reminder copy.
+  const railWidth = theme.space(3);
+  const width = Math.max(0, viewport.width);
+  const nameWidth = theme.space(42);
+  const columnGap = theme.space(4);
+  const descriptionX = rowPaddingX + iconWidth + nameWidth + columnGap;
+  const columns: GlossaryRowColumns = {
+    iconX: rowPaddingX + iconWidth / 2,
+    nameX: rowPaddingX + iconWidth,
+    nameWidth,
+    descriptionX,
+    descriptionWidth: Math.max(0, width - descriptionX - rowPaddingX - badgeWidth - railWidth),
+    badgeX: width - rowPaddingX - railWidth,
+  };
+
+  const rows: GlossaryRowRect[] = [];
+  let cursor = 0;
+  for (const measurement of measurements) {
+    const tallest = Math.max(Math.max(0, measurement.nameHeight), Math.max(0, measurement.descriptionHeight));
+    const height = Math.max(minRowHeight, tallest + rowPaddingY * 2);
+    rows.push({ x: 0, y: cursor, width, height, centerY: cursor + height / 2 });
+    cursor += height + rowGap;
+  }
+
+  const contentHeight = rows.length === 0 ? 0 : cursor - rowGap;
+  const maxHeight = Math.max(0, viewport.height);
+  return {
+    columns,
+    rows,
+    contentHeight,
+    maxScroll: Math.max(0, contentHeight - maxHeight),
+    overflow: contentHeight > maxHeight,
+  };
+}

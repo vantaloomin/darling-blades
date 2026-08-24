@@ -158,6 +158,40 @@ describe('search facet (F8)', () => {
     expect(applyFilters(pool, st('sky'), save).map((d) => d.id)).toEqual(['drake']);
   });
 
+  /**
+   * Regression, user report 2026-08-24: multi-word terms were unfindable
+   * because search only ever saw the camelCase enum key. "Twin Blades" missed
+   * `twinBlades` on the space, and mechanics that are not keywords at all
+   * (Nine Lives, Preserve, Retell, Hauntlink, Rite) had nothing to match.
+   */
+  it('matches the printed spelling of multi-word keywords', () => {
+    const twin = card('duelist', { name: 'Paired Duelist', keywords: ['twinBlades'] });
+    expect(matchesSearch(twin, 'Twin Blades')).toBe(true);
+    expect(matchesSearch(twin, 'twin blades')).toBe(true);
+    expect(matchesSearch(twin, 'Warding Gaze')).toBe(false);
+  });
+
+  it('matches named mechanics that are not keywords', () => {
+    const cat = card('cat', { name: 'Alley Cat', nineLives: true });
+    expect(matchesSearch(cat, 'Nine Lives')).toBe(true);
+    expect(matchesSearch(cat, 'nine lives')).toBe(true);
+    // Nine Lives returns the creature with a +1/+1 mark, so Mark finds it too.
+    expect(matchesSearch(cat, 'Mark')).toBe(true);
+
+    const relic = card('relic', { name: 'Bound Relic', hauntlink: { cost: { generic: 2, pips: {} }, linked: { p: 1 } } });
+    expect(matchesSearch(relic, 'Hauntlink')).toBe(true);
+    expect(matchesSearch(relic, 'Nine Lives')).toBe(false);
+  });
+
+  it('matches keywords a card only grants', () => {
+    const anthem = card('anthem', {
+      name: 'Sky Standard',
+      keywords: [],
+      abilities: [{ when: 'static', static: { scope: 'filter', grantKeywords: ['skyborne'] } }],
+    });
+    expect(matchesSearch(anthem, 'Skyborne')).toBe(true);
+  });
+
   it('combines with other facets (AND) and can be empty', () => {
     expect(applyFilters(pool, { ...defaultFilterState(), search: 'dragon', color: 'G' }, save).map((d) => d.id)).toEqual([
       'drake',

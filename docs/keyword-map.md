@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-08-17 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/glossary.ts, src/ui/rulesText.ts, docs/rules.md · last-verified: 2026-08-24 · reference/mapping doc — shipped rows track the code; "Planned" rows record decided names for not-yet-built mechanics, not code · re-verify shipped rows when the referenced code changes -->
 
 # MTG keyword map — Darling Blades terms (shipped + future)
 
@@ -24,7 +24,8 @@ Read each row's **Status** as:
 
 - **Shipped** — a value in the `Keyword` union (`src/engine/types.ts`) or an
   `EffectOp` (same file); the engine and reminder text speak the themed term.
-  Reminders below are quoted from `KEYWORD_REMINDER` in `src/ui/rulesText.ts`.
+  Reminders below are quoted from `KEYWORD_REMINDER` in `src/data/glossary.ts`
+  (re-exported by `src/ui/rulesText.ts` for card-face callers).
 - **Planned** — *not in the engine yet.* The name is **decided** — a themed label,
   or a kept Magic term where that word is generic enough (Equip, Fight, Sacrifice).
   **Adding one is a new engine feature, not a rename:** it touches
@@ -158,7 +159,11 @@ text swap.
 - **Shipped semantics of record:** [rules.md](rules.md) → *Keywords* table (the
   exact implemented behavior of the 11).
 - **How the labels/reminders are generated:** `KEYWORD_NAMES` / `KEYWORD_REMINDER`
-  in `src/ui/rulesText.ts`; authoring note in [adding-cards.md](adding-cards.md).
+  in `src/data/glossary.ts`, which also owns `MECHANIC_NAMES` /
+  `MECHANIC_DEFINITIONS` and the Glossary scene's sections. It lives in the
+  pure data layer because Collection search reads it too, and the layer-purity
+  lint forbids `src/meta` from importing `src/ui`. Authoring note in
+  [adding-cards.md](adding-cards.md).
 - **Why the engine ids are themed (the rename that shipped):**
   [plan-de-mtg-rethemes.md](plan-de-mtg-rethemes.md); the superseded display-only
   proposal is [plan-keyword-rethemes.md](plan-keyword-rethemes.md).

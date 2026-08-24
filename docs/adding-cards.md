@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-07-30
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-08-24
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -286,6 +286,43 @@ each `AbilityDef` into oracle-style prose. **Do not put rules text in a card
 definition** — there is no such field. Author the *behavior* (keywords + ops +
 statics) and check the generated wording by opening the **Card Showcase** scene
 (`src/scenes/CardShowcaseScene.ts`) or dropping the id into it.
+
+### Adding a keyword or a named mechanic
+
+The player-facing vocabulary lives in ONE file: `src/data/glossary.ts`. It is in
+the pure data layer, not in `src/ui`, because Collection and Deck Builder search
+read it and the layer-purity lint forbids `src/meta` from importing `src/ui`.
+
+A new keyword needs its `Keyword` union member (`src/engine/types.ts`), then in
+`glossary.ts`: `KEYWORD_NAMES` and `KEYWORD_REMINDER`. Both are
+`Record<Keyword, string>`, so the typecheck fails until you fill them in, and
+the Combat Traits glossary section, the card-inspect Keyword Guide, and search
+all pick it up with no further edit. It also needs an icon in `KEYWORD_ICON_KEY`
+/ `KEYWORD_ICON_PATH` (`src/ui/KeywordIcons.ts`, also a total record).
+
+A new non-keyword mechanic needs its `MechanicId` union member plus
+`MECHANIC_NAMES`, `MECHANIC_DEFINITIONS`, and `MECHANIC_ORDER` in the same file,
+a glyph in `MECHANIC_ICON_KEY` / `MECHANIC_ICON_PATH`, and a branch in
+`cardMechanics()` that detects it from the card's structured fields. `cardMechanics` is the single detector: the glossary, the inspect guide,
+and search all read it, so a mechanic can never be on a card yet unfindable.
+`tests/data/glossary.test.ts` pins that every keyword and every mechanic has a
+row, a definition, and no em-dash in its copy;
+`tests/ui/mechanicIcons.test.ts` pins that no glossary row falls back to a blank
+icon gutter.
+
+**Drawing the glyph.** All three icon families (`KEYWORD_ICON_PATH`,
+`MECHANIC_ICON_PATH`, `CARD_TYPE_ICON_PATH`) share one 44x44 canvas, one dark
+rounded chip, and a single gold `evenodd` fill, so nested subpaths punch holes
+and a third nesting level fills again (Champion Awakening's old pupil and the
+Warchest clasp both relied on that). Two constraints decide whether a glyph is
+finished: it has to survive the 16px card-chip size, and its silhouette has to
+stay distinct from every glyph already in the set. That second one is the hard
+part in practice. Foresee is a lifted deck rather than a fourth eye because
+Warding Gaze, Sentinel and Champion Awakening already owned that motif; Rite is
+a chalice rather than a blade or a droplet for the same reason; and Champion
+Awakening became a double chevron in 2026-08-24 precisely because its eye read
+as a duplicate of Warding Gaze. Bake a sheet of all of them at once and look at
+them together before calling a glyph done.
 
 ## Worked examples (verbatim from the data files)
 

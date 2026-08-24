@@ -174,7 +174,10 @@ export class PracticePickerScene extends Phaser.Scene {
     );
     if (activeDeck?.format === 'darlings') {
       showDarlingsTutorial(this, {
-        onReadMore: () => this.scene.start('Glossary', { focus: 'Darlings' }),
+        onReadMore: () => this.scene.start('Glossary', {
+          focus: 'Darlings',
+          returnTo: { scene: 'PracticePicker' },
+        }),
       });
     }
 

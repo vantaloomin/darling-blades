@@ -258,7 +258,7 @@ export class CollectionScene extends Phaser.Scene {
     // reset-page + re-render path the filter chips use.
     this.searchInput = createSearchInput(this, 355, 30, {
       width: 250,
-      placeholder: 'Search name / type / keyword…',
+      placeholder: 'Search name / type / trait / mechanic…',
       onChange: (value) => {
         this.state.search = value;
         this.page = 0;

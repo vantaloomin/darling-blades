@@ -1,7 +1,6 @@
 import type {
   AbilityDef,
   CardDef,
-  CardType,
   Color,
   EffectOp,
   Keyword,
@@ -9,77 +8,25 @@ import type {
   TargetSpec,
 } from '../engine/types';
 import { CARD_DB } from '../data/catalog';
+import {
+  cardMechanics,
+  KEYWORD_NAMES,
+  KEYWORD_REMINDER,
+  MECHANIC_DEFINITIONS,
+  MECHANIC_NAMES,
+} from '../data/glossary';
 
-export const KEYWORD_NAMES: Record<Keyword, string> = {
-  skyborne: 'Skyborne',
-  wardingGaze: 'Warding Gaze',
-  firstBlade: 'First Blade',
-  twinBlades: 'Twin Blades',
-  warcry: 'Warcry',
-  overrun: 'Overrun',
-  sentinel: 'Sentinel',
-  bulwark: 'Bulwark',
-  deathblade: 'Deathblade',
-  bloodoath: 'Blood Oath',
-  untouchable: 'Untouchable',
-  dreaded: 'Dreaded',
-};
-
-/** One-line, player-facing reminder for each evergreen keyword (F9 glossary). */
-export const KEYWORD_REMINDER: Record<Keyword, string> = {
-  skyborne: 'can only be blocked by creatures with Skyborne or Warding Gaze',
-  wardingGaze: 'can block creatures with Skyborne',
-  firstBlade: 'deals combat damage before creatures without First Blade',
-  twinBlades: 'deals combat damage both before and alongside other creatures',
-  warcry: 'can attack and tap the turn it arrives',
-  overrun: 'excess combat damage past its blockers is dealt to the player',
-  sentinel: 'attacking does not cause it to tap',
-  bulwark: 'cannot attack',
-  deathblade: 'any amount of damage it deals to a creature is lethal',
-  bloodoath: 'damage it deals also gains you that much life',
-  untouchable: 'cannot be targeted by spells or abilities your opponents control',
-  dreaded: 'cannot be blocked except by two or more creatures',
-};
-
-/** One-line, player-facing definitions for non-keyword mechanics (glossary). */
-export const MECHANIC_DEFINITIONS: Record<
-  | 'sever'
-  | 'foresee'
-  | 'mark'
-  | 'quest'
-  | 'championAwakening'
-  | 'empower'
-  | 'skim'
-  | 'retell'
-  | 'hauntlink'
-  | 'rite'
-  | 'nineLives'
-  | 'preserve',
-  string
-> = {
-  sever: 'severed from the game; severed cards never return',
-  foresee: 'look at the top cards of your deck; put any of them on the bottom',
-  mark: 'a lasting +1/+1 increase to a creature\'s Attack and Defense',
-  quest: 'advances a chapter at each of your dawns; leaves after the last',
-  championAwakening: 'a one-way upgrade granting the listed stats and keywords',
-  empower: 'pay the extra cost as you cast this for the listed bonus effect',
-  skim: 'pay the listed cost, discard this card, then draw a card',
-  retell: 'cast this from your graveyard for the listed cost, then sever it',
-  hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
-  rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
-  nineLives: 'when this dies with no +1/+1 marks on it, it returns to the battlefield with a +1/+1 mark on it',
-  preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during your main phase',
-};
-
-/** One-line player-facing definitions for the card types used in the glossary. */
-export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
-  creature: 'A permanent fighter that can attack and block.',
-  charm: 'Cast anytime you have priority, even on the foe\'s turn.',
-  ritual: 'Cast only during one of your own main phases.',
-  enchantment: 'A lasting spell that changes a creature or the battlefield.',
-  artifact: 'A lasting relic with abilities or ongoing effects.',
-  land: 'Play one each turn to tap for mana.',
-};
+// The rules vocabulary itself lives in `src/data/glossary.ts` so the pure
+// layers (Collection search) can read it without importing presentation code.
+// It is re-exported here because the card face is still where callers look
+// for card copy.
+export {
+  CARD_TYPE_DEFINITIONS,
+  KEYWORD_NAMES,
+  KEYWORD_REMINDER,
+  MECHANIC_DEFINITIONS,
+  MECHANIC_NAMES,
+} from '../data/glossary';
 
 // Token and mark counts read as words ("create two 1/1 tokens", "put one
 // +1/+1 mark") per the printed-card convention; other numerics (damage,
@@ -469,10 +416,13 @@ export interface GlossaryEntry {
 
 /**
  * Every keyword and named mechanic a card's face references: its own keyword
- * line, keywords granted/named inside its rules text, and the Sever/Foresee
- * mechanics. Derived from the generated rulesText so any op that prints a
- * term automatically surfaces its definition (the inspect Keyword Guide was
- * missing mechanics — e.g. Morrigan showed Skyborne but not Foresee/Sever).
+ * line, keywords granted or named inside its rules text, and its named
+ * mechanics. Keywords still come off the generated rulesText so any op that
+ * prints a trait surfaces its definition (the inspect Keyword Guide used to
+ * miss those — Morrigan showed Skyborne but not Foresee/Sever). The mechanics
+ * half reads `cardMechanics`, the same structural detector Collection search
+ * uses, so the guide and the search box can never disagree about which
+ * mechanics a card has.
  */
 export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
   const entries: GlossaryEntry[] = [];
@@ -489,18 +439,9 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
       push(KEYWORD_NAMES[k], KEYWORD_REMINDER[k]);
     }
   }
-  if (/\bforesee\b/.test(text)) push('Foresee', MECHANIC_DEFINITIONS.foresee);
-  if (/\bsever(s|ed)?\b/.test(text)) push('Sever', MECHANIC_DEFINITIONS.sever);
-  if (/\bmarks?\b/.test(text)) push('Mark', MECHANIC_DEFINITIONS.mark);
-  if (d.chapters) push('Quest', MECHANIC_DEFINITIONS.quest);
-  if (d.awakening) push('Champion Awakening', MECHANIC_DEFINITIONS.championAwakening);
-  if (d.empower) push('Empower', MECHANIC_DEFINITIONS.empower);
-  if (d.skim) push('Skim', MECHANIC_DEFINITIONS.skim);
-  if (d.retell) push('Retell', MECHANIC_DEFINITIONS.retell);
-  if (d.hauntlink) push('Hauntlink', MECHANIC_DEFINITIONS.hauntlink);
-  if (d.rite) push('Rite', MECHANIC_DEFINITIONS.rite);
-  if (d.nineLives) push('Nine Lives', MECHANIC_DEFINITIONS.nineLives);
-  if (d.preserve) push('Preserve', MECHANIC_DEFINITIONS.preserve);
+  for (const mechanic of cardMechanics(d)) {
+    push(MECHANIC_NAMES[mechanic], MECHANIC_DEFINITIONS[mechanic]);
+  }
   return entries;
 }
 
