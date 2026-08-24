@@ -1,3 +1,4 @@
+import { LIMITED_MATCHES, type LimitedDeckStyle, type LimitedState } from './Limited';
 import type { SaveData } from './SaveManager';
 
 /**
@@ -58,3 +59,73 @@ export function computeProfile(save: Pick<SaveData, 'stats' | 'gauntlet'>): Prof
 export function formatRate(rate: number | null): string {
   return rate === null ? '—' : `${Math.round(rate * 100)}%`;
 }
+
+// ---------------------------------------------------------------------------
+// Draft record
+// ---------------------------------------------------------------------------
+
+export interface DraftSummary {
+  /** Completed runs. An in-flight run is deliberately excluded until it finishes. */
+  runs: number;
+  wins: number;
+  losses: number;
+  /** Match win fraction 0..1 across completed runs, or null when none. */
+  winRate: number | null;
+  /** Best match count in a single run, from the persisted record. */
+  bestWins: number;
+  /** Runs that finished with the maximum match wins. */
+  perfectRuns: number;
+  goldEarned: number;
+  premiumRuns: number;
+  /** Completed-run counts per built deck style, most-built first. */
+  byDeckStyle: { key: LimitedDeckStyle; runs: number }[];
+  /** Distinct personas the player has actually drafted against. */
+  personasMet: number;
+  /** True while a run is in progress, so the UI can say the record excludes it. */
+  runInProgress: boolean;
+}
+
+const DECK_STYLE_ORDER: readonly LimitedDeckStyle[] = ['mono', 'dual', 'other'];
+
+/**
+ * Fold the persisted Limited history into a display-ready draft record.
+ *
+ * Counts only COMPLETED runs: `history` is written at the end of a run, so an
+ * abandoned or in-flight draft contributes nothing and cannot inflate the
+ * record. Legacy `sealed` entries are excluded too; sealed was cancelled after
+ * v14 saves could already persist it, and those rows stay in the blob for
+ * losslessness rather than as draft results.
+ */
+export function computeDraftSummary(
+  limited: Pick<LimitedState, 'history' | 'bestDraftWins' | 'personaSeen' | 'activeRun'> & {
+    premiumWeek?: unknown;
+  },
+): DraftSummary {
+  const runs = limited.history.filter((entry) => entry.mode === 'draft');
+  const wins = runs.reduce((n, entry) => n + entry.wins, 0);
+  const losses = runs.reduce((n, entry) => n + entry.losses, 0);
+  const byDeckStyle = DECK_STYLE_ORDER.map((key) => ({
+    key,
+    runs: runs.filter((entry) => entry.deckStyle === key).length,
+  })).sort((a, b) => b.runs - a.runs || DECK_STYLE_ORDER.indexOf(a.key) - DECK_STYLE_ORDER.indexOf(b.key));
+
+  return {
+    runs: runs.length,
+    wins,
+    losses,
+    winRate: winRate(wins, losses),
+    bestWins: limited.bestDraftWins,
+    perfectRuns: runs.filter((entry) => entry.wins === LIMITED_MATCHES).length,
+    goldEarned: runs.reduce((n, entry) => n + entry.rewardGold, 0),
+    premiumRuns: runs.filter((entry) => entry.premium === true).length,
+    byDeckStyle,
+    personasMet: Object.values(limited.personaSeen ?? {}).filter((n) => n > 0).length,
+    runInProgress: limited.activeRun !== null,
+  };
+}
+
+export const DECK_STYLE_LABEL: Record<LimitedDeckStyle, string> = {
+  mono: 'Mono-color',
+  dual: 'Two-color',
+  other: 'Three or more',
+};

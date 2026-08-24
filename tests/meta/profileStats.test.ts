@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeProfile, formatRate, winRate } from '../../src/meta/profileStats';
+import { computeDraftSummary, computeProfile, formatRate, winRate } from '../../src/meta/profileStats';
+import type { LimitedHistoryEntry, LimitedState } from '../../src/meta/Limited';
 
 /** The ProfileScene renders career stats; this pins the pure win-rate math. */
 describe('profileStats', () => {
@@ -52,5 +53,96 @@ describe('profileStats', () => {
     });
     expect(summary.winRate).toBeNull();
     expect(summary.byDifficulty.every((d) => d.rate === null)).toBe(true);
+  });
+});
+
+/**
+ * The Profile's Draft tab (1.6.3). Everything here already existed in the save;
+ * the point of the pure summary is that "record" means COMPLETED runs only, so
+ * an abandoned or in-flight draft can never inflate it.
+ */
+describe('computeDraftSummary', () => {
+  function entry(over: Partial<LimitedHistoryEntry> = {}): LimitedHistoryEntry {
+    return {
+      id: 'r1',
+      mode: 'draft',
+      seed: 1,
+      wins: 2,
+      losses: 1,
+      deckStyle: 'dual',
+      completedAt: 0,
+      rewardGold: 100,
+      ...over,
+    };
+  }
+  function state(over: Partial<LimitedState> = {}): LimitedState {
+    return { activeRun: null, history: [], bestDraftWins: 0, personaSeen: {}, ...over };
+  }
+
+  it('reports an empty record without dividing by zero', () => {
+    const s = computeDraftSummary(state());
+    expect(s.runs).toBe(0);
+    expect(s.winRate).toBeNull();
+    expect(s.goldEarned).toBe(0);
+    expect(s.personasMet).toBe(0);
+    expect(s.runInProgress).toBe(false);
+  });
+
+  it('totals matches, gold and premium runs across completed runs', () => {
+    const s = computeDraftSummary(state({
+      history: [
+        entry({ id: 'a', wins: 3, losses: 0, rewardGold: 300, premium: true }),
+        entry({ id: 'b', wins: 1, losses: 2, rewardGold: 40 }),
+      ],
+      bestDraftWins: 3,
+    }));
+    expect(s.runs).toBe(2);
+    expect(s.wins).toBe(4);
+    expect(s.losses).toBe(2);
+    expect(s.winRate).toBeCloseTo(4 / 6, 10);
+    expect(s.bestWins).toBe(3);
+    expect(s.perfectRuns).toBe(1);
+    expect(s.goldEarned).toBe(340);
+    expect(s.premiumRuns).toBe(1);
+  });
+
+  it('excludes an in-flight run from the record but reports that one is running', () => {
+    const s = computeDraftSummary(state({
+      history: [entry({ wins: 3, losses: 0 })],
+      activeRun: { mode: 'draft' } as LimitedState['activeRun'],
+    }));
+    expect(s.runs).toBe(1);
+    expect(s.wins).toBe(3);
+    expect(s.runInProgress).toBe(true);
+  });
+
+  it('ignores legacy sealed rows, which are retained only for lossless saves', () => {
+    const s = computeDraftSummary(state({
+      history: [
+        entry({ id: 'draft', wins: 2, losses: 1, rewardGold: 100 }),
+        { ...entry({ id: 'sealed', wins: 3, losses: 0, rewardGold: 999 }), mode: 'sealed' },
+      ],
+    }));
+    expect(s.runs).toBe(1);
+    expect(s.wins).toBe(2);
+    expect(s.goldEarned).toBe(100);
+  });
+
+  it('orders deck styles most-built first, with a stable tiebreak', () => {
+    const s = computeDraftSummary(state({
+      history: [
+        entry({ id: '1', deckStyle: 'other' }),
+        entry({ id: '2', deckStyle: 'other' }),
+        entry({ id: '3', deckStyle: 'mono' }),
+      ],
+    }));
+    expect(s.byDeckStyle[0]).toEqual({ key: 'other', runs: 2 });
+    // mono before dual on a 1-vs-0 tie is the declared order, not chance.
+    expect(s.byDeckStyle.map((d) => d.key)).toEqual(['other', 'mono', 'dual']);
+  });
+
+  it('counts only personas actually drafted against', () => {
+    const s = computeDraftSummary(state({ personaSeen: { a: 2, b: 0, c: 1 } }));
+    expect(s.personasMet).toBe(2);
   });
 });
