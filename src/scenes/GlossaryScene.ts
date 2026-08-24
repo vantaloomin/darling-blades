@@ -11,7 +11,7 @@ import {
   type GlossaryTerm,
 } from '../data/glossary';
 import { bakeCardFrames } from '../ui/CardFrameFactory';
-import { KEYWORD_ICON_KEY, MECHANIC_ICON_KEY, bakeKeywordIcons } from '../ui/KeywordIcons';
+import { CARD_TYPE_ICON_KEY, KEYWORD_ICON_KEY, MECHANIC_ICON_KEY, bakeKeywordIcons } from '../ui/KeywordIcons';
 import {
   glossaryFrame,
   glossaryRowsLayout,
@@ -429,6 +429,8 @@ export class GlossaryScene extends Phaser.Scene {
         return this.add.image(x, y, KEYWORD_ICON_KEY[icon.key]).setDisplaySize(30, 30);
       case 'mechanic':
         return this.add.image(x, y, MECHANIC_ICON_KEY[icon.key]).setDisplaySize(30, 30);
+      case 'type':
+        return this.add.image(x, y, CARD_TYPE_ICON_KEY[icon.key]).setDisplaySize(30, 30);
       case 'mana':
         return this.add.image(x, y, `pip-${icon.key}`).setDisplaySize(26, 26);
       case 'rarity':

@@ -302,11 +302,27 @@ all pick it up with no further edit. It also needs an icon in `KEYWORD_ICON_KEY`
 
 A new non-keyword mechanic needs its `MechanicId` union member plus
 `MECHANIC_NAMES`, `MECHANIC_DEFINITIONS`, and `MECHANIC_ORDER` in the same file,
-and a branch in `cardMechanics()` that detects it from the card's structured
-fields. `cardMechanics` is the single detector: the glossary, the inspect guide,
+a glyph in `MECHANIC_ICON_KEY` / `MECHANIC_ICON_PATH`, and a branch in
+`cardMechanics()` that detects it from the card's structured fields. `cardMechanics` is the single detector: the glossary, the inspect guide,
 and search all read it, so a mechanic can never be on a card yet unfindable.
 `tests/data/glossary.test.ts` pins that every keyword and every mechanic has a
-row, a definition, and no em-dash in its copy.
+row, a definition, and no em-dash in its copy;
+`tests/ui/mechanicIcons.test.ts` pins that no glossary row falls back to a blank
+icon gutter.
+
+**Drawing the glyph.** All three icon families (`KEYWORD_ICON_PATH`,
+`MECHANIC_ICON_PATH`, `CARD_TYPE_ICON_PATH`) share one 44x44 canvas, one dark
+rounded chip, and a single gold `evenodd` fill, so nested subpaths punch holes
+and a third nesting level fills again (Champion Awakening's old pupil and the
+Warchest clasp both relied on that). Two constraints decide whether a glyph is
+finished: it has to survive the 16px card-chip size, and its silhouette has to
+stay distinct from every glyph already in the set. That second one is the hard
+part in practice. Foresee is a lifted deck rather than a fourth eye because
+Warding Gaze, Sentinel and Champion Awakening already owned that motif; Rite is
+a chalice rather than a blade or a droplet for the same reason; and Champion
+Awakening became a double chevron in 2026-08-24 precisely because its eye read
+as a duplicate of Warding Gaze. Bake a sheet of all of them at once and look at
+them together before calling a glyph done.
 
 ## Worked examples (verbatim from the data files)
 

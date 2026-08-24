@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-08-24
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-08-24
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -95,6 +95,12 @@ the pattern to copy for any horizontal chip row whose content resizes.
   entries its measured rows ran under the Mechanics heading and that section's
   two-at-a-time pager (user report 2026-08-24). Growth must never move chrome:
   `tests/ui/layout.test.ts` gates the frame ordering and row non-overlap.
+- `KeywordIcons`: three total icon records baked to one shared chip helper -
+  `KEYWORD_ICON_KEY` (per engine keyword), `MECHANIC_ICON_KEY` (per named
+  mechanic plus the Warchest and Darlings zone terms), and `CARD_TYPE_ICON_KEY`
+  (per card type). Every record is total over its union, so a new term cannot
+  ship without a glyph; until 2026-08-24 only Champion Awakening had a mechanic
+  glyph and the Glossary drew nineteen empty gutters beside it.
 - `KeywordGlossaryPanel`: the tap-a-keyword explainer strip used by
   Collection and duels.
 

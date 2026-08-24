@@ -179,9 +179,17 @@ export function cardTermNames(d: CardDef): string[] {
 
 export type GlossarySectionId = 'combat' | 'mechanics' | 'types' | 'mana' | 'rarity';
 
+/**
+ * Everything the icon bake draws a mechanic chip for: the named mechanics plus
+ * the two zone terms, which have no card field behind them but still need a
+ * glyph so the Mechanics tab has no ragged gutter.
+ */
+export type MechanicIconId = MechanicId | 'warchest' | 'darlings';
+
 export type GlossaryIcon =
   | { kind: 'keyword'; key: Keyword }
-  | { kind: 'mechanic'; key: 'awakening' }
+  | { kind: 'mechanic'; key: MechanicIconId }
+  | { kind: 'type'; key: CardType }
   | { kind: 'mana'; key: Color }
   | { kind: 'rarity'; key: Rarity }
   | { kind: 'none' };
@@ -216,12 +224,12 @@ const ZONE_TERMS: GlossaryTerm[] = [
     name: 'Warchest',
     description:
       'Warchest Reserves hold lands not yet in play. Active Warchest holds your deployed lands. Your Darling waits in her own zone, and each return adds 2 to her next call.',
-    icon: { kind: 'none' },
+    icon: { kind: 'mechanic', key: 'warchest' },
   },
   {
     name: 'Darlings',
     description: 'Your Darling waits in her own zone; each time she falls, her next call costs 2 more.',
-    icon: { kind: 'none' },
+    icon: { kind: 'mechanic', key: 'darlings' },
   },
 ];
 
@@ -260,9 +268,7 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
       ...MECHANIC_ORDER.map((mechanic) => ({
         name: MECHANIC_NAMES[mechanic],
         description: MECHANIC_DEFINITIONS[mechanic],
-        icon: (mechanic === 'championAwakening'
-          ? { kind: 'mechanic', key: 'awakening' }
-          : { kind: 'none' }) as GlossaryIcon,
+        icon: { kind: 'mechanic', key: mechanic } as GlossaryIcon,
       })),
       ...ZONE_TERMS,
     ],
@@ -273,7 +279,7 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
     terms: (['creature', 'charm', 'ritual', 'enchantment', 'artifact', 'land'] as CardType[]).map((type) => ({
       name: type.charAt(0).toUpperCase() + type.slice(1),
       description: CARD_TYPE_DEFINITIONS[type],
-      icon: { kind: 'none' } as GlossaryIcon,
+      icon: { kind: 'type', key: type } as GlossaryIcon,
     })),
   },
   {
