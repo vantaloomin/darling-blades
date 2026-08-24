@@ -1,11 +1,18 @@
 /** Phaser-free state and geometry for the Deck Builder's right-pane views. */
 
-export type DeckPaneMode = 'cards' | 'warchest';
+/**
+ * `style` joined in v33, when card back and playmat became per-deck. It is a
+ * third VIEW rather than a new chrome row because the pane spans 900-1260 and
+ * both existing rows are full: the CTA row has no gap at all, and the View row
+ * leaves ~54px, under the 90px hit-width floor.
+ */
+export type DeckPaneMode = 'cards' | 'warchest' | 'style';
 
 export interface DeckPaneToggleState {
   mode: DeckPaneMode;
   cardsSelected: boolean;
   warchestSelected: boolean;
+  styleSelected: boolean;
   warchestWarning: boolean;
   warchestLabel: 'Warchest' | 'Warchest ⚠';
 }
@@ -15,10 +22,12 @@ export const DECK_PANE_LAYOUT = {
   right: 1260,
   toggle: {
     labelX: 900,
-    cardsX: 1052,
-    warchestX: 1182,
+    /** Three views share the row since v33; 84px slots keep them inside 1260. */
+    cardsX: 1000,
+    warchestX: 1092,
+    styleX: 1184,
     y: 112,
-    minWidth: 116,
+    minWidth: 84,
   },
   content: {
     top: 148,
@@ -114,8 +123,12 @@ export function toggleDeckPaneMode(mode: DeckPaneMode): DeckPaneMode {
   return mode === 'cards' ? 'warchest' : 'cards';
 }
 
-/** Constructed has no Warchest view, so stale state is coerced safely. */
+/**
+ * Constructed has no Warchest view, so stale state is coerced safely. Style is
+ * available in every format: a deck has a look whether or not it has a reserve.
+ */
 export function resolveDeckPaneMode(mode: DeckPaneMode, hasWarchest: boolean): DeckPaneMode {
+  if (mode === 'style') return 'style';
   return hasWarchest ? mode : 'cards';
 }
 
@@ -128,6 +141,7 @@ export function deckPaneToggleState(
     mode,
     cardsSelected: mode === 'cards',
     warchestSelected: mode === 'warchest',
+    styleSelected: mode === 'style',
     warchestWarning,
     warchestLabel: warchestWarning ? 'Warchest ⚠' : 'Warchest',
   };

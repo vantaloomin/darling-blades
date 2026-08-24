@@ -76,6 +76,17 @@ import {
 import { Dropdown, type DropdownOption } from '../ui/Dropdown';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { createSearchInput } from '../ui/SearchInput';
+import {
+  CARD_BACKS,
+  DEFAULT_CARD_BACK_ID,
+  DEFAULT_PLAYMAT_ID,
+  playmatForId,
+} from '../meta/cosmetics';
+import {
+  openCosmeticPicker,
+  paintPlaymatSwatch,
+  safeCardBackTexture,
+} from '../ui/CosmeticPicker';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel as themedPanel, registerSceneBackNavigation, sceneHasOpenModal, themedButton, type ModalShell, type Pager, type ThemedButton } from '../ui/themeWidgets';
 import {
@@ -169,6 +180,8 @@ export class DeckBuilderScene extends Phaser.Scene {
   private deckCodeMessage = '';
   private landReserve: string[] = [];
   private deckPaneMode: DeckPaneMode = defaultDeckPaneMode();
+  /** The card-back / playmat chooser, so a re-render or shutdown can close it. */
+  private styleShell: ModalShell | null = null;
   /** Captured at create() so a local dev flip applies when a scene is reopened. */
   private reserveFormatsEnabled = false;
   private classicRetired = false;
@@ -1366,7 +1379,141 @@ export class DeckBuilderScene extends Phaser.Scene {
         this.renderDeck();
       },
     });
-    this.rightPane.push(cards.container, warchest.container);
+    const style = themedButton(this, layout.styleX, y, 'Style', {
+      variant: state.styleSelected ? 'primary' : 'ghost',
+      size: 'sm',
+      minWidth: layout.minWidth,
+      onTap: () => {
+        this.deckPaneMode = 'style';
+        this.renderDeck();
+      },
+    });
+    this.rightPane.push(cards.container, warchest.container, style.container);
+  }
+
+  /**
+   * The deck's own look: card back, playmat, and the per-basic land styles that
+   * already lived on the deck. Style became per-deck in save v33, so this pane
+   * replaced the Profile's account-level Style section.
+   */
+  private renderStylePanel(lift = 0): void {
+    const active = this.activeSavedDeck();
+    const top = DECK_PANE_LAYOUT.content.top - lift;
+    const x0 = 900;
+
+    if (!active) {
+      this.rightPane.push(
+        this.add
+          .text(x0, top + 24, 'Save this deck first, then give it a look of its own.', {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.body}px`,
+            color: theme.colors.muted,
+            wordWrap: { width: 340 },
+          })
+          .setOrigin(0, 0.5),
+      );
+      return;
+    }
+
+    const cardBack = CARD_BACKS.find((entry) => entry.id === active.cardBack) ?? CARD_BACKS[0];
+    const playmat = playmatForId(active.playmat ?? null);
+
+    // Card back row.
+    let y = top + 30;
+    this.rightPane.push(
+      this.add
+        .text(x0, y, 'Card back', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
+        })
+        .setOrigin(0, 0.5),
+      this.add.image(x0 + 96, y, safeCardBackTexture(this, cardBack)).setDisplaySize(24, 34),
+      this.add
+        .text(x0 + 118, y, cardBack.name, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.heading,
+          wordWrap: { width: 118 },
+        })
+        .setOrigin(0, 0.5),
+    );
+    const backBtn = themedButton(this, x0 + 302, y, 'Change', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 90,
+      onTap: () => this.openDeckStylePicker('cardBack'),
+    });
+    this.rightPane.push(backBtn.container);
+
+    // Playmat row.
+    y += 56;
+    const swatch = this.add.graphics();
+    paintPlaymatSwatch(swatch, x0 + 96, y, playmat, 34, 24);
+    this.rightPane.push(
+      this.add
+        .text(x0, y, 'Playmat', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
+        })
+        .setOrigin(0, 0.5),
+      swatch,
+      this.add
+        .text(x0 + 118, y, playmat.name, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.heading,
+          wordWrap: { width: 118 },
+        })
+        .setOrigin(0, 0.5),
+    );
+    const matBtn = themedButton(this, x0 + 302, y, 'Change', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 90,
+      onTap: () => this.openDeckStylePicker('playmat'),
+    });
+    this.rightPane.push(matBtn.container);
+
+    y += 56;
+    this.rightPane.push(
+      this.add
+        .text(x0, y, 'These apply to this deck only. Your library shows its card back when you mulligan.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          color: theme.colors.muted,
+          wordWrap: { width: 350 },
+          lineSpacing: 2,
+        })
+        .setOrigin(0, 0.5),
+    );
+  }
+
+  private openDeckStylePicker(kind: 'cardBack' | 'playmat'): void {
+    const active = this.activeSavedDeck();
+    if (!active) return;
+    this.styleShell?.close();
+    this.styleShell = openCosmeticPicker(this, {
+      kind,
+      currentId: (kind === 'cardBack' ? active.cardBack : active.playmat) ?? null,
+      owned: Services.save.data.cosmetics.owned,
+      subtitle: `Style for ${active.name}. This deck only.`,
+      onEquip: (id) => {
+        const deck = this.activeSavedDeck();
+        if (!deck) return;
+        // The catalog default persists as null so a retired id can never pin a
+        // deck to something the catalog no longer has.
+        const value = id === (kind === 'cardBack' ? DEFAULT_CARD_BACK_ID : DEFAULT_PLAYMAT_ID) ? null : id;
+        if (kind === 'cardBack') deck.cardBack = value;
+        else deck.playmat = value;
+        Services.save.touch();
+        this.renderDeck();
+      },
+      onClose: () => {
+        this.styleShell = null;
+      },
+    });
   }
 
   /** Full-width reserve workspace below the Cards / Warchest toggle. */
@@ -2353,7 +2500,9 @@ export class DeckBuilderScene extends Phaser.Scene {
       });
     }
 
-    if (this.deckPaneMode === 'cards') {
+    if (this.deckPaneMode === 'style') {
+      this.renderStylePanel(paneLift);
+    } else if (this.deckPaneMode === 'cards') {
       const heroId = this.deckHeroId();
       // The reserve-format pane starts its rows near the top (no basics
       // block), so geometry, not the constructed six-row cap, decides how
