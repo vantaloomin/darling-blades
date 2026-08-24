@@ -171,6 +171,25 @@ export function cardBackTextureKey(id: string | null): string {
   return `cardback-${entry.id}`;
 }
 
+/**
+ * Style is a property of the deck you built (v33). `null` is the CATALOG
+ * default, not an inherited account value: every deck starts on Violet
+ * Standard and the house playmat until it chooses otherwise (owner ruling
+ * 2026-08-24). There is deliberately no account fallback here, so a deck's
+ * look is answered entirely by the deck.
+ */
+export function resolveDeckCardBackId(
+  deck: { readonly cardBack?: string | null } | null | undefined,
+): string | null {
+  return deck?.cardBack ?? null;
+}
+
+export function resolveDeckPlaymatId(
+  deck: { readonly playmat?: string | null } | null | undefined,
+): string | null {
+  return deck?.playmat ?? null;
+}
+
 export function playmatForId(id: string | null): PlaymatDefinition {
   return PLAYMATS.find((entry) => entry.id === id) ?? PLAYMATS.find((entry) => entry.id === DEFAULT_PLAYMAT_ID)!;
 }

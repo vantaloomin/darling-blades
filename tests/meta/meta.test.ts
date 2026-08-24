@@ -527,6 +527,7 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
     expect(m.data.decks).toEqual([
       {
         id: 'd1', name: 'Mine', cards: ['land-forest'], heroCardId: null, landStyle: null,
+        cardBack: null, playmat: null,
         format: 'constructed', darlingId: null, landReserve: null, variantPins: [null],
       },
     ]);
@@ -945,6 +946,8 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
         cards: ['hero-card', 'other-card'],
         heroCardId: 'hero-card',
         landStyle: null,
+        cardBack: null,
+        playmat: null,
         format: 'constructed',
         darlingId: null,
         landReserve: null,
@@ -952,14 +955,17 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       },
       {
         id: 'without-default', name: 'Without Default', cards: ['other-card'], heroCardId: null, landStyle: null,
+        cardBack: null, playmat: null,
         format: 'constructed', darlingId: null, landReserve: null, variantPins: [null],
       },
       {
         id: 'explicit', name: 'Explicit', cards: ['alpha', 'beta'], heroCardId: 'beta', landStyle: null,
+        cardBack: null, playmat: null,
         format: 'constructed', darlingId: null, landReserve: null, variantPins: [null, null],
       },
       {
         id: 'stale', name: 'Stale', cards: ['alpha'], heroCardId: null, landStyle: null,
+        cardBack: null, playmat: null,
         format: 'constructed', darlingId: null, landReserve: null, variantPins: [null],
       },
     ]);

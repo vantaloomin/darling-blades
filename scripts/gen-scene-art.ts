@@ -99,7 +99,13 @@ const ORNAMENT_PREAMBLE =
   'symmetric, edge-to-edge layout. ' +
   'Style: crisp cel-shaded gacha anime production art — clean inked ornamental ' +
   'linework, hard-edged rendering in two to three tone steps, controlled saturation on ' +
-  'a dark royal-violet base with gold accents. The design is completely text-free. ';
+  // The palette is the ENTRY's to state. This clause used to hardcode "a dark
+  // royal-violet base with gold accents", which is the house back and the
+  // booster pack but fights every cosmetic card back that has a palette of its
+  // own (storm gold, moonlit silver, plum leather, neon cyan) — the preamble
+  // ran ahead of the entry and washed them all violet.
+  'a dark ground, with the entry palette below governing every hue. ' +
+  'The design is completely text-free. ';
 
 /**
  * Negative block appended after the entry prompt. The first three lines are

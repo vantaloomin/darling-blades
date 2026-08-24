@@ -108,3 +108,37 @@ describe('deck pane presentation', () => {
     expect(warchestSlotLabel(0, 'Red Cliffs Anchorage')).not.toContain('…');
   });
 });
+
+/**
+ * v33 added Style as a third VIEW rather than a new chrome row, because the
+ * deck pane spans 900-1260 and both existing rows were full. These pin that the
+ * three buttons still fit inside the pane with the hit-width floor intact, and
+ * that Style survives the constructed coercion (a deck has a look whether or
+ * not it has a Warchest).
+ */
+describe('deck pane style view', () => {
+  it('marks exactly one view selected', () => {
+    expect(deckPaneToggleState('style', 0)).toMatchObject({
+      cardsSelected: false,
+      warchestSelected: false,
+      styleSelected: true,
+    });
+    expect(deckPaneToggleState('cards', 0).styleSelected).toBe(false);
+    expect(deckPaneToggleState('warchest', 0).styleSelected).toBe(false);
+  });
+
+  it('keeps Style available in constructed, where Warchest is coerced away', () => {
+    expect(resolveDeckPaneMode('style', false)).toBe('style');
+    expect(resolveDeckPaneMode('style', true)).toBe('style');
+    expect(resolveDeckPaneMode('warchest', false)).toBe('cards');
+  });
+
+  it('fits three buttons inside the pane without overlapping', () => {
+    const t = DECK_PANE_LAYOUT.toggle;
+    const half = t.minWidth / 2;
+    expect(t.cardsX - half).toBeGreaterThan(t.labelX);
+    expect(t.warchestX - half).toBeGreaterThanOrEqual(t.cardsX + half);
+    expect(t.styleX - half).toBeGreaterThanOrEqual(t.warchestX + half);
+    expect(t.styleX + half).toBeLessThanOrEqual(DECK_PANE_LAYOUT.right);
+  });
+});

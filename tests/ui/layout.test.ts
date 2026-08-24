@@ -22,6 +22,8 @@ import {
   inactiveGap,
   isInsideTitleSafe,
   isRectContained,
+  gauntletScrollToRung,
+  gauntletTowerLayout,
   glossaryFrame,
   glossaryRowsLayout,
   keywordGlossaryViewport,
@@ -621,5 +623,71 @@ describe('glossary rows', () => {
     expect(layout.rows).toEqual([]);
     expect(layout.contentHeight).toBe(0);
     expect(layout.maxScroll).toBe(0);
+  });
+});
+
+/**
+ * The tower divided a fixed 500px column by the rung count, so growing from 12
+ * rungs to 22 shrank rows to ~24px with ~12px plates, and the row placed its
+ * name at a fixed offset with NO width cap while the stars sat at a fixed right
+ * offset in the same box, so long avatar names ran under the stars (user report
+ * 2026-08-24). These pin the two properties that make both impossible: the row
+ * pitch does not depend on the rung count, and the name budget has the star
+ * column subtracted out of it.
+ */
+describe('gauntlet tower', () => {
+  const viewport = { x: 620, y: 156, width: 420, height: 500 };
+
+  it('keeps the row pitch constant however long the tower gets', () => {
+    const twelve = gauntletTowerLayout(12, viewport);
+    const twentyTwo = gauntletTowerLayout(22, viewport);
+    const hundred = gauntletTowerLayout(100, viewport);
+    expect(twentyTwo.rowPitch).toBe(twelve.rowPitch);
+    expect(hundred.rowPitch).toBe(twelve.rowPitch);
+    expect(twelve.rowHeight).toBeGreaterThanOrEqual(40);
+  });
+
+  it('reserves the star column out of the name budget', () => {
+    const layout = gauntletTowerLayout(22, viewport);
+    const nameRight = layout.labelX + layout.labelWidth;
+    const starColumnLeft = layout.starRightX - theme.space(9);
+    expect(nameRight).toBeLessThanOrEqual(starColumnLeft);
+    expect(layout.starRightX).toBeLessThanOrEqual(layout.rowWidth);
+    expect(layout.labelWidth).toBeGreaterThan(0);
+  });
+
+  it('turns extra rungs into scroll, never into shorter rows', () => {
+    const short = gauntletTowerLayout(6, viewport);
+    expect(short.overflow).toBe(false);
+    expect(short.maxScroll).toBe(0);
+
+    const full = gauntletTowerLayout(22, viewport);
+    expect(full.overflow).toBe(true);
+    expect(full.maxScroll).toBe(full.contentHeight - viewport.height);
+    expect(full.rowHeight).toBe(short.rowHeight);
+  });
+
+  it('scrolls the current rung into view, clamped at both ends', () => {
+    const rungs = 22;
+    const layout = gauntletTowerLayout(rungs, viewport);
+    const visible = (rung: number, offset: number): boolean => {
+      const rowTop = (rungs - rung) * layout.rowPitch;
+      return rowTop >= offset && rowTop + layout.rowHeight <= offset + viewport.height;
+    };
+    for (const rung of [1, 5, 12, 18, 22]) {
+      const offset = gauntletScrollToRung(rung, rungs, layout);
+      expect(offset).toBeGreaterThanOrEqual(0);
+      expect(offset).toBeLessThanOrEqual(layout.maxScroll);
+      expect(visible(rung, offset), `rung ${rung} off screen`).toBe(true);
+    }
+    // Rung 1 is the LAST row, so it pins to the bottom of the scroll range.
+    expect(gauntletScrollToRung(1, rungs, layout)).toBe(layout.maxScroll);
+    expect(gauntletScrollToRung(rungs, rungs, layout)).toBe(0);
+  });
+
+  it('has no scroll for a tower that fits', () => {
+    const layout = gauntletTowerLayout(3, viewport);
+    expect(gauntletScrollToRung(1, 3, layout)).toBe(0);
+    expect(layout.contentHeight).toBeLessThan(viewport.height);
   });
 });

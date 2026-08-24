@@ -89,6 +89,15 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during your main phase',
 };
 
+/** Player-facing rarity tier names, shared by the glossary and the Profile. */
+export const RARITY_NAMES: Record<Rarity, string> = {
+  c: 'Common',
+  r: 'Rare',
+  sr: 'Super Rare',
+  ssr: 'Super Special Rare',
+  ur: 'Ultra Rare',
+};
+
 /** One-line player-facing definitions for the card types. */
 export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
   creature: 'A permanent fighter that can attack and block.',
@@ -298,13 +307,18 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
     id: 'rarity',
     title: 'Rarity Tiers',
     compact: true,
-    terms: [
-      { name: 'Common', description: 'The most frequent pull.', shortLabel: 'C', icon: { kind: 'rarity', key: 'c' } },
-      { name: 'Rare', description: 'One guaranteed in every pack.', shortLabel: 'R', icon: { kind: 'rarity', key: 'r' } },
-      { name: 'Super Rare', description: 'An uncommon pull.', shortLabel: 'SR', icon: { kind: 'rarity', key: 'sr' } },
-      { name: 'Super Special Rare', description: 'A rare pull.', shortLabel: 'SSR', icon: { kind: 'rarity', key: 'ssr' } },
-      { name: 'Ultra Rare', description: 'The rarest pull of all.', shortLabel: 'UR', icon: { kind: 'rarity', key: 'ur' } },
-    ],
+    terms: ([
+      ['c', 'The most frequent pull.', 'C'],
+      ['r', 'One guaranteed in every pack.', 'R'],
+      ['sr', 'An uncommon pull.', 'SR'],
+      ['ssr', 'A rare pull.', 'SSR'],
+      ['ur', 'The rarest pull of all.', 'UR'],
+    ] as [Rarity, string, string][]).map(([key, description, shortLabel]) => ({
+      name: RARITY_NAMES[key],
+      description,
+      shortLabel,
+      icon: { kind: 'rarity', key } as GlossaryIcon,
+    })),
   },
 ];
 

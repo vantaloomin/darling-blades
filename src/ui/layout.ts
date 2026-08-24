@@ -995,3 +995,89 @@ export function glossaryRowsLayout(
     overflow: contentHeight > maxHeight,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Gauntlet tower
+// ---------------------------------------------------------------------------
+
+/**
+ * The tower is a ladder whose length is the tower's length: it grew from 12
+ * rungs to 22 and the old layout divided a fixed 500px column by the rung
+ * count, so rows shrank to ~24px with ~12px plates behind a 16px font. Worse,
+ * the row placed its name at a fixed left offset with NO width cap and its
+ * difficulty stars at a fixed right offset inside the same box, so a long
+ * avatar name ran underneath the stars (user report 2026-08-24).
+ *
+ * The fix is structural rather than a smaller font: rows keep a readable pitch,
+ * the column scrolls, and the star column is subtracted from the name's width
+ * budget here so the two can never occupy the same pixels.
+ */
+export interface GauntletTowerLayout {
+  /** Scroll viewport in design space; rows are positioned relative to its top. */
+  viewport: Rect;
+  rowPitch: number;
+  rowHeight: number;
+  rowWidth: number;
+  /** Left edge of the status glyph and name text, relative to the row. */
+  labelX: number;
+  /** Hard width cap for the name; ellipsize past it. */
+  labelWidth: number;
+  /** Right edge of the reserved star column, relative to the row. */
+  starRightX: number;
+  contentHeight: number;
+  maxScroll: number;
+  overflow: boolean;
+}
+
+export interface GauntletTowerOptions {
+  /** Widest the star column ever renders (three stars at label size). */
+  starColumnWidth?: number;
+  rowGap?: number;
+  rowHeight?: number;
+}
+
+export function gauntletTowerLayout(
+  rungs: number,
+  viewport: Rect,
+  opts: GauntletTowerOptions = {},
+): GauntletTowerLayout {
+  const rowHeight = Math.max(0, opts.rowHeight ?? 40);
+  const rowGap = Math.max(0, opts.rowGap ?? theme.space(3));
+  const rowPitch = rowHeight + rowGap;
+  const rowWidth = Math.max(0, viewport.width);
+  const padX = theme.space(3);
+  const starColumnWidth = Math.max(0, opts.starColumnWidth ?? theme.space(9));
+  const labelX = padX;
+  const count = Math.max(0, rungs);
+  const contentHeight = count === 0 ? 0 : count * rowPitch - rowGap;
+  return {
+    viewport,
+    rowPitch,
+    rowHeight,
+    rowWidth,
+    labelX,
+    // The star column and both paddings come out of the name's budget, which
+    // is what makes the overlap unrepresentable rather than merely unlikely.
+    labelWidth: Math.max(0, rowWidth - padX * 2 - starColumnWidth - theme.space(2)),
+    starRightX: rowWidth - padX,
+    contentHeight,
+    maxScroll: Math.max(0, contentHeight - viewport.height),
+    overflow: contentHeight > viewport.height,
+  };
+}
+
+/**
+ * Scroll offset that brings one rung's row fully into view, biased to sit the
+ * row a little above centre so the rungs you are climbing toward stay visible.
+ * Rows render bottom-up: rung 1 is the LAST row.
+ */
+export function gauntletScrollToRung(
+  rung: number,
+  rungs: number,
+  layout: GauntletTowerLayout,
+): number {
+  const rowIndex = Math.max(0, Math.min(rungs - 1, rungs - rung));
+  const rowTop = rowIndex * layout.rowPitch;
+  const centred = rowTop - layout.viewport.height / 2 + layout.rowHeight / 2;
+  return clampScrollOffset(centred, layout.maxScroll);
+}

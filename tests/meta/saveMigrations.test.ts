@@ -6,7 +6,13 @@ import { grantDeckCards } from '../../src/meta/Economy';
 import { startDraftRun } from '../../src/meta/Limited';
 import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from '../../src/meta/variants';
-import { CARD_BACKS, PLAYMATS } from '../../src/meta/cosmetics';
+import {
+  CARD_BACKS,
+  PLAYMATS,
+  cardBackTextureKey,
+  resolveDeckCardBackId,
+  resolveDeckPlaymatId,
+} from '../../src/meta/cosmetics';
 
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
@@ -131,6 +137,8 @@ describe('SaveData v22 migration (tower roster and deck land style)', () => {
     expect(manager.data.decks).toEqual(oldDecks.map((deck) => ({
       ...deck,
       landStyle: null,
+      cardBack: null,
+      playmat: null,
       format: 'constructed',
       darlingId: null,
       landReserve: null,
@@ -683,5 +691,82 @@ describe('SaveData v32 migration (account cosmetics)', () => {
       playmat: PLAYMATS[1].id,
       owned: [],
     });
+  });
+});
+
+/**
+ * v33 moved style from the account onto the deck (owner ruling 2026-08-24), so
+ * a deck can carry the look it was built with. The account values stay as the
+ * fallback for decks that never chose and for deckless contexts like Pack
+ * Opening, which is why this migration SEEDS rather than MOVES: nobody's decks
+ * may change appearance across the upgrade.
+ */
+describe('SaveData v33 migration (per-deck style)', () => {
+  function v32WithDecks(cosmetics: { cardBack: string | null; playmat: string | null }): Record<string, unknown> {
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 32;
+    old.cosmetics = { ...cosmetics, owned: [] };
+    old.decks = [
+      { id: 'a', name: 'Alpha', cards: ['tk-wei-caocao'], heroCardId: null, landStyle: null },
+      { id: 'b', name: 'Beta', cards: ['tk-wei-caocao'], heroCardId: null, landStyle: null },
+    ];
+    return old;
+  }
+
+  it('starts every deck on the catalog default, NOT on the account pick', () => {
+    const storage = fakeStorage();
+    storage.raw.set(
+      'darlingblades.save.v1',
+      JSON.stringify(v32WithDecks({ cardBack: CARD_BACKS[1].id, playmat: PLAYMATS[1].id })),
+    );
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    // Owner ruling 2026-08-24: a deck begins on Violet Standard and the house
+    // playmat, so the per-deck choice starts from a known baseline rather than
+    // inheriting whatever the account happened to be set to.
+    for (const deck of migrated.decks) {
+      expect(deck.cardBack).toBeNull();
+      expect(deck.playmat).toBeNull();
+    }
+  });
+
+  it('resolves a deck that never chose to the catalog default', () => {
+    expect(resolveDeckCardBackId({ cardBack: null })).toBeNull();
+    expect(resolveDeckCardBackId(null)).toBeNull();
+    expect(cardBackTextureKey(resolveDeckCardBackId(null))).toBe('cardback');
+    expect(resolveDeckPlaymatId({ playmat: null })).toBeNull();
+    // An explicit choice is answered by the deck alone.
+    expect(resolveDeckCardBackId({ cardBack: CARD_BACKS[2].id })).toBe(CARD_BACKS[2].id);
+  });
+
+  it('drops an id that is no longer in the catalog rather than persisting it', () => {
+    const storage = fakeStorage();
+    const blob = v32WithDecks({ cardBack: null, playmat: null });
+    (blob.decks as Array<Record<string, unknown>>)[0].cardBack = 'back-retired-long-ago';
+    (blob.decks as Array<Record<string, unknown>>)[0].playmat = 'playmat-retired-long-ago';
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(blob));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.decks[0].cardBack).toBeNull();
+    expect(migrated.decks[0].playmat).toBeNull();
+  });
+
+  it('is idempotent: reloading a v33 save keeps each deck its own choice', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.cosmetics = { cardBack: CARD_BACKS[1].id, playmat: PLAYMATS[1].id, owned: [] };
+    current.decks = [
+      { id: 'a', name: 'Alpha', cards: ['tk-wei-caocao'], heroCardId: null, landStyle: null, cardBack: CARD_BACKS[2].id, playmat: null },
+    ] as SaveData['decks'];
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    // A per-deck choice must survive; it must NOT be overwritten by the account.
+    expect(migrated.decks[0].cardBack).toBe(CARD_BACKS[2].id);
+    expect(migrated.decks[0].playmat).toBeNull();
   });
 });

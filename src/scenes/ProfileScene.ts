@@ -2,25 +2,22 @@ import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { FEATURES } from '../config/features';
-import { CARD_DB } from '../data/catalog';
+import { ALL_CARDS, CARD_DB } from '../data/catalog';
+import { RARITY_NAMES } from '../data/glossary';
 import { ACHIEVEMENTS, type AchievementDef } from '../meta/Achievements';
 import { todayString } from '../meta/Economy';
-import { computeProfile, formatRate, type Difficulty } from '../meta/profileStats';
+import { collectionCompletion } from '../meta/collectionFilter';
+import {
+  DECK_STYLE_LABEL,
+  computeDraftSummary,
+  computeProfile,
+  formatRate,
+  type Difficulty,
+} from '../meta/profileStats';
 import { canReplay, type ReplayLog } from '../meta/Replay';
 import { decode, encode, type SaveCodePreview } from '../meta/SaveCode';
 import type { SaveData } from '../meta/SaveManager';
 import { Services } from '../meta/services';
-import {
-  CARD_BACKS,
-  DEFAULT_CARD_BACK_ID,
-  DEFAULT_PLAYMAT_ID,
-  PLAYMATS,
-  cardBackTextureKey,
-  isCosmeticOwned,
-  playmatForId,
-  type CardBackDefinition,
-  type PlaymatDefinition,
-} from '../meta/cosmetics';
 import { modalGuardTarget } from '../ui/Modal';
 import { isReplayVisible } from '../ui/deckBuilderHelpers';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
@@ -50,24 +47,19 @@ const ROW_INSET = theme.space(3);
 const ROW_TEXT_LEFT = ROW_X + ROW_INSET;
 const ROW_TEXT_RIGHT = ROW_X + ROW_W - ROW_INSET;
 
-/**
- * Style-row columns. The name used to sit at a fixed x with no width budget, so
- * a long cosmetic name ("Violet Standard") ran underneath the Change button.
- * The button is now pinned to the row's right inset and the name gets the
- * measured gap between the swatch and the button.
- */
-const STYLE_BUTTON_W = 78;
-const STYLE_BUTTON_X = ROW_TEXT_RIGHT - STYLE_BUTTON_W / 2;
-const STYLE_SWATCH_X = 300;
-const STYLE_NAME_X = STYLE_SWATCH_X + 22;
-const STYLE_NAME_W = STYLE_BUTTON_X - STYLE_BUTTON_W / 2 - theme.space(2) - STYLE_NAME_X;
 
 /**
  * Read-only career-record screen (Profile button on MainMenu). Surfaces the
  * stats the engine already tracks and the persisted deterministic replay reel.
  * Nothing rendered here mutates the save.
  */
+/** Left-panel stat tabs (1.6.3). */
+export type ProfileStatTab = 'practice' | 'gauntlet' | 'draft' | 'collection';
+
 export class ProfileScene extends Phaser.Scene {
+  private statTab: ProfileStatTab = 'practice';
+  /** Everything the active tab drew, cleared on each tab switch. */
+  private statTabNodes: Phaser.GameObjects.GameObject[] = [];
   private coordinator!: OverlayCoordinator;
   private profileInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private exportShell: ModalShell | null = null;
@@ -77,11 +69,6 @@ export class ProfileScene extends Phaser.Scene {
   private importStatus: Phaser.GameObjects.Text | null = null;
   private importInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private confirmationShell: ModalShell | null = null;
-  private styleShell: ModalShell | null = null;
-  private cardBackRowName: Phaser.GameObjects.Text | null = null;
-  private cardBackRowPreview: Phaser.GameObjects.Image | null = null;
-  private playmatRowName: Phaser.GameObjects.Text | null = null;
-  private playmatRowSwatch: Phaser.GameObjects.Graphics | null = null;
   private reserveFormatsEnabled = false;
 
   constructor() {
@@ -99,11 +86,6 @@ export class ProfileScene extends Phaser.Scene {
     this.importStatus = null;
     this.importInteractiveTargets = [];
     this.confirmationShell = null;
-    this.styleShell = null;
-    this.cardBackRowName = null;
-    this.cardBackRowPreview = null;
-    this.playmatRowName = null;
-    this.playmatRowSwatch = null;
     this.input.keyboard?.on('keydown-ESC', this.onEscKey);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
 
@@ -173,33 +155,7 @@ export class ProfileScene extends Phaser.Scene {
     panel(this, 72, 190, 500, 450);
     panel(this, 600, 190, 608, 450);
 
-    // Win-rate by difficulty (byDifficulty is already keyed easy/medium/hard).
-    this.sectionLabel(224, 'Practice by difficulty');
-    p.byDifficulty.forEach((d, i) => {
-      const y = 268 + i * 36;
-      this.rowPanel(y);
-      this.add
-        .text(ROW_TEXT_LEFT, y, DIFFICULTY_LABEL[d.key], {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.h2}px`,
-          color: theme.colors.body,
-        })
-        .setOrigin(0, 0.5);
-      this.add
-        .text(ROW_TEXT_RIGHT, y, `${d.w} / ${d.l}      ${formatRate(d.rate)}`, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.h2}px`,
-          color: d.rate === null ? theme.colors.muted : theme.colors.heading,
-        })
-        .setOrigin(1, 0.5);
-    });
-
-    // Gauntlet + collection progress.
-    this.sectionLabel(392, 'Gauntlet & collection');
-    this.statRow(432, 'Best rung reached', p.bestRung > 0 ? `Rung ${p.bestRung}` : 'None');
-    this.statRow(468, 'Full gauntlet clears', `${p.completions}`);
-    this.statRow(504, 'Packs opened', `${p.packsOpened}`);
-    this.drawStyleControls();
+    this.renderStatTabs();
 
     this.add
       .text(632, 224, 'Replays', {
@@ -240,7 +196,6 @@ export class ProfileScene extends Phaser.Scene {
     this.exportShell?.close();
     this.importShell?.close();
     this.confirmationShell?.close();
-    this.styleShell?.close();
     this.exportInput?.destroy();
     this.importInput?.destroy();
     this.coordinator.destroy();
@@ -594,244 +549,147 @@ export class ProfileScene extends Phaser.Scene {
     });
   }
 
-  private drawStyleControls(): void {
-    this.sectionLabel(540, 'Style');
+  /**
+   * The left panel is tabbed (1.6.3). It used to stack Practice, Gauntlet and
+   * Style in one fixed column, which had no room for the Draft record and
+   * nowhere to put Collection at all. Tabs went on the LEFT rather than the
+   * right so Replays keep their full 608x450 instead of being halved.
+   *
+   * Style is gone from this screen entirely: card back and playmat became
+   * properties of the deck in save v33 and are edited in the Deck Builder.
+   */
+  private renderStatTabs(): void {
+    for (const node of this.statTabNodes) node.destroy();
+    this.statTabNodes = [];
 
-    this.rowPanel(568);
-    this.add
-      .text(ROW_TEXT_LEFT, 568, 'Card back', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.body,
-      })
-      .setOrigin(0, 0.5);
-    this.cardBackRowPreview = this.add
-      .image(STYLE_SWATCH_X, 568, this.safeCardBackTexture(CARD_BACKS[0]))
-      .setDisplaySize(20, 28);
-    this.cardBackRowName = this.add
-      .text(STYLE_NAME_X, 568, '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.heading,
-        wordWrap: { width: STYLE_NAME_W },
-      })
-      .setOrigin(0, 0.5);
-    const cardBackChange = themedButton(this, STYLE_BUTTON_X, 568, 'Change', {
-      variant: 'ghost',
-      size: 'sm',
-      minWidth: 78,
-      onTap: () => this.openCosmeticPicker('cardBack'),
-    });
-    this.profileInteractiveTargets.push(cardBackChange.inputZone);
-
-    this.rowPanel(612);
-    this.add
-      .text(ROW_TEXT_LEFT, 612, 'Playmat', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        color: theme.colors.body,
-      })
-      .setOrigin(0, 0.5);
-    this.playmatRowSwatch = this.add.graphics();
-    this.playmatRowName = this.add
-      .text(STYLE_NAME_X, 612, '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.heading,
-        wordWrap: { width: STYLE_NAME_W },
-      })
-      .setOrigin(0, 0.5);
-    const playmatChange = themedButton(this, STYLE_BUTTON_X, 612, 'Change', {
-      variant: 'ghost',
-      size: 'sm',
-      minWidth: 78,
-      onTap: () => this.openCosmeticPicker('playmat'),
-    });
-    this.profileInteractiveTargets.push(playmatChange.inputZone);
-
-    this.refreshStyleRows();
-  }
-
-  private refreshStyleRows(): void {
-    const save = Services.save.data;
-    const cardBack = CARD_BACKS.find((entry) => entry.id === save.cosmetics.cardBack) ?? CARD_BACKS[0];
-    const playmat = playmatForId(save.cosmetics.playmat);
-    this.cardBackRowName?.setText(cardBack.name);
-    this.cardBackRowPreview?.setTexture(this.safeCardBackTexture(cardBack));
-    this.playmatRowName?.setText(playmat.name);
-    if (this.playmatRowSwatch) this.paintPlaymatSwatch(this.playmatRowSwatch, STYLE_SWATCH_X, 612, playmat, 28, 20);
-  }
-
-  private safeCardBackTexture(entry: CardBackDefinition): string {
-    const key = cardBackTextureKey(entry.id);
-    return this.textures.exists(key) ? key : 'cardback';
-  }
-
-  private paintPlaymatSwatch(
-    target: Phaser.GameObjects.Graphics,
-    x: number,
-    y: number,
-    playmat: PlaymatDefinition,
-    width: number,
-    height: number,
-  ): void {
-    const colors = playmat.colors;
-    target.clear();
-    target.fillStyle(colors.backdrop.tint, 1);
-    target.fillRoundedRect(x - width / 2, y - height / 2, width, height, 4);
-    target.fillStyle(colors.opponentZone.fill, 0.9);
-    target.fillRoundedRect(x - width / 2 + 2, y - height / 2 + 2, width - 4, height / 2 - 2, 2);
-    target.fillStyle(colors.playerZone.fill, 0.95);
-    target.fillRoundedRect(x - width / 2 + 2, y + 1, width - 4, height / 2 - 3, 2);
-    target.fillStyle(colors.stageLight, Math.min(1, colors.stageLightAlpha + 0.22));
-    target.fillEllipse(x, y, width * 0.5, height * 0.7);
-    target.lineStyle(1, colors.zoneStroke, colors.zoneStrokeAlpha);
-    target.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 4);
-  }
-
-  private equipCosmetic(kind: 'cardBack' | 'playmat', id: string): void {
-    const save = Services.save.data;
-    if (!isCosmeticOwned(id, save.cosmetics.owned)) return;
-    if (kind === 'cardBack') save.cosmetics.cardBack = id === DEFAULT_CARD_BACK_ID ? null : id;
-    else save.cosmetics.playmat = id === DEFAULT_PLAYMAT_ID ? null : id;
-    Services.save.touch();
-    this.refreshStyleRows();
-  }
-
-  private openCosmeticPicker(kind: 'cardBack' | 'playmat'): void {
-    this.styleShell?.close();
-    const entries = kind === 'cardBack' ? CARD_BACKS : PLAYMATS;
-    const shell = modalShell(this, {
-      width: 1120,
-      // Sized so contentBounds leaves the plate its natural height:
-      // contentBounds.height == height - 168 (24x2 padding, 44 title, 44
-      // footer, two 16 track gaps), and the grid takes that less the subtitle
-      // band. 596 lands the plate at ~392 and keeps Equip off the floor.
-      height: 596,
-      dimAlpha: 0.86,
-      depth: theme.depth.modal,
-      dismissal: 'dismissible',
-      coordinator: this.coordinator,
-      registration: {
-        dismissible: true,
-        guardTargets: this.profileInteractiveTargets.map(modalGuardTarget),
-      },
-      onClose: () => {
-        this.styleShell = null;
-      },
-    });
-    this.styleShell = shell;
-    const title = kind === 'cardBack' ? 'Card back' : 'Playmat';
-    // Lay the picker out from the shell's OWN tracks. It used to hardcode the
-    // title at y=92 (above the panel's padded inner edge, so it collided with
-    // the dimmed Profile heading behind it) and the plate grid at
-    // `132 + i * 220`, which centred the five plates on x=572 inside a panel
-    // centred on 640 and pushed the first plate outside the panel's left edge.
-    const content = shell.contentBounds;
-    const titleTrack = shell.tracks.titleTrack;
-    const panelCenterX = content.x + content.width / 2;
-    shell.container.add([
-      this.add
-        .text(panelCenterX, titleTrack.y + titleTrack.height / 2, title, {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.h1}px`,
-          color: theme.colors.gold,
-        })
-        .setOrigin(0.5),
-      this.add
-        .text(panelCenterX, content.y + theme.space(3), 'Choose a style. Courts can add earned rewards later.', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.caption}px`,
-          color: theme.colors.muted,
-        })
-        .setOrigin(0.5, 0),
-    ]);
-
-    const gridTop = content.y + theme.space(9);
-    const gridHeight = content.y + content.height - gridTop;
-    const gap = theme.space(5);
-    const plateW = Math.floor((content.width - gap * (entries.length - 1)) / entries.length);
-    const step = plateW + gap;
-    const firstCenter = content.x + plateW / 2;
-
-    entries.forEach((entry, index) => {
-      const x = firstCenter + index * step;
-      const plate = this.add.graphics();
-      plate.fillStyle(theme.graphics.rowFill, theme.alpha.panel);
-      plate.fillRoundedRect(x - plateW / 2, gridTop, plateW, gridHeight, theme.radius.control);
-      plate.lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome);
-      plate.strokeRoundedRect(x - plateW / 2, gridTop, plateW, gridHeight, theme.radius.control);
-      shell.container.add(plate);
-
-      if (kind === 'cardBack') {
-        shell.container.add(
-          this.add
-            .image(x, gridTop + theme.space(21), this.safeCardBackTexture(entry as CardBackDefinition))
-            .setDisplaySize(62, 87),
-        );
-      } else {
-        const swatch = this.add.graphics();
-        this.paintPlaymatSwatch(swatch, x, gridTop + theme.space(21), entry as PlaymatDefinition, 154, 84);
-        shell.container.add(swatch);
-      }
-
-      shell.container.add([
-        this.add
-          .text(x, gridTop + theme.space(38), entry.name, {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.label}px`,
-            fontStyle: theme.weight.w700,
-            color: theme.colors.heading,
-            wordWrap: { width: plateW - theme.space(4) },
-            align: 'center',
-          })
-          .setOrigin(0.5, 0),
-        this.add
-          .text(x, gridTop + theme.space(47.5), entry.blurb, {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.micro}px`,
-            color: theme.colors.muted,
-            wordWrap: { width: plateW - theme.space(6) },
-            align: 'center',
-            lineSpacing: 2,
-          })
-          .setOrigin(0.5, 0),
-      ]);
-      const tag = this.add
-        .text(x, gridTop + theme.space(67), '', {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.micro}px`,
-          fontStyle: theme.weight.w700,
-          color: theme.colors.success,
-        })
-        .setOrigin(0.5);
-      shell.container.add(tag);
-
-      const state = { refresh: (): void => undefined };
-      const button = themedButton(this, x, gridTop + gridHeight - theme.space(11), 'Equip', {
-        variant: 'ghost',
+    const tabs: { key: ProfileStatTab; label: string }[] = [
+      { key: 'practice', label: 'Practice' },
+      { key: 'gauntlet', label: 'Gauntlet' },
+      { key: 'draft', label: 'Draft' },
+      { key: 'collection', label: 'Collection' },
+    ];
+    const first = 132;
+    const pitch = 112;
+    tabs.forEach((tab, index) => {
+      const button = themedButton(this, first + index * pitch, 224, tab.label, {
+        variant: this.statTab === tab.key ? 'primary' : 'ghost',
         size: 'sm',
-        minWidth: Math.min(132, plateW - theme.space(8)),
+        minWidth: 100,
         onTap: () => {
-          this.equipCosmetic(kind, entry.id);
-          state.refresh();
+          if (this.statTab === tab.key) return;
+          this.statTab = tab.key;
+          this.renderStatTabs();
         },
       });
-      shell.container.add(button.container);
-      state.refresh = (): void => {
-        const save = Services.save.data;
-        const owned = isCosmeticOwned(entry.id, save.cosmetics.owned);
-        const equipped = kind === 'cardBack'
-          ? (save.cosmetics.cardBack ?? DEFAULT_CARD_BACK_ID) === entry.id
-          : (save.cosmetics.playmat ?? DEFAULT_PLAYMAT_ID) === entry.id;
-        tag.setText(equipped ? 'EQUIPPED' : owned ? '' : 'LOCKED');
-        tag.setColor(equipped ? theme.colors.success : theme.colors.danger);
-        button.setVariant(equipped ? 'primary' : 'ghost');
-        button.setLabel(owned ? equipped ? 'Equipped' : 'Equip' : 'Locked');
-        button.setEnabled(owned);
-      };
-      state.refresh();
+      this.statTabNodes.push(button.container);
+      this.profileInteractiveTargets.push(button.inputZone);
     });
+
+    if (this.statTab === 'practice') this.renderPracticeTab();
+    else if (this.statTab === 'gauntlet') this.renderGauntletTab();
+    else if (this.statTab === 'draft') this.renderDraftTab();
+    else this.renderCollectionTab();
+  }
+
+  /** Rows start below the tab strip; every tab shares this rhythm. */
+  private statTabRow(index: number, label: string, value: string, valueColor?: string): void {
+    const y = 276 + index * 36;
+    this.statTabNodes.push(this.rowPanel(y));
+    this.statTabNodes.push(
+      this.add
+        .text(ROW_TEXT_LEFT, y, label, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
+        })
+        .setOrigin(0, 0.5),
+      this.add
+        .text(ROW_TEXT_RIGHT, y, value, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: valueColor ?? theme.colors.heading,
+        })
+        .setOrigin(1, 0.5),
+    );
+  }
+
+  private statTabNote(index: number, text: string): void {
+    this.statTabNodes.push(
+      this.add
+        .text(ROW_TEXT_LEFT, 276 + index * 36, text, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          color: theme.colors.muted,
+          wordWrap: { width: ROW_W - 32 },
+          lineSpacing: 2,
+        })
+        .setOrigin(0, 0.5),
+    );
+  }
+
+  private renderPracticeTab(): void {
+    const p = computeProfile(Services.save.data);
+    p.byDifficulty.forEach((d, i) => {
+      this.statTabRow(
+        i,
+        DIFFICULTY_LABEL[d.key],
+        `${d.w} / ${d.l}      ${formatRate(d.rate)}`,
+        d.rate === null ? theme.colors.muted : theme.colors.heading,
+      );
+    });
+    this.statTabRow(3, 'All duels', `${p.wins} / ${p.losses}      ${formatRate(p.winRate)}`);
+    this.statTabNote(4, 'Wins and losses across every practice duel, by the difficulty you chose.');
+  }
+
+  private renderGauntletTab(): void {
+    const p = computeProfile(Services.save.data);
+    const g = Services.save.data.gauntlet;
+    this.statTabRow(0, 'Best rung reached', p.bestRung > 0 ? `Rung ${p.bestRung}` : 'None');
+    this.statTabRow(1, 'Full clears', `${p.completions}`);
+    this.statTabRow(2, 'Mono-color clears', `${g.clearStyles.monoColor}`);
+    this.statTabRow(3, 'Two-color clears', `${g.clearStyles.dualColor}`);
+    this.statTabRow(4, 'Packs opened', `${p.packsOpened}`);
+    this.statTabNote(5, 'A loss ends a run and resets the tower. Your collection is never reset.');
+  }
+
+  private renderDraftTab(): void {
+    const d = computeDraftSummary(Services.save.data.limited);
+    this.statTabRow(0, 'Best finish', d.bestWins > 0 ? `${d.bestWins} wins` : 'None');
+    this.statTabRow(1, 'Runs completed', `${d.runs}`);
+    this.statTabRow(
+      2,
+      'Match record',
+      `${d.wins} / ${d.losses}      ${formatRate(d.winRate)}`,
+      d.winRate === null ? theme.colors.muted : theme.colors.heading,
+    );
+    this.statTabRow(3, 'Perfect runs', `${d.perfectRuns}`);
+    this.statTabRow(4, 'Gold from drafting', `${d.goldEarned}`);
+    this.statTabRow(5, 'Premium runs', `${d.premiumRuns}`);
+    const built = d.byDeckStyle[0];
+    this.statTabRow(6, 'Most-built deck', built && built.runs > 0 ? DECK_STYLE_LABEL[built.key] : '—');
+    this.statTabRow(7, 'Drafters met', `${d.personasMet}`);
+    this.statTabNote(
+      8,
+      d.runInProgress
+        ? 'A run is in progress. It joins this record when it finishes.'
+        : 'Counts completed runs only. Retiring a draft early records nothing.',
+    );
+  }
+
+  private renderCollectionTab(): void {
+    const c = collectionCompletion(ALL_CARDS, Services.save.data);
+    this.statTabRow(0, 'Cards owned', `${c.owned} / ${c.total}      ${formatRate(c.percent)}`);
+    c.byRarity.forEach((r, i) => {
+      this.statTabRow(
+        1 + i,
+        RARITY_NAMES[r.key],
+        `${r.owned} / ${r.total}      ${formatRate(r.percent)}`,
+        r.owned === 0 ? theme.colors.muted : theme.colors.heading,
+      );
+    });
+    this.statTabRow(6, 'Special-treatment cards', `${c.variants.specialCards}`);
+    this.statTabRow(7, 'Black frames · Void holos', `${c.variants.blackFrameCards} · ${c.variants.voidHoloCards}`);
+    this.statTabNote(8, 'A card counts as owned once you hold any treatment of it.');
   }
 
   private sectionLabel(y: number, text: string): void {
@@ -855,8 +713,8 @@ export class ProfileScene extends Phaser.Scene {
   }
 
   /** Shared list-row treatment: row fill with the standard panel outline. */
-  private rowPanel(y: number): void {
-    this.add
+  private rowPanel(y: number): Phaser.GameObjects.Graphics {
+    return this.add
       .graphics()
       .fillStyle(theme.graphics.rowFill, theme.alpha.subtle)
       .fillRoundedRect(ROW_X, y - 15, ROW_W, 30, theme.radius.control)

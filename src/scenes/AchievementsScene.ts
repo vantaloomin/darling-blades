@@ -10,6 +10,7 @@ import {
   type AchievementStatus,
 } from '../meta/Achievements';
 import { collectionCompletion } from '../meta/collectionFilter';
+import { ellipsizeText } from '../ui/textFit';
 import { Services } from '../meta/services';
 import { def } from '../engine/types';
 import type { AnimationLevel } from '../platform/animPolicy';
@@ -109,20 +110,6 @@ function filterStatuses(statuses: AchievementStatus[], filter: AchievementFilter
   return statuses;
 }
 
-function ellipsize(text: Phaser.GameObjects.Text, value: string, maxWidth: number): void {
-  text.setText(value);
-  if (text.width <= maxWidth) return;
-
-  let low = 0;
-  let high = value.length;
-  while (low < high) {
-    const length = Math.ceil((low + high) / 2);
-    text.setText(`${value.slice(0, length).trimEnd()}…`);
-    if (text.width <= maxWidth) low = length;
-    else high = length - 1;
-  }
-  text.setText(`${value.slice(0, low).trimEnd()}…`);
-}
 
 /** Goal grid and collection completion summary for Road-to-1.0 Feature 5. */
 export class AchievementsScene extends Phaser.Scene {
@@ -432,7 +419,7 @@ export class AchievementsScene extends Phaser.Scene {
             color: ready ? theme.colors.heading : theme.colors.success,
           })
           .setOrigin(0, 0.5);
-        ellipsize(title, featured.def.title, pw - 24);
+        ellipsizeText(title, pw - 24, featured.def.title);
         this.add
           .text(f.x + 26, py + 39, ready ? 'Ready to claim' : 'Claimed', {
             fontFamily: theme.fonts.ui,
@@ -552,7 +539,7 @@ export class AchievementsScene extends Phaser.Scene {
         color: claimed ? theme.colors.success : status.unlocked ? theme.colors.heading : theme.colors.muted,
       })
       .setOrigin(0, 0.5);
-    ellipsize(title, `${claimed ? '✓ ' : ''}${status.def.title}`, COPY_MAX_W);
+    ellipsizeText(title, COPY_MAX_W, `${claimed ? '✓ ' : ''}${status.def.title}`);
 
     const bucket = this.add
       .text(x + 14, y + 35, `${BUCKET_LABEL[status.def.bucket]} ·`, {
@@ -569,7 +556,7 @@ export class AchievementsScene extends Phaser.Scene {
         color: claimed ? theme.colors.muted : theme.colors.body,
       })
       .setOrigin(0, 0.5);
-    ellipsize(goal, status.def.description, Math.max(0, COPY_MAX_W - bucket.width - 5));
+    ellipsizeText(goal, Math.max(0, COPY_MAX_W - bucket.width - 5), status.def.description);
 
     this.add
       .text(x + REWARD_RIGHT, centerY, `+${status.def.reward.gold} Gold`, {
