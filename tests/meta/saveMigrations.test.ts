@@ -770,3 +770,53 @@ describe('SaveData v33 migration (per-deck style)', () => {
     expect(migrated.decks[0].playmat).toBeNull();
   });
 });
+
+/**
+ * v34 added the land-drop confirmation. A reserve format hides your lands in
+ * the Warchest, so an unused land drop is easy to miss on the way out of a turn
+ * (player report 2026-08-25). The guard defaults ON, and an explicit opt-out
+ * must survive the current-blob rewalk the way instantCast's does.
+ */
+describe('SaveData v34 migration (land-drop confirmation)', () => {
+  it('turns the guard on for a v33 save that has never seen the setting', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 33;
+    delete (old.settings as Record<string, unknown>).confirmLandDrop;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.settings.confirmLandDrop).toBe(true);
+    // Nothing else about the save moves.
+    expect(migrated.createdAt).toBe(123);
+    expect(migrated.settings.instantCast).toBe(false);
+    expect(migrated.settings.confirmNoBlock).toBe('lethal');
+  });
+
+  it('keeps an explicit opt-out across a reload of a current save', () => {
+    const storage = fakeStorage();
+    const current = freshSave(123);
+    current.settings.confirmLandDrop = false;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(current));
+
+    expect(new SaveManager(storage, 456).data.settings.confirmLandDrop).toBe(false);
+  });
+
+  it('walks an ancient blob all the way up to the guard', () => {
+    const storage = fakeStorage();
+    const old = freshSave(123) as unknown as Record<string, unknown>;
+    old.version = 22;
+    delete (old.settings as Record<string, unknown>).confirmLandDrop;
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(old));
+
+    const migrated = new SaveManager(storage, 456).data;
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.settings.confirmLandDrop).toBe(true);
+  });
+
+  it('is a fresh-save default too', () => {
+    expect(freshSave(1).settings.confirmLandDrop).toBe(true);
+  });
+});

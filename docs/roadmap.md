@@ -2,7 +2,7 @@
 
 # Roadmap
 
-_Dated 2026-08-24. Review monthly._
+_Dated 2026-08-25. Review monthly._
 
 ## Status snapshot
 
@@ -23,8 +23,8 @@ _Dated 2026-08-24. Review monthly._
   Tales runs.
   The remaining eyes-on work is the standing real-device pass and
   by-ear/by-eye polish listed under Planned.
-- **1,277 tests green** (+4 skipped balance-tool assertions; count refreshed
-  2026-07-31 at the 1.5.0 cut) across 134 files
+- **1,738 tests green** (+4 skipped balance-tool assertions; count refreshed
+  2026-08-25 at the 1.6.4 cut) across 175 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -64,10 +64,65 @@ _Dated 2026-08-24. Review monthly._
   variant-deck pins, v23→v24 the empty-block confirmation preference, and
   v24→v25 the Warchest id reveal plus collection-level display pins, and
   v25→v26 the Darlings command zone, Darlings tutorial, and free Zhou Yu
-  claim — see
+  claim, and — since — v32→v33 per-deck card back and playmat and v33→**v34**
+  the land-drop confirmation — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
 
-## Recently shipped (2026-08-24 · 1.6.3)
+## Recently shipped (2026-08-25 · 1.6.4)
+
+Four player-reported items off the 1.6.3 release, plus two gaps the graveyard
+work exposed, neither of which was a regression: both had been true since the
+features shipped. Two of the four reports were the same fault seen from
+different sides: the graveyard is an ordered pile and the game had stopped
+saying so anywhere.
+
+- **Preserve had no button at all (#PR).** The engine has emitted
+  `preserveCard` since 1.6 and the AI has been taking it, but nothing in
+  `src/scenes` or `src/ui` ever offered it: a human player could not activate
+  one of the Duat mechanics, on any card, ever. It is a graveyard action, so it
+  is a chip on the graveyard tile beside Retell, committing through `act` and
+  letting the engine solve the mana the way the Darling tax paydown does. The
+  grave pile's pulse counts Preserve slots too, and the log says "Preserved X
+  from your graveyard" instead of narrating a bare sever. A tile holds ONE
+  action chip, so a catalog test now fails if a card is ever printed with both
+  Retell and Preserve, rather than letting one of them go quiet again.
+- **The Limited builder had no mana curve (#PR).** Your draft pool is fixed, so
+  the curve and the colour split ARE the deck decisions, and the one builder
+  that most needs the chart was the one without it. The Details panel gained
+  the curve plus the shape line, drawn from the same `curveBars` helper the
+  constructed builder now uses. Fitting it meant giving the panel a real
+  ledger, which also fixed a live overlap: the selected card's name was drawn
+  at y+92 and the Warchest duals line at y+100, so selecting a card struck
+  through the duals text.
+
+- **A deck one card short lost its mana curve (#PR).** The repair banner was a
+  panel drawn OVER the stats block, so any invalid intermediate state (i.e.
+  most of deck building) hid the curve and the color balance behind "This deck
+  needs repair". The whole summary stack lifted 24px, which buys the status
+  band its second line back with the stats still on screen; blocking issues are
+  status lines now, and a SAVED deck that has gone illegal swaps its dead Save
+  button for "⚠ Fix Deck (N)", opening a modal with every issue plus the bulk
+  land strip 1.6.2 added. A deck still being built from scratch is merely
+  incomplete and keeps a plain disabled Save, with no alarm.
+- **`raise top` stopped saying "top" (#PR).** The 2026-08-21 self-return fix
+  re-templated the op to "return another creature card from your graveyard",
+  which hid WHICH card comes back. Reverted to "the top creature card of your
+  graveyard" everywhere, with "the top **other** creature card" carrying the
+  dies-trigger exclusion on the one card that needs it (Sitra).
+- **The graveyard view showed no order at all (#PR).** It collapsed duplicates
+  and sorted by type and cost, so a cycled card landed mid-grid and "top"
+  meant nothing on screen. The graveyard (only) now lists one tile per physical
+  card, newest first, with the top of the pile chipped "Top"; the header says
+  "newest first". Retell chips moved from card-id keys to graveyard indexes, so
+  two copies each carry their own.
+- **The Warchest land drop was easy to forget (#PR).** Lands live in a pile you
+  have to open, so nothing on the board nags the way a land in hand did. The
+  Reserves pile now pulses while a drop is legal, and ending the turn on an
+  unused drop takes a second press ("Confirm: skip land" on the smart button, a
+  notice toast on ⏭ End Turn). Save v33 → v34 adds `settings.confirmLandDrop`,
+  defaulting on, with a Settings toggle under "Your turn".
+
+## Recently shipped (2026-08-24 · 1.6.3 release)
 
 Four player-reported items, one of which turned out to rest on a false premise
 and reshaped the other three.

@@ -57,3 +57,21 @@ describe('Sands of the Duat liveness gate', () => {
     }
   });
 });
+
+/**
+ * The graveyard modal gives a tile ONE action chip. A card carrying both
+ * Retell and Preserve would silently lose the Preserve chip, which is exactly
+ * the failure that hid Preserve entirely until 2026-08-25 (the engine offered
+ * `preserveCard`, the AI took it, and no UI ever did). If this fails, the
+ * modal needs a second action slot, not a re-shuffled precedence.
+ */
+describe('graveyard actions stay reachable', () => {
+  it('has no card carrying both Retell and Preserve', () => {
+    const both = ALL_CARDS.filter((card) => card.retell !== undefined && card.preserve !== undefined);
+    expect(both.map((card) => card.id)).toEqual([]);
+  });
+
+  it('still has Preserve cards to reach', () => {
+    expect(ALL_CARDS.filter((card) => card.preserve !== undefined).length).toBeGreaterThan(0);
+  });
+});

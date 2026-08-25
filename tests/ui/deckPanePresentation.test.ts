@@ -47,8 +47,12 @@ describe('deck pane presentation', () => {
     expect(s.barBaseY - s.barMaxHeight - 8 - 7).toBeGreaterThanOrEqual(s.statsHeadingY + 8);
     // merged summary line sits below the mv labels (barBaseY+9) with margin.
     expect(s.summaryLineY - 8).toBeGreaterThanOrEqual(s.barBaseY + 9 + 7);
-    // stats block -> one-line status band: a real between-groups gap.
-    const statusTop = s.statusBottomY - 16;
+    // stats block -> the FULL status band: the band is bottom-anchored and
+    // grows upward, so every line it is allowed to hold must clear the stats
+    // above it. One clipped line used to be the price of showing the curve;
+    // the stack lifted instead (player report 2026-08-25).
+    const statusTop = s.statusBottomY - 16 * s.statusMaxLines;
+    expect(s.statusMaxLines).toBeGreaterThanOrEqual(2);
     expect(statusTop - (s.summaryLineY + 8)).toBeGreaterThanOrEqual(16);
     // status -> CTA row: within the action group.
     expect(s.ctaY - 14 - s.statusBottomY).toBeGreaterThanOrEqual(8);
@@ -140,5 +144,18 @@ describe('deck pane style view', () => {
     expect(t.warchestX - half).toBeGreaterThanOrEqual(t.cardsX + half);
     expect(t.styleX - half).toBeGreaterThanOrEqual(t.warchestX + half);
     expect(t.styleX + half).toBeLessThanOrEqual(DECK_PANE_LAYOUT.right);
+  });
+});
+
+describe('deck stats survive an invalid deck', () => {
+  it('leaves the whole summary stack inside the pane, above the CTA row', () => {
+    // The repair banner this replaced was drawn at y 514-630, straight over
+    // the curve. Nothing may occupy that band except the stats themselves.
+    const s = DECK_PANE_LAYOUT.summary;
+    for (const y of [s.pagerY, s.statsHeadingY, s.barBaseY, s.summaryLineY]) {
+      expect(y).toBeGreaterThan(DECK_PANE_LAYOUT.toggle.y);
+      expect(y).toBeLessThan(s.statusBottomY - 16 * s.statusMaxLines);
+    }
+    expect(s.statusBottomY).toBeLessThan(s.ctaY);
   });
 });

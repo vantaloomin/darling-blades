@@ -134,3 +134,79 @@ export const SHARD_HOLD_BUTTON_PROGRESS = {
   fillAlpha: 0.3,
   ringWidth: 2,
 } as const;
+
+/** One physical card in a graveyard, keyed to its engine index. */
+export interface GraveyardSlot {
+  cardId: string;
+  /** Index into the engine's graveyard array, which runs oldest to newest. */
+  index: number;
+  /** The most-recently-buried card: the one `raise top` returns. */
+  top: boolean;
+}
+
+/**
+ * A graveyard is an ORDERED pile, and the order is load-bearing: `raise top`
+ * takes the most-recently-buried creature. The zone modal used to collapse
+ * duplicates and sort by type and cost, so the pile's order was unreadable and
+ * a card's position said nothing (player report 2026-08-25: a cycled card
+ * landed in the middle of the grid). List every card in its own slot, newest
+ * first, so the top of the pile is the first tile you read.
+ */
+export function orderedGraveyardSlots(cardIds: readonly string[]): GraveyardSlot[] {
+  const slots: GraveyardSlot[] = [];
+  for (let i = cardIds.length - 1; i >= 0; i--) {
+    slots.push({ cardId: cardIds[i], index: i, top: i === cardIds.length - 1 });
+  }
+  return slots;
+}
+
+/**
+ * The land-drop guard. A reserve format keeps your lands in the Warchest
+ * instead of your hand, so nothing on the board says "you still have a land
+ * drop" the way a land sitting in hand did, and skipping one by accident is
+ * easy (player report 2026-08-25). Ending the turn on an unused drop therefore
+ * takes a second press, on the same arm-then-confirm model an empty block uses.
+ */
+export interface LandDropGuardInput {
+  /** A `playLand` action is legal for the human right now. */
+  landDropAvailable: boolean;
+  /** This press ends the turn: a main2 pass, or the End Turn fast-forward. */
+  turnEnds: boolean;
+  /** `settings.confirmLandDrop`. */
+  confirmEnabled: boolean;
+  /** A previous press already armed the guard. */
+  armed: boolean;
+  /** The tutorial and replays pace themselves and are never interrupted. */
+  suppressed: boolean;
+}
+
+/** Whether the guard has anything to say about this decision at all. */
+export function landDropGuardApplies(input: LandDropGuardInput): boolean {
+  return input.landDropAvailable && input.turnEnds && input.confirmEnabled && !input.suppressed;
+}
+
+/** Whether THIS press should arm rather than commit. */
+export function shouldArmLandDrop(input: LandDropGuardInput): boolean {
+  return landDropGuardApplies(input) && !input.armed;
+}
+
+/**
+ * Which action chip a graveyard tile carries. A `ZoneContentsEntry` has one
+ * action slot, so a card offering both graveyard actions has to pick: Retell
+ * wins, because it is the one that puts a spell on the stack, and Preserve
+ * stays available on the next visit. No card in the pool carries both today
+ * and a catalog test keeps it that way, since the loser would be as invisible
+ * as Preserve itself was before 2026-08-25.
+ */
+export function graveActionChoice(
+  hasRetell: boolean,
+  hasPreserve: boolean,
+): 'retell' | 'preserve' | null {
+  if (hasRetell) return 'retell';
+  return hasPreserve ? 'preserve' : null;
+}
+
+/** Armed smart-button label, in the terse family of "Confirm: no blocks". */
+export const LAND_DROP_CONFIRM_LABEL = 'Confirm: skip land';
+/** Toast for the End Turn path, which has no label of its own to change. */
+export const LAND_DROP_NOTICE = 'You still have a land drop this turn.';

@@ -62,7 +62,7 @@ import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestur
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
-import { computeDeckStats, PIE_COLORS } from '../ui/deckStats';
+import { computeDeckStats, curveBars, deckShapeLine, PIE_COLORS } from '../ui/deckStats';
 import {
   DECK_PANE_LAYOUT,
   deckPaneOffsetY,
@@ -125,17 +125,18 @@ const DESKTOP_DECK_ROWS = 6;
 const DESKTOP_DECK_PITCH = DECK_PANE_LAYOUT.cards.rowPitch;
 /**
  * Inline basics end at y=296; their 44px hit target ends at 318. The list
- * starts at 326, preserving the 8px group gap. Six 12px rows at 22px pitch
- * end near 448, before the pager target begins at 492 - 22 = 470. A seventh
- * would end near 470, so six is the maximum without consuming that clearance.
+ * starts at 326, preserving the 8px group gap. renderDeckRows then fits rows
+ * geometrically inside DECK_ROW_TRACK_BOTTOM (or the pager band when the list
+ * pages), so the 24px summary lift on 2026-08-25 cost this retired-format
+ * column its sixth unpaged row rather than overrunning the stats block.
  */
 const DESKTOP_DECK_Y0 = 336;
 /** Deck-list pager row + the stats block below it (F13), both cleared by the shorter list. */
 const DECK_PAGER_Y = DECK_PANE_LAYOUT.summary.pagerY;
 const DECK_STATS_Y = DECK_PANE_LAYOUT.summary.statsHeadingY;
-/** Last safe bottom for a row before the repair/stats region starts at y=514. */
-// Rows stop clear of the stats heading band (isolation pass 2026-08-18).
-const DECK_ROW_TRACK_BOTTOM = 502;
+// Rows stop clear of the stats heading band (isolation pass 2026-08-18),
+// which lifted 24px with the rest of the summary stack on 2026-08-25.
+const DECK_ROW_TRACK_BOTTOM = 478;
 /** Right-panel inner gutter: panel spans x 880–1280, content sits at 900–1260. */
 const PANEL_RIGHT_X = 1260;
 const DECK_NAME_MAX_LENGTH = 24;
@@ -2126,17 +2127,16 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const baseY = DECK_PANE_LAYOUT.summary.barBaseY; // bar baseline (bars grow upward)
     const curveLayout = DECK_PANE_LAYOUT.curve;
-    const maxCount = Math.max(1, ...s.curve);
-    s.curve.forEach((count, mv) => {
-      const bx = curveLayout.firstX + mv * curveLayout.pitch;
-      const h = count > 0
-        ? Math.max(3, Math.round((count / maxCount) * DECK_PANE_LAYOUT.summary.barMaxHeight))
-        : 2;
-      push(this.add.rectangle(bx, baseY, curveLayout.barWidth, h, count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
-      if (count > 0) {
+    for (const bar of curveBars(s.curve, {
+      firstX: curveLayout.firstX,
+      pitch: curveLayout.pitch,
+      maxHeight: DECK_PANE_LAYOUT.summary.barMaxHeight,
+    })) {
+      push(this.add.rectangle(bar.x, baseY, curveLayout.barWidth, bar.height, bar.count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
+      if (bar.count > 0) {
         push(
           this.add
-            .text(bx, baseY - h - 8, `${count}`, {
+            .text(bar.x, baseY - bar.height - 8, `${bar.count}`, {
               fontFamily: theme.fonts.ui,
               fontSize: `${theme.type.micro}px`,
               color: theme.colors.body,
@@ -2146,33 +2146,24 @@ export class DeckBuilderScene extends Phaser.Scene {
       }
       push(
         this.add
-          .text(bx, baseY + 9, mv === 7 ? '7+' : `${mv}`, {
+          .text(bar.x, baseY + 9, bar.label, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             color: theme.colors.muted,
           })
           .setOrigin(0.5),
       );
-    });
+    }
 
     // One merged summary line (counts + pips): the old second line is what
     // used to collide with the status band below (isolation pass 2026-08-18).
-    const other = s.nonlands - s.typeCounts.creature;
-    const pips = PIE_COLORS.filter((c) => s.colorPips[c] > 0)
-      .map((c) => `${c}·${s.colorPips[c]}`)
-      .join(' ');
     push(
       this.add
-        .text(
-          x0,
-          DECK_PANE_LAYOUT.summary.summaryLineY,
-          `${s.typeCounts.creature} creatures · ${s.lands} lands · ${other} other   ${pips || 'colorless'}`,
-          {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.body,
-          },
-        )
+        .text(x0, DECK_PANE_LAYOUT.summary.summaryLineY, deckShapeLine(s, { lands: true }), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.body,
+        })
         .setOrigin(0, 0.5),
     );
   }
@@ -2319,48 +2310,94 @@ export class DeckBuilderScene extends Phaser.Scene {
     if (pages > 1) this.renderDeckPagers(x0, pages);
   }
 
-  private renderRepairBanner(x0: number, blocking: ReturnType<typeof validateDeck>): void {
-    const first = blocking[0];
-    if (!first) return;
-    const background = themedPanel(this, x0 - 8, 514, 368, 116, {
-      alpha: 0.92,
-      radius: theme.radius.control,
+  /**
+   * The repair flow used to be a panel drawn over the stats block, which took
+   * the mana curve and color balance off screen for any deck one card short of
+   * legal, i.e. for most of the time you spend building one (player report
+   * 2026-08-25). The blocking issues are status-band lines now, and this modal
+   * (reached from the CTA row, in the slot the dead Save button occupied)
+   * carries the full list plus the bulk action a migration repair needs.
+   */
+  private showRepairModal(blocking: ReturnType<typeof validateDeck>): void {
+    if (blocking.length === 0) return;
+    this.closeFilterPanel();
+    const lands = this.isReserveFormat()
+      ? this.deck.filter((id) => CARD_DB[id] && isType(CARD_DB[id], 'land')).length
+      : 0;
+    const lines = blocking.map((issue) => `• ${issue.message}`).join('\n');
+    const height = 236 + Math.min(blocking.length, 4) * 30 + (lands > 0 ? 56 : 0);
+    const shell = modalShell(this, {
+      width: 560,
+      height,
+      dimAlpha: 0.52,
+      depth: theme.depth.results,
+      dismissal: 'esc-only',
     });
-    const message = this.add.text(x0 + 8, 530, `This deck needs repair: ${first.message}`, {
-      fontFamily: theme.fonts.ui,
-      fontSize: `${theme.type.caption}px`,
-      fontStyle: theme.weight.w600,
-      color: theme.colors.danger,
-      wordWrap: { width: 336 },
-    });
-    const count = this.add.text(
-      x0 + 8,
-      606,
-      `${blocking.length} blocking ${blocking.length === 1 ? 'issue' : 'issues'}`,
-      {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.micro}px`,
-        color: theme.colors.muted,
-      },
+    const modal = shell.container;
+    const top = 360 - height / 2;
+    modal.add(
+      this.add
+        .text(640, top + 42, 'Repair Deck', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h2}px`,
+          color: theme.colors.heading,
+        })
+        .setOrigin(0.5),
     );
-    this.rightPane.push(background, message, count);
+    modal.add(
+      this.add
+        .text(
+          640,
+          top + 74,
+          `${blocking.length} blocking ${blocking.length === 1 ? 'issue keeps' : 'issues keep'} this deck out of a duel.`,
+          {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.muted,
+          },
+        )
+        .setOrigin(0.5),
+    );
+    modal.add(
+      this.add
+        .text(390, top + 104, lines, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.danger,
+          wordWrap: { width: 500 },
+          lineSpacing: 6,
+        })
+        .setOrigin(0, 0),
+    );
 
+    const ctaY = top + height - 44;
     // Every classic deck migrated into a reserve format arrives carrying its
     // whole mana base, which is exactly the cards the format no longer wants.
     // Removing them one row at a time is not the "couple of clicks" the repair
     // flow promises, so offer the bulk action the situation always needs.
-    if (this.isReserveFormat()) {
-      const landCount = this.deck.filter((id) => CARD_DB[id] && isType(CARD_DB[id], 'land')).length;
-      if (landCount > 0) {
-        const strip = themedButton(this, x0 + 268, 606, `Remove ${landCount} land${landCount === 1 ? '' : 's'}`, {
+    if (lands > 0) {
+      const strip = themedButton(
+        this,
+        640,
+        ctaY - 56,
+        `Remove ${lands} land${lands === 1 ? '' : 's'} from the deck list`,
+        {
           variant: 'danger',
-          size: 'sm',
-          minWidth: 168,
-          onTap: () => this.removeAllLands(),
-        });
-        this.rightPane.push(strip.container);
-      }
+          minWidth: 320,
+          onTap: () => {
+            shell.close();
+            this.removeAllLands();
+          },
+        },
+      );
+      modal.add(strip.container);
     }
+    const close = themedButton(this, 640, ctaY, 'Back to editing', {
+      variant: 'primary',
+      minWidth: 180,
+      onTap: () => shell.close(),
+    });
+    modal.add(close.container);
   }
 
   /** Drop every land from the deck list: the one-tap half of a migration repair. */
@@ -2393,6 +2430,9 @@ export class DeckBuilderScene extends Phaser.Scene {
       : [];
     const issues = this.currentIssues();
     const blocking = issues.filter((issue) => issue.kind === 'error');
+    // A SAVED deck that can no longer be saved back is a repair; a deck still
+    // being built from scratch is just incomplete, and gets the ordinary
+    // (disabled) Save button rather than an alarm.
     const repairingSavedDeck = active !== null && blocking.length > 0;
     const deckTitleX = format === 'darlings' && active?.darlingId ? x0 + 46 : x0;
     const title = this.add
@@ -2509,19 +2549,20 @@ export class DeckBuilderScene extends Phaser.Scene {
       // many rows a page holds (owner finding 2026-08-18: fill the pane
       // before paginating).
       this.renderDeckRows(x0, heroId, deckListY0, hasWarchest ? Number.POSITIVE_INFINITY : undefined);
-      if (repairingSavedDeck) this.renderRepairBanner(x0, blocking);
-      else this.renderDeckStats(x0);
+      // The curve and the color balance are what you build a deck BY, so they
+      // stay on screen through every invalid intermediate state. Blocking
+      // issues speak through the status band and the CTA row below.
+      this.renderDeckStats(x0);
     }
 
     // validation + save
-    const issueLines = repairingSavedDeck ? [] : issues
+    const issueLines = issues
       .slice(0, this.deckCodeMessage ? 1 : 2)
       .map((i) => `${i.kind === 'error' ? '✕' : '⚠'} ${i.message}`);
     const statusLines = this.deckCodeMessage ? [this.deckCodeMessage, ...issueLines] : issueLines;
-    // The stats block above the status band leaves room for exactly one
-    // status line; states without stats (repair, Warchest view) keep two.
-    const statsShown = this.deckPaneMode === 'cards' && !repairingSavedDeck;
-    this.status.setMaxLines(statsShown ? DECK_PANE_LAYOUT.summary.statusMaxLinesWithStats : 2);
+    // Two lines in every view: the status band is the only error surface now,
+    // and one line clipped the first issue mid-sentence.
+    this.status.setMaxLines(DECK_PANE_LAYOUT.summary.statusMaxLines);
     this.status.setColor(issues.some((i) => i.kind === 'error') ? theme.colors.danger : this.deckCodeMessage ? theme.colors.success : theme.colors.danger);
     this.status.setText(statusLines.join('\n'));
     const canSave = issues.every((i) => i.kind !== 'error');
@@ -2540,21 +2581,30 @@ export class DeckBuilderScene extends Phaser.Scene {
       minWidth: 104,
       onTap: () => this.importDeckCode(),
     });
-    const saveBtn = themedButton(this, x0 + 180, 684, 'Save Deck', {
-      variant: 'primary',
-      minWidth: 140,
-      enabled: canSave,
-      onTap: () => {
-        if (!this.saveWorkingDeck()) {
-          this.renderDeck();
-          return;
-        }
-        saveBtn.setLabel('Saved ✓');
-        this.time.delayedCall(900, () => {
-          if (saveBtn.container.active) saveBtn.setLabel('Save Deck');
-        });
-      },
-    });
+    // A saved deck that has gone illegal cannot be saved back, so its centre
+    // CTA stops being a dead Save button and becomes the way into the repair
+    // list instead.
+    const saveBtn = !repairingSavedDeck
+      ? themedButton(this, x0 + 180, DECK_PANE_LAYOUT.summary.ctaY, 'Save Deck', {
+        variant: 'primary',
+        minWidth: 140,
+        enabled: canSave,
+        onTap: () => {
+          if (!this.saveWorkingDeck()) {
+            this.renderDeck();
+            return;
+          }
+          saveBtn.setLabel('Saved ✓');
+          this.time.delayedCall(900, () => {
+            if (saveBtn.container.active) saveBtn.setLabel('Save Deck');
+          });
+        },
+      })
+      : themedButton(this, x0 + 180, DECK_PANE_LAYOUT.summary.ctaY, `⚠ Fix Deck (${blocking.length})`, {
+        variant: 'danger',
+        minWidth: 140,
+        onTap: () => this.showRepairModal(blocking),
+      });
     this.rightPane.push(exportBtn.container, importBtn.container, saveBtn.container);
   }
 
