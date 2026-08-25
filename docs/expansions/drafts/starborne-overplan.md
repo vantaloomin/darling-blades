@@ -1,6 +1,37 @@
-<!-- source-of-truth: docs/plan-expansion-slate.md, docs/keyword-map.md · last-verified: 2026-07-26 · concept draft — overplanned candidate list for a future set; nothing here is implemented -->
+<!-- source-of-truth: docs/plan-expansion-slate.md, docs/keyword-map.md · last-verified: 2026-08-24 · concept draft — overplanned candidate list for a future set; nothing here is implemented -->
 
 # The Starborne: Overplanned Candidate Slate
+
+## Concretion blocker: Propagate needs a seeding layer
+
+**Measured 2026-08-24 across all 1,079 collectible cards.** Propagate adds a
+mark to every already-marked permanent you control; it creates none. The current
+pool barely produces any: **13 cards** use the `addCounters` op and **10 of them
+mark only themselves**. Exactly three can mark another creature (Nurture,
+Imperial Jade Seal, Tithe of Seasons). Nine Lives yields a mark on 30 cards, but
+only after that creature dies, and only once.
+
+A mid-game Propagate in today's pool therefore finds one marked permanent or
+none, which makes it a blank or a strictly worse "+1/+1 to this creature".
+
+**This draft has the same gap internally.** 19 Propagate mentions and payoffs
+that READ marks (`sb-burning-hull-runner` wants one; `sb-signal-cathedral` wants
+five or more), but essentially no generators — `sb-hullwake-feast` is the only
+card adding a fresh mark, it is tagged `stretch`, and it is itself gated on
+already controlling a marked permanent.
+
+**Concretion must add cheap commons that arrive carrying a mark**, on themselves
+or on a friend, so a mid-game Propagate finds three or four bodies. This is the
+job Duat did for Rite when it shipped the sacrifice fodder the mechanic needed.
+Do not let the payoff and the enabler be the same card.
+
+**Pin the wording first.** This draft says "every marked permanent **you
+control**"; [plan-expansion-slate.md](../../plan-expansion-slate.md) says "every
+marked permanent". Those are different mechanics. With marks this scarce the
+narrower version is right: letting Propagate hit opposing permanents does
+nothing useful and adds a decision the AI has to get correct. Shorthand
+mismatches between a plan doc and the rules are how two wrong Duat mechanic
+descriptions reached production.
 
 ## Set Identity
 

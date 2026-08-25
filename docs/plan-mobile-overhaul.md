@@ -1,6 +1,16 @@
-<!-- source-of-truth: docs/roadmap.md, docs/mobile-lan-plan.md, docs/design-system.md, docs/architecture.md, src/main.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/animPolicy.ts, src/art/ArtResolver.ts, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts · last-verified: 2026-07-26 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/mobile-lan-plan.md, docs/design-system.md, docs/architecture.md, src/main.ts, src/platform/gestureCore.ts, src/platform/gestures.ts, src/platform/quality.ts, src/platform/renderScale.ts, src/platform/animPolicy.ts, src/art/ArtResolver.ts, src/scenes/DuelScene.ts, src/scenes/DeckBuilderScene.ts · last-verified: 2026-08-24 · design/plan doc - re-verify when the referenced code changes -->
 
 # Complete mobile UX overhaul implementation plan
+
+> **Release slot moved to 1.9** (2026-08-24). This plan was written against a
+> 1.8 scope; 1.8 is now a Large expansion plus the activated-tap-ability engine
+> feature, which is a release on its own. Mobile is paired with the
+> accessibility pass in 1.9 because both sweep every scene for reflow and touch
+> the same layout code, so splitting them means two complete sweeps of one
+> surface. **Valve: if 1.9 has to shed weight, this is the piece that moves to
+> 2.1** — the accessibility pass cannot move, because Story Mode depends on it.
+> Everything below about SCOPE and approach is unchanged; only the slot moved.
+> See [plan-road-to-2.0.md](plan-road-to-2.0.md).
 
 ## Goal
 

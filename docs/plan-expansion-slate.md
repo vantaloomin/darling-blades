@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/keyword-map.md, src/engine/types.ts, src/data/cards/*.ts · last-verified: 2026-07-24 · design/plan doc — concepts and mechanic candidates, nothing here is implemented -->
+<!-- source-of-truth: docs/roadmap.md, docs/keyword-map.md, src/engine/types.ts, src/data/cards/*.ts · last-verified: 2026-08-24 · design/plan doc — concepts and mechanic candidates, nothing here is implemented -->
 
 # Expansion Slate + Mechanic Candidates (1.5 → 2.0)
 
@@ -23,15 +23,21 @@ time — nothing here is a commitment to a rules implementation.
 
 ## The slate
 
+> **Slots are now assigned in [plan-road-to-2.0.md](plan-road-to-2.0.md)**
+> (2026-08-24), which sets the Large/Small cadence and the release spine. The
+> **mechanic recommendations below are unchanged and remain authoritative** —
+> only the slot column moved. Sizes: Large = 250+ cards plus one engine feature,
+> on even patches; Small = ~150 cards, no engine feature.
+
 | Slot | Set concept | Status |
 | --- | --- | --- |
-| 1.5 | **Cyberpunk Yokai Nights** (Expansion 6) | Committed; concept carried from the 1.4 cut, needs concretion |
-| 1.6-1.9 | **Egyptian underworld (+ Bastet catgirls)** | Slate — user-liked |
-| 1.6-1.9 | **Cosmic Horror** | Slate — user-liked |
-| 1.6-1.9 | **Sci-fi alien girls** | Slate |
-| 1.6-1.9 | **Prehistoric cavewomen + dinosaurs** | Slate |
-| 1.6-1.9 | **Steampunk** | Slate (five concepts, four slots — one falls past 2.0) |
-| 2.0 | **Core Set II** — return to the Three Kingdoms / Greek base rosters and flesh them out | Committed (anniversary slot) |
+| 1.5 | **Cyberpunk Yokai Nights** (Expansion 6) | ✅ **SHIPPED 1.5** |
+| 1.6 | **Egyptian underworld (+ Bastet catgirls)** | ✅ **SHIPPED 1.6** as Sands of the Duat (245 cards; Rite, Nine Lives, Preserve) |
+| 1.7 | **Sci-fi alien girls** | Assigned — **The Starborne**, Small (~150), Propagate |
+| 1.8 | **Cosmic Horror** | Assigned — **Drowned Deep**, Large (250+), Whispers, with activated tap abilities as the engine feature |
+| 1.9 | **Prehistoric cavewomen + dinosaurs** | Assigned — **First Dawn**, Small (~150), Provoked + Hunt |
+| 2.0 | **Core Set II** — return to the Three Kingdoms / Greek base rosters and flesh them out | Committed (anniversary slot), Large (250+), The Mandate |
+| 2.1+ | **Steampunk** | **Brass Court** — the concept that falls past 2.0, as this doc anticipated. Union rigs want the 1.8 tap-ability work to exist first |
 
 Passed on 2026-07-24: Slavic folklore, Mesoamerican, Hindu epic.
 

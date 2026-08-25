@@ -1468,6 +1468,29 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   see above).
 
 ## Planned
+
+> **The release spine from 1.7 to 2.0 lives in
+> [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small
+> expansion cadence, which set lands in which release, where each Road-to-2.0
+> feature is placed, and the sequencing constraints behind the order. Entries
+> below remain the per-item detail; that doc is the schedule.
+>
+> Two standing corrections it carries: **multiplayer is cancelled** (the README
+> promised it in two places and has been fixed), and **cloud saves is the only
+> listed feature with neither a plan doc nor code**, so it is parked at 2.1
+> pending a spec rather than given a false estimate.
+
+- **Save cards: a PNG that carries your save (candidate, proposed 2026-08-24).**
+  Export a save as an image instead of a text code: the player picks card art
+  they own, the game composites a titled cover, and the existing `DBS1-…` string
+  rides in a PNG `tEXt` chunk, the way character-card tools do it. It is a new
+  CARRIER, not a new format, so `decode()` and all its validation apply
+  unchanged, and a `tEXt` chunk has no practical size limit, which lifts the
+  "too large to export as a code" ceiling replays currently hit. The codec is
+  BUILT and tested (`src/meta/SaveImage.ts`, verified against Pillow: pixels
+  byte-identical, chunk readable, CRCs valid); the whole UI half is not. Spec
+  and locked decisions in [plan-save-cards.md](plan-save-cards.md). **Not
+  scoped to a release.**
 - **Fogbell Chime redesign. SHIPPED in the 1.6 small-debts batch (#257).**
   The card had been a deliberate duplicate of Glimmerdust Trick since 2026-07-30,
   parked because its design-table intent (a common Artifact that taps a creature)
