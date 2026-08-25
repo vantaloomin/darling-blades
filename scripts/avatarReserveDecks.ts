@@ -25,6 +25,7 @@ import { RULES } from '../src/config/rules';
 import { CARD_DB } from '../src/data/catalog';
 import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
+import { STARTER_DECKS } from '../src/data/starterDecks';
 import type { CardDb, CardDef, Color } from '../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
 import {
@@ -83,6 +84,63 @@ function containsOnlyColors(card: CardDef, colors: readonly Color[]): boolean {
 
 function isEligibleSpell(card: CardDef | undefined): card is CardDef {
   return Boolean(card && isLiveCollectible(card) && !card.types.includes('land'));
+}
+
+/**
+ * Target predicates that a creature-shaped format can genuinely fail to
+ * satisfy. `creature`, `any`, `yourCreature`, `yourGraveCreature` and `spell`
+ * are effectively always live here; artifacts and enchantments are not.
+ */
+const NARROW_TARGETS = new Set(['artifactOrEnchantment', 'artifact', 'enchantment']);
+
+function narrowTargetsOf(card: CardDef): string[] {
+  return (card.abilities ?? []).flatMap((ability) =>
+    (ability.targets ?? []).map((target) => target.what as string),
+  ).filter((what) => NARROW_TARGETS.has(what));
+}
+
+/** Which narrow predicates a single card can satisfy as a permanent on board. */
+function suppliedTargets(card: CardDef | undefined): string[] {
+  if (!card) return [];
+  const supplied: string[] = [];
+  if (card.types.includes('artifact')) supplied.push('artifact', 'artifactOrEnchantment');
+  if (card.types.includes('enchantment')) supplied.push('enchantment', 'artifactOrEnchantment');
+  return supplied;
+}
+
+/**
+ * What the FORMAT can put on the board: the five starter reserve builds this
+ * avatar is measured against, plus the avatar's own source list.
+ *
+ * Retention eligibility used to ask only "is this a legal nonland?", never
+ * "can this card's target ever exist?". That shipped `sd-strike-the-lintel` x4
+ * - which targets artifactOrEnchantment - into Anubis against five starter
+ * columns holding ZERO artifacts and ZERO enchantments: four cards blank in
+ * 100% of her games, and a 33% win rate that took a hand-tune to repair. The
+ * fault was never specific to her; it can hit ANY avatar whose classic list
+ * carried narrow removal.
+ */
+function formatTargetSupply(source: readonly string[], db: CardDb): ReadonlySet<string> {
+  const supply = new Set<string>();
+  for (const deck of STARTER_DECKS) {
+    for (const id of deck.reserveCards ?? []) for (const what of suppliedTargets(db[id])) supply.add(what);
+  }
+  for (const id of source) for (const what of suppliedTargets(db[id])) supply.add(what);
+  return supply;
+}
+
+/**
+ * A card is DEAD when every one of its narrow targets is unsatisfiable in this
+ * format. A card with a narrow target alongside a live one still plays.
+ */
+export function hasNoLegalTargets(
+  card: CardDef | undefined,
+  supply: ReadonlySet<string>,
+): boolean {
+  if (!card) return false;
+  const narrow = narrowTargetsOf(card);
+  if (narrow.length === 0) return false;
+  return !narrow.some((what) => supply.has(what));
 }
 
 function isLegendaryCreature(card: CardDef | undefined): card is CardDef {
@@ -153,8 +211,15 @@ export function convertAvatarWarchest(avatar: ConvertibleDeck, db: CardDb = CARD
     return true;
   };
 
+  // Retention is gated on the card having a target that can EXIST here, not
+  // merely on it being a legal nonland. See formatTargetSupply for the defect
+  // this closes. The freed slots refill through the normal playset-and-catalog
+  // path below, so a dropped dead card becomes a real card rather than a hole.
+  const targetSupply = formatTargetSupply(avatar.deck, db);
   for (const id of avatar.deck) {
-    if (isEligibleSpell(db[id])) addCurved(id);
+    if (!isEligibleSpell(db[id])) continue;
+    if (hasNoLegalTargets(db[id], targetSupply)) continue;
+    addCurved(id);
   }
   if (cards.length > WARCHEST_DECK_SIZE) {
     throw new Error(`${avatar.name} retained ${cards.length} Warchest spells, over the ${WARCHEST_DECK_SIZE}-card target`);

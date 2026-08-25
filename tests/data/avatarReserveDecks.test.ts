@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import { AVATARS } from '../../src/data/opponents';
+import { STARTER_DECKS } from '../../src/data/starterDecks';
 import { validateDarlingsDeck, validateWarchestDeck } from '../../src/meta/darlings';
 import {
   isBasicLand,
@@ -10,7 +11,7 @@ import {
   WARCHEST_DECK_SIZE,
   DARLINGS_DECK_SIZE,
 } from '../../src/meta/warchest';
-import { convertAvatarReserveDecks } from '../../scripts/avatarReserveDecks';
+import { convertAvatarReserveDecks, hasNoLegalTargets } from '../../scripts/avatarReserveDecks';
 import { buildDarlingsDeck } from '../../scripts/darlingsDeckBuilder';
 import { buildReserveMatrixFullOwnershipSave } from '../../scripts/reserveMatrixDecks';
 import { runAvatarReserveMatrix } from '../../scripts/balance-matrix';
@@ -85,6 +86,74 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     'anubis-who-holds-the-scale',
     'the-bride',
   ]);
+
+  /**
+   * Retention eligibility asked only "is this a legal nonland?", never "can
+   * this card's target ever exist?". That shipped sd-strike-the-lintel x4 -
+   * which targets artifactOrEnchantment - into Anubis against five starter
+   * columns holding ZERO artifacts and ZERO enchantments: four cards blank in
+   * 100% of her games, 33% win rate, repaired only by a hand-tune. The fault
+   * was never hers specifically; it can hit ANY avatar carrying narrow removal.
+   */
+  describe('retention rejects cards whose targets cannot exist in the format', () => {
+    const suppliedBy = (id: string): string[] => {
+      const card = CARD_DB[id];
+      const out: string[] = [];
+      if (card?.types.includes('artifact')) out.push('artifact', 'artifactOrEnchantment');
+      if (card?.types.includes('enchantment')) out.push('enchantment', 'artifactOrEnchantment');
+      return out;
+    };
+    const supplyFor = (source: readonly string[]): Set<string> => new Set([
+      ...STARTER_DECKS.flatMap((deck) => (deck.reserveCards ?? []).flatMap(suppliedBy)),
+      ...source.flatMap(suppliedBy),
+    ]);
+
+    it('the five starter columns really do supply no artifact or enchantment', () => {
+      // The premise the whole defect rests on. If a future set puts an artifact
+      // into a starter column, these cards stop being dead and this test says so.
+      const columnSupply = new Set(
+        STARTER_DECKS.flatMap((deck) => (deck.reserveCards ?? []).flatMap(suppliedBy)),
+      );
+      expect([...columnSupply]).toEqual([]);
+    });
+
+    it('no avatar converter build ships a dead-target card', () => {
+      for (const avatar of AVATARS) {
+        const built = convertAvatarReserveDecks(avatar).reserveDeck;
+        const supply = supplyFor(avatar.deck);
+        const dead = built.filter((id) => hasNoLegalTargets(CARD_DB[id], supply));
+        expect(dead, `${avatar.id} retained dead-target cards`).toEqual([]);
+        // The freed slots must refill, not leave a short deck.
+        expect(built).toHaveLength(WARCHEST_DECK_SIZE);
+      }
+    });
+
+    it('drops the exact card that caused the Anubis regression', () => {
+      const anubis = AVATARS.find((a) => a.id === 'anubis-who-holds-the-scale')!;
+      // Still in her classic source list; the gate is what keeps it out.
+      expect(anubis.deck).toContain('sd-strike-the-lintel');
+      expect(convertAvatarReserveDecks(anubis).reserveDeck).not.toContain('sd-strike-the-lintel');
+    });
+
+    it('keeps a narrow-target card when the format can answer it', () => {
+      // Not a blanket ban on artifactOrEnchantment removal: supply one and the
+      // card is live again. Otherwise this gate would misfire on a future set.
+      const artifactId = Object.values(CARD_DB).find((c) => c.types.includes('artifact'))?.id;
+      expect(artifactId, 'pool has no artifact to test with').toBeDefined();
+      const lintel = CARD_DB['sd-strike-the-lintel'];
+      expect(hasNoLegalTargets(lintel, new Set())).toBe(true);
+      expect(hasNoLegalTargets(lintel, new Set(['artifactOrEnchantment']))).toBe(false);
+    });
+
+    it('never rejects a card whose targets are ordinary creatures', () => {
+      const creatureRemoval = Object.values(CARD_DB).filter((card) =>
+        (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) => t.what === 'creature')));
+      expect(creatureRemoval.length).toBeGreaterThan(0);
+      for (const card of creatureRemoval) {
+        expect(hasNoLegalTargets(card, new Set()), `${card.id} wrongly flagged`).toBe(false);
+      }
+    });
+  });
 
   it('untuned committed data IS the deterministic converter output', () => {
     // Card-content identity, order-insensitive: the committed literals group
