@@ -276,6 +276,87 @@ describe('persona metagame loop', () => {
     });
   });
 
+  it('checkpoints every round boundary so a killed passive run keeps its rounds', () => {
+    const options = {
+      poolId: 'all',
+      pool,
+      field: 'starters' as const,
+      seeds: 1,
+      iterations: 0,
+      seed: 77,
+      maxRounds: 3,
+      personaIds: ['burn', 'weenie'],
+      measure: (_deck: readonly string[], measureOptions: MeasureOptions) => measured(measureOptions.field),
+    };
+    const checkpoints: Array<{ rounds: number; reason: string; converged: boolean; personas: number }> = [];
+    const withHook = runMetagameLoop({
+      ...options,
+      onCheckpoint: (artifacts, summary) => checkpoints.push({
+        rounds: summary.completedRounds,
+        reason: summary.stoppedReason,
+        converged: summary.converged,
+        personas: artifacts.length,
+      }),
+    });
+    const without = runMetagameLoop(options);
+
+    // Fires after the seed pass and after each completed round, so the recovery
+    // granularity is exactly one round rather than the whole run.
+    expect(checkpoints).toEqual([
+      { rounds: 0, reason: 'in-progress', converged: false, personas: 2 },
+      { rounds: 1, reason: 'in-progress', converged: false, personas: 2 },
+    ]);
+    // Pure observer, exactly like onProgress: identical results either way.
+    expect(JSON.stringify(withHook.artifacts)).toBe(JSON.stringify(without.artifacts));
+  });
+
+  it('carries usable rounds in a checkpoint artifact, never a finished-looking one', () => {
+    const seen: Array<Record<string, unknown>> = [];
+    runMetagameLoop({
+      poolId: 'all',
+      pool,
+      field: 'starters',
+      seeds: 1,
+      iterations: 0,
+      seed: 77,
+      maxRounds: 3,
+      personaIds: ['burn', 'weenie'],
+      measure: (_deck, measureOptions) => measured(measureOptions.field),
+      onCheckpoint: (artifacts) => seen.push(JSON.parse(JSON.stringify(artifacts[0]))),
+    });
+
+    // A checkpoint is the SAME artifact shape a finished run produces, so a
+    // crashed sweep's output is readable directly. The seed checkpoint already
+    // carries round 0's crafted deck and its measurement.
+    const seedCheckpoint = seen[0] as {
+      deck: string[];
+      metagame: { summary: { stoppedReason: string; converged: boolean }; rounds: unknown[] };
+    };
+    expect(seedCheckpoint.deck.length).toBeGreaterThan(0);
+    expect(seedCheckpoint.metagame.rounds).toHaveLength(1);
+    // The one thing that must never be mistakable: a partial is not converged.
+    expect(seedCheckpoint.metagame.summary.stoppedReason).toBe('in-progress');
+    expect(seedCheckpoint.metagame.summary.converged).toBe(false);
+  });
+
+  it('overwrites its own checkpoints, so a completed run leaves no partial files', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-persona-checkpoint-'));
+    tempDirs.push(dir);
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ], { today: () => '2026-08-24', log: () => undefined })).toBe(0);
+
+    // Checkpoint paths ARE the final paths. A finished run therefore ends with
+    // exactly the artifacts it always wrote, with no 'in-progress' left behind.
+    for (const personaId of ['burn', 'weenie']) {
+      const artifact = JSON.parse(
+        readFileSync(join(dir, `2026-08-24-metagame-${personaId}-all.json`), 'utf8'),
+      );
+      expect(artifact.metagame.summary.stoppedReason).not.toBe('in-progress');
+    }
+  }, 120000);
+
   it('documents the loop policy in CLI help', () => {
     const output: string[] = [];
     expect(runCli(['--help'], { log: (line) => output.push(line) })).toBe(0);
