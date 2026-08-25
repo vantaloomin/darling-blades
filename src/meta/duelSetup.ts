@@ -104,8 +104,10 @@ export function firstReserveConfigIssue(
   return null;
 }
 
-const AI_COLOR_ORDER: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
-const BASIC_FOR_COLOR: Record<Color, string> = {
+/** WUBRG order and the basic for each colour. Exported so Limited's reserve
+ * builder shares one basics mapping instead of duplicating it. */
+export const AI_COLOR_ORDER: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
+export const BASIC_FOR_COLOR: Record<Color, string> = {
   W: 'land-plains',
   U: 'land-island',
   B: 'land-swamp',

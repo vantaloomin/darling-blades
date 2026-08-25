@@ -358,7 +358,16 @@ the reserve-native Limited change: the sim's Limited matches had been playing
 
 ## Open decisions
 
-- Draft's reserve-native design (the hardest migration sub-problem).
+- ~~Draft's reserve-native design (the hardest migration sub-problem).~~
+  **RESOLVED during the 1.6 migration; closed on the record 2026-08-25.** The
+  design shipped and lives in `src/meta/Limited.ts`: a Limited deck is
+  `LIMITED_DECK_SIZE` spells with no lands, the ten-land reserve is granted
+  from the deck's own colours, and drafted duals are selectable into it (up to
+  `MAX_DUAL_LANDS`) so drafting stays about spells while dual picks stay
+  playable. `LimitedDeckBuilderScene` carries the selection UI. This entry
+  stayed open only because nobody updated it, and it has since been read twice
+  as blocking work that was already done - verify against the code, not this
+  list.
 - Land cards' economy/collection treatment post-migration.
 - ~~Whether starters auto-convert at migration or use the fix-it flow.~~
   **RESOLVED 2026-08-10**: untouched granted decks auto-convert (at the grant

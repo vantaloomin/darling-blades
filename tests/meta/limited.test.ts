@@ -16,6 +16,7 @@ import {
   grantPremiumDraftPool,
   limitedDraftDuals,
   limitedDuelData,
+  limitedBasics,
   limitedLandReserve,
   personaRevealTier,
   pickDraftCard,
@@ -530,3 +531,80 @@ function compareCardNames(db: CardDb, a: string, b: string): number {
   const dbb = def(db, b);
   return da.name.localeCompare(dbb.name) || a.localeCompare(b);
 }
+
+/**
+ * Limited basics were allocated by strict alternation (`palette[i % n]`), so a
+ * deck with twelve red pips and three blue drew five Mountains and five
+ * Islands. Ten lands and no way to shuffle out of a bad draw makes Limited the
+ * mode where that hurts most.
+ */
+describe('limited basics follow pip demand, with a floor per colour', () => {
+  const countOf = (ids: readonly string[]): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (const id of ids) out[id] = (out[id] ?? 0) + 1;
+    return out;
+  };
+  const cardWithPip = (color: Color): CardDef =>
+    Object.values(CARD_DB).find((card) =>
+      (card.cost?.pips?.[color] ?? 0) > 0 && !isType(card, 'land') && !card.token)!;
+
+  const red = cardWithPip('R');
+  const blue = cardWithPip('U');
+  const redPips = red.cost!.pips.R ?? 0;
+  const bluePips = blue.cost!.pips.U ?? 0;
+
+  it('gives the heavier colour the larger share', () => {
+    // Sized in PIPS, not cards, because that is what the allocator reads.
+    const deck = [...Array(12).fill(red.id), ...Array(3).fill(blue.id)];
+    const counts = countOf(limitedBasics(CARD_DB, deck, 10));
+    expect(counts['land-mountain']).toBeGreaterThan(counts['land-island']);
+    expect(counts['land-mountain'] + counts['land-island']).toBe(10);
+  });
+
+  it('never leaves a splash with zero sources', () => {
+    // The floor is the point: pure largest-remainder rounding can hand a
+    // one-pip splash nothing, which is worse than the alternation it replaced.
+    const deck = [...Array(30).fill(red.id), blue.id];
+    const counts = countOf(limitedBasics(CARD_DB, deck, 10));
+    expect(counts['land-island']).toBeGreaterThanOrEqual(1);
+    expect(counts['land-mountain']).toBe(10 - counts['land-island']);
+  });
+
+  it('fills every slot for a mono-colour deck', () => {
+    expect(countOf(limitedBasics(CARD_DB, Array(10).fill(red.id), 10)))
+      .toEqual({ 'land-mountain': 10 });
+  });
+
+  it('always returns exactly the slots asked for', () => {
+    for (const slots of [0, 1, 2, 5, 10]) {
+      expect(limitedBasics(CARD_DB, [red.id, blue.id], slots)).toHaveLength(slots);
+    }
+  });
+
+  it('falls back to Plains when the deck has no colours at all', () => {
+    expect(countOf(limitedBasics(CARD_DB, [], 10))).toEqual({ 'land-plains': 10 });
+  });
+
+  it('ranks by demand when there are fewer slots than colours', () => {
+    // Five duals selected leaves few basic slots; something has to give, and
+    // the colour the deck actually leans on should be what survives.
+    const deck = [...Array(20).fill(red.id), blue.id];
+    expect(limitedBasics(CARD_DB, deck, 1)).toEqual(['land-mountain']);
+  });
+
+  it('keeps the whole reserve at ten lands through limitedLandReserve', () => {
+    const deck = [...Array(12).fill(red.id), ...Array(3).fill(blue.id)];
+    expect(limitedLandReserve(CARD_DB, deck, [], [])).toHaveLength(10);
+  });
+
+  it('reads pips rather than card counts', () => {
+    // Guards the distinction the allocator turns on: equal CARD counts with
+    // unequal pip counts must not produce an equal split.
+    if (redPips === bluePips) return;
+    const deck = [...Array(6).fill(red.id), ...Array(6).fill(blue.id)];
+    const counts = countOf(limitedBasics(CARD_DB, deck, 10));
+    const heavier = redPips > bluePips ? 'land-mountain' : 'land-island';
+    const lighter = redPips > bluePips ? 'land-island' : 'land-mountain';
+    expect(counts[heavier]).toBeGreaterThan(counts[lighter]);
+  });
+});
