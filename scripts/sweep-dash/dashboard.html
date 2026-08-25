@@ -36,6 +36,20 @@
   th { color:var(--muted); font-weight:600; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; }
   td { color:var(--body); } td.n { text-align:right; font-variant-numeric:tabular-nums; }
   .stale { margin-top:14px; color:#f0b0a0; font-size:0.85rem; display:none; }
+  .roundrow { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .rlabel { color:var(--muted); font-size:11px; min-width:62px; }
+  .p.clickable { cursor:pointer; color:#9be6a8; border-color:#9be6a8; }
+  .p.clickable:hover { background:rgba(155,230,168,0.12); }
+  .p.sel { background:rgba(155,230,168,0.22); box-shadow:0 0 0 1px #9be6a8 inset; }
+  .detail { margin-top:16px; padding-top:14px; border-top:1px solid var(--stroke); }
+  .dh { color:var(--gold); font-size:0.95rem; margin-bottom:8px; }
+  .dh.sm { font-size:0.8rem; margin-top:14px; color:var(--muted);
+           text-transform:uppercase; letter-spacing:0.08em; }
+  .deck { display:flex; flex-wrap:wrap; gap:6px; }
+  .deck .c { font-size:11px; color:var(--body); background:#241d3a;
+             border-radius:6px; padding:3px 8px; }
+  .note { color:var(--muted); font-size:0.85rem; margin-top:10px; }
+  #detail table { width:100%; margin-top:12px; }
 </style>
 </head>
 <body>
@@ -47,6 +61,7 @@
     <div class="rows" id="rows"></div>
     <div class="bar"><div id="fill" style="width:0%"></div></div>
     <div class="personas" id="personas"></div>
+    <div id="detail"></div>
     <div id="results"></div>
     <div class="stale" id="stale"></div>
   </div>
@@ -68,10 +83,146 @@
     return s < 3600 ? Math.round(s / 60) + 'm' : (s / 3600).toFixed(1) + 'h';
   };
   let seen = {};
+  let artifacts = [];
+  let selected = null;
+
+  /** Merge the two sources of truth about a finished craft.
+   *  - `finishedCrafts` (status file) lands the instant ONE craft ends, but only
+   *    exists for runs started after 2026-08-25.
+   *  - artifact summaries land at ROUND boundaries and work for any run,
+   *    including one already in flight under older code.
+   *  Artifacts win where both exist: they are the durable record. */
+  function resultFor(round, personaIndex, personaIds) {
+    const id = personaIds[personaIndex];
+    const fromArtifact = artifacts.find((a) => a.personaId === id)?.rounds?.find((r) => r.round === round);
+    if (fromArtifact) return { ...fromArtifact, personaId: id, source: 'artifact' };
+    const live = (window.__status?.finishedCrafts ?? [])
+      .find((c) => c.round === round && c.personaIndex === personaIndex);
+    return live ? { ...live, source: 'live' } : null;
+  }
+
+  /**
+   * index -> personaId in the sweep's OWN order.
+   *
+   * Artifacts are sorted by id, which is NOT the order personaIndex counts in,
+   * so reading ids off the artifact list would mislabel every pip and highlight
+   * the wrong persona as active. The status stream is authoritative: learn the
+   * order from finished crafts and from each progress tick, and fall back to
+   * artifact order only when the status has told us nothing yet.
+   */
+  const personaOrder = {};
+  function learnOrder(d) {
+    for (const c of d.finishedCrafts ?? []) {
+      if (c.personaId !== undefined && c.personaIndex !== undefined) personaOrder[c.personaIndex] = c.personaId;
+    }
+    if (d.state === 'running' && d.personaId !== undefined && d.personaIndex !== undefined) {
+      personaOrder[d.personaIndex] = d.personaId;
+    }
+  }
+  function personaIdsFor(d) {
+    const count = d.personaCount || 0;
+    const byArtifact = artifacts.map((a) => a.personaId);
+    return Array.from({ length: count }, (_, i) => personaOrder[i] ?? byArtifact[i] ?? ('persona-' + i));
+  }
+  function personaNameFor(id, index) {
+    return artifacts.find((a) => a.personaId === id)?.personaName ?? id ?? ('persona ' + (index + 1));
+  }
+
+  function renderRoundGrid(d) {
+    const host = document.getElementById('personas');
+    if (!d.personaCount) { host.innerHTML = ''; return; }
+    const ids = personaIdsFor(d);
+    const names = ids.map((id, i) => personaNameFor(id, i));
+    const currentRound = d.state === 'running' ? (d.phase === 'seed' ? 0 : d.round) : null;
+    const highest = Math.max(
+      currentRound ?? 0,
+      ...artifacts.flatMap((a) => a.rounds.map((r) => r.round)),
+      ...((window.__status?.finishedCrafts ?? []).map((c) => c.round)),
+    );
+
+    const rows = [];
+    for (let round = 0; round <= highest; round++) {
+      const chips = [];
+      for (let i = 0; i < d.personaCount; i++) {
+        const res = resultFor(round, i, ids);
+        const isActive = round === currentRound && i === d.personaIndex && d.state === 'running';
+        const cls = res ? 'p done clickable' : isActive ? 'p active' : 'p';
+        const label = res ? (100 * res.score).toFixed(0) + '%' : String(i + 1);
+        const title = res ? (names[i] || ids[i]) + ' round ' + round + ' - ' + (100 * res.score).toFixed(1) + '%'
+          : isActive ? 'crafting now' : 'not started';
+        chips.push('<span class="' + cls + '" title="' + title + '"' +
+          (res ? ' data-round="' + round + '" data-idx="' + i + '"' : '') + '>' + label + '</span>');
+      }
+      rows.push('<div class="roundrow"><span class="rlabel">round ' + round + ':</span>' + chips.join('') + '</div>');
+    }
+    host.innerHTML = rows.join('');
+    host.querySelectorAll('.clickable').forEach((el) => {
+      el.onclick = () => {
+        const r = Number(el.dataset.round); const i = Number(el.dataset.idx);
+        selected = (selected && selected.round === r && selected.idx === i) ? null : { round: r, idx: i };
+        renderDetail(d);
+        renderRoundGrid(d);
+      };
+    });
+    if (selected) {
+      const el = host.querySelector('[data-round="' + selected.round + '"][data-idx="' + selected.idx + '"]');
+      if (el) el.classList.add('sel');
+    }
+    renderDetail(d);
+  }
+
+  function renderDetail(d) {
+    const host = document.getElementById('detail');
+    if (!selected) { host.innerHTML = ''; return; }
+    const ids = personaIdsFor(d);
+    const res = resultFor(selected.round, selected.idx, ids);
+    if (!res) { host.innerHTML = ''; return; }
+    const name = personaNameFor(ids[selected.idx], selected.idx);
+    const parts = ['<div class="detail"><div class="dh">' + name + ' &middot; round ' + selected.round + '</div>'];
+    const decided = (res.rowWins ?? 0) + (res.losses ?? 0);
+    parts.push('<div class="rows">' +
+      row('Score', (100 * res.score).toFixed(1) + '%') +
+      row('Record', (res.rowWins ?? 0) + '/' + decided + ' decided, ' + (res.draws ?? 0) + ' draws, ' + (res.games ?? 0) + ' games') +
+      (res.initialScore !== undefined
+        ? row('Hill climb', (100 * res.initialScore).toFixed(1) + '% &rarr; ' + (100 * res.score).toFixed(1) +
+          '% (' + (res.acceptedSwaps ?? 0) + ' swaps kept)') : '') +
+      (res.colors?.length ? row('Colors', res.colors.join('/')) : '') +
+      '</div>');
+    if (res.matchups?.length) {
+      const sorted = [...res.matchups].sort((a, b) => a.rate - b.rate);
+      parts.push('<table><tr><th>Matchup</th><th class="n">Rate</th><th class="n">W-L-D</th></tr>' +
+        sorted.map((m) => '<tr><td>' + m.name + '</td><td class="n">' + (100 * m.rate).toFixed(1) +
+          '%</td><td class="n">' + m.rowWins + '-' + m.colWins + '-' + m.draws + '</td></tr>').join('') +
+        '</table>');
+    } else if (res.source === 'live') {
+      parts.push('<div class="note">Per-matchup detail lands with the round checkpoint.</div>');
+    }
+    if (res.counts && Object.keys(res.counts).length) {
+      const deck = Object.entries(res.counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      parts.push('<div class="dh sm">Deck</div><div class="deck">' +
+        deck.map(([id, n]) => '<span class="c">' + n + '&times; ' + id + '</span>').join('') + '</div>');
+    }
+    if (res.landReserve?.length) {
+      parts.push('<div class="dh sm">Reserve</div><div class="deck">' +
+        res.landReserve.map((id) => '<span class="c">' + id + '</span>').join('') + '</div>');
+    }
+    parts.push('</div>');
+    host.innerHTML = parts.join('');
+  }
+
+  const row = (k, v) => '<div class="row"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>';
+
   async function tick() {
     let d;
     try { d = await (await fetch('/status.json', { cache: 'no-store' })).json(); }
     catch { return; }
+    window.__status = d;
+    learnOrder(d);
+    // Artifact summaries are what make a finished round browsable while the run
+    // is still going; they are also the ONLY source for a sweep started before
+    // per-craft status reporting existed.
+    try { artifacts = await (await fetch('/artifacts.json', { cache: 'no-store' })).json(); }
+    catch { artifacts = artifacts || []; }
     const st = document.getElementById('state');
     st.textContent = d.state ?? 'waiting';
     st.className = 'state ' + (d.state ?? 'waiting');
@@ -102,18 +253,11 @@
         Math.round(100 * craftsDone / (roundsTotal * d.personaCount)) + '%';
     }
     if (d.state === 'done') document.getElementById('fill').style.width = '100%';
-    if (d.state === 'running' && d.personaCount) {
-      const roundKey = d.phase === 'seed' ? 0 : d.round;
-      const chips = [];
-      for (let i = 0; i < d.personaCount; i++) {
-        const cls = i < d.personaIndex ? 'p done' : i === d.personaIndex ? 'p active' : 'p';
-        chips.push('<span class="' + cls + '">' + (i + 1) + '</span>');
-      }
-      document.getElementById('personas').innerHTML =
-        '<span class="p" style="border:none">round ' + roundKey + ':</span>' + chips.join('');
-    }
+    renderRoundGrid(d);
     if (d.state === 'done' && d.artifacts) {
-      document.getElementById('personas').innerHTML = '';
+      // The round grid STAYS on a finished run: browsing per-round results is
+      // the point of it, and a completed sweep is exactly when you want that.
+
       document.getElementById('results').innerHTML =
         '<table><tr><th>Persona</th><th class="n">Score</th><th class="n">Rounds</th></tr>' +
         d.artifacts.map((a) =>
