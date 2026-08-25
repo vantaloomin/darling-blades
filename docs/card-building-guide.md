@@ -164,10 +164,10 @@ Three things fall out of this:
 | **Empower** | 34 | 6 | Re-usable | An additional cost for a bonus. **Printed cost plus Empower must not exceed 9**, with a hard ceiling of 10 because the land reserve holds ten. |
 | **Nine Lives** | 30 | 2 | Re-usable | **Returns only if it died with NO marks on it.** See the warning below. |
 | **Preserve** | 27 | 2 | Re-usable | Pay, then Sever it from the graveyard for a token copy, main phase only. Competes with Retell for the same graveyard. |
-| **Quest** | 18 | 1 | **Set-locked** | Chapter advance at each dawn. Has never left its home set. |
+| **Quest** | 18 | 1 | Re-usable | Chapter advance at each dawn, then it leaves. Has only appeared in one set so far, which is history rather than a rule. Needs a card whose story wants several turns to tell. |
 | **Hauntlink** | 16 | 3 | Re-usable | Links a permanent to one of your creatures at Charm speed. The linked creature dying is a real cost. |
 | **Mark** | 13 | 7 | Evergreen, **scarce** | Only 13 collectible cards create marks and **10 of them mark only themselves**. Any payoff that reads marks needs its own enablers shipped alongside it. |
-| **Rite** | 11 | 1 | **Set-locked** | Sacrifice creatures as an additional cost. Needs fodder shipped in the same set, which is the job Duat did for it. |
+| **Rite** | 11 | 1 | Re-usable | Sacrifice creatures as an additional cost. Only one set so far, which is history rather than a rule. **Needs fodder shipped alongside it**, which is the job Duat did; a set with a token package already has it. |
 | **Champion Awakening** | 7 | 3 | Rare | A one-way upgrade granting listed stats and keywords. Smallest population in the game; treat as a marquee tool. |
 
 ### The Nine Lives trap, and it is live right now
@@ -184,10 +184,20 @@ Before any Propagate card ships, decide whether Nine Lives is meant to be an
 anti-synergy the player must play around, or whether the two should be kept out
 of each other's formats. Do not let it be discovered in a match.
 
-### Set-locked versus re-usable
+### Every mechanic is re-usable
 
-**Quest and Rite have appeared in exactly one set each.** Treat them as that
-set's identity unless someone decides otherwise on purpose.
+**Owner ruling 2026-08-25: nothing on this list is locked to its home set.**
+Quest and Rite have each appeared in only one set so far, but that is a record
+of what has happened, not a constraint on what may. Both are available to any
+future set that has a use for them.
+
+The two carry a prerequisite rather than a restriction:
+
+- **Rite needs sacrifice fodder in the same format.** Duat shipped the fodder
+  its Rite cards needed. A set with a token package already satisfies this.
+- **Quest needs a card whose story takes several turns.** It is the heaviest
+  mechanic here in AI terms, because a greedy evaluator undervalues a payoff
+  three dawns away. Seed the win-rate evidence before shipping one as `core`.
 
 Everything else recurs, and the house convention for a new set is visible in
 Sands of the Duat, which carried **Skim 4, Retell 8, and Empower 8** alongside
