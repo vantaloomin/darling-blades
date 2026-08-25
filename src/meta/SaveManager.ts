@@ -11,7 +11,7 @@ import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
 
-export const CURRENT_SAVE_VERSION = 33 as const;
+export const CURRENT_SAVE_VERSION = 34 as const;
 const LEGACY_WARCHEST_FORMAT = 'battle' + 'box';
 
 /**
@@ -240,6 +240,14 @@ export interface SaveData {
      * off so carry-cast is the shipped feel.
      */
     instantCast: boolean;
+    /**
+     * Ending your turn with an unplayed land drop takes a second press. In a
+     * reserve format the lands live in the Warchest instead of your hand, so
+     * nothing on the board reminds you the drop is still there and it is easy
+     * to skip a turn's land by accident (player report 2026-08-25). v34
+     * addition; defaults on.
+     */
+    confirmLandDrop: boolean;
   };
 }
 
@@ -304,6 +312,7 @@ export function freshSave(now: number): SaveData {
       keywordReminders: true,
       confirmNoBlock: 'lethal',
       instantCast: false,
+      confirmLandDrop: true,
     },
   };
 }
@@ -652,7 +661,7 @@ export class SaveManager {
         gauntlet: { ...gauntlet, run },
       };
     }
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -827,6 +836,17 @@ export class SaveManager {
           }))
         : cur.decks;
       cur = { ...cur, version: 33, decks };
+    }
+    if (cur.version === 33) {
+      // Same preservation rule as instantCast: a current blob re-walks this
+      // chain, so an explicit opt-out must survive. Only a truly absent field
+      // takes the on-by-default.
+      const s = (cur.settings ?? {}) as { confirmLandDrop?: unknown };
+      cur = {
+        ...cur,
+        version: 34,
+        settings: { ...(cur.settings as object), confirmLandDrop: s.confirmLandDrop !== false },
+      };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;

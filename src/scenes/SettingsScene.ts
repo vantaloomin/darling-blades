@@ -7,7 +7,7 @@ import { qualityTier } from '../platform/quality';
 import type { AnimationLevel } from '../platform/animPolicy';
 import type { RenderScaleSetting } from '../platform/renderScale';
 import { applyBackdrop } from '../ui/SceneBackdrop';
-import { NO_BLOCK_CHIPS } from '../ui/settingsPresentation';
+import { NO_BLOCK_CHIPS, yourTurnRowY, YOUR_TURN_SECTION } from '../ui/settingsPresentation';
 import { theme } from '../ui/theme';
 import { backButton, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 import { VERSION_LABEL, checkForUpdate } from '../version';
@@ -53,6 +53,7 @@ export class SettingsScene extends Phaser.Scene {
   private confirmToggle!: ThemedButton;
   private keywordToggle!: ThemedButton;
   private instantToggle!: ThemedButton;
+  private landDropToggle!: ThemedButton;
   private volumeBar!: Phaser.GameObjects.Text;
   private animChips = new Map<AnimationLevel, ThemedButton>();
   private renderChips = new Map<RenderScaleSetting, ThemedButton>();
@@ -91,7 +92,8 @@ export class SettingsScene extends Phaser.Scene {
     panel(this, 670, 124, 540, 470);
     this.sectionTitle(110, 150, 'Audio');
     this.sectionTitle(710, 150, 'Gameplay');
-    // Audio: Sound effects · Master volume (note) · Music, then Casting: Instant cast (note).
+    // Audio: Sound effects · Master volume (note) · Music, then Your turn:
+    // Instant cast (note) · Confirm land drop (note).
     // Gameplay: Animations (note) · Render size (note) · Auto-skip · Confirm · Keyword reminders.
     const leftRows = rowYs([false, true, false]);
     const rightRows = rowYs([true, true, false, false, false, false]);
@@ -136,9 +138,12 @@ export class SettingsScene extends Phaser.Scene {
     });
 
     // The Audio column has spare rows; Gameplay's six already fill its panel.
-    this.sectionTitle(110, 414, 'Casting');
-    this.rowLabel(LEFT_LABEL_X, leftY(2) + 110, 'Instant cast');
-    this.instantToggle = this.toggle(LEFT_CONTROL_X, leftY(2) + 110, () => {
+    // Both rows here decide how a turn's actions get committed, which is why
+    // the section is "Your turn" rather than the older Casting-only heading.
+    this.sectionTitle(110, YOUR_TURN_SECTION.headingY, 'Your turn');
+    const instant = yourTurnRowY(0);
+    this.rowLabel(LEFT_LABEL_X, instant.row, 'Instant cast');
+    this.instantToggle = this.toggle(LEFT_CONTROL_X, instant.row, () => {
       const settings = Services.save.data.settings;
       settings.instantCast = !settings.instantCast;
       Services.save.touch();
@@ -146,8 +151,22 @@ export class SettingsScene extends Phaser.Scene {
     });
     this.note(
       LEFT_LABEL_X,
-      leftY(2) + 138,
+      instant.note,
       'Casts spells on a single click instead of picking the card up.',
+    );
+
+    const landDrop = yourTurnRowY(1);
+    this.rowLabel(LEFT_LABEL_X, landDrop.row, 'Confirm land drop');
+    this.landDropToggle = this.toggle(LEFT_CONTROL_X, landDrop.row, () => {
+      const settings = Services.save.data.settings;
+      settings.confirmLandDrop = !settings.confirmLandDrop;
+      Services.save.touch();
+      this.refreshToggles();
+    });
+    this.note(
+      LEFT_LABEL_X,
+      landDrop.note,
+      'Ending your turn with a land still unplayed takes a second press.',
     );
 
     this.rowLabel(RIGHT_LABEL_X, rightY(0), 'Animations');
@@ -355,6 +374,7 @@ export class SettingsScene extends Phaser.Scene {
       [this.confirmToggle, settings.confirmDestructive],
       [this.keywordToggle, settings.keywordReminders],
       [this.instantToggle, settings.instantCast],
+      [this.landDropToggle, settings.confirmLandDrop],
     ] as const) {
       button.setLabel(on ? 'On' : 'Off');
       button.setVariant(on ? 'primary' : 'ghost');

@@ -107,8 +107,15 @@ import {
   OPPONENT_RESERVE_PILE_LAYOUT,
   TARGET_ARROW_HEAD_LENGTH,
   hauntlinkActionLabel,
+  graveActionChoice,
   hauntlinkOverlap,
+  landDropGuardApplies,
+  LAND_DROP_CONFIRM_LABEL,
+  LAND_DROP_NOTICE,
+  orderedGraveyardSlots,
+  shouldArmLandDrop,
   targetArrowShaftEnd,
+  type LandDropGuardInput,
   targetRingTone,
 } from '../ui/duelPresentation';
 import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
@@ -522,6 +529,8 @@ export class DuelScene extends Phaser.Scene {
   private duelTensionActive = false;
   /** Empty-block confirmation is scene-local and never changes the submitted action. */
   private noBlockArmed = false;
+  private landDropArmed = false;
+  private landDropArmTimer: Phaser.Time.TimerEvent | null = null;
   private noBlockArmTimer: Phaser.Time.TimerEvent | null = null;
   /** Clear the no-block arm when a decision kind changes, before stale input can land. */
   private lastAwaitingKind: string | null = null;
@@ -646,6 +655,9 @@ export class DuelScene extends Phaser.Scene {
     this.noBlockArmTimer?.remove();
     this.noBlockArmTimer = null;
     this.noBlockArmed = false;
+    this.landDropArmTimer?.remove();
+    this.landDropArmTimer = null;
+    this.landDropArmed = false;
     this.lastAwaitingKind = null;
     this.selectedAttackers = new Set();
     this.blockAssignments = [];
@@ -2388,6 +2400,16 @@ export class DuelScene extends Phaser.Scene {
   private startEndTurn(): void {
     if (this.ended || !this.isHumanTurnDecision()) return;
     if (this.pendingCasts || this.carry || this.landFan || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
+    // End Turn skips the rest of the turn outright, so the guard applies from
+    // either main phase. This button has no label of its own to re-colour, so
+    // the notice toast carries the warning instead.
+    if (shouldArmLandDrop(this.landDropGuardInput(true))) {
+      this.armLandDrop();
+      this.showSkipNotice(LAND_DROP_NOTICE);
+      this.syncButton();
+      return;
+    }
+    this.clearLandDropArm();
     this.endingTurn = true;
     this.log('Ending turn…');
     this.endTurnTick();
@@ -2640,7 +2662,14 @@ export class DuelScene extends Phaser.Scene {
         // deck sever reveals the top card by moving it there; say so.
         const whose = e.player === HUMAN ? 'your' : "the opponent's";
         const retold = e.from === 'graveyard' && this.retellCardsInFlight.has(e.cardId);
-        if (retold) {
+        // A Preserve emits `severed` then `preserved` in one batch. Without
+        // this the log read as a bare sever and never said a copy was made.
+        const preserved = e.from === 'graveyard' && batch.some(
+          (other) => other.e === 'preserved' && other.player === e.player && other.cardId === e.cardId,
+        );
+        if (preserved) {
+          this.log(`Preserved ${this.cardRef(e.cardId)} from ${whose} graveyard; a token copy enters play`, e.cardId);
+        } else if (retold) {
           this.retellCardsInFlight.delete(e.cardId);
           this.log(`Retold ${this.cardRef(e.cardId)} severed from ${whose} graveyard`, e.cardId);
         } else if (e.from === 'graveyard') {
@@ -3286,7 +3315,10 @@ export class DuelScene extends Phaser.Scene {
     this.closeLandFan();
     if (this.replayMode) this.replayGuard.close();
     const awaitingKind = this.duel.awaiting.kind;
-    if (this.lastAwaitingKind !== null && this.lastAwaitingKind !== awaitingKind) this.clearNoBlockArm();
+    if (this.lastAwaitingKind !== null && this.lastAwaitingKind !== awaitingKind) {
+      this.clearNoBlockArm();
+      this.clearLandDropArm();
+    }
     this.lastAwaitingKind = awaitingKind;
     // A board rebuild invalidates every source position from a hover plan.
     this.clearManaPlanPreview();
@@ -3307,10 +3339,11 @@ export class DuelScene extends Phaser.Scene {
     this.oppGravePile.setCount(st.players[AI].graveyard.length);
     this.myDeckPile.setCount(st.players[HUMAN].deck.length);
     this.myGravePile.setCount(st.players[HUMAN].graveyard.length);
-    // Retell affordance: pulse the grave pile with the count of distinct
-    // cards castable from it right now (legality already folds in mana, so
-    // the alert clears on its own when you tap out or priority moves on).
-    this.myGravePile.setAlert(this.retellActionsByCard(HUMAN, 'graveyard').size);
+    // Graveyard affordance: pulse the grave pile with the count of graveyard
+    // SLOTS you can act on right now (Retell or Preserve), matching the grid
+    // one-tile-per-card (legality already folds in mana, so the alert clears on
+    // its own when you tap out or priority moves on).
+    this.myGravePile.setAlert(this.graveActionSlots(HUMAN).size);
     if (SEVER_ENABLED) {
       this.oppSeveredPile.setCount(view.opp.severed.length);
       this.mySeveredPile.setCount(view.you.severed.length);
@@ -3684,6 +3717,9 @@ export class DuelScene extends Phaser.Scene {
       const layout = player === HUMAN ? LAYOUT.reservePiles.human : LAYOUT.reservePiles.opponent;
       const pile = player === HUMAN ? this.myReservePile : this.oppReservePile;
       pile.setVisible(true).setCount(reserve.length);
+      // The one always-on reminder that the drop is still there. It reads "1"
+      // because you may play exactly one land, however many the chest holds.
+      if (player === HUMAN) pile.setAlert(this.landDropAvailable() ? 1 : 0);
       reserve.forEach((_, index) => {
         this.reservePositions.set(`${player}:${index}`, {
           x: layout.x,
@@ -4410,8 +4446,18 @@ export class DuelScene extends Phaser.Scene {
     let danger = false;
     let armed = false;
     switch (a.kind) {
-      case 'main':
-        showButton(this.duel.state.step === 'main1' ? 'To Combat' : 'Pass ▶');
+      case 'main': {
+        // Passing out of main2 ends the turn, so that is where the land-drop
+        // guard speaks; from main1 there is still a whole second main phase to
+        // play the land in.
+        const guard = this.landDropGuardInput(this.duel.state.step === 'main2');
+        armed = landDropGuardApplies(guard) && this.landDropArmed;
+        danger = armed;
+        showButton(
+          armed
+            ? LAND_DROP_CONFIRM_LABEL
+            : this.duel.state.step === 'main1' ? 'To Combat' : 'Pass ▶',
+        );
         // The ⏭ End Turn quick button rides above the smart button on your own
         // main phases (hidden everywhere else — set false at the top). It is
         // suppressed in the tutorial so a fast-forward can't skip a taught beat.
@@ -4420,6 +4466,7 @@ export class DuelScene extends Phaser.Scene {
           inflateHitArea(this.endTurnBtn, 90, 90);
         }
         break;
+      }
       case 'declareAttackers':
         showButton(this.selectedAttackers.size > 0 ? `Attack (${this.selectedAttackers.size})` : 'Skip Combat');
         break;
@@ -4499,6 +4546,39 @@ export class DuelScene extends Phaser.Scene {
   private shouldArmNoBlock(lethal: boolean): boolean {
     const setting = Services.save.data.settings.confirmNoBlock;
     return setting === 'always' || (setting === 'lethal' && lethal);
+  }
+
+  /** A land drop is legal for the human right now (from hand OR the Warchest). */
+  private landDropAvailable(): boolean {
+    if (this.ended || !this.isHumanTurnDecision()) return false;
+    return this.duel.legalActions(HUMAN).some((action) => action.type === 'playLand');
+  }
+
+  private landDropGuardInput(turnEnds: boolean): LandDropGuardInput {
+    return {
+      landDropAvailable: this.landDropAvailable(),
+      turnEnds,
+      confirmEnabled: Services.save.data.settings.confirmLandDrop,
+      armed: this.landDropArmed,
+      suppressed: this.tutorial || this.replayMode,
+    };
+  }
+
+  private clearLandDropArm(): void {
+    this.landDropArmTimer?.remove();
+    this.landDropArmTimer = null;
+    this.landDropArmed = false;
+  }
+
+  private armLandDrop(): void {
+    this.clearLandDropArm();
+    this.landDropArmed = true;
+    Sfx.play('warn');
+    this.landDropArmTimer = this.time.delayedCall(2500, () => {
+      this.landDropArmTimer = null;
+      this.landDropArmed = false;
+      if (this.passArc.active && !this.ended) this.syncButton();
+    });
   }
 
   private clearNoBlockArm(): void {
@@ -4615,9 +4695,17 @@ export class DuelScene extends Phaser.Scene {
     const a = this.duel.awaiting;
     if (!('player' in a) || a.player !== HUMAN) return;
     switch (a.kind) {
-      case 'main':
+      case 'main': {
+        const guard = this.landDropGuardInput(this.duel.state.step === 'main2');
+        if (shouldArmLandDrop(guard)) {
+          this.armLandDrop();
+          this.syncButton();
+          break;
+        }
+        this.clearLandDropArm();
         this.act({ type: 'passStep' });
         break;
+      }
       case 'declareAttackers':
         this.act({ type: 'declareAttackers', attackers: [...this.selectedAttackers] });
         break;
@@ -5357,17 +5445,21 @@ export class DuelScene extends Phaser.Scene {
           : view.opp.severed;
     const owner = player === HUMAN ? 'Your' : "Foe's";
     const zoneLabel = zone === 'graveyard' ? 'Graveyard' : 'Severed';
+    // The graveyard is the one viewable zone whose ORDER is a rule (`raise
+    // top`), so its header states the reading direction the grid now uses.
+    const order = zone === 'graveyard' && cardIds.length > 1 ? ' · newest first' : '';
     const title = zone === 'deck'
       ? `Your Deck · ${cardIds.length} cards left`
-      : `${owner} ${zoneLabel} · ${cardIds.length}`;
-    const retellActions = this.retellActionsByCard(player, zone);
+      : `${owner} ${zoneLabel} · ${cardIds.length}${order}`;
     // Your graveyard is where Retell decisions happen, and the modal covers
     // the board's mana strip: restate the untapped summary in the header.
     const subtitle =
       player === HUMAN && zone === 'graveyard' ? this.untappedManaSubtitle() : undefined;
     const modal = showZoneContents(this, {
       title,
-      entries: this.zoneEntries(cardIds, player === HUMAN, retellActions),
+      entries: zone === 'graveyard'
+        ? this.graveyardEntries(cardIds, player)
+        : this.zoneEntries(cardIds, player === HUMAN),
       ...(subtitle ? { subtitle } : {}),
       emptyText: zone === 'deck' ? 'No cards left.' : zone === 'severed' ? 'No cards severed.' : 'No cards here.',
       dimAlpha: 0.62,
@@ -5446,51 +5538,113 @@ export class DuelScene extends Phaser.Scene {
     this.endTurnTick();
   }
 
-  private retellActionsByCard(
+  /**
+   * Retell casts keyed by the graveyard INDEX they cast from, not by card id:
+   * the graveyard grid lists one tile per physical card, so two copies of the
+   * same card each carry their own chip.
+   */
+  private retellActionsByGraveIndex(
     player: PlayerId,
-    zone: ViewableZone,
-  ): Map<string, Extract<Action, { type: 'castSpell' }>[]> {
-    const actions = new Map<string, Array<Extract<Action, { type: 'castSpell' }>>>();
-    if (player !== HUMAN || zone !== 'graveyard') return actions;
+  ): Map<number, Extract<Action, { type: 'castSpell' }>[]> {
+    const actions = new Map<number, Array<Extract<Action, { type: 'castSpell' }>>>();
+    if (player !== HUMAN) return actions;
     const grave = this.duel.state.players[HUMAN].graveyard;
     for (const action of this.duel.legalActions(HUMAN)) {
       if (action.type !== 'castSpell' || action.retell !== true || action.graveIndex === undefined) continue;
-      const cardId = grave[action.graveIndex];
-      if (!cardId) continue;
-      const existing = actions.get(cardId);
+      if (!grave[action.graveIndex]) continue;
+      const existing = actions.get(action.graveIndex);
       if (existing) existing.push(action);
-      else actions.set(cardId, [action]);
+      else actions.set(action.graveIndex, [action]);
     }
     return actions;
   }
 
-  private zoneEntries(
-    cardIds: readonly string[],
-    styled: boolean,
-    retellActions: ReadonlyMap<string, Extract<Action, { type: 'castSpell' }>[]>,
-  ): ZoneContentsEntry[] {
+  /**
+   * Preserve actions keyed by graveyard index. Preserve is a main-phase,
+   * stack-free paid action (rules.md "Preserve"), so it commits straight
+   * through `act` like the Darling tax paydown and lets the engine solve the
+   * mana. It had NO player-facing control at all until 2026-08-25: the engine
+   * offered the action and the AI took it, but nothing in the UI ever did.
+   */
+  private preserveActionsByGraveIndex(
+    player: PlayerId,
+  ): Map<number, Extract<Action, { type: 'preserveCard' }>> {
+    const actions = new Map<number, Extract<Action, { type: 'preserveCard' }>>();
+    if (player !== HUMAN || this.pendingCasts) return actions;
+    const grave = this.duel.state.players[HUMAN].graveyard;
+    for (const action of this.duel.legalActions(HUMAN)) {
+      if (action.type !== 'preserveCard') continue;
+      if (!grave[action.graveIndex]) continue;
+      actions.set(action.graveIndex, action);
+    }
+    return actions;
+  }
+
+  /** Every graveyard slot offering an action right now, for the pile alert. */
+  private graveActionSlots(player: PlayerId): Set<number> {
+    const slots = new Set<number>(this.retellActionsByGraveIndex(player).keys());
+    for (const index of this.preserveActionsByGraveIndex(player).keys()) slots.add(index);
+    return slots;
+  }
+
+  /**
+   * The graveyard grid, newest first, one tile per physical card. Collapsing
+   * duplicates and sorting by cost (which every other zone still does) made
+   * the pile's order unreadable, and the order is a rule here: `raise top`
+   * returns the most-recently-buried creature.
+   */
+  private graveyardEntries(cardIds: readonly string[], player: PlayerId): ZoneContentsEntry[] {
+    const styled = player === HUMAN;
+    const retellActions = this.retellActionsByGraveIndex(player);
+    const preserveActions = this.preserveActionsByGraveIndex(player);
+    return orderedGraveyardSlots(cardIds).map((slot) => {
+      const card = def(CARD_DB, slot.cardId);
+      const casts = retellActions.get(slot.index);
+      const preserve = preserveActions.get(slot.index);
+      const choice = graveActionChoice(
+        casts !== undefined && card.retell !== undefined,
+        preserve !== undefined && card.preserve !== undefined,
+      );
+      return {
+        card,
+        count: 1,
+        // One card per tile: the count chip becomes the position marker, and
+        // every tile below the top carries no chip at all.
+        badge: slot.top ? 'Top' : null,
+        landStyle: styled ? this.humanLandStyleFor(slot.cardId) : undefined,
+        variant: styled ? displayVariantFor(Services.save.data, slot.cardId) : undefined,
+        ...(choice === 'retell' && casts && card.retell
+          ? {
+              action: {
+                label: 'Retell',
+                cost: card.retell.cost,
+                onSelect: () => this.startCast(casts),
+              },
+            }
+          : {}),
+        ...(choice === 'preserve' && preserve && card.preserve
+          ? {
+              action: {
+                label: 'Preserve',
+                cost: card.preserve.cost,
+                onSelect: () => this.act(preserve),
+              },
+            }
+          : {}),
+      };
+    });
+  }
+
+  private zoneEntries(cardIds: readonly string[], styled: boolean): ZoneContentsEntry[] {
     const counts = new Map<string, number>();
     for (const cardId of cardIds) counts.set(cardId, (counts.get(cardId) ?? 0) + 1);
     return [...counts]
-      .map(([cardId, count]) => {
-        const card = def(CARD_DB, cardId);
-        const casts = retellActions.get(cardId);
-        return {
-          card,
-          count,
-          landStyle: styled ? this.humanLandStyleFor(cardId) : undefined,
-          variant: styled ? displayVariantFor(Services.save.data, cardId) : undefined,
-          ...(casts && card.retell
-            ? {
-                action: {
-                  label: 'Retell',
-                  cost: card.retell.cost,
-                  onSelect: () => this.startCast(casts),
-                },
-              }
-            : {}),
-        };
-      })
+      .map(([cardId, count]) => ({
+        card: def(CARD_DB, cardId),
+        count,
+        landStyle: styled ? this.humanLandStyleFor(cardId) : undefined,
+        variant: styled ? displayVariantFor(Services.save.data, cardId) : undefined,
+      }))
       .sort((a, b) => this.compareZoneCards(a.card, b.card));
   }
 
