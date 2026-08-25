@@ -11,6 +11,9 @@ export interface MeasureGameJob {
   rowIsP0: boolean;
   rowDeck: readonly string[];
   colDeck: readonly string[];
+  /** Ten-land reserves, same row/column order as the decks. */
+  rowReserve: readonly string[];
+  colReserve: readonly string[];
 }
 
 interface WorkerBatchMessage {
@@ -33,6 +36,9 @@ function runBatch(message: WorkerBatchMessage): void {
     try {
       const row = buildAI('hard', CARD_DB, job.gameSeed * 7 + 1);
       const col = buildAI('hard', CARD_DB, job.gameSeed * 13 + 5);
+      // Warchest, explicitly. playOut falls back to the CLASSIC constructor when
+      // format and landReserves are both omitted, which is how this harness
+      // measured a retired format until 2026-08-25 - so both are always passed.
       const winner = playOut(
         job.gameSeed,
         job.rowIsP0 ? row : col,
@@ -40,6 +46,10 @@ function runBatch(message: WorkerBatchMessage): void {
         job.rowIsP0
           ? [[...job.rowDeck], [...job.colDeck]]
           : [[...job.colDeck], [...job.rowDeck]],
+        'warchest',
+        job.rowIsP0
+          ? [[...job.rowReserve], [...job.colReserve]]
+          : [[...job.colReserve], [...job.rowReserve]],
       );
       results[job.resultIndex] = resultCode(winner);
     } catch {

@@ -98,16 +98,21 @@ describe('--check artifact round trip', () => {
     expect(output).toContain('Drift: 0.0 percentage points');
   });
 
-  it('checks an existing committed v1 artifact that predates the mode field', () => {
+  it('refuses a committed v1 artifact instead of re-measuring a retired format', () => {
     const path = resolve('scripts/personas/decks/2026-07-20-burn-all.json');
     const artifact = JSON.parse(readFileSync(path, 'utf8'));
     expect(artifact.mode).toBeUndefined();
-    const output: string[] = [];
+    // v1 artifacts describe 60-card CLASSIC decks with lands in the deck and no
+    // reserve. Silently re-measuring one is how the harness spent months on a
+    // retired format, so --check must fail loudly and say why.
+    expect(artifact.landReserve).toBeUndefined();
+    const errors: string[] = [];
     expect(runCli(['--check', path], {
       measure: (_deck, options) => measuredForField(options.field),
-      log: (line) => output.push(line),
-    })).toBe(0);
-    expect(output[0]).toBe('Checked 2026-07-20-burn-all.json (burn)');
+      log: () => undefined,
+      error: (line) => errors.push(line),
+    })).toBe(1);
+    expect(errors.some((line) => line.includes('predates the reserve-native migration'))).toBe(true);
   });
 
   it('rejects a malformed artifact without measuring it', () => {

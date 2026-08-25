@@ -117,6 +117,35 @@ The release that would open next.
 - **Save cards** ([plan-save-cards.md](plan-save-cards.md)) and **share replay
   codes** — same codec family, sensible to do together.
 
+## The sweep measured a retired format (finding, 2026-08-25)
+
+Found while sizing worker counts, before the sweep was launched.
+`scripts/personas/craft.ts` was still measuring **classic** - the format retired
+2026-08-10 and replaced game-wide by Warchest in 1.6. Three independent causes,
+all in one harness:
+
+- `referenceComposition` built its columns from `DeckList.cards`, the field
+  commented `// 60 cardIds - classic`, rather than `reserveCards`/`landReserve`.
+- The measure worker called `playOut` with no `format` and no `landReserves`,
+  which is the branch that silently constructs a classic game.
+- The crafted decks were 60-card classic lists with basics allocated inside
+  them, which a Warchest game rejects outright.
+
+This is the `runAvatarMatrix` failure repeating. The reserve migration
+enumerated "all four balance-matrix harnesses"; the persona harness is a fifth
+one that was never on that list, and `plan-1.6.md` even scheduled the sweep
+"once the reserve field stabilizes" without anyone migrating it.
+
+**Cost avoided:** ~37h of compute measuring a dead format, and the
+collection-dilution ruling - which is deferred pending this sweep - would have
+been decided on it.
+
+The harness is now reserve-native: 40-card landless decks plus a ten-land
+reserve built by the same `buildLandReserve` the reserve matrices use, persona
+templates rescaled to `persona-v2.0.0`, and a hard refusal to measure without a
+reserve rather than a silent classic fallback. **Retained pre-migration
+artifacts are non-comparable** and `--check` now rejects them by name.
+
 ## Propagate needs a seeding layer (finding, 2026-08-24)
 
 Propagate adds a mark to every already-marked permanent you control. It creates
