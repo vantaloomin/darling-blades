@@ -1,10 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PERSONA_TEMPLATE_VERSION } from '../../scripts/personas/templates';
 import {
   cardsForPool,
+  readCraftJournal,
   runMetagameLoop,
   runCli,
   type MeasuredRecord,
@@ -424,6 +425,66 @@ describe('persona metagame loop', () => {
       expect(typeof craft.finishedAt).toBe('string');
     }
   }, 120000);
+
+  /**
+   * The 2026-08-25 sweep died 4h36 in with TWO crafts finished and nothing on
+   * disk, because checkpoints only fired at round boundaries and the seed round
+   * alone runs about nine hours. The journal is written per craft and
+   * synchronously so that can never cost more than the craft in flight.
+   */
+  describe('crash durability and resume', () => {
+    const run = (dir: string, extra: string[] = []): number => runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '0',
+      '--seed', '424242', ...extra,
+    ], { today: () => '2026-08-25', log: () => undefined });
+
+    it('journals every finished craft, not just every finished round', () => {
+      const dir = mkdtempSync(join(tmpdir(), 'darling-journal-'));
+      tempDirs.push(dir);
+      expect(run(dir)).toBe(0);
+      const journal = readCraftJournal(join(dir, 'craft-journal.jsonl'));
+      // 2 personas x (seed round + 1 best-response round)
+      expect(journal.size).toBe(4);
+      expect([...journal.keys()].sort()).toEqual(['0:burn', '0:weenie', '1:burn', '1:weenie']);
+    });
+
+    it('resumes to a byte-identical result after losing everything but the journal', () => {
+      const first = mkdtempSync(join(tmpdir(), 'darling-resume-a-'));
+      const second = mkdtempSync(join(tmpdir(), 'darling-resume-b-'));
+      tempDirs.push(first, second);
+      expect(run(first)).toBe(0);
+      const baseline = readFileSync(join(first, '2026-08-25-metagame-burn-all.json'), 'utf8');
+
+      // Simulate a kill after the seed round: keep only round 0 in the journal,
+      // and no artifacts at all.
+      const lines = readFileSync(join(first, 'craft-journal.jsonl'), 'utf8')
+        .split('\n').filter((l) => l.trim());
+      const partial = lines.filter((l) => (JSON.parse(l) as { round: number }).round === 0);
+      expect(partial).toHaveLength(2);
+      writeFileSync(join(second, 'craft-journal.jsonl'), `${partial.join('\n')}\n`, 'utf8');
+
+      expect(run(second, ['--resume'])).toBe(0);
+      // Craft seeds derive from run seed + round + persona id, so a resumed run
+      // must be indistinguishable from one that was never interrupted.
+      expect(readFileSync(join(second, '2026-08-25-metagame-burn-all.json'), 'utf8')).toBe(baseline);
+    }, 120000);
+
+    it('keeps every complete entry when the journal was cut mid-write', () => {
+      // A killed process can leave a half-written final line. Losing that entry
+      // is correct; losing the ones before it is not.
+      const dir = mkdtempSync(join(tmpdir(), 'darling-torn-'));
+      tempDirs.push(dir);
+      const path = join(dir, 'craft-journal.jsonl');
+      const good = JSON.stringify({ round: 0, personaId: 'burn', seed: 1, crafted: { round: 0 } });
+      writeFileSync(path, `${good}\n{"round":0,"personaId":"wee`, 'utf8');
+      expect(readCraftJournal(path).size).toBe(1);
+    });
+
+    it('returns an empty map when there is no journal yet', () => {
+      expect(readCraftJournal(join(tmpdir(), 'no-such-journal.jsonl')).size).toBe(0);
+    });
+  });
 
   it('documents the loop policy in CLI help', () => {
     const output: string[] = [];

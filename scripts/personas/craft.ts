@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,8 +46,17 @@ Metagame loop mode (informational, deterministic):
   --metagame --all | --personas <id,id,...>
   --rounds <n>               Maximum best-response rounds (default: 4)
   --status-file <path>       Write live metagame progress JSON (sweep dashboards)
+  --journal <path>           Append-only craft journal (default: <out>/craft-journal.jsonl)
+  --resume                   Skip crafts already recorded in the journal
 
-Artifacts are checkpointed at every round boundary (after the seed pass and
+DURABILITY. Every finished craft is appended to the journal SYNCHRONOUSLY, so
+a killed process keeps everything it completed. Re-run the identical command
+with --resume to continue: craft seeds derive from the run seed, the round, and
+the persona id, so a resumed run produces byte-identical results to one that was
+never interrupted. A fatal error is written to <out>/craft-crash.log, because
+stdout redirected to a file is buffered and is lost on an abnormal exit.
+
+Artifacts are additionally checkpointed at every round boundary (after the seed pass and
 after each best-response round) to the same paths the final write uses, so a
 run killed mid-flight keeps every completed round. A partial artifact reports
 stoppedReason 'in-progress' with converged false; a finished run overwrites its
@@ -283,6 +292,17 @@ export interface MetagameOptions {
    * wait for the whole round before it can show a single result. Pure observer.
    */
   onCraftComplete?: (round: MetagameRound, personaIndex: number) => void;
+  /**
+   * Optional resume source. Return a previously completed craft to skip
+   * re-running it; return undefined to craft normally.
+   *
+   * A single craft runs one to three HOURS, so a run that dies mid-round loses
+   * everything it has not persisted. Craft seeds are derived from the run seed,
+   * the round, and the persona id, so a replayed craft is byte-identical to
+   * what this loop would have produced - resuming changes nothing about the
+   * result, only how much of it has to be recomputed.
+   */
+  resumeCraft?: (round: number, personaId: string) => MetagameRound | undefined;
 }
 
 export interface MetagameProgressEvent {
@@ -978,8 +998,9 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
       personaId: template.id, personaName: template.name,
       personaIndex: index, personaCount: templates.length,
     });
-    const round = craftMetagameRound(template, 0, staticComposition, options);
-    options.onCraftComplete?.(round, index);
+    const resumed = options.resumeCraft?.(0, template.id);
+    const round = resumed ?? craftMetagameRound(template, 0, staticComposition, options);
+    if (!resumed) options.onCraftComplete?.(round, index);
     history.set(template.id, [round]);
     retained.set(template.id, round);
     seen.set(template.id, new Map([[deckSignature(round.deck), { firstRound: 0, lastRound: 0 }]]));
@@ -1000,8 +1021,10 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
       });
       const fieldComposition = personaFieldComposition(templates, previous, options.field)
         .filter((entry) => entry.personaId !== template.id);
-      const crafted = craftMetagameRound(template, roundNumber, fieldComposition, options);
-      options.onCraftComplete?.(crafted, index);
+      const resumedRound = options.resumeCraft?.(roundNumber, template.id);
+      const crafted = resumedRound
+        ?? craftMetagameRound(template, roundNumber, fieldComposition, options);
+      if (!resumedRound) options.onCraftComplete?.(crafted, index);
       next.set(template.id, crafted);
     }
     completedRounds = roundNumber;
@@ -1138,6 +1161,44 @@ function parsePersonaIds(value: string | undefined): string[] {
 function pct(measurement: MeasuredRecord): string {
   const decided = measurement.rowWins + measurement.losses;
   return `${(measurement.score * 100).toFixed(1)}% (${measurement.rowWins}/${decided} decided, ${measurement.draws} draws)`;
+}
+
+/**
+ * One completed craft, appended to the journal the instant it finishes.
+ *
+ * Round-boundary checkpoints are not enough on their own: the seed round alone
+ * runs about nine hours at realistic worker counts, so a run that dies partway
+ * through it loses every completed craft. That is not hypothetical - the
+ * 2026-08-25 sweep died 4h36 in with two crafts finished and nothing on disk.
+ *
+ * The journal is append-only and written SYNCHRONOUSLY, so a killed process
+ * still leaves everything it had finished. It doubles as the resume source.
+ */
+interface JournalEntry {
+  round: number;
+  personaId: string;
+  seed: number;
+  crafted: MetagameRound;
+}
+
+export function readCraftJournal(path: string): Map<string, MetagameRound> {
+  const out = new Map<string, MetagameRound>();
+  if (!existsSync(path)) return out;
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    const text = line.trim();
+    if (!text) continue;
+    try {
+      const entry = JSON.parse(text) as JournalEntry;
+      if (entry?.crafted && entry.personaId !== undefined && entry.round !== undefined) {
+        out.set(`${entry.round}:${entry.personaId}`, entry.crafted);
+      }
+    } catch {
+      // A half-written final line is expected after a kill: keep every entry
+      // before it rather than discarding the whole journal.
+      break;
+    }
+  }
+  return out;
 }
 
 export interface CliDependencies {
@@ -1285,6 +1346,14 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       // One compact row per FINISHED craft, so the dashboard can show a result
       // the moment it exists instead of waiting out the rest of the round.
       const finishedCrafts: Record<string, unknown>[] = [];
+      // Append-only, written synchronously so a killed process still leaves
+      // every craft it finished. Also the resume source.
+      const journalPath = opt('journal') ?? join(outDir, 'craft-journal.jsonl');
+      const resumeRequested = argv.includes('--resume');
+      const resumed = resumeRequested ? readCraftJournal(journalPath) : new Map<string, MetagameRound>();
+      if (resumeRequested) {
+        log(`Resume: ${resumed.size} completed craft(s) recovered from ${basename(journalPath)}`);
+      }
       const writeStatus = (payload: Record<string, unknown>): void => {
         if (!statusPath) return;
         writeFileSync(statusPath, `${JSON.stringify({
@@ -1305,6 +1374,22 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         }, null, 2)}
 `, 'utf8');
       };
+      // The 2026-08-25 sweep died leaving a ZERO-BYTE log: node buffers stdout
+      // to a file and an abnormal exit loses the buffer, so the run left no
+      // evidence at all. These handlers write synchronously to a file beside
+      // the journal, which survives what stdout does not.
+      const crashPath = join(outDir, 'craft-crash.log');
+      const recordFatal = (kind: string) => (error: unknown): void => {
+        const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+        try {
+          appendFileSync(crashPath, `[${new Date().toISOString()}] ${kind}: ${detail}\n`, 'utf8');
+        } catch { /* nothing left to do if even this fails */ }
+        writeStatus({ state: 'failed', failure: `${kind}: ${detail.split('\n')[0]}` });
+        process.exitCode = 1;
+      };
+      process.on('uncaughtException', recordFatal('uncaughtException'));
+      process.on('unhandledRejection', recordFatal('unhandledRejection'));
+
       writeStatus({ state: 'starting' });
       // Checkpoint writes. The loop stays pure - it hands us artifacts, the CLI
       // shell owns the filesystem - and the paths are the SAME ones the final
@@ -1352,7 +1437,14 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           writeStatus({ state: 'running', ...event });
         },
         onCheckpoint: writeCheckpoint,
+        resumeCraft: (round, personaId) => resumed.get(`${round}:${personaId}`),
         onCraftComplete: (round, personaIndex) => {
+          appendFileSync(journalPath, `${JSON.stringify({
+            round: round.round,
+            personaId: selectedPersonaIds![personaIndex],
+            seed: round.seed,
+            crafted: round,
+          })}\n`, 'utf8');
           finishedCrafts.push({
             round: round.round,
             personaIndex,
