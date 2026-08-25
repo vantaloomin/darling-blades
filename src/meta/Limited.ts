@@ -5,7 +5,7 @@ import type { CardDb, CardDef, Color, Rarity } from '../engine/types';
 import { def, isType } from '../engine/types';
 import { addCard, type AddResult } from './Collection';
 import { LIMITED_DECK_SIZE } from './DeckStorage';
-import { buildAiLandReserve } from './duelSetup';
+import { AI_COLOR_ORDER, BASIC_FOR_COLOR } from './duelSetup';
 import {
   assignDraftPersonas,
   DEFAULT_PICKER,
@@ -386,8 +386,73 @@ export function buildLimitedDeck(db: CardDb, pool: readonly string[]): string[] 
 }
 
 /**
+ * Basics apportioned by the deck's actual PIP DEMAND, with a one-basic floor
+ * for every colour the deck plays.
+ *
+ * The shared `buildAiLandReserve` alternates strictly (`palette[i % n]`), so a
+ * deck with twelve red pips and three blue still drew five Mountains and five
+ * Islands. Mana is tighter in Limited than anywhere else - ten lands, no
+ * shuffling your way out - so the main colour was chronically under-supported.
+ *
+ * The floor is what keeps a light splash castable: pure largest-remainder
+ * rounding can hand a one-pip splash zero sources, which is worse than the
+ * alternation it replaces. When there are fewer slots than colours the highest
+ * demand wins, because something has to give.
+ *
+ * Deliberately local to Limited. `buildAiLandReserve` feeds every AI duel and
+ * the avatar roster, so changing it there would move balance across the whole
+ * game; this changes only the mode the decision was taken for.
+ */
+export function limitedBasics(db: CardDb, deck: readonly string[], slots: number): string[] {
+  if (slots <= 0) return [];
+  const demand = new Map<Color, number>();
+  for (const id of deck) {
+    const card = db[id];
+    if (!card) continue;
+    for (const [color, pips] of Object.entries(card.cost?.pips ?? {}) as [Color, number][]) {
+      if (pips > 0) demand.set(color, (demand.get(color) ?? 0) + pips);
+    }
+    // A coloured card with no pips (or an odd cost shape) still needs a source.
+    for (const color of card.colors ?? []) if (!demand.has(color)) demand.set(color, 0);
+  }
+  const colors = AI_COLOR_ORDER.filter((color) => demand.has(color));
+  if (colors.length === 0) return Array.from({ length: slots }, () => BASIC_FOR_COLOR.W);
+
+  // Fewer slots than colours: highest demand first, one each, and stop.
+  if (colors.length >= slots) {
+    const ranked = [...colors].sort((a, b) =>
+      (demand.get(b) ?? 0) - (demand.get(a) ?? 0) || AI_COLOR_ORDER.indexOf(a) - AI_COLOR_ORDER.indexOf(b));
+    return ranked.slice(0, slots).map((color) => BASIC_FOR_COLOR[color]);
+  }
+
+  const counts = new Map<Color, number>(colors.map((color) => [color, 1]));
+  let remaining = slots - colors.length;
+  const total = colors.reduce((sum, color) => sum + (demand.get(color) ?? 0), 0);
+  if (total > 0 && remaining > 0) {
+    const exact = colors.map((color) => ({ color, value: remaining * (demand.get(color) ?? 0) / total }));
+    const floors = exact.map((entry) => ({ ...entry, whole: Math.floor(entry.value) }));
+    for (const entry of floors) counts.set(entry.color, (counts.get(entry.color) ?? 0) + entry.whole);
+    remaining -= floors.reduce((sum, entry) => sum + entry.whole, 0);
+    const byRemainder = [...floors].sort((a, b) =>
+      (b.value - b.whole) - (a.value - a.whole) ||
+      AI_COLOR_ORDER.indexOf(a.color) - AI_COLOR_ORDER.indexOf(b.color));
+    for (let i = 0; i < remaining; i++) {
+      const entry = byRemainder[i % byRemainder.length];
+      counts.set(entry.color, (counts.get(entry.color) ?? 0) + 1);
+    }
+  } else {
+    // No pips anywhere: spread what is left round-robin over the deck's colours.
+    for (let i = 0; i < remaining; i++) {
+      const color = colors[i % colors.length];
+      counts.set(color, (counts.get(color) ?? 0) + 1);
+    }
+  }
+  return colors.flatMap((color) => Array.from({ length: counts.get(color) ?? 0 }, () => BASIC_FOR_COLOR[color]));
+}
+
+/**
  * The Limited Warchest: selected drafted duals first, then ten lands total
- * with basics derived from the spell deck's colours. An omitted selection
+ * with basics apportioned by the spell deck's pip demand. An omitted selection
  * defaults to the first five drafted dual occurrences; an explicit empty
  * selection means the player chose basics only.
  */
@@ -400,8 +465,7 @@ export function limitedLandReserve(
   const availableDuals = limitedDraftDuals(db, pool);
   const requested = selectedDuals === undefined ? availableDuals.slice(0, MAX_DUAL_LANDS) : selectedDuals;
   const duals = takeDraftedDuals(availableDuals, requested);
-  const basics = buildAiLandReserve(deck, db);
-  return [...duals, ...basics.slice(0, LAND_RESERVE_SIZE - duals.length)];
+  return [...duals, ...limitedBasics(db, deck, LAND_RESERVE_SIZE - duals.length)];
 }
 
 /** Return drafted dual occurrences in pool order for the Limited builder. */
