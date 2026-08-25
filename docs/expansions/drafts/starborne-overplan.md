@@ -156,13 +156,11 @@ deck leans hard on the common floor.
 | sb-cometary-verdict | Cometary Verdict | C | W | Ritual | {3}{W} | None | Sever target tapped creature | The tribunal waits until the target has nowhere left to run. | core |
 | sb-pale-nebula | Pale Nebula | C | W | Land | None | None | entersTapped; manaAbility W | The cloud looks soft until you try to navigate it. | core |
 | sb-signal-inversion | Signal Inversion | C | U | Charm | {1}{U} | None | recall target creature; its owner Foresees 1 | A perfect reply is just a message sent back sharpened. | core |
-| sb-quiet-orbit | Quiet Orbit | C | U | Ritual | {2}{U} | None | cancel target spell | Nothing is more alarming than an empty channel during a launch. | core |
 | sb-prism-current | Prism Current | C | U | Charm | {1}{U} | None | Foresee 2; draw 1 | The current carries away bad options and leaves the useful ones bright. | flex |
 | sb-relay-station | Relay Station | C | U | Enchantment | {3}{U} | None | dawn: Foresee 1 | It has not missed a signal in four hundred years. | flex |
 | sb-sky-map | Sky Map | C | C | Artifact | {2} | None | Skim {1}; arrives: Foresee 1 | Fold it once and it becomes a route through the impossible. | core |
 | sb-moonpool | Moonpool | C | U | Charm | {2}{U} | None | tap target; Foresee 1 | The water holds a ship still while the stars rearrange around it. | flex |
 | sb-deepfield-lands | Deepfield Lands | C | U | Land | None | None | entersTapped; manaAbility U | The deep field is quiet because everything there is listening. | core |
-| sb-marrow-eviction | Marrow Eviction | C | B | Charm | {1}{B} | None | target creature gets -2/-2 until end of turn | The beam does not break the armor. It persuades the armor to stop helping. | core |
 | sb-grave-orbit | Grave Orbit | C | B | Ritual | {3}{B} | None | Sever the top 2 cards of an opponent's graveyard; opponent losesLife 1 | Even wreckage has a price in the outer rings. | flex |
 | sb-night-market-bargain | Night-Market Bargain | C | B | Charm | {2}{B} | None | draw 1; loseLife 1 | The seller offers memories, replacement organs, and a discount for honesty. | flex |
 | sb-umbral-antenna | Umbral Antenna | C | B | Artifact | {2} | None | arrives: grind self 1 | It receives transmissions from places that have no coordinates. | core |
@@ -202,8 +200,8 @@ deck leans hard on the common floor.
 | sb-starlight-arbiter | Starlight Arbiter | R | W | Creature, Judge | {5}{W} | 4/5 | Untouchable; arrives: Foresee 1 | She knows the difference between justice and a clean firing lane. | stretch |
 | sb-velvet-void-cartographer | Velvet Void Cartographer | R | U | Creature, Navigator | {2}{U} | 2/3 | arrives: Foresee 2; Skim {1} | Her maps are soft, precise, and illegal in four systems. | core |
 | sb-mirror-nebula-savant | Mirror-Nebula Savant | R | U | Creature, Alien Scholar | {3}{U} | 2/4 | Untouchable; while marked, Foresee 1 at dawn | She has seen every future and still dresses for this one. | stretch |
-| sb-orbit-lace-infiltrator | Orbit-Lace Infiltrator | R | U | Creature, Rogue | {2}{U} | 2/2 | Skyborne; Skim {1} | She enters through the airlock as a reflection and leaves with the keys. | flex |
-| sb-astral-biomancer | Astral Biomancer | R | U | Creature, Alien Mage | {4}{U} | 3/4 | arrives: add a mark to target creature; Foresee 1 | She grows new organs for ships that have outlived their owners. | flex |
+| sb-orbit-lace-infiltrator | Orbit-Lace Infiltrator | R | U | Creature, Rogue | {2}{U} | 2/2 | Skyborne; Skim {1}; arrives: move a mark from a permanent you control to another permanent you control | She enters through the airlock as a reflection and leaves with the keys. | flex |
+| sb-astral-biomancer | Astral Biomancer | R | U | Creature, Alien Mage | {4}{U} | 3/4 | arrives: if a permanent you control is marked, put a mark on another target permanent you control; Foresee 1 | She grows new organs for ships that have outlived their owners. | flex |
 | sb-tideglass-archivist | Tideglass Archivist | R | U | Creature, Archivist | {3}{U} | 2/4 | arrives: draw 1, then grind self 1 | Every archive has a tide. She waits for the useful things to wash in. | core |
 | sb-signal-crown-thief | Signal-Crown Thief | R | U | Creature, Thief | {4}{U} | 3/3 | Skyborne; whenever this gets a mark, draw 1 | She steals command signals and lets the ship decide who deserves them. | stretch |
 | sb-blue-comet-adept | Blue-Comet Adept | R | U | Creature, Alien Adept | {1}{U} | 2/1 | whenever you cast a Charm, Foresee 1 | She learns spells by watching their light leave the hand. | flex |
@@ -257,7 +255,7 @@ deck leans hard on the common floor.
 
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| sb-prismatic-fleet-marshal | Prismatic Fleet Marshal | SR | W | Creature, Alien Commander | {4}{W} | 4/4 | Sentinel; arrives: boost all your creatures +1/+0 until end of turn | Her fleet forms a flower around the enemy before it closes. | core |
+| sb-prismatic-fleet-marshal | Prismatic Fleet Marshal | SR | W | Creature, Alien Commander | {4}{W} | 4/4 | Sentinel; arrives: Propagate | Her fleet forms a flower around the enemy before it closes. | core |
 | sb-lunar-chrome-oracle | Lunar Chrome Oracle | SR | U | Creature, Alien Oracle | {3}{U} | 3/4 | Untouchable; dawn: Foresee 2 | She keeps a second moon in her throat for emergencies. | flex |
 | sb-eclipse-blood-artist | Eclipse Blood Artist | SR | B | Creature, Alien Artist | {3}{B} | 3/3 | Blood Oath; whenever this gets a mark, opponent losesLife 2 | She paints with light stolen from the moment a star dies. | core |
 | sb-ember-orbit-exarch | Ember-Orbit Exarch | SR | R | Creature, Alien Priestess | {4}{R} | 4/3 | Warcry; arrives: damage target creature 2 | Her sermons begin with a spark and end with a crater. | core |
@@ -307,6 +305,108 @@ deck leans hard on the common floor.
 | sb-prism-void-comet | Prism-Void Comet | UR | W/U | Legendary Creature, Alien Comet | {6}{W}{U} | 6/6 | Skyborne, Untouchable; whenever you Propagate, draw 1 | It is a living starship, a woman, and a promise moving too fast to catch. | core |
 | sb-eclipse-red-queen | Eclipse-Red Queen | UR | B/R | Legendary Creature, Alien Queen | {6}{B}{R} | 7/5 | Dreaded, Warcry; whenever a marked creature you control attacks, damage opponent 1 (AI-risk) | Her red court arrives after the eclipse and leaves before the mourning. | flex |
 | sb-halo-motherboard | Halo Motherboard | UR | C | Legendary Artifact | {6} | None | arrives: Propagate; your marked creatures get +1/+1; dawn: Foresee 1 (AI-risk) | It is the first machine the fleet built that can dream in plural. | stretch |
+
+## Concretion additions: evergreen sprinkle and reskin repair (2026-08-25)
+
+Two audits drove this block, both measured against `balance/cards.sqlite` rather
+than assumed.
+
+**Evergreen coverage.** `Bulwark` appears in seven of eight shipped sets and was
+absent here; `Twin Blades` appears in five of eight and was absent; `cancel` had
+a single card. **Returning mechanics were the bigger miss**: Sands of the Duat
+carried Skim 4, Retell 8 and Empower 8 alongside its own Rite, which is the
+house convention for sprinkling. This draft had Skim 15 but **Retell 0 and
+Empower 0**.
+
+**Reskin audit.** Ten rows were exact functional duplicates of a shipped card
+(same normalised cost, same stats, same rules text). Eight were creatures whose
+SUBTYPES differ (`Alien Soldier` against `Squire`), which in a game with tribal
+payoffs is real differentiation. **Two were spells with nothing to differentiate
+them** and are reworked below.
+
+For calibration, the shipped pool's own duplicate rate: Base Set 0.0%, Ragnarok
+4.2%, Silver Veil 9.5%, Grail Oath 9.6%, Nocturne Manor 10.8%, Dark Tales 11.7%,
+Yokai Nights 15.8%, **Sands of the Duat 15.9%**. This draft sits at **5.0%**, the
+cleanest since Ragnarok. The drift from 0% to 16% across eight sets is a
+pool-health signal worth tracking; it is recorded in
+[design-health.md](../../design-health.md).
+
+**Every addition below ties to marks.** The obvious statlines for Bulwark and
+Twin Blades are already taken several times over, so hanging each keyword off
+the set's own mechanic is what keeps these from becoming the next generation of
+reskins. It also thickens the enabler layer the colour audit called for.
+
+### Reworked, to remove exact duplicates
+
+| ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sb-quiet-orbit | Quiet Orbit | C | U | Charm | {2}{U} | None | cancel target spell; move a mark from a permanent you control to another permanent you control | The silence between two signals is where she does her work. | core |
+| sb-marrow-eviction | Marrow Eviction | C | B | Charm | {1}{B} | None | target creature gets -2/-2 until end of turn; if it is marked, it gets -4/-4 instead | What the hull grew, the dark unmakes first. | core |
+
+Was: a plain `{2}{U}` cancel identical to Signal Bridge, and a plain `{1}{B}`
+-2/-2 identical to Hollow the Chest. Both now carry their colour's relationship
+to marks, which is the one thing no shipped card can already be.
+
+### Cancel, restored to a real blue suite
+
+| ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sb-signal-drown | Signal Drown | C | U | Charm | {1}{U}{U} | None | cancel target spell; if you control a marked permanent, draw a card | Her answer arrives before the question finishes forming. | core |
+| sb-collapse-the-lane | Collapse the Lane | R | U | Charm | {3}{U} | None | cancel target spell, then Foresee 2 | The lane was there a moment ago. She is certain of it. | flex |
+
+### Bulwark, as hull and station
+
+| ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sb-drydock-carapace | Drydock Carapace | C | W | Creature, Starship | {1}{W} | 0/4 | Bulwark; arrives: add a mark to this | It was grown around the dock, and now the dock is part of it. | core |
+| sb-hullplate-bastion | Hullplate Bastion | C | G | Creature, Alien Warden | {2}{G} | 1/5 | Bulwark; arrives: add a mark to another target creature | She feeds the garden first and the guns second. | core |
+| sb-static-reef | Static Reef | R | U | Creature, Alien Reef | {3}{U} | 2/6 | Bulwark; whenever a permanent you control becomes marked, Foresee 1 | The reef hears every new signal before its crew does. | flex |
+| sb-ossuary-gate | Ossuary Gate | R | B | Creature, Starship | {2}{B} | 1/4 | Bulwark; marked creatures your opponent controls get -1/-0 | The gate remembers what the light did to it. | flex |
+
+### Twin Blades, as paired light
+
+| ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sb-lance-of-two-suns | Lance of Two Suns | C | R | Creature, Alien Duelist | {2}{R} | 2/1 | Twin Blades; arrives: add a mark to target creature | Two stars rose over her homeworld. She fights like both of them. | core |
+| sb-mirrorblade-consort | Mirrorblade Consort | R | W | Creature, Lumenborn | {3}{W} | 2/3 | Twin Blades, Sentinel | Her reflection guards the door she is not standing at. | core |
+| sb-splitlight-corsair | Splitlight Corsair | R | G | Creature, Alien Corsair | {4}{G} | 4/4 | Twin Blades; arrives: add a mark to this | The prism split her once and neither half agreed to stop. | flex |
+
+### Retell, the signal that repeats
+
+Retell suits this set better than the one it came from: a world of beacons,
+echoes and relayed light already means "it comes back" in its own vocabulary.
+
+| ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sb-relay-bloom | Relay Bloom | C | G | Charm | {1}{G} | None | add a mark to target creature; Retell {2}{G} | The garden repeats what it liked hearing. | core |
+| sb-echo-burst | Echo Burst | C | R | Charm | {1}{R} | None | deal 2 damage to any target; Retell {2}{R} | The shot arrives twice because the corridor insisted. | core |
+| sb-signal-recall | Signal Recall | C | U | Charm | {1}{U} | None | move a mark from a permanent you control to another permanent you control; Retell {2}{U} | She files the light somewhere safer. | core |
+| sb-void-lament | Void Lament | C | B | Charm | {1}{B} | None | target creature gets -1/-1 until end of turn; if it is marked, -3/-3 instead; Retell {2}{B} | The dark learned the song and sings it back wrong. | flex |
+| sb-hullsong | Hullsong | C | W | Charm | {1}{W} | None | target creature gets +1/+1 until end of turn and gains Sentinel; Retell {2}{W} | The ship hums, and the watch does not sleep. | flex |
+
+### Empower, the overcharged hull
+
+Every entry respects the printed-plus-Empower ceiling of 9.
+
+| ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sb-bloomdrive-surge | Bloomdrive Surge | R | G | Ritual | {2}{G} | None | add a mark to up to two target creatures; Empower {2}{G}: Propagate | Feed the drive enough light and the whole garden answers. | core |
+| sb-overcharge-the-hull | Overcharge the Hull | C | R | Charm | {2}{R} | None | deal 3 damage to target creature; Empower {2}{R}: this deals 2 damage to your opponent | The reactor was never rated for her temper. | core |
+| sb-lumen-refit | Lumen Refit | R | W | Creature, Starship | {2}{W} | 3/3 | Bulwark; Empower {2}{W}: add a mark to this | Refit in the light of a dying sun, and better for it. | flex |
+| sb-tidewalk-analyst | Tidewalk Analyst | R | U | Creature, Alien Analyst | {3}{U} | 2/4 | Empower {3}{U}: move a mark from a permanent you control to another permanent you control | She reads the tide as a filing problem. | flex |
+| sb-eclipse-tithe | Eclipse Tithe | R | B | Charm | {2}{B} | None | remove all marks from target creature; Empower {2}{B}: your opponent loses 2 life | Everything the light gave, the eclipse counts back. | core |
+
+### What this block does to the colour audit
+
+Three new common mark generators land outside green (`sb-drydock-carapace` in
+white, `sb-lance-of-two-suns` in red, `sb-relay-bloom` in green plus
+`sb-hullplate-bastion` in green), and the two colours that generate nothing now
+have a defined job instead of a hole: **blue moves marks** across four cards
+(`sb-quiet-orbit`, `sb-signal-recall`, `sb-tidewalk-analyst`, and
+`sb-static-reef` reading them), and **black answers them** across four
+(`sb-marrow-eviction`, `sb-void-lament`, `sb-ossuary-gate`, `sb-eclipse-tithe`).
+
+Neither blue nor black generates a single mark, which is the point.
 
 ## Set-Unique Token Proposals
 
