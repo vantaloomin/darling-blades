@@ -8,7 +8,12 @@ import {
   TARGET_ARROW_HEAD_LENGTH,
   hauntlinkActionLabel,
   hauntlinkOverlap,
+  landDropGuardApplies,
+  LAND_DROP_CONFIRM_LABEL,
+  LAND_DROP_NOTICE,
   opponentReservePileBounds,
+  orderedGraveyardSlots,
+  shouldArmLandDrop,
   presentationRectsOverlap,
   targetArrowShaftEnd,
   targetRingTone,
@@ -103,5 +108,75 @@ describe('duel presentation rules', () => {
   it('keeps hold progress inside the action button instead of using a cursor halo', () => {
     expect(SHARD_HOLD_BUTTON_PROGRESS.inset).toBe(3);
     expect(SHARD_HOLD_BUTTON_PROGRESS.fillAlpha).toBeGreaterThan(0);
+  });
+});
+
+describe('graveyard pile order', () => {
+  it('reads newest first and marks the top of the pile', () => {
+    // Engine order is oldest -> newest, so the last buried card is the top.
+    const slots = orderedGraveyardSlots(['a', 'b', 'c']);
+    expect(slots.map((s) => s.cardId)).toEqual(['c', 'b', 'a']);
+    expect(slots.map((s) => s.index)).toEqual([2, 1, 0]);
+    expect(slots.map((s) => s.top)).toEqual([true, false, false]);
+  });
+
+  it('keeps duplicates as separate slots so position stays truthful', () => {
+    // The reported symptom: a cycled card then two mills. Collapsing copies
+    // put the cycled card in the middle of the grid; ordered slots cannot.
+    const slots = orderedGraveyardSlots(['cycled', 'mill1', 'mill1']);
+    expect(slots).toHaveLength(3);
+    expect(slots.map((s) => s.index)).toEqual([2, 1, 0]);
+    expect(slots[2]).toEqual({ cardId: 'cycled', index: 0, top: false });
+  });
+
+  it('handles the empty and single-card piles', () => {
+    expect(orderedGraveyardSlots([])).toEqual([]);
+    expect(orderedGraveyardSlots(['only'])).toEqual([{ cardId: 'only', index: 0, top: true }]);
+  });
+});
+
+describe('land-drop guard', () => {
+  const pending = {
+    landDropAvailable: true,
+    turnEnds: true,
+    confirmEnabled: true,
+    armed: false,
+    suppressed: false,
+  };
+
+  it('arms the first press that would end the turn on an unused drop', () => {
+    expect(landDropGuardApplies(pending)).toBe(true);
+    expect(shouldArmLandDrop(pending)).toBe(true);
+  });
+
+  it('lets the second press through', () => {
+    const armed = { ...pending, armed: true };
+    // The guard still APPLIES (that is what keeps the button red), but the
+    // press commits rather than arming again.
+    expect(landDropGuardApplies(armed)).toBe(true);
+    expect(shouldArmLandDrop(armed)).toBe(false);
+  });
+
+  it('says nothing when the turn is not ending', () => {
+    // main1 still has a whole second main phase to play the land in.
+    expect(shouldArmLandDrop({ ...pending, turnEnds: false })).toBe(false);
+    expect(landDropGuardApplies({ ...pending, turnEnds: false })).toBe(false);
+  });
+
+  it('says nothing when there is no drop left to make', () => {
+    expect(shouldArmLandDrop({ ...pending, landDropAvailable: false })).toBe(false);
+  });
+
+  it('respects the setting and never interrupts a tutorial or a replay', () => {
+    expect(shouldArmLandDrop({ ...pending, confirmEnabled: false })).toBe(false);
+    expect(shouldArmLandDrop({ ...pending, suppressed: true })).toBe(false);
+  });
+
+  it('keeps its copy terse and free of em-dashes', () => {
+    expect(LAND_DROP_CONFIRM_LABEL.startsWith('Confirm: ')).toBe(true);
+    expect(LAND_DROP_CONFIRM_LABEL.length).toBeLessThanOrEqual(20);
+    for (const copy of [LAND_DROP_CONFIRM_LABEL, LAND_DROP_NOTICE]) {
+      expect(copy).not.toContain('\u2014');
+    }
   });
 });

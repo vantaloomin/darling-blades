@@ -74,7 +74,12 @@ function referencesAbilityTarget(op: EffectOp): boolean {
   }
 }
 
-function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): string {
+function opText(
+  op: EffectOp,
+  target?: TargetSpec,
+  targetAlreadyNamed = false,
+  excludesSelf = false,
+): string {
   switch (op.op) {
     case 'damage': {
       const n = op.n === 'X' ? 'X' : op.n;
@@ -167,11 +172,15 @@ function opText(op: EffectOp, target?: TargetSpec, targetAlreadyNamed = false): 
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
     case 'raise':
-      // "another" is load-bearing on a dies trigger: a raise never returns its
-      // own source (see EffectContext.selfGraveExclusion).
-      return op.to === 'top'
-        ? 'return another creature card from your graveyard to play'
-        : 'return target creature card from your graveyard to play';
+      // The graveyard is an ordered pile and `raise top` takes the
+      // most-recently-buried creature, so the face must say WHICH card it
+      // returns: "another creature card" hid that (player report 2026-08-25).
+      // "other" carries the dies-trigger exclusion instead - a raise fired by
+      // a dies trigger skips its own source (EffectContext.selfGraveExclusion).
+      if (op.to !== 'top') return 'return target creature card from your graveyard to play';
+      return excludesSelf
+        ? 'return the top other creature card of your graveyard to play'
+        : 'return the top creature card of your graveyard to play';
   }
 }
 
@@ -288,7 +297,8 @@ function abilityText(ab: AbilityDef): string {
 
   let targetAlreadyNamed = false;
   const body = (ab.ops ?? []).map((op) => {
-    const text = opText(op, ab.targets?.[0], targetAlreadyNamed);
+    // A dies trigger excludes the source's own card from a graveyard raise.
+    const text = opText(op, ab.targets?.[0], targetAlreadyNamed, ab.when === 'dies');
     targetAlreadyNamed ||= referencesAbilityTarget(op);
     return text;
   }).join(', then ');

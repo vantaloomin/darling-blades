@@ -147,3 +147,41 @@ describe('Hauntlink rules text', () => {
     }
   });
 });
+
+describe('raise rules text names the top of the graveyard', () => {
+  it('prints "the top creature card" wherever the raise is not a dies trigger', () => {
+    // `raise top` returns the most-recently-buried creature, so the face must
+    // say so. The 2026-08-21 self-return fix replaced "top" with "another",
+    // which hid WHICH card comes back (player report 2026-08-25).
+    const expected = {
+      'rg-zhaoyun': 'When this arrives, return the top creature card of your graveyard to play.',
+      'dt-glass-coffin-queen': 'When this arrives, return the top creature card of your graveyard to play.',
+      'gm-bride-storm-crowned': 'Empower {2}{B}: Return the top creature card of your graveyard to play.',
+      'en-persephones-return': 'Chapter II: Return the top creature card of your graveyard to play.',
+    } as const;
+    for (const [id, text] of Object.entries(expected)) {
+      expect(rulesText(CARD_DB[id])).toContain(text);
+      expect(text).not.toContain('\u2014');
+    }
+  });
+
+  it('keeps the dies-trigger exclusion visible as "the top other creature card"', () => {
+    // A dies-triggered raise skips its own source (EffectContext
+    // .selfGraveExclusion), and Sitra is the pool's only such card.
+    const sitra = rulesText(CARD_DB['sd-sitra-ferrywoman-of-two-rivers']);
+    expect(sitra).toContain('When this dies, return the top other creature card of your graveyard to play.');
+    expect(sitra).not.toContain('\u2014');
+  });
+
+  it('leaves targeted raises on the target wording', () => {
+    expect(rulesText(CARD_DB['gm-stormtower-resurrection'])).toContain(
+      'Return target creature card from your graveyard to play.',
+    );
+  });
+
+  it('never prints the ambiguous "another creature card" phrasing', () => {
+    for (const card of ALL_CARDS) {
+      expect(rulesText(card)).not.toContain('another creature card from your graveyard');
+    }
+  });
+});

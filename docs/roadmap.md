@@ -64,10 +64,44 @@ _Dated 2026-08-24. Review monthly._
   variant-deck pins, v23→v24 the empty-block confirmation preference, and
   v24→v25 the Warchest id reveal plus collection-level display pins, and
   v25→v26 the Darlings command zone, Darlings tutorial, and free Zhou Yu
-  claim — see
+  claim, and — since — v32→v33 per-deck card back and playmat and v33→**v34**
+  the land-drop confirmation — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
 
-## Recently shipped (2026-08-24 · 1.6.3)
+## Recently shipped (2026-08-25 · 1.6.3 community feedback)
+
+Four more player-reported items off the 1.6.3 release. Two of them were the
+same fault seen from different sides: the graveyard is an ordered pile and the
+game had stopped saying so anywhere.
+
+- **A deck one card short lost its mana curve (#PR).** The repair banner was a
+  panel drawn OVER the stats block, so any invalid intermediate state (i.e.
+  most of deck building) hid the curve and the color balance behind "This deck
+  needs repair". The whole summary stack lifted 24px, which buys the status
+  band its second line back with the stats still on screen; blocking issues are
+  status lines now, and a SAVED deck that has gone illegal swaps its dead Save
+  button for "⚠ Fix Deck (N)", opening a modal with every issue plus the bulk
+  land strip 1.6.2 added. A deck still being built from scratch is merely
+  incomplete and keeps a plain disabled Save, with no alarm.
+- **`raise top` stopped saying "top" (#PR).** The 2026-08-21 self-return fix
+  re-templated the op to "return another creature card from your graveyard",
+  which hid WHICH card comes back. Reverted to "the top creature card of your
+  graveyard" everywhere, with "the top **other** creature card" carrying the
+  dies-trigger exclusion on the one card that needs it (Sitra).
+- **The graveyard view showed no order at all (#PR).** It collapsed duplicates
+  and sorted by type and cost, so a cycled card landed mid-grid and "top"
+  meant nothing on screen. The graveyard (only) now lists one tile per physical
+  card, newest first, with the top of the pile chipped "Top"; the header says
+  "newest first". Retell chips moved from card-id keys to graveyard indexes, so
+  two copies each carry their own.
+- **The Warchest land drop was easy to forget (#PR).** Lands live in a pile you
+  have to open, so nothing on the board nags the way a land in hand did. The
+  Reserves pile now pulses while a drop is legal, and ending the turn on an
+  unused drop takes a second press ("Confirm: skip land" on the smart button, a
+  notice toast on ⏭ End Turn). Save v33 → v34 adds `settings.confirmLandDrop`,
+  defaulting on, with a Settings toggle under "Your turn".
+
+## Recently shipped (2026-08-24 · 1.6.3 release)
 
 Four player-reported items, one of which turned out to rest on a false premise
 and reshaped the other three.

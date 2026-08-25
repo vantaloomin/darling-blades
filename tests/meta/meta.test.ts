@@ -566,6 +566,7 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       keywordReminders: true, // v8 default
       confirmNoBlock: 'lethal', // v24 default
       instantCast: false, // v30 default
+      confirmLandDrop: true, // v34 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
   });
@@ -652,6 +653,7 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       keywordReminders: true, // v8 default
       confirmNoBlock: 'lethal', // v24 default
       instantCast: false, // v30 default
+      confirmLandDrop: true, // v34 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
     expect(m.data.gauntlet.bestRung).toBe(2);
