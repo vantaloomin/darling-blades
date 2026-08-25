@@ -2,7 +2,7 @@
 
 # Roadmap
 
-_Dated 2026-08-24. Review monthly._
+_Dated 2026-08-25. Review monthly._
 
 ## Status snapshot
 
@@ -23,8 +23,8 @@ _Dated 2026-08-24. Review monthly._
   Tales runs.
   The remaining eyes-on work is the standing real-device pass and
   by-ear/by-eye polish listed under Planned.
-- **1,277 tests green** (+4 skipped balance-tool assertions; count refreshed
-  2026-07-31 at the 1.5.0 cut) across 134 files
+- **1,738 tests green** (+4 skipped balance-tool assertions; count refreshed
+  2026-08-25 at the 1.6.4 cut) across 175 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -68,11 +68,13 @@ _Dated 2026-08-24. Review monthly._
   the land-drop confirmation — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
 
-## Recently shipped (2026-08-25 · 1.6.3 community feedback)
+## Recently shipped (2026-08-25 · 1.6.4)
 
 Four player-reported items off the 1.6.3 release, plus two gaps the graveyard
-work exposed. Two of the four were the same fault seen from different sides:
-the graveyard is an ordered pile and the game had stopped saying so anywhere.
+work exposed, neither of which was a regression: both had been true since the
+features shipped. Two of the four reports were the same fault seen from
+different sides: the graveyard is an ordered pile and the game had stopped
+saying so anywhere.
 
 - **Preserve had no button at all (#PR).** The engine has emitted
   `preserveCard` since 1.6 and the AI has been taking it, but nothing in
