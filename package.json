@@ -27,6 +27,7 @@
     "play:lan": "tsx scripts/serve-lan.ts",
     "check-docs": "tsx scripts/check-docs.ts",
     "check-art-bible": "tsx scripts/check-art-bible.ts",
+    "check-release-notes": "tsx scripts/check-release-notes.ts",
     "gen-docs-tables": "tsx scripts/gen-docs-tables.ts",
     "balance-matrix": "tsx scripts/balance-matrix.ts",
     "codex-dash": "node scripts/codex-dash/run.mjs",

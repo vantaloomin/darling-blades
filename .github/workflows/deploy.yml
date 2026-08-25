@@ -45,6 +45,7 @@ jobs:
         run: |
           npm run check-docs
           npm run check-art-bible
+          npm run check-release-notes
           npx tsx scripts/gen-docs-tables.ts --check
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main'
