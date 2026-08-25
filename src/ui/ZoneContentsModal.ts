@@ -22,6 +22,12 @@ export interface ZoneContentsEntry {
   landStyle?: string;
   variant?: CardVariant;
   action?: ZoneContentsAction;
+  /**
+   * Corner-chip text, replacing the default `x{count}`. Zones that list one
+   * tile per physical card (the ordered graveyard) pass a position marker here
+   * instead, or `null` for no chip at all.
+   */
+  badge?: string | null;
 }
 
 export interface ZoneContentsModalOptions
@@ -118,9 +124,9 @@ export function showZoneContents(
     container.add(item);
   };
 
-  const addCountBadge = (x: number, y: number, count: number): void => {
+  const addBadge = (x: number, y: number, text: string): void => {
     const label = scene.add
-      .text(x + thumbW / 2 - 4, y - thumbH / 2 + 4, `x${count}`, {
+      .text(x + thumbW / 2 - 4, y - thumbH / 2 + 4, text, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.micro}px`,
         fontStyle: theme.weight.w700,
@@ -206,7 +212,8 @@ export function showZoneContents(
       });
       thumb.on('pointerout', () => thumb.clearTint());
       addGridItem(thumb);
-      addCountBadge(x, y, entry.count);
+      const badge = entry.badge === undefined ? `x${entry.count}` : entry.badge;
+      if (badge) addBadge(x, y, badge);
       if (entry.action) addActionChip(x, y + ACTION_Y_OFFSET, entry.action);
     }
     pageControl?.refresh(page, pageCount);

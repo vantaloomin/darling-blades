@@ -88,20 +88,28 @@ export const DECK_PANE_LAYOUT = {
   },
   /**
    * The bottom summary stack (design-system "Spacing and grouping" tiers).
-   * 192px must hold pager, curve, one merged summary line, a one-line status
+   * 216px must hold pager, curve, one merged summary line, a two-line status
    * band, and the CTA row; the ledger the test pins is
-   * pager band | 12 | stats block | 21 | status | 10 | CTAs. The two old
+   * pager band | 12 | stats block | 20 | status | 10 | CTAs. The two old
    * summary lines merged into one so the status band never overlaps the
    * block above it (it could before 2026-08-18).
+   *
+   * The whole stack lifted 24px on 2026-08-25 to buy the status band its
+   * second line back WITH the stats on screen. Before that lift a blocking
+   * deck error had nowhere to go but a panel drawn OVER the curve, so a deck
+   * one card short of legal showed no curve and no color balance at all
+   * (player report). The error is a status line now, and the curve never
+   * leaves.
    */
   summary: {
-    pagerY: 492,
-    statsHeadingY: 534,
-    barBaseY: 584,
+    pagerY: 468,
+    statsHeadingY: 510,
+    barBaseY: 560,
     barMaxHeight: 24,
-    summaryLineY: 616,
+    summaryLineY: 592,
     statusBottomY: 660,
-    statusMaxLinesWithStats: 1,
+    /** Two lines in every view: the status band is the only error surface. */
+    statusMaxLines: 2,
     ctaY: 684,
   },
 } as const;
