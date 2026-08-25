@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { PERSONA_TEMPLATE_VERSION } from '../../scripts/personas/templates';
 import {
   cardsForPool,
   runMetagameLoop,
@@ -135,7 +136,7 @@ describe('persona metagame loop', () => {
     expect(opponent!.deck).toEqual(weenie.metagame!.rounds[0].deck);
     expect(burn.metagame!.rounds[1]).toMatchObject({
       round: 1,
-      templateVersion: 'persona-v1.0.0',
+      templateVersion: PERSONA_TEMPLATE_VERSION,
       measured: { field: 'personas' },
     });
   });
@@ -355,6 +356,27 @@ describe('persona metagame loop', () => {
       );
       expect(artifact.metagame.summary.stoppedReason).not.toBe('in-progress');
     }
+  }, 120000);
+
+  it('publishes format and checkpoint progress to the sweep dashboard status file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-persona-status-'));
+    tempDirs.push(dir);
+    const statusPath = join(dir, 'status.json');
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--status-file', statusPath,
+      '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ], { today: () => '2026-08-25', log: () => undefined })).toBe(0);
+
+    const status = JSON.parse(readFileSync(statusPath, 'utf8'));
+    // The format is on screen because this harness measured the RETIRED classic
+    // format until 2026-08-25 and the dashboard never said which one it was.
+    expect(status.format).toBe('warchest');
+    expect(status.state).toBe('done');
+    // The dashboard sizes its staleness warning off the last checkpoint, so an
+    // unattended multi-day run can be seen to be safe rather than merely alive.
+    expect(status.checkpoint).toMatchObject({ artifacts: 2, completedRounds: 1 });
+    expect(typeof status.checkpoint.at).toBe('string');
   }, 120000);
 
   it('documents the loop policy in CLI help', () => {

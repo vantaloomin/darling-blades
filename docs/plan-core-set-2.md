@@ -104,7 +104,7 @@ Commands:
 npx tsx scripts/balance-matrix.ts --avatars --seeds 40
 npx tsx scripts/balance-matrix.ts --floors --seeds 80
 npx tsx scripts/balance-matrix.ts --prefabs --ai hard --seeds 300
-npx tsx scripts/personas/craft.ts --metagame --all --pool all --field prefabs --seeds 150 --iterations 80 --rounds 4 --workers 14
+npx tsx scripts/personas/craft.ts --metagame --all --pool all --field prefabs --seeds 150 --iterations 80 --rounds 4 --workers 8
 npx tsx scripts/progression-sim.ts --seeds 8 --days 60
 ```
 

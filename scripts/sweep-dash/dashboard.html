@@ -48,7 +48,7 @@
     <div class="bar"><div id="fill" style="width:0%"></div></div>
     <div class="personas" id="personas"></div>
     <div id="results"></div>
-    <div class="stale" id="stale">No status update in over 45 minutes. The crafting rounds are long, but if this persists, check the sweep process.</div>
+    <div class="stale" id="stale"></div>
   </div>
 </main>
 <script>
@@ -60,6 +60,11 @@
   };
   const fmtDur = (iso) => {
     const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    return s < 3600 ? Math.round(s / 60) + 'm' : (s / 3600).toFixed(1) + 'h';
+  };
+  /** Same shape as fmtDur, but for a span already measured in milliseconds. */
+  const fmtSpan = (ms) => {
+    const s = Math.max(0, ms / 1000);
     return s < 3600 ? Math.round(s / 60) + 'm' : (s / 3600).toFixed(1) + 'h';
   };
   let seen = {};
@@ -80,6 +85,13 @@
       if (d.personaId) seen[(d.phase === 'seed' ? 0 : d.round) + ':' + d.personaId] = d;
     }
     if (d.seeds) rows.push(['Protocol', d.seeds + ' seeds · ' + d.iterations + ' swaps · ≤' + d.maxRounds + ' rounds · ' + d.personaCount + ' personas']);
+    // Named on screen deliberately: this harness measured the retired classic
+    // format until 2026-08-25 and nothing here said which format it was.
+    if (d.format) rows.push(['Format', d.format]);
+    if (d.checkpoint) {
+      rows.push(['Saved', d.checkpoint.artifacts + ' artifact(s) through round ' +
+        d.checkpoint.completedRounds + ' · ' + fmtAgo(d.checkpoint.at)]);
+    }
     document.getElementById('rows').innerHTML = rows.map(([k, v]) =>
       '<div class="row"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>').join('');
     // Coarse progress: personas crafted so far over the worst-case total.
@@ -111,8 +123,18 @@
         (d.summary ? '<div class="rows" style="margin-top:12px"><div class="row"><span class="k">Convergence</span><span class="v">' +
           d.summary.stoppedReason + ' · ' + d.summary.completedRounds + '/' + d.summary.maxRounds + ' rounds</span></div></div>' : '');
     }
-    document.getElementById('stale').style.display =
-      d.state === 'running' && d.updatedAt && Date.now() - Date.parse(d.updatedAt) > 45 * 60 * 1000 ? 'block' : 'none';
+    // A single craft runs one to several HOURS at realistic worker counts, so a
+    // fixed threshold cries wolf for most of every interval. Size the warning
+    // off the previous craft instead, which self-calibrates to worker count.
+    const staleAfter = Math.max(90 * 60 * 1000, (d.lastCraftMs || 0) * 2.5);
+    const gap = d.updatedAt ? Date.now() - Date.parse(d.updatedAt) : 0;
+    const staleEl = document.getElementById('stale');
+    const isStale = d.state === 'running' && d.updatedAt && gap > staleAfter;
+    staleEl.textContent = isStale
+      ? 'No status update in ' + fmtSpan(gap) + ' (expected within ' + fmtSpan(staleAfter) +
+        '). Crafting rounds are long, but if this keeps growing, check the sweep process.'
+      : '';
+    staleEl.style.display = isStale ? 'block' : 'none';
   }
   tick();
   setInterval(tick, 5000);

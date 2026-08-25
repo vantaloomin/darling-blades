@@ -70,8 +70,8 @@ If the user later asks to persist favorite tutor settings, add a single settings
 Tutor v1 must remeasure legality, strength, diversity, stability, and runtime. Use fixed input collections representing early, middle, and mature progression, plus Darlings constraints when enabled. Candidate deck outcomes are `TO MEASURE`:
 
 ```text
-npx tsx scripts/personas/craft.ts --all --pool all --field prefabs --seeds 150 --iterations 80 --seed 20260720 --workers 14
-npx tsx scripts/personas/craft.ts --metagame --all --pool all --field prefabs --seeds 150 --iterations 80 --rounds 4 --workers 14
+npx tsx scripts/personas/craft.ts --all --pool all --field prefabs --seeds 150 --iterations 80 --seed 20260720 --workers 8
+npx tsx scripts/personas/craft.ts --metagame --all --pool all --field prefabs --seeds 150 --iterations 80 --rounds 4 --workers 8
 npx tsx scripts/balance-matrix.ts --avatars --seeds 40
 npx tsx scripts/balance-matrix.ts --floors --seeds 80
 npx tsx scripts/progression-sim.ts --seeds 8 --days 60

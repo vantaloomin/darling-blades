@@ -9,6 +9,8 @@ import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../../src/data/starte
 import { createRngState, rngInt, rngNext, type RngState } from '../../src/engine/rng';
 import { manaValue, type CardDef, type Color } from '../../src/engine/types';
 import { runCell, type CellResult } from '../balance-matrix';
+import { buildLandReserve } from '../reserveMatrixDecks';
+import { LAND_RESERVE_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import { runParallelGames, type MeasureGameJob } from './measure-worker';
 import { cardRoles, curveBand, rateCard, scoreCard, type PersonaDeckState } from './score';
 import {
@@ -25,13 +27,6 @@ const DEFAULT_ITERATIONS = 80;
 const DEFAULT_SEED = 13_003;
 const DEFAULT_METAGAME_ROUNDS = 4;
 const DEFAULT_MEASURE_WORKERS = Math.max(1, cpus().length - 2);
-const BASIC_BY_COLOR: Readonly<Record<Color, string>> = {
-  W: 'land-plains',
-  U: 'land-island',
-  B: 'land-swamp',
-  R: 'land-mountain',
-  G: 'land-forest',
-};
 const COLORS = ['W', 'U', 'B', 'R', 'G'] as const;
 
 export const CLI_HELP = `Persona deck-crafting harness
@@ -80,7 +75,9 @@ export interface AssignedCard {
 }
 
 export interface GreedyBuild {
+  /** Warchest spells only; lands live in `landReserve`. */
   deck: string[];
+  landReserve: string[];
   assigned: AssignedCard[];
   selectedColors: Color[];
   quotaShortfalls: QuotaShortfall[];
@@ -144,7 +141,10 @@ export interface FieldCompositionEntry {
   id: string;
   name: string;
   personaId?: string;
+  /** Warchest spells only - reserve formats reject a deck containing lands. */
   deck: string[];
+  /** The seat's ten-land reserve. Reserve formats require one per player. */
+  landReserve: string[];
 }
 
 export interface MetagameRound {
@@ -154,6 +154,7 @@ export interface MetagameRound {
   templateVersion: string;
   fieldComposition: FieldCompositionEntry[];
   deck: string[];
+  landReserve: string[];
   counts: Record<string, number>;
   selectedColors: Color[];
   measured: MeasuredRecord;
@@ -214,6 +215,7 @@ export interface PersonaArtifact {
   selectedColors: Color[];
   referenceField: { id: string; name: string }[];
   deck: string[];
+  landReserve: string[];
   counts: Record<string, number>;
   measured: MeasuredRecord;
   hillClimb: HillClimbLog;
@@ -234,6 +236,8 @@ export interface MeasureOptions {
   seeds: number;
   seed: number;
   personaId: string;
+  /** The measured deck's ten-land reserve. Warchest requires one per seat. */
+  landReserve?: readonly string[];
   fieldComposition?: readonly FieldCompositionEntry[];
   workers?: number;
   memoize?: boolean;
@@ -397,26 +401,6 @@ function rankedCandidate(
   })[0];
 }
 
-function allocateBasics(spells: readonly string[], colors: readonly Color[], landCount: number): string[] {
-  const demand = new Map<Color, number>(colors.map((color) => [color, 0]));
-  for (const id of spells) {
-    for (const [color, pips] of Object.entries(CARD_DB[id].cost?.pips ?? {}) as [Color, number][]) {
-      if (demand.has(color)) demand.set(color, (demand.get(color) ?? 0) + pips);
-    }
-  }
-  const totalDemand = [...demand.values()].reduce((sum, value) => sum + value, 0);
-  const exact = colors.map((color) => ({
-    color,
-    value: totalDemand === 0 ? landCount / colors.length : landCount * (demand.get(color) ?? 0) / totalDemand,
-  }));
-  const allocations = exact.map(({ color, value }) => ({ color, count: Math.floor(value), fraction: value - Math.floor(value) }));
-  const remaining = landCount - allocations.reduce((sum, entry) => sum + entry.count, 0);
-  allocations.sort((a, b) => b.fraction - a.fraction || a.color.localeCompare(b.color));
-  for (let i = 0; i < remaining; i++) allocations[i % allocations.length].count++;
-  allocations.sort((a, b) => colors.indexOf(a.color) - colors.indexOf(b.color));
-  return allocations.flatMap(({ color, count }) => Array<string>(count).fill(BASIC_BY_COLOR[color]));
-}
-
 function quotaShortfallsFor(assigned: readonly AssignedCard[]): QuotaShortfall[] {
   const missing = new Map<SpellRole, number>();
   for (const entry of assigned) {
@@ -464,20 +448,41 @@ export function buildGreedyDeck(template: PersonaTemplate, pool: readonly CardDe
   }
 
   const spells = assigned.map((entry) => entry.cardId);
-  const lands = allocateBasics(spells, selectedColors, template.quotas.lands);
+  // Warchest: the deck is spells only and the ten lands ride in a separate
+  // reserve. buildLandReserve is the same helper the reserve balance matrices
+  // use, so the harness and the matrices derive reserves identically.
+  const landReserve = buildLandReserve(selectedColors);
   const quotaShortfalls = quotaShortfallsFor(assigned);
-  const build = { deck: [...spells, ...lands], assigned, selectedColors, quotaShortfalls };
-  assertCraftedDeckLegal(build.deck);
+  const build = { deck: [...spells], landReserve, assigned, selectedColors, quotaShortfalls };
+  assertCraftedDeckLegal(build.deck, build.landReserve);
   return build;
 }
 
-export function assertCraftedDeckLegal(deck: readonly string[]): void {
-  if (deck.length !== 60) throw new Error(`Crafted deck has ${deck.length}/60 cards`);
+export function assertCraftedDeckLegal(
+  deck: readonly string[],
+  landReserve?: readonly string[],
+): void {
+  if (deck.length !== WARCHEST_DECK_SIZE) {
+    throw new Error(`Crafted deck has ${deck.length}/${WARCHEST_DECK_SIZE} cards`);
+  }
   for (const [id, count] of cardCounts(deck)) {
     const card = CARD_DB[id];
     if (!card) throw new Error(`Crafted deck contains unknown card: ${id}`);
     if (card.token) throw new Error(`Crafted deck contains token: ${id}`);
+    // The engine rejects this outright; catching it here names the crafted deck.
+    if (card.types.includes('land')) {
+      throw new Error(`Crafted deck contains land ${id}; lands belong in the reserve`);
+    }
     if (!isBasic(card) && count > 4) throw new Error(`Crafted deck has ${count} copies of ${id}`);
+  }
+  if (landReserve === undefined) return;
+  if (landReserve.length !== LAND_RESERVE_SIZE) {
+    throw new Error(`Crafted land reserve has ${landReserve.length}/${LAND_RESERVE_SIZE} lands`);
+  }
+  for (const id of landReserve) {
+    const card = CARD_DB[id];
+    if (!card) throw new Error(`Land reserve contains unknown card: ${id}`);
+    if (!card.types.includes('land')) throw new Error(`Land reserve contains non-land ${id}`);
   }
 }
 
@@ -489,12 +494,13 @@ export function snapshotDeckCounts(build: GreedyBuild): DeckCountSnapshot {
     roles[entry.role]++;
     curve[curveBand(CARD_DB[entry.cardId])]++;
   }
-  const lands = build.deck.filter((id) => CARD_DB[id].types.includes('land')).length;
+  // Reserve-native: the deck holds no lands, so the land count is the reserve.
+  const lands = build.landReserve.length;
   roles.lands = lands;
   return {
-    total: build.deck.length,
+    total: build.deck.length + lands,
     lands,
-    nonlands: build.deck.length - lands,
+    nonlands: build.deck.length,
     uniqueCards: counts.size,
     maxNonbasicCopies: Math.max(...[...counts].filter(([id]) => !isBasic(CARD_DB[id])).map(([, count]) => count), 0),
     roles,
@@ -507,12 +513,24 @@ function referenceDecks(field: FieldId): readonly DeckList[] {
 }
 
 function referenceComposition(field: FieldId): FieldCompositionEntry[] {
-  return referenceDecks(field).map((reference) => ({
-    kind: 'static',
-    id: reference.id,
-    name: reference.name,
-    deck: [...reference.cards],
-  }));
+  return referenceDecks(field).map((reference) => {
+    // `cards` is the CLASSIC 60. Warchest retired that format on 2026-08-10 and
+    // `reserveCards`/`landReserve` are what a granted deck actually hands the
+    // player, so those are the only honest columns to measure against.
+    if (!reference.reserveCards || !reference.landReserve) {
+      throw new Error(
+        `Reference deck ${reference.id} has no reserve-native build; the persona ` +
+        'harness measures Warchest and cannot fall back to the retired classic list.',
+      );
+    }
+    return {
+      kind: 'static' as const,
+      id: reference.id,
+      name: reference.name,
+      deck: [...reference.reserveCards],
+      landReserve: [...reference.landReserve],
+    };
+  });
 }
 
 function stableHash(text: string): number {
@@ -529,11 +547,22 @@ export function measureDeckAgainstField(
   options: MeasureOptions,
   fieldComposition: readonly FieldCompositionEntry[],
 ): MeasuredRecord {
-  assertCraftedDeckLegal(deck);
+  const rowReserve = options.landReserve;
+  if (!rowReserve) {
+    // Silently omitting the reserve is what made this harness measure classic
+    // for months: playOut falls back to the classic constructor when no format
+    // and no reserves are supplied. Refuse instead of measuring the wrong game.
+    throw new Error(
+      `measureDeckAgainstField requires a landReserve for ${options.personaId}; ` +
+      'Warchest cannot be measured without one.',
+    );
+  }
+  assertCraftedDeckLegal(deck, rowReserve);
   const workers = resolveMeasureWorkers(options.workers);
   measureStats.calls++;
   const cacheKey = JSON.stringify({
     deck: [...deck],
+    landReserve: [...(options.landReserve ?? [])],
     field: options.field,
     seeds: options.seeds,
     seed: options.seed,
@@ -544,6 +573,7 @@ export function measureDeckAgainstField(
       name: reference.name,
       personaId: reference.personaId ?? null,
       deck: [...reference.deck],
+      landReserve: [...reference.landReserve],
     })),
   });
   if (options.memoize !== false) {
@@ -566,6 +596,8 @@ export function measureDeckAgainstField(
           rowAI: (aiSeed) => buildAI('hard', CARD_DB, aiSeed),
           colAI: (aiSeed) => buildAI('hard', CARD_DB, aiSeed),
           decks: () => [[...deck], [...reference.deck]],
+          format: 'warchest',
+          reserves: () => [[...rowReserve], [...reference.landReserve]],
         },
         options.seeds,
         base + index,
@@ -589,6 +621,8 @@ export function measureDeckAgainstField(
         rowIsP0: gameIndex % 2 === 0,
         rowDeck: [...deck],
         colDeck: [...reference.deck],
+        rowReserve: [...rowReserve],
+        colReserve: [...reference.landReserve],
       });
     }
   }
@@ -668,9 +702,10 @@ export function proposeQuotaLegalSwap(
     const incoming = candidates[rngInt(rng, candidates.length)];
     const assigned = current.assigned.map((entry, entryIndex) =>
       entryIndex === index ? { cardId: incoming.id, role: outgoing.role } : { ...entry });
-    const spells = assigned.map((entry) => entry.cardId);
-    const lands = allocateBasics(spells, current.selectedColors, template.quotas.lands);
-    const deck = [...spells, ...lands];
+    const deck = assigned.map((entry) => entry.cardId);
+    // Classic re-allocated basics after every swap because pip demand moved.
+    // A Warchest reserve is derived from the persona's COLORS, which a spell
+    // swap never changes, so `current.landReserve` carries through untouched.
     return {
       build: { ...current, assigned, deck, quotaShortfalls: quotaShortfallsFor(assigned) },
       out: outgoing.cardId,
@@ -713,7 +748,7 @@ export function runHillClimb(options: HillClimbOptions): HillClimbResult {
       unproposedIterations++;
       continue;
     }
-    assertCraftedDeckLegal(proposal.build.deck);
+    assertCraftedDeckLegal(proposal.build.deck, proposal.build.landReserve);
     const candidateMeasurement = options.measure(proposal.build.deck);
     if (candidateMeasurement.score > retainedMeasurement.score) {
       const priorScore = retainedMeasurement.score;
@@ -771,6 +806,7 @@ function personaFieldComposition(
           name: template.name,
           personaId: template.id,
           deck: [...round.deck],
+          landReserve: [...round.landReserve],
         };
       }),
   ];
@@ -786,17 +822,20 @@ function craftMetagameRound(
     ? options.seed
     : stableHash(`${options.seed}|metagame|${template.id}|round|${round}`);
   const measuredField: MeasuredFieldId = round === 0 ? options.field : 'personas';
+  // Built before measureOptions: the reserve is color-derived, so it is fixed
+  // for this persona across every hill-climb swap and every measurement.
+  const initial = buildGreedyDeck(template, options.pool, craftSeed);
   const measureOptions = {
     field: measuredField,
     seeds: options.seeds,
     seed: options.seed,
     personaId: template.id,
+    landReserve: initial.landReserve,
     fieldComposition,
   };
   const measure = (deck: readonly string[]): MeasuredRecord => options.measure
     ? options.measure(deck, measureOptions)
     : measureDeckAgainstField(deck, measureOptions, fieldComposition);
-  const initial = buildGreedyDeck(template, options.pool, craftSeed);
   const result = runHillClimb({
     initial,
     pool: options.pool,
@@ -811,8 +850,13 @@ function craftMetagameRound(
     seed: craftSeed,
     measurementSeed: options.seed,
     templateVersion: template.version,
-    fieldComposition: fieldComposition.map((entry) => ({ ...entry, deck: [...entry.deck] })),
+    fieldComposition: fieldComposition.map((entry) => ({
+      ...entry,
+      deck: [...entry.deck],
+      landReserve: [...entry.landReserve],
+    })),
     deck: [...result.build.deck],
+    landReserve: [...result.build.landReserve],
     counts: countRecord(result.build.deck),
     selectedColors: [...result.build.selectedColors],
     measured: result.finalMeasurement,
@@ -857,6 +901,7 @@ function buildMetagameArtifacts(
       selectedColors: [...finalRound.selectedColors],
       referenceField: staticComposition.map((entry) => ({ id: entry.id, name: entry.name })),
       deck: [...finalRound.deck],
+      landReserve: [...finalRound.landReserve],
       counts: { ...finalRound.counts },
       measured: finalRound.measured,
       hillClimb: finalRound.hillClimb,
@@ -1048,6 +1093,7 @@ export function makeArtifact(
     selectedColors: [...result.build.selectedColors],
     referenceField: referenceDecks(options.field).map((deck) => ({ id: deck.id, name: deck.name })),
     deck: [...result.build.deck],
+    landReserve: [...result.build.landReserve],
     counts: countRecord(result.build.deck),
     measured: result.finalMeasurement,
     hillClimb: result.log,
@@ -1094,7 +1140,18 @@ function readArtifact(path: string): PersonaArtifact {
   if (parsed.schemaVersion !== 1 || !parsed.persona?.id || !Array.isArray(parsed.deck)) {
     throw new Error(`Invalid persona artifact: ${path}`);
   }
-  assertCraftedDeckLegal(parsed.deck);
+  // Retained artifacts crafted before the 2026-08-25 reserve migration describe
+  // 60-card CLASSIC decks with lands inside and no reserve. They cannot be
+  // re-measured, because the harness no longer plays that format. Say so
+  // plainly rather than failing on a confusing card-count error.
+  if (!Array.isArray(parsed.landReserve)) {
+    throw new Error(
+      `Persona artifact ${basename(path)} predates the reserve-native migration ` +
+      `(templateVersion ${parsed.templateVersion ?? 'unknown'}). It measures the retired ` +
+      'classic format and cannot be re-checked; re-craft it against Warchest instead.',
+    );
+  }
+  assertCraftedDeckLegal(parsed.deck, parsed.landReserve);
   return parsed as PersonaArtifact;
 }
 
@@ -1203,6 +1260,16 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       // wall-clock stamps live only here in the CLI shell, never in the loop.
       const statusPath = opt('status-file');
       const sweepStartedAt = new Date().toISOString();
+      // How long the previous craft took. The dashboard uses it to size its own
+      // staleness warning: a craft runs 1-2+ HOURS at realistic worker counts,
+      // so a fixed threshold is wrong at every worker count but one.
+      let lastCraftMs: number | undefined;
+      let lastProgressAt: number | undefined;
+      // Last durable checkpoint, so an unattended run can be seen to be safe.
+      let lastCheckpoint: Record<string, unknown> | undefined;
+      // The most recent progress event, so a checkpoint-triggered status write
+      // does not blank the phase/persona the dashboard is displaying.
+      let lastCheckpointProgress: Record<string, unknown> = {};
       const writeStatus = (payload: Record<string, unknown>): void => {
         if (!statusPath) return;
         writeFileSync(statusPath, `${JSON.stringify({
@@ -1213,6 +1280,11 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           maxRounds,
           personaCount: selectedPersonaIds!.length,
           outDir,
+          // Named explicitly: this harness measured the RETIRED classic format
+          // until 2026-08-25 and nothing on screen said so.
+          format: 'warchest',
+          lastCraftMs,
+          checkpoint: lastCheckpoint,
           ...payload,
         }, null, 2)}
 `, 'utf8');
@@ -1238,6 +1310,12 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
             'utf8',
           );
         }
+        lastCheckpoint = {
+          completedRounds: partial.completedRounds,
+          artifacts: artifacts.length,
+          at: new Date().toISOString(),
+        };
+        writeStatus({ state: 'running', ...lastCheckpointProgress });
         log(`Checkpoint: ${artifacts.length} artifact(s) after round ${partial.completedRounds}`);
       };
       const result = runMetagameLoop({
@@ -1250,7 +1328,13 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         maxRounds,
         personaIds: selectedPersonaIds!,
         measure: runtimeMeasure,
-        onProgress: (event) => writeStatus({ state: 'running', ...event }),
+        onProgress: (event) => {
+          const now = Date.now();
+          if (lastProgressAt !== undefined) lastCraftMs = now - lastProgressAt;
+          lastProgressAt = now;
+          lastCheckpointProgress = { ...event };
+          writeStatus({ state: 'running', ...event });
+        },
         onCheckpoint: writeCheckpoint,
       });
       writeStatus({
@@ -1283,7 +1367,9 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
 
     for (const template of templates) {
       const initial = buildGreedyDeck(template, pool, seed);
-      const measureOptions = { field, seeds, seed, personaId: template.id };
+      const measureOptions = {
+        field, seeds, seed, personaId: template.id, landReserve: initial.landReserve,
+      };
       const result = runHillClimb({
         initial,
         pool,
