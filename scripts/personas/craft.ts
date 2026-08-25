@@ -52,6 +52,12 @@ Metagame loop mode (informational, deterministic):
   --rounds <n>               Maximum best-response rounds (default: 4)
   --status-file <path>       Write live metagame progress JSON (sweep dashboards)
 
+Artifacts are checkpointed at every round boundary (after the seed pass and
+after each best-response round) to the same paths the final write uses, so a
+run killed mid-flight keeps every completed round. A partial artifact reports
+stoppedReason 'in-progress' with converged false; a finished run overwrites its
+own checkpoints and leaves none behind.
+
 Policy: first craft is round 0 against the static field. Each later round
 crafts every persona simultaneously against that static field plus the other
 personas' prior retained decks. Stop when all decks are unchanged, report a
@@ -159,7 +165,16 @@ export interface MetagameRound {
   };
 }
 
-export type MetagameStopReason = 'stable-decks' | 'oscillation' | 'max-rounds';
+export type MetagameStopReason =
+  | 'stable-decks'
+  | 'oscillation'
+  | 'max-rounds'
+  /**
+   * Checkpoint only. A run still in flight reports this so a partial
+   * artifact can never be mistaken for a finished measurement - `converged`
+   * is false and `completedRounds` says how far it actually got.
+   */
+  | 'in-progress';
 
 export interface MetagameOscillation {
   personaId: string;
@@ -244,6 +259,17 @@ export interface MetagameOptions {
    * it must not touch the options or decks, and determinism is unaffected.
    */
   onProgress?: (event: MetagameProgressEvent) => void;
+  /**
+   * Optional checkpoint hook. Called AFTER the round-0 seed pass and after each
+   * completed best-response round, with the same artifacts a finished run would
+   * return for the rounds crafted so far.
+   *
+   * This exists because a passive multi-day sweep is a run nobody is watching:
+   * without it, artifacts are written only when the whole loop finishes, so a
+   * crash at hour 80 of a 3-day run loses everything. Pure observer - it must
+   * not touch the options or decks, and determinism is unaffected.
+   */
+  onCheckpoint?: (artifacts: PersonaArtifact[], summary: MetagameSummary) => void;
 }
 
 export interface MetagameProgressEvent {
@@ -800,6 +826,52 @@ function craftMetagameRound(
 }
 
 /**
+ * Build one artifact per persona from the rounds crafted so far.
+ *
+ * Shared by the final return and by every checkpoint on purpose: a checkpoint
+ * is then the SAME artifact shape a completed run produces, so a crashed
+ * sweep's output is readable directly rather than needing conversion. The only
+ * thing distinguishing a partial artifact is its summary, which carries
+ * `stoppedReason: 'in-progress'` and `converged: false`.
+ */
+function buildMetagameArtifacts(
+  templates: readonly PersonaTemplate[],
+  history: ReadonlyMap<string, MetagameRound[]>,
+  summary: MetagameSummary,
+  staticComposition: readonly FieldCompositionEntry[],
+  options: MetagameOptions,
+): PersonaArtifact[] {
+  return templates.map((template) => {
+    const rounds = history.get(template.id)!;
+    const finalRound = rounds[rounds.length - 1];
+    return {
+      schemaVersion: 1 as const,
+      mode: 'metagame-loop' as const,
+      persona: { id: template.id, name: template.name },
+      pool: options.poolId,
+      field: finalRound.measured.field,
+      seed: options.seed,
+      seeds: options.seeds,
+      iterations: options.iterations,
+      templateVersion: template.version,
+      selectedColors: [...finalRound.selectedColors],
+      referenceField: staticComposition.map((entry) => ({ id: entry.id, name: entry.name })),
+      deck: [...finalRound.deck],
+      counts: { ...finalRound.counts },
+      measured: finalRound.measured,
+      hillClimb: finalRound.hillClimb,
+      quotaShortfalls: [...finalRound.quotaShortfalls],
+      honesty: {
+        greedyBeatsFinal: finalRound.honesty.greedyBeatsFinal,
+        nonMonotonicClimb: finalRound.honesty.nonMonotonicClimb,
+        oscillating: summary.oscillatingPersonas.includes(template.id),
+      },
+      metagame: { summary, rounds },
+    } satisfies PersonaArtifact;
+  });
+}
+
+/**
  * 1.4 Pillar 2 policy: round 0 is the byte-identical v1 static-field craft,
  * followed by up to maxRounds simultaneous best responses. Stop on an all-deck
  * stability round, stop and report a repeated non-stable deck as oscillation
@@ -824,6 +896,28 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
   const retained = new Map<string, MetagameRound>();
   const seen = new Map<string, Map<string, { firstRound: number; lastRound: number }>>();
   const staticComposition = referenceComposition(options.field);
+  /**
+   * Emit the rounds crafted so far as artifacts. Cheap next to a round of
+   * hill-climbing, so it runs unconditionally at every round boundary rather
+   * than on a timer - the recovery granularity is then exactly one round.
+   */
+  const emitCheckpoint = (roundsDone: number): void => {
+    if (!options.onCheckpoint) return;
+    const partial: MetagameSummary = {
+      policy: 'stable-decks-or-oscillation-or-max-rounds',
+      maxRounds: options.maxRounds,
+      completedRounds: roundsDone,
+      baseField: options.field,
+      converged: false,
+      stoppedReason: 'in-progress',
+      oscillatingPersonas: [],
+      oscillations: [],
+    };
+    options.onCheckpoint(
+      buildMetagameArtifacts(templates, history, partial, staticComposition, options),
+      partial,
+    );
+  };
   for (const [index, template] of templates.entries()) {
     options.onProgress?.({
       phase: 'seed', round: 0, maxRounds: options.maxRounds,
@@ -835,6 +929,8 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
     retained.set(template.id, round);
     seen.set(template.id, new Map([[deckSignature(round.deck), { firstRound: 0, lastRound: 0 }]]));
   }
+
+  emitCheckpoint(0);
 
   let completedRounds = 0;
   let summary: MetagameSummary | undefined;
@@ -883,6 +979,8 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
       else seen.get(template.id)!.set(signature, { firstRound: roundNumber, lastRound: roundNumber });
     }
 
+    emitCheckpoint(roundNumber);
+
     if (stable) {
       summary = {
         policy: 'stable-decks-or-oscillation-or-max-rounds',
@@ -924,35 +1022,10 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
     };
   }
 
-  const artifacts = templates.map((template) => {
-    const rounds = history.get(template.id)!;
-    const finalRound = rounds[rounds.length - 1];
-    return {
-      schemaVersion: 1 as const,
-      mode: 'metagame-loop' as const,
-      persona: { id: template.id, name: template.name },
-      pool: options.poolId,
-      field: finalRound.measured.field,
-      seed: options.seed,
-      seeds: options.seeds,
-      iterations: options.iterations,
-      templateVersion: template.version,
-      selectedColors: [...finalRound.selectedColors],
-      referenceField: staticComposition.map((entry) => ({ id: entry.id, name: entry.name })),
-      deck: [...finalRound.deck],
-      counts: { ...finalRound.counts },
-      measured: finalRound.measured,
-      hillClimb: finalRound.hillClimb,
-      quotaShortfalls: [...finalRound.quotaShortfalls],
-      honesty: {
-        greedyBeatsFinal: finalRound.honesty.greedyBeatsFinal,
-        nonMonotonicClimb: finalRound.honesty.nonMonotonicClimb,
-        oscillating: summary!.oscillatingPersonas.includes(template.id),
-      },
-      metagame: { summary: summary!, rounds },
-    } satisfies PersonaArtifact;
-  });
-  return { artifacts, summary };
+  return {
+    artifacts: buildMetagameArtifacts(templates, history, summary, staticComposition, options),
+    summary,
+  };
 }
 
 export function makeArtifact(
@@ -1145,6 +1218,28 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
 `, 'utf8');
       };
       writeStatus({ state: 'starting' });
+      // Checkpoint writes. The loop stays pure - it hands us artifacts, the CLI
+      // shell owns the filesystem - and the paths are the SAME ones the final
+      // write uses, so a completed run simply overwrites its own checkpoints
+      // and leaves no partial files behind. A run killed mid-flight leaves the
+      // last completed round on disk, flagged `stoppedReason: 'in-progress'`.
+      const today = dependencies.today?.() ?? new Date().toISOString().slice(0, 10);
+      const artifactPathFor = (personaId: string): string =>
+        join(outDir, `${today}-metagame-${personaId}-${poolId}.json`);
+      const writeCheckpoint = (
+        artifacts: PersonaArtifact[],
+        partial: MetagameSummary,
+      ): void => {
+        for (const artifact of artifacts) {
+          writeFileSync(
+            artifactPathFor(artifact.persona.id),
+            `${JSON.stringify(artifact, null, 2)}
+`,
+            'utf8',
+          );
+        }
+        log(`Checkpoint: ${artifacts.length} artifact(s) after round ${partial.completedRounds}`);
+      };
       const result = runMetagameLoop({
         poolId,
         pool,
@@ -1156,6 +1251,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         personaIds: selectedPersonaIds!,
         measure: runtimeMeasure,
         onProgress: (event) => writeStatus({ state: 'running', ...event }),
+        onCheckpoint: writeCheckpoint,
       });
       writeStatus({
         state: 'done',
@@ -1167,9 +1263,8 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           rounds: artifact.metagame!.rounds.length,
         })),
       });
-      const today = dependencies.today?.() ?? new Date().toISOString().slice(0, 10);
       for (const artifact of result.artifacts) {
-        const artifactPath = join(outDir, `${today}-metagame-${artifact.persona.id}-${poolId}.json`);
+        const artifactPath = artifactPathFor(artifact.persona.id);
         writeFileSync(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
         log(`Metagame ${artifact.persona.name} (${artifact.persona.id})`);
         log(`Final: ${pct(artifact.measured)} after ${artifact.metagame!.rounds.length} recorded rounds`);
