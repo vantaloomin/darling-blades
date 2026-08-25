@@ -71,18 +71,19 @@ targeted or activated abilities.
 carry almost nothing besides their set and engine feature, and why the UI-wide
 passes cluster on 1.9.
 
-## The one open fork
+## The 1.8 fork, closed
 
-**Which set is the 1.8 Large.** Cosmic Horror is placed there because Whispers
-closes an existing loop: Dark Tales shipped a discard engine with no discard
-payoff, and Whispers retro-synergises with Skim across the shared pool. The
-alternative is Steampunk, which is the more natural thematic home for
-tap-abilities.
+**Owner decision 2026-08-24: Drowned Deep (cosmic horror) is the 1.8 Large**,
+and Brass Court stays at 2.1. The reasoning that carried it: Whispers closes an
+existing loop, because Dark Tales shipped a discard engine with no discard
+payoff and Whispers retro-synergises with Skim across the shared pool.
 
-Recommendation: keep Cosmic Horror at 1.8 and let the engine feature be
-set-agnostic. Tap-abilities are not a steampunk mechanic; they are a capability
-every later set draws on. If the flagship feature and its flagship set should
-ship together instead, swap them and Cosmic Horror defers past 2.0.
+Tap-abilities remain the 1.8 engine feature and are deliberately
+**set-agnostic**. They are not a steampunk mechanic; they are a capability every
+later set draws on, and building them at 1.8 means Brass Court is designed
+against a shipped feature rather than co-developed with one.
+
+Art lead time for Drowned Deep starts from this decision.
 
 ## Load risk
 
@@ -140,12 +141,17 @@ controlling a marked permanent.
 a friend, so Propagate finds three or four bodies rather than one. This is the
 job Duat did for Rite when it shipped the sacrifice fodder the mechanic needed.
 
-It also argues for keeping the overplan's narrower **"you control"** wording over
-the slate's broader "every marked permanent". With marks this scarce, letting
-Propagate hit opposing permanents does nothing useful and adds a decision the AI
-has to get right. **Pin the wording before any card text is written** — shorthand
-mismatches between a plan doc and the rules are how two wrong Duat mechanic
-descriptions reached production.
+### Wording, pinned (owner decision 2026-08-24)
+
+**Propagate: put another mark on each marked permanent you control.**
+
+The narrower "you control" wording wins over the slate's broader "every marked
+permanent". With marks this scarce, letting Propagate hit opposing permanents
+does nothing useful and adds a targeting decision the AI has to get right. This
+is the wording every Starborne card, rules entry, and glossary term is written
+against; `docs/rules.md` and the card data are the source of truth for the final
+phrasing, never this doc's shorthand. Shorthand mismatches between a plan doc
+and the rules are how two wrong Duat mechanic descriptions reached production.
 
 ## Feature placement
 
@@ -157,7 +163,7 @@ Every Road-to-2.0 feature, and where it lands.
 | Darling Mode | **Shipped 1.5.5** | — |
 | Variant decks | **Shipped** (`SavedDeck.variantPins`) | — |
 | Save codes | **Shipped** (`src/meta/SaveCode.ts`) | — |
-| Save cards (PNG) | Codec built, UI not | 1.7 |
+| Save cards (PNG) | Codec on main (`src/meta/SaveImage.ts`, 16 tests), UI not | 1.7 |
 | Share replay codes | Spec'd, no code | 1.7 |
 | Accessibility / i18n | Partial (settings ship) | 1.9 |
 | Mobile rebuild | Spec'd | 1.9 (valve: 2.1) |
