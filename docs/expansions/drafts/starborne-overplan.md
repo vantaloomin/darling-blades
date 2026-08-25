@@ -419,6 +419,57 @@ Every entry respects the printed-plus-Empower ceiling of 9.
 | sb-tidewalk-analyst | Tidewalk Analyst | R | U | Creature, Alien Analyst | {3}{U} | 2/4 | Empower {3}{U}: move a mark from a permanent you control to another permanent you control | She reads the tide as a filing problem. | flex |
 | sb-eclipse-tithe | Eclipse Tithe | R | B | Charm | {2}{B} | None | remove all marks from target creature; Empower {2}{B}: your opponent loses 2 life | Everything the light gave, the eclipse counts back. | core |
 
+### Rite and Quest, unlocked 2026-08-25
+
+Both were previously treated as their home set's identity. The owner ruling is
+that neither is locked, and Starborne satisfies the one real prerequisite: Rite
+needs sacrifice fodder in the format, and this set already ships six token types
+across all five colours (Lumen Drone, Broodling, Chrome Husk, Nebula Firefly,
+Violet Hullguard, Void Mote).
+
+Rite also lands squarely on the set's stated identity, that "every shining body
+may be part of a larger appetite", and it gives black a second job beyond
+removing marks, which was otherwise a one-note nine cards.
+
+**Costing note.** Shipped Rite bodies run deliberately oversized because
+sacrificing a creature is real card disadvantage: `Devourer's Retainer` is a 5/5
+for `{3}{B}` at COMMON, roughly a +1.0 delta, and `Sun-Rope Hauler` is a 4/3
+with Warcry for `{1}{R}`. The entries below sit at or under that line rather
+than above it.
+
+| ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sb-appetite-of-the-void | Appetite of the Void | R | B | Creature, Alien Devourer | {3}{B} | 4/5 | Rite 1; arrives: marked creatures your opponent controls get -2/-2 until end of turn | It eats the light first, and then whatever the light was attached to. | core |
+| sb-gullet-of-the-hive | Gullet of the Hive | R | B | Creature, Starship | {4}{B} | 5/5 | Rite 1; arrives: your opponent loses 1 life for each marked creature they control | The hold is warm, and it is not supposed to be warm. | flex |
+| sb-brood-communion | Brood Communion | R | G | Ritual | {1}{G} | None | Rite 1; add a mark to each creature you control | The swarm agrees, in the way a swarm agrees, and one of them does not come back. | core |
+
+`sb-brood-communion` is the one to watch in measurement. It converts a single
+body into a mark on the whole board, which is the cheapest Propagate setup in
+the set and scales with a wide field rather than a tall one. If the seeded runs
+show it pushing mark density past the snowball threshold the overplan warns
+about, it is the first cut, not the last.
+
+### One Quest, as a deliberate experiment
+
+Quest fits this set better than any other on the slate: a world of living
+starships crossing nebulae is the natural home for a mechanic that advances a
+chapter at each dawn and then departs.
+
+It is also **the mechanic the AI handles worst.** A greedy evaluator
+systematically undervalues a payoff three dawns away, and the overplan already
+flags threshold cards as hostile to the current AI and marks them cuttable. So
+this ships as exactly one card, tagged `(AI-risk)` and `flex`, and it does not
+graduate to `core` without seeded win-rate evidence.
+
+| ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sb-the-long-crossing | The Long Crossing | SR | G | Ritual | {2}{G} | None | (AI-risk) Chapter I: create one 1/1 Broodling token; Chapter II: add a mark to each creature you control; Chapter III: Propagate | Three dawns out from anywhere, the hull starts keeping its own crew. | flex |
+
+The chapter order is the argument for the card: it makes a body, marks the
+board, then compounds what it made. That is the set's whole mechanic told once,
+slowly, which is what Quest is for. It is also why it cannot be measured by the
+formula, only by play.
+
 ### What this block does to the colour audit
 
 Three new common mark generators land outside green (`sb-drydock-carapace` in
