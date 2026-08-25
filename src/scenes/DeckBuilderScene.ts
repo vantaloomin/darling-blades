@@ -62,7 +62,7 @@ import { bindTapButton, inflateHitArea, isTouchDevice } from '../platform/gestur
 import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
-import { computeDeckStats, PIE_COLORS } from '../ui/deckStats';
+import { computeDeckStats, curveBars, deckShapeLine, PIE_COLORS } from '../ui/deckStats';
 import {
   DECK_PANE_LAYOUT,
   deckPaneOffsetY,
@@ -2127,17 +2127,16 @@ export class DeckBuilderScene extends Phaser.Scene {
 
     const baseY = DECK_PANE_LAYOUT.summary.barBaseY; // bar baseline (bars grow upward)
     const curveLayout = DECK_PANE_LAYOUT.curve;
-    const maxCount = Math.max(1, ...s.curve);
-    s.curve.forEach((count, mv) => {
-      const bx = curveLayout.firstX + mv * curveLayout.pitch;
-      const h = count > 0
-        ? Math.max(3, Math.round((count / maxCount) * DECK_PANE_LAYOUT.summary.barMaxHeight))
-        : 2;
-      push(this.add.rectangle(bx, baseY, curveLayout.barWidth, h, count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
-      if (count > 0) {
+    for (const bar of curveBars(s.curve, {
+      firstX: curveLayout.firstX,
+      pitch: curveLayout.pitch,
+      maxHeight: DECK_PANE_LAYOUT.summary.barMaxHeight,
+    })) {
+      push(this.add.rectangle(bar.x, baseY, curveLayout.barWidth, bar.height, bar.count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
+      if (bar.count > 0) {
         push(
           this.add
-            .text(bx, baseY - h - 8, `${count}`, {
+            .text(bar.x, baseY - bar.height - 8, `${bar.count}`, {
               fontFamily: theme.fonts.ui,
               fontSize: `${theme.type.micro}px`,
               color: theme.colors.body,
@@ -2147,33 +2146,24 @@ export class DeckBuilderScene extends Phaser.Scene {
       }
       push(
         this.add
-          .text(bx, baseY + 9, mv === 7 ? '7+' : `${mv}`, {
+          .text(bar.x, baseY + 9, bar.label, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.micro}px`,
             color: theme.colors.muted,
           })
           .setOrigin(0.5),
       );
-    });
+    }
 
     // One merged summary line (counts + pips): the old second line is what
     // used to collide with the status band below (isolation pass 2026-08-18).
-    const other = s.nonlands - s.typeCounts.creature;
-    const pips = PIE_COLORS.filter((c) => s.colorPips[c] > 0)
-      .map((c) => `${c}·${s.colorPips[c]}`)
-      .join(' ');
     push(
       this.add
-        .text(
-          x0,
-          DECK_PANE_LAYOUT.summary.summaryLineY,
-          `${s.typeCounts.creature} creatures · ${s.lands} lands · ${other} other   ${pips || 'colorless'}`,
-          {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.body,
-          },
-        )
+        .text(x0, DECK_PANE_LAYOUT.summary.summaryLineY, deckShapeLine(s, { lands: true }), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.body,
+        })
         .setOrigin(0, 0.5),
     );
   }

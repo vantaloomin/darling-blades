@@ -19,8 +19,10 @@ import { isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS } from '../meta/warchest'
 import { Services } from '../meta/services';
 import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { CardView } from '../ui/CardView';
+import { computeDeckStats, curveBars, deckShapeLine } from '../ui/deckStats';
+import { LIMITED_DETAILS_PANEL } from '../ui/limitedPanePresentation';
 import { applyBackdrop } from '../ui/SceneBackdrop';
-import { theme } from '../ui/theme';
+import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, registerSceneBackNavigation, themedButton, type ModalShell } from '../ui/themeWidgets';
 
 const ROWS = 13;
@@ -199,54 +201,55 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     });
   }
   private drawInspector(run: LimitedRun): void {
-    const x = 858;
-    const y = 116;
+    const L = LIMITED_DETAILS_PANEL;
     const issues = validateLimitedDeck(CARD_DB, run.pool, this.deck);
     const errors = issues.filter((issue) => issue.kind === 'error');
     const reserve = limitedLandReserve(CARD_DB, this.deck, run.pool, this.selectedDuals);
     const reserveDuals = reserve.filter((id) => isDualLand(CARD_DB[id]));
-    panel(this, x, y, 382, 500);
+    panel(this, L.x, L.y, L.width, L.height);
     this.heading(
-      x + 18,
-      y + 16,
+      L.contentX,
+      L.headingY,
       'Details',
       errors.length ? theme.colors.danger : theme.colors.gold,
     );
-    this.text(x + 18, y + 52, deckSummary(this.deck), theme.type.label, theme.colors.body);
+    this.drawCurve();
     this.text(
-      x + 18,
-      y + 76,
+      L.contentX,
+      L.warchestY,
       `Warchest ${reserve.length}/${LAND_RESERVE_SIZE} · ${reserveDuals.length}/${MAX_DUAL_LANDS} duals`,
       theme.type.label,
       theme.colors.gold,
     );
     this.text(
-      x + 18,
-      y + 100,
+      L.contentX,
+      L.dualsY,
       reserveDuals.length > 0 ? reserveDuals.map((id) => def(CARD_DB, id).name).join(', ') : 'Basics fill the Warchest automatically',
       theme.type.caption,
       theme.colors.muted,
     );
     if (this.selectedId) {
       const card = def(CARD_DB, this.selectedId);
-      this.add.text(x + 18, y + 92, card.name, {
+      this.add.text(L.contentX, L.selected.nameY, card.name, {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h2}px`,
         color: theme.colors.heading,
-        wordWrap: { width: 330 },
+        wordWrap: { width: L.wrapWidth },
       });
-      this.text(x + 18, y + 148, detailLine(card), theme.type.label, theme.colors.muted);
-      this.add.text(x + 18, y + 206, card.flavor ?? '', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
-        fontStyle: 'italic',
-        color: theme.colors.muted,
-        wordWrap: { width: 330 },
-      });
+      this.text(L.contentX, L.selected.detailY, detailLine(card), theme.type.label, theme.colors.muted);
+      this.add
+        .text(L.contentX, L.selected.flavorY, card.flavor ?? '', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          fontStyle: 'italic',
+          color: theme.colors.muted,
+          wordWrap: { width: L.wrapWidth },
+        })
+        .setMaxLines(L.selected.flavorMaxLines);
     }
     this.add.text(
-      x + 18,
-      y + 348,
+      L.contentX,
+      L.issuesY,
       issues.length
         ? issues.map((issue) => `${issue.kind}: ${issue.message}`).join('\n')
         : 'Deck is legal.',
@@ -257,6 +260,58 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         wordWrap: { width: 340 },
         lineSpacing: 4,
       },
+    );
+  }
+
+  /**
+   * The mana curve, the one chart a draft deck is actually built by: the pool
+   * is fixed, so the curve and the colour split ARE the deck decisions. The
+   * panel had neither until 2026-08-25.
+   */
+  private drawCurve(): void {
+    const L = LIMITED_DETAILS_PANEL;
+    const stats = computeDeckStats(this.deck, CARD_DB);
+    this.text(L.contentX, L.curve.headingY, 'Mana curve', theme.type.label, theme.colors.gold);
+    for (const bar of curveBars(stats.curve, {
+      firstX: L.curve.firstX,
+      pitch: L.curve.pitch,
+      maxHeight: L.curve.maxHeight,
+    })) {
+      this.add
+        .rectangle(
+          bar.x,
+          L.curve.baseY,
+          L.curve.barWidth,
+          bar.height,
+          bar.count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill,
+        )
+        .setOrigin(0.5, 1);
+      if (bar.count > 0) {
+        this.add
+          .text(bar.x, L.curve.baseY - bar.height - L.curve.countGap, `${bar.count}`, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.micro}px`,
+            color: theme.colors.body,
+          })
+          .setOrigin(0.5);
+      }
+      this.add
+        .text(bar.x, L.curve.baseY + L.curve.axisGap, bar.label, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.micro}px`,
+          color: theme.colors.muted,
+        })
+        .setOrigin(0.5);
+    }
+    // Reserve-native Limited holds no lands in the deck list, so the shape line
+    // names the granted Warchest instead of a land count that reads zero
+    // forever.
+    this.text(
+      L.contentX,
+      L.shapeLineY,
+      `${deckShapeLine(stats, { lands: false })}   Warchest provided`,
+      theme.type.caption,
+      theme.colors.body,
     );
   }
   private drawActions(run: LimitedRun): void {
@@ -503,17 +558,6 @@ function cardLine(id: string): string {
 }
 function detailLine(card: CardDef): string {
   return `${card.rarity.toUpperCase()} · ${card.types.join(' ')} · MV ${manaValue(card.cost)}${isType(card, 'creature') ? ` · ${card.attack}/${card.defense}` : ''}`;
-}
-function deckSummary(deck: readonly string[]): string {
-  // Reserve-native Limited holds no lands, so the old land count would read
-  // zero forever. Report the shape that matters and name the granted reserve.
-  let creatures = 0;
-  let spells = 0;
-  for (const id of deck) {
-    if (isType(def(CARD_DB, id), 'creature')) creatures++;
-    else spells++;
-  }
-  return `${creatures} creatures   ${spells} other spells   Warchest provided`;
 }
 function short(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, Math.max(0, max - 3))}...`;

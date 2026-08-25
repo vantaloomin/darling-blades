@@ -7,6 +7,7 @@ import {
   SHARD_HOLD_BUTTON_PROGRESS,
   TARGET_ARROW_HEAD_LENGTH,
   hauntlinkActionLabel,
+  graveActionChoice,
   hauntlinkOverlap,
   landDropGuardApplies,
   LAND_DROP_CONFIRM_LABEL,
@@ -178,5 +179,22 @@ describe('land-drop guard', () => {
     for (const copy of [LAND_DROP_CONFIRM_LABEL, LAND_DROP_NOTICE]) {
       expect(copy).not.toContain('\u2014');
     }
+  });
+});
+
+describe('graveyard action chips', () => {
+  it('offers nothing when neither action is legal', () => {
+    expect(graveActionChoice(false, false)).toBeNull();
+  });
+
+  it('offers each action on its own', () => {
+    expect(graveActionChoice(true, false)).toBe('retell');
+    expect(graveActionChoice(false, true)).toBe('preserve');
+  });
+
+  it('prefers Retell when a card somehow offers both', () => {
+    // One action slot per tile. Retell wins because it puts a spell on the
+    // stack; Preserve is still there next time the modal opens.
+    expect(graveActionChoice(true, true)).toBe('retell');
   });
 });

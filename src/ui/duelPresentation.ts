@@ -190,6 +190,22 @@ export function shouldArmLandDrop(input: LandDropGuardInput): boolean {
   return landDropGuardApplies(input) && !input.armed;
 }
 
+/**
+ * Which action chip a graveyard tile carries. A `ZoneContentsEntry` has one
+ * action slot, so a card offering both graveyard actions has to pick: Retell
+ * wins, because it is the one that puts a spell on the stack, and Preserve
+ * stays available on the next visit. No card in the pool carries both today
+ * and a catalog test keeps it that way, since the loser would be as invisible
+ * as Preserve itself was before 2026-08-25.
+ */
+export function graveActionChoice(
+  hasRetell: boolean,
+  hasPreserve: boolean,
+): 'retell' | 'preserve' | null {
+  if (hasRetell) return 'retell';
+  return hasPreserve ? 'preserve' : null;
+}
+
 /** Armed smart-button label, in the terse family of "Confirm: no blocks". */
 export const LAND_DROP_CONFIRM_LABEL = 'Confirm: skip land';
 /** Toast for the End Turn path, which has no label of its own to change. */

@@ -107,6 +107,7 @@ import {
   OPPONENT_RESERVE_PILE_LAYOUT,
   TARGET_ARROW_HEAD_LENGTH,
   hauntlinkActionLabel,
+  graveActionChoice,
   hauntlinkOverlap,
   landDropGuardApplies,
   LAND_DROP_CONFIRM_LABEL,
@@ -2661,7 +2662,14 @@ export class DuelScene extends Phaser.Scene {
         // deck sever reveals the top card by moving it there; say so.
         const whose = e.player === HUMAN ? 'your' : "the opponent's";
         const retold = e.from === 'graveyard' && this.retellCardsInFlight.has(e.cardId);
-        if (retold) {
+        // A Preserve emits `severed` then `preserved` in one batch. Without
+        // this the log read as a bare sever and never said a copy was made.
+        const preserved = e.from === 'graveyard' && batch.some(
+          (other) => other.e === 'preserved' && other.player === e.player && other.cardId === e.cardId,
+        );
+        if (preserved) {
+          this.log(`Preserved ${this.cardRef(e.cardId)} from ${whose} graveyard; a token copy enters play`, e.cardId);
+        } else if (retold) {
           this.retellCardsInFlight.delete(e.cardId);
           this.log(`Retold ${this.cardRef(e.cardId)} severed from ${whose} graveyard`, e.cardId);
         } else if (e.from === 'graveyard') {
@@ -3331,11 +3339,11 @@ export class DuelScene extends Phaser.Scene {
     this.oppGravePile.setCount(st.players[AI].graveyard.length);
     this.myDeckPile.setCount(st.players[HUMAN].deck.length);
     this.myGravePile.setCount(st.players[HUMAN].graveyard.length);
-    // Retell affordance: pulse the grave pile with the count of graveyard
-    // SLOTS castable from it right now, matching the grid one-tile-per-card
-    // (legality already folds in mana, so the alert clears on its own when you
-    // tap out or priority moves on).
-    this.myGravePile.setAlert(this.retellActionsByGraveIndex(HUMAN).size);
+    // Graveyard affordance: pulse the grave pile with the count of graveyard
+    // SLOTS you can act on right now (Retell or Preserve), matching the grid
+    // one-tile-per-card (legality already folds in mana, so the alert clears on
+    // its own when you tap out or priority moves on).
+    this.myGravePile.setAlert(this.graveActionSlots(HUMAN).size);
     if (SEVER_ENABLED) {
       this.oppSeveredPile.setCount(view.opp.severed.length);
       this.mySeveredPile.setCount(view.you.severed.length);
@@ -5552,6 +5560,34 @@ export class DuelScene extends Phaser.Scene {
   }
 
   /**
+   * Preserve actions keyed by graveyard index. Preserve is a main-phase,
+   * stack-free paid action (rules.md "Preserve"), so it commits straight
+   * through `act` like the Darling tax paydown and lets the engine solve the
+   * mana. It had NO player-facing control at all until 2026-08-25: the engine
+   * offered the action and the AI took it, but nothing in the UI ever did.
+   */
+  private preserveActionsByGraveIndex(
+    player: PlayerId,
+  ): Map<number, Extract<Action, { type: 'preserveCard' }>> {
+    const actions = new Map<number, Extract<Action, { type: 'preserveCard' }>>();
+    if (player !== HUMAN || this.pendingCasts) return actions;
+    const grave = this.duel.state.players[HUMAN].graveyard;
+    for (const action of this.duel.legalActions(HUMAN)) {
+      if (action.type !== 'preserveCard') continue;
+      if (!grave[action.graveIndex]) continue;
+      actions.set(action.graveIndex, action);
+    }
+    return actions;
+  }
+
+  /** Every graveyard slot offering an action right now, for the pile alert. */
+  private graveActionSlots(player: PlayerId): Set<number> {
+    const slots = new Set<number>(this.retellActionsByGraveIndex(player).keys());
+    for (const index of this.preserveActionsByGraveIndex(player).keys()) slots.add(index);
+    return slots;
+  }
+
+  /**
    * The graveyard grid, newest first, one tile per physical card. Collapsing
    * duplicates and sorting by cost (which every other zone still does) made
    * the pile's order unreadable, and the order is a rule here: `raise top`
@@ -5560,9 +5596,15 @@ export class DuelScene extends Phaser.Scene {
   private graveyardEntries(cardIds: readonly string[], player: PlayerId): ZoneContentsEntry[] {
     const styled = player === HUMAN;
     const retellActions = this.retellActionsByGraveIndex(player);
+    const preserveActions = this.preserveActionsByGraveIndex(player);
     return orderedGraveyardSlots(cardIds).map((slot) => {
       const card = def(CARD_DB, slot.cardId);
       const casts = retellActions.get(slot.index);
+      const preserve = preserveActions.get(slot.index);
+      const choice = graveActionChoice(
+        casts !== undefined && card.retell !== undefined,
+        preserve !== undefined && card.preserve !== undefined,
+      );
       return {
         card,
         count: 1,
@@ -5571,12 +5613,21 @@ export class DuelScene extends Phaser.Scene {
         badge: slot.top ? 'Top' : null,
         landStyle: styled ? this.humanLandStyleFor(slot.cardId) : undefined,
         variant: styled ? displayVariantFor(Services.save.data, slot.cardId) : undefined,
-        ...(casts && card.retell
+        ...(choice === 'retell' && casts && card.retell
           ? {
               action: {
                 label: 'Retell',
                 cost: card.retell.cost,
                 onSelect: () => this.startCast(casts),
+              },
+            }
+          : {}),
+        ...(choice === 'preserve' && preserve && card.preserve
+          ? {
+              action: {
+                label: 'Preserve',
+                cost: card.preserve.cost,
+                onSelect: () => this.act(preserve),
               },
             }
           : {}),

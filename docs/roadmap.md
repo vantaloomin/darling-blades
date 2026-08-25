@@ -70,9 +70,28 @@ _Dated 2026-08-24. Review monthly._
 
 ## Recently shipped (2026-08-25 · 1.6.3 community feedback)
 
-Four more player-reported items off the 1.6.3 release. Two of them were the
-same fault seen from different sides: the graveyard is an ordered pile and the
-game had stopped saying so anywhere.
+Four player-reported items off the 1.6.3 release, plus two gaps the graveyard
+work exposed. Two of the four were the same fault seen from different sides:
+the graveyard is an ordered pile and the game had stopped saying so anywhere.
+
+- **Preserve had no button at all (#PR).** The engine has emitted
+  `preserveCard` since 1.6 and the AI has been taking it, but nothing in
+  `src/scenes` or `src/ui` ever offered it: a human player could not activate
+  one of the Duat mechanics, on any card, ever. It is a graveyard action, so it
+  is a chip on the graveyard tile beside Retell, committing through `act` and
+  letting the engine solve the mana the way the Darling tax paydown does. The
+  grave pile's pulse counts Preserve slots too, and the log says "Preserved X
+  from your graveyard" instead of narrating a bare sever. A tile holds ONE
+  action chip, so a catalog test now fails if a card is ever printed with both
+  Retell and Preserve, rather than letting one of them go quiet again.
+- **The Limited builder had no mana curve (#PR).** Your draft pool is fixed, so
+  the curve and the colour split ARE the deck decisions, and the one builder
+  that most needs the chart was the one without it. The Details panel gained
+  the curve plus the shape line, drawn from the same `curveBars` helper the
+  constructed builder now uses. Fitting it meant giving the panel a real
+  ledger, which also fixed a live overlap: the selected card's name was drawn
+  at y+92 and the Warchest duals line at y+100, so selecting a card struck
+  through the duals text.
 
 - **A deck one card short lost its mana curve (#PR).** The repair banner was a
   panel drawn OVER the stats block, so any invalid intermediate state (i.e.
