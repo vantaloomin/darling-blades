@@ -331,6 +331,29 @@ cleanest since Ragnarok. The drift from 0% to 16% across eight sets is a
 pool-health signal worth tracking; it is recorded in
 [design-health.md](../../design-health.md).
 
+**Power check, run against `balance/power-scores.json` and the shipped pool.**
+Tying a keyword to a mark is not free, and in one case the power formula did not
+notice. The formula prices a mark as a flat +0.7 (Nurture pays 1.4 for two) and
+carries **no term for keyword-times-mark interaction**. Twin Blades counts combat
+damage twice, so a mark on a double-striker is worth roughly double, and the
+formula scored two cards "within band" that the shipped pool says are not:
+
+- `sb-lance-of-two-suns` originally marked ITSELF, arriving as a 3/2 Twin
+  Blades for mv3. **Every shipped mv3 Twin Blades body deals 4 damage and three
+  of the four are RARE**; this dealt 6 at common, which is the mv4-rare tier.
+- `sb-splitlight-corsair` originally marked itself into a 5/5 Twin Blades at
+  mv5, for 10 damage. Shipped mv5 pays 8 at rare, SR and SSR alike; **10 damage
+  at mv5 is the UR tier** (Bastet, Mistress of the Ninth).
+
+Both now mark **another** creature, so the mark cannot be doubled, and the
+corsair drops to 3/4. They stay enablers without buying their own combat step
+twice. Bulwark cards keep self-marks deliberately: a Bulwark creature cannot
+attack, so nothing is doubled.
+
+**The general rule this produces: a mark may be self-targeted only on a body
+that does not multiply combat damage.** Twin Blades, and any future double-hit
+keyword, must mark someone else.
+
 **Every addition below ties to marks.** The obvious statlines for Bulwark and
 Twin Blades are already taken several times over, so hanging each keyword off
 the set's own mechanic is what keeps these from becoming the next generation of
@@ -367,9 +390,9 @@ to marks, which is the one thing no shipped card can already be.
 
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| sb-lance-of-two-suns | Lance of Two Suns | C | R | Creature, Alien Duelist | {2}{R} | 2/1 | Twin Blades; arrives: add a mark to target creature | Two stars rose over her homeworld. She fights like both of them. | core |
+| sb-lance-of-two-suns | Lance of Two Suns | C | R | Creature, Alien Duelist | {2}{R} | 2/1 | Twin Blades; arrives: add a mark to another target creature | Two stars rose over her homeworld. She fights like both of them. | core |
 | sb-mirrorblade-consort | Mirrorblade Consort | R | W | Creature, Lumenborn | {3}{W} | 2/3 | Twin Blades, Sentinel | Her reflection guards the door she is not standing at. | core |
-| sb-splitlight-corsair | Splitlight Corsair | R | G | Creature, Alien Corsair | {4}{G} | 4/4 | Twin Blades; arrives: add a mark to this | The prism split her once and neither half agreed to stop. | flex |
+| sb-splitlight-corsair | Splitlight Corsair | R | G | Creature, Alien Corsair | {4}{G} | 3/4 | Twin Blades; arrives: add a mark to another target creature | The prism split her once and neither half agreed to stop. | flex |
 
 ### Retell, the signal that repeats
 
