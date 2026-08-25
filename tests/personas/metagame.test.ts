@@ -379,6 +379,52 @@ describe('persona metagame loop', () => {
     expect(typeof status.checkpoint.at).toBe('string');
   }, 120000);
 
+  it('reports each finished craft as it lands, not only at the round boundary', () => {
+    const finished: Array<{ round: number; index: number; score: number }> = [];
+    runMetagameLoop({
+      poolId: 'all',
+      pool,
+      field: 'starters',
+      seeds: 1,
+      iterations: 0,
+      seed: 77,
+      maxRounds: 1,
+      personaIds: ['burn', 'weenie'],
+      measure: (_deck, options) => measured(options.field),
+      onCraftComplete: (round, personaIndex) =>
+        finished.push({ round: round.round, index: personaIndex, score: round.measured.score }),
+    });
+
+    // A round takes HOURS. Checkpoints are durability and fire at round
+    // boundaries; this hook is visibility and fires per craft, so a dashboard
+    // can show one persona's result without waiting out the rest of the round.
+    expect(finished.map((f) => `${f.round}:${f.index}`)).toEqual(['0:0', '0:1', '1:0', '1:1']);
+    expect(finished.every((f) => typeof f.score === 'number')).toBe(true);
+  });
+
+  it('accumulates finished crafts in the status file for the dashboard', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-persona-crafts-'));
+    tempDirs.push(dir);
+    const statusPath = join(dir, 'status.json');
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--status-file', statusPath,
+      '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ], { today: () => '2026-08-25', log: () => undefined })).toBe(0);
+
+    const status = JSON.parse(readFileSync(statusPath, 'utf8'));
+    expect(status.finishedCrafts).toHaveLength(4);
+    // personaId AND personaIndex both matter: artifacts sort by id, which is not
+    // the order personaIndex counts in, so the dashboard needs the pairing to
+    // label pips and highlight the active persona correctly.
+    expect(status.finishedCrafts[0]).toMatchObject({ round: 0, personaIndex: 0, personaId: 'burn' });
+    expect(status.finishedCrafts[1]).toMatchObject({ round: 0, personaIndex: 1, personaId: 'weenie' });
+    for (const craft of status.finishedCrafts) {
+      expect(typeof craft.score).toBe('number');
+      expect(typeof craft.finishedAt).toBe('string');
+    }
+  }, 120000);
+
   it('documents the loop policy in CLI help', () => {
     const output: string[] = [];
     expect(runCli(['--help'], { log: (line) => output.push(line) })).toBe(0);

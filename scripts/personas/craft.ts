@@ -274,6 +274,15 @@ export interface MetagameOptions {
    * not touch the options or decks, and determinism is unaffected.
    */
   onCheckpoint?: (artifacts: PersonaArtifact[], summary: MetagameSummary) => void;
+  /**
+   * Optional per-craft completion hook, fired as soon as ONE persona's craft
+   * finishes rather than at the round boundary.
+   *
+   * Checkpoints are durability; this is visibility. A round takes hours, so
+   * without it a dashboard can only show which persona is in flight and must
+   * wait for the whole round before it can show a single result. Pure observer.
+   */
+  onCraftComplete?: (round: MetagameRound, personaIndex: number) => void;
 }
 
 export interface MetagameProgressEvent {
@@ -970,6 +979,7 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
       personaIndex: index, personaCount: templates.length,
     });
     const round = craftMetagameRound(template, 0, staticComposition, options);
+    options.onCraftComplete?.(round, index);
     history.set(template.id, [round]);
     retained.set(template.id, round);
     seen.set(template.id, new Map([[deckSignature(round.deck), { firstRound: 0, lastRound: 0 }]]));
@@ -990,7 +1000,9 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
       });
       const fieldComposition = personaFieldComposition(templates, previous, options.field)
         .filter((entry) => entry.personaId !== template.id);
-      next.set(template.id, craftMetagameRound(template, roundNumber, fieldComposition, options));
+      const crafted = craftMetagameRound(template, roundNumber, fieldComposition, options);
+      options.onCraftComplete?.(crafted, index);
+      next.set(template.id, crafted);
     }
     completedRounds = roundNumber;
 
@@ -1270,6 +1282,9 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       // The most recent progress event, so a checkpoint-triggered status write
       // does not blank the phase/persona the dashboard is displaying.
       let lastCheckpointProgress: Record<string, unknown> = {};
+      // One compact row per FINISHED craft, so the dashboard can show a result
+      // the moment it exists instead of waiting out the rest of the round.
+      const finishedCrafts: Record<string, unknown>[] = [];
       const writeStatus = (payload: Record<string, unknown>): void => {
         if (!statusPath) return;
         writeFileSync(statusPath, `${JSON.stringify({
@@ -1285,6 +1300,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           format: 'warchest',
           lastCraftMs,
           checkpoint: lastCheckpoint,
+          finishedCrafts,
           ...payload,
         }, null, 2)}
 `, 'utf8');
@@ -1336,6 +1352,22 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           writeStatus({ state: 'running', ...event });
         },
         onCheckpoint: writeCheckpoint,
+        onCraftComplete: (round, personaIndex) => {
+          finishedCrafts.push({
+            round: round.round,
+            personaIndex,
+            personaId: selectedPersonaIds![personaIndex],
+            score: round.measured.score,
+            rowWins: round.measured.rowWins,
+            losses: round.measured.losses,
+            draws: round.measured.draws,
+            games: round.measured.games,
+            acceptedSwaps: round.hillClimb.acceptedSwaps.length,
+            initialScore: round.hillClimb.initialScore,
+            finishedAt: new Date().toISOString(),
+          });
+          writeStatus({ state: 'running', ...lastCheckpointProgress });
+        },
       });
       writeStatus({
         state: 'done',
