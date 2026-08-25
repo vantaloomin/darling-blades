@@ -146,41 +146,36 @@ templates rescaled to `persona-v2.0.0`, and a hard refusal to measure without a
 reserve rather than a silent classic fallback. **Retained pre-migration
 artifacts are non-comparable** and `--check` now rejects them by name.
 
-## Propagate needs a seeding layer (finding, 2026-08-24)
+## Propagate's gap is COLOUR, not count (corrected 2026-08-25)
 
-Propagate adds a mark to every already-marked permanent you control. It creates
-nothing, so its value is a function of how many marked permanents exist when it
-resolves. **The current pool barely produces any.**
+**The 2026-08-24 finding recorded here was wrong about the draft** and is
+replaced. It claimed the Starborne draft had "essentially no generators" and
+that its one mark-adding card was stretch-tagged. Parsing all 200 rows shows
+**17 mark generators, 8 of them commons**, including a common enchantment that
+marks every creature that arrives under your control. The draft's own Protect
+First list already described one of them as a "common mark starter"; nobody
+checked the table before the claim propagated into this document.
 
-Measured across all 1,079 collectible cards: **13 cards** use the `addCounters`
-op, and **10 of those mark only themselves**. Exactly three can put a mark on
-another creature (Nurture, Imperial Jade Seal, Tithe of Seasons). Nine Lives
-produces a mark on 30 cards, but only after that creature has died, and only
-once.
+What IS true, and unchanged: the **live pool** is thin. Across all 1,079
+collectible cards, 13 use `addCounters` and 10 mark only themselves. That
+constrains cross-set play and Limited, not the set's internal design.
 
-So a mid-game Propagate in today's pool typically finds one marked permanent or
-none, making it a blank or a strictly worse "+1/+1 to this creature". The
-Starborne draft has the same gap internally: 19 Propagate mentions, payoffs that
-read marks (`Burning Hull Runner`, `Signal Cathedral` wanting five or more), and
-essentially no generators — the one card that adds a fresh mark
-(`sb-hullwake-feast`) is tagged `stretch` and is itself gated on already
-controlling a marked permanent.
+The real gap is distribution. Black has **zero** generators at any rarity and
+blue has one flex-tagged rare, while green holds nine of seventeen. Half the
+colour pie cannot turn the mechanic on.
 
-**Concretion must add cheap commons that arrive with a mark**, on themselves or
-a friend, so Propagate finds three or four bodies rather than one. This is the
-job Duat did for Rite when it shipped the sacrifice fodder the mechanic needed.
+**Resolved 2026-08-25:** green primary, red and white support, **blue copies and
+moves marks without creating any**, and **black is the anti-mark colour** that
+punishes, removes, or steals them. Black's exclusion becomes deliberate identity
+and gives Propagate a natural predator, which also answers the mark-snowball
+risk with a card type instead of a nerf.
 
-### Wording, pinned (owner decision 2026-08-24)
+**Seven of the seventeen generators are `flex`**, so enabler density is a cut
+constraint, not a preference.
 
-**Propagate: put another mark on each marked permanent you control.**
-
-The narrower "you control" wording wins over the slate's broader "every marked
-permanent". With marks this scarce, letting Propagate hit opposing permanents
-does nothing useful and adds a targeting decision the AI has to get right. This
-is the wording every Starborne card, rules entry, and glossary term is written
-against; `docs/rules.md` and the card data are the source of truth for the final
-phrasing, never this doc's shorthand. Shorthand mismatches between a plan doc
-and the rules are how two wrong Duat mechanic descriptions reached production.
+**Set size: 150** (`75 C / 45 R / 14 SR / 10 SSR / 6 UR`), on Duat's shipped
+rarity mix. The overplan had been written against 120; the Small-set cadence
+here wins.
 
 ## Feature placement
 

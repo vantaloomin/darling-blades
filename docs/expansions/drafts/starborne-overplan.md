@@ -2,36 +2,61 @@
 
 # The Starborne: Overplanned Candidate Slate
 
-## Concretion blocker: Propagate needs a seeding layer
+## Propagate's real gap is COLOUR, not count (re-measured 2026-08-25)
 
-**Measured 2026-08-24 across all 1,079 collectible cards.** Propagate adds a
-mark to every already-marked permanent you control; it creates none. The current
-pool barely produces any: **13 cards** use the `addCounters` op and **10 of them
-mark only themselves**. Exactly three can mark another creature (Nurture,
-Imperial Jade Seal, Tithe of Seasons). Nine Lives yields a mark on 30 cards, but
-only after that creature dies, and only once.
+**An earlier version of this section claimed this draft had "essentially no
+generators" and named `sb-hullwake-feast` as the only card adding a fresh mark.
+That was wrong**, and the error travelled into `plan-road-to-2.0.md` and the
+session memory before anyone parsed the table. This section replaces it with
+counts taken from the 200 rows below.
 
-A mid-game Propagate in today's pool therefore finds one marked permanent or
-none, which makes it a blank or a strictly worse "+1/+1 to this creature".
+**The draft contains 17 mark generators, 8 of them commons.** One is
+`sb-orbital-graft`, a common enchantment that marks every creature that arrives
+under your control. The Protect First list further down already called
+`sb-mycelial-star-gardener` a "common mark starter", so the document
+contradicted itself.
 
-**This draft has the same gap internally.** 19 Propagate mentions and payoffs
-that READ marks (`sb-burning-hull-runner` wants one; `sb-signal-cathedral` wants
-five or more), but essentially no generators — `sb-hullwake-feast` is the only
-card adding a fresh mark, it is tagged `stretch`, and it is itself gated on
-already controlling a marked permanent.
+The genuine problem is distribution:
 
-**Concretion must add cheap commons that arrive carrying a mark**, on themselves
-or on a friend, so a mid-game Propagate finds three or four bodies. This is the
-job Duat did for Rite when it shipped the sacrifice fodder the mechanic needed.
-Do not let the payoff and the enabler be the same card.
+| | W | U | B | R | G |
+| --- | --- | --- | --- | --- | --- |
+| Common generators | 1 | 0 | 0 | 2 | 5 |
+| All generators | 3 | 1 | 0 | 3 | 9 |
 
-**Pin the wording first.** This draft says "every marked permanent **you
-control**"; [plan-expansion-slate.md](../../plan-expansion-slate.md) says "every
-marked permanent". Those are different mechanics. With marks this scarce the
-narrower version is right: letting Propagate hit opposing permanents does
-nothing useful and adds a decision the AI has to get correct. Shorthand
-mismatches between a plan doc and the rules are how two wrong Duat mechanic
-descriptions reached production.
+**Black cannot turn Propagate on at any rarity; blue has exactly one, a
+flex-tagged rare.** Green holds nine of seventeen. Propagate is therefore a
+green mechanic with red and white support, and half the colour pie cannot
+participate. That is a different problem from "add a seeding layer", and it is
+the one concretion has to solve.
+
+**Seven of the seventeen generators are tagged `flex`**, so a cut made on cut
+tags alone thins the enabler layer without anyone noticing. Enabler density is a
+cut constraint, not a preference.
+
+### The colour pie, settled 2026-08-25
+
+- **Green is primary.** It generates marks and keeps the majority of enablers.
+- **Red and white support.** Efficient bodies that arrive marked, no new rules.
+- **Blue COPIES AND MOVES marks.** It creates none. Blue relocates a mark to
+  another permanent or duplicates one that already exists, which fits Foresee
+  and recall without making blue a second green. Each such card is an AI
+  decision, so they need seeded evidence before any of them ships as `core`.
+- **Black is the ANTI-MARK colour.** It creates none and is not meant to.
+  Black punishes, removes, or steals marks - `sb-black-starving-orbit` (Sever a
+  marked creature) is already the seed of it. This gives Propagate a natural
+  predator, keeps the colours distinct, and answers the snowball risk recorded
+  below with a card type rather than a nerf.
+
+**What still holds from the original blocker:** the LIVE pool is genuinely thin.
+Measured across all 1,079 collectible cards, 13 use `addCounters` and 10 of them
+mark only themselves. That matters for cross-set play and for Limited, where a
+Starborne drafter may see few enablers, but it is not a statement about this
+draft.
+
+**The wording is pinned:** Propagate is **"put another mark on each marked
+permanent you control"** (owner decision 2026-08-24). The narrower reading. With
+marks scarce, letting Propagate hit opposing permanents does nothing useful and
+adds a decision the AI has to get right.
 
 ## Set Identity
 
@@ -43,7 +68,18 @@ The set also uses live house vocabulary such as Foresee, Sever, Skim, marks, Sen
 
 ## Rarity Target
 
-`100 C / 60 R / 18 SR / 14 SSR / 8 UR = 200 candidates` for a future `60 C / 36 R / 11 SR / 8 SSR / 5 UR = 120-card` shipment.
+`100 C / 60 R / 18 SR / 14 SSR / 8 UR = 200 candidates`.
+
+**Shipment target, settled 2026-08-25: `75 C / 45 R / 14 SR / 10 SSR / 6 UR =
+150 cards`.** The overplan was written against a 120-card shipment; the
+Large/Small cadence in [plan-road-to-2.0.md](../../plan-road-to-2.0.md) puts a
+Small set at ~150, and that wins. The mix is Duat's shipped distribution
+(49.8% C / 30.2% R / 9.4% SR / 6.5% SSR / 4.1% UR) rather than a fresh
+invention, and it is also the overplan's own ratios scaled by 0.75.
+
+The extra thirty cards over the old target land mostly in commons, which is
+where they are worth most: Draft is reserve-native now, so a 25-card Limited
+deck leans hard on the common floor.
 
 ## Candidate Table
 
