@@ -61,6 +61,7 @@ const FACTIONS = [
   'gothic-monsters',
   'dark-tales',
   'sands-of-the-duat',
+  'starborne',
 ] as const;
 
 const OUT_W = 640;
@@ -145,7 +146,32 @@ const NEGATIVES =
 // sentence before the negatives block.
 const assemblePrompt = (entry: Entry): string => PREAMBLE + entry.prompt + '.' + NEGATIVES;
 
-const PYTHON = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+/**
+ * Prefer the repo's dedicated art venv over whatever `python` happens to be on
+ * PATH.
+ *
+ * `.venv-art/` carries pillow + dghs-imgutils + onnxruntime and deliberately NO
+ * torch. A developer machine's default interpreter is often a conda base that
+ * DOES have torch, and if its torch and torchvision are a mismatched pair the
+ * smart-crop preflight dies on `operator torchvision::nms does not exist` while
+ * reporting "dghs-imgutils is required" — a message that sends you off to
+ * reinstall a package that was never missing. That happened on 2026-08-26, and
+ * "fixing" the base env would have meant touching the torch a local ComfyUI
+ * depends on.
+ *
+ * Explicit $PYTHON still wins, so a caller can point anywhere.
+ */
+function findArtVenvPython(): string | undefined {
+  const rel = process.platform === 'win32'
+    ? join('.venv-art', 'Scripts', 'python.exe')
+    : join('.venv-art', 'bin', 'python');
+  const candidate = join(root, rel);
+  return existsSync(candidate) ? candidate : undefined;
+}
+
+const PYTHON = process.env.PYTHON
+  ?? findArtVenvPython()
+  ?? (process.platform === 'win32' ? 'python' : 'python3');
 
 // --- arg parsing ---------------------------------------------------------------
 
