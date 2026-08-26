@@ -278,6 +278,19 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       if (perm) perm.plusOneCounters += op.n;
       return;
     }
+    case 'propagate': {
+      // Compounds marks; it never starts one. A permanent sitting at zero marks
+      // is skipped, which is the whole point of the mechanic: Propagate scales
+      // with a marked board you already built and does nothing on a bare one.
+      // "Permanent", not "creature" — a marked artifact, enchantment or land
+      // grows too. Yours only, and no target, so there is no choice to make.
+      for (const perm of state.battlefield) {
+        if (perm.controller === ctx.controller && perm.plusOneCounters > 0) {
+          perm.plusOneCounters += 1;
+        }
+      }
+      return;
+    }
     case 'tap': {
       const perm = targetPermanent(state, ctx.targets[0]);
       if (perm) perm.tapped = true;
@@ -506,6 +519,7 @@ function assertTargetFreeForeseeContinuation(op: EffectOp): void {
     op.op === 'foresee' ||
     (op.op === 'damage' && op.to !== 'target') ||
     (op.op === 'boost' && op.scope !== 'target') ||
+    op.op === 'propagate' ||
     (op.op === 'addCounters' && op.to === 'self') ||
     (op.op === 'raise' && op.to === 'top') ||
     (op.op === 'awaken' && op.scope === 'allYours');

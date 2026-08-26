@@ -131,6 +131,10 @@ function opText(
       const markTarget = target?.what === 'yourCreature' ? 'target creature you control' : 'target creature';
       return `put ${countWord(op.n)} +1/+1 mark${op.n === 1 ? '' : 's'} on ${markTarget}`;
     }
+    case 'propagate':
+      // "another" carries the whole rule: it only ever adds to a mark that is
+      // already there, so an unmarked permanent is left alone.
+      return 'put another mark on each marked permanent you control';
     case 'tap':
       return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
     case 'extraLandDrop': {

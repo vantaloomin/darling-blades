@@ -78,6 +78,7 @@ export type EffectOp =
   | { op: 'cancel'; to: 'target' } // target is a stack item
   | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' | 'all' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
+  | { op: 'propagate' } // +1 mark on each ALREADY-marked permanent you control; starts none, no target
   | { op: 'tap'; to: 'target' }
   | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
   | { op: 'createToken'; token: string; count: number }

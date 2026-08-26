@@ -68,6 +68,14 @@ function opImpactValue(op: EffectOp): number {
       return op.count * 1.5;
     case 'addCounters':
       return op.to === 'self' ? op.n * 1.5 : 0;
+    case 'propagate':
+      // Propagate's real worth is one mark per ALREADY-marked permanent, so it
+      // is board-dependent and ranges from 0 (bare board) upward. This switch
+      // sees only the op — its callers (`nonCreatureAbilityImpact`,
+      // `retellValue`) are card-shaped, not board-shaped — so price it at the
+      // conservative single-mark floor rather than widening the signature.
+      // One marked permanent is the least a card printing this can expect.
+      return 1.5;
     case 'boost':
       return op.scope === 'allYours'
         ? Math.max(0, op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5
@@ -278,6 +286,12 @@ export function empowerValue(db: CardDb, cardId: string): number {
         return op.n * 1.2;
       case 'addCounters':
         return op.n * 1.5;
+      case 'propagate':
+        // Same conservative single-mark floor as `opImpactValue`: `empowerValue`
+        // is a cheap deterministic card-shaped estimate with no battlefield in
+        // its signature, and over-pricing Propagate here would make the AI pay
+        // Empower into a board with nothing marked on it.
+        return 1.5;
       case 'createToken':
         return op.count * 2;
       case 'raise':

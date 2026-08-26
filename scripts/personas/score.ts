@@ -34,6 +34,10 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   cancel: 1.8,
   boost: 0.9,
   addCounters: 0.8,
+  // Board-dependent and worth nothing on a bare board, so it is priced just
+  // under a single addCounters rather than above it. Unreachable until a card
+  // actually prints the op, so this weight moves no measured number today.
+  propagate: 0.7,
   tap: 0.7,
   extraLandDrop: 0.7,
   createToken: 1.15,
