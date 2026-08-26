@@ -326,6 +326,43 @@ board makes the action illegal (the player is choosing to pay, unlike Nine
 Lives' silent no-op). Recording the new action bumped the replay log to v9;
 the rules revision stays 3.
 
+### Propagate (mark compounding)
+
+The `propagate` effect op (1.7) reads **"put another mark on each marked
+permanent you control."** It puts exactly one `+1/+1` mark on every permanent
+its controller controls that already carries at least one, and it **creates
+nothing**: a permanent sitting at zero marks is skipped, so Propagate can only
+ever compound a marked board, never start one. That is the mechanic, not an
+implementation detail — it is why a Propagate card is dead on an empty board
+and why mark generators, not Propagate itself, are the enabler density a set
+has to print.
+
+Three words in the sentence are load-bearing and each is enforced in
+`runOp`'s `propagate` case (`src/engine/effects/EffectInterpreter.ts`):
+
+- **"marked"** — the filter is `plusOneCounters > 0`. Nothing is created.
+- **"permanent"**, not *creature* — a marked artifact, enchantment or land
+  grows too. `getEffectiveStats` adds marks to P/T without checking the card
+  type, but nothing reads a non-creature's P/T: the lethal SBA skips
+  non-creatures outright (`src/engine/sba.ts`), and so does combat. So the
+  count on a non-creature is real and stored, and simply has no visible effect
+  until something turns that permanent into a creature.
+- **"you control"** — the filter is `controller === ctx.controller`, read from
+  the resolving context, so an opponent's marked board is never touched and a
+  stolen permanent grows for whoever currently controls it.
+
+Propagate takes **no target**, deliberately: the narrow wording removes the
+targeting decision entirely, so the AI has nothing to choose and the op is
+trigger-safe and legal as a Foresee continuation (it is listed in
+`assertTargetFreeForeseeContinuation`). It logs the generic
+`effectApplied` every op logs and adds no event of its own — marks are read
+back off the permanent the same way `addCounters` marks are — and it logs that
+event even on a board with nothing marked, where it is a silent no-op.
+
+Propagate adds no player action and writes nothing new to the replay log, so
+the log version and **the rules revision both stay unchanged** (the Preserve
+precedent above bumped the log only because it recorded a new action).
+
 ## Board caps
 
 Two per-player caps are enforced at **cast legality** (`castBlockers` in

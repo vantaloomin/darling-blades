@@ -48,6 +48,7 @@ export type MechanicId =
   | 'sever'
   | 'foresee'
   | 'mark'
+  | 'propagate'
   | 'quest'
   | 'championAwakening'
   | 'empower'
@@ -62,6 +63,7 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
   sever: 'Sever',
   foresee: 'Foresee',
   mark: 'Mark',
+  propagate: 'Propagate',
   quest: 'Quest',
   championAwakening: 'Champion Awakening',
   empower: 'Empower',
@@ -78,6 +80,7 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
   mark: 'a lasting +1/+1 increase to a creature\'s Attack and Defense',
+  propagate: 'put another mark on each marked permanent you control; it never starts a mark',
   quest: 'advances a chapter at each of your dawns; leaves after the last',
   championAwakening: 'a one-way upgrade granting the listed stats and keywords',
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
@@ -148,7 +151,13 @@ export function cardMechanics(d: CardDef): MechanicId[] {
   // teach Sever even when no op on the face says so.
   if (ops.some(opImpliesSever) || d.retell !== undefined || d.preserve !== undefined) present.push('sever');
   // Nine Lives returns the creature WITH a +1/+1 mark, so it teaches Mark too.
-  if (ops.some((op) => op.op === 'addCounters') || d.nineLives) present.push('mark');
+  // Propagate is defined entirely in terms of marks, so it teaches Mark as well
+  // as itself — a Propagate card that taught only Propagate would leave the
+  // player looking up a word its own definition depends on.
+  if (ops.some((op) => op.op === 'addCounters' || op.op === 'propagate') || d.nineLives) {
+    present.push('mark');
+  }
+  if (ops.some((op) => op.op === 'propagate')) present.push('propagate');
   if (d.chapters) present.push('quest');
   if (d.awakening || ops.some((op) => op.op === 'awaken')) present.push('championAwakening');
   if (d.empower) present.push('empower');
@@ -247,6 +256,7 @@ const MECHANIC_ORDER: MechanicId[] = [
   'sever',
   'foresee',
   'mark',
+  'propagate',
   'quest',
   'championAwakening',
   'empower',
