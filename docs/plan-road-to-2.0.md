@@ -112,8 +112,30 @@ The release that would open next.
     both took notes generated from PR titles alone. Deliberately not touched
     during a cut because it is an untested change to a tag-triggered workflow.
   - The multiplayer correction (below).
-  - Remove the vestigial `cosmetics.cardBack` / `cosmetics.playmat` fields; only
-    `owned` is still read, by the unlock plumbing.
+  - ~~Remove the vestigial `cosmetics.cardBack` / `cosmetics.playmat` fields.~~
+    **DEFERRED 2026-08-25 to the next save-version bump.** The two fields are
+    worse than vestigial: they are UNREACHABLE. v33 moved style onto the deck
+    and took the Profile picker with it, so nothing can write them and nothing
+    reads them; `PackOpeningScene.resolveCardBackTexture` deliberately reads the
+    active deck instead and says why. Only `owned` is still live.
+
+    Removing them is a save schema change, and the invariant is that a schema
+    change bumps `SaveData.version` with a real `migrate()` and a test. Paying a
+    migration that touches every player's save to delete two frozen fields is a
+    poor trade on its own, especially with v34 having landed on 2026-08-25; it
+    is close to free as a rider on a bump that has to happen anyway.
+
+    **It is therefore a RIDER, not a task.** The next save-version bump takes it,
+    whichever release that falls in. The removal steps and the three traps
+    (identical field names on the live per-deck fields, the hand-maintained
+    version list in the re-walk guard, and that the guard re-walks a current
+    save so seeding must key off `beganAtCurrentVersion`) are written on the
+    type in `SaveManager.ts`, where whoever does the bump will be reading.
+
+    The only cost actually being paid meanwhile was confusion, and the type now
+    says plainly what these are. A stale comment on the LIVE per-deck fields,
+    claiming they fall back to the account pick, was corrected at the same time:
+    they do not, and the one deckless surface documents the opposite.
 - **Save cards** ([plan-save-cards.md](plan-save-cards.md)) and **share replay
   codes** — same codec family, sensible to do together.
 
