@@ -61,6 +61,7 @@ const FACTIONS = [
   'gothic-monsters',
   'dark-tales',
   'sands-of-the-duat',
+  'starborne',
 ] as const;
 
 const OUT_W = 640;
