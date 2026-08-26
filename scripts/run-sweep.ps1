@@ -88,25 +88,67 @@ $scriptArgs = @(
 )
 if ($Resume) { $scriptArgs += '--resume' }
 
-$action = New-ScheduledTaskAction -Execute 'npx.cmd' -Argument ($scriptArgs -join ' ') -WorkingDirectory $Worktree
+# Resolve npx.cmd ABSOLUTELY and run it through cmd.exe with output redirected.
+# Task Scheduler does not reliably give the task the interactive PATH, so
+# -Execute 'npx.cmd' registers fine and then exits 0x1 the moment it runs, with
+# nothing written anywhere. Found 2026-08-26. The redirect is the other half:
+# without it a task failure leaves no evidence at all.
+$npx = (Get-Command npx.cmd -ErrorAction SilentlyContinue).Source
+if (-not $npx) { Write-Host 'npx.cmd not found on PATH; cannot register the task.'; exit 1 }
+$TaskLog = Join-Path $OutDir 'sweep-task.log'
+$inner = '"{0}" {1} > "{2}" 2>&1' -f $npx, ($scriptArgs -join ' '), $TaskLog
+$action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument ('/c "' + $inner + '"') -WorkingDirectory $Worktree
 # A start time already in the past fires immediately.
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(-60)
+# NOTE: -DeleteExpiredTaskAfter is deliberately absent. It requires the trigger
+# to carry an EndBoundary, and a -Once trigger has none, so including it makes
+# Register-ScheduledTask fail with "The task XML is missing a required element
+# or attribute (EndBoundary)". Found the hard way 2026-08-26.
 $settings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
   -ExecutionTimeLimit ([TimeSpan]::FromDays(7)) `
-  -RestartCount 0 -MultipleInstances IgnoreNew `
-  -DeleteExpiredTaskAfter ([TimeSpan]::FromMinutes(5))
+  -RestartCount 0 -MultipleInstances IgnoreNew
 
 try { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Stop } catch {}
-Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
-  -Settings $settings -RunLevel Limited -Force | Out-Null
-Start-ScheduledTask -TaskName $TaskName
+try {
+  Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
+    -Settings $settings -RunLevel Limited -Force -ErrorAction Stop | Out-Null
+} catch {
+  Write-Host "FAILED to register the scheduled task: $($_.Exception.Message)"
+  Write-Host 'Nothing was launched.'
+  exit 1
+}
+try { Start-ScheduledTask -TaskName $TaskName -ErrorAction Stop } catch {
+  Write-Host "FAILED to start the scheduled task: $($_.Exception.Message)"
+  Write-Host 'Nothing was launched.'
+  exit 1
+}
 
-Write-Host "sweep launched as scheduled task '$TaskName'"
+# VERIFY, do not assume. The first version of this script printed "sweep
+# launched" unconditionally and did so on a run where registration had failed
+# and nothing was running at all. A launcher that lies about its own state is
+# the same failure as a status file that says `running` for a dead process.
+$deadline = (Get-Date).AddSeconds(90)
+$seen = $false
+while ((Get-Date) -lt $deadline) {
+  if ((Get-SweepProcess).Count -gt 0) { $seen = $true; break }
+  Start-Sleep -Seconds 3
+}
+if (-not $seen) {
+  Write-Host 'Task started but NO sweep process appeared within 90 seconds.'
+  $res = (Get-ScheduledTaskInfo -TaskName $TaskName).LastTaskResult
+  Write-Host ("LastTaskResult: 0x{0:X}" -f $res)
+  if (Test-Path $TaskLog) { Write-Host '--- task log ---'; Get-Content $TaskLog -Tail 20 }
+  else { Write-Host "No task log at $TaskLog; the action never produced output." }
+  exit 1
+}
+
+Write-Host "sweep launched as scheduled task '$TaskName' and VERIFIED running"
 Write-Host "  worktree : $Worktree"
 Write-Host "  out      : $OutDir"
 Write-Host "  journal  : $Journal"
 Write-Host "  status   : $StatusFile"
+Write-Host "  task log : $TaskLog"
 Write-Host "  resume   : .\scripts\run-sweep.ps1 -Resume"
 Write-Host ''
 Write-Host 'It now outlives this shell. Check on it with -Status.'
