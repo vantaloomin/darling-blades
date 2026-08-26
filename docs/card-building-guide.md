@@ -170,19 +170,46 @@ Three things fall out of this:
 | **Rite** | 11 | 1 | Re-usable | Sacrifice creatures as an additional cost. Only one set so far, which is history rather than a rule. **Needs fodder shipped alongside it**, which is the job Duat did; a set with a token package already has it. |
 | **Champion Awakening** | 7 | 3 | Rare | A one-way upgrade granting listed stats and keywords. Smallest population in the game; treat as a marquee tool. |
 
-### The Nine Lives trap, and it is live right now
+### Nine Lives against marks: INTENDED FRICTION, ruled 2026-08-26
 
 Nine Lives reads: *"when this dies with no +1/+1 marks on it, it returns with a
-+1/+1 mark on it."*
++1/+1 mark on it."* **Putting a mark on a Nine Lives creature disables its
+return**, verified in `EffectInterpreter.ts`, which bails on
+`fallen.plusOneCounters !== 0`. There are 30 Nine Lives cards, 11 of them
+commons, across Dark Tales and Sands of the Duat.
 
-**Putting a mark on a Nine Lives creature disables its return.** A Propagate deck
-marks everything it controls, so Starborne's mechanic actively turns off all 30
-Nine Lives cards. That is not automatically wrong, it is a genuine tension a
-player can navigate, but it must be a deliberate choice.
+**Owner ruling: this is intentional friction and a real decision, not a defect.
+Do not design it away.** Marking a Nine Lives creature trades its second life
+for a permanent +1/+1, and a player who knows both cards is making a choice
+rather than being punished.
 
-Before any Propagate card ships, decide whether Nine Lives is meant to be an
-anti-synergy the player must play around, or whether the two should be kept out
-of each other's formats. Do not let it be discovered in a match.
+Two facts that make the ruling hold, and that a future change could break:
+
+- **The choice is genuinely the player's on 19 of the 25 Starborne generators**,
+  which target. All 13 mark generators in the pre-Starborne pool are
+  self-targeting or "target creature you control", so the collision could not
+  happen by accident before this set at all.
+- **The rule is discoverable in-game**, though only through the glossary. The
+  card face prints the bare keyword `Nine Lives.`; the condition lives in
+  `MECHANIC_DEFINITIONS`. That is enough for a player to learn it once and play
+  around it afterwards, which is what makes it friction rather than a trap.
+
+**What would break the ruling.** A non-optional, board-wide mark effect removes
+the decision and makes the interaction silent. Starborne ships three:
+`sb-orbital-graft` (common, marks every creature that arrives, always on),
+`sb-brood-communion`, and `sb-the-long-crossing`. The latter two are opted into
+by casting them. `sb-orbital-graft` is the one to watch, because it is a common
+and it is permanent once resolved.
+
+Both mechanics also reach the same Limited pool: `packPool` is called with no
+set for Limited, and its own comment confirms "undefined remains the mixed-set
+pool", so a draft can contain Orbital Graft alongside the eleven Nine Lives
+commons.
+
+**Rule going forward: a non-optional mark effect that hits creatures you did not
+choose is a checked interaction.** Prefer "target creature you control" unless
+the board-wide version is the point of the card, and if it is, expect it to
+switch off Nine Lives for that player.
 
 ### Every mechanic is re-usable
 
