@@ -365,6 +365,124 @@ no meaning beyond the silhouette.
 
 ---
 
+## 4b. The Starborne set register (binding)
+
+This register applies to every **Starborne** art-bible entry and every
+set-scoped key visual that quotes this bible. The global rules above remain in
+force.
+
+The Starborne is a slate world of living starships and iridescent alien women
+under nebula light. Bioluminescent crews move through chrome corridors and
+violet cloudbanks while swarms of small organisms multiply across hulls,
+gardens, and battlefields. The register's job is to make that beautiful and to
+make one mechanic readable at battlefield crop, because fifty-three of the
+one hundred fifty-one cards care about it.
+
+### The mark is a bioluminescent bloom, and its colour is reserved
+
+**A mark reads as a single bloom of living light under the skin or hull**: a
+small, soft, pearl-like node about the size of an eye, sitting just beneath a
+translucent surface, with a faint halo. Two marks are two blooms. Five marks
+are five, spaced along a limb, a spine line, or a hull seam. They are never
+drawn as counters, pips, dice, numerals, or floating icons.
+
+**Biolume cyan `#5ff0e0` / `#aefff6` is a RESERVED hue.** It appears on marks
+and on living light only. It is forbidden on engines, thrusters, running
+lights, consoles, weapon glow, sky, water, jewellery, and generic sci-fi
+ambience. If something in the frame glows cyan, a player must be able to read
+it as a mark or as the creature's own life.
+
+This is the Duat heart-red rule applied to a mechanic instead of a motif, and it
+is the single most load-bearing line in this register. Twenty-five cards create
+marks, twenty-eight care that they exist, and Propagate compounds them; if cyan
+is spent on scenery, the mechanic stops being visible.
+
+Everything else that needs to glow uses **signal white `#f6f8ff`** for beacons
+and instrumentation, or **nebula violet** for ambience.
+
+### Accent palette
+
+Layer these over the card's colour-identity palette.
+
+| Accent | Hex | Required visual use |
+|---|---|---|
+| **Biolume cyan** | `#5ff0e0` / `#aefff6` | **RESERVED** — marks and living light only |
+| **Nebula violet** | `#7b4bd8` / `#b78cff` | cloudbanks, ambient fill, the cool rim |
+| **Chrome** | `#c8d2dc` / `#8b97a5` | hull plate, corridor, armour, fittings |
+| **Signal white** | `#f6f8ff` | beacons, linen, instrument light, sail membrane |
+| **Brood green** | `#7fd08a` | swarm bodies, hull gardens, Broodlings |
+| **Hull dusk** | `#2a2140` | shadow, void, interior depth — the value floor |
+| **Ember amber** | `#ffb35c` | practical warmth: vents, braziers, a near star |
+
+### Value floor and lighting doctrine
+
+- The darkest visible value in the central band is **hull dusk `#2a2140`**.
+  No true black anywhere, matching the global rule.
+- Every entry names **one practical key**: the creature's own bioluminescence, a
+  hull vent, an open reactor throat, a nebula shaft through a viewport, or a
+  near star. Ambient starlight is not a key.
+- Exactly **one cool rim** from nebula violet separates the figure from the
+  background. No second key, no unmotivated fill.
+- A generous pool of warm or living light claims a large part of the frame.
+  Rich readable detail in every shadow; no near-black areas.
+
+Space is the trap here. A void background is cheap, dark, and empty, and it
+violates both the value floor and the fully-rendered-background rule. **Every
+Starborne background is an interior, a hull surface, a garden, a cloudbank, or a
+planetary surface.** Open starfield is never the whole background.
+
+### NO-TEXT, and the sci-fi variant that matters
+
+The global NO-TEXT rule applies. Science fiction breaks it in a way Duat never
+did, because generators reach for readouts the moment they see a console.
+
+- **Negative, carried on every Starborne prompt:** `no text, no readouts, no
+  HUD, no UI, no interface panels, no console text, no screens with writing, no
+  labels, no gauges with numbers, no star charts with names, no insignia
+  lettering, no numerals`
+- Instrumentation is allowed as **shape and light only**: blank glass, unlit
+  facets, plain luminous bars, geometric inlay. A console may glow; it may not
+  display anything.
+- No barcodes, no serial numbers on hulls, no registry markings.
+
+### Composition by mechanic family
+
+| Family | The moment to draw |
+|---|---|
+| **Propagate** | Three or more already-lit bodies gaining a fresh bloom at once, the light arcing between them. Show the compounding, not the caster reading a rulebook. |
+| **Mark generator, arrives** | The instant one bloom ignites under a surface, halo just forming. On a friend if the card marks another; on herself if the card marks itself. |
+| **Mark payoff** | A body visibly carrying blooms and better for them: brighter, faster, larger in frame. The blooms must be countable. |
+| **Blue moves or copies a mark** | Light lifted out of one body and set into another, cupped between hands mid-transfer, both bodies in frame. Blue never ignites a new bloom from nothing. |
+| **Black answers marks** | A bloom guttering, dimming, or being drawn out. The dark drinks the light. Never gore, never rot; this set's black is appetite, not decay. |
+| **Rite** | A swarm body dissolving upward into the caster's own light as the cost is paid. Beautiful consumption, no viscera. |
+| **Quest** | Distance crossed. Chapter cards show the voyage further along than the eye expects, with the hull or garden changed by it. |
+| **Retell** | A delayed light-echo of the same woman repeating her own action one beat behind her, clearly a signal and not a second person. |
+| **Empower** | A hull or body running brighter than it was built for: vents open, seams lit, heat shimmer, the pleasure of overcharge. |
+
+### Species tells and costume silhouette
+
+Every Starborne character is an adult woman, per the global rule. The alien read
+comes from three consistent tells, and no more, so the cast stays coherent:
+
+1. **Iridescent skin sheen at the edges.** A chromatic shift along shoulders,
+   cheekbones, and forearms, like oil on chrome. Never full-body rainbow.
+2. **Constellation freckling.** A scatter of faint luminous points along one
+   side of the face, throat, or shoulder. This is her resting light and is
+   **visually distinct from a mark**: freckling is small, many, and dim; a mark
+   is single, larger, haloed, and reserved-cyan.
+3. **A living ring in the iris.** One faint annulus of light inside the iris.
+   Pupils stay round. No cat slits; that tell belongs to Beastkin and Bastet.
+
+**Costume silhouette:** fitted flight plating over a luminous underlayer, one
+asymmetric shoulder rig, membrane or sail elements that catch rim light, bare
+forearms or midriff where the plating opens. **No bulky pressure suits, no
+helmets that hide the face, no full visors.** The house style needs the face and
+the figure; a sealed spacesuit defeats both.
+
+**Starships are alive.** When a hull appears, it has skin rather than panels:
+seams that breathe, chitinous or pearlescent plating, gardens growing in the
+warm parts. A Starborne ship is never a grey military box.
+
 ## 5. Rarity ambition ladder
 
 Match the illustration's ambition to the card's rarity. Under-deliver on a legendary
@@ -475,6 +593,18 @@ All other creatures: uncommons are `auto:sheen`, commons are `none`.
 Parallel agents never see each other's files. Anything two files could both touch
 is defined **here**, once. Honor these bindings verbatim.
 
+- **Starborne tokens** — the six set tokens are shared canon and must not drift
+  between the token file and the Starborne entries that create them.
+  **Lumen Drone** `C` 1/1 Skyborne: a bioluminescent maintenance mote, chrome
+  shell, one signal-white eye, no face. **Broodling** `G` 1/1: a translucent
+  young swarm body, brood green, visibly soft. **Chrome Husk** `C` 2/2 Bulwark:
+  an empty pearlescent shell still standing, dark inside, no light. **Nebula
+  Firefly** `U` 1/1 Skyborne: a violet beacon insect trailing one thread of
+  light. **Violet Hullguard** `W` 1/3 Sentinel: a patient guardian organism
+  shaped like a woman at attention, pearl plating. **Void Mote** `B` 1/1: a
+  black spark that dims one nearby light. Only the Broodling and the Violet
+  Hullguard read as alive enough to carry biolume cyan; the Chrome Husk is
+  deliberately unlit, which is the visual point of it.
 - **Cao family (Wei)** — `tk-wei-caocao`, `tk-wei-caoren`, `tk-wei-caopi` share a
   family resemblance: ink-black hair, sharp amber eyes, imperious brow. Wei
   lapis-and-bronze regalia at rank-appropriate richness.
