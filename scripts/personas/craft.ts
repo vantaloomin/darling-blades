@@ -1,6 +1,13 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 import { cpus } from 'node:os';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAI } from '../../src/ai/personality';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
@@ -15,6 +22,7 @@ import { runParallelGames, type MeasureGameJob } from './measure-worker';
 import { cardRoles, curveBand, rateCard, scoreCard, type PersonaDeckState } from './score';
 import {
   PERSONA_TEMPLATES,
+  PERSONA_TEMPLATE_VERSION,
   type CurveBand,
   type DeckRole,
   type PersonaTemplate,
@@ -291,7 +299,7 @@ export interface MetagameOptions {
    * without it a dashboard can only show which persona is in flight and must
    * wait for the whole round before it can show a single result. Pure observer.
    */
-  onCraftComplete?: (round: MetagameRound, personaIndex: number) => void;
+  onCraftComplete?: (round: MetagameRound, personaIndex: number, personaId: string) => void;
   /**
    * Optional resume source. Return a previously completed craft to skip
    * re-running it; return undefined to craft normally.
@@ -1000,7 +1008,7 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
     });
     const resumed = options.resumeCraft?.(0, template.id);
     const round = resumed ?? craftMetagameRound(template, 0, staticComposition, options);
-    if (!resumed) options.onCraftComplete?.(round, index);
+    if (!resumed) options.onCraftComplete?.(round, index, template.id);
     history.set(template.id, [round]);
     retained.set(template.id, round);
     seen.set(template.id, new Map([[deckSignature(round.deck), { firstRound: 0, lastRound: 0 }]]));
@@ -1024,7 +1032,7 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
       const resumedRound = options.resumeCraft?.(roundNumber, template.id);
       const crafted = resumedRound
         ?? craftMetagameRound(template, roundNumber, fieldComposition, options);
-      if (!resumedRound) options.onCraftComplete?.(crafted, index);
+      if (!resumedRound) options.onCraftComplete?.(crafted, index, template.id);
       next.set(template.id, crafted);
     }
     completedRounds = roundNumber;
@@ -1181,21 +1189,138 @@ interface JournalEntry {
   crafted: MetagameRound;
 }
 
-export function readCraftJournal(path: string): Map<string, MetagameRound> {
+export interface JournalConfig {
+  seed: number;
+  seeds: number;
+  iterations: number;
+  maxRounds: number;
+  personaIds: string[];
+  templateVersion: string;
+  poolId: string;
+  field: FieldId;
+}
+
+interface JournalHeader {
+  type: 'config';
+  version: 1;
+  config: JournalConfig;
+}
+
+function recordValue(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+}
+
+function parseJournalConfig(value: unknown): JournalConfig | undefined {
+  const raw = recordValue(value);
+  const personaIds = raw?.personaIds;
+  if (
+    typeof raw?.seed !== 'number' || !Number.isInteger(raw.seed) ||
+    typeof raw.seeds !== 'number' || !Number.isInteger(raw.seeds) ||
+    typeof raw.iterations !== 'number' || !Number.isInteger(raw.iterations) ||
+    typeof raw.maxRounds !== 'number' || !Number.isInteger(raw.maxRounds) ||
+    !Array.isArray(personaIds) || !personaIds.every((id) => typeof id === 'string') ||
+    new Set(personaIds).size !== personaIds.length ||
+    typeof raw.templateVersion !== 'string' ||
+    typeof raw.poolId !== 'string' ||
+    (raw.field !== 'prefabs' && raw.field !== 'starters')
+  ) return undefined;
+  return {
+    seed: raw.seed,
+    seeds: raw.seeds,
+    iterations: raw.iterations,
+    maxRounds: raw.maxRounds,
+    personaIds: [...personaIds],
+    templateVersion: raw.templateVersion,
+    poolId: raw.poolId,
+    field: raw.field,
+  };
+}
+
+function journalConfigDescription(config: JournalConfig): string {
+  return `seed ${config.seed}, ${config.seeds} seeds, ${config.iterations} iterations, ` +
+    `maxRounds ${config.maxRounds}, personas ${config.personaIds.join(',')}, ` +
+    `template ${config.templateVersion}, pool ${config.poolId}, field ${config.field}`;
+}
+
+function journalConfigsEqual(left: JournalConfig, right: JournalConfig): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function journalHeader(config: JournalConfig): JournalHeader {
+  return { type: 'config', version: 1, config };
+}
+
+function rotateJournal(path: string): string | undefined {
+  if (!existsSync(path)) return undefined;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const base = `${path}.old-${stamp}`;
+  let rotated = base;
+  let suffix = 1;
+  while (existsSync(rotated)) rotated = `${base}-${suffix++}`;
+  renameSync(path, rotated);
+  return rotated;
+}
+
+function writeJournalHeader(path: string, config: JournalConfig): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(journalHeader(config))}\n`, 'utf8');
+}
+
+function appendJournalEntry(path: string, entry: JournalEntry): void {
+  if (existsSync(path)) {
+    const contents = readFileSync(path, 'utf8');
+    if (contents.length > 0 && !contents.endsWith('\n')) appendFileSync(path, '\n', 'utf8');
+  }
+  appendFileSync(path, `${JSON.stringify(entry)}\n`, 'utf8');
+}
+
+export function readCraftJournal(path: string, expectedConfig?: JournalConfig): Map<string, MetagameRound> {
   const out = new Map<string, MetagameRound>();
-  if (!existsSync(path)) return out;
+  if (!existsSync(path)) {
+    if (expectedConfig) {
+      throw new Error(`Cannot resume journal ${basename(path)}: the journal does not exist.`);
+    }
+    return out;
+  }
+  let config: JournalConfig | undefined;
   for (const line of readFileSync(path, 'utf8').split('\n')) {
     const text = line.trim();
     if (!text) continue;
+    let parsed: unknown;
     try {
-      const entry = JSON.parse(text) as JournalEntry;
-      if (entry?.crafted && entry.personaId !== undefined && entry.round !== undefined) {
-        out.set(`${entry.round}:${entry.personaId}`, entry.crafted);
-      }
+      parsed = JSON.parse(text);
     } catch {
-      // A half-written final line is expected after a kill: keep every entry
-      // before it rather than discarding the whole journal.
-      break;
+      continue;
+    }
+    const record = recordValue(parsed);
+    if (record?.type === 'config') {
+      const parsedConfig = record.version === 1 ? parseJournalConfig(record.config) : undefined;
+      if (parsedConfig) config = parsedConfig;
+      continue;
+    }
+    if (
+      record?.crafted !== undefined &&
+      typeof record.personaId === 'string' &&
+      typeof record.round === 'number' &&
+      Number.isInteger(record.round)
+    ) {
+      out.set(`${record.round}:${record.personaId}`, record.crafted as MetagameRound);
+    }
+  }
+  if (expectedConfig) {
+    if (!config) {
+      throw new Error(
+        `Cannot resume journal ${basename(path)}: this journal predates config stamping ` +
+        'or has no valid config header. It cannot be safely resumed.',
+      );
+    }
+    if (!journalConfigsEqual(config, expectedConfig)) {
+      throw new Error(
+        `Cannot resume journal ${basename(path)}: configuration mismatch. ` +
+        `The journal uses ${journalConfigDescription(config)}. ` +
+        `This command uses ${journalConfigDescription(expectedConfig)}.`,
+      );
     }
   }
   return out;
@@ -1237,6 +1362,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       return index >= 0 ? argv[index + 1] : undefined;
   };
   const has = (name: string): boolean => argv.includes(`--${name}`);
+  let cleanupFatalHandlers: (() => void) | undefined;
 
   try {
     if (has('help')) {
@@ -1350,7 +1476,27 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       // every craft it finished. Also the resume source.
       const journalPath = opt('journal') ?? join(outDir, 'craft-journal.jsonl');
       const resumeRequested = argv.includes('--resume');
-      const resumed = resumeRequested ? readCraftJournal(journalPath) : new Map<string, MetagameRound>();
+      const journalConfig: JournalConfig = {
+        seed,
+        seeds,
+        iterations,
+        maxRounds,
+        personaIds: PERSONA_TEMPLATES
+          .filter((template) => selectedPersonaIds!.includes(template.id))
+          .map((template) => template.id),
+        templateVersion: PERSONA_TEMPLATE_VERSION,
+        poolId,
+        field,
+      };
+      let resumed: Map<string, MetagameRound>;
+      if (resumeRequested) {
+        resumed = readCraftJournal(journalPath, journalConfig);
+      } else {
+        const rotated = rotateJournal(journalPath);
+        if (rotated) log(`Rotated existing journal to ${rotated}`);
+        writeJournalHeader(journalPath, journalConfig);
+        resumed = new Map<string, MetagameRound>();
+      }
       if (resumeRequested) {
         log(`Resume: ${resumed.size} completed craft(s) recovered from ${basename(journalPath)}`);
       }
@@ -1384,11 +1530,21 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         try {
           appendFileSync(crashPath, `[${new Date().toISOString()}] ${kind}: ${detail}\n`, 'utf8');
         } catch { /* nothing left to do if even this fails */ }
-        writeStatus({ state: 'failed', failure: `${kind}: ${detail.split('\n')[0]}` });
-        process.exitCode = 1;
+        try {
+          writeStatus({ state: 'failed', failure: `${kind}: ${detail.split('\n')[0]}` });
+        } catch {
+          process.exit(1);
+        }
+        process.exit(1);
       };
-      process.on('uncaughtException', recordFatal('uncaughtException'));
-      process.on('unhandledRejection', recordFatal('unhandledRejection'));
+      const onUncaughtException = recordFatal('uncaughtException');
+      const onUnhandledRejection = recordFatal('unhandledRejection');
+      process.on('uncaughtException', onUncaughtException);
+      process.on('unhandledRejection', onUnhandledRejection);
+      cleanupFatalHandlers = () => {
+        process.off('uncaughtException', onUncaughtException);
+        process.off('unhandledRejection', onUnhandledRejection);
+      };
 
       writeStatus({ state: 'starting' });
       // Checkpoint writes. The loop stays pure - it hands us artifacts, the CLI
@@ -1438,17 +1594,17 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         },
         onCheckpoint: writeCheckpoint,
         resumeCraft: (round, personaId) => resumed.get(`${round}:${personaId}`),
-        onCraftComplete: (round, personaIndex) => {
-          appendFileSync(journalPath, `${JSON.stringify({
+        onCraftComplete: (round, personaIndex, personaId) => {
+          appendJournalEntry(journalPath, {
             round: round.round,
-            personaId: selectedPersonaIds![personaIndex],
+            personaId,
             seed: round.seed,
             crafted: round,
-          })}\n`, 'utf8');
+          });
           finishedCrafts.push({
             round: round.round,
             personaIndex,
-            personaId: selectedPersonaIds![personaIndex],
+            personaId,
             score: round.measured.score,
             rowWins: round.measured.rowWins,
             losses: round.measured.losses,
@@ -1484,6 +1640,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       } else if (!result.summary.converged) {
         log('Finding: loop reached max-rounds without convergence');
       }
+      cleanupFatalHandlers?.();
       return 0;
     }
 
@@ -1523,6 +1680,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
     }
     return 0;
   } catch (caught) {
+    cleanupFatalHandlers?.();
     error(caught instanceof Error ? caught.message : String(caught));
     return 1;
   }

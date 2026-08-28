@@ -96,8 +96,14 @@
     const id = personaIds[personaIndex];
     const fromArtifact = artifacts.find((a) => a.personaId === id)?.rounds?.find((r) => r.round === round);
     if (fromArtifact) return { ...fromArtifact, personaId: id, source: 'artifact' };
-    const live = (window.__status?.finishedCrafts ?? [])
-      .find((c) => c.round === round && c.personaIndex === personaIndex);
+    const statusUpdatedMs = Date.parse(window.__status?.updatedAt ?? '');
+    const hasNewerArtifact = artifacts.some((a) =>
+      Number.isFinite(a.artifactMtimeMs) && Number.isFinite(statusUpdatedMs) &&
+      a.artifactMtimeMs > statusUpdatedMs);
+    const live = window.__status?.state === 'running' && !hasNewerArtifact
+      ? (window.__status?.finishedCrafts ?? [])
+      .find((c) => c.round === round && c.personaIndex === personaIndex)
+      : null;
     return live ? { ...live, source: 'live' } : null;
   }
 

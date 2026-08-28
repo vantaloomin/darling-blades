@@ -40,22 +40,52 @@ function Get-SweepProcess {
     Where-Object { $_.CommandLine -like '*craft.ts*' -and $_.CommandLine -like '*--metagame*' })
 }
 
-if ($Status) {
-  $procs = Get-SweepProcess
-  if ($procs.Count -eq 0) { Write-Host 'sweep: NOT RUNNING' } else {
-    foreach ($p in $procs) {
-      $pr = Get-Process -Id $p.ProcessId
-      Write-Host "sweep: running (pid $($p.ProcessId), $([math]::Round($pr.CPU,0)) cpu-seconds)"
+function Get-DurableCraftCount {
+  param([string]$Path)
+  $count = 0
+  foreach ($line in @(Get-Content -LiteralPath $Path -ErrorAction Stop)) {
+    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    try { $entry = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+    if ($null -ne $entry.crafted -and $null -ne $entry.personaId -and $null -ne $entry.round) {
+      $count++
     }
   }
+  return $count
+}
+
+if ($Status) {
+  try { $procs = @(Get-SweepProcess) } catch { $procs = @() }
+  $liveCount = 0
+  foreach ($p in $procs) {
+    try {
+      $pr = Get-Process -Id $p.ProcessId -ErrorAction Stop
+      $liveCount++
+      Write-Host "sweep: running (pid $($p.ProcessId), $([math]::Round($pr.CPU,0)) cpu-seconds)"
+    } catch {
+      Write-Host "sweep: process $($p.ProcessId) exited during status check"
+    }
+  }
+  if ($liveCount -eq 0) { Write-Host 'sweep: NOT RUNNING' }
   if (Test-Path $Journal) {
-    $done = @(Get-Content $Journal | Where-Object { $_.Trim() }).Count
-    Write-Host "journal: $done craft(s) durable at $Journal"
+    try {
+      $done = Get-DurableCraftCount -Path $Journal
+      Write-Host "journal: $done complete craft(s) durable at $Journal"
+    } catch {
+      Write-Host 'journal: unavailable because it could not be read safely'
+    }
   } else { Write-Host 'journal: none yet' }
+  $s = $null
   if (Test-Path $StatusFile) {
-    $s = Get-Content $StatusFile -Raw | ConvertFrom-Json
-    Write-Host "status: $($s.state) | round $($s.round)/$($s.maxRounds) | crafting $($s.personaName)"
-    Write-Host "last written: $((Get-Item $StatusFile).LastWriteTime)"
+    try {
+      $s = Get-Content -LiteralPath $StatusFile -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+      Write-Host "status: $($s.state) | round $($s.round)/$($s.maxRounds) | crafting $($s.personaName)"
+      try { Write-Host "last written: $((Get-Item -LiteralPath $StatusFile -ErrorAction Stop).LastWriteTime)" } catch {}
+    } catch {
+      Write-Host 'status: unavailable because the status file is absent or incomplete'
+    }
+  } else { Write-Host 'status: unavailable because the status file is absent or incomplete' }
+  if ($s -and $s.state -eq 'running' -and $liveCount -eq 0) {
+    Write-Host 'reconciliation: the status file says running, but no sweep process exists. The status is stale.'
   }
   $crash = Join-Path $OutDir 'craft-crash.log'
   if (Test-Path $crash) { Write-Host "CRASH LOG PRESENT: $crash"; Get-Content $crash -Tail 5 }
@@ -63,8 +93,35 @@ if ($Status) {
 }
 
 if ($Stop) {
-  $procs = Get-SweepProcess
+  try { $procs = @(Get-SweepProcess) } catch { $procs = @() }
   foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }
+  $stoppedAt = [DateTime]::UtcNow.ToString('o')
+  $statusPayload = [ordered]@{}
+  if (Test-Path $StatusFile) {
+    try {
+      $existingStatus = Get-Content -LiteralPath $StatusFile -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+      foreach ($property in $existingStatus.PSObject.Properties) {
+        $statusPayload[$property.Name] = $property.Value
+      }
+    } catch {}
+  }
+  $statusPayload['state'] = 'stopped'
+  $statusPayload['updatedAt'] = $stoppedAt
+  $statusPayload['stoppedAt'] = $stoppedAt
+  $statusPayload['stoppedProcesses'] = $procs.Count
+  $statusPayload['stopReason'] = 'Stopped by operator'
+  $statusDir = Split-Path -Parent $StatusFile
+  New-Item -ItemType Directory -Force -Path $statusDir | Out-Null
+  $statusTemp = "$StatusFile.stop-$PID.tmp"
+  try {
+    $json = $statusPayload | ConvertTo-Json -Depth 8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($statusTemp, $json, $utf8NoBom)
+    Move-Item -LiteralPath $statusTemp -Destination $StatusFile -Force
+  } catch {
+    Remove-Item -LiteralPath $statusTemp -Force -ErrorAction SilentlyContinue
+    Write-Host "WARNING: could not stamp stopped status: $($_.Exception.Message)"
+  }
   try { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Stop } catch {}
   Write-Host "stopped $($procs.Count) process(es). The journal is kept; restart with -Resume."
   return
