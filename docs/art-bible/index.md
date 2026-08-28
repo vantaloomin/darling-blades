@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts, docs/plan-duat-creative.md, docs/land-art.md · last-verified: 2026-08-21 -->
+<!-- source-of-truth: src/data/cards/*.ts, src/art/PlaceholderArtGenerator.ts, src/ui/CardView.ts, src/ui/fx/HoloEffects.ts, docs/plan-duat-creative.md, docs/land-art.md · last-verified: 2026-08-28 -->
 
 # Darling Blades Art Bible — Index (The Contract)
 
@@ -393,9 +393,12 @@ ambience. If something in the frame glows cyan, a player must be able to read
 it as a mark or as the creature's own life.
 
 This is the Duat heart-red rule applied to a mechanic instead of a motif, and it
-is the single most load-bearing line in this register. Twenty-five cards create
+is the single most load-bearing line in this register. Twenty-four cards create
 marks, twenty-eight care that they exist, and Propagate compounds them; if cyan
-is spent on scenery, the mechanic stops being visible.
+is spent on scenery, the mechanic stops being visible. (An earlier draft of this
+register said twenty-five; a 2026-08-27 recount reclassified Propagation Choir
+as a payoff — "whenever you **add** a mark" triggers on marks, it does not
+create them.)
 
 Everything else that needs to glow uses **signal white `#f6f8ff`** for beacons
 and instrumentation, or **nebula violet** for ambience.
@@ -449,7 +452,7 @@ did, because generators reach for readouts the moment they see a console.
 
 | Family | The moment to draw |
 |---|---|
-| **Propagate** | Three or more already-lit bodies gaining a fresh bloom at once, the light arcing between them. Show the compounding, not the caster reading a rulebook. |
+| **Propagate** | A STATE, never an event: three or more bodies each ALREADY carrying an exact stated count of blooms (say the number — "each carrying exactly two cyan blooms"), the counts visibly uneven so the compounding reads. Never draw the moment of gaining, and never light arcing between bodies — the 2026-08-26 UR calibration batch proved the generator resolves "arcing light" as garden architecture: reserved cyan on domes and decorative arcs, no marks on anyone. Blooms sit ON bodies, at mid-height, fully visible in the upper two thirds of the frame. |
 | **Mark generator, arrives** | The instant one bloom ignites under a surface, halo just forming. On a friend if the card marks another; on herself if the card marks itself. |
 | **Mark payoff** | A body visibly carrying blooms and better for them: brighter, faster, larger in frame. The blooms must be countable. |
 | **Blue moves or copies a mark** | Light lifted out of one body and set into another, cupped between hands mid-transfer, both bodies in frame. Blue never ignites a new bloom from nothing. |
@@ -458,6 +461,20 @@ did, because generators reach for readouts the moment they see a console.
 | **Quest** | Distance crossed. Chapter cards show the voyage further along than the eye expects, with the hull or garden changed by it. |
 | **Retell** | A delayed light-echo of the same woman repeating her own action one beat behind her, clearly a signal and not a second person. |
 | **Empower** | A hull or body running brighter than it was built for: vents open, seams lit, heat shimmer, the pleasure of overcharge. |
+
+Three rules for every mark mention in every prompt, each paid for with a real
+generation during the 2026-08-26 UR calibration batch:
+
+1. **Marks live on bodies, with an exact count.** "Blooms" without a number or
+   a bearer becomes ambient decoration.
+2. **Describe a state, never a transition.** "Gaining", "spreading", "arcing
+   between" all resolve as scenery; "each already carrying exactly N" resolves
+   as marks.
+3. **Always carry the placement clause:** marks at mid-height on the body,
+   fully visible in the upper two thirds of the frame, never near the bottom
+   edge where the card frame can crop them (Eclipse-Red Queen's court blooms
+   sit at the bottom edge for exactly this omission — on watch for the bulk
+   pass).
 
 ### Species tells and costume silhouette
 
