@@ -12,7 +12,13 @@ import type { Action } from './actions';
 import { darlingCastCost, legalActions, validateAction } from './actions';
 import { hasCastableCharm, hasCastableInstant } from './actions';
 import { resolveCombatDamage } from './combat/damage';
-import { fireGraveyardTriggers, fireTriggers, runOps } from './effects/EffectInterpreter';
+import {
+  fireGraveyardTriggers,
+  fireMarkedAllyAttackTriggers,
+  fireTriggers,
+  runOps,
+} from './effects/EffectInterpreter';
+import { enumerateTargets } from './effects/targeting';
 import type { GameEvent } from './events';
 import { combineManaCosts, solveMana } from './mana';
 import { attachPermanent, destroyPermanent, firesDiesForDestroy } from './battlefield';
@@ -453,12 +459,35 @@ export class Game {
         st.pendingDecisions.shift();
         continue;
       }
+      if (next.kind === 'chooseTarget') {
+        const targets = enumerateTargets(this.st, this.db, next.player, next.spec, next.sourceIid);
+        if (targets.length === 0) {
+          // The target was legal when the trigger was queued, but an earlier
+          // queued trigger may have moved or removed every target. Fizzle
+          // without surfacing a mandatory choice or running the ops.
+          st.pendingDecisions.shift();
+          emit({ e: 'triggerFizzled', iid: next.sourceIid });
+          continue;
+        }
+        st.awaiting = {
+          player: next.player,
+          kind: 'chooseTarget',
+          sourceIid: next.sourceIid,
+          abilityIndex: next.abilityIndex,
+          targets,
+        };
+        break;
+      }
       break;
     }
     const next = st.pendingDecisions[0];
     if (next?.kind === 'foresee') {
       st.awaiting = { player: next.player, kind: 'foresee', cards: this.foreseeCards(next.player, next.n) };
-    } else if (hadPending || st.awaiting.kind === 'foresee') {
+    } else if (next?.kind === 'chooseTarget') {
+      // The chooseTarget awaiting was installed while draining the FIFO above.
+      // Do not resume the interrupted phase until its mandatory action runs.
+      return;
+    } else if (hadPending || st.awaiting.kind === 'foresee' || st.awaiting.kind === 'chooseTarget') {
       // The queue is empty: either the last queued choice just resolved (the
       // apply leaves the awaiting stale), or every queued decision whiffed in
       // the drain above (adversarial review 2026-07-16: the dawn path never
@@ -576,6 +605,31 @@ export class Game {
             pending.thenOps,
           );
         }
+        return;
+      }
+
+      case 'chooseTarget': {
+        if (st.awaiting.kind !== 'chooseTarget') return;
+        const pending = st.pendingDecisions[0];
+        if (
+          pending?.kind !== 'chooseTarget' ||
+          pending.player !== player ||
+          pending.sourceIid !== st.awaiting.sourceIid ||
+          pending.abilityIndex !== st.awaiting.abilityIndex
+        ) return;
+        st.pendingDecisions.shift();
+        runOps(
+          st,
+          this.db,
+          emit,
+          {
+            controller: pending.player,
+            sourceCardId: pending.sourceCardId,
+            sourceIid: pending.sourceIid,
+            targets: [action.target],
+          },
+          pending.ops,
+        );
         return;
       }
 
@@ -815,7 +869,10 @@ export class Game {
         emit({ e: 'attackersDeclared', iids: [...action.attackers] });
         for (const iid of action.attackers) {
           const perm = findPermanent(st, iid);
-          if (perm) fireTriggers(st, this.db, emit, 'attacks', perm);
+          if (perm) {
+            fireTriggers(st, this.db, emit, 'attacks', perm);
+            fireMarkedAllyAttackTriggers(st, this.db, emit, perm);
+          }
         }
         checkStateBased(st, this.db, emit);
         if (st.winner !== null) return;
@@ -1010,6 +1067,9 @@ function legacyAwaiting(awaiting: Awaiting): LegacyAwaiting {
 }
 
 function normalizeAwaiting(awaiting: LegacyAwaiting, state: GameState): Awaiting {
+  if (awaiting.kind === 'chooseTarget') {
+    return { ...structuredClone(awaiting), abilityIndex: awaiting.abilityIndex ?? 0 };
+  }
   if (awaiting.kind !== 'foresee') return structuredClone(awaiting);
   return {
     ...awaiting,

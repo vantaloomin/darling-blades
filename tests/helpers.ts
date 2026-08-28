@@ -558,6 +558,7 @@ export function botAction(actions: Action[]): Action {
   const prefer: Action['type'][] = [
     'keepHand',
     'bottomCards',
+    'chooseTarget',
     'foresee',
     'playLand',
     'castSpell',

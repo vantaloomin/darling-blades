@@ -35,9 +35,16 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   boost: 0.9,
   addCounters: 0.8,
   // Board-dependent and worth nothing on a bare board, so it is priced just
-  // under a single addCounters rather than above it. Unreachable until a card
-  // actually prints the op, so this weight moves no measured number today.
+  // under a single addCounters rather than above it. Provisional until the
+  // section 4 costing rider runs.
   propagate: 0.7,
+  moveMark: 0.8, // Provisional until the section 4 costing rider runs.
+  removeMarks: 0.9, // Provisional until the section 4 costing rider runs.
+  markAll: 1.35, // Provisional until the section 4 costing rider runs.
+  loseLifePerTheirMarked: 1.1, // Provisional until the section 4 costing rider runs.
+  fetchLand: 0.9, // Provisional until the section 4 costing rider runs.
+  ifTargetMarked: 0.6, // Provisional until the section 4 costing rider runs.
+  severSelf: 0.8, // Provisional until the section 4 costing rider runs.
   tap: 0.7,
   extraLandDrop: 0.7,
   createToken: 1.15,
@@ -66,11 +73,21 @@ const KEYWORD_VALUE = {
   dreaded: 0.55,
 } as const;
 
+function appendEffectOps(out: EffectOp[], ops: readonly EffectOp[]): void {
+  for (const op of ops) {
+    out.push(op);
+    if (op.op === 'ifTargetMarked') {
+      appendEffectOps(out, op.then);
+      appendEffectOps(out, op.else ?? []);
+    }
+  }
+}
+
 export function cardEffectOps(card: CardDef): EffectOp[] {
   const ops: EffectOp[] = [];
-  for (const ability of card.abilities ?? []) ops.push(...(ability.ops ?? []));
-  for (const chapter of card.chapters ?? []) ops.push(...chapter);
-  ops.push(...(card.empower?.ops ?? []));
+  for (const ability of card.abilities ?? []) appendEffectOps(ops, ability.ops ?? []);
+  for (const chapter of card.chapters ?? []) appendEffectOps(ops, chapter);
+  appendEffectOps(ops, card.empower?.ops ?? []);
   return ops;
 }
 

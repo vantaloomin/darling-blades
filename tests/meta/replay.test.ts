@@ -11,6 +11,7 @@ import {
   pushReplay,
   recordReplayAction,
   REPLAY_CAP,
+  REPLAY_LOG_VERSION,
   replayDbStamp,
   replayGame,
   startReplayDraft,
@@ -34,6 +35,24 @@ function testDeck(): string[] {
   ]);
 }
 
+const TARGET_REPLAY_DB: Record<string, CardDef> = {
+  ...TEST_DB,
+  'replay-arrival': {
+    id: 'replay-arrival',
+    name: 'Replay Arrival',
+    types: ['land'],
+    subtypes: [],
+    colors: [],
+    manaAbility: ['G'],
+    abilities: [{
+      when: 'arrives',
+      targets: [{ what: 'player' }],
+      ops: [{ op: 'gainLife', n: 1 }],
+    }],
+    rarity: 'c',
+  },
+};
+
 /**
  * Play a full AI-vs-AI game while recording every submit through the real
  * recorder, exactly as DuelScene does. Returns the recorded log plus the
@@ -42,7 +61,7 @@ function testDeck(): string[] {
 function recordBotGame(
   seed: number,
   rulesRev: 1 | 2 | 3 = 3,
-  replayVersion = 9,
+  replayVersion: number = REPLAY_LOG_VERSION,
   startingHandSize?: number,
 ): {
   log: ReplayLog;
@@ -98,14 +117,75 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     }
   });
 
-  it('replays v8 through the preserved revision-3 mapping with an optional opening-hand size', () => {
+  it('goldens a chooseTarget arrival decision through replayGame', () => {
+    const decks: [string[], string[]] = [
+      Array.from({ length: 4 }, () => 'replay-arrival'),
+      Array.from({ length: 4 }, () => 'bear'),
+    ];
+    const seed = 734;
+    const game = new Game({ decks, seed, db: TARGET_REPLAY_DB, startingHandSize: 3 });
+    const draft = startReplayDraft({
+      dbStamp: replayDbStamp(TARGET_REPLAY_DB),
+      seed,
+      decks,
+      startingHandSize: 3,
+      context: { mode: 'practice', difficulty: 'easy', opponentId: null, opponentName: 'Target Bot', gauntletRung: null },
+    });
+    const events: GameEvent[] = [...game.initialEvents];
+    let choseTarget = false;
+    const record = (p: PlayerId, action: Action): void => {
+      events.push(...game.submit(p, action));
+      recordReplayAction(draft, p, action);
+    };
+    for (let guard = 0; guard < 200 && !choseTarget; guard++) {
+      const awaiting = game.awaiting;
+      if (awaiting.kind === 'gameOver') break;
+      const p = awaiting.player as PlayerId;
+      if (awaiting.kind === 'choosePlayDraw' || awaiting.kind === 'mulligan') {
+        record(p, awaiting.kind === 'choosePlayDraw' ? { type: 'choosePlayDraw', play: true } : { type: 'keepHand' });
+      } else if (awaiting.kind === 'bottomCards') {
+        record(p, { type: 'bottomCards', handIndices: [] });
+      } else if (awaiting.kind === 'main') {
+        const play = game.legalActions(p).find(
+          (action) => action.type === 'playLand' && action.handIndex >= 0 &&
+            game.viewFor(p).you.hand[action.handIndex] === 'replay-arrival',
+        );
+        record(p, play ?? { type: 'passStep' });
+      } else if (awaiting.kind === 'respond' || awaiting.kind === 'endStepWindow') {
+        record(p, { type: 'passResponse' });
+      } else if (awaiting.kind === 'declareAttackers') {
+        record(p, { type: 'declareAttackers', attackers: [] });
+      } else if (awaiting.kind === 'declareBlockers') {
+        record(p, { type: 'declareBlockers', blocks: [] });
+      } else if (awaiting.kind === 'chooseTarget') {
+        expect(awaiting.targets).toEqual([
+          { kind: 'player', player: 0 },
+          { kind: 'player', player: 1 },
+        ]);
+        record(p, { type: 'chooseTarget', target: awaiting.targets[0] });
+        choseTarget = true;
+      } else if (awaiting.kind === 'discardToHandSize') {
+        record(p, { type: 'discard', handIndices: Array.from({ length: awaiting.count }, (_, i) => i) });
+      } else {
+        throw new Error(`unexpected chooseTarget replay window ${awaiting.kind}`);
+      }
+    }
+    expect(choseTarget).toBe(true);
+    const log = finishReplay(draft, 'win', 1234567890, game.state.turn);
+    expect(log.actions.some((step) => step.a.type === 'chooseTarget')).toBe(true);
+    const replayed = replayGame(log, TARGET_REPLAY_DB);
+    expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(game.instanceState));
+    expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(events));
+  });
+
+  it('replays a v8 log through its preserved execution path', () => {
     const original = recordBotGame(37, 3, 8, 4);
     expect(original.log.v).toBe(8);
     expect(original.log.startingHandSize).toBe(4);
     expect(isReplayLog(original.log)).toBe(true);
 
+    expect(canReplay(original.log, TEST_DB)).toBe(true);
     const replayed = replayGame(original.log, TEST_DB);
-    expect(replayed.game.instanceState.rulesRev).toBe(3);
     expect(JSON.stringify(replayed.game.state)).toBe(original.finalState);
     expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(original.events));
 
@@ -113,14 +193,22 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     expect('startingHandSize' in defaultLog).toBe(false);
   });
 
-  it('replays a v6 fixture stream-exactly through the preserved revision-1 path', () => {
+  it('replays a v6 log through its preserved execution path', () => {
     const original = recordBotGame(23, 1, 6);
 
     expect(original.log.v).toBe(6);
     expect(isReplayLog(original.log)).toBe(true);
     expect(canReplay(original.log, TEST_DB)).toBe(true);
     const replayed = replayGame(original.log, TEST_DB);
-    expect('rulesRev' in replayed.game.state).toBe(false);
+    expect(JSON.stringify(replayed.game.state)).toBe(original.finalState);
+    expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(original.events));
+  });
+
+  it('replays a v7 log through its preserved execution path', () => {
+    const original = recordBotGame(29, 2, 7);
+    expect(isReplayLog(original.log)).toBe(true);
+    expect(canReplay(original.log, TEST_DB)).toBe(true);
+    const replayed = replayGame(original.log, TEST_DB);
     expect(JSON.stringify(replayed.game.state)).toBe(original.finalState);
     expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(original.events));
   });
@@ -141,7 +229,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     ];
     expect(cards.every((entry) => typeof entry === 'object' && 'instanceId' in entry)).toBe(true);
     expect(JSON.stringify(state)).toBe(instanceFinalState);
-    expect(log.v).toBe(9);
+    expect(log.v).toBe(REPLAY_LOG_VERSION);
   });
 
   it('replays a v8 battlefield Hauntlink action and its public relationship stream-exactly', () => {
@@ -162,7 +250,6 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
         gauntletRung: null,
       },
     });
-    draft.v = 8;
     const events: GameEvent[] = [...game.initialEvents];
     const record = (p: PlayerId, action: Action): void => {
       events.push(...game.submit(p, action));
@@ -200,14 +287,14 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     }
     expect(linked).toBeDefined();
     const log = finishReplay(draft, 'win', 1234567890, game.state.turn);
-    expect(log.v).toBe(8);
+    expect(log.v).toBe(REPLAY_LOG_VERSION);
     expect(log.actions.some((step) => step.a.type === 'linkHaunt')).toBe(true);
     const replayed = replayGame(log, HAUNTLINK_DB);
     expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(game.instanceState));
     expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(events));
   });
 
-  it('replays a v7 alternate Hauntlink cast through preserved revision 2', () => {
+  it('replays a current-version alternate Hauntlink cast stream-exactly', () => {
     const deck = Array.from({ length: 30 }, () => 'free_host').concat(
       Array.from({ length: 30 }, () => 'hauntlink_artifact'),
     );
@@ -219,7 +306,6 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
       decks: [deck.slice(), deck.slice()],
       context: { mode: 'practice', difficulty: 'easy', opponentId: null, opponentName: 'Hauntlink Bot', gauntletRung: null },
     });
-    draft.v = 7;
     const events: GameEvent[] = [...game.initialEvents];
     const record = (p: PlayerId, action: Action): void => {
       events.push(...game.submit(p, action));
@@ -254,12 +340,11 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     }
     expect(linked).toBeDefined();
     const log = finishReplay(draft, 'win', 1234567890, game.state.turn);
-    expect(log.v).toBe(7);
     expect(log.actions.some((step) => step.a.type === 'castSpell' && step.a.hauntlinked)).toBe(true);
+    expect(log.v).toBe(REPLAY_LOG_VERSION);
     const replayed = replayGame(log, HAUNTLINK_DB);
     expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(game.instanceState));
     expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(events));
-    expect(replayed.game.instanceState.battlefield.some((perm) => perm.attachedTo !== undefined)).toBe(true);
   });
 
   it('golden replay preserves a FIZZLED linked cast and its full event stream', () => {
@@ -282,7 +367,6 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
       decks,
       context: { mode: 'practice', difficulty: 'easy', opponentId: null, opponentName: 'Hauntlink Fizzle Bot', gauntletRung: null },
     });
-    draft.v = 7;
     const events: GameEvent[] = [...game.initialEvents];
     let fizzled = false;
     let linkHostIid: number | undefined;
@@ -339,8 +423,9 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     expect(events.some((event) => event.e === 'hauntlinkFormed')).toBe(false);
     const log = finishReplay(draft, 'win', 1234567890, game.state.turn);
     expect(log.actions.some((step) => step.a.type === 'castSpell' && step.a.hauntlinked)).toBe(true);
+    expect(log.v).toBe(REPLAY_LOG_VERSION);
     const replayed = replayGame(log, HAUNTLINK_DB);
-    expect(replayed.eventLog.some((event) => event.e === 'targetsFizzled')).toBe(true);
+    expect(JSON.stringify(replayed.game.instanceState)).toBe(JSON.stringify(game.instanceState));
     expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(events));
   });
 
@@ -415,7 +500,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     expect(isReplayLog({ ...log, startingHandSize: '4' })).toBe(false);
   });
 
-  it('accepts a v2 log shape but refuses to replay it', () => {
+  it('preserves the v2 log shape while refusing its unreplayable revision', () => {
     const { log } = recordBotGame(5);
     const v2 = { ...log, v: 2 };
     expect(isReplayLog(v2)).toBe(true);

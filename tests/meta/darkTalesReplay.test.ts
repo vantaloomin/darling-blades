@@ -8,6 +8,7 @@ import {
   recordReplayAction,
   replayDbStamp,
   replayGame,
+  REPLAY_LOG_VERSION,
   startReplayDraft,
   type ReplayLog,
 } from '../../src/meta/Replay';
@@ -134,7 +135,7 @@ function recordCancelledRetell(seed: number): { log: ReplayLog; state: string; e
 describe('Dark Tales replay version 3', () => {
   it('goldens both Skim and Retell action records through replay', () => {
     const original = recordDarkTales(17);
-    expect(original.log.v).toBe(9); // Current logs include Preserve actions under revision 3.
+    expect(original.log.v).toBe(REPLAY_LOG_VERSION);
     expect(original.log.actions.some((step) => step.a.type === 'skim')).toBe(true);
     expect(original.log.actions.some((step) => step.a.type === 'castSpell' && step.a.retell)).toBe(true);
 

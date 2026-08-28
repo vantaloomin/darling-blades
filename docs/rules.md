@@ -104,8 +104,8 @@ drives the rest via `passStep` and combat actions.
 
 Notes grounded in `phases.ts`:
 
-- Dawn triggers resolve with **no priority window** — they just happen (v1
-  triggers never target, so there is no decision to make).
+- Dawn triggers resolve with **no priority window** — they just happen. Arrival
+  triggers can defer a mandatory target choice; dawn triggers remain target-free.
 - The **draw skip** is exactly `state.turn === 1 && active === startingPlayer`.
 - At **cleanup**, if the active player is over 7 cards, the engine awaits
   `discardToHandSize`; after discarding, `finishCleanup` zeroes every
@@ -245,7 +245,7 @@ A card with an `empower` block (`CardDef.empower`, 1.3) may be cast for its
 normal cost, or for the combined cost (`combineManaCosts`) with the empowered
 flag set on the cast action. On resolution the empower ops run after the
 card's normal effect (for permanents, after its arrival triggers); empower ops
-are trigger-safe and never target. X spells cannot be empowered
+are trigger-safe and only `moveMark` may carry targets. X spells cannot be empowered
 (`validateAction` rejects the combination).
 
 **Empower is the only ADDITIVE cost in the game.** Retell, Preserve, Hauntlink
@@ -431,8 +431,8 @@ Magic:
 | Priority / stack  | The first pass flushes the whole stack. Current rev 2 may reopen afterward in combat/end when a resolved item and castable Charm pay for it; rev 1 never reopens. | Full priority passing after every object resolves.      |
 | Dawn triggers     | Resolve immediately, no window.                                                                | Go on the stack, players get priority.                  |
 | End-step window   | Non-active player only. Rev 2 starts with one window and may earn bounded post-flush reopens; rev 1 has exactly one. | Priority in the end step for both players.              |
-| Triggers          | **Never target** (v1 law); auto-resolve with no decision point.                                | Triggers may target and use the stack.                  |
-| Targeted effects  | **Single-target only** (`targets[0]`).                                                          | Arbitrary target counts.                                |
+| Triggers          | Arrival triggers may target and defer a mandatory choice; other triggers auto-resolve. | Triggers may target and use the stack.                  |
+| Targeted effects  | Spell targets may use `upTo: 2`; arrival triggers choose one target.              | Arbitrary target counts.                                |
 | Twin Blades (double strike) | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.        | Exists.                                                 |
 | Colors of mana    | Generic paid by an auto-tap solver; no mana pool, no floating mana.                             | Mana pool with manual tapping.                          |
 | Summoning-sick mana creatures | Cannot tap for mana the turn they enter (ramp is delayed one turn).                   | Depends on the ability (many can if it's not `{T}`).    |

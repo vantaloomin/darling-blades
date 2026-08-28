@@ -230,7 +230,13 @@ const keyOf = (cell: string) => cell.match(/^`(?:RULES\.)?(\w+)`$/)?.[1];
   });
 
   // Cross-check: every union op should have a `case` in runOp and vice versa.
-  const cases = new Set([...interpSrc.matchAll(/^\s*case '(\w+)':/gm)].map((m) => m[1]));
+  // Other interpreter switches also use string cases for conditions and
+  // trigger kinds. Cross-check only the EffectOp dispatch switch, otherwise a
+  // new AbilityDef condition is incorrectly reported as an unimplemented op.
+  const runOpStart = interpSrc.indexOf('function runOp(');
+  const runOpsStart = interpSrc.indexOf('export function runOps(', runOpStart);
+  const runOpSrc = interpSrc.slice(runOpStart, runOpsStart < 0 ? undefined : runOpsStart);
+  const cases = new Set([...runOpSrc.matchAll(/^\s*case '(\w+)':/gm)].map((m) => m[1]));
   for (const op of ops.filter((o) => !cases.has(o.name))) {
     drift.push(`docs/adding-cards.md: op \`${op.name}\` is in the EffectOp union but runOp has no case for it`);
   }
@@ -241,6 +247,31 @@ const keyOf = (cell: string) => cell.match(/^`(?:RULES\.)?(\w+)`$/)?.[1];
   const old = existingRows(block);
   const oldByKey = new Map(old.map((r) => [keyOf(r[0]) ?? '', r]));
   keyDrift(block, ops.map((o) => o.name), old.map((r) => keyOf(r[0])).filter((k): k is string => !!k));
+
+  const defaults: Record<string, [string, string]> = {
+    moveMark: [
+      'Moves one mark from the first chosen permanent you control to a different second permanent you control. The destination can receive its first mark.',
+      '(via mark triggers)',
+    ],
+    removeMarks: ['Removes every mark from the target creature.', '(via stat recompute)'],
+    markAll: ['Adds one mark to each creature you control, firing mark observers per creature.', '(via mark triggers)'],
+    loseLifePerTheirMarked: ['Your opponent loses 1 life for each marked creature they control.', 'lifeChanged'],
+    fetchLand: [
+      'Scans your deck from the top down, puts the first land found onto the battlefield tapped, and preserves the order of every other card.',
+      'permanentEntered',
+    ],
+    ifTargetMarked: [
+      'Runs the then branch when the target has a mark, otherwise the optional else branch.',
+      '(nested ops)',
+    ],
+  };
+  for (const [name, [semantics, notable]] of Object.entries(defaults)) {
+    const row = oldByKey.get(name);
+    if (row?.[2] === '(describe me)') {
+      row[2] = semantics;
+      row[3] = notable;
+    }
+  }
 
   const rows = ops.map(({ name, shape }) => {
     const prev = oldByKey.get(name);

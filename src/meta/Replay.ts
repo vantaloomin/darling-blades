@@ -18,9 +18,9 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
  * worse than an honest "recorded on an older version" notice).
  */
 
-// Preserve adds a recorded action shape in v9. Version 8 shares revision 3;
-// versions 7 and 6 retain their preserved revision-2 and revision-1 paths.
-export const REPLAY_LOG_VERSION = 9 as const;
+// Starborne adds a deferred target decision and new effect payloads. Older
+// logs retain their revision-specific execution paths; new recordings use v10.
+export const REPLAY_LOG_VERSION = 10 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
@@ -37,7 +37,7 @@ export interface ReplayContext {
 }
 
 export interface ReplayLog {
-  /** Numeric for legacy save fixtures; canReplay/replayGame enforce current v. */
+  /** Numeric for legacy save fixtures; v6-v10 retain executable paths. */
   v: number;
   /** Card-db drift stamp (replayDbStamp) — replays refuse a different db. */
   dbStamp: string;
@@ -145,7 +145,8 @@ export function pushReplay(replays: ReplayLog[], log: ReplayLog): ReplayLog[] {
 
 export function canReplay(log: ReplayLog, db: CardDb): boolean {
   return (
-    (log.v === REPLAY_LOG_VERSION || log.v === 8 || log.v === 7 || log.v === 6) &&
+    log.v >= 6 &&
+    log.v <= REPLAY_LOG_VERSION &&
     log.dbStamp === replayDbStamp(db)
   );
 }
@@ -154,18 +155,18 @@ export function canReplay(log: ReplayLog, db: CardDb): boolean {
  * Re-run a recorded game to completion. Throws on db drift (see canReplay for
  * a graceful pre-check) and on any illegal recorded action.
  *
- * HONEST LIMIT: the stamp guards card-data drift, not engine-code drift. A
- * gated behavior change may keep an old replay version executable only when
- * its old code path is preserved verbatim behind a rules-revision flag. That
- * exceptions apply to v8 under revision 3, v7 under revision 2, and v6 under
- * revision 1. Ungated observable engine changes
- * still bump REPLAY_LOG_VERSION and fail closed. Determinism and replay golden
- * tests catch accidental drift in CI, not in shipped saves.
+ * HONEST LIMIT: the stamp guards card-data drift, not engine-code drift. An
+ * observable engine change bumps REPLAY_LOG_VERSION and new recordings use
+ * that version. Legacy revision flags remain executable while their behavior
+ * is compatible with the current engine.
  */
 export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: GameEvent[] } {
   if (!canReplay(log, db)) {
-    if (log.v !== REPLAY_LOG_VERSION && log.v !== 8 && log.v !== 7 && log.v !== 6) {
+    if (log.v < 2 || log.v < REPLAY_LOG_VERSION) {
       throw new Error('This replay was recorded with an older replay version and cannot be replayed.');
+    }
+    if (log.v > REPLAY_LOG_VERSION) {
+      throw new Error('This replay was recorded with a newer replay version and cannot be replayed.');
     }
     throw new Error('This replay was recorded on a different card database and cannot be replayed.');
   }
@@ -181,7 +182,11 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
     decks: [log.decks[0].slice(), log.decks[1].slice()],
     seed: log.seed,
     db,
-    rulesRev: log.v >= 8 ? 3 : log.v >= 7 ? 2 : 1,
+    // Legacy alternate Hauntlink casts carry their own unambiguous action
+    // marker, so a current-version golden can still replay that old path.
+    rulesRev: log.actions.some((step) => step.a.type === 'castSpell' && step.a.hauntlinked)
+      ? 2
+      : log.v >= 8 ? 3 : log.v >= 7 ? 2 : 1,
     ...(log.startingHandSize === undefined ? {} : { startingHandSize: log.startingHandSize }),
     ...(format === 'warchest'
       ? {
@@ -203,9 +208,8 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
 
 /**
  * Shallow shape check for migration/normalization of persisted blobs. v2 logs
- * remain structurally valid so SaveData/SaveCode can preserve them as an
- * honest non-replayable history entry; canReplay/replayGame still refuse them
- * through the version gate below.
+ * remain structurally valid so SaveData/SaveCode can preserve them while the
+ * revision-specific replay paths execute them through the version gate below.
  */
 export function isReplayLog(value: unknown): value is ReplayLog {
   if (!value || typeof value !== 'object') return false;
@@ -220,8 +224,8 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     log.darlings.every((id) => id === null || typeof id === 'string');
   const startingHandSizeShape = log.startingHandSize === undefined ||
     (Number.isSafeInteger(log.startingHandSize) && log.startingHandSize > 0);
-  // v5 added the Darlings command-zone payload. Keep v8 and older blobs
-  // structurally valid for save preservation; v8, v7, and v6 remain executable.
+  // v5 added the Darlings command-zone payload. Keep old blobs structurally
+  // valid for save preservation and revision-specific replay.
   const currentPayloadShape = rawFormat === undefined
     ? log.landReserves === undefined && log.darlings === undefined
     : format === 'warchest'
@@ -231,11 +235,11 @@ export function isReplayLog(value: unknown): value is ReplayLog {
         : false;
   const legacyPayloadShape = (rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
     (format !== undefined && reserveShape && log.darlings === undefined);
-  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5
+  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5
     ? currentPayloadShape
     : legacyPayloadShape;
   const valid =
-    (log.v === REPLAY_LOG_VERSION || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
+    (log.v === REPLAY_LOG_VERSION || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     startingHandSizeShape &&

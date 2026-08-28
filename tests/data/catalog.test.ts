@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   manaValue,
+  validateChaptersDef,
+  validateEmpowerDef,
   validateHauntlinkDef,
+  validateMarkTriggerDef,
   validateNineLivesDef,
   validatePreserveDef,
   validateRiteDef,
 } from '../../src/engine/types';
+import type { CardDef } from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { AXES } from '../../src/data/axes';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
@@ -32,6 +36,41 @@ import { TK_WU } from '../../src/data/cards/tk-wu';
 import { TOKENS } from '../../src/data/cards/tokens';
 
 describe('catalog integrity', () => {
+  it('has no invalid Empower, mark-trigger, or chapter definitions across ALL_CARDS', () => {
+    for (const card of ALL_CARDS) {
+      const errors = [
+        ...validateEmpowerDef(card),
+        ...validateMarkTriggerDef(card),
+        ...validateChaptersDef(card),
+      ];
+      expect(errors, `${card.id} has invalid Starborne definition: ${errors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('rejects mark-event abilities that add marks and chaptered Retell cards', () => {
+    const invalidMarkTrigger: CardDef = {
+      id: 'invalid-mark-trigger',
+      name: 'Invalid Mark Trigger',
+      types: ['creature'],
+      subtypes: [],
+      colors: [],
+      rarity: 'c',
+      abilities: [{ when: 'gainsMark', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
+    };
+    const invalidChapters: CardDef = {
+      id: 'invalid-chapter-retell',
+      name: 'Invalid Chapter Retell',
+      types: ['ritual'],
+      subtypes: [],
+      colors: [],
+      rarity: 'c',
+      chapters: [[]],
+      retell: { cost: { generic: 1, pips: {} } },
+    };
+    expect(validateMarkTriggerDef(invalidMarkTrigger)).toEqual(['gainsMark abilities cannot add marks']);
+    expect(validateChaptersDef(invalidChapters)).toEqual(['Cards with chapters cannot carry Retell']);
+  });
+
   it('has no invalid Hauntlink definitions', () => {
     for (const card of Object.values(CARD_DB)) {
       if (!card.hauntlink) continue;

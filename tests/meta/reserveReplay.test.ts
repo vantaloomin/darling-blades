@@ -5,6 +5,7 @@ import {
   recordReplayAction,
   replayDbStamp,
   replayGame,
+  REPLAY_LOG_VERSION,
   startReplayDraft,
   type ReplayContext,
 } from '../../src/meta/Replay';
@@ -58,7 +59,7 @@ describe('Warchest replay v8', () => {
       landReserves: [RESERVE, RESERVE],
     });
     const original = recordToEnd(game, true);
-    expect(original.log.v).toBe(9); // Current logs include Preserve actions under revision 3.
+    expect(original.log.v).toBe(REPLAY_LOG_VERSION);
     expect(original.log.format).toBe('warchest');
     expect(original.log.landReserves).toEqual([RESERVE, RESERVE]);
     expect(isReplayLog(original.log)).toBe(true);

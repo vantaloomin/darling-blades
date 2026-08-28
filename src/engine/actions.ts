@@ -16,9 +16,24 @@ import {
   isType,
   manaValue,
   opponentOf,
+  validateEmpowerDef,
   validateHauntlinkDef,
   validatePreserveDef,
 } from './types';
+
+const moveMarkCache = new WeakMap<CardDef, { normal: boolean; empowered: boolean }>();
+
+function cardHasMoveMark(d: CardDef, empowered: boolean): boolean {
+  let cached = moveMarkCache.get(d);
+  if (!cached) {
+    cached = {
+      normal: d.abilities?.some((ab) => ab.when === 'spell' && (ab.ops ?? []).some((op) => op.op === 'moveMark')) ?? false,
+      empowered: d.empower?.ops.some((op) => op.op === 'moveMark') ?? false,
+    };
+    moveMarkCache.set(d, cached);
+  }
+  return empowered ? cached.empowered : cached.normal;
+}
 
 export type Action =
   | { type: 'choosePlayDraw'; play: boolean }
@@ -26,6 +41,7 @@ export type Action =
   | { type: 'mulligan' }
   | { type: 'bottomCards'; handIndices: number[] }
   | { type: 'foresee'; bottomIndices: number[] }
+  | { type: 'chooseTarget'; target: TargetRef }
   /** Classic uses handIndex. Reserve formats use reserveIndex and keep -1 as
    * a compatibility sentinel for the hand-oriented UI action plumbing. */
   | { type: 'playLand'; handIndex: number; reserveIndex?: number }
@@ -143,7 +159,6 @@ function pushCastActions(
     : [undefined];
   if (xs.length === 0) return;
 
-  const specs = castTargetSpecsFor(d, retell, hauntlinked);
   const sacrifices = d.rite
     ? state.battlefield
         .filter(
@@ -153,14 +168,12 @@ function pushCastActions(
         .slice(0, d.rite.n)
         .map((perm) => perm.iid)
     : undefined;
-  // Single-target v1: one action per (empower option × legal target × X).
-  const targetLists: (TargetRef[] | undefined)[] =
-    specs.length === 0
-      ? [undefined]
-      : enumerateTargets(state, db, player, specs[0]).map((t) => [t]);
+  // One action per (Empower option, legal target selection, X value).
   for (const empowered of !retell && !hauntlinked && canEmpower(d) ? [false, true] : [false]) {
     const cost = castCost(d, empowered, retell, hauntlinked);
     if (!cost) continue;
+    const specs = castTargetSpecsFor(d, retell, hauntlinked, empowered);
+    const targetLists = targetListsForCast(state, db, player, d, specs, empowered);
     // Payability depends only on (empowered, x) — hoisted out of the target loop.
     const payableXs = xs.filter((x) =>
       canPay(state, db, player, cost, d.x && !empowered && !retell ? x ?? 0 : 0),
@@ -215,11 +228,123 @@ function castTargetSpecsFor(
   d: CardDef,
   retell: boolean,
   hauntlinked = false,
+  empowered = false,
 ): ReturnType<typeof castTargetSpecs> {
   if (hauntlinked) return [{ what: 'yourCreature' }];
   // R4 Retell ops are trigger-safe and target-free. An override therefore
   // replaces the printed body's target requirements for that cast.
-  return retell && d.retell?.ops ? [] : castTargetSpecs(d);
+  if (retell && d.retell?.ops) return [];
+  if (empowered && d.empower?.targets) return d.empower.targets;
+  return castTargetSpecs(d);
+}
+
+function targetListsForCast(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+  specs: readonly import('./types').TargetSpec[],
+  empowered: boolean,
+): (TargetRef[] | undefined)[] {
+  if (specs.length === 0) return [undefined];
+  const moveMark = cardHasMoveMark(d, empowered);
+  if (specs.length === 1 && specs[0].upTo === undefined && !moveMark) {
+    return enumerateTargets(state, db, player, specs[0]).map((target) => [target]);
+  }
+  const candidatesFor = moveMark
+    ? (spec: import('./types').TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec).filter((ref) =>
+        ref.kind === 'permanent' &&
+        state.battlefield.find((perm) => perm.iid === ref.iid)?.controller === player,
+      )
+    : (spec: import('./types').TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec);
+  if (specs.length === 1 && specs[0].upTo !== undefined) {
+    const candidates = candidatesFor(specs[0]);
+    const out: TargetRef[][] = [[]];
+    for (const candidate of candidates) out.push([candidate]);
+    if (specs[0].upTo >= 2) {
+      for (let first = 0; first < candidates.length; first++) {
+        for (let second = first + 1; second < candidates.length; second++) {
+          out.push([candidates[first], candidates[second]]);
+        }
+      }
+    }
+    return out;
+  }
+  const out: TargetRef[][] = [];
+  const visit = (index: number, chosen: TargetRef[]): void => {
+    if (index === specs.length) {
+      if (moveMark && chosen.length === 2 && sameTarget(chosen[0], chosen[1])) return;
+      out.push([...chosen]);
+      return;
+    }
+    for (const candidate of candidatesFor(specs[index])) {
+      visit(index + 1, [...chosen, candidate]);
+    }
+  };
+  visit(0, []);
+  return out;
+}
+
+function hasCastableVariant(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+  retell = false,
+): boolean {
+  const variants = !retell && canEmpower(d) ? [false, true] : [false];
+  for (const empowered of variants) {
+    if (castBlockers(state, db, player, d, empowered, 0, retell) !== null) continue;
+    const specs = castTargetSpecsFor(d, retell, false, empowered);
+    if (targetListsForCast(state, db, player, d, specs, empowered).length > 0) return true;
+  }
+  return false;
+}
+
+function sameTarget(a: TargetRef | undefined, b: TargetRef | undefined): boolean {
+  if (!a || !b || a.kind !== b.kind) return false;
+  if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
+  if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
+  if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
+  if (a.kind === 'grave' && b.kind === 'grave') return a.player === b.player && a.index === b.index;
+  return false;
+}
+
+function validateTargetList(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  d: CardDef,
+  specs: readonly import('./types').TargetSpec[],
+  targets: TargetRef[],
+  empowered: boolean,
+): string | null {
+  const moveMark = cardHasMoveMark(d, empowered);
+  if (specs.length === 1 && specs[0].upTo !== undefined) {
+    if (targets.length > specs[0].upTo) return 'too many targets';
+    for (let index = 0; index < targets.length; index++) {
+      if (targets.slice(0, index).some((prior) => sameTarget(prior, targets[index]))) {
+        return 'upTo targets must be distinct';
+      }
+      const target = targets[index];
+      if (!isLegalTarget(state, db, player, specs[0], target)) return 'illegal target';
+    }
+  } else {
+    if (targets.length !== specs.length) return 'wrong number of targets';
+    for (let i = 0; i < specs.length; i++) {
+      if (!isLegalTarget(state, db, player, specs[i], targets[i])) return 'illegal target';
+    }
+  }
+  if (moveMark) {
+    if (
+      targets.length !== 2 ||
+      targets.some((target) => target.kind !== 'permanent') ||
+      targets.some((target) => target.kind === 'permanent' &&
+        state.battlefield.find((perm) => perm.iid === target.iid)?.controller !== player) ||
+      sameTarget(targets[0], targets[1])
+    ) return 'moveMark needs two distinct permanents you control';
+  }
+  return null;
 }
 
 function retellable(d: CardDef): boolean {
@@ -350,6 +475,7 @@ function castBlockers(
   retell = false,
   hauntlinked = false,
 ): string | null {
+  if (empowered && d.empower && validateEmpowerDef(d).length > 0) return 'invalid Empower definition';
   if (hauntlinked && !isHauntlinkCarrier(d)) return 'invalid Hauntlink carrier';
   if (!retell && !d.cost) return 'card has no mana cost';
   if (retell && !retellable(d)) return 'card cannot be Retold';
@@ -376,8 +502,8 @@ function castBlockers(
 }
 
 /**
- * Cast-time target enumeration lives in effects/targeting.ts from M5 onward.
- * Until then, cards requiring targets are simply not enumerated.
+ * Cast-time target enumeration lives in effects/targeting.ts. Spell upTo
+ * selections and the two distinct moveMark targets are enumerated here.
  */
 export function legalActions(state: GameState, db: CardDb, player: PlayerId): Action[] {
   const a = state.awaiting;
@@ -413,6 +539,10 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
       // 2^n actions for a large foresee. The empty pick is a canonical legal
       // fallback, while validateAction accepts every valid index set.
       out.push({ type: 'foresee', bottomIndices: [] });
+      break;
+
+    case 'chooseTarget':
+      for (const target of a.targets) out.push({ type: 'chooseTarget', target });
       break;
 
     case 'main': {
@@ -615,6 +745,16 @@ export function validateAction(
       return validIndexSet(action.bottomIndices, a.cards.length, 'foresee');
     }
 
+    case 'chooseTarget': {
+      if (a.kind !== 'chooseTarget') return 'not choosing a target';
+      const pending = state.pendingDecisions[0];
+      if (pending?.kind !== 'chooseTarget' || pending.player !== player) return 'no target decision is pending';
+      if (!a.targets.some((target) => sameTarget(target, action.target))) return 'illegal target';
+      return isLegalTarget(state, db, player, pending.spec, action.target, pending.sourceIid)
+        ? null
+        : 'illegal target';
+    }
+
     case 'playLand': {
       if (a.kind !== 'main') return 'not in a main phase';
       if (me.landDropsUsed >= 1 + me.extraLandDrops) return 'no land drops remaining this turn';
@@ -744,12 +884,10 @@ export function validateAction(
           return 'cannot pay cost';
         }
       }
-      const specs = castTargetSpecsFor(d, isRetell, isHauntlinked);
+      const specs = castTargetSpecsFor(d, isRetell, isHauntlinked, action.empowered === true);
       const targets = action.targets ?? [];
-      if (targets.length !== specs.length) return 'wrong number of targets';
-      for (let i = 0; i < specs.length; i++) {
-        if (!isLegalTarget(state, db, player, specs[i], targets[i])) return 'illegal target';
-      }
+      const targetError = validateTargetList(state, db, player, d, specs, targets, action.empowered === true);
+      if (targetError) return targetError;
       return null;
     }
 
@@ -977,6 +1115,7 @@ export function reasonUncastable(
     return UNCASTABLE_COPY[blocked] ?? "You can't cast this right now.";
   }
 
+  if (hasCastableVariant(state, db, player, d)) return null;
   const specs = castTargetSpecs(d);
   if (specs.length > 0 && enumerateTargets(state, db, player, specs[0]).length === 0) {
     return 'There are no legal targets for this spell.';
@@ -995,9 +1134,7 @@ export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerI
     // This check is also used before the response await state is installed.
     if (d.skim && canPay(state, db, player, d.skim.cost)) return true;
     if (!isType(d, 'charm')) continue;
-    if (castBlockers(state, db, player, d) !== null) continue;
-    const specs = castTargetSpecs(d);
-    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+    if (hasCastableVariant(state, db, player, d)) return true;
   }
 
   // A Retell Charm is also an instant for both window gates. Use the Retell
@@ -1006,8 +1143,7 @@ export function hasCastableInstant(state: GameState, db: CardDb, player: PlayerI
     const d = def(db, cardId);
     if (!isType(d, 'charm') || !retellable(d)) continue;
     if (castBlockers(state, db, player, d, false, 0, true) !== null) continue;
-    const specs = castTargetSpecsFor(d, true);
-    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+    if (hasCastableVariant(state, db, player, d, true)) return true;
   }
   return false;
 }
@@ -1023,16 +1159,13 @@ export function hasCastableCharm(state: GameState, db: CardDb, player: PlayerId)
   for (const cardId of me.hand) {
     const d = def(db, cardId);
     if (!isType(d, 'charm')) continue;
-    if (castBlockers(state, db, player, d) !== null) continue;
-    const specs = castTargetSpecs(d);
-    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+    if (hasCastableVariant(state, db, player, d)) return true;
   }
   for (const cardId of me.graveyard) {
     const d = def(db, cardId);
     if (!isType(d, 'charm') || !retellable(d)) continue;
     if (castBlockers(state, db, player, d, false, 0, true) !== null) continue;
-    const specs = castTargetSpecsFor(d, true);
-    if (specs.length === 0 || enumerateTargets(state, db, player, specs[0]).length > 0) return true;
+    if (hasCastableVariant(state, db, player, d, true)) return true;
   }
   return false;
 }

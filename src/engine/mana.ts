@@ -1,10 +1,10 @@
 import { isSummoningSick } from './statics';
-import type { CardDb, Color, GameState, ManaCost, PlayerId } from './types';
+import type { CardDb, Color, GameState, ManaColor, ManaCost, PlayerId } from './types';
 import { def, isType } from './types';
 
 export interface ManaSource {
   iid: number;
-  colors: Color[]; // colors this source can produce
+  colors: Color[]; // public legacy projection; runtime may also contain `C`
   isLand: boolean;
 }
 
@@ -29,7 +29,7 @@ export function manaSources(state: GameState, db: CardDb, player: PlayerId): Man
     // Simplification (documented in the plan): summoning-sick mana creatures
     // cannot be tapped for mana — ramp arrives on a one-turn delay.
     if (!isLand && isSummoningSick(state.battlefield, db, perm)) continue;
-    out.push({ iid: perm.iid, colors: [...d.manaAbility], isLand });
+    out.push({ iid: perm.iid, colors: [...d.manaAbility] as Color[], isLand });
   }
   return out;
 }
@@ -72,6 +72,9 @@ export function solveMana(
   // heuristic — spend the abundant color, keep the scarce one).
   const supply = colorSupply(leftovers);
   leftovers.sort((a, b) => {
+    const aColorless = manaColors(a).includes('C');
+    const bColorless = manaColors(b).includes('C');
+    if (aColorless !== bColorless) return aColorless ? -1 : 1;
     if (a.isLand !== b.isLand) return a.isLand ? -1 : 1;
     return maxSupply(b, supply) - maxSupply(a, supply) === 0
       ? a.colors.length - b.colors.length
@@ -120,14 +123,20 @@ function pipCount(cost: ManaCost): number {
 function colorSupply(sources: ManaSource[]): Map<Color, number> {
   const m = new Map<Color, number>();
   for (const s of sources) {
-    for (const c of s.colors) m.set(c, (m.get(c) ?? 0) + 1);
+    for (const c of manaColors(s)) {
+      if (c === 'C') continue;
+      m.set(c, (m.get(c) ?? 0) + 1);
+    }
   }
   return m;
 }
 
 function maxSupply(s: ManaSource, supply: Map<Color, number>): number {
   let best = 0;
-  for (const c of s.colors) best = Math.max(best, supply.get(c) ?? 0);
+  for (const c of manaColors(s)) {
+    if (c === 'C') continue;
+    best = Math.max(best, supply.get(c) ?? 0);
+  }
   return best;
 }
 
@@ -144,7 +153,7 @@ function assignPips(pips: Color[], sources: ManaSource[]): number[] | null {
   let ok = true;
   for (const pip of order) {
     const candidates = sources
-      .filter((s) => !taken.has(s.iid) && s.colors.includes(pip))
+      .filter((s) => !taken.has(s.iid) && manaColors(s).includes(pip))
       .sort((a, b) =>
         a.colors.length !== b.colors.length
           ? a.colors.length - b.colors.length
@@ -169,7 +178,7 @@ function assignPips(pips: Color[], sources: ManaSource[]): number[] | null {
   const backtrack = (i: number): boolean => {
     if (i === order.length) return true;
     for (const s of sources) {
-      if (used.has(s.iid) || !s.colors.includes(order[i])) continue;
+      if (used.has(s.iid) || !manaColors(s).includes(order[i])) continue;
       used.add(s.iid);
       result.push(s.iid);
       if (backtrack(i + 1)) return true;
@@ -179,4 +188,9 @@ function assignPips(pips: Color[], sources: ManaSource[]): number[] | null {
     return false;
   };
   return backtrack(0) ? result : null;
+}
+
+/** `C` is engine-only until the presentation projections are widened. */
+function manaColors(source: ManaSource): readonly ManaColor[] {
+  return source.colors as readonly ManaColor[];
 }
