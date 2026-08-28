@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-expansion-slate.md, docs/roadmap.md, docs/plan-1.6.md, docs/plan-mobile-overhaul.md, docs/plan-accessibility-i18n.md, docs/plan-story-mode.md, docs/plan-save-cards.md, src/engine/types.ts · last-verified: 2026-08-24 · program doc — the release spine from 1.7 to 2.0; re-verify when a release closes or the slate moves -->
+<!-- source-of-truth: docs/plan-expansion-slate.md, docs/roadmap.md, docs/plan-1.6.md, docs/plan-mobile-overhaul.md, docs/plan-accessibility-i18n.md, docs/plan-story-mode.md, docs/plan-save-cards.md, src/engine/types.ts · last-verified: 2026-08-28 · program doc — the release spine from 1.7 to 2.0; re-verify when a release closes or the slate moves -->
 
 # Road to 2.0
 
@@ -100,10 +100,18 @@ relief, Story Mode is the separable piece — nothing else depends on it.
 
 The release that would open next.
 
-- **Starborne**, ~150 cards cut from the 200-card overplan, on Propagate.
-- **The optimizer sweep**, run early, and the collection-dilution ruling it
-  unblocks (deferred twice: 2026-08-22, and again when the sweep did not run).
-- **Draft's reserve-native design** — open decision carried from 1.6.
+- **Starborne**, 151 cards cut from the 200-card overplan, on Propagate
+  (concretion locked 2026-08-25; see
+  [the overplan](expansions/drafts/starborne-overplan.md)).
+- **The optimizer sweep** — RAN 2026-08-27: the owner stopped it during round
+  2 of 4 after rounds 0 and 1 converged on similar results, judging further
+  rounds a poor spend. The collection-dilution ruling now proceeds from the
+  two finished rounds.
+- ~~**Draft's reserve-native design** — open decision carried from 1.6.~~
+  **CLOSED 2026-08-25: it had already shipped during the 1.6 reserve
+  migration.** The plan-1.6 entry was stale and was read as blocking work
+  twice more after the fact; see plan-1.6.md's closure note. Verify against
+  the code, not a plan list.
 - **Cheap debts**, all small:
   - A converter legal-target detector. `convertAvatarReserveDecks` keeps a card
     if it is an eligible spell and never checks it has legal targets in the
@@ -195,9 +203,11 @@ risk with a card type instead of a nerf.
 **Seven of the seventeen generators are `flex`**, so enabler density is a cut
 constraint, not a preference.
 
-**Set size: 150** (`75 C / 45 R / 14 SR / 10 SSR / 6 UR`), on Duat's shipped
+**Set size: 151** (`75 C / 45 R / 14 SR / 10 SSR / 7 UR`), on Duat's shipped
 rarity mix. The overplan had been written against 120; the Small-set cadence
-here wins.
+here wins. (The 2026-08-25 cut first targeted 150 with 6 UR; Eclipse-Red Queen
+was spared, putting the UR share at 4.6%, the shipped-set median — the
+overplan's cut-list header records the reasoning.)
 
 ## Feature placement
 

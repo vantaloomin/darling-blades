@@ -168,7 +168,7 @@ For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the even
 
 **Darling Blades is 1.6.4**, released 2026-08-25 (tag v1.6.4). The full solo loop (menu → optional tutorial → free starter claim → Gauntlet, Draft, or Practice → daily quests and rewards → shop → pack opening → collection / achievements → deck builder) is wired end to end, all 1,079 collectible cards have finished illustrated art, the 22-rung tower is measured against win-rate floors, and the test suite is green.
 
-**Coming next:** 1.7 pairs a new sci-fi set with the balance and measurement work 1.6 deferred, including collection pacing and Draft's reserve-native design. Beyond it: four more expansions through 2.0, creatures that can tap for more than attacking, a full accessibility pass, a mobile rebuild, deck suggestions built from your own collection, and Story Mode. Multiplayer is not planned; the game is single-player by design.
+**Coming next:** 1.7 pairs a new sci-fi set with the balance and measurement work 1.6 deferred, including collection pacing. Beyond it: four more expansions through 2.0, creatures that can tap for more than attacking, a full accessibility pass, a mobile rebuild, deck suggestions built from your own collection, and Story Mode. Multiplayer is not planned; the game is single-player by design.
 
 ## About this project
 

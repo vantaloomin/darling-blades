@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/glossary.ts, balance/power-scores.json, docs/keyword-map.md · last-verified: 2026-08-25 · design doc — how to cost and combine cards; re-verify when a keyword, mechanic, or the power formula changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/glossary.ts, balance/power-scores.json, docs/keyword-map.md · last-verified: 2026-08-28 · design doc — how to cost and combine cards; re-verify when a keyword, mechanic, or the power formula changes -->
 
 # Card Building Guide
 
@@ -172,8 +172,8 @@ Three things fall out of this:
 
 ### Nine Lives against marks: INTENDED FRICTION, ruled 2026-08-26
 
-Nine Lives reads: *"when this dies with no +1/+1 marks on it, it returns with a
-+1/+1 mark on it."* **Putting a mark on a Nine Lives creature disables its
+Nine Lives reads: *"when this dies with no +1/+1 marks on it, it returns to the
+battlefield with a +1/+1 mark on it."* **Putting a mark on a Nine Lives creature disables its
 return**, verified in `EffectInterpreter.ts`, which bails on
 `fallen.plusOneCounters !== 0`. There are 30 Nine Lives cards, 11 of them
 commons, across Dark Tales and Sands of the Duat.
@@ -185,8 +185,9 @@ rather than being punished.
 
 Two facts that make the ruling hold, and that a future change could break:
 
-- **The choice is genuinely the player's on 19 of the 25 Starborne generators**,
-  which target. All 13 mark generators in the pre-Starborne pool are
+- **The choice is genuinely the player's on 19 of the 24 Starborne generators**,
+  which target. (An earlier count said 25; Propagation Choir is a payoff that
+  triggers on marks being added, not a generator.) All 13 mark generators in the pre-Starborne pool are
   self-targeting or "target creature you control", so the collision could not
   happen by accident before this set at all.
 - **The rule is discoverable in-game**, though only through the glossary. The

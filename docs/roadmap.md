@@ -1771,13 +1771,14 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   markers, and Gauntlet recap are now shipped. The remaining QOL follow-up is
   exposing in-Settings toggles for `confirmDestructive` + `keywordReminders`
   (needs a wider Settings relayout).
-- **Mobile Tier 2 — LAN PvP (back-burnered).** Tier 1 phone-over-LAN play
+- **Mobile Tier 1 follow-up — real-device pass.** Tier 1 phone-over-LAN play
   SHIPPED 2026-07-03 (see Recently shipped); the tiered design doc is
-  [docs/mobile-lan-plan.md](mobile-lan-plan.md). What remains of the plan:
-  Tier 2 host-authoritative LAN PvP over the engine's existing
-  seat-checked/redacted-view seam and the Tier 3 stretch items — both
-  deliberately deferred — plus the Tier-1 **real-device pass** (gesture
-  thresholds, iOS audio, FIT feel).
+  [docs/mobile-lan-plan.md](mobile-lan-plan.md). What remains of the plan is
+  the Tier-1 **real-device pass** (gesture thresholds, iOS audio, FIT feel).
+  Tier 2 LAN PvP and the Tier 3 stretch items are CANCELLED with the rest of
+  multiplayer (2026-08-24 ruling — see the note at the top of Planned and
+  [plan-multiplayer.md](plan-multiplayer.md)); the engine's seat-checked
+  redacted-view seam stays, as engine hygiene rather than a PvP foundation.
 - **A by-ear / by-eye polish pass.** The ambient-music `MOODS` table
   (`src/audio/musicPatterns.ts`) still needs an iterative-listening pass, and
   the perceptual list grew with the 2026-07-04 features: SFX loudness balance
