@@ -1743,6 +1743,15 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   run-reward tuning — draft runs are free to enter and pay
   `limitedRunGold` on completion). Blocker
   detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
+- **The Starborne engine wave (ruled 2026-08-28, spec awaiting owner
+  approval).** The mark vocabulary the locked set assumes: targeted arrival
+  triggers (the "Triggers never target" snapshot guideline retires by owner
+  ruling), mark-event triggers, marked static filters and conditions, the
+  mark ops (move, remove, board-wide, per-marked drains), fetchLand,
+  colorless {C} production, and Ritual quest chapters. Spec:
+  [plan-starborne-engine-wave.md](plan-starborne-engine-wave.md). Gates the
+  merge of the 151-card transcription (`feat/starborne-cards`, 64 UNMAPPED
+  entries are the acceptance list) and therefore the set going live.
 - **Editable Limited Warchest, after automatic filling (ruled 2026-08-19,
   reconfirmed 2026-08-28).** The
   [2026-08-19 ruling §2.1](plan-1.6-rulings-2026-08-19.md) stands: the Limited
