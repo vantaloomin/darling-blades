@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -462,7 +462,9 @@ describe('persona metagame loop', () => {
         .split('\n').filter((l) => l.trim());
       const partial = lines.filter((l) => (JSON.parse(l) as { round: number }).round === 0);
       expect(partial).toHaveLength(2);
-      writeFileSync(join(second, 'craft-journal.jsonl'), `${partial.join('\n')}\n`, 'utf8');
+      const header = lines.find((line) => (JSON.parse(line) as { type?: string }).type === 'config');
+      expect(header).toBeDefined();
+      writeFileSync(join(second, 'craft-journal.jsonl'), `${[header!, ...partial].join('\n')}\n`, 'utf8');
 
       expect(run(second, ['--resume'])).toBe(0);
       // Craft seeds derive from run seed + round + persona id, so a resumed run
@@ -484,6 +486,166 @@ describe('persona metagame loop', () => {
     it('returns an empty map when there is no journal yet', () => {
       expect(readCraftJournal(join(tmpdir(), 'no-such-journal.jsonl')).size).toBe(0);
     });
+  });
+
+  it('recovers every complete craft when torn appends are followed by multiple resumes', () => {
+    const source = mkdtempSync(join(tmpdir(), 'darling-torn-source-'));
+    const recovery = mkdtempSync(join(tmpdir(), 'darling-torn-recovery-'));
+    tempDirs.push(source, recovery);
+    const common = [
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters',
+      '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ];
+    const cli = {
+      today: () => '2026-08-25',
+      log: () => undefined,
+      measure: (_deck: readonly string[], options: MeasureOptions) => measured(options.field),
+    };
+    expect(runCli([...common, '--out', source], cli)).toBe(0);
+    const sourceLines = readFileSync(join(source, 'craft-journal.jsonl'), 'utf8')
+      .split('\n').filter((line) => line.trim());
+    const header = sourceLines.find((line) => (JSON.parse(line) as { type?: string }).type === 'config');
+    const firstCraft = sourceLines.find((line) => {
+      const entry = JSON.parse(line) as { round?: number; personaId?: string };
+      return entry.round === 0 && entry.personaId === 'burn';
+    });
+    expect(header).toBeDefined();
+    expect(firstCraft).toBeDefined();
+    const journal = join(recovery, 'craft-journal.jsonl');
+    writeFileSync(journal, `${header}\n${firstCraft}\n{"round":0,"personaId":"wee`, 'utf8');
+
+    expect(runCli([
+      ...common, '--out', recovery, '--journal', journal, '--resume',
+    ], cli)).toBe(0);
+    expect(readCraftJournal(journal).size).toBe(4);
+
+    writeFileSync(journal, `${readFileSync(journal, 'utf8')} {"round":1,"personaId":"torn"`, 'utf8');
+    expect(runCli([
+      ...common, '--out', recovery, '--journal', journal, '--resume',
+    ], cli)).toBe(0);
+    expect(readCraftJournal(journal).size).toBe(4);
+  });
+
+  it('refuses to resume a journal stamped for a different configuration', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-config-mismatch-'));
+    tempDirs.push(dir);
+    const common = [
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters',
+      '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ];
+    const cli = {
+      today: () => '2026-08-25',
+      log: () => undefined,
+      measure: (_deck: readonly string[], options: MeasureOptions) => measured(options.field),
+    };
+    expect(runCli([...common, '--out', dir], cli)).toBe(0);
+    const errors: string[] = [];
+    const mismatch = [...common];
+    mismatch[mismatch.indexOf('--seed') + 1] = '424243';
+    expect(runCli([
+      ...mismatch, '--out', dir, '--resume',
+    ], { ...cli, error: (message: string) => errors.push(message) })).toBe(1);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('configuration mismatch');
+    expect(errors[0]).toContain('seed 424242');
+  });
+
+  it('refuses an old-format journal with a clear migration message', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-old-journal-'));
+    tempDirs.push(dir);
+    const journal = join(dir, 'craft-journal.jsonl');
+    writeFileSync(journal, '{"round":0,"personaId":"burn","crafted":{"round":0}}\n', 'utf8');
+    const errors: string[] = [];
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--journal', journal, '--field', 'starters', '--pool', 'all', '--seeds', '1',
+      '--iterations', '0', '--seed', '424242', '--resume',
+    ], { error: (message: string) => errors.push(message) })).toBe(1);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('predates config stamping');
+  });
+
+  it('rotates an existing journal before a fresh start', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-journal-rotate-'));
+    tempDirs.push(dir);
+    const journal = join(dir, 'craft-journal.jsonl');
+    const args = [
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--journal', journal, '--field', 'starters', '--pool', 'all', '--seeds', '1',
+      '--iterations', '0', '--seed', '424242',
+    ];
+    const cli = {
+      today: () => '2026-08-25',
+      log: () => undefined,
+      measure: (_deck: readonly string[], options: MeasureOptions) => measured(options.field),
+    };
+    expect(runCli(args, cli)).toBe(0);
+    const before = readFileSync(journal, 'utf8');
+    expect(runCli(args, cli)).toBe(0);
+    const rotated = readdirSync(dir).filter((name) => name.startsWith('craft-journal.jsonl.old-'));
+    expect(rotated).toHaveLength(1);
+    expect(readFileSync(join(dir, rotated[0]), 'utf8')).toBe(before);
+  });
+
+  it('uses actual persona IDs for non-roster order and resumes those entries', () => {
+    const first = mkdtempSync(join(tmpdir(), 'darling-order-first-'));
+    const second = mkdtempSync(join(tmpdir(), 'darling-order-second-'));
+    tempDirs.push(first, second);
+    const common = [
+      '--metagame', '--personas', 'weenie,burn', '--rounds', '1', '--field', 'starters',
+      '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ];
+    const cli = {
+      today: () => '2026-08-25',
+      log: () => undefined,
+      measure: (_deck: readonly string[], options: MeasureOptions) => measured(options.field),
+    };
+    const firstJournal = join(first, 'craft-journal.jsonl');
+    const firstStatus = join(first, 'status.json');
+    expect(runCli([
+      ...common, '--out', first, '--journal', firstJournal, '--status-file', firstStatus,
+    ], cli)).toBe(0);
+    const lines = readFileSync(firstJournal, 'utf8').split('\n').filter((line) => line.trim());
+    const entries = lines
+      .map((line) => JSON.parse(line) as { type?: string; round?: number; personaId?: string });
+    expect(entries.find((entry) => entry.type === 'config')).toMatchObject({
+      type: 'config',
+      version: 1,
+      config: {
+        seed: 424242,
+        seeds: 1,
+        iterations: 0,
+        maxRounds: 1,
+        personaIds: ['burn', 'weenie'],
+        templateVersion: PERSONA_TEMPLATE_VERSION,
+        poolId: 'all',
+        field: 'starters',
+      },
+    });
+    expect(entries.filter((entry) => entry.type !== 'config').map((entry) => entry.personaId))
+      .toEqual(['burn', 'weenie', 'burn', 'weenie']);
+    const status = JSON.parse(readFileSync(firstStatus, 'utf8')) as {
+      finishedCrafts: Array<{ round: number; personaIndex: number; personaId: string }>;
+    };
+    expect(status.finishedCrafts.slice(0, 2)).toMatchObject([
+      { round: 0, personaIndex: 0, personaId: 'burn' },
+      { round: 0, personaIndex: 1, personaId: 'weenie' },
+    ]);
+    const baseline = [
+      readFileSync(join(first, '2026-08-25-metagame-burn-all.json'), 'utf8'),
+      readFileSync(join(first, '2026-08-25-metagame-weenie-all.json'), 'utf8'),
+    ];
+    const header = lines.find((line) => (JSON.parse(line) as { type?: string }).type === 'config');
+    const seedEntries = lines.filter((line) => (JSON.parse(line) as { round?: number }).round === 0);
+    const secondJournal = join(second, 'craft-journal.jsonl');
+    writeFileSync(secondJournal, `${[header!, ...seedEntries].join('\n')}\n`, 'utf8');
+    expect(runCli([
+      ...common, '--out', second, '--journal', secondJournal, '--resume',
+    ], cli)).toBe(0);
+    expect([
+      readFileSync(join(second, '2026-08-25-metagame-burn-all.json'), 'utf8'),
+      readFileSync(join(second, '2026-08-25-metagame-weenie-all.json'), 'utf8'),
+    ]).toEqual(baseline);
   });
 
   it('documents the loop policy in CLI help', () => {

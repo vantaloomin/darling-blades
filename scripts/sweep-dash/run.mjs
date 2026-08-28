@@ -6,8 +6,8 @@
 //   npm run sweep-dash                        (http://localhost:5185/)
 //   SWEEP_STATUS_FILE=path npm run sweep-dash (non-default status location)
 import { createServer } from 'node:http';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -15,6 +15,26 @@ const ROOT = join(HERE, '..', '..');
 const STATUS_FILE = process.env.SWEEP_STATUS_FILE
   ?? join(ROOT, 'balance', 'metagame-sweep-status.json');
 const PORT = Number(process.env.SWEEP_DASH_PORT ?? 5185);
+
+export function selectCurrentArtifactFiles(candidates, runStartedAtMs = undefined) {
+  const dated = candidates.filter((candidate) => /^\d{4}-\d{2}-\d{2}$/.test(candidate.datePrefix));
+  if (dated.length === 0) return [];
+  const newestDate = dated.reduce((latest, candidate) =>
+    candidate.datePrefix > latest ? candidate.datePrefix : latest, dated[0].datePrefix);
+  let current = dated.filter((candidate) => candidate.datePrefix === newestDate);
+  if (Number.isFinite(runStartedAtMs)) {
+    current = current.filter((candidate) => candidate.mtimeMs >= runStartedAtMs);
+  }
+  const newestByPersona = new Map();
+  for (const candidate of current) {
+    const prior = newestByPersona.get(candidate.personaId);
+    if (!prior || candidate.mtimeMs > prior.mtimeMs ||
+      (candidate.mtimeMs === prior.mtimeMs && candidate.file.localeCompare(prior.file) > 0)) {
+      newestByPersona.set(candidate.personaId, candidate);
+    }
+  }
+  return [...newestByPersona.values()].sort((a, b) => a.personaId.localeCompare(b.personaId));
+}
 
 /**
  * Compact per-round summaries from the checkpoint artifacts.
@@ -27,17 +47,35 @@ const PORT = Number(process.env.SWEEP_DASH_PORT ?? 5185);
  */
 function readArtifactSummaries() {
   let outDir;
-  try { outDir = JSON.parse(readFileSync(STATUS_FILE, 'utf8')).outDir; } catch { return []; }
+  let status;
+  try {
+    status = JSON.parse(readFileSync(STATUS_FILE, 'utf8'));
+    outDir = status.outDir;
+  } catch { return []; }
   if (!outDir) return [];
   let files;
   try { files = readdirSync(outDir).filter((f) => f.includes('-metagame-') && f.endsWith('.json')); }
   catch { return []; }
-  const out = [];
+  const candidates = [];
   for (const file of files) {
     let artifact;
     try { artifact = JSON.parse(readFileSync(join(outDir, file), 'utf8')); } catch { continue; }
     if (!artifact?.persona?.id || !Array.isArray(artifact?.metagame?.rounds)) continue;
-    out.push({
+    let mtimeMs;
+    try { mtimeMs = statSync(join(outDir, file)).mtimeMs; } catch { continue; }
+    candidates.push({
+      file,
+      datePrefix: file.slice(0, 10),
+      mtimeMs,
+      personaId: artifact.persona.id,
+      artifact,
+    });
+  }
+  const startedAtMs = typeof status.startedAt === 'string' ? Date.parse(status.startedAt) : undefined;
+  const selected = selectCurrentArtifactFiles(candidates, startedAtMs);
+  const out = selected.map(({ artifact, datePrefix, mtimeMs }) => ({
+      runDate: datePrefix,
+      artifactMtimeMs: mtimeMs,
       personaId: artifact.persona.id,
       personaName: artifact.persona.name,
       stoppedReason: artifact.metagame.summary?.stoppedReason,
@@ -58,8 +96,7 @@ function readArtifactSummaries() {
           name: m.referenceName, rate: m.rate, rowWins: m.rowWins, colWins: m.colWins, draws: m.draws,
         })),
       })),
-    });
-  }
+    }));
   out.sort((a, b) => a.personaId.localeCompare(b.personaId));
   return out;
 }
@@ -81,6 +118,8 @@ const server = createServer((req, res) => {
   res.end(readFileSync(join(HERE, 'dashboard.html'), 'utf8'));
 });
 
-server.listen(PORT, () => {
-  console.log(`sweep-dash: http://localhost:${PORT}/ (status file: ${STATUS_FILE})`);
-});
+if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
+  server.listen(PORT, () => {
+    console.log(`sweep-dash: http://localhost:${PORT}/ (status file: ${STATUS_FILE})`);
+  });
+}
