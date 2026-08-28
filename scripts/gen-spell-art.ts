@@ -1,5 +1,5 @@
 /**
- * Generates real card art for the 204 non-creature SPELL/ARTIFACT/LAND prompt
+ * Generates real card art for the 266 non-creature SPELL/ARTIFACT/LAND prompt
  * entries: the 85 primary entries (18 instants, 16 sorceries, 10 enchantments,
  * 1 artifact, + 9 Ragnarök spells/runes, + 31 Gothic Monsters
  * charms/rituals/enchantments/artifacts), plus eight removal-answer records,
@@ -66,7 +66,7 @@ const GEN_SIZE = '1024x1536';
 const GEN_TIMEOUT_S = 300;
 
 /**
- * The 204 spell ids docs/spell-art.md must cover, in the authored order (instants
+ * The 266 spell ids docs/spell-art.md must cover, in the authored order (instants
  * → sorceries → enchantments → the Jade Seal → Ragnarök → Gothic Monsters →
  * the removal answer cycle).
  * Parsing cross-checks against this
@@ -166,6 +166,29 @@ const EXPECTED_IDS = [
   'sd-ward-the-floodgate', 'sd-harvest-after-rain', 'sd-flood-before-noon',
   'sd-warding-of-the-first-furrow', 'sd-deeper-flood-channel',
   'sd-granary-of-rising-years', 'sd-route-beyond-the-gate',
+  // Starborne non-creatures (62), added 2026-08-28 - authored from the locked
+  // 151-card overplan; card data rides feat/starborne-cards, so ids are the
+  // authority here until starborne.ts merges.
+  'sb-prism-deflection', 'sb-orbital-cleansing', 'sb-chrome-medallion',
+  'sb-cometary-verdict', 'sb-pale-nebula', 'sb-signal-inversion',
+  'sb-prism-current', 'sb-relay-station', 'sb-sky-map', 'sb-deepfield-lands',
+  'sb-night-market-bargain', 'sb-umbral-antenna', 'sb-corpse-lantern',
+  'sb-darkside-landing', 'sb-flareburst', 'sb-solar-arc', 'sb-ignition-hymn',
+  'sb-redline-salvage', 'sb-starfall-barrage', 'sb-ember-lane',
+  'sb-warhead-glint', 'sb-root-of-light', 'sb-gravitic-bloom',
+  'sb-orbital-graft', 'sb-overcanopy', 'sb-starborne-relay',
+  'sb-null-orbit-array', 'sb-interstellar-crossing', 'sb-violet-wake-beacon',
+  'sb-white-signal-bastion', 'sb-blue-echo-array', 'sb-black-starving-orbit',
+  'sb-red-solar-lash', 'sb-green-propagation-chorus', 'sb-chromelight-lattice',
+  'sb-pale-violet-crossing', 'sb-eclipse-docking-ring', 'sb-ember-void-rail',
+  'sb-radiant-comet-lane', 'sb-aurora-reefway', 'sb-propagation-engine',
+  'sb-deep-space-severance', 'sb-hullwake-overdrive', 'sb-signal-cathedral',
+  'sb-propagation-choir', 'sb-starborne-apotheosis', 'sb-redline-supernova',
+  'sb-halo-motherboard', 'sb-quiet-orbit', 'sb-marrow-eviction',
+  'sb-signal-drown', 'sb-collapse-the-lane', 'sb-relay-bloom', 'sb-echo-burst',
+  'sb-signal-recall', 'sb-void-lament', 'sb-hullsong', 'sb-bloomdrive-surge',
+  'sb-overcharge-the-hull', 'sb-eclipse-tithe', 'sb-brood-communion',
+  'sb-the-long-crossing',
 ] as const;
 
 /**
