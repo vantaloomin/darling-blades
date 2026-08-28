@@ -1531,10 +1531,43 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 > below remain the per-item detail; that doc is the schedule.
 >
 > Two standing corrections it carries: **multiplayer is cancelled** (the README
-> promised it in two places and has been fixed), and **cloud saves is the only
-> listed feature with neither a plan doc nor code**, so it is parked at 2.1
-> pending a spec rather than given a false estimate.
+> promised it in two places and has been fixed), and cloud saves was **the only
+> listed feature with neither a plan doc nor code**. That gap is now closed on
+> the doc side by
+> [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md)
+> (investigation, 2026-08-28); it stays parked at 2.1 until its open decisions
+> are ruled, and still has no code.
 
+- **Anonymous telemetry + optional cloud accounts (investigation, 2026-08-28).**
+  Two independent capabilities specced together in
+  [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md) because they
+  share one privacy posture and one hard prohibition: they must never be
+  joinable. **Telemetry** carries no identifier of any kind (state snapshots,
+  never user timelines; streak/achievement values are reported as bucketed
+  numbers the client already computes), which is what keeps GDPR/ePrivacy,
+  CCPA/CPRA, and COPPA compliance to a Settings toggle, a privacy page, and
+  honouring GPC rather than a consent banner. Proposed carrier is our own
+  Cloudflare Worker writing to Workers Analytics Engine, so no third-party
+  analytics vendor ever receives player data; free tier is 100k requests/day and
+  100k data points/day with fixed 90-day retention. **Cloud accounts** are
+  optional, unlock nothing, and are fully self-managed (see, edit, export,
+  delete) on Supabase's free tier, sitting behind the `SaveSyncProvider`
+  interface [plan-save-portability.md](plan-save-portability.md) already
+  specifies; the shipped `src/meta/SaveCode.ts` envelope is the blob, so this is
+  transport rather than a new format. Known risks written down: Supabase free
+  projects pause after a week of inactivity, Tauri webview OAuth redirects are
+  the wave that can fail, and a full decklist is a fingerprint (hence per-card
+  rows carry no deck reference and a k-anonymity floor applies at query time).
+  **All eight decisions were RULED 2026-08-28** — stats default ON with a
+  one-time notice, no client identifier, two vendors, **both renames**
+  (`src/meta/telemetry.ts` becomes `balanceTelemetry.ts`; the new pure module is
+  `playSignals.ts` — owner ruling), telemetry rides 1.8 and accounts stay 2.1,
+  an account never unlocks anything, accounts are 16+ with no gate on the game,
+  and the desktop build reports. The execution plan is
+  [rollout-telemetry-and-accounts.md](rollout-telemetry-and-accounts.md): wave 0
+  is the rename (3 importing files) plus the **v35 save bump**, which finally
+  carries the `CosmeticsSave.cardBack`/`playmat` removal that has been parked
+  since v33 waiting for exactly this. **No code exists and none is authorized.**
 - **Save cards: a PNG that carries your save (candidate, proposed 2026-08-24).**
   Export a save as an image instead of a text code: the player picks card art
   they own, the game composites a titled cover, and the existing `DBS1-…` string

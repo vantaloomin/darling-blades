@@ -226,14 +226,24 @@ Every Road-to-2.0 feature, and where it lands.
 | AI suggested decks | Spec'd, no code | 1.9 |
 | Story Mode | Spec'd, no code | 2.0 |
 | AI replay coaching | Spec'd, no code | 2.1 |
-| Cloud saves / accounts | **No spec, no code** | 2.1, spec first |
+| Cloud saves / accounts | **Spec'd + decisions ruled 2026-08-28** ([spec](plan-telemetry-and-accounts.md), [rollout](rollout-telemetry-and-accounts.md)), no code | 2.1 |
+| Anonymous telemetry | **Spec'd + decisions ruled 2026-08-28** (same pair), no code | 1.8 |
 | UGC / mods | Spec'd, no code | 2.1 |
 | Multiplayer | **CANCELLED** | — |
 
-**Cloud saves is the only item with neither a plan doc nor code**, and the only
-one forcing questions nothing else here does: identity, a server, conflict
-resolution. It needs a spec written before it can be scheduled, which is why it
-sits at 2.1 rather than carrying a false estimate.
+Cloud saves **was** the only item with neither a plan doc nor code, and it is
+still the only one forcing questions nothing else here does: identity, a server,
+conflict resolution. [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md)
+(investigation, 2026-08-28) supplies the spec — vendor, free-tier numbers, the
+self-service manage/delete flow, the layering, and the save-schema amendments —
+so the item is no longer estimate-less. **All eight of its open decisions were
+ruled 2026-08-28**, and
+[rollout-telemetry-and-accounts.md](rollout-telemetry-and-accounts.md) carries
+the wave plan, the owner-only prerequisites, and the ops runbook. It stays at
+2.1 on scope, not on uncertainty. Anonymous telemetry is new to this table: it
+came out of the same investigation, is far cheaper than accounts, and lands at
+1.8 rather than 2.1 on the grounds that a trend line is worth what its length is
+worth.
 
 ## Multiplayer is cancelled
 
