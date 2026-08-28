@@ -1750,7 +1750,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   mark ops (move, remove, board-wide, per-marked drains), fetchLand,
   colorless {C} production, and Ritual quest chapters. Spec:
   [plan-starborne-engine-wave.md](plan-starborne-engine-wave.md). Gates the
-  merge of the 151-card transcription (`feat/starborne-cards`, 64 UNMAPPED
+  merge of the 151-card transcription (`feat/starborne-cards`, 65 UNMAPPED
   entries are the acceptance list) and therefore the set going live.
 - **Editable Limited Warchest, after automatic filling (ruled 2026-08-19,
   reconfirmed 2026-08-28).** The
