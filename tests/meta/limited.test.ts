@@ -550,8 +550,6 @@ describe('limited basics follow pip demand, with a floor per colour', () => {
 
   const red = cardWithPip('R');
   const blue = cardWithPip('U');
-  const redPips = red.cost!.pips.R ?? 0;
-  const bluePips = blue.cost!.pips.U ?? 0;
 
   it('gives the heavier colour the larger share', () => {
     // Sized in PIPS, not cards, because that is what the allocator reads.
@@ -598,13 +596,35 @@ describe('limited basics follow pip demand, with a floor per colour', () => {
   });
 
   it('reads pips rather than card counts', () => {
-    // Guards the distinction the allocator turns on: equal CARD counts with
-    // unequal pip counts must not produce an equal split.
-    if (redPips === bluePips) return;
-    const deck = [...Array(6).fill(red.id), ...Array(6).fill(blue.id)];
-    const counts = countOf(limitedBasics(CARD_DB, deck, 10));
-    const heavier = redPips > bluePips ? 'land-mountain' : 'land-island';
-    const lighter = redPips > bluePips ? 'land-island' : 'land-mountain';
-    expect(counts[heavier]).toBeGreaterThan(counts[lighter]);
+    // A fixed fixture keeps this gate live even if the catalog's first
+    // red/blue cards ever happen to have equal pip counts.
+    const db: CardDb = {
+      heavy_red: {
+        id: 'heavy_red',
+        name: 'Heavy Red',
+        types: ['creature'],
+        subtypes: [],
+        cost: { generic: 0, pips: { R: 2 } },
+        colors: ['R'],
+        attack: 1,
+        defense: 1,
+        rarity: 'c',
+      },
+      light_blue: {
+        id: 'light_blue',
+        name: 'Light Blue',
+        types: ['creature'],
+        subtypes: [],
+        cost: { generic: 0, pips: { U: 1 } },
+        colors: ['U'],
+        attack: 1,
+        defense: 1,
+        rarity: 'c',
+      },
+    };
+    const deck = [...Array(6).fill('heavy_red'), ...Array(6).fill('light_blue')];
+    const counts = countOf(limitedBasics(db, deck, 10));
+
+    expect(counts).toEqual({ 'land-mountain': 6, 'land-island': 4 });
   });
 });

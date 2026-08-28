@@ -22,9 +22,11 @@ const strict = process.argv.includes('--strict');
  * directory's own README is a living doc and is checked normally.
  */
 function isShippedReleaseNote(path: string): boolean {
-  // join() gives the platform separator, so this matches on Windows too.
-  const marker = join('docs', 'release-notes');
-  return path.includes(marker) && !path.endsWith('README.md');
+  const segments = path.split(/[\\/]+/);
+  const hasReleaseNotesDirectory = segments.some(
+    (segment, index) => segment === 'docs' && segments[index + 1] === 'release-notes',
+  );
+  return hasReleaseNotesDirectory && segments[segments.length - 1] !== 'README.md';
 }
 
 function listMarkdown(dir: string): string[] {

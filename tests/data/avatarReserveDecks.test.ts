@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import { AVATARS } from '../../src/data/opponents';
 import { STARTER_DECKS } from '../../src/data/starterDecks';
+import type { CardDb, CardDef } from '../../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../../src/meta/darlings';
 import {
   isBasicLand,
@@ -11,7 +12,7 @@ import {
   WARCHEST_DECK_SIZE,
   DARLINGS_DECK_SIZE,
 } from '../../src/meta/warchest';
-import { convertAvatarReserveDecks, hasNoLegalTargets } from '../../scripts/avatarReserveDecks';
+import { convertAvatarReserveDecks, convertAvatarWarchest, hasNoLegalTargets } from '../../scripts/avatarReserveDecks';
 import { buildDarlingsDeck } from '../../scripts/darlingsDeckBuilder';
 import { buildReserveMatrixFullOwnershipSave } from '../../scripts/reserveMatrixDecks';
 import { runAvatarReserveMatrix } from '../../scripts/balance-matrix';
@@ -152,6 +153,75 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       for (const card of creatureRemoval) {
         expect(hasNoLegalTargets(card, new Set()), `${card.id} wrongly flagged`).toBe(false);
       }
+    });
+
+    it('also excludes a dead-target card from catalog refill', () => {
+      const narrowId = 'synthetic-refill-narrow';
+      const fillerIds = Array.from({ length: 36 }, (_, index) => `synthetic-refill-filler-${index}`);
+      const filler = (id: string): CardDef => ({
+        id,
+        name: id,
+        types: ['creature'],
+        subtypes: ['Filler'],
+        cost: { generic: 1, pips: { R: 1 } },
+        colors: ['R'],
+        attack: 1,
+        defense: 1,
+        rarity: 'c',
+      });
+      const db: CardDb = {
+        'synthetic-red-basic': {
+          id: 'synthetic-red-basic',
+          name: 'Synthetic Mountain',
+          types: ['land'],
+          subtypes: [],
+          supertypes: ['basic'],
+          colors: [],
+          manaAbility: ['R'],
+          rarity: 'c',
+        },
+        'synthetic-source-body': {
+          id: 'synthetic-source-body',
+          name: 'Synthetic Source Body',
+          types: ['creature'],
+          subtypes: ['Source'],
+          cost: { generic: 1, pips: { R: 1 } },
+          colors: ['R'],
+          attack: 1,
+          defense: 1,
+          rarity: 'c',
+        },
+        [narrowId]: {
+          id: narrowId,
+          name: 'Synthetic Narrow Answer',
+          types: ['charm'],
+          subtypes: [],
+          cost: { generic: 0, pips: { R: 1 } },
+          colors: ['R'],
+          abilities: [{
+            when: 'spell',
+            targets: [{ what: 'artifactOrEnchantment' }],
+            ops: [{ op: 'destroy', to: 'target' }],
+          }],
+          rarity: 'ur',
+        },
+        ...Object.fromEntries(fillerIds.map((id) => [id, filler(id)])),
+      };
+      const avatar = {
+        id: 'synthetic-supply-poor',
+        name: 'Synthetic Supply Poor',
+        deck: [
+          ...Array.from({ length: 4 }, () => 'synthetic-source-body'),
+          narrowId,
+          ...Array.from({ length: 55 }, () => 'synthetic-red-basic'),
+        ],
+      };
+
+      const built = convertAvatarWarchest(avatar, db);
+
+      expect(built).toHaveLength(WARCHEST_DECK_SIZE);
+      expect(built).not.toContain(narrowId);
+      expect(built.filter((id) => fillerIds.includes(id))).toHaveLength(fillerIds.length);
     });
   });
 
