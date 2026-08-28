@@ -1743,6 +1743,17 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   run-reward tuning — draft runs are free to enter and pay
   `limitedRunGold` on completion). Blocker
   detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
+- **Editable Limited Warchest, after automatic filling (ruled 2026-08-19,
+  reconfirmed 2026-08-28).** The
+  [2026-08-19 ruling §2.1](plan-1.6-rulings-2026-08-19.md) stands: the Limited
+  build screen exposes the 10 reserve slots so the player sets the basic split
+  and chooses which drafted duals ride, with the automatic build as the
+  default fill. PR #279 (1.7) shipped ONLY the default-fill half: the
+  pip-demand-weighted split with a per-colour floor, displayed in the builder.
+  It is the better default underneath this UI, not a replacement for it; do
+  not read that PR as closing this item. Engine plumbing already exists
+  (`selectedDuals` on `completeDraftRun`, `run.landReserve`); the work is the
+  build-step UI plus persistence. Not scoped to a release.
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program
