@@ -14,6 +14,7 @@ export const SET_IDS = [
   'dark-tales',
   'yokai-nights',
   'sands-of-the-duat',
+  'starborne',
 ] as const;
 
 /** Set ids as they appear on CardDef.set ('base' when absent). Kept in the
@@ -36,6 +37,7 @@ export const SET_TITLES: Readonly<Record<SetId, string>> = Object.freeze({
   'dark-tales': 'Dark Tales',
   'yokai-nights': 'Yokai Nights',
   'sands-of-the-duat': 'Sands of the Duat',
+  starborne: 'Starborne',
 });
 
 /** One short identity line per shop tile. Keep these concrete and editable. */
@@ -48,4 +50,5 @@ export const SET_BLURBS: Readonly<Record<SetId, string>> = Object.freeze({
   'dark-tales': 'Curses bloom under storybook moonlight',
   'yokai-nights': 'Neon spirits haunt the city grid',
   'sands-of-the-duat': 'Flood, judgment, and the second return',
+  starborne: 'Starborne',
 });

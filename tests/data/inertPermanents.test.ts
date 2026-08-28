@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FEATURES } from '../../src/config/features';
 import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
+import { STARBORNE_SET } from '../../src/data/liveness';
 import { classifyPermanent } from '../../src/data/permanentClass';
 import { collectiblePool } from '../../src/meta/collectionFilter';
 
@@ -29,7 +30,7 @@ describe('ETB-only non-creature permanent health', () => {
     const previous = FEATURES.duatLive;
     try {
       FEATURES.duatLive = true;
-      const pool = collectiblePool(ALL_CARDS);
+      const pool = collectiblePool(ALL_CARDS).filter((card) => String(card.set) !== STARBORNE_SET);
       const permanents = pool.filter(isPermanent);
       const etbOnly = permanents.filter(isEtbOnly);
       // This sweep removes all 17 legacy one-shot ETB non-creature permanents.

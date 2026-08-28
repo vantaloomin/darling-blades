@@ -209,6 +209,12 @@ describe('Warchest shared validators', () => {
       'gm-moor-path',
       'gm-red-roof-village',
       'gm-thorned-cemetery',
+      'sb-darkside-landing',
+      'sb-deepfield-lands',
+      'sb-ember-lane',
+      'sb-interstellar-crossing',
+      'sb-overcanopy',
+      'sb-pale-nebula',
     ]);
   });
 
