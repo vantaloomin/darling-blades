@@ -665,6 +665,7 @@ export const STARBORNE_UNMAPPED: readonly StarborneUnmappedRow[] = [
   { id: 'sb-aurora-beastcaller', rarity: 'c', mechanics: 'arrives: add a mark to target creature', reason: 'triggers cannot target' },
   { id: 'sb-star-orchard-keeper', rarity: 'c', mechanics: 'arrives: fetchLand', reason: 'fetchLand is not an EffectOp' },
   { id: 'sb-cometary-verdict', rarity: 'c', mechanics: 'Sever target tapped creature', reason: 'target specs cannot require tapped' },
+  { id: 'sb-black-starving-orbit', rarity: 'r', mechanics: 'Sever target creature with a mark', reason: 'target specs cannot require marked' },
   { id: 'sb-signal-inversion', rarity: 'c', mechanics: 'recall target creature; its owner Foresees 1', reason: 'Foresee resolves for the controller, not the target owner' },
   { id: 'sb-ignition-hymn', rarity: 'c', mechanics: 'your marked creatures get +1/+0 until end of turn when they attack', reason: 'no marked filter or attack observer exists' },
   { id: 'sb-gravitic-bloom', rarity: 'c', mechanics: 'add a mark to up to two target creatures', reason: 'all targeted effects are single-target only' },

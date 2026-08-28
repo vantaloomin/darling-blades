@@ -57,7 +57,7 @@ describe('Starborne transcription', () => {
 
   it('records every row whose locked mechanics are not expressible', () => {
     expect(new Set(STARBORNE_UNMAPPED.map((row) => row.id)).size).toBe(STARBORNE_UNMAPPED.length);
-    expect(STARBORNE_UNMAPPED).toHaveLength(64);
+    expect(STARBORNE_UNMAPPED).toHaveLength(65);
     for (const row of STARBORNE_UNMAPPED) {
       expect(STARBORNE.some((card) => card.id === row.id), `${row.id} is not in STARBORNE`).toBe(true);
     }
