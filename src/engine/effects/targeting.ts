@@ -119,9 +119,10 @@ export function isLegalTarget(
       legal = ref.kind === 'permanent' && artifactOrEnchantmentTargetable(state, db, ref.iid);
       break;
   }
-  return legal &&
-    satisfiesPermanentQualifiers(state, spec, ref) &&
-    (!spec.other || sourceIid === undefined || ref.kind !== 'permanent' || ref.iid !== sourceIid);
+  if (!legal) return false;
+  if (!spec.marked && !spec.tapped && !spec.other) return true;
+  if (!satisfiesPermanentQualifiers(state, spec, ref)) return false;
+  return !spec.other || sourceIid === undefined || ref.kind !== 'permanent' || ref.iid !== sourceIid;
 }
 
 /** All legal target refs for a spec (deduped for graveyard cards). */

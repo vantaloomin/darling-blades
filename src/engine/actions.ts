@@ -21,6 +21,20 @@ import {
   validatePreserveDef,
 } from './types';
 
+const moveMarkCache = new WeakMap<CardDef, { normal: boolean; empowered: boolean }>();
+
+function cardHasMoveMark(d: CardDef, empowered: boolean): boolean {
+  let cached = moveMarkCache.get(d);
+  if (!cached) {
+    cached = {
+      normal: d.abilities?.some((ab) => ab.when === 'spell' && (ab.ops ?? []).some((op) => op.op === 'moveMark')) ?? false,
+      empowered: d.empower?.ops.some((op) => op.op === 'moveMark') ?? false,
+    };
+    moveMarkCache.set(d, cached);
+  }
+  return empowered ? cached.empowered : cached.normal;
+}
+
 export type Action =
   | { type: 'choosePlayDraw'; play: boolean }
   | { type: 'keepHand' }
@@ -233,16 +247,16 @@ function targetListsForCast(
   empowered: boolean,
 ): (TargetRef[] | undefined)[] {
   if (specs.length === 0) return [undefined];
-  const moveMark = empowered
-    ? d.empower?.ops.some((op) => op.op === 'moveMark') ?? false
-    : d.abilities?.some((ab) => ab.when === 'spell' && (ab.ops ?? []).some((op) => op.op === 'moveMark')) ?? false;
-  const candidatesFor = (spec: import('./types').TargetSpec): TargetRef[] =>
-    enumerateTargets(state, db, player, spec).filter((ref) =>
-      !moveMark || (
+  const moveMark = cardHasMoveMark(d, empowered);
+  if (specs.length === 1 && specs[0].upTo === undefined && !moveMark) {
+    return enumerateTargets(state, db, player, specs[0]).map((target) => [target]);
+  }
+  const candidatesFor = moveMark
+    ? (spec: import('./types').TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec).filter((ref) =>
         ref.kind === 'permanent' &&
-        state.battlefield.find((perm) => perm.iid === ref.iid)?.controller === player
-      ),
-    );
+        state.battlefield.find((perm) => perm.iid === ref.iid)?.controller === player,
+      )
+    : (spec: import('./types').TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec);
   if (specs.length === 1 && specs[0].upTo !== undefined) {
     const candidates = candidatesFor(specs[0]);
     const out: TargetRef[][] = [[]];
@@ -305,9 +319,7 @@ function validateTargetList(
   targets: TargetRef[],
   empowered: boolean,
 ): string | null {
-  const moveMark = empowered
-    ? d.empower?.ops.some((op) => op.op === 'moveMark') ?? false
-    : d.abilities?.some((ab) => ab.when === 'spell' && (ab.ops ?? []).some((op) => op.op === 'moveMark')) ?? false;
+  const moveMark = cardHasMoveMark(d, empowered);
   if (specs.length === 1 && specs[0].upTo !== undefined) {
     if (targets.length > specs[0].upTo) return 'too many targets';
     for (let index = 0; index < targets.length; index++) {

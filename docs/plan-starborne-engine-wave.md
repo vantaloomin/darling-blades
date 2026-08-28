@@ -105,13 +105,19 @@ filter's verdict on the next read, no event needed.
 
 ### 1d. Conditions and marked-scaled ops
 
-`AbilityDef.condition` union grows:
+`AbilityDef.condition` union grows (threshold parameterized 2026-08-28 when
+the Relay/Antenna redesigns added a second n and a second subject):
 
 ```ts
 | 'controlMarked'      // you control at least one marked permanent
-| 'attackerMarked'     // (attacks trigger only) the attacking creature is marked
-| 'markedThreshold5'   // you control 5 or more marked permanents
+| { kind: 'markedThreshold'; n: number; subject: 'permanents' | 'creatures' }
+  // you control n-or-more marked permanents (Signal Cathedral: n 5,
+  // permanents) or n-or-more creatures with marks (Relay/Antenna: n 4,
+  // creatures)
 ```
+
+(The attacker-marked case became the `markedAllyAttacks` observer trigger at
+stage-1 landing; see the landing decisions.)
 
 For the "bigger against marked targets" cards, one wrapper op keeps the
 model flat:
@@ -134,7 +140,15 @@ carrying the draw.)
 | { op: 'fetchLand' }        // top-down deck search: first land → battlefield tapped; shuffle-free (deck order is seeded; sever nothing)
 | { op: 'boost'; ...; scope: 'yourMarked' }    // boost existing op gains a scope
 | { op: 'foresee'; n: number; who?: 'targetOwner' } // foresee existing op gains an optional subject
+| { op: 'severSelf' }                          // the source permanent -> its owner's severed zone; trigger-safe
+| { op: 'raise'; to: 'top'; withMarks?: number } // raise-top gains enter-with-marks (rides the Nine Lives plusOneCounters seam on enterBattlefield)
 ```
+
+(`severSelf` and `raise withMarks` were added 2026-08-28 for the
+owner-approved Umbral Antenna redesign; both are trigger-safe. A creature
+returned `withMarks` arrives ALREADY MARKED - a state, not an event, firing
+no mark observers, and its Nine Lives is disabled by design: owner-aware,
+intended.)
 
 `moveMark` is the one two-target op in the game; its `targets` array is
 `[{ what: 'yourPermanent-like spec' }, { what: same, other-vs-first }]` - the
@@ -178,7 +192,10 @@ the registry as it goes. Spot list of the trickiest:
 | sb-cometary-verdict | sever + TargetSpec { creature, tapped } |
 | sb-astral-biomancer | arrives + condition controlMarked + targeted trigger (other permanent you control) |
 | sb-signal-inversion | recall target + `foresee n:1 who:targetOwner` |
-| sb-signal-cathedral | dawn foresee 2; second dawn ability with condition markedThreshold5 → draw 1 |
+| sb-signal-cathedral | dawn foresee 2; second dawn ability with condition markedThreshold(5, permanents) → draw 1 |
+| sb-starborne-relay (OWNER-APPROVED redesign) | {5}; arrives draw 1; dawn foresee 1; dawn + markedThreshold(4, creatures) → draw 1 |
+| sb-umbral-antenna (OWNER-APPROVED redesign) | {4}; arrives grind self 1; dawn foresee 1 + grind self 1; dawn + markedThreshold(4, creatures) → severSelf, raise to:top withMarks:2 |
+| sb-violet-wake-beacon (OWNER-APPROVED redesign) | {6}; arrives createToken Firefly; dawn + controlMarked → createToken Firefly |
 | sb-gullet-of-the-hive | arrives + loseLifePerTheirMarked |
 | sb-eclipse-tithe | removeMarks target; Empower stays trigger-safe (opponent loses 2) |
 | sb-quiet-orbit / sb-signal-recall / sb-tidewalk-analyst | moveMark (spell / spell-with-Retell / Empower rider - NOTE: Empower ops may now target ONLY for moveMark, which relaxes the EmpowerDef "never introduce targets" comment; the ceiling test is untouched) |

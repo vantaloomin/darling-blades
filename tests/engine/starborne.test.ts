@@ -262,7 +262,13 @@ const DB: CardDb = {
     cost: ZERO,
     attack: 1,
     defense: 1,
-    abilities: [{ when: 'dawn', condition: 'markedThreshold5', ops: [{ op: 'gainLife', n: 3 }] }],
+    abilities: [{ when: 'dawn', condition: { kind: 'markedThreshold', n: 5, subject: 'permanents' }, ops: [{ op: 'gainLife', n: 3 }] }],
+  }),
+  thresholdCreatures: card('thresholdCreatures', ['creature'], {
+    cost: ZERO,
+    attack: 1,
+    defense: 1,
+    abilities: [{ when: 'dawn', condition: { kind: 'markedThreshold', n: 4, subject: 'creatures' }, ops: [{ op: 'gainLife', n: 4 }] }],
   }),
   markedBanner: card('markedBanner', ['artifact'], {
     cost: ZERO,
@@ -303,6 +309,16 @@ const DB: CardDb = {
       [{ op: 'gainLife', n: 1 }],
       [{ op: 'gainLife', n: 2 }],
     ],
+  }),
+  severRaise: card('severRaise', ['creature'], {
+    cost: ZERO,
+    attack: 1,
+    defense: 1,
+    abilities: [{ when: 'dawn', ops: [{ op: 'severSelf' }, { op: 'raise', to: 'top', withMarks: 2 }] }],
+  }),
+  raiseMarked: card('raiseMarked', ['charm'], {
+    cost: ZERO,
+    abilities: [{ when: 'spell', ops: [{ op: 'raise', to: 'top', withMarks: 3 }] }],
   }),
   enchantmentTarget: card('enchantmentTarget', ['charm'], {
     cost: ZERO,
@@ -562,6 +578,12 @@ describe('Starborne mark events and statics', () => {
 
   it('rejects recursive mark-event definitions and throws at the runtime depth guard', () => {
     expect(validateMarkTriggerDef(DB.recursiveMarker)).toEqual(['gainsMark abilities cannot add marks']);
+    expect(validateMarkTriggerDef(card('markEventZoneOps', ['creature'], {
+      abilities: [{
+        when: 'gainsMark',
+        ops: [{ op: 'severSelf' }, { op: 'raise', to: 'top', withMarks: 2 }],
+      }],
+    }))).toEqual([]);
     const game = gameWithHand(['markTwice'], [permanent(1, 'recursiveMarker')]);
     expect(() => game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(1)] }))
       .toThrow('Mark-trigger recursion exceeded depth 8.');
@@ -596,18 +618,37 @@ describe('Starborne mark events and statics', () => {
     expect(getEffectiveStats(recompute.state.battlefield, DB, 2).keywords.has('sentinel')).toBe(false);
   });
 
-  it('runs controlMarked and markedThreshold5 conditions', () => {
+  it('runs controlMarked and parameterized markedThreshold conditions', () => {
     const arrival = gameWithHand(['controlMarked'], [permanent(1, 'bear', 0, 1)]);
     arrival.submit(0, { type: 'castSpell', handIndex: 0 });
     expect(arrival.state.players[0].life).toBe(22);
 
-    const dawnState = makeTestState({ battlefield: [
-      ...Array.from({ length: 5 }, (_, i) => permanent(i + 1, 'bear', 0, 1)),
+    expect(rulesText(DB.threshold)).toContain('if you control five or more marked permanents, ');
+    expect(rulesText(DB.thresholdCreatures)).toContain('if you control four or more creatures with marks, ');
+
+    const permanentThreshold = makeTestState({ battlefield: [
+      ...Array.from({ length: 4 }, (_, i) => permanent(i + 1, 'bear', 0, 1)),
+      permanent(5, 'artifactWatcher', 0, 1),
       permanent(6, 'threshold'),
     ] });
-    const dawnEvents: GameEvent[] = [];
-    fireTriggers(dawnState, DB, (event) => dawnEvents.push(event), 'dawn', dawnState.battlefield[5]);
-    expect(dawnState.players[0].life).toBe(23);
+    fireTriggers(permanentThreshold, DB, () => {}, 'dawn', permanentThreshold.battlefield[5]);
+    expect(permanentThreshold.players[0].life).toBe(23);
+
+    const creatureThreshold = makeTestState({ battlefield: [
+      ...Array.from({ length: 4 }, (_, i) => permanent(i + 1, 'bear', 0, 1)),
+      permanent(5, 'artifactWatcher', 0, 1),
+      permanent(6, 'thresholdCreatures'),
+    ] });
+    fireTriggers(creatureThreshold, DB, () => {}, 'dawn', creatureThreshold.battlefield[5]);
+    expect(creatureThreshold.players[0].life).toBe(24);
+
+    const belowCreatureThreshold = makeTestState({ battlefield: [
+      ...Array.from({ length: 3 }, (_, i) => permanent(i + 1, 'bear', 0, 1)),
+      permanent(4, 'artifactWatcher', 0, 1),
+      permanent(5, 'thresholdCreatures'),
+    ] });
+    fireTriggers(belowCreatureThreshold, DB, () => {}, 'dawn', belowCreatureThreshold.battlefield[4]);
+    expect(belowCreatureThreshold.players[0].life).toBe(20);
   });
 
   it('dispatches markedAllyAttacks by battlefield holder order and declared attacker order', () => {
@@ -730,6 +771,44 @@ describe('Starborne mark operations and deferred ownership', () => {
     const unmarked = gameWithHand(['conditional'], [permanent(1, 'bear')]);
     cast(unmarked, 0, [ref(1)]);
     expect(getEffectiveStats(unmarked.state.battlefield, DB, 1)).toMatchObject({ attack: 1, defense: 1 });
+  });
+
+  it('severs its source, then continues with the printed raise operation', () => {
+    const state = makeTestState({ battlefield: [permanent(1, 'severRaise')] });
+    state.players[0].graveyard = ['bear'];
+    state.players[0].deck = ['bear'];
+    const events: GameEvent[] = [];
+    startTurn(state, DB, (event) => events.push(event));
+
+    const severedAt = events.findIndex((event) => event.e === 'severed' && event.iid === 1);
+    const raisedAt = events.findIndex((event) => event.e === 'permanentEntered' && event.perm.cardId === 'bear');
+    expect(severedAt).toBeGreaterThanOrEqual(0);
+    expect(raisedAt).toBeGreaterThan(severedAt);
+    expect(state.battlefield.some((perm) => perm.iid === 1)).toBe(false);
+    expect(state.players[0].severed.map(cardIdOf)).toContain('severRaise');
+    expect(state.battlefield.find((perm) => perm.cardId === 'bear')?.plusOneCounters).toBe(2);
+    expect(rulesText(DB.severRaise)).toContain(
+      'sever this, then return the top creature card of your graveyard to the battlefield with two marks on it',
+    );
+  });
+
+  it('raises with marks as state without firing mark observers and disables Nine Lives', () => {
+    const marked = gameWithHand(['raiseMarked'], [permanent(1, 'markedObserver')]);
+    marked.instanceState.players[0].graveyard.push('markedCarrier');
+    const markedEvents = marked.submit(0, { type: 'castSpell', handIndex: 0 });
+    const raised = marked.state.battlefield.find((perm) => perm.cardId === 'markedCarrier');
+    expect(raised?.plusOneCounters).toBe(3);
+    expect(markedEvents.some((event) => event.e === 'triggerFired' && event.when === 'gainsMark')).toBe(false);
+    expect(markedEvents.some((event) => event.e === 'triggerFired' && event.when === 'yourPermanentMarked')).toBe(false);
+
+    const nine = gameWithHand(['raiseMarked', 'kill']);
+    nine.instanceState.players[0].graveyard.push('nine');
+    nine.submit(0, { type: 'castSpell', handIndex: 0 });
+    const raisedNine = nine.state.battlefield.find((perm) => perm.cardId === 'nine')!;
+    expect(raisedNine.plusOneCounters).toBe(3);
+    cast(nine, 0, [ref(raisedNine.iid)]);
+    expect(nine.state.battlefield.some((perm) => perm.cardId === 'nine')).toBe(false);
+    expect(nine.state.players[0].graveyard.map(cardIdOf)).toContain('nine');
   });
 });
 

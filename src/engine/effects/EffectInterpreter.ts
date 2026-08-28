@@ -86,6 +86,44 @@ function targetRefsForOp(ctx: EffectContext): TargetRef[] {
 
 type MarkEvent = 'mark' | 'propagated';
 const MAX_MARK_TRIGGER_DEPTH = 8;
+const markEventAvailability = new WeakMap<object, {
+  any: boolean;
+  markedAllyAttacks: boolean;
+}>();
+
+/**
+ * Resolve mark-observer availability once per database shape. AI
+ * determinization creates fresh simDb objects, but their shared stand-in
+ * CardDefs provide a stable cache key across those worlds.
+ */
+function markEventAbilitiesIn(db: CardDb): { any: boolean; markedAllyAttacks: boolean } {
+  const standIn = db.__unknown_c2;
+  const key = standIn?.id === '__unknown_c2' ? standIn : db;
+  const cached = markEventAvailability.get(key);
+  if (cached) return cached;
+  let any = false;
+  let markedAllyAttacks = false;
+  for (const card of Object.values(db)) {
+    for (const ability of card.abilities ?? []) {
+      if (
+        ability.when === 'gainsMark' ||
+        ability.when === 'yourPermanentMarked' ||
+        ability.when === 'youAddMark' ||
+        ability.when === 'otherCreatureMarked' ||
+        ability.when === 'propagated'
+      ) any = true;
+      if (ability.when === 'markedAllyAttacks') markedAllyAttacks = true;
+      if (any && markedAllyAttacks) {
+        const result = { any, markedAllyAttacks };
+        markEventAvailability.set(key, result);
+        return result;
+      }
+    }
+  }
+  const result = { any, markedAllyAttacks };
+  markEventAvailability.set(key, result);
+  return result;
+}
 
 /** Dispatch mark observers in live battlefield order for one mark event. */
 function fireMarkTriggers(
@@ -97,6 +135,7 @@ function fireMarkTriggers(
   event: MarkEvent,
   depth = 0,
 ): void {
+  if (!markEventAbilitiesIn(db).any) return;
   if (depth > MAX_MARK_TRIGGER_DEPTH) {
     throw new Error('Mark-trigger recursion exceeded depth 8.');
   }
@@ -113,7 +152,8 @@ function fireMarkTriggers(
             (ab.when === 'youAddMark' && source.controller === actor) ||
             (ab.when === 'otherCreatureMarked' && markedIsCreature && source.iid !== marked.iid)
           );
-      if (!matches || !ab.ops || !conditionSatisfied(state, db, source.controller, ab.condition)) continue;
+      if (!matches || !ab.ops) continue;
+      if (ab.condition !== undefined && !conditionSatisfied(state, db, source.controller, ab.condition)) continue;
       emit({ e: 'triggerFired', iid: source.iid, when: ab.when });
       runOps(
         state,
@@ -141,8 +181,13 @@ function addMarks(
   perm: Permanent,
   n: number,
   actor: PlayerId,
+  markEventAbilities: boolean,
   depth = 0,
 ): void {
+  if (!markEventAbilities) {
+    perm.plusOneCounters += n;
+    return;
+  }
   for (let i = 0; i < n; i++) {
     if (!state.battlefield.some((candidate) => candidate.iid === perm.iid)) return;
     perm.plusOneCounters += 1;
@@ -166,16 +211,17 @@ export function conditionSatisfied(
   controller: PlayerId,
   condition: AbilityDef['condition'],
 ): boolean {
-  switch (condition) {
-    case undefined:
-      return true;
-    case 'questActive':
-      return isQuestActive(state.battlefield, db, controller);
-    case 'controlMarked':
-      return state.battlefield.some((perm) => perm.controller === controller && perm.plusOneCounters > 0);
-    case 'markedThreshold5':
-      return state.battlefield.filter((perm) => perm.controller === controller && perm.plusOneCounters > 0).length >= 5;
+  if (condition === undefined) return true;
+  if (condition === 'questActive') return isQuestActive(state.battlefield, db, controller);
+  if (condition === 'controlMarked') {
+    return state.battlefield.some((perm) => perm.controller === controller && perm.plusOneCounters > 0);
   }
+  const marked = state.battlefield.filter(
+    (perm) => perm.controller === controller &&
+      perm.plusOneCounters > 0 &&
+      (condition.subject === 'permanents' || isType(def(db, perm.cardId), 'creature')),
+  );
+  return marked.length >= condition.n;
 }
 
 function awakenPermanent(db: CardDb, perm: Permanent): boolean {
@@ -288,6 +334,11 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
+    case 'severSelf': {
+      const source = state.battlefield.find((perm) => perm.iid === ctx.sourceIid);
+      if (source) severPermanent(state, db, source, emit);
+      return;
+    }
     case 'destroyArtifactOrSeverEnchantment': {
       for (const ref of targetRefsForOp(ctx)) {
         const perm = targetPermanent(state, ref);
@@ -382,8 +433,18 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const perms = op.to === 'self'
         ? [state.battlefield.find((p) => p.iid === ctx.sourceIid)]
         : targetRefsForOp(ctx).map((ref) => targetPermanent(state, ref));
+      const markEventAbilities = markEventAbilitiesIn(db).any;
       for (const perm of perms) {
-        if (perm) addMarks(state, db, emit, perm, op.n, ctx.controller, ctx.markTriggerDepth ?? 0);
+        if (perm) addMarks(
+          state,
+          db,
+          emit,
+          perm,
+          op.n,
+          ctx.controller,
+          markEventAbilities,
+          ctx.markTriggerDepth ?? 0,
+        );
       }
       return;
     }
@@ -396,8 +457,18 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const marked = state.battlefield.filter(
         (perm) => perm.controller === ctx.controller && perm.plusOneCounters > 0,
       );
+      const markEventAbilities = markEventAbilitiesIn(db).any;
       for (const perm of marked) {
-        addMarks(state, db, emit, perm, 1, ctx.controller, ctx.markTriggerDepth ?? 0);
+        addMarks(
+          state,
+          db,
+          emit,
+          perm,
+          1,
+          ctx.controller,
+          markEventAbilities,
+          ctx.markTriggerDepth ?? 0,
+        );
         if (state.winner !== null) return;
       }
       fireMarkTriggers(state, db, emit, undefined, ctx.controller, 'propagated', ctx.markTriggerDepth ?? 0);
@@ -415,7 +486,17 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         from.plusOneCounters <= 0
       ) return;
       from.plusOneCounters -= 1;
-      addMarks(state, db, emit, to, 1, ctx.controller, ctx.markTriggerDepth ?? 0);
+      const markEventAbilities = markEventAbilitiesIn(db).any;
+      addMarks(
+        state,
+        db,
+        emit,
+        to,
+        1,
+        ctx.controller,
+        markEventAbilities,
+        ctx.markTriggerDepth ?? 0,
+      );
       return;
     }
     case 'removeMarks': {
@@ -429,8 +510,18 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const creatures = [...state.battlefield].filter(
         (perm) => perm.controller === ctx.controller && isType(def(db, perm.cardId), 'creature'),
       );
+      const markEventAbilities = markEventAbilitiesIn(db).any;
       for (const perm of creatures) {
-        addMarks(state, db, emit, perm, 1, ctx.controller, ctx.markTriggerDepth ?? 0);
+        addMarks(
+          state,
+          db,
+          emit,
+          perm,
+          1,
+          ctx.controller,
+          markEventAbilities,
+          ctx.markTriggerDepth ?? 0,
+        );
         if (state.winner !== null) return;
       }
       return;
@@ -629,7 +720,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       ).length;
       if (count >= RULES.maxCreatures) return;
       const [cardId] = grave.splice(index, 1);
-      const perm = enterBattlefield(state, db, cardId, ctx.controller, emit);
+      const plusOneCounters = op.to === 'top' ? op.withMarks : undefined;
+      const perm = enterBattlefield(state, db, cardId, ctx.controller, emit, {
+        ...(plusOneCounters === undefined ? {} : { plusOneCounters }),
+      });
       fireTriggers(state, db, emit, 'arrives', perm);
       return;
     }
@@ -734,6 +828,7 @@ function assertTargetFreeForeseeContinuation(op: EffectOp): void {
     op.op === 'fetchLand' ||
     (op.op === 'addCounters' && op.to === 'self') ||
     (op.op === 'raise' && op.to === 'top') ||
+    op.op === 'severSelf' ||
     (op.op === 'awaken' && op.scope === 'allYours');
   if (!targetFree) {
     throw new Error(`A target-dependent op cannot follow foresee: ${op.op}.`);
@@ -756,11 +851,8 @@ export function fireTriggers(
   const d = def(db, perm.cardId);
   for (let abilityIndex = 0; abilityIndex < (d.abilities ?? []).length; abilityIndex++) {
     const ab = d.abilities![abilityIndex];
-    if (
-      ab.when !== when ||
-      !ab.ops ||
-        !conditionSatisfied(state, db, perm.controller, ab.condition)
-    ) continue;
+    if (ab.when !== when || !ab.ops) continue;
+    if (ab.condition !== undefined && !conditionSatisfied(state, db, perm.controller, ab.condition)) continue;
     if (when === 'arrives' && ab.targets && ab.targets.length > 0) {
       if (ab.targets.length !== 1 || ab.targets[0].upTo !== undefined) {
         throw new Error('Targeted arrival abilities must have one single target spec.');
@@ -825,6 +917,7 @@ export function fireMarkedAllyAttackTriggers(
   attacker: Permanent,
 ): void {
   if (attacker.plusOneCounters <= 0) return;
+  if (!markEventAbilitiesIn(db).markedAllyAttacks) return;
   for (const holder of [...state.battlefield]) {
     if (
       !state.battlefield.some((perm) => perm.iid === holder.iid) ||
@@ -834,9 +927,10 @@ export function fireMarkedAllyAttackTriggers(
     for (const ability of abilities) {
       if (
         ability.when !== 'markedAllyAttacks' ||
-        !ability.ops ||
-        !conditionSatisfied(state, db, holder.controller, ability.condition)
+        !ability.ops
       ) continue;
+      if (ability.condition !== undefined &&
+          !conditionSatisfied(state, db, holder.controller, ability.condition)) continue;
       emit({ e: 'triggerFired', iid: holder.iid, when: ability.when });
       runOps(
         state,

@@ -100,6 +100,7 @@ export type EffectOp =
   | { op: 'loseLifePerTheirMarked'; who: 'opponent' }
   | { op: 'fetchLand' }
   | { op: 'ifTargetMarked'; then: EffectOp[]; else?: EffectOp[] }
+  | { op: 'severSelf' }
   | { op: 'tap'; to: 'target' }
   | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
   | { op: 'createToken'; token: string; count: number }
@@ -110,7 +111,8 @@ export type EffectOp =
   | { op: 'grind'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
   | { op: 'foresee'; n: number; who?: 'targetOwner' } // look at top n, then choose any subset to bottom
   | { op: 'awaken'; scope: 'self' | 'allYours' } // one-way champion upgrade; trigger-safe
-  | { op: 'raise'; to?: 'target' | 'top' }; // your grave creature → battlefield (target, or trigger-safe top)
+  | { op: 'raise'; to?: 'target' } // your grave creature → battlefield (target)
+  | { op: 'raise'; to: 'top'; withMarks?: number }; // trigger-safe top raise, optionally arriving marked
 
 export interface StaticDef {
   /** `questActive` reads the source controller's public battlefield. */
@@ -131,7 +133,10 @@ export interface StaticDef {
 export interface AbilityDef {
   when: TriggerWhen;
   /** The source controller must control a CardDef with `chapters` present. */
-  condition?: 'questActive' | 'controlMarked' | 'markedThreshold5';
+  condition?:
+    | 'questActive'
+    | 'controlMarked'
+    | { kind: 'markedThreshold'; n: number; subject: 'permanents' | 'creatures' };
   targets?: TargetSpec[];
   ops?: EffectOp[];
   static?: StaticDef;

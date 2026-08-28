@@ -164,6 +164,8 @@ function opText(
       return 'your opponent loses 1 life for each marked creature they control';
     case 'fetchLand':
       return 'put the first land from the top of your deck onto the battlefield tapped';
+    case 'severSelf':
+      return 'sever this';
     case 'ifTargetMarked': {
       const renderBranch = (ops: EffectOp[]): string => ops.map((branchOp) =>
         opText(branchOp, target, targetAlreadyNamed, excludesSelf),
@@ -219,9 +221,14 @@ function opText(
       // "other" carries the dies-trigger exclusion instead - a raise fired by
       // a dies trigger skips its own source (EffectContext.selfGraveExclusion).
       if (op.to !== 'top') return 'return target creature card from your graveyard to play';
-      return excludesSelf
-        ? 'return the top other creature card of your graveyard to play'
-        : 'return the top creature card of your graveyard to play';
+      {
+        const card = excludesSelf
+          ? 'return the top other creature card of your graveyard'
+          : 'return the top creature card of your graveyard';
+        return op.withMarks === undefined
+          ? `${card} to play`
+          : `${card} to the battlefield with ${countWord(op.withMarks)} marks on it`;
+      }
   }
 }
 
@@ -293,8 +300,8 @@ function abilityText(ab: AbilityDef): string {
     ? 'While a Quest is active, '
     : ab.condition === 'controlMarked'
       ? 'if you control a marked permanent, '
-      : ab.condition === 'markedThreshold5'
-        ? 'if you control five or more marked permanents, '
+      : typeof ab.condition === 'object' && ab.condition.kind === 'markedThreshold'
+        ? `if you control ${countWord(ab.condition.n)} or more ${ab.condition.subject === 'permanents' ? 'marked permanents' : 'creatures with marks'}, `
         : '';
   if (ab.when === 'static' && ab.static) {
     const st = ab.static;

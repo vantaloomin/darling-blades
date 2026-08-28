@@ -1,4 +1,4 @@
-import type { CardDb, Keyword, Permanent, PlayerId } from './types';
+import type { AbilityDef, CardDb, Keyword, Permanent, PlayerId } from './types';
 import { def, isType, opponentOf } from './types';
 
 export interface EffectiveStats {
@@ -26,17 +26,18 @@ function staticConditionSatisfied(
   battlefield: readonly Permanent[],
   db: CardDb,
   controller: PlayerId,
-  condition: 'questActive' | 'controlMarked' | 'markedThreshold5' | undefined,
+  condition: AbilityDef['condition'] | undefined,
 ): boolean {
   if (condition === undefined) return true;
   if (condition === 'questActive') return isQuestActive(battlefield, db, controller);
   if (condition === 'controlMarked') {
     return battlefield.some((perm) => perm.controller === controller && perm.plusOneCounters > 0);
   }
-  if (condition === 'markedThreshold5') {
-    return battlefield.filter((perm) => perm.controller === controller && perm.plusOneCounters > 0).length >= 5;
-  }
-  return false;
+  return battlefield.filter(
+    (perm) => perm.controller === controller &&
+      perm.plusOneCounters > 0 &&
+      (condition.subject === 'permanents' || isType(def(db, perm.cardId), 'creature')),
+  ).length >= condition.n;
 }
 
 /**
@@ -54,6 +55,7 @@ export function getEffectiveStats(
   const perm = battlefield.find((p) => p.iid === iid);
   if (!perm) throw new Error(`getEffectiveStats: no permanent ${iid}`);
   const d = def(db, perm.cardId);
+  const targetIsCreature = isType(d, 'creature');
 
   let attack = d.attack ?? 0;
   let defense = d.defense ?? 0;
@@ -81,7 +83,7 @@ export function getEffectiveStats(
       if (ab.when !== 'static' || !ab.static) continue;
       const st = ab.static;
       const condition = ab.condition ?? st.condition;
-      if (!staticConditionSatisfied(battlefield, db, src.controller, condition)) continue;
+      if (condition !== undefined && !staticConditionSatisfied(battlefield, db, src.controller, condition)) continue;
 
       let applies: boolean;
       if (st.scope === 'self') {
@@ -90,16 +92,24 @@ export function getEffectiveStats(
         applies = src.attachedTo === iid;
       } else {
         // filter scope: source controller's creatures matching the filter
-        const targetDef = def(db, perm.cardId);
-        const who = st.filter?.who ?? 'yours';
-        applies =
-          (who === 'yours'
-            ? src.controller === perm.controller
-            : opponentOf(src.controller) === perm.controller) &&
-          isType(targetDef, 'creature') &&
-          (!st.filter?.other || src.iid !== iid) &&
-          (!st.filter?.subtype || targetDef.subtypes.includes(st.filter.subtype)) &&
-          (!st.filter?.marked || perm.plusOneCounters > 0);
+        const filter = st.filter;
+        if (!filter?.marked && !filter?.who) {
+          applies =
+            src.controller === perm.controller &&
+            targetIsCreature &&
+            (!filter?.other || src.iid !== iid) &&
+            (!filter?.subtype || d.subtypes.includes(filter.subtype));
+        } else {
+          const who = filter.who ?? 'yours';
+          applies =
+            (who === 'yours'
+              ? src.controller === perm.controller
+              : opponentOf(src.controller) === perm.controller) &&
+            targetIsCreature &&
+            (!filter.other || src.iid !== iid) &&
+            (!filter.subtype || d.subtypes.includes(filter.subtype)) &&
+            (!filter.marked || perm.plusOneCounters > 0);
+        }
       }
 
       if (applies) {
