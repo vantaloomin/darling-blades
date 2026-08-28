@@ -22,7 +22,7 @@ describe('ETB-only non-creature permanent health', () => {
     const etbOnly = permanents.filter(isEtbOnly);
     expect(permanents.length).toBeGreaterThanOrEqual(1);
     expect(etbOnly.length / permanents.length).toBeLessThanOrEqual(0.15);
-    expect(etbOnly.length).toBe(2);
+    expect(etbOnly.length).toBe(0);
   });
 
   it("the collectible pool's ETB-only share only ratchets down", () => {
@@ -32,7 +32,7 @@ describe('ETB-only non-creature permanent health', () => {
       const pool = collectiblePool(ALL_CARDS);
       const permanents = pool.filter(isPermanent);
       const etbOnly = permanents.filter(isEtbOnly);
-      // Measured after this slate: 18/105 = 0.171, ratcheted down from 0.24.
+      // This sweep removes all 17 legacy one-shot ETB non-creature permanents.
       expect(etbOnly.length / permanents.length).toBeLessThanOrEqual(0.18);
       expect(pool.filter(isPermanent).filter((card) => classifyPermanent(card).klass === 'BLANK')).toHaveLength(0);
     } finally {

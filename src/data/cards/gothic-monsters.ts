@@ -362,9 +362,9 @@ export const GOTHIC_MONSTERS = [
     rarity: 'c', flavor: 'The curtain falls. The critics call it decisive.',
   },
   {
-    id: 'gm-holy-water-vial', name: 'Holy Water Vial', types: ['artifact'], subtypes: ['Vial'],
-    cost: cost(1, 'W'), colors: ['W'],
-    abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] }],
+    id: 'gm-holy-water-vial', name: 'Holy Water Vial', types: ['ritual'], subtypes: ['Vial'],
+    cost: cost(0, 'W'), colors: ['W'],
+    abilities: [{ when: 'spell', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] }],
     rarity: 'c', flavor: 'Blessed, bottled, and less messy than the full cathedral.',
   },
   {
@@ -389,8 +389,8 @@ export const GOTHIC_MONSTERS = [
     rarity: 'c', flavor: 'The storm has arrived. Please keep hands inside the tower.',
   },
   {
-    id: 'gm-funeral-bell', name: 'Funeral Bell', types: ['artifact'], subtypes: ['Bell'],
-    cost: cost(2, 'B'), colors: ['B'], abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
+    id: 'gm-funeral-bell', name: 'Funeral Bell', types: ['ritual'], subtypes: ['Bell'],
+    cost: cost(0, 'B'), colors: ['B'], abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 2 }] }],
     empower: { cost: cost(1, 'B'), ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] },
     rarity: 'c', flavor: 'It rings once for the dead and twice for the delighted.',
   },

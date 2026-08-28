@@ -4,6 +4,7 @@ import type { Action } from '../../src/engine/actions';
 import type { GameEvent } from '../../src/engine/events';
 import { Game } from '../../src/engine/Game';
 import type { CardDef, PlayerId } from '../../src/engine/types';
+import { CARD_DB } from '../../src/data/catalog';
 import {
   canReplay,
   finishReplay,
@@ -444,6 +445,31 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     expect(canReplay(log, TEST_DB)).toBe(true);
     expect(canReplay(log, drifted)).toBe(false);
     expect(() => replayGame(log, drifted)).toThrow(/different card database/);
+  });
+
+  it('stamps the legacy ETB conversion and refuses its pre-conversion database', () => {
+    const converted = CARD_DB['dt-satin-slipper'];
+    const legacyDb = {
+      ...CARD_DB,
+      'dt-satin-slipper': {
+        ...converted,
+        types: ['artifact'],
+        abilities: [{ when: 'arrives', ops: converted.abilities?.[0]?.ops ?? [] }],
+      },
+    } satisfies typeof CARD_DB;
+    const currentStamp = replayDbStamp(CARD_DB);
+    const legacyStamp = replayDbStamp(legacyDb);
+    expect(legacyStamp).not.toBe(currentStamp);
+
+    const log = finishReplay(startReplayDraft({
+      dbStamp: currentStamp,
+      seed: 1,
+      decks: [[], []],
+      context: { mode: 'practice', difficulty: 'easy', opponentId: null, opponentName: 'Bot', gauntletRung: null },
+    }), 'loss', 0, 0);
+    expect(canReplay(log, CARD_DB)).toBe(true);
+    expect(canReplay(log, legacyDb)).toBe(false);
+    expect(() => replayGame(log, legacyDb)).toThrow(/different card database/);
   });
 
   it('pushReplay keeps a newest-first reel capped at REPLAY_CAP', () => {
