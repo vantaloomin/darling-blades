@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/Game.ts, src/data/cards/starborne.ts (branch feat/starborne-cards), docs/expansions/drafts/starborne-overplan.md · last-verified: 2026-08-28 · plan doc — the engine wave that fills the 64 UNMAPPED Starborne cards; re-verify when the wave lands -->
+<!-- source-of-truth: src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/Game.ts, docs/expansions/drafts/starborne-overplan.md · last-verified: 2026-08-28 · plan doc — the engine wave that fills the 64 UNMAPPED Starborne cards (registry in src/data/cards/starborne.ts on branch feat/starborne-cards); re-verify when the wave lands -->
 
 # The Starborne engine wave
 
