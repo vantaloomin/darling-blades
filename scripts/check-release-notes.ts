@@ -19,6 +19,7 @@
  * Usage:
  *   npx tsx scripts/check-release-notes.ts
  *   npx tsx scripts/check-release-notes.ts --version 1.7.0
+ *   npx tsx scripts/check-release-notes.ts --version v1.7.0
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -30,8 +31,12 @@ export interface ReleaseNotesIssue {
 
 export const RELEASE_NOTES_DIR = 'docs/release-notes';
 
+function bareVersion(version: string): string {
+  return version.startsWith('v') ? version.slice(1) : version;
+}
+
 export function releaseNotesPath(version: string, root = '.'): string {
-  return join(root, RELEASE_NOTES_DIR, `v${version}.md`);
+  return join(root, RELEASE_NOTES_DIR, `v${bareVersion(version)}.md`);
 }
 
 /**
@@ -42,12 +47,13 @@ export function releaseNotesPath(version: string, root = '.'): string {
  */
 export function checkReleaseNotes(version: string, root = '.'): ReleaseNotesIssue[] {
   const issues: ReleaseNotesIssue[] = [];
-  const path = releaseNotesPath(version, root);
+  const normalizedVersion = bareVersion(version);
+  const path = releaseNotesPath(normalizedVersion, root);
   if (!existsSync(path)) {
     issues.push({
       kind: 'error',
       message:
-        `No release notes for v${version}. Write ${RELEASE_NOTES_DIR}/v${version}.md ` +
+        `No release notes for v${normalizedVersion}. Write ${RELEASE_NOTES_DIR}/v${normalizedVersion}.md ` +
         '(a short player-facing summary; the generated PR list follows it automatically).',
     });
     return issues;
@@ -80,7 +86,7 @@ export function runCli(argv: readonly string[], log: (line: string) => void = co
   }
   const issues = checkReleaseNotes(version, root);
   for (const issue of issues) log(`error  ${issue.message}`);
-  log(`check-release-notes: v${version}, ${issues.length} issue(s)`);
+  log(`check-release-notes: v${bareVersion(version)}, ${issues.length} issue(s)`);
   return issues.length > 0 ? 1 : 0;
 }
 

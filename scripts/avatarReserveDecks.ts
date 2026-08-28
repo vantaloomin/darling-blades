@@ -26,7 +26,7 @@ import { CARD_DB } from '../src/data/catalog';
 import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS } from '../src/data/starterDecks';
-import type { CardDb, CardDef, Color } from '../src/engine/types';
+import type { CardDb, CardDef, Color, TargetSpec } from '../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
 import {
   DARLINGS_DECK_SIZE,
@@ -91,12 +91,22 @@ function isEligibleSpell(card: CardDef | undefined): card is CardDef {
  * satisfy. `creature`, `any`, `yourCreature`, `yourGraveCreature` and `spell`
  * are effectively always live here; artifacts and enchantments are not.
  */
-const NARROW_TARGETS = new Set(['artifactOrEnchantment', 'artifact', 'enchantment']);
+const NARROW_TARGETS: Record<TargetSpec['what'], boolean> = {
+  creature: false,
+  player: false,
+  any: false,
+  spell: false,
+  yourCreature: false,
+  yourGraveCreature: false,
+  artifact: true,
+  enchantment: true,
+  artifactOrEnchantment: true,
+};
 
-function narrowTargetsOf(card: CardDef): string[] {
+function narrowTargetsOf(card: CardDef): TargetSpec['what'][] {
   return (card.abilities ?? []).flatMap((ability) =>
-    (ability.targets ?? []).map((target) => target.what as string),
-  ).filter((what) => NARROW_TARGETS.has(what));
+    (ability.targets ?? []).map((target) => target.what),
+  ).filter((what) => NARROW_TARGETS[what]);
 }
 
 /** Which narrow predicates a single card can satisfy as a permanent on board. */
@@ -130,8 +140,10 @@ function formatTargetSupply(source: readonly string[], db: CardDb): ReadonlySet<
 }
 
 /**
- * A card is DEAD when every one of its narrow targets is unsatisfiable in this
- * format. A card with a narrow target alongside a live one still plays.
+ * A card is DEAD when it has narrow target specs and none of those target
+ * categories is supplied by this format. Mixed narrow-plus-broad multi-ability
+ * cards remain an open authoring question: a broad target never rescues an
+ * otherwise unsupplied narrow target under this contract.
  */
 export function hasNoLegalTargets(
   card: CardDef | undefined,
@@ -243,6 +255,7 @@ export function convertAvatarWarchest(avatar: ConvertibleDeck, db: CardDb = CARD
     Object.values(db).filter((card) =>
       isEligibleSpell(card) &&
       containsOnlyColors(card, colors) &&
+      !hasNoLegalTargets(card, targetSupply) &&
       !sourceOrder.includes(card.id),
     ),
   );

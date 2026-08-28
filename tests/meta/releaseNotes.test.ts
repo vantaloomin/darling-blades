@@ -37,6 +37,13 @@ describe('release notes check', () => {
     expect(checkReleaseNotes('1.7.0', root({ 'v1.7.0.md': 'A real summary.\n' }))).toEqual([]);
   });
 
+  it('accepts an already-v-prefixed version', () => {
+    const notesRoot = root({ 'v1.7.0.md': 'A real summary.\n' });
+
+    expect(releaseNotesPath('v1.7.0', notesRoot)).toBe(join(notesRoot, RELEASE_NOTES_DIR, 'v1.7.0.md'));
+    expect(checkReleaseNotes('v1.7.0', notesRoot)).toEqual([]);
+  });
+
   it('rejects an empty file rather than shipping a blank release body', () => {
     const issues = checkReleaseNotes('1.7.0', root({ 'v1.7.0.md': '   \n' }));
     expect(issues).toHaveLength(1);
