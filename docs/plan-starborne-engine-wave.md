@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/Game.ts, docs/expansions/drafts/starborne-overplan.md · last-verified: 2026-08-28 · plan doc — the engine wave that fills the 64 UNMAPPED Starborne cards (registry in src/data/cards/starborne.ts on branch feat/starborne-cards); re-verify when the wave lands -->
+<!-- source-of-truth: src/engine/types.ts, src/engine/effects/EffectInterpreter.ts, src/engine/Game.ts, docs/expansions/drafts/starborne-overplan.md · last-verified: 2026-08-28 · plan doc — the engine wave that fills the 65 UNMAPPED Starborne cards (registry in src/data/cards/starborne.ts on branch feat/starborne-cards); re-verify when the wave lands -->
 
 # The Starborne engine wave
 
@@ -6,7 +6,7 @@ The mark vocabulary the locked 151-card set assumes, specified for
 implementation. Ruled 2026-08-28: the hybrid is greenlit, and **triggers can
 now target** ("Triggers never target" retires as a snapshot guideline; the
 iron invariants - purity, PlayerView redaction, seeded determinism, save
-migrations - are NOT snapshots and hold unchanged). The 64 cards carrying an
+migrations - are NOT snapshots and hold unchanged). The 65 cards carrying an
 UNMAPPED entry in `src/data/cards/starborne.ts` (branch `feat/starborne-cards`)
 are the acceptance list: when every entry is deleted because its mechanics are
 expressed, the wave is done.
@@ -33,9 +33,10 @@ uses (new decision kind `chooseTarget`, new awaiting kind mirroring it).
   only.
 - **Human UI**: the DuelScene targeting flow that spells already use, reused
   for the arrival prompt. Cancel is not offered when the trigger is mandatory
-  (all 64 are mandatory).
+  (all 65 are mandatory).
 
-`TargetSpec` gains two optional fields:
+`TargetSpec` gains four optional fields (the last two added 2026-08-28 after
+the Blade Assay sweep caught the restriction family the first draft missed):
 
 ```ts
 interface TargetSpec {
@@ -44,8 +45,18 @@ interface TargetSpec {
   other?: true;
   /** "up to N targets"; each is chosen independently, zero is legal. */
   upTo?: 2;
+  /** Restricts legal targets to permanents carrying at least one mark. */
+  marked?: true;
+  /** Restricts legal targets to tapped permanents. */
+  tapped?: true;
 }
 ```
+
+The restriction qualifiers filter the legal-target set, compose with `other`
+and `upTo`, apply on both spell-side and trigger-side targeting, and interact
+with the fizzle rule exactly as an empty legal set does. They carry cards
+`sb-black-starving-orbit` ("Sever target creature with a mark" - the anti-mark
+seed) and `sb-cometary-verdict` ("Sever target tapped creature").
 
 `upTo` is spell-side only in this set (`sb-gravitic-bloom`,
 `sb-bloomdrive-surge`); targeted triggers stay single-target. Ops that say
@@ -163,6 +174,8 @@ the registry as it goes. Spot list of the trickiest:
 
 | Card | Construct |
 | --- | --- |
+| sb-black-starving-orbit | sever + TargetSpec { creature, marked } (was transcribed BLANK and outside the registry; registry corrected to 65 on the branch, 2026-08-28) |
+| sb-cometary-verdict | sever + TargetSpec { creature, tapped } |
 | sb-astral-biomancer | arrives + condition controlMarked + targeted trigger (other permanent you control) |
 | sb-signal-inversion | recall target + `foresee n:1 who:targetOwner` |
 | sb-signal-cathedral | dawn foresee 2; second dawn ability with condition markedThreshold5 → draw 1 |
@@ -186,7 +199,7 @@ contract.
   (the union's `what` members are unchanged), but `narrowTargetsOf` must now
   also walk targets on NON-spell abilities, and the fizzle rule means a
   dead-target card is playable-but-weaker rather than blank - re-derive
-  whether the gate's refusal list changes and re-run the identity tests. Any
+  whether the gate's refusal list changes and re-run the identity tests. A marked-target card adds a NEW supply dimension: its answers are live only where the deck can produce marks, so the supply walk must treat mark generators as the supply for marked-target specs. Any
   committed-output change STOPS the wave for an owner decision.
 - **AI, all three difficulties**: target choice for arrival triggers; op
   valuations for the new ops (extend `opImpactValue`); determinized sims must
@@ -226,7 +239,7 @@ same wave (local workbench, never committed):
 2. **AI** (target choice + op valuations + determinism tests): after core.
 3. **Tooling sweep** (converter walk of non-spell targets, score.ts weights,
    comment sweep, docs regen): after core, parallel with AI (disjoint files).
-4. **Data fill**: delete all 64 UNMAPPED entries on `feat/starborne-cards` by
+4. **Data fill**: delete all 65 UNMAPPED entries on `feat/starborne-cards` by
    expressing their mechanics; rebase that branch onto the landed engine;
    the full suite and the set-shape tests gate it. THEN the branch merges,
    the Blade Assay rescore runs (ping the session holding that memory), and
