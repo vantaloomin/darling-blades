@@ -50,5 +50,5 @@ export const SET_BLURBS: Readonly<Record<SetId, string>> = Object.freeze({
   'dark-tales': 'Curses bloom under storybook moonlight',
   'yokai-nights': 'Neon spirits haunt the city grid',
   'sands-of-the-duat': 'Flood, judgment, and the second return',
-  starborne: 'Starborne',
+  starborne: 'Living hulls, and the light that spreads',
 });
