@@ -26,7 +26,7 @@ import { CARD_DB } from '../src/data/catalog';
 import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
 import { STARTER_DECKS } from '../src/data/starterDecks';
-import type { CardDb, CardDef, Color, TargetSpec } from '../src/engine/types';
+import type { CardDb, CardDef, Color, EffectOp, TargetSpec } from '../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
 import {
   DARLINGS_DECK_SIZE,
@@ -109,13 +109,44 @@ function narrowTargetsOf(card: CardDef): TargetSpec['what'][] {
   ).filter((what) => NARROW_TARGETS[what]);
 }
 
-/** Which narrow predicates a single card can satisfy as a permanent on board. */
-function suppliedTargets(card: CardDef | undefined): string[] {
+function typeSuppliedTargets(card: CardDef | undefined): string[] {
   if (!card) return [];
   const supplied: string[] = [];
   if (card.types.includes('artifact')) supplied.push('artifact', 'artifactOrEnchantment');
   if (card.types.includes('enchantment')) supplied.push('enchantment', 'artifactOrEnchantment');
   return supplied;
+}
+
+/** Every EffectOp a card can run: abilities, quest chapters, Empower, Retell. */
+function effectOpsOf(card: CardDef): EffectOp[] {
+  return [
+    ...(card.abilities ?? []).flatMap((ability) => ability.ops ?? []),
+    ...(card.chapters ?? []).flat(),
+    ...(card.empower?.ops ?? []),
+    ...(card.retell?.ops ?? []),
+  ];
+}
+
+/**
+ * Which narrow predicates a single card can satisfy as a permanent on board —
+ * by its own types, or by any token its effects create (a creature that
+ * assembles artifact tokens supplies `artifact` even though it is no artifact
+ * itself). Token defs are flat, so one level of resolution is exact.
+ */
+function suppliedTargets(card: CardDef | undefined, db: CardDb): string[] {
+  if (!card) return [];
+  const supplied = typeSuppliedTargets(card);
+  for (const op of effectOpsOf(card)) {
+    if (op.op === 'createToken') supplied.push(...typeSuppliedTargets(db[op.token]));
+  }
+  return supplied;
+}
+
+/** The narrow predicates a whole card list can put on the board. */
+export function deckTargetSupply(cards: readonly string[], db: CardDb = CARD_DB): ReadonlySet<string> {
+  const supply = new Set<string>();
+  for (const id of cards) for (const what of suppliedTargets(db[id], db)) supply.add(what);
+  return supply;
 }
 
 /**
@@ -131,12 +162,10 @@ function suppliedTargets(card: CardDef | undefined): string[] {
  * carried narrow removal.
  */
 function formatTargetSupply(source: readonly string[], db: CardDb): ReadonlySet<string> {
-  const supply = new Set<string>();
-  for (const deck of STARTER_DECKS) {
-    for (const id of deck.reserveCards ?? []) for (const what of suppliedTargets(db[id])) supply.add(what);
-  }
-  for (const id of source) for (const what of suppliedTargets(db[id])) supply.add(what);
-  return supply;
+  return new Set([
+    ...deckTargetSupply(STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []), db),
+    ...deckTargetSupply(source, db),
+  ]);
 }
 
 /**
