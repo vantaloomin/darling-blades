@@ -12,7 +12,12 @@ import {
   WARCHEST_DECK_SIZE,
   DARLINGS_DECK_SIZE,
 } from '../../src/meta/warchest';
-import { convertAvatarReserveDecks, convertAvatarWarchest, hasNoLegalTargets } from '../../scripts/avatarReserveDecks';
+import {
+  convertAvatarReserveDecks,
+  convertAvatarWarchest,
+  deckTargetSupply,
+  hasNoLegalTargets,
+} from '../../scripts/avatarReserveDecks';
 import { buildDarlingsDeck } from '../../scripts/darlingsDeckBuilder';
 import { buildReserveMatrixFullOwnershipSave } from '../../scripts/reserveMatrixDecks';
 import { runAvatarReserveMatrix } from '../../scripts/balance-matrix';
@@ -97,24 +102,17 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
    * was never hers specifically; it can hit ANY avatar carrying narrow removal.
    */
   describe('retention rejects cards whose targets cannot exist in the format', () => {
-    const suppliedBy = (id: string): string[] => {
-      const card = CARD_DB[id];
-      const out: string[] = [];
-      if (card?.types.includes('artifact')) out.push('artifact', 'artifactOrEnchantment');
-      if (card?.types.includes('enchantment')) out.push('enchantment', 'artifactOrEnchantment');
-      return out;
-    };
-    const supplyFor = (source: readonly string[]): Set<string> => new Set([
-      ...STARTER_DECKS.flatMap((deck) => (deck.reserveCards ?? []).flatMap(suppliedBy)),
-      ...source.flatMap(suppliedBy),
+    const supplyFor = (source: readonly string[]): ReadonlySet<string> => new Set([
+      ...deckTargetSupply(STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? [])),
+      ...deckTargetSupply(source),
     ]);
 
     it('the five starter columns really do supply no artifact or enchantment', () => {
       // The premise the whole defect rests on. If a future set puts an artifact
-      // into a starter column, these cards stop being dead and this test says so.
-      const columnSupply = new Set(
-        STARTER_DECKS.flatMap((deck) => (deck.reserveCards ?? []).flatMap(suppliedBy)),
-      );
+      // into a starter column - or a creature that token-creates one, which
+      // deckTargetSupply now sees - these cards stop being dead and this test
+      // says so.
+      const columnSupply = deckTargetSupply(STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []));
       expect([...columnSupply]).toEqual([]);
     });
 
@@ -223,6 +221,25 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       expect(built).not.toContain(narrowId);
       expect(built.filter((id) => fillerIds.includes(id))).toHaveLength(fillerIds.length);
     });
+  });
+
+  /**
+   * The Warchest gate above runs at conversion time; Darlings lists are
+   * authored by the themed builder and hand tunes, which have no such gate.
+   * The 2026-08-28 scan showed every committed list already self-supplies its
+   * narrow targets - the 79-card in-colour singleton fill sweeps in colorless
+   * artifact staples, 9-28 artifact/enchantment permanents per deck - so this
+   * ratchets that property in: a card is judged against what its OWN deck can
+   * put on the board (types plus token creation), the one supply that exists
+   * in every matchup including a supply-free mirror.
+   */
+  it('every committed darlingsDeck self-supplies its narrow-target cards', () => {
+    for (const avatar of AVATARS) {
+      const list = [...avatar.darlingsDeck, avatar.darlingId];
+      const supply = deckTargetSupply(list);
+      const dead = list.filter((id) => hasNoLegalTargets(CARD_DB[id], supply));
+      expect(dead, `${avatar.id} darlingsDeck carries dead-target cards`).toEqual([]);
+    }
   });
 
   it('untuned committed data IS the deterministic converter output', () => {
