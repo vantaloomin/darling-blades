@@ -128,7 +128,7 @@ than discovering it in the metagame sweep.
 | sb-redshift-corsair | Redshift Corsair | C | R | Creature, Corsair | {2}{R} | 2/2 | Warcry; Skim {1} | She steals fuel with one hand and waves with the other. | flex |
 | sb-comet-kick-marauder | Comet-Kick Marauder | C | R | Creature, Marauder | {4}{R} | 4/3 | Overrun | Her boots leave impact craters in places the charts call floors. | core |
 | sb-starfire-lancer | Starfire Lancer | C | R | Creature, Soldier | {3}{R} | 3/2 | First Blade | Her lance is a solar flare taught to hold still. | flex |
-| sb-orbit-breaker | Orbit Breaker | C | R | Creature, Brute | {4}{R} | 4/4 | arrives: damage target creature 2 | He considers every orbit a personal insult. | core |
+| sb-orbit-breaker | Orbit Breaker | C | R | Creature, Brute | {4}{R} | 4/4 | arrives: damage target creature 2 | She considers every orbit a personal insult. | core |
 | sb-burning-hull-runner | Burning Hull Runner | C | R | Creature, Alien Runner | {2}{R} | 2/2 | gets +1/+0 while you control a marked permanent | She runs along the outside of the ship because the inside is boring. | flex |
 | sb-mycelial-star-gardener | Mycelial Star Gardener | C | G | Creature, Alien Druid | {1}{G} | 2/2 | arrives: add a mark to another target creature | She plants living constellations in the ship's hydroponics deck. | core |
 | sb-cometroot-grafter | Cometroot Grafter | C | G | Creature, Engineer | {2}{G} | 3/3 | your marked creatures get +1/+0 | She grafts alien roots to chrome and calls the result a garden. | flex |
