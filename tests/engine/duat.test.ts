@@ -23,6 +23,7 @@ import {
   recordReplayAction,
   replayDbStamp,
   replayGame,
+  REPLAY_LOG_VERSION,
   startReplayDraft,
 } from '../../src/meta/Replay';
 import { DUAT_DB, duatPermanent } from '../duatFixture';
@@ -886,7 +887,7 @@ describe('Sands of the Duat Preserve replay', () => {
     expect(recordedPreserve).toBe(true);
 
     const log = finishReplay(draft, 'win', 0, game.state.turn);
-    expect(log.v).toBe(9);
+    expect(log.v).toBe(REPLAY_LOG_VERSION);
     expect(log.actions.some((step) => step.a.type === 'preserveCard')).toBe(true);
     const revived = JSON.parse(JSON.stringify(log));
     const replayed = replayGame(revived, DUAT_DB);

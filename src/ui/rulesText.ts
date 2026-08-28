@@ -37,16 +37,23 @@ function countWord(n: number): string {
 }
 
 function targetNoun(spec: TargetSpec | undefined): string {
-  switch (spec?.what) {
-    case 'artifact':
-      return 'artifact';
-    case 'enchantment':
-      return 'enchantment';
-    case 'artifactOrEnchantment':
-      return 'artifact or enchantment';
-    default:
-      return 'creature';
-  }
+  const noun = (() => {
+    switch (spec?.what) {
+      case 'artifact':
+        return 'artifact';
+      case 'enchantment':
+        return 'enchantment';
+      case 'artifactOrEnchantment':
+        return 'artifact or enchantment';
+      default:
+        return 'creature';
+    }
+  })();
+  const qualifiers = [
+    spec?.marked ? 'marked' : undefined,
+    spec?.tapped ? 'tapped' : undefined,
+  ].filter((qualifier): qualifier is string => qualifier !== undefined);
+  return `${qualifiers.length > 0 ? `${qualifiers.join(' ')} ` : ''}${noun}`;
 }
 
 function referencesAbilityTarget(op: EffectOp): boolean {
@@ -65,6 +72,10 @@ function referencesAbilityTarget(op: EffectOp): boolean {
       return op.scope === 'target';
     case 'addCounters':
       return op.to === 'target';
+    case 'moveMark':
+    case 'removeMarks':
+    case 'ifTargetMarked':
+      return true;
     case 'reclaim':
       return true;
     case 'raise':
@@ -86,8 +97,10 @@ function opText(
       if (op.to === 'eachCreature') return `deal ${n} damage to each creature`;
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
-      const recipient = target?.what === 'creature'
-        ? targetAlreadyNamed ? 'that creature' : 'target creature'
+      const isCreatureTarget = target?.what === 'creature' || target?.what === 'yourCreature' ||
+        (target?.what === 'any' && (target.marked === true || target.tapped === true));
+      const recipient = isCreatureTarget
+        ? targetAlreadyNamed ? 'that creature' : `target ${targetNoun(target)}`
         : 'any target';
       return `deal ${n} damage to ${recipient}`;
     }
@@ -123,20 +136,44 @@ function opText(
         ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
       if (op.scope === 'target') return `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
-      const subject = op.scope === 'all' ? 'all creatures' : 'creatures you control';
+      const subject = op.scope === 'all'
+        ? 'all creatures'
+        : op.scope === 'yourMarked'
+          ? 'your marked creatures'
+          : 'creatures you control';
       return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
     }
     case 'addCounters': {
       if (op.to === 'self') return `put ${countWord(op.n)} +1/+1 mark${op.n === 1 ? '' : 's'} on this`;
-      const markTarget = target?.what === 'yourCreature' ? 'target creature you control' : 'target creature';
+      const markTarget = target?.what === 'yourCreature'
+        ? `target ${targetNoun(target)} you control`
+        : `target ${targetNoun(target)}`;
       return `put ${countWord(op.n)} +1/+1 mark${op.n === 1 ? '' : 's'} on ${markTarget}`;
     }
     case 'propagate':
       // "another" carries the whole rule: it only ever adds to a mark that is
       // already there, so an unmarked permanent is left alone.
       return 'put another mark on each marked permanent you control';
+    case 'moveMark':
+      return 'move a mark from a permanent you control to another permanent you control';
+    case 'removeMarks':
+      return `remove all marks from target ${targetNoun(target)}`;
+    case 'markAll':
+      return 'add a mark to each creature you control';
+    case 'loseLifePerTheirMarked':
+      return 'your opponent loses 1 life for each marked creature they control';
+    case 'fetchLand':
+      return 'put the first land from the top of your deck onto the battlefield tapped';
+    case 'ifTargetMarked': {
+      const renderBranch = (ops: EffectOp[]): string => ops.map((branchOp) =>
+        opText(branchOp, target, targetAlreadyNamed, excludesSelf),
+      ).join(', then ');
+      const thenText = renderBranch(op.then);
+      if (!op.else || op.else.length === 0) return `if it is marked, ${thenText}`;
+      return `${renderBranch(op.else)}; if it is marked, ${thenText} instead`;
+    }
     case 'tap':
-      return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
+      return targetAlreadyNamed ? 'tap that creature' : `tap target ${targetNoun(target)}`;
     case 'extraLandDrop': {
       const n = op.n ?? 1;
       return n === 1
@@ -172,7 +209,7 @@ function opText(
         : `your opponent puts ${cards} of their deck into their graveyard`;
     }
     case 'foresee':
-      return `Foresee ${op.n}`;
+      return op.who === 'targetOwner' ? `its owner Foresees ${op.n}` : `Foresee ${op.n}`;
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
     case 'raise':
@@ -252,7 +289,13 @@ export function hauntlinkText(d: CardDef): string | undefined {
 function abilityText(ab: AbilityDef): string {
   const questCondition = (ab.condition ?? ab.static?.condition) === 'questActive';
   const conditionalArrival = questCondition && ab.when === 'arrives';
-  const prefix = questCondition && !conditionalArrival ? 'While a Quest is active, ' : '';
+  const prefix = questCondition && !conditionalArrival
+    ? 'While a Quest is active, '
+    : ab.condition === 'controlMarked'
+      ? 'if you control a marked permanent, '
+      : ab.condition === 'markedThreshold5'
+        ? 'if you control five or more marked permanents, '
+        : '';
   if (ab.when === 'static' && ab.static) {
     const st = ab.static;
     const sign = (v: number | undefined): string => {
@@ -292,8 +335,8 @@ function abilityText(ab: AbilityDef): string {
         : `This gains ${keywordNames}.`);
     }
     const who = st.filter?.subtype
-      ? `${st.filter.other ? 'Other ' : ''}${st.filter.subtype} creatures you control`
-      : `${st.filter?.other ? 'Other creatures' : 'Creatures'} you control`;
+      ? `${st.filter.other ? 'Other ' : ''}${st.filter.marked ? 'marked ' : ''}${st.filter.subtype} creatures ${st.filter.who === 'opponent' ? "your opponent controls" : 'you control'}`
+      : `${st.filter?.other ? 'Other ' : ''}${st.filter?.marked ? 'marked ' : ''}creatures ${st.filter?.who === 'opponent' ? "your opponent controls" : 'you control'}`;
     return runIn(hasStats
       ? `${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`
       : `${who} gain ${keywordNames}.`);
@@ -330,6 +373,24 @@ function abilityText(ab: AbilityDef): string {
     case 'attacks':
       sentence = `Whenever this attacks, ${body}.`;
       break;
+    case 'markedAllyAttacks':
+      sentence = `whenever a marked creature you control attacks, ${body}.`;
+      break;
+    case 'gainsMark':
+      sentence = `when this gets a mark, ${body}.`;
+      break;
+    case 'yourPermanentMarked':
+      sentence = `whenever a permanent you control becomes marked, ${body}.`;
+      break;
+    case 'youAddMark':
+      sentence = `whenever you add a mark to a permanent, ${body}.`;
+      break;
+    case 'otherCreatureMarked':
+      sentence = `whenever another creature gets a mark, ${body}.`;
+      break;
+    case 'propagated':
+      sentence = `whenever you Propagate, ${body}.`;
+      break;
     default:
       sentence = `${cap}.`;
       break;
@@ -338,7 +399,8 @@ function abilityText(ab: AbilityDef): string {
   // the start of your turn, you gain 1 life." The sentence is built to stand
   // alone, so lower-case its first letter once a prefix runs in front of it.
   const runOn = prefix ? sentence.charAt(0).toLowerCase() + sentence.slice(1) : sentence;
-  return `${prefix}${runOn}`;
+  const standalone = prefix ? runOn : runOn.charAt(0).toUpperCase() + runOn.slice(1);
+  return `${prefix}${standalone}`;
 }
 
 export function romanNumeral(n: number): string {

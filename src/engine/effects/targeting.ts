@@ -12,7 +12,7 @@ import { cardIdOf, def, isType, opponentOf } from '../types';
  * Target legality — one place. Untouchable applies only to creature-targeting
  * specs. Artifact/enchantment specs deliberately ignore it, including when a
  * future multi-typed artifact creature is targeted through its non-creature
- * type. All effects are single-target in v1 (targets[0]).
+ * type. Spell upTo specs are expanded by the cast action and interpreter.
  */
 
 function creatureTargetable(
@@ -54,46 +54,74 @@ function artifactOrEnchantmentTargetable(
   return isType(d, 'artifact') || isType(d, 'enchantment');
 }
 
+function satisfiesPermanentQualifiers(
+  state: GameState,
+  spec: TargetSpec,
+  ref: TargetRef,
+): boolean {
+  if (!spec.marked && !spec.tapped) return true;
+  if (ref.kind !== 'permanent') return false;
+  const perm = state.battlefield.find((candidate) => candidate.iid === ref.iid);
+  if (!perm) return false;
+  if (spec.marked && perm.plusOneCounters <= 0) return false;
+  if (spec.tapped && !perm.tapped) return false;
+  return true;
+}
+
 export function isLegalTarget(
   state: GameState,
   db: CardDb,
   caster: PlayerId,
   spec: TargetSpec,
   ref: TargetRef,
+  sourceIid?: number,
 ): boolean {
+  let legal: boolean;
   switch (spec.what) {
     case 'creature':
-      return ref.kind === 'permanent' && creatureTargetable(state, db, caster, ref.iid);
+      legal = ref.kind === 'permanent' && creatureTargetable(state, db, caster, ref.iid);
+      break;
     case 'yourCreature': {
       if (ref.kind !== 'permanent') return false;
       const perm = state.battlefield.find((p) => p.iid === ref.iid);
-      return (
+      legal = (
         !!perm &&
         perm.controller === caster &&
         isType(def(db, perm.cardId), 'creature')
       );
+      break;
     }
     case 'player':
-      return ref.kind === 'player';
+      legal = ref.kind === 'player';
+      break;
     case 'any':
-      return (
+      legal = (
         ref.kind === 'player' ||
         (ref.kind === 'permanent' && creatureTargetable(state, db, caster, ref.iid))
       );
+      break;
     case 'spell':
-      return ref.kind === 'stackItem' && state.stack.some((s) => s.sid === ref.sid);
+      legal = ref.kind === 'stackItem' && state.stack.some((s) => s.sid === ref.sid);
+      break;
     case 'yourGraveCreature': {
       if (ref.kind !== 'grave' || ref.player !== caster) return false;
       const cardId = state.players[caster].graveyard[ref.index];
-      return cardId !== undefined && isType(def(db, cardId), 'creature');
+      legal = cardId !== undefined && isType(def(db, cardId), 'creature');
+      break;
     }
     case 'artifact':
-      return ref.kind === 'permanent' && permanentWithTypeTargetable(state, db, ref.iid, 'artifact');
+      legal = ref.kind === 'permanent' && permanentWithTypeTargetable(state, db, ref.iid, 'artifact');
+      break;
     case 'enchantment':
-      return ref.kind === 'permanent' && permanentWithTypeTargetable(state, db, ref.iid, 'enchantment');
+      legal = ref.kind === 'permanent' && permanentWithTypeTargetable(state, db, ref.iid, 'enchantment');
+      break;
     case 'artifactOrEnchantment':
-      return ref.kind === 'permanent' && artifactOrEnchantmentTargetable(state, db, ref.iid);
+      legal = ref.kind === 'permanent' && artifactOrEnchantmentTargetable(state, db, ref.iid);
+      break;
   }
+  return legal &&
+    satisfiesPermanentQualifiers(state, spec, ref) &&
+    (!spec.other || sourceIid === undefined || ref.kind !== 'permanent' || ref.iid !== sourceIid);
 }
 
 /** All legal target refs for a spec (deduped for graveyard cards). */
@@ -102,6 +130,7 @@ export function enumerateTargets(
   db: CardDb,
   caster: PlayerId,
   spec: TargetSpec,
+  sourceIid?: number,
 ): TargetRef[] {
   const out: TargetRef[] = [];
   switch (spec.what) {
@@ -110,7 +139,7 @@ export function enumerateTargets(
     case 'any': {
       for (const perm of state.battlefield) {
         const ref: TargetRef = { kind: 'permanent', iid: perm.iid };
-        if (isLegalTarget(state, db, caster, spec, ref)) out.push(ref);
+        if (isLegalTarget(state, db, caster, spec, ref, sourceIid)) out.push(ref);
       }
       if (spec.what === 'any') {
         out.push({ kind: 'player', player: caster }, { kind: 'player', player: opponentOf(caster) });
@@ -125,7 +154,7 @@ export function enumerateTargets(
     case 'artifactOrEnchantment':
       for (const perm of state.battlefield) {
         const ref: TargetRef = { kind: 'permanent', iid: perm.iid };
-        if (isLegalTarget(state, db, caster, spec, ref)) out.push(ref);
+        if (isLegalTarget(state, db, caster, spec, ref, sourceIid)) out.push(ref);
       }
       break;
     case 'spell':

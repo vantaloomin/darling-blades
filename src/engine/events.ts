@@ -90,6 +90,7 @@ export type GameEvent =
       bottomed: string[]; // cardIds moved to the bottom, former-top-first
     }
   | { e: 'triggerFired'; iid: number; when: string }
+  | { e: 'triggerFizzled'; iid: number }
   | { e: 'effectApplied'; op: string; detail?: unknown }
   | { e: 'tokenCreated'; perm: Permanent }
   | { e: 'positionNote'; note: string } // debug/log line, never load-bearing

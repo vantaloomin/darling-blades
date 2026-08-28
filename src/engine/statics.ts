@@ -1,5 +1,5 @@
 import type { CardDb, Keyword, Permanent, PlayerId } from './types';
-import { def, isType } from './types';
+import { def, isType, opponentOf } from './types';
 
 export interface EffectiveStats {
   attack: number;
@@ -20,6 +20,23 @@ export function isQuestActive(
   return battlefield.some(
     (perm) => perm.controller === controller && def(db, perm.cardId).chapters !== undefined,
   );
+}
+
+function staticConditionSatisfied(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  controller: PlayerId,
+  condition: 'questActive' | 'controlMarked' | 'markedThreshold5' | undefined,
+): boolean {
+  if (condition === undefined) return true;
+  if (condition === 'questActive') return isQuestActive(battlefield, db, controller);
+  if (condition === 'controlMarked') {
+    return battlefield.some((perm) => perm.controller === controller && perm.plusOneCounters > 0);
+  }
+  if (condition === 'markedThreshold5') {
+    return battlefield.filter((perm) => perm.controller === controller && perm.plusOneCounters > 0).length >= 5;
+  }
+  return false;
 }
 
 /**
@@ -64,9 +81,7 @@ export function getEffectiveStats(
       if (ab.when !== 'static' || !ab.static) continue;
       const st = ab.static;
       const condition = ab.condition ?? st.condition;
-      if (condition === 'questActive' && !isQuestActive(battlefield, db, src.controller)) {
-        continue;
-      }
+      if (!staticConditionSatisfied(battlefield, db, src.controller, condition)) continue;
 
       let applies: boolean;
       if (st.scope === 'self') {
@@ -75,11 +90,16 @@ export function getEffectiveStats(
         applies = src.attachedTo === iid;
       } else {
         // filter scope: source controller's creatures matching the filter
+        const targetDef = def(db, perm.cardId);
+        const who = st.filter?.who ?? 'yours';
         applies =
-          src.controller === perm.controller &&
-          isType(d, 'creature') &&
+          (who === 'yours'
+            ? src.controller === perm.controller
+            : opponentOf(src.controller) === perm.controller) &&
+          isType(targetDef, 'creature') &&
           (!st.filter?.other || src.iid !== iid) &&
-          (!st.filter?.subtype || d.subtypes.includes(st.filter.subtype));
+          (!st.filter?.subtype || targetDef.subtypes.includes(st.filter.subtype)) &&
+          (!st.filter?.marked || perm.plusOneCounters > 0);
       }
 
       if (applies) {

@@ -125,11 +125,16 @@ function opImpliesSever(op: EffectOp): boolean {
 }
 
 function cardOps(d: CardDef): EffectOp[] {
+  const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) =>
+    op.op === 'ifTargetMarked'
+      ? [op, ...flatten(op.then), ...flatten(op.else ?? [])]
+      : [op],
+  );
   return [
-    ...(d.abilities ?? []).flatMap((ab) => ab.ops ?? []),
-    ...(d.chapters ?? []).flat(),
-    ...(d.empower?.ops ?? []),
-    ...(d.retell?.ops ?? []),
+    ...(d.abilities ?? []).flatMap((ab) => flatten(ab.ops ?? [])),
+    ...(d.chapters ?? []).flatMap((chapter) => flatten(chapter)),
+    ...flatten(d.empower?.ops ?? []),
+    ...flatten(d.retell?.ops ?? []),
   ];
 }
 
@@ -154,7 +159,14 @@ export function cardMechanics(d: CardDef): MechanicId[] {
   // Propagate is defined entirely in terms of marks, so it teaches Mark as well
   // as itself — a Propagate card that taught only Propagate would leave the
   // player looking up a word its own definition depends on.
-  if (ops.some((op) => op.op === 'addCounters' || op.op === 'propagate') || d.nineLives) {
+  if (ops.some((op) =>
+    op.op === 'addCounters' ||
+    op.op === 'propagate' ||
+    op.op === 'moveMark' ||
+    op.op === 'removeMarks' ||
+    op.op === 'markAll' ||
+    op.op === 'loseLifePerTheirMarked',
+  ) || d.nineLives) {
     present.push('mark');
   }
   if (ops.some((op) => op.op === 'propagate')) present.push('propagate');

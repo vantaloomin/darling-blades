@@ -29,9 +29,12 @@ export function castTargetSpecsFor(
   d: CardDef,
   retell: boolean,
   hauntlinked = false,
+  empowered = false,
 ): readonly TargetSpec[] {
   if (hauntlinked) return [{ what: 'yourCreature' }];
-  return retell && d.retell?.ops ? [] : castTargetSpecs(d);
+  if (retell && d.retell?.ops) return [];
+  if (empowered && d.empower?.targets) return d.empower.targets;
+  return castTargetSpecs(d);
 }
 
 function moveSpellOnExit(state: GameState, db: CardDb, item: StackItem, emit: Emit): void {
@@ -58,11 +61,20 @@ export function resolveStackItem(
 ): void {
   const d = def(db, item.cardId);
 
-  const specs = castTargetSpecsFor(d, item.retell === true, item.hauntlinked === true);
+  const specs = castTargetSpecsFor(
+    d,
+    item.retell === true,
+    item.hauntlinked === true,
+    item.empowered === true,
+  );
   if (specs.length > 0) {
-    const anyLegal = item.targets.some(
-      (ref, i) => specs[i] && isLegalTarget(state, db, item.controller, specs[i], ref),
-    );
+    const optionalTargets = specs.length === 1 && specs[0].upTo !== undefined;
+    const anyLegal =
+      (optionalTargets && item.targets.length === 0) ||
+      item.targets.some((ref, i) => {
+        const spec = optionalTargets ? specs[0] : specs[i];
+        return spec !== undefined && isLegalTarget(state, db, item.controller, spec, ref);
+      });
     if (!anyLegal) {
       moveSpellOnExit(state, db, item, emit);
       emit({ e: 'targetsFizzled', sid: item.sid });
@@ -72,7 +84,12 @@ export function resolveStackItem(
 
   emit({ e: 'spellResolved', sid: item.sid });
 
-  if (isType(d, 'creature') || isType(d, 'artifact') || isType(d, 'enchantment')) {
+  if (
+    isType(d, 'creature') ||
+    isType(d, 'artifact') ||
+    isType(d, 'enchantment') ||
+    (isType(d, 'ritual') && d.chapters !== undefined)
+  ) {
     const attachedTo =
       (isAura(d) || item.hauntlinked === true) && item.targets[0]?.kind === 'permanent'
         ? item.targets[0].iid
@@ -88,7 +105,7 @@ export function resolveStackItem(
       });
     }
     fireTriggers(state, db, emit, 'arrives', perm);
-    runEmpowerRider(state, db, item, d, emit, perm.iid);
+    runEmpowerRider(state, db, item, d, emit, perm.iid, specs);
     return;
   }
 
@@ -117,6 +134,7 @@ export function resolveStackItem(
               controller: item.controller,
               sourceCardId: item.cardId,
               targets: item.targets,
+              ...(specs.length === 1 && specs[0].upTo !== undefined ? { targetBatch: true } : {}),
               x: item.x,
             },
             ab.ops,
@@ -124,7 +142,7 @@ export function resolveStackItem(
         }
       }
     }
-    runEmpowerRider(state, db, item, d, emit);
+    runEmpowerRider(state, db, item, d, emit, undefined, specs);
     moveSpellOnExit(state, db, item, emit);
     return;
   }
@@ -140,6 +158,7 @@ function runEmpowerRider(
   d: CardDef,
   emit: Emit,
   sourceIid?: number,
+  specs: readonly TargetSpec[] = [],
 ): void {
   if (!item.empowered || !d.empower) return;
   runOps(
@@ -150,7 +169,8 @@ function runEmpowerRider(
       controller: item.controller,
       sourceCardId: item.cardId,
       ...(sourceIid === undefined ? {} : { sourceIid }),
-      targets: [],
+      targets: item.targets,
+      ...(specs.length === 1 && specs[0].upTo !== undefined ? { targetBatch: true } : {}),
     },
     d.empower.ops,
   );

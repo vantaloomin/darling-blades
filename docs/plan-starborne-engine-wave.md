@@ -221,8 +221,15 @@ contract.
 The mark vocabulary's MEP rates land in `balance/power-formula.md` §4h in the
 same wave (local workbench, never committed):
 
-- Propagate: provisional **1.05** (Proliferate comparative) - confirm against
-  the real batching semantics above once implemented.
+- Propagate: **RULED by owner 2026-08-28** (supersedes the provisional 1.05,
+  calibrated directly against Proliferate pricing): one-shot (spell/arrival)
+  = **0.70 MEP**; repeatable (dawn; `sb-propagation-engine` is the one
+  sanctioned source) = **1.65 MEP per trigger**. Both carry a no-choice
+  discount versus Proliferate (ours hits all your marked permanents with no
+  selection), and the parasitic floor stays a named blind spot of single-card
+  scoring. Engine-semantics confirmation (stage 1, this wave): one-shot is
+  exactly one firing on spell resolution or arrival, repeatable exactly one
+  per dawn trigger - the per-instance basis the rates assume holds.
 - Mark-add (single, targeted): rate from the +1/+1-counter comparative
   (Hardened Scales-adjacent cards); flag `NEEDS MATH` if no clean comparative
   survives contact.
@@ -236,9 +243,14 @@ same wave (local workbench, never committed):
 
 1. **Engine core** (types + EffectInterpreter + Game decision flow + replay
    bump + engine tests): the whole of section 1. Biggest PR; lands first.
-2. **AI** (target choice + op valuations + determinism tests): after core.
-3. **Tooling sweep** (converter walk of non-spell targets, score.ts weights,
-   comment sweep, docs regen): after core, parallel with AI (disjoint files).
+2. **AI and duel UI** (AI target choice at all three difficulties + op
+   valuations + determinism tests, AND the DuelScene chooseTarget prompt -
+   the human path the first draft forgot to assign): after core.
+3. **Tooling sweep** (converter walk of non-spell targets incl. the
+   marked-target supply dimension, the `manaAbility` consumer widening that
+   stage 1 bridged - landPolicy 'C' counting, mana icons - score.ts weight
+   confirmation, comment sweep, docs regen): after core, parallel with AI
+   (disjoint files).
 4. **Data fill**: delete all 65 UNMAPPED entries on `feat/starborne-cards` by
    expressing their mechanics; rebase that branch onto the landed engine;
    the full suite and the set-shape tests gate it. THEN the branch merges,
@@ -250,6 +262,45 @@ same wave (local workbench, never committed):
 Each Codex contract quotes the iron invariants, the file-set discipline, and
 the honesty rules; the main session reviews every landing against the
 allowed-file list and runs the ladder.
+
+### Stage-1 landing decisions (2026-08-28, recorded after adversarial review)
+
+Semantics the implementation fixed after review, or chose where the spec was
+silent - all now binding:
+
+- **The marked-attack observer is a trigger kind, not a condition**:
+  `markedAllyAttacks` fires on every permanent its controller controls
+  carrying the ability, once per declared marked attacker that controller
+  controls (holder order = battlefield, attacker order = declaration). The
+  earlier `attackerMarked` condition shape read as self-only and contradicted
+  the printed text.
+- **`upTo` target lists are unordered sets of distinct permanents**: no
+  duplicate target, no order variants in the action space.
+- **Mark-event trigger abilities must not carry mark-adding ops**
+  (addCounters, markAll, propagate, moveMark) - data-validated, none of the
+  65 cards needs one, and a runtime depth guard throws loudly as the second
+  layer. This is what bounds mark-trigger recursion.
+- **A spell op list may not defer a tail through a targeted-arrival pending**:
+  the engine throws loudly rather than running the tail in the trigger's
+  context. Revisit only if a future card creates a targeted-arrival token
+  mid-spell.
+- **moveMark fires mark-event triggers on the destination** (a move IS a
+  becoming-marked); the source firing nothing on loss matches the absence of
+  any mark-removed event in this vocabulary.
+- **`propagated` fires even when the Propagate added zero marks** - the
+  once-per-op contract, matching the Proliferate analogy.
+- **Nine Lives' return mark is a state, not an event**: the returned creature
+  arrives already marked and fires no mark-event triggers.
+- **Targeted arrival abilities defer while untargeted ones on the same card
+  run immediately** - printed-order inversion, deterministic; no shipping
+  card is order-sensitive. Authors of future cards take note.
+- **A chaptered Ritual on the battlefield counts as an enchantment** for
+  targeting specs, mass effects, and counting (consistent with the
+  enchantment Quests it mimics); `chapters` plus `retell` on one card is
+  validated illegal.
+- **Old replays stay watchable**: v6-v8 execution paths are preserved (the
+  wave is behavior-neutral for pre-Starborne data); v10 records new games and
+  only genuinely unreplayable versions refuse.
 
 ## 6. Explicitly out of scope
 
