@@ -68,7 +68,7 @@ import { Game } from '../engine/Game';
 import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
 import { ensureSplitPip } from '../ui/ManaSymbols';
 import { getEffectiveStats, isSummoningSick } from '../engine/statics';
-import type { CardDef, Color, PlayerId, Permanent, TargetRef } from '../engine/types';
+import type { CardDef, Color, ManaColor, PlayerId, Permanent, TargetRef } from '../engine/types';
 import { cardIdOf, def, isType, manaValue } from '../engine/types';
 import {
   attachTouchGestures,
@@ -258,7 +258,7 @@ const STACK_X = 1085;
 const STACK_Y = 372;
 const STACK_DROP: StackRect = { x: STACK_X, y: STACK_Y, halfW: 95, halfH: 125 };
 const LIFE_BADGE_SIZE = 40;
-const COLOR_SORT: readonly Color[] = ['W', 'U', 'B', 'R', 'G'];
+const COLOR_SORT: readonly ManaColor[] = ['W', 'U', 'B', 'R', 'G', 'C'];
 const ROW_GUTTER = 6;
 const PERMANENT_BAND_SCALE = 0.55;
 const PERMANENT_BAND_TILE_W = TILE_W * PERMANENT_BAND_SCALE;
@@ -4113,7 +4113,7 @@ export class DuelScene extends Phaser.Scene {
     return `Untapped mana · ${parts.join('   ')}`;
   }
 
-  private manaSourceSignature(colors: readonly Color[]): string {
+  private manaSourceSignature(colors: readonly ManaColor[]): string {
     return [...colors]
       .sort((a, b) => COLOR_SORT.indexOf(a) - COLOR_SORT.indexOf(b))
       .join('');
@@ -4122,7 +4122,7 @@ export class DuelScene extends Phaser.Scene {
   private compareManaSourceSignatures(a: string, b: string): number {
     return (
       a.length - b.length ||
-      COLOR_SORT.indexOf(a[0] as Color) - COLOR_SORT.indexOf(b[0] as Color) ||
+      COLOR_SORT.indexOf(a[0] as ManaColor) - COLOR_SORT.indexOf(b[0] as ManaColor) ||
       a.localeCompare(b)
     );
   }

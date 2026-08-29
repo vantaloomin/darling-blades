@@ -31,6 +31,7 @@ const GREEN_CARD = 'green-card';
 const OUTSIDE_CARD = 'outside-card';
 const BASIC = 'basic';
 const DUAL = 'dual';
+const COLORLESS_DUAL = 'colorless-dual';
 const OUTSIDE_DUAL = 'outside-dual';
 const SINGLE_LAND = 'single-land';
 const TOKEN = 'token';
@@ -74,6 +75,15 @@ const DB: CardDb = Object.freeze({
     attack: undefined,
     defense: undefined,
     manaAbility: ['G', 'W'],
+  }),
+  [COLORLESS_DUAL]: card(COLORLESS_DUAL, {
+    name: 'Colorless Grove',
+    types: ['land'],
+    colors: [],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['C', 'G'],
   }),
   [OUTSIDE_DUAL]: card(OUTSIDE_DUAL, {
     name: 'Moonlit Crossing',
@@ -252,6 +262,12 @@ describe('Darlings format helpers', () => {
     expect(
       messages(validateDarlingsDeck(DB, save, legalDeck(), DARLING, reserve(OUTSIDE_DUAL))),
     ).toContain("Moonlit Crossing is outside your Darling's colors");
+  });
+
+  it('ignores C when validating a reserve land against a colored Darling', () => {
+    const save = saveWith(DARLING, ...UNIQUE_IDS, COLORLESS_DUAL);
+    expect(darlingsCardError(DB, DARLING, COLORLESS_DUAL)).toBeNull();
+    expect(validateDarlingsDeck(DB, save, legalDeck(), DARLING, reserve(COLORLESS_DUAL))).toEqual([]);
   });
 
   it('checks one card for inline identity errors', () => {

@@ -17,7 +17,9 @@ function colorCounts(view: PlayerView, db: CardDb): Record<Color, number> {
     if (perm.controller !== view.myId || perm.tapped) continue;
     const d = def(db, perm.cardId);
     if (!isType(d, 'land') && !d.manaAbility) continue;
-    for (const color of d.manaAbility ?? []) counts[color]++;
+    for (const color of d.manaAbility ?? []) {
+      if (color !== 'C') counts[color]++;
+    }
   }
   return counts;
 }

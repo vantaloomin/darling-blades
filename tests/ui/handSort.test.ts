@@ -26,6 +26,7 @@ const DB: CardDb = Object.fromEntries(
     card('plains', { types: ['land'], subtypes: ['Plains'], manaAbility: ['W'] }),
     card('island', { types: ['land'], subtypes: ['Island'], manaAbility: ['U'] }),
     card('forest', { types: ['land'], subtypes: ['Forest'], manaAbility: ['G'] }),
+    card('c-land', { types: ['land'], manaAbility: ['C'] }),
     card('dual-wu', { types: ['land'], manaAbility: ['W', 'U'] }),
     // spells
     card('w1', { colors: ['W'], cost: cost(0, { W: 1 }) }), // mv 1
@@ -88,6 +89,10 @@ describe('handDisplayOrder', () => {
   it('sorts colorless spells last within their cost band', () => {
     const out = order(['artifact3', 'g3']); // both mv 3: G(4) before colorless(999)
     expect(out).toEqual(['g3', 'artifact3']);
+  });
+
+  it('sorts a C-only land as colorless after colored lands', () => {
+    expect(order(['c-land', 'forest'])).toEqual(['forest', 'c-land']);
   });
 
   it('is stable and deterministic for identical / duplicate cards', () => {
