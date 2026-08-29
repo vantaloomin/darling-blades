@@ -1816,9 +1816,10 @@ export const SANDS_OF_THE_DUAT = [
     types: ['creature'],
     subtypes: ['Queen', 'Warden'],
     supertypes: ['legendary'],
-    // PARKED 2026-08-29: the owner ruled trims + {7}{W}{W}, but MV9 breaks the
-    // catalog's hard 1-8 mana-value cap. Trims kept at the legal {6}{W}{W}
-    // pending a ruling; this still reads +2.30, so it needs one more nerf.
+    // Owner-ruled 2026-08-29: stays at {6}{W}{W} with the trims (gain 3, 5/6).
+    // The {7}{W}{W} raise was MV9, over the catalog's hard 1-8 cap, and the
+    // owner chose to accept the hot paper read and let seeded win rates rule
+    // rather than trim further. Deliberate accept, not an oversight.
     cost: cost(6, 'WW'),
     colors: ['W'],
     attack: 5,

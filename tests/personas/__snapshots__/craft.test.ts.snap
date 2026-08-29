@@ -3,9 +3,9 @@
 exports[`greedy persona builder: 'attrition' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 12,
+    "early": 16,
     "late": 4,
-    "mid": 24,
+    "mid": 20,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,
@@ -26,9 +26,9 @@ exports[`greedy persona builder: 'attrition' > is deterministic for a fixed seed
 exports[`greedy persona builder: 'burn' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 29,
+    "early": 27,
     "late": 0,
-    "mid": 11,
+    "mid": 13,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,
@@ -42,7 +42,7 @@ exports[`greedy persona builder: 'burn' > is deterministic for a fixed seed and 
     "threats": 20,
   },
   "total": 50,
-  "uniqueCards": 11,
+  "uniqueCards": 12,
 }
 `;
 
@@ -50,8 +50,8 @@ exports[`greedy persona builder: 'draw-go' > is deterministic for a fixed seed a
 {
   "curve": {
     "early": 13,
-    "late": 11,
-    "mid": 16,
+    "late": 12,
+    "mid": 15,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,
@@ -72,9 +72,9 @@ exports[`greedy persona builder: 'draw-go' > is deterministic for a fixed seed a
 exports[`greedy persona builder: 'midrange' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 23,
-    "late": 6,
-    "mid": 11,
+    "early": 20,
+    "late": 12,
+    "mid": 8,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,
@@ -88,16 +88,16 @@ exports[`greedy persona builder: 'midrange' > is deterministic for a fixed seed 
     "threats": 17,
   },
   "total": 50,
-  "uniqueCards": 12,
+  "uniqueCards": 11,
 }
 `;
 
 exports[`greedy persona builder: 'reanimator' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 16,
-    "late": 11,
-    "mid": 13,
+    "early": 20,
+    "late": 17,
+    "mid": 3,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,
@@ -118,9 +118,9 @@ exports[`greedy persona builder: 'reanimator' > is deterministic for a fixed see
 exports[`greedy persona builder: 'weenie' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 27,
+    "early": 23,
     "late": 4,
-    "mid": 9,
+    "mid": 13,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,

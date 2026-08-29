@@ -59,13 +59,16 @@ export const YOKAI_SPEC_ROWS = [
     "mechanics": "Warcry, Overrun. When this attacks: deal 2 damage to opponent, then deal 1 damage to you.",
     "flavor": "Her tailfire turns the skyline into a personal victory lap."
   },
+  // Slate cut to {5}{G} REVERTED 2026-08-29: formula v3 flags that cut as
+  // direction-reversed (already hot at {6}{G}), and it displaced gk-gaia
+  // from starter-wild's converter fill, breaking the marked-supply gate.
   {
     "id": "yn-rain-circuit-sovereign",
     "name": "Rain-Circuit Sovereign",
     "rarity": "UR",
     "color": "G",
     "type": "Legendary Creature (Spirit Sovereign)",
-    "cost": "{5}{G}",
+    "cost": "{6}{G}",
     "stats": "7/7",
     "mechanics": "Sentinel, Blood Oath. Arrives: gain 4 life, then Foresee 2.",
     "flavor": "The old forest wears the city as jewelry and grows stronger under every light."

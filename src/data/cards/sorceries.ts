@@ -221,12 +221,12 @@ export const SORCERIES = [
     name: 'The Wilds Take It Back',
     types: ['ritual'],
     subtypes: [],
-    // PARKED 2026-08-29: the owner ruled {G}{W}, but catalog integrity requires
-    // every multicolour nonland card to be legendary, and this is a plain rare
-    // Ritual. Held at the mono-green {1}{G} the same row's prose asked for
-    // (Delta -0.12 there too) pending a ruling on colour vs the legendary rule.
-    cost: cost(1, 'G'),
-    colors: ['G'],
+    // Owner-ruled 2026-08-29: goes {G}{W} AND legendary, so the multicolour
+    // nonland invariant holds. (Was parked mono-green while colour-vs-legendary
+    // was an open question.)
+    supertypes: ['legendary'],
+    cost: cost(0, 'GW'),
+    colors: ['G', 'W'],
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allEnchantments' }] }],
     rarity: 'r',
     flavor: 'The forest reviewed your enchantments and found them insufficiently feral.',

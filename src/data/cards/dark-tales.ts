@@ -162,12 +162,12 @@ const SR: CardDef[] = [
     cost: cost(2, 'B'), colors: ['B'], abilities: [spell([{ op: 'draw', n: 2 }, { op: 'damage', n: 2, to: 'controller' }])],
     retell: { cost: cost(4, 'B') }, rarity: 'sr', flavor: 'The signature dries quickly. The consequences do not.',
   }),
-  // PARKED 2026-08-29: the owner ruled {U}{B}, but catalog integrity requires
-  // every multicolour nonland card to be legendary, and this is a non-legendary
-  // super-rare. Held at the mono-blue {1}{U} the same row's prose asked for
-  // pending a ruling on colour vs the legendary rule.
+  // Owner-ruled 2026-08-29: goes {U}{B} AND legendary, so the multicolour
+  // nonland invariant holds. (Was parked mono-blue while colour-vs-legendary
+  // was an open question.)
   ritual('dt-glass-slipper-at-midnight', 'Glass Slipper at Midnight', {
-    cost: cost(1, 'U'), colors: ['U'], skim: { cost: cost(1) },
+    supertypes: ['legendary'],
+    cost: cost(0, 'UB'), colors: ['U', 'B'], skim: { cost: cost(1) },
     abilities: [spell([{ op: 'boost', p: 1, t: 0, keywords: ['dreaded'], scope: 'allYours' }])],
     rarity: 'sr', flavor: 'It fits perfectly, which is how the trap gets invited inside.',
   }),
