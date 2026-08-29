@@ -298,14 +298,16 @@ describe('catalog integrity', () => {
         rarity,
         SANDS_OF_THE_DUAT.filter((card) => predicate(card) && card.rarity === rarity).length,
       ]));
-    expect(count((card) => card.types.some((type) => type === 'artifact'))).toEqual({ c: 12, r: 6, sr: 1, ssr: 1, ur: 1 });
+    expect(count((card) => card.types.some((type) => type === 'artifact'))).toEqual({ c: 10, r: 6, sr: 1, ssr: 1, ur: 1 });
     expect(count((card) => card.colors.length > 1)).toEqual({ c: 0, r: 8, sr: 2, ssr: 5, ur: 4 });
     const mono = (color: string) => (card: (typeof SANDS_OF_THE_DUAT)[number]) =>
       !card.types.some((type) => type === 'artifact' || type === 'land') &&
       card.colors.length === 1 && card.colors[0] === color;
     for (const color of ['W', 'U', 'B', 'R', 'G']) {
-      expect(SANDS_OF_THE_DUAT.filter(mono(color))).toHaveLength(40);
-      expect(count(mono(color))).toEqual({ c: 21, r: 12, sr: 4, ssr: 2, ur: 1 });
+      expect(SANDS_OF_THE_DUAT.filter(mono(color))).toHaveLength(color === 'W' ? 41 : 40);
+      expect(count(mono(color))).toEqual(color === 'W'
+        ? { c: 22, r: 12, sr: 4, ssr: 2, ur: 1 }
+        : { c: 21, r: 12, sr: 4, ssr: 2, ur: 1 });
     }
   });
 

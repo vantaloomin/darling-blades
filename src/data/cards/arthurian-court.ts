@@ -529,8 +529,8 @@ export const ARTHURIAN_COURT = [
     rarity: 'c', flavor: 'The best stories leave out the part where the heroes lose.',
   },
   {
-    id: 'ac-questing-map', name: 'Questing Map', types: ['artifact'], subtypes: [],
-    cost: cost(2), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }, { when: 'arrives', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
+    id: 'ac-questing-map', name: 'Questing Map', types: ['ritual'], subtypes: [],
+    cost: cost(2), colors: [], abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'The map marks the road in ink that fades after the journey.',
   },
   {

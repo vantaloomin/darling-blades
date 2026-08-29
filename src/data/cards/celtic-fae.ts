@@ -348,8 +348,8 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'She can spare a minute. She will keep the afternoon.',
   },
   {
-    id: 'cf-cold-iron-nail', name: 'Cold-Iron Nail', types: ['artifact'], subtypes: [], cost: cost(1), colors: [],
-    abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }] }],
+    id: 'cf-cold-iron-nail', name: 'Cold-Iron Nail', types: ['ritual'], subtypes: [], cost: cost(1), colors: [],
+    abilities: [{ when: 'spell', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }] }],
     rarity: 'c', flavor: 'A very small answer to a very old fear.',
   },
   {
