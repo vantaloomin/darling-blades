@@ -116,8 +116,16 @@ describe('AI win-rate gates', () => {
     expect(rate).toBeGreaterThanOrEqual(0.7);
   }, 600_000);
 
-  it('summit rungs 14-24 clear their reserve-native 40-seed floors and terminate', () => {
-    const report = runAvatarMatrix(40);
+  it('summit rungs 14-22 clear their reserve-native 40-seed floors and terminate', () => {
+    // Rungs 23-24 gate separately below: one 24-avatar matrix blew the 900s
+    // per-test budget on CI hardware (2026-08-29), and the Starborne pair
+    // carries no floors yet anyway (provisional until the tuning pass).
+    const report = runAvatarMatrix(40, [
+      'artoria', 'carmilla', 'the-bride', 'glass-coffin-queen',
+      'abyssal-songstress', 'queen-of-the-lanterned-roof',
+      'kitsune-neon-tyrant', 'anubis-who-holds-the-scale',
+      'bastet-mistress-of-the-ninth-return',
+    ]);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
     const r14 = row('artoria');
     const r15 = row('carmilla');
@@ -128,8 +136,6 @@ describe('AI win-rate gates', () => {
     const r20 = row('kitsune-neon-tyrant');
     const r21 = row('anubis-who-holds-the-scale');
     const r22 = row('bastet-mistress-of-the-ninth-return');
-    const r23 = row('chrome-broodmother');
-    const r24 = row('the-violet-signal-queen');
     expect(r14).toBeDefined();
     expect(r15).toBeDefined();
     expect(r16).toBeDefined();
@@ -139,9 +145,7 @@ describe('AI win-rate gates', () => {
     expect(r20).toBeDefined();
     expect(r21).toBeDefined();
     expect(r22).toBeDefined();
-    expect(r23).toBeDefined();
-    expect(r24).toBeDefined();
-    if (!r14 || !r15 || !r16 || !r17 || !r18 || !r19 || !r20 || !r21 || !r22 || !r23 || !r24) return;
+    if (!r14 || !r15 || !r16 || !r17 || !r18 || !r19 || !r20 || !r21 || !r22) return;
 
     // FLOORS RE-CENTRED 2026-08-23 on the reserve-native avatar matrix.
     //
@@ -192,7 +196,25 @@ describe('AI win-rate gates', () => {
     expect(r17.avg, 'rung 17 must clear rung 16').toBeGreaterThan(r16.avg);
     expect(r18.avg, 'rung 18 must be the measured summit').toBeGreaterThan(r17.avg);
     expect(r20.avg, 'rung 20 must measure at or above rung 19').toBeGreaterThanOrEqual(r19.avg);
-    for (const cell of [...r17.cells, ...r18.cells, ...r19.cells, ...r20.cells, ...r21.cells, ...r22.cells, ...r23.cells, ...r24.cells]) {
+    for (const cell of [...r17.cells, ...r18.cells, ...r19.cells, ...r20.cells, ...r21.cells, ...r22.cells]) {
+      expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
+    }
+  }, 900_000);
+
+  it('Starborne rungs 23-24 field complete matrices and terminate decisively', () => {
+    // No floors yet: both are tier-6 PROVISIONAL until the post-batch tuning
+    // pass measures them at 200 seeds on final costs. This gate only proves
+    // the new pair plays complete, decisive games at CI's 40-seed budget.
+    const report = runAvatarMatrix(40, ['chrome-broodmother', 'the-violet-signal-queen']);
+    const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
+    const r23 = row('chrome-broodmother');
+    const r24 = row('the-violet-signal-queen');
+    expect(r23).toBeDefined();
+    expect(r24).toBeDefined();
+    if (!r23 || !r24) return;
+    expect(r23.cells).toHaveLength(5);
+    expect(r24.cells).toHaveLength(5);
+    for (const cell of [...r23.cells, ...r24.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
   }, 900_000);
