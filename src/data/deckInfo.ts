@@ -100,4 +100,11 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Lead with Bastet runners and paired blades, then turn every opening into a fast attack. Rite and Nine Lives keep the pressure coming while Preserve makes the best fallen threat matter again.',
     featured: ['sd-bastet-mistress-of-the-ninth-return', 'sd-war-priestess', 'sd-standard-bearer'],
   },
+  'theme-starborne': {
+    colors: 'G/U/R',
+    archetype: 'Starborne midrange swarm',
+    plays:
+      'Efficient bodies establish one or two marked permanents; Propagate and Broodlings turn a modest board wide. Blue filters with Foresee and answers with recall and cancel, while red finishes with damage and Overrun.',
+    featured: ['sb-rootlight-broodmother', 'sb-the-long-crossing', 'sb-mycelial-star-gardener'],
+  },
 };

@@ -16,16 +16,16 @@ import { ECONOMY, RULES } from '../../src/config/rules';
  */
 
 describe('avatar roster shape', () => {
-  it('has exactly 22 avatars with unique tiers 1..22', () => {
-    expect(AVATARS).toHaveLength(22);
+  it('has exactly 24 landed avatars with unique tiers 1..24', () => {
+    expect(AVATARS).toHaveLength(24);
     const tiers = AVATARS.map((a) => a.tier).sort((x, y) => x - y);
-    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
-    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(22);
-    expect(ECONOMY.gauntletRungGold).toHaveLength(22);
-    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350, 370, 390, 410, 430, 450, 470]);
+    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
+    expect(new Set(AVATARS.map((a) => a.id)).size).toBe(24);
+    expect(ECONOMY.gauntletRungGold).toHaveLength(24);
+    expect(ECONOMY.gauntletRungGold.slice(14)).toEqual([330, 350, 370, 390, 410, 430, 450, 470, 490, 510]);
   });
 
-  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-22 hard)', () => {
+  it('assigns difficulty by tier band (1-3 easy, 4-6 medium, 7-24 hard)', () => {
     for (const a of AVATARS) {
       const expected = a.tier <= 3 ? 'easy' : a.tier <= 6 ? 'medium' : 'hard';
       expect(a.difficulty).toBe(expected);
@@ -33,7 +33,7 @@ describe('avatar roster shape', () => {
   });
 
   it('avatarForRung / avatarById resolve consistently', () => {
-    for (let rung = 1; rung <= 22; rung++) {
+    for (let rung = 1; rung <= 24; rung++) {
       const a = avatarForRung(rung);
       expect(a.tier).toBe(rung);
       expect(avatarById(a.id)).toBe(a);
@@ -51,8 +51,124 @@ describe('avatar roster shape', () => {
     expect(avatarForRung(20).id).toBe('kitsune-neon-tyrant');
     expect(avatarForRung(21).id).toBe('anubis-who-holds-the-scale');
     expect(avatarForRung(22).id).toBe('bastet-mistress-of-the-ninth-return');
-    expect(() => avatarForRung(23)).toThrow();
+    expect(avatarForRung(23).id).toBe('chrome-broodmother');
+    expect(avatarForRung(23).name).toBe('Chrome Broodmother');
+    expect(avatarForRung(24).id).toBe('the-violet-signal-queen');
+    expect(avatarForRung(24).name).toBe('The Violet Signal Queen');
+    expect(() => avatarForRung(25)).toThrow();
     expect(() => avatarById('nope')).toThrow();
+  });
+});
+
+describe('Chrome Broodmother contract shape', () => {
+  const avatar = AVATARS.find((entry) => entry.id === 'chrome-broodmother')!;
+
+  it('lands the authored identity, personality, and exact classic counts', () => {
+    expect(avatar).toMatchObject({
+      id: 'chrome-broodmother',
+      name: 'Chrome Broodmother',
+      title: 'The Hull Keeps Its Own Crew',
+      blurb: 'She seeds the board before you notice, marks her favorite, and lets Propagate do the counting. By the time the swarm turns sideways it is already too wide to block.',
+      theme: 'Red-Green Mark Swarm (Propagate, Overrun)',
+      tier: 23,
+      difficulty: 'hard',
+      portraitCardId: 'sb-rootlight-broodmother',
+      darlingId: 'sb-orbitroot-matriarch',
+      personality: {
+        aggression: 1.2,
+        holdback: 0.7,
+        attackThreshold: 0.3,
+        removalBias: 0.5,
+        subtypeBias: 0.5,
+        preferredSubtypes: ['Matriarch', 'Brood', 'Starship'],
+      },
+    });
+    const expectedCounts = {
+      'land-forest': 10,
+      'land-mountain': 10,
+      'sb-radiant-comet-lane': 4,
+      'sb-mycelial-star-gardener': 4,
+      'sb-flarewing-raider': 4,
+      'sb-cometroot-grafter': 4,
+      'sb-lance-of-two-suns': 2,
+      'sb-ion-storm-brawler': 2,
+      'sb-living-hull-seedling': 4,
+      'sb-comet-kick-marauder': 2,
+      'sb-orbitroot-matriarch': 2,
+      'sb-rootlight-broodmother': 2,
+      'sb-emerald-bloom-mother': 2,
+      'sb-brood-communion': 2,
+      'sb-root-of-light': 2,
+      'sb-echo-burst': 2,
+      'sb-overcharge-the-hull': 2,
+    };
+    const actualCounts = Object.fromEntries(
+      [...new Set(avatar.deck)].map((id) => [id, avatar.deck.filter((cardId) => cardId === id).length]),
+    );
+    expect(actualCounts).toEqual(expectedCounts);
+    expect(avatar.reserveDeck).toHaveLength(40);
+    expect(avatar.landReserve).toEqual([
+      'sb-radiant-comet-lane', 'sb-radiant-comet-lane', 'sb-radiant-comet-lane', 'sb-radiant-comet-lane',
+      'land-forest', 'land-forest', 'land-forest', 'land-mountain', 'land-mountain', 'land-mountain',
+    ]);
+    expect(avatar.darlingsDeck).toHaveLength(79);
+  });
+});
+
+describe('The Violet Signal Queen contract shape', () => {
+  const avatar = AVATARS.find((entry) => entry.id === 'the-violet-signal-queen')!;
+
+  it('lands the amended Darling identity, personality, and exact classic counts', () => {
+    expect(avatar).toMatchObject({
+      id: 'the-violet-signal-queen',
+      name: 'The Violet Signal Queen',
+      title: 'Every Answer Arrives Early',
+      blurb: 'She reads three turns ahead and files the future under handled. Counters for the spell, severance for the grave, and a court of untouchable threats for everything that survives the paperwork.',
+      theme: 'Blue-Black Signal Control (Foresee, Sever, Cancel)',
+      tier: 24,
+      difficulty: 'hard',
+      portraitCardId: 'sb-astral-reef-singer',
+      darlingId: 'sd-sitra-ferrywoman-of-two-rivers',
+      personality: {
+        aggression: 0.7,
+        holdback: 1.3,
+        attackThreshold: 0.15,
+        removalBias: 1.0,
+        subtypeBias: 0.4,
+        preferredSubtypes: ['Singer', 'Navigator'],
+      },
+    });
+    const expectedCounts = {
+      'land-island': 12,
+      'land-swamp': 12,
+      'sb-star-reader': 4,
+      'sb-velvet-void-cartographer': 4,
+      'sb-severance-priestess': 2,
+      'sb-darkmatter-harvester': 2,
+      'sb-void-halo-assassin': 2,
+      'sb-violet-maw': 2,
+      'sb-voidcurrent-conjurer': 2,
+      'dt-poison-mirror-regent': 2,
+      'sb-astral-reef-singer': 2,
+      'sb-abyssal-iris-regent': 2,
+      'sb-signal-drown': 2,
+      'sb-collapse-the-lane': 2,
+      'sb-marrow-eviction': 2,
+      'sb-void-lament': 2,
+      'sb-corpse-lantern': 2,
+      'sb-deep-space-severance': 2,
+    };
+    const actualCounts = Object.fromEntries(
+      [...new Set(avatar.deck)].map((id) => [id, avatar.deck.filter((cardId) => cardId === id).length]),
+    );
+    expect(actualCounts).toEqual(expectedCounts);
+    expect(avatar.reserveDeck).toHaveLength(40);
+    expect(avatar.landReserve).toEqual([
+      'land-island', 'land-island', 'land-island', 'land-island', 'land-island',
+      'land-swamp', 'land-swamp', 'land-swamp', 'land-swamp', 'land-swamp',
+    ]);
+    expect(avatar.darlingsDeck).toHaveLength(79);
+    expect(avatar.darlingsDeck).not.toContain(avatar.darlingId);
   });
 });
 

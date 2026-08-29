@@ -9,13 +9,15 @@ import { expand } from './starterDecks';
  * `portraitCardId` is a real creature in the deck whose placeholder bust is
  * already baked into the atlas after Preload.
  *
- * Gauntlet ordering is by `tier` (1..22, unique). Difficulty follows the plan:
- * tiers 1-3 Easy, 4-6 Medium, 7-22 Hard (9-10 are the Ragnarök bosses,
+ * Gauntlet ordering is by `tier` (1..24 currently landed). Difficulty follows the plan:
+ * tiers 1-3 Easy, 4-6 Medium, 7-24 Hard (9-10 are the Ragnarök bosses,
  * 11-12 are the Celtic Fae bosses, 13-14 are the Arthurian Court pair, and
  * 15-16 are the Gothic Monsters pair, 17-18 are the Dark Tales summit pair,
  * and 19-20 are the Yokai Nights summit pair, and 21-22 are the Sands of the
  * Duat summit pair: Anubis at 21, Bastet as the final rung 22 - the owner swapped
- * the order 2026-08-21 so the climb ends on the stronger boss).
+ * the order 2026-08-21 so the climb ends on the stronger boss). Rungs 23-24
+ * are the Starborne summit pair: Chrome Broodmother at 23, The Violet Signal
+ * Queen as the final rung at 24.
  */
 export interface Avatar {
   id: string;
@@ -23,7 +25,7 @@ export interface Avatar {
   title: string;
   blurb: string;
   theme: string;
-  tier: number; // 1..22 (unique)
+  tier: number; // 1..24 (unique)
   difficulty: Difficulty;
   deck: string[]; // 60 real cardIds — classic; the Tower and Draft still pilot this
   personality: Personality;
@@ -3746,6 +3748,308 @@ export const AVATARS: readonly Avatar[] = [
     ],
     darlingId: 'sd-bastet-mistress-of-the-ninth-return',
   },
+
+  // ---------------------------------------------------------------------
+  // Rung 23 - Chrome Broodmother, The Hull Keeps Its Own Crew: R/G Mark Swarm.
+  {
+    id: 'chrome-broodmother',
+    name: 'Chrome Broodmother',
+    title: 'The Hull Keeps Its Own Crew',
+    blurb: 'She seeds the board before you notice, marks her favorite, and lets Propagate do the counting. By the time the swarm turns sideways it is already too wide to block.',
+    theme: 'Red-Green Mark Swarm (Propagate, Overrun)',
+    tier: 23,
+    difficulty: 'hard',
+    portraitCardId: 'sb-rootlight-broodmother',
+    personality: makePersonality({
+      aggression: 1.2,
+      holdback: 0.7,
+      attackThreshold: 0.3,
+      removalBias: 0.5,
+      subtypeBias: 0.5,
+      preferredSubtypes: ['Matriarch', 'Brood', 'Starship'],
+    }),
+    deck: expand([
+      ['land-forest', 10],
+      ['land-mountain', 10],
+      ['sb-radiant-comet-lane', 4],
+      ['sb-mycelial-star-gardener', 4],
+      ['sb-flarewing-raider', 4],
+      ['sb-cometroot-grafter', 4],
+      ['sb-lance-of-two-suns', 2],
+      ['sb-ion-storm-brawler', 2],
+      ['sb-living-hull-seedling', 4],
+      ['sb-comet-kick-marauder', 2],
+      ['sb-orbitroot-matriarch', 2],
+      ['sb-rootlight-broodmother', 2],
+      ['sb-emerald-bloom-mother', 2],
+      ['sb-brood-communion', 2],
+      ['sb-root-of-light', 2],
+      ['sb-echo-burst', 2],
+      ['sb-overcharge-the-hull', 2],
+    ]),
+    // MEASURED 2026-08-29 (hard AI, 200 seeds/cell, reserve-native avatar
+    // matrix vs the five starters): 51% average; cells 24/64/40/62/64% in
+    // Muster/Communion/Tides/Mandate/Harvest order. Every cell had 200
+    // decided games and zero draws. FLAGS none.
+    // Generated 2026-08-29 by `npx tsx scripts/avatarReserveDecks.ts --print`.
+    // The classic deck, reserveDeck, and landReserve above are the locked
+    // contract list; only this converter-owned surface is generated.
+    reserveDeck: expand([
+      ['sb-mycelial-star-gardener', 4],
+      ['sb-flarewing-raider', 4],
+      ['sb-cometroot-grafter', 4],
+      ['sb-living-hull-seedling', 4],
+      ['sb-lance-of-two-suns', 2],
+      ['sb-ion-storm-brawler', 2],
+      ['sb-comet-kick-marauder', 2],
+      ['sb-orbitroot-matriarch', 2],
+      ['sb-rootlight-broodmother', 2],
+      ['sb-emerald-bloom-mother', 2],
+      ['sb-brood-communion', 2],
+      ['sb-root-of-light', 2],
+      ['sb-echo-burst', 4],
+      ['sb-overcharge-the-hull', 4],
+    ]),
+    landReserve: expand([
+      ['sb-radiant-comet-lane', 4],
+      ['land-forest', 3],
+      ['land-mountain', 3],
+    ]),
+    darlingsDeck: [
+      'sb-mycelial-star-gardener',
+      'sb-flarewing-raider',
+      'sb-cometroot-grafter',
+      'sb-lance-of-two-suns',
+      'sb-ion-storm-brawler',
+      'sb-living-hull-seedling',
+      'sb-comet-kick-marauder',
+      'sb-rootlight-broodmother',
+      'sb-emerald-bloom-mother',
+      'sb-brood-communion',
+      'sb-root-of-light',
+      'sb-echo-burst',
+      'sb-overcharge-the-hull',
+      'ac-quest-marker',
+      'ar-training-dummy',
+      'bk-nekomata-scout',
+      'cf-apple-of-emain',
+      'cf-cold-iron-nail',
+      'cf-dawn-torc',
+      'cf-fae-spark',
+      'cf-thorn-sprite',
+      'cf-thornsnare',
+      'dt-apple-basket',
+      'dt-bookmark-charm',
+      'dt-brass-lamp-charm',
+      'dt-jade-dragon-scale',
+      'dt-ragged-ballgown',
+      'dt-satin-slipper',
+      'dt-verdant-heart-voyage',
+      'en-battle-fervor',
+      'in-boar-rush',
+      'in-comet-blast',
+      'in-fire-attack',
+      'in-valley-mist',
+      'in-wild-surge',
+      'rg-berserkers-fury',
+      'rg-rune-of-fury',
+      'sb-blue-echo-array',
+      'sb-hullwake-overdrive',
+      'sb-null-orbit-array',
+      'sb-sky-map',
+      'sd-burn-the-rope',
+      'sd-empty-heart-jar',
+      'sd-lapis-funerary-mask',
+      'sd-reed-bound-canopic',
+      'sd-root-through-the-ruin',
+      'sd-scale-weight',
+      'sd-tomb-seal',
+      'so-ember-squall',
+      'so-warcry',
+      'tk-wu-handang',
+      'yn-ghostwood-growth',
+      'ac-moonlit-joust',
+      'ac-questing-map',
+      'ac-tilting-lance',
+      'ar-terracotta-soldier',
+      'bk-bearkin-guardian',
+      'bk-boarkin-rootbreaker',
+      'bk-harpy-skirmisher',
+      'bk-sheepkin-dreamherd',
+      'bk-squirrelkin-hoarder',
+      'bk-wolfkin-raider',
+      'cf-ash-and-mistletoe',
+      'cf-blackthorn-duelist',
+      'cf-brigid-ember-blessing',
+      'cf-cauldron-of-dagda',
+      'cf-cold-iron-taboo',
+      'cf-ember-of-brigid',
+      'cf-hazelwand-mystic',
+      'cf-heatherblade-scout',
+      'cf-hill-feast',
+      'cf-laughing-pooka',
+      'cf-mushroom-ring-guard',
+      'cf-redcap-skirmisher',
+      'cf-silver-apple-shot',
+      'cf-silver-thread',
+      'cf-thorn-crown-geas',
+      'cf-veil-touched-hart',
+      'dt-bayou-lamplighter',
+    ],
+    darlingId: 'sb-orbitroot-matriarch',
+  },
+
+  // ---------------------------------------------------------------------
+  // Rung 24 - The Violet Signal Queen, Every Answer Arrives Early: U/B Signal Control.
+  {
+    id: 'the-violet-signal-queen',
+    name: 'The Violet Signal Queen',
+    title: 'Every Answer Arrives Early',
+    blurb: 'She reads three turns ahead and files the future under handled. Counters for the spell, severance for the grave, and a court of untouchable threats for everything that survives the paperwork.',
+    theme: 'Blue-Black Signal Control (Foresee, Sever, Cancel)',
+    tier: 24,
+    difficulty: 'hard',
+    portraitCardId: 'sb-astral-reef-singer',
+    personality: makePersonality({
+      aggression: 0.7,
+      holdback: 1.3,
+      attackThreshold: 0.15,
+      removalBias: 1.0,
+      subtypeBias: 0.4,
+      preferredSubtypes: ['Singer', 'Navigator'],
+    }),
+    deck: expand([
+      ['land-island', 12],
+      ['land-swamp', 12],
+      ['sb-star-reader', 4],
+      ['sb-velvet-void-cartographer', 4],
+      ['sb-severance-priestess', 2],
+      ['sb-darkmatter-harvester', 2],
+      ['sb-void-halo-assassin', 2],
+      ['sb-violet-maw', 2],
+      ['sb-voidcurrent-conjurer', 2],
+      ['dt-poison-mirror-regent', 2],
+      ['sb-astral-reef-singer', 2],
+      ['sb-abyssal-iris-regent', 2],
+      ['sb-signal-drown', 2],
+      ['sb-collapse-the-lane', 2],
+      ['sb-marrow-eviction', 2],
+      ['sb-void-lament', 2],
+      ['sb-corpse-lantern', 2],
+      ['sb-deep-space-severance', 2],
+    ]),
+    reserveDeck: expand([
+      ['sb-star-reader', 4],
+      ['sb-velvet-void-cartographer', 4],
+      ['sb-severance-priestess', 2],
+      ['sb-darkmatter-harvester', 2],
+      ['sb-void-halo-assassin', 4],
+      ['sb-violet-maw', 2],
+      ['sb-voidcurrent-conjurer', 2],
+      ['dt-poison-mirror-regent', 2],
+      ['sb-astral-reef-singer', 2],
+      ['sb-abyssal-iris-regent', 2],
+      ['sb-signal-drown', 2],
+      ['sb-collapse-the-lane', 2],
+      ['sb-marrow-eviction', 2],
+      ['sb-void-lament', 2],
+      ['sb-corpse-lantern', 4],
+      ['sb-deep-space-severance', 2],
+    ]),
+    landReserve: expand([
+      ['land-island', 5],
+      ['land-swamp', 5],
+    ]),
+    // MEASURED 2026-08-29 (hard AI, 200 seeds/cell, reserve-native avatar
+    // matrix vs the five starters): 80% average; cells 77/90/62/78/95% in
+    // Muster/Communion/Tides/Mandate/Harvest order. Every cell had 200
+    // decided games and zero draws. FLAGS none.
+    // Generated 2026-08-29 by `npx tsx scripts/avatarReserveDecks.ts --print`.
+    // The classic deck, reserveDeck, and landReserve above are the locked
+    // contract lists; only this converter-owned surface is generated.
+    darlingsDeck: [
+      'sb-star-reader',
+      'sb-velvet-void-cartographer',
+      'sb-severance-priestess',
+      'sb-darkmatter-harvester',
+      'sb-void-halo-assassin',
+      'sb-violet-maw',
+      'sb-voidcurrent-conjurer',
+      'dt-poison-mirror-regent',
+      'sb-astral-reef-singer',
+      'sb-abyssal-iris-regent',
+      'sb-signal-drown',
+      'sb-collapse-the-lane',
+      'sb-marrow-eviction',
+      'sb-void-lament',
+      'sb-corpse-lantern',
+      'sb-deep-space-severance',
+      'ac-quest-marker',
+      'ar-training-dummy',
+      'cf-bargain-for-time',
+      'cf-barrow-whisper',
+      'cf-bitter-geas',
+      'cf-cold-iron-nail',
+      'cf-dawn-torc',
+      'cf-fae-ring-initiate',
+      'cf-fogbell-chime',
+      'cf-glimmerdust-trick',
+      'cf-omen-raven',
+      'cf-salt-the-barrow',
+      'dt-bookmark-charm',
+      'dt-brass-lamp-charm',
+      'dt-ragged-ballgown',
+      'dt-satin-slipper',
+      'dt-silver-fishbone',
+      'dt-singing-shell',
+      'en-clouded-mind',
+      'gm-funeral-bell',
+      'in-grave-chill',
+      'in-undertow',
+      'rg-rune-of-hunger',
+      'rg-rune-of-insight',
+      'sb-blue-echo-array',
+      'sb-null-orbit-array',
+      'sb-sky-map',
+      'sd-empty-heart-jar',
+      'sd-lapis-funerary-mask',
+      'sd-reed-bound-canopic',
+      'sd-scale-weight',
+      'sd-tomb-seal',
+      'so-raise-dead',
+      'tk-other-dongbai',
+      'tk-wei-chenqun',
+      'tk-wu-xiaoqiao',
+      'yn-circuit-foretelling',
+      'ac-bitter-court-rumor',
+      'ac-grail-glimpse',
+      'ac-lantern-in-fog',
+      'ac-questing-map',
+      'ac-treasonous-glance',
+      'ac-wounded-oath',
+      'ar-terracotta-soldier',
+      'bk-batkin-duskwing',
+      'bk-kitsune-illusionist',
+      'bk-lamia-nightblade',
+      'bk-mermaid-chartsinger',
+      'cf-bargain-unwound',
+      'cf-black-dog-of-lane',
+      'cf-bog-banshee',
+      'cf-cairnlight-adept',
+      'cf-cold-iron-taboo',
+      'cf-mist-over-tara',
+      'cf-mistwing-pixie',
+      'cf-night-market-bargain',
+      'cf-selkie-runner',
+      'cf-silver-thread',
+      'dt-cursed-rose',
+      'dt-dream-prick',
+      'dt-eel-twin-of-the-sea-witch',
+      'dt-frog-pond-bride',
+      'dt-frozen-to-the-floor',
+    ],
+    darlingId: 'sd-sitra-ferrywoman-of-two-rivers',
+  },
 ];
 
 /** Look up an avatar by id (throws on unknown — callers pass validated ids). */
@@ -3755,7 +4059,7 @@ export function avatarById(id: string): Avatar {
   return a;
 }
 
-/** The avatar at a 1-based gauntlet rung (1..22). */
+/** The avatar at a 1-based gauntlet rung (1..24 currently landed). */
 export function avatarForRung(rung: number): Avatar {
   const a = AVATARS.find((x) => x.tier === rung);
   if (!a) throw new Error(`No avatar for rung ${rung}`);

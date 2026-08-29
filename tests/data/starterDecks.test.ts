@@ -44,6 +44,14 @@ describe('starter roster shape', () => {
   });
 });
 
+describe('theme roster shape', () => {
+  it('lands eight theme decks including the Starborne precon', () => {
+    expect(THEME_DECKS).toHaveLength(8);
+    expect(new Set(THEME_DECKS.map((deck) => deck.id)).size).toBe(8);
+    expect(THEME_DECKS.find((deck) => deck.id === 'theme-starborne')?.name).toBe('Chrome-Violet Broodship');
+  });
+});
+
 describe.each(STARTER_DECKS.map((d) => [d.name, d] as const))('starter deck legality — %s', (_name, deck) => {
   const counts = new Map<string, number>();
   for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
@@ -233,6 +241,44 @@ describe('Bloodmoon Masquerade composition', () => {
         expect(card.colors.every((color) => color === 'B' || color === 'R'), `${id} color identity`).toBe(true);
       }
     }
+  });
+});
+
+describe('Chrome-Violet Broodship composition', () => {
+  const deck = THEME_DECKS.find((entry) => entry.id === 'theme-starborne')!;
+
+  it('uses the exact approved G/U/R Starborne list and 40-card reserve', () => {
+    const expectedCounts = {
+      'land-forest': 8,
+      'land-island': 6,
+      'land-mountain': 6,
+      'sb-aurora-reefway': 2,
+      'sb-radiant-comet-lane': 2,
+      'sb-mycelial-star-gardener': 4,
+      'sb-ion-bloom-scout': 2,
+      'sb-cometroot-grafter': 3,
+      'sb-hullplate-bastion': 2,
+      'sb-living-hull-seedling': 4,
+      'sb-quasar-cartographer': 2,
+      'sb-solar-riot-engineer': 2,
+      'sb-comet-kick-marauder': 2,
+      'sb-rootlight-broodmother': 2,
+      'sb-the-long-crossing': 1,
+      'sb-brood-communion': 2,
+      'sb-root-of-light': 2,
+      'sb-echo-burst': 2,
+      'sb-signal-inversion': 2,
+      'sb-quiet-orbit': 2,
+      'sb-overcharge-the-hull': 2,
+    };
+    const actualCounts = Object.fromEntries(
+      [...new Set(deck.cards)].map((id) => [id, deck.cards.filter((cardId) => cardId === id).length]),
+    );
+    expect(deck).toMatchObject({ id: 'theme-starborne', name: 'Chrome-Violet Broodship' });
+    expect(actualCounts).toEqual(expectedCounts);
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+    expect(deck.reserveCards).toHaveLength(40);
+    expect(deck.landReserve).toHaveLength(10);
   });
 });
 
