@@ -115,6 +115,9 @@ import {
   orderedGraveyardSlots,
   shouldArmLandDrop,
   targetArrowShaftEnd,
+  TARGET_PROMPT_LAYOUT,
+  targetAbilityText,
+  targetPromptTitle,
   type LandDropGuardInput,
   targetRingTone,
 } from '../ui/duelPresentation';
@@ -425,6 +428,8 @@ export class DuelScene extends Phaser.Scene {
   /** Per-face legal-target outlines; portrait rings live on CommanderPortrait itself. */
   private lifeTargetRings!: { my: Phaser.GameObjects.Graphics; opp: Phaser.GameObjects.Graphics };
   private overlay: Phaser.GameObjects.Container | null = null;
+  /** Display-only source card and relevant ability text for mandatory arrival targets. */
+  private targetPrompt: Phaser.GameObjects.Container | null = null;
   private guard = new ModalGuard();
   private toasts: Toast | null = null;
   private toastHeldForTurnBoundary = false;
@@ -669,7 +674,9 @@ export class DuelScene extends Phaser.Scene {
     // `if (this.aiTimer) return` guard would mute the AI forever (found live
     // 2026-07-16; the restart-hygiene trap class from playbook §11).
     this.aiTimer = null;
+    this.pendingCasts = null;
     this.overlay = null;
+    this.targetPrompt = null;
     this.guard = new ModalGuard();
     this.toastHeldForTurnBoundary = !this.replayMode;
     this.toasts = this.replayMode
@@ -1397,10 +1404,9 @@ export class DuelScene extends Phaser.Scene {
 
   /** Legal face targeting follows the same first-target contract as tryTarget(). */
   private isPlayerTargetable(player: PlayerId): boolean {
-    return this.pendingCasts?.some((action) => {
-      const target = this.pendingActionTarget(action);
-      return target?.kind === 'player' && target.player === player;
-    }) ?? false;
+    return this.targetRefsForInput().some(
+      (target) => target.kind === 'player' && target.player === player,
+    );
   }
 
   /** Legal target rings describe the target controller, never the spell's colour or class. */
@@ -1586,11 +1592,9 @@ export class DuelScene extends Phaser.Scene {
       y: LAYOUT.gap.stackY,
       cardFor: (cardId) => def(CARD_DB, cardId),
       casterLabel: (controller) => (controller === HUMAN ? 'You' : 'Opponent'),
-      isTargetable: (sid) =>
-        this.pendingCasts?.some((action) => {
-          const target = this.pendingActionTarget(action);
-          return target?.kind === 'stackItem' && target.sid === sid;
-        }) ?? false,
+      isTargetable: (sid) => this.targetRefsForInput().some(
+        (target) => target.kind === 'stackItem' && target.sid === sid,
+      ),
       onTarget: (sid) => this.tryTarget({ kind: 'stackItem', sid }),
       attachZoom: (view, card) => this.zoom.attach(view, card),
       // Same guard as the sticky-tap route: while the player is mid-target
@@ -2096,6 +2100,82 @@ export class DuelScene extends Phaser.Scene {
       : action.targets?.[0];
   }
 
+  private isHumanChooseTarget(): boolean {
+    const a = this.duel.awaiting;
+    return a.kind === 'chooseTarget' && a.player === HUMAN;
+  }
+
+  /** All currently clickable target refs, whether cast-time or trigger-time. */
+  private targetRefsForInput(): TargetRef[] {
+    const awaiting = this.duel.awaiting;
+    const refs = (this.pendingCasts ?? [])
+      .map((action) => this.pendingActionTarget(action))
+      .filter((target): target is TargetRef => target !== undefined);
+    if (awaiting.kind === 'chooseTarget' && awaiting.player === HUMAN) refs.push(...awaiting.targets);
+    return refs;
+  }
+
+  private targetRefEquals(a: TargetRef, b: TargetRef): boolean {
+    if (a.kind !== b.kind) return false;
+    if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
+    if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
+    if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
+    return a.kind === 'grave' && b.kind === 'grave' && a.player === b.player && a.index === b.index;
+  }
+
+  private targetChoiceOrigin(): { x: number; y: number; scale: number; angle: number } | undefined {
+    const awaiting = this.duel.awaiting;
+    if (awaiting.kind !== 'chooseTarget' || awaiting.player !== HUMAN) return undefined;
+    const source = this.views.get(awaiting.sourceIid);
+    if (source?.active) {
+      return { x: source.x, y: source.y, scale: source.scaleX, angle: source.angle };
+    }
+    const target = this.boardTargets.get(awaiting.sourceIid);
+    return target ? { ...target, angle: 0 } : undefined;
+  }
+
+  private syncTargetPrompt(): void {
+    if (this.targetPrompt?.active) this.targetPrompt.destroy();
+    this.targetPrompt = null;
+    const awaiting = this.duel.awaiting;
+    if (awaiting.kind !== 'chooseTarget' || awaiting.player !== HUMAN) return;
+    const source = this.duel.state.battlefield.find(
+      (perm) => perm.iid === awaiting.sourceIid,
+    );
+    if (!source) return;
+    const card = def(CARD_DB, source.cardId);
+    const layout = TARGET_PROMPT_LAYOUT;
+    const prompt = this.add.container(0, 0).setDepth(theme.depth.toast);
+    const sourceCard = new CardView(this, layout.cardX, layout.cardY);
+    sourceCard.setCard(card, { fx: 'none' }).setScale(layout.cardScale);
+    prompt.add(sourceCard);
+    prompt.add(
+      this.add
+        .text(layout.titleX, layout.titleY, targetPromptTitle(card.name), {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.label}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+          wordWrap: { width: layout.textWidth },
+          resolution: 2,
+        })
+        .setOrigin(0, 0.5),
+    );
+    prompt.add(
+      this.add
+        .text(layout.textX, layout.textY, targetAbilityText(card, awaiting.abilityIndex), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.body,
+          wordWrap: { width: layout.textWidth },
+          lineSpacing: 3,
+          resolution: 2,
+        })
+        .setOrigin(0, 0),
+    );
+    this.targetPrompt = prompt;
+  }
+
   private rememberRetellAction(action: Action, events: readonly GameEvent[]): void {
     if (action.type !== 'castSpell' || action.retell !== true) return;
     for (const event of events) {
@@ -2277,17 +2357,17 @@ export class DuelScene extends Phaser.Scene {
 
   /** In targeting mode: try to complete the pending cast with this target. */
   private tryTarget(ref: import('../engine/types').TargetRef): void {
+    const awaiting = this.duel.awaiting;
+    if (awaiting.kind === 'chooseTarget' && awaiting.player === HUMAN) {
+      if (awaiting.targets.some((target) => this.targetRefEquals(target, ref))) {
+        this.act({ type: 'chooseTarget', target: ref });
+      }
+      return;
+    }
     if (!this.pendingCasts) return;
     const matches = this.pendingCasts.filter((c) => {
       const t = this.pendingActionTarget(c);
-      if (!t) return false;
-      if (t.kind !== ref.kind) return false;
-      if (t.kind === 'permanent' && ref.kind === 'permanent') return t.iid === ref.iid;
-      if (t.kind === 'player' && ref.kind === 'player') return t.player === ref.player;
-      if (t.kind === 'stackItem' && ref.kind === 'stackItem') return t.sid === ref.sid;
-      if (t.kind === 'grave' && ref.kind === 'grave')
-        return t.player === ref.player && t.index === ref.index;
-      return false;
+      return t !== undefined && this.targetRefEquals(t, ref);
     });
     if (matches.length === 0) return;
     // For X spells pick the biggest X the mana allows.
@@ -2398,7 +2478,7 @@ export class DuelScene extends Phaser.Scene {
 
   /** Enter end-turn mode: fast-forward the rest of your turn (see endTurnTick). */
   private startEndTurn(): void {
-    if (this.ended || !this.isHumanTurnDecision()) return;
+    if (this.ended || !this.isHumanTurnDecision() || this.isHumanChooseTarget()) return;
     if (this.pendingCasts || this.carry || this.landFan || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
     // End Turn skips the rest of the turn outright, so the guard applies from
     // either main phase. This button has no label of its own to re-colour, so
@@ -2438,7 +2518,7 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     // Overlays / targeting / an opponent sub-decision: wait, stay armed, resume.
-    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
+    if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal || this.isHumanChooseTarget()) return;
     if (!this.isHumanTurnDecision()) return;
     if (!this.endTurnPassAction()) return; // pause at a decision needing real input
     this.endTurnTimer = this.time.delayedCall(180, () => {
@@ -2448,7 +2528,7 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       // Re-check fresh — the player may have opened an overlay during the wait.
-      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal) return;
+      if (this.overlay || this.inspect || this.pendingCasts || this.carry || this.landFan || this.pauseOverlay || this.zoneModal || this.isHumanChooseTarget()) return;
       if (!this.isHumanTurnDecision()) return;
       const action = this.endTurnPassAction();
       if (!action) return;
@@ -3437,6 +3517,7 @@ export class DuelScene extends Phaser.Scene {
     // Target legality is reactive state. Re-arm both portrait Zones after the
     // later-created board/hand input surfaces so a legal face wins hit tests.
     this.syncFaceTargeting();
+    this.syncTargetPrompt();
     this.syncButton();
     this.drawArrows();
     this.syncOverlay();
@@ -3630,12 +3711,9 @@ export class DuelScene extends Phaser.Scene {
   private highlightFor(perm: Permanent): BoardHighlight {
     const a = this.duel.awaiting;
     const combat = this.duel.state.combat;
-    if (
-      this.pendingCasts?.some((action) => {
-        const target = this.pendingActionTarget(action);
-        return target?.kind === 'permanent' && target.iid === perm.iid;
-      })
-    )
+    if (this.targetRefsForInput().some(
+      (target) => target.kind === 'permanent' && target.iid === perm.iid,
+    ))
       return targetRingTone(perm.controller === HUMAN ? 'you' : 'opponent') === 'hostile'
         ? 'legalTargetOpponent'
         : 'legalTarget';
@@ -4443,6 +4521,10 @@ export class DuelScene extends Phaser.Scene {
       this.setSmartAffordance('pass', true);
       return;
     }
+    // Arrival targets are mandatory. The board rings and source prompt are
+    // the affordance; deliberately leave the smart button hidden so no
+    // cancel/pass action can bypass the queued choice.
+    if (a.kind === 'chooseTarget') return;
     let danger = false;
     let armed = false;
     switch (a.kind) {
@@ -4622,11 +4704,15 @@ export class DuelScene extends Phaser.Scene {
     // Cast-targeting arrow (desktop hover): from the live source card to the
     // pointer, snapping to the closest legal target so burn-face vs burn-creature
     // intent is unmistakable. Touch resolves targets by direct tap — no hover.
-    if (this.pendingCasts && !this.touch) {
+    const targetRefs = this.targetRefsForInput();
+    if (targetRefs.length > 0 && !this.touch) {
       const p = this.input.activePointer;
       const tip = this.snapTargetTip(p.worldX, p.worldY);
-      const origin = this.actionOrigin(this.pendingCasts[0]) ?? TARGET_ARROW_SRC;
-      const { x: sx, y: sy } = origin;
+      const origin = this.pendingCasts
+        ? this.actionOrigin(this.pendingCasts[0])
+        : this.targetChoiceOrigin();
+      const source = origin ?? TARGET_ARROW_SRC;
+      const { x: sx, y: sy } = source;
       this.drawCurvedArrow(sx, sy, tip.x, tip.y, TARGET_ARROW_COLOR, 0.95);
       // Arrowhead — two short strokes back from the tip along the shaft angle.
     }
@@ -4761,7 +4847,7 @@ export class DuelScene extends Phaser.Scene {
 
   /** Redraw the targeting arrow as the mouse moves (desktop only — no touch hover). */
   private onTargetPointerMove(): void {
-    if (this.pendingCasts && !this.touch) this.drawArrows();
+    if (this.targetRefsForInput().length > 0 && !this.touch) this.drawArrows();
   }
 
   /**
@@ -4773,9 +4859,7 @@ export class DuelScene extends Phaser.Scene {
   private snapTargetTip(px: number, py: number): { x: number; y: number } {
     let best: { x: number; y: number } | null = null;
     let bestDist = TARGET_SNAP_R;
-    for (const c of this.pendingCasts ?? []) {
-      const target = this.pendingActionTarget(c);
-      if (!target) continue;
+    for (const target of this.targetRefsForInput()) {
       const pos = this.hitTargetPos(target);
       const dist = Phaser.Math.Distance.Between(px, py, pos.x, pos.y);
       if (dist < bestDist) {
@@ -4820,6 +4904,9 @@ export class DuelScene extends Phaser.Scene {
       this.closeLandFan();
       return;
     }
+    // A queued arrival target is mandatory and has no cancel path. Esc must
+    // not turn into a hidden way to leave that choice via the pause menu.
+    if (this.isHumanChooseTarget()) return;
     if (this.pendingCasts) {
       this.pendingCasts = null;
       this.sync(); // mirrors the right-click cancel path
@@ -4838,6 +4925,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private onHandClick(handIndex: number): void {
+    if (this.isHumanChooseTarget()) return;
     this.clearManaPlanPreview();
     // Dimmed-card feedback: a card that can't be played explains itself on the
     // skip-toast instead of being a silent no-op. reasonUncastable === null iff
@@ -5107,6 +5195,7 @@ export class DuelScene extends Phaser.Scene {
    * instantCast escape hatch all keep the modal; right-click always reads it.
    */
   private onReservePileTap(): void {
+    if (this.isHumanChooseTarget()) return;
     if (this.landFan) {
       this.closeLandFan();
       return;
@@ -5120,6 +5209,7 @@ export class DuelScene extends Phaser.Scene {
       !this.touch &&
       !this.tutorial &&
       !this.replayMode &&
+      !this.isHumanChooseTarget() &&
       !this.carry &&
       !Services.save.data.settings.instantCast &&
       this.duel
@@ -5302,6 +5392,10 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private onBattlefieldClick(iid: number): void {
+    if (this.isHumanChooseTarget()) {
+      this.tryTarget({ kind: 'permanent', iid });
+      return;
+    }
     if (this.pendingCasts) {
       this.tryTarget({ kind: 'permanent', iid });
       return;
@@ -5388,6 +5482,10 @@ export class DuelScene extends Phaser.Scene {
    * (a no-op tap stays a no-op; long-press already covers reading them).
    */
   private onBattlefieldTap(iid: number, d: CardDef): void {
+    if (this.isHumanChooseTarget()) {
+      this.onBattlefieldClick(iid); // mandatory arrival targeting: tap = pick this target
+      return;
+    }
     if (this.pendingCasts) {
       this.onBattlefieldClick(iid); // targeting: tap = pick this target
       return;
@@ -5425,7 +5523,8 @@ export class DuelScene extends Phaser.Scene {
       this.pauseOverlay ||
       this.gravePicker ||
       this.animatingCombat ||
-      this.zoneModal
+      this.zoneModal ||
+      this.isHumanChooseTarget()
     )
       return false;
     return this.isHumanTurnDecision();
@@ -5821,7 +5920,7 @@ export class DuelScene extends Phaser.Scene {
    * would restart the duel). Never opens over a mulligan/pick or inspect overlay.
    */
   private showPauseMenu(): void {
-    if (this.ended || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
+    if (this.ended || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal || this.isHumanChooseTarget()) return;
     // Only during your own decision window — never over a pick/inspect overlay,
     // mid-combat animation, or the AI's turn. That keeps the game from ending
     // behind the overlay (which would double-guard the board with the results

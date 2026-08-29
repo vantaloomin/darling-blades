@@ -1,5 +1,5 @@
 import { getEffectiveStats } from '../engine/statics';
-import type { CardDb, EffectOp, Keyword, Permanent, PlayerId } from '../engine/types';
+import type { AbilityDef, CardDb, EffectOp, Keyword, Permanent, PlayerId } from '../engine/types';
 import { def, isType, manaValue, opponentOf } from '../engine/types';
 
 const KEYWORD_BONUS: Record<Keyword, number> = {
@@ -52,7 +52,19 @@ function awakeningValue(d: ReturnType<typeof def>): number {
   );
 }
 
-function opImpactValue(op: EffectOp): number {
+/**
+ * Conditional Starborne abilities are real card text, but their floor is
+ * lower than an unconditional body until the public board proves the gate.
+ * These discounts are intentionally provisional: card-shaped value has no
+ * battlefield, so target selection and evaluation do the exact board work.
+ */
+export function abilityConditionMultiplier(condition: AbilityDef['condition']): number {
+  if (condition === 'controlMarked') return 0.55;
+  if (typeof condition === 'object' && condition.kind === 'markedThreshold') return 0.5;
+  return 1;
+}
+
+export function opImpactValue(op: EffectOp): number {
   switch (op.op) {
     case 'gainLife':
       return op.n * 0.35;
@@ -67,7 +79,7 @@ function opImpactValue(op: EffectOp): number {
     case 'createToken':
       return op.count * 1.5;
     case 'addCounters':
-      return op.to === 'self' ? op.n * 1.5 : 0;
+      return op.n * (op.to === 'self' ? 1.5 : 1.2);
     case 'propagate':
       // Propagate's real worth is one mark per ALREADY-marked permanent, so it
       // is board-dependent and ranges from 0 (bare board) upward. This switch
@@ -77,9 +89,39 @@ function opImpactValue(op: EffectOp): number {
       // One marked permanent is the least a card printing this can expect.
       return 1.5;
     case 'boost':
-      return op.scope === 'allYours'
+      return op.scope === 'allYours' || op.scope === 'yourMarked'
         ? Math.max(0, op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5
         : 0;
+    case 'moveMark':
+      // The net mark count is unchanged. Price the destination trigger and
+      // flexibility conservatively until a board-aware caller can inspect
+      // both source and destination. Provisional value.
+      return 0.75;
+    case 'removeMarks':
+      // Removing an opposing mark is useful, but removing our own mark is a
+      // cost. Target-aware scoring supplies the sign. Provisional floor.
+      return 0.75;
+    case 'markAll':
+      // One mark across a relevant creature is the card-shaped floor.
+      return 1.25;
+    case 'loseLifePerTheirMarked':
+      // One marked opposing creature is the least meaningful public board.
+      return 1.1;
+    case 'fetchLand':
+      // Deck composition and landfall-like arrivals are unavailable here.
+      return 1;
+    case 'severSelf':
+      // This is a sacrifice-like cost, not a benefit of the trigger.
+      return -1.5;
+    case 'raise':
+      return op.to === 'top' ? 2.5 + (op.withMarks ?? 0) * 0.65 : 2;
+    case 'ifTargetMarked': {
+      const thenValue = op.then.reduce((sum, nested) => sum + opImpactValue(nested), 0);
+      const elseValue = (op.else ?? []).reduce((sum, nested) => sum + opImpactValue(nested), 0);
+      // A card-shaped estimate cannot know whether the target is marked. Keep
+      // only a conservative portion of the better branch's upside.
+      return Math.min(thenValue, elseValue) * 0.4 + Math.max(thenValue, elseValue) * 0.6;
+    }
     case 'severGrave':
       return op.who === 'opponent' ? op.n * 0.6 : 0;
     case 'foresee':
@@ -109,17 +151,18 @@ function nonCreatureAbilityImpact(db: CardDb, cardId: string): number {
       value += base + stats * 0.7 + keywords;
       continue;
     }
+    const conditionMultiplier = abilityConditionMultiplier(ab.condition);
     if (ab.when === 'dawn') {
-      value += 0.75 + (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op), 0);
+      value += 0.75 + (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op), 0) * conditionMultiplier;
     } else if (ab.when !== 'spell') {
-      value += 0.35 + (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op) * 0.5, 0);
+      value += 0.35 + (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op) * 0.5, 0) * conditionMultiplier;
     }
   }
   if (d.chapters) value += d.chapters.length * 0.5;
   return value;
 }
 
-function removalTargetValue(
+export function removalTargetValue(
   battlefield: readonly Permanent[],
   db: CardDb,
   perm: Permanent,
@@ -256,6 +299,36 @@ export function removalValueForCast(
 }
 
 /** Shared card-value heuristic — printed stats (hand cards, hypotheticals). */
+export function conditionalAbilityValue(db: CardDb, cardId: string): number {
+  const d = def(db, cardId);
+  let value = 0;
+  for (const ab of d.abilities ?? []) {
+    // Spell bodies already have their own cast/removal valuation. This helper
+    // prices the new permanent/arrival mechanics without perturbing existing
+    // targeted spell decisions such as graveyard raise.
+    if (ab.when === 'spell') continue;
+    const markedOps = (ab.ops ?? []).some(
+      (op) =>
+        op.op === 'moveMark' ||
+        op.op === 'removeMarks' ||
+        op.op === 'markAll' ||
+        op.op === 'loseLifePerTheirMarked' ||
+        op.op === 'fetchLand' ||
+        op.op === 'severSelf' ||
+        op.op === 'raise' ||
+        op.op === 'ifTargetMarked' ||
+        (op.op === 'boost' && op.scope === 'yourMarked'),
+    );
+    const markedCondition =
+      ab.condition === 'controlMarked' ||
+      (typeof ab.condition === 'object' && ab.condition.kind === 'markedThreshold');
+    if (!markedOps && !markedCondition) continue;
+    value += (ab.ops ?? []).reduce((sum, op) => sum + opImpactValue(op), 0) *
+      abilityConditionMultiplier(ab.condition) * 0.5;
+  }
+  return value;
+}
+
 export function cardValue(db: CardDb, cardId: string): number {
   const d = def(db, cardId);
   let v = manaValue(d.cost);
@@ -266,6 +339,10 @@ export function cardValue(db: CardDb, cardId: string): number {
   }
   if (isLordOrLegendary(db, cardId)) v += 1;
   if (hasTriggeredAbility(db, cardId)) v += 0.75;
+  // New marked/arrival mechanics get a conservative printed premium. Keep
+  // this restricted to the provisional wave so existing card valuations and
+  // their measured win-rate gates remain byte-for-byte behaviorally stable.
+  v += conditionalAbilityValue(db, cardId);
   if (d.chapters) v += d.chapters.length * 0.75;
   if (isType(d, 'creature') && d.awakening) v += 0.5 + awakeningValue(d);
   return v;
@@ -300,6 +377,21 @@ export function empowerValue(db: CardDb, cardId: string): number {
         return op.n * 0.6;
       case 'boost':
         return (op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5;
+      case 'moveMark':
+        return 0.75;
+      case 'removeMarks':
+        return 0.75;
+      case 'markAll':
+        return 1.25;
+      case 'loseLifePerTheirMarked':
+        return 1.1;
+      case 'fetchLand':
+        return 1;
+      case 'severSelf':
+        return -1.5;
+      case 'ifTargetMarked':
+        return op.then.reduce((sum, nested) => sum + opValue(nested), 0) * 0.6 +
+          (op.else ?? []).reduce((sum, nested) => sum + opValue(nested), 0) * 0.4;
       default:
         return 0;
     }

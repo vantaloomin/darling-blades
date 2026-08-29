@@ -231,6 +231,29 @@ function fillZones(
   return { hand: pool.slice(0, handCount), deck: pool.slice(handCount) };
 }
 
+/** Rehydrate the public pending queue for the one decision Hard is entering. */
+function pendingDecisionsForView(
+  view: PlayerView,
+  db: CardDb,
+): GameState['pendingDecisions'] {
+  const awaiting = view.awaiting;
+  if (awaiting.kind !== 'chooseTarget') return [];
+  const source = view.battlefield.find((perm) => perm.iid === awaiting.sourceIid);
+  if (!source) return [];
+  const ability = def(db, source.cardId).abilities?.[awaiting.abilityIndex];
+  const spec = ability?.targets?.[0];
+  if (!ability || !spec || !ability.ops) return [];
+  return [{
+    kind: 'chooseTarget',
+    player: awaiting.player,
+    sourceIid: awaiting.sourceIid,
+    sourceCardId: source.cardId,
+    abilityIndex: awaiting.abilityIndex,
+    spec,
+    ops: [...ability.ops],
+  }];
+}
+
 /**
  * Build a simulatable Game from a redacted view — the honest substitute for
  * reading hidden state. Own hand is exact; the opponent's hand and both
@@ -334,7 +357,10 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     // No fetch can be mid-flight at a Hard entry point, and stand-in lands
     // aren't `basic`, so this stays empty in sims — but it must exist so the
     // engine's pendingDecisions reads never hit undefined.
-    pendingDecisions: [],
+    // Hard can enter while a public targeted-arrival choice is awaiting. The
+    // pending queue is reconstructed from that public source card and ability
+    // index; hidden state is still filled only through the redacted view.
+    pendingDecisions: pendingDecisionsForView(view, db),
     nextIid: maxIid + 1,
     nextSid: maxSid + 1,
     winner: null,
