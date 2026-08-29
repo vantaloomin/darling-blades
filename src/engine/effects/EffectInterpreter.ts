@@ -89,6 +89,7 @@ const MAX_MARK_TRIGGER_DEPTH = 8;
 const markEventAvailability = new WeakMap<object, {
   any: boolean;
   markedAllyAttacks: boolean;
+  allyCreatureArrives: boolean;
 }>();
 
 /**
@@ -96,31 +97,38 @@ const markEventAvailability = new WeakMap<object, {
  * determinization creates fresh simDb objects, but their shared stand-in
  * CardDefs provide a stable cache key across those worlds.
  */
-function markEventAbilitiesIn(db: CardDb): { any: boolean; markedAllyAttacks: boolean } {
+function markEventAbilitiesIn(db: CardDb): {
+  any: boolean;
+  markedAllyAttacks: boolean;
+  allyCreatureArrives: boolean;
+} {
   const standIn = db.__unknown_c2;
   const key = standIn?.id === '__unknown_c2' ? standIn : db;
   const cached = markEventAvailability.get(key);
   if (cached) return cached;
   let any = false;
   let markedAllyAttacks = false;
+  let allyCreatureArrives = false;
   for (const card of Object.values(db)) {
     for (const ability of card.abilities ?? []) {
       if (
         ability.when === 'gainsMark' ||
+        ability.when === 'yourCreatureMarked' ||
         ability.when === 'yourPermanentMarked' ||
         ability.when === 'youAddMark' ||
         ability.when === 'otherCreatureMarked' ||
         ability.when === 'propagated'
       ) any = true;
       if (ability.when === 'markedAllyAttacks') markedAllyAttacks = true;
-      if (any && markedAllyAttacks) {
-        const result = { any, markedAllyAttacks };
+      if (ability.when === 'allyCreatureArrives') allyCreatureArrives = true;
+      if (any && markedAllyAttacks && allyCreatureArrives) {
+        const result = { any, markedAllyAttacks, allyCreatureArrives };
         markEventAvailability.set(key, result);
         return result;
       }
     }
   }
-  const result = { any, markedAllyAttacks };
+  const result = { any, markedAllyAttacks, allyCreatureArrives };
   markEventAvailability.set(key, result);
   return result;
 }
@@ -148,6 +156,7 @@ function fireMarkTriggers(
         ? ab.when === 'propagated' && source.controller === actor
         : marked !== undefined && (
             (ab.when === 'gainsMark' && source.iid === marked.iid) ||
+            (ab.when === 'yourCreatureMarked' && markedIsCreature && source.controller === marked.controller) ||
             (ab.when === 'yourPermanentMarked' && source.controller === marked.controller) ||
             (ab.when === 'youAddMark' && source.controller === actor) ||
             (ab.when === 'otherCreatureMarked' && markedIsCreature && source.iid !== marked.iid)
@@ -262,6 +271,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         for (const perm of state.battlefield) {
           if (!isType(def(db, perm.cardId), 'creature') || n <= 0) continue;
           perm.damage += n;
+          if (op.severOnDeath) perm.severBranded = true;
           emit({ e: 'damageMarked', iid: perm.iid, amount: n });
         }
       } else if (op.to === 'controller') {
@@ -305,7 +315,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const idx = rngInt(state.rng, hand.length);
         const [card] = hand.splice(idx, 1);
         state.players[victim].graveyard.push(card);
-        fireGraveyardTriggers(state, db, emit, card, victim);
+        fireGraveyardTriggers(state, db, emit, card, victim, ctx.markTriggerDepth);
         emit({ e: 'discarded', player: victim, cardId: cardIdOf(card) });
       }
       return;
@@ -318,9 +328,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
           db,
           perm,
           emit,
-          (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+          (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner, ctx.markTriggerDepth),
         ) && firesDiesForDestroy(state, db, perm)) {
-          fireTriggers(state, db, emit, 'dies', perm);
+          fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth: ctx.markTriggerDepth });
         }
       }
       return;
@@ -352,9 +362,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
             db,
             perm,
             emit,
-            (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+            (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner, ctx.markTriggerDepth),
           ) && firesDiesForDestroy(state, db, perm)) {
-            fireTriggers(state, db, emit, 'dies', perm);
+            fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth: ctx.markTriggerDepth });
           }
         } else if (isType(d, 'enchantment')) {
           severPermanent(state, db, perm, emit);
@@ -402,7 +412,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
             emit({ e: 'severed', player: item.controller, cardId: item.cardId, from: 'graveyard' });
           } else {
             state.players[item.controller].graveyard.push(card);
-            fireGraveyardTriggers(state, db, emit, card, item.controller);
+            fireGraveyardTriggers(state, db, emit, card, item.controller, ctx.markTriggerDepth);
           }
           emit({ e: 'spellCountered', sid: item.sid });
         }
@@ -419,8 +429,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       } else {
         for (const perm of state.battlefield) {
           if (
-            (op.scope === 'all' || perm.controller === ctx.controller) &&
-            (op.scope !== 'yourMarked' || perm.plusOneCounters > 0) &&
+            (op.scope === 'all' ||
+              (op.scope !== 'theirMarked' && perm.controller === ctx.controller) ||
+              (op.scope === 'theirMarked' && perm.controller === opponentOf(ctx.controller))) &&
+            (op.scope !== 'yourMarked' && op.scope !== 'theirMarked' || perm.plusOneCounters > 0) &&
             isType(def(db, perm.cardId), 'creature')
           ) {
             perm.untilEotMods.push({ ...mod, keywords: [...mod.keywords] });
@@ -547,7 +559,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       if (index < 0) return;
       const [card] = deck.splice(index, 1);
       const perm = enterBattlefield(state, db, card, ctx.controller, emit, { tapped: true });
-      fireTriggers(state, db, emit, 'arrives', perm);
+      fireTriggers(state, db, emit, 'arrives', perm, { markTriggerDepth: ctx.markTriggerDepth });
       return;
     }
     case 'ifTargetMarked': {
@@ -589,7 +601,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const perm = enterBattlefield(state, db, op.token, ctx.controller, emit, {
           asToken: true,
         });
-        fireTriggers(state, db, emit, 'arrives', perm);
+        fireTriggers(state, db, emit, 'arrives', perm, { markTriggerDepth: ctx.markTriggerDepth });
       }
       return;
     }
@@ -605,9 +617,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
           db,
           perm,
           emit,
-          (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+          (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner, ctx.markTriggerDepth),
         ) && firesDiesForDestroy(state, db, perm)) {
-          fireTriggers(state, db, emit, 'dies', perm);
+          fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth: ctx.markTriggerDepth });
         }
         return;
       }
@@ -638,9 +650,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       for (const entry of graveyardEntries) {
         if (state.winner !== null) return;
-        fireGraveyardTriggers(state, db, emit, entry.card, entry.owner);
+        fireGraveyardTriggers(state, db, emit, entry.card, entry.owner, ctx.markTriggerDepth);
       }
-      fireBatchedDies(state, db, emit, fallen);
+      fireBatchedDies(state, db, emit, fallen, ctx.markTriggerDepth);
       return;
     }
     case 'preventCombat':
@@ -667,7 +679,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         const card = lib.pop(); // top of deck is the last element
         if (card === undefined) break; // empty deck: deck-out is a DRAW check, not here
         state.players[victim].graveyard.push(card);
-        fireGraveyardTriggers(state, db, emit, card, victim);
+        fireGraveyardTriggers(state, db, emit, card, victim, ctx.markTriggerDepth);
         emit({ e: 'milled', player: victim, cardId: cardIdOf(card) });
       }
       return;
@@ -724,7 +736,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const perm = enterBattlefield(state, db, cardId, ctx.controller, emit, {
         ...(plusOneCounters === undefined ? {} : { plusOneCounters }),
       });
-      fireTriggers(state, db, emit, 'arrives', perm);
+      fireTriggers(state, db, emit, 'arrives', perm, { markTriggerDepth: ctx.markTriggerDepth });
       return;
     }
   }
@@ -772,6 +784,7 @@ export function fireGraveyardTriggers(
   emit: Emit,
   card: CardEntry,
   owner: PlayerId,
+  markTriggerDepth = 0,
 ): void {
   const cardId = cardIdOf(card);
   const d = db[cardId];
@@ -793,7 +806,7 @@ export function fireGraveyardTriggers(
       state,
       db,
       emit,
-      { controller: owner, sourceCardId: cardId, targets: [] },
+      { controller: owner, sourceCardId: cardId, targets: [], markTriggerDepth },
       ab.ops,
     );
     if (state.winner !== null) return;
@@ -837,16 +850,61 @@ function assertTargetFreeForeseeContinuation(op: EffectOp): void {
 
 /**
  * Fire a permanent's triggered abilities of the given kind. Targeted arrival
- * abilities queue their mandatory choice; all other trigger kinds remain
+ * abilities queue their mandatory choice; ally-arrival observers use the
+ * arriving creature as an automatic subject target; other trigger kinds stay
  * target-free.
  */
+function fireAllyCreatureArrivesTriggers(
+  state: GameState,
+  db: CardDb,
+  emit: Emit,
+  arriving: Permanent,
+  markTriggerDepth = 0,
+): void {
+  const arrivingDef = def(db, arriving.cardId);
+  if (!isType(arrivingDef, 'creature') || !markEventAbilitiesIn(db).allyCreatureArrives) return;
+
+  const arrivingRef: TargetRef = { kind: 'permanent', iid: arriving.iid };
+  for (const holder of [...state.battlefield]) {
+    if (
+      holder.iid === arriving.iid ||
+      holder.controller !== arriving.controller ||
+      !state.battlefield.some((perm) => perm.iid === holder.iid)
+    ) continue;
+    for (const ability of def(db, holder.cardId).abilities ?? []) {
+      if (ability.when !== 'allyCreatureArrives' || !ability.ops) continue;
+      if (
+        ability.condition !== undefined &&
+        !conditionSatisfied(state, db, holder.controller, ability.condition)
+      ) continue;
+      emit({ e: 'triggerFired', iid: holder.iid, when: ability.when });
+      runOps(
+        state,
+        db,
+        emit,
+        {
+          controller: holder.controller,
+          sourceCardId: holder.cardId,
+          sourceIid: holder.iid,
+          // The arrival is the observer subject, not a choice. This is the
+          // target context used by Orbital Graft's "mark it" operation.
+          targets: [arrivingRef],
+          markTriggerDepth,
+        },
+        ability.ops,
+      );
+      if (state.winner !== null) return;
+    }
+  }
+}
+
 export function fireTriggers(
   state: GameState,
   db: CardDb,
   emit: Emit,
   when: Exclude<TriggerWhen, 'spell' | 'static'>,
   perm: Permanent,
-  options: { deferPostDies?: boolean } = {},
+  options: { deferPostDies?: boolean; markTriggerDepth?: number } = {},
 ): void {
   const d = def(db, perm.cardId);
   for (let abilityIndex = 0; abilityIndex < (d.abilities ?? []).length; abilityIndex++) {
@@ -881,6 +939,7 @@ export function fireTriggers(
         sourceCardId: perm.cardId,
         sourceIid: perm.iid,
         targets: [],
+        markTriggerDepth: options.markTriggerDepth,
         ...(when === 'dies'
           ? {
               selfGraveExclusion: {
@@ -894,14 +953,16 @@ export function fireTriggers(
     );
   }
 
+  if (when === 'arrives') fireAllyCreatureArrivesTriggers(state, db, emit, perm, options.markTriggerDepth);
+
   if (when === 'arrives' && d.chapters && d.chapters.length > 0) {
-    advanceChapter(state, db, emit, perm, true);
+    advanceChapter(state, db, emit, perm, true, options.markTriggerDepth);
   } else if (when === 'dawn' && d.chapters && d.chapters.length > 0) {
-    advanceChapter(state, db, emit, perm, false);
+    advanceChapter(state, db, emit, perm, false, options.markTriggerDepth);
   }
 
   if (when === 'dies' && !options.deferPostDies && state.winner === null) {
-    returnWithNineLives(state, db, emit, perm);
+    returnWithNineLives(state, db, emit, perm, options.markTriggerDepth);
   }
 }
 
@@ -959,14 +1020,18 @@ export function fireBatchedDies(
   db: CardDb,
   emit: Emit,
   fallen: readonly Permanent[],
+  markTriggerDepth = 0,
 ): void {
   for (const perm of fallen) {
     if (state.winner !== null) return;
-    fireTriggers(state, db, emit, 'dies', perm, { deferPostDies: true });
+    fireTriggers(state, db, emit, 'dies', perm, {
+      deferPostDies: true,
+      markTriggerDepth,
+    });
   }
   for (const perm of fallen) {
     if (state.winner !== null) return;
-    returnWithNineLives(state, db, emit, perm);
+    returnWithNineLives(state, db, emit, perm, markTriggerDepth);
   }
 }
 
@@ -976,6 +1041,7 @@ function returnWithNineLives(
   db: CardDb,
   emit: Emit,
   fallen: Permanent,
+  markTriggerDepth = 0,
 ): void {
   const d = def(db, fallen.cardId);
   if (!d.nineLives || fallen.plusOneCounters !== 0 || fallen.instanceId === undefined) return;
@@ -998,7 +1064,7 @@ function returnWithNineLives(
     plusOneCounters: 1,
   });
   emit({ e: 'nineLivesReturned', player: fallen.owner, iid: returned.iid, cardId: returned.cardId });
-  fireTriggers(state, db, emit, 'arrives', returned);
+  fireTriggers(state, db, emit, 'arrives', returned, { markTriggerDepth });
 }
 
 /**
@@ -1012,6 +1078,7 @@ function advanceChapter(
   emit: Emit,
   perm: Permanent,
   arriving: boolean,
+  markTriggerDepth = 0,
 ): void {
   const chapters = def(db, perm.cardId).chapters;
   if (!chapters || chapters.length === 0) return;
@@ -1023,7 +1090,13 @@ function advanceChapter(
     state,
     db,
     emit,
-    { controller: perm.controller, sourceCardId: perm.cardId, sourceIid: perm.iid, targets: [] },
+    {
+      controller: perm.controller,
+      sourceCardId: perm.cardId,
+      sourceIid: perm.iid,
+      targets: [],
+      markTriggerDepth,
+    },
     chapters[chapter - 1],
   );
   if (chapter !== chapters.length || state.winner !== null) return;
@@ -1032,9 +1105,9 @@ function advanceChapter(
     db,
     perm,
     emit,
-    (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner),
+    (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner, markTriggerDepth),
   ) && firesDiesForDestroy(state, db, perm)) {
-    fireTriggers(state, db, emit, 'dies', perm);
+    fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth });
   }
 }
 

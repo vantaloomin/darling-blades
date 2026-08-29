@@ -73,6 +73,114 @@ const DB: CardDb = {
     attack: 1,
     defense: 1,
   }),
+  allyObserver: card('allyObserver', ['creature'], {
+    abilities: [{
+      when: 'allyCreatureArrives',
+      ops: [{ op: 'addCounters', n: 1, to: 'target' }],
+    }],
+    cost: ZERO,
+    attack: 1,
+    defense: 1,
+  }),
+  plainArrival: card('plainArrival', ['creature'], {
+    cost: ZERO,
+    attack: 1,
+    defense: 1,
+  }),
+  tokenSpell: card('tokenSpell', ['charm'], {
+    cost: ZERO,
+    abilities: [{
+      when: 'spell',
+      ops: [{ op: 'createToken', token: 'tok_fox', count: 2 }],
+    }],
+  }),
+  biomancer: card('biomancer', ['creature'], {
+    cost: ZERO,
+    attack: 2,
+    defense: 2,
+    abilities: [{
+      when: 'arrives',
+      targets: [{ what: 'yourPermanent', other: true }],
+      ops: [{ op: 'addCounters', n: 1, to: 'target' }],
+    }],
+  }),
+  creatureMarkObserver: card('creatureMarkObserver', ['creature'], {
+    cost: ZERO,
+    attack: 1,
+    defense: 1,
+    abilities: [{ when: 'yourCreatureMarked', ops: [{ op: 'gainLife', n: 1 }] }],
+  }),
+  markPermanent: card('markPermanent', ['charm'], {
+    cost: ZERO,
+    abilities: [{
+      when: 'spell',
+      targets: [{ what: 'yourPermanent' }],
+      ops: [{ op: 'addCounters', n: 1, to: 'target' }],
+    }],
+  }),
+  theirMarkedDebuff: card('theirMarkedDebuff', ['charm'], {
+    cost: ZERO,
+    abilities: [{
+      when: 'spell',
+      ops: [{ op: 'boost', p: -2, t: -2, scope: 'theirMarked' }],
+    }],
+  }),
+  redlineSupernova: card('redlineSupernova', ['ritual'], {
+    cost: { generic: 2, pips: { R: 1 } },
+    colors: ['R'],
+    abilities: [{
+      when: 'spell',
+      ops: [{ op: 'damage', n: 3, to: 'eachCreature', severOnDeath: true }],
+    }],
+  }),
+  redlineFollowup: card('redlineFollowup', ['ritual'], {
+    cost: ZERO,
+    colors: ['R'],
+    abilities: [{
+      when: 'spell',
+      targets: [{ what: 'creature' }],
+      ops: [{ op: 'damage', n: 4, to: 'target' }],
+    }],
+  }),
+  redlineNormalSweep: card('redlineNormalSweep', ['ritual'], {
+    cost: ZERO,
+    colors: ['R'],
+    abilities: [{
+      when: 'spell',
+      ops: [{ op: 'damage', n: 1, to: 'eachCreature' }],
+    }],
+  }),
+  redlineThree: card('redlineThree', ['creature'], {
+    cost: ZERO,
+    colors: ['R'],
+    attack: 2,
+    defense: 3,
+  }),
+  redlineThreeWatcher: card('redlineThreeWatcher', ['creature'], {
+    cost: ZERO,
+    attack: 2,
+    defense: 3,
+    abilities: [
+      { when: 'dies', ops: [{ op: 'gainLife', n: 1 }] },
+      { when: 'entersGraveyard', ops: [{ op: 'gainLife', n: 1 }] },
+    ],
+  }),
+  redlineThreeNineLives: card('redlineThreeNineLives', ['creature'], {
+    cost: ZERO,
+    attack: 2,
+    defense: 3,
+    nineLives: true,
+  }),
+  redlineFour: card('redlineFour', ['creature'], {
+    cost: ZERO,
+    attack: 2,
+    defense: 4,
+  }),
+  redlineOne: card('redlineOne', ['creature'], {
+    cost: ZERO,
+    attack: 1,
+    defense: 1,
+  }),
   arrivalFizzle: card('arrivalFizzle', ['artifact'], {
     abilities: [
       {
@@ -399,6 +507,12 @@ function ref(iid: number): TargetRef {
   return { kind: 'permanent', iid };
 }
 
+function passTurn(game: Game, player: 0 | 1): void {
+  game.submit(player, { type: 'passStep' });
+  game.submit(player, { type: 'declareAttackers', attackers: [] });
+  game.submit(player, { type: 'passStep' });
+}
+
 describe('Starborne targeted arrival and spell targets', () => {
   it('queues a mandatory targeted arrival choice, excludes its source, and resumes through Game.submit', () => {
     const game = gameWithHand(['arrival'], [permanent(1, 'bear')]);
@@ -530,6 +644,224 @@ describe('Starborne targeted arrival and spell targets', () => {
     expect(() => game.submit(0, { type: 'castSpell', handIndex: 0 })).toThrow(
       /deferred target-trigger tail from tailSpell to tailToken/,
     );
+  });
+});
+
+describe('Stage-4 vocabulary completion', () => {
+  it('renders the completed vocabulary with exact totality strings', () => {
+    expect(rulesText(DB.allyObserver)).toBe(
+      'Whenever a creature arrives under your control, put one +1/+1 mark on it.',
+    );
+    expect(rulesText(DB.creatureMarkObserver)).toBe(
+      'Whenever a creature you control gets a mark, you gain 1 life.',
+    );
+    expect(rulesText(DB.biomancer)).toBe(
+      'When this arrives, put one +1/+1 mark on another target permanent you control.',
+    );
+    expect(rulesText(DB.theirMarkedDebuff)).toBe(
+      'Marked creatures your opponent controls get -2/-2 until end of turn.',
+    );
+    expect(rulesText(DB.redlineSupernova)).toBe(
+      'Deals 3 damage to each creature; a creature damaged this way that would die this turn is severed instead.',
+    );
+  });
+
+  it('dispatches allyCreatureArrives once per arriving creature, including tokens, and not for opponents or itself', () => {
+    const game = gameWithHand(['allyObserver', 'plainArrival', 'tokenSpell']);
+    const observerEvents = game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(observerEvents.some((event) => event.e === 'triggerFired' && event.when === 'allyCreatureArrives')).toBe(false);
+    expect(game.state.battlefield.find((perm) => perm.cardId === 'allyObserver')?.plusOneCounters).toBe(0);
+
+    const creatureEvents = game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(creatureEvents.filter((event) => event.e === 'triggerFired' && event.when === 'allyCreatureArrives')).toHaveLength(1);
+    const arrived = game.state.battlefield.find((perm) => perm.cardId === 'plainArrival');
+    expect(arrived?.plusOneCounters).toBe(1);
+
+    const tokenEvents = game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(tokenEvents.filter((event) => event.e === 'triggerFired' && event.when === 'allyCreatureArrives')).toHaveLength(2);
+    expect(game.state.battlefield.filter((perm) => perm.cardId === 'tok_fox').map((perm) => perm.plusOneCounters)).toEqual([1, 1]);
+
+    const opponent = Game.restore(makeTestState({
+      active: 1,
+      hands: [[], ['plainArrival']],
+      battlefield: [permanent(1, 'allyObserver')],
+    }), DB);
+    const opponentEvents = opponent.submit(1, { type: 'castSpell', handIndex: 0 });
+    expect(opponentEvents.some((event) => event.e === 'triggerFired' && event.when === 'allyCreatureArrives')).toBe(false);
+    expect(opponent.state.battlefield.find((perm) => perm.cardId === 'plainArrival')?.plusOneCounters).toBe(0);
+  });
+
+  it('uses the arriving creature as an automatic target context and targets any friendly permanent with other', () => {
+    const game = gameWithHand(['biomancer'], [permanent(1, 'bear'), permanent(2, 'cLand')]);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    const source = game.state.battlefield.find((perm) => perm.cardId === 'biomancer')!;
+    expect(game.awaiting).toEqual({
+      player: 0,
+      kind: 'chooseTarget',
+      sourceIid: source.iid,
+      abilityIndex: 0,
+      targets: [ref(1), ref(2)],
+    });
+    game.submit(0, { type: 'chooseTarget', target: ref(2) });
+    expect(game.state.battlefield.find((perm) => perm.iid === 2)?.plusOneCounters).toBe(1);
+    expect(source.plusOneCounters).toBe(0);
+  });
+
+  it('fires yourCreatureMarked for creatures but not marked lands', () => {
+    const land = gameWithHand(['markPermanent'], [
+      permanent(1, 'creatureMarkObserver'),
+      permanent(2, 'cLand'),
+    ]);
+    const landEvents = land.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(2)] });
+    expect(land.state.players[0].life).toBe(20);
+    expect(landEvents.some((event) => event.e === 'triggerFired' && event.when === 'yourCreatureMarked')).toBe(false);
+
+    const creature = gameWithHand(['markPermanent'], [
+      permanent(1, 'creatureMarkObserver'),
+      permanent(2, 'bear'),
+    ]);
+    const creatureEvents = creature.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(2)] });
+    expect(creature.state.players[0].life).toBe(21);
+    expect(creatureEvents).toContainEqual({ e: 'triggerFired', iid: 1, when: 'yourCreatureMarked' });
+  });
+
+  it('applies theirMarked debuffs only to marked opposing creatures and expires them at cleanup', () => {
+    const game = gameWithHand(['theirMarkedDebuff'], [
+      permanent(1, 'bear', 1, 1),
+      permanent(2, 'bear', 1),
+      permanent(3, 'bear'),
+    ], [[], ['bear']]);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(getEffectiveStats(game.state.battlefield, DB, 1)).toMatchObject({ attack: 1, defense: 1 });
+    expect(getEffectiveStats(game.state.battlefield, DB, 2)).toMatchObject({ attack: 2, defense: 2 });
+    expect(getEffectiveStats(game.state.battlefield, DB, 3)).toMatchObject({ attack: 2, defense: 2 });
+
+    game.submit(0, { type: 'passStep' });
+    game.submit(0, { type: 'declareAttackers', attackers: [] });
+    game.submit(0, { type: 'passStep' });
+    expect(getEffectiveStats(game.state.battlefield, DB, 1)).toMatchObject({ attack: 3, defense: 3 });
+  });
+
+  it('severs three-toughness creatures directly, suppressing dies, graveyard, and Nine Lives', () => {
+    const game = gameWithHand(['redlineSupernova'], [
+      permanent(1, 'redlineThreeWatcher'),
+      permanent(2, 'redlineThreeNineLives'),
+      permanent(10, 'mountain'),
+      permanent(11, 'mountain'),
+      permanent(12, 'mountain'),
+    ]);
+    const events = game.submit(0, { type: 'castSpell', handIndex: 0 });
+
+    expect(game.state.battlefield.map((perm) => perm.cardId)).toEqual(['mountain', 'mountain', 'mountain']);
+    expect(game.state.players[0].severed).toEqual(['redlineThreeWatcher', 'redlineThreeNineLives']);
+    expect(game.state.players[0].graveyard).toEqual(['redlineSupernova']);
+    expect(events.some((event) => event.e === 'died')).toBe(false);
+    expect(events.some((event) => event.e === 'triggerFired' && event.when === 'dies')).toBe(false);
+    expect(events.some((event) => event.e === 'graveyardTriggerFired')).toBe(false);
+    expect(events.some((event) => event.e === 'nineLivesReturned')).toBe(false);
+  });
+
+  it('keeps a survivor branded so later same-turn damage severs it, and exposes the brand publicly', () => {
+    const game = gameWithHand(['redlineSupernova', 'redlineFollowup'], [
+      permanent(1, 'redlineFour'),
+      permanent(10, 'mountain'),
+      permanent(11, 'mountain'),
+      permanent(12, 'mountain'),
+    ], [['mountain'], ['mountain']]);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+
+    expect(game.state.battlefield.find((perm) => perm.iid === 1)).toMatchObject({
+      damage: 3,
+      severBranded: true,
+    });
+    getEffectiveStats(game.state.battlefield, DB, 1);
+    expect(game.state.battlefield.find((perm) => perm.iid === 1)?.severBranded).toBe(true);
+    expect(game.viewFor(0).battlefield.find((perm) => perm.iid === 1)?.severBranded).toBe(true);
+
+    const events = game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(1)] });
+    expect(game.state.players[0].severed).toEqual(['redlineFour']);
+    expect(game.state.players[0].graveyard).toEqual(['redlineSupernova', 'redlineFollowup']);
+    expect(events.some((event) => event.e === 'died')).toBe(false);
+  });
+
+  it('clears the brand at cleanup so the same creature dies normally on the next turn', () => {
+    const game = gameWithHand(['redlineSupernova', 'redlineFollowup'], [
+      permanent(1, 'redlineFour'),
+      permanent(10, 'mountain'),
+      permanent(11, 'mountain'),
+      permanent(12, 'mountain'),
+    ], [['mountain'], ['mountain']]);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    passTurn(game, 0);
+    passTurn(game, 1);
+
+    expect(game.state.activePlayer).toBe(0);
+    expect(game.state.battlefield.find((perm) => perm.iid === 1)).toMatchObject({
+      damage: 0,
+      severBranded: false,
+    });
+    const events = game.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(1)] });
+    expect(game.state.players[0].graveyard).toEqual(['redlineSupernova', 'redlineFollowup', 'redlineFour']);
+    expect(game.state.players[0].severed).toEqual([]);
+    expect(events.some((event) => event.e === 'died' && event.iid === 1)).toBe(true);
+  });
+
+  it('sends an unbranded creature to the graveyard when it dies alongside a branded one', () => {
+    const game = gameWithHand(['redlineSupernova', 'redlineOne', 'redlineNormalSweep'], [
+      permanent(1, 'redlineFour'),
+      permanent(10, 'mountain'),
+      permanent(11, 'mountain'),
+      permanent(12, 'mountain'),
+    ]);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+
+    expect(game.state.players[0].severed).toEqual(['redlineFour']);
+    expect(game.state.players[0].graveyard).toEqual(['redlineSupernova', 'redlineNormalSweep', 'redlineOne']);
+  });
+
+  it('produces identical sever-brand state and events across identical runs', () => {
+    const baseline = Game.restore(makeTestState({
+      hands: [['redlineSupernova'], []],
+      battlefield: [
+        permanent(1, 'redlineFour'),
+        permanent(10, 'mountain'),
+        permanent(11, 'mountain'),
+        permanent(12, 'mountain'),
+      ],
+    }), DB);
+    const first = Game.restore(structuredClone(baseline.state), DB);
+    const second = Game.restore(structuredClone(baseline.state), DB);
+
+    const firstEvents = first.submit(0, { type: 'castSpell', handIndex: 0 });
+    const secondEvents = second.submit(0, { type: 'castSpell', handIndex: 0 });
+
+    expect(secondEvents).toEqual(firstEvents);
+    expect(second.state).toEqual(first.state);
+  });
+
+  it('keeps allyCreatureArrives mark-capable while rejecting mark-event mark additions', () => {
+    expect(validateMarkTriggerDef(card('legalArrivalMarker', ['artifact'], {
+      abilities: [{
+        when: 'allyCreatureArrives',
+        ops: [{ op: 'addCounters', n: 1, to: 'target' }],
+      }],
+    }))).toEqual([]);
+    expect(validateMarkTriggerDef(card('illegalCreatureMarker', ['creature'], {
+      abilities: [{
+        when: 'yourCreatureMarked',
+        ops: [{ op: 'addCounters', n: 1, to: 'self' }],
+      }],
+    }))).toEqual(['yourCreatureMarked abilities cannot add marks']);
+  });
+
+  it('keeps the mark recursion depth guard intact through an allyCreatureArrives mark chain', () => {
+    const game = gameWithHand(['allyObserver', 'recursiveMarker']);
+    game.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(() => game.submit(0, { type: 'castSpell', handIndex: 0 }))
+      .toThrow('Mark-trigger recursion exceeded depth 8.');
+
   });
 });
 

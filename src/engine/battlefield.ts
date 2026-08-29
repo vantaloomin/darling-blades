@@ -54,6 +54,7 @@ export function enterBattlefield(
     enteredThisTurn: true,
     damage: 0,
     deathtouched: false,
+    severBranded: false,
     attachments: [],
     attachedTo: opts.attachedTo,
     plusOneCounters: opts.plusOneCounters ?? 0,
@@ -129,7 +130,7 @@ function returnDarlingToZone(
 
 /** Whether a destroy exit is a real death for triggers and accounting. */
 export function firesDiesForDestroy(state: GameState, db: CardDb, perm: Permanent): boolean {
-  return !basicReturnsToReserve(state, db, perm);
+  return !perm.severBranded && !basicReturnsToReserve(state, db, perm);
 }
 
 /** Battlefield → owner's graveyard (tokens evaporate). Returns true if it died. */
@@ -142,6 +143,7 @@ export function destroyPermanent(
 ): boolean {
   const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
   if (idx < 0) return false;
+  if (perm.severBranded) return severPermanent(state, db, perm, emit);
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const isToken = isTokenPermanent(db, perm);

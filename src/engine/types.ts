@@ -40,7 +40,9 @@ export type TriggerWhen =
   | 'dawn'
   | 'combatDamageToPlayer'
   | 'attacks'
+  | 'allyCreatureArrives'
   | 'gainsMark'
+  | 'yourCreatureMarked'
   | 'yourPermanentMarked'
   | 'youAddMark'
   | 'otherCreatureMarked'
@@ -61,6 +63,7 @@ export interface TargetSpec {
     | 'any'
     | 'spell'
     | 'yourCreature'
+    | 'yourPermanent'
     | 'yourGraveCreature'
     | 'artifact'
     | 'enchantment'
@@ -76,7 +79,8 @@ export interface TargetSpec {
 }
 
 export type EffectOp =
-  | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller' | 'eachCreature' }
+  | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller' }
+  | { op: 'damage'; n: number | 'X'; to: 'eachCreature'; severOnDeath?: true }
   | { op: 'gainLife'; n: number }
   | { op: 'loseLife'; n: number; who: 'opponent' }
   | { op: 'draw'; n: number }
@@ -91,7 +95,7 @@ export type EffectOp =
       to: 'target';
     } // branch is artifact-first; otherwise an enchantment is severed
   | { op: 'cancel'; to: 'target' } // target is a stack item
-  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' | 'all' | 'yourMarked' }
+  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' | 'all' | 'yourMarked' | 'theirMarked' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
   | { op: 'propagate' } // +1 mark on each ALREADY-marked permanent you control; starts none, no target
   | { op: 'moveMark' } // move one mark from targets[0] to targets[1]
@@ -222,6 +226,7 @@ function effectOpUsesTarget(op: EffectOp): boolean {
 
 const MARK_EVENT_WHENS = new Set<TriggerWhen>([
   'gainsMark',
+  'yourCreatureMarked',
   'yourPermanentMarked',
   'youAddMark',
   'otherCreatureMarked',
@@ -262,6 +267,13 @@ export function validateEmpowerDef(d: CardDef): string[] {
 export function validateMarkTriggerDef(d: CardDef): string[] {
   const errors: string[] = [];
   for (const ability of d.abilities ?? []) {
+    if (ability.when === 'allyCreatureArrives') {
+      // This observer is intentionally exempt: Orbital Graft auto-binds the
+      // arriving creature, and marking it cannot recurse through arrival because
+      // this observer fires only once for the original arrival. Any resulting
+      // mark-event cascade still carries the runtime depth guard.
+      continue;
+    }
     if (!MARK_EVENT_WHENS.has(ability.when) || !ability.ops?.some(effectOpAddsMark)) continue;
     errors.push(`${ability.when} abilities cannot add marks`);
   }
@@ -469,6 +481,7 @@ export interface Permanent {
   enteredThisTurn: boolean; // summoning sickness, checked vs haste on read
   damage: number; // marked damage, cleared at cleanup
   deathtouched: boolean; // took damage from a deathtouch source this turn
+  severBranded: boolean; // Redline Supernova replacement brand, cleared at cleanup
   attachments: number[]; // aura/Hauntlink iids attached to me
   attachedTo?: number; // set if I am an attached aura or Hauntlink permanent
   plusOneCounters: number;

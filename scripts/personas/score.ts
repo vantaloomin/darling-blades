@@ -57,6 +57,17 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   raise: 2.2,
 };
 
+type BoostScope = Extract<EffectOp, { op: 'boost' }>['scope'];
+const BOOST_SCOPE_MULTIPLIER: Readonly<Record<BoostScope, number>> = {
+  target: 1,
+  allYours: 1,
+  all: 1,
+  yourMarked: 1,
+  // NEEDS MATH: marked opposing creatures are a narrower, board-dependent
+  // hit than an unconditional mass debuff, so keep the first score conservative.
+  theirMarked: 0.65,
+};
+
 // §4i expected-trigger pattern: noncreatures survive longer than creatures in
 // this pool, so dawn values use the ruled 3.0x / 2.0x split.
 const DAWN_MULT_NONCREATURE = 3.0;
@@ -101,6 +112,7 @@ function effectValue(entry: EffectEntry, card: CardDef): number {
   let value = entry.op.op === 'propagate' && entry.when === 'dawn'
     ? 1.65
     : OP_VALUE[entry.op.op];
+  if (entry.op.op === 'boost') value *= BOOST_SCOPE_MULTIPLIER[entry.op.scope];
   if (entry.when === 'dawn') value *= dawnMultiplier(card);
   if (typeof entry.condition === 'object' && entry.condition.kind === 'markedThreshold') {
     value *= MARKED_THRESHOLD_MULT;

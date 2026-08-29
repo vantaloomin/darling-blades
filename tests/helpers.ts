@@ -508,6 +508,7 @@ export function makeTestState(opts: {
       enteredThisTurn: p.enteredThisTurn ?? false,
       damage: p.damage ?? 0,
       deathtouched: p.deathtouched ?? false,
+      severBranded: p.severBranded ?? false,
       attachments: p.attachments ?? [],
       attachedTo: p.attachedTo,
       plusOneCounters: p.plusOneCounters ?? 0,
