@@ -45,6 +45,10 @@ function targetNoun(spec: TargetSpec | undefined): string {
         return 'enchantment';
       case 'artifactOrEnchantment':
         return 'artifact or enchantment';
+      case 'yourPermanent':
+        return 'permanent you control';
+      case 'yourCreature':
+        return 'creature you control';
       default:
         return 'creature';
     }
@@ -54,6 +58,10 @@ function targetNoun(spec: TargetSpec | undefined): string {
     spec?.tapped ? 'tapped' : undefined,
   ].filter((qualifier): qualifier is string => qualifier !== undefined);
   return `${qualifiers.length > 0 ? `${qualifiers.join(' ')} ` : ''}${noun}`;
+}
+
+function targetPhrase(spec: TargetSpec | undefined): string {
+  return `${spec?.other ? 'another target' : 'target'} ${targetNoun(spec)}`;
 }
 
 function referencesAbilityTarget(op: EffectOp): boolean {
@@ -90,17 +98,23 @@ function opText(
   target?: TargetSpec,
   targetAlreadyNamed = false,
   excludesSelf = false,
+  autoBoundTarget = false,
 ): string {
   switch (op.op) {
     case 'damage': {
       const n = op.n === 'X' ? 'X' : op.n;
-      if (op.to === 'eachCreature') return `deal ${n} damage to each creature`;
+      if (op.to === 'eachCreature') {
+        if (op.severOnDeath) {
+          return `deals ${n} damage to each creature; a creature damaged this way that would die this turn is severed instead`;
+        }
+        return `deal ${n} damage to each creature`;
+      }
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
       const isCreatureTarget = target?.what === 'creature' || target?.what === 'yourCreature' ||
         (target?.what === 'any' && (target.marked === true || target.tapped === true));
       const recipient = isCreatureTarget
-        ? targetAlreadyNamed ? 'that creature' : `target ${targetNoun(target)}`
+        ? targetAlreadyNamed ? 'that creature' : autoBoundTarget ? 'it' : targetPhrase(target)
         : 'any target';
       return `deal ${n} damage to ${recipient}`;
     }
@@ -113,9 +127,9 @@ function opText(
     case 'discardRandom':
       return `your opponent discards ${op.n === 1 ? 'a card' : `${op.n} cards`} at random`;
     case 'destroy':
-      return `destroy target ${targetNoun(target)}`;
+      return autoBoundTarget ? 'destroy it' : `destroy ${targetPhrase(target)}`;
     case 'sever':
-      return `Sever target ${targetNoun(target)}`;
+      return autoBoundTarget ? 'Sever it' : `Sever ${targetPhrase(target)}`;
     case 'severGrave': {
       const cards = op.n === 1 ? 'the top card' : `the top ${op.n} cards`;
       return op.who === 'self'
@@ -125,7 +139,7 @@ function opText(
     case 'severTop':
       return `Sever ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
     case 'recall':
-      return `return target ${targetNoun(target)} to its owner's hand`;
+      return autoBoundTarget ? "return it to its owner's hand" : `return ${targetPhrase(target)} to its owner's hand`;
     case 'destroyArtifactOrSeverEnchantment':
       return 'destroy target artifact or sever target enchantment';
     case 'cancel':
@@ -135,19 +149,22 @@ function opText(
       const kw = op.keywords?.length
         ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
-      if (op.scope === 'target') return `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
+      if (op.scope === 'target') {
+        const subject = targetAlreadyNamed ? 'that creature' : autoBoundTarget ? 'it' : targetPhrase(target);
+        return `${subject} gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
+      }
       const subject = op.scope === 'all'
         ? 'all creatures'
         : op.scope === 'yourMarked'
           ? 'your marked creatures'
-          : 'creatures you control';
+          : op.scope === 'theirMarked'
+            ? 'marked creatures your opponent controls'
+            : 'creatures you control';
       return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
     }
     case 'addCounters': {
       if (op.to === 'self') return `put ${countWord(op.n)} +1/+1 mark${op.n === 1 ? '' : 's'} on this`;
-      const markTarget = target?.what === 'yourCreature'
-        ? `target ${targetNoun(target)} you control`
-        : `target ${targetNoun(target)}`;
+      const markTarget = autoBoundTarget ? 'it' : targetPhrase(target);
       return `put ${countWord(op.n)} +1/+1 mark${op.n === 1 ? '' : 's'} on ${markTarget}`;
     }
     case 'propagate':
@@ -157,7 +174,7 @@ function opText(
     case 'moveMark':
       return 'move a mark from a permanent you control to another permanent you control';
     case 'removeMarks':
-      return `remove all marks from target ${targetNoun(target)}`;
+      return autoBoundTarget ? 'remove all marks from it' : `remove all marks from ${targetPhrase(target)}`;
     case 'markAll':
       return 'add a mark to each creature you control';
     case 'loseLifePerTheirMarked':
@@ -168,14 +185,14 @@ function opText(
       return 'sever this';
     case 'ifTargetMarked': {
       const renderBranch = (ops: EffectOp[]): string => ops.map((branchOp) =>
-        opText(branchOp, target, targetAlreadyNamed, excludesSelf),
+        opText(branchOp, target, targetAlreadyNamed, excludesSelf, autoBoundTarget),
       ).join(', then ');
       const thenText = renderBranch(op.then);
       if (!op.else || op.else.length === 0) return `if it is marked, ${thenText}`;
       return `${renderBranch(op.else)}; if it is marked, ${thenText} instead`;
     }
     case 'tap':
-      return targetAlreadyNamed ? 'tap that creature' : `tap target ${targetNoun(target)}`;
+      return targetAlreadyNamed ? 'tap that creature' : autoBoundTarget ? 'tap it' : `tap ${targetPhrase(target)}`;
     case 'extraLandDrop': {
       const n = op.n ?? 1;
       return n === 1
@@ -352,7 +369,13 @@ function abilityText(ab: AbilityDef): string {
   let targetAlreadyNamed = false;
   const body = (ab.ops ?? []).map((op) => {
     // A dies trigger excludes the source's own card from a graveyard raise.
-    const text = opText(op, ab.targets?.[0], targetAlreadyNamed, ab.when === 'dies');
+    const text = opText(
+      op,
+      ab.targets?.[0],
+      targetAlreadyNamed,
+      ab.when === 'dies',
+      ab.when === 'allyCreatureArrives',
+    );
     targetAlreadyNamed ||= referencesAbilityTarget(op);
     return text;
   }).join(', then ');
@@ -380,11 +403,17 @@ function abilityText(ab: AbilityDef): string {
     case 'attacks':
       sentence = `Whenever this attacks, ${body}.`;
       break;
+    case 'allyCreatureArrives':
+      sentence = `whenever a creature arrives under your control, ${body}.`;
+      break;
     case 'markedAllyAttacks':
       sentence = `whenever a marked creature you control attacks, ${body}.`;
       break;
     case 'gainsMark':
       sentence = `when this gets a mark, ${body}.`;
+      break;
+    case 'yourCreatureMarked':
+      sentence = `whenever a creature you control gets a mark, ${body}.`;
       break;
     case 'yourPermanentMarked':
       sentence = `whenever a permanent you control becomes marked, ${body}.`;

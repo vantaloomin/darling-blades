@@ -91,6 +91,12 @@ export function isLegalTarget(
       );
       break;
     }
+    case 'yourPermanent': {
+      if (ref.kind !== 'permanent') return false;
+      const perm = state.battlefield.find((p) => p.iid === ref.iid);
+      legal = !!perm && perm.controller === caster;
+      break;
+    }
     case 'player':
       legal = ref.kind === 'player';
       break;
@@ -137,6 +143,7 @@ export function enumerateTargets(
   switch (spec.what) {
     case 'creature':
     case 'yourCreature':
+    case 'yourPermanent':
     case 'any': {
       for (const perm of state.battlefield) {
         const ref: TargetRef = { kind: 'permanent', iid: perm.iid };

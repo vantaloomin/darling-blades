@@ -289,6 +289,43 @@ Each Codex contract quotes the iron invariants, the file-set discipline, and
 the honesty rules; the main session reviews every landing against the
 allowed-file list and runs the ladder.
 
+### Stage-4 vocabulary completion (2026-08-29, from the fill's honest stop)
+
+The acceptance-list fill stopped on four constructs every prior pass missed;
+they complete section 1 and land as their own engine delta before the fill
+reruns:
+
+- **`allyCreatureArrives` observer trigger**: fires on every permanent its
+  controller controls carrying the ability, once per creature that arrives
+  under that controller, with the ARRIVING creature auto-bound as the
+  ability's target context (no decision point - `to: 'target'` ops apply to
+  the arriver). Carries Orbital Graft ("whenever a creature arrives under
+  your control, add a mark to it"). Auto-binding a provoking permanent as
+  the ops' target is the general pattern for observer subjects.
+- **`yourCreatureMarked` trigger**: the creature-scoped sibling of
+  `yourPermanentMarked` - a permanent-scoped observer would over-fire on
+  marked non-creatures against Voidflare Empress's printed text.
+- **TargetSpec `what: 'yourPermanent'`**: any permanent you control
+  (Astral Biomancer marks "another target permanent you control"; composes
+  with `other`). The converter's exhaustive classification gains the member
+  by compile force.
+- **boost scope `'theirMarked'`**: temporary debuffs on the opponent's
+  marked creatures (Appetite of the Void's -2/-2 until end of turn).
+
+The delta's contract opens with a sweep of ALL 65 registry mechanics texts
+against the final vocabulary so any fifth gap lands in the same PR. The
+sweep found exactly the four; no fifth exists.
+
+One owner-approved redesign rider landed with the same delta: the **sever
+brand** for Redline Supernova ({2}{R}, "deals 3 damage to each creature; a
+creature damaged this way that would die this turn is severed instead").
+Shape: a `severOnDeath: true` rider on the damage op, legal only with
+`to: 'eachCreature'`; a branded creature's death THIS TURN is a REPLACEMENT
+- straight to its owner's severed zone, no dies triggers, no
+entersGraveyard, no Nine Lives return - cleared at end of turn. Owner
+intent confirmed against the reminder text; MEP rate +0.70 flat on sweep
+value (power-formula 4l).
+
 ### Stage-1 landing decisions (2026-08-28, recorded after adversarial review)
 
 Semantics the implementation fixed after review, or chose where the spec was

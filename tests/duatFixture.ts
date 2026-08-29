@@ -322,6 +322,7 @@ export function duatPermanent(
     enteredThisTurn: false,
     damage: 0,
     deathtouched: false,
+    severBranded: false,
     attachments: [],
     plusOneCounters: 0,
     untilEotMods: [],

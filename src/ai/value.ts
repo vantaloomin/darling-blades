@@ -89,8 +89,9 @@ export function opImpactValue(op: EffectOp): number {
       // One marked permanent is the least a card printing this can expect.
       return 1.5;
     case 'boost':
-      return op.scope === 'allYours' || op.scope === 'yourMarked'
-        ? Math.max(0, op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5
+      return op.scope === 'allYours' || op.scope === 'yourMarked' || op.scope === 'theirMarked'
+        ? (Math.max(0, op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5) *
+          (op.scope === 'theirMarked' ? 0.65 : 1)
         : 0;
     case 'moveMark':
       // The net mark count is unchanged. Price the destination trigger and
@@ -228,6 +229,7 @@ export function removalKind(db: CardDb, cardId: string): RemovalKind | null {
       (target) =>
         target.what === 'creature' ||
         target.what === 'yourCreature' ||
+        target.what === 'yourPermanent' ||
         target.what === 'any' ||
         target.what === 'artifact' ||
         target.what === 'enchantment' ||
@@ -317,7 +319,7 @@ export function conditionalAbilityValue(db: CardDb, cardId: string): number {
         op.op === 'severSelf' ||
         op.op === 'raise' ||
         op.op === 'ifTargetMarked' ||
-        (op.op === 'boost' && op.scope === 'yourMarked'),
+        (op.op === 'boost' && (op.scope === 'yourMarked' || op.scope === 'theirMarked')),
     );
     const markedCondition =
       ab.condition === 'controlMarked' ||

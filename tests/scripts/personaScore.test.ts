@@ -36,4 +36,15 @@ describe('persona score Starborne costing riders', () => {
     expect(rateCard(threshold)).toBeCloseTo(0.35 + 1.35 * 0.5);
     expect(rateCard(conditionalDawn)).toBeCloseTo(0.35 + 1.35 * 3 * 0.75);
   });
+
+  it('prices the marked-opponent boost through its conservative provisional scope entry', () => {
+    const markedDebuff = card('marked-debuff', 'spell', undefined, {
+      op: 'boost',
+      p: -2,
+      t: -2,
+      scope: 'theirMarked',
+    });
+
+    expect(rateCard(markedDebuff)).toBeCloseTo(0.35 + 0.9 * 0.65);
+  });
 });

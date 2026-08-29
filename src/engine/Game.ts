@@ -1181,6 +1181,7 @@ function normalizeState(input: GameState): GameState {
   for (const perm of state.battlefield) {
     perm.instanceId ??= freshId();
     perm.variantKey ??= null;
+    perm.severBranded ??= false;
   }
   for (const item of state.stack) {
     item.instanceId ??= freshId();

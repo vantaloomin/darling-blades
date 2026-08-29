@@ -88,8 +88,10 @@ function isEligibleSpell(card: CardDef | undefined): card is CardDef {
 
 /**
  * Target predicates that a creature-shaped format can genuinely fail to
- * satisfy. `creature`, `any`, `yourCreature`, `yourGraveCreature` and `spell`
+ * satisfy. `creature`, `any`, `yourCreature`, `yourPermanent`, `yourGraveCreature` and `spell`
  * are effectively always live here; artifacts and enchantments are not.
+ * `yourPermanent` is broad because a play context always has permanents the
+ * controller can target, and `other` composes as a source-exclusion qualifier.
  * `marked` is a separate supply capability, while `tapped` needs no capability
  * gate because any permanent can become tapped.
  */
@@ -99,6 +101,7 @@ const NARROW_TARGETS: Record<TargetSpec['what'], boolean> = {
   any: false,
   spell: false,
   yourCreature: false,
+  yourPermanent: false,
   yourGraveCreature: false,
   artifact: true,
   enchantment: true,
