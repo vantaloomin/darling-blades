@@ -79,12 +79,10 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
   // same archetype-blindness grounds as hel. Her converter build measured 33%
   // on the (now reserve-native) avatar matrix with a 10% worst cell; the hand
   // tune measures 57%, so the exemption is earned under the standing rule.
-  // The headline defect is one the converter can hit for ANY avatar: it
-  // retained sd-strike-the-lintel x4 (targets artifactOrEnchantment) into a
-  // format whose five starter columns contain zero artifacts and zero
-  // enchantments, so 4 of her 40 cards were blank in 100% of games. Retention
-  // eligibility does not check that a card has legal targets. Full evidence
-  // chain in her opponents.ts entry.
+  // The converter now rejects that same dead-target shape for ANY avatar: it
+  // would otherwise retain sd-strike-the-lintel x4 (targets
+  // artifactOrEnchantment) into a format whose five starter columns contain
+  // zero artifacts and zero enchantments. Full evidence chain in opponents.ts.
   const HAND_TUNED_WARCHEST = new Set([
     'morgan',
     'hel',
@@ -94,12 +92,10 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
   ]);
 
   /**
-   * Retention eligibility asked only "is this a legal nonland?", never "can
-   * this card's target ever exist?". That shipped sd-strike-the-lintel x4 -
-   * which targets artifactOrEnchantment - into Anubis against five starter
-   * columns holding ZERO artifacts and ZERO enchantments: four cards blank in
-   * 100% of her games, 33% win rate, repaired only by a hand-tune. The fault
-   * was never hers specifically; it can hit ANY avatar carrying narrow removal.
+   * Retention eligibility asks whether a card's narrow target can exist in the
+   * format. That keeps sd-strike-the-lintel out of Anubis against five starter
+   * columns holding ZERO artifacts and ZERO enchantments. The same gate also
+   * covers marked-target cards when no card in the format can add a mark.
    */
   describe('retention rejects cards whose targets cannot exist in the format', () => {
     const supplyFor = (source: readonly string[]): ReadonlySet<string> => new Set([
@@ -111,9 +107,10 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       // The premise the whole defect rests on. If a future set puts an artifact
       // into a starter column - or a creature that token-creates one, which
       // deckTargetSupply now sees - these cards stop being dead and this test
-      // says so.
+      // says so. Mark generators are a separate supply dimension.
       const columnSupply = deckTargetSupply(STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []));
-      expect([...columnSupply]).toEqual([]);
+      expect([...columnSupply].filter((what) => what !== 'marked')).toEqual([]);
+      expect(columnSupply.has('marked')).toBe(true);
     });
 
     it('no avatar converter build ships a dead-target card', () => {
@@ -142,6 +139,92 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       const lintel = CARD_DB['sd-strike-the-lintel'];
       expect(hasNoLegalTargets(lintel, new Set())).toBe(true);
       expect(hasNoLegalTargets(lintel, new Set(['artifactOrEnchantment']))).toBe(false);
+    });
+
+    it('rejects a dead targeted arrival exactly like a dead spell target', () => {
+      const spellSide: CardDef = {
+        id: 'synthetic-spell-narrow',
+        name: 'Synthetic Spell Narrow',
+        types: ['charm'],
+        subtypes: [],
+        colors: ['R'],
+        abilities: [{ when: 'spell', targets: [{ what: 'artifact' }], ops: [{ op: 'sever', to: 'target' }] }],
+        rarity: 'c',
+      };
+      const arrival: CardDef = {
+        ...spellSide,
+        id: 'synthetic-arrival-narrow',
+        name: 'Synthetic Arrival Narrow',
+        types: ['creature'],
+        attack: 1,
+        defense: 1,
+        abilities: [{ when: 'arrives', targets: [{ what: 'artifact' }], ops: [{ op: 'sever', to: 'target' }] }],
+      };
+
+      expect(hasNoLegalTargets(spellSide, new Set())).toBe(true);
+      expect(hasNoLegalTargets(arrival, new Set())).toBe(true);
+      expect(hasNoLegalTargets(arrival, new Set(['artifact']))).toBe(false);
+    });
+
+    it('requires a mark generator for marked targets, but not for tapped targets', () => {
+      const markedAnswer: CardDef = {
+        id: 'synthetic-marked-answer',
+        name: 'Synthetic Marked Answer',
+        types: ['charm'],
+        subtypes: [],
+        colors: ['R'],
+        abilities: [{
+          when: 'spell',
+          targets: [{ what: 'creature', marked: true }],
+          ops: [{ op: 'sever', to: 'target' }],
+        }],
+        rarity: 'c',
+      };
+      const markGenerator: CardDef = {
+        id: 'synthetic-mark-generator',
+        name: 'Synthetic Mark Generator',
+        types: ['creature'],
+        subtypes: [],
+        colors: ['R'],
+        abilities: [{ when: 'arrives', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
+        rarity: 'c',
+      };
+      const propagateOnly: CardDef = {
+        ...markGenerator,
+        id: 'synthetic-propagate-only',
+        name: 'Synthetic Propagate Only',
+        abilities: [{ when: 'arrives', ops: [{ op: 'propagate' }] }],
+      };
+      const moveOnly: CardDef = {
+        ...markGenerator,
+        id: 'synthetic-move-only',
+        name: 'Synthetic Move Only',
+        abilities: [{ when: 'arrives', ops: [{ op: 'moveMark' }] }],
+      };
+      const tappedAnswer: CardDef = {
+        ...markedAnswer,
+        id: 'synthetic-tapped-answer',
+        name: 'Synthetic Tapped Answer',
+        abilities: [{
+          when: 'spell',
+          targets: [{ what: 'creature', tapped: true }],
+          ops: [{ op: 'sever', to: 'target' }],
+        }],
+      };
+      const db: CardDb = {
+        [markedAnswer.id]: markedAnswer,
+        [markGenerator.id]: markGenerator,
+        [propagateOnly.id]: propagateOnly,
+        [moveOnly.id]: moveOnly,
+        [tappedAnswer.id]: tappedAnswer,
+      };
+
+      expect(deckTargetSupply([markedAnswer.id], db).has('marked')).toBe(false);
+      expect(hasNoLegalTargets(markedAnswer, deckTargetSupply([markedAnswer.id], db))).toBe(true);
+      expect(deckTargetSupply([markedAnswer.id, propagateOnly.id, moveOnly.id], db).has('marked')).toBe(false);
+      expect(deckTargetSupply([markedAnswer.id, markGenerator.id], db).has('marked')).toBe(true);
+      expect(hasNoLegalTargets(markedAnswer, deckTargetSupply([markedAnswer.id, markGenerator.id], db))).toBe(false);
+      expect(hasNoLegalTargets(tappedAnswer, new Set())).toBe(false);
     });
 
     it('never rejects a card whose targets are ordinary creatures', () => {

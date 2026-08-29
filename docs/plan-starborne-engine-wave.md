@@ -4,7 +4,8 @@
 
 The mark vocabulary the locked 151-card set assumes, specified for
 implementation. Ruled 2026-08-28: the hybrid is greenlit, and **triggers can
-now target** ("Triggers never target" retires as a snapshot guideline; the
+now target** (the former no-target trigger guideline retires as a snapshot
+guideline; the
 iron invariants - purity, PlayerView redaction, seeded determinism, save
 migrations - are NOT snapshots and hold unchanged). The 65 cards carrying an
 UNMAPPED entry in `src/data/cards/starborne.ts` (branch `feat/starborne-cards`)
@@ -64,7 +65,7 @@ seed) and `sb-cometary-verdict` ("Sever target tapped creature").
 
 ### 1b. Mark-event triggers
 
-New `TriggerWhen` members, all mandatory and all trigger-safe (no targets):
+New `TriggerWhen` members, all mandatory and target-free by definition:
 
 ```ts
 | 'gainsMark'        // this permanent gained a mark
@@ -140,12 +141,12 @@ carrying the draw.)
 | { op: 'fetchLand' }        // top-down deck search: first land → battlefield tapped; shuffle-free (deck order is seeded; sever nothing)
 | { op: 'boost'; ...; scope: 'yourMarked' }    // boost existing op gains a scope
 | { op: 'foresee'; n: number; who?: 'targetOwner' } // foresee existing op gains an optional subject
-| { op: 'severSelf' }                          // the source permanent -> its owner's severed zone; trigger-safe
+| { op: 'severSelf' }                          // the source permanent -> its owner's severed zone; target-free
 | { op: 'raise'; to: 'top'; withMarks?: number } // raise-top gains enter-with-marks (rides the Nine Lives plusOneCounters seam on enterBattlefield)
 ```
 
 (`severSelf` and `raise withMarks` were added 2026-08-28 for the
-owner-approved Umbral Antenna redesign; both are trigger-safe. A creature
+owner-approved Umbral Antenna redesign; both are target-free. A creature
 returned `withMarks` arrives ALREADY MARKED - a state, not an event, firing
 no mark observers, and its Nine Lives is disabled by design: owner-aware,
 intended.)
@@ -197,15 +198,15 @@ the registry as it goes. Spot list of the trickiest:
 | sb-umbral-antenna (OWNER-APPROVED redesign) | {4}; arrives grind self 1; dawn foresee 1 + grind self 1; dawn + markedThreshold(4, creatures) → severSelf, raise to:top withMarks:2 |
 | sb-violet-wake-beacon (OWNER-APPROVED redesign) | {6}; arrives createToken Firefly; dawn + controlMarked → createToken Firefly |
 | sb-gullet-of-the-hive | arrives + loseLifePerTheirMarked |
-| sb-eclipse-tithe | removeMarks target; Empower stays trigger-safe (opponent loses 2) |
-| sb-quiet-orbit / sb-signal-recall / sb-tidewalk-analyst | moveMark (spell / spell-with-Retell / Empower rider - NOTE: Empower ops may now target ONLY for moveMark, which relaxes the EmpowerDef "never introduce targets" comment; the ceiling test is untouched) |
+| sb-eclipse-tithe | removeMarks target; Empower stays target-free (opponent loses 2) |
+| sb-quiet-orbit / sb-signal-recall / sb-tidewalk-analyst | moveMark (spell / spell-with-Retell / Empower rider - NOTE: Empower ops may now target ONLY for moveMark, which relaxes the former target-free rider comment; the ceiling test is untouched) |
 | sb-the-long-crossing | Ritual + chapters persistence |
 | sb-prism-void-comet | `propagated` trigger → draw 1 |
 | sb-eclipse-red-queen | attacks + condition attackerMarked → damage opponent 1 |
 
 The Empower relaxation is deliberately minimal: `EmpowerDef` ops may carry
-targets only when the op is `moveMark`; everything else keeps the trigger-safe
-contract.
+targets only when the op is `moveMark`; all other Empower ops remain
+target-free.
 
 ## 3. Blast radius (grep everything, not the remembered list)
 
@@ -224,8 +225,9 @@ contract.
   Halo/Cathedral/Choir AI-risk trio still owes its seeded pass before ship.
 - **Comments and docs naming the retired rule**: types.ts:30 block comment,
   the converter comment, docs/rules.md, docs/adding-cards.md op table,
-  docs/card-building-guide.md, the art-bible facts conventions. Sweep by
-  grep for "never target" and "trigger-safe".
+  docs/card-building-guide.md, the art-bible facts conventions. Sweep for
+  the retired no-target wording and re-check each remaining target-free
+  contract against the current ability model.
 - **rulesText.ts**: render strings for every new op and trigger (player copy:
   no em-dashes). glossary.ts needs no new mechanic names (marks and Propagate
   already exist).
@@ -246,13 +248,20 @@ same wave (local workbench, never committed):
   selection), and the parasitic floor stays a named blind spot of single-card
   scoring. Engine-semantics confirmation (stage 1, this wave): one-shot is
   exactly one firing on spell resolution or arrival, repeatable exactly one
-  per dawn trigger - the per-instance basis the rates assume holds.
+  per dawn trigger - the per-instance basis the rates assume holds. The
+  repeatable value is explicitly **per-trigger MEP × the §4i expected-trigger
+  multiplier** for dawn (2.0× creatures, 3.0× noncreatures); a conditional
+  dawn rider then applies its separately marked provisional discount.
 - Mark-add (single, targeted): rate from the +1/+1-counter comparative
   (Hardened Scales-adjacent cards); flag `NEEDS MATH` if no clean comparative
   survives contact.
 - moveMark / removeMarks / markAll / per-marked drains: comparative sweep at
   authoring time; anything truly novel is flagged `NEEDS MATH`, never
   silently guessed.
+- Marked-threshold conditions carry a **0.5× provisional** score multiplier,
+  and `controlMarked` dawn conditions carry a **0.75× provisional** multiplier
+  after the §4i dawn expectation. Both remain `NEEDS MATH` until a comparative
+  or seeded playtest replaces the single-card judgment.
 - `scripts/personas/score.ts` weights for the new ops ride the same commit
   that adds the ops (the existing `propagate: 0.7` weight becomes reachable).
 
