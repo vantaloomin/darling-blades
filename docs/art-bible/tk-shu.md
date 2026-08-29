@@ -20,7 +20,7 @@ Shu is the faction of oaths kept past all reason: sworn siblings, volunteers, an
 - **Prompt:** Genderbent Liu Bei in ivory-and-jade embroidered robe over travel armor with patched green cloak, one hand extended in oath, two ragtag volunteers rallying below, straw-roofed dawn camp with half-raised banners, tearful resolute leader, warm dawn key light and soft ivory rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Guan Yu, Saint of War — `tk-shu-guanyu`
-- **Card facts:** {2}{W}{R}{R} · W/R (gold frame) · 5/4 · firstBlade, sentinel · ur, legendary · holo: galaxy (explicit)
+- **Card facts:** {1}{W}{R}{R} · W/R (gold frame) · 5/4 · firstBlade, sentinel · ur, legendary · holo: galaxy (explicit)
 - **Character & source:** Genderbent Guan Yu, deified Saint of War and matriarch of the Guan green-and-guandao line (registry); wields the Green Dragon Crescent Blade.
 - **Personality / mood:** "The magnificent beard is now magnificent hair. The moon blade did not change." Serene, absolute, temple-calm martial authority.
 - **Pose & composition:** Frontal, slightly low-angle, chest-up, guandao held vertical at her side with the crescent blade rising into the top bleed; face ≈ y 300, eyes half-lowered in composure. The vigilance/firstBlade read: ready, unhurried, first to strike.

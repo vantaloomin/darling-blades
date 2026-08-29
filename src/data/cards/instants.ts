@@ -205,6 +205,10 @@ export const INSTANTS = [
     // draw-2 Ritual, so the common could never be the right card. Through the
     // target era the instant costs a full mana more than the sorcery (Counsel
     // of the Soratami {2}{U} sorcery 2004, Weave Fate {3}{U} instant 2014).
+    // The 2026-08-29 assay slate proposed {2}{U}; reverted, because that is
+    // exactly the dominance this note forbids (so-divination is a {2}{U}
+    // common Ritual with identical text). The formula's instant premium is
+    // below real precedent here, so this stays a documented accept.
     cost: cost(3, 'U'),
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }] }],
@@ -281,7 +285,7 @@ export const INSTANTS = [
     name: 'Cleanse the Shrine',
     types: ['charm'],
     subtypes: [],
-    cost: cost(1, 'W'),
+    cost: cost(2, 'W'),
     colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'sever', to: 'target' }] }],
     rarity: 'c',
@@ -292,7 +296,7 @@ export const INSTANTS = [
     name: 'Ram the Gates',
     types: ['charm'],
     subtypes: [],
-    cost: cost(1, 'R'),
+    cost: cost(2, 'R'),
     colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifact' }], ops: [{ op: 'destroy', to: 'target' }] }],
     empower: { cost: cost(1, 'R'), ops: [{ op: 'damage', n: 2, to: 'opponent' }] },
@@ -304,7 +308,7 @@ export const INSTANTS = [
     name: 'Empty Fort Stratagem',
     types: ['charm'],
     subtypes: [],
-    cost: cost(1, 'U'),
+    cost: cost(0, 'U'),
     colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'recall', to: 'target' }] }],
     rarity: 'c',

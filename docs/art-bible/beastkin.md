@@ -146,7 +146,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Lamia serpent beast-girl coiled upright, dark scaled bodice and shadow-silk cloak, long serpent lower body, extending a single needle claw-blade toward viewer, slit-pupil calm smile, dim ruined background, cold underlight with violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dragonmaid Ember — `bk-dragonmaid`
-- **Card facts:** {3}{R}{R} · R · 4/4 · skyborne · sr · holo: auto:galaxy
+- **Card facts:** {2}{R}{R} · R · 4/4 · skyborne · sr · holo: auto:galaxy
 - **Character & source:** Original Beastkin draconic housemaid — a five-drop `flying` 4/4 whose domestic composure hides a furnace.
 - **Personality / mood:** "She dusts, she polishes, she incinerates." Prim, immaculate, one raised eyebrow from arson.
 - **Pose & composition:** The rare "moment": hovering mid-air on spread wings, one hand tipping a feather-duster while the other cups a curl of ignition flame — the split-second before the room becomes a problem. Face ≈ y 320; wings sweep into the top bleed, scaled tail curls down the right band edge.
@@ -176,7 +176,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Wolfkin packmother standing protectively with a rallying outstretched arm, green-and-fur mantle and antler collar, grey brush tail, two young pack-shapes in bokeh behind, dusk den clearing, warm firelight with cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Kitsune Matriarch Yohime — `bk-kitsune-matriarch`
-- **Card facts:** {2}{U}{G} · U/G (gold frame) · 3/4 · ssr, legendary · holo: galaxy (explicit)
+- **Card facts:** {4}{U}{G} · U/G (gold frame) · 3/4 · ssr, legendary · holo: galaxy (explicit)
 - **Character & source:** Original Beastkin nine-tailed kitsune sovereign; her ETB creates two Fox Spirit tokens whose design **this art canonizes** (`tok-fox-spirit` — see registry): pale blue-white spectral fox, single tail, trailing cold foxfire wisps.
 - **Personality / mood:** "Nine tails, nine schemes, one very patient smile." A schemer, not a brawler — serene, unreadable, always three moves ahead.
 - **Pose & composition:** Seated or standing composed, three-quarter, hands folded in a sleeve, chin slightly lifted — she schemes, she does not lunge. Face ≈ y 300; her nine tails fan wide behind, several sweeping into the top and side bleed. Two canon fox spirits curl at her feet in cold foxfire.

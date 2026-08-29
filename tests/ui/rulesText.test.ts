@@ -127,7 +127,7 @@ describe('Hauntlink rules text', () => {
 
   it('renders the battlefield link cost, Charm-speed move rule, rider, and host death', () => {
     const text = rulesText(CARD_DB['yn-hauntlink-apex']);
-    expect(text).toContain('Hauntlink {2}{U}:');
+    expect(text).toContain('Hauntlink {3}{U}:');
     expect(text).toContain('At Charm speed, link this to a creature you control or move it to another.');
     expect(text).toContain('gets +3/+3 and gains Skyborne, Untouchable');
     expect(text).toContain('This dies with its host.');

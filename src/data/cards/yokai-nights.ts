@@ -34,7 +34,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{5}{U}",
     "stats": "-",
-    "mechanics": "At dawn: draw 1. Hauntlink {2}{U}. Linked: The linked creature gets +3/+3, Skyborne, and Untouchable. (AI-risk survivor.)",
+    "mechanics": "At dawn: draw 1. Hauntlink {3}{U}. Linked: The linked creature gets +3/+3, Skyborne, and Untouchable. (AI-risk survivor.)",
     "flavor": "The perfect possession is a partnership until one voice stops answering."
   },
   {
@@ -54,9 +54,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "UR",
     "color": "R",
     "type": "Legendary Creature (Kitsune Boss)",
-    "cost": "{5}{R}",
+    "cost": "{4}{R}",
     "stats": "6/5",
-    "mechanics": "Warcry, Overrun. When this attacks: deal 2 damage to opponent.",
+    "mechanics": "Warcry, Overrun. When this attacks: deal 2 damage to opponent, then deal 1 damage to you.",
     "flavor": "Her tailfire turns the skyline into a personal victory lap."
   },
   {
@@ -65,7 +65,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "UR",
     "color": "G",
     "type": "Legendary Creature (Spirit Sovereign)",
-    "cost": "{6}{G}",
+    "cost": "{5}{G}",
     "stats": "7/7",
     "mechanics": "Sentinel, Blood Oath. Arrives: gain 4 life, then Foresee 2.",
     "flavor": "The old forest wears the city as jewelry and grows stronger under every light."
@@ -87,7 +87,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SSR",
     "color": "W",
     "type": "Ritual",
-    "cost": "{5}{W}",
+    "cost": "{2}{W}{W}",
     "stats": "-",
     "mechanics": "Destroy all creatures; gain 4 life. [ANSWER: creature swarm and anthem-backed wide boards.]",
     "flavor": "Her veil falls, and the armies beneath it leave no shadow."
@@ -111,7 +111,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Enchantment",
     "cost": "{3}{U}",
     "stats": "-",
-    "mechanics": "At dawn: draw 1. Hauntlink {2}{U}. Linked: The linked creature gets Skyborne and Untouchable.",
+    "mechanics": "At dawn: draw 1. Hauntlink {3}{U}. Linked: The linked creature gets Skyborne and Untouchable.",
     "flavor": "The signal keeps calling after the sender has become myth."
   },
   {
@@ -142,7 +142,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SSR",
     "color": "R",
     "type": "Artifact",
-    "cost": "{3}{R}",
+    "cost": "{2}{R}",
     "stats": "-",
     "mechanics": "Arrives: deal 2 damage to opponent. Hauntlink {2}{R}. Linked: The linked creature gets +2/+0 and Overrun.",
     "flavor": "The mask burns without consuming the face beneath it."
@@ -164,7 +164,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SR",
     "color": "W",
     "type": "Creature (Kitsune Paladin)",
-    "cost": "{2}{W}",
+    "cost": "{3}{W}",
     "stats": "3/3",
     "mechanics": "Sentinel. Your other Kitsune get +1/+0.",
     "flavor": "She leads every procession as if the city were already hers."
@@ -175,9 +175,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SR",
     "color": "W",
     "type": "Enchantment",
-    "cost": "{3}{W}",
+    "cost": "{2}{W}",
     "stats": "-",
-    "mechanics": "At dawn: gain 2 life. Hauntlink {2}{W}. Linked: The linked creature gets +2/+2 and Sentinel.",
+    "mechanics": "At dawn: gain 2 life. Hauntlink {3}{W}. Linked: The linked creature gets +2/+2 and Sentinel.",
     "flavor": "Every mask in the sanctum remembers a different patron."
   },
   {
@@ -186,7 +186,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SR",
     "color": "U",
     "type": "Creature (Spirit Hacker)",
-    "cost": "{3}{U}",
+    "cost": "{4}{U}",
     "stats": "3/4",
     "mechanics": "Skyborne. Arrives: Foresee 2, then draw 1.",
     "flavor": "Her broadcast reaches ghosts, gods, and the occasional bored commuter."
@@ -331,7 +331,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Artifact",
     "cost": "{2}{W}",
     "stats": "-",
-    "mechanics": "Arrives: gain 2 life. Hauntlink {1}{W}. Linked: The linked creature gets +1/+1 and Sentinel.",
+    "mechanics": "Arrives: gain 2 life. Hauntlink {1}{W}. Linked: The linked creature gets +1/+2 and Sentinel.",
     "flavor": "The lantern's ghost chooses defenders who do not run."
   },
   {
@@ -340,7 +340,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "W",
     "type": "Charm",
-    "cost": "{1}{W}",
+    "cost": "{W}",
     "stats": "-",
     "mechanics": "Prevent all combat damage this turn. [ANSWER: one go-wide alpha attack.]",
     "flavor": "A single command silences engines, drones, and angry spirits."
@@ -351,7 +351,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "W",
     "type": "Ritual",
-    "cost": "{5}{W}",
+    "cost": "{2}{W}{W}",
     "stats": "-",
     "mechanics": "Destroy all creatures. [ANSWER: low-curve creature swarms and token boards.]",
     "flavor": "Shrine bells ring once, and the crowded street falls silent."
@@ -417,7 +417,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "U",
     "type": "Charm",
-    "cost": "{2}{U}",
+    "cost": "{U}",
     "stats": "-",
     "mechanics": "Foresee 3.",
     "flavor": "The city warns you three seconds before disaster and charges for the privilege."
@@ -483,7 +483,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "B",
     "type": "Creature (Spirit Salvager)",
-    "cost": "{3}{B}",
+    "cost": "{4}{B}",
     "stats": "3/3",
     "mechanics": "Arrives: raise the top creature card from your graveyard.",
     "flavor": "She retrieves lost memories from puddles beneath the train line."
@@ -494,7 +494,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "B",
     "type": "Ritual",
-    "cost": "{5}{B}",
+    "cost": "{2}{B}",
     "stats": "-",
     "mechanics": "Destroy all creatures; deal 2 damage to you. [ANSWER: low-curve creature swarms outside white.]",
     "flavor": "Every bargain in the night market has a pulse underneath it."
@@ -505,7 +505,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "B",
     "type": "Charm",
-    "cost": "{3}{B}",
+    "cost": "{1}{B}",
     "stats": "-",
     "mechanics": "Destroy target artifact or sever target enchantment; opponent loses 1 life. [ANSWER: static creature anthems and value Enchantments.]",
     "flavor": "A severed broadcast leaves the target alone with its own fear."
@@ -549,7 +549,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "R",
     "type": "Creature (Human Duelist)",
-    "cost": "{4}{R}",
+    "cost": "{3}{R}",
     "stats": "4/3",
     "mechanics": "First Blade, Warcry.",
     "flavor": "Her opening blow is visible only as the rain splitting around it."
@@ -626,7 +626,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "G",
     "type": "Creature (Yokai Brawler)",
-    "cost": "{3}{G}",
+    "cost": "{2}{G}",
     "stats": "3/3",
     "mechanics": "Overrun.",
     "flavor": "The last thing a drone sees is a grin between two leaves."
@@ -659,7 +659,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "G",
     "type": "Ritual",
-    "cost": "{3}{G}",
+    "cost": "{1}{G}",
     "stats": "-",
     "mechanics": "Target creature gets +3/+3 until end of turn; gain 2 life.",
     "flavor": "A street tree becomes a cathedral before the cameras can refocus."
@@ -670,7 +670,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "G",
     "type": "Charm",
-    "cost": "{2}{G}",
+    "cost": "{G}",
     "stats": "-",
     "mechanics": "Target creature gets +0/+4 and Warding Gaze until end of turn.",
     "flavor": "Roots rise like a wall around the person who refused to run."
@@ -758,7 +758,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "W",
     "type": "Creature (Oni Guardian)",
-    "cost": "{4}{W}",
+    "cost": "{2}{W}",
     "stats": "4/4",
     "mechanics": "Bulwark, Warding Gaze.",
     "flavor": "Nothing enters the shrine district unless it can survive being seen."
@@ -769,7 +769,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "W",
     "type": "Ritual",
-    "cost": "{1}{W}",
+    "cost": "{W}",
     "stats": "-",
     "mechanics": "Target creature gets +1/+1 until end of turn; Foresee 1.",
     "flavor": "A paper contract glows once, then seals itself in rain."
@@ -901,7 +901,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "U",
     "type": "Charm",
-    "cost": "{1}{U}",
+    "cost": "{U}",
     "stats": "-",
     "mechanics": "Recall target creature.",
     "flavor": "Every locked door has a network address if you know the right spirit."
@@ -1022,7 +1022,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "B",
     "type": "Ritual",
-    "cost": "{1}{B}",
+    "cost": "{B}",
     "stats": "-",
     "mechanics": "Opponent discards at random 1.",
     "flavor": "The ransom note arrives from a number that died years ago."
@@ -1112,7 +1112,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Kitsune Dancer)",
     "cost": "{2}{R}",
     "stats": "2/1",
-    "mechanics": "Dreaded.",
+    "mechanics": "Dreaded, Deathblade.",
     "flavor": "Her flames make the subway look glamorous right before they make it dangerous."
   },
   {
@@ -1121,7 +1121,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "R",
     "type": "Creature (Kitsune Raider)",
-    "cost": "{4}{R}",
+    "cost": "{3}{R}",
     "stats": "4/3",
     "mechanics": "Overrun.",
     "flavor": "The chrome tail is a stolen antenna that still picks up war songs."
@@ -1145,7 +1145,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Creature (Yokai Enforcer)",
     "cost": "{5}{R}",
     "stats": "5/4",
-    "mechanics": "Overrun.",
+    "mechanics": "Warcry, Overrun.",
     "flavor": "Its horns broadcast a siren that makes traffic forget which way is forward."
   },
   {
@@ -1165,7 +1165,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "R",
     "type": "Charm",
-    "cost": "{2}{R}",
+    "cost": "{R}",
     "stats": "-",
     "mechanics": "Target creature gets +2/+0 and Warcry until end of turn.",
     "flavor": "The lantern's red glow means the night has chosen a side."
@@ -1176,7 +1176,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "R",
     "type": "Charm",
-    "cost": "{3}{R}",
+    "cost": "{1}{R}",
     "stats": "-",
     "mechanics": "Deal 3 damage to target creature or player.",
     "flavor": "The city's emergency tones become music when the right yokai conducts them."
@@ -1187,9 +1187,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "R",
     "type": "Artifact",
-    "cost": "{1}{R}",
+    "cost": "{R}",
     "stats": "-",
-    "mechanics": "Hauntlink {R}. Linked: The linked creature gets +1/+0 and Warcry.",
+    "mechanics": "Hauntlink {1}{R}. Linked: The linked creature gets +1/+0 and Warcry.",
     "flavor": "It smells like hot metal and the last thought of a bad enemy."
   },
   {
@@ -1275,8 +1275,8 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "G",
     "type": "Creature (Dryad Guardian)",
-    "cost": "{5}{G}",
-    "stats": "5/5",
+    "cost": "{4}{G}",
+    "stats": "3/7",
     "mechanics": "Bulwark. At dawn: gain 2 life.",
     "flavor": "The oldest tree in the district has a better firewall than city hall."
   },
@@ -1286,7 +1286,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "G",
     "type": "Creature (Yokai Guardian)",
-    "cost": "{4}{G}",
+    "cost": "{3}{G}",
     "stats": "4/5",
     "mechanics": "Bulwark, Warding Gaze.",
     "flavor": "Its transparent bark catches hostile drones before they find the shrine."
@@ -1308,7 +1308,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "G",
     "type": "Charm",
-    "cost": "{2}{G}",
+    "cost": "{1}{G}",
     "stats": "-",
     "mechanics": "Target creature gets +2/+2 until end of turn; Foresee 1.",
     "flavor": "The canal wall blooms around the person who needs it most."

@@ -2701,7 +2701,7 @@ export const AVATARS: readonly Avatar[] = [
   // Rung 16 — The Bride: U/B empowered stitchwork control. (Hard · Gothic Monsters summit)
   {
     id: 'the-bride',
-    name: 'The Bride, Storm-Crowned',
+    name: 'The Storm-Crowned Bride',
     title: 'The Vow Beneath the Lightning',
     blurb: 'The Bride does not hurry the ending. She filters every draw, stitches the fallen back into service, and surrounds herself with artifact bodies until the storm has nowhere left to break.',
     theme: 'Blue-Black Empowered Stitchwork Control',

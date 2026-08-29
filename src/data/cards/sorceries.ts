@@ -23,7 +23,7 @@ export const SORCERIES = [
     name: 'Verdant Invitation',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'G'),
+    cost: cost(0, 'G'),
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',
@@ -43,9 +43,13 @@ export const SORCERIES = [
     flavor: 'Retirement is negotiable.',
   },
   {
+    // Charm, not Ritual (owner, 2026-08-29). It STAYS in this file: the id
+    // prefix convention is enforced per array (SORCERIES ids must be `so-`)
+    // and ids are immutable, so relocating it to instants.ts would break
+    // catalog integrity. Only the type changed.
     id: 'so-lava-axe',
     name: 'Molten Cleaver',
-    types: ['ritual'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(4, 'R'),
     colors: ['R'],
@@ -190,7 +194,7 @@ export const SORCERIES = [
     name: 'Stampede Season',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(2, 'GG'),
+    cost: cost(0, 'GG'),
     colors: ['G'],
     abilities: [
       {
@@ -217,7 +221,11 @@ export const SORCERIES = [
     name: 'The Wilds Take It Back',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(3, 'G'),
+    // PARKED 2026-08-29: the owner ruled {G}{W}, but catalog integrity requires
+    // every multicolour nonland card to be legendary, and this is a plain rare
+    // Ritual. Held at the mono-green {1}{G} the same row's prose asked for
+    // (Delta -0.12 there too) pending a ruling on colour vs the legendary rule.
+    cost: cost(1, 'G'),
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allEnchantments' }] }],
     rarity: 'r',
@@ -233,10 +241,10 @@ export const SORCERIES = [
     name: "Echo's Refrain",
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'U'),
+    cost: cost(2, 'U'),
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }] }],
-    retell: { cost: cost(2, 'U') },
+    retell: { cost: cost(3, 'U') },
     rarity: 'c',
     flavor: 'She answers every question twice, and the second answer is yours.',
   },

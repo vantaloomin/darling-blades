@@ -27,7 +27,7 @@ export const TK_OTHER = [
     types: ['creature'],
     subtypes: ['Strategist'],
     supertypes: ['legendary'],
-    cost: cost(1, 'WB'),
+    cost: cost(0, 'WB'),
     colors: ['W', 'B'],
     attack: 1,
     defense: 3,

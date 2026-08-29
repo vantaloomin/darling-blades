@@ -177,7 +177,8 @@ describe('Sands of the Duat entersGraveyard trigger', () => {
   const cast = riteAction(sacrificeGame);
     // Wave D4 (2026-08-20): Sun-Rope Hauler is now {1}{R}; preserve the
     // exact payment assertion with the reduced two-source mana plan.
-    const sacrificeEvents = sacrificeGame.submit(0, { ...cast, manaPlan: [1, 2] });
+    // 2026-08-29: the assay recost it to {2}{R}, so the plan takes all three.
+    const sacrificeEvents = sacrificeGame.submit(0, { ...cast, manaPlan: [1, 2, 3] });
     expect(graveyardTriggers(sacrificeEvents)).toHaveLength(1);
     expect(sacrificeEvents.filter((event) => event.e === 'triggerFired' && event.iid === 10)).toHaveLength(0);
   });

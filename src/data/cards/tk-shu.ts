@@ -24,7 +24,7 @@ export const TK_SHU = [
     types: ['creature'],
     subtypes: ['Shu', 'Warrior'],
     supertypes: ['legendary'],
-    cost: cost(2, 'WRR'),
+    cost: cost(1, 'WRR'),
     colors: ['W', 'R'],
     attack: 5,
     defense: 4,

@@ -167,6 +167,9 @@ describe('champion awakening', () => {
           { iid: 2, cardId: 'land-plains', controller: 0 },
           { iid: 3, cardId: 'land-plains', controller: 0 },
           { iid: 4, cardId: 'land-plains', controller: 0 },
+          // fourth Plains added 2026-08-29: the assay recost Camelot Banneret
+          // from {2}{W} to {3}{W}, so the fixture needs one more source.
+          { iid: 5, cardId: 'land-plains', controller: 0 },
         ],
         active: 0,
       }),

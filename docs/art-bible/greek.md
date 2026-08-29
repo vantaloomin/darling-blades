@@ -104,7 +104,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Spartan shieldmaiden seen from further back in a three-quarter-body stance braced beside a large lambda-blazoned round shield with leveled spear, a bronze breastplate cropped above her bare sculpted midriff showing hard defined abs, transverse-crested Corinthian helm, crimson cloak, dusty plain with implied shield-line, grim disciplined warrior, the top of her crested helm well below the upper edge of the frame with generous open sky above it, hard daylight key with cool bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zeus, Thunder Empress — `gk-zeus`
-- **Card facts:** {2}{R}{R}{W}{W} · R/W (gold frame) · 5/5 · skyborne · ur, legendary · holo: galaxy (explicit)
+- **Card facts:** {1}{R}{R}{W}{W} · R/W (gold frame) · 5/5 · skyborne · ur, legendary · holo: galaxy (explicit)
 - **Character & source:** Genderbent Zeus, sovereign of Olympus; her ETB burns the opponent for 3, so the art must catch the bolt already loosed. Kit-faithful: the thunderbolt is her signature.
 - **Personality / mood:** "The forecast is her mood. Pack accordingly." Imperious, electric, casually catastrophic.
 - **Pose & composition:** High-hovering three-quarter, one arm hurling a forked thunderbolt down and across the frame, wings and storm-cloak thrown wide, face ≈ y 300 gazing down at the viewer; the bolt deliberately breaks the top-right of the band. Aloft, above the storm.
@@ -119,7 +119,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Genderbent Zeus hovering above a dark storm, white-and-gold imperial chiton with storm-grey himation and gilt eagle pauldron, hurling a forked thunderbolt down across frame, dark wings spread, black thunderheads and star-torn void, imperious storm-lit empress, blue-white bolt key with warm gilt rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hera, Queen of Olympus — `gk-hera`
-- **Card facts:** {2}{W}{B} · W/B (gold frame) · 3/4 · sentinel · ssr, legendary · holo: foil (explicit)
+- **Card facts:** {3}{W}{B} · W/B (gold frame) · 3/4 · sentinel · ssr, legendary · holo: foil (explicit)
 - **Character & source:** Hera as-is, Queen of Olympus; her ETB creates two Peacock tokens whose design **this art canonizes** (`tok-peacock` — see registry).
 - **Personality / mood:** "Her peacocks have a hundred eyes each, and every eye is on Zeus." Absolute sovereignty with a surveillance budget.
 - **Pose & composition:** Enthroned three-quarter seated, slightly above camera, chin high, face ≈ y 300; two peacocks flank her — one perched on the throne back, its tail cascading down the right edge of the band; feather eye-spots scattered through the midground; the crown may rise into the top bleed.
@@ -194,7 +194,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Genderbent Poseidon rising from a wall of surf in sea-blue scaled chiton with coral-and-gilt pauldrons and a wave-crest crown, raising a three-pronged trident, a great wave curling behind, storm-sea over sunken marble colonnade, imperious sea-empress, cool aqueous key with warm gilt trident rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Apollo, Radiant Muse — `gk-apollo`
-- **Card facts:** {1}{W}{W} · W · 2/2 · r · holo: auto:sheen
+- **Card facts:** {2}{W}{W} · W · 2/2 · r · holo: auto:sheen
 - **Character & source:** Genderbent Apollo, god of light and music; her static aura brightens every other Olympian (+1/+1), so she reads as the pantheon's tuning-fork. Kit-faithful: the lyre.
 - **Personality / mood:** "Her lyre tunes the whole pantheon half a step brighter." Luminous, effortless, radiant self-assurance.
 - **Pose & composition:** Three-quarter mid-strum, lyre lifted, head tilted into her own music, face ≈ y 320; a warm sun-disc glows behind her head. Environmental story element (uncommon): golden note-motes drifting off the strings through the band.

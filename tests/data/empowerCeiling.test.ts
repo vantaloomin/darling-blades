@@ -27,7 +27,9 @@ const HARD_CEILING = LAND_RESERVE_SIZE;
 const DESIGN_CEILING = 9;
 
 /** Cards knowingly printed at the hard cap. Adding a name here is a ruling. */
-const TOP_OF_CURVE = ['Renenutet, Who Measures the Flood', 'Silt-Fat Behemoth'];
+// Renenutet left the allowlist 2026-08-29: the assay recost her to {4}{G} with
+// Empower {2}{G} (total 8), so she is no longer at the cap.
+const TOP_OF_CURVE = ['Silt-Fat Behemoth'];
 
 interface EmpowerRow {
   name: string;
