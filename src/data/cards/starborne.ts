@@ -326,7 +326,7 @@ export const STARBORNE = [
   }),
   land('sb-overcanopy', 'Overcanopy', ['G'], 'c', 'A green aurora hangs low enough to touch from the watch deck.'),
   artifact('sb-starborne-relay', 'Starborne Relay', {
-    cost: cost(7), colors: C,
+    cost: cost(6), colors: C,
     abilities: [
       arrives([{ op: 'draw', n: 1 }]),
       dawn([{ op: 'foresee', n: 1 }]),
@@ -335,7 +335,7 @@ export const STARBORNE = [
         condition: { kind: 'markedThreshold', n: 4, subject: 'creatures' },
         ops: [{ op: 'draw', n: 1 }],
       },
-    ], rarity: 'c',
+    ], rarity: 'sr',
     flavor: 'It carries a message from every deck and forgets none of them.',
   }),
   artifact('sb-null-orbit-array', 'Null-Orbit Array', {
@@ -351,7 +351,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     abilities: [
       arrives([{ op: 'createToken', token: 'tok-nebula-firefly', count: 1 }]),
       { when: 'dawn', condition: 'controlMarked', ops: [{ op: 'createToken', token: 'tok-nebula-firefly', count: 1 }] },
-    ], rarity: 'c',
+    ], rarity: 'ssr',
     flavor: 'Its pulse is a welcome, a warning, and a dinner bell.',
   }),
   creature('sb-prism-chorister', 'Prism Chorister', ['Alien', 'Singer'], {

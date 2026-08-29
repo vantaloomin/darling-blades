@@ -55,7 +55,8 @@ function rarityCounts(cards: readonly CardDef[]) {
 describe('Starborne transcription', () => {
   it('pins the locked 151-card rarity mix', () => {
     expect(STARBORNE).toHaveLength(151);
-    expect(rarityCounts(STARBORNE)).toEqual({ c: 75, r: 45, sr: 14, ssr: 10, ur: 7 });
+    // 2026-08-29 owner ruling: relay C->SR at {6}, beacon C->SSR at {7}.
+    expect(rarityCounts(STARBORNE)).toEqual({ c: 73, r: 45, sr: 15, ssr: 11, ur: 7 });
     expect(new Set(STARBORNE.map((card) => card.id)).size).toBe(151);
     expect(STARBORNE.every((card) => card.id.startsWith('sb-'))).toBe(true);
   });
