@@ -116,7 +116,7 @@ than discovering it in the metagame sweep.
 | sb-quasar-cartographer | Quasar Cartographer | C | U | Creature, Navigator | {3}{U} | 3/3 | arrives: Foresee 2 | She maps explosions by the shapes they leave in the dark. | core |
 | sb-void-blood-scavenger | Void-Blood Scavenger | C | B | Creature, Alien Scavenger | {1}{B} | 2/2 | Deathblade | She strips useful organs from wrecks before the wrecks cool. | core |
 | sb-eclipse-broodhunter | Eclipse Broodhunter | C | B | Creature, Hunter | {2}{B} | 3/2 | arrives: grind self 2 | She follows the dark patches where young things learn to hunt. | core |
-| sb-night-orbit-duelist | Night-Orbit Duelist | C | B | Creature, Duelist | {3}{B} | 3/2 | First Blade | Her first cut is ceremonial. The second is for the audience. | flex |
+| sb-night-orbit-duelist | Night-Orbit Duelist | C | B | Creature, Duelist | {2}{B} | 3/2 | First Blade | Her first cut is ceremonial. The second is for the audience. | flex |
 | sb-violet-maw | Violet Maw | C | B | Creature, Alien Beast | {4}{B} | 4/4 | Dreaded | The nebula made her beautiful right up until she opened her mouth. | flex |
 | sb-darkmatter-harvester | Darkmatter Harvester | C | B | Creature, Harvester | {3}{B} | 3/3 | arrives: Sever the top card of an opponent's graveyard | She harvests what the stars forgot to finish consuming. | core |
 | sb-stargrave-leech | Stargrave Leech | C | B | Creature, Parasite | {1}{B} | 1/2 | arrives: opponent losesLife 1 and you gainLife 1 | It glows only after it has fed. The crew pretends not to notice. | core |
@@ -126,8 +126,8 @@ than discovering it in the metagame sweep.
 | sb-violet-thruster-ace | Violet Thruster Ace | C | R | Creature, Thruster Ace | {3}{R} | 3/3 | Skyborne | She treats a meteor shower as a crowded flight lane. | flex |
 | sb-solar-riot-engineer | Solar Riot Engineer | C | R | Creature, Engineer | {3}{R} | 3/3 | arrives: add a mark to target creature | She can turn a reactor leak into a weapon and a weapon into applause. | core |
 | sb-redshift-corsair | Redshift Corsair | C | R | Creature, Corsair | {2}{R} | 2/2 | Warcry; Skim {1} | She steals fuel with one hand and waves with the other. | flex |
-| sb-comet-kick-marauder | Comet-Kick Marauder | C | R | Creature, Marauder | {4}{R} | 4/3 | Overrun | Her boots leave impact craters in places the charts call floors. | core |
-| sb-starfire-lancer | Starfire Lancer | C | R | Creature, Soldier | {3}{R} | 3/2 | First Blade | Her lance is a solar flare taught to hold still. | flex |
+| sb-comet-kick-marauder | Comet-Kick Marauder | C | R | Creature, Marauder | {3}{R} | 4/3 | Overrun | Her boots leave impact craters in places the charts call floors. | core |
+| sb-starfire-lancer | Starfire Lancer | C | R | Creature, Soldier | {2}{R} | 3/2 | First Blade | Her lance is a solar flare taught to hold still. | flex |
 | sb-orbit-breaker | Orbit Breaker | C | R | Creature, Brute | {4}{R} | 4/4 | arrives: damage target creature 2 | She considers every orbit a personal insult. | core |
 | sb-burning-hull-runner | Burning Hull Runner | C | R | Creature, Alien Runner | {2}{R} | 2/2 | gets +1/+0 while you control a marked permanent | She runs along the outside of the ship because the inside is boring. | flex |
 | sb-mycelial-star-gardener | Mycelial Star Gardener | C | G | Creature, Alien Druid | {1}{G} | 2/2 | arrives: add a mark to another target creature | She plants living constellations in the ship's hydroponics deck. | core |
@@ -139,34 +139,34 @@ than discovering it in the metagame sweep.
 | sb-solar-canopy-guardian | Solar Canopy Guardian | C | G | Creature, Guardian | {3}{G} | 3/4 | Warding Gaze | The canopy moves when she tells it to, and never before. | core |
 | sb-blooming-satellite | Blooming Satellite | C | G | Creature, Starship | {5}{G} | 5/5 | arrives: Propagate | Its antennae flower whenever another hull learns to live. | flex |
 | sb-prism-deflection | Prism Deflection | C | W | Charm | {1}{W} | None | boost target creature +0/+3; preventCombat | A shield can be a wall, a mirror, or a very pointed suggestion. | core |
-| sb-orbital-cleansing | Orbital Cleansing | C | W | Ritual | {4}{W} | None | Sever target creature | The cleanest orbit is the one with nothing left to collide. | core |
+| sb-orbital-cleansing | Orbital Cleansing | C | W/B | Ritual | {1}{W}{B} | None | Sever target creature | The cleanest orbit is the one with nothing left to collide. | core |
 | sb-chrome-medallion | Chrome Medallion | C | C | Artifact | {2} | None | arrives: Foresee 1 | A crew badge, a key, and a small lie about rank. | core |
 | sb-cometary-verdict | Cometary Verdict | C | W | Ritual | {3}{W} | None | Sever target tapped creature | The tribunal waits until the target has nowhere left to run. | core |
 | sb-pale-nebula | Pale Nebula | C | W | Land | None | None | entersTapped; manaAbility W | The cloud looks soft until you try to navigate it. | core |
 | sb-signal-inversion | Signal Inversion | C | U | Charm | {1}{U} | None | recall target creature; its owner Foresees 1 | A perfect reply is just a message sent back sharpened. | core |
 | sb-prism-current | Prism Current | C | U | Charm | {1}{U} | None | Foresee 2; draw 1 | The current carries away bad options and leaves the useful ones bright. | flex |
 | sb-relay-station | Relay Station | C | U | Enchantment | {3}{U} | None | dawn: Foresee 1 | It has not missed a signal in four hundred years. | flex |
-| sb-sky-map | Sky Map | C | C | Artifact | {2} | None | Skim {1}; arrives: Foresee 1 | Fold it once and it becomes a route through the impossible. | core |
+| sb-sky-map | Sky Map | C | C | Ritual | {1} | None | Skim {1}; Foresee 1 | Fold it once and it becomes a route through the impossible. | core |
 | sb-deepfield-lands | Deepfield Lands | C | U | Land | None | None | entersTapped; manaAbility U | The deep field is quiet because everything there is listening. | core |
 | sb-night-market-bargain | Night-Market Bargain | C | B | Charm | {2}{B} | None | draw 1; loseLife 1 | The seller offers memories, replacement organs, and a discount for honesty. | flex |
-| sb-umbral-antenna | Umbral Antenna | C | B | Artifact | {2} | None | arrives: grind self 1 | It receives transmissions from places that have no coordinates. | core |
+| sb-umbral-antenna | Umbral Antenna | C | B | Artifact | {4} | None | arrives: grind self 1; dawn: Foresee 1, then grind self 1; dawn: if you control four or more creatures with marks, Sever this, then return the top creature card of your graveyard to the battlefield with two marks on it | It receives transmissions from places that have no coordinates. | core |
 | sb-corpse-lantern | Corpse Lantern | C | B | Charm | {1}{B} | None | damage target 2; gainLife 1 | It burns with the last useful thought in a dead thing. | core |
 | sb-darkside-landing | Darkside Landing | C | B | Land | None | None | entersTapped; manaAbility B | The landing lights are violet because red would look too hopeful. | core |
 | sb-flareburst | Flareburst | C | R | Ritual | {1}{R} | None | damage target 2 | The smallest star can still ruin a morning. | core |
-| sb-solar-arc | Solar Arc | C | R | Charm | {2}{R} | None | damage target creature 1 and opponent 1 | The shot curves around the hull to make a point. | flex |
+| sb-solar-arc | Solar Arc | C | R | Charm | {1}{R} | None | damage target creature 1 and opponent 1 | The shot curves around the hull to make a point. | flex |
 | sb-ignition-hymn | Ignition Hymn | C | R | Enchantment | {3}{R} | None | your marked creatures get +1/+0 until end of turn when they attack | The crew sings in perfect rhythm with the reactor alarms. | flex |
 | sb-redline-salvage | Redline Salvage | C | R | Artifact | {2} | None | Skim {1}; arrives: add a mark to target creature | It was scrap until someone gave it a pulse. | core |
-| sb-starfall-barrage | Starfall Barrage | C | R | Ritual | {4}{R} | None | damage target creature 4 | A small meteor is still a large argument. | core |
+| sb-starfall-barrage | Starfall Barrage | C | R | Ritual | {1}{R} | None | damage target creature 4 | A small meteor is still a large argument. | core |
 | sb-ember-lane | Ember Lane | C | R | Land | None | None | entersTapped; manaAbility R | The lane is hot, crowded, and officially one-way. | core |
-| sb-warhead-glint | Warhead Glint | C | R | Charm | {1}{R} | None | boost target creature +2/+0; Warcry until end of turn | Her war paint is an emergency light with excellent cheekbones. | flex |
+| sb-warhead-glint | Warhead Glint | C | R | Charm | {1}{R} | None | boost target creature +3/+1; Warcry until end of turn | Her war paint is an emergency light with excellent cheekbones. | flex |
 | sb-root-of-light | Root of Light | C | G | Charm | {1}{G} | None | add a mark to target creature; gainLife 1 | The roots drink starlight and return it as courage. | core |
 | sb-gravitic-bloom | Gravitic Bloom | C | G | Ritual | {3}{G} | None | add a mark to up to two target creatures | The flowers open toward the heaviest thing in the room. | core |
 | sb-orbital-graft | Orbital Graft | C | G | Enchantment | {2}{G} | None | whenever a creature arrives under your control, add a mark to it | The garden does not distinguish between crew and crop. | flex |
 | sb-overcanopy | Overcanopy | C | G | Land | None | None | entersTapped; manaAbility G | A green aurora hangs low enough to touch from the watch deck. | core |
-| sb-starborne-relay | Starborne Relay | C | C | Artifact | {3} | None | arrives: draw 1 | It carries a message from every deck and forgets none of them. | core |
-| sb-null-orbit-array | Null-Orbit Array | C | C | Artifact | {3} | None | Skim {2}; arrives: Foresee 1 | Its one job is to make the impossible route look routine. | flex |
+| sb-starborne-relay | Starborne Relay | C | C | Artifact | {5} | None | arrives: draw 1; dawn: Foresee 1; dawn: if you control four or more creatures with marks, draw 1 | It carries a message from every deck and forgets none of them. | core |
+| sb-null-orbit-array | Null-Orbit Array | C | C | Artifact | {1} | None | Skim {2}; arrives: Foresee 1 | Its one job is to make the impossible route look routine. | flex |
 | sb-interstellar-crossing | Interstellar Crossing | C | C | Land | None | None | entersTapped; manaAbility C | The crossing takes three days if you walk and one blink if you trust it. | core |
-| sb-violet-wake-beacon | Violet Wake Beacon | C | C | Artifact | {4} | None | arrives: createToken Nebula Firefly | Its pulse is a welcome, a warning, and a dinner bell. | flex |
+| sb-violet-wake-beacon | Violet Wake Beacon | C | C | Artifact | {6} | None | arrives: createToken Nebula Firefly; dawn: if you control a marked permanent, createToken Nebula Firefly | Its pulse is a welcome, a warning, and a dinner bell. | flex |
 
 ### Rares
 
@@ -180,11 +180,11 @@ than discovering it in the metagame sweep.
 | sb-astral-biomancer | Astral Biomancer | R | U | Creature, Alien Mage | {4}{U} | 3/4 | arrives: if a permanent you control is marked, put a mark on another target permanent you control; Foresee 1 | She grows new organs for ships that have outlived their owners. | flex |
 | sb-tideglass-archivist | Tideglass Archivist | R | U | Creature, Archivist | {3}{U} | 2/4 | arrives: draw 1, then grind self 1 | Every archive has a tide. She waits for the useful things to wash in. | core |
 | sb-void-choir-reclaimer | Void Choir Reclaimer | R | B | Creature, Alien Singer | {3}{B} | 3/3 | Deathblade; when this dies: grind self 2 | Her last note is always the first note of something worse. | core |
-| sb-eclipse-garden-devourer | Eclipse Garden Devourer | R | B | Creature, Alien Beast | {4}{B} | 4/4 | Blood Oath | It blooms under a dead sun and feeds on anything that applauds. | core |
-| sb-severance-priestess | Severance Priestess | R | B | Creature, Priestess | {3}{B} | 2/3 | arrives: Sever the top 2 cards of an opponent's graveyard | She blesses the dead by making sure nobody can use them twice. | core |
+| sb-eclipse-garden-devourer | Eclipse Garden Devourer | R | B | Creature, Alien Beast | {3}{B} | 4/4 | Blood Oath | It blooms under a dead sun and feeds on anything that applauds. | core |
+| sb-severance-priestess | Severance Priestess | R | B | Creature, Priestess | {2}{B} | 2/3 | arrives: Sever the top 2 cards of an opponent's graveyard | She blesses the dead by making sure nobody can use them twice. | core |
 | sb-void-halo-assassin | Void-Halo Assassin | R | B | Creature, Assassin | {3}{B} | 3/2 | Deathblade; Skim {1} | Her halo is a warning label written in ultraviolet. | core |
-| sb-flare-orbit-captain | Flare-Orbit Captain | R | R | Creature, Commander | {3}{R}{R} | 4/3 | Warcry | She takes the helm when the ship is on fire and complains when it is not. | core |
-| sb-chrome-sunbreaker | Chrome Sunbreaker | R | R | Creature, Brute | {4}{R} | 4/4 | Overrun | She breaks suns for the same reason others break locks. | core |
+| sb-flare-orbit-captain | Flare-Orbit Captain | R | R | Creature, Commander | {2}{R}{R} | 4/3 | Warcry | She takes the helm when the ship is on fire and complains when it is not. | core |
+| sb-chrome-sunbreaker | Chrome Sunbreaker | R | R | Creature, Brute | {3}{R} | 4/4 | Overrun | She breaks suns for the same reason others break locks. | core |
 | sb-violet-thrust-engineer | Violet-Thrust Engineer | R | R | Creature, Engineer | {3}{R} | 3/3 | arrives: add a mark to another target creature | Her engines run on bad ideas and very good timing. | core |
 | sb-solar-flare-bruiser | Solar-Flare Bruiser | R | R | Creature, Brawler | {3}{R} | 3/2 | arrives: damage target creature 1 | She calls every repair bill a souvenir. | core |
 | sb-rootlight-navigator | Rootlight Navigator | R | G | Creature, Navigator | {2}{G} | 3/3 | arrives: fetchLand | She steers by the living roots woven through the hull. | core |
@@ -195,9 +195,9 @@ than discovering it in the metagame sweep.
 | sb-cinder-nebula-raider | Cinder-Nebula Raider | R | B/R | Legendary Creature, Corsair | {3}{B}{R} | 4/3 | Warcry; whenever this gets a mark, damage opponent 2 | She paints her hull with the names of planets she has robbed. | core |
 | sb-orbitroot-matriarch | Orbitroot Matriarch | R | R/G | Legendary Creature, Alien Matriarch | {3}{R}{G} | 4/4 | Overrun; arrives: Propagate | Her roots cross three decks and all of them are armed. | core |
 | sb-white-signal-bastion | White-Signal Bastion | R | W | Enchantment | {3}{W} | None | your marked creatures get +0/+2 | The bastion is grown from a single pearl of hull tissue. | core |
-| sb-blue-echo-array | Blue-Echo Array | R | C | Artifact | {2} | None | Skim {1}; arrives: Foresee 2 | It remembers every route the ship almost took. | core |
+| sb-blue-echo-array | Blue-Echo Array | R | C | Artifact | {1} | None | Skim {1}; arrives: Foresee 2 | It remembers every route the ship almost took. | core |
 | sb-black-starving-orbit | Black-Starving Orbit | R | B | Ritual | {3}{B} | None | Sever target creature with a mark | It circles the target until the target forgets why it was afraid. | core |
-| sb-red-solar-lash | Red-Solar Lash | R | R | Charm | {2}{R} | None | damage target creature 3 | The lash leaves a red line across the darkness and nothing else. | core |
+| sb-red-solar-lash | Red-Solar Lash | R | R | Charm | {1}{R} | None | damage target creature 3 | The lash leaves a red line across the darkness and nothing else. | core |
 | sb-green-propagation-chorus | Green Propagation Chorus | R | G | Ritual | {4}{G} | None | Propagate; gainLife 2 | The chorus begins with one throat and ends with the whole garden. | core |
 | sb-chromelight-lattice | Chromelight Lattice | R | C | Artifact | {3} | None | arrives: add a mark to target creature; marked creatures you control get +0/+1 | It is a fence, a nursery, and a very patient weapon. | flex |
 | sb-pale-violet-crossing | Pale-Violet Crossing | R | W/U | Land | None | None | entersTapped; manaAbility W/U | The crossing shines brightest where two currents disagree. | core |
@@ -212,41 +212,41 @@ than discovering it in the metagame sweep.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | sb-prismatic-fleet-marshal | Prismatic Fleet Marshal | SR | W | Creature, Alien Commander | {4}{W} | 4/4 | Sentinel; arrives: Propagate | Her fleet forms a flower around the enemy before it closes. | core |
 | sb-eclipse-blood-artist | Eclipse Blood Artist | SR | B | Creature, Alien Artist | {3}{B} | 3/3 | Blood Oath; whenever this gets a mark, opponent losesLife 2 | She paints with light stolen from the moment a star dies. | core |
-| sb-ember-orbit-exarch | Ember-Orbit Exarch | SR | R | Creature, Alien Priestess | {4}{R} | 4/3 | Warcry; arrives: damage target creature 2 | Her sermons begin with a spark and end with a crater. | core |
+| sb-ember-orbit-exarch | Ember-Orbit Exarch | SR | R | Creature, Alien Priestess | {3}{R} | 4/3 | Warcry; arrives: damage target creature 2 | Her sermons begin with a spark and end with a crater. | core |
 | sb-rootlight-broodmother | Rootlight Broodmother | SR | G | Creature, Alien Matriarch | {4}{G} | 4/5 | arrives: Propagate, createToken Broodling | She births a swarm from the roots of a starship. | core |
 | sb-moonlit-hull-repairer | Moonlit Hull Repairer | SR | W | Creature, Engineer | {3}{W} | 3/5 | Sentinel; arrives: add a mark to target creature and gainLife 3 | She repairs the ship with one hand and the crew with the other. | flex |
-| sb-voidcurrent-conjurer | Voidcurrent Conjurer | SR | U | Creature, Alien Mage | {4}{U} | 3/3 | Skyborne; arrives: Foresee 3 | She braids a current through empty space and calls it a road. | flex |
+| sb-voidcurrent-conjurer | Voidcurrent Conjurer | SR | U | Creature, Alien Mage | {3}{U} | 3/3 | Skyborne; arrives: Foresee 3 | She braids a current through empty space and calls it a road. | flex |
 | sb-solar-thruster-herald | Solar-Thruster Herald | SR | R | Creature, Alien Herald | {3}{R} | 3/3 | Skyborne, Warcry; whenever this gets a mark, damage opponent 2 | Her arrival is always announced by the sound of something breaking. | flex |
 | sb-ringworld-bloomkeeper | Ringworld Bloomkeeper | SR | G | Creature, Alien Druid | {4}{G} | 3/4 | Warding Gaze; whenever another creature gets a mark, gainLife 1 | She tends a garden that encircles a world and still wants more room. | flex |
 | sb-chrome-veil-admiral | Chrome-Veil Admiral | SR | W/U | Legendary Creature, Alien Commander | {4}{W}{U} | 4/4 | Skyborne; your marked creatures get +1/+1 | Her veil is a tactical display that looks like a storm of glass. | core |
-| sb-violet-eclipse-weaver | Violet-Eclipse Weaver | SR | B/R | Legendary Creature, Alien Weaver | {4}{B}{R} | 4/4 | Deathblade; arrives: opponent losesLife 2 and you gainLife 2 | She weaves the last light from a dying sun into a weapon. | flex |
+| sb-violet-eclipse-weaver | Violet-Eclipse Weaver | SR | B/R | Legendary Creature, Alien Weaver | {3}{B}{R} | 4/4 | Deathblade; arrives: opponent losesLife 2 and you gainLife 2 | She weaves the last light from a dying sun into a weapon. | flex |
 | sb-propagation-engine | Propagation Engine | SR | C | Enchantment | {4} | None | dawn: Propagate | The machine has no guide because the whole ship is its nervous system. | core |
-| sb-deep-space-severance | Deep-Space Severance | SR | B | Ritual | {5}{B} | None | Sever target creature; Sever the top card of an opponent's graveyard | It cuts through armor, memory, and the comfort of distance. | core |
-| sb-hullwake-overdrive | Hullwake Overdrive | SR | R | Charm | {2}{R} | None | boost target creature +3/+0; Warcry until end of turn | The ship gives one crew member permission to become the weather. | core |
+| sb-deep-space-severance | Deep-Space Severance | SR | B | Ritual | {2}{B} | None | Sever target creature; Sever the top card of an opponent's graveyard | It cuts through armor, memory, and the comfort of distance. | core |
+| sb-hullwake-overdrive | Hullwake Overdrive | SR | R | Charm | {R} | None | boost target creature +3/+0; Warcry until end of turn | The ship gives one crew member permission to become the weather. | core |
 
 ### Super Super Rares
 
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | sb-queen-of-the-living-hull | Queen of the Living Hull | SSR | W | Legendary Creature, Alien Queen | {5}{W} | 5/5 | Sentinel; arrives: Propagate; your other marked creatures get +1/+1 | She wears the ship's living crown and listens through every wall. | core |
-| sb-astral-reef-singer | Astral Reef Singer | SSR | U | Legendary Creature, Alien Singer | {5}{U} | 4/5 | Skyborne; dawn: Foresee 2 and draw 1 | Her song makes reefs bloom in the vacuum between systems. | core |
-| sb-hellion-of-the-redshift | Hellion of the Redshift | SSR | R | Legendary Creature, Alien Beast | {5}{R} | 5/4 | Warcry, Overrun; arrives: damage target creature 3 | It is a living engine with a temper and no reverse gear. | core |
+| sb-astral-reef-singer | Astral Reef Singer | SSR | U | Legendary Creature, Alien Singer | {7}{U} | 4/5 | Skyborne; dawn: Foresee 2 and draw 1 | Her song makes reefs bloom in the vacuum between systems. | core |
+| sb-hellion-of-the-redshift | Hellion of the Redshift | SSR | R | Legendary Creature, Alien Beast | {3}{R} | 5/4 | Warcry, Overrun; arrives: damage target creature 3 | It is a living engine with a temper and no reverse gear. | core |
 | sb-worldroot-shipmind | Worldroot Shipmind | SSR | G | Legendary Creature, Starship | {5}{G} | 5/6 | arrives: Propagate, createToken Broodling x2 | The ship grew a mind so large that the crew became its weather. | core |
 | sb-chrome-violet-archon | Chrome-Violet Archon | SSR | W/U | Legendary Creature, Alien Archon | {5}{W}{U} | 5/5 | Skyborne; marked creatures you control have Sentinel | She was born in a flash of chrome and immediately issued a safety protocol. | core |
 | sb-voidflare-empress | Voidflare Empress | SSR | B/R | Legendary Creature, Alien Empress | {5}{B}{R} | 5/4 | Dreaded, Warcry; whenever a creature you control gets a mark, opponent losesLife 1 | Her court follows wherever the signal becomes dangerous. | flex |
 | sb-signal-cathedral | Signal Cathedral | SSR | C | Legendary Artifact | {5} | None | dawn: Foresee 2; if you control 5 or more marked permanents, draw 1 (AI-risk) | The cathedral is a receiver built for a god that may be the ship. | stretch |
 | sb-propagation-choir | Propagation Choir | SSR | G | Enchantment | {4}{G} | None | whenever you add a mark to a permanent, gainLife 1 and createToken Broodling (AI-risk) | The first singer starts the chorus. The hull supplies the harmony. | flex |
 | sb-starborne-apotheosis | Starborne Apotheosis | SSR | W | Ritual | {6}{W} | None | Propagate; gainLife 5; boost all your marked creatures +1/+1 | The crew does not ascend. The whole ship rises with them. | core |
-| sb-redline-supernova | Redline Supernova | SSR | R | Ritual | {6}{R} | None | damage all creatures 3 and damage each opponent 3 | The detonation is visible from three systems and remembered in four. | core |
+| sb-redline-supernova | Redline Supernova | SSR | R | Ritual | {2}{R} | None | damage each creature 3; a creature damaged this way that would die this turn is severed instead | The detonation is visible from three systems and remembered in four. | core |
 
 ### Ultra Rares
 
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | sb-constellation-matriarch | Constellation Matriarch | UR | W | Legendary Creature, Alien Matriarch | {5}{W} | 5/6 | Skyborne, Sentinel; your other marked creatures get +1/+1 | She wears a living constellation as a crown and calls it family. | core |
-| sb-abyssal-iris-regent | Abyssal Iris Regent | UR | B | Legendary Creature, Alien Regent | {5}{B} | 6/5 | Deathblade, Blood Oath; when this dies: Sever the top 3 cards of an opponent's graveyard | Her irises are windows into a night that wants to come closer. | core |
+| sb-abyssal-iris-regent | Abyssal Iris Regent | UR | B | Legendary Creature, Alien Regent | {4}{B} | 6/5 | Deathblade, Blood Oath; when this dies: Sever the top 3 cards of an opponent's graveyard | Her irises are windows into a night that wants to come closer. | core |
 | sb-solar-flare-sovereign | Solar-Flare Sovereign | UR | R | Legendary Creature, Alien Sovereign | {5}{R} | 6/5 | Warcry, Overrun; arrives: damage target creature 3 | She does not enter combat. Combat enters her orbit. | core |
-| sb-worldgarden-leviathan | Worldgarden Leviathan | UR | G | Legendary Creature, Alien Beast | {6}{G} | 7/7 | Overrun; arrives: Propagate, createToken Chrome Husk | It carries a garden on its back and a moon in its shadow. | core |
+| sb-worldgarden-leviathan | Worldgarden Leviathan | UR | G | Legendary Creature, Alien Beast | {6}{G} | 7/7 | Overrun; arrives: Propagate, createToken Chrome Husk x2 | It carries a garden on its back and a moon in its shadow. | core |
 | sb-prism-void-comet | Prism-Void Comet | UR | W/U | Legendary Creature, Alien Comet | {6}{W}{U} | 6/6 | Skyborne, Untouchable; whenever you Propagate, draw 1 | It is a living starship, a woman, and a promise moving too fast to catch. | core |
 | sb-eclipse-red-queen | Eclipse-Red Queen | UR | B/R | Legendary Creature, Alien Queen | {6}{B}{R} | 7/5 | Dreaded, Warcry; whenever a marked creature you control attacks, damage opponent 1 (AI-risk) | Her red court arrives after the eclipse and leaves before the mourning. | flex |
 | sb-halo-motherboard | Halo Motherboard | UR | C | Legendary Artifact | {6} | None | arrives: Propagate; your marked creatures get +1/+1; dawn: Foresee 1 (AI-risk) | It is the first machine the fleet built that can dream in plural. | stretch |
@@ -359,7 +359,7 @@ Every entry respects the printed-plus-Empower ceiling of 9.
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | sb-bloomdrive-surge | Bloomdrive Surge | R | G | Ritual | {2}{G} | None | add a mark to up to two target creatures; Empower {2}{G}: Propagate | Feed the drive enough light and the whole garden answers. | core |
-| sb-overcharge-the-hull | Overcharge the Hull | C | R | Charm | {2}{R} | None | deal 3 damage to target creature; Empower {2}{R}: this deals 2 damage to your opponent | The reactor was never rated for her temper. | core |
+| sb-overcharge-the-hull | Overcharge the Hull | C | R | Charm | {1}{R} | None | deal 3 damage to target creature; Empower {2}{R}: this deals 2 damage to your opponent | The reactor was never rated for her temper. | core |
 | sb-lumen-refit | Lumen Refit | R | W | Creature, Starship | {2}{W} | 3/3 | Bulwark; Empower {2}{W}: add a mark to this | Refit in the light of a dying sun, and better for it. | flex |
 | sb-tidewalk-analyst | Tidewalk Analyst | R | U | Creature, Alien Analyst | {3}{U} | 2/4 | Empower {3}{U}: move a mark from a permanent you control to another permanent you control | She reads the tide as a filing problem. | flex |
 | sb-eclipse-tithe | Eclipse Tithe | R | B | Charm | {2}{B} | None | remove all marks from target creature; Empower {2}{B}: your opponent loses 2 life | Everything the light gave, the eclipse counts back. | core |

@@ -232,7 +232,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
 
     it('never rejects a card whose targets are ordinary creatures', () => {
       const creatureRemoval = Object.values(CARD_DB).filter((card) =>
-        (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) => t.what === 'creature')));
+        (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) => t.what === 'creature' && !t.marked)));
       expect(creatureRemoval.length).toBeGreaterThan(0);
       for (const card of creatureRemoval) {
         expect(hasNoLegalTargets(card, new Set()), `${card.id} wrongly flagged`).toBe(false);

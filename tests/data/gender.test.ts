@@ -23,7 +23,6 @@ const MASC_PRONOUN = /\b(?:he|him|his|himself)\b/gi;
 
 /** id -> why a masculine pronoun is legitimately present in this subject's prose. */
 const ALLOW: Readonly<Record<string, string>> = {
-  'sb-orbit-breaker': 'locked flavor refers to an orbit as a male subject',
 };
 
 interface Prose {

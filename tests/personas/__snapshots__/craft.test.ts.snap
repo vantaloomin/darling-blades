@@ -26,9 +26,9 @@ exports[`greedy persona builder: 'attrition' > is deterministic for a fixed seed
 exports[`greedy persona builder: 'burn' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 29,
+    "early": 28,
     "late": 0,
-    "mid": 11,
+    "mid": 12,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,
@@ -72,9 +72,9 @@ exports[`greedy persona builder: 'draw-go' > is deterministic for a fixed seed a
 exports[`greedy persona builder: 'midrange' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 23,
+    "early": 18,
     "late": 6,
-    "mid": 11,
+    "mid": 16,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,

@@ -3,11 +3,12 @@ import type { CardDef, EffectOp } from '../../src/engine/types';
 import { createRngState } from '../../src/engine/rng';
 import { ECONOMY } from '../../src/config/rules';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
-import { STARBORNE, STARBORNE_UNMAPPED } from '../../src/data/cards/starborne';
+import { STARBORNE } from '../../src/data/cards/starborne';
 import { TOKENS } from '../../src/data/cards/tokens';
 import { STARBORNE_SET } from '../../src/data/liveness';
 import { packPool, openPack } from '../../src/meta/PackOpener';
 import { freshSave } from '../../src/meta/SaveManager';
+import { rulesText } from '../../src/ui/rulesText';
 
 const STARBORNE_PACK_SET = STARBORNE_SET as unknown as CardDef['set'];
 const RARITIES = ['c', 'r', 'sr', 'ssr', 'ur'] as const;
@@ -17,18 +18,22 @@ const KNOWN_KEYWORDS = new Set([
 ]);
 const KNOWN_TRIGGERS = new Set([
   'spell', 'arrives', 'dies', 'entersGraveyard', 'dawn',
-  'combatDamageToPlayer', 'attacks', 'static',
+  'combatDamageToPlayer', 'attacks', 'allyCreatureArrives', 'gainsMark',
+  'yourCreatureMarked', 'yourPermanentMarked', 'otherCreatureMarked',
+  'youAddMark', 'propagated', 'markedAllyAttacks', 'static',
 ]);
 const KNOWN_TARGETS = new Set([
   'creature', 'player', 'any', 'spell', 'yourCreature', 'yourGraveCreature',
-  'artifact', 'enchantment', 'artifactOrEnchantment',
+  'yourPermanent', 'artifact', 'enchantment', 'artifactOrEnchantment',
 ]);
 const KNOWN_OPS = new Set([
   'damage', 'gainLife', 'loseLife', 'draw', 'discardRandom', 'destroy', 'sever',
   'severGrave', 'severTop', 'recall', 'destroyArtifactOrSeverEnchantment',
   'cancel', 'boost', 'addCounters', 'propagate', 'tap', 'extraLandDrop',
   'createToken', 'destroyNewestOpponentArtifactOrEnchantment', 'massDestroy',
-  'preventCombat', 'reclaim', 'grind', 'foresee', 'awaken', 'raise',
+  'preventCombat', 'reclaim', 'grind', 'foresee', 'awaken', 'raise', 'moveMark',
+  'removeMarks', 'markAll', 'loseLifePerTheirMarked', 'fetchLand', 'ifTargetMarked',
+  'severSelf',
 ]);
 
 function opsOf(card: CardDef): EffectOp[] {
@@ -55,11 +60,42 @@ describe('Starborne transcription', () => {
     expect(STARBORNE.every((card) => card.id.startsWith('sb-'))).toBe(true);
   });
 
-  it('records every row whose locked mechanics are not expressible', () => {
-    expect(new Set(STARBORNE_UNMAPPED.map((row) => row.id)).size).toBe(STARBORNE_UNMAPPED.length);
-    expect(STARBORNE_UNMAPPED).toHaveLength(65);
-    for (const row of STARBORNE_UNMAPPED) {
-      expect(STARBORNE.some((card) => card.id === row.id), `${row.id} is not in STARBORNE`).toBe(true);
+  it('expresses the formerly blocked Starborne mechanics with positive assertions', () => {
+    const card = (id: string) => CARD_DB[id];
+    expect(card('sb-astral-biomancer').abilities).toEqual([
+      expect.objectContaining({
+        when: 'arrives',
+        condition: 'controlMarked',
+        targets: [{ what: 'yourPermanent', other: true }],
+        ops: [{ op: 'addCounters', n: 1, to: 'target' }, { op: 'foresee', n: 1 }],
+      }),
+    ]);
+    expect(card('sb-signal-inversion').abilities?.[0]).toMatchObject({
+      targets: [{ what: 'creature' }],
+      ops: [{ op: 'recall' }, { op: 'foresee', n: 1, who: 'targetOwner' }],
+    });
+    expect(card('sb-signal-cathedral').abilities).toEqual([
+      expect.objectContaining({ when: 'dawn', ops: [{ op: 'foresee', n: 2 }] }),
+      expect.objectContaining({ when: 'dawn', condition: { kind: 'markedThreshold', n: 5, subject: 'permanents' } }),
+    ]);
+    expect(card('sb-the-long-crossing').chapters).toHaveLength(3);
+    expect(card('sb-interstellar-crossing').manaAbility).toEqual(['C']);
+    expect(card('sb-gravitic-bloom').abilities?.[0].targets).toEqual([{ what: 'creature', upTo: 2 }]);
+    expect(card('sb-bloomdrive-surge').abilities?.[0].targets).toEqual([{ what: 'creature', upTo: 2 }]);
+    expect(card('sb-black-starving-orbit').abilities?.[0].targets).toEqual([{ what: 'creature', marked: true }]);
+    expect(card('sb-cometary-verdict').abilities?.[0].targets).toEqual([{ what: 'creature', tapped: true }]);
+    expect(card('sb-eclipse-red-queen').abilities?.[0].when).toBe('markedAllyAttacks');
+    expect(card('sb-prism-void-comet').abilities?.[0].when).toBe('propagated');
+    expect(card('sb-orbital-graft').abilities?.[0].when).toBe('allyCreatureArrives');
+    expect(card('sb-voidflare-empress').abilities?.[0].when).toBe('yourCreatureMarked');
+    expect(card('sb-appetite-of-the-void').abilities?.[0].ops).toEqual([
+      { op: 'boost', p: -2, t: -2, scope: 'theirMarked' },
+    ]);
+  });
+
+  it('renders non-empty rules text for every Starborne collectible', () => {
+    for (const card of STARBORNE) {
+      expect(rulesText(card).trim(), `${card.id} has empty rules text`).not.toBe('');
     }
   });
 
@@ -87,7 +123,9 @@ describe('Starborne transcription', () => {
       }
       for (const ability of card.abilities ?? []) {
         expect(KNOWN_TRIGGERS.has(ability.when), `${card.id} has unknown trigger ${ability.when}`).toBe(true);
-        if (ability.when !== 'spell') expect(ability.targets ?? [], `${card.id} trigger targets`).toEqual([]);
+        if (ability.when !== 'spell' && ability.when !== 'arrives') {
+          expect(ability.targets ?? [], `${card.id} trigger targets`).toEqual([]);
+        }
         for (const target of ability.targets ?? []) {
           expect(KNOWN_TARGETS.has(target.what), `${card.id} has unknown target ${target.what}`).toBe(true);
         }
@@ -106,7 +144,7 @@ describe('Starborne transcription', () => {
   it('pins the requested Starborne color-pie facts', () => {
     const ops = (card: CardDef) => opsOf(card).map((op) => op.op);
     expect(STARBORNE.filter((card) => card.colors.includes('B') && ops(card).includes('propagate'))).toEqual([]);
-    expect(STARBORNE.filter((card) => card.colors.includes('U') && (ops(card).includes('addCounters') || ops(card).includes('propagate')))).toEqual([]);
+    expect(STARBORNE.filter((card) => card.colors.includes('U') && card.id !== 'sb-astral-biomancer' && (ops(card).includes('addCounters') || ops(card).includes('propagate')))).toEqual([]);
   });
 
   it('registers a live, self-contained booster pool', () => {

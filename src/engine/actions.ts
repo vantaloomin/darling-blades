@@ -9,7 +9,7 @@ import {
 import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
-import type { CardDb, CardDef, GameState, ManaCost, PlayerId, TargetRef } from './types';
+import type { CardDb, CardDef, GameState, ManaCost, PlayerId, TargetRef, TargetSpec } from './types';
 import {
   cardIdOf,
   def,
@@ -33,6 +33,10 @@ function cardHasMoveMark(d: CardDef, empowered: boolean): boolean {
     moveMarkCache.set(d, cached);
   }
   return empowered ? cached.empowered : cached.normal;
+}
+
+function moveMarkTargetIndexes(specs: readonly TargetSpec[]): number[] {
+  return specs.flatMap((spec, index) => spec.what === 'spell' ? [] : [index]);
 }
 
 export type Action =
@@ -252,11 +256,13 @@ function targetListsForCast(
     return enumerateTargets(state, db, player, specs[0]).map((target) => [target]);
   }
   const candidatesFor = moveMark
-    ? (spec: import('./types').TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec).filter((ref) =>
-        ref.kind === 'permanent' &&
-        state.battlefield.find((perm) => perm.iid === ref.iid)?.controller === player,
+    ? (spec: TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec).filter((ref) =>
+        spec.what === 'spell' || (
+          ref.kind === 'permanent' &&
+          state.battlefield.find((perm) => perm.iid === ref.iid)?.controller === player
+        ),
       )
-    : (spec: import('./types').TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec);
+    : (spec: TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec);
   if (specs.length === 1 && specs[0].upTo !== undefined) {
     const candidates = candidatesFor(specs[0]);
     const out: TargetRef[][] = [[]];
@@ -271,9 +277,10 @@ function targetListsForCast(
     return out;
   }
   const out: TargetRef[][] = [];
+  const moveIndexes = moveMarkTargetIndexes(specs);
   const visit = (index: number, chosen: TargetRef[]): void => {
     if (index === specs.length) {
-      if (moveMark && chosen.length === 2 && sameTarget(chosen[0], chosen[1])) return;
+      if (moveMark && moveIndexes.length === 2 && sameTarget(chosen[moveIndexes[0]], chosen[moveIndexes[1]])) return;
       out.push([...chosen]);
       return;
     }
@@ -336,12 +343,16 @@ function validateTargetList(
     }
   }
   if (moveMark) {
+    const moveIndexes = moveMarkTargetIndexes(specs);
     if (
-      targets.length !== 2 ||
-      targets.some((target) => target.kind !== 'permanent') ||
-      targets.some((target) => target.kind === 'permanent' &&
-        state.battlefield.find((perm) => perm.iid === target.iid)?.controller !== player) ||
-      sameTarget(targets[0], targets[1])
+      moveIndexes.length !== 2 ||
+      moveIndexes.some((index) => targets[index]?.kind !== 'permanent') ||
+      moveIndexes.some((index) => {
+        const target = targets[index];
+        return target?.kind === 'permanent' &&
+          state.battlefield.find((perm) => perm.iid === target.iid)?.controller !== player;
+      }) ||
+      sameTarget(targets[moveIndexes[0]], targets[moveIndexes[1]])
     ) return 'moveMark needs two distinct permanents you control';
   }
   return null;
