@@ -245,7 +245,7 @@ A card with an `empower` block (`CardDef.empower`, 1.3) may be cast for its
 normal cost, or for the combined cost (`combineManaCosts`) with the empowered
 flag set on the cast action. On resolution the empower ops run after the
 card's normal effect (for permanents, after its arrival triggers); empower ops
-are trigger-safe and only `moveMark` may carry targets. X spells cannot be empowered
+are target-free and only `moveMark` may carry targets. X spells cannot be empowered
 (`validateAction` rejects the combination).
 
 **Empower is the only ADDITIVE cost in the game.** Retell, Preserve, Hauntlink
@@ -353,7 +353,7 @@ Three words in the sentence are load-bearing and each is enforced in
 
 Propagate takes **no target**, deliberately: the narrow wording removes the
 targeting decision entirely, so the AI has nothing to choose and the op is
-trigger-safe and legal as a Foresee continuation (it is listed in
+target-free and legal as a Foresee continuation (it is listed in
 `assertTargetFreeForeseeContinuation`). It logs the generic
 `effectApplied` every op logs and adds no event of its own — marks are read
 back off the permanent the same way `addCounters` marks are — and it logs that

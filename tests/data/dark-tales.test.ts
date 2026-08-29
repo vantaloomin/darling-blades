@@ -57,7 +57,7 @@ describe('Dark Tales data integrity', () => {
     expect(FEATURES.dtCompanionLive).toBe(true);
   });
 
-  it('uses only engine keywords and operations, with trigger-safe non-spell abilities', () => {
+  it('uses only engine keywords and operations, with target-free non-spell abilities', () => {
     for (const card of DARK_TALES) {
       for (const keyword of card.keywords ?? []) expect(KEYWORDS.has(keyword), `${card.id}: ${keyword}`).toBe(true);
       for (const ability of card.abilities ?? []) {
