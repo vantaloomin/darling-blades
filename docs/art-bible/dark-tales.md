@@ -116,7 +116,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Lantern-Tower Witch, an adult-coded Dark Tales figure representing Lantern-Tower Witch, based on the pre-acceptance Subject draft "Tower-haired mage"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Belle of the Beast Manor — `dt-beast-manor-belle`
-- **Card facts:** {3}{W}{G} · W/G (gold frame) · 4/5 · bloodoath · ssr, legendary
+- **Card facts:** {5}{W}{G} · W/G (gold frame) · 4/5 · bloodoath · ssr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Beauty-and-beast adjacent scholar. an adult-coded Dark Tales figure representing Belle of the Beast Manor; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -251,7 +251,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Brave Highland Archer, an adult-coded Dark Tales figure representing Brave Highland Archer, based on the pre-acceptance Subject draft "Highland archer princess with tournament defiance"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Casita Miracle Keeper — `dt-casita-miracle-keeper`
-- **Card facts:** {3}{W}{G} · W/G (gold frame) · 3/5 · sr, legendary
+- **Card facts:** {4}{W}{G} · W/G (gold frame) · 3/5 · sr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Enchanted-house family heroine. an adult-coded Dark Tales figure representing Casita Miracle Keeper; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.

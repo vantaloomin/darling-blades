@@ -531,7 +531,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-campfire-tale', name: 'Campfire Tale', types: ['ritual'], subtypes: [],
-    cost: cost(1, 'R'), colors: ['R'],
+    cost: cost(2, 'R'), colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 2, who: 'self' }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'The best stories leave out the part where the heroes lose.',
   },

@@ -508,7 +508,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "B",
     "type": "Charm",
-    "cost": "{1}{B}",
+    "cost": "{3}{B}",
     "stats": "-",
     "mechanics": "Destroy target artifact or sever target enchantment; opponent loses 1 life. [ANSWER: static creature anthems and value Enchantments.]",
     "flavor": "A severed broadcast leaves the target alone with its own fear."
@@ -1278,7 +1278,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "G",
     "type": "Creature (Dryad Guardian)",
-    "cost": "{4}{G}",
+    "cost": "{5}{G}",
     "stats": "3/7",
     "mechanics": "Bulwark. At dawn: gain 2 life.",
     "flavor": "The oldest tree in the district has a better firewall than city hall."
