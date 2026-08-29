@@ -163,10 +163,10 @@ than discovering it in the metagame sweep.
 | sb-gravitic-bloom | Gravitic Bloom | C | G | Ritual | {3}{G} | None | add a mark to up to two target creatures | The flowers open toward the heaviest thing in the room. | core |
 | sb-orbital-graft | Orbital Graft | C | G | Enchantment | {2}{G} | None | whenever a creature arrives under your control, add a mark to it | The garden does not distinguish between crew and crop. | flex |
 | sb-overcanopy | Overcanopy | C | G | Land | None | None | entersTapped; manaAbility G | A green aurora hangs low enough to touch from the watch deck. | core |
-| sb-starborne-relay | Starborne Relay | C | C | Artifact | {5} | None | arrives: draw 1; dawn: Foresee 1; dawn: if you control four or more creatures with marks, draw 1 | It carries a message from every deck and forgets none of them. | core |
+| sb-starborne-relay | Starborne Relay | C | C | Artifact | {7} | None | arrives: draw 1; dawn: Foresee 1; dawn: if you control four or more creatures with marks, draw 1 | It carries a message from every deck and forgets none of them. | core |
 | sb-null-orbit-array | Null-Orbit Array | C | C | Artifact | {1} | None | Skim {2}; arrives: Foresee 1 | Its one job is to make the impossible route look routine. | flex |
 | sb-interstellar-crossing | Interstellar Crossing | C | C | Land | None | None | entersTapped; manaAbility C | The crossing takes three days if you walk and one blink if you trust it. | core |
-| sb-violet-wake-beacon | Violet Wake Beacon | C | C | Artifact | {6} | None | arrives: createToken Nebula Firefly; dawn: if you control a marked permanent, createToken Nebula Firefly | Its pulse is a welcome, a warning, and a dinner bell. | flex |
+| sb-violet-wake-beacon | Violet Wake Beacon | C | C | Artifact | {7} | None | arrives: createToken Nebula Firefly; dawn: if you control a marked permanent, createToken Nebula Firefly | Its pulse is a welcome, a warning, and a dinner bell. | flex |
 
 ### Rares
 
@@ -319,7 +319,7 @@ to marks, which is the one thing no shipped card can already be.
 
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| sb-signal-drown | Signal Drown | C | U | Charm | {1}{U}{U} | None | cancel target spell; if you control a marked permanent, draw a card | Her answer arrives before the question finishes forming. | core |
+| sb-signal-drown | Signal Drown | C | U | Charm | {3}{U}{U} | None | cancel target spell; if you control a marked permanent, draw a card | Her answer arrives before the question finishes forming. | core |
 | sb-collapse-the-lane | Collapse the Lane | R | U | Charm | {3}{U} | None | cancel target spell, then Foresee 2 | The lane was there a moment ago. She is certain of it. | flex |
 
 ### Bulwark, as hull and station
