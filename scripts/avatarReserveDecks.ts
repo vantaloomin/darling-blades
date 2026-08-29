@@ -231,6 +231,8 @@ export interface ConvertibleDeck {
   deck: readonly string[];
   /** Avatars keep their portrait card in the Warchest list; starters have none. */
   portraitCardId?: string;
+  /** Optional authored Darling identity; the converter validates its eligibility. */
+  darlingId?: string;
 }
 
 export function avatarPrintedColors(avatar: ConvertibleDeck, db: CardDb = CARD_DB): Color[] {
@@ -411,6 +413,22 @@ export function deriveLandReserve(avatar: ConvertibleDeck, db: CardDb = CARD_DB)
 }
 
 function chooseDarling(avatar: ConvertibleDeck, colors: readonly Color[], db: CardDb): CardDef {
+  if (avatar.darlingId !== undefined) {
+    const requested = db[avatar.darlingId];
+    // A liveness-gated catalog temporarily hides an authored Darling (the
+    // Duat pool is disabled in its regression test). In that mode keep the
+    // converter's ordinary live-catalog fallback; in a live catalog, an
+    // authored id is strict so a bad contract cannot silently substitute.
+    if (!requested) {
+      throw new Error(`${avatar.name} requested ineligible Darling ${avatar.darlingId} for colors ${colors.join('') || 'C'}`);
+    }
+    if (isLiveCollectible(requested)) {
+      if (!isLegendaryCreature(requested) || !sameColors(requested.colors, colors)) {
+        throw new Error(`${avatar.name} requested ineligible Darling ${avatar.darlingId} for colors ${colors.join('') || 'C'}`);
+      }
+      return requested;
+    }
+  }
   const portrait = avatar.portraitCardId ? db[avatar.portraitCardId] : undefined;
   if (isLegendaryCreature(portrait) && sameColors(portrait.colors, colors)) return portrait;
 

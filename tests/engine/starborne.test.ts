@@ -1048,7 +1048,7 @@ describe('Starborne mark operations and deferred ownership', () => {
       .toBe(true);
   });
 
-  it('keeps a mixed cancel-and-move spell playable', () => {
+  it('enumerates every mixed cancel-and-move list as one spell plus two distinct permanents', () => {
     const game = gameWithHand(['quietOrbit'], [
       permanent(1, 'markedCarrier', 0, 1),
       permanent(2, 'markedCarrier'),
@@ -1057,6 +1057,15 @@ describe('Starborne mark operations and deferred ownership', () => {
     const actions = game.legalActions(0).filter(
       (action): action is Extract<typeof action, { type: 'castSpell' }> => action.type === 'castSpell',
     );
+    expect(actions).toHaveLength(2);
+    expect(actions.every((action) => {
+      const targets = action.targets ?? [];
+      return targets.length === 3 &&
+        targets[0].kind === 'stackItem' &&
+        targets[1].kind === 'permanent' &&
+        targets[2].kind === 'permanent' &&
+        targets[1].iid !== targets[2].iid;
+    })).toBe(true);
     expect(actions).toContainEqual({
       type: 'castSpell',
       handIndex: 0,

@@ -334,10 +334,22 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     // list order only feeds the seeded shuffle.
     const sorted = (cards: readonly string[]): string[] => [...cards].sort();
     for (const avatar of AVATARS) {
-      const first = convertAvatarReserveDecks(avatar, PRE_STARBORNE_DB);
-      const second = convertAvatarReserveDecks(avatar, PRE_STARBORNE_DB);
+      // The historical pre-Starborne fixture intentionally excludes sb-*;
+      // the new Starborne avatar must be checked against the live catalog.
+      const sourceDb = avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen'
+        ? CARD_DB
+        : PRE_STARBORNE_DB;
+      const first = convertAvatarReserveDecks(avatar, sourceDb);
+      const second = convertAvatarReserveDecks(avatar, sourceDb);
       expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
+      if (avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen') {
+        // Starborne's classic, reserve, and land lists are locked authored
+        // contract fields. Only the Darlings surface is converter-owned here.
+        expect(sorted(first.darlingsDeck)).toEqual(sorted(avatar.darlingsDeck));
+        expect(first.darlingId).toEqual(avatar.darlingId);
+        continue;
+      }
       if (HAND_TUNED_WARCHEST.has(avatar.id)) {
         // 2026-08-21 live-pool pin: Morgan and Hel retain their hand-tuned
         // reserve literals, including their authored Darlings lists.
@@ -348,7 +360,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       // darlingsDeck is now authored by the themed builder, not the stage-2
       // converter: the converter's colour-and-curve fill left 67-71 of 79
       // cards as generic filler and measured 26-31% against the shop precons.
-      expect(sorted(buildDarlingsDeck(avatar, PRE_STARBORNE_DB).cards)).toEqual(sorted(avatar.darlingsDeck));
+      expect(sorted(buildDarlingsDeck(avatar, sourceDb).cards)).toEqual(sorted(avatar.darlingsDeck));
       expect(first.darlingId).toEqual(avatar.darlingId);
       expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
     }

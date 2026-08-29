@@ -641,4 +641,65 @@ export const THEME_DECKS: DeckList[] = [
       ['land-mountain', 3],
     ]),
   },
+  {
+    id: 'theme-starborne',
+    name: 'Chrome-Violet Broodship',
+    // Chrome-Violet Broodship — G/U/R Starborne midrange swarm: efficient bodies establish one or two marked permanents, Propagate and Broodlings turn a modest board wide, blue filters with Foresee and answers with recall and cancel, red finishes with damage and Overrun.
+    cards: expand([
+      ['land-forest', 8],
+      ['land-island', 6],
+      ['land-mountain', 6],
+      ['sb-aurora-reefway', 2],
+      ['sb-radiant-comet-lane', 2],
+      ['sb-mycelial-star-gardener', 4],
+      ['sb-ion-bloom-scout', 2],
+      ['sb-cometroot-grafter', 3],
+      ['sb-hullplate-bastion', 2],
+      ['sb-living-hull-seedling', 4],
+      ['sb-quasar-cartographer', 2],
+      ['sb-solar-riot-engineer', 2],
+      ['sb-comet-kick-marauder', 2],
+      ['sb-rootlight-broodmother', 2],
+      ['sb-the-long-crossing', 1],
+      ['sb-brood-communion', 2],
+      ['sb-root-of-light', 2],
+      ['sb-echo-burst', 2],
+      ['sb-signal-inversion', 2],
+      ['sb-quiet-orbit', 2],
+      ['sb-overcharge-the-hull', 2],
+    ]),
+    // Converter-shaped reserve package, mirrored from Neon Afterimage at 40
+    // cards; the classic list above remains the locked authored package.
+    reserveCards: expand([
+      ['sb-mycelial-star-gardener', 4],
+      ['sb-ion-bloom-scout', 2],
+      ['sb-cometroot-grafter', 3],
+      ['sb-hullplate-bastion', 2],
+      ['sb-living-hull-seedling', 4],
+      ['sb-quasar-cartographer', 2],
+      ['sb-solar-riot-engineer', 2],
+      ['sb-comet-kick-marauder', 2],
+      ['sb-rootlight-broodmother', 2],
+      ['sb-the-long-crossing', 1],
+      ['sb-brood-communion', 4],
+      ['sb-root-of-light', 2],
+      ['sb-echo-burst', 4],
+      ['sb-signal-inversion', 2],
+      ['sb-quiet-orbit', 2],
+      ['sb-overcharge-the-hull', 2],
+    ]),
+    // MEASURED 2026-08-29 (hard AI, 150 seeds/cell, 18-deck prefab field):
+    // 40.7% (1036/2545 decided, +5 draws) across the full 153-cell
+    // round-robin. Chrome-Violet row rates in Crimson/Wild/Burning/Shadow/
+    // Grave/Valhalla/Glimmer/Questing/Bloodmoon/Midnight/Neon/Pride/Rite/
+    // Nine/The/Flood/Bastet order: 25/55/39/39/35/30/41/40/35/55/39/29/
+    // 47/25/75/55/28%. No tuning was made from this measurement.
+    landReserve: expand([
+      ['sb-aurora-reefway', 2],
+      ['sb-radiant-comet-lane', 2],
+      ['land-forest', 2],
+      ['land-island', 2],
+      ['land-mountain', 2],
+    ]),
+  },
 ];
