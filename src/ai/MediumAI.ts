@@ -13,6 +13,7 @@ import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
+import { chooseTargetAction } from './targeting';
 import {
   cardValue,
   empowerValue,
@@ -82,6 +83,8 @@ export class MediumAI implements AIPlayer {
         return this.respond(view, legal);
       case 'endStepWindow':
         return this.endStep(view, legal);
+      case 'chooseTarget':
+        return chooseTargetAction(view, this.db, legal);
       default:
         return legal[0];
     }

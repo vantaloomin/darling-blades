@@ -14,7 +14,9 @@ import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve, type MainCast } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
+import { chooseTargetAction } from './targeting';
 import {
+  conditionalAbilityValue,
   empowerValue,
   hauntlinkCastValue,
   nineLivesValue,
@@ -63,6 +65,8 @@ export class EasyAI implements AIPlayer {
       case 'respond':
       case 'endStepWindow':
         return this.respond(view, legal);
+      case 'chooseTarget':
+        return chooseTargetAction(view, this.db, legal);
       case 'discardToHandSize':
         return legal[rngInt(this.rng, Math.max(1, legal.length - 1))]; // skip concede at end
       default:
@@ -87,7 +91,7 @@ export class EasyAI implements AIPlayer {
   private castScore(view: PlayerView, action: MainCast): number {
     const cardId = this.cardIdFor(view, action);
     const d = def(this.db, cardId);
-    if (action.type === 'castDarling') return manaValue(d.cost) + nineLivesValue(d);
+    if (action.type === 'castDarling') return manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId);
     if (action.hauntlinked) {
       const host = action.targets?.[0];
       return host?.kind === 'permanent'
@@ -96,7 +100,7 @@ export class EasyAI implements AIPlayer {
     }
     const castValue = action.retell
       ? retellValue(this.db, cardId) + 0.01
-      : manaValue(d.cost) + nineLivesValue(d) + (action.x ?? 0) +
+      : manaValue(d.cost) + nineLivesValue(d) + conditionalAbilityValue(this.db, cardId) + (action.x ?? 0) +
           (action.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
     return castValue - riteSacrificeValue(view, this.db, action);
   }

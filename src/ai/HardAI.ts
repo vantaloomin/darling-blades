@@ -13,6 +13,7 @@ import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
 import { preserveActionValue } from './preservePolicy';
 import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
+import { chooseTargetAction } from './targeting';
 import { cardValue, hauntlinkCastValue } from './value';
 
 /**
@@ -56,6 +57,8 @@ export class HardAI implements AIPlayer {
       case 'respond':
       case 'endStepWindow':
         return this.searchResponse(view, legal);
+      case 'chooseTarget':
+        return this.searchTarget(view, legal);
       default:
         // mulligans/bottoming/discard: Medium's bands are already solid
         return this.medium.chooseAction(view, legal);
@@ -128,6 +131,19 @@ export class HardAI implements AIPlayer {
       }
       this.autoplayOpponent(game, me);
     }
+    // A targeted arrival can queue another mandatory choice while its first
+    // choice is resolving. Keep the sim moving instead of evaluating a
+    // mid-queue state or stalling on an unhandled awaiting kind.
+    for (let guard = 0; guard < 20; guard++) {
+      const a = game.awaiting;
+      if (a.kind !== 'chooseTarget' || a.player !== me) break;
+      try {
+        game.submit(me, this.medium.chooseAction(game.viewFor(me), game.legalActions(me)));
+      } catch {
+        return null;
+      }
+      this.autoplayOpponent(game, me);
+    }
     return {
       score: evaluate(game.state, this.sdb, me),
       won: game.state.winner === me,
@@ -168,10 +184,36 @@ export class HardAI implements AIPlayer {
         });
       } else if (a.kind === 'foresee') {
         game.submit(opp, this.neutralMedium.chooseAction(game.viewFor(opp), game.legalActions(opp)));
+      } else if (a.kind === 'chooseTarget') {
+        try {
+          game.submit(opp, this.neutralMedium.chooseAction(game.viewFor(opp), game.legalActions(opp)));
+        } catch {
+          return;
+        }
       } else {
         return; // their main/attack decisions end our simulation horizon
       }
     }
+  }
+
+  /** Hard keeps its existing search architecture, but targeted arrivals get
+   * the same one-world simulation pass as other searched choices. */
+  private searchTarget(view: PlayerView, legal: Action[]): Action {
+    const baseline = chooseTargetAction(view, this.db, legal);
+    const choices = legal.filter((action) => action.type === 'chooseTarget');
+    if (choices.length < 2) return baseline;
+    const base = this.aggregateOutcome(view, [baseline]);
+    if (!base) return baseline;
+    let best = baseline;
+    let bestScore = base.score;
+    for (const candidate of choices) {
+      const outcome = this.aggregateOutcome(view, [candidate]);
+      if (outcome && outcome.score > bestScore) {
+        best = candidate;
+        bestScore = outcome.score;
+      }
+    }
+    return best;
   }
 
   // -------------------------------------------------------------------

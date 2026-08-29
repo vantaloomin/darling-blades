@@ -4,8 +4,46 @@
  * pin without importing a scene into UI tests.
  */
 
+import type { CardDef } from '../engine/types';
+import { rulesText } from './rulesText';
+
 export type DuelSide = 'you' | 'opponent';
 export type TargetRingTone = 'friendly' | 'hostile';
+
+/** Small, non-interactive center prompt used while a mandatory arrival target is chosen. */
+export const TARGET_PROMPT_LAYOUT = {
+  cardX: 463,
+  cardY: 298,
+  cardScale: 0.28,
+  titleX: 530,
+  titleY: 240,
+  textX: 530,
+  textY: 267,
+  textWidth: 220,
+} as const;
+
+export function targetPromptTitle(cardName: string): string {
+  return `Choose a target for ${cardName}`;
+}
+
+/**
+ * Reuse the canonical rules-text renderer while narrowing the card to the
+ * queued ability. This keeps abilityIndex meaningful when one source has two
+ * arrival triggers, without making rulesText scene-aware.
+ */
+export function targetAbilityText(card: CardDef, abilityIndex: number): string {
+  const ability = card.abilities?.[abilityIndex];
+  if (!ability) return '';
+  return rulesText({
+    id: card.id,
+    name: card.name,
+    types: card.types,
+    subtypes: card.subtypes,
+    colors: card.colors,
+    abilities: [ability],
+    rarity: card.rarity,
+  });
+}
 
 export const TARGET_ARROW_HEAD_LENGTH = 16;
 
