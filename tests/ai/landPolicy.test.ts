@@ -4,6 +4,7 @@ import { buildAI } from '../../src/ai/personality';
 import { buildTierAI } from '../../src/ai/tiers';
 import { chooseReserveLand } from '../../src/ai/landPolicy';
 import { Game } from '../../src/engine/Game';
+import type { CardDb } from '../../src/engine/types';
 import { cardIdOf } from '../../src/engine/types';
 import type { PlayerView } from '../../src/engine/view';
 import { TEST_DB } from '../helpers';
@@ -11,6 +12,10 @@ import { TEST_DB } from '../helpers';
 const RESERVE = ['forest', 'plains', 'mountain', 'island', 'swamp', 'dual_gw', 'forest', 'plains', 'forest', 'swamp'];
 const SPELL_DECK = Array.from({ length: 50 }, () => 'bear');
 const DARLINGS_DECK = Array.from({ length: 79 }, () => 'bear');
+const COLORLESS_DB: CardDb = {
+  ...TEST_DB,
+  cLand: { ...TEST_DB.forest, id: 'cLand', name: 'Colorless Land', supertypes: [], manaAbility: ['C'] },
+};
 
 function view(overrides: Partial<PlayerView> = {}): PlayerView {
   return {
@@ -60,6 +65,28 @@ function keepBoth(game: Game): void {
 }
 
 describe('shared reserve land policy', () => {
+  it('ignores a C-only source when counting colored reserve support', () => {
+    const reserve = ['cLand', 'plains'];
+    const legalReserve = reserve.map((_, reserveIndex) => ({ type: 'playLand' as const, handIndex: -1, reserveIndex }));
+    const reserveView = view({
+      you: { ...view().you, hand: ['knight'], landReserve: reserve },
+      battlefield: [{
+        iid: 1,
+        cardId: 'cLand',
+        owner: 0,
+        controller: 0,
+        tapped: false,
+        enteredThisTurn: false,
+        damage: 0,
+        deathtouched: false,
+        attachments: [],
+        plusOneCounters: 0,
+        untilEotMods: [],
+      }],
+    });
+    expect(chooseReserveLand(reserveView, COLORLESS_DB, legalReserve)).toMatchObject({ reserveIndex: 1 });
+  });
+
   it('is deterministic, fixes missing colors, and preserves basics when mana is idle', () => {
     const missingWhite = view({ you: { ...view().you, hand: ['knight'] } });
     expect(chooseReserveLand(missingWhite, TEST_DB, legal)).toMatchObject({ reserveIndex: 1 });

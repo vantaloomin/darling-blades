@@ -235,7 +235,9 @@ export function avatarPrintedColors(avatar: ConvertibleDeck, db: CardDb = CARD_D
   for (const id of avatar.deck) {
     const card = db[id];
     if (!card?.types.includes('land')) continue;
-    for (const color of card.manaAbility ?? []) colors.add(color);
+    for (const color of card.manaAbility ?? []) {
+      if (color !== 'C') colors.add(color);
+    }
   }
   return COLOR_ORDER.filter((color) => colors.has(color));
 }

@@ -35,6 +35,7 @@ const DUAL_THREE = 'dual-three';
 const DUAL_FOUR = 'dual-four';
 const DUAL_FIVE = 'dual-five';
 const SINGLE_LAND = 'single-land';
+const COLORLESS_DUAL = 'colorless-dual';
 const WHITE_BASIC = 'white-basic';
 const BLUE_BASIC = 'blue-basic';
 const SPELL = 'spell';
@@ -103,6 +104,14 @@ const DB: CardDb = Object.freeze({
     attack: undefined,
     defense: undefined,
     manaAbility: ['G'],
+  }),
+  [COLORLESS_DUAL]: card(COLORLESS_DUAL, {
+    name: 'Colorless Grove',
+    types: ['land'],
+    cost: undefined,
+    attack: undefined,
+    defense: undefined,
+    manaAbility: ['C', 'G'],
   }),
   [WHITE_BASIC]: card(WHITE_BASIC, {
     name: 'Plains',
@@ -289,6 +298,15 @@ describe('Warchest shared validators', () => {
     }).map((issue) => issue.message)).toContain(
       'Warchest Reserves may contain at most 2 colors (currently 3)',
     );
+  });
+
+  it('ignores C when deriving reserve colors for validation', () => {
+    const reserve = dualReserve(COLORLESS_DUAL);
+    expect(reserveColorIdentity(DB, reserve)).toEqual(['G']);
+    expect(validateLandReserve(DB, saveWith(COLORLESS_DUAL), reserve, {
+      maxReserveColors: 1,
+      deck: [GREEN_SPELL],
+    })).toEqual([]);
   });
 
   it('requires every deck cost color to appear in a capped reserve', () => {

@@ -9,7 +9,6 @@ import {
   cardIdOf,
   type CardDb,
   type CardDef,
-  type Color,
   type GameState,
   type Permanent,
   type TargetRef,
@@ -372,7 +371,7 @@ const DB: CardDb = {
     },
   }),
   cLand: card('cLand', ['land'], {
-    manaAbility: ['C'] as unknown as Color[],
+    manaAbility: ['C'],
   }),
 };
 
@@ -816,7 +815,7 @@ describe('Starborne colorless mana, chapters, artifact triggers, Empower, and re
   it('uses C for generic before colored sources and never uses C for a colored pip', () => {
     const state = makeTestState({ battlefield: [permanent(1, 'cLand'), permanent(2, 'forest')] });
     const sources = manaSources(state, DB, 0);
-    expect((sources[0].colors as unknown as string[])).toEqual(['C']);
+    expect(sources[0].colors).toEqual(['C']);
     expect(solveMana(state, DB, 0, { generic: 1, pips: {} })).toEqual([1]);
     expect(solveMana(state, DB, 0, { generic: 0, pips: { G: 1 } })).toEqual([2]);
     expect(solveMana(state, DB, 0, { generic: 1, pips: { G: 1 } })).toEqual([2, 1]);

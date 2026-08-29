@@ -25,7 +25,7 @@ import {
   startBotDraft,
   startDraftRun,
 } from '../../src/meta/Limited';
-import { DEFAULT_PICKER, scoreBasePick } from '../../src/meta/draftPicker';
+import { DEFAULT_PICKER, scoreBasePick, scorePick } from '../../src/meta/draftPicker';
 import { firstReserveConfigIssue } from '../../src/meta/duelSetup';
 import { freshSave } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, TIER_RANK, variantKey, type CardVariant } from '../../src/meta/variants';
@@ -207,6 +207,47 @@ describe('bot draft', () => {
     for (const d of Object.values(CARD_DB)) {
       expect(scoreBasePick(d, DEFAULT_PICKER), d.id).toBe(scoreBaseCardReference(d));
     }
+  });
+
+  it('does not treat C as a draft color when picking among lands', () => {
+    const db: CardDb = {
+      'green-pick': {
+        id: 'green-pick',
+        name: 'Green Pick',
+        types: ['creature'],
+        subtypes: [],
+        cost: { generic: 0, pips: { G: 1 } },
+        colors: ['G'],
+        attack: 1,
+        defense: 1,
+        rarity: 'c',
+      },
+      'c-land': {
+        id: 'c-land',
+        name: 'Colorless Land',
+        types: ['land'],
+        subtypes: [],
+        colors: [],
+        manaAbility: ['C'],
+        rarity: 'c',
+      },
+      'g-land': {
+        id: 'g-land',
+        name: 'Green Land',
+        types: ['land'],
+        subtypes: [],
+        colors: [],
+        manaAbility: ['G'],
+        rarity: 'c',
+      },
+    };
+    const picks = Array.from({ length: 5 }, () => 'green-pick');
+    const pack = ['c-land', 'g-land'];
+    const chosen = [...pack].sort(
+      (a, b) => scorePick(db, b, picks, DEFAULT_PICKER, 0) - scorePick(db, a, picks, DEFAULT_PICKER, 0),
+    )[0];
+    expect(chosen).toBe('g-land');
+    expect(scorePick(db, 'g-land', picks, DEFAULT_PICKER, 0) - scorePick(db, 'c-land', picks, DEFAULT_PICKER, 0)).toBe(3);
   });
 
   it('keeps DEFAULT_PICKER bot choices lockstep with the old heuristic across 20 full drafts', () => {
@@ -483,7 +524,7 @@ function scoreDraftCardReference(db: CardDb, id: string, picks: readonly string[
   }
   if (isType(d, 'land') && !isBasic(db, id)) {
     const mana = d.manaAbility ?? [];
-    score += mana.some((c) => committed.includes(c)) ? 4 : 1;
+    score += mana.some((c) => c !== 'C' && committed.includes(c)) ? 4 : 1;
   }
   return score;
 }

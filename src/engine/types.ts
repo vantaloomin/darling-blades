@@ -311,9 +311,7 @@ export interface CardDef {
   preserve?: PreserveDef;
   /** Optional alternative-cost cast that enters attached to a friendly creature. */
   hauntlink?: HauntlinkDef;
-  // No narrowing exists yet for the C producer. Wave 2/3 owns widening the
-  // UI and meta consumers; the headless engine accepts C at runtime here.
-  manaAbility?: Color[]; // lands & mana creatures; C is accepted in engine data
+  manaAbility?: (Color | 'C')[]; // lands & mana creatures
   entersTapped?: boolean; // dual taplands
   rarity: Rarity;
   flavor?: string;

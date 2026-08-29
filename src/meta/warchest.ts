@@ -61,7 +61,9 @@ export function reserveColorIdentity(db: CardDb, landReserve: readonly string[])
   for (const id of landReserve) {
     const card = db[id];
     if (!card || !isAllowedReserveLand(card)) continue;
-    for (const color of card.manaAbility ?? []) colors.add(color);
+    for (const color of card.manaAbility ?? []) {
+      if (color !== 'C') colors.add(color);
+    }
   }
   return COLOR_ORDER.filter((color) => colors.has(color));
 }

@@ -83,7 +83,9 @@ describe.each(AVATARS.map((a) => [a.name, a] as const))('avatar deck legality â€
     const landColors = new Set<Color>();
     for (const id of counts.keys()) {
       const d = CARD_DB[id];
-      if (d.types.includes('land')) for (const c of d.manaAbility ?? []) landColors.add(c);
+      if (d.types.includes('land')) {
+        for (const c of d.manaAbility ?? []) if (c !== 'C') landColors.add(c);
+      }
     }
     const needed = new Set<Color>();
     for (const id of counts.keys()) {

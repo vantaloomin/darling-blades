@@ -35,7 +35,9 @@ describe('starter roster shape', () => {
     for (const deck of STARTER_DECKS) {
       for (const id of deck.cards) {
         const d = CARD_DB[id];
-        if (d?.types.includes('land')) for (const c of d.manaAbility ?? []) produced.add(c);
+        if (d?.types.includes('land')) {
+          for (const c of d.manaAbility ?? []) if (c !== 'C') produced.add(c);
+        }
       }
     }
     expect([...produced].sort()).toEqual(['B', 'G', 'R', 'U', 'W']);
@@ -74,7 +76,9 @@ describe.each(STARTER_DECKS.map((d) => [d.name, d] as const))('starter deck lega
     const landColors = new Set<Color>();
     for (const id of counts.keys()) {
       const d = CARD_DB[id];
-      if (d.types.includes('land')) for (const c of d.manaAbility ?? []) landColors.add(c);
+      if (d.types.includes('land')) {
+        for (const c of d.manaAbility ?? []) if (c !== 'C') landColors.add(c);
+      }
     }
     const needed = new Set<Color>();
     for (const id of counts.keys()) {
@@ -131,7 +135,9 @@ describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality
     const landColors = new Set<Color>();
     for (const id of counts.keys()) {
       const d = CARD_DB[id];
-      if (d.types.includes('land')) for (const c of d.manaAbility ?? []) landColors.add(c);
+      if (d.types.includes('land')) {
+        for (const c of d.manaAbility ?? []) if (c !== 'C') landColors.add(c);
+      }
     }
     const needed = new Set<Color>();
     for (const id of counts.keys()) {
