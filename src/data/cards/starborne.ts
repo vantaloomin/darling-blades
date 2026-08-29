@@ -326,7 +326,7 @@ export const STARBORNE = [
   }),
   land('sb-overcanopy', 'Overcanopy', ['G'], 'c', 'A green aurora hangs low enough to touch from the watch deck.'),
   artifact('sb-starborne-relay', 'Starborne Relay', {
-    cost: cost(5), colors: C,
+    cost: cost(7), colors: C,
     abilities: [
       arrives([{ op: 'draw', n: 1 }]),
       dawn([{ op: 'foresee', n: 1 }]),
@@ -347,7 +347,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'The crossing takes three days if you walk and one blink if you trust it.',
   }),
   artifact('sb-violet-wake-beacon', 'Violet Wake Beacon', {
-    cost: cost(6), colors: C,
+    cost: cost(7), colors: C,
     abilities: [
       arrives([{ op: 'createToken', token: 'tok-nebula-firefly', count: 1 }]),
       { when: 'dawn', condition: 'controlMarked', ops: [{ op: 'createToken', token: 'tok-nebula-firefly', count: 1 }] },
@@ -667,7 +667,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'What the hull grew, the dark unmakes first.',
   }),
   charm('sb-signal-drown', 'Signal Drown', {
-    cost: cost(1, 'UU'), colors: U, abilities: [
+    cost: cost(3, 'UU'), colors: U, abilities: [
       spell([{ op: 'cancel', to: 'target' }], 'spell'),
       { when: 'spell', condition: 'controlMarked', ops: [{ op: 'draw', n: 1 }] },
     ], rarity: 'c',
