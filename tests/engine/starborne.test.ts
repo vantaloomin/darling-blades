@@ -304,6 +304,14 @@ const DB: CardDb = {
       ops: [{ op: 'moveMark' }],
     }],
   }),
+  quietOrbit: card('quietOrbit', ['charm'], {
+    cost: ZERO,
+    abilities: [{
+      when: 'spell',
+      targets: [{ what: 'spell' }, { what: 'yourPermanent' }, { what: 'yourPermanent' }],
+      ops: [{ op: 'cancel', to: 'target' }, { op: 'moveMark' }],
+    }],
+  }),
   remove: card('remove', ['charm'], {
     cost: ZERO,
     abilities: [{
@@ -1038,6 +1046,26 @@ describe('Starborne mark operations and deferred ownership', () => {
     expect(actions.length).toBe(2);
     expect(actions.every((action) => action.targets?.every((target) => target.kind === 'permanent' && target.iid !== 3)))
       .toBe(true);
+  });
+
+  it('keeps a mixed cancel-and-move spell playable', () => {
+    const game = gameWithHand(['quietOrbit'], [
+      permanent(1, 'markedCarrier', 0, 1),
+      permanent(2, 'markedCarrier'),
+    ]);
+    game.instanceState.stack.push({ sid: 99, cardId: 'bear', controller: 1, targets: [] });
+    const actions = game.legalActions(0).filter(
+      (action): action is Extract<typeof action, { type: 'castSpell' }> => action.type === 'castSpell',
+    );
+    expect(actions).toContainEqual({
+      type: 'castSpell',
+      handIndex: 0,
+      targets: [
+        { kind: 'stackItem', sid: 99 },
+        ref(1),
+        ref(2),
+      ],
+    });
   });
 
   it('preserves Nine Lives friction on a marked destination and re-enables return after removeMarks', () => {

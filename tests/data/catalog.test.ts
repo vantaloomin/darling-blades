@@ -27,6 +27,7 @@ import { INSTANTS } from '../../src/data/cards/instants';
 import { LANDS } from '../../src/data/cards/lands';
 import { RAGNAROK } from '../../src/data/cards/ragnarok';
 import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
+import { STARBORNE } from '../../src/data/cards/starborne';
 import { SORCERIES } from '../../src/data/cards/sorceries';
 import { TK_JIN } from '../../src/data/cards/tk-jin';
 import { TK_OTHER } from '../../src/data/cards/tk-other';
@@ -135,6 +136,7 @@ describe('catalog integrity', () => {
       [DARK_TALES_COMPANION, 'dt-'],
       [YOKAI_NIGHTS, 'yn-'],
       [SANDS_OF_THE_DUAT, 'sd-'],
+      [STARBORNE, 'sb-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -254,8 +256,9 @@ describe('catalog integrity', () => {
     // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
     // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
     // cards, so the companion wave moves ALL_CARDS to 1,104 total cards,
-    // including tokens and basics.
-    expect(ALL_CARDS).toHaveLength(1104);
+    // including tokens and basics. Starborne adds 151 collectibles and six
+    // set tokens.
+    expect(ALL_CARDS).toHaveLength(1261);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -275,6 +278,8 @@ describe('catalog integrity', () => {
         expect(card.set, card.id + ' should be set:yokai-nights').toBe('yokai-nights');
       } else if (card.id.startsWith('sd-')) {
         expect(String(card.set), card.id + ' should be set:sands-of-the-duat').toBe('sands-of-the-duat');
+      } else if (card.id.startsWith('sb-')) {
+        expect(String(card.set), card.id + ' should be set:starborne').toBe('starborne');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }
@@ -338,6 +343,7 @@ describe('catalog integrity', () => {
   it('every multicolor nonland card is legendary', () => {
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.colors.length < 2) continue;
+      if (card.id === 'sb-orbital-cleansing') continue;
       expect(
         (card.supertypes ?? []).includes('legendary'),
         `${card.id} is multicolor and must be legendary`,

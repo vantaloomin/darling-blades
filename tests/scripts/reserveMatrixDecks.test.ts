@@ -23,11 +23,11 @@ describe('reserve matrix deck derivation', () => {
       'Shadow Mandate Warchest',
       'Grave Harvest Warchest',
     ]);
-    // 2026-08-21: the live Duat pool re-derives the Wild Communion Darling.
+    // 2026-08-28: the live Starborne pool re-derives the third Darling.
     expect(first.darlings.map((deck) => deck.darlingId)).toEqual([
       'gk-athena',
       'sd-anuket-who-runs-the-cataracts',
-      'rg-dianwei',
+      'sb-abyssal-iris-regent',
       'gk-ares',
       'gk-gaia',
       'gk-aphrodite',

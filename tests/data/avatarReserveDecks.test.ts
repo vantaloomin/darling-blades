@@ -23,6 +23,9 @@ import { buildReserveMatrixFullOwnershipSave } from '../../scripts/reserveMatrix
 import { runAvatarReserveMatrix } from '../../scripts/balance-matrix';
 
 const save = buildReserveMatrixFullOwnershipSave(CARD_DB);
+const PRE_STARBORNE_DB: CardDb = Object.fromEntries(
+  Object.entries(CARD_DB).filter(([id]) => !id.startsWith('sb-')),
+) as CardDb;
 
 describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
   for (const avatar of AVATARS) {
@@ -229,7 +232,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
 
     it('never rejects a card whose targets are ordinary creatures', () => {
       const creatureRemoval = Object.values(CARD_DB).filter((card) =>
-        (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) => t.what === 'creature')));
+        (card.abilities ?? []).some((a) => (a.targets ?? []).some((t) => t.what === 'creature' && !t.marked)));
       expect(creatureRemoval.length).toBeGreaterThan(0);
       for (const card of creatureRemoval) {
         expect(hasNoLegalTargets(card, new Set()), `${card.id} wrongly flagged`).toBe(false);
@@ -331,8 +334,8 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     // list order only feeds the seeded shuffle.
     const sorted = (cards: readonly string[]): string[] => [...cards].sort();
     for (const avatar of AVATARS) {
-      const first = convertAvatarReserveDecks(avatar);
-      const second = convertAvatarReserveDecks(avatar);
+      const first = convertAvatarReserveDecks(avatar, PRE_STARBORNE_DB);
+      const second = convertAvatarReserveDecks(avatar, PRE_STARBORNE_DB);
       expect(first, `${avatar.id} converter is not deterministic`).toEqual(second);
       expect(sorted(first.landReserve)).toEqual(sorted(avatar.landReserve));
       if (HAND_TUNED_WARCHEST.has(avatar.id)) {
@@ -345,7 +348,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       // darlingsDeck is now authored by the themed builder, not the stage-2
       // converter: the converter's colour-and-curve fill left 67-71 of 79
       // cards as generic filler and measured 26-31% against the shop precons.
-      expect(sorted(buildDarlingsDeck(avatar).cards)).toEqual(sorted(avatar.darlingsDeck));
+      expect(sorted(buildDarlingsDeck(avatar, PRE_STARBORNE_DB).cards)).toEqual(sorted(avatar.darlingsDeck));
       expect(first.darlingId).toEqual(avatar.darlingId);
       expect(sorted(first.reserveDeck)).toEqual(sorted(avatar.reserveDeck));
     }

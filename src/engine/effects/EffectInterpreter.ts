@@ -401,7 +401,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     }
     case 'cancel': {
-      for (const ref of targetRefsForOp(ctx)) {
+      for (const ref of ctx.targets.filter((target) => target.kind === 'stackItem')) {
         if (ref.kind !== 'stackItem') continue;
         const idx = state.stack.findIndex((s) => s.sid === ref.sid);
         if (idx >= 0) {
@@ -487,8 +487,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     }
     case 'moveMark': {
-      const from = targetPermanent(state, ctx.targets[0]);
-      const to = targetPermanent(state, ctx.targets[1]);
+      const permanentTargets = ctx.targets.filter((target) => target.kind === 'permanent');
+      const from = targetPermanent(state, permanentTargets[0]);
+      const to = targetPermanent(state, permanentTargets[1]);
       if (
         !from ||
         !to ||

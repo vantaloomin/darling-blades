@@ -52,6 +52,7 @@ export const ECONOMY = {
   darkTalesPackPrice: 525, // expansion booster - only pulls set:'dark-tales' cards (120-card chase density)
   yokaiNightsPackPrice: 525, // expansion booster - only pulls set:'yokai-nights' cards (120-card chase density)
   sandsOfTheDuatPackPrice: 525, // expansion booster - only pulls set:'sands-of-the-duat' cards (245-card chase density); SKU hidden until FEATURES.duatLive
+  starbornePackPrice: 525,
   boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo + full art independently (DROPS)
   limitedPackSize: 15, // Draft packs stay MTG-sized for pick and pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
