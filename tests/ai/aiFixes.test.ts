@@ -15,12 +15,15 @@ function gameFromState(state: ReturnType<typeof makeTestState>): Game {
 }
 
 describe('AI defect regressions from the 1.5 instrumented probe', () => {
-  it('HardAI returns and can submit only a legal three-target Quiet Orbit cast', () => {
+  it('HardAI returns and can submit only a legal three-target Quiet Orbit cast with creature marks', () => {
     const state = makeTestState({
       battlefield: [
         { iid: 1, cardId: 'land-island', controller: 0 },
         { iid: 2, cardId: 'land-island', controller: 0 },
         { iid: 3, cardId: 'land-island', controller: 0 },
+        { iid: 4, cardId: 'bear', controller: 0, plusOneCounters: 1 },
+        { iid: 5, cardId: 'bear', controller: 0 },
+        { iid: 6, cardId: 'bear', controller: 0 },
       ],
       hands: [['sb-quiet-orbit'], []],
       active: 0,

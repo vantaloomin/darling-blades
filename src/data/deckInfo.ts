@@ -104,7 +104,7 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     colors: 'G/U/R',
     archetype: 'Starborne midrange swarm',
     plays:
-      'Efficient bodies establish one or two marked permanents; Propagate and Broodlings turn a modest board wide. Blue filters with Foresee and answers with recall and cancel, while red finishes with damage and Overrun.',
+      'Efficient bodies establish one or two Marked creatures; Propagate and Broodlings turn a modest board wide. Blue filters with Foresee and answers with recall and cancel, while red finishes with damage and Overrun.',
     featured: ['sb-rootlight-broodmother', 'sb-the-long-crossing', 'sb-mycelial-star-gardener'],
   },
 };

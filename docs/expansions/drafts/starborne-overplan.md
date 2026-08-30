@@ -38,7 +38,7 @@ cut constraint, not a preference.
 - **Green is primary.** It generates marks and keeps the majority of enablers.
 - **Red and white support.** Efficient bodies that arrive marked, no new rules.
 - **Blue COPIES AND MOVES marks.** It creates none. Blue relocates a mark to
-  another permanent or duplicates one that already exists, which fits Foresee
+  another creature or duplicates one that already exists, which fits Foresee
   and recall without making blue a second green. Each such card is an AI
   decision, so they need seeded evidence before any of them ships as `core`.
 - **Black is the ANTI-MARK colour.** It creates none and is not meant to.
@@ -53,16 +53,17 @@ mark only themselves. That matters for cross-set play and for Limited, where a
 Starborne drafter may see few enablers, but it is not a statement about this
 draft.
 
-**The wording is pinned:** Propagate is **"put another mark on each marked
-permanent you control"** (owner decision 2026-08-24). The narrower reading. With
-marks scarce, letting Propagate hit opposing permanents does nothing useful and
-adds a decision the AI has to get right.
+**The wording is pinned:** Propagate is **"put another Mark on each Marked
+creature you control"**. The owner's 2026-08-30 scope ruling supersedes the
+2026-08-24 locked wording and makes the entire mark system creature-scoped.
+With marks scarce, letting Propagate hit opposing creatures does nothing useful
+and adds a decision the AI has to get right.
 
 ## Set Identity
 
 The Starborne is a sci-fi slate world of living starships and iridescent alien women under nebula light. Bioluminescent crews move through chrome corridors and violet cloudbanks, while swarms of small organisms multiply across hulls, gardens, and battlefields. The mood is wonder with an edge: every beautiful signal may be a lure, every shining body may be part of a larger appetite. The candidate pool leans into efficient bodies, bright board presence, and a broad range of WUBRG deck shells so the final set can keep its strange beauty without asking commons to be decorative filler.
 
-**Propagate** is the set's new mechanic: **add a mark to every marked permanent you control**. **Timing, ruled 2026-08-28: Propagate is a one-time event.** A spell Propagates when it resolves; a permanent Propagates on arrival (`arrives: Propagate`), and every permanent row below writes that trigger explicitly. **The single sanctioned exception is `sb-propagation-engine` (`dawn: Propagate`)** - the design-risk section budgets "a controlled number of repeatable Propagate sources" and this named card is that number: one. No other repeating timing exists in this set. A future set may add an activated form (a tap-cost Propagate) once activated abilities with tap costs ship as the 1.8 engine feature; that is explicitly not a 1.7 shape. Propagate turns one established marked permanent into a visible signal for the rest of the board, then makes that signal compound. It expresses living hulls, shared alien biology, and swarms that multiply without creating a second resource system. In the engine it is a single deterministic pass over existing marks and permanents, so a greedy AI can value it as immediate board growth rather than a multi-turn puzzle. Cards marked **(AI-risk)** ask for a future board state, delayed sequencing, or a threshold decision and are deliberately cuttable.
+**Propagate** is the set's new mechanic: **put another Mark on each Marked creature you control**. **Timing, ruled 2026-08-28: Propagate is a one-time event.** A spell Propagates when it resolves; a permanent Propagates on arrival (`arrives: Propagate`), and every permanent row below writes that trigger explicitly. **The single sanctioned exception is `sb-propagation-engine` (`dawn: Propagate`)** - the design-risk section budgets "a controlled number of repeatable Propagate sources" and this named card is that number: one. No other repeating timing exists in this set. A future set may add an activated form (a tap-cost Propagate) once activated abilities with tap costs ship as the 1.8 engine feature; that is explicitly not a 1.7 shape. Propagate turns one established Marked creature into a visible signal for the rest of the board, then makes that signal compound. It expresses living hulls, shared alien biology, and swarms that multiply without creating a second resource system. In the engine it is a single deterministic pass over existing Marks and creatures, so a greedy AI can value it as immediate board growth rather than a multi-turn puzzle. Cards marked **(AI-risk)** ask for a future board state, delayed sequencing, or a threshold decision and are deliberately cuttable.
 
 The set also uses live house vocabulary such as Foresee, Sever, Skim, marks, Sentinel, Skyborne, Warding Gaze, First Blade, Blood Oath, Deathblade, Untouchable, Warcry, and Overrun. Broodspawn is an identity package built from the existing token system, not a second new mechanic. The table is intentionally overplanned at 200 candidates so a later data pass can choose a strong 120-card shipment without weakening the common floor.
 
@@ -129,7 +130,7 @@ than discovering it in the metagame sweep.
 | sb-comet-kick-marauder | Comet-Kick Marauder | C | R | Creature, Marauder | {3}{R} | 4/3 | Overrun | Her boots leave impact craters in places the charts call floors. | core |
 | sb-starfire-lancer | Starfire Lancer | C | R | Creature, Soldier | {2}{R} | 3/2 | First Blade | Her lance is a solar flare taught to hold still. | flex |
 | sb-orbit-breaker | Orbit Breaker | C | R | Creature, Brute | {4}{R} | 4/4 | arrives: damage target creature 2 | She considers every orbit a personal insult. | core |
-| sb-burning-hull-runner | Burning Hull Runner | C | R | Creature, Alien Runner | {2}{R} | 2/2 | gets +1/+0 while you control a marked permanent | She runs along the outside of the ship because the inside is boring. | flex |
+| sb-burning-hull-runner | Burning Hull Runner | C | R | Creature, Alien Runner | {2}{R} | 2/2 | gets +1/+0 while you control a Marked creature | She runs along the outside of the ship because the inside is boring. | flex |
 | sb-mycelial-star-gardener | Mycelial Star Gardener | C | G | Creature, Alien Druid | {1}{G} | 2/2 | arrives: add a mark to another target creature | She plants living constellations in the ship's hydroponics deck. | core |
 | sb-cometroot-grafter | Cometroot Grafter | C | G | Creature, Engineer | {3}{G} | 3/3 | your marked creatures get +1/+0 | She grafts alien roots to chrome and calls the result a garden. | flex |
 | sb-voidvine-tender | Voidvine Tender | C | G | Creature, Alien Gardener | {2}{G} | 2/3 | arrives: gainLife 2 | She waters vines with captured moonlight. | core |
@@ -166,7 +167,7 @@ than discovering it in the metagame sweep.
 | sb-starborne-relay | Starborne Relay | SR | C | Artifact | {6} | None | arrives: draw 1; dawn: Foresee 1; dawn: if you control four or more creatures with marks, draw 1 | It carries a message from every deck and forgets none of them. | core |
 | sb-null-orbit-array | Null-Orbit Array | C | C | Ritual | {1} | None | Skim {2}; Foresee 1 | Its one job is to make the impossible route look routine. | flex |
 | sb-interstellar-crossing | Interstellar Crossing | C | C | Land | None | None | entersTapped; manaAbility C | The crossing takes three days if you walk and one blink if you trust it. | core |
-| sb-violet-wake-beacon | Violet Wake Beacon | SSR | C | Artifact | {7} | None | arrives: createToken Nebula Firefly; dawn: if you control a marked permanent, createToken Nebula Firefly | Its pulse is a welcome, a warning, and a dinner bell. | flex |
+| sb-violet-wake-beacon | Violet Wake Beacon | SSR | C | Artifact | {7} | None | arrives: createToken Nebula Firefly; dawn: if you control a Marked creature, createToken Nebula Firefly | Its pulse is a welcome, a warning, and a dinner bell. | flex |
 
 ### Rares
 
@@ -177,7 +178,7 @@ than discovering it in the metagame sweep.
 | sb-chrome-choir-envoy | Chrome Choir Envoy | R | W | Creature, Alien Diplomat | {2}{W} | 2/3 | Skyborne; your other marked creatures get +1/+0 | She sings harmony into engines that were designed for war. | core |
 | sb-aurora-line-captain | Aurora-Line Captain | R | W | Creature, Commander | {4}{W} | 4/4 | Sentinel; arrives: boost all your creatures +1/+0 until end of turn | Her command is a sunrise that nobody argues with. | core |
 | sb-velvet-void-cartographer | Velvet Void Cartographer | R | U | Creature, Navigator | {2}{U} | 2/3 | arrives: Foresee 2; Skim {1} | Her maps are soft, precise, and illegal in four systems. | core |
-| sb-astral-biomancer | Astral Biomancer | R | U | Creature, Alien Mage | {4}{U} | 3/4 | arrives: if a permanent you control is marked, put a mark on another target permanent you control; Foresee 1 | She grows new organs for ships that have outlived their owners. | flex |
+| sb-astral-biomancer | Astral Biomancer | R | U | Creature, Alien Mage | {4}{U} | 3/4 | arrives: if you control a Marked creature, put a Mark on another target creature you control; Foresee 1 | She grows new organs for ships that have outlived their owners. | flex |
 | sb-tideglass-archivist | Tideglass Archivist | R | U | Creature, Archivist | {3}{U} | 2/4 | arrives: draw 1, then grind self 1 | Every archive has a tide. She waits for the useful things to wash in. | core |
 | sb-void-choir-reclaimer | Void Choir Reclaimer | R | B | Creature, Alien Singer | {3}{B} | 3/3 | Deathblade; when this dies: grind self 2 | Her last note is always the first note of something worse. | core |
 | sb-eclipse-garden-devourer | Eclipse Garden Devourer | R | B | Creature, Alien Beast | {3}{B} | 4/4 | Blood Oath | It blooms under a dead sun and feeds on anything that applauds. | core |
@@ -234,8 +235,8 @@ than discovering it in the metagame sweep.
 | sb-worldroot-shipmind | Worldroot Shipmind | SSR | G | Legendary Creature, Starship | {7}{G} | 5/6 | arrives: Propagate, createToken Broodling x2 | The ship grew a mind so large that the crew became its weather. | core |
 | sb-chrome-violet-archon | Chrome-Violet Archon | SSR | W/U | Legendary Creature, Alien Archon | {5}{W}{U} | 5/5 | Skyborne; marked creatures you control have Sentinel | She was born in a flash of chrome and immediately issued a safety protocol. | core |
 | sb-voidflare-empress | Voidflare Empress | SSR | B/R | Legendary Creature, Alien Empress | {5}{B}{R} | 5/4 | Dreaded, Warcry; whenever a creature you control gets a mark, opponent losesLife 1 | Her court follows wherever the signal becomes dangerous. | flex |
-| sb-signal-cathedral | Signal Cathedral | SSR | C | Legendary Artifact | {5} | None | dawn: Foresee 2; if you control 5 or more marked permanents, draw 1 (AI-risk) | The cathedral is a receiver built for a god that may be the ship. | stretch |
-| sb-propagation-choir | Propagation Choir | SSR | G | Enchantment | {4}{G} | None | whenever you add a mark to a permanent, gainLife 1 and createToken Broodling (AI-risk) | The first singer starts the chorus. The hull supplies the harmony. | flex |
+| sb-signal-cathedral | Signal Cathedral | SSR | C | Legendary Artifact | {5} | None | dawn: Foresee 2; if you control 5 or more creatures with Marks, draw 1 (AI-risk) | The cathedral is a receiver built for a god that may be the ship. | stretch |
+| sb-propagation-choir | Propagation Choir | SSR | G | Enchantment | {4}{G} | None | whenever you add a Mark to a creature, gainLife 1 and createToken Broodling (AI-risk) | The first singer starts the chorus. The hull supplies the harmony. | flex |
 | sb-starborne-apotheosis | Starborne Apotheosis | SSR | W | Ritual | {6}{W} | None | Propagate; gainLife 5; boost all your marked creatures +1/+1 | The crew does not ascend. The whole ship rises with them. | core |
 | sb-redline-supernova | Redline Supernova | SSR | R | Ritual | {2}{R} | None | damage each creature 3; a creature damaged this way that would die this turn is severed instead | The detonation is visible from three systems and remembered in four. | core |
 
@@ -308,7 +309,7 @@ reskins. It also thickens the enabler layer the colour audit called for.
 
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| sb-quiet-orbit | Quiet Orbit | C | U | Charm | {1}{U}{U} | None | cancel target spell; move a mark from a permanent you control to another permanent you control | The silence between two signals is where she does her work. | core |
+| sb-quiet-orbit | Quiet Orbit | C | U | Charm | {1}{U}{U} | None | cancel target spell; move a Mark from a creature you control to another creature you control | The silence between two signals is where she does her work. | core |
 | sb-marrow-eviction | Marrow Eviction | C | B | Charm | {1}{B} | None | target creature gets -2/-2 until end of turn; if it is marked, it gets -4/-4 instead | What the hull grew, the dark unmakes first. | core |
 
 Was: a plain `{2}{U}` cancel identical to Signal Bridge, and a plain `{1}{B}`
@@ -319,7 +320,7 @@ to marks, which is the one thing no shipped card can already be.
 
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| sb-signal-drown | Signal Drown | C | U | Charm | {3}{U}{U} | None | cancel target spell; if you control a marked permanent, draw a card | Her answer arrives before the question finishes forming. | core |
+| sb-signal-drown | Signal Drown | C | U | Charm | {3}{U}{U} | None | cancel target spell; if you control a Marked creature, draw a card | Her answer arrives before the question finishes forming. | core |
 | sb-collapse-the-lane | Collapse the Lane | R | U | Charm | {3}{U} | None | cancel target spell, then Foresee 2 | The lane was there a moment ago. She is certain of it. | flex |
 
 ### Bulwark, as hull and station
@@ -328,7 +329,7 @@ to marks, which is the one thing no shipped card can already be.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | sb-drydock-carapace | Drydock Carapace | C | W | Creature, Starship | {1}{W} | 0/4 | Bulwark; arrives: add a mark to this | It was grown around the dock, and now the dock is part of it. | core |
 | sb-hullplate-bastion | Hullplate Bastion | C | G | Creature, Alien Warden | {2}{G} | 1/5 | Bulwark; arrives: add a mark to another target creature | She feeds the garden first and the guns second. | core |
-| sb-static-reef | Static Reef | R | U | Creature, Alien Reef | {3}{U} | 2/6 | Bulwark; whenever a permanent you control becomes marked, Foresee 1 | The reef hears every new signal before its crew does. | flex |
+| sb-static-reef | Static Reef | R | U | Creature, Alien Reef | {3}{U} | 2/6 | Bulwark; whenever a creature you control becomes Marked, Foresee 1 | The reef hears every new signal before its crew does. | flex |
 | sb-ossuary-gate | Ossuary Gate | R | B | Creature, Starship | {2}{B} | 1/4 | Bulwark; marked creatures your opponent controls get -1/-0 | The gate remembers what the light did to it. | flex |
 
 ### Twin Blades, as paired light
@@ -348,7 +349,7 @@ echoes and relayed light already means "it comes back" in its own vocabulary.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | sb-relay-bloom | Relay Bloom | C | G | Charm | {1}{G} | None | add a mark to target creature; Retell {2}{G} | The garden repeats what it liked hearing. | core |
 | sb-echo-burst | Echo Burst | C | R | Charm | {1}{R} | None | deal 2 damage to any target; Retell {2}{R} | The shot arrives twice because the corridor insisted. | core |
-| sb-signal-recall | Signal Recall | C | U | Charm | {1}{U} | None | move a mark from a permanent you control to another permanent you control; Retell {2}{U} | She files the light somewhere safer. | core |
+| sb-signal-recall | Signal Recall | C | U | Charm | {1}{U} | None | move a Mark from a creature you control to another creature you control; Retell {2}{U} | She files the light somewhere safer. | core |
 | sb-void-lament | Void Lament | C | B | Charm | {1}{B} | None | target creature gets -1/-1 until end of turn; if it is marked, -3/-3 instead; Retell {2}{B} | The dark learned the song and sings it back wrong. | flex |
 | sb-hullsong | Hullsong | C | W | Charm | {1}{W} | None | target creature gets +1/+1 until end of turn and gains Sentinel; Retell {2}{W} | The ship hums, and the watch does not sleep. | flex |
 
@@ -361,7 +362,7 @@ Every entry respects the printed-plus-Empower ceiling of 9.
 | sb-bloomdrive-surge | Bloomdrive Surge | R | G | Ritual | {2}{G} | None | add a mark to up to two target creatures; Empower {2}{G}: Propagate | Feed the drive enough light and the whole garden answers. | core |
 | sb-overcharge-the-hull | Overcharge the Hull | C | R | Charm | {1}{R} | None | deal 3 damage to target creature; Empower {2}{R}: this deals 2 damage to your opponent | The reactor was never rated for her temper. | core |
 | sb-lumen-refit | Lumen Refit | R | W | Creature, Starship | {2}{W} | 3/3 | Bulwark; Empower {2}{W}: add a mark to this | Refit in the light of a dying sun, and better for it. | flex |
-| sb-tidewalk-analyst | Tidewalk Analyst | R | U | Creature, Alien Analyst | {3}{U} | 2/4 | Empower {3}{U}: move a mark from a permanent you control to another permanent you control | She reads the tide as a filing problem. | flex |
+| sb-tidewalk-analyst | Tidewalk Analyst | R | U | Creature, Alien Analyst | {3}{U} | 2/4 | Empower {3}{U}: move a Mark from a creature you control to another creature you control | She reads the tide as a filing problem. | flex |
 | sb-eclipse-tithe | Eclipse Tithe | R | B | Charm | {2}{B} | None | remove all marks from target creature; Empower {2}{B}: your opponent loses 2 life | Everything the light gave, the eclipse counts back. | core |
 
 ### Rite and Quest, unlocked 2026-08-25
@@ -440,7 +441,7 @@ Neither blue nor black generates a single mark, which is the point.
 
 ## Precon Identity
 
-**Chrome-Violet Broodship** is a G/U/R midrange swarm precon. It plays efficient two- and three-cost bodies, establishes one or two marked permanents, then uses Propagate, Broodling bodies, and Lumen Drones to turn a modest board into a wide attack. Green supplies marks and durable bodies, blue filters with Foresee and protects tempo with recall, and red supplies direct damage plus Warcry and Overrun finishers. The deck must retain a real answer package at common, including Sever effects, damage, cancel, recall, and combat prevention, so its win route is pressure backed by interaction rather than a slow value loop.
+**Chrome-Violet Broodship** is a G/U/R midrange swarm precon. It plays efficient two- and three-cost bodies, establishes one or two Marked creatures, then uses Propagate, Broodling bodies, and Lumen Drones to turn a modest board into a wide attack. Green supplies marks and durable bodies, blue filters with Foresee and protects tempo with recall, and red supplies direct damage plus Warcry and Overrun finishers. The deck must retain a real answer package at common, including Sever effects, damage, cancel, recall, and combat prevention, so its win route is pressure backed by interaction rather than a slow value loop.
 
 ## Gauntlet Boss Concepts
 
@@ -456,7 +457,7 @@ Neither blue nor black generates a single mark, which is the point.
 3. **sb-orbit-breaker, Orbit Breaker** - common red body with immediate creature damage and honest stats.
 4. **sb-mycelial-star-gardener, Mycelial Star Gardener** - common mark starter that makes green's plan playable without setup cards.
 5. **sb-green-propagation-chorus, Green Propagation Chorus** - rare spell that turns Propagate into a clean build-around instead of a hidden bonus.
-6. **sb-chrome-aurora-commandant, Chrome-Aurora Commandant** - rare multicolor payoff that rewards marked permanents without requiring a combo.
+6. **sb-chrome-aurora-commandant, Chrome-Aurora Commandant** - rare multicolor payoff that rewards Marked creatures without requiring a combo.
 7. **sb-rootlight-broodmother, Rootlight Broodmother** - SR marquee that joins efficient board growth to the token swarm.
 8. **sb-queen-of-the-living-hull, Queen of the Living Hull** - SSR identity card for the living-starship fantasy and the W midrange branch.
 9. **sb-worldroot-shipmind, Worldroot Shipmind** - SSR green legend that makes a full board feel like one organism.

@@ -644,7 +644,7 @@ export const THEME_DECKS: DeckList[] = [
   {
     id: 'theme-starborne',
     name: 'Chrome-Violet Broodship',
-    // Chrome-Violet Broodship — G/U/R Starborne midrange swarm: efficient bodies establish one or two marked permanents, Propagate and Broodlings turn a modest board wide, blue filters with Foresee and answers with recall and cancel, red finishes with damage and Overrun.
+    // Chrome-Violet Broodship: G/U/R Starborne midrange swarm. Efficient bodies establish one or two Marked creatures, Propagate and Broodlings turn a modest board wide, blue filters with Foresee and answers with recall and cancel, red finishes with damage and Overrun.
     cards: expand([
       ['land-forest', 8],
       ['land-island', 6],

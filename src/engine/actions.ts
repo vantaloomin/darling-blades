@@ -353,7 +353,7 @@ function validateTargetList(
           state.battlefield.find((perm) => perm.iid === target.iid)?.controller !== player;
       }) ||
       sameTarget(targets[moveIndexes[0]], targets[moveIndexes[1]])
-    ) return 'moveMark needs two distinct permanents you control';
+    ) return 'moveMark needs two distinct creatures you control';
   }
   return null;
 }

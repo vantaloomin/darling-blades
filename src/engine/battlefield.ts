@@ -1,7 +1,7 @@
 import type { GameEvent } from './events';
 import { DARLING_TAX_STEP } from '../config/rules';
 import type { CardDb, CardEntry, CardInstance, GameState, Permanent, PlayerId } from './types';
-import { cardIdOf, def, isCardInstance, variantKeyOf } from './types';
+import { cardIdOf, def, isCardInstance, isType, variantKeyOf } from './types';
 
 export type Emit = (e: GameEvent) => void;
 export type GraveyardEntry = (card: CardEntry, owner: PlayerId) => void;
@@ -57,7 +57,7 @@ export function enterBattlefield(
     severBranded: false,
     attachments: [],
     attachedTo: opts.attachedTo,
-    plusOneCounters: opts.plusOneCounters ?? 0,
+    plusOneCounters: isType(d, 'creature') ? opts.plusOneCounters ?? 0 : 0,
     untilEotMods: [],
   };
   state.battlefield.push(perm);

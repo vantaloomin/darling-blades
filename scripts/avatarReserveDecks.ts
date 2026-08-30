@@ -92,7 +92,7 @@ function isEligibleSpell(card: CardDef | undefined): card is CardDef {
  * are effectively always live here; artifacts and enchantments are not.
  * `yourPermanent` is broad because a play context always has permanents the
  * controller can target, and `other` composes as a source-exclusion qualifier.
- * `marked` is a separate supply capability, while `tapped` needs no capability
+ * `marked` is a separate creature-mark supply capability, while `tapped` needs no capability
  * gate because any permanent can become tapped.
  */
 const NARROW_TARGETS: Record<TargetSpec['what'], boolean> = {
@@ -146,9 +146,16 @@ function effectOpsOf(card: CardDef): EffectOp[] {
 
 function canGenerateMarks(card: CardDef | undefined): boolean {
   if (!card) return false;
-  // Propagate only reaches permanents that are already marked, and moveMark
+  // Propagate only reaches creatures that are already marked, and moveMark
   // is net-zero. Neither one creates the first mark this supply walk needs.
-  return effectOpsOf(card).some((op) => op.op === 'addCounters' || op.op === 'markAll');
+  const createsSelfMark = card.types.includes('creature') && effectOpsOf(card).some(
+    (op) => op.op === 'addCounters' && op.to === 'self',
+  );
+  const createsTargetMark = (card.abilities ?? []).some((ability) =>
+    (ability.targets ?? []).some((target) => target.what === 'creature' || target.what === 'yourCreature') &&
+    (ability.ops ?? []).some((op) => op.op === 'addCounters' && op.to === 'target'),
+  );
+  return createsSelfMark || createsTargetMark || effectOpsOf(card).some((op) => op.op === 'markAll');
 }
 
 /**

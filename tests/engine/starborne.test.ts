@@ -100,7 +100,7 @@ const DB: CardDb = {
     defense: 2,
     abilities: [{
       when: 'arrives',
-      targets: [{ what: 'yourPermanent', other: true }],
+      targets: [{ what: 'yourCreature', other: true }],
       ops: [{ op: 'addCounters', n: 1, to: 'target' }],
     }],
   }),
@@ -116,6 +116,14 @@ const DB: CardDb = {
       when: 'spell',
       targets: [{ what: 'yourPermanent' }],
       ops: [{ op: 'addCounters', n: 1, to: 'target' }],
+    }],
+  }),
+  markedPermanentTarget: card('markedPermanentTarget', ['charm'], {
+    cost: ZERO,
+    abilities: [{
+      when: 'spell',
+      targets: [{ what: 'yourPermanent', marked: true }],
+      ops: [{ op: 'removeMarks', to: 'target' }],
     }],
   }),
   theirMarkedDebuff: card('theirMarkedDebuff', ['charm'], {
@@ -308,7 +316,7 @@ const DB: CardDb = {
     cost: ZERO,
     abilities: [{
       when: 'spell',
-      targets: [{ what: 'spell' }, { what: 'yourPermanent' }, { what: 'yourPermanent' }],
+      targets: [{ what: 'spell' }, { what: 'yourCreature' }, { what: 'yourCreature' }],
       ops: [{ op: 'cancel', to: 'target' }, { op: 'moveMark' }],
     }],
   }),
@@ -610,6 +618,17 @@ describe('Starborne targeted arrival and spell targets', () => {
     expect(game.state.battlefield.some((perm) => perm.iid === 1)).toBe(false);
   });
 
+  it('rejects noncreatures from marked target qualifiers', () => {
+    const game = gameWithHand(['markedPermanentTarget'], [
+      permanent(1, 'artifactWatcher', 0, 1),
+      permanent(2, 'bear', 0, 1),
+    ]);
+    const actions = game.legalActions(0).filter(
+      (action): action is Extract<typeof action, { type: 'castSpell' }> => action.type === 'castSpell',
+    );
+    expect(actions).toEqual([{ type: 'castSpell', handIndex: 0, targets: [ref(2)] }]);
+  });
+
   it('filters tapped spell targets and rejects the untapped permanent', () => {
     const game = gameWithHand(['tappedTarget'], [
       permanent(1, 'bear'),
@@ -664,7 +683,7 @@ describe('Stage-4 vocabulary completion', () => {
       'Whenever a creature you control gets a Mark, you gain 1 life.',
     );
     expect(rulesText(DB.biomancer)).toBe(
-      'When this arrives, Mark another target permanent you control.',
+      'When this arrives, Mark another target creature you control.',
     );
     expect(rulesText(DB.theirMarkedDebuff)).toBe(
       'Marked creatures your opponent controls get -2/-2 until end of turn.',
@@ -699,7 +718,7 @@ describe('Stage-4 vocabulary completion', () => {
     expect(opponent.state.battlefield.find((perm) => perm.cardId === 'plainArrival')?.plusOneCounters).toBe(0);
   });
 
-  it('uses the arriving creature as an automatic target context and targets any friendly permanent with other', () => {
+  it('uses the arriving creature as an automatic target context and targets another friendly creature', () => {
     const game = gameWithHand(['biomancer'], [permanent(1, 'bear'), permanent(2, 'cLand')]);
     game.submit(0, { type: 'castSpell', handIndex: 0 });
     const source = game.state.battlefield.find((perm) => perm.cardId === 'biomancer')!;
@@ -708,21 +727,30 @@ describe('Stage-4 vocabulary completion', () => {
       kind: 'chooseTarget',
       sourceIid: source.iid,
       abilityIndex: 0,
-      targets: [ref(1), ref(2)],
+      targets: [ref(1)],
     });
-    game.submit(0, { type: 'chooseTarget', target: ref(2) });
-    expect(game.state.battlefield.find((perm) => perm.iid === 2)?.plusOneCounters).toBe(1);
+    expect(() => game.submit(0, { type: 'chooseTarget', target: ref(2) })).toThrow('illegal target');
+    game.submit(0, { type: 'chooseTarget', target: ref(1) });
+    expect(game.state.battlefield.find((perm) => perm.iid === 1)?.plusOneCounters).toBe(1);
     expect(source.plusOneCounters).toBe(0);
   });
 
-  it('fires yourCreatureMarked for creatures but not marked lands', () => {
+  it('fires creature mark observers for creatures but not marked lands', () => {
     const land = gameWithHand(['markPermanent'], [
       permanent(1, 'creatureMarkObserver'),
       permanent(2, 'cLand'),
     ]);
     const landEvents = land.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(2)] });
     expect(land.state.players[0].life).toBe(20);
+    expect(land.state.battlefield.find((perm) => perm.iid === 2)?.plusOneCounters).toBe(0);
     expect(landEvents.some((event) => event.e === 'triggerFired' && event.when === 'yourCreatureMarked')).toBe(false);
+
+    const legacy = gameWithHand(['markPermanent'], [
+      permanent(1, 'markedObserver'),
+      permanent(2, 'cLand'),
+    ]);
+    const legacyEvents = legacy.submit(0, { type: 'castSpell', handIndex: 0, targets: [ref(2)] });
+    expect(legacyEvents.some((event) => event.e === 'triggerFired' && event.when === 'yourPermanentMarked')).toBe(false);
 
     const creature = gameWithHand(['markPermanent'], [
       permanent(1, 'creatureMarkObserver'),
@@ -957,12 +985,16 @@ describe('Starborne mark events and statics', () => {
     expect(getEffectiveStats(recompute.state.battlefield, DB, 2).keywords.has('sentinel')).toBe(false);
   });
 
-  it('runs controlMarked and parameterized markedThreshold conditions', () => {
+  it('runs creature-scoped controlMarked and markedThreshold conditions', () => {
     const arrival = gameWithHand(['controlMarked'], [permanent(1, 'bear', 0, 1)]);
     arrival.submit(0, { type: 'castSpell', handIndex: 0 });
     expect(arrival.state.players[0].life).toBe(22);
 
-    expect(rulesText(DB.threshold)).toContain('If you control five or more Marked permanents, ');
+    const markedArtifact = gameWithHand(['controlMarked'], [permanent(1, 'artifactWatcher', 0, 1)]);
+    markedArtifact.submit(0, { type: 'castSpell', handIndex: 0 });
+    expect(markedArtifact.state.players[0].life).toBe(20);
+
+    expect(rulesText(DB.threshold)).toContain('If you control five or more creatures with Marks, ');
     expect(rulesText(DB.thresholdCreatures)).toContain('If you control four or more creatures with Marks, ');
 
     const permanentThreshold = makeTestState({ battlefield: [
@@ -971,7 +1003,7 @@ describe('Starborne mark events and statics', () => {
       permanent(6, 'threshold'),
     ] });
     fireTriggers(permanentThreshold, DB, () => {}, 'dawn', permanentThreshold.battlefield[5]);
-    expect(permanentThreshold.players[0].life).toBe(23);
+    expect(permanentThreshold.players[0].life).toBe(20);
 
     const creatureThreshold = makeTestState({ battlefield: [
       ...Array.from({ length: 4 }, (_, i) => permanent(i + 1, 'bear', 0, 1)),

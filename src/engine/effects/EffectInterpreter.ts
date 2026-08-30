@@ -157,8 +157,8 @@ function fireMarkTriggers(
         : marked !== undefined && (
             (ab.when === 'gainsMark' && source.iid === marked.iid) ||
             (ab.when === 'yourCreatureMarked' && markedIsCreature && source.controller === marked.controller) ||
-            (ab.when === 'yourPermanentMarked' && source.controller === marked.controller) ||
-            (ab.when === 'youAddMark' && source.controller === actor) ||
+            (ab.when === 'yourPermanentMarked' && markedIsCreature && source.controller === marked.controller) ||
+            (ab.when === 'youAddMark' && markedIsCreature && source.controller === actor) ||
             (ab.when === 'otherCreatureMarked' && markedIsCreature && source.iid !== marked.iid)
           );
       if (!matches || !ab.ops) continue;
@@ -193,6 +193,7 @@ function addMarks(
   markEventAbilities: boolean,
   depth = 0,
 ): void {
+  if (!isType(def(db, perm.cardId), 'creature')) return;
   if (!markEventAbilities) {
     perm.plusOneCounters += n;
     return;
@@ -223,12 +224,18 @@ export function conditionSatisfied(
   if (condition === undefined) return true;
   if (condition === 'questActive') return isQuestActive(state.battlefield, db, controller);
   if (condition === 'controlMarked') {
-    return state.battlefield.some((perm) => perm.controller === controller && perm.plusOneCounters > 0);
+    // The condition name is retained for replay compatibility, but Marks are
+    // now creature-scoped throughout the engine.
+    return state.battlefield.some((perm) =>
+      perm.controller === controller &&
+      perm.plusOneCounters > 0 &&
+      isType(def(db, perm.cardId), 'creature'),
+    );
   }
   const marked = state.battlefield.filter(
     (perm) => perm.controller === controller &&
       perm.plusOneCounters > 0 &&
-      (condition.subject === 'permanents' || isType(def(db, perm.cardId), 'creature')),
+      isType(def(db, perm.cardId), 'creature'),
   );
   return marked.length >= condition.n;
 }
@@ -461,13 +468,13 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     }
     case 'propagate': {
-      // Compounds marks; it never starts one. A permanent sitting at zero marks
-      // is skipped, which is the whole point of the mechanic: Propagate scales
-      // with a marked board you already built and does nothing on a bare one.
-      // "Permanent", not "creature" — a marked artifact, enchantment or land
-      // grows too. Yours only, and no target, so there is no choice to make.
+      // Puts one more Mark on each already-Marked creature you control.
+      // A creature at zero Marks is skipped, so Propagate never starts one.
+      // Yours only, and no target, so there is no choice to make.
       const marked = state.battlefield.filter(
-        (perm) => perm.controller === ctx.controller && perm.plusOneCounters > 0,
+        (perm) => perm.controller === ctx.controller &&
+          perm.plusOneCounters > 0 &&
+          isType(def(db, perm.cardId), 'creature'),
       );
       const markEventAbilities = markEventAbilitiesIn(db).any;
       for (const perm of marked) {
@@ -496,6 +503,8 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         from.iid === to.iid ||
         from.controller !== ctx.controller ||
         to.controller !== ctx.controller ||
+        !isType(def(db, from.cardId), 'creature') ||
+        !isType(def(db, to.cardId), 'creature') ||
         from.plusOneCounters <= 0
       ) return;
       from.plusOneCounters -= 1;
@@ -578,7 +587,11 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
             targetBatch: false,
             targetOwners: [ctx.targetOwners?.[index]],
           },
-          target?.plusOneCounters && target.plusOneCounters > 0 ? op.then : (op.else ?? []),
+          target &&
+          isType(def(db, target.cardId), 'creature') &&
+          target.plusOneCounters > 0
+            ? op.then
+            : (op.else ?? []),
         );
       }
       return;
@@ -978,7 +991,7 @@ export function fireMarkedAllyAttackTriggers(
   emit: Emit,
   attacker: Permanent,
 ): void {
-  if (attacker.plusOneCounters <= 0) return;
+  if (!isType(def(db, attacker.cardId), 'creature') || attacker.plusOneCounters <= 0) return;
   if (!markEventAbilitiesIn(db).markedAllyAttacks) return;
   for (const holder of [...state.battlefield]) {
     if (

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { runOps } from '../../src/engine/effects/EffectInterpreter';
 import { Game } from '../../src/engine/Game';
+import { getEffectiveStats } from '../../src/engine/statics';
 import type { CardDb, GameState, Permanent } from '../../src/engine/types';
 import { makeTestState, TEST_DB } from '../helpers';
 
 /**
- * Propagate is one printed sentence: "put another mark on each marked permanent
+ * Propagate is one printed sentence: "put another Mark on each Marked creature
  * you control." Each spec below pins exactly one clause of it, because every
- * clause was a deliberate choice — "marked" (it compounds, it never creates),
- * "permanent" (not creature), "you control" (no opponent's board), and the
+ * clause was a deliberate choice: "Marked" (it compounds, it never creates),
+ * "creature" (noncreature permanents cannot carry marks), "you control" (no opponent's board), and the
  * absent target (so the AI has no decision to make).
  */
 
@@ -49,7 +50,7 @@ function propagate(battlefield: Partial<Permanent>[]): GameState {
 }
 
 describe('propagate', () => {
-  it('changes nothing anywhere when you control no marked permanent', () => {
+  it('changes nothing anywhere when you control no Marked creature', () => {
     const before = makeTestState({
       battlefield: [
         { iid: 1, cardId: 'bear', controller: 0, plusOneCounters: 0 },
@@ -65,7 +66,7 @@ describe('propagate', () => {
     expect(after).toEqual(before);
   });
 
-  it('gives each of three marked permanents exactly ONE more mark, not two', () => {
+  it('gives each of three Marked creatures exactly ONE more Mark, not two', () => {
     const state = propagate([
       { iid: 1, cardId: 'bear', controller: 0, plusOneCounters: 1 },
       { iid: 2, cardId: 'knight', controller: 0, plusOneCounters: 2 },
@@ -75,7 +76,7 @@ describe('propagate', () => {
     expect(marks(state)).toEqual({ 1: 2, 2: 3, 3: 6 });
   });
 
-  it('never touches a permanent at zero marks, so it can create nothing', () => {
+  it('never touches a creature at zero Marks, so it can create nothing', () => {
     const state = propagate([
       { iid: 1, cardId: 'bear', controller: 0, plusOneCounters: 0 },
       { iid: 2, cardId: 'knight', controller: 0, plusOneCounters: 1 },
@@ -85,7 +86,7 @@ describe('propagate', () => {
     expect(marks(state)).toEqual({ 1: 0, 2: 2, 3: 0 });
   });
 
-  it('leaves an opponent\'s marked permanent alone', () => {
+  it('leaves an opponent\'s Marked creature alone', () => {
     const state = propagate([
       { iid: 1, cardId: 'bear', controller: 0, plusOneCounters: 1 },
       { iid: 2, cardId: 'giant', controller: 1, plusOneCounters: 3 },
@@ -95,14 +96,15 @@ describe('propagate', () => {
     expect(marks(state)).toEqual({ 1: 2, 2: 3, 3: 1 });
   });
 
-  it('grows a marked NON-creature permanent, because the word is "permanent"', () => {
+  it('does not grow marked noncreature permanents', () => {
     const state = propagate([
       { iid: 1, cardId: 'pacifism_aura', controller: 0, plusOneCounters: 1 },
       { iid: 2, cardId: 'forest', controller: 0, plusOneCounters: 2 },
       { iid: 3, cardId: 'bear', controller: 0, plusOneCounters: 1 },
     ]);
 
-    expect(marks(state)).toEqual({ 1: 2, 2: 3, 3: 2 });
+    expect(marks(state)).toEqual({ 1: 1, 2: 2, 3: 2 });
+    expect(getEffectiveStats(state.battlefield, TEST_DB, 1)).toMatchObject({ attack: 0, defense: 0 });
   });
 
   it('takes no target, so it is legal as a Foresee continuation', () => {
@@ -133,7 +135,7 @@ describe('propagate', () => {
 
     runOps(state, TEST_DB, (e) => events.push(e), ctx, PROPAGATE);
 
-    // Marks are read back off the permanent, exactly as addCounters marks are,
+    // Marks are read back off the creature, exactly as addCounters marks are,
     // so presentation needs no new event to animate the change.
     expect(events).toEqual([{ e: 'effectApplied', op: 'propagate' }]);
     expect(state.battlefield[0].plusOneCounters).toBe(2);
@@ -163,10 +165,10 @@ describe('propagate', () => {
     const b = propagate(board());
 
     expect(structuredClone(a.battlefield)).toEqual(structuredClone(b.battlefield));
-    expect(marks(a)).toEqual({ 1: 2, 2: 0, 3: 3, 4: 3 });
+    expect(marks(a)).toEqual({ 1: 2, 2: 0, 3: 2, 4: 3 });
   });
 
-  it('compounds when run twice, doubling a single mark into three', () => {
+  it('compounds when run twice, doubling a single Mark into three', () => {
     const state = makeTestState({
       battlefield: [
         { iid: 1, cardId: 'bear', controller: 0, plusOneCounters: 1 },
