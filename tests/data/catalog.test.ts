@@ -356,16 +356,16 @@ describe('catalog integrity', () => {
   });
 
   it('every multicolor nonland card is legendary (owner-granted exceptions listed)', () => {
-    // Owner rulings 2026-08-29: two named non-legendary multicolour exceptions
-    // where the dual identity IS the flavour. Adding a name here is a ruling.
-    const MULTICOLOR_EXCEPTIONS = new Set(['sd-harvest-after-rain', 'gm-grave-rose-garden']);
+    // Owner rulings 2026-08-29: named non-legendary multicolour exceptions
+    // where the dual identity IS the flavour (harvest-after-rain,
+    // grave-rose-garden) or the ruled cost shape is multicolour at common
+    // (orbital-cleansing {1}{W}{B}). Adding a name here is a ruling.
+    const MULTICOLOR_EXCEPTIONS = new Set([
+      'sd-harvest-after-rain', 'gm-grave-rose-garden', 'sb-orbital-cleansing',
+    ]);
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.colors.length < 2) continue;
-<<<<<<< HEAD
-      if (card.id === 'sb-orbital-cleansing') continue;
-=======
       if (MULTICOLOR_EXCEPTIONS.has(card.id)) continue;
->>>>>>> feat/assay-card-slate
       expect(
         (card.supertypes ?? []).includes('legendary'),
         `${card.id} is multicolor and must be legendary`,

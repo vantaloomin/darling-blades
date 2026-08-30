@@ -19,7 +19,7 @@ exports[`greedy persona builder: 'attrition' > is deterministic for a fixed seed
     "threats": 16,
   },
   "total": 50,
-  "uniqueCards": 12,
+  "uniqueCards": 11,
 }
 `;
 
@@ -72,9 +72,9 @@ exports[`greedy persona builder: 'draw-go' > is deterministic for a fixed seed a
 exports[`greedy persona builder: 'midrange' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 16,
-    "late": 12,
-    "mid": 12,
+    "early": 13,
+    "late": 13,
+    "mid": 14,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,
@@ -88,7 +88,7 @@ exports[`greedy persona builder: 'midrange' > is deterministic for a fixed seed 
     "threats": 17,
   },
   "total": 50,
-  "uniqueCards": 11,
+  "uniqueCards": 12,
 }
 `;
 
