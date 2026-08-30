@@ -12,11 +12,14 @@ export const TK_OTHER = [
     types: ['creature'],
     subtypes: ['Warrior'],
     supertypes: ['legendary'],
-    cost: cost(2, 'RR'),
+    cost: cost(1, 'RR'),
     colors: ['R'],
     attack: 5,
     defense: 3,
-    keywords: ['warcry'],
+    keywords: ['twinBlades'],
+    // Owner ruling (round-1, v3.1): should also read "must attack each turn
+    // if able", but no vocabulary exists for that clause yet. Engine-lane
+    // note only; not applied here.
     abilities: [{ when: 'dawn', ops: [{ op: 'damage', n: 1, to: 'controller' }] }],
     rarity: 'ur',
     flavor: 'Among warriors, Lu Bu. Among steeds, Red Hare. Among tempers… run.',
@@ -27,7 +30,7 @@ export const TK_OTHER = [
     types: ['creature'],
     subtypes: ['Strategist'],
     supertypes: ['legendary'],
-    cost: cost(1, 'WB'),
+    cost: cost(0, 'WB'),
     colors: ['W', 'B'],
     attack: 1,
     defense: 3,

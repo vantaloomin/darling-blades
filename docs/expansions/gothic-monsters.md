@@ -28,7 +28,7 @@ _Concretion note (2026-07-17): the 2026-07-10 sketch used vocabulary the engine 
 | ID | Name | Rarity | Color | Type | Subject | Keywords / Ops | Role |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | gm-carmilla-crimson-host | Carmilla, Crimson Host | UR | B/R | Legendary Creature | Vampire countess | skyborne, dreaded; empower: arrives loseLife opponent 3 + gainLife 3 | Boss vampire finisher |
-| gm-bride-storm-crowned | The Bride, Storm-Crowned | UR | U/B | Legendary Creature | Stitched bride | deathblade; arrives: foresee 2; empower: arrives raise top | Science/grave marquee |
+| gm-bride-storm-crowned | The Storm-Crowned Bride | UR | U/B | Legendary Creature | Stitched bride | deathblade; arrives: foresee 2; empower: arrives raise top | Science/grave marquee |
 | gm-luna-wolf-matriarch | Luna, Wolf-Matriarch of the Moors | UR | R/G | Legendary Creature | Werewolf noble | dreaded, overrun, warcry | Aggro monster marquee |
 | gm-lenore-velvet-saint | Lenore, Velvet Saint | UR | W/B | Legendary Creature | Gothic saint/revenant | bloodoath, dreaded; arrives: severGrave opponent 3 | Aristocrat control |
 | gm-nocturne-manor | Nocturne Manor | SSR | B | Legendary Enchantment | Haunted estate | dawn: loseLife opponent 1 + gainLife 1; empower: arrives createToken Bat x2 | Set build-around |
@@ -122,7 +122,7 @@ _Changed from the original sketch (2026-07-17 concretion): (1) mono-colored 18 g
 The tower grows to 16 rungs; Gothic Monsters supplies the new summit pair (the Morgan/Artoria pattern: pressure below, control on top). Pairing approved by the user 2026-07-17.
 
 - **Carmilla, Crimson Host** - B/R vampire dreaded boss with lifedrain and heavy combat pressure. Planned rung 15.
-- **The Bride, Storm-Crowned** - U/B stitchwork control boss with empowered spells, reanimation, and artifact creatures. Planned rung 16.
+- **The Storm-Crowned Bride** - U/B stitchwork control boss with empowered spells, reanimation, and artifact creatures. Planned rung 16.
 
 ## Art-Bible Follow-Up Notes
 

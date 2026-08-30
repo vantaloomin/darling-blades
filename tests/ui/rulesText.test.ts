@@ -4,7 +4,7 @@ import type { CardDef } from '../../src/engine/types';
 import { MECHANIC_DEFINITIONS, rulesText, typeLine } from '../../src/ui/rulesText';
 
 const AURA_KEYWORD_TEXT = {
-  'en-wings-of-dawn': 'Enchanted Creature gets +1/+1, and gains Skyborne.',
+  'en-wings-of-dawn': 'Enchanted Creature gets +2/+2, and gains Skyborne, Sentinel.',
   'en-battle-fervor': 'Enchanted Creature gets +2/+0, and gains Warcry.',
   'rg-rune-of-fury': 'Enchanted Creature gets +2/+0, and gains Warcry.',
   'rg-rune-of-the-hunt': 'Enchanted Creature gets +2/+2, and gains Overrun.',
@@ -127,7 +127,7 @@ describe('Hauntlink rules text', () => {
 
   it('renders the battlefield link cost, Charm-speed move rule, rider, and host death', () => {
     const text = rulesText(CARD_DB['yn-hauntlink-apex']);
-    expect(text).toContain('Hauntlink {2}{U}:');
+    expect(text).toContain('Hauntlink {3}{U}:');
     expect(text).toContain('At Charm speed, link this to a creature you control or move it to another.');
     expect(text).toContain('gets +3/+3 and gains Skyborne, Untouchable');
     expect(text).toContain('This dies with its host.');
