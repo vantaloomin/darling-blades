@@ -188,7 +188,7 @@ function opText(
     case 'propagate':
       return 'Propagate';
     case 'moveMark':
-      return 'move a Mark from a permanent you control to another permanent you control';
+      return 'move a Mark from a creature you control to another creature you control';
     case 'removeMarks':
       return autoBoundTarget ? 'remove all Marks from it' : `remove all Marks from ${targetPhrase(target)}`;
     case 'markAll':
@@ -330,31 +330,21 @@ export function hauntlinkText(d: CardDef): string | undefined {
   return `Hauntlink ${manaCostText(d.hauntlink.cost)}: At Charm speed, link this to a creature you control or move it to another. Linked: The linked creature ${benefit}. This dies with its host.`;
 }
 
-function markedConditionSubject(d: CardDef, ab: AbilityDef): 'creature' | 'permanent' {
-  // The Beacon's condition gates a creature-token rider. Keep the engine's
-  // broad `controlMarked` condition unchanged while printing the owner-ruled
-  // creature-facing card copy for this rider.
-  const createsCreatureToken = ab.when === 'dawn' && (ab.ops ?? []).some((op) =>
-    op.op === 'createToken' && CARD_DB[op.token]?.types.includes('creature'),
-  );
-  return createsCreatureToken ? 'creature' : 'permanent';
-}
-
-function conditionPhrase(ab: AbilityDef, d: CardDef, additionalDawn = false): string | undefined {
+function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undefined {
   const condition = ab.condition ?? ab.static?.condition;
   if (condition === undefined) return undefined;
   if (condition === 'questActive') return 'While a Quest is active';
   const also = additionalDawn ? 'also ' : '';
   if (condition === 'controlMarked') {
-    return `If you ${also}control a Marked ${markedConditionSubject(d, ab)}`;
+    return `If you ${also}control a Marked creature`;
   }
-  return `If you ${also}control ${countWord(condition.n)} or more ${condition.subject === 'permanents' ? 'Marked permanents' : 'creatures with Marks'}`;
+  return `If you ${also}control ${countWord(condition.n)} or more creatures with Marks`;
 }
 
 function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string {
   const questCondition = (ab.condition ?? ab.static?.condition) === 'questActive';
   const conditionalArrival = questCondition && ab.when === 'arrives';
-  const condition = conditionalArrival ? undefined : conditionPhrase(ab, d, additionalDawn);
+  const condition = conditionalArrival ? undefined : conditionPhrase(ab, additionalDawn);
   if (ab.when === 'static' && ab.static) {
     const st = ab.static;
     const sign = (v: number | undefined): string => {
@@ -455,10 +445,10 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       sentence = `Whenever a creature you control gets a Mark, ${body}.`;
       break;
     case 'yourPermanentMarked':
-      sentence = `Whenever a permanent you control becomes Marked, ${body}.`;
+      sentence = `Whenever a creature you control becomes Marked, ${body}.`;
       break;
     case 'youAddMark':
-      sentence = `Whenever you add a Mark to a permanent, ${body}.`;
+      sentence = `Whenever you add a Mark to a creature, ${body}.`;
       break;
     case 'otherCreatureMarked':
       sentence = `Whenever another creature gets a Mark, ${body}.`;

@@ -56,6 +56,7 @@ function artifactOrEnchantmentTargetable(
 
 function satisfiesPermanentQualifiers(
   state: GameState,
+  db: CardDb,
   spec: TargetSpec,
   ref: TargetRef,
 ): boolean {
@@ -63,6 +64,10 @@ function satisfiesPermanentQualifiers(
   if (ref.kind !== 'permanent') return false;
   const perm = state.battlefield.find((candidate) => candidate.iid === ref.iid);
   if (!perm) return false;
+  // Marks are creature-scoped. Keep the qualifier name broad for replay and
+  // data compatibility, but never make a noncreature permanent a legal
+  // marked target.
+  if (spec.marked && !isType(def(db, perm.cardId), 'creature')) return false;
   if (spec.marked && perm.plusOneCounters <= 0) return false;
   if (spec.tapped && !perm.tapped) return false;
   return true;
@@ -127,7 +132,7 @@ export function isLegalTarget(
   }
   if (!legal) return false;
   if (!spec.marked && !spec.tapped && !spec.other) return true;
-  if (!satisfiesPermanentQualifiers(state, spec, ref)) return false;
+  if (!satisfiesPermanentQualifiers(state, db, spec, ref)) return false;
   return !spec.other || sourceIid === undefined || ref.kind !== 'permanent' || ref.iid !== sourceIid;
 }
 

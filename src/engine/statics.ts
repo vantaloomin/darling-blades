@@ -31,12 +31,17 @@ function staticConditionSatisfied(
   if (condition === undefined) return true;
   if (condition === 'questActive') return isQuestActive(battlefield, db, controller);
   if (condition === 'controlMarked') {
-    return battlefield.some((perm) => perm.controller === controller && perm.plusOneCounters > 0);
+    // Keep the legacy condition name, but only marked creatures satisfy it.
+    return battlefield.some((perm) =>
+      perm.controller === controller &&
+      perm.plusOneCounters > 0 &&
+      isType(def(db, perm.cardId), 'creature'),
+    );
   }
   return battlefield.filter(
     (perm) => perm.controller === controller &&
       perm.plusOneCounters > 0 &&
-      (condition.subject === 'permanents' || isType(def(db, perm.cardId), 'creature')),
+      isType(def(db, perm.cardId), 'creature'),
   ).length >= condition.n;
 }
 
@@ -61,8 +66,12 @@ export function getEffectiveStats(
   let defense = d.defense ?? 0;
   const keywords = new Set<Keyword>(d.keywords ?? []);
 
-  attack += perm.plusOneCounters;
-  defense += perm.plusOneCounters;
+  // Marks are creature-only. Ignore legacy counters on noncreature snapshots
+  // so an old replay cannot make a noncreature read as marked power.
+  if (targetIsCreature) {
+    attack += perm.plusOneCounters;
+    defense += perm.plusOneCounters;
+  }
 
   if (perm.awakened && d.awakening) {
     attack += d.awakening.p ?? 0;

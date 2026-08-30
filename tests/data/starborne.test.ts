@@ -67,7 +67,7 @@ describe('Starborne transcription', () => {
       expect.objectContaining({
         when: 'arrives',
         condition: 'controlMarked',
-        targets: [{ what: 'yourPermanent', other: true }],
+        targets: [{ what: 'yourCreature', other: true }],
         ops: [{ op: 'addCounters', n: 1, to: 'target' }, { op: 'foresee', n: 1 }],
       }),
     ]);
@@ -77,7 +77,17 @@ describe('Starborne transcription', () => {
     });
     expect(card('sb-signal-cathedral').abilities).toEqual([
       expect.objectContaining({ when: 'dawn', ops: [{ op: 'foresee', n: 2 }] }),
-      expect.objectContaining({ when: 'dawn', condition: { kind: 'markedThreshold', n: 5, subject: 'permanents' } }),
+      expect.objectContaining({ when: 'dawn', condition: { kind: 'markedThreshold', n: 5, subject: 'creatures' } }),
+    ]);
+    expect(card('sb-static-reef').abilities?.[0].when).toBe('yourCreatureMarked');
+    expect(card('sb-quiet-orbit').abilities?.[0].targets).toEqual([
+      { what: 'spell' }, { what: 'yourCreature' }, { what: 'yourCreature' },
+    ]);
+    expect(card('sb-signal-recall').abilities?.[0].targets).toEqual([
+      { what: 'yourCreature' }, { what: 'yourCreature' },
+    ]);
+    expect(card('sb-tidewalk-analyst').empower?.targets).toEqual([
+      { what: 'yourCreature' }, { what: 'yourCreature' },
     ]);
     expect(card('sb-the-long-crossing').chapters).toHaveLength(3);
     expect(card('sb-interstellar-crossing').manaAbility).toEqual(['C']);

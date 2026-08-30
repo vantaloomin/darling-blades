@@ -72,7 +72,7 @@ export interface TargetSpec {
   other?: true;
   /** Spell-side "up to N targets"; arrival triggers remain single-target. */
   upTo?: 2;
-  /** Restricts legal targets to permanents carrying at least one mark. */
+  /** Restricts legal targets to creatures carrying at least one mark. */
   marked?: true;
   /** Restricts legal targets to tapped permanents. */
   tapped?: true;
@@ -97,7 +97,7 @@ export type EffectOp =
   | { op: 'cancel'; to: 'target' } // target is a stack item
   | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' | 'all' | 'yourMarked' | 'theirMarked' }
   | { op: 'addCounters'; n: number; to: 'target' | 'self' }
-  | { op: 'propagate' } // +1 mark on each ALREADY-marked permanent you control; starts none, no target
+  | { op: 'propagate' } // +1 Mark on each ALREADY-Marked creature you control; starts none, no target
   | { op: 'moveMark' } // move one mark from targets[0] to targets[1]
   | { op: 'removeMarks'; to: 'target' }
   | { op: 'markAll'; scope: 'yourCreatures' }
@@ -140,6 +140,8 @@ export interface AbilityDef {
   condition?:
     | 'questActive'
     | 'controlMarked'
+    // `permanents` remains a replay-compatible legacy value. Mark conditions
+    // are creature-scoped regardless of this subject field.
     | { kind: 'markedThreshold'; n: number; subject: 'permanents' | 'creatures' };
   targets?: TargetSpec[];
   ops?: EffectOp[];

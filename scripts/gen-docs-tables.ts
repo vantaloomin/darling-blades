@@ -250,7 +250,7 @@ const keyOf = (cell: string) => cell.match(/^`(?:RULES\.)?(\w+)`$/)?.[1];
 
   const defaults: Record<string, [string, string]> = {
     moveMark: [
-      'Moves one mark from the first chosen permanent you control to a different second permanent you control. The destination can receive its first mark.',
+      'Moves one Mark from the first chosen creature you control to a different second creature you control. The destination can receive its first Mark.',
       '(via mark triggers)',
     ],
     removeMarks: ['Removes every mark from the target creature.', '(via stat recompute)'],

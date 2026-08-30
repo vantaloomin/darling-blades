@@ -379,7 +379,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
   creature('sb-astral-biomancer', 'Astral Biomancer', ['Alien', 'Mage'], {
     cost: cost(4, 'U'), colors: U, attack: 3, defense: 4, rarity: 'r',
     abilities: [arrivesTargeted(
-      { what: 'yourPermanent', other: true },
+      { what: 'yourCreature', other: true },
       [{ op: 'addCounters', n: 1, to: 'target' }, { op: 'foresee', n: 1 }],
       'controlMarked',
     )],
@@ -588,7 +588,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
       dawn([{ op: 'foresee', n: 2 }]),
       {
         when: 'dawn',
-        condition: { kind: 'markedThreshold', n: 5, subject: 'permanents' },
+        condition: { kind: 'markedThreshold', n: 5, subject: 'creatures' },
         ops: [{ op: 'draw', n: 1 }],
       },
     ], rarity: 'ssr',
@@ -653,7 +653,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
   charm('sb-quiet-orbit', 'Quiet Orbit', {
     cost: cost(1, 'UU'), colors: U, abilities: [{
       when: 'spell',
-      targets: [{ what: 'spell' }, { what: 'yourPermanent' }, { what: 'yourPermanent' }],
+      targets: [{ what: 'spell' }, { what: 'yourCreature' }, { what: 'yourCreature' }],
       ops: [{ op: 'cancel', to: 'target' }, { op: 'moveMark' }],
     }], rarity: 'c',
     flavor: 'The silence between two signals is where she does her work.',
@@ -688,7 +688,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
   }),
   creature('sb-static-reef', 'Static Reef', ['Alien', 'Reef'], {
     cost: cost(3, 'U'), colors: U, attack: 2, defense: 6, keywords: ['bulwark'], rarity: 'r',
-    abilities: [{ when: 'yourPermanentMarked', ops: [{ op: 'foresee', n: 1 }] }],
+    abilities: [{ when: 'yourCreatureMarked', ops: [{ op: 'foresee', n: 1 }] }],
     flavor: 'The reef hears every new signal before its crew does.',
   }),
   creature('sb-ossuary-gate', 'Ossuary Gate', ['Starship'], {
@@ -722,7 +722,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     cost: cost(1, 'U'), colors: U,
     abilities: [{
       when: 'spell',
-      targets: [{ what: 'yourPermanent' }, { what: 'yourPermanent' }],
+      targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }],
       ops: [{ op: 'moveMark' }],
     }],
     retell: { cost: cost(2, 'U') }, rarity: 'c',
@@ -765,7 +765,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     cost: cost(3, 'U'), colors: U, attack: 2, defense: 4, rarity: 'r',
     empower: {
       cost: cost(3, 'U'),
-      targets: [{ what: 'yourPermanent' }, { what: 'yourPermanent' }],
+      targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }],
       ops: [{ op: 'moveMark' }],
     },
     flavor: 'She reads the tide as a filing problem.',

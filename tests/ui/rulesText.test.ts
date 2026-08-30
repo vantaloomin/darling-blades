@@ -96,7 +96,7 @@ describe('2026-08-30 rules text templates', () => {
 
   it('uses Dawn, capitalizes sentence starts, and connects consecutive Dawn abilities', () => {
     expect(rulesText(CARD_DB['sb-burning-hull-runner'])).toBe(
-      'If you control a Marked permanent, this gets +1/+0.',
+      'If you control a Marked creature, this gets +1/+0.',
     );
     expect(rulesText(CARD_DB['sb-starborne-relay'])).toBe([
       'When this arrives, draw a card.',
@@ -109,7 +109,7 @@ describe('2026-08-30 rules text templates', () => {
     ].join('\n'));
     expect(rulesText(CARD_DB['sb-signal-cathedral'])).toBe([
       'During your Dawn, Foresee 2.',
-      'If you also control five or more Marked permanents, draw an extra card.',
+      'If you also control five or more creatures with Marks, draw an extra card.',
     ].join('\n'));
   });
 
@@ -127,6 +127,9 @@ describe('2026-08-30 rules text templates', () => {
     expect(rulesText(CARD_DB['sb-the-long-crossing'])).toContain('Chapter II: Mark each creature you control.');
     for (const card of ALL_CARDS) {
       expect(rulesText(card), `${card.id} has lowercase mark vocabulary`).not.toMatch(/\bmark(?:s|ed)?\b/);
+      expect(rulesText(card), `${card.id} has permanent-scoped mark vocabulary`).not.toMatch(
+        /(?:\bMark(?:s|ed)?\b[^.\n]*\bpermanent\b|\bpermanent\b[^.\n]*\bMark(?:s|ed)?\b)/,
+      );
     }
   });
 
