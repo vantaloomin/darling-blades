@@ -16,10 +16,9 @@ export const TK_OTHER = [
     colors: ['R'],
     attack: 5,
     defense: 3,
-    keywords: ['twinBlades'],
-    // Owner ruling (round-1, v3.1): should also read "must attack each turn
-    // if able", but no vocabulary exists for that clause yet. Engine-lane
-    // note only; not applied here.
+    // Rage closes the round-1 owner ruling ("must attack each turn if able"),
+    // which waited on the keyword landing 2026-08-30.
+    keywords: ['twinBlades', 'rage'],
     abilities: [{ when: 'dawn', ops: [{ op: 'damage', n: 1, to: 'controller' }] }],
     rarity: 'ur',
     flavor: 'Among warriors, Lu Bu. Among steeds, Red Hare. Among tempers… run.',

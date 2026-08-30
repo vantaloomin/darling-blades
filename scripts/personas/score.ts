@@ -1,4 +1,4 @@
-import { manaValue, type AbilityDef, type CardDef, type EffectOp, type TriggerWhen } from '../../src/engine/types';
+import { manaValue, type AbilityDef, type CardDef, type EffectOp, type Keyword, type TriggerWhen } from '../../src/engine/types';
 import type { CurveBand, DeckRole, PersonaTemplate, SpellRole } from './templates';
 
 export interface PersonaDeckState {
@@ -123,7 +123,10 @@ function effectValue(entry: EffectEntry, card: CardDef): number {
   return value;
 }
 
-const KEYWORD_VALUE = {
+// Typed over the closed Keyword union on purpose: before 2026-08-30 this was a
+// bare object literal, so adding a keyword to the engine left this table
+// silently short instead of failing the typecheck.
+const KEYWORD_VALUE: Record<Keyword, number> = {
   skyborne: 0.55,
   wardingGaze: 0.35,
   firstBlade: 0.45,
@@ -136,7 +139,10 @@ const KEYWORD_VALUE = {
   bloodoath: 0.5,
   untouchable: 0.85,
   dreaded: 0.55,
-} as const;
+  // Drafter salience, not a power rate (note bulwark is positive here too):
+  // Rage sits low because it takes a decision away without adding a threat.
+  rage: 0.3,
+};
 
 export function cardEffectOps(card: CardDef): EffectOp[] {
   return cardEffectEntries(card).map((entry) => entry.op);

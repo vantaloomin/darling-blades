@@ -62,7 +62,7 @@ import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { forcedAction, reasonUncastable, type Action } from '../engine/actions';
 import { previewCombat } from '../engine/combat/damage';
-import { eligibleAttackers, blockOptions, minimumBlockersForAttacker } from '../engine/combat/legality';
+import { compelledAttackers, eligibleAttackers, blockOptions, minimumBlockersForAttacker } from '../engine/combat/legality';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
 import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
@@ -2547,12 +2547,18 @@ export class DuelScene extends Phaser.Scene {
     switch (a.kind) {
       case 'main':
         return { type: 'passStep' };
-      case 'declareAttackers':
+      case 'declareAttackers': {
         // End Turn is an explicit "skip the rest of my turn" — decline combat
         // outright (user-directed 2026-07-10; the old stop-if-I-can-attack
-        // pause made End Turn strand at the combat decision).
+        // pause made End Turn strand at the combat decision). Rage cannot be
+        // declined, so the minimum legal declaration is the compelled set,
+        // which is empty on any board with no Rage creature able to attack.
         this.selectedAttackers.clear();
-        return { type: 'declareAttackers', attackers: [] };
+        return {
+          type: 'declareAttackers',
+          attackers: compelledAttackers(this.duel.state.battlefield, CARD_DB, HUMAN),
+        };
+      }
       case 'respond':
       case 'endStepWindow':
         return { type: 'passResponse' };

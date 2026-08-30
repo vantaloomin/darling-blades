@@ -19,6 +19,7 @@ export const KEYWORD_ICON_KEY: Record<Keyword, string> = {
   bloodoath: 'keyword-bloodoath',
   untouchable: 'keyword-untouchable',
   dreaded: 'keyword-dreaded',
+  rage: 'keyword-rage',
 };
 
 /**
@@ -69,6 +70,10 @@ const KEYWORD_ICON_PATH: Record<Keyword, string> = {
   bloodoath: 'M22 3 C22 3 10 19 10 28 A12 12 0 0 0 34 28 C34 19 22 3 22 3 Z',
   untouchable: 'M5 7 L39 37 M39 7 L5 37 M8 10 Q22 1 36 10 L39 22 Q34 37 22 42 Q10 37 5 22 Z',
   dreaded: 'M8 5 L15 8 L15 39 L8 34 Z M19 5 L26 8 L26 39 L19 34 Z M30 5 L37 8 L37 39 L30 34 Z',
+  // A clenched fist: four knuckles and a thumb. Deliberately not another blade,
+  // eye, shield or arrow — every one of those motifs is already spoken for
+  // above, and this has to be told apart from all twelve at a 16px display.
+  rage: 'M10 22 Q13 14 16 22 Q20 14 24 22 Q28 14 32 22 L35 22 L35 33 Q35 39 29 39 L16 39 Q10 39 10 33 Z M10 26 L4 29 L7 34 L10 32 Z',
 };
 
 /**

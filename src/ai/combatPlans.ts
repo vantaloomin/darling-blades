@@ -1,4 +1,4 @@
-import { canBlock, eligibleAttackers } from '../engine/combat/legality';
+import { canBlock, compelledAttackers, eligibleAttackers } from '../engine/combat/legality';
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, CombatState, Permanent, PlayerId } from '../engine/types';
 import { def, isType, opponentOf } from '../engine/types';
@@ -162,10 +162,20 @@ export function chooseAttackers(
   pers: Personality = DEFAULT_PERSONALITY,
 ): number[] {
   const opp = opponentOf(me);
+  // Rage removes the choice, so the planner is not allowed to score these away.
+  // Read from the UNFILTERED legality call on purpose: a compelled attacker
+  // with 0 power is still compelled, and the `attack > 0` filter below would
+  // otherwise drop it and hand the engine an illegal declaration.
+  const compelled = compelledAttackers(bf, db, me);
+  const withCompelled = (chosen: readonly number[]): number[] => {
+    if (compelled.length === 0) return [...chosen];
+    const keep = new Set([...chosen, ...compelled]);
+    return eligibleAttackers(bf, db, me).filter((iid) => keep.has(iid));
+  };
   const eligible = eligibleAttackers(bf, db, me).filter(
     (iid) => combatant(bf, db, iid).attack > 0,
   );
-  if (eligible.length === 0) return [];
+  if (eligible.length === 0) return withCompelled([]);
   const defenders = untappedBlockers(bf, db, opp);
 
   // Lethal check: assume each defender absorbs the biggest remaining attacker.
@@ -179,15 +189,17 @@ export function chooseAttackers(
     blockersLeft -= needed;
   }
   const through = combatants.reduce((s, c) => s + c.attack, 0) - absorbed;
-  if (through >= oppLife) return eligible; // all-in for the kill
+  if (through >= oppLife) return withCompelled(eligible); // all-in for the kill
 
   // Greedy descent: start from all-in, drop the attacker whose removal most
-  // improves the simulated outcome, until no single drop helps.
+  // improves the simulated outcome, until no single drop helps. A compelled
+  // attacker is never a drop candidate.
   let current = [...eligible];
   let best = scoreAttack(bf, db, me, oppLife, trickBuff, current, myLife, pers);
   for (let iter = 0; iter < eligible.length; iter++) {
     let improved = false;
     for (const drop of [...current]) {
+      if (compelled.includes(drop)) continue;
       const candidate = current.filter((iid) => iid !== drop);
       const score = scoreAttack(bf, db, me, oppLife, trickBuff, candidate, myLife, pers);
       if (score > best + 0.01) {
@@ -200,7 +212,7 @@ export function chooseAttackers(
     if (!improved) break;
   }
   // `attackThreshold` replaces the `best > 0` return gate (default 0).
-  const kept = best > pers.attackThreshold ? current : [];
+  const kept = best > pers.attackThreshold ? current : withCompelled([]);
   if (kept.length === 0) {
     // Desperation: our own NET dawn self-bleed kills us in myLife/bleed turns
     // no matter what we hold back, so once that clock is short (≤4 turns) the
@@ -217,6 +229,7 @@ export function chooseAttackers(
       for (let iter = 0; iter < eligible.length && set.length > 1; iter++) {
         let improved = false;
         for (const drop of [...set]) {
+          if (compelled.includes(drop)) continue;
           const candidate = set.filter((iid) => iid !== drop);
           const score = scoreAttack(bf, db, me, oppLife, trickBuff, candidate, myLife, desperate);
           if (score > setScore + 0.01) {
@@ -228,10 +241,10 @@ export function chooseAttackers(
         }
         if (!improved) break;
       }
-      return set; // never empty: the descent stops at 1 attacker
+      return withCompelled(set); // never empty: the descent stops at 1 attacker
     }
   }
-  return kept;
+  return withCompelled(kept);
 }
 
 /**

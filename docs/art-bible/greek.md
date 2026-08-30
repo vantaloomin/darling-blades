@@ -14,7 +14,7 @@ genderbent but kit-faithful. The faction accents — marble, Aegean blue, gilt �
 over each card's color-identity anchor and never replace it.
 
 ### Athena, Aegis of Wisdom — `gk-athena`
-- **Card facts:** {2}{W}{W} · W · 2/4 · sentinel · ur, legendary · holo: foil (explicit)
+- **Card facts:** {2}{W}{W} · W · 2/3 · sentinel · ur, legendary · holo: foil (explicit)
 - **Character & source:** Athena as-is, goddess of strategic war; her static aura toughens every other Olympian, so she reads as the anchor the pantheon forms up behind.
 - **Personality / mood:** "Wisdom is knowing which wars not to fight. Strategy is winning those anyway." Calm, measured, three moves ahead — a general who has already read the battle's ending.
 - **Pose & composition:** Standing three-quarter, weight settled, aegis presented across the body rather than raised to strike (2/4 vigilance defends, it does not lunge); face ≈ y 320, eyes tracking something off-frame she has already accounted for. Owl perched on the shoulder in the band's upper right.

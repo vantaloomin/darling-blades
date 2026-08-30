@@ -228,9 +228,25 @@ for (const { file, sets } of FILE_MAP) {
       continue;
     }
 
-    // All 13 fields, exact labels, exact order.
+    // All 13 fields, exact labels, exact order. Shared-art exception: a card
+    // whose DATA carries artRef renders another card's file, so its entry is
+    // a reduced template (Card facts + Character & source + an "Art ref"
+    // field naming the donor) and must NOT carry a Prompt - a prompt would
+    // invite generating a file the resolver can never load.
     const labels = entry.fields.map((f) => f.label);
-    if (labels.join('|') !== FIELDS.join('|')) {
+    const dataArtRef = (CARD_DB[entry.id] as { artRef?: string }).artRef;
+    if (dataArtRef) {
+      for (const req of ['Card facts', 'Character & source', 'Art ref']) {
+        if (!labels.includes(req)) err(`${where}: shared-art entry missing field: ${req}`);
+      }
+      if (labels.includes('Prompt')) err(`${where}: shared-art entry must not carry a Prompt (data artRef: ${dataArtRef})`);
+      const refField = entry.fields.find((f) => f.label === 'Art ref');
+      if (refField && !refField.text.includes(`\`${dataArtRef}\``)) {
+        err(`${where}: Art ref field does not name \`${dataArtRef}\``);
+      }
+    } else if (labels.includes('Art ref')) {
+      err(`${where}: "Art ref" field but the card data has no artRef`);
+    } else if (labels.join('|') !== FIELDS.join('|')) {
       const missing = FIELDS.filter((f) => !labels.includes(f));
       const extra = labels.filter((l) => !(FIELDS as readonly string[]).includes(l));
       if (missing.length > 0) err(`${where}: missing field(s): ${missing.join(', ')}`);
