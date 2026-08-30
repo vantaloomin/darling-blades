@@ -228,7 +228,14 @@ export class EasyAI implements AIPlayer {
     const allIn = attacks.reduce((best, a) =>
       a.attackers.length > best.attackers.length ? a : best,
     );
-    const none = attacks.find((a) => a.attackers.length === 0)!;
+    // "Stay home" is the SMALLEST legal declaration, not necessarily the empty
+    // one: a creature with Rage must attack, so under Rage the empty
+    // declaration is never offered and this resolves to the compelled set.
+    // Before 2026-08-30 this read `find((a) => a.attackers.length === 0)!`, and
+    // that non-null assertion became a crash the moment Rage existed.
+    const none = attacks.reduce((best, a) =>
+      a.attackers.length < best.attackers.length ? a : best,
+    );
 
     const opp = opponentOf(view.myId);
     const myCreatures = allIn.attackers.length;

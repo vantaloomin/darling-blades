@@ -15,6 +15,10 @@ const KEYWORD_BONUS: Record<Keyword, number> = {
   untouchable: 0.5,
   bulwark: -0.5,
   dreaded: 1,
+  // Negative for the same reason Bulwark is: it takes a decision away from the
+  // controller. Small, because the creatures that carry it are built to attack
+  // anyway, so the compulsion only bites once the board turns against them.
+  rage: -0.25,
 };
 
 function keywordScore(keywords: Iterable<Keyword>): number {

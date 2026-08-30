@@ -25,6 +25,7 @@ export const KEYWORD_NAMES: Record<Keyword, string> = {
   bloodoath: 'Blood Oath',
   untouchable: 'Untouchable',
   dreaded: 'Dreaded',
+  rage: 'Rage',
 };
 
 /** One-line, player-facing reminder for each evergreen keyword. */
@@ -41,6 +42,7 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
   bloodoath: 'damage it deals also gains you that much life',
   untouchable: 'cannot be targeted by spells or abilities your opponents control',
   dreaded: 'cannot be blocked except by two or more creatures',
+  rage: 'attacks every turn if it is able to',
 };
 
 /** Named mechanics that are not creature keywords. */

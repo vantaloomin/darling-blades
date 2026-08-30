@@ -1,6 +1,7 @@
 import { DARLING_PAYDOWN_COST, DARLING_PAYDOWN_REDUCTION, RULES } from '../config/rules';
 import {
   blockOptions,
+  compelledAttackers,
   eligibleAttackers,
   minimumBlockersForAttacker,
   validateAttackers,
@@ -615,10 +616,19 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
     case 'declareAttackers': {
       // Fully enumerated: every subset of eligible attackers (≤ 2^8 under the
       // battlefield cap). [] skips combat.
+      //
+      // Rage narrows this: a compelled attacker is in every legal subset, so
+      // we enumerate subsets of the FREE attackers and union the compelled set
+      // into each. When something has Rage, [] is not among the results, which
+      // is what makes "skip combat" illegal rather than merely discouraged.
       const eligible = eligibleAttackers(state.battlefield, db, player);
-      const subsets = 1 << eligible.length;
+      const compelled = compelledAttackers(state.battlefield, db, player);
+      const free = eligible.filter((iid) => !compelled.includes(iid));
+      const subsets = 1 << free.length;
       for (let mask = 0; mask < subsets; mask++) {
-        const attackers = eligible.filter((_, i) => mask & (1 << i));
+        const chosen = free.filter((_, i) => mask & (1 << i));
+        // keep battlefield order so replays and goldens stay stable
+        const attackers = eligible.filter((iid) => compelled.includes(iid) || chosen.includes(iid));
         out.push({ type: 'declareAttackers', attackers });
       }
       break;
@@ -1203,11 +1213,16 @@ export function forcedAction(
       );
       return meaningful ? null : { type: 'passStep' };
     }
-    case 'declareAttackers':
+    case 'declareAttackers': {
       // Query legality directly — legalActions enumerates 2^n attack subsets.
-      return eligibleAttackers(state.battlefield, db, player).length === 0
-        ? { type: 'declareAttackers', attackers: [] }
+      const eligible = eligibleAttackers(state.battlefield, db, player);
+      if (eligible.length === 0) return { type: 'declareAttackers', attackers: [] };
+      // Every eligible attacker has Rage: one legal declaration, no decision.
+      const compelled = compelledAttackers(state.battlefield, db, player);
+      return compelled.length === eligible.length
+        ? { type: 'declareAttackers', attackers: eligible }
         : null;
+    }
     case 'declareBlockers': {
       // blockOptions includes partial Dreaded pairs, so a lone individually
       // legal blocker is not proof a usable assignment exists. Answer the

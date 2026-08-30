@@ -16,7 +16,8 @@ export type Keyword =
   | 'deathblade'
   | 'bloodoath'
   | 'untouchable'
-  | 'dreaded';
+  | 'dreaded'
+  | 'rage';
 
 export type CardType = 'creature' | 'charm' | 'ritual' | 'enchantment' | 'artifact' | 'land';
 export type Rarity = 'c' | 'r' | 'sr' | 'ssr' | 'ur';
