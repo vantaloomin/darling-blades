@@ -40,7 +40,7 @@ export const SANDS_OF_THE_DUAT = [
     types: ['creature'],
     subtypes: ['God'],
     supertypes: ['legendary'],
-    cost: cost(5, 'BG'),
+    cost: cost(4, 'BG'),
     colors: ['B', 'G'],
     attack: 6,
     defense: 6,

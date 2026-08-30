@@ -264,8 +264,9 @@ describe('catalog integrity', () => {
     // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
     // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
     // cards, so the companion wave moves ALL_CARDS to 1,104 total cards,
-    // including tokens and basics.
-    expect(ALL_CARDS).toHaveLength(1104);
+    // including tokens and basics. The v3.1 Fenrir ruling (2026-08-29) adds
+    // tok-wolf-cub (1/1, art shared with tok-wolf via artRef): 1,104 -> 1,105.
+    expect(ALL_CARDS).toHaveLength(1105);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {

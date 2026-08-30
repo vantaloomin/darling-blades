@@ -60,7 +60,7 @@ export const RAGNAROK = [
     attack: 6,
     defense: 6,
     keywords: ['overrun', 'warcry'],
-    abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-wolf', count: 2 }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'createToken', token: 'tok-wolf-cub', count: 2 }] }],
     rarity: 'ur',
     flavor: 'Gleipnir held her once. It will not hold twice.',
   },

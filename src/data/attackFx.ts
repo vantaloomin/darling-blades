@@ -356,6 +356,7 @@ export const ATTACK_FX_MAP: Record<string, AttackFxSpec> = {
   'tok-valkyrie': { archetype: 'aerial', heavy: false },
   'tok-draugr': { archetype: 'shadow', heavy: false },
   'tok-wolf': { archetype: 'claw', heavy: false },
+  'tok-wolf-cub': { archetype: 'claw', heavy: false },
   // --- Ragnarök expansion creatures (heavy = attack >= 5 or trample) ---
   'rg-hel': { archetype: 'shadow', heavy: false },
   'rg-freya': { archetype: 'aerial', heavy: false },

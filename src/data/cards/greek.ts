@@ -12,7 +12,7 @@ export const GREEK = [
     cost: cost(2, 'WW'),
     colors: ['W'],
     attack: 2,
-    defense: 4,
+    defense: 3,
     keywords: ['sentinel'],
     abilities: [
       { when: 'arrives', ops: [{ op: 'draw', n: 1 }] },

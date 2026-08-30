@@ -140,6 +140,23 @@ export const TOKENS = [
     flavor: 'Fenrir’s brood runs the long night.',
   },
   {
+    // Fenrir's own litter (v3.1 ruling 2026-08-29): 1/1s so the unchaining
+    // stops paying 2/2 rates. Shares the Wolf art on purpose - tok-wolf
+    // stays 2/2 for Angrboda and Alpha of the Hunt.
+    id: 'tok-wolf-cub',
+    name: 'Wolf Cub',
+    types: ['creature'],
+    subtypes: ['Wolf'],
+    cost: cost(0),
+    colors: ['G'],
+    attack: 1,
+    defense: 1,
+    token: true,
+    rarity: 'c',
+    artRef: 'tok-wolf',
+    flavor: 'Small now. So was she.',
+  },
+  {
     id: 'tok-squire',
     name: 'Squire',
     types: ['creature'],
