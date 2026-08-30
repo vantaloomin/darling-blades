@@ -102,11 +102,15 @@ describe('draft persona differentiation', () => {
     { id: 'megan', pack: ['tk-shu-zhangfei', 'gk-zeus'], expected: 'tk-shu-zhangfei', defaultExpected: 'gk-zeus' },
     { id: 'kyle', pack: ['rg-freya', 'tk-other-lubu'], expected: 'rg-freya', defaultExpected: 'tk-other-lubu' },
     { id: 'jessica', pack: ['rg-berserker-chieftain', 'gk-gaia'], expected: 'rg-berserker-chieftain', defaultExpected: 'gk-gaia' },
-    { id: 'lauren', pack: ['tk-wei-caocao', 'gk-zeus'], expected: 'tk-wei-caocao', defaultExpected: 'gk-zeus' },
+    // gk-zeus stopped working as lauren's textbook foil when the v3.1 slate
+    // cut him to {W}{W}{R}{R} - cheap enough that even her picker takes him.
+    { id: 'lauren', pack: ['tk-wei-caocao', 'gk-gaia'], expected: 'tk-wei-caocao', defaultExpected: 'gk-gaia' },
     { id: 'tyler', pack: ['rg-fenrir', 'tk-other-lubu'], expected: 'rg-fenrir', defaultExpected: 'tk-other-lubu' },
     { id: 'derek', pack: ['tk-wei-xiahoudun', 'tk-wei-caocao'], expected: 'tk-wei-xiahoudun', defaultExpected: 'tk-wei-caocao' },
     { id: 'amanda', pack: ['tk-wu-huanggai', 'rg-freya'], expected: 'rg-freya', defaultExpected: 'tk-wu-huanggai', picks: redPicks },
-    { id: 'brittany', pack: ['tk-shu-guanyu', 'tk-other-lubu'], expected: 'tk-shu-guanyu', defaultExpected: 'tk-other-lubu' },
+    // tk-other-lubu at {1}{R}{R} with Twin Blades (v3.1) now outbids brittany's
+    // shu loyalty; gk-zeus is the bomb she can still walk past.
+    { id: 'brittany', pack: ['tk-shu-guanyu', 'gk-zeus'], expected: 'tk-shu-guanyu', defaultExpected: 'gk-zeus' },
     { id: 'kevin', pack: ['tk-wei-chenqun', 'tk-wei-zhanghe'], expected: 'tk-wei-chenqun', defaultExpected: 'tk-wei-zhanghe' },
     { id: 'stephanie', pack: ['bk-foxfire-priestess', 'tk-other-lubu'], expected: 'bk-foxfire-priestess', defaultExpected: 'tk-other-lubu' },
     { id: 'zach', pack: ['rg-hel', 'tk-other-lubu'], expected: 'rg-hel', defaultExpected: 'tk-other-lubu' },

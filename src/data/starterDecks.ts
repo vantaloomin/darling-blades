@@ -61,11 +61,9 @@ export const STARTER_DECKS: DeckList[] = [
       ['gk-hoplite', 4],
       ['bk-dragonmaid', 4],
       ['gk-ares', 4],
-      ['tk-other-lubu', 2],
+      ['tk-other-lubu', 4],
       ['gk-nike', 4],
       ['gk-hestia', 4],
-      ['sd-ra-helm-of-the-night-barge', 1],
-      ['sd-zahira-who-lights-the-prow', 1],
     ]),
     landReserve: expand([
       ['land-mountain', 6],
@@ -185,7 +183,7 @@ export const STARTER_DECKS: DeckList[] = [
       ['so-night-extortion', 4],
       ['so-divination', 4],
       ['so-creeping-malaise', 4],
-      ['dt-poison-mirror-regent', 1],
+      ['yn-oni-underboss-of-rain', 1],
       ['sd-two-for-the-ferrywoman', 1],
     ]),
     landReserve: expand([

@@ -221,7 +221,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Kitsune trickster beast-girl with a sly raised finger among faint blue after-image duplicates of herself, blue-and-silver short kimono, fox ears and tail, impish winking grin, misted bamboo background, cool moonlight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dreamveil Kitsune — `bk-kitsune-dreamweaver`
-- **Card facts:** {2}{U} · U · 2/2 · r · holo: auto:sheen
+- **Card facts:** {1}{U} · U · 2/2 · r · holo: auto:sheen
 - **Character & source:** Original Beastkin kitsune dream-caster — a three-drop whose ETB fogs the field (prevents combat damage), lulling the battle to sleep.
 - **Personality / mood:** "Sleep now. The battle will still be lost in the morning." Dreamy, unhurried, gently fatalistic.
 - **Pose & composition:** Standing serene, three-quarter, arms spread low as she draws a shimmering dream-veil of pale blue silk-mist across the frame — the moment she casts the fog. Face ≈ y 310, eyes softly closed; the veil-mist and one tail sweep across the band. The environmental element: sleeping-dust motes drifting.
@@ -416,7 +416,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Boarkin beast-girl crashing shoulder-first through a splintering fence with an iron riot-mace swinging, scorched red-and-iron harness, upward tusks and bristle-mane, wild roaring grin, flying fence-planks and dust, warm flame light with cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Boarkin Rootbreaker — `bk-boarkin-rootbreaker`
-- **Card facts:** {1}{G} · G · 2/2 · c · holo: none
+- **Card facts:** {G}{G} · G · 2/2 · c · holo: none
 - **Character & source:** Original Beastkin boarkin salvage-wrecker — a two-drop whose arrival uproots the opponent's newest artifact or enchantment.
 - **Personality / mood:** "She uproots first and asks whether it was valuable later." Cheerful demolition, zero appraisal skills, immense job satisfaction.
 - **Pose & composition:** Mid-heave action shot: body braced low on a strong diagonal, legs planted wide at the crater's edge, shoulders coiled, both hands wrenching a half-buried glowing arcane relic up out of churned earth, soil clods and torn roots of light tearing loose mid-air around it — the violent instant of the uprooting, never a static stance. Face ≈ y 320 above the lifted relic; bristle-mane ridge and tusks catching the light, short tufted tail out behind, the relic's glow centered in the band.

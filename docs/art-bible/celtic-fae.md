@@ -29,7 +29,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Morrigan, an adult fae war goddess in a raven-aspected court form, wearing a blackthorn crown, layered raven-feather mantle, fitted black-green nature-forged armor, and a pale gold torc; descending from a slow wingbeat, spear angled down while the cloak describes a raven silhouette; regal, pitiless, and almost amused by the bargain already broken; against a glassy battlefield pool beneath a silver moon, treaty ribbons torn blank in the reeds; hard silver moonlight from upper left as key; green-black aurora rim along feathers and armor; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Titania of the Silver Court — `cf-titania-silver-court`
-- **Card facts:** {3}{U}{G} · U/G (gold frame) · 4/4 · untouchable · ur, legendary · holo: otherworldly aurora
+- **Card facts:** {4}{U}{G} · U/G (gold frame) · 4/4 · untouchable · ur, legendary · holo: otherworldly aurora
 - **Character & source:** an adult fae queen, sovereign of a beautiful court that is quietly dangerous; mechanically a difficult-to-answer court sovereign, a reader and arranger of fate, a caller of courtly bloom spirits.
 - **Personality / mood:** “Her court applauds softly. The forest grows a new witness.” — perfectly composed, warm enough to invite trust and cold enough to punish it.
 - **Pose & composition:** seated or standing in absolute stillness, one hand extended as if granting a gift with a hidden hook; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -104,7 +104,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Wild Hunt Matriarch, an adult Wild Hunt matriarch, a regal fae commander in motion, wearing blackthorn-and-antler crown, hunting cloak elongated into a banner shape, moss-dark armor, and pale gold bridle jewelry; low in the saddle or striding into the charge, horn just lowered and spear pointing past the viewer; exultant, authoritative, and certain the quarry is already hers; against a moonlit moor cut by a mushroom ring and the ghostly silhouettes of her hunt; cold silver moon key on the face and weapon; hot foxfire rim from the passing hunt; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Bean Sidhe Keening — `cf-bean-sidhe-keening`
-- **Card facts:** {3}{B} · B · 3/3 · skyborne · sr · holo: radiant foil
+- **Card facts:** {2}{B} · B · 1/4 · skyborne, bulwark · sr · holo: radiant foil
 - **Character & source:** an adult banshee of the old courts, beautiful and ruinously composed; mechanically an airborne omen and evasive threat, a keeper of the veil between worlds.
 - **Personality / mood:** “Her song is the sound a family makes before it starts counting chairs.” — funereal, intimate, and mercilessly patient.
 - **Pose & composition:** floating forward with one hand near her throat, cloak and hair rising in the note she has not yet released; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -419,7 +419,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Redcap Skirmisher, an adult redcap skirmisher with deep dusky-brown skin, long clearly pointed fae ears sticking out visibly through her hair, short-statured, squat and stocky in build — compact, regal, and very pleased with the violence, wearing a crimson cap over a thorn crownlet, short blackthorn cloak, layered peat-black armor, and silver rings; caught at the first violent step of a sprint, her small frame hunched low to the ground, sickle low and shoulders driving forward; reckless, courtly in the worst possible way, and laughing through clenched teeth; against a blackthorn lane under a bruised moon, red mushrooms and wet stone flashing past; warm foxfire key across the cap and weapon; hard violet moon rim on the moving silhouette; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Bog Banshee — `cf-bog-banshee`
-- **Card facts:** {1}{B} · B · 3/1 · deathblade · c · holo: none
+- **Card facts:** {2}{B} · B · 3/1 · deathblade, skyborne · c · holo: none
 - **Character & source:** an adult banshee of the old courts, beautiful and ruinously composed; mechanically lethal at a single precise touch.
 - **Personality / mood:** “Her wail is a warning. Her silence is worse.” — funereal, intimate, and mercilessly patient.
 - **Pose & composition:** floating forward with one hand near her throat, cloak and hair rising in the note she has not yet released; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -494,7 +494,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Mushroom-Ring Guard, an adult fae ring guard, a formal protector of the boundary between invitation and trap, wearing mushroom-cap-inspired pauldrons, a long moss cloak, thorn crown, silver bracelets, and bark armor; squarely braced at the ring entrance, staff angled toward the ground and shoulders immovable; patient, ceremonious, and impossible to embarrass into moving; against a giant mushroom ring at night, fog passing between its luminous caps; pale mushroom-light key from the front; deep moss-green rim against the night; the very top of her head and thorn crown sits clearly below the top-third line — the entire top third is nothing but clear empty night fog, generous open space above the crown so nothing clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Willow-Wisp Guide — `cf-willow-wisp-guide`
-- **Card facts:** {2}{G} · G · 1/3 · c · holo: none
+- **Card facts:** {2}{G} · G · 0/4 · bulwark · c · holo: none
 - **Character & source:** an adult willow-wisp guide, a luminous fae apparition with a courtly silhouette; mechanically a reader and arranger of fate, a conduit for the grove’s living mana.
 - **Personality / mood:** “It knows the safe road. It prefers the interesting one.” — helpful in the manner of someone who knows a more interesting route.
 - **Pose & composition:** gliding forward with the lantern held in front of the torso, face calm and directly readable; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -539,7 +539,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Cold-Moon Archer, an adult cold-moon fae archer, serene behind a lethal draw, wearing a white-silver cloak, thorn tiara, leaf-steel cuirass, and pale gold arm rings; waist-up in a controlled full draw, bow curving around the face without crossing it; still, courtly, and already certain of the shot; against a frost-pale oak grove above a misted barrow, moonlight caught on wet grass; cold moon key on face and arrowhead; blue-green rim from the low mist; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Black Dog of the Lane — `cf-black-dog-of-lane`
-- **Card facts:** {1}{B} · B · 2/2 · deathblade · c · holo: none
+- **Card facts:** {2}{B} · B · 2/1 · deathblade · c · holo: none
 - **Character & source:** a regal Otherworld hound, lean and ancient rather than cute, with moonlit eyes and a fae-court bearing; mechanically lethal at a single precise touch.
 - **Personality / mood:** “It walks one street ahead of every bad decision.” — silent, inexorable, and already on the scent of a broken promise.
 - **Pose & composition:** low and forward in a fast three-quarter run, head and eyes held squarely in the central band; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -584,7 +584,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Torclight Envoy, an adult fae diplomat whose hospitality is a precise form of power, wearing a pearl-white elongated cloak, restrained thorn crown, silver jewelry, and smooth oak-leaf armor; front three-quarter, camera pulled back slightly to a true waist-up view with her whole torso in frame, lantern held just below the face while the other hand offers passage; kindly, measuring, and impossible to read as harmless; against a moonlit court bridge over a glassy pool, blackthorn arches fading into mist; warm torc-lantern key across the hands; clean silver moon rim on the cloak; the very top of her head and thorn crown sits clearly below the top-third line — the entire top third is nothing but clear empty moonlit mist, generous open space above the crown so nothing clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Laughing Pooka — `cf-laughing-pooka`
-- **Card facts:** {1}{R} · R · 3/2 · warcry · c · holo: none
+- **Card facts:** {R}{R} · R · 3/1 · warcry · c · holo: none
 - **Character & source:** an adult pooka trickster caught between elegant court form and a wild horse-shadow; mechanically an aggressive hunt leader.
 - **Personality / mood:** “It turns into a horse, a goat, and your worst alibi.” — laughing, insolent, and visibly one step ahead of the explanation.
 - **Pose & composition:** springing sideways in a dancer’s feint, cloak and shadow suggesting transformation without obscuring the face; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.
@@ -599,7 +599,7 @@ smart-crop and preventing clipped silhouettes in the card window.
 - **Prompt:** Laughing Pooka, an adult pooka trickster caught between elegant court form and a wild horse-shadow, wearing a short ember-red cloak, thorn crown, silver earrings, and flexible leaf-and-leather armor; springing sideways in a dancer’s feint, cloak and shadow suggesting transformation without obscuring the face; laughing, insolent, and visibly one step ahead of the explanation; against a moonlit lane where a goat, horse, and hare-like shadow overlap in the mist; foxfire key warming the grin; silver moon rim splitting the transformation shadows; reserve the entire top third as clear, empty moonlit mist or sky above the head, thorn crown, and antlers so no crown clips; no readable ogham, runes, letters, banners, cards, mirrors, or text anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hazelwand Mystic — `cf-hazelwand-mystic`
-- **Card facts:** {1}{G} · G · 1/2 · c · holo: none
+- **Card facts:** {2}{G} · G · 2/3 · bulwark · c · holo: none
 - **Character & source:** an adult hazelwand mystic, a fae druid who treats the grove as her court; mechanically a conduit for the grove’s living mana.
 - **Personality / mood:** “Her wand finds water, gold, and the person avoiding you.” — grounded, wry, and more interested in the roots than the visitor.
 - **Pose & composition:** standing waist-up with the wand tracing a circle over the spring, face held central and calm; face ≈ y 320 and eye-line ≈ y 300–360. The entire top third stays clear empty sky or mist above the head, crown, antlers, and hair for crop-safe headroom.

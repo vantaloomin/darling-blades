@@ -31,7 +31,7 @@ patterned, never lettered.
 - **Prompt:** Hel, an Aesir deity of the high seats, in the regalia of Asgard — dark iron and cold gold, a god-mark at the brow; enthroned or standing sovereign, weight utterly settled, against a hall of the gods opening onto a frozen underworld, an aurora far off; cold, sovereign, already several moves ahead; a low regal key with a hard cold rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Freya, Sovereign of the Slain — `rg-freya`
-- **Card facts:** {6}{W}{B} · W/B (gold frame) · 4/4 · skyborne · ur, legendary · holo: void
+- **Card facts:** {5}{W}{W}{B}{B} · W/B (gold frame) · 4/4 · skyborne · ur, legendary · holo: void
 - **Character & source:** a Vanir deity of seiðr and green growth; mechanically an airborne threat, she brings a host with her.
 - **Personality / mood:** "She takes half the slain. Odin may argue with the other half." — warm and knowing, unbothered by the twilight of the gods.
 - **Pose & composition:** one hand raised in a working, growth answering the gesture; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -91,7 +91,7 @@ patterned, never lettered.
 - **Prompt:** Brunhild, a winged Valkyrie, a chooser of the slain, in gold-chased scale mail over a great feathered cloak, a winged helm; descending mid-flight with wings flared, one boot about to touch the field, against a storm-lit battlefield seen from above the clouds, an aurora banding the sky; serene and judging, already deciding who the day remembers; a cold aurora key with a warm rune-gold rim off the mail — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### The Norns, Weavers of Fate — `rg-norns`
-- **Card facts:** {4}{U}{U} · U · 2/4 · ssr, legendary · holo: prismatic aurora
+- **Card facts:** {5}{U}{U} · U · 2/4 · ssr, legendary · holo: prismatic aurora
 - **Character & source:** a Norn, a weaver of fate at the world-well; mechanically she feeds the graveyard.
 - **Personality / mood:** "Was, Is, Shall-Be. You get no say in any of them." — unreadable and ancient, seeing the ending already written.
 - **Pose & composition:** seated at the loom of fate, reading a thread drawn taut between her hands; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -106,7 +106,7 @@ patterned, never lettered.
 - **Prompt:** The Norns, a Norn, a weaver of fate at the world-well, in layered rune-embroidered robes and a veil of drifting mist; seated at the loom of fate, reading a thread drawn taut between her hands, against the Well of Urd beneath a root of Yggdrasil, threads of fate glinting in the air; unreadable and ancient, seeing the ending already written; a pale well-glow from below with a violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Angrboda, Mother of Monsters — `rg-angrboda`
-- **Card facts:** {4}{B}{R} · B/R (gold frame) · 3/3 · ssr, legendary · holo: prismatic aurora
+- **Card facts:** {5}{B}{R} · B/R (gold frame) · 4/3 · ssr, legendary · holo: prismatic aurora
 - **Character & source:** a towering Jotun giant-woman of the elemental wilds; mechanically she brings a host with her.
 - **Personality / mood:** "Wolf, serpent, and the queen of the dead. She is proud of all three." — slow, immovable, and entirely certain.
 - **Pose & composition:** looming from a low angle, one stride that is itself an earthquake; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -361,7 +361,7 @@ patterned, never lettered.
 - **Prompt:** Death's Herald, a Draugr, a barrow-dead warrior risen from the howe, in rusted grave-mail and torn burial finery, cold grave-fire burning in the eye-sockets; hauling upright out of the grave-earth, blade first, against a cracked-open barrow mound spilling blue grave-light over black earth; hateful and patient, robbed of everything but the grudge; a cold blue grave-fire key, near-black fill — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Thanatos, Hand of the Quiet End — `rg-thanatos`
-- **Card facts:** {4}{B}{B} · B · 3/4 · deathblade · r, legendary · holo: shiny
+- **Card facts:** {5}{B}{B} · B · 3/4 · deathblade, bloodoath · r, legendary · holo: shiny
 - **Character & source:** a Greek underworld power, drawn up by the twilight; mechanically lethal at a touch, she calls the fallen back to the field.
 - **Personality / mood:** "Gentle, patient, and absolutely certain of the appointment." — gentle and absolutely certain of the appointment.
 - **Pose & composition:** a slow, patient advance across the dark water; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -496,7 +496,7 @@ patterned, never lettered.
 - **Prompt:** Xu Chu, a genderbent Three Kingdoms Wei officer, returned deathless, in lapis-and-bronze plate over a scholar-officer’s robe, high collar, cool grave-pallor; a full-body cleaving strike, armor half-shed for speed, her hair bound low at the nape and streaming out behind her — no tall topknot, no high ponytail, nothing piled above the crown of her head — the top of her head well below the upper edge of the frame with generous empty overcast sky above her, against a watchtower and command tents on the disciplined northern plain; ferocious, past caring for her own defense; a hard overcast key with a bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dian Wei, the Ever-Faithful — `rg-dianwei`
-- **Card facts:** {3}{B} · B · 3/3 · twinBlades · r, legendary · holo: shiny
+- **Card facts:** {4}{B} · B · 3/3 · twinBlades · r, legendary · holo: shiny
 - **Character & source:** a genderbent Three Kingdoms Wei officer, returned deathless; mechanically an elite duelist who strikes twice.
 - **Personality / mood:** "She held the gate until the gate no longer mattered — and past that." — ferocious, past caring for her own defense.
 - **Pose & composition:** a full-body cleaving strike, armor half-shed for speed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.

@@ -52,10 +52,13 @@ export const ENCHANTMENTS = [
     name: 'Wings of Dawn',
     types: ['enchantment'],
     subtypes: ['Aura'],
-    cost: cost(1, 'W'),
+    // Owner-ruled 2026-08-29 (Sera's Embrace anchor): +2/+2, Skyborne AND
+    // Sentinel at {1}{W}{W} - the aura haircut prices our auras a notch under
+    // the MTG sticker, so this lands -0.64 in band.
+    cost: cost(1, 'WW'),
     colors: ['W'],
     abilities: [
-      { when: 'static', static: { scope: 'attached', p: 1, t: 1, grantKeywords: ['skyborne'] } },
+      { when: 'static', static: { scope: 'attached', p: 2, t: 2, grantKeywords: ['skyborne', 'sentinel'] } },
     ],
     rarity: 'r',
     flavor: 'Standard-issue miracle, size medium.',

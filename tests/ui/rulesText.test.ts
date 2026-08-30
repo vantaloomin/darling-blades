@@ -4,7 +4,7 @@ import type { CardDef } from '../../src/engine/types';
 import { MECHANIC_DEFINITIONS, rulesText, typeLine } from '../../src/ui/rulesText';
 
 const AURA_KEYWORD_TEXT = {
-  'en-wings-of-dawn': 'Enchanted Creature gets +1/+1, and gains Skyborne.',
+  'en-wings-of-dawn': 'Enchanted Creature gets +2/+2, and gains Skyborne, Sentinel.',
   'en-battle-fervor': 'Enchanted Creature gets +2/+0, and gains Warcry.',
   'rg-rune-of-fury': 'Enchanted Creature gets +2/+0, and gains Warcry.',
   'rg-rune-of-the-hunt': 'Enchanted Creature gets +2/+2, and gains Overrun.',

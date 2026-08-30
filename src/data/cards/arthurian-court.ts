@@ -40,7 +40,7 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-grail-radiant-secret', name: 'The Grail, Radiant Secret', types: ['artifact'], subtypes: [],
-    supertypes: ['legendary'], cost: cost(4, 'WG'), colors: ['W', 'G'],
+    supertypes: ['legendary'], cost: cost(3, 'WG'), colors: ['W', 'G'],
     abilities: [
       { when: 'dawn', ops: [{ op: 'gainLife', n: 2 }] },
       { when: 'dawn', condition: 'questActive', ops: [{ op: 'awaken', scope: 'allYours' }] },
@@ -57,9 +57,9 @@ export const ARTHURIAN_COURT = [
     rarity: 'ssr', flavor: 'She rides beneath the moon, carrying a shame no banner can hide.',
   }),
   creature('ac-guinevere-court-sun', 'Guinevere, Court Sun', ['Noble', 'Queen'], {
-    supertypes: ['legendary'], cost: cost(4, 'WU'), colors: ['W', 'U'], attack: 3, defense: 4,
+    supertypes: ['legendary'], cost: cost(2, 'WU'), colors: ['W', 'U'], attack: 3, defense: 4,
     abilities: [
-      { when: 'arrives', ops: [{ op: 'foresee', n: 2 }] },
+      { when: 'arrives', ops: [{ op: 'foresee', n: 1 }] },
       { when: 'dawn', condition: 'questActive', ops: [{ op: 'createToken', token: 'tok-squire', count: 1 }] },
     ],
     rarity: 'ssr', flavor: 'Her smile makes the hall shine; her silence names the price.',
@@ -82,7 +82,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-fall-of-camelot', name: 'The Fall of Camelot', types: ['enchantment'], subtypes: ['Quest'],
-    supertypes: ['legendary'], cost: cost(5, 'BR'), colors: ['B', 'R'],
+    supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'],
     chapters: [
       [{ op: 'damage', n: 3, to: 'opponent' }],
       [{ op: 'discardRandom', n: 2, who: 'opponent' }],
@@ -189,7 +189,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'r', flavor: 'The crowd knows her name; the lance knows her reach.',
   }),
   creature('ac-questing-beast-maiden', 'Questing Beast-Maiden', ['Hunter', 'Beast'], {
-    cost: cost(3, 'G'), colors: ['G'], attack: 4, defense: 4, keywords: ['overrun', 'sentinel'],
+    cost: cost(2, 'GG'), colors: ['G'], attack: 4, defense: 4, keywords: ['overrun', 'sentinel'],
     rarity: 'r', flavor: 'She hunts the impossible beast because ordinary prey has stopped running.',
   }),
   {
@@ -232,7 +232,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'r', flavor: 'A bow, a whisper, a door closed before the blade is drawn.',
   },
   creature('ac-lady-of-lilies', 'Lady of Lilies', ['Mage', 'Attendant'], {
-    cost: cost(3, 'U'), colors: ['U'], attack: 2, defense: 3,
+    cost: cost(4, 'U'), colors: ['U'], attack: 2, defense: 2,
     abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'r', flavor: 'She gathers lilies from the lake and omens from the court.',
   }),
@@ -380,7 +380,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-squire-to-champion', name: 'Squire to Champion', types: ['enchantment'], subtypes: ['Quest'],
-    cost: cost(1, 'W'), colors: ['W'],
+    cost: cost(0, 'WW'), colors: ['W'],
     chapters: [
       [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }],
       [{ op: 'awaken', scope: 'allYours' }],
@@ -537,7 +537,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-questing-map', name: 'Questing Map', types: ['ritual'], subtypes: [],
-    cost: cost(2), colors: [], abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }, { op: 'draw', n: 1 }] }],
+    cost: cost(3), colors: [], abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'The map marks the road in ink that fades after the journey.',
   },
   {

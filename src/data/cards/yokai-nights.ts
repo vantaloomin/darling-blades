@@ -22,7 +22,7 @@ export const YOKAI_SPEC_ROWS = [
     "color": "W",
     "type": "Legendary Creature (Kitsune Queen)",
     "cost": "{5}{W}",
-    "stats": "6/6",
+    "stats": "3/6",
     "mechanics": "Skyborne, Sentinel. Your other Kitsune get +1/+1.",
     "flavor": "She rules from a rooftop palace where every lantern is a sworn witness."
   },
@@ -32,7 +32,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "UR",
     "color": "U",
     "type": "Artifact",
-    "cost": "{5}{U}",
+    "cost": "{7}{U}",
     "stats": "-",
     "mechanics": "At dawn: draw 1. Hauntlink {3}{U}. Linked: The linked creature gets +3/+3, Skyborne, and Untouchable. (AI-risk survivor.)",
     "flavor": "The perfect possession is a partnership until one voice stops answering."
@@ -44,8 +44,8 @@ export const YOKAI_SPEC_ROWS = [
     "color": "B",
     "type": "Legendary Creature (Oni Avatar)",
     "cost": "{6}{B}",
-    "stats": "7/6",
-    "mechanics": "Dreaded, Deathblade. Arrives: opponent loses 4 life. Dies: opponent loses 4 life.",
+    "stats": "6/6",
+    "mechanics": "Dreaded, Deathblade. Dies: opponent loses 4 life.",
     "flavor": "Every road out of the city passes beneath her shadow."
   },
   {
@@ -68,9 +68,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "UR",
     "color": "G",
     "type": "Legendary Creature (Spirit Sovereign)",
-    "cost": "{6}{G}",
-    "stats": "7/7",
-    "mechanics": "Sentinel, Blood Oath. Arrives: gain 4 life, then Foresee 2.",
+    "cost": "{4}{G}{G}",
+    "stats": "6/6",
+    "mechanics": "Sentinel, Blood Oath. Arrives: gain 3 life, then Foresee 1.",
     "flavor": "The old forest wears the city as jewelry and grows stronger under every light."
   },
   {
@@ -123,9 +123,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SSR",
     "color": "B",
     "type": "Legendary Creature (Oni Underboss)",
-    "cost": "{4}{B}",
+    "cost": "{3}{B}{B}",
     "stats": "5/4",
-    "mechanics": "Dreaded, Deathblade. Arrives: opponent loses 3 life.",
+    "mechanics": "Dreaded, Deathblade. Arrives: opponent loses 3 life, then deal 2 damage to you.",
     "flavor": "She steps from the rain wearing a suit tailored for the end of negotiations."
   },
   {
@@ -156,9 +156,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SSR",
     "color": "G",
     "type": "Legendary Creature (Yokai Elder)",
-    "cost": "{5}{G}",
-    "stats": "6/6",
-    "mechanics": "Overrun. Arrives: put 2 +1/+1 marks on this.",
+    "cost": "{4}{G}{G}",
+    "stats": "6/4",
+    "mechanics": "Overrun. Empower {2}{G}: put 2 +1/+1 marks on this.",
     "flavor": "She remembers when the city was a forest and expects it to return."
   },
   {
@@ -189,9 +189,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SR",
     "color": "U",
     "type": "Creature (Spirit Hacker)",
-    "cost": "{4}{U}",
+    "cost": "{5}{U}",
     "stats": "3/4",
-    "mechanics": "Skyborne. Arrives: Foresee 2, then draw 1.",
+    "mechanics": "Warding Gaze. Arrives: Foresee 2, then draw 1.",
     "flavor": "Her broadcast reaches ghosts, gods, and the occasional bored commuter."
   },
   {
@@ -200,7 +200,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "SR",
     "color": "U",
     "type": "Artifact",
-    "cost": "{2}{U}",
+    "cost": "{U}",
     "stats": "-",
     "mechanics": "Arrives: Foresee 2. Hauntlink {U}. Linked: The linked creature gets Untouchable.",
     "flavor": "The lure calls one spirit by its childhood name."
@@ -212,7 +212,7 @@ export const YOKAI_SPEC_ROWS = [
     "color": "U",
     "type": "Creature (Oni Broker)",
     "cost": "{4}{U}",
-    "stats": "4/4",
+    "stats": "4/3",
     "mechanics": "Untouchable. Arrives: draw 1, then grind opponent 2.",
     "flavor": "Her blue horns glow whenever a secret changes hands."
   },
@@ -486,9 +486,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "R",
     "color": "B",
     "type": "Creature (Spirit Salvager)",
-    "cost": "{4}{B}",
+    "cost": "{5}{B}",
     "stats": "3/3",
-    "mechanics": "Arrives: raise the top creature card from your graveyard.",
+    "mechanics": "Dreaded. Arrives: raise the top creature card from your graveyard.",
     "flavor": "She retrieves lost memories from puddles beneath the train line."
   },
   {
@@ -860,9 +860,9 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "U",
     "type": "Creature (Spirit)",
-    "cost": "{1}{U}",
-    "stats": "1/3",
-    "mechanics": "Skyborne.",
+    "cost": "{U}",
+    "stats": "1/2",
+    "mechanics": "Skyborne, Bulwark.",
     "flavor": "A pinprick of blue foxfire slips between towers before dawn."
   },
   {

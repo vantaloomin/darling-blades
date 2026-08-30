@@ -96,20 +96,20 @@ const UR: CardDef[] = [
     rarity: 'ur', flavor: 'The palace slept for a century. Its heir woke with the keys.',
   }),
   creature('dt-midnight-glass-runner', 'Midnight Glass Runner', ['Human', 'Runner'], {
-    supertypes: ['legendary'], cost: cost(1, 'UR'), colors: ['U', 'R'], attack: 3, defense: 3,
+    supertypes: ['legendary'], cost: cost(0, 'UR'), colors: ['U', 'R'], attack: 3, defense: 3,
     keywords: ['warcry'], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 2 }])],
     rarity: 'ur', flavor: 'The last chime is a deadline, not a suggestion.',
   }),
   creature('dt-ice-crown-sovereign', 'Ice-Crown Sovereign', ['Human', 'Queen'], {
-    supertypes: ['legendary'], cost: cost(4, 'UW'), colors: ['U', 'W'], attack: 4, defense: 6,
-    keywords: ['skyborne'], abilities: [arrives([{ op: 'massDestroy', filter: 'allEnchantments' }]), dawn([{ op: 'foresee', n: 1 }])],
+    supertypes: ['legendary'], cost: cost(3, 'UW'), colors: ['U', 'W'], attack: 4, defense: 5,
+    keywords: ['skyborne'], abilities: [arrives([{ op: 'massDestroy', filter: 'allEnchantments' }])],
     rarity: 'ur', flavor: 'The coronation froze the room, the vows, and every exit.',
   }),
 ];
 
 const SSR: CardDef[] = [
   creature('dt-poison-mirror-regent', 'Poison-Mirror Regent', ['Human', 'Regent'], {
-    supertypes: ['legendary'], cost: cost(4, 'B'), colors: ['B'], attack: 4, defense: 4,
+    supertypes: ['legendary'], cost: cost(4, 'BB'), colors: ['B'], attack: 4, defense: 4,
     keywords: ['deathblade', 'untouchable'], abilities: [dawn([{ op: 'loseLife', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }])],
     rarity: 'ssr', flavor: 'The mirror never lies. It simply chooses a crueler truth.',
   }),
@@ -136,7 +136,7 @@ const SSR: CardDef[] = [
     rarity: 'ssr', flavor: 'The first telling fells the court. So does the second.',
   }),
   artifact('dt-storybook-of-ashes', 'Storybook of Ashes', ['Book'], {
-    supertypes: ['legendary'], cost: cost(4), colors: [],
+    supertypes: ['legendary'], cost: cost(6), colors: [],
     abilities: [dawn([{ op: 'grind', n: 1, who: 'self' }, { op: 'draw', n: 1 }])],
     rarity: 'ssr', flavor: 'Every burned page leaves room for one more ending.',
   }),
@@ -151,7 +151,7 @@ const SSR: CardDef[] = [
     rarity: 'ssr', flavor: 'The disguise ends when the sword clears its sheath.',
   }),
   creature('dt-bayou-star-proprietor', 'Bayou-Star Proprietor', ['Human', 'Proprietor'], {
-    supertypes: ['legendary'], cost: cost(5, 'WG'), colors: ['W', 'G'], attack: 4, defense: 5,
+    supertypes: ['legendary'], cost: cost(6, 'WG'), colors: ['W', 'G'], attack: 3, defense: 5,
     keywords: ['bloodoath'], abilities: [arrives([{ op: 'createToken', token: 'tok-firefly', count: 2 }])],
     skim: { cost: cost(2) }, rarity: 'ssr', flavor: 'The house special comes with a second helping of moonlight.',
   }),
@@ -168,7 +168,7 @@ const SR: CardDef[] = [
   ritual('dt-glass-slipper-at-midnight', 'Glass Slipper at Midnight', {
     supertypes: ['legendary'],
     cost: cost(0, 'UB'), colors: ['U', 'B'], skim: { cost: cost(1) },
-    abilities: [spell([{ op: 'boost', p: 1, t: 0, keywords: ['dreaded'], scope: 'allYours' }])],
+    abilities: [spell([{ op: 'boost', p: 1, t: 1, keywords: ['dreaded'], scope: 'allYours' }])],
     rarity: 'sr', flavor: 'It fits perfectly, which is how the trap gets invited inside.',
   }),
   creature('dt-red-hood-wolfslayer', 'Red Hood Wolfslayer', ['Human', 'Hunter'], {
@@ -242,7 +242,7 @@ const R: CardDef[] = [
     flavor: 'The transformation comes with a contract and excellent lighting.',
   }),
   enchantment('dt-beast-library', "Beast's Library", ['Library'], {
-    cost: cost(3, 'U'), colors: ['U'],
+    cost: cost(1, 'U'), colors: ['U'],
     abilities: [arrives([{ op: 'foresee', n: 2 }]), dawn([{ op: 'foresee', n: 1 }])], rarity: 'r',
     flavor: 'The shelves rearrange themselves around the most dangerous question.',
   }),
@@ -335,8 +335,8 @@ const R: CardDef[] = [
   }),
   land('dt-reflection-pond', 'Reflection Pond', ['W', 'R'], 'r', 'The water shows the fighter you brought and the one you need.'),
   ritual('dt-bayou-masquerade', 'Bayou Masquerade', {
-    cost: cost(4, 'B'), colors: ['B'], abilities: [spell([{ op: 'createToken', token: 'tok-firefly', count: 2 }])],
-    retell: { cost: cost(4, 'B') }, rarity: 'r', flavor: 'The masks come off when the fireflies start counting.',
+    cost: cost(5, 'B'), colors: ['B'], abilities: [spell([{ op: 'createToken', token: 'tok-firefly', count: 2 }])],
+    retell: { cost: cost(6, 'B') }, rarity: 'r', flavor: 'The masks come off when the fireflies start counting.',
   }),
   creature('dt-frog-prince-bargain', 'Frog-Prince Bargain', ['Frog', 'Noble'], {
     cost: cost(3, 'U'), colors: ['U'], attack: 2, defense: 3, abilities: [arrives([{ op: 'draw', n: 1 }])], skim: { cost: cost(1) }, rarity: 'r',
@@ -373,10 +373,10 @@ const C: CardDef[] = [
   make('dt-satin-slipper', 'Satin Slipper', ['ritual'], ['Relic'], { cost: cost(1), colors: [], skim: { cost: cost(1) }, abilities: [spell([{ op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'Soft enough for dancing, hard enough for one last step.' }),
   charm('dt-page-torn-free', 'Page Torn Free', { cost: cost(1, 'U'), colors: ['U'], abilities: [spell([{ op: 'draw', n: 1 }])], retell: { cost: cost(2, 'U') }, rarity: 'c', flavor: 'The missing page is where the story starts behaving.' }),
   charm('dt-once-more-with-magic', 'Once More With Magic', { cost: cost(0, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 1, t: 1, scope: 'target' }], target('creature'))], retell: { cost: cost(2, 'W') }, rarity: 'c', flavor: 'The second chance comes with better timing.' }),
-  ritual('dt-wicked-step', 'Wicked Step', { cost: cost(2, 'B'), colors: ['B'], abilities: [spell([{ op: 'discardRandom', n: 1, who: 'opponent' }])], rarity: 'c', flavor: 'The stair creaks for everyone but the person who pushed.' }),
+  ritual('dt-wicked-step', 'Wicked Step', { cost: cost(0, 'B'), colors: ['B'], abilities: [spell([{ op: 'discardRandom', n: 1, who: 'opponent' }])], rarity: 'c', flavor: 'The stair creaks for everyone but the person who pushed.' }),
   charm('dt-rose-vine-snare', 'Rose-Vine Snare', { cost: cost(0, 'G'), colors: ['G'], abilities: [spell([{ op: 'boost', p: 2, t: 2, scope: 'target' }], target('creature'))], rarity: 'c', flavor: 'The vine catches, then decides it likes the shape.' }),
   enchantment('dt-candle-in-window', 'Candle in the Window', [], { cost: cost(0, 'W'), colors: ['W'], abilities: [dawn([{ op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'A small light can make a long road possible.' }),
-  artifact('dt-ink-black-carriage', 'Ink-Black Carriage', ['Vehicle'], { cost: cost(2, 'B'), colors: ['B'], abilities: [dawn([{ op: 'grind', n: 1, who: 'self' }])], rarity: 'c', flavor: 'It carries stories away from the people who started them.' }),
+  artifact('dt-ink-black-carriage', 'Ink-Black Carriage', ['Vehicle'], { cost: cost(1, 'B'), colors: ['B'], abilities: [dawn([{ op: 'grind', n: 1, who: 'self' }])], rarity: 'c', flavor: 'It carries stories away from the people who started them.' }),
   charm('dt-sea-glass-knife', 'Sea-Glass Knife', { cost: cost(0, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }], target('creature'))], rarity: 'c', flavor: 'Pretty glass, practical edge, no landward warranty.' }),
   ritual('dt-ash-sweep', 'Ash Sweep', { cost: cost(1, 'R'), colors: ['R'], abilities: [spell([{ op: 'damage', n: 2, to: 'target' }, { op: 'grind', n: 2, who: 'self' }], target('any'))], rarity: 'c', flavor: 'The hearth clears more than dust.' }),
   make('dt-bookmark-charm', 'Bookmark Charm', ['ritual'], ['Relic'], { cost: cost(1), colors: [], skim: { cost: cost(1) }, abilities: [spell([{ op: 'foresee', n: 2 }, { op: 'grind', n: 1, who: 'self' }])], rarity: 'c', flavor: 'A good place to stop is also a good place to look ahead.' }),
@@ -409,14 +409,14 @@ const C: CardDef[] = [
   land('dt-desert-rooftop', 'Desert Rooftop', ['R'], 'c', 'The city roof catches moonlight and runaway wishes.', [arrives([{ op: 'foresee', n: 1 }])]),
   ritual('dt-reflection-sword', 'Reflection Sword', { cost: cost(0, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 1, t: 0, keywords: ['firstBlade'], scope: 'allYours' }])], rarity: 'c', flavor: 'The blade reflects the family it expects you to become.' }),
   charm('dt-training-yard-dawn', 'Training-Yard Dawn', { cost: cost(0, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 1, t: 1, scope: 'target' }, { op: 'foresee', n: 1 }], target('creature'))], rarity: 'c', flavor: 'Practice becomes a promise when the sun comes up.' }),
-  charm('dt-ancestor-smoke', "Ancestor's Smoke", { cost: cost(1, 'W'), colors: ['W'], abilities: [spell([{ op: 'foresee', n: 2 }])], retell: { cost: cost(4, 'W') }, rarity: 'c', flavor: 'The smoke curls toward the answer your family avoided.' }),
-  artifact('dt-bayou-lantern', 'Bayou Lantern', ['Relic'], { cost: cost(2, 'G'), colors: ['G'], skim: { cost: cost(1) }, abilities: [dawn([{ op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'The lantern keeps the path visible and the mosquitoes interested.' }),
-  artifact('dt-crescent-cookpot', 'Crescent Cookpot', ['Relic'], { cost: cost(3), colors: [], abilities: [arrives([{ op: 'foresee', n: 1 }]), dawn([{ op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'The recipe is older than the kitchen and twice as patient.' }),
+  charm('dt-ancestor-smoke', "Ancestor's Smoke", { cost: cost(0, 'W'), colors: ['W'], abilities: [spell([{ op: 'foresee', n: 2 }])], retell: { cost: cost(4, 'W') }, rarity: 'c', flavor: 'The smoke curls toward the answer your family avoided.' }),
+  artifact('dt-bayou-lantern', 'Bayou Lantern', ['Relic'], { cost: cost(2, 'G'), colors: ['G'], skim: { cost: cost(1) }, abilities: [dawn([{ op: 'gainLife', n: 2 }])], rarity: 'c', flavor: 'The lantern keeps the path visible and the mosquitoes interested.' }),
+  artifact('dt-crescent-cookpot', 'Crescent Cookpot', ['Relic'], { cost: cost(2), colors: [], abilities: [arrives([{ op: 'foresee', n: 1 }]), dawn([{ op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'The recipe is older than the kitchen and twice as patient.' }),
   land('dt-riverboat-kitchen', 'Riverboat Kitchen', ['G', 'B'], 'c', 'The galley drifts while the stew and the story both reduce.'),
-  artifact('dt-wayfinder-oar', 'Wayfinder Oar', ['Relic'], { cost: cost(2, 'U'), colors: ['U'], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 2 }]), dawn([{ op: 'grind', n: 1, who: 'self' }])], rarity: 'c', flavor: 'The oar points where the water wants to go next.' }),
+  artifact('dt-wayfinder-oar', 'Wayfinder Oar', ['Relic'], { cost: cost(1, 'U'), colors: ['U'], skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 2 }]), dawn([{ op: 'grind', n: 1, who: 'self' }])], rarity: 'c', flavor: 'The oar points where the water wants to go next.' }),
   charm('dt-lagoon-current', 'Lagoon Current', { cost: cost(1, 'U'), colors: ['U'], abilities: [spell([{ op: 'recall', to: 'target' }, { op: 'foresee', n: 1 }], target('creature'))], rarity: 'c', flavor: 'The current nudges every problem toward another shore.' }),
   land('dt-oceanic-islet', 'Oceanic Islet', ['U', 'G'], 'c', 'A green island rises from water bright enough to mislead a star.'),
-  ritual('dt-windblown-leaf-paint', 'Windblown Leaf-Paint', { cost: cost(3, 'G'), colors: ['G'], abilities: [spell([{ op: 'foresee', n: 2 }, { op: 'gainLife', n: 2 }])], rarity: 'c', flavor: 'The wind edits the painting into a map.' }),
+  ritual('dt-windblown-leaf-paint', 'Windblown Leaf-Paint', { cost: cost(1, 'G'), colors: ['G'], abilities: [spell([{ op: 'foresee', n: 2 }, { op: 'gainLife', n: 2 }])], rarity: 'c', flavor: 'The wind edits the painting into a map.' }),
   land('dt-riverbend-trail', 'Riverbend Trail', ['G'], 'c', 'The trail bends around the river and every sensible conclusion.', [arrives([{ op: 'grind', n: 1, who: 'self' }])]),
   charm('dt-plaid-arrow', 'Plaid Arrow', { cost: cost(0, 'G'), colors: ['G'], abilities: [spell([{ op: 'boost', p: 1, t: 1, keywords: ['wardingGaze'], scope: 'target' }], target('creature'))], rarity: 'c', flavor: 'The pattern is loud so the shot can be quiet.' }),
   make('dt-casita-door-charm', 'Casita Door Charm', ['ritual'], ['Relic'], { cost: cost(1, 'W'), colors: ['W'], abilities: [spell([{ op: 'createToken', token: 'tok-hearth-spirit', count: 1 }, { op: 'foresee', n: 1 }])], rarity: 'c', flavor: 'The door opens for the person the house was waiting to meet.' }),
