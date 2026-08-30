@@ -296,6 +296,8 @@ export interface CardDef {
   id: string;
   name: string;
   types: CardType[];
+  /** Optional presentation-only replacement for the printed type line. */
+  displayTypeLine?: string;
   subtypes: string[];
   supertypes?: ('legendary' | 'basic')[];
   cost?: ManaCost; // absent on lands

@@ -66,9 +66,9 @@ describe('target-aware damage and land rules text', () => {
 
   it('says "you control" when the target spec is yourCreature (mana-rock sign-off riders)', () => {
     expect(rulesText(CARD_DB['ar-imperial-jade-seal'])).toBe(
-      'When this arrives, put one +1/+1 mark on target creature you control.',
+      'When this arrives, Mark target creature you control.',
     );
-    expect(rulesText(CARD_DB['so-nurture'])).toBe('Put two +1/+1 marks on target creature you control.');
+    expect(rulesText(CARD_DB['so-nurture'])).toBe('Mark target creature you control twice.');
   });
 
   it('prints each mono tapland arrival-rider kind beside enters-tapped text', () => {
@@ -81,6 +81,71 @@ describe('target-aware damage and land rules text', () => {
 
   it('does not emit em-dashes in generated rules text', () => {
     for (const card of ALL_CARDS) expect(rulesText(card)).not.toContain('\u2014');
+  });
+});
+
+describe('2026-08-30 rules text templates', () => {
+  it('puts Skim first as a keyword-cost line, then keywords, body, Empower, and Retell', () => {
+    expect(rulesText(CARD_DB['sb-redshift-corsair'])).toBe('Skim {1}\nWarcry');
+    expect(rulesText(CARD_DB['sb-bloomdrive-surge'])).toBe('Mark target creature.\nEmpower {2}{G}: Propagate.');
+    expect(rulesText(CARD_DB['sb-lumen-refit'])).toBe('Bulwark\nEmpower {2}{W}: Arrives with one +1/+1 Mark.');
+    expect(rulesText(CARD_DB['sb-relay-bloom'])).toBe(
+      'Mark target creature.\nRetell {2}{G}: You may cast this from your graveyard, then sever it.',
+    );
+  });
+
+  it('uses Dawn, capitalizes sentence starts, and connects consecutive Dawn abilities', () => {
+    expect(rulesText(CARD_DB['sb-burning-hull-runner'])).toBe(
+      'If you control a Marked permanent, this gets +1/+0.',
+    );
+    expect(rulesText(CARD_DB['sb-starborne-relay'])).toBe([
+      'When this arrives, draw a card.',
+      'During your Dawn, Foresee 1.',
+      'If you also control four or more creatures with Marks, draw an extra card.',
+    ].join('\n'));
+    expect(rulesText(CARD_DB['sb-violet-wake-beacon'])).toBe([
+      'When this arrives, create one 1/1 Nebula Firefly token with Skyborne.',
+      'During your Dawn: If you control a Marked creature, create one 1/1 Nebula Firefly token with Skyborne.',
+    ].join('\n'));
+    expect(rulesText(CARD_DB['sb-signal-cathedral'])).toBe([
+      'During your Dawn, Foresee 2.',
+      'If you also control five or more Marked permanents, draw an extra card.',
+    ].join('\n'));
+  });
+
+  it('uses Propagate as a bare effect word and Mark as the mark verb', () => {
+    expect(rulesText(CARD_DB['sb-green-propagation-chorus'])).toBe('Propagate, then you gain 2 life.');
+    expect(rulesText(CARD_DB['sb-orbitroot-matriarch'])).toContain('When this arrives, Propagate.');
+    expect(rulesText(CARD_DB['sb-propagation-engine'])).toBe('During your Dawn, Propagate.');
+    expect(rulesText(CARD_DB['sb-starborne-apotheosis'])).toBe(
+      'Propagate, then you gain 5 life, then your Marked creatures get +1/+1 until end of turn.',
+    );
+    expect(rulesText(CARD_DB['sb-the-long-crossing'])).toContain('Chapter III: Propagate.');
+    expect(rulesText(CARD_DB['sb-chrome-violet-archon'])).toBe(
+      'Skyborne\nMarked creatures you control gain Sentinel.',
+    );
+    expect(rulesText(CARD_DB['sb-the-long-crossing'])).toContain('Chapter II: Mark each creature you control.');
+    for (const card of ALL_CARDS) {
+      expect(rulesText(card), `${card.id} has lowercase mark vocabulary`).not.toMatch(/\bmark(?:s|ed)?\b/);
+    }
+  });
+
+  it('keeps the chaptered Ritual engine type while printing Quest', () => {
+    expect(CARD_DB['sb-the-long-crossing'].types).toEqual(['ritual']);
+    expect(typeLine(CARD_DB['sb-the-long-crossing'])).toBe('Quest');
+  });
+
+  it('prints the six Starborne data follow-through bodies', () => {
+    expect(CARD_DB['sb-blue-echo-array'].types).toEqual(['ritual']);
+    expect(rulesText(CARD_DB['sb-blue-echo-array'])).toBe('Skim {1}\nForesee 2.');
+    expect(CARD_DB['sb-null-orbit-array'].types).toEqual(['ritual']);
+    expect(rulesText(CARD_DB['sb-null-orbit-array'])).toBe('Skim {2}\nForesee 1.');
+    expect(rulesText(CARD_DB['sb-rootlight-navigator'])).toBe(
+      'When this arrives, you may play an additional land this turn.',
+    );
+    expect(rulesText(CARD_DB['sb-star-orchard-keeper'])).toBe(
+      'When this arrives, you may play an additional land this turn, then you gain 1 life.',
+    );
   });
 });
 

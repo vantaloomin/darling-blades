@@ -30,7 +30,8 @@ describe.each(PERSONA_TEMPLATES)('greedy persona builder: $id', (template) => {
   });
 
   it('is deterministic for a fixed seed and snapshots aggregate counts', () => {
-    // 2026-08-21: refresh aggregate counts for the live 245-card Duat pool.
+    // 2026-08-29: refresh reanimator aggregate counts after the Starborne
+    // signal-inversion cost change altered the live full-pool selection.
     const first = buildGreedyDeck(template, fullPool, 12_345);
     const second = buildGreedyDeck(template, fullPool, 12_345);
     expect(first).toEqual(second);

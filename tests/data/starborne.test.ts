@@ -94,6 +94,35 @@ describe('Starborne transcription', () => {
     ]);
   });
 
+  it('applies the 2026-08-30 Starborne data follow-through', () => {
+    const card = (id: string) => CARD_DB[id];
+    expect(card('sb-blue-echo-array')).toMatchObject({
+      types: ['ritual'],
+      skim: { cost: { generic: 1, pips: {} } },
+      abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }] }],
+    });
+    expect(card('sb-null-orbit-array')).toMatchObject({
+      types: ['ritual'],
+      skim: { cost: { generic: 2, pips: {} } },
+      abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 1 }] }],
+    });
+    expect(card('sb-rootlight-navigator')).toMatchObject({
+      attack: 2,
+      defense: 3,
+      abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
+    });
+    expect(card('sb-star-orchard-keeper')).toMatchObject({
+      attack: 4,
+      defense: 4,
+      abilities: [{
+        when: 'arrives',
+        ops: [{ op: 'extraLandDrop' }, { op: 'gainLife', n: 1 }],
+      }],
+    });
+    expect(card('sb-signal-inversion').cost).toEqual({ generic: 0, pips: { U: 1 } });
+    expect(STARBORNE.flatMap(opsOf).some((op) => op.op === 'fetchLand')).toBe(false);
+  });
+
   it('renders non-empty rules text for every Starborne collectible', () => {
     for (const card of STARBORNE) {
       expect(rulesText(card).trim(), `${card.id} has empty rules text`).not.toBe('');

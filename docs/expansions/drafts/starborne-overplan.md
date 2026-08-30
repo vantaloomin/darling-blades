@@ -135,7 +135,7 @@ than discovering it in the metagame sweep.
 | sb-voidvine-tender | Voidvine Tender | C | G | Creature, Alien Gardener | {2}{G} | 2/3 | arrives: gainLife 2 | She waters vines with captured moonlight. | core |
 | sb-living-hull-seedling | Living Hull Seedling | C | G | Creature, Starship | {3}{G} | 3/3 | arrives: Propagate | It is small enough to hug and old enough to remember a planet. | core |
 | sb-aurora-beastcaller | Aurora Beastcaller | C | G | Creature, Caller | {4}{G} | 4/4 | arrives: add a mark to target creature | Her song wakes every sleeping engine in the valley. | flex |
-| sb-star-orchard-keeper | Star Orchard Keeper | C | G | Creature, Alien Farmer | {4}{G} | 3/3 | arrives: fetchLand | She grows fruit that contains a complete weather system. | core |
+| sb-star-orchard-keeper | Star Orchard Keeper | C | G | Creature, Alien Farmer | {4}{G} | 4/4 | arrives: gainLife 1 | She grows fruit that contains a complete weather system. | core |
 | sb-solar-canopy-guardian | Solar Canopy Guardian | C | G | Creature, Guardian | {3}{G} | 3/4 | Warding Gaze | The canopy moves when she tells it to, and never before. | core |
 | sb-blooming-satellite | Blooming Satellite | C | G | Creature, Starship | {5}{G} | 5/5 | arrives: Propagate | Its antennae flower whenever another hull learns to live. | flex |
 | sb-prism-deflection | Prism Deflection | C | W | Charm | {1}{W} | None | boost target creature +0/+3; preventCombat | A shield can be a wall, a mirror, or a very pointed suggestion. | core |
@@ -143,7 +143,7 @@ than discovering it in the metagame sweep.
 | sb-chrome-medallion | Chrome Medallion | C | C | Artifact | {2} | None | arrives: Foresee 1 | A crew badge, a key, and a small lie about rank. | core |
 | sb-cometary-verdict | Cometary Verdict | C | W | Ritual | {3}{W} | None | Sever target tapped creature | The tribunal waits until the target has nowhere left to run. | core |
 | sb-pale-nebula | Pale Nebula | C | W | Land | None | None | entersTapped; manaAbility W | The cloud looks soft until you try to navigate it. | core |
-| sb-signal-inversion | Signal Inversion | C | U | Charm | {1}{U} | None | recall target creature; its owner Foresees 1 | A perfect reply is just a message sent back sharpened. | core |
+| sb-signal-inversion | Signal Inversion | C | U | Charm | {U} | None | recall target creature; its owner Foresees 1 | A perfect reply is just a message sent back sharpened. | core |
 | sb-prism-current | Prism Current | C | U | Charm | {1}{U} | None | Foresee 2; draw 1 | The current carries away bad options and leaves the useful ones bright. | flex |
 | sb-relay-station | Relay Station | C | U | Enchantment | {3}{U} | None | dawn: Foresee 1 | It has not missed a signal in four hundred years. | flex |
 | sb-sky-map | Sky Map | C | C | Ritual | {1} | None | Skim {1}; Foresee 1 | Fold it once and it becomes a route through the impossible. | core |
@@ -164,7 +164,7 @@ than discovering it in the metagame sweep.
 | sb-orbital-graft | Orbital Graft | C | G | Enchantment | {2}{G} | None | whenever a creature arrives under your control, add a mark to it | The garden does not distinguish between crew and crop. | flex |
 | sb-overcanopy | Overcanopy | C | G | Land | None | None | entersTapped; manaAbility G | A green aurora hangs low enough to touch from the watch deck. | core |
 | sb-starborne-relay | Starborne Relay | SR | C | Artifact | {6} | None | arrives: draw 1; dawn: Foresee 1; dawn: if you control four or more creatures with marks, draw 1 | It carries a message from every deck and forgets none of them. | core |
-| sb-null-orbit-array | Null-Orbit Array | C | C | Artifact | {1} | None | Skim {2}; arrives: Foresee 1 | Its one job is to make the impossible route look routine. | flex |
+| sb-null-orbit-array | Null-Orbit Array | C | C | Ritual | {1} | None | Skim {2}; Foresee 1 | Its one job is to make the impossible route look routine. | flex |
 | sb-interstellar-crossing | Interstellar Crossing | C | C | Land | None | None | entersTapped; manaAbility C | The crossing takes three days if you walk and one blink if you trust it. | core |
 | sb-violet-wake-beacon | Violet Wake Beacon | SSR | C | Artifact | {7} | None | arrives: createToken Nebula Firefly; dawn: if you control a marked permanent, createToken Nebula Firefly | Its pulse is a welcome, a warning, and a dinner bell. | flex |
 
@@ -187,7 +187,7 @@ than discovering it in the metagame sweep.
 | sb-chrome-sunbreaker | Chrome Sunbreaker | R | R | Creature, Brute | {3}{R} | 4/4 | Overrun | She breaks suns for the same reason others break locks. | core |
 | sb-violet-thrust-engineer | Violet-Thrust Engineer | R | R | Creature, Engineer | {3}{R} | 3/3 | arrives: add a mark to another target creature | Her engines run on bad ideas and very good timing. | core |
 | sb-solar-flare-bruiser | Solar-Flare Bruiser | R | R | Creature, Brawler | {3}{R} | 3/2 | arrives: damage target creature 1 | She calls every repair bill a souvenir. | core |
-| sb-rootlight-navigator | Rootlight Navigator | R | G | Creature, Navigator | {3}{G} | 3/3 | arrives: fetchLand | She steers by the living roots woven through the hull. | core |
+| sb-rootlight-navigator | Rootlight Navigator | R | G | Creature, Navigator | {3}{G} | 2/3 | arrives: extraLandDrop | She steers by the living roots woven through the hull. | core |
 | sb-emerald-bloom-mother | Emerald Bloom Mother | R | G | Creature, Alien Matriarch | {4}{G} | 4/4 | arrives: Propagate | Her children are seeds, ships, and sometimes a very large problem. | core |
 | sb-orchard-of-stars-keeper | Orchard-of-Stars Keeper | R | G | Creature, Alien Farmer | {3}{G} | 2/4 | arrives: add a mark to target creature and gainLife 2 | Her orchard bears fruit only after a good argument with gravity. | core |
 | sb-radiant-moss-mender | Radiant Moss Mender | R | G | Creature, Alien Druid | {2}{G} | 2/2 | arrives: add a mark to another target creature | She fixes broken chrome with moss that remembers its shape. | core |
@@ -195,7 +195,7 @@ than discovering it in the metagame sweep.
 | sb-cinder-nebula-raider | Cinder-Nebula Raider | R | B/R | Legendary Creature, Corsair | {3}{B}{R} | 4/3 | Warcry; whenever this gets a mark, damage opponent 2 | She paints her hull with the names of planets she has robbed. | core |
 | sb-orbitroot-matriarch | Orbitroot Matriarch | R | R/G | Legendary Creature, Alien Matriarch | {3}{R}{G} | 4/4 | Overrun; arrives: Propagate | Her roots cross three decks and all of them are armed. | core |
 | sb-white-signal-bastion | White-Signal Bastion | R | W | Enchantment | {3}{W} | None | your marked creatures get +0/+2 | The bastion is grown from a single pearl of hull tissue. | core |
-| sb-blue-echo-array | Blue-Echo Array | R | C | Artifact | {1} | None | Skim {1}; arrives: Foresee 2 | It remembers every route the ship almost took. | core |
+| sb-blue-echo-array | Blue-Echo Array | R | C | Ritual | {1} | None | Skim {1}; Foresee 2 | It remembers every route the ship almost took. | core |
 | sb-black-starving-orbit | Black-Starving Orbit | R | B | Ritual | {3}{B} | None | Sever target creature with a mark | It circles the target until the target forgets why it was afraid. | core |
 | sb-red-solar-lash | Red-Solar Lash | R | R | Charm | {1}{R} | None | damage target creature 3 | The lash leaves a red line across the darkness and nothing else. | core |
 | sb-green-propagation-chorus | Green Propagation Chorus | R | G | Ritual | {4}{G} | None | Propagate; gainLife 2 | The chorus begins with one throat and ends with the whole garden. | core |
@@ -408,7 +408,7 @@ graduate to `core` without seeded win-rate evidence.
 
 | ID | Name | Rarity | Color(s) | Type | Cost | Stats | Mechanics sketch | Identity / flavor hook | Cut priority |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| sb-the-long-crossing | The Long Crossing | SR | G | Ritual | {2}{G} | None | (AI-risk) Chapter I: create one 1/1 Broodling token; Chapter II: add a mark to each creature you control; Chapter III: Propagate | Three dawns out from anywhere, the hull starts keeping its own crew. | flex |
+| sb-the-long-crossing | The Long Crossing | SR | G | Quest | {2}{G} | None | (AI-risk) Chapter I: create one 1/1 Broodling token; Chapter II: add a mark to each creature you control; Chapter III: Propagate | Three dawns out from anywhere, the hull starts keeping its own crew. | flex |
 
 The chapter order is the argument for the card: it makes a body, marks the
 board, then compounds what it made. That is the set's whole mechanic told once,

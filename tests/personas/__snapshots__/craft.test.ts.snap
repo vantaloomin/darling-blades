@@ -95,9 +95,9 @@ exports[`greedy persona builder: 'midrange' > is deterministic for a fixed seed 
 exports[`greedy persona builder: 'reanimator' > is deterministic for a fixed seed and snapshots aggregate counts 1`] = `
 {
   "curve": {
-    "early": 16,
-    "late": 12,
-    "mid": 12,
+    "early": 20,
+    "late": 11,
+    "mid": 9,
   },
   "lands": 10,
   "maxNonbasicCopies": 4,
