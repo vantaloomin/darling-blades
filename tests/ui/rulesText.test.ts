@@ -144,7 +144,7 @@ describe('2026-08-30 rules text templates', () => {
       'When this arrives, you may play an additional land this turn.',
     );
     expect(rulesText(CARD_DB['sb-star-orchard-keeper'])).toBe(
-      'When this arrives, you may play an additional land this turn, then you gain 1 life.',
+      'When this arrives, you gain 1 life.',
     );
   });
 });

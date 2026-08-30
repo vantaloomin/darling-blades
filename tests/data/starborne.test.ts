@@ -116,7 +116,7 @@ describe('Starborne transcription', () => {
       defense: 4,
       abilities: [{
         when: 'arrives',
-        ops: [{ op: 'extraLandDrop' }, { op: 'gainLife', n: 1 }],
+        ops: [{ op: 'gainLife', n: 1 }],
       }],
     });
     expect(card('sb-signal-inversion').cost).toEqual({ generic: 0, pips: { U: 1 } });
