@@ -2894,8 +2894,8 @@ export const AVATARS: readonly Avatar[] = [
       ['dt-poison-mirror-regent', 4],
       ['gm-black-cat-familiar', 4],
       ['gm-chapel-exorcist', 4],
-      ['gm-batcloak-cutthroat', 4],
-      ['gm-ravenloft-heiress', 4],
+      ['dt-laced-too-tight', 4],
+      ['gm-blood-opera-soloist', 4],
       ['in-doom-bolt', 4],
       ['in-reapers-due', 3],
       ['dt-sleeping-curse', 1],
@@ -2907,11 +2907,11 @@ export const AVATARS: readonly Avatar[] = [
       ['dt-poison-mirror-regent', 4],
       ['in-doom-bolt', 4],
       ['dt-apple-of-endless-sleep', 4],
-      ['dt-once-more-with-magic', 4],
-      ['dt-handmaid-who-woke-twice', 4],
-      ['dt-glass-mountain-knight', 4],
-      ['dt-glass-coffin-sleeper', 4],
-      ['dt-sugar-cottage-witch', 4],
+      ['cf-badb-cathas-warning', 4],
+      ['gm-blood-opera-soloist', 4],
+      ['dt-laced-too-tight', 4],
+      ['gm-black-cat-familiar', 4],
+      ['gm-chapel-exorcist', 4],
       ['dt-bluebeards-last-bride', 1],
       ['dt-goose-girl-of-the-wind-meadow', 1],
       ['dt-poisoned-comb', 4],
@@ -3046,6 +3046,74 @@ export const AVATARS: readonly Avatar[] = [
       ['dt-undersea-bargain', 1],
       ['dt-mirror-apple-curse', 1],
     ]),
+    // HAND-TUNED 2026-08-29 (measured boss-tuning pass; R17): baseline was
+    // 51% at 200 seeds/cell, cells 35/56/25/92/48% in
+    // Muster/Communion/Tides/Mandate/Harvest order. Attempt 1 REJECTED:
+    // replacing the four-copy nerfed creature package (gm-ravenloft-heiress
+    // in deck, dt-handmaid-who-woke-twice in reserveDeck) with
+    // cf-sidhe-silver-lancer in both synchronized lists measured exactly
+    // 35/56/25/92/48%, avg 51%, so the draft was reverted.
+    // Attempt 2 KEPT as the next base: gm-blood-opera-soloist replaced the
+    // same four-copy nerfed creature package in both lists. It measured
+    // 38/57/25/90/49%, avg 51%, at 200 seeds/cell. The small gain was real in
+    // the displayed cells but remains well below the 70% target.
+    //
+    // Attempt 3 KEPT as the next base: four dt-laced-too-tight charms replaced
+    // low-impact creature slots in both synchronized lists. It measured
+    // 46/60/30/88/64%, avg 57%, at 200 seeds/cell. This is a large removal
+    // gain, but the rung still needs a further measured lift.
+    // Attempt 4 REJECTED: replacing the remaining four-copy
+    // dt-glass-coffin-sleeper body with tk-shu-zhaoyun in both synchronized
+    // lists measured 40/53/33/84/50%, avg 52%, with one draw at 200
+    // seeds/cell. Reverted.
+    // Attempt 5 REJECTED: replacing the same sleeper slot with
+    // gm-black-veil-matron in both synchronized lists measured
+    // 40/50/21/81/55%, avg 49%, at 200 seeds/cell. Reverted.
+    // Attempt 6 REJECTED: replacing four dt-once-more-with-magic reserve
+    // slots with sb-orbital-cleansing measured 32/41/34/90/59%, avg 51%, at
+    // 200 seeds/cell. The one classic singleton remained authored; reverted.
+    // Attempt 7 REJECTED: replacing that same four-copy reserve slot with
+    // gm-choir-of-the-dead measured 32/48/28/89/54%, avg 50%, at 200
+    // seeds/cell. Reverted.
+    // Attempt 8 KEPT as the next base: replacing four dt-sugar-cottage-witch
+    // slots with gm-chapel-exorcist in reserveDeck (already present in deck)
+    // measured 61/68/35/91/71%, avg 65%, at 200 seeds/cell. Sugar remains a
+    // legal, castable black creature; this is a curve/impact result, not a
+    // castability correction.
+    // Attempt 9 REJECTED: replacing four dt-once-more-with-magic reserve slots
+    // with sd-the-weight-owed-in-full measured 37/47/33/89/60%, avg 53%, at
+    // 200 seeds/cell. The matrix prices reserveDeck; the matching classic
+    // slot was not retained after the result, and the draft was reverted.
+    // Attempt 10 KEPT as the next base: replacing four dt-once-more-with-magic
+    // reserve slots with cf-badb-cathas-warning measured 64/67/41/95/81%,
+    // avg 69%, with no draws at 200 seeds/cell. This clears the baseline
+    // materially but remains one displayed point below the 70% target.
+    // Attempt 11 REJECTED: replacing four dt-glass-coffin-sleeper slots with
+    // cf-sidhe-silver-lancer in both synchronized lists measured
+    // 63/69/41/94/80%, avg 69%, at 200 seeds/cell. Reverted.
+    // Attempt 12 REJECTED: replacing the four-copy cf-sidhe-silver-lancer
+    // test slot with yn-night-market-price measured 60/66/36/71/70%, avg
+    // 60%, at 200 seeds/cell. Reverted.
+    // Attempt 13 KEPT: replacing the remaining four-copy
+    // dt-glass-coffin-sleeper slot with gm-black-cat-familiar measured
+    // 77/80/56/98/92%, avg 80%, with no draws at 200 seeds/cell. R17 clears
+    // the 70% target.
+    //
+    // The live card audit also falsified the supplied Sugar-Cottage premise:
+    // dt-sugar-cottage-witch is a black {2}{B}{B} 3/4 creature, not a green
+    // {5}{G} spell, and the three Swamps plus four Shadowed Courts can cast
+    // it. It is not a dead card in this reserve. The converter still has a
+    // gap worth fixing separately: its target-supply gate rejects dead narrow
+    // targets but performs no mana-castability audit, so color/pip legality
+    // is not proved by convertAvatarWarchest.
+    // FINAL 14-24 MATRIX 2026-08-29 (200 seeds/cell; cells in
+    // Muster/Communion/Tides/Mandate/Harvest order; +draws shown):
+    // R14 32/81/54/77/66 avg 62; R15 72/84/56/93/94 avg 79;
+    // R16 60/73/49/86/91 avg 72; R17 77/80/56/98/92 avg 80;
+    // R18 91/83/50/93/97 avg 83; R19 70/75/48/72/73 avg 67;
+    // R20 81/70/81/94/96 avg 84; R21 53/79/60/63(199+1d)/51 avg 61;
+    // R22 56/85/57/90/88 avg 75; R23 50/82/59/71/77 avg 68;
+    // R24 64/87/59/82/94 avg 77. FLAGS none.
     reserveDeck: expand([
       ['dt-abyssal-songstress', 4],
       ['gm-black-cat-familiar', 4],
@@ -3180,11 +3248,26 @@ export const AVATARS: readonly Avatar[] = [
       ['yn-moonlit-data-duelist', 4],
       ['yn-hauntlink-signal-lure', 4],
       ['yn-sanctum-of-many-masks', 2],
-      ['yn-bastion-lantern', 2],
+      ['yn-neon-gate-warden', 2],
       ['dt-sea-glass-knife', 4],
       ['yn-signal-bridge', 2],
       ['yn-circuit-foretelling', 2],
     ]),
+    // HAND-TUNED 2026-08-29 (measured boss-tuning pass; R19): baseline was
+    // 51% at 200 seeds/cell, cells 47/61/44/56/47% in
+    // Muster/Communion/Tides/Mandate/Harvest order. Attempt 1 KEPT:
+    // replacing the four-copy yn-bastion-lantern package with
+    // yn-neon-gate-warden (two copies in deck, four in reserveDeck) measured
+    // 70/75/48/72/73%, avg 67%, with no draws at 200 seeds/cell. The 4/4
+    // two-drop and Warding Gaze materially repaired the shallow miss.
+    // FINAL 14-24 MATRIX 2026-08-29 (200 seeds/cell; cells in
+    // Muster/Communion/Tides/Mandate/Harvest order; +draws shown):
+    // R14 32/81/54/77/66 avg 62; R15 72/84/56/93/94 avg 79;
+    // R16 60/73/49/86/91 avg 72; R17 77/80/56/98/92 avg 80;
+    // R18 91/83/50/93/97 avg 83; R19 70/75/48/72/73 avg 67;
+    // R20 81/70/81/94/96 avg 84; R21 53/79/60/63(199+1d)/51 avg 61;
+    // R22 56/85/57/90/88 avg 75; R23 50/82/59/71/77 avg 68;
+    // R24 64/87/59/82/94 avg 77. FLAGS none.
     reserveDeck: expand([
       ['yn-queen-of-the-lanterned-roof', 2],
       ['yn-lantern-court-regent', 4],
@@ -3193,7 +3276,7 @@ export const AVATARS: readonly Avatar[] = [
       ['yn-moonlit-data-duelist', 2],
       ['yn-hauntlink-signal-lure', 4],
       ['yn-sanctum-of-many-masks', 4],
-      ['yn-bastion-lantern', 4],
+      ['yn-neon-gate-warden', 4],
       ['dt-sea-glass-knife', 4],
       ['yn-signal-bridge', 4],
       ['yn-circuit-foretelling', 4],
@@ -3209,7 +3292,7 @@ export const AVATARS: readonly Avatar[] = [
       'yn-sanctum-of-many-masks',
       'sd-crown-bearer-of-the-last-hall',
       'ac-quest-for-the-grail',
-      'yn-bastion-lantern',
+      'yn-paper-mask-sentinel',
       'yn-circuit-foretelling',
       'gm-moon-doll-orchestra',
       'sd-the-last-chart-of-the-duat',
@@ -3280,9 +3363,9 @@ export const AVATARS: readonly Avatar[] = [
       'tk-wu-zhugeke',
       'sd-drowned-cartographer',
       'tk-other-yuanshao',
-      'sd-keeper-of-the-salt-room',
+      'yn-oni-precinct-captain',
       'yn-azure-oni-broker',
-      'cf-hollow-hill-gatekeeper',
+      'gm-chapel-guard',
     ],
     darlingId: 'gk-aphrodite',
   },
@@ -3774,32 +3857,68 @@ export const AVATARS: readonly Avatar[] = [
       ['land-mountain', 10],
       ['sb-radiant-comet-lane', 4],
       ['sb-mycelial-star-gardener', 4],
-      ['sb-flarewing-raider', 4],
-      ['sb-cometroot-grafter', 4],
+      ['cf-heatherblade-scout', 4],
+      ['sb-ion-storm-brawler', 2],
+      ['sb-burning-hull-runner', 2],
       ['sb-lance-of-two-suns', 2],
       ['sb-ion-storm-brawler', 2],
-      ['sb-living-hull-seedling', 4],
+      ['sb-chrome-sunbreaker', 4],
       ['sb-comet-kick-marauder', 2],
       ['sb-orbitroot-matriarch', 2],
       ['sb-rootlight-broodmother', 2],
       ['sb-emerald-bloom-mother', 2],
       ['sb-brood-communion', 2],
-      ['sb-root-of-light', 2],
-      ['sb-echo-burst', 2],
-      ['sb-overcharge-the-hull', 2],
+      ['sb-red-solar-lash', 2],
+      ['sb-starfall-barrage', 2],
+      ['sb-redline-supernova', 2],
     ]),
-    // MEASURED 2026-08-29 (hard AI, 200 seeds/cell, reserve-native avatar
-    // matrix vs the five starters): 51% average; cells 24/64/40/62/64% in
-    // Muster/Communion/Tides/Mandate/Harvest order. Every cell had 200
-    // decided games and zero draws. FLAGS none.
-    // Generated 2026-08-29 by `npx tsx scripts/avatarReserveDecks.ts --print`.
-    // The classic deck, reserveDeck, and landReserve above are the locked
-    // contract list; only this converter-owned surface is generated.
+    // HAND-TUNED 2026-08-29 (measured boss-tuning pass; R23): baseline was
+    // 44% at 200 seeds/cell, cells 15/56/31/65/54% in
+    // Muster/Communion/Tides/Mandate/Harvest order. Attempt 1 KEPT as the
+    // next base: replacing four sb-cometroot-grafter with four
+    // sb-chrome-meteorist measured 19/60/31/61/57%, avg 46%, no draws.
+    // Attempt 2 KEPT: replacing the synchronized sb-echo-burst package with
+    // sb-starfall-barrage measured 40/68/40/67/52%, avg 53%, no draws.
+    // Attempt 3 REJECTED: replacing the four-copy sb-rootlight-broodmother
+    // plus sb-emerald-bloom-mother top-end package with four sb-starfire-lancer
+    // measured 39/66/35/64/62%, avg 53%; it was reverted.
+    // Attempt 4 KEPT: after reverting Attempt 3, replacing four
+    // sb-flarewing-raider with four cross-set cf-heatherblade-scout measured
+    // 42/69/42/67/51%, avg 54%, no draws.
+    // Attempt 5 KEPT: replacing the synchronized sb-overcharge-the-hull
+    // package with sb-redline-supernova measured 46/75/51/59/61%, avg 58%,
+    // with 198 decided games plus 2 draws in Mandate.
+    // Attempt 6 REJECTED for shape: replacing four sb-chrome-meteorist with
+    // four sb-ion-storm-brawler plus two sb-burning-hull-runner accidentally
+    // overfilled both lists. Its raw matrix was 49/75/42/61/63%, avg 58%, no
+    // draws, but the classic deck was 62 cards and reserveDeck 42, so it was
+    // not a legal draft.
+    // Attempt 7 REJECTED as an inherited-invalid draft: replacing four
+    // sb-living-hull-seedling with four sb-chrome-sunbreaker measured
+    // 54/80/47/66/69%, avg 63%, no draws, but retained Attempt 6's bad shape.
+    // Attempt 8 REJECTED as an inherited-invalid draft: replacing two
+    // sb-root-of-light with two sb-red-solar-lash measured 54/79/53/70/75%,
+    // avg 66%, no draws, but retained Attempt 6's bad shape.
+    // Attempt 9 KEPT after correcting that package to the legal four-slot
+    // replacement (two additional sb-ion-storm-brawler plus two
+    // sb-burning-hull-runner). The valid 60-card/40-card lists measured
+    // 50/82/59/71/77%, avg 68%, with no draws at 200 seeds/cell. This is the
+    // accepted final R23 deck. Every attempt above used one deck/reserve
+    // package lever; darlings and landReserve were not changed.
+    // FINAL 14-24 MATRIX 2026-08-29 (200 seeds/cell; cells in
+    // Muster/Communion/Tides/Mandate/Harvest order; +draws shown):
+    // R14 32/81/54/77/66 avg 62; R15 72/84/56/93/94 avg 79;
+    // R16 60/73/49/86/91 avg 72; R17 77/80/56/98/92 avg 80;
+    // R18 91/83/50/93/97 avg 83; R19 70/75/48/72/73 avg 67;
+    // R20 81/70/81/94/96 avg 84; R21 53/79/60/63(199+1d)/51 avg 61;
+    // R22 56/85/57/90/88 avg 75; R23 50/82/59/71/77 avg 68;
+    // R24 64/87/59/82/94 avg 77. FLAGS none.
     reserveDeck: expand([
       ['sb-mycelial-star-gardener', 4],
-      ['sb-flarewing-raider', 4],
-      ['sb-cometroot-grafter', 4],
-      ['sb-living-hull-seedling', 4],
+      ['cf-heatherblade-scout', 4],
+      ['sb-ion-storm-brawler', 2],
+      ['sb-burning-hull-runner', 2],
+      ['sb-chrome-sunbreaker', 4],
       ['sb-lance-of-two-suns', 2],
       ['sb-ion-storm-brawler', 2],
       ['sb-comet-kick-marauder', 2],
@@ -3807,9 +3926,9 @@ export const AVATARS: readonly Avatar[] = [
       ['sb-rootlight-broodmother', 2],
       ['sb-emerald-bloom-mother', 2],
       ['sb-brood-communion', 2],
-      ['sb-root-of-light', 2],
-      ['sb-echo-burst', 4],
-      ['sb-overcharge-the-hull', 4],
+      ['sb-red-solar-lash', 2],
+      ['sb-starfall-barrage', 4],
+      ['sb-redline-supernova', 4],
     ]),
     landReserve: expand([
       ['sb-radiant-comet-lane', 4],
@@ -3818,35 +3937,43 @@ export const AVATARS: readonly Avatar[] = [
     ]),
     darlingsDeck: [
       'sb-mycelial-star-gardener',
-      'sb-flarewing-raider',
-      'sb-cometroot-grafter',
-      'sb-lance-of-two-suns',
+      'cf-heatherblade-scout',
       'sb-ion-storm-brawler',
-      'sb-living-hull-seedling',
+      'sb-burning-hull-runner',
+      'sb-lance-of-two-suns',
+      'sb-chrome-sunbreaker',
       'sb-comet-kick-marauder',
       'sb-rootlight-broodmother',
       'sb-emerald-bloom-mother',
       'sb-brood-communion',
-      'sb-root-of-light',
-      'sb-echo-burst',
-      'sb-overcharge-the-hull',
+      'sb-red-solar-lash',
+      'sb-starfall-barrage',
+      'sb-redline-supernova',
       'ac-quest-marker',
+      'ac-rallying-horn',
+      'ac-tilting-lance',
+      'ac-woodland-errand',
       'ar-training-dummy',
       'bk-nekomata-scout',
       'cf-apple-of-emain',
       'cf-cold-iron-nail',
       'cf-dawn-torc',
       'cf-fae-spark',
+      'cf-ogham-fate-stones',
+      'cf-silver-thread',
       'cf-thorn-sprite',
       'cf-thornsnare',
       'dt-apple-basket',
       'dt-bookmark-charm',
       'dt-brass-lamp-charm',
       'dt-jade-dragon-scale',
+      'dt-plaid-arrow',
       'dt-ragged-ballgown',
+      'dt-rose-vine-snare',
       'dt-satin-slipper',
       'dt-verdant-heart-voyage',
       'en-battle-fervor',
+      'gm-cellar-door',
       'in-boar-rush',
       'in-comet-blast',
       'in-fire-attack',
@@ -3858,20 +3985,28 @@ export const AVATARS: readonly Avatar[] = [
       'sb-hullwake-overdrive',
       'sb-null-orbit-array',
       'sb-sky-map',
+      'sd-barge-fire-brazier',
       'sd-burn-the-rope',
       'sd-empty-heart-jar',
+      'sd-give-the-field-its-due',
       'sd-lapis-funerary-mask',
+      'sd-light-the-wake',
       'sd-reed-bound-canopic',
+      'sd-resin-archive',
       'sd-root-through-the-ruin',
-      'sd-scale-weight',
       'sd-tomb-seal',
       'so-ember-squall',
+      'so-rampant-growth',
       'so-warcry',
       'tk-wu-handang',
+      'yn-ember-mask',
       'yn-ghostwood-growth',
+      'yn-riot-lantern',
+      'yn-rootwall-charm',
+      'ac-castle-under-siege',
+      'ac-court-archer',
       'ac-moonlit-joust',
-      'ac-questing-map',
-      'ac-tilting-lance',
+      'ar-imperial-jade-seal',
       'ar-terracotta-soldier',
       'bk-bearkin-guardian',
       'bk-boarkin-rootbreaker',
@@ -3880,22 +4015,6 @@ export const AVATARS: readonly Avatar[] = [
       'bk-squirrelkin-hoarder',
       'bk-wolfkin-raider',
       'cf-ash-and-mistletoe',
-      'cf-blackthorn-duelist',
-      'cf-brigid-ember-blessing',
-      'cf-cauldron-of-dagda',
-      'cf-cold-iron-taboo',
-      'cf-ember-of-brigid',
-      'cf-hazelwand-mystic',
-      'cf-heatherblade-scout',
-      'cf-hill-feast',
-      'cf-laughing-pooka',
-      'cf-mushroom-ring-guard',
-      'cf-redcap-skirmisher',
-      'cf-silver-apple-shot',
-      'cf-silver-thread',
-      'cf-thorn-crown-geas',
-      'cf-veil-touched-hart',
-      'dt-bayou-lamplighter',
     ],
     darlingId: 'sb-orbitroot-matriarch',
   },
@@ -3985,26 +4104,44 @@ export const AVATARS: readonly Avatar[] = [
       'sb-void-lament',
       'sb-corpse-lantern',
       'sb-deep-space-severance',
+      'ac-bitter-court-rumor',
+      'ac-courtly-betrayal',
+      'ac-grail-glimpse',
+      'ac-lantern-in-fog',
+      'ac-mirror-of-avalon',
       'ac-quest-marker',
+      'ac-wounded-oath',
       'ar-training-dummy',
-      'cf-bargain-for-time',
       'cf-barrow-whisper',
       'cf-bitter-geas',
       'cf-cold-iron-nail',
       'cf-dawn-torc',
-      'cf-fae-ring-initiate',
       'cf-fogbell-chime',
       'cf-glimmerdust-trick',
-      'cf-omen-raven',
+      'cf-lake-mirror-vow',
+      'cf-ogham-fate-stones',
       'cf-salt-the-barrow',
+      'cf-silver-thread',
       'dt-bookmark-charm',
       'dt-brass-lamp-charm',
+      'dt-briar-rose-lullaby',
+      'dt-cursed-ball-invite',
+      'dt-cursed-rose',
+      'dt-dream-prick',
+      'dt-laced-too-tight',
+      'dt-lullaby-refrain',
       'dt-ragged-ballgown',
       'dt-satin-slipper',
+      'dt-sea-glass-knife',
       'dt-silver-fishbone',
       'dt-singing-shell',
+      'dt-tower-braid-escape',
+      'dt-wicked-step',
       'en-clouded-mind',
+      'gm-cellar-door',
+      'gm-fogged-window',
       'gm-funeral-bell',
+      'in-empty-fort-stratagem',
       'in-grave-chill',
       'in-undertow',
       'rg-rune-of-hunger',
@@ -4014,40 +4151,22 @@ export const AVATARS: readonly Avatar[] = [
       'sb-sky-map',
       'sd-empty-heart-jar',
       'sd-lapis-funerary-mask',
+      'sd-pay-before-the-asking',
       'sd-reed-bound-canopic',
-      'sd-scale-weight',
+      'sd-resin-archive',
+      'sd-route-beyond-the-gate',
+      'sd-sand-through-the-grate',
+      'sd-second-wrapping',
+      'sd-silt-reading',
+      'sd-take-the-slow-channel',
+      'sd-the-debt-is-called',
       'sd-tomb-seal',
+      'sd-two-jars-one-heart',
+      'sd-wrapped-against-the-season',
+      'so-creeping-malaise',
       'so-raise-dead',
       'tk-other-dongbai',
       'tk-wei-chenqun',
-      'tk-wu-xiaoqiao',
-      'yn-circuit-foretelling',
-      'ac-bitter-court-rumor',
-      'ac-grail-glimpse',
-      'ac-lantern-in-fog',
-      'ac-questing-map',
-      'ac-treasonous-glance',
-      'ac-wounded-oath',
-      'ar-terracotta-soldier',
-      'bk-batkin-duskwing',
-      'bk-kitsune-illusionist',
-      'bk-lamia-nightblade',
-      'bk-mermaid-chartsinger',
-      'cf-bargain-unwound',
-      'cf-black-dog-of-lane',
-      'cf-bog-banshee',
-      'cf-cairnlight-adept',
-      'cf-cold-iron-taboo',
-      'cf-mist-over-tara',
-      'cf-mistwing-pixie',
-      'cf-night-market-bargain',
-      'cf-selkie-runner',
-      'cf-silver-thread',
-      'dt-cursed-rose',
-      'dt-dream-prick',
-      'dt-eel-twin-of-the-sea-witch',
-      'dt-frog-pond-bride',
-      'dt-frozen-to-the-floor',
     ],
     darlingId: 'sd-sitra-ferrywoman-of-two-rivers',
   },

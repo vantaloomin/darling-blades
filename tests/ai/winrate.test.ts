@@ -202,9 +202,9 @@ describe('AI win-rate gates', () => {
   }, 900_000);
 
   it('Starborne rungs 23-24 field complete matrices and terminate decisively', () => {
-    // No floors yet: both are tier-6 PROVISIONAL until the post-batch tuning
-    // pass measures them at 200 seeds on final costs. This gate only proves
-    // the new pair plays complete, decisive games at CI's 40-seed budget.
+    // Final `--avatars --seeds 200` table: R23 68% (50/82/59/71/77) and
+    // R24 77% (64/87/59/82/94), with no draws. Floors use the same documented
+    // 6.5pp noise band, rounded down to the half point: 61.5% and 70.5%.
     const report = runAvatarMatrix(40, ['chrome-broodmother', 'the-violet-signal-queen']);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
     const r23 = row('chrome-broodmother');
@@ -214,6 +214,8 @@ describe('AI win-rate gates', () => {
     if (!r23 || !r24) return;
     expect(r23.cells).toHaveLength(5);
     expect(r24.cells).toHaveLength(5);
+    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.615);
+    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.705);
     for (const cell of [...r23.cells, ...r24.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
