@@ -214,8 +214,12 @@ describe('AI win-rate gates', () => {
     if (!r23 || !r24) return;
     expect(r23.cells).toHaveLength(5);
     expect(r24.cells).toHaveLength(5);
-    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.615);
-    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.705);
+    // Floors set from the POST-RAGE 200-seed band (2026-08-30: R23 67, R24
+    // 73) - the compelled Lu Bu strengthened Crimson Muster after the
+    // surgery numbers were first taken, so the pre-Rage 68/77 readings were
+    // stale before these floors ever shipped. Same minus-6.5pp convention.
+    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.605);
+    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.665);
     for (const cell of [...r23.cells, ...r24.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }

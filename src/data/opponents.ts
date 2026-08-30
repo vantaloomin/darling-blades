@@ -2902,6 +2902,74 @@ export const AVATARS: readonly Avatar[] = [
       ['dt-apple-of-endless-sleep', 3],
       ['dt-once-more-with-magic', 1],
     ]),
+    // HAND-TUNED 2026-08-29 (measured boss-tuning pass; R17): baseline was
+    // 51% at 200 seeds/cell, cells 35/56/25/92/48% in
+    // Muster/Communion/Tides/Mandate/Harvest order. Attempt 1 REJECTED:
+    // replacing the four-copy nerfed creature package (gm-ravenloft-heiress
+    // in deck, dt-handmaid-who-woke-twice in reserveDeck) with
+    // cf-sidhe-silver-lancer in both synchronized lists measured exactly
+    // 35/56/25/92/48%, avg 51%, so the draft was reverted.
+    // Attempt 2 KEPT as the next base: gm-blood-opera-soloist replaced the
+    // same four-copy nerfed creature package in both lists. It measured
+    // 38/57/25/90/49%, avg 51%, at 200 seeds/cell. The small gain was real in
+    // the displayed cells but remains well below the 70% target.
+    //
+    // Attempt 3 KEPT as the next base: four dt-laced-too-tight charms replaced
+    // low-impact creature slots in both synchronized lists. It measured
+    // 46/60/30/88/64%, avg 57%, at 200 seeds/cell. This is a large removal
+    // gain, but the rung still needs a further measured lift.
+    // Attempt 4 REJECTED: replacing the remaining four-copy
+    // dt-glass-coffin-sleeper body with tk-shu-zhaoyun in both synchronized
+    // lists measured 40/53/33/84/50%, avg 52%, with one draw at 200
+    // seeds/cell. Reverted.
+    // Attempt 5 REJECTED: replacing the same sleeper slot with
+    // gm-black-veil-matron in both synchronized lists measured
+    // 40/50/21/81/55%, avg 49%, at 200 seeds/cell. Reverted.
+    // Attempt 6 REJECTED: replacing four dt-once-more-with-magic reserve
+    // slots with sb-orbital-cleansing measured 32/41/34/90/59%, avg 51%, at
+    // 200 seeds/cell. The one classic singleton remained authored; reverted.
+    // Attempt 7 REJECTED: replacing that same four-copy reserve slot with
+    // gm-choir-of-the-dead measured 32/48/28/89/54%, avg 50%, at 200
+    // seeds/cell. Reverted.
+    // Attempt 8 KEPT as the next base: replacing four dt-sugar-cottage-witch
+    // slots with gm-chapel-exorcist in reserveDeck (already present in deck)
+    // measured 61/68/35/91/71%, avg 65%, at 200 seeds/cell. Sugar remains a
+    // legal, castable black creature; this is a curve/impact result, not a
+    // castability correction.
+    // Attempt 9 REJECTED: replacing four dt-once-more-with-magic reserve slots
+    // with sd-the-weight-owed-in-full measured 37/47/33/89/60%, avg 53%, at
+    // 200 seeds/cell. The matrix prices reserveDeck; the matching classic
+    // slot was not retained after the result, and the draft was reverted.
+    // Attempt 10 KEPT as the next base: replacing four dt-once-more-with-magic
+    // reserve slots with cf-badb-cathas-warning measured 64/67/41/95/81%,
+    // avg 69%, with no draws at 200 seeds/cell. This clears the baseline
+    // materially but remains one displayed point below the 70% target.
+    // Attempt 11 REJECTED: replacing four dt-glass-coffin-sleeper slots with
+    // cf-sidhe-silver-lancer in both synchronized lists measured
+    // 63/69/41/94/80%, avg 69%, at 200 seeds/cell. Reverted.
+    // Attempt 12 REJECTED: replacing the four-copy cf-sidhe-silver-lancer
+    // test slot with yn-night-market-price measured 60/66/36/71/70%, avg
+    // 60%, at 200 seeds/cell. Reverted.
+    // Attempt 13 KEPT: replacing the remaining four-copy
+    // dt-glass-coffin-sleeper slot with gm-black-cat-familiar measured
+    // 77/80/56/98/92%, avg 80%, with no draws at 200 seeds/cell. R17 clears
+    // the 70% target.
+    //
+    // The live card audit also falsified the supplied Sugar-Cottage premise:
+    // dt-sugar-cottage-witch is a black {2}{B}{B} 3/4 creature, not a green
+    // {5}{G} spell, and the three Swamps plus four Shadowed Courts can cast
+    // it. It is not a dead card in this reserve. The converter still has a
+    // gap worth fixing separately: its target-supply gate rejects dead narrow
+    // targets but performs no mana-castability audit, so color/pip legality
+    // is not proved by convertAvatarWarchest.
+    // FINAL 14-24 MATRIX 2026-08-29 (200 seeds/cell; cells in
+    // Muster/Communion/Tides/Mandate/Harvest order; +draws shown):
+    // R14 32/81/54/77/66 avg 62; R15 72/84/56/93/94 avg 79;
+    // R16 60/73/49/86/91 avg 72; R17 77/80/56/98/92 avg 80;
+    // R18 91/83/50/93/97 avg 83; R19 70/75/48/72/73 avg 67;
+    // R20 81/70/81/94/96 avg 84; R21 53/79/60/63(199+1d)/51 avg 61;
+    // R22 56/85/57/90/88 avg 75; R23 50/82/59/71/77 avg 68;
+    // R24 64/87/59/82/94 avg 77. FLAGS none.
     reserveDeck: expand([
       ['dt-glass-coffin-queen', 2],
       ['dt-poison-mirror-regent', 4],
@@ -3036,96 +3104,57 @@ export const AVATARS: readonly Avatar[] = [
       ['gm-black-cat-familiar', 4],
       ['gm-batcloak-cutthroat', 4],
       ['gm-blood-opera-soloist', 4],
-      ['gm-ravenloft-heiress', 4],
+      ['dt-sea-glass-knife', 4],
       ['gm-black-veil-matron', 4],
       ['gm-stormglass-golem', 4],
       ['in-undertow', 1],
       ['in-grave-chill', 1],
-      ['in-doom-bolt', 3],
-      ['dt-silver-fishbone', 1],
+      ['in-doom-bolt', 4],
       ['dt-undersea-bargain', 1],
       ['dt-mirror-apple-curse', 1],
     ]),
-    // HAND-TUNED 2026-08-29 (measured boss-tuning pass; R17): baseline was
-    // 51% at 200 seeds/cell, cells 35/56/25/92/48% in
-    // Muster/Communion/Tides/Mandate/Harvest order. Attempt 1 REJECTED:
-    // replacing the four-copy nerfed creature package (gm-ravenloft-heiress
-    // in deck, dt-handmaid-who-woke-twice in reserveDeck) with
-    // cf-sidhe-silver-lancer in both synchronized lists measured exactly
-    // 35/56/25/92/48%, avg 51%, so the draft was reverted.
-    // Attempt 2 KEPT as the next base: gm-blood-opera-soloist replaced the
-    // same four-copy nerfed creature package in both lists. It measured
-    // 38/57/25/90/49%, avg 51%, at 200 seeds/cell. The small gain was real in
-    // the displayed cells but remains well below the 70% target.
-    //
-    // Attempt 3 KEPT as the next base: four dt-laced-too-tight charms replaced
-    // low-impact creature slots in both synchronized lists. It measured
-    // 46/60/30/88/64%, avg 57%, at 200 seeds/cell. This is a large removal
-    // gain, but the rung still needs a further measured lift.
-    // Attempt 4 REJECTED: replacing the remaining four-copy
-    // dt-glass-coffin-sleeper body with tk-shu-zhaoyun in both synchronized
-    // lists measured 40/53/33/84/50%, avg 52%, with one draw at 200
-    // seeds/cell. Reverted.
-    // Attempt 5 REJECTED: replacing the same sleeper slot with
-    // gm-black-veil-matron in both synchronized lists measured
-    // 40/50/21/81/55%, avg 49%, at 200 seeds/cell. Reverted.
-    // Attempt 6 REJECTED: replacing four dt-once-more-with-magic reserve
-    // slots with sb-orbital-cleansing measured 32/41/34/90/59%, avg 51%, at
-    // 200 seeds/cell. The one classic singleton remained authored; reverted.
-    // Attempt 7 REJECTED: replacing that same four-copy reserve slot with
-    // gm-choir-of-the-dead measured 32/48/28/89/54%, avg 50%, at 200
-    // seeds/cell. Reverted.
-    // Attempt 8 KEPT as the next base: replacing four dt-sugar-cottage-witch
-    // slots with gm-chapel-exorcist in reserveDeck (already present in deck)
-    // measured 61/68/35/91/71%, avg 65%, at 200 seeds/cell. Sugar remains a
-    // legal, castable black creature; this is a curve/impact result, not a
-    // castability correction.
-    // Attempt 9 REJECTED: replacing four dt-once-more-with-magic reserve slots
-    // with sd-the-weight-owed-in-full measured 37/47/33/89/60%, avg 53%, at
-    // 200 seeds/cell. The matrix prices reserveDeck; the matching classic
-    // slot was not retained after the result, and the draft was reverted.
-    // Attempt 10 KEPT as the next base: replacing four dt-once-more-with-magic
-    // reserve slots with cf-badb-cathas-warning measured 64/67/41/95/81%,
-    // avg 69%, with no draws at 200 seeds/cell. This clears the baseline
-    // materially but remains one displayed point below the 70% target.
-    // Attempt 11 REJECTED: replacing four dt-glass-coffin-sleeper slots with
-    // cf-sidhe-silver-lancer in both synchronized lists measured
-    // 63/69/41/94/80%, avg 69%, at 200 seeds/cell. Reverted.
-    // Attempt 12 REJECTED: replacing the four-copy cf-sidhe-silver-lancer
-    // test slot with yn-night-market-price measured 60/66/36/71/70%, avg
-    // 60%, at 200 seeds/cell. Reverted.
-    // Attempt 13 KEPT: replacing the remaining four-copy
-    // dt-glass-coffin-sleeper slot with gm-black-cat-familiar measured
-    // 77/80/56/98/92%, avg 80%, with no draws at 200 seeds/cell. R17 clears
-    // the 70% target.
-    //
-    // The live card audit also falsified the supplied Sugar-Cottage premise:
-    // dt-sugar-cottage-witch is a black {2}{B}{B} 3/4 creature, not a green
-    // {5}{G} spell, and the three Swamps plus four Shadowed Courts can cast
-    // it. It is not a dead card in this reserve. The converter still has a
-    // gap worth fixing separately: its target-supply gate rejects dead narrow
-    // targets but performs no mana-castability audit, so color/pip legality
-    // is not proved by convertAvatarWarchest.
-    // FINAL 14-24 MATRIX 2026-08-29 (200 seeds/cell; cells in
-    // Muster/Communion/Tides/Mandate/Harvest order; +draws shown):
-    // R14 32/81/54/77/66 avg 62; R15 72/84/56/93/94 avg 79;
-    // R16 60/73/49/86/91 avg 72; R17 77/80/56/98/92 avg 80;
-    // R18 91/83/50/93/97 avg 83; R19 70/75/48/72/73 avg 67;
-    // R20 81/70/81/94/96 avg 84; R21 53/79/60/63(199+1d)/51 avg 61;
-    // R22 56/85/57/90/88 avg 75; R23 50/82/59/71/77 avg 68;
-    // R24 64/87/59/82/94 avg 77. FLAGS none.
+    // HAND-TUNED 2026-08-30 (measured boss-tuning pass; R18): post-Rage
+    // baseline was 79% at 200 seeds/cell, cells 74/84/50/93/97% in
+    // Muster/Communion/Tides/Mandate/Harvest order. The Muster collapse was
+    // the compelled 4x Lu Bu starter attack pattern; Tides was the standing
+    // 50% weakness.
+    // Attempt 1 KEPT: replaced four gm-ravenloft-heiress slots with four
+    // dt-sea-glass-knife slots in both synchronized deck and reserveDeck
+    // lists. The one-blue, zero-generic recall measured 86/90/68/95/99%,
+    // avg 88%, with no draws at 200 seeds/cell. Muster rose 74% -> 86%, Tides
+    // rose 50% -> 68%, and no cell regressed. This clears the 86% target and
+    // preserves the 0.795 floor without moving it.
+    // Attempt 2 REJECTED: replacing four gm-batcloak-cutthroat slots with
+    // four tk-jin-simashi first-strike-class blockers in both synchronized
+    // lists measured 82/89/69/95/97%, avg 86%, with no draws at 200
+    // seeds/cell. Muster fell 86% -> 82% and the average fell 88% -> 86%,
+    // so the draft was reverted.
+    // Attempt 3 REJECTED for legality: the first Doom Bolt deepening draft
+    // removed the four-copy reserve Fishbone package while also changing
+    // reserve Doom Bolt 3 -> 4, leaving a 37-card reserve. Its matrix output
+    // was 89/95/74/96/97%, avg 90%, but it was discarded before acceptance.
+    // Attempt 4 KEPT as the final legal base: the classic singleton
+    // dt-silver-fishbone became the fourth in-doom-bolt, while reserveDeck
+    // moved from Doom Bolt 3 plus Fishbone 4 to Doom Bolt 4 plus Fishbone 3,
+    // preserving its 40-card shape. It measured 88/90/68/96/99%, avg 88%,
+    // with no draws at 200 seeds/cell. Muster rose 86% -> 88%, Mandate
+    // 95% -> 96%, and no cell regressed from the prior valid kept list.
+    // Validator follow-through 2026-08-30: the source-list swap changes the
+    // deterministic pre-Starborne Darlings builder output, so darlingsDeck
+    // below is synchronized to that validator result. This is not a tuning
+    // lever.
     reserveDeck: expand([
       ['dt-abyssal-songstress', 4],
       ['gm-black-cat-familiar', 4],
       ['gm-batcloak-cutthroat', 4],
       ['gm-blood-opera-soloist', 4],
-      ['gm-ravenloft-heiress', 4],
+      ['dt-sea-glass-knife', 4],
       ['gm-black-veil-matron', 4],
       ['gm-stormglass-golem', 2],
       ['in-undertow', 1],
       ['in-grave-chill', 4],
-      ['in-doom-bolt', 3],
-      ['dt-silver-fishbone', 4],
+      ['in-doom-bolt', 4],
+      ['dt-silver-fishbone', 3],
       ['dt-undersea-bargain', 1],
       ['dt-mirror-apple-curse', 1],
     ]),
@@ -3135,13 +3164,12 @@ export const AVATARS: readonly Avatar[] = [
       ['land-swamp', 4],
     ]),
     darlingsDeck: [
-      'gm-ravenloft-heiress',
       'gm-stormglass-golem',
       'sd-two-for-the-ferrywoman',
       'gm-moon-doll-orchestra',
-      'dt-silver-fishbone',
       'sd-fourth-weighing',
       'cf-badb-cathas-warning',
+      'gm-madame-macabre',
       'dt-undersea-bargain',
       'in-doom-bolt',
       'gm-nocturne-manor',
@@ -3181,6 +3209,7 @@ export const AVATARS: readonly Avatar[] = [
       'gm-black-cat-familiar',
       'ar-training-dummy',
       'gm-screaming-staircase',
+      'dt-sea-glass-knife',
       'in-undertow',
       'yn-network-sprite',
       'dt-sugar-cottage-witch',
@@ -3205,15 +3234,15 @@ export const AVATARS: readonly Avatar[] = [
       'gm-blood-drop-initiate',
       'ar-terracotta-soldier',
       'tk-other-dongbai',
-      'tk-wu-xiaoqiao',
+      'yn-azure-oni-broker',
       'gm-haunted-doll',
       'tk-wu-daqiao',
+      'tk-wu-xiaoqiao',
       'dt-frog-pond-bride',
       'so-dirge-of-loss',
       'tk-wu-zhugeke',
       'bk-batkin-duskwing',
       'sd-drowned-cartographer',
-      'cf-bean-sidhe-keening',
     ],
     darlingId: 'dt-abyssal-songstress',
   },
