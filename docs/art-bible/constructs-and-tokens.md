@@ -378,7 +378,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 
 ### Chrome Husk — `tok-chrome-husk`
 - **Card facts:** {0} · C · 2/2 · bulwark · c · holo: none
-- **Character & source:** Colorless artifact-creature token (Husk) minted two at a time by `sb-worldgarden-leviathan` — a discarded shell that keeps standing after its owner leaves. Follows the Starborne register in index.md §4b.
+- **Character & source:** Colorless artifact-creature token (Husk) minted by `sb-worldgarden-leviathan` — a discarded shell that keeps standing after its owner leaves. Follows the Starborne register in index.md §4b.
 - **Personality / mood:** "The pilot moved on. The armor never got the order." Vacant, patient, immovable.
 - **Pose & composition:** one empty woman-shaped chrome shell standing at parade rest on a hull garden path, seams parted slightly where the occupant left, vines beginning to thread the joints; helm-face ≈ y 320, dark and hollow. The top third stays clear for crop-safe headroom.
 - **Costume & attire:** pearl-and-chrome segmented plate, empty at the neck seam, a faint dust of pollen on the shoulders, no insignia.

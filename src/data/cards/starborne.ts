@@ -113,7 +113,7 @@ export const STARBORNE = [
     flavor: 'She maps explosions by the shapes they leave in the dark.',
   }),
   creature('sb-void-blood-scavenger', 'Void-Blood Scavenger', ['Alien', 'Scavenger'], {
-    cost: cost(1, 'B'), colors: B, attack: 2, defense: 2, keywords: ['deathblade'], rarity: 'c',
+    cost: cost(2, 'B'), colors: B, attack: 2, defense: 2, keywords: ['deathblade'], rarity: 'c',
     flavor: 'She strips useful organs from wrecks before the wrecks cool.',
   }),
   creature('sb-eclipse-broodhunter', 'Eclipse Broodhunter', ['Hunter'], {
@@ -187,7 +187,7 @@ export const STARBORNE = [
     flavor: "She plants living constellations in the ship's hydroponics deck.",
   }),
   creature('sb-cometroot-grafter', 'Cometroot Grafter', ['Engineer'], {
-    cost: cost(2, 'G'), colors: G, attack: 3, defense: 3,
+    cost: cost(3, 'G'), colors: G, attack: 3, defense: 3,
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 0 } }], rarity: 'c',
     flavor: 'She grafts alien roots to chrome and calls the result a garden.',
   }),
@@ -205,7 +205,7 @@ export const STARBORNE = [
     flavor: 'Her song wakes every sleeping engine in the valley.',
   }),
   creature('sb-star-orchard-keeper', 'Star Orchard Keeper', ['Alien', 'Farmer'], {
-    cost: cost(3, 'G'), colors: G, attack: 3, defense: 3,
+    cost: cost(4, 'G'), colors: G, attack: 3, defense: 3,
     abilities: [arrives([{ op: 'fetchLand' }])], rarity: 'c',
     flavor: 'She grows fruit that contains a complete weather system.',
   }),
@@ -425,7 +425,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'She calls every repair bill a souvenir.',
   }),
   creature('sb-rootlight-navigator', 'Rootlight Navigator', ['Navigator'], {
-    cost: cost(2, 'G'), colors: G, attack: 3, defense: 3, rarity: 'r',
+    cost: cost(3, 'G'), colors: G, attack: 3, defense: 3, rarity: 'r',
     abilities: [arrives([{ op: 'fetchLand' }])],
     flavor: 'She steers by the living roots woven through the hull.',
   }),
@@ -444,7 +444,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'She fixes broken chrome with moss that remembers its shape.',
   }),
   creature('sb-chrome-aurora-commandant', 'Chrome-Aurora Commandant', ['Alien', 'Commander'], {
-    supertypes: ['legendary'], cost: cost(3, 'WU'), colors: ['W', 'U'], attack: 4, defense: 4, keywords: ['skyborne'], rarity: 'r',
+    supertypes: ['legendary'], cost: cost(2, 'WWU'), colors: ['W', 'U'], attack: 3, defense: 4, keywords: ['skyborne'], rarity: 'r',
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 1, t: 1 } }],
     flavor: 'She commands in two colors of light and never repeats an order.',
   }),
@@ -509,7 +509,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'Her sermons begin with a spark and end with a crater.',
   }),
   creature('sb-rootlight-broodmother', 'Rootlight Broodmother', ['Alien', 'Matriarch'], {
-    cost: cost(4, 'G'), colors: G, attack: 4, defense: 5, abilities: [arrives([{ op: 'propagate' }, { op: 'createToken', token: 'tok-broodling', count: 1 }])], rarity: 'sr',
+    cost: cost(5, 'G'), colors: G, attack: 4, defense: 5, abilities: [arrives([{ op: 'propagate' }, { op: 'createToken', token: 'tok-broodling', count: 1 }])], rarity: 'sr',
     flavor: 'She births a swarm from the roots of a starship.',
   }),
   creature('sb-moonlit-hull-repairer', 'Moonlit Hull Repairer', ['Engineer'], {
@@ -521,7 +521,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'She braids a current through empty space and calls it a road.',
   }),
   creature('sb-solar-thruster-herald', 'Solar-Thruster Herald', ['Alien', 'Herald'], {
-    cost: cost(3, 'R'), colors: R, attack: 3, defense: 3, keywords: ['skyborne', 'warcry'],
+    cost: cost(4, 'R'), colors: R, attack: 3, defense: 3, keywords: ['skyborne', 'warcry'],
     abilities: [{ when: 'gainsMark', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }], rarity: 'sr',
     flavor: 'Her arrival is always announced by the sound of something breaking.',
   }),
@@ -541,7 +541,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'She weaves the last light from a dying sun into a weapon.',
   }),
   enchantment('sb-propagation-engine', 'Propagation Engine', {
-    cost: cost(4), colors: C, abilities: [dawn([{ op: 'propagate' }])], rarity: 'sr',
+    cost: cost(5), colors: C, abilities: [dawn([{ op: 'propagate' }])], rarity: 'sr',
     flavor: 'The machine has no guide because the whole ship is its nervous system.',
   }),
   ritual('sb-deep-space-severance', 'Deep-Space Severance', {
@@ -553,7 +553,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'The ship gives one crew member permission to become the weather.',
   }),
   creature('sb-queen-of-the-living-hull', 'Queen of the Living Hull', ['Alien', 'Queen'], {
-    supertypes: ['legendary'], cost: cost(5, 'W'), colors: W, attack: 5, defense: 5, keywords: ['sentinel'], rarity: 'ssr',
+    supertypes: ['legendary'], cost: cost(5, 'WW'), colors: W, attack: 5, defense: 5, keywords: ['sentinel'], rarity: 'ssr',
     abilities: [
       arrives([{ op: 'propagate' }]),
       { when: 'static', static: { scope: 'filter', filter: { marked: true, other: true }, p: 1, t: 1 } },
@@ -561,7 +561,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: "She wears the ship's living crown and listens through every wall.",
   }),
   creature('sb-astral-reef-singer', 'Astral Reef Singer', ['Alien', 'Singer'], {
-    supertypes: ['legendary'], cost: cost(7, 'U'), colors: U, attack: 4, defense: 5, keywords: ['skyborne'], abilities: [dawn([{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }])], rarity: 'ssr',
+    supertypes: ['legendary'], cost: cost(7, 'U'), colors: U, attack: 4, defense: 5, keywords: ['skyborne'], abilities: [dawn([{ op: 'draw', n: 1 }])], rarity: 'ssr',
     flavor: 'Her song makes reefs bloom in the vacuum between systems.',
   }),
   creature('sb-hellion-of-the-redshift', 'Hellion of the Redshift', ['Alien', 'Beast'], {
@@ -569,7 +569,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'It is a living engine with a temper and no reverse gear.',
   }),
   creature('sb-worldroot-shipmind', 'Worldroot Shipmind', ['Starship'], {
-    supertypes: ['legendary'], cost: cost(5, 'G'), colors: G, attack: 5, defense: 6, abilities: [arrives([{ op: 'propagate' }, { op: 'createToken', token: 'tok-broodling', count: 2 }])], rarity: 'ssr',
+    supertypes: ['legendary'], cost: cost(7, 'G'), colors: G, attack: 5, defense: 6, abilities: [arrives([{ op: 'propagate' }, { op: 'createToken', token: 'tok-broodling', count: 2 }])], rarity: 'ssr',
     flavor: 'The ship grew a mind so large that the crew became its weather.',
   }),
   creature('sb-chrome-violet-archon', 'Chrome-Violet Archon', ['Alien', 'Archon'], {
@@ -612,7 +612,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'The detonation is visible from three systems and remembered in four.',
   }),
   creature('sb-constellation-matriarch', 'Constellation Matriarch', ['Alien', 'Matriarch'], {
-    supertypes: ['legendary'], cost: cost(5, 'W'), colors: W, attack: 5, defense: 6, keywords: ['skyborne', 'sentinel'], rarity: 'ur',
+    supertypes: ['legendary'], cost: cost(6, 'W'), colors: W, attack: 5, defense: 6, keywords: ['skyborne', 'sentinel'], rarity: 'ur',
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true, other: true }, p: 1, t: 1 } }],
     flavor: 'She wears a living constellation as a crown and calls it family.',
   }),
@@ -627,8 +627,8 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'She does not enter combat. Combat enters her orbit.',
   }),
   creature('sb-worldgarden-leviathan', 'Worldgarden Leviathan', ['Alien', 'Beast'], {
-    supertypes: ['legendary'], cost: cost(6, 'G'), colors: G, attack: 7, defense: 7, keywords: ['overrun'],
-    abilities: [arrives([{ op: 'propagate' }, { op: 'createToken', token: 'tok-chrome-husk', count: 2 }])], rarity: 'ur',
+    supertypes: ['legendary'], cost: cost(7, 'G'), colors: G, attack: 7, defense: 7, keywords: ['overrun'],
+    abilities: [arrives([{ op: 'propagate' }, { op: 'createToken', token: 'tok-chrome-husk', count: 1 }])], rarity: 'ur',
     flavor: 'It carries a garden on its back and a moon in its shadow.',
   }),
   creature('sb-prism-void-comet', 'Prism-Void Comet', ['Alien', 'Comet'], {
@@ -651,7 +651,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'It is the first machine the fleet built that can dream in plural.',
   }),
   charm('sb-quiet-orbit', 'Quiet Orbit', {
-    cost: cost(2, 'U'), colors: U, abilities: [{
+    cost: cost(1, 'UU'), colors: U, abilities: [{
       when: 'spell',
       targets: [{ what: 'spell' }, { what: 'yourPermanent' }, { what: 'yourPermanent' }],
       ops: [{ op: 'cancel', to: 'target' }, { op: 'moveMark' }],
@@ -777,7 +777,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'Everything the light gave, the eclipse counts back.',
   }),
   creature('sb-appetite-of-the-void', 'Appetite of the Void', ['Alien', 'Devourer'], {
-    cost: cost(3, 'B'), colors: B, attack: 4, defense: 5,
+    cost: cost(4, 'B'), colors: B, attack: 4, defense: 5,
     abilities: [arrives([{ op: 'boost', p: -2, t: -2, scope: 'theirMarked' }])],
     rite: { n: 1 }, rarity: 'r',
     flavor: 'It eats the light first, and then whatever the light was attached to.',
