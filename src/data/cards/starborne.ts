@@ -205,8 +205,8 @@ export const STARBORNE = [
     flavor: 'Her song wakes every sleeping engine in the valley.',
   }),
   creature('sb-star-orchard-keeper', 'Star Orchard Keeper', ['Alien', 'Farmer'], {
-    cost: cost(4, 'G'), colors: G, attack: 3, defense: 3,
-    abilities: [arrives([{ op: 'fetchLand' }])], rarity: 'c',
+    cost: cost(4, 'G'), colors: G, attack: 4, defense: 4,
+    abilities: [arrives([{ op: 'gainLife', n: 1 }])], rarity: 'c',
     flavor: 'She grows fruit that contains a complete weather system.',
   }),
   creature('sb-solar-canopy-guardian', 'Solar Canopy Guardian', ['Guardian'], {
@@ -237,7 +237,7 @@ export const STARBORNE = [
   }),
   land('sb-pale-nebula', 'Pale Nebula', ['W'], 'c', 'The cloud looks soft until you try to navigate it.'),
   charm('sb-signal-inversion', 'Signal Inversion', {
-    cost: cost(1, 'U'), colors: U,
+    cost: cost(0, 'U'), colors: U,
     abilities: [spell([
       { op: 'recall', to: 'target' },
       { op: 'foresee', n: 1, who: 'targetOwner' },
@@ -338,8 +338,8 @@ export const STARBORNE = [
     ], rarity: 'sr',
     flavor: 'It carries a message from every deck and forgets none of them.',
   }),
-  artifact('sb-null-orbit-array', 'Null-Orbit Array', {
-    cost: cost(1), colors: C, skim: { cost: cost(2) }, abilities: [arrives([{ op: 'foresee', n: 1 }])], rarity: 'c',
+  ritual('sb-null-orbit-array', 'Null-Orbit Array', {
+    cost: cost(1), colors: C, skim: { cost: cost(2) }, abilities: [spell([{ op: 'foresee', n: 1 }])], rarity: 'c',
     flavor: 'Its one job is to make the impossible route look routine.',
   }),
 make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
@@ -425,8 +425,8 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'She calls every repair bill a souvenir.',
   }),
   creature('sb-rootlight-navigator', 'Rootlight Navigator', ['Navigator'], {
-    cost: cost(3, 'G'), colors: G, attack: 3, defense: 3, rarity: 'r',
-    abilities: [arrives([{ op: 'fetchLand' }])],
+    cost: cost(3, 'G'), colors: G, attack: 2, defense: 3, rarity: 'r',
+    abilities: [arrives([{ op: 'extraLandDrop' }])],
     flavor: 'She steers by the living roots woven through the hull.',
   }),
   creature('sb-emerald-bloom-mother', 'Emerald Bloom Mother', ['Alien', 'Matriarch'], {
@@ -462,8 +462,8 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { marked: true }, p: 0, t: 2 } }], rarity: 'r',
     flavor: 'The bastion is grown from a single pearl of hull tissue.',
   }),
-  artifact('sb-blue-echo-array', 'Blue-Echo Array', {
-    cost: cost(1), colors: C, skim: { cost: cost(1) }, abilities: [arrives([{ op: 'foresee', n: 2 }])], rarity: 'r',
+  ritual('sb-blue-echo-array', 'Blue-Echo Array', {
+    cost: cost(1), colors: C, skim: { cost: cost(1) }, abilities: [spell([{ op: 'foresee', n: 2 }])], rarity: 'r',
     flavor: 'It remembers every route the ship almost took.',
   }),
   ritual('sb-black-starving-orbit', 'Black-Starving Orbit', {
@@ -793,7 +793,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'The swarm agrees, in the way a swarm agrees, and one of them does not come back.',
   }),
   ritual('sb-the-long-crossing', 'The Long Crossing', {
-    cost: cost(2, 'G'), colors: G, chapters: [
+    cost: cost(2, 'G'), colors: G, displayTypeLine: 'Quest', chapters: [
       [{ op: 'createToken', token: 'tok-broodling', count: 1 }],
       [{ op: 'markAll', scope: 'yourCreatures' }],
       [{ op: 'propagate' }],

@@ -643,7 +643,7 @@ describe('Starborne targeted arrival and spell targets', () => {
   });
 
   it('renders marked and tapped target qualifiers in the existing Sever renderer', () => {
-    expect(rulesText(DB.markedTarget)).toBe('Sever target marked creature.');
+    expect(rulesText(DB.markedTarget)).toBe('Sever target Marked creature.');
     expect(rulesText(DB.tappedTarget)).toBe('Sever target tapped creature.');
   });
 
@@ -658,13 +658,13 @@ describe('Starborne targeted arrival and spell targets', () => {
 describe('Stage-4 vocabulary completion', () => {
   it('renders the completed vocabulary with exact totality strings', () => {
     expect(rulesText(DB.allyObserver)).toBe(
-      'Whenever a creature arrives under your control, put one +1/+1 mark on it.',
+      'Whenever a creature arrives under your control, Mark it.',
     );
     expect(rulesText(DB.creatureMarkObserver)).toBe(
-      'Whenever a creature you control gets a mark, you gain 1 life.',
+      'Whenever a creature you control gets a Mark, you gain 1 life.',
     );
     expect(rulesText(DB.biomancer)).toBe(
-      'When this arrives, put one +1/+1 mark on another target permanent you control.',
+      'When this arrives, Mark another target permanent you control.',
     );
     expect(rulesText(DB.theirMarkedDebuff)).toBe(
       'Marked creatures your opponent controls get -2/-2 until end of turn.',
@@ -962,8 +962,8 @@ describe('Starborne mark events and statics', () => {
     arrival.submit(0, { type: 'castSpell', handIndex: 0 });
     expect(arrival.state.players[0].life).toBe(22);
 
-    expect(rulesText(DB.threshold)).toContain('if you control five or more marked permanents, ');
-    expect(rulesText(DB.thresholdCreatures)).toContain('if you control four or more creatures with marks, ');
+    expect(rulesText(DB.threshold)).toContain('If you control five or more Marked permanents, ');
+    expect(rulesText(DB.thresholdCreatures)).toContain('If you control four or more creatures with Marks, ');
 
     const permanentThreshold = makeTestState({ battlefield: [
       ...Array.from({ length: 4 }, (_, i) => permanent(i + 1, 'bear', 0, 1)),
@@ -1156,7 +1156,7 @@ describe('Starborne mark operations and deferred ownership', () => {
     expect(state.players[0].severed.map(cardIdOf)).toContain('severRaise');
     expect(state.battlefield.find((perm) => perm.cardId === 'bear')?.plusOneCounters).toBe(2);
     expect(rulesText(DB.severRaise)).toContain(
-      'sever this, then return the top creature card of your graveyard to the battlefield with two marks on it',
+      'During your Dawn, sever this, then return the top creature card of your graveyard to the battlefield with two Marks on it',
     );
   });
 
