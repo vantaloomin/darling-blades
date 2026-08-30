@@ -11,7 +11,7 @@
  * four-point star ("The Silver Veil"); arthurian-court = a five-point royal
  * crown. Tuned to read at ~21px on the card face and ~40px in the glossary.
  */
-export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat';
+export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne';
 
 export const SET_ICON_PATHS: Record<CardSetId, string> = {
   // Heart pierced by a blade: grip + crossguard above the cleft, a tapered
@@ -62,4 +62,12 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
     'M33 42 A17 17 0 1 1 67 42 A17 17 0 1 1 33 42 Z ' +
     'M43 42 A7 7 0 1 1 57 42 A7 7 0 1 1 43 42 Z ' +
     'M30 76 L70 76 L70 83 L30 83 Z',
+  // Seed of light (owner-picked 2026-08-30): a living-hull seed teardrop with
+  // three punched motes of light rising through it — "the light that spreads".
+  // Largest mote at the base (the source), smallest at the tip (spreading).
+  starborne:
+    'M50 6 C64 24 76 42 76 60 A26 26 0 1 1 24 60 C24 42 36 24 50 6 Z ' +
+    'M44 64 A6 6 0 1 0 56 64 A6 6 0 1 0 44 64 Z ' +
+    'M45.5 44 A4.5 4.5 0 1 0 54.5 44 A4.5 4.5 0 1 0 45.5 44 Z ' +
+    'M47 28 A3 3 0 1 0 53 28 A3 3 0 1 0 47 28 Z',
 };
