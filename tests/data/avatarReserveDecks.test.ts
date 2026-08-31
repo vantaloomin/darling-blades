@@ -200,6 +200,12 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
         abilities: [{ when: 'arrives', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
         rarity: 'c',
       };
+      const nonCreatureMarkGenerator: CardDef = {
+        ...markGenerator,
+        id: 'synthetic-noncreature-mark-generator',
+        name: 'Synthetic Noncreature Mark Generator',
+        types: ['artifact'],
+      };
       const propagateOnly: CardDef = {
         ...markGenerator,
         id: 'synthetic-propagate-only',
@@ -225,6 +231,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       const db: CardDb = {
         [markedAnswer.id]: markedAnswer,
         [markGenerator.id]: markGenerator,
+        [nonCreatureMarkGenerator.id]: nonCreatureMarkGenerator,
         [propagateOnly.id]: propagateOnly,
         [moveOnly.id]: moveOnly,
         [tappedAnswer.id]: tappedAnswer,
@@ -233,6 +240,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       expect(deckTargetSupply([markedAnswer.id], db).has('marked')).toBe(false);
       expect(hasNoLegalTargets(markedAnswer, deckTargetSupply([markedAnswer.id], db))).toBe(true);
       expect(deckTargetSupply([markedAnswer.id, propagateOnly.id, moveOnly.id], db).has('marked')).toBe(false);
+      expect(deckTargetSupply([nonCreatureMarkGenerator.id], db).has('marked')).toBe(false);
       expect(deckTargetSupply([markedAnswer.id, markGenerator.id], db).has('marked')).toBe(true);
       expect(hasNoLegalTargets(markedAnswer, deckTargetSupply([markedAnswer.id, markGenerator.id], db))).toBe(false);
       expect(hasNoLegalTargets(tappedAnswer, new Set())).toBe(false);

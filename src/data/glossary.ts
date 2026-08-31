@@ -82,7 +82,7 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
   mark: 'a lasting +1/+1 increase to a creature\'s Attack and Defense',
-  propagate: 'put another mark on each marked permanent you control; it never starts a mark',
+  propagate: 'put another Mark on each Marked creature you control; it never starts a Mark',
   quest: 'advances a chapter at each of your dawns; leaves after the last',
   championAwakening: 'a one-way upgrade granting the listed stats and keywords',
   empower: 'pay the extra cost as you cast this for the listed bonus effect',

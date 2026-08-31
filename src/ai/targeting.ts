@@ -70,7 +70,7 @@ function boostTargetValue(
 function markCounterValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'addCounters' }>, ref: TargetRef): number {
   if (op.to !== 'target') return 0;
   const perm = permanentFor(ctx, ref);
-  if (!perm) return 0;
+  if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
   return op.n * 1.2 * (perm.controller === ctx.view.myId ? 1 : -1);
 }
 
@@ -82,7 +82,7 @@ function effectOnTarget(ctx: TargetContext, op: EffectOp, ref: TargetRef): numbe
     case 'sever':
     case 'destroyArtifactOrSeverEnchantment': {
       const perm = permanentFor(ctx, ref);
-      if (!perm) return 0;
+      if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
       const multiplier = op.op === 'destroy' ? 1 : op.op === 'sever' ? 0.9 : 0.85;
       return permanentRemovalValue(ctx, perm) * multiplier * harmSign(ctx, ref);
     }
@@ -102,7 +102,7 @@ function effectOnTarget(ctx: TargetContext, op: EffectOp, ref: TargetRef): numbe
       return markCounterValue(ctx, op, ref);
     case 'removeMarks': {
       const perm = permanentFor(ctx, ref);
-      if (!perm) return 0;
+      if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
       // Marks are printed power. Removing theirs is disruption; removing ours
       // is a cost. The op-level value is deliberately reused as the floor.
       return opImpactValue(op) * perm.plusOneCounters * harmSign(ctx, ref);
@@ -113,7 +113,11 @@ function effectOnTarget(ctx: TargetContext, op: EffectOp, ref: TargetRef): numbe
     }
     case 'ifTargetMarked': {
       const perm = permanentFor(ctx, ref);
-      const branch = perm?.plusOneCounters ? op.then : (op.else ?? []);
+      const branch = perm &&
+        isType(def(ctx.db, perm.cardId), 'creature') &&
+        perm.plusOneCounters > 0
+        ? op.then
+        : (op.else ?? []);
       return branch.reduce((sum, nested) => sum + effectOnTarget(ctx, nested, ref), 0);
     }
     case 'raise':

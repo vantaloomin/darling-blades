@@ -85,12 +85,12 @@ export function opImpactValue(op: EffectOp): number {
     case 'addCounters':
       return op.n * (op.to === 'self' ? 1.5 : 1.2);
     case 'propagate':
-      // Propagate's real worth is one mark per ALREADY-marked permanent, so it
+      // Propagate's real worth is one Mark per already-Marked creature, so it
       // is board-dependent and ranges from 0 (bare board) upward. This switch
       // sees only the op — its callers (`nonCreatureAbilityImpact`,
       // `retellValue`) are card-shaped, not board-shaped — so price it at the
       // conservative single-mark floor rather than widening the signature.
-      // One marked permanent is the least a card printing this can expect.
+      // One marked creature is the least a card printing this can expect.
       return 1.5;
     case 'boost':
       return op.scope === 'allYours' || op.scope === 'yourMarked' || op.scope === 'theirMarked'

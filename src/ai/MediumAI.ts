@@ -446,8 +446,8 @@ export class MediumAI implements AIPlayer {
           ) ||
           this.opBodies(top.cardId).some((o) => o.op === 'massDestroy');
         if (threatens) {
-          // Keep every target from the legal menu.  Some counter-spells also
-          // carry permanent targets (for example Quiet Orbit moves a mark),
+          // Keep every target from the legal menu. Some counter-spells also
+          // carry creature targets (for example Quiet Orbit moves a Mark),
           // so replacing the whole list would construct an illegal action.
           const targets = counter.targets?.map((target) =>
             target.kind === 'stackItem' ? { ...target, sid: top.sid } : target,
