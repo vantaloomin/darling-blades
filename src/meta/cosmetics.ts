@@ -67,6 +67,12 @@ export const CARD_BACKS = [
     blurb: 'Bright signs, bad omens, excellent timing.',
     unlock: 'default',
   },
+  {
+    id: 'back-starborne-seed',
+    name: 'Seed of Light',
+    blurb: 'Plant one light and count again tomorrow.',
+    unlock: 'default',
+  },
 ] as const satisfies readonly CardBackDefinition[];
 
 export const PLAYMATS = [

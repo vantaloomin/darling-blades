@@ -13,9 +13,10 @@ import {
 
 describe('cosmetics catalog', () => {
   it('ships the v1 card-back and playmat catalog as default-unlock cosmetics', () => {
-    expect(CARD_BACKS).toHaveLength(5);
+    // 2026-08-31: back-starborne-seed joins the catalog (6 backs, 5 mats).
+    expect(CARD_BACKS).toHaveLength(6);
     expect(PLAYMATS).toHaveLength(5);
-    expect(COSMETIC_CATALOG).toHaveLength(10);
+    expect(COSMETIC_CATALOG).toHaveLength(11);
     expect(new Set(COSMETIC_CATALOG.map((entry) => entry.id)).size).toBe(COSMETIC_CATALOG.length);
     expect(COSMETIC_CATALOG.every((entry) => entry.unlock === 'default')).toBe(true);
     expect(COSMETIC_CATALOG.every((entry) => !entry.name.includes('—') && !entry.blurb.includes('—'))).toBe(true);

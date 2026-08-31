@@ -44,7 +44,8 @@ import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
 import { backButton, modalShell, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, GOTHIC_MONSTERS_PACK_ART, SANDS_OF_THE_DUAT_PACK_ART, YOKAI_NIGHTS_PACK_ART, packPriceForSku, packSetForSku, packTextureForSku, type BoosterSku } from './ShopScene';
+import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, GOTHIC_MONSTERS_PACK_ART, SANDS_OF_THE_DUAT_PACK_ART,
+  STARBORNE_PACK_ART, YOKAI_NIGHTS_PACK_ART, packPriceForSku, packSetForSku, packTextureForSku, type BoosterSku } from './ShopScene';
 
 const GRID_Y0 = 184;
 const GRID_DY = 216;
@@ -179,6 +180,8 @@ export class PackOpeningScene extends Phaser.Scene {
       bakePackArt(this, YOKAI_NIGHTS_PACK_ART);
     } else if (this.sku === 'sands-of-the-duat') {
       bakePackArt(this, SANDS_OF_THE_DUAT_PACK_ART);
+    } else if (this.sku === 'starborne') {
+      bakePackArt(this, STARBORNE_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {

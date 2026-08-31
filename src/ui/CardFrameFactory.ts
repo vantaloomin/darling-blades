@@ -105,7 +105,7 @@ interface CardBackStyle {
   innerBottom: string;
   accent: string;
   softAccent: string;
-  sigil: 'storm' | 'veil' | 'storybook' | 'neon';
+  sigil: 'storm' | 'veil' | 'storybook' | 'neon' | 'seed';
 }
 
 const CARD_BACK_STYLES: Record<string, CardBackStyle> = {
@@ -141,6 +141,14 @@ const CARD_BACK_STYLES: Record<string, CardBackStyle> = {
     softAccent: 'rgba(104,243,220,0.48)',
     sigil: 'neon',
   },
+  'back-starborne-seed': {
+    shell: '#141022',
+    innerTop: '#3a2a5e',
+    innerBottom: '#1a1430',
+    accent: '#5ff0e0',
+    softAccent: 'rgba(95,240,224,0.42)',
+    sigil: 'seed',
+  },
 };
 
 /** Every non-default back keeps the rounded card silhouette and gold border,
@@ -168,6 +176,28 @@ function bakeStyledCardBack(ctx: CanvasRenderingContext2D, style: CardBackStyle)
   ctx.strokeStyle = style.accent;
   ctx.fillStyle = style.accent;
   ctx.lineCap = 'round';
+  if (style.sigil === 'seed') {
+    // The Seed of Light: the set icon's teardrop hull with three motes of
+    // living light rising through it. The seed replaces the shared centre
+    // dot, so this branch restores and returns on its own.
+    ctx.beginPath();
+    ctx.moveTo(0, -130);
+    ctx.bezierCurveTo(40, -84, 64, -38, 64, 8);
+    ctx.arc(0, 8, 64, 0, Math.PI);
+    ctx.bezierCurveTo(-64, -38, -40, -84, 0, -130);
+    ctx.closePath();
+    ctx.lineWidth = 12;
+    ctx.stroke();
+    for (const [y, radius] of [[56, 17], [8, 12], [-44, 8]] as const) {
+      ctx.beginPath();
+      ctx.arc(0, y, radius, 0, Math.PI * 2);
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = radius === 17 ? style.accent : style.softAccent;
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
   if (style.sigil === 'storm') {
     ctx.beginPath();
     ctx.moveTo(-24, -138);
