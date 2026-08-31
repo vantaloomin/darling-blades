@@ -79,7 +79,7 @@ export const DECK_INFO: Record<string, DeckInfo> = {
     archetype: 'Retell value-control',
     plays:
       'Skim early to smooth awkward hands and stock the graveyard, then Retell efficient Rituals and Charms while lifegain and Foresee keep the board stable. The deck wins by making every small answer matter twice.',
-    featured: ['dt-poison-mirror-regent', 'dt-tower-window-seer', 'dt-page-torn-free'],
+    featured: ['dt-poison-mirror-regent', 'dt-sugar-cottage-witch', 'dt-page-torn-free'],
   },
   'theme-yokai-nights': {
     colors: 'W/U/B',
