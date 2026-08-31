@@ -1,6 +1,6 @@
 import type { Step } from '../engine/types';
 
-export const PHASE_TRACK_ROWS = ['UPKEEP', 'MAIN 1', 'COMBAT', 'MAIN 2', 'END'] as const;
+export const PHASE_TRACK_ROWS = ['DAWN', 'MORNING', 'COMBAT', 'AFTERNOON', 'SUNSET'] as const;
 
 export type PhaseTrackRow = (typeof PHASE_TRACK_ROWS)[number];
 
@@ -10,16 +10,16 @@ export function phaseTrackRowForStep(step: Step): PhaseTrackRow {
     case 'untap':
     case 'dawn':
     case 'draw':
-      return 'UPKEEP';
+      return 'DAWN';
     case 'main1':
-      return 'MAIN 1';
+      return 'MORNING';
     case 'combat':
       return 'COMBAT';
     case 'main2':
-      return 'MAIN 2';
+      return 'AFTERNOON';
     case 'end':
     case 'cleanup':
-      return 'END';
+      return 'SUNSET';
     default: {
       const exhaustive: never = step;
       return exhaustive;

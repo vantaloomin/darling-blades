@@ -169,7 +169,7 @@ function opText(
         : '';
       if (op.scope === 'target') {
         const subject = targetAlreadyNamed ? 'that creature' : autoBoundTarget ? 'it' : targetPhrase(target);
-        return `${subject} gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
+        return `${subject} gets ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
       }
       const subject = op.scope === 'all'
         ? 'all creatures'
@@ -178,7 +178,7 @@ function opText(
           : op.scope === 'theirMarked'
             ? 'Marked creatures your opponent controls'
             : 'creatures you control';
-      return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
+      return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
     }
     case 'addCounters': {
       if (op.to === 'self') return markVerbText('this', op.n);

@@ -94,7 +94,7 @@ export type TutorialCueKind =
   | 'playCreature' // spotlight a castable creature in hand
   | 'sickness' // info card: summoning sickness
   | 'inspectInfo' // info card: right-click / long-press inspect + keyword reminders
-  | 'healInfo' // info card: marked damage wears off at end of turn
+  | 'healInfo' // info card: marked damage wears off at Sunset
   | 'castRitual' // spotlight a Ritual (sorcery) in hand
   | 'ritualInfo' // info card: Ritual timing (your turn only)
   | 'castCharm' // spotlight a Charm (instant) in a response window
@@ -163,7 +163,7 @@ export function tutorialCue(i: TutorialCueInput): TutorialCue {
   // The block lesson's follow-up: marked damage is temporary. Fires at the
   // player's next window after they declare a block (combat has resolved).
   if (i.blocked && !i.healInfoShown)
-    return { kind: 'healInfo', text: 'Combat wounds are not permanent. Creatures heal back to full at end of turn.' };
+    return { kind: 'healInfo', text: 'Combat wounds are not permanent. Creatures heal back to full at Sunset.' };
   if (i.charmCast && !i.charmInfoShown)
     return { kind: 'charmInfo', text: 'Charm spells can be cast at any time. Even during your foe’s turn!' };
   const use = i.isTouch ? 'Tap' : 'Click';

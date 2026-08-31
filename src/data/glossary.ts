@@ -91,7 +91,7 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
   rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
   nineLives: 'when this dies with no +1/+1 marks on it, it returns to the battlefield with a +1/+1 mark on it',
-  preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during your main phase',
+  preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during Morning or Afternoon',
 };
 
 /** Player-facing rarity tier names, shared by the glossary and the Profile. */
@@ -107,11 +107,20 @@ export const RARITY_NAMES: Record<Rarity, string> = {
 export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
   creature: 'A permanent fighter that can attack and block.',
   charm: 'Cast anytime you have priority, even on the foe\'s turn.',
-  ritual: 'Cast only during one of your own main phases.',
+  ritual: 'Cast only during your own Morning or Afternoon.',
   enchantment: 'A lasting spell that changes a creature or the battlefield.',
   artifact: 'A lasting relic with abilities or ongoing effects.',
   land: 'Play one each turn to tap for mana.',
 };
+
+/** One-line player-facing definitions for the day-cycle phase names. */
+export const PHASE_DEFINITIONS = {
+  dawn: 'The start of your turn, when Dawn abilities happen.',
+  morning: 'The first action phase, when you can play a land and cast spells.',
+  combat: 'The part of your turn when creatures attack and block.',
+  afternoon: 'The second action phase after Combat, when you can play a land and cast spells.',
+  sunset: 'The close of your turn, when temporary effects expire and cleanup begins.',
+} as const;
 
 // ---------------------------------------------------------------------------
 // Structural mechanic detection
@@ -209,7 +218,7 @@ export function cardTermNames(d: CardDef): string[] {
 // Glossary sections
 // ---------------------------------------------------------------------------
 
-export type GlossarySectionId = 'combat' | 'mechanics' | 'types' | 'mana' | 'rarity';
+export type GlossarySectionId = 'combat' | 'mechanics' | 'phases' | 'types' | 'mana' | 'rarity';
 
 /**
  * Everything the icon bake draws a mechanic chip for: the named mechanics plus
@@ -218,9 +227,13 @@ export type GlossarySectionId = 'combat' | 'mechanics' | 'types' | 'mana' | 'rar
  */
 export type MechanicIconId = MechanicId | 'warchest' | 'darlings';
 
+/** One shared day-cycle glyph for the phase glossary rows. */
+export type PhaseIconId = 'dayCycle';
+
 export type GlossaryIcon =
   | { kind: 'keyword'; key: Keyword }
   | { kind: 'mechanic'; key: MechanicIconId }
+  | { kind: 'phase'; key: PhaseIconId }
   | { kind: 'type'; key: CardType }
   | { kind: 'mana'; key: Color }
   | { kind: 'rarity'; key: Rarity }
@@ -304,6 +317,18 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
         icon: { kind: 'mechanic', key: mechanic } as GlossaryIcon,
       })),
       ...ZONE_TERMS,
+    ],
+  },
+  {
+    id: 'phases',
+    title: 'Turn Phases',
+    note: 'The day cycle of every turn.',
+    terms: [
+      { name: 'Dawn', description: PHASE_DEFINITIONS.dawn, icon: { kind: 'phase', key: 'dayCycle' } },
+      { name: 'Morning', description: PHASE_DEFINITIONS.morning, icon: { kind: 'phase', key: 'dayCycle' } },
+      { name: 'Combat', description: PHASE_DEFINITIONS.combat, icon: { kind: 'phase', key: 'dayCycle' } },
+      { name: 'Afternoon', description: PHASE_DEFINITIONS.afternoon, icon: { kind: 'phase', key: 'dayCycle' } },
+      { name: 'Sunset', description: PHASE_DEFINITIONS.sunset, icon: { kind: 'phase', key: 'dayCycle' } },
     ],
   },
   {

@@ -177,11 +177,11 @@ player who must act and the kind of choice:
 | --------------------- | -------------------- | ------------------------------------------------------- |
 | `mulligan`            | —                    | keep or mulligan the opening hand.                      |
 | `bottomCards`         | `count`              | put `count` cards on the bottom (London mulligan).      |
-| `main`                | —                    | act in main 1 or main 2 (which one is in `state.step`). |
+| `main`                | —                    | act in Morning or Afternoon (which one is in `state.step`). |
 | `declareAttackers`    | —                    | pick an attacker set (`[]` skips combat).               |
 | `declareBlockers`     | —                    | assign blockers.                                        |
 | `respond`             | `over` (spell/attackers/blockers) | respond to the named item or pass.        |
-| `endStepWindow`       | —                    | cast an instant at end of turn, or pass.                |
+| `endStepWindow`       | —                    | cast an instant at Sunset, or pass.                      |
 | `discardToHandSize`   | `count`              | discard down to the max hand size at cleanup.           |
 | `gameOver`            | —                    | nothing — the game is over (no `player` field).         |
 
@@ -317,7 +317,7 @@ in the UI-refresh Wave 1.5a (plan-ui-ux-refresh.md). Layout regions (the
   only in the History slide-out.
 - **Phase track** (right sidebar): the non-interactive turn pill (`T6`) sits
   atop the column at (1113,322) — all turn info in one spot — above a
-  display-only vertical UPKEEP · MAIN 1 · COMBAT · MAIN 2 · END list at
+  display-only vertical DAWN · MORNING · COMBAT · AFTERNOON · SUNSET list at
   x 1113, with rows starting y 356 on a 34 px
   rhythm (ending y 492). The current step rides a highlighted pill
   (gold-stroked on your turn, muted on the opponent's) that cycles as steps

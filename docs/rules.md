@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-17
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-31
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -88,7 +88,7 @@ starting player active.
 
 ## Turn structure
 
-`startTurn` runs untap → dawn → draw, then hands control to main 1. The player
+`startTurn` runs untap → dawn → draw, then hands control to Morning. The player
 drives the rest via `passStep` and combat actions.
 
 | Step        | What happens                                                                                       |
@@ -96,11 +96,11 @@ drives the rest via `passStep` and combat actions.
 | **Untap**   | The active player's permanents untap; summoning sickness wears off; the land-drop flag resets.     |
 | **Dawn**    | The active player's `dawn` triggers fire and resolve immediately. **No response window.**           |
 | **Draw**    | The active player draws one — **except the starting player on turn 1**, who skips it.               |
-| **Main 1**  | Active player's main phase: play a land, cast anything, or `passStep` to combat.                    |
+| **Morning** | Active player's first action phase: play a land, cast anything, or `passStep` to Combat.             |
 | **Combat**  | Declare attackers → (window) → declare blockers → (window) → damage. See below.                     |
-| **Main 2**  | A second main phase.                                                                                |
-| **End**     | The **non-active** player gets the first response window, plus earned post-flush reopens in rules revisions 2-3. Revision 1 gets exactly one. |
-| **Cleanup** | Discard to max hand size (7); marked damage and until-end-of-turn effects clear; the turn flips.    |
+| **Afternoon** | The second action phase after Combat.                                                              |
+| **Sunset**  | The **non-active** player gets the first response window, plus earned post-flush reopens in rules revisions 2-3. Revision 1 gets exactly one. |
+| **Cleanup** | Discard to max hand size (7); marked damage and until Sunset effects clear; the turn flips.         |
 
 Notes grounded in `phases.ts`:
 
@@ -137,7 +137,7 @@ Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
    (`passResponse`), `closeAndFlush` sets `stackClosed` and **resolves the entire
    stack top-down with no further windows**. There is no priority ping-pong after
    the first pass.
-5. **Revision-2 reopen.** After the flush, combat and the end step may offer the
+5. **Revision-2 reopen.** After the flush, Combat and Sunset may offer the
    non-active player another window before advancing. The flush must have
    resolved at least one stack item since the last offer, the player must hold a
    payable and targetable Charm (including a payable Retell Charm), and the step
@@ -151,7 +151,7 @@ Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
    until the choice drains, so they return to the correct still-open window.
 
 Revision 1 preserves the classic behavior verbatim: no post-flush reopen in
-combat or at end. The end-step window is handled slightly separately in both
+Combat or at Sunset. The Sunset window is handled slightly separately in both
 revisions: passing it calls `enterCleanup` rather than flushing an empty stack.
 
 ## Combat
@@ -163,7 +163,7 @@ Combat is declared and resolved through `Game.apply` (declaration),
 ### Declaring attackers
 
 - **`declareAttackers` with `[]` skips combat entirely** — no windows, straight
-  to main 2.
+  to Afternoon.
 - A creature can attack if it's an untapped, non-summoning-sick creature you
   control without `bulwark` (`canAttack`).
 - Attacking **taps** the creature — unless it has **sentinel**, which lets it
@@ -184,7 +184,7 @@ Combat is declared and resolved through `Game.apply` (declaration),
 
 If a response resolves during a combat window and every attacker has left the
 battlefield, combat has no attackers to resolve. `resumeAfterFlush` detects the
-now-null combat and cleanly falls through to main 2 (see the `combat` case in
+now-null combat and cleanly falls through to Afternoon (see the `combat` case in
 `resumeAfterFlush`).
 
 ### Damage
@@ -312,9 +312,9 @@ body fire on both deaths.
 ### Preserve (graveyard token copy)
 
 A creature card with a `preserve` block (`CardDef.preserve`, 1.6) grants a
-main-phase action while it sits in your graveyard: pay the Preserve cost and
+Morning or Afternoon action while it sits in your graveyard: pay the Preserve cost and
 **Sever** the card to create a token copy of it. The action (`preserveCard`)
-is sorcery-speed — the active player's own main phase only — and stack-free,
+is sorcery-speed — the active player's own Morning or Afternoon only — and stack-free,
 like `linkHaunt` and the Darling tax paydown. The physical card moves to the
 severed zone one-way; the copy enters as a fresh token permanent keeping the
 card's `cardId` and cosmetic `variantKey`, and its arrival triggers fire (a
@@ -429,9 +429,9 @@ Magic:
 
 | Area              | Darling Blades                                                                                 | Magic (for reference)                                   |
 | ----------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Priority / stack  | The first pass flushes the whole stack. Current rev 2 may reopen afterward in combat/end when a resolved item and castable Charm pay for it; rev 1 never reopens. | Full priority passing after every object resolves.      |
+| Priority / stack  | The first pass flushes the whole stack. Current rev 2 may reopen afterward in Combat/Sunset when a resolved item and castable Charm pay for it; rev 1 never reopens. | Full priority passing after every object resolves.      |
 | Dawn triggers     | Resolve immediately, no window.                                                                | Go on the stack, players get priority.                  |
-| End-step window   | Non-active player only. Rev 2 starts with one window and may earn bounded post-flush reopens; rev 1 has exactly one. | Priority in the end step for both players.              |
+| Sunset window     | Non-active player only. Rev 2 starts with one window and may earn bounded post-flush reopens; rev 1 has exactly one. | Priority in Magic's ending phase for both players.     |
 | Triggers          | Arrival triggers may target and defer a mandatory choice; other triggers auto-resolve. | Triggers may target and use the stack.                  |
 | Targeted effects  | Spell targets may use `upTo: 2`; arrival triggers choose one target.              | Arbitrary target counts.                                |
 | Twin Blades (double strike) | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.        | Exists.                                                 |

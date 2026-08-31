@@ -12,7 +12,7 @@ describe('Darlings tutorial copy', () => {
       'Pick one legendary creature as your Darling. She waits in her own zone, ready when you call.',
       'Build a 79-card deck in her colors, one copy of each card, and a Warchest of 10 lands.',
       'Cast her from her zone any time you could cast a creature. Each time she falls she returns there, and her next call costs 2 more.',
-      'Pay 4 during your main phase to ease her cost by 2.',
+      'Pay 4 during Morning or Afternoon to ease her cost by 2.',
     ]);
     expect(DARLINGS_TUTORIAL_BUTTONS).toEqual(['Got it', 'Read more']);
     expect([...DARLINGS_TUTORIAL_LINES, ...DARLINGS_TUTORIAL_BUTTONS].every((line) => !line.includes('\u2014'))).toBe(true);
