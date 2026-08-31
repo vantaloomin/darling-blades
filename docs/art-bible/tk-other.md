@@ -14,7 +14,7 @@ are the era's opportunists and monsters, painted with the same reverence given t
 kings, because for one violent season each of them held the world by the throat.
 
 ### Lu Bu, Peerless Flying General — `tk-other-lubu`
-- **Card facts:** {1}{R}{R} · R · 5/3 · twinBlades · ur, legendary · holo: galaxy (explicit)
+- **Card facts:** {1}{R}{R} · R · 5/3 · twinBlades, rage · ur, legendary · holo: galaxy (explicit)
 - **Character & source:** Genderbent Lu Bu, the Three Kingdoms coalition era's apex warrior — the card burns its own controller every upkeep, so the art must feel barely contained.
 - **Personality / mood:** "Among warriors, Lu Bu. Among steeds, Red Hare. Among tempers… run." Overwhelming, gleeful violence; a weapon that has opinions about being pointed.
 - **Pose & composition:** Low-angle three-quarter, chest-up, eyes locked on the viewer, face ≈ y 330; the Sky Piercer slashes lower-left → upper-right, deliberately breaking the top of the band; Red Hare rears ember-lit behind her shoulder in bokeh.
