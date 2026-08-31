@@ -211,7 +211,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Xun Yu principled chancellor holding a bronze incense censer, ivory-white court robes with lapis sash and bronze phoenix-clasp, drifting incense smoke curling upward, curtained office, dignified faintly sorrowful gaze, warm brazier key with cool ambient rim, textured warm ivories — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Yue Jin, First Over the Wall — `tk-wei-yuejin`
-- **Card facts:** {1}{R} · R · 2/2 · firstBlade · c · holo: none
+- **Card facts:** {1}{R} · R · 2/1 · firstBlade · c · holo: none
 - **Character & source:** Genderbent Yue Jin, the small, fearless vanguard who was always first to breach; first-strike aggression in a compact frame.
 - **Personality / mood:** "Short, fearless, and already inside your gate." Ferocious, quick, gleeful about being in the thick of it.
 - **Pose & composition:** Scrambling over a broken wall-top toward camera, face ≈ y 330, short blade leading, one hand gripping the parapet. Explosive forward motion; reads as "first over the wall" at thumbnail scale.

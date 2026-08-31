@@ -356,7 +356,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-red-curtain-cut', name: 'Red-Curtain Cut', types: ['charm'], subtypes: [],
-    cost: cost(1, 'R'), colors: ['R'],
+    cost: cost(0, 'R'), colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 2, to: 'target' }] }],
     rarity: 'c', flavor: 'The curtain falls. The critics call it decisive.',
   },
@@ -466,7 +466,7 @@ export const GOTHIC_MONSTERS = [
     keywords: ['bulwark'], rarity: 'c', flavor: 'Every step complains, and none of them know the whole story.',
   },
   creature('gm-grave-soil-giant', 'Grave-Soil Giant', ['Plant', 'Giant'], {
-    cost: cost(5, 'G'), colors: ['G'], attack: 5, defense: 5, keywords: ['overrun'],
+    cost: cost(5, 'G'), colors: ['G'], attack: 5, defense: 6, keywords: ['overrun'],
     rarity: 'c', flavor: 'When the harvest goes unauthorized, the garden itself rises to object.',
   }),
   {

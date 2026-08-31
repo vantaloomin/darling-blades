@@ -766,7 +766,7 @@ patterned, never lettered.
 - **Prompt:** Muspel Emberkin, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Berserker Initiate — `rg-berserker-initiate`
-- **Card facts:** {2}{R} · R · 3/1 · warcry · c · holo: none
+- **Card facts:** {2}{R} · R · 3/1 · warcry, rage · c · holo: none
 - **Character & source:** an Einherjar, an honored dead warrior of the feast-hall; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "The rage comes first. The technique is optional." — grim and elated at once — dies every night, wins every morning.
 - **Pose & composition:** mid-stride into the charge, weapon already committed; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.
@@ -796,7 +796,7 @@ patterned, never lettered.
 - **Prompt:** Flame Jotun, a towering Jotun giant-woman of the elemental wilds, in rough hide and rime-crusted plate, primal bone-and-gold jewelry; looming from a low angle, one stride that is itself an earthquake, against a shattered mountain pass under a bruised, wind-torn sky; slow, immovable, and entirely certain; a stark high key with a long cold rim down one flank — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Raiding Shieldmaiden — `rg-raiding-shieldmaiden`
-- **Card facts:** {2}{R} · R · 2/2 · warcry · c · holo: none
+- **Card facts:** {2}{R} · R · 2/2 · warcry, rage · c · holo: none
 - **Character & source:** a viking Shieldmaiden of the raiding-line; mechanically a straightforward body on the battlefield.
 - **Personality / mood:** "She rows in, burns the dock, rows out. Efficient." — fierce and laughing, in her element.
 - **Pose & composition:** shield up, axe cocked back over the shoulder for the swing; face ≈ y 320, eye-line ≈ y 300–360, weapon or effect free to break the top of the band.

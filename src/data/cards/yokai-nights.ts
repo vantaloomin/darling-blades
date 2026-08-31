@@ -395,7 +395,7 @@ export const YOKAI_SPEC_ROWS = [
   {
     "id": "yn-bluewire-illusionist",
     "name": "Bluewire Illusionist",
-    "rarity": "R",
+    "rarity": "C",
     "color": "U",
     "type": "Creature (Kitsune Illusionist)",
     "cost": "{3}{U}",
@@ -608,7 +608,7 @@ export const YOKAI_SPEC_ROWS = [
     "color": "G",
     "type": "Creature (Oni Guardian)",
     "cost": "{3}{G}",
-    "stats": "3/4",
+    "stats": "3/5",
     "mechanics": "Sentinel.",
     "flavor": "Moss softens the horns, but not the temper."
   },
@@ -774,7 +774,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{W}",
     "stats": "-",
-    "mechanics": "Target creature gets +1/+1 until end of turn; Foresee 1.",
+    "mechanics": "Target creature gets +2/+2 until end of turn; Foresee 1.",
     "flavor": "A paper contract glows once, then seals itself in rain."
   },
   {
@@ -970,7 +970,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "B",
     "type": "Creature (Oni Enforcer)",
-    "cost": "{2}{B}",
+    "cost": "{3}{B}",
     "stats": "2/3",
     "mechanics": "Deathblade.",
     "flavor": "She collects favors with a blade that remembers every name."
@@ -1036,7 +1036,7 @@ export const YOKAI_SPEC_ROWS = [
     "rarity": "C",
     "color": "B",
     "type": "Charm",
-    "cost": "{2}{B}",
+    "cost": "{3}{B}",
     "stats": "-",
     "mechanics": "Sever target creature.",
     "flavor": "A red sigil flares under the target and the rain washes away the outline."
@@ -1147,7 +1147,7 @@ export const YOKAI_SPEC_ROWS = [
     "color": "R",
     "type": "Creature (Yokai Enforcer)",
     "cost": "{5}{R}",
-    "stats": "5/4",
+    "stats": "5/5",
     "mechanics": "Warcry, Overrun.",
     "flavor": "Its horns broadcast a siren that makes traffic forget which way is forward."
   },
@@ -1159,7 +1159,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Ritual",
     "cost": "{1}{R}",
     "stats": "-",
-    "mechanics": "Deal 2 damage to target creature or player.",
+    "mechanics": "Deal 3 damage to target creature or player; Deal 1 damage to you.",
     "flavor": "A red flare turns a routine crossing into a public execution of bad luck."
   },
   {
@@ -1176,7 +1176,7 @@ export const YOKAI_SPEC_ROWS = [
   {
     "id": "yn-sirens-and-sparks",
     "name": "Sirens and Sparks",
-    "rarity": "C",
+    "rarity": "R",
     "color": "R",
     "type": "Charm",
     "cost": "{1}{R}",

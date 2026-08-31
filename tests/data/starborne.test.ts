@@ -113,12 +113,14 @@ describe('Starborne transcription', () => {
     });
     expect(card('sb-null-orbit-array')).toMatchObject({
       types: ['ritual'],
-      skim: { cost: { generic: 2, pips: {} } },
-      abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 1 }] }],
+      skim: { cost: { generic: 1, pips: {} } },
+      abilities: [
+        { when: 'spell', ops: [{ op: 'foresee', n: 1 }, { op: 'severGrave', n: 1, who: 'self' }] },
+      ],
     });
     expect(card('sb-rootlight-navigator')).toMatchObject({
       attack: 2,
-      defense: 3,
+      defense: 4,
       abilities: [{ when: 'arrives', ops: [{ op: 'extraLandDrop' }] }],
     });
     expect(card('sb-star-orchard-keeper')).toMatchObject({

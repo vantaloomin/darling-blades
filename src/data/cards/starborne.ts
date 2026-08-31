@@ -182,7 +182,7 @@ export const STARBORNE = [
     flavor: 'She runs along the outside of the ship because the inside is boring.',
   }),
   creature('sb-mycelial-star-gardener', 'Mycelial Star Gardener', ['Alien', 'Druid'], {
-    cost: cost(1, 'G'), colors: G, attack: 2, defense: 2,
+    cost: cost(2, 'G'), colors: G, attack: 2, defense: 2,
     abilities: [arrivesTargeted({ what: 'creature', other: true }, [{ op: 'addCounters', n: 1, to: 'target' }])], rarity: 'c',
     flavor: "She plants living constellations in the ship's hydroponics deck.",
   }),
@@ -249,7 +249,7 @@ export const STARBORNE = [
     flavor: 'The current carries away bad options and leaves the useful ones bright.',
   }),
   enchantment('sb-relay-station', 'Relay Station', {
-    cost: cost(3, 'U'), colors: U, abilities: [dawn([{ op: 'foresee', n: 1 }])], rarity: 'c',
+    cost: cost(1, 'U'), colors: U, abilities: [dawn([{ op: 'foresee', n: 1 }])], skim: { cost: cost(1) }, rarity: 'c',
     flavor: 'It has not missed a signal in four hundred years.',
   }),
   ritual('sb-sky-map', 'Sky Map', {
@@ -280,7 +280,7 @@ export const STARBORNE = [
   }),
   land('sb-darkside-landing', 'Darkside Landing', ['B'], 'c', 'The landing lights are violet because red would look too hopeful.'),
   ritual('sb-flareburst', 'Flareburst', {
-    cost: cost(1, 'R'), colors: R, abilities: [spell([{ op: 'damage', n: 2, to: 'target' }], 'any')], rarity: 'c',
+    cost: cost(1, 'R'), colors: R, abilities: [spell([{ op: 'damage', n: 1, to: 'target' }, { op: 'markAll', scope: 'yourCreatures' }], 'any')], rarity: 'c',
     flavor: 'The smallest star can still ruin a morning.',
   }),
   charm('sb-solar-arc', 'Solar Arc', {
@@ -339,7 +339,7 @@ export const STARBORNE = [
     flavor: 'It carries a message from every deck and forgets none of them.',
   }),
   ritual('sb-null-orbit-array', 'Null-Orbit Array', {
-    cost: cost(1), colors: C, skim: { cost: cost(2) }, abilities: [spell([{ op: 'foresee', n: 1 }])], rarity: 'c',
+    cost: cost(1), colors: C, skim: { cost: cost(1) }, abilities: [spell([{ op: 'foresee', n: 1 }, { op: 'severGrave', n: 1, who: 'self' }])], rarity: 'c',
     flavor: 'Its one job is to make the impossible route look routine.',
   }),
 make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
@@ -425,7 +425,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'She calls every repair bill a souvenir.',
   }),
   creature('sb-rootlight-navigator', 'Rootlight Navigator', ['Navigator'], {
-    cost: cost(3, 'G'), colors: G, attack: 2, defense: 3, rarity: 'r',
+    cost: cost(3, 'G'), colors: G, attack: 2, defense: 4, rarity: 'r',
     abilities: [arrives([{ op: 'extraLandDrop' }])],
     flavor: 'She steers by the living roots woven through the hull.',
   }),
@@ -439,7 +439,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'Her orchard bears fruit only after a good argument with gravity.',
   }),
   creature('sb-radiant-moss-mender', 'Radiant Moss Mender', ['Alien', 'Druid'], {
-    cost: cost(2, 'G'), colors: G, attack: 2, defense: 2, rarity: 'r',
+    cost: cost(2, 'G'), colors: G, attack: 3, defense: 3, rarity: 'r',
     abilities: [arrivesTargeted({ what: 'creature', other: true }, [{ op: 'addCounters', n: 1, to: 'target' }])],
     flavor: 'She fixes broken chrome with moss that remembers its shape.',
   }),
