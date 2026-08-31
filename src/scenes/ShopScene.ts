@@ -134,6 +134,15 @@ const SANDS_OF_THE_DUAT_PACK_TINT: PackTint = {
   mist: theme.colors.heading,
 };
 
+const STARBORNE_PACK_TINT: PackTint = {
+  start: '#c8d2dc',
+  middle: '#2a2140',
+  end: '#7b4bd8',
+  trim: '#e8ecf5',
+  foil: '#e8ecf5',
+  mist: '#c8d2dc',
+};
+
 const packRR = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -298,6 +307,13 @@ export const SANDS_OF_THE_DUAT_PACK_ART: PackArtOpts = {
   trimY: 63,
 };
 
+export const STARBORNE_PACK_ART: PackArtOpts = {
+  key: 'packart-starborne',
+  sceneArtKey: 'scene-pack-art-starborne',
+  tint: STARBORNE_PACK_TINT,
+  trimY: 63,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
@@ -306,6 +322,7 @@ export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'dark-tales') return 'packart-dark-tales';
   if (sku === 'yokai-nights') return 'packart-yokai-nights';
   if (sku === 'sands-of-the-duat') return 'packart-sands-of-the-duat';
+  if (sku === 'starborne') return 'packart-starborne';
   return 'packart';
 }
 
@@ -318,6 +335,7 @@ export function packPriceForSku(sku: BoosterSku): number {
   if (sku === 'dark-tales') return ECONOMY.darkTalesPackPrice;
   if (sku === 'yokai-nights') return ECONOMY.yokaiNightsPackPrice;
   if (sku === 'sands-of-the-duat') return ECONOMY.sandsOfTheDuatPackPrice;
+  if (sku === 'starborne') return ECONOMY.starbornePackPrice;
   return ECONOMY.packPrice;
 }
 
@@ -338,6 +356,7 @@ export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sk
   { label: SET_TITLES['dark-tales'], textureKey: 'packart-dark-tales', sku: 'dark-tales' },
   { label: SET_TITLES['yokai-nights'], textureKey: 'packart-yokai-nights', sku: 'yokai-nights' },
   { label: SET_TITLES['sands-of-the-duat'], textureKey: 'packart-sands-of-the-duat', sku: 'sands-of-the-duat' },
+  { label: SET_TITLES.starborne, textureKey: 'packart-starborne', sku: 'starborne' },
 ];
 
 /**
@@ -352,7 +371,7 @@ export function visibleBoosterSkus(): ReadonlyArray<{ label: string; textureKey:
 }
 
 /** Only the newest SKU gets launch emphasis. Keep this beside BOOSTER_SKUS. */
-export const NEWEST_SKU: BoosterSku = FEATURES.duatLive ? 'sands-of-the-duat' : 'yokai-nights';
+export const NEWEST_SKU: BoosterSku = 'starborne';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
@@ -561,6 +580,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, DARK_TALES_PACK_ART);
     bakePackArt(this, YOKAI_NIGHTS_PACK_ART);
     bakePackArt(this, SANDS_OF_THE_DUAT_PACK_ART);
+    bakePackArt(this, STARBORNE_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
