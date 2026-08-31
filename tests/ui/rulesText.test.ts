@@ -46,7 +46,7 @@ describe('target-aware damage and land rules text', () => {
       'so-flame-lash': 'Deal 3 damage to target creature.',
       'cf-ember-of-brigid': 'Deal 2 damage to target creature.',
       'cf-silver-apple-shot': 'Deal 3 damage to target creature.',
-      'ac-moonlit-joust': 'Target creature gets +2/+0 and gains First Blade until end of turn, then deal 1 damage to that creature.',
+      'ac-moonlit-joust': 'Target creature gets +2/+0 and gains First Blade until Sunset, then deal 1 damage to that creature.',
       'ac-hunt-the-boar': 'Deal 3 damage to target creature.',
       'dt-spindle-prick': 'Deal 1 damage to target creature, then tap that creature.',
     } as const;
@@ -81,6 +81,12 @@ describe('target-aware damage and land rules text', () => {
 
   it('does not emit em-dashes in generated rules text', () => {
     for (const card of ALL_CARDS) expect(rulesText(card)).not.toContain('\u2014');
+  });
+
+  it('uses Sunset for every temporary effect across the whole catalog', () => {
+    const rendered = ALL_CARDS.map((card) => rulesText(card));
+    expect(rendered.some((text) => text.includes('until Sunset'))).toBe(true);
+    expect(rendered.every((text) => !text.includes('until end of turn'))).toBe(true);
   });
 });
 
@@ -118,7 +124,7 @@ describe('2026-08-30 rules text templates', () => {
     expect(rulesText(CARD_DB['sb-orbitroot-matriarch'])).toContain('When this arrives, Propagate.');
     expect(rulesText(CARD_DB['sb-propagation-engine'])).toBe('During your Dawn, Propagate.');
     expect(rulesText(CARD_DB['sb-starborne-apotheosis'])).toBe(
-      'Propagate, then you gain 5 life, then your Marked creatures get +1/+1 until end of turn.',
+      'Propagate, then you gain 5 life, then your Marked creatures get +1/+1 until Sunset.',
     );
     expect(rulesText(CARD_DB['sb-the-long-crossing'])).toContain('Chapter III: Propagate.');
     expect(rulesText(CARD_DB['sb-chrome-violet-archon'])).toBe(
@@ -176,14 +182,14 @@ describe('sweeper rules text', () => {
     } as const satisfies CardDef;
 
     expect(rulesText(red)).toBe('Deal 1 damage to each creature.');
-    expect(rulesText(black)).toBe('All creatures get -1/-1 until end of turn.');
+    expect(rulesText(black)).toBe('All creatures get -1/-1 until Sunset.');
     expect(rulesText(red)).not.toContain('\u2014');
     expect(rulesText(black)).not.toContain('\u2014');
   });
 
   it('pins the two W3.5b Base Set sweeper bodies', () => {
     expect(rulesText(CARD_DB['so-ember-squall'])).toBe('Deal 1 damage to each creature.');
-    expect(rulesText(CARD_DB['so-creeping-malaise'])).toBe('All creatures get -1/-1 until end of turn.');
+    expect(rulesText(CARD_DB['so-creeping-malaise'])).toBe('All creatures get -1/-1 until Sunset.');
   });
 });
 

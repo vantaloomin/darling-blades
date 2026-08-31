@@ -686,7 +686,7 @@ describe('Stage-4 vocabulary completion', () => {
       'When this arrives, Mark another target creature you control.',
     );
     expect(rulesText(DB.theirMarkedDebuff)).toBe(
-      'Marked creatures your opponent controls get -2/-2 until end of turn.',
+      'Marked creatures your opponent controls get -2/-2 until Sunset.',
     );
     expect(rulesText(DB.redlineSupernova)).toBe(
       'Deals 3 damage to each creature; a creature damaged this way that would die this turn is severed instead.',

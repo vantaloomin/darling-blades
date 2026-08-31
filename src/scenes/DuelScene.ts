@@ -1024,7 +1024,7 @@ export class DuelScene extends Phaser.Scene {
 
   /**
    * Skip the opening-hand mulligan overlay in tutorial mode: keep both hands so
-   * the duel starts at the first main phase (the mulligan is not one of the six
+   * the duel starts at Morning (the mulligan is not one of the six
    * taught beats). Deterministic — the fixed seed already gave a keepable hand.
    */
   private autoKeepTutorialMulligans(): void {
@@ -1697,7 +1697,7 @@ export class DuelScene extends Phaser.Scene {
     // (smart rect ends 582 / End Turn starts 594 — the 12px compact-cluster
     // gap from design-system.md interactive isolation, and the inflated
     // target bottoms out exactly on the 684 title-safe line); only
-    // shown during your own main phases (syncButton toggles it).
+    // shown during your own Morning or Afternoon (syncButton toggles it).
     this.endTurnBtn = this.add
       .text(LAYOUT.cluster.x, LAYOUT.cluster.endTurnY, '⏭ End Turn', {
         fontFamily: 'Cinzel, Georgia, serif',
@@ -2409,7 +2409,7 @@ export class DuelScene extends Phaser.Scene {
 
   /**
    * Auto-skip a decision that offers the human no real choice (engine
-   * forcedAction): a main phase with nothing playable, declare-attackers with
+   * forcedAction): an action phase with nothing playable, declare-attackers with
    * no able attacker, declare-blockers with no legal blocker. Runs at every
    * point maybeRunAI does. Chains (skip main1 → skip combat → skip main2)
    * pace themselves one hop per delayedCall so the player can read the phases
@@ -2452,7 +2452,7 @@ export class DuelScene extends Phaser.Scene {
   private skipMessage(forced: Action): string {
     switch (forced.type) {
       case 'passStep':
-        return 'Main phase skipped (no playable cards)';
+        return 'Action phase skipped (no playable cards)';
       case 'declareAttackers':
         return 'Combat skipped (no able attackers)';
       case 'declareBlockers':
@@ -2481,7 +2481,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.ended || !this.isHumanTurnDecision() || this.isHumanChooseTarget()) return;
     if (this.pendingCasts || this.carry || this.landFan || this.overlay || this.inspect || this.pauseOverlay || this.zoneModal) return;
     // End Turn skips the rest of the turn outright, so the guard applies from
-    // either main phase. This button has no label of its own to re-colour, so
+    // either action phase. This button has no label of its own to re-colour, so
     // the notice toast carries the warning instead.
     if (shouldArmLandDrop(this.landDropGuardInput(true))) {
       this.armLandDrop();
@@ -4536,7 +4536,7 @@ export class DuelScene extends Phaser.Scene {
     switch (a.kind) {
       case 'main': {
         // Passing out of main2 ends the turn, so that is where the land-drop
-        // guard speaks; from main1 there is still a whole second main phase to
+        // guard speaks; from Morning there is still a whole Afternoon to
         // play the land in.
         const guard = this.landDropGuardInput(this.duel.state.step === 'main2');
         armed = landDropGuardApplies(guard) && this.landDropArmed;
@@ -4547,7 +4547,7 @@ export class DuelScene extends Phaser.Scene {
             : this.duel.state.step === 'main1' ? 'To Combat' : 'Pass ▶',
         );
         // The ⏭ End Turn quick button rides above the smart button on your own
-        // main phases (hidden everywhere else — set false at the top). It is
+        // Morning or Afternoon (hidden everywhere else — set false at the top). It is
         // suppressed in the tutorial so a fast-forward can't skip a taught beat.
         if (!this.tutorial) {
           this.endTurnBtn.setVisible(true);

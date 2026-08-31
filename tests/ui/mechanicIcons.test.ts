@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_TYPE_ICON_KEY, KEYWORD_ICON_KEY, MECHANIC_ICON_KEY } from '../../src/ui/KeywordIcons';
+import { CARD_TYPE_ICON_KEY, KEYWORD_ICON_KEY, MECHANIC_ICON_KEY, PHASE_ICON_KEY } from '../../src/ui/KeywordIcons';
 import { GLOSSARY_SECTIONS, MECHANIC_NAMES } from '../../src/data/glossary';
 import { CARD_TYPE_DEFINITIONS } from '../../src/ui/rulesText';
 
@@ -29,6 +29,7 @@ describe('mechanic and card-type icons', () => {
     const keys = [
       ...Object.values(KEYWORD_ICON_KEY),
       ...Object.values(MECHANIC_ICON_KEY),
+      ...Object.values(PHASE_ICON_KEY),
       ...Object.values(CARD_TYPE_ICON_KEY),
     ];
     expect(new Set(keys).size).toBe(keys.length);

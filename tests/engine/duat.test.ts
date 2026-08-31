@@ -448,7 +448,7 @@ describe('Sands of the Duat Preserve engine', () => {
       },
     });
     expect(() => wrongPhase.submit(0, { type: 'preserveCard', graveIndex: 0 })).toThrow(
-      /during your main phase/,
+      /during Morning or Afternoon/,
     );
 
     const inactive = gameWith({
@@ -461,7 +461,7 @@ describe('Sands of the Duat Preserve engine', () => {
     });
     expect(inactive.legalActions(0).some((action) => action.type === 'preserveCard')).toBe(false);
     expect(() => inactive.submit(0, { type: 'preserveCard', graveIndex: 0 })).toThrow(
-      /during your main phase/,
+      /during Morning or Afternoon/,
     );
     expect(() => gameWith({ graveyards: [[], []] }).submit(
       0,

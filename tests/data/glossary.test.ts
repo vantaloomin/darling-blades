@@ -4,6 +4,7 @@ import {
   KEYWORD_NAMES,
   MECHANIC_DEFINITIONS,
   MECHANIC_NAMES,
+  PHASE_DEFINITIONS,
   cardMechanics,
   cardTermNames,
   glossarySection,
@@ -63,6 +64,25 @@ describe('glossary vocabulary', () => {
     expect(termMatchesQuery(dreaded, 'dread')).toBe(true);
     expect(termMatchesQuery(dreaded, 'two or more')).toBe(true);
     expect(termMatchesQuery(dreaded, 'skyborne')).toBe(false);
+  });
+
+  it('teaches the day-cycle phase names without legacy Upkeep or End rows', () => {
+    const phases = glossarySection('phases');
+    expect(phases.terms.map((term) => term.name)).toEqual([
+      'Dawn', 'Morning', 'Combat', 'Afternoon', 'Sunset',
+    ]);
+    expect(phases.terms.map((term) => term.description)).toEqual([
+      PHASE_DEFINITIONS.dawn,
+      PHASE_DEFINITIONS.morning,
+      PHASE_DEFINITIONS.combat,
+      PHASE_DEFINITIONS.afternoon,
+      PHASE_DEFINITIONS.sunset,
+    ]);
+    expect(phases.terms.some((term) => /Upkeep|End/.test(term.name))).toBe(false);
+    expect(sectionOfTerm('Dawn')).toBe('phases');
+    expect(sectionOfTerm('Morning')).toBe('phases');
+    expect(sectionOfTerm('Afternoon')).toBe('phases');
+    expect(sectionOfTerm('Sunset')).toBe('phases');
   });
 });
 

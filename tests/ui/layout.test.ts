@@ -563,8 +563,8 @@ describe('glossary frame', () => {
   it('gives every rail tab the hit-height floor and a real gap between tabs', () => {
     expect(frame.railRowHeight).toBeGreaterThanOrEqual(theme.control.minHitHeight);
     expect(frame.railRowPitch - frame.railRowHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
-    // All Terms plus five sections, all inside the rail.
-    const lastBottom = frame.railFirstRowY + 5 * frame.railRowPitch + frame.railRowHeight;
+    // All Terms plus six sections, all inside the rail.
+    const lastBottom = frame.railFirstRowY + 6 * frame.railRowPitch + frame.railRowHeight;
     expect(lastBottom).toBeLessThanOrEqual(frame.rail.y + frame.rail.height);
   });
 });

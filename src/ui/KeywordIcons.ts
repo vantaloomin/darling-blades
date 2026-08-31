@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import type { CardType, Keyword } from '../engine/types';
-import type { MechanicIconId } from '../data/glossary';
+import type { MechanicIconId, PhaseIconId } from '../data/glossary';
 import { theme } from './theme';
 
 export const KEYWORD_ICON_SIZE = 44;
@@ -44,6 +44,11 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   preserve: 'mechanic-preserve',
   warchest: 'mechanic-warchest',
   darlings: 'mechanic-darlings',
+};
+
+/** The phase glossary uses one shared day-cycle glyph for all five rows. */
+export const PHASE_ICON_KEY: Record<PhaseIconId, string> = {
+  dayCycle: 'phase-day-cycle',
 };
 
 /** Card-type glyphs, total over the engine's `CardType` union. */
@@ -133,6 +138,11 @@ const MECHANIC_ICON_PATH: Record<MechanicIconId, string> = {
   darlings: 'M5 33 L39 33 L39 40 L5 40 Z M5 31 L8 11 L16 21 L22 6 L28 21 L36 11 L39 31 Z',
 };
 
+/** A rising and setting sun marks the shared day-cycle phase vocabulary. */
+const PHASE_ICON_PATH: Record<PhaseIconId, string> = {
+  dayCycle: 'M6 34 L38 34 L38 39 L6 39 Z M11 31 A11 11 0 0 1 33 31 L28 31 A6 6 0 0 0 16 31 Z M20 5 L24 5 L24 12 L20 12 Z M9 12 L12 9 L17 14 L14 17 Z M35 12 L32 9 L27 14 L30 17 Z',
+};
+
 /** Card-type glyphs, drawn to the same chip conventions. */
 const CARD_TYPE_ICON_PATH: Record<CardType, string> = {
   // A fighter's head and shoulders.
@@ -188,6 +198,9 @@ export function bakeKeywordIcons(scene: Phaser.Scene): void {
   }
   for (const mechanic of Object.keys(MECHANIC_ICON_KEY) as MechanicIconId[]) {
     bakeChip(scene, MECHANIC_ICON_KEY[mechanic], MECHANIC_ICON_PATH[mechanic]);
+  }
+  for (const phase of Object.keys(PHASE_ICON_KEY) as PhaseIconId[]) {
+    bakeChip(scene, PHASE_ICON_KEY[phase], PHASE_ICON_PATH[phase]);
   }
   for (const type of Object.keys(CARD_TYPE_ICON_KEY) as CardType[]) {
     bakeChip(scene, CARD_TYPE_ICON_KEY[type], CARD_TYPE_ICON_PATH[type]);

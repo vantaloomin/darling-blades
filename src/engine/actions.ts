@@ -777,7 +777,7 @@ export function validateAction(
     }
 
     case 'playLand': {
-      if (a.kind !== 'main') return 'not in a main phase';
+      if (a.kind !== 'main') return 'not in Morning or Afternoon';
       if (me.landDropsUsed >= 1 + me.extraLandDrops) return 'no land drops remaining this turn';
       if (me.landReserve !== undefined) {
         if (action.reserveIndex === undefined) return 'reserve formats play lands from the reserve';
@@ -809,7 +809,7 @@ export function validateAction(
 
     case 'preserveCard': {
       if (a.kind !== 'main' || state.activePlayer !== player) {
-        return 'Preserve can only be used during your main phase';
+        return 'Preserve can only be used during Morning or Afternoon';
       }
       if (!Number.isInteger(action.graveIndex)) return 'bad graveyard index';
       const card = me.graveyard[action.graveIndex];
@@ -941,7 +941,7 @@ export function validateAction(
     }
 
     case 'castDarling': {
-      if (a.kind !== 'main' || state.activePlayer !== player) return 'Darling casts need your main phase';
+      if (a.kind !== 'main' || state.activePlayer !== player) return 'Darling casts need Morning or Afternoon';
       if (me.darlingZone === undefined) return 'this game has no Darling zone';
       if (me.darlingZone === null) return 'Darling zone is empty';
       const d = def(db, me.darlingZone);
@@ -966,7 +966,7 @@ export function validateAction(
     }
 
     case 'payDownDarlingTax': {
-      if (a.kind !== 'main' || state.activePlayer !== player) return 'Darling tax can only be paid down in your main phase';
+      if (a.kind !== 'main' || state.activePlayer !== player) return 'Darling tax can only be paid down in Morning or Afternoon';
       if (me.darlingZone === undefined) return 'this game has no Darling zone';
       if ((me.darlingTax ?? 0) < DARLING_PAYDOWN_REDUCTION) return 'Darling tax is already zero';
       if (action.manaPlan) return validateManaPlanForCost(state, db, player, DARLING_PAYDOWN_MANA, action.manaPlan);
@@ -1110,7 +1110,7 @@ export function reasonUncastable(
   if (d.skim && skimBlockers(state, db, player, d) === null) return null;
 
   if (isType(d, 'land')) {
-    if (a.kind !== 'main') return 'Lands can only be played during your main phase.';
+    if (a.kind !== 'main') return 'Lands can only be played during Morning or Afternoon.';
     if (me.landDropsUsed >= 1 + me.extraLandDrops) return 'You have no land drops left this turn.';
     return null;
   }
