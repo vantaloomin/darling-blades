@@ -344,7 +344,7 @@ export const CELTIC_FAE = [
   },
   {
     id: 'cf-bargain-for-time', name: 'Bargain for Time', types: ['ritual'], subtypes: [], cost: cost(1, 'U'), colors: ['U'],
-    abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }] }],
+    abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }, { op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c', flavor: 'She can spare a minute. She will keep the afternoon.',
   },
   {
@@ -383,7 +383,7 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'The vendor smiles. The coin purse screams.',
   },
   fae('cf-laughing-pooka', 'Laughing Pooka', 'Pooka', {
-    cost: cost(0, 'RR'), colors: ['R'], attack: 3, defense: 1, keywords: ['warcry'],
+    cost: cost(0, 'RR'), colors: ['R'], attack: 4, defense: 1, keywords: ['warcry'],
     rarity: 'c', flavor: 'It turns into a horse, a goat, and your worst alibi.',
   }),
   fae('cf-hazelwand-mystic', 'Hazelwand Mystic', 'Druid', {
@@ -407,7 +407,7 @@ export const CELTIC_FAE = [
   },
   {
     id: 'cf-silver-apple-shot', name: 'Silver Apple Shot', types: ['ritual'], subtypes: [], cost: cost(1, 'R'), colors: ['R'],
-    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 3, to: 'target' }] }],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 3, to: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'The apple is the warning. The arrow is the punctuation.',
   },
   {

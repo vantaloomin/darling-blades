@@ -36,9 +36,7 @@ export const SORCERIES = [
     subtypes: [],
     cost: cost(0, 'B'),
     colors: ['B'],
-    abilities: [
-      { when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }] },
-    ],
+    abilities: [{ when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c',
     flavor: 'Retirement is negotiable.',
   },
@@ -123,13 +121,7 @@ export const SORCERIES = [
     subtypes: [],
     cost: cost(1, 'R'),
     colors: ['R'],
-    abilities: [
-      {
-        when: 'spell',
-        targets: [{ what: 'creature' }],
-        ops: [{ op: 'damage', n: 3, to: 'target' }],
-      },
-    ],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }] }],
     rarity: 'c',
     flavor: 'Ash to ash. Mostly ash.',
   },

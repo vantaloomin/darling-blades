@@ -386,7 +386,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Turtlekin beast-girl hunkered in a wide block-stance with a round tower-shield, a great mossy domed shell-carapace rising behind her shoulders, scaled forearm-plates, calm stubborn face, mossy stone ford, cool overcast light with warm rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Squirrelkin Hoarder — `bk-squirrelkin-hoarder`
-- **Card facts:** {1}{G} · G · 2/2 · c · holo: none
+- **Card facts:** {1}{G} · G · 1/3 · c · holo: none
 - **Character & source:** Original Beastkin squirrelkin gatherer — a two-drop whose entire identity is obsessive stockpiling.
 - **Personality / mood:** "Winter prep is a year-round lifestyle, and yes, that acorn is hers." Manic, possessive, endearingly frantic.
 - **Pose & composition:** Crouched protectively over a heaped pile of acorns and nuts, three-quarter, one arm scooping them close while she shoots a warning look at the viewer — guarding, not attacking. Face ≈ y 320; the enormous over-scaled bushy tail curls up filling the right of the band, cheeks pouched full.

@@ -284,7 +284,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Selene chariot-borne in a silver-and-blue chiton with a crescent-moon diadem, reins in hand, a glowing moon-disc haloed at her back, calm night sky, dreamy lunar charioteer, cool moon backlight with soft silver rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Iris, Rainbow Herald — `gk-iris`
-- **Card facts:** {1}{W} · W · 2/1 · skyborne · c · holo: none
+- **Card facts:** {1}{W} · W · 1/2 · skyborne · c · holo: none
 - **Character & source:** Iris as-is, rainbow messenger of the gods; a 2/1 flyer — swift, bright, and mockingly cheerful. One clear idea.
 - **Personality / mood:** "Message for you: you're losing. Lovely colors, though." Bright, blithe, delivering bad news with a smile.
 - **Pose & composition:** Airborne descent, one wing spread, a rainbow arc trailing from her heels across the frame, face ≈ y 305 tilted at the viewer with a bright grin; the rainbow and wing-tip break the top band. Single idea — winged rainbow herald.

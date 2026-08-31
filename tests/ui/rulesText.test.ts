@@ -43,9 +43,9 @@ describe('token type lines', () => {
 describe('target-aware damage and land rules text', () => {
   it('renders creature-only damage and reuses the named creature', () => {
     const expected = {
-      'so-flame-lash': 'Deal 3 damage to target creature.',
+      'so-flame-lash': 'Deal 4 damage to target creature.',
       'cf-ember-of-brigid': 'Deal 2 damage to target creature.',
-      'cf-silver-apple-shot': 'Deal 3 damage to target creature.',
+      'cf-silver-apple-shot': 'Deal 3 damage to target creature, then Foresee 1.',
       'ac-moonlit-joust': 'Target creature gets +2/+0 and gains First Blade until Sunset, then deal 1 damage to that creature.',
       'ac-hunt-the-boar': 'Deal 3 damage to target creature.',
       'dt-spindle-prick': 'Deal 1 damage to target creature, then tap that creature.',
@@ -148,7 +148,9 @@ describe('2026-08-30 rules text templates', () => {
     expect(CARD_DB['sb-blue-echo-array'].types).toEqual(['ritual']);
     expect(rulesText(CARD_DB['sb-blue-echo-array'])).toBe('Skim {1}\nForesee 2.');
     expect(CARD_DB['sb-null-orbit-array'].types).toEqual(['ritual']);
-    expect(rulesText(CARD_DB['sb-null-orbit-array'])).toBe('Skim {2}\nForesee 1.');
+    expect(rulesText(CARD_DB['sb-null-orbit-array'])).toBe(
+      'Skim {1}\nForesee 1, then Sever the top card of your graveyard.',
+    );
     expect(rulesText(CARD_DB['sb-rootlight-navigator'])).toBe(
       'When this arrives, you may play an additional land this turn.',
     );

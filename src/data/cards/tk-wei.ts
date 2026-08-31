@@ -192,7 +192,7 @@ export const TK_WEI = [
     cost: cost(1, 'R'),
     colors: ['R'],
     attack: 2,
-    defense: 2,
+    defense: 1,
     keywords: ['firstBlade'],
     rarity: 'c',
     flavor: 'Short, fearless, and already inside your gate.',

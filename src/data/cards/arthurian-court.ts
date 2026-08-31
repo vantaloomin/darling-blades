@@ -232,7 +232,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'r', flavor: 'A bow, a whisper, a door closed before the blade is drawn.',
   },
   creature('ac-lady-of-lilies', 'Lady of Lilies', ['Mage', 'Attendant'], {
-    cost: cost(4, 'U'), colors: ['U'], attack: 2, defense: 2,
+    cost: cost(4, 'U'), colors: ['U'], attack: 3, defense: 3,
     abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'r', flavor: 'She gathers lilies from the lake and omens from the court.',
   }),
@@ -331,7 +331,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'c', flavor: 'She knows which ripples mean welcome and which mean warning.',
   }),
   creature('ac-court-minstrel', 'Court Minstrel', ['Bard'], {
-    cost: cost(3, 'U'), colors: ['U'], attack: 2, defense: 2,
+    cost: cost(4, 'U'), colors: ['U'], attack: 2, defense: 2,
     abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'She sings the table into courage, one verse at a time.',
   }),
@@ -439,7 +439,7 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-grail-glimpse', name: 'Grail Glimpse', types: ['ritual'], subtypes: [],
-    cost: cost(0, 'U'), colors: ['U'], abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }] }],
+    cost: cost(0, 'U'), colors: ['U'], abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 4 }] }],
     rarity: 'c', flavor: 'For one breath, the whole road shines through the mist.',
   },
   creature('ac-root-chapel-warden', 'Root-Chapel Warden', ['Knight', 'Druid'], {
