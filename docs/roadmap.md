@@ -13,18 +13,18 @@ _Dated 2026-08-25. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch offers an optional **tutorial**; a new
   player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (22 themed opponents on a daily-reshuffled ladder, tower extended
-  to 22 floors in the 1.6 train) or Practice duels → rewards → shop →
+  Gauntlet** (24 themed opponents on a daily-reshuffled ladder, the Starborne
+  summit pair landing at rungs 23-24 in the 1.7 train) or Practice duels → rewards → shop →
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
-  1,079-card collectible pool now spans eight sets; the Sands of the Duat art
-  run is complete at 245/245 QA-passed, alongside the Yokai Nights and Dark
-  Tales runs.
+  1,230-card collectible pool now spans nine sets; the Starborne art run is
+  complete at 151/151 plus six tokens, alongside the Duat, Yokai Nights, and
+  Dark Tales runs.
   The remaining eyes-on work is the standing real-device pass and
   by-ear/by-eye polish listed under Planned.
-- **1,738 tests green** (+4 skipped balance-tool assertions; count refreshed
-  2026-08-25 at the 1.6.4 cut) across 175 files
+- **1,926 tests green** (+4 skipped balance-tool assertions; count refreshed
+  2026-08-31 at the 1.7.0 cut) across 183 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -67,6 +67,33 @@ _Dated 2026-08-25. Review monthly._
   claim, and — since — v32→v33 per-deck card back and playmat and v33→**v34**
   the land-drop confirmation — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-08-31 · 1.7.0)
+
+- **Starborne, the ninth expansion (#282, #293-#294, #298-#304, #309-#310).**
+  151 cards on Marks and Propagate, complete art plus six tokens, the
+  seed-of-light set icon, and the engine wave that made it expressible:
+  targeted triggers, the mark vocabulary, the sever brand, and Quest
+  chapters. The colour pie held: green grows, red/white ride, blue moves,
+  black eats.
+- **The Starborne metagame (#307).** Chrome Broodmother (rung 23) and The
+  Violet Signal Queen (rung 24) extend the tower; the Chrome-Violet
+  Broodship joins the shop. The measurement caught and fixed a real AI bug:
+  mixed counter-casts discarded their permanent targets at medium and hard.
+- **The v3.1 balance program (#305-#306, #308, #313).** The power formula
+  was rebuilt (pip-weighted budget, additive rarity, colour-pie premium),
+  over three hundred cards re-costed under owner adjudication, Rage landed
+  on Lu Bu as the one required engine mechanic, four drifted bosses and
+  five weak decks were re-tuned on measured evidence, and floors for the
+  new rungs were set from the final post-everything band.
+- **The card-text templating rulings (#311-#312).** "During your Dawn",
+  Mark as a taught keyword, bare Propagate, one consistent text order, and
+  the mark system narrowed to creature scope in the engine with a
+  guarantee sweep. Rendered text no longer says "permanent" anywhere.
+- **The debt block (#271-#283) and the 1.7 quality review (#288-#291).**
+  PNG save cards, sweep durability and byte-identical resume, the
+  converter legal-target detector, release-page automation, round
+  browsing, and Limited pip-demand basics.
 
 ## Recently shipped (2026-08-25 · 1.6.4)
 
