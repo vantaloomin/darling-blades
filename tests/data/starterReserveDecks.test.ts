@@ -14,6 +14,10 @@ import { buildReserveMatrixFullOwnershipSave } from '../../scripts/reserveMatrix
 
 const save = buildReserveMatrixFullOwnershipSave(CARD_DB);
 
+// Shadow Mandate has an owner-ruled, measured reserve package rather than
+// the generic converter output; its exact list is pinned in starterDecks.test.
+const HAND_TUNED_STARTER_IDS = new Set(['starter-mandate']);
+
 describe('reserve-native starter builds (1.6 migration)', () => {
   for (const starter of STARTER_DECKS) {
     it(`${starter.id}: the reserve build is shipping-legal`, () => {
@@ -47,6 +51,7 @@ describe('reserve-native starter builds (1.6 migration)', () => {
     const sorted = (cards: readonly string[]): string[] => [...cards].sort();
     for (const starter of STARTER_DECKS) {
       const source = { id: starter.id, name: starter.name, deck: starter.cards };
+      if (HAND_TUNED_STARTER_IDS.has(starter.id)) continue;
       expect(sorted(convertAvatarWarchest(source))).toEqual(sorted(starter.reserveCards!));
       expect(sorted(deriveLandReserve(source))).toEqual(sorted(starter.landReserve!));
     }

@@ -83,24 +83,27 @@ describe('Chrome Broodmother contract shape', () => {
         preferredSubtypes: ['Matriarch', 'Brood', 'Starship'],
       },
     });
+    // 2026-08-30 tuning pass (measured surgery, 44% -> 68% avg; the evidence
+    // chain lives in the avatar's dated comment): the v3.1-nerfed grafter
+    // curve gave way to the cross-set fire package.
     const expectedCounts = {
       'land-forest': 10,
       'land-mountain': 10,
       'sb-radiant-comet-lane': 4,
       'sb-mycelial-star-gardener': 4,
-      'sb-flarewing-raider': 4,
-      'sb-cometroot-grafter': 4,
+      'cf-heatherblade-scout': 4,
+      'sb-ion-storm-brawler': 4,
+      'sb-burning-hull-runner': 2,
       'sb-lance-of-two-suns': 2,
-      'sb-ion-storm-brawler': 2,
-      'sb-living-hull-seedling': 4,
+      'sb-chrome-sunbreaker': 4,
       'sb-comet-kick-marauder': 2,
       'sb-orbitroot-matriarch': 2,
       'sb-rootlight-broodmother': 2,
       'sb-emerald-bloom-mother': 2,
       'sb-brood-communion': 2,
-      'sb-root-of-light': 2,
-      'sb-echo-burst': 2,
-      'sb-overcharge-the-hull': 2,
+      'sb-red-solar-lash': 2,
+      'sb-starfall-barrage': 2,
+      'sb-redline-supernova': 2,
     };
     const actualCounts = Object.fromEntries(
       [...new Set(avatar.deck)].map((id) => [id, avatar.deck.filter((cardId) => cardId === id).length]),

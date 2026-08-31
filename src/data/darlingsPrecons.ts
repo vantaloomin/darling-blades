@@ -52,7 +52,11 @@ export const DARLINGS_PRECONS: readonly DarlingsPrecon[] = [
       'in-read-the-ruse', 'rg-read-the-runes', 'so-divination', 'yn-burn-the-billboard', 'yn-null-route',
       'yn-signal-bridge', 'dt-lost-in-library', 'dt-tower-braid-escape', 'dt-undersea-bargain',
       'in-dream-fracture', 'in-sudden-insight', 'so-strategic-planning', 'so-lava-axe',
-      'dt-glass-slipper-at-midnight', 'yn-foresee-the-fall',
+      // dt-glass-slipper-at-midnight left 2026-08-29: it went {U}{B} legendary
+      // (owner colour ruling) and black is off-colour for this U/R list.
+      // sd-warcry-at-noon is the in-colour functional twin (team +1/+0 with a
+      // keyword grant at the same mana value).
+      'sd-warcry-at-noon', 'yn-foresee-the-fall',
     ],
     landReserve: [
       'ld-red-cliffs-anchorage', 'dt-ash-ballroom',

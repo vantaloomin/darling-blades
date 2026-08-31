@@ -92,6 +92,14 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     'glass-coffin-queen',
     'anubis-who-holds-the-scale',
     'the-bride',
+    // 2026-08-30 tuning pass: R23's fire-package surgery diverges from the
+    // scripted first cut by measured intent. (R19's lantern swap landed in
+    // the classic deck only; her reserve still matches the converter.)
+    // 2026-08-30 R18 Songstress tuning: final Doom Bolt/Fishbone redistribution
+    // intentionally diverges from the converter's reserve fill; the kept
+    // 40-card list is supported by the measured 200-seed boss pass.
+    'abyssal-songstress',
+    'chrome-broodmother',
   ]);
 
   /**

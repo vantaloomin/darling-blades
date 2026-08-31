@@ -20,19 +20,19 @@ export const CELTIC_FAE = [
   // ULTRA RARE (4)
   // =========================================================================
   fae('cf-morrigan-black-wing', 'Morrigan, Black-Wing Omen', 'Goddess', {
-    supertypes: ['legendary'], cost: cost(4, 'BG'), colors: ['B', 'G'], attack: 5, defense: 5,
+    supertypes: ['legendary'], cost: cost(3, 'BG'), colors: ['B', 'G'], attack: 5, defense: 5,
     keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 3, who: 'opponent' }] }, { when: 'attacks', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'ur', flavor: 'A raven lands on the treaty. The treaty loses its nerve.',
   }),
   fae('cf-titania-silver-court', 'Titania of the Silver Court', 'Queen', {
-    supertypes: ['legendary'], cost: cost(3, 'UG'), colors: ['U', 'G'], attack: 4, defense: 5,
+    supertypes: ['legendary'], cost: cost(4, 'UG'), colors: ['U', 'G'], attack: 4, defense: 4,
     keywords: ['untouchable'],
-    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }, { when: 'dawn', ops: [{ op: 'createToken', token: 'tok-bloom', count: 1 }] }],
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }, { when: 'dawn', ops: [{ op: 'createToken', token: 'tok-bloom', count: 1 }] }],
     rarity: 'ur', flavor: 'Her court applauds softly. The forest grows a new witness.',
   }),
   fae('cf-aine-sunlit-bargain', 'Aine, Sunlit Bargain', 'Sovereign', {
-    supertypes: ['legendary'], cost: cost(3, 'WG'), colors: ['W', 'G'], attack: 4, defense: 5,
+    supertypes: ['legendary'], cost: cost(2, 'WG'), colors: ['W', 'G'], attack: 4, defense: 5,
     keywords: ['bloodoath'],
     abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }] }, { when: 'attacks', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'ur', flavor: 'She gives freely. The bill arrives when you are happy.',
@@ -48,12 +48,12 @@ export const CELTIC_FAE = [
   // =========================================================================
   {
     id: 'cf-badb-cathas-warning', name: "Badb Catha's Warning", types: ['ritual'], subtypes: [],
-    cost: cost(2, 'B'), colors: ['B'],
+    cost: cost(1, 'B'), colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'discardRandom', n: 2, who: 'opponent' }, { op: 'severGrave', n: 2, who: 'opponent' }] }],
     rarity: 'ssr', flavor: 'Three crows circle the field. One of them knows your name.',
   },
   fae('cf-selkie-tide-queen', 'Selkie Tide-Queen', 'Selkie', {
-    supertypes: ['legendary'], cost: cost(3, 'UG'), colors: ['U', 'G'], attack: 4, defense: 4,
+    supertypes: ['legendary'], cost: cost(2, 'UG'), colors: ['U', 'G'], attack: 4, defense: 4,
     keywords: ['untouchable'], abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'ssr', flavor: 'The sea returns what it borrows. Her court does not.',
   }),
@@ -65,7 +65,7 @@ export const CELTIC_FAE = [
     rarity: 'ssr', flavor: 'Do not meet its gaze. Do not survive its attention.',
   },
   fae('cf-wild-hunt-matriarch', 'Wild Hunt Matriarch', 'Hunter', {
-    supertypes: ['legendary'], cost: cost(4, 'RG'), colors: ['R', 'G'], attack: 5, defense: 4,
+    supertypes: ['legendary'], cost: cost(3, 'RG'), colors: ['R', 'G'], attack: 5, defense: 4,
     keywords: ['warcry', 'overrun'], abilities: [{ when: 'attacks', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'ssr', flavor: 'The horn sounds once. The quarry is already late.',
   }),
@@ -80,7 +80,7 @@ export const CELTIC_FAE = [
   // SUPER RARE (7)
   // =========================================================================
   fae('cf-bean-sidhe-keening', 'Bean Sidhe Keening', 'Banshee', {
-    cost: cost(3, 'B'), colors: ['B'], attack: 3, defense: 3, keywords: ['skyborne'],
+    cost: cost(2, 'B'), colors: ['B'], attack: 1, defense: 4, keywords: ['skyborne', 'bulwark'],
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }, { when: 'dawn', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }] }],
     rarity: 'sr', flavor: 'Her song is the sound a family makes before it starts counting chairs.',
   }),
@@ -112,7 +112,7 @@ export const CELTIC_FAE = [
   }),
   {
     id: 'cf-ogham-fate-stones', name: 'Ogham Fate-Stones', types: ['artifact'], subtypes: [],
-    cost: cost(3), colors: [], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
+    cost: cost(1), colors: [], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'sr', flavor: 'The marks are unreadable. The price is not.',
   },
 
@@ -125,7 +125,7 @@ export const CELTIC_FAE = [
     rarity: 'r', flavor: 'She asks where you are going. The wrong answer is any answer.',
   }),
   fae('cf-blackthorn-duelist', 'Blackthorn Duelist', 'Sidhe', {
-    cost: cost(1, 'G'), colors: ['G'], attack: 3, defense: 2, keywords: ['firstBlade'],
+    cost: cost(2, 'G'), colors: ['G'], attack: 3, defense: 2, keywords: ['firstBlade'],
     abilities: [{ when: 'combatDamageToPlayer', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'She offers first blood. She has already decided whose.',
   }),
@@ -146,7 +146,7 @@ export const CELTIC_FAE = [
     rarity: 'r', flavor: 'Two answers for two memories. A very fair market.',
   },
   fae('cf-hounds-of-annwn', 'Hounds of Annwn', 'Hound', {
-    cost: cost(2, 'G'), colors: ['G'], attack: 4, defense: 3, keywords: ['overrun'],
+    cost: cost(3, 'G'), colors: ['G'], attack: 4, defense: 3, keywords: ['overrun'],
     abilities: [{ when: 'dies', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }] }],
     rarity: 'r', flavor: 'They do not lose a scent. They merely inherit it.',
   }),
@@ -162,7 +162,7 @@ export const CELTIC_FAE = [
   }),
   {
     id: 'cf-mist-over-tara', name: 'Mist Over Tara', types: ['charm'], subtypes: [],
-    cost: cost(1, 'U'), colors: ['U'], abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }, { op: 'foresee', n: 1 }] }],
+    cost: cost(1, 'U'), colors: ['U'], abilities: [{ when: 'spell', ops: [{ op: 'preventCombat' }, { op: 'foresee', n: 2 }] }],
     rarity: 'r', flavor: 'The old seat disappears. So does the battle for it.',
   },
   fae('cf-fomorian-raider', 'Fomorian Raider', 'Fomorian', {
@@ -181,7 +181,7 @@ export const CELTIC_FAE = [
     rarity: 'r', flavor: 'The briars do not kill. They merely make leaving impossible.',
   },
   fae('cf-otter-familiar', 'Otter Familiar', 'Otter', {
-    cost: cost(1, 'GG'), colors: ['G'], attack: 2, defense: 3,
+    cost: cost(2, 'GG'), colors: ['G'], attack: 2, defense: 3,
     manaAbility: ['G'], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'It finds the shallow crossing, then charges a fish for the secret.',
   }),
@@ -192,7 +192,7 @@ export const CELTIC_FAE = [
   }),
   {
     id: 'cf-dance-under-mound', name: 'Dance Under the Mound', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'GG'), colors: ['G'],
+    cost: cost(1, 'GG'), colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-bloom', count: 2 }, { op: 'foresee', n: 2 }] }],
     rarity: 'r', flavor: 'The music is free. The years it takes are not.',
   },
@@ -204,7 +204,7 @@ export const CELTIC_FAE = [
   },
   {
     id: 'cf-lake-mirror-vow', name: 'Lake-Mirror Vow', types: ['enchantment'], subtypes: [],
-    cost: cost(2, 'U'), colors: ['U'],
+    cost: cost(0, 'U'), colors: ['U'],
     abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'Swear to your reflection. It has a better memory than you do.',
   },
@@ -214,7 +214,7 @@ export const CELTIC_FAE = [
     rarity: 'r', flavor: 'It cannot name the court. That is why the court fears it.',
   },
   fae('cf-thornmaze-patrol', 'Thornmaze Patrol', 'Ranger', {
-    cost: cost(2, 'G'), colors: ['G'], attack: 3, defense: 4, keywords: ['wardingGaze'],
+    cost: cost(3, 'G'), colors: ['G'], attack: 3, defense: 4, keywords: ['wardingGaze'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'Every hedge is a corridor if she knows your name.',
   }),
@@ -249,7 +249,7 @@ export const CELTIC_FAE = [
   // COMMON (42)
   // =========================================================================
   fae('cf-fae-ring-initiate', 'Fae-Ring Initiate', 'Adept', {
-    cost: cost(0, 'U'), colors: ['U'], attack: 1, defense: 2, abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
+    cost: cost(1, 'U'), colors: ['U'], attack: 1, defense: 2, abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'The first lesson is never take the offered seat.',
   }),
   fae('cf-mistwing-pixie', 'Mistwing Pixie', 'Pixie', {
@@ -265,7 +265,7 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'She starts the fight early so the rules cannot catch up.',
   }),
   fae('cf-bog-banshee', 'Bog Banshee', 'Banshee', {
-    cost: cost(1, 'B'), colors: ['B'], attack: 3, defense: 1, keywords: ['deathblade'],
+    cost: cost(2, 'B'), colors: ['B'], attack: 3, defense: 1, keywords: ['deathblade', 'skyborne'],
     rarity: 'c', flavor: 'Her wail is a warning. Her silence is worse.',
   }),
   fae('cf-sidhe-page', 'Sidhe Page', 'Sidhe', {
@@ -273,7 +273,7 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'A page learns every courtly bow before learning where the exits are.',
   }),
   fae('cf-omen-raven', 'Omen Raven', 'Raven', {
-    cost: cost(0, 'B'), colors: ['B'], attack: 1, defense: 1, keywords: ['skyborne'],
+    cost: cost(1, 'B'), colors: ['B'], attack: 1, defense: 1, keywords: ['skyborne'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'It steals shiny things, then puts them back in the wrong future.',
   }),
@@ -286,7 +286,7 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'Step inside the ring. Please. We insist.',
   }),
   fae('cf-willow-wisp-guide', 'Willow-Wisp Guide', 'Spirit', {
-    cost: cost(2, 'G'), colors: ['G'], attack: 1, defense: 3, manaAbility: ['G'],
+    cost: cost(2, 'G'), colors: ['G'], attack: 0, defense: 4, manaAbility: ['G'], keywords: ['bulwark'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }], rarity: 'c', flavor: 'It knows the safe road. It prefers the interesting one.',
   }),
   fae('cf-fae-court-tokenmaker', 'Fae Court Reveler', 'Reveler', {
@@ -299,7 +299,7 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'Her arrows return at moonrise. Their targets do not.',
   }),
   fae('cf-black-dog-of-lane', 'Black Dog of the Lane', 'Hound', {
-    cost: cost(1, 'B'), colors: ['B'], attack: 2, defense: 2, keywords: ['deathblade'],
+    cost: cost(2, 'B'), colors: ['B'], attack: 2, defense: 1, keywords: ['deathblade'],
     rarity: 'c', flavor: 'It walks one street ahead of every bad decision.',
   }),
   fae('cf-heatherblade-scout', 'Heatherblade Scout', 'Scout', {
@@ -343,7 +343,7 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'A coal for your hearth, a blaze for your oathbreaker.',
   },
   {
-    id: 'cf-bargain-for-time', name: 'Bargain for Time', types: ['ritual'], subtypes: [], cost: cost(0, 'U'), colors: ['U'],
+    id: 'cf-bargain-for-time', name: 'Bargain for Time', types: ['ritual'], subtypes: [], cost: cost(1, 'U'), colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'She can spare a minute. She will keep the afternoon.',
   },
@@ -373,25 +373,25 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'Gold catches the sunrise. Silver catches the promise behind it.',
   },
   {
-    id: 'cf-silver-thread', name: 'Silver Thread', types: ['enchantment'], subtypes: ['Aura'], cost: cost(2), colors: [],
+    id: 'cf-silver-thread', name: 'Silver Thread', types: ['enchantment'], subtypes: ['Aura'], cost: cost(1), colors: [],
     abilities: [{ when: 'static', static: { scope: 'attached', p: 0, t: 2 } }, { when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'Follow it gently. Pull it, and fate pulls back.',
   },
   {
-    id: 'cf-night-market-bargain', name: 'Night-Market Bargain', types: ['ritual'], subtypes: [], cost: cost(1, 'B'), colors: ['B'],
-    abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }, { op: 'damage', n: 2, to: 'controller' }] }],
+    id: 'cf-night-market-bargain', name: 'Night-Market Bargain', types: ['ritual'], subtypes: [], cost: cost(2, 'B'), colors: ['B'],
+    abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }, { op: 'damage', n: 4, to: 'controller' }] }],
     rarity: 'c', flavor: 'The vendor smiles. The coin purse screams.',
   },
   fae('cf-laughing-pooka', 'Laughing Pooka', 'Pooka', {
-    cost: cost(1, 'R'), colors: ['R'], attack: 3, defense: 2, keywords: ['warcry'],
+    cost: cost(0, 'RR'), colors: ['R'], attack: 3, defense: 1, keywords: ['warcry'],
     rarity: 'c', flavor: 'It turns into a horse, a goat, and your worst alibi.',
   }),
   fae('cf-hazelwand-mystic', 'Hazelwand Mystic', 'Druid', {
-    cost: cost(1, 'G'), colors: ['G'], attack: 1, defense: 2, manaAbility: ['G'],
+    cost: cost(2, 'G'), colors: ['G'], attack: 2, defense: 3, manaAbility: ['G'], keywords: ['bulwark'],
     rarity: 'c', flavor: 'Her wand finds water, gold, and the person avoiding you.',
   }),
   {
-    id: 'cf-clouded-memory', name: 'Clouded Memory', types: ['charm'], subtypes: [], cost: cost(2, 'U'), colors: ['U'],
+    id: 'cf-clouded-memory', name: 'Clouded Memory', types: ['charm'], subtypes: [], cost: cost(1, 'U'), colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'recall', to: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'You remember winning. The court remembers the return trip.',
   },
@@ -422,11 +422,11 @@ export const CELTIC_FAE = [
     rarity: 'c', flavor: 'One note, and the road forgets which way is forward.',
   },
   fae('cf-moorland-guide', 'Moorland Guide', 'Guide', {
-    cost: cost(1, 'W'), colors: ['W'], attack: 2, defense: 3, keywords: ['sentinel'],
+    cost: cost(2, 'W'), colors: ['W'], attack: 2, defense: 3, keywords: ['sentinel'],
     rarity: 'c', flavor: 'She knows every dry path. She sells only the wet ones.',
   }),
   fae('cf-veil-touched-hart', 'Veil-Touched Hart', 'Hart', {
-    cost: cost(1, 'G'), colors: ['G'], attack: 2, defense: 3, abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
+    cost: cost(2, 'G'), colors: ['G'], attack: 2, defense: 3, abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'Its antlers hold the last light. Do not follow where they point.',
   }),
   fae('cf-cairnlight-adept', 'Cairnlight Adept', 'Witch', {

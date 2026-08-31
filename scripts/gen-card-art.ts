@@ -224,6 +224,10 @@ interface Entry {
   name: string;
   faction: string;
   prompt: string;
+  /** Shared-art entry: the game renders another card's file via artRef, so
+   *  the bible entry carries an "Art ref" field instead of a Prompt and the
+   *  generator must never produce a file for it. */
+  sharedArt: boolean;
 }
 
 /** (card-id → prompt) pairs from one faction file, in file order. */
@@ -234,18 +238,19 @@ function parseFaction(faction: string): Entry[] {
   for (const line of content.split(/\r?\n/)) {
     const heading = line.match(/^### (.+?) — `([^`]+)`\s*$/);
     if (heading) {
-      open = { id: heading[2], name: heading[1], faction, prompt: '' };
+      open = { id: heading[2], name: heading[1], faction, prompt: '', sharedArt: false };
       entries.push(open);
       continue;
     }
     const prompt = line.match(/^- \*\*Prompt:\*\* ?(.*)$/);
     if (prompt && open) open.prompt = prompt[1].trim();
+    if (/^- \*\*Art ref:\*\*/.test(line) && open) open.sharedArt = true;
   }
-  const missing = entries.filter((e) => e.prompt === '');
+  const missing = entries.filter((e) => e.prompt === '' && !e.sharedArt);
   if (missing.length > 0) {
     fail(`${faction}.md: entries missing a Prompt field: ${missing.map((e) => e.id).join(', ')}`);
   }
-  return entries;
+  return entries.filter((e) => !e.sharedArt);
 }
 
 // --- imagegen CLI resolution -------------------------------------------------------

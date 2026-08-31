@@ -232,10 +232,11 @@ All twelve keywords and their exact implemented semantics (`Keyword` in
 | **bloodoath** · Blood Oath | Its controller gains life equal to damage it deals (combat and, where relevant, spell damage paths that flag it). |
 | **untouchable** · Untouchable | **Blocks only the OPPONENT'S targeting.** Your own untouchable creature can still be targeted by *your* spells (`creatureTargetable` only rejects when `perm.controller !== caster`). |
 | **dreaded** · Dreaded | Can be blocked only by two or more creatures. The minimum lives in `minimumBlockersForAttacker` (`combat/legality.ts`); `validateBlocks` enforces it on the final assignment, while `blockOptions` stays permissive so partial assignments can be built incrementally. |
+| **rage** · Rage | Attacks every turn if it is able to. The compulsion is `compelledAttackers` (`combat/legality.ts`), a filter over `eligibleAttackers`, so anything that makes the creature unable to attack removes it: tapped, summoning sick without Warcry, or **Bulwark**, whose flat "cannot attack" wins. Enforced over the WHOLE declaration by `validateAttackers` (the empty declaration that skips combat is the case it exists to reject), the enumerator only offers subsets containing it, and the AI planner may not drop it. |
 
 Keyword rules text is generated (`KEYWORD_NAMES` in `src/data/glossary.ts`) — see
 [docs/adding-cards.md](adding-cards.md). For the full Magic-evergreen → Darling
-Blades mapping (these 12 plus not-yet-implemented candidates like
+Blades mapping (these 13 plus not-yet-implemented candidates like
 Indestructible, and the Fight/Sacrifice actions), see
 [docs/keyword-map.md](keyword-map.md).
 

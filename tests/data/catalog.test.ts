@@ -155,13 +155,23 @@ describe('catalog integrity', () => {
     expect(ALL_CARDS.length).toBe(setSizes);
   });
 
-  it('every non-land, non-token card has a cost with mana value 1-8', () => {
+  it('every non-land, non-token card has a legal mana value (1-8; UR may break the bound up to 10)', () => {
+    // Owner ruling 2026-08-29: UR cards may exceed MV 8, bounded by
+    // LAND_RESERVE_SIZE (10) - with ten guaranteed lands an MV 9-10 card is
+    // reliably castable off lands alone, and bound-breaking is part of the
+    // UR chase identity (both directions). Companion rule: MV-9+ cards may
+    // not carry Empower, or the additive ceiling could exceed what the land
+    // reserve can ever pay.
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.token) continue;
       expect(card.cost, `${card.id} needs a cost`).toBeDefined();
       const mv = manaValue(card.cost);
+      const cap = card.rarity === 'ur' ? 10 : 8;
       expect(mv, `${card.id} mana value ${mv}`).toBeGreaterThanOrEqual(1);
-      expect(mv, `${card.id} mana value ${mv}`).toBeLessThanOrEqual(8);
+      expect(mv, `${card.id} mana value ${mv} (cap ${cap} for ${card.rarity})`).toBeLessThanOrEqual(cap);
+      if (mv > 8) {
+        expect(card.empower, `${card.id} is MV ${mv} and may not carry Empower`).toBeUndefined();
+      }
     }
   });
 
@@ -257,8 +267,9 @@ describe('catalog integrity', () => {
     // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
     // cards, so the companion wave moves ALL_CARDS to 1,104 total cards,
     // including tokens and basics. Starborne adds 151 collectibles and six
-    // set tokens.
-    expect(ALL_CARDS).toHaveLength(1261);
+    // set tokens; the v3.1 Fenrir ruling (2026-08-29) adds tok-wolf-cub
+    // (1/1, art shared with tok-wolf via artRef): 1261 -> 1262.
+    expect(ALL_CARDS).toHaveLength(1262);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -304,15 +315,20 @@ describe('catalog integrity', () => {
         SANDS_OF_THE_DUAT.filter((card) => predicate(card) && card.rarity === rarity).length,
       ]));
     expect(count((card) => card.types.some((type) => type === 'artifact'))).toEqual({ c: 10, r: 6, sr: 1, ssr: 1, ur: 1 });
-    expect(count((card) => card.colors.length > 1)).toEqual({ c: 0, r: 8, sr: 2, ssr: 5, ur: 4 });
+    // Multicolour c went 0 -> 1 on 2026-08-29: sd-harvest-after-rain moved to
+    // {1}{G}{U} under an owner-granted non-legendary multicolour exception
+    // (growth+rain theme), leaving the mono-G column one short.
+    expect(count((card) => card.colors.length > 1)).toEqual({ c: 1, r: 8, sr: 2, ssr: 5, ur: 4 });
     const mono = (color: string) => (card: (typeof SANDS_OF_THE_DUAT)[number]) =>
       !card.types.some((type) => type === 'artifact' || type === 'land') &&
       card.colors.length === 1 && card.colors[0] === color;
     for (const color of ['W', 'U', 'B', 'R', 'G']) {
-      expect(SANDS_OF_THE_DUAT.filter(mono(color))).toHaveLength(color === 'W' ? 41 : 40);
+      expect(SANDS_OF_THE_DUAT.filter(mono(color))).toHaveLength(color === 'W' ? 41 : color === 'G' ? 39 : 40);
       expect(count(mono(color))).toEqual(color === 'W'
         ? { c: 22, r: 12, sr: 4, ssr: 2, ur: 1 }
-        : { c: 21, r: 12, sr: 4, ssr: 2, ur: 1 });
+        : color === 'G'
+          ? { c: 20, r: 12, sr: 4, ssr: 2, ur: 1 }
+          : { c: 21, r: 12, sr: 4, ssr: 2, ur: 1 });
     }
   });
 
@@ -340,10 +356,17 @@ describe('catalog integrity', () => {
     });
   });
 
-  it('every multicolor nonland card is legendary', () => {
+  it('every multicolor nonland card is legendary (owner-granted exceptions listed)', () => {
+    // Owner rulings 2026-08-29: named non-legendary multicolour exceptions
+    // where the dual identity IS the flavour (harvest-after-rain,
+    // grave-rose-garden) or the ruled cost shape is multicolour at common
+    // (orbital-cleansing {1}{W}{B}). Adding a name here is a ruling.
+    const MULTICOLOR_EXCEPTIONS = new Set([
+      'sd-harvest-after-rain', 'gm-grave-rose-garden', 'sb-orbital-cleansing',
+    ]);
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.colors.length < 2) continue;
-      if (card.id === 'sb-orbital-cleansing') continue;
+      if (MULTICOLOR_EXCEPTIONS.has(card.id)) continue;
       expect(
         (card.supertypes ?? []).includes('legendary'),
         `${card.id} is multicolor and must be legendary`,

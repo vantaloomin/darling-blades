@@ -271,7 +271,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Cheng Yu grim quartermaster beside a supply crate, dark utilitarian robes and stained apron over lamellar, lapis badge, an open supply ledger held up with its back cover and spine toward the viewer, its pages hidden from the camera and turned fully toward her own face, a heavy cleaver held raised at chest height in the other hand with its broad flat blade-side facing squarely out toward the viewer, both the ledger and the cleaver fully inside the frame, dim storehouse with stacked crates, low cold key with faint warm lamp rim, eyes lifted from the ledger in a flat warning stare — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Man Chong, Firewatch Magistrate — `tk-wei-manchong`
-- **Card facts:** {3}{U} · U · 2/4 · c · holo: none
+- **Card facts:** {2}{U} · U · 2/4 · c · holo: none
 - **Character & source:** Genderbent Man Chong, the incorruptible legalist magistrate; a sturdy 2/4 defensive administrator.
 - **Personality / mood:** "She reads arson confessions the way others read poetry." Coolly analytical, quietly fascinated by guilt.
 - **Pose & composition:** Composed seated-or-standing three-quarter at a magistrate's bench, face ≈ y 310 studying a confession-scroll by firelight, glancing up at the viewer. Still, contemplative; the firewatch brazier is her one motif.
@@ -301,7 +301,7 @@ eyes, and an imperious brow, at rank-appropriate regalia richness.
 - **Prompt:** Genderbent Chen Qun bureaucratic arbiter behind a rank-registry lectern, formal lapis-blue court robes with elaborate bronze rank-insignia, holding an ivory judging-brush, muted archive of pigeonholed scrolls, cool even key with thin warm desk-lamp rim, condescending appraising look — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wang Lang, Venerable Rhetorician — `tk-wei-wanglang`
-- **Card facts:** {3}{U}{U} · U · 3/5 · c · holo: none
+- **Card facts:** {2}{U}{U} · U · 3/5 · c · holo: none
 - **Character & source:** Genderbent Wang Lang, the eloquent elder statesman; a beefy 3/5 whose weapon is debate.
 - **Personality / mood:** "Undefeated in debate, provided Zhuge Liang is out of earshot." Pompous, learned, unshakably self-assured (in the right company).
 - **Pose & composition:** Grand oratorical stance, one arm sweeping out mid-argument, face ≈ y 310 declaiming toward the viewer. Static and imposing — a debater in full flight, not a fighter; the sleeve sweeps toward the band edge.

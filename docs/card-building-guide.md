@@ -124,6 +124,7 @@ Counts are collectible cards; "sets" is how many of the eight shipped sets use i
 | **Blood Oath** | 28 | 8 | W 10 | Lifelink. Multiplies with pump, and squares with Twin Blades. |
 | **Untouchable** | 23 | 6 | U 12 | **One-sided**: opponents cannot target it, your own spells still can. A removal-light deck simply loses to it, so it needs sweepers or blockers in the format. |
 | **Dreaded** | 28 | 5 | B 12 | Needs two blockers. Strong against go-wide decks that want to trade one for one. |
+| **Rage** | 1 | 1 | R 1 | **Attacks every turn if it is able to**, and the only DRAWBACK keyword besides Bulwark. Priced at -0.45, or -0.15 when the card already carries Twin Blades, Warcry, Overrun or First Blade, because a creature built to attack loses almost nothing by being told to (power-formula §4o). Never put it on a card you want back on defence, and never on a body whose value is a blocking statline. Bulwark beats it outright: "cannot attack" wins over "if able". |
 
 ### What your card will actually face
 

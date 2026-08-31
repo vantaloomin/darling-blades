@@ -45,7 +45,7 @@ export const ARTIFACTS = [
     name: 'Imperial Jade Seal',
     types: ['artifact'],
     subtypes: [],
-    cost: cost(3),
+    cost: cost(2),
     colors: [],
     manaAbility: ['W', 'U', 'B', 'R', 'G'],
     abilities: [

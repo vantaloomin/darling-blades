@@ -244,7 +244,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 
 ### Wolf — `tok-wolf`
 - **Card facts:** {0} · G · 2/2 · c · holo: none
-- **Character & source:** Green creature token (Wolf) created by `rg-fenrir`, `rg-angrboda`, and `rg-alpha-of-the-hunt` — a dire wolf of Fenrir's brood. A 2/2 beast.
+- **Character & source:** Green creature token (Wolf) created by `rg-angrboda` and `rg-alpha-of-the-hunt` (Fenrir now brings her own 1/1 cubs) — a dire wolf of Fenrir's brood. A 2/2 beast.
 - **Personality / mood:** "Fenrir's brood runs the long night." Fast, pack-minded, never the smaller number.
 - **Pose & composition:** Mid-lunge, low and fast, closing on the throat; head ≈ y 330, breath steaming. The lean wolf silhouette reads instantly at token scale.
 - **Costume & attire:** No costume — thick hackled winter fur, breath fogging the cold air.
@@ -256,6 +256,11 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Holo interaction:** none — common token.
 - **Rarity ambition:** Common token — one clear dire-wolf, one idea (the lunge).
 - **Prompt:** A great dire-wolf of Fenrir's brood with thick hackled winter fur, mid-lunge low and fast with breath steaming, in a moonlit frost-forest with snow churned by the pack, feral and fixed on the kill, cold moonlight with blue snow-bounce — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+### Wolf Cub — `tok-wolf-cub`
+- **Card facts:** {0} · G · 1/1 · c · holo: none
+- **Character & source:** Green creature token (Wolf) created by `rg-fenrir` — the v3.1 balance ruling (2026-08-29) shrank her arrival litter from 2/2 Wolves to 1/1 Cubs so the unchaining stops paying 2/2 rates.
+- **Art ref:** `tok-wolf` — shares the dire-wolf art by owner ruling. Do NOT generate a `tok-wolf-cub.webp`; the resolver renders the donor file and would never load one.
+
 ### Squire — `tok-squire`
 - **Card facts:** {0} · W · 1/1 · c · holo: none
 - **Character & source:** W creature token (Squire) created by Arthurian Court Quests and court creatures — an adult retainer woman carrying the training bundle before she earns a champion's blade. A 1/1 support body.

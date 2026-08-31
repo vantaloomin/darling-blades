@@ -21,6 +21,9 @@ import { freshSave } from '../../src/meta/SaveManager';
 const LANDS_PER_DECK = 24;
 const ORIGINAL_IDS = ['starter-crimson', 'starter-wild'];
 
+const countCards = (cards: string[]) =>
+  Object.fromEntries([...new Set(cards)].map((id) => [id, cards.filter((cardId) => cardId === id).length]));
+
 describe('starter roster shape', () => {
   it('has exactly 5 starters with unique ids, keeping the original two', () => {
     expect(STARTER_DECKS).toHaveLength(5);
@@ -244,6 +247,77 @@ describe('Bloodmoon Masquerade composition', () => {
   });
 });
 
+describe('measured owner-ruling starter compositions', () => {
+  it('pins the final Shadow Mandate surgery list', () => {
+    const deck = STARTER_DECKS.find((entry) => entry.id === 'starter-mandate')!;
+    // The classic list is the surgery-29 shell; reserve surgery 35 then
+    // removed four Doom Bolts for Thorn Fairy to clear the noisy R19 gate.
+    // The stronger 39.5% surgery-26 body package broke R16/R19.
+    expect(countCards(deck.cards)).toEqual({
+      'land-island': 10,
+      'land-swamp': 10,
+      'ld-moonlit-marsh': 4,
+      'tk-jin-simayi': 3,
+      'tk-jin-wangyuanji': 3,
+      'tk-jin-zhangchunhua': 3,
+      'tk-jin-simashi': 3,
+      'tk-jin-zhonghui': 3,
+      'tk-wei-dianwei': 4,
+      'tk-wei-yujin': 4,
+      'in-doom-bolt': 4,
+      'in-read-the-ruse': 3,
+      'so-night-extortion': 2,
+      'dt-apple-of-endless-sleep': 4,
+    });
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+    expect(deck.reserveCards).toHaveLength(40);
+    expect(countCards(deck.reserveCards!)).toEqual({
+      'tk-jin-simayi': 3,
+      'tk-jin-wangyuanji': 3,
+      'tk-jin-zhangchunhua': 3,
+      'tk-jin-simashi': 1,
+      'tk-wei-dianwei': 4,
+      'tk-wei-yujin': 4,
+      'dt-thorn-fairy-uninvited': 4,
+      'in-read-the-ruse': 4,
+      'so-night-extortion': 4,
+      'dt-apple-of-endless-sleep': 4,
+      'so-creeping-malaise': 4,
+      'yn-oni-underboss-of-rain': 1,
+      'sd-two-for-the-ferrywoman': 1,
+    });
+  });
+
+  it('pins the final Midnight Storybook surgery list', () => {
+    const deck = THEME_DECKS.find((entry) => entry.id === 'theme-dark-tales')!;
+    // Surgery 20 consolidated Tower-Window Seer into a fourth
+    // Sugar-Cottage Witch: the measured body count cleared the 40% field
+    // target without changing the U/B/W value-control identity.
+    expect(countCards(deck.cards)).toEqual({
+      'land-island': 8,
+      'land-swamp': 7,
+      'land-plains': 5,
+      'dt-tide-cavern': 2,
+      'dt-palace-steps': 2,
+      'yn-neon-gate-warden': 4,
+      'dt-foam-silk-siren': 4,
+      'dt-poison-mirror-regent': 2,
+      'dt-rose-petal-knight': 2,
+      'dt-page-torn-free': 2,
+      'bk-kitsune-illusionist': 4,
+      'tk-shu-zhaoyun': 2,
+      'dt-sugar-cottage-witch': 4,
+      'tk-wei-guojia': 2,
+      'gk-hades': 2,
+      'in-doom-bolt': 4,
+      'in-undertow': 2,
+      'so-creeping-malaise': 2,
+    });
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+    expect(deck.reserveCards).toHaveLength(40);
+  });
+});
+
 describe('Chrome-Violet Broodship composition', () => {
   const deck = THEME_DECKS.find((entry) => entry.id === 'theme-starborne')!;
 
@@ -257,19 +331,16 @@ describe('Chrome-Violet Broodship composition', () => {
       'sb-mycelial-star-gardener': 4,
       'sb-ion-bloom-scout': 2,
       'sb-cometroot-grafter': 3,
-      'sb-hullplate-bastion': 2,
+      'sb-starfire-lancer': 4,
       'sb-living-hull-seedling': 4,
-      'sb-quasar-cartographer': 2,
-      'sb-solar-riot-engineer': 2,
+      'sb-aurora-beastcaller': 2,
       'sb-comet-kick-marauder': 2,
       'sb-rootlight-broodmother': 2,
       'sb-the-long-crossing': 1,
       'sb-brood-communion': 2,
       'sb-root-of-light': 2,
-      'sb-echo-burst': 2,
-      'sb-signal-inversion': 2,
-      'sb-quiet-orbit': 2,
-      'sb-overcharge-the-hull': 2,
+      'sb-echo-burst': 4,
+      'sb-overcharge-the-hull': 4,
     };
     const actualCounts = Object.fromEntries(
       [...new Set(deck.cards)].map((id) => [id, deck.cards.filter((cardId) => cardId === id).length]),

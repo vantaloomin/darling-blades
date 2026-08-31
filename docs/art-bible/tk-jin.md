@@ -31,7 +31,7 @@ sons echo. Faces stay bright and quiet; the shimmer lives in the silver, never t
 - **Prompt:** Genderbent Sima Yi in high-collared slate-teal court robe, ash-dark hair with a silver streak, one hand flat on an unrolled campaign map, faint knowing half-smile, cold grey eyes, dark lamp-lit map room with distant storm light through a lattice window, cool key light and silver rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wang Yuanji, Silent Blade — `tk-jin-wangyuanji`
-- **Card facts:** {1}{U}{B} · U/B (gold frame) · 2/3 · deathblade · sr, legendary · holo: sheen (explicit)
+- **Card facts:** {2}{U}{B} · U/B (gold frame) · 2/3 · deathblade · sr, legendary · holo: sheen (explicit)
 - **Character & source:** Genderbent Wang Yuanji, Sima Zhao's razor-minded consort; her ETB draws a card and her deathblade means one cut is enough.
 - **Personality / mood:** "She says little. She has already said everything that mattered." Economy in everything — words, motion, mercy.
 - **Pose & composition:** Three-quarter, chest-up, near-motionless — one hand lowering a slim veil or letter, the other resting on a sheathed short blade she has not drawn. Deathtouch reads as *one quiet lethal implement*, held, not swung. Face ≈ y 310, eye line ≈ y 340, gaze slightly off-viewer as if a conversation just ended.

@@ -31,7 +31,7 @@ export const TK_JIN = [
     types: ['creature'],
     subtypes: ['Jin', 'Strategist'],
     supertypes: ['legendary'],
-    cost: cost(1, 'UB'),
+    cost: cost(2, 'UB'),
     colors: ['U', 'B'],
     attack: 2,
     defense: 3,
