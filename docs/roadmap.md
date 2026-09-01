@@ -1595,17 +1595,15 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   is the rename (3 importing files) plus the **v35 save bump**, which finally
   carries the `CosmeticsSave.cardBack`/`playmat` removal that has been parked
   since v33 waiting for exactly this. **No code exists and none is authorized.**
-- **Save cards: a PNG that carries your save (candidate, proposed 2026-08-24).**
+- **Save cards: a PNG that carries your save — ✅ SHIPPED in 1.7 (2026-09-01).**
   Export a save as an image instead of a text code: the player picks card art
-  they own, the game composites a titled cover, and the existing `DBS1-…` string
-  rides in a PNG `tEXt` chunk, the way character-card tools do it. It is a new
-  CARRIER, not a new format, so `decode()` and all its validation apply
-  unchanged, and a `tEXt` chunk has no practical size limit, which lifts the
-  "too large to export as a code" ceiling replays currently hit. The codec is
-  BUILT and tested (`src/meta/SaveImage.ts`, verified against Pillow: pixels
-  byte-identical, chunk readable, CRCs valid); the whole UI half is not. Spec
-  and locked decisions in [plan-save-cards.md](plan-save-cards.md). **Not
-  scoped to a release.**
+  they own from a searchable grid, the game composites a titled cover, and the
+  existing `DBS1-…` string rides in a PNG `tEXt` chunk, the way character-card
+  tools do it. A new CARRIER, not a new format, so `decode()` and all its
+  validation apply unchanged. The codec landed 2026-08-24 (`SaveImage.ts`,
+  verified against Pillow); the UI half (`src/ui/saveCard.ts` + the Profile
+  export/import modals) completed it in the 1.7 cut. Spec and locked decisions
+  in [plan-save-cards.md](plan-save-cards.md).
 - **Fogbell Chime redesign. SHIPPED in the 1.6 small-debts batch (#257).**
   The card had been a deliberate duplicate of Glimmerdust Trick since 2026-07-30,
   parked because its design-table intent (a common Artifact that taps a creature)

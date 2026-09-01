@@ -1,10 +1,13 @@
-<!-- source-of-truth: src/meta/SaveCode.ts, src/meta/SaveImage.ts, src/scenes/ProfileScene.ts · last-verified: 2026-08-24 · plan doc — a CANDIDATE for 1.7, not committed scope -->
+<!-- source-of-truth: src/meta/SaveCode.ts, src/meta/SaveImage.ts, src/ui/saveCard.ts, src/scenes/ProfileScene.ts · last-verified: 2026-09-01 · plan doc — SHIPPED in 1.7 -->
 
 # Save cards: a PNG that carries your save
 
-**Status: candidate, not scoped.** Proposed 2026-08-24 and added to the Road to
-2.0 list. The codec below is BUILT and tested; the UI is not. Nothing imports
-`SaveImage.ts` yet, so the feature is inert until a release commits to it.
+**Status: SHIPPED (1.7, 2026-09-01).** Proposed 2026-08-24; the codec landed
+first and the UI half followed in the 1.7 cut. The Profile's export modal
+offers the save card first (owner-picked art from a searchable owned-card
+grid), and the import modal accepts a chosen PNG beside the pasted code.
+`src/ui/saveCard.ts` is the browser half: canvas compositing, PNG encode,
+download, and file pick.
 
 ## The idea
 
@@ -62,24 +65,32 @@ The `no-save-chunk` message says some editors strip the data on re-save. That
 was tested, not assumed: a plain Pillow re-save drops the chunk and the reader
 reports exactly that.
 
-## Not built
+## The UI half (shipped 2026-09-01)
 
-The whole UI half:
+- `src/ui/saveCard.ts` — `composeSaveCardCanvas` (cover-crop via the Art
+  resolver + the bottom plate per the locked decision), `canvasPngBytes`,
+  `downloadPngBytes` (anchor-click), `pickPngFile` (file input). Browser-only
+  by design; the identity line is collection percent + best tower rung.
+- Export modal: the save-card section leads, opening a searchable owned-card
+  picker (`matchesSearch` grid, 24 per page). Tapping a card composites,
+  embeds the CURRENT code (so the replays toggle applies to both formats),
+  and downloads `darling-blades-save-<date>.png`.
+- Import modal: "From save card…" file-picks a PNG, `readSaveCode` extracts
+  the code into the same input + preview path the pasted code uses — one
+  validation flow, two carriers.
+- Fixed in passing: the Profile's 'dismissible' modals closed on any click
+  INSIDE the panel (the full-screen dim was the only interactive surface), so
+  clicking into the import textarea dismissed the modal; an inert panel
+  tap-blocker now catches inside taps in all three modals. The import status
+  line also joined its shell container (it used to outlive the modal as a
+  stray scene-level line).
 
-- Owned-card picker (grid + search) in the export modal.
-- Canvas compositing: art, bottom plate, title, date, identity line.
-- Download. There is no download helper in the codebase yet.
-- File input for import. There is no file-input helper either.
-- Wiring `readSaveCode` into the existing import validation path.
-
-## Open question the UI must answer
+## The open question, answered
 
 **A save card is a normal-looking PNG that silently contains an entire save.**
-That invisibility is the format's whole appeal and it cuts both ways: a player
-could post their favourite art in a thread without realising it carries their
-collection, gold and decks. Nothing here is a security hole, since it is their
-own data, but the export UI should say plainly that the image contains the save,
-so sharing it is a deliberate act rather than a surprise.
+The export modal says it before the picker opens ("The PNG carries this entire
+save inside it"), the success status repeats it, and the privacy footer covers
+both formats — sharing the image is a deliberate act, not a surprise.
 
 ## Related
 
