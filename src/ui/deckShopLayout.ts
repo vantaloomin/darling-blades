@@ -16,6 +16,9 @@ export const DECK_SHOP_LAYOUT = {
   plateGapY: 8,
   sectionBreak: 30,
   headingGap: 12,
+  /** Centerline of the Standard/Darling sub-tab pills, between the main
+   * shop tabs (y 96) and the plate band (top 180). */
+  subTabY: 148,
 } as const;
 
 export interface DeckShopSectionLayout {
