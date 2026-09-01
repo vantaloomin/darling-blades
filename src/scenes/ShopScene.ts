@@ -12,7 +12,7 @@ import {
   FREE_DARLINGS_PRECON_ID,
   type DarlingsPrecon,
 } from '../data/darlingsPrecons';
-import { SET_BLURBS, SET_TITLES } from '../data/setTitles';
+import { SET_BLURBS, SET_IDS, SET_TITLES, type SetId } from '../data/setTitles';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../data/starterDecks';
 import { createRngState } from '../engine/rng';
 import { def, isType, manaValue, type CardDef } from '../engine/types';
@@ -419,31 +419,33 @@ type DeckSectionKey = 'standard' | 'darlings';
 
 /**
  * Card-style deck strip (user-directed 2026-09-01, experimental): the Decks
- * tab borrows the booster strip's drag mechanics — one portrait product card
- * per deck, three full cards per page with real neighbor peeks through the
- * mask, drag / arrows / wheel to page. The shared strip math owns clamping,
- * snapping, and tap classification.
+ * tab borrows the booster strip's drag mechanics. Two rows of compact product
+ * cards share each scrolled COLUMN (the PracticePicker pattern), four columns
+ * per page with real neighbor peeks through the mask, drag / arrows / wheel
+ * to page. The shared strip math owns clamping, snapping, and column tap
+ * classification; the row comes from where in the column the tap landed.
  */
-const DECK_CARD_W = 300;
-const DECK_CARD_TOP = 178;
-const DECK_CARD_H = 496;
-const DECK_CARD_ART_H = 300;
+const DECK_GRID_ROWS = 2;
+const DECK_CARD_W = 230;
+const DECK_STRIP_TOP = 174;
+const DECK_ROW_GAP = 12;
+const DECK_COLUMN_H = 500;
+const DECK_CARD_H = (DECK_COLUMN_H - DECK_ROW_GAP) / DECK_GRID_ROWS;
+const DECK_CARD_ART_H = 130;
 const DECK_STRIP_OPTIONS: StripLayoutOptions = {
-  visibleCount: 3,
+  visibleCount: 4,
   tileWidth: DECK_CARD_W,
-  tileHeight: DECK_CARD_H,
-  tileStride: 340,
+  tileHeight: DECK_COLUMN_H,
+  tileStride: 262,
   viewport: {
     x: theme.design.safeLeft,
-    y: DECK_CARD_TOP - 8,
+    y: DECK_STRIP_TOP - 8,
     width: theme.design.safeWidth,
-    height: DECK_CARD_H + 16,
+    height: DECK_COLUMN_H + 16,
   },
-  verticalBand: { y: DECK_CARD_TOP, height: DECK_CARD_H },
-  // The drag/tap band covers the art window only; the button rows below the
-  // art own their taps (each guarded against a drag-release).
-  tapBand: { y: DECK_CARD_TOP, height: 12 + DECK_CARD_ART_H + 12 },
-  peekY: DECK_CARD_TOP,
+  verticalBand: { y: DECK_STRIP_TOP, height: DECK_COLUMN_H },
+  tapBand: { y: DECK_STRIP_TOP, height: DECK_COLUMN_H },
+  peekY: DECK_STRIP_TOP,
 };
 
 /** A buyable deck SKU: the list, its price, and whether it's a theme/precon. */
@@ -514,7 +516,8 @@ export class ShopScene extends Phaser.Scene {
   private boosterStripDragging = false;
   private deckStripContent: Phaser.GameObjects.Container | null = null;
   private deckStripLayout: BoosterStripLayout | null = null;
-  private deckStripTiles: { sku: DeckSku; tile: Phaser.GameObjects.Container }[] = [];
+  private deckStripColumns: Phaser.GameObjects.Container[] = [];
+  private deckStripSkus: DeckSku[] = [];
   private deckStripArrows: { left: ThemedButton; right: ThemedButton } | null = null;
   private deckStripIndex = 0;
   private deckStripPointerId: number | null = null;
@@ -531,26 +534,45 @@ export class ShopScene extends Phaser.Scene {
     super('Shop');
   }
 
-  /** The Decks tab separates ordinary constructed products from Darlings. */
+  /**
+   * The Decks tab separates ordinary constructed products from Darlings.
+   * Merchandising order (user-directed 2026-09-01): the original free-claim
+   * candidates lead (all five starters; the free Darlings precon), then the
+   * expansion products from the NEWEST set back to the oldest — so a new
+   * player meets their claim first and the latest expansion sells second.
+   */
   private deckSections(): { key: DeckSectionKey; label: string; skus: DeckSku[] }[] {
+    // A deck's set: its first featured card's home (a Darlings precon: the
+    // Darling's). SET_IDS is release order, so a higher rank is newer; the
+    // sort is stable, so same-set decks keep their authored order.
+    const setRank = (cardId: string | undefined): number => {
+      const card = cardId ? CARD_DB[cardId] : undefined;
+      return SET_IDS.indexOf(String(card?.set ?? 'base') as SetId);
+    };
+    const themeDecks = THEME_DECKS
+      .filter((deck) => deck.cards.every((id) => {
+        const card = CARD_DB[id];
+        return Boolean(card && (String(card.set) !== DUAT_SET || isLiveCollectible(card)));
+      }))
+      .sort((a, b) => setRank(DECK_INFO[b.id]?.featured?.[0]) - setRank(DECK_INFO[a.id]?.featured?.[0]));
+    const darlings = [...DARLINGS_PRECONS].sort((a, b) => {
+      const aFree = a.id === FREE_DARLINGS_PRECON_ID ? 1 : 0;
+      const bFree = b.id === FREE_DARLINGS_PRECON_ID ? 1 : 0;
+      return bFree - aFree || setRank(b.darlingId) - setRank(a.darlingId);
+    });
     return [
       {
         key: 'standard',
         label: 'Standard Decks',
         skus: [
-          ...THEME_DECKS
-            .filter((deck) => deck.cards.every((id) => {
-              const card = CARD_DB[id];
-              return Boolean(card && (String(card.set) !== DUAT_SET || isLiveCollectible(card)));
-            }))
-            .map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
           ...STARTER_DECKS.map((deck) => ({ deck, price: ECONOMY.starterDeckPrice, theme: false })),
+          ...themeDecks.map((deck) => ({ deck, price: ECONOMY.preconPrice, theme: true })),
         ],
       },
       {
         key: 'darlings',
         label: 'Darling Decks',
-        skus: DARLINGS_PRECONS.map((deck) => ({ deck, price: ECONOMY.darlingsPreconPrice, theme: true })),
+        skus: darlings.map((deck) => ({ deck, price: ECONOMY.darlingsPreconPrice, theme: true })),
       },
     ];
   }
@@ -600,7 +622,8 @@ export class ShopScene extends Phaser.Scene {
     this.boosterWheelLastStepAt = Number.NEGATIVE_INFINITY;
     this.deckStripContent = null;
     this.deckStripLayout = null;
-    this.deckStripTiles = [];
+    this.deckStripColumns = [];
+    this.deckStripSkus = [];
     this.deckStripArrows = null;
     this.deckStripIndex = 0;
     this.deckStripPointerId = null;
@@ -1218,7 +1241,8 @@ export class ShopScene extends Phaser.Scene {
   private buildDecksGroup(group: Phaser.GameObjects.Container, requestedIndex?: number): void {
     group.removeAll(true); // rebuildable after a purchase or a sub-tab switch
     this.deckInteractiveTargets = [];
-    this.deckStripTiles = [];
+    this.deckStripColumns = [];
+    this.deckStripSkus = [];
     this.deckStripArrows = null;
     this.deckStripPointerId = null;
     this.deckStripDragging = false;
@@ -1236,12 +1260,14 @@ export class ShopScene extends Phaser.Scene {
       group.add(button.container);
     });
     const active = sections.find((section) => section.key === this.deckTab) ?? sections[0];
-    // Open on the first waiting free claim so a Claim Free card is never
-    // parked off-screen; a rebuild after a purchase keeps its page instead.
+    this.deckStripSkus = active.skus;
+    // Open on the first waiting free claim's column so a Claim Free card is
+    // never parked off-screen; a rebuild after a purchase keeps its page.
     const freeIdx = active.skus.findIndex((sku) => this.isFreeClaim(sku.deck));
+    const columns = Math.ceil(active.skus.length / DECK_GRID_ROWS);
     const layout = boosterStripLayout(
-      active.skus.length,
-      requestedIndex ?? (freeIdx >= 0 ? freeIdx : 0),
+      columns,
+      requestedIndex ?? (freeIdx >= 0 ? Math.floor(freeIdx / DECK_GRID_ROWS) : 0),
       DECK_STRIP_OPTIONS,
     );
     this.deckStripLayout = layout;
@@ -1270,14 +1296,20 @@ export class ShopScene extends Phaser.Scene {
     group.add([zone, content, maskSource]);
     this.deckInteractiveTargets.push(zone);
 
-    active.skus.forEach((sku, i) => {
-      const tile = this.add.container(layout.tileCenters[i] ?? 0, 0);
-      this.buildDeckCard(tile, sku);
+    // Column-major, the picker pattern: a column stacks two cards and both
+    // ride one container, so scrolling walks the order continuously.
+    for (let column = 0; column < columns; column++) {
+      const tile = this.add.container(layout.tileCenters[column] ?? 0, 0);
+      for (let row = 0; row < DECK_GRID_ROWS; row++) {
+        const sku = active.skus[column * DECK_GRID_ROWS + row];
+        if (!sku) break;
+        this.buildDeckCard(tile, sku, DECK_STRIP_TOP + row * (DECK_CARD_H + DECK_ROW_GAP));
+      }
       content.add(tile);
-      this.deckStripTiles.push({ sku, tile });
-    });
+      this.deckStripColumns.push(tile);
+    }
 
-    const arrowY = DECK_CARD_TOP + DECK_CARD_ART_H / 2 + 12;
+    const arrowY = DECK_STRIP_TOP + DECK_COLUMN_H / 2;
     const leftArrow = themedButton(this, layout.arrowCenters.left, arrowY, '‹', {
       variant: 'ghost',
       size: 'sm',
@@ -1320,17 +1352,18 @@ export class ShopScene extends Phaser.Scene {
   }
 
   /**
-   * One deck product card: cover-cropped signature art, identity, and the
-   * Buy/Claim/Clone + Preview actions. Everything is a child of the tile
-   * container so it rides the strip; button taps guard against drag-releases.
+   * One compact deck product card at a row offset inside its column tile:
+   * cover-cropped signature art, name, pips, and the one commit action.
+   * Tapping the ART opens the preview (the strip tap classifier routes it);
+   * button taps guard against drag-releases.
    */
-  private buildDeckCard(tile: Phaser.GameObjects.Container, sku: DeckSku): void {
+  private buildDeckCard(tile: Phaser.GameObjects.Container, sku: DeckSku, rowTop: number): void {
     const { deck, price, theme: isTheme } = sku;
     const owned = Services.save.data.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
     const halfW = DECK_CARD_W / 2;
 
-    const plate = panel(this, -halfW, DECK_CARD_TOP, DECK_CARD_W, DECK_CARD_H, { alpha: 0.7 });
+    const plate = panel(this, -halfW, rowTop, DECK_CARD_W, DECK_CARD_H, { alpha: 0.7 });
     tile.add(plate);
 
     // The art window: a Darlings precon leads with its Darling; a standard
@@ -1338,69 +1371,53 @@ export class ShopScene extends Phaser.Scene {
     const portraitId = isDarlingsPrecon(deck)
       ? deck.darlingId
       : DECK_INFO[deck.id]?.featured?.[0] ?? grantedDeckBuild(deck).cards[0];
-    const artTop = DECK_CARD_TOP + 12;
-    this.addDeckPortrait(portraitId, 0, artTop + DECK_CARD_ART_H / 2, DECK_CARD_W - 24, DECK_CARD_ART_H, tile);
+    this.addDeckPortrait(portraitId, 0, rowTop + 8 + DECK_CARD_ART_H / 2, DECK_CARD_W - 20, DECK_CARD_ART_H, tile);
 
-    const fit = (t: Phaser.GameObjects.Text, maxW: number): Phaser.GameObjects.Text => {
-      if (t.width > maxW) t.setScale(maxW / t.width);
-      return t;
-    };
-    const name = fit(
-      this.add
-        .text(0, DECK_CARD_TOP + 336, deck.name, {
-          fontFamily: theme.fonts.display,
-          fontSize: `${theme.type.h2}px`,
-          color: isTheme ? theme.colors.gold : theme.colors.heading,
-        })
-        .setOrigin(0.5),
-      DECK_CARD_W - 24,
-    );
+    const name = this.add
+      .text(0, rowTop + DECK_CARD_ART_H + 22, deck.name, {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.label}px`,
+        color: isTheme ? theme.colors.gold : theme.colors.heading,
+      })
+      .setOrigin(0.5);
+    if (name.width > DECK_CARD_W - 16) name.setScale((DECK_CARD_W - 16) / name.width);
     tile.add(name);
 
     // Color identity renders as mana pips, never letter codes (design-system
-    // "Color identity" rule); the archetype line sits under the pip run.
+    // "Color identity" rule). The archetype line lives in the preview — a
+    // 230px card has no honest room for it.
     const info = DECK_INFO[deck.id];
     const pipKeys = info ? info.colors.split('/') : (isDarlingsPrecon(deck) ? [...deck.colors] : []);
-    const PIP = 18;
-    const pipStep = PIP + 5;
+    const PIP = 14;
+    const pipStep = PIP + 4;
     const pipsX0 = -((pipKeys.length - 1) * pipStep) / 2;
     for (let i = 0; i < pipKeys.length; i++) {
       tile.add(
         this.add
-          .image(pipsX0 + i * pipStep, DECK_CARD_TOP + 366, `pip-${pipKeys[i]}`)
+          .image(pipsX0 + i * pipStep, rowTop + DECK_CARD_ART_H + 44, `pip-${pipKeys[i]}`)
           .setDisplaySize(PIP, PIP),
       );
     }
-    const blurbText = (isDarlingsPrecon(deck) ? deck.blurb : (info?.archetype ?? '')) + (owned ? '  ·  Owned' : '');
-    tile.add(
-      fit(
-        this.add
-          .text(0, DECK_CARD_TOP + 392, blurbText, {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.muted,
-          })
-          .setOrigin(0.5),
-        DECK_CARD_W - 28,
-      ),
-    );
 
     // Claim Free is always enabled; a paid Buy fades when the balance can't
     // cover it. The strip rebuilds after every purchase (onBuyDeck →
     // buildDecksGroup), which re-evaluates this with the new balance. An owned
     // card offers Clone Deck: a fresh factory copy into the library
     // (user-directed 2026-09-01).
+    const ctaY = rowTop + DECK_CARD_H - 34;
     const cta = owned
-      ? themedButton(this, 0, DECK_CARD_TOP + 432, 'Clone Deck', {
+      ? themedButton(this, 0, ctaY, 'Clone Deck', {
           variant: 'ghost',
-          minWidth: 178,
+          size: 'sm',
+          minWidth: 160,
           onTap: () => {
             if (!this.deckStripDragging) this.onCloneDeck(sku);
           },
         })
-      : themedButton(this, 0, DECK_CARD_TOP + 432, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
+      : themedButton(this, 0, ctaY, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
           variant: 'primary',
-          minWidth: 178,
+          size: 'sm',
+          minWidth: 160,
           enabled: freeClaim || Services.save.data.gold >= price,
           onTap: () => {
             if (!this.deckStripDragging) this.onBuyDeck(sku);
@@ -1408,17 +1425,6 @@ export class ShopScene extends Phaser.Scene {
         });
     this.deckInteractiveTargets.push(cta.inputZone);
     tile.add(cta.container);
-
-    const preview = themedButton(this, 0, DECK_CARD_TOP + 474, 'Preview', {
-      variant: 'ghost',
-      size: 'sm',
-      minWidth: 120,
-      onTap: () => {
-        if (!this.deckStripDragging) this.showDeckPreview(sku);
-      },
-    });
-    this.deckInteractiveTargets.push(preview.inputZone);
-    tile.add(preview.container);
   }
 
   /** Cover-crop a card's art into the deck card's window (the PracticePicker
@@ -1510,9 +1516,15 @@ export class ShopScene extends Phaser.Scene {
       return;
     }
     if (decision.kind !== 'buy') return;
-    // A tap on a full card's art opens its preview: the card IS the product,
-    // and the commit actions stay on their labelled buttons below.
-    const sku = this.deckStripTiles[decision.index]?.sku;
+    // The shared strip classifies the COLUMN; the row comes from where in the
+    // column the tap landed. Only the ART window opens the preview — the name
+    // and CTA rows below it belong to the card's own button (which handles
+    // its taps itself, so the strip must stay silent there).
+    const row = Math.floor((pointer.worldY - DECK_STRIP_TOP) / (DECK_CARD_H + DECK_ROW_GAP));
+    if (row < 0 || row >= DECK_GRID_ROWS) return;
+    const artTop = DECK_STRIP_TOP + row * (DECK_CARD_H + DECK_ROW_GAP) + 8;
+    if (pointer.worldY < artTop || pointer.worldY > artTop + DECK_CARD_ART_H) return;
+    const sku = this.deckStripSkus[decision.index * DECK_GRID_ROWS + row];
     if (sku) this.showDeckPreview(sku);
   };
 
@@ -1551,8 +1563,9 @@ export class ShopScene extends Phaser.Scene {
     if (!this.deckStripLayout) return;
     const clamped = clampBoosterStripOffset(this.deckStripLayout, offset);
     this.deckStripIndex = boosterStripIndexForOffset(this.deckStripLayout, clamped);
-    for (const [index, entry] of this.deckStripTiles.entries()) {
-      entry.tile.setVisible(boosterStripTileIsVisible(this.deckStripLayout, index, clamped));
+    // Visibility is per COLUMN: both cards in a column appear and hide together.
+    for (const [column, tile] of this.deckStripColumns.entries()) {
+      tile.setVisible(boosterStripTileIsVisible(this.deckStripLayout, column, clamped));
     }
     // A disabled arrow is also hidden, so the strip never presents a dead end.
     const leftEnabled = this.deckStripIndex > 0;
