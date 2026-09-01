@@ -411,6 +411,10 @@ export function bakePackArt(scene: Phaser.Scene, opts: PackArtOpts = {}): void {
 
 type ShopTab = 'boosters' | 'decks';
 
+/** Sub-tab within the Decks tab (user-directed 2026-09-01): the stacked
+ * Standard + Darling sections crowded the band once both rosters grew. */
+type DeckSectionKey = 'standard' | 'darlings';
+
 /** A buyable deck SKU: the list, its price, and whether it's a theme/precon. */
 interface DeckSku {
   deck: DeckList | DarlingsPrecon;
@@ -445,6 +449,7 @@ const FEATURED_THUMB_SCALE = 0.21;
 export class ShopScene extends Phaser.Scene {
   private goldBadge!: GoldBadge;
   private tab: ShopTab = 'boosters';
+  private deckTab: DeckSectionKey = 'standard';
   private boostersGroup!: Phaser.GameObjects.Container;
   private decksGroup!: Phaser.GameObjects.Container;
   private tabButtons = new Map<ShopTab, ThemedButton>();
@@ -485,9 +490,10 @@ export class ShopScene extends Phaser.Scene {
   }
 
   /** The Decks tab separates ordinary constructed products from Darlings. */
-  private deckSections(): { label: string; skus: DeckSku[] }[] {
+  private deckSections(): { key: DeckSectionKey; label: string; skus: DeckSku[] }[] {
     return [
       {
+        key: 'standard',
         label: 'Standard Decks',
         skus: [
           ...THEME_DECKS
@@ -500,6 +506,7 @@ export class ShopScene extends Phaser.Scene {
         ],
       },
       {
+        key: 'darlings',
         label: 'Darling Decks',
         skus: DARLINGS_PRECONS.map((deck) => ({ deck, price: ECONOMY.darlingsPreconPrice, theme: true })),
       },
@@ -516,6 +523,12 @@ export class ShopScene extends Phaser.Scene {
     // unspent marker alone opened Decks on a shop with no claim to make.
     const freeClaimAvailable = [...STARTER_DECKS, ...DARLINGS_PRECONS].some((deck) => this.isFreeClaim(deck));
     this.tab = data.tab ?? (freeClaimAvailable ? 'decks' : 'boosters');
+    // The Decks sub-tab opens where a free claim is waiting, standard first —
+    // same onboarding logic as the top-level default above.
+    this.deckTab = !STARTER_DECKS.some((deck) => this.isFreeClaim(deck)) &&
+      DARLINGS_PRECONS.some((deck) => this.isFreeClaim(deck))
+      ? 'darlings'
+      : 'standard';
     this.qty = 1;
     this.skuButtons = [];
     this.qtyChips = new Map();
@@ -1135,28 +1148,34 @@ export class ShopScene extends Phaser.Scene {
   // --- Decks tab ------------------------------------------------------------
 
   private buildDecksGroup(group: Phaser.GameObjects.Container): void {
-    group.removeAll(true); // rebuildable after a purchase
+    group.removeAll(true); // rebuildable after a purchase or a sub-tab switch
     this.deckInteractiveTargets = [];
     const sections = this.deckSections();
-    const layout = deckShopLayout(sections.map((section) => section.skus.length));
-    sections.forEach((section, sectionIndex) => {
-      if (section.skus.length === 0) return;
-      const sectionLayout = layout.sections[sectionIndex];
-      group.add(
-        this.add
-          .text(layout.colLefts[0], sectionLayout.headingY, section.label, {
-            fontFamily: theme.fonts.display,
-            fontSize: `${theme.type.label}px`,
-            color: theme.colors.gold,
-          })
-          .setOrigin(0, 0.5),
-      );
-      section.skus.forEach((sku, i) => {
-        const left = layout.colLefts[i % DECK_SHOP_LAYOUT.cols];
-        const cy = sectionLayout.rowCenter(Math.floor(i / DECK_SHOP_LAYOUT.cols));
-        this.buildDeckPlate(group, sku, left, cy, layout.plateH);
+    // Sub-tab bar: one section shown at a time. The pills name the view, so
+    // the old in-band gold headings are gone with the crowding they fought.
+    sections.forEach((section, i) => {
+      const button = themedButton(this, 640 - 110 + i * 220, DECK_SHOP_LAYOUT.subTabY, section.label, {
+        variant: section.key === this.deckTab ? 'primary' : 'ghost',
+        size: 'sm',
+        minWidth: 160,
+        onTap: () => this.setDeckTab(section.key),
       });
+      this.deckInteractiveTargets.push(button.inputZone);
+      group.add(button.container);
     });
+    const active = sections.find((section) => section.key === this.deckTab) ?? sections[0];
+    const layout = deckShopLayout([active.skus.length]);
+    active.skus.forEach((sku, i) => {
+      const left = layout.colLefts[i % DECK_SHOP_LAYOUT.cols];
+      const cy = layout.sections[0].rowCenter(Math.floor(i / DECK_SHOP_LAYOUT.cols));
+      this.buildDeckPlate(group, sku, left, cy, layout.plateH);
+    });
+  }
+
+  private setDeckTab(key: DeckSectionKey): void {
+    if (this.deckTab === key) return;
+    this.deckTab = key;
+    this.buildDecksGroup(this.decksGroup);
   }
 
   /** Starter and Zhou Yu grants are independent, one-time FREE claims. */
