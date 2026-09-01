@@ -19,6 +19,7 @@ import {
   buyThemeDeck,
   claimFreeDarlingsDeck,
   claimFreeStarter,
+  cloneShopDeck,
   deckProductCardIds,
   grantedDeckBuild,
   previewDeckGrant,
@@ -43,7 +44,7 @@ import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { applyBackdrop } from '../ui/SceneBackdrop';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
-import { Toast } from '../ui/Toast';
+import { queueToast, Toast } from '../ui/Toast';
 import { backButton, goldBadge, modalShell, pager, panel, themedButton, type GoldBadge, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
 import {
   boosterStripIndexForOffset,
@@ -1260,19 +1261,19 @@ export class ShopScene extends Phaser.Scene {
       this.deckInteractiveTargets.push(buy.inputZone);
       group.add(buy.container);
     } else {
-      // The old premium-hero "Set as Hero" toggle is gone (user-directed
-      // 2026-07-11): per-deck hero cards (SavedDeck.heroCardId, the DeckBuilder
-      // star) superseded the account-level premium portrait. Saves that already
-      // set heroPortraitId keep working via DuelScene's fallback chain.
-      group.add(
-        this.add
-          .text(buyX, cy, 'Owned ✓', {
-            fontFamily: theme.fonts.display,
-            fontSize: `${theme.type.label}px`,
-            color: theme.colors.success,
-          })
-          .setOrigin(0.5),
-      );
+      // An owned row offers Clone Deck instead of a dead "Owned ✓" label
+      // (user-directed 2026-09-01): a fresh factory copy into the library, for
+      // players who edited the original. The blurb's "· Owned" tag keeps the
+      // ownership signal. (The old premium-hero "Set as Hero" toggle that once
+      // lived here is gone since 2026-07-11 — per-deck hero cards superseded it.)
+      const clone = themedButton(this, buyX, cy, 'Clone Deck', {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: 130,
+        onTap: () => this.onCloneDeck(sku),
+      });
+      this.deckInteractiveTargets.push(clone.inputZone);
+      group.add(clone.container);
     }
   }
 
@@ -1294,8 +1295,20 @@ export class ShopScene extends Phaser.Scene {
     Services.save.flush();
     queueAchievementUnlockToasts(achievementIds);
     this.refreshGold();
-    this.buildDecksGroup(this.decksGroup); // the claimed/bought row now reads "Owned ✓"
+    this.buildDecksGroup(this.decksGroup); // the claimed/bought row now offers Clone Deck
     return true;
+  }
+
+  /** Clone an owned shop deck: a fresh factory copy into the library, free. */
+  private onCloneDeck(sku: DeckSku): void {
+    const id = cloneShopDeck(Services.save.data, sku.deck);
+    if (!id) return;
+    Sfx.play('flip');
+    Services.save.flush();
+    queueToast({
+      title: 'Deck cloned',
+      body: `${sku.deck.name} copy is in your deck library.`,
+    });
   }
 
   // --- Deck preview overlay -------------------------------------------------
@@ -1678,7 +1691,7 @@ export class ShopScene extends Phaser.Scene {
     const footerRight = footer.x + footer.width;
     const affordable = freeClaim || save.gold >= price;
     const footerInfo = owned
-      ? { text: 'Owned ✓', color: theme.colors.success }
+      ? { text: 'Owned ✓ · Clone Deck saves a fresh copy of the original list.', color: theme.colors.success }
       : freeClaim
         ? {
             text: `✦ Your one free starter. The other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,
@@ -1715,6 +1728,16 @@ export class ShopScene extends Phaser.Scene {
       });
       c.add(buy.container);
       this.previewInteractiveTargets.push(buy.inputZone);
+    } else {
+      // Owned in the preview mirrors the row: Clone Deck saves a fresh factory
+      // copy. The overlay stays open — the toast is the feedback.
+      const clone = themedButton(this, footerRight - 216, footY, 'Clone Deck', {
+        variant: 'primary',
+        minWidth: 170,
+        onTap: () => this.onCloneDeck(sku),
+      });
+      c.add(clone.container);
+      this.previewInteractiveTargets.push(clone.inputZone);
     }
     const close = themedButton(this, footerRight - 61, footY, 'Close', {
       variant: 'ghost',

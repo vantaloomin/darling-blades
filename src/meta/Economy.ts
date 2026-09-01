@@ -5,6 +5,7 @@ import type { DeckList } from '../data/starterDecks';
 import type { CardDb } from '../engine/types';
 import { def } from '../engine/types';
 import { addCard } from './Collection';
+import { generateDeckId } from './DeckStorage';
 import type { SaveData, SavedDeck } from './SaveManager';
 import type { LimitedDeckStyle } from './Limited';
 import { PLAIN_VARIANT } from './variants';
@@ -430,4 +431,30 @@ export function claimFreeDarlingsDeck(save: SaveData, db: CardDb, deck: Darlings
   if (save.activeDeckId === null) save.activeDeckId = deck.id;
   save.darlingsFreeDeckClaimed = true;
   return true;
+}
+
+/**
+ * Clone an owned shop deck: push a fresh copy of the FACTORY build — the exact
+ * list the original purchase granted, not the player's possibly-edited deck —
+ * into the library under a new id. Free: every card was granted at purchase,
+ * so no gold is spent and the collection is untouched. Returns the new deck id,
+ * or null when the shop deck is not in the library (the shop only offers Clone
+ * on owned rows; a deleted shop deck reverts to a paid Buy instead).
+ */
+export function cloneShopDeck(save: SaveData, deck: PurchasableDeck): string | null {
+  if (!save.decks.some((d) => d.id === deck.id)) return null;
+  const build = grantedDeckBuild(deck);
+  const id = generateDeckId(save);
+  save.decks.push({
+    id,
+    name: `${deck.name} copy`,
+    cards: build.cards,
+    heroCardId: null,
+    landStyle: null,
+    format: build.format,
+    darlingId: build.darlingId,
+    landReserve: build.landReserve,
+    variantPins: new Array(build.cards.length).fill(null),
+  });
+  return id;
 }
