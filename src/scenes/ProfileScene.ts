@@ -5,8 +5,10 @@ import { FEATURES } from '../config/features';
 import { ALL_CARDS, CARD_DB } from '../data/catalog';
 import { RARITY_NAMES } from '../data/glossary';
 import { ACHIEVEMENTS, type AchievementDef } from '../meta/Achievements';
+import { ownedCount } from '../meta/Collection';
 import { todayString } from '../meta/Economy';
-import { collectionCompletion } from '../meta/collectionFilter';
+import { collectionCompletion, matchesSearch } from '../meta/collectionFilter';
+import { embedSaveCode, readSaveCode, saveImageFilename } from '../meta/SaveImage';
 import {
   DECK_STYLE_LABEL,
   computeDraftSummary,
@@ -22,16 +24,21 @@ import { modalGuardTarget } from '../ui/Modal';
 import { isReplayVisible } from '../ui/deckBuilderHelpers';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { createMultilineInput, type MultilineInputHandle } from '../ui/MultilineInput';
+import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
 import { applyBackdrop } from '../ui/SceneBackdrop';
+import { makeCardThumb } from '../ui/CardThumbCache';
+import { canvasPngBytes, composeSaveCardCanvas, downloadPngBytes, pickPngFile } from '../ui/saveCard';
 import { colorInt, theme } from '../ui/theme';
 import {
   backButton,
   modalShell,
+  pager,
   panel,
   themedButton,
   type ModalShell,
   type ThemedButton,
 } from '../ui/themeWidgets';
+import { bindTapButton } from '../platform/gestures';
 
 const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
@@ -64,6 +71,10 @@ export class ProfileScene extends Phaser.Scene {
   private profileInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
   private exportShell: ModalShell | null = null;
   private exportInput: MultilineInputHandle | null = null;
+  private exportStatus: Phaser.GameObjects.Text | null = null;
+  private exportInteractiveTargets: Phaser.GameObjects.GameObject[] = [];
+  private pickerShell: ModalShell | null = null;
+  private pickerSearch: SearchInputHandle | null = null;
   private importShell: ModalShell | null = null;
   private importInput: MultilineInputHandle | null = null;
   private importStatus: Phaser.GameObjects.Text | null = null;
@@ -81,6 +92,10 @@ export class ProfileScene extends Phaser.Scene {
     this.profileInteractiveTargets = [];
     this.exportShell = null;
     this.exportInput = null;
+    this.exportStatus = null;
+    this.exportInteractiveTargets = [];
+    this.pickerShell = null;
+    this.pickerSearch = null;
     this.importShell = null;
     this.importInput = null;
     this.importStatus = null;
@@ -193,6 +208,7 @@ export class ProfileScene extends Phaser.Scene {
   };
 
   private readonly onShutdown = (): void => {
+    this.pickerShell?.close();
     this.exportShell?.close();
     this.importShell?.close();
     this.confirmationShell?.close();
@@ -201,6 +217,19 @@ export class ProfileScene extends Phaser.Scene {
     this.coordinator.destroy();
     this.input.keyboard?.off('keydown-ESC', this.onEscKey);
   };
+
+  /**
+   * A modalShell 'dismissible' dim is tap-to-close across the WHOLE screen and
+   * the panel itself is not interactive, so a click inside the panel — the
+   * text inputs included, whose DOM events bubble through to Phaser — fell
+   * through and dismissed the modal. An inert interactive zone over the panel
+   * catches those taps; slotted at index 2 (above dim and chrome, below the
+   * close button and every control added later) so nothing else changes.
+   */
+  private addPanelTapBlocker(shell: ModalShell, width: number, height: number): void {
+    const blocker = this.add.zone(640, 360, width, height).setInteractive();
+    shell.container.addAt(blocker, 2);
+  }
 
   /**
    * encode() throws RangeError past MAX_DECODED_SAVE_BYTES. REPLAY_CAP keeps
@@ -233,12 +262,16 @@ export class ProfileScene extends Phaser.Scene {
         guardTargets: this.profileInteractiveTargets.map(modalGuardTarget),
       },
       onClose: () => {
+        this.pickerShell?.close();
         this.exportInput?.destroy();
         this.exportInput = null;
+        this.exportStatus = null;
+        this.exportInteractiveTargets = [];
         this.exportShell = null;
       },
     });
     this.exportShell = shell;
+    this.addPanelTapBlocker(shell, 1120, 620);
     const c = shell.container;
     c.add(
       this.add
@@ -250,9 +283,31 @@ export class ProfileScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
-    const input = createMultilineInput(this, 640, 310, {
+    // Save card first (locked decision 2026-08-24: both formats, PNG offered
+    // first). The PNG is a normal-looking image with the whole save inside,
+    // so the copy says so plainly — sharing it should be a deliberate act.
+    c.add(
+      this.add
+        .text(640, 132, 'Save it as an image: pick card art you own and download a save card. The PNG carries this entire save inside it.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.body,
+          wordWrap: { width: 900 },
+          align: 'center',
+        })
+        .setOrigin(0.5),
+    );
+    const cardButton = themedButton(this, 640, 178, 'Create save card ✦', {
+      variant: 'primary',
+      minWidth: 220,
+      enabled: code !== '',
+      onTap: () => this.openSaveCardPicker(() => code),
+    });
+    c.add(cardButton.container);
+
+    const input = createMultilineInput(this, 640, 330, {
       width: 930,
-      height: 260,
+      height: 200,
       accessibleName: 'Save export code',
       readOnly: true,
     });
@@ -260,19 +315,20 @@ export class ProfileScene extends Phaser.Scene {
     input.setValue(code);
 
     const status = this.add
-      .text(640, 470, 'Replays are excluded by default.', {
+      .text(640, 455, 'Replays are excluded by default.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
     c.add(status);
+    this.exportStatus = status;
     if (code === '') {
-      status.setColor(theme.colors.danger).setText('This profile is too large to export as a code.');
+      status.setColor(theme.colors.danger).setText('This profile is too large to export.');
     }
     c.add(
       this.add
-        .text(640, 515, 'Keep this code private. It contains your collection, decks, progress, settings, and match record.', {
+        .text(640, 505, 'Keep the code and the save card private. Both contain your collection, decks, progress, settings, and match record.', {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.label}px`,
           color: theme.colors.body,
@@ -288,14 +344,14 @@ export class ProfileScene extends Phaser.Scene {
       onTap: () => {
         const next = this.tryEncode(!includeReplays);
         if (next === null) {
-          status.setColor(theme.colors.danger).setText('Replays make this code too large. Replays stay excluded.');
+          status.setColor(theme.colors.danger).setText('Replays make this export too large. Replays stay excluded.');
           return;
         }
         includeReplays = !includeReplays;
         code = next;
         input.setValue(code);
         includeButton.setLabel(`Include replays: ${includeReplays ? 'On' : 'Off'}`);
-        status.setColor(theme.colors.muted).setText(includeReplays ? 'Replays are included in this code.' : 'Replays are excluded from this code.');
+        status.setColor(theme.colors.muted).setText(includeReplays ? 'Replays are included in this export.' : 'Replays are excluded from this export.');
       },
     });
     const copyButton = themedButton(this, 860, 600, 'Copy', {
@@ -304,6 +360,12 @@ export class ProfileScene extends Phaser.Scene {
       onTap: () => void this.copyExportCode(input, code, status),
     });
     c.add([includeButton.container, copyButton.container]);
+    this.exportInteractiveTargets = [
+      ...shell.interactiveChildren,
+      cardButton.inputZone,
+      includeButton.inputZone,
+      copyButton.inputZone,
+    ];
   }
 
   private async copyExportCode(
@@ -321,6 +383,143 @@ export class ProfileScene extends Phaser.Scene {
       status
         .setColor(theme.colors.danger)
         .setText('Copy failed. The code is still selectable. Copy it manually.');
+    }
+  }
+
+  /**
+   * The owned-card art picker for a save card (locked decision 2026-08-24:
+   * owned cards only, searchable). Tapping a card composites the cover, embeds
+   * the save code, and downloads the PNG.
+   */
+  private openSaveCardPicker(getCode: () => string): void {
+    this.pickerShell?.close();
+    const shell = modalShell(this, {
+      width: 1120,
+      height: 640,
+      dimAlpha: 0.88,
+      depth: theme.depth.results,
+      dismissal: 'dismissible',
+      coordinator: this.coordinator,
+      registration: {
+        dismissible: true,
+        guardTargets: this.exportInteractiveTargets.map(modalGuardTarget),
+        domHandles: this.exportInput ? [this.exportInput] : [],
+      },
+      onClose: () => {
+        this.pickerSearch?.teardown();
+        this.pickerSearch?.destroy();
+        this.pickerSearch = null;
+        this.pickerShell = null;
+      },
+    });
+    this.pickerShell = shell;
+    this.addPanelTapBlocker(shell, 1120, 640);
+    const c = shell.container;
+    c.add(
+      this.add
+        .text(640, 82, 'Choose your save card art', {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.h1}px`,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(640, 118, 'Cards you own. Tap one to download the save card.', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.label}px`,
+          color: theme.colors.muted,
+        })
+        .setOrigin(0.5),
+    );
+
+    const save = Services.save.data;
+    const ownedPool = ALL_CARDS
+      .filter((d) => ownedCount(save, d.id) > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    // The grid rebuilds wholesale on every search keystroke and page turn —
+    // 24 cached thumbs is cheap next to keeping partial state honest.
+    const gridC = this.add.container(0, 0);
+    c.add(gridC);
+    const COLS = 8;
+    const ROWS = 3;
+    const PAGE_SIZE = COLS * ROWS;
+    const THUMB_SCALE = 0.34;
+    let query = '';
+    let page = 0;
+    const renderGrid = (): void => {
+      gridC.removeAll(true);
+      const filtered = ownedPool.filter((d) => matchesSearch(d, query));
+      const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      page = Math.min(page, pages - 1);
+      if (filtered.length === 0) {
+        gridC.add(
+          this.add
+            .text(640, 390, 'No owned cards match that search.', {
+              fontFamily: theme.fonts.ui,
+              fontSize: `${theme.type.body}px`,
+              color: theme.colors.muted,
+            })
+            .setOrigin(0.5),
+        );
+        return;
+      }
+      const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+      visible.forEach((card, i) => {
+        const x = 199 + (i % COLS) * 126;
+        const y = 240 + Math.floor(i / COLS) * 152;
+        const thumb = makeCardThumb(this, x, y, card, THUMB_SCALE).setInteractive({ useHandCursor: true });
+        bindTapButton(this, thumb, () => void this.exportSaveCard(card.id, getCode()));
+        gridC.add(thumb);
+      });
+      if (pages > 1) {
+        const control = pager(this, 596, 632, page, pages, (next) => {
+          page = next;
+          renderGrid();
+        });
+        gridC.add(control.container);
+      }
+    };
+    const search = createSearchInput(this, 640, 158, {
+      width: 360,
+      placeholder: 'Search cards…',
+      accessibleName: 'Search save card art',
+      onChange: (value) => {
+        query = value;
+        page = 0;
+        renderGrid();
+      },
+    });
+    this.pickerSearch = search;
+    renderGrid();
+  }
+
+  /** Composite the cover, embed the code, and hand the PNG to the browser. */
+  private async exportSaveCard(cardId: string, code: string): Promise<void> {
+    const completion = collectionCompletion(ALL_CARDS, Services.save.data);
+    const bestRung = Services.save.data.gauntlet.bestRung;
+    const identity =
+      `${formatRate(completion.percent)} collection` + (bestRung > 0 ? ` · Tower rung ${bestRung}` : '');
+    const canvas = composeSaveCardCanvas(this, cardId, {
+      identity,
+      date: `Exported ${todayString()}`,
+    });
+    if (!canvas) {
+      this.exportStatus?.setColor(theme.colors.danger).setText("That card's art is unavailable. Pick another card.");
+      return;
+    }
+    try {
+      const png = await canvasPngBytes(canvas);
+      const withSave = embedSaveCode(png, code);
+      downloadPngBytes(saveImageFilename(new Date()), withSave);
+      this.pickerShell?.close();
+      this.exportStatus
+        ?.setColor(theme.colors.success)
+        .setText('Save card downloaded. The image contains your entire save.');
+    } catch {
+      this.exportStatus?.setColor(theme.colors.danger).setText('Could not create the save card. Try again.');
     }
   }
 
@@ -351,6 +550,7 @@ export class ProfileScene extends Phaser.Scene {
       },
     });
     this.importShell = shell;
+    this.addPanelTapBlocker(shell, 1120, 640);
     const c = shell.container;
     c.add(
       this.add
@@ -362,12 +562,13 @@ export class ProfileScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
     const status = this.add
-      .text(640, 444, 'Paste a save code, then choose Preview save.', {
+      .text(640, 444, 'Paste a save code or choose a save card, then Preview save.', {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
+    c.add(status); // scene-level before: it outlived the shell as a stray line
     this.importStatus = status;
 
     const input = createMultilineInput(this, 640, 270, {
@@ -380,40 +581,60 @@ export class ProfileScene extends Phaser.Scene {
         previewText?.destroy();
         previewText = null;
         previewButton?.setEnabled(false);
-        status.setColor(theme.colors.muted).setText('Paste a save code, then choose Preview save.');
+        status.setColor(theme.colors.muted).setText('Paste a save code or choose a save card, then Preview save.');
       },
     });
     this.importInput = input;
 
-    const validateButton = themedButton(this, 410, 590, 'Preview save', {
+    // Shared by the Preview button and the save-card path: a card is just a
+    // carrier, so once the code is in the input the validation is identical.
+    const runPreview = (): void => {
+      const result = decode(input.getValue());
+      if (!result.ok) {
+        decodedSave = null;
+        previewText?.destroy();
+        previewText = null;
+        previewButton?.setEnabled(false);
+        status.setColor(theme.colors.danger).setText(result.error.message);
+        return;
+      }
+      decodedSave = result.save;
+      previewText?.destroy();
+      previewText = this.add
+        .text(105, 468, this.formatSavePreview(result.preview), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.caption}px`,
+          color: theme.colors.body,
+          lineSpacing: 3,
+        })
+        .setOrigin(0, 0);
+      c.add(previewText);
+      previewButton?.setEnabled(true);
+      status.setColor(theme.colors.success).setText('Save code is valid. Review the profile before replacing it.');
+    };
+
+    const validateButton = themedButton(this, 350, 590, 'Preview save', {
       variant: 'primary',
       minWidth: 170,
+      onTap: runPreview,
+    });
+    const cardImportButton = themedButton(this, 610, 590, 'From save card…', {
+      variant: 'ghost',
+      minWidth: 190,
       onTap: () => {
-        const result = decode(input.getValue());
-        if (!result.ok) {
-          decodedSave = null;
-          previewText?.destroy();
-          previewText = null;
-          previewButton?.setEnabled(false);
-          status.setColor(theme.colors.danger).setText(result.error.message);
-          return;
-        }
-        decodedSave = result.save;
-        previewText?.destroy();
-        previewText = this.add
-          .text(105, 468, this.formatSavePreview(result.preview), {
-            fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
-            color: theme.colors.body,
-            lineSpacing: 3,
-          })
-          .setOrigin(0, 0);
-        c.add(previewText);
-        previewButton?.setEnabled(true);
-        status.setColor(theme.colors.success).setText('Save code is valid. Review the profile before replacing it.');
+        void pickPngFile().then((picked) => {
+          if (!picked || !this.importShell) return;
+          const read = readSaveCode(picked.bytes);
+          if (!read.ok || !read.code) {
+            status.setColor(theme.colors.danger).setText(read.message ?? 'That file is not a save card.');
+            return;
+          }
+          input.setValue(read.code);
+          runPreview();
+        });
       },
     });
-    previewButton = themedButton(this, 850, 590, 'Replace save', {
+    previewButton = themedButton(this, 880, 590, 'Replace save', {
       variant: 'danger',
       minWidth: 180,
       enabled: false,
@@ -421,8 +642,13 @@ export class ProfileScene extends Phaser.Scene {
         if (decodedSave) this.openImportConfirmation(decodedSave);
       },
     });
-    c.add([validateButton.container, previewButton.container]);
-    this.importInteractiveTargets = [...shell.interactiveChildren, validateButton.inputZone, previewButton.inputZone];
+    c.add([validateButton.container, cardImportButton.container, previewButton.container]);
+    this.importInteractiveTargets = [
+      ...shell.interactiveChildren,
+      validateButton.inputZone,
+      cardImportButton.inputZone,
+      previewButton.inputZone,
+    ];
     input.focus();
   }
 
