@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Art } from '../art/ArtResolver';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { FEATURES } from '../config/features';
@@ -33,7 +34,7 @@ import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { attachTouchGestures, bindTapButton, inflateHitArea } from '../platform/gestures';
 import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { makeCardThumb } from '../ui/CardThumbCache';
-import { DECK_SHOP_LAYOUT, deckShopLayout } from '../ui/deckShopLayout';
+import { DECK_SHOP_LAYOUT } from '../ui/deckShopLayout';
 import { CARD_H, CardView } from '../ui/CardView';
 import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
@@ -55,6 +56,7 @@ import {
   boosterStripVisibility,
   clampBoosterStripOffset,
   type BoosterStripLayout,
+  type StripLayoutOptions,
 } from '../ui/boosterStripLayout';
 
 const PACK_W = 280;
@@ -415,6 +417,35 @@ type ShopTab = 'boosters' | 'decks';
  * Standard + Darling sections crowded the band once both rosters grew. */
 type DeckSectionKey = 'standard' | 'darlings';
 
+/**
+ * Card-style deck strip (user-directed 2026-09-01, experimental): the Decks
+ * tab borrows the booster strip's drag mechanics — one portrait product card
+ * per deck, three full cards per page with real neighbor peeks through the
+ * mask, drag / arrows / wheel to page. The shared strip math owns clamping,
+ * snapping, and tap classification.
+ */
+const DECK_CARD_W = 300;
+const DECK_CARD_TOP = 178;
+const DECK_CARD_H = 496;
+const DECK_CARD_ART_H = 300;
+const DECK_STRIP_OPTIONS: StripLayoutOptions = {
+  visibleCount: 3,
+  tileWidth: DECK_CARD_W,
+  tileHeight: DECK_CARD_H,
+  tileStride: 340,
+  viewport: {
+    x: theme.design.safeLeft,
+    y: DECK_CARD_TOP - 8,
+    width: theme.design.safeWidth,
+    height: DECK_CARD_H + 16,
+  },
+  verticalBand: { y: DECK_CARD_TOP, height: DECK_CARD_H },
+  // The drag/tap band covers the art window only; the button rows below the
+  // art own their taps (each guarded against a drag-release).
+  tapBand: { y: DECK_CARD_TOP, height: 12 + DECK_CARD_ART_H + 12 },
+  peekY: DECK_CARD_TOP,
+};
+
 /** A buyable deck SKU: the list, its price, and whether it's a theme/precon. */
 interface DeckSku {
   deck: DeckList | DarlingsPrecon;
@@ -481,6 +512,17 @@ export class ShopScene extends Phaser.Scene {
   private boosterStripDragStartX = 0;
   private boosterStripDragStartOffset = 0;
   private boosterStripDragging = false;
+  private deckStripContent: Phaser.GameObjects.Container | null = null;
+  private deckStripLayout: BoosterStripLayout | null = null;
+  private deckStripTiles: { sku: DeckSku; tile: Phaser.GameObjects.Container }[] = [];
+  private deckStripArrows: { left: ThemedButton; right: ThemedButton } | null = null;
+  private deckStripIndex = 0;
+  private deckStripPointerId: number | null = null;
+  private deckStripDragStartX = 0;
+  private deckStripDragStartOffset = 0;
+  private deckStripDragging = false;
+  private deckWheelAccum = 0;
+  private deckWheelLastStepAt = Number.NEGATIVE_INFINITY;
   private boosterQtyStatus: Phaser.GameObjects.Text | null = null;
   private boosterWheelAccum = 0;
   private boosterWheelLastStepAt = Number.NEGATIVE_INFINITY;
@@ -556,6 +598,17 @@ export class ShopScene extends Phaser.Scene {
     this.boosterQtyStatus = null;
     this.boosterWheelAccum = 0;
     this.boosterWheelLastStepAt = Number.NEGATIVE_INFINITY;
+    this.deckStripContent = null;
+    this.deckStripLayout = null;
+    this.deckStripTiles = [];
+    this.deckStripArrows = null;
+    this.deckStripIndex = 0;
+    this.deckStripPointerId = null;
+    this.deckStripDragStartX = 0;
+    this.deckStripDragStartOffset = 0;
+    this.deckStripDragging = false;
+    this.deckWheelAccum = 0;
+    this.deckWheelLastStepAt = Number.NEGATIVE_INFINITY;
     this.coordinator = new OverlayCoordinator();
     new Toast(this, { isBlocked: () => this.overlay !== null || this.inspect !== null || this.oddsModal !== null });
     // Deck-preview hotkeys. Keyboard bypasses the modal dims, so every handler
@@ -568,6 +621,10 @@ export class ShopScene extends Phaser.Scene {
     this.input.on('pointerup', this.onBoosterPointerUp, this);
     this.input.on('pointerupoutside', this.onBoosterPointerUp, this);
     this.input.on('wheel', this.onBoosterWheel, this);
+    this.input.on('pointermove', this.onDeckPointerMove, this);
+    this.input.on('pointerup', this.onDeckPointerUp, this);
+    this.input.on('pointerupoutside', this.onDeckPointerUp, this);
+    this.input.on('wheel', this.onDeckWheel, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
@@ -629,6 +686,10 @@ export class ShopScene extends Phaser.Scene {
     this.input.off('pointerup', this.onBoosterPointerUp, this);
     this.input.off('pointerupoutside', this.onBoosterPointerUp, this);
     this.input.off('wheel', this.onBoosterWheel, this);
+    this.input.off('pointermove', this.onDeckPointerMove, this);
+    this.input.off('pointerup', this.onDeckPointerUp, this);
+    this.input.off('pointerupoutside', this.onDeckPointerUp, this);
+    this.input.off('wheel', this.onDeckWheel, this);
     this.boosterStripPointerId = null;
     this.boosterStripDragging = false;
     this.boosterWheelAccum = 0;
@@ -637,6 +698,13 @@ export class ShopScene extends Phaser.Scene {
     this.boosterStripZone = null;
     this.boosterStripLayout = null;
     this.boosterQtyStatus = null;
+    this.deckStripPointerId = null;
+    this.deckStripDragging = false;
+    this.deckWheelAccum = 0;
+    this.deckWheelLastStepAt = Number.NEGATIVE_INFINITY;
+    this.deckStripContent = null;
+    this.deckStripLayout = null;
+    this.deckStripArrows = null;
   };
 
   private underlyingInteractiveTargets(): Phaser.GameObjects.GameObject[] {
@@ -1147,9 +1215,13 @@ export class ShopScene extends Phaser.Scene {
 
   // --- Decks tab ------------------------------------------------------------
 
-  private buildDecksGroup(group: Phaser.GameObjects.Container): void {
+  private buildDecksGroup(group: Phaser.GameObjects.Container, requestedIndex?: number): void {
     group.removeAll(true); // rebuildable after a purchase or a sub-tab switch
     this.deckInteractiveTargets = [];
+    this.deckStripTiles = [];
+    this.deckStripArrows = null;
+    this.deckStripPointerId = null;
+    this.deckStripDragging = false;
     const sections = this.deckSections();
     // Sub-tab bar: one section shown at a time. The pills name the view, so
     // the old in-band gold headings are gone with the crowding they fought.
@@ -1164,12 +1236,64 @@ export class ShopScene extends Phaser.Scene {
       group.add(button.container);
     });
     const active = sections.find((section) => section.key === this.deckTab) ?? sections[0];
-    const layout = deckShopLayout([active.skus.length]);
+    // Open on the first waiting free claim so a Claim Free card is never
+    // parked off-screen; a rebuild after a purchase keeps its page instead.
+    const freeIdx = active.skus.findIndex((sku) => this.isFreeClaim(sku.deck));
+    const layout = boosterStripLayout(
+      active.skus.length,
+      requestedIndex ?? (freeIdx >= 0 ? freeIdx : 0),
+      DECK_STRIP_OPTIONS,
+    );
+    this.deckStripLayout = layout;
+    const content = this.add.container(0, 0);
+    this.deckStripContent = content;
+    const zone = this.add
+      .zone(
+        layout.tapBand.x + layout.tapBand.width / 2,
+        layout.tapBand.y + layout.tapBand.height / 2,
+        layout.tapBand.width,
+        layout.tapBand.height,
+      )
+      .setInteractive({ useHandCursor: true });
+    zone.on('pointerdown', this.onDeckStripDown, this);
+    attachTouchGestures(this, zone, { onTap: this.onDeckStripTap });
+    const maskSource = this.add.graphics();
+    maskSource.fillStyle(0xffffff, 1);
+    maskSource.fillRect(
+      layout.viewport.x,
+      layout.viewport.y,
+      layout.viewport.width,
+      layout.viewport.height,
+    );
+    maskSource.setVisible(false);
+    content.setMask(maskSource.createGeometryMask());
+    group.add([zone, content, maskSource]);
+    this.deckInteractiveTargets.push(zone);
+
     active.skus.forEach((sku, i) => {
-      const left = layout.colLefts[i % DECK_SHOP_LAYOUT.cols];
-      const cy = layout.sections[0].rowCenter(Math.floor(i / DECK_SHOP_LAYOUT.cols));
-      this.buildDeckPlate(group, sku, left, cy, layout.plateH);
+      const tile = this.add.container(layout.tileCenters[i] ?? 0, 0);
+      this.buildDeckCard(tile, sku);
+      content.add(tile);
+      this.deckStripTiles.push({ sku, tile });
     });
+
+    const arrowY = DECK_CARD_TOP + DECK_CARD_ART_H / 2 + 12;
+    const leftArrow = themedButton(this, layout.arrowCenters.left, arrowY, '‹', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 52,
+      onTap: () => this.setDeckStripIndex(this.deckStripIndex - layout.visibleCount),
+    });
+    const rightArrow = themedButton(this, layout.arrowCenters.right, arrowY, '›', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 52,
+      onTap: () => this.setDeckStripIndex(this.deckStripIndex + layout.visibleCount),
+    });
+    group.add([leftArrow.container, rightArrow.container]);
+    this.deckInteractiveTargets.push(leftArrow.inputZone, rightArrow.inputZone);
+    this.deckStripArrows = { left: leftArrow, right: rightArrow };
+    this.setDeckStripIndex(layout.currentIndex, false);
   }
 
   private setDeckTab(key: DeckSectionKey): void {
@@ -1195,105 +1319,270 @@ export class ShopScene extends Phaser.Scene {
     );
   }
 
-  private buildDeckPlate(
-    group: Phaser.GameObjects.Container,
-    sku: DeckSku,
-    left: number,
-    cy: number,
-    plateH: number,
-  ): void {
+  /**
+   * One deck product card: cover-cropped signature art, identity, and the
+   * Buy/Claim/Clone + Preview actions. Everything is a child of the tile
+   * container so it rides the strip; button taps guard against drag-releases.
+   */
+  private buildDeckCard(tile: Phaser.GameObjects.Container, sku: DeckSku): void {
     const { deck, price, theme: isTheme } = sku;
     const owned = Services.save.data.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
+    const halfW = DECK_CARD_W / 2;
 
-    // Controls hug the plate's right edge: Buy/Claim (130-wide hit) inset 12px,
-    // Preview (90-wide hit) to its left with a 10px hit gap (>= the 8px floor).
-    const buyX = left + DECK_SHOP_LAYOUT.plateW - 77;
-    const previewX = buyX - 120;
-    const textLeft = left + 16;
-    const textMaxW = previewX - 45 - 10 - textLeft; // stop short of the Preview hit rect
+    const plate = panel(this, -halfW, DECK_CARD_TOP, DECK_CARD_W, DECK_CARD_H, { alpha: 0.7 });
+    tile.add(plate);
 
-    const plate = panel(this, left, cy - plateH / 2, DECK_SHOP_LAYOUT.plateW, plateH, { alpha: 0.7 });
-    // Long name/blurb lines shrink toward their left anchor instead of running
-    // under the Preview button (plain Text scaling — no scaled-Container input).
-    const fit = (t: Phaser.GameObjects.Text): Phaser.GameObjects.Text => {
-      if (t.width > textMaxW) t.setScale(textMaxW / t.width);
+    // The art window: a Darlings precon leads with its Darling; a standard
+    // deck leads with its first signature card (the preview's featured list).
+    const portraitId = isDarlingsPrecon(deck)
+      ? deck.darlingId
+      : DECK_INFO[deck.id]?.featured?.[0] ?? grantedDeckBuild(deck).cards[0];
+    const artTop = DECK_CARD_TOP + 12;
+    this.addDeckPortrait(portraitId, 0, artTop + DECK_CARD_ART_H / 2, DECK_CARD_W - 24, DECK_CARD_ART_H, tile);
+
+    const fit = (t: Phaser.GameObjects.Text, maxW: number): Phaser.GameObjects.Text => {
+      if (t.width > maxW) t.setScale(maxW / t.width);
       return t;
     };
     const name = fit(
       this.add
-        .text(textLeft, cy - 12, deck.name, {
+        .text(0, DECK_CARD_TOP + 336, deck.name, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h2}px`,
           color: isTheme ? theme.colors.gold : theme.colors.heading,
         })
-        .setOrigin(0, 0.5),
+        .setOrigin(0.5),
+      DECK_CARD_W - 24,
     );
+    tile.add(name);
+
     // Color identity renders as mana pips, never letter codes (design-system
-    // "Color identity" rule); the archetype line starts after the pip run.
+    // "Color identity" rule); the archetype line sits under the pip run.
     const info = DECK_INFO[deck.id];
     const pipKeys = info ? info.colors.split('/') : (isDarlingsPrecon(deck) ? [...deck.colors] : []);
-    const PIP = 16;
-    const pipStep = PIP + 4;
+    const PIP = 18;
+    const pipStep = PIP + 5;
+    const pipsX0 = -((pipKeys.length - 1) * pipStep) / 2;
     for (let i = 0; i < pipKeys.length; i++) {
-      group.add(
+      tile.add(
         this.add
-          .image(textLeft + PIP / 2 + i * pipStep, cy + 11, `pip-${pipKeys[i]}`)
+          .image(pipsX0 + i * pipStep, DECK_CARD_TOP + 366, `pip-${pipKeys[i]}`)
           .setDisplaySize(PIP, PIP),
       );
     }
-    const blurbLeft = textLeft + (pipKeys.length > 0 ? pipKeys.length * pipStep + 2 : 0);
-    // No free-starter marker here: the Claim Free button already carries that
-    // state (user-directed 2026-07-17).
     const blurbText = (isDarlingsPrecon(deck) ? deck.blurb : (info?.archetype ?? '')) + (owned ? '  ·  Owned' : '');
-    const blurb = this.add
-      .text(blurbLeft, cy + 11, blurbText, {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0, 0.5);
-    const blurbMaxW = textMaxW - (blurbLeft - textLeft);
-    if (blurb.width > blurbMaxW) blurb.setScale(blurbMaxW / blurb.width);
-    group.add([plate, name, blurb]);
+    tile.add(
+      fit(
+        this.add
+          .text(0, DECK_CARD_TOP + 392, blurbText, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.caption}px`,
+            color: theme.colors.muted,
+          })
+          .setOrigin(0.5),
+        DECK_CARD_W - 28,
+      ),
+    );
 
-    const preview = themedButton(this, previewX, cy, 'Preview', {
+    // Claim Free is always enabled; a paid Buy fades when the balance can't
+    // cover it. The strip rebuilds after every purchase (onBuyDeck →
+    // buildDecksGroup), which re-evaluates this with the new balance. An owned
+    // card offers Clone Deck: a fresh factory copy into the library
+    // (user-directed 2026-09-01).
+    const cta = owned
+      ? themedButton(this, 0, DECK_CARD_TOP + 432, 'Clone Deck', {
+          variant: 'ghost',
+          minWidth: 178,
+          onTap: () => {
+            if (!this.deckStripDragging) this.onCloneDeck(sku);
+          },
+        })
+      : themedButton(this, 0, DECK_CARD_TOP + 432, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
+          variant: 'primary',
+          minWidth: 178,
+          enabled: freeClaim || Services.save.data.gold >= price,
+          onTap: () => {
+            if (!this.deckStripDragging) this.onBuyDeck(sku);
+          },
+        });
+    this.deckInteractiveTargets.push(cta.inputZone);
+    tile.add(cta.container);
+
+    const preview = themedButton(this, 0, DECK_CARD_TOP + 474, 'Preview', {
       variant: 'ghost',
       size: 'sm',
-      minWidth: 90,
-      onTap: () => this.showDeckPreview(sku),
+      minWidth: 120,
+      onTap: () => {
+        if (!this.deckStripDragging) this.showDeckPreview(sku);
+      },
     });
     this.deckInteractiveTargets.push(preview.inputZone);
-    group.add(preview.container);
+    tile.add(preview.container);
+  }
 
-    if (!owned) {
-      // Claim Free is always enabled; a paid Buy fades when the balance can't
-      // cover it. The grid rebuilds after every purchase (onBuyDeck →
-      // buildDecksGroup), which re-evaluates this with the new balance.
-      const buy = themedButton(this, buyX, cy, freeClaim ? 'Claim Free ✦' : `Buy · 🪙 ${price}`, {
-        variant: 'primary',
-        size: 'sm',
-        minWidth: 130,
-        enabled: freeClaim || Services.save.data.gold >= price,
-        onTap: () => this.onBuyDeck(sku),
-      });
-      this.deckInteractiveTargets.push(buy.inputZone);
-      group.add(buy.container);
-    } else {
-      // An owned row offers Clone Deck instead of a dead "Owned ✓" label
-      // (user-directed 2026-09-01): a fresh factory copy into the library, for
-      // players who edited the original. The blurb's "· Owned" tag keeps the
-      // ownership signal. (The old premium-hero "Set as Hero" toggle that once
-      // lived here is gone since 2026-07-11 — per-deck hero cards superseded it.)
-      const clone = themedButton(this, buyX, cy, 'Clone Deck', {
-        variant: 'ghost',
-        size: 'sm',
-        minWidth: 130,
-        onTap: () => this.onCloneDeck(sku),
-      });
-      this.deckInteractiveTargets.push(clone.inputZone);
-      group.add(clone.container);
+  /** Cover-crop a card's art into the deck card's window (the PracticePicker
+   * portrait recipe: scale to cover, crop the window, re-centre the crop). */
+  private addDeckPortrait(
+    cardId: string,
+    x: number,
+    y: number,
+    targetW: number,
+    targetH: number,
+    parent: Phaser.GameObjects.Container,
+  ): Phaser.GameObjects.Image | null {
+    try {
+      const ref = Art.resolver?.getArt(cardId);
+      if (!ref) return null;
+      const img = this.add.image(x, y, ref.textureKey, ref.frameName);
+      const scale = Math.max(targetW / img.width, targetH / img.height) * 1.05;
+      img.setScale(scale);
+      const cropW = Math.min(img.width, targetW / scale);
+      const cropH = Math.min(img.height, targetH / scale);
+      const cropX = (img.width - cropW) / 2;
+      // Bias the window upward so faces sit in frame.
+      const cropY = Math.max(
+        0,
+        Math.min(img.height - cropH, (img.height - cropH) / 2 - (targetH * 0.07) / scale),
+      );
+      img.setCrop(cropX, cropY, cropW, cropH);
+      img.x = x - (cropX + cropW / 2 - img.width / 2) * scale;
+      img.y = y - (cropY + cropH / 2 - img.height / 2) * scale;
+      parent.add(img);
+      return img;
+    } catch {
+      // The panel and name remain usable if art is unavailable.
+      return null;
     }
+  }
+
+  // --- Deck strip drag / tap / paging ---------------------------------------
+
+  private readonly onDeckStripDown = (pointer: Phaser.Input.Pointer): void => {
+    if (this.tab !== 'decks' || this.oddsModal || this.overlay || this.inspect || !this.deckStripContent) return;
+    if (this.deckStripPointerId !== null) return;
+    this.tweens.killTweensOf(this.deckStripContent);
+    this.deckStripPointerId = pointer.id;
+    this.deckStripDragStartX = pointer.worldX;
+    this.deckStripDragStartOffset = this.deckStripContent.x;
+    this.deckStripDragging = false;
+  };
+
+  private readonly onDeckPointerMove = (pointer: Phaser.Input.Pointer): void => {
+    if (this.deckStripPointerId !== pointer.id || !this.deckStripContent || !this.deckStripLayout) return;
+    const delta = pointer.worldX - this.deckStripDragStartX;
+    if (!this.deckStripDragging && Math.abs(delta) > TAP_SLOP_PX) this.deckStripDragging = true;
+    if (!this.deckStripDragging) return;
+    const offset = clampBoosterStripOffset(this.deckStripLayout, this.deckStripDragStartOffset + delta);
+    this.deckStripContent.x = offset;
+    this.updateDeckStripState(offset);
+  };
+
+  private readonly onDeckPointerUp = (pointer: Phaser.Input.Pointer): void => {
+    if (this.deckStripPointerId !== pointer.id) return;
+    const wasDragging = this.deckStripDragging;
+    this.deckStripPointerId = null;
+    if (wasDragging) {
+      this.snapDeckStripToNearest();
+      this.deckStripDragging = false;
+      return;
+    }
+    this.deckStripDragging = false;
+    if (this.tab !== 'decks' || this.oddsModal || this.overlay || this.inspect || pointer.wasTouch) return;
+    this.handleDeckStripTap(pointer);
+  };
+
+  private readonly onDeckStripTap = (pointer: Phaser.Input.Pointer): void => {
+    this.handleDeckStripTap(pointer);
+  };
+
+  private handleDeckStripTap(pointer: Phaser.Input.Pointer): void {
+    if (this.deckStripDragging) return;
+    if (!this.deckStripContent || !this.deckStripLayout) return;
+    const decision = boosterStripTap(
+      this.deckStripLayout,
+      this.deckStripContent.x,
+      pointer.worldX,
+      pointer.worldY,
+    );
+    if (decision.kind === 'scroll') {
+      this.setDeckStripIndex(decision.targetIndex);
+      return;
+    }
+    if (decision.kind !== 'buy') return;
+    // A tap on a full card's art opens its preview: the card IS the product,
+    // and the commit actions stay on their labelled buttons below.
+    const sku = this.deckStripTiles[decision.index]?.sku;
+    if (sku) this.showDeckPreview(sku);
+  };
+
+  private readonly onDeckWheel = (
+    pointer: Phaser.Input.Pointer,
+    _currentlyOver: unknown,
+    deltaX: number,
+    deltaY: number,
+  ): void => {
+    if (this.tab !== 'decks' || this.oddsModal || this.overlay || this.inspect || !this.deckStripLayout) return;
+    const viewport = this.deckStripLayout.viewport;
+    if (
+      pointer.worldX < viewport.x ||
+      pointer.worldX > viewport.x + viewport.width ||
+      pointer.worldY < viewport.y ||
+      pointer.worldY > viewport.y + viewport.height
+    ) return;
+    const delta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : deltaY;
+    if (delta === 0) return;
+    this.deckWheelAccum += delta;
+    if (Math.abs(this.deckWheelAccum) < WHEEL_STEP_THRESHOLD) return;
+    const now = this.time.now;
+    if (now - this.deckWheelLastStepAt < WHEEL_STEP_COOLDOWN_MS) return;
+    const direction = Math.sign(this.deckWheelAccum);
+    this.deckWheelAccum -= direction * WHEEL_STEP_THRESHOLD;
+    this.deckWheelLastStepAt = now;
+    this.setDeckStripIndex(this.deckStripIndex + direction);
+  };
+
+  private snapDeckStripToNearest(): void {
+    if (!this.deckStripContent || !this.deckStripLayout) return;
+    this.setDeckStripIndex(boosterStripIndexForOffset(this.deckStripLayout, this.deckStripContent.x));
+  }
+
+  private updateDeckStripState(offset: number): void {
+    if (!this.deckStripLayout) return;
+    const clamped = clampBoosterStripOffset(this.deckStripLayout, offset);
+    this.deckStripIndex = boosterStripIndexForOffset(this.deckStripLayout, clamped);
+    for (const [index, entry] of this.deckStripTiles.entries()) {
+      entry.tile.setVisible(boosterStripTileIsVisible(this.deckStripLayout, index, clamped));
+    }
+    // A disabled arrow is also hidden, so the strip never presents a dead end.
+    const leftEnabled = this.deckStripIndex > 0;
+    const rightEnabled = this.deckStripIndex < this.deckStripLayout.maxIndex;
+    this.deckStripArrows?.left.container.setVisible(leftEnabled);
+    this.deckStripArrows?.right.container.setVisible(rightEnabled);
+    if (leftEnabled) this.deckStripArrows?.left.inputZone.setInteractive({ useHandCursor: true });
+    else this.deckStripArrows?.left.inputZone.disableInteractive();
+    if (rightEnabled) this.deckStripArrows?.right.inputZone.setInteractive({ useHandCursor: true });
+    else this.deckStripArrows?.right.inputZone.disableInteractive();
+  }
+
+  private setDeckStripIndex(index: number, tween = true): void {
+    if (!this.deckStripContent || !this.deckStripLayout) return;
+    const targetIndex = Math.min(this.deckStripLayout.maxIndex, Math.max(0, Math.trunc(index)));
+    const targetOffset = boosterStripOffsetForIndex(this.deckStripLayout, targetIndex);
+    this.tweens.killTweensOf(this.deckStripContent);
+    if (!tween) {
+      this.deckStripContent.x = targetOffset;
+      this.updateDeckStripState(targetOffset);
+      return;
+    }
+    this.tweens.add({
+      targets: this.deckStripContent,
+      x: targetOffset,
+      duration: 220,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => this.updateDeckStripState(this.deckStripContent?.x ?? targetOffset),
+      onComplete: () => this.updateDeckStripState(targetOffset),
+    });
   }
 
   /** Claim/buy a deck. Returns true only when the purchase actually happened. */
@@ -1314,7 +1603,8 @@ export class ShopScene extends Phaser.Scene {
     Services.save.flush();
     queueAchievementUnlockToasts(achievementIds);
     this.refreshGold();
-    this.buildDecksGroup(this.decksGroup); // the claimed/bought row now offers Clone Deck
+    // Rebuild on the SAME page: the bought card re-renders as owned in place.
+    this.buildDecksGroup(this.decksGroup, this.deckStripIndex);
     return true;
   }
 
