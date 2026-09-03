@@ -23,8 +23,8 @@ _Dated 2026-08-25. Review monthly._
   Dark Tales runs.
   The remaining eyes-on work is the standing real-device pass and
   by-ear/by-eye polish listed under Planned.
-- **1,926 tests green** (+4 skipped balance-tool assertions; count refreshed
-  2026-08-31 at the 1.7.0 cut) across 183 files
+- **1,946 tests green** (+4 skipped balance-tool assertions; count refreshed
+  2026-09-03 at the 1.7.0 cut) across 185 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -106,6 +106,14 @@ _Dated 2026-08-25. Review monthly._
   to four times as often, Cathedral 0% to 5% of dawns on board, Relay 3% to
   12%, Antenna 2% to 10%, and Broodmother reaches four total marks in 11% of
   games and five in 5%, against 3% and 1% by marked creatures.
+- **The quality-check day (2026-09-03, #323-#327).** The AI learned what a
+  Mark is worth (a marked-body premium in `permValue`, threshold progress in
+  the evaluator, survivable mark targeting, board-aware Propagate and
+  mark-all sequencing; all five win-rate gates unchanged), the three tokens
+  no card could create were cut, sixteen Starborne portraits were reframed
+  from their own paid generations, and the shared filter dropdown became one
+  content-sized surface with two-column long lists and a fixed-width
+  label-and-value trigger.
 - **Three minterless tokens cut (2026-09-03).** Lumen Drone, Violet Hullguard
   and Void Mote had finished art and no card that could ever create them, in
   the shipped set or the 200-card overplan; the Rite-unlock ruling had promised
