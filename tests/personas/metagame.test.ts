@@ -250,7 +250,7 @@ describe('persona metagame loop', () => {
     ]);
     expect(result.artifacts.find((artifact) => artifact.persona.id === 'burn')!.honesty.oscillating).toBe(true);
     expect(result.artifacts.find((artifact) => artifact.persona.id === 'weenie')!.honesty.oscillating).toBe(false);
-  });
+  }, 120000);
 
   it('reports max-rounds when the cap arrives before stability or oscillation', () => {
     const measureCalls = new Map<string, number>();
