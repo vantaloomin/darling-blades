@@ -19,7 +19,7 @@ _Dated 2026-08-25. Review monthly._
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
   1,230-card collectible pool now spans nine sets; the Starborne art run is
-  complete at 151/151 plus six tokens, alongside the Duat, Yokai Nights, and
+  complete at 151/151 plus three tokens, alongside the Duat, Yokai Nights, and
   Dark Tales runs.
   The remaining eyes-on work is the standing real-device pass and
   by-ear/by-eye polish listed under Planned.
@@ -71,7 +71,7 @@ _Dated 2026-08-25. Review monthly._
 ## Recently shipped (2026-08-31 · 1.7.0)
 
 - **Starborne, the ninth expansion (#282, #293-#294, #298-#304, #309-#310).**
-  151 cards on Marks and Propagate, complete art plus six tokens, the
+  151 cards on Marks and Propagate, complete art plus three tokens, the
   seed-of-light set icon, and the engine wave that made it expressible:
   targeted triggers, the mark vocabulary, the sever brand, and Quest
   chapters. The colour pie held: green grows, red/white ride, blue moves,
@@ -106,6 +106,12 @@ _Dated 2026-08-25. Review monthly._
   to four times as often, Cathedral 0% to 5% of dawns on board, Relay 3% to
   12%, Antenna 2% to 10%, and Broodmother reaches four total marks in 11% of
   games and five in 5%, against 3% and 1% by marked creatures.
+- **Three minterless tokens cut (2026-09-03).** Lumen Drone, Violet Hullguard
+  and Void Mote had finished art and no card that could ever create them, in
+  the shipped set or the 200-card overplan; the Rite-unlock ruling had promised
+  six token types and three were never given a minter. Removed from the data,
+  the attack-FX table and the art bible; the art files stay on disk for a
+  future minter. Broodling, Chrome Husk and Nebula Firefly ship.
 - **The v3.1 balance program (#305-#306, #308, #313).** The power formula
   was rebuilt (pip-weighted budget, additive rarity, colour-pie premium),
   over three hundred cards re-costed under owner adjudication, Rage landed

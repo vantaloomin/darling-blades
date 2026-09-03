@@ -610,18 +610,15 @@ All other creatures: uncommons are `auto:sheen`, commons are `none`.
 Parallel agents never see each other's files. Anything two files could both touch
 is defined **here**, once. Honor these bindings verbatim.
 
-- **Starborne tokens** — the six set tokens are shared canon and must not drift
-  between the token file and the Starborne entries that create them.
-  **Lumen Drone** `C` 1/1 Skyborne: a bioluminescent maintenance mote, chrome
-  shell, one signal-white eye, no face. **Broodling** `G` 1/1: a translucent
+- **Starborne tokens** — the three set tokens are shared canon and must not
+  drift between the token file and the Starborne entries that create them
+  (six were proposed; Lumen Drone, Violet Hullguard and Void Mote were cut
+  2026-09-03 because no card ever minted them). **Broodling** `G` 1/1: a translucent
   young swarm body, brood green, visibly soft. **Chrome Husk** `C` 2/2 Bulwark:
   an empty pearlescent shell still standing, dark inside, no light. **Nebula
   Firefly** `U` 1/1 Skyborne: a violet beacon insect trailing one thread of
-  light. **Violet Hullguard** `W` 1/3 Sentinel: a patient guardian organism
-  shaped like a woman at attention, pearl plating. **Void Mote** `B` 1/1: a
-  black spark that dims one nearby light. Only the Broodling and the Violet
-  Hullguard read as alive enough to carry biolume cyan; the Chrome Husk is
-  deliberately unlit, which is the visual point of it.
+  light. Only the Broodling reads as alive enough to carry biolume cyan; the
+  Chrome Husk is deliberately unlit, which is the visual point of it.
 - **Cao family (Wei)** — `tk-wei-caocao`, `tk-wei-caoren`, `tk-wei-caopi` share a
   family resemblance: ink-black hair, sharp amber eyes, imperious brow. Wei
   lapis-and-bronze regalia at rank-appropriate richness.

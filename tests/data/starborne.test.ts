@@ -141,14 +141,11 @@ describe('Starborne transcription', () => {
     }
   });
 
-  it('defines the six proposed Starborne tokens with their locked identities', () => {
+  it('defines the three shipped Starborne tokens with their locked identities', () => {
     const expected = {
-      'tok-lumen-drone': { name: 'Lumen Drone', types: ['artifact', 'creature'], subtypes: ['Drone'], colors: [], attack: 1, defense: 1, keywords: ['skyborne'], flavor: 'A bioluminescent maintenance mote that learns attack formations.' },
       'tok-broodling': { name: 'Broodling', types: ['creature'], subtypes: ['Brood'], colors: ['G'], attack: 1, defense: 1, flavor: 'A translucent young swarm member that grows around warm machinery.' },
       'tok-chrome-husk': { name: 'Chrome Husk', types: ['artifact', 'creature'], subtypes: ['Husk'], colors: [], attack: 2, defense: 2, keywords: ['bulwark'], flavor: 'A discarded shell that keeps standing after its owner leaves.' },
       'tok-nebula-firefly': { name: 'Nebula Firefly', types: ['creature'], subtypes: ['Insect'], colors: ['U'], attack: 1, defense: 1, keywords: ['skyborne'], flavor: 'A tiny violet beacon that follows living ships between worlds.' },
-      'tok-violet-hullguard': { name: 'Violet Hullguard', types: ['creature'], subtypes: ['Guardian'], colors: ['W'], attack: 1, defense: 3, keywords: ['sentinel'], flavor: 'A pearlescent defense organism shaped like a patient woman at attention.' },
-      'tok-void-mote': { name: 'Void Mote', types: ['creature'], subtypes: ['Mote'], colors: ['B'], attack: 1, defense: 1, flavor: 'A black spark that dims one light whenever it dies.' },
     } as const;
     for (const [id, shape] of Object.entries(expected)) {
       const token = TOKENS.find((card) => card.id === id);
@@ -205,11 +202,11 @@ describe('Starborne transcription', () => {
     expect(STARBORNE.every((card) => !card.flavor?.includes('—'))).toBe(true);
   });
 
-  it('adds exactly 151 collectibles and six tokens to the global catalog', () => {
+  it('adds exactly 151 collectibles and three tokens to the global catalog', () => {
     expect(ALL_CARDS.filter((card) => String(card.set) === STARBORNE_SET && !card.token)).toHaveLength(151);
-    expect(TOKENS.filter((card) => [
-      'tok-lumen-drone', 'tok-broodling', 'tok-chrome-husk',
-      'tok-nebula-firefly', 'tok-violet-hullguard', 'tok-void-mote',
-    ].includes(card.id))).toHaveLength(6);
+    expect(TOKENS.filter((card) => ['tok-broodling', 'tok-chrome-husk', 'tok-nebula-firefly'].includes(card.id))).toHaveLength(3);
+    // Lumen Drone, Violet Hullguard and Void Mote were cut 2026-09-03: no
+    // card ever minted them, in the shipped set or the 200-card overplan.
+    for (const id of ['tok-lumen-drone', 'tok-violet-hullguard', 'tok-void-mote']) expect(CARD_DB[id]).toBeUndefined();
   });
 });
