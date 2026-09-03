@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-08-29
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-09-03
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -124,6 +124,11 @@ crop window around the same focal anchor by `S`, zooming out without synthesizin
 padding. It preserves the existing focal/headroom rules and `MAX_UPSCALE` floor;
 when the raw bounds cap the requested widening, the achieved scale is printed on
 stderr and included in the JSON result. At `1.0`, the crop path is unchanged.
+The optional signed `--offset-y N` argument (default `0`) then slides that same
+crop window vertically by `N` raw pixels, clamped to the raw bounds. The achieved
+offset is included as `achieved_offset_y` in the JSON result and reported on
+stderr when a non-zero request is made or the raw bounds clamp it. At `0`, the
+image crop remains byte-identical.
 
 The batch review tool is `npm run recrop-art` (`scripts/recrop-art.ts`). It
 reads retained raws from `%TEMP%/gen-card-art`, `%TEMP%/gen-land-art`, and
@@ -191,10 +196,15 @@ quota. After a generating batch it re-runs `npm run gen-art-manifest` so the
 game picks the new files up.
 
 For a review-only crop pass, `--recrop <file>` reads a JSON array of `{ "id",
-"scale" }` entries, uses only retained raws in `%TEMP%/gen-card-art/`, and
-overwrites the matching shipped WebPs without invoking image generation. Each
-entry reports `OK`, `CAPPED` when the raw bounds prevent more than 3% of the
-requested widening, or `MISSING-RAW`.
+"scale"?, "offsetY"?, "tag"? }` entries, uses only retained raws in
+`%TEMP%/gen-card-art/`, and overwrites the matching shipped WebPs without
+invoking image generation. Omitted `scale` and `offsetY` values default to `1`
+and `0`. With `--out-dir <path>`, results are written there as
+`<id>[.<tag>].webp` instead, so review variants can coexist without touching
+shipped art; manifest regeneration is skipped for this non-destructive mode.
+Each entry reports `OK`, `CAPPED` when the raw bounds prevent more than 3% of
+the requested widening, or `MISSING-RAW`, plus the requested and achieved
+vertical offset.
 
 ### Land art: `scripts/gen-land-art.ts`
 
@@ -239,7 +249,8 @@ WebPs up automatically.
 
 The spell driver also accepts `--recrop <file>` for entries whose retained
 raws live in `%TEMP%/gen-spell-art/`; it uses environment mode and the same
-no-generation `OK` / `CAPPED` / `MISSING-RAW` reporting.
+no-generation `OK` / `CAPPED` / `MISSING-RAW` reporting, including the
+`--out-dir` review-output mode.
 
 **Entry-coverage traps (learned 2026-07-13):** shipped images can exist with
 NO prompt entry anywhere (cf-dawn-torc and cf-silver-thread were generated

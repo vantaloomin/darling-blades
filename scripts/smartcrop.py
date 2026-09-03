@@ -69,6 +69,19 @@ def validate_margin_scale(margin_scale: float) -> None:
         raise ValueError("margin scale must be a finite number >= 1.0")
 
 
+def validate_offset_y(offset_y: int) -> None:
+    if isinstance(offset_y, bool) or not isinstance(offset_y, int):
+        raise ValueError("offset y must be an integer number of pixels")
+
+
+def offset_crop_box(crop: CropBox, src_h: int, offset_y: int) -> tuple[CropBox, int]:
+    """Slide a selected crop vertically and return the achieved pixel delta."""
+    validate_offset_y(offset_y)
+    max_top = max(0, src_h - crop.height)
+    top = clamp(crop.top + offset_y, 0, max_top)
+    return CropBox(crop.left, top, crop.width, crop.height), top - crop.top
+
+
 def cover_crop_size(src_w: int, src_h: int, out_w: int, out_h: int) -> tuple[int, int]:
     scale = max(out_w / src_w, out_h / src_h)
     crop_w = min(src_w, round(out_w / scale))
@@ -370,12 +383,14 @@ def crop_image(
     band_frac: float | None = None,
     focal_frac: float = FOCAL_FRAC,
     margin_scale: float = 1.0,
+    offset_y: int = 0,
 ) -> dict[str, Any]:
     if out_w <= 0 or out_h <= 0:
         raise ValueError("target width and height must be positive")
     if mode not in {"character", "environment"}:
         raise ValueError("mode must be character or environment")
     validate_margin_scale(margin_scale)
+    validate_offset_y(offset_y)
 
     with Image.open(src) as opened:
         im = opened.convert("RGB")
@@ -413,11 +428,17 @@ def crop_image(
             im.width, im.height, out_w, out_h, focal_x, focal_y, det.bbox[1], focal_frac, margin_scale
         )
 
+    crop, achieved_offset_y = offset_crop_box(crop, im.height, offset_y)
     save_crop(im, dst, crop, out_w, out_h)
     achieved_scale = min(crop.width / base_crop.width, crop.height / base_crop.height)
     if margin_scale > 1.0 and achieved_scale + 1e-9 < margin_scale:
         print(
             f"smartcrop: requested-scale={margin_scale:.6f} achieved-scale={achieved_scale:.6f}",
+            file=sys.stderr,
+        )
+    if offset_y != 0 or achieved_offset_y != offset_y:
+        print(
+            f"smartcrop: requested-offset-y={offset_y} achieved-offset-y={achieved_offset_y}",
             file=sys.stderr,
         )
     return {
@@ -427,6 +448,7 @@ def crop_image(
         "W": out_w,
         "H": out_h,
         "achieved_scale": achieved_scale,
+        "achieved_offset_y": achieved_offset_y,
     }
 
 
@@ -455,6 +477,9 @@ def run_self_test() -> None:
         focal_crop_box(1024, 1536, 640, 800, 512, 768, 700), CropBox(0, 256, 1024, 1280), "headroom inactive"
     )
     assert_equal(center_crop_box(1024, 1536, 640, 800), CropBox(0, 128, 1024, 1280), "center fallback")
+    assert_equal(offset_crop_box(CropBox(0, 128, 1024, 1280), 1536, -64), (CropBox(0, 64, 1024, 1280), -64), "offset up")
+    assert_equal(offset_crop_box(CropBox(0, 128, 1024, 1280), 1536, -999), (CropBox(0, 0, 1024, 1280), -128), "offset ceiling")
+    assert_equal(offset_crop_box(CropBox(0, 128, 1024, 1280), 1536, 999), (CropBox(0, 256, 1024, 1280), 128), "offset floor")
     # Zoom fallback: focal 170/1280 = 0.13 would hide the face above the
     # window band — zoom in until the focal reaches 0.40 (crop_h 170/0.4=425).
     assert_equal(
@@ -519,6 +544,7 @@ def main(argv: list[str]) -> int:
     band_frac: float | None = None
     focal_frac = FOCAL_FRAC
     margin_scale = 1.0
+    offset_y = 0
     positional: list[str] = []
     i = 0
     while i < len(argv):
@@ -531,13 +557,16 @@ def main(argv: list[str]) -> int:
         elif argv[i] == "--margin-scale" and i + 1 < len(argv):
             margin_scale = float(argv[i + 1])
             i += 2
+        elif argv[i] == "--offset-y" and i + 1 < len(argv):
+            offset_y = int(argv[i + 1])
+            i += 2
         else:
             positional.append(argv[i])
             i += 1
     if len(positional) != 5:
         print(
             "usage: python scripts/smartcrop.py <src> <dst> <W> <H> <character|environment>"
-            " [--band-frac F] [--focal-frac F] [--margin-scale S]",
+            " [--band-frac F] [--focal-frac F] [--margin-scale S] [--offset-y N]",
             file=sys.stderr,
         )
         print("       python scripts/smartcrop.py --self-test", file=sys.stderr)
@@ -554,6 +583,7 @@ def main(argv: list[str]) -> int:
             band_frac,
             focal_frac,
             margin_scale,
+            offset_y,
         )
     except Exception as exc:
         print(f"smartcrop: {exc}", file=sys.stderr)

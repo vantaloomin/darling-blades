@@ -15,7 +15,7 @@
  * Usage:
  *   npm run gen-card-art -- [--faction <stem>] [--only id1,id2] [--limit N]
  *                           [--dry-run] [--show-prompt] [--force] [--cli <path>]
- *   npm run gen-card-art -- --recrop <file>
+ *   npm run gen-card-art -- --recrop <file> [--out-dir <path>]
  *
  *   --faction greek   only entries from docs/art-bible/greek.md
  *   --only a,b        only these card ids
@@ -181,6 +181,7 @@ interface Args {
   only?: string[];
   limit?: number;
   recrop?: string;
+  outDir?: string;
   dryRun: boolean;
   showPrompt: boolean;
   force: boolean;
@@ -199,6 +200,11 @@ function parseArgs(argv: string[]): Args {
     if (a === '--faction') args.faction = next(a);
     else if (a === '--only') args.only = next(a).split(',').map((s) => s.trim()).filter(Boolean);
     else if (a === '--recrop') args.recrop = next(a);
+    else if (a === '--out-dir') {
+      const value = next(a);
+      if (value.length === 0) fail('--out-dir must not be empty');
+      args.outDir = value;
+    }
     else if (a === '--limit') {
       const n = Number(next(a));
       if (!Number.isInteger(n) || n <= 0) fail('--limit must be a positive integer');
@@ -236,12 +242,15 @@ interface Entry {
 interface RecropEntry {
   id: string;
   scale: number;
+  offsetY: number;
+  tag?: string;
 }
 
 interface SmartcropResult {
   source: string;
   crop: [number, number, number, number];
   achievedScale: number;
+  achievedOffsetY: number;
 }
 
 /** (card-id → prompt) pairs from one faction file, in file order. */
@@ -281,16 +290,30 @@ function readRecropBatch(file: string): RecropEntry[] {
     if (!item || typeof item !== 'object') fail(`recrop[${index}] must be an object`);
     const value = item as Record<string, unknown>;
     const id = value.id;
-    const scale = value.scale;
+    const scaleValue = value.scale;
+    const offsetValue = value.offsetY;
+    const tag = value.tag;
     if (typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(id)) {
       fail(`recrop[${index}].id must be a safe card id`);
     }
-    if (seen.has(id)) fail(`recrop batch contains duplicate id: ${id}`);
-    seen.add(id);
-    if (typeof scale !== 'number' || !Number.isFinite(scale) || scale < 1) {
+    if (scaleValue !== undefined && (typeof scaleValue !== 'number' || !Number.isFinite(scaleValue) || scaleValue < 1)) {
       fail(`recrop[${index}].scale must be a finite number >= 1`);
     }
-    return { id, scale };
+    if (offsetValue !== undefined && (typeof offsetValue !== 'number' || !Number.isInteger(offsetValue))) {
+      fail(`recrop[${index}].offsetY must be a finite integer number of pixels`);
+    }
+    if (tag !== undefined && (typeof tag !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(tag))) {
+      fail(`recrop[${index}].tag must be a safe non-empty tag`);
+    }
+    const outputKey = `${id}\u0000${tag ?? ''}`;
+    if (seen.has(outputKey)) fail(`recrop batch contains duplicate output: ${id}${tag ? `.${tag}` : ''}`);
+    seen.add(outputKey);
+    return {
+      id,
+      scale: scaleValue === undefined ? 1 : scaleValue,
+      offsetY: offsetValue === undefined ? 0 : offsetValue,
+      tag,
+    };
   });
 }
 
@@ -307,6 +330,7 @@ function parseSmartcropResult(stdout: string, id: string): SmartcropResult {
   const value = raw as Record<string, unknown>;
   const crop = value.crop;
   const achievedScale = value.achieved_scale;
+  const achievedOffsetY = value.achieved_offset_y;
   if (typeof value.source !== 'string') fail(`smartcrop returned no source for ${id}`);
   if (!Array.isArray(crop) || crop.length !== 4 || !crop.every((n) => typeof n === 'number' && Number.isFinite(n))) {
     fail(`smartcrop returned an invalid crop box for ${id}`);
@@ -317,20 +341,30 @@ function parseSmartcropResult(stdout: string, id: string): SmartcropResult {
   if (typeof achievedScale !== 'number' || !Number.isFinite(achievedScale)) {
     fail(`smartcrop returned no achieved scale for ${id}`);
   }
-  return { source: value.source, crop: crop as [number, number, number, number], achievedScale };
+  if (typeof achievedOffsetY !== 'number' || !Number.isInteger(achievedOffsetY)) {
+    fail(`smartcrop returned no achieved offset y for ${id}`);
+  }
+  return { source: value.source, crop: crop as [number, number, number, number], achievedScale, achievedOffsetY };
 }
 
-function runRecrop(file: string, dryRun: boolean): void {
+function runRecrop(file: string, dryRun: boolean, reviewOutDir?: string): void {
   const batch = readRecropBatch(file);
+  const targetDir = reviewOutDir === undefined ? outDir : resolve(root, reviewOutDir);
+  if (reviewOutDir !== undefined && targetDir.toLowerCase() === outDir.toLowerCase()) {
+    fail('--out-dir must be different from public/assets/art/cards for non-destructive recrop review');
+  }
   if (dryRun) {
     console.log(`gen-card-art: recrop dry run, ${batch.length} entr${batch.length === 1 ? 'y' : 'ies'}; nothing written`);
     for (const entry of batch) {
       const rawPath = join(rawDir, `${entry.id}.raw.png`);
-      console.log(`${existsSync(rawPath) ? 'WOULD-RECROP' : 'MISSING-RAW'} ${entry.id} requested=${entry.scale}`);
+      console.log(
+        `${existsSync(rawPath) ? 'WOULD-RECROP' : 'MISSING-RAW'} ${entry.id} requested=${entry.scale} ` +
+          `offsetY=${entry.offsetY}${entry.tag ? ` tag=${entry.tag}` : ''}`,
+      );
     }
     return;
   }
-  mkdirSync(outDir, { recursive: true });
+  mkdirSync(targetDir, { recursive: true });
   const capped: string[] = [];
   const missing: string[] = [];
   const failures: string[] = [];
@@ -344,11 +378,23 @@ function runRecrop(file: string, dryRun: boolean): void {
       console.log(`MISSING-RAW ${entry.id} requested=${entry.scale}`);
       continue;
     }
-    const outPath = join(outDir, `${entry.id}.webp`);
+    const filename = `${entry.id}${entry.tag ? `.${entry.tag}` : ''}.webp`;
+    const outPath = join(targetDir, filename);
     const tmpPath = `${outPath}.recrop.tmp.png`;
     const post = spawnSync(
       PYTHON,
-      [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'character', '--margin-scale', String(entry.scale)],
+      [
+        smartcropPath,
+        rawPath,
+        tmpPath,
+        String(OUT_W),
+        String(OUT_H),
+        'character',
+        '--margin-scale',
+        String(entry.scale),
+        '--offset-y',
+        String(entry.offsetY),
+      ],
       { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
     );
     if (post.error || post.status !== 0) {
@@ -369,7 +415,9 @@ function runRecrop(file: string, dryRun: boolean): void {
       const status = isCapped ? 'CAPPED' : 'OK';
       console.log(
         `${status} ${entry.id} requested=${entry.scale} achieved=${result.achievedScale.toFixed(6)} ` +
-          `source=${result.source} crop=[${result.crop.join(',')}]`,
+          `offsetY=${entry.offsetY} achievedOffsetY=${result.achievedOffsetY} ` +
+          `${entry.tag ? `tag=${entry.tag} ` : ''}source=${result.source} crop=[${result.crop.join(',')}] ` +
+          `out=${outPath}`,
       );
       processed++;
     } catch (error) {
@@ -379,8 +427,10 @@ function runRecrop(file: string, dryRun: boolean): void {
     }
   }
 
-  const manifest = spawnSync('npm run gen-art-manifest', { shell: true, stdio: 'inherit' });
-  if (manifest.status !== 0) fail('gen-art-manifest failed after --recrop');
+  if (reviewOutDir === undefined) {
+    const manifest = spawnSync('npm run gen-art-manifest', { shell: true, stdio: 'inherit' });
+    if (manifest.status !== 0) fail('gen-art-manifest failed after --recrop');
+  }
   console.log(
     `gen-card-art: recropped ${processed}/${batch.length}; CAPPED=${capped.length}; MISSING-RAW=${missing.length}; ` +
       `FAILED=${failures.length}`,
@@ -499,9 +549,10 @@ function main(): void {
     if (args.faction || args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
       fail('--recrop cannot be combined with generation filters or --force/--cli');
     }
-    runRecrop(args.recrop, args.dryRun);
+    runRecrop(args.recrop, args.dryRun, args.outDir);
     return;
   }
+  if (args.outDir !== undefined) fail('--out-dir is only valid with --recrop');
 
   const factions = args.faction ? [args.faction] : [...FACTIONS];
   let entries = factions.flatMap(parseFaction);
