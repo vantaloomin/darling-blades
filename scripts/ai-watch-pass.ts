@@ -17,6 +17,10 @@
  *   dead%       copies still in hand when the game ended
  *   dawns       the row's turn-starts with the card on the battlefield
  *   thr%        share of those dawns at or above the card's mark threshold
+ *   thrM%       the same share counting TOTAL marks on those creatures, the
+ *               count Propagate compounds (the engine condition counts creatures)
+ *   mk/dawn, tm/dawn  marked creatures and total marks at the row's own dawns
+ *   >=4g >=5g, >=4t >=5t  games ever reaching 4/5 marked creatures / total marks
  *   probe       the card's own payoff: marked creatures on arrival
  *               (Motherboard's Propagate), youAddMark triggers per game on
  *               board (Choir), opponent marked creatures on arrival (Gullet)
@@ -95,6 +99,9 @@ interface GameStats {
   markedDawns: number;
   markedDawnSum: number;
   maxMarked: number;
+  totalMarkSum: number;
+  maxTotalMarks: number;
+  thresholdDawnsByTotal: number;
   won: boolean;
 }
 
@@ -104,6 +111,12 @@ function markedCreatures(state: Readonly<GameState>, controller: PlayerId): numb
     perm.plusOneCounters > 0 &&
     (CARD_DB[perm.cardId]?.types.includes('creature') ?? false),
   ).length;
+}
+
+function totalMarks(state: Readonly<GameState>, controller: PlayerId): number {
+  return state.battlefield
+    .filter((perm) => perm.controller === controller && (CARD_DB[perm.cardId]?.types.includes('creature') ?? false))
+    .reduce((sum, perm) => sum + perm.plusOneCounters, 0);
 }
 
 /** One observer per game: everything it learns about `watch.id` on `me`'s side. */
@@ -128,10 +141,14 @@ function makeObserver(watch: WatchCard, me: PlayerId, stats: GameStats) {
         stats.markedDawns++;
         stats.markedDawnSum += markedNow;
         if (markedNow > stats.maxMarked) stats.maxMarked = markedNow;
+        const totalNow = totalMarks(state, me);
+        stats.totalMarkSum += totalNow;
+        if (totalNow > stats.maxTotalMarks) stats.maxTotalMarks = totalNow;
         const onBoard = state.battlefield.some((perm) => perm.controller === me && perm.cardId === watch.id);
         if (!onBoard) break;
         stats.dawnsOnBoard++;
         if (watch.threshold !== undefined && markedCreatures(state, me) >= watch.threshold) stats.thresholdDawns++;
+        if (watch.threshold !== undefined && totalMarks(state, me) >= watch.threshold) stats.thresholdDawnsByTotal++;
         break;
       }
       case 'drew':
@@ -181,6 +198,9 @@ function makeMarksObserver(me: PlayerId, stats: GameStats) {
       stats.markedDawns++;
       stats.markedDawnSum += markedNow;
       if (markedNow > stats.maxMarked) stats.maxMarked = markedNow;
+        const totalNow = totalMarks(state, me);
+        stats.totalMarkSum += totalNow;
+        if (totalNow > stats.maxTotalMarks) stats.maxTotalMarks = totalNow;
     } else if (event.e === 'gameEnded') {
       stats.won = event.winner === me;
     }
@@ -228,6 +248,10 @@ interface Row {
   markedDawnSum: number;
   gamesAt4: number;
   gamesAt5: number;
+  thresholdDawnsByTotal: number;
+  totalMarkSum: number;
+  gamesTotalAt4: number;
+  gamesTotalAt5: number;
   perColumn: Record<string, CellStats>;
 }
 
@@ -241,7 +265,7 @@ function playSeries(
 ): Row {
   const row: Row = {
     id: watch?.id ?? 'baseline', host: label, games: 0, wins: 0, seen: 0, cast: 0, holdTurns: 0,
-    deadAtEnd: 0, dawnsOnBoard: 0, thresholdDawns: 0, probeSamples: 0, probeTotal: 0, markedDawns: 0, markedDawnSum: 0, gamesAt4: 0, gamesAt5: 0, perColumn: {},
+    deadAtEnd: 0, dawnsOnBoard: 0, thresholdDawns: 0, probeSamples: 0, probeTotal: 0, markedDawns: 0, markedDawnSum: 0, gamesAt4: 0, gamesAt5: 0, thresholdDawnsByTotal: 0, totalMarkSum: 0, gamesTotalAt4: 0, gamesTotalAt5: 0, perColumn: {},
   };
   cols.forEach((column, cIdx) => {
     const cell: CellStats = { games: 0, wins: 0, cast: 0, seen: 0, thresholdDawns: 0, dawnsOnBoard: 0 };
@@ -252,7 +276,7 @@ function playSeries(
       const me = (rowIsP0 ? 0 : 1) as PlayerId;
       const stats: GameStats = {
         seen: 0, cast: 0, holdTurns: 0, deadAtEnd: 0, dawnsOnBoard: 0, thresholdDawns: 0,
-        probeSamples: 0, probeTotal: 0, markedDawns: 0, markedDawnSum: 0, maxMarked: 0, won: false,
+        probeSamples: 0, probeTotal: 0, markedDawns: 0, markedDawnSum: 0, maxMarked: 0, totalMarkSum: 0, maxTotalMarks: 0, thresholdDawnsByTotal: 0, won: false,
       };
       const rowAI = host.ai(gameSeed * 7 + 1);
       const colAI = new MediumAI(CARD_DB);
@@ -285,6 +309,9 @@ function playSeries(
       row.markedDawns += stats.markedDawns; row.markedDawnSum += stats.markedDawnSum;
       if (stats.maxMarked >= 4) row.gamesAt4++;
       if (stats.maxMarked >= 5) row.gamesAt5++;
+      row.thresholdDawnsByTotal += stats.thresholdDawnsByTotal; row.totalMarkSum += stats.totalMarkSum;
+      if (stats.maxTotalMarks >= 4) row.gamesTotalAt4++;
+      if (stats.maxTotalMarks >= 5) row.gamesTotalAt5++;
     }
     row.perColumn[column.name] = cell;
     log(`  ${row.id} vs ${column.name}: ${cell.wins}/${cell.games} wins` +
@@ -320,7 +347,7 @@ export function runAiWatchPass(seeds: number, only?: string[], log: (line: strin
   const lines = [
     '',
     `AI-WATCH PASS - ${seeds} seeds/column, ${cols.length} Medium-piloted columns (${cols.map((c) => c.name).join(', ')})`,
-    'card                     host                     games seen cast%  hold  dead% dawns  thr%  probe                        win%  base mk/dawn  >=4g  >=5g',
+    'card                     host                     games seen cast%  hold  dead% dawns  thr% thrM%  probe                        win%  base mk/dawn  >=4g  >=5g tm/dawn  >=4t  >=5t',
   ];
   for (const r of rows.filter((r) => r.id !== 'baseline')) {
     const watch = WATCH.find((w) => w.id === r.id)!;
@@ -333,8 +360,10 @@ export function runAiWatchPass(seeds: number, only?: string[], log: (line: strin
       String(r.games).padStart(5) + ' ' + String(r.seen).padStart(4) + ' ' + pct(r.cast, r.seen) + '  ' +
       (r.cast ? (r.holdTurns / r.cast).toFixed(1) : '-').padStart(4) + '  ' + pct(r.deadAtEnd, r.seen) + ' ' +
       String(r.dawnsOnBoard).padStart(5) + ' ' + (watch.threshold ? pct(r.thresholdDawns, r.dawnsOnBoard) : '   -') + '  ' +
+      (watch.threshold ? pct(r.thresholdDawnsByTotal, r.dawnsOnBoard) : '   -') + '  ' +
       probe.padEnd(28) + ' ' + pct(r.wins, r.games) + '  ' + pct(Math.round((baselineWin.get(r.host) ?? 0) * r.games), r.games) +
-      ' ' + (r.markedDawnSum / Math.max(1, r.markedDawns)).toFixed(2).padStart(7) + ' ' + pct(r.gamesAt4, r.games) + ' ' + pct(r.gamesAt5, r.games),
+      ' ' + (r.markedDawnSum / Math.max(1, r.markedDawns)).toFixed(2).padStart(7) + ' ' + pct(r.gamesAt4, r.games) + ' ' + pct(r.gamesAt5, r.games) +
+      ' ' + (r.totalMarkSum / Math.max(1, r.markedDawns)).toFixed(2).padStart(7) + ' ' + pct(r.gamesTotalAt4, r.games) + ' ' + pct(r.gamesTotalAt5, r.games),
     );
   }
   for (const r of rows.filter((r) => r.id === 'baseline')) {
@@ -343,6 +372,10 @@ export function runAiWatchPass(seeds: number, only?: string[], log: (line: strin
       `baseline ${r.host}: win ${pct(r.wins, r.games).trim()}, marked creatures at own dawns mean ${mean}, ` +
       `games ever reaching 4: ${pct(r.gamesAt4, r.games).trim()}, 5: ${pct(r.gamesAt5, r.games).trim()}`,
     );
+  }
+  for (const r of rows.filter((r) => r.id === 'baseline')) {
+    lines.push('baseline ' + r.host + ': total marks at own dawns mean ' + (r.totalMarkSum / Math.max(1, r.markedDawns)).toFixed(2) +
+      ', games ever reaching 4 total marks: ' + pct(r.gamesTotalAt4, r.games).trim() + ', 5: ' + pct(r.gamesTotalAt5, r.games).trim());
   }
   for (const line of lines) log(line);
   return { seeds, columns: cols.map((c) => c.name), rows, table: lines.join('\n') };

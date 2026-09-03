@@ -92,8 +92,20 @@ _Dated 2026-08-25. Review monthly._
   on board, Relay's 4-mark draw on 1%, Antenna's on 2%. Choir is fully
   live at 4.0 triggers per game on board; Gullet's arrival finds 0.11
   opposing marked creatures. No shipped AI deck carries any of the six, so
-  1.7 ships with no player-facing exposure; the debt is the hard AI's mark
-  accumulation, filed for 1.8.
+  1.7 ships with no player-facing exposure. The AI half of the debt was paid
+  the same day: marks now carry a body premium in `permValue`, the hard
+  evaluator credits threshold progress and Propagate in hand, mark targeting
+  prefers survivable and unmarked bodies, and Propagate and mark-all casts
+  wait for a board that multiplies them, all five win-rate gates unchanged.
+  What that bought is small (marked creatures at dawn 0.21 to 0.25, Relay's
+  gate 1% to 3%) because the ceiling is board size: Broodmother averages 1.3
+  creatures at her dawns, and a deliberately passive pilot holds 1.35, since
+  her bodies die blocking and to removal far more than attacking. Four- and
+  five-creature thresholds are a design lever, not an AI one. Measured both
+  counts: by TOTAL marks (what Propagate compounds) the same gates open three
+  to four times as often, Cathedral 0% to 5% of dawns on board, Relay 3% to
+  12%, Antenna 2% to 10%, and Broodmother reaches four total marks in 11% of
+  games and five in 5%, against 3% and 1% by marked creatures.
 - **The v3.1 balance program (#305-#306, #308, #313).** The power formula
   was rebuilt (pip-weighted budget, additive rarity, colour-pie premium),
   over three hundred cards re-costed under owner adjudication, Rage landed

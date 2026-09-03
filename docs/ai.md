@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-08-23
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts · last-verified: 2026-09-03
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -194,10 +194,30 @@ noisy — deviations must earn their keep.
 - **Clock** — rewards your power beyond half the opponent's life; penalizes their
   power beyond your life (`0.6 * max(0, myPower − their.life*0.5)` and
   `−1.5 * max(0, theirPower − my.life)`).
+- **Marks beyond the bodies** (`markedBoardValue`, 2026-09-03) — each
+  mark-gated ability in play (`controlMarked`, `markedThreshold`) earns its ops'
+  worth times progress squared toward its need, paying 1.5× once the gate is
+  met, because the one-turn lookahead ends before any dawn trigger fires; the
+  same abilities still in the AI's own hand count at half weight so the board
+  is built before the payoff is cast; and every Propagate source in hand (up
+  to two) adds 0.3 per marked creature on board. The opponent's term reads the
+  board only.
 - **Terminal states dominate** — win `+1e6`, loss `−1e6`, draw `−500`.
 
 `permValue`/`cardValue` (`value.ts`) score a card by mana value + (P+T)/2 +
-keyword bonuses + a lord/legendary and triggered-ability premium.
+keyword bonuses + a lord/legendary and triggered-ability premium. On the
+battlefield a marked creature carries a further **0.5 premium plus 0.15 per
+extra mark** (`markedBodyValue`): a mark is what Propagate compounds and what
+thresholds count, so it tips even trades in combat and block math without
+turning the body into an untouchable. Two more board-shaped corrections came
+from the 2026-09-03 seeded pass on Starborne's threshold cards, where the hard
+AI was casting Propagate bodies and mark-all spells into empty boards and
+marking whichever creature came first: `markBoardAdjust` shifts a cast's
+score by the marked creatures (Propagate) or creatures (mark-all) it will
+actually touch, negative on a board that cannot use it yet, and mark
+targeting prefers the body that keeps the mark alive (toughness, evasion, no
+damage) and spreads over unmarked bodies when a threshold payoff is in play
+or in hand.
 
 ## Win-rate gates
 

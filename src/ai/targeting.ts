@@ -5,6 +5,7 @@ import { def, isType, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import {
   cardValue,
+  hasMarkPayoff,
   opImpactValue,
   removalTargetValue,
 } from './value';
@@ -67,11 +68,29 @@ function boostTargetValue(
   return printedDelta * (perm.controller === ctx.view.myId ? 1 : -1) * 0.75;
 }
 
+/**
+ * A mark is only worth what the body carrying it survives to do. Among our
+ * own creatures prefer the one that keeps the mark alive (toughness, evasion,
+ * no damage on it) and, when a threshold payoff is in play or in hand, spread
+ * marks over unmarked bodies: thresholds and the marked-filter lords count
+ * creatures, not counters.
+ */
 function markCounterValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'addCounters' }>, ref: TargetRef): number {
   if (op.to !== 'target') return 0;
   const perm = permanentFor(ctx, ref);
   if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
-  return op.n * 1.2 * (perm.controller === ctx.view.myId ? 1 : -1);
+  if (perm.controller !== ctx.view.myId) return -op.n * 1.2;
+  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const toughnessAfter = stats.defense + op.n - perm.damage;
+  let value = op.n * 1.2;
+  if (toughnessAfter >= 4) value += 0.4;
+  else if (toughnessAfter <= 1) value -= 0.4;
+  if (stats.keywords.has('skyborne') || stats.keywords.has('untouchable')) value += 0.3;
+  if (perm.plusOneCounters === 0) {
+    value += 0.2;
+    if (hasMarkPayoff(ctx.view.battlefield, ctx.db, ctx.view.myId, ctx.view.you.hand)) value += 0.5;
+  }
+  return value;
 }
 
 function effectOnTarget(ctx: TargetContext, op: EffectOp, ref: TargetRef): number {
