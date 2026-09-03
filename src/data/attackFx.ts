@@ -760,12 +760,9 @@ function fallbackHeavy(card: CardDef): boolean {
 }
 
 const STARBORNE_TOKEN_IDS = new Set([
-  'tok-lumen-drone',
   'tok-broodling',
   'tok-chrome-husk',
   'tok-nebula-firefly',
-  'tok-violet-hullguard',
-  'tok-void-mote',
 ]);
 
 for (const card of [...STARBORNE, ...TOKENS.filter((token) => STARBORNE_TOKEN_IDS.has(token.id))]) {

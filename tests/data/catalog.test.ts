@@ -269,7 +269,10 @@ describe('catalog integrity', () => {
     // including tokens and basics. Starborne adds 151 collectibles and six
     // set tokens; the v3.1 Fenrir ruling (2026-08-29) adds tok-wolf-cub
     // (1/1, art shared with tok-wolf via artRef): 1261 -> 1262.
-    expect(ALL_CARDS).toHaveLength(1262);
+    // The 2026-09-03 minterless-token cut removes tok-lumen-drone,
+    // tok-violet-hullguard and tok-void-mote (no card ever minted them):
+    // 1262 -> 1259.
+    expect(ALL_CARDS).toHaveLength(1259);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {

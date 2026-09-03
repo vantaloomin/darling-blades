@@ -379,9 +379,12 @@ Every entry respects the printed-plus-Empower ceiling of 9.
 
 Both were previously treated as their home set's identity. The owner ruling is
 that neither is locked, and Starborne satisfies the one real prerequisite: Rite
-needs sacrifice fodder in the format, and this set already ships six token types
+needs sacrifice fodder in the format, and this set ships three token types (six
+were proposed; see the cut note above)
 across all five colours (Lumen Drone, Broodling, Chrome Husk, Nebula Firefly,
-Violet Hullguard, Void Mote).
+Violet Hullguard, Void Mote). **Cut 2026-09-03:** Lumen Drone, Violet Hullguard
+and Void Mote never received a minter, here or in the shipped set, so the three
+were removed from the data; Broodling, Chrome Husk and Nebula Firefly ship.
 
 Rite also lands squarely on the set's stated identity, that "every shining body
 may be part of a larger appetite", and it gives black a second job beyond
