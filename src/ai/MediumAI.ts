@@ -18,6 +18,7 @@ import {
   cardValue,
   empowerValue,
   hauntlinkCastValue,
+  markBoardAdjust,
   permValue,
   removalKind,
   removalValueForCast,
@@ -209,7 +210,10 @@ export class MediumAI implements AIPlayer {
       ? retellValue(this.db, cardId) + 0.01
       : this.developScore(cardId) + (cast.x ?? 0) +
           (cast.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
-    return value - riteSacrificeValue(view, this.db, cast);
+    // Printed value cannot see that Propagate and mark-all multiply by the
+    // board; on an empty one they are the wrong card to lead with.
+    return value + markBoardAdjust(view.battlefield, this.db, view.myId, cardId) -
+      riteSacrificeValue(view, this.db, cast);
   }
 
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
