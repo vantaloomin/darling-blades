@@ -75,7 +75,7 @@ export class FilterBar {
     };
 
     const setOpts: DropdownOption<CollectionFilterState['set']>[] = [
-      { value: 'all', label: 'All Sets' },
+      { value: 'all', label: 'All sets' },
       ...SET_IDS.filter(isLiveSet).map((id) => ({ value: id, label: SET_TITLES[id] })),
     ];
     mk(55, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92);

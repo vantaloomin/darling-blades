@@ -3,6 +3,8 @@ import { bindTapButton, inflateHitArea } from '../platform/gestures';
 import { colorInt, theme } from './theme';
 import {
   anchoredControlBounds,
+  controlPadding,
+  DROPDOWN_GEOMETRY,
   measureThemedButton,
   modalShellLayout,
   sceneHeaderFooterLayout,
@@ -192,6 +194,12 @@ export interface RoundedTriggerOptions {
   enabled?: boolean;
   onTap?: (pointer: Phaser.Input.Pointer) => void;
   focus?: FocusMetadata;
+  /** Optional fixed-width select content with independently colored parts. */
+  parts?: {
+    label: string;
+    value: string;
+    maxValueWidth?: number;
+  };
 }
 
 export interface RoundedTrigger {
@@ -208,6 +216,8 @@ export interface RoundedTrigger {
     hit: { width: number; height: number };
   };
   setLabel(label: string): void;
+  setValue(value: string): void;
+  setOpen(open: boolean): void;
   setVariant(variant: Extract<ButtonVariant, 'emphasis' | 'ghost'>): void;
   setSelected(selected: boolean): void;
   setEnabled(enabled: boolean): void;
@@ -231,23 +241,59 @@ export function roundedTrigger(
   let enabled = opts.enabled ?? true;
   let hovered = false;
   let pressed = false;
+  let open = false;
   let style = BUTTON_STYLE[variant];
   const height = size === 'sm' ? theme.control.heightSm : theme.control.heightMd;
   const fontSize = size === 'sm' ? theme.type.caption : theme.type.label;
+  const padding = opts.padding ?? controlPadding(size);
+  const parts = opts.parts;
   const container = scene.add.container(0, 0);
   const background = scene.add.graphics();
   const label = scene.add
-    .text(0, 0, initialLabel, {
+    .text(0, 0, parts?.label ?? initialLabel, {
       fontFamily: theme.fonts.ui,
       fontSize: `${fontSize}px`,
       fontStyle: theme.weight.w600,
-      color: style.fg,
+      color: parts ? theme.colors.muted : style.fg,
     })
-    .setOrigin(0.5);
+    .setOrigin(parts ? 0 : 0.5, 0.5);
+  const value = parts
+    ? scene.add
+        .text(0, 0, parts.value, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${fontSize}px`,
+          fontStyle: theme.weight.w600,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0, 0.5)
+    : null;
+  const chevron = parts
+    ? scene.add
+        .text(0, 0, '\u25be', {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${fontSize}px`,
+          fontStyle: theme.weight.w700,
+          color: theme.colors.gold,
+        })
+        .setOrigin(0.5, 0.5)
+    : null;
   const inputZone = scene.add.zone(0, 0, 1, height).setInteractive({ useHandCursor: true });
-  container.add([background, label, inputZone]);
+  container.add([background, label]);
+  if (value) container.add(value);
+  if (chevron) container.add(chevron);
+  container.add(inputZone);
 
-  let measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
+  const triggerGap = DROPDOWN_GEOMETRY.triggerGap;
+  const glyphSlotWidth = DROPDOWN_GEOMETRY.glyphSlotWidth;
+  const fixedMeasurement = parts
+    ? measureThemedButton(
+        label.width + triggerGap + Math.max(value?.width ?? 0, parts.maxValueWidth ?? 0) + triggerGap + glyphSlotWidth,
+        size,
+        opts.minWidth ?? 0,
+        padding,
+      )
+    : null;
+  let measurement = fixedMeasurement ?? measureThemedButton(label.width, size, opts.minWidth ?? 0, padding);
   const activeStyle = (): { bg: string; fg: string; stroke: string; hoverStroke: string } =>
     selected && variant === 'ghost' ? BUTTON_STYLE.emphasis : style;
   let placed = false;
@@ -256,7 +302,7 @@ export function roundedTrigger(
     // changes its measured label width. FilterBar reflows by that same edge,
     // so redraws must not silently move a CTA back to its construction x.
     const previousLeft = placed ? container.x - measurement.visual.width / 2 : null;
-    measurement = measureThemedButton(label.width, size, opts.minWidth ?? 0, opts.padding);
+    measurement = fixedMeasurement ?? measureThemedButton(label.width, size, opts.minWidth ?? 0, padding);
     const stateStyle = activeStyle();
     background.clear();
     background.fillStyle(colorInt(stateStyle.bg), 1);
@@ -279,7 +325,21 @@ export function roundedTrigger(
       measurement.visual.height,
       theme.radius.control,
     );
-    label.setColor(stateStyle.fg);
+    if (parts && value && chevron) {
+      const textX = measurement.visual.x + padding;
+      label.setColor(theme.colors.muted);
+      label.setPosition(textX, 0);
+      value.setColor(theme.colors.gold);
+      value.setPosition(textX + label.width + triggerGap, 0);
+      chevron.setColor(theme.colors.gold);
+      chevron.setText(open ? '\u25b4' : '\u25be');
+      chevron.setPosition(
+        measurement.visual.x + measurement.visual.width - padding - glyphSlotWidth / 2,
+        0,
+      );
+    } else {
+      label.setColor(stateStyle.fg);
+    }
     inputZone.setSize(measurement.width, measurement.height);
     // The Zone is the input surface. Re-apply after every label update so its
     // minimum touch target remains explicit even when Phaser refreshes size.
@@ -303,6 +363,16 @@ export function roundedTrigger(
   };
   const setLabel = (next: string): void => {
     label.setText(next);
+    redraw();
+  };
+  const setValue = (next: string): void => {
+    if (value) value.setText(next);
+    else label.setText(next);
+    redraw();
+  };
+  const setOpen = (next: boolean): void => {
+    open = next;
+    if (chevron) chevron.setText(open ? '\u25b4' : '\u25be');
     redraw();
   };
   const setVariant = (next: Extract<ButtonVariant, 'emphasis' | 'ghost'>): void => {
@@ -374,6 +444,8 @@ export function roundedTrigger(
     getMeasuredBounds,
     getMeasuredSize,
     setLabel,
+    setValue,
+    setOpen,
     setVariant,
     setSelected,
     setEnabled,

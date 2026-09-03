@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ALL_CARDS } from '../../src/data/catalog';
 import { SET_IDS, SET_TITLES } from '../../src/data/setTitles';
 import { theme } from '../../src/ui/theme';
-import { TITLE_SAFE_EDGES, dropdownPopoverLayout } from '../../src/ui/layout';
+import { dropdownPanelWidth, TITLE_SAFE_EDGES, dropdownPopoverLayout } from '../../src/ui/layout';
 
 /**
  * The Collection binder's set filter (src/ui/binder/FilterBar.ts) kept its own
@@ -28,12 +28,23 @@ describe('Collection binder set filter', () => {
   it('the set dropdown still fits the title-safe frame with every set listed', () => {
     // Mirrors the binder's own control: FilterBar places the Set dropdown at
     // x 55 on the filter row, and CollectionScene puts that row at y 104.
-    const trigger = { x: 55, y: 104, width: 92, height: theme.control.minHitHeight };
-    // One row per set, plus the leading "All Sets" row.
-    const layout = dropdownPopoverLayout(trigger, SET_IDS.length + 1, { panelWidth: trigger.width });
+    const trigger = { x: 55, y: 104, width: 193, height: theme.control.minHitHeight };
+    // One row per set, plus the leading "All sets" row. The content-sized
+    // renderer uses two equal columns after that leading row. 122px is the
+    // measured 14px/w700 width of the current longest set title, and 193px is
+    // the fixed Set trigger width with its caption, value, and chevron slot.
+    const panelWidth = dropdownPanelWidth(trigger.width, 122, SET_IDS.length + 1);
+    const layout = dropdownPopoverLayout(trigger, SET_IDS.length + 1, { panelWidth });
 
     expect(layout.panel.y).toBeGreaterThanOrEqual(TITLE_SAFE_EDGES.top);
     expect(layout.panel.y + layout.panel.height).toBeLessThanOrEqual(TITLE_SAFE_EDGES.bottom);
     expect(layout.rows).toHaveLength(SET_IDS.length + 1);
+    expect(layout.columns).toBe(2);
+    expect(panelWidth).toBe(348);
+    expect(layout.panel.width).toBe(348);
+    expect(layout.panel.height).toBe(329);
+    expect(layout.rows[0]).toEqual({ x: 72, y: 164, width: 332, height: 44 });
+    expect(layout.rows[1]).toEqual({ x: 72, y: 217, width: 162, height: 44 });
+    expect(layout.rows[6]).toEqual({ x: 242, y: 217, width: 162, height: 44 });
   });
 });

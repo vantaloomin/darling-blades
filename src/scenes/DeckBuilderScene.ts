@@ -513,7 +513,7 @@ export class DeckBuilderScene extends Phaser.Scene {
     // silently omitted two releases that way) and liveness-gated so an
     // unreleased set never shows as an empty option.
     const setOpts: DropdownOption<CollectionFilterState['set']>[] = [
-      { value: 'all', label: 'All Sets' },
+      { value: 'all', label: 'All sets' },
       ...SET_IDS.filter(isLiveSet).map((id) => ({ value: id, label: SET_TITLES[id] })),
     ];
     mk(158, 'Set', setOpts, () => this.filterState.set, (v) => (this.filterState.set = v));
