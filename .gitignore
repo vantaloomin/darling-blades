@@ -64,6 +64,16 @@ scripts/mtg-db.ts
 docs/mtg-reference-db.md
 docs/mtg-db-playbook.md
 
+# ── Local-only save editor (cheat / repair tool; never committed) ────────
+# A standalone HTML page that decodes an exported DBS1 save code, edits gold,
+# collection, decks, deck ownership and the rest, then re-encodes it for import.
+# The repo is public and auto-deploys, so the tool and its generator stay local.
+# Rebuild with:
+#   npx tsx scripts/build-save-editor.ts
+scripts/build-save-editor.ts
+scripts/save-editor/
+tools/save-editor.html
+
 # ── Logs ──────────────────────────────────────────────────────────────────
 .artcrop-staging/
 

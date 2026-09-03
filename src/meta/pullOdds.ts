@@ -41,6 +41,22 @@ function roundToSignificantFigures(value: number, digits: number): number {
   return Math.round(value * magnitude) / magnitude;
 }
 
+/**
+ * The exact-odds headline: the reciprocal itself, not a rounded magnitude.
+ *
+ * `formatOdds` keeps three significant figures, which reads as "1:1980.00M" for
+ * the UR black void Full Art roll. Those trailing zeros claimed a precision the
+ * rounding had already discarded, and inverting the percentage printed beside it
+ * gave a different number again (user report 2026-09-03). The plate prints the
+ * whole number instead. Reciprocals under 100 keep one decimal, where the
+ * fraction is a real part of the answer: a plain common is 1 in 6.7, not 1 in 7.
+ */
+export function formatExactOdds(probability: number): string {
+  const oneIn = 1 / probability;
+  const value = oneIn < 100 ? Number(oneIn.toFixed(1)) : Math.round(oneIn);
+  return `1 in ${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}`;
+}
+
 /** Formats a probability as a player-facing one-in-N pull odds string. */
 export function formatOdds(probability: number): string {
   const oneIn = 1 / probability;
