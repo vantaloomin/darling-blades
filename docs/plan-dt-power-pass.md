@@ -125,8 +125,8 @@ npx tsx scripts/balance-matrix.ts --avatars --seeds 40
 npx tsx scripts/balance-matrix.ts --floors --seeds 80
 npx tsx scripts/progression-sim.ts --seeds 8 --days 60
 npx tsx scripts/progression-sim.ts --seeds 8 --days 60 --crafting --craft-cost-mult <K>
-npx tsx scripts/personas/craft.ts --all --pool all --field prefabs --seeds 150 --iterations 80 --seed 20260720 --workers 14
-npx tsx scripts/personas/craft.ts --metagame --all --pool all --field prefabs --seeds 150 --iterations 80 --rounds 4 --workers 14
+npx tsx scripts/personas/craft.ts --all --pool all --field prefabs --seeds 150 --iterations 80 --seed 20260720 --workers 8
+npx tsx scripts/personas/craft.ts --metagame --all --pool all --field prefabs --seeds 150 --iterations 80 --rounds 4 --workers 8
 ```
 
 Every candidate's outcome is now dated and recorded (Outcome section above; per-list ledgers at the decks; W7 tables in `src/data/opponents.ts`). The metagame mode is measured 4.61x faster at 14 workers, but its deck-quality results remain informational until a dated review promotes a gate. Do not set the new crafting multiplier `<K>` by intuition; compare a user-approved candidate set and include gold balances, collection progress, packs per day, crafted uniques, and persona spread.

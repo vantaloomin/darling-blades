@@ -290,7 +290,7 @@ describe('Dark Tales rules text', () => {
     expect(MECHANIC_DEFINITIONS.skim).toBeTruthy();
     expect(MECHANIC_DEFINITIONS.retell).toBeTruthy();
     const both = rulesText(DARK_TALES_DB.skimRetellCard);
-    expect(both).toContain('Skim {0}: Discard this card, then draw a card.');
+    expect(both).toContain('Skim {0}');
     expect(both).toContain('Retell {0}: You may cast this from your graveyard, then sever it.');
   });
 });

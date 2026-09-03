@@ -11,7 +11,7 @@ the ratified table and use the house-wide single-figure, middle-band, practical-
 prop, directional-effect, and no-text prompt guards.
 
 ### Glass-Coffin Queen — `dt-glass-coffin-queen`
-- **Card facts:** {5}{W}{B} · W/B (gold frame) · 4/5 · bloodoath · ur, legendary
+- **Card facts:** {3}{W}{B}{B} · W/B (gold frame) · 4/5 · bloodoath · ur, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Snow-white adjacent queen/princess. an adult-coded Dark Tales figure representing Glass-Coffin Queen; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -26,7 +26,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Glass-Coffin Queen, an adult-coded Dark Tales figure representing Glass-Coffin Queen, based on the pre-acceptance Subject draft "Snow-white adjacent queen/princess"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Abyssal Songstress — `dt-abyssal-songstress`
-- **Card facts:** {5}{U}{B} · U/B (gold frame) · 4/5 · skyborne · ur, legendary
+- **Card facts:** {3}{U}{B} · U/B (gold frame) · 4/5 · skyborne · ur, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Mermaid bargain singer. an adult-coded Dark Tales figure representing Abyssal Songstress; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** airborne in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -41,7 +41,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Abyssal Songstress, an adult-coded Dark Tales figure representing Abyssal Songstress, based on the pre-acceptance Subject draft "Mermaid bargain singer"; airborne in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Thorn-Palace Heiress — `dt-thorn-palace-heiress`
-- **Card facts:** {5}{W}{G} · G/W (gold frame) · 4/6 · sentinel · ur, legendary
+- **Card facts:** {4}{G}{W} · G/W (gold frame) · 4/6 · sentinel · ur, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Sleeping thorn princess. an adult-coded Dark Tales figure representing Thorn-Palace Heiress; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -56,7 +56,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Thorn-Palace Heiress, an adult-coded Dark Tales figure representing Thorn-Palace Heiress, based on the pre-acceptance Subject draft "Sleeping thorn princess"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Midnight Glass Runner — `dt-midnight-glass-runner`
-- **Card facts:** {4}{U}{R} · U/R (gold frame) · 4/3 · warcry · ur, legendary
+- **Card facts:** {U}{R} · U/R (gold frame) · 3/3 · warcry · ur, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Cinderella adjacent escapee. an adult-coded Dark Tales figure representing Midnight Glass Runner; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -71,7 +71,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Midnight Glass Runner, an adult-coded Dark Tales figure representing Midnight Glass Runner, based on the pre-acceptance Subject draft "Cinderella adjacent escapee"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Ice-Crown Sovereign — `dt-ice-crown-sovereign`
-- **Card facts:** {6}{W}{U} · U/W (gold frame) · 4/6 · skyborne · ur, legendary
+- **Card facts:** {3}{U}{W} · U/W (gold frame) · 4/5 · skyborne · ur, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Winter queen with storm-glass coronation magic. an adult-coded Dark Tales figure representing Ice-Crown Sovereign; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** airborne in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -86,7 +86,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Ice-Crown Sovereign, an adult-coded Dark Tales figure representing Ice-Crown Sovereign, based on the pre-acceptance Subject draft "Winter queen with storm-glass coronation magic"; airborne in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Poison-Mirror Regent — `dt-poison-mirror-regent`
-- **Card facts:** {4}{B} · B · 4/4 · deathblade, untouchable · ssr, legendary
+- **Card facts:** {4}{B}{B} · B · 4/4 · deathblade, untouchable · ssr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Evil queen adjacent. an adult-coded Dark Tales figure representing Poison-Mirror Regent; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -101,7 +101,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Poison-Mirror Regent, an adult-coded Dark Tales figure representing Poison-Mirror Regent, based on the pre-acceptance Subject draft "Evil queen adjacent"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Lantern-Tower Witch — `dt-lantern-tower-witch`
-- **Card facts:** {4}{U}{R} · U/R (gold frame) · 4/4 · ssr, legendary
+- **Card facts:** {3}{U}{R} · U/R (gold frame) · 4/4 · ssr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Tower-haired mage. an adult-coded Dark Tales figure representing Lantern-Tower Witch; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -131,7 +131,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Belle of the Beast Manor, an adult-coded Dark Tales figure representing Belle of the Beast Manor, based on the pre-acceptance Subject draft "Beauty-and-beast adjacent scholar"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Desert-Wish Princess — `dt-desert-wish-princess`
-- **Card facts:** {5}{W}{R} · W/R (gold frame) · 4/4 · skyborne, warcry · ssr, legendary
+- **Card facts:** {3}{W}{R} · W/R (gold frame) · 4/4 · skyborne, warcry · ssr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Desert palace rebel and balcony escapee. an adult-coded Dark Tales figure representing Desert-Wish Princess; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** airborne in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -146,7 +146,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Desert-Wish Princess, an adult-coded Dark Tales figure representing Desert-Wish Princess, based on the pre-acceptance Subject draft "Desert palace rebel and balcony escapee"; airborne in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Warrior-Ballad Captain — `dt-warrior-ballad-captain`
-- **Card facts:** {4}{W}{R} · W/R (gold frame) · 4/4 · firstBlade, sentinel · ssr, legendary
+- **Card facts:** {3}{W}{R} · W/R (gold frame) · 4/4 · firstBlade, sentinel · ssr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Disguised warrior heroine with ancestral steel. an adult-coded Dark Tales figure representing Warrior-Ballad Captain; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -161,7 +161,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Warrior-Ballad Captain, an adult-coded Dark Tales figure representing Warrior-Ballad Captain, based on the pre-acceptance Subject draft "Disguised warrior heroine with ancestral steel"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Bayou-Star Proprietor — `dt-bayou-star-proprietor`
-- **Card facts:** {5}{W}{G} · W/G (gold frame) · 4/5 · bloodoath · ssr, legendary
+- **Card facts:** {6}{W}{G} · W/G (gold frame) · 3/5 · bloodoath · ssr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Jazz-age bayou restaurateur princess. an adult-coded Dark Tales figure representing Bayou-Star Proprietor; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -176,7 +176,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Bayou-Star Proprietor, an adult-coded Dark Tales figure representing Bayou-Star Proprietor, based on the pre-acceptance Subject draft "Jazz-age bayou restaurateur princess"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Red Hood Wolfslayer — `dt-red-hood-wolfslayer`
-- **Card facts:** {4}{R}{G} · R/G (gold frame) · 4/4 · firstBlade, overrun · sr, legendary
+- **Card facts:** {2}{R}{G} · R/G (gold frame) · 4/4 · firstBlade, overrun · sr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Red riding hood adjacent. an adult-coded Dark Tales figure representing Red Hood Wolfslayer; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -191,7 +191,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Red Hood Wolfslayer, an adult-coded Dark Tales figure representing Red Hood Wolfslayer, based on the pre-acceptance Subject draft "Red riding hood adjacent"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Winter-Palace Duchess — `dt-winter-palace-duchess`
-- **Card facts:** {4}{W}{U} · U/W (gold frame) · 3/5 · untouchable · sr, legendary
+- **Card facts:** {3}{U}{W} · U/W (gold frame) · 3/5 · untouchable · sr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Snow queen adjacent. an adult-coded Dark Tales figure representing Winter-Palace Duchess; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -206,7 +206,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Winter-Palace Duchess, an adult-coded Dark Tales figure representing Winter-Palace Duchess, based on the pre-acceptance Subject draft "Snow queen adjacent"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Ocean Wayfinder — `dt-ocean-wayfinder`
-- **Card facts:** {4}{U}{G} · U/G (gold frame) · 3/4 · sr, legendary
+- **Card facts:** {2}{U}{G} · U/G (gold frame) · 3/4 · sr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Voyager princess reading stars and tides. an adult-coded Dark Tales figure representing Ocean Wayfinder; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -221,7 +221,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Ocean Wayfinder, an adult-coded Dark Tales figure representing Ocean Wayfinder, based on the pre-acceptance Subject draft "Voyager princess reading stars and tides"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Forest-Colors Diplomat — `dt-forest-colors-diplomat`
-- **Card facts:** {4}{W}{G} · G/W (gold frame) · 3/5 · sentinel · sr, legendary
+- **Card facts:** {2}{G}{W} · G/W (gold frame) · 3/5 · sentinel · sr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Riverland diplomat with wind and leaf motifs. an adult-coded Dark Tales figure representing Forest-Colors Diplomat; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -236,7 +236,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Forest-Colors Diplomat, an adult-coded Dark Tales figure representing Forest-Colors Diplomat, based on the pre-acceptance Subject draft "Riverland diplomat with wind and leaf motifs"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Brave Highland Archer — `dt-brave-highland-archer`
-- **Card facts:** {4}{R}{G} · R/G (gold frame) · 4/4 · wardingGaze, firstBlade · sr, legendary
+- **Card facts:** {3}{R}{G} · R/G (gold frame) · 4/4 · wardingGaze, firstBlade · sr, legendary
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Highland archer princess with tournament defiance. an adult-coded Dark Tales figure representing Brave Highland Archer; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -296,7 +296,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Pearl-Foam Diver, an adult-coded Dark Tales figure representing Pearl-Foam Diver, based on the pre-acceptance Subject draft "Mermaid scout"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Thorn-Castle Warden — `dt-thorn-castle-warden`
-- **Card facts:** {3}{G} · G · 2/5 · bulwark, wardingGaze · r
+- **Card facts:** {2}{G} · G · 2/5 · bulwark, wardingGaze · r
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Briar guard. an adult-coded Dark Tales figure representing Thorn-Castle Warden; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -341,7 +341,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Seven Shadow Miners, an adult-coded Dark Tales figure representing Seven Shadow Miners, based on the pre-acceptance Subject draft "Dwarf/miner adjacent"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Wolf at the Door — `dt-wolf-at-the-door`
-- **Card facts:** {3}{R} · R · 3/2 · dreaded, warcry · r
+- **Card facts:** {2}{R} · R · 3/2 · dreaded, warcry · r
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Big bad wolf adjacent. an adult-coded Dark Tales figure representing Wolf at the Door; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -446,7 +446,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Sandstorm Carpet Rider, an adult-coded Dark Tales figure representing Sandstorm Carpet Rider, based on the pre-acceptance Subject draft "Flying carpet chase heroine"; airborne in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Ice-Palace Architect — `dt-ice-palace-architect`
-- **Card facts:** {4}{U} · U · 3/4 · r
+- **Card facts:** {3}{U} · U · 3/4 · r
 - **Character & source:** Pre-acceptance draft from the Dark Tales Subject column: Adult snowcourt mage shaping crystal stairs. an adult-coded Dark Tales figure representing Ice-Palace Architect; the final art pass must preserve the set's adult gothic glamour.
 - **Personality / mood:** glamorous, watchful, and touched by a dangerous bargain.
 - **Pose & composition:** framed in a readable three-quarter pose with the face centered. Keep the face and the main silhouette in the central band, with crop-safe headroom above.
@@ -701,7 +701,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** Snowcourt Attendant, an adult-coded Dark Tales figure representing Snowcourt Attendant, based on the pre-acceptance Subject draft "Adult winter court attendant"; framed in a readable three-quarter pose with the face centered; glamorous, watchful, and touched by a dangerous bargain; a single motif prop from the Subject column, kept blank of lettering; a moonlit gothic fairy-tale setting with black roses, glass, satin, and candlelit depth; reserve the entire top third as clear empty moonlit air above the head and silhouette; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Swan-Lake Sovereign — `dt-swan-lake-sovereign`
-- **Card facts:** {4}{U}{W} · U/W (gold frame) · 4/5 · skyborne, sentinel · ur, legendary
+- **Card facts:** {3}{U}{W} · U/W (gold frame) · 4/5 · skyborne, sentinel · ur, legendary
 - **Character & source:** The swan-cursed princess who turns back at every dawn, an adult woman and the frost-control finisher of the wave. Tall and long-limbed, a dancer's build with broad shoulders, cool ivory skin, silver-white hair in a low coiled braid, pale grey eyes.
 - **Personality / mood:** "She returns at dawn with every feather and promise intact." Regal persistence; the fall already happened and it did not take.
 - **Pose & composition:** The Nine Lives second rising staged in open air: she comes up from a kneel on nothing at all, weight moving forward, white feathers and black-rose petals still falling from her, with her swan-wing cloak spread wide and locked behind her like a white wall (sentinel). Skyborne, so moonlit sky and the black-rose lake show beneath her with no jetty, reed bed, or water surface under her feet. Face in the middle band, clear air above.
@@ -716,7 +716,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** EXACTLY ONE adult woman in the entire image and not one person more: Swan-Lake Sovereign, a tall long-limbed adult woman with a dancer's build and broad shoulders, cool ivory skin, silver-white hair in a low coiled braid, pale grey eyes; she wears a pearl-white feathered bodice, a cloak of white swan feathers spread wide behind her into two wing-shaped panels locked like a white wall, a midnight-blue satin skirt shredded to ribbons at the hem, translucent glass slippers, and a black-rose circlet low on her brow; she is coming up from one knee in open air as if the air were a floor, her weight moving forward, white feathers and black-rose petals still falling from her shoulders; EXACTLY ONE glowing kintsugi-style scar line across her bare collarbone as the only life mark, never jewelry; hovering in open air with moonlit sky visible beneath her, no ground, floor, balcony, rail, or terrace under her, no jetty, no reed bed, no water surface under her feet; a tall wrought-iron lake-lantern on a stone post at mid-height inside the central band is the named practical key; the black-rose lake at the first grey-gold minute of dawn is one large lit surface brighter than 70 percent luminance inside the central band, rich readable detail in every shadow, no near-black areas anywhere; glass reeds on the far shore, a moonlit castle of pale towers beyond the water, pearl foam on the lake far below her; palette of midnight blue, pearl white, candle gold, and black rose; her head fully inside the middle band of the frame, clear air above it; no men, no male figures, no male chests; no second figure, no other person; no lens flare, no starburst, no radial rays, no glowing orb, no light burst; no magic circle, no arcane sigil; no signboards, no placards, no hanging signs, no blank framed rectangles, no label plates, no nameplates; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Sea Witch of the Drowned Bargain — `dt-sea-witch-of-the-drowned-bargain`
-- **Card facts:** {4}{U}{B} · U/B (gold frame) · 5/5 · deathblade · ur, legendary
+- **Card facts:** {5}{U}{B} · U/B (gold frame) · 5/5 · deathblade · ur, legendary
 - **Character & source:** The sea witch who buys voices by contract, an adult woman and the Midnight Storybook finisher that refuels. Statuesque and voluptuous with wide hips and a proud bearing, deep umber skin, white hair slicked back and pinned low with black pearls, heavy-lidded violet eyes.
 - **Personality / mood:** "The drowned bargain pays in cards, scars, and silence." Hospitable menace; every kindness is itemized.
 - **Pose & composition:** Three-quarter stance at the head of her drowned court table, leaning toward the viewer. Her right hand holds a black-glass pen-dagger at chest height, nib edge toward the viewer and beaded with violet poison (deathblade). From her left hand one contract page slips and drifts down into the pearl-foam water (Skim). Face in the middle band, clear air above.
@@ -761,7 +761,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** EXACTLY ONE adult woman in the entire image and not one person more: Teller of a Thousand Nights, a softly curved adult woman of medium height with warm golden-brown skin, long black hair in one loose braid threaded with copper beads, dark kohl-lined eyes; she wears a crimson silk blouse with wide sleeves, a midnight-blue sash wound high at the waist, stacked gold bangles on both forearms, a sheer copper veil pinned at the hip, bare feet tucked beneath her; waist-up framing, seated on a cushioned divan turned three-quarter toward the viewer, her right hand fanning three pages at chest height, the entire fan above her waistline and below her chin, while one more page slips from her left hand and drifts toward the lower right of the frame, every page patterned with flat geometric gilt banding; a brass oil lamp on a low table beside her at mid-height inside the central band is the named practical key; the lamplit crimson cushions and open pages are one large lit surface brighter than 70 percent luminance inside the central band, rich readable detail in every shadow, no near-black areas anywhere; a candlelit library alcove with carved lattice screens, shelves of closed books, blue moonlight cutting through the lattice in diamonds, black roses in a brass vase; palette of crimson, midnight blue, copper, candle gold, and pearl white; her head fully inside the middle band of the frame, clear air above it; no men, no male figures, no male chests; no second figure, no other person; no lens flare, no starburst, no radial rays, no glowing orb, no light burst; no magic circle, no arcane sigil; no signboards, no placards, no hanging signs, no blank framed rectangles, no label plates, no nameplates; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Rose-Red of the Winter Hearth — `dt-rose-red-of-the-winter-hearth`
-- **Card facts:** {3}{G}{W} · G/W (gold frame) · 3/4 · sentinel · ssr, legendary
+- **Card facts:** {3}{G}{W} · G/W (gold frame) · 3/4 · ssr, legendary
 - **Character & source:** The hearth sister who shelters the bear through winter, an adult woman and the W/G token-lifegain legend. Medium height, sturdy and strong-armed with broad shoulders, ruddy fair skin with freckles, dark red hair in one thick braid over her shoulder, brown eyes.
 - **Personality / mood:** "She keeps one warm place for every winter that refuses to end." Fierce hospitality; the door is hers to hold.
 - **Pose & composition:** Planted square in the open doorway of a snowbound cottage, feet wide, one arm braced across the door frame, immovable (sentinel). Her two Hearth Spirits are kitten-sized ember sprites with glowing coal eyes: one perched on her shoulder, one sitting in her cupped hand at chest height. Face in the middle band, clear air above.
@@ -1031,7 +1031,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** EXACTLY ONE adult woman in the entire image and not one person more: Pea-Mattress Sentry, a short sturdy adult woman with a soft build, light olive skin, mousy brown hair in a sleep braid, brown eyes; she wears a white linen nightgown under a quilted guard's tabard in cream and gold, a small brass whistle on a cord, bare feet; seen at eye level from across the bedchamber so that her whole seated figure occupies only the middle half of the frame's height, a wide band of empty midnight-blue canopy and moonlit wall filling the entire top third of the frame above her head, she sits bolt upright on top of a towering stack of twenty striped and patterned mattresses, six or more striped mattress edges visible stacked beneath her and filling the bottom third of the frame, with a short spear laid across her knees, the spear shaft at chest height, the entire spear above her waistline and below her chin, while one white goose feather drifts down from the pillow beside her; a bedside candle on a tall brass stand beside the mattress stack at mid-height inside the central band is the named practical key; the candlelit white bedding is one large lit surface brighter than 70 percent luminance inside the central band, rich readable detail in every shadow, no near-black areas anywhere; a palace bedchamber with a canopy of midnight-blue satin, a black rose on the bedpost, a moonlit window; palette of cream, candle gold, midnight blue, and pearl white; her head fully inside the middle band of the frame, clear air above it, her head no higher than the middle of the frame, the entire top third of the frame empty canopy and wall above her hair; no men, no male figures, no male chests; no second figure, no other person; no lens flare, no starburst, no radial rays, no glowing orb, no light burst; no magic circle, no arcane sigil; no signboards, no placards, no hanging signs, no blank framed rectangles, no label plates, no nameplates; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Handmaid Who Woke Twice — `dt-handmaid-who-woke-twice`
-- **Card facts:** {1}{W} · W · 1/2 · bloodoath · c
+- **Card facts:** {2}{W} · W · 1/1 · bloodoath · c
 - **Character & source:** The handmaid who woke from the castle sleep, an adult woman and the early blocker that returns. Slim and medium-tall, tawny-brown skin, dark hair pinned under a white linen cap, warm brown eyes.
 - **Personality / mood:** "She wakes once for the castle and once for herself." Quiet, practical, newly unafraid.
 - **Pose & composition:** The Nine Lives second rising on the cobwebbed castle floor: she comes up from one knee with a century of dust still falling, weight moving forward, holding the spindle that pricked her at chest height. A single blood-red bead stands on the pad of her thumb (bloodoath). Face in the middle band, clear air above.
@@ -1286,7 +1286,7 @@ prop, directional-effect, and no-text prompt guards.
 - **Prompt:** EXACTLY ONE adult woman in the entire image and not one person more: Canoe-Carver of the Reef, a broad stocky muscular adult woman with thick forearms, deep brown skin, thick black hair tied low with cord, dark eyes; she wears a bark-cloth wrap in ochre and black geometric bands, a shell necklace, a woven band on each bicep, a black rose tucked in the hair cord, bare feet; waist-up framing, kneeling upright beside the hull of a half-carved canoe raised on blocks beside her, a stone adze held at chest height mid-stroke, the entire adze above her waistline and below her chin, wood shavings flying, while one long curl of shaved wood slips from her other hand; a torch on a post beside the hull at mid-height inside the central band is the named practical key; the moonlit lagoon behind her is one large lit surface brighter than 70 percent luminance inside the central band, rich readable detail in every shadow, no near-black areas anywhere; pale sand, palms, a dark headland, black roses on a driftwood log; palette of ochre, deep green, pale sand, torch gold, and midnight blue; her head fully inside the middle band of the frame, clear air above it; no men, no male figures, no male chests; no second figure, no other person; no lens flare, no starburst, no radial rays, no glowing orb, no light burst; no magic circle, no arcane sigil; no signboards, no placards, no hanging signs, no blank framed rectangles, no label plates, no nameplates; no readable letters, runes, labels, logos, or watermarks anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Paper Ballerina — `dt-paper-ballerina`
-- **Card facts:** {2} · C · 1/2 · c
+- **Card facts:** {3} · C · 2/2 · c
 - **Character & source:** The paper dancer who survives the stove, an adult woman made of folded white paper and the any-deck blocker. Slender and long-necked with a dancer's proportions, her skin smooth white paper with painted rose cheeks and painted eyes, black paper hair in a flat bun.
 - **Personality / mood:** "She survives the stove, the story, and every careless hand." Serene, singed, unbothered.
 - **Pose & composition:** The Nine Lives second rising on a nursery shelf: she comes up from one knee with ash and paper flakes still falling, weight moving forward into a dancer's line, the edges of her paper skirt scorched brown. Face in the middle band, clear air above.

@@ -31,8 +31,8 @@ tempting to skip.
 ## 2. Establish the baseline
 
 Before any edit: `npx tsc --noEmit` and `npm run lint` (seconds), and — if
-the tree wasn't verified green this session — `npx vitest run` (~3 min at
-pool 638; the win-rate gates dominate). Never run the suite while a
+the tree wasn't verified green this session — `npx vitest run` (~11 min at
+1,803 tests, measured 2026-08-27; the win-rate gates dominate). Never run the suite while a
 measurement job saturates the cores — economy-sim tests hit their 5s
 timeouts under the 14-worker sweep load (measured 2026-07-26) and read as
 false regressions; an idle machine or the CI runner is the honest gate.

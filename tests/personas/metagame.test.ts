@@ -1,9 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { PERSONA_TEMPLATE_VERSION } from '../../scripts/personas/templates';
 import {
   cardsForPool,
+  readCraftJournal,
   runMetagameLoop,
   runCli,
   type MeasuredRecord,
@@ -135,7 +137,7 @@ describe('persona metagame loop', () => {
     expect(opponent!.deck).toEqual(weenie.metagame!.rounds[0].deck);
     expect(burn.metagame!.rounds[1]).toMatchObject({
       round: 1,
-      templateVersion: 'persona-v1.0.0',
+      templateVersion: PERSONA_TEMPLATE_VERSION,
       measured: { field: 'personas' },
     });
   });
@@ -248,7 +250,7 @@ describe('persona metagame loop', () => {
     ]);
     expect(result.artifacts.find((artifact) => artifact.persona.id === 'burn')!.honesty.oscillating).toBe(true);
     expect(result.artifacts.find((artifact) => artifact.persona.id === 'weenie')!.honesty.oscillating).toBe(false);
-  });
+  }, 120000);
 
   it('reports max-rounds when the cap arrives before stability or oscillation', () => {
     const measureCalls = new Map<string, number>();
@@ -274,6 +276,376 @@ describe('persona metagame loop', () => {
       maxRounds: 1,
       converged: false,
     });
+  });
+
+  it('checkpoints every round boundary so a killed passive run keeps its rounds', () => {
+    const options = {
+      poolId: 'all',
+      pool,
+      field: 'starters' as const,
+      seeds: 1,
+      iterations: 0,
+      seed: 77,
+      maxRounds: 3,
+      personaIds: ['burn', 'weenie'],
+      measure: (_deck: readonly string[], measureOptions: MeasureOptions) => measured(measureOptions.field),
+    };
+    const checkpoints: Array<{ rounds: number; reason: string; converged: boolean; personas: number }> = [];
+    const withHook = runMetagameLoop({
+      ...options,
+      onCheckpoint: (artifacts, summary) => checkpoints.push({
+        rounds: summary.completedRounds,
+        reason: summary.stoppedReason,
+        converged: summary.converged,
+        personas: artifacts.length,
+      }),
+    });
+    const without = runMetagameLoop(options);
+
+    // Fires after the seed pass and after each completed round, so the recovery
+    // granularity is exactly one round rather than the whole run.
+    expect(checkpoints).toEqual([
+      { rounds: 0, reason: 'in-progress', converged: false, personas: 2 },
+      { rounds: 1, reason: 'in-progress', converged: false, personas: 2 },
+    ]);
+    // Pure observer, exactly like onProgress: identical results either way.
+    expect(JSON.stringify(withHook.artifacts)).toBe(JSON.stringify(without.artifacts));
+  });
+
+  it('carries usable rounds in a checkpoint artifact, never a finished-looking one', () => {
+    const seen: Array<Record<string, unknown>> = [];
+    runMetagameLoop({
+      poolId: 'all',
+      pool,
+      field: 'starters',
+      seeds: 1,
+      iterations: 0,
+      seed: 77,
+      maxRounds: 3,
+      personaIds: ['burn', 'weenie'],
+      measure: (_deck, measureOptions) => measured(measureOptions.field),
+      onCheckpoint: (artifacts) => seen.push(JSON.parse(JSON.stringify(artifacts[0]))),
+    });
+
+    // A checkpoint is the SAME artifact shape a finished run produces, so a
+    // crashed sweep's output is readable directly. The seed checkpoint already
+    // carries round 0's crafted deck and its measurement.
+    const seedCheckpoint = seen[0] as {
+      deck: string[];
+      metagame: { summary: { stoppedReason: string; converged: boolean }; rounds: unknown[] };
+    };
+    expect(seedCheckpoint.deck.length).toBeGreaterThan(0);
+    expect(seedCheckpoint.metagame.rounds).toHaveLength(1);
+    // The one thing that must never be mistakable: a partial is not converged.
+    expect(seedCheckpoint.metagame.summary.stoppedReason).toBe('in-progress');
+    expect(seedCheckpoint.metagame.summary.converged).toBe(false);
+  });
+
+  it('overwrites its own checkpoints, so a completed run leaves no partial files', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-persona-checkpoint-'));
+    tempDirs.push(dir);
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ], { today: () => '2026-08-24', log: () => undefined })).toBe(0);
+
+    // Checkpoint paths ARE the final paths. A finished run therefore ends with
+    // exactly the artifacts it always wrote, with no 'in-progress' left behind.
+    for (const personaId of ['burn', 'weenie']) {
+      const artifact = JSON.parse(
+        readFileSync(join(dir, `2026-08-24-metagame-${personaId}-all.json`), 'utf8'),
+      );
+      expect(artifact.metagame.summary.stoppedReason).not.toBe('in-progress');
+    }
+  }, 120000);
+
+  it('publishes format and checkpoint progress to the sweep dashboard status file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-persona-status-'));
+    tempDirs.push(dir);
+    const statusPath = join(dir, 'status.json');
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--status-file', statusPath,
+      '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ], { today: () => '2026-08-25', log: () => undefined })).toBe(0);
+
+    const status = JSON.parse(readFileSync(statusPath, 'utf8'));
+    // The format is on screen because this harness measured the RETIRED classic
+    // format until 2026-08-25 and the dashboard never said which one it was.
+    expect(status.format).toBe('warchest');
+    expect(status.state).toBe('done');
+    // The dashboard sizes its staleness warning off the last checkpoint, so an
+    // unattended multi-day run can be seen to be safe rather than merely alive.
+    expect(status.checkpoint).toMatchObject({ artifacts: 2, completedRounds: 1 });
+    expect(typeof status.checkpoint.at).toBe('string');
+  }, 120000);
+
+  it('reports each finished craft as it lands, not only at the round boundary', () => {
+    const finished: Array<{ round: number; index: number; score: number }> = [];
+    runMetagameLoop({
+      poolId: 'all',
+      pool,
+      field: 'starters',
+      seeds: 1,
+      iterations: 0,
+      seed: 77,
+      maxRounds: 1,
+      personaIds: ['burn', 'weenie'],
+      measure: (_deck, options) => measured(options.field),
+      onCraftComplete: (round, personaIndex) =>
+        finished.push({ round: round.round, index: personaIndex, score: round.measured.score }),
+    });
+
+    // A round takes HOURS. Checkpoints are durability and fire at round
+    // boundaries; this hook is visibility and fires per craft, so a dashboard
+    // can show one persona's result without waiting out the rest of the round.
+    expect(finished.map((f) => `${f.round}:${f.index}`)).toEqual(['0:0', '0:1', '1:0', '1:1']);
+    expect(finished.every((f) => typeof f.score === 'number')).toBe(true);
+  });
+
+  it('accumulates finished crafts in the status file for the dashboard', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-persona-crafts-'));
+    tempDirs.push(dir);
+    const statusPath = join(dir, 'status.json');
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--status-file', statusPath,
+      '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ], { today: () => '2026-08-25', log: () => undefined })).toBe(0);
+
+    const status = JSON.parse(readFileSync(statusPath, 'utf8'));
+    expect(status.finishedCrafts).toHaveLength(4);
+    // personaId AND personaIndex both matter: artifacts sort by id, which is not
+    // the order personaIndex counts in, so the dashboard needs the pairing to
+    // label pips and highlight the active persona correctly.
+    expect(status.finishedCrafts[0]).toMatchObject({ round: 0, personaIndex: 0, personaId: 'burn' });
+    expect(status.finishedCrafts[1]).toMatchObject({ round: 0, personaIndex: 1, personaId: 'weenie' });
+    for (const craft of status.finishedCrafts) {
+      expect(typeof craft.score).toBe('number');
+      expect(typeof craft.finishedAt).toBe('string');
+    }
+  }, 120000);
+
+  /**
+   * The 2026-08-25 sweep died 4h36 in with TWO crafts finished and nothing on
+   * disk, because checkpoints only fired at round boundaries and the seed round
+   * alone runs about nine hours. The journal is written per craft and
+   * synchronously so that can never cost more than the craft in flight.
+   */
+  describe('crash durability and resume', () => {
+    const run = (dir: string, extra: string[] = []): number => runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--field', 'starters', '--pool', 'all', '--seeds', '1', '--iterations', '0',
+      '--seed', '424242', ...extra,
+    ], { today: () => '2026-08-25', log: () => undefined });
+
+    it('journals every finished craft, not just every finished round', () => {
+      const dir = mkdtempSync(join(tmpdir(), 'darling-journal-'));
+      tempDirs.push(dir);
+      expect(run(dir)).toBe(0);
+      const journal = readCraftJournal(join(dir, 'craft-journal.jsonl'));
+      // 2 personas x (seed round + 1 best-response round)
+      expect(journal.size).toBe(4);
+      expect([...journal.keys()].sort()).toEqual(['0:burn', '0:weenie', '1:burn', '1:weenie']);
+    });
+
+    it('resumes to a byte-identical result after losing everything but the journal', () => {
+      const first = mkdtempSync(join(tmpdir(), 'darling-resume-a-'));
+      const second = mkdtempSync(join(tmpdir(), 'darling-resume-b-'));
+      tempDirs.push(first, second);
+      expect(run(first)).toBe(0);
+      const baseline = readFileSync(join(first, '2026-08-25-metagame-burn-all.json'), 'utf8');
+
+      // Simulate a kill after the seed round: keep only round 0 in the journal,
+      // and no artifacts at all.
+      const lines = readFileSync(join(first, 'craft-journal.jsonl'), 'utf8')
+        .split('\n').filter((l) => l.trim());
+      const partial = lines.filter((l) => (JSON.parse(l) as { round: number }).round === 0);
+      expect(partial).toHaveLength(2);
+      const header = lines.find((line) => (JSON.parse(line) as { type?: string }).type === 'config');
+      expect(header).toBeDefined();
+      writeFileSync(join(second, 'craft-journal.jsonl'), `${[header!, ...partial].join('\n')}\n`, 'utf8');
+
+      expect(run(second, ['--resume'])).toBe(0);
+      // Craft seeds derive from run seed + round + persona id, so a resumed run
+      // must be indistinguishable from one that was never interrupted.
+      expect(readFileSync(join(second, '2026-08-25-metagame-burn-all.json'), 'utf8')).toBe(baseline);
+    }, 120000);
+
+    it('keeps every complete entry when the journal was cut mid-write', () => {
+      // A killed process can leave a half-written final line. Losing that entry
+      // is correct; losing the ones before it is not.
+      const dir = mkdtempSync(join(tmpdir(), 'darling-torn-'));
+      tempDirs.push(dir);
+      const path = join(dir, 'craft-journal.jsonl');
+      const good = JSON.stringify({ round: 0, personaId: 'burn', seed: 1, crafted: { round: 0 } });
+      writeFileSync(path, `${good}\n{"round":0,"personaId":"wee`, 'utf8');
+      expect(readCraftJournal(path).size).toBe(1);
+    });
+
+    it('returns an empty map when there is no journal yet', () => {
+      expect(readCraftJournal(join(tmpdir(), 'no-such-journal.jsonl')).size).toBe(0);
+    });
+  });
+
+  it('recovers every complete craft when torn appends are followed by multiple resumes', () => {
+    const source = mkdtempSync(join(tmpdir(), 'darling-torn-source-'));
+    const recovery = mkdtempSync(join(tmpdir(), 'darling-torn-recovery-'));
+    tempDirs.push(source, recovery);
+    const common = [
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters',
+      '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ];
+    const cli = {
+      today: () => '2026-08-25',
+      log: () => undefined,
+      measure: (_deck: readonly string[], options: MeasureOptions) => measured(options.field),
+    };
+    expect(runCli([...common, '--out', source], cli)).toBe(0);
+    const sourceLines = readFileSync(join(source, 'craft-journal.jsonl'), 'utf8')
+      .split('\n').filter((line) => line.trim());
+    const header = sourceLines.find((line) => (JSON.parse(line) as { type?: string }).type === 'config');
+    const firstCraft = sourceLines.find((line) => {
+      const entry = JSON.parse(line) as { round?: number; personaId?: string };
+      return entry.round === 0 && entry.personaId === 'burn';
+    });
+    expect(header).toBeDefined();
+    expect(firstCraft).toBeDefined();
+    const journal = join(recovery, 'craft-journal.jsonl');
+    writeFileSync(journal, `${header}\n${firstCraft}\n{"round":0,"personaId":"wee`, 'utf8');
+
+    expect(runCli([
+      ...common, '--out', recovery, '--journal', journal, '--resume',
+    ], cli)).toBe(0);
+    expect(readCraftJournal(journal).size).toBe(4);
+
+    writeFileSync(journal, `${readFileSync(journal, 'utf8')} {"round":1,"personaId":"torn"`, 'utf8');
+    expect(runCli([
+      ...common, '--out', recovery, '--journal', journal, '--resume',
+    ], cli)).toBe(0);
+    expect(readCraftJournal(journal).size).toBe(4);
+  });
+
+  it('refuses to resume a journal stamped for a different configuration', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-config-mismatch-'));
+    tempDirs.push(dir);
+    const common = [
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--field', 'starters',
+      '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ];
+    const cli = {
+      today: () => '2026-08-25',
+      log: () => undefined,
+      measure: (_deck: readonly string[], options: MeasureOptions) => measured(options.field),
+    };
+    expect(runCli([...common, '--out', dir], cli)).toBe(0);
+    const errors: string[] = [];
+    const mismatch = [...common];
+    mismatch[mismatch.indexOf('--seed') + 1] = '424243';
+    expect(runCli([
+      ...mismatch, '--out', dir, '--resume',
+    ], { ...cli, error: (message: string) => errors.push(message) })).toBe(1);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('configuration mismatch');
+    expect(errors[0]).toContain('seed 424242');
+  });
+
+  it('refuses an old-format journal with a clear migration message', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-old-journal-'));
+    tempDirs.push(dir);
+    const journal = join(dir, 'craft-journal.jsonl');
+    writeFileSync(journal, '{"round":0,"personaId":"burn","crafted":{"round":0}}\n', 'utf8');
+    const errors: string[] = [];
+    expect(runCli([
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--journal', journal, '--field', 'starters', '--pool', 'all', '--seeds', '1',
+      '--iterations', '0', '--seed', '424242', '--resume',
+    ], { error: (message: string) => errors.push(message) })).toBe(1);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('predates config stamping');
+  });
+
+  it('rotates an existing journal before a fresh start', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'darling-journal-rotate-'));
+    tempDirs.push(dir);
+    const journal = join(dir, 'craft-journal.jsonl');
+    const args = [
+      '--metagame', '--personas', 'burn,weenie', '--rounds', '1', '--out', dir,
+      '--journal', journal, '--field', 'starters', '--pool', 'all', '--seeds', '1',
+      '--iterations', '0', '--seed', '424242',
+    ];
+    const cli = {
+      today: () => '2026-08-25',
+      log: () => undefined,
+      measure: (_deck: readonly string[], options: MeasureOptions) => measured(options.field),
+    };
+    expect(runCli(args, cli)).toBe(0);
+    const before = readFileSync(journal, 'utf8');
+    expect(runCli(args, cli)).toBe(0);
+    const rotated = readdirSync(dir).filter((name) => name.startsWith('craft-journal.jsonl.old-'));
+    expect(rotated).toHaveLength(1);
+    expect(readFileSync(join(dir, rotated[0]), 'utf8')).toBe(before);
+  });
+
+  it('uses actual persona IDs for non-roster order and resumes those entries', () => {
+    const first = mkdtempSync(join(tmpdir(), 'darling-order-first-'));
+    const second = mkdtempSync(join(tmpdir(), 'darling-order-second-'));
+    tempDirs.push(first, second);
+    const common = [
+      '--metagame', '--personas', 'weenie,burn', '--rounds', '1', '--field', 'starters',
+      '--pool', 'all', '--seeds', '1', '--iterations', '0', '--seed', '424242',
+    ];
+    const cli = {
+      today: () => '2026-08-25',
+      log: () => undefined,
+      measure: (_deck: readonly string[], options: MeasureOptions) => measured(options.field),
+    };
+    const firstJournal = join(first, 'craft-journal.jsonl');
+    const firstStatus = join(first, 'status.json');
+    expect(runCli([
+      ...common, '--out', first, '--journal', firstJournal, '--status-file', firstStatus,
+    ], cli)).toBe(0);
+    const lines = readFileSync(firstJournal, 'utf8').split('\n').filter((line) => line.trim());
+    const entries = lines
+      .map((line) => JSON.parse(line) as { type?: string; round?: number; personaId?: string });
+    expect(entries.find((entry) => entry.type === 'config')).toMatchObject({
+      type: 'config',
+      version: 1,
+      config: {
+        seed: 424242,
+        seeds: 1,
+        iterations: 0,
+        maxRounds: 1,
+        personaIds: ['burn', 'weenie'],
+        templateVersion: PERSONA_TEMPLATE_VERSION,
+        poolId: 'all',
+        field: 'starters',
+      },
+    });
+    expect(entries.filter((entry) => entry.type !== 'config').map((entry) => entry.personaId))
+      .toEqual(['burn', 'weenie', 'burn', 'weenie']);
+    const status = JSON.parse(readFileSync(firstStatus, 'utf8')) as {
+      finishedCrafts: Array<{ round: number; personaIndex: number; personaId: string }>;
+    };
+    expect(status.finishedCrafts.slice(0, 2)).toMatchObject([
+      { round: 0, personaIndex: 0, personaId: 'burn' },
+      { round: 0, personaIndex: 1, personaId: 'weenie' },
+    ]);
+    const baseline = [
+      readFileSync(join(first, '2026-08-25-metagame-burn-all.json'), 'utf8'),
+      readFileSync(join(first, '2026-08-25-metagame-weenie-all.json'), 'utf8'),
+    ];
+    const header = lines.find((line) => (JSON.parse(line) as { type?: string }).type === 'config');
+    const seedEntries = lines.filter((line) => (JSON.parse(line) as { round?: number }).round === 0);
+    const secondJournal = join(second, 'craft-journal.jsonl');
+    writeFileSync(secondJournal, `${[header!, ...seedEntries].join('\n')}\n`, 'utf8');
+    expect(runCli([
+      ...common, '--out', second, '--journal', secondJournal, '--resume',
+    ], cli)).toBe(0);
+    expect([
+      readFileSync(join(second, '2026-08-25-metagame-burn-all.json'), 'utf8'),
+      readFileSync(join(second, '2026-08-25-metagame-weenie-all.json'), 'utf8'),
+    ]).toEqual(baseline);
   });
 
   it('documents the loop policy in CLI help', () => {

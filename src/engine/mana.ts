@@ -1,10 +1,10 @@
 import { isSummoningSick } from './statics';
-import type { CardDb, Color, GameState, ManaCost, PlayerId } from './types';
+import type { CardDb, Color, GameState, ManaColor, ManaCost, PlayerId } from './types';
 import { def, isType } from './types';
 
 export interface ManaSource {
   iid: number;
-  colors: Color[]; // colors this source can produce
+  colors: ManaColor[];
   isLand: boolean;
 }
 
@@ -72,6 +72,9 @@ export function solveMana(
   // heuristic — spend the abundant color, keep the scarce one).
   const supply = colorSupply(leftovers);
   leftovers.sort((a, b) => {
+    const aColorless = a.colors.includes('C');
+    const bColorless = b.colors.includes('C');
+    if (aColorless !== bColorless) return aColorless ? -1 : 1;
     if (a.isLand !== b.isLand) return a.isLand ? -1 : 1;
     return maxSupply(b, supply) - maxSupply(a, supply) === 0
       ? a.colors.length - b.colors.length
@@ -120,14 +123,20 @@ function pipCount(cost: ManaCost): number {
 function colorSupply(sources: ManaSource[]): Map<Color, number> {
   const m = new Map<Color, number>();
   for (const s of sources) {
-    for (const c of s.colors) m.set(c, (m.get(c) ?? 0) + 1);
+    for (const c of s.colors) {
+      if (c === 'C') continue;
+      m.set(c, (m.get(c) ?? 0) + 1);
+    }
   }
   return m;
 }
 
 function maxSupply(s: ManaSource, supply: Map<Color, number>): number {
   let best = 0;
-  for (const c of s.colors) best = Math.max(best, supply.get(c) ?? 0);
+  for (const c of s.colors) {
+    if (c === 'C') continue;
+    best = Math.max(best, supply.get(c) ?? 0);
+  }
   return best;
 }
 

@@ -1,4 +1,4 @@
-import { manaValue, type CardDef, type EffectOp } from '../../src/engine/types';
+import { manaValue, type AbilityDef, type CardDef, type EffectOp, type Keyword, type TriggerWhen } from '../../src/engine/types';
 import type { CurveBand, DeckRole, PersonaTemplate, SpellRole } from './templates';
 
 export interface PersonaDeckState {
@@ -34,6 +34,16 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   cancel: 1.8,
   boost: 0.9,
   addCounters: 0.8,
+  // §4h rules one-shot Propagate at 0.70 MEP. Keep that direct mapping here;
+  // the dawn case is context-priced below from its 1.65 MEP per trigger.
+  propagate: 0.7,
+  moveMark: 0.8, // NEEDS MATH: §4 comparative sweep has no settled mapping yet.
+  removeMarks: 0.9, // NEEDS MATH: §4 comparative sweep has no settled mapping yet.
+  markAll: 1.35, // NEEDS MATH: §4 has no clean multi-target comparative yet.
+  loseLifePerTheirMarked: 1.1, // NEEDS MATH: §4 per-marked-drain comparative pending.
+  fetchLand: 0.9, // NEEDS MATH: §4 does not yet rule a persona-scale ramp mapping.
+  ifTargetMarked: 0.6, // NEEDS MATH: §4 leaves conditional branch value judgment-based.
+  severSelf: 0.8, // NEEDS MATH: §4 does not yet rule this self-sever mapping.
   tap: 0.7,
   extraLandDrop: 0.7,
   createToken: 1.15,
@@ -47,7 +57,76 @@ const OP_VALUE: Readonly<Record<EffectOp['op'], number>> = {
   raise: 2.2,
 };
 
-const KEYWORD_VALUE = {
+type BoostScope = Extract<EffectOp, { op: 'boost' }>['scope'];
+const BOOST_SCOPE_MULTIPLIER: Readonly<Record<BoostScope, number>> = {
+  target: 1,
+  allYours: 1,
+  all: 1,
+  yourMarked: 1,
+  // NEEDS MATH: marked opposing creatures are a narrower, board-dependent
+  // hit than an unconditional mass debuff, so keep the first score conservative.
+  theirMarked: 0.65,
+};
+
+// §4i expected-trigger pattern: noncreatures survive longer than creatures in
+// this pool, so dawn values use the ruled 3.0x / 2.0x split.
+const DAWN_MULT_NONCREATURE = 3.0;
+const DAWN_MULT_CREATURE = 2.0;
+// §4's Starborne rider leaves these gates provisional until seeded playtest
+// data replaces the single-card judgment.
+const MARKED_THRESHOLD_MULT = 0.5;
+const CONDITIONAL_DAWN_MULT = 0.75;
+
+interface EffectEntry {
+  op: EffectOp;
+  when?: TriggerWhen;
+  condition?: AbilityDef['condition'];
+}
+
+function appendEffectEntries(
+  out: EffectEntry[],
+  ops: readonly EffectOp[],
+  context: Omit<EffectEntry, 'op'> = {},
+): void {
+  for (const op of ops) {
+    out.push({ op, ...context });
+    if (op.op === 'ifTargetMarked') appendEffectEntries(out, [...op.then, ...(op.else ?? [])], context);
+  }
+}
+
+function cardEffectEntries(card: CardDef): EffectEntry[] {
+  const entries: EffectEntry[] = [];
+  for (const ability of card.abilities ?? []) {
+    appendEffectEntries(entries, ability.ops ?? [], { when: ability.when, condition: ability.condition });
+  }
+  for (const chapter of card.chapters ?? []) appendEffectEntries(entries, chapter);
+  appendEffectEntries(entries, card.empower?.ops ?? []);
+  return entries;
+}
+
+function dawnMultiplier(card: CardDef): number {
+  return card.types.includes('creature') ? DAWN_MULT_CREATURE : DAWN_MULT_NONCREATURE;
+}
+
+function effectValue(entry: EffectEntry, card: CardDef): number {
+  let value = entry.op.op === 'propagate' && entry.when === 'dawn'
+    ? 1.65
+    : OP_VALUE[entry.op.op];
+  if (entry.op.op === 'boost') value *= BOOST_SCOPE_MULTIPLIER[entry.op.scope];
+  if (entry.when === 'dawn') value *= dawnMultiplier(card);
+  if (typeof entry.condition === 'object' && entry.condition.kind === 'markedThreshold') {
+    value *= MARKED_THRESHOLD_MULT;
+  }
+  if (entry.when === 'dawn' && entry.condition === 'controlMarked') {
+    value *= CONDITIONAL_DAWN_MULT;
+  }
+  return value;
+}
+
+// Typed over the closed Keyword union on purpose: before 2026-08-30 this was a
+// bare object literal, so adding a keyword to the engine left this table
+// silently short instead of failing the typecheck.
+const KEYWORD_VALUE: Record<Keyword, number> = {
   skyborne: 0.55,
   wardingGaze: 0.35,
   firstBlade: 0.45,
@@ -60,14 +139,13 @@ const KEYWORD_VALUE = {
   bloodoath: 0.5,
   untouchable: 0.85,
   dreaded: 0.55,
-} as const;
+  // Drafter salience, not a power rate (note bulwark is positive here too):
+  // Rage sits low because it takes a decision away without adding a threat.
+  rage: 0.3,
+};
 
 export function cardEffectOps(card: CardDef): EffectOp[] {
-  const ops: EffectOp[] = [];
-  for (const ability of card.abilities ?? []) ops.push(...(ability.ops ?? []));
-  for (const chapter of card.chapters ?? []) ops.push(...chapter);
-  ops.push(...(card.empower?.ops ?? []));
-  return ops;
+  return cardEffectEntries(card).map((entry) => entry.op);
 }
 
 /**
@@ -90,7 +168,7 @@ export function rateCard(card: CardDef): number {
     ? (1.1 * (card.attack ?? 0) + 0.9 * (card.defense ?? 0)) / mv
     : 0.35;
   raw += (card.keywords ?? []).reduce((sum, keyword) => sum + KEYWORD_VALUE[keyword] / mv, 0);
-  raw += cardEffectOps(card).reduce((sum, op) => sum + OP_VALUE[op.op] / mv, 0);
+  raw += cardEffectEntries(card).reduce((sum, entry) => sum + effectValue(entry, card) / mv, 0);
   raw += (card.abilities ?? []).filter((ability) => ability.static).length * 0.35;
   raw += ((card.awakening?.p ?? 0) + (card.awakening?.t ?? 0)) * 0.12;
   raw += (card.abilities ?? []).reduce((sum, ability) => sum + Math.max(0, (ability.targets?.length ?? 0) - 1) * 0.1, 0);

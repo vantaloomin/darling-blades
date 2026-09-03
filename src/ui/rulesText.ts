@@ -37,16 +37,49 @@ function countWord(n: number): string {
 }
 
 function targetNoun(spec: TargetSpec | undefined): string {
-  switch (spec?.what) {
-    case 'artifact':
-      return 'artifact';
-    case 'enchantment':
-      return 'enchantment';
-    case 'artifactOrEnchantment':
-      return 'artifact or enchantment';
-    default:
-      return 'creature';
-  }
+  const noun = (() => {
+    switch (spec?.what) {
+      case 'artifact':
+        return 'artifact';
+      case 'enchantment':
+        return 'enchantment';
+      case 'artifactOrEnchantment':
+        return 'artifact or enchantment';
+      case 'yourPermanent':
+        return 'permanent you control';
+      case 'yourCreature':
+        return 'creature you control';
+      default:
+        return 'creature';
+    }
+  })();
+  const qualifiers = [
+    spec?.marked ? 'Marked' : undefined,
+    spec?.tapped ? 'tapped' : undefined,
+  ].filter((qualifier): qualifier is string => qualifier !== undefined);
+  return `${qualifiers.length > 0 ? `${qualifiers.join(' ')} ` : ''}${noun}`;
+}
+
+function capitalizeFirst(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+function markVerbText(target: string, n: number): string {
+  if (n === 1) return `Mark ${target}`;
+  if (n === 2) return `Mark ${target} twice`;
+  return `Mark ${target} ${countWord(n)} times`;
+}
+
+function markCountText(n: number): string {
+  return `${countWord(n)} +1/+1 Mark${n === 1 ? '' : 's'}`;
+}
+
+function targetPhrase(spec: TargetSpec | undefined): string {
+  return `${spec?.other ? 'another target' : 'target'} ${targetNoun(spec)}`;
 }
 
 function referencesAbilityTarget(op: EffectOp): boolean {
@@ -65,6 +98,10 @@ function referencesAbilityTarget(op: EffectOp): boolean {
       return op.scope === 'target';
     case 'addCounters':
       return op.to === 'target';
+    case 'moveMark':
+    case 'removeMarks':
+    case 'ifTargetMarked':
+      return true;
     case 'reclaim':
       return true;
     case 'raise':
@@ -79,15 +116,23 @@ function opText(
   target?: TargetSpec,
   targetAlreadyNamed = false,
   excludesSelf = false,
+  autoBoundTarget = false,
 ): string {
   switch (op.op) {
     case 'damage': {
       const n = op.n === 'X' ? 'X' : op.n;
-      if (op.to === 'eachCreature') return `deal ${n} damage to each creature`;
+      if (op.to === 'eachCreature') {
+        if (op.severOnDeath) {
+          return `deals ${n} damage to each creature; a creature damaged this way that would die this turn is severed instead`;
+        }
+        return `deal ${n} damage to each creature`;
+      }
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
-      const recipient = target?.what === 'creature'
-        ? targetAlreadyNamed ? 'that creature' : 'target creature'
+      const isCreatureTarget = target?.what === 'creature' || target?.what === 'yourCreature' ||
+        (target?.what === 'any' && (target.marked === true || target.tapped === true));
+      const recipient = isCreatureTarget
+        ? targetAlreadyNamed ? 'that creature' : autoBoundTarget ? 'it' : targetPhrase(target)
         : 'any target';
       return `deal ${n} damage to ${recipient}`;
     }
@@ -100,9 +145,9 @@ function opText(
     case 'discardRandom':
       return `your opponent discards ${op.n === 1 ? 'a card' : `${op.n} cards`} at random`;
     case 'destroy':
-      return `destroy target ${targetNoun(target)}`;
+      return autoBoundTarget ? 'destroy it' : `destroy ${targetPhrase(target)}`;
     case 'sever':
-      return `Sever target ${targetNoun(target)}`;
+      return autoBoundTarget ? 'Sever it' : `Sever ${targetPhrase(target)}`;
     case 'severGrave': {
       const cards = op.n === 1 ? 'the top card' : `the top ${op.n} cards`;
       return op.who === 'self'
@@ -112,7 +157,7 @@ function opText(
     case 'severTop':
       return `Sever ${op.n === 1 ? 'the top card' : `the top ${op.n} cards`} of your deck`;
     case 'recall':
-      return `return target ${targetNoun(target)} to its owner's hand`;
+      return autoBoundTarget ? "return it to its owner's hand" : `return ${targetPhrase(target)} to its owner's hand`;
     case 'destroyArtifactOrSeverEnchantment':
       return 'destroy target artifact or sever target enchantment';
     case 'cancel':
@@ -122,17 +167,48 @@ function opText(
       const kw = op.keywords?.length
         ? ` and gain${op.scope === 'target' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
-      if (op.scope === 'target') return `target creature gets ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
-      const subject = op.scope === 'all' ? 'all creatures' : 'creatures you control';
-      return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until end of turn`;
+      if (op.scope === 'target') {
+        const subject = targetAlreadyNamed ? 'that creature' : autoBoundTarget ? 'it' : targetPhrase(target);
+        return `${subject} gets ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
+      }
+      const subject = op.scope === 'all'
+        ? 'all creatures'
+        : op.scope === 'yourMarked'
+          ? 'your Marked creatures'
+          : op.scope === 'theirMarked'
+            ? 'Marked creatures your opponent controls'
+            : 'creatures you control';
+      return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
     }
     case 'addCounters': {
-      if (op.to === 'self') return `put ${countWord(op.n)} +1/+1 mark${op.n === 1 ? '' : 's'} on this`;
-      const markTarget = target?.what === 'yourCreature' ? 'target creature you control' : 'target creature';
-      return `put ${countWord(op.n)} +1/+1 mark${op.n === 1 ? '' : 's'} on ${markTarget}`;
+      if (op.to === 'self') return markVerbText('this', op.n);
+      const markTarget = autoBoundTarget ? 'it' : targetPhrase(target);
+      return markVerbText(markTarget, op.n);
+    }
+    case 'propagate':
+      return 'Propagate';
+    case 'moveMark':
+      return 'move a Mark from a creature you control to another creature you control';
+    case 'removeMarks':
+      return autoBoundTarget ? 'remove all Marks from it' : `remove all Marks from ${targetPhrase(target)}`;
+    case 'markAll':
+      return 'Mark each creature you control';
+    case 'loseLifePerTheirMarked':
+      return 'your opponent loses 1 life for each Marked creature they control';
+    case 'fetchLand':
+      return 'put the first land from the top of your deck onto the battlefield tapped';
+    case 'severSelf':
+      return 'sever this';
+    case 'ifTargetMarked': {
+      const renderBranch = (ops: EffectOp[]): string => ops.map((branchOp) =>
+        opText(branchOp, target, targetAlreadyNamed, excludesSelf, autoBoundTarget),
+      ).join(', then ');
+      const thenText = renderBranch(op.then);
+      if (!op.else || op.else.length === 0) return `if it is Marked, ${thenText}`;
+      return `${renderBranch(op.else)}; if it is Marked, ${thenText} instead`;
     }
     case 'tap':
-      return targetAlreadyNamed ? 'tap that creature' : 'tap target creature';
+      return targetAlreadyNamed ? 'tap that creature' : autoBoundTarget ? 'tap it' : `tap ${targetPhrase(target)}`;
     case 'extraLandDrop': {
       const n = op.n ?? 1;
       return n === 1
@@ -168,7 +244,7 @@ function opText(
         : `your opponent puts ${cards} of their deck into their graveyard`;
     }
     case 'foresee':
-      return `Foresee ${op.n}`;
+      return op.who === 'targetOwner' ? `its owner Foresees ${op.n}` : `Foresee ${op.n}`;
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
     case 'raise':
@@ -178,9 +254,14 @@ function opText(
       // "other" carries the dies-trigger exclusion instead - a raise fired by
       // a dies trigger skips its own source (EffectContext.selfGraveExclusion).
       if (op.to !== 'top') return 'return target creature card from your graveyard to play';
-      return excludesSelf
-        ? 'return the top other creature card of your graveyard to play'
-        : 'return the top creature card of your graveyard to play';
+      {
+      const card = excludesSelf
+        ? 'return the top other creature card of your graveyard'
+        : 'return the top creature card of your graveyard';
+      return op.withMarks === undefined
+        ? `${card} to play`
+          : `${card} to the battlefield with ${countWord(op.withMarks)} Marks on it`;
+      }
   }
 }
 
@@ -195,8 +276,12 @@ export function manaCostText(cost: ManaCost): string {
 
 export function empowerText(d: CardDef): string | undefined {
   if (!d.empower) return undefined;
-  const body = d.empower.ops.map((op) => opText(op)).join(', then ');
-  const cap = body.charAt(0).toUpperCase() + body.slice(1);
+  const body = d.empower.ops.map((op) =>
+    op.op === 'addCounters' && op.to === 'self'
+      ? `Arrives with ${markCountText(op.n)}`
+      : opText(op),
+  ).join(', then ');
+  const cap = capitalizeFirst(body);
   return `Empower ${manaCostText(d.empower.cost)}: ${cap}.`;
 }
 
@@ -218,7 +303,7 @@ export function preserveText(d: CardDef): string | undefined {
 
 export function skimText(d: CardDef): string | undefined {
   if (!d.skim) return undefined;
-  return `Skim ${manaCostText(d.skim.cost)}: Discard this card, then draw a card.`;
+  return `Skim ${manaCostText(d.skim.cost)}`;
 }
 
 export function retellText(d: CardDef): string | undefined {
@@ -245,10 +330,21 @@ export function hauntlinkText(d: CardDef): string | undefined {
   return `Hauntlink ${manaCostText(d.hauntlink.cost)}: At Charm speed, link this to a creature you control or move it to another. Linked: The linked creature ${benefit}. This dies with its host.`;
 }
 
-function abilityText(ab: AbilityDef): string {
+function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undefined {
+  const condition = ab.condition ?? ab.static?.condition;
+  if (condition === undefined) return undefined;
+  if (condition === 'questActive') return 'While a Quest is active';
+  const also = additionalDawn ? 'also ' : '';
+  if (condition === 'controlMarked') {
+    return `If you ${also}control a Marked creature`;
+  }
+  return `If you ${also}control ${countWord(condition.n)} or more creatures with Marks`;
+}
+
+function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string {
   const questCondition = (ab.condition ?? ab.static?.condition) === 'questActive';
   const conditionalArrival = questCondition && ab.when === 'arrives';
-  const prefix = questCondition && !conditionalArrival ? 'While a Quest is active, ' : '';
+  const condition = conditionalArrival ? undefined : conditionPhrase(ab, additionalDawn);
   if (ab.when === 'static' && ab.static) {
     const st = ab.static;
     const sign = (v: number | undefined): string => {
@@ -270,17 +366,16 @@ function abilityText(ab: AbilityDef): string {
     // the caller drop the line rather than print a bare "gets ." fragment.
     if (!hasStats && !keywordNames) return '';
     // These clauses are written to stand alone, so they open with a capital.
-    // Run one in behind a prefix and it reads "While a Quest is active, This
-    // gains Untouchable." Lower-case the opener when a prefix precedes it.
+    // Run one in behind a condition and lower-case only the clause opener.
     const runIn = (clause: string): string =>
-      prefix ? `${prefix}${clause.charAt(0).toLowerCase()}${clause.slice(1)}` : clause;
+      condition ? `${condition}, ${lowerFirst(clause)}` : capitalizeFirst(clause);
     if (st.scope === 'attached') {
       // "Enchanted Creature" stays capitalized even behind a prefix: it is a
       // game term here, fixed by the user-approved copy (Wings of Dawn,
       // 2026-07-24), and stat-only auras must not read differently.
       return hasStats
-        ? `${prefix}Enchanted Creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`
-        : `${prefix}Enchanted Creature gains ${keywordNames}.`;
+        ? `${condition ? `${condition}, ` : ''}Enchanted Creature gets ${sign(st.p)}/${sign(st.t)}${kw}.`
+        : `${condition ? `${condition}, ` : ''}Enchanted Creature gains ${keywordNames}.`;
     }
     if (st.scope === 'self') {
       return runIn(hasStats
@@ -288,8 +383,8 @@ function abilityText(ab: AbilityDef): string {
         : `This gains ${keywordNames}.`);
     }
     const who = st.filter?.subtype
-      ? `${st.filter.other ? 'Other ' : ''}${st.filter.subtype} creatures you control`
-      : `${st.filter?.other ? 'Other creatures' : 'Creatures'} you control`;
+      ? `${st.filter.other ? 'Other ' : ''}${st.filter.marked ? 'Marked ' : ''}${st.filter.subtype} creatures ${st.filter.who === 'opponent' ? "your opponent controls" : 'you control'}`
+      : `${st.filter?.other ? 'Other ' : ''}${st.filter?.marked ? 'Marked ' : ''}creatures ${st.filter?.who === 'opponent' ? "your opponent controls" : 'you control'}`;
     return runIn(hasStats
       ? `${who} get ${sign(st.p)}/${sign(st.t)}${kw}.`
       : `${who} gain ${keywordNames}.`);
@@ -298,11 +393,20 @@ function abilityText(ab: AbilityDef): string {
   let targetAlreadyNamed = false;
   const body = (ab.ops ?? []).map((op) => {
     // A dies trigger excludes the source's own card from a graveyard raise.
-    const text = opText(op, ab.targets?.[0], targetAlreadyNamed, ab.when === 'dies');
+    const text = opText(
+      op,
+      ab.targets?.[0],
+      targetAlreadyNamed,
+      ab.when === 'dies',
+      ab.when === 'allyCreatureArrives',
+    );
     targetAlreadyNamed ||= referencesAbilityTarget(op);
     return text;
   }).join(', then ');
-  const cap = body.charAt(0).toUpperCase() + body.slice(1);
+  const cap = capitalizeFirst(body);
+  const dawnBody = additionalDawn && (ab.ops ?? []).length === 1 && ab.ops?.[0].op === 'draw' && ab.ops[0].n === 1
+    ? 'draw an extra card'
+    : body;
   let sentence: string;
   switch (ab.when) {
     case 'spell':
@@ -318,23 +422,45 @@ function abilityText(ab: AbilityDef): string {
       sentence = `When this enters your graveyard, ${body}.`;
       break;
     case 'dawn':
-      sentence = `At the start of your turn, ${body}.`;
-      break;
+      if (condition) {
+        return `${additionalDawn ? condition : `During your Dawn: ${condition}`}, ${dawnBody}.`;
+      }
+      return `During your Dawn, ${dawnBody}.`;
     case 'combatDamageToPlayer':
       sentence = `Whenever this deals combat damage to a player, ${body}.`;
       break;
     case 'attacks':
       sentence = `Whenever this attacks, ${body}.`;
       break;
+    case 'allyCreatureArrives':
+      sentence = `Whenever a creature arrives under your control, ${body}.`;
+      break;
+    case 'markedAllyAttacks':
+      sentence = `Whenever a Marked creature you control attacks, ${body}.`;
+      break;
+    case 'gainsMark':
+      sentence = `When this gets a Mark, ${body}.`;
+      break;
+    case 'yourCreatureMarked':
+      sentence = `Whenever a creature you control gets a Mark, ${body}.`;
+      break;
+    case 'yourPermanentMarked':
+      sentence = `Whenever a creature you control becomes Marked, ${body}.`;
+      break;
+    case 'youAddMark':
+      sentence = `Whenever you add a Mark to a creature, ${body}.`;
+      break;
+    case 'otherCreatureMarked':
+      sentence = `Whenever another creature gets a Mark, ${body}.`;
+      break;
+    case 'propagated':
+      sentence = `Whenever you Propagate, ${body}.`;
+      break;
     default:
       sentence = `${cap}.`;
       break;
   }
-  // Twelve cards printed a mid-sentence capital: "While a Quest is active, At
-  // the start of your turn, you gain 1 life." The sentence is built to stand
-  // alone, so lower-case its first letter once a prefix runs in front of it.
-  const runOn = prefix ? sentence.charAt(0).toLowerCase() + sentence.slice(1) : sentence;
-  return `${prefix}${runOn}`;
+  return condition ? `${condition}, ${lowerFirst(sentence)}` : capitalizeFirst(sentence);
 }
 
 export function romanNumeral(n: number): string {
@@ -378,6 +504,8 @@ function awakeningText(d: CardDef): string {
  */
 export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   const lines: string[] = [];
+  const skim = skimText(d);
+  if (skim) lines.push(skim);
   if (d.keywords?.length) {
     if (opts?.reminders) {
       for (const k of d.keywords) lines.push(`${KEYWORD_NAMES[k]}: ${KEYWORD_REMINDER[k]}`);
@@ -391,24 +519,26 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
     lines.push('Arrives tapped.');
   }
   if (d.awakening) lines.push(awakeningText(d));
-  const skim = skimText(d);
-  if (skim) lines.push(skim);
   const hauntlink = hauntlinkText(d);
   if (hauntlink) lines.push(hauntlink);
   const rite = riteText(d);
   if (rite) lines.push(rite);
   const nineLives = nineLivesText(d);
   if (nineLives) lines.push(nineLives);
-  const preserve = preserveText(d);
-  if (preserve) lines.push(preserve);
-  const empower = empowerText(d);
-  if (empower) lines.push(empower);
   for (const [index, chapter] of (d.chapters ?? []).entries()) {
     lines.push(chapterText(chapter, index));
   }
   // Non-land mana abilities are NOT part of the text: CardView composes an
   // icon line ([T]: Add [pip]) at the top of the rules box instead.
-  for (const ab of d.abilities ?? []) lines.push(abilityText(ab));
+  let hasDawnAbility = false;
+  for (const ab of d.abilities ?? []) {
+    lines.push(abilityText(ab, d, hasDawnAbility && ab.when === 'dawn'));
+    hasDawnAbility ||= ab.when === 'dawn';
+  }
+  const empower = empowerText(d);
+  if (empower) lines.push(empower);
+  const preserve = preserveText(d);
+  if (preserve) lines.push(preserve);
   // Retell prints LAST, below the effect it recasts (the printed-card
   // convention for graveyard recast lines; user-reported 2026-07-31 that
   // leading with Retell read backwards).
@@ -456,6 +586,7 @@ export function cardGlossaryEntries(d: CardDef): GlossaryEntry[] {
 }
 
 export function typeLine(d: CardDef): string {
+  if (d.displayTypeLine) return d.displayTypeLine;
   // Tokens show their subtypes (user feedback 2026-07-18: Bloomlings counting
   // as hidden Fae confused tribal math; supersedes the 2026-07-13 no-subtypes
   // request that caused it). Format "Creature (Token): Type" per user

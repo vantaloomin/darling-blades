@@ -146,7 +146,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Lamia serpent beast-girl coiled upright, dark scaled bodice and shadow-silk cloak, long serpent lower body, extending a single needle claw-blade toward viewer, slit-pupil calm smile, dim ruined background, cold underlight with violet rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dragonmaid Ember — `bk-dragonmaid`
-- **Card facts:** {3}{R}{R} · R · 4/4 · skyborne · sr · holo: auto:galaxy
+- **Card facts:** {2}{R}{R} · R · 4/4 · skyborne · sr · holo: auto:galaxy
 - **Character & source:** Original Beastkin draconic housemaid — a five-drop `flying` 4/4 whose domestic composure hides a furnace.
 - **Personality / mood:** "She dusts, she polishes, she incinerates." Prim, immaculate, one raised eyebrow from arson.
 - **Pose & composition:** The rare "moment": hovering mid-air on spread wings, one hand tipping a feather-duster while the other cups a curl of ignition flame — the split-second before the room becomes a problem. Face ≈ y 320; wings sweep into the top bleed, scaled tail curls down the right band edge.
@@ -176,7 +176,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Wolfkin packmother standing protectively with a rallying outstretched arm, green-and-fur mantle and antler collar, grey brush tail, two young pack-shapes in bokeh behind, dusk den clearing, warm firelight with cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Kitsune Matriarch Yohime — `bk-kitsune-matriarch`
-- **Card facts:** {2}{U}{G} · U/G (gold frame) · 3/4 · ssr, legendary · holo: galaxy (explicit)
+- **Card facts:** {4}{U}{G} · U/G (gold frame) · 3/4 · ssr, legendary · holo: galaxy (explicit)
 - **Character & source:** Original Beastkin nine-tailed kitsune sovereign; her ETB creates two Fox Spirit tokens whose design **this art canonizes** (`tok-fox-spirit` — see registry): pale blue-white spectral fox, single tail, trailing cold foxfire wisps.
 - **Personality / mood:** "Nine tails, nine schemes, one very patient smile." A schemer, not a brawler — serene, unreadable, always three moves ahead.
 - **Pose & composition:** Seated or standing composed, three-quarter, hands folded in a sleeve, chin slightly lifted — she schemes, she does not lunge. Face ≈ y 300; her nine tails fan wide behind, several sweeping into the top and side bleed. Two canon fox spirits curl at her feet in cold foxfire.
@@ -221,7 +221,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Kitsune trickster beast-girl with a sly raised finger among faint blue after-image duplicates of herself, blue-and-silver short kimono, fox ears and tail, impish winking grin, misted bamboo background, cool moonlight — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Dreamveil Kitsune — `bk-kitsune-dreamweaver`
-- **Card facts:** {2}{U} · U · 2/2 · r · holo: auto:sheen
+- **Card facts:** {1}{U} · U · 2/2 · r · holo: auto:sheen
 - **Character & source:** Original Beastkin kitsune dream-caster — a three-drop whose ETB fogs the field (prevents combat damage), lulling the battle to sleep.
 - **Personality / mood:** "Sleep now. The battle will still be lost in the morning." Dreamy, unhurried, gently fatalistic.
 - **Pose & composition:** Standing serene, three-quarter, arms spread low as she draws a shimmering dream-veil of pale blue silk-mist across the frame — the moment she casts the fog. Face ≈ y 310, eyes softly closed; the veil-mist and one tail sweep across the band. The environmental element: sleeping-dust motes drifting.
@@ -386,7 +386,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Turtlekin beast-girl hunkered in a wide block-stance with a round tower-shield, a great mossy domed shell-carapace rising behind her shoulders, scaled forearm-plates, calm stubborn face, mossy stone ford, cool overcast light with warm rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Squirrelkin Hoarder — `bk-squirrelkin-hoarder`
-- **Card facts:** {1}{G} · G · 2/2 · c · holo: none
+- **Card facts:** {1}{G} · G · 1/3 · c · holo: none
 - **Character & source:** Original Beastkin squirrelkin gatherer — a two-drop whose entire identity is obsessive stockpiling.
 - **Personality / mood:** "Winter prep is a year-round lifestyle, and yes, that acorn is hers." Manic, possessive, endearingly frantic.
 - **Pose & composition:** Crouched protectively over a heaped pile of acorns and nuts, three-quarter, one arm scooping them close while she shoots a warning look at the viewer — guarding, not attacking. Face ≈ y 320; the enormous over-scaled bushy tail curls up filling the right of the band, cheeks pouched full.
@@ -416,7 +416,7 @@ light, one rim light, hard silhouette; every ear and tail must read at 119×86 p
 - **Prompt:** Boarkin beast-girl crashing shoulder-first through a splintering fence with an iron riot-mace swinging, scorched red-and-iron harness, upward tusks and bristle-mane, wild roaring grin, flying fence-planks and dust, warm flame light with cool rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Boarkin Rootbreaker — `bk-boarkin-rootbreaker`
-- **Card facts:** {1}{G} · G · 2/2 · c · holo: none
+- **Card facts:** {G}{G} · G · 2/2 · c · holo: none
 - **Character & source:** Original Beastkin boarkin salvage-wrecker — a two-drop whose arrival uproots the opponent's newest artifact or enchantment.
 - **Personality / mood:** "She uproots first and asks whether it was valuable later." Cheerful demolition, zero appraisal skills, immense job satisfaction.
 - **Pose & composition:** Mid-heave action shot: body braced low on a strong diagonal, legs planted wide at the crater's edge, shoulders coiled, both hands wrenching a half-buried glowing arcane relic up out of churned earth, soil clods and torn roots of light tearing loose mid-air around it — the violent instant of the uprooting, never a static stance. Face ≈ y 320 above the lifted relic; bristle-mane ridge and tusks catching the light, short tufted tail out behind, the relic's glow centered in the band.

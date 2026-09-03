@@ -52,6 +52,7 @@ export const ECONOMY = {
   darkTalesPackPrice: 525, // expansion booster - only pulls set:'dark-tales' cards (120-card chase density)
   yokaiNightsPackPrice: 525, // expansion booster - only pulls set:'yokai-nights' cards (120-card chase density)
   sandsOfTheDuatPackPrice: 525, // expansion booster - only pulls set:'sands-of-the-duat' cards (245-card chase density); SKU hidden until FEATURES.duatLive
+  starbornePackPrice: 525,
   boosterPackSize: 9, // collection boosters: every slot rolls tier + frame + holo + full art independently (DROPS)
   limitedPackSize: 15, // Draft packs stay MTG-sized for pick and pool depth.
   winGold: { easy: 50, medium: 100, hard: 200 } as const,
@@ -94,8 +95,8 @@ export const ECONOMY = {
   shardHoloMult: { none: 1, shiny: 1.5, rainbow: 2, pearlescent: 3, fractal: 6, void: 12 } as const,
   shardFullArtMult: 25,
   // Avatar Gauntlet: gold per rung cleared (index 0 = rung 1), plus a bonus for
-  // a full 22-rung clear. Full run = 50+70+...+470 (=5720) + 250 bonus =
-  // 5970g.
+  // a full 24-rung clear. Full run = 50+70+...+510 (=6720) + 250 bonus =
+  // 6970g before the daily first-win bonus.
   // ~40% over practice-grinding — the price of run-risk (a loss resets the run).
   // Rungs 9-10 (210/230) are the Ragnarök bosses; 11-12 (250/270) are the
   // Celtic Fae bosses (The Morrigan, Titania); 13-14 (290/310) are the
@@ -104,8 +105,10 @@ export const ECONOMY = {
   // (Glass-Coffin Queen, Abyssal Songstress); 19-20 are the Yokai Nights
   // summit pair (Queen of the Lanterned Roof, Kitsune Neon Tyrant); 21-22 are
   // the Sands of the Duat summit pair (Anubis, Who Holds the Scale; Bastet,
-  // Mistress of the Ninth Return as the final rung).
-  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390, 410, 430, 450, 470] as const,
+  // Mistress of the Ninth Return at 22; the Starborne summit is the next
+  // authored rung, with Chrome Broodmother at 23 and The Violet Signal Queen
+  // as the final rung at 24).
+  gauntletRungGold: [50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350, 370, 390, 410, 430, 450, 470, 490, 510] as const,
   gauntletCompletionBonus: 250,
   // Free Limited runs are free-entry with ephemeral cards and pay the record
   // payout below. Premium Draft pays to keep its picks; the entry fee already

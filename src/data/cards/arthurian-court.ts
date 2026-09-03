@@ -17,7 +17,7 @@ export const ARTHURIAN_COURT = [
   // ULTRA RARE (4)
   // =========================================================================
   creature('ac-artoria-once-future', 'Artoria, Once and Future Queen', ['Knight', 'Queen'], {
-    supertypes: ['legendary'], cost: cost(4, 'WU'), colors: ['W', 'U'], attack: 5, defense: 5,
+    supertypes: ['legendary'], cost: cost(3, 'WU'), colors: ['W', 'U'], attack: 5, defense: 5,
     keywords: ['sentinel'], awakening: { p: 3, t: 3, keywords: ['firstBlade'] },
     rarity: 'ur', flavor: 'The crown remembers every oath, even the one that breaks it.',
   }),
@@ -40,7 +40,7 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-grail-radiant-secret', name: 'The Grail, Radiant Secret', types: ['artifact'], subtypes: [],
-    supertypes: ['legendary'], cost: cost(4, 'WG'), colors: ['W', 'G'],
+    supertypes: ['legendary'], cost: cost(3, 'WG'), colors: ['W', 'G'],
     abilities: [
       { when: 'dawn', ops: [{ op: 'gainLife', n: 2 }] },
       { when: 'dawn', condition: 'questActive', ops: [{ op: 'awaken', scope: 'allYours' }] },
@@ -52,20 +52,20 @@ export const ARTHURIAN_COURT = [
   // SUPER-SUPER RARE (5)
   // =========================================================================
   creature('ac-lancelot-moonlit-shame', 'Lancelot, Moonlit Shame', ['Knight', 'Champion'], {
-    supertypes: ['legendary'], cost: cost(4, 'WR'), colors: ['W', 'R'], attack: 5, defense: 4,
+    supertypes: ['legendary'], cost: cost(3, 'WR'), colors: ['W', 'R'], attack: 5, defense: 4,
     keywords: ['firstBlade'], awakening: { p: 2, t: 1, keywords: ['twinBlades'] },
     rarity: 'ssr', flavor: 'She rides beneath the moon, carrying a shame no banner can hide.',
   }),
   creature('ac-guinevere-court-sun', 'Guinevere, Court Sun', ['Noble', 'Queen'], {
-    supertypes: ['legendary'], cost: cost(4, 'WU'), colors: ['W', 'U'], attack: 3, defense: 4,
+    supertypes: ['legendary'], cost: cost(2, 'WU'), colors: ['W', 'U'], attack: 3, defense: 4,
     abilities: [
-      { when: 'arrives', ops: [{ op: 'foresee', n: 2 }] },
+      { when: 'arrives', ops: [{ op: 'foresee', n: 1 }] },
       { when: 'dawn', condition: 'questActive', ops: [{ op: 'createToken', token: 'tok-squire', count: 1 }] },
     ],
     rarity: 'ssr', flavor: 'Her smile makes the hall shine; her silence names the price.',
   }),
   creature('ac-gawain-noonblade', 'Gawain of the Noonblade', ['Knight', 'Champion'], {
-    supertypes: ['legendary'], cost: cost(4, 'RW'), colors: ['R', 'W'], attack: 4, defense: 4,
+    supertypes: ['legendary'], cost: cost(2, 'RW'), colors: ['R', 'W'], attack: 4, defense: 4,
     keywords: ['firstBlade'],
     abilities: [{ when: 'attacks', condition: 'questActive', ops: [{ op: 'damage', n: 2, to: 'opponent' }] }],
     rarity: 'ssr', flavor: 'At noon she is invincible; by dusk, the legend has started to cool.',
@@ -82,7 +82,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-fall-of-camelot', name: 'The Fall of Camelot', types: ['enchantment'], subtypes: ['Quest'],
-    supertypes: ['legendary'], cost: cost(5, 'BR'), colors: ['B', 'R'],
+    supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'],
     chapters: [
       [{ op: 'damage', n: 3, to: 'opponent' }],
       [{ op: 'discardRandom', n: 2, who: 'opponent' }],
@@ -95,7 +95,7 @@ export const ARTHURIAN_COURT = [
   // SUPER RARE (7)
   // =========================================================================
   creature('ac-percival-clear-heart', 'Percival, Clear-Heart Knight', ['Knight', 'Grail-Seeker'], {
-    supertypes: ['legendary'], cost: cost(3, 'WG'), colors: ['W', 'G'], attack: 4, defense: 4,
+    supertypes: ['legendary'], cost: cost(2, 'WG'), colors: ['W', 'G'], attack: 4, defense: 4,
     keywords: ['sentinel', 'bloodoath'],
     rarity: 'sr', flavor: 'She enters the chapel with an empty hand and leaves with a heavier heart.',
   }),
@@ -136,7 +136,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-green-knight-challenge', name: "The Green Knight's Challenge", types: ['enchantment'], subtypes: ['Quest'],
-    cost: cost(3, 'G'), colors: ['G'],
+    cost: cost(2, 'G'), colors: ['G'],
     chapters: [
       [{ op: 'damage', n: 2, to: 'controller' }],
       [{ op: 'boost', p: 2, t: 2, scope: 'allYours' }],
@@ -155,13 +155,13 @@ export const ARTHURIAN_COURT = [
   // RARE (25)
   // =========================================================================
   creature('ac-camelot-banneret', 'Camelot Banneret', ['Knight', 'Soldier'], {
-    cost: cost(2, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['sentinel'],
+    cost: cost(3, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['sentinel'],
     awakening: { p: 1, t: 1, keywords: ['firstBlade'] },
     abilities: [{ when: 'arrives', condition: 'questActive', ops: [{ op: 'createToken', token: 'tok-squire', count: 1 }] }],
     rarity: 'r', flavor: 'She carries the banner because someone must carry the memory.',
   }),
   creature('ac-lakeblade-initiate', 'Lakeblade Initiate', ['Knight', 'Initiate'], {
-    cost: cost(2, 'U'), colors: ['U'], attack: 3, defense: 3, keywords: ['firstBlade'],
+    cost: cost(3, 'U'), colors: ['U'], attack: 3, defense: 3, keywords: ['firstBlade'],
     awakening: { p: 1, t: 1, keywords: ['untouchable'] },
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'The lake gives her a blade before it gives her permission.',
@@ -189,17 +189,17 @@ export const ARTHURIAN_COURT = [
     rarity: 'r', flavor: 'The crowd knows her name; the lance knows her reach.',
   }),
   creature('ac-questing-beast-maiden', 'Questing Beast-Maiden', ['Hunter', 'Beast'], {
-    cost: cost(3, 'G'), colors: ['G'], attack: 4, defense: 4, keywords: ['overrun', 'sentinel'],
+    cost: cost(2, 'GG'), colors: ['G'], attack: 4, defense: 4, keywords: ['overrun', 'sentinel'],
     rarity: 'r', flavor: 'She hunts the impossible beast because ordinary prey has stopped running.',
   }),
   {
     id: 'ac-mirror-of-avalon', name: 'Mirror of Avalon', types: ['artifact'], subtypes: [],
-    cost: cost(3, 'U'), colors: ['U'], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
+    cost: cost(0, 'U'), colors: ['U'], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'The mirror shows the shore you left and the shore you deserve.',
   },
   {
     id: 'ac-black-chapel-curse', name: 'Black Chapel Curse', types: ['enchantment'], subtypes: ['Quest'],
-    cost: cost(2, 'B'), colors: ['B'],
+    cost: cost(1, 'B'), colors: ['B'],
     chapters: [
       [{ op: 'loseLife', n: 2, who: 'opponent' }],
       [{ op: 'discardRandom', n: 1, who: 'opponent' }],
@@ -209,13 +209,13 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-sword-test-stone', name: 'The Sword in the Stone', types: ['artifact'], subtypes: [],
-    cost: cost(3), colors: [],
+    cost: cost(4), colors: [],
     abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'awaken', scope: 'allYours' }] }],
     rarity: 'r', flavor: 'Stone asks no question twice; the sword gives no second chance.',
   },
   {
     id: 'ac-grail-procession', name: 'Grail Procession', types: ['ritual'], subtypes: [],
-    cost: cost(3, 'W'), colors: ['W'],
+    cost: cost(2, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-squire', count: 2 }, { op: 'gainLife', n: 3 }] }],
     rarity: 'r', flavor: 'The procession moves slowly; hope has learned to keep formation.',
   },
@@ -227,12 +227,12 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-courtly-betrayal', name: 'Courtly Betrayal', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'B'), colors: ['B'],
+    cost: cost(0, 'B'), colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }, { op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'A bow, a whisper, a door closed before the blade is drawn.',
   },
   creature('ac-lady-of-lilies', 'Lady of Lilies', ['Mage', 'Attendant'], {
-    cost: cost(2, 'U'), colors: ['U'], attack: 2, defense: 3,
+    cost: cost(4, 'U'), colors: ['U'], attack: 3, defense: 3,
     abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'r', flavor: 'She gathers lilies from the lake and omens from the court.',
   }),
@@ -258,13 +258,13 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-secret-of-avalon', name: 'Secret of Avalon', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'U'), colors: ['U'],
+    cost: cost(1, 'U'), colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 1 }, { op: 'foresee', n: 2 }] }],
     rarity: 'r', flavor: 'Avalon reveals itself one reflection at a time.',
   },
   {
     id: 'ac-castle-under-siege', name: 'Castle Under Siege', types: ['enchantment'], subtypes: ['Quest'],
-    cost: cost(3, 'R'), colors: ['R'],
+    cost: cost(1, 'R'), colors: ['R'],
     chapters: [
       [{ op: 'createToken', token: 'tok-squire', count: 1 }],
       [{ op: 'damage', n: 2, to: 'opponent' }],
@@ -283,13 +283,13 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-lance-of-dawn', name: 'Lance of Dawn', types: ['enchantment'], subtypes: ['Aura'],
-    cost: cost(2, 'W'), colors: ['W'],
+    cost: cost(0, 'W'), colors: ['W'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: 2, t: 0, grantKeywords: ['firstBlade'] } }],
     rarity: 'r', flavor: 'At first light, even a borrowed weapon can look like destiny.',
   },
   {
     id: 'ac-queen-regents-command', name: "Queen-Regent's Command", types: ['charm'], subtypes: [],
-    cost: cost(2, 'U'), colors: ['U'],
+    cost: cost(3, 'U'), colors: ['U'],
     abilities: [
       { when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'draw', n: 1 }] },
       { when: 'spell', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] },
@@ -322,7 +322,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'c', flavor: 'She polishes the armor before anyone asks her to wear it.',
   }),
   creature('ac-keep-watchwoman', 'Keep Watchwoman', ['Guard'], {
-    cost: cost(2, 'W'), colors: ['W'], attack: 1, defense: 4, keywords: ['bulwark'],
+    cost: cost(1, 'W'), colors: ['W'], attack: 1, defense: 4, keywords: ['bulwark'],
     rarity: 'c', flavor: 'She watches the gate until the gate becomes part of her.',
   }),
   creature('ac-lake-attendant', 'Lake Attendant', ['Attendant'], {
@@ -331,7 +331,7 @@ export const ARTHURIAN_COURT = [
     rarity: 'c', flavor: 'She knows which ripples mean welcome and which mean warning.',
   }),
   creature('ac-court-minstrel', 'Court Minstrel', ['Bard'], {
-    cost: cost(2, 'U'), colors: ['U'], attack: 2, defense: 2,
+    cost: cost(4, 'U'), colors: ['U'], attack: 2, defense: 2,
     abilities: [{ when: 'dawn', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'She sings the table into courage, one verse at a time.',
   }),
@@ -368,7 +368,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-steel-prayer', name: 'Steel Prayer', types: ['charm'], subtypes: [],
-    cost: cost(1, 'W'), colors: ['W'],
+    cost: cost(0, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 0, t: 3, scope: 'target' }] }],
     rarity: 'c', flavor: 'She raises the shield and lets the prayer take the blow.',
   },
@@ -380,7 +380,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-squire-to-champion', name: 'Squire to Champion', types: ['enchantment'], subtypes: ['Quest'],
-    cost: cost(1, 'W'), colors: ['W'],
+    cost: cost(0, 'WW'), colors: ['W'],
     chapters: [
       [{ op: 'boost', p: 1, t: 1, scope: 'allYours' }],
       [{ op: 'awaken', scope: 'allYours' }],
@@ -389,13 +389,13 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-lantern-in-fog', name: 'Lantern in Fog', types: ['charm'], subtypes: [],
-    cost: cost(1, 'U'), colors: ['U'],
+    cost: cost(0, 'U'), colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'The lantern finds a path; the fog decides who may follow it.',
   },
   {
     id: 'ac-bitter-court-rumor', name: 'Bitter Court Rumor', types: ['ritual'], subtypes: [],
-    cost: cost(1, 'B'), colors: ['B'],
+    cost: cost(0, 'B'), colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'discardRandom', n: 1, who: 'opponent' }] }],
     rarity: 'c', flavor: 'A whisper crosses the hall and leaves every candle colder.',
   },
@@ -407,7 +407,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-tilting-lance', name: 'Tilting Lance', types: ['charm'], subtypes: [],
-    cost: cost(1, 'R'), colors: ['R'],
+    cost: cost(0, 'R'), colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 2, t: 0, keywords: ['firstBlade'], scope: 'target' }] }],
     rarity: 'c', flavor: 'A straight charge, a bright lance, and no room for regret.',
   },
@@ -422,13 +422,13 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-wounded-oath', name: 'Wounded Oath', types: ['enchantment'], subtypes: ['Aura'],
-    cost: cost(1, 'B'), colors: ['B'],
+    cost: cost(0, 'B'), colors: ['B'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: -3, t: 0 } }],
     rarity: 'c', flavor: 'The promise weakens the arm that made it and the heart that keeps it.',
   },
   {
     id: 'ac-candlelit-vigil', name: 'Candlelit Vigil', types: ['enchantment'], subtypes: [],
-    cost: cost(2, 'W'), colors: ['W'],
+    cost: cost(0, 'W'), colors: ['W'],
     abilities: [{ when: 'dawn', ops: [{ op: 'gainLife', n: 1 }] }],
     rarity: 'c', flavor: 'One candle burns for each name the chapel cannot forget.',
   },
@@ -439,7 +439,7 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-grail-glimpse', name: 'Grail Glimpse', types: ['ritual'], subtypes: [],
-    cost: cost(1, 'U'), colors: ['U'], abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }] }],
+    cost: cost(0, 'U'), colors: ['U'], abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 4 }] }],
     rarity: 'c', flavor: 'For one breath, the whole road shines through the mist.',
   },
   creature('ac-root-chapel-warden', 'Root-Chapel Warden', ['Knight', 'Druid'], {
@@ -448,8 +448,15 @@ export const ARTHURIAN_COURT = [
   }),
   {
     id: 'ac-fallen-banner', name: 'Fallen Banner', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'B'), colors: ['B'],
-    abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 2, to: 'target' }, { op: 'grind', n: 1, who: 'self' }] }],
+    cost: cost(1, 'B'), colors: ['B'],
+    abilities: [{
+      when: 'spell', targets: [{ what: 'any' }],
+      ops: [
+        { op: 'damage', n: 2, to: 'target' },
+        { op: 'grind', n: 1, who: 'self' },
+        { op: 'grind', n: 1, who: 'opponent' },
+      ],
+    }],
     rarity: 'c', flavor: 'The banner falls; the names beneath it sink into the earth.',
   },
   creature('ac-pennant-carrier', 'Pennant Carrier', ['Knight', 'Banneret'], {
@@ -461,12 +468,12 @@ export const ARTHURIAN_COURT = [
     rarity: 'c', flavor: 'She lifts the pennant high enough for every oath to see it.',
   }),
   creature('ac-court-archer', 'Court Archer', ['Archer'], {
-    cost: cost(2, 'G'), colors: ['G'], attack: 2, defense: 2, keywords: ['wardingGaze'],
+    cost: cost(1, 'G'), colors: ['G'], attack: 2, defense: 2, keywords: ['wardingGaze'],
     rarity: 'c', flavor: 'She looses arrows from the gallery and never disturbs the music.',
   }),
   {
     id: 'ac-rallying-horn', name: 'Rallying Horn', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'R'), colors: ['R'],
+    cost: cost(0, 'R'), colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 2, t: 0, scope: 'allYours' }] }],
     rarity: 'c', flavor: 'One clear note, and every lance in the valley points the same way.',
   },
@@ -507,13 +514,13 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-shieldwall-call', name: 'Shieldwall Call', types: ['charm'], subtypes: [],
-    cost: cost(2, 'W'), colors: ['W'],
+    cost: cost(1, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 0, t: 2, scope: 'allYours' }] }],
     rarity: 'c', flavor: 'One shield is a promise; a wall of shields is an answer.',
   },
   {
     id: 'ac-woodland-errand', name: 'Woodland Errand', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'G'), colors: ['G'], abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
+    cost: cost(0, 'G'), colors: ['G'], abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c', flavor: 'The forest sends a messenger and asks for no explanation.',
   },
   {
@@ -529,13 +536,13 @@ export const ARTHURIAN_COURT = [
     rarity: 'c', flavor: 'The best stories leave out the part where the heroes lose.',
   },
   {
-    id: 'ac-questing-map', name: 'Questing Map', types: ['artifact'], subtypes: [],
-    cost: cost(2), colors: [], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }, { when: 'arrives', condition: 'questActive', ops: [{ op: 'draw', n: 1 }] }],
+    id: 'ac-questing-map', name: 'Questing Map', types: ['ritual'], subtypes: [],
+    cost: cost(3), colors: [], abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 3 }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'The map marks the road in ink that fades after the journey.',
   },
   {
     id: 'ac-recant-the-vow', name: 'Recant the Vow', types: ['charm'], subtypes: [],
-    cost: cost(2, 'W'), colors: ['W'],
+    cost: cost(4, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'enchantment' }], ops: [{ op: 'sever', to: 'target' }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'She withdrew the vow, kept the moral high ground, and drew a card.',
   },

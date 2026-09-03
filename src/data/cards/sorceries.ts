@@ -23,7 +23,7 @@ export const SORCERIES = [
     name: 'Verdant Invitation',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'G'),
+    cost: cost(0, 'G'),
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',
@@ -36,18 +36,20 @@ export const SORCERIES = [
     subtypes: [],
     cost: cost(0, 'B'),
     colors: ['B'],
-    abilities: [
-      { when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }] },
-    ],
+    abilities: [{ when: 'spell', targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c',
     flavor: 'Retirement is negotiable.',
   },
   {
+    // Charm, not Ritual (owner, 2026-08-29). It STAYS in this file: the id
+    // prefix convention is enforced per array (SORCERIES ids must be `so-`)
+    // and ids are immutable, so relocating it to instants.ts would break
+    // catalog integrity. Only the type changed.
     id: 'so-lava-axe',
     name: 'Molten Cleaver',
-    types: ['ritual'],
+    types: ['charm'],
     subtypes: [],
-    cost: cost(4, 'R'),
+    cost: cost(3, 'R'),
     colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'damage', n: 5, to: 'opponent' }] }],
     rarity: 'c',
@@ -86,14 +88,15 @@ export const SORCERIES = [
     name: 'Night Extortion',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'B'),
+    cost: cost(0, 'BB'),
     colors: ['B'],
     abilities: [
       {
         when: 'spell',
         ops: [
-          { op: 'discardRandom', n: 1, who: 'opponent' },
+          { op: 'damage', n: 2, to: 'controller' },
           { op: 'draw', n: 1 },
+          { op: 'discardRandom', n: 1, who: 'opponent' },
         ],
       },
     ],
@@ -105,7 +108,7 @@ export const SORCERIES = [
     name: 'Creeping Malaise',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'B'),
+    cost: cost(0, 'B'),
     colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: -1, t: -1, scope: 'all' }] }],
     rarity: 'c',
@@ -118,13 +121,7 @@ export const SORCERIES = [
     subtypes: [],
     cost: cost(1, 'R'),
     colors: ['R'],
-    abilities: [
-      {
-        when: 'spell',
-        targets: [{ what: 'creature' }],
-        ops: [{ op: 'damage', n: 3, to: 'target' }],
-      },
-    ],
+    abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 4, to: 'target' }] }],
     rarity: 'c',
     flavor: 'Ash to ash. Mostly ash.',
   },
@@ -190,7 +187,7 @@ export const SORCERIES = [
     name: 'Stampede Season',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(2, 'GG'),
+    cost: cost(0, 'GG'),
     colors: ['G'],
     abilities: [
       {
@@ -217,8 +214,12 @@ export const SORCERIES = [
     name: 'The Wilds Take It Back',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(3, 'G'),
-    colors: ['G'],
+    // Owner-ruled 2026-08-29: goes {G}{W} AND legendary, so the multicolour
+    // nonland invariant holds. (Was parked mono-green while colour-vs-legendary
+    // was an open question.)
+    supertypes: ['legendary'],
+    cost: cost(0, 'GW'),
+    colors: ['G', 'W'],
     abilities: [{ when: 'spell', ops: [{ op: 'massDestroy', filter: 'allEnchantments' }] }],
     rarity: 'r',
     flavor: 'The forest reviewed your enchantments and found them insufficiently feral.',
@@ -233,10 +234,10 @@ export const SORCERIES = [
     name: "Echo's Refrain",
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'U'),
+    cost: cost(2, 'U'),
     colors: ['U'],
     abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }] }],
-    retell: { cost: cost(2, 'U') },
+    retell: { cost: cost(3, 'U') },
     rarity: 'c',
     flavor: 'She answers every question twice, and the second answer is yours.',
   },
@@ -245,7 +246,7 @@ export const SORCERIES = [
     name: 'Roadside Shrine',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(1, 'W'),
+    cost: cost(0, 'W'),
     colors: ['W'],
     abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 4 }] }],
     skim: { cost: cost(1) },

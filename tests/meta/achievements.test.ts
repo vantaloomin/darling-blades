@@ -508,7 +508,9 @@ describe('gothic monsters achievements (1.3)', () => {
     expect(GOTHIC_MONSTERS_IDS).toHaveLength(78);
     expect(GOTHIC_MONSTERS_HEADLINERS.every((id) => CARD_DB[id]?.rarity === 'ur')).toBe(true);
     expect(GOTHIC_MONSTERS_DREADED).toHaveLength(10);
-    expect(GOTHIC_MONSTERS_EMPOWERED).toHaveLength(20);
+    // 20 -> 19 on 2026-08-29: the v3.1 slate traded Silver-Bullet Duelist's
+    // Empower for Blood Oath, so she leaves the Empowered pool.
+    expect(GOTHIC_MONSTERS_EMPOWERED).toHaveLength(19);
     expect(GOTHIC_MONSTERS_VAMPIRES).toHaveLength(10);
   });
 

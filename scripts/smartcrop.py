@@ -64,6 +64,24 @@ def clamp(value: int, lower: int, upper: int) -> int:
     return max(lower, min(upper, value))
 
 
+def validate_margin_scale(margin_scale: float) -> None:
+    if not math.isfinite(margin_scale) or margin_scale < 1.0:
+        raise ValueError("margin scale must be a finite number >= 1.0")
+
+
+def validate_offset_y(offset_y: int) -> None:
+    if isinstance(offset_y, bool) or not isinstance(offset_y, int):
+        raise ValueError("offset y must be an integer number of pixels")
+
+
+def offset_crop_box(crop: CropBox, src_h: int, offset_y: int) -> tuple[CropBox, int]:
+    """Slide a selected crop vertically and return the achieved pixel delta."""
+    validate_offset_y(offset_y)
+    max_top = max(0, src_h - crop.height)
+    top = clamp(crop.top + offset_y, 0, max_top)
+    return CropBox(crop.left, top, crop.width, crop.height), top - crop.top
+
+
 def cover_crop_size(src_w: int, src_h: int, out_w: int, out_h: int) -> tuple[int, int]:
     scale = max(out_w / src_w, out_h / src_h)
     crop_w = min(src_w, round(out_w / scale))
@@ -71,9 +89,56 @@ def cover_crop_size(src_w: int, src_h: int, out_w: int, out_h: int) -> tuple[int
     return crop_w, crop_h
 
 
-def center_crop_box(src_w: int, src_h: int, out_w: int, out_h: int) -> CropBox:
+def widen_crop_box(
+    crop: CropBox,
+    src_w: int,
+    src_h: int,
+    margin_scale: float,
+    anchor_x: float,
+    anchor_y: float,
+    focal_frac: float | None = None,
+    subject_top: float | None = None,
+) -> CropBox:
+    """Widen a chosen crop around its existing focal anchor without padding."""
+    validate_margin_scale(margin_scale)
+    if margin_scale == 1.0:
+        return crop
+
+    max_scale = min(src_w / crop.width, src_h / crop.height)
+    achieved = min(margin_scale, max_scale)
+    if achieved <= 1.0:
+        return crop
+
+    crop_w = min(src_w, round(crop.width * achieved))
+    crop_h = min(src_h, round(crop.height * achieved))
+    left = clamp(round(anchor_x - crop_w / 2), 0, src_w - crop_w)
+    if focal_frac is None:
+        top = round(anchor_y - crop_h / 2)
+    else:
+        top = round(anchor_y - focal_frac * crop_h)
+        if subject_top is not None:
+            top = min(top, round(subject_top - HEADROOM_FRAC * crop_h))
+    top = clamp(top, 0, src_h - crop_h)
+    return CropBox(left, top, crop_w, crop_h)
+
+
+def center_crop_box(
+    src_w: int,
+    src_h: int,
+    out_w: int,
+    out_h: int,
+    margin_scale: float = 1.0,
+) -> CropBox:
     crop_w, crop_h = cover_crop_size(src_w, src_h, out_w, out_h)
-    return CropBox((src_w - crop_w) // 2, (src_h - crop_h) // 2, crop_w, crop_h)
+    crop = CropBox((src_w - crop_w) // 2, (src_h - crop_h) // 2, crop_w, crop_h)
+    return widen_crop_box(
+        crop,
+        src_w,
+        src_h,
+        margin_scale,
+        crop.left + crop.width / 2,
+        crop.top + crop.height / 2,
+    )
 
 
 def focal_crop_box(
@@ -85,7 +150,9 @@ def focal_crop_box(
     focal_y: float,
     subject_top: float | None = None,
     focal_frac: float = FOCAL_FRAC,
+    margin_scale: float = 1.0,
 ) -> CropBox:
+    validate_margin_scale(margin_scale)
     crop_w, crop_h = cover_crop_size(src_w, src_h, out_w, out_h)
     left = clamp(round(focal_x - crop_w / 2), 0, src_w - crop_w)
     top = round(focal_y - focal_frac * crop_h)
@@ -104,8 +171,19 @@ def focal_crop_box(
         ztop = min(ztop, round(subject_top - HEADROOM_FRAC * zoom_h))
         ztop = clamp(ztop, 0, src_h - zoom_h)
         zleft = clamp(round(focal_x - zoom_w / 2), 0, src_w - zoom_w)
-        return CropBox(zleft, ztop, zoom_w, zoom_h)
-    return CropBox(left, top, crop_w, crop_h)
+        crop = CropBox(zleft, ztop, zoom_w, zoom_h)
+    else:
+        crop = CropBox(left, top, crop_w, crop_h)
+    return widen_crop_box(
+        crop,
+        src_w,
+        src_h,
+        margin_scale,
+        focal_x,
+        focal_y,
+        focal_frac,
+        subject_top,
+    )
 
 
 def save_crop(im: Image.Image, dst: Path, crop: CropBox, out_w: int, out_h: int) -> None:
@@ -304,11 +382,15 @@ def crop_image(
     mode: str,
     band_frac: float | None = None,
     focal_frac: float = FOCAL_FRAC,
+    margin_scale: float = 1.0,
+    offset_y: int = 0,
 ) -> dict[str, Any]:
     if out_w <= 0 or out_h <= 0:
         raise ValueError("target width and height must be positive")
     if mode not in {"character", "environment"}:
         raise ValueError("mode must be character or environment")
+    validate_margin_scale(margin_scale)
+    validate_offset_y(offset_y)
 
     with Image.open(src) as opened:
         im = opened.convert("RGB")
@@ -327,20 +409,46 @@ def crop_image(
         if band_frac is not None:
             slack = im.height - crop.height
             crop = CropBox(crop.left, clamp(round(slack * band_frac), 0, max(0, slack)), crop.width, crop.height)
+        base_crop = crop
+        crop = widen_crop_box(
+            base_crop,
+            im.width,
+            im.height,
+            margin_scale,
+            base_crop.left + base_crop.width / 2,
+            base_crop.top + base_crop.height / 2,
+        )
     else:
         source = det.source
         focal_x, focal_y = focal_from_detection(det)
-        crop = focal_crop_box(
+        base_crop = focal_crop_box(
             im.width, im.height, out_w, out_h, focal_x, focal_y, det.bbox[1], focal_frac
         )
+        crop = focal_crop_box(
+            im.width, im.height, out_w, out_h, focal_x, focal_y, det.bbox[1], focal_frac, margin_scale
+        )
 
+    crop, achieved_offset_y = offset_crop_box(crop, im.height, offset_y)
     save_crop(im, dst, crop, out_w, out_h)
+    achieved_scale = min(crop.width / base_crop.width, crop.height / base_crop.height)
+    if margin_scale > 1.0 and achieved_scale + 1e-9 < margin_scale:
+        print(
+            f"smartcrop: requested-scale={margin_scale:.6f} achieved-scale={achieved_scale:.6f}",
+            file=sys.stderr,
+        )
+    if offset_y != 0 or achieved_offset_y != offset_y:
+        print(
+            f"smartcrop: requested-offset-y={offset_y} achieved-offset-y={achieved_offset_y}",
+            file=sys.stderr,
+        )
     return {
         "source": source,
         "bbox": bbox_to_json(det.bbox if det else None),
         "crop": [crop.left, crop.top, crop.width, crop.height],
         "W": out_w,
         "H": out_h,
+        "achieved_scale": achieved_scale,
+        "achieved_offset_y": achieved_offset_y,
     }
 
 
@@ -369,6 +477,9 @@ def run_self_test() -> None:
         focal_crop_box(1024, 1536, 640, 800, 512, 768, 700), CropBox(0, 256, 1024, 1280), "headroom inactive"
     )
     assert_equal(center_crop_box(1024, 1536, 640, 800), CropBox(0, 128, 1024, 1280), "center fallback")
+    assert_equal(offset_crop_box(CropBox(0, 128, 1024, 1280), 1536, -64), (CropBox(0, 64, 1024, 1280), -64), "offset up")
+    assert_equal(offset_crop_box(CropBox(0, 128, 1024, 1280), 1536, -999), (CropBox(0, 0, 1024, 1280), -128), "offset ceiling")
+    assert_equal(offset_crop_box(CropBox(0, 128, 1024, 1280), 1536, 999), (CropBox(0, 256, 1024, 1280), 128), "offset floor")
     # Zoom fallback: focal 170/1280 = 0.13 would hide the face above the
     # window band — zoom in until the focal reaches 0.40 (crop_h 170/0.4=425).
     assert_equal(
@@ -388,6 +499,16 @@ def run_self_test() -> None:
     # very high focal — the pre-zoom behavior is preserved byte-for-byte.
     assert_equal(
         focal_crop_box(1024, 1536, 640, 800, 512, 250), CropBox(0, 0, 1024, 1280), "zoom needs subject_top"
+    )
+    assert_equal(
+        focal_crop_box(1024, 1536, 640, 800, 539, 170, 42, FOCAL_FRAC, 1.3),
+        CropBox(318, 0, 442, 552),
+        "margin widening",
+    )
+    assert_equal(
+        focal_crop_box(1024, 1536, 640, 800, 512, 768, 700, FOCAL_FRAC, 1.15),
+        CropBox(0, 256, 1024, 1280),
+        "margin cap",
     )
 
     with tempfile.TemporaryDirectory() as td:
@@ -422,6 +543,8 @@ def main(argv: list[str]) -> int:
     # character focal line (a lower value zooms less / shows more body).
     band_frac: float | None = None
     focal_frac = FOCAL_FRAC
+    margin_scale = 1.0
+    offset_y = 0
     positional: list[str] = []
     i = 0
     while i < len(argv):
@@ -431,13 +554,19 @@ def main(argv: list[str]) -> int:
         elif argv[i] == "--focal-frac" and i + 1 < len(argv):
             focal_frac = float(argv[i + 1])
             i += 2
+        elif argv[i] == "--margin-scale" and i + 1 < len(argv):
+            margin_scale = float(argv[i + 1])
+            i += 2
+        elif argv[i] == "--offset-y" and i + 1 < len(argv):
+            offset_y = int(argv[i + 1])
+            i += 2
         else:
             positional.append(argv[i])
             i += 1
     if len(positional) != 5:
         print(
             "usage: python scripts/smartcrop.py <src> <dst> <W> <H> <character|environment>"
-            " [--band-frac F] [--focal-frac F]",
+            " [--band-frac F] [--focal-frac F] [--margin-scale S] [--offset-y N]",
             file=sys.stderr,
         )
         print("       python scripts/smartcrop.py --self-test", file=sys.stderr)
@@ -445,7 +574,17 @@ def main(argv: list[str]) -> int:
     src = Path(positional[0])
     dst = Path(positional[1])
     try:
-        result = crop_image(src, dst, int(positional[2]), int(positional[3]), positional[4], band_frac, focal_frac)
+        result = crop_image(
+            src,
+            dst,
+            int(positional[2]),
+            int(positional[3]),
+            positional[4],
+            band_frac,
+            focal_frac,
+            margin_scale,
+            offset_y,
+        )
     except Exception as exc:
         print(f"smartcrop: {exc}", file=sys.stderr)
         return 1

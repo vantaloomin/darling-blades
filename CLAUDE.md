@@ -44,11 +44,12 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` / `npm run build` | dev server (:5173) / typecheck + production build |
-| `npx vitest run` | full suite (~3 min at pool 638; win-rate gates included; run on an idle machine, not during sweeps) |
+| `npx vitest run` | full suite (~11 min at 1,803 tests, measured 2026-08-27; win-rate gates included; run on an idle machine, not during sweeps) |
 | `npm run lint` | ESLint over src, tests, scripts (enforces layer purity) |
 | `npm run check-docs` / `check-art-bible` / `gen-docs-tables -- --check` | doc anti-rot checkers (must be green, zero warnings) |
 | `npx tsx scripts/balance-matrix.ts --avatars --seeds 40` | balance matrices (call tsx directly — PowerShell eats `--` via npm run) |
 | `npm run sweep-dash` | live metagame-sweep dashboard (:5185; pairs with craft.ts --status-file) |
+| `.\scripts\run-sweep.ps1` | launch the metagame sweep as a Windows Scheduled Task so it outlives the shell (`-Status`, `-Resume`, `-Stop`) |
 | `npm run app:build` / `npm run app:dev` | Tauri desktop app — NSIS installer / dev window (needs Rust + MSVC; see [docs/desktop-build.md](docs/desktop-build.md)) |
 
 ## Iron invariants

@@ -98,6 +98,7 @@ function castGame(cardId: string, lands: string[], db: CardDb = DB): Game {
     enteredThisTurn: false,
     damage: 0,
     deathtouched: false,
+    severBranded: false,
     attachments: [],
     plusOneCounters: 0,
     untilEotMods: [],

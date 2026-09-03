@@ -25,7 +25,8 @@ import { RULES } from '../src/config/rules';
 import { CARD_DB } from '../src/data/catalog';
 import { isLiveCollectible } from '../src/data/liveness';
 import { AVATARS, type Avatar } from '../src/data/opponents';
-import type { CardDb, CardDef, Color } from '../src/engine/types';
+import { STARTER_DECKS } from '../src/data/starterDecks';
+import type { CardDb, CardDef, Color, EffectOp, TargetSpec } from '../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../src/meta/darlings';
 import {
   DARLINGS_DECK_SIZE,
@@ -85,6 +86,138 @@ function isEligibleSpell(card: CardDef | undefined): card is CardDef {
   return Boolean(card && isLiveCollectible(card) && !card.types.includes('land'));
 }
 
+/**
+ * Target predicates that a creature-shaped format can genuinely fail to
+ * satisfy. `creature`, `any`, `yourCreature`, `yourPermanent`, `yourGraveCreature` and `spell`
+ * are effectively always live here; artifacts and enchantments are not.
+ * `yourPermanent` is broad because a play context always has permanents the
+ * controller can target, and `other` composes as a source-exclusion qualifier.
+ * `marked` is a separate creature-mark supply capability, while `tapped` needs no capability
+ * gate because any permanent can become tapped.
+ */
+const NARROW_TARGETS: Record<TargetSpec['what'], boolean> = {
+  creature: false,
+  player: false,
+  any: false,
+  spell: false,
+  yourCreature: false,
+  yourPermanent: false,
+  yourGraveCreature: false,
+  artifact: true,
+  enchantment: true,
+  artifactOrEnchantment: true,
+};
+
+const MARKED_TARGET = 'marked';
+
+type NarrowTarget = Pick<TargetSpec, 'what' | 'marked'>;
+
+function narrowTargetsOf(card: CardDef): NarrowTarget[] {
+  // Targeted arrival abilities live in the same `abilities` array as spell
+  // bodies. Walk every ability, including non-spell triggers, because a
+  // mandatory arrival target can fizzle just as completely as a spell target.
+  return (card.abilities ?? [])
+    .flatMap((ability) => ability.targets ?? [])
+    .filter((target) => NARROW_TARGETS[target.what] || target.marked === true)
+    .map(({ what, marked }) => ({ what, marked }));
+}
+
+function typeSuppliedTargets(card: CardDef | undefined): string[] {
+  if (!card) return [];
+  const supplied: string[] = [];
+  if (card.types.includes('artifact')) supplied.push('artifact', 'artifactOrEnchantment');
+  if (card.types.includes('enchantment')) supplied.push('enchantment', 'artifactOrEnchantment');
+  return supplied;
+}
+
+/** Every EffectOp a card can run: abilities, quest chapters, Empower, Retell. */
+function effectOpsOf(card: CardDef): EffectOp[] {
+  const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) => [
+    op,
+    ...(op.op === 'ifTargetMarked' ? flatten([...op.then, ...(op.else ?? [])]) : []),
+  ]);
+  return flatten([
+    ...(card.abilities ?? []).flatMap((ability) => ability.ops ?? []),
+    ...(card.chapters ?? []).flat(),
+    ...(card.empower?.ops ?? []),
+    ...(card.retell?.ops ?? []),
+  ]);
+}
+
+function canGenerateMarks(card: CardDef | undefined): boolean {
+  if (!card) return false;
+  // Propagate only reaches creatures that are already marked, and moveMark
+  // is net-zero. Neither one creates the first mark this supply walk needs.
+  const createsSelfMark = card.types.includes('creature') && effectOpsOf(card).some(
+    (op) => op.op === 'addCounters' && op.to === 'self',
+  );
+  const createsTargetMark = (card.abilities ?? []).some((ability) =>
+    (ability.targets ?? []).some((target) => target.what === 'creature' || target.what === 'yourCreature') &&
+    (ability.ops ?? []).some((op) => op.op === 'addCounters' && op.to === 'target'),
+  );
+  return createsSelfMark || createsTargetMark || effectOpsOf(card).some((op) => op.op === 'markAll');
+}
+
+/**
+ * Which narrow predicates a single card can satisfy as a permanent on board —
+ * by its own types, or by any token its effects create (a creature that
+ * assembles artifact tokens supplies `artifact` even though it is no artifact
+ * itself). Token defs are flat, so one level of resolution is exact.
+ */
+function suppliedTargets(card: CardDef | undefined, db: CardDb): string[] {
+  if (!card) return [];
+  const supplied = typeSuppliedTargets(card);
+  if (canGenerateMarks(card)) supplied.push(MARKED_TARGET);
+  for (const op of effectOpsOf(card)) {
+    if (op.op === 'createToken') supplied.push(...typeSuppliedTargets(db[op.token]));
+  }
+  return supplied;
+}
+
+/** The narrow predicates a whole card list can put on the board. */
+export function deckTargetSupply(cards: readonly string[], db: CardDb = CARD_DB): ReadonlySet<string> {
+  const supply = new Set<string>();
+  for (const id of cards) for (const what of suppliedTargets(db[id], db)) supply.add(what);
+  return supply;
+}
+
+/**
+ * What the FORMAT can put on the board: the five starter reserve builds this
+ * avatar is measured against, plus the avatar's own source list.
+ *
+ * Retention eligibility asks whether a card's narrow target can exist. That
+ * keeps `sd-strike-the-lintel` out of Anubis against five starter columns
+ * holding ZERO artifacts and ZERO enchantments, and also covers marked-target
+ * answers when no card in the format can add a mark. The gate is format-wide,
+ * not avatar-specific.
+ */
+function formatTargetSupply(source: readonly string[], db: CardDb): ReadonlySet<string> {
+  return new Set([
+    ...deckTargetSupply(STARTER_DECKS.flatMap((deck) => deck.reserveCards ?? []), db),
+    ...deckTargetSupply(source, db),
+  ]);
+}
+
+/**
+ * A card is DEAD when it has narrow target specs and none of those target
+ * categories is supplied by this format. A marked spec needs both its target
+ * category and the `marked` capability. Mixed narrow-plus-broad multi-ability
+ * cards remain an open authoring question: a broad target never rescues an
+ * otherwise unsupplied narrow target under this contract.
+ */
+export function hasNoLegalTargets(
+  card: CardDef | undefined,
+  supply: ReadonlySet<string>,
+): boolean {
+  if (!card) return false;
+  const narrow = narrowTargetsOf(card);
+  if (narrow.length === 0) return false;
+  return !narrow.some((target) =>
+    (!NARROW_TARGETS[target.what] || supply.has(target.what)) &&
+    (target.marked !== true || supply.has(MARKED_TARGET)),
+  );
+}
+
 function isLegendaryCreature(card: CardDef | undefined): card is CardDef {
   return Boolean(
     card &&
@@ -105,6 +238,8 @@ export interface ConvertibleDeck {
   deck: readonly string[];
   /** Avatars keep their portrait card in the Warchest list; starters have none. */
   portraitCardId?: string;
+  /** Optional authored Darling identity; the converter validates its eligibility. */
+  darlingId?: string;
 }
 
 export function avatarPrintedColors(avatar: ConvertibleDeck, db: CardDb = CARD_DB): Color[] {
@@ -112,7 +247,9 @@ export function avatarPrintedColors(avatar: ConvertibleDeck, db: CardDb = CARD_D
   for (const id of avatar.deck) {
     const card = db[id];
     if (!card?.types.includes('land')) continue;
-    for (const color of card.manaAbility ?? []) colors.add(color);
+    for (const color of card.manaAbility ?? []) {
+      if (color !== 'C') colors.add(color);
+    }
   }
   return COLOR_ORDER.filter((color) => colors.has(color));
 }
@@ -153,8 +290,15 @@ export function convertAvatarWarchest(avatar: ConvertibleDeck, db: CardDb = CARD
     return true;
   };
 
+  // Retention is gated on the card having a target that can EXIST here, not
+  // merely on it being a legal nonland. See formatTargetSupply for the defect
+  // this closes. The freed slots refill through the normal playset-and-catalog
+  // path below, so a dropped dead card becomes a real card rather than a hole.
+  const targetSupply = formatTargetSupply(avatar.deck, db);
   for (const id of avatar.deck) {
-    if (isEligibleSpell(db[id])) addCurved(id);
+    if (!isEligibleSpell(db[id])) continue;
+    if (hasNoLegalTargets(db[id], targetSupply)) continue;
+    addCurved(id);
   }
   if (cards.length > WARCHEST_DECK_SIZE) {
     throw new Error(`${avatar.name} retained ${cards.length} Warchest spells, over the ${WARCHEST_DECK_SIZE}-card target`);
@@ -178,6 +322,7 @@ export function convertAvatarWarchest(avatar: ConvertibleDeck, db: CardDb = CARD
     Object.values(db).filter((card) =>
       isEligibleSpell(card) &&
       containsOnlyColors(card, colors) &&
+      !hasNoLegalTargets(card, targetSupply) &&
       !sourceOrder.includes(card.id),
     ),
   );
@@ -275,6 +420,22 @@ export function deriveLandReserve(avatar: ConvertibleDeck, db: CardDb = CARD_DB)
 }
 
 function chooseDarling(avatar: ConvertibleDeck, colors: readonly Color[], db: CardDb): CardDef {
+  if (avatar.darlingId !== undefined) {
+    const requested = db[avatar.darlingId];
+    // A liveness-gated catalog temporarily hides an authored Darling (the
+    // Duat pool is disabled in its regression test). In that mode keep the
+    // converter's ordinary live-catalog fallback; in a live catalog, an
+    // authored id is strict so a bad contract cannot silently substitute.
+    if (!requested) {
+      throw new Error(`${avatar.name} requested ineligible Darling ${avatar.darlingId} for colors ${colors.join('') || 'C'}`);
+    }
+    if (isLiveCollectible(requested)) {
+      if (!isLegendaryCreature(requested) || !sameColors(requested.colors, colors)) {
+        throw new Error(`${avatar.name} requested ineligible Darling ${avatar.darlingId} for colors ${colors.join('') || 'C'}`);
+      }
+      return requested;
+    }
+  }
   const portrait = avatar.portraitCardId ? db[avatar.portraitCardId] : undefined;
   if (isLegendaryCreature(portrait) && sameColors(portrait.colors, colors)) return portrait;
 

@@ -244,7 +244,7 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 
 ### Wolf — `tok-wolf`
 - **Card facts:** {0} · G · 2/2 · c · holo: none
-- **Character & source:** Green creature token (Wolf) created by `rg-fenrir`, `rg-angrboda`, and `rg-alpha-of-the-hunt` — a dire wolf of Fenrir's brood. A 2/2 beast.
+- **Character & source:** Green creature token (Wolf) created by `rg-angrboda` and `rg-alpha-of-the-hunt` (Fenrir now brings her own 1/1 cubs) — a dire wolf of Fenrir's brood. A 2/2 beast.
 - **Personality / mood:** "Fenrir's brood runs the long night." Fast, pack-minded, never the smaller number.
 - **Pose & composition:** Mid-lunge, low and fast, closing on the throat; head ≈ y 330, breath steaming. The lean wolf silhouette reads instantly at token scale.
 - **Costume & attire:** No costume — thick hackled winter fur, breath fogging the cold air.
@@ -256,6 +256,11 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Holo interaction:** none — common token.
 - **Rarity ambition:** Common token — one clear dire-wolf, one idea (the lunge).
 - **Prompt:** A great dire-wolf of Fenrir's brood with thick hackled winter fur, mid-lunge low and fast with breath steaming, in a moonlit frost-forest with snow churned by the pack, feral and fixed on the kill, cold moonlight with blue snow-bounce — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+### Wolf Cub — `tok-wolf-cub`
+- **Card facts:** {0} · G · 1/1 · c · holo: none
+- **Character & source:** Green creature token (Wolf) created by `rg-fenrir` — the v3.1 balance ruling (2026-08-29) shrank her arrival litter from 2/2 Wolves to 1/1 Cubs so the unchaining stops paying 2/2 rates.
+- **Art ref:** `tok-wolf` — shares the dire-wolf art by owner ruling. Do NOT generate a `tok-wolf-cub.webp`; the resolver renders the donor file and would never load one.
+
 ### Squire — `tok-squire`
 - **Card facts:** {0} · W · 1/1 · c · holo: none
 - **Character & source:** W creature token (Squire) created by Arthurian Court Quests and court creatures — an adult retainer woman carrying the training bundle before she earns a champion's blade. A 1/1 support body.
@@ -345,3 +350,49 @@ the militia scrappy W recruits, and the Wooden Ox one of Yueying's lacquered aut
 - **Holo interaction:** none — common token.
 - **Rarity ambition:** Common token — one clear figure, one idea (the waltz resumed), consistent with `gm-graveyard-waltz`.
 - **Prompt:** Revenant noblewoman in a faded ash-violet ballgown with tattered lace, jet jewelry, and opera gloves, mid-waltz turn among unlettered headstones with one hand raised to an unseen partner, gown hem dissolving into grave-mist, blank dance card hanging from her wrist, pale composed face with faint blue-glowing eyes and elegant disapproval, cold moonlight key with soft blue spirit rim, generous open headroom above her coiffure, no readable letters or inscriptions anywhere — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Broodling — `tok-broodling`
+- **Card facts:** {0} · G · 1/1 · c · holo: none
+- **Character & source:** G creature token (Brood) minted by `sb-the-long-crossing`'s first chapter and the green brood matriarchs — a translucent young swarm member that grows around warm machinery. Follows the Starborne register in index.md §4b.
+- **Personality / mood:** "It hatched beside the reactor and thinks the warmth is its mother." New, soft, and already multiplying.
+- **Pose & composition:** one small translucent grub-sprite curled around a warm chrome conduit in a living-hull garden bay, four stubby limbs gripping the pipe, oversized dark eyes looking up; face ≈ y 335. The top third stays clear for crop-safe headroom.
+- **Costume & attire:** a jelly-translucent leaf-green body with a soft inner glow of amber machine-warmth at its core, dew-slick skin, tiny bud antennae.
+- **Palette:** G palette (`#4fa06a` → `#123a22`, accent `#a9dcae`) over chrome `#c8d2dc`, one amber warmth note at the core. ABSOLUTELY NO CYAN anywhere; darkest value hull dusk `#2a2140`, no true black.
+- **Lighting:** warm amber key from the conduit it hugs; soft green bounce from the garden bay.
+- **Expression:** wide dark eyes, blank adoring trust aimed at the viewer.
+- **Props / weapon:** none — the hugged conduit is the prop.
+- **Background:** a simple living-hull garden bay with vine-wrapped chrome piping, two dominant values; no open starfield, no readouts.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear figure, one idea (the swarm's newest member keeping warm).
+- **Prompt:** Single small translucent leaf-green grub-sprite curled around a warm chrome conduit in a living-hull garden bay, jelly-clear body with a soft amber glow of machine warmth at its core, four stubby limbs gripping the pipe and tiny bud antennae, oversized dark adoring eyes looking up at the viewer, dew-slick skin catching warm amber key light from the conduit with soft green bounce from vine-wrapped piping behind, rich readable detail in every shadow, no near-black areas, ABSOLUTELY NO CYAN anywhere in the frame, generous open headroom above it, NO-TEXT, no readouts, no labels, no numerals, no open starfield as the whole background — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Chrome Husk — `tok-chrome-husk`
+- **Card facts:** {0} · C · 2/2 · bulwark · c · holo: none
+- **Character & source:** Colorless artifact-creature token (Husk) minted by `sb-worldgarden-leviathan` — a discarded shell that keeps standing after its owner leaves. Follows the Starborne register in index.md §4b.
+- **Personality / mood:** "The pilot moved on. The armor never got the order." Vacant, patient, immovable.
+- **Pose & composition:** one empty woman-shaped chrome shell standing at parade rest on a hull garden path, seams parted slightly where the occupant left, vines beginning to thread the joints; helm-face ≈ y 320, dark and hollow. The top third stays clear for crop-safe headroom.
+- **Costume & attire:** pearl-and-chrome segmented plate, empty at the neck seam, a faint dust of pollen on the shoulders, no insignia.
+- **Palette:** C palette (`#a9adb5` → `#4e535c`, accent `#dfe3ea`) over Starborne chrome `#c8d2dc` and muted garden green. ABSOLUTELY NO CYAN anywhere; darkest value hull dusk `#2a2140`, no true black — the hollow interior reads violet-dusk, not black.
+- **Lighting:** warm gold path-lamp key from frame right; one nebula-violet cool rim along the shell's edge.
+- **Expression:** none — the hollow where a face should be, held at attention.
+- **Props / weapon:** none — the parted seams and threading vines tell the story.
+- **Background:** a simple hull garden path with soft green growth and a violet cloudbank, two dominant values; no open starfield, no readouts.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear figure, one idea (the armor that stayed on duty).
+- **Prompt:** Single empty woman-shaped suit of pearl and chrome segmented armor standing at parade rest on a living-hull garden path, neck seam parted and hollow with a soft violet-dusk interior where the occupant left, green vines beginning to thread the arm joints and a faint dust of pollen on the shoulders, warm gold path-lamp key from frame right and one violet nebula rim along the shell edge, muted green garden growth and violet cloudbank behind, rich readable detail in every shadow, no near-black areas, ABSOLUTELY NO CYAN anywhere in the frame, generous open headroom above the helm, NO-TEXT, no readouts, no labels, no insignia lettering, no numerals, no open starfield as the whole background — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+
+### Nebula Firefly — `tok-nebula-firefly`
+- **Card facts:** {0} · U · 1/1 · skyborne · c · holo: none
+- **Character & source:** U creature token (Insect) minted by `sb-violet-wake-beacon` — a tiny violet beacon that follows living ships between worlds. Follows the Starborne register in index.md §4b.
+- **Personality / mood:** "Where the fleet goes, it goes first, glowing about it." Small, bright, self-important.
+- **Pose & composition:** one hand-sized firefly-sprite hovering above a pearl beacon rail, four membrane wings fanned, abdomen burning violet like a lantern; head ≈ y 330 angled to the viewer. The top third stays clear for crop-safe headroom.
+- **Costume & attire:** a sleek indigo carapace with pearl filigree along the wing roots, the violet lantern-abdomen its only ornament.
+- **Palette:** U palette (`#4a90d9` → `#16294f`, accent `#a8d4f7`) with the abdomen burning nebula violet `#7b4bd8` over chrome `#c8d2dc`. ABSOLUTELY NO CYAN anywhere — the glow is violet, not teal; darkest value hull dusk `#2a2140`, no true black.
+- **Lighting:** its own violet abdomen as the practical key, throwing soft light up the rail; pale blue fill from the cloudbank.
+- **Expression:** bright bead eyes, proud and busy.
+- **Props / weapon:** none — the lantern-abdomen is the whole identity.
+- **Background:** a simple pearl beacon rail and deep blue-violet cloudbank, two dominant values; no open starfield, no readouts.
+- **Holo interaction:** none — common token.
+- **Rarity ambition:** Common token — one clear figure, one idea (the fleet's smallest running light).
+- **Prompt:** Single hand-sized firefly sprite hovering above a pearl beacon rail, sleek indigo carapace with pearl filigree at the wing roots, four fanned membrane wings, abdomen burning bright nebula violet like a lantern and throwing soft violet key light up the rail, bright proud bead eyes angled toward the viewer, pale blue fill from a deep blue-violet cloudbank behind, rich readable detail in every shadow, no near-black areas, ABSOLUTELY NO CYAN anywhere in the frame and the glow strictly violet not teal, generous open headroom above the wings, NO-TEXT, no readouts, no labels, no numerals, no open starfield as the whole background — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
+

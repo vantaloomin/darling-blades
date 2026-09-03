@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DECK_ROLES, PERSONA_TEMPLATES, PERSONA_TEMPLATE_VERSION } from '../../scripts/personas/templates';
+import { LAND_RESERVE_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 
 describe('persona template roster', () => {
   it('contains exactly the six approved personas', () => {
@@ -29,16 +30,27 @@ describe('persona template roster', () => {
     }
   });
 
-  it.each(PERSONA_TEMPLATES)('$id quotas sum to a 60-card deck', (template) => {
-    expect(Object.values(template.quotas).reduce((sum, count) => sum + count, 0)).toBe(60);
-    expect(template.quotas.lands).toBeGreaterThanOrEqual(20);
+  // Reserve-native since 2026-08-25: the deck is WARCHEST_DECK_SIZE spells and
+  // `lands` is the size of the SEPARATE land reserve, not in-deck lands. These
+  // three assertions are what catch a template rescaled by hand incorrectly.
+  it.each(PERSONA_TEMPLATES)('$id spell quotas sum to a Warchest deck', (template) => {
+    const spells = Object.entries(template.quotas)
+      .filter(([role]) => role !== 'lands')
+      .reduce((sum, [, count]) => sum + count, 0);
+    expect(spells).toBe(WARCHEST_DECK_SIZE);
   });
 
-  it.each(PERSONA_TEMPLATES)('$id curve targets cover every nonland slot', (template) => {
+  it.each(PERSONA_TEMPLATES)('$id reserves exactly ten lands', (template) => {
+    expect(template.quotas.lands).toBe(LAND_RESERVE_SIZE);
+  });
+
+  it.each(PERSONA_TEMPLATES)('$id curve targets cover every spell slot', (template) => {
     expect(Object.values(template.curve.targets).reduce((sum, count) => sum + count, 0)).toBe(
-      60 - template.quotas.lands,
+      WARCHEST_DECK_SIZE,
     );
     expect(template.curve.maxManaValue).toBeGreaterThanOrEqual(4);
+    // A reserve tops out at LAND_RESERVE_SIZE mana, so a higher curve is uncastable.
+    expect(template.curve.maxManaValue).toBeLessThanOrEqual(LAND_RESERVE_SIZE);
   });
 
   it.each(PERSONA_TEMPLATES)('$id synergy tags have no duplicates', (template) => {

@@ -90,7 +90,9 @@ function colorsOfSource(deck: DeckList, db: CardDb): Color[] {
   for (const id of deck.cards) {
     const card = db[id];
     for (const color of card?.colors ?? []) colors.add(color);
-    for (const color of card?.manaAbility ?? []) colors.add(color);
+    for (const color of card?.manaAbility ?? []) {
+      if (color !== 'C') colors.add(color);
+    }
   }
   return COLOR_ORDER.filter((color) => colors.has(color));
 }
@@ -105,7 +107,7 @@ export function buildLandReserve(colors: readonly Color[], db: CardDb = CARD_DB)
       isDualLand(card) &&
       isLiveCollectible(card) &&
       (card.manaAbility?.length ?? 0) === 2 &&
-      (card.manaAbility ?? []).every((color) => colors.includes(color)),
+      (card.manaAbility ?? []).every((color) => color === 'C' || colors.includes(color)),
     )
     .map((card) => card.id)
     .sort((a, b) => a.localeCompare(b))

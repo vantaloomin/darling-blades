@@ -30,6 +30,7 @@ function addForests(state: GameState, player: PlayerId, count: number): void {
       enteredThisTurn: false,
       damage: 0,
       deathtouched: false,
+      severBranded: false,
       attachments: [],
       plusOneCounters: 0,
       untilEotMods: [],

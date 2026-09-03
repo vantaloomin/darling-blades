@@ -15,6 +15,48 @@ function gameFromState(state: ReturnType<typeof makeTestState>): Game {
 }
 
 describe('AI defect regressions from the 1.5 instrumented probe', () => {
+  it('HardAI returns and can submit only a legal three-target Quiet Orbit cast with creature marks', () => {
+    const state = makeTestState({
+      battlefield: [
+        { iid: 1, cardId: 'land-island', controller: 0 },
+        { iid: 2, cardId: 'land-island', controller: 0 },
+        { iid: 3, cardId: 'land-island', controller: 0 },
+        { iid: 4, cardId: 'bear', controller: 0, plusOneCounters: 1 },
+        { iid: 5, cardId: 'bear', controller: 0 },
+        { iid: 6, cardId: 'bear', controller: 0 },
+      ],
+      hands: [['sb-quiet-orbit'], []],
+      active: 0,
+    });
+    state.stack = [{ sid: 7, cardId: 'sb-halo-motherboard', controller: 1, targets: [] }];
+    state.nextSid = 8;
+    state.awaiting = { player: 0, kind: 'respond', over: { type: 'spell', sid: 7 } };
+    const game = gameFromState(state);
+    const legal = game.legalActions(0);
+    const quietOrbitActions = legal.filter(
+      (action): action is Extract<typeof action, { type: 'castSpell' }> =>
+        action.type === 'castSpell' && game.viewFor(0).you.hand[action.handIndex] === 'sb-quiet-orbit',
+    );
+    expect(quietOrbitActions).toHaveLength(6);
+    expect(quietOrbitActions.every((action) => action.targets?.length === 3)).toBe(true);
+
+    const action = new HardAI(DB).chooseAction(game.viewFor(0), legal);
+    expect(legal).toContainEqual(action);
+    expect(action).toMatchObject({
+      type: 'castSpell',
+      handIndex: 0,
+      targets: [
+        { kind: 'stackItem', sid: 7 },
+        { kind: 'permanent' },
+        { kind: 'permanent' },
+      ],
+    });
+    expect((action as Extract<typeof action, { type: 'castSpell' }>).targets?.[1]).not.toEqual(
+      (action as Extract<typeof action, { type: 'castSpell' }>).targets?.[2],
+    );
+    expect(() => game.submit(0, action)).not.toThrow();
+  });
+
   it('HardAI determinization carries the live rules revision into its sim state', () => {
     const state = makeTestState({ hands: [['shock'], []], active: 0 });
     state.rulesRev = 2;

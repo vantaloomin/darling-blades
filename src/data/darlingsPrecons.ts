@@ -52,7 +52,11 @@ export const DARLINGS_PRECONS: readonly DarlingsPrecon[] = [
       'in-read-the-ruse', 'rg-read-the-runes', 'so-divination', 'yn-burn-the-billboard', 'yn-null-route',
       'yn-signal-bridge', 'dt-lost-in-library', 'dt-tower-braid-escape', 'dt-undersea-bargain',
       'in-dream-fracture', 'in-sudden-insight', 'so-strategic-planning', 'so-lava-axe',
-      'dt-glass-slipper-at-midnight', 'yn-foresee-the-fall',
+      // dt-glass-slipper-at-midnight left 2026-08-29: it went {U}{B} legendary
+      // (owner colour ruling) and black is off-colour for this U/R list.
+      // sd-warcry-at-noon is the in-colour functional twin (team +1/+0 with a
+      // keyword grant at the same mana value).
+      'sd-warcry-at-noon', 'yn-foresee-the-fall',
     ],
     landReserve: [
       'ld-red-cliffs-anchorage', 'dt-ash-ballroom',
@@ -181,7 +185,10 @@ export const DARLINGS_PRECONS: readonly DarlingsPrecon[] = [
       // Tribal combat tricks and on-identity answers, not a pile of cheapest bodies
       'ac-steel-prayer',
       'ac-tilting-lance', 'dt-once-more-with-magic', 'dt-rose-petal-shield', 'gm-hunters-writ', 'gm-kicked-door',
-      'gm-red-curtain-cut', 'gm-thunderclap', 'in-char', 'in-cleanse-the-shrine', 'in-ram-the-gates',
+      // yn-paper-ward-signal replaced in-ram-the-gates 2026-08-28: destroy
+      // target ARTIFACT over zero own artifacts was dead in the precon mirror;
+      // the Signal keeps the artifact answer and stays live off our enchantments.
+      'gm-red-curtain-cut', 'gm-thunderclap', 'in-char', 'in-cleanse-the-shrine', 'yn-paper-ward-signal',
       'in-stand-as-one', 'so-flame-lash', 'so-muster-militia', 'ac-lion-standard', 'ac-quest-for-the-grail',
       'ac-rallying-horn', 'ac-round-table-vow', 'ac-shieldwall-call', 'ac-training-yard', 'cf-briar-veil-banishing',
       'dt-ash-sweep', 'dt-training-yard-dawn', 'gk-ares',

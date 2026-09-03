@@ -16,25 +16,25 @@ export const GOTHIC_MONSTERS = [
   // ULTRA RARE (4)
   // =========================================================================
   creature('gm-carmilla-crimson-host', 'Carmilla, Crimson Host', ['Vampire', 'Countess'], {
-    supertypes: ['legendary'], cost: cost(4, 'BR'), colors: ['B', 'R'], attack: 5, defense: 5,
+    supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'], attack: 5, defense: 5,
     keywords: ['skyborne', 'dreaded'], empower: {
       cost: cost(1, 'BR'), ops: [{ op: 'loseLife', n: 3, who: 'opponent' }, { op: 'gainLife', n: 3 }],
     },
     rarity: 'ur', flavor: 'She hosts the feast, then invoices the moon for every drop.',
   }),
-  creature('gm-bride-storm-crowned', 'The Bride, Storm-Crowned', ['Construct', 'Bride'], {
-    supertypes: ['legendary'], cost: cost(4, 'UB'), colors: ['U', 'B'], attack: 4, defense: 5,
+  creature('gm-bride-storm-crowned', 'The Storm-Crowned Bride', ['Construct', 'Bride'], {
+    supertypes: ['legendary'], cost: cost(3, 'UB'), colors: ['U', 'B'], attack: 4, defense: 5,
     keywords: ['deathblade'], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     empower: { cost: cost(2, 'B'), ops: [{ op: 'raise', to: 'top' }] },
     rarity: 'ur', flavor: 'She married the storm and kept the lightning as a dowry.',
   }),
   creature('gm-luna-wolf-matriarch', 'Luna, Wolf-Matriarch of the Moors', ['Wolf', 'Noble'], {
-    supertypes: ['legendary'], cost: cost(4, 'RG'), colors: ['R', 'G'], attack: 6, defense: 5,
+    supertypes: ['legendary'], cost: cost(5, 'RG'), colors: ['R', 'G'], attack: 8, defense: 6,
     keywords: ['dreaded', 'overrun', 'warcry'],
     rarity: 'ur', flavor: 'Moonrise summons the pack; morning delivers the bill.',
   }),
   creature('gm-lenore-velvet-saint', 'Lenore, Velvet Saint', ['Revenant', 'Saint'], {
-    supertypes: ['legendary'], cost: cost(4, 'WB'), colors: ['W', 'B'], attack: 4, defense: 5,
+    supertypes: ['legendary'], cost: cost(3, 'WBB'), colors: ['W', 'B'], attack: 6, defense: 8,
     keywords: ['bloodoath', 'dreaded'],
     abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 3, who: 'opponent' }] }],
     rarity: 'ur', flavor: 'She blesses the velvet, curses the grave, and never spills either.',
@@ -45,9 +45,9 @@ export const GOTHIC_MONSTERS = [
   // =========================================================================
   {
     id: 'gm-nocturne-manor', name: 'Nocturne Manor', types: ['enchantment'], subtypes: ['Manor'],
-    supertypes: ['legendary'], cost: cost(4, 'B'), colors: ['B'],
+    supertypes: ['legendary'], cost: cost(2, 'BB'), colors: ['B'],
     abilities: [{ when: 'dawn', ops: [{ op: 'loseLife', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] }],
-    empower: { cost: cost(2, 'B'), ops: [{ op: 'createToken', token: 'tok-bat', count: 2 }] },
+    empower: { cost: cost(3, 'B'), ops: [{ op: 'createToken', token: 'tok-bat', count: 2 }] },
     rarity: 'ssr', flavor: 'The house keeps excellent hours and terrible guests.',
   },
   creature('gm-victorine-lightning-heir', 'Victorine, Lightning Heir', ['Scientist', 'Heir'], {
@@ -57,20 +57,20 @@ export const GOTHIC_MONSTERS = [
     rarity: 'ssr', flavor: 'The will left her a tower. The weather she fixed herself.',
   }),
   creature('gm-elizabeth-blood-mirror', 'Elizabeth of the Blood Mirror', ['Vampire', 'Noble'], {
-    supertypes: ['legendary'], cost: cost(3, 'BR'), colors: ['B', 'R'], attack: 4, defense: 4,
+    supertypes: ['legendary'], cost: cost(2, 'BR'), colors: ['B', 'R'], attack: 4, defense: 4,
     keywords: ['dreaded'], abilities: [{ when: 'attacks', ops: [{ op: 'damage', n: 1, to: 'opponent' }] }],
     rarity: 'ssr', flavor: 'Mirrors show her no flaws, only appointments.',
   }),
   creature('gm-white-chapel-witch', 'White-Chapel Witch', ['Witch'], {
-    supertypes: ['legendary'], cost: cost(3, 'WB'), colors: ['W', 'B'], attack: 3, defense: 4,
+    supertypes: ['legendary'], cost: cost(3, 'WB'), colors: ['W', 'B'], attack: 5, defense: 5,
     keywords: ['bloodoath'], abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 2, who: 'opponent' }] }],
-    empower: { cost: cost(2, 'W'), ops: [{ op: 'gainLife', n: 3 }] },
+    empower: { cost: cost(1, 'W'), ops: [{ op: 'gainLife', n: 3 }] },
     rarity: 'ssr', flavor: 'Holy water in one hand, a very firm opinion in the other.',
   }),
   {
     id: 'gm-moon-doll-orchestra', name: 'Moon-Doll Orchestra', types: ['artifact', 'creature'],
-    subtypes: ['Doll', 'Construct'], cost: cost(4, 'U'), colors: ['U'], attack: 3, defense: 5,
-    keywords: ['sentinel'], abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
+    subtypes: ['Doll', 'Construct'], cost: cost(5, 'U'), colors: ['U'], attack: 3, defense: 5,
+    abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     empower: { cost: cost(2, 'U'), ops: [{ op: 'createToken', token: 'tok-doll', count: 2 }] },
     rarity: 'ssr', flavor: 'The encore is compulsory and somehow always in tune.',
   },
@@ -80,14 +80,14 @@ export const GOTHIC_MONSTERS = [
   // =========================================================================
   {
     id: 'gm-dracula-ball-invite', name: 'Invitation to the Crimson Ball', types: ['ritual'], subtypes: [],
-    cost: cost(3, 'B'), colors: ['B'],
+    cost: cost(1, 'B'), colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] }],
     empower: { cost: cost(2, 'B'), ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] },
     rarity: 'sr', flavor: 'Dress code: formal. Exit policy: aspirational.',
   },
   {
     id: 'gm-grave-rose-garden', name: 'Grave-Rose Garden', types: ['enchantment'], subtypes: ['Plant'],
-    cost: cost(3, 'G'), colors: ['G'],
+    cost: cost(4, 'BG'), colors: ['B', 'G'],
     abilities: [{ when: 'dawn', ops: [{ op: 'createToken', token: 'tok-grave-rose', count: 1 }, { op: 'gainLife', n: 1 }] }],
     rarity: 'sr', flavor: 'Every rose has thorns. These ones also have burial records.',
   },
@@ -99,8 +99,7 @@ export const GOTHIC_MONSTERS = [
     rarity: 'sr', flavor: 'The lightning signs the paperwork. The grave supplies the applicant.',
   },
   creature('gm-silver-bullet-duelist', 'Silver-Bullet Duelist', ['Hunter', 'Duelist'], {
-    cost: cost(2, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['firstBlade'],
-    empower: { cost: cost(2, 'W'), ops: [{ op: 'damage', n: 2, to: 'opponent' }] },
+    cost: cost(3, 'W'), colors: ['W'], attack: 3, defense: 3, keywords: ['firstBlade', 'bloodoath'],
     rarity: 'sr', flavor: 'One bullet. Bringing a second would be gauche.',
   }),
   {
@@ -116,7 +115,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-cathedral-of-bats', name: 'Cathedral of Bats', types: ['enchantment'], subtypes: ['Cathedral'],
-    cost: cost(3, 'B'), colors: ['B'],
+    cost: cost(5, 'B'), colors: ['B'],
     abilities: [{ when: 'dawn', ops: [{ op: 'createToken', token: 'tok-bat', count: 1 }] }],
     rarity: 'sr', flavor: 'The choir has wings and an impeccable sense of timing.',
   },
@@ -131,7 +130,7 @@ export const GOTHIC_MONSTERS = [
     rarity: 'r', flavor: 'She keeps the household in order. The dolls remember what disorder costs.',
   },
   creature('gm-ravenloft-heiress', 'Ravenloft Heiress', ['Vampire', 'Heiress'], {
-    cost: cost(2, 'B'), colors: ['B'], attack: 3, defense: 2, keywords: ['skyborne'],
+    cost: cost(2, 'B'), colors: ['B'], attack: 3, defense: 1, keywords: ['skyborne'],
     empower: { cost: cost(2, 'B'), ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] },
     rarity: 'r', flavor: 'One castle, one curse, and the best balcony in either.',
   }),
@@ -147,14 +146,14 @@ export const GOTHIC_MONSTERS = [
   },
   {
     id: 'gm-candelabra-of-souls', name: 'Candelabra of Souls', types: ['artifact'], subtypes: [],
-    cost: cost(3), colors: [], manaAbility: ['W', 'U', 'B', 'R', 'G'],
+    cost: cost(2), colors: [], manaAbility: ['W', 'U', 'B', 'R', 'G'],
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'Five flames, one argument about who gets the dramatic entrance.',
   },
   {
     id: 'gm-velvet-coffin', name: 'Velvet Coffin', types: ['artifact'], subtypes: ['Vampire'],
-    cost: cost(3, 'B'), colors: ['B'],
-    abilities: [{ when: 'dawn', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] }],
+    cost: cost(2, 'B'), colors: ['B'],
+    abilities: [{ when: 'dawn', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'r', flavor: 'Silk lining, cedar panels, absolutely no return policy.',
   },
   creature('gm-blood-opera-soloist', 'Blood-Opera Soloist', ['Vampire', 'Performer'], {
@@ -163,14 +162,14 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-graveyard-waltz', name: 'Graveyard Waltz', types: ['ritual'], subtypes: [],
-    cost: cost(4, 'B'), colors: ['B'],
+    cost: cost(5, 'B'), colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'createToken', token: 'tok-revenant', count: 2 }] }],
     empower: { cost: cost(2, 'B'), ops: [{ op: 'raise', to: 'top' }] },
     rarity: 'r', flavor: 'The dancers know all the steps. They have had time to practice.',
   },
   {
     id: 'gm-wolfsbane-ward', name: 'Wolfsbane Ward', types: ['enchantment'], subtypes: ['Aura'],
-    cost: cost(1, 'W'), colors: ['W'],
+    cost: cost(0, 'W'), colors: ['W'],
     abilities: [{ when: 'static', static: { scope: 'attached', p: -1, t: 0, grantKeywords: ['bulwark'] } }],
     rarity: 'r', flavor: 'A little herb, a little prayer, a very pointed boundary.',
   },
@@ -182,11 +181,11 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-iron-gate-sentinel', name: 'Iron-Gate Sentinel', types: ['artifact', 'creature'],
-    subtypes: ['Construct'], cost: cost(4, 'W'), colors: ['W'], attack: 1, defense: 7,
+    subtypes: ['Construct'], cost: cost(2, 'W'), colors: ['W'], attack: 1, defense: 7,
     keywords: ['bulwark'], rarity: 'r', flavor: 'The gate opens for guests and closes for absolutely everyone else.',
   },
   creature('gm-batcloak-cutthroat', 'Batcloak Cutthroat', ['Vampire', 'Assassin'], {
-    cost: cost(2, 'B'), colors: ['B'], attack: 3, defense: 2, keywords: ['skyborne', 'deathblade'],
+    cost: cost(2, 'B'), colors: ['B'], attack: 2, defense: 2, keywords: ['skyborne', 'deathblade'],
     rarity: 'r', flavor: 'Arrives as a shadow. Departs as a legal complication.',
   }),
   creature('gm-madame-macabre', 'Madame Macabre', ['Vampire', 'Hostess'], {
@@ -207,13 +206,13 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-lightning-rod-spire', name: 'Lightning-Rod Spire', types: ['artifact'], subtypes: ['Spire'],
-    cost: cost(3, 'U'), colors: ['U'],
+    cost: cost(2, 'U'), colors: ['U'],
     abilities: [{ when: 'dawn', ops: [{ op: 'damage', n: 1, to: 'opponent' }, { op: 'foresee', n: 1 }] }],
     rarity: 'r', flavor: 'It attracts lightning and visitors with the same confidence.',
   },
   {
     id: 'gm-black-lace-pact', name: 'Black-Lace Pact', types: ['ritual'], subtypes: [],
-    cost: cost(3, 'B'), colors: ['B'],
+    cost: cost(2, 'B'), colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'draw', n: 2 }, { op: 'damage', n: 2, to: 'controller' }] }],
     empower: { cost: cost(2, 'B'), ops: [{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }] },
     rarity: 'r', flavor: 'The ink is black, the lace is lovely, and the fine print bites.',
@@ -229,7 +228,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-midnight-autopsy', name: 'Midnight Autopsy', types: ['ritual'], subtypes: [],
-    cost: cost(3, 'B'), colors: ['B'],
+    cost: cost(4, 'B'), colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 2, who: 'self' }, { op: 'draw', n: 2 }] }],
     empower: { cost: cost(2, 'B'), ops: [{ op: 'raise', to: 'top' }] },
     rarity: 'r', flavor: 'Study the evidence long enough and it studies back.',
@@ -242,7 +241,7 @@ export const GOTHIC_MONSTERS = [
   },
   {
     id: 'gm-red-moon-rampage', name: 'Red-Moon Rampage', types: ['charm'], subtypes: [],
-    cost: cost(2, 'R'), colors: ['R'],
+    cost: cost(1, 'R'), colors: ['R'],
     abilities: [{ when: 'spell', ops: [{ op: 'boost', p: 2, t: 0, keywords: ['overrun'], scope: 'allYours' }] }],
     rarity: 'r', flavor: 'The moon rises red, and everyone suddenly has plans.',
   },
@@ -297,7 +296,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-stitched-footman', name: 'Stitched Footman', types: ['artifact', 'creature'],
-    subtypes: ['Construct'], cost: cost(2, 'U'), colors: ['U'], attack: 1, defense: 4,
+    subtypes: ['Construct'], cost: cost(1, 'U'), colors: ['U'], attack: 1, defense: 4,
     keywords: ['bulwark'], rarity: 'c', flavor: 'Stands where posted. Folds where necessary.',
   },
   creature('gm-blood-drop-initiate', 'Blood-Drop Initiate', ['Vampire', 'Initiate'], {
@@ -306,7 +305,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-candlelit-seance', name: 'Candlelit Seance', types: ['ritual'], subtypes: [],
-    cost: cost(2, 'B'), colors: ['B'],
+    cost: cost(1, 'B'), colors: ['B'],
     abilities: [{ when: 'spell', ops: [{ op: 'grind', n: 2, who: 'self' }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'The dead offer advice. The living take notes and lose cards.',
   },
@@ -319,13 +318,13 @@ export const GOTHIC_MONSTERS = [
   },
   {
     id: 'gm-silver-knife', name: 'Silver Knife', types: ['charm'], subtypes: [],
-    cost: cost(1, 'W'), colors: ['W'],
+    cost: cost(0, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'boost', p: 1, t: 1, keywords: ['firstBlade'], scope: 'target' }] }],
     rarity: 'c', flavor: 'Small, bright, and entirely uninterested in folklore debates.',
   },
   {
     id: 'gm-fogged-window', name: 'Fogged Window', types: ['charm'], subtypes: [],
-    cost: cost(1, 'U'), colors: ['U'],
+    cost: cost(0, 'U'), colors: ['U'],
     abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c', flavor: 'The view is obscured. The embarrassment remains visible.',
   },
@@ -351,20 +350,20 @@ export const GOTHIC_MONSTERS = [
     rarity: 'c', flavor: 'Catching rats, raising standards, missing both on occasion.',
   }),
   creature('gm-waxwork-double', 'Waxwork Double', ['Construct', 'Figure'], {
-    cost: cost(3, 'U'), colors: ['U'], attack: 2, defense: 3,
+    cost: cost(2, 'U'), colors: ['U'], attack: 2, defense: 3,
     abilities: [{ when: 'arrives', ops: [{ op: 'foresee', n: 2 }] }],
     rarity: 'c', flavor: 'The resemblance is uncanny, especially from across the room.',
   }),
   {
     id: 'gm-red-curtain-cut', name: 'Red-Curtain Cut', types: ['charm'], subtypes: [],
-    cost: cost(1, 'R'), colors: ['R'],
+    cost: cost(0, 'R'), colors: ['R'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 2, to: 'target' }] }],
     rarity: 'c', flavor: 'The curtain falls. The critics call it decisive.',
   },
   {
-    id: 'gm-holy-water-vial', name: 'Holy Water Vial', types: ['artifact'], subtypes: ['Vial'],
-    cost: cost(1, 'W'), colors: ['W'],
-    abilities: [{ when: 'arrives', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] }],
+    id: 'gm-holy-water-vial', name: 'Holy Water Vial', types: ['ritual'], subtypes: ['Vial'],
+    cost: cost(0, 'W'), colors: ['W'],
+    abilities: [{ when: 'spell', ops: [{ op: 'severGrave', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }] }],
     rarity: 'c', flavor: 'Blessed, bottled, and less messy than the full cathedral.',
   },
   {
@@ -375,7 +374,7 @@ export const GOTHIC_MONSTERS = [
   },
   {
     id: 'gm-cellar-door', name: 'Cellar Door', types: ['artifact'], subtypes: ['Door'],
-    cost: cost(2), colors: [], abilities: [{ when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
+    cost: cost(1), colors: [], abilities: [{ when: 'dawn', ops: [{ op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c', flavor: 'It leads below, which is never the same as leading somewhere.',
   },
   creature('gm-black-cat-familiar', 'Black Cat Familiar', ['Cat', 'Familiar'], {
@@ -389,8 +388,8 @@ export const GOTHIC_MONSTERS = [
     rarity: 'c', flavor: 'The storm has arrived. Please keep hands inside the tower.',
   },
   {
-    id: 'gm-funeral-bell', name: 'Funeral Bell', types: ['artifact'], subtypes: ['Bell'],
-    cost: cost(2, 'B'), colors: ['B'], abilities: [{ when: 'arrives', ops: [{ op: 'gainLife', n: 2 }] }],
+    id: 'gm-funeral-bell', name: 'Funeral Bell', types: ['ritual'], subtypes: ['Bell'],
+    cost: cost(0, 'B'), colors: ['B'], abilities: [{ when: 'spell', ops: [{ op: 'gainLife', n: 2 }] }],
     empower: { cost: cost(1, 'B'), ops: [{ op: 'loseLife', n: 2, who: 'opponent' }] },
     rarity: 'c', flavor: 'It rings once for the dead and twice for the delighted.',
   },
@@ -400,7 +399,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-broken-mirror', name: 'Broken Mirror', types: ['artifact'], subtypes: ['Mirror'],
-    cost: cost(2, 'U'), colors: ['U'], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }, { op: 'grind', n: 1, who: 'self' }] }],
+    cost: cost(1, 'U'), colors: ['U'], abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }, { op: 'grind', n: 1, who: 'self' }] }],
     rarity: 'c', flavor: 'Seven years bad luck, two cards good planning.',
   },
   creature('gm-raven-courier', 'Raven Courier', ['Bird', 'Courier'], {
@@ -415,8 +414,8 @@ export const GOTHIC_MONSTERS = [
   },
   {
     id: 'gm-blood-candle', name: 'Blood Candle', types: ['enchantment'], subtypes: ['Ritual'],
-    cost: cost(1, 'B'), colors: ['B'],
-    abilities: [{ when: 'dawn', ops: [{ op: 'damage', n: 1, to: 'controller' }, { op: 'draw', n: 1 }] }],
+    cost: cost(2, 'B'), colors: ['B'],
+    abilities: [{ when: 'dawn', ops: [{ op: 'damage', n: 3, to: 'controller' }, { op: 'draw', n: 1 }] }],
     rarity: 'c', flavor: 'It burns brighter whenever someone makes a poor bargain.',
   },
   {
@@ -446,7 +445,7 @@ export const GOTHIC_MONSTERS = [
   },
   {
     id: 'gm-midnight-bite', name: 'Midnight Bite', types: ['charm'], subtypes: [],
-    cost: cost(2, 'B'), colors: ['B'],
+    cost: cost(1, 'B'), colors: ['B'],
     abilities: [{ when: 'spell', targets: [{ what: 'any' }], ops: [{ op: 'damage', n: 2, to: 'target' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'c', flavor: 'A tiny puncture with an impressively large accounting department.',
   },
@@ -463,16 +462,16 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-screaming-staircase', name: 'Screaming Staircase', types: ['artifact', 'creature'],
-    subtypes: ['Construct', 'Staircase'], cost: cost(3, 'U'), colors: ['U'], attack: 1, defense: 5,
+    subtypes: ['Construct', 'Staircase'], cost: cost(1, 'U'), colors: ['U'], attack: 1, defense: 5,
     keywords: ['bulwark'], rarity: 'c', flavor: 'Every step complains, and none of them know the whole story.',
   },
   creature('gm-grave-soil-giant', 'Grave-Soil Giant', ['Plant', 'Giant'], {
-    cost: cost(5, 'G'), colors: ['G'], attack: 5, defense: 5, keywords: ['overrun'],
+    cost: cost(5, 'G'), colors: ['G'], attack: 5, defense: 6, keywords: ['overrun'],
     rarity: 'c', flavor: 'When the harvest goes unauthorized, the garden itself rises to object.',
   }),
   {
     id: 'gm-hunters-writ', name: "Hunter's Writ", types: ['charm'], subtypes: [],
-    cost: cost(1, 'W'), colors: ['W'],
+    cost: cost(2, 'W'), colors: ['W'],
     abilities: [{ when: 'spell', targets: [{ what: 'artifactOrEnchantment' }], ops: [{ op: 'sever', to: 'target' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'c', flavor: 'She serves notice in silver and bills the monster for postage.',
   },

@@ -16,6 +16,7 @@ import {
   grantPremiumDraftPool,
   limitedDraftDuals,
   limitedDuelData,
+  limitedBasics,
   limitedLandReserve,
   personaRevealTier,
   pickDraftCard,
@@ -24,7 +25,7 @@ import {
   startBotDraft,
   startDraftRun,
 } from '../../src/meta/Limited';
-import { DEFAULT_PICKER, scoreBasePick } from '../../src/meta/draftPicker';
+import { DEFAULT_PICKER, scoreBasePick, scorePick } from '../../src/meta/draftPicker';
 import { firstReserveConfigIssue } from '../../src/meta/duelSetup';
 import { freshSave } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, TIER_RANK, variantKey, type CardVariant } from '../../src/meta/variants';
@@ -206,6 +207,47 @@ describe('bot draft', () => {
     for (const d of Object.values(CARD_DB)) {
       expect(scoreBasePick(d, DEFAULT_PICKER), d.id).toBe(scoreBaseCardReference(d));
     }
+  });
+
+  it('does not treat C as a draft color when picking among lands', () => {
+    const db: CardDb = {
+      'green-pick': {
+        id: 'green-pick',
+        name: 'Green Pick',
+        types: ['creature'],
+        subtypes: [],
+        cost: { generic: 0, pips: { G: 1 } },
+        colors: ['G'],
+        attack: 1,
+        defense: 1,
+        rarity: 'c',
+      },
+      'c-land': {
+        id: 'c-land',
+        name: 'Colorless Land',
+        types: ['land'],
+        subtypes: [],
+        colors: [],
+        manaAbility: ['C'],
+        rarity: 'c',
+      },
+      'g-land': {
+        id: 'g-land',
+        name: 'Green Land',
+        types: ['land'],
+        subtypes: [],
+        colors: [],
+        manaAbility: ['G'],
+        rarity: 'c',
+      },
+    };
+    const picks = Array.from({ length: 5 }, () => 'green-pick');
+    const pack = ['c-land', 'g-land'];
+    const chosen = [...pack].sort(
+      (a, b) => scorePick(db, b, picks, DEFAULT_PICKER, 0) - scorePick(db, a, picks, DEFAULT_PICKER, 0),
+    )[0];
+    expect(chosen).toBe('g-land');
+    expect(scorePick(db, 'g-land', picks, DEFAULT_PICKER, 0) - scorePick(db, 'c-land', picks, DEFAULT_PICKER, 0)).toBe(3);
   });
 
   it('keeps DEFAULT_PICKER bot choices lockstep with the old heuristic across 20 full drafts', () => {
@@ -482,7 +524,7 @@ function scoreDraftCardReference(db: CardDb, id: string, picks: readonly string[
   }
   if (isType(d, 'land') && !isBasic(db, id)) {
     const mana = d.manaAbility ?? [];
-    score += mana.some((c) => committed.includes(c)) ? 4 : 1;
+    score += mana.some((c) => c !== 'C' && committed.includes(c)) ? 4 : 1;
   }
   return score;
 }
@@ -530,3 +572,100 @@ function compareCardNames(db: CardDb, a: string, b: string): number {
   const dbb = def(db, b);
   return da.name.localeCompare(dbb.name) || a.localeCompare(b);
 }
+
+/**
+ * Limited basics were allocated by strict alternation (`palette[i % n]`), so a
+ * deck with twelve red pips and three blue drew five Mountains and five
+ * Islands. Ten lands and no way to shuffle out of a bad draw makes Limited the
+ * mode where that hurts most.
+ */
+describe('limited basics follow pip demand, with a floor per colour', () => {
+  const countOf = (ids: readonly string[]): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (const id of ids) out[id] = (out[id] ?? 0) + 1;
+    return out;
+  };
+  const cardWithPip = (color: Color): CardDef =>
+    Object.values(CARD_DB).find((card) =>
+      (card.cost?.pips?.[color] ?? 0) > 0 && !isType(card, 'land') && !card.token)!;
+
+  const red = cardWithPip('R');
+  const blue = cardWithPip('U');
+
+  it('gives the heavier colour the larger share', () => {
+    // Sized in PIPS, not cards, because that is what the allocator reads.
+    const deck = [...Array(12).fill(red.id), ...Array(3).fill(blue.id)];
+    const counts = countOf(limitedBasics(CARD_DB, deck, 10));
+    expect(counts['land-mountain']).toBeGreaterThan(counts['land-island']);
+    expect(counts['land-mountain'] + counts['land-island']).toBe(10);
+  });
+
+  it('never leaves a splash with zero sources', () => {
+    // The floor is the point: pure largest-remainder rounding can hand a
+    // one-pip splash nothing, which is worse than the alternation it replaced.
+    const deck = [...Array(30).fill(red.id), blue.id];
+    const counts = countOf(limitedBasics(CARD_DB, deck, 10));
+    expect(counts['land-island']).toBeGreaterThanOrEqual(1);
+    expect(counts['land-mountain']).toBe(10 - counts['land-island']);
+  });
+
+  it('fills every slot for a mono-colour deck', () => {
+    expect(countOf(limitedBasics(CARD_DB, Array(10).fill(red.id), 10)))
+      .toEqual({ 'land-mountain': 10 });
+  });
+
+  it('always returns exactly the slots asked for', () => {
+    for (const slots of [0, 1, 2, 5, 10]) {
+      expect(limitedBasics(CARD_DB, [red.id, blue.id], slots)).toHaveLength(slots);
+    }
+  });
+
+  it('falls back to Plains when the deck has no colours at all', () => {
+    expect(countOf(limitedBasics(CARD_DB, [], 10))).toEqual({ 'land-plains': 10 });
+  });
+
+  it('ranks by demand when there are fewer slots than colours', () => {
+    // Five duals selected leaves few basic slots; something has to give, and
+    // the colour the deck actually leans on should be what survives.
+    const deck = [...Array(20).fill(red.id), blue.id];
+    expect(limitedBasics(CARD_DB, deck, 1)).toEqual(['land-mountain']);
+  });
+
+  it('keeps the whole reserve at ten lands through limitedLandReserve', () => {
+    const deck = [...Array(12).fill(red.id), ...Array(3).fill(blue.id)];
+    expect(limitedLandReserve(CARD_DB, deck, [], [])).toHaveLength(10);
+  });
+
+  it('reads pips rather than card counts', () => {
+    // A fixed fixture keeps this gate live even if the catalog's first
+    // red/blue cards ever happen to have equal pip counts.
+    const db: CardDb = {
+      heavy_red: {
+        id: 'heavy_red',
+        name: 'Heavy Red',
+        types: ['creature'],
+        subtypes: [],
+        cost: { generic: 0, pips: { R: 2 } },
+        colors: ['R'],
+        attack: 1,
+        defense: 1,
+        rarity: 'c',
+      },
+      light_blue: {
+        id: 'light_blue',
+        name: 'Light Blue',
+        types: ['creature'],
+        subtypes: [],
+        cost: { generic: 0, pips: { U: 1 } },
+        colors: ['U'],
+        attack: 1,
+        defense: 1,
+        rarity: 'c',
+      },
+    };
+    const deck = [...Array(6).fill('heavy_red'), ...Array(6).fill('light_blue')];
+    const counts = countOf(limitedBasics(db, deck, 10));
+
+    expect(counts).toEqual({ 'land-mountain': 6, 'land-island': 4 });
+  });
+});

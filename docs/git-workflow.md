@@ -112,6 +112,13 @@ the PR is both the CI gate and the reviewable record.
   `v1.5.0` (`8893da3`) and `v1.5.5` (`d475d01`) are two-parent merge commits,
   which is why 23 commits sit between them and 21 of those carry PR numbers.
   Tag the resulting merge commit, not the release branch tip.
+- **Write the release notes BEFORE tagging.** `release.yml` resolves
+  `docs/release-notes/${TAG}.md` and uses it as the release body, with the
+  generated PR list appended; with no file it falls back to the generated list
+  alone. `npm run check-release-notes` runs in `deploy.yml` and fails a PR that
+  bumps `package.json` without one, because `release.yml` never runs on a pull
+  request and a pushed tag is too late to notice. See
+  [release-notes/README.md](release-notes/README.md).
 - **Release branches are not protected at all.** The ruleset targets
   `~DEFAULT_BRANCH` only, so `release/**` has no required checks and no
   push restrictions — `verify` still runs on PRs into them, but nothing blocks

@@ -26,6 +26,33 @@ import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, registerSceneBackNavigation, themedButton, type ModalShell } from '../ui/themeWidgets';
 
 const ROWS = 13;
+/**
+ * Spell out the whole Warchest, not just the duals.
+ *
+ * Basics are apportioned by the deck's pip demand, so the split is a real
+ * decision the game is making for the player. Showing it beats "Basics fill
+ * the Warchest automatically", which told them nothing and left the reserve
+ * invisible until the duel began.
+ */
+function describeReserve(reserve: readonly string[], duals: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const id of reserve) counts.set(id, (counts.get(id) ?? 0) + 1);
+  const dualSet = new Set(duals);
+  const parts: string[] = [];
+  // Basics lead: the pip-demand split is the information this line exists to
+  // show, and the display clamp truncates from the right, so the long scenic
+  // dual names are what an overflow costs, never the split.
+  for (const [id, count] of counts) {
+    if (dualSet.has(id)) continue;
+    parts.push(`${count}x ${def(CARD_DB, id).name}`);
+  }
+  for (const [id, count] of counts) {
+    if (!dualSet.has(id)) continue;
+    parts.push(count > 1 ? `${count}x ${def(CARD_DB, id).name}` : def(CARD_DB, id).name);
+  }
+  return parts.length > 0 ? parts.join(' · ') : 'No lands in the Warchest yet';
+}
+
 export class LimitedDeckBuilderScene extends Phaser.Scene {
   private deck: string[] = [];
   private selectedDuals: string[] = [];
@@ -224,7 +251,7 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     this.text(
       L.contentX,
       L.dualsY,
-      reserveDuals.length > 0 ? reserveDuals.map((id) => def(CARD_DB, id).name).join(', ') : 'Basics fill the Warchest automatically',
+      short(describeReserve(reserve, reserveDuals), 44),
       theme.type.caption,
       theme.colors.muted,
     );

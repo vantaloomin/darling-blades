@@ -61,9 +61,32 @@ export interface AchievementState {
 }
 
 export interface CosmeticsSave {
-  /** `null` equips the catalog default. Non-default choices store their id. */
+  /**
+   * SUPERSEDED in v33 and UNREACHABLE. Style became a property of the deck you
+   * built (`SavedDeck.cardBack` / `SavedDeck.playmat`) and the Profile picker
+   * moved with it, so nothing can write these any more and nothing reads them.
+   * They are still normalized against the catalogs on every load, so a save
+   * carries whatever value it held when v33 landed, frozen.
+   *
+   * NOT a fallback: the one deckless surface, Pack Opening, deliberately reads
+   * the ACTIVE DECK's back instead and says why in `resolveCardBackTexture`.
+   *
+   * Removing them is a save schema change, so it rides the next version bump
+   * that has to happen anyway rather than paying a migration on its own. When
+   * that bump comes, three things bite, in this order:
+   *
+   *   1. These two names are IDENTICAL to the live per-deck fields below. A
+   *      find/replace hits those and silently breaks the 1.6.3 Style feature.
+   *      Anchor on `CosmeticsSave`, never on the field name.
+   *   2. The shared re-walk guard enumerates versions explicitly and ends in
+   *      `|| cur.version === CURRENT_SAVE_VERSION`. The outgoing CURRENT must
+   *      be added to that list by hand or every save at it skips the block.
+   *   3. That same block rewinds a current save and re-walks the chain, so any
+   *      migration step runs on every load. Key seeding off
+   *      `beganAtCurrentVersion`.
+   */
   cardBack: string | null;
-  /** `null` equips the catalog default. Non-default choices store their id. */
+  /** Superseded in v33 and unreachable. See `cardBack` above. */
   playmat: string | null;
   /** Granted non-default ids only. Default-unlock entries are always owned. */
   owned: string[];
@@ -104,12 +127,17 @@ export interface SavedDeck {
   /** Positional treatment pins. `variantPins[i]` belongs to `cards[i]`; null = Auto. v23 addition. */
   variantPins?: Array<string | null>;
   /**
-   * Per-deck card back. `null` falls back to the account-level pick, which is
-   * what deckless contexts (Pack Opening) keep using. v33 addition, alongside
-   * `playmat`: style became a property of the deck you built, not the account.
+   * Per-deck card back. `null` equips the catalog default. v33 addition,
+   * alongside `playmat`: style became a property of the deck you built, not
+   * the account.
+   *
+   * These do NOT fall back to `CosmeticsSave.cardBack`. An earlier version of
+   * this comment said they did, and said deckless contexts kept using the
+   * account pick; `PackOpeningScene.resolveCardBackTexture` reads the ACTIVE
+   * DECK and documents why the account value is unusable.
    */
   cardBack?: string | null;
-  /** Per-deck playmat. `null` falls back to the account-level pick. v33 addition. */
+  /** Per-deck playmat. `null` equips the catalog default. v33 addition. */
   playmat?: string | null;
 }
 

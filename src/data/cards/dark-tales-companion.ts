@@ -53,15 +53,15 @@ function enchantment(id: string, name: string, subtypes: string[], data: Compani
 
 const UR: CardDef[] = [
   creature('dt-swan-lake-sovereign', 'Swan-Lake Sovereign', ['Human', 'Swan'], {
-    supertypes: ['legendary'], cost: cost(4, 'UW'), colors: ['U', 'W'], attack: 4, defense: 5,
+    supertypes: ['legendary'], cost: cost(3, 'UW'), colors: ['U', 'W'], attack: 4, defense: 5,
     keywords: ['skyborne', 'sentinel'], nineLives: true,
     abilities: [dawn([{ op: 'foresee', n: 1 }])],
     rarity: 'ur', flavor: 'Each dawn returns her feathers, her crown, and a look at tomorrow.',
   }),
   creature('dt-sea-witch-of-the-drowned-bargain', 'Sea Witch of the Drowned Bargain', ['Human', 'Witch'], {
-    supertypes: ['legendary'], cost: cost(4, 'UB'), colors: ['U', 'B'], attack: 5, defense: 5,
+    supertypes: ['legendary'], cost: cost(5, 'UB'), colors: ['U', 'B'], attack: 5, defense: 5,
     keywords: ['deathblade'], abilities: [arrives([{ op: 'draw', n: 2 }, { op: 'grind', n: 2, who: 'self' }])],
-    skim: { cost: cost(2) }, rarity: 'ur', flavor: 'Two pages read, two pages drowned, and your voice was never the point.',
+    rarity: 'ur', flavor: 'Two pages read, two pages drowned, and your voice was never the point.',
   }),
 ];
 
@@ -78,7 +78,7 @@ const SSR: CardDef[] = [
   }),
   creature('dt-rose-red-of-the-winter-hearth', 'Rose-Red of the Winter Hearth', ['Human', 'Hearthkeeper'], {
     supertypes: ['legendary'], cost: cost(3, 'GW'), colors: ['G', 'W'], attack: 3, defense: 4,
-    keywords: ['sentinel'], abilities: [
+    abilities: [
       arrives([{ op: 'createToken', token: 'tok-hearth-spirit', count: 2 }]),
       dawn([{ op: 'gainLife', n: 1 }]),
     ],
@@ -94,11 +94,11 @@ const SSR: CardDef[] = [
 
 const SR: CardDef[] = [
   ritual('dt-twelve-dancing-heiresses', 'The Twelve Dancing Heiresses', {
-    cost: cost(3, 'W'), colors: ['W'], abilities: [spell([{ op: 'createToken', token: 'tok-masked-guest', count: 3 }])],
+    cost: cost(4, 'W'), colors: ['W'], abilities: [spell([{ op: 'createToken', token: 'tok-masked-guest', count: 3 }])],
     retell: { cost: cost(5, 'W') }, rarity: 'sr', flavor: 'They wear through twelve pairs a night and deny it in chorus.',
   }),
   ritual('dt-poisoned-comb', 'Poisoned Comb', {
-    cost: cost(3, 'B'), colors: ['B'], abilities: [spell([{ op: 'destroy', to: 'target' }], target('creature'))],
+    cost: cost(2, 'B'), colors: ['B'], abilities: [spell([{ op: 'destroy', to: 'target' }], target('creature'))],
     retell: { cost: cost(5, 'B') }, rarity: 'sr', flavor: 'The comb is a second opinion, delivered one tooth at a time.',
   }),
   creature('dt-empress-of-the-mirror-shards', 'Empress of the Mirror Shards', ['Human', 'Empress'], {
@@ -129,7 +129,7 @@ const R: CardDef[] = [
     rarity: 'r', flavor: 'Nobody reaches the top on the first ride. She budgeted for that.',
   }),
   ritual('dt-ball-before-midnight', 'Ball Before Midnight', {
-    cost: cost(3, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 2, t: 2, scope: 'allYours' }])],
+    cost: cost(2, 'W'), colors: ['W'], abilities: [spell([{ op: 'boost', p: 2, t: 2, scope: 'allYours' }])],
     retell: { cost: cost(5, 'W') }, rarity: 'r', flavor: 'One dance from midnight, and every guest is twice what she arrived as.',
   }),
   creature('dt-goose-girl-of-the-wind-meadow', 'Goose-Girl of the Wind Meadow', ['Human', 'Goose-Girl'], {
@@ -142,7 +142,7 @@ const R: CardDef[] = [
     retell: { cost: cost(5, 'W') }, rarity: 'r', flavor: 'Struck from the list, she is not even allowed to haunt the ballroom.',
   }),
   enchantment('dt-casita-hearth', 'Casita Hearth', [], {
-    cost: cost(3, 'W'), colors: ['W'], abilities: [dawn([{ op: 'createToken', token: 'tok-hearth-spirit', count: 1 }, { op: 'gainLife', n: 1 }])],
+    cost: cost(5, 'W'), colors: ['W'], abilities: [dawn([{ op: 'createToken', token: 'tok-hearth-spirit', count: 1 }, { op: 'gainLife', n: 2 }])],
     rarity: 'r', flavor: 'Every morning the house adds a chair, and every morning someone takes it.',
   }),
   creature('dt-swan-feather-scout', 'Swan-Feather Scout', ['Human', 'Swan-Maiden'], {
@@ -168,7 +168,7 @@ const R: CardDef[] = [
     rarity: 'r', flavor: 'Every time she dies, the coffin bookmarks two more pages.',
   }),
   charm('dt-laced-too-tight', 'Laced Too Tight', {
-    cost: cost(2, 'B'), colors: ['B'], abilities: [spell([{ op: 'boost', p: -2, t: -2, scope: 'target' }], target('creature'))],
+    cost: cost(0, 'B'), colors: ['B'], abilities: [spell([{ op: 'boost', p: -2, t: -2, scope: 'target' }], target('creature'))],
     retell: { cost: cost(3, 'B') }, rarity: 'r', flavor: 'Tighter, dear, and tighter; the peddler always asks twice.',
   }),
   creature('dt-sugar-cottage-witch', 'Sugar-Cottage Witch', ['Human', 'Witch'], {
@@ -193,7 +193,7 @@ const R: CardDef[] = [
     preserve: { cost: cost(3, 'G') }, rarity: 'r', flavor: 'Cut her down in autumn and she is back, thornier, by spring.',
   }),
   ritual('dt-chart-the-reef-road', 'Chart the Reef Road', {
-    cost: cost(3, 'G'), colors: ['G'], abilities: [spell([{ op: 'extraLandDrop' }, { op: 'foresee', n: 2 }, { op: 'draw', n: 1 }])],
+    cost: cost(5, 'G'), colors: ['G'], abilities: [spell([{ op: 'extraLandDrop' }, { op: 'foresee', n: 2 }, { op: 'draw', n: 1 }])],
     retell: { cost: cost(4, 'G') }, rarity: 'r', flavor: 'The chart shows one safe passage and two she will check later.',
   }),
   artifactCreature('dt-clockwork-coachwoman', 'Clockwork Coachwoman', ['Construct', 'Coachwoman'], {
@@ -208,7 +208,7 @@ const C: CardDef[] = [
     flavor: 'She feels the pea through twenty mattresses and the plot through twenty doors.',
   }),
   creature('dt-handmaid-who-woke-twice', 'Handmaid Who Woke Twice', ['Human', 'Handmaid'], {
-    cost: cost(1, 'W'), colors: ['W'], attack: 1, defense: 2, keywords: ['bloodoath'], nineLives: true,
+    cost: cost(2, 'W'), colors: ['W'], attack: 1, defense: 1, keywords: ['bloodoath'], nineLives: true,
     rarity: 'c', flavor: 'The castle slept a hundred years; she got up early, twice.',
   }),
   creature('dt-masquerade-chaperone', 'Masquerade Chaperone', ['Human', 'Chaperone'], {
@@ -258,8 +258,8 @@ const C: CardDef[] = [
     retell: { cost: cost(3, 'U') }, rarity: 'c', flavor: 'Three pages to the tide, one back, and that one knows how it ends.',
   }),
   charm('dt-second-verse', 'Second Verse', {
-    cost: cost(1, 'U'), colors: ['U'], abilities: [spell([{ op: 'draw', n: 1 }, { op: 'grind', n: 1, who: 'self' }])],
-    retell: { cost: cost(2, 'U') }, rarity: 'c', flavor: 'The first verse puts the court to sleep. The second decides who wakes.',
+    cost: cost(0, 'UU'), colors: ['U'], abilities: [spell([{ op: 'draw', n: 1 }, { op: 'grind', n: 1, who: 'self' }])],
+    retell: { cost: cost(1, 'UU') }, rarity: 'c', flavor: 'The first verse puts the court to sleep. The second decides who wakes.',
   }),
   enchantment('dt-frozen-to-the-floor', 'Frozen to the Floor', ['Aura'], {
     cost: cost(1, 'U'), colors: ['U'], abilities: [attached(-1, 0, ['bulwark'])], skim: { cost: cost(1) },
@@ -287,11 +287,11 @@ const C: CardDef[] = [
     flavor: "She brought the queen a pig's heart and kept her own.",
   }),
   ritual('dt-apple-half-exchange', 'Apple-Half Exchange', {
-    cost: cost(2, 'B'), colors: ['B'], abilities: [spell([{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }])],
+    cost: cost(1, 'B'), colors: ['B'], abilities: [spell([{ op: 'loseLife', n: 2, who: 'opponent' }, { op: 'gainLife', n: 2 }])],
     retell: { cost: cost(3, 'B') }, rarity: 'c', flavor: 'She takes the sweet half, you take the other, and everyone calls it sharing.',
   }),
   ritual('dt-shadow-miners-dirge', "Shadow-Miner's Dirge", {
-    cost: cost(2, 'B'), colors: ['B'], abilities: [spell([{ op: 'createToken', token: 'tok-shadow-miner', count: 1 }, { op: 'grind', n: 2, who: 'self' }])],
+    cost: cost(1, 'B'), colors: ['B'], abilities: [spell([{ op: 'createToken', token: 'tok-shadow-miner', count: 1 }, { op: 'grind', n: 2, who: 'self' }])],
     retell: { cost: cost(3, 'B') }, rarity: 'c', flavor: 'One miner climbs out of the dirge; two pages go in to keep it company.',
   }),
   creature('dt-hearth-ember-dancer', 'Hearth-Ember Dancer', ['Human', 'Dancer'], {
@@ -303,7 +303,7 @@ const C: CardDef[] = [
     flavor: 'The balcony is a door if you leave it fast enough.',
   }),
   charm('dt-ember-lantern-toss', 'Ember-Lantern Toss', {
-    cost: cost(2, 'R'), colors: ['R'], abilities: [spell([{ op: 'damage', n: 2, to: 'target' }], target('any'))],
+    cost: cost(1, 'R'), colors: ['R'], abilities: [spell([{ op: 'damage', n: 2, to: 'target' }], target('any'))],
     retell: { cost: cost(3, 'R') }, rarity: 'c', flavor: 'The lanterns go up every year; this one is coming down on you.',
   }),
   creature('dt-bayou-lamplighter', 'Bayou Lamplighter', ['Human', 'Lamplighter'], {
@@ -320,7 +320,7 @@ const C: CardDef[] = [
     retell: { cost: cost(2, 'G') }, rarity: 'c', flavor: 'Drink it all, dear; the wolf will not enjoy what you become.',
   }),
   artifactCreature('dt-paper-ballerina', 'Paper Ballerina', ['Construct', 'Ballerina'], {
-    cost: cost(2), colors: [], attack: 1, defense: 2, nineLives: true, rarity: 'c',
+    cost: cost(3), colors: [], attack: 2, defense: 2, nineLives: true, rarity: 'c',
     flavor: 'The stove took the soldier. She came out of it a little singed.',
   }),
   artifact('dt-pumpkin-shell-lantern', 'Pumpkin-Shell Lantern', ['Relic'], {

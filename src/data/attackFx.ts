@@ -1,5 +1,7 @@
 import type { CardDef } from '../engine/types';
 import { isType } from '../engine/types';
+import { STARBORNE } from './cards/starborne';
+import { TOKENS } from './cards/tokens';
 
 // ---------------------------------------------------------------------------
 // Attack visual-effect classification (pure data). Maps each creature to an
@@ -356,6 +358,7 @@ export const ATTACK_FX_MAP: Record<string, AttackFxSpec> = {
   'tok-valkyrie': { archetype: 'aerial', heavy: false },
   'tok-draugr': { archetype: 'shadow', heavy: false },
   'tok-wolf': { archetype: 'claw', heavy: false },
+  'tok-wolf-cub': { archetype: 'claw', heavy: false },
   // --- Ragnarök expansion creatures (heavy = attack >= 5 or trample) ---
   'rg-hel': { archetype: 'shadow', heavy: false },
   'rg-freya': { archetype: 'aerial', heavy: false },
@@ -754,6 +757,18 @@ function fallbackArchetype(card: CardDef): AttackArchetype {
 /** Fallback heavy flag for a creature not in ATTACK_FX_MAP. */
 function fallbackHeavy(card: CardDef): boolean {
   return (card.attack ?? 0) >= 5 || card.keywords?.includes('overrun') === true;
+}
+
+const STARBORNE_TOKEN_IDS = new Set([
+  'tok-broodling',
+  'tok-chrome-husk',
+  'tok-nebula-firefly',
+]);
+
+for (const card of [...STARBORNE, ...TOKENS.filter((token) => STARBORNE_TOKEN_IDS.has(token.id))]) {
+  if (isType(card, 'creature') && !ATTACK_FX_MAP[card.id]) {
+    ATTACK_FX_MAP[card.id] = { archetype: fallbackArchetype(card), heavy: fallbackHeavy(card) };
+  }
 }
 
 /**

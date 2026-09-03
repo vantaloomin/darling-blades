@@ -57,7 +57,7 @@ describe('Dark Tales data integrity', () => {
     expect(FEATURES.dtCompanionLive).toBe(true);
   });
 
-  it('uses only engine keywords and operations, with trigger-safe non-spell abilities', () => {
+  it('uses only engine keywords and operations, with target-free non-spell abilities', () => {
     for (const card of DARK_TALES) {
       for (const keyword of card.keywords ?? []) expect(KEYWORDS.has(keyword), `${card.id}: ${keyword}`).toBe(true);
       for (const ability of card.abilities ?? []) {
@@ -153,7 +153,9 @@ describe('Midnight Storybook precon', () => {
       const card = CARD_DB[id];
       if (!card.types.includes('land') && card.set !== 'dark-tales') offSetNonlands += count;
     }
-    expect(offSetNonlands).toBe(20);
+    // The measured surgery keeps the cross-set value package at 22 cards:
+    // Neon, Kitsune, Zhao, Guojia, Hades, Doom Bolt, Undertow, and Malaise.
+    expect(offSetNonlands).toBe(22);
     const save = freshSave(0);
     grantDeckCards(save, CARD_DB, deck.cards);
     expect(validateDeck(CARD_DB, save, deck.cards).filter((issue) => issue.kind === 'error')).toHaveLength(0);

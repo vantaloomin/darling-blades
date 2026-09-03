@@ -87,7 +87,7 @@ export function scorePick(
   }
   if (isType(d, 'land') && !d.supertypes?.includes('basic')) {
     const mana = d.manaAbility ?? [];
-    score += (mana.some((color) => committed.includes(color)) ? 4 : 1) * profile.colorLoyalty;
+    score += (mana.some((color) => color !== 'C' && committed.includes(color)) ? 4 : 1) * profile.colorLoyalty;
   }
 
   const chaos = Math.max(0, Math.min(1, profile.chaos));

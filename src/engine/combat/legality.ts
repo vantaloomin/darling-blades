@@ -68,6 +68,12 @@ export function validateAttackers(
     seen.add(iid);
     if (!canAttack(battlefield, db, active, iid)) return `illegal attacker ${iid}`;
   }
+  // Rage is a requirement, not a permission, so it is checked over the whole
+  // declaration rather than per attacker: the empty declaration that skips
+  // combat is exactly the one a compelled attacker has to reject.
+  for (const iid of compelledAttackers(battlefield, db, active)) {
+    if (!seen.has(iid)) return `attacker ${iid} has Rage and must attack`;
+  }
   return null;
 }
 
@@ -138,4 +144,29 @@ export function eligibleAttackers(
   return battlefield
     .filter((p) => canAttack(battlefield, db, active, p.iid))
     .map((p) => p.iid);
+}
+
+/**
+ * Rage: the attackers the active player has no choice about. "Attacks each
+ * turn IF ABLE" is the whole rule, so this is deliberately a filter over
+ * `eligibleAttackers` and never a second legality path. Anything that makes a
+ * creature unable to attack — tapped, summoning sick without Warcry, Bulwark
+ * (which reads "cannot attack" and therefore wins), or simply no longer on the
+ * battlefield — removes the compulsion with it, because such a creature was
+ * never eligible to begin with.
+ *
+ * Every consumer that lets a player or an AI CHOOSE a subset of attackers must
+ * intersect against this: the enumerator, so illegal subsets are never offered;
+ * the engine's declare validation, so a hand-built action cannot skip the
+ * compulsion; and the AI's attack planner, so its greedy descent cannot drop a
+ * compelled attacker.
+ */
+export function compelledAttackers(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  active: PlayerId,
+): number[] {
+  return eligibleAttackers(battlefield, db, active).filter((iid) =>
+    getEffectiveStats(battlefield, db, iid).keywords.has('rage'),
+  );
 }

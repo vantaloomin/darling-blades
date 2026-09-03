@@ -38,7 +38,7 @@ const COLOR_RANK: Record<Color, number> = { W: 0, U: 1, B: 2, R: 3, G: 4 };
 export function colorClusterKey(d: CardDef): number {
   const colors: readonly Color[] =
     isType(d, 'land') && d.colors.length === 0 && d.manaAbility && d.manaAbility.length > 0
-      ? d.manaAbility
+      ? d.manaAbility.filter((color): color is Color => color !== 'C')
       : d.colors;
   if (colors.length === 0) return 999; // colorless / no mana identity: last
   if (colors.length === 1) return COLOR_RANK[colors[0]]; // 0..4

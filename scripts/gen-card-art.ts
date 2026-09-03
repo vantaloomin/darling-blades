@@ -15,6 +15,7 @@
  * Usage:
  *   npm run gen-card-art -- [--faction <stem>] [--only id1,id2] [--limit N]
  *                           [--dry-run] [--show-prompt] [--force] [--cli <path>]
+ *   npm run gen-card-art -- --recrop <file> [--out-dir <path>]
  *
  *   --faction greek   only entries from docs/art-bible/greek.md
  *   --only a,b        only these card ids
@@ -35,7 +36,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { convertPngToWebp } from './convert-art-webp';
 
@@ -61,6 +62,7 @@ const FACTIONS = [
   'gothic-monsters',
   'dark-tales',
   'sands-of-the-duat',
+  'starborne',
 ] as const;
 
 const OUT_W = 640;
@@ -145,7 +147,32 @@ const NEGATIVES =
 // sentence before the negatives block.
 const assemblePrompt = (entry: Entry): string => PREAMBLE + entry.prompt + '.' + NEGATIVES;
 
-const PYTHON = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+/**
+ * Prefer the repo's dedicated art venv over whatever `python` happens to be on
+ * PATH.
+ *
+ * `.venv-art/` carries pillow + dghs-imgutils + onnxruntime and deliberately NO
+ * torch. A developer machine's default interpreter is often a conda base that
+ * DOES have torch, and if its torch and torchvision are a mismatched pair the
+ * smart-crop preflight dies on `operator torchvision::nms does not exist` while
+ * reporting "dghs-imgutils is required" — a message that sends you off to
+ * reinstall a package that was never missing. That happened on 2026-08-26, and
+ * "fixing" the base env would have meant touching the torch a local ComfyUI
+ * depends on.
+ *
+ * Explicit $PYTHON still wins, so a caller can point anywhere.
+ */
+function findArtVenvPython(): string | undefined {
+  const rel = process.platform === 'win32'
+    ? join('.venv-art', 'Scripts', 'python.exe')
+    : join('.venv-art', 'bin', 'python');
+  const candidate = join(root, rel);
+  return existsSync(candidate) ? candidate : undefined;
+}
+
+const PYTHON = process.env.PYTHON
+  ?? findArtVenvPython()
+  ?? (process.platform === 'win32' ? 'python' : 'python3');
 
 // --- arg parsing ---------------------------------------------------------------
 
@@ -153,6 +180,8 @@ interface Args {
   faction?: string;
   only?: string[];
   limit?: number;
+  recrop?: string;
+  outDir?: string;
   dryRun: boolean;
   showPrompt: boolean;
   force: boolean;
@@ -170,6 +199,12 @@ function parseArgs(argv: string[]): Args {
     };
     if (a === '--faction') args.faction = next(a);
     else if (a === '--only') args.only = next(a).split(',').map((s) => s.trim()).filter(Boolean);
+    else if (a === '--recrop') args.recrop = next(a);
+    else if (a === '--out-dir') {
+      const value = next(a);
+      if (value.length === 0) fail('--out-dir must not be empty');
+      args.outDir = value;
+    }
     else if (a === '--limit') {
       const n = Number(next(a));
       if (!Number.isInteger(n) || n <= 0) fail('--limit must be a positive integer');
@@ -198,6 +233,24 @@ interface Entry {
   name: string;
   faction: string;
   prompt: string;
+  /** Shared-art entry: the game renders another card's file via artRef, so
+   *  the bible entry carries an "Art ref" field instead of a Prompt and the
+   *  generator must never produce a file for it. */
+  sharedArt: boolean;
+}
+
+interface RecropEntry {
+  id: string;
+  scale: number;
+  offsetY: number;
+  tag?: string;
+}
+
+interface SmartcropResult {
+  source: string;
+  crop: [number, number, number, number];
+  achievedScale: number;
+  achievedOffsetY: number;
 }
 
 /** (card-id → prompt) pairs from one faction file, in file order. */
@@ -208,18 +261,184 @@ function parseFaction(faction: string): Entry[] {
   for (const line of content.split(/\r?\n/)) {
     const heading = line.match(/^### (.+?) — `([^`]+)`\s*$/);
     if (heading) {
-      open = { id: heading[2], name: heading[1], faction, prompt: '' };
+      open = { id: heading[2], name: heading[1], faction, prompt: '', sharedArt: false };
       entries.push(open);
       continue;
     }
     const prompt = line.match(/^- \*\*Prompt:\*\* ?(.*)$/);
     if (prompt && open) open.prompt = prompt[1].trim();
+    if (/^- \*\*Art ref:\*\*/.test(line) && open) open.sharedArt = true;
   }
-  const missing = entries.filter((e) => e.prompt === '');
+  const missing = entries.filter((e) => e.prompt === '' && !e.sharedArt);
   if (missing.length > 0) {
     fail(`${faction}.md: entries missing a Prompt field: ${missing.map((e) => e.id).join(', ')}`);
   }
-  return entries;
+  return entries.filter((e) => !e.sharedArt);
+}
+
+function readRecropBatch(file: string): RecropEntry[] {
+  const path = resolve(root, file);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    fail(`could not read recrop batch ${path}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!Array.isArray(raw)) fail(`recrop batch must contain an array: ${path}`);
+  const seen = new Set<string>();
+  return raw.map((item, index) => {
+    if (!item || typeof item !== 'object') fail(`recrop[${index}] must be an object`);
+    const value = item as Record<string, unknown>;
+    const id = value.id;
+    const scaleValue = value.scale;
+    const offsetValue = value.offsetY;
+    const tag = value.tag;
+    if (typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(id)) {
+      fail(`recrop[${index}].id must be a safe card id`);
+    }
+    if (scaleValue !== undefined && (typeof scaleValue !== 'number' || !Number.isFinite(scaleValue) || scaleValue < 1)) {
+      fail(`recrop[${index}].scale must be a finite number >= 1`);
+    }
+    if (offsetValue !== undefined && (typeof offsetValue !== 'number' || !Number.isInteger(offsetValue))) {
+      fail(`recrop[${index}].offsetY must be a finite integer number of pixels`);
+    }
+    if (tag !== undefined && (typeof tag !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(tag))) {
+      fail(`recrop[${index}].tag must be a safe non-empty tag`);
+    }
+    const outputKey = `${id}\u0000${tag ?? ''}`;
+    if (seen.has(outputKey)) fail(`recrop batch contains duplicate output: ${id}${tag ? `.${tag}` : ''}`);
+    seen.add(outputKey);
+    return {
+      id,
+      scale: scaleValue === undefined ? 1 : scaleValue,
+      offsetY: offsetValue === undefined ? 0 : offsetValue,
+      tag,
+    };
+  });
+}
+
+function parseSmartcropResult(stdout: string, id: string): SmartcropResult {
+  const line = stdout.trim().split(/\r?\n/).filter(Boolean).at(-1);
+  if (!line) fail(`smartcrop produced no JSON output for ${id}`);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(line);
+  } catch {
+    fail(`smartcrop produced invalid JSON for ${id}: ${line}`);
+  }
+  if (!raw || typeof raw !== 'object') fail(`smartcrop JSON was not an object for ${id}`);
+  const value = raw as Record<string, unknown>;
+  const crop = value.crop;
+  const achievedScale = value.achieved_scale;
+  const achievedOffsetY = value.achieved_offset_y;
+  if (typeof value.source !== 'string') fail(`smartcrop returned no source for ${id}`);
+  if (!Array.isArray(crop) || crop.length !== 4 || !crop.every((n) => typeof n === 'number' && Number.isFinite(n))) {
+    fail(`smartcrop returned an invalid crop box for ${id}`);
+  }
+  if (value.W !== OUT_W || value.H !== OUT_H) {
+    fail(`smartcrop returned ${String(value.W)}x${String(value.H)} for ${id}, expected ${OUT_W}x${OUT_H}`);
+  }
+  if (typeof achievedScale !== 'number' || !Number.isFinite(achievedScale)) {
+    fail(`smartcrop returned no achieved scale for ${id}`);
+  }
+  if (typeof achievedOffsetY !== 'number' || !Number.isInteger(achievedOffsetY)) {
+    fail(`smartcrop returned no achieved offset y for ${id}`);
+  }
+  return { source: value.source, crop: crop as [number, number, number, number], achievedScale, achievedOffsetY };
+}
+
+function runRecrop(file: string, dryRun: boolean, reviewOutDir?: string): void {
+  const batch = readRecropBatch(file);
+  const targetDir = reviewOutDir === undefined ? outDir : resolve(root, reviewOutDir);
+  if (reviewOutDir !== undefined && targetDir.toLowerCase() === outDir.toLowerCase()) {
+    fail('--out-dir must be different from public/assets/art/cards for non-destructive recrop review');
+  }
+  if (dryRun) {
+    console.log(`gen-card-art: recrop dry run, ${batch.length} entr${batch.length === 1 ? 'y' : 'ies'}; nothing written`);
+    for (const entry of batch) {
+      const rawPath = join(rawDir, `${entry.id}.raw.png`);
+      console.log(
+        `${existsSync(rawPath) ? 'WOULD-RECROP' : 'MISSING-RAW'} ${entry.id} requested=${entry.scale} ` +
+          `offsetY=${entry.offsetY}${entry.tag ? ` tag=${entry.tag}` : ''}`,
+      );
+    }
+    return;
+  }
+  mkdirSync(targetDir, { recursive: true });
+  const capped: string[] = [];
+  const missing: string[] = [];
+  const failures: string[] = [];
+  let processed = 0;
+  console.log(`gen-card-art: recrop mode, ${batch.length} entr${batch.length === 1 ? 'y' : 'ies'}; generation calls: none`);
+
+  for (const entry of batch) {
+    const rawPath = join(rawDir, `${entry.id}.raw.png`);
+    if (!existsSync(rawPath)) {
+      missing.push(entry.id);
+      console.log(`MISSING-RAW ${entry.id} requested=${entry.scale}`);
+      continue;
+    }
+    const filename = `${entry.id}${entry.tag ? `.${entry.tag}` : ''}.webp`;
+    const outPath = join(targetDir, filename);
+    const tmpPath = `${outPath}.recrop.tmp.png`;
+    const post = spawnSync(
+      PYTHON,
+      [
+        smartcropPath,
+        rawPath,
+        tmpPath,
+        String(OUT_W),
+        String(OUT_H),
+        'character',
+        '--margin-scale',
+        String(entry.scale),
+        '--offset-y',
+        String(entry.offsetY),
+      ],
+      { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+    );
+    if (post.error || post.status !== 0) {
+      rmSync(tmpPath, { force: true });
+      const detail = post.error
+        ? `smartcrop spawn failed: ${post.error.message}`
+        : (post.stderr ?? '').trim().split(/\r?\n/).slice(-3).join(' | ');
+      failures.push(`${entry.id}: ${detail || `smartcrop exited ${post.status ?? 'unknown'}`}`);
+      console.log(`FAILED ${entry.id} requested=${entry.scale}`);
+      continue;
+    }
+    try {
+      const result = parseSmartcropResult(post.stdout ?? '', entry.id);
+      convertPngToWebp(tmpPath, outPath);
+      rmSync(tmpPath, { force: true });
+      const isCapped = result.achievedScale < entry.scale * 0.97;
+      if (isCapped) capped.push(entry.id);
+      const status = isCapped ? 'CAPPED' : 'OK';
+      console.log(
+        `${status} ${entry.id} requested=${entry.scale} achieved=${result.achievedScale.toFixed(6)} ` +
+          `offsetY=${entry.offsetY} achievedOffsetY=${result.achievedOffsetY} ` +
+          `${entry.tag ? `tag=${entry.tag} ` : ''}source=${result.source} crop=[${result.crop.join(',')}] ` +
+          `out=${outPath}`,
+      );
+      processed++;
+    } catch (error) {
+      rmSync(tmpPath, { force: true });
+      failures.push(`${entry.id}: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(`FAILED ${entry.id} requested=${entry.scale}`);
+    }
+  }
+
+  if (reviewOutDir === undefined) {
+    const manifest = spawnSync('npm run gen-art-manifest', { shell: true, stdio: 'inherit' });
+    if (manifest.status !== 0) fail('gen-art-manifest failed after --recrop');
+  }
+  console.log(
+    `gen-card-art: recropped ${processed}/${batch.length}; CAPPED=${capped.length}; MISSING-RAW=${missing.length}; ` +
+      `FAILED=${failures.length}`,
+  );
+  if (capped.length > 0) console.log(`CAPPED list: ${capped.join(', ')}`);
+  if (missing.length > 0) console.log(`MISSING-RAW list: ${missing.join(', ')}`);
+  for (const failure of failures) console.error(`  FAIL ${failure}`);
+  if (failures.length > 0) process.exitCode = 1;
 }
 
 // --- imagegen CLI resolution -------------------------------------------------------
@@ -326,6 +545,14 @@ function generateOne(
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
+  if (args.recrop) {
+    if (args.faction || args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
+      fail('--recrop cannot be combined with generation filters or --force/--cli');
+    }
+    runRecrop(args.recrop, args.dryRun, args.outDir);
+    return;
+  }
+  if (args.outDir !== undefined) fail('--out-dir is only valid with --recrop');
 
   const factions = args.faction ? [args.faction] : [...FACTIONS];
   let entries = factions.flatMap(parseFaction);

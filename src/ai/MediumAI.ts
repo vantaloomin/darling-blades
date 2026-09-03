@@ -13,10 +13,12 @@ import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 import { choosePreserve } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
+import { chooseTargetAction } from './targeting';
 import {
   cardValue,
   empowerValue,
   hauntlinkCastValue,
+  markBoardAdjust,
   permValue,
   removalKind,
   removalValueForCast,
@@ -82,6 +84,8 @@ export class MediumAI implements AIPlayer {
         return this.respond(view, legal);
       case 'endStepWindow':
         return this.endStep(view, legal);
+      case 'chooseTarget':
+        return chooseTargetAction(view, this.db, legal);
       default:
         return legal[0];
     }
@@ -206,7 +210,10 @@ export class MediumAI implements AIPlayer {
       ? retellValue(this.db, cardId) + 0.01
       : this.developScore(cardId) + (cast.x ?? 0) +
           (cast.empowered ? empowerValue(this.db, cardId) + 0.01 : 0);
-    return value - riteSacrificeValue(view, this.db, cast);
+    // Printed value cannot see that Propagate and mark-all multiply by the
+    // board; on an empty one they are the wrong card to lead with.
+    return value + markBoardAdjust(view.battlefield, this.db, view.myId, cardId) -
+      riteSacrificeValue(view, this.db, cast);
   }
 
   /** Does casting this card gain life (lifelink body or a gainLife op)? */
@@ -443,7 +450,13 @@ export class MediumAI implements AIPlayer {
           ) ||
           this.opBodies(top.cardId).some((o) => o.op === 'massDestroy');
         if (threatens) {
-          return { ...counter, targets: [{ kind: 'stackItem', sid: top.sid }] };
+          // Keep every target from the legal menu. Some counter-spells also
+          // carry creature targets (for example Quiet Orbit moves a Mark),
+          // so replacing the whole list would construct an illegal action.
+          const targets = counter.targets?.map((target) =>
+            target.kind === 'stackItem' ? { ...target, sid: top.sid } : target,
+          );
+          return { ...counter, ...(targets ? { targets } : {}) };
         }
       }
     }

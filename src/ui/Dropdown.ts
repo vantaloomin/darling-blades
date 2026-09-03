@@ -1,6 +1,11 @@
 import Phaser from 'phaser';
 import { bindTapButton } from '../platform/gestures';
-import { dropdownPopoverLayout, DROPDOWN_GEOMETRY, type FocusMetadata } from './layout';
+import {
+  dropdownPanelWidth,
+  dropdownPopoverLayout,
+  DROPDOWN_GEOMETRY,
+  type FocusMetadata,
+} from './layout';
 import { roundedTrigger, type RoundedTrigger } from './themeWidgets';
 import { theme } from './theme';
 
@@ -19,6 +24,24 @@ export interface DropdownOption<T extends string> {
 }
 
 const PANEL_DEPTH = theme.depth.popover;
+
+function measureOptionLabels<T extends string>(scene: Phaser.Scene, options: readonly DropdownOption<T>[]): number {
+  const measure = scene.add
+    .text(0, 0, '', {
+      fontFamily: theme.fonts.ui,
+      fontSize: `${theme.type.label}px`,
+      fontStyle: theme.weight.w700,
+      color: theme.colors.body,
+    })
+    .setVisible(false);
+  let longest = 0;
+  for (const option of options) {
+    measure.setText(option.label);
+    longest = Math.max(longest, measure.width);
+  }
+  measure.destroy();
+  return longest;
+}
 
 export interface DropdownOpts<T extends string> {
   label: string;
@@ -39,6 +62,7 @@ export class Dropdown<T extends string> {
   private panel: Phaser.GameObjects.Container | null = null;
   private closeListener: ((p: Phaser.Input.Pointer) => void) | null = null;
   private value: T;
+  private readonly longestOptionLabelWidth: number;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -47,9 +71,15 @@ export class Dropdown<T extends string> {
     private readonly opts: DropdownOpts<T>,
   ) {
     this.value = opts.value;
-    this.trigger = roundedTrigger(scene, x, y, this.caption(), {
+    this.longestOptionLabelWidth = measureOptionLabels(scene, opts.options);
+    this.trigger = roundedTrigger(scene, x, y, '', {
       variant: 'ghost',
       minWidth: this.minW,
+      parts: {
+        label: opts.label,
+        value: this.selectedLabel(),
+        maxValueWidth: this.longestOptionLabelWidth,
+      },
       enabled: opts.enabled,
       focus: opts.focus,
       onTap: () => this.toggle(),
@@ -72,9 +102,9 @@ export class Dropdown<T extends string> {
     );
   }
 
-  private caption(): string {
+  private selectedLabel(): string {
     const sel = this.opts.options.find((o) => o.value === this.value);
-    return `${this.opts.label}: ${sel ? sel.label : '\u2014'} \u25be`;
+    return sel ? sel.label : '\u2014';
   }
 
   /** Hit-rect bounds relative to the trigger container, for row reflow. */
@@ -105,10 +135,15 @@ export class Dropdown<T extends string> {
     if (this.panel) return;
     this.opts.onOpen?.();
     this.trigger.setSelected(true);
+    this.trigger.setOpen(true);
 
     const triggerBounds = this.triggerBounds();
     const popover = dropdownPopoverLayout(triggerBounds, this.opts.options.length, {
-      panelWidth: this.trigger.getMeasuredSize().visual.width + DROPDOWN_GEOMETRY.panelPadding * 2,
+      panelWidth: dropdownPanelWidth(
+        this.trigger.getMeasuredSize().visual.width,
+        this.longestOptionLabelWidth,
+        this.opts.options.length,
+      ),
     });
     const panelBounds = new Phaser.Geom.Rectangle(
       popover.panel.x,
@@ -117,6 +152,16 @@ export class Dropdown<T extends string> {
       popover.panel.height,
     );
     const panel = this.scene.add.container(0, 0).setDepth(PANEL_DEPTH);
+    const plate = this.scene.add
+      .graphics()
+      .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
+      .fillRoundedRect(
+        popover.panel.x + DROPDOWN_GEOMETRY.plateOffset,
+        popover.panel.y + DROPDOWN_GEOMETRY.plateOffset,
+        popover.panel.width,
+        popover.panel.height,
+        theme.radius.panel,
+      );
     const bg = this.scene.add
       .graphics()
       .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
@@ -125,7 +170,7 @@ export class Dropdown<T extends string> {
         popover.panel.y,
         popover.panel.width,
         popover.panel.height,
-        theme.radius.control,
+        theme.radius.panel,
       )
       .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
       .strokeRoundedRect(
@@ -133,9 +178,23 @@ export class Dropdown<T extends string> {
         popover.panel.y,
         popover.panel.width,
         popover.panel.height,
-        theme.radius.control,
+        theme.radius.panel,
       );
-    panel.add(bg);
+    panel.add([plate, bg]);
+    if (popover.separator) {
+      panel
+        .add(
+          this.scene.add
+            .graphics()
+            .fillStyle(theme.graphics.panelStroke, theme.alpha.chrome)
+            .fillRect(
+              popover.separator.x,
+              popover.separator.y,
+              popover.separator.width,
+              popover.separator.height,
+            ),
+        );
+    }
 
     this.opts.options.forEach((option, index) => {
       const rowBounds = popover.rows[index];
@@ -146,13 +205,33 @@ export class Dropdown<T extends string> {
       const row = this.scene.add.container(0, 0);
       const rowBg = this.scene.add.graphics();
       const text = this.scene.add
-        .text(rowBounds.x + theme.space(2), rowBounds.y + rowBounds.height / 2, option.label, {
-          fontFamily: theme.fonts.ui,
-          fontSize: `${theme.type.label}px`,
-          fontStyle: selected ? theme.weight.w700 : theme.weight.w600,
-          color: selected ? theme.colors.gold : theme.colors.body,
-        })
+        .text(
+          rowBounds.x + DROPDOWN_GEOMETRY.rowTextInset,
+          rowBounds.y + rowBounds.height / 2,
+          option.label,
+          {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            fontStyle: selected ? theme.weight.w700 : theme.weight.w600,
+            color: selected ? theme.colors.gold : theme.colors.body,
+          },
+        )
         .setOrigin(0, 0.5);
+      const check = selected
+        ? this.scene.add
+            .text(
+              rowBounds.x + rowBounds.width - DROPDOWN_GEOMETRY.rowTextInset - DROPDOWN_GEOMETRY.glyphSlotWidth / 2,
+              rowBounds.y + rowBounds.height / 2,
+              '\u2713',
+              {
+                fontFamily: theme.fonts.ui,
+                fontSize: `${theme.type.label}px`,
+                fontStyle: theme.weight.w700,
+                color: theme.colors.gold,
+              },
+            )
+            .setOrigin(0.5, 0.5)
+        : null;
       const zone = this.scene.add
         .zone(
           rowBounds.x + rowBounds.width / 2,
@@ -163,29 +242,25 @@ export class Dropdown<T extends string> {
         .setInteractive({ useHandCursor: !disabled });
       const redraw = (): void => {
         if (!row.active) return;
-        const active = selected || hovered || pressed;
         rowBg.clear();
-        rowBg.fillStyle(
-          active ? theme.graphics.rowFillActive : theme.graphics.rowFill,
-          active ? 1 : theme.alpha.chrome,
-        );
-        rowBg.fillRoundedRect(
-          rowBounds.x,
-          rowBounds.y,
-          rowBounds.width,
-          rowBounds.height,
-          theme.radius.control,
-        );
+        if (selected) {
+          rowBg.fillStyle(theme.graphics.rowFillActive, 1);
+          rowBg.fillRect(rowBounds.x, rowBounds.y, rowBounds.width, rowBounds.height);
+        } else if (hovered || pressed) {
+          rowBg.fillStyle(theme.graphics.rowFill, 1);
+          rowBg.fillRect(rowBounds.x, rowBounds.y, rowBounds.width, rowBounds.height);
+        }
         row.setAlpha(disabled ? theme.alpha.subtle : 1);
         text.setColor(
           disabled
             ? theme.colors.muted
             : selected
-              ? theme.colors.gold
-              : hovered || pressed
-                ? theme.colors.heading
-                : theme.colors.body,
+                ? theme.colors.gold
+                : hovered || pressed
+                  ? theme.colors.heading
+                  : theme.colors.body,
         );
+        check?.setColor(theme.colors.gold);
       };
       if (disabled) zone.disableInteractive();
       zone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
@@ -206,7 +281,10 @@ export class Dropdown<T extends string> {
         redraw();
       });
       if (!disabled) bindTapButton(this.scene, zone, () => this.select(option.value));
-      row.add([rowBg, text, zone]);
+      const rowChildren: Phaser.GameObjects.GameObject[] = [rowBg, text];
+      if (check) rowChildren.push(check);
+      rowChildren.push(zone);
+      row.add(rowChildren);
       panel.add(row);
       redraw();
     });
@@ -227,7 +305,7 @@ export class Dropdown<T extends string> {
 
   private select(v: T): void {
     this.value = v;
-    this.trigger.setLabel(this.caption());
+    this.trigger.setValue(this.selectedLabel());
     this.close();
     this.opts.onSelect(v);
   }
@@ -237,6 +315,7 @@ export class Dropdown<T extends string> {
     this.panel.destroy();
     this.panel = null;
     this.trigger.setSelected(false);
+    this.trigger.setOpen(false);
     if (this.closeListener) {
       this.scene.input.off('pointerdown', this.closeListener);
       this.closeListener = null;
@@ -259,7 +338,7 @@ export class Dropdown<T extends string> {
   /** Sync the displayed value from external state (for example a filter reset). */
   setValue(v: T): void {
     this.value = v;
-    this.trigger.setLabel(this.caption());
+    this.trigger.setValue(this.selectedLabel());
   }
 
   destroy(): void {

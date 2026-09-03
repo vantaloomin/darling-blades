@@ -59,10 +59,11 @@ rather than mechanics.
 | Flash | **Sudden** | — | Planned | "Play any time you could play a Charm." (Charm = our instant; today only whole card *types* are instant-speed, not a per-card keyword.) |
 | Indestructible | **Unbreakable** | — | Planned | "Can't be destroyed by damage or by 'destroy' effects." |
 | Menace | **Dreaded** | `dreaded` | Shipped | Cannot be blocked except by two or more creatures. *(1.3, with Gothic Monsters)* |
+| *"Attacks each combat if able"* | **Rage** | `rage` | Shipped | Attacks every turn if it is able to. Not one of Magic's named evergreen keywords (Wizards prints the clause as reminder-style text on Juggernaut-class cards); named here because it is a real, reusable combat property. *(1.7, with the balance pass)* |
 | Protection | **Aegis** | — | Planned | Quality-scoped (can't be blocked/targeted/damaged/enchanted by a quality) — the heaviest feature here. |
 | Prowess | **Momentum** | — | Planned | "Whenever you cast a noncreature spell, this gets +1/+1 until end of turn." |
 
-**Shipped: 12 of 18.** Enchant is present as a system (auras), not a keyword.
+**Shipped: 13 of 19** (Rage is ours, not one of the 18 Magic evergreens). Enchant is present as a system (auras), not a keyword.
 Missing as keyword abilities: Equip, Flash, Indestructible, Protection,
 Prowess.
 

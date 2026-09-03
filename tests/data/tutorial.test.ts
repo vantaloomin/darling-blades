@@ -272,7 +272,7 @@ describe('tutorialCue (pure guide)', () => {
     const blocked = { ...base, goalShown: true, warchestInfoShown: true, inspectShown: true, sicknessShown: true, blocked: true };
     const heal = tutorialCue(blocked);
     expect(heal.kind).toBe('healInfo');
-    expect(heal.text).toBe('Combat wounds are not permanent. Creatures heal back to full at end of turn.');
+    expect(heal.text).toBe('Combat wounds are not permanent. Creatures heal back to full at Sunset.');
     // Once shown it never repeats, whatever the phase.
     expect(tutorialCue({ ...blocked, healInfoShown: true }).kind).not.toBe('healInfo');
     expect(

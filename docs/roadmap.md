@@ -13,18 +13,18 @@ _Dated 2026-08-25. Review monthly._
   repo folder is now `DarlingBlades` (renamed from `WaifuTCG`).
 - **Playable end-to-end.** First launch offers an optional **tutorial**; a new
   player then claims a free starter deck in the shop and plays the **Avatar
-  Gauntlet** (22 themed opponents on a daily-reshuffled ladder, tower extended
-  to 22 floors in the 1.6 train) or Practice duels → rewards → shop →
+  Gauntlet** (24 themed opponents on a daily-reshuffled ladder, the Starborne
+  summit pair landing at rungs 23-24 in the 1.7 train) or Practice duels → rewards → shop →
   pack opening → collection → deck builder, all wired, with procedural SFX +
   ambient music.
 - **Feature- and art-complete for desktop + phone-over-LAN (Tier 1).** The
-  1,079-card collectible pool now spans eight sets; the Sands of the Duat art
-  run is complete at 245/245 QA-passed, alongside the Yokai Nights and Dark
-  Tales runs.
+  1,230-card collectible pool now spans nine sets; the Starborne art run is
+  complete at 151/151 plus three tokens, alongside the Duat, Yokai Nights, and
+  Dark Tales runs.
   The remaining eyes-on work is the standing real-device pass and
   by-ear/by-eye polish listed under Planned.
-- **1,738 tests green** (+4 skipped balance-tool assertions; count refreshed
-  2026-08-25 at the 1.6.4 cut) across 175 files
+- **1,946 tests green** (+4 skipped balance-tool assertions; count refreshed
+  2026-09-03 at the 1.7.0 cut) across 185 files
   (engine, combat, keywords, mana, RNG, determinism, stack/effects, catalog
   integrity, meta + gauntlet/save-migrations + variants/drop-distribution +
   collection filters + achievements + deck-face picker + gauntlet-run-seed +
@@ -67,6 +67,90 @@ _Dated 2026-08-25. Review monthly._
   claim, and — since — v32→v33 per-deck card back and playmat and v33→**v34**
   the land-drop confirmation — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-08-31 · 1.7.0)
+
+- **Starborne, the ninth expansion (#282, #293-#294, #298-#304, #309-#310).**
+  151 cards on Marks and Propagate, complete art plus three tokens, the
+  seed-of-light set icon, and the engine wave that made it expressible:
+  targeted triggers, the mark vocabulary, the sever brand, and Quest
+  chapters. The colour pie held: green grows, red/white ride, blue moves,
+  black eats.
+- **The Starborne metagame (#307).** Chrome Broodmother (rung 23) and The
+  Violet Signal Queen (rung 24) extend the tower; the Chrome-Violet
+  Broodship joins the shop. The measurement caught and fixed a real AI bug:
+  mixed counter-casts discarded their permanent targets at medium and hard.
+- **The seeded AI pass on the threshold cards (2026-09-03).** The cut list's
+  standing obligation: Halo Motherboard, Signal Cathedral, and Propagation
+  Choir, plus Starborne Relay, Umbral Antenna, and Gullet of the Hive, each
+  planted (two copies) into the hard-AI Starborne boss that can cast it and
+  played 600 seeded Warchest games against six Medium-piloted columns
+  (`scripts/ai-watch-pass.ts`). The AI casts them (56-77% of copies seen,
+  held 7-10 turns) but never assembles their thresholds: Chrome Broodmother
+  averages 0.21 marked creatures at her own dawns and reaches four in 3% of
+  games and five in 1%, so Cathedral's 5-mark draw fired on 0 of 664 dawns
+  on board, Relay's 4-mark draw on 1%, Antenna's on 2%. Choir is fully
+  live at 4.0 triggers per game on board; Gullet's arrival finds 0.11
+  opposing marked creatures. No shipped AI deck carries any of the six, so
+  1.7 ships with no player-facing exposure. The AI half of the debt was paid
+  the same day: marks now carry a body premium in `permValue`, the hard
+  evaluator credits threshold progress and Propagate in hand, mark targeting
+  prefers survivable and unmarked bodies, and Propagate and mark-all casts
+  wait for a board that multiplies them, all five win-rate gates unchanged.
+  What that bought is small (marked creatures at dawn 0.21 to 0.25, Relay's
+  gate 1% to 3%) because the ceiling is board size: Broodmother averages 1.3
+  creatures at her dawns, and a deliberately passive pilot holds 1.35, since
+  her bodies die blocking and to removal far more than attacking. Four- and
+  five-creature thresholds are a design lever, not an AI one. Measured both
+  counts: by TOTAL marks (what Propagate compounds) the same gates open three
+  to four times as often, Cathedral 0% to 5% of dawns on board, Relay 3% to
+  12%, Antenna 2% to 10%, and Broodmother reaches four total marks in 11% of
+  games and five in 5%, against 3% and 1% by marked creatures.
+- **The quality-check day (2026-09-03, #323-#327).** The AI learned what a
+  Mark is worth (a marked-body premium in `permValue`, threshold progress in
+  the evaluator, survivable mark targeting, board-aware Propagate and
+  mark-all sequencing; all five win-rate gates unchanged), the three tokens
+  no card could create were cut, sixteen Starborne portraits were reframed
+  from their own paid generations, and the shared filter dropdown became one
+  content-sized surface with two-column long lists and a fixed-width
+  label-and-value trigger.
+- **Three minterless tokens cut (2026-09-03).** Lumen Drone, Violet Hullguard
+  and Void Mote had finished art and no card that could ever create them, in
+  the shipped set or the 200-card overplan; the Rite-unlock ruling had promised
+  six token types and three were never given a minter. Removed from the data,
+  the attack-FX table and the art bible; the art files stay on disk for a
+  future minter. Broodling, Chrome Husk and Nebula Firefly ship.
+- **The v3.1 balance program (#305-#306, #308, #313).** The power formula
+  was rebuilt (pip-weighted budget, additive rarity, colour-pie premium),
+  over three hundred cards re-costed under owner adjudication, Rage landed
+  on Lu Bu as the one required engine mechanic, four drifted bosses and
+  five weak decks were re-tuned on measured evidence, and floors for the
+  new rungs were set from the final post-everything band.
+- **The card-text templating rulings (#311-#312).** "During your Dawn",
+  Mark as a taught keyword, bare Propagate, one consistent text order, and
+  the mark system narrowed to creature scope in the engine with a
+  guarantee sweep. Rendered text no longer says "permanent" anywhere.
+- **The debt block (#271-#283) and the 1.7 quality review (#288-#291).**
+  PNG save cards, sweep durability and byte-identical resume, the
+  converter legal-target detector, release-page automation, round
+  browsing, and Limited pip-demand basics.
+- **The 1.7 metagame sweep (2026-08-31 to 2026-09-03).** The first sweep to
+  run to completion on the reserve-native harness: six personas, 150 seeds x
+  80 iterations, a seed round plus two best-response rounds (owner-set
+  `--rounds 2`), launched from #317's pool with Starborne, the v3.1 slate,
+  and Rage, 8 workers, 2.7 days. Final scores against the 13 prefab columns
+  plus the other five personas: draw-go 87.7 / midrange 83.9 / burn 79.2 /
+  attrition 71.5 / reanimator 71.2 / weenie 62.0, zero honesty flags, zero
+  quota shortfalls. It stopped at max-rounds without converging, every deck
+  still swapping about half its 40 cards per round, so under ruling 2.24 it
+  stays informational and blocks nothing. Two readings worth carrying: the
+  archetype order has inverted since 1.3 (go-wide led that field at 77.6 and
+  now trails; control and midrange lead this one), and the prefab columns
+  split sharply, Sands of the Duat and Crimson Muster holding the personas
+  to 70-74% while Celtic Fae, Starborne, and Ragnarok concede 92-95%.
+  Artifacts retained as `scripts/personas/decks/2026-08-31-metagame-*.json`;
+  `--check` re-measured all six on the 10ed528 tip at 0.0 percentage points
+  drift, once `--check` learned to forward the retained land reserve.
 
 ## Recently shipped (2026-08-25 · 1.6.4)
 
@@ -1523,6 +1607,60 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   see above).
 
 ## Planned
+
+> **The release spine from 1.7 to 2.0 lives in
+> [plan-road-to-2.0.md](plan-road-to-2.0.md)** (2026-08-24): the Large/Small
+> expansion cadence, which set lands in which release, where each Road-to-2.0
+> feature is placed, and the sequencing constraints behind the order. Entries
+> below remain the per-item detail; that doc is the schedule.
+>
+> Two standing corrections it carries: **multiplayer is cancelled** (the README
+> promised it in two places and has been fixed), and cloud saves was **the only
+> listed feature with neither a plan doc nor code**. That gap is now closed on
+> the doc side by
+> [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md)
+> (investigation, 2026-08-28); it stays parked at 2.1 until its open decisions
+> are ruled, and still has no code.
+
+- **Anonymous telemetry + optional cloud accounts (investigation, 2026-08-28).**
+  Two independent capabilities specced together in
+  [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md) because they
+  share one privacy posture and one hard prohibition: they must never be
+  joinable. **Telemetry** carries no identifier of any kind (state snapshots,
+  never user timelines; streak/achievement values are reported as bucketed
+  numbers the client already computes), which is what keeps GDPR/ePrivacy,
+  CCPA/CPRA, and COPPA compliance to a Settings toggle, a privacy page, and
+  honouring GPC rather than a consent banner. Proposed carrier is our own
+  Cloudflare Worker writing to Workers Analytics Engine, so no third-party
+  analytics vendor ever receives player data; free tier is 100k requests/day and
+  100k data points/day with fixed 90-day retention. **Cloud accounts** are
+  optional, unlock nothing, and are fully self-managed (see, edit, export,
+  delete) on Supabase's free tier, sitting behind the `SaveSyncProvider`
+  interface [plan-save-portability.md](plan-save-portability.md) already
+  specifies; the shipped `src/meta/SaveCode.ts` envelope is the blob, so this is
+  transport rather than a new format. Known risks written down: Supabase free
+  projects pause after a week of inactivity, Tauri webview OAuth redirects are
+  the wave that can fail, and a full decklist is a fingerprint (hence per-card
+  rows carry no deck reference and a k-anonymity floor applies at query time).
+  **All eight decisions were RULED 2026-08-28** — stats default ON with a
+  one-time notice, no client identifier, two vendors, **both renames**
+  (`src/meta/telemetry.ts` becomes `balanceTelemetry.ts`; the new pure module is
+  `playSignals.ts` — owner ruling), telemetry rides 1.8 and accounts stay 2.1,
+  an account never unlocks anything, accounts are 16+ with no gate on the game,
+  and the desktop build reports. The execution plan is
+  [rollout-telemetry-and-accounts.md](rollout-telemetry-and-accounts.md): wave 0
+  is the rename (3 importing files) plus the **v35 save bump**, which finally
+  carries the `CosmeticsSave.cardBack`/`playmat` removal that has been parked
+  since v33 waiting for exactly this. **No code exists and none is authorized.**
+- **Save cards: a PNG that carries your save — ✅ SHIPPED in 1.7 (2026-09-01).**
+  Export a save as an image instead of a text code: the player picks card art
+  they own from a searchable grid, the game composites a titled cover, and the
+  existing `DBS1-…` string rides in a PNG `tEXt` chunk, the way character-card
+  tools do it. A new CARRIER, not a new format, so `decode()` and all its
+  validation apply unchanged. The codec landed 2026-08-24 (`SaveImage.ts`,
+  verified against Pillow); the UI half (`src/ui/saveCard.ts` + the Profile
+  export/import modals) completed it in the 1.7 cut. Spec and locked decisions
+  in [plan-save-cards.md](plan-save-cards.md).
 - **Fogbell Chime redesign. SHIPPED in the 1.6 small-debts batch (#257).**
   The card had been a deliberate duplicate of Glimmerdust Trick since 2026-07-30,
   parked because its design-table intent (a common Artifact that taps a creature)
@@ -1720,6 +1858,26 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   run-reward tuning — draft runs are free to enter and pay
   `limitedRunGold` on completion). Blocker
   detail: [plan-v1.1-post-launch.md](plan-v1.1-post-launch.md).
+- **The Starborne engine wave (ruled 2026-08-28, spec awaiting owner
+  approval).** The mark vocabulary the locked set assumes: targeted arrival
+  triggers (the "Triggers never target" snapshot guideline retires by owner
+  ruling), mark-event triggers, marked static filters and conditions, the
+  mark ops (move, remove, board-wide, per-marked drains), fetchLand,
+  colorless {C} production, and Ritual quest chapters. Spec:
+  [plan-starborne-engine-wave.md](plan-starborne-engine-wave.md). Gates the
+  merge of the 151-card transcription (`feat/starborne-cards`, 65 UNMAPPED
+  entries are the acceptance list) and therefore the set going live.
+- **Editable Limited Warchest, after automatic filling (ruled 2026-08-19,
+  reconfirmed 2026-08-28).** The
+  [2026-08-19 ruling §2.1](plan-1.6-rulings-2026-08-19.md) stands: the Limited
+  build screen exposes the 10 reserve slots so the player sets the basic split
+  and chooses which drafted duals ride, with the automatic build as the
+  default fill. PR #279 (1.7) shipped ONLY the default-fill half: the
+  pip-demand-weighted split with a per-colour floor, displayed in the builder.
+  It is the better default underneath this UI, not a replacement for it; do
+  not read that PR as closing this item. Engine plumbing already exists
+  (`selectedDuals` on `completeDraftRun`, `run.landReserve`); the work is the
+  build-step UI plus persistence. Not scoped to a release.
 - **Design plans authored 2026-07-05.** Four senior-level design docs, each
   grounded in the current code and respecting the iron invariants —
   **Commander mode and MOD/UGC were greenlit into the 1.1 program
@@ -1748,13 +1906,14 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   markers, and Gauntlet recap are now shipped. The remaining QOL follow-up is
   exposing in-Settings toggles for `confirmDestructive` + `keywordReminders`
   (needs a wider Settings relayout).
-- **Mobile Tier 2 — LAN PvP (back-burnered).** Tier 1 phone-over-LAN play
+- **Mobile Tier 1 follow-up — real-device pass.** Tier 1 phone-over-LAN play
   SHIPPED 2026-07-03 (see Recently shipped); the tiered design doc is
-  [docs/mobile-lan-plan.md](mobile-lan-plan.md). What remains of the plan:
-  Tier 2 host-authoritative LAN PvP over the engine's existing
-  seat-checked/redacted-view seam and the Tier 3 stretch items — both
-  deliberately deferred — plus the Tier-1 **real-device pass** (gesture
-  thresholds, iOS audio, FIT feel).
+  [docs/mobile-lan-plan.md](mobile-lan-plan.md). What remains of the plan is
+  the Tier-1 **real-device pass** (gesture thresholds, iOS audio, FIT feel).
+  Tier 2 LAN PvP and the Tier 3 stretch items are CANCELLED with the rest of
+  multiplayer (2026-08-24 ruling — see the note at the top of Planned and
+  [plan-multiplayer.md](plan-multiplayer.md)); the engine's seat-checked
+  redacted-view seam stays, as engine hygiene rather than a PvP foundation.
 - **A by-ear / by-eye polish pass.** The ambient-music `MOODS` table
   (`src/audio/musicPatterns.ts`) still needs an iterative-listening pass, and
   the perceptual list grew with the 2026-07-04 features: SFX loudness balance

@@ -23,6 +23,7 @@ import {
   recordReplayAction,
   replayDbStamp,
   replayGame,
+  REPLAY_LOG_VERSION,
   startReplayDraft,
 } from '../../src/meta/Replay';
 import { DUAT_DB, duatPermanent } from '../duatFixture';
@@ -176,7 +177,8 @@ describe('Sands of the Duat entersGraveyard trigger', () => {
   const cast = riteAction(sacrificeGame);
     // Wave D4 (2026-08-20): Sun-Rope Hauler is now {1}{R}; preserve the
     // exact payment assertion with the reduced two-source mana plan.
-    const sacrificeEvents = sacrificeGame.submit(0, { ...cast, manaPlan: [1, 2] });
+    // 2026-08-29: the assay recost it to {2}{R}, so the plan takes all three.
+    const sacrificeEvents = sacrificeGame.submit(0, { ...cast, manaPlan: [1, 2, 3] });
     expect(graveyardTriggers(sacrificeEvents)).toHaveLength(1);
     expect(sacrificeEvents.filter((event) => event.e === 'triggerFired' && event.iid === 10)).toHaveLength(0);
   });
@@ -446,7 +448,7 @@ describe('Sands of the Duat Preserve engine', () => {
       },
     });
     expect(() => wrongPhase.submit(0, { type: 'preserveCard', graveIndex: 0 })).toThrow(
-      /during your main phase/,
+      /during Morning or Afternoon/,
     );
 
     const inactive = gameWith({
@@ -459,7 +461,7 @@ describe('Sands of the Duat Preserve engine', () => {
     });
     expect(inactive.legalActions(0).some((action) => action.type === 'preserveCard')).toBe(false);
     expect(() => inactive.submit(0, { type: 'preserveCard', graveIndex: 0 })).toThrow(
-      /during your main phase/,
+      /during Morning or Afternoon/,
     );
     expect(() => gameWith({ graveyards: [[], []] }).submit(
       0,
@@ -886,7 +888,7 @@ describe('Sands of the Duat Preserve replay', () => {
     expect(recordedPreserve).toBe(true);
 
     const log = finishReplay(draft, 'win', 0, game.state.turn);
-    expect(log.v).toBe(9);
+    expect(log.v).toBe(REPLAY_LOG_VERSION);
     expect(log.actions.some((step) => step.a.type === 'preserveCard')).toBe(true);
     const revived = JSON.parse(JSON.stringify(log));
     const replayed = replayGame(revived, DUAT_DB);

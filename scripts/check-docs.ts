@@ -15,12 +15,26 @@ const strict = process.argv.includes('--strict');
 
 // --- doc discovery -----------------------------------------------------------
 
+/**
+ * Shipped release notes are a HISTORICAL RECORD, not a living doc. They
+ * describe one tag forever and must never be re-verified or rewritten, so a
+ * `last-verified` header would be a lie on the day it was written. The
+ * directory's own README is a living doc and is checked normally.
+ */
+function isShippedReleaseNote(path: string): boolean {
+  const segments = path.split(/[\\/]+/);
+  const hasReleaseNotesDirectory = segments.some(
+    (segment, index) => segment === 'docs' && segments[index + 1] === 'release-notes',
+  );
+  return hasReleaseNotesDirectory && segments[segments.length - 1] !== 'README.md';
+}
+
 function listMarkdown(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...listMarkdown(p));
-    else if (entry.name.toLowerCase().endsWith('.md')) out.push(p);
+    else if (entry.name.toLowerCase().endsWith('.md') && !isShippedReleaseNote(p)) out.push(p);
   }
   return out.sort();
 }

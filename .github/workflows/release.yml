@@ -26,9 +26,55 @@ jobs:
         with:
           workspaces: src-tauri -> target
       - run: npm ci
+      - name: Verify release tag matches package version
+        shell: bash
+        run: |
+          package_version="$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")"
+          expected_tag="v${package_version}"
+          if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then
+            echo "::error::Release tag '$GITHUB_REF_NAME' does not match package version '$package_version' (expected tag '$expected_tag')."
+            exit 1
+          fi
+          echo "Release tag '$GITHUB_REF_NAME' matches package version '$package_version'."
       - name: Build desktop installer
         run: npm run app:build
-      - name: Create or update GitHub Release
+      # A curated opening paragraph for the release page, if one was written.
+      # `generate_release_notes` only lists PR titles between two tags, which is
+      # a changelog, not a summary: v1.6.2, v1.6.3 and v1.6.4 all shipped with
+      # nothing else. When the file exists it becomes the body and the generated
+      # PR list is appended below it; when it does not, this falls back to
+      # exactly the previous behaviour, so the step can never make a release
+      # WORSE than before. `npm run check-release-notes` fails a PR that bumps
+      # the version without writing one, because release.yml never runs on PRs
+      # and a tag is far too late to discover the omission.
+      - name: Locate release notes
+        id: notes
+        shell: bash
+        run: |
+          path="docs/release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$path" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "path=$path" >> "$GITHUB_OUTPUT"
+            echo "Using curated notes: $path"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No curated notes at $path; falling back to generated PR list."
+          fi
+      # Two mutually-exclusive steps rather than one with a conditional
+      # `body_path`. Passing an empty body_path would depend on how the action
+      # treats a blank input, and this workflow only ever runs on a tag push -
+      # there is no PR run to discover a wrong guess on. Being explicit costs
+      # six lines and removes the question.
+      - name: Create or update GitHub Release (curated notes)
+        if: steps.notes.outputs.found == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/release/bundle/nsis/*.exe
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          body_path: ${{ steps.notes.outputs.path }}
+      - name: Create or update GitHub Release (generated notes only)
+        if: steps.notes.outputs.found != 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: src-tauri/target/release/bundle/nsis/*.exe

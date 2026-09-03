@@ -13,6 +13,9 @@ import { buildReserveMatrixFullOwnershipSave } from '../../scripts/reserveMatrix
 
 const save = buildReserveMatrixFullOwnershipSave(CARD_DB);
 
+const countCards = (cards: string[]) =>
+  Object.fromEntries([...new Set(cards)].map((id) => [id, cards.filter((cardId) => cardId === id).length]));
+
 describe('Sands of the Duat authored archetype decks', () => {
   it('exports exactly the five section-3 archetypes with distinct ids', () => {
     expect(DUAT_ARCHETYPE_DECKS).toHaveLength(5);
@@ -46,4 +49,71 @@ describe('Sands of the Duat authored archetype decks', () => {
       expect(validateWarchestDeck(CARD_DB, save, reserveCards, landReserve)).toEqual([]);
     });
   }
+
+  it('pins the final measured Copy Kept in Linen list', () => {
+    const deck = DUAT_ARCHETYPE_DECKS.find((entry) => entry.id === 'duat-archetype-preserve')!;
+    // Surgery 13 kept Resin-Wrapped Beetle over Empty Heart Jar at 43.4%;
+    // this positive list assertion protects the measured Preserve/copy shell.
+    expect(countCards(deck.cards)).toEqual({
+      'land-swamp': 12,
+      'land-island': 8,
+      'sd-resin-wrapped-beetle': 4,
+      'sd-reed-bound-canopic': 4,
+      'sd-tomb-seal': 2,
+      'sd-the-debt-is-called': 4,
+      'sd-archivist-of-the-fourth-hall': 4,
+      'sd-tollgate-of-the-fourth-hall': 4,
+      'sd-canopic-grave-warden': 4,
+      'sd-the-copy-kept-in-linen': 4,
+      'sd-two-jars-one-heart': 2,
+      'sd-fourth-weighing': 4,
+      'sd-navigator-of-the-last-channel': 4,
+    });
+    expect(countCards(deck.reserveCards!)).toEqual({
+      'sd-resin-wrapped-beetle': 4,
+      'sd-reed-bound-canopic': 4,
+      'sd-tomb-seal': 2,
+      'sd-the-debt-is-called': 4,
+      'sd-archivist-of-the-fourth-hall': 4,
+      'sd-tollgate-of-the-fourth-hall': 4,
+      'sd-canopic-grave-warden': 4,
+      'sd-the-copy-kept-in-linen': 4,
+      'sd-two-jars-one-heart': 2,
+      'sd-fourth-weighing': 4,
+      'sd-navigator-of-the-last-channel': 4,
+    });
+  });
+
+  it('pins the final measured Flood Measures the Sky list', () => {
+    const deck = DUAT_ARCHETYPE_DECKS.find((entry) => entry.id === 'duat-archetype-empower')!;
+    // Surgery 13 kept Pride-Root Warden over Levee-Foot Scout at 46.4%;
+    // keep the ramp, flood-control, and Behemoth identity explicit.
+    expect(countCards(deck.cards)).toEqual({
+      'land-forest': 20,
+      'sd-siltfield-forager': 4,
+      'sd-flood-line-survivor': 4,
+      'sd-pride-root-warden': 4,
+      'sd-furrow-water-tender': 4,
+      'sd-silt-field-champion': 4,
+      'sd-harvest-tide-keeper': 2,
+      'sd-floodgate-warden': 4,
+      'sd-deep-flood-behemoth': 4,
+      'sd-measure-the-silt': 4,
+      'sd-harvest-after-rain': 4,
+      'sd-ward-the-floodgate': 2,
+    });
+    expect(countCards(deck.reserveCards!)).toEqual({
+      'sd-siltfield-forager': 4,
+      'sd-flood-line-survivor': 4,
+      'sd-pride-root-warden': 4,
+      'sd-furrow-water-tender': 4,
+      'sd-silt-field-champion': 4,
+      'sd-harvest-tide-keeper': 2,
+      'sd-floodgate-warden': 4,
+      'sd-deep-flood-behemoth': 4,
+      'sd-measure-the-silt': 4,
+      'sd-harvest-after-rain': 4,
+      'sd-ward-the-floodgate': 2,
+    });
+  });
 });

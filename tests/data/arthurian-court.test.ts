@@ -110,7 +110,7 @@ describe('Arthurian Court data integrity', () => {
     }
   });
 
-  it('uses only supported keywords, legal typed effects, and trigger-safe chapters', () => {
+  it('uses only supported keywords, legal typed effects, and target-free chapters', () => {
     for (const card of ARTHURIAN_COURT) {
       for (const keyword of card.keywords ?? []) {
         expect(KEYWORDS.has(keyword), card.id + ' keyword ' + keyword).toBe(true);

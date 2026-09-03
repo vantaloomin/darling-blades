@@ -129,6 +129,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `preserved`             | `player`, `cardId`                              | A Preserve activation severed the card from the graveyard and created its token copy (disambiguates from severGrave for telemetry)     |
 | `foresaw`               | `player`, `kept`, `bottomed`                    | A foresee resolved: cardIds left on top / sent to the bottom (full info; the presenter redacts the opponent's).                        |
 | `triggerFired`          | `iid`, `when`                                   | A permanent's triggered ability fired.                                                                                                 |
+| `triggerFizzled`        | `iid`                                           | A queued targeted trigger had no legal target when its decision drained; no effect ran.                                                |
 | `effectApplied`         | `op`, `detail?`                                 | One `EffectOp` executed (op name for logging).                                                                                         |
 | `tokenCreated`          | `perm`                                          | A token permanent entered.                                                                                                             |
 | `positionNote`          | `note`                                          | Debug/log line only — never load-bearing.                                                                                              |
@@ -139,15 +140,16 @@ The full `GameEvent` union (`src/engine/events.ts`):
 ### Replay discipline and rules revisions
 
 `ReplayLog.v` selects observable engine behavior as well as validating the log
-shape. New v8 logs run under current rules revision 3. Version 7 remains
-replayable under revision 2 with the former Hauntlink cast mode, and version 6
-remains replayable under revision 1 with the classic single-window path. Both
-older paths are preserved behind `GameConfig.rulesRev`; legacy `GameState` JSON
-omits both `rulesRev` and revision-2 episode bookkeeping. These are the only
-sanctioned fail-open cases. A gated behavior change may keep an older replay version
-executable only while its complete old path remains intact. Ungated observable
-changes still bump `REPLAY_LOG_VERSION` and fail closed, and database-stamp
-drift always fails closed.
+shape. New v10 logs run under current rules revision 3. Version 8 remains
+replayable under revision 3, version 7 under revision 2 with the former
+Hauntlink cast mode, and version 6 under revision 1 with the classic
+single-window path. A current-version log containing the explicit legacy
+Hauntlink cast marker selects revision 2 as well. These paths are preserved
+behind `GameConfig.rulesRev`; legacy `GameState` JSON omits both `rulesRev` and
+revision-2 episode bookkeeping. A gated behavior change may keep an older
+replay version executable only while its complete old path remains intact.
+Ungated observable changes still bump `REPLAY_LOG_VERSION` and fail closed, and
+database-stamp drift always fails closed.
 
 ## Hidden information: `viewFor` redaction
 
@@ -175,11 +177,11 @@ player who must act and the kind of choice:
 | --------------------- | -------------------- | ------------------------------------------------------- |
 | `mulligan`            | —                    | keep or mulligan the opening hand.                      |
 | `bottomCards`         | `count`              | put `count` cards on the bottom (London mulligan).      |
-| `main`                | —                    | act in main 1 or main 2 (which one is in `state.step`). |
+| `main`                | —                    | act in Morning or Afternoon (which one is in `state.step`). |
 | `declareAttackers`    | —                    | pick an attacker set (`[]` skips combat).               |
 | `declareBlockers`     | —                    | assign blockers.                                        |
 | `respond`             | `over` (spell/attackers/blockers) | respond to the named item or pass.        |
-| `endStepWindow`       | —                    | cast an instant at end of turn, or pass.                |
+| `endStepWindow`       | —                    | cast an instant at Sunset, or pass.                      |
 | `discardToHandSize`   | `count`              | discard down to the max hand size at cleanup.           |
 | `gameOver`            | —                    | nothing — the game is over (no `player` field).         |
 
@@ -315,7 +317,7 @@ in the UI-refresh Wave 1.5a (plan-ui-ux-refresh.md). Layout regions (the
   only in the History slide-out.
 - **Phase track** (right sidebar): the non-interactive turn pill (`T6`) sits
   atop the column at (1113,322) — all turn info in one spot — above a
-  display-only vertical UPKEEP · MAIN 1 · COMBAT · MAIN 2 · END list at
+  display-only vertical DAWN · MORNING · COMBAT · AFTERNOON · SUNSET list at
   x 1113, with rows starting y 356 on a 34 px
   rhythm (ending y 492). The current step rides a highlighted pill
   (gold-stroked on your turn, muted on the opponent's) that cycles as steps

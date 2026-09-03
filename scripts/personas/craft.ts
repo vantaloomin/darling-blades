@@ -1,6 +1,13 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 import { cpus } from 'node:os';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAI } from '../../src/ai/personality';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
@@ -9,10 +16,13 @@ import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../../src/data/starte
 import { createRngState, rngInt, rngNext, type RngState } from '../../src/engine/rng';
 import { manaValue, type CardDef, type Color } from '../../src/engine/types';
 import { runCell, type CellResult } from '../balance-matrix';
+import { buildLandReserve } from '../reserveMatrixDecks';
+import { LAND_RESERVE_SIZE, WARCHEST_DECK_SIZE } from '../../src/meta/warchest';
 import { runParallelGames, type MeasureGameJob } from './measure-worker';
 import { cardRoles, curveBand, rateCard, scoreCard, type PersonaDeckState } from './score';
 import {
   PERSONA_TEMPLATES,
+  PERSONA_TEMPLATE_VERSION,
   type CurveBand,
   type DeckRole,
   type PersonaTemplate,
@@ -25,13 +35,6 @@ const DEFAULT_ITERATIONS = 80;
 const DEFAULT_SEED = 13_003;
 const DEFAULT_METAGAME_ROUNDS = 4;
 const DEFAULT_MEASURE_WORKERS = Math.max(1, cpus().length - 2);
-const BASIC_BY_COLOR: Readonly<Record<Color, string>> = {
-  W: 'land-plains',
-  U: 'land-island',
-  B: 'land-swamp',
-  R: 'land-mountain',
-  G: 'land-forest',
-};
 const COLORS = ['W', 'U', 'B', 'R', 'G'] as const;
 
 export const CLI_HELP = `Persona deck-crafting harness
@@ -51,6 +54,21 @@ Metagame loop mode (informational, deterministic):
   --metagame --all | --personas <id,id,...>
   --rounds <n>               Maximum best-response rounds (default: 4)
   --status-file <path>       Write live metagame progress JSON (sweep dashboards)
+  --journal <path>           Append-only craft journal (default: <out>/craft-journal.jsonl)
+  --resume                   Skip crafts already recorded in the journal
+
+DURABILITY. Every finished craft is appended to the journal SYNCHRONOUSLY, so
+a killed process keeps everything it completed. Re-run the identical command
+with --resume to continue: craft seeds derive from the run seed, the round, and
+the persona id, so a resumed run produces byte-identical results to one that was
+never interrupted. A fatal error is written to <out>/craft-crash.log, because
+stdout redirected to a file is buffered and is lost on an abnormal exit.
+
+Artifacts are additionally checkpointed at every round boundary (after the seed pass and
+after each best-response round) to the same paths the final write uses, so a
+run killed mid-flight keeps every completed round. A partial artifact reports
+stoppedReason 'in-progress' with converged false; a finished run overwrites its
+own checkpoints and leaves none behind.
 
 Policy: first craft is round 0 against the static field. Each later round
 crafts every persona simultaneously against that static field plus the other
@@ -74,7 +92,9 @@ export interface AssignedCard {
 }
 
 export interface GreedyBuild {
+  /** Warchest spells only; lands live in `landReserve`. */
   deck: string[];
+  landReserve: string[];
   assigned: AssignedCard[];
   selectedColors: Color[];
   quotaShortfalls: QuotaShortfall[];
@@ -138,7 +158,10 @@ export interface FieldCompositionEntry {
   id: string;
   name: string;
   personaId?: string;
+  /** Warchest spells only - reserve formats reject a deck containing lands. */
   deck: string[];
+  /** The seat's ten-land reserve. Reserve formats require one per player. */
+  landReserve: string[];
 }
 
 export interface MetagameRound {
@@ -148,6 +171,7 @@ export interface MetagameRound {
   templateVersion: string;
   fieldComposition: FieldCompositionEntry[];
   deck: string[];
+  landReserve: string[];
   counts: Record<string, number>;
   selectedColors: Color[];
   measured: MeasuredRecord;
@@ -159,7 +183,16 @@ export interface MetagameRound {
   };
 }
 
-export type MetagameStopReason = 'stable-decks' | 'oscillation' | 'max-rounds';
+export type MetagameStopReason =
+  | 'stable-decks'
+  | 'oscillation'
+  | 'max-rounds'
+  /**
+   * Checkpoint only. A run still in flight reports this so a partial
+   * artifact can never be mistaken for a finished measurement - `converged`
+   * is false and `completedRounds` says how far it actually got.
+   */
+  | 'in-progress';
 
 export interface MetagameOscillation {
   personaId: string;
@@ -199,6 +232,7 @@ export interface PersonaArtifact {
   selectedColors: Color[];
   referenceField: { id: string; name: string }[];
   deck: string[];
+  landReserve: string[];
   counts: Record<string, number>;
   measured: MeasuredRecord;
   hillClimb: HillClimbLog;
@@ -219,6 +253,8 @@ export interface MeasureOptions {
   seeds: number;
   seed: number;
   personaId: string;
+  /** The measured deck's ten-land reserve. Warchest requires one per seat. */
+  landReserve?: readonly string[];
   fieldComposition?: readonly FieldCompositionEntry[];
   workers?: number;
   memoize?: boolean;
@@ -244,6 +280,37 @@ export interface MetagameOptions {
    * it must not touch the options or decks, and determinism is unaffected.
    */
   onProgress?: (event: MetagameProgressEvent) => void;
+  /**
+   * Optional checkpoint hook. Called AFTER the round-0 seed pass and after each
+   * completed best-response round, with the same artifacts a finished run would
+   * return for the rounds crafted so far.
+   *
+   * This exists because a passive multi-day sweep is a run nobody is watching:
+   * without it, artifacts are written only when the whole loop finishes, so a
+   * crash at hour 80 of a 3-day run loses everything. Pure observer - it must
+   * not touch the options or decks, and determinism is unaffected.
+   */
+  onCheckpoint?: (artifacts: PersonaArtifact[], summary: MetagameSummary) => void;
+  /**
+   * Optional per-craft completion hook, fired as soon as ONE persona's craft
+   * finishes rather than at the round boundary.
+   *
+   * Checkpoints are durability; this is visibility. A round takes hours, so
+   * without it a dashboard can only show which persona is in flight and must
+   * wait for the whole round before it can show a single result. Pure observer.
+   */
+  onCraftComplete?: (round: MetagameRound, personaIndex: number, personaId: string) => void;
+  /**
+   * Optional resume source. Return a previously completed craft to skip
+   * re-running it; return undefined to craft normally.
+   *
+   * A single craft runs one to three HOURS, so a run that dies mid-round loses
+   * everything it has not persisted. Craft seeds are derived from the run seed,
+   * the round, and the persona id, so a replayed craft is byte-identical to
+   * what this loop would have produced - resuming changes nothing about the
+   * result, only how much of it has to be recomputed.
+   */
+  resumeCraft?: (round: number, personaId: string) => MetagameRound | undefined;
 }
 
 export interface MetagameProgressEvent {
@@ -371,26 +438,6 @@ function rankedCandidate(
   })[0];
 }
 
-function allocateBasics(spells: readonly string[], colors: readonly Color[], landCount: number): string[] {
-  const demand = new Map<Color, number>(colors.map((color) => [color, 0]));
-  for (const id of spells) {
-    for (const [color, pips] of Object.entries(CARD_DB[id].cost?.pips ?? {}) as [Color, number][]) {
-      if (demand.has(color)) demand.set(color, (demand.get(color) ?? 0) + pips);
-    }
-  }
-  const totalDemand = [...demand.values()].reduce((sum, value) => sum + value, 0);
-  const exact = colors.map((color) => ({
-    color,
-    value: totalDemand === 0 ? landCount / colors.length : landCount * (demand.get(color) ?? 0) / totalDemand,
-  }));
-  const allocations = exact.map(({ color, value }) => ({ color, count: Math.floor(value), fraction: value - Math.floor(value) }));
-  const remaining = landCount - allocations.reduce((sum, entry) => sum + entry.count, 0);
-  allocations.sort((a, b) => b.fraction - a.fraction || a.color.localeCompare(b.color));
-  for (let i = 0; i < remaining; i++) allocations[i % allocations.length].count++;
-  allocations.sort((a, b) => colors.indexOf(a.color) - colors.indexOf(b.color));
-  return allocations.flatMap(({ color, count }) => Array<string>(count).fill(BASIC_BY_COLOR[color]));
-}
-
 function quotaShortfallsFor(assigned: readonly AssignedCard[]): QuotaShortfall[] {
   const missing = new Map<SpellRole, number>();
   for (const entry of assigned) {
@@ -438,20 +485,41 @@ export function buildGreedyDeck(template: PersonaTemplate, pool: readonly CardDe
   }
 
   const spells = assigned.map((entry) => entry.cardId);
-  const lands = allocateBasics(spells, selectedColors, template.quotas.lands);
+  // Warchest: the deck is spells only and the ten lands ride in a separate
+  // reserve. buildLandReserve is the same helper the reserve balance matrices
+  // use, so the harness and the matrices derive reserves identically.
+  const landReserve = buildLandReserve(selectedColors);
   const quotaShortfalls = quotaShortfallsFor(assigned);
-  const build = { deck: [...spells, ...lands], assigned, selectedColors, quotaShortfalls };
-  assertCraftedDeckLegal(build.deck);
+  const build = { deck: [...spells], landReserve, assigned, selectedColors, quotaShortfalls };
+  assertCraftedDeckLegal(build.deck, build.landReserve);
   return build;
 }
 
-export function assertCraftedDeckLegal(deck: readonly string[]): void {
-  if (deck.length !== 60) throw new Error(`Crafted deck has ${deck.length}/60 cards`);
+export function assertCraftedDeckLegal(
+  deck: readonly string[],
+  landReserve?: readonly string[],
+): void {
+  if (deck.length !== WARCHEST_DECK_SIZE) {
+    throw new Error(`Crafted deck has ${deck.length}/${WARCHEST_DECK_SIZE} cards`);
+  }
   for (const [id, count] of cardCounts(deck)) {
     const card = CARD_DB[id];
     if (!card) throw new Error(`Crafted deck contains unknown card: ${id}`);
     if (card.token) throw new Error(`Crafted deck contains token: ${id}`);
+    // The engine rejects this outright; catching it here names the crafted deck.
+    if (card.types.includes('land')) {
+      throw new Error(`Crafted deck contains land ${id}; lands belong in the reserve`);
+    }
     if (!isBasic(card) && count > 4) throw new Error(`Crafted deck has ${count} copies of ${id}`);
+  }
+  if (landReserve === undefined) return;
+  if (landReserve.length !== LAND_RESERVE_SIZE) {
+    throw new Error(`Crafted land reserve has ${landReserve.length}/${LAND_RESERVE_SIZE} lands`);
+  }
+  for (const id of landReserve) {
+    const card = CARD_DB[id];
+    if (!card) throw new Error(`Land reserve contains unknown card: ${id}`);
+    if (!card.types.includes('land')) throw new Error(`Land reserve contains non-land ${id}`);
   }
 }
 
@@ -463,12 +531,13 @@ export function snapshotDeckCounts(build: GreedyBuild): DeckCountSnapshot {
     roles[entry.role]++;
     curve[curveBand(CARD_DB[entry.cardId])]++;
   }
-  const lands = build.deck.filter((id) => CARD_DB[id].types.includes('land')).length;
+  // Reserve-native: the deck holds no lands, so the land count is the reserve.
+  const lands = build.landReserve.length;
   roles.lands = lands;
   return {
-    total: build.deck.length,
+    total: build.deck.length + lands,
     lands,
-    nonlands: build.deck.length - lands,
+    nonlands: build.deck.length,
     uniqueCards: counts.size,
     maxNonbasicCopies: Math.max(...[...counts].filter(([id]) => !isBasic(CARD_DB[id])).map(([, count]) => count), 0),
     roles,
@@ -481,12 +550,24 @@ function referenceDecks(field: FieldId): readonly DeckList[] {
 }
 
 function referenceComposition(field: FieldId): FieldCompositionEntry[] {
-  return referenceDecks(field).map((reference) => ({
-    kind: 'static',
-    id: reference.id,
-    name: reference.name,
-    deck: [...reference.cards],
-  }));
+  return referenceDecks(field).map((reference) => {
+    // `cards` is the CLASSIC 60. Warchest retired that format on 2026-08-10 and
+    // `reserveCards`/`landReserve` are what a granted deck actually hands the
+    // player, so those are the only honest columns to measure against.
+    if (!reference.reserveCards || !reference.landReserve) {
+      throw new Error(
+        `Reference deck ${reference.id} has no reserve-native build; the persona ` +
+        'harness measures Warchest and cannot fall back to the retired classic list.',
+      );
+    }
+    return {
+      kind: 'static' as const,
+      id: reference.id,
+      name: reference.name,
+      deck: [...reference.reserveCards],
+      landReserve: [...reference.landReserve],
+    };
+  });
 }
 
 function stableHash(text: string): number {
@@ -503,11 +584,22 @@ export function measureDeckAgainstField(
   options: MeasureOptions,
   fieldComposition: readonly FieldCompositionEntry[],
 ): MeasuredRecord {
-  assertCraftedDeckLegal(deck);
+  const rowReserve = options.landReserve;
+  if (!rowReserve) {
+    // Silently omitting the reserve is what made this harness measure classic
+    // for months: playOut falls back to the classic constructor when no format
+    // and no reserves are supplied. Refuse instead of measuring the wrong game.
+    throw new Error(
+      `measureDeckAgainstField requires a landReserve for ${options.personaId}; ` +
+      'Warchest cannot be measured without one.',
+    );
+  }
+  assertCraftedDeckLegal(deck, rowReserve);
   const workers = resolveMeasureWorkers(options.workers);
   measureStats.calls++;
   const cacheKey = JSON.stringify({
     deck: [...deck],
+    landReserve: [...(options.landReserve ?? [])],
     field: options.field,
     seeds: options.seeds,
     seed: options.seed,
@@ -518,6 +610,7 @@ export function measureDeckAgainstField(
       name: reference.name,
       personaId: reference.personaId ?? null,
       deck: [...reference.deck],
+      landReserve: [...reference.landReserve],
     })),
   });
   if (options.memoize !== false) {
@@ -540,6 +633,8 @@ export function measureDeckAgainstField(
           rowAI: (aiSeed) => buildAI('hard', CARD_DB, aiSeed),
           colAI: (aiSeed) => buildAI('hard', CARD_DB, aiSeed),
           decks: () => [[...deck], [...reference.deck]],
+          format: 'warchest',
+          reserves: () => [[...rowReserve], [...reference.landReserve]],
         },
         options.seeds,
         base + index,
@@ -563,6 +658,8 @@ export function measureDeckAgainstField(
         rowIsP0: gameIndex % 2 === 0,
         rowDeck: [...deck],
         colDeck: [...reference.deck],
+        rowReserve: [...rowReserve],
+        colReserve: [...reference.landReserve],
       });
     }
   }
@@ -642,9 +739,10 @@ export function proposeQuotaLegalSwap(
     const incoming = candidates[rngInt(rng, candidates.length)];
     const assigned = current.assigned.map((entry, entryIndex) =>
       entryIndex === index ? { cardId: incoming.id, role: outgoing.role } : { ...entry });
-    const spells = assigned.map((entry) => entry.cardId);
-    const lands = allocateBasics(spells, current.selectedColors, template.quotas.lands);
-    const deck = [...spells, ...lands];
+    const deck = assigned.map((entry) => entry.cardId);
+    // Classic re-allocated basics after every swap because pip demand moved.
+    // A Warchest reserve is derived from the persona's COLORS, which a spell
+    // swap never changes, so `current.landReserve` carries through untouched.
     return {
       build: { ...current, assigned, deck, quotaShortfalls: quotaShortfallsFor(assigned) },
       out: outgoing.cardId,
@@ -687,7 +785,7 @@ export function runHillClimb(options: HillClimbOptions): HillClimbResult {
       unproposedIterations++;
       continue;
     }
-    assertCraftedDeckLegal(proposal.build.deck);
+    assertCraftedDeckLegal(proposal.build.deck, proposal.build.landReserve);
     const candidateMeasurement = options.measure(proposal.build.deck);
     if (candidateMeasurement.score > retainedMeasurement.score) {
       const priorScore = retainedMeasurement.score;
@@ -745,6 +843,7 @@ function personaFieldComposition(
           name: template.name,
           personaId: template.id,
           deck: [...round.deck],
+          landReserve: [...round.landReserve],
         };
       }),
   ];
@@ -760,17 +859,20 @@ function craftMetagameRound(
     ? options.seed
     : stableHash(`${options.seed}|metagame|${template.id}|round|${round}`);
   const measuredField: MeasuredFieldId = round === 0 ? options.field : 'personas';
+  // Built before measureOptions: the reserve is color-derived, so it is fixed
+  // for this persona across every hill-climb swap and every measurement.
+  const initial = buildGreedyDeck(template, options.pool, craftSeed);
   const measureOptions = {
     field: measuredField,
     seeds: options.seeds,
     seed: options.seed,
     personaId: template.id,
+    landReserve: initial.landReserve,
     fieldComposition,
   };
   const measure = (deck: readonly string[]): MeasuredRecord => options.measure
     ? options.measure(deck, measureOptions)
     : measureDeckAgainstField(deck, measureOptions, fieldComposition);
-  const initial = buildGreedyDeck(template, options.pool, craftSeed);
   const result = runHillClimb({
     initial,
     pool: options.pool,
@@ -785,8 +887,13 @@ function craftMetagameRound(
     seed: craftSeed,
     measurementSeed: options.seed,
     templateVersion: template.version,
-    fieldComposition: fieldComposition.map((entry) => ({ ...entry, deck: [...entry.deck] })),
+    fieldComposition: fieldComposition.map((entry) => ({
+      ...entry,
+      deck: [...entry.deck],
+      landReserve: [...entry.landReserve],
+    })),
     deck: [...result.build.deck],
+    landReserve: [...result.build.landReserve],
     counts: countRecord(result.build.deck),
     selectedColors: [...result.build.selectedColors],
     measured: result.finalMeasurement,
@@ -797,6 +904,53 @@ function craftMetagameRound(
       nonMonotonicClimb: result.nonMonotonicClimb,
     },
   };
+}
+
+/**
+ * Build one artifact per persona from the rounds crafted so far.
+ *
+ * Shared by the final return and by every checkpoint on purpose: a checkpoint
+ * is then the SAME artifact shape a completed run produces, so a crashed
+ * sweep's output is readable directly rather than needing conversion. The only
+ * thing distinguishing a partial artifact is its summary, which carries
+ * `stoppedReason: 'in-progress'` and `converged: false`.
+ */
+function buildMetagameArtifacts(
+  templates: readonly PersonaTemplate[],
+  history: ReadonlyMap<string, MetagameRound[]>,
+  summary: MetagameSummary,
+  staticComposition: readonly FieldCompositionEntry[],
+  options: MetagameOptions,
+): PersonaArtifact[] {
+  return templates.map((template) => {
+    const rounds = history.get(template.id)!;
+    const finalRound = rounds[rounds.length - 1];
+    return {
+      schemaVersion: 1 as const,
+      mode: 'metagame-loop' as const,
+      persona: { id: template.id, name: template.name },
+      pool: options.poolId,
+      field: finalRound.measured.field,
+      seed: options.seed,
+      seeds: options.seeds,
+      iterations: options.iterations,
+      templateVersion: template.version,
+      selectedColors: [...finalRound.selectedColors],
+      referenceField: staticComposition.map((entry) => ({ id: entry.id, name: entry.name })),
+      deck: [...finalRound.deck],
+      landReserve: [...finalRound.landReserve],
+      counts: { ...finalRound.counts },
+      measured: finalRound.measured,
+      hillClimb: finalRound.hillClimb,
+      quotaShortfalls: [...finalRound.quotaShortfalls],
+      honesty: {
+        greedyBeatsFinal: finalRound.honesty.greedyBeatsFinal,
+        nonMonotonicClimb: finalRound.honesty.nonMonotonicClimb,
+        oscillating: summary.oscillatingPersonas.includes(template.id),
+      },
+      metagame: { summary, rounds },
+    } satisfies PersonaArtifact;
+  });
 }
 
 /**
@@ -824,17 +978,43 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
   const retained = new Map<string, MetagameRound>();
   const seen = new Map<string, Map<string, { firstRound: number; lastRound: number }>>();
   const staticComposition = referenceComposition(options.field);
+  /**
+   * Emit the rounds crafted so far as artifacts. Cheap next to a round of
+   * hill-climbing, so it runs unconditionally at every round boundary rather
+   * than on a timer - the recovery granularity is then exactly one round.
+   */
+  const emitCheckpoint = (roundsDone: number): void => {
+    if (!options.onCheckpoint) return;
+    const partial: MetagameSummary = {
+      policy: 'stable-decks-or-oscillation-or-max-rounds',
+      maxRounds: options.maxRounds,
+      completedRounds: roundsDone,
+      baseField: options.field,
+      converged: false,
+      stoppedReason: 'in-progress',
+      oscillatingPersonas: [],
+      oscillations: [],
+    };
+    options.onCheckpoint(
+      buildMetagameArtifacts(templates, history, partial, staticComposition, options),
+      partial,
+    );
+  };
   for (const [index, template] of templates.entries()) {
     options.onProgress?.({
       phase: 'seed', round: 0, maxRounds: options.maxRounds,
       personaId: template.id, personaName: template.name,
       personaIndex: index, personaCount: templates.length,
     });
-    const round = craftMetagameRound(template, 0, staticComposition, options);
+    const resumed = options.resumeCraft?.(0, template.id);
+    const round = resumed ?? craftMetagameRound(template, 0, staticComposition, options);
+    if (!resumed) options.onCraftComplete?.(round, index, template.id);
     history.set(template.id, [round]);
     retained.set(template.id, round);
     seen.set(template.id, new Map([[deckSignature(round.deck), { firstRound: 0, lastRound: 0 }]]));
   }
+
+  emitCheckpoint(0);
 
   let completedRounds = 0;
   let summary: MetagameSummary | undefined;
@@ -849,7 +1029,11 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
       });
       const fieldComposition = personaFieldComposition(templates, previous, options.field)
         .filter((entry) => entry.personaId !== template.id);
-      next.set(template.id, craftMetagameRound(template, roundNumber, fieldComposition, options));
+      const resumedRound = options.resumeCraft?.(roundNumber, template.id);
+      const crafted = resumedRound
+        ?? craftMetagameRound(template, roundNumber, fieldComposition, options);
+      if (!resumedRound) options.onCraftComplete?.(crafted, index, template.id);
+      next.set(template.id, crafted);
     }
     completedRounds = roundNumber;
 
@@ -882,6 +1066,8 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
       if (occurrence) occurrence.lastRound = roundNumber;
       else seen.get(template.id)!.set(signature, { firstRound: roundNumber, lastRound: roundNumber });
     }
+
+    emitCheckpoint(roundNumber);
 
     if (stable) {
       summary = {
@@ -924,35 +1110,10 @@ export function runMetagameLoop(options: MetagameOptions): MetagameResult {
     };
   }
 
-  const artifacts = templates.map((template) => {
-    const rounds = history.get(template.id)!;
-    const finalRound = rounds[rounds.length - 1];
-    return {
-      schemaVersion: 1 as const,
-      mode: 'metagame-loop' as const,
-      persona: { id: template.id, name: template.name },
-      pool: options.poolId,
-      field: finalRound.measured.field,
-      seed: options.seed,
-      seeds: options.seeds,
-      iterations: options.iterations,
-      templateVersion: template.version,
-      selectedColors: [...finalRound.selectedColors],
-      referenceField: staticComposition.map((entry) => ({ id: entry.id, name: entry.name })),
-      deck: [...finalRound.deck],
-      counts: { ...finalRound.counts },
-      measured: finalRound.measured,
-      hillClimb: finalRound.hillClimb,
-      quotaShortfalls: [...finalRound.quotaShortfalls],
-      honesty: {
-        greedyBeatsFinal: finalRound.honesty.greedyBeatsFinal,
-        nonMonotonicClimb: finalRound.honesty.nonMonotonicClimb,
-        oscillating: summary!.oscillatingPersonas.includes(template.id),
-      },
-      metagame: { summary: summary!, rounds },
-    } satisfies PersonaArtifact;
-  });
-  return { artifacts, summary };
+  return {
+    artifacts: buildMetagameArtifacts(templates, history, summary, staticComposition, options),
+    summary,
+  };
 }
 
 export function makeArtifact(
@@ -975,6 +1136,7 @@ export function makeArtifact(
     selectedColors: [...result.build.selectedColors],
     referenceField: referenceDecks(options.field).map((deck) => ({ id: deck.id, name: deck.name })),
     deck: [...result.build.deck],
+    landReserve: [...result.build.landReserve],
     counts: countRecord(result.build.deck),
     measured: result.finalMeasurement,
     hillClimb: result.log,
@@ -1009,6 +1171,161 @@ function pct(measurement: MeasuredRecord): string {
   return `${(measurement.score * 100).toFixed(1)}% (${measurement.rowWins}/${decided} decided, ${measurement.draws} draws)`;
 }
 
+/**
+ * One completed craft, appended to the journal the instant it finishes.
+ *
+ * Round-boundary checkpoints are not enough on their own: the seed round alone
+ * runs about nine hours at realistic worker counts, so a run that dies partway
+ * through it loses every completed craft. That is not hypothetical - the
+ * 2026-08-25 sweep died 4h36 in with two crafts finished and nothing on disk.
+ *
+ * The journal is append-only and written SYNCHRONOUSLY, so a killed process
+ * still leaves everything it had finished. It doubles as the resume source.
+ */
+interface JournalEntry {
+  round: number;
+  personaId: string;
+  seed: number;
+  crafted: MetagameRound;
+}
+
+export interface JournalConfig {
+  seed: number;
+  seeds: number;
+  iterations: number;
+  maxRounds: number;
+  personaIds: string[];
+  templateVersion: string;
+  poolId: string;
+  field: FieldId;
+}
+
+interface JournalHeader {
+  type: 'config';
+  version: 1;
+  config: JournalConfig;
+}
+
+function recordValue(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+}
+
+function parseJournalConfig(value: unknown): JournalConfig | undefined {
+  const raw = recordValue(value);
+  const personaIds = raw?.personaIds;
+  if (
+    typeof raw?.seed !== 'number' || !Number.isInteger(raw.seed) ||
+    typeof raw.seeds !== 'number' || !Number.isInteger(raw.seeds) ||
+    typeof raw.iterations !== 'number' || !Number.isInteger(raw.iterations) ||
+    typeof raw.maxRounds !== 'number' || !Number.isInteger(raw.maxRounds) ||
+    !Array.isArray(personaIds) || !personaIds.every((id) => typeof id === 'string') ||
+    new Set(personaIds).size !== personaIds.length ||
+    typeof raw.templateVersion !== 'string' ||
+    typeof raw.poolId !== 'string' ||
+    (raw.field !== 'prefabs' && raw.field !== 'starters')
+  ) return undefined;
+  return {
+    seed: raw.seed,
+    seeds: raw.seeds,
+    iterations: raw.iterations,
+    maxRounds: raw.maxRounds,
+    personaIds: [...personaIds],
+    templateVersion: raw.templateVersion,
+    poolId: raw.poolId,
+    field: raw.field,
+  };
+}
+
+function journalConfigDescription(config: JournalConfig): string {
+  return `seed ${config.seed}, ${config.seeds} seeds, ${config.iterations} iterations, ` +
+    `maxRounds ${config.maxRounds}, personas ${config.personaIds.join(',')}, ` +
+    `template ${config.templateVersion}, pool ${config.poolId}, field ${config.field}`;
+}
+
+function journalConfigsEqual(left: JournalConfig, right: JournalConfig): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function journalHeader(config: JournalConfig): JournalHeader {
+  return { type: 'config', version: 1, config };
+}
+
+function rotateJournal(path: string): string | undefined {
+  if (!existsSync(path)) return undefined;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const base = `${path}.old-${stamp}`;
+  let rotated = base;
+  let suffix = 1;
+  while (existsSync(rotated)) rotated = `${base}-${suffix++}`;
+  renameSync(path, rotated);
+  return rotated;
+}
+
+function writeJournalHeader(path: string, config: JournalConfig): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(journalHeader(config))}\n`, 'utf8');
+}
+
+function appendJournalEntry(path: string, entry: JournalEntry): void {
+  if (existsSync(path)) {
+    const contents = readFileSync(path, 'utf8');
+    if (contents.length > 0 && !contents.endsWith('\n')) appendFileSync(path, '\n', 'utf8');
+  }
+  appendFileSync(path, `${JSON.stringify(entry)}\n`, 'utf8');
+}
+
+export function readCraftJournal(path: string, expectedConfig?: JournalConfig): Map<string, MetagameRound> {
+  const out = new Map<string, MetagameRound>();
+  if (!existsSync(path)) {
+    if (expectedConfig) {
+      throw new Error(`Cannot resume journal ${basename(path)}: the journal does not exist.`);
+    }
+    return out;
+  }
+  let config: JournalConfig | undefined;
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    const text = line.trim();
+    if (!text) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      continue;
+    }
+    const record = recordValue(parsed);
+    if (record?.type === 'config') {
+      const parsedConfig = record.version === 1 ? parseJournalConfig(record.config) : undefined;
+      if (parsedConfig) config = parsedConfig;
+      continue;
+    }
+    if (
+      record?.crafted !== undefined &&
+      typeof record.personaId === 'string' &&
+      typeof record.round === 'number' &&
+      Number.isInteger(record.round)
+    ) {
+      out.set(`${record.round}:${record.personaId}`, record.crafted as MetagameRound);
+    }
+  }
+  if (expectedConfig) {
+    if (!config) {
+      throw new Error(
+        `Cannot resume journal ${basename(path)}: this journal predates config stamping ` +
+        'or has no valid config header. It cannot be safely resumed.',
+      );
+    }
+    if (!journalConfigsEqual(config, expectedConfig)) {
+      throw new Error(
+        `Cannot resume journal ${basename(path)}: configuration mismatch. ` +
+        `The journal uses ${journalConfigDescription(config)}. ` +
+        `This command uses ${journalConfigDescription(expectedConfig)}.`,
+      );
+    }
+  }
+  return out;
+}
+
 export interface CliDependencies {
   measure?: MeasureFunction;
   log?: (message: string) => void;
@@ -1021,7 +1338,18 @@ function readArtifact(path: string): PersonaArtifact {
   if (parsed.schemaVersion !== 1 || !parsed.persona?.id || !Array.isArray(parsed.deck)) {
     throw new Error(`Invalid persona artifact: ${path}`);
   }
-  assertCraftedDeckLegal(parsed.deck);
+  // Retained artifacts crafted before the 2026-08-25 reserve migration describe
+  // 60-card CLASSIC decks with lands inside and no reserve. They cannot be
+  // re-measured, because the harness no longer plays that format. Say so
+  // plainly rather than failing on a confusing card-count error.
+  if (!Array.isArray(parsed.landReserve)) {
+    throw new Error(
+      `Persona artifact ${basename(path)} predates the reserve-native migration ` +
+      `(templateVersion ${parsed.templateVersion ?? 'unknown'}). It measures the retired ` +
+      'classic format and cannot be re-checked; re-craft it against Warchest instead.',
+    );
+  }
+  assertCraftedDeckLegal(parsed.deck, parsed.landReserve);
   return parsed as PersonaArtifact;
 }
 
@@ -1034,6 +1362,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       return index >= 0 ? argv[index + 1] : undefined;
   };
   const has = (name: string): boolean => argv.includes(`--${name}`);
+  let cleanupFatalHandlers: (() => void) | undefined;
 
   try {
     if (has('help')) {
@@ -1068,11 +1397,14 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         }
         const finalRound = artifact.metagame?.rounds[artifact.metagame.rounds.length - 1];
         if (!finalRound) throw new Error(`Invalid metagame artifact: ${checkPath}`);
+        // The retained reserve travels with the deck: the measurer refuses a
+        // Warchest row without one, and a check that cannot measure is no check.
         checked = runtimeMeasure(artifact.deck, {
             field: 'personas',
             seeds,
             seed: artifact.seed,
             personaId: artifact.persona.id,
+            landReserve: artifact.landReserve,
             fieldComposition: finalRound.fieldComposition,
           });
       } else {
@@ -1085,6 +1417,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           seeds,
           seed: artifact.seed,
           personaId: artifact.persona.id,
+          landReserve: artifact.landReserve,
         });
       }
       log(`Checked ${basename(checkPath)} (${artifact.persona.id})`);
@@ -1130,6 +1463,47 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       // wall-clock stamps live only here in the CLI shell, never in the loop.
       const statusPath = opt('status-file');
       const sweepStartedAt = new Date().toISOString();
+      // How long the previous craft took. The dashboard uses it to size its own
+      // staleness warning: a craft runs 1-2+ HOURS at realistic worker counts,
+      // so a fixed threshold is wrong at every worker count but one.
+      let lastCraftMs: number | undefined;
+      let lastProgressAt: number | undefined;
+      // Last durable checkpoint, so an unattended run can be seen to be safe.
+      let lastCheckpoint: Record<string, unknown> | undefined;
+      // The most recent progress event, so a checkpoint-triggered status write
+      // does not blank the phase/persona the dashboard is displaying.
+      let lastCheckpointProgress: Record<string, unknown> = {};
+      // One compact row per FINISHED craft, so the dashboard can show a result
+      // the moment it exists instead of waiting out the rest of the round.
+      const finishedCrafts: Record<string, unknown>[] = [];
+      // Append-only, written synchronously so a killed process still leaves
+      // every craft it finished. Also the resume source.
+      const journalPath = opt('journal') ?? join(outDir, 'craft-journal.jsonl');
+      const resumeRequested = argv.includes('--resume');
+      const journalConfig: JournalConfig = {
+        seed,
+        seeds,
+        iterations,
+        maxRounds,
+        personaIds: PERSONA_TEMPLATES
+          .filter((template) => selectedPersonaIds!.includes(template.id))
+          .map((template) => template.id),
+        templateVersion: PERSONA_TEMPLATE_VERSION,
+        poolId,
+        field,
+      };
+      let resumed: Map<string, MetagameRound>;
+      if (resumeRequested) {
+        resumed = readCraftJournal(journalPath, journalConfig);
+      } else {
+        const rotated = rotateJournal(journalPath);
+        if (rotated) log(`Rotated existing journal to ${rotated}`);
+        writeJournalHeader(journalPath, journalConfig);
+        resumed = new Map<string, MetagameRound>();
+      }
+      if (resumeRequested) {
+        log(`Resume: ${resumed.size} completed craft(s) recovered from ${basename(journalPath)}`);
+      }
       const writeStatus = (payload: Record<string, unknown>): void => {
         if (!statusPath) return;
         writeFileSync(statusPath, `${JSON.stringify({
@@ -1140,11 +1514,71 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           maxRounds,
           personaCount: selectedPersonaIds!.length,
           outDir,
+          // Named explicitly: this harness measured the RETIRED classic format
+          // until 2026-08-25 and nothing on screen said so.
+          format: 'warchest',
+          lastCraftMs,
+          checkpoint: lastCheckpoint,
+          finishedCrafts,
           ...payload,
         }, null, 2)}
 `, 'utf8');
       };
+      // The 2026-08-25 sweep died leaving a ZERO-BYTE log: node buffers stdout
+      // to a file and an abnormal exit loses the buffer, so the run left no
+      // evidence at all. These handlers write synchronously to a file beside
+      // the journal, which survives what stdout does not.
+      const crashPath = join(outDir, 'craft-crash.log');
+      const recordFatal = (kind: string) => (error: unknown): void => {
+        const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+        try {
+          appendFileSync(crashPath, `[${new Date().toISOString()}] ${kind}: ${detail}\n`, 'utf8');
+        } catch { /* nothing left to do if even this fails */ }
+        try {
+          writeStatus({ state: 'failed', failure: `${kind}: ${detail.split('\n')[0]}` });
+        } catch {
+          process.exit(1);
+        }
+        process.exit(1);
+      };
+      const onUncaughtException = recordFatal('uncaughtException');
+      const onUnhandledRejection = recordFatal('unhandledRejection');
+      process.on('uncaughtException', onUncaughtException);
+      process.on('unhandledRejection', onUnhandledRejection);
+      cleanupFatalHandlers = () => {
+        process.off('uncaughtException', onUncaughtException);
+        process.off('unhandledRejection', onUnhandledRejection);
+      };
+
       writeStatus({ state: 'starting' });
+      // Checkpoint writes. The loop stays pure - it hands us artifacts, the CLI
+      // shell owns the filesystem - and the paths are the SAME ones the final
+      // write uses, so a completed run simply overwrites its own checkpoints
+      // and leaves no partial files behind. A run killed mid-flight leaves the
+      // last completed round on disk, flagged `stoppedReason: 'in-progress'`.
+      const today = dependencies.today?.() ?? new Date().toISOString().slice(0, 10);
+      const artifactPathFor = (personaId: string): string =>
+        join(outDir, `${today}-metagame-${personaId}-${poolId}.json`);
+      const writeCheckpoint = (
+        artifacts: PersonaArtifact[],
+        partial: MetagameSummary,
+      ): void => {
+        for (const artifact of artifacts) {
+          writeFileSync(
+            artifactPathFor(artifact.persona.id),
+            `${JSON.stringify(artifact, null, 2)}
+`,
+            'utf8',
+          );
+        }
+        lastCheckpoint = {
+          completedRounds: partial.completedRounds,
+          artifacts: artifacts.length,
+          at: new Date().toISOString(),
+        };
+        writeStatus({ state: 'running', ...lastCheckpointProgress });
+        log(`Checkpoint: ${artifacts.length} artifact(s) after round ${partial.completedRounds}`);
+      };
       const result = runMetagameLoop({
         poolId,
         pool,
@@ -1155,7 +1589,37 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         maxRounds,
         personaIds: selectedPersonaIds!,
         measure: runtimeMeasure,
-        onProgress: (event) => writeStatus({ state: 'running', ...event }),
+        onProgress: (event) => {
+          const now = Date.now();
+          if (lastProgressAt !== undefined) lastCraftMs = now - lastProgressAt;
+          lastProgressAt = now;
+          lastCheckpointProgress = { ...event };
+          writeStatus({ state: 'running', ...event });
+        },
+        onCheckpoint: writeCheckpoint,
+        resumeCraft: (round, personaId) => resumed.get(`${round}:${personaId}`),
+        onCraftComplete: (round, personaIndex, personaId) => {
+          appendJournalEntry(journalPath, {
+            round: round.round,
+            personaId,
+            seed: round.seed,
+            crafted: round,
+          });
+          finishedCrafts.push({
+            round: round.round,
+            personaIndex,
+            personaId,
+            score: round.measured.score,
+            rowWins: round.measured.rowWins,
+            losses: round.measured.losses,
+            draws: round.measured.draws,
+            games: round.measured.games,
+            acceptedSwaps: round.hillClimb.acceptedSwaps.length,
+            initialScore: round.hillClimb.initialScore,
+            finishedAt: new Date().toISOString(),
+          });
+          writeStatus({ state: 'running', ...lastCheckpointProgress });
+        },
       });
       writeStatus({
         state: 'done',
@@ -1167,9 +1631,8 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           rounds: artifact.metagame!.rounds.length,
         })),
       });
-      const today = dependencies.today?.() ?? new Date().toISOString().slice(0, 10);
       for (const artifact of result.artifacts) {
-        const artifactPath = join(outDir, `${today}-metagame-${artifact.persona.id}-${poolId}.json`);
+        const artifactPath = artifactPathFor(artifact.persona.id);
         writeFileSync(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
         log(`Metagame ${artifact.persona.name} (${artifact.persona.id})`);
         log(`Final: ${pct(artifact.measured)} after ${artifact.metagame!.rounds.length} recorded rounds`);
@@ -1181,6 +1644,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
       } else if (!result.summary.converged) {
         log('Finding: loop reached max-rounds without convergence');
       }
+      cleanupFatalHandlers?.();
       return 0;
     }
 
@@ -1188,7 +1652,9 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
 
     for (const template of templates) {
       const initial = buildGreedyDeck(template, pool, seed);
-      const measureOptions = { field, seeds, seed, personaId: template.id };
+      const measureOptions = {
+        field, seeds, seed, personaId: template.id, landReserve: initial.landReserve,
+      };
       const result = runHillClimb({
         initial,
         pool,
@@ -1218,6 +1684,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
     }
     return 0;
   } catch (caught) {
+    cleanupFatalHandlers?.();
     error(caught instanceof Error ? caught.message : String(caught));
     return 1;
   }

@@ -14,7 +14,7 @@ are the era's opportunists and monsters, painted with the same reverence given t
 kings, because for one violent season each of them held the world by the throat.
 
 ### Lu Bu, Peerless Flying General — `tk-other-lubu`
-- **Card facts:** {2}{R}{R} · R · 5/3 · warcry · ur, legendary · holo: galaxy (explicit)
+- **Card facts:** {1}{R}{R} · R · 5/3 · twinBlades, rage · ur, legendary · holo: galaxy (explicit)
 - **Character & source:** Genderbent Lu Bu, the Three Kingdoms coalition era's apex warrior — the card burns its own controller every upkeep, so the art must feel barely contained.
 - **Personality / mood:** "Among warriors, Lu Bu. Among steeds, Red Hare. Among tempers… run." Overwhelming, gleeful violence; a weapon that has opinions about being pointed.
 - **Pose & composition:** Low-angle three-quarter, chest-up, eyes locked on the viewer, face ≈ y 330; the Sky Piercer slashes lower-left → upper-right, deliberately breaking the top of the band; Red Hare rears ember-lit behind her shoulder in bokeh.
@@ -29,7 +29,7 @@ kings, because for one violent season each of them held the world by the throat.
 - **Prompt:** Genderbent Lu Bu, black-and-gold lacquered armor with pheasant-feather headdress, wielding a crescent halberd diagonally across frame, rearing red warhorse silhouette behind, burning night camp with dark smoky star-torn sky, fierce half-smiling warrior woman lit by fire from below with cool rim light — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Diaochan, Moonlit Schemer — `tk-other-diaochan`
-- **Card facts:** {1}{W}{B} · W/B (gold frame) · 1/3 · sr, legendary · holo: auto:foil
+- **Card facts:** {W}{B} · W/B (gold frame) · 1/3 · sr, legendary · holo: auto:foil
 - **Character & source:** Genderbent Diaochan, the chain-stratagem beauty who set Lu Bu and Dong Zhuo against each other — her ETB forces a random discard, ruin seeded with a single dance.
 - **Personality / mood:** "Two warlords, one dance, zero survivors." Serene, weaponized grace; every gesture a move on a board only she sees.
 - **Pose & composition:** Standing three-quarter, mid-turn of a slow dance, one silk sleeve trailing across the frame like a drawn veil; face to camera over her shoulder, ≈ y 320. The pose schemes — poised, not lunging — a 1/3 winning by misdirection.

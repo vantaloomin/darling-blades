@@ -117,7 +117,15 @@ describe('AI win-rate gates', () => {
   }, 600_000);
 
   it('summit rungs 14-22 clear their reserve-native 40-seed floors and terminate', () => {
-    const report = runAvatarMatrix(40);
+    // Rungs 23-24 gate separately below: one 24-avatar matrix blew the 900s
+    // per-test budget on CI hardware (2026-08-29), and the Starborne pair
+    // carries no floors yet anyway (provisional until the tuning pass).
+    const report = runAvatarMatrix(40, [
+      'artoria', 'carmilla', 'the-bride', 'glass-coffin-queen',
+      'abyssal-songstress', 'queen-of-the-lanterned-roof',
+      'kitsune-neon-tyrant', 'anubis-who-holds-the-scale',
+      'bastet-mistress-of-the-ninth-return',
+    ]);
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
     const r14 = row('artoria');
     const r15 = row('carmilla');
@@ -189,6 +197,31 @@ describe('AI win-rate gates', () => {
     expect(r18.avg, 'rung 18 must be the measured summit').toBeGreaterThan(r17.avg);
     expect(r20.avg, 'rung 20 must measure at or above rung 19').toBeGreaterThanOrEqual(r19.avg);
     for (const cell of [...r17.cells, ...r18.cells, ...r19.cells, ...r20.cells, ...r21.cells, ...r22.cells]) {
+      expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
+    }
+  }, 900_000);
+
+  it('Starborne rungs 23-24 field complete matrices and terminate decisively', () => {
+    // Final `--avatars --seeds 200` table: R23 65% (46/83/59/60/77) and
+    // R24 68% (45/87/59/57/94), with no draws in these two rows. Floors use
+    // the same documented 6.5pp noise band, rounded down to the half point:
+    // 58.5% and 61.5%.
+    const report = runAvatarMatrix(40, ['chrome-broodmother', 'the-violet-signal-queen']);
+    const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
+    const r23 = row('chrome-broodmother');
+    const r24 = row('the-violet-signal-queen');
+    expect(r23).toBeDefined();
+    expect(r24).toBeDefined();
+    if (!r23 || !r24) return;
+    expect(r23.cells).toHaveLength(5);
+    expect(r24.cells).toHaveLength(5);
+    // Floors set from the final post-surgery 200-seed band (2026-08-30: R23
+    // 65, R24 68) - the stronger Shadow Mandate column moved both Starborne
+    // rows. Same minus-6.5pp convention, rounded down to the half point:
+    // 58.5% and 61.5%.
+    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.585);
+    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.615);
+    for (const cell of [...r23.cells, ...r24.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
   }, 900_000);

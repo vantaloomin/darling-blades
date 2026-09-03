@@ -1,6 +1,7 @@
 ﻿import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { CARD_DB } from '../../src/data/catalog';
+import { DARLINGS_PRECONS } from '../../src/data/darlingsPrecons';
 import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
 import { createRngState } from '../../src/engine/rng';
@@ -22,6 +23,7 @@ import {
   applyMatchResult,
   buyThemeDeck,
   claimFreeStarter,
+  cloneShopDeck,
   deckProductCardIds,
   grantedDeckBuild,
   previewDeckGrant,
@@ -1132,7 +1134,7 @@ describe('applyGauntletResult', () => {
   });
 
   it('clearing the final rung pays the completion bonus and ends the run', () => {
-    const finalRung = ECONOMY.gauntletRungGold.length; // 22 since the Sands of the Duat summit
+    const finalRung = ECONOMY.gauntletRungGold.length; // 24 with The Violet Signal Queen as the Starborne final rung
     const save = freshSave(0);
     save.stats.lastWinDay = '2026-07-02'; // no first-win bonus this time
     save.gauntlet.run = { rung: finalRung, startedAt: 1, seed: 42 };
@@ -1162,7 +1164,7 @@ describe('applyGauntletResult', () => {
     expect(dual.gauntlet.clearStyles).toEqual({ monoColor: 0, dualColor: 1 });
   });
 
-  it('a full 22-rung run pays exactly 5970 gold, plus the daily bonus once', () => {
+  it('a full 24-rung run pays exactly 7070 gold, plus the daily bonus once', () => {
     const save = freshSave(0);
     save.gauntlet.run = { rung: 1, startedAt: 1, seed: 42 };
     let total = 0;
@@ -1171,9 +1173,9 @@ describe('applyGauntletResult', () => {
       total += applyGauntletResult(save, rung, diff, true, '2026-07-02').gold;
     }
     const rungSum = ECONOMY.gauntletRungGold.reduce((s, g) => s + g, 0);
-    expect(rungSum).toBe(5720); // 22-rung progression through 470g (1.6 added 21-22)
+    expect(rungSum).toBe(6720); // 24-rung progression through 510g (Starborne adds rungs 23-24)
     expect(total).toBe(rungSum + ECONOMY.gauntletCompletionBonus + ECONOMY.firstWinOfDayBonus);
-    expect(total).toBe(6070); // 5720 + 250 + 100 (daily bonus once)
+    expect(total).toBe(7070); // 6720 + 250 + 100 (daily bonus once)
     expect(save.gauntlet.completions).toBe(1);
   });
 
@@ -1223,6 +1225,72 @@ describe('buyThemeDeck (RagnarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶k precon
     expect(buyThemeDeck(save, CARD_DB, deck)).toBe(false);
     expect(save.gold).toBe(ECONOMY.preconPrice - 1);
     expect(save.decks.some((d) => d.id === deck.id)).toBe(false);
+  });
+});
+
+describe('cloneShopDeck (the shop\'s Clone Deck on owned rows)', () => {
+  const deck = THEME_DECKS[0];
+
+  function ownedSave(): SaveData {
+    const save = freshSave(0);
+    save.gold = ECONOMY.preconPrice;
+    expect(buyThemeDeck(save, CARD_DB, deck)).toBe(true);
+    return save;
+  }
+
+  it('restores the factory list even after the original was edited, for free', () => {
+    const save = ownedSave();
+    const goldBefore = save.gold;
+    const collectionBefore = { ...save.collection };
+    // The player guts their purchased copy - the clone must not care.
+    const original = save.decks.find((d) => d.id === deck.id)!;
+    original.cards = original.cards.slice(0, 5);
+    original.name = 'my ruined build';
+
+    const id = cloneShopDeck(save, deck);
+    expect(id).toBe('deck-2');
+    const clone = save.decks.find((d) => d.id === id)!;
+    const factory = grantedDeckBuild(deck);
+    expect(clone.cards).toEqual(factory.cards);
+    expect(clone.format).toBe(factory.format);
+    expect(clone.landReserve).toEqual(factory.landReserve);
+    expect(clone.name).toBe(`${deck.name} copy`);
+    expect(clone.variantPins).toHaveLength(factory.cards.length);
+    // Free: no gold spent, no cards granted, the edited original untouched.
+    expect(save.gold).toBe(goldBefore);
+    expect(save.collection).toEqual(collectionBefore);
+    expect(save.decks.find((d) => d.id === deck.id)!.cards).toHaveLength(5);
+  });
+
+  it('repeat clones get unique ids and never collide', () => {
+    const save = ownedSave();
+    const a = cloneShopDeck(save, deck);
+    const b = cloneShopDeck(save, deck);
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    expect(a).not.toBe(b);
+    expect(new Set(save.decks.map((d) => d.id)).size).toBe(save.decks.length);
+  });
+
+  it('refuses when the shop deck is no longer in the library (deleted decks re-buy instead)', () => {
+    const save = ownedSave();
+    save.decks = save.decks.filter((d) => d.id !== deck.id);
+    const before = save.decks.length;
+    expect(cloneShopDeck(save, deck)).toBeNull();
+    expect(save.decks).toHaveLength(before);
+  });
+
+  it('clones a Darlings precon with its darling and reserve intact', () => {
+    const save = freshSave(0);
+    const precon = DARLINGS_PRECONS[1];
+    save.gold = ECONOMY.preconPrice;
+    expect(buyThemeDeck(save, CARD_DB, precon)).toBe(true);
+    const id = cloneShopDeck(save, precon);
+    expect(id).not.toBeNull();
+    const clone = save.decks.find((d) => d.id === id)!;
+    expect(clone.format).toBe('darlings');
+    expect(clone.darlingId).toBe(precon.darlingId);
+    expect(clone.landReserve).toEqual([...precon.landReserve]);
   });
 });
 

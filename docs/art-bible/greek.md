@@ -14,7 +14,7 @@ genderbent but kit-faithful. The faction accents — marble, Aegean blue, gilt �
 over each card's color-identity anchor and never replace it.
 
 ### Athena, Aegis of Wisdom — `gk-athena`
-- **Card facts:** {2}{W}{W} · W · 2/4 · sentinel · ur, legendary · holo: foil (explicit)
+- **Card facts:** {2}{W}{W} · W · 2/3 · sentinel · ur, legendary · holo: foil (explicit)
 - **Character & source:** Athena as-is, goddess of strategic war; her static aura toughens every other Olympian, so she reads as the anchor the pantheon forms up behind.
 - **Personality / mood:** "Wisdom is knowing which wars not to fight. Strategy is winning those anyway." Calm, measured, three moves ahead — a general who has already read the battle's ending.
 - **Pose & composition:** Standing three-quarter, weight settled, aegis presented across the body rather than raised to strike (2/4 vigilance defends, it does not lunge); face ≈ y 320, eyes tracking something off-frame she has already accounted for. Owl perched on the shoulder in the band's upper right.
@@ -104,7 +104,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Spartan shieldmaiden seen from further back in a three-quarter-body stance braced beside a large lambda-blazoned round shield with leveled spear, a bronze breastplate cropped above her bare sculpted midriff showing hard defined abs, transverse-crested Corinthian helm, crimson cloak, dusty plain with implied shield-line, grim disciplined warrior, the top of her crested helm well below the upper edge of the frame with generous open sky above it, hard daylight key with cool bronze rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Zeus, Thunder Empress — `gk-zeus`
-- **Card facts:** {2}{R}{R}{W}{W} · R/W (gold frame) · 5/5 · skyborne · ur, legendary · holo: galaxy (explicit)
+- **Card facts:** {R}{R}{W}{W} · R/W (gold frame) · 5/5 · skyborne · ur, legendary · holo: galaxy (explicit)
 - **Character & source:** Genderbent Zeus, sovereign of Olympus; her ETB burns the opponent for 3, so the art must catch the bolt already loosed. Kit-faithful: the thunderbolt is her signature.
 - **Personality / mood:** "The forecast is her mood. Pack accordingly." Imperious, electric, casually catastrophic.
 - **Pose & composition:** High-hovering three-quarter, one arm hurling a forked thunderbolt down and across the frame, wings and storm-cloak thrown wide, face ≈ y 300 gazing down at the viewer; the bolt deliberately breaks the top-right of the band. Aloft, above the storm.
@@ -119,7 +119,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Genderbent Zeus hovering above a dark storm, white-and-gold imperial chiton with storm-grey himation and gilt eagle pauldron, hurling a forked thunderbolt down across frame, dark wings spread, black thunderheads and star-torn void, imperious storm-lit empress, blue-white bolt key with warm gilt rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hera, Queen of Olympus — `gk-hera`
-- **Card facts:** {2}{W}{B} · W/B (gold frame) · 3/4 · sentinel · ssr, legendary · holo: foil (explicit)
+- **Card facts:** {2}{W}{B}{B} · W/B (gold frame) · 3/4 · sentinel · ssr, legendary · holo: foil (explicit)
 - **Character & source:** Hera as-is, Queen of Olympus; her ETB creates two Peacock tokens whose design **this art canonizes** (`tok-peacock` — see registry).
 - **Personality / mood:** "Her peacocks have a hundred eyes each, and every eye is on Zeus." Absolute sovereignty with a surveillance budget.
 - **Pose & composition:** Enthroned three-quarter seated, slightly above camera, chin high, face ≈ y 300; two peacocks flank her — one perched on the throne back, its tail cascading down the right edge of the band; feather eye-spots scattered through the midground; the crown may rise into the top bleed.
@@ -134,7 +134,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Hera enthroned in white-and-gold chiton with black silk mantle and polos crown, two peacocks with luminous eye-spotted tails flanking a marble throne, Olympian colonnade with distant storm light, regal serene goddess gazing down at viewer, warm gilt key light on cool marble — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Aphrodite, Heart's Tide — `gk-aphrodite`
-- **Card facts:** {1}{W}{U} · W/U (gold frame) · 2/3 · bloodoath · ssr, legendary · holo: sparkle (explicit)
+- **Card facts:** {W}{U} · W/U (gold frame) · 2/3 · bloodoath · ssr, legendary · holo: sparkle (explicit)
 - **Character & source:** Aphrodite as-is, born of the sea-foam; bloodoath and an upkeep gainLife make her a warm, replenishing presence — beauty that mends what it touches.
 - **Personality / mood:** "Wars have started over less. Specifically, over her." Effortless, magnetic, wholly aware of the effect she has.
 - **Pose & composition:** Rising three-quarter from cresting surf, chin lifted, one hand trailing water, face ≈ y 310 turned softly to the viewer; hair and foam sweep upward, a wave curl breaking into the upper band behind her. Serene, buoyant — no aggression.
@@ -164,7 +164,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Persephone standing in a seam-split gown, obsidian underworld silk on one half and green spring vine-cloth on the other, cradling a split pomegranate over a blooming vine, pomegranate-red circlet, background split between cavern asphodel and sunlit meadow, composed dual goddess, cold underglow meeting warm spring key at center — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Hades, Unseen Sovereign — `gk-hades`
-- **Card facts:** {3}{B}{B} · B · 5/4 · deathblade, untouchable · ssr, legendary · holo: sheen (explicit)
+- **Card facts:** {4}{B}{B} · B · 5/4 · deathblade, untouchable · ssr, legendary · holo: sheen (explicit)
 - **Character & source:** Genderbent Hades, ruler of the dead; her ETB drains 3 life from the opponent — a schemer who advances appointments. Deathtouch: one touch settles the account.
 - **Personality / mood:** "Everyone arrives eventually. She just moves up appointments." Cold, patient, administratively inevitable.
 - **Pose & composition:** Enthroned or standing three-quarter, one hand extended palm-up summoning a wisp of a soul (the ETB drain in motion), the bident resting; face ≈ y 305, half-lit, gazing levelly at the viewer. She schemes, she does not lunge.
@@ -194,7 +194,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Genderbent Poseidon rising from a wall of surf in sea-blue scaled chiton with coral-and-gilt pauldrons and a wave-crest crown, raising a three-pronged trident, a great wave curling behind, storm-sea over sunken marble colonnade, imperious sea-empress, cool aqueous key with warm gilt trident rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Apollo, Radiant Muse — `gk-apollo`
-- **Card facts:** {1}{W}{W} · W · 2/2 · r · holo: auto:sheen
+- **Card facts:** {2}{W}{W} · W · 2/2 · r · holo: auto:sheen
 - **Character & source:** Genderbent Apollo, god of light and music; her static aura brightens every other Olympian (+1/+1), so she reads as the pantheon's tuning-fork. Kit-faithful: the lyre.
 - **Personality / mood:** "Her lyre tunes the whole pantheon half a step brighter." Luminous, effortless, radiant self-assurance.
 - **Pose & composition:** Three-quarter mid-strum, lyre lifted, head tilted into her own music, face ≈ y 320; a warm sun-disc glows behind her head. Environmental story element (uncommon): golden note-motes drifting off the strings through the band.
@@ -284,7 +284,7 @@ over each card's color-identity anchor and never replace it.
 - **Prompt:** Selene chariot-borne in a silver-and-blue chiton with a crescent-moon diadem, reins in hand, a glowing moon-disc haloed at her back, calm night sky, dreamy lunar charioteer, cool moon backlight with soft silver rim — crisp cel-shaded gacha anime splash art, fully rendered scenic background, 640×800 portrait
 
 ### Iris, Rainbow Herald — `gk-iris`
-- **Card facts:** {1}{W} · W · 2/1 · skyborne · c · holo: none
+- **Card facts:** {1}{W} · W · 1/2 · skyborne · c · holo: none
 - **Character & source:** Iris as-is, rainbow messenger of the gods; a 2/1 flyer — swift, bright, and mockingly cheerful. One clear idea.
 - **Personality / mood:** "Message for you: you're losing. Lovely colors, though." Bright, blithe, delivering bad news with a smile.
 - **Pose & composition:** Airborne descent, one wing spread, a rainbow arc trailing from her heels across the frame, face ≈ y 305 tilted at the viewer with a bright grin; the rainbow and wing-tip break the top band. Single idea — winged rainbow herald.

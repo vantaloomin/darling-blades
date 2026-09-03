@@ -1,7 +1,7 @@
 import type { GameEvent } from './events';
 import { DARLING_TAX_STEP } from '../config/rules';
 import type { CardDb, CardEntry, CardInstance, GameState, Permanent, PlayerId } from './types';
-import { cardIdOf, def, isCardInstance, variantKeyOf } from './types';
+import { cardIdOf, def, isCardInstance, isType, variantKeyOf } from './types';
 
 export type Emit = (e: GameEvent) => void;
 export type GraveyardEntry = (card: CardEntry, owner: PlayerId) => void;
@@ -54,9 +54,10 @@ export function enterBattlefield(
     enteredThisTurn: true,
     damage: 0,
     deathtouched: false,
+    severBranded: false,
     attachments: [],
     attachedTo: opts.attachedTo,
-    plusOneCounters: opts.plusOneCounters ?? 0,
+    plusOneCounters: isType(d, 'creature') ? opts.plusOneCounters ?? 0 : 0,
     untilEotMods: [],
   };
   state.battlefield.push(perm);
@@ -129,7 +130,7 @@ function returnDarlingToZone(
 
 /** Whether a destroy exit is a real death for triggers and accounting. */
 export function firesDiesForDestroy(state: GameState, db: CardDb, perm: Permanent): boolean {
-  return !basicReturnsToReserve(state, db, perm);
+  return !perm.severBranded && !basicReturnsToReserve(state, db, perm);
 }
 
 /** Battlefield → owner's graveyard (tokens evaporate). Returns true if it died. */
@@ -142,6 +143,7 @@ export function destroyPermanent(
 ): boolean {
   const idx = state.battlefield.findIndex((p) => p.iid === perm.iid);
   if (idx < 0) return false;
+  if (perm.severBranded) return severPermanent(state, db, perm, emit);
   state.battlefield.splice(idx, 1);
   detachFromHost(state, perm);
   const isToken = isTokenPermanent(db, perm);

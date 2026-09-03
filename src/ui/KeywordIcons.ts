@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import type { CardType, Keyword } from '../engine/types';
-import type { MechanicIconId } from '../data/glossary';
+import type { MechanicIconId, PhaseIconId } from '../data/glossary';
 import { theme } from './theme';
 
 export const KEYWORD_ICON_SIZE = 44;
@@ -19,6 +19,7 @@ export const KEYWORD_ICON_KEY: Record<Keyword, string> = {
   bloodoath: 'keyword-bloodoath',
   untouchable: 'keyword-untouchable',
   dreaded: 'keyword-dreaded',
+  rage: 'keyword-rage',
 };
 
 /**
@@ -31,6 +32,7 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   sever: 'mechanic-sever',
   foresee: 'mechanic-foresee',
   mark: 'mechanic-mark',
+  propagate: 'mechanic-propagate',
   quest: 'mechanic-quest',
   championAwakening: 'mechanic-championAwakening',
   empower: 'mechanic-empower',
@@ -42,6 +44,11 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   preserve: 'mechanic-preserve',
   warchest: 'mechanic-warchest',
   darlings: 'mechanic-darlings',
+};
+
+/** The phase glossary uses one shared day-cycle glyph for all five rows. */
+export const PHASE_ICON_KEY: Record<PhaseIconId, string> = {
+  dayCycle: 'phase-day-cycle',
 };
 
 /** Card-type glyphs, total over the engine's `CardType` union. */
@@ -68,6 +75,10 @@ const KEYWORD_ICON_PATH: Record<Keyword, string> = {
   bloodoath: 'M22 3 C22 3 10 19 10 28 A12 12 0 0 0 34 28 C34 19 22 3 22 3 Z',
   untouchable: 'M5 7 L39 37 M39 7 L5 37 M8 10 Q22 1 36 10 L39 22 Q34 37 22 42 Q10 37 5 22 Z',
   dreaded: 'M8 5 L15 8 L15 39 L8 34 Z M19 5 L26 8 L26 39 L19 34 Z M30 5 L37 8 L37 39 L30 34 Z',
+  // A clenched fist: four knuckles and a thumb. Deliberately not another blade,
+  // eye, shield or arrow — every one of those motifs is already spoken for
+  // above, and this has to be told apart from all twelve at a 16px display.
+  rage: 'M10 22 Q13 14 16 22 Q20 14 24 22 Q28 14 32 22 L35 22 L35 33 Q35 39 29 39 L16 39 Q10 39 10 33 Z M10 26 L4 29 L7 34 L10 32 Z',
 };
 
 /**
@@ -84,6 +95,13 @@ const MECHANIC_ICON_PATH: Record<MechanicIconId, string> = {
   foresee: 'M9 7 L33 3 L36 15 L12 19 Z M8 23 L36 23 L36 27 L8 27 Z M8 30 L36 30 L36 34 L8 34 Z',
   // The +1/+1 itself.
   mark: 'M18 7 L26 7 L26 18 L37 18 L37 26 L26 26 L26 37 L18 37 L18 26 L7 26 L7 18 L18 18 Z',
+  // A mark, and then ANOTHER one beside it. Two offset pluses rather than one
+  // big one, because the single centered plus one row above is Mark itself and
+  // the pair has to read as "it doubled" at 16px. They meet corner to corner
+  // and never overlap, so the evenodd fill cannot punch a hole between them.
+  propagate:
+    'M10 4 L18 4 L18 10 L24 10 L24 18 L18 18 L18 24 L10 24 L10 18 L4 18 L4 10 L10 10 Z ' +
+    'M26 20 L34 20 L34 26 L40 26 L40 34 L34 34 L34 40 L26 40 L26 34 L20 34 L20 26 L26 26 Z',
   // Chapters climbing toward the flag they plant at the end.
   quest: 'M5 35 L14 35 L14 40 L5 40 Z M16 27 L25 27 L25 40 L16 40 Z M27 19 L36 19 L36 40 L27 40 Z M29 4 L32 4 L32 19 L29 19 Z M32 5 L41 9 L32 13 Z',
   // A one-way upgrade, climbing. Was an open eye until 2026-08-24, which read
@@ -118,6 +136,11 @@ const MECHANIC_ICON_PATH: Record<MechanicIconId, string> = {
   warchest: 'M5 15 Q5 11 9 11 L35 11 Q39 11 39 15 L39 19 L5 19 Z M5 22 L39 22 L39 34 Q39 38 35 38 L9 38 Q5 38 5 34 Z M18 15 L26 15 L26 26 L18 26 Z',
   // Her crown: she waits in her own zone and answers when called.
   darlings: 'M5 33 L39 33 L39 40 L5 40 Z M5 31 L8 11 L16 21 L22 6 L28 21 L36 11 L39 31 Z',
+};
+
+/** A rising and setting sun marks the shared day-cycle phase vocabulary. */
+const PHASE_ICON_PATH: Record<PhaseIconId, string> = {
+  dayCycle: 'M6 34 L38 34 L38 39 L6 39 Z M11 31 A11 11 0 0 1 33 31 L28 31 A6 6 0 0 0 16 31 Z M20 5 L24 5 L24 12 L20 12 Z M9 12 L12 9 L17 14 L14 17 Z M35 12 L32 9 L27 14 L30 17 Z',
 };
 
 /** Card-type glyphs, drawn to the same chip conventions. */
@@ -175,6 +198,9 @@ export function bakeKeywordIcons(scene: Phaser.Scene): void {
   }
   for (const mechanic of Object.keys(MECHANIC_ICON_KEY) as MechanicIconId[]) {
     bakeChip(scene, MECHANIC_ICON_KEY[mechanic], MECHANIC_ICON_PATH[mechanic]);
+  }
+  for (const phase of Object.keys(PHASE_ICON_KEY) as PhaseIconId[]) {
+    bakeChip(scene, PHASE_ICON_KEY[phase], PHASE_ICON_PATH[phase]);
   }
   for (const type of Object.keys(CARD_TYPE_ICON_KEY) as CardType[]) {
     bakeChip(scene, CARD_TYPE_ICON_KEY[type], CARD_TYPE_ICON_PATH[type]);

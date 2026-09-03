@@ -25,6 +25,7 @@ export const KEYWORD_NAMES: Record<Keyword, string> = {
   bloodoath: 'Blood Oath',
   untouchable: 'Untouchable',
   dreaded: 'Dreaded',
+  rage: 'Rage',
 };
 
 /** One-line, player-facing reminder for each evergreen keyword. */
@@ -41,6 +42,7 @@ export const KEYWORD_REMINDER: Record<Keyword, string> = {
   bloodoath: 'damage it deals also gains you that much life',
   untouchable: 'cannot be targeted by spells or abilities your opponents control',
   dreaded: 'cannot be blocked except by two or more creatures',
+  rage: 'attacks every turn if it is able to',
 };
 
 /** Named mechanics that are not creature keywords. */
@@ -48,6 +50,7 @@ export type MechanicId =
   | 'sever'
   | 'foresee'
   | 'mark'
+  | 'propagate'
   | 'quest'
   | 'championAwakening'
   | 'empower'
@@ -62,6 +65,7 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
   sever: 'Sever',
   foresee: 'Foresee',
   mark: 'Mark',
+  propagate: 'Propagate',
   quest: 'Quest',
   championAwakening: 'Champion Awakening',
   empower: 'Empower',
@@ -78,6 +82,7 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   sever: 'severed from the game; severed cards never return',
   foresee: 'look at the top cards of your deck; put any of them on the bottom',
   mark: 'a lasting +1/+1 increase to a creature\'s Attack and Defense',
+  propagate: 'put another Mark on each Marked creature you control; it never starts a Mark',
   quest: 'advances a chapter at each of your dawns; leaves after the last',
   championAwakening: 'a one-way upgrade granting the listed stats and keywords',
   empower: 'pay the extra cost as you cast this for the listed bonus effect',
@@ -86,7 +91,7 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   hauntlink: 'pay Hauntlink at Charm speed to link this permanent to one of your creatures',
   rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
   nineLives: 'when this dies with no +1/+1 marks on it, it returns to the battlefield with a +1/+1 mark on it',
-  preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during your main phase',
+  preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during Morning or Afternoon',
 };
 
 /** Player-facing rarity tier names, shared by the glossary and the Profile. */
@@ -102,11 +107,20 @@ export const RARITY_NAMES: Record<Rarity, string> = {
 export const CARD_TYPE_DEFINITIONS: Record<CardType, string> = {
   creature: 'A permanent fighter that can attack and block.',
   charm: 'Cast anytime you have priority, even on the foe\'s turn.',
-  ritual: 'Cast only during one of your own main phases.',
+  ritual: 'Cast only during your own Morning or Afternoon.',
   enchantment: 'A lasting spell that changes a creature or the battlefield.',
   artifact: 'A lasting relic with abilities or ongoing effects.',
   land: 'Play one each turn to tap for mana.',
 };
+
+/** One-line player-facing definitions for the day-cycle phase names. */
+export const PHASE_DEFINITIONS = {
+  dawn: 'The start of your turn, when Dawn abilities happen.',
+  morning: 'The first action phase, when you can play a land and cast spells.',
+  combat: 'The part of your turn when creatures attack and block.',
+  afternoon: 'The second action phase after Combat, when you can play a land and cast spells.',
+  sunset: 'The close of your turn, when temporary effects expire and cleanup begins.',
+} as const;
 
 // ---------------------------------------------------------------------------
 // Structural mechanic detection
@@ -122,11 +136,16 @@ function opImpliesSever(op: EffectOp): boolean {
 }
 
 function cardOps(d: CardDef): EffectOp[] {
+  const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) =>
+    op.op === 'ifTargetMarked'
+      ? [op, ...flatten(op.then), ...flatten(op.else ?? [])]
+      : [op],
+  );
   return [
-    ...(d.abilities ?? []).flatMap((ab) => ab.ops ?? []),
-    ...(d.chapters ?? []).flat(),
-    ...(d.empower?.ops ?? []),
-    ...(d.retell?.ops ?? []),
+    ...(d.abilities ?? []).flatMap((ab) => flatten(ab.ops ?? [])),
+    ...(d.chapters ?? []).flatMap((chapter) => flatten(chapter)),
+    ...flatten(d.empower?.ops ?? []),
+    ...flatten(d.retell?.ops ?? []),
   ];
 }
 
@@ -148,7 +167,20 @@ export function cardMechanics(d: CardDef): MechanicId[] {
   // teach Sever even when no op on the face says so.
   if (ops.some(opImpliesSever) || d.retell !== undefined || d.preserve !== undefined) present.push('sever');
   // Nine Lives returns the creature WITH a +1/+1 mark, so it teaches Mark too.
-  if (ops.some((op) => op.op === 'addCounters') || d.nineLives) present.push('mark');
+  // Propagate is defined entirely in terms of marks, so it teaches Mark as well
+  // as itself — a Propagate card that taught only Propagate would leave the
+  // player looking up a word its own definition depends on.
+  if (ops.some((op) =>
+    op.op === 'addCounters' ||
+    op.op === 'propagate' ||
+    op.op === 'moveMark' ||
+    op.op === 'removeMarks' ||
+    op.op === 'markAll' ||
+    op.op === 'loseLifePerTheirMarked',
+  ) || d.nineLives) {
+    present.push('mark');
+  }
+  if (ops.some((op) => op.op === 'propagate')) present.push('propagate');
   if (d.chapters) present.push('quest');
   if (d.awakening || ops.some((op) => op.op === 'awaken')) present.push('championAwakening');
   if (d.empower) present.push('empower');
@@ -186,7 +218,7 @@ export function cardTermNames(d: CardDef): string[] {
 // Glossary sections
 // ---------------------------------------------------------------------------
 
-export type GlossarySectionId = 'combat' | 'mechanics' | 'types' | 'mana' | 'rarity';
+export type GlossarySectionId = 'combat' | 'mechanics' | 'phases' | 'types' | 'mana' | 'rarity';
 
 /**
  * Everything the icon bake draws a mechanic chip for: the named mechanics plus
@@ -195,9 +227,13 @@ export type GlossarySectionId = 'combat' | 'mechanics' | 'types' | 'mana' | 'rar
  */
 export type MechanicIconId = MechanicId | 'warchest' | 'darlings';
 
+/** One shared day-cycle glyph for the phase glossary rows. */
+export type PhaseIconId = 'dayCycle';
+
 export type GlossaryIcon =
   | { kind: 'keyword'; key: Keyword }
   | { kind: 'mechanic'; key: MechanicIconId }
+  | { kind: 'phase'; key: PhaseIconId }
   | { kind: 'type'; key: CardType }
   | { kind: 'mana'; key: Color }
   | { kind: 'rarity'; key: Rarity }
@@ -247,6 +283,7 @@ const MECHANIC_ORDER: MechanicId[] = [
   'sever',
   'foresee',
   'mark',
+  'propagate',
   'quest',
   'championAwakening',
   'empower',
@@ -280,6 +317,18 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
         icon: { kind: 'mechanic', key: mechanic } as GlossaryIcon,
       })),
       ...ZONE_TERMS,
+    ],
+  },
+  {
+    id: 'phases',
+    title: 'Turn Phases',
+    note: 'The day cycle of every turn.',
+    terms: [
+      { name: 'Dawn', description: PHASE_DEFINITIONS.dawn, icon: { kind: 'phase', key: 'dayCycle' } },
+      { name: 'Morning', description: PHASE_DEFINITIONS.morning, icon: { kind: 'phase', key: 'dayCycle' } },
+      { name: 'Combat', description: PHASE_DEFINITIONS.combat, icon: { kind: 'phase', key: 'dayCycle' } },
+      { name: 'Afternoon', description: PHASE_DEFINITIONS.afternoon, icon: { kind: 'phase', key: 'dayCycle' } },
+      { name: 'Sunset', description: PHASE_DEFINITIONS.sunset, icon: { kind: 'phase', key: 'dayCycle' } },
     ],
   },
   {

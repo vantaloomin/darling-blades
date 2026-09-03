@@ -21,6 +21,9 @@ import { freshSave } from '../../src/meta/SaveManager';
 const LANDS_PER_DECK = 24;
 const ORIGINAL_IDS = ['starter-crimson', 'starter-wild'];
 
+const countCards = (cards: string[]) =>
+  Object.fromEntries([...new Set(cards)].map((id) => [id, cards.filter((cardId) => cardId === id).length]));
+
 describe('starter roster shape', () => {
   it('has exactly 5 starters with unique ids, keeping the original two', () => {
     expect(STARTER_DECKS).toHaveLength(5);
@@ -35,10 +38,20 @@ describe('starter roster shape', () => {
     for (const deck of STARTER_DECKS) {
       for (const id of deck.cards) {
         const d = CARD_DB[id];
-        if (d?.types.includes('land')) for (const c of d.manaAbility ?? []) produced.add(c);
+        if (d?.types.includes('land')) {
+          for (const c of d.manaAbility ?? []) if (c !== 'C') produced.add(c);
+        }
       }
     }
     expect([...produced].sort()).toEqual(['B', 'G', 'R', 'U', 'W']);
+  });
+});
+
+describe('theme roster shape', () => {
+  it('lands eight theme decks including the Starborne precon', () => {
+    expect(THEME_DECKS).toHaveLength(8);
+    expect(new Set(THEME_DECKS.map((deck) => deck.id)).size).toBe(8);
+    expect(THEME_DECKS.find((deck) => deck.id === 'theme-starborne')?.name).toBe('Chrome-Violet Broodship');
   });
 });
 
@@ -74,7 +87,9 @@ describe.each(STARTER_DECKS.map((d) => [d.name, d] as const))('starter deck lega
     const landColors = new Set<Color>();
     for (const id of counts.keys()) {
       const d = CARD_DB[id];
-      if (d.types.includes('land')) for (const c of d.manaAbility ?? []) landColors.add(c);
+      if (d.types.includes('land')) {
+        for (const c of d.manaAbility ?? []) if (c !== 'C') landColors.add(c);
+      }
     }
     const needed = new Set<Color>();
     for (const id of counts.keys()) {
@@ -131,7 +146,9 @@ describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality
     const landColors = new Set<Color>();
     for (const id of counts.keys()) {
       const d = CARD_DB[id];
-      if (d.types.includes('land')) for (const c of d.manaAbility ?? []) landColors.add(c);
+      if (d.types.includes('land')) {
+        for (const c of d.manaAbility ?? []) if (c !== 'C') landColors.add(c);
+      }
     }
     const needed = new Set<Color>();
     for (const id of counts.keys()) {
@@ -227,6 +244,112 @@ describe('Bloodmoon Masquerade composition', () => {
         expect(card.colors.every((color) => color === 'B' || color === 'R'), `${id} color identity`).toBe(true);
       }
     }
+  });
+});
+
+describe('measured owner-ruling starter compositions', () => {
+  it('pins the final Shadow Mandate surgery list', () => {
+    const deck = STARTER_DECKS.find((entry) => entry.id === 'starter-mandate')!;
+    // The classic list is the surgery-29 shell; reserve surgery 35 then
+    // removed four Doom Bolts for Thorn Fairy to clear the noisy R19 gate.
+    // The stronger 39.5% surgery-26 body package broke R16/R19.
+    expect(countCards(deck.cards)).toEqual({
+      'land-island': 10,
+      'land-swamp': 10,
+      'ld-moonlit-marsh': 4,
+      'tk-jin-simayi': 3,
+      'tk-jin-wangyuanji': 3,
+      'tk-jin-zhangchunhua': 3,
+      'tk-jin-simashi': 3,
+      'tk-jin-zhonghui': 3,
+      'tk-wei-dianwei': 4,
+      'tk-wei-yujin': 4,
+      'in-doom-bolt': 4,
+      'in-read-the-ruse': 3,
+      'so-night-extortion': 2,
+      'dt-apple-of-endless-sleep': 4,
+    });
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+    expect(deck.reserveCards).toHaveLength(40);
+    expect(countCards(deck.reserveCards!)).toEqual({
+      'tk-jin-simayi': 3,
+      'tk-jin-wangyuanji': 3,
+      'tk-jin-zhangchunhua': 3,
+      'tk-jin-simashi': 1,
+      'tk-wei-dianwei': 4,
+      'tk-wei-yujin': 4,
+      'dt-thorn-fairy-uninvited': 4,
+      'in-read-the-ruse': 4,
+      'so-night-extortion': 4,
+      'dt-apple-of-endless-sleep': 4,
+      'so-creeping-malaise': 4,
+      'yn-oni-underboss-of-rain': 1,
+      'sd-two-for-the-ferrywoman': 1,
+    });
+  });
+
+  it('pins the final Midnight Storybook surgery list', () => {
+    const deck = THEME_DECKS.find((entry) => entry.id === 'theme-dark-tales')!;
+    // Surgery 20 consolidated Tower-Window Seer into a fourth
+    // Sugar-Cottage Witch: the measured body count cleared the 40% field
+    // target without changing the U/B/W value-control identity.
+    expect(countCards(deck.cards)).toEqual({
+      'land-island': 8,
+      'land-swamp': 7,
+      'land-plains': 5,
+      'dt-tide-cavern': 2,
+      'dt-palace-steps': 2,
+      'yn-neon-gate-warden': 4,
+      'dt-foam-silk-siren': 4,
+      'dt-poison-mirror-regent': 2,
+      'dt-rose-petal-knight': 2,
+      'dt-page-torn-free': 2,
+      'bk-kitsune-illusionist': 4,
+      'tk-shu-zhaoyun': 2,
+      'dt-sugar-cottage-witch': 4,
+      'tk-wei-guojia': 2,
+      'gk-hades': 2,
+      'in-doom-bolt': 4,
+      'in-undertow': 2,
+      'so-creeping-malaise': 2,
+    });
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+    expect(deck.reserveCards).toHaveLength(40);
+  });
+});
+
+describe('Chrome-Violet Broodship composition', () => {
+  const deck = THEME_DECKS.find((entry) => entry.id === 'theme-starborne')!;
+
+  it('uses the exact approved G/U/R Starborne list and 40-card reserve', () => {
+    const expectedCounts = {
+      'land-forest': 8,
+      'land-island': 6,
+      'land-mountain': 6,
+      'sb-aurora-reefway': 2,
+      'sb-radiant-comet-lane': 2,
+      'sb-mycelial-star-gardener': 4,
+      'sb-ion-bloom-scout': 2,
+      'sb-cometroot-grafter': 3,
+      'sb-starfire-lancer': 4,
+      'sb-living-hull-seedling': 4,
+      'sb-aurora-beastcaller': 2,
+      'sb-comet-kick-marauder': 2,
+      'sb-rootlight-broodmother': 2,
+      'sb-the-long-crossing': 1,
+      'sb-brood-communion': 2,
+      'sb-root-of-light': 2,
+      'sb-echo-burst': 4,
+      'sb-overcharge-the-hull': 4,
+    };
+    const actualCounts = Object.fromEntries(
+      [...new Set(deck.cards)].map((id) => [id, deck.cards.filter((cardId) => cardId === id).length]),
+    );
+    expect(deck).toMatchObject({ id: 'theme-starborne', name: 'Chrome-Violet Broodship' });
+    expect(actualCounts).toEqual(expectedCounts);
+    expect(deck.cards).toHaveLength(RULES.deckSize);
+    expect(deck.reserveCards).toHaveLength(40);
+    expect(deck.landReserve).toHaveLength(10);
   });
 });
 

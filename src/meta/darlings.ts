@@ -69,7 +69,9 @@ export function listOwnedLegendaryCreatures(db: CardDb, save: SaveData): CardDef
 }
 
 function identityColors(card: CardDef): readonly Color[] {
-  return card.types.includes('land') ? card.manaAbility ?? [] : card.colors;
+  return card.types.includes('land')
+    ? (card.manaAbility ?? []).filter((color): color is Color => color !== 'C')
+    : card.colors;
 }
 
 /**

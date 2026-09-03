@@ -4,6 +4,7 @@ import { DARK_TALES_COMPANION } from './cards/dark-tales-companion';
 
 /** The expansion key is stamped by catalog.ts without widening engine types. */
 export const DUAT_SET = 'sands-of-the-duat' as const;
+export const STARBORNE_SET = 'starborne' as const;
 const DT_COMPANION_IDS: ReadonlySet<string> = new Set(DARK_TALES_COMPANION.map((card) => card.id));
 
 /**

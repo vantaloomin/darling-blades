@@ -1,7 +1,7 @@
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, GameState, PlayerId } from '../engine/types';
-import { def, isType, opponentOf } from '../engine/types';
-import { dawnSelfBleed, permValue } from './value';
+import { cardIdOf, def, isType, opponentOf } from '../engine/types';
+import { dawnSelfBleed, markedBoardValue, permValue } from './value';
 
 /**
  * Hard's evaluation function: life differential (nonlinear), board material
@@ -51,6 +51,11 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
     }
   }
 
+  // Marks beyond the bodies: threshold progress and what Propagate in hand
+  // will compound. My hand is mine to read; theirs is hidden, so their term
+  // sees only the board.
+  score += markedBoardValue(stripped, db, me, my.hand.map(cardIdOf));
+  score -= markedBoardValue(stripped, db, opp);
   // Card advantage — stand-in cards count like real ones (they represent
   // real hidden cards in Hard's determinized simulations).
   score += 1.2 * (my.hand.length - their.hand.length);

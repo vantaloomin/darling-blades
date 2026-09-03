@@ -139,6 +139,7 @@ export function finishCleanup(state: GameState, db: CardDb, emit: Emit): void {
   for (const perm of state.battlefield) {
     perm.damage = 0;
     perm.deathtouched = false;
+    perm.severBranded = false;
     perm.untilEotMods = [];
   }
   state.combat = null;

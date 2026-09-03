@@ -350,6 +350,9 @@ the reserve-native Limited change: the sim's Limited matches had been playing
   therefore deliberately left stale and the Limited Fan flag deliberately left
   standing until then; do not silently re-derive them, and do not read the
   standing flag as an unaddressed regression.
+  **Ruled 2026-09-03 (owner), with the completed 2026-08-31 metagame sweep in
+  hand: approved as is.** The bands stay as written and the Limited Fan flag
+  stays standing; nothing is re-derived.
 - **Soft player decks:** Glimmer Bargain 36.5 and Shadow Mandate 36.3 in the
   head-to-head table. Playable, not broken; tune only if the owner wants a
   tighter spread than 26.3 points.
@@ -358,7 +361,16 @@ the reserve-native Limited change: the sim's Limited matches had been playing
 
 ## Open decisions
 
-- Draft's reserve-native design (the hardest migration sub-problem).
+- ~~Draft's reserve-native design (the hardest migration sub-problem).~~
+  **RESOLVED during the 1.6 migration; closed on the record 2026-08-25.** The
+  design shipped and lives in `src/meta/Limited.ts`: a Limited deck is
+  `LIMITED_DECK_SIZE` spells with no lands, the ten-land reserve is granted
+  from the deck's own colours, and drafted duals are selectable into it (up to
+  `MAX_DUAL_LANDS`) so drafting stays about spells while dual picks stay
+  playable. `LimitedDeckBuilderScene` carries the selection UI. This entry
+  stayed open only because nobody updated it, and it has since been read twice
+  as blocking work that was already done - verify against the code, not this
+  list.
 - Land cards' economy/collection treatment post-migration.
 - ~~Whether starters auto-convert at migration or use the fix-it flow.~~
   **RESOLVED 2026-08-10**: untouched granted decks auto-convert (at the grant

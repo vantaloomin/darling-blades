@@ -153,7 +153,7 @@ export function buildTierAI(
 // owner's standing pre-authorization for a downward floor re-centre was
 // deliberately NOT spent: the measurement says there is nothing to re-centre.
 // The full dated table lives beside FLOOR_BANDS in scripts/balance-matrix.ts.
-// Floors 21-22 are tier 6 PROVISIONAL (2026-08-21), pending the end-of-set
+// Floors 21-24 are tier 6 PROVISIONAL (2026-08-21), pending the end-of-set
 // `--floors` re-baseline.
 const FLOOR_TIERS: readonly TowerTier[] = [
   1, 1, 1,
@@ -162,6 +162,7 @@ const FLOOR_TIERS: readonly TowerTier[] = [
   4, 4, 4,
   5, 5, 5,
   6, 6, 6,
+  6, 6,
   6, 6,
   6, 6,
 ];

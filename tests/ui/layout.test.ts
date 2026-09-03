@@ -354,23 +354,26 @@ describe('layout geometry', () => {
     );
   });
 
-  it('keeps labelled Standard and Darling deck sections inside the design frame', () => {
-    // Current roster: six theme decks plus five starters, then five Darlings.
-    const grid = deckShopLayout([11, 5]);
-    const standard = grid.sections[0];
-    const darlings = grid.sections[1];
-    const lastRowCenter = darlings.rowCenter(darlings.rows - 1);
-    expect(lastRowCenter + grid.plateH / 2).toBeLessThan(700);
-    expect(standard.headingY).toBeGreaterThan(152);
-    expect(darlings.headingY).toBeGreaterThan(standard.rowCenter(standard.rows - 1));
-    expect(darlings.rowCenter(0) - theme.control.minHitHeight / 2 - darlings.headingY).toBeGreaterThanOrEqual(
-      GAP_FLOORS.ordinary,
-    );
-    expect(grid.rowPitch - theme.control.minHitHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
-    expect(grid.plateH).toBeGreaterThanOrEqual(theme.control.heightSm);
-    const totalW = DECK_SHOP_LAYOUT.cols * DECK_SHOP_LAYOUT.plateW + (DECK_SHOP_LAYOUT.cols - 1) * DECK_SHOP_LAYOUT.gapX;
-    expect(grid.colLefts[0]).toBeGreaterThanOrEqual(theme.design.safeLeft);
-    expect(grid.colLefts[0] + totalW).toBeLessThanOrEqual(theme.design.safeRight);
+  it('keeps each deck sub-tab view inside the design frame, clear of the sub-tab pills', () => {
+    // One section per view since the Standard/Darling sub-tab split
+    // (2026-09-01). Representative rosters: 13 standard products, 5 Darlings.
+    const subTabHit = measureThemedButton(110, 'sm', 160).hit;
+    const subTabBottom = DECK_SHOP_LAYOUT.subTabY + subTabHit.y + subTabHit.height;
+    for (const count of [13, 5]) {
+      const grid = deckShopLayout([count]);
+      const section = grid.sections[0];
+      const lastRowCenter = section.rowCenter(section.rows - 1);
+      expect(lastRowCenter + grid.plateH / 2).toBeLessThan(700);
+      // The first plate row's hit rect clears the sub-tab pill row.
+      expect(section.rowCenter(0) - theme.control.minHitHeight / 2 - subTabBottom).toBeGreaterThanOrEqual(
+        GAP_FLOORS.ordinary,
+      );
+      expect(grid.rowPitch - theme.control.minHitHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
+      expect(grid.plateH).toBeGreaterThanOrEqual(theme.control.heightSm);
+      const totalW = DECK_SHOP_LAYOUT.cols * DECK_SHOP_LAYOUT.plateW + (DECK_SHOP_LAYOUT.cols - 1) * DECK_SHOP_LAYOUT.gapX;
+      expect(grid.colLefts[0]).toBeGreaterThanOrEqual(theme.design.safeLeft);
+      expect(grid.colLefts[0] + totalW).toBeLessThanOrEqual(theme.design.safeRight);
+    }
 
     // Within a plate: Buy (130 hit, 12px inset) and Preview (90 hit) retain
     // the ordinary floor. Label widths are below both minWidths here.
@@ -563,8 +566,8 @@ describe('glossary frame', () => {
   it('gives every rail tab the hit-height floor and a real gap between tabs', () => {
     expect(frame.railRowHeight).toBeGreaterThanOrEqual(theme.control.minHitHeight);
     expect(frame.railRowPitch - frame.railRowHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
-    // All Terms plus five sections, all inside the rail.
-    const lastBottom = frame.railFirstRowY + 5 * frame.railRowPitch + frame.railRowHeight;
+    // All Terms plus six sections, all inside the rail.
+    const lastBottom = frame.railFirstRowY + 6 * frame.railRowPitch + frame.railRowHeight;
     expect(lastBottom).toBeLessThanOrEqual(frame.rail.y + frame.rail.height);
   });
 });

@@ -1,5 +1,5 @@
-import type { CardDb, Keyword, Permanent, PlayerId } from './types';
-import { def, isType } from './types';
+import type { AbilityDef, CardDb, Keyword, Permanent, PlayerId } from './types';
+import { def, isType, opponentOf } from './types';
 
 export interface EffectiveStats {
   attack: number;
@@ -22,6 +22,29 @@ export function isQuestActive(
   );
 }
 
+function staticConditionSatisfied(
+  battlefield: readonly Permanent[],
+  db: CardDb,
+  controller: PlayerId,
+  condition: AbilityDef['condition'] | undefined,
+): boolean {
+  if (condition === undefined) return true;
+  if (condition === 'questActive') return isQuestActive(battlefield, db, controller);
+  if (condition === 'controlMarked') {
+    // Keep the legacy condition name, but only marked creatures satisfy it.
+    return battlefield.some((perm) =>
+      perm.controller === controller &&
+      perm.plusOneCounters > 0 &&
+      isType(def(db, perm.cardId), 'creature'),
+    );
+  }
+  return battlefield.filter(
+    (perm) => perm.controller === controller &&
+      perm.plusOneCounters > 0 &&
+      isType(def(db, perm.cardId), 'creature'),
+  ).length >= condition.n;
+}
+
 /**
  * Effective P/T and keywords are ALWAYS computed on read — base printed stats
  * + +1/+1 counters + until-EOT mods + static layers (auras attached to the
@@ -37,13 +60,18 @@ export function getEffectiveStats(
   const perm = battlefield.find((p) => p.iid === iid);
   if (!perm) throw new Error(`getEffectiveStats: no permanent ${iid}`);
   const d = def(db, perm.cardId);
+  const targetIsCreature = isType(d, 'creature');
 
   let attack = d.attack ?? 0;
   let defense = d.defense ?? 0;
   const keywords = new Set<Keyword>(d.keywords ?? []);
 
-  attack += perm.plusOneCounters;
-  defense += perm.plusOneCounters;
+  // Marks are creature-only. Ignore legacy counters on noncreature snapshots
+  // so an old replay cannot make a noncreature read as marked power.
+  if (targetIsCreature) {
+    attack += perm.plusOneCounters;
+    defense += perm.plusOneCounters;
+  }
 
   if (perm.awakened && d.awakening) {
     attack += d.awakening.p ?? 0;
@@ -64,9 +92,7 @@ export function getEffectiveStats(
       if (ab.when !== 'static' || !ab.static) continue;
       const st = ab.static;
       const condition = ab.condition ?? st.condition;
-      if (condition === 'questActive' && !isQuestActive(battlefield, db, src.controller)) {
-        continue;
-      }
+      if (condition !== undefined && !staticConditionSatisfied(battlefield, db, src.controller, condition)) continue;
 
       let applies: boolean;
       if (st.scope === 'self') {
@@ -75,11 +101,24 @@ export function getEffectiveStats(
         applies = src.attachedTo === iid;
       } else {
         // filter scope: source controller's creatures matching the filter
-        applies =
-          src.controller === perm.controller &&
-          isType(d, 'creature') &&
-          (!st.filter?.other || src.iid !== iid) &&
-          (!st.filter?.subtype || d.subtypes.includes(st.filter.subtype));
+        const filter = st.filter;
+        if (!filter?.marked && !filter?.who) {
+          applies =
+            src.controller === perm.controller &&
+            targetIsCreature &&
+            (!filter?.other || src.iid !== iid) &&
+            (!filter?.subtype || d.subtypes.includes(filter.subtype));
+        } else {
+          const who = filter.who ?? 'yours';
+          applies =
+            (who === 'yours'
+              ? src.controller === perm.controller
+              : opponentOf(src.controller) === perm.controller) &&
+            targetIsCreature &&
+            (!filter.other || src.iid !== iid) &&
+            (!filter.subtype || d.subtypes.includes(filter.subtype)) &&
+            (!filter.marked || perm.plusOneCounters > 0);
+        }
       }
 
       if (applies) {

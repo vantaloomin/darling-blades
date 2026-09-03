@@ -160,6 +160,32 @@ export const TEST_DB: CardDb = {
     keywords: ['sentinel'],
     rarity: 'c',
   },
+  rager: {
+    id: 'rager',
+    name: 'Blood-Mad Raider',
+    types: ['creature'],
+    subtypes: ['Warrior'],
+    cost: { generic: 1, pips: { R: 1 } },
+    colors: ['R'],
+    attack: 2,
+    defense: 2,
+    keywords: ['rage'],
+    rarity: 'c',
+  },
+  ragewall: {
+    // Rage plus Bulwark: 'cannot attack' wins, because Rage only compels a
+    // creature that is ABLE to attack.
+    id: 'ragewall',
+    name: 'Chained Berserker',
+    types: ['creature'],
+    subtypes: ['Warrior'],
+    cost: { generic: 1, pips: { R: 1 } },
+    colors: ['R'],
+    attack: 3,
+    defense: 3,
+    keywords: ['rage', 'bulwark'],
+    rarity: 'c',
+  },
   wall: {
     id: 'wall',
     name: 'Stone Warden',
@@ -508,6 +534,7 @@ export function makeTestState(opts: {
       enteredThisTurn: p.enteredThisTurn ?? false,
       damage: p.damage ?? 0,
       deathtouched: p.deathtouched ?? false,
+      severBranded: p.severBranded ?? false,
       attachments: p.attachments ?? [],
       attachedTo: p.attachedTo,
       plusOneCounters: p.plusOneCounters ?? 0,
@@ -558,6 +585,7 @@ export function botAction(actions: Action[]): Action {
   const prefer: Action['type'][] = [
     'keepHand',
     'bottomCards',
+    'chooseTarget',
     'foresee',
     'playLand',
     'castSpell',

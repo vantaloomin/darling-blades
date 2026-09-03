@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   manaValue,
+  validateChaptersDef,
+  validateEmpowerDef,
   validateHauntlinkDef,
+  validateMarkTriggerDef,
   validateNineLivesDef,
   validatePreserveDef,
   validateRiteDef,
 } from '../../src/engine/types';
+import type { CardDef } from '../../src/engine/types';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { AXES } from '../../src/data/axes';
 import { ARTIFACTS } from '../../src/data/cards/artifacts';
@@ -23,6 +27,7 @@ import { INSTANTS } from '../../src/data/cards/instants';
 import { LANDS } from '../../src/data/cards/lands';
 import { RAGNAROK } from '../../src/data/cards/ragnarok';
 import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
+import { STARBORNE } from '../../src/data/cards/starborne';
 import { SORCERIES } from '../../src/data/cards/sorceries';
 import { TK_JIN } from '../../src/data/cards/tk-jin';
 import { TK_OTHER } from '../../src/data/cards/tk-other';
@@ -32,6 +37,41 @@ import { TK_WU } from '../../src/data/cards/tk-wu';
 import { TOKENS } from '../../src/data/cards/tokens';
 
 describe('catalog integrity', () => {
+  it('has no invalid Empower, mark-trigger, or chapter definitions across ALL_CARDS', () => {
+    for (const card of ALL_CARDS) {
+      const errors = [
+        ...validateEmpowerDef(card),
+        ...validateMarkTriggerDef(card),
+        ...validateChaptersDef(card),
+      ];
+      expect(errors, `${card.id} has invalid Starborne definition: ${errors.join('; ')}`).toEqual([]);
+    }
+  });
+
+  it('rejects mark-event abilities that add marks and chaptered Retell cards', () => {
+    const invalidMarkTrigger: CardDef = {
+      id: 'invalid-mark-trigger',
+      name: 'Invalid Mark Trigger',
+      types: ['creature'],
+      subtypes: [],
+      colors: [],
+      rarity: 'c',
+      abilities: [{ when: 'gainsMark', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
+    };
+    const invalidChapters: CardDef = {
+      id: 'invalid-chapter-retell',
+      name: 'Invalid Chapter Retell',
+      types: ['ritual'],
+      subtypes: [],
+      colors: [],
+      rarity: 'c',
+      chapters: [[]],
+      retell: { cost: { generic: 1, pips: {} } },
+    };
+    expect(validateMarkTriggerDef(invalidMarkTrigger)).toEqual(['gainsMark abilities cannot add marks']);
+    expect(validateChaptersDef(invalidChapters)).toEqual(['Cards with chapters cannot carry Retell']);
+  });
+
   it('has no invalid Hauntlink definitions', () => {
     for (const card of Object.values(CARD_DB)) {
       if (!card.hauntlink) continue;
@@ -96,6 +136,7 @@ describe('catalog integrity', () => {
       [DARK_TALES_COMPANION, 'dt-'],
       [YOKAI_NIGHTS, 'yn-'],
       [SANDS_OF_THE_DUAT, 'sd-'],
+      [STARBORNE, 'sb-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -114,13 +155,23 @@ describe('catalog integrity', () => {
     expect(ALL_CARDS.length).toBe(setSizes);
   });
 
-  it('every non-land, non-token card has a cost with mana value 1-8', () => {
+  it('every non-land, non-token card has a legal mana value (1-8; UR may break the bound up to 10)', () => {
+    // Owner ruling 2026-08-29: UR cards may exceed MV 8, bounded by
+    // LAND_RESERVE_SIZE (10) - with ten guaranteed lands an MV 9-10 card is
+    // reliably castable off lands alone, and bound-breaking is part of the
+    // UR chase identity (both directions). Companion rule: MV-9+ cards may
+    // not carry Empower, or the additive ceiling could exceed what the land
+    // reserve can ever pay.
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.token) continue;
       expect(card.cost, `${card.id} needs a cost`).toBeDefined();
       const mv = manaValue(card.cost);
+      const cap = card.rarity === 'ur' ? 10 : 8;
       expect(mv, `${card.id} mana value ${mv}`).toBeGreaterThanOrEqual(1);
-      expect(mv, `${card.id} mana value ${mv}`).toBeLessThanOrEqual(8);
+      expect(mv, `${card.id} mana value ${mv} (cap ${cap} for ${card.rarity})`).toBeLessThanOrEqual(cap);
+      if (mv > 8) {
+        expect(card.empower, `${card.id} is MV ${mv} and may not carry Empower`).toBeUndefined();
+      }
     }
   });
 
@@ -215,8 +266,13 @@ describe('catalog integrity', () => {
     // ten-card 1.6 returning-mechanics sprinkle moves it 787 -> 797. Duat
     // The pinned pre-D3 catalog was 986 cards. D3 adds the final 58 mono-column
     // cards, so the companion wave moves ALL_CARDS to 1,104 total cards,
-    // including tokens and basics.
-    expect(ALL_CARDS).toHaveLength(1104);
+    // including tokens and basics. Starborne adds 151 collectibles and six
+    // set tokens; the v3.1 Fenrir ruling (2026-08-29) adds tok-wolf-cub
+    // (1/1, art shared with tok-wolf via artRef): 1261 -> 1262.
+    // The 2026-09-03 minterless-token cut removes tok-lumen-drone,
+    // tok-violet-hullguard and tok-void-mote (no card ever minted them):
+    // 1262 -> 1259.
+    expect(ALL_CARDS).toHaveLength(1259);
   });
 
   it('stamps every expansion card with its set and every other collectible set:base', () => {
@@ -236,6 +292,8 @@ describe('catalog integrity', () => {
         expect(card.set, card.id + ' should be set:yokai-nights').toBe('yokai-nights');
       } else if (card.id.startsWith('sd-')) {
         expect(String(card.set), card.id + ' should be set:sands-of-the-duat').toBe('sands-of-the-duat');
+      } else if (card.id.startsWith('sb-')) {
+        expect(String(card.set), card.id + ' should be set:starborne').toBe('starborne');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }
@@ -259,14 +317,21 @@ describe('catalog integrity', () => {
         rarity,
         SANDS_OF_THE_DUAT.filter((card) => predicate(card) && card.rarity === rarity).length,
       ]));
-    expect(count((card) => card.types.some((type) => type === 'artifact'))).toEqual({ c: 12, r: 6, sr: 1, ssr: 1, ur: 1 });
-    expect(count((card) => card.colors.length > 1)).toEqual({ c: 0, r: 8, sr: 2, ssr: 5, ur: 4 });
+    expect(count((card) => card.types.some((type) => type === 'artifact'))).toEqual({ c: 10, r: 6, sr: 1, ssr: 1, ur: 1 });
+    // Multicolour c went 0 -> 1 on 2026-08-29: sd-harvest-after-rain moved to
+    // {1}{G}{U} under an owner-granted non-legendary multicolour exception
+    // (growth+rain theme), leaving the mono-G column one short.
+    expect(count((card) => card.colors.length > 1)).toEqual({ c: 1, r: 8, sr: 2, ssr: 5, ur: 4 });
     const mono = (color: string) => (card: (typeof SANDS_OF_THE_DUAT)[number]) =>
       !card.types.some((type) => type === 'artifact' || type === 'land') &&
       card.colors.length === 1 && card.colors[0] === color;
     for (const color of ['W', 'U', 'B', 'R', 'G']) {
-      expect(SANDS_OF_THE_DUAT.filter(mono(color))).toHaveLength(40);
-      expect(count(mono(color))).toEqual({ c: 21, r: 12, sr: 4, ssr: 2, ur: 1 });
+      expect(SANDS_OF_THE_DUAT.filter(mono(color))).toHaveLength(color === 'W' ? 41 : color === 'G' ? 39 : 40);
+      expect(count(mono(color))).toEqual(color === 'W'
+        ? { c: 22, r: 12, sr: 4, ssr: 2, ur: 1 }
+        : color === 'G'
+          ? { c: 20, r: 12, sr: 4, ssr: 2, ur: 1 }
+          : { c: 21, r: 12, sr: 4, ssr: 2, ur: 1 });
     }
   });
 
@@ -294,9 +359,17 @@ describe('catalog integrity', () => {
     });
   });
 
-  it('every multicolor nonland card is legendary', () => {
+  it('every multicolor nonland card is legendary (owner-granted exceptions listed)', () => {
+    // Owner rulings 2026-08-29: named non-legendary multicolour exceptions
+    // where the dual identity IS the flavour (harvest-after-rain,
+    // grave-rose-garden) or the ruled cost shape is multicolour at common
+    // (orbital-cleansing {1}{W}{B}). Adding a name here is a ruling.
+    const MULTICOLOR_EXCEPTIONS = new Set([
+      'sd-harvest-after-rain', 'gm-grave-rose-garden', 'sb-orbital-cleansing',
+    ]);
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.colors.length < 2) continue;
+      if (MULTICOLOR_EXCEPTIONS.has(card.id)) continue;
       expect(
         (card.supertypes ?? []).includes('legendary'),
         `${card.id} is multicolor and must be legendary`,
