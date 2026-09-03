@@ -101,7 +101,11 @@ _Dated 2026-08-25. Review monthly._
   gate 1% to 3%) because the ceiling is board size: Broodmother averages 1.3
   creatures at her dawns, and a deliberately passive pilot holds 1.35, since
   her bodies die blocking and to removal far more than attacking. Four- and
-  five-creature thresholds are a design lever, not an AI one.
+  five-creature thresholds are a design lever, not an AI one. Measured both
+  counts: by TOTAL marks (what Propagate compounds) the same gates open three
+  to four times as often, Cathedral 0% to 5% of dawns on board, Relay 3% to
+  12%, Antenna 2% to 10%, and Broodmother reaches four total marks in 11% of
+  games and five in 5%, against 3% and 1% by marked creatures.
 - **The v3.1 balance program (#305-#306, #308, #313).** The power formula
   was rebuilt (pip-weighted budget, additive rarity, colour-pie premium),
   over three hundred cards re-costed under owner adjudication, Rage landed
