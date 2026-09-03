@@ -99,6 +99,16 @@ set ships.** If the AI cannot sequence toward a five-mark threshold, they read
 as dead cards to anyone playing against it. Budget for that specifically rather
 than discovering it in the metagame sweep.
 
+**Paid 2026-09-03** (`scripts/ai-watch-pass.ts`, 100 seeds x 6 columns per
+card, two copies in Chrome Broodmother or The Violet Signal Queen): the hard
+AI casts all six watch cards but its marks boss averages 0.21 marked creatures
+at her own dawns and reaches four in 3% of games, five in 1%. Signal
+Cathedral fired on 0 of 664 dawns on board, Starborne Relay on 1%, Umbral
+Antenna on 2%; Propagation Choir is live (4.0 triggers per game on board);
+Gullet of the Hive's arrival finds 0.11 opposing marked creatures. None of
+the six is in a shipped AI deck, so 1.7 carries no player-facing exposure; the
+AI's mark accumulation is the 1.8 debt.
+
 ## Candidate Table
 
 ### Commons
