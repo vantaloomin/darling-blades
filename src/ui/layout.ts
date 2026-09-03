@@ -227,9 +227,56 @@ export const DROPDOWN_GEOMETRY = {
   rowHitHeight: Math.max(theme.control.minHitHeight, 44),
   rowPitch: Math.max(52, Math.max(theme.control.minHitHeight, 44) + GAP_FLOORS.ordinary),
   panelPadding: theme.space(2),
+  rowTextInset: controlPadding('md'),
+  glyphSlotWidth: theme.space(4),
+  columnGap: GAP_FLOORS.ordinary,
+  separatorHeight: theme.control.borderWidth,
+  plateOffset: theme.control.borderWidth * 2,
   triggerGap: theme.space(1),
   clampMargin: 0,
 } as const;
+
+function normalizedDropdownOptionCount(optionCount: number): number {
+  return Number.isFinite(optionCount) ? Math.max(0, Math.floor(optionCount)) : 0;
+}
+
+/** A short list is single-column; longer lists reserve the all-row then split. */
+export function dropdownColumnCount(optionCount: number): 1 | 2 {
+  return normalizedDropdownOptionCount(optionCount) > 7 ? 2 : 1;
+}
+
+export interface DropdownPanelWidthOptions {
+  columns?: 1 | 2;
+  rowTextInset?: number;
+  glyphSlotWidth?: number;
+  panelPadding?: number;
+  columnGap?: number;
+}
+
+/**
+ * Derive a content-sized panel width from measured Phaser Text widths. In a
+ * two-column menu, the column content width is duplicated before the gap and
+ * outer panel padding are added so the longest label still fits its own cell.
+ */
+export function dropdownPanelWidth(
+  triggerVisualWidth: number,
+  longestOptionLabelWidth: number,
+  optionCount: number,
+  opts: DropdownPanelWidthOptions = {},
+): number {
+  const columns = opts.columns ?? dropdownColumnCount(optionCount);
+  const rowTextInset = Math.max(0, opts.rowTextInset ?? DROPDOWN_GEOMETRY.rowTextInset);
+  const glyphSlotWidth = Math.max(0, opts.glyphSlotWidth ?? DROPDOWN_GEOMETRY.glyphSlotWidth);
+  const panelPadding = Math.max(0, opts.panelPadding ?? DROPDOWN_GEOMETRY.panelPadding);
+  const columnGap = Math.max(0, opts.columnGap ?? DROPDOWN_GEOMETRY.columnGap);
+  const rowContentWidth = Math.ceil(
+    Math.max(0, longestOptionLabelWidth) + rowTextInset * 2 + glyphSlotWidth,
+  );
+  const contentWidth = columns === 2
+    ? Math.max(0, triggerVisualWidth, rowContentWidth * 2 + columnGap)
+    : Math.max(0, triggerVisualWidth, rowContentWidth);
+  return Math.ceil(contentWidth + panelPadding * 2);
+}
 
 export type DropdownOpenDirection = 'down' | 'up';
 
@@ -246,6 +293,10 @@ export interface DropdownPopoverOptions {
 export interface DropdownPopoverLayout {
   panel: Rect;
   rows: Rect[];
+  /** Number of equal option columns after the optional all-row. */
+  columns: 1 | 2;
+  /** The all-row separator, when the menu uses the two-column layout. */
+  separator: Rect | null;
   direction: DropdownOpenDirection;
   rowHitHeight: number;
   rowPitch: number;
@@ -293,10 +344,14 @@ export function dropdownPopoverLayout(
   const panelPadding = Math.max(0, opts.panelPadding ?? DROPDOWN_GEOMETRY.panelPadding);
   const triggerGap = Math.max(0, opts.triggerGap ?? DROPDOWN_GEOMETRY.triggerGap);
   const clampMargin = Math.max(0, opts.clampMargin ?? DROPDOWN_GEOMETRY.clampMargin);
-  const count = Math.max(0, Math.floor(optionCount));
+  const count = normalizedDropdownOptionCount(optionCount);
+  const columns = dropdownColumnCount(count);
+  const separatorHeight = columns === 2 ? DROPDOWN_GEOMETRY.separatorHeight : 0;
+  const gridRows = columns === 2 ? Math.ceil(Math.max(0, count - 1) / columns) : 0;
+  const trackCount = columns === 2 ? (count > 0 ? 1 + gridRows : 0) : count;
   const maxWidth = Math.max(0, safe.right - safe.left - clampMargin * 2);
   const panelWidth = Math.min(Math.max(0, opts.panelWidth), maxWidth);
-  const panelHeight = panelPadding * 2 + count * rowPitch;
+  const panelHeight = panelPadding * 2 + trackCount * rowPitch + separatorHeight;
   const minX = safe.left + clampMargin;
   const maxX = safe.right - clampMargin - panelWidth;
   const panelX = clamp(triggerBounds.x, minX, maxX);
@@ -312,16 +367,43 @@ export function dropdownPopoverLayout(
   const panelY = clamp(requestedY, minY, maxY);
   const panel = { x: panelX, y: panelY, width: panelWidth, height: panelHeight };
   const rowWidth = Math.max(0, panelWidth - panelPadding * 2);
-  const rows = Array.from({ length: count }, (_, index) => ({
-    x: panelX + panelPadding,
-    y: panelY + panelPadding + index * rowPitch + (rowPitch - rowHitHeight) / 2,
-    width: rowWidth,
-    height: rowHitHeight,
-  }));
+  const columnGap = columns === 2 ? DROPDOWN_GEOMETRY.columnGap : 0;
+  const columnWidth = columns === 2
+    ? Math.max(0, (rowWidth - columnGap) / columns)
+    : rowWidth;
+  const rows = Array.from({ length: count }, (_, index) => {
+    if (columns === 1 || index === 0) {
+      return {
+        x: panelX + panelPadding,
+        y: panelY + panelPadding + (columns === 2 ? 0 : index * rowPitch) + (rowPitch - rowHitHeight) / 2,
+        width: rowWidth,
+        height: rowHitHeight,
+      };
+    }
+    const offset = index - 1;
+    const row = offset % gridRows;
+    const column = Math.floor(offset / gridRows);
+    return {
+      x: panelX + panelPadding + column * (columnWidth + columnGap),
+      y: panelY + panelPadding + rowPitch + separatorHeight + row * rowPitch + (rowPitch - rowHitHeight) / 2,
+      width: columnWidth,
+      height: rowHitHeight,
+    };
+  });
+  const separator = columns === 2
+    ? {
+        x: panelX + panelPadding,
+        y: panelY + panelPadding + rowPitch,
+        width: rowWidth,
+        height: separatorHeight,
+      }
+    : null;
 
   return {
     panel,
     rows,
+    columns,
+    separator,
     direction,
     rowHitHeight,
     rowPitch,

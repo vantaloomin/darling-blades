@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-08-24
+<!-- source-of-truth: src/ui/themeWidgets.ts, src/ui/modalDismissPresentation.ts, src/ui/Toast.ts, src/ui/toastQueue.ts, src/ui/navigation.ts, src/ui/deckBuilderHelpers.ts, src/ui/Dropdown.ts, src/ui/CardView.ts, src/ui/ManaText.ts, src/ui/CardThumbCache.ts, src/ui/CardZoomPreview.ts, src/ui/ZoneContentsModal.ts, src/ui/inspectHotkeys.ts, src/ui/OverlayCoordinator.ts, src/ui/CoachMark.ts, src/ui/KeywordGlossaryPanel.ts, src/ui/KeywordIcons.ts, src/scenes/GlossaryScene.ts, src/ui/MultilineInput.ts, src/platform/gestures.ts, src/ui/layout.ts, src/ui/theme.ts · last-verified: 2026-09-03
      If you change those files, update this doc or re-verify the date. -->
 
 # Reusable UI components
@@ -21,7 +21,7 @@ token already names.
 | Export | What it is |
 | --- | --- |
 | `themedButton` | The standard button (primary / emphasis / ghost / danger variants, sm sizing, min-width, enabled state, measured bounds, inflated hit zone). |
-| `roundedTrigger` | Chip-style trigger (the dropdown face): auto-sizes to its label, `setLabel` re-measures, selected/hover states. |
+| `roundedTrigger` | Chip-style trigger (the dropdown face): auto-sizes to its label, `setLabel` re-measures, selected/hover states. With `parts` it renders a muted label, a gold value (`setValue`) and a fixed chevron slot that flips while open (`setOpen`), sized once to `maxValueWidth` so a filter row never reflows on selection. |
 | `modalShell` | The one modal: dim layer, panel, title/content/footer tracks, one named `dismissal` preset resolved by `modalDismissPresentation`, `onClose`, OverlayCoordinator registration, and `close()`. Presets derive Esc, tap-dim, and close-button behavior. The old flags remain deprecated only for shared helpers outside this migration. Every dialog uses this - OddsModal, deck previews, the pack-pull inspect, the touch land-styles picker. |
 | `registerSceneBackNavigation` | One scene-lifetime ESC route. It dismisses the topmost registered modal, then invokes the screen's back action, and removes its keyboard listener on SHUTDOWN. |
 | `createMultilineInput` | DOM textarea with selectable long text, keyboard/touch input, and OverlayCoordinator suppression support. Use it for save-code or other bounded multiline fields. |
@@ -31,10 +31,17 @@ token already names.
 ## Selection - `src/ui/Dropdown.ts`, `src/ui/binder/FilterBar.ts`
 
 `Dropdown<T>` is the compact select (trigger + popover rows, outside-click
-close, sibling-close via `onOpen`). It exposes `hitBounds`/`setX`/
-`containerX` so a ROW of dropdowns can reflow: FilterBar's `reflow()`
-keeps 8px between inflated hit rects as selected labels change width -
-the pattern to copy for any horizontal chip row whose content resizes.
+close, sibling-close via `onOpen`). Since 2026-09-03 the popover is one
+surface sized to its content (`dropdownPanelWidth`: the longer of the trigger
+and the longest option label plus the check slot), rows are unpainted at rest
+with `rowFill` on hover and `rowFillActive` plus a gold check on the selection,
+and a list of more than seven options puts its first entry on a full-width
+row above a hairline and the rest in two column-major columns
+(`dropdownColumnCount`, `dropdownPopoverLayout` returns the row rects and the
+separator for both shapes). The trigger is fixed to its longest value at
+construction, so a row of dropdowns no longer resizes on selection; the
+`hitBounds`/`setX`/`containerX` reflow path in FilterBar stays as the safety
+net, keeping 8px between inflated hit rects.
 
 ## Card rendering - `CardView`, `CardThumbCache`, `CardZoomPreview`
 

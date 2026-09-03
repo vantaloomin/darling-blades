@@ -19,8 +19,8 @@ export const DEFAULT_COLLECTION_SORT: CollectionSortSelection = 'card-rarity-hig
 export const COLLECTION_SORT_OPTIONS: readonly { value: CollectionSortSelection; label: string }[] = [
   { value: 'card-rarity-high', label: 'Card rarity: high to low' },
   { value: 'card-rarity-low', label: 'Card rarity: low to high' },
-  { value: 'variant-rarity-high', label: 'Variant rarity: rarest first' },
-  { value: 'variant-rarity-low', label: 'Variant rarity: most common first' },
+  { value: 'variant-rarity-high', label: 'Variant rarity: rare' },
+  { value: 'variant-rarity-low', label: 'Variant rarity: common' },
   { value: 'name-az', label: 'Name: A to Z' },
   { value: 'name-za', label: 'Name: Z to A' },
 ];

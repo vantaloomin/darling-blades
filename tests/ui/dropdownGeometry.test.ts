@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DROPDOWN_GEOMETRY,
+  dropdownPanelWidth,
   dropdownPopoverLayout,
   inactiveGap,
   isInsideTitleSafe,
@@ -36,6 +37,37 @@ describe('dropdown geometry', () => {
     expect(inactiveGap(layout.rows[1], layout.rows[2]).gap).toBe(8);
     expect(isRectContained(layout.rows[0], layout.panel)).toBe(true);
     expect(isRectContained(layout.rows[2], layout.panel)).toBe(true);
+  });
+
+  it('sizes one- and two-column panels from the trigger and measured label width', () => {
+    expect(dropdownPanelWidth(160, 100, 3)).toBe(176);
+    expect(dropdownPanelWidth(160, 100, 10)).toBe(304);
+    expect(dropdownPanelWidth(320, 100, 10)).toBe(336);
+  });
+
+  it('gives long menus a full-width all row and column-major option rows', () => {
+    const layout = dropdownPopoverLayout(
+      { x: 100, y: 100, width: 120, height: 44 },
+      10,
+      { panelWidth: 320 },
+    );
+
+    expect(layout.columns).toBe(2);
+    expect(layout.panel).toEqual({ x: 100, y: 148, width: 320, height: 329 });
+    expect(layout.separator).toEqual({ x: 108, y: 208, width: 304, height: 1 });
+    expect(layout.rows[0]).toEqual({ x: 108, y: 160, width: 304, height: 44 });
+    expect(layout.rows[1]).toEqual({ x: 108, y: 213, width: 148, height: 44 });
+    expect(layout.rows[4]).toEqual({ x: 108, y: 369, width: 148, height: 44 });
+    expect(layout.rows[5]).toEqual({ x: 108, y: 421, width: 148, height: 44 });
+    expect(layout.rows[6]).toEqual({ x: 264, y: 213, width: 148, height: 44 });
+    expect(layout.rows[9]).toEqual({ x: 264, y: 369, width: 148, height: 44 });
+    expect(inactiveGap(layout.rows[1], layout.rows[2]).gap).toBe(8);
+    expect(inactiveGap(layout.rows[1], layout.rows[6]).gap).toBe(8);
+  });
+
+  it('keeps seven entries single-column and switches at eight', () => {
+    expect(dropdownPopoverLayout({ x: 100, y: 100, width: 120, height: 44 }, 7, { panelWidth: 200 }).columns).toBe(1);
+    expect(dropdownPopoverLayout({ x: 100, y: 100, width: 120, height: 44 }, 8, { panelWidth: 200 }).columns).toBe(2);
   });
 
   it('opens down in the normal case and preserves the selected geometry constants', () => {
