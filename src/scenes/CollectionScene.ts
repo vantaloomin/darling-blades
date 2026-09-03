@@ -781,7 +781,7 @@ export class CollectionScene extends Phaser.Scene {
     };
     const refreshProbability = (variant: CardVariant): void => {
       const plate = cardAtelierProbabilityPlate(d.rarity, variant);
-      probabilityHeadline.setText(`${plate.oddsText} · ${plate.percentText} per booster slot`);
+      probabilityHeadline.setText(`${plate.oddsText} · ${plate.percentText}`);
       probabilityAxes.setText(plate.axisText);
     };
     const bindTouchCompare = (): void => {

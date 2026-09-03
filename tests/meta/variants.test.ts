@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DROPS, ECONOMY } from '../../src/config/rules';
 import { createRngState } from '../../src/engine/rng';
 import { openPack } from '../../src/meta/PackOpener';
-import { finishOdds, formatOdds, variantOdds } from '../../src/meta/pullOdds';
+import { finishOdds, formatExactOdds, formatOdds, variantOdds } from '../../src/meta/pullOdds';
 import { freshSave } from '../../src/meta/SaveManager';
 import {
   isPlainVariant,
@@ -112,6 +112,23 @@ describe('pull odds', () => {
     const odds = variantOdds('ur', 'white', 'none', true);
     expect(odds).toBeCloseTo(0.01 * 0.5 * 0.6 * 0.0025, 12);
     expect(formatOdds(odds)).toBe('1:133,000');
+  });
+
+  it('states the exact-odds headline as a whole number, not a rounded magnitude', () => {
+    // The plate headline used to read 1:1980.00M, which claimed six digits of a
+    // three-significant-figure rounding and disagreed with its own percentage.
+    const godRoll = variantOdds('ur', 'black', 'void', true);
+    expect(godRoll).toBeCloseTo(0.01 * 0.0045 * 0.0045 * 0.0025, 18);
+    expect(formatExactOdds(godRoll)).toBe('1 in 1,975,308,642');
+    expect(Math.round(1 / godRoll)).toBe(1_975_308_642);
+  });
+
+  it('keeps a decimal on exact odds below 1 in 100, where the fraction is the answer', () => {
+    expect(formatExactOdds(variantOdds('c', 'white', 'none', false))).toBe('1 in 6.7');
+    expect(formatExactOdds(1 / 55.695)).toBe('1 in 55.7');
+    expect(formatExactOdds(1 / 100)).toBe('1 in 100');
+    expect(formatExactOdds(1 / 99.94)).toBe('1 in 99.9');
+    expect(formatExactOdds(1 / 4_950_648.226)).toBe('1 in 4,950,648');
   });
 
   it('rounds and groups format boundaries predictably', () => {

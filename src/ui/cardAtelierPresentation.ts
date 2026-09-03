@@ -1,6 +1,6 @@
 import { DROPS } from '../config/rules';
 import type { Rarity } from '../engine/types';
-import { formatOdds, variantOdds } from '../meta/pullOdds';
+import { formatExactOdds, variantOdds } from '../meta/pullOdds';
 import { TIER_LABEL, type CardVariant } from '../meta/variants';
 import type { AnimationLevel } from '../platform/animPolicy';
 import { theme } from './theme';
@@ -114,9 +114,20 @@ function trimFixed(value: number, digits: number): string {
 export function formatCardAtelierPercent(probability: number): string {
   const percent = Math.max(0, probability) * 100;
   if (percent === 0) return '0%';
-  if (percent >= 1) return `${trimFixed(percent, 2)}%`;
-  const leadingZeros = Math.max(0, Math.ceil(-Math.log10(percent)));
-  return `${trimFixed(percent, Math.min(8, leadingZeros + 3))}%`;
+  let text: string;
+  if (percent >= 1) {
+    text = trimFixed(percent, 2);
+  } else {
+    const leadingZeros = Math.max(0, Math.ceil(-Math.log10(percent)));
+    text = trimFixed(percent, Math.min(8, leadingZeros + 3));
+  }
+  // Two decimals above 1%, and an 8-decimal cap below it, both drop digits the
+  // probability actually carries: the rarest plate prints 0.00000005% for a true
+  // 0.000000050625%. Say so with a tilde instead of asserting the rounded value.
+  // The tolerance absorbs binary-float noise so exact table rates (1%, 0.45%)
+  // stay unmarked.
+  const approximate = Math.abs(Number(text) - percent) > percent * 1e-12;
+  return `${approximate ? '~' : ''}${text}%`;
 }
 
 function titleCase(value: string): string {
@@ -157,7 +168,7 @@ export function cardAtelierProbabilityPlate(
   const probability = variantOdds(tier, variant.frame, variant.holo, variant.fullArt);
   return {
     probability,
-    oddsText: formatOdds(probability),
+    oddsText: formatExactOdds(probability),
     percentText: formatCardAtelierPercent(probability),
     axes,
     axisText: axes.map((axis) => `${axis.label} ${axis.percentText}`).join(' × '),

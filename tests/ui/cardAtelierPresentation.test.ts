@@ -67,6 +67,26 @@ describe('card Atelier presentation', () => {
     expect(plate.axisText).toContain('Full Art');
   });
 
+  it('prints the headline odds exactly and marks only the rounded percentage', () => {
+    const plate = cardAtelierProbabilityPlate('ur', { frame: 'black', holo: 'void', fullArt: true });
+    expect(plate.oddsText).toBe('1 in 1,975,308,642');
+    // The percentage is rounded to the formatter's decimal cap, so it says so.
+    expect(plate.percentText).toBe('~0.00000005%');
+    // The four table rates are exact at the printed precision: no tilde on them.
+    expect(plate.axisText).toBe('UR 1% × Black frame 0.45% × Void holo 0.45% × Full Art 0.25%');
+    expect(plate.axisText).not.toContain('~');
+  });
+
+  it('leaves an exactly representable percentage unmarked', () => {
+    const plate = cardAtelierProbabilityPlate('ur', { frame: 'white', holo: 'none', fullArt: true });
+    expect(plate.percentText).toBe('0.00075%');
+    expect(plate.oddsText).toBe('1 in 133,333');
+    expect(formatCardAtelierPercent(0.01)).toBe('1%');
+    expect(formatCardAtelierPercent(0.0045)).toBe('0.45%');
+    // A common plate rounds 14.9625% to two decimals, so it is marked.
+    expect(cardAtelierProbabilityPlate('c', { frame: 'white', holo: 'none', fullArt: false }).percentText).toBe('~14.96%');
+  });
+
   it('keeps tiny probabilities readable without rounding them to zero', () => {
     expect(formatCardAtelierPercent(0)).toBe('0%');
     expect(formatCardAtelierPercent(0.5)).toBe('50%');
