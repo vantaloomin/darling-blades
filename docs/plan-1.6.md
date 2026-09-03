@@ -350,6 +350,9 @@ the reserve-native Limited change: the sim's Limited matches had been playing
   therefore deliberately left stale and the Limited Fan flag deliberately left
   standing until then; do not silently re-derive them, and do not read the
   standing flag as an unaddressed regression.
+  **Ruled 2026-09-03 (owner), with the completed 2026-08-31 metagame sweep in
+  hand: approved as is.** The bands stay as written and the Limited Fan flag
+  stays standing; nothing is re-derived.
 - **Soft player decks:** Glimmer Bargain 36.5 and Shadow Mandate 36.3 in the
   head-to-head table. Playable, not broken; tune only if the owner wants a
   tighter spread than 26.3 points.

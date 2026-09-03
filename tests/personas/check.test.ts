@@ -58,13 +58,18 @@ describe('--check artifact round trip', () => {
     const path = join(dir, 'tiny.json');
     writeFileSync(path, JSON.stringify(artifact), 'utf8');
     const output: string[] = [];
+    let checkedOptions: MeasureOptions | undefined;
 
     const exitCode = runCli(['--check', path], {
-      measure: () => measured(0.75),
+      measure: (_deck, options) => {
+        checkedOptions = options;
+        return measured(0.75);
+      },
       log: (line) => output.push(line),
     });
 
     expect(exitCode).toBe(0);
+    expect(checkedOptions?.landReserve).toEqual(artifact.landReserve);
     expect(output).toEqual([
       'Checked tiny.json (burn)',
       'Retained: 50.0% (1/2 decided, 0 draws)',
@@ -95,6 +100,11 @@ describe('--check artifact round trip', () => {
       log: (line) => output.push(line),
     })).toBe(0);
     expect(checkedOptions?.fieldComposition).toEqual(artifact.metagame.rounds.at(-1).fieldComposition);
+    // The real measurer refuses a Warchest row without its reserve, so a
+    // check that drops it can only ever error. The 1.7 sweep's six retained
+    // artifacts all failed to re-measure this way before this assertion.
+    expect(checkedOptions?.landReserve).toEqual(artifact.landReserve);
+    expect(artifact.landReserve).toHaveLength(10);
     expect(output).toContain('Drift: 0.0 percentage points');
   });
 

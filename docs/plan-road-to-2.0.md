@@ -103,10 +103,12 @@ The release that would open next.
 - **Starborne**, 151 cards cut from the 200-card overplan, on Propagate
   (concretion locked 2026-08-25; see
   [the overplan](expansions/drafts/starborne-overplan.md)).
-- **The optimizer sweep** — RAN 2026-08-27: the owner stopped it during round
-  2 of 4 after rounds 0 and 1 converged on similar results, judging further
-  rounds a poor spend. The collection-dilution ruling now proceeds from the
-  two finished rounds.
+- **The optimizer sweep** — RAN 2026-08-27 and stopped by the owner during
+  round 2 of 4 after rounds 0 and 1 converged; then RAN TO COMPLETION
+  2026-08-31 to 2026-09-03 on the #317 pool (`--rounds 2`, max-rounds without
+  convergence, filed in the roadmap 1.7.0 block and retained under
+  `scripts/personas/decks/2026-08-31-metagame-*.json`). The
+  collection-dilution ruling now has a finished sweep to proceed from.
 - ~~**Draft's reserve-native design** — open decision carried from 1.6.~~
   **CLOSED 2026-08-25: it had already shipped during the 1.6 reserve
   migration.** The plan-1.6 entry was stale and was read as blocking work
