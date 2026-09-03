@@ -32,9 +32,9 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Five starter decks**, one two-color archetype per color pair: **Crimson Muster** (Red/White aggro), **Wild Communion** (Green/White creature tribal), **Burning Tides** (Blue/Red tempo-burn), **Shadow Mandate** (Blue/Black control), and **Grave Harvest** (Black/Green deathblade attrition). Every color shows up in exactly two of the five, and each arrives as 40 spells plus its own ten-land Warchest.
 - **Real MTG-style deckbuilding rules**, with one deliberate departure: your lands live in a **Warchest** rather than your deck. A constructed deck is exactly 40 spells built from your own collection plus a ten-land Warchest (at most 5 duals), up to 4 copies of any non-basic card, 20 starting life, a 5-card opening hand, a London-style mulligan with your first mulligan free, and an auto-tap mana solver so you're never manually tapping individual lands to pay generic costs.
 - **Two formats.** **Warchest** is the standard constructed format above. **Darlings** is the EDH-style one: your Darling waits in her own zone while you build a 79-card singleton spell deck and a ten-land Warchest, each fall adds 2 to her next call, and paying 4 eases that tax by 2. Five ready-to-play Darlings decks are in the Shop, one of them a free one-time claim, and a dedicated tutorial teaches the format.
-- **Gacha-style booster packs.** 450 gold buys 9 cards in the Base Set booster; 525 gold buys 9 in the Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, Cyberpunk Yokai Nights, or Sands of the Duat boosters. Every slot independently rolls a rarity tier, a cosmetic frame (white/blue/red/gold/rainbow/black), a holo finish (none/shiny/rainbow/pearlescent/fractal/void), and a 0.25% Full Art chance where the illustration covers the whole card face. The rarest possible pull (Ultra Rare, black frame, void holo, Full Art) lands at roughly 1 in 1.98 billion. Each pack tile shows how many of its set's cards you already own; its info glyph opens a pool summary alongside the rarity, frame, and holo odds, which are identical across every booster.
-- **Every expansion brings its own mechanics.** Ragnarök plays with double strike, mill, and reanimation; Celtic Fae introduced **Sever** (exile-flavored removal) and **Foresee** (top-of-deck smoothing); Arthurian Court added **Quests** that advance a chapter at each of your dawns and **Champion Awakening** transforms; Gothic Monsters brought **Dreaded** attackers that must be blocked by two or none and **Empower** kicker costs; Dark Tales added **Skim** (instant-speed hand smoothing) and **Retell** (recast a Ritual or Charm from the graveyard, then sever it); Yokai Nights brought **Hauntlink**; and Sands of the Duat adds **Rite** (sacrifice as an additional cost), **Nine Lives** (return once with a +1/+1 mark), and **Preserve** (token copy from the graveyard). Everything is engine-first and seeded-deterministic, with player-facing duel affordances.
-- **The Avatar Gauntlet**: a 22-rung, 22-floor ladder of named boss opponents (Meng Huo, Hestia, Lupa the Wolfqueen, Hera, Zhurong, Sima Yi, Yohime the Kitsune Matriarch, Cao Cao, the Ragnarök bosses Hel and Brunhild, the Celtic Fae pair of The Morrigan and Titania, the Arthurian summit of Morgan of the Thorn Crown and Artoria, Once and Future Queen, the Gothic Monsters pair of Carmilla and The Bride, the Dark Tales pair of Glass-Coffin Queen and Abyssal Songstress, the Yokai Nights pair of Queen of the Lanterned Roof and Kitsune Neon Tyrant, and the Sands of the Duat pair of Anubis, Who Holds the Scale and Bastet, Mistress of the Ninth Return), each piloting a themed deck and personality. The roster reshuffles every day from a date seed, and the floor you reach sets the AI's strength on a six-tier ladder while the avatar brings its own deck and personality. Gold pays out per rung cleared plus a bonus for a full run. Practice mode lets you challenge any of the 22 bosses directly, or a plain difficulty, with no ladder attached.
+- **Gacha-style booster packs.** 450 gold buys 9 cards in the Base Set booster; 525 gold buys 9 in the Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, Cyberpunk Yokai Nights, Sands of the Duat, or Starborne boosters. Every slot independently rolls a rarity tier, a cosmetic frame (white/blue/red/gold/rainbow/black), a holo finish (none/shiny/rainbow/pearlescent/fractal/void), and a 0.25% Full Art chance where the illustration covers the whole card face. The rarest possible pull (Ultra Rare, black frame, void holo, Full Art) lands at roughly 1 in 1.98 billion. Each pack tile shows how many of its set's cards you already own; its info glyph opens a pool summary alongside the rarity, frame, and holo odds, which are identical across every booster.
+- **Every expansion brings its own mechanics.** Ragnarök plays with double strike, mill, and reanimation; Celtic Fae introduced **Sever** (exile-flavored removal) and **Foresee** (top-of-deck smoothing); Arthurian Court added **Quests** that advance a chapter at each of your dawns and **Champion Awakening** transforms; Gothic Monsters brought **Dreaded** attackers that must be blocked by two or none and **Empower** kicker costs; Dark Tales added **Skim** (instant-speed hand smoothing) and **Retell** (recast a Ritual or Charm from the graveyard, then sever it); Yokai Nights brought **Hauntlink**; and Sands of the Duat adds **Rite** (sacrifice as an additional cost), **Nine Lives** (return once with a +1/+1 mark), and **Preserve** (token copy from the graveyard); and Starborne brings **Marks** (a +1/+1 counter that spreads) and **Propagate** (another Mark on every Marked creature you control). Everything is engine-first and seeded-deterministic, with player-facing duel affordances.
+- **The Avatar Gauntlet**: a 24-rung, 24-floor ladder of named boss opponents (Meng Huo, Hestia, Lupa the Wolfqueen, Hera, Zhurong, Sima Yi, Yohime the Kitsune Matriarch, Cao Cao, the Ragnarök bosses Hel and Brunhild, the Celtic Fae pair of The Morrigan and Titania, the Arthurian summit of Morgan of the Thorn Crown and Artoria, Once and Future Queen, the Gothic Monsters pair of Carmilla and The Bride, the Dark Tales pair of Glass-Coffin Queen and Abyssal Songstress, the Yokai Nights pair of Queen of the Lanterned Roof and Kitsune Neon Tyrant, the Sands of the Duat pair of Anubis, Who Holds the Scale and Bastet, Mistress of the Ninth Return, and the Starborne summit pair of Chrome Broodmother and The Violet Signal Queen), each piloting a themed deck and personality. The roster reshuffles every day from a date seed, and the floor you reach sets the AI's strength on a six-tier ladder while the avatar brings its own deck and personality. Gold pays out per rung cleared plus a bonus for a full run. Practice mode lets you challenge any of the 22 bosses directly, or a plain difficulty, with no ladder attached.
 - **Draft mode**: the eight-seat persona draft described in the release notes below, with a free tier that pays gold on your record and a Premium tier that keeps its picks.
 - **Optional onboarding and long-term goals.** First launch offers a guided tutorial duel, and the Achievements screen tracks collection percentage, color completion, themed RoTK / Greek / Beastkin / Ragnarök goals, mono/dual-color tower clears, variant chase goals, mastery goals, and pack-opening milestones with claimable gold rewards.
 - **Daily Blades**: three rotating daily quests with progress bars, claimable gold, and up to three rerolls a day, plus an escalating win-streak bonus paid on your first win of each calendar day. The same calendar day rolls the same quests for everyone, because the quest roll is deterministically seeded like everything else here.
@@ -45,86 +45,53 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 - **Built-in accessibility settings**: independent SFX and music toggles with volume control, an animation-level switch (full / reduced / off), a render-size selector (720p / 1080p / 1440p), and an auto-skip toggle that fast-forwards empty or forced duel phases. Every setting persists to your save.
 - **Playable on your phone today.** The entire single-player loop runs comfortably by touch over your local network. Darling Blades is single-player by design: head-to-head multiplayer was explored and deliberately dropped.
 
-## What's new in 1.6
+## What's new in 1.7
 
-**Warchest is now the mana system, everywhere.** Your lands no longer sit in
-your deck. Every deck is 40 spells plus a ten-land Warchest, you open on five
-cards, and you move one land from Reserves into your Active Warchest each turn.
-Classic constructed has retired. Decks you already built are kept, marked, and
-routed to a repair flow that fixes them in a couple of clicks, and untouched
-starter decks convert themselves.
+**Starborne, a 151-card expansion.** A ninth world of living starships and
+iridescent alien crews, built around the **Mark**: a +1/+1 counter that
+spreads. Green grows Marks, red and white ride them into battle, blue moves
+them where they matter, and black is the predator that eats them.
+**Propagate**, the set's keyword, puts another Mark on every Marked creature
+you control, so one early Mark becomes a board that compounds. Every card
+carries finished art, and the set has its own icon (a seed of light), booster,
+precon, card back, and three tokens.
 
-**Sands of the Duat, a 245-card expansion.** The largest set yet, built
-reserve-native from the first sketch, on three mechanics. **Rite** casts a card
-by sacrificing creatures you control as an extra cost, and the sacrificed
-creatures die first, so their own death triggers still pay you. **Nine Lives**
-returns a creature to the battlefield once, the first time it dies, as a fresh
-body carrying a mark. **Preserve** works from your graveyard: pay the Preserve
-cost to Sever the card and create a token copy of it. The set carries its own
-booster, precon, achievements, and set icon.
+**The tower climbs to 24.** Chrome Broodmother waits at rung 23 with a swarm
+that turns sideways all at once, and The Violet Signal Queen closes the climb
+at 24, reading three turns ahead with an untouchable court. Both are measured
+against win-rate floors like every rung before them, and four bosses that had
+drifted below their floors were rebuilt on measured evidence.
 
-**Two new bosses and a 22-rung tower.** Anubis, Who Holds the Scale, takes rung
-21, and Bastet, Mistress of the Ninth Return, is the final rung 22.
+**A new precon, and every weak deck lifted.** The Chrome-Violet Broodship
+joins the shop: a green-blue-red swarm that marks its favorites and goes wide.
+Decks you already own now offer Clone Deck, a free fresh copy of the original
+list. The audit behind it found the weakest decks in the game and fixed them:
+The Copy Kept in Linen, Flood Measures the Sky, Midnight Storybook, and the
+Shadow Mandate starter all play meaningfully better than they did in 1.6.4.
 
-**A 60-card Dark Tales companion wave.** Nine Lives, Preserve, and Empower
-return to the storybook set, and two ultra rares join its headliners.
+**The biggest balance pass yet.** Over three hundred cards across every set
+were re-costed under a rebuilt power formula that prices colour identity, pip
+weight, and drawbacks honestly, followed by a 49-card redundancy sweep at
+net-zero total mana. Lu Bu now costs {1}{R}{R} and carries **Rage**: he
+attacks every turn he is able to.
 
-**Every deck has a look of its own.** Card back and playmat belong to the deck
-you built, not to your account: pick them in the deck builder under Style and
-each deck can carry its own. Every deck starts on Violet Standard. Your card
-back shows up where it should, too, because the mulligan draws your library as
-a real stack of face-down cards in whatever back that deck uses.
+**Cards read cleaner.** Every card says "During your Dawn" for the start of
+turn, Mark is a word the game teaches once, Propagate never explains itself
+twice, and card text follows one consistent order everywhere. The turn itself
+reads as a day: Dawn, Morning, Combat, Afternoon, Sunset, and effects last
+"until Sunset".
 
-**Premium presentation.** A multi-pack open is now one continuous rail of every
-pull in ascending rarity, with a full stop and a spotlight on an ultra rare.
-The mulligan is a real ritual with a riffle and drag-to-bottom staging. Casting
-lifts the card and lets you carry it to the field, and taking a land out of
-Reserves fans the kinds you can play instead of opening a modal. The
-Achievements screen is a five-wing hall, and you can pin three trophies to your
-Profile.
+**The AI learned what a Mark is worth.** Opponents keep Marked creatures out
+of even trades, put new Marks on bodies that will live to carry them, and hold
+Propagate until there is a board to multiply. Every difficulty is still held
+to the same measured win-rate floors as before.
 
-**A tutorial that teaches the game you actually play.** The opening lesson is
-the Warchest itself, followed by taking your first land out of Reserves.
-
-### Fixed and refined since the 1.6 release
-
-**Old decks can be converted, and they tell you why they need it.** A deck
-carried over from classic kept its old lands while the deck list hid the basic
-ones, so the builder called the deck the wrong size and gave you no way to fix
-it. The lands are visible again, the repair notice clears all of them in one
-tap, and it now names the real problem: the format has retired, and here are
-the two buttons that convert it.
-
-**Search finds every keyword and mechanic.** Typing "Nine Lives", "Preserve",
-"Rite", "Retell" or "Hauntlink" used to return nothing at all, and "Twin
-Blades" only worked if you typed half of it. Every rules term a card teaches is
-searchable now, spelled the way the card spells it, including traits a card
-only grants to others.
-
-**The Glossary was rebuilt.** It is searchable, browsable by category, and it
-scrolls, so it keeps working as the game grows. Four mechanics that had never
-been listed at all are in it, and every entry has its own icon.
-
-**The Avatar Gauntlet tower scrolls.** At 22 rungs the ladder had squeezed
-itself down to unreadable rows, and the longer boss names ran underneath their
-difficulty stars. Rows are full size again and the tower opens on the rung you
-are climbing.
-
-**The Profile page has tabs.** Practice, Gauntlet, Draft and Collection. Draft
-is new: best finish, runs completed, match record, gold earned, which deck
-shape you build most, and how many drafters you have met.
-
-**Four card backs were repainted.** Storm Gold, Moonlit Veil, Cursed Storybook
-and Neon Yokai were simple painted patterns. They are finished illustrations
-now, matching the standard of the rest of the game.
-
-**Two cards nobody could cast were recosted.** Silt-Crowned Harvester and Ra,
-Helm of the Night Barge each asked for more mana than a ten-land Warchest can
-ever produce, so their Empower was unpayable.
-
-**Smaller things.** The Warchest land picker shows what each land does, marking
-the colours it makes and whether it arrives tapped, with basic lands sorted to
-the front. The Profile screen's rows and its pickers have their spacing back.
+**Quality of life.** Your save can travel as a PNG card with art you choose.
+The Collection and Deck Builder filters open as one panel sized to their
+longest entry, and long lists split into two columns. Draft rounds can be
+browsed after the fact, Limited Warchest basics follow your deck's actual
+colour needs, and sixteen Starborne portraits were reframed so every face sits
+inside the card window.
 
 ## How to play
 
@@ -132,10 +99,10 @@ The main menu routes to:
 
 | Mode | What it does |
 | --- | --- |
-| **Play → Avatar Gauntlet** | Climb the 22-rung, 22-floor ladder of named boss opponents, reshuffled daily with floor-scaled difficulty; clear a rung and roll straight into the next, with per-rung gold and a completion bonus. |
+| **Play → Avatar Gauntlet** | Climb the 24-rung, 24-floor ladder of named boss opponents, reshuffled daily with floor-scaled difficulty; clear a rung and roll straight into the next, with per-rung gold and a completion bonus. |
 | **Play → Draft** | An eight-seat draft against seven named AI drafters: pick 45 cards across three passed packs, build a 40-card deck, and play three matches. Free entry pays gold on your record; Premium (1,000g, twice a week) keeps every pick. |
-| **Play → Practice** | A one-off duel with no ladder attached: pick any of the 22 tower bosses (with their deck and personality) or a plain Easy / Medium / Hard opponent. |
-| **Shop** | Buy a 9-card booster (Base Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, Cyberpunk Yokai Nights, or Sands of the Duat) and watch the rarity/frame/holo reveal animate slot by slot, or buy whole decks (the unpicked starters and the expansion precons) from the Decks tab, each with a full-stats preview. Every booster carries an info glyph with that set's exact drop rates. |
+| **Play → Practice** | A one-off duel with no ladder attached: pick any of the 24 tower bosses (with their deck and personality) or a plain Easy / Medium / Hard opponent. |
+| **Shop** | Buy a 9-card booster (Base Set, Ragnarök, Celtic Fae, Arthurian Court, Gothic Monsters, Dark Tales, Cyberpunk Yokai Nights, Sands of the Duat, or Starborne) and watch the rarity/frame/holo reveal animate slot by slot, or buy whole decks (the unpicked starters and the expansion precons) from the Decks tab, each with a full-stats preview. Every booster carries an info glyph with that set's exact drop rates. |
 | **Collection** | A binder-style spread of every card you own, filterable by color / type / rarity / set / owned, showing your best-owned print of each plus pool and special-variant completion progress, with a Craft action on any card you're missing. |
 | **Decks** | Pick your active deck, and build or edit your decks and Warchests from your owned collection. |
 | **Achievements** | Review locked/unlocked/claimed goals and claim gold rewards for collection, variant, themed, mastery, and economy milestones. |
