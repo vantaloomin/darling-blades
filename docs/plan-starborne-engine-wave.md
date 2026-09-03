@@ -221,8 +221,10 @@ target-free.
   committed-output change STOPS the wave for an owner decision.
 - **AI, all three difficulties**: target choice for arrival triggers; op
   valuations for the new ops (extend `opImpactValue`); determinized sims must
-  build brains with `simDb(db)` as ever. Instrument before tuning; the
-  Halo/Cathedral/Choir AI-risk trio still owes its seeded pass before ship.
+  build brains with `simDb(db)` as ever. Instrumented and measured
+  2026-09-03 (`scripts/ai-watch-pass.ts`; result in the roadmap 1.7.0 block):
+  the hard AI casts the trio but never reaches their thresholds, and no
+  shipped AI deck carries them, so the remaining debt is 1.8 AI work.
 - **Comments and docs naming the retired rule**: types.ts:30 block comment,
   the converter comment, docs/rules.md, docs/adding-cards.md op table,
   docs/card-building-guide.md, the art-bible facts conventions. Sweep for

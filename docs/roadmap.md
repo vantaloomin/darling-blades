@@ -80,6 +80,20 @@ _Dated 2026-08-25. Review monthly._
   Violet Signal Queen (rung 24) extend the tower; the Chrome-Violet
   Broodship joins the shop. The measurement caught and fixed a real AI bug:
   mixed counter-casts discarded their permanent targets at medium and hard.
+- **The seeded AI pass on the threshold cards (2026-09-03).** The cut list's
+  standing obligation: Halo Motherboard, Signal Cathedral, and Propagation
+  Choir, plus Starborne Relay, Umbral Antenna, and Gullet of the Hive, each
+  planted (two copies) into the hard-AI Starborne boss that can cast it and
+  played 600 seeded Warchest games against six Medium-piloted columns
+  (`scripts/ai-watch-pass.ts`). The AI casts them (56-77% of copies seen,
+  held 7-10 turns) but never assembles their thresholds: Chrome Broodmother
+  averages 0.21 marked creatures at her own dawns and reaches four in 3% of
+  games and five in 1%, so Cathedral's 5-mark draw fired on 0 of 664 dawns
+  on board, Relay's 4-mark draw on 1%, Antenna's on 2%. Choir is fully
+  live at 4.0 triggers per game on board; Gullet's arrival finds 0.11
+  opposing marked creatures. No shipped AI deck carries any of the six, so
+  1.7 ships with no player-facing exposure; the debt is the hard AI's mark
+  accumulation, filed for 1.8.
 - **The v3.1 balance program (#305-#306, #308, #313).** The power formula
   was rebuilt (pip-weighted budget, additive rarity, colour-pie premium),
   over three hundred cards re-costed under owner adjudication, Rage landed
