@@ -108,7 +108,9 @@ _Dated 2026-08-25. Review monthly._
   now trails; control and midrange lead this one), and the prefab columns
   split sharply, Sands of the Duat and Crimson Muster holding the personas
   to 70-74% while Celtic Fae, Starborne, and Ragnarok concede 92-95%.
-  Artifacts retained as `scripts/personas/decks/2026-08-31-metagame-*.json`.
+  Artifacts retained as `scripts/personas/decks/2026-08-31-metagame-*.json`;
+  `--check` re-measured all six on the 10ed528 tip at 0.0 percentage points
+  drift, once `--check` learned to forward the retained land reserve.
 
 ## Recently shipped (2026-08-25 · 1.6.4)
 
