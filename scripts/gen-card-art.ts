@@ -15,6 +15,7 @@
  * Usage:
  *   npm run gen-card-art -- [--faction <stem>] [--only id1,id2] [--limit N]
  *                           [--dry-run] [--show-prompt] [--force] [--cli <path>]
+ *   npm run gen-card-art -- --recrop <file>
  *
  *   --faction greek   only entries from docs/art-bible/greek.md
  *   --only a,b        only these card ids
@@ -35,7 +36,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { convertPngToWebp } from './convert-art-webp';
 
@@ -179,6 +180,7 @@ interface Args {
   faction?: string;
   only?: string[];
   limit?: number;
+  recrop?: string;
   dryRun: boolean;
   showPrompt: boolean;
   force: boolean;
@@ -196,6 +198,7 @@ function parseArgs(argv: string[]): Args {
     };
     if (a === '--faction') args.faction = next(a);
     else if (a === '--only') args.only = next(a).split(',').map((s) => s.trim()).filter(Boolean);
+    else if (a === '--recrop') args.recrop = next(a);
     else if (a === '--limit') {
       const n = Number(next(a));
       if (!Number.isInteger(n) || n <= 0) fail('--limit must be a positive integer');
@@ -230,6 +233,17 @@ interface Entry {
   sharedArt: boolean;
 }
 
+interface RecropEntry {
+  id: string;
+  scale: number;
+}
+
+interface SmartcropResult {
+  source: string;
+  crop: [number, number, number, number];
+  achievedScale: number;
+}
+
 /** (card-id → prompt) pairs from one faction file, in file order. */
 function parseFaction(faction: string): Entry[] {
   const content = readFileSync(join(bibleDir, `${faction}.md`), 'utf8');
@@ -251,6 +265,130 @@ function parseFaction(faction: string): Entry[] {
     fail(`${faction}.md: entries missing a Prompt field: ${missing.map((e) => e.id).join(', ')}`);
   }
   return entries.filter((e) => !e.sharedArt);
+}
+
+function readRecropBatch(file: string): RecropEntry[] {
+  const path = resolve(root, file);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    fail(`could not read recrop batch ${path}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!Array.isArray(raw)) fail(`recrop batch must contain an array: ${path}`);
+  const seen = new Set<string>();
+  return raw.map((item, index) => {
+    if (!item || typeof item !== 'object') fail(`recrop[${index}] must be an object`);
+    const value = item as Record<string, unknown>;
+    const id = value.id;
+    const scale = value.scale;
+    if (typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(id)) {
+      fail(`recrop[${index}].id must be a safe card id`);
+    }
+    if (seen.has(id)) fail(`recrop batch contains duplicate id: ${id}`);
+    seen.add(id);
+    if (typeof scale !== 'number' || !Number.isFinite(scale) || scale < 1) {
+      fail(`recrop[${index}].scale must be a finite number >= 1`);
+    }
+    return { id, scale };
+  });
+}
+
+function parseSmartcropResult(stdout: string, id: string): SmartcropResult {
+  const line = stdout.trim().split(/\r?\n/).filter(Boolean).at(-1);
+  if (!line) fail(`smartcrop produced no JSON output for ${id}`);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(line);
+  } catch {
+    fail(`smartcrop produced invalid JSON for ${id}: ${line}`);
+  }
+  if (!raw || typeof raw !== 'object') fail(`smartcrop JSON was not an object for ${id}`);
+  const value = raw as Record<string, unknown>;
+  const crop = value.crop;
+  const achievedScale = value.achieved_scale;
+  if (typeof value.source !== 'string') fail(`smartcrop returned no source for ${id}`);
+  if (!Array.isArray(crop) || crop.length !== 4 || !crop.every((n) => typeof n === 'number' && Number.isFinite(n))) {
+    fail(`smartcrop returned an invalid crop box for ${id}`);
+  }
+  if (value.W !== OUT_W || value.H !== OUT_H) {
+    fail(`smartcrop returned ${String(value.W)}x${String(value.H)} for ${id}, expected ${OUT_W}x${OUT_H}`);
+  }
+  if (typeof achievedScale !== 'number' || !Number.isFinite(achievedScale)) {
+    fail(`smartcrop returned no achieved scale for ${id}`);
+  }
+  return { source: value.source, crop: crop as [number, number, number, number], achievedScale };
+}
+
+function runRecrop(file: string, dryRun: boolean): void {
+  const batch = readRecropBatch(file);
+  if (dryRun) {
+    console.log(`gen-card-art: recrop dry run, ${batch.length} entr${batch.length === 1 ? 'y' : 'ies'}; nothing written`);
+    for (const entry of batch) {
+      const rawPath = join(rawDir, `${entry.id}.raw.png`);
+      console.log(`${existsSync(rawPath) ? 'WOULD-RECROP' : 'MISSING-RAW'} ${entry.id} requested=${entry.scale}`);
+    }
+    return;
+  }
+  mkdirSync(outDir, { recursive: true });
+  const capped: string[] = [];
+  const missing: string[] = [];
+  const failures: string[] = [];
+  let processed = 0;
+  console.log(`gen-card-art: recrop mode, ${batch.length} entr${batch.length === 1 ? 'y' : 'ies'}; generation calls: none`);
+
+  for (const entry of batch) {
+    const rawPath = join(rawDir, `${entry.id}.raw.png`);
+    if (!existsSync(rawPath)) {
+      missing.push(entry.id);
+      console.log(`MISSING-RAW ${entry.id} requested=${entry.scale}`);
+      continue;
+    }
+    const outPath = join(outDir, `${entry.id}.webp`);
+    const tmpPath = `${outPath}.recrop.tmp.png`;
+    const post = spawnSync(
+      PYTHON,
+      [smartcropPath, rawPath, tmpPath, String(OUT_W), String(OUT_H), 'character', '--margin-scale', String(entry.scale)],
+      { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+    );
+    if (post.error || post.status !== 0) {
+      rmSync(tmpPath, { force: true });
+      const detail = post.error
+        ? `smartcrop spawn failed: ${post.error.message}`
+        : (post.stderr ?? '').trim().split(/\r?\n/).slice(-3).join(' | ');
+      failures.push(`${entry.id}: ${detail || `smartcrop exited ${post.status ?? 'unknown'}`}`);
+      console.log(`FAILED ${entry.id} requested=${entry.scale}`);
+      continue;
+    }
+    try {
+      const result = parseSmartcropResult(post.stdout ?? '', entry.id);
+      convertPngToWebp(tmpPath, outPath);
+      rmSync(tmpPath, { force: true });
+      const isCapped = result.achievedScale < entry.scale * 0.97;
+      if (isCapped) capped.push(entry.id);
+      const status = isCapped ? 'CAPPED' : 'OK';
+      console.log(
+        `${status} ${entry.id} requested=${entry.scale} achieved=${result.achievedScale.toFixed(6)} ` +
+          `source=${result.source} crop=[${result.crop.join(',')}]`,
+      );
+      processed++;
+    } catch (error) {
+      rmSync(tmpPath, { force: true });
+      failures.push(`${entry.id}: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(`FAILED ${entry.id} requested=${entry.scale}`);
+    }
+  }
+
+  const manifest = spawnSync('npm run gen-art-manifest', { shell: true, stdio: 'inherit' });
+  if (manifest.status !== 0) fail('gen-art-manifest failed after --recrop');
+  console.log(
+    `gen-card-art: recropped ${processed}/${batch.length}; CAPPED=${capped.length}; MISSING-RAW=${missing.length}; ` +
+      `FAILED=${failures.length}`,
+  );
+  if (capped.length > 0) console.log(`CAPPED list: ${capped.join(', ')}`);
+  if (missing.length > 0) console.log(`MISSING-RAW list: ${missing.join(', ')}`);
+  for (const failure of failures) console.error(`  FAIL ${failure}`);
+  if (failures.length > 0) process.exitCode = 1;
 }
 
 // --- imagegen CLI resolution -------------------------------------------------------
@@ -357,6 +495,13 @@ function generateOne(
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
+  if (args.recrop) {
+    if (args.faction || args.only || args.limit !== undefined || args.showPrompt || args.force || args.cli) {
+      fail('--recrop cannot be combined with generation filters or --force/--cli');
+    }
+    runRecrop(args.recrop, args.dryRun);
+    return;
+  }
 
   const factions = args.faction ? [args.faction] : [...FACTIONS];
   let entries = factions.flatMap(parseFaction);

@@ -1,4 +1,4 @@
-<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-07-24
+<!-- source-of-truth: package.json, src/art/ArtResolver.ts, src/art/PlaceholderArtGenerator.ts, src/art/ArtAtlas.ts, src/art/SeededRandom.ts, src/art/TribeEmblems.ts, src/ui/CardView.ts, src/ui/BoardCardView.ts, src/ui/fx/HoloEffects.ts, src/ui/fx/IridescencePostFX.ts, src/ui/fx/FXSupport.ts, scripts/gen-art-manifest.ts, scripts/convert-art-webp.ts, scripts/gen-art-halfres.ts, scripts/gen-card-art.ts, scripts/gen-land-art.ts, scripts/gen-spell-art.ts, scripts/gen-scene-art.ts, scripts/smartcrop.py, scripts/recrop-art.ts, scripts/requirements.txt, src/data/art-manifest.json · last-verified: 2026-08-29
      If you change those files, update this doc or re-verify the date. -->
 
 # Art pipeline
@@ -119,6 +119,12 @@ The cropper has two modes:
   `scripts/gen-spell-art.ts`) never runs detection and preserves the old Pillow
   center cover-crop byte-for-byte, so land and spell output stays unchanged.
 
+The optional `--margin-scale S` argument (default `1.0`) widens the selected
+crop window around the same focal anchor by `S`, zooming out without synthesizing
+padding. It preserves the existing focal/headroom rules and `MAX_UPSCALE` floor;
+when the raw bounds cap the requested widening, the achieved scale is printed on
+stderr and included in the JSON result. At `1.0`, the crop path is unchanged.
+
 The batch review tool is `npm run recrop-art` (`scripts/recrop-art.ts`). It
 reads retained raws from `%TEMP%/gen-card-art`, `%TEMP%/gen-land-art`, and
 `%TEMP%/gen-spell-art`, writes staged output under `.artcrop-staging/cards/`,
@@ -184,6 +190,12 @@ assembled prompt(s) without generating — review text before a batch burns
 quota. After a generating batch it re-runs `npm run gen-art-manifest` so the
 game picks the new files up.
 
+For a review-only crop pass, `--recrop <file>` reads a JSON array of `{ "id",
+"scale" }` entries, uses only retained raws in `%TEMP%/gen-card-art/`, and
+overwrites the matching shipped WebPs without invoking image generation. Each
+entry reports `OK`, `CAPPED` when the raw bounds prevent more than 3% of the
+requested widening, or `MISSING-RAW`.
+
 ### Land art: `scripts/gen-land-art.ts`
 
 The 22 **land cards covered by the land-art generator** (5 basic, 10 dual
@@ -224,6 +236,10 @@ rule specifically against stamped banner-text/seal-glyphs/nameplates (the
 banner, seal, and oath cards invite them). Output goes to the same
 `public/assets/art/cards/` at 640×800, so the manifest and resolver pick spell
 WebPs up automatically.
+
+The spell driver also accepts `--recrop <file>` for entries whose retained
+raws live in `%TEMP%/gen-spell-art/`; it uses environment mode and the same
+no-generation `OK` / `CAPPED` / `MISSING-RAW` reporting.
 
 **Entry-coverage traps (learned 2026-07-13):** shipped images can exist with
 NO prompt entry anywhere (cf-dawn-torc and cf-silver-thread were generated
