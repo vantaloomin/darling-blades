@@ -94,6 +94,21 @@ _Dated 2026-08-25. Review monthly._
   PNG save cards, sweep durability and byte-identical resume, the
   converter legal-target detector, release-page automation, round
   browsing, and Limited pip-demand basics.
+- **The 1.7 metagame sweep (2026-08-31 to 2026-09-03).** The first sweep to
+  run to completion on the reserve-native harness: six personas, 150 seeds x
+  80 iterations, a seed round plus two best-response rounds (owner-set
+  `--rounds 2`), launched from #317's pool with Starborne, the v3.1 slate,
+  and Rage, 8 workers, 2.7 days. Final scores against the 13 prefab columns
+  plus the other five personas: draw-go 87.7 / midrange 83.9 / burn 79.2 /
+  attrition 71.5 / reanimator 71.2 / weenie 62.0, zero honesty flags, zero
+  quota shortfalls. It stopped at max-rounds without converging, every deck
+  still swapping about half its 40 cards per round, so under ruling 2.24 it
+  stays informational and blocks nothing. Two readings worth carrying: the
+  archetype order has inverted since 1.3 (go-wide led that field at 77.6 and
+  now trails; control and midrange lead this one), and the prefab columns
+  split sharply, Sands of the Duat and Crimson Muster holding the personas
+  to 70-74% while Celtic Fae, Starborne, and Ragnarok concede 92-95%.
+  Artifacts retained as `scripts/personas/decks/2026-08-31-metagame-*.json`.
 
 ## Recently shipped (2026-08-25 · 1.6.4)
 

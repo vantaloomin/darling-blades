@@ -1397,11 +1397,14 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
         }
         const finalRound = artifact.metagame?.rounds[artifact.metagame.rounds.length - 1];
         if (!finalRound) throw new Error(`Invalid metagame artifact: ${checkPath}`);
+        // The retained reserve travels with the deck: the measurer refuses a
+        // Warchest row without one, and a check that cannot measure is no check.
         checked = runtimeMeasure(artifact.deck, {
             field: 'personas',
             seeds,
             seed: artifact.seed,
             personaId: artifact.persona.id,
+            landReserve: artifact.landReserve,
             fieldComposition: finalRound.fieldComposition,
           });
       } else {
@@ -1414,6 +1417,7 @@ export function runCli(argv: readonly string[], dependencies: CliDependencies = 
           seeds,
           seed: artifact.seed,
           personaId: artifact.persona.id,
+          landReserve: artifact.landReserve,
         });
       }
       log(`Checked ${basename(checkPath)} (${artifact.persona.id})`);
