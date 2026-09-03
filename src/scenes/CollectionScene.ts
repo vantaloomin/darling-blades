@@ -559,10 +559,13 @@ export class CollectionScene extends Phaser.Scene {
     const animationLevel = save.settings.animations;
     const touchProfile = isTouchDevice();
 
-    // Full Art gallery light. It stays centered for reduced/off motion and
-    // follows the same pointer pose as the card only under full motion.
+    // Full Art gallery light. It stays centered at every motion level: the
+    // pointer-following version read as a lamp wandering behind the card
+    // (owner, 2026-09-03), so only the card tilts now. Sized to the showcase
+    // card (375x525 at scale 1.25) with an even 20px rim on every side, so
+    // it reads as a glow around the card rather than a lopsided halo.
     const galleryHalo = this.add
-      .ellipse(ATELIER_CARD.x, ATELIER_CARD.y, 470, 560, colorInt(theme.colors.gold), 0.1)
+      .ellipse(ATELIER_CARD.x, ATELIER_CARD.y, 415, 565, colorInt(theme.colors.gold), 0.1)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setVisible(false);
     const galleryFloor = this.add
@@ -744,11 +747,8 @@ export class CollectionScene extends Phaser.Scene {
       for (const target of [view, compareView, compareMaskSource, wipeOverlay]) {
         target.setPosition(x, y).setScale(scaleX, scaleY).setAngle(pose.angleDeg);
       }
-      galleryHalo.setPosition(
-        ATELIER_CARD.x + pose.lightOffsetX,
-        ATELIER_CARD.y + pose.lightOffsetY,
-      );
-      galleryFloor.setX(ATELIER_CARD.x + pose.lightOffsetX * 0.35);
+      // The gallery light deliberately ignores pose.lightOffset: the halo and
+      // its floor glow stay put while the card tilts under the pointer.
     };
     const settleAtelierPose = (): void => {
       tiltTween?.remove();
