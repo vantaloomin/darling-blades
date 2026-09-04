@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/data/cards/*.ts, src/engine/statics.ts, src/engine/types.ts · last-verified: 2026-07-31
+<!-- source-of-truth: src/data/cards/*.ts, src/engine/statics.ts, src/engine/types.ts · last-verified: 2026-09-04
      If you change those files, update this doc or re-verify the date. -->
 
 # Tribal pass — audit and plan
@@ -72,7 +72,7 @@ Three tiers, with one governing rule that prevents this recurring:
   Valkyrie CORE), plus **Bastet** (owner-ratified 2026-08-17 for Sands of the
   Duat, concretion gate item 4; enters at 0 cards until the `sd-` waves land,
   planned density 34 creatures + 3 typal payoffs per
-  plan-duat-cards-mechanical §1.2) - 19 declared Axes in all. This doc's
+  plan-duat-cards-mechanical §1.2), plus **Yokai** (owner pick 2026-09-04: Jade-Crown Elder is the green Yokai lord, "Your other Yokai get +1/+0 and gain Overrun"; 11 Yokai Nights creatures carry the type) - 20 declared Axes in all. This doc's
   "(14 after Tier 0)" count predates those set additions; the code list is
   the truth now. (Mermaid was caught by the enforcement test's first run:
   dt-seafoam-dagger's static filtered on it while no audit listed it.)
