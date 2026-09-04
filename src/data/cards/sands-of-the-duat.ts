@@ -116,7 +116,7 @@ export const SANDS_OF_THE_DUAT = [
     attack: 5,
     defense: 5,
     keywords: ['wardingGaze'],
-    empower: { cost: cost(2, 'G'), ops: [{ op: 'extraLandDrop', n: 2 }] },
+    empower: { cost: cost(2, 'G'), targets: [{ what: 'yourGraveCreature' }], ops: [{ op: 'reclaim' }, { op: 'gainLife', n: 3 }] },
     rarity: 'ssr',
     flavor: 'The flood is generous. It has never been generous to anyone in particular.',
   },

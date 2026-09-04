@@ -248,7 +248,7 @@ A card with an `empower` block (`CardDef.empower`, 1.3) may be cast for its
 normal cost, or for the combined cost (`combineManaCosts`) with the empowered
 flag set on the cast action. On resolution the empower ops run after the
 card's normal effect (for permanents, after its arrival triggers); empower ops
-are target-free and only `moveMark` may carry targets. X spells cannot be empowered
+are target-free except two named shapes: `moveMark` carries two targets and `reclaim` carries one `yourGraveCreature` target (2026-09-04, Renenutet). X spells cannot be empowered
 (`validateAction` rejects the combination).
 
 **Empower is the only ADDITIVE cost in the game.** Retell, Preserve, Hauntlink
