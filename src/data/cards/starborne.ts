@@ -272,7 +272,6 @@ export const STARBORNE = [
         ops: [{ op: 'severSelf' }, { op: 'raise', to: 'top', withMarks: 2 }],
       },
     ], rarity: 'c',
-    flavor: 'It receives transmissions from places that have no coordinates.',
   }),
   charm('sb-corpse-lantern', 'Corpse Lantern', {
     cost: cost(1, 'B'), colors: B, abilities: [spell([{ op: 'damage', n: 2, to: 'target' }, { op: 'gainLife', n: 1 }], 'any')], rarity: 'c',
