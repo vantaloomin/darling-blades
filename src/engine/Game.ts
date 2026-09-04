@@ -630,6 +630,15 @@ export class Game {
           },
           pending.ops,
         );
+        // A deferred-target trigger resolves outside the stack flush, so it
+        // gets no state-based check of its own. Without this a creature dealt
+        // lethal damage here stayed on the battlefield, and in main 2 - past
+        // the attackers-step check - cleanup zeroed the damage and it lived
+        // (owner report 2026-09-04; tests/engine/deferredTriggerSba.test.ts).
+        // Mirrors closeAndFlush, which checks after every resolved item; any
+        // dies-trigger decisions this enqueues are raised by the drain in
+        // submit() the same way.
+        checkStateBased(st, this.db, emit);
         return;
       }
 
