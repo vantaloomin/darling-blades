@@ -1,4 +1,4 @@
-<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-08-24 · review monthly -->
+<!-- source-of-truth: tests/, scripts/, scripts/gen-card-art.ts, src/data/catalog.ts, src/data/starterDecks.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/data/art-manifest.json, src/meta/SaveManager.ts, src/meta/Economy.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/meta/Limited.ts, src/meta/draftPicker.ts, src/meta/DeckCode.ts, src/meta/collectionFilter.ts, src/meta/deckColorIdentity.ts, src/scenes/AchievementsScene.ts, src/scenes/MainMenuScene.ts, src/scenes/LimitedDraftScene.ts, src/ai/HardAI.ts, src/ai/MediumAI.ts, src/ai/determinize.ts, src/audio/, src/audio/music.ts, src/audio/musicPatterns.ts, src/ui/CardThumbCache.ts, src/ui/SceneBackdrop.ts, src/ui/KeywordGlossaryPanel.ts, src/platform/, tests/ai/winrate.test.ts, tests/meta/quests.test.ts, tests/meta/achievements.test.ts, tests/meta/deckColorIdentity.test.ts, tests/meta/deckCode.test.ts, docs/art-bible/, docs/mobile-lan-plan.md, docs/scene-art.md, docs/design-system.md, docs/plan-design-system-alignment.md, src/meta/DeckStorage.ts, tests/meta/limited.test.ts, tests/meta/draftPersonas.test.ts, src/meta/profileStats.ts, src/ui/deckStats.ts, src/ui/SearchInput.ts · last-verified: 2026-09-04 · review monthly -->
 
 # Roadmap
 
@@ -1622,6 +1622,18 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 > (investigation, 2026-08-28); it stays parked at 2.1 until its open decisions
 > are ruled, and still has no code.
 
+- **Run the toolchain and CI on Node 24 (proposal, 2026-09-04).** The v1.7.1
+  release run warned that `actions/checkout@v4`, `actions/setup-node@v4`, and
+  `softprops/action-gh-release@v2` still target Node 20 and are being forced
+  onto Node 24; GitHub removes Node 20 from the runner on 2026-09-23, and our
+  workflows pin the toolchain to Node 22 (maintenance since 2025-10-21). Every
+  toolchain package already accepts Node 24, so
+  [plan-node-24-upgrade.md](plan-node-24-upgrade.md) proposes one chore PR:
+  `node-version: 24` in both workflows, `engines` + `.nvmrc`, the three actions
+  to their smallest node24 majors (v5, v5, v3), the README prerequisite line,
+  and a verification order that ends with the next `v*` tag exercising
+  `release.yml`. Three owner decisions are listed in the doc (smallest vs
+  latest action majors, engines warning vs strict, timing). No code changes.
 - **Anonymous telemetry + optional cloud accounts (investigation, 2026-08-28).**
   Two independent capabilities specced together in
   [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md) because they
