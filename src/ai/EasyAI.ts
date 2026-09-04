@@ -64,6 +64,7 @@ export class EasyAI implements AIPlayer {
         return this.block(view);
       case 'respond':
       case 'endStepWindow':
+      case 'hauntlinkWindow':
         return this.respond(view, legal);
       case 'chooseTarget':
         return chooseTargetAction(view, this.db, legal);

@@ -20,7 +20,7 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
 
 // Starborne adds a deferred target decision and new effect payloads. Older
 // logs retain their revision-specific execution paths; new recordings use v10.
-export const REPLAY_LOG_VERSION = 10 as const;
+export const REPLAY_LOG_VERSION = 11 as const;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
@@ -186,7 +186,7 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
     // marker, so a current-version golden can still replay that old path.
     rulesRev: log.actions.some((step) => step.a.type === 'castSpell' && step.a.hauntlinked)
       ? 2
-      : log.v >= 8 ? 3 : log.v >= 7 ? 2 : 1,
+      : log.v >= 11 ? 4 : log.v >= 8 ? 3 : log.v >= 7 ? 2 : 1,
     ...(log.startingHandSize === undefined ? {} : { startingHandSize: log.startingHandSize }),
     ...(format === 'warchest'
       ? {
@@ -235,11 +235,11 @@ export function isReplayLog(value: unknown): value is ReplayLog {
         : false;
   const legacyPayloadShape = (rawFormat === undefined && log.landReserves === undefined && log.darlings === undefined) ||
     (format !== undefined && reserveShape && log.darlings === undefined);
-  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5
+  const payloadShape = log.v === REPLAY_LOG_VERSION || log.v === 10 || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5
     ? currentPayloadShape
     : legacyPayloadShape;
   const valid =
-    (log.v === REPLAY_LOG_VERSION || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
+    (log.v === REPLAY_LOG_VERSION || log.v === 10 || log.v === 9 || log.v === 8 || log.v === 7 || log.v === 6 || log.v === 5 || log.v === 4 || log.v === 3 || log.v === 2) &&
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     startingHandSizeShape &&

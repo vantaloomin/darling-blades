@@ -2561,6 +2561,7 @@ export class DuelScene extends Phaser.Scene {
       }
       case 'respond':
       case 'endStepWindow':
+      case 'hauntlinkWindow':
         return { type: 'passResponse' };
       default:
         return null; // mulligan / bottomCards / foresee / discardToHandSize → stop for input
@@ -4518,7 +4519,7 @@ export class DuelScene extends Phaser.Scene {
     const stackDecisionLive =
       !this.ended &&
       'player' in a &&
-      (a.kind === 'respond' || a.kind === 'endStepWindow');
+      (a.kind === 'respond' || a.kind === 'endStepWindow' || a.kind === 'hauntlinkWindow');
     this.stackDisplay.setItems(items, stackDecisionLive);
 
     if (this.ended || !('player' in a) || a.player !== HUMAN) return;
@@ -4584,6 +4585,9 @@ export class DuelScene extends Phaser.Scene {
       case 'respond':
       case 'endStepWindow':
         showButton('Pass');
+        break;
+      case 'hauntlinkWindow':
+        showButton('Pass (Hauntlink)');
         break;
       default:
         break;

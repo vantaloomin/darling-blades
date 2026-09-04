@@ -56,6 +56,7 @@ export class HardAI implements AIPlayer {
         return this.searchBlocks(view);
       case 'respond':
       case 'endStepWindow':
+      case 'hauntlinkWindow':
         return this.searchResponse(view, legal);
       case 'chooseTarget':
         return this.searchTarget(view, legal);
@@ -122,7 +123,7 @@ export class HardAI implements AIPlayer {
     // instead of mid-stack.
     for (let guard = 0; guard < 20; guard++) {
       const a = game.awaiting;
-      if (a.kind !== 'respond' && a.kind !== 'endStepWindow') break;
+      if (a.kind !== 'respond' && a.kind !== 'endStepWindow' && a.kind !== 'hauntlinkWindow') break;
       if (a.player !== me) break;
       try {
         game.submit(me, this.medium.chooseAction(game.viewFor(me), game.legalActions(me)));
@@ -171,7 +172,7 @@ export class HardAI implements AIPlayer {
         } catch {
           game.submit(opp, { type: 'declareBlockers', blocks: [] });
         }
-      } else if (a.kind === 'respond' || a.kind === 'endStepWindow') {
+      } else if (a.kind === 'respond' || a.kind === 'endStepWindow' || a.kind === 'hauntlinkWindow') {
         try {
           game.submit(opp, this.neutralMedium.chooseAction(game.viewFor(opp), game.legalActions(opp)));
         } catch {

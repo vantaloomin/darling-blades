@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EasyAI } from '../../src/ai/EasyAI';
+import { CURRENT_RULES_REV } from '../../src/config/rules';
 import type { Action } from '../../src/engine/actions';
 import type { GameEvent } from '../../src/engine/events';
 import { Game } from '../../src/engine/Game';
@@ -61,7 +62,10 @@ const TARGET_REPLAY_DB: Record<string, CardDef> = {
  */
 function recordBotGame(
   seed: number,
-  rulesRev: 1 | 2 | 3 = 3,
+  // Tracks the live revision: a log at the current version replays as the
+  // current revision, so recording at anything older would compare a rev-N
+  // state against a rev-(N+1) replay and fail on the revision field alone.
+  rulesRev: 1 | 2 | 3 | 4 = CURRENT_RULES_REV,
   replayVersion: number = REPLAY_LOG_VERSION,
   startingHandSize?: number,
 ): {
