@@ -3035,7 +3035,7 @@ export const SANDS_OF_THE_DUAT = [
     name: 'Give the Field Its Due',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(0, 'G'),
+    cost: cost(1, 'G'),
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',

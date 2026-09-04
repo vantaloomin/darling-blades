@@ -343,7 +343,7 @@ const R: CardDef[] = [
     flavor: 'The kiss is optional. The contract is not.',
   }),
   make('dt-verdant-heart-voyage', 'Verdant-Heart Voyage', ['ritual'], ['Relic'], {
-    cost: cost(0, 'G'), colors: ['G'], abilities: [spell([{ op: 'extraLandDrop' }])], skim: { cost: cost(1) }, rarity: 'r',
+    cost: cost(1, 'G'), colors: ['G'], abilities: [spell([{ op: 'extraLandDrop' }])], skim: { cost: cost(1) }, rarity: 'r',
     flavor: 'The relic points home, even when home is still being built.',
   }),
   creature('dt-wave-skiff-runner', 'Wave-Skiff Runner', ['Human', 'Sailor'], {
@@ -382,7 +382,7 @@ const C: CardDef[] = [
   make('dt-bookmark-charm', 'Bookmark Charm', ['ritual'], ['Relic'], { cost: cost(1), colors: [], skim: { cost: cost(1) }, abilities: [spell([{ op: 'foresee', n: 2 }, { op: 'grind', n: 1, who: 'self' }])], rarity: 'c', flavor: 'A good place to stop is also a good place to look ahead.' }),
   ritual('dt-lost-in-library', 'Lost in the Library', { cost: cost(1, 'U'), colors: ['U'], abilities: [{ when: 'spell', ops: [{ op: 'foresee', n: 2 }, { op: 'draw', n: 1 }, { op: 'grind', n: 2, who: 'self' }] }], rarity: 'c', flavor: 'The shelves are endless. The useful answer is on the next page.' }),
   enchantment('dt-cursed-rose', 'Cursed Rose', ['Aura'], { cost: cost(0, 'B'), colors: ['B'], abilities: [attached(-1, -1)], skim: { cost: cost(1) }, rarity: 'c', flavor: 'The bloom is beautiful until the thorns learn your name.' }),
-  artifact('dt-mirror-shard', 'Mirror Shard', ['Relic'], { cost: cost(2, 'U'), colors: ['U'], abilities: [arrives([{ op: 'foresee', n: 1 }])], hauntlink: { cost: cost(1, 'U'), linked: { p: 1, grantKeywords: ['untouchable'] } }, rarity: 'c', flavor: 'One fragment is enough to make a room doubt itself.' }),
+  artifact('dt-mirror-shard', 'Mirror Shard', ['Relic'], { cost: cost(1, 'U'), colors: ['U'], abilities: [arrives([{ op: 'foresee', n: 1 }])], hauntlink: { cost: cost(1, 'U'), linked: { p: 1, grantKeywords: ['untouchable'] } }, rarity: 'c', flavor: 'One fragment is enough to make a room doubt itself.' }),
   make('dt-silver-fishbone', 'Silver Fishbone', ['ritual'], ['Relic'], { cost: cost(0, 'B'), colors: ['B'], skim: { cost: cost(1) }, abilities: [spell([{ op: 'loseLife', n: 1, who: 'opponent' }, { op: 'gainLife', n: 1 }])], rarity: 'c', flavor: 'The sea leaves trophies for anyone patient enough to wait.' }),
   land('dt-dreaming-castle', 'Dreaming Castle', ['G', 'W'], 'c', 'The walls sleep beneath a crown of patient thorns.'),
   land('dt-tide-cavern', 'Tide Cavern', ['U', 'B'], 'c', 'The tide keeps the bargain long after the witch is gone.'),

@@ -221,7 +221,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-lion-standard', name: 'Lion Standard', types: ['enchantment'], subtypes: [],
-    cost: cost(2, 'W'), colors: ['W'],
+    cost: cost(1, 'W'), colors: ['W'],
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Knight' }, p: 1, t: 1 } }],
     rarity: 'r', flavor: 'The lion is stitched in gold, but the wind reads the warning in red.',
   },
@@ -520,7 +520,7 @@ export const ARTHURIAN_COURT = [
   },
   {
     id: 'ac-woodland-errand', name: 'Woodland Errand', types: ['ritual'], subtypes: [],
-    cost: cost(0, 'G'), colors: ['G'], abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
+    cost: cost(1, 'G'), colors: ['G'], abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c', flavor: 'The forest sends a messenger and asks for no explanation.',
   },
   {

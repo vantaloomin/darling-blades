@@ -719,7 +719,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'The shot arrives twice because the corridor insisted.',
   }),
   charm('sb-signal-recall', 'Signal Recall', {
-    cost: cost(1, 'U'), colors: U,
+    cost: cost(0, 'U'), colors: U,
     abilities: [{
       when: 'spell',
       targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }],
