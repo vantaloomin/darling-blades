@@ -4825,6 +4825,7 @@ export class DuelScene extends Phaser.Scene {
       }
       case 'respond':
       case 'endStepWindow':
+      case 'hauntlinkWindow':
         this.act({ type: 'passResponse' });
         break;
       default:
@@ -5416,7 +5417,10 @@ export class DuelScene extends Phaser.Scene {
     const perm = st.battlefield.find((p) => p.iid === iid);
     if (!perm) return;
 
-    if (a.kind === 'main' && this.beginHauntlinkTargeting(iid)) return;
+    // Link or move a Hauntlink permanent wherever the engine allows it: your
+    // own main phase and every Charm-speed window, including the revision-4
+    // Hauntlink-only window (the legal-action filter inside decides).
+    if (this.beginHauntlinkTargeting(iid)) return;
 
     if (a.kind === 'declareAttackers') {
       if (!eligibleAttackers(st.battlefield, CARD_DB, HUMAN).includes(iid)) return;
