@@ -158,7 +158,7 @@ export const YOKAI_SPEC_ROWS = [
     "type": "Legendary Creature (Yokai Elder)",
     "cost": "{4}{G}{G}",
     "stats": "6/4",
-    "mechanics": "Overrun. Empower {2}{G}: put 2 +1/+1 marks on this.",
+    "mechanics": "Overrun. Your other Yokai get +1/+0 and gain Overrun.",
     "flavor": "She remembers when the city was a forest and expects it to return."
   },
   {
@@ -1461,23 +1461,39 @@ function splitEffects(text: string): EffectOp[] {
   });
 }
 
+/**
+ * Tribal lord clause: "Your other <Subtype> get +P/+T[ and gain <Keyword[, Keyword]>]."
+ * The Kitsune lords use the bare form; Jade-Crown Elder (2026-09-04) grants
+ * Overrun on top of +1/+0.
+ */
+const LORD_CLAUSE = /Your other ([A-Z][a-z]+) get \+(\d+)\/\+(\d+)(?: and gain ([A-Za-z][A-Za-z ,]*[A-Za-z]))?\.?/i;
+
+function lordStatic(match: RegExpMatchArray): AbilityDef {
+  const grantKeywords = match[4] ? parseKeywords(match[4].replace(/ and /g, ', ')) : [];
+  if (match[4] && grantKeywords.length === 0) throw new Error('Unknown keyword grant in lord clause: ' + match[0]);
+  return {
+    when: 'static',
+    static: {
+      scope: 'filter',
+      filter: { subtype: match[1], other: true },
+      p: Number(match[2]),
+      t: Number(match[3]),
+      ...(grantKeywords.length ? { grantKeywords } : {}),
+    },
+  };
+}
+
 function parseAbilityText(text: string, spellMode = false): AbilityDef[] {
   const abilities: AbilityDef[] = [];
-  const staticMatch = text.match(/^Your other (Kitsune) get \+(\d+)\/\+(\d+)\.$/i);
+  const staticMatch = text.match(new RegExp('^' + LORD_CLAUSE.source + '$', 'i'));
   if (staticMatch) {
-    abilities.push({
-      when: 'static',
-      static: { scope: 'filter', filter: { subtype: staticMatch[1], other: true }, p: Number(staticMatch[2]), t: Number(staticMatch[3]) },
-    });
+    abilities.push(lordStatic(staticMatch));
     return abilities;
   }
 
-  const filterStaticMatch = text.match(/Your other (Kitsune) get \+(\d+)\/\+(\d+)\.?/i);
+  const filterStaticMatch = text.match(LORD_CLAUSE);
   if (filterStaticMatch) {
-    abilities.push({
-      when: 'static',
-      static: { scope: 'filter', filter: { subtype: filterStaticMatch[1], other: true }, p: Number(filterStaticMatch[2]), t: Number(filterStaticMatch[3]) },
-    });
+    abilities.push(lordStatic(filterStaticMatch));
   }
   const normalText = text
     .replace(filterStaticMatch?.[0] ?? '', '')
@@ -1542,6 +1558,30 @@ function parseAbilityText(text: string, spellMode = false): AbilityDef[] {
   return abilities;
 }
 
+/**
+ * Every rules clause a row can carry must be consumed by the parser. Anything
+ * left over is text the card would silently lose (Jade-Crown Elder shipped
+ * 1.7.0 without her authored Empower this way), so it fails the build instead.
+ */
+function assertFullyParsed(row: YokaiSpecRow, keywordText: string, spellMode: boolean, isLand: boolean): void {
+  if (spellMode) return; // the whole body is the spell text
+  if (isLand) return; // "Arrives tapped. Tap: ..." is expressed by the land fields, not parsed
+  const leftover = row.mechanics
+    .replace(/\s*\[ANSWER:[^\]]+\]\.?/g, '')
+    .replace(/\s*\(AI-risk survivor\.\)/g, '')
+    .replace(keywordText, '')
+    .replace(new RegExp(LORD_CLAUSE.source, 'i'), '')
+    .replace(/Hauntlink \{[^}]+\}(?:\{[^}]+\})*\. Linked: The linked creature gets .+$/i, '')
+    .replace(/(?:At dawn|Arrives|When this attacks|Dies):[^.]+\.?/gi, '')
+    .replace(/[.\s]/g, '');
+  if (leftover) throw new Error(`Unparsed Yokai mechanics on ${row.id}: "${leftover}"`);
+}
+
+/** Exported for the parser tests; the catalog uses the compiled YOKAI_NIGHTS array. */
+export function parseYokaiSpecRow(row: YokaiSpecRow): CardDef {
+  return parseCard(row);
+}
+
 function parseCard(row: YokaiSpecRow): CardDef {
   const typeName = row.type.replace(/^Legendary /, '').split(' (')[0].toLowerCase() as CardType;
   const isLand = typeName === 'land';
@@ -1550,7 +1590,9 @@ function parseCard(row: YokaiSpecRow): CardDef {
   const stats = parseStats(row.stats);
   const keywordText = row.mechanics.split(/\.|\[/)[0].trim();
   const keywords = parseKeywords(keywordText);
-  const abilities = parseAbilityText(row.mechanics, typeName === 'ritual' || typeName === 'charm');
+  const spellMode = typeName === 'ritual' || typeName === 'charm';
+  const abilities = parseAbilityText(row.mechanics, spellMode);
+  assertFullyParsed(row, keywords.length ? keywordText : '', spellMode, isLand);
   const hauntlinkText = row.mechanics.match(/Hauntlink (\{[^}]+\}(?:\{[^}]+\})*)/i)?.[1];
   const hauntlinkAbility = abilities.find((ability) => ability.when === 'static' && ability.static?.scope === 'attached');
   const hauntlink = hauntlinkText && hauntlinkAbility?.static
