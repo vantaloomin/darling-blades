@@ -25,6 +25,9 @@ import {
   claimFreeStarter,
   cloneShopDeck,
   deckProductCardIds,
+  grantDeckCards,
+  ownsEveryDeckCard,
+  shopDeckOwned,
   grantedDeckBuild,
   previewDeckGrant,
   spendGold,
@@ -1247,7 +1250,7 @@ describe('cloneShopDeck (the shop\'s Clone Deck on owned rows)', () => {
     original.cards = original.cards.slice(0, 5);
     original.name = 'my ruined build';
 
-    const id = cloneShopDeck(save, deck);
+    const id = cloneShopDeck(save, CARD_DB, deck);
     expect(id).toBe('deck-2');
     const clone = save.decks.find((d) => d.id === id)!;
     const factory = grantedDeckBuild(deck);
@@ -1264,20 +1267,59 @@ describe('cloneShopDeck (the shop\'s Clone Deck on owned rows)', () => {
 
   it('repeat clones get unique ids and never collide', () => {
     const save = ownedSave();
-    const a = cloneShopDeck(save, deck);
-    const b = cloneShopDeck(save, deck);
+    const a = cloneShopDeck(save, CARD_DB, deck);
+    const b = cloneShopDeck(save, CARD_DB, deck);
     expect(a).not.toBeNull();
     expect(b).not.toBeNull();
     expect(a).not.toBe(b);
     expect(new Set(save.decks.map((d) => d.id)).size).toBe(save.decks.length);
   });
 
-  it('refuses when the shop deck is no longer in the library (deleted decks re-buy instead)', () => {
+  it('refuses when the shop deck is gone from the library AND a card is missing (re-buy instead)', () => {
     const save = ownedSave();
     save.decks = save.decks.filter((d) => d.id !== deck.id);
+    // Losing one required copy makes the collection incomplete again.
+    const required = deckProductCardIds(deck).find((id) => !CARD_DB[id].supertypes?.includes('basic'))!;
+    save.collection[required] = (save.collection[required] ?? 1) - 1;
     const before = save.decks.length;
-    expect(cloneShopDeck(save, deck)).toBeNull();
+    expect(shopDeckOwned(save, CARD_DB, deck)).toBe(false);
+    expect(cloneShopDeck(save, CARD_DB, deck)).toBeNull();
     expect(save.decks).toHaveLength(before);
+  });
+
+  it('grants the factory deck, free, when the player already holds every card (owner rule 2026-09-04)', () => {
+    const save = freshSave(0);
+    save.gold = 0;
+    grantDeckCards(save, CARD_DB, deckProductCardIds(deck));
+    expect(save.decks.some((d) => d.id === deck.id)).toBe(false);
+    expect(ownsEveryDeckCard(save, CARD_DB, deck)).toBe(true);
+    expect(shopDeckOwned(save, CARD_DB, deck)).toBe(true);
+    const collectionBefore = { ...save.collection };
+
+    // First press lands the deck itself under its shop id and name, as a
+    // purchase would have; the collection and gold are untouched.
+    expect(cloneShopDeck(save, CARD_DB, deck)).toBe(deck.id);
+    const granted = save.decks.find((d) => d.id === deck.id)!;
+    const factory = grantedDeckBuild(deck);
+    expect(granted.name).toBe(deck.name);
+    expect(granted.cards).toEqual(factory.cards);
+    expect(granted.format).toBe(factory.format);
+    expect(save.gold).toBe(0);
+    expect(save.collection).toEqual(collectionBefore);
+
+    // From then on it clones like any owned row.
+    const copy = cloneShopDeck(save, CARD_DB, deck);
+    expect(copy).not.toBe(deck.id);
+    expect(save.decks.find((d) => d.id === copy)!.name).toBe(`${deck.name} copy`);
+  });
+
+  it('a complete collection owns a Darlings precon too, Darling and reserve included', () => {
+    const save = freshSave(0);
+    const precon = DARLINGS_PRECONS[1];
+    grantDeckCards(save, CARD_DB, deckProductCardIds(precon));
+    expect(shopDeckOwned(save, CARD_DB, precon)).toBe(true);
+    expect(cloneShopDeck(save, CARD_DB, precon)).toBe(precon.id);
+    expect(save.decks.find((d) => d.id === precon.id)).toMatchObject({ format: 'darlings', darlingId: precon.darlingId });
   });
 
   it('clones a Darlings precon with its darling and reserve intact', () => {
@@ -1285,7 +1327,7 @@ describe('cloneShopDeck (the shop\'s Clone Deck on owned rows)', () => {
     const precon = DARLINGS_PRECONS[1];
     save.gold = ECONOMY.preconPrice;
     expect(buyThemeDeck(save, CARD_DB, precon)).toBe(true);
-    const id = cloneShopDeck(save, precon);
+    const id = cloneShopDeck(save, CARD_DB, precon);
     expect(id).not.toBeNull();
     const clone = save.decks.find((d) => d.id === id)!;
     expect(clone.format).toBe('darlings');
