@@ -135,6 +135,25 @@ describe('Starborne transcription', () => {
     expect(STARBORNE.flatMap(opsOf).some((op) => op.op === 'fetchLand')).toBe(false);
   });
 
+  it('applies the 2026-09-04 arrival-only permanent fixes', () => {
+    // Owner catch after 1.7.0: an Artifact whose only text is an arrival
+    // trigger is a Ritual that leaves a blank object behind. The rule itself
+    // is enforced pool-wide in tests/data/inertPermanents.test.ts.
+    const card = (id: string) => CARD_DB[id];
+    expect(card('sb-chrome-medallion')).toMatchObject({
+      types: ['artifact'],
+      rarity: 'c',
+      abilities: [{ when: 'dawn', ops: [{ op: 'foresee', n: 1 }] }],
+    });
+    expect(card('sb-redline-salvage')).toMatchObject({
+      types: ['ritual'],
+      rarity: 'c',
+      cost: { generic: 0, pips: { R: 1 } },
+      skim: { cost: { generic: 1, pips: {} } },
+      abilities: [{ when: 'spell', targets: [{ what: 'creature' }], ops: [{ op: 'addCounters', n: 1, to: 'target' }] }],
+    });
+  });
+
   it('renders non-empty rules text for every Starborne collectible', () => {
     for (const card of STARBORNE) {
       expect(rulesText(card).trim(), `${card.id} has empty rules text`).not.toBe('');

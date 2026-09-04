@@ -4025,7 +4025,7 @@ export const AVATARS: readonly Avatar[] = [
       'sd-root-through-the-ruin',
       'sd-tomb-seal',
       'so-ember-squall',
-      'cf-cauldron-of-dagda',
+      'sb-redline-salvage',
       'so-warcry',
       'tk-wu-handang',
       'yn-ember-mask',
