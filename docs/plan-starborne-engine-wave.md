@@ -206,7 +206,7 @@ the registry as it goes. Spot list of the trickiest:
 
 The Empower relaxation is deliberately minimal: `EmpowerDef` ops may carry
 targets only when the op is `moveMark`; all other Empower ops remain
-target-free.
+target-free. (Amended 2026-09-04: a `reclaim` rider may carry one `yourGraveCreature` target; Renenutet, see rules.md.)
 
 ## 3. Blast radius (grep everything, not the remembered list)
 

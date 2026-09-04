@@ -70,7 +70,7 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `defense`   | `number?`                              | Creatures only.                                                       |
 | `keywords`    | `Keyword[]?`                           | The twelve keywords (see [rules.md](rules.md)).                       |
 | `x`           | `{ min: number }?`                     | Marks an X spell; `min` is the smallest legal X. X cards cannot also carry `empower`. |
-| `empower`     | `{ cost: ManaCost; targets?: TargetSpec[]; ops: EffectOp[] }?` | Optional Empower cast cost + rider ops (run after normal resolution). Only `moveMark` riders may carry two cast-time targets. |
+| `empower`     | `{ cost: ManaCost; targets?: TargetSpec[]; ops: EffectOp[] }?` | Optional Empower cast cost + rider ops (run after normal resolution). Only `moveMark` riders may carry two cast-time targets; a `reclaim` rider carries exactly one `yourGraveCreature` target (Renenutet, 2026-09-04). |
 | `abilities`   | `AbilityDef[]?`                        | Triggered/static/spell abilities (below).                            |
 | `manaAbility` | `(Color \| 'C')[]?`             | Lands and mana creatures. `C` pays generic cost only.                  |
 | `entersTapped`| `boolean?`                             | Taplands enter tapped; either/or duals print "Arrives tapped."       |
