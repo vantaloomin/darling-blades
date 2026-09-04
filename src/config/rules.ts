@@ -1,7 +1,7 @@
 /** Every ruleset constant lives here — the engine reads only from this file. */
 
 /** Current observable engine-rules revision for newly constructed games. */
-export const CURRENT_RULES_REV = 3 as const;
+export const CURRENT_RULES_REV = 4 as const;
 
 /** `constructed`/`warchest` are the persisted deck-format spellings. */
 export type ReserveFormat = 'warchest' | 'darlings';

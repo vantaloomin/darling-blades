@@ -527,6 +527,8 @@ export interface CombatState {
   phase: 'attackersDeclared' | 'blockersDeclared' | 'firstStrikeDone';
   /** fog effect active this turn — combat damage prevented */
   damagePrevented: boolean;
+  /** Revision 4: players who have passed their Hauntlink window before damage. */
+  hauntlinkPassed?: PlayerId[];
 }
 
 export type Step =
@@ -563,6 +565,14 @@ export type Awaiting =
       over: { type: 'spell'; sid: number } | { type: 'attackers' } | { type: 'blockers' };
     }
   | { player: PlayerId; kind: 'endStepWindow' }
+  // Revision 4: a Hauntlink-only window (linkHaunt or pass, no Charm casts)
+  // over a trigger about to resolve, or the combat damage step. Owner ruling
+  // 2026-09-04: Hauntlink explicitly breaks the no-window-over-triggers rule.
+  | {
+      player: PlayerId;
+      kind: 'hauntlinkWindow';
+      over: { type: 'trigger'; iid: number } | { type: 'combatDamage' };
+    }
   | { player: PlayerId; kind: 'discardToHandSize'; count: number }
   | { kind: 'gameOver' };
 
@@ -596,6 +606,20 @@ export type PendingDecision =
       abilityIndex: number;
       spec: TargetSpec;
       ops: EffectOp[];
+    }
+  // Revision 4: a trigger whose ops are held back so Hauntlink windows can be
+  // offered first. `offered` records who has already had theirs. The two
+  // optional fields carry a dies trigger's original resolution context.
+  | {
+      kind: 'resolveTrigger';
+      controller: PlayerId;
+      sourceIid: number;
+      sourceCardId: string;
+      targets: TargetRef[];
+      ops: EffectOp[];
+      offered: PlayerId[];
+      markTriggerDepth?: number;
+      selfGraveExclusion?: { instanceId?: number; cardId: string };
     };
 
 export interface GameState {

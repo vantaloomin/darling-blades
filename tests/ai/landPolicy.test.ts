@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CURRENT_RULES_REV } from '../../src/config/rules';
 import { determinize } from '../../src/ai/determinize';
 import { buildAI } from '../../src/ai/personality';
 import { buildTierAI } from '../../src/ai/tiers';
@@ -170,7 +171,7 @@ describe('shared reserve land policy', () => {
     const current = new Game({ decks: [SPELL_DECK, SPELL_DECK], seed: 8129, db: TEST_DB });
     keepBoth(current);
     const currentSim = determinize(current.viewFor(0), TEST_DB, 4244);
-    expect(currentSim.instanceState.rulesRev).toBe(3);
+    expect(currentSim.instanceState.rulesRev).toBe(CURRENT_RULES_REV);
     expect(currentSim.instanceState.episode).toEqual({ resolvedSinceOffer: 0, reopensThisStep: 0 });
 
     const classic = new Game({

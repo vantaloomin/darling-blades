@@ -81,6 +81,7 @@ export class MediumAI implements AIPlayer {
         return { type: 'declareBlockers', blocks };
       }
       case 'respond':
+      case 'hauntlinkWindow':
         return this.respond(view, legal);
       case 'endStepWindow':
         return this.endStep(view, legal);

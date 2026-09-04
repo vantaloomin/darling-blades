@@ -136,7 +136,7 @@ function pushHauntlinkActions(
 }
 
 /** Payable revision-3 link or move, used by first-window and reopen gates. */
-function hasPayableHauntlinkAction(state: GameState, db: CardDb, player: PlayerId): boolean {
+export function hasPayableHauntlinkAction(state: GameState, db: CardDb, player: PlayerId): boolean {
   if (!usesActivatedHauntlink(state)) return false;
   const actions: Action[] = [];
   pushHauntlinkActions(actions, state, db, player);
@@ -685,6 +685,15 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
       break;
     }
 
+    // Revision 4: a Hauntlink-only window. Link or move, or pass - never a
+    // Charm cast or a Skim. That is the whole point of the owner's ruling:
+    // Hauntlink breaks the no-window-over-triggers rule, normal Charms do not.
+    case 'hauntlinkWindow': {
+      out.push({ type: 'passResponse' });
+      pushHauntlinkActions(out, state, db, player);
+      break;
+    }
+
     case 'respond':
     case 'endStepWindow': {
       out.push({ type: 'passResponse' });
@@ -917,7 +926,8 @@ export function validateAction(
       const charmSpeed =
         (a.kind === 'main' && state.activePlayer === player) ||
         a.kind === 'respond' ||
-        a.kind === 'endStepWindow';
+        a.kind === 'endStepWindow' ||
+        a.kind === 'hauntlinkWindow';
       if (!charmSpeed) return 'Hauntlink needs a Charm-speed window';
       const link = state.battlefield.find((perm) => perm.iid === action.iid);
       if (!link || link.controller !== player) return 'Hauntlink permanent is not under your control';
@@ -984,7 +994,9 @@ export function validateAction(
     }
 
     case 'passResponse':
-      return a.kind === 'respond' || a.kind === 'endStepWindow' ? null : 'no window open';
+      return a.kind === 'respond' || a.kind === 'endStepWindow' || a.kind === 'hauntlinkWindow'
+        ? null
+        : 'no window open';
 
     case 'passStep':
       return a.kind === 'main' ? null : 'cannot pass now';

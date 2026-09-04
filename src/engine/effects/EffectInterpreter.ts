@@ -7,6 +7,7 @@ import {
   recallPermanent,
   severPermanent,
 } from '../battlefield';
+import { anyPayableHauntlink } from '../hauntlinkWindow';
 import { drawCards } from '../phases';
 import { rngInt } from '../rng';
 import { getEffectiveStats, isQuestActive } from '../statics';
@@ -944,6 +945,31 @@ export function fireTriggers(
       continue;
     }
     emit({ e: 'triggerFired', iid: perm.iid, when });
+    const selfGraveExclusion =
+      when === 'dies'
+        ? {
+            ...(perm.instanceId === undefined ? {} : { instanceId: perm.instanceId }),
+            cardId: perm.cardId,
+          }
+        : undefined;
+    // Revision 4: a dies trigger is held back so Hauntlink windows can be
+    // offered before it resolves (owner ruling 2026-09-04). Only when someone
+    // can actually pay a link, so a board with none is byte-identical to
+    // revision 3. The drain in Game.submit() runs the held ops afterwards.
+    if (when === 'dies' && (state.rulesRev ?? 1) >= 4 && anyPayableHauntlink(state, db)) {
+      state.pendingDecisions.push({
+        kind: 'resolveTrigger',
+        controller: perm.controller,
+        sourceIid: perm.iid,
+        sourceCardId: perm.cardId,
+        targets: [],
+        ops: ab.ops,
+        offered: [],
+        ...(options.markTriggerDepth === undefined ? {} : { markTriggerDepth: options.markTriggerDepth }),
+        ...(selfGraveExclusion === undefined ? {} : { selfGraveExclusion }),
+      });
+      continue;
+    }
     runOps(
       state,
       db,
@@ -954,14 +980,7 @@ export function fireTriggers(
         sourceIid: perm.iid,
         targets: [],
         markTriggerDepth: options.markTriggerDepth,
-        ...(when === 'dies'
-          ? {
-              selfGraveExclusion: {
-                ...(perm.instanceId === undefined ? {} : { instanceId: perm.instanceId }),
-                cardId: perm.cardId,
-              },
-            }
-          : {}),
+        ...(selfGraveExclusion === undefined ? {} : { selfGraveExclusion }),
       },
       ab.ops,
     );
