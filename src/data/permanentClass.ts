@@ -37,6 +37,13 @@ export function classifyPermanent(card: CardDef): PermanentClassResult {
         classes.add('DEATH');
         evidence.push(a.when === 'dies' ? 'dies' : 'enters graveyard');
         break;
+      default:
+        // Every other trigger (ally arrivals, Mark events, Propagate, marked
+        // attackers, ...) can fire again and again while the permanent is out.
+        // Without this branch the Starborne "whenever" cards read as BLANK.
+        classes.add('RECURRING');
+        evidence.push(a.when);
+        break;
     }
   }
 
