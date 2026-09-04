@@ -434,15 +434,42 @@ export function claimFreeDarlingsDeck(save: SaveData, db: CardDb, deck: Darlings
 }
 
 /**
+ * Does the collection already hold every copy a shop deck would grant? Basics
+ * are free and skipped, exactly as grantDeckCards skips them, so this is
+ * "buying it would add nothing". A Darlings precon counts its Darling and its
+ * reserve duals, because the product does.
+ */
+export function ownsEveryDeckCard(save: SaveData, db: CardDb, deck: PurchasableDeck): boolean {
+  return previewDeckGrant(save, db, deckProductCardIds(deck)).grantedCopies === 0;
+}
+
+/**
+ * A shop deck reads as OWNED when it sits in the library under its shop id, or
+ * when the player already holds 100% of its cards (owner rule 2026-09-04: a
+ * complete collection grants the deck; you never buy a list you could build).
+ */
+export function shopDeckOwned(save: SaveData, db: CardDb, deck: PurchasableDeck): boolean {
+  return save.decks.some((d) => d.id === deck.id) || ownsEveryDeckCard(save, db, deck);
+}
+
+/**
  * Clone an owned shop deck: push a fresh copy of the FACTORY build — the exact
  * list the original purchase granted, not the player's possibly-edited deck —
  * into the library under a new id. Free: every card was granted at purchase,
- * so no gold is spent and the collection is untouched. Returns the new deck id,
- * or null when the shop deck is not in the library (the shop only offers Clone
- * on owned rows; a deleted shop deck reverts to a paid Buy instead).
+ * so no gold is spent and the collection is untouched. Returns the new deck id.
+ *
+ * A deck the player owns only by holding every card (not in the library, or
+ * deleted from it) is granted first: the factory build lands under the shop
+ * deck's own id and name, exactly as a purchase would have added it, and that
+ * id is returned. Null only when the deck is neither in the library nor fully
+ * collected (the shop then offers a paid Buy instead).
  */
-export function cloneShopDeck(save: SaveData, deck: PurchasableDeck): string | null {
-  if (!save.decks.some((d) => d.id === deck.id)) return null;
+export function cloneShopDeck(save: SaveData, db: CardDb, deck: PurchasableDeck): string | null {
+  if (!save.decks.some((d) => d.id === deck.id)) {
+    if (!ownsEveryDeckCard(save, db, deck)) return null;
+    addPurchasedDeck(save, deck);
+    return deck.id;
+  }
   const build = grantedDeckBuild(deck);
   const id = generateDeckId(save);
   save.decks.push({

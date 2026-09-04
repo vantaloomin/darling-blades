@@ -195,7 +195,7 @@ export const GOTHIC_MONSTERS = [
   }),
   {
     id: 'gm-howling-gallery', name: 'Howling Gallery', types: ['enchantment'], subtypes: ['Gallery'],
-    cost: cost(2, 'R'), colors: ['R'],
+    cost: cost(1, 'R'), colors: ['R'],
     abilities: [{ when: 'static', static: { scope: 'filter', filter: { subtype: 'Wolf' }, p: 1, t: 0, grantKeywords: ['dreaded'] } }],
     rarity: 'r', flavor: 'Every portrait is a little louder after midnight.',
   },

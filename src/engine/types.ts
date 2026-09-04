@@ -245,23 +245,37 @@ function effectOpAddsMark(op: EffectOp): boolean {
   return op.then.some(effectOpAddsMark) || (op.else ?? []).some(effectOpAddsMark);
 }
 
-/** Catalog-facing validation for the narrowly relaxed Empower target contract. */
+/**
+ * Catalog-facing validation for the narrowly relaxed Empower target contract.
+ * Empower riders are target-free except two named shapes:
+ *   - `moveMark` carries exactly two single-target specs (from, to);
+ *   - `reclaim` carries exactly one `yourGraveCreature` spec (Renenutet, Who
+ *     Measures the Flood, 2026-09-04 rework).
+ */
 export function validateEmpowerDef(d: CardDef): string[] {
   if (!d.empower) return [];
   const errors: string[] = [];
   const targets = d.empower.targets;
   const hasMoveMark = d.empower.ops.some((op) => op.op === 'moveMark');
-  if (targets && !hasMoveMark) {
-    errors.push('Empower targets require a moveMark op');
+  const hasReclaim = d.empower.ops.some((op) => op.op === 'reclaim');
+  if (hasMoveMark && hasReclaim) {
+    errors.push('Empower may not combine moveMark and reclaim');
   }
-  if (targets && (targets.length !== 2 || targets.some((target) => target.upTo !== undefined))) {
-    errors.push('Empower moveMark needs exactly two single-target specs');
+  if (hasMoveMark) {
+    if (!targets) {
+      errors.push('Empower moveMark needs target specs');
+    } else if (targets.length !== 2 || targets.some((target) => target.upTo !== undefined)) {
+      errors.push('Empower moveMark needs exactly two single-target specs');
+    }
+  } else if (hasReclaim) {
+    if (!targets || targets.length !== 1 || targets[0].what !== 'yourGraveCreature' || targets[0].upTo !== undefined) {
+      errors.push('Empower reclaim needs exactly one yourGraveCreature target spec');
+    }
+  } else if (targets) {
+    errors.push('Empower targets require a moveMark or reclaim op');
   }
-  if (!targets && hasMoveMark) {
-    errors.push('Empower moveMark needs target specs');
-  }
-  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark')) {
-    errors.push('Only moveMark may target from Empower');
+  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim')) {
+    errors.push('Only moveMark and reclaim may target from Empower');
   }
   return errors;
 }
@@ -527,6 +541,8 @@ export interface CombatState {
   phase: 'attackersDeclared' | 'blockersDeclared' | 'firstStrikeDone';
   /** fog effect active this turn — combat damage prevented */
   damagePrevented: boolean;
+  /** Revision 4: players who have passed their Hauntlink window before damage. */
+  hauntlinkPassed?: PlayerId[];
 }
 
 export type Step =
@@ -563,6 +579,14 @@ export type Awaiting =
       over: { type: 'spell'; sid: number } | { type: 'attackers' } | { type: 'blockers' };
     }
   | { player: PlayerId; kind: 'endStepWindow' }
+  // Revision 4: a Hauntlink-only window (linkHaunt or pass, no Charm casts)
+  // over a trigger about to resolve, or the combat damage step. Owner ruling
+  // 2026-09-04: Hauntlink explicitly breaks the no-window-over-triggers rule.
+  | {
+      player: PlayerId;
+      kind: 'hauntlinkWindow';
+      over: { type: 'trigger'; iid: number } | { type: 'combatDamage' };
+    }
   | { player: PlayerId; kind: 'discardToHandSize'; count: number }
   | { kind: 'gameOver' };
 
@@ -596,6 +620,20 @@ export type PendingDecision =
       abilityIndex: number;
       spec: TargetSpec;
       ops: EffectOp[];
+    }
+  // Revision 4: a trigger whose ops are held back so Hauntlink windows can be
+  // offered first. `offered` records who has already had theirs. The two
+  // optional fields carry a dies trigger's original resolution context.
+  | {
+      kind: 'resolveTrigger';
+      controller: PlayerId;
+      sourceIid: number;
+      sourceCardId: string;
+      targets: TargetRef[];
+      ops: EffectOp[];
+      offered: PlayerId[];
+      markTriggerDepth?: number;
+      selfGraveExclusion?: { instanceId?: number; cardId: string };
     };
 
 export interface GameState {

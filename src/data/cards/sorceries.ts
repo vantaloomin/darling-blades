@@ -23,7 +23,7 @@ export const SORCERIES = [
     name: 'Verdant Invitation',
     types: ['ritual'],
     subtypes: [],
-    cost: cost(0, 'G'),
+    cost: cost(1, 'G'),
     colors: ['G'],
     abilities: [{ when: 'spell', ops: [{ op: 'extraLandDrop' }] }],
     rarity: 'c',

@@ -30,7 +30,7 @@ describe('ETB-only non-creature permanent health', () => {
     const previous = FEATURES.duatLive;
     try {
       FEATURES.duatLive = true;
-      const pool = collectiblePool(ALL_CARDS).filter((card) => String(card.set) !== STARBORNE_SET);
+      const pool = collectiblePool(ALL_CARDS);
       const permanents = pool.filter(isPermanent);
       const etbOnly = permanents.filter(isEtbOnly);
       // This sweep removes all 17 legacy one-shot ETB non-creature permanents.
@@ -39,6 +39,16 @@ describe('ETB-only non-creature permanent health', () => {
     } finally {
       FEATURES.duatLive = previous;
     }
+  });
+
+  it('no non-creature permanent in any set is a one-time effect (owner rule 2026-09-04)', () => {
+    // Starborne used to be excluded from the ratchet above, which is how
+    // Chrome Medallion shipped 1.7.0 as "When this arrives, Foresee 1" on an
+    // Artifact. One-time effects belong on Rituals or Charms; a permanent must
+    // keep doing something after it lands. Every set, live or not, is checked.
+    const arrivalOnly = ALL_CARDS.filter((card) => !card.token && isPermanent(card) && isEtbOnly(card)).map((card) => card.id);
+    expect(arrivalOnly, 'one-time effects belong on Rituals or Charms').toEqual([]);
+    expect(ALL_CARDS.filter((card) => String(card.set) === STARBORNE_SET && isPermanent(card)).length).toBeGreaterThan(0);
   });
 
   it('classifies the known Hauntlink and graveyard-trigger regressions', () => {

@@ -10,7 +10,8 @@ import {
 } from '../config/rules';
 import type { Action } from './actions';
 import { darlingCastCost, legalActions, validateAction } from './actions';
-import { hasCastableCharm, hasCastableInstant } from './actions';
+import { hasCastableCharm, hasCastableInstant, hasPayableHauntlinkAction } from './actions';
+import { anyPayableHauntlink } from './hauntlinkWindow';
 import { resolveCombatDamage } from './combat/damage';
 import {
   fireGraveyardTriggers,
@@ -70,7 +71,7 @@ export interface GameConfig {
   /** Optional synchronous read-only observer for headless instrumentation. */
   eventObserver?: (event: Readonly<GameEvent>, state: Readonly<GameState>) => void;
   /** Observable engine behavior revision. New games default to current. */
-  rulesRev?: 1 | 2 | 3;
+  rulesRev?: 1 | 2 | 3 | 4;
 }
 
 function buildDarlingInstances(
@@ -452,9 +453,43 @@ export class Game {
   private maybeRaiseDeferredDecision(emit: Emit): void {
     const st = this.st;
     if (st.winner !== null) return;
+    // A live Hauntlink window stays open across the link/move actions taken
+    // inside it; only passResponse hands control back here.
+    if (st.awaiting.kind === 'hauntlinkWindow') return;
     const hadPending = st.pendingDecisions.length > 0;
     while (st.pendingDecisions.length > 0) {
       const next = st.pendingDecisions[0];
+      if (next.kind === 'resolveTrigger') {
+        // Offer the Hauntlink window to whoever has not had it yet and can
+        // pay: the trigger's opponent first, then its controller.
+        const candidate = ([opponentOf(next.controller), next.controller] as PlayerId[]).find(
+          (p) => !next.offered.includes(p) && hasPayableHauntlinkAction(st, this.db, p),
+        );
+        if (candidate !== undefined) {
+          next.offered.push(candidate);
+          st.awaiting = { player: candidate, kind: 'hauntlinkWindow', over: { type: 'trigger', iid: next.sourceIid } };
+          emit({ e: 'responseWindowOpened', player: candidate });
+          return;
+        }
+        st.pendingDecisions.shift();
+        runOps(
+          st,
+          this.db,
+          emit,
+          {
+            controller: next.controller,
+            sourceCardId: next.sourceCardId,
+            sourceIid: next.sourceIid,
+            targets: next.targets,
+            ...(next.markTriggerDepth === undefined ? {} : { markTriggerDepth: next.markTriggerDepth }),
+            ...(next.selfGraveExclusion === undefined ? {} : { selfGraveExclusion: next.selfGraveExclusion }),
+          },
+          next.ops,
+        );
+        checkStateBased(st, this.db, emit);
+        if (st.winner !== null) return;
+        continue;
+      }
       if (next.kind === 'foresee' && this.foreseeCards(next.player, next.n).length === 0) {
         st.pendingDecisions.shift();
         continue;
@@ -618,6 +653,21 @@ export class Game {
           pending.abilityIndex !== st.awaiting.abilityIndex
         ) return;
         st.pendingDecisions.shift();
+        // Revision 4: hold the ops back so Hauntlink windows can be offered
+        // over the now-known target. Only when someone can actually pay a
+        // link - otherwise the path below is byte-identical to revision 3.
+        if ((st.rulesRev ?? 1) >= 4 && anyPayableHauntlink(st, this.db)) {
+          st.pendingDecisions.unshift({
+            kind: 'resolveTrigger',
+            controller: pending.player,
+            sourceIid: pending.sourceIid,
+            sourceCardId: pending.sourceCardId,
+            targets: [action.target],
+            ops: pending.ops,
+            offered: [],
+          });
+          return;
+        }
         runOps(
           st,
           this.db,
@@ -630,6 +680,15 @@ export class Game {
           },
           pending.ops,
         );
+        // A deferred-target trigger resolves outside the stack flush, so it
+        // gets no state-based check of its own. Without this a creature dealt
+        // lethal damage here stayed on the battlefield, and in main 2 - past
+        // the attackers-step check - cleanup zeroed the damage and it lived
+        // (owner report 2026-09-04; tests/engine/deferredTriggerSba.test.ts).
+        // Mirrors closeAndFlush, which checks after every resolved item; any
+        // dies-trigger decisions this enqueues are raised by the drain in
+        // submit() the same way.
+        checkStateBased(st, this.db, emit);
         return;
       }
 
@@ -890,6 +949,18 @@ export class Game {
       }
 
       case 'passResponse': {
+        if (st.awaiting.kind === 'hauntlinkWindow') {
+          if (st.awaiting.over.type === 'combatDamage') {
+            const combat = st.combat!;
+            combat.hauntlinkPassed = [...(combat.hauntlinkPassed ?? []), player];
+            this.resumeAfterFlush(emit); // re-enters the combat branch: next player, or damage
+          } else {
+            // Trigger window: hand control back to the drain in submit(), which
+            // offers the next player or resolves the held trigger.
+            st.awaiting = { player: st.activePlayer, kind: 'main' };
+          }
+          return;
+        }
         if (st.awaiting.kind === 'endStepWindow') {
           enterCleanup(st, this.db, emit);
         } else {
@@ -1012,6 +1083,19 @@ export class Game {
           { player: opponentOf(st.activePlayer), kind: 'respond', over: { type: 'blockers' } },
           emit,
         )) return;
+        // Revision 4: the Hauntlink window at the combat damage step. Defender
+        // first, then attacker; each only if they can pay a link.
+        if ((st.rulesRev ?? 1) >= 4) {
+          const passed = combat.hauntlinkPassed ?? [];
+          const next = ([opponentOf(st.activePlayer), st.activePlayer] as PlayerId[]).find(
+            (p) => !passed.includes(p) && hasPayableHauntlinkAction(st, this.db, p),
+          );
+          if (next !== undefined) {
+            st.awaiting = { player: next, kind: 'hauntlinkWindow', over: { type: 'combatDamage' } };
+            emit({ e: 'responseWindowOpened', player: next });
+            return;
+          }
+        }
         resolveCombatDamage(st, this.db, emit);
         if (st.winner !== null) return;
         st.combat = null;

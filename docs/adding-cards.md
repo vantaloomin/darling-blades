@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-08-24
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-09-04
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -70,7 +70,7 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `defense`   | `number?`                              | Creatures only.                                                       |
 | `keywords`    | `Keyword[]?`                           | The twelve keywords (see [rules.md](rules.md)).                       |
 | `x`           | `{ min: number }?`                     | Marks an X spell; `min` is the smallest legal X. X cards cannot also carry `empower`. |
-| `empower`     | `{ cost: ManaCost; targets?: TargetSpec[]; ops: EffectOp[] }?` | Optional Empower cast cost + rider ops (run after normal resolution). Only `moveMark` riders may carry two cast-time targets. |
+| `empower`     | `{ cost: ManaCost; targets?: TargetSpec[]; ops: EffectOp[] }?` | Optional Empower cast cost + rider ops (run after normal resolution). Only `moveMark` riders may carry two cast-time targets; a `reclaim` rider carries exactly one `yourGraveCreature` target (Renenutet, 2026-09-04). |
 | `abilities`   | `AbilityDef[]?`                        | Triggered/static/spell abilities (below).                            |
 | `manaAbility` | `(Color \| 'C')[]?`             | Lands and mana creatures. `C` pays generic cost only.                  |
 | `entersTapped`| `boolean?`                             | Taplands enter tapped; either/or duals print "Arrives tapped."       |
@@ -198,7 +198,7 @@ An `AbilityDef` (`src/engine/types.ts`) is one of: a **triggered/spell** ability
 | `propagated`             | whenever you Propagate.                                   |
 | `static`                 | continuous — handled by `statics.ts`, not the interpreter.| 
 
-- **Foresee 1 may not be a card's only functional line.** A creature's body counts as a line; Skim does not, because it is a hand ability that never reaches the battlefield. When a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture, and never make "When this arrives, Foresee 1." a new non-creature permanent's whole battlefield text (the five shipped relics that do are grandfathered as Skim cyclers; `blades-db inert` lists them).
+- **A non-creature permanent must do something after it arrives.** One-time effects belong on Rituals or Charms; an Artifact or Enchantment whose only battlefield text is an arrival trigger is a spell that leaves a blank object behind (Chrome Medallion shipped that way in 1.7.0 and was reworked in 1.7.1). Ongoing text means a non-arrival trigger, a mana ability, Quest chapters, Hauntlink, or a static keyword, and `tests/data/inertPermanents.test.ts` enforces it pool-wide. A creature's body counts as ongoing; Skim does not, because it is a hand ability that never reaches the battlefield. Foresee 1 alone still may not be a card's only functional line: when a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture.
 
 **The v1 laws** (stated at the top of `types.ts` and enforced throughout):
 
@@ -581,7 +581,7 @@ recomputed from the save.
 2. **Fill the `CardDef`** — types, subtypes, cost (via `cost()`), colors,
    P/T for creatures, keywords, abilities. Multicolor nonland ⇒ `legendary`.
 3. **Behavior only** — encode triggers/statics/ops; **do not** write rules text.
-   - **Foresee 1 may not be a card's only functional line.** A creature's body counts as a line; Skim does not, because it is a hand ability that never reaches the battlefield. When a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture, and never make "When this arrives, Foresee 1." a new non-creature permanent's whole battlefield text (the five shipped relics that do are grandfathered as Skim cyclers; `blades-db inert` lists them).
+   - **A non-creature permanent must do something after it arrives.** One-time effects belong on Rituals or Charms; an Artifact or Enchantment whose only battlefield text is an arrival trigger is a spell that leaves a blank object behind (Chrome Medallion shipped that way in 1.7.0 and was reworked in 1.7.1). Ongoing text means a non-arrival trigger, a mana ability, Quest chapters, Hauntlink, or a static keyword, and `tests/data/inertPermanents.test.ts` enforces it pool-wide. A creature's body counts as ongoing; Skim does not, because it is a hand ability that never reaches the battlefield. Foresee 1 alone still may not be a card's only functional line: when a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture.
 4. **Tokens** referenced by `createToken` must exist in `tokens.ts` with
    `token: true` (a catalog test enforces this).
 5. **Holo/frame** — nothing to author: variants are rolled per pulled copy,

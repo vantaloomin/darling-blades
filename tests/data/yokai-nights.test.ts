@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DROPS, ECONOMY } from '../../src/config/rules';
-import { YOKAI_NIGHTS, YOKAI_SPEC_ROWS } from '../../src/data/cards/yokai-nights';
+import { parseYokaiSpecRow, YOKAI_NIGHTS, YOKAI_SPEC_ROWS } from '../../src/data/cards/yokai-nights';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
 import { THEME_DECKS } from '../../src/data/starterDecks';
 import type { CardDef } from '../../src/engine/types';
@@ -28,6 +28,29 @@ const YOKAI_ACHIEVEMENTS = [
 ] as const;
 
 describe('Yokai Nights data integrity', () => {
+  it('compiles Jade-Crown Elder as the green Yokai lord (owner pick 2026-09-04)', () => {
+    // She shipped 1.7.0 as a vanilla 6/4 because the row parser silently
+    // dropped her authored Empower clause; the rework gives the tribe a reason.
+    expect(CARD_DB['yn-jade-crown-elder']).toMatchObject({
+      keywords: ['overrun'],
+      abilities: [{
+        when: 'static',
+        static: { scope: 'filter', filter: { subtype: 'Yokai', other: true }, p: 1, t: 0, grantKeywords: ['overrun'] },
+      }],
+    });
+    expect(CARD_DB['yn-jade-crown-elder'].empower).toBeUndefined();
+  });
+
+  it('refuses a row whose rules text the parser cannot consume', () => {
+    const elder = YOKAI_SPEC_ROWS.find((row) => row.id === 'yn-jade-crown-elder')!;
+    expect(() => parseYokaiSpecRow({ ...elder, mechanics: 'Overrun. Empower {2}{G}: put 2 +1/+1 marks on this.' }))
+      .toThrow(/Unparsed Yokai mechanics on yn-jade-crown-elder/);
+    expect(() => parseYokaiSpecRow({ ...elder, mechanics: 'Overrun. Your other Yokai get +1/+0 and gain Flight.' }))
+      .toThrow(/Unknown keyword grant/);
+    expect(parseYokaiSpecRow({ ...elder, mechanics: 'Overrun. Your other Yokai get +1/+0 and gain Overrun.' }).abilities?.[0].static?.grantKeywords)
+      .toEqual(['overrun']);
+  });
+
   it('keeps every Hauntlink rider in parity with its Linked spec clause', () => {
     const keywordByName = {
       Skyborne: 'skyborne',

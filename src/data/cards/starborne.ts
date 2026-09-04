@@ -227,7 +227,7 @@ export const STARBORNE = [
     flavor: 'The cleanest orbit is the one with nothing left to collide.',
   }),
   artifact('sb-chrome-medallion', 'Chrome Medallion', {
-    cost: cost(2), colors: C, abilities: [arrives([{ op: 'foresee', n: 1 }])], rarity: 'c',
+    cost: cost(2), colors: C, abilities: [dawn([{ op: 'foresee', n: 1 }])], rarity: 'c',
     flavor: 'A crew badge, a key, and a small lie about rank.',
   }),
   ritual('sb-cometary-verdict', 'Cometary Verdict', {
@@ -272,7 +272,6 @@ export const STARBORNE = [
         ops: [{ op: 'severSelf' }, { op: 'raise', to: 'top', withMarks: 2 }],
       },
     ], rarity: 'c',
-    flavor: 'It receives transmissions from places that have no coordinates.',
   }),
   charm('sb-corpse-lantern', 'Corpse Lantern', {
     cost: cost(1, 'B'), colors: B, abilities: [spell([{ op: 'damage', n: 2, to: 'target' }, { op: 'gainLife', n: 1 }], 'any')], rarity: 'c',
@@ -292,9 +291,9 @@ export const STARBORNE = [
     abilities: [{ when: 'markedAllyAttacks', ops: [{ op: 'boost', p: 1, t: 0, scope: 'yourMarked' }] }], rarity: 'c',
     flavor: 'The crew sings in perfect rhythm with the reactor alarms.',
   }),
-  artifact('sb-redline-salvage', 'Redline Salvage', {
-    cost: cost(2), colors: R, skim: { cost: cost(1) },
-    abilities: [arrivesTargeted({ what: 'creature' }, [{ op: 'addCounters', n: 1, to: 'target' }])], rarity: 'c',
+  ritual('sb-redline-salvage', 'Redline Salvage', {
+    cost: cost(0, 'R'), colors: R, skim: { cost: cost(1) },
+    abilities: [spell([{ op: 'addCounters', n: 1, to: 'target' }], 'creature')], rarity: 'c',
     flavor: 'It was scrap until someone gave it a pulse.',
   }),
   ritual('sb-starfall-barrage', 'Starfall Barrage', {
@@ -719,7 +718,7 @@ make('sb-interstellar-crossing', 'Interstellar Crossing', ['land'], [], {
     flavor: 'The shot arrives twice because the corridor insisted.',
   }),
   charm('sb-signal-recall', 'Signal Recall', {
-    cost: cost(1, 'U'), colors: U,
+    cost: cost(0, 'U'), colors: U,
     abilities: [{
       when: 'spell',
       targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }],

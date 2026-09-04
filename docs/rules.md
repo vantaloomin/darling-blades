@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-08-31
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-04
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -117,9 +117,11 @@ Notes grounded in `phases.ts`:
 
 Darling Blades uses a simplified, Arena-flavored stack. Casting a spell opens
 one response window for the opponent, and the first pass still resolves the
-whole stack in one uninterrupted flush. Current games use **rules revision 3**;
+whole stack in one uninterrupted flush. Current games use **rules revision 4**;
 an absent `GameState.rulesRev` means revision 1 for legacy states and v6 replays.
-Version 7 replays select revision 2, while version 8 selects revision 3.
+Version 7 replays select revision 2, versions 8 through 10 select revision 3,
+and version 11 selects revision 4. Revision 4 adds only the Hauntlink windows
+described under Hauntlink below; every other rule is revision 3 unchanged.
 
 Walking through `castSpell` → `openResponseWindow` → `closeAndFlush` →
 `resumeAfterFlush` in `src/engine/Game.ts`:
@@ -246,7 +248,7 @@ A card with an `empower` block (`CardDef.empower`, 1.3) may be cast for its
 normal cost, or for the combined cost (`combineManaCosts`) with the empowered
 flag set on the cast action. On resolution the empower ops run after the
 card's normal effect (for permanents, after its arrival triggers); empower ops
-are target-free and only `moveMark` may carry targets. X spells cannot be empowered
+are target-free except two named shapes: `moveMark` carries two targets and `reclaim` carries one `yourGraveCreature` target (2026-09-04, Renenutet). X spells cannot be empowered
 (`validateAction` rejects the combination).
 
 **Empower is the only ADDITIVE cost in the game.** Retell, Preserve, Hauntlink
@@ -277,6 +279,28 @@ for presentation.
 
 Rules revisions 1 and 2 preserve the former alternate-cost `castSpell` mode and
 the same host-death cleanup for old replays. Revision 3 alone uses `linkHaunt`.
+
+**Revision 4: Hauntlink windows.** Owner ruling 2026-09-04: Hauntlink
+*explicitly* breaks the no-window-over-triggers rule that normal Charms keep.
+A **Hauntlink-only window** (`awaiting.kind === 'hauntlinkWindow'`: the legal
+actions are `linkHaunt` and `passResponse`, never a Charm cast or a Skim) opens
+in three places, each only for a player who can actually pay a link right then:
+
+- **Over a targeted trigger**, after its target is chosen and before its ops
+  run. The trigger's ops are held as a `resolveTrigger` pending decision; the
+  trigger's opponent is offered first, then its controller.
+- **Over a dies trigger**, before it resolves. `fireTriggers` holds the ops the
+  same way, so every death path (combat, damage, destroy, sweep) behaves alike.
+- **At the combat damage step**, after the blocks window and before damage,
+  defender first, then attacker (`CombatState.hauntlinkPassed` tracks who has
+  passed).
+
+A held trigger resolves once every eligible player has passed, and a
+state-based check runs immediately afterwards. When nobody could pay a link the
+engine takes the revision-3 path unchanged, so a game with no linkable
+Hauntlink is byte-identical to revision 3. The reaction the ruling names -
+moving a link off a host that a trigger or combat is about to kill - is exactly
+what the window exists for.
 
 ### Rite (additional sacrifice cost)
 
@@ -432,7 +456,8 @@ Magic:
 | Priority / stack  | The first pass flushes the whole stack. Current rev 2 may reopen afterward in Combat/Sunset when a resolved item and castable Charm pay for it; rev 1 never reopens. | Full priority passing after every object resolves.      |
 | Dawn triggers     | Resolve immediately, no window.                                                                | Go on the stack, players get priority.                  |
 | Sunset window     | Non-active player only. Rev 2 starts with one window and may earn bounded post-flush reopens; rev 1 has exactly one. | Priority in Magic's ending phase for both players.     |
-| Triggers          | Arrival triggers may target and defer a mandatory choice; other triggers auto-resolve. | Triggers may target and use the stack.                  |
+| Triggers          | Arrival triggers may target and defer a mandatory choice; other triggers auto-resolve. Rev 4: a targeted or dies trigger is held open for a Hauntlink-only window first. | Triggers may target and use the stack.                  |
+| Hauntlink windows | Rev 4 only, and Hauntlink only: link or move over a trigger about to resolve and at the combat damage step. Charms never get these windows. | Equipment moves only at sorcery speed.                  |
 | Targeted effects  | Spell targets may use `upTo: 2`; arrival triggers choose one target.              | Arbitrary target counts.                                |
 | Twin Blades (double strike) | Implemented (Ragnarök) — deals in both the first-strike and normal damage steps.        | Exists.                                                 |
 | Colors of mana    | Generic paid by an auto-tap solver; no mana pool, no floating mana.                             | Mana pool with manual tapping.                          |

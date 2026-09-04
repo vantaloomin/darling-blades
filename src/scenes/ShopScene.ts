@@ -21,6 +21,7 @@ import {
   claimFreeDarlingsDeck,
   claimFreeStarter,
   cloneShopDeck,
+  shopDeckOwned,
   deckProductCardIds,
   grantedDeckBuild,
   previewDeckGrant,
@@ -1359,8 +1360,12 @@ export class ShopScene extends Phaser.Scene {
    */
   private buildDeckCard(tile: Phaser.GameObjects.Container, sku: DeckSku, rowTop: number): void {
     const { deck, price, theme: isTheme } = sku;
-    const owned = Services.save.data.decks.some((d) => d.id === deck.id);
+    // Owned = in the library, OR the player already holds every card in it
+    // (a complete collection grants the deck; the row offers Clone, never Buy).
+    // The one free starter claim still wins: it also activates a deck and
+    // stamps the claim, which a completion grant does not.
     const freeClaim = this.isFreeClaim(deck);
+    const owned = !freeClaim && shopDeckOwned(Services.save.data, CARD_DB, deck);
     const halfW = DECK_CARD_W / 2;
 
     const plate = panel(this, -halfW, rowTop, DECK_CARD_W, DECK_CARD_H, { alpha: 0.7 });
@@ -1621,16 +1626,25 @@ export class ShopScene extends Phaser.Scene {
     return true;
   }
 
-  /** Clone an owned shop deck: a fresh factory copy into the library, free. */
+  /**
+   * Clone an owned shop deck: a fresh factory copy into the library, free. A
+   * deck owned only through a complete collection is granted on its first
+   * press (it lands under its own name, as a purchase would); copies follow.
+   */
   private onCloneDeck(sku: DeckSku): void {
-    const id = cloneShopDeck(Services.save.data, sku.deck);
+    const id = cloneShopDeck(Services.save.data, CARD_DB, sku.deck);
     if (!id) return;
     Sfx.play('flip');
     Services.save.flush();
+    const granted = id === sku.deck.id;
     queueToast({
-      title: 'Deck cloned',
-      body: `${sku.deck.name} copy is in your deck library.`,
+      title: granted ? 'Deck granted' : 'Deck cloned',
+      body: granted
+        ? `You already hold every card, so ${sku.deck.name} is in your deck library.`
+        : `${sku.deck.name} copy is in your deck library.`,
     });
+    // The row re-renders as library-owned after a grant.
+    if (granted) this.buildDecksGroup(this.decksGroup, this.deckStripIndex);
   }
 
   // --- Deck preview overlay -------------------------------------------------
@@ -1685,8 +1699,9 @@ export class ShopScene extends Phaser.Scene {
     this.closeOverlay();
     const { deck, price } = sku;
     const save = Services.save.data;
-    const owned = save.decks.some((d) => d.id === deck.id);
+    const inLibrary = save.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
+    const owned = !freeClaim && shopDeckOwned(save, CARD_DB, deck);
     const info = DECK_INFO[deck.id];
     // Preview the build the purchase actually grants, not the DeckList's
     // classic list: after classic retirement those differ for every starter
@@ -2013,7 +2028,12 @@ export class ShopScene extends Phaser.Scene {
     const footerRight = footer.x + footer.width;
     const affordable = freeClaim || save.gold >= price;
     const footerInfo = owned
-      ? { text: 'Owned ✓ · Clone Deck saves a fresh copy of the original list.', color: theme.colors.success }
+      ? {
+          text: inLibrary
+            ? 'Owned ✓ · Clone Deck saves a fresh copy of the original list.'
+            : 'Owned ✓ · You already hold every card in this list. Clone Deck adds it to your library, free.',
+          color: theme.colors.success,
+        }
       : freeClaim
         ? {
             text: `✦ Your one free starter. The other starters cost 🪙 ${ECONOMY.starterDeckPrice} once you claim it.`,

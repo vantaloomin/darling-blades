@@ -36,4 +36,9 @@ export const AXES: readonly string[] = [
   'Wei',
   'Wolf',
   'Wu',
+  // Owner pick 2026-09-04: Jade-Crown Elder becomes the green Yokai lord
+  // ("Your other Yokai get +1/+0 and gain Overrun"), so Yokai joins the
+  // Axes; 11 Yokai Nights creatures carry the type. Recorded in
+  // docs/plan-tribal-pass.md.
+  'Yokai',
 ];
