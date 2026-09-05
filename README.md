@@ -47,6 +47,8 @@ You play or skip a short optional tutorial, claim a free starter deck, crack boo
 
 ## What's new in 1.7
 
+**1.7.2 patch.** The Hauntlink window at combat damage offered a Pass button that did nothing and could trap a duel in combat; it passes now, and a Hauntlink permanent can be linked or moved in any Charm-speed window, not only your main phase.
+
 **1.7.1 patch, from the first day of play.** Hauntlink gets its own window to move hosts when a trigger is about to resolve and at combat damage, extra land drops gain a price floor, three cards that shipped weaker or stranger than they read were fixed (Chrome Medallion, Renenutet, Jade-Crown Elder), and a shop deck whose every card you already own is yours to clone for free.
 
 **Starborne, a 151-card expansion.** A ninth world of living starships and
