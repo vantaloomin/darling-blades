@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-save-portability.md, src/meta/SaveManager.ts, src/meta/SaveCode.ts, src/meta/telemetry.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/platform/env.ts, src/version.ts, src/scenes/SettingsScene.ts, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-08-28 · design/plan doc — investigation only, no code exists; re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-save-portability.md, src/meta/SaveManager.ts, src/meta/SaveCode.ts, src/meta/balanceTelemetry.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/platform/env.ts, src/version.ts, src/scenes/SettingsScene.ts, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-08-28 · design/plan doc — investigation only, no code exists; re-verify when the referenced code changes -->
 
 # Anonymous telemetry and optional cloud accounts
 
@@ -40,8 +40,9 @@ learn anything about the other.
 - Telemetry does **not** identify, count returning individuals, build cohorts,
   follow a player across days, profile, target, A/B test, or feed anything to a
   third-party analytics vendor.
-- Telemetry is **not** a balance instrument. `src/meta/telemetry.ts` (the
-  existing per-duel balance record consumed by the harnesses) stays the source
+- Telemetry is **not** a balance instrument. `src/meta/balanceTelemetry.ts`
+  (the per-duel balance record consumed by the harnesses; renamed from
+  `telemetry.ts` in rollout PR 0a, 2026-09-07) stays the source
   of truth for balance. A public endpoint on a public repo is spammable and
   its numbers are directional, never evidence. See [Abuse](#abuse-and-data-quality).
 - Cloud accounts do **not** unlock cards, cosmetics, gold, achievements, or
@@ -389,9 +390,9 @@ Fits the iron invariants without bending them:
   `supabaseProvider.ts` (dynamic import). `eslint.config.js` gains one more
   entry in the existing `no-restricted-imports` patterns group so
   `engine/ai/data/meta` cannot import `src/net/*`.
-- **`src/meta/telemetry.ts` is already taken** by 505 lines of balance
-  telemetry. **RULED 2026-08-28: both renames.** It becomes
-  `src/meta/balanceTelemetry.ts` and the new pure module is
+- **`src/meta/telemetry.ts` was already taken** by 505 lines of balance
+  telemetry. **RULED 2026-08-28: both renames.** It became
+  `src/meta/balanceTelemetry.ts` (PR 0a landed 2026-09-07) and the new pure module is
   `src/meta/playSignals.ts`. Measured blast radius is 3 importing TypeScript
   files, so the rename is mechanical; it lands as PR 0a of the rollout, before
   anything else, so every later wave is written against final names.
@@ -503,7 +504,7 @@ recommendations below, adopted as written.
    Cloudflare for both?** *Recommendation: split*, because it makes
    unlinkability structural. Single-vendor is simpler to operate and never
    pauses.
-4. **The naming collision.** Rename `src/meta/telemetry.ts` →
+4. **The naming collision.** Rename `src/meta/telemetry.ts` (as it was then) →
    `balanceTelemetry.ts` (a wide but purely mechanical rename), or leave it and
    name the new module something distinct such as `playSignals.ts`.
    *Recommendation: rename the existing file*, because "telemetry" is the word
