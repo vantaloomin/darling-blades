@@ -25,6 +25,7 @@ param(
   [string]$Worktree = 'Z:\Coding Projects\DarlingBlades-sweep',
   [string]$Root = 'Z:\Coding Projects\DarlingBlades',
   [switch]$Resume,
+  [switch]$NoSync,
   [switch]$Status,
   [switch]$Stop
 )
@@ -133,6 +134,47 @@ if ((Get-SweepProcess).Count -gt 0) {
 }
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+
+# SYNC THE WORKTREE, do not assume. $Worktree is a linked git worktree of this
+# repo that nothing else ever updates: it was moved by hand once (2026-08-28)
+# and the 2026-08-31 sweep then measured whatever tip it happened to hold. A
+# fresh sweep detaches it onto the root checkout's HEAD so it measures the pool
+# the operator is looking at, and refreshes node_modules when the lockfile
+# moved. A resume deliberately does NOT sync: the journal is scorer-consistent
+# only with the tip it was written against. -NoSync keeps an older tip on
+# purpose. A dirty worktree is refused rather than clobbered.
+function Get-HeadSha { param([string]$Path) (git -C $Path rev-parse HEAD).Trim() }
+$rootHead = Get-HeadSha -Path $Root
+$wtHead = Get-HeadSha -Path $Worktree
+if ($Resume -or $NoSync) {
+  if ($wtHead -ne $rootHead) {
+    Write-Host "note: sweep worktree is at $($wtHead.Substring(0,7)), root is at $($rootHead.Substring(0,7)); not syncing ($(if ($Resume) { '-Resume keeps the journal''s tip' } else { '-NoSync' }))."
+  }
+} else {
+  $dirty = @(git -C $Worktree status --porcelain --untracked-files=no)
+  if ($dirty.Count -gt 0) {
+    Write-Host "The sweep worktree at $Worktree has uncommitted changes; refusing to sync over them. Clean it, or pass -NoSync to measure it as it is."
+    exit 1
+  }
+  if ($wtHead -ne $rootHead) {
+    $lockPath = Join-Path $Worktree 'package-lock.json'
+    $lockBefore = (Get-FileHash -LiteralPath $lockPath).Hash
+    git -C $Worktree checkout -q --detach $rootHead
+    if ($LASTEXITCODE -ne 0) { Write-Host "FAILED to sync the sweep worktree to $rootHead. Nothing was launched."; exit 1 }
+    $lockAfter = (Get-FileHash -LiteralPath $lockPath).Hash
+    if ($lockBefore -ne $lockAfter) {
+      Write-Host 'package-lock.json moved with the sync; running npm ci in the sweep worktree first.'
+      Push-Location $Worktree
+      try {
+        npm ci --no-audit --no-fund | Out-Null
+        if ($LASTEXITCODE -ne 0) { Write-Host 'npm ci FAILED in the sweep worktree. Nothing was launched.'; exit 1 }
+      } finally { Pop-Location }
+    }
+    Write-Host "sweep worktree synced: $($wtHead.Substring(0,7)) -> $($rootHead.Substring(0,7))"
+  } else {
+    Write-Host "sweep worktree already at $($rootHead.Substring(0,7))"
+  }
+}
 
 # Kept out of the argument string so a path with spaces cannot split it.
 $scriptArgs = @(

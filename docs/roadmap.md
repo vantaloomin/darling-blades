@@ -2,7 +2,7 @@
 
 # Roadmap
 
-_Dated 2026-08-25. Review monthly._
+_Dated 2026-09-07. Review monthly._
 
 ## Status snapshot
 
@@ -67,6 +67,37 @@ _Dated 2026-08-25. Review monthly._
   claim, and — since — v32→v33 per-deck card back and playmat and v33→**v34**
   the land-drop confirmation — see
   Recently shipped and the Full Art entry under Planned). By-ear tuning remains open (see Planned).
+
+## Recently shipped (2026-09-04 and 2026-09-05 · 1.7.1 and 1.7.2)
+
+Two patches built from the first day of play on 1.7.0, each a `release/`
+train into `main` (PRs #341 and #344; notes in `docs/release-notes/`).
+
+- **Hauntlink reacts when it should (#334, #336, #343).** Rules revision 4: a
+  Hauntlink permanent gets its own window to move to a new host whenever a
+  trigger is about to resolve and at the combat damage step, before damage.
+  Ordinary Charms keep their timing; only Hauntlink breaks the rule, and only
+  when its controller can pay. The same report uncovered an engine bug: a
+  creature burned to death by a targeted arrival trigger survived to cleanup
+  because no state-based check ran after a deferred trigger resolved. 1.7.2
+  then fixed the 1.7.1 hardlock where the new window's Pass button did nothing
+  (the DuelScene click switch had not learned the new `Awaiting` kind, now a
+  registered trap in the playbook).
+- **Ramp got its floor (#333).** A one-mana extra-land ritual put six lands on
+  the table on turn two. `extraLandDrop` is rated 1.9 and no card below two
+  mana grants one; eight cards moved, net-zero mana, pinned by
+  `tests/data/rampFloor.test.ts`.
+- **Three cards from play (#335, #337-#339).** No non-creature permanent may
+  be a one-time effect (Chrome Medallion now Foresees every Dawn, Redline
+  Salvage became the Ritual it was; classifier fixed and the guard now covers
+  every set); Renenutet's Empower returns a creature from the graveyard and
+  gains three life instead of granting land drops a ten-land reserve cannot
+  use; Jade-Crown Elder is the green Yokai lord after the Yokai row parser was
+  found to drop any clause it did not recognise (it now throws; Yokai is the
+  20th Axis). Umbral Antenna gave up its flavor text for room.
+- **Own the cards, own the deck (#340).** A shop deck whose every card the
+  collection already holds is owned: Clone Deck replaces Buy, the first press
+  grants it free, later presses copy it.
 
 ## Recently shipped (2026-08-31 · 1.7.0)
 
@@ -1830,6 +1861,13 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   reserve-native expansion; the previously sketched 1.6 items (**suggested
   decks v1**, **player-facing replays v1**) re-slot at the 1.6 planning
   session once 1.5.5's measurements exist;
+  _(The slots from here on were SUPERSEDED 2026-08-24 by the release spine in
+  [plan-road-to-2.0.md](plan-road-to-2.0.md): 1.7 = Starborne, shipped
+  2026-09-03; 1.8 = Drowned Deep + tap-cost activated abilities + anonymous
+  telemetry, opened 2026-09-07 in [plan-1.8.md](plan-1.8.md); 1.9 = First
+  Dawn + accessibility + mobile; 2.0 = Core Set II + Story Mode; cloud saves
+  and UGC at 2.1; multiplayer cancelled. The text below is kept as the
+  2026-07-24 record, not as the plan.)_
   **1.7** = **Story Mode** + Expansion 8 (slate — candidate: themed to carry
   the story campaign) + **accessibility wave 1** (colorblind-safe
   mana/rarity cues, text scaling). DECIDE-BY-1.7: **localization** —
