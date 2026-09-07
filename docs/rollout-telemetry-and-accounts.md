@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/telemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts · last-verified: 2026-08-28 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/balanceTelemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts · last-verified: 2026-08-28 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
 
 # Rollout: anonymous telemetry and optional cloud accounts
 
@@ -67,11 +67,16 @@ Doing this first means every later wave is written against final names.
 
 ### PR 0a — `refactor(meta): telemetry becomes balanceTelemetry`
 
+**LANDED 2026-09-07** (the first 1.8 wave-0 item after Node 24). Scope as
+written below; the only deviation is that four of the five docs named as
+mentioning the path turned out to reference the `--telemetry` harness flag,
+not the module, so only the two telemetry docs changed.
+
 Branch: `claude/rename-balance-telemetry`
 
 Measured blast radius, 2026-08-28: **3 TypeScript files import it** —
 `scripts/balance-matrix.ts`, `tests/meta/telemetry.test.ts`,
-`tests/meta/telemetryAggregation.test.ts` — plus `tests/ai/reserveMulligan.test.ts`
+`tests/meta/telemetryAggregation.test.ts` (both since renamed to match) — plus `tests/ai/reserveMulligan.test.ts`
 which references the types, and five docs that mention the path
 (`architecture.md`, `plan-1.6.md`, `plan-dt-companion.md`,
 `handoff-1-6-classic-retirement.md`, and the two new docs).

@@ -89,7 +89,7 @@ import {
   type GameTelemetryRecord,
   type PlayerTelemetryAggregate,
   type PlayerTelemetrySample,
-} from '../src/meta/telemetry';
+} from '../src/meta/balanceTelemetry';
 import {
   buildReserveMatrixFleets,
   buildWarchestTuningField,

@@ -4,7 +4,7 @@ import {
   populationStandardDeviation,
   type GameTelemetryRecord,
   type PlayerGameTelemetry,
-} from '../../src/meta/telemetry';
+} from '../../src/meta/balanceTelemetry';
 
 function player(over: Partial<PlayerGameTelemetry> = {}): PlayerGameTelemetry {
   return {

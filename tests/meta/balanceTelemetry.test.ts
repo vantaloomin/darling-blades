@@ -4,7 +4,7 @@ import { CARD_DB } from '../../src/data/catalog';
 import { STARTER_DECKS } from '../../src/data/starterDecks';
 import { Game } from '../../src/engine/Game';
 import type { Action } from '../../src/engine/actions';
-import { GameTelemetry } from '../../src/meta/telemetry';
+import { GameTelemetry } from '../../src/meta/balanceTelemetry';
 import { playOut } from '../../scripts/balance-matrix';
 import { DUAT_DB, duatPermanent } from '../duatFixture';
 import { makeTestState, smallGreenDeck, TEST_DB } from '../helpers';
