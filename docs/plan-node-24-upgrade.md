@@ -2,7 +2,11 @@
 
 # Proposal: run Darling Blades on Node 24
 
-**Status: proposal, 2026-09-04. Nothing here is implemented.** Written after
+**Status: IMPLEMENTED 2026-09-07** (owner took the defaults: smallest node24
+majors, `engines` as a warning, before the 2026-09-23 runner change). Both
+workflows pin Node 24, `engines`/`.nvmrc` declare it, and the three actions sit
+on v5/v5/v3. The Windows `release.yml` leg is proven by the next `v*` tag.
+Original proposal follows. Written after
 the v1.7.1 release run (33904550154) warned that three of our actions still
 target Node 20 and were being forced onto Node 24 by the runner.
 

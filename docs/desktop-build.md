@@ -38,6 +38,8 @@ so a fresh launch doesn't visibly resize.
 The Tauri CLI is a dev dependency (`@tauri-apps/cli`) and the JS window API is a
 runtime dependency (`@tauri-apps/api`, used only by `desktopWindow.ts`), so
 `npm install` provides both — no global install needed.
+The JS toolchain runs on **Node 24 LTS** (`.nvmrc`); `release.yml` builds the
+installer under the same pin.
 
 ## Commands
 

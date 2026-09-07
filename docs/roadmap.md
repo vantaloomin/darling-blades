@@ -1632,18 +1632,17 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   and the set is authored fresh once the engine specs exist; and the land
   economy headline has no spec, while the pool holds 27 utility taplands no
   deck can play. **Nothing in it is authorized or implemented.**
-- **Run the toolchain and CI on Node 24 (proposal, 2026-09-04).** The v1.7.1
-  release run warned that `actions/checkout@v4`, `actions/setup-node@v4`, and
-  `softprops/action-gh-release@v2` still target Node 20 and are being forced
-  onto Node 24; GitHub removes Node 20 from the runner on 2026-09-23, and our
-  workflows pin the toolchain to Node 22 (maintenance since 2025-10-21). Every
-  toolchain package already accepts Node 24, so
-  [plan-node-24-upgrade.md](plan-node-24-upgrade.md) proposes one chore PR:
-  `node-version: 24` in both workflows, `engines` + `.nvmrc`, the three actions
-  to their smallest node24 majors (v5, v5, v3), the README prerequisite line,
-  and a verification order that ends with the next `v*` tag exercising
-  `release.yml`. Three owner decisions are listed in the doc (smallest vs
-  latest action majors, engines warning vs strict, timing). No code changes.
+- **Run the toolchain and CI on Node 24. ✅ IMPLEMENTED 2026-09-07** (the
+  first 1.8 wave-0 chore; owner took the defaults). The v1.7.1 release run
+  had warned that `actions/checkout@v4`, `actions/setup-node@v4`, and
+  `softprops/action-gh-release@v2` still targeted Node 20 ahead of GitHub
+  removing it from the runner on 2026-09-23. Both workflows now pin
+  `node-version: 24`, `engines` and `.nvmrc` declare it (a warning, not
+  strict), the three actions sit on their smallest node24 majors (v5, v5,
+  v3), and the README and desktop-build doc name the prerequisite. The Linux
+  `verify` job proved the toolchain on the PR; the Windows `release.yml` leg
+  is proven by the next `v*` tag, so the first 1.8 tag is the remaining
+  check. Record: [plan-node-24-upgrade.md](plan-node-24-upgrade.md).
 - **Anonymous telemetry + optional cloud accounts (investigation, 2026-08-28).**
   Two independent capabilities specced together in
   [plan-telemetry-and-accounts.md](plan-telemetry-and-accounts.md) because they

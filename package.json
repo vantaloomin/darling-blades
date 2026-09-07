@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.7.2",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "npm run gen-art-manifest && vite",
     "build": "npm run gen-art-manifest && tsc --noEmit && vite build",
