@@ -116,6 +116,8 @@ The main menu also hosts the **Daily Blades** quest panel and a **Profile** page
 
 ## Getting started
 
+Node 24 LTS is the supported toolchain (`.nvmrc` carries the pin; older Node versions warn on install).
+
 ```bash
 npm install
 npm run dev      # Vite dev server at :5173
