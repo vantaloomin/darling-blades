@@ -37,10 +37,14 @@ Five remaining concepts, four slots to 2.0. The slate already anticipated this
 that nomination stands, helped by Union rigs wanting the 1.8 tap-ability work
 to exist first.
 
-Every set already has an overplanned candidate pool in
-`docs/expansions/drafts/` (200 drafted cards for Starborne, and equivalents for
-brass-court, core-set-2, drowned-deep, first-dawn). A Small set is a cut-down
-from ~200 to ~150, not a blank page.
+Every set had an overplanned candidate pool in `docs/expansions/drafts/`
+(200 drafted cards for Starborne, and equivalents for brass-court, core-set-2,
+first-dawn). **The Drowned Deep overplan was retired 2026-09-07 by owner
+decision**: it was not Fable-authored, it was sized for a 120-card Small set,
+and it predated the Warchest reserve and the 1.7 rulings, so 1.8's set is
+authored fresh (see [plan-1.8.md](plan-1.8.md)). The remaining draft overplans
+share that provenance (one commit, 2026-07-26) and are candidate pools, not
+specs. A Small set is a cut-down from ~200 to ~150, not a blank page.
 
 ## Why this order
 

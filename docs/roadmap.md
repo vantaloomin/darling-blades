@@ -1626,11 +1626,12 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   opening pass: what the spine committed 1.8 to (Drowned Deep at 250+ cards,
   Whispers, activated abilities with tap costs, the land economy treatment,
   anonymous telemetry), what 1.7.x left behind, and the ten owner decisions
-  that gate the train. Two findings it carries: the Drowned Deep overplan is
-  sized for a 120-card Small set and predates the Warchest reserve and the
-  1.7 rulings, so it needs extending and re-auditing before a cut; and the
-  land economy headline has no spec, while the pool holds 27 utility taplands
-  no deck can play. **Nothing in it is authorized or implemented.**
+  that gate the train. Two findings it carries: the Drowned Deep overplan was
+  not Fable-authored, was sized for a 120-card Small set and predated the
+  Warchest reserve and the 1.7 rulings, so the owner retired it (2026-09-07)
+  and the set is authored fresh once the engine specs exist; and the land
+  economy headline has no spec, while the pool holds 27 utility taplands no
+  deck can play. **Nothing in it is authorized or implemented.**
 - **Run the toolchain and CI on Node 24 (proposal, 2026-09-04).** The v1.7.1
   release run warned that `actions/checkout@v4`, `actions/setup-node@v4`, and
   `softprops/action-gh-release@v2` still target Node 20 and are being forced

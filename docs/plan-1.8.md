@@ -111,34 +111,41 @@ set still works as a control set without the Horror package assembled.
 overplan carries both. A Large set has room for two, and Dread is cheap, but
 each is a costed mechanic, an AI heuristic, and a glossary entry.
 
-### Lane C — the set: Drowned Deep, 250+ cards
+### Lane C — the set: Drowned Deep, 250+ cards, authored fresh
 
-The overplan ([drowned-deep-overplan.md](expansions/drafts/drowned-deep-overplan.md))
-is the starting point, and it is **stale in two ways that matter**:
+**Owner decision 2026-09-07: the Drowned Deep overplan is retired and the set
+is authored fresh.** The draft (`docs/expansions/drafts/drowned-deep-overplan.md`,
+deleted on this branch; history keeps it) was not Fable-authored, which is
+the owner's rule for card text, names, flavor and design docs. It was also
+wrong for the job on its own terms: 200 candidates for a 120-card Small cut,
+written 2026-07-28 before the Large ruling, the Warchest reserve and the 1.7
+rules, with zero tap-ability cards beyond five unplayable rare lands, 20
+common single-colour taplands, an arrival-only artifact, and a retired
+fetchLand ritual. What survives of it is only what the spine and the slate
+already fixed: the name, cosmic horror, and Whispers as the headline mechanic.
 
-1. **It is sized for a Small set.** 200 candidates targeting a 120-card cut
-   (60 C / 36 R / 11 SR / 8 SSR / 5 UR). The Large cadence needs 250+. A cut
-   from 200 to 250 is not a cut. **The overplan needs roughly 120 more
-   candidates** (a 320-candidate pool for a 250-card cut, the same overplan
-   ratio Starborne had), and it needs them *after* lanes A and B settle, because
-   today it contains **zero tap-ability cards** beyond five rare lands the
-   reserve rule makes unplayable. The engine feature has to be visible in the
-   set that ships it.
-2. **It predates the 1.6 and 1.7 rulings.** Written 2026-07-28, it needs an
-   audit against: the Warchest reserve (its 20 common single-colour taplands
-   and 5 rare utility lands are exactly the shape `isUtilityTapland` excludes;
-   how Duat and Starborne handled their land rows is the precedent); the
-   no-one-time-effect-permanent rule from 1.7.1 (Reefseed Cache is an arrival
-   artifact); fetchLand's retirement into `extraLandDrop` with the mv-2 floor
-   (Root and Reef); creature-scoped marks; the Empower ceiling; the one-printing
-   per-set copy cap, stricter for tempo effects; the locked per-set rarity
-   histogram; and the design-health duplicate audit (`scripts/audit-overlap.ts`
-   against the live pool, which Starborne's cut ran and which the overplan's
-   "Arrives: gainLife 1" common band will trip).
+The fresh authoring pass is Fable's, in the order the Starborne concretion
+used, and it cannot start until lanes A and B have a spec, because the set
+must print the engine feature it ships:
 
-Proposed shipping shape, derived from Starborne's locked shares scaled to 250:
-**124 C / 75 R / 23 SR / 16 SSR / 12 UR**. Owner may prefer Duat's mix; the
-point is that the histogram is chosen at concretion and then locked.
+1. **Set identity brief** (owner-approved before any rows): setting, colour
+   pie, what each colour does with Whispers and with tap abilities, the
+   Horror package, the go-wide answer to the sweep's control-leaning field.
+2. **Overplan of ~320 candidates** for a 250+ cut, every row costed by the
+   power formula at authoring time and run through the overlap comparator
+   against the live pool (`scripts/audit-overlap.ts`), so the design-health
+   duplicate rate is a constraint from the first row and not an audit at the
+   end. Per-set rarity histogram chosen here and locked; Starborne's shares
+   scaled to 250 give **124 C / 75 R / 23 SR / 16 SSR / 12 UR** as the default.
+3. **Cut list**, with the protect-first list, cut priorities, enabler density
+   as a cut constraint (the Starborne lesson), and the AI-watch family named.
+4. **Concretion** to the engine's vocabulary, then Codex transcribes.
+
+The rules the rows are written against, all post-dating the old draft: the
+reserve accepts only basics and duals; no non-creature permanent is a one-time
+effect; `extraLandDrop` with the mv-2 floor; creature-scoped marks; the Empower
+ceiling; one printing per set, stricter for tempo effects; every token minted
+in the shipped cut.
 
 What the set carries besides cards, every one of which Starborne needed:
 
@@ -252,7 +259,7 @@ worktrees, by file set.
 | Wave | Contents | Gate |
 | ---: | --- | --- |
 | **0** | Node 24 (#342 implemented), roadmap sync, telemetry 0a rename, `audit-overlap.ts` committed, `run-sweep.ps1` sync fix | ladder rungs 1-6; the next tag proves `release.yml` |
-| **1** | Specs, Fable-authored: `plan-tap-abilities.md`, the Drowned Deep engine-wave spec (Whispers, Dread), `plan-land-economy.md`, the overplan refresh and extension to ~320 candidates. Owner rulings D1-D8. Frame geometry decided | owner approval of each spec |
+| **1** | Specs, Fable-authored: `plan-tap-abilities.md`, the Drowned Deep engine-wave spec (Whispers, Dread), `plan-land-economy.md`, then the fresh Drowned Deep identity brief and ~320-candidate overplan once the engine specs are approved. Owner rulings D1-D8. Frame geometry decided | owner approval of each spec |
 | **2** | Engine, Codex under contract: tap abilities stage 1 (artifacts, enchantments), then stage 2 (creatures), then Whispers, then Dread. Each with rates, AI at three difficulties, converter, replay bump, DuelScene switch audit, tests. v35 save bump (0b) lands here so lane D's schema needs ride it | full ladder, win-rate gates unchanged, replay goldens |
 | **3** | Set concretion: the 250+ cut locked, transcription, tokens, glossary, terms. **Art run starts the day the cut locks** and runs the length of the wave | check-art-bible green, every token minted, dup audit filed |
 | **4** | Metagame content: Lanterns Below, rungs 25-26 with Darlings decks, floors from the final band; land-economy implementation per D3; Assay rescore; balance pass | matrices, precon and boss floors, Assay fair-rate |
@@ -267,8 +274,9 @@ For scale: the 1.6 train (245 cards plus the Warchest migration) ran
 
 Numbered so rulings can cite them. Recommendations are the first option.
 
-1. **D1 Set size.** Extend the overplan to ~320 candidates for a 250+ cut (the
-   cadence), or accept a smaller Drowned Deep and move the difference to 2.0.
+1. **D1 Set size.** Author a fresh ~320-candidate overplan for a 250+ cut
+   (the cadence), or accept a smaller Drowned Deep and move the difference to
+   2.0. (The old overplan is retired; the question is only the target.)
 2. **D2 Tap abilities v1 shape.** Main-phase own-turn only, artifacts and
    enchantments first, creatures in stage 2 with summoning sickness and the
    Warcry exception; tap and tap-plus-mana costs. Charm-speed activation
