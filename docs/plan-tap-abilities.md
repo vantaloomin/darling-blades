@@ -10,7 +10,7 @@ artifacts carry no targeted or activated abilities today.
 
 **Status 2026-09-07: RULED. All six D2 sub-decisions approved as recommended
 (section 8), with the rules-line copy amended to the tap icon and the taught
-name still open. No code yet.** The implementation is Codex's under
+name ruled as Duty. No code yet.** The implementation is Codex's under
 contract, the main session owns git, and everything lands by PR into
 `release/1.8`.
 
@@ -41,10 +41,11 @@ trap from 1.7.2 out of the wave.
 - If the ability targets, the target is chosen as the ability is used, and
   the ability is only offered when a legal target exists. Because it resolves
   immediately there is no fizzle case.
-- Glossary entry (new taught term; the themed name is the one open part of
-  D2f, candidates in section 8): "Tap this permanent, and pay any listed
-  cost, during your Morning or Afternoon to use the ability. A permanent
-  cannot tap the turn it arrives unless it has Warcry."
+- Glossary entry, taught as **Duty** (owner ruling D2f, 2026-09-07):
+  "Duty: tap this permanent, and pay any listed cost, during your Morning or
+  Afternoon to perform its Duty. A permanent cannot tap the turn it arrives
+  unless it has Warcry." The word Duty never appears on the card itself; the
+  rules line is the tap pip, the cost pips and the effect.
 
 Interactions, all following from the rules above and worth stating so no card
 author is surprised:
@@ -349,18 +350,14 @@ relitigate.
   `manaAbility` in v1.
 - **D2f Copy. APPROVED WITH AMENDMENT:** the rules line opens with the tap
   **icon** lands already use (`pip-T`, smaller), never the word; the
-  glossary teaches the mechanic under a themed name. **The name is OPEN.**
-  The owner's placeholder is "Ability", which collides with the way every
-  triggered and static rules line is already called an ability in
-  `adding-cards.md` and the glossary, so the taught term should be a noun
-  that means "tap this permanent to make it work". Candidates, Fable's,
-  collision-checked against the catalog and the glossary: **Duty**
-  (recommended: "perform its Duty", reads as service, fits blades and
-  wardens; only hit is one flavor line), **Toil** (labour; zero hits),
-  **Devote** (zero hits). "Errand" is out (Woodland Errand) and "Muster" is
-  out (Crimson Muster). Whichever is chosen names the glossary entry, the
-  `cardMechanics` key, the blades-db `TERMS` row and the mechanic icon
-  tooltip; the engine field stays `activated`.
+  glossary teaches the mechanic under a themed name: **Duty** (owner,
+  2026-09-07, from Fable's collision-checked candidates Duty / Toil /
+  Devote; "Ability" was set aside because every triggered and static rules
+  line is already called an ability in `adding-cards.md` and the glossary).
+  Duty names the glossary entry, the `cardMechanics` key, the blades-db
+  `TERMS` row (translating to "activated ability" for the MTG comparison)
+  and the mechanic icon tooltip; the engine field stays `activated`, and the
+  card face shows only the tap pip.
 
 ## 9. Explicitly out of scope, with what each would cost later
 
