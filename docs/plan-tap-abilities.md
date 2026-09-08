@@ -210,23 +210,73 @@ difficulty reported, the `ai-watch-pass.ts` pattern).
 ## 5. Costing (the section 9 rule)
 
 Every new mechanic gets its MEP rate from a comparative before it ships,
-sanity-checked at both ends of its plausible range. The corpus report is
-being produced now against the era filter in `docs/mtg-db-playbook.md`; this
-section is filled from it before the spec is approved, with:
+sanity-checked at both ends of its plausible range. Measured 2026-09-07
+against the local MTG corpus under the era filter in
+`docs/mtg-db-playbook.md` (pre-2010, no un-sets, 8ED/9ED/10E printings
+flagged); the full anchor tables, the vanilla baselines and every query are in
+the local workbench record `balance/tap-ability-precedent-2026-09-07.md`
+(gitignored, like the formula itself).
 
-- the per-shape anchors (pinger, tapper, tap-to-draw, tap-to-mark,
-  tap-for-life, mana-plus-tap slopes) and their min/median/max;
-- the repeatable rate expressed as **per-activation MEP times an expected-
-  activation multiplier**, the section 4i dawn pattern, with separate
-  multipliers for non-creature and creature carriers (a creature carrier is
-  worth less: it dies more, and it forgoes attacks);
-- the mana-plus-tap discount slope;
-- an explicit `NEEDS MATH` list for anything the corpus does not cover.
+**The finding that sets the shape: a tap ability prices like a Dawn trigger
+the player chooses to fire.** Two independent creature effects (pingers and
+drainers) back out an expected-activation multiplier of about 2.0 on their
+per-trigger op rate, and the two real artifact card-advantage anchors
+(Jayemdae Tome, Jalum Tome) back out 3.3 to 3.6. Those are the formula's
+existing `DAWN_MULT_CREATURE` (2.0) and `DAWN_MULT_NONCREATURE` (3.0), so
+the rate reuses them rather than inventing a third pair:
 
-The rate row lands in `balance/power-formula.md` section 4 and the hook in
-`balance/scoreCore.ts` (the card-level rider block, plus removing `activated`
-from the `ScorableCardDef` omit list so it cannot flow through unscored) in
-the same wave. `scripts/personas/score.ts` gains a weight for the action.
+`A = TAP_MULT(carrier) x perTriggerMEP - D x activationMana`, clamped at 0.
+
+| Term | Provisional value | Evidence | Sanity at both ends |
+| --- | --- | --- | --- |
+| `TAP_MULT_CREATURE` | 2.0 x per-trigger rate | `{T}: 1 damage` on a mono 1/1 = 2.00 MEP flat across 7 cards from 1993 to 10E (Prodigal Sorcerer family); Archivist `{T}: draw` = 3.24 (mult 1.96) | Low and mid hold. **Top fails**: repeatable destroy would score 5.4 against anchors of 0.6 to 3.8 (Royal Assassin to Kalitas), so for per-trigger rates of 2.0 or more the term is `perTrigger + 1.0`, and that band is `NEEDS MATH` |
+| `TAP_MULT_NONCREATURE` | 3.0 x per-trigger rate | Jayemdae 3.3, Jalum 3.6; the same-set pair Onyx Goblet / Obelisk shows `{T}: drain 1` priced like a three-colour rock (about 1.6 MEP) | Card-advantage anchors hold; life trinkets read 1.5 to 2.4 cold, which matches their EDHREC ranks and is the same Honden exclusion section 4i already made |
+| `D`, discount per activation mana | 0.4 per mana, capped at 1.5 total | Ladders disagree by 5x: pingers 0 to 0.3, `{W}` tappers 0.3, life trinkets 1.0 to 1.5, artifact tappers about 1.0 | Low: `{W},{T}: tap` gives 0.4 vs 0.5 measured. High: `{4},{T}: draw` artifact gives 3.45 vs Jayemdae 4.24, slightly cold and accurate for that card. **A midpoint, not a fit; ships flagged** |
+| Repeatable `tap` per-trigger base | 1.0 (not the one-shot `tap` op's 0.40) | `{T}`-only unrestricted tappers = 2.0 MEP (Ballynock Trapper, Vectis Dominator); Icy Manipulator is a 9ED/10E staple | The cheap-stapled vs expensive-repeatable split section 4h already uses for Propagate (0.70 vs 1.65). At 0.40 Icy reads three points cold. `NEEDS MATH` for the tapper D (about 1.0 fits Master Decoy) |
+| Attack >= 2 body discount | -0.5, non-additive, like `rageValue` | Viashino Fangtail, Mawcor, Loxodon Mystic each pay about 1.0 less than 1/1 carriers | 1/1 carriers unaffected; 3/3 pingers land 0.4 high. Optional, owner taste |
+| One-shot `{T}, sacrifice: effect` | multiplier 1.0 (the plain op rate) | eight one-drop anchors price at A = 0 | Trivial both ends; out of v1 scope anyway |
+
+Three questions the spec needed answered, with the corpus's answer:
+
+1. **Is the same ability cheaper on a creature than on an artifact? Yes, by
+   1.0 to 1.75 MEP, consistently** (Marble Chalice vs Silent Attendant, Onyx
+   Goblet vs Cackling Imp, Trip Noose vs Master Decoy, Rod of Ruin vs
+   Prodigal Sorcerer). The ratio is 1.5 to 2x, which is the 2.0 / 3.0 carrier
+   split. One caveat travels with it: part of MTG's reason is that artifacts
+   go in every deck, and our artifact removal is scarce (section 4i counted 5
+   answers against 17 for enchantments), so the non-creature side stays at
+   the fair rate and is never discounted below it.
+2. **How does cost scale from `{T}` to `{1},{T}` to `{2},{T}`? Between 0.3 and
+   1.5 printed mana per activation mana, effect-dependent, first mana
+   discounting most.** Cheap effects (a ping on a body) discount almost
+   nothing; expensive effects use the activation mana as a rate limiter, not
+   a discount (Jayemdae's `{4}` activation on a `{4}` card). Hence D as a
+   midpoint with a cap.
+3. **Earliest-era `{T}: draw a card` on a creature is Archivist** ({2}{U}{U}
+   1/1 rare, 1999, reprinted 8ED and 9ED) at 3.24 MEP. **`{1},{T}: draw` on an
+   artifact does not exist in the corpus in any era**; the era anchor is
+   Jayemdae Tome ({4}, `{4},{T}`), and Wizards has held printed plus
+   activation at 6 to 8 for unconditional artifact draw for 25 years. Any
+   Drowned Deep card at that price point is `NEEDS MATH`.
+
+`NEEDS MATH`, explicitly: an era-clean `{T}: +1/+1 counter` rate (4 pre-2010
+cards, 2 restricted; the usable family is 2014 onward and carries creep), a
+`{T}: scry` rate on a creature (zero pre-2010 rows), `{1},{T}: draw` on an
+artifact, the tapper D, and the top of the creature range. None of these is
+guessed; a card that needs one is scored with the flag standing and the owner
+decides.
+
+Two design consequences the numbers carry into the set: **a tap ability on a
+body is priced against the attack it forgoes** (the attack >= 2 discount is
+the corpus saying so), and **repeatable removal on a tap never appears below
+six mana or below rare** in twenty years of precedent, which is a cut
+constraint for Drowned Deep's Horror package, not a formula detail.
+
+The rate rows land in `balance/power-formula.md` section 4 (a new 4q) and the
+hook in `balance/scoreCore.ts` (the card-level rider block, plus removing
+`activated` from the `ScorableCardDef` omit list so it cannot flow through
+unscored) in the tooling wave. `scripts/personas/score.ts` gains a weight for
+the action. Both carry the `NEEDS MATH` flags above verbatim.
 
 ## 6. Blast radius (grep everything, not the remembered list)
 
