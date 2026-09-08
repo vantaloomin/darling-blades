@@ -57,9 +57,12 @@ which Brass Court's Union rigs and contraptions wait on. It also unlocks the
 artifact design space the slate records as blocked (Fogbell Chime sat parked
 for months because artifacts carry no targeted or activated abilities).
 
-Nothing is specced yet. **A `plan-tap-abilities.md` engine spec is the first
-deliverable of the train**, Fable-authored, owner-ruled, Codex-implemented, the
-same shape as the Starborne engine wave. What the spec has to settle:
+**The spec is drafted: [plan-tap-abilities.md](plan-tap-abilities.md)
+(2026-09-07, awaiting rulings D2a-D2f).** Fable-authored, owner-ruled,
+Codex-implemented, the same shape as the Starborne engine wave. Its load-
+bearing choice: targets are chosen inline in the action and the ability
+resolves off-stack, so the wave adds no new `Awaiting` kind and stays out of
+the DuelScene switch trap. What the spec settles:
 
 1. **Timing.** Recommendation: v1 is main-phase, own turn, empty stack, the
    Preserve precedent. Charm-speed activation is a per-ability flag for later;
