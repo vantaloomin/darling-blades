@@ -8,9 +8,11 @@ Court's Union rigs and contraptions wait on it), not a Drowned Deep mechanic.
 It also unlocks the artifact design space the slate records as blocked, since
 artifacts carry no targeted or activated abilities today.
 
-**Status 2026-09-07: spec draft, awaiting owner rulings (section 8). No code.**
-The implementation is Codex's under contract, the main session owns git, and
-everything lands by PR into `release/1.8`.
+**Status 2026-09-07: RULED. All six D2 sub-decisions approved as recommended
+(section 8), with the rules-line copy amended to the tap icon and the taught
+name ruled as Duty. No code yet.** The implementation is Codex's under
+contract, the main session owns git, and everything lands by PR into
+`release/1.8`.
 
 The one-line design: **a permanent may tap itself, and optionally pay mana, to
 run effect ops with inline targets, off-stack, during its controller's own
@@ -21,10 +23,12 @@ trap from 1.7.2 out of the wave.
 
 ## 1. Player-facing rules
 
-- A permanent with a tap ability shows it as its own rules line. Proposed
-  template (owner ruling D2f, copy is taste-sensitive): `Tap: <effect>.` when
-  the cost is the tap alone, and `Tap, {1}: <effect>.` when mana is also paid,
-  with the mana rendered as pips the way costs render everywhere else.
+- A permanent with a tap ability shows it as its own rules line, opening
+  with **the tap pip lands already use** (`pip-T`, baked by
+  `bakeManaSymbols`, drawn at a reduced size on the rules line), then any
+  mana pips, then a colon and the effect: `[T]: <effect>.` and
+  `[T], {1}: <effect>.` (owner ruling D2f, 2026-09-07: the icon, not the
+  word). The mana renders as pips the way costs render everywhere else.
 - The controller may use it during their own Morning or Afternoon, when
   nothing is on the stack, the same timing as Preserve. It is not a Charm: it
   never opens a response window and cannot be used in one.
@@ -37,10 +41,11 @@ trap from 1.7.2 out of the wave.
 - If the ability targets, the target is chosen as the ability is used, and
   the ability is only offered when a legal target exists. Because it resolves
   immediately there is no fizzle case.
-- Glossary entry (new taught term, name for owner ruling D2f; working name
-  **Tap ability**): "Tap this permanent, and pay any listed cost, during your
-  Morning or Afternoon to use the ability. A permanent cannot tap the turn it
-  arrives unless it has Warcry."
+- Glossary entry, taught as **Duty** (owner ruling D2f, 2026-09-07):
+  "Duty: tap this permanent, and pay any listed cost, during your Morning or
+  Afternoon to perform its Duty. A permanent cannot tap the turn it arrives
+  unless it has Warcry." The word Duty never appears on the card itself; the
+  rules line is the tap pip, the cost pips and the effect.
 
 Interactions, all following from the rules above and worth stating so no card
 author is surprised:
@@ -327,27 +332,32 @@ No shipping card changes in this wave. The first printed tap abilities are
 Drowned Deep's, and the land-economy brief (D3) may convert the 27 utility
 taplands into tap-cost artifacts as its own batch afterwards.
 
-## 8. Owner rulings needed
+## 8. Owner rulings
 
-These are the sub-decisions of D2 in `plan-1.8.md`; recommendations first.
+The sub-decisions of D2 in `plan-1.8.md`. **Ruled 2026-09-07; all six
+approved as recommended, with one amendment and one open name.** Do not
+relitigate.
 
-- **D2a Speed.** Main-phase, own turn, empty stack (recommended); or
-  Charm-speed from day one, which needs stack semantics, response windows,
-  and the AI response filters, roughly doubling wave 2.
-- **D2b Carriers.** Creatures, artifacts and enchantments from the start
-  (recommended, with the AI policy split above); or non-creatures only in
-  1.8 and creatures later.
-- **D2c Arrival rule.** "Cannot tap the turn it arrives unless Warcry" for
-  every carrier including artifacts, which is what the engine already does
-  for mana rocks (recommended: one rule, no exceptions to teach); or the MTG
-  rule where only creatures are summoning-sick, which would also change
-  today's mana rocks.
-- **D2d Cost shapes.** Tap and tap-plus-mana (recommended); sacrifice and
-  other riders deferred.
-- **D2e Combinations.** Forbid with Hauntlink and `manaAbility` in v1
-  (recommended); allow either.
-- **D2f Copy.** The `Tap: ...` / `Tap, {1}: ...` template and the glossary
-  name "Tap ability"; alternatives welcome, this is taste.
+- **D2a Speed. APPROVED:** main-phase, own turn, empty stack. Charm-speed
+  stays a later extension (section 9).
+- **D2b Carriers. APPROVED:** creatures, artifacts and enchantments from the
+  start, with the AI policy split (non-creatures use free abilities early,
+  creatures only after combat).
+- **D2c Arrival rule. APPROVED:** cannot tap the turn it arrives unless
+  Warcry, for every carrier. One rule, the one mana rocks already follow.
+- **D2d Cost shapes. APPROVED:** tap and tap-plus-mana only.
+- **D2e Combinations. APPROVED:** forbidden with Hauntlink and with
+  `manaAbility` in v1.
+- **D2f Copy. APPROVED WITH AMENDMENT:** the rules line opens with the tap
+  **icon** lands already use (`pip-T`, smaller), never the word; the
+  glossary teaches the mechanic under a themed name: **Duty** (owner,
+  2026-09-07, from Fable's collision-checked candidates Duty / Toil /
+  Devote; "Ability" was set aside because every triggered and static rules
+  line is already called an ability in `adding-cards.md` and the glossary).
+  Duty names the glossary entry, the `cardMechanics` key, the blades-db
+  `TERMS` row (translating to "activated ability" for the MTG comparison)
+  and the mechanic icon tooltip; the engine field stays `activated`, and the
+  card face shows only the tap pip.
 
 ## 9. Explicitly out of scope, with what each would cost later
 
