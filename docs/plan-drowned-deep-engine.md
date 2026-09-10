@@ -27,6 +27,16 @@ hardlock trap at its largest. So this spec does not build a window.
 **Whispers rides the Skim action itself, as one composite action, and Dread
 is a fixed-discount sibling of Rite.** Neither adds an `Awaiting` kind.
 
+**A second finding the set plan has to absorb.** Skim is cycling, not
+looting: it discards *this* card, so it can fire Whispers only on a card
+that carries both. The "Whispers retro-synergises with Skim across the shared
+pool" premise in `plan-1.8.md` and `plan-road-to-2.0.md` is true only in that
+one-card sense; the 76 shipped Skim cards gain nothing from Whispers, and
+every v1 Whispers card is its own enabler (MTG's Ichor Slick shape, one card
+in twenty years, priced as a guaranteed self-trigger). That is not a reason
+to drop the mechanic; it is the reason section 10 prices the combined cast
+and section 8's DB1 asks whether opponent discards should fire it too.
+
 ## 1. Whispers: player-facing rules
 
 - A card with Whispers also has Skim (the validator requires it). Its rules
@@ -283,10 +293,62 @@ Recommendations first. DB1-DB2 are Whispers, DB3-DB5 are Dread, DB6 is copy.
 
 ## 10. Costing (the section 9 rule)
 
-Filled from the corpus pass (madness anchors from Torment and Time Spiral,
-the Kamigawa Offering cycle, emerge creep-flagged) before the spec is
-approved: the Whispers option as a premium at printed cost and a discount
-value when it fires times an enabler-density multiplier; the Dread option
-likewise; both with min/median/max, sanity at both ends, and the explicit
-`NEEDS MATH` list. Rows land in `balance/power-formula.md` section 4 and
-hooks in `balance/scoreCore.ts` in the tooling wave.
+Measured 2026-09-10 against the local MTG corpus under the era filter
+(madness from Torment 2002 and Time Spiral 2006-07, n=22; the Kamigawa
+Offering cycle, n=5; emerge creep-flagged, n=10; devour as the sibling,
+n=12). The full anchor tables, the comparables and every query are in the
+local workbench record `balance/whispers-dread-precedent-2026-09-10.md`
+(gitignored, like the formula).
+
+**Whispers.** Wizards' era rule reads cleanly off twelve cards with a clean
+comparable: bodies, cantrips and sorcery-speed effects are printed at fair
+rate with madness as pure upside (Arrogant Wurm is Fangren Hunter with a
+free option); instant-speed removal, burn and counters pay about half the
+discount up front (Fiery Temper +1 over Volcanic Hammer for a 2-mana
+discount; Dark Withering +3 for a 5-mana one). The madness cost itself lands
+at fair or one below. The era discount is 2 mana for creatures and instants
+(median, n=7-9), 1 for sorceries and auras; the post-2010 sets halved it to 1.
+
+| Term | Provisional value | Evidence | Sanity at both ends |
+| --- | --- | --- | --- |
+| Option premium, charm-class effect (removal, burn, counter, sweeper, bounce) | `E_FIRE x (printedMV - whispersMV)`, E_FIRE = 0.5; times the 4b Charm premium if the card is a Ritual (a Whispered spell casts at the discard's timing) | Temper, Logic, Withering, Purification, Haze: ratio 0.5 to 1.0 | Low: Obsessive Search discount 0 gives 0, matches. High: Withering 2.5 vs +3 measured, slightly cold; 0.5 is the floor of the range, not the fit |
+| Option premium, body or sorcery-speed effect | 0 at printed; the card is scored as if Whispers were absent | six cards with exact vanilla twins, all at 0 | Both eras agree; the modern difference is discount size only |
+| The Whispers cost | authoring guard, not a rate: `whispersMV >= fair(effect) - 1`, never below `fair - 2` | mad-fair median -1 (n=12) | the measured range itself |
+| **A Skim + Whispers card prices the combined cast** | `skimCost + whispersMV >= fair(effect + draw 1)`, with up to +1 tolerated for the guaranteed self-trigger | Ichor Slick: cycling {2} + madness {3}{B} = 6 mana for a -3/-3 and a card, about +2 over fair | **n=1, `NEEDS MATH`**; the binding constraint for every v1 Whispers card since each carries its own outlet (DB2) |
+
+Design consequence: with Skim required, a Whispers card is effectively a
+card with two prices, the printed one and a two-payment cantrip mode (Skim
+now, Whispers when the draw resolves, effect plus a card for about the
+printed cost). The overplan's "cost compression" risk is exactly this guard.
+
+**Enabler density**, for the set authoring: Torment ran 2.7 outlets per
+payoff (19% of the set were outlets), Time Spiral 3.2, Shadows over Innistrad
+1.5, and the real 2002 madness deck ran 1.4 to 1. In this engine the ratio
+inverts because every v1 Whispers card is its own outlet; the number that
+matters instead is how many Whispers cards a deck can afford to Skim per
+game against deck-out, which the seeded matrix measures, not the corpus.
+
+**Dread (option b, fixed discount).** The five Patrons price the offering
+option at 0.4 / 0.5 / 1.2 MEP (min / median / max) at printed, and the
+same-block Dragon Spirits at identical cost and rarity outrank all five: the
+tribal restriction was the real cost and the mana option was nearly free.
+Devour, the sacrifice-for-stats sibling, prices at 1.2 to 1.5 on commons
+regardless of N because the sacrificed body is the real cost. Rite (mandatory
+sacrifice) already carries -0.7 x N in the formula.
+
+| Term | Provisional value | Evidence | Sanity at both ends |
+| --- | --- | --- | --- |
+| Dread option | flat **+0.5**, floor 0, cap 1.0; not scaled by the card's MV | the Patrons' median; Rite's -0.7 with the sign flipped and halved because the sacrifice is optional and the mana saved is offset by the body lost, leaving tempo and dies-trigger synergy | Low: Orochi / Nezumi 0.4 to 0.5 hold. High: Patron of the Moon 1.2 reads 0.7 over because its land ability is unpriced. A Dread card that ALSO gains counters needs the Devour rate on top |
+| Emerge-shape Dread (option a) | score at `effectiveMV = dreadMV - E_SAC` | emerge = printed - 1 in all ten EMN cards; printed is never paid | post-era only; E_SAC unmeasurable from the corpus; `NEEDS MATH`, one more reason option (b) is recommended |
+| Tokens under Dread | design note, not a rate | tokens have no printed cost | with the fixed discount this is moot: a token is legal fodder and the discount is the same. Under option (a) a token would discount by zero |
+
+`NEEDS MATH`, explicitly: the fire rate E_FIRE in this engine (until a
+seeded matrix measures how often the AI Skims a Whispers card and how often
+`discardRandom` hands us a free cast), the Ichor Slick combined-cast guard
+(n=1), Whispers creatures at instant speed (Flash has no rate; excluded by
+DB1 anyway), E_SAC for the emerge shape, and whether a discount reads the
+printed or the current cost (the v3.1 slate trap).
+
+The rows land in `balance/power-formula.md` section 4 (4r Whispers, 4s Dread)
+and the hooks in `balance/scoreCore.ts` beside `skim` and `rite` in the
+tooling wave; `scripts/personas/score.ts` gains weights for both riders.
