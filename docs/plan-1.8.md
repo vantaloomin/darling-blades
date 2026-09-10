@@ -289,9 +289,11 @@ Numbered so rulings can cite them. Recommendations are the first option.
    utility taplands into the tap-cost artifacts they already want to be.
 4. **D4 Dread of the Deep.** In (cheap on the Rite plumbing, gives the Horror
    package a spine) or out (one costed mechanic fewer).
-5. **D5 Telemetry prerequisites.** Create the Cloudflare account and pick the
-   Worker hostname so T0 can spike early in the train; decide when the
-   privacy page goes live.
+5. **D5 Telemetry prerequisites.** ~~Create the Cloudflare account and pick
+   the Worker hostname~~ **DONE 2026-09-10: `db-signals.loominvanta.workers.dev`**
+   (placeholder Worker deployed, subdomain registered). Still open: how the
+   spike deploys (an API token with Workers edit scope in the environment, or
+   the owner runs `wrangler deploy`), and when the privacy page goes live.
 6. **D6 Node 24 now.** Implement #342's one-PR change before 2026-09-23 and
    before the train opens, per the doc's three choices (smallest action majors,
    `engines` as a warning, timing).

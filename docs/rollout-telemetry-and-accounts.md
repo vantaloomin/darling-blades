@@ -42,8 +42,8 @@ done at least a week before that wave opens so a surprise does not stall it.
 
 | Step | Blocks | Notes |
 | --- | --- | --- |
-| Create a Cloudflare account | T0 | Free plan is sufficient. No custom domain needed — a Worker gets a free `*.workers.dev` hostname |
-| Decide the Worker hostname | T0 | Proposal: `db-signals.<account>.workers.dev`. It goes in the client and in the privacy page, so changing it later is a code change |
+| ~~Create a Cloudflare account~~ | T0 | **DONE 2026-09-10** (Workers Free plan). No custom domain needed — a Worker gets a free `*.workers.dev` hostname |
+| ~~Decide the Worker hostname~~ | T0 | **DECIDED 2026-09-10: `db-signals.loominvanta.workers.dev`.** A hello-world placeholder Worker named `db-signals` is deployed there to register the subdomain; the real signals Worker replaces it under the same name. It goes in the client and in the privacy page, so changing it later is a code change |
 | Cloudflare API token (Analytics read) → repo secret | T3 | Scope it to **Account Analytics: Read** only. Never a global key |
 | Create the Supabase **prod** project, **EU region** | C0 | Region is chosen at creation and cannot be changed later |
 | Create the Supabase **dev** project | C0 | This exhausts the free plan's 2-project allowance. There is no third |
@@ -146,8 +146,9 @@ behaviour behind it.
 Branch: `claude/signals-spike` (never merged; a scratch branch and a written
 finding)
 
-- Stand the Worker up on the chosen `workers.dev` hostname. Send synthetic
-  events. Verify the WAE write path, the SQL API read path, and one real rollup
+- Stand the Worker up on `db-signals.loominvanta.workers.dev` (decided
+  2026-09-10; a placeholder Worker of that name already holds the hostname).
+  Send synthetic events. Verify the WAE write path, the SQL API read path, and one real rollup
   query end to end.
 - Project the free-tier headroom against a realistic DAU. Two digests per
   player-day against 100k requests/day is roughly 50k player-days of headroom;
