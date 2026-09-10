@@ -95,14 +95,25 @@ the DuelScene switch trap. What the spec settles:
 
 ### Lane B — the set mechanics: Whispers, and Dread of the Deep if kept
 
+**The spec is drafted: [plan-drowned-deep-engine.md](plan-drowned-deep-engine.md)
+(2026-09-10, awaiting rulings DB1-DB6).** Two findings changed the shape
+described below. First, discard in this engine is per-card Skim (cycling:
+discard *this* card, draw), with no generic outlet, so a post-discard window
+would be a new `Awaiting` kind across about 120 switch sites; the spec makes
+Whispers a rider on the Skim action instead (one composite action, no
+window) and Dread a fixed-discount sibling of Rite. Second, the
+"retro-synergy with Skim" premise holds only for a card carrying both: the
+76 shipped Skim cards gain nothing, and every v1 Whispers card is its own
+enabler, which is what the costing prices.
+
 **Whispers** (the slate's madness analog): a card with Whispers that is
 discarded from hand may be cast immediately for its Whispers cost. It closes an
 existing loop: Dark Tales shipped a discard engine (Skim) with no discard
-payoff. Engine shape: a discard event with an owner decision, so a new
-`Awaiting` kind (`whispersWindow`) with the DuelScene audit above; AI is a
-greedy cost comparison (cast if affordable now and the normal cost is not). The
-overplan's own risk list applies: a cast-versus-Whispers affordability audit
-and a deck-out guard review before card data commits.
+payoff. The original engine sketch (a discard event with an owner decision,
+a new `Awaiting` kind) is superseded by the spec; the AI is a greedy cost
+comparison either way. The overplan's own risk list applies: a
+cast-versus-Whispers affordability audit and a deck-out guard review before
+card data commits.
 
 **Dread of the Deep** (the emerge analog): sacrifice a creature as you cast a
 Horror, reduce its cost by the sacrificed creature's cost. Rite already shipped
