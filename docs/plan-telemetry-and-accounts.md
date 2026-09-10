@@ -307,9 +307,12 @@ Why it fits:
   `update … where user_id = auth.uid() and revision = $expected` — exactly the
   semantics [plan-save-portability.md](plan-save-portability.md) already specs.
 - **Capacity is measurable, not guessed.** 500 MB divided by the compressed
-  save size gives the account ceiling. That size is currently **unmeasured**;
-  `scripts/measure-save-code.ts` is proposed but does not exist, and building it
-  is a prerequisite of wave C0.
+  save size gives the account ceiling. **Measured 2026-09-10** by
+  `scripts/measure-save-code.ts` (which had existed since PR #141; this
+  paragraph was wrong to call it unbuilt): a veteran owning every card four
+  times with variants and twenty decks is about 17 KB deflated, so the 500 MB
+  tier holds on the order of 25,000 such saves. Numbers and caveats in
+  [telemetry-t0-finding.md](telemetry-t0-finding.md) section 7.
 - **EU region** on project creation keeps EU data in-region; Supabase publishes
   a DPA.
 

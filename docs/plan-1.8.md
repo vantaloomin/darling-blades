@@ -291,9 +291,11 @@ Numbered so rulings can cite them. Recommendations are the first option.
    package a spine) or out (one costed mechanic fewer).
 5. **D5 Telemetry prerequisites.** ~~Create the Cloudflare account and pick
    the Worker hostname~~ **DONE 2026-09-10: `db-signals.loominvanta.workers.dev`**
-   (placeholder Worker deployed, subdomain registered). Still open: how the
-   spike deploys (an API token with Workers edit scope in the environment, or
-   the owner runs `wrangler deploy`), and when the privacy page goes live.
+   (placeholder Worker deployed, subdomain registered). **T0 RAN 2026-09-10**
+   with an owner-issued deploy token in the user environment; finding in
+   [telemetry-t0-finding.md](telemetry-t0-finding.md), which raises three
+   decisions of its own (D-T0.1 card rows, D-T0.2 the salt, D-T0.3 where the
+   Worker lives). Still open here: when the privacy page goes live.
 6. **D6 Node 24 now.** Implement #342's one-PR change before 2026-09-23 and
    before the train opens, per the doc's three choices (smallest action majors,
    `engines` as a warning, timing).

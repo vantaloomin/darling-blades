@@ -143,8 +143,19 @@ behaviour behind it.
 
 ### T0 — Spike. Ships nothing.
 
-Branch: `claude/signals-spike` (never merged; a scratch branch and a written
-finding)
+**RAN 2026-09-10; finding in [telemetry-t0-finding.md](telemetry-t0-finding.md).**
+Write and read paths proven against `db-signals.loominvanta.workers.dev`;
+three corrections to this plan came out of it: the data-point cap (not the
+request cap) binds and card rows are 95% of it (decision D-T0.1), the
+in-memory salt is per isolate so distinct-install counts need a
+secret-derived salt (D-T0.2), and every rollup count must be
+`sum(_sample_interval)`. `scripts/measure-save-code.ts` turned out to exist
+since 1.5 (PR #141; this doc was wrong) and was extended with real-catalog
+profiles and run. The branch was merged rather than discarded because the
+Worker source is what T1/T2 start from.
+
+Branch: `claude/signals-spike` (as planned, a written finding; the code in
+`worker/` is the spike's Worker, kept)
 
 - Stand the Worker up on `db-signals.loominvanta.workers.dev` (decided
   2026-09-10; a placeholder Worker of that name already holds the hostname).
@@ -153,7 +164,8 @@ finding)
 - Project the free-tier headroom against a realistic DAU. Two digests per
   player-day against 100k requests/day is roughly 50k player-days of headroom;
   confirm the arithmetic against actual payload sizes rather than trusting it.
-- **Build `scripts/measure-save-code.ts` here.** It does not exist,
+- **Run `scripts/measure-save-code.ts` here.** (Written 2026-08-28 as "build
+  it, it does not exist"; it had existed since PR #141. Corrected 2026-09-10.)
   [plan-save-portability.md](plan-save-portability.md) proposed it, and wave C0
   needs its output to size the Supabase free tier. Doing it now means the
   accounts wave opens with the number already in hand.
