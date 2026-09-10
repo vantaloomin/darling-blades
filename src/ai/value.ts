@@ -1,6 +1,9 @@
+import type { Action } from '../engine/actions';
 import { getEffectiveStats } from '../engine/statics';
-import type { AbilityDef, CardDb, EffectOp, Keyword, Permanent, PlayerId } from '../engine/types';
-import { def, isType, manaValue, opponentOf } from '../engine/types';
+import type { AbilityDef, CardDb, EffectOp, Keyword, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
+import { def, effectOpUsesTarget, isType, manaValue, opponentOf } from '../engine/types';
+import type { PlayerView } from '../engine/view';
+import { targetChoiceValue } from './targeting';
 
 const KEYWORD_BONUS: Record<Keyword, number> = {
   skyborne: 1,
@@ -68,7 +71,18 @@ export function abilityConditionMultiplier(condition: AbilityDef['condition']): 
   return 1;
 }
 
-export function opImpactValue(op: EffectOp): number {
+interface ActivatedImpactContext {
+  view: PlayerView;
+  db: CardDb;
+  source: Permanent;
+  targets: readonly TargetRef[];
+  targetBatch: boolean;
+  /** Board-only potential has no supplied deck count. Action scoring does. */
+  trackDeck: boolean;
+}
+
+export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext): number {
+  if (activated) return activatedOpImpact(op, activated);
   switch (op.op) {
     case 'gainLife':
       return op.n * 0.35;
@@ -140,6 +154,231 @@ export function opImpactValue(op: EffectOp): number {
     default:
       return 0;
   }
+}
+
+/**
+ * Target scoring reuses the arrival picker with one op exposed as an ability.
+ * The adapter never submits a decision. Its synthetic spell-shaped ability
+ * does not create a recurring-rider premium on the source while scoring it.
+ */
+function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: TargetRef): number {
+  const { view, db, source } = ctx;
+  const card = def(db, source.cardId);
+  const abilityIndex = card.abilities?.length ?? 0;
+  const adaptedDb: CardDb = {
+    ...db,
+    [card.id]: { ...card, abilities: [...(card.abilities ?? []), { when: 'spell', ops: [op] }] },
+  };
+  const target = ref.kind === 'permanent' ? view.battlefield.find((p) => p.iid === ref.iid) : undefined;
+  // The arrival picker historically restricts these removal ops to creatures.
+  // Duty also permits artifact/enchantment targets, valued by the same material helper.
+  if (target && (op.op === 'destroy' || op.op === 'sever' || op.op === 'destroyArtifactOrSeverEnchantment')) {
+    const factor = op.op === 'destroy' ? 1 : op.op === 'sever' ? 0.9 : 0.85;
+    return removalTargetValue(view.battlefield, db, target) * factor * (target.controller === view.myId ? -1 : 1);
+  }
+  if (target && op.op === 'boost' && isType(def(db, target.cardId), 'creature') &&
+    getEffectiveStats(view.battlefield, db, target.iid).defense + op.t <= target.damage) {
+    return removalTargetValue(view.battlefield, db, target) * (target.controller === view.myId ? -1 : 1);
+  }
+  if (op.op === 'tap' && target?.tapped) return 0;
+  if (op.op === 'foresee' && op.who === 'targetOwner') {
+    const owner = target?.owner ?? (ref.kind === 'player' || ref.kind === 'grave' ? ref.player : undefined);
+    return owner === undefined ? 0 : op.n * 0.5 * (owner === view.myId ? 1 : -1);
+  }
+  return targetChoiceValue({
+    ...view,
+    awaiting: { kind: 'chooseTarget', player: view.myId, sourceIid: source.iid, abilityIndex, targets: [ref] },
+  }, adaptedDb, ref);
+}
+
+/** Signed public-board scoring used only by the new activated rider. */
+function activatedOpImpact(op: EffectOp, ctx: ActivatedImpactContext): number {
+  const { view, db, source } = ctx;
+  const refs = ctx.targetBatch ? ctx.targets : ctx.targets.slice(0, 1);
+  const creatures = view.battlefield.filter((p) => isType(def(db, p.cardId), 'creature'));
+  const mine = creatures.filter((p) => p.controller === view.myId);
+  const material = (perm: Permanent): number => removalTargetValue(view.battlefield, db, perm);
+  if (op.op === 'ifTargetMarked') {
+    return refs.reduce((sum, ref) => {
+      const target = ref.kind === 'permanent' ? creatures.find((p) => p.iid === ref.iid) : undefined;
+      const branch = target && target.plusOneCounters > 0 ? op.then : (op.else ?? []);
+      return sum + activatedOpsImpact(branch, {
+        ...ctx, targets: [ref], targetBatch: false,
+      });
+    }, 0);
+  }
+  if (op.op === 'moveMark') {
+    const targets = ctx.targets.filter((ref) => ref.kind === 'permanent');
+    const from = mine.find((p) => p.iid === targets[0]?.iid);
+    const to = mine.find((p) => p.iid === targets[1]?.iid);
+    if (!from || !to || from.iid === to.iid || from.plusOneCounters <= 0) return 0;
+    const mark: EffectOp = { op: 'addCounters', n: 1, to: 'target' };
+    return activatedTargetImpact(mark, ctx, { kind: 'permanent', iid: to.iid }) -
+      activatedTargetImpact(mark, ctx, { kind: 'permanent', iid: from.iid });
+  }
+  if (effectOpUsesTarget(op)) return refs.reduce((sum, ref) => sum + activatedTargetImpact(op, ctx, ref), 0);
+  if (op.op === 'draw' && ctx.trackDeck && op.n > view.you.deckCount) return -Infinity;
+  if (op.op === 'damage') {
+    if (op.to === 'controller') return op.n === 'X' ? 0 : -op.n * 0.9;
+    if (op.to === 'eachCreature') return symmetricCreatureSweepValue(view.battlefield, db, view.myId, op);
+  }
+  if (op.op === 'severSelf') return -Math.max(1.5, material(source));
+  if (op.op === 'massDestroy') {
+    return view.battlefield.reduce((sum, perm) => {
+      const card = def(db, perm.cardId);
+      const affected = op.filter === 'allEnchantments' ? isType(card, 'enchantment') :
+        isType(card, 'creature') && (op.filter !== 'allFliers' ||
+          getEffectiveStats(view.battlefield, db, perm.iid).keywords.has('skyborne'));
+      return sum + (affected ? material(perm) * (perm.controller === view.myId ? -1 : 1) : 0);
+    }, 0);
+  }
+  if (op.op === 'boost') {
+    const affected = creatures.filter((p) => op.scope === 'all' ||
+      (op.scope === 'theirMarked' ? p.controller !== view.myId : p.controller === view.myId) &&
+      (op.scope !== 'yourMarked' && op.scope !== 'theirMarked' || p.plusOneCounters > 0));
+    return affected.reduce((sum, perm) => sum + activatedTargetImpact(
+      { ...op, scope: 'target' }, ctx, { kind: 'permanent', iid: perm.iid },
+    ), 0);
+  }
+  if (op.op === 'addCounters' && op.to === 'self') return isType(def(db, source.cardId), 'creature') ? opImpactValue(op) : 0;
+  if (op.op === 'propagate') return mine.filter((p) => p.plusOneCounters > 0).length * opImpactValue(op);
+  if (op.op === 'markAll') return mine.length * opImpactValue(op);
+  if (op.op === 'loseLifePerTheirMarked') return creatures.filter((p) => p.controller !== view.myId && p.plusOneCounters > 0).length * opImpactValue(op);
+  if (op.op === 'severGrave' && op.who === 'self') return -op.n * 0.6;
+  return opImpactValue(op);
+}
+
+/**
+ * Keep only the public facts later ops explicitly inspect: current marks and
+ * remaining draw capacity. This is a local scoring projection, not a second
+ * engine interpreter; triggers and hidden drawn card identities are not inferred.
+ */
+function activatedOpsImpact(ops: readonly EffectOp[], ctx: ActivatedImpactContext): number {
+  let value = 0;
+  for (const op of ops) {
+    value += opImpactValue(op, ctx);
+    if (!Number.isFinite(value)) return value;
+    const creatures = ctx.view.battlefield.filter((p) => isType(def(ctx.db, p.cardId), 'creature'));
+    const mine = creatures.filter((p) => p.controller === ctx.view.myId);
+    const refs = ctx.targetBatch ? ctx.targets : ctx.targets.slice(0, 1);
+    const targets = creatures.filter((p) => refs.some((ref) => ref.kind === 'permanent' && ref.iid === p.iid));
+    if (op.op === 'removeMarks') {
+      for (const target of targets) target.plusOneCounters = 0;
+    } else if (op.op === 'addCounters') {
+      const affected = op.to === 'self' ? creatures.filter((p) => p.iid === ctx.source.iid) : targets;
+      for (const target of affected) target.plusOneCounters += Math.max(0, op.n);
+    } else if (op.op === 'markAll' || op.op === 'propagate') {
+      for (const target of mine) {
+        if (op.op === 'markAll' || target.plusOneCounters > 0) target.plusOneCounters++;
+      }
+    } else if (op.op === 'moveMark') {
+      const permanentRefs = ctx.targets.filter((ref) => ref.kind === 'permanent');
+      const from = mine.find((p) => p.iid === permanentRefs[0]?.iid);
+      const to = mine.find((p) => p.iid === permanentRefs[1]?.iid);
+      if (from && to && from.iid !== to.iid && from.plusOneCounters > 0) {
+        from.plusOneCounters--;
+        to.plusOneCounters++;
+      }
+    } else if (op.op === 'draw' && ctx.trackDeck) {
+      ctx.view.you.deckCount -= op.n;
+    }
+  }
+  return value;
+}
+
+/**
+ * Mask battlefield Duty riders only while scoring removal targets. Otherwise
+ * two Duty carriers targeting one another recurse through permValue forever.
+ * Definitions and the original db are never mutated.
+ */
+function activatedTargetDb(battlefield: readonly Permanent[], db: CardDb): CardDb {
+  const overlay = { ...db };
+  for (const perm of battlefield) {
+    const card = def(db, perm.cardId);
+    if (card.activated) overlay[card.id] = { ...card, activated: undefined };
+  }
+  return overlay;
+}
+
+export function activateActionValue(
+  view: PlayerView,
+  db: CardDb,
+  action: Extract<Action, { type: 'activate' }>,
+): number {
+  return activatedActionImpact(view, db, action, true);
+}
+
+function activatedActionImpact(
+  view: PlayerView,
+  db: CardDb,
+  action: Extract<Action, { type: 'activate' }>,
+  trackDeck: boolean,
+): number {
+  const source = view.battlefield.find((p) => p.iid === action.iid);
+  const ability = source && def(db, source.cardId).activated;
+  if (!source || !ability) return -Infinity;
+  const ctx: ActivatedImpactContext = {
+    view: { ...view, you: { ...view.you }, battlefield: view.battlefield.map((perm) => ({ ...perm })) },
+    db: activatedTargetDb(view.battlefield, db), source, trackDeck,
+    targets: action.targets ?? [],
+    targetBatch: ability.targets?.length === 1 && ability.targets[0].upTo !== undefined,
+  };
+  return activatedOpsImpact(ability.ops, ctx);
+}
+
+/** Potential targets from public battlefield data; no GameState or hidden zones. */
+function activatedPotentialTargets(view: PlayerView, db: CardDb, source: Permanent, spec: TargetSpec): TargetRef[] {
+  const refs: TargetRef[] = [];
+  for (const perm of view.battlefield) {
+    if (spec.other && perm.iid === source.iid || spec.tapped && !perm.tapped) continue;
+    const card = def(db, perm.cardId);
+    const creature = isType(card, 'creature');
+    if (spec.marked && (!creature || perm.plusOneCounters <= 0)) continue;
+    const mine = perm.controller === source.controller;
+    const creatureTarget = spec.what === 'creature' || spec.what === 'any';
+    if (creatureTarget && !mine && getEffectiveStats(view.battlefield, db, perm.iid).keywords.has('untouchable')) continue;
+    const matches = creatureTarget ? creature : spec.what === 'yourCreature' ? mine && creature :
+      spec.what === 'yourPermanent' ? mine : spec.what === 'artifactOrEnchantment' ?
+        isType(card, 'artifact') || isType(card, 'enchantment') :
+        (spec.what === 'artifact' || spec.what === 'enchantment') && isType(card, spec.what);
+    if (matches) refs.push({ kind: 'permanent', iid: perm.iid });
+  }
+  if ((spec.what === 'any' || spec.what === 'player') && !spec.marked && !spec.tapped) {
+    refs.push({ kind: 'player', player: source.controller }, { kind: 'player', player: opponentOf(source.controller) });
+  }
+  return refs;
+}
+
+/**
+ * One use's potential from the permValue public-board contract. Unavailable
+ * hand/grave/stack information stays empty in this neutral view projection;
+ * it is not an inferred deck or a fabricated hidden state. Readiness and mana
+ * are deliberately ignored: a tapped or newly arrived rider is still valuable.
+ */
+export function activatedAbilityValue(battlefield: readonly Permanent[], db: CardDb, iid: number): number {
+  const source = battlefield.find((p) => p.iid === iid);
+  const ability = source && def(db, source.cardId).activated;
+  if (!source || !ability) return 0;
+  const view: PlayerView = {
+    myId: source.controller, activePlayer: source.controller, startingPlayer: source.controller,
+    turn: 0, step: 'main2', battlefield: [...battlefield], stack: [], combat: null,
+    fogThisTurn: false, awaiting: { kind: 'main', player: source.controller }, winner: null,
+    you: { life: 0, hand: [], deckCount: 0, graveyard: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
+    opp: { life: 0, handCount: 0, deckCount: 0, graveyard: [], severed: [], landDropsRemaining: 0, mulligans: 0 },
+  };
+  let lists: TargetRef[][] = [[]];
+  for (const spec of ability.targets ?? []) {
+    const refs = activatedPotentialTargets(view, db, source, spec);
+    if (spec.upTo !== undefined) {
+      lists = [[], ...refs.map((ref) => [ref])];
+      for (let first = 0; first < refs.length; first++) {
+        for (let second = first + 1; second < refs.length; second++) lists.push([refs[first], refs[second]]);
+      }
+    } else {
+      lists = lists.flatMap((chosen) => refs.map((ref) => [...chosen, ref]));
+    }
+  }
+  return Math.max(0, ...lists.map((targets) => activatedActionImpact(view, db, { type: 'activate', iid, targets }, false)));
 }
 
 /** Extra battlefield value for non-creature static and recurring engines. */
@@ -656,5 +895,8 @@ export function permValue(
   if (isType(d, 'creature') && d.awakening && !perm.awakened) {
     v += 0.5 + awakeningValue(d);
   }
+  // Duty uses the same expected-use shape as a Dawn rider: two uses on a
+  // creature and three on a non-creature. Readiness does not erase potential.
+  if (d.activated) v += activatedAbilityValue(battlefield, db, iid) * (isType(d, 'creature') ? 2 : 3);
   return v;
 }

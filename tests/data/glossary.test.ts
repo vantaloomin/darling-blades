@@ -66,6 +66,18 @@ describe('glossary vocabulary', () => {
     expect(termMatchesQuery(dreaded, 'skyborne')).toBe(false);
   });
 
+  it('teaches Duty beside Preserve with the approved definition and tap icon', () => {
+    const terms = glossarySection('mechanics').terms;
+    const index = terms.findIndex((term) => term.name === 'Duty');
+    expect(terms[index - 1].name).toBe('Preserve');
+    expect(terms[index]).toEqual({
+      name: 'Duty',
+      description: 'Tap this permanent, and pay any listed cost, during your Morning or Afternoon to perform its Duty. A permanent cannot tap the turn it arrives unless it has Warcry.',
+      icon: { kind: 'mechanic', key: 'duty' },
+    });
+    expect(sectionOfTerm('Duty')).toBe('mechanics');
+  });
+
   it('teaches the day-cycle phase names without legacy Upkeep or End rows', () => {
     const phases = glossarySection('phases');
     expect(phases.terms.map((term) => term.name)).toEqual([
@@ -87,6 +99,27 @@ describe('glossary vocabulary', () => {
 });
 
 describe('cardMechanics', () => {
+  it('detects Duty and terms in its nested effect ops for search and the Keyword Guide', () => {
+    const fixture: CardDef = {
+      id: 'duty-glossary-fixture', name: 'Duty Fixture', types: ['artifact'],
+      subtypes: [], colors: [], rarity: 'c',
+      activated: {
+        cost: { tap: true }, targets: [{ what: 'creature' }],
+        ops: [{
+          op: 'ifTargetMarked',
+          then: [
+            { op: 'propagate' },
+            { op: 'boost', scope: 'target', p: 0, t: 0, keywords: ['sentinel'] },
+          ],
+          else: [{ op: 'sever', to: 'target' }, { op: 'foresee', n: 1 }],
+        }],
+      },
+    };
+    expect(cardMechanics(fixture)).toEqual(['foresee', 'sever', 'mark', 'propagate', 'duty']);
+    expect(cardTermNames(fixture)).toEqual(['Sentinel', 'Foresee', 'Sever', 'Mark', 'Propagate', 'Duty']);
+    expect(cardGlossaryEntries(fixture)).toContainEqual({ name: 'Duty', reminder: MECHANIC_DEFINITIONS.duty });
+  });
+
   it('reads mechanics off structured fields, not generated prose', () => {
     const morrigan = CARD_DB['cf-morrigan-black-wing']; // severGrave + foresee
     expect(cardMechanics(morrigan)).toEqual(['foresee', 'sever']);

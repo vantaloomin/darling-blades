@@ -59,7 +59,8 @@ export type MechanicId =
   | 'hauntlink'
   | 'rite'
   | 'nineLives'
-  | 'preserve';
+  | 'preserve'
+  | 'duty';
 
 export const MECHANIC_NAMES: Record<MechanicId, string> = {
   sever: 'Sever',
@@ -75,6 +76,7 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
   rite: 'Rite',
   nineLives: 'Nine Lives',
   preserve: 'Preserve',
+  duty: 'Duty',
 };
 
 /** One-line, player-facing definitions for non-keyword mechanics. */
@@ -92,6 +94,7 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   rite: 'as an additional cost to cast this, sacrifice the listed number of creatures',
   nineLives: 'when this dies with no +1/+1 marks on it, it returns to the battlefield with a +1/+1 mark on it',
   preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during Morning or Afternoon',
+  duty: 'Tap this permanent, and pay any listed cost, during your Morning or Afternoon to perform its Duty. A permanent cannot tap the turn it arrives unless it has Warcry.',
 };
 
 /** Player-facing rarity tier names, shared by the glossary and the Profile. */
@@ -146,6 +149,7 @@ function cardOps(d: CardDef): EffectOp[] {
     ...(d.chapters ?? []).flatMap((chapter) => flatten(chapter)),
     ...flatten(d.empower?.ops ?? []),
     ...flatten(d.retell?.ops ?? []),
+    ...flatten(d.activated?.ops ?? []),
   ];
 }
 
@@ -190,6 +194,7 @@ export function cardMechanics(d: CardDef): MechanicId[] {
   if (d.rite) present.push('rite');
   if (d.nineLives) present.push('nineLives');
   if (d.preserve) present.push('preserve');
+  if (d.activated) present.push('duty');
   return present;
 }
 
@@ -293,6 +298,7 @@ const MECHANIC_ORDER: MechanicId[] = [
   'rite',
   'nineLives',
   'preserve',
+  'duty',
 ];
 
 export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [

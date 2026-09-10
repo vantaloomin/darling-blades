@@ -4,6 +4,7 @@ import { def, isType, manaValue, opponentOf } from '../engine/types';
 import { getEffectiveStats } from '../engine/statics';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
+import { chooseActivate } from './activatedPolicy';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
@@ -302,6 +303,8 @@ export class MediumAI implements AIPlayer {
       (cast) => this.castScore(view, cast),
     );
     if (casts.length === 0 && preserve) return preserve;
+    const activate = chooseActivate(view, this.db, legal);
+    if (casts.length === 0 && activate) return activate;
     // Smoothing gate: only spend a Skim when no cast line, including Retell,
     // exists.
     if (casts.length === 0 && view.you.deckCount > 0) {
@@ -398,6 +401,7 @@ export class MediumAI implements AIPlayer {
       }
 
       if (preserve) return preserve;
+      if (activate) return activate;
 
       // 3. Develop: cast the highest-value creature / permanent. Creatures
       //    without haste in main1 wait for main2 only if we plan to attack;
