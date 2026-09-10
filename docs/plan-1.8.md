@@ -2,8 +2,10 @@
 
 # Darling Blades 1.8 — program plan (proposal)
 
-**Status 2026-09-07: DRAFT, awaiting owner rulings. Nothing here is
-implemented or authorized.** This is the "work out the plan" pass that opens a
+**Status 2026-09-11: every owner decision D1-D10 is RULED (see the list at
+the end); the tap-ability engine core is on the train (#355); the Drowned
+Deep engine spec is ruled and awaits implementation.** Originally drafted
+2026-09-07 as the proposal that opened the train. This is the "work out the plan" pass that opens a
 train: what the spine already committed 1.8 to, what 1.7.x left on the table,
 what the docs say each piece needs, and the decisions only the owner can make.
 It follows the "Add to the list != build it" rule: plan doc plus roadmap entry,
@@ -288,18 +290,23 @@ For scale: the 1.6 train (245 cards plus the Warchest migration) ran
 
 Numbered so rulings can cite them. Recommendations are the first option.
 
-1. **D1 Set size.** Author a fresh ~320-candidate overplan for a 250+ cut
-   (the cadence), or accept a smaller Drowned Deep and move the difference to
-   2.0. (The old overplan is retired; the question is only the target.)
-2. **D2 Tap abilities v1 shape.** Main-phase own-turn only, artifacts and
-   enchantments first, creatures in stage 2 with summoning sickness and the
-   Warcry exception; tap and tap-plus-mana costs. Charm-speed activation
-   deferred to a flag.
-3. **D3 Land economy.** Which of the three options in lane D, after the brief
-   measures the count. The recommendation leans on lane A: convert the
-   utility taplands into the tap-cost artifacts they already want to be.
-4. **D4 Dread of the Deep.** In (cheap on the Rite plumbing, gives the Horror
-   package a spine) or out (one costed mechanic fewer).
+1. **D1 Set size. RULED 2026-09-11: a Large set of 250, overplanned to
+   320.** (The old overplan is retired; the fresh one is authored after the
+   engine specs, which are now both ruled.)
+2. **D2 Tap abilities v1 shape. RULED 2026-09-07** (D2a-D2f in
+   [plan-tap-abilities.md](plan-tap-abilities.md); taught as Duty, the tap
+   icon on the card). Engine core shipped to the train as #355.
+3. **D3 Land economy. RULED 2026-09-11: convert the 27 utility taplands
+   into Duty artifacts with a tap ability.** Fable authors the conversion
+   slate (name, cost, ability per card) after the tap-ability rules text and
+   glossary land; owner approves; Codex transcribes. Drop tables,
+   collectionPct and the Assay follow the pool change.
+4. **D4 Dread of the Deep. RULED 2026-09-11: in**, as an any-number
+   sacrifice with a discount of one generic mana per two points of combined
+   Defense, rounded down; Horror-only as a per-set data policy; a new
+   sacrifice picker that Rite gets too. With Whispers as a fresh-graveyard
+   cast (origins hand and deck, expiry at the opponent's next Dawn). Both in
+   [plan-drowned-deep-engine.md](plan-drowned-deep-engine.md) section 8.
 5. **D5 Telemetry prerequisites.** ~~Create the Cloudflare account and pick
    the Worker hostname~~ **DONE 2026-09-10: `db-signals.loominvanta.workers.dev`**
    (placeholder Worker deployed, subdomain registered). **T0 RAN 2026-09-10**
@@ -310,14 +317,15 @@ Numbered so rulings can cite them. Recommendations are the first option.
 6. **D6 Node 24 now.** Implement #342's one-PR change before 2026-09-23 and
    before the train opens, per the doc's three choices (smallest action majors,
    `engines` as a warning, timing).
-7. **D7 Editable Limited Warchest.** 1.8 with slack, or 1.9 with the scene
-   sweeps.
-8. **D8 Frame geometry.** Take the tabled taller-window change now, before
-   250 arts are generated to the old geometry, or retire it. This is the one
-   decision whose cost doubles if it is made late.
-9. **D9 Floors.** Authorize the 200-seed re-baseline of R19/R20 and Abyssal
-   Songstress once the 1.8 pool is final, rather than absorbing flakes.
-10. **D10 Nine Lives x Propagate.** Keep the tension as designed, or rule.
+7. **D7 Editable Limited Warchest. RULED 2026-09-11: deferred to 1.9**, with
+   the other scene sweeps.
+8. **D8 Frame geometry. RULED 2026-09-11: deferred to 2.0.** The Drowned
+   Deep art run proceeds on the current geometry; the change, if it ever
+   comes, is priced with Core Set II's art run.
+9. **D9 Floors. RULED 2026-09-11: hold.** No re-baseline yet; revisit when
+   the 1.8 pool is final.
+10. **D10 Nine Lives x Propagate. RULED 2026-09-11: designed tension.
+    Closed.**
 
 ## Non-goals
 
