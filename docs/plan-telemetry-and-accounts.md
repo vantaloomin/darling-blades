@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-save-portability.md, src/meta/SaveManager.ts, src/meta/SaveCode.ts, src/meta/balanceTelemetry.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/platform/env.ts, src/version.ts, src/scenes/SettingsScene.ts, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-08-28 · design/plan doc — investigation only, no code exists; re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-save-portability.md, src/meta/SaveManager.ts, src/meta/SaveCode.ts, src/meta/balanceTelemetry.ts, src/meta/Quests.ts, src/meta/Achievements.ts, src/platform/env.ts, src/version.ts, src/scenes/SettingsScene.ts, eslint.config.js, .github/workflows/deploy.yml · last-verified: 2026-09-10 · design/plan doc — investigation only, no code exists; re-verify when the referenced code changes -->
 
 # Anonymous telemetry and optional cloud accounts
 
@@ -108,13 +108,23 @@ rotates every 24 hours and is never persisted, so two days of data cannot be
 linked even by us, even under subpoena. The IP is never written anywhere. This
 is the model Plausible and Fathom use and publish legal analysis for.
 
-Because **nothing is stored on the player's device**, ePrivacy Art. 5(3) — the
-rule that actually produces cookie banners, and which applies to *any* storage
-or access on terminal equipment, not just cookies — is not engaged. Because
-nothing identifying is transmitted or retained, there is no GDPR personal data
-to have a lawful basis for, no data subject access request to service, and no
-deletion mechanism to build. **That absence is what makes this "minimal
-changes."**
+Because **nothing identifying is stored on the player's device**, the
+cookie-banner machinery is not needed. The precise basis, corrected on
+2026-09-10 (see [legal/README.md](legal/README.md)): ePrivacy Art. 5(3) covers
+*reading* information already on the device as well as storing it (EDPB
+Guidelines 2/2023), and the heartbeat reads the save. The position is
+therefore not "5(3) does not apply" but the **audience-measurement
+exemption** national regulators recognise (the CNIL's is the most detailed):
+strictly anonymous statistics, the sole purpose of measuring the service, no
+cross-site tracking, no combination with other data, an easy objection
+mechanism, and limited retention. The design meets every condition as
+written, and those conditions are the checklist any future schema edit must
+pass. On GDPR: the Worker processes the IP address transiently, and an IP is
+personal data (Breyer, C-582/14), so there *is* a lawful basis to state
+(legitimate interests, Art. 6(1)(f)), which the privacy policy does. What
+remains true is that nothing identifying is retained, so there is no data
+subject access request to service and no deletion mechanism to build. **That
+absence is what makes this "minimal changes."**
 
 Trade-off, stated honestly: we get daily active installs, but we cannot compute
 true multi-day retention cohorts. We get the *distribution* of streak lengths

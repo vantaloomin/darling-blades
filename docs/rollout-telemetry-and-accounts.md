@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/balanceTelemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts · last-verified: 2026-08-28 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/plan-save-portability.md, docs/plan-road-to-2.0.md, docs/roadmap.md, docs/git-workflow.md, docs/claude-playbook.md, src/meta/SaveManager.ts, src/meta/balanceTelemetry.ts, src/meta/SaveCode.ts, src/scenes/SettingsScene.ts, src/platform/env.ts, src/version.ts, eslint.config.js, scripts/balance-matrix.ts · last-verified: 2026-09-10 · rollout doc — the execution plan for plan-telemetry-and-accounts.md; re-verify when a wave lands or a vendor free tier moves -->
 
 # Rollout: anonymous telemetry and optional cloud accounts
 
@@ -42,8 +42,8 @@ done at least a week before that wave opens so a surprise does not stall it.
 
 | Step | Blocks | Notes |
 | --- | --- | --- |
-| Create a Cloudflare account | T0 | Free plan is sufficient. No custom domain needed — a Worker gets a free `*.workers.dev` hostname |
-| Decide the Worker hostname | T0 | Proposal: `db-signals.<account>.workers.dev`. It goes in the client and in the privacy page, so changing it later is a code change |
+| ~~Create a Cloudflare account~~ | T0 | **DONE 2026-09-10** (Workers Free plan). No custom domain needed — a Worker gets a free `*.workers.dev` hostname |
+| ~~Decide the Worker hostname~~ | T0 | **DECIDED 2026-09-10: `db-signals.loominvanta.workers.dev`.** A hello-world placeholder Worker named `db-signals` is deployed there to register the subdomain; the real signals Worker replaces it under the same name. It goes in the client and in the privacy page, so changing it later is a code change |
 | Cloudflare API token (Analytics read) → repo secret | T3 | Scope it to **Account Analytics: Read** only. Never a global key |
 | Create the Supabase **prod** project, **EU region** | C0 | Region is chosen at creation and cannot be changed later |
 | Create the Supabase **dev** project | C0 | This exhausts the free plan's 2-project allowance. There is no third |
@@ -109,11 +109,20 @@ Adds to `SaveData.settings`:
 
 - `shareAnonStats: boolean` — **`true`** for fresh saves and for migrated saves
   (decision 1).
-- `statsNoticeSeen: boolean` — `false` for migrated saves, `true` for fresh ones
-  (a fresh save sees the first-run flow instead). This exists so an existing
-  player is *told* on the update that anonymous stats began, rather than having
-  collection start silently. Defaulting ON without a notice would be the wrong
-  posture even where it is legal.
+- `statsNoticeVersion: number` — `0` for migrated saves, the current notice
+  version for fresh ones (a fresh save sees the first-run flow instead). The
+  client compares it against a `STATS_NOTICE_VERSION` constant that lives
+  beside the allowlist in `playSignals.ts` and is bumped whenever the set of
+  fields sent changes; a save below it sees the notice and is stamped. This
+  exists so an existing player is *told* on the update that anonymous stats
+  began, rather than having collection start silently, and so every later
+  schema change can re-arm the notice without another save bump. The privacy
+  policy (section 8) and the terms (section 12) promise exactly that
+  re-notification, so a one-shot boolean would break the promise at the
+  first allowlist edit. (Changed from `statsNoticeSeen: boolean` on
+  2026-09-10, before PR 0b landed; see `legal/README.md`, second-pass
+  findings.) Defaulting ON without a notice would be the wrong posture even
+  where it is legal.
 
 Removes from `CosmeticsSave`: `cardBack`, `playmat`.
 
@@ -146,8 +155,9 @@ behaviour behind it.
 Branch: `claude/signals-spike` (never merged; a scratch branch and a written
 finding)
 
-- Stand the Worker up on the chosen `workers.dev` hostname. Send synthetic
-  events. Verify the WAE write path, the SQL API read path, and one real rollup
+- Stand the Worker up on `db-signals.loominvanta.workers.dev` (decided
+  2026-09-10; a placeholder Worker of that name already holds the hostname).
+  Send synthetic events. Verify the WAE write path, the SQL API read path, and one real rollup
   query end to end.
 - Project the free-tier headroom against a realistic DAU. Two digests per
   player-day against 100k requests/day is roughly 50k player-days of headroom;
@@ -217,8 +227,8 @@ UI:
   addition.**
 - An in-game Privacy panel reachable from Settings, listing the exact fields
   sent. Reuse `src/ui/Modal.ts`.
-- The one-time notice for existing players, gated on `statsNoticeSeen`. A
-  `Toast`, not a blocking dialog.
+- The notice for existing players, shown when `statsNoticeVersion` is below
+  `STATS_NOTICE_VERSION`, then stamped. A `Toast`, not a blocking dialog.
 
 Docs:
 
@@ -229,6 +239,13 @@ Docs:
   the player's IP to GitHub, and GitHub Pages logs request IPs. Neither has ever
   been disclosed because there was no privacy policy.
 - **README copy rule applies**: no em-dashes, no AI prose patterns, no emojis.
+- **Drafts exist (2026-09-10):** [legal/privacy-policy.md](legal/privacy-policy.md),
+  [legal/terms-of-service.md](legal/terms-of-service.md), and
+  [legal/notices.md](legal/notices.md), with a review of this plan in
+  [legal/README.md](legal/README.md). Five of its findings are T0-T2 tasks:
+  the lawful-basis wording, the ePrivacy audience-measurement basis, WAE's
+  automatic timestamp, disabling Workers observability, and the client-side
+  once-per-day cap needing storage.
 
 Worker (separate repo or a `worker/` directory — see the risk register):
 

@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/rollout-telemetry-and-accounts.md, docs/plan-1.6.md, docs/plan-tribal-pass.md, docs/release-notes/v1.7.2.md, src/engine/types.ts, src/meta/warchest.ts, src/meta/SaveManager.ts · last-verified: 2026-09-07 · program doc — the 1.8 train proposal; re-verify when the owner rules on the open decisions or a lane lands -->
+<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-expansion-slate.md, docs/rollout-telemetry-and-accounts.md, docs/plan-1.6.md, docs/plan-tribal-pass.md, docs/release-notes/v1.7.2.md, src/engine/types.ts, src/meta/warchest.ts, src/meta/SaveManager.ts · last-verified: 2026-09-10 · program doc — the 1.8 train proposal; re-verify when the owner rules on the open decisions or a lane lands -->
 
 # Darling Blades 1.8 — program plan (proposal)
 
@@ -57,9 +57,12 @@ which Brass Court's Union rigs and contraptions wait on. It also unlocks the
 artifact design space the slate records as blocked (Fogbell Chime sat parked
 for months because artifacts carry no targeted or activated abilities).
 
-Nothing is specced yet. **A `plan-tap-abilities.md` engine spec is the first
-deliverable of the train**, Fable-authored, owner-ruled, Codex-implemented, the
-same shape as the Starborne engine wave. What the spec has to settle:
+**The spec is drafted: [plan-tap-abilities.md](plan-tap-abilities.md)
+(2026-09-07, awaiting rulings D2a-D2f).** Fable-authored, owner-ruled,
+Codex-implemented, the same shape as the Starborne engine wave. Its load-
+bearing choice: targets are chosen inline in the action and the ability
+resolves off-stack, so the wave adds no new `Awaiting` kind and stays out of
+the DuelScene switch trap. What the spec settles:
 
 1. **Timing.** Recommendation: v1 is main-phase, own turn, empty stack, the
    Preserve precedent. Charm-speed activation is a per-ability flag for later;
@@ -199,7 +202,9 @@ It is independent of the set and can run alongside it. What it needs from
 - **Wave 0a**, the `telemetry.ts` to `balanceTelemetry.ts` rename (3 import
   sites). Can land any time.
 - **Wave 0b, the v35 save bump.** Adds `settings.shareAnonStats` and
-  `statsNoticeSeen` and finally carries the `CosmeticsSave.cardBack`/`playmat`
+  `statsNoticeVersion` (a number, not a boolean, so later allowlist changes
+  can re-arm the notice the privacy policy promises; ruled 2026-09-10) and
+  finally carries the `CosmeticsSave.cardBack`/`playmat`
   removal parked since v33. The three traps are written on the type in
   `SaveManager.ts`. This is the only save bump 1.8 is known to need, so
   anything else that wants a schema change (a deck field for lane D, a
@@ -209,7 +214,9 @@ It is independent of the set and can run alongside it. What it needs from
   the first event. These want doing a week before their waves open.
 - T2 also owes the two pre-existing disclosures a privacy page has never
   covered: the `src/version.ts` update check calls `api.github.com`, and Pages
-  logs request IPs.
+  logs request IPs. **Drafts exist** as of 2026-09-10 in `docs/legal/`
+  (privacy policy, terms, notices, written as of 1.8), with a reviewed
+  findings list in `docs/legal/README.md` that adds T0-T2 tasks.
 - The harness trap is structural: the emit call lives in the scene layer only,
   with a test that a headless duel emits nothing, or one sweep burns the daily
   quota.
@@ -286,9 +293,11 @@ Numbered so rulings can cite them. Recommendations are the first option.
    utility taplands into the tap-cost artifacts they already want to be.
 4. **D4 Dread of the Deep.** In (cheap on the Rite plumbing, gives the Horror
    package a spine) or out (one costed mechanic fewer).
-5. **D5 Telemetry prerequisites.** Create the Cloudflare account and pick the
-   Worker hostname so T0 can spike early in the train; decide when the
-   privacy page goes live.
+5. **D5 Telemetry prerequisites.** ~~Create the Cloudflare account and pick
+   the Worker hostname~~ **DONE 2026-09-10: `db-signals.loominvanta.workers.dev`**
+   (placeholder Worker deployed, subdomain registered). Still open: how the
+   spike deploys (an API token with Workers edit scope in the environment, or
+   the owner runs `wrangler deploy`), and when the privacy page goes live.
 6. **D6 Node 24 now.** Implement #342's one-PR change before 2026-09-23 and
    before the train opens, per the doc's three choices (smallest action majors,
    `engines` as a warning, timing).
