@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/expansions/drafts/drowned-deep-brief.md, docs/plan-drowned-deep-engine.md, docs/plan-tap-abilities.md, docs/keyword-map.md, src/engine/types.ts, src/data/axes.ts · last-verified: 2026-09-11 · concept draft — the fresh 320-candidate overplan for the 250-card Drowned Deep cut; authored in batches (this file is batch 1 of 5: the identity layer); nothing here is implemented -->
+<!-- source-of-truth: docs/expansions/drafts/drowned-deep-brief.md, docs/plan-drowned-deep-engine.md, docs/plan-tap-abilities.md, docs/keyword-map.md, src/engine/types.ts, src/data/axes.ts · last-verified: 2026-09-11 · concept draft — the fresh 320-candidate overplan for the 250-card Drowned Deep cut; all five batches authored 2026-09-11, density-revised against the brief; awaiting the cut; nothing here is implemented -->
 
 # The Drowned Deep: overplan (fresh, 2026-09-11)
 
@@ -7,7 +7,7 @@ The 320-candidate pool for the 250-card cut, authored against the approved
 [engine spec](../../plan-drowned-deep-engine.md). It replaces the retired
 2026-07-26 draft entirely; no row from that draft is reused.
 
-**Batches.** 1: URs and SSRs (the identity layer, this batch). 2: SRs. 3:
+**Batches.** 1: URs and SSRs (the identity layer). 2: SRs. 3:
 Rares. 4: Commons. 5: tokens, precon, bosses, the self-audit and the
 protect-first and cut lists. The cut happens after batch 5, with enabler
 density and the overlap audit as cut constraints.
@@ -216,7 +216,7 @@ and where Retell and Empower are sprinkled.
 | dd-drowned-druid | Drowned Druid of the Reach | R | G | Creature, Human Witch | {2}{G} | 2/4 | Skim {G}. Arrives: gain 2 life. | She talks to the kelp and the kelp is chatty. | flex |
 | dd-tide-worn-giant | Tide-Worn Giant | R | G | Creature, Horror | {4}{G}{G} | 6/6 | Dread. Sentinel. | It was a statue on the point. The tide worked on it. It works back now. | core |
 | dd-reef-bloom | Reef Bloom | R | G | Ritual | {1}{G}{G} | none | Put a Mark on each creature you control. | One night a year the reef flowers, and the whole coast holds its breath. | flex |
-| dd-marsh-wight | Marsh-Wight | R | G | Creature, Spirit | {3}{G} | 4/3 | Warding Gaze. Dies: create a 2/2 green Kelp Shade token. | Buried in the marsh, come back as the marsh. | flex |
+| dd-marsh-wight | Marsh-Wight | R | G | Creature, Spirit | {3}{G} | 4/3 | Warding Gaze. Dies: create a 2/2 green Kelp Shade token. Whispers {1}{G}. | Buried in the marsh, come back as the marsh. | flex |
 | dd-old-growth | Old Growth | R | G | Enchantment | {2}{G}{G} | none | Your creatures with Marks have Overrun. | The forest that was here before the town is still here, underneath. | flex |
 | dd-shallows-stalker | Shallows Stalker | R | G | Creature, Beast | {2}{G} | 3/3 | Warcry. Warding Gaze. | It hunts the flats at low water and it is not fussy. | flex |
 | dd-the-marsh-remembers | The Marsh Remembers | R | G | Ritual | {3}{G} | none | Return target creature card from your graveyard to your hand. Put a Mark on target creature you control. | Everything the town buries in the marsh, the marsh gives back a little grown. | flex |
@@ -395,13 +395,13 @@ near-vanilla.
 | dd-drowned-druid-lesser | Reed-Witch | C | G | Creature, Human Witch | {2}{G} | 2/2 | Skim {G}. Arrives: put a Mark on target creature you control. | She talks to the reeds and the reeds talk back, at length. | core |
 | dd-old-growth-horror | Old-Growth Horror | C | G | Creature, Horror | {5}{G}{G} | 7/7 | Dread. Overrun. | The forest that was here before the town, and it has a grudge. | core |
 | dd-tidepool-bloom | Tidepool Bloom | C | G | Ritual | {2}{G} | none | Put a Mark on target creature. Gain 3 life. | One night a year the pools flower and the whole coast comes to see. | flex |
-| dd-marsh-wight-lesser | Reed-Wight | C | G | Creature, Spirit | {2}{G} | 3/2 | Dies: create a 2/2 green Kelp Shade token. | Buried in the reeds. Back as the reeds. | flex |
+| dd-marsh-wight-lesser | Reed-Wight | C | G | Creature, Spirit | {2}{G} | 3/2 | Dies: create a 2/2 green Kelp Shade token. Whispers {G}. | Buried in the reeds. Back as the reeds. | flex |
 | dd-shore-heron | Salt-Heron | C | G | Creature, Bird | {2}{G} | 2/2 | Skyborne. Warding Gaze. | It watches the water and the sky, and something in each watches it. | flex |
 | dd-coral-mother-lesser | Coral-Witch | C | G | Creature, Human Witch | {3}{G} | 3/3 | Arrives: put a Mark on target creature you control. | What she grows keeps growing. | flex |
 | dd-kelp-wall | Kelp Wall | C | G | Creature, Plant | {2}{G} | 0/7 | Bulwark. | The harbour wall was stone. It is not stone any more. | core |
 | dd-marsh-brute | Marsh Brute | C | G | Creature, Beast | {2}{G}{G} | 4/4 | Warcry. | It came out of the marsh at a run. | flex |
 | dd-reef-growth | Reef Growth | C | G | Enchantment | {1}{G} | none | Your creatures with Marks get +1/+0. | The coral takes the wharf, then the boats, then the town, and it is only getting started. | flex |
-| dd-drowned-gardener | Drowned Gardener | C | G | Creature, Human | {1}{G} | 2/1 | Arrives: gain 1 life. Skim {G}. | The garden flooded. The garden thrived. | flex |
+| dd-drowned-gardener | Drowned Gardener | C | G | Creature, Human | {1}{G} | 2/1 | Arrives: gain 1 life. Skim {G}. Whispers {G}. | The garden flooded. The garden thrived. | flex |
 | dd-marsh-giant | Marsh Giant | C | G | Creature, Horror | {5}{G} | 6/6 | Dread. | It sleeps in the marsh and the marsh sleeps around it. | flex |
 | dd-reed-caller | Reed-Caller | C | G | Creature, Human Witch | {3}{G} | 2/4 | Duty: create a 2/2 green Kelp Shade token. | She whistles and the reeds come running. | core |
 | dd-tide-roots | Tide-Roots | C | G | Ritual | {1}{G} | none | Put a Mark on each creature you control with a Mark. | The reef grows on the reef. | stretch |
@@ -450,4 +450,123 @@ near-vanilla.
 | dd-drowned-forge-master | Forge-Master of the Reach | C | R | Creature, Human | {3}{R}{R} | 4/4 | Arrives: damage target creature 2. | She works the drowned forge and the forge works her. | flex |
 | dd-heat-of-the-wreck | Heat of the Wreck | C | R | Charm | {R} | none | Target creature gets +2/+0 until end of turn. Whispers {R}. | Warm your hands on it. It is all the wreck has left. | flex |
 
-*Batch 5 follows: tokens, precon, bosses and the self-audit.*
+## Tokens
+
+Four token types, each with at least two minters in the pool (the
+2026-09-03 minterless-token lesson; the cut re-checks this).
+
+| Token | Colour | Type | Stats | Rules | Minters in the pool |
+| --- | --- | --- | --- | --- | --- |
+| Deep-Spawn | B | Creature, Deep One Horror | 2/2 | none (a Horror body; Dread fodder that is itself a Horror) | The Brood Below, Deep One Midwife, Deep-Spawn Tender, Deep-Spawn Hatchery |
+| The Drowned | B | Creature, Spirit | 1/1 | none | What the Nets Remember, Drowned Mother |
+| Lantern Wisp | W | Creature, Spirit | 1/1 | Skyborne | Constance Reyne, Watch-Sergeant Alder, Wisp-Caller, Lamp Relay |
+| Kelp Shade | G | Creature, Plant | 2/2 | none | Old Marrow, Kelp Cathedral, Kelp-Shade Caller, The Catch, The Drowned Orchard, Kelp-Tender, Kelp Swarm, Reed-Caller, Marsh-Wight, Reed-Wight, Net Full of Stars, Drowned Harvest, Marsh-Mother, The Horror Garden |
+
+The Drowned has only two minters and both are `flex` or `stretch`; if either
+is cut, the token goes with it or Drowned Mother is protected.
+
+## Precon: Lanterns Below (U/B)
+
+The tide-and-whisper control deck, board-first at common. Core plan: cheap
+bodies and tappers hold the ground (Tide-Clerk, Deep One Scout, The Drowned,
+Deep One Cultist), self-mill fills the graveyard on schedule (Harbour
+Mermaid, Cold-Water Diver, Drowned Bell, Low-Tide Grave), the looters
+(Low Street Looter, Low Street Witch, Salvage Diver) turn dead draws into
+tagged Whispers, and the Whispers Charms and Rituals (Fog Bank, Tidal
+Memory, Salt in the Eyes, The Price, The Tide That Turns, Bargain Below)
+are the value engine. Finishers: two or three Horrors on the curve (Deep One
+Bride, Tithe-Collector, Deep One Hierophant) with Dread as the tempo
+lever, and Mother Hydra as the top. The list must contest the board when
+no Whispers fires; the seeded matrix measures it against the 13 prefab
+columns before it ships. Name and the exact 40 are authored at the cut.
+
+## Gauntlet bosses, rungs 25 and 26
+
+- **Rung 25, The Bell Beneath the Harbour (U/B).** The Whispers control
+  boss: self-mill on a schedule, counters and bounce at Charm speed, Duty
+  scryers, the Drowned Deacon and Father Dagon at the top. A Whispers pilot
+  is the AI's greedy Retell-with-a-deadline comparison, so the boss is
+  playable at every difficulty; the summit gate shape is decided before the
+  rung lands (the CI budget note in `plan-1.8.md`).
+- **Rung 26, The Marsh-Mother (B/G).** The Dread Horror boss: Kelp Shade
+  token makers and the Horror Garden feed Dread casts into a curve of
+  Horrors, Marsh-Mother and The Reef That Walks at the top, Reef Bloom and
+  Coral-Mother for the go-wide line when the Horrors do not come. The AI's
+  Dread policy (lowest-value pairs first) is what the seeded pass measures
+  here.
+
+## Self-audit (after the density revision)
+
+Counts are over the 321-row pool (one SSR over the 320 target; the cut
+absorbs it).
+
+| Colour | Rows | Whispers | Dread (Horrors) | Duty | Skim | Self-mill | Looters | Rite | Tokens |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| White | 62 | 6 | 0 | 13 | 4 | 0 | 0 | 3 | 3 |
+| Blue | 62 | 12 | 5 | 12 | 6 | 10 | 5 | 0 | 0 |
+| Black | 63 | 13 | 16 | 8 | 5 | 13 | 2 | 0 | 6 |
+| Green | 62 | 4 | 11 | 11 | 4 | 0 | 0 | 0 | 9 |
+| Red | 62 | 14 | 0 | 12 | 5 | 0 | 1 | 3 | 0 |
+| Multicolour | 10 | 2 | 3 | 4 | 0 | 2 | 0 | 0 | 2 |
+| **Pool** | **321** | **51 (16%)** | **35 (11%)** | **60 (19%)** | **24** | **25** | **8** | **6** | **20** |
+
+Against the brief's budget at 250 (Whispers 22, Dread 14, Duty 30, enablers
+36): the pool carries each at roughly one and a half to two times the cut's
+target, which is the right overage for a cut that uses enabler density as a
+constraint. The cut brings Whispers to about 25, Dread to about 18 Horrors,
+Duty to about 38 and looters to 6 (the brief's number; two of the eight are
+the first to go).
+
+Other checks: every Dread carrier is a Horror and every Horror carries
+Dread; no card carries two graveyard cast modes; Rite is white and red only,
+never on a Horror; Dread is black first, blue and green second, never white
+or red; multicolour is 10 of 321 at R and above; no lands; every artifact
+and enchantment has ongoing text; near-vanilla commons (vanilla or
+keyword-only creatures) are 24 of 160, fifteen percent, under the thirty
+percent ceiling; the red Horrors of the first draft were retyped as Spirits
+so Horror stays a Dread-colour identity. Type mix: 177 creatures, 57
+Rituals, 39 Charms, 26 enchantments, 22 artifacts.
+
+**AI-risk rows, all `stretch`:** Tide-Scribe, Drift-Net, Drowned Grave
+(mill-count and cast-count observers), Reef-Glass Oracle (revised to an
+arrival), Lightkeeper's Apprentice. They are cut first.
+
+**Not yet done, by design:** power-formula scoring per row and the overlap
+audit against the live pool. The formula has no rates for Whispers, Dread or
+Duty until the tap-ability tooling wave and the Drowned Deep engine wave
+land; the known parts (bodies, keywords, existing ops) are scored at the cut
+and the new-mechanic rows are flagged for the Assay after those waves.
+
+## Protect-first (the ten the cut keeps whatever the histogram says)
+
+1. **Mother Hydra, Queen Beneath Dunmarrow**: the flagship Horror and the
+   Dread finisher every black deck wants.
+2. **Father Dagon, the Deep Itself**: the two-colour top with the set's
+   thesis on it (each player grinds 3: mill feeds Whispers for both).
+3. **Maren Holt, the Lightkeeper**: the Duty creature showcase, Sentinel
+   plus tap-to-tap, the card the AI policy's creature branch was built for.
+4. **The Bell That Will Not Ring**: the Duty artifact showcase.
+5. **Low Street Looter and Low Street Witch**: the common looters, the
+   engine's first repeatable choice-discard outlets.
+6. **Fog Bank, Salt-Fire Charm, Salt in the Eyes**: the one-mana Whispers
+   Charms that teach the mechanic on turn one.
+7. **Deep One Scout and Deep One Warrior**: the common Horrors that make
+   Dread a curve.
+8. **Vigil at Low Water and Black Water**: the two sweepers, Rituals as the
+   rules require, white and black.
+9. **Kelp-Tender and Kelp Swarm**: the common go-wide bodies that are also
+   Dread fodder, the counterweight the sweep demands.
+10. **Rite of the Lightkeepers and Rite of the False Beacon**: Rite in the
+    non-Dread colours, so the sacrifice split is visible at Rare.
+
+## The cut, in order
+
+1. All 13 `stretch` rows.
+2. `flex` rows by the histogram, per colour, until 124 / 75 / 23 / 16 / 12,
+   keeping enabler density (at least 1.5 outlets per Whispers card in each
+   colour that prints Whispers) and the token-minter floor (two per token).
+3. Then the overlap audit against the live pool (`scripts/audit-overlap.ts`)
+   and the name collision check; a row that duplicates a shipped card is
+   swapped for the next `flex` row of its colour and rarity, not reworded.
+4. Then costing: known ops by the formula now, the new mechanics by the
+   Assay when the rates exist.
