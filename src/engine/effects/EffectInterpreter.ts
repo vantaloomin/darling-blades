@@ -24,10 +24,12 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../types';
-import { cardIdOf, def, isCardInstance, isType, opponentOf } from '../types';
+import { cardIdOf, def, effectOpUsesTarget, isCardInstance, isType, opponentOf } from '../types';
 
 export interface EffectContext {
   controller: PlayerId;
+  /** Reject unexpected targeted decisions or response windows from an activation. */
+  activated?: true;
   sourceCardId: string;
   sourceIid?: number; // set for permanents' triggered abilities
   targets: TargetRef[];
@@ -774,9 +776,30 @@ export function runOps(
 
     const thenOps = ops.slice(index + 1);
     const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
+    if (ctx.activated) {
+      for (const decision of state.pendingDecisions.slice(pendingCount)) {
+        if (decision.kind !== 'foresee') {
+          throw new Error('An activation cannot defer a targeted decision or response window.');
+        }
+        // A nested trigger may own the tail; preserve its context and the guard.
+        if (decision.thenContext) decision.thenContext.activated = true;
+      }
+    }
     if (pending?.kind === 'foresee') {
       if (thenOps.length > 0) {
         for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
+        const thenContext = {
+          controller: ctx.controller,
+          sourceCardId: ctx.sourceCardId,
+          ...(ctx.sourceIid === undefined ? {} : { sourceIid: ctx.sourceIid }),
+          ...(ctx.activated ? { activated: true as const } : {}),
+        };
+        const prior = pending.thenContext;
+        if (pending.thenOps?.length && prior && (
+          prior.controller !== thenContext.controller || prior.sourceCardId !== thenContext.sourceCardId ||
+          prior.sourceIid !== thenContext.sourceIid || prior.activated !== thenContext.activated
+        )) throw new Error('Cannot combine Foresee tails with different source contexts.');
+        pending.thenContext = thenContext;
         pending.thenOps = [...(pending.thenOps ?? []), ...thenOps];
       }
     } else if (pending?.kind === 'chooseTarget' && thenOps.length > 0) {
@@ -828,37 +851,9 @@ export function fireGraveyardTriggers(
   }
 }
 
-/**
- * A Foresee continuation retains only its controller, never the spell's
- * cast-time targets or source permanent. Reject an incompatible card loudly
- * instead of resolving it with missing context.
- */
+/** Foresee preserves the source context, but never an inline target binding. */
 function assertTargetFreeForeseeContinuation(op: EffectOp): void {
-  const targetFree =
-    op.op === 'gainLife' ||
-    op.op === 'loseLife' ||
-    op.op === 'draw' ||
-    op.op === 'discardRandom' ||
-    op.op === 'severGrave' ||
-    op.op === 'severTop' ||
-    op.op === 'extraLandDrop' ||
-    op.op === 'createToken' ||
-    op.op === 'destroyNewestOpponentArtifactOrEnchantment' ||
-    op.op === 'massDestroy' ||
-    op.op === 'preventCombat' ||
-    op.op === 'grind' ||
-    (op.op === 'foresee' && op.who === undefined) ||
-    (op.op === 'damage' && op.to !== 'target') ||
-    (op.op === 'boost' && op.scope !== 'target') ||
-    op.op === 'propagate' ||
-    op.op === 'markAll' ||
-    op.op === 'loseLifePerTheirMarked' ||
-    op.op === 'fetchLand' ||
-    (op.op === 'addCounters' && op.to === 'self') ||
-    (op.op === 'raise' && op.to === 'top') ||
-    op.op === 'severSelf' ||
-    (op.op === 'awaken' && op.scope === 'allYours');
-  if (!targetFree) {
+  if (effectOpUsesTarget(op)) {
     throw new Error(`A target-dependent op cannot follow foresee: ${op.op}.`);
   }
 }

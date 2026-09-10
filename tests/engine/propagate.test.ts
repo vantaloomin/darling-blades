@@ -123,6 +123,7 @@ describe('propagate', () => {
       player: 0,
       n: 1,
       thenOps: [{ op: 'propagate' }],
+      thenContext: { controller: 0, sourceCardId: 'propagator' },
     }]);
   });
 
@@ -230,7 +231,7 @@ describe('propagate', () => {
 
     game.submit(0, { type: 'castSpell', handIndex: 0 });
     expect(game.awaiting).toMatchObject({ player: 0, kind: 'foresee' });
-    expect(game.instanceState.pendingDecisions).toEqual([{ kind: 'foresee', player: 0, n: 1, thenOps: PROPAGATE }]);
+    expect(game.instanceState.pendingDecisions).toEqual([{ kind: 'foresee', player: 0, n: 1, thenOps: PROPAGATE, thenContext: { controller: 0, sourceCardId: 'foresee_propagate' } }]);
 
     game.submit(0, { type: 'foresee', bottomIndices: [] });
 

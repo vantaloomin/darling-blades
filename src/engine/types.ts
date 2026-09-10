@@ -188,6 +188,15 @@ export interface PreserveDef {
   cost: ManaCost;
 }
 
+/** A tap-cost activated ability. v1: at most one per card. */
+export interface ActivatedDef {
+  cost: { tap: true; mana?: ManaCost };
+  /** Run immediately in order, with this permanent as the source. */
+  ops: EffectOp[];
+  /** Chosen inline when activating, using the spell target rules. */
+  targets?: TargetSpec[];
+}
+
 /** Alternate linked cast for a noncreature Artifact or Enchantment. */
 export interface HauntlinkDef {
   cost: ManaCost;
@@ -199,7 +208,7 @@ export interface HauntlinkDef {
   };
 }
 
-function effectOpUsesTarget(op: EffectOp): boolean {
+export function effectOpUsesTarget(op: EffectOp): boolean {
   switch (op.op) {
     case 'damage':
       return op.to === 'target';
@@ -222,6 +231,8 @@ function effectOpUsesTarget(op: EffectOp): boolean {
       return op.to !== 'top';
     case 'ifTargetMarked':
       return true;
+    case 'foresee':
+      return op.who === 'targetOwner';
     default:
       return false;
   }
@@ -340,6 +351,8 @@ export interface CardDef {
   nineLives?: true;
   /** Optional main-phase activation from this card's graveyard. */
   preserve?: PreserveDef;
+  /** Optional main-phase battlefield action with a mandatory tap cost. */
+  activated?: ActivatedDef;
   /** Optional alternative-cost cast that enters attached to a friendly creature. */
   hauntlink?: HauntlinkDef;
   manaAbility?: (Color | 'C')[]; // lands & mana creatures
@@ -464,6 +477,64 @@ export function validatePreserveDef(d: CardDef): string[] {
     errors.push('Preserve cost must be non-negative');
   }
   if (d.hauntlink) errors.push('Preserve card cannot combine with Hauntlink');
+  return errors;
+}
+
+/** Catalog-facing validation for tap and tap-plus-mana abilities. */
+// an activation may not defer a tail that needs an inline target; source-only and target-free tails resume under the activation's own context (the spell rule, spec section 3)
+export function validateActivatedDef(d: CardDef): string[] {
+  if (!d.activated) return [];
+  const errors: string[] = [];
+  if (isType(d, 'land') || (!isType(d, 'creature') && !isType(d, 'artifact') && !isType(d, 'enchantment'))) {
+    errors.push('Activated carrier must be a creature, artifact or enchantment, never a land');
+  }
+  if (d.hauntlink) errors.push('Activated carrier cannot combine with Hauntlink');
+  if (d.manaAbility) errors.push('Activated carrier cannot combine with manaAbility');
+  const { cost, ops, targets = [] } = d.activated;
+  if (!cost || cost.tap !== true || Object.keys(cost).some((key) => key !== 'tap' && key !== 'mana')) {
+    errors.push('Activated cost must be tap or tap plus mana');
+  }
+  if (cost?.mana && (
+    !Number.isInteger(cost.mana.generic) || cost.mana.generic < 0 ||
+    Object.entries(cost.mana.pips).some(([color, pip]) =>
+      !['W', 'U', 'B', 'R', 'G'].includes(color) || !Number.isInteger(pip) || pip < 0,
+    )
+  )) errors.push('Activated mana cost must be non-negative');
+  if (ops.length === 0) errors.push('Activated ops must not be empty');
+  const inspect = (list: EffectOp[], afterForesee = false): boolean => {
+    let deferred = afterForesee;
+    for (const op of list) {
+      if ('n' in op && op.n === 'X') errors.push('Activated ops cannot use X');
+      if (effectOpUsesTarget(op)) {
+        if (targets.length === 0) errors.push('Activated target ops need target specs');
+        if (deferred) errors.push('Activated ops after Foresee cannot need an inline target');
+      }
+      if (op.op === 'ifTargetMarked') {
+        const thenDefers = inspect(op.then, deferred);
+        const elseDefers = inspect(op.else ?? [], deferred);
+        deferred = thenDefers || elseDefers;
+      } else if (op.op === 'foresee') {
+        deferred = true;
+      }
+    }
+    return deferred;
+  };
+  inspect(ops);
+  for (const target of targets) {
+    if (![
+      'creature', 'player', 'any', 'yourCreature', 'yourPermanent',
+      'yourGraveCreature', 'artifact', 'enchantment', 'artifactOrEnchantment',
+    ].includes(target.what)) errors.push('Activated target spec has an invalid target kind');
+    if (target.what === 'player' && (target.marked || target.tapped)) {
+      errors.push('Activated player targets cannot be marked or tapped');
+    }
+    if (target.upTo !== undefined && (target.upTo !== 2 || targets.length !== 1)) {
+      errors.push('Activated upTo requires one target spec with upTo 2');
+    }
+  }
+  if (ops.some((op) => op.op === 'moveMark') && (
+    targets.length !== 2 || targets.some((target) => target.upTo !== undefined || target.what === 'spell')
+  )) errors.push('Activated moveMark needs exactly two single-target permanent specs');
   return errors;
 }
 
@@ -609,9 +680,20 @@ export interface PlayerState {
 
 /** Resolution-time choices deferred until the current synchronous batch ends. */
 export type PendingDecision =
-  // `player` is the continuation controller. thenOps is present only when
-  // Foresee interrupted a printed op list and contains target-free tail ops.
-  | { kind: 'foresee'; player: PlayerId; n: number; thenOps?: EffectOp[] }
+  // `player` chooses the cards; thenContext owns the target-free continuation.
+  | {
+      kind: 'foresee';
+      player: PlayerId;
+      n: number;
+      thenOps?: EffectOp[];
+      thenContext?: {
+        controller: PlayerId;
+        sourceCardId: string;
+        sourceIid?: number;
+        /** Retain the runtime guard against activation response windows. */
+        activated?: true;
+      };
+    }
   | {
       kind: 'chooseTarget';
       player: PlayerId;

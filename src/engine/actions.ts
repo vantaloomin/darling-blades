@@ -1,6 +1,7 @@
 import { DARLING_PAYDOWN_COST, DARLING_PAYDOWN_REDUCTION, RULES } from '../config/rules';
 import {
   blockOptions,
+  canActivate,
   compelledAttackers,
   eligibleAttackers,
   minimumBlockersForAttacker,
@@ -10,7 +11,7 @@ import {
 import { enumerateTargets, isLegalTarget } from './effects/targeting';
 import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from './mana';
 import { castTargetSpecs } from './resolve';
-import type { CardDb, CardDef, GameState, ManaCost, PlayerId, TargetRef, TargetSpec } from './types';
+import type { CardDb, CardDef, GameState, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
 import {
   cardIdOf,
   def,
@@ -71,6 +72,8 @@ export type Action =
   | { type: 'linkHaunt'; iid: number; hostIid: number; manaPlan?: number[] }
   /** Main-phase graveyard action: pay Preserve, sever the card, and create a token copy. */
   | { type: 'preserveCard'; graveIndex: number; manaPlan?: number[] }
+  /** Main-phase tap-cost ability; targets are chosen inline, off-stack. */
+  | { type: 'activate'; iid: number; targets?: TargetRef[]; manaPlan?: number[] }
   /** Normal creature-timing cast from a public Darling zone. */
   | { type: 'castDarling'; targets?: TargetRef[]; x?: number; manaPlan?: number[] }
   /** Main-phase action: pay four mana to remove one two-mana Darling tax step. */
@@ -250,20 +253,25 @@ function targetListsForCast(
   d: CardDef,
   specs: readonly import('./types').TargetSpec[],
   empowered: boolean,
+  sourceIid?: number,
+  moveMark = cardHasMoveMark(d, empowered),
 ): (TargetRef[] | undefined)[] {
   if (specs.length === 0) return [undefined];
-  const moveMark = cardHasMoveMark(d, empowered);
-  if (specs.length === 1 && specs[0].upTo === undefined && !moveMark) {
-    return enumerateTargets(state, db, player, specs[0]).map((target) => [target]);
-  }
-  const candidatesFor = moveMark
-    ? (spec: TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec).filter((ref) =>
-        spec.what === 'spell' || (
+  const candidatesFor = (spec: TargetSpec): TargetRef[] => {
+    const candidates = enumerateTargets(state, db, player, spec, sourceIid);
+    // Keep legacy cast enumeration unchanged. Activation sources also filter
+    // player/grave refs, which enumerateTargets can append before qualifiers.
+    const legal = sourceIid === undefined ? candidates : candidates.filter(
+      (ref) => isLegalTarget(state, db, player, spec, ref, sourceIid),
+    );
+    return moveMark ? legal.filter((ref) => spec.what === 'spell' || (
           ref.kind === 'permanent' &&
           state.battlefield.find((perm) => perm.iid === ref.iid)?.controller === player
-        ),
-      )
-    : (spec: TargetSpec): TargetRef[] => enumerateTargets(state, db, player, spec);
+        )) : legal;
+  };
+  if (specs.length === 1 && specs[0].upTo === undefined && !moveMark) {
+    return candidatesFor(specs[0]).map((target) => [target]);
+  }
   if (specs.length === 1 && specs[0].upTo !== undefined) {
     const candidates = candidatesFor(specs[0]);
     const out: TargetRef[][] = [[]];
@@ -326,8 +334,9 @@ function validateTargetList(
   specs: readonly import('./types').TargetSpec[],
   targets: TargetRef[],
   empowered: boolean,
+  sourceIid?: number,
+  moveMark = cardHasMoveMark(d, empowered),
 ): string | null {
-  const moveMark = cardHasMoveMark(d, empowered);
   if (specs.length === 1 && specs[0].upTo !== undefined) {
     if (targets.length > specs[0].upTo) return 'too many targets';
     for (let index = 0; index < targets.length; index++) {
@@ -335,12 +344,12 @@ function validateTargetList(
         return 'upTo targets must be distinct';
       }
       const target = targets[index];
-      if (!isLegalTarget(state, db, player, specs[0], target)) return 'illegal target';
+      if (!isLegalTarget(state, db, player, specs[0], target, sourceIid)) return 'illegal target';
     }
   } else {
     if (targets.length !== specs.length) return 'wrong number of targets';
     for (let i = 0; i < specs.length; i++) {
-      if (!isLegalTarget(state, db, player, specs[i], targets[i])) return 'illegal target';
+      if (!isLegalTarget(state, db, player, specs[i], targets[i], sourceIid)) return 'illegal target';
     }
   }
   if (moveMark) {
@@ -375,6 +384,54 @@ function preserveBlockers(
     return 'creature battlefield cap reached';
   }
   return canPay(state, db, player, d.preserve.cost) ? null : 'cannot pay cost';
+}
+
+function activatedTargetLists(state: GameState, db: CardDb, player: PlayerId, perm: Permanent) {
+  const d = def(db, perm.cardId);
+  const ability = d.activated!;
+  return targetListsForCast(
+    state, db, player, d, ability.targets ?? [], false, perm.iid,
+    ability.ops.some((op) => op.op === 'moveMark'),
+  );
+}
+
+/** A reason string for an unavailable activation, or null when it is offered. */
+export function activatedBlockers(
+  state: GameState,
+  db: CardDb,
+  player: PlayerId,
+  perm: Permanent | undefined,
+): string | null {
+  const a = state.awaiting;
+  if (a.kind !== 'main' || a.player !== player || state.activePlayer !== player ||
+    (state.step !== 'main1' && state.step !== 'main2')) {
+    return 'Activated abilities can only be used during your Morning or Afternoon';
+  }
+  if (state.stack.length > 0) return 'Activated abilities need an empty stack';
+  if (!perm || !state.battlefield.some((source) => source.iid === perm.iid)) {
+    return 'Activated source is not on the battlefield';
+  }
+  const d = def(db, perm.cardId);
+  if (!canActivate(state.battlefield, db, perm, player)) {
+    if (perm.controller !== player) return 'Activated source is not under your control';
+    if (!d.activated) return 'permanent has no activated ability';
+    if (perm.tapped) return 'Activated source is tapped';
+    return 'Activated source cannot tap the turn it arrives unless it has Warcry';
+  }
+  if (d.activated!.cost.mana && !canPay(state, db, player, d.activated!.cost.mana)) {
+    return 'cannot pay cost';
+  }
+  if (activatedTargetLists(state, db, player, perm).length === 0) return 'no legal targets for activated ability';
+  return null;
+}
+
+function pushActivatedActions(out: Action[], state: GameState, db: CardDb, player: PlayerId): void {
+  for (const perm of state.battlefield) {
+    if (!def(db, perm.cardId).activated || activatedBlockers(state, db, player, perm) !== null) continue;
+    for (const targets of activatedTargetLists(state, db, player, perm)) {
+      out.push({ type: 'activate', iid: perm.iid, ...(targets === undefined ? {} : { targets }) });
+    }
+  }
 }
 
 function skimWindow(state: GameState, player: PlayerId): boolean {
@@ -604,6 +661,9 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
           out.push({ type: 'preserveCard', graveIndex });
         }
       });
+      if (state.activePlayer === player && state.stack.length === 0) {
+        pushActivatedActions(out, state, db, player);
+      }
       if (me.darlingZone !== undefined) {
         const darling = me.darlingZone;
         if (darling !== null) {
@@ -830,6 +890,22 @@ export function validateAction(
         return validateManaPlanForCost(state, db, player, d.preserve!.cost, action.manaPlan);
       }
       return null;
+    }
+
+    case 'activate': {
+      const perm = state.battlefield.find((source) => source.iid === action.iid);
+      const blocked = activatedBlockers(state, db, player, perm);
+      if (blocked) return blocked;
+      const d = def(db, perm!.cardId);
+      const ability = d.activated!;
+      const targetError = validateTargetList(
+        state, db, player, d, ability.targets ?? [], action.targets ?? [], false, perm!.iid,
+        ability.ops.some((op) => op.op === 'moveMark'),
+      );
+      if (targetError) return targetError;
+      return action.manaPlan ? validateManaPlanForCost(
+        state, db, player, ability.cost.mana ?? { generic: 0, pips: {} }, action.manaPlan,
+      ) : null;
     }
 
     case 'castSpell': {

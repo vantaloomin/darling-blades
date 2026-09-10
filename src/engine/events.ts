@@ -77,6 +77,7 @@ export type GameEvent =
       iid?: number;
     }
   | { e: 'preserved'; player: PlayerId; cardId: string }
+  | { e: 'activated'; player: PlayerId; iid: number; cardId: string }
   | {
       // Foresee resolution summary. Redaction mechanism (deliberate): per the
       // contract above, the event carries FULL identities and the presenter

@@ -35,6 +35,7 @@ import { TK_SHU } from '../../src/data/cards/tk-shu';
 import { TK_WEI } from '../../src/data/cards/tk-wei';
 import { TK_WU } from '../../src/data/cards/tk-wu';
 import { TOKENS } from '../../src/data/cards/tokens';
+import { activatedCatalogErrors } from '../activatedFixture';
 
 describe('catalog integrity', () => {
   it('has no invalid Empower, mark-trigger, or chapter definitions across ALL_CARDS', () => {
@@ -88,12 +89,14 @@ describe('catalog integrity', () => {
     }
   });
 
-  it('has no invalid Nine Lives or Preserve definitions', () => {
+  it('has no invalid Nine Lives, Preserve or activated definitions', () => {
     for (const card of Object.values(CARD_DB)) {
       const nineLivesErrors = validateNineLivesDef(card);
       expect(nineLivesErrors, `${card.id}: ${nineLivesErrors.join('; ')}`).toEqual([]);
       const preserveErrors = validatePreserveDef(card);
       expect(preserveErrors, `${card.id}: ${preserveErrors.join('; ')}`).toEqual([]);
+      const activatedErrors = activatedCatalogErrors(card, CARD_DB);
+      expect(activatedErrors, `${card.id}: ${activatedErrors.join('; ')}`).toEqual([]);
     }
   });
 
