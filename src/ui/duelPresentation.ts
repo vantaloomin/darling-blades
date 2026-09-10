@@ -151,6 +151,26 @@ export function dutyNarration(cardName: string): string {
   return `${cardName} performs its Duty.`;
 }
 
+const DUTY_BLOCKED_COPY: Readonly<Record<string, string>> = {
+  'Activated abilities can only be used during your Morning or Afternoon': 'Duty: only in your Morning or Afternoon.',
+  'Activated abilities need an empty stack': 'Duty: wait for the stack to clear.',
+  'Activated source is not on the battlefield': 'Duty: this permanent is not on the battlefield.',
+  'Activated source is not under your control': 'Duty: you do not control this permanent.',
+  'permanent has no activated ability': 'Duty: this permanent has no Duty.',
+  'Activated source is tapped': 'Duty: this permanent is tapped.',
+  'Activated source cannot tap the turn it arrives unless it has Warcry': 'Duty: it arrived this turn.',
+  'cannot pay cost': 'Duty: you cannot pay the cost.',
+  'no legal targets for activated ability': 'Duty: no legal target.',
+};
+
+/** Translate engine diagnostics without leaking engine terminology into notices. */
+export function dutyBlockedCopy(reason: string | null): string | null {
+  if (reason === null) return null;
+  return Object.hasOwn(DUTY_BLOCKED_COPY, reason)
+    ? DUTY_BLOCKED_COPY[reason]
+    : 'Duty: you cannot use it right now.';
+}
+
 export type DutyAction = Extract<Action, { type: 'activate' }>;
 
 /** Lands and ordinary attached Auras have no board tile, so they need a picker. */

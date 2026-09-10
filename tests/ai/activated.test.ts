@@ -5,7 +5,7 @@ import { EasyAI } from '../../src/ai/EasyAI';
 import { HardAI } from '../../src/ai/HardAI';
 import { MediumAI } from '../../src/ai/MediumAI';
 import { makePersonality } from '../../src/ai/personality';
-import { activateActionValue, opImpactValue, permValue } from '../../src/ai/value';
+import { activateActionValue, activatedAbilityValue, createPermanentValuer, opImpactValue, permValue } from '../../src/ai/value';
 import type { Action } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
 import type { ActivatedDef, CardDb, CardDef, Permanent } from '../../src/engine/types';
@@ -44,6 +44,12 @@ const DB: CardDb = {
   }),
   duty_target: carrier('duty_target', ['artifact'], {
     activated: { cost: { tap: true }, targets: [{ what: 'any', other: true }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
+  }),
+  duty_perf: carrier('duty_perf', ['artifact'], {
+    activated: { cost: { tap: true }, targets: [{ what: 'creature' }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
+  }),
+  duty_optional: carrier('duty_optional', ['artifact'], {
+    activated: { cost: { tap: true }, targets: [{ what: 'creature', upTo: 2 }], ops: [{ op: 'damage', n: 2, to: 'target' }] },
   }),
   duty_friendly_harm: carrier('duty_friendly_harm', ['artifact'], {
     activated: { cost: { tap: true }, targets: [{ what: 'yourCreature' }], ops: [{ op: 'destroy', to: 'target' }] },
@@ -124,12 +130,16 @@ describe('Duty AI policy on fixture cards', () => {
     }
   });
 
-  it('Medium reserves Morning mana for a spell and uses paid Duty in the Afternoon', () => {
+  it('Medium permits only tap-alone Duty in the Morning, with or without a spell, and paid Duty in the Afternoon', () => {
     const lands = [{ iid: 11, cardId: 'forest' }, { iid: 12, cardId: 'forest' }];
     const morning = board('duty_paid', 'main1', lands, ['bear']);
     expect(morning.legalActions(0)).toContainEqual({ type: 'activate', iid: SOURCE });
     expect(choose(brain('medium'), morning)).toMatchObject({ type: 'castSpell', handIndex: 0 });
     expect(chooseActivate(morning.viewFor(0), DB, morning.legalActions(0))).toBeNull();
+    const emptyHand = board('duty_paid', 'main1', lands);
+    expect(emptyHand.legalActions(0)).toContainEqual({ type: 'activate', iid: SOURCE });
+    expect(choose(brain('medium'), emptyHand).type).toBe('passStep');
+    expect(chooseActivate(emptyHand.viewFor(0), DB, emptyHand.legalActions(0))).toBeNull();
     const afternoon = board('duty_paid', 'main2', lands);
     const action = choose(brain('medium'), afternoon);
     expect(action).toEqual({ type: 'activate', iid: SOURCE });
@@ -258,6 +268,88 @@ describe('Duty AI policy on fixture cards', () => {
 });
 
 describe('Duty battlefield value', () => {
+  it.each([
+    ['duty_perf', 4], ['duty_optional', 8],
+  ] as const)('preserves committed action and potential values on the 27-permanent fixture: %s', (cardId, expected) => {
+    const game = board(cardId, 'main1', [
+      ...Array.from({ length: 7 }, (_, i) => ({ iid: 11 + i, cardId, controller: 0 as const })),
+      ...Array.from({ length: 4 }, (_, i) => ({ iid: 30 + i, cardId: 'bear', controller: 0 as const })),
+      ...Array.from({ length: 5 }, (_, i) => ({ iid: 40 + i, cardId: i < 3 ? 'bear' : 'giant', controller: 1 as const })),
+      ...Array.from({ length: 10 }, (_, i) => ({ iid: 60 + i, cardId: 'forest', controller: (i < 5 ? 0 : 1) as 0 | 1 })),
+    ]);
+    const view = game.viewFor(0);
+    const before = structuredClone(view);
+    const action: Action = { type: 'activate', iid: SOURCE, targets: cardId === 'duty_optional'
+      ? [{ kind: 'permanent', iid: 40 }, { kind: 'permanent', iid: 41 }]
+      : [{ kind: 'permanent', iid: 40 }] };
+    // Measured with d42400c before removing the database adapters.
+    expect(activateActionValue(view, DB, action)).toBe(expected);
+    expect(activatedAbilityValue(view.battlefield, DB, SOURCE)).toBe(expected);
+    const valueOf = createPermanentValuer(view.battlefield, DB);
+    for (let iid = 10; iid < 18; iid++) expect(valueOf(iid)).toBe(1 + expected * 3);
+    expect(view).toEqual(before);
+  });
+
+  it('preserves coupled optional-target values and original pair order beyond the top four singles', () => {
+    const coupled: CardDef = carrier('duty_coupled', ['artifact'], {
+      activated: { cost: { tap: true }, targets: [{ what: 'yourCreature', upTo: 2 }], ops: [
+        { op: 'ifTargetMarked', then: [
+          { op: 'markAll', scope: 'yourCreatures' }, { op: 'addCounters', to: 'target', n: 1 },
+        ], else: [] },
+      ] },
+    });
+    const db: CardDb = { ...DB, duty_coupled: coupled,
+      duty_small_flyer: { ...DB.flyer, id: 'duty_small_flyer', attack: 1, defense: 1 } };
+    expect(activatedCatalogErrors(coupled, db)).toEqual([]);
+    const game = Game.restore(makeTestState({ active: 0, battlefield: [
+      { iid: SOURCE, cardId: coupled.id, controller: 0 },
+      ...Array.from({ length: 4 }, (_, i) => ({ iid: 20 + i, cardId: 'bear', controller: 0 as const, plusOneCounters: 1 })),
+      { iid: 24, cardId: 'duty_small_flyer', controller: 0 },
+    ] }), db);
+    const view = game.viewFor(0);
+    const before = structuredClone(view);
+    const score = (...iids: number[]): number => activateActionValue(view, db, {
+      type: 'activate', iid: SOURCE, targets: iids.map((iid) => ({ kind: 'permanent', iid })),
+    });
+    // Measured against the committed scorer: the zero-value singleton wins
+    // as the second target after the first branch marks it. Order matters.
+    expect([20, 21, 22, 23].map((iid) => score(iid))).toEqual([7.85, 7.85, 7.85, 7.85]);
+    expect(score(24)).toBe(0);
+    expect(score(20, 21)).toBe(15.7);
+    expect(score(20, 24)).toBe(16);
+    expect(score(24, 20)).toBe(7.85);
+    expect(activatedAbilityValue(view.battlefield, db, SOURCE)).toBe(16);
+    expect(view).toEqual(before);
+  });
+
+  it('does not share source-dependent potential between differently damaged carriers', () => {
+    const card = carrier('duty_self', ['creature'], {
+      activated: { cost: { tap: true }, ops: [{ op: 'gainLife', n: 20 }, { op: 'severSelf' }] },
+    });
+    const db: CardDb = { ...DB, duty_self: card };
+    const battlefield = makeTestState({ battlefield: [
+      { iid: 10, cardId: card.id, controller: 0 },
+      { iid: 11, cardId: card.id, controller: 0, damage: 3 },
+    ] }).battlefield;
+    const valueOf = createPermanentValuer(battlefield, db);
+    expect(valueOf(10)).toBe(10);
+    expect(valueOf(11)).toBe(11.5);
+  });
+
+  it('keeps potential reuse local to a board evaluation and separate by controller', () => {
+    const game = board('duty_perf', 'main1', [
+      { iid: 11, cardId: 'duty_perf', controller: 1 },
+      { iid: 20, cardId: 'bear', controller: 0 },
+      { iid: 21, cardId: 'giant', controller: 1 },
+    ]);
+    const battlefield = game.viewFor(0).battlefield;
+    const valueOf = createPermanentValuer(battlefield, DB);
+    expect(valueOf(10)).toBeCloseTo(3.7); // Two nonlethal damage to their giant.
+    expect(valueOf(11)).toBe(13); // Lethal damage to our bear.
+    battlefield.find((perm) => perm.iid === 21)!.damage = 2;
+    expect(createPermanentValuer(battlefield, DB)(10)).toBe(22); // Fresh evaluation sees lethal.
+  });
+
   it('retains a draw ability premium even though battlefield-only valuation has no deck information', () => {
     const game = board('duty_draw');
     game.state.players[0].deck = [];

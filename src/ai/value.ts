@@ -1,9 +1,8 @@
 import type { Action } from '../engine/actions';
 import { getEffectiveStats } from '../engine/statics';
-import type { AbilityDef, CardDb, EffectOp, Keyword, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
+import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
 import { def, effectOpUsesTarget, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
-import { targetChoiceValue } from './targeting';
 
 const KEYWORD_BONUS: Record<Keyword, number> = {
   skyborne: 1,
@@ -69,6 +68,167 @@ export function abilityConditionMultiplier(condition: AbilityDef['condition']): 
   if (condition === 'controlMarked') return 0.55;
   if (typeof condition === 'object' && condition.kind === 'markedThreshold') return 0.5;
   return 1;
+}
+
+interface TargetContext {
+  view: PlayerView;
+  db: CardDb;
+  source: Permanent;
+  ability: Pick<AbilityDef, 'ops'>;
+  includeActivated: boolean;
+}
+
+function permanentFor(ctx: TargetContext, ref: TargetRef): Permanent | undefined {
+  return ref.kind === 'permanent'
+    ? ctx.view.battlefield.find((perm) => perm.iid === ref.iid)
+    : undefined;
+}
+
+function playerFor(ctx: TargetContext, ref: TargetRef): PlayerId | undefined {
+  if (ref.kind === 'player' || ref.kind === 'grave') return ref.player;
+  if (ref.kind === 'permanent') return permanentFor(ctx, ref)?.controller;
+  return ctx.view.stack.find((item) => item.sid === ref.sid)?.controller;
+}
+
+function harmSign(ctx: TargetContext, ref: TargetRef): number {
+  const player = playerFor(ctx, ref);
+  return player === opponentOf(ctx.view.myId) ? 1 : -1;
+}
+
+function permanentRemovalValue(ctx: TargetContext, perm: Permanent): number {
+  return Math.max(0, removalTargetValue(ctx.view.battlefield, ctx.db, perm, ctx.includeActivated));
+}
+
+function damageTargetValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'damage' }>, ref: TargetRef): number {
+  if (op.to !== 'target' || op.n === 'X') return 0;
+  const perm = permanentFor(ctx, ref);
+  if (!perm) return op.n * 0.9 * harmSign(ctx, ref);
+  const d = def(ctx.db, perm.cardId);
+  if (!isType(d, 'creature')) return 0;
+  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const lethal = op.n >= stats.defense - perm.damage;
+  const impact = lethal
+    ? permanentRemovalValue(ctx, perm)
+    : op.n * 0.45 + perm.plusOneCounters * 0.15;
+  return impact * harmSign(ctx, ref);
+}
+
+function boostTargetValue(
+  ctx: TargetContext,
+  op: Extract<EffectOp, { op: 'boost' }>,
+  ref: TargetRef,
+): number {
+  if (op.scope !== 'target') return 0;
+  const perm = permanentFor(ctx, ref);
+  if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
+  const printedDelta = (op.p + op.t) / 2 + (op.keywords?.length ?? 0) * 0.5;
+  // A positive boost helps our body and hurts theirs; a negative boost has the
+  // opposite sign. The 0.75 factor keeps a one-turn trick below removal.
+  return printedDelta * (perm.controller === ctx.view.myId ? 1 : -1) * 0.75;
+}
+
+/**
+ * A mark is only worth what the body carrying it survives to do. Among our
+ * own creatures prefer the one that keeps the mark alive (toughness, evasion,
+ * no damage on it) and, when a threshold payoff is in play or in hand, spread
+ * marks over unmarked bodies: thresholds and the marked-filter lords count
+ * creatures, not counters.
+ */
+function markCounterValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'addCounters' }>, ref: TargetRef): number {
+  if (op.to !== 'target') return 0;
+  const perm = permanentFor(ctx, ref);
+  if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
+  if (perm.controller !== ctx.view.myId) return -op.n * 1.2;
+  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const toughnessAfter = stats.defense + op.n - perm.damage;
+  let value = op.n * 1.2;
+  if (toughnessAfter >= 4) value += 0.4;
+  else if (toughnessAfter <= 1) value -= 0.4;
+  if (stats.keywords.has('skyborne') || stats.keywords.has('untouchable')) value += 0.3;
+  if (perm.plusOneCounters === 0) {
+    value += 0.2;
+    if (hasMarkPayoff(ctx.view.battlefield, ctx.db, ctx.view.myId, ctx.view.you.hand)) value += 0.5;
+  }
+  return value;
+}
+
+function effectOnTarget(ctx: TargetContext, op: EffectOp, ref: TargetRef): number {
+  switch (op.op) {
+    case 'damage':
+      return damageTargetValue(ctx, op, ref);
+    case 'destroy':
+    case 'sever':
+    case 'destroyArtifactOrSeverEnchantment': {
+      const perm = permanentFor(ctx, ref);
+      if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
+      const multiplier = op.op === 'destroy' ? 1 : op.op === 'sever' ? 0.9 : 0.85;
+      return permanentRemovalValue(ctx, perm) * multiplier * harmSign(ctx, ref);
+    }
+    case 'recall': {
+      const perm = permanentFor(ctx, ref);
+      return perm ? permanentRemovalValue(ctx, perm) * 0.65 * harmSign(ctx, ref) : 0;
+    }
+    case 'cancel': {
+      const item = ref.kind === 'stackItem'
+        ? ctx.view.stack.find((entry) => entry.sid === ref.sid)
+        : undefined;
+      return item ? cardValue(ctx.db, item.cardId) * harmSign(ctx, ref) : 0;
+    }
+    case 'boost':
+      return boostTargetValue(ctx, op, ref);
+    case 'addCounters':
+      return markCounterValue(ctx, op, ref);
+    case 'removeMarks': {
+      const perm = permanentFor(ctx, ref);
+      if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
+      // Marks are printed power. Removing theirs is disruption; removing ours
+      // is a cost. The op-level value is deliberately reused as the floor.
+      return opImpactValue(op) * perm.plusOneCounters * harmSign(ctx, ref);
+    }
+    case 'tap': {
+      const perm = permanentFor(ctx, ref);
+      return perm ? Math.max(0.5, permanentRemovalValue(ctx, perm) * 0.3) * harmSign(ctx, ref) : 0;
+    }
+    case 'ifTargetMarked': {
+      const perm = permanentFor(ctx, ref);
+      const branch = perm &&
+        isType(def(ctx.db, perm.cardId), 'creature') &&
+        perm.plusOneCounters > 0
+        ? op.then
+        : (op.else ?? []);
+      return branch.reduce((sum, nested) => sum + effectOnTarget(ctx, nested, ref), 0);
+    }
+    case 'raise':
+    case 'reclaim': {
+      if (ref.kind !== 'grave' || ref.player !== ctx.view.myId) return 0;
+      const cards = ref.player === ctx.view.myId ? ctx.view.you.graveyard : ctx.view.opp.graveyard;
+      const cardId = cards[ref.index];
+      if (!cardId) return 0;
+      return cardValue(ctx.db, cardId) * (op.op === 'raise' ? 1 : 0.7);
+    }
+    case 'moveMark': {
+      // A move has two targets and is not a targeted-arrival shape. Keep a
+      // small neutral floor for any caller that ranks the op as a whole.
+      return opImpactValue(op);
+    }
+    default:
+      // Target-independent ops do not break a target tie. Their value is
+      // still routed through the shared op-impact machinery for future ops.
+      return 0;
+  }
+}
+
+/** Ability-scoped public target scoring, shared by arrivals and Duty. */
+export function targetValueForAbility(
+  view: PlayerView,
+  db: CardDb,
+  source: Permanent,
+  ability: Pick<AbilityDef, 'ops'>,
+  ref: TargetRef,
+  includeActivated = true,
+): number {
+  const ctx: TargetContext = { view, db, source, ability, includeActivated };
+  return (ability.ops ?? []).reduce((sum, op) => sum + effectOnTarget(ctx, op, ref), 0);
 }
 
 interface ActivatedImpactContext {
@@ -156,57 +316,48 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext):
   }
 }
 
-/**
- * Target scoring reuses the arrival picker with one op exposed as an ability.
- * The adapter never submits a decision. Its synthetic spell-shaped ability
- * does not create a recurring-rider premium on the source while scoring it.
- */
+/** Duty scores a supplied op directly, without a synthetic arrival decision. */
 function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: TargetRef): number {
   const { view, db, source } = ctx;
-  const card = def(db, source.cardId);
-  const abilityIndex = card.abilities?.length ?? 0;
-  const adaptedDb: CardDb = {
-    ...db,
-    [card.id]: { ...card, abilities: [...(card.abilities ?? []), { when: 'spell', ops: [op] }] },
-  };
   const target = ref.kind === 'permanent' ? view.battlefield.find((p) => p.iid === ref.iid) : undefined;
   // The arrival picker historically restricts these removal ops to creatures.
   // Duty also permits artifact/enchantment targets, valued by the same material helper.
   if (target && (op.op === 'destroy' || op.op === 'sever' || op.op === 'destroyArtifactOrSeverEnchantment')) {
     const factor = op.op === 'destroy' ? 1 : op.op === 'sever' ? 0.9 : 0.85;
-    return removalTargetValue(view.battlefield, db, target) * factor * (target.controller === view.myId ? -1 : 1);
+    return removalTargetValue(view.battlefield, db, target, false) * factor * (target.controller === view.myId ? -1 : 1);
   }
   if (target && op.op === 'boost' && isType(def(db, target.cardId), 'creature') &&
     getEffectiveStats(view.battlefield, db, target.iid).defense + op.t <= target.damage) {
-    return removalTargetValue(view.battlefield, db, target) * (target.controller === view.myId ? -1 : 1);
+    return removalTargetValue(view.battlefield, db, target, false) * (target.controller === view.myId ? -1 : 1);
   }
   if (op.op === 'tap' && target?.tapped) return 0;
   if (op.op === 'foresee' && op.who === 'targetOwner') {
     const owner = target?.owner ?? (ref.kind === 'player' || ref.kind === 'grave' ? ref.player : undefined);
     return owner === undefined ? 0 : op.n * 0.5 * (owner === view.myId ? 1 : -1);
   }
-  return targetChoiceValue({
-    ...view,
-    awaiting: { kind: 'chooseTarget', player: view.myId, sourceIid: source.iid, abilityIndex, targets: [ref] },
-  }, adaptedDb, ref);
+  return targetValueForAbility(view, db, source, { ops: [op] }, ref, false);
 }
 
 /** Signed public-board scoring used only by the new activated rider. */
 function activatedOpImpact(op: EffectOp, ctx: ActivatedImpactContext): number {
   const { view, db, source } = ctx;
   const refs = ctx.targetBatch ? ctx.targets : ctx.targets.slice(0, 1);
-  const creatures = view.battlefield.filter((p) => isType(def(db, p.cardId), 'creature'));
-  const mine = creatures.filter((p) => p.controller === view.myId);
-  const material = (perm: Permanent): number => removalTargetValue(view.battlefield, db, perm);
+  const material = (perm: Permanent): number => removalTargetValue(view.battlefield, db, perm, false);
   if (op.op === 'ifTargetMarked') {
     return refs.reduce((sum, ref) => {
-      const target = ref.kind === 'permanent' ? creatures.find((p) => p.iid === ref.iid) : undefined;
+      const target = ref.kind === 'permanent' ? view.battlefield.find((p) =>
+        p.iid === ref.iid && isType(def(db, p.cardId), 'creature')) : undefined;
       const branch = target && target.plusOneCounters > 0 ? op.then : (op.else ?? []);
       return sum + activatedOpsImpact(branch, {
         ...ctx, targets: [ref], targetBatch: false,
       });
     }, 0);
   }
+  if (op.op !== 'moveMark' && effectOpUsesTarget(op)) {
+    return refs.reduce((sum, ref) => sum + activatedTargetImpact(op, ctx, ref), 0);
+  }
+  const creatures = view.battlefield.filter((p) => isType(def(db, p.cardId), 'creature'));
+  const mine = creatures.filter((p) => p.controller === view.myId);
   if (op.op === 'moveMark') {
     const targets = ctx.targets.filter((ref) => ref.kind === 'permanent');
     const from = mine.find((p) => p.iid === targets[0]?.iid);
@@ -216,11 +367,10 @@ function activatedOpImpact(op: EffectOp, ctx: ActivatedImpactContext): number {
     return activatedTargetImpact(mark, ctx, { kind: 'permanent', iid: to.iid }) -
       activatedTargetImpact(mark, ctx, { kind: 'permanent', iid: from.iid });
   }
-  if (effectOpUsesTarget(op)) return refs.reduce((sum, ref) => sum + activatedTargetImpact(op, ctx, ref), 0);
   if (op.op === 'draw' && ctx.trackDeck && op.n > view.you.deckCount) return -Infinity;
   if (op.op === 'damage') {
     if (op.to === 'controller') return op.n === 'X' ? 0 : -op.n * 0.9;
-    if (op.to === 'eachCreature') return symmetricCreatureSweepValue(view.battlefield, db, view.myId, op);
+    if (op.to === 'eachCreature') return symmetricCreatureSweepValue(view.battlefield, db, view.myId, op, false);
   }
   if (op.op === 'severSelf') return -Math.max(1.5, material(source));
   if (op.op === 'massDestroy') {
@@ -258,6 +408,9 @@ function activatedOpsImpact(ops: readonly EffectOp[], ctx: ActivatedImpactContex
   for (const op of ops) {
     value += opImpactValue(op, ctx);
     if (!Number.isFinite(value)) return value;
+    if (op.op === 'draw' && ctx.trackDeck) ctx.view.you.deckCount -= op.n;
+    if (op.op !== 'removeMarks' && op.op !== 'addCounters' && op.op !== 'markAll' &&
+      op.op !== 'propagate' && op.op !== 'moveMark') continue;
     const creatures = ctx.view.battlefield.filter((p) => isType(def(ctx.db, p.cardId), 'creature'));
     const mine = creatures.filter((p) => p.controller === ctx.view.myId);
     const refs = ctx.targetBatch ? ctx.targets : ctx.targets.slice(0, 1);
@@ -279,25 +432,9 @@ function activatedOpsImpact(ops: readonly EffectOp[], ctx: ActivatedImpactContex
         from.plusOneCounters--;
         to.plusOneCounters++;
       }
-    } else if (op.op === 'draw' && ctx.trackDeck) {
-      ctx.view.you.deckCount -= op.n;
     }
   }
   return value;
-}
-
-/**
- * Mask battlefield Duty riders only while scoring removal targets. Otherwise
- * two Duty carriers targeting one another recurse through permValue forever.
- * Definitions and the original db are never mutated.
- */
-function activatedTargetDb(battlefield: readonly Permanent[], db: CardDb): CardDb {
-  const overlay = { ...db };
-  for (const perm of battlefield) {
-    const card = def(db, perm.cardId);
-    if (card.activated) overlay[card.id] = { ...card, activated: undefined };
-  }
-  return overlay;
 }
 
 export function activateActionValue(
@@ -306,6 +443,14 @@ export function activateActionValue(
   action: Extract<Action, { type: 'activate' }>,
 ): number {
   return activatedActionImpact(view, db, action, true);
+}
+
+/** Mark writes can couple optional targets through later ops or branches. */
+function activatedWritesMarks(ops: readonly EffectOp[]): boolean {
+  return ops.some((op) => op.op === 'addCounters' || op.op === 'removeMarks' ||
+    op.op === 'markAll' || op.op === 'propagate' || op.op === 'moveMark' ||
+    (op.op === 'ifTargetMarked' &&
+      (activatedWritesMarks(op.then) || activatedWritesMarks(op.else ?? []))));
 }
 
 function activatedActionImpact(
@@ -318,8 +463,12 @@ function activatedActionImpact(
   const ability = source && def(db, source.cardId).activated;
   if (!source || !ability) return -Infinity;
   const ctx: ActivatedImpactContext = {
-    view: { ...view, you: { ...view.you }, battlefield: view.battlefield.map((perm) => ({ ...perm })) },
-    db: activatedTargetDb(view.battlefield, db), source, trackDeck,
+    view: {
+      ...view, you: { ...view.you },
+      battlefield: activatedWritesMarks(ability.ops)
+        ? view.battlefield.map((perm) => ({ ...perm })) : view.battlefield,
+    },
+    db, source, trackDeck,
     targets: action.targets ?? [],
     targetBatch: ability.targets?.length === 1 && ability.targets[0].upTo !== undefined,
   };
@@ -370,10 +519,22 @@ export function activatedAbilityValue(battlefield: readonly Permanent[], db: Car
   for (const spec of ability.targets ?? []) {
     const refs = activatedPotentialTargets(view, db, source, spec);
     if (spec.upTo !== undefined) {
-      lists = [[], ...refs.map((ref) => [ref])];
-      for (let first = 0; first < refs.length; first++) {
-        for (let second = first + 1; second < refs.length; second++) lists.push([refs[first], refs[second]]);
+      const score = (targets: TargetRef[]): number =>
+        activatedActionImpact(view, db, { type: 'activate', iid, targets }, false);
+      const singles = refs.map((ref, index) => ({ ref, index, value: score([ref]) }));
+      let best = Math.max(0, score([]), ...singles.map((entry) => entry.value));
+      // Read-only ops are additive per target, with target-free ops paid once.
+      // Four best singles suffice. Mark projections can couple targets, so
+      // retain exact pairs for those uncommon shapes rather than change value.
+      const candidates = activatedWritesMarks(ability.ops) ? singles : singles
+        .sort((a, b) => b.value - a.value || a.index - b.index).slice(0, 4)
+        .sort((a, b) => a.index - b.index);
+      for (let first = 0; first < candidates.length; first++) {
+        for (let second = first + 1; second < candidates.length; second++) {
+          best = Math.max(best, score([candidates[first].ref, candidates[second].ref]));
+        }
       }
+      return best;
     } else {
       lists = lists.flatMap((chosen) => refs.map((ref) => [...chosen, ref]));
     }
@@ -410,12 +571,13 @@ export function removalTargetValue(
   battlefield: readonly Permanent[],
   db: CardDb,
   perm: Permanent,
+  includeActivated = true,
 ): number {
   const d = def(db, perm.cardId);
   const impact = isType(d, 'artifact') || isType(d, 'enchantment')
     ? nonCreatureAbilityImpact(db, perm.cardId)
     : 0;
-  return permValue(battlefield, db, perm.iid) + impact;
+  return permValue(battlefield, db, perm.iid, includeActivated) + impact;
 }
 
 export type RemovalKind =
@@ -444,6 +606,7 @@ function symmetricCreatureSweepValue(
   db: CardDb,
   caster: PlayerId,
   op: Extract<EffectOp, { op: 'damage' | 'boost' }>,
+  includeActivated = true,
 ): number {
   const opponent = opponentOf(caster);
   let value = 0;
@@ -455,7 +618,7 @@ function symmetricCreatureSweepValue(
       (op.op === 'damage' && op.n !== 'X' && op.n >= remainingDefense) ||
       (op.op === 'boost' && remainingDefense + op.t <= 0);
     const impact = dies
-      ? removalTargetValue(battlefield, db, perm)
+      ? removalTargetValue(battlefield, db, perm, includeActivated)
       : op.op === 'damage'
         ? op.n === 'X' ? 0 : op.n * 0.5
         : (Math.abs(op.p) + Math.abs(op.t)) / 2;
@@ -870,11 +1033,45 @@ export function markBoardAdjust(
   return adjust;
 }
 
+type ActivatedPotentialCache = Map<ActivatedDef, Map<PlayerId, number>>;
+
+function activatedUsesSource(ops: readonly EffectOp[]): boolean {
+  return ops.some((op) => op.op === 'severSelf' ||
+    (op.op === 'addCounters' && op.to === 'self') ||
+    (op.op === 'awaken' && op.scope === 'self') ||
+    (op.op === 'ifTargetMarked' &&
+      (activatedUsesSource(op.then) || activatedUsesSource(op.else ?? []))));
+}
+
+/** Reuse identical source-independent riders only within this board evaluation. */
+export function createPermanentValuer(battlefield: readonly Permanent[], db: CardDb): (iid: number) => number {
+  const cache: ActivatedPotentialCache = new Map();
+  return (iid) => permValue(battlefield, db, iid, true, cache);
+}
+
+function cachedActivatedPotential(
+  battlefield: readonly Permanent[], db: CardDb, perm: Permanent,
+  ability: ActivatedDef, cache?: ActivatedPotentialCache,
+): number {
+  if (!cache || ability.targets?.some((spec) => spec.other) || activatedUsesSource(ability.ops)) {
+    return activatedAbilityValue(battlefield, db, perm.iid);
+  }
+  let byController = cache.get(ability);
+  const cached = byController?.get(perm.controller);
+  if (cached !== undefined) return cached;
+  const value = activatedAbilityValue(battlefield, db, perm.iid);
+  if (!byController) { byController = new Map(); cache.set(ability, byController); }
+  byController.set(perm.controller, value);
+  return value;
+}
+
 /** Value of a permanent on the battlefield — EFFECTIVE stats. */
 export function permValue(
   battlefield: readonly Permanent[],
   db: CardDb,
   iid: number,
+  includeActivated = true,
+  activatedCache?: ActivatedPotentialCache,
 ): number {
   const perm = battlefield.find((p) => p.iid === iid);
   if (!perm) return 0;
@@ -897,6 +1094,8 @@ export function permValue(
   }
   // Duty uses the same expected-use shape as a Dawn rider: two uses on a
   // creature and three on a non-creature. Readiness does not erase potential.
-  if (d.activated) v += activatedAbilityValue(battlefield, db, iid) * (isType(d, 'creature') ? 2 : 3);
+  if (includeActivated && d.activated) {
+    v += cachedActivatedPotential(battlefield, db, perm, d.activated, activatedCache) * (isType(d, 'creature') ? 2 : 3);
+  }
   return v;
 }

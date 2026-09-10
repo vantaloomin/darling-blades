@@ -5,7 +5,7 @@ import type { CardDb, PlayerId } from '../engine/types';
 import { opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
-import { activationCandidates } from './activatedPolicy';
+import { scoredActivationCandidates } from './activatedPolicy';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { determinize, simDb } from './determinize';
 import { evaluate } from './evaluate';
@@ -15,7 +15,7 @@ import { choosePlayDraw } from './playDraw';
 import { preserveActionValue } from './preservePolicy';
 import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
 import { chooseTargetAction } from './targeting';
-import { activateActionValue, cardValue, hauntlinkCastValue } from './value';
+import { cardValue, hauntlinkCastValue } from './value';
 
 /**
  * Hard: Medium's heuristics as candidate generators, then honest simulation
@@ -227,7 +227,8 @@ export class HardAI implements AIPlayer {
   private searchMain(view: PlayerView, legal: Action[]): Action {
     const baseline = this.medium.chooseAction(view, legal);
     if (baseline.type === 'linkHaunt') return baseline;
-    const activations = new Set(activationCandidates(view, this.db, legal));
+    const activations = new Map(scoredActivationCandidates(view, this.db, legal)
+      .map(({ action, value }) => [action, value]));
     // Keep the narrow candidate set for now. It compares Skim, Retell,
     // Empower, Rite, and Darling casts against Medium's baseline; making passStep a candidate
     // is future work. Skim must not be offered as a lookahead line when its
@@ -268,7 +269,7 @@ export class HardAI implements AIPlayer {
         return preserveActionValue(view, this.db, candidate);
       }
       if (candidate.type === 'activate') {
-        return activateActionValue(view, this.db, candidate);
+        return activations.get(candidate) ?? -Infinity;
       }
       if (candidate.type !== 'castSpell') return -Infinity;
       const cardId = candidate.retell && candidate.graveIndex !== undefined

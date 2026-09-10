@@ -1,7 +1,7 @@
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, GameState, PlayerId } from '../engine/types';
 import { cardIdOf, def, isType, opponentOf } from '../engine/types';
-import { dawnSelfBleed, markedBoardValue, permValue } from './value';
+import { createPermanentValuer, dawnSelfBleed, markedBoardValue } from './value';
 
 /**
  * Hard's evaluation function: life differential (nonlinear), board material
@@ -28,6 +28,7 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
     p.untilEotMods.length > 0 ? { ...p, untilEotMods: [] } : p,
   );
 
+  const valueOfPermanent = createPermanentValuer(stripped, db);
   let myPower = 0;
   let theirPower = 0;
   let myLands = 0;
@@ -40,7 +41,7 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
       else theirLands++;
       continue;
     }
-    let v = permValue(stripped, db, perm.iid);
+    let v = valueOfPermanent(perm.iid);
     if (perm.tapped) v *= 0.85;
     if (perm.enteredThisTurn) v *= 0.92;
     score += mineSide ? v : -v;

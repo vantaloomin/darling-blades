@@ -5,7 +5,7 @@ import { solveMana } from '../../src/engine/mana';
 import type { ActivatedDef, CardDb, CardDef, GameState, TargetRef } from '../../src/engine/types';
 import {
   DUTY_ACTION_LABEL, DUTY_CANCEL_LABEL, DUTY_PLAYER_LABELS,
-  dutyNarration, dutyTargetStep, dutyTargetsNeedPicker, type DutyAction,
+  dutyBlockedCopy, dutyNarration, dutyTargetStep, dutyTargetsNeedPicker, type DutyAction,
 } from '../../src/ui/duelPresentation';
 import { makeTestState, TEST_DB } from '../helpers';
 
@@ -46,6 +46,32 @@ function actions(state: GameState): DutyAction[] {
 }
 
 describe('Duty duel presentation', () => {
+  it.each([
+    ['Activated source is tapped', 'Duty: this permanent is tapped.'],
+    ['Activated source cannot tap the turn it arrives unless it has Warcry', 'Duty: it arrived this turn.'],
+    ['cannot pay cost', 'Duty: you cannot pay the cost.'],
+    ['no legal targets for activated ability', 'Duty: no legal target.'],
+    ['Activated abilities can only be used during your Morning or Afternoon', 'Duty: only in your Morning or Afternoon.'],
+    ['Activated abilities need an empty stack', 'Duty: wait for the stack to clear.'],
+    ['Activated source is not on the battlefield', 'Duty: this permanent is not on the battlefield.'],
+    ['Activated source is not under your control', 'Duty: you do not control this permanent.'],
+    ['permanent has no activated ability', 'Duty: this permanent has no Duty.'],
+  ])('translates engine blocker "%s" into player-facing Duty copy', (reason, expected) => {
+    const copy = dutyBlockedCopy(reason);
+    expect(copy).toBe(expected);
+    expect(copy).not.toContain('\u2014');
+    expect(copy).not.toMatch(/activated|source/i);
+  });
+
+  it('shows no blocker copy for a legal Duty', () => {
+    expect(dutyBlockedCopy(null)).toBeNull();
+  });
+
+  it('keeps unknown diagnostics out of the player-facing notice', () => {
+    expect(dutyBlockedCopy('future engine diagnostic')).toBe('Duty: you cannot use it right now.');
+    expect(dutyBlockedCopy('toString')).toBe('Duty: you cannot use it right now.');
+  });
+
   it('uses the approved confirmation and narration copy without em-dashes', () => {
     expect(DUTY_ACTION_LABEL).toBe('Perform Duty');
     expect(DUTY_CANCEL_LABEL).toBe('Cancel');
@@ -79,6 +105,20 @@ describe('Duty duel presentation', () => {
     expect(step.targets).toEqual([]);
     expect(step.complete).toBe(offered[0]);
     expect(step.complete?.targets).toBeUndefined();
+  });
+
+  it('changes the menu snapshot key after submission and Undo restoration', () => {
+    const state = board('free');
+    const game = Game.restore(state, DB);
+    const before = game.state;
+    expect(game.state).toBe(before);
+    const undo = game.clone();
+    game.submit(0, actions(state)[0]);
+    expect(game.state).not.toBe(before);
+    expect(actions(game.state)).toEqual([]);
+    expect(undo.state).not.toBe(before);
+    expect(undo.state).not.toBe(game.state);
+    expect(actions(undo.state)).toHaveLength(1);
   });
 
   it('waits for every required target and preserves donor/recipient order', () => {
@@ -157,6 +197,8 @@ describe('Duty duel presentation', () => {
     for (const iid of [10, ...plan!]) {
       expect(game.state.battlefield.find((perm) => perm.iid === iid)?.tapped).toBe(true);
     }
-    expect(activatedBlockers(game.state, DB, 0, game.state.battlefield[0])).toBe('Activated source is tapped');
+    const blocked = activatedBlockers(game.state, DB, 0, game.state.battlefield[0]);
+    expect(blocked).toBe('Activated source is tapped');
+    expect(dutyBlockedCopy(blocked)).toBe('Duty: this permanent is tapped.');
   });
 });

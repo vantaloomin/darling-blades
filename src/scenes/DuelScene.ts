@@ -107,6 +107,7 @@ import {
   DUTY_ACTION_LABEL,
   DUTY_CANCEL_LABEL,
   DUTY_PLAYER_LABELS,
+  dutyBlockedCopy,
   dutyNarration,
   dutyTargetStep,
   dutyTargetsNeedPicker,
@@ -420,6 +421,8 @@ export class DuelScene extends Phaser.Scene {
   private dutyTargetsUnordered = false;
   private dutyFinishButton: ThemedButton | null = null;
   private dutyHighlights = new Set<number>();
+  private dutyActionsBySource = new Map<number, DutyAction[]>();
+  private dutyActionsState: Game['state'] | null = null;
   /** CastIntent carry: a lifted untargeted spell or Reserves land awaiting its placing click. */
   private carry: {
     action: Extract<Action, { type: 'castSpell' | 'playLand' }>;
@@ -690,6 +693,8 @@ export class DuelScene extends Phaser.Scene {
     this.dutyTargetsUnordered = false;
     this.dutyFinishButton = null;
     this.dutyHighlights = new Set();
+    this.dutyActionsBySource = new Map();
+    this.dutyActionsState = null;
     this.empowerChooser = null;
     this.empowerChooserGuard = new ModalGuard();
     this.gravePicker = null;
@@ -2525,6 +2530,11 @@ export class DuelScene extends Phaser.Scene {
   /** Transient auto-skip toast in the zone-plate gap + a mirrored log line. */
   private showSkipNotice(msg: string): void {
     this.log(msg);
+    this.showTransientNotice(msg);
+  }
+
+  /** Board feedback that fades without adding an entry to match history. */
+  private showTransientNotice(msg: string): void {
     const t = this.skipText;
     if (!t.active) return; // scene teardown raced the timer
     this.tweens.killTweensOf(t);
@@ -3487,6 +3497,7 @@ export class DuelScene extends Phaser.Scene {
     this.clearManaPlanPreview();
     const st = this.duel.state;
     const view = this.duel.viewFor(HUMAN);
+    this.refreshDutyActions();
     this.boardTargets.clear();
 
     // HUD numbers
@@ -3837,13 +3848,27 @@ export class DuelScene extends Phaser.Scene {
     return true;
   }
 
+  /** Enumerate once per sync, rather than rebuilding the menu for each tile. */
+  private refreshDutyActions(): void {
+    this.dutyActionsBySource.clear();
+    this.dutyActionsState = this.duel.state;
+    if (this.pendingCasts || this.ended || this.replayMode || !this.dutyActionsState.battlefield.some(
+      (source) => source.controller === HUMAN && def(CARD_DB, source.cardId).activated,
+    )) return;
+    for (const action of this.duel.legalActions(HUMAN)) {
+      if (action.type !== 'activate') continue;
+      const actions = this.dutyActionsBySource.get(action.iid);
+      if (actions) actions.push(action);
+      else this.dutyActionsBySource.set(action.iid, [action]);
+    }
+  }
+
   private activateActionsFor(iid: number): DutyAction[] {
     if (this.pendingCasts || this.ended || this.replayMode) return [];
-    const source = this.duel.state.battlefield.find((perm) => perm.iid === iid);
-    if (!source || source.controller !== HUMAN || !def(CARD_DB, source.cardId).activated) return [];
-    return this.duel.legalActions(HUMAN).filter(
-      (action): action is DutyAction => action.type === 'activate' && action.iid === iid,
-    );
+    // Game.submit replaces its public state snapshot. Reject a menu from the
+    // previous state while event animation defers sync; Undo also changes it.
+    if (this.dutyActionsState !== this.duel.state) return [];
+    return this.dutyActionsBySource.get(iid) ?? [];
   }
 
   private beginActivate(iid: number): boolean {
@@ -3883,16 +3908,18 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private dutyBlockedReason(iid: number): string | null {
-    const source = this.duel.state.battlefield.find((perm) => perm.iid === iid);
+    const state = this.duel.state;
+    const awaiting = state.awaiting;
+    if (awaiting.kind !== 'main' || awaiting.player !== HUMAN || state.activePlayer !== HUMAN ||
+      (state.step !== 'main1' && state.step !== 'main2')) return null;
+    const source = state.battlefield.find((perm) => perm.iid === iid);
     if (!source || source.controller !== HUMAN || !def(CARD_DB, source.cardId).activated) return null;
-    return activatedBlockers(this.duel.state, CARD_DB, HUMAN, source);
+    return dutyBlockedCopy(activatedBlockers(state, CARD_DB, HUMAN, source));
   }
 
   private previewDuty(iid: number): void {
     if (this.pendingCasts || this.ended || this.replayMode || this.empowerChooser || this.gravePicker) return;
     this.clearManaPlanPreview();
-    const reason = this.dutyBlockedReason(iid);
-    if (reason) { this.showSkipNotice(reason); return; }
     if (this.activateActionsFor(iid).length === 0) return;
     const source = this.duel.state.battlefield.find((perm) => perm.iid === iid)!;
     const cost = def(CARD_DB, source.cardId).activated!.cost.mana ?? { generic: 0, pips: {} };
@@ -5557,11 +5584,7 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     const a = this.duel.awaiting;
-    if (!('player' in a) || a.player !== HUMAN) {
-      const reason = this.dutyBlockedReason(iid);
-      if (reason) this.showSkipNotice(reason);
-      return;
-    }
+    if (!('player' in a) || a.player !== HUMAN) return;
     const st = this.duel.state;
     const perm = st.battlefield.find((p) => p.iid === iid);
     if (!perm) return;
@@ -5571,9 +5594,9 @@ export class DuelScene extends Phaser.Scene {
     // Hauntlink-only window (the legal-action filter inside decides).
     if (this.beginHauntlinkTargeting(iid)) return;
     if (this.beginActivate(iid)) return;
-    if (a.kind !== 'declareAttackers' && a.kind !== 'declareBlockers') {
+    if (a.kind === 'main') {
       const reason = this.dutyBlockedReason(iid);
-      if (reason) this.showSkipNotice(reason);
+      if (reason) this.showTransientNotice(reason);
     }
 
     if (a.kind === 'declareAttackers') {
