@@ -85,7 +85,8 @@ Rules the pie enforces at authoring:
 | **Dread** (Horrors) | 14 | 6% | B 9, U 3, G 2; every Horror carries Dread, no Horror without it in this set |
 | **Duty** | 30 | 12% | 12 artifacts and enchantments (W 5, U 3, B 2, G 1, colourless 1), 18 creatures across all five colours; the 27 utility-tapland conversions ruled under D3 are a separate batch and not counted here |
 | **Enablers for Whispers** | 36 | 14% | the density rule (at least 1.5 outlets per Whispers card, at least 4 repeatable choice-discard outlets at common): 14 self-mill effects (arrivals and Dawns, U/B), 6 Duty looters ("tap: draw a card, then discard a card", U 3, B 2, R 1; the Merfolk Looter shape the engine can now print), 16 Skim carriers not counting the Whispers cards' own |
-| Evergreen sprinkle | as needed | | all thirteen keywords present; Retell (echoes fit the Deep) and Empower sprinkled; Preserve and Hauntlink absent; **Rite absent** (one sacrifice mechanic per set, question Q2) |
+| Evergreen sprinkle | as needed | | all thirteen keywords present; Retell (echoes fit the Deep) and Empower sprinkled; Preserve and Hauntlink absent |
+| **Rite** (owner, Q2) | 6 to 8 | 3% | **white and red only**, never on a Horror: the Lantern Watch gives of itself (Rite, mandatory, N creatures) while the Deep bargains (Dread, optional, any number). No card carries both; the pie reads the split |
 | Vanilla and near-vanilla commons | at most 30% of commons | | Starborne cut vanilla commons from 59% to 35%; hold that line |
 
 Everything above is a target for the overplan, not a count of the cut; the
@@ -109,15 +110,27 @@ fresh-graveyard Whispers a chosen discard tags the card with no window. That
 is what turns Whispers from a Skim-only trick into a real discard payoff,
 and it is the MTG madness deck's engine (Merfolk Looter, priced in the
 corpus at one point on a two-mana 1/1). Six of them across blue, black and
-red, at least two at common.
+red, at least two at common (owner-approved 2026-09-11, Q4).
 
 ## 5. Subtypes
 
 - **Horror**: new, zero cards today. It is the set's identity subtype and
-  every Dread carrier has it. Whether it becomes an **Axis** (so a static
-  may filter on it: a Horror lord) is question Q1; the recommendation is
-  yes, with exactly one lord at R, recorded in `plan-tribal-pass.md` as
-  Axis additions must be.
+  every Dread carrier has it. **Owner ruling 2026-09-11: Horror is an Axis**
+  (a static may filter on it), with exactly one Horror lord at Rare, a
+  creature whose static buffs the tribe with texture (a keyword grant or a
+  conditional, not a fourth flat anthem, per the tribal-pass finding that
+  nineteen of twenty-three lords are anthems). Recorded in
+  `plan-tribal-pass.md` and `src/data/axes.ts` when the set lands.
+- **Deep One** is the species of the Deep's daughters, used as a flavour
+  subtype beside Horror. Owner ruling 2026-09-11 after a status check: the
+  Deep Ones' source text (*The Shadow over Innsmouth*, 1936) is US public
+  domain by non-renewal and "Dagon" (1919) is public domain everywhere;
+  Chaosium's game trademarks cover its own product names, not the species.
+  Two lines hold: **our own coast** (no Innsmouth, no R'lyeh, no borrowed
+  place names, so the set is not fan fiction of a place), and **names from
+  Lovecraft's own texts only**, never later authors' additions, which are
+  still copyrighted. Father Dagon and Mother Hydra are the natural picks for
+  the two Horror URs.
 - **Warden** (23 shipped cards) is the Lantern Watch's type and gets white
   Duty carriers; **Spirit** (14) is the drowned; **Mermaid** (an Axis, 6
   cards) is blue's tide-priestess line and finally gets support;
@@ -211,18 +224,25 @@ at the cut; every token minted; every row costed by the power formula at
 authoring and run through the overlap comparator against the live pool
 before it is written down.
 
-## 11. Open questions for the owner
+## 11. Owner answers (2026-09-11)
 
-1. **Horror as an Axis** with one lord at R (recommended), or a flavour
-   subtype only.
-2. **Rite absent from the set** (recommended: one sacrifice mechanic per
-   set keeps Dread legible), or a Rite sprinkle.
-3. **The reserved hue** for the Deep's voice, drowned gold (recommended), or
-   no reserved hue this time.
-4. **Six Duty looters** as the set's discard outlets (recommended), or fewer
-   and more self-mill instead.
-5. Anything in the world of section 1 you want steered before names and
-   flavour are written to it.
+1. **Horror as an Axis: approved**, one lord at Rare (section 5).
+2. **Rite: kept, in the non-Dread colours** (white, a little red), never on
+   a Horror (section 3).
+3. **The reserved hue: OPEN.** The owner wants black-gold overtones for the
+   Deep's voice. The palette review found a true gold collides in four
+   places: the global multicolour frame palette (`#e8c95a`, worn by every
+   two-colour card in the set), the mono-white accent (`#c9a84c`, the Watch's
+   own cards), Duat's tomb gold, and the Greek, Wu and Celtic gilt accents. A
+   reserved hue only works if nothing else in the set can be that colour.
+   Recommendation: keep the effect (gold light seen through black water) and
+   shift the hue green, a cold phosphor **drowned gold** (pale green-gold
+   highlight, deep olive-gold shadow) reserved for where the Deep speaks,
+   with the black water as the surround. Alternative: literal black-gold,
+   accepting that multicolour and white cards lose the reserved-hue
+   guarantee, which the register would then document as a trade.
+4. **Six Duty looters: approved** (section 4).
+5. **World: Deep One names are in** (section 5); no other steer given.
 
 With approval, the next deliverable is the 320-candidate overplan in the
 Yokai Nights concretion-doc shape, every row costed and overlap-checked,
