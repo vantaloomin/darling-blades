@@ -123,5 +123,138 @@ red their instant-speed feel, and the first Rite cards in white and red.
 | dd-salt-fire-witch | Salt-Fire Witch | SR | R | Creature, Human Witch | {2}{R}{R} | 4/2 | First Blade. Skim {R}. Whispers {1}{R}. | Her fire burns green on the wet wood and she likes it that way. | flex |
 | dd-breakwater-brawl | Breakwater Brawl | SR | R | Ritual | {3}{R} | none | Damage each creature 2. Whispers {2}{R}. | The fishermen settle it on the breakwater, and the breakwater settles it for them. | flex |
 
-*Batches 3 to 5 follow: Rares (96), Commons (160), then tokens, precon,
-bosses and the self-audit.*
+## Rare (96; cut keeps 75)
+
+Eighteen per colour plus six multicolour. The Rare band is where the Horror
+lord lives, where each colour gets its Duty creatures for the AI policy's
+creature branch, where the permanent answers and the second looters sit,
+and where Retell and Empower are sprinkled.
+
+### White (18)
+
+| ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dd-lamp-warden | Lamp-Warden of the Point | R | W | Creature, Human Warden | {1}{W} | 2/2 | Duty: gain 1 life. | The oil is measured in nights, and she has never run short. | core |
+| dd-bell-tower-sentry | Bell-Tower Sentry | R | W | Creature, Human Warden | {2}{W} | 2/4 | Sentinel. Duty: Foresee 1. | She rings the hours and counts the boats, and lately the counts disagree. | core |
+| dd-salt-stair-captain | Captain of the Salt Stair | R | W | Creature, Human Warden | {3}{W} | 3/4 | Warding Gaze. Your other Wardens get +0/+1. Duty: tap target creature. | Her stair is the last dry step between the town and the harbour. | core |
+| dd-drowned-nun | Sister of the Drowned Chapel | R | W | Creature, Human | {2}{W} | 2/3 | Arrives: gain 2 life. Skim {W}. Whispers {W}. | The chapel floods at high water and she holds the service anyway. | flex |
+| dd-widows-lantern | Widow's Lantern | R | W | Artifact | {1} | none | Duty, {W}: gain 2 life. | Lit for a husband. Kept lit for a town. | core |
+| dd-tide-gate | Tide-Gate | R | W | Artifact | {3} | none | Duty, {W}: tap target creature an opponent controls. | Iron and prayer, in that order. | core |
+| dd-salt-ward | Salt Ward | R | W | Enchantment | {1}{W} | none | Your creatures get +0/+1. Duty: gain 1 life. | A line of salt across the door, renewed every evening, and it has always been enough. | flex |
+| dd-what-the-lamps-saw | What the Lamps Saw | R | W | Ritual | {1}{W} | none | Destroy target Artifact or Enchantment. Whispers {W}. | The lamps are lit so the town can see. What the lamps see is another matter. | core |
+| dd-hold-the-line | Hold the Line | R | W | Charm | {1}{W} | none | Target creature gets +2/+2 until end of turn. Foresee 1. | Not a step. Not for anything. | flex |
+| dd-vigil-bell | Vigil Bell | R | W | Ritual | {2}{W} | none | Tap all creatures an opponent controls. | When the vigil bell rings, everyone in Dunmarrow stops what they are doing. Everyone. | core |
+| dd-watch-sergeant | Watch-Sergeant Alder | R | W | Creature, Human Warden | {2}{W}{W} | 3/3 | Warcry. Duty: create a 1/1 white Lantern Wisp token with Skyborne. | She hands out lamps like orders and expects both back. | core |
+| dd-rite-of-the-salt-gate | Rite of the Salt Gate | R | W | Ritual | {1}{W}{W} | none | Rite 1. Destroy target creature with attack 4 or more. | The gate takes one to hold against many. It has always been a fair trade on paper. | core |
+| dd-lamp-oil-bargain | Oil for the Lamps | R | W | Ritual | {2}{W} | none | Gain 4 life. Draw a card. Whispers {1}{W}. | The oil comes in barrels nobody ordered, from a supplier nobody has met. | flex |
+| dd-drowned-saint | The Drowned Saint | R | W | Creature, Spirit | {3}{W}{W} | 3/5 | Skyborne. Warding Gaze. Arrives: gain 3 life. Empower {2}: destroy target creature with cost 3 or less. | She went into the water for the town, and the town is not sure she came out. | flex |
+| dd-shore-patrol | Shore Patrol | R | W | Creature, Human Warden | {1}{W}{W} | 3/2 | First Blade. Duty: tap target creature with cost 2 or less. | Two women and a lantern between the town and the tide. | flex |
+| dd-mending-the-nets | Mending the Nets | R | W | Charm | {W} | none | Prevent combat damage to target creature this turn. Gain 1 life. | Torn nets, torn sails, torn people. She mends what she can. | flex |
+| dd-the-morning-count | The Morning Count | R | W | Enchantment | {2}{W} | none | During your Dawn: gain 1 life and Foresee 1. Duty, {1}: tap target creature. | Every dawn the Watch counts the town. The number is the same. The faces are not. | flex |
+| dd-lightkeepers-apprentice | Lightkeeper's Apprentice | R | W | Creature, Human Warden | {W} | 1/2 | Duty: Foresee 1. Whispers {W}. Skim {W}. | She learned the lamp before she learned to read, and reads only by it. | stretch |
+
+### Blue (18)
+
+| ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dd-tide-reader | Tide-Reader of the Reach | R | U | Creature, Human | {1}{U} | 1/3 | Duty: Foresee 2. | The tide tables are printed a year ahead and she corrects them by hand. | core |
+| dd-harbour-looter | Salvage Diver | R | U | Creature, Human | {2}{U} | 2/3 | Duty: draw a card, then discard a card. | Everything down there belonged to someone, and she keeps a list. | core |
+| dd-mermaid-of-the-cold-water | Mermaid of the Cold Water | R | U | Creature, Mermaid | {2}{U} | 2/2 | Skyborne. Arrives: grind self 2. | She does not come up for air. She comes up for names. | core |
+| dd-deep-one-envoy | Deep One Envoy | R | U | Creature, Deep One Horror | {2}{U}{U} | 3/3 | Dread. Arrives: Foresee 2. | She brings terms. The terms are reasonable. That is the part nobody can stand. | core |
+| dd-drowned-bell-choir | Drowned Bell Choir | R | U | Creature, Spirit | {3}{U} | 2/4 | Skyborne. Duty: tap target creature. | You can hear the bells from below at low water, and they are keeping time. | core |
+| dd-tidal-memory | Tidal Memory | R | U | Charm | {U} | none | Draw a card. Grind self 1. Whispers {U}. | The sea gives a thing back a little at a time, and never the part you wanted first. | core |
+| dd-undertow-pull | Undertow Pull | R | U | Charm | {1}{U} | none | Recall target creature with cost 3 or less. Whispers {U}. | It is not a current. It is a hand. | core |
+| dd-still-water | Still Water | R | U | Charm | {2}{U} | none | Cancel target spell. Whispers {1}{U}. | The harbour went flat at noon. Nobody on the wharf said a word. | core |
+| dd-charts-of-the-drowned-coast | Charts of the Drowned Coast | R | U | Artifact | {2} | none | Duty: Foresee 1. Duty, {U}: draw a card. | Accurate to the inch. The inches are underwater. | core |
+| dd-bell-below | The Bell Below | R | U | Enchantment | {2}{U} | none | During your Dawn: grind self 1. Whenever you cast a Charm, Foresee 1. | One bell in the harbour rings from below the water. It is never wrong about the weather. | flex |
+| dd-salt-lens | Salt Lens | R | U | Artifact | {1} | none | Duty: Foresee 1. | Glass from the drowned church, ground by hand. It shows the coast as it was. | flex |
+| dd-drowned-lighthouse-keeper | Keeper of the Drowned Light | R | U | Creature, Spirit | {3}{U}{U} | 3/4 | Skyborne. Arrives: recall target creature. Whispers {2}{U}. | The first lighthouse is under the harbour now. She still keeps it. | flex |
+| dd-what-the-tide-took | What the Tide Took | R | U | Ritual | {3}{U} | none | Draw 2. Whispers {2}{U}. | The list is long and the tide is not sorry. | flex |
+| dd-fog-that-stays | The Fog That Stays | R | U | Enchantment | {3}{U} | none | Creatures an opponent controls get -1/-0. Duty: tap target creature. | It came in with the tide in March. It is September. | flex |
+| dd-current-caller | Current-Caller | R | U | Creature, Human Witch | {2}{U} | 2/3 | Duty: recall target creature you control. | She calls the boats home. Sometimes they come. | flex |
+| dd-drowned-ledger | The Drowned Ledger | R | U | Ritual | {1}{U} | none | Grind self 3. Draw a card. Retell {2}{U}. | The harbourmaster's ledger went into the water in 1811 and has been updated since. | flex |
+| dd-cold-water-horror | Cold-Water Horror | R | U | Creature, Deep One Horror | {4}{U}{U} | 5/5 | Dread. Untouchable. | It came up under the ice and the ice did not notice. | flex |
+| dd-reef-glass-oracle | Reef-Glass Oracle | R | U | Creature, Human Witch | {1}{U}{U} | 1/4 | Duty: Foresee 3. Whispers {U}{U}. | She reads the future in green glass, and the future is mostly water. | stretch (AI-risk) |
+
+### Black (18)
+
+| ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dd-horror-lord | The Deacon of the Deep | R | B | Creature, Deep One Horror | {3}{B}{B} | 4/4 | Dread. Your other Horrors get +1/+0 and have Dreaded. | The church still holds services. The congregation has changed. | core |
+| dd-cellar-witch | Cellar-Witch of Low Street | R | B | Creature, Human Witch | {1}{B} | 2/2 | Duty: draw a card, then discard a card. | Her cellar is dry, which on Low Street is its own kind of witchcraft. | core |
+| dd-deep-one-bride | Deep One Bride | R | B | Creature, Deep One Horror | {2}{B}{B} | 4/3 | Dread. Dies: opponent loses 2 life. | The dress was her grandmother's. So was the groom. | core |
+| dd-drowned-fisherman | The Drowned Fisherman | R | B | Creature, Spirit | {1}{B}{B} | 3/2 | Deathblade. Arrives: grind self 2. Whispers {B}{B}. | He went out in the storm of '09 and has been coming home ever since. | core |
+| dd-the-price | The Price | R | B | Charm | {1}{B} | none | Destroy target creature with cost 3 or less. Whispers {B}. | Reasonable. Fair. Final. | core |
+| dd-tithe-collector | Tithe-Collector | R | B | Creature, Deep One Horror | {3}{B} | 3/4 | Dread. Duty: opponent loses 1 life and you gain 1 life. | She comes round on the first of the month with a basket, and the basket is always heavier leaving. | core |
+| dd-what-the-jars-hold | What the Jars Hold | R | B | Ritual | {2}{B} | none | Opponent discards two cards at random. Whispers {1}{B}. | Labelled, dated, and shelved by the sin. | core |
+| dd-low-tide-grave | Low-Tide Grave | R | B | Enchantment | {2}{B} | none | During your Dawn: grind self 1. Whenever a creature you control dies, opponent loses 1 life. | The graves on the flats are dug at low water and the sea does the filling. | core |
+| dd-salt-marsh-bargain | Salt-Marsh Bargain | R | B | Ritual | {1}{B}{B} | none | Return target creature card from your graveyard to the battlefield. It has Dreaded. Whispers {B}{B}. | Something comes back. It is not always what you asked for. | flex |
+| dd-deep-one-midwife | Deep One Midwife | R | B | Creature, Deep One Horror | {4}{B} | 4/4 | Dread. Arrives: create a 2/2 black Deep-Spawn token. | Every birth in Dunmarrow has been attended. Not every one by a doctor. | core |
+| dd-drowned-preacher | The Drowned Preacher | R | B | Creature, Human | {2}{B} | 2/3 | Skim {B}. Duty: grind self 2. Whispers {B}. | He preaches from the end of the wharf, to the water, and the water says amen. | flex |
+| dd-black-water | Black Water | R | B | Ritual | {3}{B}{B} | none | Destroy all creatures. You lose 3 life. Whispers {2}{B}{B}. | The harbour turned black on a Tuesday and everything in it stopped. | core |
+| dd-widows-bargain | The Widow's Bargain | R | B | Charm | {B} | none | Target creature gets -2/-2 until end of turn. Whispers {B}. | She asked for her husband back and got a very good offer instead. | flex |
+| dd-marsh-lantern | Marsh-Lantern | R | B | Artifact | {2} | none | Duty, {B}: opponent loses 1 life. | Follow it and you will not drown. You will do something else. | flex |
+| dd-horror-in-the-crib | Horror in the Crib | R | B | Creature, Deep One Horror | {1}{B} | 2/1 | Dread. Dies: grind self 2. | It was the right weight. It had the right eyes. It was not the right child. | flex |
+| dd-drowned-chorus | Drowned Chorus | R | B | Enchantment | {3}{B} | none | Whenever a creature an opponent controls dies, you gain 2 life. Duty: opponent loses 1 life. | They sing every drowning, and the town has learned the tune. | flex |
+| dd-what-was-promised | What Was Promised | R | B | Ritual | {4}{B} | none | Return target creature card from your graveyard to your hand and grind self 2. Retell {3}{B}. | The Deep keeps its promises. That is the whole problem. | flex |
+| dd-reckoning-below | Reckoning Below | R | B | Ritual | {2}{B}{B} | none | Each player sacrifices a creature. Opponent loses 2 life. Whispers {1}{B}{B}. | The count is taken at the waterline, and the water counts too. | stretch |
+
+### Green (18)
+
+| ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dd-reef-tender | Reef-Tender | R | G | Creature, Human Witch | {1}{G} | 1/3 | Duty: put a Mark on target creature you control. | Coral grows a finger's width a year, unless she asks. | core |
+| dd-kelp-shade-warden | Kelp-Shade Warden | R | G | Creature, Human Warden | {2}{G} | 3/3 | Arrives: create a 2/2 green Kelp Shade token. | The marsh keeps its own watch, and she is its liaison. | core |
+| dd-reef-horror | Reef Horror | R | G | Creature, Horror | {3}{G}{G} | 5/6 | Dread. Warding Gaze. | The reef has a shape now. The shape has a face. | core |
+| dd-tidepool-wall | Tidepool Wall | R | G | Creature, Plant | {1}{G} | 0/6 | Bulwark. Duty: gain 1 life. | It grows a foot a year and has not stopped since the town was founded. | core |
+| dd-marsh-growth | Marsh Growth | R | G | Charm | {1}{G} | none | Target creature gets +3/+3 until end of turn. Whispers {G}. | Overnight, the reeds. By morning, the road is gone. | core |
+| dd-drowned-orchard | The Drowned Orchard | R | G | Enchantment | {3}{G} | none | During your Dawn: create a 2/2 green Kelp Shade token. | The apples are salt now, and the town eats them anyway. | core |
+| dd-coral-mother | Coral-Mother | R | G | Creature, Human Witch | {3}{G}{G} | 4/5 | Duty: put a Mark on each creature you control with a Mark. | What she grows, keeps growing. | core |
+| dd-something-under-the-wharf | Something Under the Wharf | R | G | Creature, Horror | {2}{G}{G} | 4/4 | Dread. Overrun. | It has been under there a long time and the pilings are its ribs. | core |
+| dd-net-full-of-stars | Net Full of Stars | R | G | Ritual | {2}{G} | none | Create a 2/2 green Kelp Shade token and put a Mark on it. Whispers {1}{G}. | The catch glowed. The catch was not fish. | flex |
+| dd-marsh-road | The Marsh Road | R | G | Enchantment | {1}{G} | none | Your Plant tokens have Sentinel. Duty, {G}: put a Mark on target creature. | The road is where the marsh allows it to be, one day at a time. | flex |
+| dd-drowned-druid | Drowned Druid of the Reach | R | G | Creature, Human Witch | {2}{G} | 2/4 | Skim {G}. Whispers {1}{G}. Arrives: gain 2 life. | She talks to the kelp and the kelp is chatty. | flex |
+| dd-tide-worn-giant | Tide-Worn Giant | R | G | Creature, Horror | {4}{G}{G} | 6/6 | Dread. Whispers {2}{G}{G}. | It was a statue on the point. The tide worked on it. It works back now. | core |
+| dd-reef-bloom | Reef Bloom | R | G | Ritual | {1}{G}{G} | none | Put a Mark on each creature you control. | One night a year the reef flowers, and the whole coast holds its breath. | flex |
+| dd-marsh-wight | Marsh-Wight | R | G | Creature, Spirit | {3}{G} | 4/3 | Warding Gaze. Dies: create a 2/2 green Kelp Shade token. | Buried in the marsh, come back as the marsh. | flex |
+| dd-old-growth | Old Growth | R | G | Enchantment | {2}{G}{G} | none | Your creatures with Marks have Overrun. Duty: gain 2 life. | The forest that was here before the town is still here, underneath. | flex |
+| dd-shallows-stalker | Shallows Stalker | R | G | Creature, Horror | {2}{G} | 3/3 | Dread. Warcry. | It hunts the flats at low water and it is not fussy. | flex |
+| dd-the-marsh-remembers | The Marsh Remembers | R | G | Ritual | {3}{G} | none | Return target creature card from your graveyard to your hand. Put a Mark on target creature you control. Whispers {2}{G}. | Everything the town buries in the marsh, the marsh gives back a little grown. | flex |
+| dd-drowned-harvest | Drowned Harvest | R | G | Ritual | {4}{G}{G} | none | Create three 2/2 green Kelp Shade tokens. Whispers {3}{G}{G}. | The fields flooded, and the harvest came up anyway, and it walked. | stretch |
+
+### Red (18)
+
+| ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dd-wrecker | Wrecker of the Reach | R | R | Creature, Human | {1}{R} | 2/2 | Warcry. Duty: damage target creature 1. | A lamp, a rock, and a conscience she keeps in a drawer. | core |
+| dd-storm-witch | Storm-Witch | R | R | Creature, Human Witch | {2}{R} | 3/2 | Duty, {R}: damage target creature 2. | She does not call the weather. She dares it. | core |
+| dd-breakwater-brute | Breakwater Brute | R | R | Creature, Human | {2}{R}{R} | 5/3 | Rage. Duty: damage opponent 1. | Every argument on the breakwater has been settled the same way for a century. | core |
+| dd-salt-fire | Salt-Fire | R | R | Charm | {R} | none | Damage target creature 2. Whispers {R}. | Green flame on wet wood. It should not burn. It does. | core |
+| dd-lightning-on-the-water | Lightning on the Water | R | R | Charm | {1}{R}{R} | none | Damage target creature 4. Whispers {R}{R}. | The whole harbour lit up at once, and for a second everyone saw what was under it. | core |
+| dd-wreck-fire | Wreck-Fire | R | R | Ritual | {2}{R} | none | Damage each creature 1 and damage opponent 2. Whispers {1}{R}. | The wreck burned all night and the town watched from the roofs. | flex |
+| dd-rite-of-the-wreckers | Rite of the Wreckers | R | R | Ritual | {1}{R}{R} | none | Rite 1. Damage target creature 4 and damage opponent 2. | Somebody has to carry the lamp out onto the rock. Somebody always volunteers. | core |
+| dd-drowned-forge | The Drowned Forge | R | R | Artifact | {3} | none | Duty, {R}: damage target creature 2. | It went under in the great tide. The bellows still work. | core |
+| dd-storm-front | Storm Front | R | R | Enchantment | {2}{R} | none | Your creatures have Warcry. Duty: damage opponent 1. | It sits on the horizon for a week, and then it does not. | flex |
+| dd-gale-rider | Gale-Rider | R | R | Creature, Human | {3}{R} | 4/3 | Warcry. Skyborne. Skim {R}. Whispers {1}{R}. | She rides the storm in on a sail she cut from a shroud. | flex |
+| dd-fire-on-the-point | Fire on the Point | R | R | Ritual | {3}{R}{R} | none | Damage each creature an opponent controls 3. Whispers {2}{R}{R}. | A false beacon, a real wreck, and a night nobody in town will discuss. | core |
+| dd-wrecker-queen | The Wrecker Queen | R | R | Creature, Human, legendary | {2}{R}{R} | 4/4 | Rage. Overrun. Whenever this attacks, damage target creature 1. | Every wreck on the Reach for thirty years, and not one of them her fault, officially. | flex |
+| dd-drowned-cannon | Drowned Cannon | R | R | Artifact | {2} | none | Duty, {1}{R}: damage opponent 2. | Raised from the wreck of a warship nobody remembers losing. | flex |
+| dd-heat-of-the-forge | Heat of the Forge | R | R | Charm | {1}{R} | none | Target creature gets +3/+0 and Warcry until end of turn. | The forge was drowned. The heat was not. | flex |
+| dd-storm-tide-horror | Storm-Tide Horror | R | R | Creature, Horror | {3}{R}{R} | 5/4 | Dreaded. Whenever this attacks, damage opponent 2. | It only comes up in the storm, and the storm comes up for it. | flex |
+| dd-false-lamp-bearer | False-Lamp Bearer | R | R | Creature, Human | {1}{R}{R} | 3/2 | First Blade. Duty: damage target creature 1. | She carries the light that leads ships onto the rocks, and sleeps fine. | flex |
+| dd-reach-fire-witch | Fire-Witch of the Reach | R | R | Creature, Human Witch | {3}{R} | 3/3 | Arrives: damage target creature 2. Retell {2}{R}: damage target creature 2. | The sea put her fire out once. She has been making the sea pay ever since. | flex |
+| dd-breakwater-riot | Breakwater Riot | R | R | Ritual | {2}{R}{R} | none | Damage each creature 2. Your creatures get +1/+0 until end of turn. | The whole wharf, all at once, and the tide coming in behind. | stretch |
+
+### Multicolour (6)
+
+| ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dd-drowned-deacon | The Drowned Deacon | R | U/B | Creature, Deep One Horror | {2}{U}{B} | 3/4 | Dread. Arrives: grind self 3. Duty: Foresee 1. | He kept the church books. He keeps them still, in a different ink. | core |
+| dd-horror-garden | The Horror Garden | R | B/G | Enchantment | {1}{B}{G} | none | During your Dawn: create a 2/2 green Kelp Shade token. Whenever you sacrifice a creature, gain 1 life. | Planted in the marsh, fed on the drowned, and coming up beautifully. | core |
+| dd-watch-and-tide | Watch and Tide | R | W/U | Charm | {W}{U} | none | Tap target creature and Foresee 1. Whispers {W}{U}. | The Watch sets the lamps by the tide, and the tide by the lamps, and neither has been wrong yet. | flex |
+| dd-marsh-mother-horror | Marsh-Mother | R | B/G | Creature, Deep One Horror | {3}{B}{G} | 5/5 | Dread. Overrun. Dies: create two 2/2 green Kelp Shade tokens. | She feeds the marsh and the marsh feeds her, and the town is in the middle. | core |
+| dd-storm-and-salt | Storm and Salt | R | R/B | Ritual | {1}{R}{B} | none | Damage target creature 3. Opponent discards a card at random. Whispers {R}{B}. | Wind off the water and something in it that is not spray. | flex |
+| dd-lamp-and-lightning | Lamp and Lightning | R | R/W | Creature, Human Warden | {2}{R}{W} | 4/4 | Warcry. Sentinel. Duty: damage target creature 1 and gain 1 life. | The Watch keeps the lamps. She keeps the Watch. | flex |
+
+*Batches 4 and 5 follow: Commons (160), then tokens, precon, bosses and the
+self-audit.*
