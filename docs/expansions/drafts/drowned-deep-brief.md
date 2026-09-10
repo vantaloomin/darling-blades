@@ -18,13 +18,19 @@ Duty (the tap ability) as the engine feature the set must print.
 
 ## 1. The world
 
-**A lantern coast of salt cities built on the spires of something older,
-and a black tide that rises one step a generation.** The cities of the coast
-are beautiful and doomed and know it: bronze bell-towers, tide-gates, salt
-lamps, lacquered black boats, mourning silk over wet stone, glass that has
-been underwater and come back changed. Below the waterline the older
-architecture continues down further than any diver has returned from, and
-from it comes the Deep.
+**Our own Nor'eastern fishing town, built on the spires of something older,
+and a black tide that rises one step a generation.** Owner ruling
+2026-09-11: the set has its own town, in the New England coastal mould the
+genre was born in, and it is ours, not a borrowed place. Working name
+**Dunmarrow** (alternates if the owner prefers: Kettleport, Brinehollow):
+granite headlands and a harbour that freezes at the edges, clapboard houses
+gone silver with salt, widow's walks, a lighthouse that has not been dark
+in three hundred years, wharves and lobster traps and drying nets, a salt
+marsh behind the town, fog that comes in with the tide and does not always
+leave with it. Bronze bells, tide-gates, salt lamps, mourning silk over wet
+stone, glass that has been underwater and come back changed. Below the
+harbour floor the older architecture continues down further than any diver
+has returned from, and from it comes the Deep.
 
 **The Deep is not a monster. It is a chorus.** It speaks in the voices of the
 drowned, and what it offers is real: knowledge, power, the return of what was
@@ -45,9 +51,10 @@ work.
 **Tone**: elegant dread, never gore. Mourning, ritual, the sea at night,
 phosphorescence, the wrongness of a familiar face. The cast is the house
 cast: adult women throughout, the wardens as fierce and tired professionals,
-the Deep's daughters as lovely and unmistakably not human. No period
-costume; like every set, it is era-agnostic fantasy, and it must not read as
-the retired draft's Victorian seaside.
+the Deep's daughters as lovely and unmistakably not human. The regional look
+is the anchor (oilskins, wool, sea boots, a captain's coat, a lantern on a
+pole), not a period: like every set it stays era-agnostic fantasy, and it
+must not read as the retired draft's Victorian promenade.
 
 ## 2. The colour pie
 
@@ -192,14 +199,19 @@ honest without fodder; Duty effects with immediate board impact.
 
 ## 9. Art register, in outline (for art-bible section 4c)
 
-- **A reserved hue for the Deep's voice**, the Starborne cyan rule applied
-  again: **drowned gold** (a pale, cold, phosphorescent green-gold) appears
-  only where the Deep speaks, on Whispers cards as the light in the water
-  and on Horrors as the light behind the eyes. Never on lamps, never on
+- **A reserved hue for the Deep's voice** (owner-approved 2026-09-11), the
+  Starborne cyan rule applied again: **drowned gold**, a cold phosphorescent
+  green-gold (highlight about `#d6e07c`, deep `#7f8a2a`), appears only
+  where the Deep speaks: on Whispers cards as the light in the water and on
+  Horrors as the light behind the eyes, always against black water so the
+  read is black-and-gold. It is deliberately green-shifted away from the
+  global multicolour frame gold and the mono-white accent, so a gold-framed
+  or white card cannot carry it by accident. Never on lamps, never on
   ambience. The Watch's light is warm lamp amber and is never confused with
-  it.
-- Palette: black water, salt white, bell bronze, mourning violet, lamp amber,
-  drowned gold (reserved), wet-stone grey as the value floor. No true black.
+  it; bells are bronze, never gold.
+- Palette: black water, salt white, granite grey, bell bronze, mourning
+  violet, lamp amber, drowned gold (reserved), wet-stone grey as the value
+  floor. No true black.
 - Composition by mechanic family: Whispers shows the card's own subject
   half-submerged, lit from below by the reserved gold, the water still;
   Dread shows the bodies given going down into the dark as the Horror rises,
@@ -229,20 +241,14 @@ before it is written down.
 1. **Horror as an Axis: approved**, one lord at Rare (section 5).
 2. **Rite: kept, in the non-Dread colours** (white, a little red), never on
    a Horror (section 3).
-3. **The reserved hue: OPEN.** The owner wants black-gold overtones for the
-   Deep's voice. The palette review found a true gold collides in four
-   places: the global multicolour frame palette (`#e8c95a`, worn by every
-   two-colour card in the set), the mono-white accent (`#c9a84c`, the Watch's
-   own cards), Duat's tomb gold, and the Greek, Wu and Celtic gilt accents. A
-   reserved hue only works if nothing else in the set can be that colour.
-   Recommendation: keep the effect (gold light seen through black water) and
-   shift the hue green, a cold phosphor **drowned gold** (pale green-gold
-   highlight, deep olive-gold shadow) reserved for where the Deep speaks,
-   with the black water as the surround. Alternative: literal black-gold,
-   accepting that multicolour and white cards lose the reserved-hue
-   guarantee, which the register would then document as a trade.
+3. **The reserved hue: approved as recommended.** The owner wanted
+   black-gold overtones; a true gold collides with the global multicolour
+   frame palette, the mono-white accent, Duat's tomb gold and three other
+   sets' gilt, so the hue is the green-shifted phosphor drowned gold of
+   section 9 against black water, which keeps the black-and-gold read.
 4. **Six Duty looters: approved** (section 4).
-5. **World: Deep One names are in** (section 5); no other steer given.
+5. **World: Deep One names are in** (section 5), and **the town is our own
+   Nor'eastern fishing town** (section 1, working name Dunmarrow).
 
 With approval, the next deliverable is the 320-candidate overplan in the
 Yokai Nights concretion-doc shape, every row costed and overlap-checked,
