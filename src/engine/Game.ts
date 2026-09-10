@@ -629,16 +629,19 @@ export class Game {
           bottomed: bottomed.map(cardIdOf),
         });
         if (pending.thenOps) {
-          // The deferred entry stores only the controller. Tail ops were
-          // asserted target-free when stashed, so they cannot need cast-time
-          // targets or a source permanent while this action resumes them.
+          // The chooser can be the opponent of the effect's controller.
+          // Resume the target-free tail under its captured source context.
           runOps(
             st,
             this.db,
             emit,
-            { controller: pending.player, sourceCardId: 'foresee-continuation', targets: [] },
+            {
+              ...(pending.thenContext ?? { controller: pending.player, sourceCardId: 'foresee-continuation' }),
+              targets: [],
+            },
             pending.thenOps,
           );
+          checkStateBased(st, this.db, emit);
         }
         return;
       }
@@ -745,6 +748,30 @@ export class Game {
           variantKey: variantKeyOf(card),
         });
         fireTriggers(st, this.db, emit, 'arrives', perm);
+        return;
+      }
+
+      case 'activate': {
+        const perm = findPermanent(st, action.iid)!;
+        const ability = def(this.db, perm.cardId).activated!;
+        const plan = action.manaPlan ?? (ability.cost.mana
+          ? solveMana(st, this.db, player, ability.cost.mana)!
+          : []);
+        for (const iid of plan) findPermanent(st, iid)!.tapped = true;
+        if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
+        perm.tapped = true;
+        emit({ e: 'activated', player, iid: perm.iid, cardId: perm.cardId });
+        const specs = ability.targets ?? [];
+        runOps(st, this.db, emit, {
+          controller: player,
+          activated: true,
+          sourceCardId: perm.cardId,
+          sourceIid: perm.iid,
+          targets: action.targets ?? [],
+          ...(specs.length === 1 && specs[0].upTo !== undefined ? { targetBatch: true } : {}),
+        }, ability.ops);
+        // Like deferred-target triggers, this off-stack path owns its SBA.
+        checkStateBased(st, this.db, emit);
         return;
       }
 

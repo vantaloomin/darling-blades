@@ -130,6 +130,7 @@ describe('extra land drops', () => {
       player: 0,
       n: 1,
       thenOps: [{ op: 'extraLandDrop' }],
+      thenContext: { controller: 0, sourceCardId: 'x' },
     }]);
   });
 
