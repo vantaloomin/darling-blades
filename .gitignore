@@ -85,3 +85,9 @@ tools/save-editor.html
 # (src-tauri/target and src-tauri/gen/schemas are ignored by src-tauri/.gitignore)
 scripts/codex-dash/.cache/
 .venv-art/
+
+# Cloudflare Worker (worker/): local state and secrets
+worker/.wrangler/
+worker/.dev.vars
+worker/node_modules/
+worker/worker-configuration.d.ts

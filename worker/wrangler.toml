@@ -1,0 +1,25 @@
+# db-signals: the anonymous play-signals endpoint.
+# Spec: docs/plan-telemetry-and-accounts.md · rollout: docs/rollout-telemetry-and-accounts.md
+# Deploy: `npx wrangler deploy` from this directory with CLOUDFLARE_API_TOKEN and
+# CLOUDFLARE_ACCOUNT_ID in the environment (never in the repo).
+name = "db-signals"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+workers_dev = true
+# One hostname only. Version preview URLs would be extra public endpoints
+# that the privacy page does not name.
+preview_urls = false
+
+# Workers Analytics Engine. Retention is a fixed 90 days; the daily rollup
+# (T3) is what survives past it. The dataset name is versioned so a schema
+# change never mixes shapes in one table.
+[[analytics_engine_datasets]]
+binding = "SIGNALS"
+dataset = "db_signals_v1"
+
+[vars]
+# Stamped on every data point so junk from an unknown build is filterable.
+BUILD_LABEL = "spike-t0"
+
+[observability]
+enabled = false

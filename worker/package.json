@@ -1,0 +1,16 @@
+{
+  "name": "db-signals-worker",
+  "private": true,
+  "type": "module",
+  "description": "Darling Blades anonymous play-signals endpoint (Cloudflare Worker -> Workers Analytics Engine). Self-contained: its own lockfile, never part of the game bundle.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail --format pretty",
+    "typecheck": "wrangler types && tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "wrangler": "^4.131.0"
+  }
+}
