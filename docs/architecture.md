@@ -127,6 +127,7 @@ The full `GameEvent` union (`src/engine/events.ts`):
 | `graveyardTriggerFired` | `cardId`, `owner`, `when`, `instanceId?`        | A card's entersGraveyard ability fired as it was put into its owner's graveyard from any zone (dies, sacrifice, discard, mill, fizzle) |
 | `severed`               | `player`, `cardId`, `from`, `iid?`              | A card was severed (removed from the game) from the battlefield, a graveyard, or a deck into `player`'s severed pile                   |
 | `preserved`             | `player`, `cardId`                              | A Preserve activation severed the card from the graveyard and created its token copy (disambiguates from severGrave for telemetry)     |
+| `activated`             | `player`, `iid`, `cardId`                       | A tap-cost ability (Duty) was used: the source permanent tapped and its ops ran off-stack; emitted before the ops, after `manaTapped`   |
 | `foresaw`               | `player`, `kept`, `bottomed`                    | A foresee resolved: cardIds left on top / sent to the bottom (full info; the presenter redacts the opponent's).                        |
 | `triggerFired`          | `iid`, `when`                                   | A permanent's triggered ability fired.                                                                                                 |
 | `triggerFizzled`        | `iid`                                           | A queued targeted trigger had no legal target when its decision drained; no effect ran.                                                |
