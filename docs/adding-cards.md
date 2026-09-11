@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-09-04
+<!-- source-of-truth: src/config/rules.ts, src/engine/types.ts, src/data/cardTypes.ts, src/data/catalog.ts, src/data/cards/, src/engine/effects/EffectInterpreter.ts, src/engine/effects/targeting.ts, src/engine/statics.ts, src/engine/resolve.ts, src/data/glossary.ts, src/ui/rulesText.ts, src/ui/fx/HoloEffects.ts, src/ui/CardView.ts, src/meta/PackOpener.ts, src/meta/Achievements.ts, tests/data/catalog.test.ts, tests/data/gender.test.ts · last-verified: 2026-09-10
      If you change those files, update this doc or re-verify the date. -->
 
 # Adding cards
@@ -83,6 +83,32 @@ From `CardDef` in `src/engine/types.ts` (re-exported through
 | `skim`        | `{ cost: ManaCost }?`                  | Instant-speed **hand** action: pay the cost, discard this card, draw one. Type-agnostic; never touches the battlefield. |
 | `retell`      | `{ cost: ManaCost; ops?: EffectOp[] }?`| Alternative-cost cast from your graveyard; the card is severed after resolving. With `ops` the override resolves instead of the body (target-free); **without `ops` Retell recasts the printed body** — prefer that unless the override is a genuinely different mode. |
 | `hauntlink`   | `HauntlinkDef?`                        | Charm-speed, stack-free battlefield link action with its own cost. Noncreature Artifact/Enchantment only (validated); the linked rider is an attached-static layer, the cost may be paid again to move it immediately, and a linked carrier dies when its host leaves play. |
+| `activated`   | `ActivatedDef?`                        | **Duty** (1.8): a repeatable tap-cost ability, `{ cost: { tap: true, mana? }, ops, targets? }`. Creatures, artifacts and enchantments only, never lands; never beside `hauntlink` or `manaAbility`. Own Morning or Afternoon, empty stack, off-stack resolution; the carrier cannot tap the turn it arrives unless it has Warcry. Targets are chosen inline under the spell target rules. Validator rules below; the rules line is generated, never written. |
+
+### `activated` (Duty) validator rules
+
+`validateActivatedDef` (`src/engine/types.ts`) runs on every card in the
+catalog test and refuses:
+
+- a carrier that is a land, or anything other than a creature, artifact or
+  enchantment;
+- a carrier that also has `hauntlink` or `manaAbility`;
+- a cost that is not `{ tap: true }` or `{ tap: true, mana }`, or a mana cost
+  with a negative or non-integer part;
+- an empty `ops` list, or any op with `n: 'X'`;
+- an op that uses a target while `targets` is empty, or an op that needs an
+  inline target after a `foresee` (the tail resumes after the look-and-bottom
+  decision, when no target can be chosen any more);
+- a target kind outside `creature`, `player`, `any`, `yourCreature`,
+  `yourPermanent`, `yourGraveCreature`, `artifact`, `enchantment` and
+  `artifactOrEnchantment`; a `player` target with `marked` or `tapped`;
+  `upTo` on anything but a single spec with `upTo: 2`; and `moveMark` without
+  exactly two single-target permanent specs.
+
+The rules line is rendered by `activatedText` in `src/ui/rulesText.ts`: the
+tap pip, the mana cost if any, a colon, then the ops in the spell template.
+The glossary entry (`duty` in `src/data/glossary.ts`) carries the taught
+definition and the arrival rule; card text never repeats it.
 
 ### `cost()` shorthand
 
@@ -198,7 +224,7 @@ An `AbilityDef` (`src/engine/types.ts`) is one of: a **triggered/spell** ability
 | `propagated`             | whenever you Propagate.                                   |
 | `static`                 | continuous — handled by `statics.ts`, not the interpreter.| 
 
-- **A non-creature permanent must do something after it arrives.** One-time effects belong on Rituals or Charms; an Artifact or Enchantment whose only battlefield text is an arrival trigger is a spell that leaves a blank object behind (Chrome Medallion shipped that way in 1.7.0 and was reworked in 1.7.1). Ongoing text means a non-arrival trigger, a mana ability, Quest chapters, Hauntlink, or a static keyword, and `tests/data/inertPermanents.test.ts` enforces it pool-wide. A creature's body counts as ongoing; Skim does not, because it is a hand ability that never reaches the battlefield. Foresee 1 alone still may not be a card's only functional line: when a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture.
+- **A non-creature permanent must do something after it arrives.** One-time effects belong on Rituals or Charms; an Artifact or Enchantment whose only battlefield text is an arrival trigger is a spell that leaves a blank object behind (Chrome Medallion shipped that way in 1.7.0 and was reworked in 1.7.1). Ongoing text means a non-arrival trigger, a mana ability, Quest chapters, Hauntlink, a Duty (`activated`), or a static keyword, and `tests/data/inertPermanents.test.ts` enforces it pool-wide. A creature's body counts as ongoing; Skim does not, because it is a hand ability that never reaches the battlefield. Foresee 1 alone still may not be a card's only functional line: when a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture.
 
 **The v1 laws** (stated at the top of `types.ts` and enforced throughout):
 
@@ -581,7 +607,7 @@ recomputed from the save.
 2. **Fill the `CardDef`** — types, subtypes, cost (via `cost()`), colors,
    P/T for creatures, keywords, abilities. Multicolor nonland ⇒ `legendary`.
 3. **Behavior only** — encode triggers/statics/ops; **do not** write rules text.
-   - **A non-creature permanent must do something after it arrives.** One-time effects belong on Rituals or Charms; an Artifact or Enchantment whose only battlefield text is an arrival trigger is a spell that leaves a blank object behind (Chrome Medallion shipped that way in 1.7.0 and was reworked in 1.7.1). Ongoing text means a non-arrival trigger, a mana ability, Quest chapters, Hauntlink, or a static keyword, and `tests/data/inertPermanents.test.ts` enforces it pool-wide. A creature's body counts as ongoing; Skim does not, because it is a hand ability that never reaches the battlefield. Foresee 1 alone still may not be a card's only functional line: when a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture.
+   - **A non-creature permanent must do something after it arrives.** One-time effects belong on Rituals or Charms; an Artifact or Enchantment whose only battlefield text is an arrival trigger is a spell that leaves a blank object behind (Chrome Medallion shipped that way in 1.7.0 and was reworked in 1.7.1). Ongoing text means a non-arrival trigger, a mana ability, Quest chapters, Hauntlink, a Duty (`activated`), or a static keyword, and `tests/data/inertPermanents.test.ts` enforces it pool-wide. A creature's body counts as ongoing; Skim does not, because it is a hand ability that never reaches the battlefield. Foresee 1 alone still may not be a card's only functional line: when a common wants a small arrival effect, vary it across a life point, a token, a graveyard clause, or a self-grind so no single line becomes a set's texture.
 4. **Tokens** referenced by `createToken` must exist in `tokens.ts` with
    `token: true` (a catalog test enforces this).
 5. **Holo/frame** — nothing to author: variants are rolled per pulled copy,

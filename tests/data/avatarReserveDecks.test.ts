@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import { AVATARS } from '../../src/data/opponents';
 import { STARTER_DECKS } from '../../src/data/starterDecks';
-import type { CardDb, CardDef } from '../../src/engine/types';
+import { validateActivatedDef, type CardDb, type CardDef, type EffectOp } from '../../src/engine/types';
 import { validateDarlingsDeck, validateWarchestDeck } from '../../src/meta/darlings';
 import {
   isBasicLand,
@@ -26,6 +26,103 @@ const save = buildReserveMatrixFullOwnershipSave(CARD_DB);
 const PRE_STARBORNE_DB: CardDb = Object.fromEntries(
   Object.entries(CARD_DB).filter(([id]) => !id.startsWith('sb-')),
 ) as CardDb;
+
+describe('Duty target supply', () => {
+  const fixture = (id: string, fields: Partial<CardDef> = {}): CardDef => ({
+    id,
+    name: id,
+    types: ['creature'],
+    subtypes: [],
+    colors: [],
+    rarity: 'c',
+    ...fields,
+  });
+  const fixtureDb = (...cards: CardDef[]): CardDb => {
+    for (const card of cards) expect(validateActivatedDef(card), card.id).toEqual([]);
+    return { ...CARD_DB, ...Object.fromEntries(cards.map((card) => [card.id, card])) };
+  };
+
+  it.each(['direct', 'then', 'else'] as const)('counts artifact tokens created by Duty (%s)', (branch) => {
+    const token = fixture('synthetic-duty-artifact-token', { types: ['artifact'], token: true });
+    const createToken: EffectOp = { op: 'createToken', token: token.id, count: 1 };
+    const ops: EffectOp[] = branch === 'direct' ? [createToken] : [{
+      op: 'ifTargetMarked',
+      then: branch === 'then' ? [createToken] : [],
+      else: branch === 'else' ? [createToken] : [],
+    }];
+    const carrier = fixture('synthetic-duty-token-maker', {
+      activated: {
+        cost: { tap: true },
+        ops,
+        targets: branch === 'direct' ? undefined : [{ what: 'creature' }],
+      },
+    });
+    const db = fixtureDb(token, carrier);
+
+    expect([...deckTargetSupply([carrier.id], db)]).toEqual(['artifact', 'artifactOrEnchantment']);
+  });
+
+  it('rejects an artifact-targeting Duty until the deck supplies an artifact', () => {
+    const carrier = fixture('synthetic-duty-artifact-answer', {
+      activated: {
+        cost: { tap: true },
+        targets: [{ what: 'artifact' }],
+        ops: [{ op: 'sever', to: 'target' }],
+      },
+    });
+    const artifact = fixture('synthetic-duty-artifact', { types: ['artifact'] });
+    const db = fixtureDb(carrier, artifact);
+
+    expect(hasNoLegalTargets(carrier, deckTargetSupply([carrier.id], db))).toBe(true);
+    expect(hasNoLegalTargets(carrier, deckTargetSupply([carrier.id, artifact.id], db))).toBe(false);
+  });
+
+  it('rejects a marked-creature Duty until the deck supplies a mark generator', () => {
+    const carrier = fixture('synthetic-duty-marked-answer', {
+      activated: {
+        cost: { tap: true },
+        targets: [{ what: 'creature', marked: true }],
+        ops: [{ op: 'sever', to: 'target' }],
+      },
+    });
+    const generator = fixture('synthetic-duty-arrival-mark', {
+      abilities: [{ when: 'arrives', ops: [{ op: 'addCounters', n: 1, to: 'self' }] }],
+    });
+    const db = fixtureDb(carrier, generator);
+
+    expect(hasNoLegalTargets(carrier, deckTargetSupply([carrier.id], db))).toBe(true);
+    expect(hasNoLegalTargets(carrier, deckTargetSupply([carrier.id, generator.id], db))).toBe(false);
+  });
+
+  it.each([
+    ['creature', 'direct'],
+    ['yourCreature', 'direct'],
+    ['creature', 'else'],
+    ['yourCreature', 'else'],
+  ] as const)('a Duty that marks a %s (%s) supplies another card\'s marked target', (what, branch) => {
+    const addCounters: EffectOp = { op: 'addCounters', n: 1, to: 'target' };
+    const generator = fixture('synthetic-duty-target-mark', {
+      activated: {
+        cost: { tap: true },
+        targets: [{ what }],
+        ops: branch === 'direct' ? [addCounters] : [{ op: 'ifTargetMarked', then: [], else: [addCounters] }],
+      },
+    });
+    const answer = fixture('synthetic-duty-supported-answer', {
+      types: ['charm'],
+      abilities: [{
+        when: 'spell',
+        targets: [{ what: 'creature', marked: true }],
+        ops: [{ op: 'sever', to: 'target' }],
+      }],
+    });
+    const db = fixtureDb(generator, answer);
+
+    expect(hasNoLegalTargets(answer, deckTargetSupply([answer.id], db))).toBe(true);
+    expect(deckTargetSupply([generator.id], db).has('marked')).toBe(true);
+    expect(hasNoLegalTargets(answer, deckTargetSupply([answer.id, generator.id], db))).toBe(false);
+  });
+});
 
 describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
   for (const avatar of AVATARS) {

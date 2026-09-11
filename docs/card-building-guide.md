@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/engine/types.ts, src/data/glossary.ts, balance/power-scores.json, docs/keyword-map.md · last-verified: 2026-08-28 · design doc — how to cost and combine cards; re-verify when a keyword, mechanic, or the power formula changes -->
+<!-- source-of-truth: src/engine/types.ts, src/data/glossary.ts, balance/power-scores.json, docs/keyword-map.md · last-verified: 2026-09-10 · design doc — how to cost and combine cards; re-verify when a keyword, mechanic, or the power formula changes -->
 
 # Card Building Guide
 
@@ -154,7 +154,7 @@ Three things fall out of this:
   cannot demonstrate the weakness. Treat their win-rate numbers with suspicion
   and check them against the theme precons too.
 
-## 5. The twelve mechanics
+## 5. The thirteen mechanics
 
 | Mechanic | Cards | Sets | Status | Watch for |
 | --- | --- | --- | --- | --- |
@@ -170,6 +170,7 @@ Three things fall out of this:
 | **Mark** | 13 | 7 | Evergreen, **scarce** | Only 13 collectible cards create marks and **10 of them mark only themselves**. Any payoff that reads marks needs its own enablers shipped alongside it. |
 | **Rite** | 11 | 1 | Re-usable | Sacrifice creatures as an additional cost. Only one set so far, which is history rather than a rule. **Needs fodder shipped alongside it**, which is the job Duat did; a set with a token package already has it. |
 | **Champion Awakening** | 7 | 3 | Rare | A one-way upgrade granting listed stats and keywords. Smallest population in the game; treat as a marquee tool. |
+| **Duty** | 0 | 0 | New (1.8) | A repeatable tap ability on a creature, artifact or enchantment. **Costed like a Dawn trigger the player chooses to fire** (2.0x the per-trigger rate on a creature, 3.0x on a non-creature, minus 0.4 per activation mana), so it is never a free sprinkle. **On a body it is priced against the attack it forgoes**: a tapped creature neither attacks nor blocks, and Attack 2 or more carriers pay about 1.0 less in precedent. Repeatable removal on a tap never appears below six mana or below rare in twenty years of Magic; see [plan-tap-abilities.md](plan-tap-abilities.md) section 5 for the anchors and the `NEEDS MATH` bands. No shipping cards yet; Drowned Deep prints the first. |
 
 ### Nine Lives against marks: INTENDED FRICTION, ruled 2026-08-26
 
