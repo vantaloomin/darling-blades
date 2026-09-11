@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-04
+<!-- source-of-truth: src/config/rules.ts, src/engine/Game.ts, src/engine/phases.ts, src/engine/combat/damage.ts, src/engine/combat/legality.ts, src/engine/sba.ts, src/engine/statics.ts, src/engine/actions.ts, src/engine/resolve.ts, src/engine/effects/targeting.ts · last-verified: 2026-09-10
      If you change those files, update this doc or re-verify the date. -->
 
 # Rules — the digital ruleset as implemented
@@ -387,6 +387,54 @@ event even on a board with nothing marked, where it is a silent no-op.
 Propagate adds no player action and writes nothing new to the replay log, so
 the log version and **the rules revision both stay unchanged** (the Preserve
 precedent above bumped the log only because it recorded a new action).
+
+### Duty (tap ability)
+
+A creature, artifact or enchantment with an `activated` block
+(`CardDef.activated`, 1.8) carries a **Duty**: a repeatable ability its
+controller pays for by tapping the permanent, plus any listed mana. The rules
+line opens with the same tap icon lands use (`pip-T`, drawn smaller), never
+the word "tap"; the glossary teaches the mechanic under the name Duty. The
+engine field, the action and the event all say `activated`.
+
+**Timing.** Duty is sorcery-speed and stack-free, like `preserveCard` and
+`linkHaunt`: the active player's own Morning or Afternoon, empty stack only.
+The `activate` action names the source permanent and, when the ability
+targets, its targets inline, chosen up front under the spell target rules and
+never deferred. Legality is `activatedBlockers` in `src/engine/actions.ts`
+(with `canActivate` beside `canAttack` in `combat/legality.ts`), and the
+legal-action list holds one `activate` per legal target choice. The blockers,
+in order: not your main phase; stack not empty; source not on the
+battlefield; not under your control; already tapped; arrived this turn without
+Warcry; mana cost unpayable; no legal target.
+
+**Resolution.** Paying the cost taps the source and the mana; the ops then run
+immediately in order with the permanent as source, off the stack, and a
+state-based check runs afterwards (the deferred-trigger lesson of 1.7.2). The
+opponent gets no response window, the rule Skim, Preserve and Hauntlink
+already follow. One deferral is allowed: a `foresee` op opens the usual
+look-and-bottom decision, and any ops after it resume under the activating
+player's context once that decision is made (`thenContext` on the pending
+decision); the validator forbids an inline target after a Foresee for exactly
+that reason.
+
+**The arrival rule.** A permanent cannot tap for its Duty the turn it arrives
+unless it has Warcry. That is one rule for every carrier, creatures and
+non-creatures alike, and it is the rule mana creatures already follow
+(`isSummoningSick` in `statics.ts` applies to every permanent). The
+controller's next untap step refreshes the Duty like any other tap.
+
+**Carriers and combinations.** Lands never carry a Duty; their tap is the mana
+ability. A Duty carrier cannot also carry `manaAbility` or `hauntlink` in this
+revision, and the validator refuses both, along with an X cost, an empty op
+list and a targeting op without a target spec (the full list is in
+[adding-cards.md](adding-cards.md)). Tapping for a Duty is a real cost on a
+creature: a tapped creature neither attacks nor blocks that turn, and the AI
+prices a creature's Duty against the attack it forgoes.
+
+**Records.** The `activate` action is a new replay entry, so the log bumped to
+v12; the rules revision stays 4, since no existing card changes behaviour. The
+`activated` game event is logged before the ops run, after `manaTapped`.
 
 ## Board caps
 
