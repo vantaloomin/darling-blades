@@ -1,4 +1,4 @@
-<!-- source-of-truth: LICENSE, README.md, docs/plan-telemetry-and-accounts.md, docs/legal/privacy-policy.md, docs/legal/notices.md · last-verified: 2026-09-10 · DRAFT terms of service as of 1.8 — not live, not legal advice -->
+<!-- source-of-truth: LICENSE, README.md, docs/plan-telemetry-and-accounts.md, docs/legal/privacy-policy.md, docs/legal/notices.md · last-verified: 2026-09-11 · DRAFT terms of service as of 1.8 — not live, not legal advice -->
 
 <!--
 DRAFT, written as of the 1.8 release. Not published. Not reviewed by a lawyer.
@@ -113,4 +113,4 @@ change means you accept the new terms.
 
 ## 13. Contact
 
-[OPERATOR NAME] · [CONTACT EMAIL]
+[OPERATOR NAME] · BladeDarlings@gmail.com
