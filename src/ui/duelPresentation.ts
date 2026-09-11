@@ -4,7 +4,8 @@
  * pin without importing a scene into UI tests.
  */
 
-import type { CardDef } from '../engine/types';
+import type { Action } from '../engine/actions';
+import type { CardDef, TargetRef } from '../engine/types';
 import { rulesText } from './rulesText';
 
 export type DuelSide = 'you' | 'opponent';
@@ -140,6 +141,85 @@ export function hauntlinkOverlap(side: DuelSide, slot = 0): { x: number; y: numb
 export function hauntlinkActionLabel(hasLegalAction: boolean, linked: boolean): 'Link' | 'Relink' | null {
   if (!hasLegalAction) return null;
   return linked ? 'Relink' : 'Link';
+}
+
+export const DUTY_ACTION_LABEL = 'Perform Duty';
+export const DUTY_CANCEL_LABEL = 'Cancel';
+export const DUTY_PLAYER_LABELS = ['You', 'Opponent'] as const;
+
+export function dutyNarration(cardName: string): string {
+  return `${cardName} performs its Duty.`;
+}
+
+const DUTY_BLOCKED_COPY: Readonly<Record<string, string>> = {
+  'Activated abilities can only be used during your Morning or Afternoon': 'Duty: only in your Morning or Afternoon.',
+  'Activated abilities need an empty stack': 'Duty: wait for the stack to clear.',
+  'Activated source is not on the battlefield': 'Duty: this permanent is not on the battlefield.',
+  'Activated source is not under your control': 'Duty: you do not control this permanent.',
+  'permanent has no activated ability': 'Duty: this permanent has no Duty.',
+  'Activated source is tapped': 'Duty: this permanent is tapped.',
+  'Activated source cannot tap the turn it arrives unless it has Warcry': 'Duty: it arrived this turn.',
+  'cannot pay cost': 'Duty: you cannot pay the cost.',
+  'no legal targets for activated ability': 'Duty: no legal target.',
+};
+
+/** Translate engine diagnostics without leaking engine terminology into notices. */
+export function dutyBlockedCopy(reason: string | null): string | null {
+  if (reason === null) return null;
+  return Object.hasOwn(DUTY_BLOCKED_COPY, reason)
+    ? DUTY_BLOCKED_COPY[reason]
+    : 'Duty: you cannot use it right now.';
+}
+
+export type DutyAction = Extract<Action, { type: 'activate' }>;
+
+/** Lands and ordinary attached Auras have no board tile, so they need a picker. */
+export function dutyTargetsNeedPicker(targets: readonly TargetRef[], visibleIids: ReadonlySet<number>): boolean {
+  return targets.some((target) => target.kind === 'grave' ||
+    (target.kind === 'permanent' && !visibleIids.has(target.iid)));
+}
+
+function sameDutyTarget(a: TargetRef, b: TargetRef): boolean {
+  if (a.kind === 'permanent' && b.kind === 'permanent') return a.iid === b.iid;
+  if (a.kind === 'player' && b.kind === 'player') return a.player === b.player;
+  if (a.kind === 'stackItem' && b.kind === 'stackItem') return a.sid === b.sid;
+  return a.kind === 'grave' && b.kind === 'grave' && a.player === b.player && a.index === b.index;
+}
+
+/**
+ * Narrow only enumerated legal actions. Ordinary multi-target specs retain
+ * their order (notably moveMark's donor and recipient); upTo targets form a
+ * set, so either member of the engine's canonical pair can be picked first.
+ * `complete` always retains the original engine action, including its plan.
+ */
+export function dutyTargetStep(
+  actions: readonly DutyAction[],
+  picked: readonly TargetRef[],
+  unordered = false,
+): { actions: DutyAction[]; targets: TargetRef[]; complete: DutyAction | null } {
+  const duplicate = unordered && picked.some((target, index) =>
+    picked.slice(0, index).some((previous) => sameDutyTarget(previous, target)),
+  );
+  const matches = duplicate ? [] : actions.filter((action) => {
+    const targets = action.targets ?? [];
+    return picked.every((target, index) => unordered
+      ? targets.some((candidate) => sameDutyTarget(candidate, target))
+      : targets[index] !== undefined && sameDutyTarget(targets[index], target));
+  });
+  const targets: TargetRef[] = [];
+  for (const action of matches) {
+    const remaining = unordered
+      ? (action.targets ?? []).filter((target) => !picked.some((chosen) => sameDutyTarget(chosen, target)))
+      : (action.targets ?? []).slice(picked.length, picked.length + 1);
+    for (const target of remaining) {
+      if (!targets.some((candidate) => sameDutyTarget(candidate, target))) targets.push(target);
+    }
+  }
+  return {
+    actions: matches,
+    targets,
+    complete: matches.find((action) => (action.targets?.length ?? 0) === picked.length) ?? null,
+  };
 }
 
 /** Controller-side rule for legal target rings, independent of spell intent. */

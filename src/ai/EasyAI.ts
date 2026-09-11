@@ -6,6 +6,7 @@ import type { CardDb } from '../engine/types';
 import { def, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
+import { chooseActivate } from './activatedPolicy';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
 import { chooseDarlingPaydown } from './darlingPolicy';
@@ -158,7 +159,11 @@ export class EasyAI implements AIPlayer {
   }
 
   private main(view: PlayerView, legal: Action[]): Action {
-    const nonConcede = legal.filter((l) => l.type !== 'concede');
+    const activate = chooseActivate(view, this.db, legal);
+    // Noise may skip Duty, but cannot bypass its timing or target policy.
+    const nonConcede = legal.filter((l) =>
+      l.type !== 'concede' && (l.type !== 'activate' || l === activate),
+    );
     const paydown = chooseDarlingPaydown(view, nonConcede);
     if (paydown) return paydown;
     const reserveLand = chooseReserveLand(view, this.db, nonConcede);
@@ -180,6 +185,7 @@ export class EasyAI implements AIPlayer {
       (cast) => this.castScore(view, cast),
     );
     if (preserve) return preserve;
+    if (activate) return activate;
     if (casts.length === 0 && skimPool.length > 0) {
       return skimPool[0];
     }

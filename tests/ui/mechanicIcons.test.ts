@@ -13,7 +13,7 @@ import { CARD_TYPE_DEFINITIONS } from '../../src/ui/rulesText';
 describe('mechanic and card-type icons', () => {
   it('covers every named mechanic plus the two zone terms', () => {
     for (const id of Object.keys(MECHANIC_NAMES)) {
-      expect(MECHANIC_ICON_KEY[id as keyof typeof MECHANIC_ICON_KEY]).toBe(`mechanic-${id}`);
+      expect(MECHANIC_ICON_KEY[id as keyof typeof MECHANIC_ICON_KEY]).toBe(id === 'duty' ? 'pip-T' : `mechanic-${id}`);
     }
     expect(MECHANIC_ICON_KEY.warchest).toBe('mechanic-warchest');
     expect(MECHANIC_ICON_KEY.darlings).toBe('mechanic-darlings');

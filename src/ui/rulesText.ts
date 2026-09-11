@@ -306,6 +306,15 @@ export function skimText(d: CardDef): string | undefined {
   return `Skim ${manaCostText(d.skim.cost)}`;
 }
 
+/** Plain-text consumers retain {T}; CardView replaces it with the tap pip. */
+export function activatedText(d: CardDef): string | undefined {
+  if (!d.activated) return undefined;
+  const mana = d.activated.cost.mana ? manaCostText(d.activated.cost.mana) : undefined;
+  const cost = mana && mana !== '{0}' ? `{T}, ${mana}` : '{T}';
+  const effect = abilityText({ when: 'spell', ops: d.activated.ops, targets: d.activated.targets }, d);
+  return `${cost}: ${effect}`;
+}
+
 export function retellText(d: CardDef): string | undefined {
   if (!d.retell) return undefined;
   return `Retell ${manaCostText(d.retell.cost)}: You may cast this from your graveyard, then sever it.`;
@@ -506,6 +515,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
   const lines: string[] = [];
   const skim = skimText(d);
   if (skim) lines.push(skim);
+  const activated = activatedText(d);
+  if (activated) lines.push(activated);
   if (d.keywords?.length) {
     if (opts?.reminders) {
       for (const k of d.keywords) lines.push(`${KEYWORD_NAMES[k]}: ${KEYWORD_REMINDER[k]}`);

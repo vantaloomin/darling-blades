@@ -42,6 +42,7 @@ export const MECHANIC_ICON_KEY: Record<MechanicIconId, string> = {
   rite: 'mechanic-rite',
   nineLives: 'mechanic-nineLives',
   preserve: 'mechanic-preserve',
+  duty: 'pip-T', // Duty teaches the same tap glyph the card face uses.
   warchest: 'mechanic-warchest',
   darlings: 'mechanic-darlings',
 };
@@ -88,7 +89,7 @@ const KEYWORD_ICON_PATH: Record<Keyword, string> = {
  * Awakening already own that motif) and Rite is a chalice rather than a blade
  * or a droplet (First Blade, Deathblade and Blood Oath own those).
  */
-const MECHANIC_ICON_PATH: Record<MechanicIconId, string> = {
+const MECHANIC_ICON_PATH: Record<Exclude<MechanicIconId, 'duty'>, string> = {
   // A card parted along a clean diagonal: cut out, never coming back.
   sever: 'M6 6 L14 6 L26 38 L6 38 Z M20 6 L38 6 L38 38 L32 38 Z',
   // The top card of a deck lifted clear so you can read it.
@@ -197,6 +198,8 @@ export function bakeKeywordIcons(scene: Phaser.Scene): void {
     bakeChip(scene, KEYWORD_ICON_KEY[keyword], KEYWORD_ICON_PATH[keyword]);
   }
   for (const mechanic of Object.keys(MECHANIC_ICON_KEY) as MechanicIconId[]) {
+    // ManaSymbols owns the shared tap texture and its bake.
+    if (mechanic === 'duty') continue;
     bakeChip(scene, MECHANIC_ICON_KEY[mechanic], MECHANIC_ICON_PATH[mechanic]);
   }
   for (const phase of Object.keys(PHASE_ICON_KEY) as PhaseIconId[]) {

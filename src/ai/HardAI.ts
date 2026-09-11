@@ -5,6 +5,7 @@ import type { CardDb, PlayerId } from '../engine/types';
 import { opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
+import { scoredActivationCandidates } from './activatedPolicy';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { determinize, simDb } from './determinize';
 import { evaluate } from './evaluate';
@@ -226,6 +227,8 @@ export class HardAI implements AIPlayer {
   private searchMain(view: PlayerView, legal: Action[]): Action {
     const baseline = this.medium.chooseAction(view, legal);
     if (baseline.type === 'linkHaunt') return baseline;
+    const activations = new Map(scoredActivationCandidates(view, this.db, legal)
+      .map(({ action, value }) => [action, value]));
     // Keep the narrow candidate set for now. It compares Skim, Retell,
     // Empower, Rite, and Darling casts against Medium's baseline; making passStep a candidate
     // is future work. Skim must not be offered as a lookahead line when its
@@ -237,6 +240,7 @@ export class HardAI implements AIPlayer {
           (a.type === 'castSpell' &&
             (a.empowered === true || a.retell === true || isRiteCast(view, this.db, a))) ||
           a.type === 'preserveCard' ||
+          (a.type === 'activate' && activations.has(a)) ||
           a.type === 'castDarling',
       )
       // evaluate() deliberately strips until-EOT mods. When positive target
@@ -263,6 +267,9 @@ export class HardAI implements AIPlayer {
       }
       if (candidate.type === 'preserveCard') {
         return preserveActionValue(view, this.db, candidate);
+      }
+      if (candidate.type === 'activate') {
+        return activations.get(candidate) ?? -Infinity;
       }
       if (candidate.type !== 'castSpell') return -Infinity;
       const cardId = candidate.retell && candidate.graveIndex !== undefined
@@ -303,13 +310,19 @@ export class HardAI implements AIPlayer {
     const preserveCandidates = rankedCandidates.filter(
       (candidate) => candidate.type === 'preserveCard',
     ).slice(0, 1);
+    // Like Preserve, the best Duty line survives the ordinary cast fanout cap.
+    const activateCandidates = rankedCandidates.filter(
+      (candidate) => candidate.type === 'activate',
+    ).sort((a, b) => candidateScore(b) - candidateScore(a)).slice(0, 1);
     const cappedCandidates = [
       ...riteCandidates,
       ...preserveCandidates,
+      ...activateCandidates,
       ...rankedCandidates
         .filter(
           (candidate) =>
-            !isRiteCast(view, this.db, candidate) && candidate.type !== 'preserveCard',
+            !isRiteCast(view, this.db, candidate) && candidate.type !== 'preserveCard' &&
+            candidate.type !== 'activate',
         )
         .slice(0, 8),
     ];
