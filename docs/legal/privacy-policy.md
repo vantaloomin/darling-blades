@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, src/version.ts, src/meta/SaveManager.ts, src/meta/services.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs · last-verified: 2026-09-10 · DRAFT privacy policy as of 1.8 — not live, not legal advice; the field list must match src/meta/playSignals.ts once it exists -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, src/version.ts, src/meta/SaveManager.ts, src/meta/services.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs · last-verified: 2026-09-11 · DRAFT privacy policy as of 1.8 — not live, not legal advice; the field list must match src/meta/playSignals.ts once it exists -->
 
 <!--
 DRAFT, written as of the 1.8 release (telemetry wave T2). Not published. Not
@@ -28,7 +28,7 @@ them off in Settings at any time.
 ## 1. Who is responsible
 
 [OPERATOR NAME] is responsible for the information described here (the "data
-controller" under the GDPR). Contact: [CONTACT EMAIL].
+controller" under the GDPR). Contact: BladeDarlings@gmail.com.
 
 ## 2. Your save stays on your device
 
@@ -152,7 +152,7 @@ Darling Blades is made for players aged 13 and over, and it is not directed
 at children under 13. Play stats summaries contain no name, identifier, or
 other personal information, so we cannot tell a child's summary from anyone
 else's, and we treat every one the same way. If you believe a child
-under 13 has given us personal information, contact [CONTACT EMAIL] and we
+under 13 has given us personal information, contact BladeDarlings@gmail.com and we
 will delete it.
 
 ## 5. Your rights
@@ -169,7 +169,7 @@ how it is used, and to complain to your local data protection authority.
 We do not sell or share personal information as the CCPA defines those terms,
 and we honour Global Privacy Control as an opt-out signal.
 
-To use any right, or to ask a question, email [CONTACT EMAIL]. We will reply
+To use any right, or to ask a question, email BladeDarlings@gmail.com. We will reply
 within 30 days.
 
 ## 6. International transfers
@@ -194,4 +194,4 @@ history.
 
 ## 9. Contact
 
-[OPERATOR NAME] · [CONTACT EMAIL]
+[OPERATOR NAME] · BladeDarlings@gmail.com

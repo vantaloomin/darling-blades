@@ -1,4 +1,4 @@
-<!-- source-of-truth: LICENSE, README.md, package.json, src-tauri/Cargo.toml, docs/art-pipeline.md · last-verified: 2026-09-10 · DRAFT legal notices template — not live, not legal advice -->
+<!-- source-of-truth: LICENSE, README.md, package.json, src-tauri/Cargo.toml, docs/art-pipeline.md · last-verified: 2026-09-11 · DRAFT legal notices template — not live, not legal advice -->
 
 <!--
 DRAFT. Not published.
@@ -29,7 +29,7 @@ Blades name and logo are not covered by the MIT License. All rights reserved.
 You are welcome to share screenshots, videos, and streams of the game, and to
 make non-commercial fan content about it. For anything else, including
 commercial use or using the art in another project, ask first at
-[CONTACT EMAIL].
+BladeDarlings@gmail.com.
 
 <!-- OPTIONAL, owner decision (docs/legal/README.md, decision 2):
 The card and scene art was created with the help of AI image generation tools
