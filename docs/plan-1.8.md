@@ -299,7 +299,9 @@ Numbered so rulings can cite them. Recommendations are the first option.
 3. **D3 Land economy. RULED 2026-09-11: convert the 27 utility taplands
    into Duty artifacts with a tap ability.** Fable authors the conversion
    slate (name, cost, ability per card) after the tap-ability rules text and
-   glossary land; owner approves; Codex transcribes. Drop tables,
+   glossary land; owner approves; Codex transcribes. **Slate authored
+   2026-09-10: [plan-land-economy.md](plan-land-economy.md) (27 rows,
+   costed, awaiting approval).** Drop tables,
    collectionPct and the Assay follow the pool change.
 4. **D4 Dread of the Deep. RULED 2026-09-11: in**, as an any-number
    sacrifice with a discount of one generic mana per two points of combined
