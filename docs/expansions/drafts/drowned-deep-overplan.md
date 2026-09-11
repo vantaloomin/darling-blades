@@ -15,7 +15,7 @@ density and the overlap audit as cut constraints.
 ## Rarity target
 
 Cut: **124 C / 75 R / 23 SR / 16 SSR / 12 UR = 250.** Overplan: 160 C / 96 R
-/ 30 SR / 20 SSR / 14 UR = 320. Multicolour only at R and above, under ten
+/ 30 SR / 22 SSR / 14 UR = 322. Multicolour only at R and above, under ten
 percent of the pool.
 
 ## How to read a row
@@ -53,14 +53,15 @@ percent of the pool.
 | dd-the-reef-that-walks | The Reef That Walks | UR | G | Creature, Horror | {6}{G}{G} | 7/8 | Overrun. Dread. Arrives: put a Mark on each other creature you control. | Coral grows on whatever stands still long enough. The reef stopped standing still. | core |
 | dd-old-marrow | Old Marrow, Keeper of the Salt Marsh | UR | G | Creature, Human Witch, legendary | {3}{G}{G} | 4/6 | Bulwark. Duty, {1}: create a 2/2 green Kelp Shade token. | She plants the drowned where the reeds are thickest, and something always comes up. | core |
 | dd-brenna-gale | Brenna Gale, Storm-Caller of the Reach | UR | R | Creature, Human, legendary | {2}{R}{R} | 4/3 | Warcry. Rage. Duty: damage target creature 2. | She can hold the storm or hold the line. Not both, and she knows it. | core |
-| dd-wreckfire | Wreckfire | UR | R | Ritual | {2}{R}{R} | none | Damage all creatures 3. Whispers {1}{R}{R}. | The wreckers light the false beacon, and the sea lights everything else. | core |
 | dd-the-choir-below | The Choir Below | UR | U/B | Enchantment, legendary | {2}{U}{B} | none | During your Dawn: grind self 2. Duty, {1}: Foresee 1, then draw 1. | They sing in the voices of the people you miss, and they are very good at it. | flex |
 | dd-the-lantern-watch | The Lantern Watch | UR | W/U | Enchantment, legendary | {1}{W}{U} | none | Your creatures get +0/+1. Your creatures have Warding Gaze. Duty: tap target creature. | Every lamp on the coast has a woman behind it, and every woman has a reason. | flex |
+| dd-cinderjaw | Cinderjaw, the Fire That Swims | UR | R | Creature, Deep One Horror, legendary | {4}{R}{R} | 5/4 | Warcry. Duty, {R}: damage target creature 2. Whenever this attacks, damage opponent 2. Whispers {3}{R}{R}. | The town burns its wrecks to keep the Deep away. The Deep learned to like it hot. | core |
 
-## Double Super Rare (20; cut keeps 16)
+## Double Super Rare (22; cut keeps 16)
 
 | ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dd-wreckfire | Wreckfire | SSR | R | Ritual | {2}{R}{R} | none | Damage all creatures 4 and damage opponent 4. Whispers {1}{R}{R}. | The wreckers light the false beacon, and the sea lights everything else. | core |
 | dd-harbourmaster | Constance Reyne, Harbourmaster | SSR | W | Creature, Human Warden, legendary | {3}{W}{W} | 3/4 | Sentinel. Duty, {2}: create a 1/1 white Lantern Wisp token with Skyborne. | She logs every boat that leaves and every boat that returns. The ledgers do not match. | core |
 | dd-gate-of-salt | The Salt Gate | SSR | W | Artifact | {2}{W} | none | Duty: prevent combat this turn. During your Dawn: gain 1 life. | The gate holds the tide out and the town in. Nobody has asked which it was built for. | core |
 | dd-vigil-at-low-water | Vigil at Low Water | SSR | W | Ritual | {3}{W}{W} | none | Destroy all creatures. Gain 4 life and Foresee 1. Whispers {3}{W}. | At low water the town walks out to see what the sea has left, and prays it is nothing. | core |
@@ -534,9 +535,13 @@ are provisional until the engine wave lands them.
 
 **Open for the owner:**
 
-- **Wreckfire** (UR): a 3-damage sweep reads 3.4 cold against the Ultra Rare
-  budget at any cost the pool allows (Ragnarok, SSR, sets the floor at three
-  mana). Recommend Super Rare, and promote a creature.
+- **Wreckfire**: RULED 2026-09-11, demoted to Double Super Rare, and grown to earn
+  it: "Damage all creatures 4 and damage opponent 4. Whispers {1}{R}{R}" at
+  {2}{R}{R}, one mana above Ragnarok (the SSR floor for a 4-damage sweep) with the
+  set's line on top. The Ultra Rare slot it leaves is filled by a new red Horror,
+  **Cinderjaw, the Fire That Swims** ({4}{R}{R} 5/4, Warcry, Duty {R}: 2 damage
+  to a creature, attacks: 2 to the opponent, Whispers {3}{R}{R}), the set's first
+  red Deep One and its Whispers creature at the top of the file.
 - **Lightkeeper's Oath** (SSR) and **Vigil Bell** (R): the mass tap has no
   engine op and is priced as three single taps, certainly low (Sleep is a fair
   four-mana rare in Magic); held at their designed costs, NEEDS MATH, and
@@ -574,7 +579,7 @@ floor.
 | `dd-the-brood-below` | {4}{B}{B} 5/5 | {5}{B}{B} 5/5; Dread. Arrives: create two 2/2 black Deep-Spawn tokens. | +4.11 | +0.53 | hand redesign |
 | `dd-the-reef-that-walks` | {6}{G}{G} 8/8 | {6}{G}{G} 7/8 | +0.96 | +0.46 | attack -1 |
 | `dd-old-marrow` | {3}{G}{G} 4/6 | {3}{G}{G} 4/6; "Duty: create a 2/2 green Kelp Shade token." to "Duty, {1}: create a 2/2 green Kelp Shade token." | +0.77 | +0.37 | Duty +{1} |
-| `dd-wreckfire` | {3}{R}{R} | {2}{R}{R}; Damage all creatures 3. Whispers {1}{R}{R}. | -4.23 | -3.41 | hand redesign |
+| `dd-wreckfire` | {3}{R}{R} UR | {2}{R}{R} SSR; Damage all creatures 4 and damage opponent 4. Whispers {1}{R}{R}. | -4.23 | see cut board | hand redesign, rarity move (owner) |
 | `dd-the-choir-below` | {2}{U}{B} | {2}{U}{B}; "Duty: Foresee 1, then draw 1." to "Duty, {1}: Foresee 1, then draw 1." | +1.09 | +0.69 | Duty +{1} |
 | `dd-the-lantern-watch` | {2}{W}{U} | {1}{W}{U}; Your creatures get +0/+1. Your creatures have Warding Gaze. Duty: tap target creature. | -2.56 | -0.74 | hand redesign |
 | `dd-harbourmaster` | {2}{W}{W} 3/4 | {3}{W}{W} 3/4; "Duty: create a 1/1 white Lantern Wisp token with Skyborne." to "Duty, {2}: create a 1/1 white Lantern Wisp token with Skyborne." | +1.99 | +0.37 | Duty +{1}, cost +1, Duty +{1} |
