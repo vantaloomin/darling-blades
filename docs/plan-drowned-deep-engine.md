@@ -1,11 +1,11 @@
-<!-- source-of-truth: src/engine/types.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/resolve.ts, src/engine/mana.ts, src/engine/effects/EffectInterpreter.ts, src/engine/phases.ts, src/meta/Replay.ts, src/ai/ritePolicy.ts, src/ai/HardAI.ts, src/scenes/DuelScene.ts, docs/plan-1.8.md, docs/plan-tap-abilities.md, docs/plan-expansion-slate.md, docs/rules.md · last-verified: 2026-09-11 · engine spec — the Drowned Deep set mechanics (Whispers, Dread of the Deep), RULED 2026-09-11; re-verify when the wave lands -->
+<!-- source-of-truth: src/engine/types.ts, src/engine/actions.ts, src/engine/Game.ts, src/engine/resolve.ts, src/engine/mana.ts, src/engine/effects/EffectInterpreter.ts, src/engine/phases.ts, src/meta/Replay.ts, src/ai/ritePolicy.ts, src/ai/HardAI.ts, src/scenes/DuelScene.ts, docs/plan-1.8.md, docs/plan-tap-abilities.md, docs/plan-expansion-slate.md, docs/rules.md · last-verified: 2026-09-11 · engine spec — the Drowned Deep set mechanics (Whispers, Tithe), RULED 2026-09-11; re-verify when the wave lands -->
 
-# The Drowned Deep engine wave: Whispers and Dread of the Deep
+# The Drowned Deep engine wave: Whispers and Tithe
 
 The set mechanics for 1.8's Large set, specified for implementation. The
 slate fixed Whispers (the madness analog) as the headline on 2026-07-24 and
 the 1.8 fork closed on it 2026-08-24 because it closes an existing loop: Dark
-Tales shipped a discard engine with no discard payoff. Dread of the Deep (the
+Tales shipped a discard engine with no discard payoff. Tithe (the
 emerge analog) is the second mechanic.
 
 **Status 2026-09-11: RULED. Every owner decision in section 8 is closed; the
@@ -23,7 +23,7 @@ execution and a new `Awaiting` kind across roughly 120 switch sites, the
 1.7.2 hardlock trap at its largest. The owner's ruling sidesteps that
 without giving up the payoff: **Whispers is a fresh-graveyard cast** (the
 card is tagged when it enters the graveyard from hand or deck and may be
-cast from there for a while), and **Dread is a variable discount paid in
+cast from there for a while), and **Tithe is a variable discount paid in
 sacrificed Defense**, on Rite's sacrifice plumbing. Neither adds an
 `Awaiting` kind.
 
@@ -143,16 +143,16 @@ and phases), so nothing new is recorded.
   treats Whispers like Retell (a cast-alternative rider that does not make a
   permanent recurring).
 
-## 4. Dread of the Deep: player-facing rules
+## 4. Tithe: player-facing rules
 
-Glossary: **"Dread: you may sacrifice any number of creatures you control as
+Glossary: **"Tithe: you may sacrifice any number of creatures you control as
 you cast this. It costs one less for every two points of their combined
-Defense, rounded down. Coloured mana is still paid."** Printed line: `Dread`,
+Defense, rounded down. Coloured mana is still paid."** Printed line: `Tithe`,
 a bare keyword after the cost line (the discount varies, so nothing is
 printed with it).
 
 - The sacrifice is a cost: it happens before the spell reaches the stack,
-  the sacrificed creatures' dies triggers fire then, and a cancelled Dread
+  the sacrificed creatures' dies triggers fire then, and a cancelled Tithe
   spell does not refund it. Rite's rules exactly, with the sacrifice
   optional and any number of bodies.
 - The discount is `floor(sum of sacrificed Defense / 2)` generic mana, never
@@ -161,9 +161,9 @@ printed with it).
   count.
 - If the card also has Empower, the discount applies to the generic part of
   the total being paid (printed plus Empower).
-- Dread never combines with X, Retell, Hauntlink, Whispers or Rite on one
+- Tithe never combines with X, Retell, Hauntlink, Whispers or Rite on one
   card (one sacrifice mechanic per card).
-- **Carriers.** The engine allows Dread on any creature. **Drowned Deep
+- **Carriers.** The engine allows Tithe on any creature. **Drowned Deep
   prints it only on Horrors**, a per-set data policy in the catalog test, so
   a later set can carry it on another subtype by changing one line. Fodder
   is unrestricted by design (MTG's Offering restricted the fodder type and
@@ -176,31 +176,31 @@ as well** (owner ruling). Rite's fodder has never been player-chosen in the
 duel screen (the human got the first creatures in battlefield order); the
 engine already accepts any legal Rite set, so Rite's change is UI only.
 
-## 5. Dread: data model and engine
+## 5. Tithe: data model and engine
 
 ```ts
 /** Optional any-number creature sacrifice paid while casting; discount in Defense. */
-export interface DreadDef {
+export interface TitheDef {
   /** Generic mana removed per this many points of sacrificed Defense (2). */
   per: 2;
 }
-interface CardDef { /* ... */ dread?: DreadDef; }
+interface CardDef { /* ... */ tithe?: TitheDef; }
 ```
 
-`validateDreadDef`: the exclusions above; not with `rite`. The Horror
+`validateTitheDef`: the exclusions above; not with `rite`. The Horror
 restriction is NOT in the validator; it is a Drowned Deep row in the catalog
-test ("every `drowned-deep` card with `dread` has subtype Horror").
+test ("every `drowned-deep` card with `tithe` has subtype Horror").
 
-**Action.** `castSpell` gains `dread?: true`; when set, `sacrifices` carries
+**Action.** `castSpell` gains `tithe?: true`; when set, `sacrifices` carries
 zero or more creature indices (Rite's field; Rite's validation shape
 accepting any legal set, here of any size). **Enumeration** avoids the
-subset blow-up the way Rite does: `pushCastActions` offers the Dread cast
+subset blow-up the way Rite does: `pushCastActions` offers the Tithe cast
 with the canonical fodder set that covers the generic part at the lowest
 Defense (bodies sorted by Defense ascending, taken until the discount covers
 generic or the board is exhausted) plus the no-sacrifice cast; the AI policy
 rewrites the set; `validateAction` accepts any subset.
 
-**Cost.** `castCost` gains the reduction: with `dread` set, the generic
+**Cost.** `castCost` gains the reduction: with `tithe` set, the generic
 component is `max(0, generic - floor(sacrificedDefense / 2))`, where
 sacrificed Defense is summed from the chosen creatures' effective stats
 (`getEffectiveStats`, so marks and statics count). Every `castCost` caller
@@ -218,25 +218,25 @@ creature-cap check, the Rite rule.
 **Replay.** A rider on `castSpell`; the same single version bump as
 Whispers.
 
-## 6. Dread: AI and duel UI
+## 6. Tithe: AI and duel UI
 
-- `src/ai/dreadPolicy.ts` in the `ritePolicy` shape: `isDreadCast`,
-  `chooseDreadSacrifices` (candidates sorted by `permValue` per point of
+- `src/ai/tithePolicy.ts` in the `ritePolicy` shape: `isTitheCast`,
+  `chooseTitheSacrifices` (candidates sorted by `permValue` per point of
   Defense, ascending; add bodies, preferring pairs since odd totals waste a
   point, while the mana saved beats the board value given up and the generic
   part is not already covered; never the single best body; never a body the
-  attack planner wanted this turn), `applyDreadPolicy` rewriting the
+  attack planner wanted this turn), `applyTithePolicy` rewriting the
   canonical set or dropping the flag to cast at full price. Wired first in
   all three brains beside `applyRitePolicy`; Hard's whitelist and the
-  uncapped Rite carve-out cover Dread casts.
-- **The picker.** After the Dread option is chosen in the cast chooser (a
+  uncapped Rite carve-out cover Tithe casts.
+- **The picker.** After the Tithe option is chosen in the cast chooser (a
   third button, "Sacrifice to cast"), the battlefield enters a
   multi-select highlight mode on the `chooseTarget` visual path: click to
   add or remove a creature, the cost preview updates with the discount as
   the selection changes (rounded down, pips unchanged), confirm casts,
   cancel returns to the chooser. **The same flow serves Rite**, with the
   selection size fixed at `rite.n` and confirm enabled only at that size.
-- Rules text `dreadText` beside `riteText`; glossary term; `permanentClass`
+- Rules text `titheText` beside `riteText`; glossary term; `permanentClass`
   rider line.
 
 ## 7. Blast radius (both mechanics; grep everything)
@@ -254,14 +254,14 @@ Whispers.
   graveyard modal. This wave lands after that one and rebases onto it; the
   replay version bumps once per wave.
 - **Converter** (`scripts/avatarReserveDecks.ts`): a Whispers cast uses the
-  card's own target specs, which `narrowTargetsOf` already walks. Dread adds
+  card's own target specs, which `narrowTargetsOf` already walks. Tithe adds
   no targets; its fodder supply is the deck's creature count, which the
   Rite supply logic already measures.
 - **Window gates and `forcedAction`**: a live Whispers Charm counts as a
-  castable Charm; plain Skim stays excluded; Dread changes nothing here.
+  castable Charm; plain Skim stays excluded; Tithe changes nothing here.
 - **Rules text, glossary, `permanentClass`, `keyword-map.md`, `rules.md`,
   `adding-cards.md`, `card-building-guide.md`**: entries for both.
-- **blades-db `TERMS`**: Whispers translates to "madness", Dread to
+- **blades-db `TERMS`**: Whispers translates to "madness", Tithe to
   "emerge"; `terms --check` after.
 - **Set tag**: `CardDef.set` union gains `drowned-deep` (the data wave).
 
@@ -277,17 +277,19 @@ Do not relitigate.
   your opponent's next Dawn"; on exit, "sounds good" to the normal exit.
 - **DB2 Whispers requires Skim.** Folded away by DB1; Skim is one enabler
   among several.
-- **DB3 Dread shape. RULED:** any number of creatures; discount one generic
+- **DB3 Tithe shape. RULED:** any number of creatures; discount one generic
   per two points of combined Defense, rounded down; coloured mana always
   paid. (The owner first proposed one per point; the halving is the owner's
   correction.)
 - **DB4 Sacrifice picker. RULED:** a new pick-any-subset UI flow, applied to
   Rite as well.
-- **DB5 Horror-only. RULED:** Drowned Deep prints Dread only on Horrors, as a
+- **DB5 Horror-only. RULED:** Drowned Deep prints Tithe only on Horrors, as a
   per-set data policy, not an engine rule; the keyword must not be a dead
   end for future sets.
-- **DB6 Copy. RULED:** `Whispers {N}` and bare `Dread` as the printed lines,
-  glossary names Whispers and Dread, definitions as in sections 1 and 4.
+- **DB6 Copy. RULED:** `Whispers {N}` and bare `Tithe` as the printed lines
+  (**renamed from Dread 2026-09-11**: it collided with the Dreaded keyword, and
+  Tithe reads for the non-Horror sets that will carry it later),
+  glossary names Whispers and Tithe, definitions as in sections 1 and 4.
 - **Stat naming (asked alongside): no retheme.** Attack and Defense stay
   (they are not MTG's Power and Toughness; damage clears at cleanup so
   "Health" would mislead).
@@ -303,7 +305,7 @@ Do not relitigate.
   the tap-ability engine landed, the natural shape is a Duty ability on a
   creature, which needs no window because the discarded card is tagged and
   cast later.
-- **Fodder-restricted Dread** (`fodder: subtype`): one optional field.
+- **Fodder-restricted Tithe** (`fodder: subtype`): one optional field.
 - **Sanity track, transform**: tabled in the slate for cause.
 
 ## 10. Costing (the section 9 rule)
@@ -342,7 +344,7 @@ charm-class cards and 0 for bodies until then. The enabler-density rule of
 thumb from MTG (1.5 to 3 outlets per payoff) becomes a design input for the
 set: the deck's own mill and Skim density is what makes Whispers cards fire.
 
-**Dread.** The Kamigawa Patrons price the offering option at 0.4 / 0.5 / 1.2
+**Tithe.** The Kamigawa Patrons price the offering option at 0.4 / 0.5 / 1.2
 MEP (min / median / max) at printed, and the same-block Dragon Spirits at
 identical cost and rarity outrank all five: the tribal restriction was the
 real cost and the mana option was nearly free. Devour prices sacrifice-for-
@@ -351,14 +353,14 @@ is the real cost. Rite already carries -0.7 x N in the formula.
 
 | Term | Provisional value | Evidence | Sanity at both ends |
 | --- | --- | --- | --- |
-| Dread option (any number, one generic per two Defense) | flat **+0.5**, floor 0, cap 1.0; not scaled by the card's MV | with the halving, the discount is about half the fodder's mana value on the vanilla curve (Defense runs even with MV from three mana up), which is the Patrons' "nearly free option" regime | Low: Orochi / Nezumi 0.4 to 0.5 hold. High: Moon 1.2 reads over because its land ability is unpriced. A Dread card that ALSO gains counters needs the Devour rate on top |
+| Tithe option (any number, one generic per two Defense) | flat **+0.5**, floor 0, cap 1.0; not scaled by the card's MV | with the halving, the discount is about half the fodder's mana value on the vanilla curve (Defense runs even with MV from three mana up), which is the Patrons' "nearly free option" regime | Low: Orochi / Nezumi 0.4 to 0.5 hold. High: Moon 1.2 reads over because its land ability is unpriced. A Tithe card that ALSO gains counters needs the Devour rate on top |
 | The discount itself | not a rate; an authoring guard: fodder-heavy decks (tokens, walls) are the set's line, so the seeded matrix measures how often a 7+ Horror lands by turn 4 | no precedent for a Defense-keyed discount (emerge uses mana value) | `NEEDS MATH`; the halving is the owner's deliberate conservatism |
 
 `NEEDS MATH`, explicitly: E_FIRE for Whispers (measure), the Skim+Whispers
-combined-cast guard (n=1), the Dread discount's tempo effect (measure), and
+combined-cast guard (n=1), the Tithe discount's tempo effect (measure), and
 whether stat-reading fodder (marks, statics) needs its own guard once cards
 exist.
 
 The rows land in `balance/power-formula.md` section 4 (4r Whispers, 4s
-Dread) and the hooks in `balance/scoreCore.ts` beside `retell` and `rite` in
+Tithe) and the hooks in `balance/scoreCore.ts` beside `retell` and `rite` in
 the tooling wave; `scripts/personas/score.ts` gains weights for both riders.

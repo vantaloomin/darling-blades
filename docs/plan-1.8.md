@@ -95,7 +95,7 @@ the DuelScene switch trap. What the spec settles:
    permanent click to Hauntlink linking. The playbook trap from 1.7.2 applies:
    any new `Awaiting` kind is not done until every DuelScene `switch` knows it.
 
-### Lane B — the set mechanics: Whispers, and Dread of the Deep if kept
+### Lane B — the set mechanics: Whispers, and Tithe if kept
 
 **The spec is drafted: [plan-drowned-deep-engine.md](plan-drowned-deep-engine.md)
 (2026-09-10, awaiting rulings DB1-DB6).** Two findings changed the shape
@@ -103,7 +103,7 @@ described below. First, discard in this engine is per-card Skim (cycling:
 discard *this* card, draw), with no generic outlet, so a post-discard window
 would be a new `Awaiting` kind across about 120 switch sites; the spec makes
 Whispers a rider on the Skim action instead (one composite action, no
-window) and Dread a fixed-discount sibling of Rite. Second, the
+window) and Tithe a fixed-discount sibling of Rite. Second, the
 "retro-synergy with Skim" premise holds only for a card carrying both: the
 76 shipped Skim cards gain nothing, and every v1 Whispers card is its own
 enabler, which is what the costing prices.
@@ -117,14 +117,14 @@ comparison either way. The overplan's own risk list applies: a
 cast-versus-Whispers affordability audit and a deck-out guard review before
 card data commits.
 
-**Dread of the Deep** (the emerge analog): sacrifice a creature as you cast a
+**Tithe** (the emerge analog): sacrifice a creature as you cast a
 Horror, reduce its cost by the sacrificed creature's cost. Rite already shipped
 the additional-sacrifice-cost plumbing, so this is an optional Rite variant
 with a discount, a small lift. The overplan marks it deliberately sparse so the
 set still works as a control set without the Horror package assembled.
 
 **Decision for the owner (D4):** the slate table says Whispers only; the
-overplan carries both. A Large set has room for two, and Dread is cheap, but
+overplan carries both. A Large set has room for two, and Tithe is cheap, but
 each is a costed mechanic, an AI heuristic, and a glossary entry.
 
 ### Lane C — the set: Drowned Deep, 250+ cards, authored fresh
@@ -275,8 +275,8 @@ worktrees, by file set.
 | Wave | Contents | Gate |
 | ---: | --- | --- |
 | **0** | Node 24 (#342 implemented), roadmap sync, telemetry 0a rename, `audit-overlap.ts` committed, `run-sweep.ps1` sync fix | ladder rungs 1-6; the next tag proves `release.yml` |
-| **1** | Specs, Fable-authored: `plan-tap-abilities.md`, the Drowned Deep engine-wave spec (Whispers, Dread), `plan-land-economy.md`, then the fresh Drowned Deep identity brief and ~320-candidate overplan once the engine specs are approved. Owner rulings D1-D8. Frame geometry decided | owner approval of each spec |
-| **2** | Engine, Codex under contract: tap abilities stage 1 (artifacts, enchantments), then stage 2 (creatures), then Whispers, then Dread. Each with rates, AI at three difficulties, converter, replay bump, DuelScene switch audit, tests. v35 save bump (0b) lands here so lane D's schema needs ride it | full ladder, win-rate gates unchanged, replay goldens |
+| **1** | Specs, Fable-authored: `plan-tap-abilities.md`, the Drowned Deep engine-wave spec (Whispers, Tithe), `plan-land-economy.md`, then the fresh Drowned Deep identity brief and ~320-candidate overplan once the engine specs are approved. Owner rulings D1-D8. Frame geometry decided | owner approval of each spec |
+| **2** | Engine, Codex under contract: tap abilities stage 1 (artifacts, enchantments), then stage 2 (creatures), then Whispers, then Tithe. Each with rates, AI at three difficulties, converter, replay bump, DuelScene switch audit, tests. v35 save bump (0b) lands here so lane D's schema needs ride it | full ladder, win-rate gates unchanged, replay goldens |
 | **3** | Set concretion: the 250+ cut locked, transcription, tokens, glossary, terms. **Art run starts the day the cut locks** and runs the length of the wave | check-art-bible green, every token minted, dup audit filed |
 | **4** | Metagame content: Lanterns Below, rungs 25-26 with Darlings decks, floors from the final band; land-economy implementation per D3; Assay rescore; balance pass | matrices, precon and boss floors, Assay fair-rate |
 | **5** | Telemetry T1-T3 (parallel from wave 2 once T0's owner prerequisites exist); Settings layout pass; privacy page live before T2 ships | probe: toggle off shows zero requests |
@@ -303,7 +303,7 @@ Numbered so rulings can cite them. Recommendations are the first option.
    2026-09-10: [plan-land-economy.md](plan-land-economy.md) (27 rows,
    costed, awaiting approval).** Drop tables,
    collectionPct and the Assay follow the pool change.
-4. **D4 Dread of the Deep. RULED 2026-09-11: in**, as an any-number
+4. **D4 Tithe (renamed from Dread 2026-09-11, the Dreaded collision). RULED 2026-09-11: in**, as an any-number
    sacrifice with a discount of one generic mana per two points of combined
    Defense, rounded down; Horror-only as a per-set data policy; a new
    sacrifice picker that Rite gets too. With Whispers as a fresh-graveyard
