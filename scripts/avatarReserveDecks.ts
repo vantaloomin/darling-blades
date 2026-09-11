@@ -116,8 +116,12 @@ function narrowTargetsOf(card: CardDef): NarrowTarget[] {
   // Targeted arrival abilities live in the same `abilities` array as spell
   // bodies. Walk every ability, including non-spell triggers, because a
   // mandatory arrival target can fizzle just as completely as a spell target.
-  return (card.abilities ?? [])
-    .flatMap((ability) => ability.targets ?? [])
+  // A Duty whose only target is narrow (an artifact or a marked creature) is
+  // exactly as dead without supply as a mandatory arrival target.
+  return [
+    ...(card.abilities ?? []).flatMap((ability) => ability.targets ?? []),
+    ...(card.activated?.targets ?? []),
+  ]
     .filter((target) => NARROW_TARGETS[target.what] || target.marked === true)
     .map(({ what, marked }) => ({ what, marked }));
 }
@@ -130,7 +134,7 @@ function typeSuppliedTargets(card: CardDef | undefined): string[] {
   return supplied;
 }
 
-/** Every EffectOp a card can run: abilities, quest chapters, Empower, Retell. */
+/** Every EffectOp a card can run: abilities, quest chapters, Empower, Retell, Duty. */
 function effectOpsOf(card: CardDef): EffectOp[] {
   const flatten = (ops: readonly EffectOp[]): EffectOp[] => ops.flatMap((op) => [
     op,
@@ -141,6 +145,7 @@ function effectOpsOf(card: CardDef): EffectOp[] {
     ...(card.chapters ?? []).flat(),
     ...(card.empower?.ops ?? []),
     ...(card.retell?.ops ?? []),
+    ...(card.activated?.ops ?? []),
   ]);
 }
 
@@ -151,9 +156,15 @@ function canGenerateMarks(card: CardDef | undefined): boolean {
   const createsSelfMark = card.types.includes('creature') && effectOpsOf(card).some(
     (op) => op.op === 'addCounters' && op.to === 'self',
   );
+  const activatedAddsTargetMark = (op: EffectOp): boolean =>
+    (op.op === 'addCounters' && op.to === 'target') ||
+    (op.op === 'ifTargetMarked' && [...op.then, ...(op.else ?? [])].some(activatedAddsTargetMark));
   const createsTargetMark = (card.abilities ?? []).some((ability) =>
     (ability.targets ?? []).some((target) => target.what === 'creature' || target.what === 'yourCreature') &&
     (ability.ops ?? []).some((op) => op.op === 'addCounters' && op.to === 'target'),
+  ) || (
+    (card.activated?.targets ?? []).some((target) => target.what === 'creature' || target.what === 'yourCreature') &&
+    (card.activated?.ops ?? []).some(activatedAddsTargetMark)
   );
   return createsSelfMark || createsTargetMark || effectOpsOf(card).some((op) => op.op === 'markAll');
 }

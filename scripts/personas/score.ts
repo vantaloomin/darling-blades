@@ -81,6 +81,7 @@ interface EffectEntry {
   op: EffectOp;
   when?: TriggerWhen;
   condition?: AbilityDef['condition'];
+  activated?: true;
 }
 
 function appendEffectEntries(
@@ -101,6 +102,8 @@ function cardEffectEntries(card: CardDef): EffectEntry[] {
   }
   for (const chapter of card.chapters ?? []) appendEffectEntries(entries, chapter);
   appendEffectEntries(entries, card.empower?.ops ?? []);
+  // Duty ops also feed roles and synergy: a {T}: damage target carrier is removal.
+  appendEffectEntries(entries, card.activated?.ops ?? [], { activated: true });
   return entries;
 }
 
@@ -168,10 +171,25 @@ export function rateCard(card: CardDef): number {
     ? (1.1 * (card.attack ?? 0) + 0.9 * (card.defense ?? 0)) / mv
     : 0.35;
   raw += (card.keywords ?? []).reduce((sum, keyword) => sum + KEYWORD_VALUE[keyword] / mv, 0);
-  raw += cardEffectEntries(card).reduce((sum, entry) => sum + effectValue(entry, card) / mv, 0);
+  const entries = cardEffectEntries(card);
+  raw += entries.filter((entry) => !entry.activated).reduce((sum, entry) => sum + effectValue(entry, card) / mv, 0);
+  if (card.activated) {
+    const perTrigger = entries.filter((entry) => entry.activated)
+      .reduce((sum, entry) => sum + effectValue(entry, card), 0);
+    // plan-tap-abilities section 5: TAP_MULT reuses DAWN_MULT_CREATURE /
+    // DAWN_MULT_NONCREATURE, the same 2.0 / 3.0 expected-activation split.
+    const mult = dawnMultiplier(card);
+    // NEEDS MATH: the top of the creature range; repeatable removal on a tap prices at perTrigger + 1.0 in precedent, not 2.0x
+    const repeatedValue = card.types.includes('creature') && perTrigger >= 2.0 ? perTrigger + 1.0 : mult * perTrigger;
+    // NEEDS MATH: D is a midpoint across ladders that disagree by 5x (0 to 1.5 per mana); capped at 1.5
+    const discount = Math.min(1.5, 0.4 * manaValue(card.activated.cost.mana));
+    const activatedValue = Math.max(0, repeatedValue - discount);
+    raw += activatedValue / mv;
+  }
   raw += (card.abilities ?? []).filter((ability) => ability.static).length * 0.35;
   raw += ((card.awakening?.p ?? 0) + (card.awakening?.t ?? 0)) * 0.12;
   raw += (card.abilities ?? []).reduce((sum, ability) => sum + Math.max(0, (ability.targets?.length ?? 0) - 1) * 0.1, 0);
+  raw += Math.max(0, (card.activated?.targets?.length ?? 0) - 1) * 0.1;
   return Math.max(0, raw * RARITY_MULTIPLIER[card.rarity]);
 }
 
