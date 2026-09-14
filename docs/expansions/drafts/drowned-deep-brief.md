@@ -13,7 +13,7 @@ questions are at the end.
 
 Fixed by the spine and the rulings, not up for revision here: the name, the
 cosmic-horror concept, Large at 250 cards overplanned to 320, Whispers as the
-fresh-graveyard cast, Dread as the Defense-discount sacrifice on Horrors, and
+fresh-graveyard cast, Tithe as the Defense-discount sacrifice on Horrors, and
 Duty (the tap ability) as the engine feature the set must print.
 
 ## 1. The world
@@ -38,7 +38,7 @@ lost, at a price the coast has been paying for a thousand years. Whispers are
 the Deep's voice reaching a card that has slipped out of your hand or your
 deck into the dark; the whispered thing comes back cheaper and stranger.
 Horrors are what the Deep sends up: made of the drowned, beautiful, wrong,
-wearing faces the coast remembers. Dread is the coast feeding them, one body
+wearing faces the coast remembers. Tithe is the coast feeding them, one body
 at a time, because a Horror on your side of the seawall is the only thing
 that stops the one on the other side.
 
@@ -60,17 +60,17 @@ must not read as the retired draft's Victorian promenade.
 
 Each colour has a job with each mechanic, and the jobs do not overlap.
 
-| Colour | Its part of the coast | Whispers | Dread and Horrors | Duty |
+| Colour | Its part of the coast | Whispers | Tithe and Horrors | Duty |
 | --- | --- | --- | --- | --- |
 | **Blue** | the sea's memory: tide-priestesses, Mermaids, drowned scholars | **primary for Charms** (bounce, cancel, draw) and the main self-mill engine that fuels them | secondary: a few Horrors of the deep water | scryers and tide-readers: tap to Foresee, tap to loot (the set's discard outlet, see section 4) |
-| **Black** | the bargain: salt-witches, the Deep's daughters, the drowned | **primary for Rituals** (removal, drain) and opponent discard; self-mill as the Deep taking its due | **primary**: most Horrors, most Dread, the token fodder that feeds them | tap to drain, tap to raise |
-| **Green** | the coral growth: kelp gardens, reef-wardens, the coast's living wall | creatures at the fair-body rate (the Arrogant Wurm class) | secondary: reef Horrors; **the Defense-heavy bodies and tokens that are Dread's fodder** | tap to Mark, tap to grow |
+| **Black** | the bargain: salt-witches, the Deep's daughters, the drowned | **primary for Rituals** (removal, drain) and opponent discard; self-mill as the Deep taking its due | **primary**: most Horrors, most Tithe, the token fodder that feeds them | tap to drain, tap to raise |
+| **Green** | the coral growth: kelp gardens, reef-wardens, the coast's living wall | creatures at the fair-body rate (the Arrogant Wurm class) | secondary: reef Horrors; **the Defense-heavy bodies and tokens that are Tithe's fodder** | tap to Mark, tap to grow |
 | **White** | the Lantern Watch: wardens, bell-ringers, lamp-keepers | few; a Whispers protection Charm or two | none | **the showcase**: Duty artifacts and enchantments (lamps, bells, gates), tap to gain life, tap to tap, the wardens' vigilance |
 | **Red** | drowned fire and storm: wreckers, storm-callers, the coast's anger | **the burn Charms** (the Fiery Temper class, instant-speed madness feel) | none | Rage bodies with a Duty, so tapping to dodge the attack is a real choice; tap to damage |
 
 Rules the pie enforces at authoring:
 
-- Dread prints in black first, blue and green second, never white or red.
+- Tithe prints in black first, blue and green second, never white or red.
   That is what keeps "Horror" legible as a colour identity.
 - Whispers prints in all five, but the instant-speed feel (Charms in
   windows) lives in blue and red; black Whispers are Rituals; green and
@@ -89,11 +89,11 @@ Rules the pie enforces at authoring:
 | Mechanic | Cards | Share | Notes |
 | --- | --- | --- | --- |
 | **Whispers** | 22 | 9% | 8 Charms (U 4, R 3, W 1), 6 Rituals (B 4, U 2), 8 creatures (G 4, B 3, U 1). About half also carry Skim (their own enabler); the rest rely on the mill and discard density below |
-| **Dread** (Horrors) | 14 | 6% | B 9, U 3, G 2; every Horror carries Dread, no Horror without it in this set |
+| **Tithe** (Horrors) | 14 | 6% | B 9, U 3, G 2; every Horror carries Tithe, no Horror without it in this set |
 | **Duty** | 30 | 12% | 12 artifacts and enchantments (W 5, U 3, B 2, G 1, colourless 1), 18 creatures across all five colours; the 27 utility-tapland conversions ruled under D3 are a separate batch and not counted here |
 | **Enablers for Whispers** | 36 | 14% | the density rule (at least 1.5 outlets per Whispers card, at least 4 repeatable choice-discard outlets at common): 14 self-mill effects (arrivals and Dawns, U/B), 6 Duty looters ("tap: draw a card, then discard a card", U 3, B 2, R 1; the Merfolk Looter shape the engine can now print), 16 Skim carriers not counting the Whispers cards' own |
 | Evergreen sprinkle | as needed | | all thirteen keywords present; Retell (echoes fit the Deep) and Empower sprinkled; Preserve and Hauntlink absent |
-| **Rite** (owner, Q2) | 6 to 8 | 3% | **white and red only**, never on a Horror: the Lantern Watch gives of itself (Rite, mandatory, N creatures) while the Deep bargains (Dread, optional, any number). No card carries both; the pie reads the split |
+| **Rite** (owner, Q2) | 6 to 8 | 3% | **white and red only**, never on a Horror: the Lantern Watch gives of itself (Rite, mandatory, N creatures) while the Deep bargains (Tithe, optional, any number). No card carries both; the pie reads the split |
 | Vanilla and near-vanilla commons | at most 30% of commons | | Starborne cut vanilla commons from 59% to 35%; hold that line |
 
 Everything above is a target for the overplan, not a count of the cut; the
@@ -122,7 +122,7 @@ red, at least two at common (owner-approved 2026-09-11, Q4).
 ## 5. Subtypes
 
 - **Horror**: new, zero cards today. It is the set's identity subtype and
-  every Dread carrier has it. **Owner ruling 2026-09-11: Horror is an Axis**
+  every Tithe carrier has it. **Owner ruling 2026-09-11: Horror is an Axis**
   (a static may filter on it), with exactly one Horror lord at Rare, a
   creature whose static buffs the tribe with texture (a keyword grant or a
   conditional, not a fourth flat anthem, per the tribal-pass finding that
@@ -153,7 +153,7 @@ personas. A mill-and-whisper control set pushes further the way the field
 already leans, so the set must carry its own counterweight:
 
 - **Go-wide is a real line in this set**, not an afterthought: green and
-  white token-makers whose bodies are also Dread fodder, so a wide board
+  white token-makers whose bodies are also Tithe fodder, so a wide board
   either attacks or feeds a Horror. The B/G "Horror garden" pair is the
   aggressive deck.
 - **Answers to go-wide** stay as the shipped rules require: sweepers are
@@ -173,12 +173,12 @@ cannot plan toward. Keep out, or mark stretch and cut first:
 - "Whenever you cast a Whispers card" and "whenever a card leaves your
   graveyard" triggers (multi-card sequencing the AI does not plan).
 - Mill-count thresholds ("if seven or more cards are in your graveyard").
-- Dread payoffs that need a specific number of bodies sacrificed at once.
+- Tithe payoffs that need a specific number of bodies sacrificed at once.
 - Duty abilities whose value depends on holding the source untapped across
   the opponent's turn (the AI's Afternoon rule taps them).
 
 Greedy-friendly shapes to prefer: Whispers on cards whose value is obvious
-when cast (removal, bodies, draw); Dread on Horrors whose printed cost is
+when cast (removal, bodies, draw); Tithe on Horrors whose printed cost is
 honest without fodder; Duty effects with immediate board impact.
 
 ## 8. Rarity, tokens, precon, bosses
@@ -188,13 +188,13 @@ honest without fodder; Duty effects with immediate board impact.
   Chosen here, locked at the cut.
 - **Tokens**, each with at least two minters in the cut (the 1.7 minterless
   lesson): a black 1/1 Spirit "the Drowned" (from mill and Deep effects), a
-  black 2/2 Horror "Deep-Spawn" (Dread fodder that is itself a Horror), a
+  black 2/2 Horror "Deep-Spawn" (Tithe fodder that is itself a Horror), a
   white 1/1 Spirit with Skyborne "Lantern Wisp" (the Watch's lights).
 - **Precon**: U/B, the tide-and-whisper control deck; name authored with the
   rows. Board-first at common, the whisper line as the value engine, one or
   two Horrors as the finish.
 - **Gauntlet bosses**, rungs 25 and 26: a U/B Whispers control boss and a
-  B/G Dread Horror boss; the summit gate shape decided before the rungs
+  B/G Tithe Horror boss; the summit gate shape decided before the rungs
   land (the CI budget note in plan-1.8).
 
 ## 9. Art register, in outline (for art-bible section 4c)
@@ -214,7 +214,7 @@ honest without fodder; Duty effects with immediate board impact.
   floor. No true black.
 - Composition by mechanic family: Whispers shows the card's own subject
   half-submerged, lit from below by the reserved gold, the water still;
-  Dread shows the bodies given going down into the dark as the Horror rises,
+  Tithe shows the bodies given going down into the dark as the Horror rises,
   no viscera; Duty shows the act of tending (a hand on the bell rope, the
   lamp being lit), the permanent mid-work.
 - Species tells for the Deep's daughters, three and no more: an inner light
@@ -239,7 +239,7 @@ before it is written down.
 ## 11. Owner answers (2026-09-11)
 
 1. **Horror as an Axis: approved**, one lord at Rare (section 5).
-2. **Rite: kept, in the non-Dread colours** (white, a little red), never on
+2. **Rite: kept, in the non-Tithe colours** (white, a little red), never on
    a Horror (section 3).
 3. **The reserved hue: approved as recommended.** The owner wanted
    black-gold overtones; a true gold collides with the global multicolour
