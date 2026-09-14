@@ -822,8 +822,8 @@ and the new-mechanic rows are flagged for the Assay after those waves.
 The owner went through Ultra Rare, Double Super Rare and Super Rare card by card
 and the white, blue and black Rares, then had the remaining Rares and every
 Common decided by extrapolation from those picks (the rules below, applied by
-`scratchpad/extrapolate.py`, every auto decision carrying its reason on the
-cut board). The list is **252 kept of 322**: two over the 250 target because
+the extrapolation script kept with the session's cut-board tooling, every
+auto decision carrying its reason on the cut board). The list is **252 kept of 322**: two over the 250 target because
 Ultra Rare and Double Super Rare are each one over their histogram; the two
 demotions or cuts that close it are the owner's call (the pass already
 recommends moving The Lightkeeper's Oath to Rare). Two rows are still

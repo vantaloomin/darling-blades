@@ -63,6 +63,7 @@ const FACTIONS = [
   'dark-tales',
   'sands-of-the-duat',
   'starborne',
+  'drowned-deep',
 ] as const;
 
 const OUT_W = 640;
