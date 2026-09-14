@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/expansions/drafts/drowned-deep-overplan.md ("The cut (2026-09-14)"), docs/art-bible/index.md · last-verified: 2026-09-14 · art bible — Drowned Deep entries; card facts are transcribed from the locked 252-card cut and re-verify against src/data/cards/drowned-deep.ts when it lands -->
+<!-- source-of-truth: docs/expansions/drafts/drowned-deep-overplan.md, docs/art-bible/index.md · last-verified: 2026-09-14 · art bible — Drowned Deep entries; card facts are transcribed from the locked 252-card cut and re-verify against src/data/cards/drowned-deep.ts when it lands -->
 
 # The Drowned Deep Art Bible
 
