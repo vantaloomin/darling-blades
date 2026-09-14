@@ -61,11 +61,11 @@ percent of the pool.
 
 | ID | Name | Rarity | Colour | Type | Cost | Stats | Mechanics sketch | Flavour hook | CUT-PRIORITY |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| dd-wreckfire | Wreckfire | SSR | R | Ritual | {2}{R}{R} | none | Damage all creatures 4 and damage opponent 4. Whispers {1}{R}{R}. | The wreckers light the false beacon, and the sea lights everything else. | core |
+| dd-wreckfire | Wreckfire | SSR | R | Ritual | {3}{R}{R} | none | Damage all creatures 5. Damage opponent 5 and you lose 5 life. Whispers {2}{R}{R}. | The wreckers light the false beacon, and the sea lights everything else. | core |
 | dd-harbourmaster | Constance Reyne, Harbourmaster | SSR | W | Creature, Human Warden, legendary | {3}{W}{W} | 3/4 | Sentinel. Duty, {2}: create a 1/1 white Lantern Wisp token with Skyborne. | She logs every boat that leaves and every boat that returns. The ledgers do not match. | core |
-| dd-gate-of-salt | The Salt Gate | SSR | W | Artifact | {2}{W} | none | Duty: prevent combat this turn. During your Dawn: gain 1 life. | The gate holds the tide out and the town in. Nobody has asked which it was built for. | core |
+| dd-gate-of-salt | The Salt Gate | SSR | W | Artifact | {2}{W} | none | Duty, {1}{W}: prevent combat this turn. During your Dawn: gain 1 life. | The gate holds the tide out and the town in. Nobody has asked which it was built for. | core |
 | dd-vigil-at-low-water | Vigil at Low Water | SSR | W | Ritual | {3}{W}{W} | none | Destroy all creatures. Gain 4 life and Foresee 1. Whispers {3}{W}. | At low water the town walks out to see what the sea has left, and prays it is nothing. | core |
-| dd-lamp-oil-saint | Saint of the Lamp Oil | SSR | W | Creature, Human Warden | {4}{W} | 2/5 | Warding Gaze. Duty: gain 2 life. Whenever you gain life, put a Mark on this. | She keeps the lamps full and the books balanced, and the second is harder. | flex |
+| dd-lamp-oil-saint | Saint of the Lamp Oil | SSR | W | Creature, Human Warden | {3}{W} | 2/4 | Warding Gaze. Duty, {1}: gain 2 life. Whenever you gain life, put a Mark on this. | She keeps the lamps full and the books balanced, and the second is harder. | flex |
 | dd-tidewife | Ysolt the Tidewife | SSR | U | Creature, Mermaid, legendary | {4}{U}{U} | 4/4 | Skyborne. Arrives: grind self 3. Duty: recall target creature with cost 3 or less. | She married the tide. The tide has been very attentive. | core |
 | dd-drowned-scholar | Drowned Scholar of the Reach | SSR | U | Creature, Human | {2}{U} | 1/4 | Duty: draw a card, then discard a card. | Everything she knows she read underwater, and it has not stopped being true. | core |
 | dd-undertow | Undertow | SSR | U | Charm | {2}{U}{U} | none | Recall target creature and draw 2. Whispers {1}{U}. | The current does not take you out to sea. It takes you down. | core |
@@ -78,7 +78,7 @@ percent of the pool.
 | dd-kelp-cathedral | Kelp Cathedral | SSR | G | Enchantment | {5}{G}{G} | none | Your Plant tokens get +1/+1. Duty, {2}{G}: create a 2/2 green Kelp Shade token. | The congregation is rooted. The sermons are long. | core |
 | dd-something-in-the-nets | Something in the Nets | SSR | G | Creature, Horror | {4}{G}{G} | 5/6 | Tithe. Overrun. Arrives: gain 4 life. | The catch was heavy, and it was breathing. | flex |
 | dd-marsh-grave-risen | Marsh-Risen | SSR | G | Creature, Horror | {3}{G} | 3/5 | Tithe. Arrives: gain 2 life. | Buried in the reeds by her sisters. The reeds did not keep her. | core |
-| dd-false-beacon | The False Beacon | SSR | R | Artifact | {2}{R} | none | Duty: damage target creature 1. During your Dawn, if a creature died this turn, damage opponent 1. | A lamp on the wrong rock is a murder that looks like weather. | core |
+| dd-false-beacon | The False Beacon | SSR | R | Artifact | {2}{R} | none | Duty: damage target creature 1. At Sunset, if a creature died this turn, damage opponent 1. | A lamp on the wrong rock is a murder that looks like weather. | core |
 | dd-wrecker-captain | Halla Brand, Wrecker Captain | SSR | R | Creature, Human, legendary | {3}{R}{R} | 5/4 | Warcry. Overrun. Whenever this attacks, damage opponent 1. Skim {R}. Whispers {1}{R}{R}. | Every ship she saves, she saves for parts. | core |
 | dd-storm-surge | Storm Surge | SSR | R | Charm | {1}{R}{R} | none | Damage target creature 4. Damage opponent 2. Whispers {R}. | The surge takes the wharf, the boats, and the argument about whose fault it was. | core |
 | dd-drowned-fire | Drowned Fire | SSR | R | Ritual | {1}{R}{R} | none | Damage each opponent's creature 2 and damage opponent 2. Whispers {R}{R}. | Fire does not go out underwater here. It goes quiet. | flex |
@@ -587,12 +587,12 @@ floor.
 | `dd-the-brood-below` | {4}{B}{B} 5/5 | {5}{B}{B} 5/5; Tithe. Arrives: create two 2/2 black Deep-Spawn tokens. | +4.11 | +0.53 | hand redesign |
 | `dd-the-reef-that-walks` | {6}{G}{G} 8/8 | {6}{G}{G} 7/8 | +0.96 | +0.46 | attack -1 |
 | `dd-old-marrow` | {3}{G}{G} 4/6 | {3}{G}{G} 4/6; "Duty: create a 2/2 green Kelp Shade token." to "Duty, {1}: create a 2/2 green Kelp Shade token." | +0.77 | +0.37 | Duty +{1} |
-| `dd-wreckfire` | {3}{R}{R} UR | {2}{R}{R} SSR; Damage all creatures 4 and damage opponent 4. Whispers {1}{R}{R}. | -4.23 | see cut board | hand redesign, rarity move (owner) |
+| `dd-wreckfire` | {2}{R}{R} SSR; all creatures 4, opponent 4 | {3}{R}{R}; Damage all creatures 5. Damage opponent 5 and you lose 5 life. Whispers {2}{R}{R}. | -0.51 | -1.98 | owner 2026-09-14 (bigger, symmetric, dearer); reads cold at SSR, rarity move or rider is the owner's call |
 | `dd-the-choir-below` | {2}{U}{B} | {2}{U}{B}; "Duty: Foresee 1, then draw 1." to "Duty, {1}: Foresee 1, then draw 1." | +1.09 | +0.69 | Duty +{1} |
 | `dd-the-lantern-watch` | {2}{W}{U} | {1}{W}{U}; Your creatures get +0/+1. Your creatures have Warding Gaze. Duty: tap target creature. | -2.56 | -0.74 | hand redesign |
 | `dd-harbourmaster` | {2}{W}{W} 3/4 | {3}{W}{W} 3/4; "Duty: create a 1/1 white Lantern Wisp token with Skyborne." to "Duty, {2}: create a 1/1 white Lantern Wisp token with Skyborne." | +1.99 | +0.37 | Duty +{1}, cost +1, Duty +{1} |
 | `dd-vigil-at-low-water` | {3}{W}{W} | {3}{W}{W}; Destroy all creatures. Gain 4 life and Foresee 1. Whispers {3}{W}. | -1.78 | -0.42 | hand redesign |
-| `dd-lamp-oil-saint` | {3}{W} 2/5 | {4}{W} 2/5 | +1.34 | +0.52 | cost +1 |
+| `dd-lamp-oil-saint` | {4}{W} 2/5; Duty: gain 2 life | {3}{W} 2/4; Duty, {1}: gain 2 life | +0.52 | +0.44 | owner 2026-09-14 (paid Duty, cheaper body); 2/4 not 2/5 keeps it in band |
 | `dd-tidewife` | {3}{U}{U} 4/4 | {4}{U}{U} 4/4 | +0.81 | -0.01 | cost +1 |
 | `dd-undertow` | {2}{U}{U} | {2}{U}{U}; Recall target creature and draw 2. Whispers {1}{U}. | -2.22 | +0.52 | hand redesign |
 | `dd-wharf-rat-queen` | {2}{B}{B} 3/3 | {3}{B}{B} 3/3 | +0.94 | +0.12 | cost +1 |
@@ -601,7 +601,7 @@ floor.
 | `dd-reef-warden` | {2}{G}{G} 4/5 | {3}{G}{G} 4/5 | +1.14 | +0.32 | cost +1 |
 | `dd-kelp-cathedral` | {3}{G} | {5}{G}{G}; Your Plant tokens get +1/+1. Duty, {2}{G}: create a 2/2 green Kelp Shade token. | +3.94 | +0.28 | hand redesign |
 | `dd-something-in-the-nets` | {4}{G}{G} 6/6 | {4}{G}{G} 5/6 | +1.17 | +0.67 | attack -1 |
-| `dd-false-beacon` | {3}{R} | {2}{R} | -0.93 | -0.11 | cost -1 |
+| `dd-false-beacon` | During your Dawn, if a creature died this turn | At Sunset, if a creature died this turn | -0.11 | -0.11 | owner 2026-09-14 (Sunset reads the combat that just happened); scored at the Dawn rate |
 | `dd-storm-surge` | {1}{R}{R} | {1}{R}{R}; "Whispers {R}." to "Damage opponent 2"; added "Whispers {R}." | -1.01 | -0.17 | rider |
 | `dd-drowned-fire` | {2}{R}{R} | {1}{R}{R}; "Whispers {1}{R}{R}." to "Whispers {R}{R}." | -1.21 | -0.39 | cost -1 |
 | `dd-lightkeepers-oath` | {1}{W}{U} | {2}{W}{U}; Tap all creatures an opponent controls. Foresee 2. Whispers {1}{W}{U}. | -2.39 | -3.21 | hand redesign |
@@ -739,6 +739,7 @@ floor.
 | `dd-storm-bell` | {2} | {3} | +1.28 | +0.46 | cost +1 |
 | `dd-wrecker-rage` | {1}{R} | {R} | -0.88 | -0.06 | cost -1 |
 | `dd-rite-of-the-lamp-fire` | {2}{R} | {1}{R} | -1.54 | -0.72 | cost -1 |
+| `dd-gate-of-salt` | Duty: prevent combat this turn | Duty, {1}{W}: prevent combat this turn | -0.74 | -1.54 | owner 2026-09-14 (MTG: a free full-combat fog on tap has no precedent; Angus Mackenzie pays three, Kor Haven {1}{W}); reads cold at SSR, rarity move or rider is the owner's call |
 
 ## Self-audit (after the density revision)
 
@@ -815,3 +816,185 @@ and the new-mechanic rows are flagged for the Assay after those waves.
    swapped for the next `flex` row of its colour and rarity, not reworded.
 4. Then costing: known ops by the formula now, the new mechanics by the
    Assay when the rates exist.
+
+## The cut (2026-09-14)
+
+The owner went through Ultra Rare, Double Super Rare and Super Rare card by card
+and the white, blue and black Rares, then had the remaining Rares and every
+Common decided by extrapolation from those picks (the rules below, applied by
+`scratchpad/extrapolate.py`, every auto decision carrying its reason on the
+cut board). The list is **252 kept of 322**: two over the 250 target because
+Ultra Rare and Double Super Rare are each one over their histogram; the two
+demotions or cuts that close it are the owner's call (the pass already
+recommends moving The Lightkeeper's Oath to Rare). Two rows are still
+undecided: The Choir Below (owner note: save for a future set) and Vigil at
+Low Water (protect-first, the white sweeper).
+
+**The rules read off the owner's picks.** Every Horror (Tithe) and every Duty
+carrier with a set-flavoured effect is kept; set-identity lines are kept over
+generic ones (Wardens, lamps and bells in white; self-mill and Foresee engines
+in blue; the Deep's bargains in black; Marks and Kelp Shades in green; Rage
+bodies and Whispers burn in red). Cut first: stretch rows; functional
+reprints of a shipped card (a hard pool floor at the same mana value with no
+set mechanic on top); same-colour twins of a kept card; red sweep Rituals
+below Double Super Rare; plain combat tricks, cantrips and near-vanilla bodies
+at Rare; and the two pie rules from the brief (Whispers Charms are blue and
+red, red prints no Duty artifacts beyond the Super Rare). Colour balance is
+held at the set level, not per rarity.
+
+| Rarity | Kept | Target | White | Blue | Black | Green | Red | Multi |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| UR | 13 | 12 | 2 | 2 | 3 | 2 | 2 | 2 |
+| SSR | 17 | 16 | 3 | 4 | 3 | 3 | 3 | 1 |
+| SR | 23 | 23 | 5 | 4 | 5 | 5 | 4 | 0 |
+| R | 75 | 75 | 14 | 14 | 14 | 15 | 14 | 4 |
+| C | 124 | 124 | 25 | 25 | 25 | 24 | 25 | 0 |
+| **All** | **252** | **250** | **49** | **49** | **50** | **49** | **48** | **7** |
+
+Mechanic counts in the kept list against the brief's budget at 250: Whispers 40
+(brief 22), Tithe 31 (brief 14; green carries 9 against the brief's 2), Duty 55
+(brief 30; 19 Duty artifacts and enchantments against 12). Near-vanilla
+commons 28 of 124 (22 percent, under the 30 percent ceiling). Every token keeps
+at least two minters. Enabler density holds in blue and black and fails at
+the pool level in white (5 Whispers, 3 outlets) and red (9 Whispers, 5
+outlets); no cut fixes that, it needs authored outlets or fewer Whispers in
+those two colours. Three kept rows sit out of band and are held as owner
+items from the pass: The Lightkeeper's Oath, Vigil Bell, The Fog That Stays.
+
+### Kept, by rarity and colour
+
+**Ultra Rare (13)**
+
+- White: Maren Holt, the Lightkeeper (`dd-lightkeeper`), The Bell That Will Not Ring (`dd-bell-that-will-not-ring`)
+- Blue: The Tide That Remembers (`dd-tide-that-remembers`), Isolde Marrow, Drowned Cartographer (`dd-isolde-marrow`)
+- Black: Mother Hydra, Queen Beneath Dunmarrow (`dd-mother-hydra`), Agathe Vane, the Salt Widow (`dd-agathe-vane`), The Brood Below (`dd-the-brood-below`)
+- Green: The Reef That Walks (`dd-the-reef-that-walks`), Old Marrow, Keeper of the Salt Marsh (`dd-old-marrow`)
+- Red: Brenna Gale, Storm-Caller of the Reach (`dd-brenna-gale`), Cinderjaw, the Fire That Swims (`dd-cinderjaw`)
+- Multicolour: Father Dagon, the Deep Itself (`dd-father-dagon`), The Lantern Watch (`dd-the-lantern-watch`)
+
+**Double Super Rare (17)**
+
+- White: Constance Reyne, Harbourmaster (`dd-harbourmaster`), The Salt Gate (`dd-gate-of-salt`), Saint of the Lamp Oil (`dd-lamp-oil-saint`)
+- Blue: Ysolt the Tidewife (`dd-tidewife`), Drowned Scholar of the Reach (`dd-drowned-scholar`), Undertow (`dd-undertow`), The Glass That Came Back (`dd-glass-that-came-back`)
+- Black: The Drowned Bride (`dd-drowned-bride`), Sable, the Wharf Queen (`dd-wharf-rat-queen`), Marsh-Born Horror (`dd-salt-marsh-horror`)
+- Green: Elowen Cray, Reef-Warden (`dd-reef-warden`), Kelp Cathedral (`dd-kelp-cathedral`), Marsh-Risen (`dd-marsh-grave-risen`)
+- Red: Wreckfire (`dd-wreckfire`), The False Beacon (`dd-false-beacon`), Storm Surge (`dd-storm-surge`)
+- Multicolour: The Lightkeeper's Oath (`dd-lightkeepers-oath`)
+
+**Super Rare (23)**
+
+- White: Abbess of the Bell-Ringers (`dd-bell-ringer-abbess`), Widow's Walk (`dd-widows-walk`), Lamp-Lit Vigil (`dd-lamp-lit-vigil`), Gate-Warden of the Salt Stair (`dd-gate-warden`), The Last Lamp on the Point (`dd-last-lamp`)
+- Blue: Tide-Priestess of the Reach (`dd-tide-priestess`), Net-Mender of Low Street (`dd-net-mender`), Cold Current (`dd-cold-current`), Thing in the Cistern (`dd-thing-in-the-cistern`)
+- Black: The Jar-Witch of Low Street (`dd-jar-witch`), Deep One Hierophant (`dd-deep-one-hierophant`), Salt in the Wound (`dd-salt-in-the-wound`), Due to the Deep (`dd-tithe-to-the-deep`), What the Nets Remember (`dd-what-the-nets-remember`)
+- Green: Reef Shaman of the Shallows (`dd-reef-shaman`), Kelp-Shade Caller (`dd-kelp-shade-caller`), Tidepool Colossus (`dd-tidepool-colossus`), Marsh-Root Warden (`dd-marsh-root-warden`), Drowned Grove (`dd-drowned-grove`)
+- Red: Wrecker's Lantern (`dd-wrecker-lantern`), Storm Choir (`dd-storm-choir`), Rite of the False Beacon (`dd-rite-of-the-false-beacon`), Salt-Fire Witch (`dd-salt-fire-witch`)
+
+**Rare (75)**
+
+- White: Bell-Tower Sentry (`dd-bell-tower-sentry`), Captain of the Salt Stair (`dd-salt-stair-captain`), Sister of the Drowned Chapel (`dd-drowned-nun`), Widow's Lantern (`dd-widows-lantern`), Tide-Gate (`dd-tide-gate`), Salt Ward (`dd-salt-ward`), What the Lamps Saw (`dd-what-the-lamps-saw`), Vigil Bell (`dd-vigil-bell`), Watch-Sergeant Alder (`dd-watch-sergeant`), Rite of the Salt Gate (`dd-rite-of-the-salt-gate`), Oil for the Lamps (`dd-lamp-oil-bargain`), The Drowned Saint (`dd-drowned-saint`), Shore Patrol (`dd-shore-patrol`), The Morning Count (`dd-the-morning-count`)
+- Blue: Tide-Reader of the Reach (`dd-tide-reader`), Salvage Diver (`dd-harbour-looter`), Mermaid of the Cold Water (`dd-mermaid-of-the-cold-water`), Deep One Envoy (`dd-deep-one-envoy`), Drowned Bell Choir (`dd-drowned-bell-choir`), Still Water (`dd-still-water`), Charts of the Drowned Coast (`dd-charts-of-the-drowned-coast`), The Bell Below (`dd-bell-below`), Keeper of the Drowned Light (`dd-drowned-lighthouse-keeper`), The Fog That Stays (`dd-fog-that-stays`), Current-Caller (`dd-current-caller`), The Drowned Ledger (`dd-drowned-ledger`), Cold-Water Horror (`dd-cold-water-horror`), Reef-Glass Oracle (`dd-reef-glass-oracle`)
+- Black: The Deacon of the Deep (`dd-horror-lord`), Cellar-Witch of Low Street (`dd-cellar-witch`), Deep One Bride (`dd-deep-one-bride`), The Drowned Fisherman (`dd-drowned-fisherman`), The Price (`dd-the-price`), Wharf Collector (`dd-tithe-collector`), What the Jars Hold (`dd-what-the-jars-hold`), Low-Tide Grave (`dd-low-tide-grave`), Salt-Marsh Bargain (`dd-salt-marsh-bargain`), Deep One Midwife (`dd-deep-one-midwife`), Black Water (`dd-black-water`), Horror in the Crib (`dd-horror-in-the-crib`), What Was Promised (`dd-what-was-promised`), Reckoning Below (`dd-reckoning-below`)
+- Green: Reef-Tender (`dd-reef-tender`), Kelp-Shade Warden (`dd-kelp-shade-warden`), Reef Horror (`dd-reef-horror`), Tidepool Wall (`dd-tidepool-wall`), The Drowned Orchard (`dd-drowned-orchard`), Coral-Mother (`dd-coral-mother`), Something Under the Wharf (`dd-something-under-the-wharf`), Net Full of Stars (`dd-net-full-of-stars`), The Marsh Road (`dd-marsh-road`), Drowned Druid of the Reach (`dd-drowned-druid`), Tide-Worn Giant (`dd-tide-worn-giant`), Reef Bloom (`dd-reef-bloom`), Marsh-Wight (`dd-marsh-wight`), Old Growth (`dd-old-growth`), The Marsh Remembers (`dd-the-marsh-remembers`)
+- Red: Wrecker of the Reach (`dd-wrecker`), Storm-Witch (`dd-storm-witch`), Breakwater Brute (`dd-breakwater-brute`), Salt-Fire (`dd-salt-fire`), Lightning on the Water (`dd-lightning-on-the-water`), Rite of the Wreckers (`dd-rite-of-the-wreckers`), The Drowned Forge (`dd-drowned-forge`), Storm Front (`dd-storm-front`), Gale-Rider (`dd-gale-rider`), Fire on the Point (`dd-fire-on-the-point`), The Wrecker Queen (`dd-wrecker-queen`), Storm-Tide Horror (`dd-storm-tide-horror`), False-Lamp Bearer (`dd-false-lamp-bearer`), Fire-Witch of the Reach (`dd-reach-fire-witch`)
+- Multicolour: The Drowned Deacon (`dd-drowned-deacon`), The Horror Garden (`dd-horror-garden`), Watch and Tide (`dd-watch-and-tide`), Marsh-Mother (`dd-marsh-mother-horror`)
+
+**Common (124)**
+
+- White: Lamp-Bearer (`dd-lamp-bearer`), Wharf Watch (`dd-wharf-watch`), Salt-Stair Guard (`dd-salt-stair-guard`), Chapel Sister (`dd-chapel-sister`), Bell-Hand (`dd-bell-hand`), Net-Mender of the Point (`dd-net-mender-of-the-point`), Shore Lantern (`dd-shore-lantern`), Harbour Vigil (`dd-harbour-vigil`), Tide-Warden (`dd-tide-warden`), Widow of the Reach (`dd-widow-of-the-reach`), Chapel Bell (`dd-drowned-chapel-bell`), Salt and Prayer (`dd-salt-and-prayer`), Watch Recruit (`dd-watch-recruit`), Sentinel of the Point (`dd-point-sentinel`), Wisp-Caller (`dd-lantern-wisp-caller`), Whitecap Rider (`dd-whitecap-rider`), Chapel Warden (`dd-drowned-chapel-warden`), Shore-Mother (`dd-shore-mother`), Lamp Relay (`dd-lamp-relay`), Drowned Lantern (`dd-drowned-lantern`), Rite of the Lamp (`dd-rite-of-the-lamp`), Breakwater Warden (`dd-breakwater-warden`), Salt Chapel (`dd-salt-chapel`), Lamp and Ledger (`dd-lamp-and-ledger`), Chapel Ward (`dd-chapel-ward`)
+- Blue: Tide-Clerk (`dd-tide-clerk`), Low Street Looter (`dd-low-street-looter`), Harbour Mermaid (`dd-harbour-mermaid`), Drowned Scrivener (`dd-drowned-scrivener`), Cold-Water Diver (`dd-cold-water-diver`), Tide-Glass (`dd-tide-glass`), Fog Bank (`dd-fog-bank`), Undertow (`dd-undertow-charm`), Deep One Scout (`dd-deep-one-scout`), The Tide That Turns (`dd-tide-that-turns`), Still Harbour (`dd-still-harbour`), Drowned Chorister (`dd-drowned-choir-singer`), Net of Glass (`dd-net-of-glass`), Current-Reader (`dd-current-reader`), Drowned Bell (`dd-drowned-bell`), Envoy of the Cold Water (`dd-deep-envoy-lesser`), Salt Fog (`dd-salt-fog`), Tidewater Scholar (`dd-tidewater-scholar`), Memory of the Drowned (`dd-memory-of-the-drowned`), Mermaid of the Shallows (`dd-mermaid-of-the-shallows`), Cold-Current Horror (`dd-cold-current-horror`), Cartographer's Mate (`dd-drowned-cartographers-mate`), Tide-Caller of the Reach (`dd-reach-tide-caller`), The Glass-Eyed Drowned (`dd-glass-eyed-drowned`), Cold Harbour (`dd-cold-harbour`)
+- Black: Low Street Witch (`dd-low-street-witch`), The Drowned (`dd-drowned-child`), Deep One Cultist (`dd-deep-one-cultist`), Deep-Spawn Tender (`dd-deep-spawn-tender`), Deep One Warrior (`dd-deep-one-warrior`), Drowned Horror (`dd-drowned-horror`), Cellar Jar (`dd-cellar-jar`), Salt in the Eyes (`dd-salt-in-the-eyes`), The Deep Collects (`dd-the-deep-collects`), The Wharf's Due (`dd-tithe-of-the-wharf`), Drowned Sailor (`dd-drowned-sailor`), Marsh-Widow (`dd-marsh-widow`), Deep One Acolyte (`dd-deep-one-acolyte`), Cold Bargain (`dd-cold-bargain`), Wharf Rat (`dd-wharf-rat`), Horror in the Well (`dd-horror-in-the-well`), What the Sea Wants (`dd-what-the-sea-wants`), Black Tide Rising (`dd-black-tide-rising`), Deep-Spawn Hatchery (`dd-deep-spawn-hatchery`), Salt-Marsh Ghoul (`dd-salt-marsh-ghoul`), Drowned Nurse (`dd-drowned-nurse`), Jar of Eyes (`dd-jar-of-eyes`), Marsh-Lamp Lure (`dd-marsh-lamp-lure`), Low Street Mourner (`dd-low-street-mourner`), Gravedigger of the Flats (`dd-drowned-sexton-lesser`)
+- Green: Kelp-Tender (`dd-kelp-shade`), Reef Crab (`dd-reef-crab`), Tidepool Warden (`dd-tidepool-warden`), Marsh Horror (`dd-marsh-horror`), Coral Graft (`dd-coral-graft`), Reef Warden (`dd-reef-warden-lesser`), Tide-Worn Brute (`dd-tide-worn-brute`), Kelp Swarm (`dd-kelp-shade-swarm`), Reef-Lantern (`dd-reef-lantern`), Marsh-Road Warden (`dd-marsh-road-warden`), Reed-Witch (`dd-drowned-druid-lesser`), Old-Growth Horror (`dd-old-growth-horror`), Tidepool Bloom (`dd-tidepool-bloom`), Reed-Wight (`dd-marsh-wight-lesser`), Salt-Heron (`dd-shore-heron`), Coral-Witch (`dd-coral-mother-lesser`), Kelp Wall (`dd-kelp-wall`), Marsh Brute (`dd-marsh-brute`), Reef Growth (`dd-reef-growth`), Drowned Gardener (`dd-drowned-gardener`), Reed-Caller (`dd-reed-caller`), Shallows Hunter (`dd-shallows-hunter`), Marsh Gate (`dd-marsh-gate`), Elder Kelp Shade (`dd-kelp-shade-elder`)
+- Red: Wreck-Runner (`dd-wreck-runner`), Breakwater Brawler (`dd-breakwater-brawler`), Wrecker's Lantern-Bearer (`dd-wrecker-lantern-bearer`), Storm-Caller (`dd-storm-caller-lesser`), Salt-Fire Charm (`dd-salt-fire-lesser`), Storm Horror (`dd-storm-horror`), Wrecker's Lookout (`dd-wrecker-lookout`), Forge-Lamp (`dd-forge-lamp`), Rage of the Reach (`dd-rage-of-the-reach`), Fire Under Water (`dd-drowned-fire-lesser`), Storm-Rider (`dd-storm-rider`), Wrecker Mate (`dd-wrecker-captain-lesser`), Squall Line (`dd-storm-front-lesser`), Squall-Witch (`dd-storm-witch-lesser`), Forge-Hand (`dd-drowned-forge-hand`), Fire on the Water (`dd-fire-on-the-water`), Breakwater Veteran (`dd-breakwater-veteran`), Surge (`dd-storm-surge-lesser`), Wreck-Diver (`dd-wreck-diver`), Gale Horror (`dd-gale-horror`), Forge-Fire (`dd-drowned-forge-fire`), Reach Raider (`dd-reach-raider`), Rite of the Lamp-Fire (`dd-rite-of-the-lamp-fire`), Storm-Tide Brute (`dd-storm-tide-brute`), Forge-Master of the Reach (`dd-drowned-forge-master`)
+
+### Cut (70) and undecided (2)
+
+Owner cuts carry the owner's note where one was left; auto cuts carry the rule
+code and reason from the extrapolation (C1 stretch, C2 shipped reprint, C3
+in-set twin, C4 red sweep below SSR, C5 generic trick or near-vanilla body at
+Rare, C6 the brief's pie).
+
+**Double Super Rare (4)**
+
+- Bargain Below (`dd-bargain-below`, B): owner
+- Something in the Nets (`dd-something-in-the-nets`, G): owner
+- Halla Brand, Wrecker Captain (`dd-wrecker-captain`, R): owner
+- Drowned Fire (`dd-drowned-fire`, R): owner
+
+**Super Rare (7)**
+
+- Rite of the Lightkeepers (`dd-rite-of-the-lightkeepers`, W): owner
+- The Drowned Archive (`dd-drowned-archive`, U): owner
+- Remembered Shore (`dd-remembered-shore`, U): owner
+- The Drowned Sexton (`dd-drowned-sexton`, B): owner
+- The Catch (`dd-the-catch`, G): owner
+- Gale (`dd-gale-charm`, R): owner
+- Breakwater Brawl (`dd-breakwater-brawl`, R): owner
+
+**Rare (21)**
+
+- Lamp-Warden of the Point (`dd-lamp-warden`, W): C2 functional twin of a shipped card (Oathbound Cleric at 2)
+- Hold the Line (`dd-hold-the-line`, W): C5 pump Charm at the Wild Surge floor
+- Mending the Nets (`dd-mending-the-nets`, W): C5 fog Charm at the Valley Mist floor
+- Lightkeeper's Apprentice (`dd-lightkeepers-apprentice`, W): owner
+- Tidal Memory (`dd-tidal-memory`, U): C3 same card as Memory of the Drowned (C)
+- Undertow Pull (`dd-undertow-pull`, U): C3 same card as Cold Harbour (C)
+- Salt Lens (`dd-salt-lens`, U): C3 same card as Tide Glass (C)
+- What the Tide Took (`dd-what-the-tide-took`, U): C2 generic Draw 2 (the owner cut Remembered Shore)
+- The Drowned Preacher (`dd-drowned-preacher`, B): C3 Skim plus grind twin of Drowned Fisherman and the Cartographer's Mate
+- The Widow's Bargain (`dd-widows-bargain`, B): C3 Salt in the Eyes (C) covers the {B} Whispers shrink
+- Marsh-Lantern (`dd-marsh-lantern`, B): C2 a shipped card does this at 1 (Ink-Black Carriage)
+- Drowned Chorus (`dd-drowned-chorus`, B): C5 generic lifegain trigger, no set mechanic
+- Marsh Growth (`dd-marsh-growth`, G): C6 green Whispers Charm is off-pie (Charms are U/R); Wild Surge floor
+- Shallows Stalker (`dd-shallows-stalker`, G): C5 near-vanilla body at Rare
+- Drowned Harvest (`dd-drowned-harvest`, G): C1 stretch
+- Wreck-Fire (`dd-wreck-fire`, R): C4 red sweep Ritual below SSR
+- Drowned Cannon (`dd-drowned-cannon`, R): C6 third red Duty artifact, face-only (brief gives red none)
+- Heat of the Forge (`dd-heat-of-the-forge`, R): C5 pump Charm at the Wild Surge floor
+- Breakwater Riot (`dd-breakwater-riot`, R): C1 stretch; C4 red sweep
+- Storm and Salt (`dd-storm-and-salt`, R/B): C6 B/R is not a pair the set cares about
+- Lamp and Lightning (`dd-lamp-and-lightning`, R/W): C6 R/W is not a pair the set cares about
+
+**Common (36)**
+
+- Lamp Oil (`dd-lamp-oil`, W): C5 pump Charm at the Wild Surge floor
+- Mending Hands (`dd-mending-hands`, W): C5 arrival fog on a 2/2, the weakest white body
+- Vigil Candle (`dd-vigil-candle`, W): C3 same line as Shore Lantern (C) and Dawn Torc (shipped)
+- Salt Line (`dd-salt-line`, W): C2 Glimmerdust Trick reprint; Fog Bank is the set's tap Charm
+- The Watch Holds (`dd-the-watch-holds`, W): C2 Rallying Horn reprint
+- Morning-Bell Warden (`dd-morning-bell-warden`, W): C1 stretch
+- Keeper of the Point (`dd-point-keeper`, W): C3 dominated in-set by Point Sentinel and Breakwater Warden
+- Drowned Lamp-Keeper (`dd-drowned-lamp-keeper`, U): C3 Keeper of the Drowned Light (R) is the bounce body
+- Harbour Glass (`dd-harbour-glass`, U): C2 Tidal Slip floor; Reef-Glass Oracle (R) is the set's Foresee 3
+- Tide-Scribe (`dd-tide-scribe`, U): C1 stretch (AI-risk observer)
+- Drift-Net (`dd-drift-net`, U): C1 stretch (AI-risk observer)
+- Deep-Water Lookout (`dd-deep-water-lookout`, U): C3 third copy of the Skim plus Foresee shape (Current Reader, Mermaid of the Shallows)
+- The Tide's Bargain (`dd-drowned-tides-bargain`, U): C2 generic Draw 3 (the owner cut Remembered Shore)
+- Shallows Horror (`dd-shallows-horror`, U): C5 vanilla flyer; Choir Singer and the Mermaids cover blue's air
+- Drowned Grave (`dd-drowned-grave`, B): C1 stretch (AI-risk observer)
+- Wharf Preacher (`dd-drowned-preacher-lesser`, B): C2 Alley Oni Collector reprint
+- Deep One Elder (`dd-deep-one-elder`, B): C3 vanilla Horror twin of Drowned Horror, sits at the +0.75 edge
+- The Wharf Bargain (`dd-drowned-bargain-lesser`, B): C5 shrink at the Wild Surge floor; Salt in the Eyes covers
+- The Deep's Blessing (`dd-deep-ones-blessing`, B): C2 Raise Dead reprint; What Was Promised and Drowned Nurse cover
+- Horror Below the Wharf (`dd-horror-below-the-wharf`, B): C3 same card as Drowned Horror (4/4 Tithe Dreaded for 5)
+- Drowned Mother (`dd-drowned-mother`, B): C1 stretch; Drowned Spirit keeps two minters (Nets Remember, Horror Garden)
+- Marsh Forager (`dd-marsh-forager`, G): C2 Oathbound Cleric shape; Marsh-Road Warden is green's lifegain body
+- Overgrowth (`dd-marsh-growth-lesser`, G): C5 pump Charm at the Wild Surge floor
+- Marsh Giant (`dd-marsh-giant`, G): C3 vanilla 7-drop Horror; Tide-Worn Brute and Old-Growth Horror cover
+- Tide-Roots (`dd-tide-roots`, G): C1 stretch
+- Salt Harvest (`dd-drowned-harvest-lesser`, G): C3 Tidepool Bloom is the Mark-plus-life Ritual; Blessed Respite floor
+- Reef-Crawler (`dd-reef-crawler`, G): C5 vanilla 2/2 Warcry
+- Marsh Mist (`dd-marsh-mist`, G): C5 pump Charm at the Wild Surge floor
+- The Old Reef (`dd-old-reef`, G): C1 stretch
+- Squall (`dd-gale-lesser`, R): C2 Flame Lash reprint (the owner cut Gale)
+- Wreck Fire (`dd-wreck-fire-lesser`, R): C4 red sweep below SSR; Ember Squall floor
+- Wharf Brawl (`dd-breakwater-riot-lesser`, R): C4 red sweep below SSR; Ember Squall floor
+- False Lamp (`dd-false-lamp`, R): C5 uninteractive face pinger; Marsh Lantern went for the same reason
+- Storm Bell (`dd-storm-bell`, R): C6 red Duty artifact beyond Forge Lamp and the SR Lantern
+- Wrecker's Rage (`dd-wrecker-rage`, R): C1 stretch
+- Heat of the Wreck (`dd-heat-of-the-wreck`, R): C5 pump Charm at the Wild Surge floor
+
+**Undecided (2)**
+
+- The Choir Below (`dd-the-choir-below`, UR U/B): owner note: Save this for a future set? I just don't think it makes the cut for UR this set.
+- Vigil at Low Water (`dd-vigil-at-low-water`, SSR W)
+
