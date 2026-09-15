@@ -69,7 +69,7 @@ import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
 import { ensureSplitPip } from '../ui/ManaSymbols';
 import { getEffectiveStats, isSummoningSick } from '../engine/statics';
 import type { CardDef, Color, ManaColor, PlayerId, Permanent, TargetRef } from '../engine/types';
-import { cardIdOf, def, isType, manaValue } from '../engine/types';
+import { activatedAbilitiesOf, cardIdOf, def, isType, manaValue } from '../engine/types';
 import {
   attachTouchGestures,
   bindTapButton,
@@ -3972,11 +3972,12 @@ export class DuelScene extends Phaser.Scene {
     if (actions.length === 0) return false;
     const source = this.duel.state.battlefield.find((perm) => perm.iid === iid)!;
     const card = def(CARD_DB, source.cardId);
+    const ability = activatedAbilitiesOf(card)[actions[0].abilityIndex ?? 0];
     this.clearManaPlanPreview();
-    if (!card.activated?.targets?.length) this.showDutyConfirm(card, actions[0]);
+    if (!ability.targets?.length) this.showDutyConfirm(card, actions[0]);
     else {
       this.dutyTargets = [];
-      this.dutyTargetsUnordered = card.activated.targets[0].upTo !== undefined;
+      this.dutyTargetsUnordered = ability.targets[0].upTo !== undefined;
       this.pendingCasts = actions;
       this.sync();
       if (this.dutyNeedsPicker()) {
@@ -4019,9 +4020,10 @@ export class DuelScene extends Phaser.Scene {
   private previewDuty(iid: number): void {
     if (this.pendingCasts || this.ended || this.replayMode || this.empowerChooser || this.gravePicker) return;
     this.clearManaPlanPreview();
-    if (this.activateActionsFor(iid).length === 0) return;
+    const actions = this.activateActionsFor(iid);
+    if (actions.length === 0) return;
     const source = this.duel.state.battlefield.find((perm) => perm.iid === iid)!;
-    const cost = def(CARD_DB, source.cardId).activated!.cost.mana ?? { generic: 0, pips: {} };
+    const cost = activatedAbilitiesOf(def(CARD_DB, source.cardId))[actions[0].abilityIndex ?? 0].cost.mana ?? { generic: 0, pips: {} };
     this.previewManaPlanForCost(cost, 0, iid);
   }
 
@@ -6510,7 +6512,7 @@ export class DuelScene extends Phaser.Scene {
     // ManaText understands mana tokens only. Draw the baked tap pip directly
     // beside the mana run, so no literal T or Duty replaces the cost's icon.
     const pipSize = 22;
-    const cost = card.activated!.cost.mana;
+    const cost = activatedAbilitiesOf(card)[action.abilityIndex ?? 0].cost.mana;
     const mana = renderManaText(this, c, 0, 0, cost && manaValue(cost) > 0 ? `, ${manaCostText(cost)}` : '', {
       fontFamily: theme.fonts.ui, fontSize: `${pipSize}px`, color: theme.colors.gold, resolution: 2,
     });

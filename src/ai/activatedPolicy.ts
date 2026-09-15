@@ -2,7 +2,7 @@ import type { Action } from '../engine/actions';
 import { canAttack } from '../engine/combat/legality';
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb } from '../engine/types';
-import { def, isType, manaValue } from '../engine/types';
+import { activatedAbilitiesOf, def, isType, manaValue } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import { activateActionValue } from './value';
 
@@ -25,9 +25,10 @@ export function scoredActivationCandidates(
     const source = view.battlefield.find((perm) => perm.iid === action.iid);
     if (!source || source.controller !== view.myId) return false;
     const d = def(db, source.cardId);
-    if (!d.activated) return false;
+    const ability = activatedAbilitiesOf(d)[action.abilityIndex ?? 0];
+    if (!ability) return false;
     if (view.step === 'main1') {
-      if (manaValue(d.activated.cost.mana) > 0) return false;
+      if (manaValue(ability.cost.mana) > 0) return false;
       if (isType(d, 'creature')) {
         const stats = getEffectiveStats(view.battlefield, db, source.iid);
         // Even a zero-power or Bulwark Rage body never uses the Morning trick.

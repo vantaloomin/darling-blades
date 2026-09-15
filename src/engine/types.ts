@@ -29,8 +29,8 @@ export interface ManaCost {
 
 // ---------------------------------------------------------------------------
 // Effects — data-driven descriptors interpreted by the EffectInterpreter.
-// Only arrival triggers may target; their mandatory decision is deferred.
-// Spell upTo specs may fan one op out across independently chosen targets.
+// Targeted triggers defer their mandatory choice under their controller.
+// A spell's sole upTo or exactly spec fans ops across independently chosen targets.
 // ---------------------------------------------------------------------------
 
 export type TriggerWhen =
@@ -49,6 +49,11 @@ export type TriggerWhen =
   | 'otherCreatureMarked'
   | 'propagated'
   | 'markedAllyAttacks'
+  | 'allyDies'
+  | 'youGainLife'
+  | 'youCastCharm'
+  | 'allyAttacks'
+  | 'sunset'
   | 'static';
 
 export interface TargetSpec {
@@ -64,6 +69,7 @@ export interface TargetSpec {
     | 'any'
     | 'spell'
     | 'yourCreature'
+    | 'opponentCreature'
     | 'yourPermanent'
     | 'yourGraveCreature'
     | 'artifact'
@@ -71,8 +77,11 @@ export interface TargetSpec {
     | 'artifactOrEnchantment';
   /** Excludes the ability's source permanent. */
   other?: true;
-  /** Spell-side "up to N targets"; arrival triggers remain single-target. */
+  /** Spell-side "up to N targets"; deferred triggers choose one target. */
   upTo?: 2;
+  exactly?: 2;
+  maxCost?: number;
+  minAttack?: number;
   /** Restricts legal targets to creatures carrying at least one mark. */
   marked?: true;
   /** Restricts legal targets to tapped permanents. */
@@ -80,44 +89,50 @@ export interface TargetSpec {
 }
 
 export type EffectOp =
-  | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller' }
-  | { op: 'damage'; n: number | 'X'; to: 'eachCreature'; severOnDeath?: true }
+  | { op: 'damage'; n: number | 'X'; to: 'target' | 'opponent' | 'controller'; targetIndex?: number }
+  | { op: 'damage'; n: number | 'X'; to: 'eachCreature' | 'eachOpponentCreature'; severOnDeath?: true }
   | { op: 'gainLife'; n: number }
   | { op: 'loseLife'; n: number; who: 'opponent' }
   | { op: 'draw'; n: number }
+  | { op: 'discard'; n: number; who: 'self' }
+  | { op: 'sacrifice'; who: 'opponent' | 'each'; n: 1 }
+  | { op: 'tapAll'; who: 'opponent' }
+  | { op: 'preventCombatTo'; to: 'target'; targetIndex?: number }
+  | { op: 'reclaimSelf' }
   | { op: 'discardRandom'; n: number; who: 'opponent' }
-  | { op: 'destroy'; to: 'target' } // target permanent → its owner's graveyard
-  | { op: 'sever'; to: 'target' } // target permanent → its owner's severed zone
+  | { op: 'destroy'; to: 'target'; targetIndex?: number } // target permanent → its owner's graveyard
+  | { op: 'sever'; to: 'target'; targetIndex?: number } // target permanent → its owner's severed zone
   | { op: 'severGrave'; n: number; who: 'self' | 'opponent' } // top n grave cards → severed zone
   | { op: 'severTop'; n: number; who: 'self' } // top n deck cards → severed zone
-  | { op: 'recall'; to: 'target' } // target permanent → its owner's hand; tokens evaporate
+  | { op: 'recall'; to: 'target'; targetIndex?: number } // target permanent → its owner's hand; tokens evaporate
   | {
       op: 'destroyArtifactOrSeverEnchantment';
       to: 'target';
+      targetIndex?: number;
     } // branch is artifact-first; otherwise an enchantment is severed
-  | { op: 'cancel'; to: 'target' } // target is a stack item
-  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'allYours' | 'all' | 'yourMarked' | 'theirMarked' }
-  | { op: 'addCounters'; n: number; to: 'target' | 'self' }
+  | { op: 'cancel'; to: 'target'; targetIndex?: number } // target is a stack item
+  | { op: 'boost'; p: number; t: number; keywords?: Keyword[]; scope: 'target' | 'self' | 'allYours' | 'all' | 'yourMarked' | 'theirMarked'; targetIndex?: number }
+  | { op: 'addCounters'; n: number; to: 'target' | 'self'; targetIndex?: number }
   | { op: 'propagate' } // +1 Mark on each ALREADY-Marked creature you control; starts none, no target
   | { op: 'moveMark' } // move one mark from targets[0] to targets[1]
-  | { op: 'removeMarks'; to: 'target' }
-  | { op: 'markAll'; scope: 'yourCreatures' }
+  | { op: 'removeMarks'; to: 'target'; targetIndex?: number }
+  | { op: 'markAll'; scope: 'yourCreatures'; other?: true }
   | { op: 'loseLifePerTheirMarked'; who: 'opponent' }
   | { op: 'fetchLand' }
-  | { op: 'ifTargetMarked'; then: EffectOp[]; else?: EffectOp[] }
+  | { op: 'ifTargetMarked'; then: EffectOp[]; else?: EffectOp[]; targetIndex?: number }
   | { op: 'severSelf' }
-  | { op: 'tap'; to: 'target' }
+  | { op: 'tap'; to: 'target'; targetIndex?: number }
   | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
-  | { op: 'createToken'; token: string; count: number }
+  | { op: 'createToken'; token: string; count: number; marks?: number }
   | { op: 'destroyNewestOpponentArtifactOrEnchantment' } // trigger-safe, no target
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' | 'allEnchantments' }
   | { op: 'preventCombat' } // prevent all combat damage this turn
-  | { op: 'reclaim' } // return target creature card from your graveyard to hand
+  | { op: 'reclaim'; targetIndex?: number } // return target creature card from your graveyard to hand
   | { op: 'grind'; n: number; who: 'self' | 'opponent' } // top n of deck → graveyard
-  | { op: 'foresee'; n: number; who?: 'targetOwner' } // look at top n, then choose any subset to bottom
+  | { op: 'foresee'; n: number; who?: 'targetOwner'; targetIndex?: number } // look at top n, then choose any subset to bottom
   | { op: 'awaken'; scope: 'self' | 'allYours' } // one-way champion upgrade; trigger-safe
-  | { op: 'raise'; to?: 'target' } // your grave creature → battlefield (target)
-  | { op: 'raise'; to: 'top'; withMarks?: number }; // trigger-safe top raise, optionally arriving marked
+  | { op: 'raise'; to?: 'target'; grantKeywords?: Keyword[]; targetIndex?: number }
+  | { op: 'raise'; to: 'top'; withMarks?: number; grantKeywords?: Keyword[] };
 
 export interface StaticDef {
   /** `questActive` reads the source controller's public battlefield. */
@@ -128,6 +143,7 @@ export interface StaticDef {
     subtype?: string;
     other?: boolean;
     marked?: true;
+    token?: true;
     who?: 'yours' | 'opponent';
   };
   p?: number;
@@ -141,10 +157,13 @@ export interface AbilityDef {
   condition?:
     | 'questActive'
     | 'controlMarked'
+    | 'creatureDiedThisTurn'
+    | { kind: 'controlsOther'; subtype: string }
     // `permanents` remains a replay-compatible legacy value. Mark conditions
     // are creature-scoped regardless of this subject field.
     | { kind: 'markedThreshold'; n: number; subject: 'permanents' | 'creatures' };
   targets?: TargetSpec[];
+  filter?: { other?: true; subtype?: string; sacrifice?: true };
   ops?: EffectOp[];
   static?: StaticDef;
 }
@@ -152,13 +171,13 @@ export interface AbilityDef {
 /**
  * Optional Empower rider. The extra cost is paid as part of casting the card,
  * and the ops run after the card's normal resolution. Empower ops are required
- * to be trigger-safe. They may carry targets only when the op is moveMark.
+ * to be trigger-safe. Targeted riders may move Marks, reclaim, or destroy.
  * The engine keeps this contract explicit here because there is no separate
  * data-validation pass.
  */
 export interface EmpowerDef {
   cost: ManaCost;
-  /** Only a moveMark rider may carry these two cast-time target specs. */
+  /** Two cast-time specs for moveMark, one for reclaim or destroy. */
   targets?: TargetSpec[];
   ops: EffectOp[];
 }
@@ -169,13 +188,14 @@ export interface SkimDef {
 }
 
 /**
- * Optional alternative-cost graveyard cast. Retell ops, when present, are
- * trigger-safe and target-free, just like Empower ops: they replace the
- * printed spell body for that Retell cast and must not introduce a decision.
+ * Optional alternative-cost graveyard cast. Retell ops, when present, replace
+ * the printed body and use their own optional targets. Creature overrides
+ * resolve as spells and sever instead of entering the battlefield.
  */
 export interface RetellDef {
   cost: ManaCost;
   ops?: EffectOp[];
+  targets?: TargetSpec[];
 }
 
 /** Fresh-graveyard alternative cost, available until the opponent's next Dawn. */
@@ -198,7 +218,7 @@ export interface PreserveDef {
   cost: ManaCost;
 }
 
-/** A tap-cost activated ability. v1: at most one per card. */
+/** A tap-cost activated ability; cards may expose an ordered list of Duties. */
 export interface ActivatedDef {
   cost: { tap: true; mana?: ManaCost };
   /** Run immediately in order, with this permanent as the source. */
@@ -228,6 +248,7 @@ export function effectOpUsesTarget(op: EffectOp): boolean {
     case 'destroyArtifactOrSeverEnchantment':
     case 'cancel':
     case 'tap':
+    case 'preventCombatTo':
       return op.to === 'target';
     case 'boost':
       return op.scope === 'target';
@@ -268,10 +289,11 @@ function effectOpAddsMark(op: EffectOp): boolean {
 
 /**
  * Catalog-facing validation for the narrowly relaxed Empower target contract.
- * Empower riders are target-free except two named shapes:
+ * Empower riders are target-free except three named shapes:
  *   - `moveMark` carries exactly two single-target specs (from, to);
  *   - `reclaim` carries exactly one `yourGraveCreature` spec (Renenutet, Who
- *     Measures the Flood, 2026-09-04 rework).
+ *     Measures the Flood, 2026-09-04 rework);
+ *   - `destroy` carries one target spec, including cost/attack qualifiers.
  */
 export function validateEmpowerDef(d: CardDef): string[] {
   if (!d.empower) return [];
@@ -279,6 +301,7 @@ export function validateEmpowerDef(d: CardDef): string[] {
   const targets = d.empower.targets;
   const hasMoveMark = d.empower.ops.some((op) => op.op === 'moveMark');
   const hasReclaim = d.empower.ops.some((op) => op.op === 'reclaim');
+  const hasDestroy = d.empower.ops.some((op) => op.op === 'destroy');
   if (hasMoveMark && hasReclaim) {
     errors.push('Empower may not combine moveMark and reclaim');
   }
@@ -292,10 +315,12 @@ export function validateEmpowerDef(d: CardDef): string[] {
     if (!targets || targets.length !== 1 || targets[0].what !== 'yourGraveCreature' || targets[0].upTo !== undefined) {
       errors.push('Empower reclaim needs exactly one yourGraveCreature target spec');
     }
+  } else if (hasDestroy) {
+    if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower destroy needs one single-target spec');
   } else if (targets) {
     errors.push('Empower targets require a moveMark or reclaim op');
   }
-  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim')) {
+  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim' && op.op !== 'destroy')) {
     errors.push('Only moveMark and reclaim may target from Empower');
   }
   return errors;
@@ -366,7 +391,7 @@ export interface CardDef {
   /** Optional main-phase activation from this card's graveyard. */
   preserve?: PreserveDef;
   /** Optional main-phase battlefield action with a mandatory tap cost. */
-  activated?: ActivatedDef;
+  activated?: ActivatedDef | ActivatedDef[];
   /** Optional alternative-cost cast that enters attached to a friendly creature. */
   hauntlink?: HauntlinkDef;
   manaAbility?: (Color | 'C')[]; // lands & mana creatures
@@ -379,6 +404,10 @@ export interface CardDef {
 }
 
 export type CardDb = Readonly<Record<string, CardDef>>;
+
+export function activatedAbilitiesOf(d: CardDef): readonly ActivatedDef[] {
+  return d.activated ? (Array.isArray(d.activated) ? d.activated : [d.activated]) : [];
+}
 
 /**
  * Physical identity for one copy of a card. `cardId` is the only rules
@@ -448,7 +477,7 @@ export function validateHauntlinkDef(d: CardDef): string[] {
   return errors;
 }
 
-/** Catalog-facing validation for the target-free v1 Rite authoring contract. */
+/** Catalog-facing Rite validation; targeted effects choose before the sacrifice cost. */
 export function validateRiteDef(d: CardDef): string[] {
   if (!d.rite) return [];
   const errors: string[] = [];
@@ -464,7 +493,7 @@ export function validateRiteDef(d: CardDef): string[] {
   if (
     d.subtypes.includes('Aura') ||
     (d.abilities ?? []).some(
-      (ability) => ability.when !== 'static' && (ability.targets?.length ?? 0) > 0,
+      (ability) => ability.when !== 'static' && (ability.targets?.length ?? 0) > 0 && !ability.ops?.some(effectOpUsesTarget),
     )
   ) {
     errors.push('Rite card cannot have cast targets');
@@ -542,51 +571,57 @@ export function validateActivatedDef(d: CardDef): string[] {
   }
   if (d.hauntlink) errors.push('Activated carrier cannot combine with Hauntlink');
   if (d.manaAbility) errors.push('Activated carrier cannot combine with manaAbility');
-  const { cost, ops, targets = [] } = d.activated;
-  if (!cost || cost.tap !== true || Object.keys(cost).some((key) => key !== 'tap' && key !== 'mana')) {
-    errors.push('Activated cost must be tap or tap plus mana');
-  }
-  if (cost?.mana && (
-    !Number.isInteger(cost.mana.generic) || cost.mana.generic < 0 ||
-    Object.entries(cost.mana.pips).some(([color, pip]) =>
-      !['W', 'U', 'B', 'R', 'G'].includes(color) || !Number.isInteger(pip) || pip < 0,
-    )
-  )) errors.push('Activated mana cost must be non-negative');
-  if (ops.length === 0) errors.push('Activated ops must not be empty');
-  const inspect = (list: EffectOp[], afterForesee = false): boolean => {
-    let deferred = afterForesee;
-    for (const op of list) {
-      if ('n' in op && op.n === 'X') errors.push('Activated ops cannot use X');
-      if (effectOpUsesTarget(op)) {
-        if (targets.length === 0) errors.push('Activated target ops need target specs');
-        if (deferred) errors.push('Activated ops after Foresee cannot need an inline target');
+  if (activatedAbilitiesOf(d).length === 0) errors.push('Activated list must not be empty');
+  for (const activation of activatedAbilitiesOf(d)) {
+    const { cost, ops, targets = [] } = activation;
+    if (!cost || cost.tap !== true || Object.keys(cost).some((key) => key !== 'tap' && key !== 'mana')) {
+      errors.push('Activated cost must be tap or tap plus mana');
+    }
+    if (cost?.mana && (
+      !Number.isInteger(cost.mana.generic) || cost.mana.generic < 0 ||
+      Object.entries(cost.mana.pips).some(([color, pip]) =>
+        !['W', 'U', 'B', 'R', 'G'].includes(color) || !Number.isInteger(pip) || pip < 0,
+      )
+    )) errors.push('Activated mana cost must be non-negative');
+    if (ops.length === 0) errors.push('Activated ops must not be empty');
+    const inspect = (list: EffectOp[], afterForesee = false): boolean => {
+      let deferred = afterForesee;
+      for (const op of list) {
+        if ('n' in op && op.n === 'X') errors.push('Activated ops cannot use X');
+        if (effectOpUsesTarget(op)) {
+          if (targets.length === 0) errors.push('Activated target ops need target specs');
+          if (deferred) errors.push('Activated ops after Foresee cannot need an inline target');
+        }
+        if (op.op === 'ifTargetMarked') {
+          const thenDefers = inspect(op.then, deferred);
+          const elseDefers = inspect(op.else ?? [], deferred);
+          deferred = thenDefers || elseDefers;
+        } else if (op.op === 'foresee') {
+          deferred = true;
+        }
       }
-      if (op.op === 'ifTargetMarked') {
-        const thenDefers = inspect(op.then, deferred);
-        const elseDefers = inspect(op.else ?? [], deferred);
-        deferred = thenDefers || elseDefers;
-      } else if (op.op === 'foresee') {
-        deferred = true;
+      return deferred;
+    };
+    inspect(ops);
+    for (const target of targets) {
+      if (![
+        'creature', 'player', 'any', 'yourCreature', 'opponentCreature', 'yourPermanent',
+        'yourGraveCreature', 'artifact', 'enchantment', 'artifactOrEnchantment',
+      ].includes(target.what)) errors.push('Activated target spec has an invalid target kind');
+      if (target.what === 'player' && (target.marked || target.tapped)) {
+        errors.push('Activated player targets cannot be marked or tapped');
+      }
+      if (target.upTo !== undefined && (target.upTo !== 2 || targets.length !== 1)) {
+        errors.push('Activated upTo requires one target spec with upTo 2');
+      }
+      if (target.exactly !== undefined && (target.exactly !== 2 || targets.length !== 1 || target.upTo !== undefined)) {
+        errors.push('Activated exactly requires one target spec with exactly 2 and no upTo');
       }
     }
-    return deferred;
-  };
-  inspect(ops);
-  for (const target of targets) {
-    if (![
-      'creature', 'player', 'any', 'yourCreature', 'yourPermanent',
-      'yourGraveCreature', 'artifact', 'enchantment', 'artifactOrEnchantment',
-    ].includes(target.what)) errors.push('Activated target spec has an invalid target kind');
-    if (target.what === 'player' && (target.marked || target.tapped)) {
-      errors.push('Activated player targets cannot be marked or tapped');
-    }
-    if (target.upTo !== undefined && (target.upTo !== 2 || targets.length !== 1)) {
-      errors.push('Activated upTo requires one target spec with upTo 2');
-    }
+    if (ops.some((op) => op.op === 'moveMark') && (
+      targets.length !== 2 || targets.some((target) => target.upTo !== undefined || target.exactly !== undefined || target.what === 'spell')
+    )) errors.push('Activated moveMark needs exactly two single-target permanent specs');
   }
-  if (ops.some((op) => op.op === 'moveMark') && (
-    targets.length !== 2 || targets.some((target) => target.upTo !== undefined || target.what === 'spell')
-  )) errors.push('Activated moveMark needs exactly two single-target permanent specs');
   return errors;
 }
 
@@ -632,6 +667,8 @@ export interface Permanent {
   chapter?: number;
   /** Set true by `awaken`; never reset while this permanent remains in play. */
   awakened?: boolean;
+  grantedKeywords?: Keyword[];
+  combatDamagePrevented?: true;
 }
 
 export interface StackItem {
@@ -694,6 +731,7 @@ export type Awaiting =
       sourceIid: number;
       abilityIndex: number;
       targets: TargetRef[];
+      decision?: 'sacrifice';
     }
   | { player: PlayerId; kind: 'main' } // main1 or main2 (see state.step)
   | { player: PlayerId; kind: 'declareAttackers' }
@@ -712,7 +750,7 @@ export type Awaiting =
       kind: 'hauntlinkWindow';
       over: { type: 'trigger'; iid: number } | { type: 'combatDamage' };
     }
-  | { player: PlayerId; kind: 'discardToHandSize'; count: number }
+  | { player: PlayerId; kind: 'discardToHandSize'; count: number; decision?: 'discard' }
   | { kind: 'gameOver' };
 
 export interface PlayerState {
@@ -733,12 +771,27 @@ export interface PlayerState {
 }
 
 /** Resolution-time choices deferred until the current synchronous batch ends. */
+export interface EffectContinuation {
+  ops: EffectOp[];
+  context: {
+    controller: PlayerId; sourceCardId: string; sourceIid?: number; activated?: true; newDecisionContext?: true;
+    targets: TargetRef[]; targetBatch?: boolean; targetSpecs?: readonly TargetSpec[];
+    originalTargets?: TargetRef[]; originalTargetSpecs?: readonly TargetSpec[];
+    originalTargetOwners?: (PlayerId | undefined)[];
+    targetOwners?: (PlayerId | undefined)[]; x?: number; markTriggerDepth?: number;
+    selfGraveExclusion?: { instanceId?: number; cardId: string; owner?: PlayerId };
+  };
+}
+
 export type PendingDecision =
+  | { kind: 'discard'; player: PlayerId; n: number; continuations?: EffectContinuation[] }
+  | { kind: 'sacrifice'; player: PlayerId; n: 1; sourceCardId: string; sourceIid?: number; continuations?: EffectContinuation[] }
   // `player` chooses the cards; thenContext owns the target-free continuation.
   | {
       kind: 'foresee';
       player: PlayerId;
       n: number;
+      continuations?: EffectContinuation[];
       thenOps?: EffectOp[];
       thenContext?: {
         controller: PlayerId;
@@ -755,6 +808,8 @@ export type PendingDecision =
       sourceCardId: string;
       abilityIndex: number;
       spec: TargetSpec;
+      triggerWhen?: TriggerWhen;
+      continuations?: EffectContinuation[];
       ops: EffectOp[];
     }
   // Revision 4: a trigger whose ops are held back so Hauntlink windows can be
@@ -768,8 +823,11 @@ export type PendingDecision =
       targets: TargetRef[];
       ops: EffectOp[];
       offered: PlayerId[];
+      targetSpecs?: readonly TargetSpec[];
+      newDecisionContext?: true;
+      continuations?: EffectContinuation[];
       markTriggerDepth?: number;
-      selfGraveExclusion?: { instanceId?: number; cardId: string };
+      selfGraveExclusion?: { instanceId?: number; cardId: string; owner?: PlayerId };
     };
 
 export interface GameState {
@@ -787,7 +845,10 @@ export interface GameState {
   stack: StackItem[];
   stackClosed: boolean; // true once someone passed a window → flush mode
   combat: CombatState | null;
-  fogThisTurn: boolean; // a fog effect prevents all combat damage this turn
+  fogThisTurn: boolean;
+  creatureDiedThisTurn?: true;
+  sunsetPendingWindow?: true;
+  decisionResume?: Awaiting & { offerAfterDecision?: true };
   awaiting: Awaiting;
   // FIFO resolution-time choices. The synchronous interpreter queues these;
   // Game raises each matching Awaiting after the current batch finishes.

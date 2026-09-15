@@ -8,6 +8,8 @@ import { chooseActivate } from './activatedPolicy';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
+import { chooseDiscard } from './discardPolicy';
+import { chooseSacrifice } from './sacrificePolicy';
 import { chooseDarlingPaydown } from './darlingPolicy';
 import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
@@ -16,7 +18,7 @@ import { choosePreserve } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
-import { chooseTargetAction } from './targeting';
+import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
 import {
   cardValue,
   empowerValue,
@@ -46,6 +48,7 @@ export class MediumAI implements AIPlayer {
   ) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyVocabularyTargetPolicy(view, this.db, legal);
     legal = applyTithePolicy(view, this.db, legal, this.pers);
     legal = applyRitePolicy(view, this.db, legal);
     legal = applyWhispersPolicy(view, this.db, legal, (cast) => this.castScore(view, cast));
@@ -56,6 +59,9 @@ export class MediumAI implements AIPlayer {
         return this.mulligan(view);
       case 'bottomCards':
       case 'discardToHandSize':
+        if (view.awaiting.kind === 'discardToHandSize' && view.awaiting.decision === 'discard') {
+          return chooseDiscard(view, this.db);
+        }
         return this.worstCards(view, legal);
       case 'foresee':
         return chooseForesee(view, this.db);
@@ -92,6 +98,7 @@ export class MediumAI implements AIPlayer {
       case 'endStepWindow':
         return this.endStep(view, legal);
       case 'chooseTarget':
+        if (view.awaiting.decision === 'sacrifice') return chooseSacrifice(view, this.db, legal);
         return chooseTargetAction(view, this.db, legal);
       default:
         return legal[0];

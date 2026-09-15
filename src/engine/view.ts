@@ -3,6 +3,7 @@ import type {
   CombatState,
   GameState,
   Permanent,
+  PendingDecision,
   PlayerId,
   StackItem,
   Step,
@@ -20,6 +21,7 @@ export interface SelfView {
   hand: string[];
   deckCount: number;
   graveyard: string[];
+  graveyardInstances?: (number | null)[];
   /** Graveyard indices whose Whispers marker lasts until the owner's opponent's Dawn. */
   whispersLive: number[];
   severed: string[];
@@ -39,6 +41,7 @@ export interface OpponentView {
   handCount: number;
   deckCount: number;
   graveyard: string[];
+  graveyardInstances?: (number | null)[];
   /** Public live Whispers indices into this side's graveyard. */
   whispersLive: number[];
   severed: string[];
@@ -67,6 +70,12 @@ export interface PlayerView {
   stack: StackItem[];
   combat: CombatState | null;
   fogThisTurn: boolean;
+  creatureDiedThisTurn?: true;
+  sunsetPendingWindow?: true;
+  decisionResume?: GameState['decisionResume'];
+  pendingDecisions?: PendingDecision[];
+  /** Public flush state while a new decision suspends the stack. */
+  stackClosed?: boolean;
   awaiting: Awaiting;
   winner: PlayerId | 'draw' | null;
 }
@@ -78,6 +87,7 @@ export function viewFor(
 ): PlayerView {
   const me = state.players[player];
   const them = state.players[opponentOf(player)];
+  const publicQueue = state.pendingDecisions.some(p => p.kind === 'discard' || p.kind === 'sacrifice' || p.continuations !== undefined || (p.kind === 'chooseTarget' && p.triggerWhen !== undefined) || (p.kind === 'resolveTrigger' && (p.newDecisionContext || p.ops.some(op => op.op === 'reclaimSelf'))));
   const awaiting =
     state.awaiting.kind === 'foresee' && state.awaiting.player !== player
       ? { ...state.awaiting, cards: [] }
@@ -96,6 +106,7 @@ export function viewFor(
       hand: me.hand.map(cardIdOf),
       deckCount: me.deck.length,
       graveyard: me.graveyard.map(cardIdOf),
+      ...(publicQueue ? { graveyardInstances: me.graveyard.map(c => isCardInstance(c) ? c.instanceId : null) } : {}),
       whispersLive: me.graveyard.flatMap((card, index) =>
         isCardInstance(card) && card.whispersUntilDawnOf === opponentOf(player) ? [index] : [],
       ),
@@ -117,6 +128,7 @@ export function viewFor(
       handCount: them.hand.length,
       deckCount: them.deck.length,
       graveyard: them.graveyard.map(cardIdOf),
+      ...(publicQueue ? { graveyardInstances: them.graveyard.map(c => isCardInstance(c) ? c.instanceId : null) } : {}),
       whispersLive: them.graveyard.flatMap((card, index) =>
         isCardInstance(card) && card.whispersUntilDawnOf === player ? [index] : [],
       ),
@@ -137,6 +149,10 @@ export function viewFor(
     stack: structuredClone(state.stack),
     combat: structuredClone(state.combat),
     fogThisTurn: state.fogThisTurn,
+    ...(state.creatureDiedThisTurn ? { creatureDiedThisTurn: true as const } : {}),
+    ...(state.sunsetPendingWindow ? { sunsetPendingWindow: true as const } : {}),
+    ...(state.decisionResume ? { decisionResume: structuredClone(state.decisionResume) } : {}),
+    ...(publicQueue ? { pendingDecisions: structuredClone(state.pendingDecisions), stackClosed: state.stackClosed } : {}),
     awaiting,
     winner: state.winner,
   };

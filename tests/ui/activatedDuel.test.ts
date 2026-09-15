@@ -1,3 +1,4 @@
+import { activatedAbilitiesOf } from '../../src/engine/types';
 import { describe, expect, it } from 'vitest';
 import { activatedBlockers, legalActions, validateAction } from '../../src/engine/actions';
 import { Game } from '../../src/engine/Game';
@@ -187,7 +188,7 @@ describe('Duty duel presentation', () => {
   it('submits the picked paid Duty with its source and solved mana sources tapped', () => {
     const state = board('paid');
     const offered = actions(state);
-    const plan = solveMana(state, DB, 0, DB.paid.activated!.cost.mana!);
+    const plan = solveMana(state, DB, 0, activatedAbilitiesOf(DB.paid)[0].cost.mana!);
     expect(plan).toEqual([40, 50]);
     const picked = dutyTargetStep(offered, [{ kind: 'player', player: 1 }]).complete!;
     const game = Game.restore(state, DB);

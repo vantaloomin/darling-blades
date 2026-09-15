@@ -1,3 +1,4 @@
+import { activatedAbilitiesOf } from './types';
 import { DARLING_PAYDOWN_COST, DARLING_PAYDOWN_REDUCTION, RULES } from '../config/rules';
 import {
   blockOptions,
@@ -81,7 +82,7 @@ export type Action =
   /** Main-phase graveyard action: pay Preserve, sever the card, and create a token copy. */
   | { type: 'preserveCard'; graveIndex: number; manaPlan?: number[] }
   /** Main-phase tap-cost ability; targets are chosen inline, off-stack. */
-  | { type: 'activate'; iid: number; targets?: TargetRef[]; manaPlan?: number[] }
+  | { type: 'activate'; iid: number; abilityIndex?: number; targets?: TargetRef[]; manaPlan?: number[] }
   /** Normal creature-timing cast from a public Darling zone. */
   | { type: 'castDarling'; targets?: TargetRef[]; x?: number; manaPlan?: number[] }
   /** Main-phase action: pay four mana to remove one two-mana Darling tax step. */
@@ -326,9 +327,8 @@ function castTargetSpecsFor(
   empowered = false,
 ): ReturnType<typeof castTargetSpecs> {
   if (hauntlinked) return [{ what: 'yourCreature' }];
-  // R4 Retell ops are trigger-safe and target-free. An override therefore
-  // replaces the printed body's target requirements for that cast.
-  if (retell && d.retell?.ops) return [];
+  // A Retell override replaces the printed body's ops and target requirements.
+  if (retell && d.retell?.ops) return d.retell.targets ?? [];
   if (empowered && d.empower?.targets) return d.empower.targets;
   return castTargetSpecs(d);
 }
@@ -343,6 +343,7 @@ function targetListsForCast(
   sourceIid?: number,
   moveMark = cardHasMoveMark(d, empowered),
 ): (TargetRef[] | undefined)[] {
+  if (specs.some(spec => spec.exactly !== undefined && (specs.length !== 1 || spec.upTo !== undefined))) return [];
   if (specs.length === 0) return [undefined];
   const candidatesFor = (spec: TargetSpec): TargetRef[] => {
     const candidates = enumerateTargets(state, db, player, spec, sourceIid);
@@ -356,14 +357,14 @@ function targetListsForCast(
           state.battlefield.find((perm) => perm.iid === ref.iid)?.controller === player
         )) : legal;
   };
-  if (specs.length === 1 && specs[0].upTo === undefined && !moveMark) {
+  if (specs.length === 1 && specs[0].upTo === undefined && specs[0].exactly === undefined && !moveMark) {
     return candidatesFor(specs[0]).map((target) => [target]);
   }
-  if (specs.length === 1 && specs[0].upTo !== undefined) {
+  if (specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined)) {
     const candidates = candidatesFor(specs[0]);
-    const out: TargetRef[][] = [[]];
-    for (const candidate of candidates) out.push([candidate]);
-    if (specs[0].upTo >= 2) {
+    const out: TargetRef[][] = specs[0].exactly ? [] : [[]];
+    if (!specs[0].exactly) for (const candidate of candidates) out.push([candidate]);
+    if ((specs[0].upTo ?? specs[0].exactly ?? 0) >= 2) {
       for (let first = 0; first < candidates.length; first++) {
         for (let second = first + 1; second < candidates.length; second++) {
           out.push([candidates[first], candidates[second]]);
@@ -424,8 +425,12 @@ function validateTargetList(
   sourceIid?: number,
   moveMark = cardHasMoveMark(d, empowered),
 ): string | null {
-  if (specs.length === 1 && specs[0].upTo !== undefined) {
-    if (targets.length > specs[0].upTo) return 'too many targets';
+  if (specs.some(spec => spec.exactly !== undefined && (specs.length !== 1 || spec.upTo !== undefined))) {
+    return 'exactly requires one target spec and cannot combine with upTo';
+  }
+  if (specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined)) {
+    if (specs[0].exactly && targets.length !== specs[0].exactly) return 'wrong number of targets';
+    if (targets.length > (specs[0].upTo ?? specs[0].exactly ?? 0)) return 'too many targets';
     for (let index = 0; index < targets.length; index++) {
       if (targets.slice(0, index).some((prior) => sameTarget(prior, targets[index]))) {
         return 'upTo targets must be distinct';
@@ -456,7 +461,7 @@ function validateTargetList(
 }
 
 function retellable(d: CardDef): boolean {
-  return d.retell !== undefined && !d.x && !d.whispers && !d.tithe && (isType(d, 'ritual') || isType(d, 'charm'));
+  return d.retell !== undefined && !d.x && !d.whispers && !d.tithe && (isType(d, 'ritual') || isType(d, 'charm') || (isType(d, 'creature') && d.retell.ops !== undefined));
 }
 
 function preserveBlockers(
@@ -473,9 +478,9 @@ function preserveBlockers(
   return canPay(state, db, player, d.preserve.cost) ? null : 'cannot pay cost';
 }
 
-function activatedTargetLists(state: GameState, db: CardDb, player: PlayerId, perm: Permanent) {
+function activatedTargetLists(state: GameState, db: CardDb, player: PlayerId, perm: Permanent, abilityIndex = 0) {
   const d = def(db, perm.cardId);
-  const ability = d.activated!;
+  const ability = activatedAbilitiesOf(d)[abilityIndex];
   return targetListsForCast(
     state, db, player, d, ability.targets ?? [], false, perm.iid,
     ability.ops.some((op) => op.op === 'moveMark'),
@@ -488,6 +493,7 @@ export function activatedBlockers(
   db: CardDb,
   player: PlayerId,
   perm: Permanent | undefined,
+  abilityIndex = 0,
 ): string | null {
   const a = state.awaiting;
   if (a.kind !== 'main' || a.player !== player || state.activePlayer !== player ||
@@ -505,18 +511,25 @@ export function activatedBlockers(
     if (perm.tapped) return 'Activated source is tapped';
     return 'Activated source cannot tap the turn it arrives unless it has Warcry';
   }
-  if (d.activated!.cost.mana && !canPay(state, db, player, d.activated!.cost.mana)) {
+  const ability = activatedAbilitiesOf(d)[abilityIndex];
+  if (!Number.isInteger(abilityIndex) || !ability) return 'invalid activated ability index';
+  if (ability.cost.mana && !canPay(state, db, player, ability.cost.mana)) {
     return 'cannot pay cost';
   }
-  if (activatedTargetLists(state, db, player, perm).length === 0) return 'no legal targets for activated ability';
+  if (activatedTargetLists(state, db, player, perm, abilityIndex).length === 0) return 'no legal targets for activated ability';
   return null;
 }
 
 function pushActivatedActions(out: Action[], state: GameState, db: CardDb, player: PlayerId): void {
   for (const perm of state.battlefield) {
-    if (!def(db, perm.cardId).activated || activatedBlockers(state, db, player, perm) !== null) continue;
-    for (const targets of activatedTargetLists(state, db, player, perm)) {
-      out.push({ type: 'activate', iid: perm.iid, ...(targets === undefined ? {} : { targets }) });
+    const d = def(db, perm.cardId);
+    for (let abilityIndex = 0; abilityIndex < activatedAbilitiesOf(d).length; abilityIndex++) {
+      if (activatedBlockers(state, db, player, perm, abilityIndex) !== null) continue;
+      for (const targets of activatedTargetLists(state, db, player, perm, abilityIndex)) {
+        out.push({ type: 'activate', iid: perm.iid,
+          ...(Array.isArray(d.activated) ? { abilityIndex } : {}),
+          ...(targets === undefined ? {} : { targets }) });
+      }
     }
   }
 }
@@ -646,7 +659,7 @@ function castBlockers(
   const creatures = creatureCount(state, db, player);
   if (d.rite && creatures < d.rite.n) return 'not enough creatures for Rite';
   if (
-    isType(d, 'creature') &&
+    isType(d, 'creature') && !(retell && d.retell?.ops) &&
     creatures - (options.tithe ? options.sacrifices?.length ?? 0 : d.rite?.n ?? 0) >= RULES.maxCreatures
   )
     return 'creature battlefield cap reached';
@@ -934,6 +947,10 @@ export function validateAction(
     case 'chooseTarget': {
       if (a.kind !== 'chooseTarget') return 'not choosing a target';
       const pending = state.pendingDecisions[0];
+      if (pending?.kind === 'sacrifice' && a.decision === 'sacrifice') {
+        const perm = action.target.kind === 'permanent' ? state.battlefield.find(p => action.target.kind === 'permanent' && p.iid === action.target.iid) : undefined;
+        return pending.player === player && perm?.controller === player && isType(def(db, perm.cardId), 'creature') ? null : 'illegal sacrifice';
+      }
       if (pending?.kind !== 'chooseTarget' || pending.player !== player) return 'no target decision is pending';
       if (!a.targets.some((target) => sameTarget(target, action.target))) return 'illegal target';
       return isLegalTarget(state, db, player, pending.spec, action.target, pending.sourceIid)
@@ -990,10 +1007,10 @@ export function validateAction(
 
     case 'activate': {
       const perm = state.battlefield.find((source) => source.iid === action.iid);
-      const blocked = activatedBlockers(state, db, player, perm);
+      const blocked = activatedBlockers(state, db, player, perm, action.abilityIndex ?? 0);
       if (blocked) return blocked;
       const d = def(db, perm!.cardId);
-      const ability = d.activated!;
+      const ability = activatedAbilitiesOf(d)[action.abilityIndex ?? 0];
       const targetError = validateTargetList(
         state, db, player, d, ability.targets ?? [], action.targets ?? [], false, perm!.iid,
         ability.ops.some((op) => op.op === 'moveMark'),

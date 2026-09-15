@@ -1,3 +1,4 @@
+import { activatedAbilitiesOf } from '../src/engine/types';
 import type { CardDb, CardDef, EffectOp } from '../src/engine/types';
 import { isType, validateActivatedDef } from '../src/engine/types';
 
@@ -40,6 +41,6 @@ export function activatedCatalogErrors(card: CardDef, db: CardDb): string[] {
       }
     }
   };
-  inspect(card.activated.ops);
+  for (const ability of activatedAbilitiesOf(card)) inspect(ability.ops);
   return errors;
 }

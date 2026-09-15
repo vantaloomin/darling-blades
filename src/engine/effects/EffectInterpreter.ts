@@ -12,12 +12,13 @@ import { drawCards } from '../phases';
 import { freshGraveyardCard } from '../graveyard';
 import { rngInt } from '../rng';
 import { getEffectiveStats, isQuestActive } from '../statics';
-import { enumerateTargets } from './targeting';
+import { enumerateTargets, isLegalTarget } from './targeting';
 import type {
   AbilityDef,
   CardDb,
   CardEntry,
   EffectOp,
+  EffectContinuation,
   GameState,
   Permanent,
   PlayerId,
@@ -29,6 +30,8 @@ import { cardIdOf, def, effectOpUsesTarget, isCardInstance, isType, opponentOf }
 
 export interface EffectContext {
   controller: PlayerId;
+  /** New observer choices suspend their triggering action before its response window. */
+  newDecisionContext?: true;
   /** Reject unexpected targeted decisions or response windows from an activation. */
   activated?: true;
   sourceCardId: string;
@@ -36,6 +39,11 @@ export interface EffectContext {
   targets: TargetRef[];
   /** True when the spell's one upTo spec selected multiple independent targets. */
   targetBatch?: boolean;
+  targetSpecs?: readonly TargetSpec[];
+  /** Original cast slots survive an op or conditional branch binding one target. */
+  originalTargets?: TargetRef[];
+  originalTargetSpecs?: readonly TargetSpec[];
+  originalTargetOwners?: (PlayerId | undefined)[];
   /** Owners captured before target effects can move a permanent between zones. */
   targetOwners?: (PlayerId | undefined)[];
   /** Internal mark-event recursion depth. This never enters public state. */
@@ -49,7 +57,7 @@ export interface EffectContext {
    * damage/destroy, and a second copy loops the legend rule against the return
    * until `checkStateBased` gives up (measured 2026-08-22, Sitra).
    */
-  selfGraveExclusion?: { instanceId?: number; cardId: string };
+  selfGraveExclusion?: { instanceId?: number; cardId: string; owner?: PlayerId };
 }
 
 /**
@@ -96,19 +104,13 @@ const markEventAvailability = new WeakMap<object, {
   allyCreatureArrives: boolean;
 }>();
 
-/**
- * Resolve mark-observer availability once per database shape. AI
- * determinization creates fresh simDb objects, but their shared stand-in
- * CardDefs provide a stable cache key across those worlds.
- */
+/** Resolve mark-observer availability once per actual, immutable database. */
 function markEventAbilitiesIn(db: CardDb): {
   any: boolean;
   markedAllyAttacks: boolean;
   allyCreatureArrives: boolean;
 } {
-  const standIn = db.__unknown_c2;
-  const key = standIn?.id === '__unknown_c2' ? standIn : db;
-  const cached = markEventAvailability.get(key);
+  const cached = markEventAvailability.get(db);
   if (cached) return cached;
   let any = false;
   let markedAllyAttacks = false;
@@ -127,13 +129,13 @@ function markEventAbilitiesIn(db: CardDb): {
       if (ability.when === 'allyCreatureArrives') allyCreatureArrives = true;
       if (any && markedAllyAttacks && allyCreatureArrives) {
         const result = { any, markedAllyAttacks, allyCreatureArrives };
-        markEventAvailability.set(key, result);
+        markEventAvailability.set(db, result);
         return result;
       }
     }
   }
   const result = { any, markedAllyAttacks, allyCreatureArrives };
-  markEventAvailability.set(key, result);
+  markEventAvailability.set(db, result);
   return result;
 }
 
@@ -166,7 +168,7 @@ function fireMarkTriggers(
             (ab.when === 'otherCreatureMarked' && markedIsCreature && source.iid !== marked.iid)
           );
       if (!matches || !ab.ops) continue;
-      if (ab.condition !== undefined && !conditionSatisfied(state, db, source.controller, ab.condition)) continue;
+      if (ab.condition !== undefined && !conditionSatisfied(state, db, source.controller, ab.condition, source.iid)) continue;
       emit({ e: 'triggerFired', iid: source.iid, when: ab.when });
       runOps(
         state,
@@ -224,8 +226,13 @@ export function conditionSatisfied(
   db: CardDb,
   controller: PlayerId,
   condition: AbilityDef['condition'],
+  sourceIid?: number,
 ): boolean {
   if (condition === undefined) return true;
+  if (condition === 'creatureDiedThisTurn') return state.creatureDiedThisTurn === true;
+  if (typeof condition === 'object' && condition.kind === 'controlsOther') return state.battlefield.some(p =>
+    p.controller === controller && p.iid !== sourceIid && isType(def(db, p.cardId), 'creature') &&
+    def(db, p.cardId).subtypes.includes(condition.subtype));
   if (condition === 'questActive') return isQuestActive(state.battlefield, db, controller);
   if (condition === 'controlMarked') {
     // The condition name is retained for replay compatibility, but Marks are
@@ -276,11 +283,43 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       }
       return;
     }
+    case 'discard':
+      if (op.n > 0 && state.players[ctx.controller].hand.length > 0)
+        state.pendingDecisions.push({ kind: 'discard', player: ctx.controller, n: op.n });
+      return;
+    case 'sacrifice':
+      for (const player of op.who === 'each' ? [ctx.controller, opponentOf(ctx.controller)] : [opponentOf(ctx.controller)]) {
+        // Earlier sacrifices may change the next seat's board. Re-evaluate
+        // their supply when the queued choice is raised; empty seats skip.
+        state.pendingDecisions.push({ kind: 'sacrifice', player, n: 1, sourceCardId: ctx.sourceCardId,
+          ...(ctx.sourceIid === undefined ? {} : { sourceIid: ctx.sourceIid }) });
+      }
+      return;
+    case 'tapAll':
+      for (const perm of state.battlefield) if (perm.controller !== ctx.controller && isType(def(db, perm.cardId), 'creature')) perm.tapped = true;
+      return;
+    case 'preventCombatTo':
+      for (const ref of targetRefsForOp(ctx)) {
+        const perm = targetPermanent(state, ref);
+        if (perm && isType(def(db, perm.cardId), 'creature')) perm.combatDamagePrevented = true;
+      }
+      return;
+    case 'reclaimSelf': {
+      const owner = ctx.selfGraveExclusion?.owner ?? ctx.controller;
+      const grave = state.players[owner].graveyard;
+      const index = selfGraveIndex(grave, ctx.selfGraveExclusion);
+      if (index >= 0) {
+        const [card] = grave.splice(index, 1);
+        if (isCardInstance(card)) delete card.whispersUntilDawnOf;
+        state.players[owner].hand.push(card);
+      }
+      return;
+    }
     case 'damage': {
       const n = op.n === 'X' ? (ctx.x ?? 0) : op.n;
-      if (op.to === 'eachCreature') {
+      if (op.to === 'eachCreature' || op.to === 'eachOpponentCreature') {
         for (const perm of state.battlefield) {
-          if (!isType(def(db, perm.cardId), 'creature') || n <= 0) continue;
+          if (!isType(def(db, perm.cardId), 'creature') || n <= 0 || (op.to === 'eachOpponentCreature' && perm.controller === ctx.controller)) continue;
           perm.damage += n;
           if (op.severOnDeath) perm.severBranded = true;
           emit({ e: 'damageMarked', iid: perm.iid, amount: n });
@@ -311,6 +350,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         delta: op.n,
         now: state.players[ctx.controller].life,
       });
+      if (op.n > 0) firePlayerObservers(state, db, emit, 'youGainLife', ctx.controller, ctx.markTriggerDepth);
       return;
     }
     case 'loseLife':
@@ -333,6 +373,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     }
     case 'destroy': {
+      const observers = [...state.battlefield];
       for (const ref of targetRefsForOp(ctx)) {
         const perm = targetPermanent(state, ref);
         if (perm && destroyPermanent(
@@ -342,7 +383,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
           emit,
           (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner, ctx.markTriggerDepth),
         ) && firesDiesForDestroy(state, db, perm)) {
-          fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth: ctx.markTriggerDepth });
+          fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth: ctx.markTriggerDepth, observers });
         }
       }
       return;
@@ -362,6 +403,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     }
     case 'destroyArtifactOrSeverEnchantment': {
+      const observers = [...state.battlefield];
       for (const ref of targetRefsForOp(ctx)) {
         const perm = targetPermanent(state, ref);
         if (!perm) continue;
@@ -376,7 +418,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
             emit,
             (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner, ctx.markTriggerDepth),
           ) && firesDiesForDestroy(state, db, perm)) {
-            fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth: ctx.markTriggerDepth });
+            fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth: ctx.markTriggerDepth, observers });
           }
         } else if (isType(d, 'enchantment')) {
           severPermanent(state, db, perm, emit);
@@ -436,7 +478,9 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'boost': {
       const mod = { p: op.p, t: op.t, keywords: op.keywords ?? [] };
-      if (op.scope === 'target') {
+      if (op.scope === 'self') {
+        state.battlefield.find(p => p.iid === ctx.sourceIid)?.untilEotMods.push(mod);
+      } else if (op.scope === 'target') {
         for (const ref of targetRefsForOp(ctx)) {
           const perm = targetPermanent(state, ref);
           perm?.untilEotMods.push({ ...mod, keywords: [...mod.keywords] });
@@ -538,7 +582,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     }
     case 'markAll': {
       const creatures = [...state.battlefield].filter(
-        (perm) => perm.controller === ctx.controller && isType(def(db, perm.cardId), 'creature'),
+        (perm) => perm.controller === ctx.controller && (!op.other || perm.iid !== ctx.sourceIid) && isType(def(db, perm.cardId), 'creature'),
       );
       const markEventAbilities = markEventAbilitiesIn(db).any;
       for (const perm of creatures) {
@@ -593,6 +637,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
             ...ctx,
             targets: [ref],
             targetBatch: false,
+            ...(ctx.targetSpecs ? { targetSpecs: [ctx.targetSpecs[ctx.targetBatch ? 0 : index]] } : {}),
             targetOwners: [ctx.targetOwners?.[index]],
           },
           target &&
@@ -622,12 +667,14 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         if (count >= RULES.maxCreatures) return; // cap: excess tokens are not created
         const perm = enterBattlefield(state, db, op.token, ctx.controller, emit, {
           asToken: true,
+          ...(op.marks === undefined ? {} : { plusOneCounters: op.marks }),
         });
         fireTriggers(state, db, emit, 'arrives', perm, { markTriggerDepth: ctx.markTriggerDepth });
       }
       return;
     }
     case 'destroyNewestOpponentArtifactOrEnchantment': {
+      const observers = [...state.battlefield];
       const opponent = opponentOf(ctx.controller);
       for (let i = state.battlefield.length - 1; i >= 0; i--) {
         const perm = state.battlefield[i];
@@ -641,13 +688,14 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
           emit,
           (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner, ctx.markTriggerDepth),
         ) && firesDiesForDestroy(state, db, perm)) {
-          fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth: ctx.markTriggerDepth });
+          fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth: ctx.markTriggerDepth, observers });
         }
         return;
       }
       return;
     }
     case 'massDestroy': {
+      const observers = [...state.battlefield];
       const doomed = state.battlefield.filter((p) => {
         const d = def(db, p.cardId);
         if (op.filter === 'allEnchantments') return isType(d, 'enchantment');
@@ -674,7 +722,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         if (state.winner !== null) return;
         fireGraveyardTriggers(state, db, emit, entry.card, entry.owner, ctx.markTriggerDepth);
       }
-      fireBatchedDies(state, db, emit, fallen, ctx.markTriggerDepth);
+      fireBatchedDies(state, db, emit, fallen, ctx.markTriggerDepth, observers);
       return;
     }
     case 'preventCombat':
@@ -760,11 +808,22 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       const plusOneCounters = op.to === 'top' ? op.withMarks : undefined;
       const perm = enterBattlefield(state, db, cardId, ctx.controller, emit, {
         ...(plusOneCounters === undefined ? {} : { plusOneCounters }),
+        ...(op.grantKeywords === undefined ? {} : { grantKeywords: op.grantKeywords }),
       });
       fireTriggers(state, db, emit, 'arrives', perm, { markTriggerDepth: ctx.markTriggerDepth });
       return;
     }
   }
+}
+
+function containsNewPlayerChoice(ops: readonly EffectOp[]): boolean {
+  return ops.some(op => op.op === 'discard' || op.op === 'sacrifice' ||
+    (op.op === 'ifTargetMarked' && (containsNewPlayerChoice(op.then) || containsNewPlayerChoice(op.else ?? []))));
+}
+
+function containsSelfReclaim(ops: readonly EffectOp[]): boolean {
+  return ops.some(op => op.op === 'reclaimSelf' ||
+    (op.op === 'ifTargetMarked' && (containsSelfReclaim(op.then) || containsSelfReclaim(op.else ?? []))));
 }
 
 export function runOps(
@@ -779,11 +838,51 @@ export function runOps(
     const op = ops[index];
     if (state.winner !== null) return;
     const pendingCount = state.pendingDecisions.length;
-    runOp(state, db, emit, ctx, op);
+    let bound = ctx;
+    if ('targetIndex' in op && op.targetIndex !== undefined) {
+      const slot = op.targetIndex;
+      const originals = ctx.originalTargets ?? ctx.targets;
+      const originalSpecs = ctx.originalTargetSpecs ?? ctx.targetSpecs;
+      const originalOwners = ctx.originalTargetOwners ?? ctx.targetOwners;
+      const ref = originals[slot];
+      const spec = originalSpecs?.[slot];
+      bound = { ...ctx, targetBatch: false,
+        originalTargets: originals, originalTargetSpecs: originalSpecs, originalTargetOwners: originalOwners,
+        targetSpecs: spec ? [spec] : undefined,
+        targets: ref && (!spec || isLegalTarget(state, db, ctx.controller, spec, ref, ctx.sourceIid)) ? [ref] : [],
+        targetOwners: [originalOwners?.[slot]] };
+    } else if (ctx.targetSpecs) {
+      const legalIndexes = ctx.targets.flatMap((ref, i) => {
+        const spec = ctx.targetBatch ? ctx.targetSpecs![0] : ctx.targetSpecs![i];
+        return !spec || isLegalTarget(state, db, ctx.controller, spec, ref, ctx.sourceIid) ? [i] : [];
+      });
+      // A multi-slot spell's implicit target remains slot zero. Filtering the
+      // whole list would silently redirect it to the next surviving slot.
+      const selected = ctx.targetBatch ? legalIndexes
+        : op.op === 'moveMark' ? legalIndexes.length === ctx.targets.length ? legalIndexes : []
+        : legalIndexes.includes(0) ? [0] : [];
+      bound = { ...ctx,
+        originalTargets: ctx.originalTargets ?? ctx.targets,
+        originalTargetSpecs: ctx.originalTargetSpecs ?? ctx.targetSpecs,
+        originalTargetOwners: ctx.originalTargetOwners ?? ctx.targetOwners,
+        targets: selected.map(i => ctx.targets[i]),
+        targetOwners: selected.map(i => ctx.targetOwners?.[i]),
+      };
+    }
+    runOp(state, db, emit, bound, op);
     if (state.pendingDecisions.length === pendingCount) continue;
 
     const thenOps = ops.slice(index + 1);
     const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
+    if (ctx.newDecisionContext) {
+      for (const decision of state.pendingDecisions.slice(pendingCount)) decision.continuations ??= [];
+    }
+    if (pending && (pending.kind === 'discard' || pending.kind === 'sacrifice' || pending.continuations !== undefined ||
+      (pending.kind === 'chooseTarget' && pending.triggerWhen !== undefined))) {
+      pending.continuations ??= [];
+      if (thenOps.length) pending.continuations.push({ context: structuredClone(ctx), ops: [...thenOps] });
+      return;
+    }
     if (ctx.activated) {
       for (const decision of state.pendingDecisions.slice(pendingCount)) {
         if (decision.kind !== 'foresee') {
@@ -796,6 +895,11 @@ export function runOps(
     if (pending?.kind === 'foresee') {
       if (thenOps.length > 0) {
         for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
+        if (containsSelfReclaim(thenOps)) {
+          pending.continuations ??= [];
+          pending.continuations.push({ context: structuredClone(ctx), ops: [...thenOps] });
+          return;
+        }
         const thenContext = {
           controller: ctx.controller,
           sourceCardId: ctx.sourceCardId,
@@ -809,6 +913,9 @@ export function runOps(
         )) throw new Error('Cannot combine Foresee tails with different source contexts.');
         pending.thenContext = thenContext;
         pending.thenOps = [...(pending.thenOps ?? []), ...thenOps];
+        // Preserve the legacy target-free tail validation above. A new choice
+        // later in that tail still needs public continuation/resume plumbing.
+        if (containsNewPlayerChoice(pending.thenOps)) pending.continuations ??= [];
       }
     } else if (pending?.kind === 'chooseTarget' && thenOps.length > 0) {
       if (pending.sourceCardId !== ctx.sourceCardId || pending.sourceIid !== ctx.sourceIid) {
@@ -893,7 +1000,7 @@ function fireAllyCreatureArrivesTriggers(
       if (ability.when !== 'allyCreatureArrives' || !ability.ops) continue;
       if (
         ability.condition !== undefined &&
-        !conditionSatisfied(state, db, holder.controller, ability.condition)
+        !conditionSatisfied(state, db, holder.controller, ability.condition, holder.iid)
       ) continue;
       emit({ e: 'triggerFired', iid: holder.iid, when: ability.when });
       runOps(
@@ -922,15 +1029,15 @@ export function fireTriggers(
   emit: Emit,
   when: Exclude<TriggerWhen, 'spell' | 'static'>,
   perm: Permanent,
-  options: { deferPostDies?: boolean; markTriggerDepth?: number } = {},
+  options: { deferPostDies?: boolean; markTriggerDepth?: number; observers?: readonly Permanent[]; sacrifice?: boolean; deferObservers?: boolean } = {},
 ): void {
   const d = def(db, perm.cardId);
   for (let abilityIndex = 0; abilityIndex < (d.abilities ?? []).length; abilityIndex++) {
     const ab = d.abilities![abilityIndex];
     if (ab.when !== when || !ab.ops) continue;
-    if (ab.condition !== undefined && !conditionSatisfied(state, db, perm.controller, ab.condition)) continue;
-    if (when === 'arrives' && ab.targets && ab.targets.length > 0) {
-      if (ab.targets.length !== 1 || ab.targets[0].upTo !== undefined) {
+    if (ab.condition !== undefined && !conditionSatisfied(state, db, perm.controller, ab.condition, perm.iid)) continue;
+    if (ab.targets && ab.targets.length > 0) {
+      if (ab.targets.length !== 1 || ab.targets[0].upTo !== undefined || ab.targets[0].exactly !== undefined) {
         throw new Error('Targeted arrival abilities must have one single target spec.');
       }
       const spec = ab.targets[0];
@@ -943,6 +1050,7 @@ export function fireTriggers(
         sourceCardId: perm.cardId,
         abilityIndex,
         spec,
+        ...(when === 'arrives' ? {} : { triggerWhen: when }),
         ops: ab.ops,
       });
       continue;
@@ -953,6 +1061,7 @@ export function fireTriggers(
         ? {
             ...(perm.instanceId === undefined ? {} : { instanceId: perm.instanceId }),
             cardId: perm.cardId,
+            ...(ab.ops.some(op => op.op === 'reclaimSelf') ? { owner: perm.owner } : {}),
           }
         : undefined;
     // Revision 4: a dies trigger is held back so Hauntlink windows can be
@@ -983,6 +1092,8 @@ export function fireTriggers(
         sourceIid: perm.iid,
         targets: [],
         markTriggerDepth: options.markTriggerDepth,
+        ...(['allyDies', 'youGainLife', 'youCastCharm', 'allyAttacks', 'sunset'].includes(when)
+          ? { newDecisionContext: true as const } : {}),
         ...(selfGraveExclusion === undefined ? {} : { selfGraveExclusion }),
       },
       ab.ops,
@@ -996,6 +1107,8 @@ export function fireTriggers(
   } else if (when === 'dawn' && d.chapters && d.chapters.length > 0) {
     advanceChapter(state, db, emit, perm, false, options.markTriggerDepth);
   }
+
+  if (when === 'dies' && !options.deferObservers) fireCreatureObservers(state, db, emit, 'allyDies', perm, options.observers ?? [...state.battlefield, perm], options.sacrifice);
 
   if (when === 'dies' && !options.deferPostDies && state.winner === null) {
     returnWithNineLives(state, db, emit, perm, options.markTriggerDepth);
@@ -1027,7 +1140,7 @@ export function fireMarkedAllyAttackTriggers(
         !ability.ops
       ) continue;
       if (ability.condition !== undefined &&
-          !conditionSatisfied(state, db, holder.controller, ability.condition)) continue;
+          !conditionSatisfied(state, db, holder.controller, ability.condition, holder.iid)) continue;
       emit({ e: 'triggerFired', iid: holder.iid, when: ability.when });
       runOps(
         state,
@@ -1046,6 +1159,53 @@ export function fireMarkedAllyAttackTriggers(
   }
 }
 
+/** Public player events and battlefield-ordered creature observers. */
+export function firePlayerObservers(state: GameState, db: CardDb, emit: Emit,
+  when: 'youGainLife' | 'youCastCharm', player: PlayerId, markTriggerDepth = 0): void {
+  for (const source of [...state.battlefield]) {
+    if (source.controller === player) fireTriggers(state, db, emit, when, source, { markTriggerDepth });
+  }
+}
+
+export function fireCreatureObservers(state: GameState, db: CardDb, emit: Emit,
+  when: 'allyDies' | 'allyAttacks', subject: Permanent,
+  observers: readonly Permanent[] = state.battlefield, sacrifice = false): void {
+  if (!isType(def(db, subject.cardId), 'creature')) return;
+  for (const source of [...observers]) {
+    if (source.controller !== subject.controller) continue;
+    const abilities = def(db, source.cardId).abilities ?? [];
+    for (let abilityIndex = 0; abilityIndex < abilities.length; abilityIndex++) {
+      const ab = abilities[abilityIndex];
+      if (ab.when !== when || !ab.ops || (ab.filter?.other && source.iid === subject.iid) ||
+        (ab.filter?.subtype && !def(db, subject.cardId).subtypes.includes(ab.filter.subtype)) ||
+        (ab.filter?.sacrifice && !sacrifice) || !conditionSatisfied(state, db, source.controller, ab.condition, source.iid)) continue;
+      if (ab.targets?.length) {
+        if (ab.targets.length !== 1 || ab.targets[0].upTo || ab.targets[0].exactly) throw new Error('Observer needs one single target spec');
+        if (!enumerateTargets(state, db, source.controller, ab.targets[0], source.iid).length) continue;
+        state.pendingDecisions.push({ kind: 'chooseTarget', player: source.controller, sourceIid: source.iid,
+          sourceCardId: source.cardId, abilityIndex, spec: ab.targets[0], ops: ab.ops, triggerWhen: when });
+        emit({ e: 'triggerFired', iid: source.iid, when });
+      } else {
+        emit({ e: 'triggerFired', iid: source.iid, when });
+        runOps(state, db, emit, { controller: source.controller, sourceCardId: source.cardId, sourceIid: source.iid, targets: [], newDecisionContext: true }, ab.ops);
+      }
+    }
+  }
+}
+
+/** Resume a new choice's ordered frames before later queued decisions. */
+export function runContinuations(state: GameState, db: CardDb, emit: Emit, frames: readonly EffectContinuation[] = []): void {
+  for (let i = 0; i < frames.length; i++) {
+    const count = state.pendingDecisions.length;
+    runOps(state, db, emit, frames[i].context, frames[i].ops);
+    if (state.pendingDecisions.length > count) {
+      const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
+      pending.continuations = [...(pending.continuations ?? []), ...frames.slice(i + 1)];
+      return;
+    }
+  }
+}
+
 /**
  * Fire a complete battlefield-order dies batch before any Nine Lives returns.
  * SBA and mass-destroy callers use this so every corpse leaves and every dies
@@ -1057,14 +1217,18 @@ export function fireBatchedDies(
   emit: Emit,
   fallen: readonly Permanent[],
   markTriggerDepth = 0,
+  observers: readonly Permanent[] = [...state.battlefield, ...fallen],
+  sacrifice = false,
 ): void {
   for (const perm of fallen) {
     if (state.winner !== null) return;
     fireTriggers(state, db, emit, 'dies', perm, {
       deferPostDies: true,
+      deferObservers: true,
       markTriggerDepth,
     });
   }
+  for (const perm of fallen) fireCreatureObservers(state, db, emit, 'allyDies', perm, observers, sacrifice);
   for (const perm of fallen) {
     if (state.winner !== null) return;
     returnWithNineLives(state, db, emit, perm, markTriggerDepth);
@@ -1136,6 +1300,7 @@ function advanceChapter(
     chapters[chapter - 1],
   );
   if (chapter !== chapters.length || state.winner !== null) return;
+  const observers = [...state.battlefield];
   if (destroyPermanent(
     state,
     db,
@@ -1143,7 +1308,7 @@ function advanceChapter(
     emit,
     (card, owner) => fireGraveyardTriggers(state, db, emit, card, owner, markTriggerDepth),
   ) && firesDiesForDestroy(state, db, perm)) {
-    fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth });
+    fireTriggers(state, db, emit, 'dies', perm, { markTriggerDepth, observers });
   }
 }
 

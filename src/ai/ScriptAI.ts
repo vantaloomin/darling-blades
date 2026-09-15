@@ -4,6 +4,10 @@ import { def, isType, manaValue } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
 import { chooseForesee } from './foresee';
+import { chooseDiscard } from './discardPolicy';
+import { chooseSacrifice } from './sacrificePolicy';
+import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
+import { chooseActivate } from './activatedPolicy';
 import { chooseReserveLand } from './landPolicy';
 import { choosePlayDraw } from './playDraw';
 
@@ -29,8 +33,23 @@ export class ScriptAI implements AIPlayer {
   constructor(private readonly db: CardDb) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyVocabularyTargetPolicy(view, this.db, legal);
     if (view.awaiting.kind === 'choosePlayDraw') return choosePlayDraw(legal);
     if (view.awaiting.kind === 'foresee') return chooseForesee(view, this.db);
+    if (view.awaiting.kind === 'discardToHandSize' && view.awaiting.decision === 'discard') {
+      return chooseDiscard(view, this.db);
+    }
+    if (view.awaiting.kind === 'chooseTarget') {
+      const awaiting = view.awaiting;
+      if (view.awaiting.decision === 'sacrifice') return chooseSacrifice(view, this.db, legal);
+      const source = view.battlefield.find((perm) => perm.iid === awaiting.sourceIid);
+      const ability = source && def(this.db, source.cardId).abilities?.[awaiting.abilityIndex];
+      const pending = view.pendingDecisions?.find((decision) => decision.kind === 'chooseTarget' &&
+        decision.sourceIid === awaiting.sourceIid && decision.abilityIndex === awaiting.abilityIndex);
+      if (ability && ability.when !== 'arrives' || pending?.kind === 'chooseTarget' && pending.triggerWhen !== undefined) {
+        return chooseTargetAction(view, this.db, legal);
+      }
+    }
 
     // Opening hand: always keep (0 mulligans → the engine never asks to bottom).
     const keep = legal.find((l) => l.type === 'keepHand');
@@ -86,6 +105,14 @@ export class ScriptAI implements AIPlayer {
       );
     }
 
+    const activate = chooseActivate(view, this.db, legal.filter((action) => {
+      if (action.type !== 'activate') return false;
+      const source = view.battlefield.find((perm) => perm.iid === action.iid);
+      const card = source && def(this.db, source.cardId);
+      return card !== undefined && (Array.isArray(card.activated) ||
+        card.activated?.ops.some((op) => op.op === 'discard'));
+    }));
+    if (activate) return activate;
     const passStep = legal.find((l) => l.type === 'passStep');
     if (passStep) return passStep;
 

@@ -16,7 +16,8 @@ import { preserveActionValue } from './preservePolicy';
 import { applyRitePolicy, isRiteCast, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, isTitheCast, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
-import { chooseTargetAction } from './targeting';
+import { applyVocabularyTargetPolicy, chooseTargetAction, isVocabularyCast } from './targeting';
+import { chooseSacrifice } from './sacrificePolicy';
 import { cardValue, hauntlinkCastValue, whispersValue } from './value';
 
 /**
@@ -47,6 +48,7 @@ export class HardAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyVocabularyTargetPolicy(view, this.db, legal);
     legal = applyTithePolicy(view, this.db, legal, this.pers, () =>
       view.step === 'main1' && view.activePlayer === view.myId
         ? chooseAttackers(view.battlefield, this.db, view.myId, view.opp.life,
@@ -68,6 +70,7 @@ export class HardAI implements AIPlayer {
       case 'hauntlinkWindow':
         return this.searchResponse(view, legal);
       case 'chooseTarget':
+        if (view.awaiting.decision === 'sacrifice') return chooseSacrifice(view, this.db, legal);
         return this.searchTarget(view, legal);
       default:
         // mulligans/bottoming/discard: Medium's bands are already solid
@@ -146,7 +149,13 @@ export class HardAI implements AIPlayer {
     // mid-queue state or stalling on an unhandled awaiting kind.
     for (let guard = 0; guard < 20; guard++) {
       const a = game.awaiting;
-      if (a.kind !== 'chooseTarget' || a.player !== me) break;
+      const mayResumeNewQueue = a.kind === 'foresee' || a.kind === 'discardToHandSize' ||
+        a.kind === 'respond' || a.kind === 'endStepWindow' || a.kind === 'hauntlinkWindow';
+      const vocabularyQueue = mayResumeNewQueue && game.viewFor(me).pendingDecisions !== undefined;
+      const resolvingChoice = a.kind === 'chooseTarget' || vocabularyQueue &&
+        (a.kind === 'foresee' || a.kind === 'discardToHandSize' || a.kind === 'respond' ||
+          a.kind === 'endStepWindow' || a.kind === 'hauntlinkWindow');
+      if (!resolvingChoice || !('player' in a) || a.player !== me) break;
       try {
         game.submit(me, this.medium.chooseAction(game.viewFor(me), game.legalActions(me)));
       } catch {
@@ -188,7 +197,8 @@ export class HardAI implements AIPlayer {
           game.submit(opp, { type: 'passResponse' });
         }
       } else if (a.kind === 'discardToHandSize') {
-        game.submit(opp, {
+        game.submit(opp, a.decision === 'discard'
+          ? this.neutralMedium.chooseAction(game.viewFor(opp), game.legalActions(opp)) : {
           type: 'discard',
           handIndices: Array.from({ length: a.count }, (_, i) => i),
         });
@@ -247,7 +257,7 @@ export class HardAI implements AIPlayer {
           (a.type === 'skim' && view.you.deckCount > 0) ||
           (a.type === 'castSpell' &&
             (a.empowered === true || a.retell === true || a.whispers === true ||
-              isRiteCast(view, this.db, a) || isTitheCast(view, this.db, a))) ||
+              isRiteCast(view, this.db, a) || isTitheCast(view, this.db, a) || isVocabularyCast(view, this.db, a))) ||
           a.type === 'preserveCard' ||
           (a.type === 'activate' && activations.has(a)) ||
           a.type === 'castDarling',
@@ -315,7 +325,7 @@ export class HardAI implements AIPlayer {
       })
       .map(({ candidate }) => candidate);
     const riteCandidates = rankedCandidates.filter((candidate) =>
-      isRiteCast(view, this.db, candidate) || isTitheCast(view, this.db, candidate),
+      isRiteCast(view, this.db, candidate) || isTitheCast(view, this.db, candidate) || isVocabularyCast(view, this.db, candidate),
     );
     const preserveCandidates = rankedCandidates.filter(
       (candidate) => candidate.type === 'preserveCard',
@@ -331,7 +341,7 @@ export class HardAI implements AIPlayer {
       ...rankedCandidates
         .filter(
           (candidate) =>
-            !isRiteCast(view, this.db, candidate) && !isTitheCast(view, this.db, candidate) &&
+            !isRiteCast(view, this.db, candidate) && !isTitheCast(view, this.db, candidate) && !isVocabularyCast(view, this.db, candidate) &&
             candidate.type !== 'preserveCard' &&
             candidate.type !== 'activate',
         )
@@ -566,10 +576,13 @@ export class HardAI implements AIPlayer {
     // Graveyard casts come after hand variants in the engine menu. Keep live
     // Whispers Charms reachable even when ten hand variants fill the cap.
     const whispered = legal.filter((action) => action.type === 'castSpell' && action.whispers);
+    const vocabulary = legal.filter((action) => action.type === 'castSpell' && !action.whispers &&
+      isVocabularyCast(view, this.db, action));
     const candidates = [
       ...whispered,
+      ...vocabulary,
       ...legal.filter((action) => action.type === 'skim' ||
-        (action.type === 'castSpell' && !action.whispers)).slice(0, 10),
+        (action.type === 'castSpell' && !action.whispers && !isVocabularyCast(view, this.db, action))).slice(0, 10),
     ];
     if (candidates.length === 0) return mediumChoice;
     const base = this.aggregateOutcome(view, [mediumChoice]);

@@ -9,6 +9,8 @@ import type { AIPlayer } from './AIPlayer';
 import { chooseActivate } from './activatedPolicy';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { chooseForesee } from './foresee';
+import { chooseDiscard } from './discardPolicy';
+import { chooseSacrifice } from './sacrificePolicy';
 import { chooseDarlingPaydown } from './darlingPolicy';
 import { chooseUnlinkedHauntlink } from './hauntlinkPolicy';
 import { chooseReserveLand } from './landPolicy';
@@ -17,7 +19,7 @@ import { choosePreserve, type MainCast } from './preservePolicy';
 import { applyRitePolicy, riteSacrificeValue } from './ritePolicy';
 import { applyTithePolicy, titheManaSaved } from './tithePolicy';
 import { applyWhispersPolicy } from './whispersPolicy';
-import { chooseTargetAction } from './targeting';
+import { applyVocabularyTargetPolicy, chooseTargetAction } from './targeting';
 import {
   conditionalAbilityValue,
   empowerValue,
@@ -49,6 +51,7 @@ export class EasyAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    legal = applyVocabularyTargetPolicy(view, this.db, legal);
     legal = applyTithePolicy(view, this.db, legal, this.pers, () => {
       if (view.step !== 'main1' || view.activePlayer !== view.myId) return [];
       const planned = this.attack(view, [
@@ -80,8 +83,10 @@ export class EasyAI implements AIPlayer {
       case 'hauntlinkWindow':
         return this.respond(view, legal);
       case 'chooseTarget':
+        if (a.decision === 'sacrifice') return chooseSacrifice(view, this.db, legal);
         return chooseTargetAction(view, this.db, legal);
       case 'discardToHandSize':
+        if (a.decision === 'discard') return chooseDiscard(view, this.db);
         return legal[rngInt(this.rng, Math.max(1, legal.length - 1))]; // skip concede at end
       default:
         return legal[0];

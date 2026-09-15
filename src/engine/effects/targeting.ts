@@ -6,7 +6,7 @@ import type {
   TargetRef,
   TargetSpec,
 } from '../types';
-import { cardIdOf, def, isType, opponentOf } from '../types';
+import { cardIdOf, def, isType, manaValue, opponentOf } from '../types';
 
 /**
  * Target legality — one place. Untouchable applies only to creature-targeting
@@ -86,6 +86,12 @@ export function isLegalTarget(
     case 'creature':
       legal = ref.kind === 'permanent' && creatureTargetable(state, db, caster, ref.iid);
       break;
+    case 'opponentCreature': {
+      if (ref.kind !== 'permanent') return false;
+      const perm = state.battlefield.find(p => p.iid === ref.iid);
+      legal = !!perm && perm.controller !== caster && creatureTargetable(state, db, caster, ref.iid);
+      break;
+    }
     case 'yourCreature': {
       if (ref.kind !== 'permanent') return false;
       const perm = state.battlefield.find((p) => p.iid === ref.iid);
@@ -131,6 +137,19 @@ export function isLegalTarget(
       break;
   }
   if (!legal) return false;
+  if (spec.maxCost !== undefined || spec.minAttack !== undefined) {
+    const card = ref.kind === 'permanent' ? state.battlefield.find(p => p.iid === ref.iid)?.cardId
+      : ref.kind === 'stackItem' ? state.stack.find(p => p.sid === ref.sid)?.cardId
+      : ref.kind === 'grave' ? state.players[ref.player].graveyard[ref.index] : undefined;
+    if (card === undefined) return false;
+    const d = def(db, card);
+    // X has its chosen value on the stack and zero in other zones. Alternate
+    // payments do not change the card's printed mana value.
+    const stackX = ref.kind === 'stackItem' && d.x ? state.stack.find(item => item.sid === ref.sid)?.x ?? 0 : 0;
+    if (spec.maxCost !== undefined && manaValue(d.cost) + stackX > spec.maxCost) return false;
+    if (spec.minAttack !== undefined && (!isType(d, 'creature') ||
+      (ref.kind === 'permanent' ? getEffectiveStats(state.battlefield, db, ref.iid).attack : d.attack ?? 0) < spec.minAttack)) return false;
+  }
   if (!spec.marked && !spec.tapped && !spec.other) return true;
   if (!satisfiesPermanentQualifiers(state, db, spec, ref)) return false;
   return !spec.other || sourceIid === undefined || ref.kind !== 'permanent' || ref.iid !== sourceIid;
@@ -148,6 +167,7 @@ export function enumerateTargets(
   switch (spec.what) {
     case 'creature':
     case 'yourCreature':
+    case 'opponentCreature':
     case 'yourPermanent':
     case 'any': {
       for (const perm of state.battlefield) {
@@ -186,5 +206,6 @@ export function enumerateTargets(
       break;
     }
   }
-  return out;
+  return spec.maxCost !== undefined || spec.minAttack !== undefined || spec.exactly !== undefined
+    ? out.filter(ref => isLegalTarget(state, db, caster, spec, ref, sourceIid)) : out;
 }
