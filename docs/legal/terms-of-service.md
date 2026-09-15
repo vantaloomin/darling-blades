@@ -1,4 +1,4 @@
-<!-- source-of-truth: LICENSE, README.md, docs/plan-telemetry-and-accounts.md, docs/legal/privacy-policy.md, docs/legal/notices.md · last-verified: 2026-09-10 · DRAFT terms of service as of 1.8 — not live, not legal advice -->
+<!-- source-of-truth: LICENSE, README.md, docs/plan-telemetry-and-accounts.md, docs/legal/privacy-policy.md, docs/legal/notices.md · last-verified: 2026-09-15 · DRAFT terms of service as of 1.8 — not live, not legal advice -->
 
 <!--
 DRAFT, written as of the 1.8 release. Not published. Not reviewed by a lawyer.
@@ -11,7 +11,7 @@ DRAFT, written as of the 1.8 release. Not published. Not reviewed by a lawyer.
 
 **Effective date:** [1.8 RELEASE DATE]
 
-These terms are an agreement between you and [OPERATOR NAME] ("we", "us")
+These terms are an agreement between you and Blade Darlings ("we", "us")
 about your use of Darling Blades (the "game"), in the web version and the
 desktop app. By playing, you agree to them. If you do not agree, please do not
 play.
@@ -100,9 +100,9 @@ the game. Sections 2, 5, and 8 to 11 survive if these terms end.
 
 ## 11. Governing law
 
-These terms are governed by the laws of [COUNTRY / STATE], without regard to
+These terms are governed by the laws of the State of Maryland, United States, without regard to
 its conflict-of-law rules. Any dispute will be handled in the courts of
-[COUNTRY / STATE], unless the consumer law where you live gives you the right
+the State of Maryland, United States, unless the consumer law where you live gives you the right
 to bring it locally.
 
 ## 12. Changes to these terms
@@ -113,4 +113,4 @@ change means you accept the new terms.
 
 ## 13. Contact
 
-[OPERATOR NAME] · [CONTACT EMAIL]
+Blade Darlings · admin@bladedarlings.com

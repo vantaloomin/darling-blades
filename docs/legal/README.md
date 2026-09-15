@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, src/version.ts, src/meta/SaveManager.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs, LICENSE · last-verified: 2026-09-10 · legal drafts index — templates, NOT live, NOT legal advice; re-verify when telemetry or accounts code lands -->
+<!-- source-of-truth: docs/plan-telemetry-and-accounts.md, docs/rollout-telemetry-and-accounts.md, src/version.ts, src/meta/SaveManager.ts, src-tauri/tauri.conf.json, src-tauri/src/lib.rs, LICENSE · last-verified: 2026-09-15 · legal drafts index — templates, NOT live, NOT legal advice; re-verify when telemetry or accounts code lands -->
 
 # Legal documents (drafts)
 
@@ -32,9 +32,9 @@ Every `[BRACKETED]` token in the drafts is an owner input. The full set:
 
 | Token | What it needs | Note |
 | --- | --- | --- |
-| `[OPERATOR NAME]` | Legal name of whoever runs the game (you, or an entity) | GDPR Art. 13 requires the controller's identity |
-| `[CONTACT EMAIL]` | A privacy contact address | Suggest a dedicated alias, not a personal inbox; it will be public |
-| `[COUNTRY / STATE]` | Governing law and venue for the terms | Usually where you live |
+| ~~`[OPERATOR NAME]`~~ | **Filled 2026-09-15: `Blade Darlings`** | A publishing name, not an entity (owner ruling 2026-09-15: no LLC for 1.8, non-commercial, stay pseudonymous). Policy section 1 says so. Revisit at 2.1, when accounts hold real emails |
+| ~~`[CONTACT EMAIL]`~~ | **Filled 2026-09-15: `admin@bladedarlings.com`** | A dedicated inbox, not a personal one. Watch it: the policy promises a reply within 30 days |
+| ~~`[COUNTRY / STATE]`~~ | **Filled 2026-09-15: Maryland, USA** | Governing law and venue for the terms |
 | `[1.8 RELEASE DATE]` | The 1.8 ship date, the effective date of both documents | Change it on every material edit after launch |
 | `[PRIVACY URL]` | Where the policy is hosted | See "Hosting" below |
 | `[THIRD-PARTY NOTICES FILE]` | Path or link to the generated notices file | Notices only; see the TODO at its foot |
